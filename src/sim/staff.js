@@ -12,9 +12,10 @@ export const ROLE = {
   GROUNDSKEEPER: 'groundskeeper',
   INSTRUCTOR: 'instructor',
   FNB: 'fnb',
+  PROSHOP: 'proshop',
 };
 
-const ROLE_BASE_WAGE = { groundskeeper: 105, instructor: 150, fnb: 95 };
+const ROLE_BASE_WAGE = { groundskeeper: 105, instructor: 150, fnb: 95, proshop: 100 };
 
 export function wageForSkill(role, skill) {
   return Math.round((ROLE_BASE_WAGE[role] || 100) * (0.62 + 0.19 * skill));
@@ -23,7 +24,7 @@ export function wageForSkill(role, skill) {
 function genCandidate(state, id) {
   const rng = rngOf(state);
   const roll = rng.next();
-  const role = roll < 0.45 ? ROLE.GROUNDSKEEPER : roll < 0.65 ? ROLE.INSTRUCTOR : ROLE.FNB;
+  const role = roll < 0.38 ? ROLE.GROUNDSKEEPER : roll < 0.58 ? ROLE.INSTRUCTOR : roll < 0.8 ? ROLE.FNB : ROLE.PROSHOP;
   const skill = 1 + rng.int(4) + (rng.chance(0.15) ? 1 : 0); // 1..5, 5 rare
   return {
     id,

@@ -32,6 +32,11 @@ export function makeHud(app, handlers) {
     title: 'Members, pricing, staff, amenities (C)',
     onclick: () => handlers.toggleClub(),
   });
+  const shopBtn = el('button', {
+    text: '🛍 Shop',
+    title: 'Pro shop desk — orders, pricing, rentals; walk the floor from there (P)',
+    onclick: () => handlers.toggleShopPanel(),
+  });
   const groundsBtn = el('button', {
     text: '⛳ Grounds',
     title: 'Maintenance policies and crew (G)',
@@ -56,6 +61,7 @@ export function makeHud(app, handlers) {
     rating,
     cash,
     clubBtn,
+    shopBtn,
     groundsBtn,
     worksBtn,
     menuBtn,
@@ -86,6 +92,7 @@ export function makeHud(app, handlers) {
     worksBtn.classList.toggle('active-tool', app.worksMode);
     groundsBtn.classList.toggle('active-tool', app.groundsOpen);
     clubBtn.classList.toggle('active-tool', app.clubOpen);
+    shopBtn.classList.toggle('active-tool', app.shopOpen || app.view === 'shop3d');
   }
 
   return { root, update };

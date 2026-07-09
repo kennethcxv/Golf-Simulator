@@ -11,8 +11,10 @@ under "Needs a real art/audio pass" must be replaced before this could ship comm
   imposters needed), box-and-pyramid clubhouse, no golfer character models yet.
 - **Sky horizon blows out white at low sun angles**; water surfaces have no ripple
   normals; no rain particles. All queued for the Phase 7 polish pass.
-- **Pro shop interior is simple geometric primitives** — boxes for shelves/counter,
-  capsule customers, flat-color materials. Needs real modular shop kit models + characters.
+- **Pro shop interior is simple geometric primitives** — hollow box shelving, box
+  stock stacks, capsule-and-sphere customers, flat procedural wood/plaster. Needs a real
+  modular shop kit, item models per SKU, and characters before ship. Register queue
+  interaction and counter purchase animations are also deferred.
 - **UI is hand-rolled DOM/canvas styling** — functional, consistent, but needs a real UI
   art/iconography pass (currently text + simple shapes/emoji glyphs).
 - **Key art / branding / trailer** — nothing exists; "FAIRWAY STATE" is a working title.

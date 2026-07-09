@@ -6,10 +6,10 @@
 
 export function emptyLines() {
   return {
-    revenue: { greenFees: 0, dues: 0, outings: 0, range: 0, restaurant: 0, lessons: 0 },
+    revenue: { greenFees: 0, dues: 0, outings: 0, range: 0, restaurant: 0, lessons: 0, shopSales: 0, rentals: 0, fittings: 0 },
     expense: {
       wagesStaff: 0, wagesDayLabor: 0, water: 0, fertilizer: 0, chemicals: 0,
-      upkeep: 0, utilities: 0, works: 0, severance: 0, training: 0,
+      upkeep: 0, utilities: 0, works: 0, severance: 0, training: 0, shopOrders: 0, rentalFleet: 0,
     },
   };
 }

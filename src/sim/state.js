@@ -12,8 +12,9 @@ import { newWeather, rollDailyWeather } from './weather.js';
 import { initTurf, turfHourlyTick, turfDailyTick, runMorningMaintenance, defaultPolicies } from './turf.js';
 import { initGolfers } from './golfers.js';
 import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
-import { initClub, midnightBooks, dailyMembershipTick } from './club.js';
-import { initLedger, addExpense } from './economy.js';
+import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
+import { initShop, shopDailyAccrual, deliverOrdersDue } from './shop.js';
+import { initLedger, addExpense, closeBooks } from './economy.js';
 import { BALANCE } from './balance.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
@@ -42,6 +43,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647) {
   initGolfers(state);
   initStaff(state);
   initClub(state);
+  initShop(state);
   initLedger(state);
   return state;
 }
@@ -50,7 +52,11 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647) {
 
 export function dailyTick(state) {
   // 1) settle the day that just ended: accrue its recurring economy, close books
-  if (state.ledger) midnightBooks(state);
+  if (state.ledger) {
+    accrueDaily(state);
+    if (state.shop) shopDailyAccrual(state);
+    closeBooks(state, calendarOf(state.clock.minutes).dayAbs - 1);
+  }
 
   // 2) roll into the new day
   if (!state.weather.locked) {
@@ -66,6 +72,7 @@ export function dailyTick(state) {
     refreshMarketIfDue(state, calendarOf(state.clock.minutes).dayAbs);
   }
   if (state.club) dailyMembershipTick(state);
+  if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
   state.pendingMorning = true;
 }
 
@@ -142,6 +149,7 @@ export function snapshot(state) {
     staff: state.staff,
     club: state.club,
     ledger: state.ledger,
+    shop: state.shop,
     turf: turf
       ? {
           health: Array.from(turf.health, round1),
@@ -221,5 +229,7 @@ export function deserialize(json) {
   else initClub(state);
   if (raw.ledger) state.ledger = raw.ledger;
   else initLedger(state);
+  if (raw.shop) state.shop = raw.shop;
+  else initShop(state);
   return state;
 }

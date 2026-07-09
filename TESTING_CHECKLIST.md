@@ -90,7 +90,29 @@ http://localhost:8447/ in a browser. Headless sim tests: `npm test`.
 
 ## Phase 4 — Pro shop (walkable interior + inventory)
 
-*(populated when Phase 4 is complete)*
+**The desk (🛍 Shop button)**
+- [ ] Yesterday chip shows sales count and revenue; a warning chip appears when shoppers left empty-handed
+- [ ] Markup sliders (80–200% of book) per category; feature table select nudges a category
+- [ ] Stock list shows shelf/backroom counts per item with 🚚 pending quantities; Order buttons charge cash and deliver to the backroom after the category's lead time (clubs slowest)
+- [ ] Premium (tier 3 🔒) items can't be ordered yet — they unlock with progression
+- [ ] Rental fleet card shows sets/condition; buying a set improves both
+- [ ] Notable sales list names members and what they bought
+
+**The floor (P key or the desk's Walk button)**
+- [ ] P enters a first-person shop: wood floor, windows, shelves, racks, apparel table, counter with register, fitting bay
+- [ ] Click captures the mouse for looking (Esc releases); arrow keys also turn the view; WASD walks; Shift runs
+- [ ] You collide with fixtures and walls — no walking through the apparel table
+- [ ] Shelf stacks match real inventory counts: sell-through visibly empties them; restocking refills them
+- [ ] Facing a display shows its label with shelf/backroom counts; E restocks it from the backroom with a toast
+- [ ] The register shows yesterday's take; the fitting bay reports fittings (or that you need a pro)
+- [ ] Customers wander in, browse displays, visit the counter, and leave; more traffic follows better sales days
+- [ ] E at the door or P returns to the course; time and money keep flowing while you're inside
+
+**The loop**
+- [ ] With no floor staff, delivered stock stays in the backroom until YOU shelve it — lost sales climb; hiring a pro-shop staffer fixes mornings
+- [ ] Doubling markup visibly cuts units sold; near-book pricing moves volume
+- [ ] An instructor on payroll starts generating fittings revenue and happier members
+- [ ] Save/load preserves inventory, orders in transit, markup, and the rental fleet
 
 ## Phase 5 — Persistent golfers
 

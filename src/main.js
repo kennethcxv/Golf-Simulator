@@ -17,6 +17,8 @@ import { makeWorksPanel } from './ui/worksPanel.js';
 import { makeInspectPanel } from './ui/inspectPanel.js';
 import { makeGroundsPanel } from './ui/groundsPanel.js';
 import { makeClubPanel } from './ui/clubPanel.js';
+import { makeShopPanel } from './ui/shopPanel.js';
+import { makeShopScene } from './render3d/shopScene.js';
 import { makeMenu } from './screens/menu.js';
 import { saveData, loadData } from './core/storage.js';
 import { conditionRating, sectionTurfSummary } from './sim/turf.js';
@@ -27,8 +29,10 @@ const uiRoot = document.getElementById('ui');
 
 const app = {
   screen: 'menu', // 'menu' | 'game'
+  view: 'course', // 'course' | 'shop3d'
   state: null,
   scene3d: null,
+  shopScene: null,
   plan: null,
   worksMode: false,
   activeTool: null,
@@ -50,6 +54,8 @@ let worksPanel = null;
 let inspectPanel = null;
 let groundsPanel = null;
 let clubPanel = null;
+let shopPanel = null;
+let shopOverlay = null;
 let menu = null;
 let gameUi = null;
 
@@ -57,6 +63,7 @@ function closeLeftPanels(except) {
   if (except !== 'works' && app.worksMode) handlers.toggleWorks();
   if (except !== 'grounds' && app.groundsOpen) groundsPanel.setVisible(false);
   if (except !== 'club' && app.clubOpen) clubPanel.setVisible(false);
+  if (except !== 'shop' && app.shopOpen) shopPanel.setVisible(false);
 }
 
 // --- section lookup --------------------------------------------------------
@@ -127,10 +134,16 @@ function announceOutbreaks() {
 // --- game lifecycle -----------------------------------------------------------
 
 function startGame(state) {
+  if (app.view === 'shop3d' && app.shopScene) {
+    app.shopScene.exit();
+    if (shopOverlay) shopOverlay.style.display = 'none';
+    app.view = 'course';
+  }
   if (app.scene3d) {
     app.scene3d.dispose();
     app.scene3d = null;
   }
+  app.shopScene = null; // rebuilt lazily against the new renderer
   app.state = state;
   app.screen = 'game';
   app.scene3d = makeCourseScene(canvas, state);
@@ -200,6 +213,40 @@ const handlers = {
     const next = !app.clubOpen;
     if (next) closeLeftPanels('club');
     clubPanel.setVisible(next);
+  },
+  toggleShopPanel() {
+    const next = !app.shopOpen;
+    if (next) closeLeftPanels('shop');
+    shopPanel.setVisible(next);
+  },
+  enterShop() {
+    if (app.view === 'shop3d') return;
+    closeLeftPanels('none');
+    inspectPanel.hide();
+    app.view = 'shop3d';
+    if (!app.shopScene) {
+      app.shopScene = makeShopScene(app.scene3d.renderer, {
+        app,
+        toast,
+        exitShop: () => handlers.exitShop(),
+      });
+    }
+    app.shopScene.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
+    app.shopScene.enter();
+    shopOverlay.style.display = '';
+    document.querySelector('.hint-bar').style.display = 'none';
+    try {
+      const p = canvas.requestPointerLock?.();
+      if (p && p.catch) p.catch(() => {}); // some environments refuse; click-to-look covers it
+    } catch { /* fall back to click-to-look */ }
+  },
+  exitShop() {
+    if (app.view !== 'shop3d') return;
+    app.view = 'course';
+    app.shopScene.exit();
+    shopOverlay.style.display = 'none';
+    document.querySelector('.hint-bar').style.display = '';
+    app.scene3d.resize();
   },
   setViewMode(mode) {
     app.viewMode = mode;
@@ -344,8 +391,18 @@ function refreshHover(clientX, clientY) {
   }
 }
 
+canvas.addEventListener('click', () => {
+  // in the shop, clicking (re)captures the mouse for looking around
+  if (app.screen === 'game' && app.view === 'shop3d' && !document.pointerLockElement) {
+    try {
+      const p = canvas.requestPointerLock?.();
+      if (p && p.catch) p.catch(() => {});
+    } catch { /* arrow keys still steer the view */ }
+  }
+});
+
 canvas.addEventListener('pointerdown', (e) => {
-  if (app.screen !== 'game') return;
+  if (app.screen !== 'game' || app.view !== 'course') return;
   canvas.setPointerCapture(e.pointerId);
 
   if (e.button === 1 || e.button === 2) {
@@ -368,7 +425,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 
 canvas.addEventListener('pointermove', (e) => {
-  if (app.screen !== 'game') return;
+  if (app.screen !== 'game' || app.view !== 'course') return;
   refreshHover(e.clientX, e.clientY);
 
   if (!dragging) return;
@@ -399,7 +456,7 @@ canvas.addEventListener('pointermove', (e) => {
 });
 
 canvas.addEventListener('pointerup', () => {
-  if (app.screen !== 'game' || !dragging) return;
+  if (app.screen !== 'game' || app.view !== 'course' || !dragging) return;
   if (dragging.mode === 'pan-or-click' && dragging.moved <= 6 && dragging.cell) {
     const section = sectionAtCell(dragging.cell.x, dragging.cell.y);
     if (section) inspectPanel.show(section);
@@ -409,7 +466,7 @@ canvas.addEventListener('pointerup', () => {
 });
 
 canvas.addEventListener('wheel', (e) => {
-  if (app.screen !== 'game') return;
+  if (app.screen !== 'game' || app.view !== 'course') return;
   e.preventDefault();
   app.scene3d.rig.dolly(e.deltaY > 0 ? 1.13 : 1 / 1.13);
 }, { passive: false });
@@ -419,14 +476,35 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 window.addEventListener('keydown', (e) => {
   if (app.screen !== 'game') return;
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+
+  // time controls work in either view
   switch (e.key) {
     case ' ':
       e.preventDefault();
       app.speedIdx = app.speedIdx === 0 ? 1 : 0;
-      break;
-    case '1': app.speedIdx = 1; break;
-    case '2': app.speedIdx = 2; break;
-    case '3': app.speedIdx = 3; break;
+      return;
+    case '1': app.speedIdx = 1; return;
+    case '2': app.speedIdx = 2; return;
+    case '3': app.speedIdx = 3; return;
+  }
+
+  if (app.view === 'shop3d') {
+    switch (e.key) {
+      case 'e': case 'E':
+        app.shopScene.interact();
+        break;
+      case 'p': case 'P':
+        handlers.exitShop();
+        break;
+      case 'Escape':
+        // first Esc releases the pointer (browser); a second one leaves the shop
+        if (!document.pointerLockElement) handlers.exitShop();
+        break;
+    }
+    return;
+  }
+
+  switch (e.key) {
     case 'e': case 'E':
       handlers.toggleWorks();
       break;
@@ -435,6 +513,9 @@ window.addEventListener('keydown', (e) => {
       break;
     case 'c': case 'C':
       handlers.toggleClub();
+      break;
+    case 'p': case 'P':
+      handlers.enterShop();
       break;
     case 'v': case 'V': {
       const modes = ['normal', 'health', 'moisture'];
@@ -466,7 +547,7 @@ window.addEventListener('keyup', (e) => held.delete(e.key));
 window.addEventListener('blur', () => held.clear());
 
 function keyboardCamera(dtMs) {
-  if (app.screen !== 'game' || !app.scene3d) return;
+  if (app.screen !== 'game' || app.view !== 'course' || !app.scene3d) return;
   const v = 0.7 * dtMs;
   let dx = 0;
   let dy = 0;
@@ -512,12 +593,27 @@ function frame(ts) {
         if (app.groundsOpen) groundsPanel.refresh();
       }
     }
-    const cal = calendarOf(app.state.clock.minutes);
-    app.scene3d.applyTimeWeather(cal.minuteOfDay, app.state.weather);
-    app.scene3d.render(dtMs, app.state);
+    if (app.view === 'shop3d' && app.shopScene) {
+      app.shopScene.update(dtMs);
+      app.shopScene.render();
+      updateShopOverlay();
+    } else {
+      const cal = calendarOf(app.state.clock.minutes);
+      app.scene3d.applyTimeWeather(cal.minuteOfDay, app.state.weather);
+      app.scene3d.render(dtMs, app.state);
+    }
     hud.update();
   }
   requestAnimationFrame(frame);
+}
+
+function updateShopOverlay() {
+  const prompt = shopOverlay.querySelector('.shop-prompt');
+  const label = app.shopScene.getFocusLabel();
+  prompt.textContent = label || '';
+  prompt.style.opacity = label ? '1' : '0';
+  const lockHint = shopOverlay.querySelector('.shop-lockhint');
+  lockHint.style.display = document.pointerLockElement ? 'none' : '';
 }
 
 // surfacing renovation completions as toasts
@@ -538,6 +634,7 @@ function announceReopenings() {
 
 function resize() {
   if (app.scene3d) app.scene3d.resize();
+  if (app.shopScene) app.shopScene.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
 }
 window.addEventListener('resize', resize);
 
@@ -559,6 +656,14 @@ function boot() {
   inspectPanel = makeInspectPanel(app, recomputeRating);
   groundsPanel = makeGroundsPanel(app);
   clubPanel = makeClubPanel(app, recomputeRating);
+  shopPanel = makeShopPanel(app, handlers);
+
+  shopOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
+    el('div', { class: 'shop-crosshair' }),
+    el('div', { class: 'shop-prompt', text: '' }),
+    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD move · E interact · P leave' }),
+    el('button', { class: 'shop-leave', text: '← Back to the course (P)', onclick: () => handlers.exitShop() }),
+  );
 
   const viewButtons = ['normal', 'health', 'moisture'].map((mode) =>
     el('button', {
@@ -571,8 +676,8 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, viewToggle,
-    el('div', { class: 'hint-bar', text: 'Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · C: Club · V: view · Space: pause' }));
+  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, shopOverlay, viewToggle,
+    el('div', { class: 'hint-bar', text: 'Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · C: Club · P: Pro shop · V: view · Space: pause' }));
 
   uiRoot.append(menu.root, gameUi);
   requestAnimationFrame(frame);

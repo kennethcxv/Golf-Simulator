@@ -220,3 +220,35 @@ Newest entries at the bottom.
   demand/quality/reputation; utilities $45/day; muni opens with 22 members. All in
   club.js/balance.js for tuning.
 
+## 2026-07-09 — Phase 4 complete (walkable pro shop + retail sim)
+
+- **Retail sim is headless** (sim/shop.js, 10 tests): 21-SKU catalog across
+  clubs/balls/apparel/accessories in three tiers (tier 3 gated behind progression);
+  supplier orders paid up front with per-category lead times (clubs ship in 4 days);
+  shelf-vs-backroom split where floor staff shelve each morning by skill and the
+  player can restock BY HAND on the walkable floor; per-category markup with a
+  willingness-to-pay curve (wealthier shoppers tolerate more; 2× book price craters
+  volume — unit-tested); shopper flow follows rounds played + members + reputation;
+  club sales are assisted sales (a skilled floor pro roughly doubles closes);
+  seasonal demand (storm shells don't sell in July, balls die in winter); rentals
+  serve guests and wear the fleet; fittings need a real pro, pay $120, and stamp
+  `fittedDay` on the member (Phase 5 makes them play better). Lost sales are
+  TRACKED and surfaced — an empty shelf annoys the actual member who wanted it.
+- **The walkable floor** (render3d/shopScene.js): 14×10yd interior with procedural
+  wood/plaster, three windows, warm bulbs; hollow shelf units/racks/tables whose
+  stacks ARE the live inventory (empty shelf = visibly empty); pointer-lock mouse
+  look with arrow-key fallback (env-safe + accessibility); WASD + circle-vs-AABB
+  collision; E-interact with center-view focus (restock/register/fitting/door);
+  capsule customers whose presence scales with yesterday's real traffic, browsing
+  waypoints and leaving — reactive to shop state, never a second sim, per the brief.
+- **QA loop found real bugs**: spawn faced the door (yaw convention), W walked
+  backward (forward/right projection sign error — derived properly this time),
+  stock hid inside solid shelf frames (rebuilt as hollow units), pointer-lock
+  request throws in headless (caught; click-to-look covers it).
+- **Live 4-day QA**: order→deliver→sell verified; balls sold out; with no floor
+  staff the delivered stock sat in the backroom and 9 shoppers walked — exactly the
+  designed pressure to hire pro-shop staff or walk the floor daily.
+- Deferred to polish: register queue minigame, customer purchase animations at the
+  counter, shop ambient audio (Phase 7), display-arrangement beyond the feature
+  table (post-v1).
+

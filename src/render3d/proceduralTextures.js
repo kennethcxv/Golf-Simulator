@@ -164,6 +164,51 @@ export function makeScrubTexture({ seed = 13 } = {}) {
   return finish(c);
 }
 
+export function makeWoodTexture({ seed = 31, base = '#8a6a48', dark = '#6f5238' } = {}) {
+  const size = 512;
+  const c = makeCanvas(size);
+  const ctx = c.getContext('2d');
+  const r = rng(seed);
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, size, size);
+  // planks
+  const plankW = size / 6;
+  for (let p = 0; p < 6; p++) {
+    ctx.fillStyle = p % 2 ? base : dark + '30';
+    ctx.fillRect(p * plankW, 0, plankW, size);
+    ctx.strokeStyle = '#4a37254a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(p * plankW + 0.5, -2, plankW - 1, size + 4);
+    // grain
+    for (let i = 0; i < 26; i++) {
+      const x = p * plankW + r() * plankW;
+      ctx.strokeStyle = (r() < 0.5 ? dark : '#9a7a55') + '2e';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.bezierCurveTo(x + (r() - 0.5) * 10, size * 0.33, x + (r() - 0.5) * 10, size * 0.66, x, size);
+      ctx.stroke();
+    }
+  }
+  return finish(c);
+}
+
+export function makePlasterTexture({ seed = 41, base = '#ded8c8' } = {}) {
+  const size = 256;
+  const c = makeCanvas(size);
+  const ctx = c.getContext('2d');
+  const r = rng(seed);
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 2400; i++) {
+    const x = r() * size;
+    const y = r() * size;
+    ctx.fillStyle = r() < 0.5 ? '#cfc8b622' : '#eee8da22';
+    wrapped(ctx, size, () => ctx.fillRect(x, y, 1.6, 1.6));
+  }
+  return finish(c);
+}
+
 export function makePathTexture({ seed = 21 } = {}) {
   const size = 256;
   const c = makeCanvas(size);
