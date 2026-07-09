@@ -13,6 +13,7 @@ import { calendarOf } from '../sim/time.js';
 import {
   UPGRADES, TOURNAMENTS, hasUpgrade, purchaseUpgrade, canScheduleTournament, scheduleTournament,
 } from '../sim/progression.js';
+import { tutorialFlag } from '../sim/tutorial.js';
 
 const ROLE_LABEL = { groundskeeper: '⛳ Groundskeeper', instructor: '🎯 Instructor', fnb: '🍽 Food & Bev' };
 
@@ -28,10 +29,15 @@ export function makeClubPanel(app, onStateChanged) {
 
   function stepper(value, step, min, onSet, fmt = (v) => formatMoney(v)) {
     const label = el('span', { text: fmt(value), style: 'min-width:74px;display:inline-block;text-align:center' });
+    const set = (v) => {
+      onSet(v);
+      if (app.state) tutorialFlag(app.state, 'priceTouched');
+      refresh();
+    };
     return el('div', { class: 'row', style: 'gap:4px;display:inline-flex' },
-      el('button', { text: '−', onclick: () => { onSet(Math.max(min, value - step)); refresh(); } }),
+      el('button', { text: '−', onclick: () => set(Math.max(min, value - step)) }),
       label,
-      el('button', { text: '+', onclick: () => { onSet(value + step); refresh(); } }),
+      el('button', { text: '+', onclick: () => set(value + step) }),
     );
   }
 

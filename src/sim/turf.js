@@ -402,6 +402,7 @@ export function treatSection(state, section) {
   for (const i of section.cells) {
     t.treated[i] = T().fungicideProtectionDays;
   }
+  if (state.tutorial) state.tutorial.flags.treatedSection = true;
   return { ok: true, cost };
 }
 

@@ -317,3 +317,25 @@ Newest entries at the bottom.
   logged decision: allowed, it only swaps balance references.
 - 116/116 tests; endgame + failure modals verified in-browser.
 
+## 2026-07-09 — Phase 7 complete (sound, tutorial arc, hardening) — v1 FEATURE-COMPLETE
+
+- **Procedural WebAudio placeholder sound** (core/audio.js): synthesized birdsong
+  (FM chirps, daylight + fair weather only), looped-noise rain wash (attenuated
+  indoors), detuned-saw mower hum gated to the 5–7 AM crew shift, ball-strike pings
+  when golfers are actually out, and a two-tone shop doorbell fired by real customer
+  spawns. Master volume/mute persist in localStorage (settings, not saves). WebAudio
+  arms on the first user gesture. Real recorded SFX remain a pre-ship requirement
+  (KNOWN_ISSUES).
+- **Tutorial arc as real objectives** (sim/tutorial.js + guide card): ten steps woven
+  into the opening — every check reads live state (treat an actual sick green, place
+  an actual order, close an actual profitable day, reach prestige 30) with UI-moment
+  flags for panel/floor visits. Clears with toasts; retires itself; hideable;
+  serialized with the save; unit-tested advancement.
+- **Hardening**: strict CSP finally pinned (sha256 of the inline importmap) and
+  verified in both browser and Electron; HUD made responsive (weather text and club
+  name collapse at narrow widths); pause menu gained sound controls next to the
+  difficulty switch.
+- 121/121 tests, zero console errors across the final QA pass. All seven phases of
+  the build order are done: the game runs end-to-end from fixer-upper muni to
+  hosting THE WILLOW CREEK OPEN.
+

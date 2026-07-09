@@ -16,6 +16,7 @@ import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue } from './shop.js';
 import { simulateDayRounds } from './rounds.js';
 import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
+import { initTutorial } from './tutorial.js';
 import { initLedger, addExpense, closeBooks } from './economy.js';
 import { BALANCE } from './balance.js';
 
@@ -48,6 +49,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647) {
   initShop(state);
   initLedger(state);
   initProgression(state);
+  initTutorial(state);
   return state;
 }
 
@@ -160,6 +162,7 @@ export function snapshot(state) {
     ledger: state.ledger,
     shop: state.shop,
     progression: state.progression,
+    tutorial: state.tutorial,
     debtDays: state.debtDays || 0,
     failed: state.failed || null,
     turf: turf
@@ -245,6 +248,8 @@ export function deserialize(json) {
   else initShop(state);
   if (raw.progression) state.progression = raw.progression;
   else initProgression(state);
+  if (raw.tutorial) state.tutorial = raw.tutorial;
+  else initTutorial(state);
   state.debtDays = raw.debtDays || 0;
   state.failed = raw.failed || null;
   return state;

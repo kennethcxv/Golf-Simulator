@@ -146,4 +146,19 @@ http://localhost:8447/ in a browser. Headless sim tests: `npm test`.
 
 ## Phase 7 — Sound, tutorial, polish
 
-*(populated when Phase 7 is complete)*
+**Sound (procedural placeholders)**
+- [ ] After your first click/keypress, ambient birdsong plays on the course on fair-weather days
+- [ ] Rain days bring an audible rain wash (quieter inside the shop)
+- [ ] The 5–7 AM crew shift hums with mowers; occasional ball-strike clicks during open hours when golfers are out
+- [ ] Entering customers ring the shop doorbell while you're walking the floor
+- [ ] Pause menu: volume slider and mute work and persist across sessions (not part of saves)
+
+**Tutorial arc**
+- [ ] A new club shows the 🎯 guide card (1/10, "Walk the property"); ✕ hides it permanently for that save
+- [ ] Steps clear from REAL actions with a toast: open Grounds → treat a green → staff up → order stock → walk the shop floor → touch prices → first new member → first profitable day → first amenity/improvement → prestige 30
+- [ ] The guide retires with a farewell toast when the arc completes; state survives save/load
+
+**Chrome & hardening**
+- [ ] HUD stays usable at narrow window widths (weather collapses, club name hides)
+- [ ] The strict CSP is active: game loads with zero console errors in browser AND Electron
+- [ ] `npm test` → 121 passing; `npm start` boots the Electron app to the menu

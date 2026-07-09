@@ -27,6 +27,25 @@ npm test           # headless simulation unit tests
 The game also runs in a plain modern browser via `npm run serve` — saves fall back to
 localStorage there; the Electron build writes saves to the OS user-data folder.
 
+## Controls
+
+**Course** — drag: pan · right-drag: orbit · wheel: zoom · WASD/arrows: pan · Q: rotate ·
+click: inspect a section · Space: pause · 1/2/3: speed · V: Normal/Health/Moisture views
+
+**Panels** — G: Grounds (crew + policies) · C: Club office (members, pricing, staff,
+development, tournaments) · 🛍: Shop desk (orders, markup, rentals) · E: Course Works
+(terrain editing, plan → confirm) · Esc: menus
+
+**Pro shop floor** — P: walk the floor · click: capture mouse (Esc releases) · WASD:
+move · E: restock/interact · P or the door: leave
+
+## Status
+
+v1 feature-complete: all seven build phases done (terrain editing, turf simulation,
+membership/economy, walkable pro shop, persistent golfers, progression to the endgame
+major, sound/tutorial/polish). 121 headless tests green. See TESTING_CHECKLIST.md for
+the manual pass and KNOWN_ISSUES.md for what still needs real art/audio before ship.
+
 ## Docs
 
 - `Golf_Course_Simulator_Project_Overview.md` — authoritative design spec (v2)

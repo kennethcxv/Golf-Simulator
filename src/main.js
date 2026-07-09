@@ -19,6 +19,9 @@ import { makeGroundsPanel } from './ui/groundsPanel.js';
 import { makeClubPanel } from './ui/clubPanel.js';
 import { makeShopPanel } from './ui/shopPanel.js';
 import { makeShopScene } from './render3d/shopScene.js';
+import { makeObjectivesPanel } from './ui/objectivesPanel.js';
+import { makeAudio } from './core/audio.js';
+import { tickTutorial, tutorialFlag } from './sim/tutorial.js';
 import { makeMenu } from './screens/menu.js';
 import { saveData, loadData } from './core/storage.js';
 import { conditionRating, sectionTurfSummary } from './sim/turf.js';
@@ -56,8 +59,16 @@ let groundsPanel = null;
 let clubPanel = null;
 let shopPanel = null;
 let shopOverlay = null;
+let objectivesPanel = null;
 let menu = null;
 let gameUi = null;
+
+const audio = makeAudio();
+app.audio = audio;
+// WebAudio needs a user gesture; arm it on the first interaction
+for (const evt of ['pointerdown', 'keydown']) {
+  window.addEventListener(evt, () => audio.init(), { once: true, capture: true });
+}
 
 function closeLeftPanels(except) {
   if (except !== 'works' && app.worksMode) handlers.toggleWorks();
@@ -163,6 +174,7 @@ function startGame(state) {
   menu.setVisible(false);
   gameUi.style.display = '';
   hud.update();
+  if (objectivesPanel) objectivesPanel.refresh();
   toast(`Welcome to ${state.clubName} — ${state.mode} mode.`);
   if (lastDiseasedNames.size > 0) {
     toast(`The greenskeeper's note: ${lastDiseasedNames.size} greens are fighting disease. Click them to diagnose.`, 'warn');
@@ -210,6 +222,7 @@ const handlers = {
     const next = !app.groundsOpen;
     if (next) closeLeftPanels('grounds');
     groundsPanel.setVisible(next);
+    if (next && app.state) tutorialFlag(app.state, 'groundsOpened');
   },
   toggleClub() {
     const next = !app.clubOpen;
@@ -230,11 +243,13 @@ const handlers = {
       app.shopScene = makeShopScene(app.scene3d.renderer, {
         app,
         toast,
+        audio,
         exitShop: () => handlers.exitShop(),
       });
     }
     app.shopScene.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
     app.shopScene.enter();
+    if (app.state) tutorialFlag(app.state, 'shopWalked');
     shopOverlay.style.display = '';
     document.querySelector('.hint-bar').style.display = 'none';
     try {
@@ -334,6 +349,20 @@ function openPauseMenu() {
           }),
         }),
       )),
+      el('h2', { text: 'Sound', style: 'margin-top:8px;font-size:1rem' }),
+      el('div', { class: 'row' },
+        el('input', {
+          type: 'range', min: '0', max: '1', step: '0.05', value: String(audio.getVolume()), style: 'flex:1',
+          oninput: (e) => audio.setVolume(Number(e.target.value)),
+        }),
+        el('button', {
+          text: audio.isMuted() ? '🔇 Unmute' : '🔊 Mute',
+          onclick: (e) => {
+            audio.setMuted(!audio.isMuted());
+            e.target.textContent = audio.isMuted() ? '🔇 Unmute' : '🔊 Mute';
+          },
+        }),
+      ),
       el('h2', { text: 'Difficulty', style: 'margin-top:8px;font-size:1rem' }),
       el('div', { class: 'row' },
         el('button', {
@@ -587,6 +616,7 @@ function keyboardCamera(dtMs) {
 
 let lastTs = 0;
 let lastHourSeen = -1;
+let audioClock = 0;
 
 function frame(ts) {
   const dtMs = Math.min(250, ts - lastTs || 16);
@@ -615,6 +645,12 @@ function frame(ts) {
         recomputeRating();
         inspectPanel.refreshIfOpen();
         if (app.groundsOpen) groundsPanel.refresh();
+        const tut = tickTutorial(app.state);
+        for (const step of tut.advanced) toast(`🎯 ${step.title} — done.`);
+        if (app.state.tutorial && app.state.tutorial.complete && tut.advanced.length) {
+          toast('The guide retires — the club is yours now. The Open awaits.', '');
+        }
+        objectivesPanel.refresh();
       }
     }
     if (app.view === 'shop3d' && app.shopScene) {
@@ -625,6 +661,18 @@ function frame(ts) {
       const cal = calendarOf(app.state.clock.minutes);
       app.scene3d.applyTimeWeather(cal.minuteOfDay, app.state.weather);
       app.scene3d.render(dtMs, app.state);
+    }
+    audioClock += dtMs;
+    if (audioClock >= 1000) {
+      const cal2 = calendarOf(app.state.clock.minutes);
+      audio.update(audioClock / 1000, {
+        minuteOfDay: cal2.minuteOfDay,
+        rainIn: app.state.weather.today.rainIn,
+        golfersVisible: cal2.minuteOfDay >= 360 && cal2.minuteOfDay <= 1200 ? (app.state.club.lastRounds || 0) : 0,
+        inShop: app.view === 'shop3d',
+        tempHiF: app.state.weather.today.tempHiF,
+      });
+      audioClock = 0;
     }
     hud.update();
   }
@@ -726,6 +774,7 @@ function boot() {
   groundsPanel = makeGroundsPanel(app);
   clubPanel = makeClubPanel(app, recomputeRating);
   shopPanel = makeShopPanel(app, handlers);
+  objectivesPanel = makeObjectivesPanel(app);
 
   shopOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
@@ -745,7 +794,7 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, shopOverlay, viewToggle,
+  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, shopOverlay, objectivesPanel.root, viewToggle,
     el('div', { class: 'hint-bar', text: 'Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · C: Club · P: Pro shop · V: view · Space: pause' }));
 
   uiRoot.append(menu.root, gameUi);

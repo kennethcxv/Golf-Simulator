@@ -33,10 +33,15 @@ under "Needs a real art/audio pass" must be replaced before this could ship comm
 
 ## Technical debt / open items
 
-- **CSP meta tag not yet in index.html** — needs the inline-importmap hash computed and
-  pinned (Phase 7 polish, before ship). No third-party code loads meanwhile.
 - **Electron native save bridge smoke-tested but not deep-QA'd** — browser/localStorage
   path fully exercised; userData file save/load via the preload bridge needs one CDP-attach
   verification pass (bridge mirrors GlassWaterV2's proven pattern).
-- **Colorblind-safe palette pass pending** — zone colors are currently green-band heavy;
-  needs the accessibility pass promised in the spec (with turf-health indicators, Phase 2+).
+- **Colorblind-safe palette pass pending** — zone colors are green-band heavy and turf
+  health reads by hue; the Health/Moisture data views help but a proper colorblind-safe
+  indicator pass (patterns/icons) is a pre-ship accessibility requirement, as is
+  localization (zh-Hans/de/es/ja/ko per the spec) and remappable controls.
+- **Balance is judgment-call tier** — every number in balance.js/club.js/shop.js needs
+  real playtesting; the spec's external-playtest pass (with actual golfers) has not
+  happened and no amount of build time substitutes for it.
+- ~~CSP meta tag~~ — done (importmap hash pinned in index.html; verified in browser
+  and Electron).

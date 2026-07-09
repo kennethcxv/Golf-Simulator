@@ -366,6 +366,7 @@ export function makeShopScene(renderer, appRef) {
     g.add(body, head);
     g.position.set(0, 0, ROOM.d / 2 - 0.6);
     custGroup.add(g);
+    if (appRef.audio && appRef.audio.ready) appRef.audio.doorbell();
 
     const stops = [];
     const nStops = 1 + rng.int(2);
