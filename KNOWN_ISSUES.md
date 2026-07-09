@@ -28,4 +28,10 @@ under "Needs a real art/audio pass" must be replaced before this could ship comm
 
 ## Technical debt / open items
 
-- (maintained as development proceeds)
+- **CSP meta tag not yet in index.html** — needs the inline-importmap hash computed and
+  pinned (Phase 7 polish, before ship). No third-party code loads meanwhile.
+- **Electron native save bridge smoke-tested but not deep-QA'd** — browser/localStorage
+  path fully exercised; userData file save/load via the preload bridge needs one CDP-attach
+  verification pass (bridge mirrors GlassWaterV2's proven pattern).
+- **Colorblind-safe palette pass pending** — zone colors are currently green-band heavy;
+  needs the accessibility pass promised in the spec (with turf-health indicators, Phase 2+).

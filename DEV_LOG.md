@@ -53,3 +53,40 @@ Newest entries at the bottom.
   amounts in this game are large enough that float noise is irrelevant, and it keeps
   balance code readable. (Logged in case a future accountant disagrees.)
 
+## 2026-07-09 — Phase 1 complete (shell + course view + terrain editing)
+
+- **TDD throughout the sim layer**: 45 headless tests written first (watched fail), then
+  implemented green: utils/RNG, calendar, course model (grid/sections/holes/par/design
+  rating), plan-confirm editing (costs, corridor-based renovation detection, tee/pin ops,
+  daily countdowns), Willow Creek starting course, GameState serialization.
+- **Willow Creek Municipal layout** is hand-routed in code (two loops off the clubhouse,
+  par 34, ~2,380 yd, three par 3s, one par 5, pond guarding the par-3 5th, six bunkers)
+  and painted deterministically from the game seed. Its scruffiness is intentionally in
+  the *condition* dimension (arriving with the Phase 2 turf sim), not the architecture —
+  a complete-if-modest 9-holer whose Design score (~86) is honest; the "fixer-upper" pain
+  will come from turf health multiplying into the overall rating.
+- **Design rating formula components** (45 playable holes / 10 par variety / 10 length /
+  8 bunkering / 6 water / 8 green sizing / 8 land movement / 5 fairway coverage; holes
+  under renovation count 0.4, construction 0.2). Judgment-call weights, tuned later.
+- **Renovation corridor rule**: a confirmed edit within 4 cells of an open hole's tee→pin
+  line closes that hole for `ceil(cells/6)` days (realistic; /12 relaxed), clamped 2–21.
+  Tee/pin moves on an open hole: flat 3 days (realistic) / 2 (relaxed). New holes build
+  for 5/3 days once valid. If renovation ends and the hole is incomplete (green dug up),
+  it falls to `unbuilt` rather than reopening — verified by unit test.
+- **Browser QA pass (Playwright)**: menu → new game → works mode → drag-painted a 32-cell
+  bunker strip ($8,000 = 32×$250 exact) → plan bar warned "closes H1 4d, H7 2d" →
+  confirmed → cash/badges/grey-pins correct → 16× fast-forward 6 days → holes reopened →
+  reload → Continue restored Day 7 from autosave with works persisted → inspect panel
+  ("Pond") → slot save. Zero console errors/warnings across the session.
+- **Bugs found by QA, fixed**: HUD crashed reading `state.clubName` before any game
+  existed (boot-order); clock rendered raw fractional minutes ("7:19.20299… AM") — floor
+  in formatClock; hint bar overlapped the plan bar (hidden in works mode now).
+- **`window.__fw` debug hook** exposes the app object for automated QA — kept
+  deliberately, it's read-mostly and invaluable for driving later-phase tests.
+- **Electron smoke-tested** (launches, stays alive, clean teardown). Deep native-bridge
+  QA (userData save files) deferred to a later phase via CDP attach; the renderer code is
+  byte-identical to the browser path and the bridge mirrors GlassWaterV2's proven 30-line
+  pattern.
+- **CSP meta deferred to Phase 7** (needs an importmap hash dance; zero third-party code
+  runs meanwhile). Logged in KNOWN_ISSUES.
+
