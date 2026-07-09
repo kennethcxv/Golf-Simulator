@@ -153,6 +153,8 @@ function startGame(state) {
   app.speedIdx = 1;
   app.viewMode = 'normal';
   lastHourSeen = -1;
+  endgameShown = !!(state.progression && state.progression.majorWon);
+  failShown = false;
   rebuildSectionIndex();
   recomputeRating();
   lastDiseasedNames = currentDiseasedSet(); // prime silently
@@ -332,6 +334,27 @@ function openPauseMenu() {
           }),
         }),
       )),
+      el('h2', { text: 'Difficulty', style: 'margin-top:8px;font-size:1rem' }),
+      el('div', { class: 'row' },
+        el('button', {
+          text: app.state.mode === 'relaxed' ? '✔ Relaxed' : 'Relaxed',
+          onclick: () => {
+            app.state.mode = 'relaxed';
+            toast('Relaxed mode: gentler turf, softer finances, the bank forgives.');
+            close();
+            app.speedIdx = prevSpeed || 1;
+          },
+        }),
+        el('button', {
+          text: app.state.mode === 'realistic' ? '✔ Realistic' : 'Realistic',
+          onclick: () => {
+            app.state.mode = 'realistic';
+            toast('Realistic mode: real stakes. Watch the books.', 'warn');
+            close();
+            app.speedIdx = prevSpeed || 1;
+          },
+        }),
+      ),
       el('div', { class: 'row', style: 'margin-top:14px' },
         el('button', { class: 'danger', text: 'Exit to menu (autosaves)', onclick: closeAnd(async () => { await autosave(); exitToMenu(); }) }),
       ),
@@ -581,6 +604,7 @@ function frame(ts) {
         app.scene3d.updateHoles();
         announceReopenings();
         announceOutbreaks();
+        checkBigMoments();
         if (app.clubOpen) clubPanel.refresh();
         autosave();
       }
@@ -614,6 +638,51 @@ function updateShopOverlay() {
   prompt.style.opacity = label ? '1' : '0';
   const lockHint = shopOverlay.querySelector('.shop-lockhint');
   lockHint.style.display = document.pointerLockElement ? 'none' : '';
+}
+
+// one-shot endgame + failure modals
+let endgameShown = false;
+let failShown = false;
+
+function checkBigMoments() {
+  const st = app.state;
+  if (!st) return;
+  if (st.progression && st.progression.majorWon && !endgameShown) {
+    endgameShown = true;
+    app.speedIdx = 0;
+    modal('🏆 THE WILLOW CREEK OPEN', (box, close) => {
+      box.append(
+        el('div', { class: 'row', style: 'font-size:1.05rem;line-height:1.5' },
+          'You did it. The muni nobody wanted became the club everyone talks about — and today it hosted a major. ' +
+          'The greens rolled true, the members watched from the clubhouse they helped build, and the write-ups are glowing.'),
+        el('div', { class: 'row muted' }, 'The club keeps running — there is always another season. Thanks for building it.'),
+        el('div', { class: 'row', style: 'margin-top:12px' },
+          el('button', { class: 'primary', text: 'Back to the course', onclick: () => { app.speedIdx = 1; close(); } })),
+      );
+    });
+  }
+  if (st.failed && !failShown) {
+    failShown = true;
+    app.speedIdx = 0;
+    modal('The bank has called', (box, close) => {
+      box.append(
+        el('div', { class: 'row', style: 'line-height:1.5' }, st.failed.reason),
+        el('div', { class: 'row muted' }, 'Load a save to try that stretch again, or head back to the menu.'),
+        el('div', { class: 'row', style: 'margin-top:12px' },
+          el('button', {
+            class: 'primary', text: 'Load autosave',
+            onclick: async () => {
+              const data = await loadData('autosave');
+              close();
+              failShown = false;
+              if (data) startGame(deserialize(data));
+            },
+          }),
+          el('button', { class: 'danger', text: 'Exit to menu', onclick: () => { close(); exitToMenu(); } }),
+        ),
+      );
+    });
+  }
 }
 
 // surfacing renovation completions as toasts

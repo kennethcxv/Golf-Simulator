@@ -15,6 +15,7 @@ import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
 import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue } from './shop.js';
 import { simulateDayRounds } from './rounds.js';
+import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
 import { initLedger, addExpense, closeBooks } from './economy.js';
 import { BALANCE } from './balance.js';
 
@@ -46,6 +47,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647) {
   initClub(state);
   initShop(state);
   initLedger(state);
+  initProgression(state);
   return state;
 }
 
@@ -57,6 +59,7 @@ export function dailyTick(state) {
     accrueDaily(state);
     if (state.shop) shopDailyAccrual(state);
     if (state.golfers) simulateDayRounds(state, state.club.lastRounds || 0);
+    if (state.progression) resolveTournamentIfDue(state, calendarOf(state.clock.minutes).dayAbs - 1);
     closeBooks(state, calendarOf(state.clock.minutes).dayAbs - 1);
   }
 
@@ -75,6 +78,10 @@ export function dailyTick(state) {
   }
   if (state.club) dailyMembershipTick(state);
   if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
+  if (state.progression) {
+    prestigeDailyTick(state);
+    solvencyDailyTick(state);
+  }
   state.pendingMorning = true;
 }
 
@@ -152,6 +159,9 @@ export function snapshot(state) {
     club: state.club,
     ledger: state.ledger,
     shop: state.shop,
+    progression: state.progression,
+    debtDays: state.debtDays || 0,
+    failed: state.failed || null,
     turf: turf
       ? {
           health: Array.from(turf.health, round1),
@@ -233,5 +243,9 @@ export function deserialize(json) {
   else initLedger(state);
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
+  if (raw.progression) state.progression = raw.progression;
+  else initProgression(state);
+  state.debtDays = raw.debtDays || 0;
+  state.failed = raw.failed || null;
   return state;
 }

@@ -20,6 +20,9 @@ import { clamp, rngOf } from '../core/utils.js';
 import { tempAtHour, isFrostMorning } from './weather.js';
 import { spend } from './economy.js';
 import { groundsCrewHours } from './staff.js';
+import {
+  mowHoursFactor, waterCostFactor, fungicideCostFactor, aerateCostFactor, wearRecoveryBonus,
+} from './progression.js';
 
 const T = () => BALANCE.turf;
 
@@ -255,9 +258,10 @@ export function turfDailyTick(state) {
   const onsetMult = T().onsetMult[state.mode];
 
   // fungicide protection ticks down; light natural wear recovery
+  const wearRecovery = 1.5 + (state.progression ? wearRecoveryBonus(state) : 0);
   for (let i = 0; i < t.treated.length; i++) {
     if (t.treated[i] > 0) t.treated[i]--;
-    if (t.wear[i] > 0) t.wear[i] = Math.max(0, t.wear[i] - 1.5);
+    if (t.wear[i] > 0) t.wear[i] = Math.max(0, t.wear[i] - wearRecovery);
   }
 
   // disease onset checks per turf section
@@ -329,7 +333,7 @@ export function runMorningMaintenance(state, dayAbs) {
         pointsApplied += need;
       }
     }
-    report.costs.water += pointsApplied * T().waterCostPerPoint;
+    report.costs.water += pointsApplied * T().waterCostPerPoint * (state.progression ? waterCostFactor(state) : 1);
   }
 
   // frost: crews wait for the thaw — mowing/fert skipped today
@@ -350,7 +354,8 @@ export function runMorningMaintenance(state, dayAbs) {
     if (!cells.length) continue;
     const due = dayAbs - maint.lastMowDay[key] >= pol.mowEveryDays;
     if (!due) continue;
-    const needed = cells.length * T().mowHoursPerCell[key];
+    const equipFactor = state.progression ? mowHoursFactor(state, key) : 1;
+    const needed = cells.length * T().mowHoursPerCell[key] * equipFactor;
     if (needed <= hoursLeft) {
       hoursLeft -= needed;
       for (const i of cells) {
@@ -391,7 +396,7 @@ export function runMorningMaintenance(state, dayAbs) {
 
 export function treatSection(state, section) {
   const t = state.turf;
-  const cost = Math.round(section.cells.length * T().fungicideCostPerCell);
+  const cost = Math.round(section.cells.length * T().fungicideCostPerCell * (state.progression ? fungicideCostFactor(state) : 1));
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash for fungicide.' };
   spend(state, 'chemicals', cost);
   for (const i of section.cells) {
@@ -402,7 +407,7 @@ export function treatSection(state, section) {
 
 export function aerateSection(state, section) {
   const t = state.turf;
-  const cost = Math.round(section.cells.length * T().aerateCostPerCell);
+  const cost = Math.round(section.cells.length * T().aerateCostPerCell * (state.progression ? aerateCostFactor(state) : 1));
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash to aerate.' };
   spend(state, 'upkeep', cost);
   for (const i of section.cells) {

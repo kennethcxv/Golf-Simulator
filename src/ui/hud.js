@@ -86,7 +86,9 @@ export function makeHud(app, handlers) {
     rating.title = 'Overall course rating · Design / Condition';
     if (app.state.club && app.state.golfers) {
       const c = memberCounts(app.state);
-      clubStats.textContent = `👥 ${c.weekday + c.full + c.premium} · Rep ${Math.round(app.state.club.reputation)}`;
+      const prestige = app.state.progression ? ` · 🏆${Math.round(app.state.progression.prestige)}` : '';
+      clubStats.textContent = `👥 ${c.weekday + c.full + c.premium} · Rep ${Math.round(app.state.club.reputation)}${prestige}`;
+      clubStats.title = 'Members · Reputation · Prestige';
     }
     speedBtns.forEach((b, i) => b.classList.toggle('on', app.speedIdx === i));
     worksBtn.classList.toggle('active-tool', app.worksMode);

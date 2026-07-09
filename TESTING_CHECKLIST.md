@@ -130,7 +130,19 @@ http://localhost:8447/ in a browser. Headless sim tests: `npm test`.
 
 ## Phase 6 — Progression, prestige, difficulty toggle
 
-*(populated when Phase 6 is complete)*
+- [ ] HUD shows 🏆 prestige next to members/reputation; it climbs slowly as the club genuinely improves (course, amenities, premium members, champions, events)
+- [ ] Club panel → Development lists nine improvements grouped by category with 🔒 prestige locks, prices, and ✔ owned marks
+- [ ] Triplex mowers visibly free up crew hours (Grounds morning report finishes more with the same crew)
+- [ ] Smart irrigation cuts the daily water line; spray rig cuts fungicide prices in the inspect panel; aerator halves aeration and sheds wear faster
+- [ ] Premium supplier unlocks 🔒 tier-3 items at the shop desk
+- [ ] Corporate desk raises new outing offer payouts; reciprocal network adds a daily revenue line
+- [ ] Tournaments: locked until Tournament operations; Club Championship (P50) → County Amateur (P65, requires hosting the championship) → THE WILLOW CREEK OPEN (P85)
+- [ ] Scheduling an event charges the staging cost and shows the countdown with its condition requirement
+- [ ] A well-prepped event succeeds: 🏅 feed note, prestige/reputation jump, entry fees in the books, "hosted ×N" mark
+- [ ] A shabby course on event day fails publicly: 💥 note and a prestige drop — the course must be peaked FOR the date (mind foot-traffic wear!)
+- [ ] Winning the Open triggers the 🏆 celebration and the club keeps playing afterward
+- [ ] Realistic: five straight days past a −$2,000 overdraft ends the run (bank modal, load save or exit); Relaxed: debt floors at −$5,000, never a hard fail
+- [ ] Pause menu switches Relaxed/Realistic mid-game and the balance changes take hold (turf decay, disease, wages, downtime)
 
 ## Phase 7 — Sound, tutorial, polish
 

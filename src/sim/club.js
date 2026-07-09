@@ -12,6 +12,7 @@ import { conditionRating } from './turf.js';
 import { addRevenue, addExpense, closeBooks } from './economy.js';
 import { staffDailyWages, bestSkill, groundsCrewHours, ROLE } from './staff.js';
 import { members, nonMembers } from './golfers.js';
+import { outingPayoutFactor, hasUpgrade } from './progression.js';
 
 export const TIERS = {
   weekday: {
@@ -120,7 +121,7 @@ export function maybeGenerateOutingOffer(state) {
   if (state.club.outings.offers.length >= 2) return;
   if (!rng.chance(0.18)) return;
   const size = 16 + rng.int(25);
-  const payout = Math.round(size * state.club.greenFee * (1.6 + rng.next() * 0.7));
+  const payout = Math.round(size * state.club.greenFee * (1.6 + rng.next() * 0.7) * (state.progression ? outingPayoutFactor(state) : 1));
   const offer = {
     id: state.club.outings.nextId++,
     company: genCompany(rng),
@@ -210,6 +211,11 @@ export function accrueDaily(state) {
     for (const g of members(state)) g.satisfaction = clamp(g.satisfaction - 6, 0, 100);
     state.club.reputation = clamp(state.club.reputation + (ratings.overall >= 55 ? 1 : -1.5), 0, 100);
     pushFeed(state, { kind: 'outing', text: `${outing.company} outing played — ${outing.payout.toLocaleString('en-US')} dollars banked.` });
+  }
+
+  // reciprocal network: partner-club visitors, mostly for the premium crowd
+  if (state.progression && hasUpgrade(state, 'reciprocalClubs')) {
+    addRevenue(state, 'reciprocal', counts.premium * 6 + counts.full * 2 + 8);
   }
 
   // expenses

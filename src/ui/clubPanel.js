@@ -10,6 +10,9 @@ import {
 import { members } from '../sim/golfers.js';
 import { hireStaff, fireStaff, trainStaff, ROLE } from '../sim/staff.js';
 import { calendarOf } from '../sim/time.js';
+import {
+  UPGRADES, TOURNAMENTS, hasUpgrade, purchaseUpgrade, canScheduleTournament, scheduleTournament,
+} from '../sim/progression.js';
 
 const ROLE_LABEL = { groundskeeper: '⛳ Groundskeeper', instructor: '🎯 Instructor', fnb: '🍽 Food & Bev' };
 
@@ -162,6 +165,66 @@ export function makeClubPanel(app, onStateChanged) {
     }
     for (const o of club.outings.scheduled) {
       rows.push(el('div', { class: 'row muted', text: `Booked: ${o.company}, ${o.size} players, in ${Math.max(0, o.day - dayAbs)} day(s) — members will grumble that day.` }));
+    }
+
+    // --- development (the improvement tree) ----------------------------------------
+    const prog = st.progression;
+    if (prog) {
+      rows.push(el('h3', { text: `Development — prestige ${Math.round(prog.prestige)}`, style: 'margin-top:10px' }));
+      const CAT_ORDER = { turf: '⛳ Grounds equipment', shop: '🛍 Shop', membership: '🤝 Programs', events: '🏆 Events' };
+      let lastCat = '';
+      for (const [id, spec] of Object.entries(UPGRADES)) {
+        if (spec.cat !== lastCat) {
+          lastCat = spec.cat;
+          rows.push(el('div', { class: 'muted', text: `— ${CAT_ORDER[spec.cat]} —`, style: 'margin-top:6px' }));
+        }
+        const owned = hasUpgrade(st, id);
+        const locked = prog.prestige < spec.prestige;
+        rows.push(el('div', { class: 'row', style: 'font-size:0.88rem' },
+          el('span', { text: `${owned ? '✔ ' : locked ? '🔒 ' : ''}${spec.name}`, style: `width:210px;${owned ? 'color:var(--accent)' : locked ? 'opacity:.55' : ''}` }),
+          el('span', { class: 'muted', text: spec.blurb, style: 'flex:1' }),
+          owned ? null : locked
+            ? el('span', { class: 'muted', text: `P${spec.prestige}` })
+            : el('button', {
+                text: formatMoney(spec.cost),
+                onclick: () => {
+                  const res = purchaseUpgrade(st, id);
+                  toast(res.ok ? `${spec.name} — done.` : res.reason, res.ok ? '' : 'warn');
+                  refresh(); onStateChanged?.();
+                },
+              }),
+        ));
+      }
+
+      // --- events ---------------------------------------------------------------------
+      rows.push(el('h3', { text: 'Tournaments', style: 'margin-top:10px' }));
+      if (prog.event) {
+        const spec = TOURNAMENTS[prog.event.tier];
+        rows.push(el('div', { class: 'row', style: 'color:var(--accent-2)' },
+          `📅 ${spec.name} in ${Math.max(0, prog.event.day - dayAbs)} day(s) — needs condition ${spec.conditionReq}+ and all nine open.`));
+      }
+      for (const [tier, spec] of Object.entries(TOURNAMENTS)) {
+        const gate = canScheduleTournament(st, tier);
+        const hosted = prog.hosted[tier] || 0;
+        rows.push(el('div', { class: 'row', style: 'font-size:0.88rem' },
+          el('span', { text: `${tier === 'major' ? '🏆 ' : ''}${spec.name}${hosted ? ` (hosted ×${hosted})` : ''}`, style: 'width:230px' }),
+          el('span', { class: 'muted', text: `P${spec.prestigeReq} · cond ${spec.conditionReq}+ · ${formatMoney(spec.cost)} to stage`, style: 'flex:1' }),
+          gate.ok
+            ? el('button', {
+                class: tier === 'major' ? 'primary' : '',
+                text: 'Schedule',
+                onclick: () => {
+                  const res = scheduleTournament(st, tier);
+                  toast(res.ok ? `${spec.name} scheduled — get the course ready.` : res.reason, res.ok ? '' : 'warn');
+                  refresh();
+                },
+              })
+            : el('span', { class: 'muted', text: prog.event ? 'busy' : 'locked', title: gate.reason }),
+        ));
+      }
+      for (const h of prog.history.slice(0, 3)) {
+        rows.push(el('div', { class: 'row muted', style: 'font-size:0.85rem', text: `${h.success ? '🏅' : '💥'} ${h.note}` }));
+      }
     }
 
     // --- the regulars (the persistent-golfer heart of the club) -------------------

@@ -287,3 +287,33 @@ Newest entries at the bottom.
   traced to true conditions (the conditions-persona member named the actual disease
   count; the bare-shelf complaint matched the actual sellout).
 
+## 2026-07-09 — Phase 6 complete (progression, prestige, difficulty)
+
+- **Prestige vs reputation**: reputation is what locals feel week to week; prestige is
+  what the golf WORLD thinks — a slow composite of overall rating, reputation,
+  amenities, premium members, champions, and hosted events. Prestige gates the tree
+  and the tournament ladder.
+- **Nine-improvement tree** (cash + prestige gates): triplex/lightweight mowers (−40%
+  crew time on greens/fairways), deep-tine aerator (half-cost aeration + faster wear
+  recovery), precision spray rig, smart irrigation (−30% water), premium supplier
+  (tier-3 shop lines), reciprocal network (daily partner revenue + premium appeal),
+  corporate desk (+35% outing payouts), tournament operations. Every effect is a real
+  modifier in the sim (mow-hours, ledger lines, order gates) — no dead stats.
+- **Tournament ladder**: Club Championship (P50) → County Amateur (P65, must have
+  hosted the championship) → THE WILLOW CREEK OPEN (P85, condition 72+ with all nine
+  open). Events cost real money, pay entry fees, and RESOLVE AGAINST THE ACTUAL
+  COURSE on the day — success builds prestige/reputation; a shabby course on event day
+  is a public embarrassment (−prestige). Live QA proved the stakes: a course at
+  condition 85 on scheduling day WORE DOWN to 70 by event day under real foot
+  traffic and missed the major by two points — championship prep (aerate, feed, peak
+  for the date) is genuinely required. The win flips majorWon and a one-shot
+  celebration modal; the club continues sandbox after.
+- **Falsy-day bug**: unlocks stored their purchase dayAbs and `!!0` made day-0
+  purchases invisible — hasUpgrade now tests key presence. (Classic.)
+- **Difficulty**: bankruptcy in Realistic (5 straight days past a $2k overdraft →
+  the bank calls it; load-save/exit modal); Relaxed floors the debt at $5k and never
+  hard-fails; mode also scales turf decay, disease onset, renovation downtime, wages,
+  starting cash, and prestige drift. The pause menu now switches mode mid-game —
+  logged decision: allowed, it only swaps balance references.
+- 116/116 tests; endgame + failure modals verified in-browser.
+
