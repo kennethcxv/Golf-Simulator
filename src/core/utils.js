@@ -35,6 +35,25 @@ export function makeRng(seed) {
   return rng;
 }
 
+// Facade over a state object's serializable rngState field: draw randomness,
+// write the advanced state back. Keeps saves resuming the exact stream.
+export function rngOf(state) {
+  const rng = makeRng(0);
+  rng.setState(state.rngState);
+  const wrap = (fn) => (...args) => {
+    const v = fn(...args);
+    state.rngState = rng.getState();
+    return v;
+  };
+  return {
+    next: wrap(rng.next),
+    int: wrap(rng.int),
+    range: wrap(rng.range),
+    pick: wrap(rng.pick),
+    chance: wrap(rng.chance),
+  };
+}
+
 export function clamp(v, min, max) {
   return v < min ? min : v > max ? max : v;
 }

@@ -4,6 +4,7 @@ import { el } from './ui.js';
 import { calendarOf, formatClock, formatDate } from '../sim/time.js';
 import { formatMoney } from '../core/utils.js';
 import { BALANCE } from '../sim/balance.js';
+import { weatherSummary } from '../sim/weather.js';
 
 export function makeHud(app, handlers) {
   const club = el('span', { class: 'club', text: '' });
@@ -23,8 +24,14 @@ export function makeHud(app, handlers) {
   if (speedBtns[2]) speedBtns[2].textContent = '▶▶';
   if (speedBtns[3]) speedBtns[3].textContent = '▶▶▶';
 
+  const weather = el('span', { class: 'weather', title: 'Today at the course' });
+  const groundsBtn = el('button', {
+    text: '⛳ Grounds',
+    title: 'Maintenance policies and crew (G)',
+    onclick: () => handlers.toggleGrounds(),
+  });
   const worksBtn = el('button', {
-    text: '🚧 Course Works',
+    text: '🚧 Works',
     title: 'Toggle terrain editing mode (E)',
     onclick: () => handlers.toggleWorks(),
   });
@@ -36,9 +43,11 @@ export function makeHud(app, handlers) {
     club,
     datetime,
     el('div', { class: 'speed-group' }, ...speedBtns),
+    weather,
     el('span', { class: 'spacer' }),
     rating,
     cash,
+    groundsBtn,
     worksBtn,
     menuBtn,
   );
@@ -54,9 +63,15 @@ export function makeHud(app, handlers) {
       last = dt;
     }
     cash.textContent = formatMoney(app.state.cash);
-    rating.textContent = `Design ${Math.round(app.designRating)}`;
+    const w = app.state.weather;
+    let wText = weatherSummary(w.today);
+    if (w.droughtDays >= 4) wText += ` · 🥵 ${w.droughtDays}d dry`;
+    weather.textContent = wText;
+    rating.textContent = `Course ${Math.round(app.overallRating)} · D${Math.round(app.designRating)}/C${Math.round(app.conditionRatingVal)}`;
+    rating.title = 'Overall course rating · Design / Condition';
     speedBtns.forEach((b, i) => b.classList.toggle('on', app.speedIdx === i));
     worksBtn.classList.toggle('active-tool', app.worksMode);
+    groundsBtn.classList.toggle('active-tool', app.groundsOpen);
   }
 
   return { root, update };

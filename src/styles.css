@@ -175,8 +175,28 @@ input[type="range"] { accent-color: var(--accent); }
 .inspect-panel {
   top: 64px;
   right: 12px;
-  width: 280px;
+  width: 300px;
 }
+
+.grounds-panel {
+  top: 64px;
+  left: 12px;
+  width: 470px;
+  max-height: calc(100% - 100px);
+  overflow-y: auto;
+}
+
+.view-toggle {
+  position: absolute;
+  bottom: 14px;
+  right: 12px;
+  display: flex;
+  gap: 4px;
+}
+
+.view-toggle button { padding: 4px 10px; font-size: 0.85rem; }
+
+.hud .weather { color: var(--text-dim); font-size: 0.9rem; }
 
 .inspect-panel .status-chip {
   display: inline-block;

@@ -17,8 +17,11 @@ import { el, toast, modal } from './ui/ui.js';
 import { makeHud } from './ui/hud.js';
 import { makeWorksPanel } from './ui/worksPanel.js';
 import { makeInspectPanel } from './ui/inspectPanel.js';
+import { makeGroundsPanel } from './ui/groundsPanel.js';
 import { makeMenu } from './screens/menu.js';
 import { saveData, loadData } from './core/storage.js';
+import { conditionRating, sectionTurfSummary } from './sim/turf.js';
+import { TURF_ZONES } from './sim/constants.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -38,6 +41,10 @@ const app = {
   selectedSection: null,
   speedIdx: 1,
   designRating: 0,
+  conditionRatingVal: 0,
+  overallRating: 0,
+  viewMode: 'normal', // 'normal' | 'health' | 'moisture'
+  groundsOpen: false,
   dpr: 1,
   sectionIndex: null, // Int32Array cell → section id, rebuilt when sections change
   sectionsRef: null,
@@ -46,6 +53,7 @@ const app = {
 let hud = null;
 let worksPanel = null;
 let inspectPanel = null;
+let groundsPanel = null;
 let menu = null;
 let gameUi = null;
 
@@ -81,7 +89,43 @@ function sectionAtCell(x, y) {
 }
 
 function recomputeRating() {
-  app.designRating = app.state ? courseDesignRating(app.state.course, app.state.sections) : 0;
+  if (!app.state) {
+    app.designRating = 0;
+    app.conditionRatingVal = 0;
+    app.overallRating = 0;
+    return;
+  }
+  app.designRating = courseDesignRating(app.state.course, app.state.sections);
+  app.conditionRatingVal = app.state.turf ? conditionRating(app.state) : 0;
+  // condition dominates how a course actually feels to play
+  app.overallRating = 0.4 * app.designRating + 0.6 * app.conditionRatingVal;
+}
+
+// disease outbreak notifications: compare the diseased-section set day to day
+let lastDiseasedNames = new Set();
+
+function announceOutbreaks() {
+  const st = app.state;
+  if (!st.turf) return;
+  const now = new Set();
+  for (const s of st.sections) {
+    if (!TURF_ZONES.has(s.zone)) continue;
+    const sum = sectionTurfSummary(st, s);
+    if (sum.disease) now.add(`${sum.disease.name}|${s.name}`);
+  }
+  for (const key of now) {
+    if (!lastDiseasedNames.has(key)) {
+      const [disease, name] = key.split('|');
+      toast(`${disease} has broken out on ${name}.`, 'warn');
+    }
+  }
+  for (const key of lastDiseasedNames) {
+    if (!now.has(key)) {
+      const [disease, name] = key.split('|');
+      toast(`${name} has shaken off the ${disease.toLowerCase()}.`);
+    }
+  }
+  lastDiseasedNames = now;
 }
 
 // --- game lifecycle -----------------------------------------------------------
@@ -95,12 +139,27 @@ function startGame(state) {
   app.worksMode = false;
   app.activeTool = null;
   app.speedIdx = 1;
+  app.viewMode = 'normal';
+  lastHourSeen = -1;
   rebuildSectionIndex();
   recomputeRating();
+  // prime the outbreak tracker silently — day-one disease is part of the pitch,
+  // the inspect panel and mottled turf tell that story without a toast barrage
+  lastDiseasedNames = new Set();
+  for (const s of state.sections) {
+    if (!TURF_ZONES.has(s.zone)) continue;
+    const sum = sectionTurfSummary(state, s);
+    if (sum.disease) lastDiseasedNames.add(`${sum.disease.name}|${s.name}`);
+  }
+  if (groundsPanel) groundsPanel.setVisible(false);
+  if (worksPanel) worksPanel.setVisible(false);
   menu.setVisible(false);
   gameUi.style.display = '';
   hud.update();
   toast(`Welcome to ${state.clubName} — ${state.mode} mode.`);
+  if (lastDiseasedNames.size > 0) {
+    toast(`The greenskeeper's note: ${lastDiseasedNames.size} greens are fighting disease. Click them to diagnose.`, 'warn');
+  }
 }
 
 function exitToMenu() {
@@ -130,12 +189,22 @@ const handlers = {
     if (!app.worksMode) {
       handlers.cancelPlan(true);
       app.activeTool = null;
+    } else if (app.groundsOpen) {
+      groundsPanel.setVisible(false);
     }
     worksPanel.setVisible(app.worksMode);
     worksPanel.updateToolHighlight();
     inspectPanel.hide();
     const hint = document.querySelector('.hint-bar');
     if (hint) hint.style.display = app.worksMode ? 'none' : '';
+  },
+  toggleGrounds() {
+    const next = !app.groundsOpen;
+    if (next && app.worksMode) handlers.toggleWorks();
+    groundsPanel.setVisible(next);
+  },
+  setViewMode(mode) {
+    app.viewMode = mode;
   },
   setTool(tool) {
     app.activeTool = tool;
@@ -354,6 +423,14 @@ window.addEventListener('keydown', (e) => {
     case 'e': case 'E':
       handlers.toggleWorks();
       break;
+    case 'g': case 'G':
+      handlers.toggleGrounds();
+      break;
+    case 'v': case 'V': {
+      const modes = ['normal', 'health', 'moisture'];
+      app.viewMode = modes[(modes.indexOf(app.viewMode) + 1) % modes.length];
+      break;
+    }
     case 'Escape':
       if (app.activeTool) {
         app.activeTool = null;
@@ -429,6 +506,7 @@ function drawNight(ctx2) {
 // --- main loop -----------------------------------------------------------------------
 
 let lastTs = 0;
+let lastHourSeen = -1;
 
 function frame(ts) {
   const dtMs = Math.min(250, ts - lastTs || 16);
@@ -441,12 +519,19 @@ function frame(ts) {
       const gameMinutes = (dtMs / 1000) * BALANCE.gameMinutesPerRealSecond * speed;
       const { daysPassed } = update(app.state, gameMinutes);
       if (daysPassed > 0) {
-        markTerrainDirty(app.renderer);
         rebuildSectionIndex();
-        recomputeRating();
         worksPanel.refreshHoles();
         announceReopenings();
+        announceOutbreaks();
         autosave();
+      }
+      const hourNow = Math.floor(app.state.clock.minutes / 60);
+      if (hourNow !== lastHourSeen) {
+        lastHourSeen = hourNow;
+        markTerrainDirty(app.renderer); // turf visibly evolves hour to hour
+        recomputeRating();
+        inspectPanel.refreshIfOpen();
+        if (app.groundsOpen) groundsPanel.refresh();
       }
     }
     drawCourse(ctx, app.renderer, app.camera, app);
@@ -487,9 +572,22 @@ function boot() {
   gameUi = el('div', { style: 'display:none' });
   hud = makeHud(app, handlers);
   worksPanel = makeWorksPanel(app, handlers);
-  inspectPanel = makeInspectPanel(app);
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root,
-    el('div', { class: 'hint-bar', text: 'Drag: pan · Wheel: zoom · E: Course Works · Click: inspect · Space: pause' }));
+  inspectPanel = makeInspectPanel(app, recomputeRating);
+  groundsPanel = makeGroundsPanel(app);
+
+  const viewButtons = ['normal', 'health', 'moisture'].map((mode) =>
+    el('button', {
+      text: mode === 'normal' ? '🗺 Normal' : mode === 'health' ? '❤ Health' : '💧 Moisture',
+      onclick: () => handlers.setViewMode(mode),
+    }),
+  );
+  const viewToggle = el('div', { class: 'view-toggle' }, ...viewButtons);
+  setInterval(() => {
+    viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
+  }, 250);
+
+  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, viewToggle,
+    el('div', { class: 'hint-bar', text: 'Drag: pan · Wheel: zoom · E: Works · G: Grounds · V: view · Click: inspect · Space: pause' }));
 
   uiRoot.append(menu.root, gameUi);
   requestAnimationFrame(frame);

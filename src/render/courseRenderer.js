@@ -5,7 +5,9 @@
 import { ZONE, HOLE_STATUS } from '../sim/constants.js';
 import { idx, holeNumber, holeDistanceYd, holePar } from '../sim/course.js';
 import { CELL_PX, worldToScreen } from './camera.js';
-import { clamp } from '../core/utils.js';
+import { clamp, lerp } from '../core/utils.js';
+import { DISEASE } from '../sim/turf.js';
+import { BALANCE } from '../sim/balance.js';
 
 export const ZONE_COLORS = {
   [ZONE.OUT]: '#46543a',
@@ -32,6 +34,26 @@ function shade(hex, factor) {
   return `rgb(${r},${g},${b})`;
 }
 
+function hexToRgb(hex) {
+  return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+}
+
+function mixRgb(a, b, t) {
+  return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+}
+
+const STRAW = hexToRgb('#b3985c'); // drought/dead turf
+const DIRT = hexToRgb('#8a6f4a'); // bare, worn-out turf
+const DS_BLOTCH = hexToRgb('#ded4a4'); // dollar spot: pale straw dots
+const BP_BLOTCH = hexToRgb('#96703f'); // brown patch: dark smoky rings
+
+const TURF_ZONE_KEYS = {
+  [ZONE.GREEN]: 'green',
+  [ZONE.TEE]: 'tee',
+  [ZONE.FAIRWAY]: 'fairway',
+  [ZONE.ROUGH]: 'rough',
+};
+
 export function makeCourseRenderer(course) {
   const terrain = document.createElement('canvas');
   terrain.width = course.w * CELL_PX;
@@ -40,6 +62,7 @@ export function makeCourseRenderer(course) {
     course,
     terrain,
     dirty: true,
+    lastViewMode: 'normal',
   };
 }
 
@@ -47,10 +70,12 @@ export function markTerrainDirty(renderer) {
   renderer.dirty = true;
 }
 
-function redrawTerrain(renderer) {
+function redrawTerrain(renderer, state, viewMode = 'normal') {
   const { course, terrain } = renderer;
   const ctx = terrain.getContext('2d');
   const { w, h, zones, elevation } = course;
+  const turf = state ? state.turf : null;
+  const ideals = BALANCE.turf.ideal;
   ctx.clearRect(0, 0, terrain.width, terrain.height);
 
   for (let y = 0; y < h; y++) {
@@ -58,6 +83,7 @@ function redrawTerrain(renderer) {
       const i = y * w + x;
       const zone = zones[i];
       const base = ZONE_COLORS[zone];
+      const turfKey = TURF_ZONE_KEYS[zone];
 
       // hillshade: light from the NW
       const e = elevation[i];
@@ -72,7 +98,38 @@ function redrawTerrain(renderer) {
       // water: darker, no hillshade texture
       if (zone === ZONE.WATER) f = 0.92 + cellHash(x, y) * 0.04;
 
-      ctx.fillStyle = shade(base, f);
+      let rgb = hexToRgb(base);
+
+      if (turf && turfKey) {
+        if (viewMode === 'health') {
+          const t01 = turf.health[i] / 100;
+          rgb = t01 < 0.5 ? mixRgb(hexToRgb('#c0392b'), hexToRgb('#e0c23c'), t01 * 2) : mixRgb(hexToRgb('#e0c23c'), hexToRgb('#3f9d3f'), (t01 - 0.5) * 2);
+          f = 1;
+        } else if (viewMode === 'moisture') {
+          const t01 = turf.moisture[i] / 100;
+          rgb = mixRgb(hexToRgb('#c9b37a'), hexToRgb('#2760a8'), t01);
+          f = 1;
+        } else {
+          // normal view: health browning, disease blotches, shag darkening
+          const health = turf.health[i];
+          const dry = clamp(1 - health / 78, 0, 1);
+          rgb = mixRgb(rgb, STRAW, dry * 0.8);
+          if (turf.wear[i] > 45) rgb = mixRgb(rgb, DIRT, clamp((turf.wear[i] - 45) / 55, 0, 1) * 0.5);
+          if (turf.moisture[i] < 16) rgb = mixRgb(rgb, STRAW, 0.25);
+          const sev = turf.disSev[i];
+          if (turf.disType[i] !== DISEASE.NONE && sev > 6 && cellHash(x * 3 + 11, y * 7 + 5) < 0.25 + sev / 160) {
+            rgb = mixRgb(rgb, turf.disType[i] === DISEASE.DOLLAR_SPOT ? DS_BLOTCH : BP_BLOTCH, 0.55 + sev / 300);
+          }
+          const ideal = ideals[turfKey].height;
+          if (turf.heightMm[i] > ideal * 1.8) f *= 0.88; // shaggy reads darker
+        }
+      } else if (turf && viewMode !== 'normal' && !turfKey) {
+        // non-turf zones dim out in data views
+        rgb = mixRgb(rgb, hexToRgb('#333833'), 0.72);
+        f = 1;
+      }
+
+      ctx.fillStyle = shade(rgbHex(rgb), f);
       ctx.fillRect(x * CELL_PX, y * CELL_PX, CELL_PX, CELL_PX);
 
       // scattered "trees" in out-of-play land
@@ -102,9 +159,17 @@ function redrawTerrain(renderer) {
   renderer.dirty = false;
 }
 
+function rgbHex(rgb) {
+  const to2 = (v) => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0');
+  return `#${to2(rgb[0])}${to2(rgb[1])}${to2(rgb[2])}`;
+}
+
 export function drawCourse(ctx, renderer, cam, app) {
   const { course } = renderer;
-  if (renderer.dirty) redrawTerrain(renderer);
+  if (renderer.dirty || renderer.lastViewMode !== app.viewMode) {
+    redrawTerrain(renderer, app.state, app.viewMode || 'normal');
+    renderer.lastViewMode = app.viewMode;
+  }
 
   const canvas = ctx.canvas;
   ctx.fillStyle = '#1c2618';

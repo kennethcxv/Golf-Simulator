@@ -90,3 +90,44 @@ Newest entries at the bottom.
 - **CSP meta deferred to Phase 7** (needs an importmap hash dance; zero third-party code
   runs meanwhile). Logged in KNOWN_ISSUES.
 
+## 2026-07-09 — Phase 2 complete (turf simulation)
+
+- **Turf model**: 8 per-cell typed arrays (health/moisture/nutrients/heightMm/wear/
+  disType/disSev/treated) serialized with saves; sections stay the legibility layer
+  (one status word, detail on demand). Disease lives ON CELLS deliberately — sections
+  relabel on every course edit, so anything keyed to section ids would be orphaned by
+  renovation; cell data survives arbitrary edits.
+- **Physics ticks hourly** (evaporation by temp/humidity, four rain showers a day,
+  growth consuming nutrients, disease severity creep, health drift); onset checks,
+  wear recovery and fungicide countdown tick daily; maintenance executes at 5 AM.
+- **Asymmetric health drift** (recovery ≈ 1/3 the pace of decline) — first draft let
+  turf "heal through neglect" faster than drought could kill it; test-driven tuning
+  caught it.
+- **Demand-based irrigation**: each level (light/standard/heavy) fills toward a target
+  in the zone's moisture band with a daily cap, skips when >0.2" rain is falling, and
+  bills by points actually applied — replaced a fixed-dose design after tests showed
+  fixed dosing + light rain drowning greens at 100 moisture. More realistic AND fixed
+  the bug; drought weeks now genuinely cost more water money.
+- **Two diseases as specced**: dollar spot (mild humid days + hungry turf — the classic
+  underfed-green disease) and brown patch (hot humid nights + waterlogged/overfed turf).
+  Plain-language diagnosis strings cite the live numbers ("Nutrients here read 36").
+  Fungicide = 12 days protection, severity decays; cleared in ~7 game days in QA,
+  matching the diagnosis copy.
+- **Crew capacity model**: mowing/fertilizing consume crew-hours (greens→tees→fairways→
+  rough priority); the fixer-upper opens with a 1-person crew that cannot cover the
+  rough, which visibly shags out and darkens. Day-labor +/- hiring in the Grounds panel
+  is the Phase 2 stand-in; Phase 3 replaces it with real staff records. Frost mornings
+  stand the crew down (mowing skipped, logged in the report).
+- **Fixer-upper numbers**: Design 86 / Condition ~46 → Course 62 on day one, exactly the
+  "good bones, poor condition" muni intended. QA'd live: fungicide + standard feeding +
+  3 crew cured Green 4 in 8 days, rough 70→52mm, condition 46→50, ~$400/day burn.
+- **Balance judgment calls**: green stimp = 14.8 − height − (100−health)×0.045 −
+  sev×0.012 clamped 6–13.5; condition weights greens 3× fairways 1.6× tees 1.2× rough
+  0.5×; overall course rating = 40% design + 60% condition. All in balance.js for
+  post-playtest tuning.
+- **Renderer**: health browning (straw lerp), wear→dirt, disease blotches (pale dollar
+  spot dots vs dark brown patch), overgrown-turf darkening, and V-cycle view modes
+  (Normal/Health/Moisture heatmaps with non-turf dimmed). Terrain re-rasterizes once
+  per game hour.
+- 66/66 headless tests green; zero console errors across the browser QA session.
+

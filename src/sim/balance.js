@@ -34,4 +34,45 @@ export const BALANCE = {
   // Real-time seconds → game minutes at speed 1. A full day ≈ 2m24s at 1x.
   gameMinutesPerRealSecond: 10,
   speeds: [0, 1, 4, 16],
+
+  // --- turf simulation --------------------------------------------------------
+  turf: {
+    // ideal bands per zone type (moisture/nutrients as 0..100 points)
+    ideal: {
+      green: { height: 4, moisture: [40, 70], nutrients: [40, 75] },
+      tee: { height: 10, moisture: [35, 70], nutrients: [35, 70] },
+      fairway: { height: 14, moisture: [30, 68], nutrients: [30, 70] },
+      rough: { height: 45, moisture: [20, 75], nutrients: [20, 70] },
+    },
+    growthMmPerHour: { green: 0.085, tee: 0.12, fairway: 0.15, rough: 0.13 },
+
+    evapBasePerHour: 0.55, // moisture points/hour baseline in daylight
+    rainMoisturePerInch: 55,
+    // demand-based sprinklers: fill toward `target` (offset from the zone's ideal
+    // band), capped at `max` points/day. Watering to need, like a real system.
+    irrigation: {
+      off: null,
+      light: { targetOffset: -8, max: 12 }, // sits low in the band — lean & dry
+      standard: { targetOffset: 0, max: 20 }, // holds mid-band
+      heavy: { targetOffset: 10, max: 30 }, // pushes the top of the band
+    },
+    waterCostPerPoint: 0.0035, // $ per moisture point per cell actually applied
+
+    fertAdd: { none: 0, lean: 12, standard: 20, aggressive: 32 },
+    fertCostPerCell: { none: 0, lean: 0.35, standard: 0.6, aggressive: 1.0 },
+    fertEveryDays: 7,
+
+    fungicideCostPerCell: 2.2,
+    fungicideProtectionDays: 12,
+    aerateCostPerCell: 1.2,
+
+    crewHoursPerDay: 8,
+    wagePerCrewDay: { relaxed: 90, realistic: 130 },
+    mowHoursPerCell: { green: 0.05, tee: 0.03, fairway: 0.008, rough: 0.004 },
+
+    // negative health drift is scaled down in relaxed mode
+    decayMult: { relaxed: 0.55, realistic: 1.0 },
+    // daily disease onset scaling (relaxed courses get sick less)
+    onsetMult: { relaxed: 0.5, realistic: 1.0 },
+  },
 };

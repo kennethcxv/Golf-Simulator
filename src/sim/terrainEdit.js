@@ -8,6 +8,7 @@ import { ZONE, HOLE_CORRIDOR_CELLS, HOLE_STATUS } from './constants.js';
 import { BALANCE } from './balance.js';
 import { distToSegment, clamp } from '../core/utils.js';
 import { idx, inBounds, getZone, validateHole, labelSections } from './course.js';
+import { turfOnZonesChanged } from './turf.js';
 
 const ZONE_COST_KEY = {
   [ZONE.OUT]: 'out',
@@ -158,12 +159,17 @@ export function applyPlan(state, plan) {
   }
   const affected = planAffectedHoles(plan, course, state.mode);
 
+  const changedCells = [];
   for (const e of plan.cells.values()) {
     const i = idx(course, e.x, e.y);
-    if (e.zone !== undefined) course.zones[i] = e.zone;
+    if (e.zone !== undefined && course.zones[i] !== e.zone) {
+      course.zones[i] = e.zone;
+      changedCells.push(i);
+    }
     if (e.dElev !== undefined) course.elevation[i] += e.dElev;
   }
   state.cash -= cost.total;
+  turfOnZonesChanged(state, changedCells);
 
   for (const a of affected) {
     const hole = course.holes.find((h) => h.id === a.holeId);

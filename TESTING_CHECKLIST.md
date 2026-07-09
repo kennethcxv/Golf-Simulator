@@ -38,7 +38,25 @@ http://localhost:8447/ in a browser. Headless sim tests: `npm test`.
 
 ## Phase 2 — Turf simulation
 
-*(populated when Phase 2 is complete)*
+**Reading the course**
+- [ ] A new Realistic game shows "Course ~60 · D~86/C~46" in the HUD and a greenskeeper's note toast about diseased greens
+- [ ] The course visibly reads scruffy: straw-tinted patchy fairways, dark shaggy rough, pale mottling on 3 sick greens
+- [ ] Weather chip in the HUD shows temp/humidity/rain and updates daily; "🥵 Nd dry" appears during dry spells
+- [ ] V key (or bottom-right buttons) cycles Normal → Health (red-to-green heatmap) → Moisture (tan-to-blue) views
+- [ ] Clicking a turf section shows ONE status word (Healthy/Stressed/Declining) up front; "Details ▸" reveals health/moisture/nutrients/height/wear bars
+- [ ] A green's panel shows its stimp speed ("rolls X.X")
+- [ ] A diseased section shows a plain-language diagnosis naming the disease, the cause, and the actual live numbers
+
+**Caring for it**
+- [ ] G opens the Grounds panel: crew size with +/− (wages shown), per-zone mow height/frequency, irrigation, fertilizer dropdowns
+- [ ] "This morning" report lists what was mowed/fed, what was skipped and why, and the money spent
+- [ ] With 1 crew, rough mowing is skipped ("crew short") and the rough stays shaggy; hire to 3+ and it gets cut within its cycle
+- [ ] Fungicide button treats a diseased section (cash drops); the disease clears over ~a week of game time with a recovery toast
+- [ ] Aerate reduces a worn section's wear
+- [ ] Turning all irrigation off during a dry spell browns the course visibly within a few days (watch the Health view); condition rating falls
+- [ ] Cash drains daily from wages/water/fertilizer; heavier programs cost more
+- [ ] Frost mornings (early spring/late fall) show ❄ and the report notes the frost delay
+- [ ] Save/load mid-week: turf state, weather, policies, and the morning report all survive
 
 ## Phase 3 — Membership, hospitality, staffing
 
