@@ -116,7 +116,17 @@ http://localhost:8447/ in a browser. Headless sim tests: `npm test`.
 
 ## Phase 5 — Persistent golfers
 
-*(populated when Phase 5 is complete)*
+- [ ] During open hours, small golfer figures walk the open holes in 3D, pausing to swing; more play on busy days; none at night or on closed holes
+- [ ] Club panel → "The Regulars": members list with handicap, 😊 satisfaction, rounds played, and their latest thought in quotes
+- [ ] Clicking a regular opens their card: tier, handicap, rounds here, best score, persona, and up to 6 remembered visits with scores and the thoughts from each
+- [ ] Thoughts trace to real conditions: sick greens produce disease complaints (with the real count), high green fees produce value gripes naming the price, busy days produce wait complaints with real minutes, a sold-out shop produces bare-shelf complaints
+- [ ] Feed ("Around the club") carries overheard thoughts with 💬/💢 mood icons
+- [ ] Buy a fitting-capable pro (instructor) and watch fittings improve members' handicaps faster over following weeks
+- [ ] Handicaps drift down with regular play; scores respond (better skill + healthier course = lower numbers in memories)
+- [ ] Busy days visibly wear greens (Health view darkens on putting surfaces; aerate to relieve)
+- [ ] A consistently delighted full/premium regular becomes a ⭐ champion (feed entry, permanent star on their card)
+- [ ] Let a member's satisfaction collapse below ~15 and they quit FOREVER — ⛔ feed entry, reputation hit, and they never rejoin
+- [ ] Save/load: memories, champions, and the walked-out-forever all persist
 
 ## Phase 6 — Progression, prestige, difficulty toggle
 

@@ -14,6 +14,7 @@ import { initGolfers } from './golfers.js';
 import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
 import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue } from './shop.js';
+import { simulateDayRounds } from './rounds.js';
 import { initLedger, addExpense, closeBooks } from './economy.js';
 import { BALANCE } from './balance.js';
 
@@ -55,6 +56,7 @@ export function dailyTick(state) {
   if (state.ledger) {
     accrueDaily(state);
     if (state.shop) shopDailyAccrual(state);
+    if (state.golfers) simulateDayRounds(state, state.club.lastRounds || 0);
     closeBooks(state, calendarOf(state.clock.minutes).dayAbs - 1);
   }
 

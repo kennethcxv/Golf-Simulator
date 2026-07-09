@@ -252,3 +252,38 @@ Newest entries at the bottom.
   counter, shop ambient audio (Phase 7), display-arrangement beyond the feature
   table (post-v1).
 
+## 2026-07-09 — Phase 5 complete (persistent golfers spanning course + shop)
+
+- **113-thought catalog** (data/thoughts.js), every entry a `when(ctx)` predicate over
+  live sim values and a renderer that quotes them ("Nutrients here read 36" energy, but
+  for golfers): greens speed/health/disease, fairway/rough/tee state, design, weather+
+  condition combos ("rained all morning and the fairways still played firm — great
+  drainage"), pace (real wait minutes from real crowding), pricing vs computed fair
+  value, staffing visibility, shop stock/prices/purchases/fittings, amenities, club
+  reputation, membership economics, score reactions, and persona-specific verdicts.
+  Unit test asserts thoughts FIRE on their conditions (six scenario fixtures).
+- **Daily round sim** (sim/rounds.js): members play by satisfaction/weather propensity,
+  non-members drop in; each round scores from skill + condition penalties (sick greens
+  ≈ +3–5 strokes — condition measurably affects play, per spec); golfers keep an
+  8-visit memory ring {day, score, thoughts}; satisfaction moves on what actually
+  happened; skill (handicap) improves with play, faster within 21 days of a fitting or
+  with a teaching pro; FOOT TRAFFIC WEARS GREENS/TEES (40 rounds ≈ +1.8 wear/day),
+  closing the loop back into the turf sim.
+- **Arcs**: consistently delighted full/premium regulars become ⭐ champions (permanent
+  club.champions record + rep bump); satisfaction under 15 = they quit loudly and
+  FOREVER (never rejoin, −3 rep). First draft used a dice roll at <20 and a boosted
+  course could redeem them before it landed — changed to deterministic below 15
+  (better drama, deterministic test).
+- **Presentation**: golfers walk the course in 3D (capsule figures with caps walking
+  tee→pin corridors with shot pauses, population ∝ real rounds, only during open
+  hours); Club panel gains "The Regulars" (champion stars, handicap, satisfaction,
+  last thought in their own words) with click-through golfer cards showing the full
+  visit memory; the feed now carries overheard thoughts with mood icons.
+- **Tooling scar tissue**: a PowerShell -replace pipe mangled UTF-8 em-dashes in two
+  sim files (PS 5.1 encoding guess); repaired via a Node script. Rule going forward:
+  never round-trip source files through PowerShell string ops — use Node or the
+  editor tools.
+- 105/105 tests. Live QA: 49 golfers held memories after 6 days; sampled thoughts all
+  traced to true conditions (the conditions-persona member named the actual disease
+  count; the bare-shelf complaint matched the actual sellout).
+

@@ -701,6 +701,104 @@ export function makeCourseScene(canvas, state) {
     scene.add(holeGroup);
   }
 
+  // --- golfers out on the course (visual reflection of real play volume) ---------------
+  const golferGroup = new THREE.Group();
+  scene.add(golferGroup);
+  const golfers = [];
+  const GOLFER_COLORS = [0x9c3f31, 0x2f4f8f, 0x3f7a34, 0x8a7030, 0x5d3f8a, 0x2e7d78];
+
+  function golferHoleCorridor(course2) {
+    const open = course2.holes.filter((h) => h.status === HOLE_STATUS.OPEN && h.tee && h.pin);
+    if (!open.length) return null;
+    return open[Math.floor(Math.random() * open.length)];
+  }
+
+  function spawnGolfer(st) {
+    const hole = golferHoleCorridor(st.course);
+    if (!hole) return;
+    const color = GOLFER_COLORS[Math.floor(Math.random() * GOLFER_COLORS.length)];
+    const body = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.32, 0.95, 3, 8),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.85 }),
+    );
+    body.position.y = 1.05;
+    body.castShadow = true;
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.21, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0xd9b38c, roughness: 0.7 }),
+    );
+    head.position.y = 1.95;
+    const cap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.23, 0.23, 0.09, 10),
+      new THREE.MeshStandardMaterial({ color: 0xf2efe4, roughness: 0.8 }),
+    );
+    cap.position.y = 2.1;
+    const g = new THREE.Group();
+    g.add(body, head, cap);
+    golferGroup.add(g);
+    const lateral = (Math.random() - 0.5) * 10;
+    golfers.push({
+      mesh: g,
+      hole,
+      t: 0,
+      lateral,
+      speed: 0.011 + Math.random() * 0.005, // corridor fraction per second
+      pause: 0,
+      nextStop: 0.12 + Math.random() * 0.1,
+    });
+  }
+
+  function updateGolfers(dt, st) {
+    const cal = st ? Math.floor((st.clock.minutes % 1440)) : 720;
+    const openHours = cal >= 360 && cal <= 1200;
+    const target = openHours ? clamp(Math.round((st.club && st.club.lastRounds ? st.club.lastRounds : 8) / 5), 0, 10) : 0;
+    if (golfers.length < target && Math.random() < dt * 0.4) spawnGolfer(st);
+
+    for (let i = golfers.length - 1; i >= 0; i--) {
+      const w = golfers[i];
+      const stillOpen = w.hole.status === HOLE_STATUS.OPEN && w.hole.tee && w.hole.pin;
+      if (!stillOpen || (!openHours && w.pause <= 0) || (golfers.length > target && w.t >= 1)) {
+        golferGroup.remove(w.mesh);
+        golfers.splice(i, 1);
+        continue;
+      }
+      if (w.pause > 0) {
+        w.pause -= dt;
+      } else {
+        w.t += w.speed * dt;
+        if (w.t >= w.nextStop && w.nextStop < 1) {
+          w.pause = 1.4 + Math.random() * 1.6; // address the ball, swing, admire it
+          w.nextStop += 0.28 + Math.random() * 0.15;
+        }
+        if (w.t >= 1) {
+          // walk off to another hole
+          const next = golferHoleCorridor(st.course);
+          if (next) {
+            w.hole = next;
+            w.t = 0;
+            w.nextStop = 0.12 + Math.random() * 0.1;
+            w.lateral = (Math.random() - 0.5) * 10;
+          } else {
+            golferGroup.remove(w.mesh);
+            golfers.splice(i, 1);
+            continue;
+          }
+        }
+      }
+      const hx = worldX(w.hole.tee.x) + (worldX(w.hole.pin.x) - worldX(w.hole.tee.x)) * w.t;
+      const hz = worldZ(w.hole.tee.y) + (worldZ(w.hole.pin.y) - worldZ(w.hole.tee.y)) * w.t;
+      // gentle lateral wander that tapers near the green
+      const taper = 1 - w.t * 0.8;
+      const dirX = worldX(w.hole.pin.x) - worldX(w.hole.tee.x);
+      const dirZ = worldZ(w.hole.pin.y) - worldZ(w.hole.tee.y);
+      const len = Math.hypot(dirX, dirZ) || 1;
+      const px = hx + (-dirZ / len) * w.lateral * taper;
+      const pz = hz + (dirX / len) * w.lateral * taper;
+      w.mesh.position.set(px, heightAt(px, pz), pz);
+      w.mesh.rotation.y = Math.atan2(dirX, dirZ) + (w.pause > 0 ? 0.9 : 0);
+    }
+  }
+
   // --- brush ring / marker cursor -----------------------------------------------------------------
   const brushRing = new THREE.Mesh(
     new THREE.RingGeometry(0.9, 1, 48),
@@ -869,6 +967,7 @@ export function makeCourseScene(canvas, state) {
   function render(dtMs, st) {
     time += dtMs / 1000;
     if (shaderRefs.uniforms) shaderRefs.uniforms.uTime.value = time;
+    if (st) updateGolfers(dtMs / 1000, st);
     // flag wave
     if (holeGroup) {
       for (const o of holeGroup.children) {

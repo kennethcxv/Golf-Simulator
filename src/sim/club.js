@@ -1,4 +1,4 @@
-// FAIRWAY STATE — the club: membership tiers, pricing, amenities, corporate
+﻿// FAIRWAY STATE — the club: membership tiers, pricing, amenities, corporate
 // outings, reputation, and the daily books. Built on real membership-business
 // texture: tiers are about privileges and price psychology, joins follow perceived
 // value, churn follows satisfaction vs. what you charge.
@@ -54,12 +54,13 @@ export function initClub(state) {
     reciprocal: false,
     outings: { offers: [], scheduled: [], nextId: 1 },
     feed: [],
+    champions: [], // golfer ids who became the club's beloved regulars
   };
 }
 
 function pushFeed(state, entry) {
   state.club.feed.unshift({ ...entry, day: calendarOf(state.clock.minutes).dayAbs });
-  if (state.club.feed.length > 14) state.club.feed.pop();
+  if (state.club.feed.length > 20) state.club.feed.pop();
 }
 
 // --- ratings & pricing ------------------------------------------------------------
@@ -240,9 +241,21 @@ export function dailyMembershipTick(state) {
 
   const target = satisfactionTarget(state, ratings, amenity);
 
-  // members: drift + churn
+  // members: drift + churn (visit experiences in sim/rounds.js dominate; this is
+  // the slower between-visits pull toward what the club objectively offers)
   for (const g of members(state)) {
-    g.satisfaction = clamp(g.satisfaction + clamp(target - g.satisfaction, -16, 16) * 0.22, 0, 100);
+    g.satisfaction = clamp(g.satisfaction + clamp(target - g.satisfaction, -16, 16) * 0.12, 0, 100);
+
+    // the truly fed-up don't linger — below 15 they're simply gone, loudly and
+    // for good; 15-25 is the at-risk zone where you might still save them
+    if (g.satisfaction < 15 || (g.satisfaction < 25 && rng.chance(1 / 6))) {
+      g.memberTier = null;
+      g.leftForever = true;
+      state.club.reputation = clamp(state.club.reputation - 3, 0, 100);
+      pushFeed(state, { kind: 'quit-forever', text: `${g.name} quit for good and isn't quiet about it. That one stings.` });
+      continue;
+    }
+
     if (rng.chance(1 / 16)) {
       const fair = fairDues(state, g.memberTier, ratings.overall, amenity);
       const priced = state.club.dues[g.memberTier] / Math.max(fair, 1);
@@ -255,8 +268,9 @@ export function dailyMembershipTick(state) {
     }
   }
 
-  // prospects: joins
+  // prospects: joins (never anyone who stormed out for good)
   for (const g of nonMembers(state)) {
+    if (g.leftForever) continue;
     const tier = g.wealth >= 4 ? 'premium' : g.wealth >= 2 ? 'full' : 'weekday';
     const fair = fairDues(state, tier, ratings.overall, amenity);
     const priceF = clamp(Math.pow(fair / Math.max(state.club.dues[tier], 1), 2), 0.03, 2.2);

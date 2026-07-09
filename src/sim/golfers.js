@@ -21,11 +21,18 @@ export function initGolfers(state, poolSize = 140) {
       name: genName(rng),
       wealth,
       persona: PERSONAS[rng.int(PERSONAS.length)],
-      skill: 8 + rng.int(20), // handicap-ish, Phase 5 evolves it
+      skill: 8 + rng.int(20), // handicap-ish; play, fittings and lessons lower it
       memberTier: null,
       satisfaction: 48 + rng.int(14),
       joinedDay: -1,
       lastVisitDay: -1,
+      memory: [], // last 8 visits: {day, score, thoughts[]}
+      roundsPlayed: 0,
+      bestScore: null,
+      champion: false,
+      leftForever: false,
+      fittedDay: null,
+      skillDelta30: 0,
     });
   }
 

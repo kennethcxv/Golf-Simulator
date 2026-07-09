@@ -1,7 +1,7 @@
 // FAIRWAY STATE — Club panel: membership, pricing, staff, amenities, outings,
 // the news feed, and yesterday's books. The management desk of the clubhouse.
 
-import { el, toast } from './ui.js';
+import { el, toast, modal } from './ui.js';
 import { formatMoney } from '../core/utils.js';
 import {
   TIERS, AMENITIES, memberCounts, clubRatings, amenityScore, fairGreenFee, fairDues,
@@ -164,11 +164,34 @@ export function makeClubPanel(app, onStateChanged) {
       rows.push(el('div', { class: 'row muted', text: `Booked: ${o.company}, ${o.size} players, in ${Math.max(0, o.day - dayAbs)} day(s) — members will grumble that day.` }));
     }
 
+    // --- the regulars (the persistent-golfer heart of the club) -------------------
+    rows.push(el('h3', { text: 'The regulars', style: 'margin-top:10px' }));
+    const regulars = ms
+      .filter((g) => (g.roundsPlayed || 0) > 0)
+      .sort((a, b) => (b.champion ? 1 : 0) - (a.champion ? 1 : 0) || (b.roundsPlayed || 0) - (a.roundsPlayed || 0))
+      .slice(0, 6);
+    if (!regulars.length) {
+      rows.push(el('div', { class: 'row muted', text: 'Nobody has teed it up yet — give it a day.' }));
+    }
+    for (const g of regulars) {
+      const lastThought = g.memory && g.memory[0] && g.memory[0].thoughts[0];
+      rows.push(el('div', { class: 'row', style: 'font-size:0.88rem;cursor:pointer', onclick: () => showGolferCard(g) },
+        el('span', { text: `${g.champion ? '⭐ ' : ''}${g.name}`, style: 'width:150px;font-weight:600' }),
+        el('span', { class: 'muted', text: `${TIERS[g.memberTier].name} · cap ${g.skill.toFixed(1)} · 😊${Math.round(g.satisfaction)} · ${g.roundsPlayed} rds` }),
+      ));
+      if (lastThought) {
+        rows.push(el('div', { class: 'row muted', style: 'font-size:0.82rem;padding-left:12px;font-style:italic', text: `“${lastThought}”` }));
+      }
+    }
+
     // --- feed ------------------------------------------------------------------------
     rows.push(el('h3', { text: 'Around the club', style: 'margin-top:10px' }));
     if (!club.feed.length) rows.push(el('div', { class: 'row muted', text: 'Quiet so far.' }));
-    for (const f of club.feed.slice(0, 8)) {
-      const icon = f.kind === 'join' ? '🟢' : f.kind === 'quit' ? '🔴' : f.kind === 'offer' ? '📨' : f.kind === 'outing' ? '🏢' : '🛠';
+    for (const f of club.feed.slice(0, 9)) {
+      const icon =
+        f.kind === 'join' ? '🟢' : f.kind === 'quit' ? '🔴' : f.kind === 'quit-forever' ? '⛔' :
+        f.kind === 'offer' ? '📨' : f.kind === 'outing' ? '🏢' : f.kind === 'champion' ? '⭐' :
+        f.kind === 'thought' ? (f.mood === 'bad' ? '💢' : f.mood === 'good' ? '💬' : '💭') : '🛠';
       rows.push(el('div', { class: 'row muted', style: 'font-size:0.87rem', text: `${icon} ${f.text}` }));
     }
 
@@ -185,6 +208,32 @@ export function makeClubPanel(app, onStateChanged) {
     }
 
     body.replaceChildren(...rows);
+  }
+
+  function showGolferCard(g) {
+    modal(`${g.champion ? '⭐ ' : ''}${g.name}`, (box, close) => {
+      box.append(
+        el('div', { class: 'row muted' },
+          `${TIERS[g.memberTier] ? TIERS[g.memberTier].name : 'Not a member'} · handicap ${g.skill.toFixed(1)} · ` +
+          `${g.roundsPlayed} rounds here · best ${g.bestScore ?? '—'} · picky about ${g.persona}`),
+        el('div', { class: 'row' },
+          el('span', { class: 'status-chip', text: `Satisfaction ${Math.round(g.satisfaction)}` }),
+          g.fittedDay != null ? el('span', { class: 'status-chip', text: 'Recently fitted' }) : null,
+        ),
+        el('h2', { text: 'Recent visits', style: 'font-size:1rem;margin-top:10px' }),
+      );
+      if (!g.memory || !g.memory.length) {
+        box.append(el('div', { class: 'row muted', text: 'No rounds on record yet.' }));
+      }
+      for (const m of (g.memory || []).slice(0, 6)) {
+        box.append(el('div', { class: 'row muted', style: 'font-size:0.85rem', text: `Day ${m.day + 1} — shot ${m.score}` }));
+        for (const t of m.thoughts) {
+          box.append(el('div', { class: 'row', style: 'font-size:0.84rem;padding-left:12px;font-style:italic;color:var(--text-dim)', text: `“${t}”` }));
+        }
+      }
+      box.append(el('div', { class: 'row', style: 'margin-top:10px' },
+        el('button', { class: 'primary', text: 'Close', onclick: close })));
+    });
   }
 
   function setVisible(v) {
