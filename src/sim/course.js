@@ -79,6 +79,13 @@ export function holePar(hole) {
   return parForDistance(holeDistanceYd(hole));
 }
 
+// UI copy helper: "Hole 4 · Par 5 · 482 yd"
+export function holeSummary(course, hole) {
+  const n = holeNumber(course, hole.id);
+  if (!hole.tee || !hole.pin) return `Hole ${n} · unfinished`;
+  return `Hole ${n} · Par ${holePar(hole)} · ${Math.round(holeDistanceYd(hole))} yd`;
+}
+
 export function validateHole(course, hole) {
   const reasons = [];
   if (!hole.tee) reasons.push('No tee placed.');

@@ -5,9 +5,12 @@ under "Needs a real art/audio pass" must be replaced before this could ship comm
 
 ## Needs a real art pass before release
 
-- **All course visuals are procedural placeholders** — flat-color zone rendering with
-  hillshading; no grass/sand/water textures, no trees/props sprites, no golfer character
-  art (golfers render as dots/simple shapes).
+- **Course is real 3D (v3) but textures/models are procedural placeholders** — canvas-
+  generated grass/sand/scrub tiles (a CC0 photo-texture + normal-map pass would lift
+  realism significantly), low-poly gumdrop/cone trees (real tree models or billboard
+  imposters needed), box-and-pyramid clubhouse, no golfer character models yet.
+- **Sky horizon blows out white at low sun angles**; water surfaces have no ripple
+  normals; no rain particles. All queued for the Phase 7 polish pass.
 - **Pro shop interior is simple geometric primitives** — boxes for shelves/counter,
   capsule customers, flat-color materials. Needs real modular shop kit models + characters.
 - **UI is hand-rolled DOM/canvas styling** — functional, consistent, but needs a real UI

@@ -58,6 +58,19 @@ http://localhost:8447/ in a browser. Headless sim tests: `npm test`.
 - [ ] Frost mornings (early spring/late fall) show ❄ and the report notes the frost delay
 - [ ] Save/load mid-week: turf state, weather, policies, and the morning report all survive
 
+## v3 — Realistic 3D course view
+
+- [ ] New game opens on a 3D course: rolling terrain, ~2,700 trees with shadows, pond with water, clubhouse building, numbered flags and tee markers
+- [ ] Drag pans, right-drag orbits/tilts, wheel zooms (28–720 yd), WASD pans, Q rotates
+- [ ] Time of day is real: dawn warmth, moving sun and shadows, dusk, readable moonlit night; rainy days are foggy and dim
+- [ ] The fixer-upper reads in 3D: straw-tinted weak turf, pale dollar-spot blotches on sick greens, no mow stripes on overgrown fairways
+- [ ] After the crew mows (fast-forward a morning), greens/fairways show mow stripes that fade back as grass regrows
+- [ ] V cycles Normal → Health heatmap → Moisture (non-turf dims dark in data views)
+- [ ] Works mode: brush ring follows the cursor on the terrain; painting stages pulsing ghost cells; confirm converts real terrain (trees clear from converted cells; bunkers become sculpted sand)
+- [ ] Renovation badges float over closed holes ("⛏ H1 · 4d"); pins turn grey; reopening restores red flags
+- [ ] Raise/Lower/Smooth visibly reshape the land on confirm; ponds carve real bowls with water surfaces
+- [ ] Click a section to inspect it (same panel as before) — raycast picking matches what you clicked
+
 ## Phase 3 — Membership, hospitality, staffing
 
 *(populated when Phase 3 is complete)*

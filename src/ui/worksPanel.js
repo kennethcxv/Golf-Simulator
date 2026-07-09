@@ -5,9 +5,9 @@ import { el, toast } from './ui.js';
 import { ZONE } from '../sim/constants.js';
 import { BALANCE } from '../sim/balance.js';
 import { planCost, planAffectedHoles, zoneCostPerCell } from '../sim/terrainEdit.js';
-import { ZONE_COLORS, holeSummary } from '../render/courseRenderer.js';
+import { ZONE_COLORS } from '../render/palette.js';
 import { formatMoney } from '../core/utils.js';
-import { holeNumber } from '../sim/course.js';
+import { holeNumber, holeSummary } from '../sim/course.js';
 
 const ZONE_TOOLS = [
   { zone: ZONE.FAIRWAY, label: 'Fairway' },

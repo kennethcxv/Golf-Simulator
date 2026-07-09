@@ -1,4 +1,11 @@
-# FAIRWAY STATE — BUILD BRIEF (v2, authoritative)
+# FAIRWAY STATE — BUILD BRIEF (v2 + v3 addendum)
+
+> **v3 ADDENDUM (2026-07-09, owner directive, supersedes the contrary v2 lines below):**
+> The course view is a realistic **3D** scene (Three.js) — smooth terrain, real-looking
+> turf/sand/water/trees, sun and sky — not a top-down/2.5D canvas. The management
+> camera, simulation, UI, and the first-person pro shop plan are unchanged. Where the
+> v2 text below says "top-down" or "Three.js only for the pro shop", the v3 directive
+> wins.
 
 The working directive this project follows. Preserved verbatim in substance from the
 project owner's brief of 2026-07-09, which superseded the earlier Unity direction.

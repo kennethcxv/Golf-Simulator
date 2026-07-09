@@ -1,17 +1,15 @@
 // FAIRWAY STATE — application bootstrap: screens, game loop, input routing.
 // All simulation lives in src/sim/ (headless-testable); this file wires it to
-// the canvas, the DOM UI, and the clock.
+// the 3D course scene, the DOM UI, and the clock.
 
 import { BALANCE } from './sim/balance.js';
-import { HOLE_STATUS } from './sim/constants.js';
+import { HOLE_STATUS, TURF_ZONES } from './sim/constants.js';
 import { newGame, deserialize, snapshot, update } from './sim/state.js';
 import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
 import {
   makePlan, planPaintZone, planAdjustElev, planSmoothElev, applyPlan,
   worksSetTee, worksSetPin,
 } from './sim/terrainEdit.js';
-import { makeCamera, panBy, zoomAt, screenToCell, clampToCourse } from './render/camera.js';
-import { makeCourseRenderer, drawCourse, markTerrainDirty } from './render/courseRenderer.js';
 import { calendarOf } from './sim/time.js';
 import { el, toast, modal } from './ui/ui.js';
 import { makeHud } from './ui/hud.js';
@@ -21,23 +19,20 @@ import { makeGroundsPanel } from './ui/groundsPanel.js';
 import { makeMenu } from './screens/menu.js';
 import { saveData, loadData } from './core/storage.js';
 import { conditionRating, sectionTurfSummary } from './sim/turf.js';
-import { TURF_ZONES } from './sim/constants.js';
+import { makeCourseScene } from './render3d/courseScene.js';
 
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
 const uiRoot = document.getElementById('ui');
 
 const app = {
   screen: 'menu', // 'menu' | 'game'
   state: null,
-  camera: null,
-  renderer: null,
+  scene3d: null,
   plan: null,
   worksMode: false,
   activeTool: null,
   brushSize: 1,
   hoverCell: null,
-  hoverHoleId: null,
   selectedSection: null,
   speedIdx: 1,
   designRating: 0,
@@ -45,8 +40,7 @@ const app = {
   overallRating: 0,
   viewMode: 'normal', // 'normal' | 'health' | 'moisture'
   groundsOpen: false,
-  dpr: 1,
-  sectionIndex: null, // Int32Array cell → section id, rebuilt when sections change
+  sectionIndex: null,
   sectionsRef: null,
 };
 
@@ -56,16 +50,6 @@ let inspectPanel = null;
 let groundsPanel = null;
 let menu = null;
 let gameUi = null;
-
-// --- canvas sizing -------------------------------------------------------
-
-function resize() {
-  app.dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.round(window.innerWidth * app.dpr);
-  canvas.height = Math.round(window.innerHeight * app.dpr);
-}
-window.addEventListener('resize', resize);
-resize();
 
 // --- section lookup --------------------------------------------------------
 
@@ -104,15 +88,19 @@ function recomputeRating() {
 // disease outbreak notifications: compare the diseased-section set day to day
 let lastDiseasedNames = new Set();
 
-function announceOutbreaks() {
-  const st = app.state;
-  if (!st.turf) return;
+function currentDiseasedSet() {
   const now = new Set();
-  for (const s of st.sections) {
+  for (const s of app.state.sections) {
     if (!TURF_ZONES.has(s.zone)) continue;
-    const sum = sectionTurfSummary(st, s);
+    const sum = sectionTurfSummary(app.state, s);
     if (sum.disease) now.add(`${sum.disease.name}|${s.name}`);
   }
+  return now;
+}
+
+function announceOutbreaks() {
+  if (!app.state.turf) return;
+  const now = currentDiseasedSet();
   for (const key of now) {
     if (!lastDiseasedNames.has(key)) {
       const [disease, name] = key.split('|');
@@ -131,10 +119,13 @@ function announceOutbreaks() {
 // --- game lifecycle -----------------------------------------------------------
 
 function startGame(state) {
+  if (app.scene3d) {
+    app.scene3d.dispose();
+    app.scene3d = null;
+  }
   app.state = state;
   app.screen = 'game';
-  app.camera = makeCamera(state.course, canvas);
-  app.renderer = makeCourseRenderer(state.course);
+  app.scene3d = makeCourseScene(canvas, state);
   app.plan = makePlan();
   app.worksMode = false;
   app.activeTool = null;
@@ -143,14 +134,7 @@ function startGame(state) {
   lastHourSeen = -1;
   rebuildSectionIndex();
   recomputeRating();
-  // prime the outbreak tracker silently — day-one disease is part of the pitch,
-  // the inspect panel and mottled turf tell that story without a toast barrage
-  lastDiseasedNames = new Set();
-  for (const s of state.sections) {
-    if (!TURF_ZONES.has(s.zone)) continue;
-    const sum = sectionTurfSummary(state, s);
-    if (sum.disease) lastDiseasedNames.add(`${sum.disease.name}|${s.name}`);
-  }
+  lastDiseasedNames = currentDiseasedSet(); // prime silently
   if (groundsPanel) groundsPanel.setVisible(false);
   if (worksPanel) worksPanel.setVisible(false);
   menu.setVisible(false);
@@ -178,7 +162,7 @@ async function autosave() {
   }
 }
 
-// --- works handlers -------------------------------------------------------------
+// --- handlers -------------------------------------------------------------------
 
 const handlers = {
   setSpeed(i) {
@@ -189,6 +173,7 @@ const handlers = {
     if (!app.worksMode) {
       handlers.cancelPlan(true);
       app.activeTool = null;
+      app.scene3d.setBrush(null, 0, null);
     } else if (app.groundsOpen) {
       groundsPanel.setVisible(false);
     }
@@ -205,6 +190,7 @@ const handlers = {
   },
   setViewMode(mode) {
     app.viewMode = mode;
+    app.scene3d.setViewMode(mode);
   },
   setTool(tool) {
     app.activeTool = tool;
@@ -223,7 +209,8 @@ const handlers = {
       toast(res.reason, 'warn');
       return;
     }
-    markTerrainDirty(app.renderer);
+    app.scene3d.rebuildAll(app.state);
+    app.scene3d.updatePlan(app.plan);
     rebuildSectionIndex();
     recomputeRating();
     worksPanel.refreshPlan();
@@ -238,6 +225,7 @@ const handlers = {
   cancelPlan(silent = false) {
     if (app.plan && app.plan.cells.size > 0) {
       app.plan.cells.clear();
+      app.scene3d.updatePlan(app.plan);
       worksPanel.refreshPlan();
       if (!silent) toast('Plan scrapped.');
     }
@@ -293,16 +281,11 @@ function openPauseMenu() {
 
 // --- input ------------------------------------------------------------------------
 
-let dragging = null; // { mode: 'pan'|'paint', lastX, lastY, moved, strokeCells:Set }
-
-function canvasPos(e) {
-  const rect = canvas.getBoundingClientRect();
-  return { x: (e.clientX - rect.left) * app.dpr, y: (e.clientY - rect.top) * app.dpr };
-}
+let dragging = null; // { mode: 'pan'|'orbit'|'paint'|'pan-or-click', lastX, lastY, moved, strokeCells, cell }
 
 function applyToolAtCell(cell, strokeCells) {
   const t = app.activeTool;
-  if (!t) return;
+  if (!t || !cell) return;
   const key = cell.x + cell.y * 100000;
   if (t.kind === 'zone') {
     planPaintZone(app.plan, app.state.course, cell.x, cell.y, app.brushSize, t.zone);
@@ -313,6 +296,7 @@ function applyToolAtCell(cell, strokeCells) {
     else if (t.dir === 'lower') planAdjustElev(app.plan, app.state.course, cell.x, cell.y, app.brushSize, -0.5);
     else planSmoothElev(app.plan, app.state.course, cell.x, cell.y, Math.max(1, app.brushSize), 0.5);
   }
+  app.scene3d.updatePlan(app.plan);
   worksPanel.refreshPlan();
 }
 
@@ -327,6 +311,8 @@ function placeMarkerAt(cell) {
   const n = holeNumber(app.state.course, t.holeId);
   toast(`${t.which === 'tee' ? 'Tee' : 'Pin'} set for hole ${n}.`);
   app.activeTool = null;
+  app.scene3d.setBrush(null, 0, null);
+  app.scene3d.updateHoles();
   worksPanel.updateToolHighlight();
   worksPanel.refreshHoles();
   worksPanel.refreshPlan();
@@ -334,64 +320,74 @@ function placeMarkerAt(cell) {
   recomputeRating();
 }
 
+function refreshHover(clientX, clientY) {
+  if (!app.scene3d) return;
+  const hit = app.scene3d.raycastCell(clientX, clientY);
+  app.hoverCell = hit ? { x: hit.x, y: hit.y } : null;
+  if (app.worksMode && app.activeTool) {
+    app.scene3d.setBrush(app.hoverCell, app.brushSize, app.activeTool.kind);
+  } else {
+    app.scene3d.setBrush(null, 0, null);
+  }
+}
+
 canvas.addEventListener('pointerdown', (e) => {
   if (app.screen !== 'game') return;
-  const p = canvasPos(e);
   canvas.setPointerCapture(e.pointerId);
 
   if (e.button === 1 || e.button === 2) {
-    dragging = { mode: 'pan', lastX: p.x, lastY: p.y, moved: 0 };
+    dragging = { mode: 'orbit', lastX: e.clientX, lastY: e.clientY, moved: 0 };
     return;
   }
   if (e.button === 0) {
-    const cell = screenToCell(app.camera, p.x, p.y);
+    refreshHover(e.clientX, e.clientY);
     if (app.worksMode && app.activeTool) {
       if (app.activeTool.kind === 'marker') {
-        placeMarkerAt(cell);
+        if (app.hoverCell) placeMarkerAt(app.hoverCell);
         return;
       }
-      dragging = { mode: 'paint', lastX: p.x, lastY: p.y, moved: 0, strokeCells: new Set() };
-      applyToolAtCell(cell, dragging.strokeCells);
+      dragging = { mode: 'paint', lastX: e.clientX, lastY: e.clientY, moved: 0, strokeCells: new Set(), lastCell: app.hoverCell };
+      applyToolAtCell(app.hoverCell, dragging.strokeCells);
       return;
     }
-    // no tool: left-drag pans, plain click inspects
-    dragging = { mode: 'pan-or-click', lastX: p.x, lastY: p.y, moved: 0, cell };
+    dragging = { mode: 'pan-or-click', lastX: e.clientX, lastY: e.clientY, moved: 0, cell: app.hoverCell };
   }
 });
 
 canvas.addEventListener('pointermove', (e) => {
   if (app.screen !== 'game') return;
-  const p = canvasPos(e);
-  app.hoverCell = screenToCell(app.camera, p.x, p.y);
-  updateHoverHole();
+  refreshHover(e.clientX, e.clientY);
 
   if (!dragging) return;
-  const dx = p.x - dragging.lastX;
-  const dy = p.y - dragging.lastY;
+  const dx = e.clientX - dragging.lastX;
+  const dy = e.clientY - dragging.lastY;
   dragging.moved += Math.abs(dx) + Math.abs(dy);
 
-  if (dragging.mode === 'pan' || (dragging.mode === 'pan-or-click' && dragging.moved > 6)) {
-    dragging.mode = dragging.mode === 'pan-or-click' ? 'pan' : dragging.mode;
-    panBy(app.camera, dx, dy);
-    clampToCourse(app.camera, app.state.course);
+  if (dragging.mode === 'orbit') {
+    app.scene3d.rig.orbit(-dx * 0.0052, dy * 0.0038);
+  } else if (dragging.mode === 'pan' || (dragging.mode === 'pan-or-click' && dragging.moved > 6)) {
+    dragging.mode = 'pan';
+    app.scene3d.rig.pan(dx, dy, canvas.clientHeight || window.innerHeight);
   } else if (dragging.mode === 'paint') {
-    // walk the segment so fast drags don't leave gaps
-    const from = screenToCell(app.camera, dragging.lastX, dragging.lastY);
+    const from = dragging.lastCell;
     const to = app.hoverCell;
-    const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y), 1);
-    for (let i = 1; i <= steps; i++) {
-      const cx = Math.round(from.x + ((to.x - from.x) * i) / steps);
-      const cy = Math.round(from.y + ((to.y - from.y) * i) / steps);
-      applyToolAtCell({ x: cx, y: cy }, dragging.strokeCells);
+    if (from && to) {
+      const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y), 1);
+      for (let i = 1; i <= steps; i++) {
+        const cx = Math.round(from.x + ((to.x - from.x) * i) / steps);
+        const cy = Math.round(from.y + ((to.y - from.y) * i) / steps);
+        applyToolAtCell({ x: cx, y: cy }, dragging.strokeCells);
+      }
     }
+    dragging.lastCell = to;
   }
-  dragging.lastX = p.x;
-  dragging.lastY = p.y;
+  dragging.lastX = e.clientX;
+  dragging.lastY = e.clientY;
 });
 
-canvas.addEventListener('pointerup', (e) => {
+canvas.addEventListener('pointerup', () => {
   if (app.screen !== 'game' || !dragging) return;
-  if (dragging.mode === 'pan-or-click' && dragging.moved <= 6) {
+  if (dragging.mode === 'pan-or-click' && dragging.moved <= 6 && dragging.cell) {
     const section = sectionAtCell(dragging.cell.x, dragging.cell.y);
     if (section) inspectPanel.show(section);
     else inspectPanel.hide();
@@ -402,9 +398,7 @@ canvas.addEventListener('pointerup', (e) => {
 canvas.addEventListener('wheel', (e) => {
   if (app.screen !== 'game') return;
   e.preventDefault();
-  const p = canvasPos(e);
-  zoomAt(app.camera, p.x, p.y, e.deltaY < 0 ? 1.15 : 1 / 1.15);
-  clampToCourse(app.camera, app.state.course);
+  app.scene3d.rig.dolly(e.deltaY > 0 ? 1.13 : 1 / 1.13);
 }, { passive: false });
 
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -428,12 +422,13 @@ window.addEventListener('keydown', (e) => {
       break;
     case 'v': case 'V': {
       const modes = ['normal', 'health', 'moisture'];
-      app.viewMode = modes[(modes.indexOf(app.viewMode) + 1) % modes.length];
+      handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
       break;
     }
     case 'Escape':
       if (app.activeTool) {
         app.activeTool = null;
+        app.scene3d.setBrush(null, 0, null);
         worksPanel.updateToolHighlight();
       } else if (app.worksMode) {
         handlers.toggleWorks();
@@ -446,61 +441,26 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-function updateHoverHole() {
-  app.hoverHoleId = null;
-  if (!app.state || !app.hoverCell) return;
-  const { x, y } = app.hoverCell;
-  for (const hole of app.state.course.holes) {
-    if (!hole.tee || !hole.pin) continue;
-    const dx1 = hole.tee.x - x;
-    const dy1 = hole.tee.y - y;
-    const dx2 = hole.pin.x - x;
-    const dy2 = hole.pin.y - y;
-    if (Math.min(dx1 * dx1 + dy1 * dy1, dx2 * dx2 + dy2 * dy2) < 16) {
-      app.hoverHoleId = hole.id;
-      return;
-    }
-  }
-}
-
-// --- keyboard pan (held keys) -----------------------------------------------------
-
+// held-key camera movement
 const held = new Set();
 window.addEventListener('keydown', (e) => {
-  if (['w', 'a', 's', 'd', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) held.add(e.key);
+  if (['w', 'a', 's', 'd', 'q', 'e', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) held.add(e.key);
 });
 window.addEventListener('keyup', (e) => held.delete(e.key));
 window.addEventListener('blur', () => held.clear());
 
-function keyboardPan(dtMs) {
-  if (app.screen !== 'game') return;
-  const v = 0.9 * dtMs;
+function keyboardCamera(dtMs) {
+  if (app.screen !== 'game' || !app.scene3d) return;
+  const v = 0.7 * dtMs;
   let dx = 0;
   let dy = 0;
   if (held.has('a') || held.has('ArrowLeft')) dx += v;
   if (held.has('d') || held.has('ArrowRight')) dx -= v;
   if (held.has('w') || held.has('ArrowUp')) dy += v;
   if (held.has('s') || held.has('ArrowDown')) dy -= v;
-  if (dx || dy) {
-    panBy(app.camera, dx, dy);
-    clampToCourse(app.camera, app.state.course);
-  }
-}
-
-// --- night overlay ------------------------------------------------------------------
-
-function drawNight(ctx2) {
-  const cal = calendarOf(app.state.clock.minutes);
-  const m = cal.minuteOfDay;
-  let alpha = 0;
-  if (m < 5 * 60) alpha = 0.42;
-  else if (m < 7 * 60) alpha = 0.42 * (1 - (m - 5 * 60) / 120);
-  else if (m > 21 * 60) alpha = 0.42;
-  else if (m > 19 * 60) alpha = 0.42 * ((m - 19 * 60) / 120);
-  if (alpha > 0.01) {
-    ctx2.fillStyle = `rgba(10, 16, 34, ${alpha})`;
-    ctx2.fillRect(0, 0, ctx2.canvas.width, ctx2.canvas.height);
-  }
+  if (dx || dy) app.scene3d.rig.pan(-dx, -dy, canvas.clientHeight || window.innerHeight);
+  if (held.has('q')) app.scene3d.rig.orbit(0.0016 * dtMs, 0);
+  // note: 'e' toggles works mode on keydown; rotation uses Q + right-drag only
 }
 
 // --- main loop -----------------------------------------------------------------------
@@ -512,8 +472,8 @@ function frame(ts) {
   const dtMs = Math.min(250, ts - lastTs || 16);
   lastTs = ts;
 
-  if (app.screen === 'game' && app.state) {
-    keyboardPan(dtMs);
+  if (app.screen === 'game' && app.state && app.scene3d) {
+    keyboardCamera(dtMs);
     const speed = BALANCE.speeds[app.speedIdx];
     if (speed > 0) {
       const gameMinutes = (dtMs / 1000) * BALANCE.gameMinutesPerRealSecond * speed;
@@ -521,6 +481,7 @@ function frame(ts) {
       if (daysPassed > 0) {
         rebuildSectionIndex();
         worksPanel.refreshHoles();
+        app.scene3d.updateHoles();
         announceReopenings();
         announceOutbreaks();
         autosave();
@@ -528,14 +489,15 @@ function frame(ts) {
       const hourNow = Math.floor(app.state.clock.minutes / 60);
       if (hourNow !== lastHourSeen) {
         lastHourSeen = hourNow;
-        markTerrainDirty(app.renderer); // turf visibly evolves hour to hour
+        app.scene3d.updateTurf(app.state);
         recomputeRating();
         inspectPanel.refreshIfOpen();
         if (app.groundsOpen) groundsPanel.refresh();
       }
     }
-    drawCourse(ctx, app.renderer, app.camera, app);
-    drawNight(ctx);
+    const cal = calendarOf(app.state.clock.minutes);
+    app.scene3d.applyTimeWeather(cal.minuteOfDay, app.state.weather);
+    app.scene3d.render(dtMs, app.state);
     hud.update();
   }
   requestAnimationFrame(frame);
@@ -556,6 +518,11 @@ function announceReopenings() {
 }
 
 // --- boot ------------------------------------------------------------------------------
+
+function resize() {
+  if (app.scene3d) app.scene3d.resize();
+}
+window.addEventListener('resize', resize);
 
 function boot() {
   menu = makeMenu({
@@ -587,7 +554,7 @@ function boot() {
   }, 250);
 
   gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, viewToggle,
-    el('div', { class: 'hint-bar', text: 'Drag: pan · Wheel: zoom · E: Works · G: Grounds · V: view · Click: inspect · Space: pause' }));
+    el('div', { class: 'hint-bar', text: 'Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · V: view · Click: inspect · Space: pause' }));
 
   uiRoot.append(menu.root, gameUi);
   requestAnimationFrame(frame);
