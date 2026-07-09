@@ -1,0 +1,23 @@
+{
+  "name": "fairway-state",
+  "productName": "FAIRWAY STATE",
+  "version": "0.1.0",
+  "description": "A realistic golf course management simulator — top-down living course, walkable pro shop",
+  "author": "Prime Fairways",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.cjs",
+  "type": "module",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "serve": "node tools/serve.cjs",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  }
+}
