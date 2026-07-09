@@ -5,6 +5,7 @@ import { calendarOf, formatClock, formatDate } from '../sim/time.js';
 import { formatMoney } from '../core/utils.js';
 import { BALANCE } from '../sim/balance.js';
 import { weatherSummary } from '../sim/weather.js';
+import { memberCounts } from '../sim/club.js';
 
 export function makeHud(app, handlers) {
   const club = el('span', { class: 'club', text: '' });
@@ -25,6 +26,12 @@ export function makeHud(app, handlers) {
   if (speedBtns[3]) speedBtns[3].textContent = '▶▶▶';
 
   const weather = el('span', { class: 'weather', title: 'Today at the course' });
+  const clubStats = el('span', { class: 'rating', title: 'Members · Reputation' });
+  const clubBtn = el('button', {
+    text: '🏛 Club',
+    title: 'Members, pricing, staff, amenities (C)',
+    onclick: () => handlers.toggleClub(),
+  });
   const groundsBtn = el('button', {
     text: '⛳ Grounds',
     title: 'Maintenance policies and crew (G)',
@@ -45,8 +52,10 @@ export function makeHud(app, handlers) {
     el('div', { class: 'speed-group' }, ...speedBtns),
     weather,
     el('span', { class: 'spacer' }),
+    clubStats,
     rating,
     cash,
+    clubBtn,
     groundsBtn,
     worksBtn,
     menuBtn,
@@ -69,9 +78,14 @@ export function makeHud(app, handlers) {
     weather.textContent = wText;
     rating.textContent = `Course ${Math.round(app.overallRating)} · D${Math.round(app.designRating)}/C${Math.round(app.conditionRatingVal)}`;
     rating.title = 'Overall course rating · Design / Condition';
+    if (app.state.club && app.state.golfers) {
+      const c = memberCounts(app.state);
+      clubStats.textContent = `👥 ${c.weekday + c.full + c.premium} · Rep ${Math.round(app.state.club.reputation)}`;
+    }
     speedBtns.forEach((b, i) => b.classList.toggle('on', app.speedIdx === i));
     worksBtn.classList.toggle('active-tool', app.worksMode);
     groundsBtn.classList.toggle('active-tool', app.groundsOpen);
+    clubBtn.classList.toggle('active-tool', app.clubOpen);
   }
 
   return { root, update };

@@ -81,8 +81,7 @@ test('staff wages accrue daily through the ledger', () => {
   const st = newGame('realistic', 42);
   st.staff.employees.push({ id: 903, name: 'Test C', role: ROLE.FNB, skill: 3, wage: 120, trainingDays: 0 });
   assert.equal(staffDailyWages(st), 120);
-  const cashBefore = st.cash;
   update(st, MINUTES_PER_DAY);
-  assert.ok(st.cash < cashBefore, 'payroll ran');
-  assert.ok(st.ledger.yesterday.expense.wagesStaff >= 120, JSON.stringify(st.ledger.yesterday));
+  // the club also earns revenue now, so check the payroll line itself
+  assert.ok(st.ledger.yesterday.expense.wagesStaff >= 120, JSON.stringify(st.ledger.yesterday.expense));
 });

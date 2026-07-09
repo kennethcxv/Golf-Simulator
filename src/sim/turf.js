@@ -18,6 +18,8 @@ import { ZONE, TURF_ZONES } from './constants.js';
 import { BALANCE } from './balance.js';
 import { clamp, rngOf } from '../core/utils.js';
 import { tempAtHour, isFrostMorning } from './weather.js';
+import { spend } from './economy.js';
+import { groundsCrewHours } from './staff.js';
 
 const T = () => BALANCE.turf;
 
@@ -301,7 +303,8 @@ export function runMorningMaintenance(state, dayAbs) {
     costs: { wages: 0, water: 0, fertilizer: 0 },
   };
 
-  let hoursLeft = maint.crewUnits * T().crewHoursPerDay;
+  // skilled groundskeeper staff + day-labor headcount both feed capacity
+  let hoursLeft = state.staff ? groundsCrewHours(state) : maint.crewUnits * T().crewHoursPerDay;
   report.costs.wages = maint.crewUnits * T().wagePerCrewDay[state.mode];
 
   // --- irrigation (automatic demand-based sprinklers, no crew time) ---
@@ -390,7 +393,7 @@ export function treatSection(state, section) {
   const t = state.turf;
   const cost = Math.round(section.cells.length * T().fungicideCostPerCell);
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash for fungicide.' };
-  state.cash -= cost;
+  spend(state, 'chemicals', cost);
   for (const i of section.cells) {
     t.treated[i] = T().fungicideProtectionDays;
   }
@@ -401,7 +404,7 @@ export function aerateSection(state, section) {
   const t = state.turf;
   const cost = Math.round(section.cells.length * T().aerateCostPerCell);
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash to aerate.' };
-  state.cash -= cost;
+  spend(state, 'upkeep', cost);
   for (const i of section.cells) {
     t.wear[i] = Math.max(0, t.wear[i] - 35);
     t.health[i] = clamp(t.health[i] + 3, 0, 100);

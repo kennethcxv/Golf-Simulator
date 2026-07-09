@@ -234,14 +234,16 @@ test('status legibility: one word per section, sensible bands', () => {
   assert.equal(sectionStatus(st, green), 'Declining');
 });
 
-test('daily maintenance costs money (wages, water, fertilizer)', () => {
+test('daily maintenance costs money (wages, water, fertilizer) through the books', () => {
   const st = freshState();
   lockWeather(st, { tempHiF: 75, tempLoF: 58, rainIn: 0, humidity: 0.5 });
-  const cashBefore = st.cash;
   update(st, MINUTES_PER_DAY + 6 * 60);
-  assert.ok(st.cash < cashBefore - 50, `maintenance costs real money: ${cashBefore} → ${st.cash}`);
   const report = st.maintenance.lastReport;
   assert.ok(report.costs.wages > 0);
+  const y = st.ledger.yesterday;
+  assert.ok(y, 'books closed at midnight');
+  assert.ok(y.expense.wagesDayLabor > 50, `day-labor wages billed: ${JSON.stringify(y.expense)}`);
+  assert.ok(y.expense.water > 0, 'irrigation water billed');
 });
 
 test('turf state survives save/load byte-for-byte', async () => {

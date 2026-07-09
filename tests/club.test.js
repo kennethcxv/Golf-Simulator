@@ -131,12 +131,13 @@ test('declined offers disappear; stale offers expire', () => {
   assert.ok(!st.club.outings.offers.some((o) => o.id === 993), 'expired offer cleaned up');
 });
 
-test('the ledger balances: yesterday.net equals the cash change across a day', () => {
+test('the ledger balances: yesterday.net equals the cash change across a full day', () => {
   const st = newGame('realistic', 777);
-  // let the first partial day finish so we measure a clean full day
-  update(st, MINUTES_PER_DAY);
+  // align to an exact midnight so the measured window is one whole ledger day
+  const toMidnight = MINUTES_PER_DAY - (st.clock.minutes % MINUTES_PER_DAY);
+  update(st, toMidnight);
   const cashBefore = st.cash;
-  update(st, MINUTES_PER_DAY);
+  update(st, MINUTES_PER_DAY); // one full day: its 5 AM crew pass + its closing accrual
   const net = st.ledger.yesterday.net;
   const delta = st.cash - cashBefore;
   assert.ok(Math.abs(net - delta) < 1.5, `ledger net ${net} vs cash delta ${delta}`);

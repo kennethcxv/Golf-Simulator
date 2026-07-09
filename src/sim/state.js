@@ -10,11 +10,15 @@ import { newClock, advanceClock, calendarOf } from './time.js';
 import { tickRenovationsDaily } from './terrainEdit.js';
 import { newWeather, rollDailyWeather } from './weather.js';
 import { initTurf, turfHourlyTick, turfDailyTick, runMorningMaintenance, defaultPolicies } from './turf.js';
+import { initGolfers } from './golfers.js';
+import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
+import { initClub, midnightBooks, dailyMembershipTick } from './club.js';
+import { initLedger, addExpense } from './economy.js';
 import { BALANCE } from './balance.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647) {
   const rng = makeRng(seed);
@@ -35,12 +39,20 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647) {
   // day-1 weather + turf initial condition draw from the same seeded stream
   rollDailyWeather(state.weather, rngOf(state), calendarOf(state.clock.minutes).dayOfYear);
   initTurf(state);
+  initGolfers(state);
+  initStaff(state);
+  initClub(state);
+  initLedger(state);
   return state;
 }
 
 // --- master tick --------------------------------------------------------------
 
 export function dailyTick(state) {
+  // 1) settle the day that just ended: accrue its recurring economy, close books
+  if (state.ledger) midnightBooks(state);
+
+  // 2) roll into the new day
   if (!state.weather.locked) {
     rollDailyWeather(state.weather, rngOf(state), calendarOf(state.clock.minutes).dayOfYear);
   } else {
@@ -49,35 +61,50 @@ export function dailyTick(state) {
   }
   tickRenovationsDaily(state);
   turfDailyTick(state);
+  if (state.staff) {
+    tickStaffDaily(state);
+    refreshMarketIfDue(state, calendarOf(state.clock.minutes).dayAbs);
+  }
+  if (state.club) dailyMembershipTick(state);
   state.pendingMorning = true;
-  // Phase 3+: economy close-of-books, golfer churn…
 }
 
 export function hourlyTick(state, hourOfDay) {
-  if (hourOfDay === 5 && state.pendingMorning) {
+  // the crew starts at 5 AM; catch up later in the morning if time skipped past it
+  if (state.pendingMorning && hourOfDay >= 5) {
     state.pendingMorning = false;
     const report = runMorningMaintenance(state, calendarOf(state.clock.minutes).dayAbs);
     if (report) {
-      const total = report.costs.wages + report.costs.water + report.costs.fertilizer;
-      state.cash -= Math.round(total);
+      if (state.ledger) {
+        addExpense(state, 'wagesDayLabor', report.costs.wages);
+        addExpense(state, 'water', report.costs.water);
+        addExpense(state, 'fertilizer', report.costs.fertilizer);
+      } else {
+        state.cash -= Math.round(report.costs.wages + report.costs.water + report.costs.fertilizer);
+      }
     }
   }
   turfHourlyTick(state, hourOfDay);
 }
 
 export function update(state, gameMinutes) {
-  const beforeHour = Math.floor(state.clock.minutes / 60);
-  advanceClock(state.clock, gameMinutes);
-  const afterHour = Math.floor(state.clock.minutes / 60);
+  // advance the clock INCREMENTALLY so every hourly/daily tick reads the calendar
+  // at its own moment — batching several days into one update must behave exactly
+  // like living through them (maintenance day-stamps, outing dates, book closes)
+  const target = state.clock.minutes + gameMinutes;
   let daysPassed = 0;
-  for (let h = beforeHour + 1; h <= afterHour; h++) {
-    const hourOfDay = ((h % 24) + 24) % 24;
+  for (;;) {
+    const nextHourMin = (Math.floor(state.clock.minutes / 60) + 1) * 60;
+    if (nextHourMin > target) break;
+    state.clock.minutes = nextHourMin;
+    const hourOfDay = ((Math.floor(nextHourMin / 60) % 24) + 24) % 24;
     if (hourOfDay === 0) {
       dailyTick(state);
       daysPassed++;
     }
     hourlyTick(state, hourOfDay);
   }
+  state.clock.minutes = target;
   return { daysPassed };
 }
 
@@ -111,6 +138,10 @@ export function snapshot(state) {
       bias: state.weather.bias,
     },
     maintenance: state.maintenance,
+    golfers: state.golfers,
+    staff: state.staff,
+    club: state.club,
+    ledger: state.ledger,
     turf: turf
       ? {
           health: Array.from(turf.health, round1),
@@ -181,5 +212,14 @@ export function deserialize(json) {
       lastReport: null,
     };
   }
+  // pre-v3 saves: bootstrap the club layer fresh
+  if (raw.golfers) state.golfers = raw.golfers;
+  else initGolfers(state);
+  if (raw.staff) state.staff = raw.staff;
+  else initStaff(state);
+  if (raw.club) state.club = raw.club;
+  else initClub(state);
+  if (raw.ledger) state.ledger = raw.ledger;
+  else initLedger(state);
   return state;
 }

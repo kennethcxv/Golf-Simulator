@@ -73,7 +73,20 @@ http://localhost:8447/ in a browser. Headless sim tests: `npm test`.
 
 ## Phase 3 — Membership, hospitality, staffing
 
-*(populated when Phase 3 is complete)*
+**Club Office (C key or 🏛 Club button)**
+- [ ] Overview chips show Reputation / Members / Satisfaction / Rounds per day; HUD shows 👥 count · Rep
+- [ ] Green fee and all three tier dues adjust with −/+ and show "fair ≈" hints that move with course quality
+- [ ] Underpricing vs fair lifts daily rounds; doubling prices visibly cuts play and (over days) bleeds members
+- [ ] Payroll lists staff with role/stars/wage; Train sidelines someone 2 days then their stars rise; ✕ fires with severance
+- [ ] Hiring market shows 4–6 candidates and refreshes with new names every ~6 days
+- [ ] Hiring a skilled groundskeeper visibly increases what the morning crew finishes (Grounds report)
+- [ ] Teaching program earns nothing without an instructor; hire one and lessons revenue appears
+- [ ] Amenity upgrades charge cash, add daily upkeep, and raise satisfaction/join appeal
+- [ ] Outing offers arrive in the feed, expire if ignored, can be booked, pay out on their day (books + feed), and members grumble that day
+- [ ] "Around the club" feed shows named joins and quits with reasons
+- [ ] Yesterday's books itemize revenue/expense lines and the 7-day net; net matches how cash actually moved
+- [ ] Reputation drifts up when the course is good and members are happy; renovations drag it
+- [ ] Save/load preserves members, staff, pricing, offers, and the ledger
 
 ## Phase 4 — Pro shop (walkable interior + inventory)
 

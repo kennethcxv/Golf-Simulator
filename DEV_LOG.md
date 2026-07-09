@@ -184,3 +184,39 @@ Newest entries at the bottom.
   render/palette.js, holeSummary into sim/course.js. All 66 sim tests untouched and
   green — the sim never knew the renderer changed.
 
+## 2026-07-09 — Phase 3 complete (membership, hospitality, staffing, economy)
+
+- **The golfer pool exists NOW** (140 named people with wealth 1–4, a picky-about
+  persona, handicap, membership status, satisfaction) so joins/quits are real
+  individuals with names in the feed — Phase 5 deepens these same records with
+  memory/thoughts/rounds; no parallel system later.
+- **Three tiers** (Fairway Card / Club Member / Legacy Member) billed per 24-day season,
+  with guest passes and shop discounts staged for Phases 4–5. Joins follow perceived
+  value: overall rating^1.5 × (fair dues / your dues)² × reputation^0.8; churn is a
+  satisfaction-vs-price threshold (overpricing raises the bar members must feel).
+  Satisfaction drifts toward a target built from condition (50%), design, amenities,
+  and staffing coverage.
+- **Accounting is accrue-at-close**: every recurring item books at the midnight that
+  closes its day, so `yesterday.net` exactly equals the cash delta across any
+  midnight-to-midnight window — a unit-tested invariant that forces all cash through
+  the ledger (works/fungicide/severance included via economy.spend).
+- **Fixed a real batched-time bug** the invariant test exposed: update() used to advance
+  the clock fully and then replay hour ticks, so multi-day updates stamped every tick
+  with the FINAL day (mow-day bookkeeping wrong, all outings resolving at once). The
+  clock now advances incrementally per tick; batching N days behaves exactly like
+  living them.
+- **Staff**: hiring market refreshes every ~6 days (seeded), wages scale with role and
+  skill, training = 2 days away for +½★, severance = 3 days wage. Groundskeeper skill
+  converts to real crew-hours (8h × 0.6+0.2×skill) on top of day-labor; instructors
+  activate the teaching program and lesson revenue; F&B skill lifts restaurant covers.
+- **Corporate outings**: offers arrive organically (~every 5 days), expire in 2–3 days,
+  pay out on their day, ding every member's satisfaction −6 that day, and nudge
+  reputation by how good the course was. **Amenities**: range/grill/teaching with level
+  costs, daily upkeep, and revenue lines.
+- **10-day live QA**: cash +$9.3k, members 22→25 with named joins AND a quit, rep
+  30→42, revenue mix green fees $7.3k / dues $3.5k / outing $2.4k, second offer arrived
+  organically. 86/86 tests green, zero console errors.
+- Balance judgment calls: base 30 public rounds/day scaled by season/weather/price-
+  demand/quality/reputation; utilities $45/day; muni opens with 22 members. All in
+  club.js/balance.js for tuning.
+

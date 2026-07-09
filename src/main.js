@@ -16,6 +16,7 @@ import { makeHud } from './ui/hud.js';
 import { makeWorksPanel } from './ui/worksPanel.js';
 import { makeInspectPanel } from './ui/inspectPanel.js';
 import { makeGroundsPanel } from './ui/groundsPanel.js';
+import { makeClubPanel } from './ui/clubPanel.js';
 import { makeMenu } from './screens/menu.js';
 import { saveData, loadData } from './core/storage.js';
 import { conditionRating, sectionTurfSummary } from './sim/turf.js';
@@ -48,8 +49,15 @@ let hud = null;
 let worksPanel = null;
 let inspectPanel = null;
 let groundsPanel = null;
+let clubPanel = null;
 let menu = null;
 let gameUi = null;
+
+function closeLeftPanels(except) {
+  if (except !== 'works' && app.worksMode) handlers.toggleWorks();
+  if (except !== 'grounds' && app.groundsOpen) groundsPanel.setVisible(false);
+  if (except !== 'club' && app.clubOpen) clubPanel.setVisible(false);
+}
 
 // --- section lookup --------------------------------------------------------
 
@@ -174,8 +182,8 @@ const handlers = {
       handlers.cancelPlan(true);
       app.activeTool = null;
       app.scene3d.setBrush(null, 0, null);
-    } else if (app.groundsOpen) {
-      groundsPanel.setVisible(false);
+    } else {
+      closeLeftPanels('works');
     }
     worksPanel.setVisible(app.worksMode);
     worksPanel.updateToolHighlight();
@@ -185,8 +193,13 @@ const handlers = {
   },
   toggleGrounds() {
     const next = !app.groundsOpen;
-    if (next && app.worksMode) handlers.toggleWorks();
+    if (next) closeLeftPanels('grounds');
     groundsPanel.setVisible(next);
+  },
+  toggleClub() {
+    const next = !app.clubOpen;
+    if (next) closeLeftPanels('club');
+    clubPanel.setVisible(next);
   },
   setViewMode(mode) {
     app.viewMode = mode;
@@ -420,6 +433,9 @@ window.addEventListener('keydown', (e) => {
     case 'g': case 'G':
       handlers.toggleGrounds();
       break;
+    case 'c': case 'C':
+      handlers.toggleClub();
+      break;
     case 'v': case 'V': {
       const modes = ['normal', 'health', 'moisture'];
       handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
@@ -484,6 +500,7 @@ function frame(ts) {
         app.scene3d.updateHoles();
         announceReopenings();
         announceOutbreaks();
+        if (app.clubOpen) clubPanel.refresh();
         autosave();
       }
       const hourNow = Math.floor(app.state.clock.minutes / 60);
@@ -541,6 +558,7 @@ function boot() {
   worksPanel = makeWorksPanel(app, handlers);
   inspectPanel = makeInspectPanel(app, recomputeRating);
   groundsPanel = makeGroundsPanel(app);
+  clubPanel = makeClubPanel(app, recomputeRating);
 
   const viewButtons = ['normal', 'health', 'moisture'].map((mode) =>
     el('button', {
@@ -553,8 +571,8 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, viewToggle,
-    el('div', { class: 'hint-bar', text: 'Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · V: view · Click: inspect · Space: pause' }));
+  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, viewToggle,
+    el('div', { class: 'hint-bar', text: 'Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · C: Club · V: view · Space: pause' }));
 
   uiRoot.append(menu.root, gameUi);
   requestAnimationFrame(frame);

@@ -9,6 +9,7 @@ import { BALANCE } from './balance.js';
 import { distToSegment, clamp } from '../core/utils.js';
 import { idx, inBounds, getZone, validateHole, labelSections } from './course.js';
 import { turfOnZonesChanged } from './turf.js';
+import { spend } from './economy.js';
 
 const ZONE_COST_KEY = {
   [ZONE.OUT]: 'out',
@@ -168,7 +169,7 @@ export function applyPlan(state, plan) {
     }
     if (e.dElev !== undefined) course.elevation[i] += e.dElev;
   }
-  state.cash -= cost.total;
+  spend(state, 'works', cost.total);
   turfOnZonesChanged(state, changedCells);
 
   for (const a of affected) {
@@ -205,7 +206,7 @@ function placeMarker(state, holeId, x, y, kind) {
 
   const wasOpen = hole.status === HOLE_STATUS.OPEN;
   hole[kind === 'tee' ? 'tee' : 'pin'] = { x, y };
-  state.cash -= BALANCE.holeMoveCost;
+  spend(state, 'works', BALANCE.holeMoveCost);
 
   const valid = validateHole(course, hole).valid;
   if (wasOpen) {
