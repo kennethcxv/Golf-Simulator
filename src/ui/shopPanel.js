@@ -72,6 +72,23 @@ export function makeShopPanel(app, handlers) {
       rows.push(el('div', { class: 'row muted', text: `📗 Books day ${closed.dayAbs}: revenue ${formatMoney(closed.revenueTotal)} · expenses ${formatMoney(closed.expenseTotal)} · net ${formatMoney(closed.net)}` }));
       rows.push(el('div', { class: 'row muted', text: `⛳ Green fees ${formatMoney(closed.revenue.greenFees || 0)} · dues ${formatMoney(closed.revenue.dues || 0)} · shop ${formatMoney(closed.revenue.shopSales || 0)}` }));
     }
+    // the shelves tell on themselves: what's empty, what's sitting in the back
+    let emptyRetail = 0;
+    let backUnits = 0;
+    for (const sku of SHOP_CATALOG) {
+      if (sku.cat === 'supplies' || sku.cat === 'decor') continue;
+      const inv = shop.inventory[sku.id];
+      if (!inv) continue;
+      if (inv.shelf === 0) emptyRetail++;
+      backUnits += inv.back;
+    }
+    if (emptyRetail > 0) {
+      rows.push(el('div', {
+        class: 'row muted',
+        text: `🛒 ${emptyRetail} product line${emptyRetail > 1 ? 's' : ''} with empty shelves` +
+          (backUnits > 0 ? ` — ${backUnits} units waiting in the backroom` : ' — nothing in the back either; order stock'),
+      }));
+    }
 
     // today's tee sheet at a glance
     rows.push(el('h3', { text: 'Today’s tee sheet', style: 'margin-top:10px' }));

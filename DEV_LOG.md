@@ -2109,3 +2109,13 @@ localStorage are mid-restoration states from tonight's runs.
 
 WHERE TO START PLAYING: New Empire → buy the muni → the shop is filthy and
 the tractor is broken by the shed. Everything from there is tonight's work.
+
+## 2026-07-10 — OVERNIGHT PART 6f (self-generated idea #3): shelf restock alerts
+
+IDEA + REASONING: idea #2's chores list organically exposed a starving shop
+("0 sales · 25 walked out") but made the player infer WHY. The Summary's
+yesterday block now counts retail lines with empty shelves and what's sitting
+in the backroom: "17 product lines with empty shelves — nothing in the back
+either; order stock" vs "— N units waiting in the backroom" (walk the floor
+and shelve). Verified live against the depleted 10-day save. Zero console
+errors. Suite 211/211.
