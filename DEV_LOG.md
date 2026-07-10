@@ -2119,3 +2119,18 @@ in the backroom: "17 product lines with empty shelves — nothing in the back
 either; order stock" vs "— N units waiting in the backroom" (walk the floor
 and shelve). Verified live against the depleted 10-day save. Zero console
 errors. Suite 211/211.
+
+## 2026-07-10 — OVERNIGHT PART 6g (self-generated idea #4): traffic grime — cleaning becomes upkeep
+
+IDEA + REASONING: the shop got dirty exactly once (at init) — after one vacuum
+pass it stayed showroom forever, while the course's bunkers footprint daily.
+Asymmetric and undermines the vacuum's long life as a tool. Now the day's real
+shopper count tracks grime back in (shopDailyGrime inside shopDailyAccrual —
+0.0011/shopper/cell, 0.05/day max), HARD-CAPPED at 0.5 dirt: pure neglect
+plateaus at "needs a pass" (condition ~65 floor from cleanliness), it can
+never re-wreck the place to fixer-upper filth on its own. TDD (+1 test → 212):
+zero shoppers = zero dirt; busy day = a little; 400 neglected days ≤ the cap.
+
+This closes the loop the Summary tab now reports: chores accumulate daily on
+the course AND the floor, the tools clear them, the computer lists them.
+Suite 212/212.

@@ -12,7 +12,7 @@ import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, ensureShopReno,
   placeOrder, deliverOrdersDue, vacuumOwned, restockShelvesByStaff, restockShelfFromBackroom,
-  placeDecor, removeDecor,
+  placeDecor, removeDecor, shopDailyGrime,
 } from '../src/sim/shop.js';
 import { skuById, LEAD_DAYS, SHOP_CATALOG, DECOR_SPOTS } from '../src/data/shopItems.js';
 import { calendarOf } from '../src/sim/time.js';
@@ -223,6 +223,19 @@ test('saves written before a catalog item existed gain its inventory slot on loa
   assert.ok(migrated.shop.inventory.vac1, 'missing catalog SKUs are backfilled');
   const res = placeOrder(migrated, 'vac1', 1);
   assert.ok(res.ok, 'the migrated save can order the new item');
+});
+
+test('foot traffic tracks grime back in daily, gently and capped', () => {
+  const state = newGame('relaxed', 42);
+  state.shop.reno.grime = state.shop.reno.grime.map(() => 0); // freshly vacuumed
+  shopDailyGrime(state, 0);
+  assert.equal(state.shop.reno.grime.reduce((a, v) => a + v, 0), 0, 'no shoppers, no new dirt');
+  shopDailyGrime(state, 30);
+  const avg1 = state.shop.reno.grime.reduce((a, v) => a + v, 0) / state.shop.reno.grime.length;
+  assert.ok(avg1 > 0 && avg1 < 0.1, `a busy day tracks in a little (${avg1.toFixed(3)})`);
+  for (let d = 0; d < 400; d++) shopDailyGrime(state, 40);
+  assert.ok(state.shop.reno.grime.every((v) => v <= RENO.trafficCap + 1e-9),
+    'neglect plateaus below the fresh-fixer-upper filth — traffic alone never re-wrecks it');
 });
 
 test('reno state survives save/load exactly, and pre-reno saves migrate to a dirty shop', () => {

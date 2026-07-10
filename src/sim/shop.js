@@ -26,6 +26,8 @@ export const RENO = {
   cleanRadius: 1.3,            // yards a vacuum pass reaches
   clutterWipe: 0.5,            // dirt removed under a hauled-out pile
   finishCap: 30,               // max condition points decor can supply
+  trafficGrime: 0.0011,        // dirt tracked in per shopper per day, per cell
+  trafficCap: 0.5,             // traffic alone plateaus at "needs a pass", never "wrecked"
 };
 
 // candidate clutter spots chosen off the walkways (fixtures live at the walls,
@@ -107,6 +109,20 @@ export function cleanGrimeAt(state, x, z, amount) {
     }
   }
   return { cleaned };
+}
+
+// foot traffic tracks a little grime back in each day — the vacuum is upkeep,
+// not a one-time chore. Capped well below fixer-upper filth: neglect makes the
+// shop read "needs a pass", it never re-wrecks the place on its own.
+export function shopDailyGrime(state, shoppers) {
+  const reno = state.shop && state.shop.reno;
+  if (!reno || shoppers <= 0) return;
+  const add = Math.min(0.05, shoppers * RENO.trafficGrime);
+  for (let i = 0; i < reno.grime.length; i++) {
+    if (reno.grime[i] < RENO.trafficCap) {
+      reno.grime[i] = Math.min(RENO.trafficCap, Math.round((reno.grime[i] + add) * 1000) / 1000);
+    }
+  }
 }
 
 export function clearClutter(state, idx) {
@@ -399,6 +415,8 @@ export function shopDailyAccrual(state) {
       }
     }
   }
+
+  shopDailyGrime(state, shoppers); // the day's feet track dirt back in
 
   shop.salesYesterday = { units, revenue: Math.round(revenue) };
   shop.lostSalesYesterday = lost;
