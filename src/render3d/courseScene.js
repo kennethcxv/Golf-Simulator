@@ -479,6 +479,9 @@ export function makeCourseScene(canvas, state) {
             // real grass photos already carry dry texture — tint lighter than before
             col = mix(col, vec3(0.56, 0.47, 0.26), dry * 0.42);
             col = mix(col, vec3(0.46, 0.39, 0.27), smoothstep(0.45, 1.0, wear) * 0.5);
+            // freshly-watered turf reads darker until it drains — the hand-hose's
+            // visible feedback, and honest for any saturated ground
+            col *= 1.0 - smoothstep(0.58, 1.0, moisture) * 0.2;
             if (disSev > 0.03) {
               float spots = fwNoise(cellUv * (disType < 1.5 ? 6.5 : 3.2) + disType * 31.0);
               float cut = 1.0 - disSev * 0.6;
@@ -1377,9 +1380,60 @@ export function makeCourseScene(canvas, state) {
     placeCartMesh();
   }
 
+  // --- the hand hose: instant, tangible watering ---------------------------------------
+  // Hold-to-spray writes moisture straight into the SAME turf array the crew's
+  // scheduled irrigation uses (via a main.js hook) — one source of truth. The
+  // visual answer is immediate: spray particles, a live moisture readout on the
+  // prompt, and the wet-darkening term in the turf shader above.
+
+  let walkTool = null; // null | 'hose'
+  let walkSpraying = false;
+  let walkWaterTexClock = 0;
+
+  const sprayCount = 90;
+  const sprayPositions = new Float32Array(sprayCount * 3);
+  const sprayGeo = new THREE.BufferGeometry();
+  sprayGeo.setAttribute('position', new THREE.BufferAttribute(sprayPositions, 3));
+  const sprayPoints = new THREE.Points(
+    sprayGeo,
+    new THREE.PointsMaterial({ color: 0xbfe2ff, size: 0.04, transparent: true, opacity: 0.7, depthWrite: false }),
+  );
+  sprayPoints.visible = false;
+  sprayPoints.frustumCulled = false;
+  scene.add(sprayPoints);
+
+  function updateSpray(aimWorld) {
+    // a loose parabolic arc from the nozzle to the patch; the arc starts a full
+    // yard out and never hugs the camera, so attenuated points stay droplets
+    const hx = walk.x - Math.sin(walk.yaw) * 1.1;
+    const hz = walk.z - Math.cos(walk.yaw) * 1.1;
+    const hy = heightAt(walk.x, walk.z) + walk.eye - 0.55;
+    for (let i = 0; i < sprayCount; i++) {
+      const t = 0.12 + Math.random() * 0.88;
+      const o = i * 3;
+      sprayPositions[o] = hx + (aimWorld.x - hx) * t + (Math.random() - 0.5) * 0.3 * t;
+      sprayPositions[o + 1] = hy + (aimWorld.y - hy) * t + Math.sin(t * Math.PI) * 0.55 + (Math.random() - 0.5) * 0.08;
+      sprayPositions[o + 2] = hz + (aimWorld.z - hz) * t + (Math.random() - 0.5) * 0.3 * t;
+    }
+    sprayGeo.attributes.position.needsUpdate = true;
+  }
+
+  function walkSetTool(tool) {
+    walkTool = tool;
+    if (!tool) {
+      walkSpraying = false;
+      sprayPoints.visible = false;
+    }
+  }
+
+  function walkSetSpraying(on) {
+    walkSpraying = !!(on && walkTool === 'hose' && !cart.mounted);
+    if (!walkSpraying) sprayPoints.visible = false;
+  }
+
   // --- what you're looking at (shop-style focus + [E]) -------------------------------
   let walkFocus = null; // { kind, label, cell? }
-  const walkHooks = {}; // main.js provides turfLabelAt(cx,cy) / inspectAt(cx,cy)
+  const walkHooks = {}; // main.js provides turfLabelAt / inspectAt / waterAt / hoseLabelAt
 
   // the patch of ground a walking player is looking at, in cell coords
   function walkAimCell(dist = 2.4) {
@@ -1406,6 +1460,14 @@ export function makeCourseScene(canvas, state) {
         return;
       }
     }
+    // hose out: the prompt becomes a live nozzle readout on the patch ahead
+    if (walkTool === 'hose') {
+      const aim = walkAimCell(3.0);
+      if (aim && walkHooks.hoseLabelAt) {
+        walkFocus = { kind: 'hose', label: walkHooks.hoseLabelAt(aim.x, aim.y), cell: aim };
+        return;
+      }
+    }
     // the ground ahead: the same inspect the top-down click used to open
     const aim = walkAimCell();
     if (aim && walkHooks.turfLabelAt) {
@@ -1425,8 +1487,12 @@ export function makeCourseScene(canvas, state) {
       return;
     }
     if (!walkFocus) return;
-    if (walkFocus.kind === 'cart') mountCart();
-    else if (walkFocus.kind === 'turf' && walkHooks.inspectAt) walkHooks.inspectAt(walkFocus.cell.x, walkFocus.cell.y);
+    if (walkFocus.kind === 'cart') {
+      walkSetTool(null); // hands on the wheel
+      mountCart();
+    } else if ((walkFocus.kind === 'turf' || walkFocus.kind === 'hose') && walkHooks.inspectAt) {
+      walkHooks.inspectAt(walkFocus.cell.x, walkFocus.cell.y);
+    }
   }
 
   function walkKeyDown(e) {
@@ -1481,6 +1547,7 @@ export function makeCourseScene(canvas, state) {
   function walkExit() {
     if (!walk.active) return;
     walk.active = false;
+    walkSetSpraying(false);
     walkHeld.clear();
     window.removeEventListener('keydown', walkKeyDown);
     window.removeEventListener('keyup', walkKeyUp);
@@ -1543,6 +1610,25 @@ export function makeCourseScene(canvas, state) {
     camera.rotation.y = walk.yaw;
     camera.rotation.x = walk.pitch;
     walkFindFocus();
+
+    // hold-to-water: sim write through the hook, live texture + spray feedback
+    if (walkSpraying && walkTool === 'hose' && !cart.mounted && walkHooks.waterAt) {
+      const aim = walkAimCell(3.0);
+      if (aim) {
+        walkHooks.waterAt(aim.x, aim.y, dt);
+        const wx = (aim.x + 0.5) * CELL_YD - worldW / 2;
+        const wz = (aim.y + 0.5) * CELL_YD - worldH / 2;
+        sprayPoints.visible = true;
+        updateSpray({ x: wx, y: heightAt(wx, wz) + 0.1, z: wz });
+        walkWaterTexClock += dt;
+        if (walkWaterTexClock >= 0.2) {
+          walkWaterTexClock = 0;
+          updateTurf(state); // the patch darkens as it drinks
+        }
+      } else {
+        sprayPoints.visible = false;
+      }
+    }
   }
 
   // --- brush ring / marker cursor -----------------------------------------------------------------
@@ -1819,6 +1905,11 @@ export function makeCourseScene(canvas, state) {
       getFocusLabel: () => (walkFocus ? walkFocus.label : null),
       getFocus: () => walkFocus,
       hooks: walkHooks,
+      setTool: walkSetTool,
+      getTool: () => walkTool,
+      setSpraying: walkSetSpraying,
+      isSpraying: () => walkSpraying,
+      aimCell: walkAimCell,
       isActive: () => walk.active,
       state: walk, // position/yaw/pitch — also the QA hook
       cart, // cart state, same purpose

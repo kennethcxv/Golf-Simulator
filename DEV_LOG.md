@@ -1037,3 +1037,43 @@ Browser QA (Tamarack Ridge): standing before Green 1 shows "Green 1 — Declinin
 Declining chip, stimp, cells/area, hole membership, Details and Aerate — the real
 panel on the real section. A fairway section prompts by its own name; open scrub
 prompts nothing. Zero console errors or warnings.
+
+## 2026-07-09 — WALKABLE COURSE Task 4: the hand hose
+
+F pulls out the hose, the prompt becomes a live nozzle readout ("💦 Fairway 2 · a —
+moisture 62 — hold the mouse button to water"), and holding the mouse button soaks
+the patch you're aiming at: spray-droplet arc, the ground visibly darkening as it
+drinks, and the number climbing in real time.
+
+**Judgment calls, with reasoning:**
+
+- **One source of truth, enforced by architecture**: the tool writes through a main.js
+  hook straight into `state.turf.moisture` — the SAME Float32Array the crew's
+  scheduled irrigation and the weather system read and write. turf.js untouched
+  (do-not-touch list); no parallel watering system, exactly per the brief.
+- **Rate 30 moisture/s at the nozzle cell, 35% splash on the four orthogonal
+  neighbors, clamp 100.** Bone-dry (20) to saturated in under 3 seconds — instant
+  tangible control, which is the tool's whole point — while a single hose pass
+  soaking one 8-yd cell plus splash keeps the CREW the answer for acreage.
+  Only turf zones drink; scrub, sand, and paths shed it.
+- **Hand-watering costs nothing.** The crew's irrigation is the scaled, costed
+  system; a per-gallon microcharge on the player's own hands would be bookkeeping
+  noise. If playtesting finds an exploit (hose-only agronomy), the knob lives in
+  the waterAt hook.
+- **Visible feedback is threefold and all honest**: spray points arcing from the
+  nozzle (kept a full yard from the camera so attenuated points read as droplets —
+  the first cut rendered as screen-filling blocks, caught on the first screenshot),
+  a new wet-darkening term in the turf shader (`smoothstep(0.58,1.0,moisture)*0.2` —
+  invisible at normal levels, unmistakable when saturated, and equally honest for
+  rain-soaked ground), and a throttled updateTurf (5 Hz while spraying) so the
+  data views track live.
+- **Watering works while paused** — the hose is the player's hands, not the clock.
+- Mounting the cart stows the hose; E with the hose out still opens the Task 3
+  inspect panel (checking your work shouldn't need a holster dance).
+
+Browser QA (staged a 7×7 bone-dry patch on a soaked winter fairway): nozzle cell
+20 → 100 with clamp, splash neighbors +26 (exactly 30 × 0.35 × 2.5s), cells beyond
+untouched; the live prompt tracked 20 → 68 → 100 while holding; the top-down
+moisture view shows the watered plus-shape blue inside the pale dry square
+(w4c-moisture-view.png — the money shot); E-inspect over the patch opens the real
+panel (Details → Moisture 85 section average). Zero console errors or warnings.

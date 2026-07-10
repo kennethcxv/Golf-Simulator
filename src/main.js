@@ -220,6 +220,34 @@ function startGame(state) {
     if (document.pointerLockElement) document.exitPointerLock(); // the panel needs the cursor
     inspectPanel.show(section);
   };
+  // the hand hose writes into the SAME turf moisture the crew's irrigation
+  // reads and writes — one source of truth, no parallel watering system
+  app.scene3d.walk.hooks.waterAt = (cx, cy, dtSec) => {
+    const st = app.state;
+    if (!st || !st.turf) return;
+    const w = st.course.w;
+    const h = st.course.h;
+    const soak = (x, y, frac) => {
+      if (x < 0 || y < 0 || x >= w || y >= h) return;
+      const i = y * w + x;
+      if (!TURF_ZONES.has(st.course.zones[i])) return; // only turf drinks
+      st.turf.moisture[i] = Math.min(100, st.turf.moisture[i] + 30 * frac * dtSec);
+    };
+    soak(cx, cy, 1); // the nozzle cell, full rate: bone-dry to soaked in ~3 s
+    soak(cx + 1, cy, 0.35); // splash on the neighbors
+    soak(cx - 1, cy, 0.35);
+    soak(cx, cy + 1, 0.35);
+    soak(cx, cy - 1, 0.35);
+  };
+  app.scene3d.walk.hooks.hoseLabelAt = (cx, cy) => {
+    const st = app.state;
+    const section = sectionAtCell(cx, cy);
+    const i = cy * st.course.w + cx;
+    if (!section || !TURF_ZONES.has(section.zone) || !st.turf) {
+      return '💦 Hose out — aim at turf to water · [F] put it away';
+    }
+    return `💦 ${section.name} — moisture ${Math.round(st.turf.moisture[i])} — hold the mouse button to water · [F] put away`;
+  };
   app.plan = makePlan();
   app.worksMode = false;
   app.activeTool = null;
@@ -629,7 +657,14 @@ canvas.addEventListener('click', () => {
 });
 
 canvas.addEventListener('pointerdown', (e) => {
-  if (app.screen !== 'game' || app.view !== 'course' || app.courseMode !== 'overview') return;
+  if (app.screen !== 'game' || app.view !== 'course') return;
+  if (app.courseMode !== 'overview') {
+    // walking with the hose out: the held button is the spray trigger
+    if (e.button === 0 && walkActive() && app.scene3d.walk.getTool() === 'hose') {
+      app.scene3d.walk.setSpraying(true);
+    }
+    return;
+  }
   canvas.setPointerCapture(e.pointerId);
 
   if (e.button === 1 || e.button === 2) {
@@ -680,6 +715,10 @@ canvas.addEventListener('pointermove', (e) => {
   }
   dragging.lastX = e.clientX;
   dragging.lastY = e.clientY;
+});
+
+window.addEventListener('pointerup', () => {
+  if (walkActive() && app.scene3d.walk.isSpraying()) app.scene3d.walk.setSpraying(false);
 });
 
 canvas.addEventListener('pointerup', () => {
@@ -744,6 +783,11 @@ window.addEventListener('keydown', (e) => {
       case 'e': case 'E':
         if (app.scene3d.walk.interact) app.scene3d.walk.interact();
         break;
+      case 'f': case 'F': {
+        const walkApi = app.scene3d.walk;
+        if (!walkApi.cart.mounted) walkApi.setTool(walkApi.getTool() === 'hose' ? null : 'hose');
+        break;
+      }
       case 'g': case 'G':
         if (document.pointerLockElement) document.exitPointerLock(); // free the cursor for the panel
         handlers.toggleGrounds();
@@ -1029,7 +1073,7 @@ function boot() {
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
     el('div', { class: 'shop-prompt', text: '' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · Tab: overview camera · P: shop · Esc: office menu' }),
+    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F hose · Tab: overview camera · P: shop · Esc: office menu' }),
     el('button', { class: 'shop-leave', text: '🏪 Back to the shop (P)', onclick: () => handlers.enterShop() }),
   );
 
