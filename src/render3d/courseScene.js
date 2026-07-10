@@ -21,6 +21,7 @@ import { BALANCE } from '../sim/balance.js';
 import { clamp } from '../core/utils.js';
 import { tractorStep, repairTractor, tractorRemaining, STEP_LABEL } from '../sim/tractor.js';
 import { clearLitter, fixTeeSign, PROPS } from '../sim/props.js';
+import { conditionRating } from '../sim/turf.js';
 import { makeCameraRig } from './cameraRig.js';
 import { makeCharacter } from './characterAsset.js';
 import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture } from './proceduralTextures.js';
@@ -2326,16 +2327,35 @@ export function makeCourseScene(canvas, state) {
     }
   }
 
-  // entrance decor (owner-supplied): course sign + flag poles by the club
+  // entrance decor: the stone club sign on the approach, weathered to match the
+  // course's actual condition at load. (The old small sign is now the tee sign;
+  // the "pennant poles" were really flagsticks and moved to the holes.)
   let yardHome = null;
   {
     const s0 = course.structures[0];
     if (s0) {
       const bx = (s0.x + s0.w / 2) * CELL_YD - worldW / 2;
       const bz = (s0.y + s0.h / 2) * CELL_YD - worldH / 2;
-      putModel('vendor/models/course_sign.glb', 2.2, bx - 15, bz + 16, 0.5);
-      putModel('vendor/models/flagpole.glb', 2.6, bx - 11.5, bz + 18, 0.2);
-      putModel('vendor/models/flagpole.glb', 2.6, bx - 18.5, bz + 18, -0.2);
+      putModel('vendor/models/club_sign.glb', 3.4, bx - 15, bz + 16, 0.45, (m) => {
+        // dead-course look: the sign dulls and leans with poor condition,
+        // straightening up as the property recovers (applied per scene build)
+        const cond = state.turf ? conditionRating(state) : 60;
+        const neglect = clamp(1 - (cond - 35) / 40, 0, 1);
+        if (neglect > 0.05) {
+          m.rotation.z = 0.035 * neglect;
+          m.traverse((o) => {
+            if (o.isMesh && o.material) {
+              o.material = o.material.clone();
+              if (o.material.color) {
+                o.material.color.multiplyScalar(1 - 0.3 * neglect);
+                o.material.color.lerp(new THREE.Color(0x5c5648), 0.22 * neglect);
+              }
+              o.material.roughness = 1;
+            }
+          });
+        }
+      });
+      propColliders.push({ x: bx - 15, z: bz + 16, r: 1.6 });
       yardHome = buildMaintenanceYard(bx, bz);
     }
   }

@@ -1790,3 +1790,26 @@ state — consistent with every other fixer-upper call this session.
 
 qa/props-sbs-task4.png (broken sign + markers / restored sign / flagstick /
 debris pile). Zero console errors. Suite 210/210.
+
+## 2026-07-10 — ASSET INTEGRATION Task 5: establishing structures
+
+ENTRANCE SIGN: the stone-pillared club sign (golf+club+sign GLB, the one that
+matches the references' masonry entrance piece) replaces the small post sign on
+the approach at ×3.4, with condition-driven weathering applied at scene build:
+below condition ~75 it dulls, greys, and leans (up to 0.035 rad), easing back
+upright as the course recovers — the same "dead course" language as the broken
+tractor. Verified live at condition 47: visibly grimy and tilted.
+Cleanups with it: the old course_sign now serves ONLY as the restored tee sign,
+and the two entrance "pennant poles" are gone — Task 1's inventory showed they
+were golf flagsticks all along; they now live at the pins where they belong.
+
+CLUBHOUSE EXTERIOR: evaluated the house GLB live before committing code
+(qa/house-experiment.png): it's a residential build with a baked landscaping
+bed that fights the terrain slope, photo-textured siding against our flat-color
+architecture, and 334k tris (5× everything else on screen). The procedural
+clubhouse — cream/sage/white with a real walk-under porch and the aligned shop
+door — is no longer placeholder-grade after the style pass, so it STAYS.
+Logged as a deliberate keep, not a blocked item; if a purpose-built clubhouse
+GLB lands in Assets/ later, putModel + a hidden procedural group is the path.
+
+qa/entrance-stone-sign.png. Zero console errors. Suite 210/210.
