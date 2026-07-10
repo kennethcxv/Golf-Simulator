@@ -4,7 +4,7 @@
 // EMPIRE: one wallet, a property market, and whichever owned club is active.
 
 import { BALANCE } from './sim/balance.js';
-import { HOLE_STATUS, TURF_ZONES } from './sim/constants.js';
+import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
 import {
   newEmpire, buyProperty, sellProperty, switchProperty, activeState,
   empireUpdate, empireSnapshot, deserializeEmpire,
@@ -246,9 +246,60 @@ function startGame(state) {
     const section = sectionAtCell(cx, cy);
     const i = cy * st.course.w + cx;
     if (!section || !TURF_ZONES.has(section.zone) || !st.turf) {
-      return '💦 Hose out — aim at turf to water · [F] put it away';
+      return '💦 Hose out — aim at turf to water · [F] next tool';
     }
-    return `💦 ${section.name} — moisture ${Math.round(st.turf.moisture[i])} — hold the mouse button to water · [F] put away`;
+    return `💦 ${section.name} — moisture ${Math.round(st.turf.moisture[i])} — hold the mouse button to water · [F] next tool`;
+  };
+  // the divot kit patches traffic wear on turf — same wear array the crew's
+  // aeration relieves; the olive-tan wear tint clears as you work
+  app.scene3d.walk.hooks.repairAt = (cx, cy, dtSec) => {
+    const st = app.state;
+    if (!st || !st.turf) return;
+    const section = sectionAtCell(cx, cy);
+    if (!section || !TURF_ZONES.has(section.zone)) return;
+    const i = cy * st.course.w + cx;
+    st.turf.wear[i] = Math.max(0, st.turf.wear[i] - 45 * dtSec);
+  };
+  app.scene3d.walk.hooks.divotLabelAt = (cx, cy) => {
+    const st = app.state;
+    const section = sectionAtCell(cx, cy);
+    const i = cy * st.course.w + cx;
+    if (!section || !TURF_ZONES.has(section.zone) || !st.turf) {
+      return '⛏ Divot kit out — aim at worn turf · [F] next tool';
+    }
+    const w = Math.round(st.turf.wear[i]);
+    return w <= 1
+      ? `⛏ ${section.name} — smooth, no divots here · [F] next tool`
+      : `⛏ ${section.name} — divot wear ${w} — hold the mouse button to patch`;
+  };
+  // the bunker rake smooths footprinted sand (wear on BUNKER cells, fed by
+  // daily play traffic via sim/bunkers.js)
+  app.scene3d.walk.hooks.rakeAt = (cx, cy, dtSec) => {
+    const st = app.state;
+    if (!st || !st.turf) return;
+    // a rake sweeps: full strength on the aimed patch, half on adjoining sand
+    const sweep = (x, y, frac) => {
+      if (x < 0 || y < 0 || x >= st.course.w || y >= st.course.h) return;
+      const i = y * st.course.w + x;
+      if (st.course.zones[i] !== ZONE.BUNKER) return;
+      st.turf.wear[i] = Math.max(0, st.turf.wear[i] - 55 * dtSec * frac);
+    };
+    sweep(cx, cy, 1);
+    sweep(cx + 1, cy, 0.5);
+    sweep(cx - 1, cy, 0.5);
+    sweep(cx, cy + 1, 0.5);
+    sweep(cx, cy - 1, 0.5);
+  };
+  app.scene3d.walk.hooks.rakeLabelAt = (cx, cy) => {
+    const st = app.state;
+    const i = cy * st.course.w + cx;
+    if (!st.turf || st.course.zones[i] !== ZONE.BUNKER) {
+      return '🧹 Bunker rake out — aim at sand · [F] next tool';
+    }
+    const w = Math.round(st.turf.wear[i]);
+    return w <= 1
+      ? '🧹 This sand is raked smooth · [F] next tool'
+      : `🧹 Bunker — footprints ${w} — hold the mouse button to rake`;
   };
   app.plan = makePlan();
   app.worksMode = false;
@@ -677,8 +728,8 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   if (app.view !== 'course') return;
   if (app.courseMode !== 'overview') {
-    // walking with the hose out: the held button is the spray trigger
-    if (e.button === 0 && walkActive() && app.scene3d.walk.getTool() === 'hose') {
+    // walking with any tool out: the held button is the use trigger
+    if (e.button === 0 && walkActive() && app.scene3d.walk.getTool()) {
       app.scene3d.walk.setSpraying(true);
     }
     return;
@@ -817,7 +868,16 @@ window.addEventListener('keydown', (e) => {
         break;
       case 'f': case 'F': {
         const walkApi = app.scene3d.walk;
-        if (!walkApi.cart.mounted) walkApi.setTool(walkApi.getTool() === 'hose' ? null : 'hose');
+        if (!walkApi.cart.mounted) {
+          // the tool belt: F cycles hose → divot kit → bunker rake → hands free
+          const belt = [null, 'hose', 'divot', 'rake'];
+          const next = belt[(belt.indexOf(walkApi.getTool()) + 1) % belt.length];
+          walkApi.setTool(next);
+          toast(next === 'hose' ? 'Hose out — hold the mouse button to water.'
+            : next === 'divot' ? 'Divot kit out — hold the button on worn turf.'
+            : next === 'rake' ? 'Bunker rake out — hold the button on footprinted sand.'
+            : 'Tools away.');
+        }
         break;
       }
       case 'g': case 'G':
@@ -1114,7 +1174,7 @@ function boot() {
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
     el('div', { class: 'shop-prompt', text: '' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F hose · Tab: overview camera · P: shop · Esc: office menu' }),
+    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F cycle tool · Tab: overview camera · P: shop · Esc: office menu' }),
     el('button', { class: 'shop-leave', text: '🏪 Back to the shop (P)', onclick: () => handlers.enterShop() }),
   );
 

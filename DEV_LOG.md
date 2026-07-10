@@ -1735,3 +1735,32 @@ hood); on foot stays first-person. Bonus resolved: the old KNOWN_ISSUES
 Live playthrough, fresh empire: broken start → three chores (prompt log
 captured) → repair → restored + deck → mount → drove under the chase cam →
 parked. Zero console errors. qa/tractor-sbs-repair-arc.png. Suite 204/204.
+
+## 2026-07-10 — ASSET INTEGRATION Task 3: the hand-tool belt (hose, divot kit, rake)
+
+F now cycles a tool belt — hose → divot kit → bunker rake → hands free — and
+every tool is REAL GEOMETRY riding the camera (owner GLBs: coiled hose +
+spray gun; hand fork in the right hand with the soil bucket carried low-left;
+the leaf rake two-handed). Hold-LMB is the one use-verb for all of them
+(the hose's pattern, generalized): per-tool aim labels, per-tool particle
+colors (water blue / soil brown / kicked sand), same 5 Hz turf-texture refresh.
+
+The divot kit and rake needed real, honest interactions (none existed — the
+original brief said "check first rather than assuming"; checked, logged):
+- DIVOT KIT patches traffic wear on turf cells (the same wear array the crew's
+  aeration relieves; olive-tan wear tint clears as you hold). Verified live:
+  Tee 4 wear 40 → 15 mid-hold → 0 → "smooth, no divots here."
+- BUNKER RAKE smooths footprinted sand. New additive module sim/bunkers.js
+  (TDD, 2 tests → suite 206): daily play traffic adds wear to BUNKER cells
+  (0.35/round, 6/day max, cap 85) — verified inert in turf health/condition
+  math before shipping, and the existing 1.5/day natural recovery reads as
+  wind. New shader term darkens + churns footprinted sand; the rake sweeps a
+  cross of cells at 55/s. Verified live at footprints 85 (20 sim days of real
+  traffic): visibly churned → raked pale, counter 85→0 → "raked smooth."
+
+Bugs caught live: main.js's pointerdown still gated the use-trigger on
+tool==='hose', so the new tools never fired (fixed: any tool); the held hose
+first cut filled a quarter of the screen (rescaled 0.5→0.38 and dropped).
+Judgment call: divot repair is spot-work (one cell), raking sweeps (cross) —
+matches how the real tools move. Tool models hide in the overview camera and
+while driving. qa/tools-sbs-task3.png. Zero console errors. Suite 206/206.

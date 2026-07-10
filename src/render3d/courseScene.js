@@ -562,6 +562,14 @@ export function makeCourseScene(canvas, state) {
             }
           }
 
+          if (zone > 4.5 && zone < 5.5) {
+            // footprinted sand: visibly churned and shadowed — raking smooths it back
+            float foot = smoothstep(0.1, 0.8, wear);
+            col *= 1.0 - foot * 0.24;
+            float churn = fwNoise(cellUv * 9.0) * 0.6 + fwNoise(cellUv * 23.0) * 0.4;
+            col = mix(col, vec3(0.55, 0.44, 0.27), foot * smoothstep(0.35, 0.8, churn) * 0.6);
+          }
+
           if (uViewMode > 0.5 && uViewMode < 1.5) {
             col = (zone > 0.5 && zone < 4.5) ? fwHeat(health) : col * 0.22;
           } else if (uViewMode > 1.5) {
@@ -1481,9 +1489,39 @@ export function makeCourseScene(canvas, state) {
   // visual answer is immediate: spray particles, a live moisture readout on the
   // prompt, and the wet-darkening term in the turf shader above.
 
-  let walkTool = null; // null | 'hose'
-  let walkSpraying = false;
+  let walkTool = null; // null | 'hose' | 'divot' | 'rake'
+  let walkSpraying = false; // "holding the use button" for whichever tool is out
   let walkWaterTexClock = 0;
+
+  // held tool models (owner-supplied GLBs) ride the camera like the shop's wand
+  scene.add(camera);
+  const heldRoot = new THREE.Group();
+  heldRoot.visible = false;
+  camera.add(heldRoot);
+  const heldGroups = { hose: new THREE.Group(), divot: new THREE.Group(), rake: new THREE.Group() };
+  for (const g of Object.values(heldGroups)) {
+    g.visible = false;
+    heldRoot.add(g);
+  }
+  const loadHeld = (url, group, scale, pos, rot) => {
+    new GLTFLoader().load(url, (g) => {
+      const m = g.scene;
+      m.scale.setScalar(scale);
+      m.position.set(...pos);
+      m.rotation.set(...rot);
+      group.add(m);
+    }, undefined, () => {});
+  };
+  loadHeld('vendor/models/hose_nozzle.glb', heldGroups.hose, 0.38, [0.4, -0.52, -0.85], [0.15, -0.4, 0]);
+  loadHeld('vendor/models/hand_fork.glb', heldGroups.divot, 0.55, [0.38, -0.5, -0.72], [0.75, 0.15, 0]);
+  loadHeld('vendor/models/bucket_soil.glb', heldGroups.divot, 0.42, [-0.44, -0.66, -0.9], [0, 0.3, 0]);
+  loadHeld('vendor/models/rake.glb', heldGroups.rake, 0.95, [0.42, -0.6, -0.95], [0.6, 0.1, -0.18]);
+
+  const TOOL_SPRAY = {
+    hose: { color: 0xbfe2ff, size: 0.04 },
+    divot: { color: 0x9a7c4e, size: 0.05 }, // soil from the repair mix
+    rake: { color: 0xd8c08c, size: 0.05 },  // kicked sand
+  };
 
   const sprayCount = 90;
   const sprayPositions = new Float32Array(sprayCount * 3);
@@ -1515,6 +1553,12 @@ export function makeCourseScene(canvas, state) {
 
   function walkSetTool(tool) {
     walkTool = tool;
+    for (const [name, g] of Object.entries(heldGroups)) g.visible = name === tool;
+    heldRoot.visible = !!tool;
+    if (tool && TOOL_SPRAY[tool]) {
+      sprayPoints.material.color.set(TOOL_SPRAY[tool].color);
+      sprayPoints.material.size = TOOL_SPRAY[tool].size;
+    }
     if (!tool) {
       walkSpraying = false;
       sprayPoints.visible = false;
@@ -1522,7 +1566,7 @@ export function makeCourseScene(canvas, state) {
   }
 
   function walkSetSpraying(on) {
-    walkSpraying = !!(on && walkTool === 'hose' && !cart.mounted);
+    walkSpraying = !!(on && walkTool && !cart.mounted);
     if (!walkSpraying) sprayPoints.visible = false;
   }
 
@@ -1575,11 +1619,12 @@ export function makeCourseScene(canvas, state) {
       walkFocus = { kind: 'prop', label: bestProp.label(), prop: bestProp };
       return;
     }
-    // hose out: the prompt becomes a live nozzle readout on the patch ahead
-    if (walkTool === 'hose') {
+    // a tool out: the prompt becomes a live readout on the patch ahead
+    if (walkTool) {
+      const labelHook = { hose: walkHooks.hoseLabelAt, divot: walkHooks.divotLabelAt, rake: walkHooks.rakeLabelAt }[walkTool];
       const aim = walkAimCell(3.0);
-      if (aim && walkHooks.hoseLabelAt) {
-        walkFocus = { kind: 'hose', label: walkHooks.hoseLabelAt(aim.x, aim.y), cell: aim };
+      if (aim && labelHook) {
+        walkFocus = { kind: 'hose', label: labelHook(aim.x, aim.y), cell: aim };
         return;
       }
     }
@@ -1655,6 +1700,7 @@ export function makeCourseScene(canvas, state) {
     camera.fov = 66; // the shop's human FOV; the management rig uses 46
     camera.near = 0.15;
     camera.updateProjectionMatrix();
+    heldRoot.visible = !!walkTool; // pick your tool back up
     window.addEventListener('keydown', walkKeyDown);
     window.addEventListener('keyup', walkKeyUp);
     window.addEventListener('blur', walkBlur);
@@ -1665,6 +1711,7 @@ export function makeCourseScene(canvas, state) {
     if (!walk.active) return;
     walk.active = false;
     walkSetSpraying(false);
+    heldRoot.visible = false; // the overview camera carries no hand tools
     walkHeld.clear();
     window.removeEventListener('keydown', walkKeyDown);
     window.removeEventListener('keyup', walkKeyUp);
@@ -1741,11 +1788,13 @@ export function makeCourseScene(canvas, state) {
     }
     walkFindFocus();
 
-    // hold-to-water: sim write through the hook, live texture + spray feedback
-    if (walkSpraying && walkTool === 'hose' && !cart.mounted && walkHooks.waterAt) {
+    // hold-to-use: each tool writes through its hook, with the same live
+    // texture + particle feedback loop the hose established
+    if (walkSpraying && walkTool && !cart.mounted) {
+      const useHook = { hose: walkHooks.waterAt, divot: walkHooks.repairAt, rake: walkHooks.rakeAt }[walkTool];
       const aim = walkAimCell(3.0);
-      if (aim) {
-        walkHooks.waterAt(aim.x, aim.y, dt);
+      if (aim && useHook) {
+        useHook(aim.x, aim.y, dt);
         const wx = (aim.x + 0.5) * CELL_YD - worldW / 2;
         const wz = (aim.y + 0.5) * CELL_YD - worldH / 2;
         sprayPoints.visible = true;
@@ -1753,7 +1802,7 @@ export function makeCourseScene(canvas, state) {
         walkWaterTexClock += dt;
         if (walkWaterTexClock >= 0.2) {
           walkWaterTexClock = 0;
-          updateTurf(state); // the patch darkens as it drinks
+          updateTurf(state); // moisture darkens / wear tint clears as you work
         }
       } else {
         sprayPoints.visible = false;

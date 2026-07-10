@@ -16,6 +16,7 @@ import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue, ensureShopReno } from './shop.js';
 import { initReservations, ensureReservations, reservationsDailyTick } from './reservations.js';
 import { initTractor, ensureTractor } from './tractor.js';
+import { bunkerDailyMess } from './bunkers.js';
 import { simulateDayRounds } from './rounds.js';
 import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
 import { initTutorial } from './tutorial.js';
@@ -87,6 +88,7 @@ export function dailyTick(state) {
   if (state.club) dailyMembershipTick(state);
   if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.reservations) reservationsDailyTick(state, calendarOf(state.clock.minutes).dayAbs);
+  if (state.turf) bunkerDailyMess(state); // yesterday's traffic footprints the sand
   if (state.progression) {
     prestigeDailyTick(state);
     solvencyDailyTick(state);
