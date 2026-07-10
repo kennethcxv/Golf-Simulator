@@ -25,6 +25,11 @@ Downloaded 2026-07-09 at 1K JPG (diffuse + GL normal).
 |---|---|---|
 | vendor/textures/waternormals.jpg | three.js repository, examples/textures (github.com/mrdoob/three.js) | MIT (three.js) |
 
+Note: `vendor/addons/objects/Water.js` (MIT, three.js examples) carries two small
+FAIRWAY STATE patches, flagged with comments in the file: grazing reflectance is
+capped and the mirror sample desaturated/tinted so ponds read as water under this
+project's single-tonemap (OutputPass) pipeline.
+
 ## Code (vendored)
 
 | Files | Source | License |

@@ -144,6 +144,17 @@ http://localhost:8447/ in a browser. Headless sim tests: `npm test`.
 - [ ] Realistic: five straight days past a −$2,000 overdraft ends the run (bank modal, load save or exit); Relaxed: debt floors at −$5,000, never a hard fail
 - [ ] Pause menu switches Relaxed/Realistic mid-game and the balance changes take hold (turf decay, disease, wages, downtime)
 
+## v4 — Visual fidelity pass
+
+- [ ] Up close (≤60yd zoom), fairway/green/rough show real grass grain, bunkers show real sand texture, paths show gravel — not flat color
+- [ ] Rough reads as a visibly different, clumpier grass than fairway; greens read as a tighter cut
+- [ ] Trees are recognizable varied species (round oaks, blocky canopies, tiered pines) with bark trunks and realistic foliage tones, at every zoom level
+- [ ] The pond reflects sky/trees, ripples continuously, and holds a natural shoreline; no water slivers in terrain dips
+- [ ] Trees and the clubhouse sit grounded with soft contact shading (AO) where they meet the ground; the sky does NOT bloom into white fog
+- [ ] The clubhouse reads as a building: gabled shingle roof, plank siding, porch with columns, chimney; windows glow warm at dusk/night
+- [ ] Full stack performance stays far above 60fps (tight-loop measured ~566fps at 2560px; note: rAF in occluded windows throttles to 1-2fps and is not a GPU signal)
+- [ ] `npm test` still 121/121 — this pass changed rendering only
+
 ## Phase 7 — Sound, tutorial, polish
 
 **Sound (procedural placeholders)**

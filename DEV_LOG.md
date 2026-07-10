@@ -339,3 +339,47 @@ Newest entries at the bottom.
   the build order are done: the game runs end-to-end from fixer-upper muni to
   hosting THE WILLOW CREEK OPEN.
 
+## 2026-07-09 — v4 visual-fidelity pass (rendering only; sim/UI untouched)
+
+- **Task 1 — real PBR ground**: Poly Haven CC0 1K sets (diffuse + GL normal) wired
+  into the splat shader for fairway/green/tee (leafy_grass at three tilings), rough
+  (sparse_grass), sand (sand_01), path (gravel_road), scrub (brown_mud_leaves_01).
+  All sets sampled in uniform control flow (valid mip derivatives at warped borders);
+  per-zone normals via a custom normal_fragment_maps override using derivative
+  tangent frames; per-zone derived roughness keeps the shader at 13 samplers.
+  Procedural canvases retained as offline fallback. One grading round required —
+  photo grass is olive; green-forward tints and a lighter health-dry mix fixed it.
+- **Task 2 — real trees**: Quaternius exposed no direct download (Patreon page), so
+  Kenney Nature Kit (CC0, license verified in-pack) per the brief's fallback: six
+  GLB variants merged per material, normalized, instanced (~6.3k instances, 14
+  draws). Kenney's pastel-mint palette read toy-like against photo ground —
+  remapped at load to realistic leaf/bark HSL. Honest note: these are stylized
+  low-poly trees with realistic COLORING — a big step past gumdrops, sanctioned by
+  the brief, but not photoreal foliage; billboard imposters remain a future upgrade.
+- **Task 3 — water**: three's Water (512 reflector) per pond with the classic MIT
+  waternormals map, sun-synced, time-animated. Disk margin trimmed after QA caught
+  it poking through a terrain dip. The single-tonemap pipeline exposed the physical
+  sky's violet zenith in reflections — vendored Water.js carries two flagged
+  FAIRWAY STATE patches (reflectance capped 0.72, mirror desaturated/tinted) so
+  ponds read as water; ripples and tree/sky reflections verified.
+- **Task 4 — post stack**: EffectComposer (MSAA-4 HalfFloat target) → GTAO (3yd
+  radius contact grounding) → UnrealBloom → OutputPass; exposure 0.84→0.92. TWO
+  hard-won lessons: (1) the physical Sky emits HDR radiance in the TENS (sun disc
+  thousands) — bloom threshold must clear the entire sky field (set 40) or the
+  horizon floods white, found via pass-isolation screenshots; (2) an apparent
+  "1 fps GPU cliff" was actually the QA browser occlusion-throttling
+  requestAnimationFrame — tight-loop throughput is the honest metric: 1316 fps
+  direct, 684 fps full stack mid-build, **566 fps final** at 2560×1249. Massive
+  headroom retained.
+- **Task 5 — clubhouse**: gabled plank-sided building with shingled overhanging
+  roof, porch + columns, six framed windows glowing warm after dark, door, chimney.
+  QA iterations: roof slab rotation inverted (V→gable), plane roof read as black
+  void from the north (rebuilt as solid slabs), bark-scale siding retiled.
+- **Honest residuals**: tee-number sprites mip to dark dots in far beauty shots
+  (they're management UI; acceptable, could distance-fade later); Kenney trees are
+  stylized-realistic, not photoreal; golfer/customer capsules and shop fixtures
+  remain the biggest visual placeholder (already in KNOWN_ISSUES); rain has no
+  particle effect. The scene now reads as a coherent, textured, grounded golf
+  course rather than a strategy-map — the gap this pass existed to close.
+- 121/121 sim tests untouched and green after every task; five commits, one per task.
+
