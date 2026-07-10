@@ -655,7 +655,10 @@ class GTAOPass extends Pass {
 
 		scene.traverse( function ( object ) {
 
-			if ( ( object.isPoints || object.isLine || object.isLine2 ) && object.visible ) {
+			// FAIRWAY STATE patch: also exclude sprites — billboard label quads enter the
+			// normal/depth G-buffer as camera-facing walls and the AO term crushes them to
+			// solid black whenever nearby geometry sits within the AO radius.
+			if ( ( object.isPoints || object.isLine || object.isLine2 || object.isSprite ) && object.visible ) {
 
 				object.visible = false;
 				cache.push( object );
