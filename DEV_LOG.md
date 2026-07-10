@@ -820,3 +820,44 @@ One ignored in-game year (seed 20260709): launch roster fully turned over — al
 gone to rivals with visible notices, earliest at day 12 (≥ grace), replacements cycling,
 market holding ~5 listings at steady state. Tests: 2 new (grace window + knob sanity;
 250-day turnover with per-removal age and per-removal notice checks). Suite 171/171.
+
+## 2026-07-09 — LIVING MARKET Task 3: market conditions (pricing drift)
+
+A single bounded multiplier, `empire.marketCondition`, now represents the
+buyer's/seller's cycle. It multiplies the ASKING PRICE of listings generated while
+it's in effect — and touches nothing else.
+
+**Judgment calls, with reasoning:**
+
+- **Bounds ±15%** (`conditionMin` 0.85 / `conditionMax` 1.15): enough that timing a
+  purchase into a trough is real money on a $50k course (~$15k swing peak-to-trough),
+  small enough that a bargain archetype in a hot market can still be a bargain. It's a
+  modifier, not an economy — the brief is explicit that this needn't be a model.
+- **Drift shape: lerp-to-target + whisper of noise.** The target re-rolls uniformly
+  inside the bounds every 24 days (`conditionRetargetDays` — once a season), and the
+  mood covers ~86% of the gap per season (`conditionLerp` 0.08), so cycles feel
+  seasonal: slow swells, no lurches. Daily noise 0.008 keeps the line organic. The
+  bounded-drift test pins both: 600 days inside hard bounds with a worst daily step
+  under 0.03.
+- **The mood prices ONLY new arrivals.** `generateListing` bakes the multiplier into
+  the sticker at listing time; the listing then never re-prices (the ask you saw is
+  the ask you pay — same shown-number-is-paid-number ethic as sales). Owned property
+  valuations — active or parked — never see the multiplier, per the brief's explicit
+  test requirement: they price on their own condition/income. Consequence I'm
+  accepting and documenting: "sell into a seller's market" is NOT a mechanic; the
+  timing strategy is entirely buy-side (asks run soft in a downturn). Applying the
+  cycle to sale payouts is logged in KNOWN_ISSUES as future work, because it needs
+  anti-exploit thought (park-and-wait-for-peak with zero effort) that this task's
+  scope doesn't cover.
+- **Drift runs before the day's refresh** in marketDay so an arrival prices on the
+  day's mood, not yesterday's.
+- **Migration**: older saves join the cycle at par (1.0) and drift from there;
+  new empires start at par with a random first target already pulling.
+- Also fixed while staring at name output: the pool guard now rejects repeated-word
+  combos ("Wren Hill Links Golf Links" can no longer occur).
+
+Two-year dump (seed 55555): mood swung 0.87→1.10→0.87; arrivals' average ask/true
+ratio moved 0.896 (soft market) vs 1.040 (hot) with per-seller bias noise on top —
+learnable, not min-maxable. Tests: 3 new (bounded slow drift; same-stream clone
+empires spawn the same day-6 course asking ×1.35 more at the top of the cycle than
+the bottom; owned-property isolation incl. sale payout). Suite 174/174.

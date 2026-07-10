@@ -12,7 +12,7 @@ import { MINUTES_PER_DAY, HOLE_STATUS } from '../src/sim/constants.js';
 import { courseDesignRating, validateHole, holeDistanceYd } from '../src/sim/course.js';
 import { MARKET, generateListing, buildPropertyCourse } from '../src/sim/marketplace.js';
 import {
-  newEmpire, buyProperty, empireUpdate, marketTick,
+  newEmpire, buyProperty, sellProperty, empireUpdate, marketTick, holdingValue,
   serializeEmpire, deserializeEmpire,
 } from '../src/sim/empire.js';
 
@@ -195,12 +195,79 @@ test('ignored listings go to rival buyers within a reasonable window, never sile
   assert.ok(e.log.length <= 30, 'the feed stays bounded');
 });
 
+// --- Task 3: market conditions (pricing drift) ----------------------------------------
+
+test('the market mood drifts over time, slowly, inside hard bounds', () => {
+  assert.ok(MARKET.conditionMin >= 0.7 && MARKET.conditionMax <= 1.3 && MARKET.conditionMin < MARKET.conditionMax,
+    'the cycle is a modifier, not an economy');
+  const e = newEmpire('relaxed', 4242);
+  let lo = Infinity;
+  let hi = -Infinity;
+  let prev = e.marketCondition;
+  let maxDailyStep = 0;
+  skipDays(e, 600, (em) => {
+    const c = em.marketCondition;
+    assert.ok(Number.isFinite(c), 'market condition always defined');
+    assert.ok(c >= MARKET.conditionMin - 1e-9 && c <= MARKET.conditionMax + 1e-9,
+      `condition ${c} stays inside [${MARKET.conditionMin}, ${MARKET.conditionMax}]`);
+    maxDailyStep = Math.max(maxDailyStep, Math.abs(c - prev));
+    prev = c;
+    lo = Math.min(lo, c);
+    hi = Math.max(hi, c);
+  });
+  assert.ok(hi - lo >= 0.12, `the cycle genuinely moves over 600 days: saw ${lo.toFixed(3)}..${hi.toFixed(3)}`);
+  assert.ok(maxDailyStep <= 0.03, `but never lurches: worst daily step ${maxDailyStep.toFixed(4)}`);
+});
+
+test('the same day-six listing asks more in a seller\'s market than a buyer\'s market', () => {
+  // identical empires, identical market rng stream, only the mood differs — the
+  // listing that appears is the same course with a different sticker
+  const spawnAt = (cond) => {
+    const em = newEmpire('relaxed', 31337);
+    em.market = []; // dry market: the day-6 refresh roll is guaranteed
+    em.marketCondition = cond;
+    em.marketConditionTarget = cond; // lerp pulls toward itself; only shared noise moves it
+    skipDays(em, 6);
+    assert.equal(em.market.length, 1, 'exactly one listing spawned');
+    return em.market[0];
+  };
+  const cheap = spawnAt(MARKET.conditionMin);
+  const dear = spawnAt(MARKET.conditionMax);
+  assert.equal(cheap.name, dear.name, 'same rng stream, same course');
+  assert.equal(cheap.trueValue, dear.trueValue, 'the mood moves the ASK, never the intrinsic value');
+  assert.ok(dear.askingPrice > cheap.askingPrice,
+    `seller's market asks more: ${cheap.askingPrice} vs ${dear.askingPrice}`);
+  const ratio = dear.askingPrice / cheap.askingPrice;
+  assert.ok(ratio > 1.15 && ratio < 1.55, `the full swing is felt but bounded (×${ratio.toFixed(2)})`);
+});
+
+test('owned properties are priced on their own merits, not the market mood', () => {
+  const e = newEmpire('relaxed', 42);
+  e.cash = 10_000_000;
+  buyProperty(e, 'willow-creek'); // active
+  buyProperty(e, 'bent-pines'); // parked from birth
+  const willow = e.holdings.find((h) => h.property.id === 'willow-creek');
+  const bent = e.holdings.find((h) => h.property.id === 'bent-pines');
+
+  e.marketCondition = MARKET.conditionMin;
+  const activeLow = holdingValue(e, willow);
+  const parkedLow = holdingValue(e, bent);
+  e.marketCondition = MARKET.conditionMax;
+  assert.equal(holdingValue(e, willow), activeLow, 'active club appraisal ignores the cycle');
+  assert.equal(holdingValue(e, bent), parkedLow, 'parked club appraisal ignores the cycle');
+
+  const res = sellProperty(e, 'bent-pines');
+  assert.equal(res.payout, parkedLow, 'the sale check is the displayed number, whatever the mood');
+});
+
 test('the living market survives save/load, and pre-living-market saves still open', () => {
   const e = newEmpire('relaxed', 99);
   skipDays(e, 30);
   const back = deserializeEmpire(serializeEmpire(e));
   assert.equal(back.lastMarketDay, e.lastMarketDay);
   assert.equal(back.marketRngState, e.marketRngState);
+  assert.equal(back.marketCondition, e.marketCondition, 'the market mood round-trips');
+  assert.equal(back.marketConditionTarget, e.marketConditionTarget);
   assert.deepEqual(back.market, e.market, 'every listing, including listedDay stamps, round-trips');
   // and the market stream continues identically after the reload
   skipDays(e, 30);
@@ -212,11 +279,16 @@ test('the living market survives save/load, and pre-living-market saves still op
   const old = JSON.parse(serializeEmpire(newEmpire('relaxed', 5)));
   delete old.marketRngState;
   delete old.lastMarketDay;
+  delete old.marketCondition;
+  delete old.marketConditionTarget;
   for (const p of old.market) delete p.listedDay;
   old.empireVersion = 1;
   const migrated = deserializeEmpire(JSON.stringify(old));
   assert.ok(Number.isFinite(migrated.marketRngState), 'migrated save grows a market rng stream');
   assert.ok(Number.isFinite(migrated.lastMarketDay), 'migrated save joins the market clock');
+  assert.ok(Number.isFinite(migrated.marketCondition)
+    && migrated.marketCondition >= MARKET.conditionMin && migrated.marketCondition <= MARKET.conditionMax,
+    'migrated save joins the pricing cycle at a sane mood');
   assert.ok(migrated.market.every((p) => Number.isFinite(p.listedDay)),
     'migrated listings get a fair fresh listing date');
   skipDays(migrated, 30); // and the migrated market lives

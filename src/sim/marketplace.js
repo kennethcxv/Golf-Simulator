@@ -402,6 +402,11 @@ export const MARKET = {
   dryMarketFloor: 3, // at or below this many listings, the next roll always lands
   minDaysListed: 10, // grace window: no rival can take a listing younger than this
   rivalDailyChance: 0.055, // per-day rival-buy roll after grace (mean tenure ≈ 28 days)
+  conditionMin: 0.85, // deepest buyer's market — new asks run 15% soft
+  conditionMax: 1.15, // hottest seller's market — new asks run 15% rich
+  conditionRetargetDays: 24, // the cycle picks a new destination about once a season
+  conditionLerp: 0.08, // daily approach toward the target (~86% of the way per season)
+  conditionNoise: 0.008, // per-day wobble so the line reads alive, not synthetic
 };
 
 const NAME_A = [
@@ -581,7 +586,10 @@ function rollParMix(rng, holes, weights) {
 function uniqueName(rng, taken) {
   let name = '';
   for (let tries = 0; tries < 60; tries++) {
-    name = `${NAME_A[rng.int(NAME_A.length)]} ${NAME_B[rng.int(NAME_B.length)]}${NAME_C[rng.int(NAME_C.length)]}`;
+    const b = NAME_B[rng.int(NAME_B.length)];
+    const c = NAME_C[rng.int(NAME_C.length)];
+    if (c.includes(b)) continue; // no 'Links Golf Links'
+    name = `${NAME_A[rng.int(NAME_A.length)]} ${b}${c}`;
     if (!taken.includes(name)) return name;
   }
   return `${name} II`; // 2,376 combos vs a ~30-name world — this line is theory

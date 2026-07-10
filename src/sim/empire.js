@@ -47,6 +47,8 @@ const SEASON_F = [0.95, 1.15, 1.0, 0.22]; // the live club's seasonal demand sha
 export function newEmpire(mode = 'relaxed', seed = Date.now() % 2147483647) {
   const market = generateMarketplace(seed);
   for (const p of market) p.listedDay = 0; // launch roster hits the market on day one
+  const marketRng = makeRng(((seed ^ 0x9e3779b9) >>> 0) || 1);
+  const firstTarget = Math.round((MARKET.conditionMin + marketRng.next() * (MARKET.conditionMax - MARKET.conditionMin)) * 10000) / 10000;
   return {
     version: EMPIRE_VERSION,
     mode,
@@ -60,8 +62,11 @@ export function newEmpire(mode = 'relaxed', seed = Date.now() % 2147483647) {
     log: [],
     // the living market: its own serializable rng stream (market luck never
     // disturbs the active club's dice) and the last world-day it processed
-    marketRngState: ((seed ^ 0x9e3779b9) >>> 0) || 1,
+    marketRngState: marketRng.getState(),
     lastMarketDay: 0,
+    // the pricing cycle: every empire starts at par, already drifting somewhere
+    marketCondition: 1,
+    marketConditionTarget: firstTarget,
   };
 }
 
@@ -380,6 +385,19 @@ const RIVALS = [
 
 function marketDay(empire, day) {
   const rng = makeRng(empire.marketRngState);
+  // the buyer's/seller's cycle drifts first, so today's arrivals price on
+  // today's mood: a slow lerp toward a target that re-rolls about once a
+  // season, a whisper of daily noise, hard-clamped to the tuned bounds
+  if (day % MARKET.conditionRetargetDays === 0) {
+    empire.marketConditionTarget = Math.round(
+      (MARKET.conditionMin + rng.next() * (MARKET.conditionMax - MARKET.conditionMin)) * 10000,
+    ) / 10000;
+  }
+  const drifted = empire.marketCondition
+    + (empire.marketConditionTarget - empire.marketCondition) * MARKET.conditionLerp
+    + (rng.next() - 0.5) * MARKET.conditionNoise;
+  empire.marketCondition = Math.round(clamp(drifted, MARKET.conditionMin, MARKET.conditionMax) * 10000) / 10000;
+
   // rival investors pick off listings that sat too long — but the grace window
   // guarantees anything you're actively weighing up can't vanish overnight
   for (let i = empire.market.length - 1; i >= 0; i--) {
@@ -397,6 +415,7 @@ function marketDay(empire, day) {
         ...empire.holdings.map((h) => h.property[field]),
       ];
       const listing = generateListing(1 + rng.int(2147483646), {
+        marketCondition: empire.marketCondition,
         takenNames: taken('name'),
         takenIds: taken('id'),
       });
@@ -449,6 +468,8 @@ export function empireSnapshot(empire) {
     market: empire.market,
     marketRngState: empire.marketRngState,
     lastMarketDay: empire.lastMarketDay,
+    marketCondition: empire.marketCondition,
+    marketConditionTarget: empire.marketConditionTarget,
     holdings: empire.holdings.map((h) => ({
       property: h.property,
       passive: h.passive,
@@ -501,6 +522,8 @@ function legacyEmpireFrom(raw) {
     log: [],
     marketRngState: ((st.seed ^ 0x9e3779b9) >>> 0) || 1,
     lastMarketDay: joinDay,
+    marketCondition: 1,
+    marketConditionTarget: 1,
   };
 }
 
@@ -524,16 +547,21 @@ export function deserializeEmpire(raw) {
     log: data.log || [],
     marketRngState: data.marketRngState,
     lastMarketDay: data.lastMarketDay,
+    marketCondition: data.marketCondition,
+    marketConditionTarget: data.marketConditionTarget,
   };
   // saves written before the living market existed: grow the stream, join the
-  // market clock at the save's own world day, and give the frozen listings a
-  // fresh (fair) listing date — their expiry clock starts now, not in arrears
+  // market clock at the save's own world day, start the pricing cycle at par,
+  // and give the frozen listings a fresh (fair) listing date — their expiry
+  // clock starts now, not in arrears
   if (!Number.isFinite(empire.marketRngState)) {
     empire.marketRngState = (((empire.seed ?? 1) ^ 0x9e3779b9) >>> 0) || 1;
   }
   if (!Number.isFinite(empire.lastMarketDay)) {
     empire.lastMarketDay = calendarOf(empire.clockMinutes ?? 0).dayAbs;
   }
+  if (!Number.isFinite(empire.marketCondition)) empire.marketCondition = 1;
+  if (!Number.isFinite(empire.marketConditionTarget)) empire.marketConditionTarget = 1;
   for (const p of empire.market) {
     if (!Number.isFinite(p.listedDay)) p.listedDay = empire.lastMarketDay;
   }
