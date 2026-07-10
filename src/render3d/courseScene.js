@@ -1378,7 +1378,18 @@ export function makeCourseScene(canvas, state) {
   }
 
   // --- what you're looking at (shop-style focus + [E]) -------------------------------
-  let walkFocus = null; // { kind, label }
+  let walkFocus = null; // { kind, label, cell? }
+  const walkHooks = {}; // main.js provides turfLabelAt(cx,cy) / inspectAt(cx,cy)
+
+  // the patch of ground a walking player is looking at, in cell coords
+  function walkAimCell(dist = 2.4) {
+    const ax = walk.x - Math.sin(walk.yaw) * dist;
+    const az = walk.z - Math.cos(walk.yaw) * dist;
+    const cx = Math.floor((ax + worldW / 2) / CELL_YD);
+    const cy = Math.floor((az + worldH / 2) / CELL_YD);
+    if (cx < 0 || cy < 0 || cx >= W || cy >= H) return null;
+    return { x: cx, y: cy };
+  }
 
   function walkFindFocus() {
     if (cart.mounted) {
@@ -1395,6 +1406,15 @@ export function makeCourseScene(canvas, state) {
         return;
       }
     }
+    // the ground ahead: the same inspect the top-down click used to open
+    const aim = walkAimCell();
+    if (aim && walkHooks.turfLabelAt) {
+      const label = walkHooks.turfLabelAt(aim.x, aim.y);
+      if (label) {
+        walkFocus = { kind: 'turf', label, cell: aim };
+        return;
+      }
+    }
     walkFocus = null;
   }
 
@@ -1404,7 +1424,9 @@ export function makeCourseScene(canvas, state) {
       dismountCart();
       return;
     }
-    if (walkFocus && walkFocus.kind === 'cart') mountCart();
+    if (!walkFocus) return;
+    if (walkFocus.kind === 'cart') mountCart();
+    else if (walkFocus.kind === 'turf' && walkHooks.inspectAt) walkHooks.inspectAt(walkFocus.cell.x, walkFocus.cell.y);
   }
 
   function walkKeyDown(e) {
@@ -1795,6 +1817,8 @@ export function makeCourseScene(canvas, state) {
       update: walkUpdate,
       interact: walkInteract,
       getFocusLabel: () => (walkFocus ? walkFocus.label : null),
+      getFocus: () => walkFocus,
+      hooks: walkHooks,
       isActive: () => walk.active,
       state: walk, // position/yaw/pitch — also the QA hook
       cart, // cart state, same purpose

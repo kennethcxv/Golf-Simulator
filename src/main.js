@@ -31,7 +31,7 @@ import { makeAudio } from './core/audio.js';
 import { tickTutorial, tutorialFlag } from './sim/tutorial.js';
 import { makeMenu } from './screens/menu.js';
 import { saveData, loadData } from './core/storage.js';
-import { conditionRating, sectionTurfSummary } from './sim/turf.js';
+import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
 import { makeCourseScene } from './render3d/courseScene.js';
 
 const canvas = document.getElementById('game');
@@ -204,6 +204,22 @@ function startGame(state) {
   app.state = state;
   app.screen = 'game';
   app.scene3d = makeCourseScene(canvas, state);
+  // walk-up inspection: the walking controller asks, the app answers with the
+  // same sections and status words the top-down click-to-inspect always used
+  app.scene3d.walk.hooks.turfLabelAt = (cx, cy) => {
+    const section = sectionAtCell(cx, cy);
+    if (!section) return null;
+    if (TURF_ZONES.has(section.zone) && app.state.turf) {
+      return `${section.name} — ${sectionStatus(app.state, section)} — [E] inspect`;
+    }
+    return `${section.name} — [E] inspect`;
+  };
+  app.scene3d.walk.hooks.inspectAt = (cx, cy) => {
+    const section = sectionAtCell(cx, cy);
+    if (!section) return;
+    if (document.pointerLockElement) document.exitPointerLock(); // the panel needs the cursor
+    inspectPanel.show(section);
+  };
   app.plan = makePlan();
   app.worksMode = false;
   app.activeTool = null;
@@ -750,7 +766,8 @@ window.addEventListener('keydown', (e) => {
       }
       case 'Escape':
         // first Esc releases the pointer (browser); the next opens the office
-        if (app.groundsOpen || app.clubOpen || app.shopOpen || app.empireOpen) closeLeftPanels('none');
+        if (app.selectedSection) inspectPanel.hide();
+        else if (app.groundsOpen || app.clubOpen || app.shopOpen || app.empireOpen) closeLeftPanels('none');
         else if (!document.pointerLockElement) openPauseMenu();
         break;
     }

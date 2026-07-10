@@ -1006,3 +1006,34 @@ Browser QA: prompt appears on approach + facing; mount snaps to the wheel; open-
 speeds measured walk 3.41 vs drive 10.0 yd/s (2.9×); steering measured 1.6 rad/s;
 the cart mesh follows under way; dismount steps 1.7 yd clear and the prompt flips
 back to "take the wheel". Zero console errors or warnings.
+
+## 2026-07-09 — WALKABLE COURSE Task 3: walk-up turf inspection
+
+The top-down click-to-inspect is now a walk-up: the patch of ground ~2.4 yd ahead of
+your feet carries a shop-style prompt — the section's name and ONE status word
+("Green 1 — Declining — [E] inspect") — and E opens the exact same inspect panel
+(status chip, stimp, diagnosis, Details, treat/aerate) the click used to.
+
+**Judgment calls, with reasoning:**
+
+- **The trigger is the aim cell, not a radius**: a fixed 2.4-yd look-ahead from the
+  player's heading maps to one grid cell, and that cell's section is what you're
+  "at". Predictable, cheap, and it means the prompt IS the answer to "what am I
+  standing in front of" — the one-status-first rule from the panel now lives on the
+  crosshair too.
+- **All the data flows through the hooks the app supplies** (turfLabelAt/inspectAt →
+  sectionAtCell + sectionStatus + inspectPanel.show): the render layer never imports
+  sim logic, and the panel, diagnosis copy, and treatment buttons are the SAME code
+  the top-down path used — only the trigger and camera changed, per the brief.
+- **E releases the pointer** when the panel opens (its Details/Fungicide/Aerate
+  buttons need a cursor); clicking the canvas re-locks. Esc closes the panel first,
+  then panels, then the office — the same layered-escape the game already teaches.
+- **Non-turf sections still inspect** (bunkers, paths — the panel's zone chip), and
+  unzoned scrub deliberately prompts nothing, so the prompt only ever names a real
+  section. The cart prompt wins over turf when both apply — vehicles over dirt.
+
+Browser QA (Tamarack Ridge): standing before Green 1 shows "Green 1 — Declining —
+[E] inspect" (matches sectionStatus exactly); E opens the panel titled GREEN 1,
+Declining chip, stimp, cells/area, hole membership, Details and Aerate — the real
+panel on the real section. A fairway section prompts by its own name; open scrub
+prompts nothing. Zero console errors or warnings.
