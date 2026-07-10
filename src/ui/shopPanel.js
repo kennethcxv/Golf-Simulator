@@ -123,6 +123,10 @@ export function makeShopPanel(app, handlers) {
       if (!st.props.teeSignFixed) chores.push('🪧 the tee sign is still broken');
     }
     if (st.tractor && !st.tractor.repaired) chores.push('🚜 the tractor is still broken at the shed');
+    if (st.shop.reno) {
+      const avgDirt = st.shop.reno.grime.reduce((a, v) => a + v, 0) / st.shop.reno.grime.length;
+      if (avgDirt > 0.18) chores.push(`🧽 the shop floor needs a vacuum pass (${Math.round(avgDirt * 100)}% tracked in)`);
+    }
     rows.push(el('h3', { text: 'Grounds chores', style: 'margin-top:10px' }));
     if (chores.length) {
       for (const line of chores) rows.push(el('div', { class: 'row muted', text: line }));
