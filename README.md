@@ -16,7 +16,7 @@ House Flipper's buy-restore-transform loop, applied to the golf course managemen
 - Vanilla JavaScript — simulation, management UI
 - Three.js — the 3D course view and the walkable pro shop interior
 - Electron — desktop shell for the eventual Steam build
-- `node --test` — headless unit tests for all simulation logic (176 green)
+- `node --test` — headless unit tests for all simulation logic (210 green)
 
 ## Run
 
@@ -47,32 +47,41 @@ waiting exactly where you left it.
 market via the overview or the office menu
 
 **On the course (first-person, the default)** — WASD: walk · Shift: run · mouse
-(click to capture): look · E: interact (inspect turf, drive/park the cart) · F: the
-hose (hold the mouse button to water) · Tab: overview camera · Space: pause ·
-1/2/3: speed · V: Normal/Health/Moisture views · P: back to the shop
+(click to capture): look · E: interact (inspect turf, repair chores, signs, the
+tractor) · F: cycle the tool belt (hose → divot kit → bunker rake; hold the mouse
+button to use) · Tab: overview camera · Space: pause · 1/2/3: speed · V:
+Normal/Health/Moisture views · P: back to the shop. Driving the tractor (earned by
+repairing it at the maintenance yard) switches to a third-person chase camera.
 
 **Overview camera (Tab)** — drag: pan · right-drag: orbit · wheel: zoom · E: Course
 Works (terrain editing — its walkable redesign is pending) · click: inspect
 
 **Panels** — G: Grounds (crew + policies) · C: Club office (members, pricing, staff,
-development, tournaments) · 🛍: Shop desk (orders, markup, rentals) · Esc: menus
+development, tournaments) · 🛍: Shop desk (orders, markup, rentals, tee sheet) ·
+Esc: menus
 
 **Pro shop floor** — P: walk the floor · click: capture mouse (Esc releases) · WASD:
-move · E: restock/interact · P or the door: leave
+move · E: restock/interact (clutter, decor ghosts, the office computer, check-ins) ·
+F: the vacuum (hold the mouse button to clean) · P or the door: leave
 
 ## Status
 
-Three portions complete on top of the feature-complete FAIRWAY STATE core: the
+Five portions complete on top of the feature-complete FAIRWAY STATE core: the
 empire layer (marketplace, acquisition & permanent sale, live valuation,
 multi-property portfolio with caretaker simulation), the LIVING market (new listings
 over time from parametrized distress profiles, rival buyers expiring stale listings,
-a bounded buyer's/seller's pricing cycle, all surfaced in the UI), and the WALKABLE
-course (first-person by default with real collision, a golf cart, walk-up turf
-inspection, and a hand hose that waters the real sim — the old orbit rig demoted to
-a Tab-away overview camera; terrain editing's walkable redesign is the headline open
-item). 176 headless tests green; every portion browser-QA'd with zero console
-errors. See TESTING_CHECKLIST.md for the manual pass and KNOWN_ISSUES.md for limits
-and the roadmap.
+a bounded buyer's/seller's pricing cycle, all surfaced in the UI), the WALKABLE
+course (first-person by default with real collision, walk-up turf inspection — the
+old orbit rig demoted to a Tab-away overview camera; terrain editing's walkable
+redesign is the headline open item), the SHOP RESTORATION arc (a filthy pro shop
+cleaned and furnished up to its reference — vacuum, decor placement, the office
+computer with supplier orders and a tee-time reservation sheet, counter check-ins),
+and the ASSET INTEGRATION portion (the earned-tractor repair sequence with a
+third-person drive camera, a real hand-tool belt — hose, divot kit, bunker rake —
+bunker footprints, storm litter, the broken→restored tee sign, real flagsticks and
+tee markers, and a weathered stone entrance sign). 210 headless tests green; every
+portion browser-QA'd with zero console errors. See TESTING_CHECKLIST.md for the
+manual pass and KNOWN_ISSUES.md for limits and the roadmap.
 
 ## Docs
 

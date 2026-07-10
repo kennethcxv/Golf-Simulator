@@ -1813,3 +1813,15 @@ Logged as a deliberate keep, not a blocked item; if a purpose-built clubhouse
 GLB lands in Assets/ later, putModel + a hidden procedural group is the path.
 
 qa/entrance-stone-sign.png. Zero console errors. Suite 210/210.
+
+## 2026-07-10 — PART 0 WRAP-UP: the interrupted asset session is complete
+
+All five asset-integration tasks + the full shop-restoration brief are shipped,
+verified live, and committed one by one. Docs squared: KNOWN_ISSUES gained the
+SHOP RESTORATION and ASSET INTEGRATION sections and had five stale items struck
+(drive-facing flip, hands-on tools, entrance sign sizing, silhouette deltas, the
+"props await the sequence" line); ASSET_SOURCES now maps all 20 GLBs to their
+runtime names and honest status (house: evaluated, kept out; cart: staged);
+TESTING_CHECKLIST gained both 2026-07-10 sections; README controls/status match
+reality. Suite 210/210. Next per the overnight brief: PART 1 (tool feel), after
+the mandated DEV_LOG/KNOWN_ISSUES re-read.

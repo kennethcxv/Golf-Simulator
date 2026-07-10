@@ -5,6 +5,58 @@ under "Needs a real art/audio pass" must be replaced before this could ship comm
 GOLF EMPIRE is built on the FAIRWAY STATE core; everything below from that era still
 applies per-property, plus the new empire-layer section at the top.
 
+## SHOP RESTORATION ARC (2026-07-10) — shipped & open items
+
+Shipped (Parts 1+2 of the brief, committed per task, suite grew 176→199):
+shop condition state (grime grid + clutter + decor, condition derived 0-100,
+old saves migrate dirty), the vacuum (real catalog item through the supplier
+flow, hose-pattern hold-to-clean), decor ghost-spot placement (6 reference
+items incl. pendant lights that add real light), the office computer as the
+diegetic door into the existing desk panel, tee-time reservations (additive
+sim/reservations.js, counter check-in collects the snapshotted fee), distinct
+shelf-stock silhouettes, and the shell polish (wainscot, beams, window trim,
+green counter, per-club wall wordmark).
+
+Open / deliberate:
+- **No un-place/move for placed decor** — placement is one-way for now; a
+  small "pack it back up" interaction is queued polish.
+- **Reservations are additive revenue** on top of the statistical rounds sim —
+  a booked golfer doesn't decrement walk-in counts (that would mean touching
+  rounds.js). Revisit only alongside a real rounds redesign.
+- **No-show consequences are cosmetic** (💨 on the sheet); deposits/penalties
+  are a future economy knob.
+- **Vacuum/tool audio cues not yet added** (audio.js untouched so far).
+- **Customers can clip the lounge set's corner** on their counter path —
+  queueing/avoidance is the NPC-behavior pass's job.
+
+## ASSET INTEGRATION (2026-07-10) — all 19 target assets in, honest deltas
+
+Shipped: full inventory sheet (20/20 GLBs import clean in Blender 5.1 AND
+three r185 — qa/assets-inventory-sheet.png), the earned-tractor repair arc
+(shed yard, broken→restored swap, mower deck hitched, driving gated on repair,
+third-person chase camera), the hand-tool belt (hose nozzle / divot kit /
+bunker rake as real held models, hold-to-use), bunker footprints (additive
+sim/bunkers.js: traffic dirties sand, rake smooths, shader shows churn),
+storm-litter piles + the broken→restored tee sign (sim/props.js, $150 repair
+through the books), real flagsticks + tee-marker pairs on every open hole,
+and the weathered stone entrance sign (condition-driven lean/grime).
+
+Open / deliberate:
+- **The house GLB is NOT the clubhouse** — evaluated live (qa/house-experiment
+  .png): residential silhouette, baked landscape bed fights terrain, 334k tris.
+  The style-passed procedural clubhouse stays. A purpose-built clubhouse model
+  remains a pre-ship art item.
+- **The golf cart GLB is unused** (bonus asset, staged in vendor-able form via
+  Assets/) — could become a second drivable or ambient prop later.
+- **Mowing-while-driving is visual only** — the deck rides the tractor but
+  cutting still belongs to the crew sim; a player-driven mowing write-through
+  (like waterAt) is a natural next mechanic.
+- **Open pins lost their numbered canvas flags** (real flagstick GLB instead);
+  the tee's floating number still identifies holes. One-branch revert if
+  playtests miss it.
+- **Weathering applies at scene build** (sign/broken-tractor dressing) — it
+  doesn't lerp live as condition changes mid-session; rebuilds refresh it.
+
 ## GOLF EMPIRE layer — current status & deliberate v1 limits
 
 Shipped portion 1 (2026-07-09): the property marketplace (8 hand-authored distinct
@@ -93,9 +145,9 @@ old orbit rig survives as a labeled "overview camera" one Tab away.
   refuses to open; the full existing editor remains available from the overview
   camera (Tab). The walkable replacement (survey stakes? a foreman mode? plan-on-the-
   ground?) is the next portion's design work.
-- **More hands-on tools (mowing, weeding, litter pickup) deliberately not built** —
-  the brief scoped exactly one tool (watering). The hose's equip/aim/hold pattern is
-  the template they'd reuse.
+- ~~More hands-on tools (mowing, weeding, litter pickup) deliberately not built~~ —
+  the divot kit, bunker rake, and litter hauling shipped 2026-07-10 on the hose's
+  pattern; player-driven mowing from the tractor seat remains open (deck is visual).
 - **Cart position is render-layer state**: it re-parks by the clubhouse on scene
   rebuild (save/load, property switch). Persisting it means a save-format field for
   a cosmetic nicety — deferred.
@@ -126,9 +178,9 @@ Honest deltas still open (also recorded in ASSET_SOURCES.md):
   future art pass.
 - **Turf hue** sits a half-step more electric than the references' warm #55a83a;
   next tuning nudge belongs to a playtest, not more screenshot-eyeballing.
-- **Silhouettes**: clubhouse clock tower / porch florals / entrance sign / feather
-  flags and a real tractor+mower don't exist as models; palette matches, silhouette
-  additions are modeling work (pairs with the earned-tractor MVP sequence).
+- **Silhouettes**: ~~entrance sign / a real tractor+mower don't exist as models~~ —
+  shipped 2026-07-10 (stone club sign, red tractor + deck, shed yard, flagsticks,
+  tee markers). Still missing: the clubhouse clock tower and porch florals.
 - **Characters** are restyled primitives; no rigged models or Mixamo pipeline
   exists in this repo (the session brief referenced one from a "shop-polish
   session" that never happened here). A real character pass is pre-ship work.
@@ -150,10 +202,12 @@ Honest deltas still open (also recorded in ASSET_SOURCES.md):
   **no rain particles**, and **tee-number sprites render as solid black squares when
   viewed against the light** (lit sprite material; fine sun-side, black anti-sun-side —
   seen clearly in the v5 dawn/dusk sky shots). Both queued for the polish pass.
-- **Pro shop interior is simple geometric primitives** — hollow box shelving, box
-  stock stacks, capsule-and-sphere customers, flat procedural wood/plaster. Needs a real
-  modular shop kit, item models per SKU, and characters before ship. Register queue
-  interaction and counter purchase animations are also deferred.
+- **Pro shop interior** — 2026-07-10 largely rebuilt: reference shell (wainscot,
+  beams, trim, wordmark), distinct product silhouettes (hung/folded shirts, ball
+  pyramids, caps, towels), decor set, articulated customers. Still open: a real
+  modular fixture KIT (shelves are still hand-built boxes), per-SKU item models,
+  counter purchase animations, and customer QUEUEING at the register (Part 4 of
+  the 2026-07-10 overnight brief).
 - **UI is hand-rolled DOM/canvas styling** — functional, consistent, but needs a real UI
   art/iconography pass (currently text + simple shapes/emoji glyphs).
 - **Key art / branding / trailer** — nothing exists; "FAIRWAY STATE" is a working title.
@@ -206,12 +260,15 @@ Honest deltas still open (also recorded in ASSET_SOURCES.md):
 
 Shipped: procedural articulated characters (walk/idle/swing/browse) on course and
 shop floor; the owner-supplied red tractor as the drivable vehicle (+ scripted
-fallback); course sign + pennant flags at the clubhouse. Open: tractor drive-facing
-flip unverified mid-drive (one boolean if wrong); sign could size up toward the
-reference's stone entrance piece; skinned/Mixamo-grade characters remain future
-work (Blender 5.1 glTF skin exports arrived scattered in three r185 twice — findings
-in DEV_LOG); remaining Assets/ props await the earned-tractor MVP sequence.
-**QUEUED NEXT (superseded this session, not dropped): the UI-layout/IA session** —
-comps research (House Flipper/Two Point Hospital/Stardew/PowerWash), then minimal
-always-on HUD (cash/date/speed) with one consolidated Manage entry, weather/stats
-relocated into their management screens, contextual tool UI check.
+fallback). ~~Tractor drive-facing flip unverified~~ — RESOLVED 2026-07-10: the
+third-person chase camera shows her nose-first mid-drive. ~~Sign could size up
+toward the stone entrance piece~~ — DONE 2026-07-10 (weathered stone club sign).
+~~Remaining Assets/ props await the earned-tractor sequence~~ — ALL integrated
+2026-07-10 (see ASSET INTEGRATION section above). Skinned/Mixamo-grade characters
+remain future work (Blender 5.1 glTF skin exports arrived scattered in three r185
+twice — findings in DEV_LOG).
+**QUEUED (still): the UI-layout/IA session** — now Part 2 of the 2026-07-10
+overnight brief: comps research (House Flipper/Two Point Hospital/Stardew/
+PowerWash), then minimal always-on HUD (cash/date/speed) with one consolidated
+Manage entry, weather/stats relocated into their management screens, contextual
+tool UI check.

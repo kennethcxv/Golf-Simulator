@@ -225,7 +225,7 @@ http://localhost:8457/ in a browser. Headless sim tests: `npm test`.
 - [ ] Owned property values and sale payouts do NOT move with the market mood — only new listings' asks do
 - [ ] A market left open on screen re-renders as days pass (ages tick over, arrivals/rival-buys appear) without reopening it
 - [ ] Reload → Continue restores the market exactly: same listings with the same listedDay stamps, same mood, same feed
-- [ ] `npm test` → 176 passing (121 core + 41 empire-layer + 14 living-market)
+- [ ] `npm test` → 176 passing (121 core + 41 empire-layer + 14 living-market) — superseded, see 2026-07-10 sections: now 210
 
 ## THE WALKABLE COURSE — first-person by default
 
@@ -255,3 +255,41 @@ http://localhost:8457/ in a browser. Headless sim tests: `npm test`.
 - [ ] Golfer NPCs wander and play on the same ground you walk (none at night or on a wrecked course in winter — that's the sim being honest)
 - [ ] Triggering Course Works from on foot shows the honest "being redesigned for the walkable course" notice and does NOT half-open; from the overview camera (Tab) the existing editor still fully works
 - [ ] The full loop runs clean: shop door → walk → drive → inspect → water → P back to the shop floor — zero console errors
+
+## Shop restoration arc (2026-07-10)
+
+**Condition & cleaning**
+- [ ] A fresh game boots into a visibly rundown shop: dim/flickering light, one dead tube, filthy windows, pale dust drifts on the floor, cardboard clutter piles; the chip reads "Shop condition ~16 — filthy"
+- [ ] E on a clutter pile hauls it out (once), the floor under it cleans a little, condition ticks up
+- [ ] Order the Shop vacuum ($140) from the desk/computer; it arrives in 2 days; F equips it (wand + red head visible), holding LMB cleans the aimed patch — dust recedes in place, motes stream into the nozzle, condition climbs live
+- [ ] Supplies/decor never appear on sales shelves and shoppers never buy them
+
+**Decor & the computer**
+- [ ] Ordering decor (rug/plant/poster/board/pendant/lounge) through the same supplier flow spawns translucent green ghosts at each valid free spot once delivered; E places (back→placed), the real mesh + condition bump land; pendants add real warm light
+- [ ] The counter computer prompts "[E] supplier orders & pricing" and opens the REAL desk panel; Esc closes the panel before offering the office menu
+- [ ] Tee sheet tab: half-hour grid 7:00–16:30 up to 7 days out; Book for a member or walk-in; double-booking refused; Cancel frees the slot
+- [ ] On the booked day from 45 min before the slot, the register offers "[E] check in <name> (<time> tee, $fee)"; E collects exactly the booking-day fee into greenFees; a golfer walks to the counter around their time
+- [ ] Full renovation: vacuum everything + place all decor → condition 100 "showroom"; shell reads like Designs/ClubHouseInterior (wainscot, beams, wordmark with THIS club's name, trimmed windows, stocked varied shelves)
+
+## Asset integration & course tools (2026-07-10)
+
+**The earned tractor**
+- [ ] A fresh game has NO drivable tractor: the maintenance yard (shed/workbench/tool chest) sits east of the porch with the BROKEN tractor (dull, sagging) buried in a junk pile
+- [ ] E on the junk pile, fuel can, and drive belt each completes once with a toast; the tractor prompt lists what's still missing, then "[E] get her running"
+- [ ] Repair swaps the broken shell for the restored red tractor IN PLACE with the mower deck hitched; "[E] take the wheel" now works
+- [ ] Driving is THIRD-PERSON (chase cam behind/above); on foot stays first-person; old saves keep a working tractor from the start
+- [ ] Reloading a fresh save keeps repair progress (steps + repaired persist)
+
+**The tool belt**
+- [ ] F cycles: hose → divot kit → bunker rake → hands free, each with a real held model (coiled hose+gun / fork+soil bucket / rake) and its own prompt + particle color
+- [ ] Divot kit: aim at worn turf ("divot wear N"), hold LMB → the number drains, the olive-tan wear tint clears, ends at "smooth, no divots here"
+- [ ] Bunker rake: after some played days, bunkers read "footprints N" with visibly churned sand; holding sweeps a cross of cells clean → "raked smooth"
+- [ ] Play traffic re-footprints sand daily (sim/bunkers.js); quiet days don't
+
+**Course props**
+- [ ] 4 storm-debris piles sit on fairway/rough/tee cells; E hauls each away once (persisted)
+- [ ] The broken tee sign leans by Tee 1; "[E] repair it (150 dollars)" charges the books and swaps in the upright sign
+- [ ] Every OPEN hole has the real flagstick (striped pole, red flag) and the green tee-marker pair squared to the line of play; closed holes keep the gray primitive flag
+- [ ] The stone entrance sign stands on the approach, dulled and leaning while condition is poor
+
+- [ ] `npm test` → 210 passing

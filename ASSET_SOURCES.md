@@ -72,15 +72,33 @@ Reference-image direction NOT fully achievable with current assets, honestly:
 - The physical Sky shader cannot reach the references' deep zenith blue at the
   bright exposure the style needs; sprite cumulus supply the cloud language.
 
-## Owner-supplied models (Assets/, 2026-07-09)
+## Owner-supplied models (Assets/, 2026-07-09; fully integrated 2026-07-10)
 
-20 GLBs dropped into Assets/ by the project owner mid-session (generated to match
-the Designs/ art direction; treated as project-owned, no external license).
-In use: red+tractor (as vendor/models/tractor_red.glb, the drivable tractor),
-golf+course+sign (course_sign.glb) and flagpole (flagpole.glb) at the clubhouse
-approach. The rest (shed, workbench, tool chest, gas can, hose nozzle, rake,
-rubber belt, leaves, bucket, house, carts, other signs) are staged for the
-earned-tractor MVP sequence. vendor/models/tractor.glb is an original
-bpy-scripted fallback (project-owned). The rigged-character GLB attempt failed at
-the Blender 5.1 → three r185 skin boundary and was deleted; characters are
-procedural three.js figures (src/render3d/characterAsset.js), no external assets.
+20 GLBs dropped into Assets/ by the project owner (Tripo-generated to match the
+Designs/ art direction; AI-generated, user-provided — treated as project-owned).
+Full inventory/quality check 2026-07-10: all 20 import clean in Blender 5.1 AND
+three r185 (qa/assets-inventory-sheet.png); single mesh + baked material each,
+unit-normalized (scene-side scaling applied per use).
+
+In use (vendor/models/ name ← Assets source):
+- tractor_red.glb ← red+tractor — the restored drivable tractor
+- tractor_broken.glb ← tractor — the broken starter (dressed down in code)
+- mower_deck.glb ← red+agricultural+machine — hitched behind the tractor
+- shed.glb / workbench.glb / tool_chest.glb / gas_can.glb / belt.glb — the
+  maintenance-yard repair sequence
+- leaves_pile.glb ← fallen+leaves+pile — yard junk chore + course litter piles
+- hose_nozzle.glb / hand_fork.glb / bucket_soil.glb / rake.glb — the held
+  hand tools (hose, divot kit ×2, bunker rake)
+- tee_sign_broken.glb ← wooden+sign — the broken tee sign
+- course_sign.glb ← golf+course+sign — the restored tee sign
+- club_sign.glb ← golf+club+sign — the stone entrance sign (weathered by code)
+- flagpole.glb — per-hole flagsticks (Task-1 finding: it was never a pennant)
+- tee_markers.glb ← golf+swing+prop — the tee-marker pair on every open tee
+- clubhouse_ext.glb ← house — evaluated, NOT shipped (334k tris, residential
+  silhouette, baked landscaping vs terrain; see KNOWN_ISSUES)
+- golf+cart — unused bonus, staged
+
+vendor/models/tractor.glb is an original bpy-scripted fallback (project-owned).
+The rigged-character GLB attempt failed at the Blender 5.1 → three r185 skin
+boundary and was deleted; characters are procedural three.js figures
+(src/render3d/characterAsset.js), no external assets.
