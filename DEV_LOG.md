@@ -480,3 +480,47 @@ Newest entries at the bottom.
   honored by importing, never editing; anything they need to expose differently gets
   wrapped in the new modules instead.
 
+## 2026-07-09 — GOLF EMPIRE Task 1: property records & the marketplace (sim/marketplace.js)
+
+- **Properties are real courses, not stat sheets.** Each record carries a layout spec +
+  a build seed; `buildPropertyCourse()` deterministically paints the actual 120×80 grid,
+  and the listed design rating is COMPUTED by scoring that grid with the same
+  `courseDesignRating` the live game uses. The marketplace cannot list a design number
+  the land doesn't earn. Condition is stored as a seeding TARGET the buy transaction
+  (Task 3) will realize through the turf arrays.
+- **One appraisal formula, two callers.** `appraiseStats({size, design, condition,
+  members, reputation, monthlyNet})` prices the hidden trueValue at listing time and
+  will be the core of the live valuation (Task 2). Shape: land floor ($12k/9 holes) +
+  quality term ((0.45·design + 0.55·condition)^1.18 · $220 · sizeF^0.85, condition
+  weighted over design because that's also how the play rating works) + business term
+  (members·$450, reputation over 20·$180, trailing seasonal net·1.6 clamped). "Monthly"
+  income = per-season (24-day) trailing net — the game has no calendar months, the
+  season is its billing period. Tuned so Willow Creek asks ~$45k (realistic's $60k can
+  buy it with working capital) and the 18-hole whale asks ~$89k (relaxed territory).
+- **Roster is 8 hand-authored archetypes, not one scaled template**: Willow Creek (the
+  original fixer-upper, via the untouched `buildStartingCourse`), Bent Pines (superb
+  bones/dead turf — the bargain, bias 0.72), Flatiron Meadows (immaculate/dull, D~64
+  C74), Saltgrass Point (executive-nine gem), Thornbury Estate (sprawling 18h whale),
+  Quarry Bluffs (drama, elevAmp 2.0), Cypress Hollow (waterlogged, brown-patch
+  flavored), Fairview Commons (the OVERPRICED trap, bias 1.24). Listing bias × small
+  seeded jitter means ask and true value routinely diverge — the appraisal-judgment
+  mechanic exists at data level from day one. Fairview's greens were oversized after
+  the first dump (D80 → D72) so its stats match its "ordinary golf, ambitious ask"
+  fiction.
+- **Serpentine generator for non-Willow layouts**: holes routed boustrophedon across
+  horizontal bands (how real courses route rectangular parcels), lengths drawn per
+  par-mix with band-fit clamps, optional doglegs, greenside bunkers (`onlyOver`
+  grass), ponds via a guarded ellipse that refuses to paint over GREEN/TEE cells.
+  Paint order is the safety net — every corridor first, all pads last — so no rough
+  halo can ever bury a pad that `validateHole` depends on. Per-band budgets were
+  hand-checked per archetype (e.g. the 18-holer runs margin 6 × 10 bands; green-vs-
+  green spacing stays clear because greens paint after everything).
+- **`startingCourse.js` got four `export` keywords** (paintDisk, paintCorridor,
+  shapeElevation, flattenUnder) so the generator reuses Willow's proven primitives
+  instead of duplicating them. Additive only, zero behavior change — file is not on
+  the forbidden list, and the whole 121-test baseline stayed green to prove it.
+- **TDD**: 9 marketplace tests written first and watched fail (roster validity,
+  distinctness, archetype spread, ask≠value, per-seed determinism, playable-course
+  round-trip vs listed stats, deterministic rebuild, appraisal monotonicity, debug
+  dump). 130/130 suite green after implementation.
+

@@ -27,7 +27,9 @@ const HOLES = [
 const POND = { x: 107, y: 28, rx: 5, ry: 3.4 }; // guards hole 5
 const CLUBHOUSE = { type: 'clubhouse', x: 56, y: 66, w: 6, h: 5 };
 
-function paintDisk(course, cx, cy, r, zone, { onlyOver = null } = {}) {
+// Exported for reuse by the GOLF EMPIRE marketplace course generator — pure
+// painting primitives, no Willow-specific behavior.
+export function paintDisk(course, cx, cy, r, zone, { onlyOver = null } = {}) {
   for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++) {
     for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) {
       if (!inBounds(course, x, y)) continue;
@@ -44,7 +46,7 @@ function corridorPoints(hole) {
   return [hole.tee, ...(hole.wp || []), hole.pin];
 }
 
-function paintCorridor(course, pts, radius, zone, rng, { onlyOver = null } = {}) {
+export function paintCorridor(course, pts, radius, zone, rng, { onlyOver = null } = {}) {
   for (let s = 0; s < pts.length - 1; s++) {
     const a = pts[s];
     const b = pts[s + 1];
@@ -61,7 +63,7 @@ function paintCorridor(course, pts, radius, zone, rng, { onlyOver = null } = {})
   }
 }
 
-function shapeElevation(course, rng) {
+export function shapeElevation(course, rng) {
   // Gentle rolling land from layered sinusoids with seeded phases — deterministic,
   // smooth, and cheap. Amplitude tuned for ±6–9 ft of movement.
   const p1 = rng.next() * Math.PI * 2;
@@ -78,7 +80,7 @@ function shapeElevation(course, rng) {
   }
 }
 
-function flattenUnder(course, x0, y0, w, h) {
+export function flattenUnder(course, x0, y0, w, h) {
   // average the pad, then set it flat — buildings and tee pads don't tilt
   let sum = 0;
   let n = 0;
