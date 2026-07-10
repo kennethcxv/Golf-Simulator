@@ -173,6 +173,7 @@ http://localhost:8447/ in a browser. Headless sim tests: `npm test`.
 - [ ] HUD stays usable at narrow window widths (weather collapses, club name hides)
 - [ ] The strict CSP is active: game loads with zero console errors in browser AND Electron
 - [ ] `npm test` → 121 passing; `npm start` boots the Electron app to the menu
+- [ ] Electron native saves (repeatable): `npx electron . --remote-debugging-port=9224`, then `node tools/qa-electron-saves.mjs 9224` → RESULT: ALL PASS (bridge API, shop boot, byte-identical round-trip, files in `%APPDATA%\FAIRWAY STATE\saves\`, Continue restore, cleanup, zero console/CSP errors)
 
 ## v5 — Home base navigation + camera default
 

@@ -11,8 +11,12 @@ under "Needs a real art/audio pass" must be replaced before this could ship comm
   box clubhouse (v4 Task 5 in progress at this line's writing), golfer/customer capsule
   characters, and shop interior fixtures — real character models and a shop kit remain
   pre-ship requirements.
-- **Sky horizon blows out white at low sun angles**; water surfaces have no ripple
-  normals; no rain particles. All queued for the Phase 7 polish pass.
+- ~~Sky horizon blows out white at low sun angles~~ — fixed by v4's bloom threshold
+  (40); re-verified at 6:50 AM and 7:35 PM low sun, both facings (qa/v5-sky-*.png).
+  ~~Water surfaces have no ripple normals~~ — v4 Water.js + waternormals. Still open:
+  **no rain particles**, and **tee-number sprites render as solid black squares when
+  viewed against the light** (lit sprite material; fine sun-side, black anti-sun-side —
+  seen clearly in the v5 dawn/dusk sky shots). Both queued for the polish pass.
 - **Pro shop interior is simple geometric primitives** — hollow box shelving, box
   stock stacks, capsule-and-sphere customers, flat procedural wood/plaster. Needs a real
   modular shop kit, item models per SKU, and characters before ship. Register queue
@@ -47,9 +51,14 @@ under "Needs a real art/audio pass" must be replaced before this could ship comm
 
 ## Technical debt / open items
 
-- **Electron native save bridge smoke-tested but not deep-QA'd** — browser/localStorage
-  path fully exercised; userData file save/load via the preload bridge needs one CDP-attach
-  verification pass (bridge mirrors GlassWaterV2's proven pattern).
+- ~~Electron native save bridge smoke-tested but not deep-QA'd~~ — deep-QA'd via CDP
+  attach (tools/qa-electron-saves.mjs, 15 checks ALL PASS): bridge API, v5 shop boot in
+  the real shell, byte-identical native round-trip, real files in
+  `%APPDATA%\FAIRWAY STATE\saves\` (note: userData derives from **productName**, not
+  package name), reload→Continue restore, office-menu slot save, delete/list, zero
+  console/CSP errors. Gotchas recorded: `npm start -- --dev` can be eaten by npm
+  ("config dev" warning) — use `npx electron . --remote-debugging-port=<port>`; and
+  9223 may be held by a running GlassWaterV2 dev instance, so the tool takes a port arg.
 - **Colorblind-safe palette pass pending** — zone colors are green-band heavy and turf
   health reads by hue; the Health/Moisture data views help but a proper colorblind-safe
   indicator pass (patterns/icons) is a pre-ship accessibility requirement, as is

@@ -426,3 +426,34 @@ Newest entries at the bottom.
 - 121/121 tests green (nav + camera touch no sim logic; tutorial `check` functions
   deliberately untouched, hint strings only). Commits: one per change.
 
+## 2026-07-09 — v5 continuation: Electron save bridge deep-QA'd; stale issues re-verified
+
+- **Closed the oldest open KNOWN_ISSUES item**: the Electron native save bridge got its
+  CDP-attach verification pass, as a committed repeatable tool
+  (`tools/qa-electron-saves.mjs`, zero-dep Node ≥22 — built-in fetch/WebSocket). 15
+  checks, ALL PASS, twice (scratchpad draft + committed tool proof run): bridge API
+  shape, **v5 shop boot verified in the real ship shell**, 307 KB state byte-identical
+  through save/load, real JSON files on disk, reload→Continue restores into the shop,
+  office-menu slot save through the actual UI, delete/list round-trip, zero console
+  errors / CSP violations. The tool cleans up after itself — no QA saves left on the
+  machine.
+- **Two launch gotchas worth their doc lines**: (1) `npm start -- --dev` never reached
+  Electron — npm ate `--dev` as a config flag ("npm warn config dev"), so the app ran
+  portless; `npx electron . --remote-debugging-port=<port>` is the reliable route
+  (Electron forwards the raw Chromium switch). (2) Port 9223 was already held by the
+  user's RUNNING GlassWaterV2 dev instance — attached, saw "GLASSWATER", and backed
+  out without driving their window; the QA tool takes a port argument (9224 used) for
+  exactly this. (3) userData derives from **productName** ("FAIRWAY STATE"), not
+  package name — first disk assertion looked at `%APPDATA%\fairway-state\` and found
+  nothing while `list()` said the saves existed; GLASSWATER keeps its own folder, so
+  no cross-app save risk.
+- **Re-verified two suspected-stale KNOWN_ISSUES bullets with screenshots** rather than
+  striking them on memory: low-sun horizon (6:50 AM / 7:35 PM, both facings,
+  qa/v5-sky-*.png) shows no white flood — v4's bloom-40 fix holds; water ripple
+  normals shipped in v4. Both struck. NEW precise residual while looking: tee-number
+  sprites go solid black viewed against the light (lit sprite material) — logged.
+- Tripo status unchanged (no credentials); noted that the Higgsfield MCP server now
+  advertises a `generate_3d` image→GLB mesh tool — the v5 brief excluded Higgsfield
+  on "images/video only" grounds, so that exclusion may rest on outdated info, but it
+  stands until the user says otherwise. Not touched.
+
