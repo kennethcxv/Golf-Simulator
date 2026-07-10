@@ -25,7 +25,7 @@ export function makeMenu(handlers) {
     ),
     el('div', {
       class: 'footnote',
-      text: 'Working build — placeholder art. Pan: drag · Zoom: wheel · Works mode: E · Pause: Space',
+      text: 'Working build — placeholder art. You start in your pro shop: WASD walk · E interact · door/map: out to the course',
     }),
   );
 

@@ -383,3 +383,46 @@ Newest entries at the bottom.
   course rather than a strategy-map — the gap this pass existed to close.
 - 121/121 sim tests untouched and green after every task; five commits, one per task.
 
+## 2026-07-09 — v5: the shop becomes home base; camera lands closer; Tripo probe
+
+- **Change 1 — navigation inversion (TCG-Card-Shop-style home base).** New Game and
+  Continue now boot straight onto the walkable shop floor; the top-down course is a
+  mode you deliberately step out into. Implemented by reusing the existing
+  enterShop/exitShop handlers rather than restructuring views: `startGame()` ends with
+  `handlers.enterShop()`; course-view Escape falls through its precedence chain
+  (active tool → works plan → selected section → open panels) to `enterShop()` instead
+  of a dead end; shop-view Escape opens the office menu (primary button is now
+  context-aware: "Back to the shop"); P quick-toggles both ways. TWO in-shop exits, per
+  the brief's "clear interaction point": the shop door (E) and a new framed **course
+  management wall map** — a 240×160 canvas texture redrawn from the live zone grid
+  (fairway loop, pond, pin flags) on every shop entry. The course itself stays
+  top-down; walkable-course was explicitly ruled out (GolfTopia / Under Par precedent).
+- **Playthrough verification, not code review**: Playwright run confirmed
+  boot→`shop3d`, door focus label → E → `course`, Esc → `shop3d`, map focus label →
+  E → `course`, P → `shop3d`, Esc-in-shop → office menu. One QA lesson repeated from
+  v4: held-key WASD walking is unreliable under occlusion-throttled rAF (~1 fps —
+  frames may fire only after keyup), so the run drives the same code paths
+  deterministically (teleport + forced `shopScene.update()` + `interact()`), and real
+  dispatched KeyboardEvents cover the Esc/P handlers.
+- **Camera default: dist 430→210, pitch 0.88→0.78, framed behind the clubhouse looking
+  up the opening fairway** (target −20,150 / yaw 0.12). At 430 the v4 texture work
+  read as specks-and-wash; at 210 turf grain, individual tree canopies, shadows, and
+  the clubhouse roof read immediately. Full zoom range (28–720) untouched. Honest
+  before/after at identical 10:30 AM QA conditions: qa/v5-course-OLD-default-430.png
+  vs qa/v5-course-default-view.png. (First capture attempt was unusable — 6 AM
+  pre-dawn murk; the QA-conditions convention exists for a reason. Clock is
+  `state.clock.minutes`, absolute.)
+- **Change 2 — Tripo trees: probed thoroughly, not usable here; Kenney stays.**
+  Higgsfield was excluded up front (image/video generation, no usable meshes). The
+  Tripo probe: tripo-mcp's every call — including cloud generation — routes through a
+  Tripo Blender addon socket; this machine's installed addon.py is vanilla blender-mcp
+  (zero `tripo` matches, so launching Blender 5.1 wouldn't help), tripo-mcp's MCP
+  config has an empty env, and no TRIPO_API_KEY / ~/.tripo exists (checked process,
+  user, and machine scope) — which also rules out direct tripo3d.ai REST calls. Per
+  the brief's fallback clause: **Kenney Nature Kit trees remain**, logged in
+  KNOWN_ISSUES with the ready-made import path for when credentials exist. No
+  substitute generator was smuggled in (Meshy/Hyper3D are different tools with real
+  costs; the brief named Tripo or nothing).
+- 121/121 tests green (nav + camera touch no sim logic; tutorial `check` functions
+  deliberately untouched, hint strings only). Commits: one per change.
+

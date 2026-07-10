@@ -12,9 +12,9 @@ http://localhost:8447/ in a browser. Headless sim tests: `npm test`.
 
 **Menu & lifecycle**
 - [ ] `npm run serve` + browser (or `npm start`): menu shows FAIRWAY STATE title; Continue is disabled on first run
-- [ ] "New Club — Realistic" starts at Willow Creek: 9 holes, $60,000, Y1 Spring Day 1 6:00 AM ("Relaxed" gives $100,000)
+- [ ] "New Club — Realistic" starts at Willow Creek: 9 holes, $60,000, Y1 Spring Day 1 6:00 AM ("Relaxed" gives $100,000) — booting onto the pro-shop floor (v5)
 - [ ] After at least one in-game day passes, reload: Continue is enabled and restores your game (autosave)
-- [ ] Esc opens the Clubhouse Office: Save slot 1–3, Load slot 1–3, Exit to menu all work
+- [ ] Esc in the shop opens the Clubhouse Office (in the course view Esc heads home to the shop — v5): Save slot 1–3, Load slot 1–3, Exit to menu all work
 
 **Course view**
 - [ ] The 9-hole course renders: fairways, rough, greens, tee pads, 6 bunkers, pond right side, clubhouse building
@@ -173,3 +173,20 @@ http://localhost:8447/ in a browser. Headless sim tests: `npm test`.
 - [ ] HUD stays usable at narrow window widths (weather collapses, club name hides)
 - [ ] The strict CSP is active: game loads with zero console errors in browser AND Electron
 - [ ] `npm test` → 121 passing; `npm start` boots the Electron app to the menu
+
+## v5 — Home base navigation + camera default
+
+**Shop as home base**
+- [ ] New Club AND Continue boot directly onto the walkable shop floor (not the course, not a menu)
+- [ ] The lock-hint bar reads "…E interact · P: course · Esc: office menu"; a "⛳ Out to the course (P)" button sits top-right
+- [ ] Facing the shop door shows "Step out to the course — greens, works, and the grounds crew"; E enters the top-down course view
+- [ ] A framed course map hangs beside the door, drawn from YOUR actual course (fairway loop, pond, red pins — repaint after works changes it); facing it shows "Course management — open the course overview"; E enters the course view
+- [ ] In the course view, Esc (with no tool/plan/panel open) and P both return to the shop; the hint bar says "Esc/P: back to shop"
+- [ ] Esc in the course still honors precedence first: active works tool → staged plan → open panel/inspect close before any exit happens
+- [ ] Esc in the shop opens the Clubhouse Office; its primary button reads "Back to the shop" there (and "Back to the course" when opened from the course)
+- [ ] The course view is NOT walkable — it remains the top-down management view; time and money flow in both views
+- [ ] Tutorial step 1 reads "Step out through the shop door (E) and open the Grounds desk (G)" and still clears by opening Grounds
+
+**Camera default**
+- [ ] A fresh course entry frames the clubhouse at bottom with the opening fairway ahead (dist 210): turf grain, individual tree shapes, and shadows are readable WITHOUT zooming in
+- [ ] Wheel still zooms the full 28–720 range; the old far overview is one zoom-out away

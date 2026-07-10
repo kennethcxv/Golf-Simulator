@@ -21,6 +21,18 @@ under "Needs a real art/audio pass" must be replaced before this could ship comm
   art/iconography pass (currently text + simple shapes/emoji glyphs).
 - **Key art / branding / trailer** — nothing exists; "FAIRWAY STATE" is a working title.
 
+- **AI-generated tree models attempted (v5), not achievable in this environment** —
+  the plan was Tripo (tripo3d.ai) tree variants imported alongside the Kenney set with a
+  same-angle side-by-side and an honest keep/replace call. Probe results: the tripo-mcp
+  server requires the Tripo Blender addon, which is not installed (the machine's addon.py
+  is vanilla blender-mcp with no Tripo command handlers); its MCP config carries an empty
+  env (no API key); and no TRIPO_API_KEY / ~/.tripo credentials exist anywhere on the
+  system, ruling out direct REST calls too. Higgsfield was explicitly excluded (image/video
+  generator — no usable meshes). **Kenney Nature Kit trees remain the shipping asset.**
+  AI-generated or hand-authored realistic trees stay on the pre-ship art-pass list; with a
+  Tripo key + addon (or an artist), the import path is ready — GLBs drop into
+  vendor/models/trees/ and register in courseScene.js's tree table.
+
 ## Needs a real audio pass before release
 
 - All sound is procedurally synthesized WebAudio placeholder (mower hum, sprinkler ticks,

@@ -46,3 +46,8 @@ load time to realistic foliage/bark tones; geometry unmodified.
 
 Quaternius packs were the first choice per the brief but expose no direct download
 (Patreon-gated page); Kenney was the sanctioned CC0 fallback.
+
+v5 note: an AI-generated tree pass (Tripo / tripo3d.ai) was attempted as a possible
+upgrade-alongside candidate but no Tripo credentials or working Blender-addon bridge
+exist in this environment, so no AI-generated assets were produced or added — the
+Kenney set above remains the sole tree source. Details in KNOWN_ISSUES.md and DEV_LOG.md.
