@@ -1564,3 +1564,24 @@ the ghost. Judgment calls:
 Live QA: ordered rug+plant+pendant+lounge ($735), FF 3 sim days, placed all four
 by E → condition 16→24→28→35→44, pendant adds real light, zero console errors.
 qa/shopreno-sbs-task3-decor.png. Suite 191/191 (4 new tests).
+
+## 2026-07-10 — SHOP RESTORATION Task 4: the office computer (Part 1 complete)
+
+A real monitor/stand/keyboard prop sits on the counter (green-glow screen, per
+the reference's counter terminal); its E-interaction exits pointer lock and opens
+the EXISTING shopPanel desk — a new physical door into the system that already
+worked, zero new ordering code. The catalog extension the brief asks for landed
+in Tasks 2-3 (supplies + decor categories). Esc in the shop now closes an open
+desk panel before it offers the office menu (was: straight to menu).
+
+Live QA: walked to the counter, focus label on the terminal, E → real desk panel
+over the shop floor, ordered a Course poster THROUGH it, fast-forwarded 3 sim
+days → poster in the backroom via the normal lead-time delivery. Zero console
+errors. qa/shopreno-sbs-task4-computer.png. Suite 191/191.
+
+Checked while here: autosave fires on every day tick + all major actions, so
+cleaning/decor progress persists in real play (my QA state-jumps sidestep the
+frame loop; not a product bug).
+
+PART 1 of the shop-restoration brief is complete and committed per task:
+condition state → vacuum → decor placement → diegetic ordering.

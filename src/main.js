@@ -359,6 +359,14 @@ const handlers = {
         toast,
         audio,
         exitShop: () => handlers.exitShop(),
+        openShopDesk: () => {
+          // the office computer: free the cursor, open the REAL desk panel
+          if (document.pointerLockElement) document.exitPointerLock();
+          if (!app.shopOpen) {
+            closeLeftPanels('shop');
+            shopPanel.setVisible(true);
+          }
+        },
       });
     }
     app.shopScene.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
@@ -785,9 +793,10 @@ window.addEventListener('keydown', (e) => {
         handlers.exitShop(); // quick toggle out to the course
         break;
       case 'Escape':
-        // first Esc releases the pointer (browser); a second one opens the
-        // office menu — the shop is home, Esc doesn't leave it
-        if (!document.pointerLockElement) openPauseMenu();
+        // first Esc releases the pointer (browser); next closes an open desk
+        // panel; the one after opens the office menu — the shop is home
+        if (app.shopOpen || app.groundsOpen || app.clubOpen || app.empireOpen) closeLeftPanels('none');
+        else if (!document.pointerLockElement) openPauseMenu();
         break;
     }
     return;

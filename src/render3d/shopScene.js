@@ -350,6 +350,40 @@ export function makeShopScene(renderer, appRef) {
     action: () => {},
   });
 
+  // office computer on the counter — the diegetic door into the supplier/order
+  // desk (the same shopPanel the top bar opens; this is the in-world way in)
+  const monitor = new THREE.Group();
+  const bezel = new THREE.Mesh(
+    new THREE.BoxGeometry(0.52, 0.36, 0.045),
+    new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.45 }),
+  );
+  bezel.position.y = 0.36;
+  const screenGlow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.46, 0.3),
+    new THREE.MeshStandardMaterial({ color: 0x0d1a12, emissive: 0x2f8a4a, emissiveIntensity: 0.9 }),
+  );
+  screenGlow.position.set(0, 0.36, 0.024);
+  const stand = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035, 0.06, 0.16, 8),
+    new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.5 }),
+  );
+  stand.position.y = 0.1;
+  const keyboard = new THREE.Mesh(
+    new THREE.BoxGeometry(0.34, 0.02, 0.12),
+    new THREE.MeshStandardMaterial({ color: 0x33373c, roughness: 0.6 }),
+  );
+  keyboard.position.set(0, 0.01, 0.22);
+  monitor.add(bezel, screenGlow, stand, keyboard);
+  monitor.position.set(ROOM.w / 2 - 1.3, 1.06, 2.4);
+  monitor.rotation.y = -Math.PI / 2; // faces the shop floor
+  scene.add(monitor);
+  interactives.push({
+    kind: 'computer',
+    point: new THREE.Vector3(ROOM.w / 2 - 1.3, 1.3, 2.4),
+    label: () => 'Office computer — [E] supplier orders & pricing',
+    action: () => appRef.openShopDesk(),
+  });
+
   // fitting bay (NE corner)
   const mat = new THREE.Mesh(
     new THREE.BoxGeometry(2.0, 0.04, 1.3),
