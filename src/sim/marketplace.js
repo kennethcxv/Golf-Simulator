@@ -30,7 +30,7 @@ export function round500(v) {
 }
 
 export function appraiseStats({ size, design, condition, members = 0, reputation = 25, monthlyNet = 0 }) {
-  const sizeF = size / 9; // 1 for a 9-holer, 2 for a full 18
+  const sizeF = Math.max(size, 4) / 9; // 1 for a 9-holer, 2 for a full 18; even a razed property keeps its acreage
   const land = 12000 * sizeF; // dirt, irrigation mains, buildings — the floor
   const quality = clamp(0.45 * design + 0.55 * condition, 1, 100);
   const course = Math.pow(quality, 1.18) * 220 * Math.pow(sizeF, 0.85);

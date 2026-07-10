@@ -524,3 +524,22 @@ Newest entries at the bottom.
   round-trip vs listed stats, deterministic rebuild, appraisal monotonicity, debug
   dump). 130/130 suite green after implementation.
 
+## 2026-07-09 — GOLF EMPIRE Task 2: live valuation (sim/valuation.js)
+
+- **The displayed estimate IS the sale payout** — `appraiseProperty(state)` is the only
+  valuation anywhere, and it delegates to the same `appraiseStats` that priced listing
+  trueValues, fed by the systems that already exist: `clubRatings` (design+condition),
+  `memberCounts`, `club.reputation`, and the ledger. Nothing re-implements rating math.
+- **"Trailing average monthly income" = trailing seasonal net**: average daily net over
+  up to the last 24 closed ledger days × 24. A short history extrapolates its daily
+  average rather than undercounting a new club; an empty history reads 0. (The ledger
+  keeps 30 days, so the window is always available.)
+- **Acreage counts real holes** (validateHole-passing, any status) — renovation dents
+  design, not the land itself; unbuilt stubs price as nothing. `appraiseStats` gained a
+  floor (`max(size,4)`) so even a maliciously razed property keeps its dirt value.
+- **Purity is unit-tested**: appraisal consumes no randomness and never mutates state —
+  the UI can call it every frame and saves can't drift from a look.
+- **Manual sanity arc** (same seed, same property): as-bought $54k → run into the
+  ground (C0, no members, −$650/day) $9.5k → restored (C87, 46 members, +$1,150/day)
+  $128.5k. The buy-restore-flip fantasy exists in the numbers. 9 new tests; 139/139.
+
