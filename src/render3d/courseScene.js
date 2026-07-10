@@ -940,9 +940,11 @@ export function makeCourseScene(canvas, state) {
     structGroup = new THREE.Group();
     windowMats.length = 0;
 
-    const sidingMat = new THREE.MeshStandardMaterial({ map: sidingTex, normalMap: sidingNor, roughness: 0.85 });
-    const trimMat = new THREE.MeshStandardMaterial({ color: 0xe8e2d2, roughness: 0.7 });
-    const roofMat = new THREE.MeshStandardMaterial({ map: roofTex, normalMap: roofNor, roughness: 0.8, side: THREE.DoubleSide });
+    // STYLE GUIDE §1 architecture: cream siding + white trim + sage-green roof —
+    // flat saturated color with only the normal maps for relief (photo albedo off)
+    const sidingMat = new THREE.MeshStandardMaterial({ color: 0xe9e2cc, normalMap: sidingNor, roughness: 0.85 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0xf5f2e6, roughness: 0.7 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x57795c, normalMap: roofNor, roughness: 0.75, side: THREE.DoubleSide });
 
     for (const s of course.structures) {
       const wx = (s.x + s.w / 2) * CELL_YD - worldW / 2;
@@ -1044,7 +1046,7 @@ export function makeCourseScene(canvas, state) {
       // door + step
       const door = new THREE.Mesh(
         new THREE.PlaneGeometry(1.6, 2.6),
-        new THREE.MeshStandardMaterial({ color: 0x50392a, roughness: 0.7 }),
+        new THREE.MeshStandardMaterial({ color: 0x3a5a40, roughness: 0.65 }), // club-green door (§1)
       );
       door.position.set(0, 1.3, D2 / 2 + 0.03);
       g.add(door);
@@ -1376,14 +1378,18 @@ export function makeCourseScene(canvas, state) {
   let cartMesh = null;
 
   function buildCartMesh() {
+    // STYLE GUIDE §1/§5 equipment: grounds-crew utility language — green body,
+    // tan bench, cream canopy, black running gear (the references' "Turf Boss")
     const g = new THREE.Group();
-    const cream = new THREE.MeshStandardMaterial({ color: 0xe9e6da, roughness: 0.55 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x2e2b26, roughness: 0.85 });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.5, 2.4), cream);
+    const green = new THREE.MeshStandardMaterial({ color: 0x3d5c40, roughness: 0.6 });
+    const cream = new THREE.MeshStandardMaterial({ color: 0xe5ddc4, roughness: 0.55 });
+    const tan = new THREE.MeshStandardMaterial({ color: 0xc9b98a, roughness: 0.8 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x24221e, roughness: 0.85 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.5, 2.4), green);
     body.position.y = 0.55;
     body.castShadow = true;
     g.add(body);
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.45, 0.9), dark);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.45, 0.9), tan);
     seat.position.set(0, 0.95, 0.4);
     g.add(seat);
     const dash = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.35, 0.25), dark);
@@ -1978,6 +1984,12 @@ export function makeCourseScene(canvas, state) {
       getFocusLabel: () => (walkFocus ? walkFocus.label : null),
       getFocus: () => walkFocus,
       hooks: walkHooks,
+      placeCart: (x, z, yaw) => {
+        cart.x = x;
+        cart.z = z;
+        if (yaw !== undefined) cart.yaw = yaw;
+        placeCartMesh();
+      },
       setTool: walkSetTool,
       getTool: () => walkTool,
       setSpraying: walkSetSpraying,

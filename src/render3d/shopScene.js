@@ -145,7 +145,8 @@ export function makeShopScene(renderer, appRef) {
   });
 
   // --- lighting ----------------------------------------------------------------------
-  scene.add(new THREE.AmbientLight(0xfff2dd, 0.55));
+  // STYLE GUIDE §3: brighter, cleaner interior — daylight does the work
+  scene.add(new THREE.AmbientLight(0xfff4e2, 0.75));
   const winLight = new THREE.DirectionalLight(0xcfe4f5, 1.4);
   winLight.position.set(0, 2.6, -8);
   scene.add(winLight);
@@ -166,8 +167,9 @@ export function makeShopScene(renderer, appRef) {
   // --- fixtures + live stock ------------------------------------------------------------
   const stockGroup = new THREE.Group();
   scene.add(stockGroup);
-  const woodMat = new THREE.MeshStandardMaterial({ color: 0x6e563c, roughness: 0.8 });
-  const darkMat = new THREE.MeshStandardMaterial({ color: 0x463a2b, roughness: 0.85 });
+  // §1: warmer, lighter fixture wood so the shop reads bright and friendly
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0x8a6b48, roughness: 0.75 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x53422e, roughness: 0.85 });
 
   function addCollider(cx, cz, w, d) {
     colliders.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });

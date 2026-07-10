@@ -1303,3 +1303,25 @@ Verification: 3-panel comparison qa/style-sbs-task2-fairway.png (BEFORE pre-sess
 / AFTER / REFERENCE 4, same in-game staging both shots: healthy turf, 10:00, clear,
 identical pose) — the after frame moves decisively toward the reference's color,
 lighting mood, and cleanliness. Zero console errors; suite 176/176 (rendering only).
+
+## 2026-07-09 — STYLE Task 3: props, equipment, structures
+
+- **Clubhouse** (the visual anchor, §1 architecture): photo-albedo siding and roof
+  replaced with flat guide colors — cream #e9e2cc walls, sage #57795c roof, white
+  #f5f2e6 trim/porch — keeping only the normal maps for relief; door goes
+  club-green. BEFORE it read as a dark timber barn; AFTER it reads as the
+  references' cream-and-green clubhouse at a glance. Reference's clock tower and
+  flower beds remain out of scope (silhouette additions = future art pass, noted
+  in the guide's accepted deltas).
+- **Utility cart** (§1/§5 equipment): cream runabout → grounds-crew language:
+  green #3d5c40 body, tan #c9b98a bench, cream #e5ddc4 canopy, black running
+  gear — the references' "Turf Boss" identity, at our primitive fidelity.
+- **Pro-shop fixtures**: wood lightened/warmed (0x6e563c→0x8a6b48), ambient
+  0.55→0.75 warmer white — bright friendly interior rather than dim clubroom.
+- QA plumbing: walk API gained placeCart(x,z,yaw) — the cart mesh previously only
+  re-placed on park/drive, so staged screenshots moved the state but not the
+  mesh; the first cart "comparison" had no cart in it. Real-browser verification
+  catches what code-reading assumes, again.
+
+Verification: qa/style-sbs-task3-clubhouse.png (before / after / reference 7) and
+qa/style-sbs-task3-cart.png (after / reference 5). Zero console errors.
