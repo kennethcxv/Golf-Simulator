@@ -1150,3 +1150,119 @@ cart-position persistence, player–golfer collision, hose cost/rate balance, GT
 retune for first-person range — plus everything already parked from the market
 portions (empire-wide prestige, manager delegation, buy-backs, rival actors,
 sale-side pricing cycle).
+
+## 2026-07-09 — VISUAL STYLE GUIDE (from the 8 reference images in Designs/) — PERMANENT REFERENCE
+
+**Session context, logged honestly**: this session's brief references a prior
+"art-direction correction" session (reduced bloom/AO), a "shop-polish session" with
+Mixamo-rigged characters, and a tractor. None of those exist in this repo — HEAD
+before this session is the walkable-course wrap-up; characters are capsule
+primitives; the vehicle is the golf cart; bloom/AO are at their original FAIRWAY
+STATE values. Judgment call: treat those references as DIRECTION TO ESTABLISH NOW,
+mapped onto what actually exists (cart ≙ tractor-equivalent; primitive characters
+restyled in place; this session performs the bloom/AO/lighting correction itself).
+
+The 8 references (ChatGPT-generated, "Dusty Pines Golf Club" / "Golf Course
+Flipper") depict: (1) tractor+mower on a striped fairway before the clubhouse,
+(2) the same course DEAD — cracked lot, overgrown olive grass, weathered clubhouse,
+(3) tractor repair inside the shed, (4) third-person mowing, unmowed vs striped,
+(5) kneeling divot-cluster repair with a green utility cart, (6) top-down course
+redesign UI, (7) soft-opening with carts and arriving golfers, (8) thriving endgame
+with the KEEP-OR-SELL decision. They are rendered MORE photoreal than our build can
+or should reach — per the brief the target is "Farming Simulator-style: clean,
+bright, stylized, readable, explicitly NOT photorealistic," so this guide extracts
+their COLOR, LIGHT, PROPORTION, and READABILITY language, to be applied at our
+simplified geometric fidelity. Where the images' photorealism exceeds that mandate,
+the guide says so.
+
+### 1. Palette (approximate sRGB samples to hit)
+
+**Turf** (the signature — high saturation, yellow-leaning healthy green):
+- Fairway base ~#55a83a; mow stripes alternate ±8-10% luminance (~#5cb43e light
+  band / #4c9a34 dark band) — stripes are HIGH-contrast and always visible.
+- Rough ~#4a8f30 (darker, slightly yellower, longer texture).
+- Putting green ~#6cc24a (brightest, cleanest surface on the course).
+- Neglected/unmowed turf: OLIVE-TAN, not brown-black — #8f9455 → #a8a060 dry
+  grass; decay reads as desaturation toward tan, never as darkness.
+- Bunker sand: bright clean #d8c99a.
+**Sky**: zenith #2f6fd0 → horizon #a8d8f5; pure-white cumulus; NO haze gray. Far
+tree lines stay saturated (only a whisper of blue lift at extreme distance).
+**Vegetation**: deciduous canopy #2f6b2f–#4a8f3a, pine #2a5d33, trunks #6b4f35.
+**Architecture**: siding cream #e9e2cc; trim/fascia white #f5f2e6; roof SAGE GREEN
+#57795c (the clubhouse identity — cream walls + green roof + white trim); stone
+walls/sign piers #b8a98c; asphalt paths #8a8578 warm light gray.
+**Equipment**: tractor/mower RED #c23327 + black #1e1e20 + white hubs #e8e6e0;
+utility/grounds cart GREEN #3d5c40 with black bed and tan seat #c9b98a; golfer
+carts cream #e5ddc4; safety accents orange #e07820.
+**Characters**: staff = green polo #2f5c38 + khaki #c2b190 + green cap; golfers =
+polo in blue #3b6fb3 / navy #2c3e66 / pink #d98bb0 / orange #d97538 / white +
+khaki/tan shorts; skin warm #d9a97e; shoes brown/white.
+**UI kit**: panel charcoal #16191b at ~92% opacity, 8-10px rounded corners; title
+header bar green #1f8a34 (gradient to #17692a) with bold white text; body text
+white/#d8ddd6; positive/money green #45d052; progress bars green fill on #2a2f2c
+track; warn/negative red #d84b3a; decision buttons = solid green KEEP / solid red
+SELL; keycap chips (dark, 1px light border, white letter); simple white icons in
+circles; star ratings render GREEN, not gold. Toast pills top-center, dark with
+"+1% ↑" deltas in green.
+
+### 2. Geometric detail / stylization
+
+Simplified-but-clean mid-poly: real-world proportions, chunky rounded silhouettes,
+zero microdetail or greebling. Our existing low-poly kit (Kenney trees, primitive
+buildings/vehicles) is BELOW the references' density — correct response is NOT to
+add detail but to make the simple shapes read intentional through color and
+material: flat saturated albedo, roughness 0.8-0.95, metalness 0 (tiny exceptions:
+equipment trim), strong silhouettes. Mow stripes carry more style weight than any
+geometry. No new modeling unless a silhouette is actively wrong.
+
+### 3. Lighting & post-processing
+
+- ONE bright, slightly warm sun (#fff6e8) high in the sky (late-morning angle),
+  soft-edged shadows; shadowed grass keeps ~60-70% of lit luminance AND full
+  saturation — shadows are never gray or black. Strong sky/ambient fill.
+- Exposure bright and clean: whites (clouds, trim, wheel hubs) genuinely white,
+  not gray. Neutral tone mapping — no filmic teal/orange grade, no crushed blacks.
+- Bloom: effectively OFF for the scene (only extreme sources like the sun disc may
+  glint). No halo on bright turf or trim, ever.
+- AO: tight contact-darkening under vehicles/props only; no soft corner-grime
+  spread across the ground.
+- Fog: near-none on a clear day (distance stays colorful); weather may thicken it.
+- Color grading: none beyond exposure — saturation lives in the albedo, not a LUT.
+
+### 4. Texture detail
+
+References use photoreal grass/bark/asphalt; per the NOT-photorealistic mandate we
+go cleaner: texture supplies subtle brightness variation only, while HUE comes
+from flat zone tints (texture luminance × saturated tint color). Fields should
+read as smooth clean color at gameplay distance, with mow bands, damage patches,
+and disease blotches as deliberate, readable marks — not photographic noise.
+Weathering (the dead-course state) = tan/olive tint shifts and sparse debris, not
+grunge maps.
+
+### 5. Characters & props
+
+Normal human proportions (references are realistic; explicitly NOT chibi/bobble).
+At our fidelity: primitive figures gain a two-tone body — polo-colored torso,
+khaki legs, skin head, cap for staff — so the silhouette language ("person in a
+polo on a golf course") reads at distance. One saturated accent color per figure.
+Props follow equipment palette above; vehicles are boxy-friendly with visible
+wheels, roof posts, and a single body color + black running gear.
+
+### 6. UI structure language (from images 1,2,4,6,8)
+
+Top-left: club-name header bar (green) over a task/status panel with circular
+checkboxes and a green progress bar. Top-right: status cluster — weather icon |
+time | money-in-green. Bottom-right: CONTROLS keycap panel (and/or minimap in a
+rounded frame). Top-center: transient +delta toast pills. Decision modals: dark
+panel, stat columns with green numbers, big solid green/red buttons with subtitle
+lines. Segmented 3-option pickers with the selected cell filled green.
+
+### Known deltas we accept (and why)
+
+- Reference clubhouse has a clock tower and porch florals; ours is a simple gabled
+  volume — material match now, silhouette additions belong to a future art pass.
+- Reference characters/grass are photoreal; mandate says stylized — we match
+  palette and proportion, not fidelity.
+- Reference tractor+mower rig doesn't exist in the build; the golf cart adopts the
+  utility-vehicle language (green body/black bed) until a tractor is modeled for
+  the earned-tractor MVP sequence.
