@@ -1857,3 +1857,63 @@ AFTER, all verified live (qa/feel-equip-rise.png mid-rise, qa/feel-mount-blend
   confirm levels (all routed through the existing sfx bus + master volume).
 
 Suite 210/210 (feel pass touches render/audio/CSS only).
+
+## 2026-07-10 — OVERNIGHT PART 2 (research first): how the comps structure their HUDs
+
+Comps reviewed for structure (from design knowledge of each game, stated
+honestly — no live captures in this environment):
+
+- HOUSE FLIPPER: during play the screen is nearly bare — money and the
+  contextual tool ring only. Everything managerial (jobs, shop, orders) lives
+  in the diegetic LAPTOP/TABLET you deliberately open. Management is a place
+  you go, not a strip you stare at.
+- TWO POINT HOSPITAL: a slim persistent strip carries money, date, and speed;
+  a SMALL docked cluster (bottom corner) opens the build/staff/overview
+  panels as overlays with tabs inside. Nobody's stats live in the top bar.
+- STARDEW VALLEY: always-on = clock/date/season/money box + the toolbar.
+  EVERYTHING else — inventory, skills, relationships, options — is behind ONE
+  menu with tabs. One entry point, then breadth.
+- POWERWASH SIMULATOR: the purest case — dirt-progress and money only; the
+  job board/shop/tablet are a deliberate menu. Tool feedback is contextual
+  (the nozzle UI exists only while a nozzle is out).
+
+THE SHARED PATTERN: (1) a minimal always-on strip: money, time, speed —
+nothing that isn't glanced at every few seconds; (2) ONE clearly-labeled,
+deliberately-entered management surface holding everything else, tabbed or
+docked; (3) statistics live INSIDE the screens that own them, not the chrome;
+(4) tool UI appears only while the tool is in hand (we already do this — the
+prompt/readout rides the tool).
+
+DESIGN DECISION (written before implementing, per the brief): the top bar
+keeps club name · date/time · speed · cash + the ☰ menu, and gains ONE
+"🗂 Manage" entry. The five panel buttons (Empire/Club/Shop/Grounds/Works)
+move into a Manage DOCK that drops from that button — each entry carrying its
+relocated at-a-glance line (members/rep/prestige under Club, today's weather
+under Grounds, course rating under Works) so the stats live with the screens
+that own them. Hotkeys (M/C/P/G/E) keep working exactly as before — the dock
+is the discoverable path, keys are the fast path. Esc or any outside click
+closes the dock; opening an entry closes it too.
+
+## 2026-07-10 — OVERNIGHT PART 2 (implementation): the Manage dock ships
+
+hud.js rebuilt to the researched pattern. The always-on strip is now club name ·
+date/time · speed · cash · 🗂 Manage · ☰ — the five panel buttons and all four
+stat chips are gone from the chrome. The Manage dock (280px charcoal card,
+fw-pop ease-in, outside-click/Esc to dismiss) lists Empire / Club office /
+Pro shop desk / Grounds / Course works, each with its hotkey as a kbd chip and
+a LIVE subline owned by that screen: portfolio size under Empire, members/rep/
+prestige under Club, yesterday's sales under Shop, today's weather under
+Grounds, course/design/condition under Works. Open panels get the green
+active outline on their dock entry; hotkeys work exactly as before.
+
+Steam-ready state pass: all buttons gained eased hover/active transitions, a
+real :disabled treatment, and :focus-visible outlines; sublines/kbd chips use
+the established charcoal/green kit. Verified live: dock opens with fresh
+sublines, an entry opens its panel and puts the dock away, outside-click
+dismisses, zero console errors. qa/hud-sbs-part2.png (before/after),
+qa/hud-after-panel.png. Suite 210/210.
+
+Honest note: the dock overlaps the shop-view's corner chips while open (it is
+deliberately above them, transient); and the objectives/tutorial copy still
+says "open the Grounds desk (G)" etc. — hotkeys unchanged so the copy stays
+true, but a wording pass mentioning Manage is queued.

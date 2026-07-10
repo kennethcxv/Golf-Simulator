@@ -69,8 +69,12 @@ button {
   cursor: pointer;
 }
 
+/* Steam-ready button states: eased hover, a real press, honest disabled */
+button { transition: background 0.12s ease, border-color 0.12s ease, transform 0.08s ease; }
 button:hover { background: #2c3234; border-color: #4a5356; }
 button:active { transform: translateY(1px); }
+button:disabled { opacity: 0.45; cursor: default; transform: none; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 button.primary { background: var(--header); border-color: #2ab04a; color: #fff; }
 button.primary:hover { background: #24993c; }
 button.danger { background: var(--danger); border-color: #d84b3a; color: #fff; }
@@ -113,6 +117,49 @@ input[type="range"] { accent-color: var(--accent); }
 .speed-group { display: flex; gap: 4px; }
 .speed-group button { padding: 4px 10px; }
 .speed-group button.on { outline: 2px solid var(--accent); }
+
+/* --- the Manage dock: one entry point into every management screen ---------- */
+
+.manage-btn { font-weight: 600; }
+
+.manage-dock {
+  position: absolute;
+  top: 46px;
+  right: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 280px;
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  animation: fw-pop 0.14s ease-out;
+  z-index: 40;
+}
+
+.dock-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  text-align: left;
+  padding: 8px 10px;
+}
+
+.dock-main { display: flex; align-items: center; gap: 9px; }
+.dock-icon { width: 22px; text-align: center; }
+.dock-label { flex: 1; font-weight: 600; }
+.dock-key {
+  font: 600 0.72rem ui-monospace, monospace;
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 6px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.dock-sub { color: var(--text-dim); font-size: 0.8rem; padding-left: 31px; }
 
 /* --- panels ---------------------------------------------------------------- */
 
