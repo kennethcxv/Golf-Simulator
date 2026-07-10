@@ -20,6 +20,7 @@ import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
 import { clamp } from '../core/utils.js';
 import { makeCameraRig } from './cameraRig.js';
+import { makeCharacter } from './characterAsset.js';
 import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture } from './proceduralTextures.js';
 import { ZONE_COLORS } from '../render/palette.js';
 
@@ -1203,42 +1204,20 @@ export function makeCourseScene(canvas, state) {
     const hole = golferHoleCorridor(st.course);
     if (!hole) return;
     // §5: two-tone figure — khaki legs, saturated polo torso, skin head, cap —
-    // so "person in a polo on a golf course" reads at any distance
+    // articulated (real joints, procedural gait), variety from the wardrobe
     const polo = POLO_COLORS[Math.floor(Math.random() * POLO_COLORS.length)];
     const khaki = KHAKI_COLORS[Math.floor(Math.random() * KHAKI_COLORS.length)];
     const capC = CAP_COLORS[Math.floor(Math.random() * CAP_COLORS.length)];
-    const legs = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.235, 0.27, 0.95, 8),
-      new THREE.MeshStandardMaterial({ color: khaki, roughness: 0.85 }),
-    );
-    legs.position.y = 0.48;
-    legs.castShadow = true;
-    const torso = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.3, 0.58, 3, 8),
-      new THREE.MeshStandardMaterial({ color: polo, roughness: 0.8 }),
-    );
-    torso.position.y = 1.32;
-    torso.castShadow = true;
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.21, 10, 8),
-      new THREE.MeshStandardMaterial({ color: 0xd9a97e, roughness: 0.7 }),
-    );
-    head.position.y = 1.95;
-    const cap = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.23, 0.23, 0.09, 10),
-      new THREE.MeshStandardMaterial({ color: capC, roughness: 0.8 }),
-    );
-    cap.position.y = 2.1;
-    const g = new THREE.Group();
-    g.add(legs, torso, head, cap);
-    golferGroup.add(g);
-    const lateral = (Math.random() - 0.5) * 10;
+    const char = makeCharacter({ polo, khaki, cap: capC });
+    char.setMode('Walk');
+    char.root.userData.char = char;
+    golferGroup.add(char.root);
     golfers.push({
-      mesh: g,
+      mesh: char.root,
       hole,
       t: 0,
-      lateral,
-      speed: 0.011 + Math.random() * 0.005, // corridor fraction per second
+      lateral: (Math.random() - 0.5) * 10,
+      speed: 0.011 + Math.random() * 0.005,
       pause: 0,
       nextStop: 0.12 + Math.random() * 0.1,
     });
@@ -1283,6 +1262,12 @@ export function makeCourseScene(canvas, state) {
             continue;
           }
         }
+      }
+      // animation follows behavior: swing at a stop, idle at the green, walk between
+      const char = w.mesh.userData.char;
+      if (char) {
+        char.setMode(w.pause > 0 ? (w.t > 0.88 ? 'Idle' : 'Swing') : 'Walk');
+        char.update(dt);
       }
       const hx = worldX(w.hole.tee.x) + (worldX(w.hole.pin.x) - worldX(w.hole.tee.x)) * w.t;
       const hz = worldZ(w.hole.tee.y) + (worldZ(w.hole.pin.y) - worldZ(w.hole.tee.y)) * w.t;
@@ -1389,8 +1374,8 @@ export function makeCourseScene(canvas, state) {
     speed: 10, // yd/s ≈ 20 mph — honest golf-cart pace, ~3× walking
     reverse: 3.5,
     turnRate: 1.6, // rad/s at driving speed
-    eye: 1.55, // seated
-    radius: 0.9,
+    eye: 1.9, // the tractor seat sits high
+    radius: 1.15, // real tractor footprint (deck included, forgivingly)
   };
   let cartMesh = null;
 
@@ -1539,7 +1524,7 @@ export function makeCourseScene(canvas, state) {
 
   function walkFindFocus() {
     if (cart.mounted) {
-      walkFocus = { kind: 'cart', label: 'Golf cart — [E] park here' };
+      walkFocus = { kind: 'cart', label: 'Tractor — [E] park here' };
       return;
     }
     const dx = cart.x - walk.x;
@@ -1548,7 +1533,7 @@ export function makeCourseScene(canvas, state) {
     if (dist < 3.6) {
       const facing = ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
       if (facing > 0.35) {
-        walkFocus = { kind: 'cart', label: 'Golf cart — [E] take the wheel' };
+        walkFocus = { kind: 'cart', label: 'Tractor — [E] take the wheel' };
         return;
       }
     }
@@ -1969,8 +1954,16 @@ export function makeCourseScene(canvas, state) {
   // initial build
   rebuildAll(state);
   updatePlan(null);
-  cartMesh = buildCartMesh();
+  cartMesh = buildCartMesh(); // primitive placeholder until the real model lands
   scene.add(cartMesh);
+  new GLTFLoader().load('vendor/models/tractor.glb', (gltf) => {
+    const m = gltf.scene;
+    m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    scene.remove(cartMesh);
+    cartMesh = m;
+    scene.add(cartMesh);
+    placeCartMesh();
+  }, undefined, () => { /* offline: the primitive stays */ });
   refreshWalkColliders(); // parking needs to see the world
   parkCartAtClubhouse();
   resize();

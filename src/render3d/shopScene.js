@@ -6,6 +6,7 @@
 
 import * as THREE from 'three';
 import { clamp } from '../core/utils.js';
+import { makeCharacter } from './characterAsset.js';
 import { SHOP_CATALOG, SHELF_CAP } from '../data/shopItems.js';
 import { restockShelfFromBackroom } from '../sim/shop.js';
 import { makeWoodTexture, makePlasterTexture } from './proceduralTextures.js';
@@ -403,25 +404,15 @@ export function makeShopScene(renderer, appRef) {
 
   function spawnCustomer() {
     const rng = rngOf(appRef.app.state);
-    // STYLE GUIDE §5: two-tone customer — khaki legs under a colored polo
-    const legs = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.21, 0.24, 0.8, 8),
-      new THREE.MeshStandardMaterial({ color: 0xc2b190, roughness: 0.85 }),
-    );
-    legs.position.y = 0.4;
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.26, 0.5, 3, 8),
-      new THREE.MeshStandardMaterial({ color: CUST_COLORS[rng.int(CUST_COLORS.length)], roughness: 0.8 }),
-    );
-    body.position.y = 1.12;
-    body.castShadow = true;
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.19, 10, 8),
-      new THREE.MeshStandardMaterial({ color: 0xd9a97e, roughness: 0.7 }),
-    );
-    head.position.y = 1.72;
-    const g = new THREE.Group();
-    g.add(legs, body, head);
+    const char = makeCharacter({
+      polo: CUST_COLORS[rng.int(CUST_COLORS.length)],
+      khaki: 0xc2b190,
+      cap: rng.chance(0.6) ? 0xf2efe4 : 0x2c3e66,
+    });
+    char.root.scale.setScalar(0.92); // indoor scale beside 1.05-yd counters
+    char.setMode('Walk');
+    char.root.userData.char = char;
+    const g = char.root;
     g.position.set(0, 0, ROOM.d / 2 - 0.6);
     custGroup.add(g);
     if (appRef.audio && appRef.audio.ready) appRef.audio.doorbell();
@@ -446,12 +437,15 @@ export function makeShopScene(renderer, appRef) {
 
     for (let i = customers.length - 1; i >= 0; i--) {
       const c = customers[i];
+      const char = c.mesh.userData.char;
+      if (char) char.update(dt);
       const target = c.stops[c.stopIdx];
       const dx = target.x - c.mesh.position.x;
       const dz = target.z - c.mesh.position.z;
       const dist = Math.hypot(dx, dz);
       if (dist < 0.15) {
         if (c.linger > 0) {
+          if (char) char.setMode(c.stopIdx < c.stops.length - 1 ? 'Browse' : 'Idle');
           c.linger -= dt;
         } else {
           c.stopIdx++;
@@ -462,6 +456,7 @@ export function makeShopScene(renderer, appRef) {
           }
         }
       } else {
+        if (char) char.setMode('Walk');
         const step = Math.min(dist, c.speed * dt);
         c.mesh.position.x += (dx / dist) * step;
         c.mesh.position.z += (dz / dist) * step;

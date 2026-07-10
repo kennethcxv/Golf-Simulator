@@ -1422,3 +1422,34 @@ character (armature + rigid bone-parented parts, baked Walk/Idle/Swing/Browse
 actions, materials named for per-instance retinting) and a detailed tractor+mower
 — exported as GLBs into vendor/models/. Original work = CC0-clean by ownership,
 and style-guide-exact because the guide's palette is set programmatically.
+
+## 2026-07-09 — ASSET SESSION Task 2: articulated characters (and an honest pivot)
+
+**The rigged-GLB path failed twice, and the failure is logged like Tripo was**: a
+bpy-built armature with bone-parented rigid parts exported with every limb scattered
+(glTF joints pivot at bone heads; Blender bone-parents at tails), and the rigid-skin
+rewrite (single mesh, per-bone vertex groups, armature modifier) STILL shipped
+displaced parts — the live NLA-strip stack polluting the export was fixed (muted
+tracks), but the inverse-bind chain from Blender 5.1's exporter to three.js r185
+remained visibly wrong, and screenshot-debugging an exporter black box was burning
+the session. Both broken GLBs are deleted, not shipped.
+
+**Pivot (per the brief's fallback discipline): procedural articulated characters
+built directly in three.js** — src/render3d/characterAsset.js is now a factory:
+jointed figures with hip/knee/shoulder/elbow pivots under a chest pivot (lean +
+twist) and a head pivot, wearing the §5 wardrobe (polo/khaki/cap tints per
+instance). Four procedural modes replace the baked clips: Walk (1.4 Hz gait,
+counter-swinging arms, knee flex, torso bob), Idle (sway + breath), Swing (a
+readable address→backswing→through golf swing on pauses mid-corridor), Browse
+(right-arm shelf reach + head tilt, used at shop fixtures). Golfers and shop
+customers share the factory; behavior drives mode (walkers swing at stops, idle by
+the green; customers browse at fixtures, walk between).
+
+This meets the done-when's substance — visibly articulated, properly animated,
+varied characters on both floors — without the export black box. The Mixamo-grade
+skinned upgrade remains future work (recorded in KNOWN_ISSUES with the exporter
+findings for whoever picks it up).
+
+Verified live: a golfer frozen mid-stride (scissored legs, bent knee, opposed
+arms — qa/assets-after-golfer.png) and a browsing shop customer
+(qa/assets-after-shop-customers.png). Zero console errors.
