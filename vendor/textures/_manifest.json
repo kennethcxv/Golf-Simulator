@@ -1,0 +1,72 @@
+[
+  {
+    "role": "fairway",
+    "asset": "leafy_grass",
+    "source": "https://polyhaven.com/a/leafy_grass",
+    "license": "CC0",
+    "diffuse": true,
+    "normal": true,
+    "bytes": 2661443
+  },
+  {
+    "role": "rough",
+    "asset": "leafy_grass",
+    "source": "https://polyhaven.com/a/leafy_grass",
+    "license": "CC0",
+    "diffuse": true,
+    "normal": true,
+    "bytes": 2661443
+  },
+  {
+    "role": "sand",
+    "asset": "sand_01",
+    "source": "https://polyhaven.com/a/sand_01",
+    "license": "CC0",
+    "diffuse": true,
+    "normal": true,
+    "bytes": 1362909
+  },
+  {
+    "role": "path",
+    "asset": "gravel_road",
+    "source": "https://polyhaven.com/a/gravel_road",
+    "license": "CC0",
+    "diffuse": true,
+    "normal": true,
+    "bytes": 1667761
+  },
+  {
+    "role": "scrub",
+    "asset": "brown_mud_leaves_01",
+    "source": "https://polyhaven.com/a/brown_mud_leaves_01",
+    "license": "CC0",
+    "diffuse": true,
+    "normal": true,
+    "bytes": 2693025
+  },
+  {
+    "role": "siding",
+    "asset": "worn_planks",
+    "source": "https://polyhaven.com/a/worn_planks",
+    "license": "CC0",
+    "diffuse": true,
+    "normal": true,
+    "bytes": 1397801
+  },
+  {
+    "role": "roof",
+    "asset": "roof_tiles_14",
+    "source": "https://polyhaven.com/a/roof_tiles_14",
+    "license": "CC0",
+    "diffuse": true,
+    "normal": true,
+    "bytes": 950090
+  },
+  {
+    "role": "water-normals",
+    "asset": "waternormals.jpg",
+    "source": "https://github.com/mrdoob/three.js (examples/textures)",
+    "license": "MIT",
+    "bytes": 248813
+  }
+]

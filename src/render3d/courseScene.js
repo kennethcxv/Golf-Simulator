@@ -91,12 +91,41 @@ export function makeCourseScene(canvas, state) {
   skyU.mieDirectionalG.value = 0.8;
   scene.add(sky);
 
-  // --- ground textures -----------------------------------------------------------------
-  const texFair = makeGrassTexture({ seed: 3, base: '#5f9c44', dark: '#4d8236', light: '#74b556' });
-  const texRough = makeGrassTexture({ seed: 9, base: '#47752f', dark: '#385f24', light: '#568a3c', blades: 6500 });
-  const texSand = makeSandTexture({});
-  const texScrub = makeScrubTexture({});
-  const texPath = makePathTexture({});
+  // --- ground textures: real CC0 PBR sets (Poly Haven), procedural fallback ------------
+  const texLoader = new THREE.TextureLoader();
+
+  function loadGroundTex(file, { srgb = false, fallback = null } = {}) {
+    const tex = texLoader.load(
+      `vendor/textures/${file}`,
+      undefined,
+      undefined,
+      () => {
+        // offline / missing file: fall back to the old procedural look for this slot
+        if (fallback) {
+          const proc = fallback();
+          tex.image = proc.image;
+          tex.needsUpdate = true;
+          console.warn(`ground texture ${file} missing — procedural fallback in use`);
+        }
+      },
+    );
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 8;
+    return tex;
+  }
+
+  const texFair = loadGroundTex('fairway_diff.jpg', { srgb: true, fallback: () => makeGrassTexture({ seed: 3, base: '#5f9c44', dark: '#4d8236', light: '#74b556' }) });
+  const texFairN = loadGroundTex('fairway_nor.jpg');
+  const texRough = loadGroundTex('rough_diff.jpg', { srgb: true, fallback: () => makeGrassTexture({ seed: 9, base: '#47752f', dark: '#385f24', light: '#568a3c', blades: 6500 }) });
+  const texRoughN = loadGroundTex('rough_nor.jpg');
+  const texSand = loadGroundTex('sand_diff.jpg', { srgb: true, fallback: () => makeSandTexture({}) });
+  const texSandN = loadGroundTex('sand_nor.jpg');
+  const texScrub = loadGroundTex('scrub_diff.jpg', { srgb: true, fallback: () => makeScrubTexture({}) });
+  const texScrubN = loadGroundTex('scrub_nor.jpg');
+  const texPath = loadGroundTex('path_diff.jpg', { srgb: true, fallback: () => makePathTexture({}) });
+  const texPathN = loadGroundTex('path_nor.jpg');
 
   // --- data textures fed from sim state --------------------------------------------------
   const zoneData = new Uint8Array(W * H * 4);
@@ -160,7 +189,9 @@ export function makeCourseScene(canvas, state) {
 
   const terrainMat = new THREE.MeshStandardMaterial({
     map: texFair,
-    roughness: 0.96,
+    normalMap: texFairN, // enables the tangent-frame normal path; shader picks per-zone
+    normalScale: new THREE.Vector2(0.85, 0.85),
+    roughness: 1.0,
     metalness: 0.0,
   });
 
@@ -177,6 +208,10 @@ export function makeCourseScene(canvas, state) {
     shader.uniforms.tSand = { value: texSand };
     shader.uniforms.tScrub = { value: texScrub };
     shader.uniforms.tPath = { value: texPath };
+    shader.uniforms.tRoughN = { value: texRoughN };
+    shader.uniforms.tSandN = { value: texSandN };
+    shader.uniforms.tScrubN = { value: texScrubN };
+    shader.uniforms.tPathN = { value: texPathN };
     shaderRefs.uniforms = shader.uniforms;
 
     shader.vertexShader = shader.vertexShader
@@ -189,9 +224,13 @@ export function makeCourseScene(canvas, state) {
         `#include <common>
         varying vec3 vWp;
         uniform sampler2D uZoneTex, uAuxTex, uPlanTex, tRough, tSand, tScrub, tPath;
+        uniform sampler2D tRoughN, tSandN, tScrubN, tPathN;
         uniform vec2 uCells;
         uniform float uViewMode, uTime;
         uniform vec3 uStripeModes;
+        vec3 gSplatN = vec3(0.5, 0.5, 1.0);
+        vec2 gSplatUv = vec2(0.0);
+        float gSplatRough = 0.95;
         ${GLSL_NOISE}`,
       )
       .replace(
@@ -233,29 +272,59 @@ export function makeCourseScene(canvas, state) {
           vec4 a11 = texture2D(uAuxTex, b0 + texel);
           float moisture = mix(mix(a00, a10, bF.x), mix(a01, a11, bF.x), bF.y).b;
 
-          vec2 wuv = vWp.xz * 0.13;
-          vec3 cFair = texture2D(map, wuv).rgb;
-          cFair = mix(cFair, texture2D(map, wuv * 4.3).rgb, 0.35);
-          vec3 cRough = texture2D(tRough, wuv * 1.3).rgb;
-          cRough = mix(cRough, texture2D(tRough, wuv * 5.1).rgb, 0.35);
-          vec3 cSand = texture2D(tSand, wuv * 0.75).rgb;
-          cSand = mix(cSand, texture2D(tSand, wuv * 3.4).rgb, 0.3);
-          vec3 cScrub = texture2D(tScrub, wuv * 0.62).rgb;
-          cScrub = mix(cScrub, texture2D(tScrub, wuv * 2.9).rgb, 0.35);
-          vec3 cPath = texture2D(tPath, wuv * 1.7).rgb;
+          // real PBR surfaces — sample every set in uniform control flow so mip
+          // derivatives stay valid across warped zone borders, then select
+          vec2 wxz = vWp.xz;
+          vec2 uvFair = wxz * 0.16;   // ~6 yd repeat: blade detail at play zoom
+          vec2 uvGreen = wxz * 0.30;  // tighter cut on the greens
+          vec2 uvTee = wxz * 0.24;
+          vec2 uvRough = wxz * 0.12;
+          vec2 uvSand = wxz * 0.11;
+          vec2 uvScrub = wxz * 0.14;
+          vec2 uvPath = wxz * 0.30;
+
+          vec3 dFair = texture2D(map, uvFair).rgb;
+          vec3 dGreen = texture2D(map, uvGreen).rgb;
+          vec3 dTee = texture2D(map, uvTee).rgb;
+          vec3 dRough = texture2D(tRough, uvRough).rgb;
+          vec3 dSand = texture2D(tSand, uvSand).rgb;
+          vec3 dScrub = texture2D(tScrub, uvScrub).rgb;
+          vec3 dPath = texture2D(tPath, uvPath).rgb;
+
+          vec3 nFair = texture2D(normalMap, uvFair).xyz;
+          vec3 nGreen = texture2D(normalMap, uvGreen).xyz;
+          vec3 nTee = texture2D(normalMap, uvTee).xyz;
+          vec3 nRough = texture2D(tRoughN, uvRough).xyz;
+          vec3 nSand = texture2D(tSandN, uvSand).xyz;
+          vec3 nScrub = texture2D(tScrubN, uvScrub).xyz;
+          vec3 nPath = texture2D(tPathN, uvPath).xyz;
 
           vec3 col;
           float stripeAmp = 0.0;
           float stripeFreq = 0.0;
           float modeSel = 0.0;
-          if (zone < 0.5) { col = cScrub * 1.08; }
-          else if (zone < 1.5) { col = cRough * vec3(0.9, 1.0, 0.8); }
-          else if (zone < 2.5) { col = cFair * vec3(1.02, 1.04, 0.94); stripeAmp = 0.1; stripeFreq = 0.062; modeSel = uStripeModes.y; }
-          else if (zone < 3.5) { col = cFair * vec3(1.14, 1.2, 0.9); stripeAmp = 0.085; stripeFreq = 0.24; modeSel = uStripeModes.x; }
-          else if (zone < 4.5) { col = cFair * vec3(1.07, 1.09, 0.9); stripeAmp = 0.08; stripeFreq = 0.16; modeSel = uStripeModes.z; }
-          else if (zone < 5.5) { col = cSand; }
-          else if (zone < 6.5) { col = cScrub * vec3(0.5, 0.55, 0.5); }
-          else { col = cPath; }
+          if (zone < 0.5) {
+            col = dScrub * 0.98; gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
+          } else if (zone < 1.5) {
+            col = dRough * vec3(0.62, 0.88, 0.5); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.96;
+          } else if (zone < 2.5) {
+            col = dFair * vec3(0.68, 0.98, 0.55); gSplatN = nFair; gSplatUv = uvFair; gSplatRough = 0.94;
+            stripeAmp = 0.1; stripeFreq = 0.062; modeSel = uStripeModes.y;
+          } else if (zone < 3.5) {
+            col = dGreen * vec3(0.78, 1.04, 0.6); gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.9;
+            stripeAmp = 0.085; stripeFreq = 0.24; modeSel = uStripeModes.x;
+          } else if (zone < 4.5) {
+            col = dTee * vec3(0.74, 1.0, 0.58); gSplatN = nTee; gSplatUv = uvTee; gSplatRough = 0.93;
+            stripeAmp = 0.08; stripeFreq = 0.16; modeSel = uStripeModes.z;
+          } else if (zone < 5.5) {
+            col = dSand * 1.04; gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
+          } else if (zone < 6.5) {
+            col = dScrub * vec3(0.45, 0.5, 0.45); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.85;
+          } else {
+            col = dPath; gSplatN = nPath; gSplatUv = uvPath; gSplatRough = 0.9;
+          }
+          // large-scale luminance drift breaks photo-texture tiling repetition
+          col *= 0.93 + fwNoise(cellUv * 0.33) * 0.14;
 
           if (stripeAmp > 0.001 && modeSel > 0.5) {
             float fade = clamp(1.7 - hRel, 0.0, 1.0);
@@ -272,7 +341,8 @@ export function makeCourseScene(canvas, state) {
 
           if (zone > 0.5 && zone < 4.5) {
             float dry = clamp(1.0 - health / 0.78, 0.0, 1.0);
-            col = mix(col, vec3(0.56, 0.47, 0.26), dry * 0.6);
+            // real grass photos already carry dry texture — tint lighter than before
+            col = mix(col, vec3(0.56, 0.47, 0.26), dry * 0.42);
             col = mix(col, vec3(0.46, 0.39, 0.27), smoothstep(0.45, 1.0, wear) * 0.5);
             if (disSev > 0.03) {
               float spots = fwNoise(cellUv * (disType < 1.5 ? 6.5 : 3.2) + disType * 31.0);
@@ -302,6 +372,23 @@ export function makeCourseScene(canvas, state) {
           diffuseColor.rgb += col;
         }
         `,
+      )
+      .replace(
+        '#include <normal_fragment_maps>',
+        /* glsl */ `
+        {
+          // apply the per-zone PBR normal picked in the splat stage, using a
+          // derivative tangent frame against the SAME world-scaled uv
+          vec3 mapN = gSplatN * 2.0 - 1.0;
+          mapN.xy *= normalScale;
+          mat3 tbnSplat = getTangentFrame( - vViewPosition, normal, gSplatUv );
+          normal = normalize( tbnSplat * mapN );
+        }
+        `,
+      )
+      .replace(
+        '#include <roughnessmap_fragment>',
+        /* glsl */ 'float roughnessFactor = gSplatRough;',
       );
   };
 
