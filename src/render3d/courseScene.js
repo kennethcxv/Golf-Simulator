@@ -7,6 +7,8 @@
 
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { ZONE, HOLE_STATUS, CELL_YD } from '../sim/constants.js';
 import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
@@ -17,6 +19,101 @@ import { ZONE_COLORS } from '../render/palette.js';
 
 const ELEV_FT_TO_YD = (1 / 3) * 1.5; // real feet→yards with 1.5x readability exaggeration
 const SEG_PER_CELL = 2;
+
+// --- real tree models (Kenney Nature Kit, CC0) — loaded once, shared across scenes ---
+const TREE_FILES = {
+  deciduous: ['tree_default', 'tree_oak', 'tree_detailed', 'tree_fat'],
+  pine: ['tree_pineDefaultA', 'tree_pineRoundB'],
+};
+let treeAssetsPromise = null;
+
+function loadTreeAssets() {
+  if (treeAssetsPromise) return treeAssetsPromise;
+  const loader = new GLTFLoader();
+
+  const loadOne = (name) =>
+    new Promise((resolve) => {
+      loader.load(
+        `vendor/models/trees/${name}.glb`,
+        (gltf) => {
+          try {
+            gltf.scene.updateMatrixWorld(true);
+            // gather geometry per material, transforms baked in
+            const groups = new Map();
+            gltf.scene.traverse((o) => {
+              if (!o.isMesh || !o.geometry) return;
+              const mats = Array.isArray(o.material) ? o.material : [o.material];
+              // per-group split for multi-material meshes is rare in this kit;
+              // treat the whole mesh as its first material
+              const mat = mats[0];
+              const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
+              // keep merges compatible: position + normal only (flat-color kit)
+              for (const attr of Object.keys(g.attributes)) {
+                if (attr !== 'position' && attr !== 'normal') g.deleteAttribute(attr);
+              }
+              if (!groups.has(mat.uuid)) groups.set(mat.uuid, { mat, list: [] });
+              groups.get(mat.uuid).list.push(g);
+            });
+            const parts = [];
+            const isPineModel = /pine/i.test(name);
+            let partIdx = 0;
+            for (const { mat, list } of groups.values()) {
+              const merged = list.length === 1 ? list[0] : BufferGeometryUtils.mergeGeometries(list, false);
+              // Kenney's pastel-mint palette reads toy-like against photo ground —
+              // remap: green-dominant parts become believable leaf greens, the
+              // rest becomes bark brown. Shapes stay, colors get real.
+              const src = mat.color || new THREE.Color(0xffffff);
+              const isFoliage = src.g > src.r * 1.02;
+              const color = new THREE.Color();
+              if (isFoliage) {
+                const hueJitter = ((name.charCodeAt(5) + partIdx * 37) % 10) / 10;
+                if (isPineModel) color.setHSL(0.34 + hueJitter * 0.03, 0.42, 0.2 + hueJitter * 0.04);
+                else color.setHSL(0.26 + hueJitter * 0.05, 0.46, 0.26 + hueJitter * 0.05);
+              } else {
+                color.setHSL(0.07, 0.35, 0.24); // bark
+              }
+              const material = new THREE.MeshStandardMaterial({
+                color,
+                roughness: 0.92,
+                metalness: 0,
+              });
+              parts.push({ geometry: merged, material });
+              partIdx++;
+            }
+            // normalize the whole tree: feet on y=0, centered, height exactly 1
+            const box = new THREE.Box3();
+            for (const p of parts) {
+              p.geometry.computeBoundingBox();
+              box.union(p.geometry.boundingBox);
+            }
+            const height = Math.max(0.001, box.max.y - box.min.y);
+            const cx = (box.min.x + box.max.x) / 2;
+            const cz = (box.min.z + box.max.z) / 2;
+            for (const p of parts) {
+              p.geometry.translate(-cx, -box.min.y, -cz);
+              p.geometry.scale(1 / height, 1 / height, 1 / height);
+              p.geometry.computeBoundingSphere();
+            }
+            resolve({ name, parts });
+          } catch (e) {
+            console.warn(`tree model ${name} parse failed`, e);
+            resolve(null);
+          }
+        },
+        undefined,
+        () => resolve(null),
+      );
+    });
+
+  treeAssetsPromise = Promise.all([
+    Promise.all(TREE_FILES.deciduous.map(loadOne)),
+    Promise.all(TREE_FILES.pine.map(loadOne)),
+  ]).then(([dec, pine]) => ({
+    deciduous: dec.filter(Boolean),
+    pine: pine.filter(Boolean),
+  }));
+  return treeAssetsPromise;
+}
 
 const GLSL_NOISE = /* glsl */ `
   float fwHash(vec2 p) {
@@ -540,15 +637,7 @@ export function makeCourseScene(canvas, state) {
     return (h >>> 0) / 4294967296;
   }
 
-  function rebuildTrees() {
-    if (treeGroup) {
-      scene.remove(treeGroup);
-      treeGroup.traverse((o) => {
-        if (o.geometry) o.geometry.dispose();
-      });
-    }
-    treeGroup = new THREE.Group();
-
+  function computeTreeSpots() {
     const spots = [];
     // interior scrub trees
     for (let y = 0; y < H; y++) {
@@ -566,80 +655,153 @@ export function makeCourseScene(canvas, state) {
         if (h > 0.5) spots.push({ x, y, r: h, edge: true });
       }
     }
+    return spots;
+  }
+
+  function placeSpot(s) {
+    const jx = (treeHash(s.x + 91, s.y + 3) - 0.5) * 6;
+    const jz = (treeHash(s.x + 7, s.y + 43) - 0.5) * 6;
+    const x = worldX(s.x) + jx;
+    const z = worldZ(s.y) + jz;
+    const inMap = s.x >= 0 && s.y >= 0 && s.x < W && s.y < H;
+    const y = inMap ? heightAt(x, z) : heightAt(clamp(x, -worldW / 2 + 1, worldW / 2 - 1), clamp(z, -worldH / 2 + 1, worldH / 2 - 1));
+    return { x, y, z };
+  }
+
+  let treeBuildToken = 0;
+
+  function clearTreeGroup() {
+    if (treeGroup) {
+      scene.remove(treeGroup);
+      treeGroup.traverse((o) => {
+        if (o.isInstancedMesh) o.dispose(); // releases instanced attributes, keeps shared geometry
+      });
+    }
+    treeGroup = new THREE.Group();
+  }
+
+  // Real Kenney Nature Kit models (CC0), one InstancedMesh per model part.
+  function rebuildTreesFromModels(assets) {
+    clearTreeGroup();
+    const spots = computeTreeSpots();
+
+    // bucket spots: 72% deciduous, 28% pine; then by variant within the class
+    const buckets = new Map(); // key `${class}:${variantIdx}` -> spots[]
+    for (const s of spots) {
+      const isPine = treeHash(s.x + 31, s.y + 17) >= 0.72;
+      const variants = isPine ? assets.pine : assets.deciduous;
+      const vi = Math.floor(treeHash(s.x + 57, s.y + 5) * variants.length) % variants.length;
+      const key = `${isPine ? 'p' : 'd'}:${vi}`;
+      if (!buckets.has(key)) buckets.set(key, { variant: variants[vi], isPine, list: [] });
+      buckets.get(key).list.push(s);
+    }
+
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const eu = new THREE.Euler();
+    const v = new THREE.Vector3();
+    const sc = new THREE.Vector3();
+    const col = new THREE.Color();
+
+    for (const { variant, isPine, list } of buckets.values()) {
+      const meshes = variant.parts.map(({ geometry, material }) => {
+        const im = new THREE.InstancedMesh(geometry, material, list.length);
+        im.castShadow = true;
+        im.frustumCulled = false; // base-geometry bounds would cull the whole forest
+        return im;
+      });
+      list.forEach((s, i) => {
+        const p = placeSpot(s);
+        const height = isPine
+          ? 8 + treeHash(s.x + 3, s.y + 77) * 4 // 8–12 yd pines
+          : 6 + treeHash(s.x + 3, s.y + 77) * 3.2; // 6–9 yd deciduous
+        eu.set(0, treeHash(s.x, s.y) * 6.28, 0);
+        q.setFromEuler(eu);
+        m.compose(v.set(p.x, p.y, p.z), q, sc.set(height, height, height));
+        const b = 0.82 + treeHash(s.x + 13, s.y + 29) * 0.32; // brightness variety
+        col.setRGB(b * (0.95 + treeHash(s.x, s.y + 1) * 0.1), b, b * 0.92);
+        for (const im of meshes) {
+          im.setMatrixAt(i, m);
+          im.setColorAt(i, col);
+        }
+      });
+      for (const im of meshes) treeGroup.add(im);
+    }
+    scene.add(treeGroup);
+  }
+
+  // offline fallback: the old primitive forest
+  function rebuildTreesProcedural() {
+    clearTreeGroup();
+    const spots = computeTreeSpots();
 
     const trunkGeo = new THREE.CylinderGeometry(0.28, 0.5, 2.8, 6);
     const crownGeo = new THREE.IcosahedronGeometry(2.7, 1);
     crownGeo.scale(1, 0.88, 1);
     const pineGeo = new THREE.ConeGeometry(2.1, 5.6, 8);
-
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a4630, roughness: 0.95 });
     const crownMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92 });
     const pineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92 });
 
     const deciduous = spots.filter((s) => treeHash(s.x + 31, s.y + 17) < 0.72);
     const pines = spots.filter((s) => treeHash(s.x + 31, s.y + 17) >= 0.72);
-
     const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, spots.length);
     const crowns = new THREE.InstancedMesh(crownGeo, crownMat, deciduous.length);
     const pinesMesh = new THREE.InstancedMesh(pineGeo, pineMat, pines.length);
-    trunks.castShadow = true;
-    crowns.castShadow = true;
-    pinesMesh.castShadow = true;
-    // instanced meshes cull by the BASE geometry's bounds — disable or the whole
-    // forest vanishes when the origin leaves the frustum
-    trunks.frustumCulled = false;
-    crowns.frustumCulled = false;
-    pinesMesh.frustumCulled = false;
-
+    for (const im of [trunks, crowns, pinesMesh]) {
+      im.castShadow = true;
+      im.frustumCulled = false;
+    }
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const eu = new THREE.Euler();
     const v = new THREE.Vector3();
     const col = new THREE.Color();
-
-    const place = (s) => {
-      const jx = (treeHash(s.x + 91, s.y + 3) - 0.5) * 6;
-      const jz = (treeHash(s.x + 7, s.y + 43) - 0.5) * 6;
-      const x = worldX(s.x) + jx;
-      const z = worldZ(s.y) + jz;
-      const inMap = s.x >= 0 && s.y >= 0 && s.x < W && s.y < H;
-      const y = inMap ? heightAt(x, z) : heightAt(clamp(x, -worldW / 2 + 1, worldW / 2 - 1), clamp(z, -worldH / 2 + 1, worldH / 2 - 1));
-      const scale = 0.85 + treeHash(s.x + 3, s.y + 77) * 0.9;
-      return { x, y, z, scale };
-    };
-
     spots.forEach((s, i) => {
-      const p = place(s);
+      const p = placeSpot(s);
+      const scale = 0.85 + treeHash(s.x + 3, s.y + 77) * 0.9;
       eu.set(0, treeHash(s.x, s.y) * 6.28, 0);
       q.setFromEuler(eu);
-      m.compose(v.set(p.x, p.y + 1.4 * p.scale, p.z), q, new THREE.Vector3(p.scale, p.scale, p.scale));
+      m.compose(v.set(p.x, p.y + 1.4 * scale, p.z), q, new THREE.Vector3(scale, scale, scale));
       trunks.setMatrixAt(i, m);
     });
-
     deciduous.forEach((s, i) => {
-      const p = place(s);
+      const p = placeSpot(s);
+      const scale = 0.85 + treeHash(s.x + 3, s.y + 77) * 0.9;
       eu.set(0, treeHash(s.x, s.y) * 6.28, 0);
       q.setFromEuler(eu);
-      m.compose(v.set(p.x, p.y + (2.8 + 2.2) * p.scale, p.z), q, new THREE.Vector3(p.scale, p.scale, p.scale));
+      m.compose(v.set(p.x, p.y + 5.0 * scale, p.z), q, new THREE.Vector3(scale, scale, scale));
       crowns.setMatrixAt(i, m);
       const g = 0.32 + treeHash(s.x + 13, s.y + 29) * 0.22;
       col.setRGB(0.16 + treeHash(s.x, s.y + 1) * 0.1, g, 0.13);
       crowns.setColorAt(i, col);
     });
-
     pines.forEach((s, i) => {
-      const p = place(s);
+      const p = placeSpot(s);
+      const scale = 0.85 + treeHash(s.x + 3, s.y + 77) * 0.9;
       eu.set(0, treeHash(s.x, s.y) * 6.28, 0);
       q.setFromEuler(eu);
-      m.compose(v.set(p.x, p.y + (2.4 + 2.6) * p.scale, p.z), q, new THREE.Vector3(p.scale, p.scale, p.scale));
+      m.compose(v.set(p.x, p.y + 5.0 * scale, p.z), q, new THREE.Vector3(scale, scale, scale));
       pinesMesh.setMatrixAt(i, m);
       const g = 0.3 + treeHash(s.x + 3, s.y + 9) * 0.14;
       col.setRGB(0.1, g, 0.14);
       pinesMesh.setColorAt(i, col);
     });
-
     treeGroup.add(trunks, crowns, pinesMesh);
     scene.add(treeGroup);
+  }
+
+  function rebuildTrees() {
+    const token = ++treeBuildToken;
+    loadTreeAssets().then((assets) => {
+      if (token !== treeBuildToken) return; // superseded by a newer rebuild
+      if (assets && assets.deciduous.length && assets.pine.length) {
+        rebuildTreesFromModels(assets);
+      } else {
+        console.warn('tree models unavailable — procedural fallback in use');
+        rebuildTreesProcedural();
+      }
+    });
   }
 
   // --- structures ------------------------------------------------------------------------------

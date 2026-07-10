@@ -5,10 +5,12 @@ under "Needs a real art/audio pass" must be replaced before this could ship comm
 
 ## Needs a real art pass before release
 
-- **Course is real 3D (v3) but textures/models are procedural placeholders** — canvas-
-  generated grass/sand/scrub tiles (a CC0 photo-texture + normal-map pass would lift
-  realism significantly), low-poly gumdrop/cone trees (real tree models or billboard
-  imposters needed), box-and-pyramid clubhouse, no golfer character models yet.
+- ~~Procedural ground textures~~ — replaced with real CC0 PBR sets (Poly Haven,
+  diffuse+normal; see ASSET_SOURCES.md). ~~Gumdrop/cone trees~~ — replaced with Kenney
+  Nature Kit CC0 models (color-remapped to realistic tones). Still placeholder: the
+  box clubhouse (v4 Task 5 in progress at this line's writing), golfer/customer capsule
+  characters, and shop interior fixtures — real character models and a shop kit remain
+  pre-ship requirements.
 - **Sky horizon blows out white at low sun angles**; water surfaces have no ripple
   normals; no rain particles. All queued for the Phase 7 polish pass.
 - **Pro shop interior is simple geometric primitives** — hollow box shelving, box

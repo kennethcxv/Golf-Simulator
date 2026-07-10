@@ -31,6 +31,13 @@ Downloaded 2026-07-09 at 1K JPG (diffuse + GL normal).
 |---|---|---|
 | vendor/three.module.js, three.core.js, addons/* | three.js r0.185 npm package / examples | MIT |
 
-## Trees
+## Trees (vendor/models/trees/)
 
-*(updated when Task 2 lands — target: Quaternius or Kenney CC0 packs)*
+From **Kenney — Nature Kit 2.1** (https://kenney.nl/assets/nature-kit) — license **CC0**
+(License.txt in the pack confirms), free for commercial use, no attribution required.
+Downloaded 2026-07-09. Models: `tree_default`, `tree_oak`, `tree_detailed`, `tree_fat`,
+`tree_pineDefaultA`, `tree_pineRoundB` (.glb). The kit's pastel palette is remapped at
+load time to realistic foliage/bark tones; geometry unmodified.
+
+Quaternius packs were the first choice per the brief but expose no direct download
+(Patreon-gated page); Kenney was the sanctioned CC0 fallback.
