@@ -310,6 +310,16 @@ export function makeShopScene(renderer, appRef) {
       leg.position.set(lx, 0.47, lz);
       g.add(leg);
     }
+    // garment rail along the table's back edge — hung stock goes here
+    for (const rx of [-0.9, 0.9]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.7, 6), darkMat);
+      post.position.set(rx, 0.85, -0.62);
+      g.add(post);
+    }
+    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1.9, 6), darkMat);
+    rail.rotation.z = Math.PI / 2;
+    rail.position.set(0, 1.68, -0.62);
+    g.add(rail);
     g.position.set(cx, 0, cz);
     scene.add(g);
     addCollider(cx, cz, 2.4, 1.6);
@@ -913,6 +923,7 @@ export function makeShopScene(renderer, appRef) {
 
     for (const fixture of FIXTURES) {
       const anchor = fixture.anchor;
+      const hangCursor = { n: 0 }; // shared across this fixture's hung garments
       fixture.skus.forEach((skuId, idx) => {
         const sku = SHOP_CATALOG.find((s) => s.id === skuId);
         const count = inv[skuId].shelf;
@@ -922,40 +933,130 @@ export function makeShopScene(renderer, appRef) {
         color.offsetHSL(0, 0, (sku.tier - 2) * 0.09);
         const m = new THREE.MeshStandardMaterial({ color, roughness: 0.6 });
 
+        // distinct silhouettes per product type (reference density/variety):
+        // clubs lean on racks, balls stack as sleeves + loose pyramids, polos
+        // fold in their real colors or hang from the rail, caps show dome+brim,
+        // towels roll, small goods stay honest little boxes
+        const POLO_TINTS = { polo1: 0x3f7a34, polo2: 0x3b6fb3, jacket2: 0x2c3e66 };
+        const white = new THREE.MeshStandardMaterial({ color: 0xf5f2e8, roughness: 0.6 });
+
         if (isClub) {
           for (let i = 0; i < Math.min(count, 6); i++) {
+            const lean = 0.16 + (i % 3) * 0.03;
             const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 1.15, 5), m);
             shaft.position.set(-1.0 + idx * 0.45 + i * 0.07, 0.72, 0.12 - i * 0.03);
-            shaft.rotation.z = 0.16;
+            shaft.rotation.z = lean;
             const head = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.07, 0.13), m);
             head.position.set(shaft.position.x - 0.1, 0.16, shaft.position.z);
             g.add(shaft, head);
+            if (sku.id.startsWith('driver')) {
+              const cover = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), m);
+              cover.position.set(shaft.position.x + 0.09, 1.27, shaft.position.z);
+              g.add(cover);
+            }
           }
-        } else {
-          const onTable = fixture.skus.includes('glove1');
-          const perRow = 3;
-          const box = sku.cat === 'balls' ? [0.18, 0.12, 0.14] : sku.cat === 'apparel' ? [0.26, 0.07, 0.2] : [0.14, 0.1, 0.12];
+        } else if (sku.cat === 'balls') {
           const show = Math.min(count, 12);
           for (let i = 0; i < show; i++) {
-            const item = new THREE.Mesh(new THREE.BoxGeometry(...box), m);
-            const layer = Math.floor(i / perRow);
-            const col = i % perRow;
-            if (onTable) {
-              // stacks on the table top
-              item.position.set(
-                -0.85 + idx * 0.42,
-                1.05 + layer * (box[1] + 0.012),
-                col * (box[2] + 0.04) - 0.4,
-              );
-            } else {
-              // spread across the unit's three boards, standing proud of the frame
-              const boardY = [0.5, 1.05, 1.6][layer % 3];
-              item.position.set(
-                -1.05 + idx * 0.56 + (Math.floor(layer / 3)) * 0.2,
-                boardY + 0.03 + box[1] / 2,
-                0.06 + col * (box[2] * 0.35),
-              );
+            const layer = Math.floor(i / 3);
+            const col = i % 3;
+            const boardY = [0.5, 1.05, 1.6][layer % 3];
+            const item = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.14), m);
+            // spread across the board face, second course stacks on top
+            item.position.set(
+              -1.05 + idx * 0.56 + col * 0.17,
+              boardY + 0.09 + Math.floor(layer / 3) * 0.125,
+              0.1,
+            );
+            item.castShadow = true;
+            g.add(item);
+          }
+          // a loose pyramid of balls beside each facing sells "golf" instantly
+          if (show >= 3) {
+            const bx = -1.05 + idx * 0.56 + 0.38;
+            for (const [ox, oz, oy] of [[0, 0, 0], [0.055, 0, 0], [0.028, 0.045, 0], [0.028, 0.018, 0.045]]) {
+              const ball = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 6), white);
+              ball.position.set(bx + ox, 1.05 + 0.026 + oy, 0.14 + oz);
+              g.add(ball);
             }
+          }
+        } else if (sku.cat === 'apparel' && POLO_TINTS[sku.id] && count > 0) {
+          const tint = new THREE.MeshStandardMaterial({ color: POLO_TINTS[sku.id], roughness: 0.85 });
+          const show = Math.min(count, 10);
+          const folded = Math.min(show, 6);
+          for (let i = 0; i < folded; i++) {
+            // folded pile on the table: soft slabs with a collar stripe
+            const slab = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.055, 0.24), tint);
+            slab.position.set(-0.85 + idx * 0.42, 1.03 + (i % 3) * 0.062, -0.15 + Math.floor(i / 3) * 0.3);
+            slab.rotation.y = (i % 2) * 0.09 - 0.045;
+            slab.castShadow = true;
+            g.add(slab);
+            const collar = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.012, 0.05), white);
+            collar.position.set(slab.position.x, slab.position.y + 0.034, slab.position.z + 0.08);
+            g.add(collar);
+          }
+          // the rest hang from the rail (a shared cursor keeps every shirt ON it)
+          for (let i = 0; i < show - folded && i < 4; i++) {
+            const hx = Math.min(-0.82 + hangCursor.n++ * 0.17, 0.85);
+            const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.1, 5), darkMat);
+            hook.position.set(hx, 1.63, -0.62);
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.38, 0.035), tint);
+            body.position.set(hx, 1.38, -0.62);
+            body.rotation.y = 0.08;
+            body.castShadow = true;
+            const sleeveL = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.16, 0.03), tint);
+            sleeveL.position.set(hx - 0.19, 1.5, -0.62);
+            sleeveL.rotation.z = 0.5;
+            const sleeveR = sleeveL.clone();
+            sleeveR.position.x = hx + 0.19;
+            sleeveR.rotation.z = -0.5;
+            g.add(hook, body, sleeveL, sleeveR);
+          }
+        } else if (sku.id === 'cap1') {
+          const show = Math.min(count, 8);
+          for (let i = 0; i < show; i++) {
+            const capMat = i % 3 === 0 ? new THREE.MeshStandardMaterial({ color: 0x2c3e66, roughness: 0.85 }) : white;
+            const dome = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), capMat);
+            const brim = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.014, 0.09), capMat);
+            const px = -0.85 + idx * 0.42 + (i % 2) * 0.22;
+            const pz = -0.42 + Math.floor(i / 2) * 0.24;
+            dome.position.set(px, 1.02 + 0.0, pz);
+            brim.position.set(px, 1.005, pz + 0.1);
+            dome.castShadow = true;
+            g.add(dome, brim);
+          }
+        } else if (sku.id === 'glove1') {
+          const show = Math.min(count, 8);
+          for (let i = 0; i < show; i++) {
+            const glove = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.02, 0.2), white);
+            glove.position.set(-0.85 + idx * 0.42 + (i % 2) * 0.14, 1.02 + Math.floor(i / 2) * 0.026, 0.28);
+            glove.rotation.y = (i % 2) * 0.2 - 0.1;
+            g.add(glove);
+          }
+        } else if (sku.id === 'towel1') {
+          const show = Math.min(count, 9);
+          for (let i = 0; i < show; i++) {
+            const layer = Math.floor(i / 3);
+            const boardY = [0.5, 1.05, 1.6][layer % 3];
+            const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.22, 8), white);
+            roll.rotation.x = Math.PI / 2;
+            roll.position.set(-1.05 + idx * 0.56 + (i % 3) * 0.11, boardY + 0.08, 0.1);
+            roll.castShadow = true;
+            g.add(roll);
+          }
+        } else {
+          const box = sku.cat === 'apparel' ? [0.26, 0.07, 0.2] : sku.id === 'range2' ? [0.1, 0.12, 0.16] : [0.14, 0.1, 0.12];
+          const show = Math.min(count, 12);
+          for (let i = 0; i < show; i++) {
+            const item = new THREE.Mesh(new THREE.BoxGeometry(...box), sku.id === 'range2' ? new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.5 }) : m);
+            const layer = Math.floor(i / 3);
+            const col = i % 3;
+            const boardY = [0.5, 1.05, 1.6][layer % 3];
+            item.position.set(
+              -1.05 + idx * 0.56 + (Math.floor(layer / 3)) * 0.2,
+              boardY + 0.03 + box[1] / 2,
+              0.06 + col * (box[2] * 0.35),
+            );
             item.castShadow = true;
             g.add(item);
           }

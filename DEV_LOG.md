@@ -1619,3 +1619,21 @@ computer's Tee sheet tab → calendar shows 📌 booked · $32 with Cancel; roll
 my QA camera, delightfully), E collected $32 → wallet +32, ledger greenFees +32,
 status 'played', prompt reverted. Zero console errors.
 qa/shopreno-teesheet-booked.png, qa/shopreno-checkin-due.png, -paid.png.
+
+## 2026-07-10 — SHOP RESTORATION Task 6: stock variety
+
+The shelves stop being uniform boxes. Per-product silhouettes in rebuildStock,
+all deterministic (no per-frame randomness):
+- polos/jackets: FOLDED piles in their real colors (club green / tour blue /
+  storm navy) with white collar details, overflow HUNG on a new garment rail
+  along the apparel table's back edge (posts + crossbar, always present). A
+  shared per-fixture hang cursor keeps every shirt physically ON the rail —
+  first cut hung them off the end (index-derived x, caught on screenshot).
+- balls: sleeve boxes spread across the board and double-stacked when full,
+  plus a loose four-ball pyramid beside each facing (first cut interpenetrated
+  three boxes into one lump at z-spacing 0.05 — respread along x).
+- caps: dome + brim, alternating cream/navy; gloves: flat white pile;
+  towels: rolled cylinders; rangefinder: small dark box; clubs keep their
+  shaft+head language with varied lean and head covers on drivers.
+Live-stocked shelves screenshot vs before: qa/shopreno-stock-apparel.png,
+qa/shopreno-stock-balls.png. Zero console errors, suite 199/199 (render-only).
