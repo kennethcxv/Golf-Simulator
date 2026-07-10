@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+import { Water } from 'three/addons/objects/Water.js';
 import { ZONE, HOLE_STATUS, CELL_YD } from '../sim/constants.js';
 import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
@@ -561,19 +562,18 @@ export function makeCourseScene(canvas, state) {
     return (cy + 0.5) * CELL_YD - worldH / 2;
   }
 
-  // --- water surfaces (one disk per pond; the carved bowl makes the shoreline) --------
-  const waterMat = new THREE.MeshStandardMaterial({
-    color: 0x255c7d,
-    transparent: true,
-    opacity: 0.92,
-    roughness: 0.1,
-    metalness: 0.05,
+  // --- water surfaces: real reflective Water (three examples) per pond disk;
+  // the carved bowl still makes the shoreline ------------------------------------
+  const waterNormalsTex = texLoader.load('vendor/textures/waternormals.jpg', (t) => {
+    t.wrapS = THREE.RepeatWrapping;
+    t.wrapT = THREE.RepeatWrapping;
   });
 
   function rebuildWater() {
     for (const m of waterMeshes) {
       scene.remove(m);
       m.geometry.dispose();
+      if (m.material && m.material.dispose) m.material.dispose();
     }
     waterMeshes = [];
     // find pond components on the cell grid
@@ -613,17 +613,26 @@ export function makeCourseScene(canvas, state) {
         maxY = Math.max(maxY, y);
         sum += rawHeightAtCellCoords(x + 0.5, y + 0.5);
       }
-      const level = sum / cells.length - 0.55;
+      const level = sum / cells.length - 0.7;
       const cx = worldX((minX + maxX) / 2);
       const cz = worldZ((minY + maxY) / 2);
-      const radius = (Math.max(maxX - minX, maxY - minY) / 2 + 2.6) * CELL_YD;
+      const radius = (Math.max(maxX - minX, maxY - minY) / 2 + 1.4) * CELL_YD;
       const geo = new THREE.CircleGeometry(radius, 40);
       geo.rotateX(-Math.PI / 2);
-      const mesh = new THREE.Mesh(geo, waterMat);
-      mesh.position.set(cx, level, cz);
-      mesh.receiveShadow = true;
-      scene.add(mesh);
-      waterMeshes.push(mesh);
+      const water = new Water(geo, {
+        textureWidth: 512,
+        textureHeight: 512,
+        waterNormals: waterNormalsTex,
+        sunDirection: sun.position.clone().normalize(),
+        sunColor: 0xffffff,
+        waterColor: 0x18424d, // murky pond teal-green
+        distortionScale: 2.2,
+        fog: !!scene.fog,
+      });
+      water.material.uniforms.size.value = 3.5; // ripple scale
+      water.position.set(cx, level, cz);
+      scene.add(water);
+      waterMeshes.push(water);
     }
   }
 
@@ -1190,6 +1199,12 @@ export function makeCourseScene(canvas, state) {
       scene.fog.density = 0.00055;
     }
     sun.target.position.set(0, 0, 0);
+
+    // keep the water's sun highlights in step with the real sun
+    for (const w of waterMeshes) {
+      w.material.uniforms.sunDirection.value.copy(sunPos).normalize();
+      w.material.uniforms.sunColor.value.copy(sun.color).multiplyScalar(Math.max(0.15, sun.intensity / 3));
+    }
   }
 
   // --- picking ------------------------------------------------------------------------------------------
@@ -1216,6 +1231,9 @@ export function makeCourseScene(canvas, state) {
   function render(dtMs, st) {
     time += dtMs / 1000;
     if (shaderRefs.uniforms) shaderRefs.uniforms.uTime.value = time;
+    for (const w of waterMeshes) {
+      w.material.uniforms.time.value = time * 0.55;
+    }
     if (st) updateGolfers(dtMs / 1000, st);
     // flag wave
     if (holeGroup) {
