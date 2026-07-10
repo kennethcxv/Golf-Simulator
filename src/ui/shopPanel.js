@@ -81,6 +81,38 @@ export function makeShopPanel(app, handlers) {
     const next = booked.find((s) => s.minute >= cal.minuteOfDay - TEE_SHEET.dueLeadMin);
     rows.push(el('div', { class: 'row muted', text: `${booked.length} booked · ${played} checked in${next ? ` · next: ${next.res.name} at ${fmtSlot(next.minute)}` : ' · no one else due today'}` }));
 
+    // grounds chores: the systems that make work also report it here
+    const chores = [];
+    if (st.turf && st.sections) {
+      let dirtyBunkers = 0;
+      let wornPatches = 0;
+      for (const sec of st.sections) {
+        if (sec.zone === 5) { // bunker sections, avg footprints
+          let sum = 0;
+          for (const i of sec.cells) sum += st.turf.wear[i];
+          if (sum / sec.cells.length > 25) dirtyBunkers++;
+        }
+      }
+      for (let i = 0; i < st.course.zones.length; i++) {
+        const z = st.course.zones[i];
+        if ((z === 1 || z === 2 || z === 3 || z === 4) && st.turf.wear[i] > 30) wornPatches++;
+      }
+      if (dirtyBunkers) chores.push(`🧹 ${dirtyBunkers} bunker${dirtyBunkers > 1 ? 's' : ''} need${dirtyBunkers > 1 ? '' : 's'} raking`);
+      if (wornPatches) chores.push(`⛏ ${wornPatches} worn patch${wornPatches > 1 ? 'es' : ''} for the divot kit`);
+    }
+    if (st.props) {
+      const piles = st.props.litter.filter((p) => !p.cleared).length;
+      if (piles) chores.push(`🍂 ${piles} debris pile${piles > 1 ? 's' : ''} to haul`);
+      if (!st.props.teeSignFixed) chores.push('🪧 the tee sign is still broken');
+    }
+    if (st.tractor && !st.tractor.repaired) chores.push('🚜 the tractor is still broken at the shed');
+    rows.push(el('h3', { text: 'Grounds chores', style: 'margin-top:10px' }));
+    if (chores.length) {
+      for (const line of chores) rows.push(el('div', { class: 'row muted', text: line }));
+    } else {
+      rows.push(el('div', { class: 'row muted', text: 'All caught up out there — the course looks after itself today.' }));
+    }
+
     // inbound stock
     rows.push(el('h3', { text: 'Orders inbound', style: 'margin-top:10px' }));
     if (!shop.orders.length) {

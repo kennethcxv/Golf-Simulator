@@ -2051,3 +2051,18 @@ exactly the burst-per-cut design — but my still screenshots kept landing in
 the between-burst gaps (automation can't frame-time a 0.35s window). The
 mechanism is verified by state; a lucky still is left to the first human
 drive. Zero console errors. Suite 211/211.
+
+## 2026-07-10 — OVERNIGHT PART 6e (self-generated idea #2): the grounds chores list
+
+IDEA + REASONING: tonight built four sources of course work (bunker footprints,
+divot wear, storm litter, the broken tee sign/tractor) but nothing SURFACED
+them — a player had to wander to find work. A superintendent reads a morning
+list. The Summary tab now computes one from live state: bunker SECTIONS whose
+average footprints exceed 25, worn turf patches over 30 wear, uncleared debris
+piles, the sign, and the tractor itself — or an honest "all caught up" line.
+
+Verified live after 10 fast-forwarded days: "6 bunkers need raking · 45 worn
+patches · 4 debris piles · tee sign still broken · tractor still broken"
+(qa/summary-chores.png) — and the same screen exposed a REAL emergent problem:
+0 sales · 25 walked out, because ten unattended days emptied the shelves. The
+information hub is doing its job. Zero console errors. Suite 211/211.
