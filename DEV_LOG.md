@@ -587,3 +587,63 @@ Newest entries at the bottom.
   condition ±4 and appraisal within 15% of hidden true value, and runs a full sim day
   on each). Suite 150/150.
 
+## 2026-07-09 — GOLF EMPIRE Task 4: portfolio, switching, and the passive tick
+
+- **Model: exactly one live club.** Every holding keeps its FULL state object in memory
+  (~a few hundred KB each — trivial for a handful of properties); "parked" means the
+  sim doesn't run on it, not that it's serialized away. Switching parks the outgoing
+  club (freezing a passive summary), reconciles the incoming one, and hands the wallet
+  over. `empireUpdate(empire, minutes)` is the single tick the app calls: full sim for
+  the active club, then one passive day per world-day for every parked holding.
+- **THE PASSIVE APPROXIMATION (the judgment call this task demands logged):**
+  Each parked property carries `{conditionEst, design, members, reputation, greenFee,
+  duesPerDay}` frozen at park time. Per world-day:
+  - *Condition*: `conditionEst → max(38, est − (est − 38)·0.035)` — exponential decay
+    toward a caretaker floor of 38, half-life ≈ 20 days. It only pulls DOWN: a course
+    parked below 38 holds (the caretaker prevents rot but does not restore — otherwise
+    parking a wreck would be a free renovation, an obvious exploit the tests pin).
+    Reasoning: an unattended-but-caretaken course loses its edge fast (greens are the
+    perishable asset) but doesn't become a ruin, matching the fiction that some
+    minimal crew stays on.
+  - *Income*: `rounds = 14 · seasonF · (q/60) · clamp(rep/45, 0.3, 1.4) · sizeF` where
+    `q = 0.4·design + 0.6·conditionEst` (the HUD's own overall blend) and seasonF is
+    the live club's seasonal demand table [0.95, 1.15, 1.0, 0.22]. Revenue = rounds ×
+    frozen green fee + frozen dues/day; costs = $150·sizeF caretaker+skeleton
+    maintenance + $45 utilities; `net = clamp(revenue − costs, −800·sizeF, +2600·sizeF)`
+    credited straight to the ONE wallet daily. Base 14 rounds vs the live club's ~30:
+    nobody is marketing, hosting, or selling — showing up must always beat parking.
+    Sanity: parked Willow trickles ~$400–550/day vs ~$800–1500 attended; a parked wreck
+    makes ~$100/day (the caretaker still sells a few rounds — the REAL cost of parking
+    a wreck is the condition/value decay, not the P&L).
+  - *Frozen on purpose*: membership, satisfaction, staff, shop, prestige do not move
+    while parked (the task says income + condition drift, NOT a shadow sim). Staff are
+    effectively furloughed (the caretaker line stands in for wages); scheduled outings
+    you weren't there to host are FORFEITED on return with a feed entry (paying them
+    would be time-travel money; the passive net never included them). A tournament
+    scheduled then abandoned resolves on your first night back against current
+    condition — rare, self-inflicted, left as-is.
+- **Reconciliation on return**: clock jumps to world time, `driftTurfToward` writes the
+  decayed estimate into the REAL turf arrays (same iterate-to-target used at purchase,
+  ±1.5 tolerance; unit test holds realized-vs-estimate to ±4), supplier orders that
+  arrived while away land in the backroom, stale outing offers expire, weather re-rolls
+  for the actual calendar day, and the 5 AM pass is re-armed. A same-moment
+  switch (no world time passed) is a PURE unpark — zero side effects, so A→B→A
+  round-trips byte-identical state; the fingerprint test enforces exactly that.
+- **Parked value = sale payout, no mutation**: `holdingValue()` prices parked clubs via
+  `appraiseStats` over the frozen summary + drifted estimate (income term: lastNet×24),
+  and `sellProperty` pays exactly that number — "the number on the screen is the number
+  on the check" holds for parked sales without touching their arrays. Active sales use
+  the live appraisal as before.
+- **Save format**: one envelope — `{empireVersion, mode, seed, cash, clockMinutes,
+  activeId, market, holdings: [{property, passive, state: snapshot()}], log, ...}` —
+  reusing the existing per-state snapshot/deserialize verbatim. A pre-empire plain
+  GameState save still loads: it wraps into a one-property empire ('legacy-club',
+  market minus the Willow listing so the world holds one Willow Creek).
+- **Tests caught real test-bugs too**: Float32 vs double rounding (fixed with
+  Math.fround on the expected side) and the transaction log legitimately remembering a
+  sold club's name (history ≠ resurrection; assertion narrowed to holdings+market).
+- 12 new portfolio tests (round-trip fingerprint, parked-doesn't-sim, wallet math,
+  192-day boundedness, below-floor hold, drift reconciliation, parked-sale pricing,
+  multi-property save/load, sold-stays-sold, legacy wrap, bad switches, displayed-
+  value formula pin). Suite 162/162.
+
