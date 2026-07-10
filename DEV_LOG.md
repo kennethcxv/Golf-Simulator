@@ -1938,3 +1938,34 @@ marked it a NO-SHOW on the sheet (the system being honest) → rebooked today
 still hauls (→24), the poster ghost still places (→28) → at 8:20 the register
 offered the check-in and Ivy Hux paid her $32 (57,629.67→57,661.67, status
 played) → the Summary tab showed every one of those facts back. Suite 210/210.
+
+## 2026-07-10 — OVERNIGHT PART 4: NPC behavior — queueing, collision, purpose
+
+SHOP CUSTOMERS, rebuilt movement:
+- Stops are TYPED now (fixture / counter / door), each fixture stop carrying a
+  face-point — customers settle into FACING the shelf they browse (eased turn)
+  instead of freezing at whatever heading they walked in on.
+- Real collision: every customer step resolves through the same push-out logic
+  the player uses (fixture AABBs), plus hard circles against the player (0.72)
+  and each other (0.6). No more ghosting through the apparel table or the
+  player's chest.
+- THE REGISTER IS A QUEUE: the counter stop joins counterQueue; slot 0 stands
+  at the register, the line angles back across the floor at 0.9-yd spacing;
+  only the head is served (linger/check-in), everyone behind waits in Idle
+  facing the counter, and the whole line advances when the head leaves. The
+  register label now reports it: "check in Queue Test A … · 2 more waiting."
+  Verified live with three simultaneous due bookings: a clean diagonal
+  three-person line (qa/npc-queue.png), head checked in → line advanced to
+  "Queue Test B · 1 more waiting."
+
+COURSE GOLFERS: a spring-back separation offset rides on top of the scripted
+hole line — pushes from other golfers (r 1.3), the walking player (r 1.5), and
+the tractor (r 2.6), decaying 2.2/s so they drift back to their line when
+clear; capped at 2.5 yd so nobody is shoved into the trees. Measured live:
+standing 1.4 yd inside a walker's corridor for 6 s of sim, the golfer's
+minimum distance to me stayed 1.38 yd (pre-change they walked through you).
+HONEST NOTE: golfer-vs-golfer uses the same push path but wasn't observed in a
+natural crossing during the sample (two golfers, different holes) — the code
+path is shared with the measured player case.
+
+Zero console errors. Suite 210/210 (render-layer only).

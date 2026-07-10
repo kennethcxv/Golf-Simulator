@@ -1330,7 +1330,36 @@ export function makeCourseScene(canvas, state) {
       const len = Math.hypot(dirX, dirZ) || 1;
       const px = hx + (-dirZ / len) * w.lateral * taper;
       const pz = hz + (dirX / len) * w.lateral * taper;
-      w.mesh.position.set(px, heightAt(px, pz), pz);
+
+      // separation: golfers give way to each other, the walking player, and
+      // the tractor — a spring-back offset off the scripted line, not a
+      // rewrite of it (they drift back once the way is clear)
+      const decay = Math.min(1, dt * 2.2);
+      w.avoidX = (w.avoidX || 0) * (1 - decay);
+      w.avoidZ = (w.avoidZ || 0) * (1 - decay);
+      const pushFrom = (ox, oz, r) => {
+        const dx = px + w.avoidX - ox;
+        const dz = pz + w.avoidZ - oz;
+        const d = Math.hypot(dx, dz);
+        if (d > 0.01 && d < r) {
+          const f = (r - d) / r;
+          w.avoidX += (dx / d) * f * 4.5 * dt;
+          w.avoidZ += (dz / d) * f * 4.5 * dt;
+        }
+      };
+      for (const o of golfers) {
+        if (o !== w) pushFrom(o.mesh.position.x, o.mesh.position.z, 1.3);
+      }
+      if (walk.active && !cart.mounted) pushFrom(walk.x, walk.z, 1.5);
+      if (!cartHidden) pushFrom(cart.x, cart.z, 2.6);
+      const avMag = Math.hypot(w.avoidX, w.avoidZ);
+      if (avMag > 2.5) {
+        w.avoidX *= 2.5 / avMag;
+        w.avoidZ *= 2.5 / avMag;
+      }
+      const fx = px + w.avoidX;
+      const fz = pz + w.avoidZ;
+      w.mesh.position.set(fx, heightAt(fx, fz), fz);
       w.mesh.rotation.y = Math.atan2(dirX, dirZ) + (w.pause > 0 ? 0.9 : 0);
     }
   }

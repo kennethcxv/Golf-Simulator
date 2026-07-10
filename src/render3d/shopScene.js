@@ -1222,6 +1222,15 @@ export function makeShopScene(renderer, appRef) {
   scene.add(custGroup);
   const CUST_COLORS = [0x3b6fb3, 0x2c3e66, 0xd98bb0, 0xd97538, 0x3f7a34]; // §5 polo palette
 
+  // customers queue at the register in a real line angling back into the floor
+  const QUEUE_BASE = { x: ROOM.w / 2 - 2.5, z: 1.4 };
+  const QUEUE_STEP = { x: -0.62, z: 0.68 };
+  const counterQueue = []; // customer objects, slot 0 = being served
+
+  function queueSlot(i) {
+    return { x: QUEUE_BASE.x + QUEUE_STEP.x * i, z: QUEUE_BASE.z + QUEUE_STEP.z * i };
+  }
+
   function spawnCustomer(toCounter = false) {
     const rng = rngOf(appRef.app.state);
     const char = makeCharacter({
@@ -1237,24 +1246,36 @@ export function makeShopScene(renderer, appRef) {
     custGroup.add(g);
     if (appRef.audio && appRef.audio.ready) appRef.audio.doorbell();
 
+    // stops are typed: fixtures get browsed facing the shelf, the counter is a
+    // queue you join, the door is the way out
     const stops = [];
-    if (toCounter) {
-      // a booked golfer: straight to the register, a long patient wait, then out
-      stops.push(new THREE.Vector3(ROOM.w / 2 - 2.6, 0, 1.4));
-      stops.push(new THREE.Vector3(0, 0, ROOM.d / 2 - 0.6));
-      customers.push({ mesh: g, stops, stopIdx: 0, linger: 26 + rng.next() * 10, speed: 1.15 });
-      return;
+    if (!toCounter) {
+      const nStops = 1 + rng.int(2);
+      for (let i = 0; i < nStops; i++) {
+        const f = FIXTURES[rng.int(FIXTURES.length)];
+        const p = f.anchor.position;
+        stops.push({
+          kind: 'fixture',
+          x: p.x + (rng.next() - 0.5) * 1.2,
+          z: p.z + (p.z < -3 ? 1.1 : p.z > 3 ? -1.1 : 1.2),
+          faceX: p.x,
+          faceZ: p.z,
+        });
+      }
     }
-    const nStops = 1 + rng.int(2);
-    for (let i = 0; i < nStops; i++) {
-      const f = FIXTURES[rng.int(FIXTURES.length)];
-      const p = f.anchor.position;
-      stops.push(new THREE.Vector3(p.x + (rng.next() - 0.5) * 1.2, 0, p.z + (p.z < -3 ? 1.1 : p.z > 3 ? -1.1 : 1.2)));
+    if (toCounter || rng.chance(0.55)) {
+      stops.push({ kind: 'counter', x: QUEUE_BASE.x, z: QUEUE_BASE.z, faceX: ROOM.w / 2 - 1.3, faceZ: 1.4 });
     }
-    if (rng.chance(0.55)) stops.push(new THREE.Vector3(ROOM.w / 2 - 2.6, 0, 1.4)); // counter
-    stops.push(new THREE.Vector3(0, 0, ROOM.d / 2 - 0.6)); // door
+    stops.push({ kind: 'door', x: 0, z: ROOM.d / 2 - 0.6 });
 
-    customers.push({ mesh: g, stops, stopIdx: 0, linger: 2 + rng.next() * 4, speed: 1.1 + rng.next() * 0.5 });
+    customers.push({
+      mesh: g,
+      stops,
+      stopIdx: 0,
+      linger: toCounter ? 26 + rng.next() * 10 : 2 + rng.next() * 4,
+      speed: toCounter ? 1.15 : 1.1 + rng.next() * 0.5,
+      queued: false,
+    });
   }
 
   // booked golfers physically show up around their slot (visual layer only)
@@ -1269,6 +1290,50 @@ export function makeShopScene(renderer, appRef) {
     }
   }
 
+  function leaveQueue(c) {
+    const qi = counterQueue.indexOf(c);
+    if (qi >= 0) {
+      counterQueue.splice(qi, 1);
+      c.queued = false;
+    }
+  }
+
+  // the same push-out resolution the player uses, sized for a customer
+  function resolveCustomer(c, nx, nz) {
+    const r = 0.3;
+    for (const col of colliders) {
+      if (nx + r > col.minX && nx - r < col.maxX && nz + r > col.minZ && nz - r < col.maxZ) {
+        const pushLeft = nx + r - col.minX;
+        const pushRight = col.maxX - (nx - r);
+        const pushUp = nz + r - col.minZ;
+        const pushDown = col.maxZ - (nz - r);
+        const min = Math.min(pushLeft, pushRight, pushUp, pushDown);
+        if (min === pushLeft) nx = col.minX - r;
+        else if (min === pushRight) nx = col.maxX + r;
+        else if (min === pushUp) nz = col.minZ - r;
+        else nz = col.maxZ + r;
+      }
+    }
+    // never through the player…
+    const pd = Math.hypot(nx - player.x, nz - player.z);
+    if (pd > 0.01 && pd < 0.72) {
+      nx = player.x + ((nx - player.x) / pd) * 0.72;
+      nz = player.z + ((nz - player.z) / pd) * 0.72;
+    }
+    // …or through each other
+    for (const o of customers) {
+      if (o === c) continue;
+      const dx = nx - o.mesh.position.x;
+      const dz = nz - o.mesh.position.z;
+      const d = Math.hypot(dx, dz);
+      if (d > 0.01 && d < 0.6) {
+        nx = o.mesh.position.x + (dx / d) * 0.6;
+        nz = o.mesh.position.z + (dz / d) * 0.6;
+      }
+    }
+    return { nx: clamp(nx, -ROOM.w / 2 + 0.4, ROOM.w / 2 - 0.4), nz: clamp(nz, -ROOM.d / 2 + 0.4, ROOM.d / 2 - 0.4) };
+  }
+
   function updateCustomers(dt) {
     // presence scales with yesterday's real traffic (x3 for liveliness)
     const targetCount = clamp(Math.round(((appRef.app.state.shop.salesYesterday.units || 2) / 8) * 3), 1, 6);
@@ -1278,27 +1343,58 @@ export function makeShopScene(renderer, appRef) {
       const c = customers[i];
       const char = c.mesh.userData.char;
       if (char) char.update(dt);
-      const target = c.stops[c.stopIdx];
-      const dx = target.x - c.mesh.position.x;
-      const dz = target.z - c.mesh.position.z;
+      const stop = c.stops[c.stopIdx];
+
+      // the counter is a queue: join it on approach, target your slot, only
+      // the head of the line gets served (linger), everyone else waits
+      let tx = stop.x;
+      let tz = stop.z;
+      if (stop.kind === 'counter') {
+        if (!c.queued) {
+          counterQueue.push(c);
+          c.queued = true;
+        }
+        const slot = queueSlot(counterQueue.indexOf(c));
+        tx = slot.x;
+        tz = slot.z;
+      }
+
+      const dx = tx - c.mesh.position.x;
+      const dz = tz - c.mesh.position.z;
       const dist = Math.hypot(dx, dz);
       if (dist < 0.15) {
-        if (c.linger > 0) {
-          if (char) char.setMode(c.stopIdx < c.stops.length - 1 ? 'Browse' : 'Idle');
+        const served = stop.kind !== 'counter' || counterQueue.indexOf(c) === 0;
+        if (!served) {
+          // waiting in line: stand patient, face the counter
+          if (char) char.setMode('Idle');
+        } else if (c.linger > 0) {
+          if (char) char.setMode(stop.kind === 'fixture' ? 'Browse' : 'Idle');
           c.linger -= dt;
         } else {
+          if (stop.kind === 'counter') leaveQueue(c);
           c.stopIdx++;
           c.linger = 1.5 + Math.random() * 3.5;
           if (c.stopIdx >= c.stops.length) {
+            leaveQueue(c);
             custGroup.remove(c.mesh);
             customers.splice(i, 1);
+            continue;
           }
+        }
+        // settle into facing the thing you're at
+        if (stop.faceX !== undefined) {
+          const want = Math.atan2(stop.faceX - c.mesh.position.x, stop.faceZ - c.mesh.position.z);
+          let dy = want - c.mesh.rotation.y;
+          while (dy > Math.PI) dy -= Math.PI * 2;
+          while (dy < -Math.PI) dy += Math.PI * 2;
+          c.mesh.rotation.y += dy * Math.min(1, dt * 6);
         }
       } else {
         if (char) char.setMode('Walk');
         const step = Math.min(dist, c.speed * dt);
-        c.mesh.position.x += (dx / dist) * step;
-        c.mesh.position.z += (dz / dist) * step;
+        const res = resolveCustomer(c, c.mesh.position.x + (dx / dist) * step, c.mesh.position.z + (dz / dist) * step);
+        c.mesh.position.x = res.nx;
+        c.mesh.position.z = res.nz;
         c.mesh.rotation.y = Math.atan2(dx, dz);
       }
     }
