@@ -1956,14 +1956,46 @@ export function makeCourseScene(canvas, state) {
   updatePlan(null);
   cartMesh = buildCartMesh(); // primitive placeholder until the real model lands
   scene.add(cartMesh);
-  new GLTFLoader().load('vendor/models/tractor.glb', (gltf) => {
-    const m = gltf.scene;
+  // the real tractor: owner-supplied model first (Assets/, matches the Designs
+  // references), the bpy-scripted one as fallback, primitives if offline
+  function adoptTractor(m, scale, flip = false) {
+    m.scale.setScalar(scale);
     m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    const wrap = new THREE.Group();
+    m.position.y = -0.1; // settle the tires into the turf on slopes
+    if (flip) m.rotation.y = Math.PI; // model authored front-toward-viewer (+Z)
+    wrap.add(m);
     scene.remove(cartMesh);
-    cartMesh = m;
+    cartMesh = wrap;
     scene.add(cartMesh);
     placeCartMesh();
-  }, undefined, () => { /* offline: the primitive stays */ });
+  }
+  new GLTFLoader().load('vendor/models/tractor_red.glb',
+    (g) => adoptTractor(g.scene, 3.6, true),
+    undefined,
+    () => new GLTFLoader().load('vendor/models/tractor.glb', (g) => adoptTractor(g.scene, 1), undefined, () => {}));
+
+  // entrance decor (owner-supplied): course sign + feather-flag poles by the club
+  {
+    const s0 = course.structures[0];
+    if (s0) {
+      const bx = (s0.x + s0.w / 2) * CELL_YD - worldW / 2;
+      const bz = (s0.y + s0.h / 2) * CELL_YD - worldH / 2;
+      const put = (url, scale, x, z, ry) => {
+        new GLTFLoader().load(url, (g) => {
+          const m = g.scene;
+          m.scale.setScalar(scale);
+          m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+          m.position.set(x, heightAt(x, z), z);
+          m.rotation.y = ry;
+          scene.add(m);
+        }, undefined, () => {});
+      };
+      put('vendor/models/course_sign.glb', 2.2, bx - 15, bz + 16, 0.5);
+      put('vendor/models/flagpole.glb', 2.6, bx - 11.5, bz + 18, 0.2);
+      put('vendor/models/flagpole.glb', 2.6, bx - 18.5, bz + 18, -0.2);
+    }
+  }
   refreshWalkColliders(); // parking needs to see the world
   parkCartAtClubhouse();
   resize();

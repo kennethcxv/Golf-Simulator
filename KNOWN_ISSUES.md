@@ -201,3 +201,17 @@ Honest deltas still open (also recorded in ASSET_SOURCES.md):
   happened and no amount of build time substitutes for it.
 - ~~CSP meta tag~~ — done (importmap hash pinned in index.html; verified in browser
   and Electron).
+
+## ASSET SESSION (2026-07-09) — status & queued work
+
+Shipped: procedural articulated characters (walk/idle/swing/browse) on course and
+shop floor; the owner-supplied red tractor as the drivable vehicle (+ scripted
+fallback); course sign + pennant flags at the clubhouse. Open: tractor drive-facing
+flip unverified mid-drive (one boolean if wrong); sign could size up toward the
+reference's stone entrance piece; skinned/Mixamo-grade characters remain future
+work (Blender 5.1 glTF skin exports arrived scattered in three r185 twice — findings
+in DEV_LOG); remaining Assets/ props await the earned-tractor MVP sequence.
+**QUEUED NEXT (superseded this session, not dropped): the UI-layout/IA session** —
+comps research (House Flipper/Two Point Hospital/Stardew/PowerWash), then minimal
+always-on HUD (cash/date/speed) with one consolidated Manage entry, weather/stats
+relocated into their management screens, contextual tool UI check.

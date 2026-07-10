@@ -1453,3 +1453,29 @@ findings for whoever picks it up).
 Verified live: a golfer frozen mid-stride (scissored legs, bent knee, opposed
 arms — qa/assets-after-golfer.png) and a browsing shop customer
 (qa/assets-after-shop-customers.png). Zero console errors.
+
+## 2026-07-09 — ASSET SESSION Tasks 3+4: the real tractor, sign, and flags
+
+Mid-session the project owner dropped 20 GLBs into Assets/ (red tractor, course
+signs, flagpole, shed, and the earned-tractor-sequence props — hose nozzle, gas can,
+rubber belt, tool chest, workbench). Task 3/4 use them: `tractor_red.glb` (scale
+×3.6, settled -0.1 into turf, flipped π — generated GLBs author front-toward-viewer)
+replaces the boxy build as the drivable vehicle, with my bpy-scripted tractor as
+offline fallback and primitives beneath that; `course_sign.glb` + two
+`flagpole.glb` pennants dress the clubhouse approach. Labels now say Tractor;
+seat eye 1.55→1.9; collision radius 0.9→1.15 for the real footprint.
+
+Honest notes: the drive-direction flip is visually confirmed parked/close-up but
+the mid-drive facing check was inconclusive under QA latency — if the tractor ever
+drives grille-backward, the fix is the one `flip` boolean (KNOWN_ISSUES). The sign
+model reads small at ×2.2; sizing it against the reference's stone entrance sign is
+a one-line tune for the next pass. Mount/drive/park verified live (the tractor
+drove under power and parked where left); before/after: qa/style-after-cart.png
+(old boxes) vs qa/assets-after-tractor.png; decor: qa/assets-after-entrance.png.
+
+## 2026-07-09 — ASSET SESSION: wrap-up
+
+Suite 176/176 (rendering only). Parked, per the superseding note: the UI-layout/IA
+session brief (minimal HUD + consolidated Manage entry, comps research first) is
+queued as the NEXT session — recorded in KNOWN_ISSUES, not dropped. Deferred UI kit
+pieces (minimap, step callouts, segmented pickers) stay deferred per the brief.

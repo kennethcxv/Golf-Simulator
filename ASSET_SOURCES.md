@@ -71,3 +71,16 @@ Reference-image direction NOT fully achievable with current assets, honestly:
   the repo (no Mixamo pipeline despite the brief's reference to one).
 - The physical Sky shader cannot reach the references' deep zenith blue at the
   bright exposure the style needs; sprite cumulus supply the cloud language.
+
+## Owner-supplied models (Assets/, 2026-07-09)
+
+20 GLBs dropped into Assets/ by the project owner mid-session (generated to match
+the Designs/ art direction; treated as project-owned, no external license).
+In use: red+tractor (as vendor/models/tractor_red.glb, the drivable tractor),
+golf+course+sign (course_sign.glb) and flagpole (flagpole.glb) at the clubhouse
+approach. The rest (shed, workbench, tool chest, gas can, hose nozzle, rake,
+rubber belt, leaves, bucket, house, carts, other signs) are staged for the
+earned-tractor MVP sequence. vendor/models/tractor.glb is an original
+bpy-scripted fallback (project-owned). The rigged-character GLB attempt failed at
+the Blender 5.1 → three r185 skin boundary and was deleted; characters are
+procedural three.js figures (src/render3d/characterAsset.js), no external assets.
