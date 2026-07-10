@@ -175,13 +175,36 @@ export function makeShopScene(renderer, appRef) {
     mullion.position.set(wx, 1.9, -ROOM.d / 2 + 0.03);
     scene.add(mullion);
   }
+  // the door swings on a real hinge — it opens for whoever walks up to it
+  // (player or customer) and closes behind them
+  const doorHinge = new THREE.Group();
+  doorHinge.position.set(-0.8, 0, ROOM.d / 2 - 0.02);
   const door = new THREE.Mesh(
     new THREE.PlaneGeometry(1.6, 2.5),
-    new THREE.MeshStandardMaterial({ color: 0x5d4a33, roughness: 0.8 }),
+    new THREE.MeshStandardMaterial({ color: 0x5d4a33, roughness: 0.8, side: THREE.DoubleSide }),
   );
-  door.position.set(0, 1.25, ROOM.d / 2 - 0.02);
+  door.position.set(0.8, 1.25, 0);
   door.rotation.y = Math.PI;
-  scene.add(door);
+  doorHinge.add(door);
+  scene.add(doorHinge);
+  let doorAngle = 0;
+
+  function updateDoor(dt) {
+    const dx = 0 - player.x;
+    const dz = ROOM.d / 2 - player.z;
+    let want = Math.hypot(dx, dz) < 2.0 ? 1 : 0;
+    if (!want) {
+      for (const c of customers) {
+        if (Math.hypot(c.mesh.position.x, ROOM.d / 2 - c.mesh.position.z) < 1.6) {
+          want = 1;
+          break;
+        }
+      }
+    }
+    const target = want * -1.65; // swings inward, out of the walkway
+    doorAngle += (target - doorAngle) * Math.min(1, dt * 6);
+    doorHinge.rotation.y = doorAngle;
+  }
 
   // course management map on the wall beside the door — the other way "out"
   const mapCanvas = document.createElement('canvas');
@@ -564,11 +587,11 @@ export function makeShopScene(renderer, appRef) {
       action: () => {
         const res = clearClutter(appRef.app.state, idx);
         if (!res.ok) return;
-        scene.remove(g);
         colliders.splice(colliders.indexOf(collider), 1);
         interactives.splice(interactives.indexOf(interactive), 1);
         const co = clutterObjs.find((c) => c.group === g);
         if (co) clutterObjs.splice(clutterObjs.indexOf(co), 1);
+        tweenScale(g, 1, 0.01, 0.2, () => scene.remove(g)); // hauled, not vanished
         repaintGrime();
         refreshCondition();
         if (appRef.audio && appRef.audio.ready) appRef.audio.thunk();
@@ -579,8 +602,23 @@ export function makeShopScene(renderer, appRef) {
     clutterObjs.push({ group: g, collider, interactive });
   }
 
+  // one-shot scale tween for interaction "moments" (place-in, haul-out)
+  function tweenScale(obj, from, to, dur, onDone) {
+    const t0 = performance.now();
+    obj.scale.setScalar(from);
+    const step = () => {
+      const t = Math.min(1, (performance.now() - t0) / (dur * 1000));
+      const e = 1 - Math.pow(1 - t, 3);
+      obj.scale.setScalar(from + (to - from) * e);
+      if (t < 1) requestAnimationFrame(step);
+      else if (onDone) onDone();
+    };
+    requestAnimationFrame(step);
+  }
+
   // --- decor: real meshes for placed items, green ghosts on free valid spots ---------
   const decorObjs = []; // { group, colliders: [], interactive|null }
+  let popNextDecor = null; // { skuId, spot } — the just-placed piece lands with a pop
   const ghostMat = new THREE.MeshBasicMaterial({
     color: 0x45d052, transparent: true, opacity: 0.32, depthWrite: false,
   });
@@ -804,6 +842,10 @@ export function makeShopScene(renderer, appRef) {
     built.group.rotation.y = spot.ry;
     if (ghost) ghostify(built.group);
     scene.add(built.group);
+    if (!ghost && popNextDecor && popNextDecor.skuId === skuId && popNextDecor.spot === spotIdx) {
+      popNextDecor = null;
+      tweenScale(built.group, 0.55, 1, 0.28); // set down with a real moment
+    }
     const entry = { group: built.group, colliders: ghost ? [] : built.colliders, interactive: null };
     for (const c of entry.colliders) colliders.push(c);
     if (ghost) {
@@ -819,6 +861,7 @@ export function makeShopScene(renderer, appRef) {
             appRef.toast(res.reason || 'Cannot place that here.', 'warn');
             return;
           }
+          popNextDecor = { skuId, spot: spotIdx };
           rebuildDecor();
           refreshCondition();
           if (appRef.audio && appRef.audio.ready) appRef.audio.thunk();
@@ -1528,6 +1571,7 @@ export function makeShopScene(renderer, appRef) {
     updateFlicker(dt);
     updateVacuum(dt);
     updateWandFeel(dt);
+    updateDoor(dt);
 
     // deliveries can land while you stand here — surface new ghosts within a second
     decorPoll += dt;

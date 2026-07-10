@@ -1969,3 +1969,20 @@ natural crossing during the sample (two golfers, different holes) — the code
 path is shared with the measured player case.
 
 Zero console errors. Suite 210/210 (render-layer only).
+
+## 2026-07-10 — OVERNIGHT PART 5: doors that swing + interaction moments
+
+Both doors are hinged geometry now, not painted-on planes: the shop door and
+the clubhouse's club-green door each sit on an edge hinge group and swing
+inward (~95°, eased at 6/s) for whoever approaches — the walking player within
+~2.2 yd, or any shop customer within 1.6 — and close behind them. Verified live
+from both sides (qa/door-open-shop.png, qa/door-open-clubhouse.png).
+
+Interaction-moment review, per the brief's "no instant state changes":
+- Already had real moments from Part 1: tools rise/stow with easing, hold-to-
+  use loops + particles, completion chimes, thunks, the mount camera blend.
+- ADDED: placed decor now lands with a set-down scale pop (0.55→1, 0.28s);
+  hauled shop clutter, yard junk, the fuel can, the belt, and course litter
+  all shrink out over 0.2s instead of blinking away (one-shot rAF tweens,
+  independent of the scene loops).
+Zero console errors. Suite 210/210.

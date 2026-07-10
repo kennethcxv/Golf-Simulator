@@ -1055,13 +1055,17 @@ export function makeCourseScene(canvas, state) {
       mkWindow(-W2 * 0.2, -D2 / 2 - 0.03, Math.PI);
       mkWindow(W2 * 0.2, -D2 / 2 - 0.03, Math.PI);
 
-      // door + step
+      // door + step — hinged, swings open as you walk up (walkUpdate drives it)
+      const doorHinge = new THREE.Group();
+      doorHinge.position.set(-0.8, 0, D2 / 2 + 0.03);
       const door = new THREE.Mesh(
         new THREE.PlaneGeometry(1.6, 2.6),
-        new THREE.MeshStandardMaterial({ color: 0x3a5a40, roughness: 0.65 }), // club-green door (§1)
+        new THREE.MeshStandardMaterial({ color: 0x3a5a40, roughness: 0.65, side: THREE.DoubleSide }), // club-green door (§1)
       );
-      door.position.set(0, 1.3, D2 / 2 + 0.03);
-      g.add(door);
+      door.position.set(0.8, 1.3, 0);
+      doorHinge.add(door);
+      g.add(doorHinge);
+      clubDoor = { hinge: doorHinge, x: wx, z: wz + D2 / 2, angle: 0 };
       const step = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.18, 0.9), trimMat);
       step.position.set(0, 0.09, D2 / 2 + 0.75);
       g.add(step);
@@ -1276,6 +1280,7 @@ export function makeCourseScene(canvas, state) {
   }
 
   let golfersFrozen = false; // QA/photography: hold the walkers still
+  let clubDoor = null; // { hinge, x, z, angle } — the clubhouse door swings for the walker
 
   function updateGolfers(dt, st) {
     if (golfersFrozen) return;
@@ -1460,6 +1465,19 @@ export function makeCourseScene(canvas, state) {
   const walkProps = []; // { x, z, r, label(), action()|null }
   const propColliders = []; // circles {x,z,r} or AABBs {minX,maxX,minZ,maxZ}
   let cartHidden = false; // the drivable tractor doesn't exist until repaired
+
+  // one-shot scale tween so removals read as hauled away, not blinked out
+  function tweenOut(obj, onDone) {
+    const t0 = performance.now();
+    const s0 = obj.scale.x;
+    const step = () => {
+      const t = Math.min(1, (performance.now() - t0) / 200);
+      obj.scale.setScalar(s0 * (1 - t) + 0.01 * t);
+      if (t < 1) requestAnimationFrame(step);
+      else if (onDone) onDone();
+    };
+    requestAnimationFrame(step);
+  }
 
   // --- the golf cart: fast traversal, shop-convention interaction ---------------------
   // Not vehicle physics — a faster movement profile with steer-to-turn handling
@@ -1912,6 +1930,15 @@ export function makeCourseScene(canvas, state) {
         fLookZ + (walk.z - fLookZ) * mb,
       );
     }
+    // the clubhouse door swings for whoever walks up and shuts behind them
+    if (clubDoor) {
+      const near = walk.active && !cart.mounted &&
+        Math.hypot(walk.x - clubDoor.x, walk.z - clubDoor.z) < 2.4;
+      const want = near ? -1.7 : 0;
+      clubDoor.angle += (want - clubDoor.angle) * Math.min(1, dt * 6);
+      clubDoor.hinge.rotation.y = clubDoor.angle;
+    }
+
     updateHeldFeel(dt);
     walkFindFocus();
 
@@ -2291,7 +2318,7 @@ export function makeCourseScene(canvas, state) {
       label: () => 'Old leaves and junk — [E] clear it out',
       action: () => {
         if (!tractorStep(state, 'cleared').ok) return;
-        if (leavesMesh) scene.remove(leavesMesh);
+        if (leavesMesh) tweenOut(leavesMesh, () => scene.remove(leavesMesh));
         walkProps.splice(walkProps.indexOf(leavesProp), 1);
         play('thunk');
         say('Junk cleared — you can get at the engine now.');
@@ -2307,7 +2334,7 @@ export function makeCourseScene(canvas, state) {
       label: () => 'Fuel can — [E] fill the tractor’s tank',
       action: () => {
         if (!tractorStep(state, 'fuel').ok) return;
-        if (canMesh) scene.remove(canMesh);
+        if (canMesh) tweenOut(canMesh, () => scene.remove(canMesh));
         walkProps.splice(walkProps.indexOf(canProp), 1);
         play('thunk');
         say('Tank filled — smells like a running machine already.');
@@ -2323,7 +2350,7 @@ export function makeCourseScene(canvas, state) {
       label: () => 'Drive belt — [E] fit it to the tractor',
       action: () => {
         if (!tractorStep(state, 'belt').ok) return;
-        if (beltMesh) scene.remove(beltMesh);
+        if (beltMesh) tweenOut(beltMesh, () => scene.remove(beltMesh));
         walkProps.splice(walkProps.indexOf(beltProp), 1);
         play('thunk');
         say('Belt on the pulleys — one pull of the starter to go.');
@@ -2375,7 +2402,7 @@ export function makeCourseScene(canvas, state) {
         label: () => 'Storm debris — [E] haul it away',
         action: () => {
           if (!clearLitter(state, idx).ok) return;
-          if (mesh) scene.remove(mesh);
+          if (mesh) tweenOut(mesh, () => scene.remove(mesh));
           walkProps.splice(walkProps.indexOf(prop), 1);
           updateTurf(state); // the flattened grass under it recovers
           if (walkHooks.sfx) walkHooks.sfx('thunk');
