@@ -1,15 +1,18 @@
-/* FAIRWAY STATE — UI chrome. Dark clubhouse-green theme, placeholder-honest. */
+/* GOLF COURSE FLIPPER — UI chrome. STYLE GUIDE §6: charcoal panels, green
+   header bars, money-green accents, solid green/red decision buttons. */
 
 :root {
-  --bg: #141d12;
-  --panel: #1e2b1a;
-  --panel-2: #253521;
-  --line: #3a4f33;
-  --text: #e8e4d8;
-  --text-dim: #a8b39c;
-  --accent: #8ed072;
-  --accent-2: #d9c98f;
-  --danger: #d84b3a;
+  --bg: #131614;
+  --panel: #16191b;
+  --panel-2: #232829;
+  --line: #363d40;
+  --text: #eef1ea;
+  --text-dim: #a9b3ab;
+  --accent: #45d052;
+  --accent-2: #45d052; /* money is GREEN in the references */
+  --header: #1f8a34;
+  --header-2: #17692a;
+  --danger: #c0392b;
   --warn: #e0a33c;
   --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
   --radius: 10px;
@@ -66,12 +69,12 @@ button {
   cursor: pointer;
 }
 
-button:hover { background: #2e4227; border-color: #4d6743; }
+button:hover { background: #2c3234; border-color: #4a5356; }
 button:active { transform: translateY(1px); }
-button.primary { background: #3c6130; border-color: #558a45; }
-button.primary:hover { background: #487539; }
-button.danger { background: #5e2a22; border-color: #8a4237; }
-button.danger:hover { background: #74352b; }
+button.primary { background: var(--header); border-color: #2ab04a; color: #fff; }
+button.primary:hover { background: #24993c; }
+button.danger { background: var(--danger); border-color: #d84b3a; color: #fff; }
+button.danger:hover { background: #d0483a; }
 button:disabled { opacity: 0.45; cursor: default; }
 button.active-tool { outline: 2px solid var(--accent); background: #33502a; }
 
@@ -128,6 +131,15 @@ input[type="range"] { accent-color: var(--accent); }
   color: var(--accent);
   letter-spacing: 0.5px;
   text-transform: uppercase;
+}
+
+/* §6: the panel's TITLE wears the green header bar (mid-panel h3s stay plain) */
+.panel > h3:first-of-type {
+  margin: -12px -12px 10px;
+  padding: 8px 12px;
+  background: linear-gradient(var(--header), var(--header-2));
+  color: #fff;
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 
 .panel .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; flex-wrap: wrap; }
@@ -329,7 +341,16 @@ input[type="range"] { accent-color: var(--accent); }
   min-width: 380px;
 }
 
-.modal h2 { margin: 0 0 14px 0; font-size: 1.2rem; color: var(--accent); }
+.modal h2 {
+  margin: -20px -24px 16px;
+  padding: 10px 24px;
+  font-size: 1.1rem;
+  color: #fff;
+  background: linear-gradient(var(--header), var(--header-2));
+  border-radius: var(--radius) var(--radius) 0 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 .modal .row { display: flex; gap: 8px; margin: 8px 0; align-items: center; }
 .modal .row button { flex: 1; }
 

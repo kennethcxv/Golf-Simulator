@@ -1347,3 +1347,24 @@ cover 3-6 yd/s), so the scene gained setGolfersFrozen(v) — an honest 3-line
 photography/QA hook alongside placeCart. Verification:
 qa/style-sbs-task4-golfer.png (frozen pink-polo golfer vs reference 8's
 foreground pair). Zero console errors.
+
+## 2026-07-09 — STYLE Task 5: the UI kit
+
+styles.css moved from the dark clubhouse-green theme to the guide's §6 kit —
+CSS-variable and rule changes only, zero markup/layout edits:
+- Neutral charcoal panels (#16191b / #232829, lines #363d40) replacing the
+  green-tinted set; body text lifted to near-white.
+- Panel titles and modal headers wear the green header bar
+  (linear-gradient #1f8a34→#17692a, white uppercase text) via
+  `.panel > h3:first-of-type` — so mid-panel section headings (Properties,
+  Ledger of deeds) stay plain, exactly like the references' panels.
+- Money is GREEN now (--accent-2 #45d052): HUD cash, listing prices, plan-bar
+  costs all inherit it — matching every reference's status cluster.
+- Decision buttons are solid fills: primary = header green, danger = red — the
+  sell confirm reads as reference 8's KEEP (green) / SELL (red) pair verbatim.
+
+Verified live: empire panel (green GOLF EMPIRE bar, mood chip, green Browse
+button), sell modal (green header, red Sell $25,500 / green Keep it), Keep-it
+interaction still closes and preserves holdings, market modal opens with Buy
+correctly gated, HUD money green. qa/style-sbs-task5-ui.png vs reference 8.
+Zero console errors; suite 176/176.
