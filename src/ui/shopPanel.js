@@ -4,7 +4,7 @@
 import { el, toast } from './ui.js';
 import { formatMoney } from '../core/utils.js';
 import { SHOP_CATALOG, LEAD_DAYS, SHELF_CAP } from '../data/shopItems.js';
-import { placeOrder, orderCost, buyRentalSets, restockShelfFromBackroom } from '../sim/shop.js';
+import { placeOrder, orderCost, buyRentalSets, restockShelfFromBackroom, shopCondition } from '../sim/shop.js';
 import { calendarOf } from '../sim/time.js';
 import { TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot } from '../sim/reservations.js';
 import { members } from '../sim/golfers.js';
@@ -39,10 +39,67 @@ export function makeShopPanel(app, handlers) {
         class: tab === 'tee' ? 'primary' : '', text: '📅 Tee sheet',
         onclick: () => { tab = 'tee'; refresh(); },
       }),
+      el('button', {
+        class: tab === 'summary' ? 'primary' : '', text: '📊 Summary',
+        onclick: () => { tab = 'summary'; refresh(); },
+      }),
     ));
     if (tab === 'tee') refreshTeeSheet(rows);
+    else if (tab === 'summary') refreshSummary(rows);
     else refreshOrders(rows);
     body.replaceChildren(...rows);
+  }
+
+  // the shop's real information hub: everything below reads live game state
+  function refreshSummary(rows) {
+    const st = app.state;
+    const shop = st.shop;
+    const cal = calendarOf(st.clock.minutes);
+
+    const cond = shopCondition(st);
+    const condWord = cond < 25 ? 'filthy' : cond < 45 ? 'grimy' : cond < 70 ? 'getting there' : cond < 90 ? 'clean' : 'showroom';
+    rows.push(el('div', { class: 'row' },
+      el('span', { class: 'status-chip', text: `🧹 Condition ${cond} — ${condWord}` }),
+      el('span', { class: 'status-chip', text: `💰 ${formatMoney(st.cash)}` }),
+    ));
+
+    // yesterday, from the REAL closed books
+    rows.push(el('h3', { text: 'Yesterday', style: 'margin-top:10px' }));
+    const sy = shop.salesYesterday || { units: 0, revenue: 0 };
+    rows.push(el('div', { class: 'row muted', text: `🛍 Shop: ${sy.units} sales · ${formatMoney(sy.revenue)}${shop.lostSalesYesterday ? ` · ${shop.lostSalesYesterday} left empty-handed` : ''}${shop.fittingsYesterday ? ` · ${shop.fittingsYesterday} fittings` : ''}` }));
+    const closed = st.ledger && st.ledger.history.length ? st.ledger.history[st.ledger.history.length - 1] : null;
+    if (closed) {
+      rows.push(el('div', { class: 'row muted', text: `📗 Books day ${closed.dayAbs}: revenue ${formatMoney(closed.revenueTotal)} · expenses ${formatMoney(closed.expenseTotal)} · net ${formatMoney(closed.net)}` }));
+      rows.push(el('div', { class: 'row muted', text: `⛳ Green fees ${formatMoney(closed.revenue.greenFees || 0)} · dues ${formatMoney(closed.revenue.dues || 0)} · shop ${formatMoney(closed.revenue.shopSales || 0)}` }));
+    }
+
+    // today's tee sheet at a glance
+    rows.push(el('h3', { text: 'Today’s tee sheet', style: 'margin-top:10px' }));
+    const sheet = daySheet(st, cal.dayAbs);
+    const booked = sheet.filter((s) => s.res && s.res.status === 'booked');
+    const played = sheet.filter((s) => s.res && s.res.status === 'played').length;
+    const next = booked.find((s) => s.minute >= cal.minuteOfDay - TEE_SHEET.dueLeadMin);
+    rows.push(el('div', { class: 'row muted', text: `${booked.length} booked · ${played} checked in${next ? ` · next: ${next.res.name} at ${fmtSlot(next.minute)}` : ' · no one else due today'}` }));
+
+    // inbound stock
+    rows.push(el('h3', { text: 'Orders inbound', style: 'margin-top:10px' }));
+    if (!shop.orders.length) {
+      rows.push(el('div', { class: 'row muted', text: 'Nothing on a truck right now.' }));
+    } else {
+      for (const o of shop.orders.slice(0, 6)) {
+        const sku = SHOP_CATALOG.find((s) => s.id === o.skuId);
+        const days = o.arrivesDay - cal.dayAbs;
+        rows.push(el('div', { class: 'row muted', text: `🚚 ${o.qty}× ${sku ? sku.name : o.skuId} — ${days <= 0 ? 'arrives today' : `${days} day${days > 1 ? 's' : ''} out`}` }));
+      }
+    }
+
+    // notable sales, straight from the shop log
+    if (shop.log && shop.log.length) {
+      rows.push(el('h3', { text: 'Notable sales', style: 'margin-top:10px' }));
+      for (const line of shop.log.slice(0, 4)) {
+        rows.push(el('div', { class: 'row muted', style: 'font-size:0.86rem', text: `🛍 ${line}` }));
+      }
+    }
   }
 
   function refreshTeeSheet(rows) {

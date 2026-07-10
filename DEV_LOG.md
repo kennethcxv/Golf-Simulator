@@ -1917,3 +1917,24 @@ Honest note: the dock overlaps the shop-view's corner chips while open (it is
 deliberately above them, transient); and the objectives/tutorial copy still
 says "open the Grounds desk (G)" etc. — hotkeys unchanged so the copy stays
 true, but a wording pass mentioning Manage is queued.
+
+## 2026-07-10 — OVERNIGHT PART 3: store systems verified end-to-end + the Summary tab
+
+New third computer tab, 📊 Summary — pure reads over live state: condition +
+wallet chips; YESTERDAY from the real closed books (ledger.history: revenue/
+expenses/net plus the green-fees/dues/shop lines) and the shop's own counters
+(sales, walked-out, fittings); TODAY'S TEE SHEET (booked / checked-in / next
+due, from daySheet + the due window); ORDERS INBOUND with per-order arrival
+countdowns; notable sales from the shop log.
+
+Then the full loop, one sitting, zero console errors
+(qa/computer-summary-tab.png):
+walked to the computer → E → ordered balls + vacuum + poster ($259, cash
+54,000→53,741) → booked a member for 9:00 → fast-forwarded: all three arrive
+through the real lead times (balls to the backroom, vacuum owned, poster
+owned) → my own 3-day jump blew past the first booking and the midnight tick
+marked it a NO-SHOW on the sheet (the system being honest) → rebooked today
+→ vacuum still cleans (condition 19→22, post-Part-1 regression check), clutter
+still hauls (→24), the poster ghost still places (→28) → at 8:20 the register
+offered the check-in and Ivy Hux paid her $32 (57,629.67→57,661.67, status
+played) → the Summary tab showed every one of those facts back. Suite 210/210.
