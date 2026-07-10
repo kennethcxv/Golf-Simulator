@@ -17,6 +17,7 @@ import { initShop, shopDailyAccrual, deliverOrdersDue, ensureShopReno } from './
 import { initReservations, ensureReservations, reservationsDailyTick } from './reservations.js';
 import { initTractor, ensureTractor } from './tractor.js';
 import { bunkerDailyMess } from './bunkers.js';
+import { initCourseProps, ensureCourseProps } from './props.js';
 import { simulateDayRounds } from './rounds.js';
 import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
 import { initTutorial } from './tutorial.js';
@@ -54,6 +55,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initShop(state);
   initReservations(state);
   initTractor(state);
+  initCourseProps(state);
   initLedger(state);
   initProgression(state);
   initTutorial(state);
@@ -172,6 +174,7 @@ export function snapshot(state) {
     shop: state.shop,
     reservations: state.reservations,
     tractor: state.tractor,
+    props: state.props,
     progression: state.progression,
     tutorial: state.tutorial,
     debtDays: state.debtDays || 0,
@@ -262,6 +265,8 @@ export function deserialize(json) {
   ensureReservations(state); // pre-booking saves gain an empty tee sheet
   if (raw.tractor) state.tractor = raw.tractor;
   ensureTractor(state, { legacyRepaired: true }); // old saves keep their working tractor
+  if (raw.props) state.props = raw.props;
+  ensureCourseProps(state); // old saves gain the litter/sign restoration props
   if (raw.progression) state.progression = raw.progression;
   else initProgression(state);
   if (raw.tutorial) state.tutorial = raw.tutorial;

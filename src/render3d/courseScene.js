@@ -20,6 +20,7 @@ import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
 import { clamp } from '../core/utils.js';
 import { tractorStep, repairTractor, tractorRemaining, STEP_LABEL } from '../sim/tractor.js';
+import { clearLitter, fixTeeSign, PROPS } from '../sim/props.js';
 import { makeCameraRig } from './cameraRig.js';
 import { makeCharacter } from './characterAsset.js';
 import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture } from './proceduralTextures.js';
@@ -1106,12 +1107,35 @@ export function makeCourseScene(canvas, state) {
     return sp;
   }
 
+  // hole furniture models (owner GLBs): loaded once, cloned per hole; clones
+  // share geometry, so the rebuild-dispose pass must skip them (sharedGeo)
+  let flagstickModel = null;
+  let teeMarkersModel = null;
+  function cloneShared(model) {
+    const c = model.clone(true);
+    c.traverse((o) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.userData.sharedGeo = true;
+      }
+    });
+    return c;
+  }
+  new GLTFLoader().load('vendor/models/flagpole.glb', (g) => {
+    flagstickModel = g.scene;
+    updateHoles();
+  }, undefined, () => {});
+  new GLTFLoader().load('vendor/models/tee_markers.glb', (g) => {
+    teeMarkersModel = g.scene;
+    updateHoles();
+  }, undefined, () => {});
+
   function updateHoles() {
     if (holeGroup) {
       scene.remove(holeGroup);
       holeGroup.traverse((o) => {
         if (o.material && o.material.map && o.material.map.isCanvasTexture) o.material.map.dispose();
-        if (o.geometry) o.geometry.dispose();
+        if (o.geometry && !o.userData.sharedGeo) o.geometry.dispose();
       });
     }
     holeGroup = new THREE.Group();
@@ -1126,31 +1150,40 @@ export function makeCourseScene(canvas, state) {
         const px = worldX(hole.pin.x);
         const pz = worldZ(hole.pin.y);
         const py = heightAt(px, pz);
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.5, 6), poleMat);
-        pole.position.set(px, py + 1.25, pz);
-        pole.castShadow = true;
-        const flagCnv = document.createElement('canvas');
-        flagCnv.width = 96;
-        flagCnv.height = 64;
-        const fc = flagCnv.getContext('2d');
-        fc.fillStyle = open ? '#d8402e' : '#8b8b8b';
-        fc.fillRect(0, 0, 96, 64);
-        fc.fillStyle = '#ffffff';
-        fc.font = '700 44px "Segoe UI", sans-serif';
-        fc.textAlign = 'center';
-        fc.textBaseline = 'middle';
-        fc.fillText(String(n), 48, 34);
-        const ftex = new THREE.CanvasTexture(flagCnv);
-        ftex.colorSpace = THREE.SRGBColorSpace;
-        const flag = new THREE.Mesh(
-          new THREE.PlaneGeometry(1.35, 0.85),
-          new THREE.MeshStandardMaterial({ map: ftex, side: THREE.DoubleSide, roughness: 0.7 }),
-        );
-        flag.position.set(px + 0.7, py + 2.12, pz);
-        flag.castShadow = true;
-        flag.userData.pole = { x: px, z: pz, y: py + 2.12 };
-        flag.userData.isFlag = true;
-        holeGroup.add(pole, flag);
+        if (open && flagstickModel) {
+          // the real flagstick (owner GLB) on every open hole
+          const stick = cloneShared(flagstickModel);
+          stick.scale.setScalar(2.7);
+          stick.position.set(px, py, pz);
+          stick.rotation.y = (n * 0.7) % 6.28; // flags don't all face one way
+          holeGroup.add(stick);
+        } else {
+          const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.5, 6), poleMat);
+          pole.position.set(px, py + 1.25, pz);
+          pole.castShadow = true;
+          const flagCnv = document.createElement('canvas');
+          flagCnv.width = 96;
+          flagCnv.height = 64;
+          const fc = flagCnv.getContext('2d');
+          fc.fillStyle = open ? '#d8402e' : '#8b8b8b';
+          fc.fillRect(0, 0, 96, 64);
+          fc.fillStyle = '#ffffff';
+          fc.font = '700 44px "Segoe UI", sans-serif';
+          fc.textAlign = 'center';
+          fc.textBaseline = 'middle';
+          fc.fillText(String(n), 48, 34);
+          const ftex = new THREE.CanvasTexture(flagCnv);
+          ftex.colorSpace = THREE.SRGBColorSpace;
+          const flag = new THREE.Mesh(
+            new THREE.PlaneGeometry(1.35, 0.85),
+            new THREE.MeshStandardMaterial({ map: ftex, side: THREE.DoubleSide, roughness: 0.7 }),
+          );
+          flag.position.set(px + 0.7, py + 2.12, pz);
+          flag.castShadow = true;
+          flag.userData.pole = { x: px, z: pz, y: py + 2.12 };
+          flag.userData.isFlag = true;
+          holeGroup.add(pole, flag);
+        }
 
         // the cup
         const cup = new THREE.Mesh(
@@ -1166,14 +1199,23 @@ export function makeCourseScene(canvas, state) {
         const tx = worldX(hole.tee.x);
         const tz = worldZ(hole.tee.y);
         const ty = heightAt(tx, tz);
-        for (const off of [-1.4, 1.4]) {
-          const mk = new THREE.Mesh(
-            new THREE.SphereGeometry(0.22, 10, 8),
-            new THREE.MeshStandardMaterial({ color: open ? 0xf2efe4 : 0x9a9a92, roughness: 0.4 }),
-          );
-          mk.position.set(tx + off, ty + 0.22, tz);
-          mk.castShadow = true;
-          holeGroup.add(mk);
+        if (open && teeMarkersModel && hole.pin) {
+          // the real tee-marker pair, set square to the line of play
+          const pair = cloneShared(teeMarkersModel);
+          pair.scale.setScalar(2.3);
+          pair.position.set(tx, ty, tz);
+          pair.rotation.y = Math.atan2(worldX(hole.pin.x) - tx, worldZ(hole.pin.y) - tz);
+          holeGroup.add(pair);
+        } else {
+          for (const off of [-1.4, 1.4]) {
+            const mk = new THREE.Mesh(
+              new THREE.SphereGeometry(0.22, 10, 8),
+              new THREE.MeshStandardMaterial({ color: open ? 0xf2efe4 : 0x9a9a92, roughness: 0.4 }),
+            );
+            mk.position.set(tx + off, ty + 0.22, tz);
+            mk.castShadow = true;
+            holeGroup.add(mk);
+          }
         }
         const label = textSprite(String(n), { w: 128, scaleW: 5 });
         label.position.set(tx, ty + 4.2, tz);
@@ -2227,6 +2269,63 @@ export function makeCourseScene(canvas, state) {
     return yard;
   }
 
+  // --- course restoration props: storm litter + the broken tee sign ------------------
+  function buildCourseProps() {
+    const props = state.props;
+    if (!props) return;
+
+    // litter piles (leaves GLB) at their seeded cells, hauled off with E
+    props.litter.forEach((pile, idx) => {
+      if (pile.cleared) return;
+      const wx = (pile.cx + 0.5) * CELL_YD - worldW / 2;
+      const wz = (pile.cy + 0.5) * CELL_YD - worldH / 2;
+      let mesh = null;
+      const prop = {
+        x: wx, z: wz, r: 2.6,
+        label: () => 'Storm debris — [E] haul it away',
+        action: () => {
+          if (!clearLitter(state, idx).ok) return;
+          if (mesh) scene.remove(mesh);
+          walkProps.splice(walkProps.indexOf(prop), 1);
+          updateTurf(state); // the flattened grass under it recovers
+          if (walkHooks.toast) walkHooks.toast('Debris hauled off — the grass under it can breathe.');
+        },
+      };
+      putModel('vendor/models/leaves_pile.glb', 1.9, wx, wz, (idx * 1.7) % 6.28, (m) => { mesh = m; });
+      walkProps.push(prop);
+    });
+
+    // the first tee's sign: broken at start, repaired for real money
+    const h0 = course.holes[0];
+    if (!h0 || !h0.tee) return;
+    const sx = (h0.tee.x + 0.5) * CELL_YD - worldW / 2 + 3.2;
+    const sz = (h0.tee.y + 0.5) * CELL_YD - worldH / 2 + 1.5;
+    let signMesh = null;
+    const placeSign = (broken) => {
+      if (signMesh) scene.remove(signMesh);
+      putModel(broken ? 'vendor/models/tee_sign_broken.glb' : 'vendor/models/course_sign.glb',
+        2.2, sx, sz, -0.5, (m) => { signMesh = m; });
+    };
+    placeSign(!props.teeSignFixed);
+    if (!props.teeSignFixed) {
+      const signProp = {
+        x: sx, z: sz, r: 2.6,
+        label: () => `Broken tee sign — [E] repair it (${PROPS.signRepairCost} dollars)`,
+        action: () => {
+          const res = fixTeeSign(state);
+          if (!res.ok) {
+            if (walkHooks.toast) walkHooks.toast(res.reason || 'Cannot repair it right now.', 'warn');
+            return;
+          }
+          placeSign(false);
+          walkProps.splice(walkProps.indexOf(signProp), 1);
+          if (walkHooks.toast) walkHooks.toast('Tee sign restored — first impressions matter.');
+        },
+      };
+      walkProps.push(signProp);
+    }
+  }
+
   // entrance decor (owner-supplied): course sign + flag poles by the club
   let yardHome = null;
   {
@@ -2240,6 +2339,7 @@ export function makeCourseScene(canvas, state) {
       yardHome = buildMaintenanceYard(bx, bz);
     }
   }
+  buildCourseProps();
   refreshWalkColliders(); // parking needs to see the world
   if (yardHome) {
     // the tractor lives at the yard, broken or not

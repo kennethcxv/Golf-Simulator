@@ -1764,3 +1764,29 @@ first cut filled a quarter of the screen (rescaled 0.5→0.38 and dropped).
 Judgment call: divot repair is spot-work (one cell), raking sweeps (cross) —
 matches how the real tools move. Tool models hide in the overview camera and
 while driving. qa/tools-sbs-task3.png. Zero console errors. Suite 206/206.
+
+## 2026-07-10 — ASSET INTEGRATION Task 4: course props + the before/after tee sign
+
+New additive module sim/props.js (TDD, 4 tests → suite 210): state.props holds
+seeded storm-litter piles (4, local rng seed^0x9d70, fairway/rough/tee cells,
+never greens) and the broken-tee-sign flag. Old saves migrate to the rundown
+state — consistent with every other fixer-upper call this session.
+
+- LITTER: leaves-pile GLB at each seeded cell, "[E] haul it away" through the
+  walk-prop system; clearing wipes 40 wear under it (the flattened grass
+  recovers) and persists. Verified live.
+- TEE SIGN: the weathered wooden+sign GLB leans by Tee 1 at game start;
+  "[E] repair it (150 dollars)" spends real money through the books ('upkeep')
+  and swaps the model in place for the upright course_sign. Verified live:
+  cash 53,854 → 53,704, the lean replaced by a straight sign on a base.
+- FLAGSTICKS: every OPEN hole's pin now carries the real flagstick GLB (striped
+  pole, red flag, base ring, ×2.7, per-hole yaw variety); closed holes keep the
+  gray primitive flag as status language. Judgment call: the numbered canvas
+  flag is gone from open pins — the tee's floating number sprite still
+  identifies holes; revert is one branch if playtests miss it.
+- TEE MARKERS: the tee_markers GLB pair (green wedges, gold golfer logo)
+  replaces the sphere pair on open tees, squared to the line of play.
+  Clone-shared geometry is guarded from updateHoles' dispose pass (sharedGeo).
+
+qa/props-sbs-task4.png (broken sign + markers / restored sign / flagstick /
+debris pile). Zero console errors. Suite 210/210.
