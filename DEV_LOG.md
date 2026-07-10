@@ -1585,3 +1585,37 @@ frame loop; not a product bug).
 
 PART 1 of the shop-restoration brief is complete and committed per task:
 condition state → vacuum → decor placement → diegetic ordering.
+
+## 2026-07-10 — SHOP RESTORATION Task 5: tee-time reservations (Part 2 begins)
+
+New ADDITIVE module sim/reservations.js — rounds.js and golfers.js untouched, as
+demanded. The tee sheet is a half-hour grid (7:00–16:30, 7-day horizon); a
+booking is its own record {day, minute, name, fee, status}. Tests came first
+(tests/reservations.test.js, 8): booking marks the slot unavailable, double-book
+refused, day/minute/horizon validation, calendar booked-vs-open, check-in pays
+exactly once, no-show expiry on the midnight tick, cancel frees the slot,
+save/load + old-save migration. Suite 199/199.
+
+Judgment calls, logged for the record:
+- FEE SNAPSHOT: the fee is frozen at booking time — hiking the green fee after
+  someone booked doesn't reprice their slot (tested). Feels fair, avoids weird
+  exploits in both directions.
+- BOOKS LINE: check-in revenue lands under the existing 'greenFees' ledger key.
+  A new category would need ledger migration for zero reader benefit; the money
+  IS a green fee. Noted in KNOWN_ISSUES: reserved rounds are additive revenue on
+  top of the statistical rounds sim — reservations model extra committed demand,
+  they don't decrement walk-in counts (that would mean touching rounds.js).
+- CHECK-IN WINDOW: due from 45 min before the slot until day's end — arriving
+  early is fine, and a slot you never claim goes no-show at midnight, visible on
+  the sheet as 💨.
+- The register interactive (already built) was EXTENDED, not replaced: with a
+  due booking it becomes "[E] check in <name> (8:00 AM tee, $32)", otherwise it
+  keeps its sales readout. A booked golfer also physically walks in and waits at
+  the counter (visual layer only — spawn keyed to the due window).
+
+Live playthrough: booked Ray Kowalski (member picker) for tomorrow 8:00 on the
+computer's Tee sheet tab → calendar shows 📌 booked · $32 with Cancel; rolled to
+7:25 next morning → register offered the check-in, Ray walked up (straight into
+my QA camera, delightfully), E collected $32 → wallet +32, ledger greenFees +32,
+status 'played', prompt reverted. Zero console errors.
+qa/shopreno-teesheet-booked.png, qa/shopreno-checkin-due.png, -paid.png.

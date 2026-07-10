@@ -6,6 +6,8 @@ import { formatMoney } from '../core/utils.js';
 import { SHOP_CATALOG, LEAD_DAYS, SHELF_CAP } from '../data/shopItems.js';
 import { placeOrder, orderCost, buyRentalSets, restockShelfFromBackroom } from '../sim/shop.js';
 import { calendarOf } from '../sim/time.js';
+import { TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot } from '../sim/reservations.js';
+import { members } from '../sim/golfers.js';
 
 const CAT_LABEL = {
   clubs: 'Clubs', balls: 'Balls', apparel: 'Apparel', accessories: 'Accessories',
@@ -19,12 +21,99 @@ export function makeShopPanel(app, handlers) {
   const root = el('div', { class: 'panel grounds-panel', style: 'display:none' },
     el('h3', { text: 'Pro Shop desk' }), body);
 
+  // the office computer's two screens: supplier orders, and the tee sheet
+  let tab = 'orders';
+  let teeDayOffset = 1; // bookings default to tomorrow — today's sheet is mostly gone by open
+  let teeName = '';
+
   function refresh() {
     const st = app.state;
     if (!st || !st.shop) return;
+    const rows = [];
+    rows.push(el('div', { class: 'row' },
+      el('button', {
+        class: tab === 'orders' ? 'primary' : '', text: '🛒 Supplier orders',
+        onclick: () => { tab = 'orders'; refresh(); },
+      }),
+      el('button', {
+        class: tab === 'tee' ? 'primary' : '', text: '📅 Tee sheet',
+        onclick: () => { tab = 'tee'; refresh(); },
+      }),
+    ));
+    if (tab === 'tee') refreshTeeSheet(rows);
+    else refreshOrders(rows);
+    body.replaceChildren(...rows);
+  }
+
+  function refreshTeeSheet(rows) {
+    const st = app.state;
+    const todayAbs = calendarOf(st.clock.minutes).dayAbs;
+    const day = todayAbs + teeDayOffset;
+
+    const dayBtns = [];
+    for (let off = 0; off <= TEE_SHEET.horizonDays; off++) {
+      dayBtns.push(el('button', {
+        class: off === teeDayOffset ? 'primary' : '',
+        text: off === 0 ? 'Today' : off === 1 ? 'Tomorrow' : `+${off}d`,
+        style: 'padding:3px 8px;font-size:0.84rem',
+        onclick: () => { teeDayOffset = off; refresh(); },
+      }));
+    }
+    rows.push(el('div', { class: 'row', style: 'flex-wrap:wrap;gap:4px' }, ...dayBtns));
+
+    // who is the booking for — members by name, or a walk-in guest
+    const ms = members(st);
+    const nameSel = el('select', { onchange: (e) => { teeName = e.target.value; } },
+      el('option', { value: '', text: 'Walk-in guest' }),
+      ...ms.slice(0, 14).map((m) => el('option', { value: m.name, text: `${m.name} (member)` })),
+    );
+    nameSel.value = teeName;
+    rows.push(el('div', { class: 'row' },
+      el('strong', { text: 'Book for', style: 'width:80px' }), nameSel,
+      el('span', { class: 'muted', text: `green fee ${formatMoney(st.club.greenFee)} at check-in` }),
+    ));
+
+    const sheet = daySheet(st, day);
+    const booked = sheet.filter((s) => s.res).length;
+    rows.push(el('div', { class: 'row muted', text: `${booked}/${sheet.length} slots booked · payment collected at the counter when they arrive` }));
+
+    const nowMin = calendarOf(st.clock.minutes).minuteOfDay;
+    for (const slot of sheet) {
+      const gone = teeDayOffset === 0 && slot.minute < nowMin;
+      const cells = [el('strong', { text: fmtSlot(slot.minute), style: 'width:76px' })];
+      if (slot.res) {
+        const r = slot.res;
+        const chip = r.status === 'booked' ? '📌 booked' : r.status === 'played' ? '✅ checked in' : r.status === 'noShow' ? '💨 no-show' : r.status;
+        cells.push(el('span', { text: `${r.name}`, style: 'flex:1' }));
+        cells.push(el('span', { class: 'status-chip', text: `${chip} · ${formatMoney(r.fee)}` }));
+        if (r.status === 'booked') {
+          cells.push(el('button', {
+            text: 'Cancel', style: 'padding:2px 8px;font-size:0.82rem',
+            onclick: () => { cancelReservation(st, r.id); refresh(); },
+          }));
+        }
+      } else if (gone) {
+        cells.push(el('span', { class: 'muted', text: 'gone by', style: 'flex:1' }));
+      } else {
+        cells.push(el('span', { class: 'muted', text: 'open', style: 'flex:1' }));
+        cells.push(el('button', {
+          text: 'Book', style: 'padding:2px 10px;font-size:0.82rem',
+          onclick: () => {
+            const name = teeName || 'Walk-in guest';
+            const res = bookSlot(st, day, slot.minute, name);
+            toast(res.ok ? `${name} booked for ${fmtSlot(slot.minute)}.` : res.reason, res.ok ? '' : 'warn');
+            refresh();
+          },
+        }));
+      }
+      rows.push(el('div', { class: 'row', style: 'font-size:0.88rem' }, ...cells));
+    }
+  }
+
+  function refreshOrders(rows) {
+    const st = app.state;
     const shop = st.shop;
     const dayAbs = calendarOf(st.clock.minutes).dayAbs;
-    const rows = [];
 
     rows.push(el('div', { class: 'row' },
       el('button', { class: 'primary', text: '🚶 Walk the floor (P)', onclick: () => handlers.enterShop() }),
@@ -128,8 +217,6 @@ export function makeShopPanel(app, handlers) {
         rows.push(el('div', { class: 'row muted', style: 'font-size:0.86rem', text: `🛍 ${line}` }));
       }
     }
-
-    body.replaceChildren(...rows);
   }
 
   function setVisible(v) {

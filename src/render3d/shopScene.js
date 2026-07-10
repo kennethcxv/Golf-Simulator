@@ -9,6 +9,7 @@ import { clamp } from '../core/utils.js';
 import { makeCharacter } from './characterAsset.js';
 import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import { restockShelfFromBackroom, RENO, shopCondition, clearClutter, cleanGrimeAt, placeDecor } from '../sim/shop.js';
+import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
 import { makeWoodTexture, makePlasterTexture } from './proceduralTextures.js';
 import { rngOf } from '../core/utils.js';
 
@@ -343,11 +344,28 @@ export function makeShopScene(renderer, appRef) {
     kind: 'counter',
     point: new THREE.Vector3(ROOM.w / 2 - 1.3, 1.1, 1.4),
     label: () => {
-      const s = appRef.app.state.shop;
+      const st = appRef.app.state;
+      // a booked golfer standing at the counter takes over the register
+      const due = dueForCheckIn(st);
+      if (due.length) {
+        const r = due[0];
+        return `Register — [E] check in ${r.name} (${fmtSlot(r.minute)} tee, ${Math.round(r.fee)} dollars)` +
+          (due.length > 1 ? ` · ${due.length - 1} more waiting` : '');
+      }
+      const s = st.shop;
       return `Register — yesterday: ${s.salesYesterday.units} sales, ${s.salesYesterday.revenue} dollars` +
         (s.lostSalesYesterday ? ` · ${s.lostSalesYesterday} walked out empty-handed` : '');
     },
-    action: () => {},
+    action: () => {
+      const st = appRef.app.state;
+      const due = dueForCheckIn(st);
+      if (!due.length) return;
+      const res = checkInReservation(st, due[0].id);
+      if (res.ok) {
+        appRef.toast(`${due[0].name} checked in — ${Math.round(res.fee)} dollar green fee collected.`);
+        if (appRef.audio && appRef.audio.ready) appRef.audio.doorbell();
+      }
+    },
   });
 
   // office computer on the counter — the diegetic door into the supplier/order
@@ -978,7 +996,7 @@ export function makeShopScene(renderer, appRef) {
   scene.add(custGroup);
   const CUST_COLORS = [0x3b6fb3, 0x2c3e66, 0xd98bb0, 0xd97538, 0x3f7a34]; // §5 polo palette
 
-  function spawnCustomer() {
+  function spawnCustomer(toCounter = false) {
     const rng = rngOf(appRef.app.state);
     const char = makeCharacter({
       polo: CUST_COLORS[rng.int(CUST_COLORS.length)],
@@ -994,6 +1012,13 @@ export function makeShopScene(renderer, appRef) {
     if (appRef.audio && appRef.audio.ready) appRef.audio.doorbell();
 
     const stops = [];
+    if (toCounter) {
+      // a booked golfer: straight to the register, a long patient wait, then out
+      stops.push(new THREE.Vector3(ROOM.w / 2 - 2.6, 0, 1.4));
+      stops.push(new THREE.Vector3(0, 0, ROOM.d / 2 - 0.6));
+      customers.push({ mesh: g, stops, stopIdx: 0, linger: 26 + rng.next() * 10, speed: 1.15 });
+      return;
+    }
     const nStops = 1 + rng.int(2);
     for (let i = 0; i < nStops; i++) {
       const f = FIXTURES[rng.int(FIXTURES.length)];
@@ -1004,6 +1029,18 @@ export function makeShopScene(renderer, appRef) {
     stops.push(new THREE.Vector3(0, 0, ROOM.d / 2 - 0.6)); // door
 
     customers.push({ mesh: g, stops, stopIdx: 0, linger: 2 + rng.next() * 4, speed: 1.1 + rng.next() * 0.5 });
+  }
+
+  // booked golfers physically show up around their slot (visual layer only)
+  const arrivedResIds = new Set();
+  function updateArrivals() {
+    const st = appRef.app.state;
+    if (!st || !st.reservations) return;
+    for (const r of dueForCheckIn(st)) {
+      if (arrivedResIds.has(r.id)) continue;
+      arrivedResIds.add(r.id);
+      spawnCustomer(true);
+    }
   }
 
   function updateCustomers(dt) {
@@ -1172,6 +1209,7 @@ export function makeShopScene(renderer, appRef) {
     decorPoll += dt;
     if (decorPoll > 1.1) {
       decorPoll = 0;
+      updateArrivals();
       const sig = decorSignature();
       if (sig !== decorSig) {
         decorSig = sig;
