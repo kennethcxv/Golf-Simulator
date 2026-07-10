@@ -1089,7 +1089,7 @@ function boot() {
   }, 250);
 
   gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, empirePanel.root, shopOverlay, walkOverlay, objectivesPanel.root, viewToggle,
-    el('div', { class: 'hint-bar', text: 'Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · C: Club · M: Empire · V: view · Space: pause · Esc/P: back to shop' }));
+    el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · C: Club · M: Empire · V: view · Space: pause · Tab/Esc: back on foot · P: shop' }));
 
   uiRoot.append(menu.root, gameUi);
   requestAnimationFrame(frame);

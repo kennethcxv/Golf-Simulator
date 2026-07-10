@@ -1077,3 +1077,39 @@ untouched; the live prompt tracked 20 → 68 → 100 while holding; the top-down
 moisture view shows the watered plus-shape blue inside the pale dry square
 (w4c-moisture-view.png — the money shot); E-inspect over the patch opens the real
 panel (Details → Moisture 85 section average). Zero console errors or warnings.
+
+## 2026-07-09 — WALKABLE COURSE Task 5: the default course experience
+
+Stepping out the pro-shop door now lands you ON the course, on foot, at the door —
+verified through the actual door interactable, not just the P shortcut. The full loop
+runs clean end to end: shop door → walk → take the cart, drive, park it → walk up to
+turf, read the prompt, E-inspect → pull the hose, water a patch → P back onto the
+shop floor.
+
+**Judgment calls, with reasoning:**
+
+- **The overview rig survives as a management camera, one Tab away.** Course Works
+  genuinely needs it until the walkable terrain-editing redesign lands (an explicitly
+  deferred design problem, per the brief — now recorded in KNOWN_ISSUES). Triggering
+  Works from on foot (HUD button or any path) shows the honest notice: "Course Works
+  is being redesigned for the walkable course. For now, press Tab for the overview
+  camera and edit from there." — and refuses to half-open. Nothing silently breaks;
+  nothing pretends.
+- **Esc hierarchy**: on foot, Esc follows the shop convention (release pointer, then
+  office menu). In the overview, Esc returns you to your feet. P is always the shop.
+- **Golfer NPCs share the walkable space by construction** — same scene, same
+  heightAt terrain, no changes needed. QA counted 9 wandering capsule golfers around
+  the player at noon; the sim also honestly despawned every one of them at a wrecked
+  course in winter (lastRounds → 0 target), which is why the QA staged a busier day
+  to photograph them. No player-golfer collision at v1 — they're ghosts you share
+  ground with, logged in KNOWN_ISSUES.
+- The overview hint bar now says what it is ("Overview camera — … Tab/Esc: back on
+  foot") so the demoted mode can't be mistaken for the game.
+
+Browser QA end-to-end (one continuous session, Tamarack Ridge): Continue → shop →
+E at the door → walking at the clubhouse; walked 4.1 yd, cart prompt → mounted →
+drove → parked; fairway prompt → E panel (Fairway 2 · a) → Esc; F hose → watered
+(the saturated winter fairway held at 100, the differential was proven in Task 4) →
+F away; Works button → placeholder toast, works mode stayed off; golfers staged and
+photographed sharing the course; P → back on the shop floor, walk mode cleanly torn
+down. ZERO console errors or warnings across the entire walkable-course QA session.
