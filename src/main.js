@@ -208,6 +208,7 @@ function startGame(state) {
   // walk-up inspection: the walking controller asks, the app answers with the
   // same sections and status words the top-down click-to-inspect always used
   app.scene3d.walk.hooks.toast = (msg) => toast(msg);
+  app.scene3d.walk.hooks.sfx = (name) => { if (audio.ready && audio[name]) audio[name](); };
   app.scene3d.walk.hooks.turfLabelAt = (cx, cy) => {
     const section = sectionAtCell(cx, cy);
     if (!section) return null;
@@ -258,7 +259,10 @@ function startGame(state) {
     const section = sectionAtCell(cx, cy);
     if (!section || !TURF_ZONES.has(section.zone)) return;
     const i = cy * st.course.w + cx;
-    st.turf.wear[i] = Math.max(0, st.turf.wear[i] - 45 * dtSec);
+    const before = st.turf.wear[i];
+    st.turf.wear[i] = Math.max(0, before - 45 * dtSec);
+    // the completion moment: this patch just came smooth
+    if (before > 1 && st.turf.wear[i] <= 0.01 && audio.ready) audio.chime();
   };
   app.scene3d.walk.hooks.divotLabelAt = (cx, cy) => {
     const st = app.state;
@@ -282,7 +286,9 @@ function startGame(state) {
       if (x < 0 || y < 0 || x >= st.course.w || y >= st.course.h) return;
       const i = y * st.course.w + x;
       if (st.course.zones[i] !== ZONE.BUNKER) return;
-      st.turf.wear[i] = Math.max(0, st.turf.wear[i] - 55 * dtSec * frac);
+      const before = st.turf.wear[i];
+      st.turf.wear[i] = Math.max(0, before - 55 * dtSec * frac);
+      if (frac === 1 && before > 1 && st.turf.wear[i] <= 0.01 && audio.ready) audio.chime();
     };
     sweep(cx, cy, 1);
     sweep(cx + 1, cy, 0.5);
@@ -723,6 +729,7 @@ canvas.addEventListener('pointerdown', (e) => {
     // holding the button runs the vacuum, exactly like the hose outside
     if (e.button === 0 && app.shopScene && app.shopScene.getTool() === 'vacuum') {
       app.shopScene.setVacuuming(true);
+      if (audio.ready) audio.setToolLoop('vacuum');
     }
     return;
   }
@@ -731,6 +738,7 @@ canvas.addEventListener('pointerdown', (e) => {
     // walking with any tool out: the held button is the use trigger
     if (e.button === 0 && walkActive() && app.scene3d.walk.getTool()) {
       app.scene3d.walk.setSpraying(true);
+      if (audio.ready) audio.setToolLoop(app.scene3d.walk.getTool());
     }
     return;
   }
@@ -789,6 +797,7 @@ canvas.addEventListener('pointermove', (e) => {
 window.addEventListener('pointerup', () => {
   if (walkActive() && app.scene3d.walk.isSpraying()) app.scene3d.walk.setSpraying(false);
   if (app.view === 'shop3d' && app.shopScene && app.shopScene.isVacuuming()) app.shopScene.setVacuuming(false);
+  if (audio.ready) audio.setToolLoop(null);
 });
 
 canvas.addEventListener('pointerup', () => {
@@ -833,9 +842,11 @@ window.addEventListener('keydown', (e) => {
         // the vacuum follows the course hose convention: F equips, LMB uses
         if (app.shopScene.getTool() === 'vacuum') {
           app.shopScene.setTool(null);
+          if (audio.ready) audio.equipTick();
           toast('Vacuum stowed.');
         } else if (app.state && vacuumOwned(app.state)) {
           app.shopScene.setTool('vacuum');
+          if (audio.ready) audio.equipTick();
           toast('Vacuum out — hold the mouse button and work the dirty patches.');
         } else {
           toast('No vacuum here yet — order one from the Shop desk.', 'warn');
@@ -873,6 +884,7 @@ window.addEventListener('keydown', (e) => {
           const belt = [null, 'hose', 'divot', 'rake'];
           const next = belt[(belt.indexOf(walkApi.getTool()) + 1) % belt.length];
           walkApi.setTool(next);
+          if (audio.ready) audio.equipTick();
           toast(next === 'hose' ? 'Hose out — hold the mouse button to water.'
             : next === 'divot' ? 'Divot kit out — hold the button on worn turf.'
             : next === 'rake' ? 'Bunker rake out — hold the button on footprinted sand.'
@@ -1047,6 +1059,7 @@ function frame(ts) {
 
 const CONDITION_WORD = (c) =>
   c < 25 ? 'filthy' : c < 45 ? 'grimy' : c < 70 ? 'getting there' : c < 90 ? 'clean' : 'showroom';
+let lastCondWord = null;
 
 function updateShopOverlay() {
   const prompt = shopOverlay.querySelector('.shop-prompt');
@@ -1056,7 +1069,11 @@ function updateShopOverlay() {
   const cond = shopOverlay.querySelector('.shop-cond');
   if (app.state && app.state.shop) {
     const c = shopCondition(app.state);
-    cond.textContent = `🧹 Shop condition ${c} — ${CONDITION_WORD(c)}`;
+    const word = CONDITION_WORD(c);
+    cond.textContent = `🧹 Shop condition ${c} — ${word}`;
+    // milestone moment: the shop's read just improved a whole tier
+    if (lastCondWord && word !== lastCondWord && c >= 25 && audio.ready) audio.chime();
+    lastCondWord = word;
   }
   const lockHint = shopOverlay.querySelector('.shop-lockhint');
   lockHint.style.display = document.pointerLockElement ? 'none' : '';

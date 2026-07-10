@@ -1566,6 +1566,34 @@ export function makeCourseScene(canvas, state) {
     rake: { color: 0xd8c08c, size: 0.05 },  // kicked sand
   };
 
+  // tool FEEL: equip/stow easing + a carried bob synced to the gait, so tools
+  // read as held in hands rather than glued to the camera
+  const heldAnim = { t: 1, show: false, pendingHide: false };
+  let bobPhase = 0;
+  let walkMoving = false;
+  let mountBlend = 0; // 0 = on foot (first person) … 1 = in the seat (chase cam)
+  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+  function updateHeldFeel(dt) {
+    if (!heldRoot.visible) return;
+    heldAnim.t = Math.min(1, heldAnim.t + dt / 0.26);
+    const k = heldAnim.show ? easeOutCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t);
+    if (!heldAnim.show && heldAnim.t >= 1) {
+      heldRoot.visible = false;
+      return;
+    }
+    // gait-synced bob: strong under way, a slow breathe at rest
+    bobPhase += dt * (walkMoving ? 8.7 : 1.6); // 8.7 = the characters' stride rate
+    const sway = walkMoving ? 1 : 0.25;
+    heldRoot.position.set(
+      Math.cos(bobPhase * 0.5) * 0.01 * sway,
+      -0.42 * (1 - k) + Math.sin(bobPhase) * 0.014 * sway,
+      0,
+    );
+    heldRoot.rotation.x = 0.45 * (1 - k);
+    heldRoot.rotation.z = Math.sin(bobPhase * 0.5) * 0.012 * sway;
+  }
+
   const sprayCount = 90;
   const sprayPositions = new Float32Array(sprayCount * 3);
   const sprayGeo = new THREE.BufferGeometry();
@@ -1597,7 +1625,14 @@ export function makeCourseScene(canvas, state) {
   function walkSetTool(tool) {
     walkTool = tool;
     for (const [name, g] of Object.entries(heldGroups)) g.visible = name === tool;
-    heldRoot.visible = !!tool;
+    if (tool) {
+      heldRoot.visible = true;
+      heldAnim.show = true;
+      heldAnim.t = 0; // rise into the hands
+    } else if (heldRoot.visible) {
+      heldAnim.show = false;
+      heldAnim.t = 0; // drop away, then hide
+    }
     if (tool && TOOL_SPRAY[tool]) {
       sprayPoints.material.color.set(TOOL_SPRAY[tool].color);
       sprayPoints.material.size = TOOL_SPRAY[tool].size;
@@ -1778,6 +1813,7 @@ export function makeCourseScene(canvas, state) {
     if (walkHeld.has('arrowdown')) walk.pitch = clamp(walk.pitch - 1.3 * dt, -1.35, 1.35);
 
     if (cart.mounted) {
+      walkMoving = false; // hands on the wheel
       // cart handling: W/S throttle along the heading, A/D steer — no strafing
       const throttle = (walkHeld.has('w') ? 1 : 0) - (walkHeld.has('s') ? 1 : 0);
       const steer = (walkHeld.has('a') ? 1 : 0) - (walkHeld.has('d') ? 1 : 0);
@@ -1803,6 +1839,7 @@ export function makeCourseScene(canvas, state) {
       if (walkHeld.has('s')) mz += 1;
       if (walkHeld.has('a')) mx -= 1;
       if (walkHeld.has('d')) mx += 1;
+      walkMoving = !!(mx || mz);
       if (mx || mz) {
         const len = Math.hypot(mx, mz);
         const s = (walk.speed * run * dt) / len;
@@ -1812,23 +1849,41 @@ export function makeCourseScene(canvas, state) {
       }
     }
 
-    if (cart.mounted) {
-      // third-person chase camera while driving: behind and above the tractor,
-      // pulled in when terrain or the world edge would swallow the view
+    // camera: first-person on foot, third-person chase in the seat — EASED
+    // between the two so mounting reads as a real transition, not a cut
+    mountBlend = clamp(mountBlend + (cart.mounted ? 1 : -1) * (dt / 0.45), 0, 1);
+    const mb = mountBlend * mountBlend * (3 - 2 * mountBlend);
+    const groundY = heightAt(walk.x, walk.z);
+    if (mb <= 0.001) {
+      camera.position.set(walk.x, groundY + walk.eye, walk.z);
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = walk.yaw;
+      camera.rotation.x = walk.pitch;
+    } else {
+      const cosP = Math.cos(walk.pitch);
+      const fpx = walk.x;
+      const fpy = groundY + (cart.mounted ? cart.eye : walk.eye);
+      const fpz = walk.z;
+      const fLookX = fpx - Math.sin(walk.yaw) * 6 * cosP;
+      const fLookY = fpy + Math.sin(walk.pitch) * 6;
+      const fLookZ = fpz - Math.cos(walk.yaw) * 6 * cosP;
       const back = 8.5;
       const up = 4.0;
       const cx = walk.x + Math.sin(walk.yaw) * back;
       const cz = walk.z + Math.cos(walk.yaw) * back;
-      const groundY = heightAt(walk.x, walk.z);
       const cy = Math.max(heightAt(cx, cz) + 1.4, groundY + up);
-      camera.position.set(cx, cy, cz);
-      camera.lookAt(walk.x, groundY + 1.7, walk.z);
-    } else {
-      camera.position.set(walk.x, heightAt(walk.x, walk.z) + walk.eye, walk.z);
-      camera.rotation.order = 'YXZ';
-      camera.rotation.y = walk.yaw;
-      camera.rotation.x = walk.pitch;
+      camera.position.set(
+        fpx + (cx - fpx) * mb,
+        fpy + (cy - fpy) * mb,
+        fpz + (cz - fpz) * mb,
+      );
+      camera.lookAt(
+        fLookX + (walk.x - fLookX) * mb,
+        fLookY + (groundY + 1.7 - fLookY) * mb,
+        fLookZ + (walk.z - fLookZ) * mb,
+      );
     }
+    updateHeldFeel(dt);
     walkFindFocus();
 
     // hold-to-use: each tool writes through its hook, with the same live
@@ -2198,6 +2253,7 @@ export function makeCourseScene(canvas, state) {
     });
 
     const say = (msg) => { if (walkHooks.toast) walkHooks.toast(msg); };
+    const play = (n) => { if (walkHooks.sfx) walkHooks.sfx(n); };
 
     // chore 1: the junk heaped against it
     let leavesMesh = null;
@@ -2208,6 +2264,7 @@ export function makeCourseScene(canvas, state) {
         if (!tractorStep(state, 'cleared').ok) return;
         if (leavesMesh) scene.remove(leavesMesh);
         walkProps.splice(walkProps.indexOf(leavesProp), 1);
+        play('thunk');
         say('Junk cleared — you can get at the engine now.');
       },
     };
@@ -2223,6 +2280,7 @@ export function makeCourseScene(canvas, state) {
         if (!tractorStep(state, 'fuel').ok) return;
         if (canMesh) scene.remove(canMesh);
         walkProps.splice(walkProps.indexOf(canProp), 1);
+        play('thunk');
         say('Tank filled — smells like a running machine already.');
       },
     };
@@ -2238,6 +2296,7 @@ export function makeCourseScene(canvas, state) {
         if (!tractorStep(state, 'belt').ok) return;
         if (beltMesh) scene.remove(beltMesh);
         walkProps.splice(walkProps.indexOf(beltProp), 1);
+        play('thunk');
         say('Belt on the pulleys — one pull of the starter to go.');
       },
     };
@@ -2263,6 +2322,7 @@ export function makeCourseScene(canvas, state) {
         cartHidden = false;
         placeCartMesh();
         attachMower();
+        play('chime');
         say('She lives! The tractor is yours — mower deck hitched. [E] to take the wheel.');
       },
     };
@@ -2289,6 +2349,7 @@ export function makeCourseScene(canvas, state) {
           if (mesh) scene.remove(mesh);
           walkProps.splice(walkProps.indexOf(prop), 1);
           updateTurf(state); // the flattened grass under it recovers
+          if (walkHooks.sfx) walkHooks.sfx('thunk');
           if (walkHooks.toast) walkHooks.toast('Debris hauled off — the grass under it can breathe.');
         },
       };
@@ -2320,6 +2381,7 @@ export function makeCourseScene(canvas, state) {
           }
           placeSign(false);
           walkProps.splice(walkProps.indexOf(signProp), 1);
+          if (walkHooks.sfx) walkHooks.sfx('chime');
           if (walkHooks.toast) walkHooks.toast('Tee sign restored — first impressions matter.');
         },
       };

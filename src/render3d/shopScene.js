@@ -571,6 +571,7 @@ export function makeShopScene(renderer, appRef) {
         if (co) clutterObjs.splice(clutterObjs.indexOf(co), 1);
         repaintGrime();
         refreshCondition();
+        if (appRef.audio && appRef.audio.ready) appRef.audio.thunk();
         appRef.toast('Hauled a pile of junk out the back.');
       },
     };
@@ -820,6 +821,7 @@ export function makeShopScene(renderer, appRef) {
           }
           rebuildDecor();
           refreshCondition();
+          if (appRef.audio && appRef.audio.ready) appRef.audio.thunk();
           appRef.toast(`${sku.name} placed — the shop is coming together.`);
         },
       };
@@ -963,10 +965,41 @@ export function makeShopScene(renderer, appRef) {
     z: player.z - Math.cos(player.yaw) * 1.15,
   });
 
+  // equip easing + a small carried bob — same feel language as the course tools
+  const wandAnim = { t: 1, show: false };
+  let wandBob = 0;
+
   function setTool(t) {
     tool = t;
-    wand.visible = tool === 'vacuum';
+    if (tool === 'vacuum') {
+      wand.visible = true;
+      wandAnim.show = true;
+      wandAnim.t = 0;
+    } else if (wand.visible) {
+      wandAnim.show = false;
+      wandAnim.t = 0;
+    }
     if (!tool) { vacuuming = false; motes.visible = false; }
+  }
+
+  function updateWandFeel(dt) {
+    if (!wand.visible) return;
+    wandAnim.t = Math.min(1, wandAnim.t + dt / 0.24);
+    const e = 1 - Math.pow(1 - wandAnim.t, 3);
+    const k = wandAnim.show ? e : 1 - e;
+    if (!wandAnim.show && wandAnim.t >= 1) {
+      wand.visible = false;
+      return;
+    }
+    const moving = held.has('w') || held.has('a') || held.has('s') || held.has('d');
+    wandBob += dt * (moving ? 8.7 : 1.6);
+    const sway = moving ? 1 : 0.25;
+    wand.position.set(
+      0.34 + Math.cos(wandBob * 0.5) * 0.008 * sway,
+      -0.42 - 0.34 * (1 - k) + Math.sin(wandBob) * 0.011 * sway,
+      -0.7,
+    );
+    wand.rotation.x = 0.4 * (1 - k);
   }
 
   function setVacuuming(v) {
@@ -1398,6 +1431,7 @@ export function makeShopScene(renderer, appRef) {
     updateCustomers(dt);
     updateFlicker(dt);
     updateVacuum(dt);
+    updateWandFeel(dt);
 
     // deliveries can land while you stand here — surface new ghosts within a second
     decorPoll += dt;

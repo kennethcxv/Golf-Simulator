@@ -1825,3 +1825,35 @@ runtime names and honest status (house: evaluated, kept out; cart: staged);
 TESTING_CHECKLIST gained both 2026-07-10 sections; README controls/status match
 reality. Suite 210/210. Next per the overnight brief: PART 1 (tool feel), after
 the mandated DEV_LOG/KNOWN_ISSUES re-read.
+
+## 2026-07-10 — OVERNIGHT PART 1: tool feel (easing, sway, pacing, audio)
+
+BEFORE this pass: tools popped into the hands instantly and hung frozen on the
+camera; mounting the tractor CUT from first person to the chase cam in one
+frame; panels/modals appeared with no transition; tools were silent.
+
+AFTER, all verified live (qa/feel-equip-rise.png mid-rise, qa/feel-mount-blend
+.png settled chase pose, zero console errors):
+- EQUIP/STOW EASING: held tools rise into the hands over 0.26s (ease-out cubic,
+  from 0.42 below with a 0.45-rad forward tilt) and drop away on stow before
+  hiding; the shop vacuum wand does the same at 0.24s.
+- CARRIED BOB: held tools breathe at rest and bob at the characters' actual
+  stride rate (8.7 rad/s — the same constant the walk cycle uses) with a small
+  lateral sway, so they read carried, not glued.
+- MOUNT/DISMOUNT BLEND: a 0.45s smoothstep now slides the camera between the
+  first-person eye and the chase pose, positions and look targets both lerped;
+  dismounting eases back the same way.
+- UI: panels and modals ease in with the same 0.16s pop the toasts already had.
+- FEEDBACK PACING, reviewed per the FS/PowerWash principle (gradual progress +
+  a clear completion): divot/rake drain shows live counters and now lands a
+  two-note CHIME the moment a patch crosses to smooth; hauls/fits/placements
+  land a low THUNK; the tractor repair and tee-sign restore chime; the shop's
+  condition-tier changes (filthy→grimy→…) chime once per tier climb.
+- TOOL AUDIO on the existing procedural WebAudio: equip click; per-tool in-use
+  LOOPS (hose = bandpassed hiss, vacuum = lowpassed noise + 72Hz saw hum,
+  divot/rake = LFO-pulsed granular scrapes) crossfaded via setToolLoop on the
+  hold/release triggers. HONEST CAVEAT: loops/one-shots are code-reviewed and
+  error-free live, but automation can't hear — first human playthrough should
+  confirm levels (all routed through the existing sfx bus + master volume).
+
+Suite 210/210 (feel pass touches render/audio/CSS only).

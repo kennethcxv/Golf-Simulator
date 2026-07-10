@@ -150,6 +150,117 @@ export function makeAudio() {
     osc.stop(t0 + 0.06);
   }
 
+  // --- hand-tool audio (same procedural language as everything above) ------------
+
+  // equip/stow: a soft short "click-whup"
+  function equipTick() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(340, t0);
+    osc.frequency.exponentialRampToValueAtTime(210, t0 + 0.07);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.06, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.1);
+  }
+
+  // a job finished: gentle two-note completion chime
+  function chime() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    for (const [freq, at] of [[660, 0], [880, 0.11]]) {
+      const osc = ctx.createOscillator();
+      osc.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t0 + at);
+      g.gain.linearRampToValueAtTime(0.06, t0 + at + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.3);
+      osc.connect(g).connect(sfxBus);
+      osc.start(t0 + at);
+      osc.stop(t0 + at + 0.35);
+    }
+  }
+
+  // something heavy set down / hauled off: low noise thump
+  function thunk() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, t0);
+    osc.frequency.exponentialRampToValueAtTime(58, t0 + 0.1);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.14, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.18);
+  }
+
+  // continuous in-use loops, one per tool, crossfaded by setToolLoop(kind|null)
+  const toolLoops = {}; // kind -> gain node
+  function ensureToolLoop(kind) {
+    if (!ctx || toolLoops[kind]) return toolLoops[kind];
+    const noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const nd = noiseBuf.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    src.loop = true;
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    if (kind === 'hose') {
+      filter.type = 'bandpass';
+      filter.frequency.value = 1500;
+      filter.Q.value = 0.8;
+      src.connect(filter).connect(gain);
+    } else if (kind === 'vacuum') {
+      filter.type = 'lowpass';
+      filter.frequency.value = 340;
+      src.connect(filter).connect(gain);
+      const hum = ctx.createOscillator();
+      hum.type = 'sawtooth';
+      hum.frequency.value = 72;
+      const humLp = ctx.createBiquadFilter();
+      humLp.type = 'lowpass';
+      humLp.frequency.value = 240;
+      hum.connect(humLp).connect(gain);
+      hum.start();
+    } else {
+      // divot / rake: pulsed granular scrape (noise gated by an LFO)
+      filter.type = 'bandpass';
+      filter.frequency.value = kind === 'rake' ? 950 : 520;
+      filter.Q.value = 1.1;
+      const pulse = ctx.createGain();
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = kind === 'rake' ? 2.3 : 3.1;
+      const lfoDepth = ctx.createGain();
+      lfoDepth.gain.value = 0.5;
+      lfo.connect(lfoDepth).connect(pulse.gain);
+      pulse.gain.value = 0.5;
+      src.connect(filter).connect(pulse).connect(gain);
+      lfo.start();
+    }
+    gain.connect(sfxBus);
+    src.start();
+    toolLoops[kind] = gain;
+    return gain;
+  }
+
+  const TOOL_LOOP_LEVEL = { hose: 0.045, vacuum: 0.06, divot: 0.05, rake: 0.05 };
+  function setToolLoop(kind) {
+    if (!ctx) return;
+    if (kind) ensureToolLoop(kind);
+    for (const [k, g] of Object.entries(toolLoops)) {
+      g.gain.setTargetAtTime(k === kind ? TOOL_LOOP_LEVEL[k] : 0, ctx.currentTime, 0.06);
+    }
+  }
+
   // called ~once per second with live game context
   function update(dt, { minuteOfDay = 720, rainIn = 0, golfersVisible = 0, inShop = false, tempHiF = 70 } = {}) {
     if (!ctx) return;
@@ -179,6 +290,10 @@ export function makeAudio() {
     update,
     doorbell,
     uiTick,
+    equipTick,
+    chime,
+    thunk,
+    setToolLoop,
     get ready() {
       return !!ctx;
     },
