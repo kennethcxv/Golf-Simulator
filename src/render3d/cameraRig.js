@@ -9,8 +9,8 @@ export function makeCameraRig(camera, worldW, worldH) {
     camera,
     target: new THREE.Vector3(0, 0, 0),
     yaw: -Math.PI * 0.25,
-    pitch: 0.88, // radians above horizontal
-    dist: 430,
+    pitch: 0.78, // radians above horizontal
+    dist: 210, // close enough that turf grain and tree shapes read immediately
     minDist: 28,
     maxDist: 720,
     minPitch: 0.32,

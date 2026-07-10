@@ -165,6 +165,10 @@ export function makeCourseScene(canvas, state) {
 
   const camera = new THREE.PerspectiveCamera(46, 1, 1, 6000);
   const rig = makeCameraRig(camera, worldW, worldH);
+  // default view: standing behind the clubhouse looking up the course — the
+  // natural "just stepped outside" framing, close enough to read the turf
+  rig.target.set(-20, 0, 150);
+  rig.yaw = 0.12;
 
   // --- post-processing: render → GTAO contact shadows → gentle bloom → output ---
   const composerTarget = new THREE.WebGLRenderTarget(2, 2, {
