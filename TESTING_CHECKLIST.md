@@ -214,4 +214,15 @@ http://localhost:8457/ in a browser. Headless sim tests: `npm test`.
 - [ ] Sell… opens a confirmation stating the exact payout and that the sale is permanent (members, regulars, staff all gone); the world pauses while it's open
 - [ ] Confirming pays exactly the number shown, removes the property everywhere (not re-listed), and logs the deed; selling your active club moves the office to your next property — selling your last drops you back into the market with the check
 - [ ] Save/load (slots or Continue) round-trips the entire empire: every holding's full state, parked summaries, wallet, market, and deed log
-- [ ] `npm test` → 162 passing (121 core + 41 empire-layer)
+**The living market**
+- [ ] The market modal leads with one mood chip — Buyer's market / Balanced market / Seller's market — and its hover hint says what the mood means for prices
+- [ ] Each listing's header line ends with a relative age — "Just listed", "A week or two on the market", or "Been sitting — rival buyers circling" — and never a numeric countdown
+- [ ] Over a few in-game weeks, new listings appear (🏷 feed notice with the ask); the market never exceeds 10 unsold listings
+- [ ] Generated listings are real: buy one, walk it — the course exists, matches its listed size/par/yards, and its design rating is honest
+- [ ] A listing ignored past its grace window eventually goes to a named rival (🏴 feed notice, e.g. "Fairline Capital bought …"); nothing in its first week-plus on the market ever vanishes
+- [ ] Ignoring the market for a season+ turns over the whole launch roster with visible notices while replacements keep arriving — the window is never left empty for long
+- [ ] The mood indicator genuinely changes over weeks (Balanced ↔ Buyer's/Seller's); new listing asks run visibly softer in a buyer's market and richer in a seller's market
+- [ ] Owned property values and sale payouts do NOT move with the market mood — only new listings' asks do
+- [ ] A market left open on screen re-renders as days pass (ages tick over, arrivals/rival-buys appear) without reopening it
+- [ ] Reload → Continue restores the market exactly: same listings with the same listedDay stamps, same mood, same feed
+- [ ] `npm test` → 176 passing (121 core + 41 empire-layer + 14 living-market)

@@ -16,7 +16,7 @@ House Flipper's buy-restore-transform loop, applied to the golf course managemen
 - Vanilla JavaScript — simulation, management UI
 - Three.js — the 3D course view and the walkable pro shop interior
 - Electron — desktop shell for the eventual Steam build
-- `node --test` — headless unit tests for all simulation logic (162 green)
+- `node --test` — headless unit tests for all simulation logic (176 green)
 
 ## Run
 

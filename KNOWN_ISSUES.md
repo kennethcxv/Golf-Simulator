@@ -7,11 +7,36 @@ applies per-property, plus the new empire-layer section at the top.
 
 ## GOLF EMPIRE layer — current status & deliberate v1 limits
 
-Shipped this session (2026-07-09): the property marketplace (8 hand-authored distinct
+Shipped portion 1 (2026-07-09): the property marketplace (8 hand-authored distinct
 listings, real buildable courses), the shared appraisal/valuation, buy/sell
 transactions, the multi-property portfolio with one live club + passive caretaker ticks
 for parked ones, and the market/empire screens. 41 new headless tests (suite 162/162);
 full browser playthrough QA'd with zero console errors.
+
+Shipped portion 2 — the LIVING MARKET (2026-07-09, same day): new listings generated
+over time from 7 parametrized distress-profile templates (one generation path — the
+real serpentine builder + shared appraisal; cadence ~1 listing/8 days, cap 10, dry-
+market floor 3), rival investors buying out listings that sit past a 10-day grace
+window (~28-day mean tenure, named 🏴 feed notices, never silent), a bounded
+buyer's/seller's pricing cycle (0.85–1.15, seasonal drift) applied to NEW asks only,
+and the market UI for all of it (mood chip, relative age lines, live-refreshing
+modal). 14 more headless tests (suite 176/176); browser-QA'd across ~62 in-game days
+with zero console errors, including buying and playing a generated listing.
+
+Living-market deliberate limits (reasoning in DEV_LOG.md):
+- **The pricing cycle is buy-side only.** Owned-property valuations and sale payouts
+  deliberately ignore the market mood (per the portion-2 brief's test spec). "Sell
+  into a seller's market" is therefore NOT a mechanic yet; applying the cycle to
+  payouts needs anti-exploit design (park-and-wait-for-peak is free money) and is
+  future work.
+- **The market only moves while world time moves** — own nothing, and the market
+  freezes with the rest of the world. Consistent with world-clock semantics; a
+  menu-sitting player is never sniped.
+- **Rival buyers are flavor, not actors**: no shadow portfolios, no auctions, no
+  competing bids — a listing just leaves with a named notice. Visible rival empires
+  are future work.
+- **A sold property's name can recur** on a later generated listing (the taken-name
+  check covers live listings and holdings, not the full graveyard). Accepted.
 
 Deliberate v1 simplifications (documented in DEV_LOG.md):
 - **Parked properties are an approximation, not a shadow sim** — condition decays
@@ -39,10 +64,13 @@ Deliberate v1 simplifications (documented in DEV_LOG.md):
 - **Closing the market before your first purchase** leaves you at the menu with an
   autosaved empty empire — Continue restores it; clicking New Empire re-rolls it.
 
-Future work for the NEXT portion (ideas beyond this session's brief, parked on purpose):
+Future work for the NEXT portion (ideas beyond the briefs so far, parked on purpose):
 - Deeper empire-wide prestige (portfolio-level reputation/prestige, cross-club effects).
-- A growing/refreshing market: new listings over time, seasonal pricing, buy-back or
-  re-listing of sold courses, competing buyers/auctions.
+- ~~A growing/refreshing market: new listings over time, seasonal pricing~~ — SHIPPED
+  (portion 2). Still open from that idea: buy-back/re-listing of previously-sold
+  courses, competing buyers as visible actors (auctions, rival empires you can lose
+  deals to on screen), and the pricing cycle applied to sale payouts (needs
+  anti-exploit design, see living-market limits above).
 - Manager delegation for unvisited courses (hire a GM to run a parked club properly —
   the natural upgrade path from the caretaker approximation, incl. member drift).
 - More properties/archetypes (links, desert, mountain climates pair with the deferred

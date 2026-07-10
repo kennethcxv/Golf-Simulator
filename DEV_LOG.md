@@ -899,3 +899,36 @@ to it, and walked its serpentine nine in 3D (lm3); market modal left open live-u
 across midnights (marked DOM node replaced); reload → Continue restored mood, market
 day, every listing's listedDay stamp, holdings, and feed byte-for-byte; ZERO console
 errors or warnings across the entire session. Suite 176/176.
+
+## 2026-07-09 — LIVING MARKET portion: SESSION SUMMARY
+
+**Built this portion**, on top of portion 1's fixed-roster marketplace: repo
+consolidation (this repo is now the sole active codebase; `Golf/` retired to
+reference), then the market made alive — `generateListing()` (7 parametrized
+distress-profile templates through the same serpentine builder + shared appraisal;
+one generation path), `marketTick()`/`marketDay()` (per-world-day: pricing-cycle
+drift → rival buy-outs → cadence refresh, all on the empire's own serializable rng
+stream), and the screens (mood chip, relative age lines, 🏴/🏷 feed, live-refreshing
+market modal). 14 new headless tests → suite 176/176; ~62-day browser playthrough
+with zero console errors.
+
+**The judgment calls that matter** (each argued in its own entry above):
+1. Cadence ~1 listing/8 days (roll every 6 at 75%), cap 10, dry-floor 3 — rhythm
+   without a metronome, a window not a warehouse, no rng starvation.
+2. Grace window 10 days + 5.5%/day rival roll → ~28-day mean tenure: urgency you can
+   feel, protection while you're actually deciding, no min-max countdown anywhere.
+3. Pricing cycle 0.85–1.15, seasonal lerp-to-target: prices NEW asks only. Buy-side
+   timing is a mechanic; sell-side is deliberately not (anti-exploit), logged in
+   KNOWN_ISSUES as future work.
+4. The market moves only while world time moves, and replays identically through
+   saves (own rng stream, lastMarketDay catch-up).
+5. Migration is fair: old saves join the market clock "today" — no rival buys or
+   drift in arrears for time the feature didn't exist.
+6. Browser QA caught the one real UI bug (modal builds before DOM attach → the
+   isConnected guard blanked the first render) — the done-when's "interact with the
+   real build" clause earned its keep again.
+
+**Explicitly left for future portions** (recorded in KNOWN_ISSUES): empire-wide
+prestige, manager delegation, buy-backs/re-listing of sold courses, rival buyers as
+visible actors/auctions, the pricing cycle on sale payouts, more climates/archetypes,
+empire financing.
