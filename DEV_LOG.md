@@ -1113,3 +1113,40 @@ drove → parked; fairway prompt → E panel (Fairway 2 · a) → Esc; F hose �
 F away; Works button → placeholder toast, works mode stayed off; golfers staged and
 photographed sharing the course; P → back on the shop floor, walk mode cleanly torn
 down. ZERO console errors or warnings across the entire walkable-course QA session.
+
+## 2026-07-09 — WALKABLE COURSE portion: SESSION SUMMARY
+
+**Built this portion**: the course's primary experience changed from an RTS orbit
+camera to first-person. One controller (the pro shop's, adapted outdoors and living
+in courseScene.js) provides walking with real collision against what already exists
+— 1,100+ tree instances from the renderer's own placement data, the clubhouse body,
+pond water at the cell edge; a golf cart with honest handling that parks where you
+leave it and is solid when parked; walk-up turf inspection reusing the exact
+inspect panel and status vocabulary through app-supplied hooks; and a hand hose
+writing straight into the crew's own turf moisture array with spray, live readout,
+and wet-darkening feedback. The shop door boots it; golfers share it; the overview
+rig survives one Tab away because Course Works still needs it.
+
+**The judgment calls that matter** (each argued in its entry above): human tuning
+(eye 1.75 yd, walk 3.4, run ×1.8, cart 10 — the cart is the fast option, not a
+faster walk); no new collision data per the brief; one camera retuned per mode so
+the post stack never forked; Tab as the mode switch with an honest, labeled
+demotion of the old rig; a redesign notice — never a half-open editor — when Works
+is triggered on foot; watering free, instant, paused-or-not, single-cell-plus-splash
+so the crew stays the answer for acreage; and every interaction on the shop's
+established E/prompt conventions rather than a second grammar.
+
+**QA discipline note**: every task's done-when was verified by driving the real
+build (Playwright), and it caught real bugs again — the cart's park-guard
+self-collision (pushed itself 45 yd downfield) and screen-filling spray points —
+plus the honest sim moments (winter despawning golfers at a wrecked course) that
+pure code-reading would never surface. Zero console errors across the whole
+walkable QA session.
+
+**Explicitly left for future portions** (recorded in KNOWN_ISSUES): the walkable
+terrain-editing redesign (THE open design problem this portion deliberately did not
+attempt), more hands-on tools (mowing/weeding/litter — the hose is their template),
+cart-position persistence, player–golfer collision, hose cost/rate balance, GTAO
+retune for first-person range — plus everything already parked from the market
+portions (empire-wide prestige, manager delegation, buy-backs, rival actors,
+sale-side pricing cycle).

@@ -46,24 +46,33 @@ waiting exactly where you left it.
 **Empire** — M or 🏢: empire overview (properties, values, switching, selling) ·
 market via the overview or the office menu
 
-**Course** — drag: pan · right-drag: orbit · wheel: zoom · WASD/arrows: pan · Q: rotate ·
-click: inspect a section · Space: pause · 1/2/3: speed · V: Normal/Health/Moisture views
+**On the course (first-person, the default)** — WASD: walk · Shift: run · mouse
+(click to capture): look · E: interact (inspect turf, drive/park the cart) · F: the
+hose (hold the mouse button to water) · Tab: overview camera · Space: pause ·
+1/2/3: speed · V: Normal/Health/Moisture views · P: back to the shop
+
+**Overview camera (Tab)** — drag: pan · right-drag: orbit · wheel: zoom · E: Course
+Works (terrain editing — its walkable redesign is pending) · click: inspect
 
 **Panels** — G: Grounds (crew + policies) · C: Club office (members, pricing, staff,
-development, tournaments) · 🛍: Shop desk (orders, markup, rentals) · E: Course Works
-(terrain editing, plan → confirm) · Esc: menus
+development, tournaments) · 🛍: Shop desk (orders, markup, rentals) · Esc: menus
 
 **Pro shop floor** — P: walk the floor · click: capture mouse (Esc releases) · WASD:
 move · E: restock/interact · P or the door: leave
 
 ## Status
 
-Portion 1 of the empire layer is complete on top of the feature-complete FAIRWAY STATE
-core: property marketplace (8 genuinely distinct listings), acquisition & permanent
-sale, live valuation, multi-property portfolio with passive caretaker simulation for
-unvisited courses, and the market/empire screens. 162 headless tests green; full
-browser playthrough QA'd with zero console errors. See TESTING_CHECKLIST.md for the
-manual pass and KNOWN_ISSUES.md for v1 limits and the next portion's roadmap.
+Three portions complete on top of the feature-complete FAIRWAY STATE core: the
+empire layer (marketplace, acquisition & permanent sale, live valuation,
+multi-property portfolio with caretaker simulation), the LIVING market (new listings
+over time from parametrized distress profiles, rival buyers expiring stale listings,
+a bounded buyer's/seller's pricing cycle, all surfaced in the UI), and the WALKABLE
+course (first-person by default with real collision, a golf cart, walk-up turf
+inspection, and a hand hose that waters the real sim — the old orbit rig demoted to
+a Tab-away overview camera; terrain editing's walkable redesign is the headline open
+item). 176 headless tests green; every portion browser-QA'd with zero console
+errors. See TESTING_CHECKLIST.md for the manual pass and KNOWN_ISSUES.md for limits
+and the roadmap.
 
 ## Docs
 

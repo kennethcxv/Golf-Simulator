@@ -226,3 +226,32 @@ http://localhost:8457/ in a browser. Headless sim tests: `npm test`.
 - [ ] A market left open on screen re-renders as days pass (ages tick over, arrivals/rival-buys appear) without reopening it
 - [ ] Reload → Continue restores the market exactly: same listings with the same listedDay stamps, same mood, same feed
 - [ ] `npm test` → 176 passing (121 core + 41 empire-layer + 14 living-market)
+
+## THE WALKABLE COURSE — first-person by default
+
+**On foot**
+- [ ] Stepping out the shop door (E at the door, or P) lands you standing at the clubhouse, facing the course, at human eye height — not the old top-down camera
+- [ ] WASD walks (~3.4 yd/s), Shift runs, click captures the mouse for looking, arrows also look; the crosshair overlay shows the controls hint until the pointer locks
+- [ ] You collide with and slide along trees, the clubhouse walls, and pond edges — you can shelter under the porch but not walk through the building, and you stop at the water
+- [ ] Tab switches to the labeled overview camera (the old rig, hint bar returns); Tab or Esc returns you to your feet exactly where you stood
+- [ ] Esc on foot: releases the pointer first, then opens the office menu; panels (G/C/M) open over the walk view with the cursor freed
+
+**The cart**
+- [ ] A golf cart is parked by the clubhouse porch; walking up to it facing it shows "Golf cart — [E] take the wheel"
+- [ ] Driving is ~3× walking with A/D steering (no strafe); the cart mesh follows under you; parked carts are solid obstacles
+- [ ] E parks it: you step out the side, the cart stays exactly there, and the prompt flips back to "take the wheel"
+
+**Walk-up inspection**
+- [ ] The patch of ground ahead always prompts with its section name and ONE status word ("Green 1 — Declining — [E] inspect"); open scrub prompts nothing
+- [ ] E opens the same inspect panel the top-down click used (status chip, stimp on greens, diagnosis, Details, Fungicide/Aerate), for that exact section
+
+**The hose**
+- [ ] F pulls the hose out: the prompt becomes a live readout ("💦 Fairway 2 · a — moisture 62 — hold the mouse button to water")
+- [ ] Holding the mouse button sprays a droplet arc and the number climbs in real time; the watered patch visibly darkens; the Moisture view (V) shows the soaked cells blue
+- [ ] The moisture genuinely lands in the sim (inspect Details agree; the crew/weather systems read the same values); only turf drinks — sand and paths shed it
+- [ ] F again puts it away; taking the cart's wheel stows it automatically
+
+**The rest of the world**
+- [ ] Golfer NPCs wander and play on the same ground you walk (none at night or on a wrecked course in winter — that's the sim being honest)
+- [ ] Triggering Course Works from on foot shows the honest "being redesigned for the walkable course" notice and does NOT half-open; from the overview camera (Tab) the existing editor still fully works
+- [ ] The full loop runs clean: shop door → walk → drive → inspect → water → P back to the shop floor — zero console errors

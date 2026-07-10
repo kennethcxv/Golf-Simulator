@@ -77,6 +77,38 @@ Future work for the NEXT portion (ideas beyond the briefs so far, parked on purp
   multi-theme roadmap), and richer hidden-upside mechanics (survey reports, inspections).
 - Empire-level financing: loans against portfolio value, staged payments on the whale.
 
+## THE WALKABLE COURSE (2026-07-09) — current status & open items
+
+Shipped: the course is now experienced first-person by default — WASD/pointer-lock
+walking with real collision (tree instances, the clubhouse body, pond edges), a golf
+cart (E to drive/park, ~3× walking pace, solid when parked), walk-up turf inspection
+(one-status-word prompt + E opens the existing inspect panel), and a hand hose
+(F equips, hold-to-water writes into the same turf moisture the crew uses, with spray
+particles, a live readout, and wet-darkening turf). Golfer NPCs share the space. The
+old orbit rig survives as a labeled "overview camera" one Tab away.
+
+- **Terrain editing (Course Works) is NOT walkable yet — open redesign item.** The
+  brief explicitly deferred it as a separate design problem. Today: triggering Works
+  from on foot shows an honest "being redesigned for the walkable course" notice and
+  refuses to open; the full existing editor remains available from the overview
+  camera (Tab). The walkable replacement (survey stakes? a foreman mode? plan-on-the-
+  ground?) is the next portion's design work.
+- **More hands-on tools (mowing, weeding, litter pickup) deliberately not built** —
+  the brief scoped exactly one tool (watering). The hose's equip/aim/hold pattern is
+  the template they'd reuse.
+- **Cart position is render-layer state**: it re-parks by the clubhouse on scene
+  rebuild (save/load, property switch). Persisting it means a save-format field for
+  a cosmetic nicety — deferred.
+- **No player–golfer collision**: you share the ground, not shoulders — NPCs are
+  pass-through. Fine at walking speeds; revisit if gameplay ever cares.
+- **Hand-watering is free and works while paused** (your hands, not the clock; the
+  crew's irrigation remains the scaled, costed system). If playtesting shows
+  hose-only agronomy exploits, rate/cost knobs live in the waterAt hook.
+- **Pointer lock can be refused** (kiosk/automation contexts): click-to-look plus
+  arrow-key look cover it — same fallback the pro shop has always had.
+- **GTAO is tuned for management-camera distances** (3-yd radius): at first-person
+  range contact shadows read slightly broad. Cosmetic; queued for the art pass.
+
 ## FAIRWAY STATE core (per-property) — needs a real art pass before release
 
 - ~~Procedural ground textures~~ — replaced with real CC0 PBR sets (Poly Haven,
