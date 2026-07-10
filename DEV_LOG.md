@@ -2004,3 +2004,18 @@ as the tractor drove its line; the cut lane reads brighter up the fairway
 precedent); the deck "cuts" greens to green ideal rather than scalping them —
 an idealized kindness, logged in KNOWN_ISSUES. Suite 210/210, zero console
 errors.
+
+## 2026-07-10 — OVERNIGHT PART 6b (backlog): rain streaks + the black-badge fix
+
+RAIN (KNOWN_ISSUES "no rain particles"): an 800-streak LineSegments column
+(52-yd box, 0.8-yd streaks, 24 yd/s fall) recycles around the camera, driven by
+the SAME weather.today.rainIn the turf drinks — density via draw range and
+opacity both eased from the smoothed rain level, so drizzle reads sparse and a
+storm reads dense. Verified live at rainIn 0.7 (qa/rain-streaks.png).
+
+TEE BADGES (KNOWN_ISSUES "solid black squares against the light"): the old log
+blamed a "lit sprite material," but SpriteMaterial was never lit — the real
+culprit was tone mapping crushing the dark badge against a blown-bright sky.
+toneMapped:false keeps the designed colors at any sun angle; verified facing
+the 10 AM sun in the same frame as the rain shot. Suite 210/210, zero console
+errors.

@@ -1107,7 +1107,9 @@ export function makeCourseScene(canvas, state) {
     c2.fillText(text, w / 2, 68);
     const tex = new THREE.CanvasTexture(cnv);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: true, transparent: true }));
+    // toneMapped:false — the badge keeps its designed colors instead of being
+    // crushed to a black square against a bright anti-sun sky (KNOWN_ISSUES)
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: true, transparent: true, toneMapped: false }));
     sp.scale.set(scaleW, scaleW * (128 / w), 1);
     return sp;
   }
@@ -2098,6 +2100,51 @@ export function makeCourseScene(canvas, state) {
   // --- sun / time-of-day / weather ------------------------------------------------------------------
   const sunPos = new THREE.Vector3();
 
+  // --- rain streaks: a recycling column around the camera, fed by the same
+  // weather the turf drinks (KNOWN_ISSUES: "no rain particles" — shipped)
+  const RAIN_N = 800;
+  const rainPos = new Float32Array(RAIN_N * 6); // two verts per streak
+  const rainSeed = [];
+  for (let i = 0; i < RAIN_N; i++) {
+    const x = (Math.random() - 0.5) * 52;
+    const z = (Math.random() - 0.5) * 52;
+    const y = Math.random() * 26;
+    rainSeed.push({ x, z, y });
+    rainPos[i * 6] = x; rainPos[i * 6 + 1] = y; rainPos[i * 6 + 2] = z;
+    rainPos[i * 6 + 3] = x; rainPos[i * 6 + 4] = y + 0.8; rainPos[i * 6 + 5] = z;
+  }
+  const rainGeo = new THREE.BufferGeometry();
+  rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+  const rain = new THREE.LineSegments(
+    rainGeo,
+    new THREE.LineBasicMaterial({ color: 0xcadcec, transparent: true, opacity: 0.34, toneMapped: false }),
+  );
+  rain.visible = false;
+  rain.frustumCulled = false;
+  scene.add(rain);
+  let rainLevel = 0; // smoothed 0..1 from rainIn
+
+  function updateRain(dt, weather) {
+    const target = weather ? clamp(weather.today.rainIn / 0.6, 0, 1) : 0;
+    rainLevel += (target - rainLevel) * Math.min(1, dt * 1.5);
+    if (rainLevel < 0.02) {
+      rain.visible = false;
+      return;
+    }
+    rain.visible = true;
+    rain.material.opacity = 0.14 + rainLevel * 0.28;
+    rainGeo.setDrawRange(0, Math.floor(RAIN_N * rainLevel) * 2);
+    rain.position.set(camera.position.x, 0, camera.position.z);
+    const fall = 24 * dt;
+    for (let i = 0; i < RAIN_N; i++) {
+      let y = rainPos[i * 6 + 1] - fall;
+      if (y < 0) y = 24 + Math.random() * 3;
+      rainPos[i * 6 + 1] = y;
+      rainPos[i * 6 + 4] = y + 0.8;
+    }
+    rainGeo.attributes.position.needsUpdate = true;
+  }
+
   function applyTimeWeather(minuteOfDay, weather) {
     const t = clamp((minuteOfDay - 330) / (1260 - 330), 0, 1); // 5:30 → 21:00
     const elevDeg = Math.sin(t * Math.PI) * 62 - 2;
@@ -2181,6 +2228,7 @@ export function makeCourseScene(canvas, state) {
       w.material.uniforms.time.value = time * 0.55;
     }
     if (st) updateGolfers(dtMs / 1000, st);
+    if (st) updateRain(dtMs / 1000, st.weather);
     // flag wave
     if (holeGroup) {
       for (const o of holeGroup.children) {

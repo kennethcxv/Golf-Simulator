@@ -200,10 +200,12 @@ Honest deltas still open (also recorded in ASSET_SOURCES.md):
   pre-ship requirements.
 - ~~Sky horizon blows out white at low sun angles~~ — fixed by v4's bloom threshold
   (40); re-verified at 6:50 AM and 7:35 PM low sun, both facings (qa/v5-sky-*.png).
-  ~~Water surfaces have no ripple normals~~ — v4 Water.js + waternormals. Still open:
-  **no rain particles**, and **tee-number sprites render as solid black squares when
-  viewed against the light** (lit sprite material; fine sun-side, black anti-sun-side —
-  seen clearly in the v5 dawn/dusk sky shots). Both queued for the polish pass.
+  ~~Water surfaces have no ripple normals~~ — v4 Water.js + waternormals. ~~No rain particles~~ — SHIPPED
+  (overnight 2026-07-10): an 800-streak recycling rain column follows the camera,
+  density/opacity eased from the day's real rainIn. ~~Tee-number sprites render as
+  solid black squares against the light~~ — FIXED same night: the badge material is
+  toneMapped:false (the culprit was exposure crush, not lighting — SpriteMaterial
+  was never lit), keeping its designed colors at any sun angle.
 - **Pro shop interior** — 2026-07-10 largely rebuilt: reference shell (wainscot,
   beams, trim, wordmark), distinct product silhouettes (hung/folded shirts, ball
   pyramids, caps, towels), decor set, articulated customers. Still open: a real
