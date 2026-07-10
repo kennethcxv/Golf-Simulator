@@ -2134,3 +2134,19 @@ zero shoppers = zero dirt; busy day = a little; 400 neglected days ≤ the cap.
 This closes the loop the Summary tab now reports: chores accumulate daily on
 the course AND the floor, the tools clear them, the computer lists them.
 Suite 212/212.
+
+## 2026-07-10 — OVERNIGHT SUMMARY ADDENDUM (ideas #3–#5 + final state)
+
+Ideas #3–#5 shipped after the running summary was written: shelf RESTOCK
+ALERTS in the Summary (empty lines + backroom counts, "order stock" vs
+"walk the floor and shelve"), DAILY TRAFFIC GRIME (the vacuum is recurring
+upkeep now — shopper-scaled, hard-capped at "needs a pass", TDD → suite 212),
+the floor's own vacuum-pass line in the chores list, and a one-shot YARD
+NUDGE toast pointing fresh players at the broken tractor (tutorial.js
+untouched — session-local toast only, verified live).
+
+FINAL NIGHT STATE: 29 commits this session, suite 176→212 all green, zero
+console errors on every live pass. Parts 0–5 complete; Part 6 delivered six
+backlog items and five self-generated ideas, each logged with reasoning
+above. The repo's docs (DEV_LOG, KNOWN_ISSUES, ASSET_SOURCES,
+TESTING_CHECKLIST, README) are current as of this line.
