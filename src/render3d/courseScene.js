@@ -10,6 +10,11 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { Water } from 'three/addons/objects/Water.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ZONE, HOLE_STATUS, CELL_YD } from '../sim/constants.js';
 import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
@@ -153,13 +158,41 @@ export function makeCourseScene(canvas, state) {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.84;
+  renderer.toneMappingExposure = 0.92; // AO darkens; retuned with the post stack
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x9db8c9, 0.00035);
 
   const camera = new THREE.PerspectiveCamera(46, 1, 1, 6000);
   const rig = makeCameraRig(camera, worldW, worldH);
+
+  // --- post-processing: render → GTAO contact shadows → gentle bloom → output ---
+  const composerTarget = new THREE.WebGLRenderTarget(2, 2, {
+    samples: 4, // keep MSAA edges through the composer
+    type: THREE.HalfFloatType,
+  });
+  const composer = new EffectComposer(renderer, composerTarget);
+  composer.addPass(new RenderPass(scene, camera));
+  const gtao = new GTAOPass(scene, camera, 2, 2);
+  gtao.output = GTAOPass.OUTPUT.Default;
+  gtao.blendIntensity = 1.0;
+  gtao.updateGtaoMaterial({
+    radius: 3.0, // yards — readable grounding at management camera distances
+    distanceExponent: 1,
+    thickness: 1,
+    scale: 1.2,
+    samples: 12,
+    distanceFallOff: 1,
+    screenSpaceRadius: false,
+  });
+  gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 8 });
+  composer.addPass(gtao);
+  // the physical Sky emits HDR radiance in the tens (sun disc: thousands) — the
+  // bloom threshold must clear the whole sky field so only sun/glint energy blooms
+  const bloom = new UnrealBloomPass(new THREE.Vector2(2, 2), 0.5, 0.35, 40.0);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+  let postEnabled = true;
 
   // --- lights & sky -----------------------------------------------------------------
   const sun = new THREE.DirectionalLight(0xffffff, 2.8);
@@ -625,8 +658,8 @@ export function makeCourseScene(canvas, state) {
         waterNormals: waterNormalsTex,
         sunDirection: sun.position.clone().normalize(),
         sunColor: 0xffffff,
-        waterColor: 0x18424d, // murky pond teal-green
-        distortionScale: 2.2,
+        waterColor: 0x0a2b30, // deep pond teal — graded for the linear->OutputPass pipeline
+        distortionScale: 2.8,
         fog: !!scene.fog,
       });
       water.material.uniforms.size.value = 3.5; // ripple scale
@@ -1245,7 +1278,17 @@ export function makeCourseScene(canvas, state) {
         }
       }
     }
-    renderer.render(scene, camera);
+    if (postEnabled) {
+      try {
+        composer.render();
+      } catch (e) {
+        console.warn('post-processing failed, falling back to direct render', e);
+        postEnabled = false;
+        renderer.render(scene, camera);
+      }
+    } else {
+      renderer.render(scene, camera);
+    }
   }
 
   function resize() {
@@ -1254,6 +1297,9 @@ export function makeCourseScene(canvas, state) {
     renderer.setSize(wpx, hpx, false);
     camera.aspect = wpx / hpx;
     camera.updateProjectionMatrix();
+    const pr = renderer.getPixelRatio();
+    composer.setPixelRatio(pr);
+    composer.setSize(wpx, hpx);
   }
 
   function setViewMode(mode) {
@@ -1272,6 +1318,8 @@ export function makeCourseScene(canvas, state) {
   }
 
   function dispose() {
+    if (gtao.dispose) gtao.dispose();
+    composerTarget.dispose();
     renderer.dispose();
     terrainGeo.dispose();
   }
@@ -1287,6 +1335,7 @@ export function makeCourseScene(canvas, state) {
     scene,
     camera,
     rig,
+    post: { composer, gtao, bloom },
     render,
     resize,
     raycastCell,

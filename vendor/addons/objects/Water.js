@@ -195,10 +195,17 @@ class Water extends Mesh {
 
 					vec2 distortion = surfaceNormal.xz * ( 0.001 + 1.0 / distance ) * distortionScale;
 					vec3 reflectionSample = vec3( texture2D( mirrorSampler, mirrorCoord.xy / mirrorCoord.w + distortion ) );
+					// FAIRWAY STATE patch: temper the saturated zenith reflection so ponds
+					// read as water rather than a mirror of the physical sky's violet dome
+					reflectionSample = mix( reflectionSample, vec3( dot( reflectionSample, vec3( 0.299, 0.587, 0.114 ) ) ), 0.55 );
+					reflectionSample *= vec3( 0.78, 0.94, 0.9 ) * 0.85;
 
 					float theta = max( dot( eyeDirection, surfaceNormal ), 0.0 );
 					float rf0 = 0.02;
 					float reflectance = rf0 + ( 1.0 - rf0 ) * pow( ( 1.0 - theta ), 5.0 );
+					// FAIRWAY STATE patch: cap grazing reflectance so the water body's own
+					// color always shows through at management-camera angles
+					reflectance = min( reflectance, 0.72 );
 					vec3 scatter = max( 0.0, dot( surfaceNormal, eyeDirection ) ) * waterColor;
 					vec3 albedo = mix( ( sunColor * diffuseLight * 0.3 + scatter ) * getShadowMask(), reflectionSample + specularLight, reflectance );
 					vec3 outgoingLight = albedo;
