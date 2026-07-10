@@ -73,6 +73,20 @@ export function makeInspectPanel(app, onStateChanged) {
       }
     } else {
       rows.push(el('div', { class: 'row' }, el('span', { class: 'status-chip', text: ZONE_NAMES[section.zone] })));
+      // bunkers report their footprints — the rake's work order
+      if (section.zone === ZONE.BUNKER && st.turf) {
+        let sum = 0;
+        for (const i of section.cells) sum += st.turf.wear[i];
+        const foot = Math.round(sum / section.cells.length);
+        if (foot > 5) {
+          rows.push(el('div', {
+            class: 'row muted',
+            text: `Footprints ${foot} — ${foot > 50 ? 'churned up; bring the rake' : foot > 25 ? 'needs raking' : 'a light pass would do'}`,
+          }));
+        } else {
+          rows.push(el('div', { class: 'row muted', text: 'Sand raked smooth.' }));
+        }
+      }
     }
 
     rows.push(el('div', { class: 'row muted' }, `${ZONE_NAMES[section.zone]} · ${section.size} cells · ${areaSqYd.toLocaleString('en-US')} sq yd`));

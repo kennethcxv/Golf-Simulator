@@ -2165,3 +2165,15 @@ daylight pass instead of double-writing the window color.
 Verified live at 7:00 PM: warm amber glass and a golden-hour room, clearly
 distinct from the 6 AM gray-blue in the morning shots. Zero console errors.
 Suite 212/212.
+
+## 2026-07-10 — OVERNIGHT PART 6k (ideas #7–#8): shop hours + bunker inspection
+
+IDEA #7 — SHOP HOURS: customers spawned at any hour (3 AM browsers if you
+stood on the floor). They now keep the course's playing day (6:00–20:00), and
+at close whoever's inside abandons their stops, leaves the queue, and heads
+for the door. Verified live: 10 PM floor empty. IDEA #8 — BUNKER INSPECTION:
+the walk-up inspect panel (and overview click) now reports a bunker section's
+average footprints with a work-order phrase ("Footprints 28 — needs raking" /
+"churned up; bring the rake" / "Sand raked smooth."), tying the rake loop
+into the game's oldest inspection flow. Verified live on a 28-footprint
+bunker. Zero console errors. Suite 212/212.
