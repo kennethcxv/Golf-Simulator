@@ -543,3 +543,47 @@ Newest entries at the bottom.
   ground (C0, no members, −$650/day) $9.5k → restored (C87, 46 members, +$1,150/day)
   $128.5k. The buy-restore-flip fantasy exists in the numbers. 9 new tests; 139/139.
 
+## 2026-07-09 — GOLF EMPIRE Task 3: acquisition & sale (sim/empire.js)
+
+- **Buying boots the REAL newGame().** `state.js` gained a two-line optional `opts`
+  param ({course, clubName}) so `initPropertyState` runs the exact same init wiring —
+  turf, golfers, staff, shop, club, ledger, progression, tutorial, in the same order —
+  onto the property's deterministically-built course. No parallel init path to drift.
+  state.js is not on the brief's forbidden list; existing call sites are untouched
+  (defaults preserved, full baseline green).
+- **Seeding to the listing**: default diseases wiped, then exactly `sickGreens` greens
+  infected with the listed disease (brown patch also wets its cells so the in-game
+  diagnosis copy stays TRUE); turf arrays iterated until the live `conditionRating` —
+  the same number the HUD shows — lands within ~1.5 of the listed condition (test
+  tolerance ±4); membership trimmed/grown to the listed count (poorest walk first,
+  wealthiest sign first — a distressed sale rarely conveys the whole book); reputation
+  set from the listing; prestige derived low (clamp(8 + rep·0.3, 5..30)). Staff do NOT
+  convey — the old crew walked before closing; you inherit the hiring market.
+- **One wallet.** `empire.cash` is the only money; the ACTIVE club's `state.cash` is
+  that wallet (so the entire existing economy/ledger/solvency stack works untouched),
+  synced back before any empire-level transaction. The unit tests immediately caught
+  the one bug this design invites — buying property B while property A is active
+  deducted the wallet but not A's mirrored cash — hence the explicit `payer.cash`
+  write-back. Parked properties hold $0; a known consequence is that realistic-mode
+  `debtDays` counts against whichever club is active (empire-wide debt is the same
+  number, just tracked on the active state).
+- **Shared world clock**: a newly bought property joins at the CURRENT world time
+  (active club's clock), with a fresh weather roll for that calendar day — no
+  time-travel between properties. While nothing is active, `empire.clockMinutes`
+  remembers the hour.
+- **Selling is scorched earth**: payout = `appraiseProperty(state)` (the same number
+  the UI will display), holding spliced out — course, members, golfer memories, staff,
+  shop stock, all gone with it; the listing does NOT quietly return to the market
+  (buy-backs logged as future work). Tutorial runs only on the first property ever
+  bought; later purchases arrive with it retired.
+- **DONE-WHEN playthrough (headless)**: the brief's "live playthrough" for this task
+  was run at the sim level (the screens don't exist until Task 5, which re-proves the
+  loop in a real browser): bought Bent Pines $31k (true $43k) → crew 4 + hires +
+  fungicide + feeding → C31→C78, 7→44 members over 22 days → sold for the displayed
+  $107,500 → wallet $191k, holdings empty. Flip margins at this tuning are GENEROUS
+  (+$76.5k in 22 relaxed-mode days, mostly via membership growth the base game's own
+  join dynamics produce) — logged as a post-playtest balance knob, not changed now.
+- 11 new tests written first (including one that buys every archetype, checks realized
+  condition ±4 and appraisal within 15% of hidden true value, and runs a full sim day
+  on each). Suite 150/150.
+

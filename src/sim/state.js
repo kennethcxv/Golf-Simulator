@@ -24,9 +24,11 @@ export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
 export const SAVE_VERSION = 3;
 
-export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647) {
+// opts lets the GOLF EMPIRE layer boot this same fresh-club wiring onto a
+// marketplace property: an injected course grid and club name, nothing else.
+export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts = {}) {
   const rng = makeRng(seed);
-  const course = buildStartingCourse(rng);
+  const course = opts.course || buildStartingCourse(rng);
   const state = {
     version: SAVE_VERSION,
     mode, // 'relaxed' | 'realistic'
@@ -34,7 +36,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647) {
     rngState: rng.getState(),
     clock: newClock(),
     cash: BALANCE.startingCash[mode],
-    clubName: 'Willow Creek Golf Club',
+    clubName: opts.clubName || 'Willow Creek Golf Club',
     course,
     sections: labelSections(course), // derived cache, rebuilt on load/edit
     weather: newWeather(),
