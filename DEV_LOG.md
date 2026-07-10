@@ -1663,3 +1663,41 @@ logged in KNOWN_ISSUES. Zero console errors. Suite 199/199.
 
 THE SHOP RESTORATION BRIEF IS COMPLETE: Parts 1 and 2, all seven tasks,
 committed one by one.
+
+## 2026-07-10 — ASSET INTEGRATION Task 1: inventory & quality check (all 20 GLBs)
+
+Two passes before wiring anything, per the brief. (1) Headless Blender 5.1
+(scratchpad/inspect_assets.py): every file imports clean — uniformly 1 object /
+1 mesh / 1 baked material, normalized to ~1-unit bboxes (everything needs
+scene-side scaling). (2) three.js r185 contact sheet (qa/asset-contact-sheet.html
+→ qa/assets-inventory-sheet.png): ALL 20 LOAD AND RENDER, zero failures — no
+repeat of the skinned-GLB disaster; these are static meshes, Tripo's safe zone.
+
+| asset | tris | verdict / target |
+|---|---|---|
+| red tractor | 59.5k | CLEAN — restored tractor (already the drivable) |
+| tractor | 68.2k | CLEAN but visually intact — will dress down as the BROKEN starter (rust/grime tint, sag) |
+| red agricultural machine | 17.8k | CLEAN — the MOWER ATTACHMENT (red flail deck) |
+| golf cart | 48.1k | CLEAN — green utility cart; BONUS, not in the 19, staged |
+| garden shed | 54.1k | CLEAN — maintenance shed; cream siding + green roof = style guide |
+| house | 333.9k | LOADS but VERY heavy; clubhouse candidate WITH clock tower (a reference gap) — perf-gate before shipping |
+| wooden workbench | 14.1k | CLEAN — repair bench |
+| tool chest | 16.8k | CLEAN — red rolling chest (guide red equipment) |
+| gasoline can | 20.2k | CLEAN — red jerry can |
+| rubber belt | 16.4k | CLEAN — v-belt coil |
+| garden hose nozzle | 20.3k | CLEAN — hand watering tool (coiled hose + gun) |
+| rake | 20.2k | CLEAN — leaf-style rake; serves as the bunker rake |
+| garden hand fork | 19.8k | CLEAN — reads as the divot repair tool |
+| bucket with soil | 19.8k | CLEAN — turf repair mix bucket |
+| fallen leaves pile | 19.4k | CLEAN — the litter/trash pile prop |
+| golf swing prop | 25.3k | actually a PAIR OF TEE MARKERS (green, gold golfer logo) |
+| golf course sign | 17.7k | CLEAN — small post sign = RESTORED tee sign |
+| wooden sign | 20k | CLEAN — weathered/broken post sign = BROKEN tee sign |
+| golf club sign | 15.4k | CLEAN — stone-pillared entrance sign (better than what's at the entrance now) |
+| flagpole | 19.4k | it's a golf FLAGSTICK (red flag, base) — per-hole pins, not a pennant |
+
+Corrections to last session's usage, from actually seeing them side by side:
+the entrance currently shows golf+course+sign (a tee sign) and two flagsticks
+misread as pennant poles. Task 4/5 will move the stone club sign to the
+entrance, the course sign to the tees, and the flagsticks to the holes.
+That accounts for exactly the brief's 19 target assets + 1 bonus cart.
