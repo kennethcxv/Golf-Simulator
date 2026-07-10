@@ -974,3 +974,35 @@ collision verified to the centimeter against all three classes — a tree (stops
 9.65 yd, stopped at the water cell edge + 0.34); arrow-look and (lock-stubbed)
 mouse-look deltas match the tuned rates; Tab → overview (FOV 46, rig restored) and
 back resumes the exact standing position. Zero console errors or warnings.
+
+## 2026-07-09 — WALKABLE COURSE Task 2: the golf cart
+
+A real cart parked by the porch: walk up ([E] take the wheel — the shop's focus +
+interact convention), drive at cart pace, [E] park here, and it stays exactly where
+you left it, solid to walk against, visible from the overview too.
+
+**Judgment calls, with reasoning:**
+
+- **10 yd/s (~20 mph) forward, 3.5 reverse — an honest golf-cart pace, 2.9× walking.**
+  Fast enough that crossing a 960-yd property is a drive, slow enough that steering
+  matters and trees still kill your line.
+- **Handling, not physics**: W/S throttle along the heading, A/D steer at 1.6 rad/s
+  under way (reduced authority reversing, gentle pivot when stopped), no strafing in
+  a vehicle, mouse-look doubles as the wheel. The brief asked for faster movement
+  with reasonable turning — this is exactly that, no drift model pretending otherwise.
+- **The cart is a solid object**: a 1.1-yd circle when parked (QA repeatedly proved
+  this by accident — the test player kept walking into it and stopping at exactly
+  1.44 yd center-to-center), 0.9-yd collision radius while driven, seated eye 1.55.
+- **Dismount steps out the side** (right door, then left, then out the back —
+  whichever isn't blocked), and the mesh parks at that spot.
+- **Cart position is render-layer state**: it re-parks by the clubhouse on scene
+  rebuild (save/load, property switch). Persisting a parked-cart coordinate into the
+  save format for a purely-visual convenience isn't worth the schema noise at v1 —
+  logged here deliberately.
+- Self-collision bug caught in QA: the park-position guard saw the cart itself and
+  pushed the spawn 45 yd downfield — fixed with an ignore-cart flag on the check.
+
+Browser QA: prompt appears on approach + facing; mount snaps to the wheel; open-field
+speeds measured walk 3.41 vs drive 10.0 yd/s (2.9×); steering measured 1.6 rad/s;
+the cart mesh follows under way; dismount steps 1.7 yd clear and the prompt flips
+back to "take the wheel". Zero console errors or warnings.

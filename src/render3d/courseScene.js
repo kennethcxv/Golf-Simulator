@@ -1254,8 +1254,7 @@ export function makeCourseScene(canvas, state) {
     return course.zones[cy * W + cx] === ZONE.WATER;
   }
 
-  function walkBlocked(nx, nz) {
-    const r = walk.radius;
+  function walkBlocked(nx, nz, r = walk.radius, ignoreCart = false) {
     for (const c of structColliders) {
       if (nx + r > c.minX && nx - r < c.maxX && nz + r > c.minZ && nz - r < c.maxZ) return true;
     }
@@ -1263,6 +1262,13 @@ export function makeCourseScene(canvas, state) {
       const dx = nx - t.x;
       const dz = nz - t.z;
       const rr = t.r + r;
+      if (dx * dx + dz * dz < rr * rr) return true;
+    }
+    // the parked cart is solid too (you're never "inside" it except driving it)
+    if (!cart.mounted && !ignoreCart) {
+      const dx = nx - cart.x;
+      const dz = nz - cart.z;
+      const rr = 1.1 + r;
       if (dx * dx + dz * dz < rr * rr) return true;
     }
     // ponds: you stop at the water's edge (sample the toe of the step)
@@ -1273,13 +1279,132 @@ export function makeCourseScene(canvas, state) {
   }
 
   // axis-separated so blocked diagonals slide along the obstacle, shop-style
-  function walkTryMove(dx, dz) {
+  function walkTryMove(dx, dz, r = walk.radius) {
     const mX = worldW / 2 - 2;
     const mZ = worldH / 2 - 2;
     const nx = clamp(walk.x + dx, -mX, mX);
-    if (!walkBlocked(nx, walk.z)) walk.x = nx;
+    if (!walkBlocked(nx, walk.z, r)) walk.x = nx;
     const nz = clamp(walk.z + dz, -mZ, mZ);
-    if (!walkBlocked(walk.x, nz)) walk.z = nz;
+    if (!walkBlocked(walk.x, nz, r)) walk.z = nz;
+  }
+
+  // --- the golf cart: fast traversal, shop-convention interaction ---------------------
+  // Not vehicle physics — a faster movement profile with steer-to-turn handling
+  // and a wider collision circle, plus a real mesh that parks where you leave it.
+
+  const cart = {
+    x: 0, z: 0, yaw: Math.PI,
+    mounted: false,
+    speed: 10, // yd/s ≈ 20 mph — honest golf-cart pace, ~3× walking
+    reverse: 3.5,
+    turnRate: 1.6, // rad/s at driving speed
+    eye: 1.55, // seated
+    radius: 0.9,
+  };
+  let cartMesh = null;
+
+  function buildCartMesh() {
+    const g = new THREE.Group();
+    const cream = new THREE.MeshStandardMaterial({ color: 0xe9e6da, roughness: 0.55 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x2e2b26, roughness: 0.85 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.5, 2.4), cream);
+    body.position.y = 0.55;
+    body.castShadow = true;
+    g.add(body);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.45, 0.9), dark);
+    seat.position.set(0, 0.95, 0.4);
+    g.add(seat);
+    const dash = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.35, 0.25), dark);
+    dash.position.set(0, 0.95, -0.65);
+    g.add(dash);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 2.0), cream);
+    roof.position.y = 2.0;
+    roof.castShadow = true;
+    g.add(roof);
+    for (const [px, pz] of [[-0.6, -0.9], [0.6, -0.9], [-0.6, 0.75], [0.6, 0.75]]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.25, 6), dark);
+      post.position.set(px, 1.38, pz);
+      g.add(post);
+    }
+    const wheelGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.2, 12);
+    wheelGeo.rotateZ(Math.PI / 2);
+    for (const [px, pz] of [[-0.62, -0.85], [0.62, -0.85], [-0.62, 0.85], [0.62, 0.85]]) {
+      const wheel = new THREE.Mesh(wheelGeo, dark);
+      wheel.position.set(px, 0.28, pz);
+      g.add(wheel);
+    }
+    return g;
+  }
+
+  function placeCartMesh() {
+    if (!cartMesh) return;
+    cartMesh.position.set(cart.x, heightAt(cart.x, cart.z), cart.z);
+    cartMesh.rotation.y = cart.yaw;
+  }
+
+  function parkCartAtClubhouse() {
+    const spawn = walkDefaultSpawn();
+    cart.x = spawn.x + 5.5;
+    cart.z = spawn.z + 1.5;
+    cart.yaw = Math.PI;
+    for (let push = 1; push < 30 && walkBlocked(cart.x, cart.z, cart.radius + 0.4, true); push++) cart.z += 1.5;
+    placeCartMesh();
+  }
+
+  function mountCart() {
+    cart.mounted = true;
+    walk.x = cart.x;
+    walk.z = cart.z;
+    walk.yaw = cart.yaw;
+  }
+
+  function dismountCart() {
+    cart.mounted = false;
+    cart.x = walk.x;
+    cart.z = walk.z;
+    cart.yaw = walk.yaw;
+    // step out the side: right door first, then left, then out the back
+    const rx = Math.cos(walk.yaw);
+    const rz = -Math.sin(walk.yaw);
+    const exits = [[rx * 1.7, rz * 1.7], [-rx * 1.7, -rz * 1.7], [Math.sin(walk.yaw) * 2.4, Math.cos(walk.yaw) * 2.4]];
+    for (const [ox, oz] of exits) {
+      if (!walkBlocked(walk.x + ox, walk.z + oz)) {
+        walk.x += ox;
+        walk.z += oz;
+        break;
+      }
+    }
+    placeCartMesh();
+  }
+
+  // --- what you're looking at (shop-style focus + [E]) -------------------------------
+  let walkFocus = null; // { kind, label }
+
+  function walkFindFocus() {
+    if (cart.mounted) {
+      walkFocus = { kind: 'cart', label: 'Golf cart — [E] park here' };
+      return;
+    }
+    const dx = cart.x - walk.x;
+    const dz = cart.z - walk.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 3.6) {
+      const facing = ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
+      if (facing > 0.35) {
+        walkFocus = { kind: 'cart', label: 'Golf cart — [E] take the wheel' };
+        return;
+      }
+    }
+    walkFocus = null;
+  }
+
+  function walkInteract() {
+    if (!walk.active) return;
+    if (cart.mounted) {
+      dismountCart();
+      return;
+    }
+    if (walkFocus && walkFocus.kind === 'cart') mountCart();
   }
 
   function walkKeyDown(e) {
@@ -1310,6 +1435,7 @@ export function makeCourseScene(canvas, state) {
     if (walk.active) return;
     walk.active = true;
     if (spawn !== 'resume') {
+      if (cart.mounted) dismountCart(); // the cart stays where it was driven, not where you respawn
       const p = spawn || walkDefaultSpawn();
       walk.x = p.x;
       walk.z = p.z;
@@ -1355,25 +1481,46 @@ export function makeCourseScene(canvas, state) {
     if (walkHeld.has('arrowup')) walk.pitch = clamp(walk.pitch + 1.3 * dt, -1.35, 1.35);
     if (walkHeld.has('arrowdown')) walk.pitch = clamp(walk.pitch - 1.3 * dt, -1.35, 1.35);
 
-    const run = walkHeld.has('shift') ? walk.runMult : 1;
-    let mx = 0;
-    let mz = 0;
-    if (walkHeld.has('w')) mz -= 1;
-    if (walkHeld.has('s')) mz += 1;
-    if (walkHeld.has('a')) mx -= 1;
-    if (walkHeld.has('d')) mx += 1;
-    if (mx || mz) {
-      const len = Math.hypot(mx, mz);
-      const s = (walk.speed * run * dt) / len;
-      const sin = Math.sin(walk.yaw);
-      const cos = Math.cos(walk.yaw);
-      walkTryMove((mx * cos + mz * sin) * s, (-mx * sin + mz * cos) * s);
+    if (cart.mounted) {
+      // cart handling: W/S throttle along the heading, A/D steer — no strafing
+      const throttle = (walkHeld.has('w') ? 1 : 0) - (walkHeld.has('s') ? 1 : 0);
+      const steer = (walkHeld.has('a') ? 1 : 0) - (walkHeld.has('d') ? 1 : 0);
+      if (steer) {
+        // full authority under way, gentle pivot when stopped; reversed in reverse
+        const authority = throttle > 0 ? 1 : throttle < 0 ? -0.7 : 0.35;
+        walk.yaw += steer * cart.turnRate * authority * dt;
+      }
+      if (throttle > 0) {
+        walkTryMove(-Math.sin(walk.yaw) * cart.speed * dt, -Math.cos(walk.yaw) * cart.speed * dt, cart.radius);
+      } else if (throttle < 0) {
+        walkTryMove(Math.sin(walk.yaw) * cart.reverse * dt, Math.cos(walk.yaw) * cart.reverse * dt, cart.radius);
+      }
+      cart.x = walk.x;
+      cart.z = walk.z;
+      cart.yaw = walk.yaw;
+      placeCartMesh();
+    } else {
+      const run = walkHeld.has('shift') ? walk.runMult : 1;
+      let mx = 0;
+      let mz = 0;
+      if (walkHeld.has('w')) mz -= 1;
+      if (walkHeld.has('s')) mz += 1;
+      if (walkHeld.has('a')) mx -= 1;
+      if (walkHeld.has('d')) mx += 1;
+      if (mx || mz) {
+        const len = Math.hypot(mx, mz);
+        const s = (walk.speed * run * dt) / len;
+        const sin = Math.sin(walk.yaw);
+        const cos = Math.cos(walk.yaw);
+        walkTryMove((mx * cos + mz * sin) * s, (-mx * sin + mz * cos) * s);
+      }
     }
 
-    camera.position.set(walk.x, heightAt(walk.x, walk.z) + walk.eye, walk.z);
+    camera.position.set(walk.x, heightAt(walk.x, walk.z) + (cart.mounted ? cart.eye : walk.eye), walk.z);
     camera.rotation.order = 'YXZ';
     camera.rotation.y = walk.yaw;
     camera.rotation.x = walk.pitch;
+    walkFindFocus();
   }
 
   // --- brush ring / marker cursor -----------------------------------------------------------------
@@ -1618,6 +1765,10 @@ export function makeCourseScene(canvas, state) {
   // initial build
   rebuildAll(state);
   updatePlan(null);
+  cartMesh = buildCartMesh();
+  scene.add(cartMesh);
+  refreshWalkColliders(); // parking needs to see the world
+  parkCartAtClubhouse();
   resize();
   rig.apply();
 
@@ -1642,8 +1793,11 @@ export function makeCourseScene(canvas, state) {
       enter: walkEnter,
       exit: walkExit,
       update: walkUpdate,
+      interact: walkInteract,
+      getFocusLabel: () => (walkFocus ? walkFocus.label : null),
       isActive: () => walk.active,
       state: walk, // position/yaw/pitch — also the QA hook
+      cart, // cart state, same purpose
       colliders: { trees: treeColliders, structures: structColliders }, // read-only for QA
     },
     dispose,
