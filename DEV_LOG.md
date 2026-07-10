@@ -1325,3 +1325,25 @@ lighting mood, and cleanliness. Zero console errors; suite 176/176 (rendering on
 
 Verification: qa/style-sbs-task3-clubhouse.png (before / after / reference 7) and
 qa/style-sbs-task3-cart.png (after / reference 5). Zero console errors.
+
+## 2026-07-09 — STYLE Task 4: characters
+
+Golfers and shop customers move from single-color capsules to the guide's §5
+two-tone figure: khaki legs (cylinder) under a saturated polo torso (capsule),
+skin head, cap — reading as "person in a polo on a golf course" at any distance.
+Wardrobe pulled straight from the references: polos in blue/navy/pink/orange/
+white/green over three khaki tones; caps in white/navy/green/cream; warmer skin
+tone (#d9a97e). Shop customers get the same treatment and palette.
+
+**Logged honestly per the brief**: the brief says to "reuse the existing Mixamo
+animation rigging approach from the shop-polish session" — no such session,
+pipeline, or rigged model exists anywhere in this repo (vendor/models holds only
+the Kenney trees; characters have always been primitives here). Restyled the
+primitives in place to the guide's proportions and palette instead; a rigged
+character pass remains future work and is recorded in KNOWN_ISSUES.
+
+QA note: photographing a live walker through tool latency kept missing (they
+cover 3-6 yd/s), so the scene gained setGolfersFrozen(v) — an honest 3-line
+photography/QA hook alongside placeCart. Verification:
+qa/style-sbs-task4-golfer.png (frozen pink-polo golfer vs reference 8's
+foreground pair). Zero console errors.

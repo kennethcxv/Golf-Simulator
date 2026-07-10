@@ -399,23 +399,29 @@ export function makeShopScene(renderer, appRef) {
   const customers = [];
   const custGroup = new THREE.Group();
   scene.add(custGroup);
-  const CUST_COLORS = [0x8f4f3b, 0x3b5a8f, 0x4f8f3b, 0x8f7a3b, 0x6b4f8f];
+  const CUST_COLORS = [0x3b6fb3, 0x2c3e66, 0xd98bb0, 0xd97538, 0x3f7a34]; // §5 polo palette
 
   function spawnCustomer() {
     const rng = rngOf(appRef.app.state);
+    // STYLE GUIDE §5: two-tone customer — khaki legs under a colored polo
+    const legs = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.21, 0.24, 0.8, 8),
+      new THREE.MeshStandardMaterial({ color: 0xc2b190, roughness: 0.85 }),
+    );
+    legs.position.y = 0.4;
     const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.26, 0.85, 3, 8),
+      new THREE.CapsuleGeometry(0.26, 0.5, 3, 8),
       new THREE.MeshStandardMaterial({ color: CUST_COLORS[rng.int(CUST_COLORS.length)], roughness: 0.8 }),
     );
-    body.position.y = 0.9;
+    body.position.y = 1.12;
     body.castShadow = true;
     const head = new THREE.Mesh(
       new THREE.SphereGeometry(0.19, 10, 8),
-      new THREE.MeshStandardMaterial({ color: 0xd9b38c, roughness: 0.7 }),
+      new THREE.MeshStandardMaterial({ color: 0xd9a97e, roughness: 0.7 }),
     );
     head.position.y = 1.72;
     const g = new THREE.Group();
-    g.add(body, head);
+    g.add(legs, body, head);
     g.position.set(0, 0, ROOM.d / 2 - 0.6);
     custGroup.add(g);
     if (appRef.audio && appRef.audio.ready) appRef.audio.doorbell();

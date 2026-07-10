@@ -1187,7 +1187,11 @@ export function makeCourseScene(canvas, state) {
   const golferGroup = new THREE.Group();
   scene.add(golferGroup);
   const golfers = [];
-  const GOLFER_COLORS = [0x9c3f31, 0x2f4f8f, 0x3f7a34, 0x8a7030, 0x5d3f8a, 0x2e7d78];
+  // STYLE GUIDE §5: one saturated polo per figure over khaki — the references'
+  // golfer wardrobe (blue/navy/pink/orange/white/green)
+  const POLO_COLORS = [0x3b6fb3, 0x2c3e66, 0xd98bb0, 0xd97538, 0xf0ede2, 0x3f7a34];
+  const KHAKI_COLORS = [0xc2b190, 0xb9a67e, 0x9a8f78];
+  const CAP_COLORS = [0xf2efe4, 0x2c3e66, 0x2f5c38, 0xe9e2cc];
 
   function golferHoleCorridor(course2) {
     const open = course2.holes.filter((h) => h.status === HOLE_STATUS.OPEN && h.tee && h.pin);
@@ -1198,25 +1202,35 @@ export function makeCourseScene(canvas, state) {
   function spawnGolfer(st) {
     const hole = golferHoleCorridor(st.course);
     if (!hole) return;
-    const color = GOLFER_COLORS[Math.floor(Math.random() * GOLFER_COLORS.length)];
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.32, 0.95, 3, 8),
-      new THREE.MeshStandardMaterial({ color, roughness: 0.85 }),
+    // §5: two-tone figure — khaki legs, saturated polo torso, skin head, cap —
+    // so "person in a polo on a golf course" reads at any distance
+    const polo = POLO_COLORS[Math.floor(Math.random() * POLO_COLORS.length)];
+    const khaki = KHAKI_COLORS[Math.floor(Math.random() * KHAKI_COLORS.length)];
+    const capC = CAP_COLORS[Math.floor(Math.random() * CAP_COLORS.length)];
+    const legs = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.235, 0.27, 0.95, 8),
+      new THREE.MeshStandardMaterial({ color: khaki, roughness: 0.85 }),
     );
-    body.position.y = 1.05;
-    body.castShadow = true;
+    legs.position.y = 0.48;
+    legs.castShadow = true;
+    const torso = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.3, 0.58, 3, 8),
+      new THREE.MeshStandardMaterial({ color: polo, roughness: 0.8 }),
+    );
+    torso.position.y = 1.32;
+    torso.castShadow = true;
     const head = new THREE.Mesh(
       new THREE.SphereGeometry(0.21, 10, 8),
-      new THREE.MeshStandardMaterial({ color: 0xd9b38c, roughness: 0.7 }),
+      new THREE.MeshStandardMaterial({ color: 0xd9a97e, roughness: 0.7 }),
     );
     head.position.y = 1.95;
     const cap = new THREE.Mesh(
       new THREE.CylinderGeometry(0.23, 0.23, 0.09, 10),
-      new THREE.MeshStandardMaterial({ color: 0xf2efe4, roughness: 0.8 }),
+      new THREE.MeshStandardMaterial({ color: capC, roughness: 0.8 }),
     );
     cap.position.y = 2.1;
     const g = new THREE.Group();
-    g.add(body, head, cap);
+    g.add(legs, torso, head, cap);
     golferGroup.add(g);
     const lateral = (Math.random() - 0.5) * 10;
     golfers.push({
@@ -1230,7 +1244,10 @@ export function makeCourseScene(canvas, state) {
     });
   }
 
+  let golfersFrozen = false; // QA/photography: hold the walkers still
+
   function updateGolfers(dt, st) {
+    if (golfersFrozen) return;
     const cal = st ? Math.floor((st.clock.minutes % 1440)) : 720;
     const openHours = cal >= 360 && cal <= 1200;
     const target = openHours ? clamp(Math.round((st.club && st.club.lastRounds ? st.club.lastRounds : 8) / 5), 0, 10) : 0;
@@ -1976,6 +1993,7 @@ export function makeCourseScene(canvas, state) {
     setBrush,
     applyTimeWeather,
     heightAt,
+    setGolfersFrozen: (v) => { golfersFrozen = !!v; },
     walk: {
       enter: walkEnter,
       exit: walkExit,
