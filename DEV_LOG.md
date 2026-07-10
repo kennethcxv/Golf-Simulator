@@ -932,3 +932,45 @@ with zero console errors.
 prestige, manager delegation, buy-backs/re-listing of sold courses, rival buyers as
 visible actors/auctions, the pricing cycle on sale payouts, more climates/archetypes,
 empire financing.
+
+## 2026-07-09 — WALKABLE COURSE Task 1: first-person camera, movement, collision
+
+The course is now experienced on foot by default. The controller is the pro shop's,
+adapted outdoors: WASD + pointer-lock look (arrows as accessibility/QA fallback),
+Shift to run, a 0.34-yd body circle, axis-separated movement so blocked diagonals
+slide along obstacles. The old management rig stays one Tab away — it isn't deleted,
+it's demoted.
+
+**Judgment calls, with reasoning:**
+
+- **Eye height 1.75 yd, walk 3.4 yd/s, run ×1.8.** The shop's proven controller runs
+  1.7/3.1 in a 14-yd room; outdoors, 1.75 yd (≈5'3" eye line — a real human eye
+  height) reads right against 6–12-yd trees and the 8-yd cell grid, and 3.4 yd/s
+  (~7 mph brisk walk; ~12.5 running) makes a 300-yd hole feel like a real walk
+  without being a slog. Task 2's cart is the fast option, not a faster walk.
+- **No new collision data, per the brief**: tree circles (r 0.55) come from the SAME
+  computeTreeSpots()/placeSpot() the renderer plants (1,120 on the current course);
+  the clubhouse is one AABB around its 26×16-yd gabled body (the porch stays open —
+  you can shelter under it between the columns); water blocks at the cell edge by
+  sampling the toe of each step against course.zones. Works rebuilds refresh the
+  colliders (rebuildAll → refreshWalkColliders) so felled trees stop blocking.
+- **First-person camera = the scene camera, retuned per mode**: FOV 66 / near 0.15
+  on foot (the shop's human FOV), restored to 46 / near 1 when the rig takes over.
+  One camera keeps the whole post stack (GTAO, bloom) untouched.
+- **Tab is the mode toggle** (preventDefault'd — it's a camera switch, not DOM
+  focus). Esc on foot follows the shop convention (release pointer → office menu);
+  Esc in the overview returns you to your feet. Works from on-foot shows an honest
+  redesign notice and points at the overview, where the existing editor still fully
+  functions — nothing silently breaks.
+- **Spawn = just past the porch, facing the course** (the door you walked out of);
+  a guard nudges the spawn out of any obstacle that might have grown there.
+- **Pointer lock is request-with-fallback** (same as the shop): some environments
+  (incl. automation) refuse it; click-to-look plus arrow-look cover it.
+
+Browser QA (Tamarack Ridge, a GENERATED course): P out of the shop boots walk mode
+at the clubhouse; movement measured at exactly 3.4 yd/s at eye height exactly 1.75;
+collision verified to the centimeter against all three classes — a tree (stops at
+0.89 = trunk 0.55 + body 0.34), the clubhouse wall (maxZ + 0.34), and a pond (walked
+9.65 yd, stopped at the water cell edge + 0.34); arrow-look and (lock-stubbed)
+mouse-look deltas match the tuned rates; Tab → overview (FOV 46, rig restored) and
+back resumes the exact standing position. Zero console errors or warnings.

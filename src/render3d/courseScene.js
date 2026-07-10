@@ -1207,6 +1207,175 @@ export function makeCourseScene(canvas, state) {
     }
   }
 
+  // --- walkable mode: first-person on the real course ------------------------------------
+  // Adapted from shopScene's controller: WASD + pointer-lock look (arrows as
+  // fallback), circle collision against what the course already has — tree
+  // instances, the clubhouse body, and pond water. No new collision data:
+  // trees come from the same computeTreeSpots/placeSpot the renderer plants,
+  // structures from course.structures, water from course.zones.
+
+  const walk = {
+    active: false,
+    x: 0,
+    z: 0,
+    yaw: Math.PI, // shop-door convention: forward = (-sin, -cos); π faces +z, down the course
+    pitch: 0,
+    eye: 1.75, // human eye height in yards over the terrain
+    speed: 3.4, // yd/s — the shop's tuned 3.1 reads a hair brisker outdoors
+    runMult: 1.8,
+    radius: 0.34, // same body circle the shop uses
+  };
+
+  const walkHeld = new Set();
+  const treeColliders = []; // {x, z, r}
+  const structColliders = []; // {minX, maxX, minZ, maxZ}
+
+  function refreshWalkColliders() {
+    treeColliders.length = 0;
+    for (const s of computeTreeSpots()) {
+      if (s.x < 0 || s.y < 0 || s.x >= W || s.y >= H) continue; // boundary forest sits outside the walkable clamp
+      const p = placeSpot(s);
+      treeColliders.push({ x: p.x, z: p.z, r: 0.55 }); // trunk-and-a-bit — forgiving under a wide canopy
+    }
+    structColliders.length = 0;
+    for (const s of course.structures) {
+      const wx = (s.x + s.w / 2) * CELL_YD - worldW / 2;
+      const wz = (s.y + s.h / 2) * CELL_YD - worldH / 2;
+      // the clubhouse's main gabled body (26×16 yd, see rebuildStructures); the
+      // porch stays open — you can walk under its roof between the columns
+      structColliders.push({ minX: wx - 13.2, maxX: wx + 13.2, minZ: wz - 8.2, maxZ: wz + 8.2 });
+    }
+  }
+
+  function walkIsWaterAt(x, z) {
+    const cx = Math.floor((x + worldW / 2) / CELL_YD);
+    const cy = Math.floor((z + worldH / 2) / CELL_YD);
+    if (cx < 0 || cy < 0 || cx >= W || cy >= H) return false;
+    return course.zones[cy * W + cx] === ZONE.WATER;
+  }
+
+  function walkBlocked(nx, nz) {
+    const r = walk.radius;
+    for (const c of structColliders) {
+      if (nx + r > c.minX && nx - r < c.maxX && nz + r > c.minZ && nz - r < c.maxZ) return true;
+    }
+    for (const t of treeColliders) {
+      const dx = nx - t.x;
+      const dz = nz - t.z;
+      const rr = t.r + r;
+      if (dx * dx + dz * dz < rr * rr) return true;
+    }
+    // ponds: you stop at the water's edge (sample the toe of the step)
+    for (const [ox, oz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) {
+      if (walkIsWaterAt(nx + ox, nz + oz)) return true;
+    }
+    return false;
+  }
+
+  // axis-separated so blocked diagonals slide along the obstacle, shop-style
+  function walkTryMove(dx, dz) {
+    const mX = worldW / 2 - 2;
+    const mZ = worldH / 2 - 2;
+    const nx = clamp(walk.x + dx, -mX, mX);
+    if (!walkBlocked(nx, walk.z)) walk.x = nx;
+    const nz = clamp(walk.z + dz, -mZ, mZ);
+    if (!walkBlocked(walk.x, nz)) walk.z = nz;
+  }
+
+  function walkKeyDown(e) {
+    walkHeld.add(e.key.toLowerCase());
+  }
+  function walkKeyUp(e) {
+    walkHeld.delete(e.key.toLowerCase());
+  }
+  function walkBlur() {
+    walkHeld.clear();
+  }
+  function walkMouseMove(e) {
+    if (document.pointerLockElement !== canvas) return;
+    walk.yaw -= e.movementX * 0.0021;
+    walk.pitch = clamp(walk.pitch - e.movementY * 0.0019, -1.35, 1.35);
+  }
+
+  // where you land when stepping out the clubhouse door: just past the porch
+  function walkDefaultSpawn() {
+    const s = course.structures[0];
+    if (!s) return { x: 0, z: 0, yaw: Math.PI };
+    const wx = (s.x + s.w / 2) * CELL_YD - worldW / 2;
+    const wz = (s.y + s.h / 2) * CELL_YD - worldH / 2;
+    return { x: wx, z: wz + 8.2 + 5.5, yaw: Math.PI }; // beyond the body + porch, facing the course
+  }
+
+  function walkEnter(spawn) {
+    if (walk.active) return;
+    walk.active = true;
+    if (spawn !== 'resume') {
+      const p = spawn || walkDefaultSpawn();
+      walk.x = p.x;
+      walk.z = p.z;
+      walk.yaw = p.yaw ?? Math.PI;
+      walk.pitch = 0;
+    }
+    refreshWalkColliders();
+    if (walkBlocked(walk.x, walk.z)) {
+      // never spawn inside a tree that grew since the spot was chosen
+      for (let push = 1; push < 30 && walkBlocked(walk.x, walk.z); push++) walk.z += 1.5;
+    }
+    camera.fov = 66; // the shop's human FOV; the management rig uses 46
+    camera.near = 0.15;
+    camera.updateProjectionMatrix();
+    window.addEventListener('keydown', walkKeyDown);
+    window.addEventListener('keyup', walkKeyUp);
+    window.addEventListener('blur', walkBlur);
+    document.addEventListener('mousemove', walkMouseMove);
+  }
+
+  function walkExit() {
+    if (!walk.active) return;
+    walk.active = false;
+    walkHeld.clear();
+    window.removeEventListener('keydown', walkKeyDown);
+    window.removeEventListener('keyup', walkKeyUp);
+    window.removeEventListener('blur', walkBlur);
+    document.removeEventListener('mousemove', walkMouseMove);
+    if (document.pointerLockElement === canvas) document.exitPointerLock();
+    camera.fov = 46; // hand the camera back to the management rig
+    camera.near = 1;
+    camera.updateProjectionMatrix();
+    rig.apply();
+  }
+
+  function walkUpdate(dtMs) {
+    if (!walk.active) return;
+    const dt = dtMs / 1000;
+
+    // fallback look controls (also QA/accessibility — same as the shop)
+    if (walkHeld.has('arrowleft')) walk.yaw += 1.9 * dt;
+    if (walkHeld.has('arrowright')) walk.yaw -= 1.9 * dt;
+    if (walkHeld.has('arrowup')) walk.pitch = clamp(walk.pitch + 1.3 * dt, -1.35, 1.35);
+    if (walkHeld.has('arrowdown')) walk.pitch = clamp(walk.pitch - 1.3 * dt, -1.35, 1.35);
+
+    const run = walkHeld.has('shift') ? walk.runMult : 1;
+    let mx = 0;
+    let mz = 0;
+    if (walkHeld.has('w')) mz -= 1;
+    if (walkHeld.has('s')) mz += 1;
+    if (walkHeld.has('a')) mx -= 1;
+    if (walkHeld.has('d')) mx += 1;
+    if (mx || mz) {
+      const len = Math.hypot(mx, mz);
+      const s = (walk.speed * run * dt) / len;
+      const sin = Math.sin(walk.yaw);
+      const cos = Math.cos(walk.yaw);
+      walkTryMove((mx * cos + mz * sin) * s, (-mx * sin + mz * cos) * s);
+    }
+
+    camera.position.set(walk.x, heightAt(walk.x, walk.z) + walk.eye, walk.z);
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = walk.yaw;
+    camera.rotation.x = walk.pitch;
+  }
+
   // --- brush ring / marker cursor -----------------------------------------------------------------
   const brushRing = new THREE.Mesh(
     new THREE.RingGeometry(0.9, 1, 48),
@@ -1436,6 +1605,7 @@ export function makeCourseScene(canvas, state) {
     rebuildStructures();
     updateHoles();
     updateTurf(st);
+    if (walk.active) refreshWalkColliders(); // works can plant or fell obstacles
   }
 
   function dispose() {
@@ -1468,6 +1638,14 @@ export function makeCourseScene(canvas, state) {
     setBrush,
     applyTimeWeather,
     heightAt,
+    walk: {
+      enter: walkEnter,
+      exit: walkExit,
+      update: walkUpdate,
+      isActive: () => walk.active,
+      state: walk, // position/yaw/pitch — also the QA hook
+      colliders: { trees: treeColliders, structures: structColliders }, // read-only for QA
+    },
     dispose,
   };
 }

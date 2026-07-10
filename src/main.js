@@ -40,6 +40,7 @@ const uiRoot = document.getElementById('ui');
 const app = {
   screen: 'menu', // 'menu' | 'game'
   view: 'course', // 'course' | 'shop3d'
+  courseMode: 'walk', // 'walk' (first-person, the default) | 'overview' (management rig)
   empire: null, // the whole game: wallet, market, holdings
   empireOpen: false,
   state: null, // the ACTIVE property's club state (== activeState(app.empire))
@@ -69,9 +70,43 @@ let clubPanel = null;
 let shopPanel = null;
 let empirePanel = null;
 let shopOverlay = null;
+let walkOverlay = null;
 let objectivesPanel = null;
 let menu = null;
 let gameUi = null;
+
+function walkActive() {
+  return app.view === 'course' && app.courseMode === 'walk' && app.scene3d && app.scene3d.walk.isActive();
+}
+
+function requestLook() {
+  try {
+    const p = canvas.requestPointerLock?.();
+    if (p && p.catch) p.catch(() => {}); // some environments refuse; arrows still steer
+  } catch { /* click-to-look covers it */ }
+}
+
+// Entering/leaving the first-person course experience (the default). The old
+// management rig stays one Tab away — Works still lives there until its
+// walkable redesign.
+function enterWalk(spawn) {
+  app.courseMode = 'walk';
+  app.scene3d.walk.enter(spawn);
+  walkOverlay.style.display = '';
+  const hint = document.querySelector('.hint-bar');
+  if (hint) hint.style.display = 'none';
+  inspectPanel.hide();
+  requestLook();
+}
+
+function exitWalk() {
+  if (app.scene3d) app.scene3d.walk.exit();
+  walkOverlay.style.display = 'none';
+  if (app.view === 'course') {
+    const hint = document.querySelector('.hint-bar');
+    if (hint) hint.style.display = '';
+  }
+}
 
 const audio = makeAudio();
 app.audio = audio;
@@ -174,6 +209,8 @@ function startGame(state) {
   app.activeTool = null;
   app.speedIdx = 1;
   app.viewMode = 'normal';
+  app.courseMode = 'walk'; // the course is experienced on foot; Tab for the overview
+  if (walkOverlay) walkOverlay.style.display = 'none';
   lastHourSeen = -1;
   endgameShown = !!(state.progression && state.progression.majorWon);
   failShown = false;
@@ -231,6 +268,10 @@ const handlers = {
     app.speedIdx = i;
   },
   toggleWorks() {
+    if (!app.worksMode && walkActive()) {
+      toast('Course Works is being redesigned for the walkable course. For now, press Tab for the overview camera and edit from there.', 'warn');
+      return;
+    }
     app.worksMode = !app.worksMode;
     if (!app.worksMode) {
       handlers.cancelPlan(true);
@@ -265,6 +306,7 @@ const handlers = {
     if (app.view === 'shop3d') return;
     closeLeftPanels('none');
     inspectPanel.hide();
+    exitWalk();
     app.view = 'shop3d';
     if (!app.shopScene) {
       app.shopScene = makeShopScene(app.scene3d.renderer, {
@@ -291,6 +333,20 @@ const handlers = {
     shopOverlay.style.display = 'none';
     document.querySelector('.hint-bar').style.display = '';
     app.scene3d.resize();
+    // stepping out the door puts you ON the course, at the door — the walkable
+    // view is the course experience; the overview rig is one Tab away
+    if (app.courseMode === 'walk') enterWalk();
+  },
+  toggleCourseMode() {
+    if (app.view !== 'course' || !app.scene3d) return;
+    if (app.courseMode === 'walk') {
+      app.courseMode = 'overview';
+      exitWalk();
+      toast('Overview camera — Tab returns you to your feet.');
+    } else {
+      if (app.worksMode) handlers.toggleWorks(); // plans belong to the overview
+      enterWalk('resume');
+    }
   },
   setViewMode(mode) {
     app.viewMode = mode;
@@ -549,17 +605,15 @@ function refreshHover(clientX, clientY) {
 }
 
 canvas.addEventListener('click', () => {
-  // in the shop, clicking (re)captures the mouse for looking around
-  if (app.screen === 'game' && app.view === 'shop3d' && !document.pointerLockElement) {
-    try {
-      const p = canvas.requestPointerLock?.();
-      if (p && p.catch) p.catch(() => {});
-    } catch { /* arrow keys still steer the view */ }
+  // first-person views (shop, walkable course): clicking (re)captures the mouse
+  if (app.screen === 'game' && !document.pointerLockElement
+    && (app.view === 'shop3d' || walkActive())) {
+    requestLook();
   }
 });
 
 canvas.addEventListener('pointerdown', (e) => {
-  if (app.screen !== 'game' || app.view !== 'course') return;
+  if (app.screen !== 'game' || app.view !== 'course' || app.courseMode !== 'overview') return;
   canvas.setPointerCapture(e.pointerId);
 
   if (e.button === 1 || e.button === 2) {
@@ -582,7 +636,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 
 canvas.addEventListener('pointermove', (e) => {
-  if (app.screen !== 'game' || app.view !== 'course') return;
+  if (app.screen !== 'game' || app.view !== 'course' || app.courseMode !== 'overview') return;
   refreshHover(e.clientX, e.clientY);
 
   if (!dragging) return;
@@ -613,7 +667,7 @@ canvas.addEventListener('pointermove', (e) => {
 });
 
 canvas.addEventListener('pointerup', () => {
-  if (app.screen !== 'game' || app.view !== 'course' || !dragging) return;
+  if (app.screen !== 'game' || app.view !== 'course' || app.courseMode !== 'overview' || !dragging) return;
   if (dragging.mode === 'pan-or-click' && dragging.moved <= 6 && dragging.cell) {
     const section = sectionAtCell(dragging.cell.x, dragging.cell.y);
     if (section) inspectPanel.show(section);
@@ -623,7 +677,7 @@ canvas.addEventListener('pointerup', () => {
 });
 
 canvas.addEventListener('wheel', (e) => {
-  if (app.screen !== 'game' || app.view !== 'course') return;
+  if (app.screen !== 'game' || app.view !== 'course' || app.courseMode !== 'overview') return;
   e.preventDefault();
   app.scene3d.rig.dolly(e.deltaY > 0 ? 1.13 : 1 / 1.13);
 }, { passive: false });
@@ -662,6 +716,47 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  if (e.key === 'Tab') {
+    e.preventDefault(); // Tab is the camera toggle, not DOM focus
+    handlers.toggleCourseMode();
+    return;
+  }
+
+  if (walkActive()) {
+    // first-person course: E is the interaction verb (shop convention)
+    switch (e.key) {
+      case 'e': case 'E':
+        if (app.scene3d.walk.interact) app.scene3d.walk.interact();
+        break;
+      case 'g': case 'G':
+        if (document.pointerLockElement) document.exitPointerLock(); // free the cursor for the panel
+        handlers.toggleGrounds();
+        break;
+      case 'c': case 'C':
+        if (document.pointerLockElement) document.exitPointerLock();
+        handlers.toggleClub();
+        break;
+      case 'm': case 'M':
+        if (document.pointerLockElement) document.exitPointerLock();
+        handlers.toggleEmpire();
+        break;
+      case 'p': case 'P':
+        handlers.enterShop();
+        break;
+      case 'v': case 'V': {
+        const modes = ['normal', 'health', 'moisture'];
+        handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
+        break;
+      }
+      case 'Escape':
+        // first Esc releases the pointer (browser); the next opens the office
+        if (app.groundsOpen || app.clubOpen || app.shopOpen || app.empireOpen) closeLeftPanels('none');
+        else if (!document.pointerLockElement) openPauseMenu();
+        break;
+    }
+    return;
+  }
+
   switch (e.key) {
     case 'e': case 'E':
       handlers.toggleWorks();
@@ -695,8 +790,8 @@ window.addEventListener('keydown', (e) => {
       } else if (app.groundsOpen || app.clubOpen || app.shopOpen) {
         closeLeftPanels('none');
       } else {
-        // leaving the course returns HOME to the shop (menu lives on ☰)
-        handlers.enterShop();
+        // leaving the overview returns to your feet on the course
+        handlers.toggleCourseMode();
       }
       break;
   }
@@ -711,7 +806,7 @@ window.addEventListener('keyup', (e) => held.delete(e.key));
 window.addEventListener('blur', () => held.clear());
 
 function keyboardCamera(dtMs) {
-  if (app.screen !== 'game' || app.view !== 'course' || !app.scene3d) return;
+  if (app.screen !== 'game' || app.view !== 'course' || app.courseMode !== 'overview' || !app.scene3d) return;
   const v = 0.7 * dtMs;
   let dx = 0;
   let dy = 0;
@@ -772,6 +867,10 @@ function frame(ts) {
       app.shopScene.render();
       updateShopOverlay();
     } else {
+      if (walkActive()) {
+        app.scene3d.walk.update(dtMs);
+        updateWalkOverlay();
+      }
       const cal = calendarOf(app.state.clock.minutes);
       app.scene3d.applyTimeWeather(cal.minuteOfDay, app.state.weather);
       app.scene3d.render(dtMs, app.state);
@@ -799,6 +898,15 @@ function updateShopOverlay() {
   prompt.textContent = label || '';
   prompt.style.opacity = label ? '1' : '0';
   const lockHint = shopOverlay.querySelector('.shop-lockhint');
+  lockHint.style.display = document.pointerLockElement ? 'none' : '';
+}
+
+function updateWalkOverlay() {
+  const prompt = walkOverlay.querySelector('.shop-prompt');
+  const label = app.scene3d.walk.getFocusLabel ? app.scene3d.walk.getFocusLabel() : null;
+  prompt.textContent = label || '';
+  prompt.style.opacity = label ? '1' : '0';
+  const lockHint = walkOverlay.querySelector('.shop-lockhint');
   lockHint.style.display = document.pointerLockElement ? 'none' : '';
 }
 
@@ -901,6 +1009,13 @@ function boot() {
     el('button', { class: 'shop-leave', text: '⛳ Out to the course (P)', onclick: () => handlers.exitShop() }),
   );
 
+  walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
+    el('div', { class: 'shop-crosshair' }),
+    el('div', { class: 'shop-prompt', text: '' }),
+    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · Tab: overview camera · P: shop · Esc: office menu' }),
+    el('button', { class: 'shop-leave', text: '🏪 Back to the shop (P)', onclick: () => handlers.enterShop() }),
+  );
+
   const viewButtons = ['normal', 'health', 'moisture'].map((mode) =>
     el('button', {
       text: mode === 'normal' ? '🗺 Normal' : mode === 'health' ? '❤ Health' : '💧 Moisture',
@@ -912,7 +1027,7 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, empirePanel.root, shopOverlay, objectivesPanel.root, viewToggle,
+  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, empirePanel.root, shopOverlay, walkOverlay, objectivesPanel.root, viewToggle,
     el('div', { class: 'hint-bar', text: 'Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · C: Club · M: Empire · V: view · Space: pause · Esc/P: back to shop' }));
 
   uiRoot.append(menu.root, gameUi);
