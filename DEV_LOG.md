@@ -1515,3 +1515,28 @@ Everything rebuilds per enter() from state (rebuildReno), so loads/new games are
 honest. Overlay chip shows live "Shop condition N — word". Verified live: E on a
 pile → 5→4 piles, condition 16→18, zero console errors/warnings.
 qa/shopreno-sbs-task1.png is the before/after pair at the door angle.
+
+## 2026-07-10 — SHOP RESTORATION Task 2: the vacuum
+
+The vacuum copies the hose contract exactly: F equips/stows (shop3d branch), hold
+LMB to use, window-level pointerup releases — no new input paradigm. It is also a
+REAL catalog item ('vac1', new non-retail cat 'supplies', $140, 2-day lead) bought
+through the existing placeOrder/deliverOrdersDue supplier flow; the fixer-upper
+does not come with one. `vacuumOwned` gates the F key with an honest hint.
+
+Guard rails (tested): RETAIL_CATS keeps supplies/decor out of shopper demand,
+out of staff shelving, and out of hand-shelving — your vacuum is not for sale.
+Live QA caught two real bugs: (1) saves written before vac1 existed had no
+inventory slot → desk panel crashed; ensureShopReno now backfills missing catalog
+SKUs on load (tested). (2) the desk panel grew "NaN% of book" markup sliders for
+the new categories — markup/feature-table rows now render only for cats with real
+markup entries.
+
+Feedback loop: cleaning writes cleanGrimeAt(0.5 dirt/s, full strength ~0.9yd +
+soft ring), the dust canvas repaints and lights re-lerp at ~6 Hz while held, and
+motes stream from the floor into the wand nozzle (style-guide red head). Verified
+live end-to-end: ordered via desk panel ($140 out of the wallet), fast-forwarded 2
+real sim days for the truck, F equip, held clean → condition 16→20, the aimed
+patch visibly wiped while far patches stayed. qa/shopreno-sbs-task2-vacuum.png.
+Suite 187/187. Zero console errors. Vacuum whir audio: skipped for now (audio.js
+untouched this session) — noted as polish.

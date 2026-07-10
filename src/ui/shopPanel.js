@@ -7,7 +7,12 @@ import { SHOP_CATALOG, LEAD_DAYS, SHELF_CAP } from '../data/shopItems.js';
 import { placeOrder, orderCost, buyRentalSets, restockShelfFromBackroom } from '../sim/shop.js';
 import { calendarOf } from '../sim/time.js';
 
-const CAT_LABEL = { clubs: 'Clubs', balls: 'Balls', apparel: 'Apparel', accessories: 'Accessories' };
+const CAT_LABEL = {
+  clubs: 'Clubs', balls: 'Balls', apparel: 'Apparel', accessories: 'Accessories',
+  supplies: 'Shop supplies', decor: 'Decor & fixtures',
+};
+// shop equipment/decor is bought one at a time and never shelved for sale
+const OWN_USE = new Set(['supplies', 'decor']);
 
 export function makeShopPanel(app, handlers) {
   const body = el('div');
@@ -35,9 +40,9 @@ export function makeShopPanel(app, handlers) {
       shop.fittingsYesterday > 0 ? el('span', { class: 'status-chip', text: `${shop.fittingsYesterday} fittings` }) : null,
     ));
 
-    // --- pricing -----------------------------------------------------------
+    // --- pricing (retail categories only — your own equipment has no markup) --
     rows.push(el('h3', { text: 'Markup', style: 'margin-top:10px' }));
-    for (const cat of Object.keys(CAT_LABEL)) {
+    for (const cat of Object.keys(CAT_LABEL).filter((c) => shop.markup[c] !== undefined)) {
       const val = el('span', { class: 'muted', text: `${Math.round(shop.markup[cat] * 100)}% of book`, style: 'width:110px;display:inline-block' });
       rows.push(el('div', { class: 'row' },
         el('strong', { text: CAT_LABEL[cat], style: 'width:110px' }),
@@ -53,7 +58,8 @@ export function makeShopPanel(app, handlers) {
     }
     const featureSel = el('select', {
       onchange: (e) => { shop.featureCategory = e.target.value; } },
-      ...Object.keys(CAT_LABEL).map((c) => el('option', { value: c, text: CAT_LABEL[c] })),
+      ...Object.keys(CAT_LABEL).filter((c) => shop.markup[c] !== undefined)
+        .map((c) => el('option', { value: c, text: CAT_LABEL[c] })),
     );
     featureSel.value = shop.featureCategory;
     rows.push(el('div', { class: 'row' },
@@ -71,10 +77,17 @@ export function makeShopPanel(app, handlers) {
       }
       const inv = shop.inventory[sku.id];
       const pending = shop.orders.filter((o) => o.skuId === sku.id).reduce((a, o) => a + o.qty, 0);
-      const qty = sku.cat === 'clubs' ? 3 : 12;
+      const ownUse = OWN_USE.has(sku.cat);
+      const qty = ownUse ? 1 : sku.cat === 'clubs' ? 3 : 12;
       rows.push(el('div', { class: 'row', style: 'font-size:0.88rem' },
         el('span', { text: sku.name + (locked ? ' 🔒' : ''), style: `width:170px;${locked ? 'opacity:.45' : ''}` }),
-        el('span', { class: 'muted', text: `shelf ${inv.shelf}/${SHELF_CAP[sku.cat]} · back ${inv.back}${pending ? ` · 🚚${pending}` : ''}`, style: 'flex:1' }),
+        el('span', {
+          class: 'muted',
+          text: ownUse
+            ? `owned ${inv.back}${pending ? ` · 🚚${pending}` : ''}`
+            : `shelf ${inv.shelf}/${SHELF_CAP[sku.cat]} · back ${inv.back}${pending ? ` · 🚚${pending}` : ''}`,
+          style: 'flex:1',
+        }),
         locked ? el('span', { class: 'muted', text: 'unlocks later' }) : el('button', {
           text: `Order ${qty} (${formatMoney(orderCost(sku, qty))})`,
           onclick: () => {
@@ -83,7 +96,7 @@ export function makeShopPanel(app, handlers) {
             refresh();
           },
         }),
-        !locked && inv.back > 0 ? el('button', {
+        !locked && !ownUse && inv.back > 0 ? el('button', {
           text: 'Shelve',
           title: 'Or walk the floor and do it by hand',
           onclick: () => {

@@ -31,6 +31,9 @@ export const SHOP_CATALOG = [
   { id: 'towel1', cat: 'accessories', tier: 1, name: 'Bag towel', cost: 6, msrp: 14 },
   { id: 'marker1', cat: 'accessories', tier: 1, name: 'Ball marker set', cost: 3, msrp: 8 },
   { id: 'range2', cat: 'accessories', tier: 3, name: 'Laser rangefinder', cost: 140, msrp: 279 },
+
+  // supplies — the shop's own equipment, never sold to shoppers (restoration arc)
+  { id: 'vac1', cat: 'supplies', tier: 1, name: 'Shop vacuum', cost: 140, msrp: 0 },
 ];
 
 const BY_ID = new Map(SHOP_CATALOG.map((s) => [s.id, s]));
@@ -40,7 +43,11 @@ export function skuById(id) {
 }
 
 // supplier lead time in days by category (clubs ship slow)
-export const LEAD_DAYS = { clubs: 4, balls: 2, apparel: 3, accessories: 2 };
+export const LEAD_DAYS = { clubs: 4, balls: 2, apparel: 3, accessories: 2, supplies: 2, decor: 3 };
 
-// shelf capacity per sku by category (one facing)
-export const SHELF_CAP = { clubs: 6, balls: 24, apparel: 16, accessories: 24 };
+// shelf capacity per sku by category (one facing); shop equipment/decor never
+// takes a retail facing — it lives in the back until used or placed
+export const SHELF_CAP = { clubs: 6, balls: 24, apparel: 16, accessories: 24, supplies: 0, decor: 0 };
+
+// the categories shoppers can actually buy off the shelves
+export const RETAIL_CATS = new Set(['clubs', 'balls', 'apparel', 'accessories']);

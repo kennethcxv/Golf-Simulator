@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { clamp } from '../core/utils.js';
 import { makeCharacter } from './characterAsset.js';
 import { SHOP_CATALOG, SHELF_CAP } from '../data/shopItems.js';
-import { restockShelfFromBackroom, RENO, shopCondition, clearClutter } from '../sim/shop.js';
+import { restockShelfFromBackroom, RENO, shopCondition, clearClutter, cleanGrimeAt } from '../sim/shop.js';
 import { makeWoodTexture, makePlasterTexture } from './proceduralTextures.js';
 import { rngOf } from '../core/utils.js';
 
@@ -470,6 +470,90 @@ export function makeShopScene(renderer, appRef) {
     bulbs[1].fixture.material.emissiveIntensity = drop ? 0.05 : 0.55;
   }
 
+  // --- the vacuum: equip (F), hold LMB to clean the patch you're facing ---------------
+  // same equip/aim/hold shape as the course hose; feedback is the dust overlay
+  // receding in place plus motes streaming into the nozzle
+  scene.add(camera); // held tools are camera children
+  let tool = null;
+  let vacuuming = false;
+  let cleanClock = 0;
+
+  const wand = new THREE.Group();
+  const wandBody = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035, 0.045, 0.6, 8),
+    new THREE.MeshStandardMaterial({ color: 0x3a3d40, roughness: 0.6 }),
+  );
+  wandBody.rotation.x = Math.PI / 2 - 0.22;
+  const wandHead = new THREE.Mesh(
+    new THREE.BoxGeometry(0.2, 0.06, 0.12),
+    new THREE.MeshStandardMaterial({ color: 0xc23327, roughness: 0.55 }), // guide §4 equipment red
+  );
+  wandHead.position.set(0, -0.09, -0.32);
+  wand.add(wandBody, wandHead);
+  wand.position.set(0.34, -0.42, -0.7);
+  wand.visible = false;
+  camera.add(wand);
+
+  const MOTES = 26;
+  const moteState = [];
+  const motePos = new Float32Array(MOTES * 3);
+  const moteGeo = new THREE.BufferGeometry();
+  moteGeo.setAttribute('position', new THREE.BufferAttribute(motePos, 3));
+  const motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({
+    color: 0xa2937c, size: 0.05, transparent: true, opacity: 0.85, depthWrite: false,
+  }));
+  motes.visible = false;
+  motes.frustumCulled = false;
+  scene.add(motes);
+  for (let i = 0; i < MOTES; i++) moteState.push({ t: Math.random(), ox: 0, oz: 0 });
+
+  const aimPoint = () => ({
+    x: player.x - Math.sin(player.yaw) * 1.15,
+    z: player.z - Math.cos(player.yaw) * 1.15,
+  });
+
+  function setTool(t) {
+    tool = t;
+    wand.visible = tool === 'vacuum';
+    if (!tool) { vacuuming = false; motes.visible = false; }
+  }
+
+  function setVacuuming(v) {
+    vacuuming = v && tool === 'vacuum';
+    motes.visible = vacuuming;
+  }
+
+  function updateVacuum(dt) {
+    if (!vacuuming) return;
+    const aim = aimPoint();
+    const res = cleanGrimeAt(appRef.app.state, aim.x, aim.z, 0.5 * dt);
+    cleanClock += dt;
+    if (cleanClock > 0.16) { // repaint/relight at ~6 Hz, not every frame
+      cleanClock = 0;
+      if (res.cleaned > 0) repaintGrime();
+      refreshCondition();
+    }
+    // motes stream from the floor around the aim point up into the nozzle
+    wand.updateMatrixWorld();
+    const noz = new THREE.Vector3();
+    wandHead.getWorldPosition(noz);
+    for (let i = 0; i < MOTES; i++) {
+      const m = moteState[i];
+      m.t += dt * (1.6 + (i % 5) * 0.14);
+      if (m.t >= 1) {
+        m.t = 0;
+        m.ox = (Math.random() - 0.5) * 1.1;
+        m.oz = (Math.random() - 0.5) * 1.1;
+      }
+      const sx = aim.x + m.ox;
+      const sz = aim.z + m.oz;
+      motePos[i * 3] = sx + (noz.x - sx) * m.t;
+      motePos[i * 3 + 1] = 0.03 + (noz.y - 0.03) * m.t * m.t;
+      motePos[i * 3 + 2] = sz + (noz.z - sz) * m.t;
+    }
+    moteGeo.attributes.position.needsUpdate = true;
+  }
+
   // --- live stock visualization -----------------------------------------------------------
   const stockMeshes = new Map(); // skuId -> Group
 
@@ -707,6 +791,7 @@ export function makeShopScene(renderer, appRef) {
 
   function exit() {
     active = false;
+    setTool(null); // stow the vacuum on the way out
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
     document.removeEventListener('mousemove', onMouseMove);
@@ -750,6 +835,7 @@ export function makeShopScene(renderer, appRef) {
 
     updateCustomers(dt);
     updateFlicker(dt);
+    updateVacuum(dt);
     findFocus();
   }
 
@@ -775,6 +861,10 @@ export function makeShopScene(renderer, appRef) {
     rebuildReno,
     refreshCondition,
     repaintGrime,
+    setTool,
+    getTool: () => tool,
+    setVacuuming,
+    isVacuuming: () => vacuuming,
     getFocusLabel: () => (focused ? focused.label() : null),
     getPlayer: () => player,
     domElement: renderer.domElement,

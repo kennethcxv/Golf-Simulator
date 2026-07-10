@@ -11,7 +11,10 @@ import assert from 'node:assert/strict';
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, ensureShopReno,
+  placeOrder, deliverOrdersDue, vacuumOwned, restockShelvesByStaff, restockShelfFromBackroom,
 } from '../src/sim/shop.js';
+import { skuById, LEAD_DAYS, SHOP_CATALOG } from '../src/data/shopItems.js';
+import { calendarOf } from '../src/sim/time.js';
 
 const cellCenter = (cx, cy) => ({
   x: -RENO.room.w / 2 + (cx + 0.5) * (RENO.room.w / RENO.grid.w),
@@ -107,6 +110,50 @@ test('hauling out clutter works once per pile and wipes the dirt under it', () =
   assert.ok(reno.grime.reduce((a, v) => a + v, 0) < sumBefore, 'the floor under the pile got cleaner');
   const res2 = clearClutter(state, 0);
   assert.equal(res2.ok, false, 'a cleared pile cannot be hauled twice');
+});
+
+// --- Task 2: the vacuum, bought through the real supplier system ---------------------
+
+test('the vacuum is a real catalog item that ships through the existing order system', () => {
+  const state = newGame('relaxed', 42);
+  const sku = skuById('vac1');
+  assert.ok(sku, 'vac1 exists in the catalog');
+  assert.equal(sku.cat, 'supplies', 'cleaning gear is its own non-retail category');
+  assert.ok(LEAD_DAYS.supplies >= 1, 'supplies have a real lead time');
+
+  assert.equal(vacuumOwned(state), false, 'the fixer-upper does not come with a vacuum');
+  const res = placeOrder(state, 'vac1', 1);
+  assert.ok(res.ok, 'ordering a vacuum works');
+  assert.equal(vacuumOwned(state), false, 'not owned until the truck arrives');
+  const dayAbs = calendarOf(state.clock.minutes).dayAbs;
+  deliverOrdersDue(state, dayAbs + LEAD_DAYS.supplies);
+  assert.equal(vacuumOwned(state), true, 'owned once the order is delivered');
+});
+
+test('supplies and decor never leak into retail: staff do not shelve them, shoppers cannot buy them', () => {
+  const state = newGame('relaxed', 42);
+  state.shop.inventory.vac1.back = 1;
+  // hire-free check: bestSkill is 0 with no staff, so force the player-side path too
+  const moved = restockShelvesByStaff(state);
+  assert.equal(state.shop.inventory.vac1.back, 1, `staff left the vacuum in the back (moved ${moved} retail units)`);
+  assert.equal(state.shop.inventory.vac1.shelf, 0, 'vacuum never reaches a sales shelf');
+  const hand = restockShelfFromBackroom(state, 'vac1');
+  assert.equal(hand.ok, false, 'hand-shelving equipment is refused');
+  for (const sku of SHOP_CATALOG) {
+    if (sku.cat === 'supplies' || sku.cat === 'decor') {
+      assert.equal(state.shop.inventory[sku.id].shelf, 0, `${sku.id} has no shelf presence`);
+    }
+  }
+});
+
+test('saves written before a catalog item existed gain its inventory slot on load', () => {
+  const state = newGame('relaxed', 42);
+  const raw = JSON.parse(serialize(state));
+  delete raw.shop.inventory.vac1; // simulate a save from before the vacuum existed
+  const migrated = deserialize(JSON.stringify(raw));
+  assert.ok(migrated.shop.inventory.vac1, 'missing catalog SKUs are backfilled');
+  const res = placeOrder(migrated, 'vac1', 1);
+  assert.ok(res.ok, 'the migrated save can order the new item');
 });
 
 test('reno state survives save/load exactly, and pre-reno saves migrate to a dirty shop', () => {

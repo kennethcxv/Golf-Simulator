@@ -9,7 +9,7 @@
 import { rngOf, clamp, makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
 import { addRevenue, addExpense } from './economy.js';
-import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP } from '../data/shopItems.js';
+import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS } from '../data/shopItems.js';
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
 import { members } from './golfers.js';
@@ -58,7 +58,12 @@ export function initShopReno(state) {
 }
 
 export function ensureShopReno(state) {
-  if (state.shop && !state.shop.reno) initShopReno(state);
+  if (!state.shop) return;
+  if (!state.shop.reno) initShopReno(state);
+  // saves written before a catalog item existed need its inventory slot
+  for (const sku of SHOP_CATALOG) {
+    if (!state.shop.inventory[sku.id]) state.shop.inventory[sku.id] = { shelf: 0, back: 0 };
+  }
 }
 
 const renoCellAt = (x, z) => {
@@ -190,9 +195,16 @@ export function shelfCapacity(sku) {
   return SHELF_CAP[sku.cat];
 }
 
+// does the shop own its vacuum yet? (equipment lives in .back, never on shelves)
+export function vacuumOwned(state) {
+  const inv = state.shop.inventory.vac1;
+  return !!inv && inv.back > 0;
+}
+
 // the player, standing at a shelf in the 3D shop
 export function restockShelfFromBackroom(state, skuId) {
   const sku = skuById(skuId);
+  if (!RETAIL_CATS.has(sku.cat)) return { ok: false, reason: 'Equipment stays in the back.' };
   const inv = state.shop.inventory[skuId];
   const space = shelfCapacity(sku) - inv.shelf;
   const move = Math.min(space, inv.back);
@@ -210,6 +222,7 @@ export function restockShelvesByStaff(state) {
   let moved = 0;
   for (const sku of SHOP_CATALOG) {
     if (capacity <= 0) break;
+    if (!RETAIL_CATS.has(sku.cat)) continue; // your vacuum is not for sale
     const inv = state.shop.inventory[sku.id];
     const space = shelfCapacity(sku) - inv.shelf;
     const move = Math.min(space, inv.back, capacity);
@@ -271,6 +284,7 @@ export function shopDailyAccrual(state) {
   const catalogByCat = {};
   for (const sku of SHOP_CATALOG) {
     if (sku.tier > shop.unlockedTier) continue;
+    if (!RETAIL_CATS.has(sku.cat)) continue; // supplies/decor never reach shoppers
     (catalogByCat[sku.cat] ||= []).push(sku);
   }
 

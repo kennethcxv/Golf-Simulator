@@ -32,7 +32,7 @@ import { tickTutorial, tutorialFlag } from './sim/tutorial.js';
 import { makeMenu } from './screens/menu.js';
 import { saveData, loadData } from './core/storage.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
-import { shopCondition } from './sim/shop.js';
+import { shopCondition, vacuumOwned } from './sim/shop.js';
 import { makeCourseScene } from './render3d/courseScene.js';
 
 const canvas = document.getElementById('game');
@@ -658,7 +658,15 @@ canvas.addEventListener('click', () => {
 });
 
 canvas.addEventListener('pointerdown', (e) => {
-  if (app.screen !== 'game' || app.view !== 'course') return;
+  if (app.screen !== 'game') return;
+  if (app.view === 'shop3d') {
+    // holding the button runs the vacuum, exactly like the hose outside
+    if (e.button === 0 && app.shopScene && app.shopScene.getTool() === 'vacuum') {
+      app.shopScene.setVacuuming(true);
+    }
+    return;
+  }
+  if (app.view !== 'course') return;
   if (app.courseMode !== 'overview') {
     // walking with the hose out: the held button is the spray trigger
     if (e.button === 0 && walkActive() && app.scene3d.walk.getTool() === 'hose') {
@@ -720,6 +728,7 @@ canvas.addEventListener('pointermove', (e) => {
 
 window.addEventListener('pointerup', () => {
   if (walkActive() && app.scene3d.walk.isSpraying()) app.scene3d.walk.setSpraying(false);
+  if (app.view === 'shop3d' && app.shopScene && app.shopScene.isVacuuming()) app.shopScene.setVacuuming(false);
 });
 
 canvas.addEventListener('pointerup', () => {
@@ -759,6 +768,18 @@ window.addEventListener('keydown', (e) => {
     switch (e.key) {
       case 'e': case 'E':
         app.shopScene.interact();
+        break;
+      case 'f': case 'F':
+        // the vacuum follows the course hose convention: F equips, LMB uses
+        if (app.shopScene.getTool() === 'vacuum') {
+          app.shopScene.setTool(null);
+          toast('Vacuum stowed.');
+        } else if (app.state && vacuumOwned(app.state)) {
+          app.shopScene.setTool('vacuum');
+          toast('Vacuum out — hold the mouse button and work the dirty patches.');
+        } else {
+          toast('No vacuum here yet — order one from the Shop desk.', 'warn');
+        }
         break;
       case 'p': case 'P':
         handlers.exitShop(); // quick toggle out to the course
@@ -1076,7 +1097,7 @@ function boot() {
     el('div', { class: 'shop-crosshair' }),
     el('div', { class: 'shop-prompt', text: '' }),
     el('div', { class: 'shop-cond', text: '' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD move · E interact · P: course · Esc: office menu' }),
+    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD move · E interact · F vacuum · P: course · Esc: office menu' }),
     el('button', { class: 'shop-leave', text: '⛳ Out to the course (P)', onclick: () => handlers.exitShop() }),
   );
 
