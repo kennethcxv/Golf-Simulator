@@ -87,10 +87,60 @@ export function makeShopScene(renderer, appRef) {
   door.position.set(0, 1.25, ROOM.d / 2 - 0.02);
   door.rotation.y = Math.PI;
   scene.add(door);
+
+  // course management map on the wall beside the door — the other way "out"
+  const mapCanvas = document.createElement('canvas');
+  mapCanvas.width = 240;
+  mapCanvas.height = 160;
+  const mapTex = new THREE.CanvasTexture(mapCanvas);
+  mapTex.colorSpace = THREE.SRGBColorSpace;
+  const courseMap = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.4, 1.6),
+    new THREE.MeshStandardMaterial({ map: mapTex, roughness: 0.85 }),
+  );
+  courseMap.position.set(3.4, 1.9, ROOM.d / 2 - 0.03);
+  courseMap.rotation.y = Math.PI;
+  scene.add(courseMap);
+  const mapFrame = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.62, 1.82),
+    new THREE.MeshStandardMaterial({ color: 0x3d3122, roughness: 0.8 }),
+  );
+  mapFrame.position.set(3.4, 1.9, ROOM.d / 2 - 0.02);
+  mapFrame.rotation.y = Math.PI;
+  scene.add(mapFrame);
+  interactives.push({
+    kind: 'map',
+    point: new THREE.Vector3(3.4, 1.6, ROOM.d / 2),
+    label: () => 'Course management — open the course overview',
+    action: () => appRef.exitShop(),
+  });
+
+  const MAP_COLORS = ['#46543a', '#5c7d43', '#7cb257', '#96d377', '#8ac168', '#d8c78e', '#3e6f9e', '#a89f8d'];
+
+  function redrawCourseMap() {
+    const course = appRef.app.state.course;
+    const ctx2 = mapCanvas.getContext('2d');
+    ctx2.fillStyle = '#2a3324';
+    ctx2.fillRect(0, 0, 240, 160);
+    const sx = 240 / course.w;
+    const sy = 160 / course.h;
+    for (let y = 0; y < course.h; y++) {
+      for (let x = 0; x < course.w; x++) {
+        ctx2.fillStyle = MAP_COLORS[course.zones[y * course.w + x]] || '#46543a';
+        ctx2.fillRect(x * sx, y * sy, sx + 0.5, sy + 0.5);
+      }
+    }
+    // pins
+    ctx2.fillStyle = '#d84b3a';
+    for (const h of course.holes) {
+      if (h.pin) ctx2.fillRect(h.pin.x * sx - 1, h.pin.y * sy - 1, 3, 3);
+    }
+    mapTex.needsUpdate = true;
+  }
   interactives.push({
     kind: 'door',
     point: new THREE.Vector3(0, 1.3, ROOM.d / 2),
-    label: () => 'Head back out to the course',
+    label: () => 'Step out to the course — greens, works, and the grounds crew',
     action: () => appRef.exitShop(),
   });
 
@@ -484,6 +534,7 @@ export function makeShopScene(renderer, appRef) {
     player.yaw = 0;
     player.pitch = 0;
     rebuildStock();
+    redrawCourseMap();
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     document.addEventListener('mousemove', onMouseMove);

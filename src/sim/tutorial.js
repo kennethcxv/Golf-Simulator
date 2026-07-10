@@ -9,7 +9,7 @@ export const TUTORIAL_STEPS = [
   {
     id: 'meet-grounds',
     title: 'Walk the property',
-    hint: 'Open the Grounds desk (G) and meet your maintenance situation.',
+    hint: 'Step out through the shop door (E) and open the Grounds desk (G).',
     check: (st) => !!st.tutorial.flags.groundsOpened,
   },
   {
@@ -43,7 +43,7 @@ export const TUTORIAL_STEPS = [
   {
     id: 'walk-floor',
     title: 'Walk your shop',
-    hint: 'Press P and walk the floor. Restock a shelf with E.',
+    hint: 'Home sweet home — you open your day right here. Restock shelves with E when stock arrives.',
     check: (st) => !!st.tutorial.flags.shopWalked,
   },
   {

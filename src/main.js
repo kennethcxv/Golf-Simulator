@@ -177,8 +177,11 @@ function startGame(state) {
   if (objectivesPanel) objectivesPanel.refresh();
   toast(`Welcome to ${state.clubName} — ${state.mode} mode.`);
   if (lastDiseasedNames.size > 0) {
-    toast(`The greenskeeper's note: ${lastDiseasedNames.size} greens are fighting disease. Click them to diagnose.`, 'warn');
+    toast(`The greenskeeper's note: ${lastDiseasedNames.size} greens are fighting disease. Step outside and click them to diagnose.`, 'warn');
   }
+  // home base: the game LIVES in the pro shop — boot straight onto the floor;
+  // the course is a mode you deliberately step out into (shop door, E)
+  handlers.enterShop();
 }
 
 function exitToMenu() {
@@ -322,7 +325,7 @@ function openPauseMenu() {
   modal('Clubhouse Office', (box, close) => {
     const closeAnd = (fn) => async () => { await fn(); close(); };
     box.append(
-      el('div', { class: 'row' }, el('button', { class: 'primary', text: 'Back to the course', onclick: () => { app.speedIdx = prevSpeed || 1; close(); } })),
+      el('div', { class: 'row' }, el('button', { class: 'primary', text: app.view === 'shop3d' ? 'Back to the shop' : 'Back to the course', onclick: () => { app.speedIdx = prevSpeed || 1; close(); } })),
       el('h2', { text: 'Save', style: 'margin-top:14px;font-size:1rem' }),
       el('div', { class: 'row' }, ...SLOTS.map((slot, i) =>
         el('button', {
@@ -546,11 +549,12 @@ window.addEventListener('keydown', (e) => {
         app.shopScene.interact();
         break;
       case 'p': case 'P':
-        handlers.exitShop();
+        handlers.exitShop(); // quick toggle out to the course
         break;
       case 'Escape':
-        // first Esc releases the pointer (browser); a second one leaves the shop
-        if (!document.pointerLockElement) handlers.exitShop();
+        // first Esc releases the pointer (browser); a second one opens the
+        // office menu — the shop is home, Esc doesn't leave it
+        if (!document.pointerLockElement) openPauseMenu();
         break;
     }
     return;
@@ -583,8 +587,11 @@ window.addEventListener('keydown', (e) => {
         handlers.toggleWorks();
       } else if (app.selectedSection) {
         inspectPanel.hide();
+      } else if (app.groundsOpen || app.clubOpen || app.shopOpen) {
+        closeLeftPanels('none');
       } else {
-        openPauseMenu();
+        // leaving the course returns HOME to the shop (menu lives on ☰)
+        handlers.enterShop();
       }
       break;
   }
@@ -779,8 +786,8 @@ function boot() {
   shopOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
     el('div', { class: 'shop-prompt', text: '' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD move · E interact · P leave' }),
-    el('button', { class: 'shop-leave', text: '← Back to the course (P)', onclick: () => handlers.exitShop() }),
+    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD move · E interact · P: course · Esc: office menu' }),
+    el('button', { class: 'shop-leave', text: '⛳ Out to the course (P)', onclick: () => handlers.exitShop() }),
   );
 
   const viewButtons = ['normal', 'health', 'moisture'].map((mode) =>
@@ -795,7 +802,7 @@ function boot() {
   }, 250);
 
   gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, shopOverlay, objectivesPanel.root, viewToggle,
-    el('div', { class: 'hint-bar', text: 'Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · C: Club · P: Pro shop · V: view · Space: pause' }));
+    el('div', { class: 'hint-bar', text: 'Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · C: Club · V: view · Space: pause · Esc/P: back to shop' }));
 
   uiRoot.append(menu.root, gameUi);
   requestAnimationFrame(frame);
