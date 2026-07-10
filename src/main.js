@@ -90,8 +90,14 @@ function requestLook() {
 // Entering/leaving the first-person course experience (the default). The old
 // management rig stays one Tab away — Works still lives there until its
 // walkable redesign.
+let yardHintShown = false; // one nudge per session toward the earned-tractor arc
+
 function enterWalk(spawn) {
   if (app.scene3d && app.scene3d.post && app.scene3d.post.gtao) app.scene3d.post.gtao.radius = 0.7; // first-person contact shadows
+  if (!yardHintShown && app.state && app.state.tractor && !app.state.tractor.repaired) {
+    yardHintShown = true;
+    setTimeout(() => toast('The old tractor sits by the shed, east of the porch — she’d run again with some work.'), 1200);
+  }
   app.courseMode = 'walk';
   app.scene3d.walk.enter(spawn);
   walkOverlay.style.display = '';
