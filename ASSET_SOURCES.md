@@ -1,4 +1,4 @@
-# FAIRWAY STATE — ASSET SOURCES
+# GOLF COURSE FLIPPER — ASSET SOURCES
 
 Every external asset in this repo, its origin, and its license. CC0 requires no
 attribution; this file exists as good practice for a commercial release.
@@ -51,3 +51,23 @@ v5 note: an AI-generated tree pass (Tripo / tripo3d.ai) was attempted as a possi
 upgrade-alongside candidate but no Tripo credentials or working Blender-addon bridge
 exist in this environment, so no AI-generated assets were produced or added — the
 Kenney set above remains the sole tree source. Details in KNOWN_ISSUES.md and DEV_LOG.md.
+
+## Visual-style pass note (2026-07-09, Designs/ reference matching)
+
+How the assets above are USED changed with the style pass (see the STYLE GUIDE in
+DEV_LOG.md): the terrain shader now takes only LUMINANCE from the Poly Haven photo
+sets and applies flat saturated zone tints over it, and the clubhouse materials
+dropped the worn_planks/roof_tiles albedo entirely (flat cream/sage color + their
+normal maps only). No files were added or removed. The Designs/ folder holds 8
+ChatGPT-generated reference images (project-internal art direction only — NOT
+shipped game assets, and not for redistribution as artwork).
+
+Reference-image direction NOT fully achievable with current assets, honestly:
+- The references' dense photoreal grass blades and flower beds have no counterpart
+  asset (and the mandate is stylized anyway) — turf reads as clean tinted fields.
+- The references' clubhouse clock tower, feather flags, entrance sign, and banner
+  props don't exist as models; the building matches by palette, not silhouette.
+- Characters are restyled primitives — no rigged/clothed character models exist in
+  the repo (no Mixamo pipeline despite the brief's reference to one).
+- The physical Sky shader cannot reach the references' deep zenith blue at the
+  bright exposure the style needs; sprite cumulus supply the cloud language.

@@ -109,6 +109,33 @@ old orbit rig survives as a labeled "overview camera" one Tab away.
 - **GTAO is tuned for management-camera distances** (3-yd radius): at first-person
   range contact shadows read slightly broad. Cosmetic; queued for the art pass.
 
+## VISUAL STYLE (2026-07-09) — matched to the Designs/ references; current status
+
+A written style guide (palette, lighting, stylization, texture policy, character
+and UI language — extracted from the 8 reference images) now lives permanently in
+DEV_LOG.md; all rendering follows it. Applied this session: neutral-bright tone
+mapping with bloom/AO cut to contact-only, vivid sky + stylized sprite cumulus,
+luma-only photo textures under flat saturated zone tints with strong mow stripes,
+olive-tan decay tinting, cream/sage/white clubhouse, green utility cart, two-tone
+polo-and-khaki characters, and the charcoal + green-header UI kit. Side-by-side
+proofs in qa/style-sbs-*.png.
+
+Honest deltas still open (also recorded in ASSET_SOURCES.md):
+- **Zenith blue**: the physical Sky shader can't reach the references' deep zenith
+  at this exposure; sky reads paler up top. A gradient sky dome would fix it —
+  future art pass.
+- **Turf hue** sits a half-step more electric than the references' warm #55a83a;
+  next tuning nudge belongs to a playtest, not more screenshot-eyeballing.
+- **Silhouettes**: clubhouse clock tower / porch florals / entrance sign / feather
+  flags and a real tractor+mower don't exist as models; palette matches, silhouette
+  additions are modeling work (pairs with the earned-tractor MVP sequence).
+- **Characters** are restyled primitives; no rigged models or Mixamo pipeline
+  exists in this repo (the session brief referenced one from a "shop-polish
+  session" that never happened here). A real character pass is pre-ship work.
+- Minimap, numbered-step callouts, segmented three-option pickers, and toast
+  pills from the reference UI aren't built (no counterpart screens yet); the kit
+  (colors/headers/buttons) is in place for when they are.
+
 ## FAIRWAY STATE core (per-property) — needs a real art pass before release
 
 - ~~Procedural ground textures~~ — replaced with real CC0 PBR sets (Poly Haven,

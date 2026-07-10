@@ -1368,3 +1368,29 @@ button), sell modal (green header, red Sell $25,500 / green Keep it), Keep-it
 interaction still closes and preserves holdings, market modal opens with Buy
 correctly gated, HUD money green. qa/style-sbs-task5-ui.png vs reference 8.
 Zero console errors; suite 176/176.
+
+## 2026-07-09 — VISUAL STYLE PASS: SESSION SUMMARY
+
+The style guide extracted from Designs/ (see the PERMANENT REFERENCE entry above)
+was applied end to end: Task 2 terrain/lighting/post (neutral-bright tone mapping,
+bloom/AO to contact-only, vivid sky + sprite cumulus, luma-only textures under flat
+saturated tints, doubled stripe presence), Task 3 props/structures (cream/sage/white
+clubhouse, green utility cart, brighter shop), Task 4 characters (two-tone
+polo/khaki figures, reference wardrobe, both scenes), Task 5 UI (charcoal panels,
+green header bars, money-green, solid KEEP/SELL-style decision buttons). Every task
+verified with a real side-by-side against its reference (qa/style-sbs-*.png), every
+commit per-task, suite 176/176 throughout, zero console errors in every check.
+
+Notable judgment calls beyond the per-task entries: the references are more
+photoreal than the "explicitly NOT photorealistic" mandate — the guide resolves the
+conflict by matching color/light/proportion language at our stylized fidelity, and
+that resolution is written INTO the guide; the brief's references to a prior
+art-correction session, a Mixamo shop-polish session, and a tractor were treated as
+direction to establish now (none exist in this repo's history — logged in the guide
+header). QA hooks added for photography: placeCart(x,z,yaw) and setGolfersFrozen(v).
+
+Deltas that remain (KNOWN_ISSUES + ASSET_SOURCES carry the full list): pale zenith
+(physical-Sky limit), slightly electric turf pending playtest tuning, missing
+reference silhouettes (clock tower, tractor, sign, flags), primitive characters,
+and reference UI surfaces that have no screens yet (minimap, step callouts,
+segmented pickers).
