@@ -1479,3 +1479,39 @@ Suite 176/176 (rendering only). Parked, per the superseding note: the UI-layout/
 session brief (minimal HUD + consolidated Manage entry, comps research first) is
 queued as the NEXT session — recorded in KNOWN_ISSUES, not dropped. Deferred UI kit
 pieces (minimap, step callouts, segmented pickers) stay deferred per the brief.
+
+## 2026-07-10 — SHOP RESTORATION Task 1: the shop starts rundown (condition state)
+
+Two briefs landed together (shop-restoration arc + the 19-asset Tripo integration,
+plus a third-person-while-driving request); the user's "start by making the
+clubhouse interior more [rundown]" orders the shop arc first. Reference viewed in
+full: Designs/ClubHouseInterior — the FINISHED end-state (warm cream over green
+wainscoting, wood trusses, green counter with a computer, PRO SHOP alcove, lounge).
+
+Task 1 state design, TDD (tests/shop-reno.test.js, 8 tests → suite 184):
+
+- `state.shop.reno = { grime[35], clutter[5], decor[] }`, owned by sim/shop.js
+  (in scope this session). A 7×5 grid of 2×2-yd dirt cells (0..1) over the room;
+  condition 0-100 is DERIVED, never stored: cleanliness×70 + decor finish (cap 30).
+  Fresh game ≈ 16 — "filthy". Judgment call: deriving condition kills drift bugs
+  and makes the vacuum/decor math trivially testable.
+- Grime draws from a LOCAL rng (`seed ^ 0x51c7`), NOT state.rngState — adding the
+  reno block cannot shift golfer/staff/weather draws in existing tests or saves
+  (same isolation trick as the empire market stream). Verified by test.
+- Migration: `ensureShopReno` in deserialize — old saves gain a dirty shop.
+  Judgment call: thematically every acquired property is a fixer-upper, so making
+  existing shops start dirty is consistent, and it beats special-casing "old saves
+  get a free clean shop."
+- clutter: 5 cardboard piles at fixed candidate spots (seeded jitter). Hauling one
+  out (E, the standard interact verb) wipes 0.5 dirt under it — the pile is both
+  set dressing and a small first restoration beat. One-shot per pile, save-persisted.
+
+Scene side (shopScene.js): a lit transparent canvas overlay paints the dust FROM
+the grime cells (pale haze + dark specks — first cut used dark stains on the
+already-dark floor and vanished; pale-on-wood reads in both light states);
+condition drives ambient/window light, one burnt-out bulb (<45), a flickering
+second tube (<40), dingy wall/floor/ceiling tints, and filthy window glass.
+Everything rebuilds per enter() from state (rebuildReno), so loads/new games are
+honest. Overlay chip shows live "Shop condition N — word". Verified live: E on a
+pile → 5→4 piles, condition 16→18, zero console errors/warnings.
+qa/shopreno-sbs-task1.png is the before/after pair at the door angle.

@@ -13,7 +13,7 @@ import { initTurf, turfHourlyTick, turfDailyTick, runMorningMaintenance, default
 import { initGolfers } from './golfers.js';
 import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
 import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
-import { initShop, shopDailyAccrual, deliverOrdersDue } from './shop.js';
+import { initShop, shopDailyAccrual, deliverOrdersDue, ensureShopReno } from './shop.js';
 import { simulateDayRounds } from './rounds.js';
 import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
 import { initTutorial } from './tutorial.js';
@@ -248,6 +248,7 @@ export function deserialize(json) {
   else initLedger(state);
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
+  ensureShopReno(state); // pre-restoration saves gain the rundown shop state
   if (raw.progression) state.progression = raw.progression;
   else initProgression(state);
   if (raw.tutorial) state.tutorial = raw.tutorial;

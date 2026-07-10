@@ -32,6 +32,7 @@ import { tickTutorial, tutorialFlag } from './sim/tutorial.js';
 import { makeMenu } from './screens/menu.js';
 import { saveData, loadData } from './core/storage.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
+import { shopCondition } from './sim/shop.js';
 import { makeCourseScene } from './render3d/courseScene.js';
 
 const canvas = document.getElementById('game');
@@ -953,11 +954,19 @@ function frame(ts) {
   requestAnimationFrame(frame);
 }
 
+const CONDITION_WORD = (c) =>
+  c < 25 ? 'filthy' : c < 45 ? 'grimy' : c < 70 ? 'getting there' : c < 90 ? 'clean' : 'showroom';
+
 function updateShopOverlay() {
   const prompt = shopOverlay.querySelector('.shop-prompt');
   const label = app.shopScene.getFocusLabel();
   prompt.textContent = label || '';
   prompt.style.opacity = label ? '1' : '0';
+  const cond = shopOverlay.querySelector('.shop-cond');
+  if (app.state && app.state.shop) {
+    const c = shopCondition(app.state);
+    cond.textContent = `🧹 Shop condition ${c} — ${CONDITION_WORD(c)}`;
+  }
   const lockHint = shopOverlay.querySelector('.shop-lockhint');
   lockHint.style.display = document.pointerLockElement ? 'none' : '';
 }
@@ -1066,6 +1075,7 @@ function boot() {
   shopOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
     el('div', { class: 'shop-prompt', text: '' }),
+    el('div', { class: 'shop-cond', text: '' }),
     el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD move · E interact · P: course · Esc: office menu' }),
     el('button', { class: 'shop-leave', text: '⛳ Out to the course (P)', onclick: () => handlers.exitShop() }),
   );

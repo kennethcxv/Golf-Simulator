@@ -6,13 +6,112 @@
 // rounds played + members + reputation; what they buy follows what is actually
 // on the shelves, how it's priced, and whether anyone is working the floor.
 
-import { rngOf, clamp } from '../core/utils.js';
+import { rngOf, clamp, makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
 import { addRevenue, addExpense } from './economy.js';
 import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP } from '../data/shopItems.js';
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
 import { members } from './golfers.js';
+
+// --- restoration arc ------------------------------------------------------------
+// The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
+// the floor (vacuumed patch by patch), clutter piles to haul out, and decor the
+// player orders and places. Condition 0-100 is DERIVED from that state, never
+// stored, so it can't drift: cleanliness carries 70 points, decor finish 30.
+export const RENO = {
+  room: { w: 14, d: 10 },      // must match shopScene's ROOM (render mirrors sim)
+  grid: { w: 7, h: 5 },        // 2×2-yd grime cells over the floor
+  startDirt: [0.58, 0.95],     // fresh-game dirt range per cell
+  cleanRadius: 1.3,            // yards a vacuum pass reaches
+  clutterWipe: 0.5,            // dirt removed under a hauled-out pile
+  finishCap: 30,               // max condition points decor can supply
+};
+
+// candidate clutter spots chosen off the walkways (fixtures live at the walls,
+// the table at center-west, the counter east — these gaps stay reachable)
+const CLUTTER_SPOTS = [
+  { x: -5.6, z: 3.4 }, { x: 4.6, z: -3.4 }, { x: 1.6, z: 2.6 },
+  { x: -3.4, z: -2.8 }, { x: 5.6, z: 3.8 },
+];
+
+function renoRng(state) {
+  // a LOCAL stream derived from the save seed — reno must never consume
+  // state.rngState, or adding it would shift every draw that follows
+  return makeRng(((state.seed >>> 0) ^ 0x51c7) || 1);
+}
+
+export function initShopReno(state) {
+  const rng = renoRng(state);
+  const cells = RENO.grid.w * RENO.grid.h;
+  const grime = [];
+  for (let i = 0; i < cells; i++) {
+    grime.push(Math.round(rng.range(RENO.startDirt[0], RENO.startDirt[1]) * 1000) / 1000);
+  }
+  const clutter = CLUTTER_SPOTS.map((s) => ({
+    x: Math.round((s.x + rng.range(-0.4, 0.4)) * 100) / 100,
+    z: Math.round((s.z + rng.range(-0.3, 0.3)) * 100) / 100,
+    ry: Math.round(rng.range(0, Math.PI * 2) * 100) / 100,
+    cleared: false,
+  }));
+  state.shop.reno = { grime, clutter, decor: [] };
+}
+
+export function ensureShopReno(state) {
+  if (state.shop && !state.shop.reno) initShopReno(state);
+}
+
+const renoCellAt = (x, z) => {
+  const cx = Math.floor(((x + RENO.room.w / 2) / RENO.room.w) * RENO.grid.w);
+  const cy = Math.floor(((z + RENO.room.d / 2) / RENO.room.d) * RENO.grid.h);
+  if (cx < 0 || cx >= RENO.grid.w || cy < 0 || cy >= RENO.grid.h) return -1;
+  return cy * RENO.grid.w + cx;
+};
+
+export function shopCondition(state) {
+  const reno = state.shop && state.shop.reno;
+  if (!reno) return 0;
+  const avgDirt = reno.grime.reduce((a, v) => a + v, 0) / reno.grime.length;
+  let finish = 0;
+  for (const d of reno.decor) {
+    const sku = skuById(d.skuId);
+    finish += (sku && sku.finish) || 0;
+  }
+  return Math.round(clamp(1 - avgDirt, 0, 1) * 70 + Math.min(finish, RENO.finishCap));
+}
+
+// the vacuum, aimed at (x, z): full strength on the aimed cell, half on the
+// ring of cells whose centers fall inside cleanRadius
+export function cleanGrimeAt(state, x, z, amount) {
+  const reno = state.shop && state.shop.reno;
+  if (!reno) return { cleaned: 0 };
+  let cleaned = 0;
+  const cellW = RENO.room.w / RENO.grid.w;
+  const cellD = RENO.room.d / RENO.grid.h;
+  for (let cy = 0; cy < RENO.grid.h; cy++) {
+    for (let cx = 0; cx < RENO.grid.w; cx++) {
+      const cxYd = -RENO.room.w / 2 + (cx + 0.5) * cellW;
+      const czYd = -RENO.room.d / 2 + (cy + 0.5) * cellD;
+      const dist = Math.hypot(cxYd - x, czYd - z);
+      const idx = cy * RENO.grid.w + cx;
+      const strength = dist < 0.9 ? 1 : dist < RENO.cleanRadius + 0.6 ? 0.45 : 0;
+      if (strength <= 0 || reno.grime[idx] <= 0) continue;
+      const take = Math.min(reno.grime[idx], amount * strength);
+      reno.grime[idx] = Math.round((reno.grime[idx] - take) * 1000) / 1000;
+      cleaned += take;
+    }
+  }
+  return { cleaned };
+}
+
+export function clearClutter(state, idx) {
+  const reno = state.shop && state.shop.reno;
+  const pile = reno && reno.clutter[idx];
+  if (!pile || pile.cleared) return { ok: false };
+  pile.cleared = true;
+  cleanGrimeAt(state, pile.x, pile.z, RENO.clutterWipe);
+  return { ok: true };
+}
 
 export function initShop(state) {
   const inventory = {};
@@ -36,6 +135,7 @@ export function initShop(state) {
     fittingsYesterday: 0,
     log: [], // recent notable sales for the panel/3D flavor
   };
+  initShopReno(state);
 }
 
 // --- pricing --------------------------------------------------------------------
