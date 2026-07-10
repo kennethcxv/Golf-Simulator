@@ -2031,3 +2031,23 @@ errors.
   complaint from the walkable session), restored to 1.5 for the overview rig.
 - The overview hint bar now points at 🗂 Manage with the keys as the fast path.
 Zero console errors. Suite 211/211.
+
+## 2026-07-10 — OVERNIGHT PART 6d (self-generated idea #1): mowing juice
+
+IDEA + REASONING (logged per the brief before building): the deck-cut shipped
+tonight is the game's hero loop — earn the tractor, mow your own course — but
+it read dry: no visible matter leaving the deck. Farming Simulator's mowing
+satisfies because you SEE the cut. Small, render-only, zero sim risk.
+
+BUILT: a 70-tuft clipping burst (grass-green points, 0.14 size for chase-cam
+readability) arcs up and back from the deck while it's actually cutting
+(0.35s window per real cut), with ballistic falls clamped to the turf; the
+deck itself vibrates (42 Hz, 0.02 amp) while cutting. Clippings settle when
+you throttle off or hop down.
+
+VERIFICATION, honestly: the visible flag was sampled mid-drive over fresh
+growth — true/true/false/true/true/false as the deck crossed shaggy cells,
+exactly the burst-per-cut design — but my still screenshots kept landing in
+the between-burst gaps (automation can't frame-time a 0.35s window). The
+mechanism is verified by state; a lucky still is left to the first human
+drive. Zero console errors. Suite 211/211.

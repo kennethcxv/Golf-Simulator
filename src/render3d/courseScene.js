@@ -1656,6 +1656,50 @@ export function makeCourseScene(canvas, state) {
   );
   sprayPoints.visible = false;
   sprayPoints.frustumCulled = false;
+
+  // grass clippings behind the cutting deck — the mowing loop's visible juice
+  const CLIP_N = 70;
+  const clipPos = new Float32Array(CLIP_N * 3);
+  const clipState = [];
+  for (let i = 0; i < CLIP_N; i++) clipState.push({ t: 1 + Math.random(), ox: 0, oz: 0, vx: 0, vy: 0, vz: 0 });
+  const clipGeo = new THREE.BufferGeometry();
+  clipGeo.setAttribute('position', new THREE.BufferAttribute(clipPos, 3));
+  const clipPoints = new THREE.Points(
+    clipGeo,
+    new THREE.PointsMaterial({ color: 0x7fa04b, size: 0.14, transparent: true, opacity: 0.9, depthWrite: false }),
+  );
+  clipPoints.visible = false;
+  clipPoints.frustumCulled = false;
+  scene.add(clipPoints);
+  let clipActive = 0; // seconds of spray left after the last real cut
+
+  function updateClippings(dt, deckX, deckY, deckZ, cutting) {
+    if (cutting) clipActive = 0.35;
+    else clipActive = Math.max(0, clipActive - dt);
+    if (clipActive <= 0) {
+      clipPoints.visible = false;
+      return;
+    }
+    clipPoints.visible = true;
+    for (let i = 0; i < CLIP_N; i++) {
+      const c = clipState[i];
+      c.t += dt * 1.8;
+      if (c.t >= 1) {
+        c.t = Math.random() * 0.15;
+        c.ox = deckX + (Math.random() - 0.5) * 2.2;
+        c.oz = deckZ + (Math.random() - 0.5) * 0.8;
+        c.oy = deckY + 0.25;
+        c.vx = (Math.random() - 0.5) * 2.4;
+        c.vy = 2.2 + Math.random() * 1.8;
+        c.vz = (Math.random() - 0.5) * 2.4;
+      }
+      const tt = c.t;
+      clipPos[i * 3] = c.ox + c.vx * tt;
+      clipPos[i * 3 + 1] = Math.max(deckY + 0.03, c.oy + c.vy * tt - 6.5 * tt * tt);
+      clipPos[i * 3 + 2] = c.oz + c.vz * tt;
+    }
+    clipGeo.attributes.position.needsUpdate = true;
+  }
   scene.add(sprayPoints);
 
   function updateSpray(aimWorld) {
@@ -1910,8 +1954,13 @@ export function makeCourseScene(canvas, state) {
         } else {
           mowTexClock = 0.25; // next cut repaints immediately
         }
+        updateClippings(dt, dxT, heightAt(dxT, dzT), dzT, cut);
+        if (mowerMesh) mowerMesh.position.y = 0.02 + (cut ? Math.sin(time * 42) * 0.02 : 0);
+      } else {
+        updateClippings(dt, walk.x, heightAt(walk.x, walk.z), walk.z, false);
       }
     } else {
+      updateClippings(dt, walk.x, 0, walk.z, false); // clippings settle after you hop off
       const run = walkHeld.has('shift') ? walk.runMult : 1;
       let mx = 0;
       let mz = 0;
