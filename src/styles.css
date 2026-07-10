@@ -333,6 +333,35 @@ input[type="range"] { accent-color: var(--accent); }
 .modal .row { display: flex; gap: 8px; margin: 8px 0; align-items: center; }
 .modal .row button { flex: 1; }
 
+/* --- GOLF EMPIRE: market + portfolio ---------------------------------------- */
+
+.modal.wide {
+  min-width: 720px;
+  max-width: min(880px, 92vw);
+  max-height: 84vh;
+  overflow-y: auto;
+}
+
+.modal.wide .row button { flex: 0 0 auto; }
+
+.listing {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+
+.listing .status-chip,
+.panel .status-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
 .toast-wrap {
   position: absolute;
   bottom: 90px;

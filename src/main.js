@@ -1,11 +1,16 @@
-// FAIRWAY STATE — application bootstrap: screens, game loop, input routing.
+// GOLF EMPIRE — application bootstrap: screens, game loop, input routing.
 // All simulation lives in src/sim/ (headless-testable); this file wires it to
-// the 3D course scene, the DOM UI, and the clock.
+// the 3D course scene, the DOM UI, and the clock. The unit of play is the
+// EMPIRE: one wallet, a property market, and whichever owned club is active.
 
 import { BALANCE } from './sim/balance.js';
 import { HOLE_STATUS, TURF_ZONES } from './sim/constants.js';
-import { newGame, deserialize, snapshot, update } from './sim/state.js';
+import {
+  newEmpire, buyProperty, sellProperty, switchProperty, activeState,
+  empireUpdate, empireSnapshot, deserializeEmpire,
+} from './sim/empire.js';
 import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
+import { formatMoney } from './core/utils.js';
 import {
   makePlan, planPaintZone, planAdjustElev, planSmoothElev, applyPlan,
   worksSetTee, worksSetPin,
@@ -18,6 +23,8 @@ import { makeInspectPanel } from './ui/inspectPanel.js';
 import { makeGroundsPanel } from './ui/groundsPanel.js';
 import { makeClubPanel } from './ui/clubPanel.js';
 import { makeShopPanel } from './ui/shopPanel.js';
+import { makeEmpirePanel } from './ui/empirePanel.js';
+import { openMarketplace } from './ui/marketplacePanel.js';
 import { makeShopScene } from './render3d/shopScene.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
 import { makeAudio } from './core/audio.js';
@@ -33,7 +40,9 @@ const uiRoot = document.getElementById('ui');
 const app = {
   screen: 'menu', // 'menu' | 'game'
   view: 'course', // 'course' | 'shop3d'
-  state: null,
+  empire: null, // the whole game: wallet, market, holdings
+  empireOpen: false,
+  state: null, // the ACTIVE property's club state (== activeState(app.empire))
   scene3d: null,
   shopScene: null,
   plan: null,
@@ -58,6 +67,7 @@ let inspectPanel = null;
 let groundsPanel = null;
 let clubPanel = null;
 let shopPanel = null;
+let empirePanel = null;
 let shopOverlay = null;
 let objectivesPanel = null;
 let menu = null;
@@ -75,6 +85,7 @@ function closeLeftPanels(except) {
   if (except !== 'grounds' && app.groundsOpen) groundsPanel.setVisible(false);
   if (except !== 'club' && app.clubOpen) clubPanel.setVisible(false);
   if (except !== 'shop' && app.shopOpen) shopPanel.setVisible(false);
+  if (except !== 'empire' && app.empireOpen) empirePanel.setVisible(false);
 }
 
 // --- section lookup --------------------------------------------------------
@@ -191,10 +202,23 @@ function exitToMenu() {
   menu.setVisible(true);
 }
 
+// Bring a whole empire to life: boot its active club, or — when nothing is
+// owned yet (fresh empire, or the whole portfolio was sold) — open the market.
+function bootEmpire(empire) {
+  app.empire = empire;
+  const st = activeState(empire);
+  if (st) {
+    startGame(st);
+  } else {
+    exitToMenu();
+    openMarketplace(app, handlers);
+  }
+}
+
 async function autosave() {
-  if (!app.state) return;
+  if (!app.empire) return;
   try {
-    await saveData('autosave', snapshot(app.state));
+    await saveData('autosave', empireSnapshot(app.empire));
   } catch (e) {
     console.error('autosave failed', e);
   }
@@ -313,6 +337,76 @@ const handlers = {
   openMenu() {
     openPauseMenu();
   },
+
+  // --- empire layer -------------------------------------------------------
+  toggleEmpire() {
+    if (!app.empire) return;
+    if (app.view === 'shop3d') handlers.exitShop(); // panels live over the course view
+    const next = !app.empireOpen;
+    if (next) closeLeftPanels('empire');
+    empirePanel.setVisible(next);
+  },
+  openMarket() {
+    openMarketplace(app, handlers);
+  },
+  // Returns { closeMarket: true } when the purchase boots a club (first buy).
+  buyFromMarket(propertyId) {
+    const hadActive = !!activeState(app.empire);
+    const res = buyProperty(app.empire, propertyId);
+    if (!res.ok) {
+      toast(res.reason, 'warn');
+      return {};
+    }
+    toast(`Bought ${res.property.name} for ${formatMoney(res.property.askingPrice)}.`);
+    if (!hadActive) {
+      startGame(activeState(app.empire));
+      autosave();
+      return { closeMarket: true };
+    }
+    if (app.empireOpen) empirePanel.refresh();
+    hud.update();
+    autosave();
+    return {};
+  },
+  switchTo(propertyId) {
+    const res = switchProperty(app.empire, propertyId);
+    if (!res.ok) {
+      toast(res.reason, 'warn');
+      return;
+    }
+    if (res.already) return;
+    startGame(activeState(app.empire));
+    autosave();
+  },
+  sellHolding(propertyId, prevSpeed = 1) {
+    const empire = app.empire;
+    const wasActive = empire.activeId === propertyId;
+    const res = sellProperty(empire, propertyId);
+    if (!res.ok) {
+      toast(res.reason, 'warn');
+      app.speedIdx = prevSpeed || 1;
+      return;
+    }
+    toast(`Sold for ${formatMoney(res.payout)}. The deed is done.`);
+    if (wasActive) {
+      if (empire.holdings.length > 0) {
+        switchProperty(empire, empire.holdings[0].property.id);
+        startGame(activeState(empire));
+        toast(`The office moves to ${activeState(empire).clubName}.`);
+      } else {
+        // sold the whole portfolio — back to the market with a full wallet
+        autosave();
+        exitToMenu();
+        openMarketplace(app, handlers);
+        return;
+      }
+    } else {
+      app.speedIdx = prevSpeed || 1;
+      if (app.empireOpen) empirePanel.refresh();
+      hud.update();
+    }
+    autosave();
+  },
 };
 
 // --- pause menu -------------------------------------------------------------------
@@ -326,12 +420,20 @@ function openPauseMenu() {
     const closeAnd = (fn) => async () => { await fn(); close(); };
     box.append(
       el('div', { class: 'row' }, el('button', { class: 'primary', text: app.view === 'shop3d' ? 'Back to the shop' : 'Back to the course', onclick: () => { app.speedIdx = prevSpeed || 1; close(); } })),
+      el('div', { class: 'row' }, el('button', {
+        text: '🏢 Empire overview',
+        onclick: () => {
+          close();
+          app.speedIdx = prevSpeed || 1;
+          handlers.toggleEmpire();
+        },
+      })),
       el('h2', { text: 'Save', style: 'margin-top:14px;font-size:1rem' }),
       el('div', { class: 'row' }, ...SLOTS.map((slot, i) =>
         el('button', {
           text: `Save slot ${i + 1}`,
           onclick: closeAnd(async () => {
-            await saveData(slot, snapshot(app.state));
+            await saveData(slot, empireSnapshot(app.empire));
             toast(`Saved to slot ${i + 1}.`);
             app.speedIdx = prevSpeed || 1;
           }),
@@ -348,7 +450,7 @@ function openPauseMenu() {
               app.speedIdx = prevSpeed || 1;
               return;
             }
-            startGame(deserialize(data));
+            bootEmpire(deserializeEmpire(data));
           }),
         }),
       )),
@@ -573,6 +675,9 @@ window.addEventListener('keydown', (e) => {
     case 'p': case 'P':
       handlers.enterShop();
       break;
+    case 'm': case 'M':
+      handlers.toggleEmpire();
+      break;
     case 'v': case 'V': {
       const modes = ['normal', 'health', 'moisture'];
       handlers.setViewMode(modes[(modes.indexOf(app.viewMode) + 1) % modes.length]);
@@ -634,7 +739,7 @@ function frame(ts) {
     const speed = BALANCE.speeds[app.speedIdx];
     if (speed > 0) {
       const gameMinutes = (dtMs / 1000) * BALANCE.gameMinutesPerRealSecond * speed;
-      const { daysPassed } = update(app.state, gameMinutes);
+      const { daysPassed } = empireUpdate(app.empire, gameMinutes);
       if (daysPassed > 0) {
         rebuildSectionIndex();
         worksPanel.refreshHoles();
@@ -643,6 +748,7 @@ function frame(ts) {
         announceOutbreaks();
         checkBigMoments();
         if (app.clubOpen) clubPanel.refresh();
+        if (app.empireOpen) empirePanel.refresh();
         autosave();
       }
       const hourNow = Math.floor(app.state.clock.minutes / 60);
@@ -730,7 +836,7 @@ function checkBigMoments() {
               const data = await loadData('autosave');
               close();
               failShown = false;
-              if (data) startGame(deserialize(data));
+              if (data) bootEmpire(deserializeEmpire(data));
             },
           }),
           el('button', { class: 'danger', text: 'Exit to menu', onclick: () => { close(); exitToMenu(); } }),
@@ -765,11 +871,14 @@ window.addEventListener('resize', resize);
 function boot() {
   menu = makeMenu({
     onNewGame(mode) {
-      startGame(newGame(mode, (Math.random() * 2 ** 31) | 0));
+      // a new empire starts in the property market — the first act is judgment
+      app.empire = newEmpire(mode, (Math.random() * 2 ** 31) | 0);
+      autosave();
+      openMarketplace(app, handlers);
     },
     async onContinue() {
       const data = await loadData('autosave');
-      if (data) startGame(deserialize(data));
+      if (data) bootEmpire(deserializeEmpire(data));
       else toast('No autosave found.', 'warn');
     },
   });
@@ -781,6 +890,7 @@ function boot() {
   groundsPanel = makeGroundsPanel(app);
   clubPanel = makeClubPanel(app, recomputeRating);
   shopPanel = makeShopPanel(app, handlers);
+  empirePanel = makeEmpirePanel(app, handlers);
   objectivesPanel = makeObjectivesPanel(app);
 
   shopOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
@@ -801,8 +911,8 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, shopOverlay, objectivesPanel.root, viewToggle,
-    el('div', { class: 'hint-bar', text: 'Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · C: Club · V: view · Space: pause · Esc/P: back to shop' }));
+  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, empirePanel.root, shopOverlay, objectivesPanel.root, viewToggle,
+    el('div', { class: 'hint-bar', text: 'Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · C: Club · M: Empire · V: view · Space: pause · Esc/P: back to shop' }));
 
   uiRoot.append(menu.root, gameUi);
   requestAnimationFrame(frame);

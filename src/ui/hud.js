@@ -27,6 +27,11 @@ export function makeHud(app, handlers) {
 
   const weather = el('span', { class: 'weather', title: 'Today at the course' });
   const clubStats = el('span', { class: 'rating', title: 'Members · Reputation' });
+  const empireBtn = el('button', {
+    text: '🏢 Empire',
+    title: 'Your properties, the market, buying and selling (M)',
+    onclick: () => handlers.toggleEmpire(),
+  });
   const clubBtn = el('button', {
     text: '🏛 Club',
     title: 'Members, pricing, staff, amenities (C)',
@@ -60,6 +65,7 @@ export function makeHud(app, handlers) {
     clubStats,
     rating,
     cash,
+    empireBtn,
     clubBtn,
     shopBtn,
     groundsBtn,
@@ -94,6 +100,7 @@ export function makeHud(app, handlers) {
     worksBtn.classList.toggle('active-tool', app.worksMode);
     groundsBtn.classList.toggle('active-tool', app.groundsOpen);
     clubBtn.classList.toggle('active-tool', app.clubOpen);
+    empireBtn.classList.toggle('active-tool', !!app.empireOpen);
     shopBtn.classList.toggle('active-tool', app.shopOpen || app.view === 'shop3d');
   }
 

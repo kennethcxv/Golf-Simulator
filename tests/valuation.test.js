@@ -104,12 +104,15 @@ test('trailing income history moves the valuation in both directions', () => {
   assert.ok(profitable > bleeding, `profits price in: ${profitable} vs ${bleeding}`);
 });
 
-test('trailing net handles short and missing histories', () => {
+test('trailing net counts only what was actually banked', () => {
   const st = newGame('realistic', 42);
   st.ledger.history = [];
   assert.equal(trailingMonthlyNet(st), 0);
   fakeHistory(st, 600, 5); // only 5 closed days so far
-  assert.equal(trailingMonthlyNet(st), 600 * 24, 'short history extrapolates the daily average');
+  assert.equal(trailingMonthlyNet(st), 600 * 5,
+    'a young club gets credit for five days of profit, not an annualized hot streak');
+  fakeHistory(st, 600, 30); // ledger keeps 30, valuation windows 24
+  assert.equal(trailingMonthlyNet(st), 600 * 24, 'full season window');
 });
 
 test('a game actually lived in appraises consistently with its breakdown', () => {

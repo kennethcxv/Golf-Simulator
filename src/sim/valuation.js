@@ -9,15 +9,15 @@ import { clubRatings, memberCounts } from './club.js';
 import { validateHole } from './course.js';
 import { appraiseStats } from './marketplace.js';
 
-// Trailing per-season net: the game's "monthly income". Averages the daily nets
-// of up to the last 24 closed days and scales to the 24-day season, so a short
-// history extrapolates rather than undercounting a new club.
+// Trailing per-season net: the game's "monthly income". Sums the last 24 closed
+// days over the FULL 24-day window — a young club with five days of books gets
+// credit for five days of profit, not an annualized hot streak. (Browser QA
+// caught the alternative: extrapolating a 6-day honeymoon let a $45k purchase
+// appraise at $103k — a flip exploit, not a valuation.)
 export function trailingMonthlyNet(state) {
   const hist = state.ledger ? state.ledger.history : null;
   if (!hist || hist.length === 0) return 0;
-  const window = hist.slice(-24);
-  const avgDaily = window.reduce((sum, day) => sum + (day.net || 0), 0) / window.length;
-  return Math.round(avgDaily * 24);
+  return Math.round(hist.slice(-24).reduce((sum, day) => sum + (day.net || 0), 0));
 }
 
 // Real holes on the ground (open, renovating, or under construction) — the

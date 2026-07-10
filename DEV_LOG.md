@@ -647,3 +647,50 @@ Newest entries at the bottom.
   multi-property save/load, sold-stays-sold, legacy wrap, bad switches, displayed-
   value formula pin). Suite 162/162.
 
+## 2026-07-09 — GOLF EMPIRE Task 5: the market & empire screens, and what browser QA caught
+
+- **Two screens, existing patterns only.** The property market is a `modal()` (new
+  `.modal.wide` class) listing every record's real stats + blurb + Buy, wallet at top —
+  the hidden trueValue is deliberately absent; judging a listing against its ask IS the
+  game. The empire overview is a standard left `panel` (same class as Grounds/Club):
+  wallet, total portfolio value, combined "all courses yesterday" net (active club's
+  closed books + every parked club's passive day), a card per holding (condition,
+  value, income, "earned $X while you were away"), Go there / Sell…, market button,
+  and the deed log. HUD gains 🏢 Empire; M toggles it; the Clubhouse Office menu gets
+  an "Empire overview" entry so it's reachable from the shop too.
+- **main.js now plays an EMPIRE, not a state**: New Empire opens the market over the
+  menu (the first act is judgment — you own nothing until you buy); the first purchase
+  boots the club through the existing `startGame`; later purchases park from birth;
+  `empireUpdate` drives the frame loop; autosave/save-slots/Continue/bank-failure all
+  read and write the empire envelope. Switching = `switchProperty` + `startGame` (full
+  scene rebuild — it's a different course; you arrive on the new club's shop floor,
+  consistent with the v5 home-base rule). Selling the active club moves the office to
+  the next holding; selling the last one drops you back to the market with the check.
+- **The sale confirm pauses the world** so the number in the dialog is exactly the
+  number `sellProperty` pays — the modal restates the permanence in plain words.
+- **Browser QA caught a real economy exploit** (the whole reason the done-when demands
+  a live playthrough): `trailingMonthlyNet` extrapolated a 6-day honeymoon to a full
+  season and a $46k Willow appraised at $103.5k on day 6 — a 2.3× flip in six days.
+  Fixed: the trailing window now counts only what was actually BANKED (sum of the last
+  ≤24 closed days, no extrapolation); the valuation test was updated to pin the new
+  semantics, and the same six-day Willow now appraises ~$69.5k. Honest residual, noted
+  in KNOWN_ISSUES: a parked club is priced on its caretaker run-rate (lastNet×24)
+  while a young active club is priced on thin books, so parking a healthy 6-day-old
+  club reads ~15% higher until its history fills — exploit-resistant in the direction
+  that matters (attended steady-state books always beat the caretaker run-rate).
+- **Full playthrough verified in a real browser** (Playwright over `npm run serve`,
+  port 8457): menu → New Empire (Relaxed) → market modal (8 listings, wallet
+  $100k) → bought Willow Creek $46k → booted onto its shop floor, tutorial 1/10 alive,
+  HUD wallet correct → bought Bent Pines $30.5k from the in-game market (parked from
+  birth, C31) → 5 days at 16×: Bent accrued +$480 at +$96/day, held C31 (below-floor
+  hold verified live), Willow's books/members/rep all moving → Go there: office moved
+  to Bent Pines (own course renders — serpentine bands, bunkers; own shop floor;
+  second-club tutorial correctly skipped) → Willow parked, "earned $584 while away" →
+  Sell… confirm showed $81,000, paid exactly $81,000, wallet $112,212, holding gone,
+  not re-listed → page reload → Continue restored the whole empire (Bent active, day
+  7, wallet intact, market at 6). ZERO console errors across the entire run (one
+  pre-existing THREE shader-compile warning from the base renderer appeared once in
+  an earlier session; none after). Screenshots: qa/e1-marketplace.png,
+  e2-first-buy-shop-boot.png, e3-empire-two-holdings.png, e4-bent-pines-course.png,
+  e5-sell-confirm.png.
+
