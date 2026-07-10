@@ -207,6 +207,7 @@ function startGame(state) {
   app.scene3d = makeCourseScene(canvas, state);
   // walk-up inspection: the walking controller asks, the app answers with the
   // same sections and status words the top-down click-to-inspect always used
+  app.scene3d.walk.hooks.toast = (msg) => toast(msg);
   app.scene3d.walk.hooks.turfLabelAt = (cx, cy) => {
     const section = sectionAtCell(cx, cy);
     if (!section) return null;

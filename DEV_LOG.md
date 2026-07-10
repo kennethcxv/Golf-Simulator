@@ -1701,3 +1701,37 @@ the entrance currently shows golf+course+sign (a tee sign) and two flagsticks
 misread as pennant poles. Task 4/5 will move the stone club sign to the
 entrance, the course sign to the tees, and the flagsticks to the holes.
 That accounts for exactly the brief's 19 target assets + 1 bonus cart.
+
+## 2026-07-10 — ASSET INTEGRATION Task 2: the earned tractor (repair arc + chase cam)
+
+The centerpiece. New additive sim module sim/tractor.js (TDD, 5 tests → suite
+204): state.tractor = { steps: {cleared, fuel, belt}, repaired } — three
+order-free chores, each once, repair gated on all three. MIGRATION JUDGMENT
+CALL: saves from before this arc already had a drivable tractor, so
+deserialize migrates them to repaired=true — a mid-save player never loses the
+keys; only fresh games start broken. Tested.
+
+Scene: a real maintenance yard on the open approach east of the porch (the
+entrance sign/flags mirror it on the west) — shed (owner GLB ×5.2, cream +
+green roof, AABB collider), workbench, red tool chest, and the BROKEN tractor:
+the second owner tractor GLB dressed down in code (materials cloned, dulled
+0.6×, rust-lerped, roughness 1, rear-tire sag rotation, sunk 0.14) with the
+leaves-pile GLB heaped at its nose. First placement landed inside the boundary
+FOREST east of the clubhouse (screenshot: camera in a tree trunk) — moved the
+whole yard south onto the open approach. New generic walk-prop system
+(walkProps + propColliders + focus/interact integration) carries the chores:
+junk pile [E] clears, fuel can [E] fills, belt [E] fits — each with prompt +
+toast — then the machine reports "get her running" and [E] swaps the broken
+shell for the RESTORED drivable tractor in place, with the mower-deck GLB
+(red agricultural machine, ×2.6, rotated across the tail) hitched behind it.
+The deck survives the async tractor-model swap (adoptTractor re-attaches).
+
+Driving is now gated on the repair (cartHidden until repaired: no focus, no
+collision, invisible), and — per the owner's request — mounting switches to a
+THIRD-PERSON CHASE CAMERA (8.5 back / 4.0 up, terrain-aware, looks past the
+hood); on foot stays first-person. Bonus resolved: the old KNOWN_ISSUES
+"drive-facing flip" question — the mid-drive chase view shows her nose-first.
+
+Live playthrough, fresh empire: broken start → three chores (prompt log
+captured) → repair → restored + deck → mount → drove under the chase cam →
+parked. Zero console errors. qa/tractor-sbs-repair-arc.png. Suite 204/204.

@@ -19,6 +19,7 @@ import { ZONE, HOLE_STATUS, CELL_YD } from '../sim/constants.js';
 import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
 import { clamp } from '../core/utils.js';
+import { tractorStep, repairTractor, tractorRemaining, STEP_LABEL } from '../sim/tractor.js';
 import { makeCameraRig } from './cameraRig.js';
 import { makeCharacter } from './characterAsset.js';
 import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture } from './proceduralTextures.js';
@@ -1334,6 +1335,16 @@ export function makeCourseScene(canvas, state) {
     for (const c of structColliders) {
       if (nx + r > c.minX && nx - r < c.maxX && nz + r > c.minZ && nz - r < c.maxZ) return true;
     }
+    for (const c of propColliders) {
+      if (c.minX !== undefined) {
+        if (nx + r > c.minX && nx - r < c.maxX && nz + r > c.minZ && nz - r < c.maxZ) return true;
+      } else {
+        const dx = nx - c.x;
+        const dz = nz - c.z;
+        const rr = c.r + r;
+        if (dx * dx + dz * dz < rr * rr) return true;
+      }
+    }
     for (const t of treeColliders) {
       const dx = nx - t.x;
       const dz = nz - t.z;
@@ -1341,6 +1352,7 @@ export function makeCourseScene(canvas, state) {
       if (dx * dx + dz * dz < rr * rr) return true;
     }
     // the parked cart is solid too (you're never "inside" it except driving it)
+    if (cartHidden) { /* a broken tractor elsewhere is its own collider */ } else
     if (!cart.mounted && !ignoreCart) {
       const dx = nx - cart.x;
       const dz = nz - cart.z;
@@ -1363,6 +1375,11 @@ export function makeCourseScene(canvas, state) {
     const nz = clamp(walk.z + dz, -mZ, mZ);
     if (!walkBlocked(walk.x, nz, r)) walk.z = nz;
   }
+
+  // --- generic walk-up props ([E] interactables placed by scene features) --------------
+  const walkProps = []; // { x, z, r, label(), action()|null }
+  const propColliders = []; // circles {x,z,r} or AABBs {minX,maxX,minZ,maxZ}
+  let cartHidden = false; // the drivable tractor doesn't exist until repaired
 
   // --- the golf cart: fast traversal, shop-convention interaction ---------------------
   // Not vehicle physics — a faster movement profile with steer-to-turn handling
@@ -1418,6 +1435,7 @@ export function makeCourseScene(canvas, state) {
 
   function placeCartMesh() {
     if (!cartMesh) return;
+    cartMesh.visible = !cartHidden;
     cartMesh.position.set(cart.x, heightAt(cart.x, cart.z), cart.z);
     cartMesh.rotation.y = cart.yaw;
   }
@@ -1527,15 +1545,35 @@ export function makeCourseScene(canvas, state) {
       walkFocus = { kind: 'cart', label: 'Tractor — [E] park here' };
       return;
     }
-    const dx = cart.x - walk.x;
-    const dz = cart.z - walk.z;
-    const dist = Math.hypot(dx, dz);
-    if (dist < 3.6) {
-      const facing = ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
-      if (facing > 0.35) {
-        walkFocus = { kind: 'cart', label: 'Tractor — [E] take the wheel' };
-        return;
+    if (!cartHidden) {
+      const dx = cart.x - walk.x;
+      const dz = cart.z - walk.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 3.6) {
+        const facing = ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
+        if (facing > 0.35) {
+          walkFocus = { kind: 'cart', label: 'Tractor — [E] take the wheel' };
+          return;
+        }
       }
+    }
+    // placed props (repair yard, tools, signs): nearest one you're facing
+    let bestProp = null;
+    let bestDist = 1e9;
+    for (const p of walkProps) {
+      const dx = p.x - walk.x;
+      const dz = p.z - walk.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > p.r || dist >= bestDist) continue;
+      const facing = ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
+      if (facing > 0.3) {
+        bestProp = p;
+        bestDist = dist;
+      }
+    }
+    if (bestProp) {
+      walkFocus = { kind: 'prop', label: bestProp.label(), prop: bestProp };
+      return;
     }
     // hose out: the prompt becomes a live nozzle readout on the patch ahead
     if (walkTool === 'hose') {
@@ -1567,6 +1605,8 @@ export function makeCourseScene(canvas, state) {
     if (walkFocus.kind === 'cart') {
       walkSetTool(null); // hands on the wheel
       mountCart();
+    } else if (walkFocus.kind === 'prop') {
+      if (walkFocus.prop.action) walkFocus.prop.action();
     } else if ((walkFocus.kind === 'turf' || walkFocus.kind === 'hose') && walkHooks.inspectAt) {
       walkHooks.inspectAt(walkFocus.cell.x, walkFocus.cell.y);
     }
@@ -1682,10 +1722,23 @@ export function makeCourseScene(canvas, state) {
       }
     }
 
-    camera.position.set(walk.x, heightAt(walk.x, walk.z) + (cart.mounted ? cart.eye : walk.eye), walk.z);
-    camera.rotation.order = 'YXZ';
-    camera.rotation.y = walk.yaw;
-    camera.rotation.x = walk.pitch;
+    if (cart.mounted) {
+      // third-person chase camera while driving: behind and above the tractor,
+      // pulled in when terrain or the world edge would swallow the view
+      const back = 8.5;
+      const up = 4.0;
+      const cx = walk.x + Math.sin(walk.yaw) * back;
+      const cz = walk.z + Math.cos(walk.yaw) * back;
+      const groundY = heightAt(walk.x, walk.z);
+      const cy = Math.max(heightAt(cx, cz) + 1.4, groundY + up);
+      camera.position.set(cx, cy, cz);
+      camera.lookAt(walk.x, groundY + 1.7, walk.z);
+    } else {
+      camera.position.set(walk.x, heightAt(walk.x, walk.z) + walk.eye, walk.z);
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = walk.yaw;
+      camera.rotation.x = walk.pitch;
+    }
     walkFindFocus();
 
     // hold-to-water: sim write through the hook, live texture + spray feedback
@@ -1956,6 +2009,27 @@ export function makeCourseScene(canvas, state) {
   updatePlan(null);
   cartMesh = buildCartMesh(); // primitive placeholder until the real model lands
   scene.add(cartMesh);
+  cartHidden = !!(state.tractor && !state.tractor.repaired); // earn it first
+
+  // the mower deck rides behind the restored tractor (owner-supplied implement)
+  let mowerMesh = null;
+  function attachMower() {
+    if (!cartMesh) return;
+    if (mowerMesh) {
+      if (mowerMesh.parent !== cartMesh) cartMesh.add(mowerMesh);
+      return;
+    }
+    new GLTFLoader().load('vendor/models/mower_deck.glb', (g) => {
+      const m = g.scene;
+      m.scale.setScalar(2.6);
+      m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+      m.rotation.y = Math.PI / 2; // deck width across the tractor's tail
+      m.position.set(0, 0.02, 2.45);
+      mowerMesh = m;
+      cartMesh.add(mowerMesh);
+    }, undefined, () => {});
+  }
+
   // the real tractor: owner-supplied model first (Assets/, matches the Designs
   // references), the bpy-scripted one as fallback, primitives if offline
   function adoptTractor(m, scale, flip = false) {
@@ -1968,6 +2042,7 @@ export function makeCourseScene(canvas, state) {
     scene.remove(cartMesh);
     cartMesh = wrap;
     scene.add(cartMesh);
+    if (mowerMesh) cartMesh.add(mowerMesh); // survive the mesh swap
     placeCartMesh();
   }
   new GLTFLoader().load('vendor/models/tractor_red.glb',
@@ -1975,29 +2050,157 @@ export function makeCourseScene(canvas, state) {
     undefined,
     () => new GLTFLoader().load('vendor/models/tractor.glb', (g) => adoptTractor(g.scene, 1), undefined, () => {}));
 
-  // entrance decor (owner-supplied): course sign + feather-flag poles by the club
+  // shared prop loader for the yard/entrance dressing
+  const putModel = (url, scale, x, z, ry, onLoaded) => {
+    new GLTFLoader().load(url, (g) => {
+      const m = g.scene;
+      m.scale.setScalar(scale);
+      m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+      m.position.set(x, heightAt(x, z), z);
+      m.rotation.y = ry;
+      scene.add(m);
+      if (onLoaded) onLoaded(m);
+    }, undefined, () => {});
+  };
+
+  // --- the maintenance yard: shed, workbench, and the EARNED tractor -------------------
+  // At game start the tractor sits here broken (weathered twin of the red one).
+  // Three chores — clear the junk, fuel it, fit a belt — then [E] repairs it:
+  // the broken shell swaps for the restored machine with the mower deck hitched.
+  function buildMaintenanceYard(bx, bz) {
+    // the yard sits on the open approach east of the porch — the west side has
+    // the entrance sign and flags; the east side earns you the tractor
+    const yard = { x: bx + 14.5, z: bz + 18.5, yaw: 0.7 };
+    const t = state.tractor;
+
+    putModel('vendor/models/shed.glb', 5.2, bx + 20.5, bz + 13, -1.9);
+    propColliders.push({ minX: bx + 17.8, maxX: bx + 23.2, minZ: bz + 10.3, maxZ: bz + 15.7 });
+    putModel('vendor/models/workbench.glb', 2.5, bx + 18.6, bz + 17.2, -Math.PI / 2);
+    propColliders.push({ x: bx + 18.6, z: bz + 17.2, r: 1.0 });
+    putModel('vendor/models/tool_chest.glb', 1.35, bx + 21.6, bz + 17.1, -Math.PI / 2);
+    propColliders.push({ x: bx + 21.6, z: bz + 17.1, r: 0.75 });
+
+    if (!t || t.repaired) {
+      attachMower();
+      return yard; // the machine already runs — the yard is scenery
+    }
+
+    // the broken tractor: same silhouette, visibly let go — dulled, rusted, sagging
+    let brokenGroup = null;
+    const brokenCollider = { x: yard.x, z: yard.z, r: 1.5 };
+    propColliders.push(brokenCollider);
+    putModel('vendor/models/tractor_broken.glb', 3.55, yard.x, yard.z, yard.yaw + Math.PI / 2, (m) => {
+      brokenGroup = m;
+      m.rotation.z = 0.045; // flat rear tire sag
+      m.position.y -= 0.14;
+      m.traverse((o) => {
+        if (o.isMesh && o.material) {
+          o.material = o.material.clone();
+          if (o.material.color) {
+            o.material.color.multiplyScalar(0.6);
+            o.material.color.lerp(new THREE.Color(0x6e4a2c), 0.28); // rust film
+          }
+          o.material.roughness = 1;
+        }
+      });
+    });
+
+    const say = (msg) => { if (walkHooks.toast) walkHooks.toast(msg); };
+
+    // chore 1: the junk heaped against it
+    let leavesMesh = null;
+    const leavesProp = {
+      x: bx + 11.8, z: bz + 20.4, r: 2.4,
+      label: () => 'Old leaves and junk — [E] clear it out',
+      action: () => {
+        if (!tractorStep(state, 'cleared').ok) return;
+        if (leavesMesh) scene.remove(leavesMesh);
+        walkProps.splice(walkProps.indexOf(leavesProp), 1);
+        say('Junk cleared — you can get at the engine now.');
+      },
+    };
+    putModel('vendor/models/leaves_pile.glb', 2.2, leavesProp.x, leavesProp.z, 0.4, (m) => { leavesMesh = m; });
+    walkProps.push(leavesProp);
+
+    // chore 2: the fuel can by the bench
+    let canMesh = null;
+    const canProp = {
+      x: bx + 17.4, z: bz + 18.9, r: 2.0,
+      label: () => 'Fuel can — [E] fill the tractor’s tank',
+      action: () => {
+        if (!tractorStep(state, 'fuel').ok) return;
+        if (canMesh) scene.remove(canMesh);
+        walkProps.splice(walkProps.indexOf(canProp), 1);
+        say('Tank filled — smells like a running machine already.');
+      },
+    };
+    putModel('vendor/models/gas_can.glb', 0.55, canProp.x, canProp.z, 0.9, (m) => { canMesh = m; });
+    walkProps.push(canProp);
+
+    // chore 3: the drive belt on the chest
+    let beltMesh = null;
+    const beltProp = {
+      x: bx + 21.0, z: bz + 18.8, r: 2.0,
+      label: () => 'Drive belt — [E] fit it to the tractor',
+      action: () => {
+        if (!tractorStep(state, 'belt').ok) return;
+        if (beltMesh) scene.remove(beltMesh);
+        walkProps.splice(walkProps.indexOf(beltProp), 1);
+        say('Belt on the pulleys — one pull of the starter to go.');
+      },
+    };
+    putModel('vendor/models/belt.glb', 0.7, beltProp.x, beltProp.z, 0.3, (m) => { beltMesh = m; });
+    walkProps.push(beltProp);
+
+    // the machine itself: reports what it still needs, then comes alive
+    const tractorProp = {
+      x: yard.x, z: yard.z, r: 3.4,
+      label: () => {
+        const left = tractorRemaining(state);
+        if (left.length) return `Broken tractor — needs ${left.map((s) => STEP_LABEL[s]).join(', ')}`;
+        return 'Broken tractor — [E] get her running';
+      },
+      action: () => {
+        if (!repairTractor(state).ok) return;
+        if (brokenGroup) scene.remove(brokenGroup);
+        walkProps.splice(walkProps.indexOf(tractorProp), 1);
+        propColliders.splice(propColliders.indexOf(brokenCollider), 1);
+        cart.x = yard.x;
+        cart.z = yard.z;
+        cart.yaw = yard.yaw;
+        cartHidden = false;
+        placeCartMesh();
+        attachMower();
+        say('She lives! The tractor is yours — mower deck hitched. [E] to take the wheel.');
+      },
+    };
+    walkProps.push(tractorProp);
+    return yard;
+  }
+
+  // entrance decor (owner-supplied): course sign + flag poles by the club
+  let yardHome = null;
   {
     const s0 = course.structures[0];
     if (s0) {
       const bx = (s0.x + s0.w / 2) * CELL_YD - worldW / 2;
       const bz = (s0.y + s0.h / 2) * CELL_YD - worldH / 2;
-      const put = (url, scale, x, z, ry) => {
-        new GLTFLoader().load(url, (g) => {
-          const m = g.scene;
-          m.scale.setScalar(scale);
-          m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-          m.position.set(x, heightAt(x, z), z);
-          m.rotation.y = ry;
-          scene.add(m);
-        }, undefined, () => {});
-      };
-      put('vendor/models/course_sign.glb', 2.2, bx - 15, bz + 16, 0.5);
-      put('vendor/models/flagpole.glb', 2.6, bx - 11.5, bz + 18, 0.2);
-      put('vendor/models/flagpole.glb', 2.6, bx - 18.5, bz + 18, -0.2);
+      putModel('vendor/models/course_sign.glb', 2.2, bx - 15, bz + 16, 0.5);
+      putModel('vendor/models/flagpole.glb', 2.6, bx - 11.5, bz + 18, 0.2);
+      putModel('vendor/models/flagpole.glb', 2.6, bx - 18.5, bz + 18, -0.2);
+      yardHome = buildMaintenanceYard(bx, bz);
     }
   }
   refreshWalkColliders(); // parking needs to see the world
-  parkCartAtClubhouse();
+  if (yardHome) {
+    // the tractor lives at the yard, broken or not
+    cart.x = yardHome.x;
+    cart.z = yardHome.z;
+    cart.yaw = yardHome.yaw;
+    placeCartMesh();
+  } else {
+    parkCartAtClubhouse();
+  }
   resize();
   rig.apply();
 
