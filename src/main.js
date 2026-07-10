@@ -296,6 +296,26 @@ function startGame(state) {
     sweep(cx, cy + 1, 0.5);
     sweep(cx, cy - 1, 0.5);
   };
+  // the hitched mower deck cuts for real: driving over turf writes heightMm to
+  // the zone's ideal — the SAME array the crew's morning mow writes, so stripes
+  // appear, growth continues from the cut, and the books stay honest (your
+  // seat time is free labor, like hand-watering)
+  const MOW_TARGET = {
+    [ZONE.GREEN]: BALANCE.turf.ideal.green.height,
+    [ZONE.TEE]: BALANCE.turf.ideal.tee.height,
+    [ZONE.FAIRWAY]: BALANCE.turf.ideal.fairway.height,
+    [ZONE.ROUGH]: BALANCE.turf.ideal.rough.height,
+  };
+  app.scene3d.walk.hooks.mowAt = (cx, cy) => {
+    const st = app.state;
+    if (!st || !st.turf) return false;
+    const i = cy * st.course.w + cx;
+    const target = MOW_TARGET[st.course.zones[i]];
+    if (target === undefined || st.turf.heightMm[i] <= target + 0.5) return false;
+    st.turf.heightMm[i] = target;
+    return true;
+  };
+  app.scene3d.walk.hooks.engine = (on) => { if (audio.ready) audio.setToolLoop(on ? 'mower' : null); };
   app.scene3d.walk.hooks.rakeLabelAt = (cx, cy) => {
     const st = app.state;
     const i = cy * st.course.w + cx;

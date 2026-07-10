@@ -1986,3 +1986,21 @@ Interaction-moment review, per the brief's "no instant state changes":
   all shrink out over 0.2s instead of blinking away (one-shot rAF tweens,
   independent of the scene loops).
 Zero console errors. Suite 210/210.
+
+## 2026-07-10 — OVERNIGHT PART 6a (backlog): THE DECK CUTS — player mowing ships
+
+The top open item in KNOWN_ISSUES (flagged in both the walkable and asset
+sections): the earned tractor hauled a mower that cut nothing. Now it mows —
+while driving (throttle on, repair done), the deck's three-cell swath (2.5 yd
+behind the seat, ±1.1 yd across) writes heightMm to each zone's ideal through
+a new mowAt hook — the SAME array the crew's morning pass writes, so growth,
+health factors, and the stripe shader all just work. The mounted prompt says
+so ("the deck cuts as you drive"), and mounting starts a proper engine loop
+(detuned saws + engine-bay noise on the tool-loop bus) that stops on dismount.
+
+Verified live: shaggiest fairway cell 24.1 mm → 14.0 mm (the fairway ideal)
+as the tractor drove its line; the cut lane reads brighter up the fairway
+(qa/mowing-wake.png). Judgment calls: seat time is free labor (hand-watering
+precedent); the deck "cuts" greens to green ideal rather than scalping them —
+an idealized kindness, logged in KNOWN_ISSUES. Suite 210/210, zero console
+errors.

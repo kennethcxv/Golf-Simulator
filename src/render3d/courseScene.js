@@ -1552,10 +1552,12 @@ export function makeCourseScene(canvas, state) {
     walk.x = cart.x;
     walk.z = cart.z;
     walk.yaw = cart.yaw;
+    if (walkHooks.engine) walkHooks.engine(true); // she idles the moment you're up
   }
 
   function dismountCart() {
     cart.mounted = false;
+    if (walkHooks.engine) walkHooks.engine(false);
     cart.x = walk.x;
     cart.z = walk.z;
     cart.yaw = walk.yaw;
@@ -1582,6 +1584,7 @@ export function makeCourseScene(canvas, state) {
   let walkTool = null; // null | 'hose' | 'divot' | 'rake'
   let walkSpraying = false; // "holding the use button" for whichever tool is out
   let walkWaterTexClock = 0;
+  let mowTexClock = 0;
 
   // held tool models (owner-supplied GLBs) ride the camera like the shop's wand
   scene.add(camera);
@@ -1711,7 +1714,8 @@ export function makeCourseScene(canvas, state) {
 
   function walkFindFocus() {
     if (cart.mounted) {
-      walkFocus = { kind: 'cart', label: 'Tractor — [E] park here' };
+      const cutting = state.tractor && state.tractor.repaired;
+      walkFocus = { kind: 'cart', label: cutting ? 'Tractor — the deck cuts as you drive · [E] park here' : 'Tractor — [E] park here' };
       return;
     }
     if (!cartHidden) {
@@ -1878,6 +1882,33 @@ export function makeCourseScene(canvas, state) {
       cart.z = walk.z;
       cart.yaw = walk.yaw;
       placeCartMesh();
+
+      // the hitched deck CUTS: cells under it (2.5 yd behind the seat, the
+      // deck's width) mow to the zone's ideal height through the same hook
+      // family the hose uses — real sim writes, stripes as the payoff
+      if (throttle && walkHooks.mowAt && state.tractor && state.tractor.repaired) {
+        const dxT = walk.x + Math.sin(walk.yaw) * 2.5;
+        const dzT = walk.z + Math.cos(walk.yaw) * 2.5;
+        const rx = Math.cos(walk.yaw);
+        const rz = -Math.sin(walk.yaw);
+        let cut = false;
+        for (const off of [-1.1, 0, 1.1]) {
+          const mx = dxT + rx * off;
+          const mz = dzT + rz * off;
+          const cx = Math.floor((mx + worldW / 2) / CELL_YD);
+          const cy = Math.floor((mz + worldH / 2) / CELL_YD);
+          if (cx >= 0 && cy >= 0 && cx < W && cy < H && walkHooks.mowAt(cx, cy)) cut = true;
+        }
+        if (cut) {
+          mowTexClock += dt;
+          if (mowTexClock >= 0.25) {
+            mowTexClock = 0;
+            updateTurf(state);
+          }
+        } else {
+          mowTexClock = 0.25; // next cut repaints immediately
+        }
+      }
     } else {
       const run = walkHeld.has('shift') ? walk.runMult : 1;
       let mx = 0;

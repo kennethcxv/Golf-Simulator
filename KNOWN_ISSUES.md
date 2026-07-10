@@ -48,9 +48,11 @@ Open / deliberate:
   remains a pre-ship art item.
 - **The golf cart GLB is unused** (bonus asset, staged in vendor-able form via
   Assets/) — could become a second drivable or ambient prop later.
-- **Mowing-while-driving is visual only** — the deck rides the tractor but
-  cutting still belongs to the crew sim; a player-driven mowing write-through
-  (like waterAt) is a natural next mechanic.
+- ~~Mowing-while-driving is visual only~~ — SHIPPED (overnight Part 6,
+  2026-07-10): the hitched deck cuts a 3-cell swath to each zone's ideal height
+  through a mowAt hook into the same heightMm array the crew writes; engine
+  loop while mounted; free labor like hand-watering. Deliberate simplification:
+  the deck cuts greens to green height rather than scalping them.
 - **Open pins lost their numbered canvas flags** (real flagstick GLB instead);
   the tee's floating number still identifies holes. One-branch revert if
   playtests miss it.
@@ -146,8 +148,8 @@ old orbit rig survives as a labeled "overview camera" one Tab away.
   camera (Tab). The walkable replacement (survey stakes? a foreman mode? plan-on-the-
   ground?) is the next portion's design work.
 - ~~More hands-on tools (mowing, weeding, litter pickup) deliberately not built~~ —
-  the divot kit, bunker rake, and litter hauling shipped 2026-07-10 on the hose's
-  pattern; player-driven mowing from the tractor seat remains open (deck is visual).
+  the divot kit, bunker rake, litter hauling, AND player mowing from the tractor
+  seat all shipped 2026-07-10 on the hose's pattern.
 - **Cart position is render-layer state**: it re-parks by the clubhouse on scene
   rebuild (save/load, property switch). Persisting it means a save-format field for
   a cosmetic nicety — deferred.

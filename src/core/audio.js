@@ -219,6 +219,21 @@ export function makeAudio() {
       filter.frequency.value = 1500;
       filter.Q.value = 0.8;
       src.connect(filter).connect(gain);
+    } else if (kind === 'mower') {
+      // the player's own machine, up close: detuned saws + engine-bay noise
+      filter.type = 'lowpass';
+      filter.frequency.value = 520;
+      src.connect(filter).connect(gain);
+      for (const f of [88, 91.5]) {
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = f;
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 380;
+        osc.connect(lp).connect(gain);
+        osc.start();
+      }
     } else if (kind === 'vacuum') {
       filter.type = 'lowpass';
       filter.frequency.value = 340;
@@ -252,7 +267,7 @@ export function makeAudio() {
     return gain;
   }
 
-  const TOOL_LOOP_LEVEL = { hose: 0.045, vacuum: 0.06, divot: 0.05, rake: 0.05 };
+  const TOOL_LOOP_LEVEL = { hose: 0.045, vacuum: 0.06, divot: 0.05, rake: 0.05, mower: 0.055 };
   function setToolLoop(kind) {
     if (!ctx) return;
     if (kind) ensureToolLoop(kind);
