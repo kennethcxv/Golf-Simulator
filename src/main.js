@@ -749,6 +749,7 @@ function frame(ts) {
         checkBigMoments();
         if (app.clubOpen) clubPanel.refresh();
         if (app.empireOpen) empirePanel.refresh();
+        if (app.marketRefresh) app.marketRefresh(); // market left open stays live
         autosave();
       }
       const hourNow = Math.floor(app.state.clock.minutes / 60);

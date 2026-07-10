@@ -10,7 +10,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MINUTES_PER_DAY, HOLE_STATUS } from '../src/sim/constants.js';
 import { courseDesignRating, validateHole, holeDistanceYd } from '../src/sim/course.js';
-import { MARKET, generateListing, buildPropertyCourse } from '../src/sim/marketplace.js';
+import {
+  MARKET, generateListing, buildPropertyCourse, marketConditionLabel, listingAgeLabel,
+} from '../src/sim/marketplace.js';
 import {
   newEmpire, buyProperty, sellProperty, empireUpdate, marketTick, holdingValue,
   serializeEmpire, deserializeEmpire,
@@ -258,6 +260,34 @@ test('owned properties are priced on their own merits, not the market mood', () 
 
   const res = sellProperty(e, 'bent-pines');
   assert.equal(res.payout, parkedLow, 'the sale check is the displayed number, whatever the mood');
+});
+
+// --- Task 4: what the screens say -------------------------------------------------------
+
+test('the market-condition indicator reads one honest status, no numbers required', () => {
+  assert.equal(marketConditionLabel(MARKET.conditionMin).key, 'buyers');
+  assert.equal(marketConditionLabel(0.96).key, 'buyers', 'soft edge reads as a buyer\'s market');
+  assert.equal(marketConditionLabel(1).key, 'balanced');
+  assert.equal(marketConditionLabel(1.04).key, 'sellers', 'rich edge reads as a seller\'s market');
+  assert.equal(marketConditionLabel(MARKET.conditionMax).key, 'sellers');
+  for (const c of [0.85, 0.95, 1, 1.05, 1.15]) {
+    const m = marketConditionLabel(c);
+    assert.ok(m.label.length > 3 && m.hint.length > 10, 'label and hint are real words');
+  }
+});
+
+test('time-on-market reads as relative urgency, not a countdown', () => {
+  assert.equal(listingAgeLabel(0), listingAgeLabel(1), 'fresh is fresh');
+  assert.ok(/just listed/i.test(listingAgeLabel(0)));
+  assert.ok(!/\d/.test(listingAgeLabel(35)), 'no precise numbers to min-max against');
+  const fresh = listingAgeLabel(0);
+  const mid = listingAgeLabel(MARKET.minDaysListed - 2);
+  const old = listingAgeLabel(MARKET.minDaysListed + 5);
+  assert.notEqual(fresh, mid, 'age genuinely shows');
+  assert.notEqual(mid, old, 'and keeps showing');
+  assert.ok(/rival|circling|sitting/i.test(old), 'past the grace window the urgency is explicit');
+  assert.equal(listingAgeLabel(MARKET.minDaysListed - 1), mid,
+    'the rivals-circling copy only appears once rivals genuinely can circle');
 });
 
 test('the living market survives save/load, and pre-living-market saves still open', () => {

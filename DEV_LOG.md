@@ -861,3 +861,41 @@ ratio moved 0.896 (soft market) vs 1.040 (hot) with per-seller bias noise on top
 learnable, not min-maxable. Tests: 3 new (bounded slow drift; same-stream clone
 empires spawn the same day-6 course asking ×1.35 more at the top of the cycle than
 the bottom; owned-property isolation incl. sale payout). Suite 174/174.
+
+## 2026-07-09 — LIVING MARKET Task 4: the screens, and what browser QA caught
+
+The market modal now leads with one honest status chip — Buyer's market / Balanced
+market / Seller's market — and each listing carries a relative age line. Rival
+buy-outs and new arrivals land in the empire panel's existing deed log with kind
+icons (🏴 rival, 🏷 market news; log depth 6→8 since the market talks more now).
+
+**Judgment calls, with reasoning:**
+
+- **Mood label thresholds at 0.96 / 1.04**: a ±4% dead zone reads "Balanced" so the
+  label doesn't flap on noise; beyond it the copy commits. No numbers shown anywhere —
+  the hint text on hover says what to do about it, not how big it is.
+- **Age copy in three buckets** ("Just listed" ≤2d, "A week or two on the market",
+  "Been sitting — rival buyers circling"), with the third bucket starting exactly at
+  MARKET.minDaysListed: the UI only threatens rivals once rivals genuinely can act.
+  No countdown — urgency without a min-max timer, per the brief.
+- **A market left open stays live**: the frame loop's day-pass hook re-renders it via
+  an `app.marketRefresh` handle that un-hooks itself once the modal leaves the DOM.
+- **Bug caught by browser QA** (the reason the done-when says "interact with the real
+  build"): `modal()` runs its build callback BEFORE attaching the box to the document,
+  so gating the FIRST render on `box.isConnected` produced a perfectly empty market
+  modal. Fix: only the live-refresh wrapper checks connectivity; the initial render
+  always paints. Caught within a minute of driving the real UI.
+- **QA fast-forward methodology**: long stretches were driven by dynamic-importing
+  `/src/sim/empire.js` in the page and calling the REAL `empireUpdate` day by day —
+  same module instance the frame loop uses, so no QA-only code paths were added to
+  the game to make it testable.
+
+Browser QA (fresh empire, ~62 in-game days): day-0 market shows Balanced + 8×"Just
+listed" (lm1); launch roster fully rival-bought with named 🏴 notices while new stock
+cycled in; mood indicator changed Balanced → Seller's market with warn-colored chip
+and age labels spanning all three buckets (lm2); bought a GENERATED listing
+(lst-ozisrk, "Tamarack Ridge Golf Club" $43,000) through the real Buy button, switched
+to it, and walked its serpentine nine in 3D (lm3); market modal left open live-updated
+across midnights (marked DOM node replaced); reload → Continue restored mood, market
+day, every listing's listedDay stamp, holdings, and feed byte-for-byte; ZERO console
+errors or warnings across the entire session. Suite 176/176.

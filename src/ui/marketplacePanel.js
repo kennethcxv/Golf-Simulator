@@ -4,7 +4,15 @@
 
 import { el, modal } from './ui.js';
 import { formatMoney } from '../core/utils.js';
-import { syncWallet } from '../sim/empire.js';
+import { syncWallet, worldMinutes } from '../sim/empire.js';
+import { marketConditionLabel, listingAgeLabel } from '../sim/marketplace.js';
+import { calendarOf } from '../sim/time.js';
+
+const MOOD_STYLE = {
+  buyers: 'border-color:var(--accent-2)',
+  sellers: 'border-color:var(--warn)',
+  balanced: '',
+};
 
 export function openMarketplace(app, handlers) {
   modal('Property market', (box, close) => {
@@ -16,8 +24,11 @@ export function openMarketplace(app, handlers) {
       const empire = app.empire;
       if (!empire) return;
       const wallet = syncWallet(empire);
+      const today = calendarOf(worldMinutes(empire)).dayAbs;
+      const mood = marketConditionLabel(empire.marketCondition);
       const rows = [
         el('div', { class: 'row' },
+          el('span', { class: 'status-chip', style: MOOD_STYLE[mood.key], title: mood.hint, text: `${mood.label}` }),
           el('span', { class: 'status-chip', text: `Empire wallet ${formatMoney(wallet)}` }),
           el('span', { class: 'status-chip', text: `${empire.market.length} listings` }),
           el('span', {
@@ -35,7 +46,7 @@ export function openMarketplace(app, handlers) {
         rows.push(el('div', { class: 'listing' },
           el('div', { class: 'row' },
             el('strong', { text: p.name, style: 'font-size:1.02rem' }),
-            el('span', { class: 'muted', text: `${p.size} holes · par ${p.par} · ${p.yards.toLocaleString('en-US')} yd` }),
+            el('span', { class: 'muted', text: `${p.size} holes · par ${p.par} · ${p.yards.toLocaleString('en-US')} yd · ${listingAgeLabel(today - (p.listedDay ?? today))}` }),
             el('span', { style: 'flex:1' }),
             el('span', { text: formatMoney(p.askingPrice), style: 'font-weight:600;color:var(--accent-2)' }),
           ),
@@ -69,6 +80,17 @@ export function openMarketplace(app, handlers) {
       body.replaceChildren(...rows);
     };
 
+    // The day-pass hook re-renders a market left open; once the modal is gone
+    // from the DOM it unhooks itself. (modal() attaches the box AFTER building,
+    // so only the live refresher may gate on isConnected — never the first render.)
+    const liveRefresh = () => {
+      if (!box.isConnected) {
+        if (app.marketRefresh === liveRefresh) app.marketRefresh = null;
+        return;
+      }
+      render();
+    };
+    app.marketRefresh = liveRefresh;
     render();
   });
 }

@@ -5,6 +5,7 @@ import { el, toast, modal } from './ui.js';
 import { formatMoney } from '../core/utils.js';
 import { conditionRating } from '../sim/turf.js';
 import { holdingValue, syncWallet } from '../sim/empire.js';
+import { marketConditionLabel } from '../sim/marketplace.js';
 
 export function makeEmpirePanel(app, handlers) {
   const body = el('div');
@@ -33,8 +34,10 @@ export function makeEmpirePanel(app, handlers) {
       el('span', { class: 'status-chip', text: `Portfolio value ${formatMoney(totalValue)}` }),
       el('span', { class: 'status-chip', title: 'Active club’s closed books + every parked club’s passive day', text: `All courses yesterday: ${combinedNet >= 0 ? '+' : ''}${formatMoney(combinedNet)}` }),
     ));
+    const mood = marketConditionLabel(empire.marketCondition);
     rows.push(el('div', { class: 'row' },
       el('button', { class: 'primary', text: `🏷 Browse the market (${empire.market.length})`, onclick: () => handlers.openMarket() }),
+      el('span', { class: 'status-chip', title: mood.hint, text: mood.label }),
     ));
 
     rows.push(el('h3', { text: `Properties (${empire.holdings.length})`, style: 'margin-top:10px' }));
@@ -74,8 +77,9 @@ export function makeEmpirePanel(app, handlers) {
 
     if (empire.log.length) {
       rows.push(el('h3', { text: 'Ledger of deeds', style: 'margin-top:10px' }));
-      for (const entry of empire.log.slice(0, 6)) {
-        rows.push(el('div', { class: 'row muted', style: 'font-size:0.86rem', text: `Day ${entry.day + 1} — ${entry.text}` }));
+      for (const entry of empire.log.slice(0, 8)) {
+        const icon = entry.kind === 'rival' ? '🏴 ' : entry.kind === 'market' ? '🏷 ' : '';
+        rows.push(el('div', { class: 'row muted', style: 'font-size:0.86rem', text: `Day ${entry.day + 1} — ${icon}${entry.text}` }));
       }
     }
 

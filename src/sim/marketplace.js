@@ -657,6 +657,26 @@ export function generateListing(seed, opts = {}) {
   return record;
 }
 
+// --- what the screens say ----------------------------------------------------------------
+// One-status-first copy for the market UI. Deliberately imprecise: the player
+// should learn the cycle and feel the clock, not min-max a number.
+
+export function marketConditionLabel(condition) {
+  if (condition <= 0.96) {
+    return { key: 'buyers', label: 'Buyer’s market', hint: 'Asking prices are running soft — a good time to acquire.' };
+  }
+  if (condition >= 1.04) {
+    return { key: 'sellers', label: 'Seller’s market', hint: 'Asking prices are running rich — patience pays.' };
+  }
+  return { key: 'balanced', label: 'Balanced market', hint: 'Asking prices sit near true form.' };
+}
+
+export function listingAgeLabel(daysOnMarket) {
+  if (daysOnMarket <= 2) return 'Just listed';
+  if (daysOnMarket < MARKET.minDaysListed) return 'A week or two on the market';
+  return 'Been sitting — rival buyers circling';
+}
+
 // --- debug dump -------------------------------------------------------------------------
 // Readable roster table for QA (node -e or the browser console via window.__fw).
 
