@@ -8,6 +8,9 @@ marketplace, honest valuations, and a multi-course portfolio on top.
 
 House Flipper's buy-restore-transform loop, applied to the golf course management sim.
 
+> **This is the sole active codebase going forward** (as of 2026-07-09). The original
+> FAIRWAY STATE repo (sibling `Golf/` folder) is retired and kept for reference/history only.
+
 ## Tech
 
 - Vanilla JavaScript — simulation, management UI
