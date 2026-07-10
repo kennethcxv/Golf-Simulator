@@ -2066,3 +2066,46 @@ patches · 4 debris piles · tee sign still broken · tractor still broken"
 (qa/summary-chores.png) — and the same screen exposed a REAL emergent problem:
 0 sales · 25 walked out, because ten unattended days emptied the shelves. The
 information hub is doing its job. Zero console errors. Suite 211/211.
+
+## 2026-07-10 — OVERNIGHT SESSION RUNNING SUMMARY (the morning read)
+
+One line: the game got its missing verbs, its feel, and its information loop
+tonight — 24 commits, suite 176→211, every part verified live with zero
+console errors.
+
+WHAT SHIPPED, in order:
+1. PART 0 — finished the interrupted double session: the whole SHOP
+   RESTORATION arc (condition/grime/clutter state, vacuum, decor ghosts, the
+   office computer, TEE-TIME RESERVATIONS with counter check-in, stock
+   variety, the reference shell with per-club wall wordmark) and the whole
+   19-ASSET INTEGRATION (inventory sheet, the EARNED TRACTOR repair arc with
+   third-person chase cam, the hand-tool belt — hose/divot kit/bunker rake —
+   bunker footprints, storm litter, broken→restored tee sign, flagsticks +
+   tee markers, weathered stone entrance sign; the house GLB honestly kept
+   out). Docs squared then.
+2. PART 1 — tool FEEL: eased equip/stow, carried bob at the real stride rate,
+   the mount/dismount camera blend, completion chimes/thunks, per-tool audio
+   loops on the procedural bus, UI pop-ins.
+3. PART 2 — the HUD professionalization (previously superseded, done in
+   full): comps research written first, then the minimal strip + 🗂 Manage
+   dock with live stat sublines, Steam-ready button states.
+4. PART 3 — store systems verified end-to-end in one sitting + the computer's
+   📊 Summary tab (real books, tee sheet, inbound orders).
+5. PART 4 — NPC behavior: a real register QUEUE with "N more waiting",
+   customer collision + browse-facing, golfer separation vs player/tractor
+   (measured 1.38 yd minimum).
+6. PART 5 — swinging hinged doors (shop + clubhouse), place/haul scale
+   moments.
+7. PART 6 — backlog: PLAYER MOWING (the deck cuts real heights — the night's
+   headline mechanic), rain streaks, the black-badge fix, decor pack-up,
+   per-mode GTAO, Manage wording; then self-generated ideas: mow clippings
+   juice and the Summary tab's GROUNDS CHORES morning list.
+
+HONEST OPEN EDGES (all in KNOWN_ISSUES): audio levels need one human
+ear-pass; the mow-clippings still-frame is verified by state sampling, not a
+lucky screenshot; golfer-vs-golfer separation shares the measured player code
+path but wasn't observed in a natural crossing; QA saves in this repo's
+localStorage are mid-restoration states from tonight's runs.
+
+WHERE TO START PLAYING: New Empire → buy the muni → the shop is filthy and
+the tractor is broken by the shed. Everything from there is tonight's work.

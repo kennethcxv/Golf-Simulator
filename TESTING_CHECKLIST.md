@@ -293,3 +293,35 @@ http://localhost:8457/ in a browser. Headless sim tests: `npm test`.
 - [ ] The stone entrance sign stands on the approach, dulled and leaning while condition is poor
 
 - [ ] `npm test` → 210 passing
+
+## Overnight session (2026-07-10, Parts 0-6)
+
+**Tool feel & audio**
+- [ ] Tools rise into the hands over ~0.25s (tilted, from below) and drop away on stow; they bob with your stride and breathe at rest
+- [ ] Mounting the tractor EASES to the chase cam (~0.45s), dismounting eases back; no camera cuts
+- [ ] Equip click, per-tool use loops (hose hiss / vacuum hum / scrapes), a two-note chime when a patch comes smooth or the shop climbs a condition tier, thunks on hauls/placements, engine loop while driving (needs one human ear-pass for levels)
+- [ ] Panels/modals ease in like toasts
+
+**HUD / Manage dock**
+- [ ] Top bar = club · date/time · speed · cash · 🗂 Manage · ☰ only
+- [ ] Manage drops a dock of five entries with kbd hints and LIVE sublines (members/rep under Club, weather under Grounds, course rating under Works, portfolio under Empire, yesterday's sales under Shop); entries open their panel and dismiss the dock; outside-click/Esc dismisses; hotkeys unchanged
+
+**Store loop + Summary tab**
+- [ ] Computer's third tab 📊 Summary: condition + wallet chips, yesterday from the real books, today's tee sheet, GROUNDS CHORES (bunkers to rake / worn patches / debris piles / broken sign / broken tractor — or "all caught up"), inbound orders with countdowns, notable sales
+- [ ] Full loop in one sitting: order stock+decor+vacuum on the computer → book a slot → deliveries land → vacuum/haul/place still work → booked golfer checks in and pays — zero console errors
+
+**NPCs**
+- [ ] Three simultaneous due bookings form a real diagonal queue at the register; label says "· N more waiting"; head served first; line advances
+- [ ] Customers collide with fixtures/player/each other and FACE what they browse
+- [ ] Golfers sidestep the walking player (~1.4 yd min), the tractor, and each other, then drift back to their line
+
+**Doors & moments**
+- [ ] Shop and clubhouse doors swing open on approach (player or customers) and close behind
+- [ ] Placed decor lands with a scale pop; hauled junk/litter/parts shrink out
+
+**Course systems (new)**
+- [ ] THE DECK CUTS: driving the repaired tractor mows a 3-cell swath to per-zone ideal height (verify heightMm and visible stripes/lane); clippings burst behind the deck over shaggy ground; deck vibrates while cutting
+- [ ] Rain: streaks fall matching the day's rainIn; tee-number badges stay readable facing the sun
+- [ ] Decor pack-up: E a placed piece → back to backroom, ghost reoffers the spot
+
+- [ ] `npm test` → 211 passing
