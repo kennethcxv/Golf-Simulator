@@ -26,10 +26,10 @@ import { conditionRating, zonePolicyKey, DISEASE } from './turf.js';
 import { courseDesignRating, holePar, holeDistanceYd } from './course.js';
 import { memberCounts } from './club.js';
 import { deliverOrdersDue } from './shop.js';
-import { generateMarketplace, buildPropertyCourse, appraiseStats } from './marketplace.js';
+import { generateMarketplace, generateListing, buildPropertyCourse, appraiseStats, MARKET } from './marketplace.js';
 import { appraiseProperty } from './valuation.js';
 
-export const EMPIRE_VERSION = 1;
+export const EMPIRE_VERSION = 2;
 
 // Parked-property approximation knobs (reasoning in DEV_LOG.md):
 // a caretaker keeps the lights on — condition decays toward a floor but never
@@ -45,17 +45,23 @@ const PASSIVE = {
 const SEASON_F = [0.95, 1.15, 1.0, 0.22]; // the live club's seasonal demand shape
 
 export function newEmpire(mode = 'relaxed', seed = Date.now() % 2147483647) {
+  const market = generateMarketplace(seed);
+  for (const p of market) p.listedDay = 0; // launch roster hits the market on day one
   return {
     version: EMPIRE_VERSION,
     mode,
     seed,
     cash: BALANCE.startingCash[mode],
-    market: generateMarketplace(seed),
+    market,
     holdings: [], // [{ property, state, passive|null }] — passive only while parked
     activeId: null,
     clockMinutes: DAY_START_MIN, // world time while no property is active
     firstPurchaseDone: false,
     log: [],
+    // the living market: its own serializable rng stream (market luck never
+    // disturbs the active club's dice) and the last world-day it processed
+    marketRngState: ((seed ^ 0x9e3779b9) >>> 0) || 1,
+    lastMarketDay: 0,
   };
 }
 
@@ -85,8 +91,8 @@ export function worldMinutes(empire) {
   return st ? st.clock.minutes : empire.clockMinutes;
 }
 
-function empireLog(empire, text) {
-  empire.log.unshift({ day: calendarOf(worldMinutes(empire)).dayAbs, text });
+function empireLog(empire, text, kind = 'deed', day = null) {
+  empire.log.unshift({ day: day ?? calendarOf(worldMinutes(empire)).dayAbs, text, kind });
   if (empire.log.length > 30) empire.log.pop();
 }
 
@@ -358,6 +364,43 @@ export function switchProperty(empire, propertyId) {
   return { ok: true, state: target.state };
 }
 
+// --- the living market ----------------------------------------------------------------
+// One roll of market life per world-day. New listings appear on a steady
+// cadence, capped so the window never becomes a warehouse; a dry market is
+// guaranteed restocking. Knobs live in MARKET (marketplace.js), reasoning in
+// DEV_LOG.md. The market only moves while world time moves — no active club,
+// no passage of time, no churn.
+
+function marketDay(empire, day) {
+  const rng = makeRng(empire.marketRngState);
+  if (day % MARKET.refreshEveryDays === 0 && empire.market.length < MARKET.maxListings) {
+    const chance = empire.market.length <= MARKET.dryMarketFloor ? 1 : MARKET.refreshChance;
+    if (rng.chance(chance)) {
+      const taken = (field) => [
+        ...empire.market.map((p) => p[field]),
+        ...empire.holdings.map((h) => h.property[field]),
+      ];
+      const listing = generateListing(1 + rng.int(2147483646), {
+        takenNames: taken('name'),
+        takenIds: taken('id'),
+      });
+      listing.listedDay = day;
+      empire.market.push(listing);
+      empireLog(empire, `New on the market: ${listing.name} — asking ${formatMoney(listing.askingPrice)}.`, 'market', day);
+    }
+  }
+  empire.marketRngState = rng.getState();
+}
+
+export function marketTick(empire) {
+  const day = calendarOf(worldMinutes(empire)).dayAbs;
+  if (!Number.isFinite(empire.lastMarketDay)) empire.lastMarketDay = day;
+  while (empire.lastMarketDay < day) {
+    empire.lastMarketDay += 1;
+    marketDay(empire, empire.lastMarketDay);
+  }
+}
+
 // The one tick the app calls: advance the active club's full simulation, then
 // give every parked property its passive world-days and settle the wallet.
 export function empireUpdate(empire, gameMinutes) {
@@ -367,6 +410,7 @@ export function empireUpdate(empire, gameMinutes) {
   empire.cash = st.cash;
   if (res.daysPassed > 0) {
     passiveTickAll(empire, res.daysPassed);
+    marketTick(empire);
     st.cash = empire.cash;
   }
   empire.clockMinutes = st.clock.minutes;
@@ -387,6 +431,8 @@ export function empireSnapshot(empire) {
     firstPurchaseDone: empire.firstPurchaseDone,
     log: empire.log,
     market: empire.market,
+    marketRngState: empire.marketRngState,
+    lastMarketDay: empire.lastMarketDay,
     holdings: empire.holdings.map((h) => ({
       property: h.property,
       passive: h.passive,
@@ -423,24 +469,29 @@ function legacyEmpireFrom(raw) {
     trueValue: appraiseProperty(st),
     askingPrice: appraiseProperty(st),
   };
+  const joinDay = calendarOf(st.clock.minutes).dayAbs;
+  const market = generateMarketplace(st.seed).filter((p) => p.id !== 'willow-creek');
+  for (const p of market) p.listedDay = joinDay; // listed "today" — a fair fresh start
   return {
     version: EMPIRE_VERSION,
     mode: st.mode,
     seed: st.seed,
     cash: st.cash,
-    market: generateMarketplace(st.seed).filter((p) => p.id !== 'willow-creek'),
+    market,
     holdings: [{ property: record, state: st, passive: null }],
     activeId: record.id,
     clockMinutes: st.clock.minutes,
     firstPurchaseDone: true,
     log: [],
+    marketRngState: ((st.seed ^ 0x9e3779b9) >>> 0) || 1,
+    lastMarketDay: joinDay,
   };
 }
 
 export function deserializeEmpire(raw) {
   const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
   if (!data.empireVersion) return legacyEmpireFrom(data);
-  return {
+  const empire = {
     version: data.empireVersion,
     mode: data.mode,
     seed: data.seed,
@@ -455,5 +506,20 @@ export function deserializeEmpire(raw) {
     clockMinutes: data.clockMinutes,
     firstPurchaseDone: !!data.firstPurchaseDone,
     log: data.log || [],
+    marketRngState: data.marketRngState,
+    lastMarketDay: data.lastMarketDay,
   };
+  // saves written before the living market existed: grow the stream, join the
+  // market clock at the save's own world day, and give the frozen listings a
+  // fresh (fair) listing date — their expiry clock starts now, not in arrears
+  if (!Number.isFinite(empire.marketRngState)) {
+    empire.marketRngState = (((empire.seed ?? 1) ^ 0x9e3779b9) >>> 0) || 1;
+  }
+  if (!Number.isFinite(empire.lastMarketDay)) {
+    empire.lastMarketDay = calendarOf(empire.clockMinutes ?? 0).dayAbs;
+  }
+  for (const p of empire.market) {
+    if (!Number.isFinite(p.listedDay)) p.listedDay = empire.lastMarketDay;
+  }
+  return empire;
 }

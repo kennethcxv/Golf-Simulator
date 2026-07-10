@@ -388,6 +388,265 @@ export function generateMarketplace(seed = 1) {
   });
 }
 
+// --- the living market -------------------------------------------------------------------
+// After launch day the market keeps producing distressed courses. New listings
+// come from parametrized distress-profile templates (the 8 hand-authored
+// archetypes generalized into ranges), built through the SAME serpentine
+// builder and appraisal as the launch roster — one generation path, no
+// second-class listings. All tuning knobs live here, reasoning in DEV_LOG.md.
+
+export const MARKET = {
+  maxListings: 10, // hard cap on unsold listings at once — the window, not a warehouse
+  refreshEveryDays: 6, // a listing roll every 6 world-days…
+  refreshChance: 0.75, // …lands a new property about every 8 days (1-2 in-game weeks)
+  dryMarketFloor: 3, // at or below this many listings, the next roll always lands
+};
+
+const NAME_A = [
+  'Alder', 'Stonecrop', 'Foxglove', 'Harrow', 'Blue Heron', 'Larkspur', 'Copperleaf',
+  'Gorsefield', 'Badger', 'Kestrel', 'Gritstone', 'Persimmon', 'Tamarack', 'Wren Hill',
+  'Juniper', 'Redwing', 'Millstone', 'Candlewood', 'Sycamore', 'Hollyhock', 'Drumlin',
+  'Saddleback',
+];
+const NAME_B = [
+  'Creek', 'Hollow', 'Ridge', 'Downs', 'Pines', 'Meadows', 'Point', 'Bluffs', 'Glen',
+  'Moor', 'Heath', 'Links', 'Knolls', 'Landing', 'Crossing', 'Bend', 'Flats', 'Run',
+];
+const NAME_C = ['', ' Golf Club', ' G.C.', ' Country Club', ' Municipal', ' Golf Links'];
+
+// Each template is one honest way a course ends up on the block: a distinct
+// weak point, layout ranges that push the COMPUTED design rating the right
+// direction (never a stored fiction), and a seller bias band so the market
+// keeps producing both bargains and traps.
+const LISTING_TEMPLATES = [
+  {
+    key: 'neglected-gem', weight: 3, size: 9,
+    condition: [26, 42], sick: [2, 4], disease: 'dollarSpot',
+    members: [5, 14], rep: [18, 30], bias: [0.72, 0.9],
+    layout: {
+      margin: 8, bands: [5, 6], roughR: [4.4, 4.8], fairwayR: [2.2, 2.4],
+      greenR: [1.7, 2.0], greenRJitter: 0.35, dogleg: [0.45, 0.6],
+      bunkers: [7, 11], ponds: [1, 2], elevAmp: [1.0, 1.6],
+      parWeights: { 3: 2, 4: 5, 5: 2 },
+    },
+    blurbs: [
+      'The routing is the real thing — doglegs, movement, angles. Everything growing on top of it is a disgrace. A competent crew could save this.',
+      'Under the knee-high fescue and the dead greens there is a course people used to drive an hour for. The bones never stopped being good; everyone just stopped paying the water bill.',
+      'Foreclosure special: superb land, criminal upkeep. The bank wants it gone before another irrigation main lets go.',
+    ],
+  },
+  {
+    key: 'tired-muni', weight: 3, size: 9,
+    condition: [42, 56], sick: [1, 3], disease: 'dollarSpot',
+    members: [14, 26], rep: [26, 36], bias: [0.8, 0.96],
+    layout: {
+      margin: 8, bands: [5, 6], roughR: [4.4, 4.7], fairwayR: [2.2, 2.4],
+      greenR: [1.9, 2.3], greenRJitter: 0.3, dogleg: [0.3, 0.45],
+      bunkers: [2, 5], ponds: [0, 1], elevAmp: [0.5, 1.0],
+      parWeights: { 3: 2, 4: 6, 5: 1 },
+    },
+    blurbs: [
+      'An honest muni that has been running on fumes and goodwill for a decade. Nothing here is broken beyond fixing; nothing is impressive either.',
+      'The kind of nine every town used to have: playable, unglamorous, quietly falling behind on everything. Solid daily-fee trade if someone minds the store.',
+      'Deferred maintenance from the first tee to the last green, but the regulars keep showing up. That loyalty is worth more than the mowers.',
+    ],
+  },
+  {
+    key: 'polished-bore', weight: 2, size: 9,
+    condition: [66, 80], sick: [0, 0], disease: 'dollarSpot',
+    members: [20, 30], rep: [38, 48], bias: [0.98, 1.12],
+    layout: {
+      margin: 8, bands: [5, 6], roughR: [4.3, 4.6], fairwayR: [2.3, 2.5],
+      greenR: [2.4, 2.8], greenRJitter: 0.2, dogleg: [0.1, 0.25],
+      bunkers: [0, 2], ponds: [0, 1], elevAmp: [0.25, 0.5],
+      parWeights: { 3: 1, 4: 8 },
+    },
+    blurbs: [
+      'Not a blade out of place and not a single hole you will remember tomorrow. The superintendent is a wizard; the architect was a paving contractor.',
+      'Immaculate turf on a routing with all the drama of a car park. Members love the conditioning and quietly play their golf elsewhere.',
+      'The best-kept boring golf course in the county. Buy the maintenance culture; fix the golf later.',
+    ],
+  },
+  {
+    key: 'executive', weight: 2, size: 9,
+    condition: [56, 70], sick: [0, 1], disease: 'dollarSpot',
+    members: [10, 18], rep: [30, 40], bias: [0.82, 0.96],
+    layout: {
+      margin: 8, bands: [4, 4], roughR: [4.1, 4.4], fairwayR: [2.0, 2.2],
+      greenR: [1.3, 1.6], greenRJitter: 0.25, dogleg: [0.15, 0.3],
+      bunkers: [4, 6], ponds: [0, 1], elevAmp: [0.6, 1.2],
+      parWeights: { 3: 6, 4: 3 }, parRange: { 3: [16, 26], 4: [34, 42] },
+    },
+    blurbs: [
+      'A tight executive nine that punches far above its yardage — small vicious greens and bunkers that mean it. Cheap to water, cheap to mow, easy to love.',
+      'Short, sharp, and beloved by the lunch-hour crowd. No length, no pretension, surprisingly defensible economics.',
+      'Par is a rumor here: knee-knocker par 3s and two honest short 4s. Runs on a shoestring and knows it.',
+    ],
+  },
+  {
+    key: 'waterlogged', weight: 2, size: 9,
+    condition: [34, 50], sick: [2, 4], disease: 'brownPatch',
+    members: [8, 16], rep: [22, 32], bias: [0.84, 0.98],
+    layout: {
+      margin: 8, bands: [5, 6], roughR: [4.4, 4.7], fairwayR: [2.2, 2.4],
+      greenR: [1.9, 2.2], greenRJitter: 0.3, dogleg: [0.4, 0.55],
+      bunkers: [1, 3], ponds: [2, 3], elevAmp: [0.4, 0.8],
+      parWeights: { 3: 2, 4: 6, 5: 1 },
+    },
+    blurbs: [
+      'The low holes hold water like a saucer and the brown patch knows it. Solve the drainage story and an honest course walks out of the swamp.',
+      'Three ponds by design, five more by accident every spring. The turf disease chart reads like a medical drama; the routing underneath is blameless.',
+      'Saturated fairways, fungus on the low greens, and a pump house held together with tape. Water made this mess and water management can unmake it.',
+    ],
+  },
+  {
+    key: 'legacy-trap', weight: 2, size: 9,
+    condition: [55, 68], sick: [0, 1], disease: 'dollarSpot',
+    members: [16, 26], rep: [32, 42], bias: [1.12, 1.3],
+    layout: {
+      margin: 8, bands: [5, 6], roughR: [4.4, 4.7], fairwayR: [2.2, 2.4],
+      greenR: [2.3, 2.6], greenRJitter: 0.25, dogleg: [0.25, 0.4],
+      bunkers: [2, 4], ponds: [0, 1], elevAmp: [0.4, 0.8],
+      parWeights: { 3: 2, 4: 7 },
+    },
+    blurbs: [
+      'Grandpa built it, the family priced it. The course is fine — the ask includes forty years of sentiment at compound interest.',
+      'A perfectly adequate nine wearing a championship price tag. The listing agent talks about heritage a lot.',
+      'Decent shape, ordinary golf, and a number arrived at by seance. Somebody will overpay; it does not have to be you.',
+    ],
+  },
+  {
+    key: 'championship-wreck', weight: 1, size: 18,
+    condition: [32, 46], sick: [3, 5], disease: 'dollarSpot',
+    members: [10, 18], rep: [24, 32], bias: [0.92, 1.1],
+    layout: {
+      margin: 6, bands: [9, 11], roughR: [3.5, 3.8], fairwayR: [2.1, 2.3],
+      greenR: [1.7, 2.0], greenRJitter: 0.3, dogleg: [0.4, 0.55],
+      bunkers: [7, 10], ponds: [1, 2], elevAmp: [0.9, 1.3],
+      parWeights: { 3: 2, 4: 7, 5: 2 }, parRange: { 3: [13, 27], 4: [33, 46], 5: [58, 66] },
+    },
+    blurbs: [
+      'A full eighteen with tournament pedigree and a decade of neglect on every yard of it. The scale that made it famous makes it expensive to save.',
+      'Championship length, championship decay. Everything works at half strength across twice the acreage — bring money and a plan.',
+      'The county\'s grand old eighteen, seized and shuttered. Water on the front, real length everywhere, ruin all over.',
+    ],
+  },
+];
+
+// Generated 9-holers use a slightly tightened default par range so even an
+// extreme roll of the par mix stays inside honest 9/18-hole yardage bounds.
+const GEN_PAR_RANGE = { 3: [15, 27], 4: [33, 48], 5: [58, 66] };
+
+const intIn = (rng, [lo, hi]) => lo + rng.int(hi - lo + 1);
+const floatIn = (rng, [lo, hi]) => lo + rng.next() * (hi - lo);
+const round2 = (v) => Math.round(v * 100) / 100;
+
+function pickTemplate(rng) {
+  const total = LISTING_TEMPLATES.reduce((a, t) => a + t.weight, 0);
+  let roll = rng.next() * total;
+  for (const t of LISTING_TEMPLATES) {
+    roll -= t.weight;
+    if (roll <= 0) return t;
+  }
+  return LISTING_TEMPLATES[LISTING_TEMPLATES.length - 1];
+}
+
+// Weighted par draw with hard sanity rails (par-5 and par-3 counts capped) so
+// total yardage always lands inside the bounds a real 9/18-holer must satisfy.
+function rollParMix(rng, holes, weights) {
+  const pool = [];
+  for (const par of [3, 4, 5]) {
+    for (let i = 0; i < (weights[par] || 0); i++) pool.push(par);
+  }
+  const mix = [];
+  for (let i = 0; i < holes; i++) mix.push(pool[rng.int(pool.length)]);
+  const maxFives = holes === 18 ? 4 : 2;
+  const maxThrees = 6;
+  let fives = 0;
+  let threes = 0;
+  for (let i = 0; i < mix.length; i++) {
+    if (mix[i] === 5) {
+      fives++;
+      if (fives > maxFives) mix[i] = 4;
+    } else if (mix[i] === 3) {
+      threes++;
+      if (threes > maxThrees) mix[i] = 4;
+    }
+  }
+  return mix;
+}
+
+function uniqueName(rng, taken) {
+  let name = '';
+  for (let tries = 0; tries < 60; tries++) {
+    name = `${NAME_A[rng.int(NAME_A.length)]} ${NAME_B[rng.int(NAME_B.length)]}${NAME_C[rng.int(NAME_C.length)]}`;
+    if (!taken.includes(name)) return name;
+  }
+  return `${name} II`; // 2,376 combos vs a ~30-name world — this line is theory
+}
+
+function uniqueId(rng, taken) {
+  for (;;) {
+    const id = `lst-${(1 + rng.int(2147483646)).toString(36)}`;
+    if (!taken.includes(id)) return id;
+  }
+}
+
+// One new listing, deterministic from its seed: a distress profile rolled into
+// a concrete layout, built into a REAL course (design rating computed, never
+// invented), appraised with the same shared formula, then priced by the seller.
+export function generateListing(seed, opts = {}) {
+  const { marketCondition = 1, takenNames = [], takenIds = [] } = opts;
+  const rng = makeRng((seed >>> 0) || 1);
+  const t = pickTemplate(rng);
+  const L = t.layout;
+  const record = {
+    id: uniqueId(rng, takenIds),
+    name: uniqueName(rng, takenNames),
+    blurb: t.blurbs[rng.int(t.blurbs.length)],
+    size: t.size,
+    seed: 1 + rng.int(2147483646),
+    layout: {
+      kind: 'serpentine',
+      margin: L.margin,
+      bands: intIn(rng, L.bands),
+      roughR: round2(floatIn(rng, L.roughR)),
+      fairwayR: round2(floatIn(rng, L.fairwayR)),
+      greenR: round2(floatIn(rng, L.greenR)),
+      greenRJitter: L.greenRJitter,
+      doglegChance: round2(floatIn(rng, L.dogleg)),
+      bunkers: intIn(rng, L.bunkers),
+      ponds: intIn(rng, L.ponds),
+      elevAmp: round2(floatIn(rng, L.elevAmp)),
+      parMix: rollParMix(rng, t.size, L.parWeights),
+      parRange: L.parRange || GEN_PAR_RANGE,
+    },
+    condition: Math.round(floatIn(rng, t.condition)),
+    sickGreens: intIn(rng, t.sick),
+    diseaseKind: t.disease,
+    startingMembers: intIn(rng, t.members),
+    startingReputation: Math.round(floatIn(rng, t.rep)),
+    archetype: t.key,
+  };
+  const course = buildPropertyCourse(record);
+  record.design = round1(courseDesignRating(course));
+  record.par = course.holes.reduce((sum, h) => sum + holePar(h), 0);
+  record.yards = Math.round(course.holes.reduce((sum, h) => sum + holeDistanceYd(h), 0));
+  record.estMonthlyNet = Math.round((0.45 * record.design + 0.55 * record.condition - 52) * 110 * (t.size / 9));
+  record.trueValue = appraiseStats({
+    size: t.size,
+    design: record.design,
+    condition: record.condition,
+    members: record.startingMembers,
+    reputation: record.startingReputation,
+    monthlyNet: record.estMonthlyNet,
+  });
+  const bias = floatIn(rng, t.bias);
+  const jitter = 1 + (rng.next() - 0.5) * 0.06;
+  record.askingPrice = Math.max(round500(record.trueValue * bias * jitter * marketCondition), 5500);
+  return record;
+}
+
 // --- debug dump -------------------------------------------------------------------------
 // Readable roster table for QA (node -e or the browser console via window.__fw).
 

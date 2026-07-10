@@ -731,3 +731,59 @@ buyers), manager delegation for parked clubs (the upgrade path from the caretake
 approximation), more archetypes/climates, empire financing, the young-club valuation
 semantics gap, the flip-margin balance pass, and per-club debt-clock semantics.
 
+
+## 2026-07-09 — LIVING MARKET session: Part 1 (repo consolidation) & Task 1 (new listings over time)
+
+Part 1: this repo is now the sole active codebase; the original FAIRWAY STATE repo
+(sibling `Golf/`) is retired to read-only reference. Both READMEs say so plainly —
+a banner at the top of Golf's, a note near the top of ours. Documentation only; no
+code moved in either direction.
+
+Task 1 makes the market a living thing: a fixed roster of 8 that runs out becomes a
+stream. New listings are generated over time by `generateListing()` in marketplace.js
+and injected by a per-world-day `marketTick()` in empire.js, wired into `empireUpdate`.
+
+**Judgment calls, with reasoning:**
+
+- **Cadence = a roll every 6 days at 75%** (`MARKET.refreshEveryDays`/`refreshChance`),
+  landing a listing about every 8 days — inside the brief's "every 1-2 in-game weeks."
+  A roll-plus-chance beats a fixed metronome: the player learns the rhythm ("check the
+  market most weeks") without being able to set a watch by it.
+- **Cap = 10 unsold listings** (`MARKET.maxListings`, brief suggested 10-12). The launch
+  roster is 8, so a quiet market has headroom of 2 before turnover (Task 2) exists —
+  the window stays a window, not a warehouse.
+- **Dry-market floor = 3** (`MARKET.dryMarketFloor`): at or below 3 listings the next
+  roll is guaranteed. An aggressive buyer can't be starved into dead weeks by rng.
+- **One generation path, parametrized.** Seven distress-profile templates generalize
+  the 8 hand-authored archetypes into ranges (neglected-gem, tired-muni, polished-bore,
+  executive, waterlogged/brown-patch, legacy-trap, and a rare 18-hole championship
+  wreck at weight 1 of 15). Layout params push the design rating the intended
+  direction, but the listed rating is still COMPUTED by building the real course —
+  same serpentine builder, same appraisal, same rigor assertions in tests.
+- **Par-mix sanity rails**: the weighted par draw is capped (≤2 par-5s on a nine, ≤4 on
+  an eighteen, ≤6 par-3s) and generated nines use a slightly tightened par range
+  (GEN_PAR_RANGE) so even an extreme roll stays inside honest yardage bounds
+  (1500-3800yd / 3800-7400yd). Checked against worst-case arithmetic, then enforced by
+  building all 30 test listings for real.
+- **Names** come from two-part pools + suffix (2,376 combos), deliberately disjoint
+  from the launch roster's names, with retry against everything currently listed or
+  owned. A name can recur after its bearer is SOLD and gone — accepted; the alternative
+  is tracking a graveyard forever for a case players will rarely notice.
+- **The market has its own serializable rng stream** (`empire.marketRngState`, seeded
+  `seed ^ 0x9e3779b9`) — market luck never consumes the active club's dice, saves
+  replay the exact same market future, and `lastMarketDay` catch-up keeps multi-day
+  steps honest.
+- **The market only moves while world time moves.** No active club → the world clock
+  stands still → no churn. Consistent with the existing world-time semantics rather
+  than inventing a second clock.
+- **Migration**: pre-living-market saves (v1 empire envelopes and legacy single-club
+  saves) grow the stream on load, join the market clock at their own world day, and
+  their frozen listings are stamped listed-today — fair, since their expiry clock
+  (Task 2) shouldn't start in arrears for time the feature didn't exist.
+
+Tests: 7 new in tests/market-live.test.js (cadence knobs honest, listings appear over
+60 quiet days, cap held across 400 days, launch-roster rigor on generated listings,
+24-listing long-run variety incl. all courses building valid, growth through the real
+live-club update loop, save/load + migration). Suite 169/169. A 120-day dump shows the
+launch 8 growing to the cap with distinct, correctly-priced arrivals announced in the
+empire feed.
