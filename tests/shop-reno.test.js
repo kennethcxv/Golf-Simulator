@@ -12,7 +12,7 @@ import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, ensureShopReno,
   placeOrder, deliverOrdersDue, vacuumOwned, restockShelvesByStaff, restockShelfFromBackroom,
-  placeDecor,
+  placeDecor, removeDecor,
 } from '../src/sim/shop.js';
 import { skuById, LEAD_DAYS, SHOP_CATALOG, DECOR_SPOTS } from '../src/data/shopItems.js';
 import { calendarOf } from '../src/sim/time.js';
@@ -190,6 +190,20 @@ test('decor finish is capped so condition still needs a clean floor to reach 100
   // now scrub everything
   state.shop.reno.grime = state.shop.reno.grime.map(() => 0);
   assert.equal(shopCondition(state), 100, 'spotless + fully furnished = 100');
+});
+
+test('placed decor can be packed back up: spot frees, item returns to the backroom', () => {
+  const state = newGame('relaxed', 42);
+  state.shop.inventory.rug1.back = 1;
+  placeDecor(state, 'rug1', 0);
+  const condPlaced = shopCondition(state);
+  const res = removeDecor(state, 'rug1', 0);
+  assert.ok(res.ok, 'packing up works');
+  assert.equal(state.shop.inventory.rug1.back, 1, 'the rug is back in the backroom');
+  assert.equal(state.shop.reno.decor.length, 0, 'the placement is gone');
+  assert.ok(shopCondition(state) < condPlaced, 'condition gives back the finish points');
+  assert.equal(removeDecor(state, 'rug1', 0).ok, false, 'nothing there to pack');
+  assert.ok(placeDecor(state, 'rug1', 0).ok, 'the freed spot takes the rug again');
 });
 
 test('placed decor survives save/load', () => {

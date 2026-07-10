@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { clamp } from '../core/utils.js';
 import { makeCharacter } from './characterAsset.js';
 import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
-import { restockShelfFromBackroom, RENO, shopCondition, clearClutter, cleanGrimeAt, placeDecor } from '../sim/shop.js';
+import { restockShelfFromBackroom, RENO, shopCondition, clearClutter, cleanGrimeAt, placeDecor, removeDecor } from '../sim/shop.js';
 import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
 import { makeWoodTexture, makePlasterTexture } from './proceduralTextures.js';
 import { rngOf } from '../core/utils.js';
@@ -848,6 +848,25 @@ export function makeShopScene(renderer, appRef) {
     }
     const entry = { group: built.group, colliders: ghost ? [] : built.colliders, interactive: null };
     for (const c of entry.colliders) colliders.push(c);
+    if (!ghost) {
+      // placed pieces can be packed back up (returns to the backroom)
+      const skuP = SHOP_CATALOG.find((sk) => sk.id === skuId);
+      const spotP = DECOR_SPOTS[skuId][spotIdx];
+      const yP = spotP.mount === 'ceiling' ? 1.7 : spotP.mount === 'wall' ? 1.6 : 0.7;
+      entry.interactive = {
+        kind: 'decor-placed',
+        point: new THREE.Vector3(spotP.x, yP, spotP.z),
+        label: () => `${skuP.name} — [E] pack it back up`,
+        action: () => {
+          if (!removeDecor(appRef.app.state, skuId, spotIdx).ok) return;
+          rebuildDecor();
+          refreshCondition();
+          if (appRef.audio && appRef.audio.ready) appRef.audio.thunk();
+          appRef.toast(`${skuP.name} packed up — it's back in the backroom.`);
+        },
+      };
+      interactives.push(entry.interactive);
+    }
     if (ghost) {
       const sku = SHOP_CATALOG.find((s) => s.id === skuId);
       const anchorY = spot.mount === 'ceiling' ? 1.7 : spot.mount === 'wall' ? 1.6 : 0.8;

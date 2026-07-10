@@ -2019,3 +2019,15 @@ culprit was tone mapping crushing the dark badge against a blown-bright sky.
 toneMapped:false keeps the designed colors at any sun angle; verified facing
 the 10 AM sun in the same frame as the rain shot. Suite 210/210, zero console
 errors.
+
+## 2026-07-10 — OVERNIGHT PART 6c (backlog): pack-up decor, GTAO per-mode, wording
+
+- DECOR PACK-UP (queued in KNOWN_ISSUES): E on any placed piece returns it to
+  the backroom (removeDecor, +1 test → 211), frees the spot, and the placement
+  ghost reappears on the spot immediately — verified live (a clutter pile
+  photobombed the first attempt and got itself hauled; second E read
+  "Potted plant — [E] pack it back up" → back 1, ghost back).
+- GTAO: the first-person camera now runs a 0.7-yd contact radius (broad-shadow
+  complaint from the walkable session), restored to 1.5 for the overview rig.
+- The overview hint bar now points at 🗂 Manage with the keys as the fast path.
+Zero console errors. Suite 211/211.

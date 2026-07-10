@@ -18,16 +18,19 @@ shelf-stock silhouettes, and the shell polish (wainscot, beams, window trim,
 green counter, per-club wall wordmark).
 
 Open / deliberate:
-- **No un-place/move for placed decor** — placement is one-way for now; a
-  small "pack it back up" interaction is queued polish.
+- ~~No un-place/move for placed decor~~ — SHIPPED (overnight 2026-07-10):
+  E on a placed piece packs it back to the backroom, frees the spot, and the
+  placement ghost reappears immediately (removeDecor, tested).
 - **Reservations are additive revenue** on top of the statistical rounds sim —
   a booked golfer doesn't decrement walk-in counts (that would mean touching
   rounds.js). Revisit only alongside a real rounds redesign.
 - **No-show consequences are cosmetic** (💨 on the sheet); deposits/penalties
   are a future economy knob.
-- **Vacuum/tool audio cues not yet added** (audio.js untouched so far).
-- **Customers can clip the lounge set's corner** on their counter path —
-  queueing/avoidance is the NPC-behavior pass's job.
+- ~~Vacuum/tool audio cues not yet added~~ — SHIPPED (overnight Part 1):
+  equip ticks, per-tool use loops, completion chimes, thunks, engine loop.
+- ~~Customers can clip the lounge set's corner~~ — FIXED (overnight Part 4):
+  customers resolve against fixture colliders, the player, and each other, and
+  queue at the register in a real line.
 
 ## ASSET INTEGRATION (2026-07-10) — all 19 target assets in, honest deltas
 
@@ -160,8 +163,8 @@ old orbit rig survives as a labeled "overview camera" one Tab away.
   hose-only agronomy exploits, rate/cost knobs live in the waterAt hook.
 - **Pointer lock can be refused** (kiosk/automation contexts): click-to-look plus
   arrow-key look cover it — same fallback the pro shop has always had.
-- **GTAO is tuned for management-camera distances** (3-yd radius): at first-person
-  range contact shadows read slightly broad. Cosmetic; queued for the art pass.
+- ~~GTAO tuned for management distances only~~ — first-person now switches to a
+  0.7-yd contact radius on walk enter, back to 1.5 for the overview (2026-07-10).
 
 ## VISUAL STYLE (2026-07-09) — matched to the Designs/ references; current status
 

@@ -133,6 +133,18 @@ export function placeDecor(state, skuId, spot) {
   return { ok: true };
 }
 
+// pack a placed piece back up: the spot frees, the item returns to the backroom
+export function removeDecor(state, skuId, spot) {
+  const reno = state.shop && state.shop.reno;
+  if (!reno) return { ok: false };
+  const idx = reno.decor.findIndex((d) => d.skuId === skuId && d.spot === spot);
+  if (idx < 0) return { ok: false };
+  reno.decor.splice(idx, 1);
+  const inv = state.shop.inventory[skuId];
+  if (inv) inv.back += 1;
+  return { ok: true };
+}
+
 export function initShop(state) {
   const inventory = {};
   for (const sku of SHOP_CATALOG) inventory[sku.id] = { shelf: 0, back: 0 };

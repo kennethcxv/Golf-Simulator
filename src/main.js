@@ -91,6 +91,7 @@ function requestLook() {
 // management rig stays one Tab away — Works still lives there until its
 // walkable redesign.
 function enterWalk(spawn) {
+  if (app.scene3d && app.scene3d.post && app.scene3d.post.gtao) app.scene3d.post.gtao.radius = 0.7; // first-person contact shadows
   app.courseMode = 'walk';
   app.scene3d.walk.enter(spawn);
   walkOverlay.style.display = '';
@@ -101,6 +102,7 @@ function enterWalk(spawn) {
 }
 
 function exitWalk() {
+  if (app.scene3d && app.scene3d.post && app.scene3d.post.gtao) app.scene3d.post.gtao.radius = 1.5; // management-camera tuning
   if (app.scene3d) app.scene3d.walk.exit();
   walkOverlay.style.display = 'none';
   if (app.view === 'course') {
@@ -1227,7 +1229,7 @@ function boot() {
   }, 250);
 
   gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, empirePanel.root, shopOverlay, walkOverlay, objectivesPanel.root, viewToggle,
-    el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · E: Works · G: Grounds · C: Club · M: Empire · V: view · Space: pause · Tab/Esc: back on foot · P: shop' }));
+    el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · 🗂 Manage or E/G/C/M keys for the desks · V: view · Space: pause · Tab/Esc: back on foot · P: shop' }));
 
   uiRoot.append(menu.root, gameUi);
   requestAnimationFrame(frame);
