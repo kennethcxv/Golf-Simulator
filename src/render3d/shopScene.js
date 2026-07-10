@@ -1437,9 +1437,22 @@ export function makeShopScene(renderer, appRef) {
   }
 
   function updateCustomers(dt) {
+    // shop hours match the course's playing day — nobody browses at 3 AM
+    const minute = ((appRef.app.state.clock.minutes % 1440) + 1440) % 1440;
+    const open = minute >= 360 && minute <= 1200;
     // presence scales with yesterday's real traffic (x3 for liveliness)
-    const targetCount = clamp(Math.round(((appRef.app.state.shop.salesYesterday.units || 2) / 8) * 3), 1, 6);
-    if (customers.length < targetCount && Math.random() < dt * 0.15) spawnCustomer();
+    const targetCount = open ? clamp(Math.round(((appRef.app.state.shop.salesYesterday.units || 2) / 8) * 3), 1, 6) : 0;
+    if (open && customers.length < targetCount && Math.random() < dt * 0.15) spawnCustomer();
+    if (!open) {
+      // closing time: whoever is still in heads for the door
+      for (const c of customers) {
+        if (c.stopIdx < c.stops.length - 1) {
+          leaveQueue(c);
+          c.stopIdx = c.stops.length - 1;
+          c.linger = 0;
+        }
+      }
+    }
 
     for (let i = customers.length - 1; i >= 0; i--) {
       const c = customers[i];
