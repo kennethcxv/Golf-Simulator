@@ -846,34 +846,147 @@ export function makeCourseScene(canvas, state) {
     });
   }
 
-  // --- structures ------------------------------------------------------------------------------
+  // --- structures: a real little clubhouse ------------------------------------------------
   let structGroup = null;
+  const windowMats = []; // glass panes that glow after dark
+
+  const sidingTex = loadGroundTex('siding_diff.jpg', { srgb: true });
+  const sidingNor = loadGroundTex('siding_nor.jpg');
+  sidingTex.repeat.set(7, 2.4);
+  sidingNor.repeat.set(7, 2.4);
+  const roofTex = loadGroundTex('roof_diff.jpg', { srgb: true });
+  const roofNor = loadGroundTex('roof_nor.jpg');
+  roofTex.repeat.set(4, 2);
+  roofNor.repeat.set(4, 2);
 
   function rebuildStructures() {
     if (structGroup) scene.remove(structGroup);
     structGroup = new THREE.Group();
+    windowMats.length = 0;
+
+    const sidingMat = new THREE.MeshStandardMaterial({ map: sidingTex, normalMap: sidingNor, roughness: 0.85 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0xe8e2d2, roughness: 0.7 });
+    const roofMat = new THREE.MeshStandardMaterial({ map: roofTex, normalMap: roofNor, roughness: 0.8, side: THREE.DoubleSide });
+
     for (const s of course.structures) {
       const wx = (s.x + s.w / 2) * CELL_YD - worldW / 2;
       const wz = (s.y + s.h / 2) * CELL_YD - worldH / 2;
       const y = heightAt(wx, wz);
-      const bw = s.w * CELL_YD * 0.92;
-      const bd = s.h * CELL_YD * 0.92;
-      const body = new THREE.Mesh(
-        new THREE.BoxGeometry(bw, 7, bd),
-        new THREE.MeshStandardMaterial({ color: 0x8a7458, roughness: 0.85 }),
-      );
-      body.position.set(wx, y + 3.5, wz);
+      const g = new THREE.Group();
+
+      // main gabled volume
+      const W2 = 26; // yards wide (x)
+      const D2 = 16; // deep (z)
+      const WALL_H = 5.2;
+      const PEAK = 4.2;
+
+      const body = new THREE.Mesh(new THREE.BoxGeometry(W2, WALL_H, D2), sidingMat);
+      body.position.set(0, WALL_H / 2, 0);
       body.castShadow = true;
       body.receiveShadow = true;
-      const roof = new THREE.Mesh(
-        new THREE.ConeGeometry(Math.max(bw, bd) * 0.72, 4.5, 4),
-        new THREE.MeshStandardMaterial({ color: 0x4d3b2a, roughness: 0.9 }),
+      g.add(body);
+
+      // gable ends (triangles)
+      const gableShape = new THREE.Shape();
+      gableShape.moveTo(-W2 / 2, 0);
+      gableShape.lineTo(W2 / 2, 0);
+      gableShape.lineTo(0, PEAK);
+      gableShape.closePath();
+      const gableGeo = new THREE.ShapeGeometry(gableShape);
+      for (const zSide of [-1, 1]) {
+        const gable = new THREE.Mesh(gableGeo, sidingMat);
+        gable.position.set(0, WALL_H, zSide * (D2 / 2 - 0.01));
+        if (zSide < 0) gable.rotation.y = Math.PI;
+        gable.castShadow = true;
+        g.add(gable);
+      }
+
+      // pitched roof: solid slabs (boxes can't read as voids from any angle)
+      const slopeLen = Math.hypot(PEAK, D2 / 2) + 1.6;
+      const roofPitch = Math.atan2(PEAK, D2 / 2);
+      for (const zSide of [-1, 1]) {
+        const roofSlab = new THREE.Mesh(new THREE.BoxGeometry(W2 + 2.8, 0.22, slopeLen), roofMat);
+        roofSlab.rotation.x = zSide * roofPitch; // outer edge low, ridge high
+        roofSlab.position.set(0, WALL_H + PEAK / 2 + 0.1, zSide * (D2 / 4 + 0.35));
+        roofSlab.castShadow = true;
+        roofSlab.receiveShadow = true;
+        g.add(roofSlab);
+      }
+      // ridge cap
+      const ridge = new THREE.Mesh(new THREE.BoxGeometry(W2 + 2.4, 0.25, 0.6), trimMat);
+      ridge.position.set(0, WALL_H + PEAK + 0.15, 0);
+      g.add(ridge);
+
+      // porch along the south face (toward the course)
+      const PORCH_D = 4;
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(W2 * 0.7, 0.3, PORCH_D), trimMat);
+      slab.position.set(0, 0.15, D2 / 2 + PORCH_D / 2);
+      slab.receiveShadow = true;
+      g.add(slab);
+      const porchRoof = new THREE.Mesh(new THREE.BoxGeometry(W2 * 0.7 + 1, 0.22, PORCH_D + 0.8), roofMat);
+      porchRoof.position.set(0, WALL_H - 0.6, D2 / 2 + PORCH_D / 2);
+      porchRoof.castShadow = true;
+      g.add(porchRoof);
+      for (const px of [-W2 * 0.32, -W2 * 0.11, W2 * 0.11, W2 * 0.32]) {
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, WALL_H - 0.9, 8), trimMat);
+        col.position.set(px, (WALL_H - 0.9) / 2 + 0.3, D2 / 2 + PORCH_D - 0.5);
+        col.castShadow = true;
+        g.add(col);
+      }
+
+      // windows — glass that glows warm after dark
+      const winGeo = new THREE.PlaneGeometry(2.2, 1.5);
+      const mkWindow = (x, z, ry) => {
+        const mat = new THREE.MeshStandardMaterial({
+          color: 0x223038,
+          roughness: 0.15,
+          metalness: 0.4,
+          emissive: 0xffd9a0,
+          emissiveIntensity: 0.05,
+        });
+        windowMats.push(mat);
+        const win = new THREE.Mesh(winGeo, mat);
+        win.position.set(x, 2.6, z);
+        win.rotation.y = ry;
+        g.add(win);
+        const frame = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.9), trimMat);
+        frame.position.set(x, 2.6, z);
+        frame.rotation.y = ry;
+        frame.translateZ(-0.02); // a hair behind the glass along its normal
+        g.add(frame);
+      };
+      // south face (porch side): two windows flanking the door
+      mkWindow(-W2 * 0.27, D2 / 2 + 0.03, 0);
+      mkWindow(W2 * 0.27, D2 / 2 + 0.03, 0);
+      // east + west ends
+      mkWindow(W2 / 2 + 0.03, 2.0, Math.PI / 2);
+      mkWindow(-W2 / 2 - 0.03, -2.0, -Math.PI / 2);
+      // north face
+      mkWindow(-W2 * 0.2, -D2 / 2 - 0.03, Math.PI);
+      mkWindow(W2 * 0.2, -D2 / 2 - 0.03, Math.PI);
+
+      // door + step
+      const door = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.6, 2.6),
+        new THREE.MeshStandardMaterial({ color: 0x50392a, roughness: 0.7 }),
       );
-      roof.rotation.y = Math.PI / 4;
-      roof.scale.set(bw / Math.max(bw, bd), 1, bd / Math.max(bw, bd));
-      roof.position.set(wx, y + 7 + 2.25, wz);
-      roof.castShadow = true;
-      structGroup.add(body, roof);
+      door.position.set(0, 1.3, D2 / 2 + 0.03);
+      g.add(door);
+      const step = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.18, 0.9), trimMat);
+      step.position.set(0, 0.09, D2 / 2 + 0.75);
+      g.add(step);
+
+      // chimney
+      const chimney = new THREE.Mesh(
+        new THREE.BoxGeometry(1.1, 3.2, 1.1),
+        new THREE.MeshStandardMaterial({ color: 0x7a5a4a, roughness: 0.9 }),
+      );
+      chimney.position.set(W2 * 0.3, WALL_H + PEAK - 0.4, -D2 * 0.15);
+      chimney.castShadow = true;
+      g.add(chimney);
+
+      g.position.set(wx, y, wz);
+      structGroup.add(g);
     }
     scene.add(structGroup);
   }
@@ -1238,6 +1351,10 @@ export function makeCourseScene(canvas, state) {
       w.material.uniforms.sunDirection.value.copy(sunPos).normalize();
       w.material.uniforms.sunColor.value.copy(sun.color).multiplyScalar(Math.max(0.15, sun.intensity / 3));
     }
+
+    // clubhouse windows glow when the light goes
+    const winGlow = day ? 0.05 : dusk ? 0.9 : 1.7;
+    for (const m of windowMats) m.emissiveIntensity = winGlow;
   }
 
   // --- picking ------------------------------------------------------------------------------------------
