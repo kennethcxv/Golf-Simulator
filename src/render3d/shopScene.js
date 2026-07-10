@@ -114,6 +114,10 @@ export function makeShopScene(renderer, appRef) {
   scene.add(ceil);
 
   const wallMat = new THREE.MeshStandardMaterial({ map: plasterTex, roughness: 0.92 });
+  // reference shell: dark-green wainscoting under cream plaster, wood cap rail
+  const wainscotMat = new THREE.MeshStandardMaterial({ color: 0x57795c, roughness: 0.85 });
+  const railMat = new THREE.MeshStandardMaterial({ color: 0x6e5335, roughness: 0.8 });
+  const WAINSCOT_H = 0.92;
   const walls = [
     { w: ROOM.w, x: 0, z: -ROOM.d / 2, ry: 0 },
     { w: ROOM.w, x: 0, z: ROOM.d / 2, ry: Math.PI },
@@ -125,7 +129,29 @@ export function makeShopScene(renderer, appRef) {
     wall.position.set(spec.x, ROOM.h / 2, spec.z);
     wall.rotation.y = spec.ry;
     scene.add(wall);
+    const inward = 0.015; // proud of the plaster
+    const nx = Math.sin(spec.ry);
+    const nz = Math.cos(spec.ry);
+    const skirt = new THREE.Mesh(new THREE.PlaneGeometry(spec.w, WAINSCOT_H), wainscotMat);
+    skirt.position.set(spec.x + nx * inward, WAINSCOT_H / 2, spec.z + nz * inward);
+    skirt.rotation.y = spec.ry;
+    scene.add(skirt);
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(spec.w, 0.05, 0.03), railMat);
+    rail.position.set(spec.x + nx * (inward + 0.01), WAINSCOT_H + 0.02, spec.z + nz * (inward + 0.01));
+    rail.rotation.y = spec.ry;
+    scene.add(rail);
   }
+
+  // exposed ceiling beams — the reference's roof-truss language on a flat lid
+  const beamMat = new THREE.MeshStandardMaterial({ color: 0x5a4630, roughness: 0.85 });
+  for (const bz of [-3.2, 0, 3.2]) {
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(ROOM.w, 0.16, 0.15), beamMat);
+    beam.position.set(0, ROOM.h - 0.09, bz);
+    scene.add(beam);
+  }
+  const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, ROOM.d), beamMat);
+  ridge.position.set(0, ROOM.h - 0.08, 0);
+  scene.add(ridge);
   // wall colliders (thick)
   colliders.push(
     { minX: -ROOM.w / 2 - 1, maxX: ROOM.w / 2 + 1, minZ: -ROOM.d / 2 - 1, maxZ: -ROOM.d / 2 },
@@ -134,12 +160,20 @@ export function makeShopScene(renderer, appRef) {
     { minX: ROOM.w / 2, maxX: ROOM.w / 2 + 1, minZ: -ROOM.d / 2 - 1, maxZ: ROOM.d / 2 + 1 },
   );
 
-  // windows (emissive daylight planes) + door
+  // windows (emissive daylight planes) with wood trim + door
   const windowMat = new THREE.MeshBasicMaterial({ color: 0xbcd8ee });
   for (const wx of [-4.2, 0, 4.2]) {
     const win = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.3), windowMat);
     win.position.set(wx, 1.9, -ROOM.d / 2 + 0.02);
     scene.add(win);
+    for (const [tw, th, ty, tx] of [[2.8, 0.08, 2.59, 0], [2.8, 0.08, 1.21, 0], [0.08, 1.46, 1.9, -1.36], [0.08, 1.46, 1.9, 1.36]]) {
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(tw, th, 0.05), railMat);
+      trim.position.set(wx + tx, ty, -ROOM.d / 2 + 0.03);
+      scene.add(trim);
+    }
+    const mullion = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.3, 0.03), railMat);
+    mullion.position.set(wx, 1.9, -ROOM.d / 2 + 0.03);
+    scene.add(mullion);
   }
   const door = new THREE.Mesh(
     new THREE.PlaneGeometry(1.6, 2.5),
@@ -341,12 +375,69 @@ export function makeShopScene(renderer, appRef) {
   FIXTURES.push({ skus: ['irons1', 'irons2', 'putter1', 'putter2'], anchor: rackUnit(-ROOM.w / 2 + 0.75, 1.6, Math.PI / 2, ['irons1', 'irons2', 'putter1', 'putter2'], 'Iron & putter rack') });
   FIXTURES.push({ skus: ['glove1', 'polo1', 'polo2', 'cap1', 'jacket2'], anchor: tableUnit(-0.6, 0.4, ['glove1', 'polo1', 'polo2', 'cap1', 'jacket2'], 'Apparel table') });
 
-  // counter + register (east)
-  const counter = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.05, 3.2), woodMat);
-  counter.position.set(ROOM.w / 2 - 1.3, 0.53, 1.4);
-  counter.castShadow = true;
-  scene.add(counter);
+  // counter + register (east) — reference style: green panel body, wood top
+  const counterBody = new THREE.Mesh(
+    new THREE.BoxGeometry(0.86, 1.0, 3.2),
+    new THREE.MeshStandardMaterial({ color: 0x3d5c40, roughness: 0.85 }),
+  );
+  counterBody.position.set(ROOM.w / 2 - 1.3, 0.5, 1.4);
+  counterBody.castShadow = true;
+  scene.add(counterBody);
+  const counterTop = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.07, 3.36), woodMat);
+  counterTop.position.set(ROOM.w / 2 - 1.3, 1.04, 1.4);
+  counterTop.castShadow = true;
+  scene.add(counterTop);
   addCollider(ROOM.w / 2 - 1.3, 1.4, 1.1, 3.4);
+
+  // the club's name painted on the wall behind the counter — every property
+  // hangs its own identity here (redrawn per enter)
+  const logoCanvas = document.createElement('canvas');
+  logoCanvas.width = 512;
+  logoCanvas.height = 256;
+  const logoTex = new THREE.CanvasTexture(logoCanvas);
+  logoTex.colorSpace = THREE.SRGBColorSpace;
+  const logoPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.3, 1.65),
+    new THREE.MeshStandardMaterial({ map: logoTex, transparent: true, roughness: 0.92 }),
+  );
+  logoPlane.position.set(ROOM.w / 2 - 0.03, 2.15, 1.2);
+  logoPlane.rotation.y = -Math.PI / 2;
+  scene.add(logoPlane);
+
+  function redrawLogo() {
+    const name = (appRef.app.state && appRef.app.state.clubName) || 'THE CLUB';
+    const c2 = logoCanvas.getContext('2d');
+    c2.clearRect(0, 0, 512, 256);
+    c2.fillStyle = '#2e5a35';
+    // three pines over the wordmark, like the reference wall
+    for (const [px, s] of [[216, 0.8], [256, 1], [296, 0.72]]) {
+      for (let t = 0; t < 3; t++) {
+        const w = (46 - t * 10) * s;
+        const yTop = 26 + t * 18 * s;
+        c2.beginPath();
+        c2.moveTo(px, yTop);
+        c2.lineTo(px - w / 2, yTop + 26 * s);
+        c2.lineTo(px + w / 2, yTop + 26 * s);
+        c2.closePath();
+        c2.fill();
+      }
+      c2.fillRect(px - 3, 26 + 54 * s, 6, 12);
+    }
+    const upper = name.toUpperCase();
+    c2.textAlign = 'center';
+    c2.font = 'bold 44px Georgia, serif';
+    // shrink long names to fit the plank
+    let size = 44;
+    while (c2.measureText(upper).width > 470 && size > 22) {
+      size -= 2;
+      c2.font = `bold ${size}px Georgia, serif`;
+    }
+    c2.fillText(upper, 256, 168);
+    c2.font = 'italic 22px Georgia, serif';
+    c2.fillStyle = '#57795c';
+    c2.fillText('PRO SHOP', 256, 208);
+    logoTex.needsUpdate = true;
+  }
   const register = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.35, 0.5), new THREE.MeshStandardMaterial({ color: 0x2b2b30, roughness: 0.4 }));
   register.position.set(ROOM.w / 2 - 1.3, 1.22, 0.6);
   scene.add(register);
@@ -814,7 +905,8 @@ export function makeShopScene(renderer, appRef) {
     windowMat.color.lerpColors(new THREE.Color(0x77705f), new THREE.Color(0xbcd8ee), Math.min(1, t * 1.5));
     floorMat.color.lerpColors(new THREE.Color(0x83786a), WHITE, t);
     wallMat.color.lerpColors(new THREE.Color(0xa2977f), WHITE, t);
-    ceilMat.color.lerpColors(new THREE.Color(0x4e463c), new THREE.Color(0x6b6156), t);
+    ceilMat.color.lerpColors(new THREE.Color(0x4e463c), new THREE.Color(0xcfc4ab), t);
+    wainscotMat.color.lerpColors(new THREE.Color(0x4a5a48), new THREE.Color(0x57795c), t);
     const dead = conditionNow < 45; // one tube burnt out until the place is half-decent
     bulbs[0].light.intensity = dead ? 0 : BULB_I;
     bulbs[0].fixture.material.emissiveIntensity = dead ? 0.04 : 0.7;
@@ -1253,6 +1345,7 @@ export function makeShopScene(renderer, appRef) {
     rebuildStock();
     rebuildReno();
     redrawCourseMap();
+    redrawLogo();
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     document.addEventListener('mousemove', onMouseMove);

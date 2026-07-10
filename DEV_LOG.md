@@ -1637,3 +1637,29 @@ all deterministic (no per-frame randomness):
   shaft+head language with varied lean and head covers on drivers.
 Live-stocked shelves screenshot vs before: qa/shopreno-stock-apparel.png,
 qa/shopreno-stock-balls.png. Zero console errors, suite 199/199 (render-only).
+
+## 2026-07-10 — SHOP RESTORATION Task 7: shell polish to the reference (Part 2 complete)
+
+The shell now speaks Designs/ClubHouseInterior's language: dark-green wainscoting
+with a wood cap rail under the cream plaster on all four walls, exposed ceiling
+beams + ridge (the reference's truss language on our flat lid), wood window trim
+with mullions, the counter restyled as a green panel body with wood top, and —
+the fantasy piece — the CLUB'S OWN NAME wall-painted behind the counter (canvas
+wordmark + three pines + PRO SHOP subline, redrawn from state.clubName per
+enter, so every property in the empire hangs its own identity). The ceiling's
+clean endpoint went from gray-brown to warm cream; the wainscot lerps dingy
+olive → sage as condition climbs. The shell is permanent in all states — what
+changes with the restoration is light and grime, which is honest: you clean and
+furnish a building, you don't re-frame it.
+
+Three states at one camera (qa/shopreno-sbs-task7-threestates.png): filthy 16 →
+getting-there 58 (part-clean floor, rug+plant down) → showroom 100 (spotless,
+fully furnished + stocked, pendants glowing). Reference comparison:
+qa/shopreno-sbs-task7-vs-reference.png — matches on palette (cream/green/wood),
+counter language, wall wordmark, pendant lights, rug, stocked-shelf density.
+Honest deltas: our room is a flat-ceiling box (no vaulted trusses/clerestory),
+no PRO SHOP alcove doorway, no couch cushioned to the reference's plushness —
+logged in KNOWN_ISSUES. Zero console errors. Suite 199/199.
+
+THE SHOP RESTORATION BRIEF IS COMPLETE: Parts 1 and 2, all seven tasks,
+committed one by one.
