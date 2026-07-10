@@ -148,6 +148,53 @@ test('a lived-in month grows the market through the real empire update loop', ()
   assert.ok(e.market.some((p) => p.listedDay > 0), 'a new listing arrived while running the club');
 });
 
+// --- Task 2: listings that don't last forever ----------------------------------------
+
+test('a listing is safe from rivals during its minimum time on market', () => {
+  assert.ok(MARKET.minDaysListed >= 6, `a real grace window exists (${MARKET.minDaysListed}d)`);
+  const meanTenure = MARKET.minDaysListed + 1 / MARKET.rivalDailyChance;
+  assert.ok(meanTenure >= 14 && meanTenure <= 45,
+    `expected time on market is urgent but not unfair (~${meanTenure.toFixed(0)}d)`);
+  const e = newEmpire('relaxed', 4242);
+  const originalIds = e.market.map((p) => p.id);
+  skipDays(e, MARKET.minDaysListed - 1);
+  for (const id of originalIds) {
+    assert.ok(e.market.some((p) => p.id === id), `${id} untouchable inside the grace window`);
+  }
+});
+
+test('ignored listings go to rival buyers within a reasonable window, never silently', () => {
+  const e = newEmpire('relaxed', 777);
+  let prev = e.market.map((p) => ({ id: p.id, name: p.name, listedDay: p.listedDay }));
+  const removals = [];
+  const notices = new Set();
+  skipDays(e, 250, (em) => {
+    const ids = new Set(em.market.map((p) => p.id));
+    for (const p of prev) {
+      if (!ids.has(p.id)) removals.push({ ...p, day: em.lastMarketDay });
+    }
+    prev = em.market.map((p) => ({ id: p.id, name: p.name, listedDay: p.listedDay }));
+    for (const l of em.log) {
+      if (l.kind === 'rival') notices.add(l.text);
+    }
+  });
+
+  assert.ok(removals.length >= 8,
+    `250 ignored days see real turnover: ${removals.length} rival buys`);
+  for (const r of removals) {
+    const age = r.day - r.listedDay;
+    assert.ok(age >= MARKET.minDaysListed,
+      `${r.name} went to a rival after ${age} days — never inside the grace window`);
+    assert.ok([...notices].some((t) => t.includes(r.name)),
+      `${r.name} left with a visible notice, not a silent disappearance`);
+  }
+  const ages = removals.map((r) => r.day - r.listedDay);
+  const avgAge = ages.reduce((a, b) => a + b, 0) / ages.length;
+  assert.ok(avgAge >= MARKET.minDaysListed && avgAge <= MARKET.minDaysListed + 45,
+    `typical tenure lands in the tuned window (avg ${avgAge.toFixed(1)}d)`);
+  assert.ok(e.log.length <= 30, 'the feed stays bounded');
+});
+
 test('the living market survives save/load, and pre-living-market saves still open', () => {
   const e = newEmpire('relaxed', 99);
   skipDays(e, 30);

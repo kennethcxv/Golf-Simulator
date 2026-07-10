@@ -400,6 +400,8 @@ export const MARKET = {
   refreshEveryDays: 6, // a listing roll every 6 world-days…
   refreshChance: 0.75, // …lands a new property about every 8 days (1-2 in-game weeks)
   dryMarketFloor: 3, // at or below this many listings, the next roll always lands
+  minDaysListed: 10, // grace window: no rival can take a listing younger than this
+  rivalDailyChance: 0.055, // per-day rival-buy roll after grace (mean tenure ≈ 28 days)
 };
 
 const NAME_A = [

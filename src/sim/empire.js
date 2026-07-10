@@ -371,8 +371,24 @@ export function switchProperty(empire, propertyId) {
 // DEV_LOG.md. The market only moves while world time moves — no active club,
 // no passage of time, no churn.
 
+// Who beats you to a deal. Pure flavor — the money and the course both leave the game.
+const RIVALS = [
+  'Fairline Capital', 'Northgate Leisure Group', 'the Pemberton family trust',
+  'Meridian Golf Partners', 'Bluecap Hospitality', 'a consortium of dentists',
+  'Old Harbour Holdings', 'the county park district',
+];
+
 function marketDay(empire, day) {
   const rng = makeRng(empire.marketRngState);
+  // rival investors pick off listings that sat too long — but the grace window
+  // guarantees anything you're actively weighing up can't vanish overnight
+  for (let i = empire.market.length - 1; i >= 0; i--) {
+    const p = empire.market[i];
+    if (day - (p.listedDay ?? 0) < MARKET.minDaysListed) continue;
+    if (!rng.chance(MARKET.rivalDailyChance)) continue;
+    empire.market.splice(i, 1);
+    empireLog(empire, `${RIVALS[rng.int(RIVALS.length)]} bought ${p.name} — it's off the market.`, 'rival', day);
+  }
   if (day % MARKET.refreshEveryDays === 0 && empire.market.length < MARKET.maxListings) {
     const chance = empire.market.length <= MARKET.dryMarketFloor ? 1 : MARKET.refreshChance;
     if (rng.chance(chance)) {

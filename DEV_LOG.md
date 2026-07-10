@@ -787,3 +787,36 @@ Tests: 7 new in tests/market-live.test.js (cadence knobs honest, listings appear
 live-club update loop, save/load + migration). Suite 169/169. A 120-day dump shows the
 launch 8 growing to the cap with distinct, correctly-priced arrivals announced in the
 empire feed.
+
+## 2026-07-09 — LIVING MARKET Task 2: listings that don't last forever
+
+Rival investors now take listings that sit unbought. Implemented as a per-day roll in
+`marketDay()` — before the refresh roll, so a slot freed by a rival can be refilled the
+same day the cadence allows.
+
+**Judgment calls, with reasoning:**
+
+- **Grace window = 10 days on market** (`MARKET.minDaysListed`): inside it a listing is
+  untouchable. That's the "actively considering" protection the brief demands — you can
+  sleep on a purchase across a payday or two without being sniped, but you cannot sit
+  on a bargain for a season.
+- **Rival roll = 5.5%/day after grace** (`MARKET.rivalDailyChance`): mean tenure ≈ 28
+  days (10 + 1/0.055), i.e. a listing typically survives about a season; some go the
+  day grace ends, a few linger 60+. A roll, not a countdown — the player learns
+  "bargains don't wait" without being handed a min-maxable timer.
+- **Rivals pay nobody and the course leaves the game.** No shadow economy, no rival
+  portfolios — that's the "living market with competing buyers/auctions" future-work
+  item in KNOWN_ISSUES, not this task. The notice (kind `rival`, distinct from
+  `market` arrivals so the UI can badge them) names a flavor buyer from a small pool.
+- **Removal is feed-visible, never silent**: every rival buy logs "X bought <name> —
+  it's off the market." The empire log stays capped at 30 entries; the test suite
+  therefore collects notices during the run rather than trusting the final buffer.
+- **Accepted flavor nit**: name-pool combos can produce near-siblings on the market at
+  once ("Candlewood Bend" / "Candlewood Bend Golf Links"). Names stay strictly unique
+  as strings; deduplicating by first word would cost pool variety for a case that reads
+  like real-world golf naming anyway.
+
+One ignored in-game year (seed 20260709): launch roster fully turned over — all 8
+gone to rivals with visible notices, earliest at day 12 (≥ grace), replacements cycling,
+market holding ~5 listings at steady state. Tests: 2 new (grace window + knob sanity;
+250-day turnover with per-removal age and per-removal notice checks). Suite 171/171.
