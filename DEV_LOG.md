@@ -1394,3 +1394,31 @@ Deltas that remain (KNOWN_ISSUES + ASSET_SOURCES carry the full list): pale zeni
 reference silhouettes (clock tower, tractor, sign, flags), primitive characters,
 and reference UI surfaces that have no screens yet (minimap, step callouts,
 segmented pickers).
+
+## 2026-07-09 — ASSET SESSION Task 1: recon (probe first, don't assume)
+
+Also logged: a UI-layout/IA session brief arrived alongside this one but its
+SUPERSEDING NOTE makes THIS the geometry/asset session — the UI brief is parked in
+KNOWN_ISSUES as the queued next session, not silently dropped.
+
+Probe results:
+- **Mixamo: NOT usable here.** mixamo.com loads as a login-gated Adobe SPA
+  ("Loading Mixamo…"); downloads require an Adobe account and interactive browser
+  auth — no credentials exist in this environment and WebFetch can't drive the
+  SPA. Same honest-failure record as the earlier Tripo attempt.
+- **Blender: USABLE, headless.** Blender 5.1 installed (Program Files); the MCP
+  addon bridge is not running (no live instance), but
+  `blender --background --python` works — verified "BPY OK 5.1.2". This is the
+  pipeline.
+- **CC0 model sources: no confirmed-license direct download for what we need.**
+  Kenney has no tractor or rigged humanoids (trees already vendored); Poly Haven
+  models catalog has no tractor; Quaternius lists Animated Character/farm packs
+  but a prior session already found its downloads Patreon-gated and this probe
+  confirmed no direct links or license text on the public pages; Sketchfab CC0
+  search needs API auth we don't have.
+
+**Decision**: build ORIGINAL assets via headless bpy scripts — a rigged low-poly
+character (armature + rigid bone-parented parts, baked Walk/Idle/Swing/Browse
+actions, materials named for per-instance retinting) and a detailed tractor+mower
+— exported as GLBs into vendor/models/. Original work = CC0-clean by ownership,
+and style-guide-exact because the guide's palette is set programmatically.
