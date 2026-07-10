@@ -1,7 +1,9 @@
-# FAIRWAY STATE — MANUAL TESTING CHECKLIST
+# GOLF EMPIRE — MANUAL TESTING CHECKLIST
 
 Section-by-section manual pass matching what has actually been built. Grows with each
-phase; each item is written to be checkable by a human in the running game.
+phase; each item is written to be checkable by a human in the running game. The
+FAIRWAY STATE core sections below still apply to every owned property; the GOLF
+EMPIRE section at the end covers the marketplace/portfolio layer.
 
 How to run: `npm install`, then `npm start` (Electron) or `npm run serve` +
 http://localhost:8457/ in a browser. Headless sim tests: `npm test`.
@@ -10,11 +12,11 @@ http://localhost:8457/ in a browser. Headless sim tests: `npm test`.
 
 ## Phase 1 — Shell, course view, terrain editing
 
-**Menu & lifecycle**
-- [ ] `npm run serve` + browser (or `npm start`): menu shows FAIRWAY STATE title; Continue is disabled on first run
-- [ ] "New Club — Realistic" starts at Willow Creek: 9 holes, $60,000, Y1 Spring Day 1 6:00 AM ("Relaxed" gives $100,000) — booting onto the pro-shop floor (v5)
-- [ ] After at least one in-game day passes, reload: Continue is enabled and restores your game (autosave)
-- [ ] Esc in the shop opens the Clubhouse Office (in the course view Esc heads home to the shop — v5): Save slot 1–3, Load slot 1–3, Exit to menu all work
+**Menu & lifecycle** (empire era — see the GOLF EMPIRE section for the market itself)
+- [ ] `npm run serve` + browser (or `npm start`): menu shows GOLF EMPIRE title; Continue is disabled on first run
+- [ ] "New Empire — Realistic" opens the property market with a $60,000 wallet ("Relaxed" gives $100,000); buying your first course boots onto its pro-shop floor at Y1 Spring Day 1
+- [ ] After at least one in-game day passes, reload: Continue is enabled and restores your whole empire (autosave)
+- [ ] Esc in the shop opens the Clubhouse Office (in the course view Esc heads home to the shop — v5): Save slot 1–3, Load slot 1–3 (full empire), Empire overview, Exit to menu all work
 
 **Course view**
 - [ ] The 9-hole course renders: fairways, rough, greens, tee pads, 6 bunkers, pond right side, clubhouse building
@@ -191,3 +193,25 @@ http://localhost:8457/ in a browser. Headless sim tests: `npm test`.
 **Camera default**
 - [ ] A fresh course entry frames the clubhouse at bottom with the opening fairway ahead (dist 210): turf grain, individual tree shapes, and shadows are readable WITHOUT zooming in
 - [ ] Wheel still zooms the full 28–720 range; the old far overview is one zoom-out away
+
+## GOLF EMPIRE — marketplace, portfolio, flipping
+
+**The property market**
+- [ ] New Empire opens the market over the menu: 8 listings, each with holes/par/yards, Design, Condition, members, Rep, sick-green warnings where true, an asking price, and a flavor line — the hidden true value is never shown
+- [ ] The listings are genuinely different: a classic fixer-upper, a superb-bones wreck, an immaculate-but-dull nine, an executive nine, an 18-hole estate, and at least one that smells overpriced
+- [ ] Buy is disabled ("Not enough cash") on anything the wallet can't cover; buying deducts exactly the ask
+- [ ] Your first purchase boots you onto THAT club's shop floor; the HUD shows its name and your remaining wallet
+- [ ] The tutorial guide runs at your first-ever club only — a second purchase arrives with the guide already retired
+- [ ] In-game, 🏢 Empire (M) → "Browse the market" lets you buy more; a purchase while you own a club parks the new one ("away — caretaker crew") instead of teleporting you
+
+**The empire overview (🏢 / M, or the office menu)**
+- [ ] Shows the wallet, total portfolio value, and "all courses yesterday" (active club's books + each parked club's passive day)
+- [ ] Each owned property card shows holes, condition, value, and daily net; the active one is marked 📍 "you are here"
+- [ ] A parked property accrues while you play elsewhere: its card shows "away Nd" and "Earned $X while you were away", and the wallet actually received it
+- [ ] A parked wreck does NOT heal (condition holds below the caretaker floor of ~38); a parked showpiece decays toward it over weeks
+- [ ] "⛳ Go there" switches clubs: full scene rebuild, arrival on the new club's shop floor, shared clock (no time travel), wallet carried; the previous club parks
+- [ ] Returning to a parked club shows the decay for real on the turf (walk it / Health view) and delivers any shop orders that arrived while away; outings you weren't there to host are forfeited with a feed note
+- [ ] Sell… opens a confirmation stating the exact payout and that the sale is permanent (members, regulars, staff all gone); the world pauses while it's open
+- [ ] Confirming pays exactly the number shown, removes the property everywhere (not re-listed), and logs the deed; selling your active club moves the office to your next property — selling your last drops you back into the market with the check
+- [ ] Save/load (slots or Continue) round-trips the entire empire: every holding's full state, parked summaries, wallet, market, and deed log
+- [ ] `npm test` → 162 passing (121 core + 41 empire-layer)

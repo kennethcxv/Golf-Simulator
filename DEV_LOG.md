@@ -694,3 +694,40 @@ Newest entries at the bottom.
   e2-first-buy-shop-boot.png, e3-empire-two-holdings.png, e4-bent-pines-course.png,
   e5-sell-confirm.png.
 
+## 2026-07-09 — GOLF EMPIRE portion 1: SESSION SUMMARY
+
+**What was built** (all five bricks of the brief, in order, each TDD'd and committed):
+`sim/marketplace.js` (8 hand-authored distinct property archetypes over a parametric
+serpentine course builder — every listing is a real, buildable, validated course;
+hidden trueValue priced by the shared `appraiseStats`), `sim/valuation.js` (one live
+appraisal = displayed estimate = sale payout, fed by the existing ratings/club/ledger
+outputs), `sim/empire.js` (one-wallet empire; buy boots the REAL `newGame` wiring onto
+the property's course and seeds it to the listing; sell pays the displayed number and
+erases every trace; portfolio with exactly one live club; passive caretaker ticks;
+reconciliation on return; empire save envelope + legacy wrap), and the two screens
+(market modal + empire panel) wired through `main.js` so the app plays an empire.
+41 new headless tests, suite 162/162; full zero-console-error browser playthrough.
+
+**The judgment calls that matter** (each argued in its own entry above):
+1. Marketplace listings are REAL courses, never stat fictions — design ratings are
+   computed from the actual grid; condition is a target realized in the turf arrays.
+2. One appraisal formula everywhere — the listing's hidden value, the owner's estimate,
+   and the sale check can never disagree; parked clubs price on their frozen summary so
+   the shown number stays the paid number without mutating state.
+3. One wallet, carried by the active club's `state.cash` — the entire existing economy,
+   ledger invariant, and solvency stack run untouched.
+4. Parked properties approximate, never shadow-simulate: exponential condition decay to
+   a caretaker floor (never below, never restoring a wreck), bounded daily net from
+   frozen stats, everything else frozen; the drift becomes real turf on return.
+5. Anti-exploit valuation: trailing income counts only banked days (browser QA caught
+   6-day honeymoons annualizing into 2.3× flips before this).
+6. FAIRWAY STATE core untouched: zero edits to turf/club/staff/shop/golfers/rounds/
+   progression/tutorial; `startingCourse.js` gained four `export` keywords and
+   `state.js` a two-line opts param — both additive, baseline-verified.
+
+**Explicitly left for the next portion** (parked in KNOWN_ISSUES with reasoning):
+empire-wide prestige, a living market (new/refreshing listings, buy-backs, rival
+buyers), manager delegation for parked clubs (the upgrade path from the caretaker
+approximation), more archetypes/climates, empire financing, the young-club valuation
+semantics gap, the flip-margin balance pass, and per-club debt-clock semantics.
+

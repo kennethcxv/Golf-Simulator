@@ -1,9 +1,55 @@
-# FAIRWAY STATE — KNOWN ISSUES / PRE-SHIP GAPS
+# GOLF EMPIRE — KNOWN ISSUES / PRE-SHIP GAPS
 
 Honest list of what is placeholder, missing, or deliberately deferred. Anything listed
 under "Needs a real art/audio pass" must be replaced before this could ship commercially.
+GOLF EMPIRE is built on the FAIRWAY STATE core; everything below from that era still
+applies per-property, plus the new empire-layer section at the top.
 
-## Needs a real art pass before release
+## GOLF EMPIRE layer — current status & deliberate v1 limits
+
+Shipped this session (2026-07-09): the property marketplace (8 hand-authored distinct
+listings, real buildable courses), the shared appraisal/valuation, buy/sell
+transactions, the multi-property portfolio with one live club + passive caretaker ticks
+for parked ones, and the market/empire screens. 41 new headless tests (suite 162/162);
+full browser playthrough QA'd with zero console errors.
+
+Deliberate v1 simplifications (documented in DEV_LOG.md):
+- **Parked properties are an approximation, not a shadow sim** — condition decays
+  toward a caretaker floor (38) and a bounded daily net hits the wallet; membership,
+  satisfaction, staff, shop, and prestige are FROZEN while parked. Outings scheduled
+  and then abandoned are forfeited on return; a tournament left on the calendar
+  resolves on your first night back against current condition.
+- **Valuation semantics gap for young clubs**: an active club is priced on its BANKED
+  trailing books (an anti-exploit choice — QA caught 6-day honeymoons annualizing into
+  2.3× flips), while a parked club is priced on its caretaker run-rate ×24. Parking a
+  healthy week-old club therefore reads ~15% higher until its books fill; attended
+  steady-state always beats the caretaker rate. Post-playtest balance knob.
+- **Flip margins are generous at current tuning** (a restored wreck roughly doubled in
+  22 relaxed-mode days, mostly via the base game's own membership-growth dynamics).
+  Balance pass required — same judgment-call tier as the rest of balance.js.
+- **Realistic-mode debt (`debtDays`) counts against whichever club is active** — the
+  wallet is empire-wide, so the number is the same, but the 5-day bankruptcy clock
+  resets on switching. Worth revisiting alongside empire-wide prestige.
+- **18-hole properties score rounds against the 9-hole par baseline** in golfer memories
+  (rounds.js hardcodes par 34 and is on the do-not-touch list) — cosmetic in thought/
+  memory copy only; economy and ratings are unaffected.
+- **Executive-course yardage isn't priced directly** — the appraisal sees size only as
+  9 vs 18 holes (plus design/condition); a short par-30 nine values like a full nine
+  with the same ratings.
+- **Closing the market before your first purchase** leaves you at the menu with an
+  autosaved empty empire — Continue restores it; clicking New Empire re-rolls it.
+
+Future work for the NEXT portion (ideas beyond this session's brief, parked on purpose):
+- Deeper empire-wide prestige (portfolio-level reputation/prestige, cross-club effects).
+- A growing/refreshing market: new listings over time, seasonal pricing, buy-back or
+  re-listing of sold courses, competing buyers/auctions.
+- Manager delegation for unvisited courses (hire a GM to run a parked club properly —
+  the natural upgrade path from the caretaker approximation, incl. member drift).
+- More properties/archetypes (links, desert, mountain climates pair with the deferred
+  multi-theme roadmap), and richer hidden-upside mechanics (survey reports, inspections).
+- Empire-level financing: loans against portfolio value, staged payments on the whale.
+
+## FAIRWAY STATE core (per-property) — needs a real art pass before release
 
 - ~~Procedural ground textures~~ — replaced with real CC0 PBR sets (Poly Haven,
   diffuse+normal; see ASSET_SOURCES.md). ~~Gumdrop/cone trees~~ — replaced with Kenney
