@@ -1266,3 +1266,40 @@ lines. Segmented 3-option pickers with the selected cell filled green.
 - Reference tractor+mower rig doesn't exist in the build; the golf cart adopts the
   utility-vehicle language (green body/black bed) until a tractor is modeled for
   the earned-tractor MVP sequence.
+
+## 2026-07-09 — STYLE Task 2: terrain, lighting, post — applied against the guide
+
+Changes in courseScene.js, each tied to a guide section:
+- **Tone mapping**: ACESFilmic 0.92 → Neutral 1.12 (§3: bright, no filmic grade —
+  saturation lives in the albedo now).
+- **Bloom**: 0.5/40 → 0.12/60 (effectively scene-off; sun-disc glints only).
+  **GTAO**: blend 1.0→0.4, radius 3.0→1.5 yd (contact darkening only).
+- **Sky**: turbidity 6→2, rayleigh 1.6→4, mie 0.004→0.002 — the milk is gone.
+  Physical-Sky limitation logged: at this bright exposure the zenith still reads
+  paler than the reference's #2f6fd0; accepted rather than faking with a LUT (§3
+  bans grading). NEW: 14 stylized billboard cumulus sprites (canvas radial puffs,
+  toneMapped:false so they stay paper-white; hidden at night/heavy rain) — the
+  references always show puffy clouds and the physical Sky has none.
+- **Light rig**: sun 3.1→2.6 slightly warm; hemisphere fill 0.85→1.25-1.35 with
+  sky/ground colors #cfe6fa/#5d7a44 — shadows now hold ~2/3 luminance and full
+  color (§3). Fog density day 0.00028→0.0001, color → #bfdcf2 (distance stays
+  saturated).
+- **Turf shader — the big one (§4)**: photo textures now contribute LUMINANCE
+  ONLY (FW_STYLIZE: 0.25 + luma×2.6), hue comes from flat saturated zone tints
+  (fairway/rough/green/tee/sand/scrub/path). Two visual iterations were needed:
+  v1 read neon-flat (texture swing too narrow, scrub muddy-tan); v2 widened the
+  luma curve, deepened/warmed the greens, and re-greened the out-of-play scrub.
+  Stripe amplitude fairway 0.1→0.2, tee 0.08→0.14 (stripes are the signature).
+  Dry/wear tints moved to olive-tan (§1 decay reads as desaturation, not dirt).
+  normalScale 0.85→0.45 (texture whispers). Water 0x0a2b30→0x2a6d8f.
+- **Trees**: foliage remap brightened/saturated (deciduous L .26→.33 S .46→.55,
+  pine L .20→.26 S .42→.50) so canopies hold color at distance.
+
+Accepted deltas (logged per brief): zenith saturation short of reference; turf a
+half-step more electric than the reference's warm #55a83a; the references' dense
+photoreal blade detail is explicitly NOT targeted (stylized mandate).
+
+Verification: 3-panel comparison qa/style-sbs-task2-fairway.png (BEFORE pre-session
+/ AFTER / REFERENCE 4, same in-game staging both shots: healthy turf, 10:00, clear,
+identical pose) — the after frame moves decisively toward the reference's color,
+lighting mood, and cleanliness. Zero console errors; suite 176/176 (rendering only).

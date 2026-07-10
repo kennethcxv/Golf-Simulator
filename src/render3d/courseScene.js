@@ -73,10 +73,11 @@ function loadTreeAssets() {
               const color = new THREE.Color();
               if (isFoliage) {
                 const hueJitter = ((name.charCodeAt(5) + partIdx * 37) % 10) / 10;
-                if (isPineModel) color.setHSL(0.34 + hueJitter * 0.03, 0.42, 0.2 + hueJitter * 0.04);
-                else color.setHSL(0.26 + hueJitter * 0.05, 0.46, 0.26 + hueJitter * 0.05);
+                // §1 vegetation: brighter, more saturated canopies that hold color at distance
+                if (isPineModel) color.setHSL(0.36 + hueJitter * 0.03, 0.5, 0.26 + hueJitter * 0.05);
+                else color.setHSL(0.28 + hueJitter * 0.05, 0.55, 0.33 + hueJitter * 0.06);
               } else {
-                color.setHSL(0.07, 0.35, 0.24); // bark
+                color.setHSL(0.07, 0.38, 0.28); // bark
               }
               const material = new THREE.MeshStandardMaterial({
                 color,
@@ -157,11 +158,12 @@ export function makeCourseScene(canvas, state) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.92; // AO darkens; retuned with the post stack
+  // STYLE GUIDE §3: neutral, bright, no filmic grade — saturation lives in albedo
+  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMappingExposure = 1.12;
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x9db8c9, 0.00035);
+  scene.fog = new THREE.FogExp2(0xbfdcf2, 0.00012); // near-none on a clear day (§3)
 
   const camera = new THREE.PerspectiveCamera(46, 1, 1, 6000);
   const rig = makeCameraRig(camera, worldW, worldH);
@@ -179,21 +181,22 @@ export function makeCourseScene(canvas, state) {
   composer.addPass(new RenderPass(scene, camera));
   const gtao = new GTAOPass(scene, camera, 2, 2);
   gtao.output = GTAOPass.OUTPUT.Default;
-  gtao.blendIntensity = 1.0;
+  // STYLE GUIDE §3: tight contact darkening only — no corner grime spread
+  gtao.blendIntensity = 0.4;
   gtao.updateGtaoMaterial({
-    radius: 3.0, // yards — readable grounding at management camera distances
+    radius: 1.5, // yards — hugs feet, wheels, and trunks; stays out of open turf
     distanceExponent: 1,
     thickness: 1,
-    scale: 1.2,
+    scale: 1.0,
     samples: 12,
     distanceFallOff: 1,
     screenSpaceRadius: false,
   });
   gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 8 });
   composer.addPass(gtao);
-  // the physical Sky emits HDR radiance in the tens (sun disc: thousands) — the
-  // bloom threshold must clear the whole sky field so only sun/glint energy blooms
-  const bloom = new UnrealBloomPass(new THREE.Vector2(2, 2), 0.5, 0.35, 40.0);
+  // STYLE GUIDE §3: bloom effectively OFF for the scene — only the sun disc
+  // (radiance in the thousands) may glint; turf and trim never halo
+  const bloom = new UnrealBloomPass(new THREE.Vector2(2, 2), 0.12, 0.3, 60.0);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   let postEnabled = true;
@@ -214,17 +217,77 @@ export function makeCourseScene(canvas, state) {
   scene.add(sun);
   scene.add(sun.target);
 
-  const hemi = new THREE.HemisphereLight(0xbdd6ee, 0x40512e, 0.85);
+  // STYLE GUIDE §3: strong sky fill so shadows stay colorful (~60-70% of lit)
+  const hemi = new THREE.HemisphereLight(0xcfe6fa, 0x5d7a44, 1.25);
   scene.add(hemi);
 
   const sky = new Sky();
   sky.scale.setScalar(20000);
   const skyU = sky.material.uniforms;
-  skyU.turbidity.value = 6;
-  skyU.rayleigh.value = 1.6;
-  skyU.mieCoefficient.value = 0.004;
+  skyU.turbidity.value = 2; // clear vivid blue, not milky (§1 sky)
+  skyU.rayleigh.value = 4;
+  skyU.mieCoefficient.value = 0.002;
   skyU.mieDirectionalG.value = 0.8;
   scene.add(sky);
+
+  // §1 sky: puffy white cumulus — the physical Sky has none, so a stylized
+  // billboard layer supplies them (toneMapped off so they stay paper-white)
+  function makeCloudTexture() {
+    const cnv = document.createElement('canvas');
+    cnv.width = 256;
+    cnv.height = 128;
+    const c2 = cnv.getContext('2d');
+    const puff = (x, y, r) => {
+      const g = c2.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(0.55, 'rgba(255,255,255,0.9)');
+      g.addColorStop(0.8, 'rgba(255,255,255,0.4)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      c2.fillStyle = g;
+      c2.beginPath();
+      c2.arc(x, y, r, 0, Math.PI * 2);
+      c2.fill();
+    };
+    puff(64, 86, 40);
+    puff(102, 66, 48);
+    puff(148, 58, 52);
+    puff(192, 80, 42);
+    puff(120, 88, 56);
+    puff(166, 90, 46);
+    const tex = new THREE.CanvasTexture(cnv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  const cloudGroup = new THREE.Group();
+  {
+    const cloudTex = makeCloudTexture();
+    const cloudHash = (i, s) => {
+      let h = (i * 374761393 + s * 668265263) | 0;
+      h = Math.imul(h ^ (h >>> 13), 1274126177);
+      return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+    };
+    for (let i = 0; i < 14; i++) {
+      const mat = new THREE.SpriteMaterial({
+        map: cloudTex,
+        transparent: true,
+        opacity: 0.85 + cloudHash(i, 9) * 0.15,
+        depthWrite: false,
+        toneMapped: false,
+        fog: false,
+      });
+      const sp = new THREE.Sprite(mat);
+      const sc = 260 + cloudHash(i, 1) * 340;
+      sp.scale.set(sc, sc * 0.42, 1);
+      sp.position.set(
+        (cloudHash(i, 2) - 0.5) * 4200,
+        320 + cloudHash(i, 3) * 300,
+        (cloudHash(i, 4) - 0.5) * 4200,
+      );
+      cloudGroup.add(sp);
+    }
+  }
+  scene.add(cloudGroup);
 
   // --- ground textures: real CC0 PBR sets (Poly Haven), procedural fallback ------------
   const texLoader = new THREE.TextureLoader();
@@ -325,7 +388,7 @@ export function makeCourseScene(canvas, state) {
   const terrainMat = new THREE.MeshStandardMaterial({
     map: texFair,
     normalMap: texFairN, // enables the tangent-frame normal path; shader picks per-zone
-    normalScale: new THREE.Vector2(0.85, 0.85),
+    normalScale: new THREE.Vector2(0.45, 0.45), // §4: texture whispers, tint talks
     roughness: 1.0,
     metalness: 0.0,
   });
@@ -434,29 +497,35 @@ export function makeCourseScene(canvas, state) {
           vec3 nScrub = texture2D(tScrubN, uvScrub).xyz;
           vec3 nPath = texture2D(tPathN, uvPath).xyz;
 
+          // STYLE GUIDE §4: photo textures supply BRIGHTNESS variation only;
+          // hue comes from flat saturated zone tints (Farming-Sim clean fields).
+          // Wide luma swing keeps blade texture alive inside the clean color.
+          #define FW_LUMA vec3(0.299, 0.587, 0.114)
+          #define FW_STYLIZE(tex, tint) ((0.25 + dot(tex, FW_LUMA) * 2.6) * (tint))
+
           vec3 col;
           float stripeAmp = 0.0;
           float stripeFreq = 0.0;
           float modeSel = 0.0;
           if (zone < 0.5) {
-            col = dScrub * 0.98; gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
+            col = FW_STYLIZE(dScrub, vec3(0.125, 0.215, 0.075)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
           } else if (zone < 1.5) {
-            col = dRough * vec3(0.62, 0.88, 0.5); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.96;
+            col = FW_STYLIZE(dRough, vec3(0.09, 0.275, 0.045)); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.96;
           } else if (zone < 2.5) {
-            col = dFair * vec3(0.68, 0.98, 0.55); gSplatN = nFair; gSplatUv = uvFair; gSplatRough = 0.94;
-            stripeAmp = 0.1; stripeFreq = 0.062; modeSel = uStripeModes.y;
+            col = FW_STYLIZE(dFair, vec3(0.115, 0.345, 0.052)); gSplatN = nFair; gSplatUv = uvFair; gSplatRough = 0.94;
+            stripeAmp = 0.2; stripeFreq = 0.062; modeSel = uStripeModes.y;
           } else if (zone < 3.5) {
-            col = dGreen * vec3(0.78, 1.04, 0.6); gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.9;
-            stripeAmp = 0.085; stripeFreq = 0.24; modeSel = uStripeModes.x;
+            col = FW_STYLIZE(dGreen, vec3(0.145, 0.45, 0.075)); gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.9;
+            stripeAmp = 0.1; stripeFreq = 0.24; modeSel = uStripeModes.x;
           } else if (zone < 4.5) {
-            col = dTee * vec3(0.74, 1.0, 0.58); gSplatN = nTee; gSplatUv = uvTee; gSplatRough = 0.93;
-            stripeAmp = 0.08; stripeFreq = 0.16; modeSel = uStripeModes.z;
+            col = FW_STYLIZE(dTee, vec3(0.13, 0.39, 0.062)); gSplatN = nTee; gSplatUv = uvTee; gSplatRough = 0.93;
+            stripeAmp = 0.14; stripeFreq = 0.16; modeSel = uStripeModes.z;
           } else if (zone < 5.5) {
-            col = dSand * 1.04; gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
+            col = FW_STYLIZE(dSand, vec3(0.80, 0.68, 0.43)); gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
           } else if (zone < 6.5) {
-            col = dScrub * vec3(0.45, 0.5, 0.45); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.85;
+            col = FW_STYLIZE(dScrub, vec3(0.10, 0.16, 0.07)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.85;
           } else {
-            col = dPath; gSplatN = nPath; gSplatUv = uvPath; gSplatRough = 0.9;
+            col = FW_STYLIZE(dPath, vec3(0.44, 0.42, 0.36)); gSplatN = nPath; gSplatUv = uvPath; gSplatRough = 0.9;
           }
           // large-scale luminance drift breaks photo-texture tiling repetition
           col *= 0.93 + fwNoise(cellUv * 0.33) * 0.14;
@@ -476,9 +545,9 @@ export function makeCourseScene(canvas, state) {
 
           if (zone > 0.5 && zone < 4.5) {
             float dry = clamp(1.0 - health / 0.78, 0.0, 1.0);
-            // real grass photos already carry dry texture — tint lighter than before
-            col = mix(col, vec3(0.56, 0.47, 0.26), dry * 0.42);
-            col = mix(col, vec3(0.46, 0.39, 0.27), smoothstep(0.45, 1.0, wear) * 0.5);
+            // §1: decay reads as OLIVE-TAN desaturation, never brown-black
+            col = mix(col, vec3(0.42, 0.40, 0.16), dry * 0.55);
+            col = mix(col, vec3(0.40, 0.35, 0.18), smoothstep(0.45, 1.0, wear) * 0.5);
             // freshly-watered turf reads darker until it drains — the hand-hose's
             // visible feedback, and honest for any saturated ground
             col *= 1.0 - smoothstep(0.58, 1.0, moisture) * 0.2;
@@ -665,8 +734,8 @@ export function makeCourseScene(canvas, state) {
         waterNormals: waterNormalsTex,
         sunDirection: sun.position.clone().normalize(),
         sunColor: 0xffffff,
-        waterColor: 0x0a2b30, // deep pond teal — graded for the linear->OutputPass pipeline
-        distortionScale: 2.8,
+        waterColor: 0x2a6d8f, // §1: friendly stream blue, not swamp-deep teal
+        distortionScale: 2.2,
         fog: !!scene.fog,
       });
       water.material.uniforms.size.value = 3.5; // ripple scale
@@ -1745,8 +1814,8 @@ export function makeCourseScene(canvas, state) {
 
     const rainy = weather && weather.today.rainIn > 0;
     const heavyRain = weather && weather.today.rainIn > 0.5;
-    skyU.turbidity.value = rainy ? 14 : 6;
-    skyU.rayleigh.value = rainy ? 0.6 : 1.6;
+    skyU.turbidity.value = rainy ? 11 : 3;
+    skyU.rayleigh.value = rainy ? 0.8 : 2.6;
 
     const day = elevDeg > 2;
     const dusk = elevDeg > -6 && elevDeg <= 2;
@@ -1755,24 +1824,28 @@ export function makeCourseScene(canvas, state) {
 
     if (day) {
       const warm = clamp(1 - Math.abs(elevDeg) / 30, 0, 1) * (elevDeg < 25 ? 1 : 0);
-      sun.color.setRGB(1, 1 - warm * 0.2, 1 - warm * 0.36);
-      sun.intensity = (rainy ? 1.8 : 3.1) * clamp(elevDeg / 12, 0.4, 1);
-      hemi.intensity = rainy ? 0.95 : 1.05;
-      scene.fog.density = heavyRain ? 0.001 : rainy ? 0.00062 : 0.00028;
+      // §3: one bright slightly-warm sun; strong ambient keeps shadows colorful
+      sun.color.setRGB(1, 0.985 - warm * 0.19, 0.93 - warm * 0.3);
+      sun.intensity = (rainy ? 1.6 : 2.6) * clamp(elevDeg / 12, 0.4, 1);
+      hemi.intensity = rainy ? 1.15 : 1.35;
+      scene.fog.density = heavyRain ? 0.0009 : rainy ? 0.0005 : 0.0001;
     } else if (dusk) {
       sun.color.setRGB(1, 0.62, 0.42);
       sun.intensity = 0.8;
-      hemi.intensity = 0.55;
-      scene.fog.density = 0.00045;
+      hemi.intensity = 0.75;
+      scene.fog.density = 0.0003;
     } else {
       // night: dim blue moonlight so the course stays readable
       sun.color.setRGB(0.55, 0.65, 0.95);
       sun.intensity = 0.3;
       sun.position.set(600, 900, 400);
-      hemi.intensity = 0.3;
-      scene.fog.density = 0.00055;
+      hemi.intensity = 0.45;
+      scene.fog.density = 0.0004;
     }
     sun.target.position.set(0, 0, 0);
+
+    // stylized cumulus only belong to a bright sky
+    cloudGroup.visible = day && !heavyRain;
 
     // keep the water's sun highlights in step with the real sun
     for (const w of waterMeshes) {
