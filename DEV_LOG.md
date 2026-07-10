@@ -2150,3 +2150,18 @@ console errors on every live pass. Parts 0–5 complete; Part 6 delivered six
 backlog items and five self-generated ideas, each logged with reasoning
 above. The repo's docs (DEV_LOG, KNOWN_ISSUES, ASSET_SOURCES,
 TESTING_CHECKLIST, README) are current as of this line.
+
+## 2026-07-10 — OVERNIGHT PART 6i (self-generated idea #6): the shop lives in the day
+
+IDEA + REASONING: the shop windows burned constant noon daylight around the
+clock while the course outside had a full sun cycle — the room felt detached
+from the world. Now a 1 Hz daylight pass reads the real game clock and drives
+the window glass + window light through phases (deep night → dawn gold →
+noon → evening amber → dusk out), composed WITH the condition dinginess
+factor (filthy windows stay filthy at any hour), and the interior bulbs carry
+the room after dark. refreshCondition hands its cleanliness factor to the
+daylight pass instead of double-writing the window color.
+
+Verified live at 7:00 PM: warm amber glass and a golden-hour room, clearly
+distinct from the 6 AM gray-blue in the morning shots. Zero console errors.
+Suite 212/212.

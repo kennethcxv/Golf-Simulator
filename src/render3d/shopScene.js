@@ -958,15 +958,55 @@ export function makeShopScene(renderer, appRef) {
   // bulbs, dingy surfaces, filthy windows — all recover as the value climbs
   const WHITE = new THREE.Color(0xffffff);
   let conditionNow = 100;
+  let condT = 1; // cleanliness factor refreshCondition computed last
   let flickT = 0;
+
+  // the windows live in the same day as the course: cool dawn, bright noon,
+  // amber evening, dark night (the bulbs carry the room after dark)
+  let dayClock = 0;
+  const PHASES = [
+    [0, new THREE.Color(0x0d1420), 0.05],     // deep night
+    [330, new THREE.Color(0x0d1420), 0.05],
+    [420, new THREE.Color(0xd8c9a8), 0.75],   // dawn gold
+    [720, new THREE.Color(0xbcd8ee), 1.0],    // noon
+    [1050, new THREE.Color(0xe8c489), 0.85],  // evening amber
+    [1230, new THREE.Color(0x1a2233), 0.12],  // dusk out
+    [1440, new THREE.Color(0x0d1420), 0.05],
+  ];
+
+  function daylightAt(minute) {
+    for (let i = 1; i < PHASES.length; i++) {
+      if (minute <= PHASES[i][0]) {
+        const [m0, c0, i0] = PHASES[i - 1];
+        const [m1, c1, i1] = PHASES[i];
+        const f = (minute - m0) / Math.max(1, m1 - m0);
+        return { color: c0.clone().lerp(c1, f), strength: i0 + (i1 - i0) * f };
+      }
+    }
+    return { color: PHASES[0][1].clone(), strength: PHASES[0][2] };
+  }
+
+  function updateDaylight(dt) {
+    dayClock += dt;
+    if (dayClock < 1) return; // 1 Hz is plenty for the sun
+    dayClock = 0;
+    const st = appRef.app.state;
+    if (!st) return;
+    const minute = ((st.clock.minutes % 1440) + 1440) % 1440;
+    const sun = daylightAt(minute);
+    const dingy = new THREE.Color(0x77705f);
+    windowMat.color.copy(dingy.lerp(sun.color, Math.min(1, condT * 1.5)));
+    winLight.intensity = (0.95 + 0.45 * condT) * sun.strength;
+    winLight.color.copy(sun.color);
+  }
 
   function refreshCondition() {
     const st = appRef.app.state;
     conditionNow = st && st.shop ? shopCondition(st) : 100;
     const t = clamp(conditionNow / 100, 0, 1);
     ambient.intensity = 0.46 + 0.29 * t;
-    winLight.intensity = 0.95 + 0.45 * t;
-    windowMat.color.lerpColors(new THREE.Color(0x77705f), new THREE.Color(0xbcd8ee), Math.min(1, t * 1.5));
+    condT = t;
+    dayClock = 1; // let the daylight pass re-apply the window state now
     floorMat.color.lerpColors(new THREE.Color(0x83786a), WHITE, t);
     wallMat.color.lerpColors(new THREE.Color(0xa2977f), WHITE, t);
     ceilMat.color.lerpColors(new THREE.Color(0x4e463c), new THREE.Color(0xcfc4ab), t);
@@ -1591,6 +1631,7 @@ export function makeShopScene(renderer, appRef) {
     updateVacuum(dt);
     updateWandFeel(dt);
     updateDoor(dt);
+    updateDaylight(dt);
 
     // deliveries can land while you stand here — surface new ghosts within a second
     decorPoll += dt;
