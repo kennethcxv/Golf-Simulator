@@ -34,7 +34,49 @@ export const SHOP_CATALOG = [
 
   // supplies — the shop's own equipment, never sold to shoppers (restoration arc)
   { id: 'vac1', cat: 'supplies', tier: 1, name: 'Shop vacuum', cost: 140, msrp: 0 },
+
+  // decor — furnishing the shop up to the ClubHouseInterior reference; finish
+  // feeds shopCondition (capped), placement via DECOR_SPOTS below
+  { id: 'rug1', cat: 'decor', tier: 1, name: 'Pine lounge rug', cost: 120, msrp: 0, finish: 8 },
+  { id: 'plant1', cat: 'decor', tier: 1, name: 'Potted plant', cost: 45, msrp: 0, finish: 4 },
+  { id: 'poster1', cat: 'decor', tier: 1, name: 'Course poster', cost: 35, msrp: 0, finish: 4 },
+  { id: 'board1', cat: 'decor', tier: 1, name: 'Events board', cost: 85, msrp: 0, finish: 5 },
+  { id: 'light1', cat: 'decor', tier: 1, name: 'Green pendant light', cost: 150, msrp: 0, finish: 7 },
+  { id: 'lounge1', cat: 'decor', tier: 1, name: 'Lounge set', cost: 420, msrp: 0, finish: 9 },
 ];
+
+// valid placement anchors per decor sku, in shop-room yards (14×10, door at +z).
+// mount tells the scene how to build/orient: floor pieces sit at y0, wall pieces
+// hang at eye height flush to their wall, ceiling pieces drop from the roof.
+export const DECOR_SPOTS = {
+  rug1: [
+    { x: 0, z: 2.3, ry: 0, mount: 'floor' },
+    { x: -4.2, z: 2.4, ry: 0.35, mount: 'floor' },
+  ],
+  plant1: [
+    { x: -6.4, z: 4.2, ry: 0, mount: 'floor' },
+    { x: 6.4, z: 4.3, ry: 0, mount: 'floor' },
+    { x: -6.4, z: -4.2, ry: 0, mount: 'floor' },
+    { x: 0.05, z: -4.5, ry: 0, mount: 'floor' },
+  ],
+  poster1: [
+    { x: -3.2, z: 4.97, ry: Math.PI, mount: 'wall' },
+    { x: -6.97, z: 3.1, ry: Math.PI / 2, mount: 'wall' },
+    { x: 6.97, z: -1.2, ry: -Math.PI / 2, mount: 'wall' },
+  ],
+  board1: [
+    { x: -1.9, z: 4.97, ry: Math.PI, mount: 'wall' },
+    { x: -6.97, z: -3.1, ry: Math.PI / 2, mount: 'wall' },
+  ],
+  light1: [
+    { x: 0, z: -2.0, ry: 0, mount: 'ceiling' },
+    { x: 0, z: 2.0, ry: 0, mount: 'ceiling' },
+  ],
+  lounge1: [
+    { x: 3.7, z: 3.9, ry: Math.PI, mount: 'floor' },
+    { x: -4.3, z: -3.5, ry: Math.PI / 2, mount: 'floor' },
+  ],
+};
 
 const BY_ID = new Map(SHOP_CATALOG.map((s) => [s.id, s]));
 

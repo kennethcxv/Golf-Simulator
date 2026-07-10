@@ -9,7 +9,7 @@
 import { rngOf, clamp, makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
 import { addRevenue, addExpense } from './economy.js';
-import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS } from '../data/shopItems.js';
+import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
 import { members } from './golfers.js';
@@ -115,6 +115,21 @@ export function clearClutter(state, idx) {
   if (!pile || pile.cleared) return { ok: false };
   pile.cleared = true;
   cleanGrimeAt(state, pile.x, pile.z, RENO.clutterWipe);
+  return { ok: true };
+}
+
+// put an owned decor item down on one of its valid spots
+export function placeDecor(state, skuId, spot) {
+  const reno = state.shop && state.shop.reno;
+  const sku = skuById(skuId);
+  const spots = DECOR_SPOTS[skuId];
+  if (!reno || !sku || sku.cat !== 'decor' || !spots) return { ok: false, reason: 'Not a decor item.' };
+  if (!Number.isInteger(spot) || spot < 0 || spot >= spots.length) return { ok: false, reason: 'No spot there.' };
+  const inv = state.shop.inventory[skuId];
+  if (!inv || inv.back <= 0) return { ok: false, reason: 'None in the backroom — order it first.' };
+  if (reno.decor.some((d) => d.skuId === skuId && d.spot === spot)) return { ok: false, reason: 'That spot is taken.' };
+  inv.back -= 1;
+  reno.decor.push({ skuId, spot });
   return { ok: true };
 }
 

@@ -7,8 +7,8 @@
 import * as THREE from 'three';
 import { clamp } from '../core/utils.js';
 import { makeCharacter } from './characterAsset.js';
-import { SHOP_CATALOG, SHELF_CAP } from '../data/shopItems.js';
-import { restockShelfFromBackroom, RENO, shopCondition, clearClutter, cleanGrimeAt } from '../sim/shop.js';
+import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
+import { restockShelfFromBackroom, RENO, shopCondition, clearClutter, cleanGrimeAt, placeDecor } from '../sim/shop.js';
 import { makeWoodTexture, makePlasterTexture } from './proceduralTextures.js';
 import { rngOf } from '../core/utils.js';
 
@@ -425,6 +425,301 @@ export function makeShopScene(renderer, appRef) {
     clutterObjs.push({ group: g, collider, interactive });
   }
 
+  // --- decor: real meshes for placed items, green ghosts on free valid spots ---------
+  const decorObjs = []; // { group, colliders: [], interactive|null }
+  const ghostMat = new THREE.MeshBasicMaterial({
+    color: 0x45d052, transparent: true, opacity: 0.32, depthWrite: false,
+  });
+
+  function makeRugMesh() {
+    const cv = document.createElement('canvas');
+    cv.width = 192; cv.height = 128;
+    const c2 = cv.getContext('2d');
+    c2.fillStyle = '#3f6d45';
+    c2.fillRect(0, 0, 192, 128);
+    c2.strokeStyle = '#dfd8c2';
+    c2.lineWidth = 7;
+    c2.strokeRect(10, 10, 172, 108);
+    c2.fillStyle = '#dfd8c2'; // the reference rug's pine motif
+    c2.beginPath();
+    c2.moveTo(96, 30); c2.lineTo(120, 62); c2.lineTo(104, 62); c2.lineTo(124, 92);
+    c2.lineTo(68, 92); c2.lineTo(88, 62); c2.lineTo(72, 62);
+    c2.closePath(); c2.fill();
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const rug = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.0, 2.0),
+      new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }),
+    );
+    rug.rotation.x = -Math.PI / 2;
+    rug.position.y = 0.018;
+    rug.receiveShadow = true;
+    const g = new THREE.Group();
+    g.add(rug);
+    return { group: g, colliders: [] };
+  }
+
+  function makePlantMesh(spot) {
+    const g = new THREE.Group();
+    const pot = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.14, 0.18, 0.26, 10),
+      new THREE.MeshStandardMaterial({ color: 0x9a5a3c, roughness: 0.85 }),
+    );
+    pot.position.y = 0.13;
+    pot.castShadow = true;
+    g.add(pot);
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x3d7a3a, roughness: 0.8 });
+    for (const [dx, dy, dz, r] of [[0, 0.5, 0, 0.2], [0.13, 0.42, 0.06, 0.13], [-0.12, 0.44, -0.05, 0.14], [0.02, 0.62, -0.02, 0.13]]) {
+      const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), leafMat);
+      puff.position.set(dx, dy, dz);
+      puff.castShadow = true;
+      g.add(puff);
+    }
+    return { group: g, colliders: [{ minX: spot.x - 0.25, maxX: spot.x + 0.25, minZ: spot.z - 0.25, maxZ: spot.z + 0.25 }] };
+  }
+
+  function makePosterMesh() {
+    const cv = document.createElement('canvas');
+    cv.width = 96; cv.height = 128;
+    const c2 = cv.getContext('2d');
+    c2.fillStyle = '#e9e2cc';
+    c2.fillRect(0, 0, 96, 128);
+    c2.fillStyle = '#1f8a34';
+    c2.fillRect(0, 0, 96, 30);
+    c2.fillStyle = '#e9e2cc';
+    c2.font = 'bold 13px sans-serif';
+    c2.fillText('KEEP IT', 22, 13);
+    c2.fillText('GREEN', 24, 26);
+    c2.fillStyle = '#57795c'; // stylized fairway graphic
+    c2.beginPath(); c2.ellipse(48, 74, 34, 22, 0.2, 0, 7); c2.fill();
+    c2.fillStyle = '#8a8069';
+    for (let i = 0; i < 3; i++) c2.fillRect(14, 104 + i * 7, 68 - i * 16, 3);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const g = new THREE.Group();
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(0.92, 1.22, 0.03),
+      new THREE.MeshStandardMaterial({ color: 0x3d5c40, roughness: 0.8 }),
+    );
+    const sheet = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.84, 1.14),
+      new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }),
+    );
+    sheet.position.z = 0.017;
+    frame.add(sheet);
+    frame.position.y = 1.85;
+    g.add(frame);
+    return { group: g, colliders: [] };
+  }
+
+  function makeBoardMesh() {
+    const g = new THREE.Group();
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(1.5, 1.1, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x3d5c40, roughness: 0.8 }),
+    );
+    const cork = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.36, 0.96),
+      new THREE.MeshStandardMaterial({ color: 0xa8794e, roughness: 0.95 }),
+    );
+    cork.position.z = 0.028;
+    frame.add(cork);
+    const noteMat = new THREE.MeshStandardMaterial({ color: 0xf2eee0, roughness: 0.9 });
+    for (const [nx, ny, w, h, rz] of [[-0.4, 0.18, 0.3, 0.34, 0.05], [0.05, 0.1, 0.34, 0.26, -0.04], [0.42, 0.2, 0.26, 0.3, 0.03], [-0.1, -0.26, 0.3, 0.3, -0.06], [0.36, -0.24, 0.3, 0.22, 0.05]]) {
+      const note = new THREE.Mesh(new THREE.PlaneGeometry(w, h), noteMat);
+      note.position.set(nx, ny, 0.034);
+      note.rotation.z = rz;
+      frame.add(note);
+    }
+    const header = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.36, 0.16),
+      new THREE.MeshStandardMaterial({ color: 0x1f8a34, roughness: 0.8 }),
+    );
+    header.position.set(0, 0.4, 0.034);
+    frame.add(header);
+    frame.position.y = 1.8;
+    g.add(frame);
+    return { group: g, colliders: [] };
+  }
+
+  function makePendantMesh(spot, ghost) {
+    const g = new THREE.Group();
+    const cord = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.012, 0.012, 0.7, 5),
+      new THREE.MeshStandardMaterial({ color: 0x2c2620, roughness: 0.9 }),
+    );
+    cord.position.y = ROOM.h - 0.35;
+    g.add(cord);
+    const shade = new THREE.Mesh(
+      new THREE.ConeGeometry(0.32, 0.3, 12, 1, true),
+      new THREE.MeshStandardMaterial({ color: 0x2a5a33, roughness: 0.7, side: THREE.DoubleSide }),
+    );
+    shade.position.y = ROOM.h - 0.78;
+    g.add(shade);
+    const bulb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07, 8, 6),
+      new THREE.MeshStandardMaterial({ color: 0xfff2cf, emissive: 0xffe2b0, emissiveIntensity: ghost ? 0 : 1.2 }),
+    );
+    bulb.position.y = ROOM.h - 0.9;
+    g.add(bulb);
+    if (!ghost) {
+      const light = new THREE.PointLight(0xffe2b0, 9, 9, 1.7);
+      light.position.y = ROOM.h - 0.95;
+      g.add(light);
+    }
+    return { group: g, colliders: [] };
+  }
+
+  function makeLoungeMesh(spot) {
+    const g = new THREE.Group();
+    const wood = new THREE.MeshStandardMaterial({ color: 0x7a5a38, roughness: 0.8 });
+    const cushion = new THREE.MeshStandardMaterial({ color: 0x3f6d45, roughness: 0.9 });
+    // sofa: wood base, three cushions, low back and arms — the reference's green lounge
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.3, 0.8), wood);
+    base.position.y = 0.22;
+    base.castShadow = true;
+    g.add(base);
+    for (let i = -1; i <= 1; i++) {
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.16, 0.72), cushion);
+      seat.position.set(i * 0.6, 0.44, 0);
+      seat.castShadow = true;
+      g.add(seat);
+      const backC = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.42, 0.16), cushion);
+      backC.position.set(i * 0.6, 0.72, -0.31);
+      backC.rotation.x = -0.12;
+      backC.castShadow = true;
+      g.add(backC);
+    }
+    for (const sx of [-1, 1]) {
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.34, 0.8), wood);
+      arm.position.set(sx * 1.02, 0.52, 0);
+      arm.castShadow = true;
+      g.add(arm);
+    }
+    // coffee table out front, mug on top
+    const tbl = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.08, 0.5), wood);
+    tbl.position.set(0, 0.4, 1.05);
+    tbl.castShadow = true;
+    g.add(tbl);
+    for (const [lx, lz] of [[-0.45, 0.85], [0.45, 0.85], [-0.45, 1.25], [0.45, 1.25]]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.4, 0.07), wood);
+      leg.position.set(lx, 0.2, lz);
+      g.add(leg);
+    }
+    const mug = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.045, 0.04, 0.09, 8),
+      new THREE.MeshStandardMaterial({ color: 0xf2eee0, roughness: 0.7 }),
+    );
+    mug.position.set(0.2, 0.49, 1.05);
+    g.add(mug);
+    // colliders in world space (sofa slab + table): rotate the local anchor by
+    // the spot's yaw, swap extents when the piece stands side-on
+    const worldBox = (lx, lz, w, d) => {
+      const sin = Math.sin(spot.ry);
+      const cos = Math.cos(spot.ry);
+      const wx = spot.x + lx * cos + lz * sin;
+      const wz = spot.z - lx * sin + lz * cos;
+      const swap = Math.abs(sin) > 0.5;
+      const ew = swap ? d : w;
+      const ed = swap ? w : d;
+      return { minX: wx - ew / 2, maxX: wx + ew / 2, minZ: wz - ed / 2, maxZ: wz + ed / 2 };
+    };
+    return { group: g, colliders: [worldBox(0, 0, 2.2, 0.95), worldBox(0, 1.05, 1.15, 0.6)] };
+  }
+
+  const DECOR_BUILDERS = {
+    rug1: makeRugMesh, plant1: makePlantMesh, poster1: makePosterMesh,
+    board1: makeBoardMesh, light1: makePendantMesh, lounge1: makeLoungeMesh,
+  };
+
+  function ghostify(group) {
+    group.traverse((o) => {
+      if (o.isMesh) {
+        o.material = ghostMat;
+        o.castShadow = false;
+      }
+      if (o.isPointLight) o.intensity = 0;
+    });
+    return group;
+  }
+
+  function buildDecorAt(skuId, spotIdx, ghost) {
+    const spot = DECOR_SPOTS[skuId][spotIdx];
+    const built = DECOR_BUILDERS[skuId](spot, ghost);
+    built.group.position.set(spot.x, 0, spot.z);
+    built.group.rotation.y = spot.ry;
+    if (ghost) ghostify(built.group);
+    scene.add(built.group);
+    const entry = { group: built.group, colliders: ghost ? [] : built.colliders, interactive: null };
+    for (const c of entry.colliders) colliders.push(c);
+    if (ghost) {
+      const sku = SHOP_CATALOG.find((s) => s.id === skuId);
+      const anchorY = spot.mount === 'ceiling' ? 1.7 : spot.mount === 'wall' ? 1.6 : 0.8;
+      entry.interactive = {
+        kind: 'decor-ghost',
+        point: new THREE.Vector3(spot.x, anchorY, spot.z),
+        label: () => `Place the ${sku.name.toLowerCase()} here — [E]`,
+        action: () => {
+          const res = placeDecor(appRef.app.state, skuId, spotIdx);
+          if (!res.ok) {
+            appRef.toast(res.reason || 'Cannot place that here.', 'warn');
+            return;
+          }
+          rebuildDecor();
+          refreshCondition();
+          appRef.toast(`${sku.name} placed — the shop is coming together.`);
+        },
+      };
+      interactives.push(entry.interactive);
+    }
+    decorObjs.push(entry);
+  }
+
+  function rebuildDecor() {
+    for (const d of decorObjs) {
+      scene.remove(d.group);
+      for (const c of d.colliders) {
+        const ci = colliders.indexOf(c);
+        if (ci >= 0) colliders.splice(ci, 1);
+      }
+      if (d.interactive) {
+        const ii = interactives.indexOf(d.interactive);
+        if (ii >= 0) interactives.splice(ii, 1);
+      }
+    }
+    decorObjs.length = 0;
+    const st = appRef.app.state;
+    const reno = st && st.shop && st.shop.reno;
+    if (!reno) return;
+    for (const d of reno.decor) {
+      if (DECOR_BUILDERS[d.skuId] && DECOR_SPOTS[d.skuId] && DECOR_SPOTS[d.skuId][d.spot]) {
+        buildDecorAt(d.skuId, d.spot, false);
+      }
+    }
+    // ghosts for everything owned-but-unplaced, on each free valid spot
+    for (const skuId of Object.keys(DECOR_BUILDERS)) {
+      const inv = st.shop.inventory[skuId];
+      if (!inv || inv.back <= 0) continue;
+      DECOR_SPOTS[skuId].forEach((spot, idx) => {
+        if (!reno.decor.some((d) => d.skuId === skuId && d.spot === idx)) buildDecorAt(skuId, idx, true);
+      });
+    }
+  }
+
+  // ghosts appear the moment a delivery lands, even while you stand in the shop
+  let decorSig = '';
+  let decorPoll = 0;
+  function decorSignature() {
+    const st = appRef.app.state;
+    if (!st || !st.shop) return '';
+    let sig = st.shop.reno ? String(st.shop.reno.decor.length) : '0';
+    for (const skuId of Object.keys(DECOR_BUILDERS)) {
+      const inv = st.shop.inventory[skuId];
+      sig += ':' + (inv ? inv.back : 0);
+    }
+    return sig;
+  }
+
   function rebuildReno() {
     for (const c of clutterObjs) {
       scene.remove(c.group);
@@ -436,6 +731,8 @@ export function makeShopScene(renderer, appRef) {
     clutterObjs.length = 0;
     const reno = appRef.app.state && appRef.app.state.shop && appRef.app.state.shop.reno;
     if (reno) reno.clutter.forEach((pile, idx) => { if (!pile.cleared) buildClutterPile(idx, pile); });
+    rebuildDecor();
+    decorSig = decorSignature();
     repaintGrime();
     refreshCondition();
   }
@@ -836,6 +1133,18 @@ export function makeShopScene(renderer, appRef) {
     updateCustomers(dt);
     updateFlicker(dt);
     updateVacuum(dt);
+
+    // deliveries can land while you stand here — surface new ghosts within a second
+    decorPoll += dt;
+    if (decorPoll > 1.1) {
+      decorPoll = 0;
+      const sig = decorSignature();
+      if (sig !== decorSig) {
+        decorSig = sig;
+        rebuildDecor();
+      }
+    }
+
     findFocus();
   }
 

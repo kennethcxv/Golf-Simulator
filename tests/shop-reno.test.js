@@ -12,8 +12,9 @@ import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, ensureShopReno,
   placeOrder, deliverOrdersDue, vacuumOwned, restockShelvesByStaff, restockShelfFromBackroom,
+  placeDecor,
 } from '../src/sim/shop.js';
-import { skuById, LEAD_DAYS, SHOP_CATALOG } from '../src/data/shopItems.js';
+import { skuById, LEAD_DAYS, SHOP_CATALOG, DECOR_SPOTS } from '../src/data/shopItems.js';
 import { calendarOf } from '../src/sim/time.js';
 
 const cellCenter = (cx, cy) => ({
@@ -144,6 +145,60 @@ test('supplies and decor never leak into retail: staff do not shelve them, shopp
       assert.equal(state.shop.inventory[sku.id].shelf, 0, `${sku.id} has no shelf presence`);
     }
   }
+});
+
+// --- Task 3: decor bought, placed, and counted into condition -------------------------
+
+test('decor items are real catalog goods with finish values and valid spots', () => {
+  const decorSkus = SHOP_CATALOG.filter((s) => s.cat === 'decor');
+  assert.ok(decorSkus.length >= 5, `a real set of decor items exists (${decorSkus.length})`);
+  for (const sku of decorSkus) {
+    assert.ok(sku.finish > 0, `${sku.id} contributes finish`);
+    assert.ok((DECOR_SPOTS[sku.id] || []).length > 0, `${sku.id} has at least one valid spot`);
+  }
+});
+
+test('placing owned decor uses a valid spot once and raises condition', () => {
+  const state = newGame('relaxed', 42);
+  const condBare = shopCondition(state);
+
+  assert.equal(placeDecor(state, 'rug1', 0).ok, false, 'cannot place decor you do not own');
+  state.shop.inventory.rug1.back = 1;
+  assert.equal(placeDecor(state, 'rug1', 99).ok, false, 'invalid spot refused');
+  const res = placeDecor(state, 'rug1', 0);
+  assert.ok(res.ok, 'placing an owned rug on a free spot works');
+  assert.equal(state.shop.inventory.rug1.back, 0, 'the rug left the backroom');
+  assert.ok(shopCondition(state) > condBare, 'condition rose with the rug down');
+
+  state.shop.inventory.rug1.back = 1;
+  assert.equal(placeDecor(state, 'rug1', 0).ok, false, 'the same spot cannot be filled twice');
+  const other = placeDecor(state, 'rug1', 1);
+  assert.ok(other.ok, 'a second rug goes on the other valid spot');
+});
+
+test('decor finish is capped so condition still needs a clean floor to reach 100', () => {
+  const state = newGame('relaxed', 42);
+  // grant and place every decor item on every spot
+  for (const sku of SHOP_CATALOG.filter((s) => s.cat === 'decor')) {
+    for (let i = 0; i < DECOR_SPOTS[sku.id].length; i++) {
+      state.shop.inventory[sku.id].back = 1;
+      placeDecor(state, sku.id, i);
+    }
+  }
+  const cond = shopCondition(state);
+  assert.ok(cond < 60, `decor alone cannot mask the filth (condition ${cond})`);
+  // now scrub everything
+  state.shop.reno.grime = state.shop.reno.grime.map(() => 0);
+  assert.equal(shopCondition(state), 100, 'spotless + fully furnished = 100');
+});
+
+test('placed decor survives save/load', () => {
+  const state = newGame('relaxed', 42);
+  state.shop.inventory.plant1.back = 1;
+  placeDecor(state, 'plant1', 2);
+  const loaded = deserialize(serialize(state));
+  assert.deepEqual(loaded.shop.reno.decor, state.shop.reno.decor, 'decor entries round-trip');
+  assert.equal(shopCondition(loaded), shopCondition(state), 'condition identical after load');
 });
 
 test('saves written before a catalog item existed gain its inventory slot on load', () => {

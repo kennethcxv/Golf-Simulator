@@ -1540,3 +1540,27 @@ real sim days for the truck, F equip, held clean → condition 16→20, the aime
 patch visibly wiped while far patches stayed. qa/shopreno-sbs-task2-vacuum.png.
 Suite 187/187. Zero console errors. Vacuum whir audio: skipped for now (audio.js
 untouched this session) — noted as polish.
+
+## 2026-07-10 — SHOP RESTORATION Task 3: decor & fixture placement
+
+Six decor SKUs modeled on the ClubHouseInterior reference (pine rug, potted
+plants, course posters, cork events board, green pendant lights, the green lounge
+set), all cat 'decor' in the same catalog, ordered through the same supplier flow
+(3-day lead). Placement reuses the interactives/E pattern wholesale: owning an
+unplaced piece spawns translucent green GHOSTS of it on its valid free spots;
+walk up, look at one, E — placeDecor() moves it back→placed, the real mesh (and
+colliders for the sofa/plants, and a real warm PointLight for pendants) replaces
+the ghost. Judgment calls:
+
+- Valid spots are DATA (DECOR_SPOTS in data/shopItems.js): the sim validates and
+  persists {skuId, spot} indexes without knowing coordinates; the scene maps
+  spot→transform. No free placement UI paradigm, exactly per the brief.
+- finish per placed instance, capped at 30 of the 100 — tested that a fully
+  furnished but filthy shop stays under 60: decor cannot mask dirt.
+- A 1.1s signature poll surfaces new ghosts the moment a delivery lands while
+  you're standing in the shop (deliveries land on the midnight tick).
+- No un-place/move yet — logged in KNOWN_ISSUES as small follow-on work.
+
+Live QA: ordered rug+plant+pendant+lounge ($735), FF 3 sim days, placed all four
+by E → condition 16→24→28→35→44, pendant adds real light, zero console errors.
+qa/shopreno-sbs-task3-decor.png. Suite 191/191 (4 new tests).
