@@ -10,7 +10,8 @@ const fsp = fs.promises;
 
 const DEV = process.argv.includes('--dev');
 if (DEV) {
-  app.commandLine.appendSwitch('remote-debugging-port', '9223');
+  // 9223 belongs to GlassWaterV2 dev, 9223/9224 saw FAIRWAY STATE QA — GOLF EMPIRE uses 9225
+  app.commandLine.appendSwitch('remote-debugging-port', '9225');
 }
 
 let win = null;
@@ -33,7 +34,7 @@ function createWindow() {
     minWidth: 1100,
     minHeight: 680,
     backgroundColor: '#141d12',
-    title: 'FAIRWAY STATE',
+    title: 'GOLF EMPIRE',
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

@@ -3,7 +3,8 @@
 // Plain browser (dev/QA): localStorage fallback, same API.
 
 const native = typeof window !== 'undefined' ? window.fairwayNative : null;
-const PREFIX = 'fairwaystate:';
+// distinct prefix so browser-QA localStorage never collides with FAIRWAY STATE's
+const PREFIX = 'golfempire:';
 
 export async function saveData(key, obj) {
   if (native) return native.save(key, obj);

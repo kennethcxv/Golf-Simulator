@@ -1,8 +1,8 @@
 {
-  "name": "fairway-state",
-  "productName": "FAIRWAY STATE",
+  "name": "golf-empire",
+  "productName": "GOLF EMPIRE",
   "version": "0.1.0",
-  "description": "A realistic golf course management simulator — top-down living course, walkable pro shop",
+  "description": "Buy distressed golf courses, restore them, keep the gems or flip them — built on the FAIRWAY STATE simulation core",
   "author": "Prime Fairways",
   "license": "UNLICENSED",
   "private": true,

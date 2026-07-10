@@ -457,3 +457,26 @@ Newest entries at the bottom.
   on "images/video only" grounds, so that exclusion may rest on outdated info, but it
   stands until the user says otherwise. Not touched.
 
+## 2026-07-09 — GOLF EMPIRE session start: repo seeded from FAIRWAY STATE
+
+- **New product, same core.** The GOLF EMPIRE brief arrived pointed at an EMPTY
+  `Golf-Flipper/` working directory while declaring itself "a scoped extension to the
+  existing FAIRWAY STATE codebase — do not rebuild." Resolution: located the FAIRWAY
+  STATE repo at sibling `../Golf/` (its DEV_LOG self-identifies) and **copied the whole
+  repo here, git history included** — the same repo-seeding pattern this machine already
+  used for GLASSWATER → GlassWaterV2. The original `Golf/` repo stays untouched, which
+  makes "the base game stays exactly as it is" literally true. Seed captured `748f8c9`
+  (post-v5, incl. the GTAO sprite fix) with a clean tree; baseline `npm test` re-run
+  HERE: 121/121 green before any new work.
+- **Identity/isolation pass so the two games can never collide on one machine:**
+  productName "GOLF EMPIRE" (Electron userData → its own `%APPDATA%\GOLF EMPIRE\saves\`,
+  since userData follows productName — learned the hard way in the v5 save QA),
+  localStorage prefix `golfempire:` (browser QA), dev server port 8457 (8437 GlassWater /
+  8447 FAIRWAY STATE), remote debugging 9225 (9223 GlassWater), window/menu titles.
+  No sim module touched.
+- **Scope discipline for this session** (per the brief): add ONE layer — marketplace,
+  valuation, buy/sell, portfolio + switching, and the two screens to use them. The
+  forbidden-to-touch list (turf/club/staff/shop/golfers/rounds/progression/tutorial) is
+  honored by importing, never editing; anything they need to expose differently gets
+  wrapped in the new modules instead.
+

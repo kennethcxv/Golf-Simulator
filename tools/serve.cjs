@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const PORT = Number(process.env.PORT || 8447);
+const PORT = Number(process.env.PORT || 8457); // 8437 GlassWater, 8447 FAIRWAY STATE, 8457 GOLF EMPIRE
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -56,5 +56,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`fairway-state dev server: http://localhost:${PORT}/`);
+  console.log(`golf-empire dev server: http://localhost:${PORT}/`);
 });

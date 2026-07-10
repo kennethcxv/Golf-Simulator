@@ -4,7 +4,7 @@ Section-by-section manual pass matching what has actually been built. Grows with
 phase; each item is written to be checkable by a human in the running game.
 
 How to run: `npm install`, then `npm start` (Electron) or `npm run serve` +
-http://localhost:8447/ in a browser. Headless sim tests: `npm test`.
+http://localhost:8457/ in a browser. Headless sim tests: `npm test`.
 
 ---
 

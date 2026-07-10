@@ -14,8 +14,8 @@ export function makeMenu(handlers) {
   const root = el(
     'div',
     { class: 'menu-screen' },
-    el('h1', {}, 'FAIRWAY ', el('span', { class: 'accent', text: 'STATE' })),
-    el('div', { class: 'tagline', text: 'Real turf. Real members. Your golf club.' }),
+    el('h1', {}, 'GOLF ', el('span', { class: 'accent', text: 'EMPIRE' })),
+    el('div', { class: 'tagline', text: 'Buy them broken. Bring them back. Keep the gems — flip the rest.' }),
     el(
       'div',
       { class: 'menu-buttons' },
