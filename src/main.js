@@ -1127,7 +1127,15 @@ function updateWalkOverlay() {
   prompt.textContent = label || '';
   prompt.style.opacity = label ? '1' : '0';
   const lockHint = walkOverlay.querySelector('.shop-lockhint');
+  // the control bar retires once the controls are demonstrably learned
+  // (opening arc past the shelving step) — after that it only returns while
+  // the pointer is free, as a click-to-play reminder
+  const tut = app.state && app.state.tutorial;
+  const learned = tut && (tut.complete || tut.hidden || tut.step >= 5);
   lockHint.style.display = document.pointerLockElement ? 'none' : '';
+  lockHint.textContent = learned
+    ? 'Click to play'
+    : 'Click to look around · WASD walk · Shift run · E interact · F tool · Tab: overview camera · Esc: office menu';
   // inside the shop: the condition chip rides along (and tier-ups chime)
   const cond = walkOverlay.querySelector('.shop-cond');
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();

@@ -106,3 +106,21 @@ vendor/models/tractor.glb is an original bpy-scripted fallback (project-owned).
 The rigged-character GLB attempt failed at the Blender 5.1 → three r185 skin
 boundary and was deleted; characters are procedural three.js figures
 (src/render3d/characterAsset.js), no external assets.
+
+## Audio (2026-07-13 production pass)
+
+Every sound in the game is synthesized at runtime with WebAudio oscillators
+and filtered noise (src/core/audio.js) — there are NO audio sample files in
+the repo, so there is nothing to license. One-shots: doorbell, uiTick,
+doorSwing, doorShut, scanBeep, wipe, laptopOpen, laptopBoot, equipTick,
+chime, thunk; loops: hose/mower/vacuum/divot/rake tool beds, rain, birdsong,
+distant ball-strikes (all procedural). The clubhouse ducks the outdoor
+soundscape when you step inside.
+
+## Interior textures (2026-07-13 production pass)
+
+All clubhouse interior materials are canvas-procedural, generated at boot
+(src/render3d/clubhouse/materials.js): walnut/oak/plaster/concrete/leather/
+fabric/kraft, the club logo rug, signage, and product-box labels. No external
+texture files beyond the two existing exterior normal maps (siding_nor.jpg,
+roof_nor.jpg, project-owned).
