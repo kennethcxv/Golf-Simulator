@@ -2986,3 +2986,18 @@ into a fullscreen menu.
 **Next:** P1 — pressure washing (the brief forbids clearing exterior grime with a generic [E],
 which is what the current build does), then box sizing by contents, checkout staff space, and the
 fixture placement/build mode.
+
+### CHECKPOINT 2 — P1 core loop and the review system
+
+| # | Work | Verified by |
+|---|------|-------------|
+| P1-1 | **Pressure washing** replaces the forbidden `[E]` scrub. Grime is a mask on five faces; the jet erodes it in a real 30–60 cm fan measured in yards. Heavy staining strips its film and then stalls dead until soap has gone on and dwelled. Three machines, fictional brands. | Stream held on one spot: **4 of 432 cells to zero, 376 untouched**. Water alone on the foundation: **0.726 → 0.42**, stalling exactly on `HEAVY_FLOOR`, with the game saying why. Soap → dwell → jet: **0.0**. |
+| P1-3 | **Checkout staff space.** Measured the till corridor at **0.55 yd** against a **0.68 yd** person — the player could not fit behind their own register, which is the reported defect exactly. Counter and back counter moved to open **1.17 yd**. | Corridor scans clear across its whole width; player walks 7.5 yd of it; from `staffStand` the prompt reads "Ring up Drew H. — [E] scan Tee bag (50)". 6 tests hold it open against future floor-plan edits. |
+| P1-2 | **Build mode.** `sim/layout.js` = sparse player overrides on the designed plan. Rules refuse: overlaps, either doorway, the till workspace, walls — and, via a floodfill from the front door, any layout that leaves the shop unwalkable. `[B]` enter, `[E]` lift, `[R]` turn, `[X]` stow; the ghost is green or red **and says why**. | Refused at the door and over another unit with reasons; a legal move persisted to `state.shop.layout`; **176 customer samples on the rearranged floor, 0 penetrations** — nav rebakes itself. |
+| P2-1/2 | **Reviews with real causes.** 8 factors, each a predicate over live state, in the same idiom as `data/thoughts.js`. A factor that didn't happen to you isn't scored. Every visitor is now reviewable — previously only a completed sale or a give-up spoke, so most shoppers left silently. Laptop Reviews page = factor bars as a to-do list. | Live, 90 s with nobody on the till: *"The prices were fair, but half the shelves were bare — I could not find what I came for."* (★★) and *"I was served straight away, but the pro shop was grimy (condition 16)."* (★★★) — both true of that exact shop. |
+
+**Tests 307 → 345.** Commits `f547d32`, `c85cc76`, `050b7b5`, `73eeb03`.
+
+Also fixed en route: `setToolLoop` handed the audio graph an `undefined` gain for any tool missing
+from its table, throwing on every washer equip. Any new tool now needs a `TOOL_LOOP_LEVEL` entry,
+and an unknown one falls silent rather than throwing.

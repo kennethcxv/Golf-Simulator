@@ -116,12 +116,19 @@ Baseline at session open: **267 tests green**, frame median 8.3 ms / worst 8.7 m
   category assignment per fixture, full save persistence.
 - **Verify** Unit tests for every validity rule + save round-trip; live: rebuild the store layout
   and confirm customers still route and check out.
-- **Status** todo
+- **Status** **done** · commit `050b7b5` · 12 rule tests. `sim/layout.js` = player overrides on the
+  designed plan + `routesIntact()` floodfill. Live: refused at the door ("That is inside a wall")
+  and over another unit ("That overlaps the Apparel tables"); a legal move persisted; then
+  **176 customer samples on the rearranged floor, 0 fixture penetrations**.
 
 ### P1-3 · Checkout staff-space + register workspace
 - **Impact** "Insufficient room behind the checkout counter; difficulty entering the staff side."
-- **Effort** S · **Deps** P1-2 preferred
-- **Status** todo
+- **Effort** S · **Deps** none
+- **Status** **done** · commit `c85cc76` · Measured: the till corridor was **0.55 yd** and a person
+  is **0.68 yd** — the player literally could not fit behind their own register. Counter moved
+  north, back counter to the wall → **1.17 yd** working corridor, 6 tests hold it open. Live: the
+  corridor scans clear across its width, the player walks 7.5 yd of it, and from `staffStand` the
+  prompt reads "Ring up Drew H. — [E] scan Tee bag (50)".
 
 ### P1-4 · Box sizes by contents + visible contents + tactile stocking
 - **Impact** One box size for everything; stocking is not tactile.
@@ -140,9 +147,12 @@ Baseline at session open: **267 tests green**, frame median 8.3 ms / worst 8.7 m
 
 ## P2 — Progression and management
 
-- **P2-1 Reviews driven by real experience factors** (cleanliness, wait time, stock, price, course
-  condition, cart quality) — reviews must state their cause. **todo**
-- **P2-2 Analytics dashboards** with *explanations* ("visitors −22 % because rain + condition < 60"). **todo**
+- **P2-1 Reviews driven by real experience factors** — **done** · commit `73eeb03` · 8 factors, each
+  a predicate over live state; a factor that didn't happen to you isn't scored. Live: *"The prices
+  were fair, but half the shelves were bare — I could not find what I came for."* Laptop Reviews
+  page shows the factor bars as a to-do list.
+- **P2-2 Analytics that explain themselves** — **done** · same commit · `explainVisitors()`:
+  *"Visitors fell 40% to 18 — rain, a course condition of 46 and a reputation of 30."*
 - **P2-3 Employees**: hire, hourly wage, roles that do real physical work. **todo**
 - **P2-4 Expenses on a schedule**: rent, utilities, wages, maintenance, with warnings. **todo**
 - **P2-5 Weather → attendance**, rain decisions (open/close/discount). **todo**
