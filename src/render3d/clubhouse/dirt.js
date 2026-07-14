@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { INTERIOR, FIXTURES, TRAFFIC_PATHS, DOOR_MAIN, COUNTER, MAT, STOCKROOM } from '../../data/shopLayout.js';
 import { RENO, wipeWindow } from '../../sim/shop.js';
+import { tutorialFlag } from '../../sim/tutorial.js';
 
 const hash01 = (n) => {
   const s = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
@@ -335,7 +336,10 @@ export function buildDirt(B, windowDefs) {
         if (!res.ok) return;
         refreshFilms();
         if (hooks.sfx) hooks.sfx('wipe');
-        if (hooks.toast && res.left === 0) hooks.toast('The pane comes up clear — real daylight again.');
+        if (res.left === 0) {
+          tutorialFlag(state, 'windowWiped');
+          if (hooks.toast) hooks.toast('The pane comes up clear — real daylight again.');
+        }
       },
     });
   });

@@ -1832,6 +1832,7 @@ export function makeClubhouse(ctx) {
           if (unpackHere) {
             if (!box.cut) {
               if (cutBox(state, box.id).ok) {
+                tutorialFlag(state, 'boxCut');
                 if (hooks.sfx) hooks.sfx('wipe'); // blade through tape
                 rebuildBoxes();
               }
@@ -1849,6 +1850,7 @@ export function makeClubhouse(ctx) {
           } else {
             const res = pickUpBox(state, box.id);
             if (!res.ok) { if (hooks.toast) hooks.toast(res.reason, 'warn'); return; }
+            tutorialFlag(state, 'boxCarried');
             if (hooks.sfx) hooks.sfx('thunk');
           }
           rebuildBoxes();

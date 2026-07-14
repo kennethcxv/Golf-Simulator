@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { SHELL, DOOR_MAIN, DOOR_STOCK, DOOR_BACK } from '../../data/shopLayout.js';
 import { chooseSwingAngle } from '../../data/doorMath.js';
 import { carriedBox } from '../../sim/deliveries.js';
+import { tutorialFlag } from '../../sim/tutorial.js';
 
 export function buildDoors(B) {
   const { group, mats, addCol, addProp, colBoxAt, L2W, W2L, FLOOR_TOP, state, hooks, walk, getCustomers } = B;
@@ -255,7 +256,10 @@ export function buildDoors(B) {
           door.open = false;
         } else {
           door.openFor(walk.x, walk.z);
-          if (door.isMain && hooks.sfx) hooks.sfx('doorbell');
+          if (door.isMain) {
+            tutorialFlag(state, 'doorOpened');
+            if (hooks.sfx) hooks.sfx('doorbell');
+          }
         }
         if (hooks.sfx) hooks.sfx(door.open ? 'doorSwing' : 'doorShut');
       },

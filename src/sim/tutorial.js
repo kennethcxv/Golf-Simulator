@@ -5,45 +5,114 @@
 
 import { ZONE } from './constants.js';
 
-// 2026-07-13: the opening six steps follow the physical clubhouse loop of the
-// seamless-shop overhaul (walk in → clean → order at the laptop → unbox →
-// shelve → ring a sale); the back four remain the club-maturity arc.
+// 2026-07-14 stabilization pass: a chaptered arc a first-time player can follow
+// end to end — arrive, learn the verbs, clean, order, receive, stock, sell,
+// save. Every step waits for the REAL action (state checks + UI flags); a step
+// done early is banked and skipped past when its turn comes.
 export const TUTORIAL_STEPS = [
+  // — Chapter 1: Arrival —
   {
-    id: 'walk-in',
-    title: 'Step inside your clubhouse',
-    hint: 'Walk up the porch and open the shop door (E). This building is the business.',
-    check: (st) => !!st.tutorial.flags.shopWalked,
+    id: 'look',
+    chapter: 'Arrival',
+    title: 'Take a look around',
+    hint: 'Click to capture the mouse and look around — this run-down course is yours now.',
+    check: (st) => !!st.tutorial.flags.lookedAround,
   },
   {
+    id: 'move',
+    chapter: 'Arrival',
+    title: 'Walk the grounds',
+    hint: 'WASD to walk (Shift runs). Head for the clubhouse porch.',
+    check: (st) => !!st.tutorial.flags.walkedABit,
+  },
+  {
+    id: 'front-door',
+    chapter: 'Arrival',
+    title: 'Open the shop door',
+    hint: 'Face the green door and press E. Real hinges — it swings in ahead of you.',
+    check: (st) => !!st.tutorial.flags.doorOpened,
+  },
+  {
+    id: 'walk-in',
+    chapter: 'Arrival',
+    title: 'Step inside',
+    hint: 'Through the door — this pro shop is the business end of the property.',
+    check: (st) => !!st.tutorial.flags.shopWalked,
+  },
+  // — Chapter 2: Take stock of the mess —
+  {
     id: 'haul-clean',
+    chapter: 'The mess',
     title: 'Clear the floor',
-    hint: 'Haul a clutter pile out (E) — and once you own a vacuum, run it on the grime (F, hold LMB).',
-    check: (st) => !!(st.shop && st.shop.reno && (st.shop.reno.clutter.some((c) => c.cleared) || st.tutorial.flags.vacuumed)),
+    hint: 'Aim at a clutter pile and press E to haul it out. The state of this floor is costing you customers.',
+    check: (st) => !!(st.shop && st.shop.reno && st.shop.reno.clutter.some((c) => c.cleared)),
+  },
+  {
+    id: 'wipe-window',
+    chapter: 'The mess',
+    title: 'Clean a window',
+    hint: 'Face a filmed-over pane and press E a few times — daylight is free merchandising.',
+    check: (st) => !!st.tutorial.flags.windowWiped,
+  },
+  // — Chapter 3: The office —
+  {
+    id: 'laptop-open',
+    chapter: 'The office',
+    title: 'Open the laptop',
+    hint: 'The office desk, back-right. Press E at the laptop — the lid opens and it boots.',
+    check: (st) => !!st.tutorial.flags.laptopOpened,
   },
   {
     id: 'order-stock',
-    title: 'Order stock at the laptop',
-    hint: 'The office laptop (E) runs Fairway Office — browse the Supplier and place an order.',
+    chapter: 'The office',
+    title: 'Order stock from the Supplier',
+    hint: 'Use the cursor on the screen: Supplier → add cases → confirm. Note the delivery window.',
     check: (st) => st.shop && st.shop.nextOrderId > 1,
+  },
+  // — Chapter 4: Receiving day —
+  {
+    id: 'box-carry',
+    chapter: 'Receiving',
+    title: 'Bring a delivery in',
+    hint: 'The truck drops boxes on the pad by the back door during the window. Pick one up (E) and carry it to the stockroom.',
+    check: (st) => !!st.tutorial.flags.boxCarried,
+  },
+  {
+    id: 'box-cut',
+    chapter: 'Receiving',
+    title: 'Cut the case open',
+    hint: 'Set it down in the stockroom, then E to cut the tape.',
+    check: (st) => !!st.tutorial.flags.boxCut,
   },
   {
     id: 'unbox',
-    title: 'Receive the delivery',
-    hint: 'The truck leaves boxes on the pad by the back door. Carry one into the stockroom and open it (E).',
+    chapter: 'Receiving',
+    title: 'Unpack it',
+    hint: 'E again to move armfuls into the backroom until the case is empty.',
     check: (st) => !!(st.shop && st.shop.deliveries && (st.shop.deliveries.openedTotal || 0) > 0),
   },
   {
     id: 'shelve',
+    chapter: 'Receiving',
     title: 'Stock a display',
-    hint: 'Walk the floor to a fixture and shelve from the backroom (E). Shelves sell; backrooms don\'t.',
+    hint: 'Walk the shop floor to a fixture and shelve from the backroom (E). Shelves sell; backrooms don\'t.',
     check: (st) => !!st.tutorial.flags.shelved,
   },
+  // — Chapter 5: The first sale —
   {
     id: 'first-ring',
+    chapter: 'First sale',
     title: 'Ring up a customer',
-    hint: 'When a shopper waits at the register, scan their pick and take payment (E, E).',
+    hint: 'A shopper will bring a pick to the register. Scan (E), total it, then take their cash or run the card.',
     check: (st) => !!(st.shop && st.shop.salesLive && st.shop.salesLive.units > 0),
+  },
+  // — Chapter 6: Keep it running —
+  {
+    id: 'save-game',
+    chapter: 'Keep it running',
+    title: 'Save your progress',
+    hint: 'Esc opens the pause menu — save to a slot. The autosave has your back at day close.',
+    check: (st) => !!st.tutorial.flags.savedGame,
   },
   {
     id: 'treat-green',
@@ -81,8 +150,32 @@ export const TUTORIAL_STEPS = [
   },
 ];
 
+const TUTORIAL_VERSION = 2; // 2026-07-14 chaptered arc
+
 export function initTutorial(state) {
-  state.tutorial = { step: 0, complete: false, flags: {}, hidden: false };
+  state.tutorial = { step: 0, complete: false, flags: {}, hidden: false, version: TUTORIAL_VERSION };
+}
+
+// old saves re-derive their position: checks are cumulative state reads, so
+// ticking from step 0 fast-forwards past everything already done
+export function ensureTutorial(state) {
+  if (!state.tutorial) { initTutorial(state); return; }
+  if (state.tutorial.version !== TUTORIAL_VERSION) {
+    state.tutorial.version = TUTORIAL_VERSION;
+    state.tutorial.step = 0;
+    if (!state.tutorial.complete) tickTutorial(state);
+  }
+}
+
+export function skipTutorial(state) {
+  if (!state.tutorial) initTutorial(state);
+  state.tutorial.complete = true;
+  state.tutorial.hidden = true;
+}
+
+export function replayTutorial(state) {
+  initTutorial(state);
+  tickTutorial(state); // anything already true banks instantly
 }
 
 export function tutorialFlag(state, flag) {

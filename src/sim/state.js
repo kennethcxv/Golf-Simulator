@@ -20,7 +20,7 @@ import { bunkerDailyMess } from './bunkers.js';
 import { initCourseProps, ensureCourseProps } from './props.js';
 import { simulateDayRounds } from './rounds.js';
 import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
-import { initTutorial } from './tutorial.js';
+import { initTutorial, ensureTutorial } from './tutorial.js';
 import { initLedger, addExpense, closeBooks } from './economy.js';
 import { BALANCE } from './balance.js';
 
@@ -272,6 +272,7 @@ export function deserialize(json) {
   else initProgression(state);
   if (raw.tutorial) state.tutorial = raw.tutorial;
   else initTutorial(state);
+  ensureTutorial(state); // older saves re-derive their spot in the chaptered arc
   state.debtDays = raw.debtDays || 0;
   state.failed = raw.failed || null;
   return state;

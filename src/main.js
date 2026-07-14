@@ -27,7 +27,7 @@ import { openMarketplace } from './ui/marketplacePanel.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
 import { makeLaptop } from './ui/laptop.js';
 import { makeAudio } from './core/audio.js';
-import { tickTutorial, tutorialFlag } from './sim/tutorial.js';
+import { tickTutorial, tutorialFlag, skipTutorial, replayTutorial } from './sim/tutorial.js';
 import { makeMenu } from './screens/menu.js';
 import { saveData, loadData } from './core/storage.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
@@ -187,6 +187,7 @@ function enterLaptop() {
   const pose = ch && ch.laptopPose();
   if (!pose) return;
   app.laptopOpen = true;
+  if (app.state) tutorialFlag(app.state, 'laptopOpened');
   app.scene3d.walk.focusOn(pose);
   if (document.pointerLockElement) document.exitPointerLock();
   closeLeftPanels('none');
@@ -454,6 +455,10 @@ function startGame(state) {
   app.courseMode = 'walk'; // the course is experienced on foot; Tab for the overview
   if (walkOverlay) walkOverlay.style.display = 'none';
   lastHourSeen = -1;
+  tutLookSpan = 0;
+  tutLastYaw = null;
+  tutWalked = 0;
+  tutLastPos = null;
   endgameShown = !!(state.progression && state.progression.majorWon);
   failShown = false;
   rebuildSectionIndex();
@@ -806,6 +811,7 @@ function openPauseMenu() {
           if (mode === 'save') {
             await saveData(slot, empireSnapshot(app.empire));
             const st = app.state;
+            tutorialFlag(st, 'savedGame');
             await saveData(`${slot}-meta`, {
               name: st.clubName, when: hudClockText(), cash: st.cash,
               cond: st.shop && st.shop.reno ? Math.round(st.shop.reno.condition) : null,
@@ -894,6 +900,17 @@ function openPauseMenu() {
             oninput: (e) => { settings.sens = Number(e.target.value); saveSettings(); applySettings(); },
           }),
         )),
+        settingRow('Tutorial', el('div', { class: 'set-ctl' },
+          el('button', {
+            class: 'chip-btn',
+            text: app.state.tutorial && app.state.tutorial.complete ? 'Replay the guide' : 'Skip the guide',
+            onclick: () => {
+              if (app.state.tutorial && app.state.tutorial.complete) replayTutorial(app.state);
+              else skipTutorial(app.state);
+              objectivesPanel.refresh();
+              setPage('settings');
+            },
+          }))),
       );
     },
     controls: (c) => {
@@ -1265,6 +1282,11 @@ function keyboardCamera(dtMs) {
 
 let lastTs = 0;
 let lastHourSeen = -1;
+// arrival-tutorial senses (reset per game)
+let tutLookSpan = 0;
+let tutLastYaw = null;
+let tutWalked = 0;
+let tutLastPos = null;
 let audioClock = 0;
 
 function frame(ts) {
@@ -1328,12 +1350,35 @@ function frame(ts) {
     if (walkActive()) {
       app.scene3d.walk.update(dtMs);
       updateWalkOverlay();
+      // arrival-chapter senses: real looking and real walking
+      if (app.state.tutorial && !app.state.tutorial.complete) {
+        const w = app.scene3d.walk.state;
+        if (tutLastYaw !== null) {
+          let dy = Math.abs(w.yaw - tutLastYaw);
+          if (dy > Math.PI) dy = Math.PI * 2 - dy;
+          tutLookSpan += dy;
+          if (tutLookSpan > 2.6) tutorialFlag(app.state, 'lookedAround');
+        }
+        tutLastYaw = w.yaw;
+        if (tutLastPos) tutWalked += Math.hypot(w.x - tutLastPos.x, w.z - tutLastPos.z);
+        tutLastPos = { x: w.x, z: w.z };
+        if (tutWalked > 6) tutorialFlag(app.state, 'walkedABit');
+      }
     }
     const cal = calendarOf(app.state.clock.minutes);
     app.scene3d.applyTimeWeather(cal.minuteOfDay, app.state.weather);
     if (!app.prewarming) app.scene3d.render(dtMs, app.state); // prewarm owns the GPU behind the veil
     audioClock += dtMs;
     if (audioClock >= 1000) {
+      // the guide answers real actions within a second, not at the hour
+      if (app.state.tutorial && !app.state.tutorial.complete) {
+        const tut = tickTutorial(app.state);
+        for (const step of tut.advanced) toast(`🎯 ${step.title} — done.`);
+        if (tut.advanced.length) {
+          if (app.state.tutorial.complete) toast('The guide retires — the club is yours now. The Open awaits.', '');
+          objectivesPanel.refresh();
+        }
+      }
       const cal2 = calendarOf(app.state.clock.minutes);
       audio.update(audioClock / 1000, {
         minuteOfDay: cal2.minuteOfDay,
