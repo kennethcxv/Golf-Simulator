@@ -10,8 +10,11 @@ import { rngOf, clamp, makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
 import { addRevenue, addExpense, unbill } from './economy.js';
 import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
+import { planShipment } from '../data/boxes.js';
 import { INTERIOR, CLUTTER_SPOTS, WINDOWS } from '../data/shopLayout.js';
-import { arriveOrder, openAllBoxes, ensureDeliveries } from './deliveries.js';
+import {
+  arriveOrder, openAllBoxes, ensureDeliveries, padHasRoom, padCount, PAD_CAPACITY,
+} from './deliveries.js';
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
 import { members } from './golfers.js';
@@ -355,28 +358,62 @@ export function placeOrder(state, skuId, qty) {
   const sku = skuById(skuId);
   if (!sku) return { ok: false, reason: 'No such item.' };
   if (sku.tier > state.shop.unlockedTier) return { ok: false, reason: 'Supplier account not unlocked yet.' };
-  const cost = orderCost(sku, qty);
+
+  // pack it NOW. The manifest is what the Orders screen promises and what the receiving pad
+  // stands there — one object, read twice, so the two can never disagree.
+  const manifest = planShipment(sku, qty);
+  const goods = orderCost(sku, qty);
+  const fee = manifest.fee;
+  const cost = Math.round((goods + fee) * 100) / 100;   // `cost` is what you actually paid
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash.' };
   addExpense(state, 'shopOrders', cost);
+
   const dayAbs = calendarOf(state.clock.minutes).dayAbs;
   const id = state.shop.nextOrderId++;
   const arrivesDay = dayAbs + LEAD_DAYS[sku.cat];
   const slot = DELIVERY_SLOTS[(id * 7) % DELIVERY_SLOTS.length];
   const open = arrivesDay * 1440 + slot[0] * 60;
   const close = arrivesDay * 1440 + slot[1] * 60;
-  state.shop.orders.push({
+  const order = {
     id,
     skuId,
     qty,
-    cost,
+    cost,        // goods + freight: the number that left your account
+    goods,
+    fee,
+    supplier: manifest.supplier,
+    manifest,
     arrivesDay,
     placedMin: state.clock.minutes,
     window: { open, close },
     deliveryMin: open + ((id * 37) % (close - open)),
     status: 'received',
     notif: {},
-  });
-  return { ok: true, cost };
+  };
+  state.shop.orders.push(order);
+  return {
+    ok: true, cost, goods, fee, order,
+    boxes: manifest.boxCount, weight: manifest.weight, supplier: manifest.supplier,
+  };
+}
+
+// WHERE AN ORDER IS, AT A GIVEN MINUTE.
+//
+// Derived from the clock, never accumulated, so a save that sleeps through four days wakes up with
+// the right status instead of the one it was wearing when you quit. The thresholds run backwards
+// from the truck's own minute: the van is loaded and out before the window opens (that is what a
+// delivery window IS — a promise made while the van is already moving), and "arriving soon" is the
+// last half hour.
+export function orderStatusAt(o, nowMin) {
+  if (nowMin >= o.deliveryMin) return 'delivered';
+  if (nowMin >= o.deliveryMin - 30) return 'arriving';
+  if (nowMin >= o.deliveryMin - 120) return 'out';
+  const lead = Math.max(1, o.deliveryMin - o.placedMin);
+  const t = nowMin - o.placedMin;
+  if (t >= lead * 0.55) return 'shipped';
+  if (t >= lead * 0.30) return 'packed';
+  if (t >= lead * 0.08) return 'processing';
+  return 'received';
 }
 
 // --- WHAT ACTUALLY SOLD, LINE BY LINE ------------------------------------------------------
@@ -452,18 +489,36 @@ export function tickDeliveries(state, nowMin) {
   const events = [];
   if (!state.shop || !state.shop.orders || !state.shop.orders.length) return events;
   const arrived = [];
+  // Space taken by vans already waved through ON THIS TICK. Their boxes do not exist yet —
+  // arriveOrder runs below, after the loop — so without this, four vans landing on the same
+  // minute each look at the same empty pad, all unload, and the pad ends up over capacity.
+  // (It did: thirteen cartons on a nine-carton pad, found by watching the running game.)
+  let reserved = 0;
   for (const o of state.shop.orders) {
     if (o.window === undefined) continue; // pre-window legacy order: dailyTick path delivers it
     if (!o.notif) o.notif = {};
-    if (nowMin >= o.deliveryMin) {
-      o.status = 'delivered';
+    o.status = orderStatusAt(o, nowMin);
+
+    if (o.status === 'delivered') {
+      // THE PAD HAS TO HAVE ROOM. A driver with nowhere to put nine cartons does not stack them
+      // to the roof and drive off; he tells you he could not deliver. The order stays out there —
+      // it is not lost, and it is not silently teleported into the backroom either.
+      const need = (o.manifest && o.manifest.boxCount) || 1;
+      if (!padHasRoom(state, need + reserved)) {
+        o.status = 'arriving';        // still circling
+        if (!o.blocked) {
+          o.blocked = true;
+          events.push({ kind: 'blocked', order: o, need, free: PAD_CAPACITY - padCount(state) - reserved });
+        }
+        continue;
+      }
+      o.blocked = false;
+      reserved += need;
       arrived.push(o);
       events.push({ kind: 'arrived', order: o });
       continue;
     }
-    if (o.status === 'received' && nowMin >= o.placedMin + 240) o.status = 'processing';
-    if (nowMin >= o.deliveryMin - 90 && o.status !== 'arriving') o.status = 'out';
-    if (nowMin >= o.window.open) o.status = 'arriving';
+
     const morningMin = o.arrivesDay * 1440 + 6 * 60;
     if (!o.notif.morning && nowMin >= morningMin && nowMin < o.window.open) {
       o.notif.morning = true;

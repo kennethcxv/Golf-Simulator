@@ -20,7 +20,11 @@ import {
   placeOrder, cancelOrder, orderCost, shopCondition, priceFor,
   velocity, daysOfSupply, buyRentalSets,
 } from '../sim/shop.js';
-import { CASE_SIZE, boxesOf } from '../sim/deliveries.js';
+import {
+  boxesOf, shipmentsOf, shipmentStatus, padCount, PAD_CAPACITY, boxOpened,
+} from '../sim/deliveries.js';
+import { planShipment, unitsPerBox } from '../data/boxes.js';
+import { supplierFor } from '../data/suppliers.js';
 import { TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot } from '../sim/reservations.js';
 import { reviewSummary, explainVisitors } from '../sim/reviews.js';
 import { weeklyCharge, propertyLine, arrearsOf } from '../sim/property.js';
@@ -47,12 +51,19 @@ const SHOP_CLOSE_MIN = 20 * 60;
 
 // The brief's eight order states, against the five the delivery sim actually produces. Naming a
 // state the sim cannot reach would be inventing a feature on a screen.
+// The nine, and all nine are real. Six are worn by an order still on the road (sim/deliveries
+// ORDER_FLOW); three by a shipment standing on your floor, derived from the state of its boxes
+// (shipmentStatus). Nothing here is a label with no machinery behind it.
 const ORDER_STATUS = {
-  received: { label: 'Pending', tone: '' },
+  received: { label: 'Received', tone: '' },
   processing: { label: 'Processing', tone: '' },
+  packed: { label: 'Packed', tone: '' },
+  shipped: { label: 'Shipped', tone: '' },
   out: { label: 'Out for delivery', tone: 'warn' },
-  arriving: { label: 'Arriving now', tone: 'ok' },
+  arriving: { label: 'Arriving soon', tone: 'warn' },
   delivered: { label: 'Delivered', tone: 'ok' },
+  partial: { label: 'Partially unpacked', tone: 'warn' },
+  unpacked: { label: 'Fully unpacked', tone: 'ok' },
 };
 
 const NAV = [
@@ -213,7 +224,10 @@ export function makeLaptop(app, opts) {
   const cashOf = () => (app.empire ? app.empire.cash : app.state.cash);
   const retailSkus = (st) => SHOP_CATALOG.filter((s) => RETAIL_CATS.has(s.cat) && s.tier <= st.shop.unlockedTier);
   const incomingOf = (st, id) => st.shop.orders.filter((o) => o.skuId === id).reduce((a, o) => a + o.qty, 0);
-  const boxesFor = (sku, qty) => Math.ceil(qty / (CASE_SIZE[sku.cat] || 12));
+  // The screen must pack the shipment the SAME WAY the receiving pad will. It does not do its own
+  // arithmetic — it calls the one packer (data/boxes.js), which is also what arriveOrder reads.
+  const shipOf = (sku, qty) => planShipment(sku, Math.max(1, qty));
+  const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 'es'}`;
   const shopIsOpen = (st) => {
     const m = calendarOf(st.clock.minutes).minuteOfDay;
     return m >= SHOP_OPEN_MIN && m < SHOP_CLOSE_MIN;
@@ -427,8 +441,24 @@ export function makeLaptop(app, opts) {
   // =========================================================================================
   function pageSupplier() {
     const st = app.state;
-    let total = 0;
-    for (const [id, qty] of cart) total += orderCost(skuById(id), qty);
+    // Freight is part of the price. Quoting the goods alone and then taking more at the till is
+    // the oldest trick in retail and it has no business being in the player's own back office.
+    let goods = 0;
+    let freight = 0;
+    let boxCount = 0;
+    let weight = 0;
+    for (const [id, qty] of cart) {
+      const sku = skuById(id);
+      const ship = shipOf(sku, qty);
+      goods += orderCost(sku, qty);
+      freight += ship.fee;
+      boxCount += ship.boxCount;
+      weight += ship.weight;
+    }
+    goods = Math.round(goods * 100) / 100;
+    freight = Math.round(freight * 100) / 100;
+    weight = Math.round(weight * 10) / 10;
+    const total = Math.round((goods + freight) * 100) / 100;
     const affordable = total <= cashOf();
 
     const cats = ['balls', 'accessories', 'apparel', 'clubs', 'supplies', 'decor'];
@@ -448,7 +478,8 @@ export function makeLaptop(app, opts) {
       const owned = st.shop.inventory[s.id];
       const inCart = cart.get(s.id) || 0;
       const suggested = priceFor(s, st.shop.markup[s.cat] || 1, null);
-      const per = CASE_SIZE[s.cat] || 12;
+      const per = unitsPerBox(s);
+      const ship = shipOf(s, inCart);
       const setQty = (q) => {
         q = Math.max(0, Math.min(99, q));
         if (q === 0) cart.delete(s.id); else cart.set(s.id, q);
@@ -461,7 +492,8 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-prodprice' },
           el('span', { class: 'lt-wholesale', text: formatMoney(s.cost) }),
           el('span', { class: 'lt-meta', text: ` → ${formatMoney(suggested)}` })),
-        el('div', { class: 'lt-prodmeta', text: `${per} per case · ${boxesFor(s, Math.max(inCart, 1))} box${boxesFor(s, Math.max(inCart, 1)) === 1 ? '' : 'es'} · ships in ${LEAD_DAYS[s.cat]}d` }),
+        el('div', { class: 'lt-prodmeta', text: `${supplierFor(s).name} · ships in ${LEAD_DAYS[s.cat]}d` }),
+        el('div', { class: 'lt-prodmeta', text: `${per} per box · ${plural(ship.boxCount, 'box')} · ${ship.weight} lb${s.fragile ? ' · fragile' : ''}` }),
         el('div', { class: 'lt-prodmeta', text: `on hand: ${owned.shelf + owned.back}` }),
         locked
           ? el('div', { class: 'lt-lock', text: `🔒 Needs supplier tier ${s.tier}` })
@@ -475,13 +507,18 @@ export function makeLaptop(app, opts) {
     const placeAll = () => {
       let placed = 0;
       let spent = 0;
+      let boxes = 0;
       const failed = [];
       for (const [id, qty] of [...cart]) {
         const res = placeOrder(st, id, qty);
-        if (res.ok) { placed++; spent += res.cost; cart.delete(id); } else failed.push(`${skuById(id).name}: ${res.reason}`);
+        if (res.ok) {
+          placed++; spent += res.cost; boxes += res.boxes; cart.delete(id);
+        } else failed.push(`${skuById(id).name}: ${res.reason}`);
       }
       if (placed) {
-        toast(`Order placed — ${formatMoney(spent)}. ${placed} line${placed === 1 ? '' : 's'} on the truck.`);
+        // THE ORDER-ACCEPTED NOTIFICATION. It says what is actually coming — how many cartons will
+        // be standing on that pad — because that is the thing you have to make room for.
+        toast(`Order accepted — ${formatMoney(spent)}. ${plural(boxes, 'box')} to the receiving pad.`);
         if (app.audio && app.audio.ready) app.audio.chime();
       }
       for (const f of failed) toast(f, 'warn');
@@ -490,14 +527,24 @@ export function makeLaptop(app, opts) {
     };
 
     paint(
-      head('Fairway Supply Co.', 'Wholesale cost is what you pay. The arrow shows what it will ring up at, at your current markup — change that on the Pricing page.',
+      head('Supplier', 'Wholesale cost is what you pay, plus freight. The arrow shows what it will ring up at, at your current markup — change that on the Pricing page.',
         primaryBtn(
           cart.size ? `Place order — ${formatMoney(total)}` : 'Basket is empty',
-          () => askConfirm(`Order ${cart.size} line${cart.size === 1 ? '' : 's'} for ${formatMoney(total)}?`, 'Place the order', placeAll),
+          () => askConfirm(
+            `Order ${cart.size} line${cart.size === 1 ? '' : 's'} for ${formatMoney(total)} — ${formatMoney(goods)} of stock plus ${formatMoney(freight)} freight. ${plural(boxCount, 'box')}, ${weight} lb, to the receiving pad.`,
+            'Place the order', placeAll,
+          ),
           !cart.size || !affordable,
         )),
       confirmBar(),
       !affordable && cart.size ? errBox(`That basket is ${formatMoney(total - cashOf())} more than you have.`) : null,
+      cart.size
+        ? card(
+          row(el('span', { text: 'Stock' }), chip(formatMoney(goods))),
+          row(el('span', { text: 'Freight' }), meta(`${plural(boxCount, 'box')} · ${weight} lb`), chip(formatMoney(freight))),
+          row(el('span', { class: 'lt-mulabel', text: 'Total' }), chip(formatMoney(total), affordable ? 'ok' : 'bad')),
+        )
+        : null,
       tabs,
       el('div', { class: 'lt-grid' }, ...cards),
     );
@@ -518,12 +565,15 @@ export function makeLaptop(app, opts) {
       const days = o.arrivesDay - cal.dayAbs;
       const when = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
       const canCancel = o.status !== 'arriving' && o.status !== 'delivered';
+      // read the order's OWN manifest — the one it was packed with, not a fresh guess
+      const man = o.manifest || shipOf(sku, o.qty);
       return el('div', { class: 'lt-order' },
         el('div', { class: 'lt-ordernum', text: `#${String(o.id).padStart(4, '0')}` }),
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
           el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}` }),
-          el('div', { class: 'lt-prodmeta', text: `${boxesFor(sku, o.qty)} box${boxesFor(sku, o.qty) === 1 ? '' : 'es'} · ${formatMoney(o.cost)} · delivery included` }),
+          el('div', { class: 'lt-prodmeta', text: `${o.supplier || man.supplier} · ${plural(man.boxCount, 'box')} · ${man.weight} lb` }),
+          el('div', { class: 'lt-prodmeta', text: `${formatMoney(o.goods != null ? o.goods : o.cost)} stock + ${formatMoney(o.fee || man.fee)} freight = ${formatMoney(o.cost)}` }),
           el('div', { class: 'lt-prodmeta', text: `${when}, ${hour12(o.window.open)}–${hour12(o.window.close)}` })),
         chip(s.label, s.tone),
         canCancel
@@ -531,7 +581,7 @@ export function makeLaptop(app, opts) {
             class: 'lt-mini lt-cancel',
             text: 'Cancel',
             onclick: () => askConfirm(
-              `Cancel order #${o.id} — ${sku.name} × ${o.qty}? You get ${formatMoney(o.cost)} back.`,
+              `Cancel order #${o.id} — ${sku.name} × ${o.qty}? You get ${formatMoney(o.cost)} back, freight included.`,
               'Cancel the order',
               () => {
                 const res = cancelOrder(st, o.id);
@@ -543,13 +593,35 @@ export function makeLaptop(app, opts) {
       );
     };
 
-    // a box that has been opened but still has stock in it is a PARTIALLY UNPACKED order —
-    // the sim models this properly, so the page can say it properly
-    const unpacking = boxes.filter((b) => b.opened && b.qty > 0);
-    const waiting = boxes.filter((b) => !b.opened);
+    // A SHIPMENT ON THE FLOOR. Its status is derived from its boxes (sim/deliveries
+    // shipmentStatus) — delivered until someone touches it, partially unpacked while stock is
+    // still in the cardboard, fully unpacked when it is all out. The screen does not get a vote.
+    const shipRow = (sh) => {
+      const sku = skuById(sh.skuId);
+      const status = shipmentStatus(st, sh);
+      const s = ORDER_STATUS[status];
+      const mine = boxes.filter((b) => b.orderId === sh.orderId);
+      const left = mine.reduce((a, b) => a + b.qty, 0);
+      const where = (b) => (b.loc === 'pad' ? 'on the pad'
+        : b.loc === 'carried' ? 'in your arms'
+          : b.flat ? 'flattened' : 'inside');
+      const placesText = mine.length
+        ? [...new Set(mine.map(where))].join(', ')
+        : 'all cardboard recycled';
+      return el('div', { class: 'lt-order' },
+        el('div', { class: 'lt-ordernum', text: `#${String(sh.orderId).padStart(4, '0')}` }),
+        thumbOf(sku),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: `${sku.name} × ${sh.units}` }),
+          el('div', { class: 'lt-prodmeta', text: `${sh.supplier} · ${plural(sh.boxCount, 'box')} · ${sh.weight} lb` }),
+          el('div', { class: 'lt-prodmeta', text: `${left} of ${sh.units} still in the cardboard · ${placesText}` })),
+        chip(s.label, s.tone));
+    };
+
+    const shipments = shipmentsOf(st);
 
     paint(
-      head('Orders', 'An order is paid for when you place it. Cancelling before the van reaches its window puts the money straight back.',
+      head('Orders', 'An order is paid for when you place it, freight and all. Cancelling before the van reaches its window puts the money straight back.',
         primaryBtn('Order more stock', () => go('supplier'))),
       confirmBar(),
 
@@ -558,20 +630,13 @@ export function makeLaptop(app, opts) {
         ? el('div', { class: 'lt-orderlist' }, ...orders.map(orderRow))
         : empty('No orders outstanding. Everything you have paid for has landed.'),
 
-      sect('Landed — waiting to be unpacked'),
-      waiting.length || unpacking.length
-        ? card(
-          ...waiting.map((b) => row(
-            el('span', { text: `${skuById(b.skuId).name} × ${b.qty}` }),
-            meta(`box #${b.id} · ${b.loc === 'pad' ? 'on the receiving pad' : b.loc === 'carried' ? 'in your arms' : `in the ${b.loc}`}`),
-            chip('Delivered', 'ok'))),
-          ...unpacking.map((b) => row(
-            el('span', { text: `${skuById(b.skuId).name} × ${b.qty} left` }),
-            meta(`box #${b.id} · open`),
-            chip('Partially unpacked', 'warn'))),
-          note('Boxes are physical. Walk to the receiving pad, carry them in, cut them open and shelve what is inside.'),
-        )
+      sect(`Landed (${shipments.length})`),
+      shipments.length
+        ? el('div', { class: 'lt-orderlist' }, ...shipments.map(shipRow))
         : empty('Nothing waiting on the floor.'),
+      shipments.length
+        ? note('Boxes are physical. Carry them in from the pad, cut the tape, open the flaps, and take what is inside out to the fixtures. A shipment clears from this list when its last carton is recycled.')
+        : null,
     );
   }
 
@@ -586,19 +651,23 @@ export function makeLaptop(app, opts) {
     const later = st.shop.orders.filter((o) => o.arrivesDay > cal.dayAbs);
     const boxes = boxesOf(st);
     const onPad = boxes.filter((b) => b.loc === 'pad');
-    // THE BLOCKED-DELIVERY WARNING the brief asks for: the pad is a real place in a real room,
-    // and a van cannot put a box down on a pad that is already stacked out.
-    const padJammed = onPad.length >= 8;
+    const used = padCount(st);
+    // THE BLOCKED-DELIVERY WARNING the brief asks for. This is not a decorative threshold: the
+    // same PAD_CAPACITY is what tickDeliveries checks before it lets a van unload, and a van that
+    // finds no room turns around and tells you (kind: 'blocked'). The screen and the yard agree.
+    const blockedNow = st.shop.orders.filter((o) => o.blocked);
+    const padTight = used >= PAD_CAPACITY - 2;
 
     const line = (o) => {
       const sku = skuById(o.skuId);
       const s = ORDER_STATUS[o.status] || { label: o.status, tone: '' };
       const eta = Math.round((o.deliveryMin - nowMin));
+      const man = o.manifest || shipOf(sku, o.qty);
       return el('div', { class: 'lt-order' },
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
           el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}` }),
-          el('div', { class: 'lt-prodmeta', text: `Fairway Supply Co. · ${boxesFor(sku, o.qty)} box${boxesFor(sku, o.qty) === 1 ? '' : 'es'} · to the receiving pad` }),
+          el('div', { class: 'lt-prodmeta', text: `${o.supplier || man.supplier} · ${plural(man.boxCount, 'box')} · ${man.weight} lb · to the receiving pad` }),
           el('div', { class: 'lt-prodmeta', text: `window ${hour12(o.window.open)}–${hour12(o.window.close)}${eta > 0 && eta < 600 ? ` · about ${eta} min away` : ''}` })),
         chip(s.label, s.tone));
     };
@@ -607,19 +676,21 @@ export function makeLaptop(app, opts) {
       head('Deliveries', 'The van drops boxes on the receiving pad inside its window. Nobody carries them in for you.'),
       confirmBar(),
 
-      padJammed
-        ? errBox(`The receiving pad is stacked out — ${onPad.length} boxes on it. Clear some before the next van, or it will have nowhere to put them.`)
-        : null,
+      blockedNow.length
+        ? errBox(`A van could not unload — the receiving pad is full (${used} of ${PAD_CAPACITY}). ${blockedNow.map((o) => `Order #${o.id}`).join(', ')} ${blockedNow.length === 1 ? 'is' : 'are'} still circling. Carry cartons inside and the driver will try again.`)
+        : padTight
+          ? errBox(`The receiving pad is nearly full — ${used} of ${PAD_CAPACITY}. Clear some before the next van, or it will have nowhere to put them.`)
+          : null,
 
       sect(`Expected today (${today.length})`),
       today.length ? el('div', { class: 'lt-orderlist' }, ...today.map(line)) : empty('No deliveries due today.'),
 
-      sect('On the receiving pad'),
+      sect(`On the receiving pad (${used} of ${PAD_CAPACITY})`),
       onPad.length
         ? card(...onPad.map((b) => row(
           el('span', { text: `${skuById(b.skuId).name} × ${b.qty}` }),
-          meta(`box #${b.id}${b.opened ? ' · open' : ''}`),
-          chip(b.opened ? 'Partially unpacked' : 'Delivered', b.opened ? 'warn' : 'ok'))))
+          meta(`box #${b.id} · ${b.lb ? `${b.lb} lb` : ''}${b.fragile ? ' · fragile' : ''}`),
+          chip(boxOpened(b) ? 'Partially unpacked' : 'Delivered', boxOpened(b) ? 'warn' : 'ok'))))
         : empty('The pad is clear.'),
 
       sect(`Later this week (${later.length})`),

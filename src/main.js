@@ -1487,13 +1487,19 @@ function frame(ts) {
           const h = Math.floor(mm / 60);
           return `${((h + 11) % 12) + 1} ${h >= 12 ? 'PM' : 'AM'}`;
         };
+        const man = ev.order.manifest;
+        const boxes = man ? `${man.boxCount} box${man.boxCount === 1 ? '' : 'es'}` : 'boxes';
         if (ev.kind === 'morning') {
-          toast(`📦 ${name} ships today — window ${clock12(ev.order.window.open)}–${clock12(ev.order.window.close)}.`);
+          toast(`📦 ${name} ships today — window ${clock12(ev.order.window.open)}–${clock12(ev.order.window.close)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`);
         } else if (ev.kind === 'soon') {
-          toast(`📦 The ${name} truck is close — under an hour out.`);
+          toast(`📦 The ${ev.order.supplier || name} van is close — under an hour out.`);
         } else if (ev.kind === 'arrived') {
-          toast(`📦 Delivery! ${name} ×${ev.order.qty} is on the receiving pad.`);
-          if (audio.ready && audio.thunk) audio.thunk();
+          toast(`📦 Delivery! ${name} ×${ev.order.qty} — ${boxes} on the receiving pad.`);
+          if (audio.ready && audio.truck) audio.truck();
+        } else if (ev.kind === 'blocked') {
+          // The receiving area is blocked. The van did not dump the boxes anyway, and it did not
+          // quietly delete them either — the order is still out there and will try again.
+          toast(`🚫 The van could not unload — the receiving pad is full. ${name} ×${ev.order.qty} is still on board. Carry some cartons inside.`, 'warn');
         }
       }
     }

@@ -52,8 +52,17 @@ test('morning and one-hour heads-up fire exactly once, statuses progress', () =>
   const e2 = tickDeliveries(state, soonAt);
   assert.ok(e2.some((e) => e.kind === 'soon' && e.order.id === o.id), 'one-hour warning');
   assert.ok(['out', 'arriving'].includes(o.status), 'truck is out');
+
+  // "Arriving soon" now means SOON — the last half hour — not "somewhere in the next two hours".
+  // The window opens at 8 and the van lands at 8:37; the old rule flipped the order to "Arriving
+  // now" at 8:00 and then left it saying that for thirty-seven minutes, which is a status telling
+  // you to go and stand at a pad where nothing is happening.
   tickDeliveries(state, o.window.open + 1);
-  assert.ok(['arriving', 'delivered'].includes(o.status) || !state.shop.orders.includes(o));
+  assert.equal(o.status, 'out', 'inside the window but half an hour out: still on the van');
+  tickDeliveries(state, o.deliveryMin - 10);
+  assert.equal(o.status, 'arriving', 'ten minutes out: now it is arriving');
+  tickDeliveries(state, o.deliveryMin + 1);
+  assert.ok(!state.shop.orders.includes(o), 'and then it is here');
 });
 
 test('parked-property reconcile still force-delivers everything due', () => {
