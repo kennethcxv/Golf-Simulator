@@ -2689,3 +2689,28 @@ RULES   - walls: cream plaster above a WALNUT chair rail + walnut wainscot
         - signage voice: "PERFORMANCE - TRADITION - EXCELLENCE" plaque tone;
           club wordmark = course name in Georgia over a pine motif; category
           signs in gold-on-walnut.
+
+--- PHASE 20: PERFORMANCE, MEASURED (same machine, same save, same pose) ---
+
+Method: renderer.info with autoReset off, totals over 4 frames divided out;
+frame time averaged over ~2s of rAF; camera parked mid-sales-floor looking
+across the room (worst interior view). Baseline = pre-pass build (e10feca)
+served from a worktree against the same autosave.
+
+                        BEFORE (e10feca)      AFTER (production pass)
+  draw calls / frame          808                   1,099
+  triangles / frame         4.75 M                  4.76 M   (course-dominated;
+                                                    GTAO prepasses re-render
+                                                    the scene ~3x in both)
+  geometries in memory        175                     379
+  textures in memory           64                      89   (canvas procedurals)
+  shader programs              33                      36
+  avg frame time            2.78 ms                 2.79 ms
+
+Reading: the entire production interior — beveled fixtures, merch silhouettes,
+signage, lighting rig, lounge, stockroom dressing, dirt system, projected
+laptop — costs +291 draw calls and no measurable frame time on this machine.
+Rebuild discipline held (stock/decor/box rebuilds are signature-gated; the
+grime canvas repaints only on state change; laptop pages are event-driven).
+If draw calls ever matter on low-end hardware, the first lever is instancing
+the repeated product boxes/cans (documented, not needed today).
