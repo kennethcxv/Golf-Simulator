@@ -493,32 +493,39 @@ input[type="range"] { accent-color: var(--accent); }
   border: 1px solid var(--line);
 }
 
-/* --- FAIRWAY OFFICE: the laptop portal (diegetic software — paper-light) --- */
+/* --- FAIRWAY OFFICE: projected onto the PHYSICAL laptop screen ------------- */
+/* The frame is a fixed 1024×640 logical surface; main.js maps it onto the 3D
+   display's projected corners with a matrix3d. No centering, no backdrop —
+   the room stays visible around the machine. */
 .laptop-screen {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  pointer-events: auto; z-index: 30; animation: fw-pop 0.22s ease-out;
+  position: absolute; inset: 0; pointer-events: none; z-index: 30;
 }
+.laptop-screen .lt-frame { pointer-events: auto; }
 .lt-frame {
-  width: min(1060px, 78vw); height: min(660px, 80vh); display: flex;
-  background: #f4f0e6; color: #23262b; border-radius: 10px; overflow: hidden;
-  border: 10px solid #2b2e33; box-shadow: 0 18px 60px rgba(0,0,0,0.55), inset 0 0 32px rgba(0,0,0,0.08);
+  position: absolute; left: 0; top: 0; width: 1024px; height: 640px; display: flex;
+  transform-origin: 0 0;
+  background: #f4f0e6; color: #23262b; border-radius: 4px; overflow: hidden;
+  box-shadow: inset 0 0 42px rgba(8, 12, 16, 0.35);
   font-family: system-ui, sans-serif;
 }
+/* dark-sidebar dashboard (reference 10) */
 .lt-nav {
-  width: 176px; background: #1f4a26; color: #dfd8c2; display: flex; flex-direction: column;
-  padding: 10px 8px; gap: 2px; flex-shrink: 0;
+  width: 176px; background: #171b20; color: #cfd6dd; display: flex; flex-direction: column;
+  padding: 10px 8px; gap: 2px; flex-shrink: 0; border-right: 1px solid #23262b;
 }
 .lt-brand { font-family: Georgia, serif; font-weight: bold; font-size: 1.02rem; color: #f4f0e6;
   display: flex; gap: 6px; align-items: center; padding: 6px 8px 12px; }
 .lt-navbtn {
   display: flex; gap: 9px; align-items: center; text-align: left; background: none; border: none;
-  color: #dfd8c2; padding: 8px 10px; border-radius: 7px; cursor: pointer; font-size: 0.9rem;
+  color: #aeb6bf; padding: 8px 10px; border-radius: 7px; cursor: pointer; font-size: 0.9rem;
+  border-left: 3px solid transparent;
 }
-.lt-navbtn:hover { background: rgba(244,240,230,0.12); }
-.lt-navbtn.on { background: #f4f0e6; color: #1f4a26; font-weight: 600; }
+.lt-navbtn:hover { background: rgba(244,240,230,0.08); color: #e6ebf0; }
+.lt-navbtn.on { background: rgba(53,208,106,0.1); color: #f4f0e6; font-weight: 600;
+  border-left-color: #35d06a; }
 .lt-navicon { width: 20px; text-align: center; }
 .lt-navspacer { flex: 1; }
-.lt-close { color: #b9cdb0; font-size: 0.84rem; }
+.lt-close { color: #8b959f; font-size: 0.84rem; }
 .lt-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .lt-status {
   display: flex; gap: 14px; align-items: center; padding: 8px 18px; font-size: 0.8rem;

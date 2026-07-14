@@ -115,7 +115,71 @@ function exitWalk() {
   }
 }
 
-// --- laptop mode: sit down at the office machine, the portal takes the screen ---
+// --- laptop mode --------------------------------------------------------------
+// The real sequence: E parks you at the chair, the lid physically opens, the
+// power light + boot play on the 3D screen, and THEN the Fairway Office DOM is
+// projected onto that physical screen — the interface lives inside the bezel,
+// never in a detached popup. The projection maps the interface rectangle onto
+// the screen's four projected corners with a CSS matrix3d (recomputed on
+// resize; the focus camera is parked, so it's stable).
+
+// 2D projective mapping: unit-ish rect (w×h) → arbitrary quad. Classic
+// basis-change construction (solve for the collineation through 4 points).
+function quadTransform(w, h, q) {
+  // q: [tl, tr, br, bl] in CSS pixels
+  const adj = (m) => [
+    m[4] * m[8] - m[5] * m[7], m[2] * m[7] - m[1] * m[8], m[1] * m[5] - m[2] * m[4],
+    m[5] * m[6] - m[3] * m[8], m[0] * m[8] - m[2] * m[6], m[2] * m[3] - m[0] * m[5],
+    m[3] * m[7] - m[4] * m[6], m[1] * m[6] - m[0] * m[7], m[0] * m[4] - m[1] * m[3],
+  ];
+  const mul = (a, b) => [
+    a[0] * b[0] + a[1] * b[3] + a[2] * b[6], a[0] * b[1] + a[1] * b[4] + a[2] * b[7], a[0] * b[2] + a[1] * b[5] + a[2] * b[8],
+    a[3] * b[0] + a[4] * b[3] + a[5] * b[6], a[3] * b[1] + a[4] * b[4] + a[5] * b[7], a[3] * b[2] + a[4] * b[5] + a[5] * b[8],
+    a[6] * b[0] + a[7] * b[3] + a[8] * b[6], a[6] * b[1] + a[7] * b[4] + a[8] * b[7], a[6] * b[2] + a[7] * b[5] + a[8] * b[8],
+  ];
+  const mulV = (m, v) => [
+    m[0] * v[0] + m[1] * v[1] + m[2] * v[2],
+    m[3] * v[0] + m[4] * v[1] + m[5] * v[2],
+    m[6] * v[0] + m[7] * v[1] + m[8] * v[2],
+  ];
+  const basis = (p1, p2, p3, p4) => {
+    const m = [p1.x, p2.x, p3.x, p1.y, p2.y, p3.y, 1, 1, 1];
+    const v = mulV(adj(m), [p4.x, p4.y, 1]);
+    return mul(m, [v[0], 0, 0, 0, v[1], 0, 0, 0, v[2]]);
+  };
+  const src = basis({ x: 0, y: 0 }, { x: w, y: 0 }, { x: 0, y: h }, { x: w, y: h });
+  const dst = basis(q[0], q[1], q[3], q[2]);
+  const t = mul(dst, adj(src));
+  for (let i = 0; i < 9; i++) t[i] /= t[8];
+  return `matrix3d(${t[0]},${t[3]},0,${t[6]},${t[1]},${t[4]},0,${t[7]},0,0,1,0,${t[2]},${t[5]},0,1)`;
+}
+
+function alignLaptopUi() {
+  const ch = app.scene3d && app.scene3d.clubhouse && app.scene3d.clubhouse();
+  if (!ch || !ch.laptopScreenCorners) return false;
+  const corners = ch.laptopScreenCorners();
+  if (!corners) return false;
+  const cam = app.scene3d.camera;
+  if (!cam) return false;
+  cam.updateMatrixWorld();
+  const canvas = document.getElementById('game');
+  const rect = canvas.getBoundingClientRect();
+  const pts = corners.map((v) => {
+    const p = v.clone().project(cam);
+    return { x: rect.left + ((p.x + 1) / 2) * rect.width, y: rect.top + ((1 - p.y) / 2) * rect.height };
+  });
+  // order: top pair by y, then left/right — robust to model conventions
+  const sorted = [...pts].sort((a, b) => a.y - b.y);
+  const top = sorted.slice(0, 2).sort((a, b) => a.x - b.x);
+  const bottom = sorted.slice(2).sort((a, b) => a.x - b.x);
+  const quad = [top[0], top[1], bottom[1], bottom[0]];
+  laptopUi.setTransform(quadTransform(1024, 640, quad));
+  return true;
+}
+
+let laptopResizeHandler = null;
+let laptopTimers = [];
+
 function enterLaptop() {
   if (!walkActive() || app.laptopOpen) return;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
@@ -126,14 +190,38 @@ function enterLaptop() {
   if (document.pointerLockElement) document.exitPointerLock();
   closeLeftPanels('none');
   walkOverlay.style.display = 'none';
-  setTimeout(() => { if (app.laptopOpen) laptopUi.open(); }, 240); // let the camera settle first
-  if (audio.ready) audio.uiTick();
+  // the physical sequence: lid swings → power light → boot → interface lands
+  if (ch.laptopLid) ch.laptopLid(true);
+  if (audio.ready) audio.laptopOpen();
+  laptopTimers.push(setTimeout(() => {
+    if (!app.laptopOpen) return;
+    if (ch.laptopBoot) ch.laptopBoot();
+    if (audio.ready) audio.laptopBoot();
+  }, 420));
+  laptopTimers.push(setTimeout(() => {
+    if (!app.laptopOpen) return;
+    if (ch.laptopScreen) ch.laptopScreen('home');
+    laptopUi.open();
+    alignLaptopUi();
+    // one more alignment a beat later: the focus blend has fully settled
+    laptopTimers.push(setTimeout(() => { if (app.laptopOpen) alignLaptopUi(); }, 260));
+  }, 1350));
+  laptopResizeHandler = () => { if (app.laptopOpen) alignLaptopUi(); };
+  window.addEventListener('resize', laptopResizeHandler);
 }
 
 function exitLaptop(silent) {
   if (!app.laptopOpen) return;
   app.laptopOpen = false;
+  for (const t of laptopTimers) clearTimeout(t);
+  laptopTimers = [];
+  if (laptopResizeHandler) {
+    window.removeEventListener('resize', laptopResizeHandler);
+    laptopResizeHandler = null;
+  }
   laptopUi.close();
+  const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
+  if (ch && ch.laptopScreen) ch.laptopScreen('home'); // the lid stays open, desktop showing
   app.scene3d.walk.clearFocus();
   if (!silent) {
     walkOverlay.style.display = '';

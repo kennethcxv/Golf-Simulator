@@ -61,9 +61,8 @@ export function makeLaptop(app, opts) {
   );
 
   const statusbar = el('div', { class: 'lt-status' });
-  const root = el('div', { class: 'laptop-screen', style: 'display:none' },
-    el('div', { class: 'lt-frame' }, nav, el('div', { class: 'lt-main' }, statusbar, content)),
-  );
+  const frame = el('div', { class: 'lt-frame' }, nav, el('div', { class: 'lt-main' }, statusbar, content));
+  const root = el('div', { class: 'laptop-screen', style: 'display:none' }, frame);
   root.addEventListener('click', (e) => e.stopPropagation());
 
   const h1 = (t) => el('h1', { class: 'lt-h1', text: t });
@@ -446,6 +445,11 @@ export function makeLaptop(app, opts) {
     close() {
       root.style.display = 'none';
       clearInterval(liveTimer);
+    },
+    // projection onto the physical laptop display (main.js computes the
+    // matrix from the screen mesh's projected corners)
+    setTransform(matrix3d) {
+      frame.style.transform = matrix3d;
     },
     isOpen: () => root.style.display !== 'none',
     render,
