@@ -100,12 +100,17 @@ test('the receiving doorway stays walkable: no fixture collider in the back-door
   }
 });
 
+// touching runs are legal (racks butt into one wall unit); EPS forgives the
+// floating-point dust on exact-touch sums like (-0.2 + 1.5) vs (2.8 - 1.5)
+const EPS = 1e-6;
+
 test('fixtures never overlap each other (real-world clearances hold)', () => {
   for (let i = 0; i < FIXTURES.length; i++) {
     for (let j = i + 1; j < FIXTURES.length; j++) {
       const a = fixtureRect(FIXTURES[i]);
       const b = fixtureRect(FIXTURES[j]);
-      const overlap = a.maxX > b.minX && a.minX < b.maxX && a.maxZ > b.minZ && a.minZ < b.maxZ;
+      const overlap = a.maxX > b.minX + EPS && a.minX < b.maxX - EPS
+        && a.maxZ > b.minZ + EPS && a.minZ < b.maxZ - EPS;
       assert.ok(!overlap, `${FIXTURES[i].id} does not collide with ${FIXTURES[j].id}`);
     }
   }
@@ -119,15 +124,15 @@ test('no wedge traps: facing fixtures leave at least 0.75 yd or touch outright',
     for (let j = i + 1; j < FIXTURES.length; j++) {
       const a = fixtureRect(FIXTURES[i]);
       const b = fixtureRect(FIXTURES[j]);
-      const xOverlap = a.maxX > b.minX && a.minX < b.maxX;
-      const zOverlap = a.maxZ > b.minZ && a.minZ < b.maxZ;
+      const xOverlap = a.maxX > b.minX + EPS && a.minX < b.maxX - EPS;
+      const zOverlap = a.maxZ > b.minZ + EPS && a.minZ < b.maxZ - EPS;
       if (xOverlap && !zOverlap) {
         const gap = Math.max(b.minZ - a.maxZ, a.minZ - b.maxZ);
-        assert.ok(gap >= 0.75 || gap <= 0.05, `${FIXTURES[i].id}↔${FIXTURES[j].id} z-gap ${gap.toFixed(2)} yd wedges the walker`);
+        assert.ok(gap >= 0.75 - EPS || gap <= 0.05 + EPS, `${FIXTURES[i].id}↔${FIXTURES[j].id} z-gap ${gap.toFixed(2)} yd wedges the walker`);
       }
       if (zOverlap && !xOverlap) {
         const gap = Math.max(b.minX - a.maxX, a.minX - b.maxX);
-        assert.ok(gap >= 0.75 || gap <= 0.05, `${FIXTURES[i].id}↔${FIXTURES[j].id} x-gap ${gap.toFixed(2)} yd wedges the walker`);
+        assert.ok(gap >= 0.75 - EPS || gap <= 0.05 + EPS, `${FIXTURES[i].id}↔${FIXTURES[j].id} x-gap ${gap.toFixed(2)} yd wedges the walker`);
       }
     }
   }

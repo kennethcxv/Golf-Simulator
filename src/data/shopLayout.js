@@ -124,8 +124,8 @@ export const FIXTURES = [
   { id: 'rack_putters', kind: 'rack', x: -9.9, z: 2.8, ry: Math.PI / 2, skus: ['putter1', 'putter2'], title: 'Putter studio', zone: 'clubwall' },
   // north wall retail walls
   { id: 'shelf_balls', kind: 'shelf', x: -6.9, z: -6.15, ry: 0, skus: ['balls1', 'balls2', 'balls3'], title: 'Ball wall', zone: 'balls' },
-  { id: 'shelf_acc', kind: 'shelf', x: -3.5, z: -6.15, ry: 0, skus: ['tees1', 'towel1', 'marker1', 'range2', 'umb1'], title: 'Accessories', zone: 'accessories' },
-  { id: 'shelf_small', kind: 'shelf', x: -0.2, z: -6.15, ry: 0, skus: ['glove1', 'sock1'], title: 'Gloves & socks', zone: 'accessories' },
+  { id: 'shelf_acc', kind: 'shelf', x: -3.7, z: -6.15, ry: 0, skus: ['tees1', 'towel1', 'marker1', 'range2', 'umb1'], title: 'Accessories', zone: 'accessories' },
+  { id: 'shelf_small', kind: 'shelf', x: -0.5, z: -6.15, ry: 0, skus: ['glove1', 'sock1'], title: 'Gloves & socks', zone: 'accessories' },
   // apparel block, center floor
   { id: 'table_polos', kind: 'table', x: -5.9, z: 0.6, ry: 0, skus: ['polo1', 'polo2'], title: 'Apparel tables', zone: 'apparel' },
   { id: 'rail_outer', kind: 'rail', x: -2.4, z: 0.9, ry: Math.PI / 2, skus: ['jacket2'], title: 'Outerwear rail', zone: 'apparel' },
@@ -138,7 +138,7 @@ export const FIXTURES = [
   // checkout back-counter: wordmark wall, cabinets, bag stack (ref 4)
   { id: 'backcounter', kind: 'backcounter', x: 3.2, z: 6.0, ry: 0, skus: [], title: 'Back counter', zone: 'checkout' },
   // stockroom (non-retail; visualizes backroom stock + receives boxes)
-  { id: 'backshelf_n', kind: 'backshelf', x: 7.9, z: -6.1, ry: 0, skus: [], title: 'Backroom shelving', zone: 'stockroom' },
+  { id: 'backshelf_n', kind: 'backshelf', x: 8.05, z: -6.1, ry: 0, skus: [], title: 'Backroom shelving', zone: 'stockroom' },
   { id: 'backshelf_e', kind: 'backshelf', x: 9.9, z: -5.6, ry: -Math.PI / 2, skus: [], title: 'Backroom shelving', zone: 'stockroom', short: true },
   { id: 'backshelf_e2', kind: 'backshelf', x: 9.9, z: -0.6, ry: -Math.PI / 2, skus: [], title: 'Backroom shelving', zone: 'stockroom' },
 ];
