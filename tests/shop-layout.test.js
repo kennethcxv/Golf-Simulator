@@ -111,6 +111,28 @@ test('fixtures never overlap each other (real-world clearances hold)', () => {
   }
 });
 
+test('no wedge traps: facing fixtures leave at least 0.75 yd or touch outright', () => {
+  // found live 2026-07-13: the walker (body Ø0.68) wedged in the 0.5 yd slot
+  // between rail_outer and the feature pedestal — every move blocked. Any
+  // pair of fixtures whose footprints face each other must leave a real gap.
+  for (let i = 0; i < FIXTURES.length; i++) {
+    for (let j = i + 1; j < FIXTURES.length; j++) {
+      const a = fixtureRect(FIXTURES[i]);
+      const b = fixtureRect(FIXTURES[j]);
+      const xOverlap = a.maxX > b.minX && a.minX < b.maxX;
+      const zOverlap = a.maxZ > b.minZ && a.minZ < b.maxZ;
+      if (xOverlap && !zOverlap) {
+        const gap = Math.max(b.minZ - a.maxZ, a.minZ - b.maxZ);
+        assert.ok(gap >= 0.75 || gap <= 0.05, `${FIXTURES[i].id}↔${FIXTURES[j].id} z-gap ${gap.toFixed(2)} yd wedges the walker`);
+      }
+      if (zOverlap && !xOverlap) {
+        const gap = Math.max(b.minX - a.maxX, a.minX - b.maxX);
+        assert.ok(gap >= 0.75 || gap <= 0.05, `${FIXTURES[i].id}↔${FIXTURES[j].id} x-gap ${gap.toFixed(2)} yd wedges the walker`);
+      }
+    }
+  }
+});
+
 test('the main aisle stays at least 1.2 yd wide from the door to the north wall', () => {
   // walk the entrance axis north; the nearest fixture edge on either side must
   // leave a real aisle (brief: main aisles >= ~1.2 m)
