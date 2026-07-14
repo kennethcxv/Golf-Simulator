@@ -99,11 +99,20 @@ export const LOUNGE = {
 };
 
 // --- checkout ---------------------------------------------------------------------
+// A person is 0.68 yd across, and a till is a workspace, not a gap: you stand at it, turn, pull
+// the drawer, and bag. The counter used to sit 0.55 yd off the back counter — narrower than the
+// player — so there was no staff side at all and the register had to be worked by reaching over
+// from the customer's aisle. The counter moved north and the back counter to the wall to open a
+// real corridor behind it. `tests/checkout-space.test.js` holds that open.
+export const PLAYER_DIAM = 0.68;
+export const STAFF_CORRIDOR_MIN = 1.1;
+
 export const COUNTER = {
-  x: 2.9, z: 4.7, len: 3.2, depth: 1.0, ry: 0,   // island parallel to the south wall
+  x: 2.9, z: 4.2, len: 3.2, depth: 1.0, ry: 0,   // island parallel to the south wall
   registerX: 1.7,                                 // register at the west (aisle) end
-  queueBase: { x: 1.6, z: 3.6 },                  // slot 0: at the register
+  queueBase: { x: 1.6, z: 3.05 },                 // slot 0: at the register, clear of the counter
   queueStep: { x: -0.8, z: -0.45 },               // line falls back SW, clear of the door
+  staffStand: { x: 1.9, z: 5.35 },                // where you stand to work it: behind the counter
 };
 export function queueSlot(i) {
   return { x: COUNTER.queueBase.x + COUNTER.queueStep.x * i, z: COUNTER.queueBase.z + COUNTER.queueStep.z * i };
@@ -136,7 +145,7 @@ export const FIXTURES = [
   // entrance feature display (shows whatever category is featured)
   { id: 'feature', kind: 'feature', x: -3.2, z: 3.8, ry: 0, skus: [], title: 'Feature display', zone: 'entrance' },
   // checkout back-counter: wordmark wall, cabinets, bag stack (ref 4)
-  { id: 'backcounter', kind: 'backcounter', x: 3.2, z: 6.0, ry: 0, skus: [], title: 'Back counter', zone: 'checkout' },
+  { id: 'backcounter', kind: 'backcounter', x: 3.2, z: 6.15, ry: 0, skus: [], title: 'Back counter', zone: 'checkout' },
   // stockroom (non-retail; visualizes backroom stock + receives boxes)
   { id: 'backshelf_n', kind: 'backshelf', x: 8.05, z: -6.1, ry: 0, skus: [], title: 'Backroom shelving', zone: 'stockroom' },
   { id: 'backshelf_e', kind: 'backshelf', x: 9.9, z: -5.6, ry: -Math.PI / 2, skus: [], title: 'Backroom shelving', zone: 'stockroom', short: true },
