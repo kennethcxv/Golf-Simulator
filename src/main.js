@@ -470,6 +470,59 @@ function startGame(state) {
   // one continuous world: you arrive ON the property, at the clubhouse porch —
   // the shop is the building in front of you, and you walk in through its door
   enterWalk();
+  // hold an opaque veil over the first frames while every shader compiles and every
+  // texture uploads — otherwise the first look-around freezes on lazy GPU work
+  const veil = ensureLoadVeil();
+  veil.show(`Arriving at ${state.clubName}`);
+  app.prewarming = true;
+  const sceneRef = app.scene3d;
+  sceneRef
+    .prewarm((label) => veil.set(label))
+    .catch(() => {})
+    .finally(() => {
+      if (app.scene3d === sceneRef) app.prewarming = false;
+      veil.hide();
+    });
+}
+
+// full-screen loading veil (opaque — it also hides the prewarm camera swings)
+let loadVeil = null;
+function ensureLoadVeil() {
+  if (loadVeil) return loadVeil;
+  const el = document.createElement('div');
+  el.className = 'load-veil';
+  el.innerHTML = `
+    <div class="load-veil-card">
+      <div class="load-veil-logo">GOLF EMPIRE</div>
+      <div class="load-veil-title"></div>
+      <div class="load-veil-bar"><div class="load-veil-fill"></div></div>
+      <div class="load-veil-step"></div>
+    </div>`;
+  document.body.appendChild(el);
+  const title = el.querySelector('.load-veil-title');
+  const stepEl = el.querySelector('.load-veil-step');
+  const fill = el.querySelector('.load-veil-fill');
+  const STEPS = ['Compiling shaders', 'Uploading textures', 'Warming the view'];
+  loadVeil = {
+    show(t) {
+      title.textContent = t || 'Loading';
+      stepEl.textContent = 'Building the course';
+      fill.style.width = '12%';
+      el.style.display = 'flex';
+      el.style.opacity = '1';
+    },
+    set(label) {
+      stepEl.textContent = label;
+      const i = STEPS.indexOf(label);
+      if (i >= 0) fill.style.width = `${25 + (i / STEPS.length) * 70}%`;
+    },
+    hide() {
+      fill.style.width = '100%';
+      el.style.opacity = '0';
+      setTimeout(() => { el.style.display = 'none'; }, 420);
+    },
+  };
+  return loadVeil;
 }
 
 function exitToMenu() {
@@ -1098,7 +1151,7 @@ function frame(ts) {
     }
     const cal = calendarOf(app.state.clock.minutes);
     app.scene3d.applyTimeWeather(cal.minuteOfDay, app.state.weather);
-    app.scene3d.render(dtMs, app.state);
+    if (!app.prewarming) app.scene3d.render(dtMs, app.state); // prewarm owns the GPU behind the veil
     audioClock += dtMs;
     if (audioClock >= 1000) {
       const cal2 = calendarOf(app.state.clock.minutes);

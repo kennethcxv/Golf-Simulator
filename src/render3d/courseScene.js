@@ -31,6 +31,24 @@ import { ZONE_COLORS } from '../render/palette.js';
 const ELEV_FT_TO_YD = (1 / 3) * 1.5; // real feet→yards with 1.5x readability exaggeration
 const SEG_PER_CELL = 2;
 
+// --- asset-idle tracking: every loader here uses THREE.DefaultLoadingManager, so the
+// prewarm can wait for in-flight GLB/texture loads before compiling and uploading
+// (models finishing AFTER prewarm were the source of the remaining first-look hitches)
+let assetsInFlight = false;
+const assetIdleResolvers = [];
+THREE.DefaultLoadingManager.onStart = () => { assetsInFlight = true; };
+THREE.DefaultLoadingManager.onLoad = () => {
+  assetsInFlight = false;
+  while (assetIdleResolvers.length) assetIdleResolvers.shift()();
+};
+function whenAssetsIdle(timeoutMs) {
+  if (!assetsInFlight) return Promise.resolve();
+  return new Promise((res) => {
+    assetIdleResolvers.push(res);
+    setTimeout(res, timeoutMs); // never hold the veil hostage to a missing file
+  });
+}
+
 // --- real tree models (Kenney Nature Kit, CC0) — loaded once, shared across scenes ---
 const TREE_FILES = {
   deciduous: ['tree_default', 'tree_oak', 'tree_detailed', 'tree_fat'],
@@ -2600,9 +2618,61 @@ export function makeCourseScene(canvas, state) {
   resize();
   rig.apply();
 
+  // --- prewarm: compile every shader program + upload every texture behind the loading
+  // veil so the first real look-around never hitches on lazy GPU work (356ms freezes
+  // were measured on the first cold 360° turn before this existed)
+  async function prewarm(onStep) {
+    const tick = () => new Promise((res) => requestAnimationFrame(res));
+    const step = (label) => { if (onStep) onStep(label); };
+    step('Loading models');
+    await whenAssetsIdle(8000);
+    await tick();
+    step('Compiling shaders');
+    await tick();
+    renderer.compile(scene, camera);
+    await tick();
+    step('Uploading textures');
+    const seen = new Set();
+    const texKeys = ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap', 'alphaMap', 'bumpMap'];
+    const pending = [];
+    scene.traverse((o) => {
+      if (!o.material) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of mats) {
+        for (const k of texKeys) {
+          const t = m[k];
+          if (t && t.isTexture && !seen.has(t)) { seen.add(t); pending.push(t); }
+        }
+      }
+    });
+    // batched across frames — one giant burst would itself be the hitch we're removing
+    for (let i = 0; i < pending.length; i += 24) {
+      for (let j = i; j < Math.min(i + 24, pending.length); j++) renderer.initTexture(pending[j]);
+      await tick();
+    }
+    step('Warming the view');
+    // linking programs is not enough — Windows/ANGLE drivers defer the real compile to a
+    // program's FIRST DRAW. One frame with frustum culling off forces a draw of every
+    // visible material (and uploads its geometry); fragments off-screen are clipped.
+    const culled = [];
+    scene.traverse((o) => {
+      if (o.frustumCulled) { culled.push(o); o.frustumCulled = false; }
+    });
+    try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+    for (const o of culled) o.frustumCulled = true;
+    await tick();
+    // a couple of normal frames settle the AO history and bloom targets
+    for (let i = 0; i < 3; i++) {
+      camera.rotation.set(0, (i * Math.PI * 2) / 3, 0, 'YXZ');
+      try { composer.render(); } catch (e) { renderer.render(scene, camera); }
+      await tick();
+    }
+  }
+
   return {
     renderer,
     scene,
+    prewarm,
     camera,
     rig,
     post: { composer, gtao, bloom },
