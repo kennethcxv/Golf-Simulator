@@ -15,11 +15,11 @@ function box(w, h, d, mat, y = 0, z = 0) {
   return m;
 }
 
-export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe4 } = {}) {
+export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe4, skin = 0xd9a97e } = {}) {
   const mPolo = M(polo, 0.8);
   const mKhaki = M(khaki, 0.85);
-  const mSkin = M(0xd9a97e, 0.7);
-  const mCap = M(cap, 0.8);
+  const mSkin = M(skin, 0.7);
+  const mCap = cap == null ? null : M(cap, 0.8);
   const mShoe = M(0x33291f, 0.9);
 
   const root = new THREE.Group();
@@ -39,11 +39,18 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   skull.position.y = 0.06;
   skull.castShadow = true;
   head.add(skull);
-  const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 12), mCap);
-  capTop.position.y = 0.19;
-  head.add(capTop);
-  const brim = box(0.2, 0.03, 0.16, mCap, 0.16, -0.16);
-  head.add(brim);
+  if (mCap) {
+    const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 12), mCap);
+    capTop.position.y = 0.19;
+    head.add(capTop);
+    const brim = box(0.2, 0.03, 0.16, mCap, 0.16, -0.16);
+    head.add(brim);
+  } else {
+    // bare head gets hair instead of a cap
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.1), M(0x4a3a28, 0.95));
+    hair.position.y = 0.1;
+    head.add(hair);
+  }
 
   const limbs = {};
   for (const [side, sx] of [['L', 1], ['R', -1]]) {

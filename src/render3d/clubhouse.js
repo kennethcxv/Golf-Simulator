@@ -1936,12 +1936,16 @@ export function makeClubhouse(ctx) {
 
   function spawnCustomer(toCounter = false) {
     const rng = rngOf(state);
+    // real variety on the floor: builds, trousers, skin tones, hats or hair
+    const TROUSERS = [0xc2b190, 0x8a8577, 0x4b545c, 0x6b5a44];
+    const SKINS = [0xd9a97e, 0xb9865e, 0x8a5f42, 0xe8c39a];
     const char = makeCharacter({
       polo: CUST_COLORS[rng.int(CUST_COLORS.length)],
-      khaki: 0xc2b190,
-      cap: rng.chance(0.6) ? 0xf2efe4 : 0x2c3e66,
+      khaki: TROUSERS[rng.int(TROUSERS.length)],
+      skin: SKINS[rng.int(SKINS.length)],
+      cap: rng.chance(0.55) ? (rng.chance(0.5) ? 0xf2efe4 : 0x2c3e66) : null,
     });
-    char.root.scale.setScalar(0.92);
+    char.root.scale.setScalar(0.87 + rng.next() * 0.12);
     char.setMode('Walk');
     char.root.userData.char = char;
     const g = char.root;
