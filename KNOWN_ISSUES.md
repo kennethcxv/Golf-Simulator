@@ -320,3 +320,32 @@ Open / deliberate (this arc):
   point inside a collider (the layout tests guard the shipped plan).
 - **Two benign console warnings** appear on reload in automation (none in
   normal play; zero errors everywhere).
+
+## STABILIZATION PASS (2026-07-14) — shipped & honest deferrals
+
+Shipped this pass (all live-verified, commits fa98c2c..528fa78): first-look stutter
+eliminated (0 spikes vs 356ms freezes, loading veil with real steps), laptop physically
+corrected (hinge/screen/keyboard proven with axis arrows), doors in real frames with
+swing-away + pushout + slab-tracking collision, boxes as positional world objects with
+cut-tape/armful/flatten opening, framed wall-mounted course map, customer grid-A*
+navigation (zero penetrations in soak), commercial pause menu with working graphics
+settings, manual cash/card checkout with change math + receipt + bag + counter items,
+delivery windows with statuses and notifications, stocked-weighted browsing with
+inspect-and-return, chaptered interactive tutorial, exterior architecture (steps, rails,
+gutters, skirt, walk, club sign) + exterior neglect/repair gameplay, rendered supplier
+thumbnails (29/29), customer variety (builds/skins/trousers/hats-or-hair), drawer bell.
+
+Open / deliberate after this pass:
+- **Delivery boxes are one size** — the brief wants size-by-contents (club boxes long,
+  bag boxes tall). Deferred: needs carry-pose variants; contents-count is honest today.
+- **Customer mess props** (dropped items, misplaced stock) deferred — inspect-and-return
+  exists; persistent mess props need cap/cooldown design worth doing properly.
+- **NPC door use is auto-open** (movement-gated) — reach/close animations need the
+  character-animation pass; customers never pass through a closed door.
+- **Card declines and Realistic change-counting are unit-tested** (5 payment tests) but
+  a live decline hasn't been observed in-session (6% event) and Realistic mode wasn't
+  live-run this pass — flows exist, labels verified in code path only.
+- **Ceiling can crescent** from oblique angles, **desk side stretchers** clip the office
+  wainscot, **carried-box tape strip** floats — cosmetic, queued.
+- **Character animations** remain the procedural Walk/Browse/Idle set — reach, pay,
+  receive-bag anims need the full character pass (artist or animation kit).
