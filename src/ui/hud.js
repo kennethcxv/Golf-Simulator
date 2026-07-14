@@ -131,7 +131,7 @@ export function makeHud(app, handlers) {
     groundsEntry.btn.classList.toggle('active-tool', app.groundsOpen);
     clubEntry.btn.classList.toggle('active-tool', app.clubOpen);
     empireEntry.btn.classList.toggle('active-tool', !!app.empireOpen);
-    shopEntry.btn.classList.toggle('active-tool', app.shopOpen || app.view === 'shop3d');
+    shopEntry.btn.classList.toggle('active-tool', app.shopOpen);
   }
 
   return { root, update };

@@ -2268,3 +2268,56 @@ on the entrance approach, on a flat pad so its baked garden bed reads as its
 own yard). Placement lands with the world-build step.
 
 Next: steps 4–7 — the seamless building + real doors + the floor plan.
+
+## 2026-07-13 — Steps 4–7: ONE CONTINUOUS WORLD — the clubhouse is a real building
+
+The P-key scene swap is GONE. src/render3d/shopScene.js is deleted; its whole
+interior (grime canvas, clutter, decor+ghosts, stock silhouettes, customers,
+queue, register check-in, computer, condition lighting, vacuum) now lives in
+src/render3d/clubhouse.js, built INSIDE the course scene on the shopLayout.js
+floor plan. Exterior and interior are the same wall geometry — walls are box
+segments around true openings, so the two align by construction and the
+windows genuinely see the course.
+
+Measured, live, zero console errors:
+- CLOSED door blocks: walking into it stops at z 236.37 (slab 235.9 + 0.15
+  collider + 0.34 body — the math to the centimeter).
+- [E] swings it on its hinge to −1.92 rad and drops its collider; walking
+  through lands INSIDE (isInside true) — no fade, teleport, or scene swap.
+- Doors auto-swing for customers (they can't press E), auto-close after ~5 s
+  of nobody near, and re-collide when shut. Three of them: porch entrance,
+  office→stockroom, stockroom→receiving (east wall, delivery pad outside).
+- The 13×8 grime migration ran live on the old QA save: condition chip read
+  "Shop condition 19 — filthy" over the resampled dirt.
+- The office computer prop opens the real desk panel ([E] → shopOpen true).
+- Boot/resume now arrives ON the property at the porch (startGame → enterWalk).
+
+New floor plan built and dressed: entrance (mat, hours sign, feature table),
+counter+register+card reader+bags+printer, club wall (3 racks), ball wall,
+accessories, gloves/socks, apparel tables + hat tree, bag stand, shoe wall +
+bench, lounge (trophy shelf, course photo), office (desk/chair/monitor/wall
+course map that draws the REAL course/calendar), stockroom (backshelves that
+stack cases from real backroom counts, hand truck, bin), receiving pad.
+Interior detail distance-gates at 80 yd (interior.visible), customers walk in
+from the course through the actual door (doorbell on crossing the threshold).
+
+The vacuum joined the walk tool belt: inside the shop F toggles hands↔vacuum
+(hose/divot/rake remain the outdoor belt), same hold-LMB verb, motes stream
+to the nozzle, cleaning writes through the same cleanGrimeAt.
+
+Also: the optimized HOUSE stands on the entrance approach as the
+groundskeeper's residence (qa/world-approach-house.jpeg — its baked garden
+bed reads as its own yard), the golf-cart GLB parks by the clubhouse as the
+members' shuttle (both were the last unused Assets/), and scrub trees now
+respect a clearway around the building (two pines used to grow through the
+porch).
+
+Known deltas, honest: the old shopOverlay/enterShop wiring is stubbed (dock's
+"Pro shop desk" opens the panel; enterShop toasts walk-in guidance) until the
+UI overhaul re-homes it; tutorial copy still says "step OUT through the shop
+door" while the game now boots outside — onboarding rewrite lands with the
+first-time-flow step. Suite 220/220.
+
+Evidence: qa/world-approach.jpeg (porch + open door + customer inside),
+world-interior-entrance.jpeg (dirty floor, fixtures, course through windows),
+world-counter/-office/-stockroom/-clubwall.jpeg, world-approach-house.jpeg.

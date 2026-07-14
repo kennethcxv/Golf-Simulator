@@ -24,6 +24,7 @@ import { clearLitter, fixTeeSign, PROPS } from '../sim/props.js';
 import { conditionRating } from '../sim/turf.js';
 import { makeCameraRig } from './cameraRig.js';
 import { makeCharacter } from './characterAsset.js';
+import { makeClubhouse } from './clubhouse.js';
 import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture } from './proceduralTextures.js';
 import { ZONE_COLORS } from '../render/palette.js';
 
@@ -769,10 +770,17 @@ export function makeCourseScene(canvas, state) {
 
   function computeTreeSpots() {
     const spots = [];
+    // keep the clubhouse's porch, approach, and yard clear of scrub trees —
+    // the entrance is a real walkway now, not scenery
+    const clear = [];
+    for (const s of course.structures) {
+      clear.push({ x0: s.x - 2, x1: s.x + s.w + 2, y0: s.y - 2, y1: s.y + s.h + 4 });
+    }
     // interior scrub trees
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         if (course.zones[y * W + x] !== ZONE.OUT) continue;
+        if (clear.some((c) => x >= c.x0 && x <= c.x1 && y >= c.y0 && y <= c.y1)) continue;
         const h = treeHash(x * 7 + 3, y * 5 + 1);
         if (h > 0.78) spots.push({ x, y, r: h });
       }
@@ -948,139 +956,27 @@ export function makeCourseScene(canvas, state) {
   roofNor.repeat.set(4, 2);
 
   function rebuildStructures() {
+    // THE CLUBHOUSE is a real building now (clubhouse.js): exterior shell and
+    // pro-shop interior share one wall geometry, doors hinge and collide, and
+    // the player walks in with no transition. It registers its own interaction
+    // props and colliders into walkProps/propColliders.
     if (structGroup) scene.remove(structGroup);
     structGroup = new THREE.Group();
     windowMats.length = 0;
-
-    // STYLE GUIDE §1 architecture: cream siding + white trim + sage-green roof —
-    // flat saturated color with only the normal maps for relief (photo albedo off)
-    const sidingMat = new THREE.MeshStandardMaterial({ color: 0xe9e2cc, normalMap: sidingNor, roughness: 0.85 });
-    const trimMat = new THREE.MeshStandardMaterial({ color: 0xf5f2e6, roughness: 0.7 });
-    const roofMat = new THREE.MeshStandardMaterial({ color: 0x57795c, normalMap: roofNor, roughness: 0.75, side: THREE.DoubleSide });
-
-    for (const s of course.structures) {
+    if (clubhouseApi) {
+      clubhouseApi.dispose();
+      clubhouseApi = null;
+    }
+    const s = course.structures[0];
+    if (s) {
       const wx = (s.x + s.w / 2) * CELL_YD - worldW / 2;
       const wz = (s.y + s.h / 2) * CELL_YD - worldH / 2;
-      const y = heightAt(wx, wz);
-      const g = new THREE.Group();
-
-      // main gabled volume
-      const W2 = 26; // yards wide (x)
-      const D2 = 16; // deep (z)
-      const WALL_H = 5.2;
-      const PEAK = 4.2;
-
-      const body = new THREE.Mesh(new THREE.BoxGeometry(W2, WALL_H, D2), sidingMat);
-      body.position.set(0, WALL_H / 2, 0);
-      body.castShadow = true;
-      body.receiveShadow = true;
-      g.add(body);
-
-      // gable ends (triangles)
-      const gableShape = new THREE.Shape();
-      gableShape.moveTo(-W2 / 2, 0);
-      gableShape.lineTo(W2 / 2, 0);
-      gableShape.lineTo(0, PEAK);
-      gableShape.closePath();
-      const gableGeo = new THREE.ShapeGeometry(gableShape);
-      for (const zSide of [-1, 1]) {
-        const gable = new THREE.Mesh(gableGeo, sidingMat);
-        gable.position.set(0, WALL_H, zSide * (D2 / 2 - 0.01));
-        if (zSide < 0) gable.rotation.y = Math.PI;
-        gable.castShadow = true;
-        g.add(gable);
-      }
-
-      // pitched roof: solid slabs (boxes can't read as voids from any angle)
-      const slopeLen = Math.hypot(PEAK, D2 / 2) + 1.6;
-      const roofPitch = Math.atan2(PEAK, D2 / 2);
-      for (const zSide of [-1, 1]) {
-        const roofSlab = new THREE.Mesh(new THREE.BoxGeometry(W2 + 2.8, 0.22, slopeLen), roofMat);
-        roofSlab.rotation.x = zSide * roofPitch; // outer edge low, ridge high
-        roofSlab.position.set(0, WALL_H + PEAK / 2 + 0.1, zSide * (D2 / 4 + 0.35));
-        roofSlab.castShadow = true;
-        roofSlab.receiveShadow = true;
-        g.add(roofSlab);
-      }
-      // ridge cap
-      const ridge = new THREE.Mesh(new THREE.BoxGeometry(W2 + 2.4, 0.25, 0.6), trimMat);
-      ridge.position.set(0, WALL_H + PEAK + 0.15, 0);
-      g.add(ridge);
-
-      // porch along the south face (toward the course)
-      const PORCH_D = 4;
-      const slab = new THREE.Mesh(new THREE.BoxGeometry(W2 * 0.7, 0.3, PORCH_D), trimMat);
-      slab.position.set(0, 0.15, D2 / 2 + PORCH_D / 2);
-      slab.receiveShadow = true;
-      g.add(slab);
-      const porchRoof = new THREE.Mesh(new THREE.BoxGeometry(W2 * 0.7 + 1, 0.22, PORCH_D + 0.8), roofMat);
-      porchRoof.position.set(0, WALL_H - 0.6, D2 / 2 + PORCH_D / 2);
-      porchRoof.castShadow = true;
-      g.add(porchRoof);
-      for (const px of [-W2 * 0.32, -W2 * 0.11, W2 * 0.11, W2 * 0.32]) {
-        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, WALL_H - 0.9, 8), trimMat);
-        col.position.set(px, (WALL_H - 0.9) / 2 + 0.3, D2 / 2 + PORCH_D - 0.5);
-        col.castShadow = true;
-        g.add(col);
-      }
-
-      // windows — glass that glows warm after dark
-      const winGeo = new THREE.PlaneGeometry(2.2, 1.5);
-      const mkWindow = (x, z, ry) => {
-        const mat = new THREE.MeshStandardMaterial({
-          color: 0x223038,
-          roughness: 0.15,
-          metalness: 0.4,
-          emissive: 0xffd9a0,
-          emissiveIntensity: 0.05,
-        });
-        windowMats.push(mat);
-        const win = new THREE.Mesh(winGeo, mat);
-        win.position.set(x, 2.6, z);
-        win.rotation.y = ry;
-        g.add(win);
-        const frame = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.9), trimMat);
-        frame.position.set(x, 2.6, z);
-        frame.rotation.y = ry;
-        frame.translateZ(-0.02); // a hair behind the glass along its normal
-        g.add(frame);
-      };
-      // south face (porch side): two windows flanking the door
-      mkWindow(-W2 * 0.27, D2 / 2 + 0.03, 0);
-      mkWindow(W2 * 0.27, D2 / 2 + 0.03, 0);
-      // east + west ends
-      mkWindow(W2 / 2 + 0.03, 2.0, Math.PI / 2);
-      mkWindow(-W2 / 2 - 0.03, -2.0, -Math.PI / 2);
-      // north face
-      mkWindow(-W2 * 0.2, -D2 / 2 - 0.03, Math.PI);
-      mkWindow(W2 * 0.2, -D2 / 2 - 0.03, Math.PI);
-
-      // door + step — hinged, swings open as you walk up (walkUpdate drives it)
-      const doorHinge = new THREE.Group();
-      doorHinge.position.set(-0.8, 0, D2 / 2 + 0.03);
-      const door = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.6, 2.6),
-        new THREE.MeshStandardMaterial({ color: 0x3a5a40, roughness: 0.65, side: THREE.DoubleSide }), // club-green door (§1)
-      );
-      door.position.set(0.8, 1.3, 0);
-      doorHinge.add(door);
-      g.add(doorHinge);
-      clubDoor = { hinge: doorHinge, x: wx, z: wz + D2 / 2, angle: 0 };
-      const step = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.18, 0.9), trimMat);
-      step.position.set(0, 0.09, D2 / 2 + 0.75);
-      g.add(step);
-
-      // chimney
-      const chimney = new THREE.Mesh(
-        new THREE.BoxGeometry(1.1, 3.2, 1.1),
-        new THREE.MeshStandardMaterial({ color: 0x7a5a4a, roughness: 0.9 }),
-      );
-      chimney.position.set(W2 * 0.3, WALL_H + PEAK - 0.4, -D2 * 0.15);
-      chimney.castShadow = true;
-      g.add(chimney);
-
-      g.position.set(wx, y, wz);
-      structGroup.add(g);
+      clubhouseApi = makeClubhouse({
+        scene, camera, state,
+        center: { x: wx, z: wz },
+        heightAt, walkProps, propColliders, walk,
+        hooks: walkHooks,
+      });
     }
     scene.add(structGroup);
   }
@@ -1282,7 +1178,7 @@ export function makeCourseScene(canvas, state) {
   }
 
   let golfersFrozen = false; // QA/photography: hold the walkers still
-  let clubDoor = null; // { hinge, x, z, angle } — the clubhouse door swings for the walker
+  let clubhouseApi = null; // the real building (clubhouse.js): doors, interior, customers
 
   function updateGolfers(dt, st) {
     if (golfersFrozen) return;
@@ -1402,13 +1298,8 @@ export function makeCourseScene(canvas, state) {
       treeColliders.push({ x: p.x, z: p.z, r: 0.55 }); // trunk-and-a-bit — forgiving under a wide canopy
     }
     structColliders.length = 0;
-    for (const s of course.structures) {
-      const wx = (s.x + s.w / 2) * CELL_YD - worldW / 2;
-      const wz = (s.y + s.h / 2) * CELL_YD - worldH / 2;
-      // the clubhouse's main gabled body (26×16 yd, see rebuildStructures); the
-      // porch stays open — you can walk under its roof between the columns
-      structColliders.push({ minX: wx - 13.2, maxX: wx + 13.2, minZ: wz - 8.2, maxZ: wz + 8.2 });
-    }
+    // the clubhouse no longer blocks as one solid box — its walls register
+    // real per-segment colliders (with door gaps) via clubhouse.js
   }
 
   function walkIsWaterAt(x, z) {
@@ -1593,10 +1484,25 @@ export function makeCourseScene(canvas, state) {
   const heldRoot = new THREE.Group();
   heldRoot.visible = false;
   camera.add(heldRoot);
-  const heldGroups = { hose: new THREE.Group(), divot: new THREE.Group(), rake: new THREE.Group() };
+  const heldGroups = { hose: new THREE.Group(), divot: new THREE.Group(), rake: new THREE.Group(), vacuum: new THREE.Group() };
   for (const g of Object.values(heldGroups)) {
     g.visible = false;
     heldRoot.add(g);
+  }
+  {
+    // the shop vacuum wand (procedural — same one the old shop scene carried)
+    const wandBody = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.045, 0.6, 8),
+      new THREE.MeshStandardMaterial({ color: 0x3a3d40, roughness: 0.6 }),
+    );
+    wandBody.rotation.x = Math.PI / 2 - 0.22;
+    const wandHead = new THREE.Mesh(
+      new THREE.BoxGeometry(0.2, 0.06, 0.12),
+      new THREE.MeshStandardMaterial({ color: 0xc23327, roughness: 0.55 }),
+    );
+    wandHead.position.set(0, -0.09, -0.32);
+    heldGroups.vacuum.add(wandBody, wandHead);
+    heldGroups.vacuum.position.set(0.34, -0.42, -0.7);
   }
   const loadHeld = (url, group, scale, pos, rot) => {
     new GLTFLoader().load(url, (g) => {
@@ -1795,7 +1701,19 @@ export function makeCourseScene(canvas, state) {
       return;
     }
     // a tool out: the prompt becomes a live readout on the patch ahead
-    if (walkTool) {
+    if (walkTool === 'vacuum') {
+      if (clubhouseApi) {
+        const ax = walk.x - Math.sin(walk.yaw) * 1.5;
+        const az = walk.z - Math.cos(walk.yaw) * 1.5;
+        const label = clubhouseApi.isInside(ax, az)
+          ? clubhouseApi.vacuumLabelAt(ax, az)
+          : 'Vacuum — take it inside the shop';
+        if (label) {
+          walkFocus = { kind: 'hose', label, cell: null };
+          return;
+        }
+      }
+    } else if (walkTool) {
       const labelHook = { hose: walkHooks.hoseLabelAt, divot: walkHooks.divotLabelAt, rake: walkHooks.rakeLabelAt }[walkTool];
       const aim = walkAimCell(3.0);
       if (aim && labelHook) {
@@ -1827,7 +1745,7 @@ export function makeCourseScene(canvas, state) {
       mountCart();
     } else if (walkFocus.kind === 'prop') {
       if (walkFocus.prop.action) walkFocus.prop.action();
-    } else if ((walkFocus.kind === 'turf' || walkFocus.kind === 'hose') && walkHooks.inspectAt) {
+    } else if ((walkFocus.kind === 'turf' || walkFocus.kind === 'hose') && walkFocus.cell && walkHooks.inspectAt) {
       walkHooks.inspectAt(walkFocus.cell.x, walkFocus.cell.y);
     }
   }
@@ -1982,7 +1900,9 @@ export function makeCourseScene(canvas, state) {
     // between the two so mounting reads as a real transition, not a cut
     mountBlend = clamp(mountBlend + (cart.mounted ? 1 : -1) * (dt / 0.45), 0, 1);
     const mb = mountBlend * mountBlend * (3 - 2 * mountBlend);
-    const groundY = heightAt(walk.x, walk.z);
+    // inside the clubhouse (or on its porch) you stand on the level floor slab
+    const floorY = clubhouseApi ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
+    const groundY = floorY !== null && floorY !== undefined ? floorY : heightAt(walk.x, walk.z);
     if (mb <= 0.001) {
       camera.position.set(walk.x, groundY + walk.eye, walk.z);
       camera.rotation.order = 'YXZ';
@@ -2012,21 +1932,17 @@ export function makeCourseScene(canvas, state) {
         fLookZ + (walk.z - fLookZ) * mb,
       );
     }
-    // the clubhouse door swings for whoever walks up and shuts behind them
-    if (clubDoor) {
-      const near = walk.active && !cart.mounted &&
-        Math.hypot(walk.x - clubDoor.x, walk.z - clubDoor.z) < 2.4;
-      const want = near ? -1.7 : 0;
-      clubDoor.angle += (want - clubDoor.angle) * Math.min(1, dt * 6);
-      clubDoor.hinge.rotation.y = clubDoor.angle;
-    }
-
     updateHeldFeel(dt);
     walkFindFocus();
 
     // hold-to-use: each tool writes through its hook, with the same live
     // texture + particle feedback loop the hose established
-    if (walkSpraying && walkTool && !cart.mounted) {
+    if (walkSpraying && walkTool === 'vacuum' && !cart.mounted) {
+      // the vacuum cleans the shop floor at a continuous world point, not a turf cell
+      const ax = walk.x - Math.sin(walk.yaw) * 1.5;
+      const az = walk.z - Math.cos(walk.yaw) * 1.5;
+      if (clubhouseApi && clubhouseApi.isInside(ax, az)) clubhouseApi.vacuumAt(ax, az, dt);
+    } else if (walkSpraying && walkTool && !cart.mounted) {
       const useHook = { hose: walkHooks.waterAt, divot: walkHooks.repairAt, rake: walkHooks.rakeAt }[walkTool];
       const aim = walkAimCell(3.0);
       if (aim && useHook) {
@@ -2278,6 +2194,7 @@ export function makeCourseScene(canvas, state) {
     }
     if (st) updateGolfers(dtMs / 1000, st);
     if (st) updateRain(dtMs / 1000, st.weather);
+    if (clubhouseApi) clubhouseApi.update(dtMs); // doors, shop customers, interior life
     // flag wave
     if (holeGroup) {
       for (const o of holeGroup.children) {
@@ -2603,6 +2520,28 @@ export function makeCourseScene(canvas, state) {
       });
       propColliders.push({ x: bx - 15, z: bz + 16, r: 1.6 });
       yardHome = buildMaintenanceYard(bx, bz);
+
+      // the groundskeeper's residence — the owner-supplied house GLB, optimized
+      // (334k→67k tris, see DEV_LOG 2026-07-13) and finally on the property.
+      // Its baked garden bed reads as its own yard on the entrance approach.
+      putModel('vendor/models/clubhouse_ext_opt.glb', 20, bx - 30, bz + 27, 1.25, (m) => {
+        m.position.y -= 0.12; // settle the baked landscaping bed into the turf
+      });
+      propColliders.push({ minX: bx - 40, maxX: bx - 20, minZ: bz + 21, maxZ: bz + 33 });
+      walkProps.push({
+        x: bx - 30, z: bz + 24, r: 4.5,
+        label: () => "The groundskeeper's house — someone kept a nicer yard than the course",
+        action: null,
+      });
+
+      // the club's golf cart, parked by the porch (ambient prop for now)
+      putModel('vendor/models/golf_cart.glb', 2.6, bx + 9.5, bz + 12.5, 2.2);
+      propColliders.push({ x: bx + 9.5, z: bz + 12.5, r: 1.3 });
+      walkProps.push({
+        x: bx + 9.5, z: bz + 12.5, r: 2.6,
+        label: () => "The club's cart — members' shuttle (the tractor is yours)",
+        action: null,
+      });
     }
   }
   buildCourseProps();
@@ -2637,6 +2576,7 @@ export function makeCourseScene(canvas, state) {
     applyTimeWeather,
     heightAt,
     setGolfersFrozen: (v) => { golfersFrozen = !!v; },
+    clubhouse: () => clubhouseApi,
     walk: {
       enter: walkEnter,
       exit: walkExit,

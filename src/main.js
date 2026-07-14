@@ -25,7 +25,6 @@ import { makeClubPanel } from './ui/clubPanel.js';
 import { makeShopPanel } from './ui/shopPanel.js';
 import { makeEmpirePanel } from './ui/empirePanel.js';
 import { openMarketplace } from './ui/marketplacePanel.js';
-import { makeShopScene } from './render3d/shopScene.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
 import { makeAudio } from './core/audio.js';
 import { tickTutorial, tutorialFlag } from './sim/tutorial.js';
@@ -40,13 +39,12 @@ const uiRoot = document.getElementById('ui');
 
 const app = {
   screen: 'menu', // 'menu' | 'game'
-  view: 'course', // 'course' | 'shop3d'
+  view: 'course', // one continuous world — the shop is a building you walk into
   courseMode: 'walk', // 'walk' (first-person, the default) | 'overview' (management rig)
   empire: null, // the whole game: wallet, market, holdings
   empireOpen: false,
   state: null, // the ACTIVE property's club state (== activeState(app.empire))
   scene3d: null,
-  shopScene: null,
   plan: null,
   worksMode: false,
   activeTool: null,
@@ -70,7 +68,6 @@ let groundsPanel = null;
 let clubPanel = null;
 let shopPanel = null;
 let empirePanel = null;
-let shopOverlay = null;
 let walkOverlay = null;
 let objectivesPanel = null;
 let menu = null;
@@ -200,23 +197,20 @@ function announceOutbreaks() {
 // --- game lifecycle -----------------------------------------------------------
 
 function startGame(state) {
-  if (app.view === 'shop3d' && app.shopScene) {
-    app.shopScene.exit();
-    if (shopOverlay) shopOverlay.style.display = 'none';
-    app.view = 'course';
-  }
   if (app.scene3d) {
     app.scene3d.dispose();
     app.scene3d = null;
   }
-  app.shopScene = null; // rebuilt lazily against the new renderer
   app.state = state;
   app.screen = 'game';
   app.scene3d = makeCourseScene(canvas, state);
   // walk-up inspection: the walking controller asks, the app answers with the
   // same sections and status words the top-down click-to-inspect always used
-  app.scene3d.walk.hooks.toast = (msg) => toast(msg);
+  app.scene3d.walk.hooks.toast = (msg, kind) => toast(msg, kind);
   app.scene3d.walk.hooks.sfx = (name) => { if (audio.ready && audio[name]) audio[name](); };
+  // the clubhouse's in-world management surfaces route through these
+  app.scene3d.walk.hooks.openShopDesk = () => handlers.openShopDesk();
+  app.scene3d.walk.hooks.toggleOverview = () => handlers.toggleCourseMode();
   app.scene3d.walk.hooks.turfLabelAt = (cx, cy) => {
     const section = sectionAtCell(cx, cy);
     if (!section) return null;
@@ -358,9 +352,9 @@ function startGame(state) {
   if (lastDiseasedNames.size > 0) {
     toast(`The greenskeeper's note: ${lastDiseasedNames.size} greens are fighting disease. Step outside and click them to diagnose.`, 'warn');
   }
-  // home base: the game LIVES in the pro shop — boot straight onto the floor;
-  // the course is a mode you deliberately step out into (shop door, E)
-  handlers.enterShop();
+  // one continuous world: you arrive ON the property, at the clubhouse porch —
+  // the shop is the building in front of you, and you walk in through its door
+  enterWalk();
 }
 
 function exitToMenu() {
@@ -434,47 +428,17 @@ const handlers = {
     shopPanel.setVisible(next);
   },
   enterShop() {
-    if (app.view === 'shop3d') return;
-    closeLeftPanels('none');
-    inspectPanel.hide();
-    exitWalk();
-    app.view = 'shop3d';
-    if (!app.shopScene) {
-      app.shopScene = makeShopScene(app.scene3d.renderer, {
-        app,
-        toast,
-        audio,
-        exitShop: () => handlers.exitShop(),
-        openShopDesk: () => {
-          // the office computer: free the cursor, open the REAL desk panel
-          if (document.pointerLockElement) document.exitPointerLock();
-          if (!app.shopOpen) {
-            closeLeftPanels('shop');
-            shopPanel.setVisible(true);
-          }
-        },
-      });
-    }
-    app.shopScene.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
-    app.shopScene.enter();
-    if (app.state) tutorialFlag(app.state, 'shopWalked');
-    shopOverlay.style.display = '';
-    document.querySelector('.hint-bar').style.display = 'none';
-    try {
-      const p = canvas.requestPointerLock?.();
-      if (p && p.catch) p.catch(() => {}); // some environments refuse; click-to-look covers it
-    } catch { /* fall back to click-to-look */ }
+    // legacy entry point (dock/panel buttons): the shop is a real building now
+    if (app.courseMode === 'overview') handlers.toggleCourseMode();
+    toast('The pro shop is the clubhouse — walk up the porch and open the door (E).');
   },
-  exitShop() {
-    if (app.view !== 'shop3d') return;
-    app.view = 'course';
-    app.shopScene.exit();
-    shopOverlay.style.display = 'none';
-    document.querySelector('.hint-bar').style.display = '';
-    app.scene3d.resize();
-    // stepping out the door puts you ON the course, at the door — the walkable
-    // view is the course experience; the overview rig is one Tab away
-    if (app.courseMode === 'walk') enterWalk();
+  openShopDesk() {
+    // the office computer: free the cursor, open the REAL desk panel
+    if (document.pointerLockElement) document.exitPointerLock();
+    if (!app.shopOpen) {
+      closeLeftPanels('shop');
+      shopPanel.setVisible(true);
+    }
   },
   toggleCourseMode() {
     if (app.view !== 'course' || !app.scene3d) return;
@@ -536,7 +500,6 @@ const handlers = {
   // --- empire layer -------------------------------------------------------
   toggleEmpire() {
     if (!app.empire) return;
-    if (app.view === 'shop3d') handlers.exitShop(); // panels live over the course view
     const next = !app.empireOpen;
     if (next) closeLeftPanels('empire');
     empirePanel.setVisible(next);
@@ -614,7 +577,7 @@ function openPauseMenu() {
   modal('Clubhouse Office', (box, close) => {
     const closeAnd = (fn) => async () => { await fn(); close(); };
     box.append(
-      el('div', { class: 'row' }, el('button', { class: 'primary', text: app.view === 'shop3d' ? 'Back to the shop' : 'Back to the course', onclick: () => { app.speedIdx = prevSpeed || 1; close(); } })),
+      el('div', { class: 'row' }, el('button', { class: 'primary', text: 'Back to the course', onclick: () => { app.speedIdx = prevSpeed || 1; close(); } })),
       el('div', { class: 'row' }, el('button', {
         text: '🏢 Empire overview',
         onclick: () => {
@@ -744,24 +707,14 @@ function refreshHover(clientX, clientY) {
 }
 
 canvas.addEventListener('click', () => {
-  // first-person views (shop, walkable course): clicking (re)captures the mouse
-  if (app.screen === 'game' && !document.pointerLockElement
-    && (app.view === 'shop3d' || walkActive())) {
+  // first-person walking: clicking (re)captures the mouse
+  if (app.screen === 'game' && !document.pointerLockElement && walkActive()) {
     requestLook();
   }
 });
 
 canvas.addEventListener('pointerdown', (e) => {
   if (app.screen !== 'game') return;
-  if (app.view === 'shop3d') {
-    // holding the button runs the vacuum, exactly like the hose outside
-    if (e.button === 0 && app.shopScene && app.shopScene.getTool() === 'vacuum') {
-      app.shopScene.setVacuuming(true);
-      if (audio.ready) audio.setToolLoop('vacuum');
-    }
-    return;
-  }
-  if (app.view !== 'course') return;
   if (app.courseMode !== 'overview') {
     // walking with any tool out: the held button is the use trigger
     if (e.button === 0 && walkActive() && app.scene3d.walk.getTool()) {
@@ -824,7 +777,6 @@ canvas.addEventListener('pointermove', (e) => {
 
 window.addEventListener('pointerup', () => {
   if (walkActive() && app.scene3d.walk.isSpraying()) app.scene3d.walk.setSpraying(false);
-  if (app.view === 'shop3d' && app.shopScene && app.shopScene.isVacuuming()) app.shopScene.setVacuuming(false);
   if (audio.ready) audio.setToolLoop(null);
 });
 
@@ -861,38 +813,6 @@ window.addEventListener('keydown', (e) => {
     case '3': app.speedIdx = 3; return;
   }
 
-  if (app.view === 'shop3d') {
-    switch (e.key) {
-      case 'e': case 'E':
-        app.shopScene.interact();
-        break;
-      case 'f': case 'F':
-        // the vacuum follows the course hose convention: F equips, LMB uses
-        if (app.shopScene.getTool() === 'vacuum') {
-          app.shopScene.setTool(null);
-          if (audio.ready) audio.equipTick();
-          toast('Vacuum stowed.');
-        } else if (app.state && vacuumOwned(app.state)) {
-          app.shopScene.setTool('vacuum');
-          if (audio.ready) audio.equipTick();
-          toast('Vacuum out — hold the mouse button and work the dirty patches.');
-        } else {
-          toast('No vacuum here yet — order one from the Shop desk.', 'warn');
-        }
-        break;
-      case 'p': case 'P':
-        handlers.exitShop(); // quick toggle out to the course
-        break;
-      case 'Escape':
-        // first Esc releases the pointer (browser); next closes an open desk
-        // panel; the one after opens the office menu — the shop is home
-        if (app.shopOpen || app.groundsOpen || app.clubOpen || app.empireOpen) closeLeftPanels('none');
-        else if (!document.pointerLockElement) openPauseMenu();
-        break;
-    }
-    return;
-  }
-
   if (e.key === 'Tab') {
     e.preventDefault(); // Tab is the camera toggle, not DOM focus
     handlers.toggleCourseMode();
@@ -908,14 +828,28 @@ window.addEventListener('keydown', (e) => {
       case 'f': case 'F': {
         const walkApi = app.scene3d.walk;
         if (!walkApi.cart.mounted) {
-          // the tool belt: F cycles hose → divot kit → bunker rake → hands free
-          const belt = [null, 'hose', 'divot', 'rake'];
-          const next = belt[(belt.indexOf(walkApi.getTool()) + 1) % belt.length];
+          // the tool belt: inside the shop it's hands ↔ vacuum; outside it
+          // cycles hose → divot kit → bunker rake → hands free
+          const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
+          const inside = ch && ch.isInside(walkApi.state.x, walkApi.state.z);
+          let belt;
+          if (inside) {
+            if (!(app.state && vacuumOwned(app.state))) {
+              toast('No vacuum here yet — order one at the office computer.', 'warn');
+              break;
+            }
+            belt = [null, 'vacuum'];
+          } else {
+            belt = [null, 'hose', 'divot', 'rake'];
+          }
+          const cur = belt.indexOf(walkApi.getTool());
+          const next = belt[(cur + 1) % belt.length];
           walkApi.setTool(next);
           if (audio.ready) audio.equipTick();
           toast(next === 'hose' ? 'Hose out — hold the mouse button to water.'
             : next === 'divot' ? 'Divot kit out — hold the button on worn turf.'
             : next === 'rake' ? 'Bunker rake out — hold the button on footprinted sand.'
+            : next === 'vacuum' ? 'Vacuum out — hold the mouse button and work the dirty patches.'
             : 'Tools away.');
         }
         break;
@@ -931,9 +865,6 @@ window.addEventListener('keydown', (e) => {
       case 'm': case 'M':
         if (document.pointerLockElement) document.exitPointerLock();
         handlers.toggleEmpire();
-        break;
-      case 'p': case 'P':
-        handlers.enterShop();
         break;
       case 'v': case 'V': {
         const modes = ['normal', 'health', 'moisture'];
@@ -959,9 +890,6 @@ window.addEventListener('keydown', (e) => {
       break;
     case 'c': case 'C':
       handlers.toggleClub();
-      break;
-    case 'p': case 'P':
-      handlers.enterShop();
       break;
     case 'm': case 'M':
       handlers.toggleEmpire();
@@ -1055,19 +983,13 @@ function frame(ts) {
         objectivesPanel.refresh();
       }
     }
-    if (app.view === 'shop3d' && app.shopScene) {
-      app.shopScene.update(dtMs);
-      app.shopScene.render();
-      updateShopOverlay();
-    } else {
-      if (walkActive()) {
-        app.scene3d.walk.update(dtMs);
-        updateWalkOverlay();
-      }
-      const cal = calendarOf(app.state.clock.minutes);
-      app.scene3d.applyTimeWeather(cal.minuteOfDay, app.state.weather);
-      app.scene3d.render(dtMs, app.state);
+    if (walkActive()) {
+      app.scene3d.walk.update(dtMs);
+      updateWalkOverlay();
     }
+    const cal = calendarOf(app.state.clock.minutes);
+    app.scene3d.applyTimeWeather(cal.minuteOfDay, app.state.weather);
+    app.scene3d.render(dtMs, app.state);
     audioClock += dtMs;
     if (audioClock >= 1000) {
       const cal2 = calendarOf(app.state.clock.minutes);
@@ -1075,7 +997,8 @@ function frame(ts) {
         minuteOfDay: cal2.minuteOfDay,
         rainIn: app.state.weather.today.rainIn,
         golfersVisible: cal2.minuteOfDay >= 360 && cal2.minuteOfDay <= 1200 ? (app.state.club.lastRounds || 0) : 0,
-        inShop: app.view === 'shop3d',
+        inShop: !!(app.scene3d && app.scene3d.clubhouse && app.scene3d.clubhouse()
+          && app.scene3d.clubhouse().isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z)),
         tempHiF: app.state.weather.today.tempHiF,
       });
       audioClock = 0;
@@ -1089,24 +1012,6 @@ const CONDITION_WORD = (c) =>
   c < 25 ? 'filthy' : c < 45 ? 'grimy' : c < 70 ? 'getting there' : c < 90 ? 'clean' : 'showroom';
 let lastCondWord = null;
 
-function updateShopOverlay() {
-  const prompt = shopOverlay.querySelector('.shop-prompt');
-  const label = app.shopScene.getFocusLabel();
-  prompt.textContent = label || '';
-  prompt.style.opacity = label ? '1' : '0';
-  const cond = shopOverlay.querySelector('.shop-cond');
-  if (app.state && app.state.shop) {
-    const c = shopCondition(app.state);
-    const word = CONDITION_WORD(c);
-    cond.textContent = `🧹 Shop condition ${c} — ${word}`;
-    // milestone moment: the shop's read just improved a whole tier
-    if (lastCondWord && word !== lastCondWord && c >= 25 && audio.ready) audio.chime();
-    lastCondWord = word;
-  }
-  const lockHint = shopOverlay.querySelector('.shop-lockhint');
-  lockHint.style.display = document.pointerLockElement ? 'none' : '';
-}
-
 function updateWalkOverlay() {
   const prompt = walkOverlay.querySelector('.shop-prompt');
   const label = app.scene3d.walk.getFocusLabel ? app.scene3d.walk.getFocusLabel() : null;
@@ -1114,6 +1019,21 @@ function updateWalkOverlay() {
   prompt.style.opacity = label ? '1' : '0';
   const lockHint = walkOverlay.querySelector('.shop-lockhint');
   lockHint.style.display = document.pointerLockElement ? 'none' : '';
+  // inside the shop: the condition chip rides along (and tier-ups chime)
+  const cond = walkOverlay.querySelector('.shop-cond');
+  const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
+  const inside = ch && ch.isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z);
+  if (inside && app.state && app.state.shop) {
+    if (app.state.tutorial) tutorialFlag(app.state, 'shopWalked');
+    const c = shopCondition(app.state);
+    const word = CONDITION_WORD(c);
+    cond.textContent = `🧹 Shop condition ${c} — ${word}`;
+    cond.style.display = '';
+    if (lastCondWord && word !== lastCondWord && c >= 25 && audio.ready) audio.chime();
+    lastCondWord = word;
+  } else {
+    cond.style.display = 'none';
+  }
 }
 
 // one-shot endgame + failure modals
@@ -1179,7 +1099,6 @@ function announceReopenings() {
 
 function resize() {
   if (app.scene3d) app.scene3d.resize();
-  if (app.shopScene) app.shopScene.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
 }
 window.addEventListener('resize', resize);
 
@@ -1208,19 +1127,11 @@ function boot() {
   empirePanel = makeEmpirePanel(app, handlers);
   objectivesPanel = makeObjectivesPanel(app);
 
-  shopOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
-    el('div', { class: 'shop-crosshair' }),
-    el('div', { class: 'shop-prompt', text: '' }),
-    el('div', { class: 'shop-cond', text: '' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD move · E interact · F vacuum · P: course · Esc: office menu' }),
-    el('button', { class: 'shop-leave', text: '⛳ Out to the course (P)', onclick: () => handlers.exitShop() }),
-  );
-
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
     el('div', { class: 'shop-prompt', text: '' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F cycle tool · Tab: overview camera · P: shop · Esc: office menu' }),
-    el('button', { class: 'shop-leave', text: '🏪 Back to the shop (P)', onclick: () => handlers.enterShop() }),
+    el('div', { class: 'shop-cond', text: '', style: 'display:none' }),
+    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F tool · Tab: overview camera · Esc: office menu' }),
   );
 
   const viewButtons = ['normal', 'health', 'moisture'].map((mode) =>
@@ -1234,8 +1145,8 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, empirePanel.root, shopOverlay, walkOverlay, objectivesPanel.root, viewToggle,
-    el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · 🗂 Manage or E/G/C/M keys for the desks · V: view · Space: pause · Tab/Esc: back on foot · P: shop' }));
+  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, empirePanel.root, walkOverlay, objectivesPanel.root, viewToggle,
+    el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · 🗂 Manage or E/G/C/M keys for the desks · V: view · Space: pause · Tab/Esc: back on foot' }));
 
   uiRoot.append(menu.root, gameUi);
   requestAnimationFrame(frame);
