@@ -427,42 +427,44 @@ export function makeClubhouse(ctx) {
       new THREE.MeshStandardMaterial({ map: kbTex, roughness: 0.7 }),
     );
     kb.rotation.x = -Math.PI / 2;
-    kb.position.set(0, 0.023, -0.07);
+    kb.position.set(0, 0.023, 0.07); // keyboard on the FAR half — nearest keys sit by the hinge
     laptop.add(kb);
     const trackpad = new THREE.Mesh(
       new THREE.PlaneGeometry(0.16, 0.1),
       new THREE.MeshStandardMaterial({ color: 0x7d838a, roughness: 0.35, metalness: 0.5 }),
     );
     trackpad.rotation.x = -Math.PI / 2;
-    trackpad.position.set(0, 0.024, 0.12);
+    trackpad.position.set(0, 0.024, -0.12); // trackpad between keyboard and the seated player
     laptop.add(trackpad);
 
-    // lid: angle 0 = CLOSED flat over the deck; opening rotates -x about the
-    // rear hinge until the screen leans back at ~112°
-    const LID_OPEN = -1.8; // ~103°: upright enough to read square-on
+    // lid: hinged on the FAR (window-side) edge — local +z is world-east here, and the
+    // chair sits west — so the lid opens AWAY from the seated player and the display
+    // leans back facing them. angle 0 = CLOSED flat over the deck.
+    const LID_OPEN = 1.78; // ~102°: slight recline past vertical, like a real machine
     const lidHinge = new THREE.Group();
-    lidHinge.position.set(0, 0.026, -0.2);
+    lidHinge.position.set(0, 0.026, 0.2);
     const lid = new THREE.Mesh(roundedBox(0.6, 0.014, 0.4, 0.006), aluDark);
-    lid.position.set(0, 0.007, 0.2);
+    lid.position.set(0, 0.007, -0.2);
     lid.castShadow = true;
     lidHinge.add(lid);
     const screenCv = document.createElement('canvas');
     screenCv.width = 512; screenCv.height = 320;
     const screenTex = new THREE.CanvasTexture(screenCv);
     screenTex.colorSpace = THREE.SRGBColorSpace;
-    // the display faces DOWN when closed (underside of the lid)
+    // the display faces DOWN when closed (underside of the lid); the in-plane π turn
+    // makes the painted image read upright and unmirrored to the seated player
     const screen = new THREE.Mesh(
       new THREE.PlaneGeometry(0.56, 0.35),
       new THREE.MeshStandardMaterial({ map: screenTex, emissive: 0xffffff, emissiveMap: screenTex, emissiveIntensity: 0.6, roughness: 0.2 }),
     );
-    screen.rotation.x = Math.PI / 2;
-    screen.position.set(0, -0.0005, 0.2);
+    screen.rotation.set(Math.PI / 2, 0, Math.PI);
+    screen.position.set(0, -0.0005, -0.2);
     lidHinge.add(screen);
     const led = new THREE.Mesh(
       new THREE.SphereGeometry(0.008, 6, 4),
       new THREE.MeshStandardMaterial({ color: 0x223528, emissive: 0x35d06a, emissiveIntensity: 0.0 }),
     );
-    led.position.set(0.26, 0.026, 0.19);
+    led.position.set(0.26, 0.026, -0.19); // front edge, player side
     laptop.add(led, lidHinge);
     laptop.position.set(OFFICE.laptop.x - 0.12, 0.96, OFFICE.laptop.z);
     laptop.rotation.y = OFFICE.laptop.ry;
@@ -573,12 +575,12 @@ export function makeClubhouse(ctx) {
       bootT0 = performance.now();
       paintScreen('boot');
     };
-    // world-space corners of the DISPLAY (tl, tr, br, bl seen from the user)
+    // world-space corners of the DISPLAY (main.js orders the projected corners itself)
     const cornerLocal = [
-      new THREE.Vector3(0.28, 0, 0.2 + 0.175),
-      new THREE.Vector3(-0.28, 0, 0.2 + 0.175),
-      new THREE.Vector3(-0.28, 0, 0.2 - 0.175),
-      new THREE.Vector3(0.28, 0, 0.2 - 0.175),
+      new THREE.Vector3(0.28, 0, -0.2 + 0.175),
+      new THREE.Vector3(-0.28, 0, -0.2 + 0.175),
+      new THREE.Vector3(-0.28, 0, -0.2 - 0.175),
+      new THREE.Vector3(0.28, 0, -0.2 - 0.175),
     ];
     office.screenCorners = () => {
       lidHinge.updateWorldMatrix(true, false);
