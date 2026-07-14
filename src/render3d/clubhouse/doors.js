@@ -9,7 +9,7 @@
 
 import * as THREE from 'three';
 import { SHELL, DOOR_MAIN, DOOR_STOCK, DOOR_BACK } from '../../data/shopLayout.js';
-import { chooseSwingAngle } from '../../data/doorMath.js';
+import { chooseSwingAngle, hingeBearing, sweptBy } from '../../data/doorMath.js';
 import { carriedBox } from '../../sim/deliveries.js';
 import { tutorialFlag } from '../../sim/tutorial.js';
 
@@ -185,11 +185,7 @@ export function buildDoors(B) {
 
   // door angular basis: position angle of a point around the hinge, measured so
   // that 0 = the closed slab direction and + matches positive hinge rotation
-  function hingeAngleOf(d, lx, lz) {
-    const dx = lx - d.lx;
-    const dz = lz - d.lz;
-    return d.along === 'x' ? Math.atan2(-dz, dx) : Math.atan2(dx, dz);
-  }
+  const hingeAngleOf = (d, lx, lz) => hingeBearing(d, lx, lz); // shared with the occupancy rule
 
   function updateDoorCollider(d) {
     // AABB over the slab from hinge to tip at the current angle, padded
@@ -253,6 +249,15 @@ export function buildDoors(B) {
       label: () => `${name} — [E] ${door.open ? 'close' : 'open'}`,
       action: () => {
         if (door.open) {
+          const blocker = doorBlockedBy(door);
+          if (blocker) {
+            if (hooks.toast) {
+              hooks.toast(blocker === 'customer'
+                ? 'Someone is still in the doorway.'
+                : 'A box is in the way of the door.', 'warn');
+            }
+            return; // the slab does not move through anyone
+          }
           door.open = false;
         } else {
           door.openFor(walk.x, walk.z);
@@ -293,6 +298,24 @@ export function buildDoors(B) {
   // for anyone loitering at arm's length (that caused endless open/close flapping)
   const custMotion = new WeakMap();
 
+  // "Never close through an actor." A door may only shut through empty air: not a customer
+  // standing in it (too still to read as "heading through", too far to read as "in it"), and not
+  // a delivery box set down in the threshold. The player is handled by the radial push-out below,
+  // which physically moves them out of the slab's arc rather than refusing to move the slab.
+  function doorBlockedBy(d) {
+    for (const c of getCustomers()) {
+      const lp = W2L(c.mesh.position.x, c.mesh.position.z);
+      if (sweptBy(d, lp.x, lp.z, 0.32)) return 'customer';
+    }
+    const boxes = (state.shop && state.shop.deliveries && state.shop.deliveries.boxes) || [];
+    for (const b of boxes) {
+      if (b.loc !== 'world' || b.x === undefined) continue;
+      const lp = W2L(b.x, b.z);
+      if (sweptBy(d, lp.x, lp.z, 0.32)) return 'box';
+    }
+    return null;
+  }
+
   function updateDoors(dt, now) {
     const customers = getCustomers();
     const snaps = [];
@@ -332,8 +355,10 @@ export function buildDoors(B) {
         if (audible && hooks.sfx) hooks.sfx('doorSwing');
       }
 
-      // hold open while anyone lingers in it; close shortly after they clear
-      if (custNear || (d.open && playerDist < 2.0)) d.lastNear = now;
+      // hold open while anyone lingers in it; close shortly after they clear — but never
+      // through someone. A shopper reading a label in the doorway keeps it open as long as
+      // they stand there.
+      if (custNear || (d.open && playerDist < 2.0) || (d.open && doorBlockedBy(d))) d.lastNear = now;
       if (d.open && now - d.lastNear > 2.5) {
         d.open = false;
         if (audible && hooks.sfx) hooks.sfx('doorShut');

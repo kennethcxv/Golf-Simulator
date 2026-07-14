@@ -327,6 +327,10 @@ function startGame(state) {
   // walk-up inspection: the walking controller asks, the app answers with the
   // same sections and status words the top-down click-to-inspect always used
   app.scene3d.walk.hooks.toast = (msg, kind) => toast(msg, kind);
+  // a restrained note when the game had to dig the player out of geometry
+  app.scene3d.walk.hooks.recovered = (how) => toast(
+    how === 'lastSafe' ? 'Stepped you back to where you last had room.' : 'Moved you clear of the furniture.',
+  );
   app.scene3d.walk.hooks.sfx = (name) => { if (audio.ready && audio[name]) audio[name](); };
   // the clubhouse's in-world management surfaces route through these
   app.scene3d.walk.hooks.openLaptop = () => enterLaptop();
@@ -947,6 +951,17 @@ function openPauseMenu() {
     office: (c) => {
       c.append(
         el('div', { class: 'pause-hint', text: 'Management shortcuts and the way out.' }),
+        el('button', {
+          class: 'pause-wide',
+          text: '🧭 Get me unstuck',
+          onclick: () => {
+            const w = app.scene3d && app.scene3d.walk;
+            if (!w || !w.unstick) return;
+            const how = w.unstick();
+            closePauseMenu();
+            toast(how ? 'Freed you up — back on solid ground.' : 'Nowhere clear to move you to.', how ? 'good' : 'warn');
+          },
+        }),
         el('button', {
           class: 'pause-wide',
           text: 'Empire overview',

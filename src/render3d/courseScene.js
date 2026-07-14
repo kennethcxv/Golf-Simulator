@@ -19,6 +19,7 @@ import { ZONE, HOLE_STATUS, CELL_YD } from '../sim/constants.js';
 import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
 import { clamp } from '../core/utils.js';
+import { resolveOverlaps, createStuckMonitor, createSafeTrail, nearestFree } from '../core/unstick.js';
 import { tractorStep, repairTractor, tractorRemaining, STEP_LABEL } from '../sim/tractor.js';
 import { clearLitter, fixTeeSign, PROPS } from '../sim/props.js';
 import { conditionRating } from '../sim/turf.js';
@@ -1372,6 +1373,84 @@ export function makeCourseScene(canvas, state) {
     if (!walkBlocked(walk.x, nz, r)) walk.z = nz;
   }
 
+  // --- never permanently trapped ------------------------------------------------------
+  // walkTryMove only ever refuses to move INTO something; it cannot get you OUT of something.
+  // A door swinging shut, a box set down at your feet, a fixture placed on you — any of them
+  // used to end the run. Every frame we now push out of overlaps, breadcrumb the good ground,
+  // and escalate if the player is pressing a key and going nowhere anyway.
+  const safeTrail = createSafeTrail(30);
+  const stuckMon = createStuckMonitor({ softMs: 700, hardMs: 1800 });
+  const cartCol = []; // the parked cart, as a collider, only while it is parked
+  let safeClock = 0;
+
+  function walkColliderGroups() {
+    cartCol.length = 0;
+    if (!cart.mounted && !cartHidden) cartCol.push({ x: cart.x, z: cart.z, r: 1.1 });
+    return [structColliders, propColliders, treeColliders, cartCol];
+  }
+
+  // free = clear of every collider AND out of the water (walkBlocked knows about both)
+  const walkFreeAt = (x, z, r) => !walkBlocked(x, z, r);
+
+  function walkRecover(dtMs, px0, pz0) {
+    const r = cart.mounted ? cart.radius : walk.radius;
+
+    // 1. depenetrate: shortest way out of anything we are standing in
+    const fixed = resolveOverlaps(walk.x, walk.z, r, walkColliderGroups());
+    if (fixed.pushed) {
+      walk.x = fixed.x;
+      walk.z = fixed.z;
+    }
+
+    const overlapping = !walkFreeAt(walk.x, walk.z, r);
+    const moved = Math.hypot(walk.x - px0, walk.z - pz0);
+
+    // 2. breadcrumb ground we know is good
+    safeClock += dtMs;
+    if (!overlapping && safeClock > 180) {
+      safeClock = 0;
+      safeTrail.record(walk.x, walk.z);
+    }
+
+    // 3. still pinned? escalate. (read the keys, not walkMoving — a wedged cart counts too)
+    const wants = walkHeld.has('w') || walkHeld.has('a') || walkHeld.has('s') || walkHeld.has('d');
+    const escalate = stuckMon.update(dtMs, { wantsToMove: wants, moved, overlapping });
+    if (escalate) walkUnstick(escalate);
+  }
+
+  // also the pause menu's manual fallback, so the player is never at the mercy of a heuristic
+  function walkUnstick(how = 'auto') {
+    const r = cart.mounted ? cart.radius : walk.radius;
+    if (how === 'auto' || how === 'depenetrate') {
+      const fixed = resolveOverlaps(walk.x, walk.z, r, walkColliderGroups());
+      if (fixed.pushed && walkFreeAt(fixed.x, fixed.z, r)) {
+        walk.x = fixed.x;
+        walk.z = fixed.z;
+        stuckMon.reset();
+        return 'depenetrate';
+      }
+    }
+    if (how !== 'nearestFree') {
+      const back = safeTrail.recall((x, z) => walkFreeAt(x, z, r));
+      if (back) {
+        walk.x = back.x;
+        walk.z = back.z;
+        stuckMon.reset();
+        if (walkHooks.recovered) walkHooks.recovered('lastSafe');
+        return 'lastSafe';
+      }
+    }
+    const spot = nearestFree(walk.x, walk.z, (x, z) => walkFreeAt(x, z, r), 0.25, 60);
+    if (spot) {
+      walk.x = spot.x;
+      walk.z = spot.z;
+      stuckMon.reset();
+      if (walkHooks.recovered) walkHooks.recovered('nearestFree');
+      return 'nearestFree';
+    }
+    return null; // nowhere to go: the caller can say so honestly rather than teleport into a wall
+  }
+
   // --- generic walk-up props ([E] interactables placed by scene features) --------------
   const walkProps = []; // { x, z, r, label(), action()|null }
   const propColliders = []; // circles {x,z,r} or AABBs {minX,maxX,minZ,maxZ}
@@ -1852,6 +1931,8 @@ export function makeCourseScene(canvas, state) {
   function walkUpdate(dtMs) {
     if (!walk.active) return;
     const dt = dtMs / 1000;
+    const px0 = walk.x; // where this frame started, so recovery can tell moving from pinned
+    const pz0 = walk.z;
 
     // focus mode (laptop): ease the camera onto the pose, park all input
     focusBlend = clamp(focusBlend + (walkFocusPose ? 1 : -1) * (dt / 0.4), 0, 1);
@@ -1956,6 +2037,8 @@ export function makeCourseScene(canvas, state) {
         walkTryMove((mx * cos + mz * sin) * s, (-mx * sin + mz * cos) * s);
       }
     }
+
+    walkRecover(dtMs, px0, pz0);
 
     // camera: first-person on foot, third-person chase in the seat — EASED
     // between the two so mounting reads as a real transition, not a cut
@@ -2709,6 +2792,8 @@ export function makeCourseScene(canvas, state) {
       setSpraying: walkSetSpraying,
       isSpraying: () => walkSpraying,
       clearKeys: walkBlur, // a mode change drops whatever was held, so you never resume walking into a wall
+      unstick: walkUnstick, // the pause menu's manual fallback; returns how it got you out, or null
+      isFree: (x, z, r) => walkFreeAt(x, z, r ?? walk.radius), // also what placement validation asks
       focusOn: walkFocusOn,
       clearFocus: walkClearFocus,
       isFocused: () => !!walkFocusPose,
