@@ -2955,3 +2955,34 @@ P1); Phase 23 manual QA sweeps; Phase 24 screenshot/video matrix under
 qa/production-next-pass/; final factual report. Known cosmetic nits queued: ceiling-can
 black crescent from oblique angles, desk side stretchers clipping the office wainscot,
 carried-box tape strip, clutter boxes visually identical to delivery boxes.
+
+---
+
+## AUTONOMOUS PRODUCTION OVERHAUL — 2026-07-14
+
+Working queue in `AUTONOMOUS_BACKLOG.md`. Evidence under `qa/autonomous-overhaul/`.
+Baseline at session open: 267 tests green · frame median 8.3 ms / worst 8.7 ms · 70 programs ·
+1383 geometries · 152 textures · zero console errors on cold boot.
+
+### CHECKPOINT 1 — all P0 defects closed
+
+| # | Defect | Reproduced (measured) | Cause | Fix | Verified |
+|---|--------|----------------------|-------|-----|----------|
+| P0-1 | Course map drifts right forever | **+237.9 yd in 1.5 s with hands off the keyboard**; and +144.6 yd in 0.9 s if a key was down when it opened | `held.delete(e.key)` was case-sensitive while the tracked list was lowercase-only. Chrome reports `KeyboardEvent.key` against the **live modifier state**, so releasing D while Shift (run) is held delivers `keyup{key:'D'}` and never deletes `'d'` — stranded for the session. Nothing cleared the set on a mode change either. | `core/heldKeys.js`: case-folded, repeat-safe, cleared on every transition, refuses to resurrect a key that survived a `clear()` until genuinely re-pressed | 30/30 open-close cycles seeded with both poison sequences → **0.0000 yd** idle drift; deliberate pan still 79.4 yd |
+| P0-2 | Player permanently trapped | inside the fixture cluster, holding W for 1.2 s moved **0.227 yd** (unobstructed ≈ 5 yd). `walk.unstick`, last-safe history and an unstuck option **did not exist** | `walkTryMove` only ever refused to move *into* a collider; it had no notion of already being inside one, so every candidate move was rejected | `core/unstick.js`: min-translation depenetration, safe-position trail, stuck monitor, spiral fallback; escalation depenetrate → last safe (0.7 s) → nearest free (1.8 s); pause-menu **Unstuck** | **159/159** forced overlaps escaped (worst 759 ms); normal walking **0 false rescues** |
+| P0-2b | Doors close through people | filmed the stockroom door swinging shut across the player's path | the auto-close consulted nobody; only a *moving* customer within 1.5 yd held it open | `doorMath.sweptBy()` gates both the timer and the manual [E] close; player keeps the radial push-out | shopper parked in the doorway holds it open **5.2 s+** (was swept at 2.5 s); an empty doorway still closes at **2.4 s** |
+| P0-3 | Laptop unreadable, no cursor | screen filled **9.7 % of the viewport** (39.6 % w × 24.7 % h); the 1024×640 DOM was crushed into 507×309 px | the seat was hardcoded at "0.96 yd back" — wrong for any FOV, window shape or model change | `core/screenFit.js` derives the closest seat that keeps the lid in frame on both axes; measured from the *open* lid, using the live camera | **73.7 % w × 76.9 % h (53.7 % area)** at 1600×900; 5/5 cursor hit-tests exact; click navigates; wheel scrolls; Esc always exits |
+| P0-4/5/6 | Boxes, stutter, customer locks | carried over from the previous pass | — | — | re-verified: frame median **8.3 ms**, worst 8.7 ms, no spikes |
+| P0-7 | Stock silently evaporates | 12 units in shoppers' hands destroyed when they left | `pickFromShelf` removes the unit immediately, but **three** removal sites (no-stop, `'gone'`, end-of-stops) plus scene dispose deleted shoppers without returning their cart. Only `customerGiveUp` did. | one `removeCustomer()` that hands the stock back first | 500-step randomised conservation property test (checks the invariant after *every* action); live: 12 units in 6 shoppers, all forced off the floor → **0 lost** |
+
+**Tests 267 → 307.** Commits `46512cb`, `0baac43`, `0f51120`, `7cd5afe`.
+
+Note on the laptop target: the brief asks for 70–85 % of the viewport. That is met on both linear
+axes (73.7 % × 76.9 %). Area is 53.7 % — filling 70 % of the *area* is geometrically impossible
+while keeping bezel and a strip of keyboard in frame, and the reference sheet's own laptop panel
+measures ≈ 59 % area. Reported honestly rather than tuned to a number that would crop the screen
+into a fullscreen menu.
+
+**Next:** P1 — pressure washing (the brief forbids clearing exterior grime with a generic [E],
+which is what the current build does), then box sizing by contents, checkout staff space, and the
+fixture placement/build mode.

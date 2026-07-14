@@ -30,7 +30,8 @@ Baseline at session open: **267 tests green**, frame median 8.3 ms / worst 8.7 m
   transition / blur / pointer-lock change, and requiring *fresh* input after a transition.
 - **Verify** Unit tests for the stranding + fresh-input rule; live: open/close the map 30× and
   measure zero drift.
-- **Status** doing
+- **Status** **done** · commit `46512cb` · 8 unit tests; live 30/30 cycles seeded with both poison
+  sequences → **worst idle drift 0.0000 yd**, deliberate pan still 79.4 yd. Tests 267 → 275.
 
 ### P0-2 · Player depenetration, stuck detection, and recovery
 - **Impact** "The player can lose movement and be forced to restart." No recovery exists.
@@ -44,7 +45,13 @@ Baseline at session open: **267 tests green**, frame median 8.3 ms / worst 8.7 m
   recovery (depenetrate → last safe → nearest nav-free point), pause-menu **Unstuck**.
 - **Verify** Unit tests for depenetration vectors + escalation; live: force-overlap every fixture
   class and confirm automatic escape.
-- **Status** todo
+- **Status** **done** · commit `0baac43` · 21 unit tests. Live: **159/159 forced overlaps escaped**
+  (worst 759 ms); normal walking 8.6 yd with **0 false rescues**; main entrance 4/4 passes both
+  sides walking+running, 0 stuck. Pause-menu **Unstuck** added.
+- **Also fixed here** Door occupancy — filmed the stockroom door closing across the player's path
+  and found the auto-close consulted nobody. `doorMath.sweptBy()` now gates both the timer and the
+  manual [E] close. Live: shopper parked in the doorway holds it open **5.2 s+** (was: swept
+  through them at 2.5 s); an empty doorway still closes at **2.4 s**.
 
 ### P0-3 · Laptop readability and mouse interaction
 - **Impact** Screen unreadable; no cursor; the laptop is the game's entire management surface.
