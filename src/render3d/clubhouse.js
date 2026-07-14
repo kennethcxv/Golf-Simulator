@@ -24,6 +24,7 @@ import {
 } from '../sim/shop.js';
 import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
+  cutBox, takeFromBox, flattenBox,
 } from '../sim/deliveries.js';
 import {
   pickFromShelf, returnToShelf, checkoutSale,
@@ -1718,22 +1719,45 @@ export function makeClubhouse(ctx) {
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.4, 0.46), cardboard);
     body.position.y = 0.2;
     body.castShadow = true;
-    const tape = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.015, 0.12), tapeMat);
-    tape.position.y = 0.405;
+    g.add(body);
     const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
     const stripe = new THREE.Mesh(
       new THREE.BoxGeometry(0.54, 0.09, 0.47),
       new THREE.MeshStandardMaterial({ color: CAT_COLORS[sku ? sku.cat : 'accessories'] || 0x999999, roughness: 0.85 }),
     );
     stripe.position.y = 0.1;
-    g.add(body, tape, stripe);
+    g.add(stripe);
+    if (!box.cut) {
+      const tape = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.015, 0.12), tapeMat);
+      tape.position.y = 0.402;
+      g.add(tape);
+    } else {
+      // flaps folded out over the edges; the inside goes dark as it empties
+      for (const [w, d2, px, pz, rx, rz] of [
+        [0.5, 0.2, 0, -0.32, 2.4, 0], [0.5, 0.2, 0, 0.32, -2.4, 0],
+        [0.2, 0.44, -0.35, 0, 0, -2.4], [0.2, 0.44, 0.35, 0, 0, 2.4],
+      ]) {
+        const flap = new THREE.Mesh(new THREE.BoxGeometry(w, 0.012, d2), cardboardDark);
+        flap.position.set(px, 0.42, pz);
+        flap.rotation.x = rx;
+        flap.rotation.z = rz;
+        g.add(flap);
+      }
+      const inside = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.46, 0.4),
+        new THREE.MeshStandardMaterial({ color: box.empty ? 0x241a10 : 0x59452e, roughness: 1 }),
+      );
+      inside.rotation.x = -Math.PI / 2;
+      inside.position.y = box.empty ? 0.06 : 0.3;
+      g.add(inside);
+    }
     return g;
   }
 
   function boxSignature() {
     const d = state.shop.deliveries;
     if (!d) return '';
-    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}`).join(',') + '|' + d.trash;
+    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}:${b.cut ? 1 : 0}:${b.qty}`).join(',') + '|' + d.trash;
   }
 
   const inStockroomBounds = (lx, lz) => lx >= STOCKROOM.bounds.minX && lx <= STOCKROOM.bounds.maxX
@@ -1789,17 +1813,39 @@ export function makeClubhouse(ctx) {
         x: wp.x, z: wp.z, r: 1.9,
         label: () => {
           if (carriedBox(state)) return null; // the set-down verb owns E while loaded
-          return unpackHere
-            ? `Case of ${name} ×${box.qty} — [E] unpack into the backroom`
-            : `${box.loc === 'pad' ? 'Delivery — ' : ''}${name} ×${box.qty} — [E] pick up`;
+          if (box.empty) return `Empty ${name} box — [E] flatten it`;
+          if (unpackHere) {
+            if (!box.cut) return `Case of ${name} ×${box.qty} — [E] cut the tape`;
+            return `Open case of ${name} ×${box.qty} — [E] take an armful to the backroom`;
+          }
+          return `${box.loc === 'pad' ? 'Delivery — ' : ''}${name} ×${box.qty}${box.cut ? ' (open)' : ''} — [E] pick up`;
         },
         action: () => {
+          if (box.empty) {
+            if (flattenBox(state, box.id).ok) {
+              if (hooks.sfx) hooks.sfx('thunk');
+              if (hooks.toast) hooks.toast('Flattened — the cardboard goes by the bin.');
+              rebuildBoxes();
+            }
+            return;
+          }
           if (unpackHere) {
-            const res = openBox(state, box.id);
+            if (!box.cut) {
+              if (cutBox(state, box.id).ok) {
+                if (hooks.sfx) hooks.sfx('wipe'); // blade through tape
+                rebuildBoxes();
+              }
+              return;
+            }
+            const res = takeFromBox(state, box.id, 6);
             if (!res.ok) { if (hooks.toast) hooks.toast(res.reason, 'warn'); return; }
             rebuildStock();
             if (hooks.sfx) hooks.sfx('chime');
-            if (hooks.toast) hooks.toast(`Unpacked ${res.qty} × ${name} into the backroom.`);
+            if (hooks.toast) {
+              hooks.toast(res.left > 0
+                ? `${res.taken} × ${name} to the backroom — ${res.left} still in the case.`
+                : `Case emptied — ${res.taken} × ${name} to the backroom.`);
+            }
           } else {
             const res = pickUpBox(state, box.id);
             if (!res.ok) { if (hooks.toast) hooks.toast(res.reason, 'warn'); return; }

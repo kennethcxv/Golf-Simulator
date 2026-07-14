@@ -25,7 +25,7 @@ import { rollDailyWeather } from './weather.js';
 import { conditionRating, zonePolicyKey, DISEASE } from './turf.js';
 import { courseDesignRating, holePar, holeDistanceYd } from './course.js';
 import { memberCounts } from './club.js';
-import { deliverOrdersDue } from './shop.js';
+import { deliverOrdersDue, tickDeliveries } from './shop.js';
 import { generateMarketplace, generateListing, buildPropertyCourse, appraiseStats, MARKET } from './marketplace.js';
 import { appraiseProperty } from './valuation.js';
 
@@ -341,6 +341,7 @@ function reconcileOnActivate(empire, holding) {
   const dayAbs = calendarOf(now).dayAbs;
   if (p) driftTurfToward(st, p.conditionEst);
   deliverOrdersDue(st, dayAbs);
+  tickDeliveries(st, now); // windowed orders whose truck came while parked
   const missed = st.club.outings.scheduled.filter((o) => o.day < dayAbs);
   if (missed.length) {
     st.club.outings.scheduled = st.club.outings.scheduled.filter((o) => o.day >= dayAbs);

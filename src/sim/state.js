@@ -13,7 +13,7 @@ import { initTurf, turfHourlyTick, turfDailyTick, runMorningMaintenance, default
 import { initGolfers } from './golfers.js';
 import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
 import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
-import { initShop, shopDailyAccrual, deliverOrdersDue, ensureShopReno } from './shop.js';
+import { initShop, shopDailyAccrual, deliverOrdersDue, tickDeliveries, ensureShopReno } from './shop.js';
 import { initReservations, ensureReservations, reservationsDailyTick } from './reservations.js';
 import { initTractor, ensureTractor } from './tractor.js';
 import { bunkerDailyMess } from './bunkers.js';
@@ -99,6 +99,7 @@ export function dailyTick(state) {
 }
 
 export function hourlyTick(state, hourOfDay) {
+  if (state.shop) tickDeliveries(state, state.clock.minutes); // windowed trucks land on time headless too
   // the crew starts at 5 AM; catch up later in the morning if time skipped past it
   if (state.pendingMorning && hourOfDay >= 5) {
     state.pendingMorning = false;

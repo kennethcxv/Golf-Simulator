@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   initDeliveries, arriveOrder, boxesOf, pickUpBox, putDownBox, carriedBox,
+  cutBox, takeFromBox, flattenBox,
 } from '../src/sim/deliveries.js';
 
 function freshState() {
@@ -55,6 +56,42 @@ test('world boxes and their positions survive a save/load round trip', () => {
   assert.equal(again.x, 12.4);
   assert.equal(again.z, -3.6);
   assert.equal(again.ry, 1.1);
+});
+
+test('opening is physical: cut the tape, take contents in armfuls, flatten the empty', () => {
+  const state = freshState();
+  const box = boxesOf(state)[0]; // 12 balls
+  assert.equal(takeFromBox(state, box.id, 6).ok, false, 'sealed box refuses');
+  assert.ok(cutBox(state, box.id).ok);
+  assert.equal(box.cut, true);
+  assert.equal(cutBox(state, box.id).ok, false, 'tape cuts once');
+  const t1 = takeFromBox(state, box.id, 6);
+  assert.ok(t1.ok);
+  assert.equal(t1.taken, 6);
+  assert.equal(box.qty, 6, 'half remains — a partial box');
+  assert.equal(state.shop.inventory.balls2.back, 6, 'armful reached the backroom');
+  // partial survives a save/load round trip
+  const loaded = JSON.parse(JSON.stringify(state));
+  const again = boxesOf(loaded)[0];
+  assert.equal(again.cut, true);
+  assert.equal(again.qty, 6);
+  const t2 = takeFromBox(state, box.id, 6);
+  assert.ok(t2.ok);
+  assert.equal(box.qty, 0);
+  assert.equal(box.empty, true, 'box stays as an empty, not vanished');
+  assert.equal(boxesOf(state).length, 1);
+  assert.equal(flattenBox(state, box.id).ok, true);
+  assert.equal(boxesOf(state).length, 0);
+  assert.equal(state.shop.deliveries.trash, 1, 'flattened cardboard by the bin');
+});
+
+test('a carried box cannot be cut or emptied mid-air', () => {
+  const state = freshState();
+  const box = boxesOf(state)[0];
+  pickUpBox(state, box.id);
+  assert.equal(cutBox(state, box.id).ok, false);
+  putDownBox(state, box.id, { x: 1, z: 1, ry: 0 });
+  assert.ok(cutBox(state, box.id).ok);
 });
 
 test('legacy zone set-down still works for old callers', () => {

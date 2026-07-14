@@ -270,6 +270,10 @@ export function orderCost(sku, qty) {
   return Math.round(sku.cost * qty * 100) / 100;
 }
 
+// each order ships into a two-hour window on its arrival day; the truck lands
+// at a specific (deterministic per order) minute inside it
+const DELIVERY_SLOTS = [[8, 10], [10, 12], [13, 15]];
+
 export function placeOrder(state, skuId, qty) {
   const sku = skuById(skuId);
   if (!sku) return { ok: false, reason: 'No such item.' };
@@ -278,19 +282,70 @@ export function placeOrder(state, skuId, qty) {
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash.' };
   addExpense(state, 'shopOrders', cost);
   const dayAbs = calendarOf(state.clock.minutes).dayAbs;
+  const id = state.shop.nextOrderId++;
+  const arrivesDay = dayAbs + LEAD_DAYS[sku.cat];
+  const slot = DELIVERY_SLOTS[(id * 7) % DELIVERY_SLOTS.length];
+  const open = arrivesDay * 1440 + slot[0] * 60;
+  const close = arrivesDay * 1440 + slot[1] * 60;
   state.shop.orders.push({
-    id: state.shop.nextOrderId++,
+    id,
     skuId,
     qty,
     cost,
-    arrivesDay: dayAbs + LEAD_DAYS[sku.cat],
+    arrivesDay,
+    placedMin: state.clock.minutes,
+    window: { open, close },
+    deliveryMin: open + ((id * 37) % (close - open)),
+    status: 'received',
+    notif: {},
   });
   return { ok: true, cost };
 }
 
+// minute-grained delivery tick: progresses statuses, fires each heads-up once,
+// and lands the truck at its minute. Returns the events that just happened so
+// the UI can speak them; safe to call as often as you like (idempotent).
+export function tickDeliveries(state, nowMin) {
+  const events = [];
+  if (!state.shop || !state.shop.orders || !state.shop.orders.length) return events;
+  const arrived = [];
+  for (const o of state.shop.orders) {
+    if (o.window === undefined) continue; // pre-window legacy order: dailyTick path delivers it
+    if (!o.notif) o.notif = {};
+    if (nowMin >= o.deliveryMin) {
+      o.status = 'delivered';
+      arrived.push(o);
+      events.push({ kind: 'arrived', order: o });
+      continue;
+    }
+    if (o.status === 'received' && nowMin >= o.placedMin + 240) o.status = 'processing';
+    if (nowMin >= o.deliveryMin - 90 && o.status !== 'arriving') o.status = 'out';
+    if (nowMin >= o.window.open) o.status = 'arriving';
+    const morningMin = o.arrivesDay * 1440 + 6 * 60;
+    if (!o.notif.morning && nowMin >= morningMin && nowMin < o.window.open) {
+      o.notif.morning = true;
+      events.push({ kind: 'morning', order: o });
+    }
+    if (!o.notif.soon && nowMin >= o.window.open - 60 && nowMin < o.deliveryMin) {
+      o.notif.soon = true;
+      events.push({ kind: 'soon', order: o });
+    }
+  }
+  if (arrived.length) {
+    state.shop.orders = state.shop.orders.filter((o) => !arrived.includes(o));
+    for (const o of arrived) arriveOrder(state, o);
+  }
+  return events;
+}
+
+// day-grained force-delivery: the parked-property reconcile and the midnight
+// safety net (anything the minute tick somehow missed lands with the day)
 export function deliverOrdersDue(state, dayAbs) {
-  const arrived = state.shop.orders.filter((o) => o.arrivesDay <= dayAbs);
-  state.shop.orders = state.shop.orders.filter((o) => o.arrivesDay > dayAbs);
+  // windowed orders due TODAY belong to their window (tickDeliveries) — only
+  // strictly-past days force-land here; legacy windowless orders keep day-of
+  const due = (o) => (o.window === undefined ? o.arrivesDay <= dayAbs : o.arrivesDay < dayAbs);
+  const arrived = state.shop.orders.filter(due);
+  state.shop.orders = state.shop.orders.filter((o) => !due(o));
   // 2026-07-13 physical retail: arrivals are BOXES on the receiving pad —
   // contents reach the backroom when someone opens them (you, or the
   // morning floor staff in restockShelvesByStaff)

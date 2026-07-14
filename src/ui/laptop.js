@@ -223,12 +223,21 @@ export function makeLaptop(app, opts) {
       },
     });
 
+    const clock12 = (m) => {
+      const mm = ((m % 1440) + 1440) % 1440;
+      const h = Math.floor(mm / 60);
+      return `${((h + 11) % 12) + 1} ${h >= 12 ? 'PM' : 'AM'}`;
+    };
+    const STATUS_WORD = { received: 'order received', processing: 'processing', out: 'out for delivery', arriving: 'arriving now' };
     const inbound = st.shop.orders.map((o) => {
       const s = skuById(o.skuId);
       const days = o.arrivesDay - cal.dayAbs;
+      const when = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
+      const win = o.window ? ` · ${clock12(o.window.open)}–${clock12(o.window.close)}` : '';
+      const status = o.status ? ` · ${STATUS_WORD[o.status] || o.status}` : '';
       return row(
         el('span', { text: `${s ? s.name : o.skuId} ×${o.qty}` }),
-        meta(`${formatMoney(o.cost)} · ${days <= 0 ? 'arriving today' : days === 1 ? 'arrives tomorrow' : `arrives in ${days} days`}`),
+        meta(`${formatMoney(o.cost)} · ${when}${win}${status}`),
       );
     });
 

@@ -31,7 +31,8 @@ import { tickTutorial, tutorialFlag } from './sim/tutorial.js';
 import { makeMenu } from './screens/menu.js';
 import { saveData, loadData } from './core/storage.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
-import { shopCondition, vacuumOwned } from './sim/shop.js';
+import { shopCondition, vacuumOwned, tickDeliveries } from './sim/shop.js';
+import { skuById } from './data/shopItems.js';
 import { makeCourseScene } from './render3d/courseScene.js';
 
 const canvas = document.getElementById('game');
@@ -1301,6 +1302,27 @@ function frame(ts) {
           toast('The guide retires — the club is yours now. The Open awaits.', '');
         }
         objectivesPanel.refresh();
+      }
+    }
+    // delivery windows tick at minute grain: statuses progress and the truck
+    // announces itself — morning heads-up, one-hour warning, arrival
+    if (app.state.shop) {
+      for (const ev of tickDeliveries(app.state, app.state.clock.minutes)) {
+        const sku = skuById(ev.order.skuId);
+        const name = sku ? sku.name : ev.order.skuId;
+        const clock12 = (m) => {
+          const mm = ((m % 1440) + 1440) % 1440;
+          const h = Math.floor(mm / 60);
+          return `${((h + 11) % 12) + 1} ${h >= 12 ? 'PM' : 'AM'}`;
+        };
+        if (ev.kind === 'morning') {
+          toast(`📦 ${name} ships today — window ${clock12(ev.order.window.open)}–${clock12(ev.order.window.close)}.`);
+        } else if (ev.kind === 'soon') {
+          toast(`📦 The ${name} truck is close — under an hour out.`);
+        } else if (ev.kind === 'arrived') {
+          toast(`📦 Delivery! ${name} ×${ev.order.qty} is on the receiving pad.`);
+          if (audio.ready && audio.thunk) audio.thunk();
+        }
       }
     }
     if (walkActive()) {

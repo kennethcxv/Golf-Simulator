@@ -67,6 +67,46 @@ export function putDownBox(state, id, spot = 'stock') {
   return { ok: true, box };
 }
 
+// --- physical opening: cut → take armfuls → flatten the empty ---------------------
+
+export function cutBox(state, id) {
+  const box = boxesOf(state).find((b) => b.id === id);
+  if (!box) return { ok: false, reason: 'No box there.' };
+  if (box.loc === 'carried') return { ok: false, reason: 'Set it down first.' };
+  if (box.cut) return { ok: false, reason: 'Already open.' };
+  box.cut = true;
+  return { ok: true };
+}
+
+// an armful at a time — a big case takes more than one trip into the backroom
+export function takeFromBox(state, id, max = 6) {
+  const box = boxesOf(state).find((b) => b.id === id);
+  if (!box) return { ok: false, reason: 'No box there.' };
+  if (box.loc === 'carried') return { ok: false, reason: 'Set it down first.' };
+  if (!box.cut) return { ok: false, reason: 'Cut the tape first.' };
+  if (box.qty <= 0) return { ok: false, reason: 'It is empty.' };
+  const taken = Math.min(max, box.qty);
+  box.qty -= taken;
+  const inv = state.shop.inventory[box.skuId];
+  if (inv) inv.back += taken;
+  if (box.qty <= 0) {
+    box.empty = true;
+    const d = state.shop.deliveries;
+    d.openedTotal = (d.openedTotal || 0) + 1;
+  }
+  return { ok: true, taken, left: box.qty };
+}
+
+export function flattenBox(state, id) {
+  const d = state.shop.deliveries;
+  const box = d.boxes.find((b) => b.id === id);
+  if (!box) return { ok: false, reason: 'No box there.' };
+  if (!box.empty) return { ok: false, reason: 'Still has stock in it.' };
+  d.boxes.splice(d.boxes.indexOf(box), 1);
+  d.trash += 1;
+  return { ok: true };
+}
+
 export function openBox(state, id) {
   const d = state.shop.deliveries;
   const box = d.boxes.find((b) => b.id === id);

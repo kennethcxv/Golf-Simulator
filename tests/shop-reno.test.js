@@ -128,7 +128,7 @@ test('the vacuum is a real catalog item that ships through the existing order sy
   assert.ok(res.ok, 'ordering a vacuum works');
   assert.equal(vacuumOwned(state), false, 'not owned until the truck arrives');
   const dayAbs = calendarOf(state.clock.minutes).dayAbs;
-  deliverOrdersDue(state, dayAbs + LEAD_DAYS.supplies);
+  deliverOrdersDue(state, dayAbs + LEAD_DAYS.supplies + 1); // past-day force path (windows own day-of)
   // physical retail (2026-07-13): the truck leaves it BOXED on the pad
   assert.equal(vacuumOwned(state), false, 'still boxed on the receiving pad');
   const box = state.shop.deliveries.boxes.find((b) => b.skuId === 'vac1');

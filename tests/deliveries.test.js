@@ -23,7 +23,8 @@ const dayNow = (st) => calendarOf(st.clock.minutes).dayAbs;
 function orderAndArrive(st, skuId, qty) {
   const res = placeOrder(st, skuId, qty);
   assert.ok(res.ok, `ordering ${skuId} works`);
-  deliverOrdersDue(st, dayNow(st) + LEAD_DAYS[skuById(skuId).cat]);
+  // windowed orders land inside their window; +1 uses the past-day force path
+  deliverOrdersDue(st, dayNow(st) + LEAD_DAYS[skuById(skuId).cat] + 1);
 }
 
 test('an arriving order becomes labeled boxes on the pad, not backroom numbers', () => {
