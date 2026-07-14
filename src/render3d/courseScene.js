@@ -997,6 +997,13 @@ export function makeCourseScene(canvas, state) {
         center: { x: wx, z: wz },
         heightAt, walkProps, propColliders, walk,
         hooks: walkHooks,
+        canvas, // register mode raycasts the CURSOR into the scene, so it needs the rect
+        // The clubhouse is handed the raw walk STATE (x, z, yaw...), not the walk API,
+        // so it cannot reach focusOn/clearFocus — register mode called walk.focusOn()
+        // and threw. These are the two it needs: the cashier pose is a focus pose,
+        // exactly like the laptop seat. (Both are function declarations, so hoisted.)
+        focusOn: walkFocusOn,
+        clearFocus: walkClearFocus,
       });
     }
     scene.add(structGroup);

@@ -17,7 +17,7 @@ import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
   SHELL, INTERIOR, FIXTURES, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
-  MAT, HOURS_SIGN, queueSlot,
+  MAT, HOURS_SIGN, queueSlot, REGISTER, COUNTER_TOP,
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
@@ -27,10 +27,7 @@ import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
   cutBox, takeFromBox, flattenBox,
 } from '../sim/deliveries.js';
-import {
-  pickFromShelf, returnToShelf, checkoutSale,
-  startPayment, changeDue, giveChange, processCard,
-} from '../sim/checkout.js';
+import { pickFromShelf, returnToShelf } from '../sim/checkout.js';
 import { addRevenue } from '../sim/economy.js';
 import { tutorialFlag } from '../sim/tutorial.js';
 import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
@@ -39,6 +36,7 @@ import { createMerch } from './clubhouse/merch.js';
 import { buildShell } from './clubhouse/shell.js';
 import { buildDoors } from './clubhouse/doors.js';
 import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } from './clubhouse/fixtures.js';
+import { createRegisterMode } from './clubhouse/registerMode.js';
 import { buildDirt } from './clubhouse/dirt.js';
 import { makeNav } from './clubhouse/nav.js';
 import { productThumb } from './clubhouse/thumbs.js';
@@ -198,36 +196,53 @@ export function makeClubhouse(ctx) {
   buildLounge(B);
   buildStockroomDressing(B);
 
-  // --- counter, register, wordmark, office, lounge, stockroom dressing --------------------
-  let drawRegister = () => {};
-  let regConfirmChange = () => false; // [R] hands over counted change (Realistic)
+  // --- THE REGISTER ---------------------------------------------------------------------
+  // The old checkout lived here: one addProp with a context-sensitive [E] that scanned
+  // an item, then totalled up, then ran the card, then cycled a change amount, with [R]
+  // to confirm. Every verb was the same key on the same invisible trigger, and nothing
+  // on the counter ever moved. All of that is gone. clubhouse/registerMode.js owns the
+  // counter now, and it owns it PHYSICALLY.
+  //
+  // What is left here is the join: a customer reaching the head of the queue starts a
+  // transaction, standing at the counter offers [E] to step into it, and a customer who
+  // walks out takes their goods back to the shelf.
+  const register = createRegisterMode(B);
+  B.register = register;
 
-  // the head shopper's items sit ON the counter: unscanned on their side,
-  // scanned pushed across to the bagging side
-  const counterItemsGroup = new THREE.Group();
-  interior.add(counterItemsGroup);
-  function syncCounterItems(c) {
-    counterItemsGroup.clear();
-    if (!c || !c.cart || !c.cart.length) return;
-    c.cart.forEach((item, i) => {
-      const sku = SHOP_CATALOG.find((s) => s.id === item.skuId);
-      const m = new THREE.Mesh(
-        new THREE.BoxGeometry(0.16, 0.13, 0.15),
-        new THREE.MeshStandardMaterial({ color: CAT_COLORS[sku ? sku.cat : 'accessories'] || 0x8a8577, roughness: 0.8 }),
-      );
-      m.position.set(
-        COUNTER.registerX + 0.5 + (i % 4) * 0.24,
-        1.055 + 0.065,
-        COUNTER.z + (i < c.scanned ? -0.2 : 0.17),
-      );
-      m.rotation.y = i * 0.4;
-      m.castShadow = true;
-      counterItemsGroup.add(m);
-    });
-  }
+  const checkout = buildCheckout(B);
+  const drawRegister = checkout.drawRegister;
 
-  // a branded paper bag into the customer's hand — they carry it out
-  function giveBag(c) {
+  const regWp = L2W(REGISTER.scanner.x, COUNTER.z);
+
+  // what this customer's day was actually like — the only thing a review is allowed to read
+  const visitOf = (c, bought) => ({
+    waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
+    queueLen: c.queueLenOnArrival || 0,
+    bought,
+    played: !!c.isGolfer,
+    foundWhatTheyWanted: bought,
+  });
+  const leaveReview = (c, bought) => {
+    if (c.reviewed) return null;
+    c.reviewed = true;
+    const r = reviewFor(state, visitOf(c, bought), Math.round((c.seed || 0) * 1000 + (state.dayAbs || 0)));
+    postReview(state, r);
+    return r;
+  };
+
+  // the head of the queue, with goods, waiting on YOU
+  const headForCheckout = () => {
+    const c = counterQueue[0];
+    return c && c.cart && c.cart.length && c.awaitingCheckout ? c : null;
+  };
+
+  // The sale banked. registerMode calls this through cust.onPaid, because IT owns the
+  // money and the goods, and clubhouse.js owns the person.
+  function onCustomerPaid(c) {
+    c.bought = true;
+    leaveReview(c, true);
+    if (c.itemMesh) { c.mesh.remove(c.itemMesh); c.itemMesh = null; }
+    // a branded carrier into their hand — they walk out with it
     const bag = new THREE.Group();
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(0.2, 0.26, 0.13),
@@ -236,216 +251,60 @@ export function makeClubhouse(ctx) {
     body.position.y = 0.13;
     bag.add(body);
     for (const off of [-0.05, 0.05]) {
-      const handle = new THREE.Mesh(
+      const h = new THREE.Mesh(
         new THREE.BoxGeometry(0.015, 0.09, 0.015),
         new THREE.MeshStandardMaterial({ color: 0x1d3a26, roughness: 0.8 }),
       );
-      handle.position.set(off, 0.3, 0);
-      bag.add(handle);
+      h.position.set(off, 0.3, 0);
+      bag.add(h);
     }
     bag.position.set(0.3, 0.62, 0.05);
     bag.rotation.y = 0.2;
     c.mesh.add(bag);
+
+    c.cart = [];
+    c.awaitingCheckout = false;
+    leaveQueue(c);
+    c.stopIdx += 1;
+    c.linger = 0;
+    rebuildStock(); // the shelf gap where their pick came from stays real
   }
 
+  addProp({
+    x: regWp.x, z: regWp.z, r: 2.2,
+    label: () => {
+      const due = dueForCheckIn(state);
+      if (due.length) {
+        const r = due[0];
+        return `Register — [E] check in ${r.name} (${fmtSlot(r.minute)} tee, ${Math.round(r.fee)} dollars)`
+          + (due.length > 1 ? ` · ${due.length - 1} more waiting` : '');
+      }
+      const l = register.label();
+      if (l) return l;
+      const s = state.shop;
+      const live = s.salesLive && s.salesLive.units ? ` · today at the counter: ${s.salesLive.units} rung up` : '';
+      return `Register — yesterday: ${s.salesYesterday.units} sales, ${s.salesYesterday.revenue} dollars${live}`;
+    },
+    action: () => {
+      const due = dueForCheckIn(state);
+      if (due.length) {
+        const res = checkInReservation(state, due[0].id);
+        if (res.ok) {
+          if (hooks.toast) hooks.toast(`${due[0].name} checked in — ${Math.round(res.fee)} dollar green fee collected.`);
+          if (hooks.sfx) hooks.sfx('doorbell');
+        }
+        return;
+      }
+      if (register.hasTx()) register.enter();
+      else if (hooks.toast) hooks.toast('Nobody to serve.', 'warn');
+    },
+  });
+
+  // [R] is gone as a checkout verb — the change goes into a hand now, not into a
+  // keypress. The API keeps the name so main.js does not have to care.
+  const regConfirmChange = () => false;
+
   {
-    drawRegister = buildCheckout(B).drawRegister;
-
-    const regWp = L2W(COUNTER.registerX, COUNTER.z);
-    // the head of the queue with a basket, waiting on YOU
-    const headForCheckout = () => {
-      const c = counterQueue[0];
-      return c && c.cart && c.cart.length && c.awaitingCheckout ? c : null;
-    };
-    // hand the customer a printed receipt and a bag, close out their visit
-    // what this customer's day was actually like — the only thing a review is allowed to read
-    const visitOf = (c, bought) => ({
-      waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
-      queueLen: c.queueLenOnArrival || 0,
-      bought,
-      played: !!c.isGolfer,
-      foundWhatTheyWanted: bought,
-    });
-    const leaveReview = (c, bought) => {
-      if (c.reviewed) return null;
-      c.reviewed = true;
-      const r = reviewFor(state, visitOf(c, bought), Math.round((c.seed || 0) * 1000 + (state.dayAbs || 0)));
-      postReview(state, r);
-      return r;
-    };
-
-    const completeSale = (c) => {
-      const res = checkoutSale(state, c.cart, c.name);
-      if (!res.ok) return;
-      c.bought = true;
-      leaveReview(c, true); // a served customer always says something
-      if (c.tx && c.tx.lost) {
-        // realistic miscount: the till is short what you over-handed
-        if (c.tx.lost > 0) addRevenue(state, 'shopSales', -c.tx.lost);
-        state.shop.log.unshift(c.tx.lost > 0
-          ? `Change miscounted — the till is $${c.tx.lost.toFixed(0)} short.`
-          : `${c.name} got shorted $${Math.abs(c.tx.lost).toFixed(0)} in change.`);
-      }
-      drawRegister(['PAID — RECEIPT OUT', c.tx && c.tx.method === 'card' ? 'CARD APPROVED' : 'DRAWER CLOSED'], res.total);
-      if (hooks.sfx) hooks.sfx('receipt');
-      if (hooks.toast) hooks.toast(`${c.name} paid $${res.total.toFixed(2)} — receipt and bag handed over.`);
-      c.cart = [];
-      c.tx = null;
-      c.awaitingCheckout = false;
-      if (c.itemMesh) { c.mesh.remove(c.itemMesh); c.itemMesh = null; }
-      giveBag(c);
-      syncCounterItems(null);
-      leaveQueue(c);
-      c.stopIdx += 1;
-      c.linger = 0;
-      rebuildStock(); // the shelf gap where their pick came from stays real
-    };
-
-    const changeOptions = (tx) => {
-      const due = changeDue(tx);
-      const opts = [due, due + 5, Math.max(0, due - 5), due + 1].filter((v, i, a) => a.indexOf(v) === i);
-      // deterministic shuffle per transaction so E-cycling isn't always option 1
-      const seed = Math.round(tx.total * 7 + tx.tendered * 3);
-      return opts.map((v, i) => ({ v, k: (i * 2654435761 + seed) % 97 })).sort((a, b) => a.k - b.k).map((o) => o.v);
-    };
-    const drawChangeScreen = (c) => {
-      const opts = c.txOpts;
-      drawRegister([
-        `CASH $${c.tx.tendered} FOR $${c.tx.total.toFixed(0)}`,
-        ...opts.map((v, i) => `${i === c.txSel ? '>' : ' '} give $${v} change`),
-        '[E] next · [R] hand over',
-      ], c.tx.total);
-    };
-
-    let cardTimer = null;
-    addProp({
-      x: regWp.x, z: regWp.z, r: 2.3,
-      label: () => {
-        const due = dueForCheckIn(state);
-        if (due.length) {
-          const r = due[0];
-          return `Register — [E] check in ${r.name} (${fmtSlot(r.minute)} tee, ${Math.round(r.fee)} dollars)` +
-            (due.length > 1 ? ` · ${due.length - 1} more waiting` : '');
-        }
-        const c = headForCheckout();
-        if (c) {
-          if (c.scanned < c.cart.length) {
-            const next = SHOP_CATALOG.find((s) => s.id === c.cart[c.scanned].skuId);
-            return `Ring up ${c.name} — [E] scan ${next ? next.name : 'item'} (${c.scanned}/${c.cart.length})`;
-          }
-          if (!c.tx) {
-            const total = c.cart.reduce((a, i) => a + i.price, 0);
-            return `All scanned — [E] total it up ($${total.toFixed(2)})`;
-          }
-          if (c.tx.stage === 'card') return `${c.name} taps their card — [E] run the terminal`;
-          if (c.tx.stage === 'processing') return 'Terminal — processing…';
-          if (c.tx.stage === 'declined') return 'CARD DECLINED — [E] run it again';
-          if (c.tx.stage === 'change') {
-            const due2 = changeDue(c.tx);
-            if (state.mode === 'relaxed') return `Cash: $${c.tx.tendered} tendered — [E] hand back $${due2} change`;
-            return `Cash: $${c.tx.tendered} tendered — [E] next amount · [R] hand it over`;
-          }
-        }
-        const s = state.shop;
-        const live = s.salesLive && s.salesLive.units ? ` · today at the counter: ${s.salesLive.units} rung up` : '';
-        return `Register — yesterday: ${s.salesYesterday.units} sales, ${s.salesYesterday.revenue} dollars${live}`;
-      },
-      action: () => {
-        const due = dueForCheckIn(state);
-        if (due.length) {
-          const res = checkInReservation(state, due[0].id);
-          if (res.ok) {
-            if (hooks.toast) hooks.toast(`${due[0].name} checked in — ${Math.round(res.fee)} dollar green fee collected.`);
-            if (hooks.sfx) hooks.sfx('doorbell');
-          }
-          return;
-        }
-        const c = headForCheckout();
-        if (!c) return;
-        if (c.scanned < c.cart.length) {
-          // one scan per press: the item beeps across, the total climbs
-          c.scanned += 1;
-          c.patience = Math.max(c.patience, 20); // being served restores their mood
-          const sub = c.cart.slice(0, c.scanned).reduce((a, i) => a + i.price, 0);
-          drawRegister(
-            c.cart.slice(0, c.scanned).map((i) => {
-              const s = SHOP_CATALOG.find((k) => k.id === i.skuId);
-              return `${(s ? s.name : i.skuId).slice(0, 13)} ${i.price.toFixed(0)}`;
-            }),
-            sub,
-          );
-          syncCounterItems(c);
-          if (hooks.sfx) hooks.sfx('scanBeep');
-          return;
-        }
-        if (!c.tx) {
-          // total it up — the customer takes out their money
-          const total = Math.round(c.cart.reduce((a, i) => a + i.price, 0) * 100) / 100;
-          c.tx = startPayment(total, state.mode);
-          c.patience = Math.max(c.patience, 25);
-          if (c.tx.method === 'cash') {
-            c.txOpts = state.mode === 'relaxed' ? [changeDue(c.tx)] : changeOptions(c.tx);
-            c.txSel = 0;
-            if (state.mode === 'relaxed') {
-              drawRegister([`CASH $${c.tx.tendered} FOR $${total.toFixed(0)}`, `change due $${changeDue(c.tx)}`], total);
-            } else {
-              drawChangeScreen(c);
-            }
-          } else {
-            drawRegister(['CARD PRESENTED', 'run the terminal'], total);
-          }
-          if (hooks.sfx) hooks.sfx(c.tx.method === 'cash' ? 'drawer' : 'thunk');
-          return;
-        }
-        if (c.tx.stage === 'card' || c.tx.stage === 'declined') {
-          c.tx.stage === 'declined' ? (c.tx.stage = 'card') : null;
-          c.tx.stage = 'processing';
-          drawRegister(['CARD — PROCESSING…'], c.tx.total);
-          if (hooks.sfx) hooks.sfx('scanBeep');
-          const cRef = c;
-          if (cardTimer) clearTimeout(cardTimer);
-          cardTimer = setTimeout(() => {
-            cardTimer = null;
-            if (!cRef.tx || !customers.includes(cRef)) return; // they gave up meanwhile
-            cRef.tx.stage = 'card';
-            const res = processCard(cRef.tx);
-            if (res.approved) {
-              completeSale(cRef);
-            } else {
-              drawRegister(['CARD DECLINED', 'ask them to retry'], cRef.tx.total);
-              if (hooks.toast) hooks.toast(`${cRef.name}'s card declined — run it again.`, 'warn');
-              if (hooks.sfx) hooks.sfx('thunk');
-            }
-          }, 1100);
-          return;
-        }
-        if (c.tx.stage === 'change') {
-          if (state.mode === 'relaxed') {
-            const res = giveChange(c.tx, changeDue(c.tx));
-            if (res.ok) completeSale(c);
-          } else {
-            // E cycles the counted amount; R hands it over
-            c.txSel = (c.txSel + 1) % c.txOpts.length;
-            drawChangeScreen(c);
-            if (hooks.sfx) hooks.sfx('scanBeep');
-          }
-        }
-      },
-    });
-
-    // [R] confirms the counted change in Realistic mode (exposed on the API)
-    regConfirmChange = () => {
-      const c = headForCheckout();
-      if (!c || !c.tx || c.tx.stage !== 'change') return false;
-      if (state.mode === 'relaxed') return false;
-      const res = giveChange(c.tx, c.txOpts[c.txSel]);
-      if (res.ok) {
-        completeSale(c);
-      } else if (hooks.toast) {
-        hooks.toast(res.reason, 'warn');
-      }
-      return true;
-    };
 
     // THE CREST PANEL behind the counter. This was the club's name and three flat
     // triangles PAINTED DIRECTLY ON THE PLASTER as a transparent decal, and it was
@@ -2073,6 +1932,7 @@ export function makeClubhouse(ctx) {
   }
 
   // --- customers: they walk in from the course, through the real door -------------------
+  let unitSeq = 0;   // every unit a shopper lifts gets its own identity
   const customers = [];
   // golfer-wardrobe palette, muted to the club color language
   const CUST_COLORS = [0x4a6d94, 0x2c3e66, 0xb0788f, 0xb3714a, 0x4a7050, 0x8a8577, 0x6b4f37];
@@ -2168,6 +2028,7 @@ export function makeClubhouse(ctx) {
       queueLenOnArrival: 0,
       isGolfer: toCounter, // the ones with a tee time actually played the course
     });
+    return customers[customers.length - 1];
   }
 
   // a shopper reaches for the display: the unit leaves the shelf THERE and
@@ -2198,9 +2059,13 @@ export function makeClubhouse(ctx) {
       return;
     }
     const skuId = stocked[rng.int(stocked.length)];
-    if (!pickFromShelf(state, skuId).ok) return;
+    // Each unit gets its own uid. That is what makes two identical Pro-V dozens two
+    // PIECES rather than a tally of two — so one can be scanned and the other not,
+    // and so a save taken while they are in a shopper's hands can put THEM back.
+    const uid = `u${++unitSeq}`;
+    if (!pickFromShelf(state, skuId, uid).ok) return;
     const sku = SHOP_CATALOG.find((s) => s.id === skuId);
-    c.cart.push({ skuId, price: priceFor(sku, state.shop.markup[sku.cat] || 1, null) });
+    c.cart.push({ uid, skuId, price: priceFor(sku, state.shop.markup[sku.cat] || 1, null) });
     rebuildStock(); // the display visibly loses the unit
     const item = new THREE.Mesh(
       new THREE.BoxGeometry(0.2, 0.16, 0.16),
@@ -2231,7 +2096,7 @@ export function makeClubhouse(ctx) {
       }, Math.round((c.seed || 0) * 1000 + (state.dayAbs || 0))));
     }
 
-    for (const it of c.cart) returnToShelf(state, it.skuId);
+    for (const it of c.cart) returnToShelf(state, it.skuId, it.uid);
     if (c.cart.length) {
       state.shop.lostSalesTotal = (state.shop.lostSalesTotal || 0) + 1;
       if (hooks.toast && walk.active && isInside(walk.x, walk.z)) {
@@ -2242,7 +2107,9 @@ export function makeClubhouse(ctx) {
     c.cart = [];
     c.tx = null;
     c.awaitingCheckout = false;
-    syncCounterItems(null);
+    // they walked out mid-sale: void it, clear the counter, and put the goods back.
+    // registerMode holds no authority over stock — the shelf is credited right here.
+    if (register.getCustomer() === c) { register.abandon(); register.leave(); }
     if (c.itemMesh) {
       c.mesh.remove(c.itemMesh);
       c.itemMesh = null;
@@ -2277,8 +2144,21 @@ export function makeClubhouse(ctx) {
       }
     }
 
+    // THE REGISTER HAS TO LET GO OF THEM, and this is the place it must happen.
+    //
+    // removeCustomer is the single funnel every shopper leaves through — giving up at
+    // the till, reaching the exit, the shop closing at eight, the scene being torn
+    // down. abandon() lived only in customerGiveUp, so a shopper removed by any OTHER
+    // route left register mode holding a live transaction over goods that had already
+    // gone back on the shelf (the line below returns them). Finish that sale and it
+    // banks revenue for stock you no longer sold: money out of nothing, and the player
+    // stranded at a till serving a person who is not there.
+    //
+    // voidTx() makes the transaction terminal, so completeSale() can never touch it.
+    if (register.getCustomer() === c) { register.abandon(); register.leave(); }
+
     if (c.cart && c.cart.length) {
-      for (const it of c.cart) returnToShelf(state, it.skuId);
+      for (const it of c.cart) returnToShelf(state, it.skuId, it.uid);
       c.cart = [];
       rebuildStock();
     }
@@ -2415,7 +2295,11 @@ export function makeClubhouse(ctx) {
         // the head of the line with a basket waits for the PLAYER to ring
         // them up — patience runs out eventually and the pick goes back
         if (stop.kind === 'counter' && c.cart.length && counterQueue.indexOf(c) === 0) {
-          if (!c.awaitingCheckout) syncCounterItems(c); // their items go ON the counter
+          if (!c.awaitingCheckout) {
+            // they reach the counter and LAY THEIR GOODS OUT on it, one by one
+            c.onPaid = () => onCustomerPaid(c);
+            register.begin(c);
+          }
           c.awaitingCheckout = true;
           c.patience -= dt;
           if (char) char.setMode('Idle');
@@ -2500,6 +2384,7 @@ export function makeClubhouse(ctx) {
     now += dt;
     updateDoors(dt, now);
     updateCustomers(dt);
+    register.update(dt);
     updateFlicker(dt);
     builder.update();
     if (office.updateLid) office.updateLid(dt);
@@ -2570,7 +2455,55 @@ export function makeClubhouse(ctx) {
     laptopBoot: () => office.startBoot && office.startBoot(),
     laptopScreen: (mode) => office.paintScreen && office.paintScreen(mode),
     laptopScreenCorners: () => (office.screenCorners ? office.screenCorners() : null),
-    confirmChange: () => regConfirmChange(), // [R] hands over counted change (Realistic)
+    confirmChange: () => regConfirmChange(), // dead: change goes into a hand now, not a keypress
+    // REGISTER MODE — main.js routes the pointer and the keyboard in here while it is up
+    register: {
+      isActive: () => register.isActive(),
+      hasTx: () => register.hasTx(),
+      enter: () => register.enter(),
+      leave: () => register.leave(),
+      onDown: (e) => register.onDown(e),
+      onMove: (e) => register.onMove(e),
+      onUp: (e) => register.onUp(e),
+      onKey: (k) => register.onKey(k),
+      tapTerminal: () => register.tapTerminal(),
+      // read-only, for the HUD and for tools/qa — the transaction is never mutated
+      // from out here; every verb goes through the module above
+      getTx: () => register.getTx(),
+      getCustomer: () => register.getCustomer(),
+    },
+    // DIAGNOSTICS. Not a cheat: sendToCounter() puts a shopper at the head of the
+    // queue holding goods it took off the shelf through pickFromShelf, exactly as if
+    // it had walked the floor and chosen them — real shelf debits, real held-unit
+    // uids. It skips the browsing, not the accounting. tools/qa/ drives the checkout
+    // through it, because waiting on the RNG to produce a two-item cash customer is
+    // not a test, it is a lottery.
+    customers: () => customers,
+    sendToCounter(skuIds, payMethod = null) {
+      const c = spawnCustomer(false);
+      if (!c) return null;
+      c.payMethod = payMethod;   // a cash person or a card person, decided in advance
+      for (const skuId of skuIds) {
+        const uid = `u${++unitSeq}`;
+        if (!pickFromShelf(state, skuId, uid).ok) continue;
+        const sku = SHOP_CATALOG.find((k) => k.id === skuId);
+        c.cart.push({ uid, skuId, price: priceFor(sku, state.shop.markup[sku.cat] || 1, null) });
+      }
+      if (!c.cart.length) return null;
+      rebuildStock();
+      const q = queueSlotW(0);
+      c.mesh.position.set(q.x, c.mesh.position.y, q.z);
+      const regW = L2W(REGISTER.scanner.x, COUNTER.z);
+      c.stops = [
+        { kind: 'counter', x: q.x, z: q.z, faceX: regW.x, faceZ: regW.z },
+        { kind: 'exit', x: doorW.x, z: doorW.z },
+        { kind: 'gone', x: doorW.x, z: doorW.z + 6 },
+      ];
+      c.stopIdx = 0;
+      c.linger = 0;
+      c.entered = true;
+      return c.name;
+    },
     productThumb: (sku) => productThumb(sku), // rendered supplier-card imagery
     condition: () => conditionNow,
     setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),

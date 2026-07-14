@@ -84,7 +84,9 @@ export function takeFromStack(stack, denom, n = 1) {
 // `voided` is the escape hatch: a customer who walks out, or a game reloaded
 // mid-sale. It is a terminal stage that has moved no money.
 
-export function createTx({ items = [], mode = 'relaxed', discount = 0, rng = Math.random } = {}) {
+// `prefer` is the customer's own payment habit, decided before they reach the till —
+// some people are cash people. Left null, they make their mind up at the counter.
+export function createTx({ items = [], mode = 'relaxed', discount = 0, rng = Math.random, prefer = null } = {}) {
   return {
     items: items.map((it) => ({
       uid: it.uid,
@@ -96,6 +98,7 @@ export function createTx({ items = [], mode = 'relaxed', discount = 0, rng = Mat
     })),
     mode,
     discount,
+    prefer,
     stage: 'scanning',
     method: null,
     // card
@@ -103,7 +106,8 @@ export function createTx({ items = [], mode = 'relaxed', discount = 0, rng = Mat
     cardsTried: 0,
     cardResult: null,
     // cash
-    tendered: null,     // the pieces the customer physically handed over
+    tendered: null,       // the pieces the customer physically handed over
+    tenderedTotal: null,  // ...and what they were worth, before they get put away
     drawerOpen: false,
     deposited: false,   // the tendered cash has been put away in the till
     hand: {},           // what the player has picked up to hand back
@@ -170,7 +174,7 @@ export function requestPayment(tx) {
   const left = unscannedCount(tx);
   if (left > 0) return { ok: false, reason: `Still ${left} to scan.` };
 
-  tx.method = tx.rng() < 0.4 ? 'card' : 'cash';
+  tx.method = tx.prefer || (tx.rng() < 0.4 ? 'card' : 'cash');
   if (tx.method === 'cash') {
     tx.rounding = round2(cashTotalOf(tx) - totalOf(tx));
     tx.stage = 'cash-tender';
@@ -287,16 +291,22 @@ export function makeChangeFrom(drawer, amount) {
   return left === 0 ? out : null;
 }
 
+// What they handed over, remembered as a NUMBER — because the pieces themselves are
+// about to be moved into the till one at a time, and `tendered` will empty out as
+// they go. Reading the change owed off a stack that is being dismantled would walk
+// it down to zero as the player put the money away.
 export function changeDue(tx) {
-  if (tx.method !== 'cash' || !tx.tendered) return 0;
-  return round2(Math.max(0, stackTotal(tx.tendered) - cashTotalOf(tx)));
+  if (tx.method !== 'cash') return 0;
+  const paid = tx.tenderedTotal != null ? tx.tenderedTotal : stackTotal(tx.tendered || {});
+  return round2(Math.max(0, paid - cashTotalOf(tx)));
 }
 
 export function acceptCash(tx) {
   if (tx.stage !== 'cash-tender') return { ok: false, reason: 'No cash offered.' };
-  if (!tx.tendered) return { ok: false, reason: 'They have not counted it out yet.' };
+  if (!tx.tendered || !stackCount(tx.tendered)) return { ok: false, reason: 'They have not counted it out yet.' };
+  tx.tenderedTotal = stackTotal(tx.tendered);
   tx.stage = 'cash-drawer';
-  return { ok: true, taken: stackTotal(tx.tendered) };
+  return { ok: true, taken: tx.tenderedTotal };
 }
 
 export function openDrawer(tx) {
@@ -310,16 +320,27 @@ export function closeDrawer(tx) {
   return { ok: true };
 }
 
-// the customer's money goes into the till. This has to happen before the sale can
-// close, or the drawer balances short by exactly what they paid you.
+// The customer's money goes into the till, ONE PIECE AT A TIME, into its own slot.
+// This has to happen before the sale can close, or the drawer balances short by
+// exactly what they paid you.
+export function depositPiece(tx, drawer, denom) {
+  if (!tx.drawerOpen) return { ok: false, reason: 'Open the drawer first.' };
+  const res = takeFromStack(tx.tendered || {}, denom);
+  if (!res.ok) return { ok: false, reason: 'They did not give you one of those.' };
+  tx.tendered = res.stack;
+  drawer[denom] = (drawer[denom] || 0) + 1;
+  tx.deposited = stackCount(tx.tendered) === 0;
+  return { ok: true, deposited: tx.deposited };
+}
+
+// the whole handful at once — the tests and the Relaxed one-click path use this
 export function depositTendered(tx, drawer) {
   if (!tx.drawerOpen) return { ok: false, reason: 'Open the drawer first.' };
   if (tx.deposited) return { ok: false, reason: 'Already put away.' };
-  if (!tx.tendered) return { ok: false, reason: 'Nothing to put away.' };
-  for (const [denom, n] of Object.entries(tx.tendered)) {
-    drawer[denom] = (drawer[denom] || 0) + n;
+  if (!tx.tendered || !stackCount(tx.tendered)) return { ok: false, reason: 'Nothing to put away.' };
+  for (const [denom, n] of Object.entries({ ...tx.tendered })) {
+    for (let i = 0; i < n; i++) depositPiece(tx, drawer, Number(denom));
   }
-  tx.deposited = true;
   return { ok: true };
 }
 

@@ -13,7 +13,7 @@
 
 import * as THREE from 'three';
 import {
-  FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, LOGO_RUG,
+  FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, LOGO_RUG, REGISTER, COUNTER_TOP,
 } from '../../data/shopLayout.js';
 import { restockShelfFromBackroom } from '../../sim/shop.js';
 import { placedFixtures } from '../../sim/layout.js';
@@ -838,107 +838,67 @@ export function buildCheckout(B) {
   interior.add(footRail);
   addCol(colBoxAt(COUNTER.x, COUNTER.z, COUNTER.len + 0.3, COUNTER.depth + 0.2));
 
-  // REGISTER KIT — was three black slabs and a stick. The audit called it the
-  // thing that most made the checkout read as a prototype: ref panel 6 wants a
-  // monitor, a scanner, a card reader, a receipt printer and a cash drawer that
-  // each look like the piece of retail equipment they are. All modelled now
-  // (tools/blender/build_props.py); the screen keeps its live canvas.
-  const regCv = document.createElement('canvas');
-  regCv.width = 128;
-  regCv.height = 80;
-  const regTex = new THREE.CanvasTexture(regCv);
-  regTex.colorSpace = THREE.SRGBColorSpace;
-  const regScreenMat = new THREE.MeshStandardMaterial({
-    map: regTex, emissive: 0xffffff, emissiveMap: regTex, emissiveIntensity: 0.6,
-  });
-
+  // REGISTER KIT. The positions are no longer eyeballed offsets from registerX —
+  // they come from REGISTER in shopLayout.js, which was DERIVED against the player's
+  // reach circle and the customer's, and which checkout-space.test.js holds open.
+  // The card reader sits where BOTH can touch it; the monitor faces the staff; the
+  // scanner sits mid-depth so goods pass over it on their way to the bag.
+  //
+  // The screens are live canvases owned by registerMode.js, because what is ON them
+  // is a function of the transaction, not of the furniture.
   // deferred: the models land well after the shop is built
   if (merch) merch.onReady(() => {
-    const placeProp = (name, x, y, z, ry) => {
+    const placeProp = (name, spec, ry) => {
       const o = merch.instantiate(name);
       if (!o) return null;
-      o.position.set(x, y, z);
-      o.rotation.y = ry;
+      o.position.set(spec.x, COUNTER_TOP, spec.z);
+      o.rotation.y = ry !== undefined ? ry : (spec.ry || 0);
       interior.add(o);
       return o;
     };
-    // the screens face the STAFF side (north, -z); the card reader faces the queue
-    const reg = placeProp('register', COUNTER.registerX, 1.055, COUNTER.z + 0.02, Math.PI);
-    if (reg) {
-      const scr = merch.slotMesh(reg, 'M_screen');
-      if (scr) scr.material = regScreenMat;
-    }
-    placeProp('scanner', COUNTER.registerX + 0.30, 1.055, COUNTER.z - 0.10, Math.PI + 0.3);
-    placeProp('cardterm', COUNTER.registerX - 0.42, 1.055, COUNTER.z - 0.30, 0);
-    placeProp('printer', COUNTER.registerX + 0.52, 1.055, COUNTER.z + 0.14, Math.PI - 0.2);
+    const reg = placeProp('register', REGISTER.monitor);
+    // NOT `slotMesh(...).material = screenMaterial`. The model's screen face carries an
+    // atlas UV from smart_project, so a 0..1 canvas lands on it as a magnified corner —
+    // the register rendered as a black slab. registerMode hangs its own clean-UV plane.
+    if (reg && B.register) B.register.attachScreen(reg);
+    placeProp('scanner', REGISTER.scanner);
+    const term = placeProp('cardterm', REGISTER.cardterm);
+    if (term && B.register) B.register.attachTerm(term);
+    placeProp('printer', REGISTER.printer);
   });
 
-  const drawRegister = (lines, total) => {
-    const c2 = regCv.getContext('2d');
-    c2.fillStyle = '#0d1a12';
-    c2.fillRect(0, 0, 128, 80);
-    c2.fillStyle = '#35d06a';
-    c2.font = '11px monospace';
-    c2.textAlign = 'left';
-    (lines || ['READY']).slice(0, 4).forEach((l, i) => c2.fillText(l.slice(0, 19), 5, 15 + i * 14));
-    if (total !== undefined) {
-      c2.fillStyle = '#8ed072';
-      c2.font = 'bold 13px monospace';
-      c2.textAlign = 'right';
-      c2.fillText(`$${total.toFixed(2)}`, 123, 74);
-    }
-    regTex.needsUpdate = true;
-  };
-  drawRegister();
+  // the screen is drawn by registerMode from the live transaction — a furniture
+  // module has no business deciding what a register says
+  const drawRegister = () => {};
 
-  // branded paper bags at the bagging end
+  // the spare carriers, folded flat at the bagging end. The OPEN bag you actually
+  // drop goods into, the divider and the impulse rack are registerMode's — they are
+  // part of the transaction, not part of the room.
   for (let i = 0; i < 3; i++) {
     const bag = new THREE.Mesh(
-      new THREE.BoxGeometry(0.26, 0.34, 0.1),
-      new THREE.MeshStandardMaterial({ color: 0x1f4a26, roughness: 0.85 }),
+      new THREE.BoxGeometry(0.26, 0.02, 0.16),
+      new THREE.MeshStandardMaterial({ color: 0x2c4a30, roughness: 0.88 }),
     );
-    bag.position.set(COUNTER.x + COUNTER.len / 2 - 0.3, 1.22, COUNTER.z + 0.14 - i * 0.05);
-    bag.rotation.y = 0.2 + i * 0.06;
+    bag.position.set(REGISTER.bagstand.x, COUNTER_TOP + 0.012 + i * 0.021, REGISTER.bagstand.z);
+    bag.rotation.y = 0.08 + i * 0.05;
+    bag.castShadow = true;
     interior.add(bag);
   }
 
-  // counter divider on the customer side — marks where the next order starts
-  const divider = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.5), mats.walnutDark);
-  divider.position.set(COUNTER.registerX + 1.0, 1.09, COUNTER.z + 0.05);
-  interior.add(divider);
-
-  // a hand basket parked at the counter end
-  const basket = new THREE.Group();
-  const bBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.03, 0.28), new THREE.MeshStandardMaterial({ color: 0x2e5a35, roughness: 0.7 }));
-  bBase.position.y = 0.015;
-  basket.add(bBase);
-  for (const [w, d2, px, pz] of [[0.4, 0.02, 0, -0.13], [0.4, 0.02, 0, 0.13], [0.02, 0.28, -0.19, 0], [0.02, 0.28, 0.19, 0]]) {
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 0.18, d2), new THREE.MeshStandardMaterial({ color: 0x2e5a35, roughness: 0.7, transparent: true, opacity: 0.85 }));
-    wall.position.set(px, 0.11, pz);
-    basket.add(wall);
-  }
-  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.36, 6), mats.charcoal);
-  handle.rotation.z = Math.PI / 2;
-  handle.position.set(0, 0.26, 0);
-  basket.add(handle);
-  basket.position.set(COUNTER.x + COUNTER.len / 2 - 0.35, 1.055, COUNTER.z - 0.18);
-  basket.rotation.y = -0.3;
-  interior.add(basket);
-
-  // impulse rack on the aisle end of the island (ref 4)
-  for (const y of [0.45, 0.68]) {
-    const tray = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.03, 0.3), mats.walnutDark);
-    tray.position.set(COUNTER.x - COUNTER.len / 2 - 0.12, y, COUNTER.z);
-    interior.add(tray);
-    for (let i = 0; i < 3; i++) {
-      const pack = new THREE.Mesh(
-        new THREE.BoxGeometry(0.09, 0.12, 0.05),
-        new THREE.MeshStandardMaterial({ color: [0x2e5a35, 0xc9a227, 0x7f9fc2][i], roughness: 0.7 }),
-      );
-      pack.position.set(COUNTER.x - COUNTER.len / 2 - 0.12, y + 0.07, COUNTER.z - 0.09 + i * 0.09);
-      interior.add(pack);
+  // a hand basket, parked at the aisle end for shoppers to take
+  if (merch) merch.onReady(() => {
+    const bk = merch.instantiate('basket');
+    if (!bk) return;
+    bk.position.set(COUNTER.x - COUNTER.len / 2 - 0.34, 0.30, COUNTER.z - 0.30);
+    bk.rotation.y = -0.35;
+    interior.add(bk);
+    const bk2 = merch.instantiate('basket');
+    if (bk2) {
+      bk2.position.set(COUNTER.x - COUNTER.len / 2 - 0.34, 0.44, COUNTER.z - 0.30);
+      bk2.rotation.y = -0.28;
+      interior.add(bk2);
     }
-  }
+  });
 
   return { drawRegister };
 }

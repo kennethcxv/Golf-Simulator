@@ -31,6 +31,8 @@ const FILES = [
   'chair_lounge', 'chair_office', 'trophy',
   'register', 'scanner', 'cardterm', 'printer', 'cash_drawer',
   'carton', 'carton_open', 'handtruck', 'pendant',
+  // the register kit a cashier's hands touch (tools/blender/build_register.py)
+  'basket', 'bag_open', 'impulse_rack', 'divider',
 ];
 
 // Which slot in the GLB maps to which material in the clubhouse kit.

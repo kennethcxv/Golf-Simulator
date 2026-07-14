@@ -862,3 +862,9 @@ input[type="range"] { accent-color: var(--accent); }
 .lt-revstars { color: #d8a33a; font-size: 13px; letter-spacing: 1px; }
 .lt-revtext { font-size: 13.5px; color: #2c332e; margin: 2px 0 3px; }
 .lt-revday { font-size: 11px; color: #8b938c; }
+
+/* REGISTER MODE — the camera is frozen at the till and the pointer is a cursor, so
+   it has to LOOK like a cursor. The crosshair is meaningless here (you are not
+   aiming, you are picking things up) and the walk prompt would sit over the counter. */
+body.register-mode { cursor: crosshair; }
+body.register-mode .shop-overlay { display: none !important; }

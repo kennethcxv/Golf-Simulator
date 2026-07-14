@@ -163,7 +163,12 @@ export const COUNTER_TOP = 1.055;
 
 export const REGISTER = {
   // the kit, on the counter top
-  monitor:  { x: 1.85, z: 4.48, ry: Math.PI },          // staff side — it faces YOU
+  // ry 0, NOT PI. The model's screen faces its own +z, and the staff side is +z, so
+  // ry 0 turns the display toward the player. The old kit used PI with a comment
+  // claiming the screens faced "the STAFF side (north, -z)" — but staff is at +z, so
+  // the register had been showing its back to the cashier and its face to the queue.
+  // Nobody caught it because the old screen was 128x80 and nobody ever read it.
+  monitor:  { x: 2.25, z: 4.52, ry: 0 },                // staff side — it faces YOU
   cardterm: { x: 2.05, z: 3.88, ry: 0 },                // customer side, in BOTH reach circles
   scanner:  { x: 2.70, z: 4.22, ry: Math.PI + 0.22 },   // mid-depth: you pass goods over it
   printer:  { x: 3.20, z: 4.56, ry: Math.PI - 0.18 },

@@ -292,6 +292,109 @@ export function makeAudio() {
     }
   }
 
+
+  // --- the register's own voice -------------------------------------------------
+  // The brief asks for a card tap, an approval, a decline, notes, coins and a bag.
+  // They all have to be TELLABLE APART with your eyes shut, because at the till the
+  // sound IS the feedback: you hear whether the card cleared before you look up.
+
+  // card tap: the terminal's contact chirp — short, dry, high
+  function cardTap() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(2100, t0);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.03, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.06);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.07);
+  }
+
+  // APPROVED: two notes, rising. A major third up is the most unambiguous "yes"
+  // there is, and every terminal on earth uses some version of it.
+  function approve() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    [[880, 0], [1108, 0.09]].forEach(([f, dt]) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = f;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.05, t0 + dt + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.26);
+      osc.connect(g).connect(sfxBus);
+      osc.start(t0 + dt);
+      osc.stop(t0 + dt + 0.3);
+    });
+  }
+
+  // DECLINED: the same shape, inverted and soured — a low buzz that falls. You do
+  // not need to read the screen to know it went wrong.
+  function decline() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    [[330, 0], [247, 0.13]].forEach(([f, dt]) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = f;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 1200;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.042, t0 + dt + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.3);
+      osc.connect(lp).connect(g).connect(sfxBus);
+      osc.start(t0 + dt);
+      osc.stop(t0 + dt + 0.34);
+    });
+  }
+
+  // paper: notes riffled, a bag opened. Filtered noise with a fast decay — there is
+  // no pitch in paper, only texture.
+  function paper() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.22, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) {
+      const t = i / d.length;
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 2.2) * (0.6 + 0.4 * Math.sin(t * 90));
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 2600;
+    const g = ctx.createGain();
+    g.gain.value = 0.07;
+    src.connect(hp).connect(g).connect(sfxBus);
+    src.start(t0);
+  }
+
+  // a coin dropped into a cup: a metallic ping with a couple of inharmonic partials,
+  // which is what stops it sounding like a bell
+  function coin() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    for (const [f, a] of [[3140, 0.030], [4710, 0.016], [5890, 0.009]]) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, t0);
+      osc.frequency.exponentialRampToValueAtTime(f * 0.96, t0 + 0.18);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(a, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2 + Math.random() * 0.1);
+      osc.connect(g).connect(sfxBus);
+      osc.start(t0);
+      osc.stop(t0 + 0.32);
+    }
+  }
+
   // thermal receipt printer: a fast ratchet of tiny clicks, then the tear
   function receipt() {
     if (!ctx) return;
@@ -526,6 +629,11 @@ export function makeAudio() {
     doorSwing,
     doorShut,
     scanBeep,
+    cardTap,
+    approve,
+    decline,
+    paper,
+    coin,
     receipt,
     drawer,
     wipe,

@@ -1067,8 +1067,24 @@ function refreshHover(clientX, clientY) {
   }
 }
 
+// REGISTER MODE. While it is up the camera is frozen (walk.focusOn) and the pointer
+// is FREE, because the player is working a counter with a cursor rather than looking
+// around with the mouse. So it has to intercept the pointer before the walk handlers
+// see it — otherwise a left-click on a banknote would also fire the tool trigger,
+// and clicking the canvas would grab pointer lock back and start the camera spinning.
+function regApi() {
+  const ch = app.scene3d && app.scene3d.clubhouse && app.scene3d.clubhouse();
+  return ch && ch.register ? ch.register : null;
+}
+function regActive() {
+  const r = regApi();
+  return !!(r && r.isActive());
+}
+
 canvas.addEventListener('click', () => {
-  // first-person walking: clicking (re)captures the mouse
+  // first-person walking: clicking (re)captures the mouse — but NOT while the player
+  // is behind the till, where the cursor is the whole interface
+  if (regActive()) return;
   if (app.screen === 'game' && !document.pointerLockElement && walkActive()) {
     requestLook();
   }
@@ -1076,6 +1092,7 @@ canvas.addEventListener('click', () => {
 
 canvas.addEventListener('pointerdown', (e) => {
   if (app.screen !== 'game') return;
+  if (regActive()) { e.preventDefault(); regApi().onDown(e); return; }
   if (app.courseMode !== 'overview') {
     // walking with any tool out: the held button is the use trigger
     const bld = buildApi();
@@ -1118,6 +1135,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 
 canvas.addEventListener('pointermove', (e) => {
+  if (regActive()) { regApi().onMove(e); return; }
   if (app.screen !== 'game' || app.view !== 'course' || app.courseMode !== 'overview') return;
   refreshHover(e.clientX, e.clientY);
 
@@ -1148,7 +1166,8 @@ canvas.addEventListener('pointermove', (e) => {
   dragging.lastY = e.clientY;
 });
 
-window.addEventListener('pointerup', () => {
+window.addEventListener('pointerup', (e) => {
+  if (regActive()) { regApi().onUp(e); return; }
   if (walkActive() && app.scene3d.walk.isSpraying()) app.scene3d.walk.setSpraying(false);
   if (walkActive() && app.scene3d.walk.isSoaping && app.scene3d.walk.isSoaping()) app.scene3d.walk.setSoaping(false);
   if (audio.ready) audio.setToolLoop(null);
@@ -1178,6 +1197,16 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 window.addEventListener('keydown', (e) => {
   if (app.screen !== 'game') return;
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+
+  // BEHIND THE TILL, THE TILL OWNS THE KEYBOARD. This sits above even the speed keys
+  // and Tab, deliberately: Tab would swap to the overview camera while the cashier
+  // pose is still latched, which strands the player looking at a counter from orbit.
+  // Escape is the way out, and registerMode handles it.
+  if (regActive()) {
+    e.preventDefault();
+    regApi().onKey(e.key);
+    return;
+  }
 
   // time controls work in either view
   switch (e.key) {
