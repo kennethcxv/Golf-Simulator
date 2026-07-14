@@ -131,11 +131,64 @@ export const COUNTER = {
   registerX: 1.7,                                 // register at the west (aisle) end
   queueBase: { x: 1.6, z: 3.05 },                 // slot 0: at the register, clear of the counter
   queueStep: { x: -0.8, z: -0.45 },               // line falls back SW, clear of the door
-  staffStand: { x: 1.9, z: 5.35 },                // where you stand to work it: behind the counter
+  staffStand: { x: 2.80, z: 5.10 },               // where you stand to work it: behind the counter
 };
 export function queueSlot(i) {
   return { x: COUNTER.queueBase.x + COUNTER.queueStep.x * i, z: COUNTER.queueBase.z + COUNTER.queueStep.z * i };
 }
+
+// --- the register workspace ---------------------------------------------------------
+// A till is a production line, and the geometry has to make the line obvious. Goods
+// land in front of the CUSTOMER (west, at the queue head, where they can reach).
+// They get dragged across the scanner in the MIDDLE. They end up bagged on the STAFF
+// side, downstream to the east. West → east, customer side → staff side.
+//
+// The scan volume sits deliberately between the staging tray and the bagging mat, so
+// the natural motion — pick it up there, put it down here — sweeps the barcode over
+// the glass on the way. That is the whole design: scanning is not a button, it is
+// what happens when you move an item the way you would move it anyway. Drop one into
+// the bag around the side without crossing, and it stays unscanned, and an unscanned
+// item is one you cannot take money for.
+//
+// Everything here is INTERIOR-LOCAL. y is absolute (FLOOR_TOP is 0.3, the counter
+// top is 1.055) because the scan volume has to be a real height off a real surface.
+
+export const COUNTER_TOP = 1.055;
+
+// Everything below was DERIVED against two reach circles, not eyeballed. The player
+// stands at (2.80, 5.10) and can reach 1.55 yd; the customer stands at the head of
+// the queue, (1.60, 3.05), and can lean 1.6 yd over the counter. Anything a hand has
+// to touch lives inside the right circle, and checkout-space.test.js proves it —
+// the first cut put the staging tray a 1.68 yd stretch away and the test caught it.
+
+export const REGISTER = {
+  // the kit, on the counter top
+  monitor:  { x: 1.85, z: 4.48, ry: Math.PI },          // staff side — it faces YOU
+  cardterm: { x: 2.05, z: 3.88, ry: 0 },                // customer side, in BOTH reach circles
+  scanner:  { x: 2.70, z: 4.22, ry: Math.PI + 0.22 },   // mid-depth: you pass goods over it
+  printer:  { x: 3.20, z: 4.56, ry: Math.PI - 0.18 },
+  bagstand: { x: 4.20, z: 4.50 },                       // the stack of folded carriers
+  divider:  { x: 4.42, z: 4.05 },                       // where the next order starts
+  impulse:  { x: 3.85, z: 3.85 },                       // markers and tees, facing the queue
+
+  // the drawer lives UNDER the counter and slides out toward the staff side
+  drawer: { x: 2.40, y: 0.86, w: 0.46, d: 0.40, travel: 0.34 },
+
+  // surfaces
+  staging: { minX: 2.30, maxX: 3.10, minZ: 3.78, maxZ: 4.12 },  // customer lays goods out here
+  bagging: { minX: 3.30, maxX: 4.05, minZ: 4.28, maxZ: 4.60 },  // staff side, downstream
+
+  // THE SCAN VOLUME. An item counts as scanned when its barcode passes THROUGH this
+  // box — not when it comes to rest in it. Both surfaces sit clear of it, so nothing
+  // ever auto-scans by being put down; and the crossing is a swept segment test, so a
+  // fast drag cannot tunnel straight through and come out the far side unscanned.
+  scan: { minX: 2.42, maxX: 2.98, minZ: 4.02, maxZ: 4.44, minY: 1.06, maxY: 1.34 },
+
+  stand: { x: 2.80, z: 5.10 },   // the player's working position, = COUNTER.staffStand
+};
+
+// the AABB of a workspace rect, for tests and for clamping a carried item
+export const inRect = (r, x, z) => x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ;
 
 // permanent entrance dressing
 export const MAT = { x: -0.8, z: 5.55 };               // welcome mat inside the door

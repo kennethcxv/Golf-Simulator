@@ -471,3 +471,41 @@ export function completeSale(state, tx, who = 'A customer') {
 
   return { ok: true, total, lost: tx.lost };
 }
+
+// --- the scan volume ----------------------------------------------------------------
+// A SWEPT test, not a point test, and the difference is the whole mechanic.
+//
+// The player drags an item across the scanner with a mouse, and a mouse moves in
+// jumps. At 60 fps a fast flick carries the barcode a third of a yard between one
+// frame and the next — clean over a 0.56 yd scan volume and out the far side, never
+// once sampled INSIDE it. A point-in-box check would miss that scan. The item would
+// land in the bag unscanned, the player would swear blind they scanned it, and the
+// register would refuse to take payment.
+//
+// So: the segment the barcode actually travelled this frame, against the box.
+// Slab method — clip the segment's parameter range against each axis in turn; if
+// anything survives all three, the path went through the box.
+export function segmentHitsBox(p0, p1, box) {
+  const lo = [box.minX, box.minY, box.minZ];
+  const hi = [box.maxX, box.maxY, box.maxZ];
+  const a = [p0.x, p0.y, p0.z];
+  const b = [p1.x, p1.y, p1.z];
+
+  let t0 = 0;
+  let t1 = 1;
+  for (let i = 0; i < 3; i++) {
+    const d = b[i] - a[i];
+    if (Math.abs(d) < 1e-9) {
+      // parallel to this slab: it either starts inside it or it never gets in
+      if (a[i] < lo[i] || a[i] > hi[i]) return false;
+      continue;
+    }
+    let n = (lo[i] - a[i]) / d;
+    let f = (hi[i] - a[i]) / d;
+    if (n > f) { const tmp = n; n = f; f = tmp; }
+    if (n > t0) t0 = n;
+    if (f < t1) t1 = f;
+    if (t0 > t1) return false;
+  }
+  return true;
+}
