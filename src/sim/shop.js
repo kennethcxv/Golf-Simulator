@@ -11,6 +11,7 @@ import { calendarOf } from './time.js';
 import { addRevenue, addExpense, unbill } from './economy.js';
 import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
 import { planShipment } from '../data/boxes.js';
+import { capacityOf } from '../data/fixtureSlots.js';
 import { INTERIOR, CLUTTER_SPOTS, WINDOWS } from '../data/shopLayout.js';
 import {
   arriveOrder, openAllBoxes, ensureDeliveries, padHasRoom, padCount, PAD_CAPACITY,
@@ -555,8 +556,16 @@ export function deliverOrdersDue(state, dayAbs) {
 
 // --- restocking ------------------------------------------------------------------------
 
+// HOW MANY OF THIS THE SHELF HOLDS — which is the number of places there are to put one.
+//
+// It used to be a per-category number, and the renderer had a different opinion, and nobody
+// compared them: a "full" accessories shelf (24) drew twelve of them, and `bag1`'s category is
+// 'accessories', so a golf-bag platform could be stacked with twenty-four stand bags and drew
+// four. Capacity is the slot count now (data/fixtureSlots.js) — the same list the shop walks to
+// put the things on the shelf. SHELF_CAP survives only for a line with no fixture to stand on.
 export function shelfCapacity(sku) {
-  return SHELF_CAP[sku.cat];
+  const slots = capacityOf(sku.id);
+  return slots > 0 ? slots : SHELF_CAP[sku.cat];
 }
 
 // does the shop own its vacuum yet? (equipment lives in .back, never on shelves)

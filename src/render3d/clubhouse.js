@@ -34,6 +34,7 @@ import { tutorialFlag } from '../sim/tutorial.js';
 import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
 import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel } from './clubhouse/materials.js';
 import { createMerch } from './clubhouse/merch.js';
+import { slotsFor } from '../data/fixtureSlots.js';
 import { buildShell } from './clubhouse/shell.js';
 import { buildDoors } from './clubhouse/doors.js';
 import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } from './clubhouse/fixtures.js';
@@ -1324,310 +1325,291 @@ export function makeClubhouse(ctx) {
     return labelCache.get(key);
   }
 
+  // --- ONE ITEM, ONE SLOT ------------------------------------------------------------------
+  //
+  // This was a 250-line if/else chain in which every line of stock invented its own positions AND
+  // its own maximum — `Math.min(count, 12)` here, `Math.min(count, 15)` there — while the sim
+  // enforced a completely different capacity out of a per-category table. Nothing compared the two
+  // numbers, so a full accessories shelf drew twelve of its twenty-four and looked half empty AT
+  // CAPACITY; the ball wall drew fifteen of its twenty-four and padded the gap with a row of boxes
+  // standing behind the front row that represented no stock at all. That is the definition of
+  // visually faking a full shelf, and the brief says not to.
+  //
+  // The places live in data now (data/fixtureSlots.js) and the sim's capacity IS the length of that
+  // list, so this loop cannot draw the wrong number: it walks the slots and puts one thing in each.
+  // Every unit on the shelf is on the shelf. Nothing on the shelf is not a unit.
+  const BALL_BOX_GEO = new THREE.BoxGeometry(0.165, 0.12, 0.125);
+  // NOT roundedBox: its UVs are planar and world-scaled, which crops a 0..1 label into mush.
+  const CARTON_GEO = new THREE.BoxGeometry(0.12, 0.10, 0.11);
+  const POLO_TINTS = { polo1: 0x4e7a52, polo2: 0x5b7f9e, jacket2: 0x33455e };
+  const CAP_TINTS = [0x33455e, 0xf0ead8, 0x2c5233, 0xd9cbb2];
+  const BAG_TINTS = [0x53688c, 0x4e8059, 0xb9b3a6, 0x9a7a56];
+  const SHOE_TINTS = [0xf2efe6, 0x33455e, 0x8b9299, 0xe8e3d5];
+  const CARTON_BRAND = { tees1: 'CADDIE CLUB', marker1: 'CADDIE CLUB' };
+  const RANGE_BODY = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.45 });
+  const RANGE_LENS = new THREE.MeshStandardMaterial({ color: 0x557a8c, roughness: 0.2, metalness: 0.6 });
+  const skuMats = new Map();
+  const ballBoxMats = new Map();
+
+  function skuMat(sku) {
+    if (!skuMats.has(sku.id)) {
+      const color = new THREE.Color(CAT_COLORS[sku.cat] || 0x999999);
+      color.offsetHSL(0, 0, (sku.tier - 2) * 0.09);
+      skuMats.set(sku.id, new THREE.MeshStandardMaterial({ color, roughness: 0.6 }));
+    }
+    return skuMats.get(sku.id);
+  }
+
+  function ballBoxMat(sku) {
+    if (!ballBoxMats.has(sku.id)) {
+      const plain = new THREE.MeshStandardMaterial({
+        color: sku.tier >= 3 ? 0x1f4a26 : sku.tier === 2 ? 0x2c3e66 : 0xf0ead8,
+        roughness: 0.72,
+      });
+      // the brand faces the shopper (+z); the other five faces are the carton
+      ballBoxMats.set(sku.id, [plain, plain, plain, plain, ballLabelMat(sku), plain]);
+    }
+    return ballBoxMats.get(sku.id);
+  }
+
+  function cartonMat(sku) {
+    const brand = CARTON_BRAND[sku.id];
+    const m = skuMat(sku);
+    if (!brand) return m;
+    const label = cartonLabelMat(sku, brand);
+    return [m, m, m, m, label, m];
+  }
+
+  // where the container that a line stands IN sits — derived from the line's own slots, so a
+  // basket can never end up somewhere the socks are not
+  function slotCentre(skuId) {
+    const s = slotsFor(skuId);
+    if (!s.length) return { x: 0, y: 0, z: 0 };
+    const n = s.length;
+    return {
+      x: s.reduce((a, p) => a + p.x, 0) / n,
+      y: Math.min(...s.map((p) => p.y)),
+      z: s.reduce((a, p) => a + p.z, 0) / n,
+    };
+  }
+
+  // the basket / barrel a line lives in — furniture, drawn only under the stock it actually holds
+  function stockHolder(sku, count) {
+    if (sku.id === 'sock1') {
+      // one basket per board that has socks in it: an empty basket on the top shelf is a prop
+      const g = new THREE.Group();
+      const used = slotsFor('sock1').slice(0, count);
+      const boards = [...new Set(used.map((s) => s.base))];
+      for (const base of boards) {
+        const on = used.filter((s) => s.base === base);
+        const basket = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.19, 0.14, 12), woodMat);
+        basket.position.set(
+          on.reduce((a, s) => a + s.x, 0) / on.length,
+          base + 0.07,
+          on[0].z,
+        );
+        g.add(basket);
+      }
+      return g;
+    }
+    if (sku.id === 'umb1') {
+      const c = slotCentre('umb1');
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.17, 0.5, 10), woodMat);
+      b.position.set(c.x, c.y, c.z);
+      return b;
+    }
+    return null;
+  }
+
+  // one unit of stock, posed in its slot
+  function makeStockItem(sku, s, i) {
+    const id = sku.id;
+
+    if (sku.cat === 'clubs') {
+      // A club is a shaft, a grip and a HEAD, and the head was the tell: a driver was a squashed
+      // sphere and an iron a flat tab. The heads are modelled (vendor/models/clubhouse/head_*.glb),
+      // pivoted at the shaft entry, so they hang off the tip of the shaft.
+      const g = new THREE.Group();
+      const isDriver = id.startsWith('driver');
+      const headModel = isDriver ? 'head_driver'
+        : id.startsWith('putter') ? 'head_putter'
+          : id.startsWith('wedge') ? 'head_wedge' : 'head_iron';
+      const shaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.0075, 0.0105, s.len, 10),
+        isDriver ? mats.merchDark : mats.merchSteel,
+      );
+      shaft.position.set(s.x + Math.sin(s.lean) * s.len / 2, s.y + Math.cos(s.lean) * s.len / 2, s.z);
+      shaft.rotation.z = -s.lean;
+      shaft.castShadow = true;
+      const grip = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.0135, 0.0115, 0.24, 8), mats.merchRubber,
+      );
+      grip.position.set(
+        s.x + Math.sin(s.lean) * (s.len - 0.10),
+        s.y + Math.cos(s.lean) * (s.len - 0.10),
+        s.z,
+      );
+      grip.rotation.z = -s.lean;
+      g.add(shaft, grip);
+      const head = merch.instantiate(headModel);
+      if (head) {
+        head.position.set(s.x, s.y, s.z);
+        head.rotation.z = -s.lean;
+        head.rotation.y = s.ry;
+        g.add(head);
+      }
+      return g;
+    }
+
+    if (sku.cat === 'balls') {
+      const box = new THREE.Mesh(BALL_BOX_GEO, ballBoxMat(sku));
+      box.position.set(s.x, s.y, s.z);
+      box.castShadow = true;
+      return box;
+    }
+
+    if (POLO_TINTS[id]) {
+      // THE WORST ASSET IN THE SHOP, per the audit: a hanging polo was a 0.3 x 0.38 x 0.035 box
+      // with two box sleeves stuck on at 30 degrees. Both the hanging and the folded shirts are
+      // modelled garments now, and the tints sit on the room's palette.
+      const tint = POLO_TINTS[id];
+      if (s.folded) {
+        const fold = merch.instantiate('polo_folded', { tint });
+        if (!fold) return null;
+        fold.position.set(s.x, s.y, s.z);
+        fold.rotation.y = s.ry || 0;
+        return fold;
+      }
+      const shirt = merch.instantiate(id === 'jacket2' ? 'jacket_hanging' : 'polo_hanging', { tint });
+      if (!shirt) return null;
+      shirt.position.set(s.x, s.y, s.z);   // the model's pivot is the hanger HOOK
+      shirt.rotation.y = s.ry || 0;
+      return shirt;
+    }
+
+    if (id === 'cap1') {
+      const cap = merch.instantiate('cap', { tint: CAP_TINTS[i % 4] });
+      if (!cap) return null;
+      cap.position.set(s.x, s.y, s.z);
+      cap.rotation.y = s.ry;              // bills point out off the tree
+      return cap;
+    }
+
+    if (id === 'glove1') {
+      // STOOD UP, not laid flat. Flat on a board at chest height they are edge-on to a standing
+      // player and a full shelf of them renders as a row of white slivers.
+      const glove = merch.instantiate('glove');
+      if (!glove) return null;
+      glove.position.set(s.x, s.y, s.z);
+      glove.rotation.set(-0.12, s.ry || 0, 0);   // fronted, leaning back on the board
+      return glove;
+    }
+
+    if (id === 'sock1') {
+      const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.08, 6), mats.merchWhite);
+      roll.rotation.x = Math.PI / 2;
+      roll.position.set(s.x, s.y, s.z);
+      return roll;
+    }
+
+    if (id === 'towel1') {
+      const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.22, 8), mats.merchWhite);
+      roll.rotation.x = Math.PI / 2;
+      roll.position.set(s.x, s.y, s.z);
+      roll.castShadow = true;
+      return roll;
+    }
+
+    if (id === 'umb1') {
+      const g = new THREE.Group();
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.0, 5), darkMat);
+      shaft.position.set(s.x, s.y + 0.50, s.z);
+      shaft.rotation.z = s.lean || 0;
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 8), skuMat(sku));
+      tip.position.set(s.x, s.y + 1.05, s.z);
+      g.add(shaft, tip);
+      return g;
+    }
+
+    if (id === 'range2') {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(roundedBox(0.09, 0.11, 0.15, 0.02), RANGE_BODY);
+      body.position.set(s.x, s.y, s.z);
+      body.rotation.y = s.ry;
+      const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.012, 10), RANGE_LENS);
+      lens.rotation.x = Math.PI / 2;
+      lens.rotation.z = s.ry;
+      lens.position.set(s.x + 0.03, s.y + 0.015, s.z + 0.07);
+      g.add(body, lens);
+      return g;
+    }
+
+    if (id === 'shoe1') {
+      // Was a slab sole, a box upper and a sphere toe — a computer mouse. A slot is a PAIR.
+      const g = new THREE.Group();
+      const tint = SHOE_TINTS[i % 4];
+      for (const so of [-0.085, 0.085]) {
+        const shoe = merch.instantiate('shoe', { tint });
+        if (!shoe) break;
+        shoe.position.set(s.x + so, s.y, s.z);
+        shoe.rotation.set(-0.18, -Math.PI / 2 + (so > 0 ? 0.16 : -0.16), 0);
+        g.add(shoe);
+      }
+      return g;
+    }
+
+    if (id === 'bag1') {
+      // The modelled bag ships WITH its fan of clubs, because that fan is the whole silhouette:
+      // a golf bag with nothing in it is just a bin (ref 7).
+      const bag = merch.instantiate('bag', { tint: BAG_TINTS[i % 4] });
+      if (!bag) return null;
+      bag.position.set(s.x, s.y, s.z);
+      bag.rotation.x = s.lean || 0;      // leaning on the rail
+      bag.rotation.y = s.ry || 0;
+      return bag;
+    }
+
+    // cartoned smalls: cream cartons with a branded band, neatly fronted
+    const item = new THREE.Mesh(CARTON_GEO, cartonMat(sku));
+    item.position.set(s.x, s.y, s.z);
+    item.castShadow = true;
+    return item;
+  }
+
   function rebuildStock() {
     for (const g of stockMeshes.values()) stockGroup.remove(g);
     stockMeshes.clear();
     const inv = state.shop.inventory;
-    const white = mats.merchWhite;
-    // one geometry, one material, shared by every ball in the building
-    const ballGeo = new THREE.SphereGeometry(0.0214, 16, 12); // 43 mm — a real ball
-    // Muted, on-palette: the old tints were a saturated primary green and blue
-    // that fought the cream/walnut/sage room and read as coloured cardboard.
-    const POLO_TINTS = { polo1: 0x4e7a52, polo2: 0x5b7f9e, jacket2: 0x33455e };
 
     for (const f of placedFixtures(state)) {
       const anchor = fixtureAnchors.get(f.id);
       if (!anchor) continue;
-      const hangCursor = { n: 0 };
-      f.skus.forEach((skuId, idx) => {
+
+      for (const skuId of f.skus) {
         const sku = SHOP_CATALOG.find((s) => s.id === skuId);
-        const count = inv[skuId] ? inv[skuId].shelf : 0;
+        if (!sku) continue;
+        const slots = slotsFor(skuId);
+        // the shelf cannot hold more than it has places for — the sim enforces the same number,
+        // so this min() is a belt, not a braces: it can only ever bite on a corrupted save
+        const count = Math.min(inv[skuId] ? inv[skuId].shelf : 0, slots.length);
         const g = new THREE.Group();
-        const color = new THREE.Color(CAT_COLORS[sku.cat] || 0x999999);
-        color.offsetHSL(0, 0, (sku.tier - 2) * 0.09);
-        const m = new THREE.MeshStandardMaterial({ color, roughness: 0.6 });
-
-        if (sku.cat === 'clubs') {
-          // A club is a shaft, a grip and a HEAD, and the head was the tell: a
-          // driver was a squashed sphere and an iron a flat tab. The heads are
-          // modelled now (vendor/models/clubhouse/head_*.glb), pivoted at the
-          // shaft entry so they simply hang off the tip of the shaft.
-          const isDriver = sku.id.startsWith('driver');
-          const headModel = isDriver ? 'head_driver'
-            : sku.id.startsWith('putter') ? 'head_putter'
-              : sku.id.startsWith('wedge') ? 'head_wedge' : 'head_iron';
-          const shaftM = isDriver ? mats.merchDark : mats.merchSteel;
-
-          // The bay used to fill only its bottom half — the whole upper section
-          // was a blank panel (ref 5 has clubs in BOTH tiers). Two rows now.
-          //
-          // Spacing matters more than count. A bay carries up to four SKUs, so
-          // showing twelve of each crammed 48 clubs into the left two-thirds of
-          // one bay and it read as a thicket. Each SKU gets its own SLOT of the
-          // bay's real width, and three clubs per row inside it.
-          const perRow = 3;
-          const show = Math.min(count, 6);
-          const lanes = Math.max(1, f.skus.length);
-          const laneW = 2.5 / lanes;
-          const laneX = -1.25 + laneW * (idx + 0.5);
-          for (let i = 0; i < show; i++) {
-            const row = Math.floor(i / perRow);       // 0 = lower rack, 1 = upper
-            const k = i % perRow;
-            const baseY = row === 0 ? 0.18 : 1.32;
-            const len = row === 0 ? 1.06 : 0.82;      // the upper rack is shallower
-            const x = laneX + (k - 1) * Math.min(0.11, laneW / 3.4);
-            const z = 0.10 - k * 0.03;
-            const lean = 0.14 + (k % 3) * 0.03;
-            const midY = baseY + Math.cos(lean) * len / 2;
-
-            const shaft = new THREE.Mesh(
-              new THREE.CylinderGeometry(0.0075, 0.0105, len, 10), shaftM);
-            shaft.position.set(x + Math.sin(lean) * len / 2, midY, z);
-            shaft.rotation.z = -lean;
-            shaft.castShadow = true;
-            const grip = new THREE.Mesh(
-              new THREE.CylinderGeometry(0.0135, 0.0115, 0.24, 8), mats.merchRubber);
-            grip.position.set(x + Math.sin(lean) * (len - 0.10), baseY + Math.cos(lean) * (len - 0.10), z);
-            grip.rotation.z = -lean;
-            g.add(shaft, grip);
-
-            const head = merch.instantiate(headModel);
-            if (head) {
-              head.position.set(x, baseY, z);
-              head.rotation.z = -lean;
-              head.rotation.y = 0.30 + (k % 2) * 0.18;   // fan the faces slightly
-              g.add(head);
-            }
-          }
-        } else if (sku.cat === 'balls') {
-          // The reference ball wall (ref 6) is DENSE: four or five identical boxes
-          // filling every shelf, front-faced, in colour-coded rows. The old wall
-          // put three small boxes on each shelf with acres of bare wood between
-          // them, which is most of why the shop read as empty.
-          const label = ballLabelMat(sku);
-          const plain = new THREE.MeshStandardMaterial({
-            color: sku.tier >= 3 ? 0x1f4a26 : sku.tier === 2 ? 0x2c3e66 : 0xf0ead8,
-            roughness: 0.72,
-          });
-          const boxMats = [plain, plain, plain, plain, label, plain]; // label faces the shopper (+z)
-          // NOT roundedBox: its UVs are planar and world-scaled (constant texel
-          // density across fixtures), which crops and tiles a 0..1 label into
-          // mush — the brands vanished. A plain box gives 0..1 per face, and a
-          // bevel is invisible on a 16 cm carton at shopping distance anyway.
-          const boxGeo = new THREE.BoxGeometry(0.165, 0.12, 0.125);
-          const show = Math.min(count, 15);
-          for (let i = 0; i < show; i++) {
-            const layer = Math.floor(i / 5);
-            const col = i % 5;
-            const boardY = [0.5, 1.05, 1.6][layer % 3];
-            const item = new THREE.Mesh(boxGeo, boxMats);
-            item.position.set(-1.10 + idx * 0.52 + col * 0.172, boardY + 0.062, 0.10);
-            item.castShadow = true;
-            g.add(item);
-            // a second box stacked behind, so the shelf reads deep, not painted on
-            if (i < 10) {
-              const back = new THREE.Mesh(boxGeo, boxMats);
-              back.position.set(item.position.x, boardY + 0.062, -0.03);
-              g.add(back);
-            }
-          }
-          // loose balls in a wire basket at the foot of the wall (ref 6)
-          if (show >= 5 && idx === 0) {
-            const basket = new THREE.Mesh(
-              new THREE.CylinderGeometry(0.15, 0.13, 0.16, 12, 1, true), mats.brass);
-            basket.material.side = THREE.DoubleSide;
-            basket.position.set(-1.10, 0.16, 0.14);
-            g.add(basket);
-            for (let i = 0; i < 9; i++) {
-              const a = (i / 9) * Math.PI * 2;
-              const rr = i < 5 ? 0.075 : 0.035;
-              const ball = new THREE.Mesh(ballGeo, mats.merchWhite);
-              ball.position.set(
-                -1.10 + Math.cos(a) * rr,
-                0.115 + (i >= 5 ? 0.044 : 0),
-                0.14 + Math.sin(a) * rr,
-              );
-              g.add(ball);
-            }
-          }
-        } else if (POLO_TINTS[sku.id] && count > 0) {
-          // THE WORST ASSET IN THE SHOP, per the audit: a hanging polo was a
-          // 0.3 x 0.38 x 0.035 box with two box sleeves stuck on at 30 degrees,
-          // in saturated primary green. It read as coloured cardboard. Both the
-          // hanging and folded shirts are modelled garments now, and the tints
-          // moved onto the room's palette.
-          const tint = POLO_TINTS[sku.id];
-          const show = Math.min(count, 10);
-          const onRail = f.kind === 'rail';                 // a rail has no top to fold on
-          const isJacket = sku.id === 'jacket2';
-          const model = isJacket ? 'jacket_hanging' : 'polo_hanging';
-          const hangZ = onRail ? 0 : -0.62;                 // the table's hang rail sits behind it
-          const hangMax = onRail ? 6 : 4;
-          const folded = onRail ? 0 : Math.min(show, 6);
-
-          for (let i = 0; i < folded; i++) {
-            const fold = merch.instantiate('polo_folded', { tint });
-            if (!fold) break;
-            fold.position.set(
-              -0.85 + idx * 0.42,
-              1.005 + (i % 3) * 0.055,                       // stacks of three
-              -0.15 + Math.floor(i / 3) * 0.30,
-            );
-            fold.rotation.y = (i % 2) * 0.09 - 0.045;
-            g.add(fold);
-          }
-          for (let i = 0; i < show - folded && i < hangMax; i++) {
-            // A modelled shirt is 0.52 m across. At the old 0.17 m step they
-            // interpenetrated into one solid slab of colour; shirts on a rail
-            // nest, but they do not merge.
-            const step = onRail ? 0.32 : 0.30;
-            const hx = Math.min(-0.9 + hangCursor.n++ * step, 0.9);
-            const shirt = merch.instantiate(model, { tint });
-            if (!shirt) break;
-            // the model's pivot is the hanger HOOK, so it just hangs off the bar
-            shirt.position.set(hx, 1.68, hangZ);
-            shirt.rotation.y = 0.06 + (i % 2) * 0.08;       // no two hang alike
-            g.add(shirt);
-          }
-        } else if (sku.id === 'cap1') {
-          const show = Math.min(count, 8);
-          const capColors = [0x33455e, 0xf0ead8, 0x2c5233, 0xd9cbb2];
-          for (let i = 0; i < show; i++) {
-            const a = (i / 8) * Math.PI * 2;
-            const cap = merch.instantiate('cap', { tint: capColors[i % 4] });
-            if (!cap) break;
-            cap.position.set(Math.sin(a) * 0.30, 1.15 + (i % 2) * 0.35, Math.cos(a) * 0.30);
-            cap.rotation.y = a;                       // bills point out off the tree
-            g.add(cap);
-          }
-        } else if (sku.id === 'glove1') {
-          const show = Math.min(count, 8);
-          for (let i = 0; i < show; i++) {
-            const glove = merch.instantiate('glove');
-            if (!glove) break;
-            // laid flat on the shelf, fanned, as they are in ref 6
-            glove.position.set(
-              -0.92 + idx * 0.42 + (i % 2) * 0.17,
-              1.07 + Math.floor(i / 2) * 0.022,
-              0.08,
-            );
-            glove.rotation.set(-Math.PI / 2, 0, (i % 2) * 0.24 - 0.12);
-            g.add(glove);
-          }
-        } else if (sku.id === 'sock1') {
-          const basket = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.16, 0.14, 10), woodMat);
-          basket.position.set(-0.85 + idx * 0.42, 1.1, 0.1);
-          g.add(basket);
-          const show = Math.min(count, 9);
-          for (let i = 0; i < show; i++) {
-            const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.08, 6), white);
-            roll.rotation.x = Math.PI / 2;
-            roll.position.set(-0.85 + idx * 0.42 + ((i % 3) - 1) * 0.07, 1.18 + Math.floor(i / 3) * 0.055, 0.1);
-            g.add(roll);
-          }
-        } else if (sku.id === 'towel1') {
-          const show = Math.min(count, 9);
-          for (let i = 0; i < show; i++) {
-            const layer = Math.floor(i / 3);
-            const boardY = [0.5, 1.05, 1.6][layer % 3];
-            const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.22, 8), white);
-            roll.rotation.x = Math.PI / 2;
-            roll.position.set(-1.05 + idx * 0.56 + (i % 3) * 0.11, boardY + 0.08, 0.1);
-            roll.castShadow = true;
-            g.add(roll);
-          }
-        } else if (sku.id === 'umb1') {
-          const show = Math.min(count, 6);
-          const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.17, 0.5, 10), woodMat);
-          barrel.position.set(1.62, 0.25, 0.3);
-          g.add(barrel);
-          for (let i = 0; i < show; i++) {
-            const a = (i / 6) * Math.PI * 2;
-            const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.0, 5), darkMat);
-            shaft.position.set(1.62 + Math.sin(a) * 0.09, 0.75, 0.3 + Math.cos(a) * 0.09);
-            shaft.rotation.z = Math.sin(a) * 0.12;
-            const tip = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 8), m);
-            tip.position.set(shaft.position.x, 1.3, shaft.position.z);
-            g.add(shaft, tip);
-          }
-        } else if (sku.id === 'bag1') {
-          // Was a tapered cylinder with a lid and some tiles — it read as a
-          // thermos flask. The modelled bag ships WITH its fan of clubs, because
-          // that fan is the whole silhouette: a golf bag with nothing in it is
-          // just a bin (ref 7).
-          const show = Math.min(count, 4);
-          // lighter than the first pick: navy/forest/charcoal/tan all went to
-          // near-black under the shop's warm, low interior light
-          const bagTints = [0x53688c, 0x4e8059, 0xb9b3a6, 0x9a7a56];
-          for (let i = 0; i < show; i++) {
-            const bag = merch.instantiate('bag', { tint: bagTints[i % 4] });
-            if (!bag) break;
-            bag.position.set(-0.90 + i * 0.60, 0.12, -0.10);   // stood on the plinth
-            bag.rotation.x = -0.10;                            // leaning on the rail
-            bag.rotation.y = -0.5 + i * 0.34;
-            g.add(bag);
-          }
-        } else if (sku.id === 'shoe1') {
-          // Was a slab sole, a box upper and a sphere toe — a computer mouse.
-          const show = Math.min(count, 9);
-          const shoeTints = [0xf2efe6, 0x33455e, 0x8b9299, 0xe8e3d5];
-          for (let i = 0; i < show; i++) {
-            const boardY = [0.35, 0.85, 1.35][Math.floor(i / 3) % 3];
-            const px = -1.0 + (i % 3) * 0.75;
-            const tint = shoeTints[i % 4];
-            for (const so of [-0.085, 0.085]) {
-              const shoe = merch.instantiate('shoe', { tint });
-              if (!shoe) break;
-              // angled on the board, toes out, as a shop displays them
-              shoe.position.set(px + so, boardY + 0.055, 0.06);
-              shoe.rotation.set(-0.18, -Math.PI / 2 + (so > 0 ? 0.16 : -0.16), 0);
-              g.add(shoe);
-            }
-          }
-        } else if (sku.id === 'range2') {
-          // rangefinders: charcoal body + lens ring on a small riser, boxed spares behind
-          const show = Math.min(count, 6);
-          const bodyM = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.45 });
-          for (let i = 0; i < show; i++) {
-            const boardY = [0.5, 1.05, 1.6][i % 3];
-            const px = -1.05 + idx * 0.56 + Math.floor(i / 3) * 0.2;
-            const body = new THREE.Mesh(roundedBox(0.09, 0.11, 0.15, 0.02), bodyM);
-            body.position.set(px, boardY + 0.085, 0.1);
-            body.rotation.y = -0.4;
-            const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.012, 10), new THREE.MeshStandardMaterial({ color: 0x557a8c, roughness: 0.2, metalness: 0.6 }));
-            lens.rotation.x = Math.PI / 2;
-            lens.rotation.z = -0.4;
-            lens.position.set(px + 0.03, boardY + 0.1, 0.17);
-            g.add(body, lens);
-          }
-        } else {
-          // cartoned smalls: cream cartons with a branded band, neatly fronted
-          const box = sku.cat === 'apparel' ? [0.26, 0.07, 0.2] : [0.15, 0.11, 0.12];
-          const brandOf = { tees1: 'CADDIE CLUB', marker1: 'CADDIE CLUB', glove1: 'SUNDAY ROUND' };
-          const cartonMat = brandOf[sku.id]
-            ? cartonLabelMat(sku, brandOf[sku.id])
-            : m;
-          const mats6 = brandOf[sku.id] ? [m, m, m, m, cartonMat, m] : cartonMat;
-          const show = Math.min(count, 12);
-          for (let i = 0; i < show; i++) {
-            const item = new THREE.Mesh(new THREE.BoxGeometry(...box), mats6);
-            const layer = Math.floor(i / 3);
-            const col = i % 3;
-            const boardY = [0.5, 1.05, 1.6][layer % 3];
-            item.position.set(-1.05 + idx * 0.56 + (Math.floor(layer / 3)) * 0.2, boardY + 0.03 + box[1] / 2, 0.06 + col * (box[2] * 0.35));
-            item.castShadow = true;
-            g.add(item);
+        if (count > 0) {
+          const holder = stockHolder(sku, count);
+          if (holder) g.add(holder);
+          for (let i = 0; i < count; i++) {
+            const item = makeStockItem(sku, slots[i], i);
+            if (item) g.add(item);
           }
         }
-        // Collapse the whole display into one mesh per material before it goes
-        // in. A shelf of 15 ball boxes was 15 draw calls; a rack of 12 clubs was
-        // 36. Baked, each is a handful. This happens on restock, not per frame.
+        // Collapse the whole display into one mesh per material before it goes in. A shelf of 15
+        // ball boxes was 15 draw calls; a rack of 12 clubs was 36. This happens on restock, not
+        // per frame.
         const baked = merch.bake(g);
         baked.position.copy(anchor.position);
         baked.rotation.copy(anchor.rotation);
         stockGroup.add(baked);
         stockMeshes.set(f.id + ':' + skuId, baked);
-      });
+      }
 
       // the feature display shows whatever the featured category has on shelves
       if (f.kind === 'feature') {
@@ -1644,7 +1626,6 @@ export function makeClubhouse(ctx) {
           item.rotation.y = a;
           g.add(item);
         }
-        // little tent sign on top
         const tent = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.16, 0.02), new THREE.MeshStandardMaterial({ color: 0x1f8a34, roughness: 0.8 }));
         tent.position.set(0, 1.06, 0);
         tent.rotation.x = -0.2;
@@ -1654,7 +1635,10 @@ export function makeClubhouse(ctx) {
         stockMeshes.set(f.id + ':feature', g);
       }
 
-      // backroom shelving stacks generic cases scaled by what's actually back there
+      // The backroom shelving is STORAGE, not a sales fixture: it shows the volume of stock behind
+      // the door as cases, not one case per unit (a hundred golf balls do not sit on that shelf as
+      // a hundred boxes, they sit as the cases they came in). It is an honest representation of a
+      // quantity rather than a count of items, and the difference is stated rather than hidden.
       if (f.kind === 'backshelf') {
         const g = new THREE.Group();
         const totalBack = SHOP_CATALOG.reduce((a, s) => a + (inv[s.id] ? inv[s.id].back : 0), 0);
