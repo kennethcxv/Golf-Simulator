@@ -156,3 +156,44 @@ Blender **5.1.2**, drives headlessly. The Blender MCP addon socket is not runnin
 in this environment (recorded as a blocker); the headless CLI is the better
 pipeline regardless, because the authoring scripts are committed rather than the
 binaries being unexplainable artefacts.
+
+
+## Register kit (2026-07-14)
+
+`tools/blender/build_register.py` — project-owned, reproducible from source. No third-party
+assets, no generation credits spent.
+
+| Model | Notes |
+|---|---|
+| `cash_drawer.glb` | **REBUILT EMPTY.** Five bill wells for [50, 20, 10, 5, 1] and three coin cups for [0.25, 0.10, 0.05], matching DENOMS. |
+| `basket.glb` | Shop basket: flared slatted tub, trapezoid handle. |
+| `bag_open.glb` | The open carrier goods are dropped into (the closed one a customer walks out with is separate). |
+| `impulse_rack.glb` | Three-tier counter rack of markers and tee packets, facing the queue. |
+| `divider.glb` | Brass-ended baton on a weighted foot. |
+
+### Why the drawer was rebuilt
+
+The asset pass shipped a `cash_drawer.glb` with the notes and coins **modelled into it** —
+five paper rectangles in the wells, brass discs in every cup. As set dressing that was
+right; the ref shows an open till with money in it. As a thing a player has to *work* it
+was useless, because `finish()` joins every part into a single mesh and **you cannot pick
+up a note that is welded to the drawer**. SESSION_STATE had flagged the drawer as unplaced
+for want of an open/close animation; the real blocker was that its money was scenery.
+
+It ships as a carcass now and the money is spawned live from the till's real contents. The
+drawer you look at IS the drawer you are holding: take three ones out of the well and there
+are three fewer ones in it.
+
+### The money itself is not modelled
+
+Banknotes and coins are **canvas textures on thin geometry** (`registerMode.js`), because a
+note IS its print — modelling one buys you a rectangle and the whole identity is in the
+face. Guilloche linework, a crest, a denomination twice. The currency is invented,
+**FAIRWAY RESERVE**, per the brief's "use fictional game currency" — and because printing a
+real one would be forgery rendered at 60 fps.
+
+### Convention, unchanged
+
+1 unit = 1 game yard · Z-up in Blender, Y-up on export · materials are NAMED SLOTS
+(`M_charcoal`, `M_kraft`, …) remapped onto the shared clubhouse kit at load, so a new prop
+costs a draw call and not a material.

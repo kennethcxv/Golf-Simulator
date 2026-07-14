@@ -1,87 +1,68 @@
-# SESSION STATE — clubhouse production-asset pass
+# SESSION STATE — the physical register
 
 Resume from this file. Never rely on conversation memory.
 
-- **Branch** `main` · **Tests** 361 green — run `node --test` **from the repo root only**
+- **Branch** `main` · **Tests 427 green** — run `node --test` **from the repo root only**
 - **Dev server** `node tools/serve.cjs`, port **8457**
-- **Evidence** `qa/assets/{before,pass-1,pass-2,pass-3,final}/` + `qa/assets/models/`
-  (qa/ is gitignored — on disk only)
-- **Audit / decisions** `ASSET_PRODUCTION_AUDIT.md` · **Asset provenance** `ASSET_SOURCES.md`
+- **The register, in full:** `REGISTER.md` — read that before touching the counter
+- **Evidence** `qa/register/{card,cash,recover}/` + `qa/assets/models/` (qa/ is gitignored)
 
-## The asset pipeline (new this session)
-
-Blender **5.1.2** drives headlessly. The **MCP addon socket is not running** — recorded
-blocker — but headless CLI is the better pipeline anyway because the authoring scripts
-are committed, so every asset is reproducible instead of being an unexplainable binary.
-
-```
-BL="C:/Program Files/Blender Foundation/Blender 5.1/blender.exe"
-"$BL" --background --factory-startup --python tools/blender/build_merch.py   # 11 goods
-"$BL" --background --factory-startup --python tools/blender/build_props.py   # 12 props
-"$BL" --background --factory-startup --python tools/blender/inspect_glb.py   # previews + measure
-```
-
-23 GLBs land in `vendor/models/clubhouse/` (2.0 MB). `src/render3d/clubhouse/merch.js`
-loads them, **remaps every `M_*` material slot onto the shared kit**, caches tints by
-colour, and `bake()`s each display into one mesh per material.
-
-**Screenshot harness:** `tools/qa/shoot-clubhouse.js` — edit `PASS` at the top, then run
-it through the Playwright MCP `browser_run_code_unsafe` with `filename`. It reloads,
-stocks the retail displays, **pins the clock to 2 PM**, shoots the same 10 poses, and
-measures draw calls properly.
-
-## Shipped this session
+## What shipped
 
 | Commit | What |
 |--------|------|
-| `92a4377` | Audit against the running game + the QA harness |
-| `bc92ad0` | Pass 1 — 11 merchandise models; material kit with real roughness/normal maps |
-| `993840e` | Pass 2 — 12 props; stockroom; register kit; crest; landscaping |
+| `84303ab` | The transaction sim + the save hole it exposed |
+| `950db66` | The workspace, derived against real reach circles |
+| `5884eb4` | The register kit, and an EMPTY till |
+| `6598820` | Register mode — the counter you work with your hands |
+| `494909a` | Patience, discoverability, save/reload acceptance |
 
-**Before → final:** meshes 1,603 → 1,289 (−20%), geometries 2,603 → 1,542 (−41%),
-materials 296 → 270, draw calls 11,176 → 10,890. Triangles up 17% deliberately.
+The old `[E]`-to-charge checkout is gone. You now drag goods across a scanner, take
+notes off the counter, open a till, put each note in its own well, count change back
+out, and hand over a bag. Money moves in exactly one place, at the very end.
+
+## Where things are
+
+```
+src/sim/register.js                     the transaction. Pure, 45 tests. Owns every rule.
+src/render3d/clubhouse/registerMode.js  the counter. Moves meshes. Owns NO rules.
+src/data/shopLayout.js  → REGISTER      the workspace, derived (see checkout-space.test.js)
+tools/blender/build_register.py         cash_drawer (EMPTY), basket, bag_open, impulse_rack, divider
+tools/qa/register-{boot,sale,recover}.js
+```
+
+## Landmines (the full list is in REGISTER.md)
+
+- **NEVER SLEEP FOR STATE.** Bit me three times. Headless rAF is throttled: a fixed wait
+  under-ran the receipt printer (reported "never printed"; it printed 2s later) and the
+  camera ease (projected a pixel 90px off, so clicks landed on bare counter and the run
+  reported "scanned: 0" as though the scanner were broken). Wait for the condition.
+- **`forward = (−sin yaw, −cos yaw)`** — yaw 0 faces −z. `yaw = π` "to face the counter"
+  points you at the back wall.
+- **A 0..1 canvas needs 0..1 UVs.** Blender's `smart_project` gives an atlas UV, so a
+  canvas painted onto a model's screen face samples a magnified corner — the register
+  rendered as a black slab. Displays are their own `PlaneGeometry` now.
+- **`cube()` in the Blender scripts takes FULL dimensions**, not half-extents.
+- **Inspect every generated model.** `inspect_glb.py`. It caught a rack with detached
+  sides, a basket handle whose arms splayed past the grip, and a drawer whose face plate
+  was on the wrong side.
+- **A hard rect edge is not a hitbox.** Bagging failed by ONE MILLIMETRE before it became
+  proximity-to-the-bag.
 
 ## Next, in priority order
 
-1. **Customers/characters.** They are procedural primitives standing in a room that is
-   now modelled around them, so they are the loudest remaining placeholder. Not touched
-   this session (out of scope for an environment pass) but they are next.
-2. **The office course map** (240×160 canvas, reads as a green squiggle) and the **lounge
-   course photograph** (a flat gradient plane).
-3. **Wire `cash_drawer.glb`.** The asset is an OPEN till and is built and loaded but not
-   placed, because there is no open/close animation to hang it on. That is a systems job.
-4. **Exterior grime** still reads as a soft dark smear rather than dirt (pre-existing).
-5. Then the pre-existing queue from the previous session: P1-5 finish the hands,
-   P1-6 tutorial chapters, P2-3 employees who do real physical work, P2-5 rain decisions.
-
-## Landmines learned this session
-
-- **Tinted materials need NEUTRAL GREY base maps.** `color` multiplies into `map`, so a
-  green polo tint over the sage-green weave came out near-black and every cap in the shop
-  read as a mushroom.
-- **A shoe's upper is `M_leather`, not `M_fabric`.** Tinting only fabric left every shoe
-  on the wall the same brown.
-- **`roundedBox()` has planar, world-scaled UVs** (constant texel density across fixtures).
-  Anything carrying a 0..1 label — a ball box, a product carton — must use a plain
-  `BoxGeometry` or the label is cropped and tiled into mush.
-- **The GLBs load async.** `buildCheckout`/`buildLounge`/`buildStockroomDressing` run once
-  at construction, so any prop placed inline there would simply never appear. They defer
-  through `merch.onReady()`. And register the restock hook at the **end** of the build:
-  a fast-failing GLB can call back before the state `rebuildStock()` closes over exists.
-- **The game clock runs while the harness shoots** (~8 game-minutes per real second), so
-  ten shots drift 80 minutes and the exterior lands at 2:33 AM in one pass and 1:42 PM in
-  another. Pin it.
-- **The boot veil outlives `clubhouse()`** and is opaque — it photographed a black screen
-  over the checkout once. Wait for `.load-veil` to actually go.
-- **Backroom decor spawns translucent green placement ghosts** (gated on `inv.back > 0`,
-  clubhouse.js:1288). They will sit on top of the art in every screenshot. Park them.
-- **Continuous surfaces, not assemblies.** The first Blender batch assembled detached
-  primitives — a box torso with floating box sleeves, a plank sole with an egg on the toe
-  — and rendered WORSE than the primitives it replaced. `lib_model.py`'s `loft()` and
-  `outline_solid()` exist because a shirt and a shoe are single skins.
-- **A golf bag with no clubs in it is just a bin.** The fan of club heads out of the top
-  IS the silhouette.
-- **Inspect every generated model before it goes in the game** —
-  `tools/blender/inspect_glb.py` renders previews and measures tris/UVs/dimensions. It
-  caught the loaf-shaped shoe, the detached iron sole, the nub cap bill and the floating
-  hand-truck grips.
+1. **THE ANIMATIONS.** The brief asked for ~22 and there are none. The register is fully
+   physical — real objects, real motion — but the ACTORS are not animated. Goods appear on
+   the counter instead of being set down. The card and the notes appear instead of being
+   drawn from a pocket. The player has no visible hands at the till. This is the single
+   biggest gap between what is there and a polished retail sim, and it is the next job.
+2. **Customers.** Still procedural primitives, now standing at a counter modelled around
+   them. They were the loudest placeholder before the asset pass and they still are.
+   The animation work above lands on top of whatever replaces them, so do this first.
+3. **The basket.** Modelled and on the floor; customers do not use it.
+4. Card **timeout** exists in the sim (`runCard(tx, {timeout:true})`, tested) but nothing
+   in the game fires it — it needs a visible timer the player can watch.
+5. The office course map (a 240×160 canvas that reads as a green squiggle) and the lounge
+   course photograph (a flat gradient plane).
+6. Then the pre-existing queue: P1-5 finish the hands, P1-6 tutorial chapters,
+   P2-3 employees who do real physical work, P2-5 rain decisions.
