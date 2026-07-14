@@ -2913,3 +2913,45 @@ Every P0 defect from the Phase-1 list is fixed and verified live. Commits e3d929
 Suite: 250 tests green. New evidence: qa/stabilization/ (before/ + fix proofs).
 Also fixed en route: rack/shelf FP-touch overlaps + two real wedge gaps (north run,
 backroom L) with EPS-hardened layout tests.
+
+---
+
+# STABILIZATION PASS — P1 core physical simulation complete (2026-07-14)
+
+Commits 2aaa350..523b1b4. Suite 263 green. Zero console errors on a cold boot after all changes.
+
+- **Manual checkout** (sim/checkout.js payment layer, TDD ×5): scan-per-E → total-up →
+  cash (real bill tender; Relaxed one-press correct change, Realistic counts change on the
+  register screen with E-cycle + R-confirm, miscounts ledger the till short) or card
+  (terminal processing beat, ~6% decline + retry). Receipt printer sfx (synth), paper bag
+  into the customer's hand, head-of-queue items rendered ON the counter and crossing to
+  the bagging side as they scan. Verified organically end-to-end: pick → queue → scan →
+  $11 total → $20 tendered → $9 change → cash +$11 exact.
+- **Why sales "never happened"**: with one stocked fixture, uniform stop selection made a
+  sale a ~3% event per shopper. Customers now weight stocked displays 4×.
+- **Delivery windows** (TDD ×4): every order ships into a 2h slot on its arrival day with
+  a per-order truck minute; statuses received → processing → out → arriving; morning
+  heads-up, under-an-hour warning, arrival toast + pad drop, all minute-grained (live
+  loop + hourlyTick + parked-property reconcile). Midnight path now only force-lands
+  strictly-past days. Laptop Supplier page shows window + status per order.
+- **Physical unboxing** (TDD ×2): cut the tape (flaps fold out) → armfuls of 6 into the
+  backroom (partials persist and show on the label) → flatten the empty by the bin.
+  Verified live: polo case ×8 → ×2 → empty → flattened, trash 3→4.
+- **Browsing reads human**: 30% of interested shoppers inspect and put the unit back
+  (shelf count visibly dips and recovers); bare displays get a glance, a quick move-on,
+  and an occasional overheard grumble naming the display.
+- **Tutorial**: chaptered interactive guide (Arrival / The mess / The office / Receiving /
+  First sale / Keep it running + the club-maturity tail). Every step gates on the real
+  action — real yaw/distance sensing for look/walk, the actual door E, hauling, wiping,
+  laptop open, order, carry, cut, unpack, shelve, ring, pause-menu save. Out-of-order
+  actions are banked (test-proven), answers within a second, skip/replay in Settings,
+  old saves re-derive via version bump.
+
+## Remaining (P2 — #84)
+Exterior production pass + dirty-exterior states + physical exterior repair verbs;
+production checkout/prop assets; supplier product imagery (render thumbnails from real
+meshes); character variation/animation; sound pass; customer mess props (deferred from
+P1); Phase 23 manual QA sweeps; Phase 24 screenshot/video matrix under
+qa/production-next-pass/; final factual report. Known cosmetic nits queued: ceiling-can
+black crescent from oblique angles, desk side stretchers clipping the office wainscot,
+carried-box tape strip, clutter boxes visually identical to delivery boxes.
