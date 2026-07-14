@@ -51,39 +51,39 @@ export const SHOP_CATALOG = [
   { id: 'lounge1', cat: 'decor', tier: 1, name: 'Lounge set', cost: 420, msrp: 0, finish: 9 },
 ];
 
-// valid placement anchors per decor sku, in BUILDING-local yards (the 26×16
-// clubhouse plan in src/data/shopLayout.js — interior 25.5×15.5, door at +z).
+// valid placement anchors per decor sku, in BUILDING-local yards (the 21×13.5
+// clubhouse plan in src/data/shopLayout.js — interior 20.5×13, door at +z).
 // mount tells the scene how to build/orient: floor pieces sit at y0, wall pieces
 // hang at eye height flush to their wall, ceiling pieces drop from the roof.
 // SPOT COUNTS ARE SAVE FORMAT — saves store {skuId, spot index}; counts must
 // never shrink (coordinates are free to move).
 export const DECOR_SPOTS = {
   rug1: [
-    { x: -0.8, z: 5.6, ry: 0, mount: 'floor' },      // entrance runner
-    { x: 5.4, z: -5.5, ry: 0, mount: 'floor' },      // under the lounge
+    { x: -5.9, z: 1.7, ry: 0, mount: 'floor' },      // under the apparel tables
+    { x: 3.85, z: -4.9, ry: 0, mount: 'floor' },     // upgrades the lounge rug
   ],
   plant1: [
-    { x: 7.7, z: -7.0, ry: 0, mount: 'floor' },      // lounge corner
-    { x: -11.9, z: 6.9, ry: 0, mount: 'floor' },     // SW corner
-    { x: -0.9, z: -6.9, ry: 0, mount: 'floor' },     // north aisle
-    { x: 8.0, z: 6.9, ry: 0, mount: 'floor' },       // office nook edge
+    { x: -2.35, z: 5.85, ry: 0, mount: 'floor' },    // inside the door, west
+    { x: -9.7, z: 5.5, ry: 0, mount: 'floor' },      // past the putter corner
+    { x: 2.65, z: -6.0, ry: 0, mount: 'floor' },     // lounge edge
+    { x: 9.7, z: 2.6, ry: 0, mount: 'floor' },       // office corner
   ],
   poster1: [
-    { x: 6.2, z: 7.62, ry: Math.PI, mount: 'wall' },       // south wall, by the counter
-    { x: -12.62, z: 4.4, ry: Math.PI / 2, mount: 'wall' }, // west wall, past the putters
-    { x: 12.62, z: 6.4, ry: -Math.PI / 2, mount: 'wall' }, // office east wall
+    { x: -6.6, z: 6.4, ry: Math.PI, mount: 'wall' },       // south wall pier between windows
+    { x: -2.0, z: -6.4, ry: 0, mount: 'wall' },            // north wall, above the small shelf
+    { x: 5.78, z: 0.5, ry: -Math.PI / 2, mount: 'wall' },  // partition, by the shoe wall
   ],
   board1: [
-    { x: 2.2, z: -7.62, ry: 0, mount: 'wall' },            // lounge events board
-    { x: -10.9, z: 7.62, ry: Math.PI, mount: 'wall' },     // south wall, west end
+    { x: 0.95, z: 6.4, ry: Math.PI, mount: 'wall' },       // beside the door, inside
+    { x: 10.13, z: -2.0, ry: -Math.PI / 2, mount: 'wall' },// stockroom receiving wall
   ],
   light1: [
-    { x: -3.0, z: 1.4, ry: 0, mount: 'ceiling' },    // over the apparel block
-    { x: 3.4, z: -2.4, ry: 0, mount: 'ceiling' },    // over bags & the lounge edge
+    { x: -3.2, z: 1.2, ry: 0, mount: 'ceiling' },    // over the apparel block
+    { x: 1.9, z: 2.6, ry: 0, mount: 'ceiling' },     // over the checkout approach
   ],
   lounge1: [
-    { x: 5.4, z: -6.3, ry: 0, mount: 'floor' },            // the lounge proper
-    { x: -10.6, z: -6.2, ry: Math.PI / 2, mount: 'floor' }, // alternate west nook
+    { x: 4.1, z: -5.2, ry: 0, mount: 'floor' },            // the lounge proper
+    { x: 3.1, z: -4.1, ry: Math.PI / 2, mount: 'floor' },  // second seat of the suite
   ],
 };
 

@@ -820,6 +820,7 @@ export function makeClubhouse(ctx) {
   const FIXTURE_BUILDERS = {
     shelf: shelfUnit, rack: rackUnit, table: tableUnit, hatstand: hatstandUnit,
     bagstand: bagstandUnit, shoerack: shoerackUnit, feature: featureUnit, backshelf: backshelfUnit,
+    rail: tableUnit, backcounter: shelfUnit, // v2 plan kinds — dedicated builders land with fixtures v2
   };
   for (const f of FIXTURES) {
     const g = FIXTURE_BUILDERS[f.kind](f);

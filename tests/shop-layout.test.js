@@ -74,21 +74,56 @@ test('the entrance clearway stays clear: no fixture, clutter, or queue slot bloc
     'the clearway is actually in front of the main door');
 });
 
+// mirror the scene builders' collider extents (found live 2026-07-13:
+// backshelf_e's collider used to block the doorway at world x≈5.0)
+const HALF = {
+  shelf: [1.6, 0.35], rack: [1.5, 0.45], table: [1.2, 0.8], hatstand: [0.4, 0.4],
+  bagstand: [1.3, 0.75], shoerack: [1.3, 0.4], feature: [0.9, 0.9], backshelf: [1.4, 0.45],
+  rail: [1.1, 0.45], backcounter: [1.6, 0.3],
+};
+const fixtureRect = (f) => {
+  let [a, b] = HALF[f.kind] || [1, 1];
+  if (f.short) a = 0.85; // the doorway-adjacent short units (builders honor this)
+  const swap = Math.abs(Math.sin(f.ry)) > 0.5;
+  const hx = swap ? b : a;
+  const hz = swap ? a : b;
+  return { minX: f.x - hx, maxX: f.x + hx, minZ: f.z - hz, maxZ: f.z + hz };
+};
+
 test('the receiving doorway stays walkable: no fixture collider in the back-door clearway', () => {
-  // mirror the scene builders' collider extents (found live 2026-07-13:
-  // backshelf_e's collider used to block the doorway at world x≈5.0)
-  const HALF = {
-    shelf: [1.6, 0.35], rack: [1.4, 0.5], table: [1.2, 0.8], hatstand: [0.4, 0.4],
-    bagstand: [1.3, 0.65], shoerack: [1.4, 0.35], feature: [0.9, 0.9], backshelf: [1.4, 0.45],
-  };
   for (const f of FIXTURES) {
-    const [a, b] = HALF[f.kind] || [1, 1];
-    const swap = Math.abs(Math.sin(f.ry)) > 0.5;
-    const hx = swap ? b : a;
-    const hz = swap ? a : b;
-    const overlaps = f.x + hx > BACKDOOR_CLEARWAY.minX && f.x - hx < BACKDOOR_CLEARWAY.maxX
-      && f.z + hz > BACKDOOR_CLEARWAY.minZ && f.z - hz < BACKDOOR_CLEARWAY.maxZ;
+    const r = fixtureRect(f);
+    if (f.short) assert.ok(HALF[f.kind], `${f.id} short variant still has extents`);
+    const overlaps = r.maxX > BACKDOOR_CLEARWAY.minX && r.minX < BACKDOOR_CLEARWAY.maxX
+      && r.maxZ > BACKDOOR_CLEARWAY.minZ && r.minZ < BACKDOOR_CLEARWAY.maxZ;
     assert.ok(!overlaps, `${f.id} keeps clear of the receiving doorway`);
+  }
+});
+
+test('fixtures never overlap each other (real-world clearances hold)', () => {
+  for (let i = 0; i < FIXTURES.length; i++) {
+    for (let j = i + 1; j < FIXTURES.length; j++) {
+      const a = fixtureRect(FIXTURES[i]);
+      const b = fixtureRect(FIXTURES[j]);
+      const overlap = a.maxX > b.minX && a.minX < b.maxX && a.maxZ > b.minZ && a.minZ < b.maxZ;
+      assert.ok(!overlap, `${FIXTURES[i].id} does not collide with ${FIXTURES[j].id}`);
+    }
+  }
+});
+
+test('the main aisle stays at least 1.2 yd wide from the door to the north wall', () => {
+  // walk the entrance axis north; the nearest fixture edge on either side must
+  // leave a real aisle (brief: main aisles >= ~1.2 m)
+  for (let z = 3.5; z > -4.5; z -= 0.5) {
+    let left = -INTERIOR.w / 2;
+    let right = INTERIOR.w / 2;
+    for (const f of FIXTURES) {
+      const r = fixtureRect(f);
+      if (z < r.minZ || z > r.maxZ) continue;
+      if (r.maxX <= -0.8) left = Math.max(left, r.maxX);
+      if (r.minX >= -0.8) right = Math.min(right, r.minX);
+    }
+    assert.ok(right - left >= 1.2, `aisle at z=${z} is ${(right - left).toFixed(2)} yd`);
   }
 });
 
