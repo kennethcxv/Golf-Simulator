@@ -3,6 +3,7 @@
 // Headless like every sim module; the clubhouse renders THIS state.
 
 import { skuById } from '../data/shopItems.js';
+import { boxKindFor } from '../data/boxes.js';
 
 // how many units ride in one case, by category (big items ship near-solo)
 export const CASE_SIZE = { clubs: 2, balls: 12, apparel: 8, accessories: 12, supplies: 1, decor: 1 };
@@ -31,7 +32,11 @@ export function arriveOrder(state, order) {
   while (left > 0) {
     const qty = Math.min(per, left);
     left -= qty;
-    d.boxes.push({ id: d.nextBoxId++, skuId: order.skuId, qty, orderId: order.id, loc: 'pad', opened: false });
+    // packaging follows contents: a driver ships in a long box, a glove in a small carton
+    d.boxes.push({
+      id: d.nextBoxId++, skuId: order.skuId, qty, orderId: order.id,
+      loc: 'pad', opened: false, box: boxKindFor(sku).id,
+    });
   }
 }
 

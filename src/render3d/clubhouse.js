@@ -46,6 +46,7 @@ import { buildWashing } from './clubhouse/washing.js';
 import { placedFixtures, ensureLayout } from '../sim/layout.js';
 import { buildBuildMode } from './clubhouse/buildMode.js';
 import { reviewFor, postReview } from '../sim/reviews.js';
+import { boxDims } from '../data/boxes.js';
 
 const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
@@ -1778,41 +1779,51 @@ export function makeClubhouse(ctx) {
   const boxProps = []; // dynamic per-box props, torn down on rebuild
   let boxSig = '';
 
+  // A driver does not arrive in a glove box: the carton is sized from what is inside it
+  // (data/boxes.js), so the receiving pad reads as a delivery and not a pile of clones.
   function makeBoxMesh(box) {
     const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.4, 0.46), cardboard);
-    body.position.y = 0.2;
+    const { w, h, d } = boxDims(box.box || 'carton');
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), cardboard);
+    body.position.y = h / 2;
     body.castShadow = true;
     g.add(body);
+
     const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
     const stripe = new THREE.Mesh(
-      new THREE.BoxGeometry(0.54, 0.09, 0.47),
+      new THREE.BoxGeometry(w + 0.02, Math.min(0.09, h * 0.24), d + 0.01),
       new THREE.MeshStandardMaterial({ color: CAT_COLORS[sku ? sku.cat : 'accessories'] || 0x999999, roughness: 0.85 }),
     );
-    stripe.position.y = 0.1;
+    stripe.position.y = h * 0.25;
     g.add(stripe);
+
     if (!box.cut) {
-      const tape = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.015, 0.12), tapeMat);
-      tape.position.y = 0.402;
+      const tape = new THREE.Mesh(new THREE.BoxGeometry(w + 0.02, 0.015, Math.min(0.12, d * 0.3)), tapeMat);
+      tape.position.y = h + 0.002;
       g.add(tape);
     } else {
       // flaps folded out over the edges; the inside goes dark as it empties
-      for (const [w, d2, px, pz, rx, rz] of [
-        [0.5, 0.2, 0, -0.32, 2.4, 0], [0.5, 0.2, 0, 0.32, -2.4, 0],
-        [0.2, 0.44, -0.35, 0, 0, -2.4], [0.2, 0.44, 0.35, 0, 0, 2.4],
+      const fw = w * 0.96;
+      const fd = d * 0.44;
+      for (const [fx, fz, px, pz, rx, rz] of [
+        [fw, fd, 0, -(d / 2 + fd / 2) * 0.72, 2.4, 0],
+        [fw, fd, 0, (d / 2 + fd / 2) * 0.72, -2.4, 0],
+        [w * 0.42, d * 0.96, -(w / 2 + w * 0.21) * 0.72, 0, 0, -2.4],
+        [w * 0.42, d * 0.96, (w / 2 + w * 0.21) * 0.72, 0, 0, 2.4],
       ]) {
-        const flap = new THREE.Mesh(new THREE.BoxGeometry(w, 0.012, d2), cardboardDark);
-        flap.position.set(px, 0.42, pz);
+        const flap = new THREE.Mesh(new THREE.BoxGeometry(fx, 0.012, fz), cardboardDark);
+        flap.position.set(px, h + 0.02, pz);
         flap.rotation.x = rx;
         flap.rotation.z = rz;
         g.add(flap);
       }
       const inside = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.46, 0.4),
+        new THREE.PlaneGeometry(d * 0.9, w * 0.9),
         new THREE.MeshStandardMaterial({ color: box.empty ? 0x241a10 : 0x59452e, roughness: 1 }),
       );
       inside.rotation.x = -Math.PI / 2;
-      inside.position.y = box.empty ? 0.06 : 0.3;
+      inside.rotation.z = Math.PI / 2;
+      inside.position.y = box.empty ? h * 0.14 : h * 0.75;
       g.add(inside);
     }
     return g;
@@ -1821,7 +1832,7 @@ export function makeClubhouse(ctx) {
   function boxSignature() {
     const d = state.shop.deliveries;
     if (!d) return '';
-    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}:${b.cut ? 1 : 0}:${b.qty}`).join(',') + '|' + d.trash;
+    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}:${b.cut ? 1 : 0}:${b.qty}:${b.box || ''}`).join(',') + '|' + d.trash;
   }
 
   const inStockroomBounds = (lx, lz) => lx >= STOCKROOM.bounds.minX && lx <= STOCKROOM.bounds.maxX
@@ -1856,10 +1867,14 @@ export function makeClubhouse(ctx) {
         lz = box.z;
         ry = box.ry || 0;
       } else {
+        // cartons are no longer all one size, so the drop stack spaces itself off the widest one
         const at = box.loc === 'pad' ? STOCKROOM.padOutside : STOCKROOM.receivingInside;
         const i = stacks[box.loc]++;
-        lx = at.x + (i % 3 - 1) * 0.62;
-        lz = at.z + Math.floor(i / 3) * 0.56 - 0.3;
+        const dim = boxDims(box.box || 'carton');
+        const pitchX = Math.max(0.62, dim.w + 0.14);
+        const pitchZ = Math.max(0.56, dim.d + 0.14);
+        lx = at.x + (i % 3 - 1) * pitchX;
+        lz = at.z + Math.floor(i / 3) * pitchZ - 0.3;
         ry = (box.id % 5) * 0.13;
       }
       const wp = L2W(lx, lz);
