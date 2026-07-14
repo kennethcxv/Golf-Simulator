@@ -671,7 +671,11 @@ export function buildShell(B) {
       merch.onReady(() => {
         const lamp = merch.instantiate('pendant');
         if (!lamp) return;
-        lamp.position.set(lx, CEIL_Y, lz);   // pivot is the ceiling mount
+        // The model is 0.50 yd tall and its pivot is the ceiling mount, so at 1:1
+        // it tucked up under the ceiling and read as a dark speck — the lantern it
+        // replaced dropped 0.75 yd and hung in view. Scaled to hang properly.
+        lamp.scale.setScalar(1.45);
+        lamp.position.set(lx, CEIL_Y, lz);
         lamp.traverse((o) => {
           if (o.isMesh && o.userData.slot === 'M_glass') o.material = glassMat;
         });

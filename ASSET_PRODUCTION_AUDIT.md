@@ -238,10 +238,82 @@ THREE.js (everything dynamic).
 
 ## 9. PASS LOG
 
-| Pass | Evidence | Status |
+| Pass | What changed | Evidence |
 |---|---|---|
-| before | `qa/assets/before/` — 10 shots, stocked, measured | ✅ captured |
-| pass-1 | | pending |
-| pass-2 | | pending |
-| pass-3 | | pending |
-| final | | pending |
+| before | baseline, stocked, clock-pinned to 2 PM | `qa/assets/before/` |
+| pass-1 | 11 merchandise models; material kit rebuilt with roughness/normal maps | `qa/assets/pass-1/` |
+| pass-2 | 12 props; stockroom; register kit; crest; landscaping | `qa/assets/pass-2/` |
+| pass-3 | crest re-sited above the hutch; clock pinned; baseline re-shot | `qa/assets/pass-3/` |
+| final | pendant scale | `qa/assets/final/` |
+
+The `before` set was **re-shot from the pre-asset-pass commit (92a4377) using the
+final harness**, because the first baseline was taken with an unpinned clock and
+its exterior landed at 1:42 PM while pass-2's landed at 2:33 AM. Comparing those
+would have been meaningless. Every image in `before/` and `final/` is now the same
+ten poses at the same 2:00 PM.
+
+---
+
+## 10. RESULTS
+
+### Performance (whole scene, stocked, 1600×900, 2 PM)
+
+| Metric | Before | Final | Δ |
+|---|---|---|---|
+| Draw calls / frame | 11,176 | **10,890** | −2.6% |
+| Scene meshes | 1,603 | **1,289** | **−19.6%** |
+| Unique materials | 296 | **270** | −8.8% |
+| Geometries in memory | 2,603 | **1,542** | **−40.8%** |
+| Scene triangles | 1,659,502 | 1,942,208 | +17.0% |
+| Unique textures | 119 | 168 | +41% |
+| Textures in memory | 164 | 213 | +49 |
+
+Read this honestly: **draw calls barely moved.** Baking the merchandise per
+material bought a real saving, and then I spent it — a full stockroom, a hand
+truck, a register kit, two club chairs, trophies, a stocked hutch, shrub beds and
+rainwater goods are all new objects that were not there before. The scene is
+**substantially denser at slightly lower draw-call cost**, and mesh count is down
+a fifth. That is the win; claiming a large draw-call reduction would be a lie.
+
+Triangles are up 17% **by choice** — the profile said the interior was carrying 34
+triangles per mesh and was draw-call bound, so geometric detail was the cheap axis.
+Texture count is up because 11 materials that had no maps at all now carry
+roughness and normal maps. I did not measure texture bytes and will not guess at
+a figure.
+
+### Assets
+
+- **Retained untouched (3):** feature pedestal, club-events board, windows/doors.
+- **Cleaned:** every fixture carcass and architectural surface, via the material kit.
+- **Created (23 GLBs):** polo (hanging + folded), jacket, glove, shoe, bag, driver /
+  iron / wedge / putter heads, cap, lounge chair, task chair, trophy, register,
+  scanner, card terminal, receipt printer, cash drawer, carton (closed + open),
+  hand truck, pendant.
+- **Regenerated:** the entire first Blender batch — see below.
+- **Rejected:** the first cut of polo, shoe and bag. Rendered, inspected, and thrown
+  away because they read **worse** than the primitives they were meant to replace.
+- **Still requiring external generation:** none.
+
+---
+
+## 11. REMAINING VISIBLE WEAKNESSES — stated, not hidden
+
+1. **The office course map** is a 240×160 canvas and reads as a green squiggle. It
+   is genuinely data-driven (it draws the real course plan), so it is honest — just
+   low-resolution.
+2. **The lounge "course photograph"** is still a flat green/blue gradient plane.
+3. **The nearest ceiling pendant** reads as a dark shape when you stand directly
+   under it — you are looking at the underside of its base plate.
+4. **The exterior grime** still reads as a soft dark smear rather than dirt. This was
+   already flagged in SESSION_STATE before this session and is unchanged.
+5. **`cash_drawer.glb` is built but not placed.** It is an *open* till and there is no
+   open/close animation to hang it on; wiring that is a systems job, not an art one.
+   The asset is ready for it.
+6. **No ambient-occlusion maps.** three samples `aoMap` from the `uv1` channel and the
+   procedural fixtures only author `uv`. Contact darkening comes from the light rig
+   and shadows instead.
+7. **Customers/characters are untouched.** They are procedural primitives and they
+   stand in these rooms. Out of scope for this session, but they are the next thing
+   that will read as placeholder.
+8. **The ball wall's top shelf** is still thin when stock is low — by design (it shows
+   real inventory), but it means a poorly-stocked shop still looks sparse.

@@ -1,75 +1,87 @@
-# SESSION STATE — autonomous production overhaul
+# SESSION STATE — clubhouse production-asset pass
 
 Resume from this file. Never rely on conversation memory.
 
-- **Branch** `main` · **Last commit** `1d235ca`
-- **Tests** 361 green — run `node --test` **from the repo root only** (never `node --test tests/`)
+- **Branch** `main` · **Tests** 361 green — run `node --test` **from the repo root only**
 - **Dev server** `node tools/serve.cjs`, port **8457**
-- **Evidence** `qa/autonomous-overhaul/before/` and `.../pass-01/` (qa/ is gitignored — on disk only)
-- **Queue** `AUTONOMOUS_BACKLOG.md` · **Record** `DEV_LOG.md`
+- **Evidence** `qa/assets/{before,pass-1,pass-2,pass-3,final}/` + `qa/assets/models/`
+  (qa/ is gitignored — on disk only)
+- **Audit / decisions** `ASSET_PRODUCTION_AUDIT.md` · **Asset provenance** `ASSET_SOURCES.md`
 
-**Live state at last check:** boot to interactive **4.4 s**; frame median **8.4 ms**, p99 13.8 ms,
-worst **15.7 ms** over 200 frames sweeping the whole scene; **zero console errors**.
+## The asset pipeline (new this session)
+
+Blender **5.1.2** drives headlessly. The **MCP addon socket is not running** — recorded
+blocker — but headless CLI is the better pipeline anyway because the authoring scripts
+are committed, so every asset is reproducible instead of being an unexplainable binary.
+
+```
+BL="C:/Program Files/Blender Foundation/Blender 5.1/blender.exe"
+"$BL" --background --factory-startup --python tools/blender/build_merch.py   # 11 goods
+"$BL" --background --factory-startup --python tools/blender/build_props.py   # 12 props
+"$BL" --background --factory-startup --python tools/blender/inspect_glb.py   # previews + measure
+```
+
+23 GLBs land in `vendor/models/clubhouse/` (2.0 MB). `src/render3d/clubhouse/merch.js`
+loads them, **remaps every `M_*` material slot onto the shared kit**, caches tints by
+colour, and `bake()`s each display into one mesh per material.
+
+**Screenshot harness:** `tools/qa/shoot-clubhouse.js` — edit `PASS` at the top, then run
+it through the Playwright MCP `browser_run_code_unsafe` with `filename`. It reloads,
+stocks the retail displays, **pins the clock to 2 PM**, shoots the same 10 poses, and
+measures draw calls properly.
 
 ## Shipped this session
 
 | Commit | What |
 |--------|------|
-| `46512cb` | P0-1 course-map drift — held-key normalisation + transition reset |
-| `0baac43` | P0-2 depenetration, stuck recovery, Unstuck menu, door occupancy |
-| `0f51120` | P0-3 laptop seat fitted to the screen (9.7 % → 53.7 % of viewport) |
-| `7cd5afe` | P0-7 inventory conservation — shoppers can no longer delete stock |
-| `f547d32` | P1-1 pressure washing — mask erosion, soap gate, tool tiers |
-| `c85cc76` | P1-3 checkout staff space — 0.55 yd → 1.17 yd working corridor |
-| `050b7b5` | P1-2 build mode — pick up / turn / place fixtures, with rules |
-| `73eeb03` | P2-1/2 reviews with real causes + analytics that explain themselves |
-| `fc309c9` | P2-4 the rent — weekly property bill, warnings, arrears |
-| `8f9a68b` | P1-4 content-driven box sizes |
-| `1d235ca` | P1-5 (partial) shared first-person hand rig — a rig, not hand *art* |
+| `92a4377` | Audit against the running game + the QA harness |
+| `bc92ad0` | Pass 1 — 11 merchandise models; material kit with real roughness/normal maps |
+| `993840e` | Pass 2 — 12 props; stockroom; register kit; crest; landscaping |
 
-**All P0 defects from the brief are closed and verified live.**
+**Before → final:** meshes 1,603 → 1,289 (−20%), geometries 2,603 → 1,542 (−41%),
+materials 296 → 270, draw calls 11,176 → 10,890. Triangles up 17% deliberately.
 
 ## Next, in priority order
 
-1. **P1-5 finish the hands.** The rig exists (`render3d/fpHands.js`) and the washer reads, but the
-   forms are chunky, there is no finger articulation, the two-handed support grip sits loosely, and
-   the rest of Phase 7 — weight-dependent carry sway, reach/grip/put-down for picking objects up, a
-   box-cutter pose — is not built.
-2. **P1-6 tutorial extended to the full loop** — it exists (18 steps, chaptered, skip/replay) but
-   predates the washer, soap, build mode, box sizes and the rent. Those need chapters.
-3. **P2-3 employees who do real physical work** — `restockShelvesByStaff()` currently teleports the
-   work into completion, which the brief explicitly forbids ("They must not teleport work into
-   completion"). A hired stocker should walk, carry a case, and fill a shelf.
-4. **P2-5 rain decisions** — weather already suppresses attendance (`rounds.js`, rain > 0.5 in →
-   0.35× play probability). What's missing is the player's *choice*: open/close/discount.
-5. **P2-6 golf-cart condition + fleet progression.**
-6. **P3 asset pass** — stockroom clutter (ref panel 6), character models, first-person hands.
+1. **Customers/characters.** They are procedural primitives standing in a room that is
+   now modelled around them, so they are the loudest remaining placeholder. Not touched
+   this session (out of scope for an environment pass) but they are next.
+2. **The office course map** (240×160 canvas, reads as a green squiggle) and the **lounge
+   course photograph** (a flat gradient plane).
+3. **Wire `cash_drawer.glb`.** The asset is an OPEN till and is built and loaded but not
+   placed, because there is no open/close animation to hang it on. That is a systems job.
+4. **Exterior grime** still reads as a soft dark smear rather than dirt (pre-existing).
+5. Then the pre-existing queue from the previous session: P1-5 finish the hands,
+   P1-6 tutorial chapters, P2-3 employees who do real physical work, P2-5 rain decisions.
 
-## Known gaps, stated honestly
+## Landmines learned this session
 
-- **Boxes have no colliders.** They are interaction props only, so you can walk through a carton.
-  The door-occupancy rule *does* consult world boxes, but nav and the player do not.
-- **`club.reviews` is created lazily** on the first posted review; readers use `|| []`.
-- **The exterior reads dark** in some light. The wash surfaces are `MeshStandardMaterial`, so they
-  take scene lighting — worth a look during the P3 lighting pass.
-- Reviews fire for ~2 in 5 visits by design; a quiet shop accumulates them slowly.
-
-## Landmines / conventions learned the hard way
-
-- **Walk yaw**: forward = `(−sin y, −cos y)`. Facing −z is **yaw 0**, not π. Aim:
-  `yaw = atan2(−dx/d, −dz/d)`.
-- **Building local → world** is a pure translation: `world = local + (−8, 228)`. The stockroom is
-  local **x > 5.7**; standing at local x ≈ 4.6 puts you in the lounge looking at a partition.
-- `addExpense()` **already takes the cash**. Adding a manual `state.cash -=` double-bills.
-- The laptop's E-prop sits ~0.6 yd from the stockroom door; a blind `E` there opens the laptop, and
-  while `laptopOpen` is true **all** walk input is parked. Check `walk.getFocusLabel()` first.
-- `F` **cycles** the tool belt — calling it twice lands past the washer. In QA use
-  `walk.setTool('washer')`.
-- Door E-prompt radius is **2.1 yd**. At 2.2 yd, nothing happens.
-- Playwright's synthetic `keyboard.up('d')` sends lowercase `d` even with Shift held, so it
-  **cannot** reproduce the real stranded-key bug. Dispatch `new KeyboardEvent('keyup', {key:'D'})`.
-- Wash surfaces must avoid the windows (south: 2.4 × 1.9, sill 0.85, at local x −8.3 and −4.9; the
-  **west gable has none**). A grime plane over glass reads as a black tarp.
-- Any new tool needs a `TOOL_LOOP_LEVEL` entry in `audio.js`, or `setTargetAtTime` gets `undefined`.
-- Product packaging is keyed by **SKU id, not name**: the catalogue has a "Tee bag", a "Bag towel"
-  *and* an "Ironwood stand bag", and the shoes are called "spikes".
+- **Tinted materials need NEUTRAL GREY base maps.** `color` multiplies into `map`, so a
+  green polo tint over the sage-green weave came out near-black and every cap in the shop
+  read as a mushroom.
+- **A shoe's upper is `M_leather`, not `M_fabric`.** Tinting only fabric left every shoe
+  on the wall the same brown.
+- **`roundedBox()` has planar, world-scaled UVs** (constant texel density across fixtures).
+  Anything carrying a 0..1 label — a ball box, a product carton — must use a plain
+  `BoxGeometry` or the label is cropped and tiled into mush.
+- **The GLBs load async.** `buildCheckout`/`buildLounge`/`buildStockroomDressing` run once
+  at construction, so any prop placed inline there would simply never appear. They defer
+  through `merch.onReady()`. And register the restock hook at the **end** of the build:
+  a fast-failing GLB can call back before the state `rebuildStock()` closes over exists.
+- **The game clock runs while the harness shoots** (~8 game-minutes per real second), so
+  ten shots drift 80 minutes and the exterior lands at 2:33 AM in one pass and 1:42 PM in
+  another. Pin it.
+- **The boot veil outlives `clubhouse()`** and is opaque — it photographed a black screen
+  over the checkout once. Wait for `.load-veil` to actually go.
+- **Backroom decor spawns translucent green placement ghosts** (gated on `inv.back > 0`,
+  clubhouse.js:1288). They will sit on top of the art in every screenshot. Park them.
+- **Continuous surfaces, not assemblies.** The first Blender batch assembled detached
+  primitives — a box torso with floating box sleeves, a plank sole with an egg on the toe
+  — and rendered WORSE than the primitives it replaced. `lib_model.py`'s `loft()` and
+  `outline_solid()` exist because a shirt and a shoe are single skins.
+- **A golf bag with no clubs in it is just a bin.** The fan of club heads out of the top
+  IS the silhouette.
+- **Inspect every generated model before it goes in the game** —
+  `tools/blender/inspect_glb.py` renders previews and measures tris/UVs/dimensions. It
+  caught the loaf-shaped shoe, the detached iron sole, the nub cap bill and the floating
+  hand-truck grips.

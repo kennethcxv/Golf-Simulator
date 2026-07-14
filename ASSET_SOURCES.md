@@ -124,3 +124,35 @@ All clubhouse interior materials are canvas-procedural, generated at boot
 fabric/kraft, the club logo rug, signage, and product-box labels. No external
 texture files beyond the two existing exterior normal maps (siding_nor.jpg,
 roof_nor.jpg, project-owned).
+
+## Clubhouse asset pass (2026-07-14) — vendor/models/clubhouse/
+
+23 GLBs (2.0 MB total), **authored from scratch in this repo** and therefore
+project-owned. No third-party assets, no AI generation services (Meshy/Tripo are
+not authorised and were not used).
+
+They are built headlessly by committed Blender scripts, so every one is
+reproducible from source:
+
+    "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" --background \
+        --factory-startup --python tools/blender/build_merch.py
+    ... --python tools/blender/build_props.py
+    ... --python tools/blender/inspect_glb.py     # renders previews + measures
+
+| Script | Assets |
+|---|---|
+| `tools/blender/build_merch.py` | polo_hanging, polo_folded, jacket_hanging, glove, shoe, bag, head_driver, head_iron, head_wedge, head_putter, cap |
+| `tools/blender/build_props.py` | chair_lounge, chair_office, trophy, register, scanner, cardterm, printer, cash_drawer, carton, carton_open, handtruck, pendant |
+| `tools/blender/lib_model.py` | shared modelling helpers — `loft()`, `outline_solid()` |
+
+Every material in these files is a NAMED SLOT (`M_fabric`, `M_leather`, `M_steel`,
+…) with no authored look. `src/render3d/clubhouse/merch.js` remaps each slot onto
+the shared clubhouse material kit at load, so the whole building draws from one
+material library and the material count stays flat no matter how much stock is on
+the shelves. Colours in the .py files exist only so the assets are legible if
+opened in Blender.
+
+Blender **5.1.2**, drives headlessly. The Blender MCP addon socket is not running
+in this environment (recorded as a blocker); the headless CLI is the better
+pipeline regardless, because the authoring scripts are committed rather than the
+binaries being unexplainable artefacts.
