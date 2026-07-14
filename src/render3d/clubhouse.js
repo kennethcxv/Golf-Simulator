@@ -2034,7 +2034,7 @@ export function makeClubhouse(ctx) {
         const name = sku ? sku.name : b.skuId;
         if (b.flat) { pickUp(b); return; }
         if (isEmpty(b)) {
-          if (flattenBox(state, b.id).ok) { sfx('cardboard'); say('Flattened — carry it to the recycling.'); rebuildBoxes(); }
+          if (flattenBox(state, b.id).ok) { sfx('recycle'); say('Flattened — carry it to the recycling.'); rebuildBoxes(); }
           return;
         }
         if (!unpackHere(prop, b)) { pickUp(b); return; }

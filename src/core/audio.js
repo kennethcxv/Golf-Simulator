@@ -448,6 +448,132 @@ export function makeAudio() {
     src.stop(t0 + 0.4);
   }
 
+  // --- delivery + stocking (the physical retail loop) ------------------------------------------
+  // A tiny shared noise-burst helper: a band of filtered noise with an amplitude envelope. Cardboard,
+  // tape and paper are all noise at heart — what tells them apart is the band and the shape.
+  function burst({ dur = 0.2, band = 1500, q = 1, type = 'bandpass', peak = 0.05, attack = 0.02, hp = 0 }) {
+    if (!ctx) return null;
+    const t0 = ctx.currentTime;
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = type;
+    f.frequency.value = band;
+    f.Q.value = q;
+    let node = src.connect(f);
+    if (hp) { const h = ctx.createBiquadFilter(); h.type = 'highpass'; h.frequency.value = hp; node = node.connect(h); }
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    node.connect(g).connect(sfxBus);
+    src.start(t0);
+    src.stop(t0 + dur);
+    return { t0, g };
+  }
+
+  // the delivery van: a low diesel rumble that fades in and out, capped with an air-brake hiss
+  function truck() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(46, t0);
+    osc.frequency.linearRampToValueAtTime(38, t0 + 1.4);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 180;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.06, t0 + 0.5);
+    g.gain.linearRampToValueAtTime(0.05, t0 + 1.1);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.7);
+    osc.connect(lp).connect(g).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 1.75);
+    // air brake at the stop
+    const hiss = burst({ dur: 0.4, band: 3200, q: 0.7, peak: 0.04, attack: 0.01 });
+    if (hiss) hiss.g.gain.setValueAtTime(0.0001, t0 + 1.2);
+  }
+
+  // hoisting a carton: a short cardboard scuff
+  function boxup() { burst({ dur: 0.16, band: 900, q: 0.8, peak: 0.045, attack: 0.015, hp: 300 }); }
+
+  // setting a carton down: a soft, heavier cardboard thud (cardboard, not the register's coin thunk)
+  function boxdown() {
+    if (!ctx) return;
+    burst({ dur: 0.14, band: 700, q: 0.7, peak: 0.05, attack: 0.004 });
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(120, t0);
+    osc.frequency.exponentialRampToValueAtTime(70, t0 + 0.09);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.08, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.14);
+  }
+
+  // the blade down the seam: a short bright zip. Called repeatedly while you hold the cut, so it is
+  // brief and quiet — a run of them reads as one continuous rip.
+  function tape() {
+    const b = burst({ dur: 0.09, band: 3600, q: 1.2, peak: 0.028, attack: 0.004, hp: 1500 });
+    if (b) b.g.gain.exponentialRampToValueAtTime(0.0001, b.t0 + 0.09);
+  }
+
+  // a cardboard flap folding open: a low crinkle with a soft pop
+  function flap() { burst({ dur: 0.18, band: 1200, q: 0.9, peak: 0.04, attack: 0.02, hp: 400 }); }
+
+  // taking product out of the box: a light paper rustle
+  function product() { burst({ dur: 0.13, band: 2600, q: 0.8, peak: 0.03, attack: 0.02, hp: 900 }); }
+
+  // placing an item on a fixture: a soft, clean tap
+  function stock() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(320, t0);
+    osc.frequency.exponentialRampToValueAtTime(200, t0 + 0.06);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.05, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.1);
+  }
+
+  // the shelf is full: a small, satisfied two-note confirm (distinct from the order chime)
+  function fullShelf() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    for (const [i, freq] of [[0, 587], [1, 880]]) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const g = ctx.createGain();
+      const at = t0 + i * 0.08;
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.linearRampToValueAtTime(0.05, at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.14);
+      osc.connect(g).connect(sfxBus);
+      osc.start(at);
+      osc.stop(at + 0.16);
+    }
+  }
+
+  // breaking down / binning cardboard: a longer, coarser crunch
+  function recycle() {
+    burst({ dur: 0.34, band: 800, q: 0.6, peak: 0.05, attack: 0.02 });
+    const b = burst({ dur: 0.3, band: 2000, q: 0.7, peak: 0.025, attack: 0.05, hp: 600 });
+    if (b) b.g.gain.setValueAtTime(0.0001, b.t0 + 0.08);
+  }
+
   // the laptop lid easing open: soft felt-hinge rise + a settle tick
   function laptopOpen() {
     if (!ctx) return;
@@ -643,6 +769,8 @@ export function makeAudio() {
     chime,
     thunk,
     setToolLoop,
+    // the delivery-to-shelf loop
+    truck, boxup, boxdown, tape, flap, product, stock, fullShelf, recycle,
     get ready() {
       return !!ctx;
     },

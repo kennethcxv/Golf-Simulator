@@ -91,7 +91,7 @@ export function buildFixtures(B) {
       if (res.invalid && hooks.toast) hooks.toast(res.reason, 'warn');
       return;
     }
-    if (hooks.sfx) hooks.sfx('stock');
+    if (hooks.sfx) hooks.sfx(res.full ? 'fullShelf' : 'stock');
     if (res.full && hooks.toast) hooks.toast(`The ${f.title.toLowerCase()} is full.`);
   }
 
