@@ -14,7 +14,7 @@ const cache = new Map();
 function ensureRig() {
   if (renderer) return;
   renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-  renderer.setSize(128, 128);
+  renderer.setSize(192, 192); // the cards draw these at 64 CSS px, and the laptop scales up to 130%
   renderer.setClearColor(0x000000, 0);
   scene = new THREE.Scene();
   const key = new THREE.DirectionalLight(0xfff2dc, 2.6);
@@ -155,11 +155,28 @@ export function productThumb(sku) {
   if (cache.has(sku.id)) return cache.get(sku.id);
   ensureRig();
   const unit = buildUnit(sku);
+
   scene.add(unit);
-  // frame it: fit the camera to the unit's bounding sphere, slightly high angle
-  const box = new THREE.Box3().setFromObject(unit);
+
+  // A CLUB IS A METRE OF STICK WITH THE ENTIRE PRODUCT AT ONE END.
+  //
+  // Framed whole, a driver renders as a hairline down the middle of a 64px card — and so does an
+  // iron, and a wedge, and a putter. Nine clubs, nine identical grey lines: real renders of the
+  // real models, and completely useless on a shop page where the whole job is telling them apart.
+  //
+  // So frame the HEAD, and let the shaft run out of frame. That is what a product photograph of
+  // a golf club actually is. Everything else in the catalogue is roughly cubic and is framed
+  // whole, as it should be.
+  const raw = new THREE.Box3().setFromObject(unit);
+  const size = raw.getSize(new THREE.Vector3());
+  const slender = size.y > size.x * 1.9 && size.y > size.z * 1.9;
+  const box = slender
+    ? new THREE.Box3(raw.min.clone(), new THREE.Vector3(raw.max.x, raw.min.y + size.y * 0.30, raw.max.z))
+    : raw;
+
+  // frame it: fit the camera to the bounding sphere, from a slightly high three-quarter angle
   const sphere = box.getBoundingSphere(new THREE.Sphere());
-  const dist = (sphere.radius / Math.tan((30 * Math.PI) / 360)) * 1.15;
+  const dist = (sphere.radius / Math.tan((30 * Math.PI) / 360)) * 1.12;
   camera.position.set(
     sphere.center.x + dist * 0.55,
     sphere.center.y + dist * 0.5,
@@ -172,6 +189,6 @@ export function productThumb(sku) {
   unit.traverse((o) => {
     if (o.geometry) o.geometry.dispose();
   });
-  cache.set(sku.id, url);
+  cache.set(sku.id, url); // cached forever — never regenerated per frame
   return url;
 }
