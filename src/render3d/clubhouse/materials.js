@@ -333,6 +333,38 @@ export function makeRugTexture(clubName = 'PINE HOLLOW', { w = 512, h = 384 } = 
   return tex;
 }
 
+// Product box label: brand band + name + a ball/club glyph. One draw per
+// SKU-tier; meshes share the texture.
+export function makeProductLabel({ brand = 'FAIRWAY SUPPLY', name = 'TOUR SOFT', field = '#f4f0e6', band = '#1f4a26', ink = '#23262b', glyph = 'ball' } = {}) {
+  const c = makeCanvas(128, 96);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = field;
+  ctx.fillRect(0, 0, 128, 96);
+  ctx.fillStyle = band;
+  ctx.fillRect(0, 0, 128, 26);
+  ctx.fillStyle = '#f4f0e6';
+  ctx.font = 'bold 13px Georgia';
+  ctx.textAlign = 'center';
+  ctx.fillText(brand.slice(0, 15), 64, 18);
+  ctx.fillStyle = ink;
+  ctx.font = 'bold 14px Georgia';
+  ctx.fillText(name.slice(0, 13), 64, 48);
+  if (glyph === 'ball') {
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(40 + i * 24, 72, 9, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = '#c9c4b4';
+      ctx.stroke();
+    }
+  } else {
+    ctx.fillStyle = band;
+    ctx.fillRect(24, 66, 80, 4);
+  }
+  return finish(c, { repeat: false });
+}
+
 // Wall wordmark / plaque generator: walnut or cream field + serif lettering.
 export function makeSignTexture(lines, {
   w = 512, h = 256, field = '#f4f0e6', ink = '#1f4a26', accent = '#c9a227',

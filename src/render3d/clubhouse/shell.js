@@ -352,7 +352,8 @@ export function buildShell(B) {
   // NOTE: the `interior` group's origin sits AT floor-top height, so interior
   // y-coordinates are measured from the finished floor (no FLOOR_TOP offset).
   {
-    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(INTERIOR.w, INTERIOR.d), mats.ceiling);
+    // oversized so the edge tucks under the wall heads (no roof-slab slivers)
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(INTERIOR.w + 0.6, INTERIOR.d + 0.6), mats.ceiling);
     ceil.rotation.x = Math.PI / 2;
     ceil.position.y = SHELL.h;
     interior.add(ceil);
