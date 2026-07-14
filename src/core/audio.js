@@ -262,6 +262,76 @@ export function makeAudio() {
     osc.stop(t0 + 0.1);
   }
 
+  // cloth on glass: two quick filtered-noise strokes falling away
+  function wipe() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.4, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.setValueAtTime(2400, t0);
+    f.frequency.exponentialRampToValueAtTime(900, t0 + 0.32);
+    f.Q.value = 1.4;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.05, t0 + 0.05);
+    g.gain.linearRampToValueAtTime(0.012, t0 + 0.16);
+    g.gain.linearRampToValueAtTime(0.045, t0 + 0.22);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.38);
+    src.connect(f).connect(g).connect(sfxBus);
+    src.start(t0);
+    src.stop(t0 + 0.4);
+  }
+
+  // the laptop lid easing open: soft felt-hinge rise + a settle tick
+  function laptopOpen() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(190, t0);
+    osc.frequency.linearRampToValueAtTime(340, t0 + 0.3);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.028, t0 + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.34);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.36);
+    const tick = ctx.createOscillator();
+    tick.type = 'square';
+    tick.frequency.value = 900;
+    const tg = ctx.createGain();
+    tg.gain.setValueAtTime(0.02, t0 + 0.3);
+    tg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.345);
+    tick.connect(tg).connect(sfxBus);
+    tick.start(t0 + 0.3);
+    tick.stop(t0 + 0.36);
+  }
+
+  // the machine waking: a small two-note rise, quiet and clean
+  function laptopBoot() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    for (const [i, freq] of [[0, 523], [1, 784]].values()) {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const g = ctx.createGain();
+      const at = t0 + i * 0.16;
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.linearRampToValueAtTime(0.03, at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.3);
+      osc.connect(g).connect(sfxBus);
+      osc.start(at);
+      osc.stop(at + 0.32);
+    }
+  }
+
   // continuous in-use loops, one per tool, crossfaded by setToolLoop(kind|null)
   const toolLoops = {}; // kind -> gain node
   function ensureToolLoop(kind) {
@@ -369,6 +439,9 @@ export function makeAudio() {
     doorSwing,
     doorShut,
     scanBeep,
+    wipe,
+    laptopOpen,
+    laptopBoot,
     equipTick,
     chime,
     thunk,

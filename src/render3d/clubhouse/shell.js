@@ -548,6 +548,7 @@ export function buildShell(B) {
   let conditionNow = 100;
   let flickT = 0;
   let moodDayF = 1;
+  let windowDim = 1; // filthy glass chokes the daylight fills
 
   function applyPracticalLevels() {
     // practicals stay on all day (retail) but carry the room after dark
@@ -567,7 +568,7 @@ export function buildShell(B) {
       const up = (minuteOfDay - 345) / 75;
       const down = (1185 - minuteOfDay) / 75;
       moodDayF = Math.max(0, Math.min(1, up, down));
-      for (const f of fills) f.intensity = 15 * moodDayF;
+      for (const f of fills) f.intensity = 15 * moodDayF * windowDim;
       porchLight.intensity = 9 * (1 - moodDayF);
       sconce.material.emissiveIntensity = 1.2 * (1 - moodDayF);
       mats.glass.emissive = mats.glass.emissive || new THREE.Color(0xffd9a8);
@@ -578,6 +579,10 @@ export function buildShell(B) {
     refreshCondition(cond) {
       conditionNow = cond;
       applyPracticalLevels();
+    },
+    setWindowDirt(avg) {
+      windowDim = 1 - 0.45 * Math.max(0, Math.min(1, avg));
+      for (const f of fills) f.intensity = 15 * moodDayF * windowDim;
     },
     updateFlicker(dt) {
       if (conditionNow >= 40) return;

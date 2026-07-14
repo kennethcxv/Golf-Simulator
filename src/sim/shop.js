@@ -10,7 +10,7 @@ import { rngOf, clamp, makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
 import { addRevenue, addExpense } from './economy.js';
 import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
-import { INTERIOR, CLUTTER_SPOTS } from '../data/shopLayout.js';
+import { INTERIOR, CLUTTER_SPOTS, WINDOWS } from '../data/shopLayout.js';
 import { arriveOrder, openAllBoxes, ensureDeliveries } from './deliveries.js';
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
@@ -38,6 +38,10 @@ function renoRng(state) {
   return makeRng(((state.seed >>> 0) ^ 0x51c7) || 1);
 }
 
+function startWindows(rng) {
+  return WINDOWS.map(() => Math.round(rng.range(0.72, 0.95) * 100) / 100);
+}
+
 export function initShopReno(state) {
   const rng = renoRng(state);
   const cells = RENO.grid.w * RENO.grid.h;
@@ -51,7 +55,7 @@ export function initShopReno(state) {
     ry: Math.round(rng.range(0, Math.PI * 2) * 100) / 100,
     cleared: false,
   }));
-  state.shop.reno = { grime, clutter, decor: [] };
+  state.shop.reno = { grime, clutter, decor: [], windows: startWindows(rng) };
 }
 
 export function ensureShopReno(state) {
@@ -96,11 +100,36 @@ export function ensureShopReno(state) {
     }));
   }
 
+  // WINDOW FILM (production dirt pass): saves older than the window-grime
+  // system get filmed panes; a save that wiped them keeps them wiped
+  if (!Array.isArray(reno.windows) || reno.windows.length !== WINDOWS.length) {
+    const prior = Array.isArray(reno.windows) ? reno.windows : null;
+    const fresh = startWindows(renoRng(state));
+    reno.windows = fresh.map((v, i) => (prior && typeof prior[i] === 'number' ? prior[i] : v));
+  }
+
   // saves written before a catalog item existed need its inventory slot
   for (const sku of SHOP_CATALOG) {
     if (!state.shop.inventory[sku.id]) state.shop.inventory[sku.id] = { shelf: 0, back: 0 };
   }
   ensureDeliveries(state); // physical-retail block (2026-07-13)
+}
+
+// wipe one pane: three passes clear it; returns what's left on the glass
+export function wipeWindow(state, index) {
+  const reno = state.shop && state.shop.reno;
+  if (!reno || !Array.isArray(reno.windows)) return { ok: false };
+  const cur = reno.windows[index];
+  if (typeof cur !== 'number' || cur <= 0) return { ok: false, left: 0 };
+  const left = Math.max(0, Math.round((cur - 0.34) * 100) / 100);
+  reno.windows[index] = left;
+  return { ok: true, left };
+}
+
+export function windowDirtAvg(state) {
+  const w = state.shop && state.shop.reno && state.shop.reno.windows;
+  if (!w || !w.length) return 0;
+  return w.reduce((a, v) => a + v, 0) / w.length;
 }
 
 const renoCellAt = (x, z) => {

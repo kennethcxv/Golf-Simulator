@@ -20,7 +20,7 @@ import {
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
-  restockShelfFromBackroom, priceFor,
+  restockShelfFromBackroom, priceFor, windowDirtAvg,
 } from '../sim/shop.js';
 import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
@@ -32,6 +32,7 @@ import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel }
 import { buildShell } from './clubhouse/shell.js';
 import { buildDoors } from './clubhouse/doors.js';
 import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } from './clubhouse/fixtures.js';
+import { buildDirt } from './clubhouse/dirt.js';
 
 const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
@@ -112,64 +113,11 @@ export function makeClubhouse(ctx) {
   };
   const shell = buildShell(B);
 
-  // --- grime overlay (the dirt you see IS state.shop.reno.grime) -------------------------
-  const grimeCanvas = document.createElement('canvas');
-  grimeCanvas.width = 832;
-  grimeCanvas.height = 512;
-  const grimeTex = new THREE.CanvasTexture(grimeCanvas);
-  grimeTex.colorSpace = THREE.SRGBColorSpace;
-  const grimePlane = new THREE.Mesh(
-    new THREE.PlaneGeometry(INTERIOR.w, INTERIOR.d),
-    new THREE.MeshStandardMaterial({ map: grimeTex, transparent: true, depthWrite: false, roughness: 1 }),
-  );
-  grimePlane.rotation.x = -Math.PI / 2;
-  grimePlane.position.y = 0.012;
-  grimePlane.renderOrder = 1;
-  interior.add(grimePlane);
-
-  const hash01 = (n) => {
-    const s = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
-    return s - Math.floor(s);
-  };
-
-  function repaintGrime() {
-    const reno = state.shop && state.shop.reno;
-    const c2 = grimeCanvas.getContext('2d');
-    c2.clearRect(0, 0, grimeCanvas.width, grimeCanvas.height);
-    if (!reno) { grimeTex.needsUpdate = true; return; }
-    const px = grimeCanvas.width / RENO.grid.w;
-    const py = grimeCanvas.height / RENO.grid.h;
-    for (let cy = 0; cy < RENO.grid.h; cy++) {
-      for (let cx = 0; cx < RENO.grid.w; cx++) {
-        const d = reno.grime[cy * RENO.grid.w + cx];
-        if (d <= 0.015) continue;
-        const idx = cy * RENO.grid.w + cx;
-        for (let b = 0; b < 3; b++) {
-          const bx = (cx + 0.16 + 0.68 * hash01(idx * 7.3 + b * 3.1)) * px;
-          const by = (cy + 0.16 + 0.68 * hash01(idx * 5.7 + b * 4.9 + 11)) * py;
-          const r = (0.44 + 0.34 * hash01(idx * 3.3 + b)) * Math.min(px, py) * (0.6 + d * 0.6);
-          const a = d * (0.34 + 0.26 * hash01(idx + b * 17));
-          const g2 = c2.createRadialGradient(bx, by, r * 0.12, bx, by, r);
-          g2.addColorStop(0, `rgba(148, 138, 116, ${a.toFixed(3)})`);
-          g2.addColorStop(1, 'rgba(148, 138, 116, 0)');
-          c2.fillStyle = g2;
-          c2.fillRect(bx - r, by - r, r * 2, r * 2);
-        }
-        for (let b = 0; b < 3; b++) {
-          const bx = (cx + 0.2 + 0.6 * hash01(idx * 9.1 + b * 6.7 + 5)) * px;
-          const by = (cy + 0.2 + 0.6 * hash01(idx * 8.3 + b * 2.3 + 29)) * py;
-          const r = (0.1 + 0.14 * hash01(idx * 4.9 + b + 3)) * Math.min(px, py);
-          const a = d * (0.3 + 0.2 * hash01(idx * 2.1 + b * 13));
-          const g2 = c2.createRadialGradient(bx, by, r * 0.2, bx, by, r);
-          g2.addColorStop(0, `rgba(52, 43, 30, ${a.toFixed(3)})`);
-          g2.addColorStop(1, 'rgba(52, 43, 30, 0)');
-          c2.fillStyle = g2;
-          c2.fillRect(bx - r, by - r, r * 2, r * 2);
-        }
-      }
-    }
-    grimeTex.needsUpdate = true;
-  }
+  // --- grime + window film (clubhouse/dirt.js — art-directed, state-masked) --------------
+  B.onWindowDirt = () => shell.lighting.setWindowDirt(windowDirtAvg(state));
+  const dirt = buildDirt(B, shell.windowDefs);
+  const repaintGrime = dirt.repaintGrime;
+  B.onWindowDirt();
 
   // welcome mat inside the door
   {
@@ -647,10 +595,14 @@ export function makeClubhouse(ctx) {
   }
 
   // --- clutter piles ------------------------------------------------------------------------
-  const cardboard = new THREE.MeshStandardMaterial({ color: 0xb08f5e, roughness: 0.92 });
-  const cardboardDark = new THREE.MeshStandardMaterial({ color: 0xa08050, roughness: 0.92 });
-  const tapeMat = new THREE.MeshStandardMaterial({ color: 0x7c6034, roughness: 0.85 });
+  const cardboard = mats.kraft;
+  const cardboardDark = new THREE.MeshStandardMaterial({ map: mats.kraft.map, color: 0xd8c3a4, roughness: 0.92 });
+  const tapeMat = new THREE.MeshStandardMaterial({ color: 0x8a6f42, roughness: 0.75 });
   const paperMat = new THREE.MeshStandardMaterial({ color: 0xd8d2c2, roughness: 0.95 });
+  const shipLabelMat = new THREE.MeshStandardMaterial({
+    map: makeProductLabel({ brand: 'FAIRWAY SUPPLY CO.', name: 'FRAGILE', band: '#57795c', glyph: 'bar', field: '#efe9d9' }),
+    roughness: 0.85,
+  });
   const clutterObjs = [];
 
   function tweenScale(obj, from, to, dur, onDone) {
@@ -668,19 +620,34 @@ export function makeClubhouse(ctx) {
 
   function buildClutterPile(idx, pile) {
     const g = new THREE.Group();
-    const big = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.5, 0.5), cardboard);
+    // abandoned shipment: kraft cases with a shipping label, one burst open
+    const big = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.5, 0.5), [cardboard, cardboard, cardboard, cardboard, shipLabelMat, cardboard]);
     big.position.y = 0.25;
     const tape = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.015, 0.12), tapeMat);
     tape.position.y = 0.505;
     const small = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.36, 0.42), cardboardDark);
     small.position.set(0.08, 0.68, -0.03);
     small.rotation.y = 0.45;
+    // open flaps on the small case
+    for (const [fx, fr] of [[-0.2, 0.9], [0.2, -0.8]]) {
+      const flap = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.012, 0.4), cardboardDark);
+      flap.position.set(0.08 + fx, 0.875, -0.03);
+      flap.rotation.set(0, 0.45, fr);
+      g.add(flap);
+    }
     const flat = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.09, 0.44), cardboard);
     flat.position.set(-0.45, 0.05, 0.22);
     flat.rotation.y = -0.5;
     flat.rotation.z = 0.05;
     const paper = new THREE.Mesh(new THREE.IcosahedronGeometry(0.09, 0), paperMat);
     paper.position.set(0.42, 0.09, 0.3);
+    // loose packing paper sheets around the pile
+    for (let i = 0; i < 3; i++) {
+      const sheet = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.2), paperMat);
+      sheet.rotation.set(-Math.PI / 2 + (idx % 3) * 0.04, (idx * 31 + i * 73) % 6, 0);
+      sheet.position.set(Math.sin(idx * 5 + i * 2.4) * 0.65, 0.012 + i * 0.002, Math.cos(idx * 3 + i * 1.7) * 0.55);
+      g.add(sheet);
+    }
     for (const m of [big, small, flat]) m.castShadow = true;
     g.add(big, tape, small, flat, paper);
     g.position.set(pile.x, 0, pile.z);
