@@ -13,7 +13,7 @@ import {
 import { makeSignTexture, makeOakFloorTexture, makeConcreteTexture, makeSidingTexture } from './materials.js';
 
 export function buildShell(B) {
-  const { group, interior, mats, addCol, colBoxAt, FLOOR_TOP } = B;
+  const { group, interior, mats, addCol, colBoxAt, FLOOR_TOP, state } = B;
   const halfW = SHELL.w / 2 - SHELL.wallT / 2; // wall centerlines
   const halfD = SHELL.d / 2 - SHELL.wallT / 2;
 
@@ -253,15 +253,99 @@ export function buildShell(B) {
       }
       addCol(colBoxAt(px, D2 / 2 + PORCH_D - 0.45, 0.4, 0.4));
     }
-    const step = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.15, 0.95), new THREE.MeshStandardMaterial({ color: 0xcfc8b8, roughness: 0.9 }));
-    step.position.set(DOOR_MAIN.x, 0.075, D2 / 2 + PORCH_D + 0.42);
-    group.add(step);
-    for (let i = 0; i < 3; i++) {
-      const pad = new THREE.Mesh(new THREE.BoxGeometry(1.5 - i * 0.08, 0.05, 0.9), new THREE.MeshStandardMaterial({ color: 0xb9b2a2, roughness: 0.95 }));
-      pad.position.set(DOOR_MAIN.x, 0.025, D2 / 2 + PORCH_D + 1.15 + i * 1.05);
+    // REAL steps off the porch: two treads on stringers with closed risers and
+    // a handrail each side — the old floating pads read as unfinished geometry
+    const stepMat = new THREE.MeshStandardMaterial({ color: 0xcfc8b8, roughness: 0.9 });
+    const stairW = 3.0;
+    const stairZ0 = D2 / 2 + PORCH_D; // porch edge
+    for (let i = 0; i < 2; i++) {
+      const tread = new THREE.Mesh(new THREE.BoxGeometry(stairW, 0.05, 0.42), stepMat);
+      tread.position.set(DOOR_MAIN.x, FLOOR_TOP - 0.125 - i * 0.15, stairZ0 + 0.21 + i * 0.38);
+      tread.castShadow = true;
+      tread.receiveShadow = true;
+      group.add(tread);
+      const riser = new THREE.Mesh(new THREE.BoxGeometry(stairW, 0.13, 0.04), stepMat);
+      riser.position.set(DOOR_MAIN.x, FLOOR_TOP - 0.195 - i * 0.15, stairZ0 + 0.02 + i * 0.38);
+      group.add(riser);
+    }
+    for (const sx of [-1, 1]) {
+      // stringer cheek
+      const stringer = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.34, 0.86), stepMat);
+      stringer.position.set(DOOR_MAIN.x + sx * (stairW / 2 - 0.025), FLOOR_TOP - 0.19, stairZ0 + 0.4);
+      group.add(stringer);
+      // handrail: two turned posts + rail following the run
+      const hrMat = trimMat;
+      for (const [pz, py] of [[stairZ0 + 0.05, FLOOR_TOP + 0.45], [stairZ0 + 0.82, FLOOR_TOP + 0.15]]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.9, 0.07), hrMat);
+        post.position.set(DOOR_MAIN.x + sx * (stairW / 2 + 0.06), py, pz);
+        post.castShadow = true;
+        group.add(post);
+      }
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 1.0), hrMat);
+      rail.position.set(DOOR_MAIN.x + sx * (stairW / 2 + 0.06), FLOOR_TOP + 0.72, stairZ0 + 0.44);
+      rail.rotation.x = 0.36;
+      group.add(rail);
+    }
+    // a real concrete walk out to the course, jointed slabs, full width
+    const walkMat = new THREE.MeshStandardMaterial({ map: makeConcreteTexture({ seed: 41 }), color: 0xc9c2b2, roughness: 0.95 });
+    for (let i = 0; i < 4; i++) {
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.05, 1.18), walkMat);
+      pad.position.set(DOOR_MAIN.x, 0.025, stairZ0 + 1.15 + i * 1.24);
       pad.receiveShadow = true;
       group.add(pad);
     }
+
+    // gutters along both eaves + downspouts at the corners — the roofline was
+    // bare and read as a rendering, not a building
+    const gutterMat = new THREE.MeshStandardMaterial({ color: 0xe9e4d4, roughness: 0.6, metalness: 0.15 });
+    for (const zSide of [-1, 1]) {
+      const gutter = new THREE.Mesh(new THREE.BoxGeometry(W2 + 2.1, 0.1, 0.11), gutterMat);
+      gutter.position.set(0, WALL_H - 0.18, zSide * (D2 / 2 + 0.82));
+      group.add(gutter);
+    }
+    for (const [dx, dz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+      const spout = new THREE.Mesh(new THREE.BoxGeometry(0.08, WALL_H - 0.3, 0.08), gutterMat);
+      spout.position.set(dx * (W2 / 2 - 0.18), (WALL_H - 0.3) / 2 + 0.05, dz * (D2 / 2 + 0.16));
+      group.add(spout);
+      const elbow = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.3), gutterMat);
+      elbow.position.set(dx * (W2 / 2 - 0.18), 0.09, dz * (D2 / 2 + 0.3));
+      group.add(elbow);
+    }
+
+    // foundation skirt sunk into the grade — the old thin dark band hovered
+    // over the grass wherever the terrain dipped
+    const skirt = new THREE.Mesh(
+      new THREE.BoxGeometry(W2 + 0.5, 0.9, D2 + 0.5),
+      new THREE.MeshStandardMaterial({ map: makeConcreteTexture({ seed: 23 }), color: 0x9a9284, roughness: 0.95 }),
+    );
+    skirt.position.set(0, -0.28, 0);
+    group.add(skirt);
+
+    // post-mounted club sign by the walk (the reference's PINEHOLLOW board)
+    const words = ((state && state.clubName) || 'GOLF CLUB').toUpperCase().split(' ');
+    const mid = Math.ceil(words.length / 2);
+    const clubSignTex = makeSignTexture([words.slice(0, mid).join(' '), words.slice(mid).join(' ') || 'GOLF CLUB'], { w: 384, h: 160 });
+    const signG = new THREE.Group();
+    for (const sx of [-0.85, 0.85]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.11, 1.5, 0.11), mats.walnutDark);
+      post.position.set(sx, 0.75, 0);
+      post.castShadow = true;
+      signG.add(post);
+    }
+    const board = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.7, 0.06), mats.walnutDark);
+    board.position.set(0, 1.15, 0);
+    board.castShadow = true;
+    signG.add(board);
+    const face = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.98, 0.6),
+      new THREE.MeshStandardMaterial({ map: clubSignTex, roughness: 0.8 }),
+    );
+    face.position.set(0, 1.15, 0.033);
+    signG.add(face);
+    signG.position.set(DOOR_MAIN.x + 3.4, 0, stairZ0 + 2.3);
+    signG.rotation.y = 0.35;
+    group.add(signG);
+    addCol(colBoxAt(DOOR_MAIN.x + 3.4, stairZ0 + 2.3, 2.0, 0.4));
     const chimney = new THREE.Mesh(
       new THREE.BoxGeometry(1.0, 3.0, 1.0),
       new THREE.MeshStandardMaterial({ color: 0x7a5a4a, roughness: 0.9 }),
