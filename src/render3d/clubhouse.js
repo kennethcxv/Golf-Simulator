@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { clamp, rngOf } from '../core/utils.js';
 import { fitDistance } from '../core/screenFit.js';
+import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig.js';
 import { makeCharacter } from './characterAsset.js';
 import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
@@ -553,75 +554,127 @@ export function makeClubhouse(ctx) {
     // light comes on, a short boot plays on the physical screen — and then the
     // Fairway Office interface is projected ONTO that screen (main.js aligns
     // the DOM to the projected corners; no detached popup).
+    // Every dimension comes from src/core/laptopRig.js and nothing is invented here, so the
+    // orientation tests in laptop-rig.test.js are testing THIS machine and not a paper one.
+    // The old machine was 21.6 inches across the deck with a 23.8-inch display — a television.
+    const LID_OPEN = LAPTOP.lidOpen;
     const laptop = new THREE.Group();
     const alu = new THREE.MeshStandardMaterial({ color: 0x9aa1a8, roughness: 0.35, metalness: 0.75 });
     const aluDark = new THREE.MeshStandardMaterial({ color: 0x62676d, roughness: 0.4, metalness: 0.7 });
-    const deck = new THREE.Mesh(roundedBox(0.6, 0.022, 0.4, 0.008), alu);
-    deck.position.y = 0.011;
+    const deck = new THREE.Mesh(roundedBox(LAPTOP.deck.w, LAPTOP.deck.t, LAPTOP.deck.d, 0.005), alu);
+    deck.position.y = LAPTOP.deck.t / 2;
     deck.castShadow = true;
     laptop.add(deck);
-    // keyboard: a canvas keycap grid inset into the deck
+    // keyboard: a canvas keycap grid inset into the deck. It sits BEYOND the trackpad and
+    // NEARER than the display — the order a real laptop has, and the one the brief asks for.
     const kbCv = document.createElement('canvas');
-    kbCv.width = 256; kbCv.height = 128;
+    kbCv.width = 280; kbCv.height = 104;
     const kc = kbCv.getContext('2d');
-    kc.fillStyle = '#5d6268'; kc.fillRect(0, 0, 256, 128);
-    kc.fillStyle = '#23262b';
+    kc.fillStyle = '#4a4f55'; kc.fillRect(0, 0, 280, 104);
+    kc.fillStyle = '#1d2024';
+    const rowKeys = [14, 14, 13, 12, 9];
     for (let r = 0; r < 5; r++) {
-      for (let c = 0; c < 14; c++) kc.fillRect(6 + c * 17.6, 8 + r * 17, 14, 13);
+      const n = rowKeys[r];
+      const kw = 280 / n - 4;
+      for (let c = 0; c < n; c++) kc.fillRect(3 + c * (280 / n), 4 + r * 20, kw, 16);
     }
-    kc.fillRect(64, 96, 128, 22); // spacebar
+    kc.fillStyle = '#1d2024';
+    kc.fillRect(84, 84, 112, 16); // spacebar
     const kbTex = new THREE.CanvasTexture(kbCv);
+    kbTex.colorSpace = THREE.SRGBColorSpace;
     const kb = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.54, 0.22),
-      new THREE.MeshStandardMaterial({ map: kbTex, roughness: 0.7 }),
+      new THREE.PlaneGeometry(LAPTOP.keyboard.w, LAPTOP.keyboard.d),
+      new THREE.MeshStandardMaterial({ map: kbTex, roughness: 0.8 }),
     );
     kb.rotation.x = -Math.PI / 2;
-    kb.position.set(0, 0.023, 0.07); // keyboard on the FAR half — nearest keys sit by the hinge
+    kb.position.set(0, LAPTOP.deck.t + 0.0012, LAPTOP.keyboard.z);
     laptop.add(kb);
     const trackpad = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.16, 0.1),
-      new THREE.MeshStandardMaterial({ color: 0x7d838a, roughness: 0.35, metalness: 0.5 }),
+      new THREE.PlaneGeometry(LAPTOP.trackpad.w, LAPTOP.trackpad.d),
+      new THREE.MeshStandardMaterial({ color: 0x83898f, roughness: 0.3, metalness: 0.45 }),
     );
     trackpad.rotation.x = -Math.PI / 2;
-    trackpad.position.set(0, 0.024, -0.12); // trackpad between keyboard and the seated player
+    trackpad.position.set(0, LAPTOP.deck.t + 0.0014, LAPTOP.trackpad.z); // the palm rest, nearest the seat
     laptop.add(trackpad);
 
-    // lid: hinged on the FAR (window-side) edge — local +z is world-east here, and the
-    // chair sits west — so the lid opens AWAY from the seated player and the display
-    // leans back facing them. angle 0 = CLOSED flat over the deck.
-    const LID_OPEN = 1.78; // ~102°: slight recline past vertical, like a real machine
+    // lid: hinged on the FAR edge (local +z), so it opens AWAY from the seated player and the
+    // display leans back toward them. angle 0 = CLOSED, flat over the deck.
     const lidHinge = new THREE.Group();
-    lidHinge.position.set(0, 0.026, 0.2);
-    const lid = new THREE.Mesh(roundedBox(0.6, 0.014, 0.4, 0.006), aluDark);
-    lid.position.set(0, 0.007, -0.2);
+    lidHinge.position.set(0, LAPTOP.hingeY, LAPTOP.hingeZ);
+    const lid = new THREE.Mesh(roundedBox(LAPTOP.lid.w, LAPTOP.lid.t, LAPTOP.lid.d, 0.004), aluDark);
+    lid.position.set(0, LAPTOP.lid.t / 2, -LAPTOP.lid.d / 2);
     lid.castShadow = true;
     lidHinge.add(lid);
+    // THE BEZEL. There wasn't one: the glass was the whole underside of the lid, edge to edge,
+    // which is why the interface always looked like a panel stuck to a slab rather than a screen
+    // set into a machine. A black surround, and the display inset into it.
+    const bezel = new THREE.Mesh(
+      new THREE.PlaneGeometry(LAPTOP.lid.w - 0.004, LAPTOP.lid.d - 0.004),
+      new THREE.MeshStandardMaterial({ color: 0x14171a, roughness: 0.55 }),
+    );
+    bezel.rotation.set(Math.PI / 2, 0, Math.PI);
+    bezel.position.set(0, -0.0004, -LAPTOP.lid.d / 2);
+    lidHinge.add(bezel);
+
     const screenCv = document.createElement('canvas');
-    screenCv.width = 512; screenCv.height = 320;
+    screenCv.width = 512; screenCv.height = 320; // 16:10, same as the interface
     const screenTex = new THREE.CanvasTexture(screenCv);
     screenTex.colorSpace = THREE.SRGBColorSpace;
-    // the display faces DOWN when closed (underside of the lid); the in-plane π turn
-    // makes the painted image read upright and unmirrored to the seated player
+    // The glass faces DOWN when closed (it is the underside of the lid). The in-plane π turn
+    // makes the painted image read upright and unmirrored to the seated player: plane-right
+    // becomes local -x (the player's right) and plane-up becomes local -z (away from the
+    // barrel, which is UP once the lid stands). laptopRig's screenCornersLocal assumes exactly
+    // this — the two must not drift apart, or the DOM lands on the glass upside down.
     const screen = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.56, 0.35),
-      new THREE.MeshStandardMaterial({ map: screenTex, emissive: 0xffffff, emissiveMap: screenTex, emissiveIntensity: 0.6, roughness: 0.2 }),
+      new THREE.PlaneGeometry(LAPTOP.screen.w, LAPTOP.screen.h),
+      new THREE.MeshStandardMaterial({ map: screenTex, emissive: 0xffffff, emissiveMap: screenTex, emissiveIntensity: 0.62, roughness: 0.22 }),
     );
     screen.rotation.set(Math.PI / 2, 0, Math.PI);
-    screen.position.set(0, -0.0005, -0.2);
+    screen.position.set(0, -0.0006, -LAPTOP.lid.d / 2);
     lidHinge.add(screen);
     const led = new THREE.Mesh(
-      new THREE.SphereGeometry(0.008, 6, 4),
+      new THREE.SphereGeometry(0.005, 6, 4),
       new THREE.MeshStandardMaterial({ color: 0x223528, emissive: 0x35d06a, emissiveIntensity: 0.0 }),
     );
-    led.position.set(0.26, 0.026, -0.19); // front edge, player side
+    led.position.set(LAPTOP.led.x, LAPTOP.deck.t, LAPTOP.led.z); // front lip, player side
     laptop.add(led, lidHinge);
-    laptop.position.set(OFFICE.laptop.x - 0.12, 0.96, OFFICE.laptop.z);
+    laptop.position.set(OFFICE.laptop.x - 0.10, 0.96, OFFICE.laptop.z);
     laptop.rotation.y = OFFICE.laptop.ry;
     interior.add(laptop);
 
-    // screen state machine: 'off' → 'boot' → 'home'
+    // SCREEN STATE: 'off' → 'boot' → 'live' (the DOM is on the glass) | 'desk' (nobody sitting)
+    //
+    // This canvas used to paint a full DESKTOP — a green wallpaper with Supplier / Pro Shop /
+    // Tee Sheet tiles — and it kept painting it while the real interface was projected on top.
+    // Two interfaces, one screen. You could read the canvas menu THROUGH the gaps around the
+    // misaligned DOM, and the whole thing read as a popup floating over a wallpaper, which is
+    // exactly what the brief rejected. There is now no second menu anywhere:
+    //
+    //   'live' — a flat sheet of the interface's own paper colour. The DOM covers it exactly, so
+    //            even a sub-pixel seam at the bezel shows cream, never a competing screen.
+    //   'desk' — what you see walking PAST the open laptop: a lock screen. Crest, club, clock.
+    //            Information, not navigation. There is nothing on it to click.
     let screenMode = 'off';
     let bootT0 = 0;
+    const clock12 = () => {
+      const mins = Math.floor(((state.clock.minutes % 1440) + 1440) % 1440);
+      const hh = Math.floor(mins / 60);
+      return `${((hh + 11) % 12) + 1}:${String(mins % 60).padStart(2, '0')} ${hh >= 12 ? 'PM' : 'AM'}`;
+    };
+    const pineMark = (c2, cx, cy, s, fill) => {
+      c2.fillStyle = fill;
+      for (let t = 0; t < 3; t++) {
+        const w = s * (1 - t * 0.22);
+        const yTop = cy - s * 0.6 + t * s * 0.34;
+        c2.beginPath();
+        c2.moveTo(cx, yTop);
+        c2.lineTo(cx - w / 2, yTop + s * 0.44);
+        c2.lineTo(cx + w / 2, yTop + s * 0.44);
+        c2.closePath();
+        c2.fill();
+      }
+      c2.fillRect(cx - s * 0.06, cy + s * 0.5, s * 0.12, s * 0.2);
+    };
     function paintScreen(mode) {
       if (mode) screenMode = mode;
       const c2 = screenCv.getContext('2d');
@@ -639,23 +692,11 @@ export function makeClubhouse(ctx) {
         const p = Math.min(1, (performance.now() - bootT0) / 850);
         c2.fillStyle = '#10141a';
         c2.fillRect(0, 0, 512, 320);
-        c2.fillStyle = '#2e5a35';
-        // pine mark
-        for (let t = 0; t < 3; t++) {
-          const w = 44 - t * 10;
-          const yTop = 96 + t * 20;
-          c2.beginPath();
-          c2.moveTo(256, yTop);
-          c2.lineTo(256 - w / 2, yTop + 26);
-          c2.lineTo(256 + w / 2, yTop + 26);
-          c2.closePath();
-          c2.fill();
-        }
-        c2.fillRect(253, 158, 6, 12);
+        pineMark(c2, 256, 120, 48, '#2e5a35');
         c2.fillStyle = '#f4f0e6';
-        c2.font = 'bold 20px Georgia, serif';
+        c2.font = 'bold 21px Georgia, serif';
         c2.textAlign = 'center';
-        c2.fillText('Fairway Office', 256, 205);
+        c2.fillText('Fairway Office', 256, 208);
         c2.strokeStyle = '#2b3138';
         c2.strokeRect(176, 232, 160, 8);
         c2.fillStyle = '#35d06a';
@@ -663,43 +704,30 @@ export function makeClubhouse(ctx) {
         screenTex.needsUpdate = true;
         return;
       }
-      // 'home' — the desktop the portal opens over
+      if (screenMode === 'live') {
+        // the interface itself is a DOM welded to this rectangle. Underneath it, paper.
+        c2.fillStyle = '#f4f0e6';
+        c2.fillRect(0, 0, 512, 320);
+        screenTex.needsUpdate = true;
+        return;
+      }
+      // 'desk' — the lock screen. Nothing here is a menu.
       const grad = c2.createLinearGradient(0, 0, 0, 320);
-      grad.addColorStop(0, '#dfe9d4');
-      grad.addColorStop(1, '#b9d2a8');
+      grad.addColorStop(0, '#1d3324');
+      grad.addColorStop(1, '#0f1a14');
       c2.fillStyle = grad;
       c2.fillRect(0, 0, 512, 320);
-      c2.fillStyle = '#1f4a26';
-      c2.fillRect(0, 0, 512, 34);
-      c2.fillStyle = '#f4f0e6';
-      c2.font = 'bold 19px Georgia, serif';
-      c2.textAlign = 'left';
-      c2.fillText('⛳ Fairway Office', 12, 24);
-      const mins = Math.floor(((state.clock.minutes % 1440) + 1440) % 1440);
-      const hh = Math.floor(mins / 60);
-      const mm = String(mins % 60).padStart(2, '0');
-      c2.textAlign = 'right';
-      c2.font = '15px system-ui, sans-serif';
-      c2.fillText(`${((hh + 11) % 12) + 1}:${mm} ${hh >= 12 ? 'PM' : 'AM'}`, 500, 23);
+      pineMark(c2, 256, 108, 44, '#2f5c39');
       c2.textAlign = 'center';
-      c2.fillStyle = '#2e3a2b';
+      c2.fillStyle = '#e8efe4';
+      c2.font = 'bold 22px Georgia, serif';
+      c2.fillText(state.clubName || 'The Club', 256, 196);
+      c2.fillStyle = '#8fae95';
       c2.font = '15px system-ui, sans-serif';
-      c2.fillText((state.clubName || 'The Club') + ' — Clubhouse Manager', 256, 66);
-      const tiles = [['🛒', 'Supplier'], ['🏪', 'Pro Shop'], ['📅', 'Tee Sheet'], ['⛳', 'Course'], ['🔨', 'Renovate'], ['💰', 'Books']];
-      tiles.forEach(([icon, name], i) => {
-        const tx = 46 + (i % 3) * 150;
-        const ty = 96 + Math.floor(i / 3) * 96;
-        c2.fillStyle = 'rgba(244,240,230,0.88)';
-        c2.fillRect(tx, ty, 118, 72);
-        c2.strokeStyle = '#57795c';
-        c2.strokeRect(tx + 0.5, ty + 0.5, 117, 71);
-        c2.font = '26px system-ui';
-        c2.fillStyle = '#1f4a26';
-        c2.fillText(icon, tx + 59, ty + 34);
-        c2.font = '13px system-ui';
-        c2.fillStyle = '#23262b';
-        c2.fillText(name, tx + 59, ty + 58);
-      });
+      c2.fillText(clock12(), 256, 224);
+      c2.fillStyle = '#5d7a64';
+      c2.font = '12px system-ui, sans-serif';
+      c2.fillText('Fairway Office — press E to sign in', 256, 286);
       screenTex.needsUpdate = true;
     }
     paintScreen('off');
@@ -724,19 +752,23 @@ export function makeClubhouse(ctx) {
       bootT0 = performance.now();
       paintScreen('boot');
     };
-    // world-space corners of the DISPLAY (main.js orders the projected corners itself)
-    const cornerLocal = [
-      new THREE.Vector3(0.28, 0, -0.2 + 0.175),
-      new THREE.Vector3(-0.28, 0, -0.2 + 0.175),
-      new THREE.Vector3(-0.28, 0, -0.2 - 0.175),
-      new THREE.Vector3(0.28, 0, -0.2 - 0.175),
-    ];
+    // World-space corners of the DISPLAY, in the order the seated player reads them:
+    // [top-left, top-right, bottom-right, bottom-left].
+    //
+    // main.js used to project all four and SORT them by y to guess which pair was the top. That
+    // guess is only ever as good as the camera angle, and it is unnecessary: the lid's own frame
+    // knows the answer exactly. laptopRig hands it over; the guess is deleted.
+    //
+    // Note this reads the LIVE lid angle, so the corners are correct mid-swing too — which is
+    // what lets the interface ride the lid open instead of popping in once it has stopped.
     office.screenCorners = () => {
-      lidHinge.updateWorldMatrix(true, false);
-      // hinge-local: x across the lid, z up the lid, y the screen normal.
-      // main.js orders the projected corners itself, so order here is free.
-      return cornerLocal.map((c) => lidHinge.localToWorld(new THREE.Vector3(c.x, -0.0005, c.z)));
+      laptop.updateWorldMatrix(true, false);
+      return screenCornersLocal(lidState.angle)
+        .map((c) => laptop.localToWorld(new THREE.Vector3(c.x, c.y, c.z)));
     };
+    office.lidAngle = () => lidState.angle;
+    office.lidOpenAngle = LID_OPEN;
+    office.laptopObject = laptop;
 
     const compWp = L2W(OFFICE.laptop.x, OFFICE.laptop.z);
     office.computerProp = addProp({
@@ -746,36 +778,45 @@ export function makeClubhouse(ctx) {
     });
     office.laptop = laptop;
 
-    // Where the camera settles when you sit down. Derived from the *open* lid, the live field of
+    // Where the camera settles when you sit down. Derived from the OPEN lid, the live field of
     // view and the window shape, so the screen fills the view on any monitor — a hardcoded seat
-    // is what left it at 9.7% of the viewport. The lid is still shut when the player presses E,
-    // so pose the hinge open, measure, and put it back.
-    const SCREEN_W = 0.56;
-    const SCREEN_H = 0.35;
+    // is what left it at 9.7% of the viewport once before. The lid is still shut when the player
+    // presses E, so this asks the rig where the glass WILL be rather than posing the mesh.
     office.seatPose = (fovDeg = 60, aspect = 16 / 9) => {
-      const wasLid = lidHinge.rotation.x;
-      lidHinge.rotation.x = LID_OPEN;
-      lidHinge.updateWorldMatrix(true, false);
+      laptop.updateWorldMatrix(true, false);
+      const corners = screenCornersLocal(LID_OPEN)
+        .map((c) => laptop.localToWorld(new THREE.Vector3(c.x, c.y, c.z)));
+      const centre = new THREE.Vector3();
+      for (const c of corners) centre.add(c);
+      centre.multiplyScalar(0.25);
+      const n = screenNormalLocal(LID_OPEN);
+      const out = new THREE.Vector3(n.x, n.y, n.z).transformDirection(laptop.matrixWorld).normalize();
 
-      // screen centre and outward normal, in world space, with the lid open
-      const centre = lidHinge.localToWorld(new THREE.Vector3(0, -0.0005, -0.2));
-      const out = lidHinge.localToWorld(new THREE.Vector3(0, -0.6, -0.2)).sub(centre).normalize();
-
-      lidHinge.rotation.x = wasLid;
-      lidHinge.updateWorldMatrix(true, false);
-
-      const dist = fitDistance({ screenW: SCREEN_W, screenH: SCREEN_H, fovDeg, aspect, fracH: 0.80, fracW: 0.90 });
+      const dist = fitDistance({
+        screenW: LAPTOP.screen.w, screenH: LAPTOP.screen.h, fovDeg, aspect, fracH: 0.80, fracW: 0.90,
+      });
+      // Sit a touch high and aim a touch low. Both together push the screen up in frame and
+      // leave the bezel and a strip of keyboard showing underneath it — which is the difference
+      // between sitting at a laptop and having a menu shoved in your face.
       const eye = centre.clone().addScaledVector(out, dist);
-      eye.y += 0.05; // sit up a touch, so a strip of keyboard stays in frame
+      eye.y += LAPTOP.screen.h * 0.16;
+      const aim = centre.clone();
+      aim.y -= LAPTOP.screen.h * 0.10;
 
       // look back at the screen: forward = (-sin y cos p, sin p, -cos y cos p)
-      const f = centre.clone().sub(eye).normalize();
+      const f = aim.clone().sub(eye).normalize();
       return {
         x: eye.x, y: eye.y, z: eye.z,
         yaw: Math.atan2(-f.x, -f.z),
         pitch: Math.asin(Math.max(-1, Math.min(1, f.y))),
       };
     };
+
+    // The orientation gizmos that lived here (forward vector, keyboard direction, screen
+    // normal, hinge axis, interaction point, camera position and target) did their job and
+    // have been removed, as the brief asks. They proved the machine faces the chair ONCE.
+    // tests/laptop-rig.test.js proves it on every run — which is the version worth keeping.
+    // Evidence: qa/laptop/debug/.
   }
 
   // lounge dressing: trophy shelf + course photo (sofa arrives as decor)
@@ -2489,7 +2530,11 @@ export function makeClubhouse(ctx) {
     laptopLid: (open) => office.setLid && office.setLid(open),
     laptopBoot: () => office.startBoot && office.startBoot(),
     laptopScreen: (mode) => office.paintScreen && office.paintScreen(mode),
+    laptopScreenMode: () => (office.screenMode ? office.screenMode() : null),
     laptopScreenCorners: () => (office.screenCorners ? office.screenCorners() : null),
+    laptopRig: () => (office.laptopObject
+      ? { object: office.laptopObject, lidAngle: office.lidAngle(), lidOpen: office.lidOpenAngle, LAPTOP }
+      : null),
     confirmChange: () => regConfirmChange(), // dead: change goes into a hand now, not a keypress
     // REGISTER MODE — main.js routes the pointer and the keyboard in here while it is up
     register: {

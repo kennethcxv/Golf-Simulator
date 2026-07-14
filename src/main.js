@@ -27,6 +27,7 @@ import { makeEmpirePanel } from './ui/empirePanel.js';
 import { openMarketplace } from './ui/marketplacePanel.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
 import { makeLaptop } from './ui/laptop.js';
+import { quadTransform, uvAt } from './core/laptopProjection.js';
 import { makeAudio } from './core/audio.js';
 import { tickTutorial, tutorialFlag, skipTutorial, replayTutorial } from './sim/tutorial.js';
 import { makeMenu } from './screens/menu.js';
@@ -127,57 +128,50 @@ function exitWalk() {
 // the screen's four projected corners with a CSS matrix3d (recomputed on
 // resize; the focus camera is parked, so it's stable).
 
-// 2D projective mapping: unit-ish rect (w×h) → arbitrary quad. Classic
-// basis-change construction (solve for the collineation through 4 points).
-function quadTransform(w, h, q) {
-  // q: [tl, tr, br, bl] in CSS pixels
-  const adj = (m) => [
-    m[4] * m[8] - m[5] * m[7], m[2] * m[7] - m[1] * m[8], m[1] * m[5] - m[2] * m[4],
-    m[5] * m[6] - m[3] * m[8], m[0] * m[8] - m[2] * m[6], m[2] * m[3] - m[0] * m[5],
-    m[3] * m[7] - m[4] * m[6], m[1] * m[6] - m[0] * m[7], m[0] * m[4] - m[1] * m[3],
-  ];
-  const mul = (a, b) => [
-    a[0] * b[0] + a[1] * b[3] + a[2] * b[6], a[0] * b[1] + a[1] * b[4] + a[2] * b[7], a[0] * b[2] + a[1] * b[5] + a[2] * b[8],
-    a[3] * b[0] + a[4] * b[3] + a[5] * b[6], a[3] * b[1] + a[4] * b[4] + a[5] * b[7], a[3] * b[2] + a[4] * b[5] + a[5] * b[8],
-    a[6] * b[0] + a[7] * b[3] + a[8] * b[6], a[6] * b[1] + a[7] * b[4] + a[8] * b[7], a[6] * b[2] + a[7] * b[5] + a[8] * b[8],
-  ];
-  const mulV = (m, v) => [
-    m[0] * v[0] + m[1] * v[1] + m[2] * v[2],
-    m[3] * v[0] + m[4] * v[1] + m[5] * v[2],
-    m[6] * v[0] + m[7] * v[1] + m[8] * v[2],
-  ];
-  const basis = (p1, p2, p3, p4) => {
-    const m = [p1.x, p2.x, p3.x, p1.y, p2.y, p3.y, 1, 1, 1];
-    const v = mulV(adj(m), [p4.x, p4.y, 1]);
-    return mul(m, [v[0], 0, 0, 0, v[1], 0, 0, 0, v[2]]);
-  };
-  const src = basis({ x: 0, y: 0 }, { x: w, y: 0 }, { x: 0, y: h }, { x: w, y: h });
-  const dst = basis(q[0], q[1], q[3], q[2]);
-  const t = mul(dst, adj(src));
-  for (let i = 0; i < 9; i++) t[i] /= t[8];
-  return `matrix3d(${t[0]},${t[3]},0,${t[6]},${t[1]},${t[4]},0,${t[7]},0,0,1,0,${t[2]},${t[5]},0,1)`;
-}
+// The interface's own pixel grid. 16:10, exactly like the physical panel it lands on — let the
+// two disagree and every glyph is quietly stretched.
+const LAPTOP_UI_W = 1024;
+const LAPTOP_UI_H = 640;
 
-function alignLaptopUi() {
+// THE INTERFACE IS WELDED TO THE GLASS.
+//
+// This used to run twice, on setTimeout, while the camera was still easing into the seat and the
+// lid was still swinging — so the transform always described where the screen HAD been. Measured
+// in the browser: force one extra alignment and the DOM's box became exactly the live quad from
+// the previous probe. Permanently one alignment behind, which crumpled the whole interface into
+// a skewed trapezoid in the corner of the lid and left the canvas desktop showing around it.
+// That one bug produced most of the brief's complaints at once: "screen too far away",
+// "difficult to read", "feels like a popup", "cursor interaction is weak".
+//
+// So it runs EVERY FRAME now. Four projections and a 3x3 solve is nothing, and a transform that
+// is never cached can never be stale. The interface now rides the lid as it opens.
+let laptopQuad = null; // the live screen quad, in CSS px — also what the mouse ray is tested against
+
+function laptopScreenQuad() {
   const ch = app.scene3d && app.scene3d.clubhouse && app.scene3d.clubhouse();
-  if (!ch || !ch.laptopScreenCorners) return false;
-  const corners = ch.laptopScreenCorners();
-  if (!corners) return false;
+  if (!ch || !ch.laptopScreenCorners) return null;
+  const corners = ch.laptopScreenCorners(); // already [tl, tr, br, bl] — the lid's frame knows
+  if (!corners) return null;
   const cam = app.scene3d.camera;
-  if (!cam) return false;
+  if (!cam) return null;
   cam.updateMatrixWorld();
-  const canvas = document.getElementById('game');
-  const rect = canvas.getBoundingClientRect();
-  const pts = corners.map((v) => {
+  const rect = document.getElementById('game').getBoundingClientRect();
+  return corners.map((v) => {
     const p = v.clone().project(cam);
     return { x: rect.left + ((p.x + 1) / 2) * rect.width, y: rect.top + ((1 - p.y) / 2) * rect.height };
   });
-  // order: top pair by y, then left/right — robust to model conventions
-  const sorted = [...pts].sort((a, b) => a.y - b.y);
-  const top = sorted.slice(0, 2).sort((a, b) => a.x - b.x);
-  const bottom = sorted.slice(2).sort((a, b) => a.x - b.x);
-  const quad = [top[0], top[1], bottom[1], bottom[0]];
-  laptopUi.setTransform(quadTransform(1024, 640, quad));
+}
+
+function alignLaptopUi() {
+  const quad = laptopScreenQuad();
+  if (!quad) return false;
+  laptopQuad = quad;
+  // On the first frames the lid is still shut, so the glass is edge-on and the quad is
+  // degenerate. quadTransform returns null rather than a matrix full of NaN — a NaN here would
+  // poison the DOM's transform for the rest of the session and nothing would ever put it right.
+  const m = quadTransform(LAPTOP_UI_W, LAPTOP_UI_H, quad);
+  if (!m) return false;
+  laptopUi.setTransform(m);
   return true;
 }
 
@@ -196,11 +190,38 @@ function seatPose(ch) {
   return ch.laptopPose(cam ? cam.fov : 60, cam ? cam.aspect : 16 / 9);
 }
 
+// SITTING DOWN IS A LENS CHANGE.
+//
+// Walk mode runs a 66-degree field of view — wide, because you are moving through a room. To
+// fill 80% of the frame with a 15-inch panel through a 66-degree lens you have to sit 0.22 yd
+// from it, and at 0.22 yd the keyboard is a foot from your eye: the keycaps come out enormous,
+// the deck swallows the bottom third of the screen, and the top bezel clips off. The picture is
+// *correct* and looks *wrong* — the same reason nobody shoots a portrait on a wide angle.
+//
+// So the seated camera gets a longer lens. At 34 degrees the same 80% coverage puts the eye
+// 0.46 yd back — about 17 inches, which is where a person's face actually is when they read a
+// laptop. The perspective flattens out, the keyboard settles, and the bezel stays in frame.
+const WALK_NEAR = 0.15;
+const WALK_FOV = 66;
+const LAPTOP_NEAR = 0.03;
+const LAPTOP_FOV = 34;
+function setCameraLens(fov, near) {
+  const cam = app.scene3d && app.scene3d.camera;
+  if (!cam || (cam.fov === fov && cam.near === near)) return;
+  cam.fov = fov;
+  cam.near = near;
+  cam.updateProjectionMatrix();
+}
+
 function enterLaptop() {
   if (!walkActive() || app.laptopOpen) return;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
-  const pose = ch && seatPose(ch);
-  if (!pose) return;
+  if (!ch) return;
+  // The lens FIRST: the seat distance is derived from the field of view, so asking for the pose
+  // before the lens has changed would seat you for a camera that no longer exists.
+  setCameraLens(LAPTOP_FOV, LAPTOP_NEAR);
+  const pose = seatPose(ch);
+  if (!pose) { setCameraLens(WALK_FOV, WALK_NEAR); return; }
   app.laptopOpen = true;
   resetCameraInput(); // sitting down is a mode change too
   if (app.state) tutorialFlag(app.state, 'laptopOpened');
@@ -208,7 +229,7 @@ function enterLaptop() {
   if (document.pointerLockElement) document.exitPointerLock();
   closeLeftPanels('none');
   walkOverlay.style.display = 'none';
-  // the physical sequence: lid swings → power light → boot → interface lands
+  // the physical sequence: lid swings → power light → boot → interface lands on the glass
   if (ch.laptopLid) ch.laptopLid(true);
   if (audio.ready) audio.laptopOpen();
   laptopTimers.push(setTimeout(() => {
@@ -218,20 +239,23 @@ function enterLaptop() {
   }, 420));
   laptopTimers.push(setTimeout(() => {
     if (!app.laptopOpen) return;
-    if (ch.laptopScreen) ch.laptopScreen('home');
+    // 'live': the canvas becomes a flat sheet of the interface's own paper colour. It used to
+    // paint a whole rival DESKTOP here — tiles and all — which stayed visible around the
+    // misaligned DOM. Two interfaces on one screen is what made it read as a popup.
+    if (ch.laptopScreen) ch.laptopScreen('live');
     laptopUi.open();
-    alignLaptopUi();
-    // one more alignment a beat later: the focus blend has fully settled
-    laptopTimers.push(setTimeout(() => { if (app.laptopOpen) alignLaptopUi(); }, 260));
+    alignLaptopUi(); // and from here the frame loop keeps it welded on, every frame
   }, 1350));
   laptopResizeHandler = () => {
     if (!app.laptopOpen) return;
-    // the window changed shape: re-seat (the fit depends on aspect) before re-projecting
+    // the window changed shape: re-seat (the fit depends on aspect). The projection itself
+    // catches up on the very next frame without being told.
     const c = app.scene3d.clubhouse && app.scene3d.clubhouse();
     if (c) app.scene3d.walk.focusOn(seatPose(c));
-    alignLaptopUi();
   };
   window.addEventListener('resize', laptopResizeHandler);
+  const vt = document.querySelector('.view-toggle'); // the layer chips sit right across the lid
+  if (vt) vt.style.display = 'none';
 }
 
 function exitLaptop(silent) {
@@ -244,9 +268,13 @@ function exitLaptop(silent) {
     laptopResizeHandler = null;
   }
   laptopUi.close();
+  laptopQuad = null;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
-  if (ch && ch.laptopScreen) ch.laptopScreen('home'); // the lid stays open, desktop showing
+  if (ch && ch.laptopScreen) ch.laptopScreen('desk'); // lid stays open, showing the lock screen
   app.scene3d.walk.clearFocus();
+  setCameraLens(WALK_FOV, WALK_NEAR); // hand the wide lens back before you stand up
+  const vt = document.querySelector('.view-toggle');
+  if (vt) vt.style.display = '';
   if (!silent) {
     walkOverlay.style.display = '';
     requestLook();
@@ -1514,6 +1542,10 @@ function frame(ts) {
     }
     hud.update();
   }
+  // Weld the interface to the glass. Every frame, unconditionally, for as long as the lid is
+  // open — through the camera's ease into the seat, through the lid's swing, through a window
+  // resize. A transform that is never cached is a transform that can never go stale.
+  if (app.laptopOpen) alignLaptopUi();
   requestAnimationFrame(frame);
 }
 
