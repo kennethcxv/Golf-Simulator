@@ -8,7 +8,7 @@
 
 import { rngOf, clamp, makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
-import { addRevenue, addExpense } from './economy.js';
+import { addRevenue, addExpense, unbill } from './economy.js';
 import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
 import { INTERIOR, CLUTTER_SPOTS, WINDOWS } from '../data/shopLayout.js';
 import { arriveOrder, openAllBoxes, ensureDeliveries } from './deliveries.js';
@@ -320,6 +320,8 @@ export function initShop(state) {
     lostSalesYesterday: 0,
     lostSalesTotal: 0,
     salesYesterday: { units: 0, revenue: 0 },
+    salesToday: {},      // per-SKU units sold since the last day close (both selling paths)
+    salesWindow: [],     // the last seven closed days of the same — velocity reads this
     fittingsYesterday: 0,
     log: [], // recent notable sales for the panel/3D flavor
   };
@@ -375,6 +377,72 @@ export function placeOrder(state, skuId, qty) {
     notif: {},
   });
   return { ok: true, cost };
+}
+
+// --- WHAT ACTUALLY SOLD, LINE BY LINE ------------------------------------------------------
+//
+// The shop only ever kept an aggregate (`salesYesterday: {units, revenue}`), so the Inventory
+// page's sales velocity and days-of-supply, and Analytics' best-sellers and sellouts, had
+// nowhere truthful to come from. Rather than invent them on the screen — which is the worst
+// thing a management screen can do, because you then make decisions on it — the shop keeps a
+// per-SKU tally and rolls it into a seven-day window each night.
+//
+// BOTH selling paths feed this: the offline day simulation below, and the physical register
+// (registerMode -> completeSale). A velocity that counts only half the sales is a lie with a
+// decimal point on it.
+export function recordSale(state, skuId, qty = 1) {
+  const s = state.shop;
+  if (!s.salesToday) s.salesToday = {};
+  s.salesToday[skuId] = (s.salesToday[skuId] || 0) + qty;
+}
+
+export function rollSalesWindow(state) {
+  const s = state.shop;
+  if (!s.salesWindow) s.salesWindow = [];
+  s.salesWindow.push(s.salesToday || {});
+  while (s.salesWindow.length > 7) s.salesWindow.shift();
+  s.salesToday = {};
+}
+
+// units a day, averaged over the days we ACTUALLY have — not over a hardcoded seven, which
+// would quietly report a new shop as selling a seventh of what it really sells.
+export function velocity(state, skuId) {
+  const w = (state.shop && state.shop.salesWindow) || [];
+  if (!w.length) return 0;
+  let n = 0;
+  for (const day of w) n += day[skuId] || 0;
+  return n / w.length;
+}
+
+// how long the shelf and the back room last at that rate.
+export function daysOfSupply(state, skuId) {
+  const inv = state.shop.inventory[skuId];
+  if (!inv) return 0;
+  const onHand = inv.shelf + inv.back;
+  const v = velocity(state, skuId);
+  if (v <= 0) return onHand > 0 ? Infinity : 0; // dead stock lasts forever, and that IS the finding
+  return onHand / v;
+}
+
+// Stop an order before it lands. The Orders application needs this — a screen that can watch an
+// order and not stop it is a readout, not an application.
+//
+// The order was PAID FOR when it was placed, so this reverses that booking exactly (see
+// economy.unbill): cash back to the penny, the expense line back down, no trace in the day's
+// books. Splicing the order out FIRST is what makes it un-refundable twice — the second call
+// cannot find it, so there is nothing to pay back. There is no window where both are true.
+export function cancelOrder(state, id) {
+  const orders = state.shop.orders;
+  const i = orders.findIndex((o) => o.id === id);
+  if (i < 0) return { ok: false, reason: 'No such order.' };
+  const o = orders[i];
+  // once it is inside its delivery window the goods are on the pad any minute — too late.
+  if (o.status === 'arriving' || o.status === 'delivered') {
+    return { ok: false, reason: 'The van is at the door — too late to cancel.' };
+  }
+  orders.splice(i, 1);
+  unbill(state, 'shopOrders', o.cost);
+  return { ok: true, refund: o.cost };
 }
 
 // minute-grained delivery tick: progresses statuses, fires each heads-up once,
@@ -575,6 +643,7 @@ export function shopDailyAccrual(state) {
       const price = priceFor(sku, shop.markup[cat], member ? member.memberTier : null);
       revenue += price;
       units++;
+      recordSale(state, sku.id);
       state.shop.inventory[sku.id].shelf--;
       if (member) member.satisfaction = clamp(member.satisfaction + (cat === 'clubs' ? 3 : 0.6), 0, 100);
       if (price > 80 || rng.chance(0.12)) {
@@ -621,6 +690,7 @@ export function shopDailyAccrual(state) {
   shop.lostSalesYesterday = lost;
   shop.lostSalesTotal = (shop.lostSalesTotal || 0) + lost;
   shop.fittingsYesterday = fittings;
+  rollSalesWindow(state); // the day is done: today's per-SKU tally joins the seven-day window
 }
 
 // replacement rental sets

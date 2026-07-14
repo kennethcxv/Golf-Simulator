@@ -35,6 +35,24 @@ export function addExpense(state, key, amount) {
   state.ledger.today.expense[key] = r2((state.ledger.today.expense[key] || 0) + amt);
 }
 
+// UNWIND A BOOKING THAT NEVER HAPPENED.
+//
+// A cancelled supplier order has to give back money that was already spent. Routing that through
+// addRevenue would balance the CASH and lie about the BOOKS: the day would show a purchase and a
+// mysterious matching income, and every margin on the Finances page would be wrong.
+//
+// So reverse the original entry instead. Cash back, expense line back down, no trace — which is
+// what "cancelled" means. It is the one place a line may move backwards, and only ever by an
+// amount that was genuinely booked to it.
+export function unbill(state, key, amount) {
+  const amt = r2(amount);
+  if (amt <= 0) return;
+  state.cash += amt;
+  if (state.ledger) {
+    state.ledger.today.expense[key] = r2((state.ledger.today.expense[key] || 0) - amt);
+  }
+}
+
 // Spend that works with or without a ledger (some unit tests use bare states),
 // so sim modules can bill consistently from anywhere.
 export function spend(state, key, amount) {

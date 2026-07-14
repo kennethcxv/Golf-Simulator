@@ -50,6 +50,8 @@ export function initClub(state) {
   state.club = {
     reputation: 30,
     greenFee: 32,
+    lastRounds: 0,
+    prevRounds: 0,
     dues: { weekday: TIERS.weekday.baseDues, full: TIERS.full.baseDues, premium: TIERS.premium.baseDues },
     amenities: { range: 0, restaurant: 0, instruction: 0 },
     reciprocal: false,
@@ -182,6 +184,9 @@ export function accrueDaily(state) {
 
   // revenue: public rounds
   const rounds = estimateRounds(state, ratings, amenity);
+  // keep yesterday's gate before it is overwritten — Analytics explains the CHANGE in visitors,
+  // and without the previous day to compare against, the delta is always zero and the page is mute
+  state.club.prevRounds = state.club.lastRounds || 0;
   state.club.lastRounds = rounds;
   addRevenue(state, 'greenFees', rounds * state.club.greenFee);
 

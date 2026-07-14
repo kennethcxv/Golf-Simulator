@@ -12,6 +12,7 @@
 
 import { addRevenue } from './economy.js';
 import { liveSales, consumeHeld } from './checkout.js';
+import { recordSale } from './shop.js';
 
 // --- currency -----------------------------------------------------------------
 // Shop prices land on arbitrary cents (a $34 polo at 1.15 markup with a 5%
@@ -480,8 +481,13 @@ export function completeSale(state, tx, who = 'A customer') {
   live.units += tx.items.length;
   live.revenue = round2(live.revenue + total);
 
-  // the goods leave the building — off the held ledger for good
-  for (const it of tx.items) consumeHeld(state, it.uid);
+  // the goods leave the building — off the held ledger for good, and onto the per-SKU tally
+  // the Inventory and Analytics pages read their velocity from. A sale rung up by hand is
+  // still a sale; leaving it out would make every velocity on the laptop quietly wrong.
+  for (const it of tx.items) {
+    consumeHeld(state, it.uid);
+    recordSale(state, it.skuId);
+  }
 
   tx.banked = true;
   tx.stage = 'done';
