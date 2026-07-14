@@ -346,7 +346,7 @@ export function makeClubhouse(ctx) {
           } else {
             drawRegister(['CARD PRESENTED', 'run the terminal'], total);
           }
-          if (hooks.sfx) hooks.sfx('thunk');
+          if (hooks.sfx) hooks.sfx(c.tx.method === 'cash' ? 'drawer' : 'thunk');
           return;
         }
         if (c.tx.stage === 'card' || c.tx.stage === 'declined') {

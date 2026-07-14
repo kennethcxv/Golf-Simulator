@@ -262,6 +262,36 @@ export function makeAudio() {
     osc.stop(t0 + 0.1);
   }
 
+  // the cash drawer: rolling slide, hard stop, and the till bell
+  function drawer() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.16, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (i / data.length);
+    const slide = ctx.createBufferSource();
+    slide.buffer = buf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 900;
+    const sg = ctx.createGain();
+    sg.gain.value = 0.05;
+    slide.connect(bp).connect(sg).connect(sfxBus);
+    slide.start(t0);
+    // the bell: two quick partials, unmistakably a till
+    for (const [f, dt] of [[1244, 0.17], [1867, 0.175]]) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = f;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.05, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.5);
+      osc.connect(g).connect(sfxBus);
+      osc.start(t0 + dt);
+      osc.stop(t0 + dt + 0.55);
+    }
+  }
+
   // thermal receipt printer: a fast ratchet of tiny clicks, then the tear
   function receipt() {
     if (!ctx) return;
@@ -468,6 +498,7 @@ export function makeAudio() {
     doorShut,
     scanBeep,
     receipt,
+    drawer,
     wipe,
     laptopOpen,
     laptopBoot,
