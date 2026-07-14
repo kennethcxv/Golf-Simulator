@@ -43,6 +43,8 @@ import { makeNav } from './clubhouse/nav.js';
 import { productThumb } from './clubhouse/thumbs.js';
 import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
+import { placedFixtures, ensureLayout } from '../sim/layout.js';
+import { buildBuildMode } from './clubhouse/buildMode.js';
 
 const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
@@ -170,7 +172,19 @@ export function makeClubhouse(ctx) {
 
   // --- fixtures, lounge, stockroom dressing (clubhouse/fixtures.js) ----------------------
   B.rebuildStock = (...a) => rebuildStock(...a); // function is hoisted; wired before use
-  const { fixtureAnchors } = buildFixtures(B);
+  const { fixtureAnchors, relayFixtures } = buildFixtures(B);
+
+  // the player moved something: re-lay the floor and put the stock back on it. The customers'
+  // paths rebake themselves — removeCol/addCol bump colVersion, and navFresh() watches it — so a
+  // shelf that moved is a wall that moved, as far as they are concerned.
+  function rebuildLayout() {
+    relayFixtures();
+    rebuildStock();
+  }
+
+  // build mode needs the anchors it is going to hide and the re-lay it is going to trigger, so it
+  // is built here rather than up with the rest of the scene
+  const builder = buildBuildMode(B, { rebuildLayout, fixtureAnchors });
   buildLounge(B);
   buildStockroomDressing(B);
 
@@ -1322,7 +1336,7 @@ export function makeClubhouse(ctx) {
     const white = new THREE.MeshStandardMaterial({ color: 0xf5f2e8, roughness: 0.6 });
     const POLO_TINTS = { polo1: 0x3f7a34, polo2: 0x3b6fb3, jacket2: 0x2c3e66 };
 
-    for (const f of FIXTURES) {
+    for (const f of placedFixtures(state)) {
       const anchor = fixtureAnchors.get(f.id);
       if (!anchor) continue;
       const hangCursor = { n: 0 };
@@ -1988,7 +2002,7 @@ export function makeClubhouse(ctx) {
     stops.push({ kind: 'enter', x: doorW.x, z: doorW.z - 1.4 });
     if (!toCounter) {
       const nStops = 1 + rng.int(2);
-      const browsable = FIXTURES.filter((f) => f.skus.length > 0);
+      const browsable = placedFixtures(state).filter((f) => f.skus && f.skus.length > 0);
       // shoppers gravitate to displays with something ON them — a stocked
       // fixture is four times as likely to make their route as a bare one
       const pool = [];
@@ -2336,6 +2350,7 @@ export function makeClubhouse(ctx) {
     updateDoors(dt, now);
     updateCustomers(dt);
     updateFlicker(dt);
+    builder.update();
     if (office.updateLid) office.updateLid(dt);
     if (moteFade > 0) {
       moteFade -= dt;
@@ -2405,6 +2420,8 @@ export function makeClubhouse(ctx) {
     productThumb: (sku) => productThumb(sku), // rendered supplier-card imagery
     condition: () => conditionNow,
     setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),
+    // build mode: the shop is the player's to arrange
+    build: builder,
     // the pressure washer: aim at the building, pull the trigger, watch the wall come back
     washAim: (origin, dir) => washing.aim(origin, dir),
     washApply: (hit, mode, radius, power, dt, now) => {

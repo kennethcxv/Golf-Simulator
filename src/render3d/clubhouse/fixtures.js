@@ -16,6 +16,7 @@ import {
   FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, LOGO_RUG,
 } from '../../data/shopLayout.js';
 import { restockShelfFromBackroom } from '../../sim/shop.js';
+import { placedFixtures } from '../../sim/layout.js';
 import { tutorialFlag } from '../../sim/tutorial.js';
 import { roundedBox, makeSignTexture, makeRugTexture } from './materials.js';
 
@@ -41,7 +42,25 @@ function categorySign(title, { w = 1.5, h = 0.26, charcoal = false } = {}) {
 }
 
 export function buildFixtures(B) {
-  const { interior, mats, addCol, addProp, colBoxAt, L2W, state, hooks } = B;
+  const {
+    interior, mats, addCol: rawAddCol, addProp: rawAddProp, removeCol, removeProp,
+    colBoxAt, L2W, state, hooks,
+  } = B;
+
+  // Only what the fixture loop lays down is re-layable; the counter, the rug and the lounge are
+  // architecture, not furniture the player pushes around.
+  let tracking = false;
+  const laidCols = [];
+  const laidProps = [];
+  const addCol = (c) => {
+    if (tracking) laidCols.push(c);
+    return rawAddCol(c);
+  };
+  const addProp = (p) => {
+    const made = rawAddProp(p);
+    if (tracking) laidProps.push(made || p);
+    return made;
+  };
   const fixtureAnchors = new Map();
 
   function shelfLabel(skuIds, title) {
@@ -461,14 +480,38 @@ export function buildFixtures(B) {
     hatstand: hatstandUnit, bagstand: bagstandUnit, shoerack: shoerackUnit,
     feature: featureUnit, backcounter: backcounterUnit, backshelf: backshelfUnit,
   };
-  for (const f of FIXTURES) {
-    const g = FIXTURE_BUILDERS[f.kind](f);
-    g.position.set(f.x, 0, f.z);
-    g.rotation.y = f.ry;
-    interior.add(g);
-    fixtureAnchors.set(f.id, g);
-    fixtureProp(f);
+  // The shop as the PLAYER has it, not as it was designed — placedFixtures() applies whatever they
+  // moved, turned or put away, and falls through to the default plan for everything else.
+  //
+  // Build mode needs to re-lay the floor after every change, so the loop records exactly the
+  // colliders and prompts IT created (tracking is off for everything else in this file) and can
+  // take them all back without disturbing the counter, the rug or the lounge.
+  function layFixtures() {
+    tracking = true;
+    for (const f of placedFixtures(state)) {
+      const build = FIXTURE_BUILDERS[f.kind];
+      if (!build) continue;
+      const g = build(f);
+      g.position.set(f.x, 0, f.z);
+      g.rotation.y = f.ry;
+      interior.add(g);
+      fixtureAnchors.set(f.id, g);
+      fixtureProp(f);
+    }
+    tracking = false;
   }
+
+  function relayFixtures() {
+    for (const c of laidCols) removeCol(c);
+    for (const p of laidProps) removeProp(p);
+    laidCols.length = 0;
+    laidProps.length = 0;
+    for (const g of fixtureAnchors.values()) interior.remove(g);
+    fixtureAnchors.clear();
+    layFixtures();
+  }
+
+  layFixtures();
 
   // permanent club logo rug on the entry axis
   const rug = new THREE.Mesh(
@@ -481,7 +524,7 @@ export function buildFixtures(B) {
   rug.receiveShadow = true;
   interior.add(rug);
 
-  return { fixtureAnchors };
+  return { fixtureAnchors, relayFixtures };
 }
 
 // ------------------------------------------------------------- lounge -------

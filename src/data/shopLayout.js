@@ -61,6 +61,25 @@ export const WINDOW_DIM = { w: 2.4, h: 1.9, sill: 0.85 };
 // --- interior partitions (the service wing: stockroom north, office south) -------
 // partition A: x = 5.7 from the north wall down to z = 2.0 (solid)
 // partition B: z = 2.0 from partition A to the east wall (holds the stock door)
+// --- fixture footprints -----------------------------------------------------------
+// The half-extents the scene builders actually give each kind of unit. This is THE definition:
+// the collider, the layout tests and the placement validator all read it, so a fixture can never
+// be one size to the physics and another to the rules.
+export const FIXTURE_HALF = {
+  shelf: [1.6, 0.35], rack: [1.5, 0.45], table: [1.2, 0.8], hatstand: [0.4, 0.4],
+  bagstand: [1.3, 0.75], shoerack: [1.3, 0.4], feature: [0.9, 0.9], backshelf: [1.4, 0.45],
+  rail: [1.1, 0.45], backcounter: [1.6, 0.3],
+};
+
+export function fixtureRect(f) {
+  let [a, b] = FIXTURE_HALF[f.kind] || [1, 1];
+  if (f.short) a = 0.85; // the doorway-adjacent short units (the builders honour this too)
+  const swap = Math.abs(Math.sin(f.ry || 0)) > 0.5; // rotated a quarter turn
+  const hx = swap ? b : a;
+  const hz = swap ? a : b;
+  return { minX: f.x - hx, maxX: f.x + hx, minZ: f.z - hz, maxZ: f.z + hz };
+}
+
 export const PARTITIONS = [
   { axis: 'x', at: 5.7, from: -INTERIOR.d / 2, to: 2.0 },
   { axis: 'z', at: 2.0, from: 5.7, to: INTERIOR.w / 2, opening: { c: DOOR_STOCK.x, w: DOOR_STOCK.w } },

@@ -11,7 +11,7 @@ import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import { RENO, ensureShopReno } from '../src/sim/shop.js';
 import {
   SHELL, INTERIOR, FIXTURES, COUNTER, OFFICE, STOCKROOM, DOOR_MAIN,
-  DOOR_CLEARWAY, BACKDOOR_CLEARWAY, queueSlot,
+  DOOR_CLEARWAY, BACKDOOR_CLEARWAY, queueSlot, fixtureRect, FIXTURE_HALF,
 } from '../src/data/shopLayout.js';
 import { SHOP_CATALOG, DECOR_SPOTS, skuById, RETAIL_CATS, SHELF_CAP } from '../src/data/shopItems.js';
 import { placeOrder } from '../src/sim/shop.js';
@@ -74,26 +74,14 @@ test('the entrance clearway stays clear: no fixture, clutter, or queue slot bloc
     'the clearway is actually in front of the main door');
 });
 
-// mirror the scene builders' collider extents (found live 2026-07-13:
-// backshelf_e's collider used to block the doorway at world x≈5.0)
-const HALF = {
-  shelf: [1.6, 0.35], rack: [1.5, 0.45], table: [1.2, 0.8], hatstand: [0.4, 0.4],
-  bagstand: [1.3, 0.75], shoerack: [1.3, 0.4], feature: [0.9, 0.9], backshelf: [1.4, 0.45],
-  rail: [1.1, 0.45], backcounter: [1.6, 0.3],
-};
-const fixtureRect = (f) => {
-  let [a, b] = HALF[f.kind] || [1, 1];
-  if (f.short) a = 0.85; // the doorway-adjacent short units (builders honor this)
-  const swap = Math.abs(Math.sin(f.ry)) > 0.5;
-  const hx = swap ? b : a;
-  const hz = swap ? a : b;
-  return { minX: f.x - hx, maxX: f.x + hx, minZ: f.z - hz, maxZ: f.z + hz };
-};
+// fixtureRect now lives in shopLayout.js: the collider, these tests and the placement
+// validator must all read ONE definition, or a fixture is one size to the physics and
+// another to the rules.
 
 test('the receiving doorway stays walkable: no fixture collider in the back-door clearway', () => {
   for (const f of FIXTURES) {
     const r = fixtureRect(f);
-    if (f.short) assert.ok(HALF[f.kind], `${f.id} short variant still has extents`);
+    if (f.short) assert.ok(FIXTURE_HALF[f.kind], `${f.id} short variant still has extents`);
     const overlaps = r.maxX > BACKDOOR_CLEARWAY.minX && r.minX < BACKDOOR_CLEARWAY.maxX
       && r.maxZ > BACKDOOR_CLEARWAY.minZ && r.minZ < BACKDOOR_CLEARWAY.maxZ;
     assert.ok(!overlaps, `${f.id} keeps clear of the receiving doorway`);

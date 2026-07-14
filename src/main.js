@@ -183,6 +183,12 @@ function alignLaptopUi() {
 let laptopResizeHandler = null;
 let laptopTimers = [];
 
+// build mode, if the clubhouse is up
+function buildApi() {
+  const ch = app.scene3d && app.scene3d.clubhouse && app.scene3d.clubhouse();
+  return ch ? ch.build : null;
+}
+
 function seatPose(ch) {
   // the seat is fitted to the live camera, so the screen fills the view at any FOV or window shape
   const cam = app.scene3d && app.scene3d.camera;
@@ -1072,6 +1078,12 @@ canvas.addEventListener('pointerdown', (e) => {
   if (app.screen !== 'game') return;
   if (app.courseMode !== 'overview') {
     // walking with any tool out: the held button is the use trigger
+    const bld = buildApi();
+    if (bld && bld.isActive()) {
+      if (e.button === 0) bld.interact(); // put it down where you're pointing
+      else if (e.button === 2) bld.cancel(); // changed your mind
+      return;
+    }
     const tool = walkActive() && app.scene3d.walk.getTool();
     if (e.button === 0 && tool) {
       app.scene3d.walk.setSpraying(true);
@@ -1191,11 +1203,37 @@ window.addEventListener('keydown', (e) => {
   }
 
   if (walkActive()) {
+    // build mode owns the verbs while it is on: E places, R turns, X stows
+    const bld = buildApi();
+    if (bld && bld.isActive()) {
+      switch (e.key) {
+        case 'e': case 'E': bld.interact(); return;
+        case 'r': case 'R': bld.rotate(); return;
+        case 'x': case 'X': bld.stow(); return;
+        case 'b': case 'B': bld.exit(); toast('Back to work.'); return;
+        case 'Escape':
+          if (bld.isCarrying()) bld.cancel();
+          else bld.exit();
+          return;
+        default: break; // WASD still walks: you carry the fixture with you
+      }
+    }
+
     // first-person course: E is the interaction verb (shop convention)
     switch (e.key) {
       case 'e': case 'E':
         if (app.scene3d.walk.interact) app.scene3d.walk.interact();
         break;
+      case 'b': case 'B': {
+        const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
+        const w = app.scene3d.walk.state;
+        if (!ch || !ch.isInside(w.x, w.z)) {
+          toast('Rearranging is for indoors.', 'warn');
+          break;
+        }
+        ch.build.enter();
+        break;
+      }
       case 'r': case 'R': {
         // at the register in Realistic mode, R hands over the counted change
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
@@ -1449,7 +1487,11 @@ let lastCondWord = null;
 
 function updateWalkOverlay() {
   const prompt = walkOverlay.querySelector('.shop-prompt');
-  const label = app.scene3d.walk.getFocusLabel ? app.scene3d.walk.getFocusLabel() : null;
+  // build mode speaks over the world's own prompts: while it is on, the only controls that
+  // matter are its controls
+  const bld = buildApi();
+  const label = (bld && bld.isActive() && bld.label())
+    || (app.scene3d.walk.getFocusLabel ? app.scene3d.walk.getFocusLabel() : null);
   prompt.textContent = label || '';
   prompt.style.opacity = label ? '1' : '0';
   const lockHint = walkOverlay.querySelector('.shop-lockhint');

@@ -63,7 +63,11 @@ Baseline at session open: **267 tests green**, frame median 8.3 ms / worst 8.7 m
   keyboard showing), pointer-ray → screen-UV cursor mapping, hover/click/scroll, safe exit.
 - **Verify** Unit tests for the UV mapping + fit maths; live: cursor lands on the element under it
   at 5 screen positions, click-through works, Esc always exits.
-- **Status** todo
+- **Status** **done** · commit `0f51120` · 7 unit tests. Live at 1600×900: screen 507×309 px →
+  **1179×692 px**, coverage 9.7 % area → **53.7 %** (73.7 % w × 76.9 % h, inside the 70–85 % band on
+  both linear axes). 5/5 cursor hit-tests exact; click navigates; wheel scrolls `.lt-content`;
+  Esc always exits. The UI is a real DOM projected on the lid, so the cursor was always native —
+  it was simply too far away to read.
 
 ### P0-4 · Boxes never disappear — *carried over, verified*
 - **Status** done (previous pass, commit `00e240a`) · re-verified this session: drop/pickup/save/load
