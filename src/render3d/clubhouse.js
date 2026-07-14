@@ -15,7 +15,7 @@ import { makeCharacter } from './characterAsset.js';
 import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
   SHELL, INTERIOR, FIXTURES, COUNTER, OFFICE, STOCKROOM, LOUNGE,
-  DOOR_MAIN, DOOR_STOCK, DOOR_BACK, WINDOWS, WINDOW_DIM, PARTITIONS,
+  DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
   MAT, HOURS_SIGN, queueSlot,
 } from '../data/shopLayout.js';
 import {
@@ -28,7 +28,9 @@ import {
 import { pickFromShelf, returnToShelf, checkoutSale } from '../sim/checkout.js';
 import { tutorialFlag } from '../sim/tutorial.js';
 import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
-import { makeWoodTexture, makePlasterTexture } from './proceduralTextures.js';
+import { makeClubhouseMaterials, roundedBox, makeSignTexture } from './clubhouse/materials.js';
+import { buildShell } from './clubhouse/shell.js';
+import { buildDoors } from './clubhouse/doors.js';
 
 const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
@@ -91,314 +93,23 @@ export function makeClubhouse(ctx) {
     return { minX: p.x - w / 2, maxX: p.x + w / 2, minZ: p.z - d / 2, maxZ: p.z + d / 2 };
   };
 
-  // --- materials (style guide: cream siding, white trim, sage roof; warm interior) ----
-  const texLoader = new THREE.TextureLoader();
-  const loadTex = (file, srgb) => {
-    const t = texLoader.load(`vendor/textures/${file}`, undefined, undefined, () => {});
-    t.wrapS = THREE.RepeatWrapping;
-    t.wrapT = THREE.RepeatWrapping;
-    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-    return t;
-  };
-  const sidingNor = loadTex('siding_nor.jpg');
-  sidingNor.repeat.set(7, 2.4);
-  const roofNor = loadTex('roof_nor.jpg');
-  roofNor.repeat.set(4, 2);
-  const sidingMat = new THREE.MeshStandardMaterial({ color: 0xe9e2cc, normalMap: sidingNor, roughness: 0.85 });
-  const trimMat = new THREE.MeshStandardMaterial({ color: 0xf5f2e6, roughness: 0.7 });
-  const roofMat = new THREE.MeshStandardMaterial({ color: 0x57795c, normalMap: roofNor, roughness: 0.75, side: THREE.DoubleSide });
-  const woodTex = makeWoodTexture({});
-  woodTex.repeat.set(7, 5);
-  const plasterTex = makePlasterTexture({});
-  plasterTex.repeat.set(10, 2);
-  const floorMat = new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.7 });
-  const wallMat = new THREE.MeshStandardMaterial({ map: plasterTex, roughness: 0.92 });
-  const ceilMat = new THREE.MeshStandardMaterial({ color: 0x6b6156, roughness: 0.95 });
-  const wainscotMat = new THREE.MeshStandardMaterial({ color: 0x57795c, roughness: 0.85 });
-  const railMat = new THREE.MeshStandardMaterial({ color: 0x6e5335, roughness: 0.8 });
-  const beamMat = new THREE.MeshStandardMaterial({ color: 0x5a4630, roughness: 0.85 });
-  const woodMat = new THREE.MeshStandardMaterial({ color: 0x8a6b48, roughness: 0.75 });
-  const darkMat = new THREE.MeshStandardMaterial({ color: 0x53422e, roughness: 0.85 });
-  const glassMat = new THREE.MeshStandardMaterial({
-    color: 0xcfe4ee, roughness: 0.08, metalness: 0.3,
-    transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false,
-  });
-
-  // --- walls with REAL openings ---------------------------------------------------------
-  // A wall is a run of box segments; window holes stay see-through, door holes
-  // stay walk-through. Collision is 2D: solid along the run except door gaps.
-  // Boxes get siding outside / plaster inside via material arrays.
-  function buildWall({ axis, at, from, to, openings = [], insideDir }) {
-    // axis 'x': runs along x at z = at (insideDir −1 means interior is at z < at)
-    const wallH = SHELL.wallH;
-    const segs = [];
-    const doors = openings.filter((o) => o.isDoor);
-    const sorted = [...openings].sort((a, b) => a.c - b.c);
-    let cursor = from;
-    for (const o of sorted) {
-      const o0 = o.c - o.w / 2;
-      const o1 = o.c + o.w / 2;
-      if (o0 > cursor) segs.push({ a: cursor, b: o0, y0: 0, y1: wallH });
-      // header above the opening (and sill below, for windows)
-      segs.push({ a: o0, b: o1, y0: FLOOR_TOP + o.top, y1: wallH });
-      if (o.bottom > 0) segs.push({ a: o0, b: o1, y0: 0, y1: FLOOR_TOP + o.bottom });
-      cursor = o1;
-    }
-    if (cursor < to) segs.push({ a: cursor, b: to, y0: 0, y1: wallH });
-
-    for (const s of segs) {
-      const len = s.b - s.a;
-      const h = s.y1 - s.y0;
-      if (len <= 0.01 || h <= 0.01) continue;
-      const geo = axis === 'x'
-        ? new THREE.BoxGeometry(len, h, SHELL.wallT)
-        : new THREE.BoxGeometry(SHELL.wallT, h, len);
-      // material per face: [+x, -x, +y, -y, +z, -z]
-      let mats;
-      if (axis === 'x') {
-        mats = [trimMat, trimMat, trimMat, trimMat,
-          insideDir < 0 ? sidingMat : wallMat, insideDir < 0 ? wallMat : sidingMat];
-      } else {
-        mats = [insideDir < 0 ? sidingMat : wallMat, insideDir < 0 ? wallMat : sidingMat,
-          trimMat, trimMat, trimMat, trimMat];
-      }
-      const m = new THREE.Mesh(geo, mats);
-      const mid = (s.a + s.b) / 2;
-      if (axis === 'x') m.position.set(mid, (s.y0 + s.y1) / 2, at);
-      else m.position.set(at, (s.y0 + s.y1) / 2, mid);
-      m.castShadow = true;
-      m.receiveShadow = true;
-      group.add(m);
-    }
-    // 2D collision: the run minus door gaps only
-    const gaps = doors.map((d) => [d.c - d.w / 2, d.c + d.w / 2]).sort((a, b) => a[0] - b[0]);
-    let c = from;
-    const spans = [];
-    for (const [g0, g1] of gaps) {
-      if (g0 > c) spans.push([c, g0]);
-      c = g1;
-    }
-    if (c < to) spans.push([c, to]);
-    for (const [a, b] of spans) {
-      if (axis === 'x') addCol(colBoxAt((a + b) / 2, at, b - a, SHELL.wallT + 0.12));
-      else addCol(colBoxAt(at, (a + b) / 2, SHELL.wallT + 0.12, b - a));
-    }
-  }
-
-  const win = (c) => ({ c, w: WINDOW_DIM.w, top: WINDOW_DIM.sill + WINDOW_DIM.h, bottom: WINDOW_DIM.sill });
+  // --- materials + the building shell (clubhouse/materials.js + clubhouse/shell.js) ------
+  const mats = makeClubhouseMaterials((state && state.clubName) || 'The Club');
+  // legacy aliases: sections still awaiting their v2 pass draw from the kit
+  const woodMat = mats.walnut;
+  const darkMat = mats.walnutDark;
+  const railMat = mats.walnut;
+  const trimMat = mats.trimPaint;
+  const glassMat = mats.glass;
   const halfW = SHELL.w / 2 - SHELL.wallT / 2; // wall centerlines
   const halfD = SHELL.d / 2 - SHELL.wallT / 2;
-  buildWall({
-    axis: 'x', at: halfD, from: -SHELL.w / 2, to: SHELL.w / 2, insideDir: -1,
-    openings: [
-      { c: DOOR_MAIN.x, w: DOOR_MAIN.w, top: DOOR_MAIN.h, bottom: 0, isDoor: true },
-      ...WINDOWS.filter((w) => w.wall === 'S').map((w) => win(w.c)),
-    ],
-  });
-  buildWall({
-    axis: 'x', at: -halfD, from: -SHELL.w / 2, to: SHELL.w / 2, insideDir: 1,
-    openings: WINDOWS.filter((w) => w.wall === 'N').map((w) => win(w.c)),
-  });
-  buildWall({ axis: 'z', at: -halfW, from: -SHELL.d / 2, to: SHELL.d / 2, insideDir: 1, openings: [] });
-  buildWall({
-    axis: 'z', at: halfW, from: -SHELL.d / 2, to: SHELL.d / 2, insideDir: -1,
-    openings: [
-      { c: DOOR_BACK.z, w: DOOR_BACK.w, top: DOOR_BACK.h, bottom: 0, isDoor: true },
-      ...WINDOWS.filter((w) => w.wall === 'E').map((w) => win(w.c)),
-    ],
-  });
 
-  // window glass + trim on both faces
-  for (const w of WINDOWS) {
-    const y = FLOOR_TOP + WINDOW_DIM.sill + WINDOW_DIM.h / 2;
-    const glass = new THREE.Mesh(new THREE.PlaneGeometry(WINDOW_DIM.w, WINDOW_DIM.h), glassMat);
-    let px = 0; let pz = 0; let ry = 0;
-    if (w.wall === 'S') { px = w.c; pz = halfD; ry = 0; }
-    if (w.wall === 'N') { px = w.c; pz = -halfD; ry = 0; }
-    if (w.wall === 'E') { px = halfW; pz = w.c; ry = Math.PI / 2; }
-    glass.position.set(px, y, pz);
-    glass.rotation.y = ry;
-    group.add(glass);
-    for (const face of [-1, 1]) {
-      const off = face * (SHELL.wallT / 2 + 0.02);
-      const mk = (tw, th, ty, tx) => {
-        const trim = new THREE.Mesh(new THREE.BoxGeometry(tw, th, 0.05), railMat);
-        if (ry === 0) trim.position.set(px + tx, y + ty, pz + off);
-        else { trim.position.set(px + off, y + ty, pz + tx); trim.rotation.y = Math.PI / 2; }
-        group.add(trim);
-      };
-      mk(WINDOW_DIM.w + 0.2, 0.08, WINDOW_DIM.h / 2 + 0.03, 0);
-      mk(WINDOW_DIM.w + 0.2, 0.08, -WINDOW_DIM.h / 2 - 0.03, 0);
-      mk(0.08, WINDOW_DIM.h + 0.16, 0, -WINDOW_DIM.w / 2 - 0.06);
-      mk(0.08, WINDOW_DIM.h + 0.16, 0, WINDOW_DIM.w / 2 + 0.06);
-      mk(0.05, WINDOW_DIM.h, 0, 0);
-    }
-  }
-
-  // --- roof, gables, porch, chimney (the kept silhouette, ridge down the long axis) ----
-  {
-    const { w: W2, d: D2, wallH: WALL_H, peak: PEAK, porchD: PORCH_D } = SHELL;
-    const gableShape = new THREE.Shape();
-    gableShape.moveTo(-D2 / 2, 0);
-    gableShape.lineTo(D2 / 2, 0);
-    gableShape.lineTo(0, PEAK);
-    gableShape.closePath();
-    const gableGeo = new THREE.ShapeGeometry(gableShape);
-    for (const xSide of [-1, 1]) {
-      const gable = new THREE.Mesh(gableGeo, sidingMat);
-      gable.position.set(xSide * (W2 / 2 - 0.01), WALL_H, 0);
-      gable.rotation.y = xSide > 0 ? -Math.PI / 2 : Math.PI / 2;
-      gable.castShadow = true;
-      group.add(gable);
-    }
-    const slopeLen = Math.hypot(PEAK, D2 / 2) + 1.6;
-    const roofPitch = Math.atan2(PEAK, D2 / 2);
-    for (const zSide of [-1, 1]) {
-      const slab = new THREE.Mesh(new THREE.BoxGeometry(W2 + 2.8, 0.22, slopeLen), roofMat);
-      slab.rotation.x = zSide * roofPitch;
-      slab.position.set(0, WALL_H + PEAK / 2 + 0.1, zSide * (D2 / 4 + 0.35));
-      slab.castShadow = true;
-      slab.receiveShadow = true;
-      group.add(slab);
-    }
-    const ridge = new THREE.Mesh(new THREE.BoxGeometry(W2 + 2.4, 0.25, 0.6), trimMat);
-    ridge.position.set(0, WALL_H + PEAK + 0.15, 0);
-    group.add(ridge);
-
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(W2 * 0.7, FLOOR_TOP, PORCH_D), trimMat);
-    slab.position.set(0, FLOOR_TOP / 2, D2 / 2 + PORCH_D / 2);
-    slab.receiveShadow = true;
-    group.add(slab);
-    const porchRoof = new THREE.Mesh(new THREE.BoxGeometry(W2 * 0.7 + 1, 0.22, PORCH_D + 0.8), roofMat);
-    porchRoof.position.set(0, WALL_H - 0.6, D2 / 2 + PORCH_D / 2);
-    porchRoof.castShadow = true;
-    group.add(porchRoof);
-    for (const px of [-W2 * 0.32, -W2 * 0.11, W2 * 0.11, W2 * 0.32]) {
-      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, WALL_H - 0.9 - FLOOR_TOP, 8), trimMat);
-      col.position.set(px, (WALL_H - 0.9 + FLOOR_TOP) / 2, D2 / 2 + PORCH_D - 0.5);
-      col.castShadow = true;
-      group.add(col);
-      addCol(colBoxAt(px, D2 / 2 + PORCH_D - 0.5, 0.4, 0.4));
-    }
-    const step = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.16, 1.1), trimMat);
-    step.position.set(DOOR_MAIN.x, 0.08, D2 / 2 + PORCH_D + 0.5);
-    group.add(step);
-    const chimney = new THREE.Mesh(
-      new THREE.BoxGeometry(1.1, 3.2, 1.1),
-      new THREE.MeshStandardMaterial({ color: 0x7a5a4a, roughness: 0.9 }),
-    );
-    chimney.position.set(W2 * 0.3, WALL_H + PEAK - 0.4, -D2 * 0.15);
-    chimney.castShadow = true;
-    group.add(chimney);
-
-    // hours sign by the door — store identity at the entrance
-    const signCv = document.createElement('canvas');
-    signCv.width = 128; signCv.height = 96;
-    const sc = signCv.getContext('2d');
-    sc.fillStyle = '#f2eee0'; sc.fillRect(0, 0, 128, 96);
-    sc.fillStyle = '#1f4a26'; sc.fillRect(0, 0, 128, 26);
-    sc.fillStyle = '#f2eee0'; sc.font = 'bold 15px Georgia'; sc.textAlign = 'center';
-    sc.fillText('PRO SHOP', 64, 18);
-    sc.fillStyle = '#2b2b30'; sc.font = '13px Georgia';
-    sc.fillText('OPEN DAILY', 64, 48);
-    sc.fillText('6 AM – 8 PM', 64, 68);
-    const signTex = new THREE.CanvasTexture(signCv);
-    signTex.colorSpace = THREE.SRGBColorSpace;
-    const sign = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.8, 0.6),
-      new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.85 }),
-    );
-    sign.position.set(HOURS_SIGN.x, FLOOR_TOP + 1.55, halfD + SHELL.wallT / 2 + 0.02);
-    group.add(sign);
-  }
-
-  // --- interior partitions (stockroom + office nook) -----------------------------------
-  for (const p of PARTITIONS) {
-    const openings = p.opening ? [{ c: p.opening.c, w: p.opening.w, top: DOOR_STOCK.h, bottom: 0, isDoor: true }] : [];
-    // interior partitions are plaster both sides, ceiling height only
-    const segs = [];
-    let cursor = p.from;
-    for (const o of openings.sort((a, b) => a.c - b.c)) {
-      if (o.c - o.w / 2 > cursor) segs.push({ a: cursor, b: o.c - o.w / 2, y0: 0, y1: SHELL.h + FLOOR_TOP });
-      segs.push({ a: o.c - o.w / 2, b: o.c + o.w / 2, y0: FLOOR_TOP + o.top, y1: SHELL.h + FLOOR_TOP });
-      cursor = o.c + o.w / 2;
-    }
-    if (cursor < p.to) segs.push({ a: cursor, b: p.to, y0: 0, y1: SHELL.h + FLOOR_TOP });
-    for (const s of segs) {
-      const len = s.b - s.a;
-      const h = s.y1 - s.y0;
-      const geo = p.axis === 'x' ? new THREE.BoxGeometry(SHELL.wallT, h, len) : new THREE.BoxGeometry(len, h, SHELL.wallT);
-      const m = new THREE.Mesh(geo, wallMat);
-      const mid = (s.a + s.b) / 2;
-      if (p.axis === 'x') m.position.set(p.at, (s.y0 + s.y1) / 2, mid);
-      else m.position.set(mid, (s.y0 + s.y1) / 2, p.at);
-      m.castShadow = true;
-      m.receiveShadow = true;
-      group.add(m);
-    }
-    const gaps = openings.map((d) => [d.c - d.w / 2, d.c + d.w / 2]);
-    let c = p.from;
-    const spans = [];
-    for (const [g0, g1] of gaps.sort((a, b) => a[0] - b[0])) {
-      if (g0 > c) spans.push([c, g0]);
-      c = g1;
-    }
-    if (c < p.to) spans.push([c, p.to]);
-    for (const [a, b] of spans) {
-      if (p.axis === 'x') addCol(colBoxAt(p.at, (a + b) / 2, SHELL.wallT + 0.12, b - a));
-      else addCol(colBoxAt((a + b) / 2, p.at, b - a, SHELL.wallT + 0.12));
-    }
-  }
-
-  // --- floor, ceiling, wainscot, beams ---------------------------------------------------
-  {
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(INTERIOR.w, FLOOR_TOP, INTERIOR.d), floorMat);
-    slab.position.set(0, FLOOR_TOP / 2, 0);
-    slab.receiveShadow = true;
-    group.add(slab);
-    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(INTERIOR.w, INTERIOR.d), ceilMat);
-    ceil.rotation.x = Math.PI / 2;
-    ceil.position.y = SHELL.h;
-    interior.add(ceil);
-    for (const bz of [-5.8, -1.9, 2.0, 5.9]) {
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(INTERIOR.w, 0.16, 0.15), beamMat);
-      beam.position.set(0, SHELL.h - 0.09, bz);
-      interior.add(beam);
-    }
-    // wainscot skirts + cap rails inside the exterior walls (door gap respected)
-    const WAINSCOT_H = 0.92;
-    const skirtSpecs = [
-      { axis: 'x', at: INTERIOR.d / 2 - 0.02, from: -INTERIOR.w / 2, to: INTERIOR.w / 2, ry: Math.PI, gaps: [[DOOR_MAIN.x - DOOR_MAIN.w / 2, DOOR_MAIN.x + DOOR_MAIN.w / 2]] },
-      { axis: 'x', at: -INTERIOR.d / 2 + 0.02, from: -INTERIOR.w / 2, to: INTERIOR.w / 2, ry: 0, gaps: [] },
-      { axis: 'z', at: -INTERIOR.w / 2 + 0.02, from: -INTERIOR.d / 2, to: INTERIOR.d / 2, ry: Math.PI / 2, gaps: [] },
-      { axis: 'z', at: INTERIOR.w / 2 - 0.02, from: -INTERIOR.d / 2, to: INTERIOR.d / 2, ry: -Math.PI / 2, gaps: [[DOOR_BACK.z - DOOR_BACK.w / 2, DOOR_BACK.z + DOOR_BACK.w / 2]] },
-    ];
-    for (const s of skirtSpecs) {
-      let cursor = s.from;
-      const spans = [];
-      for (const [g0, g1] of s.gaps) {
-        if (g0 > cursor) spans.push([cursor, g0]);
-        cursor = g1;
-      }
-      if (cursor < s.to) spans.push([cursor, s.to]);
-      for (const [a, b] of spans) {
-        const len = b - a;
-        const skirt = new THREE.Mesh(new THREE.PlaneGeometry(len, WAINSCOT_H), wainscotMat);
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(len, 0.05, 0.03), railMat);
-        const mid = (a + b) / 2;
-        if (s.axis === 'x') {
-          skirt.position.set(mid, WAINSCOT_H / 2, s.at);
-          rail.position.set(mid, WAINSCOT_H + 0.02, s.at);
-        } else {
-          skirt.position.set(s.at, WAINSCOT_H / 2, mid);
-          rail.position.set(s.at, WAINSCOT_H + 0.02, mid);
-          rail.rotation.y = Math.PI / 2;
-        }
-        skirt.rotation.y = s.ry;
-        interior.add(skirt, rail);
-      }
-    }
-  }
+  const B = {
+    ctx, state, group, interior, custGroup, mats, hooks, walk,
+    addCol, removeCol, addProp, removeProp, colBoxAt, L2W, W2L, FLOOR_TOP,
+    getCustomers: () => customers,
+  };
+  const shell = buildShell(B);
 
   // --- grime overlay (the dirt you see IS state.shop.reno.grime) -------------------------
   const grimeCanvas = document.createElement('canvas');
@@ -480,154 +191,17 @@ export function makeClubhouse(ctx) {
     interior.add(matMesh);
   }
 
-  // --- hinged, E-operated, collidable doors ----------------------------------------------
-  const doors = [];
-  function makeDoor({ lx, lz, along, width, height, openSign, name, color = 0x3a5a40, autoFor = 'both' }) {
-    // hinge at (lx,lz); slab extends `width` in +along direction ('x' or 'z')
-    const hinge = new THREE.Group();
-    hinge.position.set(lx, FLOOR_TOP, lz);
-    const slab = new THREE.Mesh(
-      new THREE.BoxGeometry(along === 'x' ? width - 0.06 : 0.07, height - 0.04, along === 'x' ? 0.07 : width - 0.06),
-      new THREE.MeshStandardMaterial({ color, roughness: 0.65 }),
-    );
-    slab.castShadow = true;
-    if (along === 'x') slab.position.set(width / 2, (height - 0.04) / 2, 0);
-    else slab.position.set(0, (height - 0.04) / 2, width / 2);
-    hinge.add(slab);
-    const knob = new THREE.Mesh(
-      new THREE.SphereGeometry(0.045, 8, 6),
-      new THREE.MeshStandardMaterial({ color: 0xc9b37c, metalness: 0.6, roughness: 0.35 }),
-    );
-    if (along === 'x') knob.position.set(width - 0.14, 1.05, 0.07);
-    else knob.position.set(0.07, 1.05, width - 0.14);
-    hinge.add(knob);
-    group.add(hinge);
+  // --- doors + interior lighting (clubhouse/doors.js + the shell rig) --------------------
+  const doorsApi = buildDoors(B);
+  const doors = doorsApi.doors;
+  const updateDoors = doorsApi.updateDoors;
 
-    const slabCenter = along === 'x' ? { x: lx + width / 2, z: lz } : { x: lx, z: lz + width / 2 };
-    const collider = along === 'x'
-      ? colBoxAt(slabCenter.x, slabCenter.z, width, 0.3)
-      : colBoxAt(slabCenter.x, slabCenter.z, 0.3, width);
-    addCol(collider);
-
-    const door = {
-      name, hinge, angle: 0, open: false, openSign, collider, colliderOn: true,
-      autoFor, lastNear: 0,
-      world: L2W(slabCenter.x, slabCenter.z),
-      openAngle: openSign * 1.92,
-    };
-    doors.push(door);
-
-    const wp = L2W(slabCenter.x, slabCenter.z);
-    addProp({
-      x: wp.x, z: wp.z, r: 2.1,
-      label: () => `${name} — [E] ${door.open ? 'close' : 'open'}`,
-      action: () => {
-        door.open = !door.open;
-        if (hooks.sfx) hooks.sfx(door.open ? 'doorSwing' : 'doorShut');
-      },
-    });
-    return door;
-  }
-  const mainDoor = makeDoor({
-    lx: DOOR_MAIN.hingeX, lz: halfD, along: 'x', width: DOOR_MAIN.w - 0.1, height: DOOR_MAIN.h,
-    openSign: -1, name: 'Shop door',
-  });
-  makeDoor({
-    lx: DOOR_STOCK.hingeX, lz: 2.0, along: 'x', width: DOOR_STOCK.w - 0.06, height: DOOR_STOCK.h,
-    openSign: 1, name: 'Stockroom door', color: 0x6e5335,
-  });
-  makeDoor({
-    lx: halfW, lz: DOOR_BACK.hingeZ, along: 'z', width: DOOR_BACK.w - 0.08, height: DOOR_BACK.h,
-    openSign: 1, name: 'Receiving door', color: 0x6e5335,
-  });
-
-  function updateDoors(dt, now) {
-    for (const d of doors) {
-      // customers can't press E — the door swings for them; it also closes
-      // itself once nobody has been near it for a few seconds
-      let near = false;
-      if (walk.active && Math.hypot(walk.x - d.world.x, walk.z - d.world.z) < 2.2) {
-        near = true;
-        // arms full of delivery box: the door swings for you too
-        if (!d.open && carriedBox(state)) d.open = true;
-      }
-      let custNear = false;
-      for (const c of customers) {
-        if (Math.hypot(c.mesh.position.x - d.world.x, c.mesh.position.z - d.world.z) < 1.5) {
-          custNear = true;
-          break;
-        }
-      }
-      const audible = walk.active && Math.hypot(walk.x - d.world.x, walk.z - d.world.z) < 18;
-      if (custNear && !d.open) {
-        d.open = true;
-        if (audible && hooks.sfx) hooks.sfx('doorSwing');
-      }
-      if (near || custNear) d.lastNear = now;
-      if (d.open && now - d.lastNear > 5) {
-        d.open = false;
-        if (audible && hooks.sfx) hooks.sfx('doorShut');
-      }
-
-      const target = d.open ? d.openAngle : 0;
-      d.angle += (target - d.angle) * Math.min(1, dt * 5.5);
-      d.hinge.rotation.y = d.angle;
-      const passable = Math.abs(d.angle) > 0.55;
-      if (passable && d.colliderOn) {
-        removeCol(d.collider);
-        d.colliderOn = false;
-      } else if (!passable && !d.colliderOn && Math.abs(d.angle) < 0.35) {
-        addCol(d.collider);
-        d.colliderOn = true;
-      }
-    }
-  }
-
-  // --- lighting: interior bulbs (the sun and sky live outside the windows) --------------
-  const BULB_I = 26;
-  const bulbs = [];
-  for (const [lx, lz] of [[-8, 0], [-1.5, 0], [5, 0.6], [10.6, -2.8], [10.6, 4.8]]) {
-    const bulb = new THREE.PointLight(0xffe2b0, BULB_I, 13, 1.7);
-    bulb.position.set(lx, SHELL.h - 0.25, lz);
-    interior.add(bulb);
-    const fixture = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.28, 0.34, 0.16, 10),
-      new THREE.MeshStandardMaterial({ color: 0x2c2620, emissive: 0xffe2b0, emissiveIntensity: 0.7 }),
-    );
-    fixture.position.set(lx, SHELL.h - 0.1, lz);
-    interior.add(fixture);
-    bulbs.push({ light: bulb, fixture });
-  }
-
-  const WHITE = new THREE.Color(0xffffff);
   let conditionNow = 100;
-  let condT = 1;
-  let flickT = 0;
-
   function refreshCondition() {
     conditionNow = state && state.shop ? shopCondition(state) : 100;
-    const t = clamp(conditionNow / 100, 0, 1);
-    condT = t;
-    floorMat.color.lerpColors(new THREE.Color(0x83786a), WHITE, t);
-    wallMat.color.lerpColors(new THREE.Color(0xa2977f), WHITE, t);
-    ceilMat.color.lerpColors(new THREE.Color(0x4e463c), new THREE.Color(0xcfc4ab), t);
-    wainscotMat.color.lerpColors(new THREE.Color(0x4a5a48), new THREE.Color(0x57795c), t);
-    glassMat.color.lerpColors(new THREE.Color(0x9a9484), new THREE.Color(0xcfe4ee), t);
-    glassMat.opacity = 0.55 - 0.27 * t; // filthy panes read fogged, clean ones clear
-    const dead = conditionNow < 45;
-    bulbs[0].light.intensity = dead ? 0 : BULB_I;
-    bulbs[0].fixture.material.emissiveIntensity = dead ? 0.04 : 0.7;
-    if (conditionNow >= 40) bulbs[1].light.intensity = BULB_I;
-    for (let i = 2; i < bulbs.length; i++) bulbs[i].light.intensity = BULB_I * (0.55 + 0.45 * t);
+    shell.lighting.refreshCondition(conditionNow);
   }
-
-  function updateFlicker(dt) {
-    if (conditionNow >= 40) return;
-    flickT += dt;
-    const drop = Math.sin(flickT * 13.1) * Math.sin(flickT * 4.7 + 2.1) < -0.55;
-    bulbs[1].light.intensity = BULB_I * (drop ? 0.06 : 0.72 + 0.18 * Math.sin(flickT * 31));
-    bulbs[1].fixture.material.emissiveIntensity = drop ? 0.05 : 0.55;
-  }
+  const updateFlicker = (dt) => shell.lighting.updateFlicker(dt);
 
   // --- fixtures ---------------------------------------------------------------------------
   const fixtureAnchors = new Map(); // layout id -> THREE.Group (interior-local)
@@ -2505,6 +2079,7 @@ export function makeClubhouse(ctx) {
     doorWorld: doorW,
     laptopPose: () => office.laptopPose,
     condition: () => conditionNow,
+    setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),
     customers, doors, // QA access
     debugSpawn: spawnCustomer, // QA: force a walk-in
     dispose,

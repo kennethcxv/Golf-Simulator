@@ -2202,9 +2202,9 @@ export function makeCourseScene(canvas, state) {
       w.material.uniforms.sunColor.value.copy(sun.color).multiplyScalar(Math.max(0.15, sun.intensity / 3));
     }
 
-    // clubhouse windows glow when the light goes
-    const winGlow = day ? 0.05 : dusk ? 0.9 : 1.7;
-    for (const m of windowMats) m.emissiveIntensity = winGlow;
+    // the clubhouse follows the clock: practicals carry the room after dark,
+    // daylight fills die at night, the glass glows warm from outside
+    if (clubhouseApi && clubhouseApi.setTimeMood) clubhouseApi.setTimeMood(minuteOfDay);
   }
 
   // --- picking ------------------------------------------------------------------------------------------

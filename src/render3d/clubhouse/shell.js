@@ -1,0 +1,594 @@
+// CLUBHOUSE SHELL — the building itself: walls with true openings, glazed
+// mullioned windows, gabled roof + porch, split oak/concrete floors, the
+// coffered beam ceiling, walnut wainscot, and the interior lighting rig
+// (practicals + daylight fills + night window glow). Extracted from the
+// clubhouse monolith and rebuilt to the production art guide (DEV_LOG
+// PHASE 4). Everything positions from src/data/shopLayout.js.
+
+import * as THREE from 'three';
+import {
+  SHELL, INTERIOR, DOOR_MAIN, DOOR_STOCK, DOOR_BACK, WINDOWS, WINDOW_DIM,
+  PARTITIONS, STOCKROOM, HOURS_SIGN,
+} from '../../data/shopLayout.js';
+import { makeSignTexture, makeOakFloorTexture, makeConcreteTexture } from './materials.js';
+
+export function buildShell(B) {
+  const { group, interior, mats, addCol, colBoxAt, FLOOR_TOP } = B;
+  const halfW = SHELL.w / 2 - SHELL.wallT / 2; // wall centerlines
+  const halfD = SHELL.d / 2 - SHELL.wallT / 2;
+
+  // --- exterior finishes (normal-mapped siding + roof, kept from the yard kit) ---
+  const texLoader = new THREE.TextureLoader();
+  const loadTex = (file) => {
+    const t = texLoader.load(`vendor/textures/${file}`, undefined, undefined, () => {});
+    t.wrapS = THREE.RepeatWrapping;
+    t.wrapT = THREE.RepeatWrapping;
+    return t;
+  };
+  const sidingNor = loadTex('siding_nor.jpg');
+  sidingNor.repeat.set(6, 2.2);
+  const roofNor = loadTex('roof_nor.jpg');
+  roofNor.repeat.set(4, 2);
+  const sidingMat = new THREE.MeshStandardMaterial({ color: 0xe9e2cc, normalMap: sidingNor, roughness: 0.85 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0x2e5a35, normalMap: roofNor, roughness: 0.72 });
+  const trimMat = mats.trimPaint;
+
+  // --- walls: runs of box segments around true openings --------------------------
+  function buildWall({ axis, at, from, to, openings = [], insideDir }) {
+    const wallH = SHELL.wallH;
+    const segs = [];
+    const doorGaps = openings.filter((o) => o.isDoor);
+    const sorted = [...openings].sort((a, b) => a.c - b.c);
+    let cursor = from;
+    for (const o of sorted) {
+      const o0 = o.c - o.w / 2;
+      const o1 = o.c + o.w / 2;
+      if (o0 > cursor) segs.push({ a: cursor, b: o0, y0: 0, y1: wallH });
+      segs.push({ a: o0, b: o1, y0: FLOOR_TOP + o.top, y1: wallH });
+      if (o.bottom > 0) segs.push({ a: o0, b: o1, y0: 0, y1: FLOOR_TOP + o.bottom });
+      cursor = o1;
+    }
+    if (cursor < to) segs.push({ a: cursor, b: to, y0: 0, y1: wallH });
+
+    for (const s of segs) {
+      const len = s.b - s.a;
+      const h = s.y1 - s.y0;
+      if (len <= 0.01 || h <= 0.01) continue;
+      const geo = axis === 'x'
+        ? new THREE.BoxGeometry(len, h, SHELL.wallT)
+        : new THREE.BoxGeometry(SHELL.wallT, h, len);
+      let faceMats;
+      if (axis === 'x') {
+        faceMats = [trimMat, trimMat, trimMat, trimMat,
+          insideDir < 0 ? sidingMat : mats.plaster, insideDir < 0 ? mats.plaster : sidingMat];
+      } else {
+        faceMats = [insideDir < 0 ? sidingMat : mats.plaster, insideDir < 0 ? mats.plaster : sidingMat,
+          trimMat, trimMat, trimMat, trimMat];
+      }
+      const m = new THREE.Mesh(geo, faceMats);
+      const mid = (s.a + s.b) / 2;
+      if (axis === 'x') m.position.set(mid, (s.y0 + s.y1) / 2, at);
+      else m.position.set(at, (s.y0 + s.y1) / 2, mid);
+      m.castShadow = true;
+      m.receiveShadow = true;
+      group.add(m);
+    }
+    const gaps = doorGaps.map((d) => [d.c - d.w / 2, d.c + d.w / 2]).sort((a, b) => a[0] - b[0]);
+    let c = from;
+    const spans = [];
+    for (const [g0, g1] of gaps) {
+      if (g0 > c) spans.push([c, g0]);
+      c = g1;
+    }
+    if (c < to) spans.push([c, to]);
+    for (const [a, b] of spans) {
+      if (axis === 'x') addCol(colBoxAt((a + b) / 2, at, b - a, SHELL.wallT + 0.12));
+      else addCol(colBoxAt(at, (a + b) / 2, SHELL.wallT + 0.12, b - a));
+    }
+  }
+
+  const win = (c) => ({ c, w: WINDOW_DIM.w, top: WINDOW_DIM.sill + WINDOW_DIM.h, bottom: WINDOW_DIM.sill });
+  buildWall({
+    axis: 'x', at: halfD, from: -SHELL.w / 2, to: SHELL.w / 2, insideDir: -1,
+    openings: [
+      { c: DOOR_MAIN.x, w: DOOR_MAIN.w, top: DOOR_MAIN.h, bottom: 0, isDoor: true },
+      ...WINDOWS.filter((w) => w.wall === 'S').map((w) => win(w.c)),
+    ],
+  });
+  buildWall({
+    axis: 'x', at: -halfD, from: -SHELL.w / 2, to: SHELL.w / 2, insideDir: 1,
+    openings: WINDOWS.filter((w) => w.wall === 'N').map((w) => win(w.c)),
+  });
+  buildWall({ axis: 'z', at: -halfW, from: -SHELL.d / 2, to: SHELL.d / 2, insideDir: 1, openings: [] });
+  buildWall({
+    axis: 'z', at: halfW, from: -SHELL.d / 2, to: SHELL.d / 2, insideDir: -1,
+    openings: [
+      { c: DOOR_BACK.z, w: DOOR_BACK.w, top: DOOR_BACK.h, bottom: 0, isDoor: true },
+      ...WINDOWS.filter((w) => w.wall === 'E').map((w) => win(w.c)),
+    ],
+  });
+  // exterior foundation skirt
+  for (const side of [
+    { w: SHELL.w + 0.3, d: 0.18, x: 0, z: halfD + SHELL.wallT / 2 + 0.05 },
+    { w: SHELL.w + 0.3, d: 0.18, x: 0, z: -halfD - SHELL.wallT / 2 - 0.05 },
+    { w: 0.18, d: SHELL.d + 0.3, x: halfW + SHELL.wallT / 2 + 0.05, z: 0 },
+    { w: 0.18, d: SHELL.d + 0.3, x: -halfW - SHELL.wallT / 2 - 0.05, z: 0 },
+  ]) {
+    const skirt = new THREE.Mesh(new THREE.BoxGeometry(side.w, 0.42, side.d), mats.charcoal);
+    skirt.position.set(side.x, 0.1, side.z);
+    group.add(skirt);
+  }
+
+  // --- windows: jambs, sills, muntin grids, casings — real glazed openings --------
+  const windowDefs = [];
+  for (const w of WINDOWS) {
+    const y = FLOOR_TOP + WINDOW_DIM.sill + WINDOW_DIM.h / 2;
+    let px = 0; let pz = 0; let ry = 0;
+    if (w.wall === 'S') { px = w.c; pz = halfD; ry = 0; }
+    if (w.wall === 'N') { px = w.c; pz = -halfD; ry = 0; }
+    if (w.wall === 'E') { px = halfW; pz = w.c; ry = Math.PI / 2; }
+    const holder = new THREE.Group();
+    holder.position.set(px, y, pz);
+    holder.rotation.y = ry;
+    group.add(holder);
+
+    const W = WINDOW_DIM.w;
+    const H = WINDOW_DIM.h;
+    const jambD = SHELL.wallT + 0.08;
+    // glass
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.1, H - 0.1), mats.glass);
+    holder.add(glass);
+    // jamb lining (top/bottom/left/right boards through the wall)
+    const jamb = (bw, bh, bx, by) => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, jambD), mats.trimPaint);
+      b.position.set(bx, by, 0);
+      holder.add(b);
+    };
+    jamb(W + 0.12, 0.07, 0, H / 2 + 0.02);
+    jamb(W + 0.12, 0.07, 0, -H / 2 - 0.02);
+    jamb(0.07, H + 0.1, -W / 2 - 0.02, 0);
+    jamb(0.07, H + 0.1, W / 2 + 0.02, 0);
+    // muntin grid: one vertical + one horizontal bar (4 lites), both faces read it
+    const muntinV = new THREE.Mesh(new THREE.BoxGeometry(0.05, H - 0.08, 0.055), mats.trimPaint);
+    holder.add(muntinV);
+    const muntinH = new THREE.Mesh(new THREE.BoxGeometry(W - 0.08, 0.05, 0.055), mats.trimPaint);
+    muntinH.position.y = -H * 0.12;
+    holder.add(muntinH);
+    // interior sill board + apron (walnut, beveled feel via thin cap)
+    const sill = new THREE.Mesh(new THREE.BoxGeometry(W + 0.3, 0.05, 0.24), mats.walnut);
+    sill.position.set(0, -H / 2 - 0.045, (SHELL.wallT / 2 + 0.09) * -Math.sign(1)); // inside face
+    // orient inside: S wall inside is -z, N inside +z, E inside -x (after ry)
+    const insideSign = (w.wall === 'S' || w.wall === 'E') ? -1 : 1;
+    sill.position.z = insideSign * (SHELL.wallT / 2 + 0.1);
+    holder.add(sill);
+    const apron = new THREE.Mesh(new THREE.BoxGeometry(W + 0.14, 0.1, 0.03), mats.walnut);
+    apron.position.set(0, -H / 2 - 0.12, insideSign * (SHELL.wallT / 2 + 0.015));
+    holder.add(apron);
+    // exterior casing (proud trim frame)
+    const outSign = -insideSign;
+    const caseOut = (bw, bh, bx, by) => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 0.05), trimMat);
+      b.position.set(bx, by, outSign * (SHELL.wallT / 2 + 0.03));
+      holder.add(b);
+    };
+    caseOut(W + 0.34, 0.12, 0, H / 2 + 0.1);
+    caseOut(W + 0.34, 0.12, 0, -H / 2 - 0.1);
+    caseOut(0.12, H + 0.1, -W / 2 - 0.11, 0);
+    caseOut(0.12, H + 0.1, W / 2 + 0.11, 0);
+
+    windowDefs.push({ wall: w.wall, c: w.c, holder, y, w: W, h: H, insideSign });
+  }
+
+  // --- roof, gables, fascia, porch, chimney ---------------------------------------
+  {
+    const { w: W2, d: D2, wallH: WALL_H, peak: PEAK, porchD: PORCH_D } = SHELL;
+    const gableShape = new THREE.Shape();
+    gableShape.moveTo(-D2 / 2, 0);
+    gableShape.lineTo(D2 / 2, 0);
+    gableShape.lineTo(0, PEAK);
+    gableShape.closePath();
+    const gableGeo = new THREE.ShapeGeometry(gableShape);
+    for (const xSide of [-1, 1]) {
+      const gable = new THREE.Mesh(gableGeo, sidingMat);
+      gable.position.set(xSide * (W2 / 2 - 0.01), WALL_H, 0);
+      gable.rotation.y = xSide > 0 ? -Math.PI / 2 : Math.PI / 2;
+      gable.castShadow = true;
+      group.add(gable);
+    }
+    const slopeLen = Math.hypot(PEAK, D2 / 2) + 1.3;
+    const roofPitch = Math.atan2(PEAK, D2 / 2);
+    for (const zSide of [-1, 1]) {
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(W2 + 2.2, 0.2, slopeLen), roofMat);
+      slab.rotation.x = zSide * roofPitch;
+      slab.position.set(0, WALL_H + PEAK / 2 + 0.08, zSide * (D2 / 4 + 0.3));
+      slab.castShadow = true;
+      slab.receiveShadow = true;
+      group.add(slab);
+      // fascia along the eave
+      const fascia = new THREE.Mesh(new THREE.BoxGeometry(W2 + 2.2, 0.26, 0.07), trimMat);
+      fascia.rotation.x = zSide * roofPitch;
+      fascia.position.set(0, WALL_H - 0.02, zSide * (D2 / 2 + 0.78));
+      group.add(fascia);
+      // soffit under the overhang (clean cream underside, kills the striping)
+      const soffit = new THREE.Mesh(new THREE.PlaneGeometry(W2 + 2.1, 0.95), trimMat);
+      soffit.rotation.x = Math.PI / 2;
+      soffit.position.set(0, WALL_H - 0.1, zSide * (D2 / 2 + 0.32));
+      group.add(soffit);
+    }
+    const ridge = new THREE.Mesh(new THREE.BoxGeometry(W2 + 2.0, 0.18, 0.5), new THREE.MeshStandardMaterial({ color: 0x24462a, roughness: 0.7 }));
+    ridge.position.set(0, WALL_H + PEAK + 0.1, 0);
+    group.add(ridge);
+
+    // porch: deck, posts with base/cap, cream soffit, step, path pad
+    const porchW = W2 * 0.62;
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(porchW, FLOOR_TOP, PORCH_D), new THREE.MeshStandardMaterial({ map: makeConcreteTexture({ seed: 88 }), color: 0xd9d2c2, roughness: 0.85 }));
+    deck.position.set(-1.0, FLOOR_TOP / 2, D2 / 2 + PORCH_D / 2);
+    deck.receiveShadow = true;
+    group.add(deck);
+    const porchRoof = new THREE.Mesh(new THREE.BoxGeometry(porchW + 0.9, 0.18, PORCH_D + 0.7), roofMat);
+    porchRoof.position.set(-1.0, WALL_H - 0.75, D2 / 2 + PORCH_D / 2);
+    porchRoof.castShadow = true;
+    group.add(porchRoof);
+    const porchSoffit = new THREE.Mesh(new THREE.PlaneGeometry(porchW + 0.8, PORCH_D + 0.5), trimMat);
+    porchSoffit.rotation.x = Math.PI / 2;
+    porchSoffit.position.set(-1.0, WALL_H - 0.85, D2 / 2 + PORCH_D / 2);
+    group.add(porchSoffit);
+    const porchFascia = new THREE.Mesh(new THREE.BoxGeometry(porchW + 0.9, 0.2, 0.06), trimMat);
+    porchFascia.position.set(-1.0, WALL_H - 0.72, D2 / 2 + PORCH_D + 0.32);
+    group.add(porchFascia);
+    for (const px of [-1.0 - porchW / 2 + 0.35, -1.0 - porchW / 6, -1.0 + porchW / 6, -1.0 + porchW / 2 - 0.35]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.17, WALL_H - 1.05 - FLOOR_TOP, 0.17), trimMat);
+      post.position.set(px, (WALL_H - 0.75 + FLOOR_TOP) / 2 - 0.15, D2 / 2 + PORCH_D - 0.45);
+      post.castShadow = true;
+      group.add(post);
+      for (const [py, s] of [[FLOOR_TOP + 0.14, 0.24], [WALL_H - 1.0, 0.22]]) {
+        const capB = new THREE.Mesh(new THREE.BoxGeometry(s, 0.1, s), trimMat);
+        capB.position.set(px, py, D2 / 2 + PORCH_D - 0.45);
+        group.add(capB);
+      }
+      addCol(colBoxAt(px, D2 / 2 + PORCH_D - 0.45, 0.4, 0.4));
+    }
+    const step = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.15, 0.95), new THREE.MeshStandardMaterial({ color: 0xcfc8b8, roughness: 0.9 }));
+    step.position.set(DOOR_MAIN.x, 0.075, D2 / 2 + PORCH_D + 0.42);
+    group.add(step);
+    for (let i = 0; i < 3; i++) {
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(1.5 - i * 0.08, 0.05, 0.9), new THREE.MeshStandardMaterial({ color: 0xb9b2a2, roughness: 0.95 }));
+      pad.position.set(DOOR_MAIN.x, 0.025, D2 / 2 + PORCH_D + 1.15 + i * 1.05);
+      pad.receiveShadow = true;
+      group.add(pad);
+    }
+    const chimney = new THREE.Mesh(
+      new THREE.BoxGeometry(1.0, 3.0, 1.0),
+      new THREE.MeshStandardMaterial({ color: 0x7a5a4a, roughness: 0.9 }),
+    );
+    chimney.position.set(W2 * 0.3, WALL_H + PEAK - 0.5, -D2 * 0.15);
+    chimney.castShadow = true;
+    group.add(chimney);
+    const chimCap = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.12, 1.16), mats.charcoal);
+    chimCap.position.set(W2 * 0.3, WALL_H + PEAK + 1.0, -D2 * 0.15);
+    group.add(chimCap);
+
+    // hours sign (sign kit) + porch sconce by the door
+    const signTex = makeSignTexture(['PRO SHOP', 'OPEN DAILY', '6 AM – 8 PM'], { w: 256, h: 192 });
+    const sign = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.72, 0.54),
+      new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.85 }),
+    );
+    sign.position.set(HOURS_SIGN.x, FLOOR_TOP + 1.5, halfD + SHELL.wallT / 2 + 0.02);
+    group.add(sign);
+  }
+
+  // --- interior partitions ---------------------------------------------------------
+  for (const p of PARTITIONS) {
+    const openings = p.opening ? [{ c: p.opening.c, w: p.opening.w, top: DOOR_STOCK.h, bottom: 0, isDoor: true }] : [];
+    const segs = [];
+    let cursor = p.from;
+    for (const o of openings.sort((a, b) => a.c - b.c)) {
+      if (o.c - o.w / 2 > cursor) segs.push({ a: cursor, b: o.c - o.w / 2, y0: 0, y1: SHELL.h + FLOOR_TOP });
+      segs.push({ a: o.c - o.w / 2, b: o.c + o.w / 2, y0: FLOOR_TOP + o.top, y1: SHELL.h + FLOOR_TOP });
+      cursor = o.c + o.w / 2;
+    }
+    if (cursor < p.to) segs.push({ a: cursor, b: p.to, y0: 0, y1: SHELL.h + FLOOR_TOP });
+    for (const s of segs) {
+      const len = s.b - s.a;
+      const h = s.y1 - s.y0;
+      const geo = p.axis === 'x' ? new THREE.BoxGeometry(SHELL.wallT, h, len) : new THREE.BoxGeometry(len, h, SHELL.wallT);
+      const m = new THREE.Mesh(geo, mats.plaster);
+      const mid = (s.a + s.b) / 2;
+      if (p.axis === 'x') m.position.set(p.at, (s.y0 + s.y1) / 2, mid);
+      else m.position.set(mid, (s.y0 + s.y1) / 2, p.at);
+      m.castShadow = true;
+      m.receiveShadow = true;
+      group.add(m);
+    }
+    const gaps = openings.map((d) => [d.c - d.w / 2, d.c + d.w / 2]);
+    let c = p.from;
+    const spans = [];
+    for (const [g0, g1] of gaps.sort((a, b) => a[0] - b[0])) {
+      if (g0 > c) spans.push([c, g0]);
+      c = g1;
+    }
+    if (c < p.to) spans.push([c, p.to]);
+    for (const [a, b] of spans) {
+      if (p.axis === 'x') addCol(colBoxAt(p.at, (a + b) / 2, SHELL.wallT + 0.12, b - a));
+      else addCol(colBoxAt((a + b) / 2, p.at, b - a, SHELL.wallT + 0.12));
+    }
+  }
+
+  // --- floors: honey oak retail + office, sealed concrete stockroom -----------------
+  {
+    const oakTex = makeOakFloorTexture({});
+    oakTex.repeat.set(INTERIOR.w / 5.2, INTERIOR.d / 5.2);
+    const oak = new THREE.MeshStandardMaterial({ map: oakTex, roughness: 0.5 });
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(INTERIOR.w, FLOOR_TOP, INTERIOR.d), oak);
+    slab.position.set(0, FLOOR_TOP / 2, 0);
+    slab.receiveShadow = true;
+    group.add(slab);
+    // concrete sits a hair proud over the stockroom (a different pour)
+    const sb = STOCKROOM.bounds;
+    const concTex = makeConcreteTexture({});
+    concTex.repeat.set((sb.maxX - sb.minX) / 3.4, (sb.maxZ - sb.minZ) / 3.4);
+    const conc = new THREE.MeshStandardMaterial({ map: concTex, roughness: 0.92 });
+    const concSlab = new THREE.Mesh(
+      new THREE.BoxGeometry(sb.maxX - sb.minX, FLOOR_TOP + 0.008, sb.maxZ - sb.minZ),
+      conc,
+    );
+    concSlab.position.set((sb.minX + sb.maxX) / 2, (FLOOR_TOP + 0.008) / 2, (sb.minZ + sb.maxZ) / 2);
+    concSlab.receiveShadow = true;
+    group.add(concSlab);
+    // walnut thresholds at the doors
+    for (const t of [
+      { x: DOOR_MAIN.x, z: INTERIOR.d / 2, w: DOOR_MAIN.w, d: 0.16 },
+      { x: DOOR_STOCK.x, z: 2.0, w: DOOR_STOCK.w, d: 0.16 },
+      { x: INTERIOR.w / 2, z: DOOR_BACK.z, w: 0.16, d: DOOR_BACK.w },
+    ]) {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(t.w, 0.02, t.d), mats.walnut);
+      strip.position.set(t.x, FLOOR_TOP + 0.012, t.z);
+      group.add(strip);
+    }
+  }
+
+  // --- ceiling: cream coffer panels between walnut beams, crown all around ----------
+  // NOTE: the `interior` group's origin sits AT floor-top height, so interior
+  // y-coordinates are measured from the finished floor (no FLOOR_TOP offset).
+  {
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(INTERIOR.w, INTERIOR.d), mats.ceiling);
+    ceil.rotation.x = Math.PI / 2;
+    ceil.position.y = SHELL.h;
+    interior.add(ceil);
+    const salesW = STOCKROOM.bounds.minX + INTERIOR.w / 2; // west edge → partition
+    for (const bz of [-3.9, -1.3, 1.3, 3.9]) {
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(salesW, 0.26, 0.22), mats.walnut);
+      beam.position.set(-INTERIOR.w / 2 + salesW / 2, SHELL.h - 0.13, bz);
+      beam.castShadow = true;
+      interior.add(beam);
+    }
+    // one crossing beam ties the coffers where the aisle turns
+    const cross = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, INTERIOR.d), mats.walnut);
+    cross.position.set(-2.3, SHELL.h - 0.13, 0);
+    interior.add(cross);
+    // crown molding around the room + along the partitions
+    const crown = (len, x, z, rotY = 0) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(len, 0.14, 0.08), mats.walnut);
+      m.position.set(x, SHELL.h - 0.07, z);
+      m.rotation.y = rotY;
+      interior.add(m);
+    };
+    crown(INTERIOR.w, 0, INTERIOR.d / 2 - 0.06);
+    crown(INTERIOR.w, 0, -INTERIOR.d / 2 + 0.06);
+    crown(INTERIOR.d, -INTERIOR.w / 2 + 0.06, 0, Math.PI / 2);
+    crown(INTERIOR.d, INTERIOR.w / 2 - 0.06, 0, Math.PI / 2);
+    crown(INTERIOR.d - 4.5, STOCKROOM.bounds.minX - 0.06, -2.25, Math.PI / 2);
+  }
+
+  // --- wainscot: walnut rail + panel field below, cream plaster above ---------------
+  // (interior space: y measured from the finished floor)
+  {
+    const RAIL_Y = 1.0;
+    const specs = [
+      { axis: 'x', at: INTERIOR.d / 2 - 0.02, dir: -1, from: -INTERIOR.w / 2, to: INTERIOR.w / 2, gaps: [[DOOR_MAIN.x - DOOR_MAIN.w / 2 - 0.12, DOOR_MAIN.x + DOOR_MAIN.w / 2 + 0.12]] },
+      { axis: 'x', at: -INTERIOR.d / 2 + 0.02, dir: 1, from: -INTERIOR.w / 2, to: INTERIOR.w / 2, gaps: [] },
+      { axis: 'z', at: -INTERIOR.w / 2 + 0.02, dir: 1, from: -INTERIOR.d / 2, to: INTERIOR.d / 2, gaps: [] },
+      { axis: 'z', at: INTERIOR.w / 2 - 0.02, dir: -1, from: -INTERIOR.d / 2, to: INTERIOR.d / 2, gaps: [[DOOR_BACK.z - DOOR_BACK.w / 2 - 0.12, DOOR_BACK.z + DOOR_BACK.w / 2 + 0.12]] },
+      { axis: 'z', at: STOCKROOM.bounds.minX - SHELL.wallT / 2 - 0.02, dir: -1, from: -INTERIOR.d / 2, to: 2.0, gaps: [] },
+    ];
+    for (const s of specs) {
+      let cursor = s.from;
+      const spans = [];
+      for (const [g0, g1] of s.gaps) {
+        if (g0 > cursor) spans.push([cursor, g0]);
+        cursor = g1;
+      }
+      if (cursor < s.to) spans.push([cursor, s.to]);
+      for (const [a, b] of spans) {
+        const len = b - a;
+        const mid = (a + b) / 2;
+        const place = (mesh, y, off = 0) => {
+          if (s.axis === 'x') {
+            mesh.position.set(mid, y, s.at + s.dir * off);
+          } else {
+            mesh.position.set(s.at + s.dir * off, y, mid);
+            mesh.rotation.y = Math.PI / 2;
+          }
+          interior.add(mesh);
+        };
+        // panel field
+        const field = new THREE.Mesh(new THREE.BoxGeometry(len, RAIL_Y - 0.1, 0.03), mats.walnutDark);
+        place(field, RAIL_Y / 2, 0.015);
+        // base + cap rails
+        const base = new THREE.Mesh(new THREE.BoxGeometry(len, 0.13, 0.05), mats.walnut);
+        place(base, 0.065, 0.03);
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(len, 0.07, 0.06), mats.walnut);
+        place(cap, RAIL_Y, 0.035);
+        // stiles every ~1.15 for the frame-panel rhythm
+        const n = Math.max(1, Math.round(len / 1.15));
+        for (let i = 0; i <= n; i++) {
+          const sx = a + (i / n) * len;
+          const stile = new THREE.Mesh(new THREE.BoxGeometry(0.07, RAIL_Y - 0.14, 0.045), mats.walnut);
+          if (s.axis === 'x') stile.position.set(sx, RAIL_Y / 2 - 0.02, s.at + s.dir * 0.028);
+          else {
+            stile.position.set(s.at + s.dir * 0.028, RAIL_Y / 2 - 0.02, sx);
+            stile.rotation.y = Math.PI / 2;
+          }
+          interior.add(stile);
+        }
+      }
+    }
+  }
+
+  // --- lighting rig ------------------------------------------------------------------
+  // practicals: 3 iron lantern pendants over the sales floor + recessed cans;
+  // daylight fills at the windows sell real sun through the glass; night turns
+  // the glass warm from outside. All returned through one API.
+  const practicals = []; // {light, glow(emissive mesh), base}
+  const CEIL_Y = SHELL.h; // interior space: measured from the finished floor
+
+  function addCan(lx, lz, { real = false, intensity = 9 } = {}) {
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.05, 12, 1, true), mats.charcoal);
+    ring.position.set(lx, CEIL_Y - 0.025, lz);
+    interior.add(ring);
+    const disc = new THREE.Mesh(
+      new THREE.CircleGeometry(0.145, 12),
+      new THREE.MeshStandardMaterial({ color: 0xfff4dd, emissive: 0xffe2b0, emissiveIntensity: 1.4 }),
+    );
+    disc.rotation.x = Math.PI / 2;
+    disc.position.set(lx, CEIL_Y - 0.056, lz);
+    interior.add(disc);
+    let light = null;
+    if (real) {
+      light = new THREE.PointLight(0xffe2b0, intensity, 8.5, 1.8);
+      light.position.set(lx, CEIL_Y - 0.35, lz);
+      interior.add(light);
+    }
+    practicals.push({ light, glow: disc, base: real ? intensity : 0 });
+    return practicals[practicals.length - 1];
+  }
+
+  function addLantern(lx, lz) {
+    // open iron frame — four corner posts and rims — so the glass glows through
+    const g = new THREE.Group();
+    g.position.set(lx, 0, lz);
+    const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.55, 6), mats.iron);
+    drop.position.y = CEIL_Y - 0.28;
+    g.add(drop);
+    const bodyY = CEIL_Y - 0.75;
+    for (const [sx, sz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.4, 0.03), mats.iron);
+      post.position.set(sx * 0.155, bodyY, sz * 0.155);
+      g.add(post);
+    }
+    for (const ry of [-0.185, 0.185]) {
+      const rim = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.035, 0.36), mats.iron);
+      rim.position.y = bodyY + ry;
+      g.add(rim);
+    }
+    const glassBody = new THREE.Mesh(
+      new THREE.BoxGeometry(0.27, 0.32, 0.27),
+      new THREE.MeshStandardMaterial({ color: 0xfff2d8, emissive: 0xffdfa4, emissiveIntensity: 1.5 }),
+    );
+    glassBody.position.y = bodyY;
+    g.add(glassBody);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.26, 0.16, 4), mats.iron);
+    cap.position.y = bodyY + 0.28;
+    cap.rotation.y = Math.PI / 4;
+    g.add(cap);
+    const finial = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), mats.brass);
+    finial.position.y = bodyY + 0.38;
+    g.add(finial);
+    interior.add(g);
+    const light = new THREE.PointLight(0xffdfa4, 13, 9.5, 1.7);
+    light.position.set(lx, CEIL_Y - 0.85, lz);
+    interior.add(light);
+    practicals.push({ light, glow: glassBody, base: 13 });
+    return practicals[practicals.length - 1];
+  }
+
+  // pendants down the sales-floor spine
+  addLantern(-2.3, 3.2);
+  addLantern(-2.3, -0.4);
+  addLantern(-2.3, -4.0);
+  // real cans washing the retail walls
+  addCan(-8.6, -4.4, { real: true, intensity: 10 });
+  addCan(-8.6, 2.6, { real: true, intensity: 10 });
+  addCan(1.8, -4.4, { real: true, intensity: 9 });
+  addCan(2.6, 4.4, { real: true, intensity: 10 }); // over the checkout
+  // emissive-only cans filling the grid
+  for (const [cx, cz] of [[-5.6, -4.4], [-5.6, -0.6], [-5.6, 3.2], [-8.6, -0.8], [0.6, -0.6], [0.6, 3.2], [1.8, -2.4], [4.4, -5.4], [4.4, 0.6]]) {
+    addCan(cx, cz);
+  }
+  // service wing
+  const officeCan = addCan(8.2, 4.3, { real: true, intensity: 10 });
+  const stockCan = addCan(7.9, -2.4, { real: true, intensity: 10 });
+  addCan(8.6, 0.4);
+  addCan(8.6, -5.2);
+  void officeCan; void stockCan;
+
+  // daylight fills (cool bounce at the glazed walls; scaled by time of day).
+  // pulled a body-length into the room with short throw — point lights don't
+  // shadow, so anything nearer the wall bleeds onto the exterior siding.
+  const fills = [];
+  for (const [fx, fz] of [[-6.6, 3.4], [3.0, -4.0], [8.3, 4.2]]) {
+    const f = new THREE.PointLight(0xeaf2ff, 0, 5.5, 2.0);
+    f.position.set(fx, 2.2, fz);
+    interior.add(f);
+    fills.push(f);
+  }
+  // porch light by the door (sconce + light)
+  const sconce = new THREE.Mesh(
+    new THREE.BoxGeometry(0.12, 0.24, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0x2b2e33, emissive: 0xffdfa4, emissiveIntensity: 0.0 }),
+  );
+  sconce.position.set(DOOR_MAIN.x + DOOR_MAIN.w / 2 + 0.42, FLOOR_TOP + 2.05, halfD + SHELL.wallT / 2 + 0.06);
+  group.add(sconce);
+  const porchLight = new THREE.PointLight(0xffdfa4, 0, 7, 1.8);
+  porchLight.position.set(DOOR_MAIN.x, FLOOR_TOP + 2.3, halfD + 1.2);
+  group.add(porchLight);
+
+  let conditionNow = 100;
+  let flickT = 0;
+  let moodDayF = 1;
+
+  function applyPracticalLevels() {
+    // practicals stay on all day (retail) but carry the room after dark
+    const scale = 0.72 + 0.55 * (1 - moodDayF);
+    practicals.forEach((p, i) => {
+      let on = 1;
+      if (conditionNow < 45 && i === 4) on = 0;              // a dead can in the neglect years
+      if (conditionNow < 55 && (i === 9 || i === 12)) on = 0; // dark corners until refurbished
+      if (p.light) p.light.intensity = p.base * scale * on;
+      p.glow.material.emissiveIntensity = on ? (i < 3 ? 1.5 : 1.4) * (0.75 + 0.45 * (1 - moodDayF)) : 0.04;
+    });
+  }
+
+  const lighting = {
+    setTimeMood(minuteOfDay) {
+      // full day 07:00–18:30, 75-minute ramps either side
+      const up = (minuteOfDay - 345) / 75;
+      const down = (1185 - minuteOfDay) / 75;
+      moodDayF = Math.max(0, Math.min(1, up, down));
+      for (const f of fills) f.intensity = 15 * moodDayF;
+      porchLight.intensity = 9 * (1 - moodDayF);
+      sconce.material.emissiveIntensity = 1.2 * (1 - moodDayF);
+      mats.glass.emissive = mats.glass.emissive || new THREE.Color(0xffd9a8);
+      mats.glass.emissive.setHex(0xffd9a8);
+      mats.glass.emissiveIntensity = 0.3 * (1 - moodDayF);
+      applyPracticalLevels();
+    },
+    refreshCondition(cond) {
+      conditionNow = cond;
+      applyPracticalLevels();
+    },
+    updateFlicker(dt) {
+      if (conditionNow >= 40) return;
+      flickT += dt;
+      const p = practicals[5];
+      if (!p || !p.light) return;
+      const drop = Math.sin(flickT * 13.1) * Math.sin(flickT * 4.7 + 2.1) < -0.55;
+      p.light.intensity = p.base * (drop ? 0.06 : 0.72 + 0.18 * Math.sin(flickT * 31));
+      p.glow.material.emissiveIntensity = drop ? 0.05 : 1.0;
+    },
+  };
+  lighting.setTimeMood(600);
+
+  return { windowDefs, lighting, sidingMat, roofMat };
+}
