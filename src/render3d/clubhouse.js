@@ -42,6 +42,7 @@ import { buildDirt } from './clubhouse/dirt.js';
 import { makeNav } from './clubhouse/nav.js';
 import { productThumb } from './clubhouse/thumbs.js';
 import { buildExterior } from './clubhouse/exterior.js';
+import { buildWashing } from './clubhouse/washing.js';
 
 const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
@@ -157,6 +158,8 @@ export function makeClubhouse(ctx) {
   const doors = doorsApi.doors;
   const updateDoors = doorsApi.updateDoors;
   buildExterior(B); // yard neglect + physical repair verbs (clubhouse/exterior.js)
+  const washing = buildWashing(B); // exterior grime: a mask you erode with the jet, not an [E] verb
+  scene.add(washing.jet, washing.mist);
 
   let conditionNow = 100;
   function refreshCondition() {
@@ -2402,6 +2405,15 @@ export function makeClubhouse(ctx) {
     productThumb: (sku) => productThumb(sku), // rendered supplier-card imagery
     condition: () => conditionNow,
     setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),
+    // the pressure washer: aim at the building, pull the trigger, watch the wall come back
+    washAim: (origin, dir) => washing.aim(origin, dir),
+    washApply: (hit, mode, radius, power, dt, now) => {
+      const r = washing.apply(hit, mode, radius, power, dt, now);
+      if (r.cleaned > 0) washing.announceIfDone(hit.id);
+      return r;
+    },
+    washJet: (from, to, on, dt) => washing.setJet(from, to, on, dt),
+    washTick: (dt) => washing.tick(dt),
     customers, doors, // QA access
     debugSpawn: spawnCustomer, // QA: force a walk-in
     dispose,

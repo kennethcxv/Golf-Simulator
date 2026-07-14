@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { SHELL, DOOR_MAIN } from '../../data/shopLayout.js';
 import {
-  exteriorState, pullWeed, clearGutter, brushCobwebs, replaceBulb, scrubSiding,
+  exteriorState, pullWeed, clearGutter, brushCobwebs, replaceBulb,
   exteriorScore, BULB_COST,
 } from '../../sim/shop.js';
 
@@ -152,50 +152,11 @@ export function buildExterior(B) {
     });
   }
 
-  // --- siding grime: splashed patches that scrub off in passes -------------------
-  const SIDING_SPOTS = [{ x: -6.2 }, { x: 4.6 }, { x: 7.9 }];
-  const sidingMeshes = SIDING_SPOTS.map((s, i) => {
-    const cv = document.createElement('canvas');
-    cv.width = 64;
-    cv.height = 64;
-    const c2 = cv.getContext('2d');
-    c2.clearRect(0, 0, 64, 64);
-    for (let b = 0; b < 26; b++) {
-      c2.fillStyle = `rgba(56,48,30,${0.14 + (b % 5) * 0.05})`;
-      c2.beginPath();
-      c2.ellipse(32 + Math.sin(b * 3.7) * 20, 40 + Math.cos(b * 2.3) * 18, 6 + (b % 4) * 3, 4 + (b % 3) * 3, b, 0, Math.PI * 2);
-      c2.fill();
-    }
-    const tex = new THREE.CanvasTexture(cv);
-    const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.5, 1.15),
-      new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 1, depthWrite: false }),
-    );
-    m.position.set(s.x, 0.95, halfD + SHELL.wallT / 2 + 0.02);
-    g.add(m);
-    const applyGrime = () => {
-      const v = ex.siding[i];
-      m.visible = v > 0.02;
-      m.material.opacity = 0.35 + v * 0.65;
-    };
-    applyGrime();
-    const wp = L2W(s.x, halfD + 0.7);
-    addProp({
-      x: wp.x, z: wp.z, r: 1.7,
-      label: () => (ex.siding[i] > 0 ? 'Splashed siding — [E] scrub it' : null),
-      action: () => {
-        const res = scrubSiding(state, i);
-        if (!res.ok) return;
-        applyGrime();
-        if (hooks.sfx) hooks.sfx('wipe');
-        if (res.left === 0) {
-          announce('That patch of siding reads cream again.');
-          score();
-        }
-      },
-    });
-    return m;
-  });
+  // Siding, foundation, porch and gable grime used to live here as an [E] verb: three presses and
+  // a whole wall went from filthy to cream. The brief forbids that outright — exterior grime is a
+  // pressure-washer job. It now lives in clubhouse/washing.js as a mask you erode under the
+  // stream, and the [E] prop is gone. Weeds, gutters, cobwebs and a dead bulb stay here: those
+  // really are things you do with your hands.
 
-  return { weedGroups, sidingMeshes };
+  return { weedGroups };
 }

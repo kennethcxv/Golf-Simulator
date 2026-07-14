@@ -177,14 +177,16 @@ export function scrubSiding(state, i) {
 }
 
 // 0..1 curb appeal — every job weighs in
+// The hand jobs only. Siding, foundation, porch and gable grime moved to the pressure washer
+// (sim/washing.js) — the brief forbids clearing exterior grime with a generic [E] — so it is no
+// longer counted here. `ex.siding` survives in old saves and is simply ignored.
 export function exteriorScore(state) {
   const ex = exteriorState(state);
-  const jobs = ex.weeds.length + 2 + 1 + ex.siding.length; // weeds + gutter+cobwebs + bulb + siding
+  const jobs = ex.weeds.length + 3; // weeds + gutter + cobwebs + bulb
   let done = ex.weeds.filter((w) => !w).length;
   done += ex.gutter ? 0 : 1;
   done += ex.cobwebs ? 0 : 1;
   done += ex.light ? 0 : 1;
-  done += ex.siding.filter((s) => s <= 0).length;
   return Math.round((done / jobs) * 100) / 100;
 }
 

@@ -14,6 +14,7 @@ import { initGolfers } from './golfers.js';
 import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
 import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue, tickDeliveries, ensureShopReno } from './shop.js';
+import { ensureWash } from './washing.js';
 import { initReservations, ensureReservations, reservationsDailyTick } from './reservations.js';
 import { initTractor, ensureTractor } from './tractor.js';
 import { bunkerDailyMess } from './bunkers.js';
@@ -53,6 +54,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initStaff(state);
   initClub(state);
   initShop(state);
+  ensureWash(state); // a fixer-upper arrives with a filthy exterior
   initReservations(state);
   initTractor(state);
   initCourseProps(state);
@@ -262,6 +264,7 @@ export function deserialize(json) {
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
+  ensureWash(state); // ...and a filthy exterior waiting for the pressure washer
   if (raw.reservations) state.reservations = raw.reservations;
   ensureReservations(state); // pre-booking saves gain an empty tee sheet
   if (raw.tractor) state.tractor = raw.tractor;

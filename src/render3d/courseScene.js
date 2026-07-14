@@ -20,6 +20,7 @@ import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
 import { clamp } from '../core/utils.js';
 import { resolveOverlaps, createStuckMonitor, createSafeTrail, nearestFree } from '../core/unstick.js';
+import { ownedWasher } from '../sim/washing.js';
 import { tractorStep, repairTractor, tractorRemaining, STEP_LABEL } from '../sim/tractor.js';
 import { clearLitter, fixTeeSign, PROPS } from '../sim/props.js';
 import { conditionRating } from '../sim/turf.js';
@@ -1573,6 +1574,8 @@ export function makeCourseScene(canvas, state) {
 
   let walkTool = null; // null | 'hose' | 'divot' | 'rake'
   let walkSpraying = false; // "holding the use button" for whichever tool is out
+  let walkSoaping = false; // right button, pressure washer only: lay foam instead of water
+  let washHintClock = 0; // don't nag about soap more than once every few seconds
   let walkWaterTexClock = 0;
   let mowTexClock = 0;
 
@@ -1581,10 +1584,45 @@ export function makeCourseScene(canvas, state) {
   const heldRoot = new THREE.Group();
   heldRoot.visible = false;
   camera.add(heldRoot);
-  const heldGroups = { hose: new THREE.Group(), divot: new THREE.Group(), rake: new THREE.Group(), vacuum: new THREE.Group() };
+  const heldGroups = {
+    hose: new THREE.Group(), divot: new THREE.Group(), rake: new THREE.Group(),
+    vacuum: new THREE.Group(), washer: new THREE.Group(),
+  };
   for (const g of Object.values(heldGroups)) {
     g.visible = false;
     heldRoot.add(g);
+  }
+  {
+    // the pressure-washer lance: a two-handed wand with a trigger grip and a fan tip
+    const steel = new THREE.MeshStandardMaterial({ color: 0x9aa3aa, roughness: 0.42, metalness: 0.7 });
+    const grip = new THREE.MeshStandardMaterial({ color: 0x1e2b22, roughness: 0.85 });
+    const yellow = new THREE.MeshStandardMaterial({ color: 0xd8b23a, roughness: 0.6 });
+
+    const lance = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.023, 0.86, 10), steel);
+    lance.rotation.x = Math.PI / 2 - 0.16;
+    lance.position.set(0, 0, -0.28);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.13, 0.2), grip);
+    body.position.set(0, -0.05, 0.16);
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.17, 0.06), grip);
+    handle.position.set(0, -0.16, 0.2);
+    handle.rotation.x = -0.22;
+    const trigger = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.07, 0.02), yellow);
+    trigger.position.set(0, -0.11, 0.13);
+    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.03, 0.09, 8), yellow);
+    tip.rotation.x = Math.PI / 2 - 0.16;
+    tip.position.set(0, 0.075, -0.7);
+    // the hose, curling away out of frame
+    const hoseCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, -0.2, 0.26), new THREE.Vector3(0.1, -0.42, 0.5),
+      new THREE.Vector3(-0.05, -0.6, 0.85), new THREE.Vector3(-0.3, -0.75, 1.1),
+    ]);
+    const hoseMesh = new THREE.Mesh(
+      new THREE.TubeGeometry(hoseCurve, 14, 0.022, 6, false),
+      new THREE.MeshStandardMaterial({ color: 0x23262a, roughness: 0.9 }),
+    );
+    heldGroups.washer.add(lance, body, handle, trigger, tip, hoseMesh);
+    heldGroups.washer.position.set(0.34, -0.44, -0.72);
+    heldGroups.washer.rotation.set(0.1, -0.16, 0);
   }
   {
     // the shop vacuum wand (procedural — same one the old shop scene carried)
@@ -2079,6 +2117,35 @@ export function makeCourseScene(canvas, state) {
     updateHeldFeel(dt);
     walkFindFocus();
 
+    // the pressure washer works against the BUILDING, not the turf: raycast where the player is
+    // actually pointing, erode the grime mask at that exact spot, and put the stream on screen
+    // between the nozzle and the contact point. Right button lays soap instead of water.
+    if (walkTool === 'washer' && !cart.mounted && clubhouseApi && clubhouseApi.washAim) {
+      const on = walkSpraying || walkSoaping;
+      let hit = null;
+      if (on) {
+        const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
+        hit = clubhouseApi.washAim(camera.position, dir);
+        if (hit) {
+          const w = ownedWasher(state);
+          const mode = walkSoaping ? 'soap' : 'wash';
+          const res = clubhouseApi.washApply(hit, mode, w.radius, w.power, dt, time);
+          if (res.blocked && !walkSoaping) washHintClock -= dt;
+          if (washHintClock <= 0 && res.blocked) {
+            washHintClock = 4;
+            if (walkHooks.toast) walkHooks.toast('The water is running straight off it — this needs soap first (hold the right button).', 'warn');
+          }
+          // the nozzle sits at the player's hands, a little right and below the eye
+          const nozzle = camera.localToWorld(new THREE.Vector3(0.22, -0.26, -0.5));
+          clubhouseApi.washJet(nozzle, hit.point, true, dt);
+        }
+      }
+      if (!hit) clubhouseApi.washJet(null, null, false, dt);
+      clubhouseApi.washTick(dt);
+    } else if (clubhouseApi && clubhouseApi.washJet) {
+      clubhouseApi.washJet(null, null, false, dt);
+    }
+
     // hold-to-use: each tool writes through its hook, with the same live
     // texture + particle feedback loop the hose established
     if (walkSpraying && walkTool === 'vacuum' && !cart.mounted) {
@@ -2086,7 +2153,7 @@ export function makeCourseScene(canvas, state) {
       const ax = walk.x - Math.sin(walk.yaw) * 1.5;
       const az = walk.z - Math.cos(walk.yaw) * 1.5;
       if (clubhouseApi && clubhouseApi.isInside(ax, az)) clubhouseApi.vacuumAt(ax, az, dt);
-    } else if (walkSpraying && walkTool && !cart.mounted) {
+    } else if (walkSpraying && walkTool && walkTool !== 'washer' && !cart.mounted) {
       const useHook = { hose: walkHooks.waterAt, divot: walkHooks.repairAt, rake: walkHooks.rakeAt }[walkTool];
       const aim = walkAimCell(3.0);
       if (aim && useHook) {
@@ -2791,6 +2858,8 @@ export function makeCourseScene(canvas, state) {
       getTool: () => walkTool,
       setSpraying: walkSetSpraying,
       isSpraying: () => walkSpraying,
+      setSoaping: (on) => { walkSoaping = !!on && walkTool === 'washer'; },
+      isSoaping: () => walkSoaping,
       clearKeys: walkBlur, // a mode change drops whatever was held, so you never resume walking into a wall
       unstick: walkUnstick, // the pause menu's manual fallback; returns how it got you out, or null
       isFree: (x, z, r) => walkFreeAt(x, z, r ?? walk.radius), // also what placement validation asks

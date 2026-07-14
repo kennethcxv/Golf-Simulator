@@ -423,6 +423,30 @@ export function makeAudio() {
         osc.connect(lp).connect(gain);
         osc.start();
       }
+    } else if (kind === 'washer') {
+      // a hard, narrow jet hissing off a wall, over the throb of the pump
+      filter.type = 'bandpass';
+      filter.frequency.value = 3200;
+      filter.Q.value = 0.55;
+      src.connect(filter).connect(gain);
+      const pump = ctx.createOscillator();
+      pump.type = 'square';
+      pump.frequency.value = 46;
+      const pg = ctx.createGain();
+      pg.gain.value = 0.12;
+      const plp = ctx.createBiquadFilter();
+      plp.type = 'lowpass';
+      plp.frequency.value = 220;
+      pump.connect(plp).connect(pg).connect(gain);
+      pump.start();
+    } else if (kind === 'soap') {
+      // foam, not water: soft, breathy, low pressure
+      filter.type = 'bandpass';
+      filter.frequency.value = 900;
+      filter.Q.value = 0.4;
+      const soft = ctx.createGain();
+      soft.gain.value = 0.45;
+      src.connect(filter).connect(soft).connect(gain);
     } else if (kind === 'vacuum') {
       filter.type = 'lowpass';
       filter.frequency.value = 340;
@@ -456,12 +480,17 @@ export function makeAudio() {
     return gain;
   }
 
-  const TOOL_LOOP_LEVEL = { hose: 0.045, vacuum: 0.06, divot: 0.05, rake: 0.05, mower: 0.055 };
+  const TOOL_LOOP_LEVEL = {
+    hose: 0.045, vacuum: 0.06, divot: 0.05, rake: 0.05, mower: 0.055,
+    washer: 0.075, soap: 0.03, // the washer is loud; foam is not
+  };
   function setToolLoop(kind) {
     if (!ctx) return;
     if (kind) ensureToolLoop(kind);
     for (const [k, g] of Object.entries(toolLoops)) {
-      g.gain.setTargetAtTime(k === kind ? TOOL_LOOP_LEVEL[k] : 0, ctx.currentTime, 0.06);
+      // an unknown tool must fall silent, not hand the audio graph a NaN
+      const level = k === kind ? (TOOL_LOOP_LEVEL[k] ?? 0.05) : 0;
+      g.gain.setTargetAtTime(level, ctx.currentTime, 0.06);
     }
   }
 

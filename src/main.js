@@ -33,6 +33,7 @@ import { makeMenu } from './screens/menu.js';
 import { saveData, loadData } from './core/storage.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
 import { shopCondition, vacuumOwned, tickDeliveries } from './sim/shop.js';
+import { ownedWasher } from './sim/washing.js';
 import { skuById } from './data/shopItems.js';
 import { makeCourseScene } from './render3d/courseScene.js';
 
@@ -1071,9 +1072,15 @@ canvas.addEventListener('pointerdown', (e) => {
   if (app.screen !== 'game') return;
   if (app.courseMode !== 'overview') {
     // walking with any tool out: the held button is the use trigger
-    if (e.button === 0 && walkActive() && app.scene3d.walk.getTool()) {
+    const tool = walkActive() && app.scene3d.walk.getTool();
+    if (e.button === 0 && tool) {
       app.scene3d.walk.setSpraying(true);
-      if (audio.ready) audio.setToolLoop(app.scene3d.walk.getTool());
+      if (audio.ready) audio.setToolLoop(tool);
+    } else if (e.button === 2 && tool === 'washer') {
+      // right button on the washer lays soap, for the stains water alone won't touch
+      e.preventDefault();
+      app.scene3d.walk.setSoaping(true);
+      if (audio.ready) audio.setToolLoop('soap');
     }
     return;
   }
@@ -1131,6 +1138,7 @@ canvas.addEventListener('pointermove', (e) => {
 
 window.addEventListener('pointerup', () => {
   if (walkActive() && app.scene3d.walk.isSpraying()) app.scene3d.walk.setSpraying(false);
+  if (walkActive() && app.scene3d.walk.isSoaping && app.scene3d.walk.isSoaping()) app.scene3d.walk.setSoaping(false);
   if (audio.ready) audio.setToolLoop(null);
 });
 
@@ -1209,16 +1217,18 @@ window.addEventListener('keydown', (e) => {
             }
             belt = [null, 'vacuum'];
           } else {
-            belt = [null, 'hose', 'divot', 'rake'];
+            belt = [null, 'washer', 'hose', 'divot', 'rake'];
           }
           const cur = belt.indexOf(walkApi.getTool());
           const next = belt[(cur + 1) % belt.length];
           walkApi.setTool(next);
           if (audio.ready) audio.equipTick();
+          const washer = app.state ? ownedWasher(app.state) : null;
           toast(next === 'hose' ? 'Hose out — hold the mouse button to water.'
             : next === 'divot' ? 'Divot kit out — hold the button on worn turf.'
             : next === 'rake' ? 'Bunker rake out — hold the button on footprinted sand.'
             : next === 'vacuum' ? 'Vacuum out — hold the mouse button and work the dirty patches.'
+            : next === 'washer' ? `${washer ? washer.name : 'Pressure washer'} — hold LEFT to blast, RIGHT to lay soap on the heavy stains.`
             : 'Tools away.');
         }
         break;
