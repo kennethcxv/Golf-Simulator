@@ -325,3 +325,33 @@ http://localhost:8457/ in a browser. Headless sim tests: `npm test`.
 - [ ] Decor pack-up: E a placed piece → back to backroom, ghost reoffers the spot
 
 - [ ] `npm test` → 211 passing
+
+## 2026-07-13 — Seamless clubhouse / physical pro shop overhaul
+
+Automated: 231/231 (`node --test`) — +19 this arc: shop-layout invariants
+(fixtures/SKUs/bounds/door clearways incl. the live-found backdoor defect),
+reno grid+clutter migration, deliveries (cases, carry-one, unbox, staff
+auto-unbox, save round-trip), checkout (pick/return/ring), tutorial chain.
+
+Manual (browser, real keys/cursor, zero console errors on every pass):
+- [x] Closed shop door BLOCKS walking (stopped at z 236.37); E opens on the
+      hinge (−1.92 rad); walking through lands inside — no transition.
+- [x] Doors auto-swing for customers and for a box-carrying player; auto-close
+      after ~5 s; creak/latch audible within 18 yd.
+- [x] Old save migrated onto the 13×8 grime grid (condition chip 19 — filthy).
+- [x] Laptop: E → camera settles, cursor frees, portal opens; Supplier basket
+      order placed by clicks (balls2×6 + vac1); Tmrw 8:30 AM booked ($32 fee
+      snapshot); Esc returns to feet and re-locks pointer.
+- [x] HUD: no .hud/.manage-dock in DOM; two chips live; Esc menu + Controls.
+- [x] Physical retail, one unbroken take: pick up case at pad → auto-door →
+      set down in stockroom → unpack (back 12, trash 1) → flatten (trash 0)
+      → shelve at Ball wall (shelf 6, silhouettes).
+- [x] Live checkout: Morgan W. picked off the Ball wall (shelf−1 at pick),
+      queued, scan → payment → cash +$28.00 exactly; register screen totals.
+- [x] Save slot 1 → full page reload → load: marker order, 3 boxes, booking,
+      walk mode all restored.
+- [x] Fresh boot lands outside the porch; objectives card tracks the real
+      step (4/10 "Receive the delivery" with 3 boxes actually on the pad).
+- [ ] Human passes still owed: audio levels by ear; a full uninterrupted
+      no-console playthrough end-to-end at natural pace (all beats verified
+      individually above; the single-sitting run is a human-session item).

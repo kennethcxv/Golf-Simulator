@@ -2497,3 +2497,46 @@ SUPERSEDING brief explicitly requires this first-time flow (its step 25), so
 the constraint is superseded — logged here deliberately. Tests rewritten to
 walk the new chain in order (suite 231). Old mid-tutorial saves re-enter at
 their step index against the new checks; completed saves stay completed.
+
+## 2026-07-13 — THE OVERHAUL SUMMARY (read this one)
+
+One line: the clubhouse became a real place — you walk in through a door
+that physically opens, run the club from a laptop that's actually on the
+desk, carry the deliveries in your arms, and ring up the customers yourself.
+
+THE ARC, in the brief's order, one commit per step-group, suite 212→231,
+zero console errors on every live pass:
+1. AUDIT + BEFORE SHOTS — architecture mapped, per-asset tri counts
+   re-measured (a 4096²-texture perf finding logged for the perf list).
+2. THE HOUSE — 334k→67k tris via real optimization (original preserved);
+   verified single watertight shell → the enterable clubhouse is purpose-
+   built per the brief's fallback; the optimized house SHIPS as the
+   groundskeeper's residence. Nothing silently ignored (golf cart parked
+   by the porch — all 20 owner GLBs now in the game).
+3. ONE WORLD — shopScene.js deleted; the building's exterior and interior
+   are the same wall geometry on a real zoned floor plan (shopLayout.js,
+   tested invariants); three hinged, colliding, E-operated doors; measured
+   walk-through with no transition of any kind.
+4. FAIRWAY OFFICE — a physical laptop with a live screen; 8 clickable
+   pages doing real orders/bookings/pricing/books; camera focus mode.
+5. HUD — the permanent top bar and Manage dock are gone: two corner chips,
+   contextual prompts, Esc office menu (+Controls). Re-homing map logged.
+6. PHYSICAL RETAIL — cases on the receiving pad, one-box carry, unpack to
+   backroom, flatten empties, staff auto-unbox; shelving was already
+   physical; displays visibly gain/lose stock.
+7. LIVE CHECKOUT — customers pick real units off real displays, queue,
+   and wait for YOU: scan beats with a canvas register total, payment to
+   the cent (+$28.00 measured), patience → put-backs as lost sales.
+8. AUDIO + ONBOARDING — hinge creaks/latches, the scanner beep; the
+   opening tutorial teaches exactly this loop (tutorial.js touch is
+   mandated by this brief; logged).
+9. ACCEPTANCE — save-slot round-trip through a full reload (orders/boxes/
+   bookings/walk state), fresh boot onto the porch with the objectives
+   card tracking real progress.
+
+HONEST DELTAS in KNOWN_ISSUES (cleaning is one tool deep; live sales are
+additive to the accrual; G/C/M desks keep panel chrome; ear-pass owed;
+single-sitting human playthrough owed — every beat verified individually).
+
+WHERE TO START PLAYING: Continue (or buy the muni fresh) — you arrive at
+the porch. Open the door. Everything inside is this arc.

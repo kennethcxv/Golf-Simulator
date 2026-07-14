@@ -279,3 +279,44 @@ overnight brief: comps research (House Flipper/Two Point Hospital/Stardew/
 PowerWash), then minimal always-on HUD (cash/date/speed) with one consolidated
 Manage entry, weather/stats relocated into their management screens, contextual
 tool UI check.
+
+## SEAMLESS CLUBHOUSE / PHYSICAL PRO SHOP OVERHAUL (2026-07-13) — shipped & open
+
+Shipped (superseding brief steps 1–30, committed per step, suite 212→231):
+ONE CONTINUOUS WORLD — the clubhouse is a real 26×16 building in the course
+scene (shared wall geometry, true window/door openings, shopScene.js deleted,
+P-swap gone); three hinged E-operated colliding doors (auto for customers and
+full-armed players, auto-close, creak/latch audio); the zoned retail floor
+plan (shopLayout.js: club wall, balls, accessories, apparel, bags, shoes,
+lounge, office, stockroom+receiving) with save migration from the 14×10 room;
+the physical LAPTOP running the 8-page Fairway Office portal (orders, tee
+sheet, pricing, books — all real state); the top bar/dock REMOVED for a
+two-chip HUD + Esc office menu; PHYSICAL deliveries (cases on the pad →
+carry → unpack → shelve, staff auto-unbox); live customer PICKS off real
+shelves + player-operated register (scan beats, canvas total, payment,
+45 s patience); groundskeeper's-house GLB and golf-cart GLB finally on the
+property; door/scanner audio; the physical-loop onboarding.
+
+Open / deliberate (this arc):
+- **Cleaning depth (brief step 21) is one tool deep**: the vacuum covers all
+  floor grime; a mop/window-cleaner as DISTINCT tools (and window-grime as a
+  separate layer from the condition-driven pane tint) were not built. The
+  4-stage renovation read, condition lighting (dead bulb/flicker), and
+  material lerps all shipped earlier and carried over.
+- **Live checkout is additive revenue** on the statistical daily accrual
+  (reservations precedent): a rung-up walk-in doesn't decrement the accrual's
+  modeled crowd. Bounded (≤6 concurrent walk-ins); revisit with a rounds
+  redesign.
+- **G/C/M panels keep the dark game-panel chrome** — they're desks, not
+  diegetic screens yet; the laptop is the pattern to port them onto (Club/
+  Empire/Grounds as portal apps) in a later pass.
+- **Audio still owes the human ear-pass** (levels balanced by construction,
+  not by listening); the new doorSwing/doorShut/scanBeep included.
+- **The house GLB's baked garden bed** sits on a flattened pad; on steep
+  seeds its skirt can hover/clip at the edges (placement is putModel +
+  heightAt at center).
+- **Customer walk-in pathing is waypoint-based** (door → aisle stops), not
+  navmesh; heavy fixture rearrangement could theoretically strand a stop
+  point inside a collider (the layout tests guard the shipped plan).
+- **Two benign console warnings** appear on reload in automation (none in
+  normal play; zero errors everywhere).

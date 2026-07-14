@@ -16,7 +16,7 @@ House Flipper's buy-restore-transform loop, applied to the golf course managemen
 - Vanilla JavaScript — simulation, management UI
 - Three.js — the 3D course view and the walkable pro shop interior
 - Electron — desktop shell for the eventual Steam build
-- `node --test` — headless unit tests for all simulation logic (210 green)
+- `node --test` — headless unit tests for all simulation logic (231 green)
 
 ## Run
 
@@ -79,7 +79,11 @@ computer with supplier orders and a tee-time reservation sheet, counter check-in
 and the ASSET INTEGRATION portion (the earned-tractor repair sequence with a
 third-person drive camera, a real hand-tool belt — hose, divot kit, bunker rake —
 bunker footprints, storm litter, the broken→restored tee sign, real flagsticks and
-tee markers, and a weathered stone entrance sign). 210 headless tests green; every
+tee markers, and a weathered stone entrance sign). 2026-07-13: the clubhouse became
+one continuous, physical pro shop — walk in through real hinged doors (no scene
+swap), run Fairway Office on the desk laptop, receive deliveries as boxes you
+carry/unpack/shelve, and ring customers up at the register yourself. 231 headless
+tests green; every
 portion browser-QA'd with zero console errors. See TESTING_CHECKLIST.md for the
 manual pass and KNOWN_ISSUES.md for limits and the roadmap.
 
