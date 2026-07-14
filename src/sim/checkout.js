@@ -8,20 +8,66 @@
 import { addRevenue } from './economy.js';
 import { skuById, SHELF_CAP } from '../data/shopItems.js';
 
-export function pickFromShelf(state, skuId) {
+// --- units in flight --------------------------------------------------------------
+// A unit a shopper is carrying is off the shelf but not yet sold. That in-between
+// used to be nowhere at all: `pickFromShelf` debited the shelf and the unit simply
+// stopped existing until the shopper was either served or deleted. In memory that
+// was fine, because `removeCustomer` put it back. On DISK it was a hole — the
+// day-rollover autosave (main.js) snapshots `state` live, so a save taken while
+// someone was at the counter persisted the missing stock but not the pending sale,
+// and reloading destroyed the units outright.
+//
+// So "in a shopper's hands" is now a real, saved location. `shop.held` is the
+// ledger, `recoverCheckout` is what a reload does with it.
+
+export function heldUnits(state) {
+  if (!state.shop.held) state.shop.held = [];
+  return state.shop.held;
+}
+
+export function pickFromShelf(state, skuId, uid = null) {
   const inv = state.shop.inventory[skuId];
   if (!inv || inv.shelf <= 0) return { ok: false, reason: 'Nothing on the display.' };
   inv.shelf -= 1;
+  if (uid) heldUnits(state).push({ uid, skuId });
   return { ok: true };
 }
 
-export function returnToShelf(state, skuId) {
+export function returnToShelf(state, skuId, uid = null) {
   const inv = state.shop.inventory[skuId];
   if (!inv) return { ok: false };
   const sku = skuById(skuId);
   const cap = sku ? SHELF_CAP[sku.cat] : 0;
   inv.shelf = Math.min(cap, inv.shelf + 1);
+  if (uid) {
+    const held = heldUnits(state);
+    const i = held.findIndex((h) => h.uid === uid);
+    if (i >= 0) held.splice(i, 1);
+  }
   return { ok: true };
+}
+
+// the unit left the building in a paid-for bag: it is gone from the shelf and gone
+// from the held ledger, and that is the ONLY way a held unit is allowed to vanish
+export function consumeHeld(state, uid) {
+  const held = heldUnits(state);
+  const i = held.findIndex((h) => h.uid === uid);
+  if (i < 0) return false;
+  held.splice(i, 1);
+  return true;
+}
+
+// A reload lands here. Every customer in the building is gone — they live in the
+// renderer, not in `state` — so anything they were holding has to go back on the
+// shelf. No money moved, so none is unwound. Idempotent: loading twice does not
+// mint a second copy of the stock.
+export function recoverCheckout(state) {
+  const held = heldUnits(state);
+  if (!held.length) return { returned: 0 };
+  const n = held.length;
+  for (const h of held.slice()) returnToShelf(state, h.skuId, h.uid);
+  state.shop.held = [];
+  return { returned: n };
 }
 
 export function liveSales(state) {

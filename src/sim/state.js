@@ -14,6 +14,7 @@ import { initGolfers } from './golfers.js';
 import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
 import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue, tickDeliveries, ensureShopReno } from './shop.js';
+import { recoverCheckout } from './checkout.js';
 import { ensureWash } from './washing.js';
 import { ensureProperty, tickProperty } from './property.js';
 import { initReservations, ensureReservations, reservationsDailyTick } from './reservations.js';
@@ -269,6 +270,7 @@ export function deserialize(json) {
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
+  recoverCheckout(state); // a save taken mid-sale: the shoppers are gone, so put their goods back
   ensureWash(state); // ...and a filthy exterior waiting for the pressure washer
   ensureProperty(state); // pre-rent saves gain a schedule rather than a free ride
   if (raw.reservations) state.reservations = raw.reservations;
