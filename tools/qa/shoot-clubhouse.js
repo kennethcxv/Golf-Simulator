@@ -9,7 +9,7 @@ async (page) => {
   // It deliberately zeroes `decor`/`supplies`: a decor SKU in inventory makes the
   // shop spawn translucent green PLACEMENT GHOSTS that would fill the room with
   // fake blobs. Final gameplay proof does not use this file.
-  const PASS = 'pass-1';
+  const PASS = 'pass-2';
   const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/assets/' + PASS;
 
   const L2W = (x, z) => ({ x: x - 8, z: z + 228 });
@@ -32,7 +32,14 @@ async (page) => {
   await page.waitForTimeout(1200);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});
   await page.waitForFunction(() => window.__fw && window.__fw.scene3d
-    && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null, { timeout: 30000 });
+    && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null, { timeout: 40000 });
+  // The boot veil ("Compiling shaders / Warming the view") outlives clubhouse()
+  // and is opaque — it photographed a black screen over the checkout once. Wait
+  // for it to actually go, rather than guessing a timeout.
+  await page.waitForFunction(() => {
+    const v = document.querySelector('.load-veil');
+    return !v || v.style.display === 'none' || getComputedStyle(v).opacity === '0';
+  }, null, { timeout: 40000 });
   await page.waitForTimeout(2500);
 
   const stock = await page.evaluate(() => {
@@ -67,7 +74,17 @@ async (page) => {
   const done = [];
   for (const s of shots) {
     await page.evaluate((shot) => {
-      const w = window.__fw.scene3d.walk;
+      const app = window.__fw;
+      // PIN THE CLOCK. The game clock runs while the harness shoots — roughly 8
+      // game-minutes per real second — so the ten shots drifted across 80 minutes
+      // and the exterior came out at 2:33 AM in one pass and 1:42 PM in another.
+      // Lighting has to be identical or the before/after compare is worthless.
+      // clock.minutes is a monotonic total, so the minute-of-day is minutes % 1440.
+      const c = app.state.clock;
+      c.minutes = Math.floor(c.minutes / 1440) * 1440 + 14 * 60;   // 2:00 PM
+      app.scene3d.applyTimeWeather(14 * 60, app.state.weather);
+
+      const w = app.scene3d.walk;
       const st = w.state;
       w.clearKeys();
       st.x = shot.ax;

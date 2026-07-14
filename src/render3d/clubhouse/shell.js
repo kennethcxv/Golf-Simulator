@@ -13,7 +13,7 @@ import {
 import { makeSignTexture, makeOakFloorTexture, makeConcreteTexture, makeSidingTexture } from './materials.js';
 
 export function buildShell(B) {
-  const { group, interior, mats, addCol, colBoxAt, FLOOR_TOP, state } = B;
+  const { group, interior, mats, merch, addCol, colBoxAt, FLOOR_TOP, state } = B;
   const halfW = SHELL.w / 2 - SHELL.wallT / 2; // wall centerlines
   const halfD = SHELL.d / 2 - SHELL.wallT / 2;
 
@@ -224,6 +224,116 @@ export function buildShell(B) {
     ridge.position.set(0, WALL_H + PEAK + 0.1, 0);
     group.add(ridge);
 
+    // --- RAINWATER GOODS -------------------------------------------------------
+    // The brief asks for gutters and downspouts and the building had neither, so
+    // the eaves just stopped in mid-air. (Fascia and soffits, contrary to my own
+    // audit, already existed a few lines above — corrected there.) Ref panel 9
+    // shows the downspout the pressure-washer works around.
+    const gutterMat = new THREE.MeshStandardMaterial({
+      color: 0xe6e0cf, roughness: 0.55, metalness: 0.25,
+    });
+    const EAVE_Z = D2 / 2 + 0.80;
+    const EAVE_Y = WALL_H - 0.16;
+    for (const zSide of [-1, 1]) {
+      // an OPEN half-round trough, not a solid bar — you can see into a gutter
+      const trough = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.11, 0.11, W2 + 2.2, 10, 1, true, 0, Math.PI),
+        gutterMat,
+      );
+      trough.material.side = THREE.DoubleSide;
+      trough.rotation.z = Math.PI / 2;
+      trough.rotation.y = Math.PI / 2;
+      trough.position.set(0, EAVE_Y, zSide * EAVE_Z);
+      trough.castShadow = true;
+      group.add(trough);
+      // the bead along the outer lip
+      const bead = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.022, 0.022, W2 + 2.2, 6), gutterMat);
+      bead.rotation.z = Math.PI / 2;
+      bead.position.set(0, EAVE_Y, zSide * (EAVE_Z + 0.108));
+      group.add(bead);
+    }
+    // downspouts at all four corners: outlet, stack, and an elbow kicking clear
+    for (const xSide of [-1, 1]) {
+      for (const zSide of [-1, 1]) {
+        const px = xSide * (W2 / 2 - 0.35);
+        const pz = zSide * EAVE_Z;
+        const outlet = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.055, 0.045, 0.16, 8), gutterMat);
+        outlet.position.set(px, EAVE_Y - 0.12, pz);
+        group.add(outlet);
+        const stack = new THREE.Mesh(
+          new THREE.BoxGeometry(0.085, EAVE_Y - 0.55, 0.085), gutterMat);
+        stack.position.set(px, (EAVE_Y - 0.30) / 2 + 0.02, pz - zSide * 0.06);
+        stack.castShadow = true;
+        group.add(stack);
+        for (const by of [1.35, 3.05]) {   // the straps that hold it to the wall
+          const strap = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.03, 0.03), gutterMat);
+          strap.position.set(px, by, pz - zSide * 0.10);
+          group.add(strap);
+        }
+        const elbow = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.085, 0.34), gutterMat);
+        elbow.position.set(px, 0.16, pz - zSide * 0.21);
+        elbow.rotation.x = zSide * 0.5;
+        group.add(elbow);
+        const splash = new THREE.Mesh(
+          new THREE.BoxGeometry(0.28, 0.03, 0.42),
+          new THREE.MeshStandardMaterial({ color: 0x8d8a80, roughness: 0.95 }),
+        );
+        splash.position.set(px, 0.015, pz - zSide * 0.48);
+        group.add(splash);
+      }
+    }
+
+    // --- LANDSCAPING -----------------------------------------------------------
+    // The turf ran straight into the foundation, which is what made the building
+    // look dropped on the lawn rather than built there.
+    const mulch = new THREE.MeshStandardMaterial({ color: 0x4a3628, roughness: 0.98 });
+    const shrubA = new THREE.MeshStandardMaterial({ color: 0x3f5c33, roughness: 0.95 });
+    const shrubB = new THREE.MeshStandardMaterial({ color: 0x50703c, roughness: 0.95 });
+    const BEDS = [
+      { x: -7.4, z: D2 / 2 + 0.75, w: 5.4, d: 1.3 },   // south, west of the porch
+      { x: 6.6, z: D2 / 2 + 0.75, w: 6.2, d: 1.3 },    // south, east of the porch
+      { x: -W2 / 2 - 0.7, z: -1.0, w: 1.3, d: 7.0, rot: true },  // west gable
+    ];
+    let bs = 31;
+    const brnd = () => {
+      bs = (bs * 1103515245 + 12345) & 0x7fffffff;
+      return bs / 0x7fffffff;
+    };
+    for (const b of BEDS) {
+      const bw = b.rot ? b.w : b.w;
+      const bd = b.rot ? b.d : b.d;
+      const bed = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.09, bd), mulch);
+      bed.position.set(b.x, 0.045, b.z);
+      bed.receiveShadow = true;
+      group.add(bed);
+      // an edging board, then shrubs at irregular spacing — a planted bed, not a row
+      const edge = new THREE.Mesh(
+        new THREE.BoxGeometry(bw + 0.08, 0.13, 0.06), trimMat);
+      edge.position.set(b.x, 0.065, b.z + (b.rot ? 0 : bd / 2));
+      if (b.rot) {
+        edge.rotation.y = Math.PI / 2;
+        edge.position.set(b.x + bw / 2, 0.065, b.z);
+      }
+      group.add(edge);
+      const n = Math.max(3, Math.round((b.rot ? bd : bw) / 1.15));
+      for (let i = 0; i < n; i++) {
+        const t = (i + 0.5) / n;
+        const along = -((b.rot ? bd : bw) / 2) + t * (b.rot ? bd : bw);
+        const sx = b.rot ? b.x : b.x + along;
+        const sz = b.rot ? b.z + along : b.z;
+        const r = 0.28 + brnd() * 0.20;
+        const bush = new THREE.Mesh(
+          new THREE.IcosahedronGeometry(r, 1), brnd() < 0.5 ? shrubA : shrubB);
+        bush.position.set(sx + (brnd() - 0.5) * 0.18, r * 0.78,
+          sz + (brnd() - 0.5) * 0.22);
+        bush.scale.y = 0.80 + brnd() * 0.25;
+        bush.castShadow = true;
+        group.add(bush);
+      }
+    }
+
     // porch: deck, posts with base/cap, cream soffit, step, path pad
     const porchW = W2 * 0.62;
     const deck = new THREE.Mesh(new THREE.BoxGeometry(porchW, FLOOR_TOP, PORCH_D), new THREE.MeshStandardMaterial({ map: makeConcreteTexture({ seed: 88 }), color: 0xd9d2c2, roughness: 0.85 }));
@@ -295,22 +405,9 @@ export function buildShell(B) {
       group.add(pad);
     }
 
-    // gutters along both eaves + downspouts at the corners — the roofline was
-    // bare and read as a rendering, not a building
-    const gutterMat = new THREE.MeshStandardMaterial({ color: 0xe9e4d4, roughness: 0.6, metalness: 0.15 });
-    for (const zSide of [-1, 1]) {
-      const gutter = new THREE.Mesh(new THREE.BoxGeometry(W2 + 2.1, 0.1, 0.11), gutterMat);
-      gutter.position.set(0, WALL_H - 0.18, zSide * (D2 / 2 + 0.82));
-      group.add(gutter);
-    }
-    for (const [dx, dz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
-      const spout = new THREE.Mesh(new THREE.BoxGeometry(0.08, WALL_H - 0.3, 0.08), gutterMat);
-      spout.position.set(dx * (W2 / 2 - 0.18), (WALL_H - 0.3) / 2 + 0.05, dz * (D2 / 2 + 0.16));
-      group.add(spout);
-      const elbow = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.3), gutterMat);
-      elbow.position.set(dx * (W2 / 2 - 0.18), 0.09, dz * (D2 / 2 + 0.3));
-      group.add(elbow);
-    }
+    // (the rainwater goods used to be here: a solid box bar for a gutter and
+    // plain box spouts. They were replaced up in the roof block with an open
+    // half-round trough, a lip bead, wall straps and splash blocks.)
 
     // foundation skirt sunk into the grade — the old thin dark band hovered
     // over the grass wherever the terrain dipped
@@ -555,42 +652,44 @@ export function buildShell(B) {
   }
 
   function addLantern(lx, lz) {
-    // open iron frame — four corner posts and rims — so the glass glows through
+    // The pendant is the first thing you see on entering, and it was a flat black
+    // box with white panels on a stick. It is a modelled lantern now — a chain, a
+    // cap, four tapered posts, glass — with the glow driven from its glass slot.
+    // The old build stays as the fallback until the GLB lands (the light itself
+    // must not wait, or the shop opens dark).
+    const light = new THREE.PointLight(0xffdfa4, 13, 9.5, 1.7);
+    light.position.set(lx, CEIL_Y - 0.85, lz);
+    interior.add(light);
+
+    const glassMat = new THREE.MeshStandardMaterial({
+      color: 0xfff2d8, emissive: 0xffdfa4, emissiveIntensity: 1.5,
+    });
+    const entry = { light, glow: { material: glassMat }, base: 13 };
+    practicals.push(entry);
+
+    if (merch) {
+      merch.onReady(() => {
+        const lamp = merch.instantiate('pendant');
+        if (!lamp) return;
+        lamp.position.set(lx, CEIL_Y, lz);   // pivot is the ceiling mount
+        lamp.traverse((o) => {
+          if (o.isMesh && o.userData.slot === 'M_glass') o.material = glassMat;
+        });
+        interior.add(lamp);
+      });
+      return entry;
+    }
+
     const g = new THREE.Group();
     g.position.set(lx, 0, lz);
     const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.55, 6), mats.iron);
     drop.position.y = CEIL_Y - 0.28;
     g.add(drop);
-    const bodyY = CEIL_Y - 0.75;
-    for (const [sx, sz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.4, 0.03), mats.iron);
-      post.position.set(sx * 0.155, bodyY, sz * 0.155);
-      g.add(post);
-    }
-    for (const ry of [-0.185, 0.185]) {
-      const rim = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.035, 0.36), mats.iron);
-      rim.position.y = bodyY + ry;
-      g.add(rim);
-    }
-    const glassBody = new THREE.Mesh(
-      new THREE.BoxGeometry(0.27, 0.32, 0.27),
-      new THREE.MeshStandardMaterial({ color: 0xfff2d8, emissive: 0xffdfa4, emissiveIntensity: 1.5 }),
-    );
-    glassBody.position.y = bodyY;
+    const glassBody = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.32, 0.27), glassMat);
+    glassBody.position.y = CEIL_Y - 0.75;
     g.add(glassBody);
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.26, 0.16, 4), mats.iron);
-    cap.position.y = bodyY + 0.28;
-    cap.rotation.y = Math.PI / 4;
-    g.add(cap);
-    const finial = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), mats.brass);
-    finial.position.y = bodyY + 0.38;
-    g.add(finial);
     interior.add(g);
-    const light = new THREE.PointLight(0xffdfa4, 13, 9.5, 1.7);
-    light.position.set(lx, CEIL_Y - 0.85, lz);
-    interior.add(light);
-    practicals.push({ light, glow: glassBody, base: 13 });
-    return practicals[practicals.length - 1];
+    return entry;
   }
 
   // pendants down the sales-floor spine

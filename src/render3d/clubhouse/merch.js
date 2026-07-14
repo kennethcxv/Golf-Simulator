@@ -24,13 +24,17 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const FILES = [
+  // goods
   'polo_hanging', 'polo_folded', 'jacket_hanging', 'glove', 'shoe', 'bag',
   'head_driver', 'head_iron', 'head_wedge', 'head_putter', 'cap',
+  // furniture + operational kit (tools/blender/build_props.py)
+  'chair_lounge', 'chair_office', 'trophy',
+  'register', 'scanner', 'cardterm', 'printer', 'cash_drawer',
+  'carton', 'carton_open', 'handtruck', 'pendant',
 ];
 
 // Which slot in the GLB maps to which material in the clubhouse kit.
 const SLOT = {
-  M_leather: 'merchLeather',
   M_rubber: 'merchRubber',
   M_steel: 'merchSteel',
   M_darkmetal: 'merchDark',
@@ -38,6 +42,15 @@ const SLOT = {
   M_plastic: 'merchPlastic',
   M_white: 'merchWhite',
   M_trim: 'merchWhite',
+  // props
+  M_darkwood: 'walnutDark',
+  M_brass: 'brass',
+  M_charcoal: 'charcoal',
+  M_kraft: 'kraft',
+  M_tape: 'merchWhite',
+  M_paper: 'trimPaint',
+  M_glass: 'glass',
+  M_screen: 'charcoal',   // the live screens get their own canvas material
 };
 
 // The slots that take a per-item colour. A polo's body is fabric; a golf shoe's
@@ -81,12 +94,24 @@ export function createMerch(mats) {
       if (!o.isMesh) return;
       o.castShadow = true;
       o.receiveShadow = false;
+      // remember which Blender slot this was BEFORE it is swapped out, so a
+      // caller can still find, say, the register's screen and hang a live
+      // canvas on it
+      const src = Array.isArray(o.material) ? o.material[0] : o.material;
+      o.userData.slot = (src && src.name) || null;
       o.material = Array.isArray(o.material)
         ? o.material.map((m) => resolve(m, tint))
         : resolve(o.material, tint);
     });
     if (scale !== 1) obj.scale.setScalar(scale);
     return obj;
+  }
+
+  // find the mesh that came from a given Blender material slot
+  function slotMesh(obj, slot) {
+    let hit = null;
+    obj.traverse((o) => { if (!hit && o.isMesh && o.userData.slot === slot) hit = o; });
+    return hit;
   }
 
   // Collapse a built group into one mesh per material. Rebuilt only when stock
@@ -159,6 +184,7 @@ export function createMerch(mats) {
 
   return {
     instantiate,
+    slotMesh,
     bake,
     isReady: () => ready,
     has: (n) => protos.has(n),

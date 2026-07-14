@@ -43,7 +43,7 @@ function categorySign(title, { w = 1.5, h = 0.26, charcoal = false } = {}) {
 
 export function buildFixtures(B) {
   const {
-    interior, mats, addCol: rawAddCol, addProp: rawAddProp, removeCol, removeProp,
+    interior, mats, merch, addCol: rawAddCol, addProp: rawAddProp, removeCol, removeProp,
     colBoxAt, L2W, state, hooks,
   } = B;
 
@@ -449,25 +449,87 @@ export function buildFixtures(B) {
       cheek.position.set(sx, 1.6, -0.08);
       g.add(cheek);
     }
+    // The hutch was two lit boards with NOTHING on them — the back counter is
+    // where a pro shop keeps its branded bags and boxed stock (ref 4).
+    if (merch) merch.onReady(() => {
+      const dress = new THREE.Group();
+      for (let i = 0; i < 7; i++) {
+        const box = merch.instantiate('carton');
+        if (!box) break;
+        box.scale.setScalar(0.40 + (i % 3) * 0.06);
+        box.position.set(-1.25 + i * 0.42, 1.545, -0.08);
+        box.rotation.y = 0.1 * ((i % 2) ? 1 : -1);
+        dress.add(box);
+      }
+      // the club's own carrier bags, stood on the upper shelf
+      const bagMat = new THREE.MeshStandardMaterial({ color: 0x2c5233, roughness: 0.86 });
+      for (let i = 0; i < 5; i++) {
+        const bag = new THREE.Mesh(roundedBox(0.24, 0.30, 0.09, 0.012), bagMat);
+        bag.position.set(-1.0 + i * 0.45, 2.12, -0.08);
+        bag.rotation.y = 0.08 * ((i % 2) ? 1 : -1);
+        bag.castShadow = true;
+        dress.add(bag);
+        for (const hx of [-0.06, 0.06]) {
+          const handle = new THREE.Mesh(
+            new THREE.TorusGeometry(0.035, 0.005, 4, 8, Math.PI), mats.kraft);
+          handle.position.set(-1.0 + i * 0.45 + hx, 2.27, -0.08);
+          handle.rotation.y = Math.PI / 2;
+          dress.add(handle);
+        }
+      }
+      g.add(merch.bake(dress));
+    });
     addCol(colBoxAt(f.x, f.z, 3.4, 0.7));
     return g;
   }
 
   // ------------------------------------------------------ backroom shelf ----
+  // THE WEAKEST FIXTURE IN THE GAME, per the audit: two flat posts and three
+  // bare boards, floating with no feet, no bracing, and nothing on them. A
+  // stockroom rack is a FRAME — four uprights, diagonal bracing, feet — and the
+  // whole point of a stockroom is that it is FULL (ref 8).
   function backshelfUnit(f) {
     const g = new THREE.Group();
     const wZ = f.short ? 1.7 : 2.6; // doorway-adjacent short unit
-    for (const sx of [-wZ / 2, wZ / 2]) {
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.07, 2.3, 0.6), mats.rawWood);
-      post.position.set(sx, 1.15, 0);
-      post.castShadow = true;
-      g.add(post);
+    const D = 0.62;
+    const H = 2.30;
+    const boards = [0.16, 0.62, 1.10, 1.58, 2.06];
+
+    for (const sx of [-wZ / 2 + 0.04, wZ / 2 - 0.04]) {
+      for (const sz of [-D / 2 + 0.04, D / 2 - 0.04]) {
+        const post = new THREE.Mesh(roundedBox(0.06, H, 0.06, 0.008), mats.iron);
+        post.position.set(sx, H / 2, sz);
+        post.castShadow = true;
+        g.add(post);
+        const foot = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.02, 0.11), mats.iron);
+        foot.position.set(sx, 0.01, sz);
+        g.add(foot);
+      }
     }
-    for (const y of [0.4, 1.05, 1.7]) {
-      const board = new THREE.Mesh(new THREE.BoxGeometry(wZ, 0.06, 0.6), mats.rawWood);
+    for (const y of boards) {
+      const board = new THREE.Mesh(roundedBox(wZ - 0.02, 0.05, D - 0.02, 0.008), mats.rawWood);
       board.position.set(0, y, 0);
       board.receiveShadow = true;
+      board.castShadow = true;
       g.add(board);
+      // the front lip that stops a carton walking off the shelf
+      const lip = new THREE.Mesh(new THREE.BoxGeometry(wZ - 0.02, 0.05, 0.018), mats.iron);
+      lip.position.set(0, y + 0.048, D / 2 - 0.03);
+      g.add(lip);
+    }
+    // X-bracing across the back — what actually stops a rack racking
+    for (let i = 0; i < boards.length - 1; i++) {
+      const y0 = boards[i];
+      const y1 = boards[i + 1];
+      const dy = y1 - y0;
+      const len = Math.hypot(wZ - 0.1, dy);
+      for (const dir of [1, -1]) {
+        const brace = new THREE.Mesh(
+          new THREE.BoxGeometry(len, 0.02, 0.014), mats.iron);
+        brace.position.set(0, (y0 + y1) / 2, -D / 2 + 0.03);
+        brace.rotation.z = dir * Math.atan2(dy, wZ - 0.1);
+        g.add(brace);
+      }
     }
     const swap = Math.abs(Math.sin(f.ry)) > 0.5;
     const halfLen = wZ / 2 + 0.15;
@@ -532,38 +594,39 @@ export function buildFixtures(B) {
 // coffee table, a bordered rug, and the club-events board. The lounge1 decor
 // upgrade still layers the premium suite on top.
 export function buildLounge(B) {
-  const { interior, mats, addCol, colBoxAt } = B;
+  const { interior, mats, merch, addCol, colBoxAt } = B;
 
+  // Was six beveled boxes and four peg legs — it read as a blob. A club chair is
+  // defined by its ROLLED arms and rolled back rail (ref 8), which is exactly
+  // what a stack of boxes cannot say. Modelled now, with the old build kept as
+  // the fallback for the moment before the GLBs land.
   function clubChair(spot) {
-    const g = new THREE.Group();
-    const seat = new THREE.Mesh(roundedBox(0.72, 0.24, 0.68, 0.07), mats.leather);
-    seat.position.y = 0.35;
-    g.add(seat);
-    const backC = new THREE.Mesh(roundedBox(0.72, 0.62, 0.2, 0.07), mats.leather);
-    backC.position.set(0, 0.62, -0.28);
-    backC.rotation.x = -0.12;
-    backC.castShadow = true;
-    g.add(backC);
-    for (const ax of [-0.33, 0.33]) {
-      const arm = new THREE.Mesh(roundedBox(0.14, 0.5, 0.66, 0.055), mats.leather);
-      arm.position.set(ax, 0.42, -0.02);
-      g.add(arm);
-    }
-    const cushion = new THREE.Mesh(roundedBox(0.56, 0.09, 0.5, 0.04), mats.sageFabric);
-    cushion.position.set(0, 0.49, 0.02);
-    g.add(cushion);
-    for (const [lx, lz] of [[-0.3, -0.28], [0.3, -0.28], [-0.3, 0.28], [0.3, 0.28]]) {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.24, 8), mats.walnutDark);
-      leg.position.set(lx, 0.12, lz);
-      g.add(leg);
-    }
-    g.position.set(spot.x, 0, spot.z);
-    g.rotation.y = spot.ry;
-    interior.add(g);
-    addCol(colBoxAt(spot.x, spot.z, 0.95, 0.95));
+    addCol(colBoxAt(spot.x, spot.z, 0.95, 0.95));   // the collider does not wait
+    if (!merch) return;
+    merch.onReady(() => {
+      const model = merch.instantiate('chair_lounge', { tint: 0x9a5f33 });
+      if (!model) return;
+      model.position.set(spot.x, 0, spot.z);
+      model.rotation.y = spot.ry;
+      interior.add(model);
+    });
   }
   clubChair(LOUNGE.chairA);
   clubChair(LOUNGE.chairB);
+
+  // trophies on the partition shelf — were three gold cylinders
+  if (merch) merch.onReady(() => {
+    const shelf = new THREE.Group();
+    for (let i = 0; i < 3; i++) {
+      const t = merch.instantiate('trophy');
+      if (!t) break;
+      t.scale.setScalar(0.9 + (i % 2) * 0.22);
+      t.position.set(LOUNGE.trophy.x - 0.08, 1.30, LOUNGE.trophy.z - 0.32 + i * 0.32);
+      t.rotation.y = -Math.PI / 2 + (i - 1) * 0.2;
+      shelf.add(t);
+    }
+    interior.add(merch.bake(shelf));
+  });
 
   // round coffee table + magazines + mug
   const coffee = new THREE.Group();
@@ -625,8 +688,66 @@ export function buildLounge(B) {
 // ------------------------------------------------------- stockroom extras ---
 // The working room (ref 9): packing bench, cleaning corner, receiving sign.
 export function buildStockroomDressing(B) {
-  const { interior, mats, addCol, colBoxAt } = B;
+  const { interior, mats, merch, addCol, colBoxAt } = B;
   const P = STOCKROOM.packing;
+
+  // A STOCKROOM IS FULL. Ref 8: shelves of cartons, a hand truck, a packing
+  // bench. The old one was three bare racks and a mop, and it was the emptiest,
+  // weakest room in the building. These cartons are BACKROOM DRESSING — they are
+  // not the delivery boxes the player opens (those are spawned by the delivery
+  // system and carry real stock); they are what a working backroom looks like.
+  // The models arrive asynchronously, well after the shop is built, so the
+  // dressing is deferred rather than placed inline — otherwise it would simply
+  // never appear.
+  if (merch) merch.onReady(() => {
+    const RACKS = [
+      { x: 8.05, z: -6.1, ry: 0, len: 2.6 },
+      { x: 9.9, z: -5.6, ry: -Math.PI / 2, len: 1.7 },
+      { x: 9.9, z: -0.6, ry: -Math.PI / 2, len: 2.6 },
+    ];
+    const dress = new THREE.Group();
+    let seed = 7;
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+    for (const rk of RACKS) {
+      for (const y of [0.16, 0.62, 1.10, 1.58, 2.06]) {
+        const n = 2 + Math.floor(rnd() * 3);
+        for (let i = 0; i < n; i++) {
+          if (rnd() < 0.18) continue;          // a working shelf has gaps in it
+          const box = merch.instantiate(rnd() < 0.15 ? 'carton_open' : 'carton');
+          if (!box) break;
+          const along = -rk.len / 2 + 0.34 + i * (rk.len - 0.6) / Math.max(1, n - 1);
+          const s = 0.72 + rnd() * 0.45;       // cartons are not all one size
+          box.scale.setScalar(s);
+          const lx = rk.x + Math.cos(rk.ry) * along;
+          const lz = rk.z - Math.sin(rk.ry) * along;
+          box.position.set(lx, y + 0.055, lz);
+          box.rotation.y = rk.ry + (rnd() - 0.5) * 0.3;
+          dress.add(box);
+        }
+      }
+    }
+    // a stack by the receiving door, and the hand truck parked beside it
+    for (let i = 0; i < 3; i++) {
+      const box = merch.instantiate('carton');
+      if (!box) break;
+      box.scale.setScalar(0.9 + i * 0.06);
+      box.position.set(STOCKROOM.receivingInside.x + (i % 2) * 0.12,
+        i * 0.30, STOCKROOM.receivingInside.z + 0.5 + (i % 2) * 0.08);
+      box.rotation.y = 0.2 + i * 0.5;
+      dress.add(box);
+    }
+    const truck = merch.instantiate('handtruck');
+    if (truck) {
+      truck.position.set(STOCKROOM.handTruck.x, 0, STOCKROOM.handTruck.z);
+      truck.rotation.y = 1.9;
+      dress.add(truck);
+      addCol(colBoxAt(STOCKROOM.handTruck.x, STOCKROOM.handTruck.z, 0.5, 0.5));
+    }
+    interior.add(merch.bake(dress));
+  });
 
   // packing bench: steel legs, worn walnut top, clipboard + tape gun
   const bench = new THREE.Group();
@@ -694,7 +815,7 @@ export function buildStockroomDressing(B) {
 // live sales, reservations); this builds only the physical kit and returns
 // the screen-drawing hook.
 export function buildCheckout(B) {
-  const { interior, mats, addCol, colBoxAt } = B;
+  const { interior, mats, merch, addCol, colBoxAt } = B;
 
   // paneled island: walnut body, panel insets, wood top, brass foot rail
   const body = new THREE.Mesh(roundedBox(COUNTER.len, 0.96, COUNTER.depth - 0.16, 0.02), mats.walnut);
@@ -717,32 +838,41 @@ export function buildCheckout(B) {
   interior.add(footRail);
   addCol(colBoxAt(COUNTER.x, COUNTER.z, COUNTER.len + 0.3, COUNTER.depth + 0.2));
 
-  // register: charcoal body, canvas screen on an arm, scanner, card reader,
-  // receipt printer, branded bag stack
-  const registerBase = new THREE.Mesh(roundedBox(0.34, 0.08, 0.3, 0.015), mats.charcoal);
-  registerBase.position.set(COUNTER.registerX, 1.09, COUNTER.z);
-  interior.add(registerBase);
-  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.3, 8), mats.charcoal);
-  arm.position.set(COUNTER.registerX, 1.24, COUNTER.z + 0.05);
-  arm.rotation.x = 0.35;
-  interior.add(arm);
+  // REGISTER KIT — was three black slabs and a stick. The audit called it the
+  // thing that most made the checkout read as a prototype: ref panel 6 wants a
+  // monitor, a scanner, a card reader, a receipt printer and a cash drawer that
+  // each look like the piece of retail equipment they are. All modelled now
+  // (tools/blender/build_props.py); the screen keeps its live canvas.
   const regCv = document.createElement('canvas');
   regCv.width = 128;
   regCv.height = 80;
   const regTex = new THREE.CanvasTexture(regCv);
   regTex.colorSpace = THREE.SRGBColorSpace;
-  const screenBack = new THREE.Mesh(roundedBox(0.36, 0.26, 0.03, 0.012), mats.charcoal);
-  screenBack.position.set(COUNTER.registerX, 1.4, COUNTER.z - 0.02);
-  screenBack.rotation.x = -0.25;
-  interior.add(screenBack);
-  const regScreen = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.3, 0.2),
-    new THREE.MeshStandardMaterial({ map: regTex, emissive: 0xffffff, emissiveMap: regTex, emissiveIntensity: 0.55 }),
-  );
-  regScreen.position.set(COUNTER.registerX, 1.4, COUNTER.z - 0.04);
-  regScreen.rotation.x = -0.25;
-  regScreen.rotation.y = Math.PI;
-  interior.add(regScreen);
+  const regScreenMat = new THREE.MeshStandardMaterial({
+    map: regTex, emissive: 0xffffff, emissiveMap: regTex, emissiveIntensity: 0.6,
+  });
+
+  // deferred: the models land well after the shop is built
+  if (merch) merch.onReady(() => {
+    const placeProp = (name, x, y, z, ry) => {
+      const o = merch.instantiate(name);
+      if (!o) return null;
+      o.position.set(x, y, z);
+      o.rotation.y = ry;
+      interior.add(o);
+      return o;
+    };
+    // the screens face the STAFF side (north, -z); the card reader faces the queue
+    const reg = placeProp('register', COUNTER.registerX, 1.055, COUNTER.z + 0.02, Math.PI);
+    if (reg) {
+      const scr = merch.slotMesh(reg, 'M_screen');
+      if (scr) scr.material = regScreenMat;
+    }
+    placeProp('scanner', COUNTER.registerX + 0.30, 1.055, COUNTER.z - 0.10, Math.PI + 0.3);
+    placeProp('cardterm', COUNTER.registerX - 0.42, 1.055, COUNTER.z - 0.30, 0);
+    placeProp('printer', COUNTER.registerX + 0.52, 1.055, COUNTER.z + 0.14, Math.PI - 0.2);
+  });
+
   const drawRegister = (lines, total) => {
     const c2 = regCv.getContext('2d');
     c2.fillStyle = '#0d1a12';
@@ -761,35 +891,6 @@ export function buildCheckout(B) {
   };
   drawRegister();
 
-  // hand scanner in its cradle
-  const cradle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.12), mats.charcoal);
-  cradle.position.set(COUNTER.registerX + 0.28, 1.08, COUNTER.z - 0.12);
-  interior.add(cradle);
-  const scanner = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.045, 0.14, 8), mats.charcoal);
-  scanner.position.set(COUNTER.registerX + 0.28, 1.15, COUNTER.z - 0.12);
-  scanner.rotation.x = 0.5;
-  interior.add(scanner);
-  // card reader facing the customer
-  const cardReader = new THREE.Mesh(roundedBox(0.12, 0.16, 0.09, 0.015), mats.charcoal);
-  cardReader.position.set(COUNTER.registerX - 0.45, 1.12, COUNTER.z - 0.3);
-  cardReader.rotation.x = -0.3;
-  interior.add(cardReader);
-  const cardScreen = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.08, 0.05),
-    new THREE.MeshStandardMaterial({ color: 0x9fd6b4, emissive: 0x6fae86, emissiveIntensity: 0.8 }),
-  );
-  cardScreen.position.set(COUNTER.registerX - 0.45, 1.16, COUNTER.z - 0.345);
-  cardScreen.rotation.x = -0.3;
-  cardScreen.rotation.y = Math.PI;
-  interior.add(cardScreen);
-  // receipt printer
-  const printer = new THREE.Mesh(roundedBox(0.2, 0.11, 0.18, 0.02), mats.charcoal);
-  printer.position.set(COUNTER.registerX + 0.5, 1.1, COUNTER.z + 0.12);
-  interior.add(printer);
-  const slip = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.06), mats.trimPaint);
-  slip.position.set(COUNTER.registerX + 0.5, 1.18, COUNTER.z + 0.1);
-  slip.rotation.x = -0.5;
-  interior.add(slip);
   // branded paper bags at the bagging end
   for (let i = 0; i < 3; i++) {
     const bag = new THREE.Mesh(
@@ -800,16 +901,6 @@ export function buildCheckout(B) {
     bag.rotation.y = 0.2 + i * 0.06;
     interior.add(bag);
   }
-  // cash drawer under the register: steel face, brass pull, till lip
-  const drawerBody = new THREE.Mesh(roundedBox(0.4, 0.13, 0.34, 0.015), mats.charcoal);
-  drawerBody.position.set(COUNTER.registerX, 0.985, COUNTER.z + 0.02);
-  interior.add(drawerBody);
-  const drawerFace = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.09, 0.015), new THREE.MeshStandardMaterial({ color: 0x3a4044, roughness: 0.45, metalness: 0.5 }));
-  drawerFace.position.set(COUNTER.registerX, 0.985, COUNTER.z + 0.2);
-  interior.add(drawerFace);
-  const pull = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.02), mats.brass);
-  pull.position.set(COUNTER.registerX, 0.975, COUNTER.z + 0.215);
-  interior.add(pull);
 
   // counter divider on the customer side — marks where the next order starts
   const divider = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.5), mats.walnutDark);

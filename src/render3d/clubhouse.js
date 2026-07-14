@@ -115,11 +115,13 @@ export function makeClubhouse(ctx) {
 
   // --- materials + the building shell (clubhouse/materials.js + clubhouse/shell.js) ------
   const mats = makeClubhouseMaterials((state && state.clubName) || 'The Club');
-  // The Blender-authored goods. They arrive after the shop is built, so restock
-  // once they land — a shelf that is briefly bare is better than one that is
-  // permanently made of boxes.
+  // The Blender-authored goods. They arrive after the shop is built, so the shop
+  // restocks once they land — a shelf that is briefly bare beats one permanently
+  // made of boxes. The restock hook is registered at the END of the build, not
+  // here: a GLB that fails fast can call back before this function has finished
+  // running, and rebuildStock() closes over state declared further down (it hit
+  // exactly that dead zone once).
   const merch = createMerch(mats);
-  merch.onReady(() => { if (interior) rebuildStock(); });
   // legacy aliases: sections still awaiting their v2 pass draw from the kit
   const woodMat = mats.walnut;
   const darkMat = mats.walnutDark;
@@ -130,7 +132,7 @@ export function makeClubhouse(ctx) {
   const halfD = SHELL.d / 2 - SHELL.wallT / 2;
 
   const B = {
-    ctx, state, group, interior, custGroup, mats, hooks, walk,
+    ctx, state, group, interior, custGroup, mats, merch, hooks, walk,
     addCol, removeCol, addProp, removeProp, colBoxAt, L2W, W2L, FLOOR_TOP,
     getCustomers: () => customers,
   };
@@ -445,52 +447,138 @@ export function makeClubhouse(ctx) {
       return true;
     };
 
-    // the club's name painted on the wall behind the counter
+    // THE CREST PANEL behind the counter. This was the club's name and three flat
+    // triangles PAINTED DIRECTLY ON THE PLASTER as a transparent decal, and it was
+    // the loudest placeholder left in the room: a wall wordmark reads as a decal
+    // because that is exactly what it was. Ref 4 has an architectural feature —
+    // a cream field set in a walnut surround, standing proud of the wall, lit from
+    // above by its own picture light. That is what this is now.
+    // The wall behind the counter is not free: the back-counter hutch runs up to
+    // y 2.27 and the ceiling is at 3.2, so there is 0.9 yd of wall to work with.
+    // A tall portrait panel simply hid behind the shelves. This is a wide sign
+    // board above them — which is what ref 4 actually shows.
     const logoCanvas = document.createElement('canvas');
-    logoCanvas.width = 512;
-    logoCanvas.height = 256;
+    logoCanvas.width = 1024;
+    logoCanvas.height = 288;
     const logoTex = new THREE.CanvasTexture(logoCanvas);
     logoTex.colorSpace = THREE.SRGBColorSpace;
-    const logoPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.3, 1.65),
-      new THREE.MeshStandardMaterial({ map: logoTex, transparent: true, roughness: 0.92 }),
+
+    const crest = new THREE.Group();
+    crest.position.set(COUNTER.x, 2.74, INTERIOR.d / 2 - 0.02);
+    crest.rotation.y = Math.PI;
+
+    const PW = 2.90;
+    const PH = 0.80;
+    // walnut surround: a backer with real thickness, plus four mitered rails
+    const backer = new THREE.Mesh(roundedBox(PW + 0.22, PH + 0.22, 0.07, 0.015), mats.walnut);
+    backer.position.z = -0.035;
+    backer.castShadow = true;
+    crest.add(backer);
+    for (const [w, h, px, py] of [
+      [PW + 0.22, 0.11, 0, (PH + 0.11) / 2], [PW + 0.22, 0.11, 0, -(PH + 0.11) / 2],
+      [0.11, PH + 0.22, (PW + 0.11) / 2, 0], [0.11, PH + 0.22, -(PW + 0.11) / 2, 0],
+    ]) {
+      const rail = new THREE.Mesh(roundedBox(w, h, 0.06, 0.012), mats.walnutDark);
+      rail.position.set(px, py, 0.01);
+      crest.add(rail);
+    }
+    // the field itself: a lit cream panel, not a hole in the plaster
+    const field = new THREE.Mesh(
+      new THREE.PlaneGeometry(PW, PH),
+      new THREE.MeshStandardMaterial({
+        map: logoTex, roughness: 0.88,
+        emissive: 0xfff0d6, emissiveMap: logoTex, emissiveIntensity: 0.28,
+      }),
     );
-    logoPlane.position.set(COUNTER.x, 2.35, INTERIOR.d / 2 - 0.04);
-    logoPlane.rotation.y = Math.PI;
-    interior.add(logoPlane);
+    field.position.z = 0.005;
+    crest.add(field);
+    interior.add(crest);
+
+    // its own picture light, throwing a wash down the panel
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.22, 6), mats.iron);
+    arm.rotation.x = Math.PI / 2;
+    arm.position.set(COUNTER.x, 3.22, INTERIOR.d / 2 - 0.16);
+    interior.add(arm);
+    const hood = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.075, 0.5, 10, 1, true), mats.iron);
+    hood.rotation.z = Math.PI / 2;
+    hood.position.set(COUNTER.x, 3.22, INTERIOR.d / 2 - 0.27);
+    hood.material.side = THREE.DoubleSide;
+    interior.add(hood);
+    const wash = new THREE.SpotLight(0xffe9c2, 6, 3.2, 0.8, 0.7, 1.6);
+    wash.position.set(COUNTER.x, 3.18, INTERIOR.d / 2 - 0.30);
+    wash.target.position.set(COUNTER.x, 2.72, INTERIOR.d / 2 - 0.05);
+    interior.add(wash, wash.target);
+
     redrawLogoInto(logoCanvas, logoTex);
   }
 
+  // The crest panel's face. It used to clearRect() to transparent — because it was
+  // a decal stuck on the plaster. It is a real printed panel now, so it has a
+  // field, a rule, and a single pine mark instead of three floating triangles.
   function redrawLogoInto(cv, tex) {
     const name = (state && state.clubName) || 'THE CLUB';
+    const W = cv.width;
+    const H = cv.height;
     const c2 = cv.getContext('2d');
-    c2.clearRect(0, 0, 512, 256);
-    c2.fillStyle = '#2e5a35';
-    for (const [px, s] of [[216, 0.8], [256, 1], [296, 0.72]]) {
-      for (let t = 0; t < 3; t++) {
-        const w = (46 - t * 10) * s;
-        const yTop = 26 + t * 18 * s;
-        c2.beginPath();
-        c2.moveTo(px, yTop);
-        c2.lineTo(px - w / 2, yTop + 26 * s);
-        c2.lineTo(px + w / 2, yTop + 26 * s);
-        c2.closePath();
-        c2.fill();
-      }
-      c2.fillRect(px - 3, 26 + 54 * s, 6, 12);
+
+    // aged cream field with a little tooth
+    c2.fillStyle = '#f2ecdc';
+    c2.fillRect(0, 0, W, H);
+    let s = 991;
+    const rnd = () => {
+      s = (s * 1103515245 + 12345) & 0x7fffffff;
+      return s / 0x7fffffff;
+    };
+    for (let i = 0; i < 5000; i++) {
+      c2.fillStyle = rnd() < 0.5 ? '#e6dfcb30' : '#fbf6e920';
+      c2.fillRect(rnd() * W, rnd() * H, 2, 2);
     }
-    const upper = name.toUpperCase();
+
+    // a hairline gold border, as a real sign board has
+    c2.strokeStyle = '#b99a3e';
+    c2.lineWidth = 3;
+    c2.strokeRect(14, 14, W - 28, H - 28);
+
+    // ONE pine on the left, drawn as stacked tiers with a trunk — a mark, not
+    // three floating triangles
+    const px = W * 0.135;
+    const top = H * 0.18;
+    c2.fillStyle = '#2c5233';
+    for (let t = 0; t < 4; t++) {
+      const w = 34 + t * 20;
+      const y = top + t * 34;
+      c2.beginPath();
+      c2.moveTo(px, y);
+      c2.lineTo(px - w / 2, y + 48);
+      c2.lineTo(px + w / 2, y + 48);
+      c2.closePath();
+      c2.fill();
+    }
+    c2.fillRect(px - 6, top + 158, 12, 24);
+
+    // name + sub-line to the right of the mark
+    const tx = W * 0.58;
     c2.textAlign = 'center';
-    let size = 44;
+    c2.fillStyle = '#2c5233';
+    let size = 78;
+    const upper = name.toUpperCase();
     c2.font = `bold ${size}px Georgia, serif`;
-    while (c2.measureText(upper).width > 470 && size > 22) {
+    while (c2.measureText(upper).width > W * 0.68 && size > 30) {
       size -= 2;
       c2.font = `bold ${size}px Georgia, serif`;
     }
-    c2.fillText(upper, 256, 168);
-    c2.font = 'italic 22px Georgia, serif';
-    c2.fillStyle = '#57795c';
-    c2.fillText('PRO SHOP', 256, 208);
+    c2.fillText(upper, tx, H * 0.52);
+
+    c2.strokeStyle = '#b99a3e';
+    c2.lineWidth = 2.5;
+    c2.beginPath();
+    c2.moveTo(tx - W * 0.16, H * 0.63);
+    c2.lineTo(tx + W * 0.16, H * 0.63);
+    c2.stroke();
+
+    c2.fillStyle = '#6b7f68';
+    c2.font = '30px Georgia, serif';
+    c2.fillText('P R O   S H O P', tx, H * 0.83);
     tex.needsUpdate = true;
   }
 
@@ -516,34 +604,15 @@ export function makeClubhouse(ctx) {
     interior.add(desk);
     addCol(colBoxAt(OFFICE.desk.x, OFFICE.desk.z, 1.1, 2.0));
 
-    // black leather task chair (ref 10)
-    const chair = new THREE.Group();
-    const chairLeather = new THREE.MeshStandardMaterial({ color: 0x1c1e21, roughness: 0.55 });
-    const seat = new THREE.Mesh(roundedBox(0.5, 0.1, 0.48, 0.04), chairLeather);
-    seat.position.y = 0.5;
-    chair.add(seat);
-    const backC = new THREE.Mesh(roundedBox(0.48, 0.6, 0.1, 0.05), chairLeather);
-    backC.position.set(0, 0.88, 0.26);
-    backC.rotation.x = 0.08;
-    chair.add(backC);
-    for (const ax of [-0.27, 0.27]) {
-      const arm = new THREE.Mesh(roundedBox(0.05, 0.04, 0.3, 0.015), mats.charcoal);
-      arm.position.set(ax, 0.66, 0.04);
-      chair.add(arm);
-    }
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.34, 8), mats.chrome);
-    post.position.y = 0.32;
-    chair.add(post);
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2;
-      const legArm = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.025, 0.24), mats.charcoal);
-      legArm.position.set(Math.sin(a) * 0.13, 0.05, Math.cos(a) * 0.13);
-      legArm.rotation.y = a;
-      chair.add(legArm);
-    }
-    chair.position.set(OFFICE.chair.x, 0, OFFICE.chair.z);
-    chair.rotation.y = -Math.PI / 2;
-    interior.add(chair);
+    // task chair (ref 10) — was a black blob; modelled now, with a gas lift, a
+    // five-star base and casters
+    merch.onReady(() => {
+      const chair = merch.instantiate('chair_office', { tint: 0x3c4a3e });
+      if (!chair) return;
+      chair.position.set(OFFICE.chair.x, 0, OFFICE.chair.z);
+      chair.rotation.y = -Math.PI / 2;
+      interior.add(chair);
+    });
 
     // wall course map — a real framed board, flush on the office's south wall:
     // backing panel with thickness, mitered frame lip, map face proud of the
@@ -2476,6 +2545,9 @@ export function makeClubhouse(ctx) {
   rebuildStock();
   rebuildBoxes();
   stockSig = stockSignature();
+  // Everything rebuildStock() closes over now exists, so it is safe to let the
+  // model loader call back into it when the goods land.
+  merch.onReady(() => { if (interior && interior.parent) rebuildStock(); });
 
   function dispose() {
     scene.remove(group, interior, custGroup, motes, boxGroup);
