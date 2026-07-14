@@ -757,6 +757,40 @@ export function buildCheckout(B) {
     bag.rotation.y = 0.2 + i * 0.06;
     interior.add(bag);
   }
+  // cash drawer under the register: steel face, brass pull, till lip
+  const drawerBody = new THREE.Mesh(roundedBox(0.4, 0.13, 0.34, 0.015), mats.charcoal);
+  drawerBody.position.set(COUNTER.registerX, 0.985, COUNTER.z + 0.02);
+  interior.add(drawerBody);
+  const drawerFace = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.09, 0.015), new THREE.MeshStandardMaterial({ color: 0x3a4044, roughness: 0.45, metalness: 0.5 }));
+  drawerFace.position.set(COUNTER.registerX, 0.985, COUNTER.z + 0.2);
+  interior.add(drawerFace);
+  const pull = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.02), mats.brass);
+  pull.position.set(COUNTER.registerX, 0.975, COUNTER.z + 0.215);
+  interior.add(pull);
+
+  // counter divider on the customer side — marks where the next order starts
+  const divider = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.5), mats.walnutDark);
+  divider.position.set(COUNTER.registerX + 1.0, 1.09, COUNTER.z + 0.05);
+  interior.add(divider);
+
+  // a hand basket parked at the counter end
+  const basket = new THREE.Group();
+  const bBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.03, 0.28), new THREE.MeshStandardMaterial({ color: 0x2e5a35, roughness: 0.7 }));
+  bBase.position.y = 0.015;
+  basket.add(bBase);
+  for (const [w, d2, px, pz] of [[0.4, 0.02, 0, -0.13], [0.4, 0.02, 0, 0.13], [0.02, 0.28, -0.19, 0], [0.02, 0.28, 0.19, 0]]) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 0.18, d2), new THREE.MeshStandardMaterial({ color: 0x2e5a35, roughness: 0.7, transparent: true, opacity: 0.85 }));
+    wall.position.set(px, 0.11, pz);
+    basket.add(wall);
+  }
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.36, 6), mats.charcoal);
+  handle.rotation.z = Math.PI / 2;
+  handle.position.set(0, 0.26, 0);
+  basket.add(handle);
+  basket.position.set(COUNTER.x + COUNTER.len / 2 - 0.35, 1.055, COUNTER.z - 0.18);
+  basket.rotation.y = -0.3;
+  interior.add(basket);
+
   // impulse rack on the aisle end of the island (ref 4)
   for (const y of [0.45, 0.68]) {
     const tray = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.03, 0.3), mats.walnutDark);
