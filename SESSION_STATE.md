@@ -2,7 +2,7 @@
 
 Resume from this file. Never rely on conversation memory.
 
-- **Branch** `main` · **Last commit** `8f9a68b`
+- **Branch** `main` · **Last commit** `1d235ca`
 - **Tests** 361 green — run `node --test` **from the repo root only** (never `node --test tests/`)
 - **Dev server** `node tools/serve.cjs`, port **8457**
 - **Evidence** `qa/autonomous-overhaul/before/` and `.../pass-01/` (qa/ is gitignored — on disk only)
@@ -25,13 +25,16 @@ worst **15.7 ms** over 200 frames sweeping the whole scene; **zero console error
 | `73eeb03` | P2-1/2 reviews with real causes + analytics that explain themselves |
 | `fc309c9` | P2-4 the rent — weekly property bill, warnings, arrears |
 | `8f9a68b` | P1-4 content-driven box sizes |
+| `1d235ca` | P1-5 (partial) shared first-person hand rig — a rig, not hand *art* |
 
 **All P0 defects from the brief are closed and verified live.**
 
 ## Next, in priority order
 
-1. **P1-5 cleaning/tool animation quality** — visible hands, grip, sway, particle response. The
-   pressure washer has a lance model and a jet but no hands; the vacuum likewise.
+1. **P1-5 finish the hands.** The rig exists (`render3d/fpHands.js`) and the washer reads, but the
+   forms are chunky, there is no finger articulation, the two-handed support grip sits loosely, and
+   the rest of Phase 7 — weight-dependent carry sway, reach/grip/put-down for picking objects up, a
+   box-cutter pose — is not built.
 2. **P1-6 tutorial extended to the full loop** — it exists (18 steps, chaptered, skip/replay) but
    predates the washer, soap, build mode, box sizes and the rent. Those need chapters.
 3. **P2-3 employees who do real physical work** — `restockShelvesByStaff()` currently teleports the
