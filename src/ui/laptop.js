@@ -13,6 +13,7 @@ import {
   placeOrder, orderCost, shopCondition, priceFor, RENO,
 } from '../sim/shop.js';
 import { TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot } from '../sim/reservations.js';
+import { reviewSummary } from '../sim/reviews.js';
 import { members } from '../sim/golfers.js';
 import { ZONE } from '../sim/constants.js';
 
@@ -34,6 +35,7 @@ export function makeLaptop(app, opts) {
     ['tee', '📅', 'Tee Sheet'],
     ['course', '⛳', 'Course'],
     ['reno', '🔨', 'Renovation'],
+    ['reviews', '⭐', 'Reviews'],
     ['books', '💰', 'Finances'],
     ['settings', '⚙', 'Settings'],
   ];
@@ -423,6 +425,55 @@ export function makeLaptop(app, opts) {
     );
   }
 
+  // REVIEWS — what people actually said, and exactly why they said it. Every line here is a
+  // reading of the sim, so the panel doubles as a to-do list: the factor at the bottom of the
+  // bar chart is the thing to go and fix.
+  function pageReviews() {
+    const st = app.state;
+    const s = reviewSummary(st, { waitedSec: 0, queueLen: 0, played: true });
+    const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+
+    const factorBar = (f) => {
+      const pct = Math.round(f.score * 100);
+      const tone = f.score >= 0.7 ? 'ok' : f.score >= 0.45 ? '' : 'bad';
+      return el('div', { class: 'lt-facrow' },
+        el('span', { class: 'lt-faclabel', text: f.label }),
+        el('div', { class: 'lt-facbar' },
+          el('div', { class: `lt-facfill ${tone}`, style: `width:${pct}%` })),
+        el('span', { class: 'lt-facpct', text: `${pct}` }),
+      );
+    };
+
+    const reviewRow = (r) => el('div', { class: 'lt-review' },
+      el('div', { class: 'lt-revstars', text: stars(r.stars) }),
+      el('div', { class: 'lt-revtext', text: r.text }),
+      el('div', { class: 'lt-revday', text: `Day ${r.day}` }),
+    );
+
+    content.replaceChildren(
+      h1('Reviews'),
+      el('div', { class: 'lt-tiles' },
+        el('div', { class: 'lt-tile lt-static' },
+          el('div', { class: 'lt-tiletitle', text: s.count ? `${s.average} ★` : '—' }),
+          el('div', { class: 'lt-tilesub', text: s.count ? `${s.count} reviews` : 'nobody has been in yet' })),
+        el('div', { class: 'lt-tile lt-static' },
+          el('div', { class: 'lt-tiletitle', text: s.worst ? `${Math.round(s.worst.score * 100)}` : '—' }),
+          el('div', { class: 'lt-tilesub', text: s.worst ? `worst: ${s.worst.label.toLowerCase()}` : '' })),
+        el('div', { class: 'lt-tile lt-static' },
+          el('div', { class: 'lt-tiletitle', text: `${Math.round(st.club.reputation)}` }),
+          el('div', { class: 'lt-tilesub', text: 'reputation' })),
+      ),
+      sect('What they are judging you on, right now'),
+      el('div', { class: 'lt-card' }, ...s.byFactor.map(factorBar)),
+      s.worst && s.worst.score < 0.5
+        ? el('div', { class: 'lt-card lt-note', text: `Biggest complaint: ${s.worst.label.toLowerCase()}. Fix that and the score follows.` })
+        : el('div', { class: 'lt-card lt-note', text: 'Nothing is badly letting you down at the moment.' }),
+      sect('Recent'),
+      el('div', { class: 'lt-card lt-scroll' },
+        ...(s.recent.length ? s.recent.map(reviewRow) : [meta('Reviews land as people come through.')])),
+    );
+  }
+
   function pageSettings() {
     const st = app.state;
     content.replaceChildren(
@@ -436,7 +487,7 @@ export function makeLaptop(app, opts) {
     );
   }
 
-  const PAGES = { home: pageHome, shop: pageShop, supplier: pageSupplier, tee: pageTee, course: pageCourse, reno: pageReno, books: pageBooks, settings: pageSettings };
+  const PAGES = { home: pageHome, shop: pageShop, supplier: pageSupplier, tee: pageTee, course: pageCourse, reno: pageReno, reviews: pageReviews, books: pageBooks, settings: pageSettings };
 
   function render() {
     if (root.style.display === 'none' || !app.state) return;

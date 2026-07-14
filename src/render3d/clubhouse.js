@@ -45,6 +45,7 @@ import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
 import { placedFixtures, ensureLayout } from '../sim/layout.js';
 import { buildBuildMode } from './clubhouse/buildMode.js';
+import { reviewFor, postReview } from '../sim/reviews.js';
 
 const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
@@ -248,9 +249,27 @@ export function makeClubhouse(ctx) {
       return c && c.cart && c.cart.length && c.awaitingCheckout ? c : null;
     };
     // hand the customer a printed receipt and a bag, close out their visit
+    // what this customer's day was actually like — the only thing a review is allowed to read
+    const visitOf = (c, bought) => ({
+      waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
+      queueLen: c.queueLenOnArrival || 0,
+      bought,
+      played: !!c.isGolfer,
+      foundWhatTheyWanted: bought,
+    });
+    const leaveReview = (c, bought) => {
+      if (c.reviewed) return null;
+      c.reviewed = true;
+      const r = reviewFor(state, visitOf(c, bought), Math.round((c.seed || 0) * 1000 + (state.dayAbs || 0)));
+      postReview(state, r);
+      return r;
+    };
+
     const completeSale = (c) => {
       const res = checkoutSale(state, c.cart, c.name);
       if (!res.ok) return;
+      c.bought = true;
+      leaveReview(c, true); // a served customer always says something
       if (c.tx && c.tx.lost) {
         // realistic miscount: the till is short what you over-handed
         if (c.tx.lost > 0) addRevenue(state, 'shopSales', -c.tx.lost);
@@ -2050,6 +2069,14 @@ export function makeClubhouse(ctx) {
       patience: 45, // seconds they'll wait at the head of the line for service
       awaitingCheckout: false,
       itemMesh: null,
+      // what a review will be written from: did they get in, did they buy, did they wait
+      seed: rng.next(),
+      entered: false,
+      bought: false,
+      reviewed: false,
+      queuedAt: 0,
+      queueLenOnArrival: 0,
+      isGolfer: toCounter, // the ones with a tee time actually played the course
     });
   }
 
@@ -2101,6 +2128,19 @@ export function makeClubhouse(ctx) {
 
   // the line gave up on us: put the pick back, remember the walk-out
   function customerGiveUp(c) {
+    // they stood there, nobody came, and they put it back. That is a review, and a deserved one —
+    // every single time.
+    if (!c.reviewed) {
+      c.reviewed = true;
+      postReview(state, reviewFor(state, {
+        waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
+        queueLen: c.queueLenOnArrival || 0,
+        bought: false,
+        played: !!c.isGolfer,
+        foundWhatTheyWanted: false,
+      }, Math.round((c.seed || 0) * 1000 + (state.dayAbs || 0))));
+    }
+
     for (const it of c.cart) returnToShelf(state, it.skuId);
     if (c.cart.length) {
       state.shop.lostSalesTotal = (state.shop.lostSalesTotal || 0) + 1;
@@ -2129,6 +2169,24 @@ export function makeClubhouse(ctx) {
   function removeCustomer(i) {
     const c = customers[i];
     if (!c) return;
+
+    // They came in, they saw the place, they left. That is a visit, and a visit is reviewable —
+    // not just the ones that ended in a sale or a tantrum at the till, which is how most of them
+    // used to leave without anyone hearing a word about it. About two in five bother to write.
+    if (!c.reviewed && c.entered) {
+      c.reviewed = true;
+      const seed = Math.round((c.seed || 0) * 1000 + (state.dayAbs || 0));
+      if (Math.abs(Math.sin(seed * 7.13)) < 0.42) {
+        postReview(state, reviewFor(state, {
+          waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
+          queueLen: c.queueLenOnArrival || 0,
+          bought: !!c.bought,
+          played: !!c.isGolfer,
+          foundWhatTheyWanted: !!c.bought,
+        }, seed));
+      }
+    }
+
     if (c.cart && c.cart.length) {
       for (const it of c.cart) returnToShelf(state, it.skuId);
       c.cart = [];
@@ -2241,6 +2299,8 @@ export function makeClubhouse(ctx) {
         if (!c.queued) {
           counterQueue.push(c);
           c.queued = true;
+          c.queuedAt = now; // the clock a review will quote back at you
+          c.queueLenOnArrival = counterQueue.length - 1;
         }
         const slot = queueSlotW(counterQueue.indexOf(c));
         tx = slot.x;
@@ -2253,6 +2313,7 @@ export function makeClubhouse(ctx) {
       if (dist < 0.18) {
         if (stop.kind === 'enter' && !c.rangBell) {
           c.rangBell = true;
+          c.entered = true; // they got through the door, so they have an opinion
           if (hooks.sfx) hooks.sfx('doorbell');
         }
         const isPass = stop.kind === 'walk' || stop.kind === 'enter' || stop.kind === 'exit' || stop.kind === 'gone';
