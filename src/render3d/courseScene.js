@@ -21,6 +21,7 @@ import { BALANCE } from '../sim/balance.js';
 import { clamp } from '../core/utils.js';
 import { resolveOverlaps, createStuckMonitor, createSafeTrail, nearestFree } from '../core/unstick.js';
 import { ownedWasher } from '../sim/washing.js';
+import { makeFpHands, GRIPS } from './fpHands.js';
 import { tractorStep, repairTractor, tractorRemaining, STEP_LABEL } from '../sim/tractor.js';
 import { clearLitter, fixTeeSign, PROPS } from '../sim/props.js';
 import { conditionRating } from '../sim/turf.js';
@@ -1584,6 +1585,11 @@ export function makeCourseScene(canvas, state) {
   const heldRoot = new THREE.Group();
   heldRoot.visible = false;
   camera.add(heldRoot);
+
+  // Somebody is holding the thing. The hands are re-parented INTO whichever tool group is out, so
+  // the grip poses in fpHands.GRIPS are in the tool's own frame and a new tool declares its grip
+  // rather than needing its own pair of hands modelled.
+  const fpHands = makeFpHands();
   const heldGroups = {
     hose: new THREE.Group(), divot: new THREE.Group(), rake: new THREE.Group(),
     vacuum: new THREE.Group(), washer: new THREE.Group(),
@@ -1621,8 +1627,10 @@ export function makeCourseScene(canvas, state) {
       new THREE.MeshStandardMaterial({ color: 0x23262a, roughness: 0.9 }),
     );
     heldGroups.washer.add(lance, body, handle, trigger, tip, hoseMesh);
-    heldGroups.washer.position.set(0.34, -0.44, -0.72);
-    heldGroups.washer.rotation.set(0.1, -0.16, 0);
+    // brought in from the frame edge once it had hands on it: a two-handed tool has to be far
+    // enough into shot that you can see somebody holding it
+    heldGroups.washer.position.set(0.24, -0.34, -0.60);
+    heldGroups.washer.rotation.set(0.06, -0.13, 0);
   }
   {
     // the shop vacuum wand (procedural — same one the old shop scene carried)
@@ -1681,6 +1689,8 @@ export function makeCourseScene(canvas, state) {
   }
 
   function updateHeldFeel(dt) {
+    // the hands breathe, rise into frame, and shove back under the trigger
+    fpHands.update(dt, walkSpraying || walkSoaping);
     if (!heldRoot.visible) return;
     heldAnim.t = Math.min(1, heldAnim.t + dt / 0.26);
     const k = heldAnim.show ? easeOutCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t);
@@ -1775,6 +1785,13 @@ export function makeCourseScene(canvas, state) {
   function walkSetTool(tool) {
     walkTool = tool;
     for (const [name, g] of Object.entries(heldGroups)) g.visible = name === tool;
+    // the hands move to whatever is now in them
+    if (tool && heldGroups[tool] && GRIPS[tool]) {
+      heldGroups[tool].add(fpHands.root);
+      fpHands.setTool(tool);
+    } else {
+      fpHands.setTool(null);
+    }
     if (tool) {
       heldRoot.visible = true;
       heldAnim.show = true;
@@ -2135,8 +2152,9 @@ export function makeCourseScene(canvas, state) {
             washHintClock = 4;
             if (walkHooks.toast) walkHooks.toast('The water is running straight off it — this needs soap first (hold the right button).', 'warn');
           }
-          // the nozzle sits at the player's hands, a little right and below the eye
-          const nozzle = camera.localToWorld(new THREE.Vector3(0.22, -0.26, -0.5));
+          // The stream starts at the TIP of the lance, not at the grip — begin it at the grip and
+          // the cone is drawn straight over the hands holding it.
+          const nozzle = camera.localToWorld(new THREE.Vector3(0.24, -0.24, -1.25));
           clubhouseApi.washJet(nozzle, hit.point, true, dt);
         }
       }
