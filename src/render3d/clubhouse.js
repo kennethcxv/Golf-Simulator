@@ -1038,39 +1038,130 @@ export function makeClubhouse(ctx) {
     cal.rotation.y = Math.PI;
     interior.add(cal);
 
-    // the interim computer (a laptop replaces this in the next step)
-    const monitor = new THREE.Group();
-    const bezel = new THREE.Mesh(
-      new THREE.BoxGeometry(0.52, 0.36, 0.045),
-      new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.45 }),
+    // THE LAPTOP — a real machine on the desk: body, keyboard, trackpad, and a
+    // live screen (canvas) showing the Fairway Office homepage before you ever
+    // sit down. [E] eases the camera in; the portal UI takes the screen over.
+    const laptop = new THREE.Group();
+    const chrome = new THREE.MeshStandardMaterial({ color: 0x3c4046, roughness: 0.5, metalness: 0.35 });
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.025, 0.42), chrome);
+    deck.position.y = 0.0125;
+    deck.castShadow = true;
+    laptop.add(deck);
+    // keyboard: a canvas keycap grid on the deck
+    const kbCv = document.createElement('canvas');
+    kbCv.width = 256; kbCv.height = 128;
+    const kc = kbCv.getContext('2d');
+    kc.fillStyle = '#33373c'; kc.fillRect(0, 0, 256, 128);
+    kc.fillStyle = '#23262b';
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 14; c++) kc.fillRect(6 + c * 17.6, 8 + r * 17, 14, 13);
+    }
+    kc.fillRect(64, 96, 128, 22); // spacebar
+    const kbTex = new THREE.CanvasTexture(kbCv);
+    const kb = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.56, 0.24),
+      new THREE.MeshStandardMaterial({ map: kbTex, roughness: 0.7 }),
     );
-    bezel.position.y = 0.36;
-    const screenGlow = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.46, 0.3),
-      new THREE.MeshStandardMaterial({ color: 0x0d1a12, emissive: 0x2f8a4a, emissiveIntensity: 0.9 }),
+    kb.rotation.x = -Math.PI / 2;
+    kb.position.set(0, 0.026, -0.06);
+    laptop.add(kb);
+    const trackpad = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.16, 0.1),
+      new THREE.MeshStandardMaterial({ color: 0x4a4f55, roughness: 0.4 }),
     );
-    screenGlow.position.set(0, 0.36, 0.024);
-    const stand = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.035, 0.06, 0.16, 8),
-      new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.5 }),
+    trackpad.rotation.x = -Math.PI / 2;
+    trackpad.position.set(0, 0.027, 0.13);
+    laptop.add(trackpad);
+    // lid + screen, hinged open at a laptop angle
+    const lidHinge = new THREE.Group();
+    lidHinge.position.set(0, 0.02, -0.21);
+    lidHinge.rotation.x = 0.42; // open ~114°
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.42, 0.018), chrome);
+    lid.position.set(0, 0.21, 0);
+    lid.castShadow = true;
+    lidHinge.add(lid);
+    const screenCv = document.createElement('canvas');
+    screenCv.width = 512; screenCv.height = 320;
+    const screenTex = new THREE.CanvasTexture(screenCv);
+    screenTex.colorSpace = THREE.SRGBColorSpace;
+    const screen = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.58, 0.365),
+      new THREE.MeshStandardMaterial({ map: screenTex, emissive: 0xffffff, emissiveMap: screenTex, emissiveIntensity: 0.55, roughness: 0.25 }),
     );
-    stand.position.y = 0.1;
-    const keyboard = new THREE.Mesh(
-      new THREE.BoxGeometry(0.34, 0.02, 0.12),
-      new THREE.MeshStandardMaterial({ color: 0x33373c, roughness: 0.6 }),
+    screen.position.set(0, 0.21, 0.011);
+    lidHinge.add(screen);
+    const led = new THREE.Mesh(
+      new THREE.SphereGeometry(0.008, 6, 4),
+      new THREE.MeshStandardMaterial({ color: 0x2f8a4a, emissive: 0x35d06a, emissiveIntensity: 1.4 }),
     );
-    keyboard.position.set(0, 0.01, 0.22);
-    monitor.add(bezel, screenGlow, stand, keyboard);
-    monitor.position.set(OFFICE.laptop.x, 0.96, OFFICE.laptop.z);
-    monitor.rotation.y = OFFICE.laptop.ry;
-    interior.add(monitor);
+    led.position.set(0.27, 0.03, 0.2);
+    laptop.add(led, lidHinge);
+    laptop.position.set(OFFICE.laptop.x - 0.12, 0.96, OFFICE.laptop.z);
+    laptop.rotation.y = OFFICE.laptop.ry;
+    interior.add(laptop);
+
+    function paintScreen() {
+      const c2 = screenCv.getContext('2d');
+      // wallpaper: soft fairway gradient
+      const grad = c2.createLinearGradient(0, 0, 0, 320);
+      grad.addColorStop(0, '#dfe9d4');
+      grad.addColorStop(1, '#b9d2a8');
+      c2.fillStyle = grad;
+      c2.fillRect(0, 0, 512, 320);
+      c2.fillStyle = '#1f4a26';
+      c2.fillRect(0, 0, 512, 34);
+      c2.fillStyle = '#f4f0e6';
+      c2.font = 'bold 19px Georgia, serif';
+      c2.textAlign = 'left';
+      c2.fillText('⛳ Fairway Office', 12, 24);
+      const mins = Math.floor(((state.clock.minutes % 1440) + 1440) % 1440);
+      const hh = Math.floor(mins / 60);
+      const mm = String(mins % 60).padStart(2, '0');
+      c2.textAlign = 'right';
+      c2.font = '15px system-ui, sans-serif';
+      c2.fillText(`${((hh + 11) % 12) + 1}:${mm} ${hh >= 12 ? 'PM' : 'AM'}`, 500, 23);
+      c2.textAlign = 'center';
+      c2.fillStyle = '#2e3a2b';
+      c2.font = '15px system-ui, sans-serif';
+      c2.fillText((state.clubName || 'The Club') + ' — Clubhouse Manager', 256, 66);
+      // app tiles
+      const tiles = [['🛒', 'Supplier'], ['🏪', 'Pro Shop'], ['📅', 'Tee Sheet'], ['⛳', 'Course'], ['🔨', 'Renovate'], ['💰', 'Books']];
+      tiles.forEach(([icon, name], i) => {
+        const tx = 46 + (i % 3) * 150;
+        const ty = 96 + Math.floor(i / 3) * 96;
+        c2.fillStyle = 'rgba(244,240,230,0.88)';
+        c2.fillRect(tx, ty, 118, 72);
+        c2.strokeStyle = '#57795c';
+        c2.strokeRect(tx + 0.5, ty + 0.5, 117, 71);
+        c2.font = '26px system-ui';
+        c2.fillStyle = '#1f4a26';
+        c2.fillText(icon, tx + 59, ty + 34);
+        c2.font = '13px system-ui';
+        c2.fillStyle = '#23262b';
+        c2.fillText(name, tx + 59, ty + 58);
+      });
+      c2.fillStyle = '#1f4a26';
+      c2.font = '12px system-ui';
+      c2.fillText('press E to use', 256, 305);
+      screenTex.needsUpdate = true;
+    }
+    paintScreen();
+    office.paintScreen = paintScreen;
+
     const compWp = L2W(OFFICE.laptop.x, OFFICE.laptop.z);
     office.computerProp = addProp({
-      x: compWp.x, z: compWp.z, r: 2.2,
-      label: () => 'Office computer — [E] supplier orders & pricing',
-      action: () => { if (hooks.openShopDesk) hooks.openShopDesk(); },
+      x: compWp.x, z: compWp.z, r: 2.3,
+      label: () => 'Laptop — [E] open Fairway Office',
+      action: () => { if (hooks.openLaptop) hooks.openLaptop(); },
     });
-    office.monitor = monitor;
+    office.laptop = laptop;
+    // where the camera settles when you sit down at it (world pose)
+    const seatPos = L2W(OFFICE.laptop.x - 1.02, OFFICE.laptop.z);
+    office.laptopPose = {
+      x: seatPos.x, y: floorY + 1.28, z: seatPos.z,
+      yaw: -Math.PI / 2, // face east, square to the screen
+      pitch: -0.1,
+    };
   }
 
   // lounge dressing: trophy shelf + course photo (sofa arrives as decor)
@@ -2067,6 +2158,7 @@ export function makeClubhouse(ctx) {
     if (poll > 1.1) {
       poll = 0;
       updateArrivals();
+      if (office.paintScreen && interior.visible) office.paintScreen(); // live clock on the lid
       const ds = decorSignature();
       if (ds !== decorSig) {
         decorSig = ds;
@@ -2106,6 +2198,7 @@ export function makeClubhouse(ctx) {
     update, rebuildStock, rebuildReno, refreshCondition, repaintGrime,
     isInside, groundYAt, vacuumAt, vacuumLabelAt,
     doorWorld: doorW,
+    laptopPose: () => office.laptopPose,
     condition: () => conditionNow,
     customers, doors, // QA access
     dispose,

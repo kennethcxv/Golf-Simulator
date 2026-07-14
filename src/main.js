@@ -26,6 +26,7 @@ import { makeShopPanel } from './ui/shopPanel.js';
 import { makeEmpirePanel } from './ui/empirePanel.js';
 import { openMarketplace } from './ui/marketplacePanel.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
+import { makeLaptop } from './ui/laptop.js';
 import { makeAudio } from './core/audio.js';
 import { tickTutorial, tutorialFlag } from './sim/tutorial.js';
 import { makeMenu } from './screens/menu.js';
@@ -69,6 +70,7 @@ let clubPanel = null;
 let shopPanel = null;
 let empirePanel = null;
 let walkOverlay = null;
+let laptopUi = null;
 let objectivesPanel = null;
 let menu = null;
 let gameUi = null;
@@ -105,12 +107,40 @@ function enterWalk(spawn) {
 }
 
 function exitWalk() {
+  if (app.laptopOpen) exitLaptop(true);
   if (app.scene3d && app.scene3d.post && app.scene3d.post.gtao) app.scene3d.post.gtao.radius = 1.5; // management-camera tuning
   if (app.scene3d) app.scene3d.walk.exit();
   walkOverlay.style.display = 'none';
   if (app.view === 'course') {
     const hint = document.querySelector('.hint-bar');
     if (hint) hint.style.display = '';
+  }
+}
+
+// --- laptop mode: sit down at the office machine, the portal takes the screen ---
+function enterLaptop() {
+  if (!walkActive() || app.laptopOpen) return;
+  const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
+  const pose = ch && ch.laptopPose();
+  if (!pose) return;
+  app.laptopOpen = true;
+  app.scene3d.walk.focusOn(pose);
+  if (document.pointerLockElement) document.exitPointerLock();
+  closeLeftPanels('none');
+  walkOverlay.style.display = 'none';
+  setTimeout(() => { if (app.laptopOpen) laptopUi.open(); }, 240); // let the camera settle first
+  if (audio.ready) audio.uiTick();
+}
+
+function exitLaptop(silent) {
+  if (!app.laptopOpen) return;
+  app.laptopOpen = false;
+  laptopUi.close();
+  app.scene3d.walk.clearFocus();
+  if (!silent) {
+    walkOverlay.style.display = '';
+    requestLook();
+    if (audio.ready) audio.uiTick();
   }
 }
 
@@ -210,6 +240,7 @@ function startGame(state) {
   app.scene3d.walk.hooks.sfx = (name) => { if (audio.ready && audio[name]) audio[name](); };
   // the clubhouse's in-world management surfaces route through these
   app.scene3d.walk.hooks.openShopDesk = () => handlers.openShopDesk();
+  app.scene3d.walk.hooks.openLaptop = () => enterLaptop();
   app.scene3d.walk.hooks.toggleOverview = () => handlers.toggleCourseMode();
   app.scene3d.walk.hooks.turfLabelAt = (cx, cy) => {
     const section = sectionAtCell(cx, cy);
@@ -819,6 +850,12 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  if (app.laptopOpen) {
+    // seated at the laptop: the portal owns the keyboard; Esc closes the lid
+    if (e.key === 'Escape') exitLaptop();
+    return;
+  }
+
   if (walkActive()) {
     // first-person course: E is the interaction verb (shop convention)
     switch (e.key) {
@@ -1119,6 +1156,7 @@ function boot() {
 
   gameUi = el('div', { style: 'display:none' });
   hud = makeHud(app, handlers);
+  laptopUi = makeLaptop(app, { close: () => exitLaptop() });
   worksPanel = makeWorksPanel(app, handlers);
   inspectPanel = makeInspectPanel(app, recomputeRating);
   groundsPanel = makeGroundsPanel(app);
@@ -1145,7 +1183,7 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, empirePanel.root, walkOverlay, objectivesPanel.root, viewToggle,
+  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, empirePanel.root, walkOverlay, laptopUi.root, objectivesPanel.root, viewToggle,
     el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · 🗂 Manage or E/G/C/M keys for the desks · V: view · Space: pause · Tab/Esc: back on foot' }));
 
   uiRoot.append(menu.root, gameUi);

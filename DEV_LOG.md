@@ -2321,3 +2321,73 @@ first-time-flow step. Suite 220/220.
 Evidence: qa/world-approach.jpeg (porch + open door + customer inside),
 world-interior-entrance.jpeg (dirty floor, fixtures, course through windows),
 world-counter/-office/-stockroom/-clubwall.jpeg, world-approach-house.jpeg.
+
+## 2026-07-13 — Step 8: THE GAME-WIDE UI STYLE GUIDE (written before the rebuild)
+
+Identity: a cozy golf simulator with practical readability — warm clubhouse
+materials, never sci-fi. Every surface in the game (HUD, laptop, prompts,
+pause menu) draws from this table.
+
+TOKENS
+- Palette: warm off-white #f4f0e6 (paper) · deep golf green #1f4a26 (headers,
+  primary) · leaf #2e5a35 / sage #57795c (accents, positive) · dark charcoal
+  #23262b (ink, panel base) · warm walnut #6e5335 (wood trim, rails) ·
+  cream #dfd8c2 (secondary text on dark) · brass #c9a227 (sparingly: money,
+  trophies) · warn #e0a33c · danger #d84b3a.
+- Type: Georgia/serif for brand + page titles (the wordmark already uses it);
+  system sans (system-ui) for body/controls. Sizes: page title 1.15rem,
+  section head 0.95rem bold, body 0.9rem, meta 0.8rem. No ALL-CAPS body.
+- Spacing scale: 4/8/12/16/24. Radius: 8 (panels), 6 (buttons), 999 (chips).
+- Buttons: charcoal base, 1px #3a3f45 border, hover lift + green border;
+  .primary = deep green fill/cream text; disabled 45% + no pointer. Focus
+  ring: 2px sage — keyboard-visible everywhere.
+- Panels/surfaces: charcoal at 94% opacity, green header bar on the first
+  heading (existing kit), fw-pop entrance (0.16s).
+- Tooltips/prompts: the .shop-prompt pill (dark, centered, 0.95rem) is THE
+  interaction prompt; one on screen at a time, verb-first copy ("[E] open").
+- Toasts: bottom-center pills, 2.6s, kinds ''/warn/danger only.
+- Money: always $X,XXX in brass/green; time as h:mm AM/PM.
+- THE LAPTOP is diegetic software, not a game panel: paper-light "Fairway
+  Office" portal (off-white pages, green nav rail, serif page titles, real
+  cursor, hover/active states, back/home). It deliberately does NOT reuse
+  the dark game-panel chrome — it should feel like software the club bought.
+- Persistent HUD (after the overhaul): tiny cash chip + clock chip, the
+  objective card, contextual prompt — nothing else permanent. Everything
+  managerial lives in the laptop, the register, the wall map, or Esc.
+- Iconography: emoji glyphs only where recognition helps (🛒 📅 ⛳ 💰); no
+  icon fonts, no neon, no glow except real light sources in-world.
+
+## 2026-07-13 — Steps 11–13: THE LAPTOP IS A REAL COMPUTER — Fairway Office ships
+
+The office desk now carries a physical laptop (deck, canvas keycap keyboard,
+trackpad, hinged lid, power LED) whose screen is a live CanvasTexture — the
+Fairway Office homepage with app tiles and a ticking clock is visible from
+across the room, before any interaction. [E] eases the camera onto a seat
+pose (a new walk FOCUS MODE in courseScene — 0.4 s blend, input parked), the
+cursor frees, and the portal UI takes the screen: an off-white, green-railed
+OS deliberately styled as software the club bought, not a game panel.
+
+Eight clickable pages, all real state through sim functions:
+Home (live tiles: empty-shelf count, inbound orders, today's bookings,
+condition, rating, yesterday's sales) · Pro Shop (stock table with
+shelf/back/cap/price + status chips; markup sliders; feature-table select) ·
+Supplier (product cards by category with lead times, qty steppers, a basket
+with running total vs wallet, one Place-order; inbound list with per-order
+ETA) · Tee Sheet (7-day strip, two-column slot grid, member/guest select,
+Book/Cancel, status flags) · Course (ratings/weather/rounds tiles, the
+grounds-chores list, per-hole status) · Renovation (stage 1–4 read of the
+condition, clean %, clutter left, decor order shortcuts) · Finances (wallet,
+yesterday, inbound cost, last closed days from the ledger, notable sales) ·
+Settings. Esc or "Close the lid" eases the camera back to your feet.
+
+Verified live with REAL CURSOR CLICKS, zero console errors, 220/220:
+- E at the desk → focus + portal (walk.isFocused true, laptopOpen true).
+- Supplier: clicked 6× Tour-soft dozen + 1 vacuum into the basket, placed —
+  state.shop.orders == [balls2x6, vac1x1] through the same placeOrder the
+  old panel used.
+- Tee Sheet: clicked Tmrw → Book → reservations.booked == Guest 147, day 21,
+  8:30 AM, $32 fee snapshot. (First attempt exposed a real bug — the page
+  passed RELATIVE days to bookSlot/daySheet which take ABSOLUTE dayAbs; the
+  sheet refused with "That day is already gone." Fixed, re-verified.)
+- Esc: lid closes, camera returns, pointer re-locks. Clock had a float-minute
+  artifact (10:20.27899… AM) — floored, both on the portal and the 3D lid.

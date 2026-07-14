@@ -1532,6 +1532,19 @@ export function makeCourseScene(canvas, state) {
   let mountBlend = 0; // 0 = on foot (first person) … 1 = in the seat (chase cam)
   const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
+  // FOCUS MODE: the camera settles onto a fixed pose (the laptop screen, a
+  // seat) and input is parked until clearFocus() eases it back to the eyes.
+  let walkFocusPose = null; // { x, y, z, yaw, pitch }
+  let lastFocusPose = null; // survives the ease-out
+  let focusBlend = 0;
+
+  function walkFocusOn(pose) {
+    walkFocusPose = pose;
+  }
+  function walkClearFocus() {
+    walkFocusPose = null;
+  }
+
   function updateHeldFeel(dt) {
     if (!heldRoot.visible) return;
     heldAnim.t = Math.min(1, heldAnim.t + dt / 0.26);
@@ -1820,6 +1833,35 @@ export function makeCourseScene(canvas, state) {
   function walkUpdate(dtMs) {
     if (!walk.active) return;
     const dt = dtMs / 1000;
+
+    // focus mode (laptop): ease the camera onto the pose, park all input
+    focusBlend = clamp(focusBlend + (walkFocusPose ? 1 : -1) * (dt / 0.4), 0, 1);
+    if (walkFocusPose || focusBlend > 0.001) {
+      const fb = focusBlend * focusBlend * (3 - 2 * focusBlend);
+      const gy = (clubhouseApi && clubhouseApi.groundYAt(walk.x, walk.z)) ?? heightAt(walk.x, walk.z);
+      const p = lastFocusPose || walkFocusPose;
+      if (walkFocusPose) lastFocusPose = walkFocusPose;
+      if (p) {
+        camera.position.set(
+          walk.x + (p.x - walk.x) * fb,
+          gy + walk.eye + (p.y - gy - walk.eye) * fb,
+          walk.z + (p.z - walk.z) * fb,
+        );
+        camera.rotation.order = 'YXZ';
+        let dy = p.yaw - walk.yaw;
+        while (dy > Math.PI) dy -= Math.PI * 2;
+        while (dy < -Math.PI) dy += Math.PI * 2;
+        camera.rotation.y = walk.yaw + dy * fb;
+        camera.rotation.x = walk.pitch + (p.pitch - walk.pitch) * fb;
+      }
+      if (walkFocusPose) {
+        walkFocus = null; // no prompts while seated at the screen
+        updateHeldFeel(dt);
+        return;
+      }
+    } else {
+      lastFocusPose = null;
+    }
 
     // fallback look controls (also QA/accessibility — same as the shop)
     if (walkHeld.has('arrowleft')) walk.yaw += 1.9 * dt;
@@ -2595,6 +2637,9 @@ export function makeCourseScene(canvas, state) {
       getTool: () => walkTool,
       setSpraying: walkSetSpraying,
       isSpraying: () => walkSpraying,
+      focusOn: walkFocusOn,
+      clearFocus: walkClearFocus,
+      isFocused: () => !!walkFocusPose,
       aimCell: walkAimCell,
       isActive: () => walk.active,
       state: walk, // position/yaw/pitch — also the QA hook
