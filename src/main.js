@@ -312,6 +312,7 @@ function announceOutbreaks() {
 // --- game lifecycle -----------------------------------------------------------
 
 function startGame(state) {
+  closePauseMenu(); // any pause overlay dies with the old world
   if (app.scene3d) {
     app.scene3d.dispose();
     app.scene3d = null;
@@ -470,6 +471,7 @@ function startGame(state) {
   // one continuous world: you arrive ON the property, at the clubhouse porch —
   // the shop is the building in front of you, and you walk in through its door
   enterWalk();
+  applySettings(); // render scale / AO / bloom / FOV / sensitivity from the pause menu
   // hold an opaque veil over the first frames while every shader compiles and every
   // texture uploads — otherwise the first look-around freezes on lazy GPU work
   const veil = ensureLoadVeil();
@@ -526,6 +528,7 @@ function ensureLoadVeil() {
 }
 
 function exitToMenu() {
+  closePauseMenu();
   app.screen = 'menu';
   app.state = null;
   gameUi.style.display = 'none';
@@ -718,96 +721,242 @@ const handlers = {
 };
 
 // --- pause menu -------------------------------------------------------------------
+// One instance, Esc toggles it, torn down on any mode change. Two panes: section
+// nav on the left, content on the right — a commercial pause screen, not a form.
 
 const SLOTS = ['slot1', 'slot2', 'slot3'];
+let pauseUi = null;
+let pausePrevSpeed = 1;
+
+const SETTINGS_KEY = 'gc-settings';
+const settings = { renderScale: 1, ao: true, bloom: true, fov: 60, sens: 1 };
+try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { /* fresh */ }
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* private mode */ }
+}
+function applySettings() {
+  if (!app.scene3d) return;
+  app.scene3d.renderer.setPixelRatio(Math.min(2.5, (window.devicePixelRatio || 1) * (settings.renderScale || 1)));
+  app.scene3d.resize();
+  if (app.scene3d.post) {
+    if (app.scene3d.post.gtao) app.scene3d.post.gtao.enabled = settings.ao !== false;
+    if (app.scene3d.post.bloom) app.scene3d.post.bloom.enabled = settings.bloom !== false;
+  }
+  app.scene3d.camera.fov = settings.fov || 60;
+  app.scene3d.camera.updateProjectionMatrix();
+  if (app.scene3d.walk && app.scene3d.walk.state) app.scene3d.walk.state.sens = settings.sens || 1;
+}
+
+function isPauseOpen() { return !!pauseUi; }
+function closePauseMenu() {
+  if (!pauseUi) return;
+  pauseUi.remove();
+  pauseUi = null;
+  if (app.screen === 'game') app.speedIdx = pausePrevSpeed || 1;
+}
+function togglePauseMenu() { if (pauseUi) closePauseMenu(); else openPauseMenu(); }
+
+function hudClockText() {
+  const chip = document.querySelector('.hud-clock');
+  return chip ? chip.textContent.replace(/[⏸▶]/g, '').trim() : '';
+}
+
+function keycaps(...keys) {
+  const row = el('span', { class: 'kc-row' });
+  for (const k of keys) row.append(el('kbd', { class: 'kc', text: k }));
+  return row;
+}
 
 function openPauseMenu() {
-  const prevSpeed = app.speedIdx;
+  if (pauseUi || app.screen !== 'game') return;
+  pausePrevSpeed = app.speedIdx || 1;
   app.speedIdx = 0;
-  modal('Clubhouse Office', (box, close) => {
-    const closeAnd = (fn) => async () => { await fn(); close(); };
-    box.append(
-      el('div', { class: 'row' }, el('button', { class: 'primary', text: 'Back to the course', onclick: () => { app.speedIdx = prevSpeed || 1; close(); } })),
-      el('div', { class: 'row' }, el('button', {
-        text: '🏢 Empire overview',
-        onclick: () => {
-          close();
-          app.speedIdx = prevSpeed || 1;
-          handlers.toggleEmpire();
-        },
-      })),
-      el('h2', { text: 'Save', style: 'margin-top:14px;font-size:1rem' }),
-      el('div', { class: 'row' }, ...SLOTS.map((slot, i) =>
-        el('button', {
-          text: `Save slot ${i + 1}`,
-          onclick: closeAnd(async () => {
+
+  const content = el('div', { class: 'pause-content' });
+  const nav = el('div', { class: 'pause-nav' });
+  const navBtns = new Map();
+
+  const setPage = (key) => {
+    for (const [k, b] of navBtns) b.classList.toggle('active', k === key);
+    content.replaceChildren();
+    PAGES[key](content);
+  };
+  const navItem = (key, label, action) => {
+    const b = el('button', { class: 'pause-nav-btn', text: label, onclick: action || (() => setPage(key)) });
+    navBtns.set(key, b);
+    nav.append(b);
+    return b;
+  };
+
+  function slotRow(container, mode) {
+    container.append(el('div', {
+      class: 'pause-hint',
+      text: mode === 'save' ? 'Three slots. Saving overwrites the slot.' : 'Load returns you to the moment you saved.',
+    }));
+    SLOTS.forEach((slot, i) => {
+      const card = el('div', { class: 'slot-card' },
+        el('div', { class: 'slot-name', text: `Slot ${i + 1}` }),
+        el('div', { class: 'slot-meta', text: '…' }),
+      );
+      const act = el('button', {
+        class: mode === 'save' ? 'slot-act primary' : 'slot-act',
+        text: mode === 'save' ? 'Save here' : 'Load',
+        onclick: async () => {
+          if (mode === 'save') {
             await saveData(slot, empireSnapshot(app.empire));
+            const st = app.state;
+            await saveData(`${slot}-meta`, {
+              name: st.clubName, when: hudClockText(), cash: st.cash,
+              cond: st.shop && st.shop.reno ? Math.round(st.shop.reno.condition) : null,
+              savedAt: Date.now(),
+            });
             toast(`Saved to slot ${i + 1}.`);
-            app.speedIdx = prevSpeed || 1;
-          }),
-        }),
-      )),
-      el('h2', { text: 'Load', style: 'margin-top:8px;font-size:1rem' }),
-      el('div', { class: 'row' }, ...SLOTS.map((slot, i) =>
-        el('button', {
-          text: `Load slot ${i + 1}`,
-          onclick: closeAnd(async () => {
+            setPage('save');
+          } else {
             const data = await loadData(slot);
-            if (!data) {
-              toast(`Slot ${i + 1} is empty.`, 'warn');
-              app.speedIdx = prevSpeed || 1;
-              return;
-            }
+            if (!data) { toast(`Slot ${i + 1} is empty.`, 'warn'); return; }
+            closePauseMenu();
             bootEmpire(deserializeEmpire(data));
+          }
+        },
+      });
+      card.append(act);
+      container.append(card);
+      loadData(`${slot}-meta`).then((meta) => {
+        const line = card.querySelector('.slot-meta');
+        if (!meta) {
+          line.textContent = 'Empty';
+          if (mode === 'load') act.disabled = true;
+          return;
+        }
+        const when = new Date(meta.savedAt).toLocaleString();
+        line.textContent = `${meta.name} — ${meta.when} — ${formatMoney(meta.cash)}`
+          + (meta.cond != null ? ` — shop ${meta.cond}` : '') + `  ·  saved ${when}`;
+      }).catch(() => { card.querySelector('.slot-meta').textContent = 'Empty'; });
+    });
+  }
+
+  function settingRow(label, control) {
+    return el('div', { class: 'set-row' }, el('div', { class: 'set-label', text: label }), control);
+  }
+
+  const PAGES = {
+    save: (c) => slotRow(c, 'save'),
+    load: (c) => slotRow(c, 'load'),
+    settings: (c) => {
+      c.append(
+        settingRow('Volume', el('div', { class: 'set-ctl' },
+          el('input', {
+            type: 'range', min: '0', max: '1', step: '0.05', value: String(audio.getVolume()),
+            oninput: (e) => audio.setVolume(Number(e.target.value)),
           }),
-        }),
-      )),
-      el('h2', { text: 'Controls', style: 'margin-top:8px;font-size:1rem' }),
-      el('div', { class: 'row muted', style: 'font-size:0.84rem;line-height:1.6;display:block' },
-        'WASD walk · Shift run · mouse look (click to capture) · E interact / doors / laptop · ' +
-        'F tool (vacuum indoors; hose→divot→rake outside) · hold LMB use tool · ' +
-        'Tab overview camera · V data views · Space pause · 1/2/3 speed · ' +
-        'G grounds desk · C club office · M empire · Esc this menu'),
-      el('h2', { text: 'Sound', style: 'margin-top:8px;font-size:1rem' }),
-      el('div', { class: 'row' },
-        el('input', {
-          type: 'range', min: '0', max: '1', step: '0.05', value: String(audio.getVolume()), style: 'flex:1',
-          oninput: (e) => audio.setVolume(Number(e.target.value)),
+          el('button', {
+            class: 'chip-btn',
+            text: audio.isMuted() ? 'Unmute' : 'Mute',
+            onclick: (e) => { audio.setMuted(!audio.isMuted()); e.target.textContent = audio.isMuted() ? 'Unmute' : 'Mute'; },
+          }),
+        )),
+        settingRow('Difficulty', el('div', { class: 'set-ctl' }, ...['relaxed', 'realistic'].map((m) =>
+          el('button', {
+            class: `chip-btn${app.state.mode === m ? ' on' : ''}`,
+            text: m === 'relaxed' ? 'Relaxed' : 'Realistic',
+            onclick: () => { app.state.mode = m; setPage('settings'); },
+          })))),
+        settingRow('Render scale', el('div', { class: 'set-ctl' }, ...[0.75, 1, 1.25].map((v) =>
+          el('button', {
+            class: `chip-btn${settings.renderScale === v ? ' on' : ''}`,
+            text: `${Math.round(v * 100)}%`,
+            onclick: () => { settings.renderScale = v; saveSettings(); applySettings(); setPage('settings'); },
+          })))),
+        settingRow('Ambient occlusion', el('div', { class: 'set-ctl' },
+          el('button', {
+            class: `chip-btn${settings.ao !== false ? ' on' : ''}`,
+            text: settings.ao !== false ? 'On' : 'Off',
+            onclick: () => { settings.ao = settings.ao === false; saveSettings(); applySettings(); setPage('settings'); },
+          }))),
+        settingRow('Bloom', el('div', { class: 'set-ctl' },
+          el('button', {
+            class: `chip-btn${settings.bloom !== false ? ' on' : ''}`,
+            text: settings.bloom !== false ? 'On' : 'Off',
+            onclick: () => { settings.bloom = settings.bloom === false; saveSettings(); applySettings(); setPage('settings'); },
+          }))),
+        settingRow('Field of view', el('div', { class: 'set-ctl' },
+          el('input', {
+            type: 'range', min: '50', max: '90', step: '1', value: String(settings.fov || 60),
+            oninput: (e) => { settings.fov = Number(e.target.value); saveSettings(); applySettings(); },
+          }),
+          el('span', { class: 'set-val', text: `${settings.fov || 60}°` }),
+        )),
+        settingRow('Mouse sensitivity', el('div', { class: 'set-ctl' },
+          el('input', {
+            type: 'range', min: '0.4', max: '2', step: '0.1', value: String(settings.sens || 1),
+            oninput: (e) => { settings.sens = Number(e.target.value); saveSettings(); applySettings(); },
+          }),
+        )),
+      );
+    },
+    controls: (c) => {
+      const group = (title, rows) => {
+        const g = el('div', { class: 'ctl-group' }, el('div', { class: 'ctl-title', text: title }));
+        for (const [what, ...keys] of rows) {
+          g.append(el('div', { class: 'ctl-row' }, keycaps(...keys), el('span', { class: 'ctl-what', text: what })));
+        }
+        return g;
+      };
+      c.append(
+        el('div', { class: 'ctl-cols' },
+          group('Move', [
+            ['Walk', 'W', 'A', 'S', 'D'], ['Run', 'Shift'], ['Look around', 'Mouse'],
+            ['Capture the mouse', 'Click'], ['Overview camera', 'Tab'],
+          ]),
+          group('Hands', [
+            ['Interact · doors · laptop', 'E'], ['Pick up / set down a box', 'E'],
+            ['Cycle tool', 'F'], ['Use tool', 'Hold LMB'],
+          ]),
+          group('Time & views', [
+            ['Pause', 'Space'], ['Speed', '1', '2', '3'], ['Data views', 'V'],
+          ]),
+          group('Desks', [
+            ['Grounds desk', 'G'], ['Club office', 'C'], ['Empire', 'M'], ['This menu', 'Esc'],
+          ]),
+        ),
+      );
+    },
+    office: (c) => {
+      c.append(
+        el('div', { class: 'pause-hint', text: 'Management shortcuts and the way out.' }),
+        el('button', {
+          class: 'pause-wide',
+          text: 'Empire overview',
+          onclick: () => { closePauseMenu(); handlers.toggleEmpire(); },
         }),
         el('button', {
-          text: audio.isMuted() ? '🔇 Unmute' : '🔊 Mute',
-          onclick: (e) => {
-            audio.setMuted(!audio.isMuted());
-            e.target.textContent = audio.isMuted() ? '🔇 Unmute' : '🔊 Mute';
-          },
+          class: 'pause-wide danger',
+          text: 'Exit to main menu (autosaves)',
+          onclick: async () => { await autosave(); closePauseMenu(); exitToMenu(); },
         }),
-      ),
-      el('h2', { text: 'Difficulty', style: 'margin-top:8px;font-size:1rem' }),
-      el('div', { class: 'row' },
-        el('button', {
-          text: app.state.mode === 'relaxed' ? '✔ Relaxed' : 'Relaxed',
-          onclick: () => {
-            app.state.mode = 'relaxed';
-            toast('Relaxed mode: gentler turf, softer finances, the bank forgives.');
-            close();
-            app.speedIdx = prevSpeed || 1;
-          },
-        }),
-        el('button', {
-          text: app.state.mode === 'realistic' ? '✔ Realistic' : 'Realistic',
-          onclick: () => {
-            app.state.mode = 'realistic';
-            toast('Realistic mode: real stakes. Watch the books.', 'warn');
-            close();
-            app.speedIdx = prevSpeed || 1;
-          },
-        }),
-      ),
-      el('div', { class: 'row', style: 'margin-top:14px' },
-        el('button', { class: 'danger', text: 'Exit to menu (autosaves)', onclick: closeAnd(async () => { await autosave(); exitToMenu(); }) }),
-      ),
-    );
-  });
+      );
+    },
+  };
+
+  navItem('resume', 'Resume', () => closePauseMenu());
+  navItem('save', 'Save game');
+  navItem('load', 'Load game');
+  navItem('settings', 'Settings');
+  navItem('controls', 'Controls');
+  navItem('office', 'Office');
+
+  const panel = el('div', { class: 'pause-panel' },
+    el('div', { class: 'pause-head' },
+      el('div', { class: 'pause-club', text: (app.state && app.state.clubName) || 'GOLF EMPIRE' }),
+      el('div', { class: 'pause-word', text: 'PAUSED' }),
+    ),
+    el('div', { class: 'pause-body' }, nav, content),
+  );
+  pauseUi = el('div', { class: 'pause-veil-ui' }, panel);
+  pauseUi.addEventListener('pointerdown', (e) => { if (e.target === pauseUi) closePauseMenu(); });
+  document.getElementById('ui').append(pauseUi);
+  setPage('save');
 }
 
 // --- input ------------------------------------------------------------------------
@@ -1034,8 +1183,9 @@ window.addEventListener('keydown', (e) => {
         break;
       }
       case 'Escape':
-        // first Esc releases the pointer (browser); the next opens the office
-        if (app.selectedSection) inspectPanel.hide();
+        // first Esc releases the pointer (browser); the next toggles the pause menu
+        if (isPauseOpen()) closePauseMenu();
+        else if (app.selectedSection) inspectPanel.hide();
         else if (app.groundsOpen || app.clubOpen || app.empireOpen) closeLeftPanels('none');
         else if (!document.pointerLockElement) openPauseMenu();
         break;
@@ -1062,7 +1212,9 @@ window.addEventListener('keydown', (e) => {
       break;
     }
     case 'Escape':
-      if (app.activeTool) {
+      if (isPauseOpen()) {
+        closePauseMenu();
+      } else if (app.activeTool) {
         app.activeTool = null;
         app.scene3d.setBrush(null, 0, null);
         worksPanel.updateToolHighlight();

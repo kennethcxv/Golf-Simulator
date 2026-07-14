@@ -1792,8 +1792,9 @@ export function makeCourseScene(canvas, state) {
   }
   function walkMouseMove(e) {
     if (document.pointerLockElement !== canvas) return;
-    walk.yaw -= e.movementX * 0.0021;
-    walk.pitch = clamp(walk.pitch - e.movementY * 0.0019, -1.35, 1.35);
+    const sens = walk.sens || 1; // pause-menu mouse sensitivity
+    walk.yaw -= e.movementX * 0.0021 * sens;
+    walk.pitch = clamp(walk.pitch - e.movementY * 0.0019 * sens, -1.35, 1.35);
   }
 
   // where you land when stepping out the clubhouse door: just past the porch
