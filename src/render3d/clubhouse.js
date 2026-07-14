@@ -2031,6 +2031,40 @@ export function makeClubhouse(ctx) {
     return customers[customers.length - 1];
   }
 
+  // HOW LONG THEY HAVE BEEN WAITING, shown RESTRAINEDLY — the brief's word. A red bar
+  // over a shopper's head in a stylised pro shop is a mobile-game tell. This is a thin
+  // ring that fills as their patience burns down, and it only appears once they have
+  // actually been kept waiting: 45 seconds of goodwill costs them nothing, so nothing
+  // is drawn. It goes amber at half and red at a quarter, which is the point at which
+  // a player who is paying attention still has time to save the sale.
+  const PATIENCE_FULL = 45;
+  const patRing = new THREE.RingGeometry(0.10, 0.125, 20, 1, Math.PI / 2, Math.PI * 2);
+  function setPatience(c) {
+    const frac = clamp(c.patience / PATIENCE_FULL, 0, 1);
+    if (frac > 0.72) {                       // still fresh — do not nag
+      if (c.patienceMesh) c.patienceMesh.visible = false;
+      return;
+    }
+    if (!c.patienceMesh) {
+      const m = new THREE.Mesh(patRing.clone(), new THREE.MeshBasicMaterial({
+        color: 0xf2c14e, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false,
+      }));
+      m.position.set(0, 1.62, 0);
+      m.renderOrder = 3;
+      c.mesh.add(m);
+      c.patienceMesh = m;
+    }
+    const m = c.patienceMesh;
+    m.visible = true;
+    // the ring EMPTIES clockwise as the patience runs out
+    m.geometry.dispose();
+    m.geometry = new THREE.RingGeometry(0.10, 0.125, 24, 1, Math.PI / 2, -Math.PI * 2 * frac);
+    m.material.color.setHex(frac < 0.25 ? 0xe8635a : frac < 0.5 ? 0xf2a03d : 0xf2c14e);
+    m.material.opacity = 0.55 + (1 - frac) * 0.35;
+    // it always faces the player, so it reads from anywhere on the floor
+    if (walk.active) m.rotation.y = Math.atan2(walk.x - c.mesh.position.x, walk.z - c.mesh.position.z) - c.mesh.rotation.y;
+  }
+
   // a shopper reaches for the display: the unit leaves the shelf THERE and
   // rides in their hands to the register
   function customerPick(c, stop) {
@@ -2302,6 +2336,7 @@ export function makeClubhouse(ctx) {
           }
           c.awaitingCheckout = true;
           c.patience -= dt;
+          setPatience(c);
           if (char) char.setMode('Idle');
           if (c.patience <= 0) customerGiveUp(c);
         } else if (!served) {

@@ -868,3 +868,21 @@ input[type="range"] { accent-color: var(--accent); }
    aiming, you are picking things up) and the walk prompt would sit over the counter. */
 body.register-mode { cursor: crosshair; }
 body.register-mode .shop-overlay { display: none !important; }
+
+/* the till's control hint — the walk prompt is hidden behind the counter, so this is
+   the only thing telling the player which keys the register answers to */
+.reg-hint {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+  display: flex; gap: 18px; align-items: center;
+  padding: 8px 16px; border-radius: 999px;
+  background: rgba(14, 18, 16, 0.82); border: 1px solid rgba(143, 214, 176, 0.22);
+  color: #cfe6d8; font-size: 12.5px; letter-spacing: 0.2px;
+  pointer-events: none; z-index: 40;
+}
+.reg-hint .reg-keys { display: inline-flex; gap: 6px; align-items: center; opacity: 0.92; }
+.reg-hint kbd {
+  display: inline-block; min-width: 18px; text-align: center;
+  padding: 2px 6px; border-radius: 5px;
+  background: rgba(143, 214, 176, 0.16); border: 1px solid rgba(143, 214, 176, 0.35);
+  color: #eaf6ee; font: 600 11px/1.2 ui-monospace, monospace;
+}

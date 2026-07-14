@@ -71,6 +71,7 @@ let groundsPanel = null;
 let clubPanel = null;
 let empirePanel = null;
 let walkOverlay = null;
+let regHint = null;
 let laptopUi = null;
 let objectivesPanel = null;
 let menu = null;
@@ -1521,6 +1522,7 @@ const CONDITION_WORD = (c) =>
 let lastCondWord = null;
 
 function updateWalkOverlay() {
+  if (regHint) regHint.style.display = regActive() ? 'flex' : 'none';
   const prompt = walkOverlay.querySelector('.shop-prompt');
   // build mode speaks over the world's own prompts: while it is on, the only controls that
   // matter are its controls
@@ -1654,6 +1656,17 @@ function boot() {
     el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F tool · Tab: overview camera · Esc: office menu' }),
   );
 
+  // BEHIND THE TILL the walk overlay is hidden — no crosshair, no prompt — so the
+  // player has no way to discover [T] and [D] except by pressing every key. The
+  // register screen tells them WHAT it wants ("PUT THEIR MONEY IN THE TILL"); this
+  // tells them which hand to use.
+  regHint = el('div', { class: 'reg-hint', style: 'display:none' },
+    el('span', { text: 'Drag goods over the scanner to ring them up' }),
+    el('span', { class: 'reg-keys' }, el('kbd', { text: 'T' }), el('span', { text: 'total up' })),
+    el('span', { class: 'reg-keys' }, el('kbd', { text: 'D' }), el('span', { text: 'drawer' })),
+    el('span', { class: 'reg-keys' }, el('kbd', { text: 'Esc' }), el('span', { text: 'step back' })),
+  );
+
   const viewButtons = ['normal', 'health', 'moisture'].map((mode) =>
     el('button', {
       text: mode === 'normal' ? '🗺 Normal' : mode === 'health' ? '❤ Health' : '💧 Moisture',
@@ -1665,7 +1678,7 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, laptopUi.root, objectivesPanel.root, viewToggle,
+  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle,
     el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · 🗂 Manage or E/G/C/M keys for the desks · V: view · Space: pause · Tab/Esc: back on foot' }));
 
   uiRoot.append(menu.root, gameUi);
@@ -1676,4 +1689,9 @@ boot();
 
 // Debug/QA hook: lets browser tooling inspect and drive the live app state.
 // Harmless in production (read-mostly), invaluable for automated QA.
+// the autosave, reachable for tooling. tools/qa/register-recover.js takes the game's
+// OWN save mid-transaction — the exact write the day rollover makes — and reloads, to
+// prove the shelf comes back. A recovery test that used a different save path would
+// be testing the wrong thing.
+app.autosave = autosave;
 window.__fw = app;

@@ -64,6 +64,19 @@ async (page) => {
     return !!tx && tx[k] === v;
   }, [key, val], { timeout: ms });
 
+  // WAIT FOR THE CAMERA TO ACTUALLY ARRIVE. isActive() flips true the instant [E] is
+  // pressed, but the cashier pose BLENDS in over 0.4s — and headless rAF is throttled,
+  // so a wall-clock wait under-runs the ease. Project an item while the camera is still
+  // mid-flight and you get a pixel ~90px off; the click lands on bare counter, nothing
+  // is grabbed, and the run reports "scanned: 0" as though the scanner were broken.
+  // It is the same trap as sleeping for the receipt. Never sleep for state.
+  const CASHIER_EYE = { x: 2.78 - 8, z: 5.52 + 228 };   // REGISTER cashier pose, in world
+  const untilCameraSettled = (ms = 10000) => page.waitForFunction((eye) => {
+    const c = window.__fw.scene3d.camera;
+    return Math.hypot(c.position.x - eye.x, c.position.z - eye.z) < 0.03;
+  }, CASHIER_EYE, { timeout: ms });
+
+
   // --- boot ------------------------------------------------------------------------
   await page.goto('http://localhost:8457/');
   await page.setViewportSize({ width: 1600, height: 900 });
@@ -158,7 +171,8 @@ async (page) => {
 
   // --- [E] into register mode -----------------------------------------------------------
   await page.keyboard.press('e');
-  await page.waitForTimeout(1100);   // the camera EASES in (0.4s) — this one is cosmetic
+  await untilCameraSettled();
+  await page.waitForTimeout(250);
   await shot('02-register-mode');
   log.push({ step: '2. [E] register mode', active: await page.evaluate(() => window.__fw.scene3d.clubhouse().register.isActive()) });
 
