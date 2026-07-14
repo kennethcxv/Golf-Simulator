@@ -2748,3 +2748,147 @@ PASS 2 (qa/clubhouse-production/pass-2/) — after the fixes above:
 PASS 3 (qa/clubhouse-production/pass-3/) — verification pass, no code
 changes warranted beyond the pass-1 batch; pose 11 recomposed for the
 record. Residual accepted items carried to the closing report.
+
+
+---
+
+# STABILIZATION PASS — Phase 1: Reproduced Defect List (2026-07-13)
+
+Superseding brief received. Every reported defect below was reproduced in the live build
+(port 8457, save "Willow Creek Municipal", Y1 Fall Day 17-20) before any fix.
+Evidence: `qa/stabilization/before/` (gitignored, on disk). Measurements are real captures,
+not estimates.
+
+## D1 — First-load hitch + fast-turn stutter  [P0-1]
+- **Repro:** Main menu → Continue. Sampled 240 rAF frame deltas from click; then scripted
+  identical 360° yaw sweeps (2s each), cold then warm.
+- **Measured:** post-Continue: 11 spikes >50ms (67–164ms) in first ~2s; long tasks 128/130/74/75ms.
+  Cold 360° turn: 7 spikes >40ms, worst **356ms**. Warm 360° turn immediately after: **0 spikes**,
+  worst 11ms, avg 3.0ms. 36 shader programs, 794 geometries, 135 textures.
+- **Confirmed cause:** lazy shader compilation + first-view geometry/texture GPU uploads.
+  The renderer compiles programs the first frame each material enters the frustum. General
+  rendering load is NOT the problem (warm avg 3.0ms).
+- **Fix plan:** loading overlay with real progress steps; after scene build, prewarm — spin the
+  camera through 360°/pitch sweep for a few hidden frames (or renderer.compile + initTexture)
+  before revealing; keep overlay until first stable frame.
+- **Verify:** same scripted cold-turn capture shows no spike >40ms on first look-around.
+
+## D2 — Main door visually disconnected from wall/frame  [P0-3]
+- **Repro:** stand on porch facing closed door (Day 17 12:32 PM shot; Day 18 9:06 AM shot).
+- **Observed:** dark see-through slits between slab and casing (top + latch side); at dusk the
+  interior light leaks around the whole slab silhouette. With the door open you can see there is
+  **no threshold** — a raw dark slot where the raised interior floor (FLOOR_TOP 0.3) meets the
+  porch deck; jamb depth doesn't close the wall thickness.
+- **Confirmed cause (code):** doors.js builds slab + flat architrave trim only — no jamb box
+  lining the wall opening, no header stop, no threshold; slab is sized smaller than the raw
+  opening and hangs in front of it.
+- **Fix plan:** real frame per door: jamb lining filling wallT depth, header, stops, threshold
+  sill; slab sized to the frame rebate so closed = flush against stops; casing both faces.
+- **Verify:** closed-door screenshots from both sides day + night (no light leak).
+
+## D3 — Door swings the wrong way / auto-open misbehavior  [P0-3]
+- **Repro:** approach main door from outside; stand still 3.9yd away.
+- **Observed:** door auto-opened for the player at ~4yd, swung **outward through the player's
+  approach space**; while standing still it oscillated closed→open repeatedly (hinge -1.92 → 0 →
+  -1.92 without input). Customers exit and leave it hanging open (Day 17 dusk shot).
+- **Confirmed cause (code):** doors auto-open on proximity for everyone (autoFor radius too
+  large, no hysteresis); openSign is fixed per door so the main door always swings onto the
+  porch regardless of which side the opener stands.
+- **Fix plan:** player doors are E-operated (no auto for player); swing side chosen away from
+  the opener at open time where architecture allows; customers get open→pass→close behavior;
+  collider follows the slab during swing; player-sweep test prevents opening through a body.
+- **Verify:** scripted both-side open tests for player + customer; no oscillation while idle.
+
+## D4 — Laptop faces backward / not physical  [P0-2]
+- **Repro:** office, E on laptop (Day 19 3:22 PM shot).
+- **Observed:** lid hinge is on the **near (player-side) edge** of the base — lid opens toward
+  the player like an awning, keyboard deck hidden behind the raised lid; camera looms over the
+  desk from standing height rather than a seated position.
+- **Confirmed cause (code):** clubhouse.js office block places lidHinge at the base edge closest
+  to the chair (hinge local z -0.2 is the chair side) and LID_OPEN rotates toward the viewer.
+- **Fix plan:** move hinge to the far edge (window side), lid opens away ~105°, screen plane on
+  the player-facing side of the lid; seated-use camera pose (eye ~1.2, in front of the desk);
+  temporary axis-arrow helpers for screenshot proof, then removed. Keep the DOM projection.
+- **Verify:** side-by-side screenshots (closed, opening, open) showing keyboard nearest player,
+  screen facing player, text not mirrored, cursor clicking still lands.
+
+## D5 — Course map floating + one-sided  [P0-5]
+- **Repro:** stand west of map anchor (4.0, 3.6 local) looking east; then east side (7.8, 3.6).
+- **Observed:** from the west the map is **invisible** (single-sided plane backface-culled);
+  from the east it fills the walkway. Its anchor (5.85, 3.6) is **beyond the end of the x=5.7
+  partition (which stops at z=2.0)** — the board hangs in open air in the office doorway gap,
+  blocking the hall sightline.
+- **Confirmed cause (code):** fixtures.js hangs a THREE.Plane map at OFFICE.map without checking
+  the partition extent; no frame/backing geometry.
+- **Fix plan:** framed board (frame + face + back panel, real thickness) mounted flush on the
+  office side of the x=5.7 partition at z ≤ 1.4 (on actual wall), or on the north wall of the
+  office; verify from 6 vantage points.
+- **Verify:** screenshots from front/back/left/right/doorway/desk.
+
+## D6 — Customers walk into objects  [P0-6]
+- **Repro:** observed within 2 minutes of load — customer walked straight through the hat stand
+  (pole through torso), `customer-clipping-hatstand.png`.
+- **Confirmed cause (code):** customers walk straight lines between stops with no collision
+  query against fixture colliders (only the player uses the collider list).
+- **Fix plan:** blocked-cell grid baked from the collider rects (0.3yd cells), A* on destination
+  change, string-pulled waypoints, per-frame local separation from other customers, stuck
+  detection → repath, queue spacing preserved.
+- **Verify:** unit tests (paths avoid all fixture rects; repath when blocked; recovery), plus
+  10-customer soak with zero visible penetrations.
+
+## D7 — Boxes: cannot set down freely, teleport to stack, no real identity  [P0-4]
+- **Repro:** picked up polo box (id 8) from pad, walked to open yard, pressed E → **nothing**
+  (label stays "take it to the stockroom"); box only settable inside stockroom zone where it
+  renders at a fixed stack slot (6.58,-5.6) regardless of where the player stands.
+- **Confirmed cause (code):** `state.shop.deliveries.boxes[]` entries are `{id, skuId, qty,
+  orderId, loc:'pad'|'stock'|'carried', opened}` — **no position/rotation**. Rendering derives
+  fixed stack slots per loc bucket. A drop is a bucket move, not a placement. Any loc the
+  renderer doesn't draw = invisible box ("disappeared").
+- **Fix plan:** boxes become positional entities `{x, z, ry, loc:'world'|'carried', contents}`;
+  set-down places at aim point (floor/porch/ground snap + collision check); pickup preserves
+  identity; save/load round-trips positions; opened/partial states persist (P1 extends this).
+- **Verify:** unit tests (drop→same id at position, save/load), in-game drop/pick 10× at random
+  spots incl. porch + yard + shop floor.
+- **Note:** carried box renders with a tape strip floating ~3cm above the top face (detached
+  plank) and no hands; clutter-pile boxes look identical to delivery boxes (confusing).
+
+## D8 — Escape menu: developer UI + broken lifecycle  [P0-7]
+- **Repro:** press Esc in walk mode; press Esc again; then Exit to menu → Continue.
+- **Observed:** (a) six full-width bright-green header bars + wall-of-text controls + giant red
+  exit button — developer styling; (b) pressing Esc with the menu open opens a **second stacked
+  menu** (repeatable — 3 in a row); (c) there is **no close affordance at all** — Esc stacks,
+  backdrop clicks do nothing; the only way out is "Exit to menu (autosaves)"; (d) an orphaned
+  pause menu **survived exit-to-menu → Continue** and sat over live gameplay.
+- **Confirmed cause (code):** Esc handler always appends a new overlay; no toggle/close; overlay
+  not torn down on mode change.
+- **Fix plan:** single pause-menu instance, Esc toggles, Resume button, proper teardown on mode
+  change; full visual redesign (charcoal/cream/green, save-slot cards, tabs incl. working
+  graphics settings, controls page with keycaps).
+- **Verify:** Esc/Esc/Esc leaves exactly one menu then none; exit→continue leaves none; visual
+  pass screenshot.
+
+## D9 — Checkout not a hands-on cashier loop  [P1]
+- **Observed:** register = flat slab with READY; terminal/scanner = featureless black boxes; no
+  drawer/printer/bags; sales complete statistically (salesLive) without the player when
+  customers do buy; no queue-to-counter item placement.
+- **Fix plan (P1):** manual scan loop at the register, cash/card flows w/ change + receipt +
+  bag, patience decay, no invisible sales while the shop is player-operated.
+
+## D10 — Delivery timing unclear  [P1]
+- **Observed:** orders arrive with no window/status/notification; pad boxes appear silently.
+- **Fix plan (P1):** per-order delivery window (date + 2h span), status progression, HUD + laptop
+  notifications, Orders page tracking.
+
+## D11 — Exterior needs production pass  [P2]
+- **Observed (wide shot):** floating porch steps (3 thin slabs, no stringers/risers), no
+  gutters/downspouts, plain square columns, stark black foundation band hovering over grass, no
+  path to steps, no exterior lighting fixtures visible, small flat signage, doorbell box floats
+  mid-siding, mower parked in yard, ceiling-can black-crescent artifact indoors.
+- **Fix plan (P2 after P0/P1):** full exterior architecture + dirty-start states + physical
+  repair verbs.
+
+## Also noted while reproducing
+- Stockroom door slab shows a green sliver gap at its header (same frame defect family as D2).
+- Desk side stretchers clip through the office wainscot run (fixture placement).
+- Office window dirty-film covers muntins with a flat brown wash (crude).
+- Tutorial is a text-card checklist ("Getting started 8/10"), not interactive guidance [P1].
