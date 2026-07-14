@@ -2708,6 +2708,7 @@ export function makeCourseScene(canvas, state) {
       getTool: () => walkTool,
       setSpraying: walkSetSpraying,
       isSpraying: () => walkSpraying,
+      clearKeys: walkBlur, // a mode change drops whatever was held, so you never resume walking into a wall
       focusOn: walkFocusOn,
       clearFocus: walkClearFocus,
       isFocused: () => !!walkFocusPose,

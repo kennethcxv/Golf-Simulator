@@ -11,6 +11,7 @@ import {
 } from './sim/empire.js';
 import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
 import { formatMoney } from './core/utils.js';
+import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS } from './core/heldKeys.js';
 import {
   makePlan, planPaintZone, planAdjustElev, planSmoothElev, applyPlan,
   worksSetTee, worksSetPin,
@@ -187,6 +188,7 @@ function enterLaptop() {
   const pose = ch && ch.laptopPose();
   if (!pose) return;
   app.laptopOpen = true;
+  resetCameraInput(); // sitting down is a mode change too
   if (app.state) tutorialFlag(app.state, 'laptopOpened');
   app.scene3d.walk.focusOn(pose);
   if (document.pointerLockElement) document.exitPointerLock();
@@ -601,6 +603,7 @@ const handlers = {
   },
   toggleCourseMode() {
     if (app.view !== 'course' || !app.scene3d) return;
+    resetCameraInput(); // the map opens still — nothing carries over from the walk
     if (app.courseMode === 'walk') {
       app.courseMode = 'overview';
       exitWalk();
@@ -774,6 +777,7 @@ function keycaps(...keys) {
 }
 
 function openPauseMenu() {
+  resetCameraInput(); // whatever was down when you hit Esc stays down no longer
   if (pauseUi || app.screen !== 'game') return;
   pausePrevSpeed = app.speedIdx || 1;
   app.speedIdx = 0;
@@ -1104,8 +1108,11 @@ window.addEventListener('pointerup', () => {
 });
 
 canvas.addEventListener('pointerup', () => {
-  if (app.screen !== 'game' || app.view !== 'course' || app.courseMode !== 'overview' || !dragging) return;
-  if (dragging.mode === 'pan-or-click' && dragging.moved <= 6 && dragging.cell) {
+  if (!dragging) return;
+  // a drag always ends on pointerup, even if the mode changed mid-drag — otherwise the stale
+  // anchor survives and the next map open jumps the camera by the whole gap.
+  if (app.screen === 'game' && app.view === 'course' && app.courseMode === 'overview'
+      && dragging.mode === 'pan-or-click' && dragging.moved <= 6 && dragging.cell) {
     const section = sectionAtCell(dragging.cell.x, dragging.cell.y);
     if (section) inspectPanel.show(section);
     else inspectPanel.hide();
@@ -1256,26 +1263,30 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-// held-key camera movement
-const held = new Set();
-window.addEventListener('keydown', (e) => {
-  if (['w', 'a', 's', 'd', 'q', 'e', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) held.add(e.key);
-});
-window.addEventListener('keyup', (e) => held.delete(e.key));
-window.addEventListener('blur', () => held.clear());
+// held-key camera movement. The set is normalised and repeat-safe (see core/heldKeys.js) —
+// a key released mid-run used to strand its shifted spelling here and pan the map forever.
+const held = createHeldKeys(OVERVIEW_KEYS);
+window.addEventListener('keydown', (e) => held.down(e.key, e.repeat));
+window.addEventListener('keyup', (e) => held.up(e.key));
+window.addEventListener('blur', () => resetCameraInput());
+document.addEventListener('pointerlockchange', () => resetCameraInput());
+
+// every mode transition hands the camera a clean slate: nothing is "still down" from the mode
+// you just left, and a half-finished drag cannot resume into the new one.
+function resetCameraInput() {
+  held.clear();
+  dragging = null;
+  const w = app.scene3d && app.scene3d.walk;
+  if (w && w.clearKeys) w.clearKeys(); // ...and the feet, so a paused stride doesn't resume
+}
 
 function keyboardCamera(dtMs) {
   if (app.screen !== 'game' || app.view !== 'course' || app.courseMode !== 'overview' || !app.scene3d) return;
-  const v = 0.7 * dtMs;
-  let dx = 0;
-  let dy = 0;
-  if (held.has('a') || held.has('ArrowLeft')) dx += v;
-  if (held.has('d') || held.has('ArrowRight')) dx -= v;
-  if (held.has('w') || held.has('ArrowUp')) dy += v;
-  if (held.has('s') || held.has('ArrowDown')) dy -= v;
-  if (dx || dy) app.scene3d.rig.pan(-dx, -dy, canvas.clientHeight || window.innerHeight);
-  if (held.has('q')) app.scene3d.rig.orbit(0.0016 * dtMs, 0);
-  // note: 'e' toggles works mode on keydown; rotation uses Q + right-drag only
+  const { panX, panY, orbit, moving } = overviewCameraDelta(held, dtMs);
+  if (moving) {
+    if (panX || panY) app.scene3d.rig.pan(-panX, -panY, canvas.clientHeight || window.innerHeight);
+    if (orbit) app.scene3d.rig.orbit(orbit, 0);
+  }
 }
 
 // --- main loop -----------------------------------------------------------------------
