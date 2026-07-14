@@ -2540,3 +2540,152 @@ single-sitting human playthrough owed — every beat verified individually).
 
 WHERE TO START PLAYING: Continue (or buy the muni fresh) — you arrive at
 the porch. Open the door. Everything inside is this arc.
+
+================================================================================
+2026-07-13 — PRODUCTION-QUALITY CLUBHOUSE PASS (superseding brief #2)
+================================================================================
+
+The references arrived: Designs/RefrenceImages (10 renders — note the folder
+spelling). All ten were visually inspected before touching code. They define a
+"Pinehollow"-style club identity: cream plaster + dark-walnut post-and-beam
+architecture, honey oak plank floor, deep-green accents (glass-paneled green
+entry door, logo entrance rug, plaques, branded bags/boxes), lantern pendants +
+recessed cans + under-shelf display lighting — and, critically, the SAME room
+staged twice: premium (ref 1) and neglected (ref 2, mud footprint trails,
+abandoned boxes, dust film, dead lamps). Refs 3-10: entrance through the green
+door, checkout detail, the five-bay club wall, ball-wall/apparel/accessory
+detail, bag-and-shoe fitting area, trophy lounge with events board, stockroom
+with packing table + receiving door, and the office laptop running a
+dark-sidebar dashboard. Refs 1/4-7 contain REAL brands (Titleist, PING, FJ,
+CLIF/KIND/Extra) — composition/density/lighting reference ONLY; the game keeps
+its fictional lines (Ironwood, North Ridge, Sunday Round, Fairway Supply Co.,
+Greenline, Caddie Club — plus the club's own course-name brand).
+
+--- PHASE 1: THE HONEST BEFORE (qa/clubhouse-production/before/, 12 angles) ---
+
+Poses are pinned in qa/clubhouse-production/poses.json (10:00 AM, paused sim)
+and will be reused verbatim for every review pass. Per-angle findings:
+
+01 approach      — cream box + huge flat green roof slab; striped sheen on the
+                   roof underside; bare porch slab, floating step, plain square
+                   posts; no path, no fascia depth, no gutters; walls dead flat.
+02 entrance      — door = one flat slab + sphere knob; casing is a thin white
+                   picture frame; hours sign floats off the wall; zero glazing
+                   in the door (refs show a glass-paneled green door).
+03 looking in    — ceiling reads near-black olive (bulbs light the floor, not
+                   the room); repeated soft grime CIRCLES everywhere (the exact
+                   treatment the brief bans); walls = cream over bright-green
+                   wainscot with tan cap — institutional, not clubhouse;
+                   center of the room is empty air.
+04 to checkout   — counter = flat green box + black register box; course-name
+                   wordmark is painted small and washed out; apparel "table" is
+                   posts+rail with slab top; feature display = bare drum.
+05 across store  — fixtures read as picnic tables and pin-less pegboards; hat
+                   tree is a bare pole; window mullions chunky brown; the
+                   green+tan trim palette drags the room down; emptiness
+                   everywhere (14 fixtures in a 25.5x15.5 yd hall).
+06 club wall     — three empty flat brown panels with a base wedge. No rails,
+                   no per-category bays, no signs, no lighting, no clubs
+                   (unstocked = literally nothing). The signature fixture of a
+                   golf shop currently has zero golf identity.
+07 balls/apparel — flat panels + three thin strips each, one decorative bowl;
+                   window glass reads as a blown-out void; grime circles.
+08 bags/shoes    — shoe "wall" = leaning board; bag stand = open box frame
+                   with a cardboard box; trophy shelf floats; the wall course
+                   map reads as a giant green TV.
+09 lounge        — EMPTY CORNER. The sofa/coffee-table set is decor the player
+                   must buy, so the start state has no lounge at all; worse,
+                   the framed course photo overlaps the N window at c=5.0
+                   (placement bug — photo at x=5.4 vs window 3.7..6.3).
+10 office        — desk slab + box drawers, flat green box chair; laptop is a
+                   dark wedge (lid fixed at one angle, screen a black void from
+                   behind); pixel course map oversaturated; bright green
+                   wainscot.
+11 stockroom     — long bare corridor feel; two flat backshelves with tan
+                   boxes; vacuum = red slab; nothing on the walls, no packing
+                   surface, no receiving identity, same grime circles.
+12 facing exit   — door interior face is a flat green sheet; welcome mat is a
+                   brown canvas rectangle; customer close-up: flat-color boxy
+                   body with floating visor — readable silhouette, prototype
+                   materials.
+
+Cross-cutting: (a) the interior is lit by 5 always-on warm point lights —
+daylight through the windows contributes almost nothing, night looks identical
+to noon, and the ceiling plane sits unlit — the "dark muddy upper half" the
+brief calls out; (b) every visible material is a flat MeshStandardMaterial
+color except the floor/wall procedural textures, which tile invisibly at this
+value range; (c) window glass = 30%-opacity pane, no frame depth, no grime;
+(d) nothing bevels — every edge is a raw box corner; (e) merch density at
+full stock is a fraction of the refs (and zero when unstocked — fixtures must
+carry the golf identity on their own).
+
+What already HOLDS UP and is kept: the one-world shell with real hinged
+colliding doors; the walkProps/propColliders interaction plane; the zoned
+floor-plan-as-data (shopLayout.js) with tested clearways; the physical
+delivery/carry/unpack/shelve/checkout loop; state-driven grime GRID +
+clutter + condition; the rigged customer walk cycle; the live register canvas;
+GTAO+bloom post chain; procedural-audio idiom.
+
+--- PHASE 2: ASSET MATRIX (delta over the 07-12 audit table above) ---
+
+The 20 owner GLBs (Assets/ to vendor/models/) were re-checked against THIS
+brief's needs. Verdicts unchanged for the maintenance-yard set (all in use
+outdoors: tractor arc, shed, bench, chest, signs, tools — production-usable
+at their stations). Clubhouse-relevant rulings:
+
+- clubhouse_ext_opt.glb (66.8k tris, 2.57 MB) — KEEP as the groundskeeper's
+  residence on the approach. Still CANNOT be the enterable shell (single
+  watertight baked mesh, no interior). Unchanged from 07-12 finding.
+- golf_cart.glb — KEEP parked by the porch (approach dressing).
+- NO existing GLB covers any interior hero: clubs, bags, shoes, apparel,
+  seating, register hardware, laptop, customers. Decision: purpose-built
+  in-engine geometry to the art guide below (beveled profiles, lathes,
+  extrusions — not raw boxes), because (1) no license-budget for external
+  packs was provided, (2) Meshy/Tripo generation spends the owner's paid
+  credits — not authorized autonomously, and (3) at first-person range the
+  refs' fixtures are fundamentally joinery: rails, panels, shelves — shapes
+  procedural geometry does well when beveled, textured, and lit. Items that
+  still deserve a dedicated artist afterward are listed in the closing
+  report (upholstered lounge seating, humans, soft hanging cloth).
+- vendor/textures/siding_nor.jpg + roof_nor.jpg stay (exterior normals);
+  interior gains a canvas-procedural texture kit (wood species, plaster,
+  carpet, cardboard, leather, chrome) in a shared materials module.
+
+--- PHASE 4: ART DIRECTION (the guide the rebuild follows) ---
+
+STYLE   stylized PBR, warm and readable; simplified forms with real bevels;
+        no photorealism, no flat-color prototype look, no noise.
+PALETTE cream plaster  #efe9d9   walls above the rail
+        walnut         #4a3524   fixtures, beams, trim, counters (base)
+        walnut light   #6b4f37   rails/edges highlight
+        oak floor      #b98a56-#caa06b planks, honey, satin
+        deep green     #1f4a26   entry door, rug field, plaques, accents
+        sage           #57795c   secondary accents only (no more full walls)
+        charcoal       #23262b   register/electronics/iron hardware
+        brass          #c9a227   pulls, lamp stems, sign lettering
+        off-white      #f4f0e6   ceiling panels, signage fields
+        merch accents  limited per-brand: bottle green, navy, salmon, sky,
+                       burgundy, kraft
+RULES   - walls: cream plaster above a WALNUT chair rail + walnut wainscot
+          panels below (the green wainscot retires; green returns as decor)
+        - ceiling: off-white coffer panels between walnut beams, recessed
+          can downlights + black-iron lantern pendants over the aisle
+        - every fixture: walnut carcass, beveled edges (about 2cm chamfer),
+          brass pulls, cream signage with green lettering
+        - materials must separate: painted plaster (rough 0.9), finished
+          wood (rough 0.55 + grain), raw wood (rough 0.85), iron (rough 0.35
+          metal 0.8), brass (rough 0.3 metal 0.9), glass (low-rough pane),
+          cardboard (kraft tint + flute hint), leather (rough 0.6 warm),
+          carpet/rug (rough 1.0 canvas weave), rubber (0.95).
+        - lighting: real daylight contribution through bigger mullioned
+          windows; warm practicals (2700-3000K feel) with emissive housings;
+          under-shelf strips on the club/shoe walls; night = practicals
+          carry the room, windows glow from outside.
+        - dirt: art-directed layers (entry mud fan, footprint TRAILS along
+          door-aisle-checkout, wall-edge dust, under-fixture grime shadows,
+          corner buildup, scuffs at counter/queue, 2-3 spills) all still
+          masked by the 13x8 grime grid so the vacuum clears exactly what
+          you see; window film per pane (wipeable); NO uniform circles.
+        - signage voice: "PERFORMANCE - TRADITION - EXCELLENCE" plaque tone;
+          club wordmark = course name in Georgia over a pine motif; category
+          signs in gold-on-walnut.
