@@ -1970,6 +1970,7 @@ export function makeClubhouse(ctx) {
         stops.push({
           kind: 'fixture',
           skus: f.skus,
+          title: f.title,
           x: wp.x + offX + (rng.next() - 0.5) * 0.8,
           z: wp.z + offZ + (rng.next() - 0.5) * 0.4,
           faceX: wp.x,
@@ -2006,9 +2007,28 @@ export function makeClubhouse(ctx) {
   function customerPick(c, stop) {
     if (!stop.skus || c.cart.length) return;
     const rng = rngOf(state);
-    if (!rng.chance(0.55)) return;
     const stocked = stop.skus.filter((id) => state.shop.inventory[id] && state.shop.inventory[id].shelf > 0);
-    if (!stocked.length) return;
+    if (!stocked.length) {
+      // bare display: they glance and move on — and someone occasionally says so
+      c.emptyStops = (c.emptyStops || 0) + 1;
+      if (rng.chance(0.18) && hooks.toast && walk.active && isInside(walk.x, walk.z)) {
+        hooks.toast(`${c.name} looked over the empty ${stop.title || 'display'} and moved on.`, 'warn');
+      }
+      return;
+    }
+    if (!rng.chance(0.55)) return;
+    // a third of interested shoppers inspect the item and put it back — real
+    // browsing, visible on the shelf count, no sale
+    if (rng.chance(0.3)) {
+      const skuId = stocked[rng.int(stocked.length)];
+      if (pickFromShelf(state, skuId).ok) {
+        rebuildStock(); // the unit leaves the display while they look it over
+        returnToShelf(state, skuId);
+        c.linger = Math.max(c.linger, 2.2); // the look-it-over beat
+        setTimeout(() => { if (interior.parent) rebuildStock(); }, 1600); // and back it goes
+      }
+      return;
+    }
     const skuId = stocked[rng.int(stocked.length)];
     if (!pickFromShelf(state, skuId).ok) return;
     const sku = SHOP_CATALOG.find((s) => s.id === skuId);
