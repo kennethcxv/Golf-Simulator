@@ -22,6 +22,9 @@ import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
   restockShelfFromBackroom,
 } from '../sim/shop.js';
+import {
+  boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
+} from '../sim/deliveries.js';
 import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
 import { makeWoodTexture, makePlasterTexture } from './proceduralTextures.js';
 
@@ -541,7 +544,11 @@ export function makeClubhouse(ctx) {
       // customers can't press E — the door swings for them; it also closes
       // itself once nobody has been near it for a few seconds
       let near = false;
-      if (walk.active && Math.hypot(walk.x - d.world.x, walk.z - d.world.z) < 2.2) near = true;
+      if (walk.active && Math.hypot(walk.x - d.world.x, walk.z - d.world.z) < 2.2) {
+        near = true;
+        // arms full of delivery box: the door swings for you too
+        if (!d.open && carriedBox(state)) d.open = true;
+      }
       let custNear = false;
       for (const c of customers) {
         if (Math.hypot(c.mesh.position.x - d.world.x, c.mesh.position.z - d.world.z) < 1.5) {
@@ -787,16 +794,16 @@ export function makeClubhouse(ctx) {
 
   function backshelfUnit(f) {
     const g = new THREE.Group();
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.3, 0.1), darkMat);
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.3, 0.1), darkMat);
     frame.position.set(0, 1.15, -0.28);
     g.add(frame);
     for (const y of [0.4, 1.05, 1.7]) {
-      const board = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.06, 0.6), woodMat);
+      const board = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.06, 0.6), woodMat);
       board.position.set(0, y, 0);
       g.add(board);
     }
     const swap = Math.abs(Math.sin(f.ry)) > 0.5;
-    addCol(colBoxAt(f.x, f.z, swap ? 0.9 : 3.4, swap ? 3.4 : 0.9));
+    addCol(colBoxAt(f.x, f.z, swap ? 0.9 : 2.8, swap ? 2.8 : 0.9));
     return g;
   }
 
@@ -1849,8 +1856,8 @@ export function makeClubhouse(ctx) {
         const totalBack = SHOP_CATALOG.reduce((a, s) => a + (inv[s.id] ? inv[s.id].back : 0), 0);
         const show = Math.min(Math.ceil(totalBack / 6), 12);
         for (let i = 0; i < show; i++) {
-          const bx = -1.35 + (i % 5) * 0.62;
-          const by = [0.46, 1.11, 1.76][Math.floor(i / 5) % 3];
+          const bx = -0.95 + (i % 4) * 0.62;
+          const by = [0.46, 1.11, 1.76][Math.floor(i / 4) % 3];
           const caseB = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.36, 0.44), i % 2 ? cardboard : cardboardDark);
           caseB.position.set(bx, by + 0.18, 0);
           caseB.rotation.y = (i % 3) * 0.1 - 0.1;
@@ -1933,6 +1940,147 @@ export function makeClubhouse(ctx) {
     if (cx < 0 || cx >= RENO.grid.w || cy < 0 || cy >= RENO.grid.h) return 'Vacuum — aim at the floor';
     const d = reno.grime[cy * RENO.grid.w + cx];
     return d > 0.05 ? `Vacuum — this patch: ${Math.round(d * 100)}% dirty · hold LMB` : 'Vacuum — this patch is clean';
+  }
+
+  // --- physical deliveries: boxes on the pad, in your arms, in the stockroom ------------
+  const boxGroup = new THREE.Group();
+  scene.add(boxGroup);
+  let carriedMesh = null;
+  const boxProps = []; // dynamic per-box props, torn down on rebuild
+  let boxSig = '';
+
+  function makeBoxMesh(box) {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.4, 0.46), cardboard);
+    body.position.y = 0.2;
+    body.castShadow = true;
+    const tape = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.015, 0.12), tapeMat);
+    tape.position.y = 0.405;
+    const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
+    const stripe = new THREE.Mesh(
+      new THREE.BoxGeometry(0.54, 0.09, 0.47),
+      new THREE.MeshStandardMaterial({ color: CAT_COLORS[sku ? sku.cat : 'accessories'] || 0x999999, roughness: 0.85 }),
+    );
+    stripe.position.y = 0.1;
+    g.add(body, tape, stripe);
+    return g;
+  }
+
+  function boxSignature() {
+    const d = state.shop.deliveries;
+    if (!d) return '';
+    return d.boxes.map((b) => `${b.id}:${b.loc}`).join(',') + '|' + d.trash;
+  }
+
+  function rebuildBoxes() {
+    boxGroup.clear();
+    for (const p of boxProps) removeProp(p);
+    boxProps.length = 0;
+    if (carriedMesh) {
+      camera.remove(carriedMesh);
+      carriedMesh = null;
+    }
+    const d = state.shop.deliveries;
+    if (!d) return;
+    const stacks = { pad: 0, stock: 0 };
+    for (const box of d.boxes) {
+      if (box.loc === 'carried') {
+        carriedMesh = makeBoxMesh(box);
+        carriedMesh.scale.setScalar(0.8);
+        carriedMesh.position.set(0, -0.62, -0.78);
+        carriedMesh.rotation.y = 0.12;
+        camera.add(carriedMesh);
+        continue;
+      }
+      const at = box.loc === 'pad' ? STOCKROOM.padOutside : STOCKROOM.receivingInside;
+      const i = stacks[box.loc]++;
+      const lx = at.x + (i % 3 - 1) * 0.62;
+      const lz = at.z + Math.floor(i / 3) * 0.56 - 0.3;
+      const wp = L2W(lx, lz);
+      const m = makeBoxMesh(box);
+      const gy = groundYAt(wp.x, wp.z);
+      m.position.set(wp.x, gy !== null && gy !== undefined ? gy : heightAt(wp.x, wp.z) + 0.02, wp.z);
+      m.rotation.y = (box.id % 5) * 0.13;
+      boxGroup.add(m);
+      const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
+      const name = sku ? sku.name : box.skuId;
+      const prop = addProp({
+        x: wp.x, z: wp.z, r: 1.9,
+        label: () => {
+          if (carriedBox(state)) return null; // the set-down verb owns E while loaded
+          return box.loc === 'pad'
+            ? `Delivery — ${name} ×${box.qty} — [E] pick up`
+            : `Case of ${name} ×${box.qty} — [E] unpack into the backroom`;
+        },
+        action: () => {
+          if (box.loc === 'pad') {
+            const res = pickUpBox(state, box.id);
+            if (!res.ok) { if (hooks.toast) hooks.toast(res.reason, 'warn'); return; }
+            if (hooks.sfx) hooks.sfx('thunk');
+          } else {
+            const res = openBox(state, box.id);
+            if (!res.ok) { if (hooks.toast) hooks.toast(res.reason, 'warn'); return; }
+            rebuildStock();
+            if (hooks.sfx) hooks.sfx('chime');
+            if (hooks.toast) hooks.toast(`Unpacked ${res.qty} × ${name} into the backroom.`);
+          }
+          rebuildBoxes();
+        },
+      });
+      boxProps.push(prop);
+    }
+    boxSig = boxSignature();
+  }
+
+  // the set-down verb follows the player while a box is in their arms
+  const carryProp = addProp({
+    x: 0, z: 0, r: 2.5,
+    label: () => {
+      const c = carriedBox(state);
+      if (!c) return null;
+      const l = W2L(walk.x, walk.z);
+      const inStock = l.x >= STOCKROOM.bounds.minX && l.x <= STOCKROOM.bounds.maxX
+        && l.z >= STOCKROOM.bounds.minZ && l.z <= STOCKROOM.bounds.maxZ;
+      const nearPad = Math.hypot(l.x - STOCKROOM.padOutside.x, l.z - STOCKROOM.padOutside.z) < 4;
+      const sku = SHOP_CATALOG.find((s) => s.id === c.skuId);
+      if (inStock) return `Carrying ${sku ? sku.name : c.skuId} ×${c.qty} — [E] set it down here`;
+      if (nearPad) return `Carrying ${sku ? sku.name : c.skuId} ×${c.qty} — [E] put it back on the pad`;
+      return `Carrying ${sku ? sku.name : c.skuId} ×${c.qty} — take it to the stockroom (back door)`;
+    },
+    action: () => {
+      const c = carriedBox(state);
+      if (!c) return;
+      const l = W2L(walk.x, walk.z);
+      const inStock = l.x >= STOCKROOM.bounds.minX && l.x <= STOCKROOM.bounds.maxX
+        && l.z >= STOCKROOM.bounds.minZ && l.z <= STOCKROOM.bounds.maxZ;
+      const nearPad = Math.hypot(l.x - STOCKROOM.padOutside.x, l.z - STOCKROOM.padOutside.z) < 4;
+      if (!inStock && !nearPad) {
+        if (hooks.toast) hooks.toast('Set it down in the stockroom — in through the back door.', 'warn');
+        return;
+      }
+      putDownBox(state, c.id, inStock ? 'stock' : 'pad');
+      if (hooks.sfx) hooks.sfx('thunk');
+      rebuildBoxes();
+    },
+  });
+
+  // flattening the empties at the stockroom bin
+  {
+    const wp = L2W(STOCKROOM.bin.x, STOCKROOM.bin.z);
+    addProp({
+      x: wp.x, z: wp.z, r: 1.8,
+      label: () => {
+        const d = state.shop.deliveries;
+        return d && d.trash > 0 ? `Empties (${d.trash}) — [E] flatten them into the bin` : null;
+      },
+      action: () => {
+        if (emptyTrash(state).ok) {
+          if (hooks.sfx) hooks.sfx('thunk');
+          if (hooks.toast) hooks.toast('Cardboard flattened — the stockroom breathes again.');
+          rebuildBoxes();
+        }
+      },
+    });
   }
 
   // --- customers: they walk in from the course, through the real door -------------------
@@ -2154,10 +2302,17 @@ export function makeClubhouse(ctx) {
       moteFade -= dt;
       if (moteFade <= 0) motes.visible = false;
     }
+    // the set-down prompt rides just ahead of a loaded player
+    if (carriedMesh) {
+      carryProp.x = walk.x - Math.sin(walk.yaw) * 0.9;
+      carryProp.z = walk.z - Math.cos(walk.yaw) * 0.9;
+      carriedMesh.position.y = -0.62 + Math.sin(now * 6.2) * 0.012; // a carried weight breathes
+    }
     poll += dt;
     if (poll > 1.1) {
       poll = 0;
       updateArrivals();
+      if (boxSignature() !== boxSig) rebuildBoxes(); // the truck came, or staff unboxed
       if (office.paintScreen && interior.visible) office.paintScreen(); // live clock on the lid
       const ds = decorSignature();
       if (ds !== decorSig) {
@@ -2183,10 +2338,12 @@ export function makeClubhouse(ctx) {
   // --- boot -----------------------------------------------------------------------------
   rebuildReno();
   rebuildStock();
+  rebuildBoxes();
   stockSig = stockSignature();
 
   function dispose() {
-    scene.remove(group, interior, custGroup, motes);
+    scene.remove(group, interior, custGroup, motes, boxGroup);
+    if (carriedMesh) camera.remove(carriedMesh);
     for (const p of [...registeredProps]) removeProp(p);
     for (const c of [...registeredCols]) removeCol(c);
     for (const m of ctx.extraMeshes || []) scene.remove(m);

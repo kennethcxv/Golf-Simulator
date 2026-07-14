@@ -1704,7 +1704,7 @@ export function makeCourseScene(canvas, state) {
       const dist = Math.hypot(dx, dz);
       if (dist > p.r || dist >= bestDist) continue;
       const facing = ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
-      if (facing > 0.3) {
+      if (facing > 0.3 && p.label()) { // a falsy label = the prop is dormant right now
         bestProp = p;
         bestDist = dist;
       }

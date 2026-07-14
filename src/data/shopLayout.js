@@ -36,6 +36,8 @@ export const DOOR_BACK = { wall: 'E', z: -3.6, w: 1.6, h: 2.5, hingeZ: -4.4 };  
 
 // nothing solid may sit in front of the entrance (fixtures, clutter, queue)
 export const DOOR_CLEARWAY = { minX: -2.3, maxX: 0.7, minZ: 4.4, maxZ: 7.75 };
+// …or inside the receiving doorway (boxes come through here in your arms)
+export const BACKDOOR_CLEARWAY = { minX: 10.2, maxX: 12.75, minZ: -4.6, maxZ: -2.6 };
 
 // --- windows (2.6 × 1.3, sill 1.25 — both faces trimmed, see-through) ------------
 export const WINDOWS = [
@@ -55,7 +57,7 @@ export const PARTITIONS = [
 
 export const STOCKROOM = {
   bounds: { minX: 8.4, maxX: INTERIOR.w / 2, minZ: -INTERIOR.d / 2, maxZ: 2.0 },
-  receivingInside: { x: 11.4, z: -3.2 },   // where carried boxes get set down
+  receivingInside: { x: 10.0, z: -5.5 },   // set-down stack, deep enough that the door prompt can't shout over it
   padOutside: { x: 14.6, z: -3.6 },        // gravel pad past the back door — deliveries land here
   handTruck: { x: 9.3, z: -6.9 },
   bin: { x: 12.2, z: 1.3 },
@@ -109,7 +111,7 @@ export const FIXTURES = [
   { id: 'feature', kind: 'feature', x: -3.5, z: 5.0, ry: 0, skus: [], title: 'Feature display', zone: 'entrance' },
   // stockroom (non-retail; visualizes backroom stock + receives boxes)
   { id: 'backshelf_n', kind: 'backshelf', x: 10.7, z: -7.1, ry: 0, skus: [], title: 'Backroom shelving', zone: 'stockroom' },
-  { id: 'backshelf_e', kind: 'backshelf', x: 12.25, z: -5.0, ry: -Math.PI / 2, skus: [], title: 'Backroom shelving', zone: 'stockroom' },
+  { id: 'backshelf_e', kind: 'backshelf', x: 12.25, z: -6.45, ry: -Math.PI / 2, skus: [], title: 'Backroom shelving', zone: 'stockroom' },
 ];
 
 // --- start-state clutter (the "dirty, not nonsensical" rule: piles sit off the

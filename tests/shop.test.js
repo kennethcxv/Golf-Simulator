@@ -8,6 +8,7 @@ import {
   demandWeight, shopOpenStock,
 } from '../src/sim/shop.js';
 import { ROLE } from '../src/sim/staff.js';
+import { openBox } from '../src/sim/deliveries.js';
 
 function boostCourse(st) {
   st.turf.health.fill(80);
@@ -37,7 +38,12 @@ test('supplier orders cost cash and arrive after their lead time', () => {
   const backBefore = st.shop.inventory[sku.id].back;
   update(st, 5 * MINUTES_PER_DAY); // longest lead is 4 days
   assert.equal(st.shop.orders.length, 0, 'order delivered');
-  assert.ok(st.shop.inventory[sku.id].back >= backBefore + 12, 'stock landed in the backroom');
+  // 2026-07-13 physical retail: the truck leaves BOXES on the pad; contents
+  // reach the backroom when they're opened (by hand, or by the morning staff)
+  const boxes = st.shop.deliveries.boxes.filter((b) => b.skuId === sku.id);
+  assert.ok(boxes.reduce((a, b) => a + b.qty, 0) >= 12, 'the order waits on the pad in boxes');
+  for (const b of [...boxes]) openBox(st, b.id);
+  assert.ok(st.shop.inventory[sku.id].back >= backBefore + 12, 'unboxed stock landed in the backroom');
 });
 
 test('pricing respects markup and member discounts', () => {

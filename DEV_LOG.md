@@ -2419,3 +2419,34 @@ RE-HOMING MAP — every former top-bar/dock action's new access point:
 Deliberate: G/C/M hotkey panels keep their existing dark-panel styling this
 pass — they are management desks, not diegetic screens; restyling them into
 in-world surfaces is future work noted in KNOWN_ISSUES.
+
+## 2026-07-13 — Steps 14–17: PHYSICAL RETAIL — the truck leaves boxes now
+
+sim/deliveries.js (TDD, 6 new tests; suite 227): orders arriving no longer
+teleport into the backroom. deliverOrdersDue splits each line into CASES
+(CASE_SIZE per category — balls 12, apparel 8, clubs 2, decor/supplies solo)
+dropped on the receiving pad. pickUpBox (ONE at a time) / putDownBox /
+openBox (contents → backroom, leaves an empty to flatten at the bin) /
+openAllBoxes — which restockShelvesByStaff now runs first, so STAFFED shops
+keep working hands-off while the fixer-upper is fully physical. Two legacy
+tests updated to the new contract (vacuum owned when UNBOXED; supplier test
+opens its cases); old saves migrate via ensureShopReno → ensureDeliveries.
+
+The clubhouse renders it all: category-striped cardboard at the pad and the
+stockroom receiving stack, a carried box in your arms (with a breathing bob),
+a follow-you set-down prompt, per-case unpack prompts, and the bin's
+"Flatten the empties (N)". DOORS SWING FOR FULL ARMS — a carrying player
+can't press E usefully, so the door auto-opens like it does for customers.
+
+Live, one unbroken take, zero console errors: pick up ("Delivery — Tour-soft
+dozen ×12 — [E] pick up") → carry through the auto-opening back door →
+set down (box @stock) → unpack ("Case of… — [E] unpack" → back 12, trash 1)
+→ flatten ("Empties (1)…" → trash 0) → shelve at the Ball wall ("0 out ·
+6 in the back — [E] restock" → shelf 6, silhouettes appear).
+
+TWO REAL LAYOUT DEFECTS found live and fixed WITH regression tests:
+(1) backshelf_e's collider blocked the receiving doorway (walk-in stopped at
+world x≈5.0) — shelf shrunk to 2.6 yd + moved to z −6.45; a new test mirrors
+builder collider extents against a BACKDOOR_CLEARWAY rect. (2) the receiving
+drop spot sat so close to the door that its prompt shouted over the cases —
+moved deep into the stockroom (10.0, −5.5).

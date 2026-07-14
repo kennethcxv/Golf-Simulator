@@ -11,6 +11,7 @@ import { calendarOf } from './time.js';
 import { addRevenue, addExpense } from './economy.js';
 import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
 import { INTERIOR, CLUTTER_SPOTS } from '../data/shopLayout.js';
+import { arriveOrder, openAllBoxes, ensureDeliveries } from './deliveries.js';
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
 import { members } from './golfers.js';
@@ -99,6 +100,7 @@ export function ensureShopReno(state) {
   for (const sku of SHOP_CATALOG) {
     if (!state.shop.inventory[sku.id]) state.shop.inventory[sku.id] = { shelf: 0, back: 0 };
   }
+  ensureDeliveries(state); // physical-retail block (2026-07-13)
 }
 
 const renoCellAt = (x, z) => {
@@ -210,6 +212,7 @@ export function initShop(state) {
     markup: { clubs: 1.0, balls: 1.0, apparel: 1.0, accessories: 1.0 },
     featureCategory: 'balls', // the front table the player merchandises
     rentalFleet: { sets: 3, condition: 55, pricePerRound: 18 },
+    deliveries: { boxes: [], nextBoxId: 1, trash: 0 },
     lostSalesYesterday: 0,
     lostSalesTotal: 0,
     salesYesterday: { units: 0, revenue: 0 },
@@ -259,8 +262,11 @@ export function placeOrder(state, skuId, qty) {
 export function deliverOrdersDue(state, dayAbs) {
   const arrived = state.shop.orders.filter((o) => o.arrivesDay <= dayAbs);
   state.shop.orders = state.shop.orders.filter((o) => o.arrivesDay > dayAbs);
+  // 2026-07-13 physical retail: arrivals are BOXES on the receiving pad —
+  // contents reach the backroom when someone opens them (you, or the
+  // morning floor staff in restockShelvesByStaff)
   for (const o of arrived) {
-    state.shop.inventory[o.skuId].back += o.qty;
+    arriveOrder(state, o);
   }
   return arrived;
 }
@@ -294,6 +300,7 @@ export function restockShelfFromBackroom(state, skuId) {
 export function restockShelvesByStaff(state) {
   const skill = bestSkill(state, ROLE.PROSHOP);
   if (skill <= 0) return 0;
+  openAllBoxes(state); // the crew unboxes the truck's drop before shelving
   let capacity = 30 + skill * 25; // units they can shelve in a morning
   let moved = 0;
   for (const sku of SHOP_CATALOG) {

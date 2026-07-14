@@ -15,6 +15,7 @@ import {
   placeDecor, removeDecor, shopDailyGrime,
 } from '../src/sim/shop.js';
 import { skuById, LEAD_DAYS, SHOP_CATALOG, DECOR_SPOTS } from '../src/data/shopItems.js';
+import { openBox } from '../src/sim/deliveries.js';
 import { calendarOf } from '../src/sim/time.js';
 
 const cellCenter = (cx, cy) => ({
@@ -128,7 +129,12 @@ test('the vacuum is a real catalog item that ships through the existing order sy
   assert.equal(vacuumOwned(state), false, 'not owned until the truck arrives');
   const dayAbs = calendarOf(state.clock.minutes).dayAbs;
   deliverOrdersDue(state, dayAbs + LEAD_DAYS.supplies);
-  assert.equal(vacuumOwned(state), true, 'owned once the order is delivered');
+  // physical retail (2026-07-13): the truck leaves it BOXED on the pad
+  assert.equal(vacuumOwned(state), false, 'still boxed on the receiving pad');
+  const box = state.shop.deliveries.boxes.find((b) => b.skuId === 'vac1');
+  assert.ok(box, 'the vacuum arrived as a real box');
+  openBox(state, box.id);
+  assert.equal(vacuumOwned(state), true, 'owned once unboxed');
 });
 
 test('supplies and decor never leak into retail: staff do not shelve them, shoppers cannot buy them', () => {

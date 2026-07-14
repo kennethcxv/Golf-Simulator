@@ -11,7 +11,7 @@ import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import { RENO, ensureShopReno } from '../src/sim/shop.js';
 import {
   SHELL, INTERIOR, FIXTURES, COUNTER, OFFICE, STOCKROOM, DOOR_MAIN,
-  DOOR_CLEARWAY, queueSlot,
+  DOOR_CLEARWAY, BACKDOOR_CLEARWAY, queueSlot,
 } from '../src/data/shopLayout.js';
 import { SHOP_CATALOG, DECOR_SPOTS, skuById, RETAIL_CATS, SHELF_CAP } from '../src/data/shopItems.js';
 import { placeOrder } from '../src/sim/shop.js';
@@ -72,6 +72,24 @@ test('the entrance clearway stays clear: no fixture, clutter, or queue slot bloc
   assert.ok(!inRect(COUNTER, DOOR_CLEARWAY), 'the counter is not in the doorway');
   assert.ok(Math.abs(DOOR_MAIN.x - (DOOR_CLEARWAY.minX + DOOR_CLEARWAY.maxX) / 2) < 1,
     'the clearway is actually in front of the main door');
+});
+
+test('the receiving doorway stays walkable: no fixture collider in the back-door clearway', () => {
+  // mirror the scene builders' collider extents (found live 2026-07-13:
+  // backshelf_e's collider used to block the doorway at world x≈5.0)
+  const HALF = {
+    shelf: [1.6, 0.35], rack: [1.4, 0.5], table: [1.2, 0.8], hatstand: [0.4, 0.4],
+    bagstand: [1.3, 0.65], shoerack: [1.4, 0.35], feature: [0.9, 0.9], backshelf: [1.4, 0.45],
+  };
+  for (const f of FIXTURES) {
+    const [a, b] = HALF[f.kind] || [1, 1];
+    const swap = Math.abs(Math.sin(f.ry)) > 0.5;
+    const hx = swap ? b : a;
+    const hz = swap ? a : b;
+    const overlaps = f.x + hx > BACKDOOR_CLEARWAY.minX && f.x - hx < BACKDOOR_CLEARWAY.maxX
+      && f.z + hz > BACKDOOR_CLEARWAY.minZ && f.z - hz < BACKDOOR_CLEARWAY.maxZ;
+    assert.ok(!overlaps, `${f.id} keeps clear of the receiving doorway`);
+  }
 });
 
 test('the required retail zones all exist in the plan', () => {
