@@ -232,9 +232,22 @@ export function buildFixtures(B) {
     bar.rotation.z = Math.PI / 2;
     bar.position.set(0, 1.68, 0);
     g.add(bar);
+    // hanging sign board: walnut backer on two brass drops off the bar
+    const signBacker = new THREE.Mesh(roundedBox(0.98, 0.26, 0.03, 0.012), mats.walnut);
+    signBacker.position.set(0, 1.92, 0);
+    g.add(signBacker);
     const signBoard = categorySign(f.title, { w: 0.9, h: 0.2 });
-    signBoard.position.set(0, 1.86, 0);
+    signBoard.position.set(0, 1.92, 0.017);
     g.add(signBoard);
+    const signBoardB = categorySign(f.title, { w: 0.9, h: 0.2 });
+    signBoardB.position.set(0, 1.92, -0.017);
+    signBoardB.rotation.y = Math.PI;
+    g.add(signBoardB);
+    for (const dx of [-0.4, 0.4]) {
+      const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.14, 6), mats.brass);
+      drop.position.set(dx, 1.75, 0);
+      g.add(drop);
+    }
     addCol(colBoxAt(f.x, f.z, Math.abs(Math.sin(f.ry)) > 0.5 ? 0.9 : 2.2, Math.abs(Math.sin(f.ry)) > 0.5 ? 2.2 : 0.9));
     return g;
   }
@@ -553,16 +566,17 @@ export function buildLounge(B) {
     ['CLUB EVENTS', 'Member–Member · May 17–18', 'Pine Classic · June 7', 'Junior Championship · Aug 2–3', 'Fall Classic · Sept 13'],
     { w: 512, h: 640, field: '#f4f0e6', ink: '#1f4a26', pine: false, sizes: [56, 30, 30, 30, 30] },
   );
+  const evFrame = new THREE.Mesh(roundedBox(0.05, 1.16, 0.95, 0.02), mats.walnut);
+  evFrame.position.set(LOUNGE.events.x + 0.025, 1.62, LOUNGE.events.z);
+  interior.add(evFrame);
   const events = new THREE.Mesh(
     new THREE.PlaneGeometry(0.85, 1.06),
     new THREE.MeshStandardMaterial({ map: evTex, roughness: 0.85 }),
   );
-  events.position.set(LOUNGE.events.x, 1.62, LOUNGE.events.z);
+  // proud of the backer board so the face can't be swallowed by it
+  events.position.set(LOUNGE.events.x - 0.005, 1.62, LOUNGE.events.z);
   events.rotation.y = LOUNGE.events.ry;
   interior.add(events);
-  const evFrame = new THREE.Mesh(roundedBox(0.06, 1.16, 0.95, 0.02), mats.walnut);
-  evFrame.position.set(LOUNGE.events.x + 0.02, 1.62, LOUNGE.events.z);
-  interior.add(evFrame);
 }
 
 // ------------------------------------------------------- stockroom extras ---

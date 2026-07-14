@@ -10,7 +10,7 @@ import {
   SHELL, INTERIOR, DOOR_MAIN, DOOR_STOCK, DOOR_BACK, WINDOWS, WINDOW_DIM,
   PARTITIONS, STOCKROOM, HOURS_SIGN,
 } from '../../data/shopLayout.js';
-import { makeSignTexture, makeOakFloorTexture, makeConcreteTexture } from './materials.js';
+import { makeSignTexture, makeOakFloorTexture, makeConcreteTexture, makeSidingTexture } from './materials.js';
 
 export function buildShell(B) {
   const { group, interior, mats, addCol, colBoxAt, FLOOR_TOP } = B;
@@ -29,9 +29,14 @@ export function buildShell(B) {
   sidingNor.repeat.set(6, 2.2);
   const roofNor = loadTex('roof_nor.jpg');
   roofNor.repeat.set(4, 2);
-  const sidingMat = new THREE.MeshStandardMaterial({ color: 0xe9e2cc, normalMap: sidingNor, roughness: 0.85 });
+  const sidingTex = makeSidingTexture({});
+  sidingTex.repeat.set(6, 2.2);
+  const sidingMat = new THREE.MeshStandardMaterial({ map: sidingTex, normalMap: sidingNor, roughness: 0.85 });
   const roofMat = new THREE.MeshStandardMaterial({ color: 0x2e5a35, normalMap: roofNor, roughness: 0.72 });
   const trimMat = mats.trimPaint;
+  // eave/porch undersides fight the hemisphere's green ground bounce with a
+  // faint warm self-light (they read as shadowed cream, not lime)
+  const soffitMat = new THREE.MeshStandardMaterial({ color: 0xf5f2e6, roughness: 0.85, emissive: 0xfff2dc, emissiveIntensity: 0.10 });
 
   // --- walls: runs of box segments around true openings --------------------------
   function buildWall({ axis, at, from, to, openings = [], insideDir }) {
@@ -114,8 +119,8 @@ export function buildShell(B) {
     { w: 0.18, d: SHELL.d + 0.3, x: halfW + SHELL.wallT / 2 + 0.05, z: 0 },
     { w: 0.18, d: SHELL.d + 0.3, x: -halfW - SHELL.wallT / 2 - 0.05, z: 0 },
   ]) {
-    const skirt = new THREE.Mesh(new THREE.BoxGeometry(side.w, 0.42, side.d), mats.charcoal);
-    skirt.position.set(side.x, 0.1, side.z);
+    const skirt = new THREE.Mesh(new THREE.BoxGeometry(side.w, 0.9, side.d), mats.charcoal);
+    skirt.position.set(side.x, -0.14, side.z); // deep enough to meet sloped ground
     group.add(skirt);
   }
 
@@ -210,7 +215,7 @@ export function buildShell(B) {
       fascia.position.set(0, WALL_H - 0.02, zSide * (D2 / 2 + 0.78));
       group.add(fascia);
       // soffit under the overhang (clean cream underside, kills the striping)
-      const soffit = new THREE.Mesh(new THREE.PlaneGeometry(W2 + 2.1, 0.95), trimMat);
+      const soffit = new THREE.Mesh(new THREE.PlaneGeometry(W2 + 2.1, 0.95), soffitMat);
       soffit.rotation.x = Math.PI / 2;
       soffit.position.set(0, WALL_H - 0.1, zSide * (D2 / 2 + 0.32));
       group.add(soffit);
@@ -229,7 +234,7 @@ export function buildShell(B) {
     porchRoof.position.set(-1.0, WALL_H - 0.75, D2 / 2 + PORCH_D / 2);
     porchRoof.castShadow = true;
     group.add(porchRoof);
-    const porchSoffit = new THREE.Mesh(new THREE.PlaneGeometry(porchW + 0.8, PORCH_D + 0.5), trimMat);
+    const porchSoffit = new THREE.Mesh(new THREE.PlaneGeometry(porchW + 0.8, PORCH_D + 0.5), soffitMat);
     porchSoffit.rotation.x = Math.PI / 2;
     porchSoffit.position.set(-1.0, WALL_H - 0.85, D2 / 2 + PORCH_D / 2);
     group.add(porchSoffit);
@@ -558,7 +563,7 @@ export function buildShell(B) {
       if (conditionNow < 45 && i === 4) on = 0;              // a dead can in the neglect years
       if (conditionNow < 55 && (i === 9 || i === 12)) on = 0; // dark corners until refurbished
       if (p.light) p.light.intensity = p.base * scale * on;
-      p.glow.material.emissiveIntensity = on ? (i < 3 ? 1.5 : 1.4) * (0.75 + 0.45 * (1 - moodDayF)) : 0.04;
+      p.glow.material.emissiveIntensity = on ? (i < 3 ? 2.0 : 1.4) * (0.8 + 0.45 * (1 - moodDayF)) : 0.04;
     });
   }
 

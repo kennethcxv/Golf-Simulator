@@ -1674,7 +1674,8 @@ export function makeClubhouse(ctx) {
 
   // --- customers: they walk in from the course, through the real door -------------------
   const customers = [];
-  const CUST_COLORS = [0x3b6fb3, 0x2c3e66, 0xd98bb0, 0xd97538, 0x3f7a34];
+  // golfer-wardrobe palette, muted to the club color language
+  const CUST_COLORS = [0x4a6d94, 0x2c3e66, 0xb0788f, 0xb3714a, 0x4a7050, 0x8a8577, 0x6b4f37];
   const counterQueue = [];
   const doorW = L2W(DOOR_MAIN.x, halfD);
   const spawnW = { x: doorW.x + 1.5, z: doorW.z + SHELL.porchD + 9 };

@@ -176,6 +176,32 @@ export function makeOakFloorTexture({ seed = 71 } = {}) {
   return finish(c);
 }
 
+// Clapboard siding color: soft horizontal lap lines so the exterior reads at
+// distance (the normal map alone vanishes past a few yards).
+export function makeSidingTexture({ seed = 47, base = '#e9e2cc' } = {}) {
+  const size = 256;
+  const c = makeCanvas(size);
+  const ctx = c.getContext('2d');
+  const r = rng(seed);
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, size, size);
+  const lap = 18;
+  for (let y = 0; y < size; y += lap) {
+    // shadow under each lap edge + a lighter catch above it
+    ctx.fillStyle = '#d4cbb220';
+    ctx.fillRect(0, y + lap - 4, size, 4);
+    ctx.fillStyle = '#cfc5aa38';
+    ctx.fillRect(0, y + lap - 1.5, size, 1.5);
+    ctx.fillStyle = '#f4efdd28';
+    ctx.fillRect(0, y, size, 1.5);
+  }
+  for (let i = 0; i < 700; i++) {
+    ctx.fillStyle = r() < 0.5 ? '#ddd4bb22' : '#f2ecd922';
+    ctx.fillRect(r() * size, r() * size, 2, 1.2);
+  }
+  return finish(c);
+}
+
 export function makePlasterCreamTexture({ seed = 41, base = '#efe9d9' } = {}) {
   const size = 256;
   const c = makeCanvas(size);
@@ -425,7 +451,7 @@ export function makeClubhouseMaterials(clubName) {
   return {
     // architecture
     plaster: new THREE.MeshStandardMaterial({ map: plasterTex, roughness: 0.92 }),
-    ceiling: new THREE.MeshStandardMaterial({ color: 0xf4f0e6, roughness: 0.94 }),
+    ceiling: new THREE.MeshStandardMaterial({ color: 0xf4f0e6, roughness: 0.94, emissive: 0xfff2dc, emissiveIntensity: 0.08 }),
     oakFloor: new THREE.MeshStandardMaterial({ map: oakTex, roughness: 0.52 }),
     concrete: new THREE.MeshStandardMaterial({ map: concreteTex, roughness: 0.9 }),
     // woods

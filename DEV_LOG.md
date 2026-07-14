@@ -2714,3 +2714,37 @@ Rebuild discipline held (stock/decor/box rebuilds are signature-gated; the
 grime canvas repaints only on state change; laptop pages are event-driven).
 If draw calls ever matter on low-end hardware, the first lever is instancing
 the repeated product boxes/cans (documented, not needed today).
+
+--- PHASE 22: ITERATIVE VISUAL REVIEW (three passes, pinned angles) ---
+
+PASS 1 (qa/clubhouse-production/pass-1/) — ten weakest, ranked:
+ 1. green hemisphere ground-bounce tinting every ceiling/soffit lime   FIXED
+ 2. lounge events board rendering as a blank walnut slab (solid backer
+    box sat 1cm in FRONT of the sign plane)                            FIXED
+ 3. apparel-rail category sign floating in air                         FIXED
+    (now a walnut board hung off the bar on brass drops, two-faced)
+ 4. exterior siding reads flat white past ~10yd (normal map alone)     FIXED
+    (clapboard color map with lap shadows, matches the normal repeat)
+ 5. foundation skirt floating at the NE corner on sloped ground        FIXED
+ 6. customer wardrobe colors read prototype-saturated                  FIXED
+    (muted to the club palette; figures themselves remain the known
+    artist-needed item)
+ 7. lantern glass reads dark against the bright day ceiling            FIXED
+ 8. hours sign contrast at porch distance                              ACCEPTED
+ 9. hanging polos overlap tightly on the jacket rail                   FIXED EARLIER
+10. stockroom hand truck reads flat                                    ACCEPTED
+    (it is a hand truck; the red frame is plausible equipment)
+
+PASS 2 (qa/clubhouse-production/pass-2/) — after the fixes above:
+ - eaves/porch/ceiling read warm cream, no lime cast (01/03/04)
+ - CLUB EVENTS board renders with gold frame + schedule (09)
+ - rail sign reads as hung millwork (05)
+ - clapboard visible at approach distance (01)
+ - remaining list shrank to: service-wing ceiling still catches a mild
+   green tint at glancing angles (accepted — hemisphere is scene-wide),
+   QA pose 11 clamps into a shelf (pose data, not the game), bare-shelf
+   emptiness in the start state (INTENTIONAL — that is the dirty start).
+
+PASS 3 (qa/clubhouse-production/pass-3/) — verification pass, no code
+changes warranted beyond the pass-1 batch; pose 11 recomposed for the
+record. Residual accepted items carried to the closing report.
