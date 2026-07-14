@@ -10,6 +10,7 @@ import { rngOf, clamp, makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
 import { addRevenue, addExpense } from './economy.js';
 import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
+import { INTERIOR, CLUTTER_SPOTS } from '../data/shopLayout.js';
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
 import { members } from './golfers.js';
@@ -20,8 +21,8 @@ import { members } from './golfers.js';
 // player orders and places. Condition 0-100 is DERIVED from that state, never
 // stored, so it can't drift: cleanliness carries 70 points, decor finish 30.
 export const RENO = {
-  room: { w: 14, d: 10 },      // must match shopScene's ROOM (render mirrors sim)
-  grid: { w: 7, h: 5 },        // 2×2-yd grime cells over the floor
+  room: { w: INTERIOR.w, d: INTERIOR.d }, // the clubhouse plan's interior (shopLayout.js)
+  grid: { w: 13, h: 8 },       // ~2-yd grime cells over the whole floor (stockroom included)
   startDirt: [0.58, 0.95],     // fresh-game dirt range per cell
   cleanRadius: 1.3,            // yards a vacuum pass reaches
   clutterWipe: 0.5,            // dirt removed under a hauled-out pile
@@ -29,13 +30,6 @@ export const RENO = {
   trafficGrime: 0.0011,        // dirt tracked in per shopper per day, per cell
   trafficCap: 0.5,             // traffic alone plateaus at "needs a pass", never "wrecked"
 };
-
-// candidate clutter spots chosen off the walkways (fixtures live at the walls,
-// the table at center-west, the counter east — these gaps stay reachable)
-const CLUTTER_SPOTS = [
-  { x: -5.6, z: 3.4 }, { x: 4.6, z: -3.4 }, { x: 1.6, z: 2.6 },
-  { x: -3.4, z: -2.8 }, { x: 5.6, z: 3.8 },
-];
 
 function renoRng(state) {
   // a LOCAL stream derived from the save seed — reno must never consume
@@ -62,6 +56,45 @@ export function initShopReno(state) {
 export function ensureShopReno(state) {
   if (!state.shop) return;
   if (!state.shop.reno) initShopReno(state);
+  const reno = state.shop.reno;
+
+  // FLOOR-PLAN MIGRATION (2026-07-13): saves from the 14×10 room carry a 7×5
+  // grime grid and 5 clutter piles. Resample the dirt onto the new grid by
+  // normalized position (cleaning progress carries over), and re-lay the
+  // piles on the new plan's spots keeping each pile's hauled/unhauled flag
+  // by index — a fully-hauled save never gets new junk dumped on it.
+  const cells = RENO.grid.w * RENO.grid.h;
+  if (reno.grime.length !== cells) {
+    const old = reno.grime;
+    let ow = 7, oh = 5; // the only legacy shape ever shipped
+    if (old.length !== ow * oh) {
+      ow = Math.max(1, Math.round(Math.sqrt(old.length * (RENO.grid.w / RENO.grid.h))));
+      oh = Math.max(1, Math.round(old.length / ow));
+    }
+    const grime = [];
+    for (let cy = 0; cy < RENO.grid.h; cy++) {
+      for (let cx = 0; cx < RENO.grid.w; cx++) {
+        const ox = Math.min(ow - 1, Math.floor(((cx + 0.5) / RENO.grid.w) * ow));
+        const oy = Math.min(oh - 1, Math.floor(((cy + 0.5) / RENO.grid.h) * oh));
+        const v = old[oy * ow + ox];
+        grime.push(typeof v === 'number' ? v : 0);
+      }
+    }
+    reno.grime = grime;
+  }
+  const outsideRoom = (c) => Math.abs(c.x) > RENO.room.w / 2 || Math.abs(c.z) > RENO.room.d / 2;
+  if (reno.clutter.length !== CLUTTER_SPOTS.length || reno.clutter.some(outsideRoom)) {
+    const flags = reno.clutter.map((c) => !!c.cleared);
+    const allCleared = flags.length > 0 && flags.every(Boolean);
+    const rng = renoRng(state);
+    reno.clutter = CLUTTER_SPOTS.map((s, i) => ({
+      x: Math.round((s.x + rng.range(-0.4, 0.4)) * 100) / 100,
+      z: Math.round((s.z + rng.range(-0.3, 0.3)) * 100) / 100,
+      ry: Math.round(rng.range(0, Math.PI * 2) * 100) / 100,
+      cleared: i < flags.length ? flags[i] : allCleared,
+    }));
+  }
+
   // saves written before a catalog item existed need its inventory slot
   for (const sku of SHOP_CATALOG) {
     if (!state.shop.inventory[sku.id]) state.shop.inventory[sku.id] = { shelf: 0, back: 0 };

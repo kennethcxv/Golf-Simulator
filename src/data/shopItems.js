@@ -31,6 +31,12 @@ export const SHOP_CATALOG = [
   { id: 'towel1', cat: 'accessories', tier: 1, name: 'Bag towel', cost: 6, msrp: 14 },
   { id: 'marker1', cat: 'accessories', tier: 1, name: 'Ball marker set', cost: 3, msrp: 8 },
   { id: 'range2', cat: 'accessories', tier: 3, name: 'Laser rangefinder', cost: 140, msrp: 279 },
+  { id: 'umb1', cat: 'accessories', tier: 1, name: 'Fairway Supply umbrella', cost: 12, msrp: 26 },
+
+  // bags & shoes — the floor-plan zones the 2026-07-13 overhaul added
+  { id: 'bag1', cat: 'accessories', tier: 2, name: 'Ironwood stand bag', cost: 90, msrp: 189 },
+  { id: 'shoe1', cat: 'apparel', tier: 2, name: 'North Ridge spikes', cost: 48, msrp: 99 },
+  { id: 'sock1', cat: 'apparel', tier: 1, name: 'Sunday Round crew socks', cost: 4, msrp: 11 },
 
   // supplies — the shop's own equipment, never sold to shoppers (restoration arc)
   { id: 'vac1', cat: 'supplies', tier: 1, name: 'Shop vacuum', cost: 140, msrp: 0 },
@@ -45,36 +51,39 @@ export const SHOP_CATALOG = [
   { id: 'lounge1', cat: 'decor', tier: 1, name: 'Lounge set', cost: 420, msrp: 0, finish: 9 },
 ];
 
-// valid placement anchors per decor sku, in shop-room yards (14×10, door at +z).
+// valid placement anchors per decor sku, in BUILDING-local yards (the 26×16
+// clubhouse plan in src/data/shopLayout.js — interior 25.5×15.5, door at +z).
 // mount tells the scene how to build/orient: floor pieces sit at y0, wall pieces
 // hang at eye height flush to their wall, ceiling pieces drop from the roof.
+// SPOT COUNTS ARE SAVE FORMAT — saves store {skuId, spot index}; counts must
+// never shrink (coordinates are free to move).
 export const DECOR_SPOTS = {
   rug1: [
-    { x: 0, z: 2.3, ry: 0, mount: 'floor' },
-    { x: -4.2, z: 2.4, ry: 0.35, mount: 'floor' },
+    { x: -0.8, z: 5.6, ry: 0, mount: 'floor' },      // entrance runner
+    { x: 5.4, z: -5.5, ry: 0, mount: 'floor' },      // under the lounge
   ],
   plant1: [
-    { x: -6.4, z: 4.2, ry: 0, mount: 'floor' },
-    { x: 6.4, z: 4.3, ry: 0, mount: 'floor' },
-    { x: -6.4, z: -4.2, ry: 0, mount: 'floor' },
-    { x: 0.05, z: -4.5, ry: 0, mount: 'floor' },
+    { x: 7.7, z: -7.0, ry: 0, mount: 'floor' },      // lounge corner
+    { x: -11.9, z: 6.9, ry: 0, mount: 'floor' },     // SW corner
+    { x: -0.9, z: -6.9, ry: 0, mount: 'floor' },     // north aisle
+    { x: 8.0, z: 6.9, ry: 0, mount: 'floor' },       // office nook edge
   ],
   poster1: [
-    { x: -3.2, z: 4.97, ry: Math.PI, mount: 'wall' },
-    { x: -6.97, z: 3.1, ry: Math.PI / 2, mount: 'wall' },
-    { x: 6.97, z: -1.2, ry: -Math.PI / 2, mount: 'wall' },
+    { x: 6.2, z: 7.62, ry: Math.PI, mount: 'wall' },       // south wall, by the counter
+    { x: -12.62, z: 4.4, ry: Math.PI / 2, mount: 'wall' }, // west wall, past the putters
+    { x: 12.62, z: 6.4, ry: -Math.PI / 2, mount: 'wall' }, // office east wall
   ],
   board1: [
-    { x: -1.9, z: 4.97, ry: Math.PI, mount: 'wall' },
-    { x: -6.97, z: -3.1, ry: Math.PI / 2, mount: 'wall' },
+    { x: 2.2, z: -7.62, ry: 0, mount: 'wall' },            // lounge events board
+    { x: -10.9, z: 7.62, ry: Math.PI, mount: 'wall' },     // south wall, west end
   ],
   light1: [
-    { x: 0, z: -2.0, ry: 0, mount: 'ceiling' },
-    { x: 0, z: 2.0, ry: 0, mount: 'ceiling' },
+    { x: -3.0, z: 1.4, ry: 0, mount: 'ceiling' },    // over the apparel block
+    { x: 3.4, z: -2.4, ry: 0, mount: 'ceiling' },    // over bags & the lounge edge
   ],
   lounge1: [
-    { x: 3.7, z: 3.9, ry: Math.PI, mount: 'floor' },
-    { x: -4.3, z: -3.5, ry: Math.PI / 2, mount: 'floor' },
+    { x: 5.4, z: -6.3, ry: 0, mount: 'floor' },            // the lounge proper
+    { x: -10.6, z: -6.2, ry: Math.PI / 2, mount: 'floor' }, // alternate west nook
   ],
 };
 
