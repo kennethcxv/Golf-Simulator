@@ -82,7 +82,10 @@ Baseline at session open: **267 tests green**, frame median 8.3 ms / worst 8.7 m
 - **Fix** Audit every path that mutates inventory (box take, stock, checkout, refund) for
   double-credit; property-test a long random action sequence for unit conservation.
 - **Verify** Conservation test: units in boxes + on shelves + sold == units ordered.
-- **Status** todo
+- **Status** **done** · commit `7cd5afe` · Found a real leak: `pickFromShelf` removes a unit the
+  instant a shopper lifts it, and **three** removal paths plus scene-dispose deleted shoppers
+  without returning their cart. 500-step randomised conservation property test + live proof:
+  12 units in 6 shoppers, all forced off the floor → **0 lost**.
 
 ---
 
@@ -96,7 +99,10 @@ Baseline at session open: **267 tests green**, frame median 8.3 ms / worst 8.7 m
   + mist + wet-darkening, mask erosion at the real stream contact point, persistence, tool tiers.
 - **Verify** Unit tests for mask erosion, soap dwell, heavy-stain gating; live: wash a wall and see
   the clean material revealed under the stream.
-- **Status** todo
+- **Status** **done** · commit `f547d32` · 8 unit tests. Live: stream held on one spot scrubbed
+  **4 of 432 cells to zero with 376 untouched** — it cleans where the water lands and nowhere else.
+  Water alone on the foundation stalled at **0.726 → 0.42 (= HEAVY_FLOOR)** with the game saying
+  why; soap → dwell → jet took the same cells to **0.0**. The forbidden `[E]` scrub is deleted.
 
 ### P1-2 · Fixture placement / build mode
 - **Impact** "The player needs freedom to place and move fixtures." Whole missing system.
