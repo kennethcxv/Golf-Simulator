@@ -2892,3 +2892,24 @@ not estimates.
 - Desk side stretchers clip through the office wainscot run (fixture placement).
 - Office window dirty-film covers muntins with a flat brown wash (crude).
 - Tutorial is a text-card checklist ("Getting started 8/10"), not interactive guidance [P1].
+
+---
+
+# STABILIZATION PASS — P0 fixes complete (2026-07-14)
+
+Every P0 defect from the Phase-1 list is fixed and verified live. Commits e3d9298..d604ad4.
+
+| Defect | Fix | Verification |
+| --- | --- | --- |
+| D1 load/turn stutter | Loading veil + prewarm: wait for asset idle (DefaultLoadingManager), renderer.compile, batched texture uploads, one frustumCulled-off draw (Windows drivers defer compile to first DRAW), AO/bloom settle | Scripted cold 360°: **0 spikes, worst 14ms** (was 7-11 spikes, worst 356ms); textures/programs flat during turn |
+| D2 door gaps | Real frames: jamb linings filling wall depth, headers, threshold sills (cover the floorless wall strip), stops on the one-way entry | Night porch closeup: sealed, no light leak |
+| D3 door swing | Swing chosen at open time away from the opener (doorMath.js, tested both sides ×2 doors); entry fixed inward + radial pushout; slab-tracking collider; player doors E-only; customer auto-open movement-gated (a loiterer at arm's length was flapping it) | Pushout: player at 1.63yd slid to 1.96yd arc edge, door opened fully; idle 14s watch: zero phantom opens |
+| D4 laptop backward | Lid hinge moved to the far edge; LID_OPEN +1.78; screen plane player-side with in-plane π turn (upright, unmirrored); keyboard far half, trackpad near, LED front | Axis-arrow proof screenshot, then cursor click on the projected screen opened Supplier at (427,456) |
+| D5 floating map | Framed board (backer with thickness + frame lip + proud face) flush on the office south wall; layout data updated | Verified from desk side + west opening: no floating geometry |
+| D6 customer clipping | clubhouse/nav.js: collider-baked walkable grid (doors excluded), A* on destination change, string-pulling, colVersion rebakes, 1.2s stuck=repath / 3s=sidestep | 6-shopper 40s soak: 264 samples, **0 fixture penetrations**; 5 headless nav tests |
+| D7 disappearing boxes | Boxes positional: loc 'world' + exact coords; set-down anywhere at aim point (wall-crossing guard); unified verbs (stockroom=unpack, elsewhere=pick up) | Yard drop at exact aim spot; carry through auto-opening door; save/load round trip kept id 9 at (-0.2, 5.7); 4 sim tests red-first |
+| D8 escape menu | Single instance, Esc toggles, torn down on mode changes; two-pane commercial design; slot cards w/ real metadata; settings that actually drive the renderer (scale/AO/bloom/FOV/sens verified) | Esc/Esc/Esc = exactly one menu; gtao.enabled flips with the toggle |
+
+Suite: 250 tests green. New evidence: qa/stabilization/ (before/ + fix proofs).
+Also fixed en route: rack/shelf FP-touch overlaps + two real wedge gaps (north run,
+backroom L) with EPS-hardened layout tests.
