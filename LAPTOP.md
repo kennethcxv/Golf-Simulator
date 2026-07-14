@@ -219,10 +219,10 @@ Stated plainly.
   all render as the same kraft box with a label too small to read at card size. They are real
   renders of the real models — the shop genuinely stocks them as branded cartons — but on a
   product page you cannot tell them apart. Distinct models are asset work, not laptop work.
-- **The Orders page shows five states, not the brief's eight.** *Pending, Processing, Out for
-  delivery, Arriving now, Delivered* are what the delivery sim actually produces, plus *Partially
-  unpacked* read from a box that has been opened and still has stock in it. There is no "Packed"
-  state and no carrier hand-off in the sim, so the page does not claim one.
+- **The Orders page now shows all nine delivery states** (as of the delivery-loop session,
+  2026-07-14 — this note superseded). *Received, Processing, Packed, Shipped, Out for delivery,
+  Arriving soon* are worn by an order in transit; *Delivered, Partially unpacked, Fully unpacked* by
+  a shipment on the floor, derived from the state of its boxes. See `DELIVERY.md`.
 - **A keypress in the ~0.4s after Escape is silently dropped.** `courseScene` decides what you are
   looking at *from the camera*, and for those 0.4s the camera is still easing out of the seat and
   is in the laptop's face — so no prop is under the gaze and the prompt is blank. It self-heals the
