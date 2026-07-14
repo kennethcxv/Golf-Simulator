@@ -10,6 +10,7 @@ export function emptyLines() {
     expense: {
       wagesStaff: 0, wagesDayLabor: 0, water: 0, fertilizer: 0, chemicals: 0,
       upkeep: 0, utilities: 0, works: 0, severance: 0, training: 0, shopOrders: 0, rentalFleet: 0, events: 0,
+      rent: 0,
     },
   };
 }

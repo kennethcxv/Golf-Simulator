@@ -15,6 +15,7 @@ import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
 import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue, tickDeliveries, ensureShopReno } from './shop.js';
 import { ensureWash } from './washing.js';
+import { ensureProperty, tickProperty } from './property.js';
 import { initReservations, ensureReservations, reservationsDailyTick } from './reservations.js';
 import { initTractor, ensureTractor } from './tractor.js';
 import { bunkerDailyMess } from './bunkers.js';
@@ -55,6 +56,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initClub(state);
   initShop(state);
   ensureWash(state); // a fixer-upper arrives with a filthy exterior
+  ensureProperty(state); // ...and a landlord
   initReservations(state);
   initTractor(state);
   initCourseProps(state);
@@ -73,6 +75,8 @@ export function dailyTick(state) {
     if (state.shop) shopDailyAccrual(state);
     if (state.golfers) simulateDayRounds(state, state.club.lastRounds || 0);
     if (state.progression) resolveTournamentIfDue(state, calendarOf(state.clock.minutes).dayAbs - 1);
+    // the rent falls due whether or not it was a good week; it is announced two days out
+    state.lastPropertyEvent = tickProperty(state, calendarOf(state.clock.minutes).dayAbs);
     closeBooks(state, calendarOf(state.clock.minutes).dayAbs - 1);
   }
 
@@ -180,6 +184,7 @@ export function snapshot(state) {
     props: state.props,
     progression: state.progression,
     tutorial: state.tutorial,
+    property: state.property, // the rent schedule, or reloading is a rent holiday
     debtDays: state.debtDays || 0,
     failed: state.failed || null,
     turf: turf
@@ -265,6 +270,7 @@ export function deserialize(json) {
   else initShop(state);
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
   ensureWash(state); // ...and a filthy exterior waiting for the pressure washer
+  ensureProperty(state); // pre-rent saves gain a schedule rather than a free ride
   if (raw.reservations) state.reservations = raw.reservations;
   ensureReservations(state); // pre-booking saves gain an empty tee sheet
   if (raw.tractor) state.tractor = raw.tractor;

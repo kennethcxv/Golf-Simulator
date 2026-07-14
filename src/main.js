@@ -1392,6 +1392,12 @@ function frame(ts) {
         announceReopenings();
         announceOutbreaks();
         checkBigMoments();
+        // the rent: announced two days out, then said out loud when it lands
+        const pe = app.state && app.state.lastPropertyEvent;
+        if (pe && pe.message) {
+          toast(pe.message, pe.missed || pe.severe ? 'warn' : pe.warning ? 'warn' : 'good');
+          app.state.lastPropertyEvent = null;
+        }
         if (app.clubOpen) clubPanel.refresh();
         if (app.empireOpen) empirePanel.refresh();
         if (app.marketRefresh) app.marketRefresh(); // market left open stays live

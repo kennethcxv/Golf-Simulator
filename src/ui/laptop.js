@@ -14,6 +14,7 @@ import {
 } from '../sim/shop.js';
 import { TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot } from '../sim/reservations.js';
 import { reviewSummary } from '../sim/reviews.js';
+import { weeklyCharge, propertyLine, arrearsOf } from '../sim/property.js';
 import { members } from '../sim/golfers.js';
 import { ZONE } from '../sim/constants.js';
 
@@ -411,13 +412,21 @@ export function makeLaptop(app, opts) {
         chip(`${rev - exp >= 0 ? '+' : ''}${formatMoney(rev - exp)}`, rev - exp >= 0 ? 'ok' : 'bad'),
       );
     });
+    const dayAbs = calendarOf(st.clock.minutes).dayAbs;
+    const owed = arrearsOf(st);
     content.replaceChildren(
       h1('Finances'),
       el('div', { class: 'lt-tiles' },
         el('div', { class: 'lt-tile lt-static' }, el('div', { class: 'lt-tiletitle', text: formatMoney(app.empire ? app.empire.cash : st.cash) }), el('div', { class: 'lt-tilesub', text: 'wallet (empire-wide)' })),
+        el('div', { class: 'lt-tile lt-static' },
+          el('div', { class: 'lt-tiletitle', text: formatMoney(weeklyCharge(st)) }),
+          el('div', { class: 'lt-tilesub', text: propertyLine(st, dayAbs) })),
         el('div', { class: 'lt-tile lt-static' }, el('div', { class: 'lt-tiletitle', text: `${s.salesYesterday.units} sales` }), el('div', { class: 'lt-tilesub', text: `${formatMoney(s.salesYesterday.revenue)} yesterday${s.lostSalesYesterday ? ` · ${s.lostSalesYesterday} walked out` : ''}` })),
         el('div', { class: 'lt-tile lt-static' }, el('div', { class: 'lt-tiletitle', text: `${st.shop.orders.length} inbound` }), el('div', { class: 'lt-tilesub', text: `${formatMoney(st.shop.orders.reduce((a, o) => a + o.cost, 0))} on the truck` })),
       ),
+      owed > 0
+        ? el('div', { class: 'lt-card lt-note', text: `You are behind on the property: ${formatMoney(owed)} in arrears, accruing interest. It comes out of the next bill you can cover.` })
+        : el('div', { class: 'lt-card lt-note', text: `The property costs ${formatMoney(weeklyCharge(st))} a week whatever kind of week it was. ${propertyLine(st, dayAbs)}.` }),
       sect('Recent days'),
       el('div', { class: 'lt-card lt-scroll' }, ...(histRows.length ? histRows : [meta('The books fill in as days close.')])),
       sect('Notable sales'),

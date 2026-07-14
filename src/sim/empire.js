@@ -196,6 +196,8 @@ export function initPropertyState(property, mode) {
   seedTurfToCondition(state, property);
   seedMembership(state, property);
   state.club.reputation = property.startingReputation;
+  // what the place is worth is what the rent is sized off (sim/property.js)
+  state.club.valuation = property.askingPrice;
   // the golf world has roughly heard of it to the extent the locals like it
   state.progression.prestige = clamp(8 + property.startingReputation * 0.3, 5, 30);
   return state;
