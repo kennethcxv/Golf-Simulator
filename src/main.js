@@ -182,10 +182,16 @@ function alignLaptopUi() {
 let laptopResizeHandler = null;
 let laptopTimers = [];
 
+function seatPose(ch) {
+  // the seat is fitted to the live camera, so the screen fills the view at any FOV or window shape
+  const cam = app.scene3d && app.scene3d.camera;
+  return ch.laptopPose(cam ? cam.fov : 60, cam ? cam.aspect : 16 / 9);
+}
+
 function enterLaptop() {
   if (!walkActive() || app.laptopOpen) return;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
-  const pose = ch && ch.laptopPose();
+  const pose = ch && seatPose(ch);
   if (!pose) return;
   app.laptopOpen = true;
   resetCameraInput(); // sitting down is a mode change too
@@ -210,7 +216,13 @@ function enterLaptop() {
     // one more alignment a beat later: the focus blend has fully settled
     laptopTimers.push(setTimeout(() => { if (app.laptopOpen) alignLaptopUi(); }, 260));
   }, 1350));
-  laptopResizeHandler = () => { if (app.laptopOpen) alignLaptopUi(); };
+  laptopResizeHandler = () => {
+    if (!app.laptopOpen) return;
+    // the window changed shape: re-seat (the fit depends on aspect) before re-projecting
+    const c = app.scene3d.clubhouse && app.scene3d.clubhouse();
+    if (c) app.scene3d.walk.focusOn(seatPose(c));
+    alignLaptopUi();
+  };
   window.addEventListener('resize', laptopResizeHandler);
 }
 

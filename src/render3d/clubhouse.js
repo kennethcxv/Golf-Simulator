@@ -11,6 +11,7 @@
 
 import * as THREE from 'three';
 import { clamp, rngOf } from '../core/utils.js';
+import { fitDistance } from '../core/screenFit.js';
 import { makeCharacter } from './characterAsset.js';
 import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
@@ -773,12 +774,36 @@ export function makeClubhouse(ctx) {
       action: () => { if (hooks.openLaptop) hooks.openLaptop(); },
     });
     office.laptop = laptop;
-    // where the camera settles when you sit down at it (world pose)
-    const seatPos = L2W(OFFICE.laptop.x - 0.96, OFFICE.laptop.z);
-    office.laptopPose = {
-      x: seatPos.x, y: floorY + 1.22, z: seatPos.z,
-      yaw: -Math.PI / 2, // face east, square to the screen
-      pitch: -0.12,
+
+    // Where the camera settles when you sit down. Derived from the *open* lid, the live field of
+    // view and the window shape, so the screen fills the view on any monitor — a hardcoded seat
+    // is what left it at 9.7% of the viewport. The lid is still shut when the player presses E,
+    // so pose the hinge open, measure, and put it back.
+    const SCREEN_W = 0.56;
+    const SCREEN_H = 0.35;
+    office.seatPose = (fovDeg = 60, aspect = 16 / 9) => {
+      const wasLid = lidHinge.rotation.x;
+      lidHinge.rotation.x = LID_OPEN;
+      lidHinge.updateWorldMatrix(true, false);
+
+      // screen centre and outward normal, in world space, with the lid open
+      const centre = lidHinge.localToWorld(new THREE.Vector3(0, -0.0005, -0.2));
+      const out = lidHinge.localToWorld(new THREE.Vector3(0, -0.6, -0.2)).sub(centre).normalize();
+
+      lidHinge.rotation.x = wasLid;
+      lidHinge.updateWorldMatrix(true, false);
+
+      const dist = fitDistance({ screenW: SCREEN_W, screenH: SCREEN_H, fovDeg, aspect, fracH: 0.80, fracW: 0.90 });
+      const eye = centre.clone().addScaledVector(out, dist);
+      eye.y += 0.05; // sit up a touch, so a strip of keyboard stays in frame
+
+      // look back at the screen: forward = (-sin y cos p, sin p, -cos y cos p)
+      const f = centre.clone().sub(eye).normalize();
+      return {
+        x: eye.x, y: eye.y, z: eye.z,
+        yaw: Math.atan2(-f.x, -f.z),
+        pitch: Math.asin(Math.max(-1, Math.min(1, f.y))),
+      };
     };
   }
 
@@ -2346,7 +2371,7 @@ export function makeClubhouse(ctx) {
     update, rebuildStock, rebuildReno, refreshCondition, repaintGrime,
     isInside, groundYAt, vacuumAt, vacuumLabelAt,
     doorWorld: doorW,
-    laptopPose: () => office.laptopPose,
+    laptopPose: (fovDeg, aspect) => (office.seatPose ? office.seatPose(fovDeg, aspect) : null),
     laptopLid: (open) => office.setLid && office.setLid(open),
     laptopBoot: () => office.startBoot && office.startBoot(),
     laptopScreen: (mode) => office.paintScreen && office.paintScreen(mode),
