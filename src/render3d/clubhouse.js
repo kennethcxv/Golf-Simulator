@@ -20,11 +20,12 @@ import {
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
-  restockShelfFromBackroom,
+  restockShelfFromBackroom, priceFor,
 } from '../sim/shop.js';
 import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
 } from '../sim/deliveries.js';
+import { pickFromShelf, returnToShelf, checkoutSale } from '../sim/checkout.js';
 import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
 import { makeWoodTexture, makePlasterTexture } from './proceduralTextures.js';
 
@@ -821,6 +822,7 @@ export function makeClubhouse(ctx) {
   }
 
   // --- counter, register, wordmark, office, lounge, stockroom dressing --------------------
+  let drawRegister = () => {};
   {
     const counterBody = new THREE.Mesh(
       new THREE.BoxGeometry(COUNTER.len, 1.0, COUNTER.depth - 0.14),
@@ -842,14 +844,36 @@ export function makeClubhouse(ctx) {
     );
     register.position.set(COUNTER.registerX, 1.25, COUNTER.z);
     interior.add(register);
+    const regCv = document.createElement('canvas');
+    regCv.width = 128;
+    regCv.height = 80;
+    const regTex = new THREE.CanvasTexture(regCv);
+    regTex.colorSpace = THREE.SRGBColorSpace;
     const regScreen = new THREE.Mesh(
       new THREE.PlaneGeometry(0.3, 0.2),
-      new THREE.MeshStandardMaterial({ color: 0x101614, emissive: 0x2f8a4a, emissiveIntensity: 0.7 }),
+      new THREE.MeshStandardMaterial({ map: regTex, emissive: 0xffffff, emissiveMap: regTex, emissiveIntensity: 0.5 }),
     );
     regScreen.position.set(COUNTER.registerX, 1.32, COUNTER.z - 0.26);
     regScreen.rotation.x = -0.25;
     regScreen.rotation.y = Math.PI;
     interior.add(regScreen);
+    drawRegister = (lines, total) => {
+      const c2 = regCv.getContext('2d');
+      c2.fillStyle = '#0d1a12';
+      c2.fillRect(0, 0, 128, 80);
+      c2.fillStyle = '#35d06a';
+      c2.font = '11px monospace';
+      c2.textAlign = 'left';
+      (lines || ['READY']).slice(0, 4).forEach((l, i) => c2.fillText(l.slice(0, 19), 5, 15 + i * 14));
+      if (total !== undefined) {
+        c2.fillStyle = '#8ed072';
+        c2.font = 'bold 13px monospace';
+        c2.textAlign = 'right';
+        c2.fillText(`$${total.toFixed(2)}`, 123, 74);
+      }
+      regTex.needsUpdate = true;
+    };
+    drawRegister();
     const cardReader = new THREE.Mesh(
       new THREE.BoxGeometry(0.12, 0.14, 0.1),
       new THREE.MeshStandardMaterial({ color: 0x33373c, roughness: 0.5 }),
@@ -873,6 +897,11 @@ export function makeClubhouse(ctx) {
     interior.add(printer);
 
     const regWp = L2W(COUNTER.registerX, COUNTER.z);
+    // the head of the queue with a basket, waiting on YOU
+    const headForCheckout = () => {
+      const c = counterQueue[0];
+      return c && c.cart && c.cart.length && c.awaitingCheckout ? c : null;
+    };
     addProp({
       x: regWp.x, z: regWp.z, r: 2.3,
       label: () => {
@@ -882,17 +911,60 @@ export function makeClubhouse(ctx) {
           return `Register — [E] check in ${r.name} (${fmtSlot(r.minute)} tee, ${Math.round(r.fee)} dollars)` +
             (due.length > 1 ? ` · ${due.length - 1} more waiting` : '');
         }
+        const c = headForCheckout();
+        if (c) {
+          if (c.scanned < c.cart.length) {
+            const next = SHOP_CATALOG.find((s) => s.id === c.cart[c.scanned].skuId);
+            return `Ring up ${c.name} — [E] scan ${next ? next.name : 'item'} (${c.scanned}/${c.cart.length})`;
+          }
+          const total = c.cart.reduce((a, i) => a + i.price, 0);
+          return `Ring up ${c.name} — [E] take payment ($${total.toFixed(2)})`;
+        }
         const s = state.shop;
-        return `Register — yesterday: ${s.salesYesterday.units} sales, ${s.salesYesterday.revenue} dollars` +
-          (s.lostSalesYesterday ? ` · ${s.lostSalesYesterday} walked out empty-handed` : '');
+        const live = s.salesLive && s.salesLive.units ? ` · today at the counter: ${s.salesLive.units} rung up` : '';
+        return `Register — yesterday: ${s.salesYesterday.units} sales, ${s.salesYesterday.revenue} dollars${live}`;
       },
       action: () => {
         const due = dueForCheckIn(state);
-        if (!due.length) return;
-        const res = checkInReservation(state, due[0].id);
-        if (res.ok) {
-          if (hooks.toast) hooks.toast(`${due[0].name} checked in — ${Math.round(res.fee)} dollar green fee collected.`);
-          if (hooks.sfx) hooks.sfx('doorbell');
+        if (due.length) {
+          const res = checkInReservation(state, due[0].id);
+          if (res.ok) {
+            if (hooks.toast) hooks.toast(`${due[0].name} checked in — ${Math.round(res.fee)} dollar green fee collected.`);
+            if (hooks.sfx) hooks.sfx('doorbell');
+          }
+          return;
+        }
+        const c = headForCheckout();
+        if (!c) return;
+        if (c.scanned < c.cart.length) {
+          // one scan per press: the item beeps across, the total climbs
+          c.scanned += 1;
+          c.patience = Math.max(c.patience, 20); // being served restores their mood
+          const sub = c.cart.slice(0, c.scanned).reduce((a, i) => a + i.price, 0);
+          drawRegister(
+            c.cart.slice(0, c.scanned).map((i) => {
+              const s = SHOP_CATALOG.find((k) => k.id === i.skuId);
+              return `${(s ? s.name : i.skuId).slice(0, 13)} ${i.price.toFixed(0)}`;
+            }),
+            sub,
+          );
+          if (hooks.sfx) hooks.sfx('uiTick');
+        } else {
+          const res = checkoutSale(state, c.cart, c.name);
+          if (!res.ok) return;
+          drawRegister(['PAID — THANK YOU'], res.total);
+          if (hooks.sfx) hooks.sfx('chime');
+          if (hooks.toast) hooks.toast(`${c.name} paid $${res.total.toFixed(2)} — bagged and done.`);
+          c.cart = [];
+          c.awaitingCheckout = false;
+          if (c.itemMesh) {
+            c.mesh.remove(c.itemMesh);
+            c.itemMesh = null;
+          }
+          leaveQueue(c);
+          c.stopIdx += 1;
+          c.linger = 0;
+          rebuildStock(); // the shelf gap where their pick came from stays real
         }
       },
     });
@@ -2095,6 +2167,8 @@ export function makeClubhouse(ctx) {
     return L2W(s.x, s.z);
   }
 
+  const CUST_NAMES = ['Alex R.', 'Sam T.', 'Jordan M.', 'Casey L.', 'Riley P.', 'Drew H.', 'Morgan W.', 'Quinn B.', 'Jamie F.', 'Robin K.'];
+
   function spawnCustomer(toCounter = false) {
     const rng = rngOf(state);
     const char = makeCharacter({
@@ -2125,6 +2199,7 @@ export function makeClubhouse(ctx) {
         const offX = Math.abs(l.ry) > 0.5 ? (l.x < 0 ? 1.2 : -1.2) : 0;
         stops.push({
           kind: 'fixture',
+          skus: f.skus,
           x: wp.x + offX + (rng.next() - 0.5) * 0.8,
           z: wp.z + offZ + (rng.next() - 0.5) * 0.4,
           faceX: wp.x,
@@ -2141,13 +2216,67 @@ export function makeClubhouse(ctx) {
 
     customers.push({
       mesh: g,
+      name: CUST_NAMES[rng.int(CUST_NAMES.length)],
       stops,
       stopIdx: 0,
       linger: toCounter ? 26 + rng.next() * 10 : 2 + rng.next() * 4,
       speed: toCounter ? 1.15 : 1.1 + rng.next() * 0.5,
       queued: false,
       rangBell: false,
+      cart: [],
+      scanned: 0,
+      patience: 45, // seconds they'll wait at the head of the line for service
+      awaitingCheckout: false,
+      itemMesh: null,
     });
+  }
+
+  // a shopper reaches for the display: the unit leaves the shelf THERE and
+  // rides in their hands to the register
+  function customerPick(c, stop) {
+    if (!stop.skus || c.cart.length) return;
+    const rng = rngOf(state);
+    if (!rng.chance(0.55)) return;
+    const stocked = stop.skus.filter((id) => state.shop.inventory[id] && state.shop.inventory[id].shelf > 0);
+    if (!stocked.length) return;
+    const skuId = stocked[rng.int(stocked.length)];
+    if (!pickFromShelf(state, skuId).ok) return;
+    const sku = SHOP_CATALOG.find((s) => s.id === skuId);
+    c.cart.push({ skuId, price: priceFor(sku, state.shop.markup[sku.cat] || 1, null) });
+    rebuildStock(); // the display visibly loses the unit
+    const item = new THREE.Mesh(
+      new THREE.BoxGeometry(0.2, 0.16, 0.16),
+      new THREE.MeshStandardMaterial({ color: CAT_COLORS[sku.cat] || 0x999999, roughness: 0.7 }),
+    );
+    item.position.set(0.16, 0.68, 0.16);
+    c.mesh.add(item);
+    c.itemMesh = item;
+    // a pick means they're heading to the counter — make sure a stop exists
+    if (!c.stops.some((s, i) => i > c.stopIdx && s.kind === 'counter')) {
+      const regW = L2W(COUNTER.registerX, COUNTER.z);
+      c.stops.splice(c.stops.length - 2, 0, { kind: 'counter', x: queueSlotW(0).x, z: queueSlotW(0).z, faceX: regW.x, faceZ: regW.z });
+    }
+  }
+
+  // the line gave up on us: put the pick back, remember the walk-out
+  function customerGiveUp(c) {
+    for (const it of c.cart) returnToShelf(state, it.skuId);
+    if (c.cart.length) {
+      state.shop.lostSalesTotal = (state.shop.lostSalesTotal || 0) + 1;
+      if (hooks.toast && walk.active && isInside(walk.x, walk.z)) {
+        hooks.toast(`${c.name} gave up waiting at the register and put it back.`, 'warn');
+      }
+      rebuildStock();
+    }
+    c.cart = [];
+    c.awaitingCheckout = false;
+    if (c.itemMesh) {
+      c.mesh.remove(c.itemMesh);
+      c.itemMesh = null;
+    }
+    leaveQueue(c);
+    c.stopIdx += 1;
+    c.linger = 0;
   }
 
   const arrivedResIds = new Set();
@@ -2252,12 +2381,20 @@ export function makeClubhouse(ctx) {
           customers.splice(i, 1);
           continue;
         }
-        if (!served) {
+        // the head of the line with a basket waits for the PLAYER to ring
+        // them up — patience runs out eventually and the pick goes back
+        if (stop.kind === 'counter' && c.cart.length && counterQueue.indexOf(c) === 0) {
+          c.awaitingCheckout = true;
+          c.patience -= dt;
+          if (char) char.setMode('Idle');
+          if (c.patience <= 0) customerGiveUp(c);
+        } else if (!served) {
           if (char) char.setMode('Idle');
         } else if (!isPass && c.linger > 0) {
           if (char) char.setMode(stop.kind === 'fixture' ? 'Browse' : 'Idle');
           c.linger -= dt;
         } else {
+          if (stop.kind === 'fixture') customerPick(c, stop);
           if (stop.kind === 'counter') leaveQueue(c);
           c.stopIdx++;
           c.linger = 1.5 + Math.random() * 3.5;
@@ -2358,6 +2495,7 @@ export function makeClubhouse(ctx) {
     laptopPose: () => office.laptopPose,
     condition: () => conditionNow,
     customers, doors, // QA access
+    debugSpawn: spawnCustomer, // QA: force a walk-in
     dispose,
   };
 }

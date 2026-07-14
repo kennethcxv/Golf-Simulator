@@ -2450,3 +2450,29 @@ world x≈5.0) — shelf shrunk to 2.6 yd + moved to z −6.45; a new test mirro
 builder collider extents against a BACKDOOR_CLEARWAY rect. (2) the receiving
 drop spot sat so close to the door that its prompt shouted over the cases —
 moved deep into the stockroom (10.0, −5.5).
+
+## 2026-07-13 — Steps 18–20: customers pick REAL units; YOU run the register
+
+sim/checkout.js (TDD, 4 tests; suite 231): pickFromShelf decrements the
+display at pick time (refuses empty), returnToShelf caps at the facing,
+checkoutSale books real addRevenue('shopSales') money, feeds shop.log, and
+keeps a salesLive session counter. Additive on the statistical accrual —
+the reservations precedent, documented.
+
+Clubhouse behavior: browsing customers now reach for a stocked SKU on the
+fixture they're facing (55% per browse; honest refusal off empty displays),
+carry a category-colored item in hand, insert a counter stop, and WAIT at
+the head of the line for the PLAYER: the register label walks you through
+"Ring up NAME — [E] scan item (0/N)" (beep per scan, running total on the
+register's real canvas screen) then "— [E] take payment ($T)" (chime,
+receipt toast, shelf-gap stays real). Reservations check-in still owns the
+register when a booked golfer is due. Patience: 45 s at the head unserved →
+they put the pick BACK (shelf restored, lost-sale counted, a warning toast
+if you're on the floor). Walk-ins carry names for the receipts.
+
+Verified live, zero console errors: Morgan W. picked a Tour-soft dozen off
+the Ball wall (shelf 1→0 at pick), queued (awaiting true), scan label →
+payment label → cash 78,822.89 → 78,850.89 (exactly +$28.00), salesLive
+{1, $28}, log line written. QA sidebar: an hour of "no pick" turned out to
+be the system being RIGHT — the shelf was empty and refusals are silent by
+design; the instrumented run proved every guard.
