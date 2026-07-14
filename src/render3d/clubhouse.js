@@ -336,26 +336,38 @@ export function makeClubhouse(ctx) {
     chair.rotation.y = -Math.PI / 2;
     interior.add(chair);
 
-    // wall course map (management surface: [E] opens the overview camera)
+    // wall course map — a real framed board, flush on the office's south wall:
+    // backing panel with thickness, mitered frame lip, map face proud of the
+    // backer. Mounted on actual wall so no side ever shows a floating plane.
     const mapCanvas = document.createElement('canvas');
     mapCanvas.width = 240;
     mapCanvas.height = 160;
     const mapTex = new THREE.CanvasTexture(mapCanvas);
     mapTex.colorSpace = THREE.SRGBColorSpace;
+    const mapBoard = new THREE.Group();
+    mapBoard.position.set(OFFICE.map.x, 1.72, OFFICE.map.z);
+    mapBoard.rotation.y = OFFICE.map.ry;
+    const mapBacker = new THREE.Mesh(roundedBox(2.42, 1.68, 0.05, 0.012), mats.walnutDark);
+    mapBacker.position.z = -0.025;
+    mapBacker.castShadow = true;
+    mapBoard.add(mapBacker);
+    // frame lip (four mitered rails proud of the face)
+    const lipMat = mats.walnut;
+    for (const [w, h, px, py] of [
+      [2.42, 0.07, 0, 0.805], [2.42, 0.07, 0, -0.805],
+      [0.07, 1.68, 1.175, 0], [0.07, 1.68, -1.175, 0],
+    ]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.045), lipMat);
+      rail.position.set(px, py, 0.012);
+      mapBoard.add(rail);
+    }
     const courseMap = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.2, 1.5),
+      new THREE.PlaneGeometry(2.24, 1.5),
       new THREE.MeshStandardMaterial({ map: mapTex, roughness: 0.85 }),
     );
-    courseMap.position.set(OFFICE.map.x + 0.012, 1.9, OFFICE.map.z);
-    courseMap.rotation.y = OFFICE.map.ry;
-    interior.add(courseMap);
-    const mapFrame = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.4, 1.7),
-      new THREE.MeshStandardMaterial({ color: 0x3d3122, roughness: 0.8 }),
-    );
-    mapFrame.position.set(OFFICE.map.x, 1.9, OFFICE.map.z);
-    mapFrame.rotation.y = OFFICE.map.ry;
-    interior.add(mapFrame);
+    courseMap.position.z = 0.003;
+    mapBoard.add(courseMap);
+    interior.add(mapBoard);
     const MAP_COLORS = ['#46543a', '#5c7d43', '#7cb257', '#96d377', '#8ac168', '#d8c78e', '#3e6f9e', '#a89f8d'];
     const redrawCourseMap = () => {
       const course = state.course;
@@ -377,7 +389,7 @@ export function makeClubhouse(ctx) {
       mapTex.needsUpdate = true;
     };
     redrawCourseMap();
-    const mapWp = L2W(OFFICE.map.x + 0.5, OFFICE.map.z);
+    const mapWp = L2W(OFFICE.map.x, OFFICE.map.z - 0.5);
     addProp({
       x: mapWp.x, z: mapWp.z, r: 2.2,
       label: () => 'Course wall map — [E] step back to the overview camera',

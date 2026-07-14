@@ -81,7 +81,7 @@ export const OFFICE = {
   desk: { x: 9.55, z: 4.5, ry: Math.PI / 2 },    // against the east wall, faces west
   chair: { x: 8.65, z: 4.5 },
   laptop: { x: 9.55, z: 4.5, ry: Math.PI / 2 },  // screen faces west, into the room
-  map: { x: 5.85, z: 3.6, ry: Math.PI / 2 },     // wall course map on the partition
+  map: { x: 8.9, z: 6.44, ry: Math.PI },         // framed course map on the office's south wall
   calendar: { x: 7.1, z: 2.15, ry: Math.PI },    // on partition B's office face
 };
 
