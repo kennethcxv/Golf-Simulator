@@ -224,6 +224,7 @@ export function buildDoors(B) {
     const collider = along === 'x'
       ? colBoxAt(slabCenter.x, slabCenter.z, slabW + 0.24, 0.24)
       : colBoxAt(slabCenter.x, slabCenter.z, 0.24, slabW + 0.24);
+    collider.door = true; // nav grid ignores doors — they open for walkers
     addCol(collider);
 
     const door = {

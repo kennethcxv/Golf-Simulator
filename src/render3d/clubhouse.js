@@ -33,6 +33,7 @@ import { buildShell } from './clubhouse/shell.js';
 import { buildDoors } from './clubhouse/doors.js';
 import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } from './clubhouse/fixtures.js';
 import { buildDirt } from './clubhouse/dirt.js';
+import { makeNav } from './clubhouse/nav.js';
 
 const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
@@ -67,10 +68,12 @@ export function makeClubhouse(ctx) {
   const custCols = [];
   const registeredProps = [];
   const registeredCols = [];
+  let colVersion = 0; // customers' nav grid rebakes when the collider world changes
   function addCol(col) {
     propColliders.push(col);
     custCols.push(col);
     registeredCols.push(col);
+    colVersion++;
     return col;
   }
   function removeCol(col) {
@@ -78,6 +81,7 @@ export function makeClubhouse(ctx) {
       const i = arr.indexOf(col);
       if (i >= 0) arr.splice(i, 1);
     }
+    colVersion++;
   }
   function addProp(p) {
     walkProps.push(p);
@@ -1887,6 +1891,21 @@ export function makeClubhouse(ctx) {
     return { nx, nz };
   }
 
+  // walkable grid around the building; doors are excluded (they open for walkers)
+  const nav = makeNav({
+    minX: center.x - 16, maxX: center.x + 16,
+    minZ: center.z - 13, maxZ: center.z + 15,
+    cell: 0.3, radius: 0.32,
+  });
+  let navVersion = -1;
+  function navFresh() {
+    if (navVersion !== colVersion) {
+      nav.rebuild(custCols.filter((c) => !c.door));
+      navVersion = colVersion;
+    }
+    return nav;
+  }
+
   function updateCustomers(dt) {
     const minute = ((state.clock.minutes % 1440) + 1440) % 1440;
     const open = minute >= 360 && minute <= 1200;
@@ -1969,11 +1988,47 @@ export function makeClubhouse(ctx) {
         }
       } else {
         if (char) char.setMode('Walk');
-        const step = Math.min(dist, c.speed * dt);
-        const res = resolveCustomer(c, c.mesh.position.x + (dx / dist) * step, c.mesh.position.z + (dz / dist) * step);
+        // path on destination change only; string-pulled waypoints thereafter
+        if (!c.pathGoal || Math.hypot(c.pathGoal.x - tx, c.pathGoal.z - tz) > 0.22) {
+          c.path = navFresh().path(c.mesh.position.x, c.mesh.position.z, tx, tz) || [{ x: tx, z: tz }];
+          c.pathGoal = { x: tx, z: tz };
+          c.stuckT = 0;
+        }
+        while (c.path.length > 1
+          && Math.hypot(c.path[0].x - c.mesh.position.x, c.path[0].z - c.mesh.position.z) < 0.3) {
+          c.path.shift();
+        }
+        const wp = c.path[0] || { x: tx, z: tz };
+        const wdx = wp.x - c.mesh.position.x;
+        const wdz = wp.z - c.mesh.position.z;
+        const wdist = Math.hypot(wdx, wdz) || 1;
+        const step = Math.min(wdist, c.speed * dt);
+        const res = resolveCustomer(c, c.mesh.position.x + (wdx / wdist) * step, c.mesh.position.z + (wdz / wdist) * step);
+        const moved = Math.hypot(res.nx - c.mesh.position.x, res.nz - c.mesh.position.z);
         c.mesh.position.x = res.nx;
         c.mesh.position.z = res.nz;
-        c.mesh.rotation.y = Math.atan2(dx, dz);
+        c.mesh.rotation.y = Math.atan2(wdx, wdz);
+        // stuck detection: 1.2s pinned → one repath against the fresh world;
+        // 3s pinned → sidestep off whatever is holding them and start over
+        if (step > 0.001 && moved < step * 0.25) {
+          c.stuckT = (c.stuckT || 0) + dt;
+          if (c.stuckT > 3.0) {
+            const side = Math.random() < 0.5 ? 1 : -1;
+            const sres = resolveCustomer(c, c.mesh.position.x + (wdz / wdist) * 0.6 * side, c.mesh.position.z - (wdx / wdist) * 0.6 * side);
+            c.mesh.position.x = sres.nx;
+            c.mesh.position.z = sres.nz;
+            c.pathGoal = null;
+            c.stuckT = 0;
+            c.repathed = false;
+          } else if (c.stuckT > 1.2 && !c.repathed) {
+            c.pathGoal = null;
+            navVersion = -1; // rebake — a door or hauled pile may have changed the world
+            c.repathed = true;
+          }
+        } else if (moved > step * 0.6) {
+          c.stuckT = 0;
+          c.repathed = false;
+        }
       }
       c.mesh.position.y = groundYAt(c.mesh.position.x, c.mesh.position.z) ?? heightAt(c.mesh.position.x, c.mesh.position.z);
     }
