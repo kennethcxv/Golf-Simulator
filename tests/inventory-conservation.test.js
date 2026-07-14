@@ -14,14 +14,19 @@ import {
   placeOrder, deliverOrdersDue, restockShelfFromBackroom, restockShelvesByStaff,
 } from '../src/sim/shop.js';
 import {
-  boxesOf, cutBox, takeFromBox, flattenBox, openBox, openAllBoxes,
+  boxesOf, cutTape, openFlap, takeFromBox, flattenBox, recycleBox, openBox, openAllBoxes,
   pickUpBox, putDownBox,
 } from '../src/sim/deliveries.js';
+import {
+  carriedGoods, stockFixture, storeInBack, takeFromBack, homeOf,
+} from '../src/sim/stocking.js';
 import { checkoutSale, pickFromShelf, returnToShelf } from '../src/sim/checkout.js';
 
-// A unit lives in exactly one of five places: an open order, a box on the pad, the backroom,
-// the shelf — or a shopper's hands. pickFromShelf takes it off the shelf the moment they lift it,
-// so "in hand" is a real location, and a shopper who is deleted while holding one destroys it.
+// A unit lives in exactly one of SIX places: an open order, a box, the backroom, the shelf, a
+// shopper's hands — or YOUR OWN HANDS, which is new, and is the whole point of this session. The
+// contents of a box no longer teleport into the backroom; you carry them. So the player's arms are
+// a real location where a unit can be, and if they were not counted here, an armful of golf balls
+// would look exactly like an armful of golf balls that had been destroyed.
 function unitsOf(state, skuId, inHand = {}) {
   const inv = state.shop.inventory[skuId] || { shelf: 0, back: 0 };
   const inBoxes = boxesOf(state)
@@ -30,7 +35,9 @@ function unitsOf(state, skuId, inHand = {}) {
   const onOrder = (state.shop.orders || [])
     .filter((o) => o.skuId === skuId)
     .reduce((n, o) => n + (o.qty || 0), 0);
-  return inv.shelf + inv.back + inBoxes + onOrder + (inHand[skuId] || 0);
+  const mine = carriedGoods(state);
+  const inMyArms = mine && mine.skuId === skuId ? mine.qty : 0;
+  return inv.shelf + inv.back + inBoxes + onOrder + inMyArms + (inHand[skuId] || 0);
 }
 
 const RETAIL = SHOP_CATALOG.filter((s) => s.cat !== 'equipment').map((s) => s.id);
@@ -56,7 +63,7 @@ test('a unit that exists is never duplicated or lost, over 500 random actions', 
 
   let day = st.day || 1;
   for (let step = 0; step < 500; step++) {
-    const act = Math.floor(rand() * 9);
+    const act = Math.floor(rand() * 12);
     const skuId = pick(RETAIL);
 
     if (act === 0) {
@@ -69,14 +76,38 @@ test('a unit that exists is never duplicated or lost, over 500 random actions', 
       st.day = day;
       deliverOrdersDue(st, day);
     } else if (act === 2) {
+      // the tape, in random bites — including bites that leave it half cut
       const b = pick(boxesOf(st));
-      if (b) cutBox(st, b.id);
+      if (b) cutTape(st, b.id, rand() * 0.8);
     } else if (act === 3) {
       const b = pick(boxesOf(st));
-      if (b) takeFromBox(st, b.id, 1 + Math.floor(rand() * 8));
+      if (b) openFlap(st, b.id);
     } else if (act === 4) {
+      // reach in: contents go into the player's ARMS
+      const b = pick(boxesOf(st));
+      if (b) takeFromBox(st, b.id, 1 + Math.floor(rand() * 8));
+    } else if (act === 8) {
+      // and out of them again — onto the right fixture, the wrong fixture, or into the back
+      const held = carriedGoods(st);
+      if (held) {
+        const r = rand();
+        if (r < 0.45) {
+          const home = homeOf(held.skuId);
+          if (home) stockFixture(st, home.id, 1 + Math.floor(rand() * 8));
+        } else if (r < 0.6) {
+          stockFixture(st, 'shelf_balls', 4);   // often the WRONG fixture: must refuse cleanly
+        } else if (r < 0.9) {
+          storeInBack(st, 1 + Math.floor(rand() * 6));
+        }
+      } else if (rand() < 0.5) {
+        takeFromBack(st, skuId, 1 + Math.floor(rand() * 6));
+      }
+    } else if (act === 9) {
       const b = pick(boxesOf(st));
       if (b) (rand() < 0.5 ? openBox : flattenBox)(st, b.id);
+    } else if (act === 10) {
+      const b = pick(boxesOf(st).filter((x) => x.flat));
+      if (b) recycleBox(st, b.id);
     } else if (act === 5) {
       if (rand() < 0.3) openAllBoxes(st);
       restockShelfFromBackroom(st, skuId);

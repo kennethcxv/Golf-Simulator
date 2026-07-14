@@ -3,7 +3,8 @@
 // Headless like every sim module; the clubhouse renders THIS state.
 
 import { skuById } from '../data/shopItems.js';
-import { boxKindFor, planShipment } from '../data/boxes.js';
+import { boxKindFor, planShipment, boxWeight } from '../data/boxes.js';
+import { armRoom, setCarry } from './stocking.js';
 
 // kept for old callers; the truth is unitsPerBox(sku), which knows that a stand bag
 // does not pack twelve to a carton just because its category says 'accessories'
@@ -30,6 +31,21 @@ export function ensureDeliveries(state) {
   const d = state.shop.deliveries;
   if (!d.shipments) d.shipments = [];        // saves written before shipments existed
   if (typeof d.recycled !== 'number') d.recycled = 0;
+  if (state.shop.carry === undefined) state.shop.carry = null;
+
+  // BOXES FROM BEFORE THE TAPE EXISTED (2026-07-14). An old save's box carries `cut: true` and
+  // nothing else. Without this, tapeCut() reads `b.tape || 0` -> 0, and a box the player had
+  // already opened would silently seal itself back up and demand to be cut again.
+  for (const b of d.boxes) {
+    if (b.tape === undefined) b.tape = (b.cut || b.opened) ? 1 : 0;
+    if (!Array.isArray(b.flaps)) b.flaps = (b.cut || b.opened) ? [1, 1] : [0, 0];
+    if (b.cap === undefined) b.cap = b.qty;   // best guess: what is in it is what it came with
+    if (b.flat === undefined) b.flat = false;
+    if (b.lb === undefined) {
+      const sku = skuById(b.skuId);
+      b.lb = boxWeight(sku, b.qty);
+    }
+  }
 }
 
 export function boxesOf(state) {
@@ -138,15 +154,37 @@ export function arriveOrder(state, order) {
   return made;
 }
 
+// ================================================================================================
+// THE BOX, AS A PHYSICAL OBJECT
+// ================================================================================================
+//
+// "No part of this loop should be replaced by one E press."
+//
+// It was. One press set `cut = true` and the box was open. One press emptied it and TELEPORTED the
+// contents into `inventory.back`. There was no tape to cut through, no flap to lift, nothing inside
+// to see, and — the real hole — nothing was ever CARRIED between the carton and the shelf.
+//
+// Now: cut the tape (a cut, not a switch), open one flap, open the other, and take an armful out
+// INTO YOUR HANDS (sim/stocking.js). Then walk it somewhere.
+
+export function findBox(state, id) {
+  return boxesOf(state).find((b) => b.id === id) || null;
+}
+
 export function carriedBox(state) {
   return boxesOf(state).find((b) => b.loc === 'carried') || null;
 }
 
 export function pickUpBox(state, id) {
-  const boxes = boxesOf(state);
-  const box = boxes.find((b) => b.id === id);
+  const box = findBox(state, id);
   if (!box) return { ok: false, reason: 'No box there.' };
   if (carriedBox(state)) return { ok: false, reason: 'Your arms are full — set that one down first.' };
+  // arms are arms: a box OR an armful of goods, never both
+  const goods = state.shop.carry;
+  if (goods) {
+    const sku = skuById(goods.skuId);
+    return { ok: false, reason: `Not with your arms full of ${(sku ? sku.name : 'stock').toLowerCase()}.` };
+  }
   box.loc = 'carried';
   return { ok: true, box };
 }
@@ -154,7 +192,7 @@ export function pickUpBox(state, id) {
 // spot: {x, z, ry} places the box exactly there in the world (building-local
 // coords) — the normal path; the legacy zone strings keep old callers working
 export function putDownBox(state, id, spot = 'stock') {
-  const box = boxesOf(state).find((b) => b.id === id);
+  const box = findBox(state, id);
   if (!box || box.loc !== 'carried') return { ok: false, reason: 'Not carrying that.' };
   if (spot && typeof spot === 'object') {
     box.loc = 'world';
@@ -170,57 +208,131 @@ export function putDownBox(state, id, spot = 'stock') {
   return { ok: true, box };
 }
 
-// --- physical opening: cut → take armfuls → flatten the empty ---------------------
+// --- the tape ------------------------------------------------------------------------------------
+//
+// A cut, not a switch. `amount` is how far the blade travels this call — the scene passes dt times
+// a rate, so holding the button runs the knife down the seam, and letting go leaves it HALF CUT,
+// which is a state the box keeps and the save remembers.
+//
+// The centre seam goes first, then the two side tapes: that is the order a person does it in, and
+// it gives the sound and the animation something true to follow.
+export const CENTRE_SEAM = 0.6;
 
-export function cutBox(state, id) {
-  const box = boxesOf(state).find((b) => b.id === id);
+export function cutTape(state, id, amount = 1) {
+  const box = findBox(state, id);
   if (!box) return { ok: false, reason: 'No box there.' };
-  if (box.loc === 'carried') return { ok: false, reason: 'Set it down first.' };
-  if (box.cut) return { ok: false, reason: 'Already open.' };
-  box.cut = true;
-  return { ok: true };
+  if (box.loc === 'carried') return { ok: false, reason: 'Set it down first — you need both hands.' };
+  if (box.flat) return { ok: false, reason: 'It is already flattened.' };
+  if (tapeCut(box)) return { ok: false, reason: 'The tape is already cut.', done: true };
+  const before = box.tape || 0;
+  box.tape = Math.min(1, before + Math.max(0, amount));
+  return {
+    ok: true,
+    tape: box.tape,
+    seam: before < CENTRE_SEAM ? 'centre' : 'side',
+    done: box.tape >= 1,
+  };
 }
 
-// an armful at a time — a big case takes more than one trip into the backroom
-export function takeFromBox(state, id, max = 6) {
-  const box = boxesOf(state).find((b) => b.id === id);
+// --- the flaps -----------------------------------------------------------------------------------
+// Two of them. They open one at a time, and not through the tape.
+export function openFlap(state, id) {
+  const box = findBox(state, id);
   if (!box) return { ok: false, reason: 'No box there.' };
   if (box.loc === 'carried') return { ok: false, reason: 'Set it down first.' };
-  if (!box.cut) return { ok: false, reason: 'Cut the tape first.' };
+  if (!tapeCut(box)) return { ok: false, reason: 'Cut the tape first.' };
+  if (!box.flaps) box.flaps = [0, 0];
+  const i = box.flaps.findIndex((f) => f < 1);
+  if (i < 0) return { ok: false, reason: 'Both flaps are open.', done: true };
+  box.flaps[i] = 1;
+  return { ok: true, flap: i, done: flapsOpen(box) };
+}
+
+// --- reaching in ----------------------------------------------------------------------------------
+//
+// The contents come out INTO YOUR HANDS. They do not appear in the backroom: the backroom is a
+// place you have to walk to, and walking there is step 11 of the brief.
+export function takeFromBox(state, id, want) {
+  const box = findBox(state, id);
+  if (!box) return { ok: false, reason: 'No box there.' };
+  if (box.loc === 'carried') return { ok: false, reason: 'Set it down first.' };
+  if (!tapeCut(box)) return { ok: false, reason: 'Cut the tape first.' };
+  if (!flapsOpen(box)) return { ok: false, reason: 'Open the flaps first.' };
   if (box.qty <= 0) return { ok: false, reason: 'It is empty.' };
-  const taken = Math.min(max, box.qty);
-  box.qty -= taken;
-  const inv = state.shop.inventory[box.skuId];
-  if (inv) inv.back += taken;
-  if (box.qty <= 0) {
-    box.empty = true;
-    const d = state.shop.deliveries;
-    d.openedTotal = (d.openedTotal || 0) + 1;
+  if (carriedBox(state)) return { ok: false, reason: 'Set the box you are carrying down first.' };
+
+  const room = armRoom(state, box.skuId);
+  if (room <= 0) {
+    const c = state.shop.carry;
+    const holding = c && c.skuId !== box.skuId ? skuById(c.skuId) : null;
+    return {
+      ok: false,
+      reason: holding
+        ? `You are already carrying ${holding.name.toLowerCase()} — put those down first.`
+        : 'Your arms are full — go and put those down.',
+    };
   }
-  return { ok: true, taken, left: box.qty };
+
+  const taken = Math.min(want == null ? room : want, room, box.qty);
+  box.qty -= taken;
+  const c = state.shop.carry;
+  setCarry(state, box.skuId, (c ? c.qty : 0) + taken);
+  if (box.qty <= 0) {
+    const d = state.shop.deliveries;
+    d.openedTotal = (d.openedTotal || 0) + 1;   // lifetime unboxings (onboarding reads this)
+  }
+  return { ok: true, taken, left: box.qty, carrying: state.shop.carry.qty };
 }
+
+// --- the cardboard ----------------------------------------------------------------------------
+// An empty carton is not gone. You break it down, you carry it to the bin, and THEN it is gone.
 
 export function flattenBox(state, id) {
-  const d = state.shop.deliveries;
-  const box = d.boxes.find((b) => b.id === id);
+  const box = findBox(state, id);
   if (!box) return { ok: false, reason: 'No box there.' };
-  if (!box.empty) return { ok: false, reason: 'Still has stock in it.' };
-  d.boxes.splice(d.boxes.indexOf(box), 1);
-  d.trash += 1;
+  if (box.loc === 'carried') return { ok: false, reason: 'Set it down first.' };
+  if (box.flat) return { ok: false, reason: 'Already flat.' };
+  if (!isEmpty(box)) return { ok: false, reason: 'Still has stock in it.' };
+  box.flat = true;
+  box.flaps = [1, 1];
+  const d = state.shop.deliveries;
+  d.trash = (d.trash || 0) + 1;
   return { ok: true };
 }
 
+export function recycleBox(state, id) {
+  const d = state.shop.deliveries;
+  const box = findBox(state, id);
+  if (!box) return { ok: false, reason: 'No box there.' };
+  if (!box.flat) return { ok: false, reason: 'Break it down flat first.' };
+  d.boxes.splice(d.boxes.indexOf(box), 1);
+  d.recycled = (d.recycled || 0) + 1;
+  d.trash = Math.max(0, (d.trash || 0) - 1);
+  retireShipments(state);
+  return { ok: true };
+}
+
+// --- the employee path -------------------------------------------------------------------------
+//
+// The brief allows "faster equipment or employee stocking later", and this is the relief valve that
+// makes the physical loop a choice rather than a chore: hire a floor hand and the morning's
+// cardboard is dealt with before you get in. A person opens a box; they do not need it explained.
 export function openBox(state, id) {
   const d = state.shop.deliveries;
-  const box = d.boxes.find((b) => b.id === id);
+  const box = findBox(state, id);
   if (!box) return { ok: false, reason: 'No box there.' };
   if (box.loc === 'carried') return { ok: false, reason: 'Set it down first.' };
   const inv = state.shop.inventory[box.skuId];
-  if (inv) inv.back += box.qty;
+  const qty = box.qty;
+  if (inv) inv.back += qty;
+  box.qty = 0;
   d.boxes.splice(d.boxes.indexOf(box), 1);
-  d.trash += 1;
-  d.openedTotal = (d.openedTotal || 0) + 1; // lifetime unboxings (onboarding reads this)
-  return { ok: true, skuId: box.skuId, qty: box.qty };
+  // they break it down and stack it by the bin — the cardboard does not evaporate just because
+  // somebody else handled it. `trash` is what is waiting to go out; `recycled` is what has gone.
+  d.trash = (d.trash || 0) + 1;
+  d.openedTotal = (d.openedTotal || 0) + 1;
+  retireShipments(state);
+  return { ok: true, skuId: box.skuId, qty };
 }
 
 // open everything sitting around — the morning crew's first job
@@ -234,9 +346,14 @@ export function openAllBoxes(state) {
   return opened;
 }
 
+// the bin by the stock door: every flattened carton in the building goes out
 export function emptyTrash(state) {
   ensureDeliveries(state);
-  if (state.shop.deliveries.trash <= 0) return { ok: false };
-  state.shop.deliveries.trash = 0;
-  return { ok: true };
+  const d = state.shop.deliveries;
+  const flat = d.boxes.filter((b) => b.flat && b.loc !== 'carried');
+  if (!flat.length && (d.trash || 0) <= 0) return { ok: false };
+  for (const b of flat) recycleBox(state, b.id);
+  d.recycled = (d.recycled || 0) + Math.max(0, (d.trash || 0));  // the stack the staff left, too
+  d.trash = 0;
+  return { ok: true, recycled: flat.length };
 }

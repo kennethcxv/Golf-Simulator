@@ -6,11 +6,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   initDeliveries, arriveOrder, boxesOf, pickUpBox, putDownBox, carriedBox,
-  cutBox, takeFromBox, flattenBox,
+  cutTape, openFlap, takeFromBox, flattenBox, recycleBox,
+  tapePartlyCut, tapeCut, flapsOpen,
 } from '../src/sim/deliveries.js';
+import { carriedGoods, storeInBack } from '../src/sim/stocking.js';
 
 function freshState() {
-  const state = { shop: { inventory: { balls2: { back: 0, shelf: 0 } } } };
+  const state = { shop: { inventory: { balls2: { back: 0, shelf: 0 } }, carry: null } };
   initDeliveries(state);
   arriveOrder(state, { id: 1, skuId: 'balls2', qty: 12 });
   return state;
@@ -58,40 +60,61 @@ test('world boxes and their positions survive a save/load round trip', () => {
   assert.equal(again.ry, 1.1);
 });
 
-test('opening is physical: cut the tape, take contents in armfuls, flatten the empty', () => {
+test('opening is physical: cut the tape, open the flaps, take armfuls, flatten the empty', () => {
+  // The old version of this test cut the box with ONE call and the contents landed straight in the
+  // backroom. Both of those are exactly what the brief says must not happen — the full loop lives
+  // in tests/unboxing.test.js; this holds the physical-object half of it.
   const state = freshState();
-  const box = boxesOf(state)[0]; // 12 balls
-  assert.equal(takeFromBox(state, box.id, 6).ok, false, 'sealed box refuses');
-  assert.ok(cutBox(state, box.id).ok);
-  assert.equal(box.cut, true);
-  assert.equal(cutBox(state, box.id).ok, false, 'tape cuts once');
-  const t1 = takeFromBox(state, box.id, 6);
+  const box = boxesOf(state)[0]; // 12 dozen balls, in one case
+  assert.equal(takeFromBox(state, box.id).ok, false, 'a sealed box refuses');
+
+  cutTape(state, box.id, 0.5);
+  assert.ok(tapePartlyCut(box), 'half-cut is a state, not a step on the way to one');
+  assert.equal(openFlap(state, box.id).ok, false, 'the flaps will not lift through tape');
+  cutTape(state, box.id, 0.5);
+  assert.ok(tapeCut(box));
+  assert.equal(cutTape(state, box.id, 1).ok, false, 'tape cuts once');
+
+  openFlap(state, box.id);
+  openFlap(state, box.id);
+  assert.ok(flapsOpen(box));
+
+  const t1 = takeFromBox(state, box.id);
   assert.ok(t1.ok);
-  assert.equal(t1.taken, 6);
+  assert.equal(t1.taken, 6, 'an armful, not the whole case');
   assert.equal(box.qty, 6, 'half remains — a partial box');
-  assert.equal(state.shop.inventory.balls2.back, 6, 'armful reached the backroom');
-  // partial survives a save/load round trip
+  assert.equal(state.shop.inventory.balls2.back, 0, 'and it went into your ARMS, not the backroom');
+  assert.equal(carriedGoods(state).qty, 6);
+
+  // a half-emptied, flaps-open box survives a save/load round trip exactly as it stood
   const loaded = JSON.parse(JSON.stringify(state));
   const again = boxesOf(loaded)[0];
-  assert.equal(again.cut, true);
+  assert.equal(again.tape, 1);
+  assert.deepEqual(again.flaps, [1, 1]);
   assert.equal(again.qty, 6);
-  const t2 = takeFromBox(state, box.id, 6);
-  assert.ok(t2.ok);
+  assert.equal(carriedGoods(loaded).qty, 6, 'and so does what is in your hands');
+
+  storeInBack(state);
+  takeFromBox(state, box.id);
+  storeInBack(state);
   assert.equal(box.qty, 0);
-  assert.equal(box.empty, true, 'box stays as an empty, not vanished');
-  assert.equal(boxesOf(state).length, 1);
+  assert.equal(state.shop.inventory.balls2.back, 12, 'every ball accounted for');
+  assert.equal(boxesOf(state).length, 1, 'the empty carton is still standing there');
+
   assert.equal(flattenBox(state, box.id).ok, true);
-  assert.equal(boxesOf(state).length, 0);
-  assert.equal(state.shop.deliveries.trash, 1, 'flattened cardboard by the bin');
+  assert.equal(boxesOf(state).length, 1, 'flattened is not gone');
+  assert.equal(state.shop.deliveries.trash, 1, 'flattened cardboard waiting for the bin');
+  assert.ok(recycleBox(state, box.id).ok);
+  assert.equal(boxesOf(state).length, 0, 'NOW it is gone');
 });
 
 test('a carried box cannot be cut or emptied mid-air', () => {
   const state = freshState();
   const box = boxesOf(state)[0];
   pickUpBox(state, box.id);
-  assert.equal(cutBox(state, box.id).ok, false);
+  assert.equal(cutTape(state, box.id, 1).ok, false);
   putDownBox(state, box.id, { x: 1, z: 1, ry: 0 });
-  assert.ok(cutBox(state, box.id).ok);
+  assert.ok(cutTape(state, box.id, 1).ok);
 });
 
 test('legacy zone set-down still works for old callers', () => {
