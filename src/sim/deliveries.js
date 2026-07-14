@@ -48,10 +48,22 @@ export function pickUpBox(state, id) {
   return { ok: true, box };
 }
 
-export function putDownBox(state, id, loc = 'stock') {
+// spot: {x, z, ry} places the box exactly there in the world (building-local
+// coords) — the normal path; the legacy zone strings keep old callers working
+export function putDownBox(state, id, spot = 'stock') {
   const box = boxesOf(state).find((b) => b.id === id);
   if (!box || box.loc !== 'carried') return { ok: false, reason: 'Not carrying that.' };
-  box.loc = loc === 'pad' ? 'pad' : 'stock';
+  if (spot && typeof spot === 'object') {
+    box.loc = 'world';
+    box.x = spot.x;
+    box.z = spot.z;
+    box.ry = spot.ry || 0;
+  } else {
+    box.loc = spot === 'pad' ? 'pad' : 'stock';
+    delete box.x;
+    delete box.z;
+    delete box.ry;
+  }
   return { ok: true, box };
 }
 

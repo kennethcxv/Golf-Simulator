@@ -1572,8 +1572,11 @@ export function makeClubhouse(ctx) {
   function boxSignature() {
     const d = state.shop.deliveries;
     if (!d) return '';
-    return d.boxes.map((b) => `${b.id}:${b.loc}`).join(',') + '|' + d.trash;
+    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}`).join(',') + '|' + d.trash;
   }
+
+  const inStockroomBounds = (lx, lz) => lx >= STOCKROOM.bounds.minX && lx <= STOCKROOM.bounds.maxX
+    && lz >= STOCKROOM.bounds.minZ && lz <= STOCKROOM.bounds.maxZ;
 
   function rebuildBoxes() {
     boxGroup.clear();
@@ -1595,37 +1598,51 @@ export function makeClubhouse(ctx) {
         camera.add(carriedMesh);
         continue;
       }
-      const at = box.loc === 'pad' ? STOCKROOM.padOutside : STOCKROOM.receivingInside;
-      const i = stacks[box.loc]++;
-      const lx = at.x + (i % 3 - 1) * 0.62;
-      const lz = at.z + Math.floor(i / 3) * 0.56 - 0.3;
+      // world boxes sit exactly where they were set down; zone boxes stack tidily
+      let lx;
+      let lz;
+      let ry;
+      if (box.loc === 'world') {
+        lx = box.x;
+        lz = box.z;
+        ry = box.ry || 0;
+      } else {
+        const at = box.loc === 'pad' ? STOCKROOM.padOutside : STOCKROOM.receivingInside;
+        const i = stacks[box.loc]++;
+        lx = at.x + (i % 3 - 1) * 0.62;
+        lz = at.z + Math.floor(i / 3) * 0.56 - 0.3;
+        ry = (box.id % 5) * 0.13;
+      }
       const wp = L2W(lx, lz);
       const m = makeBoxMesh(box);
       const gy = groundYAt(wp.x, wp.z);
       m.position.set(wp.x, gy !== null && gy !== undefined ? gy : heightAt(wp.x, wp.z) + 0.02, wp.z);
-      m.rotation.y = (box.id % 5) * 0.13;
+      m.rotation.y = ry;
       boxGroup.add(m);
       const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
       const name = sku ? sku.name : box.skuId;
+      // one rule everywhere: inside the stockroom a case unpacks; anywhere else
+      // E lifts it back into your arms
+      const unpackHere = box.loc === 'stock' || (box.loc === 'world' && inStockroomBounds(lx, lz));
       const prop = addProp({
         x: wp.x, z: wp.z, r: 1.9,
         label: () => {
           if (carriedBox(state)) return null; // the set-down verb owns E while loaded
-          return box.loc === 'pad'
-            ? `Delivery — ${name} ×${box.qty} — [E] pick up`
-            : `Case of ${name} ×${box.qty} — [E] unpack into the backroom`;
+          return unpackHere
+            ? `Case of ${name} ×${box.qty} — [E] unpack into the backroom`
+            : `${box.loc === 'pad' ? 'Delivery — ' : ''}${name} ×${box.qty} — [E] pick up`;
         },
         action: () => {
-          if (box.loc === 'pad') {
-            const res = pickUpBox(state, box.id);
-            if (!res.ok) { if (hooks.toast) hooks.toast(res.reason, 'warn'); return; }
-            if (hooks.sfx) hooks.sfx('thunk');
-          } else {
+          if (unpackHere) {
             const res = openBox(state, box.id);
             if (!res.ok) { if (hooks.toast) hooks.toast(res.reason, 'warn'); return; }
             rebuildStock();
             if (hooks.sfx) hooks.sfx('chime');
             if (hooks.toast) hooks.toast(`Unpacked ${res.qty} × ${name} into the backroom.`);
+          } else {
+            const res = pickUpBox(state, box.id);
+            if (!res.ok) { if (hooks.toast) hooks.toast(res.reason, 'warn'); return; }
+            if (hooks.sfx) hooks.sfx('thunk');
           }
           rebuildBoxes();
         },
@@ -1635,33 +1652,39 @@ export function makeClubhouse(ctx) {
     boxSig = boxSignature();
   }
 
-  // the set-down verb follows the player while a box is in their arms
+  // the set-down verb follows the player while a box is in their arms.
+  // A box goes down wherever you stand — floor, porch, yard — right where
+  // you're facing; it only refuses a spot that would cross a wall.
+  function boxDropSpot() {
+    const fx = -Math.sin(walk.yaw);
+    const fz = -Math.cos(walk.yaw);
+    let dx = walk.x + fx * 0.9;
+    let dz = walk.z + fz * 0.9;
+    // never place it through the wall you're standing against
+    if (isInside(walk.x, walk.z) !== isInside(dx, dz)) {
+      dx = walk.x + fx * 0.35;
+      dz = walk.z + fz * 0.35;
+      if (isInside(walk.x, walk.z) !== isInside(dx, dz)) { dx = walk.x; dz = walk.z; }
+    }
+    return { x: dx, z: dz };
+  }
   const carryProp = addProp({
     x: 0, z: 0, r: 2.5,
     label: () => {
       const c = carriedBox(state);
       if (!c) return null;
       const l = W2L(walk.x, walk.z);
-      const inStock = l.x >= STOCKROOM.bounds.minX && l.x <= STOCKROOM.bounds.maxX
-        && l.z >= STOCKROOM.bounds.minZ && l.z <= STOCKROOM.bounds.maxZ;
-      const nearPad = Math.hypot(l.x - STOCKROOM.padOutside.x, l.z - STOCKROOM.padOutside.z) < 4;
       const sku = SHOP_CATALOG.find((s) => s.id === c.skuId);
-      if (inStock) return `Carrying ${sku ? sku.name : c.skuId} ×${c.qty} — [E] set it down here`;
-      if (nearPad) return `Carrying ${sku ? sku.name : c.skuId} ×${c.qty} — [E] put it back on the pad`;
-      return `Carrying ${sku ? sku.name : c.skuId} ×${c.qty} — take it to the stockroom (back door)`;
+      const name = sku ? sku.name : c.skuId;
+      if (inStockroomBounds(l.x, l.z)) return `Carrying ${name} ×${c.qty} — [E] set it down (unpacks here)`;
+      return `Carrying ${name} ×${c.qty} — [E] set it down`;
     },
     action: () => {
       const c = carriedBox(state);
       if (!c) return;
-      const l = W2L(walk.x, walk.z);
-      const inStock = l.x >= STOCKROOM.bounds.minX && l.x <= STOCKROOM.bounds.maxX
-        && l.z >= STOCKROOM.bounds.minZ && l.z <= STOCKROOM.bounds.maxZ;
-      const nearPad = Math.hypot(l.x - STOCKROOM.padOutside.x, l.z - STOCKROOM.padOutside.z) < 4;
-      if (!inStock && !nearPad) {
-        if (hooks.toast) hooks.toast('Set it down in the stockroom — in through the back door.', 'warn');
-        return;
-      }
-      putDownBox(state, c.id, inStock ? 'stock' : 'pad');
+      const drop = boxDropSpot();
+      const l = W2L(drop.x, drop.z);
+      putDownBox(state, c.id, { x: l.x, z: l.z, ry: walk.yaw + 0.1 });
       if (hooks.sfx) hooks.sfx('thunk');
       rebuildBoxes();
     },
