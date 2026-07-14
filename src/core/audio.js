@@ -201,6 +201,67 @@ export function makeAudio() {
     osc.stop(t0 + 0.18);
   }
 
+  // a hinge easing open: a soft rising creak (filtered saw sweep)
+  function doorSwing() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(74, t0);
+    osc.frequency.linearRampToValueAtTime(118, t0 + 0.28);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 340;
+    f.Q.value = 6;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.05, t0 + 0.06);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.34);
+    osc.connect(f).connect(g).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.36);
+  }
+
+  // the latch catching: a short wooden clack over a low body
+  function doorShut() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const body = ctx.createOscillator();
+    body.type = 'sine';
+    body.frequency.setValueAtTime(120, t0);
+    body.frequency.exponentialRampToValueAtTime(64, t0 + 0.09);
+    const bg = ctx.createGain();
+    bg.gain.setValueAtTime(0.1, t0);
+    bg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
+    body.connect(bg).connect(sfxBus);
+    body.start(t0);
+    body.stop(t0 + 0.14);
+    const clack = ctx.createOscillator();
+    clack.type = 'square';
+    clack.frequency.value = 1150;
+    const cg = ctx.createGain();
+    cg.gain.setValueAtTime(0.025, t0 + 0.03);
+    cg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
+    clack.connect(cg).connect(sfxBus);
+    clack.start(t0 + 0.03);
+    clack.stop(t0 + 0.08);
+  }
+
+  // the register scanner: one clean high blip, unmistakably retail
+  function scanBeep() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = 1560;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.035, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.1);
+  }
+
   // continuous in-use loops, one per tool, crossfaded by setToolLoop(kind|null)
   const toolLoops = {}; // kind -> gain node
   function ensureToolLoop(kind) {
@@ -305,6 +366,9 @@ export function makeAudio() {
     update,
     doorbell,
     uiTick,
+    doorSwing,
+    doorShut,
+    scanBeep,
     equipTick,
     chime,
     thunk,

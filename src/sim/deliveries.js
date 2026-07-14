@@ -64,6 +64,7 @@ export function openBox(state, id) {
   if (inv) inv.back += box.qty;
   d.boxes.splice(d.boxes.indexOf(box), 1);
   d.trash += 1;
+  d.openedTotal = (d.openedTotal || 0) + 1; // lifetime unboxings (onboarding reads this)
   return { ok: true, skuId: box.skuId, qty: box.qty };
 }
 

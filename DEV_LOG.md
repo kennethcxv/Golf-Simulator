@@ -2476,3 +2476,24 @@ payment label → cash 78,822.89 → 78,850.89 (exactly +$28.00), salesLive
 {1, $28}, log line written. QA sidebar: an hour of "no pick" turned out to
 be the system being RIGHT — the shelf was empty and refusals are silent by
 design; the instrumented run proved every guard.
+
+## 2026-07-13 — Steps 24–25: doors sound like doors; the opening teaches the loop
+
+AUDIO (core/audio.js, same procedural language): doorSwing (band-passed saw
+creak), doorShut (low body + wooden clack), scanBeep (a clean 1560 Hz retail
+blip). Wired: E on any door creaks/latches; auto-swings for customers and
+full-armed players are audible only within 18 yd; each register scan beeps
+(payment keeps the chime; check-in keeps the doorbell). Levels still owe the
+standing human ear-pass (KNOWN_ISSUES).
+
+ONBOARDING (tutorial.js): the opening six steps now teach the PHYSICAL loop —
+step inside (real door) → clear the floor (haul/vacuum) → order at the
+laptop → receive/unbox the truck's cases → stock a display → ring up a
+customer — followed by the club-maturity arc (save a green, staff up, profit
+day, prestige 30). Checks read real state (deliveries.openedTotal counts
+lifetime unboxings; 'shelved'/'vacuumed' flags fire from the floor actions).
+NOTE: tutorial.js was on an old brief's do-not-touch list; the 2026-07-13
+SUPERSEDING brief explicitly requires this first-time flow (its step 25), so
+the constraint is superseded — logged here deliberately. Tests rewritten to
+walk the new chain in order (suite 231). Old mid-tutorial saves re-enter at
+their step index against the new checks; completed saves stay completed.

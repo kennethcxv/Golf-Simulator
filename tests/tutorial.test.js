@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import { MINUTES_PER_DAY } from '../src/sim/constants.js';
 import { newGame, update, serialize, deserialize } from '../src/sim/state.js';
 import { TUTORIAL_STEPS, tickTutorial, tutorialFlag } from '../src/sim/tutorial.js';
-import { placeOrder } from '../src/sim/shop.js';
+import { placeOrder, deliverOrdersDue, clearClutter } from '../src/sim/shop.js';
+import { openBox } from '../src/sim/deliveries.js';
+import { checkoutSale } from '../src/sim/checkout.js';
 import { treatSection } from '../src/sim/turf.js';
 import { ZONE } from '../src/sim/constants.js';
+import { calendarOf } from '../src/sim/time.js';
 
 test('tutorial exists, starts at the beginning, and has a real arc', () => {
   const st = newGame('realistic', 42);
@@ -17,56 +20,51 @@ test('tutorial exists, starts at the beginning, and has a real arc', () => {
   }
 });
 
-test('steps advance only when their real conditions are met', () => {
+test('the opening chain follows the physical clubhouse loop, in order', () => {
   const st = newGame('realistic', 42);
   assert.equal(tickTutorial(st).advanced.length, 0, 'nothing done yet');
-  assert.equal(st.tutorial.step, 0);
 
-  tutorialFlag(st, 'groundsOpened');
+  tutorialFlag(st, 'shopWalked'); // stepped through the real door
   let res = tickTutorial(st);
-  assert.ok(res.advanced.some((s) => s.id === 'meet-grounds'));
-  assert.equal(st.tutorial.step, 1);
+  assert.ok(res.advanced.some((s) => s.id === 'walk-in'));
 
-  // treat a sick green → the turf-care step clears
-  const sick = st.sections.find((s) => s.zone === ZONE.GREEN && (() => {
-    for (const i of s.cells) if (st.turf.disType[i]) return true;
-    return false;
-  })());
-  treatSection(st, sick);
+  clearClutter(st, 0); // hauled a pile
   res = tickTutorial(st);
-  assert.ok(res.advanced.some((s) => s.id === 'treat-green'), JSON.stringify(st.tutorial));
+  assert.ok(res.advanced.some((s) => s.id === 'haul-clean'));
 
-  // hire day labor
-  st.maintenance.crewUnits = 2;
+  placeOrder(st, 'balls1', 12); // ordered at the laptop
   res = tickTutorial(st);
-  assert.ok(res.advanced.some((s) => s.id === 'staff-up'));
+  assert.ok(res.advanced.some((s) => s.id === 'order-stock'));
 
-  // order stock
-  placeOrder(st, 'balls1', 12);
+  // the truck comes; unbox a case in the stockroom
+  deliverOrdersDue(st, calendarOf(st.clock.minutes).dayAbs + 5);
+  openBox(st, st.shop.deliveries.boxes[0].id);
   res = tickTutorial(st);
-  assert.ok(res.advanced.some((s) => s.id === 'stock-shop'));
+  assert.ok(res.advanced.some((s) => s.id === 'unbox'));
 
-  // walk the floor + touch prices
-  tutorialFlag(st, 'shopWalked');
-  tutorialFlag(st, 'priceTouched');
+  tutorialFlag(st, 'shelved'); // walked it to a display
   res = tickTutorial(st);
-  assert.ok(st.tutorial.step >= 6, `now at ${st.tutorial.step}`);
+  assert.ok(res.advanced.some((s) => s.id === 'shelve'));
+
+  checkoutSale(st, [{ skuId: 'balls1', price: 15 }], 'First customer'); // rang the register
+  res = tickTutorial(st);
+  assert.ok(res.advanced.some((s) => s.id === 'first-ring'), JSON.stringify(st.tutorial));
+  assert.equal(st.tutorial.step, 6, 'the whole shop-opening chain cleared in order');
 });
 
 test('the arc completes at real club maturity', () => {
   const st = newGame('realistic', 42);
-  // brute-force every condition
-  tutorialFlag(st, 'groundsOpened');
   tutorialFlag(st, 'shopWalked');
-  tutorialFlag(st, 'priceTouched');
+  tutorialFlag(st, 'shelved');
+  clearClutter(st, 0);
+  placeOrder(st, 'balls1', 6);
+  deliverOrdersDue(st, calendarOf(st.clock.minutes).dayAbs + 5);
+  openBox(st, st.shop.deliveries.boxes[0].id);
+  checkoutSale(st, [{ skuId: 'balls1', price: 15 }], 'QA');
   st.turf.disType.fill(0);
   st.turf.disSev.fill(0);
   st.maintenance.crewUnits = 3;
-  placeOrder(st, 'balls1', 6);
-  st.golfers.pool[0].memberTier = 'full';
-  st.golfers.pool[0].joinedDay = 3;
   st.ledger.yesterday = { net: 500, revenue: {}, expense: {} };
-  st.club.amenities.range = 1;
   st.progression.prestige = 32;
   tickTutorial(st);
   assert.equal(st.tutorial.complete, true, JSON.stringify(st.tutorial));
@@ -74,7 +72,7 @@ test('the arc completes at real club maturity', () => {
 
 test('tutorial state survives save/load', () => {
   const st = newGame('realistic', 42);
-  tutorialFlag(st, 'groundsOpened');
+  tutorialFlag(st, 'shopWalked');
   tickTutorial(st);
   const back = deserialize(serialize(st));
   assert.equal(back.tutorial.step, st.tutorial.step);
@@ -83,9 +81,8 @@ test('tutorial state survives save/load', () => {
 
 test('a naturally played opening advances the early arc', () => {
   const st = newGame('realistic', 42);
-  tutorialFlag(st, 'groundsOpened');
-  st.maintenance.crewUnits = 2;
-  // let the sick greens get treated and a day pass
+  tutorialFlag(st, 'shopWalked');
+  clearClutter(st, 1);
   for (const s of st.sections) {
     if (s.zone === ZONE.GREEN) treatSection(st, s);
   }

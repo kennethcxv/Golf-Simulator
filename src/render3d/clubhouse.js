@@ -26,6 +26,7 @@ import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
 } from '../sim/deliveries.js';
 import { pickFromShelf, returnToShelf, checkoutSale } from '../sim/checkout.js';
+import { tutorialFlag } from '../sim/tutorial.js';
 import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
 import { makeWoodTexture, makePlasterTexture } from './proceduralTextures.js';
 
@@ -522,7 +523,7 @@ export function makeClubhouse(ctx) {
       label: () => `${name} — [E] ${door.open ? 'close' : 'open'}`,
       action: () => {
         door.open = !door.open;
-        if (hooks.sfx) hooks.sfx(door.open ? 'uiTick' : 'thunk');
+        if (hooks.sfx) hooks.sfx(door.open ? 'doorSwing' : 'doorShut');
       },
     });
     return door;
@@ -557,9 +558,16 @@ export function makeClubhouse(ctx) {
           break;
         }
       }
-      if (custNear && !d.open) d.open = true;
+      const audible = walk.active && Math.hypot(walk.x - d.world.x, walk.z - d.world.z) < 18;
+      if (custNear && !d.open) {
+        d.open = true;
+        if (audible && hooks.sfx) hooks.sfx('doorSwing');
+      }
       if (near || custNear) d.lastNear = now;
-      if (d.open && now - d.lastNear > 5) d.open = false;
+      if (d.open && now - d.lastNear > 5) {
+        d.open = false;
+        if (audible && hooks.sfx) hooks.sfx('doorShut');
+      }
 
       const target = d.open ? d.openAngle : 0;
       d.angle += (target - d.angle) * Math.min(1, dt * 5.5);
@@ -640,6 +648,7 @@ export function makeClubhouse(ctx) {
     }
     if (moved > 0) {
       rebuildStock();
+      if (state.tutorial) tutorialFlag(state, 'shelved');
       if (hooks.toast) hooks.toast(`Restocked ${moved} items on the ${title.toLowerCase()}.`);
       if (hooks.sfx) hooks.sfx('thunk');
     } else if (hooks.toast) {
@@ -948,7 +957,7 @@ export function makeClubhouse(ctx) {
             }),
             sub,
           );
-          if (hooks.sfx) hooks.sfx('uiTick');
+          if (hooks.sfx) hooks.sfx('scanBeep');
         } else {
           const res = checkoutSale(state, c.cart, c.name);
           if (!res.ok) return;
@@ -1974,6 +1983,7 @@ export function makeClubhouse(ctx) {
   function vacuumAt(wx, wz, dt) {
     const l = W2L(wx, wz);
     const res = cleanGrimeAt(state, l.x, l.z, 0.5 * dt);
+    if (res.cleaned > 0 && state.tutorial) tutorialFlag(state, 'vacuumed');
     cleanClock += dt;
     if (cleanClock > 0.16) {
       cleanClock = 0;

@@ -5,17 +5,50 @@
 
 import { ZONE } from './constants.js';
 
+// 2026-07-13: the opening six steps follow the physical clubhouse loop of the
+// seamless-shop overhaul (walk in → clean → order at the laptop → unbox →
+// shelve → ring a sale); the back four remain the club-maturity arc.
 export const TUTORIAL_STEPS = [
   {
-    id: 'meet-grounds',
-    title: 'Walk the property',
-    hint: 'Step out through the shop door (E) and open the Grounds desk (G).',
-    check: (st) => !!st.tutorial.flags.groundsOpened,
+    id: 'walk-in',
+    title: 'Step inside your clubhouse',
+    hint: 'Walk up the porch and open the shop door (E). This building is the business.',
+    check: (st) => !!st.tutorial.flags.shopWalked,
+  },
+  {
+    id: 'haul-clean',
+    title: 'Clear the floor',
+    hint: 'Haul a clutter pile out (E) — and once you own a vacuum, run it on the grime (F, hold LMB).',
+    check: (st) => !!(st.shop && st.shop.reno && (st.shop.reno.clutter.some((c) => c.cleared) || st.tutorial.flags.vacuumed)),
+  },
+  {
+    id: 'order-stock',
+    title: 'Order stock at the laptop',
+    hint: 'The office laptop (E) runs Fairway Office — browse the Supplier and place an order.',
+    check: (st) => st.shop && st.shop.nextOrderId > 1,
+  },
+  {
+    id: 'unbox',
+    title: 'Receive the delivery',
+    hint: 'The truck leaves boxes on the pad by the back door. Carry one into the stockroom and open it (E).',
+    check: (st) => !!(st.shop && st.shop.deliveries && (st.shop.deliveries.openedTotal || 0) > 0),
+  },
+  {
+    id: 'shelve',
+    title: 'Stock a display',
+    hint: 'Walk the floor to a fixture and shelve from the backroom (E). Shelves sell; backrooms don\'t.',
+    check: (st) => !!st.tutorial.flags.shelved,
+  },
+  {
+    id: 'first-ring',
+    title: 'Ring up a customer',
+    hint: 'When a shopper waits at the register, scan their pick and take payment (E, E).',
+    check: (st) => !!(st.shop && st.shop.salesLive && st.shop.salesLive.units > 0),
   },
   {
     id: 'treat-green',
     title: 'Save a green',
-    hint: 'Click a sick green (pale blotches), read the diagnosis, apply fungicide.',
+    hint: 'Walk a sick green (pale blotches), inspect it (E), apply fungicide.',
     check: (st) => {
       if (st.tutorial.flags.treatedSection) return true;
       // or the disease is simply gone
@@ -31,46 +64,14 @@ export const TUTORIAL_STEPS = [
   {
     id: 'staff-up',
     title: 'Get some hands',
-    hint: 'Hire day-labor at the Grounds desk or a groundskeeper at the Club office (C).',
+    hint: 'Hire day-labor at the Grounds desk (G) or a groundskeeper at the Club office (C).',
     check: (st) => st.maintenance.crewUnits >= 2 || (st.staff && st.staff.employees.length >= 1),
-  },
-  {
-    id: 'stock-shop',
-    title: 'Order shop stock',
-    hint: 'The shop shelves are nearly bare. Order supplies from the Shop desk (🛍).',
-    check: (st) => st.shop && st.shop.nextOrderId > 1,
-  },
-  {
-    id: 'walk-floor',
-    title: 'Walk your shop',
-    hint: 'Home sweet home — you open your day right here. Restock shelves with E when stock arrives.',
-    check: (st) => !!st.tutorial.flags.shopWalked,
-  },
-  {
-    id: 'set-prices',
-    title: 'Set your prices',
-    hint: 'Nudge the green fee or dues at the Club office — watch the "fair" hints.',
-    check: (st) => !!st.tutorial.flags.priceTouched,
-  },
-  {
-    id: 'first-join',
-    title: 'Win a member',
-    hint: 'Keep the course improving; someone new will sign up.',
-    check: (st) => st.golfers && st.golfers.pool.some((g) => g.memberTier && g.joinedDay > 0),
   },
   {
     id: 'profit-day',
     title: 'Turn a profit',
-    hint: 'Close a day in the black (Club office shows yesterday\'s books).',
+    hint: 'Close a day in the black (the laptop\'s Finances page shows the books).',
     check: (st) => !!(st.ledger && st.ledger.yesterday && st.ledger.yesterday.net > 0),
-  },
-  {
-    id: 'build',
-    title: 'Invest in the club',
-    hint: 'Add an amenity or buy an improvement in Development.',
-    check: (st) =>
-      (st.club && (st.club.amenities.range > 0 || st.club.amenities.restaurant > 0 || st.club.amenities.instruction > 0)) ||
-      (st.progression && Object.keys(st.progression.unlocks).length > 0),
   },
   {
     id: 'prestige-30',
