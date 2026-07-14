@@ -9,7 +9,7 @@ async (page) => {
   // It deliberately zeroes `decor`/`supplies`: a decor SKU in inventory makes the
   // shop spawn translucent green PLACEMENT GHOSTS that would fill the room with
   // fake blobs. Final gameplay proof does not use this file.
-  const PASS = 'before';
+  const PASS = 'pass-1';
   const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/assets/' + PASS;
 
   const L2W = (x, z) => ({ x: x - 8, z: z + 228 });

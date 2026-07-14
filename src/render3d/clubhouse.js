@@ -35,6 +35,7 @@ import { addRevenue } from '../sim/economy.js';
 import { tutorialFlag } from '../sim/tutorial.js';
 import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
 import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel } from './clubhouse/materials.js';
+import { createMerch } from './clubhouse/merch.js';
 import { buildShell } from './clubhouse/shell.js';
 import { buildDoors } from './clubhouse/doors.js';
 import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } from './clubhouse/fixtures.js';
@@ -114,6 +115,11 @@ export function makeClubhouse(ctx) {
 
   // --- materials + the building shell (clubhouse/materials.js + clubhouse/shell.js) ------
   const mats = makeClubhouseMaterials((state && state.clubName) || 'The Club');
+  // The Blender-authored goods. They arrive after the shop is built, so restock
+  // once they land — a shelf that is briefly bare is better than one that is
+  // permanently made of boxes.
+  const merch = createMerch(mats);
+  merch.onReady(() => { if (interior) rebuildStock(); });
   // legacy aliases: sections still awaiting their v2 pass draw from the kit
   const woodMat = mats.walnut;
   const darkMat = mats.walnutDark;
@@ -1353,8 +1359,12 @@ export function makeClubhouse(ctx) {
     for (const g of stockMeshes.values()) stockGroup.remove(g);
     stockMeshes.clear();
     const inv = state.shop.inventory;
-    const white = new THREE.MeshStandardMaterial({ color: 0xf5f2e8, roughness: 0.6 });
-    const POLO_TINTS = { polo1: 0x3f7a34, polo2: 0x3b6fb3, jacket2: 0x2c3e66 };
+    const white = mats.merchWhite;
+    // one geometry, one material, shared by every ball in the building
+    const ballGeo = new THREE.SphereGeometry(0.0214, 16, 12); // 43 mm — a real ball
+    // Muted, on-palette: the old tints were a saturated primary green and blue
+    // that fought the cream/walnut/sage room and read as coloured cardboard.
+    const POLO_TINTS = { polo1: 0x4e7a52, polo2: 0x5b7f9e, jacket2: 0x33455e };
 
     for (const f of placedFixtures(state)) {
       const anchor = fixtureAnchors.get(f.id);
@@ -1369,141 +1379,170 @@ export function makeClubhouse(ctx) {
         const m = new THREE.MeshStandardMaterial({ color, roughness: 0.6 });
 
         if (sku.cat === 'clubs') {
-          // real silhouettes: chrome shafts, dark grips, per-family heads
-          const chrome = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, roughness: 0.3, metalness: 0.85 });
-          const graphite = new THREE.MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.45, metalness: 0.4 });
-          const gripM = new THREE.MeshStandardMaterial({ color: 0x23262b, roughness: 0.92 });
-          const headM = new THREE.MeshStandardMaterial({
-            color: sku.tier >= 3 ? 0x23262b : sku.tier === 2 ? 0x2c3e66 : 0x53575d,
-            roughness: 0.28, metalness: 0.75,
-          });
+          // A club is a shaft, a grip and a HEAD, and the head was the tell: a
+          // driver was a squashed sphere and an iron a flat tab. The heads are
+          // modelled now (vendor/models/clubhouse/head_*.glb), pivoted at the
+          // shaft entry so they simply hang off the tip of the shaft.
           const isDriver = sku.id.startsWith('driver');
-          const isPutter = sku.id.startsWith('putter');
-          const shaftM = isDriver ? graphite : chrome;
-          for (let i = 0; i < Math.min(count, 6); i++) {
-            const x = -1.0 + idx * 0.45 + i * 0.07;
-            const z = 0.12 - i * 0.03;
-            const lean = 0.16 + (i % 3) * 0.03;
-            const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.014, 1.12, 6), shaftM);
-            shaft.position.set(x, 0.74, z);
-            shaft.rotation.z = lean;
-            const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.015, 0.24, 6), gripM);
-            grip.position.set(x - Math.sin(lean) * 0.55, 0.74 + Math.cos(lean) * 0.55, z);
-            grip.rotation.z = lean;
+          const headModel = isDriver ? 'head_driver'
+            : sku.id.startsWith('putter') ? 'head_putter'
+              : sku.id.startsWith('wedge') ? 'head_wedge' : 'head_iron';
+          const shaftM = isDriver ? mats.merchDark : mats.merchSteel;
+
+          // The bay used to fill only its bottom half — the whole upper section
+          // was a blank panel (ref 5 has clubs in BOTH tiers). Two rows now.
+          //
+          // Spacing matters more than count. A bay carries up to four SKUs, so
+          // showing twelve of each crammed 48 clubs into the left two-thirds of
+          // one bay and it read as a thicket. Each SKU gets its own SLOT of the
+          // bay's real width, and three clubs per row inside it.
+          const perRow = 3;
+          const show = Math.min(count, 6);
+          const lanes = Math.max(1, f.skus.length);
+          const laneW = 2.5 / lanes;
+          const laneX = -1.25 + laneW * (idx + 0.5);
+          for (let i = 0; i < show; i++) {
+            const row = Math.floor(i / perRow);       // 0 = lower rack, 1 = upper
+            const k = i % perRow;
+            const baseY = row === 0 ? 0.18 : 1.32;
+            const len = row === 0 ? 1.06 : 0.82;      // the upper rack is shallower
+            const x = laneX + (k - 1) * Math.min(0.11, laneW / 3.4);
+            const z = 0.10 - k * 0.03;
+            const lean = 0.14 + (k % 3) * 0.03;
+            const midY = baseY + Math.cos(lean) * len / 2;
+
+            const shaft = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.0075, 0.0105, len, 10), shaftM);
+            shaft.position.set(x + Math.sin(lean) * len / 2, midY, z);
+            shaft.rotation.z = -lean;
+            shaft.castShadow = true;
+            const grip = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.0135, 0.0115, 0.24, 8), mats.merchRubber);
+            grip.position.set(x + Math.sin(lean) * (len - 0.10), baseY + Math.cos(lean) * (len - 0.10), z);
+            grip.rotation.z = -lean;
             g.add(shaft, grip);
-            const hx = x + Math.sin(lean) * 0.56;
-            if (isDriver) {
-              const head = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), headM);
-              head.scale.set(1.25, 0.62, 1.05);
-              head.position.set(hx + 0.02, 0.2, z + 0.02);
-              const face = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.012, 10), chrome);
-              face.rotation.z = Math.PI / 2 - 0.2;
-              face.position.set(hx - 0.07, 0.205, z + 0.02);
-              g.add(head, face);
-            } else if (isPutter) {
-              const head = new THREE.Mesh(roundedBox(0.13, 0.03, 0.045, 0.012), headM);
-              head.position.set(hx, 0.175, z + 0.02);
-              const hosel = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.07, 5), chrome);
-              hosel.position.set(hx - 0.05, 0.22, z + 0.02);
-              g.add(head, hosel);
-            } else {
-              const blade = new THREE.Mesh(roundedBox(0.095, 0.085, 0.022, 0.01), headM);
-              blade.position.set(hx, 0.19, z + 0.02);
-              blade.rotation.y = 0.25;
-              blade.rotation.z = -0.12;
-              g.add(blade);
+
+            const head = merch.instantiate(headModel);
+            if (head) {
+              head.position.set(x, baseY, z);
+              head.rotation.z = -lean;
+              head.rotation.y = 0.30 + (k % 2) * 0.18;   // fan the faces slightly
+              g.add(head);
             }
           }
         } else if (sku.cat === 'balls') {
-          // branded dozen boxes, tier-colored rows like the reference ball wall
+          // The reference ball wall (ref 6) is DENSE: four or five identical boxes
+          // filling every shelf, front-faced, in colour-coded rows. The old wall
+          // put three small boxes on each shelf with acres of bare wood between
+          // them, which is most of why the shop read as empty.
           const label = ballLabelMat(sku);
           const plain = new THREE.MeshStandardMaterial({
-            color: sku.tier >= 3 ? 0x1f4a26 : sku.tier === 2 ? 0x2c3e66 : 0xf0ead8, roughness: 0.7,
+            color: sku.tier >= 3 ? 0x1f4a26 : sku.tier === 2 ? 0x2c3e66 : 0xf0ead8,
+            roughness: 0.72,
           });
           const boxMats = [plain, plain, plain, plain, label, plain]; // label faces the shopper (+z)
-          const show = Math.min(count, 12);
+          // NOT roundedBox: its UVs are planar and world-scaled (constant texel
+          // density across fixtures), which crops and tiles a 0..1 label into
+          // mush — the brands vanished. A plain box gives 0..1 per face, and a
+          // bevel is invisible on a 16 cm carton at shopping distance anyway.
+          const boxGeo = new THREE.BoxGeometry(0.165, 0.12, 0.125);
+          const show = Math.min(count, 15);
           for (let i = 0; i < show; i++) {
-            const layer = Math.floor(i / 3);
-            const col = i % 3;
+            const layer = Math.floor(i / 5);
+            const col = i % 5;
             const boardY = [0.5, 1.05, 1.6][layer % 3];
-            const item = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.125, 0.13), boxMats);
-            item.position.set(-1.05 + idx * 0.56 + col * 0.18, boardY + 0.095 + Math.floor(layer / 3) * 0.13, 0.1);
+            const item = new THREE.Mesh(boxGeo, boxMats);
+            item.position.set(-1.10 + idx * 0.52 + col * 0.172, boardY + 0.062, 0.10);
             item.castShadow = true;
             g.add(item);
+            // a second box stacked behind, so the shelf reads deep, not painted on
+            if (i < 10) {
+              const back = new THREE.Mesh(boxGeo, boxMats);
+              back.position.set(item.position.x, boardY + 0.062, -0.03);
+              g.add(back);
+            }
           }
-          if (show >= 3) {
-            const bx = -1.05 + idx * 0.56 + 0.4;
-            for (const [ox, oz, oy] of [[0, 0, 0], [0.055, 0, 0], [0.028, 0.045, 0], [0.028, 0.018, 0.045]]) {
-              const ball = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 6), white);
-              ball.position.set(bx + ox, 1.05 + 0.026 + oy, 0.14 + oz);
+          // loose balls in a wire basket at the foot of the wall (ref 6)
+          if (show >= 5 && idx === 0) {
+            const basket = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.15, 0.13, 0.16, 12, 1, true), mats.brass);
+            basket.material.side = THREE.DoubleSide;
+            basket.position.set(-1.10, 0.16, 0.14);
+            g.add(basket);
+            for (let i = 0; i < 9; i++) {
+              const a = (i / 9) * Math.PI * 2;
+              const rr = i < 5 ? 0.075 : 0.035;
+              const ball = new THREE.Mesh(ballGeo, mats.merchWhite);
+              ball.position.set(
+                -1.10 + Math.cos(a) * rr,
+                0.115 + (i >= 5 ? 0.044 : 0),
+                0.14 + Math.sin(a) * rr,
+              );
               g.add(ball);
             }
           }
         } else if (POLO_TINTS[sku.id] && count > 0) {
-          const tint = new THREE.MeshStandardMaterial({ color: POLO_TINTS[sku.id], roughness: 0.85 });
+          // THE WORST ASSET IN THE SHOP, per the audit: a hanging polo was a
+          // 0.3 x 0.38 x 0.035 box with two box sleeves stuck on at 30 degrees,
+          // in saturated primary green. It read as coloured cardboard. Both the
+          // hanging and folded shirts are modelled garments now, and the tints
+          // moved onto the room's palette.
+          const tint = POLO_TINTS[sku.id];
           const show = Math.min(count, 10);
-          // rails have no top: everything hangs (jacket rail); tables fold six
-          const onRail = f.kind === 'rail';
-          const hangZ = onRail ? 0 : -0.62;
-          const hangMax = onRail ? 8 : 4;
+          const onRail = f.kind === 'rail';                 // a rail has no top to fold on
+          const isJacket = sku.id === 'jacket2';
+          const model = isJacket ? 'jacket_hanging' : 'polo_hanging';
+          const hangZ = onRail ? 0 : -0.62;                 // the table's hang rail sits behind it
+          const hangMax = onRail ? 6 : 4;
           const folded = onRail ? 0 : Math.min(show, 6);
+
           for (let i = 0; i < folded; i++) {
-            const slab = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.055, 0.24), tint);
-            slab.position.set(-0.85 + idx * 0.42, 1.03 + (i % 3) * 0.062, -0.15 + Math.floor(i / 3) * 0.3);
-            slab.rotation.y = (i % 2) * 0.09 - 0.045;
-            slab.castShadow = true;
-            g.add(slab);
-            const collar = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.012, 0.05), white);
-            collar.position.set(slab.position.x, slab.position.y + 0.034, slab.position.z + 0.08);
-            g.add(collar);
+            const fold = merch.instantiate('polo_folded', { tint });
+            if (!fold) break;
+            fold.position.set(
+              -0.85 + idx * 0.42,
+              1.005 + (i % 3) * 0.055,                       // stacks of three
+              -0.15 + Math.floor(i / 3) * 0.30,
+            );
+            fold.rotation.y = (i % 2) * 0.09 - 0.045;
+            g.add(fold);
           }
           for (let i = 0; i < show - folded && i < hangMax; i++) {
-            const step = onRail ? 0.26 : 0.17;
+            // A modelled shirt is 0.52 m across. At the old 0.17 m step they
+            // interpenetrated into one solid slab of colour; shirts on a rail
+            // nest, but they do not merge.
+            const step = onRail ? 0.32 : 0.30;
             const hx = Math.min(-0.9 + hangCursor.n++ * step, 0.9);
-            const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.1, 5), darkMat);
-            hook.position.set(hx, 1.63, hangZ);
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.38, 0.035), tint);
-            body.position.set(hx, 1.38, hangZ);
-            body.rotation.y = 0.08;
-            body.castShadow = true;
-            const sleeveL = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.16, 0.03), tint);
-            sleeveL.position.set(hx - 0.19, 1.5, hangZ);
-            sleeveL.rotation.z = 0.5;
-            const sleeveR = sleeveL.clone();
-            sleeveR.position.x = hx + 0.19;
-            sleeveR.rotation.z = -0.5;
-            g.add(hook, body, sleeveL, sleeveR);
+            const shirt = merch.instantiate(model, { tint });
+            if (!shirt) break;
+            // the model's pivot is the hanger HOOK, so it just hangs off the bar
+            shirt.position.set(hx, 1.68, hangZ);
+            shirt.rotation.y = 0.06 + (i % 2) * 0.08;       // no two hang alike
+            g.add(shirt);
           }
         } else if (sku.id === 'cap1') {
           const show = Math.min(count, 8);
-          const capColors = [0x2c3e66, 0xf0ead8, 0x1f4a26, 0xd9cbb2];
+          const capColors = [0x33455e, 0xf0ead8, 0x2c5233, 0xd9cbb2];
           for (let i = 0; i < show; i++) {
-            const capMat = new THREE.MeshStandardMaterial({ color: capColors[i % 4], roughness: 0.88 });
             const a = (i / 8) * Math.PI * 2;
-            const py = 1.15 + (i % 2) * 0.35;
-            const cx = Math.sin(a) * 0.3;
-            const cz = Math.cos(a) * 0.3;
-            const dome = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), capMat);
-            dome.scale.y = 0.85;
-            dome.position.set(cx, py + 0.02, cz);
-            dome.rotation.y = a;
-            dome.castShadow = true;
-            // curved brim: a shallow cylinder slice tipped downward, facing out
-            const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.012, 10, 1, false, -0.7, 1.4), capMat);
-            brim.position.set(cx + Math.sin(a) * 0.055, py + 0.005, cz + Math.cos(a) * 0.055);
-            brim.rotation.y = a;
-            brim.rotation.x = 0.12;
-            // button on top
-            const button = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 4), capMat);
-            button.position.set(cx, py + 0.09, cz);
-            g.add(dome, brim, button);
+            const cap = merch.instantiate('cap', { tint: capColors[i % 4] });
+            if (!cap) break;
+            cap.position.set(Math.sin(a) * 0.30, 1.15 + (i % 2) * 0.35, Math.cos(a) * 0.30);
+            cap.rotation.y = a;                       // bills point out off the tree
+            g.add(cap);
           }
         } else if (sku.id === 'glove1') {
           const show = Math.min(count, 8);
           for (let i = 0; i < show; i++) {
-            const glove = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.02, 0.2), white);
-            glove.position.set(-0.85 + idx * 0.42 + (i % 2) * 0.14, 1.08 + Math.floor(i / 2) * 0.026, 0.1);
-            glove.rotation.y = (i % 2) * 0.2 - 0.1;
+            const glove = merch.instantiate('glove');
+            if (!glove) break;
+            // laid flat on the shelf, fanned, as they are in ref 6
+            glove.position.set(
+              -0.92 + idx * 0.42 + (i % 2) * 0.17,
+              1.07 + Math.floor(i / 2) * 0.022,
+              0.08,
+            );
+            glove.rotation.set(-Math.PI / 2, 0, (i % 2) * 0.24 - 0.12);
             g.add(glove);
           }
         } else if (sku.id === 'sock1') {
@@ -1543,74 +1582,37 @@ export function makeClubhouse(ctx) {
             g.add(shaft, tip);
           }
         } else if (sku.id === 'bag1') {
-          const show = Math.min(count, 5);
-          const accent = new THREE.MeshStandardMaterial({ color: 0xf0ead8, roughness: 0.75 });
+          // Was a tapered cylinder with a lid and some tiles — it read as a
+          // thermos flask. The modelled bag ships WITH its fan of clubs, because
+          // that fan is the whole silhouette: a golf bag with nothing in it is
+          // just a bin (ref 7).
+          const show = Math.min(count, 4);
+          // lighter than the first pick: navy/forest/charcoal/tan all went to
+          // near-black under the shop's warm, low interior light
+          const bagTints = [0x53688c, 0x4e8059, 0xb9b3a6, 0x9a7a56];
           for (let i = 0; i < show; i++) {
-            const tintB = new THREE.MeshStandardMaterial({ color: [0x2c3e66, 0x1f4a26, 0x23262b, 0x6b4f37, 0x7a1f1f][i % 5], roughness: 0.78 });
-            const bx = -0.95 + i * 0.48;
-            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.125, 0.95, 12), tintB);
-            body.position.set(bx, 0.62, -0.1);
-            body.rotation.x = -0.22;
-            body.castShadow = true;
-            // top cuff + club tubes peeking out
-            const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.15, 0.09, 12), accent);
-            cuff.position.set(bx, 1.07, -0.2);
-            cuff.rotation.x = -0.22;
-            for (let t = 0; t < 3; t++) {
-              const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.5, 5), darkMat);
-              tube.position.set(bx - 0.05 + t * 0.05, 1.28, -0.23 - (t % 2) * 0.04);
-              tube.rotation.x = -0.2;
-              g.add(tube);
-            }
-            // front pocket + ball pocket + stitched band
-            const pocket = new THREE.Mesh(roundedBox(0.13, 0.32, 0.07, 0.025), tintB);
-            pocket.position.set(bx, 0.48, 0.06);
-            pocket.rotation.x = -0.22;
-            const ballPocket = new THREE.Mesh(roundedBox(0.11, 0.16, 0.06, 0.022), accent);
-            ballPocket.position.set(bx, 0.82, 0.015);
-            ballPocket.rotation.x = -0.22;
-            const band = new THREE.Mesh(new THREE.CylinderGeometry(0.152, 0.152, 0.05, 12), accent);
-            band.position.set(bx, 0.35, -0.04);
-            band.rotation.x = -0.22;
-            // stand legs + shoulder strap
-            const legA = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.82, 5), darkMat);
-            legA.position.set(bx - 0.09, 0.42, 0.24);
-            legA.rotation.x = 0.5;
-            const legB = legA.clone();
-            legB.position.x = bx + 0.09;
-            const strap = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.014, 6, 12, Math.PI * 1.1), darkMat);
-            strap.position.set(bx + 0.02, 0.72, -0.26);
-            strap.rotation.set(0.4, 0.5, 1.2);
-            g.add(body, cuff, pocket, ballPocket, band, legA, legB, strap);
+            const bag = merch.instantiate('bag', { tint: bagTints[i % 4] });
+            if (!bag) break;
+            bag.position.set(-0.90 + i * 0.60, 0.12, -0.10);   // stood on the plinth
+            bag.rotation.x = -0.10;                            // leaning on the rail
+            bag.rotation.y = -0.5 + i * 0.34;
+            g.add(bag);
           }
         } else if (sku.id === 'shoe1') {
-          const show = Math.min(count, 8);
-          const shoeColors = [0xf2efe6, 0x2c3e66, 0x8b9299, 0xf2efe6];
-          const soleM = new THREE.MeshStandardMaterial({ color: 0xe8e3d5, roughness: 0.6 });
+          // Was a slab sole, a box upper and a sphere toe — a computer mouse.
+          const show = Math.min(count, 9);
+          const shoeTints = [0xf2efe6, 0x33455e, 0x8b9299, 0xe8e3d5];
           for (let i = 0; i < show; i++) {
             const boardY = [0.35, 0.85, 1.35][Math.floor(i / 3) % 3];
             const px = -1.0 + (i % 3) * 0.75;
-            const upM = new THREE.MeshStandardMaterial({ color: shoeColors[i % 4], roughness: 0.62 });
-            for (const so of [-0.09, 0.09]) {
-              // sole with a slight rocker + rounded upper + tapered toe + collar
-              const sole = new THREE.Mesh(roundedBox(0.115, 0.035, 0.325, 0.015), soleM);
-              sole.position.set(px + so, boardY + 0.055, 0.08);
-              sole.rotation.x = -0.18;
-              const upper = new THREE.Mesh(roundedBox(0.1, 0.075, 0.24, 0.03), upM);
-              upper.position.set(px + so, boardY + 0.105, 0.055);
-              upper.rotation.x = -0.18;
-              const toe = new THREE.Mesh(new THREE.SphereGeometry(0.048, 8, 6), upM);
-              toe.scale.set(1.0, 0.62, 1.15);
-              toe.position.set(px + so, boardY + 0.085, 0.185);
-              toe.rotation.x = -0.18;
-              const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.036, 0.03, 8), darkMat);
-              collar.position.set(px + so, boardY + 0.145, -0.035);
-              collar.rotation.x = -0.18;
-              // saddle stripe
-              const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.104, 0.02, 0.05), darkMat);
-              stripe.position.set(px + so, boardY + 0.115, 0.06);
-              stripe.rotation.x = -0.18;
-              g.add(sole, upper, toe, collar, stripe);
+            const tint = shoeTints[i % 4];
+            for (const so of [-0.085, 0.085]) {
+              const shoe = merch.instantiate('shoe', { tint });
+              if (!shoe) break;
+              // angled on the board, toes out, as a shop displays them
+              shoe.position.set(px + so, boardY + 0.055, 0.06);
+              shoe.rotation.set(-0.18, -Math.PI / 2 + (so > 0 ? 0.16 : -0.16), 0);
+              g.add(shoe);
             }
           }
         } else if (sku.id === 'range2') {
@@ -1648,10 +1650,14 @@ export function makeClubhouse(ctx) {
             g.add(item);
           }
         }
-        g.position.copy(anchor.position);
-        g.rotation.copy(anchor.rotation);
-        stockGroup.add(g);
-        stockMeshes.set(f.id + ':' + skuId, g);
+        // Collapse the whole display into one mesh per material before it goes
+        // in. A shelf of 15 ball boxes was 15 draw calls; a rack of 12 clubs was
+        // 36. Baked, each is a handful. This happens on restock, not per frame.
+        const baked = merch.bake(g);
+        baked.position.copy(anchor.position);
+        baked.rotation.copy(anchor.rotation);
+        stockGroup.add(baked);
+        stockMeshes.set(f.id + ':' + skuId, baked);
       });
 
       // the feature display shows whatever the featured category has on shelves

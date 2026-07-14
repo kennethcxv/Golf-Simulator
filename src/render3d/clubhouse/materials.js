@@ -32,9 +32,156 @@ function finish(canvas, { srgb = true, repeat = true } = {}) {
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.RepeatWrapping;
   }
+  // data maps (roughness, normal) must stay LINEAR — tagging them sRGB silently
+  // gamma-corrects the data and the surface reads wrong
   if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
   return tex;
+}
+
+// ---------------------------------------------------------- derived maps ----
+// The audit's headline material finding: 11 of 22 materials were flat colour
+// values with no maps at all, and roughness was a single scalar — so every wooden
+// surface in the building had identical sheen and brass, chrome and charcoal were
+// separated only by hue. These derive the missing channels from the albedo we
+// already draw, which costs no new art and makes the surfaces read as materials.
+
+function luminance(canvas) {
+  const { width: w, height: h } = canvas;
+  const data = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+  const lum = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    lum[i] = (0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2]) / 255;
+  }
+  return lum;
+}
+
+// Sobel the albedo's luminance into a tangent-space normal map. Grain, plank
+// seams, plaster tooth and cardboard flutes all become real surface relief.
+export function normalFrom(canvas, strength = 2.2) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const lum = luminance(canvas);
+  const out = makeCanvas(w, h);
+  const ctx = out.getContext('2d');
+  const img = ctx.createImageData(w, h);
+  const at = (x, y) => lum[((y % h) + h) % h * w + (((x % w) + w) % w)];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = (at(x + 1, y) - at(x - 1, y)) * strength;
+      const dy = (at(x, y + 1) - at(x, y - 1)) * strength;
+      let nx = -dx;
+      let ny = -dy;
+      const nz = 1;
+      const len = Math.hypot(nx, ny, nz) || 1;
+      nx /= len;
+      ny /= len;
+      const i = (y * w + x) * 4;
+      img.data[i] = (nx * 0.5 + 0.5) * 255;
+      img.data[i + 1] = (ny * 0.5 + 0.5) * 255;
+      img.data[i + 2] = (nz / len * 0.5 + 0.5) * 255;
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return finish(out, { srgb: false });
+}
+
+// Map albedo luminance to gloss: the dark grain lines in a finished wood sit
+// slightly BELOW the polished surface and catch less light, so they read rougher.
+// `invert` flips that for materials where the light bits are the rough bits.
+export function roughnessFrom(canvas, lo = 0.34, hi = 0.62, invert = false) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const lum = luminance(canvas);
+  const out = makeCanvas(w, h);
+  const ctx = out.getContext('2d');
+  const img = ctx.createImageData(w, h);
+  for (let i = 0; i < w * h; i++) {
+    const t = invert ? lum[i] : 1 - lum[i];
+    const v = Math.max(0, Math.min(1, lo + (hi - lo) * t)) * 255;
+    img.data[i * 4] = v;
+    img.data[i * 4 + 1] = v;   // three samples GREEN for roughness
+    img.data[i * 4 + 2] = v;
+    img.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return finish(out, { srgb: false });
+}
+
+// A painted surface is not a flat colour: it has roller tooth, and it holds a
+// slightly uneven sheen. This is the base for every paint in the kit.
+export function makePaintTexture({ seed = 11, base = '#f5f2e6', grain = 0.05 } = {}) {
+  const size = 256;
+  const c = makeCanvas(size);
+  const ctx = c.getContext('2d');
+  const r = rng(seed);
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, size, size);
+  const a = Math.round(grain * 255).toString(16).padStart(2, '0');
+  for (let i = 0; i < 2600; i++) {
+    ctx.fillStyle = (r() < 0.5 ? '#ffffff' : '#000000') + a;
+    ctx.fillRect(r() * size, r() * size, 1.5, 1.5);
+  }
+  for (let i = 0; i < 7; i++) {
+    const x = r() * size;
+    const y = r() * size;
+    const rad = 30 + r() * 70;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+    g.addColorStop(0, '#ffffff10');
+    g.addColorStop(1, '#ffffff00');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  return c;
+}
+
+// A golf ball's whole identity is its dimples. The old ball was an 8x6-segment
+// sphere — a faceted white pebble. Geometry cannot pay for real dimples on an
+// object 43 mm across, so they go in the normal map, where they cost nothing.
+export function makeDimpleTexture({ size = 256, rows = 14 } = {}) {
+  const c = makeCanvas(size);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+  const step = size / rows;
+  const rad = step * 0.34;
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < rows; x++) {
+      const cx = x * step + (y % 2 ? step * 0.5 : 0) + step * 0.5;
+      const cy = y * step + step * 0.5;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+      g.addColorStop(0, '#8f8f8f');       // a pit, not a bump
+      g.addColorStop(0.75, '#d8d8d8');
+      g.addColorStop(1, '#ffffff');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  return c;
+}
+
+// Brushed metal: fine directional streaks. Brass and steel differ by more than
+// hue — brass is softer and warmer, steel tighter and cooler.
+export function makeBrushedTexture({ seed = 23, base = '#c9a227', hi = '#e6c65a', lo = '#8e6f18' } = {}) {
+  const size = 256;
+  const c = makeCanvas(size);
+  const ctx = c.getContext('2d');
+  const r = rng(seed);
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 900; i++) {
+    ctx.strokeStyle = (r() < 0.5 ? hi : lo) + (r() < 0.4 ? '30' : '18');
+    ctx.lineWidth = 0.6 + r() * 1.1;
+    const y = r() * size;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(size, y + (r() - 0.5) * 2);
+    ctx.stroke();
+  }
+  return c;
 }
 
 // --------------------------------------------------------------- geometry ---
@@ -434,48 +581,208 @@ export function makeSignTexture(lines, {
 }
 
 // ------------------------------------------------------------ the library ---
+// Every material carries a roughness map, and everything with surface relief
+// carries a normal map. No material in here is a bare colour any more.
+//
+// No aoMap: three samples it from the `uv1` channel, and the procedural fixtures
+// only author `uv`. Contact darkening comes from the light rig and shadows
+// instead. Stated plainly rather than pretended.
 export function makeClubhouseMaterials(clubName) {
-  const walnutTex = makeWalnutTexture({});
-  walnutTex.repeat.set(1, 1);
-  const walnutDarkTex = makeWalnutTexture({ seed: 62, base: '#3c2a1c', hi: '#4c3826', lo: '#2d2014' });
-  const oakTex = makeOakFloorTexture({});
-  oakTex.repeat.set(1, 1);
-  const plasterTex = makePlasterCreamTexture({});
-  plasterTex.repeat.set(8, 2.4);
-  const concreteTex = makeConcreteTexture({});
-  concreteTex.repeat.set(3, 3);
-  const leatherTex = makeLeatherTexture({});
-  const sageTex = makeFabricTexture({});
-  const kraftTex = makeKraftTexture({});
+  // --- source canvases (kept so the derived maps can be sobelled off them) ---
+  // The long-standing makers hand back a CanvasTexture; `.image` is the canvas
+  // they drew on, which is what normalFrom()/roughnessFrom() need to read.
+  const walnutC = makeWalnutTexture({}).image;
+  const walnutDarkC = makeWalnutTexture({ seed: 62, base: '#3c2a1c', hi: '#4c3826', lo: '#2d2014' }).image;
+  const oakC = makeOakFloorTexture({}).image;
+  const plasterC = makePlasterCreamTexture({}).image;
+  const concreteC = makeConcreteTexture({}).image;
+  const leatherC = makeLeatherTexture({}).image;
+  const sageC = makeFabricTexture({}).image;
+  const kraftC = makeKraftTexture({}).image;
+  const trimC = makePaintTexture({ seed: 11, base: '#f5f2e6', grain: 0.045 });
+  const greenC = makePaintTexture({ seed: 12, base: '#1f4a26', grain: 0.06 });
+  const sagePC = makePaintTexture({ seed: 13, base: '#57795c', grain: 0.05 });
+  const ceilC = makePaintTexture({ seed: 14, base: '#f4f0e6', grain: 0.03 });
+  const brassC = makeBrushedTexture({});
+  const steelC = makeBrushedTexture({ seed: 24, base: '#9aa1a8', hi: '#c3c9ce', lo: '#6d747a' });
+  const ironC = makePaintTexture({ seed: 15, base: '#2b2e33', grain: 0.05 });
+  const charC = makePaintTexture({ seed: 16, base: '#23262b', grain: 0.04 });
+  const feltC = makeFabricTexture({ seed: 54, base: '#2e5a35', weft: '#26492c', warp: '#37693f' }).image;
+  const rubberC = makePaintTexture({ seed: 17, base: '#191b1d', grain: 0.07 });
+  const plasticC = makePaintTexture({ seed: 18, base: '#2a2e34', grain: 0.025 });
+  const dimpleC = makeDimpleTexture({});
+  // neutral bases for the TINTED merch slots — see merchFabric/merchLeather below
+  const weaveC = makeFabricTexture({ seed: 55, base: '#bdbdbd', weft: '#b0b0b0', warp: '#cacaca' }).image;
+  const hideC = makeLeatherTexture({ seed: 98, base: '#c6c6c6', lo: '#b2b2b2', hi: '#d6d6d6' }).image;
+
+  const t = (c, rx = 1, ry = 1, srgb = true) => {
+    const tex = finish(c, { srgb });
+    tex.repeat.set(rx, ry);
+    return tex;
+  };
+  const n = (c, rx = 1, ry = 1, s = 2.2) => {
+    const tex = normalFrom(c, s);
+    tex.repeat.set(rx, ry);
+    return tex;
+  };
+  const r = (c, lo, hi, rx = 1, ry = 1, inv = false) => {
+    const tex = roughnessFrom(c, lo, hi, inv);
+    tex.repeat.set(rx, ry);
+    return tex;
+  };
 
   return {
-    // architecture
-    plaster: new THREE.MeshStandardMaterial({ map: plasterTex, roughness: 0.92 }),
-    ceiling: new THREE.MeshStandardMaterial({ color: 0xf4f0e6, roughness: 0.94, emissive: 0xfff2dc, emissiveIntensity: 0.08 }),
-    oakFloor: new THREE.MeshStandardMaterial({ map: oakTex, roughness: 0.52 }),
-    concrete: new THREE.MeshStandardMaterial({ map: concreteTex, roughness: 0.9 }),
-    // woods
-    walnut: new THREE.MeshStandardMaterial({ map: walnutTex, roughness: 0.55 }),
-    walnutDark: new THREE.MeshStandardMaterial({ map: walnutDarkTex, roughness: 0.6 }),
-    rawWood: new THREE.MeshStandardMaterial({ map: walnutTex, color: 0xd8c2a6, roughness: 0.85 }),
-    // paints + metals
-    trimPaint: new THREE.MeshStandardMaterial({ color: 0xf5f2e6, roughness: 0.7 }),
-    greenPaint: new THREE.MeshStandardMaterial({ color: 0x1f4a26, roughness: 0.55 }),
-    sagePaint: new THREE.MeshStandardMaterial({ color: 0x57795c, roughness: 0.7 }),
-    brass: new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.32, metalness: 0.9 }),
-    iron: new THREE.MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.38, metalness: 0.82 }),
-    chrome: new THREE.MeshStandardMaterial({ color: 0x9aa1a8, roughness: 0.25, metalness: 0.95 }),
-    charcoal: new THREE.MeshStandardMaterial({ color: 0x23262b, roughness: 0.6 }),
-    // soft goods
-    leather: new THREE.MeshStandardMaterial({ map: leatherTex, roughness: 0.62 }),
-    sageFabric: new THREE.MeshStandardMaterial({ map: sageTex, roughness: 0.95 }),
-    kraft: new THREE.MeshStandardMaterial({ map: kraftTex, roughness: 0.88 }),
-    feltGreen: new THREE.MeshStandardMaterial({ color: 0x2e5a35, roughness: 0.98 }),
-    // glazing
-    glass: new THREE.MeshStandardMaterial({
-      color: 0xcfe4ee, roughness: 0.06, metalness: 0.25,
-      transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false,
+    // --- architecture ---
+    plaster: new THREE.MeshStandardMaterial({
+      map: t(plasterC, 8, 2.4), normalMap: n(plasterC, 8, 2.4, 1.1),
+      normalScale: new THREE.Vector2(0.5, 0.5),
+      roughnessMap: r(plasterC, 0.82, 0.97, 8, 2.4), roughness: 1,
     }),
+    ceiling: new THREE.MeshStandardMaterial({
+      map: t(ceilC, 6, 4), roughnessMap: r(ceilC, 0.88, 0.98, 6, 4), roughness: 1,
+      emissive: 0xfff2dc, emissiveIntensity: 0.08,
+    }),
+    oakFloor: new THREE.MeshStandardMaterial({
+      map: t(oakC), normalMap: n(oakC, 1, 1, 2.6),
+      normalScale: new THREE.Vector2(0.7, 0.7),
+      roughnessMap: r(oakC, 0.30, 0.66), roughness: 1,   // the plank seams sit dull
+    }),
+    concrete: new THREE.MeshStandardMaterial({
+      map: t(concreteC, 3, 3), normalMap: n(concreteC, 3, 3, 1.6),
+      normalScale: new THREE.Vector2(0.6, 0.6),
+      roughnessMap: r(concreteC, 0.80, 0.96, 3, 3), roughness: 1,
+    }),
+    // --- woods: finished furniture holds a sheen the raw stock does not ---
+    walnut: new THREE.MeshStandardMaterial({
+      map: t(walnutC), normalMap: n(walnutC, 1, 1, 1.8),
+      normalScale: new THREE.Vector2(0.55, 0.55),
+      roughnessMap: r(walnutC, 0.33, 0.60), roughness: 1,
+    }),
+    walnutDark: new THREE.MeshStandardMaterial({
+      map: t(walnutDarkC), normalMap: n(walnutDarkC, 1, 1, 1.8),
+      normalScale: new THREE.Vector2(0.55, 0.55),
+      roughnessMap: r(walnutDarkC, 0.38, 0.66), roughness: 1,
+    }),
+    rawWood: new THREE.MeshStandardMaterial({
+      map: t(walnutC), color: 0xd8c2a6, normalMap: n(walnutC, 1, 1, 2.4),
+      normalScale: new THREE.Vector2(0.8, 0.8),
+      roughnessMap: r(walnutC, 0.72, 0.92), roughness: 1,
+    }),
+    // --- paints: tooth and uneven sheen, never a flat value ---
+    trimPaint: new THREE.MeshStandardMaterial({
+      map: t(trimC, 3, 3), normalMap: n(trimC, 3, 3, 0.8),
+      normalScale: new THREE.Vector2(0.3, 0.3),
+      roughnessMap: r(trimC, 0.55, 0.78, 3, 3), roughness: 1,
+    }),
+    greenPaint: new THREE.MeshStandardMaterial({
+      map: t(greenC, 3, 3), normalMap: n(greenC, 3, 3, 0.8),
+      normalScale: new THREE.Vector2(0.3, 0.3),
+      roughnessMap: r(greenC, 0.42, 0.66, 3, 3), roughness: 1,
+    }),
+    sagePaint: new THREE.MeshStandardMaterial({
+      map: t(sagePC, 3, 3), roughnessMap: r(sagePC, 0.58, 0.80, 3, 3), roughness: 1,
+    }),
+    // --- metals: brass is brushed and warm, steel tight and cool, powder-coat
+    //     is NOT metallic at all — that is the whole point of a powder coat ---
+    brass: new THREE.MeshStandardMaterial({
+      map: t(brassC, 2, 2), roughnessMap: r(brassC, 0.18, 0.44, 2, 2),
+      roughness: 1, metalness: 0.92,
+      normalMap: n(brassC, 2, 2, 0.9), normalScale: new THREE.Vector2(0.25, 0.25),
+    }),
+    chrome: new THREE.MeshStandardMaterial({
+      map: t(steelC, 2, 2), roughnessMap: r(steelC, 0.10, 0.32, 2, 2),
+      roughness: 1, metalness: 0.95,
+    }),
+    iron: new THREE.MeshStandardMaterial({   // powder-coated: matte, dielectric
+      map: t(ironC, 2, 2), roughnessMap: r(ironC, 0.52, 0.74, 2, 2),
+      roughness: 1, metalness: 0.15,
+      normalMap: n(ironC, 2, 2, 0.7), normalScale: new THREE.Vector2(0.3, 0.3),
+    }),
+    charcoal: new THREE.MeshStandardMaterial({
+      map: t(charC, 2, 2), roughnessMap: r(charC, 0.44, 0.68, 2, 2), roughness: 1,
+    }),
+    // --- soft goods ---
+    leather: new THREE.MeshStandardMaterial({
+      map: t(leatherC), normalMap: n(leatherC, 1, 1, 2.0),
+      normalScale: new THREE.Vector2(0.7, 0.7),
+      roughnessMap: r(leatherC, 0.42, 0.72), roughness: 1,
+    }),
+    sageFabric: new THREE.MeshStandardMaterial({
+      map: t(sageC, 2, 2), normalMap: n(sageC, 2, 2, 2.6),
+      normalScale: new THREE.Vector2(0.9, 0.9),
+      roughnessMap: r(sageC, 0.86, 0.99, 2, 2), roughness: 1,
+    }),
+    kraft: new THREE.MeshStandardMaterial({
+      map: t(kraftC), normalMap: n(kraftC, 1, 1, 2.4),   // the flutes become relief
+      normalScale: new THREE.Vector2(0.8, 0.8),
+      roughnessMap: r(kraftC, 0.78, 0.95), roughness: 1,
+    }),
+    feltGreen: new THREE.MeshStandardMaterial({
+      map: t(feltC, 2, 2), normalMap: n(feltC, 2, 2, 2.2),
+      normalScale: new THREE.Vector2(0.8, 0.8),
+      roughnessMap: r(feltC, 0.92, 1.0, 2, 2), roughness: 1,
+    }),
+    rubber: new THREE.MeshStandardMaterial({
+      map: t(rubberC, 2, 2), roughnessMap: r(rubberC, 0.80, 0.96, 2, 2), roughness: 1,
+      normalMap: n(rubberC, 2, 2, 1.2), normalScale: new THREE.Vector2(0.4, 0.4),
+    }),
+    plastic: new THREE.MeshStandardMaterial({
+      map: t(plasticC, 2, 2), roughnessMap: r(plasticC, 0.30, 0.52, 2, 2), roughness: 1,
+    }),
+    // --- glazing: real glass is smooth, barely tinted, and not a metal ---
+    glass: new THREE.MeshStandardMaterial({
+      color: 0xdcebf2, roughness: 0.04, metalness: 0.0,
+      transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false,
+    }),
+
+    // --- merchandise slots (merch.js remaps the GLB material names onto these,
+    //     so every polo in the shop shares ONE material per colour) ---
+    //
+    // These two are TINTED per item, so their maps must be NEUTRAL GREY. The
+    // first cut used the sage-green weave and the caramel hide as the bases, and
+    // `color` multiplies into `map`: a green polo tint times a green weave came
+    // out near-black, and every cap in the shop read as a mushroom. Grey base,
+    // true tints.
+    merchFabric: new THREE.MeshStandardMaterial({
+      map: t(weaveC, 3, 3), normalMap: n(weaveC, 3, 3, 2.4),
+      normalScale: new THREE.Vector2(0.8, 0.8),
+      roughnessMap: r(weaveC, 0.84, 0.98, 3, 3), roughness: 1,
+      color: 0xffffff,
+    }),
+    merchLeather: new THREE.MeshStandardMaterial({
+      map: t(hideC, 2, 2), color: 0xffffff,
+      normalMap: n(hideC, 2, 2, 1.8), normalScale: new THREE.Vector2(0.6, 0.6),
+      roughnessMap: r(hideC, 0.40, 0.70, 2, 2), roughness: 1,
+    }),
+    merchRubber: new THREE.MeshStandardMaterial({
+      map: t(rubberC, 2, 2), color: 0xdedbd2,
+      roughnessMap: r(rubberC, 0.78, 0.94, 2, 2), roughness: 1,
+    }),
+    merchSteel: new THREE.MeshStandardMaterial({
+      map: t(steelC, 2, 2), roughnessMap: r(steelC, 0.14, 0.36, 2, 2),
+      roughness: 1, metalness: 0.92,
+    }),
+    merchDark: new THREE.MeshStandardMaterial({
+      map: t(charC, 2, 2), color: 0x4a5058,
+      roughnessMap: r(charC, 0.22, 0.44, 2, 2), roughness: 1, metalness: 0.7,
+    }),
+    merchWood: new THREE.MeshStandardMaterial({
+      map: t(walnutC, 2, 2), color: 0xc9a97e,
+      roughnessMap: r(walnutC, 0.50, 0.74, 2, 2), roughness: 1,
+    }),
+    merchPlastic: new THREE.MeshStandardMaterial({
+      map: t(plasticC, 2, 2), color: 0x8a9099,
+      roughnessMap: r(plasticC, 0.32, 0.54, 2, 2), roughness: 1,
+    }),
+    merchWhite: new THREE.MeshStandardMaterial({
+      map: t(trimC, 2, 2), color: 0xf6f3ea,
+      roughnessMap: r(trimC, 0.48, 0.72, 2, 2), roughness: 1,
+    }),
+    golfBall: new THREE.MeshStandardMaterial({
+      color: 0xf7f6f1, roughness: 0.42,
+      normalMap: n(dimpleC, 1, 1, 3.4), normalScale: new THREE.Vector2(1.0, 1.0),
+    }),
+
     // identity textures
     rugTex: makeRugTexture(clubName),
     signTexture: makeSignTexture,
