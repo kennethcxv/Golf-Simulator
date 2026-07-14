@@ -1599,7 +1599,7 @@ export function makeCourseScene(canvas, state) {
   const fpHands = makeFpHands();
   const heldGroups = {
     hose: new THREE.Group(), divot: new THREE.Group(), rake: new THREE.Group(),
-    vacuum: new THREE.Group(), washer: new THREE.Group(),
+    vacuum: new THREE.Group(), washer: new THREE.Group(), boxcutter: new THREE.Group(),
   };
   for (const g of Object.values(heldGroups)) {
     g.visible = false;
@@ -1654,6 +1654,22 @@ export function makeCourseScene(canvas, state) {
     heldGroups.vacuum.add(wandBody, wandHead);
     heldGroups.vacuum.position.set(0.34, -0.42, -0.7);
   }
+  {
+    // the box cutter: a stubby retractable utility knife. Yellow body, a short angled blade — read
+    // at arm's length, it is unmistakably the thing you run down a seam of tape.
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd8b23a, roughness: 0.5 });
+    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xcdd2d6, roughness: 0.25, metalness: 0.8 });
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.14), bodyMat);
+    const slide = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.012, 0.05), new THREE.MeshStandardMaterial({ color: 0x2a2d30, roughness: 0.7 }));
+    slide.position.set(0.016, 0.02, 0.01);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.03, 0.05), bladeMat);
+    blade.position.set(0, 0.03, -0.085);
+    blade.rotation.x = -0.5;
+    heldGroups.boxcutter.add(handle, slide, blade);
+    heldGroups.boxcutter.scale.setScalar(1.6);          // a utility knife is small; read it at arm's length
+    heldGroups.boxcutter.position.set(0.22, -0.30, -0.5);
+    heldGroups.boxcutter.rotation.set(0.15, -0.2, 0);
+  }
   const loadHeld = (url, group, scale, pos, rot) => {
     new GLTFLoader().load(url, (g) => {
       const m = g.scene;
@@ -1696,8 +1712,9 @@ export function makeCourseScene(canvas, state) {
   }
 
   function updateHeldFeel(dt) {
-    // the hands breathe, rise into frame, and shove back under the trigger
-    fpHands.update(dt, walkSpraying || walkSoaping);
+    // the hands breathe, rise into frame, and shove back under the trigger — or draw the box
+    // cutter down the seam while you hold E on a taped carton
+    fpHands.update(dt, walkSpraying || walkSoaping || holdActive);
     if (!heldRoot.visible) return;
     heldAnim.t = Math.min(1, heldAnim.t + dt / 0.26);
     const k = heldAnim.show ? easeOutCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t);
@@ -1905,21 +1922,55 @@ export function makeCourseScene(canvas, state) {
     walkFocus = null;
   }
 
-  function walkInteract() {
+  // TAP verbs fire here, on the KEY-DOWN — once per press. HOLD verbs do not: a held key repeats
+  // the keydown ~30 times a second, and a verb that fires 30 times a second is not a hold, it is a
+  // machine gun. So `isRepeat` (the browser's own auto-repeat flag) drops those, and the per-frame
+  // loop below drives anything the prop exposes as `hold(dt)` off walkHeld instead.
+  function walkInteract(isRepeat = false) {
     if (!walk.active) return;
     if (cart.mounted) {
-      dismountCart();
+      if (!isRepeat) dismountCart();
       return;
     }
     if (!walkFocus) return;
     if (walkFocus.kind === 'cart') {
+      if (isRepeat) return;
       walkSetTool(null); // hands on the wheel
       mountCart();
     } else if (walkFocus.kind === 'prop') {
+      // a prop that has a hold verb is driven per-frame; the tap only fires its one-shot action
+      if (isRepeat) return;
       if (walkFocus.prop.action) walkFocus.prop.action();
     } else if ((walkFocus.kind === 'turf' || walkFocus.kind === 'hose') && walkFocus.cell && walkHooks.inspectAt) {
-      walkHooks.inspectAt(walkFocus.cell.x, walkFocus.cell.y);
+      if (!isRepeat) walkHooks.inspectAt(walkFocus.cell.x, walkFocus.cell.y);
     }
+  }
+
+  // --- HOLD-TO-PROGRESS + CONTEXTUAL TOOL ----------------------------------------------------
+  // A prop can expose `hold(dt)` (run the box cutter down the seam, feed the shelf one at a time)
+  // and `tool` (what appears in your hands while you are looking at it). Both are reconciled every
+  // frame from whatever you are focused on, so nothing here is a mode you enter and forget.
+  let autoTool = null;         // a tool equipped BY context, to be taken away again when you look off
+  let holdActive = false;      // are we mid-hold this frame? (drives the hands' cutting motion)
+
+  function reconcileAutoTool() {
+    const want = (walkFocus && walkFocus.kind === 'prop' && walkFocus.prop.tool) || null;
+    // never fight a tool the player chose by hand (the vacuum, the washer): only manage our own
+    if (want === autoTool) return;
+    if (autoTool && (walkTool === autoTool || walkTool === null)) {
+      walkSetTool(want);       // swap straight from one contextual tool to the next, or to nothing
+    } else if (!walkTool) {
+      walkSetTool(want);
+    }
+    autoTool = want;
+  }
+
+  function runHold(dt) {
+    holdActive = false;
+    if (!walkFocus || walkFocus.kind !== 'prop' || !walkFocus.prop.hold) return;
+    if (!walkHeld.has('e')) return;
+    walkFocus.prop.hold(dt);
+    holdActive = true;
   }
 
   function walkKeyDown(e) {
@@ -2084,6 +2135,8 @@ export function makeCourseScene(canvas, state) {
     } else {
       updateClippings(dt, walk.x, 0, walk.z, false); // clippings settle after you hop off
       const run = walkHeld.has('shift') ? walk.runMult : 1;
+      // a full armful or a heavy carton slows you down — sim/stocking says by how much
+      const load = clubhouseApi && clubhouseApi.carrySpeedFactor ? clubhouseApi.carrySpeedFactor() : 1;
       let mx = 0;
       let mz = 0;
       if (walkHeld.has('w')) mz -= 1;
@@ -2093,7 +2146,7 @@ export function makeCourseScene(canvas, state) {
       walkMoving = !!(mx || mz);
       if (mx || mz) {
         const len = Math.hypot(mx, mz);
-        const s = (walk.speed * run * dt) / len;
+        const s = (walk.speed * run * load * dt) / len;
         const sin = Math.sin(walk.yaw);
         const cos = Math.cos(walk.yaw);
         walkTryMove((mx * cos + mz * sin) * s, (-mx * sin + mz * cos) * s);
@@ -2138,8 +2191,10 @@ export function makeCourseScene(canvas, state) {
         fLookZ + (walk.z - fLookZ) * mb,
       );
     }
-    updateHeldFeel(dt);
     walkFindFocus();
+    reconcileAutoTool();   // the box cutter appears when you look at a taped box, and only then
+    runHold(dt);           // holding E runs whatever the focused prop exposes as a hold verb
+    updateHeldFeel(dt);
 
     // the pressure washer works against the BUILDING, not the turf: raycast where the player is
     // actually pointing, erode the grime mask at that exact spot, and put the stream on screen

@@ -16,6 +16,7 @@ import {
   FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, LOGO_RUG, REGISTER, COUNTER_TOP,
 } from '../../data/shopLayout.js';
 import { restockShelfFromBackroom } from '../../sim/shop.js';
+import { skuById } from '../../data/shopItems.js';
 import { placedFixtures } from '../../sim/layout.js';
 import { tutorialFlag } from '../../sim/tutorial.js';
 import { roundedBox, makeSignTexture, makeRugTexture } from './materials.js';
@@ -63,25 +64,50 @@ export function buildFixtures(B) {
   };
   const fixtureAnchors = new Map();
 
-  function shelfLabel(skuIds, title) {
+  function shelfLabel(f) {
     const inv = state.shop.inventory;
-    const shelf = skuIds.reduce((a, id) => a + inv[id].shelf, 0);
-    const back = skuIds.reduce((a, id) => a + inv[id].back, 0);
-    if (back > 0) return `${title} — ${shelf} out · ${back} in the back — [E] restock`;
-    return `${title} — ${shelf} out · backroom empty (order at the office)`;
+    const shelf = f.skus.reduce((a, id) => a + inv[id].shelf, 0);
+    const back = f.skus.reduce((a, id) => a + inv[id].back, 0);
+
+    // if you are holding product, this fixture is either where it goes or somewhere it does not —
+    // and it says which. This is the physical stocking path (hold [E] to place, tap for one).
+    const held = B.carriedGoods && B.carriedGoods();
+    if (held) {
+      const heldSku = skuById(held.skuId);
+      if (f.skus.includes(held.skuId)) {
+        return `${f.title} — hold [E] to stock the ${heldSku.name.toLowerCase()} (${held.qty} in hand)`;
+      }
+      return null;   // wrong fixture: let the player carry on to the right one without a false prompt
+    }
+
+    if (back > 0) return `${f.title} — ${shelf} out · ${back} in the back — [E] restock`;
+    return `${f.title} — ${shelf} out · backroom empty (order at the office)`;
   }
 
-  function restockAll(skuIds, title) {
+  // stock this fixture from what is in the player's hands: tap = one, hold = a flow
+  function stockHere(f, units) {
+    const res = B.stockFromHands(f.id, units);
+    if (!res.ok) {
+      if (res.invalid && hooks.toast) hooks.toast(res.reason, 'warn');
+      return;
+    }
+    if (hooks.sfx) hooks.sfx('stock');
+    if (res.full && hooks.toast) hooks.toast(`The ${f.title.toLowerCase()} is full.`);
+  }
+
+  // the old convenience path: pull already-unpacked stock from the backroom straight to the shelf.
+  // Kept for empty hands — it is the "faster stocking" the brief allows once the goods are unboxed.
+  function restockAll(f) {
     let moved = 0;
-    for (const id of skuIds) {
+    for (const id of f.skus) {
       const res = restockShelfFromBackroom(state, id);
       if (res.ok) moved += res.moved;
     }
     if (moved > 0) {
       B.rebuildStock();
       if (state.tutorial) tutorialFlag(state, 'shelved');
-      if (hooks.toast) hooks.toast(`Restocked ${moved} items on the ${title.toLowerCase()}.`);
-      if (hooks.sfx) hooks.sfx('thunk');
+      if (hooks.toast) hooks.toast(`Restocked ${moved} items on the ${f.title.toLowerCase()}.`);
+      if (hooks.sfx) hooks.sfx('stock');
     } else if (hooks.toast) {
       hooks.toast('Nothing in the back for this display.', 'warn');
     }
@@ -92,10 +118,24 @@ export function buildFixtures(B) {
     const wp = L2W(f.x, f.z);
     addProp({
       x: wp.x, z: wp.z, r: 2.3,
-      label: () => shelfLabel(f.skus, f.title),
-      action: () => restockAll(f.skus, f.title),
+      label: () => shelfLabel(f),
+      action: () => {
+        const held = B.carriedGoods && B.carriedGoods();
+        if (held) { if (f.skus.includes(held.skuId)) stockHere(f, 1); }   // tap: one at a time
+        else restockAll(f);
+      },
+      // hold: stock a flow from the hands. Only when holding something this fixture accepts.
+      hold: (dt) => {
+        const held = B.carriedGoods && B.carriedGoods();
+        if (held && f.skus.includes(held.skuId)) {
+          stockRate += dt * 8;                 // eight a second while you hold
+          const n = Math.floor(stockRate);
+          if (n >= 1) { stockRate -= n; stockHere(f, n); }
+        }
+      },
     });
   }
+  let stockRate = 0;
 
   // ------------------------------------------------------------ wall unit ---
   function shelfUnit(f) {

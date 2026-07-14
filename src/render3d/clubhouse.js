@@ -26,8 +26,13 @@ import {
 } from '../sim/shop.js';
 import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
-  cutBox, takeFromBox, flattenBox,
+  cutTape, openFlap, takeFromBox, flattenBox, recycleBox,
+  tapeCut, tapeUncut, flapsOpen, isEmpty, boxState,
 } from '../sim/deliveries.js';
+import {
+  carriedGoods, stockFixture, storeInBack, homeOf, carrySpeedFactor,
+} from '../sim/stocking.js';
+import { boxDims, boxKindFor } from '../data/boxes.js';
 import { pickFromShelf, returnToShelf } from '../sim/checkout.js';
 import { addRevenue } from '../sim/economy.js';
 import { tutorialFlag } from '../sim/tutorial.js';
@@ -47,7 +52,6 @@ import { buildWashing } from './clubhouse/washing.js';
 import { placedFixtures, ensureLayout } from '../sim/layout.js';
 import { buildBuildMode } from './clubhouse/buildMode.js';
 import { reviewFor, postReview } from '../sim/reviews.js';
-import { boxDims } from '../data/boxes.js';
 
 const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
@@ -1732,58 +1736,160 @@ export function makeClubhouse(ctx) {
   }
 
   // --- physical deliveries: boxes on the pad, in your arms, in the stockroom ------------
+  //
+  // The whole retail loop is physical here: a labelled carton with tape you run a cutter down, two
+  // flaps that pivot open, the actual product visible inside, and an armful you carry to a shelf.
+  // Nothing teleports. The state lives in the sim (sim/deliveries.js, sim/stocking.js); this draws
+  // it and turns [E] into the right verb for whatever the box is currently doing.
   const boxGroup = new THREE.Group();
   scene.add(boxGroup);
-  let carriedMesh = null;
-  const boxProps = []; // dynamic per-box props, torn down on rebuild
+  let carriedBoxMesh = null;
+  let carriedGoodsMesh = null;
+  const boxProps = new Map();   // id -> prop, reused across rebuilds so a hold survives a redraw
   let boxSig = '';
 
-  // A driver does not arrive in a glove box: the carton is sized from what is inside it
-  // (data/boxes.js), so the receiving pad reads as a delivery and not a pile of clones.
+  // one shipping-label texture per box id (supplier, order #, weight, category, FRAGILE)
+  const shipLabelCache = new Map();
+  function boxLabelMat(box, sku) {
+    const key = `${box.id}:${box.qty}`;
+    if (shipLabelCache.has(key)) return shipLabelCache.get(key);
+    const cv = document.createElement('canvas');
+    cv.width = 256; cv.height = 160;
+    const c = cv.getContext('2d');
+    c.fillStyle = '#efe7d4'; c.fillRect(0, 0, 256, 160);
+    c.strokeStyle = '#b9a074'; c.lineWidth = 4; c.strokeRect(6, 6, 244, 148);
+    c.fillStyle = '#1f3a24'; c.font = 'bold 22px Georgia';
+    c.fillText((box.supplier || 'FAIRWAY SUPPLY CO.').slice(0, 18), 16, 34);
+    c.fillStyle = '#2a2a26'; c.font = '16px Georgia';
+    c.fillText(`ORDER #${String(box.orderId || 0).padStart(4, '0')}`, 16, 60);
+    c.fillText(`${(sku ? sku.name : box.skuId).slice(0, 20)}`, 16, 82);
+    c.fillText(`QTY ${box.qty}    ${box.lb != null ? box.lb + ' LB' : ''}`, 16, 104);
+    const glyph = { balls: '●', clubs: 'T', apparel: '▧', accessories: '◆', supplies: '⚙', decor: '❖' }[sku ? sku.cat : 'accessories'] || '◆';
+    c.font = 'bold 30px Georgia'; c.fillText(glyph, 214, 44);
+    if (box.fragile) {
+      c.fillStyle = '#a12a1e'; c.font = 'bold 20px Georgia';
+      c.fillText('! FRAGILE', 16, 138);
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 });
+    shipLabelCache.set(key, mat);
+    return mat;
+  }
+
+  // a few of the actual product, sitting in the open carton — capped so a big case is a layer, not
+  // five hundred meshes. This is what makes "see physical contents" and "partial contents" real.
+  function contentsInBox(box, w, h, d) {
+    const g = new THREE.Group();
+    const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
+    const cat = sku ? sku.cat : 'accessories';
+    const show = Math.min(box.qty, 8);
+    const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(CAT_COLORS[cat] || 0xb08d57), roughness: 0.7 });
+    for (let i = 0; i < show; i++) {
+      const item = cat === 'balls'
+        ? new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), mats.merchWhite)
+        : new THREE.Mesh(new THREE.BoxGeometry(w * 0.22, h * 0.3, d * 0.22), mat);
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      item.position.set(-w * 0.28 + col * (w * 0.28), h * 0.42 + (i >= 6 ? 0.03 : 0), -d * 0.24 + row * (d * 0.24));
+      g.add(item);
+    }
+    return g;
+  }
+
+  // A driver does not arrive in a glove box: the carton is sized from what is inside it, and its
+  // seams and flaps show exactly what the sim says the box is doing right now.
   function makeBoxMesh(box) {
     const g = new THREE.Group();
     const { w, h, d } = boxDims(box.box || 'carton');
+    const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
+
+    if (box.flat) {
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(w, 0.03, d * 1.6), cardboardDark);
+      slab.position.y = 0.015;
+      slab.castShadow = true;
+      g.add(slab);
+      return g;
+    }
+
     const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), cardboard);
     body.position.y = h / 2;
     body.castShadow = true;
     g.add(body);
 
-    const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
-    const stripe = new THREE.Mesh(
-      new THREE.BoxGeometry(w + 0.02, Math.min(0.09, h * 0.24), d + 0.01),
-      new THREE.MeshStandardMaterial({ color: CAT_COLORS[sku ? sku.cat : 'accessories'] || 0x999999, roughness: 0.85 }),
+    const label = new THREE.Mesh(
+      new THREE.PlaneGeometry(Math.min(w * 0.8, 0.5), Math.min(h * 0.7, 0.32)),
+      boxLabelMat(box, sku),
     );
-    stripe.position.y = h * 0.25;
-    g.add(stripe);
+    label.position.set(0, h * 0.55, d / 2 + 0.002);
+    g.add(label);
 
-    if (!box.cut) {
-      const tape = new THREE.Mesh(new THREE.BoxGeometry(w + 0.02, 0.015, Math.min(0.12, d * 0.3)), tapeMat);
-      tape.position.y = h + 0.002;
-      g.add(tape);
+    if (!tapeCut(box)) {
+      // tape down the centre seam — recedes from the front as the cut runs (box.tape 0..1)
+      const cut = box.tape || 0;
+      const remain = 1 - Math.min(1, cut / 0.6);   // the centre seam is the first 60% of the cut
+      if (remain > 0.02) {
+        const tape = new THREE.Mesh(new THREE.BoxGeometry(w + 0.01, 0.012, d * remain), tapeMat);
+        tape.position.set(0, h + 0.006, -d / 2 + (d * remain) / 2);
+        g.add(tape);
+      }
+      if (cut < 1) {
+        for (const sx of [-w * 0.32, w * 0.32]) {   // the two cross tapes, until the very end
+          const cross = new THREE.Mesh(new THREE.BoxGeometry(w * 0.16, 0.012, d + 0.01), tapeMat);
+          cross.position.set(sx, h + 0.006, 0);
+          g.add(cross);
+        }
+      }
     } else {
-      // flaps folded out over the edges; the inside goes dark as it empties
-      const fw = w * 0.96;
-      const fd = d * 0.44;
-      for (const [fx, fz, px, pz, rx, rz] of [
-        [fw, fd, 0, -(d / 2 + fd / 2) * 0.72, 2.4, 0],
-        [fw, fd, 0, (d / 2 + fd / 2) * 0.72, -2.4, 0],
-        [w * 0.42, d * 0.96, -(w / 2 + w * 0.21) * 0.72, 0, 0, -2.4],
-        [w * 0.42, d * 0.96, (w / 2 + w * 0.21) * 0.72, 0, 0, 2.4],
-      ]) {
-        const flap = new THREE.Mesh(new THREE.BoxGeometry(fx, 0.012, fz), cardboardDark);
-        flap.position.set(px, h + 0.02, pz);
-        flap.rotation.x = rx;
-        flap.rotation.z = rz;
+      // two flaps, pivoting up-and-out on box.flaps[0..1] (0 shut .. 1 open)
+      const flapGeo = new THREE.BoxGeometry(w * 0.98, 0.012, d * 0.5);
+      const fl = box.flaps || [0, 0];
+      for (const [i, sign] of [[0, -1], [1, 1]]) {
+        const a = (fl[i] || 0) * (Math.PI * 0.62);
+        const flap = new THREE.Group();
+        const panel = new THREE.Mesh(flapGeo, cardboardDark);
+        panel.position.z = sign * d * 0.25;
+        flap.add(panel);
+        flap.position.set(0, h, sign * d * 0.5);
+        flap.rotation.x = sign * -a;
         g.add(flap);
       }
+      if (flapsOpen(box) && box.qty > 0) g.add(contentsInBox(box, w, h, d));
       const inside = new THREE.Mesh(
-        new THREE.PlaneGeometry(d * 0.9, w * 0.9),
-        new THREE.MeshStandardMaterial({ color: box.empty ? 0x241a10 : 0x59452e, roughness: 1 }),
+        new THREE.PlaneGeometry(w * 0.9, d * 0.9),
+        new THREE.MeshStandardMaterial({ color: isEmpty(box) ? 0x241a10 : 0x4a3a28, roughness: 1 }),
       );
       inside.rotation.x = -Math.PI / 2;
-      inside.rotation.z = Math.PI / 2;
-      inside.position.y = box.empty ? h * 0.14 : h * 0.75;
+      inside.position.y = h * 0.35;
       g.add(inside);
+    }
+    return g;
+  }
+
+  // a small stack of the product you are carrying in your arms, on the camera. Distinct little
+  // items with a dark edge between them, so an armful reads as an armful and not one pale slab.
+  function makeGoodsMesh(carry) {
+    const g = new THREE.Group();
+    const sku = SHOP_CATALOG.find((s) => s.id === carry.skuId);
+    const cat = sku ? sku.cat : 'accessories';
+    const base = new THREE.Color(CAT_COLORS[cat] || 0xb08d57);
+    const show = Math.min(carry.qty, 6);
+    for (let i = 0; i < show; i++) {
+      let item;
+      if (cat === 'clubs') {
+        item = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.46, 6), mats.merchSteel);
+        item.position.set((i - 2) * 0.03, 0.02, 0);
+        item.rotation.z = 1.45 + i * 0.05;
+      } else {
+        const c = base.clone().offsetHSL(0, 0, (i % 2 ? -0.06 : 0.03));  // alternate shade = a visible seam
+        const m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.75 });
+        item = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.09), m);
+        const col = i % 3;
+        const row = Math.floor(i / 3);
+        item.position.set((col - 1) * 0.115, row * 0.06, row * 0.015);
+        item.rotation.y = (i % 2 ? 0.08 : -0.05);
+      }
+      g.add(item);
     }
     return g;
   }
@@ -1791,123 +1897,172 @@ export function makeClubhouse(ctx) {
   function boxSignature() {
     const d = state.shop.deliveries;
     if (!d) return '';
-    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}:${b.cut ? 1 : 0}:${b.qty}:${b.box || ''}`).join(',') + '|' + d.trash;
+    const c = state.shop.carry;
+    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}:${b.tape || 0}:${(b.flaps || [0, 0]).join('')}:${b.qty}:${b.flat ? 1 : 0}`).join(',')
+      + '|' + (c ? c.skuId + c.qty : '') + '|' + d.trash;
   }
 
   const inStockroomBounds = (lx, lz) => lx >= STOCKROOM.bounds.minX && lx <= STOCKROOM.bounds.maxX
     && lz >= STOCKROOM.bounds.minZ && lz <= STOCKROOM.bounds.maxZ;
 
+  const sfx = (name) => { if (hooks.sfx) hooks.sfx(name); };
+  const say = (msg, tone) => { if (hooks.toast) hooks.toast(msg, tone); };
+
+  // put an armful onto the fixture it belongs on (or say why not) — the fixture props call this
+  function stockFromHands(fixtureId, units) {
+    const res = stockFixture(state, fixtureId, units);
+    if (res.ok) {
+      rebuildStock();
+      rebuildBoxes();       // the arms emptied by that much
+      tutorialFlag(state, 'shelved');
+    }
+    return res;
+  }
+  B.stockFromHands = stockFromHands;
+  B.carriedGoods = () => carriedGoods(state);
+  B.rebuildCarry = () => rebuildBoxes();
+
   function rebuildBoxes() {
     boxGroup.clear();
-    for (const p of boxProps) removeProp(p);
-    boxProps.length = 0;
-    if (carriedMesh) {
-      camera.remove(carriedMesh);
-      carriedMesh = null;
-    }
     const d = state.shop.deliveries;
-    if (!d) return;
-    const stacks = { pad: 0, stock: 0 };
-    for (const box of d.boxes) {
-      if (box.loc === 'carried') {
-        carriedMesh = makeBoxMesh(box);
-        carriedMesh.scale.setScalar(0.8);
-        carriedMesh.position.set(0, -0.62, -0.78);
-        carriedMesh.rotation.y = 0.12;
-        camera.add(carriedMesh);
-        continue;
+    if (carriedBoxMesh) { camera.remove(carriedBoxMesh); carriedBoxMesh = null; }
+    if (carriedGoodsMesh) { camera.remove(carriedGoodsMesh); carriedGoodsMesh = null; }
+
+    const cg = carriedGoods(state);
+    if (cg) {
+      carriedGoodsMesh = makeGoodsMesh(cg);
+      carriedGoodsMesh.position.set(0.12, -0.4, -0.62);   // held in the arms, low in frame
+      carriedGoodsMesh.rotation.x = 0.35;
+      camera.add(carriedGoodsMesh);
+    }
+
+    const seen = new Set();
+    if (d) {
+      const stacks = { pad: 0, stock: 0 };
+      for (const box of d.boxes) {
+        if (box.loc === 'carried') {
+          carriedBoxMesh = makeBoxMesh(box);
+          carriedBoxMesh.scale.setScalar(0.8);
+          carriedBoxMesh.position.set(0, -0.62, -0.82);
+          carriedBoxMesh.rotation.y = 0.12;
+          camera.add(carriedBoxMesh);
+          continue;
+        }
+        let lx; let lz; let ry;
+        if (box.loc === 'world') {
+          lx = box.x; lz = box.z; ry = box.ry || 0;
+        } else {
+          const at = box.loc === 'pad' ? STOCKROOM.padOutside : STOCKROOM.receivingInside;
+          const i = stacks[box.loc]++;
+          const dim = boxDims(box.box || 'carton');
+          lx = at.x + (i % 3 - 1) * Math.max(0.62, dim.w + 0.14);
+          lz = at.z + Math.floor(i / 3) * Math.max(0.56, dim.d + 0.14) - 0.3;
+          ry = (box.id % 5) * 0.13;
+        }
+        const wp = L2W(lx, lz);
+        const m = makeBoxMesh(box);
+        const gy = groundYAt(wp.x, wp.z);
+        m.position.set(wp.x, gy !== null && gy !== undefined ? gy : heightAt(wp.x, wp.z) + 0.02, wp.z);
+        m.rotation.y = ry;
+        boxGroup.add(m);
+
+        seen.add(box.id);
+        let prop = boxProps.get(box.id);
+        if (!prop) { prop = boxPropFor(box.id); boxProps.set(box.id, prop); }
+        prop.x = wp.x; prop.z = wp.z; prop.lx = lx; prop.lz = lz;
       }
-      // world boxes sit exactly where they were set down; zone boxes stack tidily
-      let lx;
-      let lz;
-      let ry;
-      if (box.loc === 'world') {
-        lx = box.x;
-        lz = box.z;
-        ry = box.ry || 0;
-      } else {
-        // cartons are no longer all one size, so the drop stack spaces itself off the widest one
-        const at = box.loc === 'pad' ? STOCKROOM.padOutside : STOCKROOM.receivingInside;
-        const i = stacks[box.loc]++;
-        const dim = boxDims(box.box || 'carton');
-        const pitchX = Math.max(0.62, dim.w + 0.14);
-        const pitchZ = Math.max(0.56, dim.d + 0.14);
-        lx = at.x + (i % 3 - 1) * pitchX;
-        lz = at.z + Math.floor(i / 3) * pitchZ - 0.3;
-        ry = (box.id % 5) * 0.13;
-      }
-      const wp = L2W(lx, lz);
-      const m = makeBoxMesh(box);
-      const gy = groundYAt(wp.x, wp.z);
-      m.position.set(wp.x, gy !== null && gy !== undefined ? gy : heightAt(wp.x, wp.z) + 0.02, wp.z);
-      m.rotation.y = ry;
-      boxGroup.add(m);
-      const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
-      const name = sku ? sku.name : box.skuId;
-      // one rule everywhere: inside the stockroom a case unpacks; anywhere else
-      // E lifts it back into your arms
-      const unpackHere = box.loc === 'stock' || (box.loc === 'world' && inStockroomBounds(lx, lz));
-      const prop = addProp({
-        x: wp.x, z: wp.z, r: 1.9,
-        label: () => {
-          if (carriedBox(state)) return null; // the set-down verb owns E while loaded
-          if (box.empty) return `Empty ${name} box — [E] flatten it`;
-          if (unpackHere) {
-            if (!box.cut) return `Case of ${name} ×${box.qty} — [E] cut the tape`;
-            return `Open case of ${name} ×${box.qty} — [E] take an armful to the backroom`;
-          }
-          return `${box.loc === 'pad' ? 'Delivery — ' : ''}${name} ×${box.qty}${box.cut ? ' (open)' : ''} — [E] pick up`;
-        },
-        action: () => {
-          if (box.empty) {
-            if (flattenBox(state, box.id).ok) {
-              if (hooks.sfx) hooks.sfx('thunk');
-              if (hooks.toast) hooks.toast('Flattened — the cardboard goes by the bin.');
-              rebuildBoxes();
-            }
-            return;
-          }
-          if (unpackHere) {
-            if (!box.cut) {
-              if (cutBox(state, box.id).ok) {
-                tutorialFlag(state, 'boxCut');
-                if (hooks.sfx) hooks.sfx('wipe'); // blade through tape
-                rebuildBoxes();
-              }
-              return;
-            }
-            const res = takeFromBox(state, box.id, 6);
-            if (!res.ok) { if (hooks.toast) hooks.toast(res.reason, 'warn'); return; }
-            rebuildStock();
-            if (hooks.sfx) hooks.sfx('chime');
-            if (hooks.toast) {
-              hooks.toast(res.left > 0
-                ? `${res.taken} × ${name} to the backroom — ${res.left} still in the case.`
-                : `Case emptied — ${res.taken} × ${name} to the backroom.`);
-            }
-          } else {
-            const res = pickUpBox(state, box.id);
-            if (!res.ok) { if (hooks.toast) hooks.toast(res.reason, 'warn'); return; }
-            tutorialFlag(state, 'boxCarried');
-            if (hooks.sfx) hooks.sfx('thunk');
-          }
-          rebuildBoxes();
-        },
-      });
-      boxProps.push(prop);
+    }
+    for (const [id, prop] of [...boxProps]) {
+      if (!seen.has(id)) { removeProp(prop); boxProps.delete(id); }
     }
     boxSig = boxSignature();
   }
 
-  // the set-down verb follows the player while a box is in their arms.
-  // A box goes down wherever you stand — floor, porch, yard — right where
-  // you're facing; it only refuses a spot that would cross a wall.
+  // a box in the stockroom is unpacked in place; anywhere else, [E] lifts it into your arms
+  function unpackHere(prop, b) {
+    return b.loc === 'stock' || (b.loc === 'world' && inStockroomBounds(prop.lx, prop.lz));
+  }
+
+  // the box's verbs, chosen live from its state. Reused across rebuilds (keyed by id) so a
+  // hold-to-cut is never torn down mid-cut.
+  function boxPropFor(id) {
+    const box = () => boxesOf(state).find((b) => b.id === id);
+    const pickUp = (b) => {
+      const r = pickUpBox(state, b.id);
+      if (!r.ok) { say(r.reason, 'warn'); return; }
+      sfx('boxup');
+      rebuildBoxes();
+    };
+    const prop = addProp({
+      x: 0, z: 0, r: 1.9,
+      label: () => {
+        const b = box();
+        if (!b || b.loc === 'carried' || carriedBox(state)) return null;
+        const sku = SHOP_CATALOG.find((s) => s.id === b.skuId);
+        const name = sku ? sku.name : b.skuId;
+        if (b.flat) return 'Flattened carton — [E] carry it to the recycling';
+        if (isEmpty(b)) return `Empty ${name} box — [E] flatten it`;
+        if (!unpackHere(prop, b)) {
+          return `${b.loc === 'pad' ? 'Delivery: ' : ''}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''} — [E] pick up`;
+        }
+        if (tapeUncut(b)) return `${name} case · ${b.qty} inside — hold [E] to cut the tape`;
+        if (!tapeCut(b)) return `${name} — hold [E] to finish the cut`;
+        if (!flapsOpen(b)) return `${name} — [E] open a flap`;
+        const held = carriedGoods(state);
+        if (held && held.skuId !== b.skuId) return `${name} ×${b.qty}, open — put down what you're holding first`;
+        return `${name} ×${b.qty} in the case — [E] take an armful`;
+      },
+      get tool() {
+        const b = box();
+        if (!b || carriedBox(state)) return null;
+        return unpackHere(prop, b) && !b.flat && !tapeCut(b) && !isEmpty(b) ? 'boxcutter' : null;
+      },
+      hold: (dt) => {
+        const b = box();
+        if (!b || !unpackHere(prop, b) || b.flat || tapeCut(b) || isEmpty(b)) return;
+        const r = cutTape(state, b.id, dt * 0.7);   // ~1.4s to run the whole seam
+        if (r.ok) {
+          sfx('tape');
+          if (r.done) tutorialFlag(state, 'boxCut');
+          rebuildBoxes();
+        }
+      },
+      action: () => {
+        const b = box();
+        if (!b) return;
+        const sku = SHOP_CATALOG.find((s) => s.id === b.skuId);
+        const name = sku ? sku.name : b.skuId;
+        if (b.flat) { pickUp(b); return; }
+        if (isEmpty(b)) {
+          if (flattenBox(state, b.id).ok) { sfx('cardboard'); say('Flattened — carry it to the recycling.'); rebuildBoxes(); }
+          return;
+        }
+        if (!unpackHere(prop, b)) { pickUp(b); return; }
+        if (!tapeCut(b)) return;              // cutting is the hold verb; a tap does nothing here
+        if (!flapsOpen(b)) {
+          if (openFlap(state, b.id).ok) { sfx('flap'); rebuildBoxes(); }
+          return;
+        }
+        const r = takeFromBox(state, b.id);
+        if (!r.ok) { say(r.reason, 'warn'); return; }
+        sfx('product');
+        tutorialFlag(state, 'boxCarried');
+        say(r.left > 0
+          ? `${r.taken} × ${name} in your arms — ${r.left} still in the case.`
+          : `${r.taken} × ${name} — the case is empty.`);
+        rebuildBoxes();
+      },
+    });
+    return prop;
+  }
+
+  // the set-down / put-away verb follows the player while their arms are full — its prop rides just
+  // ahead of the player each frame (see the walkUpdate block far below)
   function boxDropSpot() {
     const fx = -Math.sin(walk.yaw);
     const fz = -Math.cos(walk.yaw);
     let dx = walk.x + fx * 0.9;
     let dz = walk.z + fz * 0.9;
-    // never place it through the wall you're standing against
     if (isInside(walk.x, walk.z) !== isInside(dx, dz)) {
       dx = walk.x + fx * 0.35;
       dz = walk.z + fz * 0.35;
@@ -1918,40 +2073,73 @@ export function makeClubhouse(ctx) {
   const carryProp = addProp({
     x: 0, z: 0, r: 2.5,
     label: () => {
-      const c = carriedBox(state);
-      if (!c) return null;
-      const l = W2L(walk.x, walk.z);
-      const sku = SHOP_CATALOG.find((s) => s.id === c.skuId);
-      const name = sku ? sku.name : c.skuId;
-      if (inStockroomBounds(l.x, l.z)) return `Carrying ${name} ×${c.qty} — [E] set it down (unpacks here)`;
-      return `Carrying ${name} ×${c.qty} — [E] set it down`;
+      const cb = carriedBox(state);
+      if (cb) {
+        const sku = SHOP_CATALOG.find((s) => s.id === cb.skuId);
+        const name = sku ? sku.name : cb.skuId;
+        const l = W2L(walk.x, walk.z);
+        if (cb.flat) return 'Carrying a flattened carton — [E] set it down';
+        if (inStockroomBounds(l.x, l.z)) return `Carrying ${name} ×${cb.qty} — [E] set it down to open it`;
+        return `Carrying ${name} ×${cb.qty} — [E] set it down`;
+      }
+      const cg = carriedGoods(state);
+      if (cg) {
+        const sku = SHOP_CATALOG.find((s) => s.id === cg.skuId);
+        const l = W2L(walk.x, walk.z);
+        if (inStockroomBounds(l.x, l.z)) return `Holding ${sku.name} ×${cg.qty} — [E] set them on the backroom shelf`;
+        const home = homeOf(cg.skuId);
+        return `Holding ${sku.name} ×${cg.qty} — carry them to the ${home ? home.title.toLowerCase() : 'shelf'}`;
+      }
+      return null;
     },
     action: () => {
-      const c = carriedBox(state);
-      if (!c) return;
-      const drop = boxDropSpot();
-      const l = W2L(drop.x, drop.z);
-      putDownBox(state, c.id, { x: l.x, z: l.z, ry: walk.yaw + 0.1 });
-      if (hooks.sfx) hooks.sfx('thunk');
-      rebuildBoxes();
+      const cb = carriedBox(state);
+      if (cb) {
+        const drop = boxDropSpot();
+        const l = W2L(drop.x, drop.z);
+        putDownBox(state, cb.id, { x: l.x, z: l.z, ry: walk.yaw + 0.1 });
+        sfx('boxdown');
+        rebuildBoxes();
+        return;
+      }
+      const cg = carriedGoods(state);
+      if (cg) {
+        const l = W2L(walk.x, walk.z);
+        if (inStockroomBounds(l.x, l.z)) {
+          const r = storeInBack(state);
+          if (r.ok) {
+            sfx('product');
+            say(`${r.moved} × ${SHOP_CATALOG.find((s) => s.id === cg.skuId).name} on the backroom shelf.`);
+            rebuildStock();
+            rebuildBoxes();
+          }
+        } else {
+          say('Carry these to the right fixture and hold [E], or take them to the backroom.', 'warn');
+        }
+      }
     },
   });
 
-  // flattening the empties at the stockroom bin
+  // the recycling bin by the stock door
   {
     const wp = L2W(STOCKROOM.bin.x, STOCKROOM.bin.z);
     addProp({
       x: wp.x, z: wp.z, r: 1.8,
       label: () => {
-        const d = state.shop.deliveries;
-        return d && d.trash > 0 ? `Empties (${d.trash}) — [E] flatten them into the bin` : null;
+        const cb = carriedBox(state);
+        if (cb && cb.flat) return 'Recycling — [E] drop the flattened carton in';
+        const dd = state.shop.deliveries;
+        const flatNear = dd && dd.boxes.some((b) => b.flat && b.loc !== 'carried');
+        return flatNear || (dd && dd.trash > 0) ? 'Recycling — [E] break down the flattened cartons' : null;
       },
       action: () => {
-        if (emptyTrash(state).ok) {
-          if (hooks.sfx) hooks.sfx('thunk');
-          if (hooks.toast) hooks.toast('Cardboard flattened — the stockroom breathes again.');
-          rebuildBoxes();
+        const cb = carriedBox(state);
+        if (cb && cb.flat) {
+          putDownBox(state, cb.id, { x: STOCKROOM.bin.x, z: STOCKROOM.bin.z, ry: 0 });
+          if (recycleBox(state, cb.id).ok) { sfx('recycle'); say('Cardboard recycled.'); rebuildBoxes(); }
+          return;
         }
+        if (emptyTrash(state).ok) { sfx('recycle'); say('Cardboard recycled — the stockroom breathes again.'); rebuildBoxes(); }
       },
     });
   }
@@ -2452,11 +2640,14 @@ export function makeClubhouse(ctx) {
       moteFade -= dt;
       if (moteFade <= 0) motes.visible = false;
     }
-    // the set-down prompt rides just ahead of a loaded player
-    if (carriedMesh) {
+    // the set-down / put-away prompt rides just ahead of a loaded player (a box OR an armful)
+    if (carriedBoxMesh || carriedGoodsMesh) {
       carryProp.x = walk.x - Math.sin(walk.yaw) * 0.9;
       carryProp.z = walk.z - Math.cos(walk.yaw) * 0.9;
-      carriedMesh.position.y = -0.62 + Math.sin(now * 6.2) * 0.012; // a carried weight breathes
+      if (carriedBoxMesh) carriedBoxMesh.position.y = -0.62 + Math.sin(now * 6.2) * 0.012; // a carried weight breathes
+      if (carriedGoodsMesh) carriedGoodsMesh.position.y = -0.4 + Math.sin(now * 6.2) * 0.01;
+    } else {
+      carryProp.x = 1e6; // parked far away so an empty-handed player never focuses it
     }
     poll += dt;
     if (poll > 1.1) {
@@ -2496,7 +2687,8 @@ export function makeClubhouse(ctx) {
 
   function dispose() {
     scene.remove(group, interior, custGroup, motes, boxGroup);
-    if (carriedMesh) camera.remove(carriedMesh);
+    if (carriedBoxMesh) camera.remove(carriedBoxMesh);
+    if (carriedGoodsMesh) camera.remove(carriedGoodsMesh);
     for (const p of [...registeredProps]) removeProp(p);
     for (const c of [...registeredCols]) removeCol(c);
     for (const m of ctx.extraMeshes || []) scene.remove(m);
@@ -2508,6 +2700,8 @@ export function makeClubhouse(ctx) {
   return {
     group, interior,
     update, rebuildStock, rebuildReno, refreshCondition, repaintGrime,
+    rebuildBoxes,
+    carrySpeedFactor: () => carrySpeedFactor(state),
     isInside, groundYAt, vacuumAt, vacuumLabelAt,
     doorWorld: doorW,
     laptopPose: (fovDeg, aspect) => (office.seatPose ? office.seatPose(fovDeg, aspect) : null),

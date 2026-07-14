@@ -1277,10 +1277,12 @@ window.addEventListener('keydown', (e) => {
       }
     }
 
-    // first-person course: E is the interaction verb (shop convention)
+    // first-person course: E is the interaction verb (shop convention). The repeat flag matters:
+    // cutting tape and stocking a shelf are HOLD verbs driven per-frame, and a tap verb must not
+    // fire thirty times a second just because the key is down.
     switch (e.key) {
       case 'e': case 'E':
-        if (app.scene3d.walk.interact) app.scene3d.walk.interact();
+        if (app.scene3d.walk.interact) app.scene3d.walk.interact(e.repeat);
         break;
       case 'b': case 'B': {
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
