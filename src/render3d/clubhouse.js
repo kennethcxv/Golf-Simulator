@@ -2105,6 +2105,29 @@ export function makeClubhouse(ctx) {
     c.linger = 0;
   }
 
+  // The ONLY way a shopper leaves the floor. pickFromShelf takes a unit off the shelf the instant
+  // they lift it, so a shopper deleted while still holding one destroys it — the player's stock
+  // drains for no reason they can see. Three separate removal sites used to do exactly that; they
+  // all come through here now, and anything still in their hands goes back on the display.
+  function removeCustomer(i) {
+    const c = customers[i];
+    if (!c) return;
+    if (c.cart && c.cart.length) {
+      for (const it of c.cart) returnToShelf(state, it.skuId);
+      c.cart = [];
+      rebuildStock();
+    }
+    if (c.tx) c.tx = null;
+    c.awaitingCheckout = false;
+    leaveQueue(c);
+    if (c.itemMesh) {
+      c.mesh.remove(c.itemMesh);
+      c.itemMesh = null;
+    }
+    custGroup.remove(c.mesh);
+    customers.splice(i, 1);
+  }
+
   const arrivedResIds = new Set();
   function updateArrivals() {
     if (!state || !state.reservations) return;
@@ -2193,7 +2216,7 @@ export function makeClubhouse(ctx) {
       const char = c.mesh.userData.char;
       if (char) char.update(dt);
       const stop = c.stops[c.stopIdx];
-      if (!stop) { custGroup.remove(c.mesh); customers.splice(i, 1); continue; }
+      if (!stop) { removeCustomer(i); continue; }
 
       let tx = stop.x;
       let tz = stop.z;
@@ -2218,8 +2241,7 @@ export function makeClubhouse(ctx) {
         const isPass = stop.kind === 'walk' || stop.kind === 'enter' || stop.kind === 'exit' || stop.kind === 'gone';
         const served = stop.kind !== 'counter' || counterQueue.indexOf(c) === 0;
         if (stop.kind === 'gone') {
-          custGroup.remove(c.mesh);
-          customers.splice(i, 1);
+          removeCustomer(i);
           continue;
         }
         // the head of the line with a basket waits for the PLAYER to ring
@@ -2241,9 +2263,7 @@ export function makeClubhouse(ctx) {
           c.stopIdx++;
           c.linger = 1.5 + Math.random() * 3.5;
           if (c.stopIdx >= c.stops.length) {
-            leaveQueue(c);
-            custGroup.remove(c.mesh);
-            customers.splice(i, 1);
+            removeCustomer(i);
             continue;
           }
         }
@@ -2363,7 +2383,9 @@ export function makeClubhouse(ctx) {
     for (const p of [...registeredProps]) removeProp(p);
     for (const c of [...registeredCols]) removeCol(c);
     for (const m of ctx.extraMeshes || []) scene.remove(m);
-    customers.length = 0;
+    // tearing the scene down must not pocket whatever shoppers were holding: the save is written
+    // from `state`, and stock in a deleted shopper's hands would simply cease to exist.
+    for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
   }
 
   return {
