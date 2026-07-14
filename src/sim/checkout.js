@@ -29,6 +29,73 @@ export function liveSales(state) {
   return state.shop.salesLive;
 }
 
+// --- payment: what happens once everything is scanned -----------------------------
+// The customer presents cash (real bills, real change) or a card (which can
+// decline and retry). Relaxed refuses a wrong count so nobody loses money;
+// Realistic accepts it and the till comes up short.
+
+export const DENOMS = [20, 10, 5, 1];
+
+// what a person actually hands over: the next clean bill amount above the total
+export function cashTender(total, rng = Math.random) {
+  const t = Math.ceil(total);
+  if (t % 20 === 0) return t;
+  // most people round up to a stack of twenties; some hand closer-to-exact bills
+  if (rng() < 0.7) return Math.ceil(t / 20) * 20;
+  for (const d of [10, 5, 1]) {
+    const up = Math.ceil(t / d) * d;
+    if (up >= t) return up;
+  }
+  return t;
+}
+
+export function startPayment(total, mode = 'relaxed', rng = Math.random) {
+  const method = rng() < 0.35 ? 'card' : 'cash';
+  return {
+    total,
+    mode,
+    method,
+    tendered: method === 'cash' ? cashTender(total, rng) : null,
+    stage: method === 'cash' ? 'change' : 'card',
+    declines: 0,
+    rng,
+  };
+}
+
+export function changeDue(tx) {
+  return tx.method === 'cash' ? Math.max(0, (tx.tendered || 0) - tx.total) : 0;
+}
+
+// the player hands back `amount`. Correct → receipt. Wrong → Relaxed keeps the
+// drawer open for a recount; Realistic completes and records what the till lost.
+export function giveChange(tx, amount) {
+  if (tx.stage !== 'change') return { ok: false, reason: 'No change due.' };
+  const due = changeDue(tx);
+  const diff = Math.round((amount - due) * 100) / 100;
+  if (diff === 0) {
+    tx.stage = 'receipt';
+    return { ok: true, lost: 0 };
+  }
+  if (tx.mode === 'relaxed') {
+    return { ok: false, reason: diff > 0 ? 'Too much — count it again.' : 'Not enough — count it again.' };
+  }
+  tx.stage = 'receipt';
+  return { ok: true, lost: diff }; // + overpaid the customer, − shorted them
+}
+
+// one terminal attempt: ~6% declines; a declined card retries clean
+export function processCard(tx) {
+  if (tx.stage !== 'card' && tx.stage !== 'declined') return { approved: false, reason: 'No card out.' };
+  const roll = tx.rng ? tx.rng() : Math.random();
+  if (tx.stage === 'card' && roll < 0.06) {
+    tx.stage = 'declined';
+    tx.declines += 1;
+    return { approved: false, declined: true };
+  }
+  tx.stage = 'receipt';
+  return { approved: true };
+}
+
 export function checkoutSale(state, items, who = 'A customer') {
   if (!Array.isArray(items) || items.length === 0) return { ok: false, reason: 'Nothing to ring up.' };
   let total = 0;

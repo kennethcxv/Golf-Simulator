@@ -262,6 +262,34 @@ export function makeAudio() {
     osc.stop(t0 + 0.1);
   }
 
+  // thermal receipt printer: a fast ratchet of tiny clicks, then the tear
+  function receipt() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    for (let i = 0; i < 9; i++) {
+      const osc = ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = 2200 + (i % 3) * 300;
+      const g = ctx.createGain();
+      const t = t0 + i * 0.035;
+      g.gain.setValueAtTime(0.012, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.02);
+      osc.connect(g).connect(sfxBus);
+      osc.start(t);
+      osc.stop(t + 0.03);
+    }
+    // the tear: one short noise swish
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const bg = ctx.createGain();
+    bg.gain.value = 0.05;
+    src.connect(bg).connect(sfxBus);
+    src.start(t0 + 0.34);
+  }
+
   // cloth on glass: two quick filtered-noise strokes falling away
   function wipe() {
     if (!ctx) return;
@@ -439,6 +467,7 @@ export function makeAudio() {
     doorSwing,
     doorShut,
     scanBeep,
+    receipt,
     wipe,
     laptopOpen,
     laptopBoot,

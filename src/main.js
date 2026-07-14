@@ -1136,6 +1136,12 @@ window.addEventListener('keydown', (e) => {
       case 'e': case 'E':
         if (app.scene3d.walk.interact) app.scene3d.walk.interact();
         break;
+      case 'r': case 'R': {
+        // at the register in Realistic mode, R hands over the counted change
+        const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
+        if (ch && ch.confirmChange) ch.confirmChange();
+        break;
+      }
       case 'f': case 'F': {
         const walkApi = app.scene3d.walk;
         if (!walkApi.cart.mounted) {

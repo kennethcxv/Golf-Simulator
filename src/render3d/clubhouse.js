@@ -25,7 +25,11 @@ import {
 import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
 } from '../sim/deliveries.js';
-import { pickFromShelf, returnToShelf, checkoutSale } from '../sim/checkout.js';
+import {
+  pickFromShelf, returnToShelf, checkoutSale,
+  startPayment, changeDue, giveChange, processCard,
+} from '../sim/checkout.js';
+import { addRevenue } from '../sim/economy.js';
 import { tutorialFlag } from '../sim/tutorial.js';
 import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
 import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel } from './clubhouse/materials.js';
@@ -164,6 +168,54 @@ export function makeClubhouse(ctx) {
 
   // --- counter, register, wordmark, office, lounge, stockroom dressing --------------------
   let drawRegister = () => {};
+  let regConfirmChange = () => false; // [R] hands over counted change (Realistic)
+
+  // the head shopper's items sit ON the counter: unscanned on their side,
+  // scanned pushed across to the bagging side
+  const counterItemsGroup = new THREE.Group();
+  interior.add(counterItemsGroup);
+  function syncCounterItems(c) {
+    counterItemsGroup.clear();
+    if (!c || !c.cart || !c.cart.length) return;
+    c.cart.forEach((item, i) => {
+      const sku = SHOP_CATALOG.find((s) => s.id === item.skuId);
+      const m = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 0.13, 0.15),
+        new THREE.MeshStandardMaterial({ color: CAT_COLORS[sku ? sku.cat : 'accessories'] || 0x8a8577, roughness: 0.8 }),
+      );
+      m.position.set(
+        COUNTER.registerX + 0.5 + (i % 4) * 0.24,
+        1.055 + 0.065,
+        COUNTER.z + (i < c.scanned ? -0.2 : 0.17),
+      );
+      m.rotation.y = i * 0.4;
+      m.castShadow = true;
+      counterItemsGroup.add(m);
+    });
+  }
+
+  // a branded paper bag into the customer's hand — they carry it out
+  function giveBag(c) {
+    const bag = new THREE.Group();
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(0.2, 0.26, 0.13),
+      new THREE.MeshStandardMaterial({ color: 0x2e5a3a, roughness: 0.85 }),
+    );
+    body.position.y = 0.13;
+    bag.add(body);
+    for (const off of [-0.05, 0.05]) {
+      const handle = new THREE.Mesh(
+        new THREE.BoxGeometry(0.015, 0.09, 0.015),
+        new THREE.MeshStandardMaterial({ color: 0x1d3a26, roughness: 0.8 }),
+      );
+      handle.position.set(off, 0.3, 0);
+      bag.add(handle);
+    }
+    bag.position.set(0.3, 0.62, 0.05);
+    bag.rotation.y = 0.2;
+    c.mesh.add(bag);
+  }
+
   {
     drawRegister = buildCheckout(B).drawRegister;
 
@@ -173,6 +225,49 @@ export function makeClubhouse(ctx) {
       const c = counterQueue[0];
       return c && c.cart && c.cart.length && c.awaitingCheckout ? c : null;
     };
+    // hand the customer a printed receipt and a bag, close out their visit
+    const completeSale = (c) => {
+      const res = checkoutSale(state, c.cart, c.name);
+      if (!res.ok) return;
+      if (c.tx && c.tx.lost) {
+        // realistic miscount: the till is short what you over-handed
+        if (c.tx.lost > 0) addRevenue(state, 'shopSales', -c.tx.lost);
+        state.shop.log.unshift(c.tx.lost > 0
+          ? `Change miscounted — the till is $${c.tx.lost.toFixed(0)} short.`
+          : `${c.name} got shorted $${Math.abs(c.tx.lost).toFixed(0)} in change.`);
+      }
+      drawRegister(['PAID — RECEIPT OUT', c.tx && c.tx.method === 'card' ? 'CARD APPROVED' : 'DRAWER CLOSED'], res.total);
+      if (hooks.sfx) hooks.sfx('receipt');
+      if (hooks.toast) hooks.toast(`${c.name} paid $${res.total.toFixed(2)} — receipt and bag handed over.`);
+      c.cart = [];
+      c.tx = null;
+      c.awaitingCheckout = false;
+      if (c.itemMesh) { c.mesh.remove(c.itemMesh); c.itemMesh = null; }
+      giveBag(c);
+      syncCounterItems(null);
+      leaveQueue(c);
+      c.stopIdx += 1;
+      c.linger = 0;
+      rebuildStock(); // the shelf gap where their pick came from stays real
+    };
+
+    const changeOptions = (tx) => {
+      const due = changeDue(tx);
+      const opts = [due, due + 5, Math.max(0, due - 5), due + 1].filter((v, i, a) => a.indexOf(v) === i);
+      // deterministic shuffle per transaction so E-cycling isn't always option 1
+      const seed = Math.round(tx.total * 7 + tx.tendered * 3);
+      return opts.map((v, i) => ({ v, k: (i * 2654435761 + seed) % 97 })).sort((a, b) => a.k - b.k).map((o) => o.v);
+    };
+    const drawChangeScreen = (c) => {
+      const opts = c.txOpts;
+      drawRegister([
+        `CASH $${c.tx.tendered} FOR $${c.tx.total.toFixed(0)}`,
+        ...opts.map((v, i) => `${i === c.txSel ? '>' : ' '} give $${v} change`),
+        '[E] next · [R] hand over',
+      ], c.tx.total);
+    };
+
+    let cardTimer = null;
     addProp({
       x: regWp.x, z: regWp.z, r: 2.3,
       label: () => {
@@ -188,8 +283,18 @@ export function makeClubhouse(ctx) {
             const next = SHOP_CATALOG.find((s) => s.id === c.cart[c.scanned].skuId);
             return `Ring up ${c.name} — [E] scan ${next ? next.name : 'item'} (${c.scanned}/${c.cart.length})`;
           }
-          const total = c.cart.reduce((a, i) => a + i.price, 0);
-          return `Ring up ${c.name} — [E] take payment ($${total.toFixed(2)})`;
+          if (!c.tx) {
+            const total = c.cart.reduce((a, i) => a + i.price, 0);
+            return `All scanned — [E] total it up ($${total.toFixed(2)})`;
+          }
+          if (c.tx.stage === 'card') return `${c.name} taps their card — [E] run the terminal`;
+          if (c.tx.stage === 'processing') return 'Terminal — processing…';
+          if (c.tx.stage === 'declined') return 'CARD DECLINED — [E] run it again';
+          if (c.tx.stage === 'change') {
+            const due2 = changeDue(c.tx);
+            if (state.mode === 'relaxed') return `Cash: $${c.tx.tendered} tendered — [E] hand back $${due2} change`;
+            return `Cash: $${c.tx.tendered} tendered — [E] next amount · [R] hand it over`;
+          }
         }
         const s = state.shop;
         const live = s.salesLive && s.salesLive.units ? ` · today at the counter: ${s.salesLive.units} rung up` : '';
@@ -219,26 +324,78 @@ export function makeClubhouse(ctx) {
             }),
             sub,
           );
+          syncCounterItems(c);
           if (hooks.sfx) hooks.sfx('scanBeep');
-        } else {
-          const res = checkoutSale(state, c.cart, c.name);
-          if (!res.ok) return;
-          drawRegister(['PAID — THANK YOU'], res.total);
-          if (hooks.sfx) hooks.sfx('chime');
-          if (hooks.toast) hooks.toast(`${c.name} paid $${res.total.toFixed(2)} — bagged and done.`);
-          c.cart = [];
-          c.awaitingCheckout = false;
-          if (c.itemMesh) {
-            c.mesh.remove(c.itemMesh);
-            c.itemMesh = null;
+          return;
+        }
+        if (!c.tx) {
+          // total it up — the customer takes out their money
+          const total = Math.round(c.cart.reduce((a, i) => a + i.price, 0) * 100) / 100;
+          c.tx = startPayment(total, state.mode);
+          c.patience = Math.max(c.patience, 25);
+          if (c.tx.method === 'cash') {
+            c.txOpts = state.mode === 'relaxed' ? [changeDue(c.tx)] : changeOptions(c.tx);
+            c.txSel = 0;
+            if (state.mode === 'relaxed') {
+              drawRegister([`CASH $${c.tx.tendered} FOR $${total.toFixed(0)}`, `change due $${changeDue(c.tx)}`], total);
+            } else {
+              drawChangeScreen(c);
+            }
+          } else {
+            drawRegister(['CARD PRESENTED', 'run the terminal'], total);
           }
-          leaveQueue(c);
-          c.stopIdx += 1;
-          c.linger = 0;
-          rebuildStock(); // the shelf gap where their pick came from stays real
+          if (hooks.sfx) hooks.sfx('thunk');
+          return;
+        }
+        if (c.tx.stage === 'card' || c.tx.stage === 'declined') {
+          c.tx.stage === 'declined' ? (c.tx.stage = 'card') : null;
+          c.tx.stage = 'processing';
+          drawRegister(['CARD — PROCESSING…'], c.tx.total);
+          if (hooks.sfx) hooks.sfx('scanBeep');
+          const cRef = c;
+          if (cardTimer) clearTimeout(cardTimer);
+          cardTimer = setTimeout(() => {
+            cardTimer = null;
+            if (!cRef.tx || !customers.includes(cRef)) return; // they gave up meanwhile
+            cRef.tx.stage = 'card';
+            const res = processCard(cRef.tx);
+            if (res.approved) {
+              completeSale(cRef);
+            } else {
+              drawRegister(['CARD DECLINED', 'ask them to retry'], cRef.tx.total);
+              if (hooks.toast) hooks.toast(`${cRef.name}'s card declined — run it again.`, 'warn');
+              if (hooks.sfx) hooks.sfx('thunk');
+            }
+          }, 1100);
+          return;
+        }
+        if (c.tx.stage === 'change') {
+          if (state.mode === 'relaxed') {
+            const res = giveChange(c.tx, changeDue(c.tx));
+            if (res.ok) completeSale(c);
+          } else {
+            // E cycles the counted amount; R hands it over
+            c.txSel = (c.txSel + 1) % c.txOpts.length;
+            drawChangeScreen(c);
+            if (hooks.sfx) hooks.sfx('scanBeep');
+          }
         }
       },
     });
+
+    // [R] confirms the counted change in Realistic mode (exposed on the API)
+    regConfirmChange = () => {
+      const c = headForCheckout();
+      if (!c || !c.tx || c.tx.stage !== 'change') return false;
+      if (state.mode === 'relaxed') return false;
+      const res = giveChange(c.tx, c.txOpts[c.txSel]);
+      if (res.ok) {
+        completeSale(c);
+      } else if (hooks.toast) {
+        hooks.toast(res.reason, 'warn');
+      }
+      return true;
+    };
 
     // the club's name painted on the wall behind the counter
     const logoCanvas = document.createElement('canvas');
@@ -1749,8 +1906,16 @@ export function makeClubhouse(ctx) {
     if (!toCounter) {
       const nStops = 1 + rng.int(2);
       const browsable = FIXTURES.filter((f) => f.skus.length > 0);
+      // shoppers gravitate to displays with something ON them — a stocked
+      // fixture is four times as likely to make their route as a bare one
+      const pool = [];
+      for (const f of browsable) {
+        pool.push(f);
+        const hasStock = f.skus.some((id) => state.shop.inventory[id] && state.shop.inventory[id].shelf > 0);
+        if (hasStock) pool.push(f, f, f);
+      }
       for (let i = 0; i < nStops; i++) {
-        const f = browsable[rng.int(browsable.length)];
+        const f = pool[rng.int(pool.length)];
         const wp = L2W(f.x, f.z);
         // stand a step off the fixture, on its open side
         const l = f;
@@ -1828,7 +1993,9 @@ export function makeClubhouse(ctx) {
       rebuildStock();
     }
     c.cart = [];
+    c.tx = null;
     c.awaitingCheckout = false;
+    syncCounterItems(null);
     if (c.itemMesh) {
       c.mesh.remove(c.itemMesh);
       c.itemMesh = null;
@@ -1958,6 +2125,7 @@ export function makeClubhouse(ctx) {
         // the head of the line with a basket waits for the PLAYER to ring
         // them up — patience runs out eventually and the pick goes back
         if (stop.kind === 'counter' && c.cart.length && counterQueue.indexOf(c) === 0) {
+          if (!c.awaitingCheckout) syncCounterItems(c); // their items go ON the counter
           c.awaitingCheckout = true;
           c.patience -= dt;
           if (char) char.setMode('Idle');
@@ -2108,6 +2276,7 @@ export function makeClubhouse(ctx) {
     laptopBoot: () => office.startBoot && office.startBoot(),
     laptopScreen: (mode) => office.paintScreen && office.paintScreen(mode),
     laptopScreenCorners: () => (office.screenCorners ? office.screenCorners() : null),
+    confirmChange: () => regConfirmChange(), // [R] hands over counted change (Realistic)
     condition: () => conditionNow,
     setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),
     customers, doors, // QA access
