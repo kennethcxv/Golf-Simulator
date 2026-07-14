@@ -113,6 +113,79 @@ export function ensureShopReno(state) {
     if (!state.shop.inventory[sku.id]) state.shop.inventory[sku.id] = { shelf: 0, back: 0 };
   }
   ensureDeliveries(state); // physical-retail block (2026-07-13)
+
+  // EXTERIOR NEGLECT (2026-07-14 stabilization P2): pre-exterior saves gain the
+  // rundown yard — weeds at the foundation, a choked gutter, cobwebbed porch
+  // corners, a dead porch bulb, grimy siding patches
+  if (!reno.exterior) {
+    reno.exterior = {
+      weeds: [1, 1, 1, 1, 1],
+      gutter: 1,
+      cobwebs: 1,
+      light: 1,
+      siding: [1, 1, 1],
+    };
+  }
+}
+
+// --- exterior restoration: real verbs against real state ---------------------------
+
+export function exteriorState(state) {
+  ensureShopReno(state);
+  return state.shop.reno.exterior;
+}
+
+export function pullWeed(state, i) {
+  const ex = exteriorState(state);
+  if (!ex.weeds[i]) return { ok: false, reason: 'Already pulled.' };
+  ex.weeds[i] = 0;
+  return { ok: true, left: ex.weeds.filter(Boolean).length };
+}
+
+export function clearGutter(state) {
+  const ex = exteriorState(state);
+  if (!ex.gutter) return { ok: false, reason: 'The gutter runs clean.' };
+  ex.gutter = 0;
+  return { ok: true };
+}
+
+export function brushCobwebs(state) {
+  const ex = exteriorState(state);
+  if (!ex.cobwebs) return { ok: false, reason: 'No webs left.' };
+  ex.cobwebs = 0;
+  return { ok: true };
+}
+
+export const BULB_COST = 5;
+export function replaceBulb(state) {
+  const ex = exteriorState(state);
+  if (!ex.light) return { ok: false, reason: 'The porch light works.' };
+  if (state.cash < BULB_COST) return { ok: false, reason: 'Not enough cash for a bulb.' };
+  addExpense(state, 'shopOrders', BULB_COST);
+  ex.light = 0;
+  return { ok: true };
+}
+
+// siding grime scrubs off in passes like the window film
+export function scrubSiding(state, i) {
+  const ex = exteriorState(state);
+  const cur = ex.siding[i];
+  if (typeof cur !== 'number' || cur <= 0) return { ok: false, left: 0 };
+  const left = Math.max(0, Math.round((cur - 0.4) * 100) / 100);
+  ex.siding[i] = left;
+  return { ok: true, left };
+}
+
+// 0..1 curb appeal — every job weighs in
+export function exteriorScore(state) {
+  const ex = exteriorState(state);
+  const jobs = ex.weeds.length + 2 + 1 + ex.siding.length; // weeds + gutter+cobwebs + bulb + siding
+  let done = ex.weeds.filter((w) => !w).length;
+  done += ex.gutter ? 0 : 1;
+  done += ex.cobwebs ? 0 : 1;
+  done += ex.light ? 0 : 1;
+  done += ex.siding.filter((s) => s <= 0).length;
+  return Math.round((done / jobs) * 100) / 100;
 }
 
 // wipe one pane: three passes clear it; returns what's left on the glass

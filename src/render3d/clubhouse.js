@@ -40,6 +40,7 @@ import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } fro
 import { buildDirt } from './clubhouse/dirt.js';
 import { makeNav } from './clubhouse/nav.js';
 import { productThumb } from './clubhouse/thumbs.js';
+import { buildExterior } from './clubhouse/exterior.js';
 
 const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
@@ -154,6 +155,7 @@ export function makeClubhouse(ctx) {
   const doorsApi = buildDoors(B);
   const doors = doorsApi.doors;
   const updateDoors = doorsApi.updateDoors;
+  buildExterior(B); // yard neglect + physical repair verbs (clubhouse/exterior.js)
 
   let conditionNow = 100;
   function refreshCondition() {
