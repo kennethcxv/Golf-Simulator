@@ -587,3 +587,18 @@ input[type="range"] { accent-color: var(--accent); }
 .lt-content input[type="range"] { accent-color: #1f4a26; flex: 1; max-width: 260px; }
 .lt-content select { background: #fdfbf4; border: 1px solid #ded7c2; border-radius: 6px; padding: 3px 8px;
   font-family: inherit; font-size: 0.86rem; color: #23262b; }
+
+/* --- minimal HUD (2026-07-13): two corner chips, nothing else permanent --- */
+.hud-min {
+  position: absolute; top: 10px; right: 12px; display: flex; flex-direction: column;
+  gap: 6px; align-items: flex-end; pointer-events: none; z-index: 20;
+}
+.hud-min .hud-chip {
+  pointer-events: auto; background: rgba(20, 26, 18, 0.82); color: #dfd8c2;
+  border: 1px solid rgba(87, 121, 92, 0.55); border-radius: 999px;
+  padding: 4px 14px; font-size: 0.86rem; font-variant-numeric: tabular-nums;
+}
+.hud-min .hud-cash { color: #8ed072; font-weight: 700; }
+.hud-min .hud-clock { cursor: pointer; font-family: inherit; }
+.hud-min .hud-clock:hover { border-color: #8ed072; }
+.hud-min .hud-clock.paused { color: #e0a33c; border-color: #e0a33c; }

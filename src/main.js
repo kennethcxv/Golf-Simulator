@@ -22,7 +22,6 @@ import { makeWorksPanel } from './ui/worksPanel.js';
 import { makeInspectPanel } from './ui/inspectPanel.js';
 import { makeGroundsPanel } from './ui/groundsPanel.js';
 import { makeClubPanel } from './ui/clubPanel.js';
-import { makeShopPanel } from './ui/shopPanel.js';
 import { makeEmpirePanel } from './ui/empirePanel.js';
 import { openMarketplace } from './ui/marketplacePanel.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
@@ -67,7 +66,6 @@ let worksPanel = null;
 let inspectPanel = null;
 let groundsPanel = null;
 let clubPanel = null;
-let shopPanel = null;
 let empirePanel = null;
 let walkOverlay = null;
 let laptopUi = null;
@@ -155,7 +153,6 @@ function closeLeftPanels(except) {
   if (except !== 'works' && app.worksMode) handlers.toggleWorks();
   if (except !== 'grounds' && app.groundsOpen) groundsPanel.setVisible(false);
   if (except !== 'club' && app.clubOpen) clubPanel.setVisible(false);
-  if (except !== 'shop' && app.shopOpen) shopPanel.setVisible(false);
   if (except !== 'empire' && app.empireOpen) empirePanel.setVisible(false);
 }
 
@@ -239,7 +236,6 @@ function startGame(state) {
   app.scene3d.walk.hooks.toast = (msg, kind) => toast(msg, kind);
   app.scene3d.walk.hooks.sfx = (name) => { if (audio.ready && audio[name]) audio[name](); };
   // the clubhouse's in-world management surfaces route through these
-  app.scene3d.walk.hooks.openShopDesk = () => handlers.openShopDesk();
   app.scene3d.walk.hooks.openLaptop = () => enterLaptop();
   app.scene3d.walk.hooks.toggleOverview = () => handlers.toggleCourseMode();
   app.scene3d.walk.hooks.turfLabelAt = (cx, cy) => {
@@ -453,24 +449,6 @@ const handlers = {
     if (next) closeLeftPanels('club');
     clubPanel.setVisible(next);
   },
-  toggleShopPanel() {
-    const next = !app.shopOpen;
-    if (next) closeLeftPanels('shop');
-    shopPanel.setVisible(next);
-  },
-  enterShop() {
-    // legacy entry point (dock/panel buttons): the shop is a real building now
-    if (app.courseMode === 'overview') handlers.toggleCourseMode();
-    toast('The pro shop is the clubhouse — walk up the porch and open the door (E).');
-  },
-  openShopDesk() {
-    // the office computer: free the cursor, open the REAL desk panel
-    if (document.pointerLockElement) document.exitPointerLock();
-    if (!app.shopOpen) {
-      closeLeftPanels('shop');
-      shopPanel.setVisible(true);
-    }
-  },
   toggleCourseMode() {
     if (app.view !== 'course' || !app.scene3d) return;
     if (app.courseMode === 'walk') {
@@ -643,6 +621,12 @@ function openPauseMenu() {
           }),
         }),
       )),
+      el('h2', { text: 'Controls', style: 'margin-top:8px;font-size:1rem' }),
+      el('div', { class: 'row muted', style: 'font-size:0.84rem;line-height:1.6;display:block' },
+        'WASD walk · Shift run · mouse look (click to capture) · E interact / doors / laptop · ' +
+        'F tool (vacuum indoors; hose→divot→rake outside) · hold LMB use tool · ' +
+        'Tab overview camera · V data views · Space pause · 1/2/3 speed · ' +
+        'G grounds desk · C club office · M empire · Esc this menu'),
       el('h2', { text: 'Sound', style: 'margin-top:8px;font-size:1rem' }),
       el('div', { class: 'row' },
         el('input', {
@@ -911,7 +895,7 @@ window.addEventListener('keydown', (e) => {
       case 'Escape':
         // first Esc releases the pointer (browser); the next opens the office
         if (app.selectedSection) inspectPanel.hide();
-        else if (app.groundsOpen || app.clubOpen || app.shopOpen || app.empireOpen) closeLeftPanels('none');
+        else if (app.groundsOpen || app.clubOpen || app.empireOpen) closeLeftPanels('none');
         else if (!document.pointerLockElement) openPauseMenu();
         break;
     }
@@ -945,7 +929,7 @@ window.addEventListener('keydown', (e) => {
         handlers.toggleWorks();
       } else if (app.selectedSection) {
         inspectPanel.hide();
-      } else if (app.groundsOpen || app.clubOpen || app.shopOpen) {
+      } else if (app.groundsOpen || app.clubOpen) {
         closeLeftPanels('none');
       } else {
         // leaving the overview returns to your feet on the course
@@ -1161,7 +1145,6 @@ function boot() {
   inspectPanel = makeInspectPanel(app, recomputeRating);
   groundsPanel = makeGroundsPanel(app);
   clubPanel = makeClubPanel(app, recomputeRating);
-  shopPanel = makeShopPanel(app, handlers);
   empirePanel = makeEmpirePanel(app, handlers);
   objectivesPanel = makeObjectivesPanel(app);
 
@@ -1183,7 +1166,7 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, shopPanel.root, empirePanel.root, walkOverlay, laptopUi.root, objectivesPanel.root, viewToggle,
+  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, laptopUi.root, objectivesPanel.root, viewToggle,
     el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · 🗂 Manage or E/G/C/M keys for the desks · V: view · Space: pause · Tab/Esc: back on foot' }));
 
   uiRoot.append(menu.root, gameUi);

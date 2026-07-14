@@ -2391,3 +2391,31 @@ Verified live with REAL CURSOR CLICKS, zero console errors, 220/220:
   sheet refused with "That day is already gone." Fixed, re-verified.)
 - Esc: lid closes, camera returns, pointer re-locks. Clock had a float-minute
   artifact (10:20.27899… AM) — floored, both on the portal and the 3D lid.
+
+## 2026-07-13 — Steps 9–10: the top bar is gone — minimal simulator HUD
+
+hud.js rewrote from the strip+Manage-dock into TWO corner chips: 💰 cash and
+the clock (date · time · speed glyph; clicking it cycles pause→1×→4×→16× as
+the one mouse affordance for time — Space/1/2/3 stay the fast path). Nothing
+else is permanent. shopPanel.js is deleted — the laptop replaced its every
+function. Verified live: no .hud, no .manage-dock in the DOM; chips read
+"$75,506" and "Y1 · Spring · Day 22 · 10:18 AM ▶" (qa/hud-minimal-walk.jpeg,
+qa/pause-menu.jpeg).
+
+RE-HOMING MAP — every former top-bar/dock action's new access point:
+- Cash / date / speed strip → the two corner chips (chip click or Space/1/2/3).
+- 🛍 Pro shop desk (orders/pricing/tee/summary tabs) → THE LAPTOP in the
+  office: Supplier / Pro Shop / Tee Sheet / Finances / Course pages.
+- 🏢 Empire (M) → M key (walk+overview) + Esc office menu "Empire overview".
+- 🏛 Club office (C) → C key. In-world surface candidate for a later pass.
+- ⛳ Grounds (G) → G key. Its in-world surface (a maintenance board in the
+  stockroom) is queued with the physical-retail step.
+- 🚧 Course works (E, overview-only) → the office WALL MAP ([E] → overview
+  camera) then E, unchanged inside the overview.
+- ☰ menu → Esc (office menu: resume/empire/save×3/load×3/CONTROLS/sound/
+  difficulty/quit-to-menu). A Controls reference block was added to it.
+- Weather/date detail → laptop Course page; club name → laptop status bar
+  and the wall wordmark.
+Deliberate: G/C/M hotkey panels keep their existing dark-panel styling this
+pass — they are management desks, not diegetic screens; restyling them into
+in-world surfaces is future work noted in KNOWN_ISSUES.
