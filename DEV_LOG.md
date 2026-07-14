@@ -2177,3 +2177,94 @@ average footprints with a work-order phrase ("Footprints 28 — needs raking" /
 "churned up; bring the rake" / "Sand raked smooth."), tying the rake loop
 into the game's oldest inspection flow. Verified live on a 28-footprint
 bunker. Zero console errors. Suite 212/212.
+
+## 2026-07-13 — SUPERSEDING BRIEF: the seamless clubhouse / pro-shop simulator overhaul — Steps 1–3 (audit, before shots, the house asset)
+
+A new superseding brief landed: turn the clubhouse into a seamless, physical,
+fully interactive golf pro shop — one continuous world (no P-key scene swap),
+real hinged E-operated doors, a real navigable laptop replacing the desk panel,
+the permanent top bar removed, a believable pro-shop floor plan, a physical
+order→boxes→stock→sell retail loop, and a four-stage renovation arc. This
+entry covers the brief's required steps 1–3.
+
+### Step 1 — repository & asset audit (architecture)
+
+Current shape (mapped file-by-file; the refactor targets in bold):
+- **Two scenes, one renderer**: courseScene.js (2666 lines, yards, walk eye
+  1.75 / speed 3.4 / r 0.34) and shopScene.js (1694 lines, SAME conventions,
+  14×10×3.4 room). P swaps `app.view` course↔shop3d — **the fake transition
+  this brief eliminates.**
+- The course clubhouse is a **solid 26×16 shell** (no interior; hardcoded
+  13.2/8.2 AABB; door slab auto-swings on proximity, no collision change).
+- The shop room's entire contents (grime canvas, clutter, decor ghosts,
+  vacuum, stock silhouettes, customers+queue, register check-in, computer)
+  mutate state ONLY through sim functions — **coordinate-parameterized and
+  portable into the course-scene building as-is** (the port map is in the
+  session notes; both scenes share yaw/forward conventions).
+- UI: permanent top strip (club·date·speed·cash·Manage dock·☰) + 5 left
+  panels + shopPanel tabs. **Dock and strip go; systems re-home to the
+  laptop portal / in-world surfaces** (documented mapping to come with the
+  UI step).
+- Save pipeline: empireSnapshot → per-holding snapshot(); `ensureX(state)`
+  migration pattern in deserialize — new physical-retail state will follow it.
+
+### Step 1 — asset inventory (REAL numbers, re-measured today via gltf-transform)
+
+All Tripo GLBs: GLB 2.0, single mesh/single material, baked 4096² baseColor+
+normal+metallicRoughness JPEG triplet, unit-normalized scale (game scales per
+use), clean topology/UVs/normals for their purpose (baked shells), import
+clean in three r185. Per-asset (tris / verts / decision):
+
+| Asset (vendor/models) | Tris | Verts | Used as | Decision |
+|---|---|---|---|---|
+| tractor_red | 59,533 | 40,918 | restored drivable tractor | keep |
+| tractor_broken | 68,221 | 47,139 | broken starter (code-dressed) | keep |
+| mower_deck | 17,847 | 15,292 | hitched deck | keep |
+| shed | 54,074 | 38,639 | maintenance yard | keep |
+| workbench / tool_chest | 14,107 / 16,826 | — | yard chores | keep |
+| gas_can / belt / leaves_pile | 20,228 / 16,376 / 19,435 | — | chores + litter | keep |
+| hose_nozzle / hand_fork / bucket_soil / rake | ~20k ea | — | held tools | keep |
+| tee_sign_broken / course_sign | 20,006 / 17,692 | broken→restored tee sign | keep |
+| club_sign | 15,407 | 15,089 | stone entrance sign | keep |
+| flagpole | 19,396 | 13,208 | per-hole flagsticks | keep |
+| tee_markers | 25,338 | 16,799 | tee-marker pairs | keep |
+| golf+cart (Assets, unstaged) | 48,073 | 32,824 | none yet | **integrate this arc** as a parked ambient cart by the clubhouse (second-drivable stays future) |
+| clubhouse_ext (= the house) | 333,867 | 192,764 | none (kept out 07-10) | **optimized + integrated this arc — see Step 3** |
+| tractor (scripted fallback) | 12 | 24 | fallback | keep |
+
+**Perf finding for the later perf pass:** every Tripo asset carries the full
+4096² texture triplet (~268 MB VRAM each, uncompressed upload). The game
+survives because most stay off-screen, but a batch 1024² resize of prop
+textures (like the one applied to the house today) is now on the
+performance-pass list — measured, not guessed.
+
+### Step 2 — before screenshots (qa/)
+
+before-exterior-approach.jpeg (the solid shell + fake door + top bar +
+"Back to the shop (P)" button), before-int-entrance / -checkout / -clubwall
+(the 14×10 room), before-desk-and-topbar.jpeg (computer + open Manage dock).
+
+### Step 3 — the house asset: the serious effort, with numbers
+
+Blender bridge probe: blender-mcp addon not running in this environment →
+the surgery ran headlessly via gltf-transform (same steps the brief lists):
+weld → meshopt simplify (ratio 0.2, err 0.001) → texture resize 4096→1024.
+**333,867 tris / 13.1 MB / 268 MB VRAM → 66,762 tris / 2.57 MB / ~17 MB VRAM**
+(vendor/models/clubhouse_ext_opt.glb; the untouched original stays in
+Assets/ and vendor/models/clubhouse_ext.glb).
+
+Why it still cannot be the ENTERABLE clubhouse (verified, not assumed): it
+is ONE watertight baked mesh — 1 primitive, no separable door/wall parts, no
+interior surfaces (the "inside" is the untextured back of the exterior
+shell), plus the known residential silhouette and baked landscaping bed.
+Cutting a doorway would open into nothing. Per the brief's own fallback
+clause, the enterable clubhouse will be a purpose-built replacement matching
+its proportions and the style guide (cream/sage, gabled), with exterior and
+interior sharing one wall geometry so they align by construction.
+
+**The house is NOT silently dropped**: the optimized 66.8k version ships
+this arc as a real building on the property (the groundskeeper's residence
+on the entrance approach, on a flat pad so its baked garden bed reads as its
+own yard). Placement lands with the world-build step.
+
+Next: steps 4–7 — the seamless building + real doors + the floor plan.

@@ -94,9 +94,13 @@ In use (vendor/models/ name ← Assets source):
 - club_sign.glb ← golf+club+sign — the stone entrance sign (weathered by code)
 - flagpole.glb — per-hole flagsticks (Task-1 finding: it was never a pennant)
 - tee_markers.glb ← golf+swing+prop — the tee-marker pair on every open tee
-- clubhouse_ext.glb ← house — evaluated, NOT shipped (334k tris, residential
-  silhouette, baked landscaping vs terrain; see KNOWN_ISSUES)
-- golf+cart — unused bonus, staged
+- clubhouse_ext.glb ← house — original preserved unmodified; 2026-07-13 an
+  optimized game-ready export shipped as clubhouse_ext_opt.glb (gltf-transform
+  weld + meshopt simplify 0.2 + 1024² textures: 333,867→66,762 tris, 13.1→2.57
+  MB) and is placed as the groundskeeper's residence on the entrance approach.
+  It cannot be the enterable clubhouse (single watertight baked mesh, no
+  interior/door parts — verified); the enterable building is purpose-built.
+- golf+cart — staged for this arc: parked ambient cart by the clubhouse
 
 vendor/models/tractor.glb is an original bpy-scripted fallback (project-owned).
 The rigged-character GLB attempt failed at the Blender 5.1 → three r185 skin
