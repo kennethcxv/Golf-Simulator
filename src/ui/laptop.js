@@ -185,8 +185,14 @@ export function makeLaptop(app, opts) {
           qtyOut.textContent = String(q);
           render(); // refresh totals
         };
+        // real rendered product imagery when the 3D scene is up; icon fallback
+        const ch = app.scene3d && app.scene3d.clubhouse && app.scene3d.clubhouse();
+        const thumbUrl = ch && ch.productThumb ? ch.productThumb(s) : null;
+        const art = thumbUrl
+          ? el('img', { class: 'lt-prodimg', src: thumbUrl, alt: s.name })
+          : el('div', { class: 'lt-prodicon', text: CAT_ICON[cat] });
         return el('div', { class: 'lt-product' },
-          el('div', { class: 'lt-prodicon', text: CAT_ICON[cat] }),
+          art,
           el('div', { class: 'lt-prodname', text: s.name }),
           el('div', { class: 'lt-prodmeta', text: `cost ${formatMoney(s.cost)}${s.msrp ? ` · book ${formatMoney(s.msrp)}` : ''}${s.finish ? ` · finish +${s.finish}` : ''}` }),
           el('div', { class: 'lt-prodmeta', text: `on hand: ${owned.shelf + owned.back}` }),

@@ -609,6 +609,7 @@ input[type="range"] { accent-color: var(--accent); }
 .lt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 6px; }
 .lt-product { background: #fdfbf4; border: 1px solid #ded7c2; border-radius: 8px; padding: 10px; text-align: center; }
 .lt-prodicon { font-size: 1.5rem; }
+.lt-prodimg { width: 72px; height: 72px; object-fit: contain; display: block; margin: 0 auto; }
 .lt-prodname { font-weight: 600; font-size: 0.86rem; margin-top: 4px; }
 .lt-prodmeta { font-size: 0.76rem; color: #8a8577; margin-top: 2px; }
 .lt-qtyrow { display: flex; gap: 8px; justify-content: center; align-items: center; margin-top: 8px; }

@@ -39,6 +39,7 @@ import { buildDoors } from './clubhouse/doors.js';
 import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } from './clubhouse/fixtures.js';
 import { buildDirt } from './clubhouse/dirt.js';
 import { makeNav } from './clubhouse/nav.js';
+import { productThumb } from './clubhouse/thumbs.js';
 
 const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
@@ -2345,6 +2346,7 @@ export function makeClubhouse(ctx) {
     laptopScreen: (mode) => office.paintScreen && office.paintScreen(mode),
     laptopScreenCorners: () => (office.screenCorners ? office.screenCorners() : null),
     confirmChange: () => regConfirmChange(), // [R] hands over counted change (Realistic)
+    productThumb: (sku) => productThumb(sku), // rendered supplier-card imagery
     condition: () => conditionNow,
     setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),
     customers, doors, // QA access
