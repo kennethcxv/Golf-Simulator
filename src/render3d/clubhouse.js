@@ -469,10 +469,10 @@ export function makeClubhouse(ctx) {
     interior.add(desk);
     addCol(colBoxAt(OFFICE.desk.x, OFFICE.desk.z, 1.1, 2.0));
 
-    // task chair (ref 10) — was a black blob; modelled now, with a gas lift, a
-    // five-star base and casters
+    // task chair (ref 10) — a real green-leather executive chair (Tripo scan) with a
+    // gas lift, five-star base and casters, replacing the procedural block.
     merch.onReady(() => {
-      const chair = merch.instantiate('chair_office', { tint: 0x3c4a3e });
+      const chair = merch.instantiateRaw('office_chair');
       if (!chair) return;
       chair.position.set(OFFICE.chair.x, 0, OFFICE.chair.z);
       chair.rotation.y = -Math.PI / 2;

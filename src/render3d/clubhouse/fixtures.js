@@ -644,7 +644,7 @@ export function buildLounge(B) {
     addCol(colBoxAt(spot.x, spot.z, 0.95, 0.95));   // the collider does not wait
     if (!merch) return;
     merch.onReady(() => {
-      const model = merch.instantiate('chair_lounge', { tint: 0x9a5f33 });
+      const model = merch.instantiateRaw('armchair');
       if (!model) return;
       model.position.set(spot.x, 0, spot.z);
       model.rotation.y = spot.ry;

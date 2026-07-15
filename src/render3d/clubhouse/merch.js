@@ -35,6 +35,14 @@ const FILES = [
   'basket', 'bag_open', 'impulse_rack', 'divider',
 ];
 
+// Textured HERO props (Tripo scans, normalised by tools/blender/process_tripo.py).
+// Unlike FILES, these KEEP their own baked PBR atlas material. They are placed as
+// singletons (a pair of chairs, one card terminal, one gondola), so the material-count
+// discipline that instantiate() enforces buys nothing here and would only throw away
+// the fidelity that is the whole point of using a real scan. Loaded the same way,
+// handed out by instantiateRaw(), never slot-swapped.
+const RAW = ['armchair', 'office_chair'];
+
 // Which slot in the GLB maps to which material in the clubhouse kit.
 const SLOT = {
   M_rubber: 'merchRubber',
@@ -109,6 +117,18 @@ export function createMerch(mats) {
     return obj;
   }
 
+  // A textured hero prop: clone (which shares geometry AND the baked material by
+  // reference, so ten instances cost ten draw calls and exactly ONE material) with no
+  // slot remapping — the Tripo atlas is left exactly as authored.
+  function instantiateRaw(name, { scale = 1 } = {}) {
+    const proto = protos.get(name);
+    if (!proto) return null;
+    const obj = proto.clone(true);
+    obj.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+    if (scale !== 1) obj.scale.setScalar(scale);
+    return obj;
+  }
+
   // find the mesh that came from a given Blender material slot
   function slotMesh(obj, slot) {
     let hit = null;
@@ -163,7 +183,7 @@ export function createMerch(mats) {
   }
 
   const loader = new GLTFLoader();
-  let pending = FILES.length;
+  let pending = FILES.length + RAW.length;
   const done = () => {
     if (--pending > 0) return;
     ready = true;
@@ -183,9 +203,23 @@ export function createMerch(mats) {
       () => done(), // a missing model must not wedge the shop; it just won't show
     );
   }
+  for (const name of RAW) {
+    loader.load(
+      `vendor/models/clubhouse/${name}.glb`,
+      (g) => {
+        const root = g.scene;
+        root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+        protos.set(name, root);
+        done();
+      },
+      undefined,
+      () => done(),
+    );
+  }
 
   return {
     instantiate,
+    instantiateRaw,
     slotMesh,
     bake,
     isReady: () => ready,
