@@ -1,9 +1,10 @@
-# SESSION STATE — the visual production pass
+# SESSION STATE — the P0 foundation overhaul
 
 Resume from this file. Never rely on conversation memory.
 
-- **Branch** `main` · **Tests 496 green** — run `node --test` **from the repo root only**
+- **Branch** `main` · **Tests 505 green** — run `node --test` **from the repo root only**
 - **Dev server** `node tools/serve.cjs`, port **8457**
+- **The P0 foundation overhaul, in full:** `FOUNDATION_OVERHAUL_AUDIT.md` — the collision / placement / navigation baseline (most already existed & tested) + the D1/D2 fixes + the prioritised P0 backlog
 - **The visual pass, in full:** `VISUALS.md` — the Tripo asset pipeline and every prop it touched
 - **The asset baseline & audit:** `ASSET_PRODUCTION_AUDIT.md` — the honest before-state
 - **The delivery loop, in full:** `DELIVERY.md` — read that before touching boxes, stocking or supply
@@ -11,7 +12,31 @@ Resume from this file. Never rely on conversation memory.
 - **The register, in full:** `REGISTER.md` — read that before touching the counter
 - **Evidence** `qa/assets/v2-*`, `qa/register/`, `qa/delivery/`, `qa/laptop/` (qa/ is gitignored)
 
-## What shipped THIS session — the visual production pass
+## What shipped THIS session — the P0 foundation overhaul
+
+The brief put collision / placement / navigation / inventory as P0, ahead of assets and UI.
+Recon found most of that foundation **already built and tested** — `validatePlacement`
+(`sim/layout.js`), `unstick.js`, `nav.js` (A\*), `sweptBy` (`doorMath.js`), and a real build
+mode with a green/red ghost. So this session closed the two most player-visible **holes** in
+those systems rather than rebuilding. Full baseline + prioritised backlog in
+`FOUNDATION_OVERHAUL_AUDIT.md`.
+
+| Commit | What |
+|--------|------|
+| `bd93aec` | **A set-down box occupies real space (D1)** — `legalBoxDrop` refuses walls/fixtures/doorways/other boxes and snaps to the nearest legal spot; `rebuildBoxes` registers a box collider, so a world box is solid to the player AND baked into the customer nav grid (same collider list). 9 new tests. |
+| `3ca6c60` | **A door won't close through the player (D2)** — the player is now a first-class actor in the swept-arc guard `doorBlockedBy`, closing the wide main door's swing-tip gap (arc 2.35yd vs the old 2.0yd radial gate). |
+
+Both verified in-browser on the live game (box: an open cell blocks the moment a box lands, free
+again just aside; door: held open through a player parked at the 2.06yd swing tip, closes when
+they step clear). **505 tests green** (was 496 + 9 new). Evidence: `qa/foundation-overhaul/{before,after}/`.
+
+**Next P0** (from the audit, deferred, higher-effort): D3 doors invisible to the customer
+pathfinder (customers stall at shut doors); D4 player/other customers not in the nav bake
+(shoving); D5 decor/dressing placement unvalidated (latent); D6 two disagreeing walkability
+models + render-collider drift. Then P1 (tool wheel, real inventory, physical vacuum pickup)
+and P2 (cohesive UI, characters).
+
+## What shipped a prior session — the visual production pass
 
 | Commit | What |
 |--------|------|
