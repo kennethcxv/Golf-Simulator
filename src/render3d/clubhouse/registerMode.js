@@ -274,19 +274,36 @@ export function createRegisterMode(B) {
   // product label into mush last session, and the same fix: never trust an atlas UV to
   // carry a 0..1 image. A PlaneGeometry has clean 0..1 UVs by construction.
   //
-  // The transforms below reproduce build_props.py exactly. The register's screen is
-  // tilted 0.18 rad; the card terminal's faces up and 0.34 rad toward the customer,
-  // which after the Z-up -> Y-up export is a single -(PI/2 + 0.34) rotation about X.
+  // The live transaction canvases ride the Tripo devices' real screens, whose pose was
+  // MEASURED off the atlas geometry (tools/blender/measure_screens.py: the screen is the
+  // largest flat panel facing out) rather than guessed. orientPlane lays the plane's +Z
+  // along the measured glass normal, so the canvas sits flat on the screen at whatever
+  // tilt the scan modelled, and — being parented to the prop — rides its rotation too.
+  function orientPlane(p, cx, cy, cz, nx, ny, nz) {
+    p.position.set(cx, cy, cz);
+    // Build the plane's basis against world-up, not an arbitrary one: aligning +Z to the
+    // normal with setFromUnitVectors leaves a free ROLL, which tilted the screen text ~10
+    // deg off the bezel. Projecting world-up onto the glass fixes the plane's own up.
+    const n = new THREE.Vector3(nx, ny, nz).normalize();
+    let up = new THREE.Vector3(0, 1, 0);
+    if (Math.abs(n.dot(up)) > 0.97) up = new THREE.Vector3(0, 0, 1);   // glass facing straight up
+    const right = new THREE.Vector3().crossVectors(up, n).normalize();
+    const up2 = new THREE.Vector3().crossVectors(n, right).normalize();
+    p.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up2, n));
+    p.translateZ(0.006);   // a hair proud of the glass, so it never z-fights the bezel
+  }
   function attachScreen(reg) {
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.20), screenMaterial);
-    p.rotation.x = 0.18;
-    p.position.set(0, 0.2613, 0.0659);   // the screen face, +4mm along its own normal
+    // kiosk glass: measured centre (0.019, 0.315, 0), normal (0.84, 0.54, 0). The prop
+    // is placed at ry -PI/2 so this swings round to face the staff, tilted up.
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.225), screenMaterial);
+    orientPlane(p, 0.019, 0.315, 0.0, 0.84, 0.54, 0.0);
     reg.add(p);
   }
   function attachTerm(t) {
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(0.072, 0.046), termMaterial);
-    p.rotation.x = -(Math.PI / 2 + 0.34);
-    p.position.set(0, 0.0758, -0.037);
+    // card-reader glass: measured centre (0.004, 0.057, -0.049), normal ~(0, 0.05, -1),
+    // facing the customer at ry 0.
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(0.062, 0.044), termMaterial);
+    orientPlane(p, 0.004, 0.057, -0.049, 0.0, 0.05, -1.0);
     t.add(p);
   }
 

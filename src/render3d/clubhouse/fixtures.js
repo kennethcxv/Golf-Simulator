@@ -888,11 +888,17 @@ export function buildCheckout(B) {
   // is a function of the transaction, not of the furniture.
   // deferred: the models land well after the shop is built
   if (merch) merch.onReady(() => {
+    // the register monitor and the card reader are real Tripo scans now (they keep
+    // their own PBR atlas via instantiateRaw); the scanner and printer stay procedural.
+    // The kiosk's glass faces its own +x, so it is turned -PI/2 to face the staff — the
+    // layout's monitor.ry 0 was calibrated to the OLD model, whose screen faced +z.
+    const RAW_PROP = { register: 'kiosk', cardterm: 'cardterm_pro' };
+    const RAW_RY = { register: -Math.PI / 2 };
     const placeProp = (name, spec, ry) => {
-      const o = merch.instantiate(name);
+      const o = RAW_PROP[name] ? merch.instantiateRaw(RAW_PROP[name]) : merch.instantiate(name);
       if (!o) return null;
       o.position.set(spec.x, COUNTER_TOP, spec.z);
-      o.rotation.y = ry !== undefined ? ry : (spec.ry || 0);
+      o.rotation.y = ry !== undefined ? ry : (name in RAW_RY ? RAW_RY[name] : (spec.ry || 0));
       interior.add(o);
       return o;
     };

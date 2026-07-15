@@ -41,7 +41,7 @@ const FILES = [
 // discipline that instantiate() enforces buys nothing here and would only throw away
 // the fidelity that is the whole point of using a real scan. Loaded the same way,
 // handed out by instantiateRaw(), never slot-swapped.
-const RAW = ['armchair', 'office_chair'];
+const RAW = ['armchair', 'office_chair', 'cardterm_pro', 'kiosk'];
 
 // Which slot in the GLB maps to which material in the clubhouse kit.
 const SLOT = {
