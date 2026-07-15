@@ -50,16 +50,26 @@ collider (footprint from `boxDims`) and bumps the collider version so the nav gr
 **Verification:** new `tests/box-placement.test.js` (pure); after-evidence screenshot of the
 box snapped to a legal spot; live check that `propColliders` gains a box collider.
 
-### D2 — A door can close through the player *(FIXING THIS SESSION)*
+### D2 — A door can close through the player *(FIXED THIS SESSION)*
 **Complaint:** #9 player becomes stuck in a door.
-**Root cause:** `src/render3d/clubhouse/doors.js:305-317` `doorBlockedBy()` gates the auto-close
-and manual close against **customers and boxes only** — the player is deliberately excluded
-(the sole backstop is a bespoke radial push at `doors.js:373-391` that only runs while the
-slab is actively animating and does not consult `unstick.js`'s real depenetration).
-**Planned fix:** include the player's body in `doorBlockedBy()` via the existing `sweptBy`
-predicate, so a door holds open while the player stands in its swing.
-**Verification:** extend `tests/door-occupancy.test.js`; after-evidence of the door held open
-with the player in the threshold.
+**Root cause (as found, more precise than first thought):** `doorBlockedBy()`
+(`doors.js:305-317`) — the *precise* swept-arc guard that keeps a door from shutting through an
+actor — checked **customers and boxes only**, not the player. The player was held instead by a
+**coarse 2.0yd radial gate** on the close decision (`doors.js:361`). That gate is adequate for
+the two narrow service doors (measured swing reach 1.65yd and 1.95yd from centre) but **not for
+the wide main entrance**: its swing arc reaches **2.35yd** from the door centre, so a player
+standing in the outer ~0.35yd of that arc was protected by neither the gate nor the swept guard
+— the only backstop was the radial push at `doors.js:373-391`, which shoves the player (and can
+push them into a wall, since it does not consult `unstick.js`).
+**Fix:** the player is now a first-class actor in `doorBlockedBy()`, held by the same `sweptBy`
+guard as customers and boxes (`if (walk.active) … sweptBy(d, playerLocal, walk.radius)`). The
+2.0yd gate and the push-out stay as belt-and-braces.
+**Verification (in-browser, live loop):** scan confirmed the main door's arc reaches 2.35yd
+(> the 2.0yd gate) while the service doors stay within it. End-to-end: with the main door open
+and its close timer expired, a player parked at the 2.06yd swing tip **held the door open**
+(angle 1.92, player unmoved); the `sweptBy` predicate returns true at the tip and false when the
+player is clear, so the hold is discriminating — the door still closes normally when the player
+steps away. The pure predicate is already covered by `tests/door-occupancy.test.js`.
 
 ### D3 — Doors are invisible to the customer pathfinder *(deferred, next P0)*
 `clubhouse.js:2527` bakes the nav grid from `custCols.filter(c => !c.door)` and

@@ -299,10 +299,17 @@ export function buildDoors(B) {
   const custMotion = new WeakMap();
 
   // "Never close through an actor." A door may only shut through empty air: not a customer
-  // standing in it (too still to read as "heading through", too far to read as "in it"), and not
-  // a delivery box set down in the threshold. The player is handled by the radial push-out below,
-  // which physically moves them out of the slab's arc rather than refusing to move the slab.
+  // standing in it (too still to read as "heading through", too far to read as "in it"), not a
+  // delivery box set down in the threshold, and not the player. The player used to be left to the
+  // radial push-out below (which shoves them out of the arc); but that is a correction after the
+  // fact, and the coarse 2.0yd proximity gate that also held the door misses the far tip of the
+  // wide main door's swing (reach ~2.7yd from the door centre). So the player is an actor here
+  // too, held by the same precise swept-arc test as everyone else; the push-out stays as a backstop.
   function doorBlockedBy(d) {
+    if (walk.active) {
+      const lp = W2L(walk.x, walk.z);
+      if (sweptBy(d, lp.x, lp.z, walk.radius || 0.34)) return 'player';
+    }
     for (const c of getCustomers()) {
       const lp = W2L(c.mesh.position.x, c.mesh.position.z);
       if (sweptBy(d, lp.x, lp.z, 0.32)) return 'customer';
