@@ -483,8 +483,8 @@ export function makeClubhouse(ctx) {
     // backing panel with thickness, mitered frame lip, map face proud of the
     // backer. Mounted on actual wall so no side ever shows a floating plane.
     const mapCanvas = document.createElement('canvas');
-    mapCanvas.width = 240;
-    mapCanvas.height = 160;
+    mapCanvas.width = 600;
+    mapCanvas.height = 400;
     const mapTex = new THREE.CanvasTexture(mapCanvas);
     mapTex.colorSpace = THREE.SRGBColorSpace;
     const mapBoard = new THREE.Group();
@@ -515,20 +515,30 @@ export function makeClubhouse(ctx) {
     const redrawCourseMap = () => {
       const course = state.course;
       const c2 = mapCanvas.getContext('2d');
-      c2.fillStyle = '#2a3324';
-      c2.fillRect(0, 0, 240, 160);
-      const sx = 240 / course.w;
-      const sy = 160 / course.h;
+      const W = 600, H = 400, M = 24, TOP = 48;
+      c2.fillStyle = '#efe7d2'; c2.fillRect(0, 0, W, H);          // parchment mount
+      c2.fillStyle = '#1f4a2e'; c2.fillRect(0, 0, W, TOP);        // title band
+      c2.fillStyle = '#efe7d2'; c2.textBaseline = 'middle';
+      c2.font = 'bold 23px Georgia, serif'; c2.fillText('PINEHOLLOW GOLF CLUB', 20, TOP / 2 - 1);
+      c2.font = 'italic 13px Georgia, serif'; c2.textAlign = 'right'; c2.fillText('COURSE MAP', W - 20, TOP / 2);
+      c2.textAlign = 'left';
+      const x0 = M, y0 = TOP + 12, iw = W - M * 2, ih = H - y0 - M;
+      const sx = iw / course.w, sy = ih / course.h;
       for (let y = 0; y < course.h; y++) {
         for (let x = 0; x < course.w; x++) {
           c2.fillStyle = MAP_COLORS[course.zones[y * course.w + x]] || '#46543a';
-          c2.fillRect(x * sx, y * sy, sx + 0.5, sy + 0.5);
+          c2.fillRect(x0 + x * sx, y0 + y * sy, sx + 0.6, sy + 0.6);
         }
       }
-      c2.fillStyle = '#d84b3a';
-      for (const h of state.course.holes) {
-        if (h.pin) c2.fillRect(h.pin.x * sx - 1, h.pin.y * sy - 1, 3, 3);
-      }
+      c2.font = 'bold 12px Arial';
+      state.course.holes.forEach((h, i) => {
+        if (!h.pin) return;
+        const px = x0 + h.pin.x * sx, py = y0 + h.pin.y * sy;
+        c2.fillStyle = '#d84b3a'; c2.beginPath(); c2.arc(px, py, 4.5, 0, 7); c2.fill();
+        c2.fillStyle = '#efe7d2'; c2.strokeStyle = '#22331e'; c2.lineWidth = 2.5;
+        c2.strokeText(String(i + 1), px + 6, py); c2.fillText(String(i + 1), px + 6, py);
+      });
+      c2.strokeStyle = '#8a7a52'; c2.lineWidth = 3; c2.strokeRect(x0 - 5, y0 - 5, iw + 10, ih + 10);
       mapTex.needsUpdate = true;
     };
     redrawCourseMap();
@@ -832,13 +842,31 @@ export function makeClubhouse(ctx) {
       board.position.set(0, y, 0);
       shelf.add(board);
     }
+    // trophies — were plain gold cylinders; a real cup has a bowl, a stem, a base
+    // and two handles, which is what the audit asked for (ref 8).
+    const goldMat = new THREE.MeshStandardMaterial({ color: 0xd8b23a, metalness: 0.85, roughness: 0.26 });
+    const plinthMat = new THREE.MeshStandardMaterial({ color: 0x2a2118, roughness: 0.6 });
     for (let i = 0; i < 3; i++) {
-      const cup = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.05, 0.075, 0.2, 8),
-        new THREE.MeshStandardMaterial({ color: 0xc9a227, metalness: 0.7, roughness: 0.3 }),
-      );
-      cup.position.set(-0.5 + i * 0.5, 1.63, 0);
-      shelf.add(cup);
+      const t = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.066, 0.036, 14), plinthMat);
+      base.position.y = 0.018;
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.055, 10), goldMat);
+      stem.position.y = 0.064;
+      const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.02, 0.085, 14, 1, true), goldMat);
+      bowl.position.y = 0.134;
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.006, 6, 16), goldMat);
+      rim.rotation.x = Math.PI / 2; rim.position.y = 0.176;
+      t.add(base, stem, bowl, rim);
+      for (const sgn of [-1, 1]) {
+        const h = new THREE.Mesh(new THREE.TorusGeometry(0.019, 0.005, 6, 12, Math.PI), goldMat);
+        h.position.set(sgn * 0.05, 0.146, 0);
+        h.rotation.set(Math.PI / 2, 0, sgn > 0 ? -Math.PI / 2 : Math.PI / 2);
+        t.add(h);
+      }
+      t.castShadow = true;
+      t.scale.setScalar(0.85 + (i % 2) * 0.22);
+      t.position.set(-0.5 + i * 0.5, 1.55, 0);
+      shelf.add(t);
     }
     const mags = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.3), new THREE.MeshStandardMaterial({ color: 0x3b6fb3, roughness: 0.8 }));
     mags.position.set(0.4, 1.09, 0);
@@ -847,17 +875,38 @@ export function makeClubhouse(ctx) {
     shelf.rotation.y = LOUNGE.trophy.ry;
     interior.add(shelf);
 
+    // A framed photograph of the home course — was a flat two-stop gradient with a
+    // 2px flag. A painterly landscape now: warm sky, clouds, a tree line, a fairway
+    // sweeping in mown stripes to a green with the pin and a bunker beside it.
     const photoCv = document.createElement('canvas');
-    photoCv.width = 128; photoCv.height = 80;
+    photoCv.width = 480; photoCv.height = 304;
     const pc = photoCv.getContext('2d');
-    const grad = pc.createLinearGradient(0, 0, 0, 80);
-    grad.addColorStop(0, '#8fd0f0');
-    grad.addColorStop(0.55, '#bfe0f5');
-    grad.addColorStop(0.56, '#5c8f3f');
-    grad.addColorStop(1, '#7cb257');
-    pc.fillStyle = grad; pc.fillRect(0, 0, 128, 80);
-    pc.fillStyle = '#f2efe4'; pc.beginPath(); pc.arc(97, 60, 2.2, 0, 7); pc.fill();
-    pc.fillStyle = '#d84b3a'; pc.fillRect(96, 40, 2, 18);
+    const sky = pc.createLinearGradient(0, 0, 0, 180);
+    sky.addColorStop(0, '#7fb4e6'); sky.addColorStop(0.7, '#c3e2f2'); sky.addColorStop(1, '#e9f2ec');
+    pc.fillStyle = sky; pc.fillRect(0, 0, 480, 180);
+    pc.fillStyle = 'rgba(255,255,255,0.75)';
+    for (const [cx, cy, r] of [[92, 46, 24], [122, 52, 32], [154, 46, 20], [332, 34, 26], [368, 42, 36], [402, 34, 22]]) {
+      pc.beginPath(); pc.ellipse(cx, cy, r, r * 0.58, 0, 0, 7); pc.fill();
+    }
+    pc.fillStyle = '#3f5f3a';   // rolling tree line
+    pc.beginPath(); pc.moveTo(0, 180);
+    for (let x = 0; x <= 480; x += 20) pc.lineTo(x, 156 + Math.sin(x * 0.045) * 13 - (x % 60 < 20 ? 8 : 0));
+    pc.lineTo(480, 180); pc.closePath(); pc.fill();
+    const turf = pc.createLinearGradient(0, 176, 0, 304);
+    turf.addColorStop(0, '#6fa049'); turf.addColorStop(1, '#8cbf5f');
+    pc.fillStyle = turf; pc.fillRect(0, 174, 480, 130);
+    pc.fillStyle = '#5c8340';   // rough framing the fairway
+    pc.beginPath(); pc.moveTo(0, 178); pc.lineTo(150, 178); pc.lineTo(0, 304); pc.closePath(); pc.fill();
+    pc.beginPath(); pc.moveTo(480, 178); pc.lineTo(336, 178); pc.lineTo(480, 304); pc.closePath(); pc.fill();
+    pc.strokeStyle = 'rgba(255,255,255,0.07)'; pc.lineWidth = 7;   // mowing stripes
+    for (let i = -3; i < 8; i++) { pc.beginPath(); pc.moveTo(240 + i * 12, 178); pc.lineTo(240 + i * 64, 304); pc.stroke(); }
+    pc.fillStyle = '#e6d5a2'; pc.beginPath(); pc.ellipse(300, 214, 32, 11, 0, 0, 7); pc.fill();   // bunker
+    pc.fillStyle = '#93cc66'; pc.beginPath(); pc.ellipse(232, 216, 46, 16, 0, 0, 7); pc.fill();    // green
+    pc.strokeStyle = '#39392f'; pc.lineWidth = 2; pc.beginPath(); pc.moveTo(232, 214); pc.lineTo(232, 174); pc.stroke();
+    pc.fillStyle = '#d84b3a'; pc.beginPath(); pc.moveTo(232, 174); pc.lineTo(254, 181); pc.lineTo(232, 189); pc.closePath(); pc.fill();
+    const vg = pc.createRadialGradient(240, 150, 70, 240, 150, 300);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(24,20,8,0.30)');
+    pc.fillStyle = vg; pc.fillRect(0, 0, 480, 304);
     const photoTex = new THREE.CanvasTexture(photoCv);
     photoTex.colorSpace = THREE.SRGBColorSpace;
     const photo = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.95), new THREE.MeshStandardMaterial({ map: photoTex, roughness: 0.85 }));
