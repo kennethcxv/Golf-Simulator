@@ -1,15 +1,32 @@
-# SESSION STATE — the delivery-to-shelf loop
+# SESSION STATE — the visual production pass
 
 Resume from this file. Never rely on conversation memory.
 
 - **Branch** `main` · **Tests 496 green** — run `node --test` **from the repo root only**
 - **Dev server** `node tools/serve.cjs`, port **8457**
+- **The visual pass, in full:** `VISUALS.md` — the Tripo asset pipeline and every prop it touched
+- **The asset baseline & audit:** `ASSET_PRODUCTION_AUDIT.md` — the honest before-state
 - **The delivery loop, in full:** `DELIVERY.md` — read that before touching boxes, stocking or supply
 - **The laptop, in full:** `LAPTOP.md` — read that before touching the office
 - **The register, in full:** `REGISTER.md` — read that before touching the counter
-- **Evidence** `qa/delivery/` and `qa/laptop/` (qa/ is gitignored)
+- **Evidence** `qa/assets/v2-*`, `qa/register/`, `qa/delivery/`, `qa/laptop/` (qa/ is gitignored)
 
-## What shipped THIS session — the physical delivery loop
+## What shipped THIS session — the visual production pass
+
+| Commit | What |
+|--------|------|
+| `074605c` | Tripo pipeline + real chairs (lounge armchairs, office task chair) |
+| `5b5e1eb` | Real POS touchscreen + card terminal at the till; live screens re-seated on real glass |
+| `f2e2aab` | Real shoes, caps, rangefinder on the shelves — baked to one draw call each |
+| `47b1d6d` | Office course map, lounge course photo, trophy cups |
+
+Nine owner-supplied Tripo scans folded onto the finished logic, render-only, 496 tests green.
+`tools/blender/process_tripo.py` keeps each scan's baked atlas via a new `merch.instantiateRaw`;
+repeated products still bake to one draw call, so mesh count (1235, was 1289) and materials
+(248, was 270) both went DOWN. Gondola (`display_shelf.glb`) + headcover processed but NOT
+placed — wiring the gondola as a functional fixture is a feature, not a polish (see VISUALS.md).
+
+## What shipped a prior session — the physical delivery loop
 
 | Commit | What |
 |--------|------|
@@ -102,14 +119,17 @@ tools/qa/laptop-{look,tour,cycle,persist}.js
    the customers and the checkout actors still do not.
 2. **Customers.** Still procedural primitives. The animation work lands on top of whatever replaces
    them, so do this first.
-3. **Distinct product models for accessories and decor.** Several SKUs share one kraft-carton model;
-   on the Supplier and Inventory pages a tee bag, a bag towel, a rangefinder and an umbrella are the
-   same picture. The clubs had the same problem and are fixed; this is one level down. (Note: the
-   in-box CONTENTS and the shelf stock are now distinct per line — this is only the thumbnails.)
-4. **The hand truck.** `STOCKROOM.handTruck` has a floor spot; the oversized-fixture-needs-a-hand-
+3. **The gondola.** `display_shelf.glb` is processed and ready; wiring it as a functional
+   accessories fixture is the next real asset job (new `kind`, carcass, slots, home-fixture
+   reassignment, customer pathing, build mode). See VISUALS.md for why it was left.
+4. **Laptop product THUMBNAILS.** `thumbs.js` builds simplified primitives, not the merch GLBs, so
+   the shop now shows a real shoe/cap/rangefinder while the Supplier/Inventory cards still show a
+   primitive or a kraft carton. Needs an async preload of the Tripo props into the thumb rig.
+5. **The hand truck.** `STOCKROOM.handTruck` has a floor spot; the oversized-fixture-needs-a-hand-
    truck rule is not enforced (a heavy crate just walks you slowly at 0.45×).
-5. **The basket.** Modelled and on the shop floor; customers do not use it.
-6. Card **timeout** exists in the register sim (`runCard(tx, {timeout:true})`, tested) but nothing
+6. **The basket.** Modelled and on the shop floor; customers do not use it.
+7. Card **timeout** exists in the register sim (`runCard(tx, {timeout:true})`, tested) but nothing
    in the game fires it — it needs a visible timer the player can watch.
-7. The office **wall map** is still a 240x160 canvas that reads as a green squiggle, and the lounge
-   course photograph is a flat gradient plane.
+
+Done this pass (was on this list): the office wall map (redrawn, titled), the lounge course photo
+(painterly landscape), the trophies (real cups), and the shoe/cap/rangefinder shelf models.
