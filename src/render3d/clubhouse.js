@@ -49,7 +49,7 @@ import { makeNav } from './clubhouse/nav.js';
 import { productThumb } from './clubhouse/thumbs.js';
 import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
-import { placedFixtures, ensureLayout } from '../sim/layout.js';
+import { placedFixtures, ensureLayout, legalBoxDrop } from '../sim/layout.js';
 import { buildBuildMode } from './clubhouse/buildMode.js';
 import { reviewFor, postReview } from '../sim/reviews.js';
 
@@ -1788,6 +1788,7 @@ export function makeClubhouse(ctx) {
   let carriedBoxMesh = null;
   let carriedGoodsMesh = null;
   const boxProps = new Map();   // id -> prop, reused across rebuilds so a hold survives a redraw
+  const boxCols = new Map();    // id -> { col, sig } — a set-down box is a real obstacle, tracked here
   let boxSig = '';
 
   // one shipping-label texture per box id (supplier, order #, weight, category, FRAGILE)
@@ -1979,6 +1980,7 @@ export function makeClubhouse(ctx) {
     }
 
     const seen = new Set();
+    const colSeen = new Set();   // world boxes that hold a live collider this pass
     if (d) {
       const stacks = { pad: 0, stock: 0 };
       for (const box of d.boxes) {
@@ -2012,10 +2014,31 @@ export function makeClubhouse(ctx) {
         let prop = boxProps.get(box.id);
         if (!prop) { prop = boxPropFor(box.id); boxProps.set(box.id, prop); }
         prop.x = wp.x; prop.z = wp.z; prop.lx = lx; prop.lz = lz;
+
+        // a set-down box occupies the floor: register a collider so the player AND the
+        // customer nav grid (which bakes from the same list) both treat it as solid. Only
+        // WORLD drops — the ones a player can put anywhere; pad/stock stacks sit at
+        // known-clear spots. The sig gate means a hold-to-cut (same spot) never re-bakes nav.
+        if (box.loc === 'world') {
+          const cdim = boxDims(box.box || 'carton');
+          const cswap = Math.abs(Math.sin(ry)) > 0.5;
+          const cw = cswap ? cdim.d : cdim.w;
+          const cd = cswap ? cdim.w : cdim.d;
+          const csig = `${lx.toFixed(2)},${lz.toFixed(2)},${cw.toFixed(2)},${cd.toFixed(2)}`;
+          colSeen.add(box.id);
+          const prevc = boxCols.get(box.id);
+          if (!prevc || prevc.sig !== csig) {
+            if (prevc) removeCol(prevc.col);
+            boxCols.set(box.id, { col: addCol(colBoxAt(lx, lz, cw, cd)), sig: csig });
+          }
+        }
       }
     }
     for (const [id, prop] of [...boxProps]) {
       if (!seen.has(id)) { removeProp(prop); boxProps.delete(id); }
+    }
+    for (const [id, entry] of [...boxCols]) {
+      if (!colSeen.has(id)) { removeCol(entry.col); boxCols.delete(id); }  // picked up, moved, or gone
     }
     boxSig = boxSignature();
   }
@@ -2139,7 +2162,11 @@ export function makeClubhouse(ctx) {
       if (cb) {
         const drop = boxDropSpot();
         const l = W2L(drop.x, drop.z);
-        putDownBox(state, cb.id, { x: l.x, z: l.z, ry: walk.yaw + 0.1 });
+        // refuse a drop into a wall/fixture/doorway/another box — snap to the nearest legal
+        // spot, or say so if there is genuinely no room in front of you.
+        const spot = legalBoxDrop(state, cb, l.x, l.z, walk.yaw + 0.1);
+        if (!spot) { say('No room to set it down here — turn around.', 'warn'); return; }
+        putDownBox(state, cb.id, spot);
         sfx('boxdown');
         rebuildBoxes();
         return;

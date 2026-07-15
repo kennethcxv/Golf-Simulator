@@ -14,6 +14,7 @@ import {
   FIXTURES, INTERIOR, PARTITIONS, COUNTER, DOOR_CLEARWAY, BACKDOOR_CLEARWAY,
   STOCKROOM, OFFICE, PLAYER_DIAM, STAFF_CORRIDOR_MIN, fixtureRect, queueSlot,
 } from '../data/shopLayout.js';
+import { boxDims } from '../data/boxes.js';
 
 export const GRID = 0.25; // placement snaps to this, in yards
 const R = PLAYER_DIAM / 2; // the body that has to get through the gaps
@@ -216,4 +217,88 @@ export function restoreFixture(state, id) {
   const L = ensureLayout(state);
   L.stored = L.stored.filter((s) => s !== id);
   return fixtureById(state, id);
+}
+
+// --- boxes as real objects ---------------------------------------------------------------
+// A carried carton, once set down, occupies floor like anything else — the same walls,
+// fixtures and doorways a shelf answers to, plus the boxes already on the floor. The size
+// comes from data/boxes.js (boxDims), so the collider the scene draws, the rules here and
+// the mesh all read one number.
+
+export function boxFootprint(box, x, z, ry = 0) {
+  const dim = boxDims(box && box.box);
+  const swap = Math.abs(Math.sin(ry || 0)) > 0.5;   // turned a quarter-turn
+  const hx = (swap ? dim.d : dim.w) / 2;
+  const hz = (swap ? dim.w : dim.d) / 2;
+  return { minX: x - hx, maxX: x + hx, minZ: z - hz, maxZ: z + hz };
+}
+
+// does a rect cross a service-wing partition, honouring the stock-door gap? (mirrors the
+// partition arithmetic in solidAt, rect-wise — LANDMINE: two encodings of the same wall.)
+function crossesPartition(rect) {
+  const HALF = 0.13;
+  for (const p of PARTITIONS) {
+    if (p.axis === 'x') {
+      const lo = Math.min(p.from, p.to);
+      const hi = Math.max(p.from, p.to);
+      if (rect.maxX > p.at - HALF && rect.minX < p.at + HALF && rect.maxZ > lo && rect.minZ < hi) {
+        if (p.opening && rect.minZ >= p.opening.c - p.opening.w / 2 && rect.maxZ <= p.opening.c + p.opening.w / 2) continue;
+        return true;
+      }
+    } else {
+      const lo = Math.min(p.from, p.to);
+      const hi = Math.max(p.from, p.to);
+      if (rect.maxZ > p.at - HALF && rect.minZ < p.at + HALF && rect.maxX > lo && rect.minX < hi) {
+        if (p.opening && rect.minX >= p.opening.c - p.opening.w / 2 && rect.maxX <= p.opening.c + p.opening.w / 2) continue;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// the footprints of every OTHER world box currently on the floor
+function worldBoxRects(state, selfId) {
+  const boxes = (state.shop && state.shop.deliveries && state.shop.deliveries.boxes) || [];
+  const out = [];
+  for (const b of boxes) {
+    if (b.loc !== 'world') continue;
+    if (selfId != null && b.id === selfId) continue;
+    out.push(boxFootprint(b, b.x, b.z, b.ry || 0));
+  }
+  return out;
+}
+
+// may this box be set down here? Same shape as validatePlacement, for a carton.
+export function boxDropLegal(state, box, x, z, ry = 0) {
+  const rect = boxFootprint(box, x, z, ry);
+  const reasons = [];
+  if (rect.minX < -INTERIOR.w / 2 || rect.maxX > INTERIOR.w / 2
+      || rect.minZ < -INTERIOR.d / 2 || rect.maxZ > INTERIOR.d / 2 || crossesPartition(rect)) {
+    reasons.push('That would go into a wall.');
+  }
+  for (const f of placedFixtures(state)) {
+    if (rectsOverlap(rect, fixtureRect(f))) { reasons.push(`That is on top of the ${f.title || f.kind}.`); break; }
+  }
+  if (rectsOverlap(rect, DOOR_CLEARWAY)) reasons.push('That blocks the shop doorway.');
+  if (rectsOverlap(rect, BACKDOOR_CLEARWAY)) reasons.push('That blocks the receiving doorway.');
+  for (const other of worldBoxRects(state, box && box.id)) {
+    if (rectsOverlap(rect, other)) { reasons.push('That is on top of another box.'); break; }
+  }
+  return { ok: reasons.length === 0, reasons };
+}
+
+// the requested spot if it is legal; else the nearest legal spot, spiralling out; else null.
+export function legalBoxDrop(state, box, x, z, ry = 0) {
+  if (boxDropLegal(state, box, x, z, ry).ok) return { x, z, ry };
+  for (let ring = 1; ring <= 24; ring++) {
+    const rad = ring * GRID;
+    for (let a = 0; a < 16; a++) {
+      const ang = (a / 16) * Math.PI * 2;
+      const cx = x + Math.cos(ang) * rad;
+      const cz = z + Math.sin(ang) * rad;
+      if (boxDropLegal(state, box, cx, cz, ry).ok) return { x: cx, z: cz, ry };
+    }
+  }
+  return null;
 }
