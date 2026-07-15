@@ -31,11 +31,18 @@ os.makedirs(OUT, exist_ok=True)
 # yaw: degrees about world Z, applied after scale, to face the prop's front a canonical way.
 # decimate: <1.0 collapses tris; 1.0 leaves the mesh untouched (these are already 7-18k).
 SPECS = [
+    # hero singletons — full detail, one draw call each
     {'file': 'armchair+3d+model.glb',              'out': 'armchair',      'axis': 'z', 'size': 0.90, 'yaw': 0,   'decimate': 1.0},
     {'file': 'green+office+chair+3d+model.glb',     'out': 'office_chair',  'axis': 'z', 'size': 1.06, 'yaw': 0,   'decimate': 1.0},
     {'file': 'card+payment+terminal+3d+model.glb',  'out': 'cardterm_pro',  'axis': 'x', 'size': 0.21, 'yaw': 0,   'decimate': 1.0},
     {'file': 'touchscreen+kiosk+3d+model.glb',      'out': 'kiosk',         'axis': 'z', 'size': 0.46, 'yaw': 0,   'decimate': 1.0},
     {'file': 'modern+display+shelf+3d+model.glb',   'out': 'display_shelf', 'axis': 'z', 'size': 1.70, 'yaw': 0,   'decimate': 1.0},
+    # repeated PRODUCTS — decimated hard, because a shelf carries a dozen and they bake
+    # into one mesh per material; less detail per copy, more copies for the same budget.
+    {'file': 'athletic+shoe+3d+model.glb',          'out': 'shoe_pro',      'axis': 'y', 'size': 0.30, 'yaw': 0,   'decimate': 0.30},
+    {'file': 'green+baseball+cap+3d+model.glb',      'out': 'cap_pro',       'axis': 'x', 'size': 0.27, 'yaw': 0,   'decimate': 0.35},
+    {'file': 'golf+headcover+3d+model.glb',          'out': 'headcover',     'axis': 'z', 'size': 0.26, 'yaw': 0,   'decimate': 0.40},
+    {'file': 'binocular+gadget+3d+model.glb',        'out': 'rangefinder',   'axis': 'y', 'size': 0.12, 'yaw': 0,   'decimate': 0.45},
 ]
 
 

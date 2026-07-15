@@ -1346,12 +1346,8 @@ export function makeClubhouse(ctx) {
   // NOT roundedBox: its UVs are planar and world-scaled, which crops a 0..1 label into mush.
   const CARTON_GEO = new THREE.BoxGeometry(0.12, 0.10, 0.11);
   const POLO_TINTS = { polo1: 0x4e7a52, polo2: 0x5b7f9e, jacket2: 0x33455e };
-  const CAP_TINTS = [0x33455e, 0xf0ead8, 0x2c5233, 0xd9cbb2];
   const BAG_TINTS = [0x53688c, 0x4e8059, 0xb9b3a6, 0x9a7a56];
-  const SHOE_TINTS = [0xf2efe6, 0x33455e, 0x8b9299, 0xe8e3d5];
   const CARTON_BRAND = { tees1: 'CADDIE CLUB', marker1: 'CADDIE CLUB' };
-  const RANGE_BODY = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.45 });
-  const RANGE_LENS = new THREE.MeshStandardMaterial({ color: 0x557a8c, roughness: 0.2, metalness: 0.6 });
   const skuMats = new Map();
   const ballBoxMats = new Map();
 
@@ -1492,10 +1488,10 @@ export function makeClubhouse(ctx) {
     }
 
     if (id === 'cap1') {
-      const cap = merch.instantiate('cap', { tint: CAP_TINTS[i % 4] });
+      const cap = merch.instantiateRaw('cap_pro');   // a real six-panel cap (Tripo)
       if (!cap) return null;
       cap.position.set(s.x, s.y, s.z);
-      cap.rotation.y = s.ry;              // bills point out off the tree
+      cap.rotation.y = s.ry + Math.PI / 2;   // the model's bill runs +x; turn it out off the tree
       return cap;
     }
 
@@ -1536,27 +1532,24 @@ export function makeClubhouse(ctx) {
     }
 
     if (id === 'range2') {
-      const g = new THREE.Group();
-      const body = new THREE.Mesh(roundedBox(0.09, 0.11, 0.15, 0.02), RANGE_BODY);
-      body.position.set(s.x, s.y, s.z);
-      body.rotation.y = s.ry;
-      const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.012, 10), RANGE_LENS);
-      lens.rotation.x = Math.PI / 2;
-      lens.rotation.z = s.ry;
-      lens.position.set(s.x + 0.03, s.y + 0.015, s.z + 0.07);
-      g.add(body, lens);
-      return g;
+      // was a rounded box with a cylinder lens; a real laser rangefinder now (Tripo)
+      const rf = merch.instantiateRaw('rangefinder');
+      if (!rf) return null;
+      rf.position.set(s.x, s.y, s.z);
+      rf.rotation.y = s.ry;
+      return rf;
     }
 
     if (id === 'shoe1') {
-      // Was a slab sole, a box upper and a sphere toe — a computer mouse. A slot is a PAIR.
+      // Was a slab sole, a box upper and a sphere toe — a computer mouse. A real spiked
+      // golf shoe now (Tripo), and a slot is still a PAIR, toed apart on the board. The
+      // model's length runs +z, so s.ry aims the toe out; the pair splays a touch.
       const g = new THREE.Group();
-      const tint = SHOE_TINTS[i % 4];
-      for (const so of [-0.085, 0.085]) {
-        const shoe = merch.instantiate('shoe', { tint });
+      for (const so of [-0.075, 0.075]) {
+        const shoe = merch.instantiateRaw('shoe_pro');
         if (!shoe) break;
         shoe.position.set(s.x + so, s.y, s.z);
-        shoe.rotation.set(-0.18, -Math.PI / 2 + (so > 0 ? 0.16 : -0.16), 0);
+        shoe.rotation.set(0, (s.ry || 0) + (so > 0 ? 0.18 : -0.18), 0);
         g.add(shoe);
       }
       return g;

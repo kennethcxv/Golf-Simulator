@@ -41,7 +41,12 @@ const FILES = [
 // discipline that instantiate() enforces buys nothing here and would only throw away
 // the fidelity that is the whole point of using a real scan. Loaded the same way,
 // handed out by instantiateRaw(), never slot-swapped.
-const RAW = ['armchair', 'office_chair', 'cardterm_pro', 'kiosk'];
+const RAW = [
+  'armchair', 'office_chair', 'cardterm_pro', 'kiosk',
+  // repeated products — one baked-atlas material each, so a whole shelf of them still
+  // bakes (see bake()) into a single draw call, texture intact.
+  'shoe_pro', 'cap_pro', 'rangefinder',
+];
 
 // Which slot in the GLB maps to which material in the clubhouse kit.
 const SLOT = {
