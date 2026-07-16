@@ -43,10 +43,10 @@ const RECEIPT_TIME = 0.9;
 // Preserve the physical work triangle instead of turning each task into an
 // isolated close-up. The reference composition keeps the customer, main POS,
 // and active device readable together.
-const MONITOR_FOV = 46;
-const SCAN_FOV = 48;
-const CARD_FOV = 42;
-const CASH_FOV = 44;
+const MONITOR_FOV = 56;
+const SCAN_FOV = 58;
+const CARD_FOV = 46;
+const CASH_FOV = 48;
 // ISO/IEC 7810 ID-1 proportions, kept at believable real-world scale.
 const CARD_WIDTH = 0.086;
 const CARD_HEIGHT = 0.054;
@@ -279,8 +279,10 @@ export function createRegisterMode(B) {
   // and drops out of sight (it is now "in the bag"). Positions are tuned to the
   // reference composition and refined once the rebuilt bag asset lands.
   let bagGroup = null;
-  const BAG_POS = new THREE.Vector3(1.98, COUNTER_TOP, 4.42);
-  const bagMouth = new THREE.Vector3(BAG_POS.x + 0.02, COUNTER_TOP + 0.17, BAG_POS.z);
+  // Counter-left, toward the staff edge, so it sits in the near-left of the
+  // cashier frame like the reference (and clear of the POS at x 2.25).
+  const BAG_POS = new THREE.Vector3(2.06, COUNTER_TOP, 4.66);
+  const bagMouth = new THREE.Vector3(BAG_POS.x + 0.02, COUNTER_TOP + 0.18, BAG_POS.z - 0.03);
 
   const itemResources = createRegisterItemResources();
   const itemMeshes = new Map();
@@ -418,8 +420,10 @@ export function createRegisterMode(B) {
       { x: 2.48, y: 1.22, z: 4.18 },
     ),
     scan: poseBetween(
-      { x: 2.86, y: 1.52, z: 5.34 },
-      { x: 2.68, y: 1.18, z: 4.12 },
+      // Centred, elevated over-counter shot: bag (left), products (centre) and
+      // POS (right) read together above the counter, like the reference.
+      { x: 2.62, y: 1.64, z: 5.55 },
+      { x: 2.52, y: 1.03, z: 4.00 },
     ),
     card: poseBetween(
       // Look diagonally across the work triangle so the reader is no longer
