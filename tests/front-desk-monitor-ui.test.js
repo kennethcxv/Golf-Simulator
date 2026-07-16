@@ -150,6 +150,82 @@ test('checkout instructions retain words that fit after the first line break', (
   assert.ok(drawnText.includes('it through the scanner beam.'));
 });
 
+test('check-in paging exposes prev/next hotspots and disables them at the ends', () => {
+  const canvas = makeCanvas();
+  const ui = createFrontDeskMonitorUi(canvas);
+  ui.draw({
+    app: 'check-in',
+    reservations: [
+      { id: 'r-1', name: 'Avery Stone', time: '2:10 PM' },
+      { id: 'r-2', name: 'Morgan Lee', time: '2:20 PM' },
+    ],
+    reservationCount: 12,
+    page: 0,
+    pageCount: 3,
+  });
+  assert.equal(ui.actionPoint('checkin-prev'), null, 'prev is disabled on the first page');
+  const next = ui.actionPoint('checkin-next');
+  assert.ok(next, 'next is available when more pages exist');
+  assert.equal(ui.hit(next.x, next.y), 'checkin-next');
+
+  ui.draw({
+    app: 'check-in',
+    reservations: [{ id: 'r-11', name: 'Last Golfer', time: '4:10 PM' }],
+    reservationCount: 12,
+    page: 2,
+    pageCount: 3,
+  });
+  assert.ok(ui.actionPoint('checkin-prev'), 'prev is available on a later page');
+  assert.equal(ui.actionPoint('checkin-next'), null, 'next is disabled on the last page');
+});
+
+test('the cash screen shows the change window states with Undo/Clear/Done hotspots', () => {
+  const canvas = makeCanvas();
+  const ui = createFrontDeskMonitorUi(canvas);
+  ui.draw({
+    app: 'cash',
+    customer: 'June Sawyer',
+    transactionNumber: 18,
+    received: 600,
+    total: 578,
+    changeDue: 22,
+    giving: 25,
+    givingState: 'over',
+    givingDeltaCents: 300,
+    deposited: true,
+    actions: [
+      { id: 'undo-change', label: 'Undo', kind: 'secondary' },
+      { id: 'clear-change', label: 'Clear', kind: 'secondary' },
+      { id: 'confirm-change', label: 'Done', kind: 'success' },
+    ],
+  });
+  const drawn = canvas.context.calls.map((call) => call.value);
+  assert.ok(drawn.includes('CASH PAYMENT'));
+  assert.ok(drawn.includes('$600.00'));
+  assert.ok(drawn.includes('$25.00'));
+  assert.ok(drawn.some((value) => /OVER BY \$3\.00/.test(String(value))), 'the allowed overage is captioned');
+  for (const id of ['undo-change', 'clear-change', 'confirm-change']) {
+    const point = ui.actionPoint(id);
+    assert.ok(point, `${id} is clickable`);
+    assert.equal(ui.hit(point.x, point.y), id);
+  }
+
+  ui.draw({
+    app: 'cash',
+    received: 600,
+    total: 578,
+    changeDue: 22,
+    giving: 30,
+    givingState: 'excess',
+    givingDeltaCents: 800,
+    deposited: true,
+    actions: [{ id: 'confirm-change', label: 'Done', kind: 'success', disabled: true }],
+  });
+  const drawnExcess = canvas.context.calls.map((call) => call.value);
+  assert.ok(drawnExcess.some((value) => /TOO MUCH/.test(String(value))));
+  assert.equal(ui.actionPoint('confirm-change'), null, 'Done is disabled beyond the $5 ceiling');
+});
+
 test('renderer is presentation-only and does not mutate the supplied model', () => {
   const canvas = makeCanvas();
   const ui = createFrontDeskMonitorUi(canvas);

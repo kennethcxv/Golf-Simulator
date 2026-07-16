@@ -27,10 +27,12 @@ const STAGE_COPY = Object.freeze({
   'all-items-scanned': ['ALL ITEMS SCANNED', 'The customer is confirming how they will pay.'],
   'select-payment': ['PAYMENT CONFIRMED', 'Opening the selected payment workspace automatically.'],
   'card-payment': ['CARD PAYMENT', 'Insert the customer card into the chip reader.'],
-  'cash-payment': ['CASH PAYMENT', 'Sort the received cash, then prepare the change.'],
-  'change-selection': ['SELECT CHANGE', 'Select the exact change due from the drawer.'],
+  'cash-payment': ['CASH PAYMENT', 'Click the presented cash to take it.'],
+  'change-selection': ['SELECT CHANGE', 'Count change from the drawer: exact, or up to $5.00 over.'],
   'payment-complete': ['PAYMENT COMPLETE', 'Payment was accepted successfully.'],
-  'ready-to-finalize': ['READY TO FINALIZE', 'Confirm the transaction to complete the sale.'],
+  'receipt-delivering': ['RECEIPT TO CUSTOMER', 'The receipt is being handed across.'],
+  'bag-transfer': ['BAG TO CUSTOMER', 'The customer is taking their bag.'],
+  'ready-to-finalize': ['READY TO FINALIZE', 'The receipt and bag are on their way across the counter.'],
   complete: ['TRANSACTION COMPLETE', 'The customer has been served.'],
 });
 
@@ -51,7 +53,7 @@ function text(value, fallback = '') {
 function canonicalApp(value) {
   const app = text(value, 'home').trim().toLowerCase().replaceAll('_', '-');
   if (app === 'checkin') return 'check-in';
-  if (app === 'check-in' || app === 'checkout') return app;
+  if (app === 'check-in' || app === 'checkout' || app === 'cash') return app;
   return 'home';
 }
 
@@ -273,6 +275,10 @@ export function createFrontDeskMonitorUi(canvas) {
 
     drawButton({ id: 'exit', label: 'Exit', kind: 'secondary', disabled: false }, 886, 17, 114, 46);
 
+    // The cash exchange owns the full screen below the brand bar; offering tab
+    // navigation mid-count would only orphan the open drawer.
+    if (app === 'cash') return;
+
     const tabs = [
       { id: 'tab-check-in', label: 'Check In', app: 'check-in', x: 24 },
       { id: 'tab-checkout', label: 'Checkout', app: 'checkout', x: 224 },
@@ -349,12 +355,15 @@ export function createFrontDeskMonitorUi(canvas) {
   function drawReservationList(model) {
     const reservations = Array.isArray(model.reservations) ? model.reservations.slice(0, 5) : [];
     const selectedId = text(model.selectedReservation?.id ?? model.selectedReservationId);
+    const totalCount = Math.max(finite(model.reservationCount, reservations.length), reservations.length);
+    const page = Math.max(0, Math.round(finite(model.page, 0)));
+    const pageCount = Math.max(1, Math.round(finite(model.pageCount, 1)));
     fillRound(ctx, 24, 162, 416, 454, 14, COLORS.paper, COLORS.line, 2);
     drawLabel(ctx, text(model.listLabel, 'Today\'s reservations'), 46, 196);
     setFont(ctx, 15, 600);
     ctx.fillStyle = COLORS.muted;
     ctx.textAlign = 'right';
-    ctx.fillText(`${reservations.length} ${reservations.length === 1 ? 'booking' : 'bookings'}`, 416, 196);
+    ctx.fillText(`${totalCount} ${totalCount === 1 ? 'booking' : 'bookings'}`, 416, 196);
 
     if (!reservations.length) {
       setFont(ctx, 20, 700);
@@ -370,31 +379,42 @@ export function createFrontDeskMonitorUi(canvas) {
     reservations.forEach((reservation, index) => {
       const id = text(reservation.id, String(index));
       const selected = id === selectedId || reservation === model.selectedReservation;
-      const y = 216 + index * 74;
-      fillRound(ctx, 40, y, 384, 62, 9,
+      const y = 212 + index * 68;
+      fillRound(ctx, 40, y, 384, 60, 9,
         selected ? COLORS.sagePale : COLORS.white,
         selected ? COLORS.greenSoft : COLORS.line, selected ? 2 : 1);
-      setFont(ctx, 18, 700);
+      setFont(ctx, 19, 700);
       ctx.fillStyle = COLORS.charcoal;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText(fitText(ctx, reservationName(reservation), 230), 56, y + 27);
-      setFont(ctx, 14, 600);
+      ctx.fillText(fitText(ctx, reservationName(reservation), 226), 56, y + 26);
+      setFont(ctx, 15, 600);
       ctx.fillStyle = COLORS.muted;
       const meta = [reservation.time, reservation.partySize ? `Party ${reservation.partySize}` : null]
         .filter(Boolean).join('  /  ');
-      ctx.fillText(fitText(ctx, meta || text(reservation.subtitle, 'Reservation'), 230), 56, y + 49);
-      drawPill(ctx, text(reservation.status, 'WAITING'), 310, y + 16, 100);
-      addHotspot(text(reservation.actionId, `select-reservation:${id}`), reservationName(reservation), 'reservation', 40, y, 384, 62, reservation.disabled);
+      ctx.fillText(fitText(ctx, meta || text(reservation.subtitle, 'Reservation'), 226), 56, y + 48);
+      drawPill(ctx, text(reservation.status, 'WAITING'), 310, y + 15, 100);
+      addHotspot(text(reservation.actionId, `select-reservation:${id}`), reservationName(reservation), 'reservation', 40, y, 384, 60, reservation.disabled);
     });
+
+    // More golfers than fit are paged, never shrunk into unreadable rows.
+    if (pageCount > 1) {
+      drawButton({ id: 'checkin-prev', label: 'Prev', kind: 'secondary', disabled: page <= 0 }, 40, 560, 110, 42);
+      setFont(ctx, 16, 700);
+      ctx.fillStyle = COLORS.muted;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`PAGE ${page + 1} / ${pageCount}`, 232, 582);
+      drawButton({ id: 'checkin-next', label: 'Next', kind: 'secondary', disabled: page >= pageCount - 1 }, 314, 560, 110, 42);
+    }
   }
 
   function detailRow(label, value, x, y, valueColor = COLORS.charcoal) {
-    drawLabel(ctx, label, x, y, COLORS.muted, 13);
-    setFont(ctx, 18, 700);
+    drawLabel(ctx, label, x, y, COLORS.muted, 14);
+    setFont(ctx, 21, 700);
     ctx.fillStyle = valueColor;
     ctx.textAlign = 'right';
-    ctx.fillText(fitText(ctx, text(value, '--'), 258), x + 454, y);
+    ctx.fillText(fitText(ctx, text(value, '--'), 300), x + 494, y);
   }
 
   function drawReservationDetail(model) {
@@ -414,27 +434,41 @@ export function createFrontDeskMonitorUi(canvas) {
     }
 
     drawLabel(ctx, 'Selected guest', 482, 196);
-    setFont(ctx, 28, 800);
+    setFont(ctx, 30, 800);
     ctx.fillStyle = COLORS.green;
     ctx.textAlign = 'left';
-    ctx.fillText(fitText(ctx, reservationName(reservation), 330), 482, 232);
+    ctx.fillText(fitText(ctx, reservationName(reservation), 330), 482, 234);
     drawPill(ctx, text(reservation.status, 'RESERVED'), 837, 202, 139);
 
     const party = reservation.partySize ?? reservation.groupSize ?? reservation.players;
     const visit = [reservation.holes ? `${reservation.holes} holes` : null, party ? `${party} players` : null]
       .filter(Boolean).join('  /  ');
-    detailRow('Tee time', reservation.time ?? reservation.teeTime, 482, 279);
-    detailRow('Visit', visit || reservation.visit, 482, 316);
-    detailRow('Cart / rentals', reservation.extras ?? reservation.cartAndRentals ?? reservation.rentals, 482, 353);
-    detailRow('Deposit paid', money(reservation.depositPaid), 482, 390, COLORS.success);
-    detailRow('Balance due', money(reservation.balanceDue ?? reservation.balance ?? reservation.fee), 482, 427, COLORS.green);
+    detailRow('Tee time', reservation.time ?? reservation.teeTime, 482, 284);
+    detailRow('Visit', visit || reservation.visit, 482, 322);
+    detailRow('Cart / rentals', reservation.extras ?? reservation.cartAndRentals ?? reservation.rentals, 482, 360);
+    detailRow('Deposit paid', money(reservation.depositPaid), 482, 398, COLORS.success);
+
+    // The amount owed is the loudest number on the screen — a filled panel,
+    // not another quiet row.
+    const due = finite(reservation.balanceDue ?? reservation.balance ?? reservation.fee);
+    fillRound(ctx, 482, 418, 494, 62, 12, due > 0 ? COLORS.successPale : COLORS.sagePale, COLORS.success, 2);
+    setFont(ctx, 19, 800);
+    ctx.fillStyle = COLORS.charcoal;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(due > 0 ? 'AMOUNT DUE' : 'PAID IN FULL', 502, 450);
+    setFont(ctx, 34, 800);
+    ctx.fillStyle = COLORS.success;
+    ctx.textAlign = 'right';
+    ctx.fillText(money(due), 956, 451);
+    ctx.textBaseline = 'alphabetic';
 
     const note = text(reservation.note ?? reservation.notes);
     if (note) {
       setFont(ctx, 14, 500);
       ctx.fillStyle = COLORS.muted;
       ctx.textAlign = 'left';
-      ctx.fillText(fitText(ctx, note, 494), 482, 466);
+      ctx.fillText(fitText(ctx, note, 494), 482, 502);
     }
     drawActionGrid(model.actions, 482, 518, 494, 74);
   }
@@ -473,12 +507,12 @@ export function createFrontDeskMonitorUi(canvas) {
       ctx.beginPath();
       ctx.arc(57, y + 24, 7, 0, Math.PI * 2);
       ctx.fill();
-      setFont(ctx, 17, scanned ? 600 : 700);
+      setFont(ctx, 19, scanned ? 600 : 700);
       ctx.fillStyle = scanned ? COLORS.muted : COLORS.charcoal;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(fitText(ctx, text(item.name ?? item.label ?? item.sku, 'Product'), 336), 76, y + 24);
-      setFont(ctx, 16, 600);
+      setFont(ctx, 18, 600);
       ctx.textAlign = 'right';
       const quantity = Math.max(1, Math.round(finite(item.qty ?? item.quantity, 1)));
       ctx.fillText(money(item.unitPrice ?? item.price), 476, y + 24);
@@ -495,12 +529,12 @@ export function createFrontDeskMonitorUi(canvas) {
   }
 
   function summaryRow(label, value, x, y, strong = false, color = COLORS.charcoal) {
-    setFont(ctx, strong ? 17 : 15, strong ? 800 : 600);
+    setFont(ctx, strong ? 18 : 16, strong ? 800 : 600);
     ctx.fillStyle = strong ? COLORS.charcoal : COLORS.muted;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(label.toUpperCase(), x, y);
-    setFont(ctx, strong ? 23 : 17, strong ? 800 : 700);
+    setFont(ctx, strong ? 26 : 19, strong ? 800 : 700);
     ctx.fillStyle = color;
     ctx.textAlign = 'right';
     ctx.fillText(value, x + 300, y);
@@ -537,7 +571,7 @@ export function createFrontDeskMonitorUi(canvas) {
     const instruction = paymentChoiceInstruction(data, stageCopy, choice);
     const [statusBackground, statusForeground] = statusPalette(status);
     fillRound(ctx, 670, statusY, 306, 82, 10, statusBackground);
-    setFont(ctx, 17, 800);
+    setFont(ctx, 19, 800);
     ctx.fillStyle = statusForeground;
     ctx.textAlign = 'left';
     ctx.fillText(fitText(ctx, status, 278), 686, statusY + 27);
@@ -555,12 +589,12 @@ export function createFrontDeskMonitorUi(canvas) {
     ctx.lineTo(976, 390 + choiceOffset);
     ctx.stroke();
     // Prominent total block, matching the reference's emphasis.
-    setFont(ctx, 18, 800);
+    setFont(ctx, 20, 800);
     ctx.fillStyle = COLORS.charcoal;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText('TOTAL', 670, 421 + choiceOffset);
-    setFont(ctx, 32, 800);
+    setFont(ctx, 38, 800);
     ctx.fillStyle = COLORS.green;
     ctx.textAlign = 'right';
     ctx.fillText(money(data.total), 976, 424 + choiceOffset);
@@ -587,6 +621,83 @@ export function createFrontDeskMonitorUi(canvas) {
     drawCheckoutSummary(data);
   }
 
+  // THE CASH SCREEN. During a cash exchange this view owns the whole monitor,
+  // sitting directly above the open drawer: the orange Received/Total/Change
+  // block, the navy Giving strip whose colour states the rule (red short,
+  // green exact, amber allowed overage, red beyond $5.00), and Undo/Clear/Done.
+  function drawCashScreen(model) {
+    setFont(ctx, 20, 800);
+    ctx.fillStyle = COLORS.charcoal;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(fitText(ctx, customerName(model), 460), 36, 128);
+    setFont(ctx, 16, 700);
+    ctx.fillStyle = COLORS.muted;
+    ctx.textAlign = 'right';
+    ctx.fillText(`#${text(model.transactionNumber, '--')}`, 988, 126);
+
+    fillRound(ctx, 24, 146, 976, 268, 16, '#ef9824');
+    setFont(ctx, 26, 800);
+    ctx.fillStyle = COLORS.white;
+    ctx.textAlign = 'center';
+    ctx.fillText('CASH PAYMENT', 512, 186);
+    const rows = [
+      ['RECEIVED', model.received],
+      ['TOTAL', model.total],
+      ['CHANGE', model.changeDue],
+    ];
+    rows.forEach(([label, value], index) => {
+      const y = 240 + index * 56;
+      setFont(ctx, 34, 800);
+      ctx.fillStyle = COLORS.white;
+      ctx.textAlign = 'left';
+      ctx.fillText(label, 84, y);
+      setFont(ctx, 38, 800);
+      ctx.textAlign = 'right';
+      ctx.fillText(money(value), 940, y);
+      if (index === 1) {
+        ctx.strokeStyle = '#b26a10';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(84, y + 16);
+        ctx.lineTo(940, y + 16);
+        ctx.stroke();
+      }
+    });
+
+    fillRound(ctx, 24, 430, 976, 96, 14, '#163e5a');
+    setFont(ctx, 36, 800);
+    ctx.fillStyle = COLORS.white;
+    ctx.textAlign = 'left';
+    ctx.fillText('GIVING', 84, 492);
+    const givingState = text(model.givingState, 'short');
+    const givingColor = givingState === 'exact' ? '#54ef6e'
+      : givingState === 'over' ? '#ffc94d' : '#ff5147';
+    setFont(ctx, 44, 800);
+    ctx.fillStyle = givingColor;
+    ctx.textAlign = 'right';
+    ctx.fillText(money(model.giving), 940, 494);
+
+    const deltaCents = Math.abs(Math.round(finite(model.givingDeltaCents)));
+    const deltaText = `$${(deltaCents / 100).toFixed(2)}`;
+    let caption;
+    if (model.awaitingCash) caption = 'CLICK THE CUSTOMER’S CASH TO TAKE IT';
+    else if (givingState === 'exact') caption = 'EXACT CHANGE';
+    else if (givingState === 'over') caption = `OVER BY ${deltaText} — CUSTOMER RECEIVES EXTRA CHANGE`;
+    else if (givingState === 'excess') caption = 'TOO MUCH — MAX EXTRA IS $5.00';
+    else caption = finite(model.givingDeltaCents) === 0 && !model.deposited
+      ? 'SORTING THE RECEIVED CASH'
+      : `SHORT BY ${deltaText}`;
+    setFont(ctx, 24, 800);
+    ctx.fillStyle = givingState === 'exact' ? COLORS.success
+      : givingState === 'over' ? '#a06a00' : COLORS.danger;
+    if (model.awaitingCash) ctx.fillStyle = COLORS.charcoal;
+    ctx.textAlign = 'left';
+    ctx.fillText(fitText(ctx, caption, 500), 36, 566);
+
+    drawActionGrid(model.actions, 560, 540, 440, 56);
+  }
+
   function draw(model = {}) {
     activeHotspots = [];
     const app = canonicalApp(model.app ?? model.tab ?? model.view);
@@ -597,6 +708,7 @@ export function createFrontDeskMonitorUi(canvas) {
     drawHeader(app);
     if (app === 'check-in') drawCheckIn(model);
     else if (app === 'checkout') drawCheckout(model);
+    else if (app === 'cash') drawCashScreen(model);
     else drawHome(model);
     ctx.restore();
     return api;

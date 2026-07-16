@@ -16,6 +16,7 @@ import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue, tickDeliveries, ensureShopReno } from './shop.js';
 import { recoverCheckout } from './checkout.js';
 import { migrateDrawer } from './register.js';
+import { ensurePaymentBag } from './paymentBag.js';
 import { ensureWash } from './washing.js';
 import { ensureProperty, tickProperty } from './property.js';
 import {
@@ -296,6 +297,7 @@ export function deserialize(json) {
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
   if (state.shop.drawer) state.shop.drawer = migrateDrawer(state.shop.drawer);
+  ensurePaymentBag(state); // a half-used balanced batch survives the reload intact
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
   if (!Array.isArray(state.shop.transactionHistory)) state.shop.transactionHistory = [];
   if (!Number.isFinite(state.shop.nextTransactionNo)) {

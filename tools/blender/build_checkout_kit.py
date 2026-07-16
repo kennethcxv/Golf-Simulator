@@ -14,6 +14,7 @@ vendor/models/clubhouse are NOT touched by this build.
 from __future__ import annotations
 
 import math
+import random
 import sys
 from pathlib import Path
 
@@ -433,6 +434,7 @@ def build_shopping_bag(M):
     BW, BD, BH = 0.40, 0.185, 0.345               # kraft grocery-boutique bag
     root = K.asset_root("shopping_bag", (BW, BD, BH))
     taper = 0.012                                  # top slightly wider than base
+    rim_rng = random.Random(41)                    # a used bag, not an extruded box
 
     bm = bmesh.new()
     uvl = bm.loops.layers.uv.new("UVMap")
@@ -452,7 +454,9 @@ def build_shopping_bag(M):
             gx = x
             if abs(y) < 0.001 and abs(abs(x) - w2) < 0.002:      # gusset centre crease pulls inward
                 gx = x - math.copysign(gusset_in, x)
-            verts.append(bm.verts.new((gx, y, z)))
+            # the open rim sags and flares a couple of millimetres — paper, not card
+            zz = z + (rim_rng.uniform(-0.0045, 0.0060) if z >= BH - 1e-6 else 0.0)
+            verts.append(bm.verts.new((gx, y, zz)))
         rings.append(verts)
     n = len(rings[0])
     for r in range(len(rings) - 1):
@@ -488,6 +492,13 @@ def build_shopping_bag(M):
 
     _rope_arc("Bag_Handle_Left", 0, -BD / 2 - 0.002, BH - 0.01, 0.085, M["rope"], root)
     _rope_arc("Bag_Handle_Right", 0, BD / 2 + 0.002, BH - 0.01, 0.085, M["rope"], root, tilt=math.radians(-3))
+
+    # THE PRIME FAIRWAYS PRINT. A crest-and-wordmark panel on the staff-facing
+    # front (authored -Y → in-game +z at rotation zero), sitting just proud of
+    # the paper like a screen print. Original club branding only.
+    art_mat = K.m_tex("M_BagArtwork", K.bag_art_img(), rough=0.74, ds=True)
+    K.uv_plane("Bag_Artwork", 0.27, 0.27,
+               (0, -BD / 2 - taper * 0.6 - 0.0025, BH * 0.485), art_mat, parent=root)
 
     for i, (sx, sy) in enumerate(((-0.09, -0.03), (0.09, -0.03), (-0.09, 0.045), (0.09, 0.045))):
         K.empty(f"BAG_ITEM_SOCKET_0{i + 1}", (sx, sy, 0.02), parent=root, size=0.03, props={"socket": "bag_item", "slot": i + 1})

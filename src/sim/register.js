@@ -144,7 +144,8 @@ export function createTx({ items = [], mode = 'relaxed', discount = 0, rng = Mat
     drawerOpen: false,
     deposited: false,   // the tendered cash has been put away in the till
     hand: {},           // what the player has picked up to hand back
-    lost: 0,            // + till is short (over-handed), − customer was shorted
+    changeGiven: null,  // the amount actually handed across (required + any extra)
+    lost: 0,            // + till is short (the allowed up-to-$5 extra change)
     rounding: 0,        // retained in receipts/save data for backward compatibility
     drawerStart: null,  // opening and working stacks stay local until completeSale
     drawerPending: null,
@@ -213,7 +214,9 @@ export function requestPayment(tx) {
   const left = unscannedCount(tx);
   if (left > 0) return { ok: false, reason: `Still ${left} to scan.` };
 
-  tx.method = tx.prefer || (tx.rng() < 0.4 ? 'card' : 'cash');
+  // Live callers always supply `prefer` (the balanced-bag draw made when the
+  // customer was created). The rng fallback is a neutral coin for bare tests.
+  tx.method = tx.prefer || (tx.rng() < 0.5 ? 'card' : 'cash');
   if (tx.method === 'cash') {
     tx.rounding = round2(cashTotalOf(tx) - totalOf(tx));
     tx.stage = 'cash-tender';
@@ -553,28 +556,41 @@ export function handTotal(tx) {
   return stackTotal(tx.hand);
 }
 
-// Relaxed refuses a miscount and keeps the drawer open. Realistic takes the
-// player at their word and books the difference: + means the till came up short
-// because you over-handed, − means you shorted the customer.
+// The register enforces the change window in EVERY mode: the customer always
+// receives at least their full change (under-giving is impossible, not even by
+// a cent), and the player may round up to at most $5.00 extra — a real courtesy
+// the till pays for. `tx.lost` books that overage (+ = till short) and the
+// exact amount handed across is remembered for the receipt.
+export const MAX_EXTRA_CHANGE_CENTS = 500;
+
+export function changeGivingState(tx) {
+  const requiredCents = cents(changeDue(tx));
+  const givingCents = cents(handTotal(tx));
+  const deltaCents = givingCents - requiredCents;
+  const state = deltaCents < 0 ? 'short'
+    : deltaCents === 0 ? 'exact'
+      : deltaCents <= MAX_EXTRA_CHANGE_CENTS ? 'over' : 'excess';
+  return { requiredCents, givingCents, deltaCents, state };
+}
+
 export function handOverChange(tx, drawer) {
   if (tx.stage !== 'cash-drawer') return { ok: false, reason: 'No change to give.' };
   if (!tx.deposited) return { ok: false, reason: 'Put their money in the till first.' };
-  const due = changeDue(tx);
-  const held = handTotal(tx);
-  const diff = round2(held - due);
+  const { deltaCents } = changeGivingState(tx);
 
-  if (diff !== 0 && tx.mode === 'relaxed') {
-    return {
-      ok: false,
-      reason: diff > 0 ? 'Too much — count it again.' : 'Not enough — count it again.',
-    };
+  if (deltaCents < 0) {
+    return { ok: false, reason: 'Not enough — count it again.' };
+  }
+  if (deltaCents > MAX_EXTRA_CHANGE_CENTS) {
+    return { ok: false, reason: 'Too much — count it again.' };
   }
 
-  tx.lost = diff;
+  tx.lost = dollars(deltaCents);
+  tx.changeGiven = round2(handTotal(tx));
   tx.hand = {};
   tx.drawerOpen = false;
   tx.stage = 'receipt';
-  return { ok: true, lost: diff };
+  return { ok: true, lost: tx.lost, given: tx.changeGiven };
 }
 
 
@@ -600,6 +616,11 @@ export function printReceipt(tx) {
       method: tx.method,
       tendered: tx.method === 'cash' ? tx.tenderedTotal : null,
       change: tx.method === 'cash' ? changeDue(tx) : null,
+      // what actually crossed the counter, and the courtesy overage if any
+      changeGiven: tx.method === 'cash'
+        ? (tx.changeGiven != null ? tx.changeGiven : changeDue(tx))
+        : null,
+      extraChange: tx.method === 'cash' ? round2(Math.max(0, tx.lost || 0)) : null,
       rounding: tx.rounding,
     },
   };
@@ -1001,6 +1022,11 @@ export function completeSale(state, tx, who = 'A customer') {
     total,
     cash: drawerCommit.cash,
     lost: tx.lost || 0,
+    tendered: tx.method === 'cash' ? tx.tenderedTotal : null,
+    changeGiven: tx.method === 'cash'
+      ? (tx.changeGiven != null ? tx.changeGiven : changeDue(tx))
+      : null,
+    extraChange: tx.method === 'cash' ? round2(Math.max(0, tx.lost || 0)) : null,
     items: tx.items.map((item) => ({ uid: item.uid, skuId: item.skuId, name: item.name, price: item.price })),
     minute: state.clock ? state.clock.minutes : null,
   });

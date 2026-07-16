@@ -173,7 +173,7 @@ export const REGISTER = {
   scanner:  { x: 2.70, z: 4.22, ry: Math.PI + 0.22 },   // unused by the click-to-bag flow
   printer:  { x: 3.98, z: 4.48, ry: Math.PI - 0.18 },
   custdisplay: { x: 3.84, z: 4.10 },                    // faces the queue (customer side)
-  bag: { x: 1.96, z: 4.60 },                            // the OPEN kraft bag items arc into
+  bag: { x: 2.02, z: 4.55 },                            // the OPEN kraft bag items arc into
   bagstand: { x: 4.20, z: 4.50 },                       // the stack of folded carriers
   divider:  { x: 4.42, z: 4.05 },                       // where the next order starts
   impulse:  { x: 4.18, z: 3.86 },                       // markers and tees, facing the queue

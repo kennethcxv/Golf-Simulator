@@ -137,24 +137,35 @@ test('realistic over-change reduces cash and books a cash-over-short expense', (
   assert.equal(state.shop.salesLive.revenue, 10, 'sales analytics retain the ticket value');
 });
 
-test('realistic short-change increases cash and books a cash-over-short receipt', () => {
+test('short-changing the customer is impossible in every mode — the handover refuses', () => {
   const state = newGame('realistic', 104);
   state.shop.drawer = newDrawer();
-  const opening = stackTotal(state.shop.drawer);
-  const cashBefore = state.cash;
-  const tx = cashTx(state, { price: 10, tendered: 20, change: 5 });
-  assert.equal(tx.lost, -5);
-  finishPhysicalSale(tx);
+  const item = { uid: 'cash-unit', skuId: 'balls3', name: 'Tour dozen', price: 10 };
+  hold(state, item);
+  const tx = createTx({ items: [item], mode: 'realistic', prefer: 'cash', rng: () => 0.9 });
+  scanItem(tx, 'cash-unit');
+  requestPayment(tx);
+  tx.tendered = makeChange(20);
+  acceptCash(tx);
+  openDrawer(tx);
+  depositTendered(tx, state.shop.drawer);
+  countOut(tx, state.shop.drawer, 5); // $10 due out of $20 — this is $5 short
 
-  const result = completeSale(state, tx, 'Short-change customer');
+  const refused = handOverChange(tx, state.shop.drawer);
+  assert.equal(refused.ok, false, 'under-giving never completes, not even in realistic');
+  assert.match(refused.reason, /not enough/i);
+  assert.equal(tx.stage, 'cash-drawer', 'the drawer stays open for a recount');
+  assert.equal(tx.lost, 0, 'nothing was booked');
+
+  // topping up to the exact amount completes normally
+  countOut(tx, state.shop.drawer, 5);
+  const handed = handOverChange(tx, state.shop.drawer);
+  assert.equal(handed.ok, true);
+  assert.equal(handed.lost, 0);
+  finishPhysicalSale(tx);
+  const result = completeSale(state, tx, 'Recounted customer');
   assert.equal(result.ok, true);
-  assert.equal(result.total, 10);
-  assert.equal(result.cash, 15);
-  assert.equal(round2(stackTotal(state.shop.drawer) - opening), 15);
-  assert.equal(round2(state.cash - cashBefore), 15);
-  assert.equal(state.ledger.today.revenue.shopSales, 10);
-  assert.equal(state.ledger.today.revenue.cashOverShort, 5);
-  assert.equal(state.shop.salesLive.revenue, 10);
+  assert.equal(result.cash, 10);
 });
 
 test('a bad held UID rejects the whole sale before stock or money can partially bank', () => {

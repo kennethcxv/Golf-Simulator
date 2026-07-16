@@ -34,6 +34,7 @@ import {
 } from '../sim/stocking.js';
 import { boxDims, boxKindFor } from '../data/boxes.js';
 import { pickFromShelf, returnToShelf } from '../sim/checkout.js';
+import { drawPaymentMethod, paymentDistributionReport } from '../sim/paymentBag.js';
 import { totalOf } from '../sim/register.js';
 import { addRevenue } from '../sim/economy.js';
 import { tutorialFlag } from '../sim/tutorial.js';
@@ -2451,6 +2452,15 @@ export function makeClubhouse(ctx) {
         });
       }
     }
+    // Paying visitors draw their cash-or-card preference ONCE here, from the
+    // balanced shuffled bag (sim/paymentBag.js). Reservation guests already drew
+    // at booking time; pure browsers who will never reach the counter don't draw
+    // at all, so the bag's 50/50 guarantee is spent only on real payers.
+    const paysAtCounter = toCounter || walkInRequest || organicPlan.picks.length > 0;
+    const bagMethod = !reservation && paysAtCounter
+      ? drawPaymentMethod(state, () => rng.next())
+      : null;
+    const assignedPayment = reservation?.paymentPreference || bagMethod || identity.paymentPreference;
     const deskReadyAt = reservationId != null
       ? Number(reservation.deskReadyAt ?? (Number(reservation.teeTimeAbs) - 15))
       : null;
@@ -2483,11 +2493,11 @@ export function makeClubhouse(ctx) {
       customerId: identity.customerId,
       fullName: identity.fullName,
       name: identity.fullName,
-      paymentPreference: reservation?.paymentPreference || identity.paymentPreference,
-      payMethod: reservation?.paymentPreference || identity.paymentPreference,
+      paymentPreference: assignedPayment,
+      payMethod: assignedPayment,
       paymentDialogue: paymentChoiceDialogue({
         ...identity,
-        paymentPreference: reservation?.paymentPreference || identity.paymentPreference,
+        paymentPreference: assignedPayment,
       }),
       personality: identity.personality,
       customerType,
@@ -3610,8 +3620,11 @@ export function makeClubhouse(ctx) {
       insertAt: () => register.insertAt(),
       monitorActionPoint: (id) => register.monitorActionPoint(id),
       monitorScreenPoint: (id) => register.monitorScreenPoint(id),
+      cardKeyScreenPoint: (label) => register.cardKeyScreenPoint(label),
       monitorHotspots: () => register.monitorHotspots(),
       workspace: () => register.workspace(),
+      // development-only diagnostic; never surfaced in player UI
+      paymentStats: () => paymentDistributionReport(state),
     },
     // DIAGNOSTICS. Not a cheat: sendToCounter() puts a shopper at the head of the
     // queue holding goods it took off the shelf through pickFromShelf, exactly as if
@@ -3647,7 +3660,9 @@ export function makeClubhouse(ctx) {
     sendToCounter(skuIds, payMethod = null) {
       const c = spawnCustomer(false);
       if (!c) return null;
-      c.payMethod = payMethod;   // a cash person or a card person, decided in advance
+      // An explicit method is the scripted/QA override; otherwise the customer
+      // keeps the balanced-bag preference they drew at spawn.
+      if (payMethod === 'cash' || payMethod === 'card') c.payMethod = payMethod;
       for (const skuId of skuIds) {
         const uid = `u${++unitSeq}`;
         if (!pickFromShelf(state, skuId, uid).ok) continue;

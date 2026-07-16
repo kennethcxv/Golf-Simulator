@@ -145,7 +145,9 @@ export function createCustomerIdentity(seed, sourceId = 0) {
     // `name` is a full-name compatibility alias for legacy consumers.  It is
     // never an abbreviated or independent source of authority.
     name,
-    paymentPreference: unit(seed, id, 'payment') < 0.46 ? 'cash' : 'card',
+    // A neutral coin. Counter payments are governed by the balanced shuffled
+    // bag (sim/paymentBag.js); this trait is only a fallback/dialogue flavour.
+    paymentPreference: unit(seed, id, 'payment') < 0.5 ? 'cash' : 'card',
     personality: pick(CUSTOMER_PERSONALITIES, unit(seed, id, 'personality')),
     patience,
     punctuality,

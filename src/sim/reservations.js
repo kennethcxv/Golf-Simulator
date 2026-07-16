@@ -9,6 +9,7 @@ import { addRevenue } from './economy.js';
 import { genName } from '../data/names.js';
 import { makeRng, rngOf } from '../core/utils.js';
 import { allocateCustomerIdentity, recordCustomerVisit } from './customerIdentity.js';
+import { drawPaymentMethod } from './paymentBag.js';
 import { bankServiceCharge, serviceTicketByReference } from './register.js';
 
 const MINUTES_PER_DAY = 24 * 60;
@@ -751,7 +752,9 @@ export function generateOnlineReservations(state, {
     const personality = random.chance(0.2) ? 'early' : random.chance(0.2) ? 'relaxed' : 'punctual';
     const punctuality = personality === 'early' ? random.range(0.72, 0.96)
       : personality === 'relaxed' ? random.range(0.25, 0.55) : random.range(0.5, 0.82);
-    const paymentPreference = random.chance(0.64) ? 'card' : 'cash';
+    // Drawn from the balanced shuffled bag so counter payments stay 50/50 over
+    // every complete batch; the preference sticks to the reservation for life.
+    const paymentPreference = drawPaymentMethod(state, () => random.range(0, 1));
     const holes = random.chance(0.78) ? 18 : 9;
     const transport = random.chance(0.52) ? 'cart' : 'walking';
     const rentalRequirements = random.chance(0.16) ? ['clubs'] : [];

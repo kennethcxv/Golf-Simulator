@@ -190,6 +190,54 @@ def kraft_img(name="KraftPaper", *, seed=11, w=512, h=512, base=(0.255, 0.150, 0
     return np_image(name, arr)
 
 
+def bag_art_img(name="BagArtwork", *, w=768, h=768):
+    """The Prime Fairways carrier artwork: a deep-green crest (flag over a
+    rolling fairway, ball on a tee), wordmark, brass rules and tagline —
+    original club branding printed on kraft."""
+    import numpy as np
+    rng = np.random.default_rng(31)
+    kraft = np.array((0.255, 0.150, 0.075), "float32")
+    green = np.array((0.032, 0.085, 0.048), "float32")
+    brass = np.array((0.55, 0.38, 0.10), "float32")
+    cream = np.array((0.62, 0.52, 0.36), "float32")
+
+    arr = np.ones((h, w, 3), "float32") * kraft
+    fib = (L._fbm(rng, w, h, 60, 6, 4)[..., None] - 0.5) * 0.10
+    arr *= (1.0 + fib)
+
+    yy, xx = np.mgrid[0:h, 0:w].astype("float32")
+    cx, cy, R = w / 2, 268.0, 190.0
+    d = np.hypot(xx - cx, yy - cy)
+
+    # crest: double ring, printed in green ink
+    arr[(d > R - 10) & (d < R)] = green
+    arr[(d > R - 26) & (d < R - 20)] = green
+    inside = d < R - 26
+
+    # rolling fairway: two overlapping ground arcs low in the crest
+    hill1 = (np.hypot((xx - cx + 70) / 1.65, yy - (cy + 320)) < 265) & inside
+    hill2 = (np.hypot((xx - cx - 130) / 1.9, yy - (cy + 355)) < 300) & inside
+    arr[hill1] = green
+    arr[hill2] = green * 0.82 + kraft * 0.18
+
+    # flag: pole, pennant, and the ball on a tee beside it
+    pole = (np.abs(xx - (cx + 28)) < 5) & (yy > cy - 128) & (yy < cy + 78) & inside
+    arr[pole] = green
+    pen = (yy > cy - 128) & (yy < cy - 74) & (xx < cx + 28) & (xx > cx + 28 - 1.55 * ((yy - (cy - 128)) + 6)) & inside
+    arr[pen] = brass
+    ball = np.hypot(xx - (cx - 66), yy - (cy + 40)) < 13
+    arr[ball & inside] = cream
+    tee = (np.abs(xx - (cx - 66)) < 4) & (yy > cy + 52) & (yy < cy + 70) & inside
+    arr[tee] = cream * 0.8
+
+    # wordmark + rules + tagline
+    draw_text(arr, "PRIME FAIRWAYS", w // 2, 540, 7, tuple(green))
+    arr[578:582, 120:w - 120] = brass
+    draw_text(arr, "GOLF CLUB", w // 2, 614, 4, tuple(brass))
+    draw_text(arr, "PLAY WELL. BUILD GREATNESS.", w // 2, 682, 3, tuple(green * 1.4))
+    return np_image(name, arr)
+
+
 def receipt_img(name="ReceiptPaper", *, w=256, h=512):
     """A printed receipt: header, item lines, divider, total, footer."""
     import numpy as np

@@ -232,7 +232,7 @@ test('REALISTIC lets a wrong count through and records what it cost', () => {
   assert.equal(tx.stage, 'receipt');
 });
 
-test('REALISTIC shorting the customer is recorded as a negative loss', () => {
+test('shorting the customer is refused in every mode — under-giving never completes', () => {
   const tx = scannedTx({ mode: 'realistic', rng: rngFor([0.9, 0.9]) });
   requestPayment(tx);
   customerCash(tx);
@@ -246,8 +246,40 @@ test('REALISTIC shorting the customer is recorded as a negative loss', () => {
     for (let i = 0; i < n; i++) takeFromDrawer(tx, drawer, Number(denom));
   }
   const res = handOverChange(tx, drawer);
+  assert.equal(res.ok, false, 'five dollars short can never close the sale');
+  assert.match(res.reason, /not enough/i);
+  assert.equal(tx.stage, 'cash-drawer', 'still counting');
+});
+
+test('over-giving beyond five dollars is refused; five even is the ceiling', () => {
+  const tx = scannedTx({ mode: 'relaxed', rng: rngFor([0.9, 0.9]) });
+  requestPayment(tx);
+  customerCash(tx);
+  acceptCash(tx);
+  const drawer = newDrawer();
+  openDrawer(tx);
+  depositTendered(tx, drawer);
+  const due = changeDue(tx);
+
+  // $5.05 over: one nickel beyond the courtesy ceiling
+  for (const [denom, n] of Object.entries(makeChange(due + 5.05))) {
+    for (let i = 0; i < n; i++) takeFromDrawer(tx, drawer, Number(denom));
+  }
+  const refused = handOverChange(tx, drawer);
+  assert.equal(refused.ok, false);
+  assert.match(refused.reason, /too much/i);
+
+  // put the whole miscount back, then count exactly $5.00 over — allowed even in relaxed
+  for (const [denom, n] of Object.entries({ ...tx.hand })) {
+    for (let i = 0; i < n; i++) returnToDrawer(tx, drawer, Number(denom));
+  }
+  for (const [denom, n] of Object.entries(makeChange(due + 5))) {
+    for (let i = 0; i < n; i++) takeFromDrawer(tx, drawer, Number(denom));
+  }
+  const res = handOverChange(tx, drawer);
   assert.equal(res.ok, true);
-  assert.equal(res.lost, -5, 'the customer was shorted five dollars');
+  assert.equal(res.lost, 5, 'the courtesy overage is booked against the till');
+  assert.equal(res.given, Math.round((due + 5) * 100) / 100, 'the receipt remembers what crossed the counter');
 });
 
 test('exact cash needs no change at all and skips straight to the receipt', () => {
