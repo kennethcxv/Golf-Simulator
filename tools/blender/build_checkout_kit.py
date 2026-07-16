@@ -257,8 +257,12 @@ def _label(text, size, depth, loc, mat, parent, rot=(0, 0, 0), name=None):
 
 
 def build_payment_terminal(M):
-    """Handheld card terminal reclined on a wedge.  Origin: bottom-centre of body."""
-    BW, BD, BH = 0.088, 0.034, 0.180
+    """Handheld card terminal reclined on a wedge.  Origin: bottom-centre of body.
+    Keypad follows the real POS-pad convention: 3x3 digits, then a colour row
+    [X red][0][O green] aligned to the same three columns (nothing overhangs the
+    shell), and a wide yellow correction bar beneath — zero sits square under
+    the 8 where a thumb expects it."""
+    BW, BD, BH = 0.088, 0.034, 0.196
     root = K.asset_root("payment_terminal", (BW, 0.10, BH))
 
     # assemble upright with the body empty at identity, tilt afterwards
@@ -276,27 +280,29 @@ def build_payment_terminal(M):
         L.cyl(f"t_spk{i}", 0.0012, 0.002, (-0.012 + i * 0.008, -BD / 2 - 0.001, BH - 0.010), M["black"], rot=(math.radians(90), 0, 0), verts=8, parent=body)
     L.box("t_brand", (0.030, 0.003, 0.0035), (0, -BD / 2 - 0.0012, scr_z - scr_h / 2 - 0.009), M["sage"], bevel=0.0, parent=body)
 
-    # keypad: 3x3 digits + bottom row [cancel][0][back][confirm]
+    # keypad: 3x3 digits, colour row on the same columns, wide correction bar
     keypad = K.empty("Terminal_Keypad", (0, 0, 0), parent=body, props={"component": "keypad"})
     key_w, key_h, key_d = 0.0225, 0.0125, 0.004
     pitch_x, pitch_z = 0.0265, 0.0155
     z0 = scr_z - scr_h / 2 - 0.024
     digit_mat = K.m_flat("M_KeyText", (0.88, 0.88, 0.90), rough=0.4)
+
+    def key(name, mat_, glyph, cx, cz, w=key_w, h=key_h, glyph_px=0.0072):
+        k = L.rounded_box(name, (w, key_d, h), (cx, -BD / 2 - key_d / 2 + 0.001, cz), mat_, corner=0.003, bevel=0.0015, uv=True, parent=keypad)
+        k["key"] = glyph
+        _label(glyph, glyph_px, 0.0006, (cx, -BD / 2 - key_d - 0.0002, cz - 0.0008), digit_mat, keypad,
+               rot=(math.radians(90), 0, 0), name=f"t_glyph_{name.removeprefix('Terminal_')}")
+        return k
+
     for n in range(1, 10):
         cx = (-1 + (n - 1) % 3) * pitch_x
         cz = z0 - ((n - 1) // 3) * pitch_z
-        k = L.rounded_box(f"Terminal_Key_{n}", (key_w, key_d, key_h), (cx, -BD / 2 - key_d / 2 + 0.001, cz), M["key_dark"], corner=0.003, bevel=0.0015, uv=True, parent=keypad)
-        k["key"] = str(n)
-        _label(str(n), 0.0072, 0.0006, (cx, -BD / 2 - key_d - 0.0002, cz - 0.0008), digit_mat, keypad, rot=(math.radians(90), 0, 0), name=f"t_glyph_{n}")
+        key(f"Terminal_Key_{n}", M["key_dark"], str(n), cx, cz)
     zb = z0 - 3 * pitch_z
-    bw4 = 0.0195
-    slots = [("Terminal_CancelButton", -1.5, M["btn_red"], "X"), ("Terminal_Key_0", -0.5, M["key_dark"], "0"),
-             ("Terminal_BackButton", 0.5, M["btn_yellow"], "-"), ("Terminal_ConfirmButton", 1.5, M["btn_green"], "O")]
-    for name, off, mat_, glyph in slots:
-        cx = off * (bw4 + 0.004)
-        k = L.rounded_box(name, (bw4, key_d, key_h), (cx, -BD / 2 - key_d / 2 + 0.001, zb), mat_, corner=0.003, bevel=0.0015, uv=True, parent=keypad)
-        k["key"] = glyph if name != "Terminal_Key_0" else "0"
-        _label(glyph, 0.0075, 0.0006, (cx, -BD / 2 - key_d - 0.0002, zb - 0.0008), digit_mat, keypad, rot=(math.radians(90), 0, 0), name=f"t_glyph_{name[-6:]}")
+    key("Terminal_CancelButton", M["btn_red"], "X", -pitch_x, zb)
+    key("Terminal_Key_0", M["key_dark"], "0", 0, zb)
+    key("Terminal_ConfirmButton", M["btn_green"], "O", pitch_x, zb)
+    key("Terminal_BackButton", M["btn_yellow"], "-", 0, zb - pitch_z, w=key_w + 2 * pitch_x, h=0.0105, glyph_px=0.0075)
 
     # chip slot at the bottom front + card socket (card 85.6 x 54 mm enters short-edge first)
     slot = L.box("Terminal_ChipSlot", (0.062, 0.020, 0.010), (0, -BD / 2 + 0.002, 0.011), M["black"], bevel=0.002, parent=body)
@@ -308,9 +314,9 @@ def build_payment_terminal(M):
     tilt = math.radians(-34)
     body.rotation_euler = (tilt, 0, 0)
     body.location = (0, 0.0, 0.0)
-    L.box("Terminal_Stand", (0.056, 0.05, 0.035), (0, 0.052, 0.0175), M["plastic_mid"], bevel=0.006, rot=(math.radians(24), 0, 0), parent=root)
+    L.box("Terminal_Stand", (0.056, 0.054, 0.035), (0, 0.056, 0.0175), M["plastic_mid"], bevel=0.006, rot=(math.radians(24), 0, 0), parent=root)
 
-    K.collision_box("COL_Terminal", (0.10, 0.13, 0.16), (0, 0.02, 0.08), M, root)
+    K.collision_box("COL_Terminal", (0.10, 0.14, 0.175), (0, 0.022, 0.0875), M, root)
     return root
 
 
@@ -566,8 +572,12 @@ def build_payment_card(M):
 # ======================================================= cash denominations ====
 
 BILL_TINTS = {
-    1: (0.56, 0.57, 0.46), 5: (0.56, 0.51, 0.55), 10: (0.62, 0.53, 0.43),
-    20: (0.51, 0.58, 0.47), 50: (0.59, 0.49, 0.50),
+    # saturated, glance-distinct note colours (still stylised, not real
+    # currency). Values are LINEAR floats — mid-greys turn pastel after the
+    # sRGB transfer, so saturation lives well below 0.5 on the muted channels.
+    # $1 sage green, $5 violet, $10 amber, $20 fairway green, $50 rose
+    1: (0.30, 0.42, 0.14), 5: (0.27, 0.15, 0.42), 10: (0.58, 0.24, 0.05),
+    20: (0.09, 0.32, 0.11), 50: (0.48, 0.10, 0.13),
 }
 COIN_SPECS = {                                     # code: (label, radius, thickness, copper)
     "01": ("1", 0.00953, 0.00152, True),

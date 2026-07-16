@@ -663,6 +663,11 @@ export function createRegisterMode(B) {
     if (tx.stage === 'cash-tender' || tx.stage === 'cash-drawer') return [];
     if (tx.stage === 'receipt') return [];
     if (tx.stage === 'bagging' || tx.stage === 'done') {
+      // The delivery pipeline banks the sale by itself the moment the receipt
+      // (and bag) reach the customer — flashing a one-second Complete button
+      // during that animation only begs for a pointless race. The button
+      // exists solely as a recovery handle if the automatic path ever stalls.
+      if (autoFulfilled) return [];
       return [{ id: 'finalize-transaction', label: transactionKind === 'reservation' ? 'Complete Check-In' : 'Finalize Transaction', kind: 'success' }];
     }
     return [];
@@ -1157,6 +1162,23 @@ export function createRegisterMode(B) {
       originalScale: mesh.scale.clone(),
     };
     mesh.castShadow = true;
+    // A generous invisible click pad wrapping the whole product. A driver is a
+    // centimetre-thin shaft — asking the player to hit that exact cylinder is
+    // pixel hunting. The pad takes the click; the visual mesh takes the arc.
+    mesh.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(mesh);
+    if (!bounds.isEmpty()) {
+      const size = bounds.getSize(new THREE.Vector3());
+      const center = mesh.worldToLocal(bounds.getCenter(new THREE.Vector3()));
+      const pad = new THREE.Mesh(
+        new THREE.BoxGeometry(size.x + 0.05, Math.max(size.y, 0.04) + 0.05, size.z + 0.05),
+        new THREE.MeshBasicMaterial({ visible: false }),
+      );
+      pad.name = 'ItemClickPad';
+      pad.position.copy(center);
+      pad.userData = { pick: true, kind: 'item', uid: item.uid, skuId: item.skuId };
+      mesh.add(pad);
+    }
     return mesh;
   }
 
@@ -1291,14 +1313,17 @@ export function createRegisterMode(B) {
     for (const denom of DENOMS) {
       const slot = SLOT[denom];
       const bill = BILLS.includes(denom);
+      // Generous, non-overlapping targets: full well pitch wide, tall and deep
+      // enough that any part of the visible stack (or the empty well) takes
+      // the click — no hunting for the "top section".
       const hotspot = new THREE.Mesh(
-        new THREE.BoxGeometry(bill ? 0.082 : 0.074, 0.085, bill ? 0.19 : 0.12),
+        new THREE.BoxGeometry(bill ? 0.082 : 0.074, 0.13, bill ? 0.26 : 0.17),
         new THREE.MeshBasicMaterial({ visible: false }),
       );
       hotspot.position.set(
         slot.x,
-        slot.y + 0.035,
-        slot.z - (bill ? 0.055 : 0.030),
+        slot.y + 0.05,
+        slot.z - (bill ? 0.06 : 0.035),
       );
       hotspot.userData = { pick: true, kind: 'drawer-slot', denom };
       drawerMotionRoot.add(hotspot);
@@ -1440,7 +1465,10 @@ export function createRegisterMode(B) {
         ? new THREE.Euler(0, Math.PI / 2, 0)
         : new THREE.Euler(0, 0, 0),
     );
+    // a piece in flight takes no clicks — including its child meshes, whose
+    // copied pick flags would otherwise route a click into a stale branch
     mesh.userData.pick = false;
+    mesh.traverse((o) => { if (o.userData) o.userData.pick = false; });
     cashMotions.push({
       mesh,
       from,
@@ -1937,8 +1965,10 @@ export function createRegisterMode(B) {
   // CLICK TO BAG. A single click on a counter product rings it up on the POS and
   // drops it into the shopping bag in one gesture — no scanner, no barcode, no
   // drag. This is the whole item interaction the reference asks for.
-  function bagProduct(mesh) {
-    if (!mesh || !tx || tx.stage !== 'scanning' || scanMotion) return false;
+  function bagProduct(picked) {
+    if (!picked || !tx || tx.stage !== 'scanning' || scanMotion) return false;
+    // the pick may be the invisible click pad — the ARC animates the real item
+    const mesh = itemMeshes.get(picked.userData.uid) || picked;
     const item = tx.items.find((candidate) => candidate.uid === mesh.userData.uid);
     if (!item || item.scanned) return false;
     if (checkoutFlowState() === 'WaitingForScan') {
@@ -2660,14 +2690,26 @@ export function createRegisterMode(B) {
     setNdc(event);
     ray.setFromCamera(ndc, camera);
     const presentedCash = tx && tx.stage === 'cash-tender' ? tenderMeshes : [];
+    // the drawer money itself is a click target: any part of the $5 stack IS
+    // the $5 well, not just the invisible hotspot floating over it
     const candidates = workspace === 'scan'
       ? loose
       : workspace === 'cash'
-        ? [...presentedCash, ...selectedChangeMeshes, ...slotHotspots]
+        ? [...presentedCash, ...selectedChangeMeshes, ...slotHotspots,
+          ...(drawerMoney ? [drawerMoney] : [])]
         : presentedCash;
-    const hits = ray.intersectObjects(candidates, true);
+    // items already dropped into the bag are hidden, not removed — they must
+    // not keep swallowing clicks (the raycaster tests invisible meshes too)
+    const hits = ray.intersectObjects(candidates, true).filter((hit) => {
+      for (let o = hit.object; o; o = o.parent) if (o.visible === false) return false;
+      return true;
+    });
     if (!hits.length) return null;
-    let object = hits[0].object;
+    // What the player SEES always wins: a click on one product's visible shaft
+    // must not be stolen by a neighbour's invisible click pad hanging closer to
+    // the camera. Pads only catch clicks that hit no real geometry at all.
+    const primary = hits.find((hit) => hit.object.name !== 'ItemClickPad') || hits[0];
+    let object = primary.object;
     while (object && !object.userData.pick && object.parent) object = object.parent;
     return object && object.userData.pick ? object : null;
   }
@@ -2682,11 +2724,41 @@ export function createRegisterMode(B) {
     if (kind === 'money' && object.userData.from === 'change') {
       return returnSelectedChange(object);
     }
+    if (kind === 'money' && object.userData.from === 'drawer') {
+      if (tx && tx.deposited) return selectChangeFromSlot(object.userData.denom);
+      return false;
+    }
     if (kind === 'drawer-slot') {
       if (tx && tx.deposited) return selectChangeFromSlot(object.userData.denom);
       return false;
     }
     return false;
+  }
+
+  // Hover feedback for money: a brass outline over whatever the cursor would
+  // take — the whole labeled well for drawer money, the piece itself for
+  // presented cash and counted change.
+  function updateCashHover(event) {
+    const object = physicalPick(event);
+    let target = null;
+    if (object) {
+      const kind = object.userData.kind;
+      if (kind === 'drawer-slot' || (kind === 'money' && object.userData.from === 'drawer')) {
+        if (tx && tx.deposited) {
+          target = slotHotspots.find(
+            (spot) => Number(spot.userData.denom) === Number(object.userData.denom),
+          ) || object;
+        }
+      } else if (kind === 'money') {
+        target = object;
+      }
+    }
+    if (target) {
+      hoverBounds.setFromObject(target);
+      hoverBox.visible = true;
+    } else {
+      hoverBox.visible = false;
+    }
   }
 
   function onDown(event) {
@@ -2743,11 +2815,28 @@ export function createRegisterMode(B) {
       const object = physicalPick(event);
       hoveredItem = object && object.userData.kind === 'item'
         && tx && !tx.items.find((item) => item.uid === object.userData.uid)?.scanned
-        ? object
+        ? (itemMeshes.get(object.userData.uid) || object)
         : null;
       hoverBox.visible = !!hoveredItem;
       if (hoveredItem) hoverBounds.setFromObject(hoveredItem);
+      return true;
     }
+    if (workspace === 'cash') {
+      updateCashHover(event);
+      return true;
+    }
+    if (workspace === 'monitor' && tx && tx.stage === 'cash-tender') {
+      // the presented cash glows under the cursor so "click the cash" is obvious
+      const object = physicalPick(event);
+      if (object && object.userData.kind === 'money' && object.userData.from === 'tender') {
+        hoverBounds.setFromObject(object);
+        hoverBox.visible = true;
+      } else {
+        hoverBox.visible = false;
+      }
+      return true;
+    }
+    if (hoverBox.visible) hoverBox.visible = false;
     return true;
   }
 
@@ -3003,7 +3092,7 @@ export function createRegisterMode(B) {
           sfx('productPickup');
         } else {
           deliveryPhase = 'released';
-          finalizeTimer = 0.4;
+          finalizeTimer = 0.2;
         }
         drawScreen();
       }
@@ -3022,7 +3111,7 @@ export function createRegisterMode(B) {
       if (deliveryTimer === 0) {
         if (bagGroup) bagGroup.visible = false;
         deliveryPhase = 'released';
-        finalizeTimer = 0.4;
+        finalizeTimer = 0.2;
         drawScreen();
       }
     }
@@ -3142,11 +3231,13 @@ export function createRegisterMode(B) {
       if (paymentAutoTimer === 0) choosePayment(preferredPayment());
     }
     // Once the receipt and bag have physically reached the customer, the sale
-    // banks itself and the customer leaves — no separate "finalize" click.
+    // banks itself and the customer leaves — no separate "finalize" click. A
+    // failed attempt re-arms the timer: with no manual button in the automatic
+    // flow, a transient refusal must never strand a paid customer.
     if (finalizeTimer > 0 && tx && tx.stage === 'done' && autoFulfilled
         && deliveryPhase === 'released') {
       finalizeTimer = Math.max(0, finalizeTimer - dt);
-      if (finalizeTimer === 0) finalizeTransaction();
+      if (finalizeTimer === 0 && !finalizeTransaction()) finalizeTimer = 0.6;
     }
     if (tx && tx.stage === 'card-busy') {
       termDotsTimer += dt;
@@ -3264,6 +3355,20 @@ export function createRegisterMode(B) {
     monitorScreenPoint,
     cardKeyScreenPoint,
     monitorHotspots: () => monitorUi.hotspots(),
+    // dev-only: what would a click at these client coordinates pick?
+    debugPickAt: (clientX, clientY) => {
+      const object = physicalPick({ clientX, clientY });
+      return {
+        monitorAction: monitorActionAt({ clientX, clientY }),
+        physical: object ? {
+          name: object.name || '(anon)',
+          kind: object.userData.kind,
+          uid: object.userData.uid,
+          denom: object.userData.denom,
+          from: object.userData.from,
+        } : null,
+      };
+    },
     workspace: () => workspace,
     begin,
     abandon,

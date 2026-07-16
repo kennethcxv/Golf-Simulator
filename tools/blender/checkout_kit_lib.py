@@ -296,14 +296,15 @@ def bill_img(denom, tint, *, w=512, h=512):
             arr[ring] = ink
             draw_text(arr, f"${denom}", w // 2, cy + 8, 4, ink)
             draw_text(arr, label, w // 2, y1 - 34, 2, ink)
-            # corner numerals
-            for cx_, cy_ in ((44, y0 + 40), (w - 44, y0 + 40), (44, y1 - 40), (w - 44, y1 - 40)):
-                draw_text(arr, str(denom), cx_, cy_, 3, ink)
-            # side seals
-            s1 = _ellipse_mask(w, h, 92, cy + 4, 30, 30) & ~_ellipse_mask(w, h, 92, cy + 4, 24, 24)
-            s2 = _ellipse_mask(w, h, w - 92, cy + 4, 30, 30) & ~_ellipse_mask(w, h, w - 92, cy + 4, 24, 24)
-            arr[s1] = ink2
-            arr[s2] = ink2
+            # BOLD VALUE BANDS at both ends: deep-tint bars with big pale
+            # numerals — the denomination reads from the open drawer at a
+            # glance, which the quiet corner numerals never did.
+            band = np.array(tint, "float32") * 0.40
+            pale = (0.94, 0.92, 0.84)
+            arr[y0 + 24:y1 - 24, 24:88] = band
+            arr[y0 + 24:y1 - 24, w - 88:w - 24] = band
+            draw_text(arr, str(denom), 56, cy + 2, 5, pale)
+            draw_text(arr, str(denom), w - 56, cy + 2, 5, pale)
         else:
             draw_text(arr, "GOLF EMPIRE", w // 2, y0 + 40, 2, ink2)
             m = _ellipse_mask(w, h, w / 2, cy + 6, 96, 52)

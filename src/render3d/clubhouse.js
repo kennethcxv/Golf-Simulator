@@ -3623,8 +3623,9 @@ export function makeClubhouse(ctx) {
       cardKeyScreenPoint: (label) => register.cardKeyScreenPoint(label),
       monitorHotspots: () => register.monitorHotspots(),
       workspace: () => register.workspace(),
-      // development-only diagnostic; never surfaced in player UI
+      // development-only diagnostics; never surfaced in player UI
       paymentStats: () => paymentDistributionReport(state),
+      debugPickAt: (x, y) => register.debugPickAt(x, y),
     },
     // DIAGNOSTICS. Not a cheat: sendToCounter() puts a shopper at the head of the
     // queue holding goods it took off the shelf through pickFromShelf, exactly as if
