@@ -273,6 +273,14 @@ export function createRegisterMode(B) {
   let receiptMesh = null;
   let receiptTimer = 0;
   let autoFulfilled = false;
+  let finalizeTimer = 0;
+
+  // The shopping bag sits at counter-left; a clicked product arcs into its mouth
+  // and drops out of sight (it is now "in the bag"). Positions are tuned to the
+  // reference composition and refined once the rebuilt bag asset lands.
+  let bagGroup = null;
+  const BAG_POS = new THREE.Vector3(1.98, COUNTER_TOP, 4.42);
+  const bagMouth = new THREE.Vector3(BAG_POS.x + 0.02, COUNTER_TOP + 0.17, BAG_POS.z);
 
   const itemResources = createRegisterItemResources();
   const itemMeshes = new Map();
@@ -575,8 +583,8 @@ export function createRegisterMode(B) {
     if (tx.stage === 'scanning') {
       if (unscannedCount(tx)) {
         return workspace === 'scan'
-          ? 'Select each product and drag it across the scanner beam.'
-          : 'Open the scanner and scan each product across the beam.';
+          ? 'Click each product to drop it into the bag.'
+          : 'Open the counter, then click each product to bag it.';
       }
       return `Opening the ${preferredPayment() === 'cash' ? 'cash drawer' : 'card reader'} automatically.`;
     }
@@ -599,7 +607,7 @@ export function createRegisterMode(B) {
     if (tx.stage === 'scanning') {
       if (unscannedCount(tx) > 0) {
         return workspace === 'monitor'
-          ? [{ id: 'start-scanning', label: 'Start Scanning', kind: 'primary' }]
+          ? [{ id: 'start-scanning', label: 'Bag Items', kind: 'primary' }]
           : [];
       }
       return [];
@@ -941,7 +949,7 @@ export function createRegisterMode(B) {
     ctx.fillStyle = '#fff8e8';
     ctx.font = '700 22px Arial, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(selected ? 'DRAG LEFT  →  RIGHT' : 'CLICK ANY PRODUCT TO CENTER IT', 320, 215);
+    ctx.fillText('CLICK EACH ITEM TO BAG IT', 320, 215);
     scanPanelTexture.needsUpdate = true;
   }
 
@@ -1100,6 +1108,29 @@ export function createRegisterMode(B) {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), material);
     mesh.rotation.x = -Math.PI / 2;
     return mesh;
+  }
+
+  function buildBag() {
+    if (bagGroup) return;
+    bagGroup = new THREE.Group();
+    bagGroup.name = 'FrontDeskShoppingBag';
+    bagGroup.position.copy(BAG_POS);
+    root.add(bagGroup);
+    const fallback = new THREE.Mesh(
+      new THREE.BoxGeometry(0.26, 0.30, 0.17),
+      new THREE.MeshStandardMaterial({ color: 0xbda274, roughness: 0.92, metalness: 0.0 }),
+    );
+    fallback.position.y = 0.15;
+    fallback.name = 'BagFallback';
+    bagGroup.add(fallback);
+    if (merch) {
+      merch.onReady(() => {
+        const model = merch.instantiate('checkout_shopping_bag');
+        if (!model) return;
+        fallback.visible = false;
+        bagGroup.add(model);
+      });
+    }
   }
 
   function buildDrawer() {
@@ -1761,132 +1792,51 @@ export function createRegisterMode(B) {
     return true;
   }
 
-  function selectProduct(mesh) {
-    if (!mesh || !tx || tx.stage !== 'scanning') return false;
+  // CLICK TO BAG. A single click on a counter product rings it up on the POS and
+  // drops it into the shopping bag in one gesture — no scanner, no barcode, no
+  // drag. This is the whole item interaction the reference asks for.
+  function bagProduct(mesh) {
+    if (!mesh || !tx || tx.stage !== 'scanning' || scanMotion) return false;
     const item = tx.items.find((candidate) => candidate.uid === mesh.userData.uid);
-    if (!item || item.scanned || scanMotion || scanDrag) return false;
-    selectedItem = mesh;
-    if (checkoutFlowState() === 'WaitingForScan') {
-      flowTo('ProductHeld', `selected-product:${item.uid}`);
-    }
-    const centerZ = 4.23;
-    scanMotion = {
-      phase: 'center',
-      mesh,
-      elapsed: 0,
-      duration: 0.34,
-      from: mesh.position.clone(),
-      to: new THREE.Vector3(2.52, SCAN_Y, centerZ),
-      fromQuaternion: mesh.quaternion.clone(),
-      toQuaternion: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 2, 0)),
-    };
-    hoverBox.visible = false;
-    hoveredItem = null;
-    sfx('productPickup');
-    drawScreen();
-    return true;
-  }
-
-  function beginScanDrag(event) {
-    if (!selectedItem || scanMotion || !tx || tx.stage !== 'scanning') return false;
-    const item = tx.items.find((candidate) => candidate.uid === selectedItem.userData.uid);
     if (!item || item.scanned) return false;
+    if (checkoutFlowState() === 'WaitingForScan') {
+      flowTo('ProductHeld', `picked-product:${item.uid}`);
+    }
     if (checkoutFlowState() === 'ProductHeld') {
-      flowTo('ProductScanning', `scanner-ready:${item.uid}`);
-      sfx('scannerActivate');
+      flowTo('ProductScanning', `ringing-product:${item.uid}`);
     }
-    scanDrag = {
-      mesh: selectedItem,
-      startClientX: event.clientX,
-      startX: selectedItem.position.x,
-      lastX: selectedItem.position.x,
-      crossed: false,
-    };
-    return true;
-  }
-
-  function moveScanDrag(event) {
-    if (!scanDrag) return;
-    const drag = scanDrag;
-    const rect = canvas.getBoundingClientRect();
-    const span = 1.20;
-    const delta = ((event.clientX - drag.startClientX) / Math.max(1, rect.width * 0.42)) * span;
-    const minX = 2.48;
-    const maxX = 3.08;
-    const nextX = THREE.MathUtils.clamp(drag.startX + delta, minX, maxX);
-    const mesh = drag.mesh;
-    mesh.position.x = nextX;
-    mesh.position.y = SCAN_Y;
-    mesh.position.z = 4.23;
-    const center = (REGISTER.scan.minX + REGISTER.scan.maxX) / 2;
-    if (!drag.crossed && drag.lastX < center && nextX >= center) {
-      drag.crossed = true;
-      completeProductScan(mesh);
-    }
-    drag.lastX = nextX;
-  }
-
-  function completeProductScan(mesh) {
-    if (!tx || !mesh) return false;
     const result = scanItem(tx, mesh.userData.uid);
     if (!result.ok) {
       toast(result.reason, 'warn');
       sfx('scanInvalid');
       return false;
     }
-    const item = result.item;
     item.staged = true;
     if (checkoutFlowState() === 'ProductScanning') {
-      flowTo('ProductScanned', `assisted-horizontal-scan:${item.uid}`);
+      flowTo('ProductScanned', `bagged-product:${item.uid}`);
     }
-    scanFlash = 0.28;
+    scanFlash = 0.22;
+    hoverBox.visible = false;
+    hoveredItem = null;
+    selectedItem = null;
+    sfx('productPickup');
+    sfx('scannerActivate');
     sfx('scanSuccess');
     sfx('posAdd');
-    const scannedIndex = tx.items.filter((candidate) => candidate.scanned).length - 1;
-    const finishedBaseX = 3.14;
-    const finishedBaseZ = 4.02;
+    // Arc the product up and over into the bag mouth, tumbling as it drops in.
     scanMotion = {
-      phase: 'finish',
+      phase: 'bag',
       mesh,
       elapsed: 0,
-      duration: 0.36,
+      duration: 0.5,
+      lift: 0.26,
       from: mesh.position.clone(),
-      to: new THREE.Vector3(
-        finishedBaseX + (scannedIndex % 2) * 0.18,
-        REST_Y,
-        finishedBaseZ + Math.floor(scannedIndex / 2) * 0.14,
-      ),
+      to: bagMouth.clone(),
       fromQuaternion: mesh.quaternion.clone(),
-      toQuaternion: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -0.18 + scannedIndex * 0.08, 0)),
+      toQuaternion: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.9, Math.PI * 0.6, 0.4)),
     };
-    scanDrag = null;
     drawScreen();
     return true;
-  }
-
-  function endScanDrag() {
-    if (!scanDrag) return;
-    const mesh = scanDrag.mesh;
-    const item = tx && tx.items.find((candidate) => candidate.uid === mesh.userData.uid);
-    scanDrag = null;
-    if (item && item.scanned) return;
-    // A short drag simply snaps the assisted product back to the large start zone.
-    scanMotion = {
-      phase: 'center',
-      mesh,
-      elapsed: 0,
-      duration: 0.22,
-      from: mesh.position.clone(),
-      to: new THREE.Vector3(
-        2.52,
-        SCAN_Y,
-        4.23,
-      ),
-      fromQuaternion: mesh.quaternion.clone(),
-      toQuaternion: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 2, 0)),
-    };
-    toast('Drag the product fully across the scanner.', 'warn');
-    sfx('thunk');
   }
 
   function updateScanMotion(dt) {
@@ -1896,27 +1846,29 @@ export function createRegisterMode(B) {
     const linear = motion.duration > 0 ? motion.elapsed / motion.duration : 1;
     const eased = linear * linear * (3 - 2 * linear);
     motion.mesh.position.lerpVectors(motion.from, motion.to, eased);
+    // A parabolic lift so the item rises off the counter and drops into the bag.
+    if (motion.lift) motion.mesh.position.y += Math.sin(linear * Math.PI) * motion.lift;
     motion.mesh.quaternion.slerpQuaternions(motion.fromQuaternion, motion.toQuaternion, eased);
+    // Shrink into the bag over the final third of the arc.
+    if (motion.phase === 'bag' && linear > 0.66) {
+      const s = 1 - (linear - 0.66) / 0.34;
+      const base = motion.mesh.userData.originalScale;
+      if (base) motion.mesh.scale.set(base.x * s, base.y * s, base.z * s);
+    }
     if (linear < 1) return;
     scanMotion = null;
-    if (motion.phase === 'center') {
-      selectedItem = motion.mesh;
-      if (checkoutFlowState() === 'ProductHeld') {
-        flowTo('ProductScanning', `product-centered:${motion.mesh.userData.uid}`);
-        sfx('scannerActivate');
-      }
-      return;
-    }
+    // The product is now in the bag: hide it and count it toward the order.
+    motion.mesh.visible = false;
     selectedItem = null;
     const remaining = unscannedCount(tx);
     if (checkoutFlowState() === 'ProductScanned') {
       flowTo(
         remaining ? 'WaitingForScan' : 'AllProductsScanned',
-        remaining ? 'scanned-product-auto-finished' : 'all-products-auto-finished',
+        remaining ? 'bagged-product-auto-finished' : 'all-products-bagged',
       );
     }
-    if (!remaining) scanReturnTimer = 0.46;
     if (!remaining) {
+      scanReturnTimer = 0.42;
       paymentAutoTimer = 1.35;
       drawScreen();
     }
@@ -2510,12 +2462,8 @@ export function createRegisterMode(B) {
       return true;
     }
     if (workspace === 'scan') {
-      if (selectedItem && !scanMotion) {
-        beginScanDrag(event);
-        return true;
-      }
       const object = physicalPick(event);
-      if (object && object.userData.kind === 'item') selectProduct(object);
+      if (object && object.userData.kind === 'item') bagProduct(object);
       return true;
     }
     if (workspace === 'cash') {
@@ -2532,11 +2480,7 @@ export function createRegisterMode(B) {
       feedInsert(event);
       return true;
     }
-    if (workspace === 'scan' && scanDrag) {
-      moveScanDrag(event);
-      return true;
-    }
-    if (workspace === 'scan' && !selectedItem && !scanMotion) {
+    if (workspace === 'scan' && !scanMotion) {
       const object = physicalPick(event);
       hoveredItem = object && object.userData.kind === 'item'
         && tx && !tx.items.find((item) => item.uid === object.userData.uid)?.scanned
@@ -2552,10 +2496,6 @@ export function createRegisterMode(B) {
     if (!active) return false;
     if (workspace === 'card' && insertDrag) {
       endInsert(event);
-      return true;
-    }
-    if (workspace === 'scan' && scanDrag) {
-      endScanDrag();
       return true;
     }
     return true;
@@ -2863,7 +2803,7 @@ export function createRegisterMode(B) {
     }
     if (workspace === 'scan') {
       return {
-        text: selectedItem ? 'Drag horizontally across the scanner' : 'Click a product to center and auto-orient it',
+        text: 'Click each item to drop it in the bag',
         total: false,
         drawer: false,
       };
@@ -2943,6 +2883,7 @@ export function createRegisterMode(B) {
   }
 
   buildDrawer();
+  buildBag();
   drawScreen();
   drawTerm();
 

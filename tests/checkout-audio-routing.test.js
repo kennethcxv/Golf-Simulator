@@ -179,16 +179,20 @@ test('drawer close is emitted once only after an exact-once cash finalization', 
     'only a successfully finalized cash transaction closes the drawer');
 });
 
-test('scanner and automatic receipt cues remain transition-local one-shots', () => {
-  const startScanDrag = extractFunction(registerSource, 'beginScanDrag');
-  const updateScanMotion = extractFunction(registerSource, 'updateScanMotion');
+test('bagging and automatic receipt cues remain transition-local one-shots', () => {
+  const bagProduct = extractFunction(registerSource, 'bagProduct');
   const beginAutomaticReceipt = extractFunction(registerSource, 'beginAutomaticReceipt');
   const finishAutomaticFulfillment = extractFunction(registerSource, 'finishAutomaticFulfillment');
 
-  assert.equal(cueCalls(registerSource, 'scannerActivate').length, 2,
-    'centering and drag-start edges each own one scanner activation site');
-  assert.equal(cueCalls(startScanDrag, 'scannerActivate').length, 1);
-  assert.equal(cueCalls(updateScanMotion, 'scannerActivate').length, 1);
+  // Click-to-bag rings up an item once: pickup + register beep + POS add all on
+  // the single bagProduct edge, after the ProductScanning transition. There is
+  // no scanner drag, no centering, no second activation edge.
+  assert.equal(cueCalls(registerSource, 'scannerActivate').length, 1,
+    'the single bagging edge owns the one register-activation cue');
+  assert.equal(cueCalls(bagProduct, 'scannerActivate').length, 1);
+  assert.equal(cueCalls(bagProduct, 'posAdd').length, 1,
+    'the POS add cue fires once per bagged item');
+  assert.equal(cueCalls(bagProduct, 'scanSuccess').length, 1);
   assert.equal(cueCalls(beginAutomaticReceipt, 'receiptPrint').length, 1);
   assert.equal(cueCalls(finishAutomaticFulfillment, 'receiptTear').length, 1);
   assert.equal(cueCalls(registerSource, 'bagHandoff').length, 0,
