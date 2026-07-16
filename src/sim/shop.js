@@ -327,6 +327,8 @@ export function initShop(state) {
     salesYesterday: { units: 0, revenue: 0 },
     salesToday: {},      // per-SKU units sold since the last day close (both selling paths)
     salesWindow: [],     // the last seven closed days of the same — velocity reads this
+    transactionHistory: [], // completed physical-register tickets, newest first
+    nextTransactionNo: 1,
     fittingsYesterday: 0,
     log: [], // recent notable sales for the panel/3D flavor
   };

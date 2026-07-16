@@ -109,9 +109,14 @@ test('cancelling frees the slot', () => {
 test('reservations persist through save/load and old saves migrate cleanly', () => {
   const state = newGame('relaxed', 42);
   bookSlot(state, today(state) + 1, 510, 'Saved Golfer');
+  const beforeLoad = structuredClone(state.reservations.booked[0]);
+  assert.ok(beforeLoad.groupMembers.every((member) => member.name === member.fullName),
+    'new reservation group members start in the canonical persisted shape');
   const loaded = deserialize(serialize(state));
   assert.equal(loaded.reservations.booked.length, 1, 'bookings survive the round-trip');
   assert.equal(loaded.reservations.booked[0].name, 'Saved Golfer');
+  assert.deepEqual(loaded.reservations.booked[0], beforeLoad,
+    'the first load does not normalize freshly-created reservation fields');
 
   const raw = JSON.parse(serialize(state));
   delete raw.reservations;

@@ -33,6 +33,19 @@ const FILES = [
   'carton', 'carton_open', 'handtruck', 'pendant',
   // the register kit a cashier's hands touch (tools/blender/build_register.py)
   'basket', 'bag_open', 'impulse_rack', 'divider',
+  // production checkout kit (tools/blender/build_checkout_assets.py)
+  'checkout_counter', 'checkout_cash_drawer', 'checkout_scanner',
+  'checkout_card_reader', 'checkout_receipt_printer', 'checkout_shopping_bag',
+  // Compact, checkout-scale product families (tools/blender/build_checkout_products.py).
+  // Sibling SKUs share one authored silhouette and vary through tint/tier identity.
+  'checkout_product_driver', 'checkout_product_iron_set', 'checkout_product_putter',
+  'checkout_product_wedge', 'checkout_product_ball_carton',
+  'checkout_product_folded_polo', 'checkout_product_folded_jacket',
+  'checkout_product_cap', 'checkout_product_glove', 'checkout_product_tee_pouch',
+  'checkout_product_towel_roll', 'checkout_product_marker_blister',
+  'checkout_product_rangefinder', 'checkout_product_umbrella',
+  'checkout_product_stand_bag', 'checkout_product_shoe_pair',
+  'checkout_product_sock_pair', 'checkout_product_headcover',
 ];
 
 // Textured HERO props (Tripo scans, normalised by tools/blender/process_tripo.py).
@@ -66,16 +79,44 @@ const SLOT = {
   M_paper: 'trimPaint',
   M_glass: 'glass',
   M_screen: 'charcoal',   // the live screens get their own canvas material
+  // production checkout palette
+  M_Cream: 'trimPaint',
+  M_OffWhite: 'merchWhite',
+  M_DeepGreen: 'greenPaint',
+  M_Sage: 'sagePaint',
+  M_Walnut: 'walnut',
+  M_DarkWalnut: 'walnutDark',
+  M_NaturalOak: 'rawWood',
+  M_Charcoal: 'charcoal',
+  M_Plastic: 'plastic',
+  M_Rubber: 'rubber',
+  M_Brass: 'brass',
+  M_Steel: 'chrome',
+  M_Glass: 'glass',
+  M_Paper: 'trimPaint',
+  M_Kraft: 'kraft',
 };
+
+// These small authored materials carry meaningful emissive feedback. Keeping the
+// imported material preserves that signal without adding a per-instance material.
+const PRESERVE = new Set(['M_Screen', 'M_ScannerBeam', 'M_StatusLED']);
 
 // The slots that take a per-item colour. A polo's body is fabric; a golf shoe's
 // upper is LEATHER — tinting only fabric left every shoe on the wall the same
 // shade of brown. Both are tintable, and both cache by (slot, colour) so twelve
 // polos in four colours still cost four materials, not twelve.
-const TINTABLE = { M_fabric: 'merchFabric', M_leather: 'merchLeather' };
+const TINTABLE = {
+  M_fabric: 'merchFabric',
+  M_leather: 'merchLeather',
+  // Checkout sibling SKUs share geometry but tint one authored identity band.
+  // The cache key includes the tint, so three tiers cost three stable materials,
+  // never one clone per transaction item.
+  M_SKUAccent: 'merchPlastic',
+};
 
 export function createMerch(mats) {
   const protos = new Map();
+  const clips = new Map();
   const tints = new Map();     // 'fabric|0x3f7a34' -> Material, built once, reused forever
   let ready = false;
   const waiting = [];
@@ -95,6 +136,7 @@ export function createMerch(mats) {
 
   function resolve(src, tint) {
     const name = (src && src.name) || 'M_fabric';
+    if (PRESERVE.has(name)) return src;
     if (TINTABLE[name]) return tinted(name, tint);
     return mats[SLOT[name]] || mats.charcoal;
   }
@@ -114,6 +156,11 @@ export function createMerch(mats) {
       // canvas on it
       const src = Array.isArray(o.material) ? o.material[0] : o.material;
       o.userData.slot = (src && src.name) || null;
+      // Authoring-only collision and contents volumes are valuable to validators
+      // and runtime lookup, but must never become visible shop geometry.
+      if (o.name.startsWith('COL_') || o.name.startsWith('VOLUME_') || o.name === 'ScannerBeam') {
+        o.visible = false;
+      }
       o.material = Array.isArray(o.material)
         ? o.material.map((m) => resolve(m, tint))
         : resolve(o.material, tint);
@@ -202,6 +249,7 @@ export function createMerch(mats) {
         const root = g.scene;
         root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
         protos.set(name, root);
+        clips.set(name, g.animations || []);
         done();
       },
       undefined,
@@ -229,6 +277,7 @@ export function createMerch(mats) {
     bake,
     isReady: () => ready,
     has: (n) => protos.has(n),
+    animations: (n) => clips.get(n) || [],
     // the models arrive after the shop is built; the caller restocks on ready
     onReady(fn) { if (ready) fn(); else waiting.push(fn); },
   };

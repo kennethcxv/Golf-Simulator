@@ -171,7 +171,7 @@ export const REGISTER = {
   monitor:  { x: 2.25, z: 4.52, ry: 0 },                // staff side — it faces YOU
   cardterm: { x: 2.05, z: 3.88, ry: 0 },                // customer side, in BOTH reach circles
   scanner:  { x: 2.70, z: 4.22, ry: Math.PI + 0.22 },   // mid-depth: you pass goods over it
-  printer:  { x: 3.20, z: 4.56, ry: Math.PI - 0.18 },
+  printer:  { x: 3.05, z: 4.56, ry: Math.PI - 0.18 },
   bagstand: { x: 4.20, z: 4.50 },                       // the stack of folded carriers
   divider:  { x: 4.42, z: 4.05 },                       // where the next order starts
   impulse:  { x: 3.85, z: 3.85 },                       // markers and tees, facing the queue

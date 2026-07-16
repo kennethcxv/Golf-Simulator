@@ -17,13 +17,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/sim/state.js';
 import {
-  createTx, scanItem, requestPayment, presentCard, runCard,
-  printReceipt, takeReceipt, bagItem, handOverGoods, completeSale, voidTx,
+  createTx, scanItem, requestPayment, presentCard, insertCard,
+  enterCardDigit, submitCardAmount, totalOf, runCard,
+  printReceipt, takeReceipt, packReceipt, bagItem, handOverGoods, completeSale, voidTx,
   openDrawer, takeFromDrawer, handOverChange, newDrawer, stackTotal,
 } from '../src/sim/register.js';
 import { pickFromShelf, returnToShelf, heldUnits } from '../src/sim/checkout.js';
 
 const rngFor = (seq) => { let i = 0; return () => seq[i++ % seq.length]; };
+const enterExactAmount = (tx) => {
+  for (const digit of String(Math.round(totalOf(tx) * 100))) enterCardDigit(tx, Number(digit));
+  return submitCardAmount(tx);
+};
 const items = () => ([
   { uid: 'a', skuId: 'balls3', name: 'Pro-V dozen', price: 47 },
   { uid: 'b', skuId: 'glove1', name: 'Cabretta glove', price: 19 },
@@ -49,6 +54,8 @@ test('a sale abandoned AFTER AN APPROVED CARD still banks nothing', () => {
   for (const it of tx.items) scanItem(tx, it.uid);
   requestPayment(tx);
   presentCard(tx);
+  insertCard(tx);
+  enterExactAmount(tx);
   assert.equal(runCard(tx).result, 'approved');
   assert.equal(tx.stage, 'receipt');
 
@@ -106,13 +113,20 @@ test('the goods a walked-out shopper was holding go back on the shelf, exactly o
 
 test('a finished sale cannot then be abandoned INTO a second bank', () => {
   const st = newGame('relaxed', 5);
+  st.shop.inventory.balls3.shelf = 1;
+  st.shop.inventory.glove1.shelf = 1;
+  pickFromShelf(st, 'balls3', 'a');
+  pickFromShelf(st, 'glove1', 'b');
   const tx = createTx({ items: items(), rng: rngFor([0.1, 0.9]) });
   for (const it of tx.items) scanItem(tx, it.uid);
   requestPayment(tx);
   presentCard(tx);
+  insertCard(tx);
+  enterExactAmount(tx);
   runCard(tx);
   printReceipt(tx);
   takeReceipt(tx);
+  packReceipt(tx);
   for (const it of tx.items) bagItem(tx, it.uid);
   handOverGoods(tx);
   assert.equal(completeSale(st, tx, 'Real').ok, true);

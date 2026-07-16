@@ -1,20 +1,34 @@
-// FAIRWAY STATE — procedural placeholder audio. Everything synthesized in
-// WebAudio: birdsong, rain, mowers at dawn, ball strikes, the shop doorbell.
-// Honest placeholders — real recorded SFX are a pre-ship requirement (logged in
-// KNOWN_ISSUES). Master volume persists in localStorage, separate from saves.
+// FAIRWAY STATE — original procedural WebAudio sound design. Pinehollow checkout
+// uses dry walnut taps, restrained paper/metal textures, and a warm D/A tonal motif
+// so physical actions remain legible without arcade volume. Master volume persists
+// in localStorage, separate from saves.
 
 const SETTINGS_KEY = 'fairwaystate:settings';
+
+export const CHECKOUT_CUE_APIS = Object.freeze([
+  'productPlace', 'productPickup', 'productRotate',
+  'scannerActivate', 'scanSuccess', 'scanInvalid', 'posAdd',
+  'cardMove', 'cardSwipe', 'cardInsert', 'cardProcessing', 'cardApproved', 'cardDeclined',
+  'cashPresent', 'billHandle', 'coinHandle',
+  'drawerUnlock', 'drawerOpen', 'drawerClose',
+  'changeSelect', 'changeHandoff',
+  'receiptPrint', 'receiptTear',
+  'bagOpen', 'bagRustle', 'bagItem', 'bagHandoff',
+  'checkoutComplete',
+]);
 
 export function makeAudio() {
   let ctx = null;
   let master = null;
   let ambientBus = null;
   let sfxBus = null;
+  let capture = null;
 
   let rainGain = null;
   let mowerGain = null;
   let birdTimer = 0;
   let strikeTimer = 0;
+  const checkoutCueLastAt = new Map();
 
   const settings = (() => {
     try {
@@ -36,7 +50,13 @@ export function makeAudio() {
 
   // must be called from a user gesture
   function init() {
-    if (ctx) return;
+    // A context can be created while the page is backgrounded and then suspended by
+    // the browser. The next real pointer/key gesture must wake that same graph rather
+    // than returning early and leaving the whole game silent.
+    if (ctx) {
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      return;
+    }
     try {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
     } catch {
@@ -84,6 +104,167 @@ export function makeAudio() {
     mowLp.connect(mowerGain).connect(ambientBus);
     mowOsc.start();
     mowOsc2.start();
+  }
+
+  // Acceptance recordings need the exact mix the player hears, not a second set of
+  // synthetic cues added by the test runner. This recorder is deliberately opt-in:
+  // normal play creates no MediaStream nodes, tracks, blobs, or MediaRecorder.
+  async function startCapture(canvas, options = {}) {
+    if (capture) throw new Error('An audio/video capture is already running.');
+    if (!canvas || typeof canvas.captureStream !== 'function') {
+      throw new Error('This browser cannot capture the game canvas.');
+    }
+    if (typeof window.MediaRecorder !== 'function') {
+      throw new Error('This browser does not provide MediaRecorder.');
+    }
+
+    init();
+    if (!ctx || !master) throw new Error('WebAudio could not be initialized for capture.');
+    if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
+
+    const fps = Math.max(1, Math.min(60, Number(options.fps) || 30));
+    const canvasStream = canvas.captureStream(fps);
+    const videoTracks = canvasStream.getVideoTracks();
+    if (!videoTracks.length) throw new Error('Canvas capture did not produce a video track.');
+
+    const audioDestination = ctx.createMediaStreamDestination();
+    master.connect(audioDestination);
+    const audioTracks = audioDestination.stream.getAudioTracks();
+    if (!audioTracks.length) {
+      master.disconnect(audioDestination);
+      for (const track of videoTracks) track.stop();
+      throw new Error('WebAudio capture did not produce an audio track.');
+    }
+    // Sample the same post-volume master signal while recording. Track presence alone
+    // cannot distinguish real SFX from a silent audio track, so acceptance evidence
+    // reports both peak amplitude and the number of non-silent sample windows.
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    master.connect(analyser);
+    const sampleData = new Float32Array(analyser.fftSize);
+    const levels = { windows: 0, nonSilentWindows: 0, peak: 0 };
+    const levelTimer = setInterval(() => {
+      analyser.getFloatTimeDomainData(sampleData);
+      let peak = 0;
+      for (let i = 0; i < sampleData.length; i++) peak = Math.max(peak, Math.abs(sampleData[i]));
+      levels.windows++;
+      if (peak > 0.0001) levels.nonSilentWindows++;
+      levels.peak = Math.max(levels.peak, peak);
+    }, 50);
+
+    const stream = new MediaStream([...videoTracks, ...audioTracks]);
+    const candidates = [
+      options.mimeType,
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+    ].filter(Boolean);
+    const mimeType = candidates.find((candidate) => (
+      typeof window.MediaRecorder.isTypeSupported !== 'function'
+        || window.MediaRecorder.isTypeSupported(candidate)
+    ));
+    if (!mimeType) {
+      master.disconnect(audioDestination);
+      master.disconnect(analyser);
+      clearInterval(levelTimer);
+      for (const track of stream.getTracks()) track.stop();
+      throw new Error('No supported WebM/Opus MediaRecorder format is available.');
+    }
+
+    const chunks = [];
+    let recorder;
+    try {
+      recorder = new window.MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: Number(options.videoBitsPerSecond) || 8_000_000,
+        audioBitsPerSecond: Number(options.audioBitsPerSecond) || 128_000,
+      });
+    } catch (error) {
+      master.disconnect(audioDestination);
+      master.disconnect(analyser);
+      clearInterval(levelTimer);
+      for (const track of stream.getTracks()) track.stop();
+      throw error;
+    }
+    recorder.addEventListener('dataavailable', (event) => {
+      if (event.data && event.data.size > 0) chunks.push(event.data);
+    });
+
+    const started = new Promise((resolve, reject) => {
+      recorder.addEventListener('start', resolve, { once: true });
+      recorder.addEventListener('error', (event) => {
+        reject(event.error || new Error('MediaRecorder failed to start.'));
+      }, { once: true });
+    });
+    capture = {
+      recorder, stream, canvasStream, audioDestination, analyser, levelTimer, levels,
+      chunks, mimeType, startedAt: performance.now(),
+    };
+    try {
+      recorder.start(1000);
+      await started;
+    } catch (error) {
+      capture = null;
+      try { master.disconnect(audioDestination); } catch { /* already disconnected */ }
+      try { master.disconnect(analyser); } catch { /* already disconnected */ }
+      clearInterval(levelTimer);
+      for (const track of stream.getTracks()) track.stop();
+      throw error;
+    }
+    return {
+      mimeType: recorder.mimeType || mimeType,
+      audioTracks: audioTracks.length,
+      videoTracks: videoTracks.length,
+      audioContextState: ctx.state,
+    };
+  }
+
+  async function stopCapture(options = {}) {
+    if (!capture) throw new Error('No audio/video capture is running.');
+    const active = capture;
+    capture = null;
+    const stopped = active.recorder.state === 'inactive'
+      ? Promise.resolve()
+      : new Promise((resolve, reject) => {
+        active.recorder.addEventListener('stop', resolve, { once: true });
+        active.recorder.addEventListener('error', (event) => {
+          reject(event.error || new Error('MediaRecorder failed while stopping.'));
+        }, { once: true });
+        active.recorder.stop();
+      });
+
+    try {
+      await stopped;
+      const blob = new Blob(active.chunks, { type: active.recorder.mimeType || active.mimeType });
+      if (!blob.size) throw new Error('The audio/video capture produced an empty file.');
+      const downloadName = String(options.downloadName || '').trim();
+      if (downloadName) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = downloadName.replace(/[\\/:*?\"<>|]/g, '-');
+        link.style.display = 'none';
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      }
+      return {
+        mimeType: blob.type,
+        bytes: blob.size,
+        durationMs: Math.round(performance.now() - active.startedAt),
+        audioPeak: Number(active.levels.peak.toFixed(6)),
+        audioSampleWindows: active.levels.windows,
+        nonSilentAudioWindows: active.levels.nonSilentWindows,
+        downloaded: !!downloadName,
+      };
+    } finally {
+      try { master.disconnect(active.audioDestination); } catch { /* graph may be tearing down */ }
+      try { master.disconnect(active.analyser); } catch { /* graph may be tearing down */ }
+      clearInterval(active.levelTimer);
+      for (const track of active.stream.getTracks()) track.stop();
+      for (const track of active.canvasStream.getTracks()) track.stop();
+    }
   }
 
   function chirp() {
@@ -247,19 +428,11 @@ export function makeAudio() {
     clack.stop(t0 + 0.08);
   }
 
-  // the register scanner: one clean high blip, unmistakably retail
+  // Pinehollow scan success: a dry A6 square pip with a quieter fifth above it.
+  // The glass wake-up sweep and invalid double-buzz have separate APIs below.
   function scanBeep() {
-    if (!ctx) return;
-    const t0 = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    osc.type = 'square';
-    osc.frequency.value = 1560;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.035, t0);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
-    osc.connect(g).connect(sfxBus);
-    osc.start(t0);
-    osc.stop(t0 + 0.1);
+    checkoutTone({ freq: 1760, to: 1680, type: 'square', dur: 0.075, peak: 0.028, filter: 4200 });
+    checkoutTone({ at: 0.012, freq: 2637, to: 2489, dur: 0.085, peak: 0.012 });
   }
 
   // the cash drawer: rolling slide, hard stop, and the till bell
@@ -278,6 +451,7 @@ export function makeAudio() {
     sg.gain.value = 0.05;
     slide.connect(bp).connect(sg).connect(sfxBus);
     slide.start(t0);
+    slide.stop(t0 + 0.17);
     // the bell: two quick partials, unmistakably a till
     for (const [f, dt] of [[1244, 0.17], [1867, 0.175]]) {
       const osc = ctx.createOscillator();
@@ -313,12 +487,12 @@ export function makeAudio() {
     osc.stop(t0 + 0.07);
   }
 
-  // APPROVED: two notes, rising. A major third up is the most unambiguous "yes"
-  // there is, and every terminal on earth uses some version of it.
+  // APPROVED: Pinehollow's open D-to-A fifth, warm and affirmative without
+  // borrowing a generic terminal jingle.
   function approve() {
     if (!ctx) return;
     const t0 = ctx.currentTime;
-    [[880, 0], [1108, 0.09]].forEach(([f, dt]) => {
+    [[587.33, 0], [880, 0.09]].forEach(([f, dt]) => {
       const osc = ctx.createOscillator();
       osc.type = 'sine';
       osc.frequency.value = f;
@@ -374,6 +548,7 @@ export function makeAudio() {
     g.gain.value = 0.07;
     src.connect(hp).connect(g).connect(sfxBus);
     src.start(t0);
+    src.stop(t0 + 0.22);
   }
 
   // a coin dropped into a cup: a metallic ping with a couple of inharmonic partials,
@@ -395,7 +570,8 @@ export function makeAudio() {
     }
   }
 
-  // thermal receipt printer: a fast ratchet of tiny clicks, then the tear
+  // Thermal receipt printer feed: a fast ratchet of tiny clicks. Paper removal is
+  // a separate physical interaction and therefore has its own explicitly timed cue.
   function receipt() {
     if (!ctx) return;
     const t0 = ctx.currentTime;
@@ -411,7 +587,11 @@ export function makeAudio() {
       osc.start(t);
       osc.stop(t + 0.03);
     }
-    // the tear: one short noise swish
+  }
+
+  function receiptTear() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
     const buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
@@ -420,7 +600,196 @@ export function makeAudio() {
     const bg = ctx.createGain();
     bg.gain.value = 0.05;
     src.connect(bg).connect(sfxBus);
-    src.start(t0 + 0.34);
+    src.start(t0);
+    src.stop(t0 + 0.085);
+  }
+
+  // --- Pinehollow checkout palette -------------------------------------------
+  // Every cue below is a bounded one-shot. Movement textures are rate-limited so
+  // mousemove cannot build an accidental wall of WebAudio nodes. The two helpers
+  // always schedule a stop and retain no source, filter, or gain after returning.
+  function checkoutTone({
+    at = 0, dur = 0.1, freq = 440, to = freq, type = 'sine', peak = 0.03,
+    attack = 0.006, filter = 0,
+  } = {}) {
+    if (!ctx) return null;
+    const start = ctx.currentTime + Math.max(0, Number(at) || 0);
+    const seconds = Math.max(0.02, Math.min(0.8, Number(dur) || 0.1));
+    const end = start + seconds;
+    const startFrequency = Math.max(20, Number(freq) || 440);
+    const endFrequency = Math.max(20, Number(to) || startFrequency);
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(startFrequency, start);
+    if (endFrequency !== startFrequency) {
+      osc.frequency.exponentialRampToValueAtTime(endFrequency, end);
+    }
+    let output = osc;
+    if (filter) {
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = Math.max(80, Number(filter) || 1200);
+      output = output.connect(lp);
+    }
+    const gain = ctx.createGain();
+    const level = Math.max(0.001, Math.min(0.075, Number(peak) || 0.03));
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.linearRampToValueAtTime(level, start + Math.min(seconds * 0.45, Math.max(0.002, attack)));
+    gain.gain.exponentialRampToValueAtTime(0.0001, end);
+    output.connect(gain).connect(sfxBus);
+    osc.start(start);
+    osc.stop(end + 0.01);
+    return { start, end };
+  }
+
+  function checkoutNoise({
+    at = 0, dur = 0.12, band = 1600, toBand = band, type = 'bandpass',
+    q = 0.8, peak = 0.025, attack = 0.008,
+  } = {}) {
+    if (!ctx) return null;
+    const start = ctx.currentTime + Math.max(0, Number(at) || 0);
+    const seconds = Math.max(0.025, Math.min(0.8, Number(dur) || 0.12));
+    const end = start + seconds;
+    const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * seconds), ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = type;
+    const startBand = Math.max(80, Number(band) || 1600);
+    const endBand = Math.max(80, Number(toBand) || startBand);
+    filter.frequency.setValueAtTime(startBand, start);
+    if (endBand !== startBand) filter.frequency.exponentialRampToValueAtTime(endBand, end);
+    filter.Q.value = Math.max(0.1, Number(q) || 0.8);
+    const gain = ctx.createGain();
+    const level = Math.max(0.001, Math.min(0.065, Number(peak) || 0.025));
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.linearRampToValueAtTime(level, start + Math.min(seconds * 0.45, Math.max(0.002, attack)));
+    gain.gain.exponentialRampToValueAtTime(0.0001, end);
+    source.connect(filter).connect(gain).connect(sfxBus);
+    source.start(start);
+    source.stop(end + 0.005);
+    return { start, end };
+  }
+
+  function checkoutCueAllowed(name, minGap) {
+    if (!ctx) return false;
+    const last = checkoutCueLastAt.get(name);
+    if (last != null && ctx.currentTime - last < minGap) return false;
+    checkoutCueLastAt.set(name, ctx.currentTime);
+    return true;
+  }
+
+  function productPlace() {
+    checkoutNoise({ dur: 0.09, band: 780, toBand: 520, q: 0.65, peak: 0.018, attack: 0.003 });
+    checkoutTone({ freq: 196, to: 147, type: 'triangle', dur: 0.12, peak: 0.03, filter: 850 });
+  }
+
+  function productPickup() {
+    checkoutNoise({ dur: 0.08, band: 1250, toBand: 2400, q: 0.75, peak: 0.016 });
+    checkoutTone({ at: 0.012, freq: 220, to: 330, type: 'triangle', dur: 0.075, peak: 0.021, filter: 1200 });
+  }
+
+  function productRotate() {
+    if (!checkoutCueAllowed('productRotate', 0.055)) return;
+    checkoutTone({ freq: 520, to: 455, type: 'square', dur: 0.034, peak: 0.011, filter: 1700 });
+    checkoutNoise({ at: 0.008, dur: 0.035, band: 2500, toBand: 1800, q: 1.2, peak: 0.008 });
+  }
+
+  function scannerActivate() {
+    checkoutTone({ freq: 740, to: 1480, type: 'sine', dur: 0.115, peak: 0.019 });
+    checkoutTone({ at: 0.045, freq: 1480, to: 1760, type: 'triangle', dur: 0.075, peak: 0.009 });
+  }
+
+  function scanInvalid() {
+    checkoutTone({ freq: 349.23, to: 311.13, type: 'sawtooth', dur: 0.095, peak: 0.024, filter: 950 });
+    checkoutTone({ at: 0.105, freq: 293.66, to: 246.94, type: 'sawtooth', dur: 0.115, peak: 0.022, filter: 850 });
+  }
+
+  function posAdd() {
+    checkoutTone({ freq: 440, to: 466.16, type: 'triangle', dur: 0.085, peak: 0.018 });
+    checkoutTone({ at: 0.052, freq: 587.33, to: 622.25, type: 'triangle', dur: 0.105, peak: 0.019 });
+  }
+
+  function cardMove() {
+    if (!checkoutCueAllowed('cardMove', 0.04)) return;
+    checkoutNoise({ dur: 0.042, band: 3400, toBand: 2300, q: 1.25, peak: 0.009, attack: 0.002 });
+  }
+
+  function cardSwipe() {
+    checkoutNoise({ dur: 0.27, band: 3900, toBand: 1050, q: 0.85, peak: 0.035, attack: 0.006 });
+    checkoutTone({ at: 0.018, freq: 128, to: 94, type: 'square', dur: 0.23, peak: 0.012, filter: 520 });
+  }
+
+  function cardInsert() {
+    checkoutNoise({ dur: 0.105, band: 3150, toBand: 1450, q: 1.1, peak: 0.025, attack: 0.004 });
+    checkoutTone({ at: 0.045, freq: 172, to: 118, type: 'square', dur: 0.09, peak: 0.018, filter: 720 });
+    checkoutTone({ at: 0.105, freq: 760, to: 920, type: 'triangle', dur: 0.055, peak: 0.012, filter: 1900 });
+  }
+
+  function cardProcessing() {
+    for (const [at, freq] of [[0, 440], [0.11, 440], [0.22, 587.33]]) {
+      checkoutTone({ at, freq, to: freq * 0.985, type: 'triangle', dur: 0.07, peak: 0.017 });
+    }
+  }
+
+  function cashPresent() {
+    checkoutNoise({ dur: 0.14, band: 1050, toBand: 1750, q: 0.55, peak: 0.027, attack: 0.012 });
+    checkoutNoise({ at: 0.075, dur: 0.11, band: 1850, toBand: 1250, q: 0.7, peak: 0.018 });
+    checkoutTone({ at: 0.025, freq: 196, to: 164.81, type: 'triangle', dur: 0.12, peak: 0.015, filter: 700 });
+  }
+
+  function billHandle() {
+    checkoutNoise({ dur: 0.135, band: 1150, toBand: 2150, q: 0.6, peak: 0.031, attack: 0.01 });
+    checkoutTone({ at: 0.025, freq: 220, to: 196, type: 'triangle', dur: 0.075, peak: 0.009, filter: 650 });
+  }
+
+  function drawerUnlock() {
+    checkoutTone({ freq: 980, to: 620, type: 'square', dur: 0.045, peak: 0.017, filter: 1800 });
+    checkoutTone({ at: 0.024, freq: 142, to: 88, type: 'triangle', dur: 0.085, peak: 0.026, filter: 650 });
+  }
+
+  function drawerClose() {
+    checkoutNoise({ dur: 0.18, band: 720, toBand: 390, q: 0.55, peak: 0.027, attack: 0.008 });
+    checkoutTone({ at: 0.045, freq: 120, to: 64, type: 'triangle', dur: 0.14, peak: 0.035, filter: 520 });
+    checkoutTone({ at: 0.15, freq: 920, to: 610, type: 'square', dur: 0.042, peak: 0.015, filter: 1500 });
+  }
+
+  function changeSelect() {
+    checkoutTone({ freq: 1320, to: 1110, type: 'triangle', dur: 0.052, peak: 0.016 });
+    checkoutTone({ at: 0.026, freq: 660, to: 622.25, type: 'sine', dur: 0.07, peak: 0.009 });
+  }
+
+  function changeHandoff() {
+    checkoutNoise({ dur: 0.12, band: 1550, toBand: 2450, q: 0.7, peak: 0.021, attack: 0.012 });
+    checkoutTone({ at: 0.045, freq: 293.66, to: 440, type: 'triangle', dur: 0.15, peak: 0.022 });
+  }
+
+  function bagOpen() {
+    checkoutNoise({ dur: 0.19, band: 900, toBand: 2700, q: 0.55, peak: 0.031, attack: 0.018 });
+    checkoutNoise({ at: 0.09, dur: 0.22, band: 2300, toBand: 1150, q: 0.7, peak: 0.021, attack: 0.025 });
+  }
+
+  function bagRustle() {
+    if (!checkoutCueAllowed('bagRustle', 0.07)) return;
+    checkoutNoise({ dur: 0.115, band: 2100, toBand: 1250, q: 0.65, peak: 0.018, attack: 0.012 });
+  }
+
+  function bagItem() {
+    checkoutNoise({ dur: 0.16, band: 1050, toBand: 1850, q: 0.6, peak: 0.026, attack: 0.014 });
+    checkoutTone({ at: 0.025, freq: 154, to: 103, type: 'triangle', dur: 0.105, peak: 0.024, filter: 620 });
+  }
+
+  function bagHandoff() {
+    checkoutNoise({ dur: 0.18, band: 820, toBand: 1650, q: 0.55, peak: 0.023, attack: 0.018 });
+    checkoutTone({ at: 0.055, freq: 293.66, to: 440, type: 'sine', dur: 0.18, peak: 0.019 });
+  }
+
+  function checkoutComplete() {
+    for (const [at, freq, peak] of [[0, 587.33, 0.026], [0.095, 739.99, 0.028], [0.19, 880, 0.032]]) {
+      checkoutTone({ at, freq, to: freq * 1.006, type: 'sine', dur: 0.29, peak, attack: 0.012 });
+    }
   }
 
   // cloth on glass: two quick filtered-noise strokes falling away
@@ -750,6 +1119,36 @@ export function makeAudio() {
   return {
     init,
     update,
+    // Pinehollow checkout's semantic one-shot API. Legacy aliases below remain
+    // available to existing callers until phase-B integration is complete.
+    productPlace,
+    productPickup,
+    productRotate,
+    scannerActivate,
+    scanSuccess: scanBeep,
+    scanInvalid,
+    posAdd,
+    cardMove,
+    cardSwipe,
+    cardInsert,
+    cardProcessing,
+    cardApproved: approve,
+    cardDeclined: decline,
+    cashPresent,
+    billHandle,
+    coinHandle: coin,
+    drawerUnlock,
+    drawerOpen: drawer,
+    drawerClose,
+    changeSelect,
+    changeHandoff,
+    receiptPrint: receipt,
+    receiptTear,
+    bagOpen,
+    bagRustle,
+    bagItem,
+    bagHandoff,
+    checkoutComplete,
     doorbell,
     uiTick,
     doorSwing,
@@ -769,6 +1168,11 @@ export function makeAudio() {
     chime,
     thunk,
     setToolLoop,
+    startCapture,
+    stopCapture,
+    get captureActive() {
+      return !!capture;
+    },
     // the delivery-to-shelf loop
     truck, boxup, boxdown, tape, flap, product, stock, fullShelf, recycle,
     get ready() {

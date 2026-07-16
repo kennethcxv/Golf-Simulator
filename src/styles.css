@@ -503,6 +503,7 @@ input[type="range"] { accent-color: var(--accent); }
   bottom: 90px;
   left: 50%;
   transform: translateX(-50%);
+  pointer-events: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1014,8 +1015,15 @@ input[type="range"] { accent-color: var(--accent); }
 /* REGISTER MODE — the camera is frozen at the till and the pointer is a cursor, so
    it has to LOOK like a cursor. The crosshair is meaningless here (you are not
    aiming, you are picking things up) and the walk prompt would sit over the counter. */
-body.register-mode { cursor: crosshair; }
+body.register-mode,
+body.register-mode canvas { cursor: pointer; }
 body.register-mode .shop-overlay { display: none !important; }
+body.register-mode .reg-hint { display: none !important; }
+body.register-mode .hud-min { display: none !important; }
+/* The course turf-overlay switch (Normal / Health / Moisture) is a grounds tool with
+   no meaning at the till; it only competed with the counter for the lower-right corner.
+   Hide it while the register is live so the checkout composition reads clean. */
+body.register-mode .view-toggle { display: none !important; }
 
 /* the till's control hint — the walk prompt is hidden behind the counter, so this is
    the only thing telling the player which keys the register answers to */

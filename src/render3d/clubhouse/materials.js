@@ -48,7 +48,17 @@ function finish(canvas, { srgb = true, repeat = true } = {}) {
 
 function luminance(canvas) {
   const { width: w, height: h } = canvas;
-  const data = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+  // The albedo canvas already owns a normal 2D context by the time this derived
+  // map is requested, so adding willReadFrequently to a second getContext call is
+  // too late for Chromium to honor it. Read through a dedicated hinted canvas;
+  // this keeps texture drawing GPU-friendly and removes the repeated-readback
+  // warning from every generated clubhouse material.
+  const readback = document.createElement('canvas');
+  readback.width = w;
+  readback.height = h;
+  const readbackContext = readback.getContext('2d', { willReadFrequently: true });
+  readbackContext.drawImage(canvas, 0, 0);
+  const data = readbackContext.getImageData(0, 0, w, h).data;
   const lum = new Float32Array(w * h);
   for (let i = 0; i < w * h; i++) {
     lum[i] = (0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2]) / 255;

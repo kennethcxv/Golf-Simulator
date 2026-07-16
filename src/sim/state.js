@@ -15,9 +15,16 @@ import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
 import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue, tickDeliveries, ensureShopReno } from './shop.js';
 import { recoverCheckout } from './checkout.js';
+import { migrateDrawer } from './register.js';
 import { ensureWash } from './washing.js';
 import { ensureProperty, tickProperty } from './property.js';
-import { initReservations, ensureReservations, reservationsDailyTick } from './reservations.js';
+import {
+  initReservations, ensureReservations, reservationsDailyTick,
+  generateOnlineReservations, processReservationTimeline,
+} from './reservations.js';
+import {
+  initCustomerDirectory, ensureCustomerDirectory, reconcileReservationCustomerIdentities,
+} from './customerIdentity.js';
 import { initTractor, ensureTractor } from './tractor.js';
 import { bunkerDailyMess } from './bunkers.js';
 import { initCourseProps, ensureCourseProps } from './props.js';
@@ -29,7 +36,7 @@ import { BALANCE } from './balance.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 // opts lets the GOLF EMPIRE layer boot this same fresh-club wiring onto a
 // marketplace property: an injected course grid and club name, nothing else.
@@ -59,6 +66,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   ensureWash(state); // a fixer-upper arrives with a filthy exterior
   ensureProperty(state); // ...and a landlord
   initReservations(state);
+  initCustomerDirectory(state);
   initTractor(state);
   initCourseProps(state);
   initLedger(state);
@@ -97,6 +105,18 @@ export function dailyTick(state) {
   if (state.club) dailyMembershipTick(state);
   if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.reservations) reservationsDailyTick(state, calendarOf(state.clock.minutes).dayAbs);
+  if (state.reservations) {
+    const todayAbs = calendarOf(state.clock.minutes).dayAbs;
+    if (state.reservations.lastOnlineGenerationDayAbs !== todayAbs) {
+      state.reservations.lastOnlineGenerationDayAbs = todayAbs;
+      generateOnlineReservations(state, {
+        dayAbs: todayAbs + 2,
+        count: 3,
+        minGroupSize: 1,
+        maxGroupSize: 4,
+      });
+    }
+  }
   if (state.turf) bunkerDailyMess(state); // yesterday's traffic footprints the sand
   if (state.progression) {
     prestigeDailyTick(state);
@@ -140,8 +160,10 @@ export function update(state, gameMinutes) {
       daysPassed++;
     }
     hourlyTick(state, hourOfDay);
+    if (state.reservations) processReservationTimeline(state, { at: nextHourMin, chargeFees: true });
   }
   state.clock.minutes = target;
+  if (state.reservations) processReservationTimeline(state, { at: target, chargeFees: true });
   return { daysPassed };
 }
 
@@ -150,6 +172,9 @@ export function update(state, gameMinutes) {
 const round1 = (v) => Math.round(v * 10) / 10;
 
 export function snapshot(state) {
+  // Reservations keep compatibility name fields for old UI, but the directory
+  // is their sole identity authority. Reconcile before every persisted snapshot.
+  reconcileReservationCustomerIdentities(state);
   const { course, turf } = state;
   return ({
     version: state.version,
@@ -181,6 +206,7 @@ export function snapshot(state) {
     ledger: state.ledger,
     shop: state.shop,
     reservations: state.reservations,
+    customerDirectory: state.customerDirectory,
     tractor: state.tractor,
     props: state.props,
     progression: state.progression,
@@ -219,7 +245,7 @@ export function deserialize(json) {
     structures: raw.course.structures || [],
   };
   const state = {
-    version: raw.version,
+    version: SAVE_VERSION,
     mode: raw.mode,
     seed: raw.seed,
     rngState: raw.rngState,
@@ -269,12 +295,24 @@ export function deserialize(json) {
   else initLedger(state);
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
+  if (state.shop.drawer) state.shop.drawer = migrateDrawer(state.shop.drawer);
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
+  if (!Array.isArray(state.shop.transactionHistory)) state.shop.transactionHistory = [];
+  if (!Number.isFinite(state.shop.nextTransactionNo)) {
+    const greatestTicket = state.shop.transactionHistory.reduce(
+      (greatest, ticket) => Math.max(greatest, Number(ticket && ticket.number) || 0),
+      0,
+    );
+    state.shop.nextTransactionNo = greatestTicket + 1;
+  }
   recoverCheckout(state); // a save taken mid-sale: the shoppers are gone, so put their goods back
   ensureWash(state); // ...and a filthy exterior waiting for the pressure washer
   ensureProperty(state); // pre-rent saves gain a schedule rather than a free ride
   if (raw.reservations) state.reservations = raw.reservations;
   ensureReservations(state); // pre-booking saves gain an empty tee sheet
+  if (raw.customerDirectory) state.customerDirectory = raw.customerDirectory;
+  ensureCustomerDirectory(state); // pre-v4 saves gain stable full-name customer authority
+  reconcileReservationCustomerIdentities(state); // enroll legacy bookings once, then repair their references
   if (raw.tractor) state.tractor = raw.tractor;
   ensureTractor(state, { legacyRepaired: true }); // old saves keep their working tractor
   if (raw.props) state.props = raw.props;

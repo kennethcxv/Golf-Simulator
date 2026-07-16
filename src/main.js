@@ -73,6 +73,9 @@ let clubPanel = null;
 let empirePanel = null;
 let walkOverlay = null;
 let regHint = null;
+let regHintText = null;
+let regHintTotal = null;
+let regHintDrawer = null;
 let laptopUi = null;
 let objectivesPanel = null;
 let menu = null;
@@ -1216,6 +1219,11 @@ canvas.addEventListener('pointerup', () => {
 });
 
 canvas.addEventListener('wheel', (e) => {
+  if (regActive()) {
+    e.preventDefault();
+    regApi().onWheel(e.deltaY, e.shiftKey);
+    return;
+  }
   if (app.screen !== 'game' || app.view !== 'course' || app.courseMode !== 'overview') return;
   e.preventDefault();
   app.scene3d.rig.dolly(e.deltaY > 0 ? 1.13 : 1 / 1.13);
@@ -1403,8 +1411,20 @@ window.addEventListener('keydown', (e) => {
 const held = createHeldKeys(OVERVIEW_KEYS);
 window.addEventListener('keydown', (e) => held.down(e.key, e.repeat));
 window.addEventListener('keyup', (e) => held.up(e.key));
-window.addEventListener('blur', () => resetCameraInput());
-document.addEventListener('pointerlockchange', () => resetCameraInput());
+window.addEventListener('blur', () => {
+  resetCameraInput();
+  const reg = regApi();
+  if (reg && reg.isActive()) reg.recoverInput('focus loss');
+});
+document.addEventListener('pointerlockchange', () => {
+  resetCameraInput();
+  if (regActive() && document.pointerLockElement) document.exitPointerLock();
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) return;
+  const reg = regApi();
+  if (reg && reg.isActive()) reg.recoverInput('tab change');
+});
 
 // every mode transition hands the camera a clean slate: nothing is "still down" from the mode
 // you just left, and a half-finished drag cannot resume into the new one.
@@ -1562,7 +1582,19 @@ const CONDITION_WORD = (c) =>
 let lastCondWord = null;
 
 function updateWalkOverlay() {
-  if (regHint) regHint.style.display = regActive() ? 'flex' : 'none';
+  const registerActive = regActive();
+  const registerDisplay = registerActive ? 'flex' : 'none';
+  if (regHint && regHint.style.display !== registerDisplay) regHint.style.display = registerDisplay;
+  if (registerActive) {
+    const register = regApi();
+    const hint = register && register.hint ? register.hint() : null;
+    const hintText = (hint && hint.text) || 'Work the physical register';
+    const totalDisplay = hint && hint.total ? '' : 'none';
+    const drawerDisplay = hint && hint.drawer ? '' : 'none';
+    if (regHintText && regHintText.textContent !== hintText) regHintText.textContent = hintText;
+    if (regHintTotal && regHintTotal.style.display !== totalDisplay) regHintTotal.style.display = totalDisplay;
+    if (regHintDrawer && regHintDrawer.style.display !== drawerDisplay) regHintDrawer.style.display = drawerDisplay;
+  }
   const prompt = walkOverlay.querySelector('.shop-prompt');
   // build mode speaks over the world's own prompts: while it is on, the only controls that
   // matter are its controls
@@ -1700,10 +1732,13 @@ function boot() {
   // player has no way to discover [T] and [D] except by pressing every key. The
   // register screen tells them WHAT it wants ("PUT THEIR MONEY IN THE TILL"); this
   // tells them which hand to use.
+  regHintText = el('span', { text: 'Work the physical register' });
+  regHintTotal = el('span', { class: 'reg-keys' }, el('kbd', { text: 'T' }), el('span', { text: 'total up' }));
+  regHintDrawer = el('span', { class: 'reg-keys' }, el('kbd', { text: 'D' }), el('span', { text: 'drawer' }));
   regHint = el('div', { class: 'reg-hint', style: 'display:none' },
-    el('span', { text: 'Drag goods over the scanner to ring them up' }),
-    el('span', { class: 'reg-keys' }, el('kbd', { text: 'T' }), el('span', { text: 'total up' })),
-    el('span', { class: 'reg-keys' }, el('kbd', { text: 'D' }), el('span', { text: 'drawer' })),
+    regHintText,
+    regHintTotal,
+    regHintDrawer,
     el('span', { class: 'reg-keys' }, el('kbd', { text: 'Esc' }), el('span', { text: 'step back' })),
   );
 

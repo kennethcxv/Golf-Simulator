@@ -49,7 +49,7 @@ function grimeSheet(w, h, heavy, seed) {
   const cv = document.createElement('canvas');
   cv.width = w;
   cv.height = h;
-  const c = cv.getContext('2d');
+  const c = cv.getContext('2d', { willReadFrequently: true });
   let s = seed * 9301 + 49297;
   const rnd = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
 

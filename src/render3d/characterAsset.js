@@ -5,12 +5,28 @@
 // this keeps real articulated motion fully under our control, no exporter risk.
 
 import * as THREE from 'three';
+import { CUSTOMER_IMPATIENT_BEAT_SECONDS } from './clubhouse/customerFlow.js';
 
 const M = (color, rough = 0.85) => new THREE.MeshStandardMaterial({ color, roughness: rough });
 
 function box(w, h, d, mat, y = 0, z = 0) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
   m.position.set(0, y, z);
+  m.castShadow = true;
+  return m;
+}
+
+function ellipsoid(w, h, d, mat, y = 0, z = 0, segments = 10) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.5, segments, Math.max(7, segments - 2)), mat);
+  m.scale.set(w, h, d);
+  m.position.set(0, y, z);
+  m.castShadow = true;
+  return m;
+}
+
+function capsule(radius, straight, mat, y = 0) {
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(radius, straight, 4, 8), mat);
+  m.position.y = y;
   m.castShadow = true;
   return m;
 }
@@ -25,13 +41,15 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   const root = new THREE.Group();
 
   // pelvis + legs hang off the root; chest carries torso/head/arms for lean+twist
-  const pelvis = box(0.34, 0.2, 0.22, mKhaki, 1.03);
+  const pelvis = ellipsoid(0.34, 0.20, 0.22, mKhaki, 1.03);
   root.add(pelvis);
 
   const chest = new THREE.Group();
   chest.position.y = 1.12;
   root.add(chest);
-  chest.add(box(0.46, 0.52, 0.26, mPolo, 0.26));
+  const torso = capsule(0.18, 0.22, mPolo, 0.26);
+  torso.scale.set(1.28, 1, 0.76);
+  chest.add(torso);
   const head = new THREE.Group();
   head.position.y = 0.62;
   chest.add(head);
@@ -39,11 +57,31 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   skull.position.y = 0.06;
   skull.castShadow = true;
   head.add(skull);
+  const mFace = M(0x2b2521, 0.9);
+  const mBrow = M(0x4a3524, 0.9);
+  for (const x of [-0.057, 0.057]) {
+    // The old eyes were 12 mm dots that vanished into a blank, faintly unsettling face
+    // at the counter distance. A slightly larger almond eye with a soft brow above it
+    // gives a readable, friendly expression without breaking the shop's simple heads.
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.0165, 10, 7), mFace);
+    eye.position.set(x, 0.083, 0.139);
+    eye.scale.set(0.9, 1.12, 0.72);
+    head.add(eye);
+    const brow = box(0.052, 0.012, 0.014, mBrow, 0.114, 0.137);
+    brow.position.x = x * 1.02;
+    brow.rotation.z = x < 0 ? 0.14 : -0.14;
+    head.add(brow);
+  }
+  const nose = ellipsoid(0.034, 0.045, 0.030, mSkin, 0.043, 0.153, 8);
+  head.add(nose);
+  const mouth = box(0.058, 0.011, 0.010, mFace, -0.028, 0.150);
+  mouth.rotation.x = 0.12; // a faint upward set, so the resting face is neutral-friendly
+  head.add(mouth);
   if (mCap) {
     const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 12), mCap);
     capTop.position.y = 0.19;
     head.add(capTop);
-    const brim = box(0.2, 0.03, 0.16, mCap, 0.16, -0.16);
+    const brim = box(0.2, 0.03, 0.16, mCap, 0.16, 0.16);
     head.add(brim);
   } else {
     // bare head gets hair instead of a cap
@@ -57,29 +95,79 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     const shoulder = new THREE.Group();
     shoulder.position.set(sx * 0.285, 0.43, 0);
     chest.add(shoulder);
-    shoulder.add(box(0.11, 0.32, 0.13, mPolo, -0.15));
+    const upperArm = capsule(0.060, 0.20, mPolo, -0.15);
+    upperArm.scale.z = 0.88;
+    shoulder.add(upperArm);
     const elbow = new THREE.Group();
     elbow.position.y = -0.32;
     shoulder.add(elbow);
-    elbow.add(box(0.09, 0.28, 0.11, mSkin, -0.13));
+    const forearm = capsule(0.050, 0.18, mSkin, -0.13);
+    forearm.scale.z = 0.88;
+    elbow.add(forearm);
+    const hand = ellipsoid(0.095, 0.115, 0.075, mSkin, -0.295, -0.005, 8);
+    elbow.add(hand);
+    // A sibling of the non-uniformly scaled hand mesh gives carried props a
+    // stable attachment joint.  Parenting a shopping bag to the hand mesh
+    // itself would squash it; parenting it to the elbow loses the authored
+    // hand position and forces every caller to guess an offset.
+    const carryGrip = new THREE.Group();
+    carryGrip.name = `CarryGrip${side}`;
+    carryGrip.position.copy(hand.position);
+    carryGrip.position.x += sx * 0.045; // stay inside the palm, biased away from the torso
+    carryGrip.position.z += 0.015;
+    carryGrip.userData.kind = 'customer-carry-grip';
+    elbow.add(carryGrip);
     limbs[`shoulder${side}`] = shoulder;
     limbs[`elbow${side}`] = elbow;
+    limbs[`hand${side}`] = hand;
+    limbs[`carryGrip${side}`] = carryGrip;
 
     const hip = new THREE.Group();
     hip.position.set(sx * 0.11, 0.98, 0);
     root.add(hip);
-    hip.add(box(0.15, 0.46, 0.17, mKhaki, -0.22));
+    const thigh = capsule(0.078, 0.30, mKhaki, -0.22);
+    thigh.scale.z = 0.92;
+    hip.add(thigh);
     const knee = new THREE.Group();
     knee.position.y = -0.46;
     hip.add(knee);
-    knee.add(box(0.12, 0.42, 0.14, mKhaki, -0.19));
+    const shin = capsule(0.064, 0.29, mKhaki, -0.19);
+    shin.scale.z = 0.92;
+    knee.add(shin);
     const shoe = box(0.13, 0.09, 0.26, mShoe, -0.42, -0.04);
     knee.add(shoe);
     limbs[`hip${side}`] = hip;
     limbs[`knee${side}`] = knee;
   }
 
-  const char = { root, mode: 'Idle', phase: Math.random() * 6.28 };
+  // Snapshot only the resources built by this character factory. Checkout later
+  // parents shared merchandise proxies and the paid-bag GLB under this hierarchy;
+  // a teardown-time traversal would incorrectly dispose those cache-owned assets.
+  const ownedGeometries = new Set();
+  const ownedMaterials = new Set();
+  root.traverse((object) => {
+    if (object.geometry && typeof object.geometry.dispose === 'function') {
+      ownedGeometries.add(object.geometry);
+    }
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      if (material && typeof material.dispose === 'function') ownedMaterials.add(material);
+    }
+  });
+
+  let resourcesDisposed = false;
+  const char = {
+    root,
+    mode: 'Idle',
+    phase: Math.random() * 6.28,
+    dispose() {
+      if (resourcesDisposed) return false;
+      resourcesDisposed = true;
+      for (const geometry of ownedGeometries) geometry.dispose();
+      for (const material of ownedMaterials) material.dispose();
+      return true;
+    },
+  };
 
   char.setMode = (mode) => {
     if (char.mode !== mode) {
@@ -87,6 +175,8 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       char.phase = 0;
     }
   };
+  char.hand = (side = 'R') => limbs[`hand${side}`] || limbs.handR;
+  char.carryGrip = (side = 'R') => limbs[`carryGrip${side}`] || limbs.carryGripR;
 
   const lerpSeg = (t, segs) => {
     // segs: [ [t0, v0], [t1, v1], ... ] piecewise-linear, clamped
@@ -104,17 +194,29 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     char.phase += dt;
     const p = char.phase;
     let hipL = 0, hipR = 0, kneeL = 0, kneeR = 0, shL = 0, shR = 0, elb = -0.25;
-    let lean = 0.04, twist = 0, headTilt = 0, bob = 0, shRz = 0;
+    let lean = 0.04, twist = 0, headTilt = 0, bob = 0, shLz = 0.06, shRz = -0.06;
 
-    if (char.mode === 'Walk') {
+    if (char.mode === 'Walk' || char.mode === 'WalkBag') {
       const w = p * 8.7; // ~1.4 strides/s
       hipL = 0.55 * Math.sin(w);
       hipR = -hipL;
       kneeL = 0.4 * Math.max(0, Math.sin(w - 1.1));
       kneeR = 0.4 * Math.max(0, Math.sin(w + Math.PI - 1.1));
-      shL = -0.45 * Math.sin(w);
-      shR = 0.45 * Math.sin(w);
-      elb = -0.35;
+      if (char.mode === 'WalkBag') {
+        // Ease from the two-handed acceptance pose into a one-handed side
+        // carry, avoiding a one-frame snap as the customer turns to leave.
+        const u = Math.min(1, p / 0.55);
+        const settle = u * u * (3 - 2 * u);
+        // Keep the loaded carrier at waist height until the shopper clears the
+        // counter. A fully dropped arm hides the entire bag behind the walnut top.
+        shL = -0.92 * (1 - settle) + (-1.18 + 0.025 * Math.sin(w * 0.5)) * settle;
+        shR = -1.00 * (1 - settle) + 0.38 * Math.sin(w) * settle;
+        elb = -0.66 * (1 - settle) - 0.68 * settle;
+      } else {
+        shL = -0.45 * Math.sin(w);
+        shR = 0.45 * Math.sin(w);
+        elb = -0.35;
+      }
       lean = 0.07;
       bob = 0.02 * Math.sin(2 * w);
     } else if (char.mode === 'Swing') {
@@ -132,6 +234,61 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       shL = 0.05;
       headTilt = 0.2;
       bob = 0.008 * Math.sin(p * 2);
+    } else if (char.mode === 'Checkout') {
+      // Both hands reach over the product surface with a small alternating lead.
+      // The item-placement controller reads the wrist objects below, giving its
+      // product arc a real animation target instead of a floating chest origin.
+      shR = -1.02 + Math.sin(p * 3.2) * 0.08;
+      shL = -0.78 + Math.sin(p * 3.2 + Math.PI) * 0.06;
+      elb = -0.52;
+      lean = 0.12;
+      headTilt = 0.14;
+    } else if (char.mode === 'Present') {
+      // Wallet/card/cash presentation: one hand reaches naturally across the
+      // customer edge while the other stays close to the torso.
+      shR = -1.12 + Math.sin(p * 2.6) * 0.035;
+      shL = -0.14;
+      elb = -0.62;
+      lean = 0.13;
+      headTilt = 0.08;
+    } else if (char.mode === 'Receive') {
+      shR = -1.05;
+      shL = -0.10;
+      elb = -0.72;
+      lean = 0.10;
+      headTilt = 0.16;
+    } else if (char.mode === 'ReceiveBag') {
+      shR = -1.00;
+      shL = -0.92;
+      elb = -0.66;
+      lean = 0.14;
+      // A small appreciative nod makes the ownership transfer read as a positive
+      // customer reaction without turning checkout into an arcade celebration.
+      const nod = Math.sin(Math.min(1, p / 1.25) * Math.PI * 2);
+      headTilt = 0.10 + nod * 0.095;
+      bob = Math.max(0, Math.sin(Math.min(1, p / 1.25) * Math.PI)) * 0.012;
+    } else if (char.mode === 'Declined') {
+      shR = 0.18;
+      shL = 0.18;
+      elb = -0.45;
+      lean = -0.03;
+      twist = Math.sin(p * 4.5) * 0.06;
+      headTilt = -0.12;
+    } else if (char.mode === 'Impatient') {
+      // A compact folded-arm settle and one quiet head shake. It reads clearly
+      // across the counter without turning a lost sale into a broad tantrum.
+      const t = Math.min(1, p / CUSTOMER_IMPATIENT_BEAT_SECONDS);
+      const settle = t * t * (3 - 2 * t);
+      const shakeEnvelope = Math.sin(Math.PI * t);
+      shL = -0.72 * settle;
+      shR = -0.72 * settle;
+      shLz = 0.06 - 0.36 * settle;
+      shRz = -0.06 + 0.36 * settle;
+      elb = -0.95 * settle - 0.25 * (1 - settle);
+      lean = 0.02 - 0.055 * settle;
+      twist = Math.sin(t * Math.PI * 3) * 0.075 * shakeEnvelope;
+      headTilt = -0.08 * settle;
+      bob = -0.008 * settle;
     } else { // Idle
       lean = 0.03 + 0.015 * Math.sin(p * 1.1);
       shL = 0.06 + 0.03 * Math.sin(p * 1.1);
@@ -146,8 +303,8 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     limbs.kneeR.rotation.x = kneeR;
     limbs.shoulderL.rotation.x = shL;
     limbs.shoulderR.rotation.x = shR;
-    limbs.shoulderL.rotation.z = 0.06;
-    limbs.shoulderR.rotation.z = shRz || -0.06;
+    limbs.shoulderL.rotation.z = shLz;
+    limbs.shoulderR.rotation.z = shRz;
     limbs.elbowL.rotation.x = elb;
     limbs.elbowR.rotation.x = elb;
     chest.rotation.x = lean;

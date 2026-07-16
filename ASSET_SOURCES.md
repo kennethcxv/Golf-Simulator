@@ -197,3 +197,55 @@ real one would be forgery rendered at 60 fps.
 1 unit = 1 game yard · Z-up in Blender, Y-up on export · materials are NAMED SLOTS
 (`M_charcoal`, `M_kraft`, …) remapped onto the shared clubhouse kit at load, so a new prop
 costs a draw call and not a material.
+
+## Production checkout kit (2026-07-15)
+
+Six final checkout assets are authored entirely in this repository by the repeatable
+`tools/blender/build_checkout_assets.py` script. They are project-owned originals:
+no third-party downloads, marketplace models, generated geometry, or external texture
+sources are used. Blender 5.1.2 saves an editable source for each asset under
+`asset_sources/blender/cash_register/` and exports the shipped GLB beside the clubhouse
+models under `vendor/models/clubhouse/`.
+
+| Editable source / shipped export | Purpose |
+|---|---|
+| `checkout_counter.blend` / `checkout_counter.glb` | Walnut/oak cashier counter with customer, scanner, staging, bagging, drawer, and staff anchors |
+| `checkout_cash_drawer.blend` / `checkout_cash_drawer.glb` | Animated housing, slide, labeled bill/coin insert, retaining clips, interaction anchors, simplified collisions |
+| `checkout_scanner.blend` / `checkout_scanner.glb` | Recessed scanner glass and physical scan-volume anchors |
+| `checkout_card_reader.blend` / `checkout_card_reader.glb` | ISO ID-1 chip slot, contactless details, ready/inserted card-pose anchors |
+| `checkout_receipt_printer.blend` / `checkout_receipt_printer.glb` | Separate paper/roll parts with printing actions and collection anchor |
+| `checkout_shopping_bag.blend` / `checkout_shopping_bag.glb` | Open kraft bag, separate handles, two grip anchors, packed-content and handoff anchors |
+
+The companion `validate_checkout_assets.py` re-imports the shipped binaries and checks
+metre-scale dimensions, applied transforms, anchors, collisions, actions, materials,
+and triangle budgets. `render_checkout_assets.py` produces isolated, animated-state,
+and assembled previews. The retained final validation is
+`qa/cash-register-production/final/blender-validation.md`; previews are under
+`qa/cash-register-production/model-previews-final/`. Runtime-generated POS, currency,
+receipt, barcode, card, and brand graphics remain original canvas textures rather than
+external image assets.
+
+### Checkout product family library
+
+Eighteen checkout-scale product families are authored by
+`tools/blender/build_checkout_products.py`. Each run starts from Blender factory
+settings, creates original project-owned geometry and Pinehollow-named PBR materials,
+bakes Blender's smoothing modifier so the source stays self-contained, saves an
+editable `.blend` in `asset_sources/blender/cash_register/`, and exports the matching
+`.glb` to `vendor/models/clubhouse/`. No Tripo input, downloaded model, image texture,
+linked Blender library, or third-party asset is used.
+
+| Family IDs (each has matching `.blend` and `.glb`) | Retail purpose |
+|---|---|
+| `checkout_product_driver`, `checkout_product_iron_set`, `checkout_product_putter`, `checkout_product_wedge` | Full-size clubs and bundled iron set |
+| `checkout_product_ball_carton` | Tier-tintable dozen-ball carton |
+| `checkout_product_folded_polo`, `checkout_product_folded_jacket`, `checkout_product_cap`, `checkout_product_glove` | Folded apparel and wearable accessories |
+| `checkout_product_tee_pouch`, `checkout_product_towel_roll`, `checkout_product_marker_blister` | Compact golf accessories and retail packs |
+| `checkout_product_rangefinder`, `checkout_product_umbrella`, `checkout_product_stand_bag` | Equipment, including separate oversize handoff props |
+| `checkout_product_shoe_pair`, `checkout_product_sock_pair`, `checkout_product_headcover` | Footwear and future headcover family |
+
+Every family includes `ANCHOR_ProductBarcode`, `ANCHOR_ProductGripPrimary`, a simplified
+`COL_Product`, source/license metadata, and UVs; oversize families also include
+`ANCHOR_ProductGripSecondary`. The retained independent source/import/runtime audit,
+per-family previews, and contact sheet are under
+`qa/cash-register-production/final/catalog-assets/independent-review/`.

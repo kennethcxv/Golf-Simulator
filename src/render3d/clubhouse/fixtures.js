@@ -858,25 +858,46 @@ export function buildCheckout(B) {
   const { interior, mats, merch, addCol, colBoxAt } = B;
 
   // paneled island: walnut body, panel insets, wood top, brass foot rail
+  // This remains a zero-network fallback while the GLB loader is warming up. Once
+  // the production Blender counter is ready it is removed as one group, avoiding a
+  // duplicate shell or z-fighting surfaces.
+  const legacyCounter = new THREE.Group();
+  interior.add(legacyCounter);
   const body = new THREE.Mesh(roundedBox(COUNTER.len, 0.96, COUNTER.depth - 0.16, 0.02), mats.walnut);
   body.position.set(COUNTER.x, 0.5, COUNTER.z);
   body.castShadow = true;
-  interior.add(body);
+  legacyCounter.add(body);
   for (let i = 0; i < 3; i++) {
     const inset = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.02), mats.walnutDark);
     inset.position.set(COUNTER.x - 1.05 + i * 1.05, 0.52, COUNTER.z - COUNTER.depth / 2 + 0.07);
-    interior.add(inset);
+    legacyCounter.add(inset);
   }
   const top = new THREE.Mesh(roundedBox(COUNTER.len + 0.2, 0.07, COUNTER.depth + 0.06, 0.025), mats.walnutDark);
   top.position.set(COUNTER.x, 1.02, COUNTER.z);
   top.castShadow = true;
   top.receiveShadow = true;
-  interior.add(top);
+  legacyCounter.add(top);
   const footRail = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, COUNTER.len, 8), mats.brass);
   footRail.rotation.z = Math.PI / 2;
   footRail.position.set(COUNTER.x, 0.16, COUNTER.z - COUNTER.depth / 2 + 0.02);
-  interior.add(footRail);
+  legacyCounter.add(footRail);
   addCol(colBoxAt(COUNTER.x, COUNTER.z, COUNTER.len + 0.3, COUNTER.depth + 0.2));
+
+  if (merch) merch.onReady(() => {
+    const counter = merch.instantiate('checkout_counter');
+    if (!counter) return;
+    const scale = COUNTER.len / 3.10;
+    counter.scale.setScalar(scale);
+    counter.position.set(COUNTER.x, COUNTER_TOP - 1.011 * scale, COUNTER.z);
+    if (B.register && B.register.simplified) {
+      const stagingInlay = counter.getObjectByName('StagingInlay');
+      const baggingInlay = counter.getObjectByName('BaggingInlay');
+      if (stagingInlay) stagingInlay.visible = false;
+      if (baggingInlay) baggingInlay.visible = false;
+    }
+    interior.add(counter);
+    interior.remove(legacyCounter);
+  });
 
   // REGISTER KIT. The positions are no longer eyeballed offsets from registerX —
   // they come from REGISTER in shopLayout.js, which was DERIVED against the player's
@@ -888,14 +909,22 @@ export function buildCheckout(B) {
   // is a function of the transaction, not of the furniture.
   // deferred: the models land well after the shop is built
   if (merch) merch.onReady(() => {
-    // the register monitor and the card reader are real Tripo scans now (they keep
-    // their own PBR atlas via instantiateRaw); the scanner and printer stay procedural.
+    // Keep the large, readable POS display, but use the production Blender scanner,
+    // reader and printer. Their authored origin is the counter surface and their
+    // -Y front converts to the game's +Z staff side at rotation zero.
     // The kiosk's glass faces its own +x, so it is turned -PI/2 to face the staff — the
     // layout's monitor.ry 0 was calibrated to the OLD model, whose screen faced +z.
-    const RAW_PROP = { register: 'kiosk', cardterm: 'cardterm_pro' };
+    const RAW_PROP = { register: 'kiosk' };
+    const PROD_PROP = {
+      scanner: 'checkout_scanner',
+      cardterm: 'checkout_card_reader',
+      printer: 'checkout_receipt_printer',
+    };
     const RAW_RY = { register: -Math.PI / 2 };
     const placeProp = (name, spec, ry) => {
-      const o = RAW_PROP[name] ? merch.instantiateRaw(RAW_PROP[name]) : merch.instantiate(name);
+      const o = RAW_PROP[name]
+        ? merch.instantiateRaw(RAW_PROP[name])
+        : merch.instantiate(PROD_PROP[name] || name);
       if (!o) return null;
       o.position.set(spec.x, COUNTER_TOP, spec.z);
       o.rotation.y = ry !== undefined ? ry : (name in RAW_RY ? RAW_RY[name] : (spec.ry || 0));
@@ -907,10 +936,12 @@ export function buildCheckout(B) {
     // atlas UV from smart_project, so a 0..1 canvas lands on it as a magnified corner —
     // the register rendered as a black slab. registerMode hangs its own clean-UV plane.
     if (reg && B.register) B.register.attachScreen(reg);
-    placeProp('scanner', REGISTER.scanner);
-    const term = placeProp('cardterm', REGISTER.cardterm);
+    const scanner = placeProp('scanner', REGISTER.scanner, 0.22);
+    if (scanner && B.register) B.register.attachScanner(scanner);
+    const term = placeProp('cardterm', REGISTER.cardterm, 0);
     if (term && B.register) B.register.attachTerm(term);
-    placeProp('printer', REGISTER.printer);
+    const printer = placeProp('printer', REGISTER.printer, -0.18);
+    if (printer && B.register) B.register.attachPrinter(printer);
   });
 
   // the screen is drawn by registerMode from the live transaction — a furniture
@@ -920,15 +951,17 @@ export function buildCheckout(B) {
   // the spare carriers, folded flat at the bagging end. The OPEN bag you actually
   // drop goods into, the divider and the impulse rack are registerMode's — they are
   // part of the transaction, not part of the room.
-  for (let i = 0; i < 3; i++) {
-    const bag = new THREE.Mesh(
-      new THREE.BoxGeometry(0.26, 0.02, 0.16),
-      new THREE.MeshStandardMaterial({ color: 0x2c4a30, roughness: 0.88 }),
-    );
-    bag.position.set(REGISTER.bagstand.x, COUNTER_TOP + 0.012 + i * 0.021, REGISTER.bagstand.z);
-    bag.rotation.y = 0.08 + i * 0.05;
-    bag.castShadow = true;
-    interior.add(bag);
+  if (!B.register || !B.register.simplified) {
+    for (let i = 0; i < 3; i++) {
+      const bag = new THREE.Mesh(
+        new THREE.BoxGeometry(0.26, 0.02, 0.16),
+        new THREE.MeshStandardMaterial({ color: 0x2c4a30, roughness: 0.88 }),
+      );
+      bag.position.set(REGISTER.bagstand.x, COUNTER_TOP + 0.012 + i * 0.021, REGISTER.bagstand.z);
+      bag.rotation.y = 0.08 + i * 0.05;
+      bag.castShadow = true;
+      interior.add(bag);
+    }
   }
 
   // a hand basket, parked at the aisle end for shoppers to take
