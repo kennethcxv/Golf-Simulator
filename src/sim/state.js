@@ -183,7 +183,7 @@ export function snapshot(state) {
     seed: state.seed,
     rngState: state.rngState,
     clock: { minutes: state.clock.minutes },
-    cash: Math.round(state.cash * 100) / 100,
+    cash: Number.isFinite(state.cash) ? Math.round(state.cash * 100) / 100 : 0,
     clubName: state.clubName,
     pendingMorning: state.pendingMorning,
     course: {
@@ -251,7 +251,9 @@ export function deserialize(json) {
     seed: raw.seed,
     rngState: raw.rngState,
     clock: { minutes: raw.clock.minutes },
-    cash: raw.cash,
+    // a NaN balance serializes to JSON null; heal it or every register sale
+    // refuses to bank ("The club books are not available") forever after
+    cash: Number.isFinite(raw.cash) ? raw.cash : 0,
     clubName: raw.clubName || 'Willow Creek Golf Club',
     pendingMorning: raw.pendingMorning ?? true,
     course,

@@ -833,7 +833,7 @@ export function createRegisterMode(B) {
     if (!cardActive) {
       ctx.fillStyle = '#e9e2cc';
       ctx.font = '700 58px Arial, sans-serif';
-      ctx.fillText('PRIME FAIRWAYS', W / 2, H * 0.40);
+      ctx.fillText('FAIRHOLLOW', W / 2, H * 0.40);
       ctx.fillStyle = '#7d8b81';
       ctx.font = '600 34px Arial, sans-serif';
       ctx.fillText('READY', W / 2, H * 0.62);
@@ -921,7 +921,7 @@ export function createRegisterMode(B) {
     } else {
       ctx.fillStyle = '#e9e2cc';
       ctx.font = '700 50px Arial, sans-serif';
-      ctx.fillText('PRIME FAIRWAYS', W / 2, H * 0.45);
+      ctx.fillText('FAIRHOLLOW', W / 2, H * 0.45);
     }
     termTexture.needsUpdate = true;
   }
@@ -1230,8 +1230,8 @@ export function createRegisterMode(B) {
   }
 
   function makeMoney(denom, from) {
-    // Prefer the finished checkout-kit denominations (stylised Prime Fairways
-    // notes and coins); fall back to the procedural pieces if the kit is absent.
+    // Prefer the finished checkout-kit denominations (fictional Fairhollow
+    // club notes and coins); fall back to procedural pieces if the kit is absent.
     let mesh = null;
     if (merch && merch.hasKit) {
       const name = BILLS.includes(denom)
@@ -1833,7 +1833,7 @@ export function createRegisterMode(B) {
 
   function createCardMesh() {
     if (cardMesh) cardMesh.removeFromParent();
-    // The finished Prime Fairways member card from the checkout kit; the
+    // The finished Fairhollow member card from the checkout kit; the
     // procedural card remains only as a fallback if the kit failed to load.
     let base = (merch && merch.instantiateKit)
       ? merch.instantiateKit('payment_card', { scale: 1.25 })
@@ -2296,7 +2296,7 @@ export function createRegisterMode(B) {
     ctx.textAlign = 'center';
     let y = 46;
     ctx.font = '700 26px Georgia, serif';
-    ctx.fillText('PRIME FAIRWAYS', 128, y); y += 26;
+    ctx.fillText('FAIRHOLLOW', 128, y); y += 26;
     ctx.font = '600 15px Arial, sans-serif';
     ctx.fillStyle = '#5d6a60';
     ctx.fillText('GOLF CLUB · PRO SHOP', 128, y); y += 22;
@@ -2382,7 +2382,7 @@ export function createRegisterMode(B) {
     ctx.fillText('THANK YOU FOR VISITING', 128, y); y += 20;
     ctx.font = 'italic 600 14px Georgia, serif';
     ctx.fillStyle = '#776850';
-    ctx.fillText('PLAY WELL. BUILD GREATNESS.', 128, y);
+    ctx.fillText('SEE YOU ON THE FAIRWAY.', 128, y);
 
     const texture = new THREE.CanvasTexture(canvas2d);
     texture.colorSpace = THREE.SRGBColorSpace;

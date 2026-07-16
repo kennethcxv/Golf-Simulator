@@ -32,6 +32,20 @@ test('state serializes to JSON and back without losing the world', () => {
   assert.ok(back.sections.length > 0, 'sections rebuilt on load');
 });
 
+test('a corrupted (NaN/null) cash balance heals on save and on load', () => {
+  // NaN serializes to JSON null; without the heal every register sale then
+  // refuses to bank ("The club books are not available") forever after.
+  const st = newGame('relaxed', 77);
+  st.cash = NaN;
+  const raw = JSON.parse(serialize(st));
+  assert.equal(raw.cash, 0, 'serialize never writes a non-finite balance');
+  const doctored = JSON.parse(serialize(newGame('relaxed', 78)));
+  doctored.cash = null; // a save written by an older build
+  const healed = deserialize(JSON.stringify(doctored));
+  assert.equal(healed.cash, 0, 'deserialize heals a null balance to a finite number');
+  assert.ok(Number.isFinite(healed.cash));
+});
+
 test('legacy drawers rebalance into penny and half-dollar slots without minting value', () => {
   const state = newGame('relaxed', 4321);
   state.shop.drawer = { 20: 5, 10: 8, 5: 10, 1: 25, 0.25: 20, 0.1: 20, 0.05: 20 };

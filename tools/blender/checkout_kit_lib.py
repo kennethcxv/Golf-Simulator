@@ -1,4 +1,9 @@
-"""Shared library for the Golf Empire / Prime Fairways checkout asset kit.
+"""Shared library for the Golf Flipper checkout asset kit (Sheet 01).
+
+All branding is ORIGINAL and fictional: the club is FAIRHOLLOW GOLF CLUB, the
+payment network is LINKSPAY, and the cash is a fictional club currency
+denominated in UNITS.  No real-world currency, card network, or golf brand
+artwork is reproduced anywhere in this kit.
 
 Authoring convention (matches the repo pipeline):
     X  left/right across the counter
@@ -100,6 +105,8 @@ _F = {
     ".": ["00000", "00000", "00000", "00000", "00000", "00110", "00110"],
     ":": ["00000", "00110", "00110", "00000", "00110", "00110", "00000"],
     " ": ["00000", "00000", "00000", "00000", "00000", "00000", "00000"],
+    "!": ["00100", "00100", "00100", "00100", "00100", "00000", "00100"],
+    ",": ["00000", "00000", "00000", "00000", "00110", "00110", "01100"],
 }
 
 
@@ -190,71 +197,143 @@ def kraft_img(name="KraftPaper", *, seed=11, w=512, h=512, base=(0.255, 0.150, 0
     return np_image(name, arr)
 
 
-def bag_art_img(name="BagArtwork", *, w=768, h=768):
-    """The Prime Fairways carrier artwork: a deep-green crest (flag over a
-    rolling fairway, ball on a tee), wordmark, brass rules and tagline —
-    original club branding printed on kraft."""
+OLIVE_PAPER = (0.062, 0.076, 0.034)      # deep olive carrier stock (linear)
+GOLD_INK = (0.52, 0.36, 0.11)            # screen-printed gold ink (linear)
+PALE_GOLD = (0.66, 0.52, 0.26)
+
+
+def _olive_field(rng, w, h):
+    """Olive paper base with vertical fibre + mottle, shared by bag body + art
+    so the printed panel disappears into the sheet."""
     import numpy as np
-    rng = np.random.default_rng(31)
-    kraft = np.array((0.255, 0.150, 0.075), "float32")
-    green = np.array((0.032, 0.085, 0.048), "float32")
-    brass = np.array((0.55, 0.38, 0.10), "float32")
-    cream = np.array((0.62, 0.52, 0.36), "float32")
+    base = np.array(OLIVE_PAPER, "float32")
+    arr = np.ones((h, w, 3), "float32") * base
+    fib = (L._fbm(rng, w, h, 54, 6, 4) - 0.5) * 0.13          # vertical paper fibres
+    mott = (L._fbm(rng, w, h, 9, 9, 5) - 0.5) * 0.10
+    arr *= (1.0 + fib + mott)[..., None]
+    fleck = (rng.random((h, w)).astype("float32") > 0.9988).astype("float32")
+    arr += fleck[..., None] * np.array((0.10, 0.09, 0.05), "float32")
+    return np.clip(arr, 0, 1)
 
-    arr = np.ones((h, w, 3), "float32") * kraft
-    fib = (L._fbm(rng, w, h, 60, 6, 4)[..., None] - 0.5) * 0.10
-    arr *= (1.0 + fib)
 
-    yy, xx = np.mgrid[0:h, 0:w].astype("float32")
-    cx, cy, R = w / 2, 268.0, 190.0
-    d = np.hypot(xx - cx, yy - cy)
-
-    # crest: double ring, printed in green ink
-    arr[(d > R - 10) & (d < R)] = green
-    arr[(d > R - 26) & (d < R - 20)] = green
-    inside = d < R - 26
-
-    # rolling fairway: two overlapping ground arcs low in the crest
-    hill1 = (np.hypot((xx - cx + 70) / 1.65, yy - (cy + 320)) < 265) & inside
-    hill2 = (np.hypot((xx - cx - 130) / 1.9, yy - (cy + 355)) < 300) & inside
-    arr[hill1] = green
-    arr[hill2] = green * 0.82 + kraft * 0.18
-
-    # flag: pole, pennant, and the ball on a tee beside it
-    pole = (np.abs(xx - (cx + 28)) < 5) & (yy > cy - 128) & (yy < cy + 78) & inside
-    arr[pole] = green
-    pen = (yy > cy - 128) & (yy < cy - 74) & (xx < cx + 28) & (xx > cx + 28 - 1.55 * ((yy - (cy - 128)) + 6)) & inside
-    arr[pen] = brass
-    ball = np.hypot(xx - (cx - 66), yy - (cy + 40)) < 13
-    arr[ball & inside] = cream
-    tee = (np.abs(xx - (cx - 66)) < 4) & (yy > cy + 52) & (yy < cy + 70) & inside
-    arr[tee] = cream * 0.8
-
-    # wordmark + rules + tagline
-    draw_text(arr, "PRIME FAIRWAYS", w // 2, 540, 7, tuple(green))
-    arr[578:582, 120:w - 120] = brass
-    draw_text(arr, "GOLF CLUB", w // 2, 614, 4, tuple(brass))
-    draw_text(arr, "PLAY WELL. BUILD GREATNESS.", w // 2, 682, 3, tuple(green * 1.4))
+def olive_paper_img(name="OlivePaper", *, w=512, h=512):
+    """The bag body sheet: olive stock with two faint fold shadows so the paper
+    reads creased even where geometry is flat.  Tiles 4x2 around the bag."""
+    import numpy as np
+    rng = np.random.default_rng(19)
+    arr = _olive_field(rng, w, h)
+    for fx in (0.31, 0.74):                                   # soft vertical creases
+        x = int(fx * w)
+        dist = np.abs(np.arange(w, dtype="float32") - x)
+        shade = np.clip(1.0 - dist / 26.0, 0, 1) * 0.16
+        arr *= (1.0 - shade)[None, :, None]
+        edge = np.clip(1.0 - np.abs(dist - 5.0) / 2.2, 0, 1) * 0.10
+        arr *= (1.0 + edge)[None, :, None]                    # bright fold ridge
     return np_image(name, arr)
 
 
-def receipt_img(name="ReceiptPaper", *, w=256, h=512):
-    """A printed receipt: header, item lines, divider, total, footer."""
+def bag_art_img(name="BagArtwork", *, w=768, h=768):
+    """The FAIRHOLLOW GOLF CLUB carrier print: gold double-ring crest (crossed
+    clubs under a dimpled ball), wordmark and quote — original branding,
+    screen-printed in gold on the olive sheet."""
     import numpy as np
-    arr = np.full((h, w, 3), 0.87, "float32")
-    arr *= (1.0 + (np.random.default_rng(5).random((h, w, 1)).astype("float32") - 0.5) * 0.03)
-    ink = (0.10, 0.10, 0.11)
-    draw_text(arr, "PRIME FAIRWAYS", w // 2, 40, 2, ink)
-    draw_text(arr, "PRO SHOP RECEIPT", w // 2, 66, 2, ink)
-    for i, (item, price) in enumerate([("GOLF MUG", "24.00"), ("TEES 50PK", "6.50"), ("GLOVE", "18.99")]):
-        y = 120 + i * 34
-        draw_text(arr, item, 18, y, 2, ink, align="left")
-        draw_text(arr, price, w - 90, y, 2, ink, align="left")
-    arr[236:239, 16:w - 16] = 0.35
-    draw_text(arr, "TOTAL", 18, 268, 2, ink, align="left")
-    draw_text(arr, "$49.49", w - 110, 268, 2, ink, align="left")
-    draw_text(arr, "THANK YOU", w // 2, 330, 2, ink)
-    arr[368:371, 40:w - 40] = 0.55
+    rng = np.random.default_rng(31)
+    arr = _olive_field(rng, w, h)
+    gold = np.array(GOLD_INK, "float32")
+    pale = np.array(PALE_GOLD, "float32")
+
+    yy, xx = np.mgrid[0:h, 0:w].astype("float32")
+    cx, cy, R = w / 2, 262.0, 188.0
+    d = np.hypot(xx - cx, yy - cy)
+
+    # crest: thin double ring in gold ink
+    arr[(d > R - 7) & (d < R)] = gold
+    arr[(d > R - 22) & (d < R - 17)] = gold
+    inside = d < R - 22
+
+    # crossed club shafts with simple heads
+    for (x0, y0, x1, y1) in ((cx - 108, cy + 96, cx + 96, cy - 78), (cx + 108, cy + 96, cx - 96, cy - 78)):
+        m = _seg_mask(w, h, x0, y0, x1, y1, 6) & inside
+        arr[m] = gold
+    arr[_ellipse_mask(w, h, cx + 104, cy - 86, 20, 13) & inside] = gold   # wood head
+    arr[_ellipse_mask(w, h, cx - 104, cy - 86, 15, 15) & inside] = gold   # iron head
+    # dimpled ball above the cross
+    _stamp_golf_ball(arr, cx, cy - 118, 30, pale, tuple(gold * 0.85))
+    # tee chevron under the cross
+    arr[_seg_mask(w, h, cx - 16, cy + 118, cx, cy + 138, 5) & inside] = gold
+    arr[_seg_mask(w, h, cx + 16, cy + 118, cx, cy + 138, 5) & inside] = gold
+
+    # wordmark + rules + quote (original)
+    draw_text(arr, "FAIRHOLLOW", w // 2, 530, 8, tuple(gold))
+    draw_text(arr, "GOLF CLUB", w // 2, 596, 4, tuple(pale))
+    arr[624:627, 150:w - 150] = gold
+    draw_text(arr, "PLAY THE GAME.", w // 2, 664, 3, tuple(pale))
+    draw_text(arr, "ENJOY THE JOURNEY.", w // 2, 700, 3, tuple(pale))
+    return np_image(name, arr)
+
+
+def oakslat_img(name="OakSlat", *, w=1024, h=1024):
+    """Light natural oak with VERTICAL grain (ring lines run along V) for the
+    counter's slat front.  Each slat samples a narrow random u-slice, so
+    neighbouring boards carry different figure."""
+    import numpy as np
+    rng = np.random.default_rng(27)
+    U = np.linspace(0, 1, w, dtype="float32")[None, :] * np.ones((h, 1), "float32")
+    warp = (L._fbm(rng, w, h, 3, 8, 4) - 0.5) * 0.10
+    rings = U * 22.0 + warp
+    grain = (0.5 - 0.5 * np.cos(rings * 2 * np.pi)) ** 2.2
+    pore = np.clip(0.5 + (L._fbm(rng, w, h, 90, 5, 4) - 0.5) * 1.6, 0, 1)
+    drift = L._fbm(rng, w, h, 2, 5, 3)
+    base = np.array((0.400, 0.300, 0.185), "float32")
+    dark = np.array((0.270, 0.192, 0.112), "float32")
+    light = np.array((0.490, 0.385, 0.255), "float32")
+    tone = base[None, None, :] * (1 - drift[..., None]) + light[None, None, :] * drift[..., None]
+    col = tone * (1 - 0.26 * grain[..., None]) + dark[None, None, :] * (0.26 * grain[..., None])
+    col = np.clip(col * (0.94 + 0.09 * pore[..., None]), 0, 1)
+    return np_image(name, col)
+
+
+def receipt_img(name="ReceiptPaper", *, w=256, h=768):
+    """A printed thermal receipt (matches the reference sheet): club header,
+    date/register line, item lines, rules, bold total, paid line, barcode and
+    the send-off quote.  Faint thermal banding keeps it from reading flat."""
+    import numpy as np
+    rng = np.random.default_rng(5)
+    arr = np.full((h, w, 3), 0.845, "float32")
+    arr *= (1.0 + (rng.random((h, w, 1)).astype("float32") - 0.5) * 0.03)
+    band = (np.sin(np.arange(h, dtype="float32") * 0.55) * 0.008)[:, None, None]
+    arr = np.clip(arr * (1.0 + band), 0, 1)                    # thermal feed banding
+    ink = (0.085, 0.09, 0.10)
+    soft = (0.30, 0.31, 0.33)
+    draw_text(arr, "FAIRHOLLOW", w // 2, 36, 3, ink)
+    draw_text(arr, "GOLF CLUB", w // 2, 66, 2, ink)
+    draw_text(arr, "PRO SHOP", w // 2, 92, 1, soft)
+    arr[108:110, 20:w - 20] = np.array(soft, "float32")
+    draw_text(arr, "REG 01", 20, 128, 1, soft, align="left")
+    draw_text(arr, "CLERK 03", w - 118, 128, 1, soft, align="left")
+    draw_text(arr, "06/12 2:41 PM", 20, 150, 1, soft, align="left")
+    arr[166:168, 20:w - 20] = np.array(soft, "float32")
+    items = [("GOLF GLOVE", "25.00"), ("PREM BALLS X2", "48.00"), ("PERF POLO", "45.00")]
+    for i, (item, price) in enumerate(items):
+        y = 194 + i * 30
+        draw_text(arr, item, 20, y, 1, ink, align="left")
+        draw_text(arr, price, w - 86, y, 1, ink, align="left")
+    arr[282:284, 20:w - 20] = np.array(soft, "float32")
+    draw_text(arr, "SUBTOTAL", 20, 306, 1, ink, align="left")
+    draw_text(arr, "118.00", w - 92, 306, 1, ink, align="left")
+    draw_text(arr, "TOTAL", 20, 340, 2, ink, align="left")
+    draw_text(arr, "118.00", w - 110, 340, 2, ink, align="left")
+    draw_text(arr, "PAID - MEMBER CARD", 20, 372, 1, soft, align="left")
+    arr[392:394, 20:w - 20] = np.array(soft, "float32")
+    x = 34                                                     # footer barcode
+    while x < w - 40:
+        bw_ = int(rng.integers(2, 6))
+        if rng.random() > 0.4:
+            arr[416:466, x:x + bw_] = np.array(ink, "float32")
+        x += bw_ + int(rng.integers(2, 4))
+    draw_text(arr, "THANK YOU!", w // 2, 506, 2, ink)
+    draw_text(arr, "SEE YOU ON", w // 2, 538, 1, soft)
+    draw_text(arr, "THE FAIRWAY.", w // 2, 560, 1, soft)
     return np_image(name, arr)
 
 
@@ -264,105 +343,295 @@ def _ellipse_mask(w, h, cx, cy, rx, ry):
     return ((xx - cx) / rx) ** 2 + ((yy - cy) / ry) ** 2 <= 1.0
 
 
+def _seg_mask(w, h, x0, y0, x1, y1, r):
+    """Pixels within distance r of the segment (x0,y0)-(x1,y1) — a thick stroke."""
+    import numpy as np
+    yy, xx = np.mgrid[0:h, 0:w].astype("float32")
+    dx, dy = float(x1 - x0), float(y1 - y0)
+    ln2 = max(dx * dx + dy * dy, 1e-6)
+    t = np.clip(((xx - x0) * dx + (yy - y0) * dy) / ln2, 0.0, 1.0)
+    return np.hypot(xx - (x0 + t * dx), yy - (y0 + t * dy)) <= r
+
+
+def _stamp_golfer(arr, cx, cy, s, color):
+    """An engraved golfer at follow-through, composed from strokes.  `s` scales
+    a ~56px-tall figure; original silhouette, no source artwork traced."""
+    import numpy as np
+    h, w = arr.shape[:2]
+    col = np.array(color, "float32")
+    strokes = [
+        # torso, leaning back into the finish
+        (cx - 1 * s, cy - 14 * s, cx + 3 * s, cy + 2 * s, 3.4 * s),
+        # front leg planted, back leg toe-down behind
+        (cx + 3 * s, cy + 2 * s, cx + 1 * s, cy + 22 * s, 2.4 * s),
+        (cx + 3 * s, cy + 2 * s, cx + 11 * s, cy + 20 * s, 2.2 * s),
+        # arms swung up over the lead shoulder
+        (cx - 1 * s, cy - 11 * s, cx - 11 * s, cy - 20 * s, 2.1 * s),
+        # club shaft wrapped high behind the back
+        (cx - 11 * s, cy - 20 * s, cx + 6 * s, cy - 30 * s, 1.1 * s),
+    ]
+    for (x0, y0, x1, y1, r) in strokes:
+        arr[_seg_mask(w, h, x0, y0, x1, y1, r)] = col
+    # head + cap brim
+    arr[_ellipse_mask(w, h, cx - 3 * s, cy - 21 * s, 4.6 * s, 4.6 * s)] = col
+    arr[_seg_mask(w, h, cx - 8 * s, cy - 22 * s, cx - 3 * s, cy - 23 * s, 1.2 * s)] = col
+    # club head
+    arr[_ellipse_mask(w, h, cx + 7 * s, cy - 31 * s, 2.6 * s, 1.8 * s)] = col
+    return arr
+
+
+def _stamp_golf_ball(arr, cx, cy, r, pale, dimple):
+    """A dimpled ball medallion: pale disk + a hex-ish grid of dimple dots."""
+    import numpy as np
+    h, w = arr.shape[:2]
+    arr[_ellipse_mask(w, h, cx, cy, r, r)] = np.array(pale, "float32")
+    step = max(3, int(r * 0.38))
+    row = 0
+    y = cy - r + step
+    while y < cy + r - step * 0.4:
+        off = (step // 2) if (row % 2) else 0
+        x = cx - r + step + off
+        while x < cx + r - step * 0.4:
+            if (x - cx) ** 2 + (y - cy) ** 2 <= (r - step * 0.9) ** 2:
+                arr[_ellipse_mask(w, h, x, y, max(1.2, r * 0.085), max(1.2, r * 0.085))] = np.array(dimple, "float32")
+            x += step
+        y += step
+        row += 1
+    return arr
+
+
+def _crest_pennant(arr, cx, cy, s, color):
+    """The Fairhollow mark: a flag pole with a pennant over two fairway hills."""
+    import numpy as np
+    h, w = arr.shape[:2]
+    col = np.array(color, "float32")
+    arr[_seg_mask(w, h, cx + 4 * s, cy - 30 * s, cx + 4 * s, cy + 14 * s, 1.6 * s)] = col
+    yy, xx = np.mgrid[0:h, 0:w].astype("float32")
+    pen = (yy > cy - 30 * s) & (yy < cy - 16 * s) & (xx < cx + 4 * s) \
+        & (xx > cx + 4 * s - 1.5 * ((yy - (cy - 30 * s)) + 2 * s))
+    arr[pen] = col
+    return arr
+
+
 def bill_img(denom, tint, *, w=512, h=512):
-    """Stylized Prime Fairways reserve note — front on the top half, back on the bottom.
-    Deliberately NOT a reproduction of real currency."""
+    """A FAIRHOLLOW CLUB NOTE in fictional UNITS — engraved-style field with a
+    fairway vignette, dimpled-ball medallion, bold corner numerals and a value
+    banner (front), golfer engraving (back).  Front on the top half of the
+    texture, back on the bottom.  Deliberately NOT any real-world currency."""
     import numpy as np
     rng = np.random.default_rng(17 + denom)
-    base = np.array(tint, "float32")
-    arr = np.ones((h, w, 3), "float32") * base
-    arr *= (1.0 + (L._fbm(rng, w, h, 40, 40, 4)[..., None] - 0.5) * 0.10)
-    ink = (0.070, 0.105, 0.075)
-    ink2 = (0.16, 0.19, 0.15)
+    tintv = np.array(tint, "float32")
+    paper = np.array((0.58, 0.56, 0.47), "float32")
+    field = tintv * 0.52 + paper * 0.48
+    ink = tintv * 0.16 + np.array((0.02, 0.03, 0.02), "float32")
+    ink2 = tintv * 0.34 + np.array((0.06, 0.07, 0.05), "float32")
+    pale = np.array((0.90, 0.88, 0.78), "float32")
     label = {1: "ONE", 5: "FIVE", 10: "TEN", 20: "TWENTY", 50: "FIFTY"}[denom]
 
-    def face(y0, y1, front):
-        fh = y1 - y0
-        # borders
-        arr[y0 + 8:y0 + 12, 12:w - 12] = ink
-        arr[y1 - 12:y1 - 8, 12:w - 12] = ink
-        arr[y0 + 8:y1 - 8, 12:16] = ink
-        arr[y0 + 8:y1 - 8, w - 16:w - 12] = ink
-        arr[y0 + 18:y0 + 20, 22:w - 22] = ink2
-        arr[y1 - 20:y1 - 18, 22:w - 22] = ink2
-        cy = y0 + fh // 2
-        if front:
-            draw_text(arr, "PRIME FAIRWAYS", w // 2, y0 + 38, 2, ink)
-            draw_text(arr, "RESERVE NOTE", w // 2, y0 + 62, 1, ink2)
-            # centre medallion
-            m = _ellipse_mask(w, h, w / 2, cy + 8, 78, 58)
-            arr[m] = np.array(tint, "float32") * 0.82
-            ring = _ellipse_mask(w, h, w / 2, cy + 8, 78, 58) & ~_ellipse_mask(w, h, w / 2, cy + 8, 70, 50)
-            arr[ring] = ink
-            draw_text(arr, f"${denom}", w // 2, cy + 8, 4, ink)
-            draw_text(arr, label, w // 2, y1 - 34, 2, ink)
-            # BOLD VALUE BANDS at both ends: deep-tint bars with big pale
-            # numerals — the denomination reads from the open drawer at a
-            # glance, which the quiet corner numerals never did.
-            band = np.array(tint, "float32") * 0.40
-            pale = (0.94, 0.92, 0.84)
-            arr[y0 + 24:y1 - 24, 24:88] = band
-            arr[y0 + 24:y1 - 24, w - 88:w - 24] = band
-            draw_text(arr, str(denom), 56, cy + 2, 5, pale)
-            draw_text(arr, str(denom), w - 56, cy + 2, 5, pale)
-        else:
-            draw_text(arr, "GOLF EMPIRE", w // 2, y0 + 40, 2, ink2)
-            m = _ellipse_mask(w, h, w / 2, cy + 6, 96, 52)
-            arr[m] = np.array(tint, "float32") * 0.86
-            draw_text(arr, label, w // 2, cy + 6, 3, ink)
-            for cx_, cy_ in ((44, y0 + 40), (w - 44, y0 + 40), (44, y1 - 40), (w - 44, y1 - 40)):
-                draw_text(arr, str(denom), cx_, cy_, 3, ink2)
+    arr = np.ones((h, w, 3), "float32") * field
+    arr *= (1.0 + (L._fbm(rng, w, h, 40, 40, 4)[..., None] - 0.5) * 0.07)
+    # engraved wavy scanlines across the whole sheet
+    yy, xx = np.mgrid[0:h, 0:w].astype("float32")
+    waves = ((yy + 2.6 * np.sin(xx * 0.055 + yy * 0.11)) % 5.0) < 1.5
+    arr[waves] = arr[waves] * 0.90 + ink[None, :] * 0.045
 
-    face(0, h // 2, front=True)       # array rows 0..h/2 = v 0.5..1 = FRONT region
-    face(h // 2, h, front=False)      # array rows h/2..h = v 0..0.5 = BACK region
+    def frame(y0, y1):
+        arr[y0 + 8:y0 + 12, 10:w - 10] = ink
+        arr[y1 - 12:y1 - 8, 10:w - 10] = ink
+        arr[y0 + 8:y1 - 8, 10:14] = ink
+        arr[y0 + 8:y1 - 8, w - 14:w - 10] = ink
+        arr[y0 + 16:y0 + 17, 18:w - 18] = ink2
+        arr[y1 - 17:y1 - 16, 18:w - 18] = ink2
+
+    # ------------------------------- FRONT (array rows 0..h/2 = v 0.5..1) ----
+    y0, y1 = 0, h // 2
+    cy = (y0 + y1) // 2
+    frame(y0, y1)
+    # bold corner value panels (drawer-glance readability)
+    npx = 3 if denom < 10 else 2
+    for (px0, py0) in ((16, y0 + 14), (w - 78, y0 + 14), (16, y1 - 62), (w - 78, y1 - 62)):
+        arr[py0:py0 + 48, px0:px0 + 62] = tintv * 0.30
+        draw_text(arr, str(denom), px0 + 31, py0 + 24, npx + 1, pale)
+    draw_text(arr, "FAIRHOLLOW GOLF CLUB", w // 2, y0 + 30, 2, tuple(ink))
+    draw_text(arr, "CLUB RESERVE NOTE", w // 2, y0 + 54, 1, tuple(ink2))
+    # central fairway vignette
+    vg = _ellipse_mask(w, h, w / 2, cy + 10, 118, 62)
+    ring = vg & ~_ellipse_mask(w, h, w / 2, cy + 10, 112, 56)
+    arr[vg] = field * 1.10
+    hill1 = _ellipse_mask(w, h, w / 2 - 52, cy + 74, 150, 58) & vg
+    hill2 = _ellipse_mask(w, h, w / 2 + 74, cy + 86, 170, 62) & vg
+    arr[hill1] = tintv * 0.42 + paper * 0.20
+    arr[hill2] = tintv * 0.34 + paper * 0.30
+    sun = _ellipse_mask(w, h, w / 2 - 74, cy - 24, 15, 15) & vg
+    arr[sun] = pale
+    _crest_pennant(arr, w / 2 + 26, cy + 8, 1.5, tuple(ink))
+    arr[ring] = ink
+    # ball medallion (right) + monogram ring (left)
+    _stamp_golf_ball(arr, w - 108, cy + 6, 25, tuple(pale), tuple(ink2))
+    mr = _ellipse_mask(w, h, 108, cy + 6, 27, 27) & ~_ellipse_mask(w, h, 108, cy + 6, 23, 23)
+    arr[mr] = ink2
+    draw_text(arr, "FH", 108, cy + 6, 2, tuple(ink))
+    # bottom value banner
+    arr[y1 - 44:y1 - 20, 128:w - 128] = tintv * 0.30
+    draw_text(arr, f"{label} UNITS", w // 2, y1 - 32, 2, tuple(pale))
+
+    # ------------------------------- BACK (array rows h/2..h = v 0..0.5) -----
+    y0, y1 = h // 2, h
+    cy = (y0 + y1) // 2
+    frame(y0, y1)
+    draw_text(arr, "FAIRHOLLOW GOLF CLUB", w // 2, y0 + 32, 2, tuple(ink))
+    for (cx_, cy_) in ((46, y0 + 40), (w - 46, y0 + 40), (46, y1 - 42), (w - 46, y1 - 42)):
+        draw_text(arr, str(denom), cx_, cy_, 3, tuple(ink2))
+    # engraved golfer over a ground line
+    med = _ellipse_mask(w, h, w / 2, cy + 8, 96, 66)
+    arr[med] = field * 1.08
+    ring = med & ~_ellipse_mask(w, h, w / 2, cy + 8, 90, 60)
+    _stamp_golfer(arr, w / 2 - 4, cy + 6, 1.7, tuple(ink))
+    arr[_seg_mask(w, h, w / 2 - 72, cy + 48, w / 2 + 72, cy + 48, 1.6) & med] = ink2
+    arr[_ellipse_mask(w, h, w / 2 - 34, cy + 44, 3, 3)] = pale
+    arr[ring] = ink
+    draw_text(arr, f"{label} UNITS", w // 2, y1 - 34, 2, tuple(ink))
+    # pale strip straddling the texture's centre seam: the mesh's edge faces
+    # sample uv (0.005..0.035, 0.495..0.505) here — paper edge, not border ink
+    arr[h // 2 - 6:h // 2 + 6, 0:22] = paper * 1.05
     return np_image(f"Bill_{denom}", arr)
 
 
-def coin_img(code, label, copper, *, w=256, h=256):
-    """Coin face art: rim ring + centre denomination.  Top 16px = side-band strip."""
+COIN_METALS = {
+    # code: (core metal, ring metal or None) — linear floats.  50 is the
+    # bimetallic hero (gold ring / silver core) from the reference sheet.
+    "01": ((0.42, 0.26, 0.15), None),                          # copper
+    "05": ((0.40, 0.40, 0.36), None),                          # warm nickel
+    "10": ((0.47, 0.48, 0.52), None),                          # bright silver
+    "25": ((0.46, 0.47, 0.50), None),                          # silver, laurel
+    "50": ((0.47, 0.48, 0.52), (0.52, 0.38, 0.14)),            # gold ring + silver core
+}
+
+
+def coin_img(code, label, *, w=256, h=512):
+    """Coin art with DISTINCT faces: obverse (rows 0..256, v .5..1) carries the
+    laurel ring + denomination + ball mark; reverse (rows 256..512) carries the
+    golfer engraving.  A reeded band straddles the centre seam (v ~0.5) for the
+    cylinder's side faces.  Fictional UNITS coinage, not any real coin."""
     import numpy as np
+    core, ringm = COIN_METALS[code]
     rng = np.random.default_rng(31 + int(code))
-    base = np.array((0.42, 0.30, 0.20) if copper else (0.44, 0.45, 0.48), "float32")
-    dark = base * 0.55
+    base = np.array(core, "float32")
+    dark = base * 0.48
+    bright = np.clip(base * 1.45, 0, 1)
     arr = np.ones((h, w, 3), "float32") * base
-    arr *= (1.0 + (L._fbm(rng, w, h, 30, 30, 4)[..., None] - 0.5) * 0.08)
-    c = (w / 2, h / 2 + 8)
-    rim = _ellipse_mask(w, h, c[0], c[1], 105, 105) & ~_ellipse_mask(w, h, c[0], c[1], 92, 92)
-    arr[rim] = dark
-    inner = _ellipse_mask(w, h, c[0], c[1], 60, 60) & ~_ellipse_mask(w, h, c[0], c[1], 55, 55)
-    arr[inner] = dark
-    draw_text(arr, label, int(c[0]), int(c[1]) - 12, 3, dark)
-    draw_text(arr, "CENTS" if code != "100" else "DOLLAR", int(c[0]), int(c[1]) + 30, 1, dark)
-    arr[0:16, :] = base * 0.8         # side band strip
+    arr *= (1.0 + (L._fbm(rng, w, h, 30, 30, 4)[..., None] - 0.5) * 0.075)
+    # radial brush: faint concentric machining rings on both faces
+    for cy_face in (128, 384):
+        yy, xx = np.mgrid[0:h, 0:w].astype("float32")
+        rr = np.hypot(xx - 128, yy - cy_face)
+        spin = (np.sin(rr * 1.9) * 0.020)[..., None]
+        band = (rr < 108)[..., None]
+        arr = np.clip(arr * (1.0 + spin * band), 0, 1)
+
+    def face(cy, front):
+        c = (w / 2, cy)
+        R = 121                                                 # mesh edge sits at r=128
+        if ringm is not None:                                   # bimetallic collar
+            ring = _ellipse_mask(w, h, c[0], c[1], R, R) & ~_ellipse_mask(w, h, c[0], c[1], 78, 78)
+            rv = np.array(ringm, "float32")
+            arr[ring] = rv
+            arr[_ellipse_mask(w, h, c[0], c[1], 80, 80) & ~_ellipse_mask(w, h, c[0], c[1], 77, 77)] = rv * 0.55
+        # raised rim: bright crest line + shadow just inside the edge
+        arr[_ellipse_mask(w, h, c[0], c[1], R + 7, R + 7) & ~_ellipse_mask(w, h, c[0], c[1], R - 4, R - 4)] = \
+            np.clip(np.array(ringm, "float32") * 1.28, 0, 1) if ringm is not None else bright
+        arr[_ellipse_mask(w, h, c[0], c[1], R - 4, R - 4) & ~_ellipse_mask(w, h, c[0], c[1], R - 8, R - 8)] = \
+            (np.array(ringm, "float32") if ringm is not None else base) * 0.62
+        if front:
+            # laurel wreath: fine paired leaf-dashes in two side arcs
+            yy, xx = np.mgrid[0:h, 0:w].astype("float32")
+            ang = np.arctan2(yy - c[1], xx - c[0])
+            rr = np.hypot(xx - c[0], yy - c[1])
+            deep = dark * 0.8
+            side = (np.abs(np.cos(ang)) > 0.35)                 # leave top/bottom gaps
+            leaf = ((np.floor((ang + np.pi) / (np.pi / 26)).astype("int32") % 2) == 0)
+            arr[leaf & side & (rr > 96) & (rr < 104)] = deep
+            arr[side & (rr > 106) & (rr < 108.5)] = deep        # binding rings
+            arr[side & (rr > 91) & (rr < 93.5)] = deep
+            draw_text(arr, label, int(c[0]), int(c[1]) - 10, 6 if len(label) < 2 else 5, tuple(dark * 0.72))
+            draw_text(arr, "UNITS", int(c[0]), int(c[1]) + 44, 1, tuple(dark * 0.72))
+            _stamp_golf_ball(arr, int(c[0]), int(c[1]) + 82, 14, tuple(bright), tuple(dark))
+        else:
+            _stamp_golfer(arr, int(c[0]) - 2, int(c[1]) - 2, 1.7, tuple(dark))
+            arr[_seg_mask(w, h, c[0] - 56, c[1] + 38, c[0] + 56, c[1] + 38, 1.6)
+                & _ellipse_mask(w, h, c[0], c[1], 100, 100)] = dark
+            draw_text(arr, "FAIRHOLLOW", int(c[0]), int(c[1]) - 84, 1, tuple(dark))
+            draw_text(arr, "GOLF CLUB", int(c[0]), int(c[1]) + 84, 1, tuple(dark))
+
+    face(128, front=True)
+    face(384, front=False)
+    # reeded side band across the centre seam (v ~0.488..0.512)
+    edge = np.array(ringm, "float32") if ringm is not None else base
+    band = np.ones((12, w, 3), "float32") * edge * 0.86
+    reed = ((np.arange(w) // 3) % 2 == 0)
+    band[:, reed] = edge * 1.12
+    arr[h // 2 - 6:h // 2 + 6] = np.clip(band, 0, 1)
     return np_image(f"Coin_{code}", arr)
 
 
-def card_img(*, w=512, h=512):
-    """Prime Fairways member card — generic fake data only."""
+def card_img(*, w=1024, h=1024):
+    """The FAIRHOLLOW GOLF CLUB member card on the fictional LINKSPAY network.
+    Navy field, gold crest and embossed-look numerals (pale glyph over a dark
+    offset shadow).  Generic fake data only — original, non-real branding."""
     import numpy as np
     rng = np.random.default_rng(7)
-    blue = np.array((0.055, 0.13, 0.30), "float32")
-    arr = np.ones((h, w, 3), "float32") * blue
-    arr *= (1.0 + (L._fbm(rng, w, h, 26, 26, 4)[..., None] - 0.5) * 0.10)
-    white = (0.82, 0.85, 0.88)
+    navy = np.array((0.032, 0.080, 0.205), "float32")
+    arr = np.ones((h, w, 3), "float32") * navy
+    arr *= (1.0 + (L._fbm(rng, w, h, 26, 26, 4)[..., None] - 0.5) * 0.08)
+    gold = GOLD_INK
+    pale = PALE_GOLD
+    white = (0.80, 0.83, 0.86)
+    shadow = tuple(navy * 0.42)
+    yy, xx = np.mgrid[0:h, 0:w].astype("float32")
     # ---- front (array rows 0..h/2 = v 0.5..1) ----
-    sweep = _ellipse_mask(w, h, w * 0.15, 40, 260, 120) & (np.mgrid[0:h, 0:w][0] < h // 2)
-    arr[sweep] *= 0.82
-    draw_text(arr, "PRIME FAIRWAYS", w - 150, 36, 2, white, align="left")
-    arr[70:110, 46:104] = blue * 0.7                                    # chip zone marker
-    for r_ in (14, 22, 30):                                             # contactless arcs
-        ring = _ellipse_mask(w, h, w - 60, 90, r_ + 3, r_ + 3) & ~_ellipse_mask(w, h, w - 60, 90, r_ - 1, r_ - 1)
-        ring &= (np.mgrid[0:h, 0:w][1] >= w - 60)
-        arr[ring] = white
-    draw_text(arr, "1234 5678 9012 3456", w // 2, 165, 3, white)
-    draw_text(arr, "VALID 12/28", 46, 205, 2, white, align="left")
-    draw_text(arr, "S FAIRWAY", 46, 234, 2, white, align="left")
+    sweep = (((xx + yy * 1.6) > 900) & ((xx + yy * 1.6) < 1240)) & (yy < h // 2)
+    arr[sweep] *= 0.84                                          # diagonal satin band
+    draw_text(arr, "FAIRHOLLOW", 44, 44, 4, gold, align="left")
+    draw_text(arr, "GOLF CLUB", 44, 84, 2, pale, align="left")
+    # crest top-right: double gold ring around a bold pennant
+    for (r0, r1) in ((58, 52), (46, 43)):
+        arr[_ellipse_mask(w, h, 924, 88, r0, r0) & ~_ellipse_mask(w, h, 924, 88, r1, r1)] = np.array(gold, "float32")
+    arr[_seg_mask(w, h, 934, 58, 934, 120, 3.2)] = np.array(gold, "float32")
+    pen = (yy > 58) & (yy < 92) & (xx < 934) & (xx > 934 - 1.15 * (yy - 54))
+    arr[pen & _ellipse_mask(w, h, 924, 88, 43, 43)] = np.array(gold, "float32")
+    # chip seat marker (the physical chip mesh sits over this)
+    arr[104:216, 80:222] = navy * 0.72
+    arr[104:108, 80:222] = np.array(gold, "float32") * 0.6
+    arr[212:216, 80:222] = np.array(gold, "float32") * 0.6
+    # contactless arcs beside the chip
+    for r_ in (26, 42, 58):
+        ring = _ellipse_mask(w, h, 292, 160, r_ + 5, r_ + 5) & ~_ellipse_mask(w, h, 292, 160, r_ - 3, r_ - 3)
+        arr[ring & (xx >= 292) & (np.abs(yy - 160) < (r_ + 5) * 0.72)] = np.array(white, "float32")
+    # embossed number: dark drop shadow first, pale-gold glyphs on top
+    draw_text(arr, "1234 5678 9012 3456", w // 2 + 4, 325, 4, shadow)
+    draw_text(arr, "1234 5678 9012 3456", w // 2, 320, 4, pale)
+    draw_text(arr, "CLUB MEMBER", 46, 424, 3, shadow, align="left")
+    draw_text(arr, "CLUB MEMBER", 43, 420, 3, pale, align="left")
+    draw_text(arr, "VALID 12/28", 46, 468, 2, white, align="left")
+    # fictional network mark, bottom right
+    arr[_seg_mask(w, h, 856, 458, 876, 438, 5)] = np.array(gold, "float32")
+    arr[_seg_mask(w, h, 876, 438, 896, 458, 5)] = np.array(gold, "float32")
+    arr[_seg_mask(w, h, 856, 458, 876, 478, 5)] = np.array(gold, "float32")
+    arr[_seg_mask(w, h, 876, 478, 896, 458, 5)] = np.array(gold, "float32")
+    draw_text(arr, "LINKSPAY", 950, 458, 2, pale)
     # ---- back (array rows h/2..h = v 0..0.5) ----
     y0 = h // 2
-    arr[y0 + 24:y0 + 70, :] = np.array((0.03, 0.035, 0.045), "float32")           # mag stripe
-    arr[y0 + 100:y0 + 140, 30:w - 120] = np.array((0.75, 0.76, 0.78), "float32")  # signature
-    draw_text(arr, "123", w - 70, y0 + 120, 2, (0.1, 0.1, 0.12))
-    draw_text(arr, "GOLF EMPIRE MEMBER CARD", w // 2, y0 + 190, 1, white)
+    arr[y0 + 20:y0 + 24, 24:w - 24] = np.array(gold, "float32") * 0.7
+    arr[y0 + 48:y0 + 144, :] = np.array((0.028, 0.032, 0.040), "float32")          # mag stripe
+    arr[y0 + 196:y0 + 282, 60:w - 200] = np.array((0.74, 0.75, 0.77), "float32")   # signature
+    for i in range(4):                                                              # security squiggle
+        ys = y0 + 208 + i * 18
+        arr[ys:ys + 3, 76:w - 216] = np.array((0.58, 0.59, 0.62), "float32")
+    draw_text(arr, "123", w - 260, y0 + 240, 3, (0.09, 0.09, 0.11))
+    draw_text(arr, "LINKSPAY", w // 2, y0 + 356, 3, gold)
+    draw_text(arr, "FICTIONAL CLUB PAYMENT NETWORK", w // 2, y0 + 402, 1, white)
+    draw_text(arr, "FAIRHOLLOW GOLF CLUB MEMBER SERVICES", w // 2, y0 + 440, 1, white)
+    arr[y0 + 486:y0 + 490, 24:w - 24] = np.array(gold, "float32") * 0.7
     return np_image("PaymentCard", arr)
 
 
@@ -527,8 +796,15 @@ def kit_materials():
         "key_dark": m_flat("M_KeyDark", (0.026, 0.028, 0.032), rough=0.5),
         # paper / soft
         "kraft": m_tex("M_Kraft", kraft_img(), rough=0.78, ds=True),
+        "olive": m_tex("M_OlivePaper", olive_paper_img(), rough=0.82, ds=True),
+        "olive_dark": m_flat("M_OliveDark", (0.030, 0.038, 0.017), rough=0.88, ds=True),
         "paper": m_flat("M_Paper", (0.86, 0.85, 0.80), rough=0.8, ds=True),
-        "rope": m_flat("M_Rope", (0.055, 0.055, 0.06), rough=0.85),
+        "rope": m_flat("M_Rope", (0.135, 0.085, 0.045), rough=0.9),
+        # counter finishes
+        "oak_slat": m_tex("M_OakSlat", oakslat_img(), rough=0.52),
+        "counter_black": m_tex("M_CounterBlack", plastic_img("CounterBlack", (0.014, 0.015, 0.017), seed=14, mottle=0.05), rough=0.34),
+        "led_warm": m_flat("M_LedWarm", (1.0, 0.72, 0.38), rough=0.4, emit=(1.0, 0.72, 0.38), estr=3.0),
+        "glass_black": m_flat("M_GlassBlack", (0.010, 0.012, 0.015), rough=0.08),
         "collision": m_flat("M_Collision", (1.0, 0.0, 1.0), rough=1.0, alpha=0.0),
     }
 
@@ -553,7 +829,7 @@ def asset_root(asset_id, dims):
     return empty(asset_id, props={
         "asset_id": asset_id, "asset_version": BUILD_VERSION, "units": "meters",
         "front": "-Y (player side)", "target_dimensions_m": list(dims),
-        "source": "Original Prime Fairways asset generated in-repository",
+        "source": "Original Fairhollow Golf Club asset, modelled in-repository (no external/AI meshes)",
         "license": "Project-owned / UNLICENSED",
     })
 
@@ -716,6 +992,10 @@ def save_and_export(asset_id, root):
 
 def render_preview(asset_id, root, *, azimuth=33, elevation=12, name=None):
     out = PREVIEW_DIR / f"{name or asset_id}.png"
+    # idempotent: drop any rig a previous render of this scene left behind
+    for o in list(bpy.data.objects):
+        if o.name.split(".")[0] in ("PreviewFloor", "Key", "Fill", "Rim", "Soft", "Cam"):
+            bpy.data.objects.remove(o, do_unlink=True)
     for o in bpy.data.objects:
         if o.get("collision_proxy"):
             o.hide_render = True
