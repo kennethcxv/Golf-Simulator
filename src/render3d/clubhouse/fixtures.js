@@ -884,17 +884,14 @@ export function buildCheckout(B) {
   addCol(colBoxAt(COUNTER.x, COUNTER.z, COUNTER.len + 0.3, COUNTER.depth + 0.2));
 
   if (merch) merch.onReady(() => {
-    const counter = merch.instantiate('checkout_counter');
+    // The finished checkout-kit counter (assets/checkout): charcoal top with alu
+    // trim, lit cream staff shelf, closed register cabinet under the POS block.
+    // Authored 2.60 x 0.85 m with the top at 0.95; non-uniform scale maps it onto
+    // the plan's 3.2 x 1.0 footprint with the top exactly at COUNTER_TOP.
+    const counter = merch.instantiateKit && merch.instantiateKit('checkout_counter');
     if (!counter) return;
-    const scale = COUNTER.len / 3.10;
-    counter.scale.setScalar(scale);
-    counter.position.set(COUNTER.x, COUNTER_TOP - 1.011 * scale, COUNTER.z);
-    if (B.register && B.register.simplified) {
-      const stagingInlay = counter.getObjectByName('StagingInlay');
-      const baggingInlay = counter.getObjectByName('BaggingInlay');
-      if (stagingInlay) stagingInlay.visible = false;
-      if (baggingInlay) baggingInlay.visible = false;
-    }
+    counter.scale.set(COUNTER.len / 2.6, COUNTER_TOP / 0.95, COUNTER.depth / 0.85);
+    counter.position.set(COUNTER.x, 0, COUNTER.z);
     interior.add(counter);
     interior.remove(legacyCounter);
   });
@@ -909,39 +906,30 @@ export function buildCheckout(B) {
   // is a function of the transaction, not of the furniture.
   // deferred: the models land well after the shop is built
   if (merch) merch.onReady(() => {
-    // Keep the large, readable POS display, but use the production Blender scanner,
-    // reader and printer. Their authored origin is the counter surface and their
-    // -Y front converts to the game's +Z staff side at rotation zero.
-    // The kiosk's glass faces its own +x, so it is turned -PI/2 to face the staff — the
-    // layout's monitor.ry 0 was calibrated to the OLD model, whose screen faced +z.
-    const RAW_PROP = { register: 'kiosk' };
-    const PROD_PROP = {
-      scanner: 'checkout_scanner',
-      cardterm: 'checkout_card_reader',
-      printer: 'checkout_receipt_printer',
-    };
-    const RAW_RY = { register: -Math.PI / 2 };
-    const placeProp = (name, spec, ry) => {
-      const o = RAW_PROP[name]
-        ? merch.instantiateRaw(RAW_PROP[name])
-        : merch.instantiate(PROD_PROP[name] || name);
+    // THE FINISHED CHECKOUT KIT (assets/checkout/glb → vendor/models/checkout).
+    // Each device authors its screen face toward -Y, which the exporter converts
+    // to the game's +Z staff side at rotation zero. Origins are bottom-centre, so
+    // every prop sits directly on COUNTER_TOP.
+    const placeKit = (name, spec, { ry = 0, scale = 1 } = {}) => {
+      const o = merch.instantiateKit && merch.instantiateKit(name, { scale });
       if (!o) return null;
       o.position.set(spec.x, COUNTER_TOP, spec.z);
-      o.rotation.y = ry !== undefined ? ry : (name in RAW_RY ? RAW_RY[name] : (spec.ry || 0));
+      o.rotation.y = ry;
       interior.add(o);
       return o;
     };
-    const reg = placeProp('register', REGISTER.monitor);
-    // NOT `slotMesh(...).material = screenMaterial`. The model's screen face carries an
-    // atlas UV from smart_project, so a 0..1 canvas lands on it as a magnified corner —
-    // the register rendered as a black slab. registerMode hangs its own clean-UV plane.
+    // Large readable POS head like the reference (kit monitor is real-world sized;
+    // the reference device reads chunkier, so it carries a modest scale-up).
+    const reg = placeKit('pos_monitor', REGISTER.monitor, { scale: 1.35 });
+    // NOT `slotMesh(...).material = screenMaterial`: registerMode hangs its own
+    // clean-UV canvas plane onto the kit's POS_Screen face.
     if (reg && B.register) B.register.attachScreen(reg);
-    // No scanner in the click-to-bag flow — the counter carries only the POS,
-    // the card reader and the (de-emphasised) printer.
-    const term = placeProp('cardterm', REGISTER.cardterm, 0);
+    const term = placeKit('payment_terminal', REGISTER.cardterm, { scale: 1.25 });
     if (term && B.register) B.register.attachTerm(term);
-    const printer = placeProp('printer', REGISTER.printer, -0.18);
+    const printer = placeKit('receipt_printer', REGISTER.printer, { ry: -0.18, scale: 1.1 });
     if (printer && B.register) B.register.attachPrinter(printer);
+    // Customer-facing total display, turned toward the queue.
+    placeKit('customer_display', REGISTER.custdisplay, { ry: Math.PI, scale: 1.15 });
   });
 
   // the screen is drawn by registerMode from the live transaction — a furniture

@@ -36,6 +36,9 @@ import { createFrontDeskMonitorUi } from './frontDeskMonitorUi.js';
 
 const SCREEN_W = 1024;
 const SCREEN_H = 640;
+// the live POS canvas plane hung on the kit monitor's POS_Screen face
+const POS_PLANE_W = 0.34;
+const POS_PLANE_H = 0.2125;
 const REST_Y = COUNTER_TOP + 0.012;
 const SCAN_Y = COUNTER_TOP + 0.13;
 const CARD_TIME = 1.15;
@@ -51,7 +54,7 @@ const CASH_FOV = 48;
 const CARD_WIDTH = 0.086;
 const CARD_HEIGHT = 0.054;
 const CARD_THICKNESS = 0.0014;
-const CARD_STATION = Object.freeze({ x: 1.78, z: 4.38 });
+const CARD_STATION = Object.freeze({ x: REGISTER.cardterm.x, z: REGISTER.cardterm.z });
 const CARD_PANEL_W = 0.235;
 const CARD_PANEL_H = 0.39;
 const CARD_KEY_LABELS = Object.freeze([
@@ -270,6 +273,8 @@ export function createRegisterMode(B) {
   });
 
   let printerRoll = null;
+  let printerPaper = null;
+  let printerPaperBaseY = 0;
   let receiptMesh = null;
   let receiptTimer = 0;
   let autoFulfilled = false;
@@ -281,7 +286,7 @@ export function createRegisterMode(B) {
   let bagGroup = null;
   // Counter-left, toward the staff edge, so it sits in the near-left of the
   // cashier frame like the reference (and clear of the POS at x 2.25).
-  const BAG_POS = new THREE.Vector3(2.06, COUNTER_TOP, 4.66);
+  const BAG_POS = new THREE.Vector3(REGISTER.bag.x, COUNTER_TOP, REGISTER.bag.z);
   const bagMouth = new THREE.Vector3(BAG_POS.x + 0.02, COUNTER_TOP + 0.18, BAG_POS.z - 0.03);
 
   const itemResources = createRegisterItemResources();
@@ -416,27 +421,26 @@ export function createRegisterMode(B) {
 
   const POSES = {
     monitor: poseBetween(
-      { x: 2.72, y: 1.55, z: 5.48 },
-      { x: 2.48, y: 1.22, z: 4.18 },
+      { x: 3.02, y: 1.55, z: 5.50 },
+      { x: 3.10, y: 1.22, z: 4.20 },
     ),
     scan: poseBetween(
       // Centred, elevated over-counter shot: bag (left), products (centre) and
       // POS (right) read together above the counter, like the reference.
-      { x: 2.62, y: 1.64, z: 5.55 },
-      { x: 2.52, y: 1.03, z: 4.00 },
+      { x: 2.70, y: 1.64, z: 5.58 },
+      { x: 2.68, y: 1.03, z: 4.00 },
     ),
     card: poseBetween(
-      // Look diagonally across the work triangle so the reader is no longer
-      // hidden directly behind the larger POS kiosk. The reader remains left
-      // of the total display, matching the physical checkout reference.
-      { x: 1.52, y: 1.52, z: 5.44 },
-      { x: 2.08, y: 1.24, z: 4.12 },
+      // Look diagonally across the work triangle: terminal centre, POS right,
+      // customer beyond — matching the physical checkout reference.
+      { x: 2.42, y: 1.52, z: 5.46 },
+      { x: 2.96, y: 1.24, z: 4.10 },
     ),
     cash: poseBetween(
       // Center the drawer and its dedicated display as one vertical workspace.
       // The lower target keeps the open tray and coin wells inside the frame.
-      { x: 2.44, y: 2.15, z: 6.05 },
-      { x: 2.40, y: 1.02, z: 4.75 },
+      { x: 3.42, y: 2.15, z: 6.05 },
+      { x: 3.40, y: 1.02, z: 4.75 },
     ),
   };
 
@@ -940,10 +944,21 @@ export function createRegisterMode(B) {
   }
 
   function attachScreen(registerObject) {
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.225), screenMaterial);
+    // The checkout-kit POS carries a dedicated POS_Screen face (clean 0..1 UVs);
+    // hang the live canvas directly on it so the display inherits the head's tilt.
+    const kitScreen = registerObject.getObjectByName('POS_Screen');
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(POS_PLANE_W, POS_PLANE_H), screenMaterial);
     plane.name = 'FrontDeskLiveMonitor';
-    orientPlane(plane, 0.019, 0.315, 0, 0.84, 0.54, 0);
-    registerObject.add(plane);
+    if (kitScreen) {
+      // The exporter's Y-up conversion already turns the authored screen quad into
+      // a three-native XY plane facing +Z — same frame as PlaneGeometry, so the
+      // live canvas parents on with identity rotation, just proud of the glass.
+      plane.position.z = 0.002;
+      kitScreen.add(plane);
+    } else {
+      orientPlane(plane, 0.019, 0.315, 0, 0.84, 0.54, 0);
+      registerObject.add(plane);
+    }
     registerFurniture = registerObject;
     registerFurniture.visible = workspace !== 'cash';
     screenPlane = plane;
@@ -952,13 +967,16 @@ export function createRegisterMode(B) {
 
   function attachTerm(termObject) {
     // Bring the authored reader into the same visible work plane as the POS.
-    // Its former customer-side position was completely hidden by the kiosk.
     termObject.position.set(CARD_STATION.x, COUNTER_TOP, CARD_STATION.z);
-    const production = !!termObject.getObjectByName('ReaderScreen');
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.076, 0.052), termMaterial);
-    if (production) orientPlane(plane, 0, 0.089, -0.040, 0, 0.988, -0.156);
-    else orientPlane(plane, 0.004, 0.057, -0.049, 0, 0.05, -1);
-    termObject.add(plane);
+    const kitScreen = termObject.getObjectByName('Terminal_Screen');
+    if (!kitScreen) {
+      // legacy readers carry no usable screen face — hang a small live plane
+      const production = !!termObject.getObjectByName('ReaderScreen');
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.076, 0.052), termMaterial);
+      if (production) orientPlane(plane, 0, 0.089, -0.040, 0, 0.988, -0.156);
+      else orientPlane(plane, 0.004, 0.057, -0.049, 0, 0.05, -1);
+      termObject.add(plane);
+    }
     if (!cardStatusFurniture) {
       cardStatusFurniture = new THREE.Group();
       cardStatusFurniture.name = 'PhysicalCardStatusDisplay';
@@ -997,6 +1015,12 @@ export function createRegisterMode(B) {
     printerRoll = printerObject.getObjectByName('PaperRollPivot');
     const authoredPaper = printerObject.getObjectByName('ReceiptPaper');
     if (authoredPaper) authoredPaper.visible = false;
+    // checkout-kit printer: the Receipt_Paper strip feeds upward while printing
+    printerPaper = printerObject.getObjectByName('Receipt_Paper');
+    if (printerPaper) {
+      printerPaperBaseY = printerPaper.position.y;
+      printerPaper.visible = false;
+    }
   }
 
   function setPlacementPreview() {
@@ -1069,12 +1093,29 @@ export function createRegisterMode(B) {
   }
 
   function makeMoney(denom, from) {
-    const mesh = new THREE.Mesh(
-      BILLS.includes(denom) ? billGeometry : coinGeometry,
-      moneyMaterial(denom),
-    );
-    mesh.castShadow = from !== 'drawer';
-    mesh.userData = { pick: true, kind: 'money', denom, from };
+    // Prefer the finished checkout-kit denominations (stylised Prime Fairways
+    // notes and coins); fall back to the procedural pieces if the kit is absent.
+    let mesh = null;
+    if (merch && merch.hasKit) {
+      const name = BILLS.includes(denom)
+        ? `cash_bill_${denom}`
+        : `cash_coin_${String(Math.round(denom * 100)).padStart(2, '0')}`;
+      if (merch.hasKit(name)) mesh = merch.instantiateKit(name, { scale: 1.3 });
+    }
+    if (!mesh) {
+      mesh = new THREE.Mesh(
+        BILLS.includes(denom) ? billGeometry : coinGeometry,
+        moneyMaterial(denom),
+      );
+    }
+    const data = { pick: true, kind: 'money', denom, from };
+    mesh.userData = data;
+    mesh.traverse((o) => {
+      if (o.isMesh) {
+        o.castShadow = from !== 'drawer';
+        o.userData = { ...o.userData, ...data };
+      }
+    });
     return mesh;
   }
 
@@ -1111,11 +1152,40 @@ export function createRegisterMode(B) {
     bagGroup.add(fallback);
     if (merch) {
       merch.onReady(() => {
-        const model = merch.instantiate('checkout_shopping_bag');
+        const model = (merch.instantiateKit && merch.instantiateKit('shopping_bag', { scale: 1.18 }))
+          || merch.instantiate('checkout_shopping_bag');
         if (!model) return;
         fallback.visible = false;
         bagGroup.add(model);
       });
+    }
+  }
+
+  function buildSlotFurniture() {
+    for (const spot of slotHotspots) spot.removeFromParent();
+    for (const label of slotLabels) label.removeFromParent();
+    slotHotspots.length = 0;
+    slotLabels.length = 0;
+    for (const denom of DENOMS) {
+      const slot = SLOT[denom];
+      const bill = BILLS.includes(denom);
+      const hotspot = new THREE.Mesh(
+        new THREE.BoxGeometry(bill ? 0.082 : 0.074, 0.085, bill ? 0.19 : 0.12),
+        new THREE.MeshBasicMaterial({ visible: false }),
+      );
+      hotspot.position.set(
+        slot.x,
+        slot.y + 0.035,
+        slot.z - (bill ? 0.055 : 0.030),
+      );
+      hotspot.userData = { pick: true, kind: 'drawer-slot', denom };
+      drawerMotionRoot.add(hotspot);
+      slotHotspots.push(hotspot);
+
+      const label = makeFlatLabel(moneyLabel(denom), bill ? 0.073 : 0.064, 0.029);
+      label.position.set(slot.x, slot.y + 0.049, slot.z - (bill ? 0.066 : 0.035));
+      drawerMotionRoot.add(label);
+      slotLabels.push(label);
     }
   }
 
@@ -1138,27 +1208,7 @@ export function createRegisterMode(B) {
     fallback.position.set(0, 0.05, 0);
     drawerMotionRoot.add(fallback);
 
-    for (const denom of DENOMS) {
-      const slot = SLOT[denom];
-      const bill = BILLS.includes(denom);
-      const hotspot = new THREE.Mesh(
-        new THREE.BoxGeometry(bill ? 0.082 : 0.074, 0.085, bill ? 0.19 : 0.12),
-        new THREE.MeshBasicMaterial({ visible: false }),
-      );
-      hotspot.position.set(
-        slot.x,
-        slot.y + 0.035,
-        slot.z - (bill ? 0.055 : 0.030),
-      );
-      hotspot.userData = { pick: true, kind: 'drawer-slot', denom };
-      drawerMotionRoot.add(hotspot);
-      slotHotspots.push(hotspot);
-
-      const label = makeFlatLabel(moneyLabel(denom), bill ? 0.073 : 0.064, 0.029);
-      label.position.set(slot.x, slot.y + 0.049, slot.z - (bill ? 0.066 : 0.035));
-      drawerMotionRoot.add(label);
-      slotLabels.push(label);
-    }
+    buildSlotFurniture();
 
     cashPanelCanvas = document.createElement('canvas');
     cashPanelCanvas.width = 512;
@@ -1251,12 +1301,42 @@ export function createRegisterMode(B) {
 
     if (merch) {
       merch.onReady(() => {
-        const model = merch.instantiate('checkout_cash_drawer') || merch.instantiate('cash_drawer');
+        // The checkout-kit drawer: charcoal housing, light-gray insert with five
+        // labelled bill wells + five coin cups, and a CashDrawer_Tray that slides
+        // toward the staff side. Origin is the housing's back-bottom-centre.
+        const kitScale = 1.22;
+        const kit = merch.instantiateKit && merch.instantiateKit('cash_drawer', { scale: kitScale });
+        const model = kit || merch.instantiate('checkout_cash_drawer') || merch.instantiate('cash_drawer');
         if (!model) return;
         fallback.visible = false;
-        drawerGroup.add(model);
-        drawerAssetSlide = model.getObjectByName('DrawerSlide');
-        if (drawerAssetSlide) drawerAssetSlideBaseZ = drawerAssetSlide.position.z;
+        if (kit) {
+          // seat the housing under the countertop with its face flush to the
+          // counter's staff side (drawerGroup sits at that face)
+          model.position.set(0, -0.045, 0.10 - 0.46 * kitScale);
+          drawerGroup.add(model);
+          drawerAssetSlide = model.getObjectByName('CashDrawer_Tray');
+          if (drawerAssetSlide) drawerAssetSlideBaseZ = drawerAssetSlide.position.z;
+          // Re-derive the denomination slots from the kit's authored money
+          // sockets so hotspots, labels and cash stacks land exactly in the wells.
+          root.updateMatrixWorld(true);
+          const socketName = (denom) => (BILLS.includes(denom)
+            ? `BILL_${denom}_SOCKET`
+            : `COIN_${String(Math.round(denom * 100)).padStart(2, '0')}_SOCKET`);
+          let remapped = 0;
+          for (const denom of DENOMS) {
+            const socket = model.getObjectByName(socketName(denom));
+            if (!socket) continue;
+            const local = drawerMotionRoot.worldToLocal(socket.getWorldPosition(new THREE.Vector3()));
+            SLOT[denom] = { x: local.x, y: local.y, z: local.z };
+            remapped += 1;
+          }
+          if (remapped === DENOMS.length) buildSlotFurniture();
+          refillDrawerMoney();
+        } else {
+          drawerGroup.add(model);
+          drawerAssetSlide = model.getObjectByName('DrawerSlide');
+          if (drawerAssetSlide) drawerAssetSlideBaseZ = drawerAssetSlide.position.z;
+        }
       });
     }
   }
@@ -1422,6 +1502,10 @@ export function createRegisterMode(B) {
     drawerAmount = 0;
     if (drawerMotionRoot) drawerMotionRoot.position.z = 0;
     if (drawerAssetSlide) drawerAssetSlide.position.z = drawerAssetSlideBaseZ;
+    if (printerPaper) {
+      printerPaper.visible = false;
+      printerPaper.position.y = printerPaperBaseY;
+    }
     if (cashPanelFurniture) cashPanelFurniture.visible = false;
     if (cashSortHotspot) cashSortHotspot.visible = false;
     if (cashReviewHotspot) cashReviewHotspot.visible = false;
@@ -1672,33 +1756,42 @@ export function createRegisterMode(B) {
 
   function createCardMesh() {
     if (cardMesh) cardMesh.removeFromParent();
-    const base = new THREE.Mesh(
-      new THREE.BoxGeometry(CARD_WIDTH, CARD_THICKNESS, CARD_HEIGHT),
-      new THREE.MeshStandardMaterial({ color: 0x173f2d, roughness: 0.36 }),
-    );
-    const faceTexture = paymentCardTexture();
-    const face = new THREE.Mesh(
-      new THREE.PlaneGeometry(CARD_WIDTH - 0.004, CARD_HEIGHT - 0.004),
-      new THREE.MeshStandardMaterial({
-        map: faceTexture,
-        emissive: 0xffffff,
-        emissiveMap: faceTexture,
-        emissiveIntensity: 0.16,
-        roughness: 0.42,
-      }),
-    );
-    face.rotation.x = -Math.PI / 2;
-    face.position.y = CARD_THICKNESS / 2 + 0.0002;
-    base.add(face);
-    const stripe = new THREE.Mesh(
-      new THREE.BoxGeometry(CARD_WIDTH - 0.004, 0.0008, 0.014),
-      new THREE.MeshStandardMaterial({ color: 0x111411, roughness: 0.5 }),
-    );
-    stripe.position.set(0, -CARD_THICKNESS / 2 - 0.0003, -0.016);
-    base.add(stripe);
+    // The finished Prime Fairways member card from the checkout kit; the
+    // procedural card remains only as a fallback if the kit failed to load.
+    let base = (merch && merch.instantiateKit)
+      ? merch.instantiateKit('payment_card', { scale: 1.25 })
+      : null;
+    if (!base) {
+      base = new THREE.Mesh(
+        new THREE.BoxGeometry(CARD_WIDTH, CARD_THICKNESS, CARD_HEIGHT),
+        new THREE.MeshStandardMaterial({ color: 0x173f2d, roughness: 0.36 }),
+      );
+      const faceTexture = paymentCardTexture();
+      const face = new THREE.Mesh(
+        new THREE.PlaneGeometry(CARD_WIDTH - 0.004, CARD_HEIGHT - 0.004),
+        new THREE.MeshStandardMaterial({
+          map: faceTexture,
+          emissive: 0xffffff,
+          emissiveMap: faceTexture,
+          emissiveIntensity: 0.16,
+          roughness: 0.42,
+        }),
+      );
+      face.rotation.x = -Math.PI / 2;
+      face.position.y = CARD_THICKNESS / 2 + 0.0002;
+      base.add(face);
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(CARD_WIDTH - 0.004, 0.0008, 0.014),
+        new THREE.MeshStandardMaterial({ color: 0x111411, roughness: 0.5 }),
+      );
+      stripe.position.set(0, -CARD_THICKNESS / 2 - 0.0003, -0.016);
+      base.add(stripe);
+    }
     base.position.set(INSERT_READY.x, INSERT_READY.y, INSERT_READY.z);
     base.rotation.set(0, 0, 0);
-    base.userData = { pick: true, kind: 'payment-card' };
+    const data = { pick: true, kind: 'payment-card' };
+    base.userData = data;
+    base.traverse((o) => { if (o.isMesh) o.userData = { ...o.userData, ...data }; });
     root.add(base);
     cardMesh = base;
   }
@@ -2150,23 +2243,32 @@ export function createRegisterMode(B) {
       return false;
     }
     if (!receiptMesh) {
-      const paperTexture = textTexture('PINEHOLLOW', {
-        width: 256,
-        height: 512,
-        background: '#f8f5eb',
-        foreground: '#28322c',
-        accent: '#c9c1aa',
-        subline: tx.method === 'cash' ? `CASH  $${dueOf(tx).toFixed(2)}` : `CARD  $${dueOf(tx).toFixed(2)}`,
-      });
-      receiptMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.09, 0.19),
-        new THREE.MeshBasicMaterial({ map: paperTexture, side: THREE.DoubleSide, toneMapped: false }),
-      );
+      const kitReceipt = (merch && merch.instantiateKit)
+        ? merch.instantiateKit('loose_receipt', { scale: 1.2 })
+        : null;
+      if (kitReceipt) {
+        receiptMesh = kitReceipt;
+        receiptMesh.rotation.y = 0.25;
+      } else {
+        const paperTexture = textTexture('PINEHOLLOW', {
+          width: 256,
+          height: 512,
+          background: '#f8f5eb',
+          foreground: '#28322c',
+          accent: '#c9c1aa',
+          subline: tx.method === 'cash' ? `CASH  $${dueOf(tx).toFixed(2)}` : `CARD  $${dueOf(tx).toFixed(2)}`,
+        });
+        receiptMesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.09, 0.19),
+          new THREE.MeshBasicMaterial({ map: paperTexture, side: THREE.DoubleSide, toneMapped: false }),
+        );
+        receiptMesh.rotation.x = -Math.PI / 2 + 0.15;
+      }
       receiptMesh.position.set(REGISTER.printer.x, COUNTER_TOP + 0.09, REGISTER.printer.z + 0.03);
-      receiptMesh.rotation.x = -Math.PI / 2 + 0.15;
       receiptMesh.scale.y = 0.04;
       root.add(receiptMesh);
     }
+    if (printerPaper) printerPaper.visible = true;
     receiptTimer = RECEIPT_TIME;
     setWorkspace('monitor');
     sfx('receiptPrint');
@@ -2685,6 +2787,11 @@ export function createRegisterMode(B) {
     receiptTimer = Math.max(0, receiptTimer - dt);
     const progress = 1 - receiptTimer / RECEIPT_TIME;
     if (printerRoll) printerRoll.rotation.x += dt * 10;
+    if (printerPaper) {
+      // the kit printer's paper strip feeds upward out of the slot while printing
+      printerPaper.visible = receiptTimer > 0;
+      printerPaper.position.y = printerPaperBaseY + 0.085 * (1 - Math.pow(1 - progress, 2));
+    }
     if (receiptMesh) {
       const eased = 1 - Math.pow(1 - progress, 3);
       receiptMesh.scale.y = Math.max(0.04, eased);
@@ -2838,8 +2945,8 @@ export function createRegisterMode(B) {
     const point = monitorUi.actionPoint(actionId);
     if (!point || !screenPlane) return null;
     const world = new THREE.Vector3(
-      (point.x / SCREEN_W - 0.5) * 0.36,
-      (0.5 - point.y / SCREEN_H) * 0.225,
+      (point.x / SCREEN_W - 0.5) * POS_PLANE_W,
+      (0.5 - point.y / SCREEN_H) * POS_PLANE_H,
       0.01,
     );
     screenPlane.localToWorld(world);

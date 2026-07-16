@@ -162,26 +162,31 @@ export const COUNTER_TOP = 1.055;
 // the first cut put the staging tray a 1.68 yd stretch away and the test caught it.
 
 export const REGISTER = {
-  // the kit, on the counter top
-  // ry 0, NOT PI. The model's screen faces its own +z, and the staff side is +z, so
-  // ry 0 turns the display toward the player. The old kit used PI with a comment
-  // claiming the screens faced "the STAFF side (north, -z)" — but staff is at +z, so
-  // the register had been showing its back to the cashier and its face to the queue.
-  // Nobody caught it because the old screen was 128x80 and nobody ever read it.
-  monitor:  { x: 2.25, z: 4.52, ry: 0 },                // staff side — it faces YOU
-  cardterm: { x: 2.05, z: 3.88, ry: 0 },                // customer side, in BOTH reach circles
-  scanner:  { x: 2.70, z: 4.22, ry: Math.PI + 0.22 },   // mid-depth: you pass goods over it
-  printer:  { x: 3.05, z: 4.56, ry: Math.PI - 0.18 },
+  // the kit, on the counter top — TCG reference arrangement: from the cashier's
+  // view (standing at +z looking toward the queue) the BAG sits far LEFT (-x),
+  // the merchandise lands centre-left, and the POS + drawer + terminal + printer
+  // form the register block on the RIGHT (+x), over the counter's closed cabinet.
+  // ry 0: the kit devices author their screen face toward -Y, which the exporter
+  // turns to face +z — the staff side — at rotation zero.
+  monitor:  { x: 3.42, z: 4.42, ry: 0 },                // right block — faces YOU
+  cardterm: { x: 3.00, z: 4.04, ry: 0 },                // beside the POS, player reach
+  scanner:  { x: 2.70, z: 4.22, ry: Math.PI + 0.22 },   // unused by the click-to-bag flow
+  printer:  { x: 3.98, z: 4.48, ry: Math.PI - 0.18 },
+  custdisplay: { x: 3.84, z: 4.10 },                    // faces the queue (customer side)
+  bag: { x: 1.96, z: 4.60 },                            // the OPEN kraft bag items arc into
   bagstand: { x: 4.20, z: 4.50 },                       // the stack of folded carriers
   divider:  { x: 4.42, z: 4.05 },                       // where the next order starts
-  impulse:  { x: 3.85, z: 3.85 },                       // markers and tees, facing the queue
+  impulse:  { x: 4.18, z: 3.86 },                       // markers and tees, facing the queue
 
-  // the drawer lives UNDER the counter and slides out toward the staff side
-  drawer: { x: 2.40, y: 0.86, w: 0.46, d: 0.40, travel: 0.34 },
+  // the drawer lives UNDER the counter, directly below the POS, and slides out
+  // toward the staff side
+  drawer: { x: 3.42, y: 0.86, w: 0.46, d: 0.40, travel: 0.34 },
 
   // surfaces
-  staging: { minX: 2.30, maxX: 3.10, minZ: 3.78, maxZ: 4.12 },  // customer lays goods out here
-  bagging: { minX: 3.30, maxX: 4.05, minZ: 4.28, maxZ: 4.60 },  // staff side, downstream
+  staging: { minX: 2.05, maxX: 2.80, minZ: 3.78, maxZ: 4.10 },  // customer lays goods out here
+  // the bag handoff zone: items arc from staging INTO THE BAG at counter-left
+  // (click-to-bag) — there is no separate bagging mat any more
+  bagging: { minX: 1.66, maxX: 2.28, minZ: 4.38, maxZ: 4.68 },
 
   // THE SCAN VOLUME. An item counts as scanned when its barcode passes THROUGH this
   // box — not when it comes to rest in it. Both surfaces sit clear of it, so nothing

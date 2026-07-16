@@ -234,8 +234,31 @@ export function createMerch(mats) {
     return out;
   }
 
+  // THE CHECKOUT KIT (assets/checkout/glb, staged to vendor/models/checkout).
+  // These are the finished hero assets for the TCG-style register: baked
+  // materials are kept as authored (no slot remap), collision proxies hidden.
+  const KIT = [
+    'checkout_counter', 'pos_monitor', 'cash_drawer', 'payment_terminal',
+    'receipt_printer', 'shopping_bag', 'payment_card', 'customer_display',
+    'loose_receipt',
+    'cash_bill_1', 'cash_bill_5', 'cash_bill_10', 'cash_bill_20', 'cash_bill_50',
+    'cash_coin_01', 'cash_coin_05', 'cash_coin_10', 'cash_coin_25', 'cash_coin_50',
+  ];
+
+  function instantiateKit(name, { scale = 1 } = {}) {
+    const proto = protos.get(`kit:${name}`);
+    if (!proto) return null;
+    const obj = proto.clone(true);
+    obj.traverse((o) => {
+      if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; }
+      if (o.name.startsWith('COL_')) o.visible = false;
+    });
+    if (scale !== 1) obj.scale.setScalar(scale);
+    return obj;
+  }
+
   const loader = new GLTFLoader();
-  let pending = FILES.length + RAW.length;
+  let pending = FILES.length + RAW.length + KIT.length;
   const done = () => {
     if (--pending > 0) return;
     ready = true;
@@ -269,14 +292,30 @@ export function createMerch(mats) {
       () => done(),
     );
   }
+  for (const name of KIT) {
+    loader.load(
+      `vendor/models/checkout/${name}.glb`,
+      (g) => {
+        const root = g.scene;
+        root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+        protos.set(`kit:${name}`, root);
+        clips.set(`kit:${name}`, g.animations || []);
+        done();
+      },
+      undefined,
+      () => done(),
+    );
+  }
 
   return {
     instantiate,
     instantiateRaw,
+    instantiateKit,
     slotMesh,
     bake,
     isReady: () => ready,
     has: (n) => protos.has(n),
+    hasKit: (n) => protos.has(`kit:${n}`),
     animations: (n) => clips.get(n) || [],
     // the models arrive after the shop is built; the caller restocks on ready
     onReady(fn) { if (ready) fn(); else waiting.push(fn); },
