@@ -336,6 +336,7 @@ export function createRegisterMode(B) {
   let scanFlash = 0;
   let scanReturnTimer = 0;
   let paymentAutoTimer = 0;
+  let cashAcceptTimer = 0;
   let hoveredItem = null;
 
   let cardMesh = null;
@@ -1422,6 +1423,8 @@ export function createRegisterMode(B) {
     scanMotion = null;
     scanReturnTimer = 0;
     paymentAutoTimer = 0;
+    cashAcceptTimer = 0;
+    finalizeTimer = 0;
     insertDrag = null;
     insertSnap = false;
     insertMessage = '';
@@ -1761,6 +1764,10 @@ export function createRegisterMode(B) {
       if (checkoutFlowState() === 'ChoosingPayment') flowTo('CashPresented', 'customer-presented-cash');
       createTender();
       setWorkspace('cash');
+      // The customer hands the cash over; a beat later the register takes it,
+      // the drawer opens on its own and the tender is deposited — the player's
+      // only cash task is giving change.
+      cashAcceptTimer = 1.0;
     }
     drawScreen();
     drawTerm();
@@ -2217,6 +2224,8 @@ export function createRegisterMode(B) {
       return false;
     }
     autoFulfilled = true;
+    // Bank the sale and release the customer automatically after a short beat.
+    finalizeTimer = 0.75;
     sfx('receiptTear');
     sfx('posReady');
     drawScreen();
@@ -2785,6 +2794,19 @@ export function createRegisterMode(B) {
         && tx && tx.stage === 'scanning' && unscannedCount(tx) === 0) {
       paymentAutoTimer = Math.max(0, paymentAutoTimer - dt);
       if (paymentAutoTimer === 0) choosePayment(preferredPayment());
+    }
+    // The register accepts the handed-over cash on its own: open the drawer and
+    // deposit the tender so the only remaining cash task is giving change.
+    if (cashAcceptTimer > 0 && tx && tx.method === 'cash' && !tx.deposited
+        && (tx.stage === 'cash-tender' || tx.stage === 'cash-drawer')) {
+      cashAcceptTimer = Math.max(0, cashAcceptTimer - dt);
+      if (cashAcceptTimer === 0) sortReceivedCash();
+    }
+    // Once the bag is filled and the receipt is in, the sale banks itself and the
+    // customer leaves — no separate "finalize" click.
+    if (finalizeTimer > 0 && tx && tx.stage === 'done' && autoFulfilled) {
+      finalizeTimer = Math.max(0, finalizeTimer - dt);
+      if (finalizeTimer === 0) finalizeTransaction();
     }
     if (scanFlash > 0) scanFlash = Math.max(0, scanFlash - dt);
     const beamStrength = scanFlash > 0 ? scanFlash / 0.28 : (workspace === 'scan' ? 0.045 : 0);
