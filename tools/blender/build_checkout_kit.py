@@ -1,4 +1,4 @@
-"""Build the Golf Flipper checkout asset kit (reference: Asset Sheet 01).
+"""Build the Golf Flipper checkout asset kit (reference: Asset Sheets 01-02).
 
 All branding is original and fictional (FAIRHOLLOW GOLF CLUB / LINKSPAY /
 UNITS currency) — no real-world brands, currency or card networks.
@@ -28,6 +28,7 @@ from mathutils import Vector
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lib_props as L
 import checkout_kit_lib as K
+import checkout_money_lib as K2
 
 
 # ================================================================ counter ======
@@ -694,35 +695,71 @@ def build_payment_card(M):
 
 
 # ======================================================= cash denominations ====
-
-BILL_TINTS = {
-    # saturated, glance-distinct note colours (fictional UNITS currency, not a
-    # reproduction of any real note). Values are LINEAR floats — mid-greys turn
-    # pastel after the sRGB transfer, so saturation lives well below 0.5 on the
-    # muted channels.  1 sage, 5 violet, 10 amber, 20 fairway green, 50 rose
-    1: (0.30, 0.42, 0.14), 5: (0.27, 0.15, 0.42), 10: (0.58, 0.24, 0.05),
-    20: (0.09, 0.32, 0.11), 50: (0.48, 0.10, 0.13),
-}
-COIN_SPECS = {                                     # code: (label, radius, thickness)
-    "01": ("1", 0.00953, 0.00152),
-    "05": ("5", 0.01060, 0.00195),
-    "10": ("10", 0.00895, 0.00135),
-    "25": ("25", 0.01213, 0.00175),
-    "50": ("50", 0.01530, 0.00215),
-}
+# Sheet-02 currency: per-denomination note sizes and vignettes, coin size
+# ladder with five alloys and baked relief.  All art in checkout_money_lib.
 
 
 def make_bill_builder(denom):
     def build(M):
-        root = K.asset_root(f"cash_bill_{denom}", (0.156, 0.066, 0.0008))
-        mat = K.m_tex(f"M_Bill{denom}", K.bill_img(denom, BILL_TINTS[denom]), rough=0.62)
-        # edge faces sample the pale paper strip painted across the texture's
-        # centre seam — note edges read as paper, never as border ink
-        edge = (0.005, 0.495, 0.035, 0.505)
-        face_uv = {"+Z": (0, 0.5, 1, 1), "-Z": (0, 0.0, 1, 0.5),
-                   "-Y": edge, "+Y": edge, "-X": edge, "+X": edge}
-        b = K.uv_box("Bill_Body", (0.156, 0.066, 0.0008), (0, 0, 0), mat, face_uv=face_uv)
-        L.parent_keep(b, root)
+        BW, BH = K2.BILL_DIMS[denom]
+        TH = 0.0004                     # paper sheet, thick enough to render solid
+        CURL = 0.0011                   # ends lift — the "slight paper curl"
+        SEG = 8
+        root = K.asset_root(f"cash_bill_{denom}", (BW, BH, TH + CURL))
+        mat = K.m_tex(f"M_Bill{denom}", K2.bill_img(denom), rough=0.62)
+
+        bm = bmesh.new()
+        top = [[None] * 2 for _ in range(SEG + 1)]
+        bot = [[None] * 2 for _ in range(SEG + 1)]
+        for i in range(SEG + 1):
+            t = i / SEG
+            x = -BW / 2 + BW * t
+            zc = CURL * (2 * t - 1) ** 2          # parabolic end-curl, flat centre
+            for j, y in enumerate((-BH / 2, BH / 2)):
+                top[i][j] = bm.verts.new((x, y, zc))
+                bot[i][j] = bm.verts.new((x, y, zc - TH))
+        uvl = bm.loops.layers.uv.new("UVMap")
+
+        def quad(vs, uvs):
+            f = bm.faces.new(vs)
+            for loop, uv in zip(f.loops, uvs):
+                loop[uvl].uv = uv
+
+        # faces: front art on v .506..998, back art (u-mirrored, page-turn flip)
+        # on v .002..494 — the art regions composed by K2.bill_img
+        for i in range(SEG):
+            t0, t1 = i / SEG, (i + 1) / SEG
+            quad((top[i][0], top[i + 1][0], top[i + 1][1], top[i][1]),
+                 ((t0, 0.506), (t1, 0.506), (t1, 0.998), (t0, 0.998)))
+            quad((bot[i][0], bot[i][1], bot[i + 1][1], bot[i + 1][0]),
+                 ((1 - t0, 0.002), (1 - t0, 0.494), (1 - t1, 0.494), (1 - t1, 0.002)))
+        # edge faces sample the pale paper strip straddling the atlas seam —
+        # note edges read as paper, never as border ink
+        eu0, ev0, eu1, ev1 = 0.006, 0.4955, 0.034, 0.5045
+        for i in range(SEG):
+            u0 = eu0 + (eu1 - eu0) * (i / SEG)
+            u1 = eu0 + (eu1 - eu0) * ((i + 1) / SEG)
+            quad((top[i][0], bot[i][0], bot[i + 1][0], top[i + 1][0]),
+                 ((u0, ev1), (u0, ev0), (u1, ev0), (u1, ev1)))
+            quad((top[i + 1][1], bot[i + 1][1], bot[i][1], top[i][1]),
+                 ((u1, ev1), (u1, ev0), (u0, ev0), (u0, ev1)))
+        quad((top[0][1], bot[0][1], bot[0][0], top[0][0]),
+             ((eu0, ev1), (eu0, ev0), (eu1, ev0), (eu1, ev1)))
+        quad((top[SEG][0], bot[SEG][0], bot[SEG][1], top[SEG][1]),
+             ((eu0, ev1), (eu0, ev0), (eu1, ev0), (eu1, ev1)))
+
+        me = bpy.data.meshes.new("Bill_Body")
+        bm.to_mesh(me)
+        bm.free()
+        o = bpy.data.objects.new("Bill_Body", me)
+        bpy.context.collection.objects.link(o)
+        me.materials.append(mat)
+        L.activate(o)
+        try:
+            bpy.ops.object.shade_auto_smooth(angle=math.radians(40))
+        except Exception:
+            pass
+        L.parent_keep(o, root)
         root["denomination_units"] = denom
         return root
     return build
@@ -730,12 +767,14 @@ def make_bill_builder(denom):
 
 def make_coin_builder(code):
     def build(M):
-        label, radius, thick = COIN_SPECS[code]
+        label, radius, thick, segs = K2.COIN_SPECS[code]
+        st = K2.COIN_STYLE[code]
         root = K.asset_root(f"cash_coin_{code}", (radius * 2, radius * 2, thick))
-        img = K.coin_img(code, label)
-        mat = K.m_tex(f"M_Coin{code}", img, rough=0.34, metal=0.9)
+        img, nrm = K2.coin_img(code)
+        mat = K.m_tex(f"M_Coin{code}", img, rough=st["rough"], metal=0.92,
+                      normal=nrm, normal_strength=0.85)
         bm = bmesh.new()
-        bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=26, radius1=radius, radius2=radius, depth=thick)
+        bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=segs, radius1=radius, radius2=radius, depth=thick)
         uvl = bm.loops.layers.uv.new("UVMap")
         for f in bm.faces:
             if abs(f.normal.z) > 0.5:
@@ -776,6 +815,143 @@ def make_coin_builder(code):
         root["denomination_cents"] = int(code)
         return root
     return build
+
+
+# ===================================================== apparel wall fixture ====
+
+def _hslat_wall(name, width, height, mat, *, seed, parent, thick=0.018, board_h=0.087, gap=0.010):
+    """Horizontal retail slatwall: oak boards spanning X, stacked up Z from 0,
+    outer face toward -Y.  Grain must run ALONG each board, so the u/v roles
+    swap versus _slat_wall (the oak sheet's grain runs along v)."""
+    rng = random.Random(seed)
+    bm = bmesh.new()
+    uvl = bm.loops.layers.uv.new("UVMap")
+    pitch = board_h + gap
+    count = max(1, int((height + gap) // pitch))
+    zbase = (height - (count * pitch - gap)) / 2
+    for i in range(count):
+        za = zbase + i * pitch
+        zb = za + board_h
+        jy = rng.uniform(-0.0012, 0.0012)
+        u0 = rng.uniform(0.02, 0.90)
+        v0 = rng.uniform(0.0, 0.28)
+        du, dv = 0.075, 0.70
+        corners = {}
+        for (kx, x) in (("a", -width / 2), ("b", width / 2)):
+            for (ky, y) in (("f", -thick / 2 + jy), ("r", thick / 2 + jy)):
+                for (kz, z) in (("0", za), ("1", zb)):
+                    corners[kx + ky + kz] = bm.verts.new((x, y, z))
+        faces = (
+            (("af0", "bf0", "bf1", "af1"), lambda x, z: (u0 + (z - za) / board_h * du, v0 + (x / width + 0.5) * dv)),  # front
+            (("br0", "ar0", "ar1", "br1"), lambda x, z: (u0 + (z - za) / board_h * du, v0 + (0.5 - x / width) * dv)),  # back
+            (("af1", "bf1", "br1", "ar1"), lambda x, z: (u0 + du, v0 + (x / width + 0.5) * dv)),   # top
+            (("ar0", "br0", "bf0", "af0"), lambda x, z: (u0, v0 + (x / width + 0.5) * dv)),        # bottom
+            (("bf0", "br0", "br1", "bf1"), lambda x, z: (u0 + (z - za) / board_h * du, v0 + dv)),  # right end
+            (("ar0", "af0", "af1", "ar1"), lambda x, z: (u0 + (z - za) / board_h * du, v0)),       # left end
+        )
+        for keys, uvf in faces:
+            f = bm.faces.new(tuple(corners[k] for k in keys))
+            for loop in f.loops:
+                co = loop.vert.co
+                loop[uvl].uv = uvf(co.x, co.z)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new(name, me)
+    bpy.context.collection.objects.link(o)
+    me.materials.append(mat)
+    if parent is not None:
+        L.parent_keep(o, parent)
+    return o
+
+
+def build_apparel_wall(M):
+    """Sheet-02 #20: the modular apparel wall — metal frame, horizontal oak
+    slatwall, APPAREL header, removable brass rod + hooks + shelf, folded-stack
+    counter over a two-door cabinet.  One 1.10 m module; the shop stands two
+    side by side on the outerwear rail's footprint.  Front faces -Y.
+
+    Fit contract (measured from the live garment GLBs): rod at 1.68 puts a
+    hanging jacket's hem at 0.89 and a polo's at 1.00 — both clear the 0.82
+    top of a three-high folded stack on the 0.63 counter.  Counter depth 0.42
+    swallows the deepest folded piece (pants, 0.37) with margin."""
+    W, D, H = 1.10, 0.45, 2.20
+    root = K.asset_root("apparel_wall", (W, D, H))
+    BACKP = D / 2
+
+    # --- metal frame: back uprights, top rail, forward feet ------------------
+    for sx, tag in ((-1, "L"), (1, "R")):
+        x = sx * (W / 2 - 0.028)
+        L.box(f"Frame_Upright_{tag}", (0.055, 0.055, H - 0.02), (x, BACKP - 0.0475, (H - 0.02) / 2), M["black"], bevel=0.004, parent=root)
+        L.box(f"Frame_Foot_{tag}", (0.055, D - 0.055, 0.045), (x, 0.0, 0.0225), M["black"], bevel=0.004, parent=root)
+    L.box("Frame_TopRail", (W - 0.06, 0.055, 0.05), (0, BACKP - 0.0475, H - 0.045), M["black"], bevel=0.004, parent=root)
+
+    # --- rear construction: rails + finished oak back (a mid-floor unit) -----
+    L.box("Back_Rail_Top", (W - 0.11, 0.022, 0.07), (0, BACKP - 0.011, H - 0.125), M["charcoal"], bevel=0, parent=root)
+    L.box("Back_Rail_Bottom", (W - 0.11, 0.022, 0.07), (0, BACKP - 0.011, 0.665), M["charcoal"], bevel=0, parent=root)
+    back = _hslat_wall("Back_Panel", W - 0.11, H - 0.16 - 0.70, M["oak_slat"], seed=61, parent=None, thick=0.014, board_h=0.14, gap=0.004)
+    back.location = (0, BACKP - 0.010, 0.70)
+    back.rotation_euler = (0, 0, math.pi)          # boards face outward (+Y)
+    L.parent_keep(back, root)
+
+    # --- the display slatwall -------------------------------------------------
+    slats = _hslat_wall("Slatwall", W - 0.10, 1.36, M["oak_slat"], seed=17, parent=None)
+    slats.location = (0, BACKP - 0.105, 0.66)
+    L.parent_keep(slats, root)
+
+    # --- header board + sign --------------------------------------------------
+    L.box("Header", (W, 0.16, 0.18), (0, BACKP - 0.13, H - 0.09), M["charcoal"], bevel=0.006, parent=root)
+    sign = K.uv_plane("Header_Sign", 1.02, 0.155, (0, BACKP - 0.2115, H - 0.09),
+                      K.m_tex("M_ApparelHeader", K.apparel_header_img(), rough=0.62))
+    L.parent_keep(sign, root)
+
+    # --- hanging rod on two brackets (removable: separate meshes) ------------
+    ROD_Z, ROD_Y = 1.68, 0.0
+    for sx, tag in ((-1, "L"), (1, "R")):
+        x = sx * 0.42
+        L.box(f"Rod_Bracket_{tag}", (0.030, BACKP - 0.115 - ROD_Y + 0.015, 0.026),
+              (x, (ROD_Y + BACKP - 0.115) / 2 - 0.0075, ROD_Z + 0.026), M["black"], bevel=0, parent=root)
+        L.cyl(f"Rod_BracketRing_{tag}", 0.019, 0.024, (x, ROD_Y, ROD_Z), M["black"], verts=12, bevel=0, parent=root)
+    rod = L.cyl("Hanging_Rod", 0.0135, W - 0.14, (0, ROD_Y, ROD_Z), M["brass"], verts=14, bevel=0, parent=root)
+    rod.rotation_euler = (0, math.radians(90), 0)
+
+    # --- slat hooks (removable) ----------------------------------------------
+    for sx, tag in ((-1, "01"), (1, "02")):
+        x = sx * 0.30
+        L.box(f"Hook_Plate_{tag}", (0.036, 0.012, 0.070), (x, BACKP - 0.120, 1.10), M["black"], bevel=0, parent=root)
+        arm = L.cyl(f"Hook_Arm_{tag}", 0.0055, 0.105, (x, BACKP - 0.170, 1.085), M["brass"], verts=10, bevel=0, parent=root)
+        arm.rotation_euler = (math.radians(97), 0, 0)
+        L.cyl(f"Hook_Tip_{tag}", 0.0075, 0.012, (x, BACKP - 0.222, 1.092), M["brass"], verts=10, bevel=0, parent=root)
+
+    # --- folded-stack counter over the cabinet --------------------------------
+    L.rounded_box("Folded_Shelf", (W - 0.04, 0.42, 0.030), (0, 0, 0.615), M["oak_slat"], corner=0.008, bevel=0.004, segments=3, uv=True, parent=root)
+    for sx, tag in ((-1, "L"), (1, "R")):
+        L.box(f"Shelf_Bracket_{tag}", (0.026, 0.30, 0.022), (sx * (W / 2 - 0.09), 0.03, 0.589), M["black"], bevel=0, parent=root)
+
+    # --- cabinet: carcass, two doors, brass pulls, plinth ---------------------
+    L.box("Cabinet_Body", (W - 0.06, 0.40, 0.52), (0, 0.01, 0.34), M["charcoal"], bevel=0.005, parent=root)
+    for sx, tag in ((-1, "L"), (1, "R")):
+        L.rounded_box(f"Cabinet_Door_{tag}", (0.495, 0.020, 0.46), (sx * 0.2575, -0.20, 0.325), M["walnut"], corner=0.006, bevel=0.004, segments=3, uv=True, parent=root)
+        L.cyl(f"Cabinet_Pull_{tag}", 0.0075, 0.030, (sx * 0.065, -0.218, 0.325), M["brass"], verts=10, bevel=0, parent=root)
+    L.box("Plinth", (W - 0.10, 0.36, 0.075), (0, 0.01, 0.0425), M["counter_black"], bevel=0.004, parent=root)
+
+    # --- placement sockets -----------------------------------------------------
+    for i, x in enumerate((-0.39, -0.13, 0.13, 0.39)):
+        K.empty(f"APPAREL_HANGER_SLOT_{i + 1:02d}", (x, ROD_Y, ROD_Z), parent=root, size=0.05,
+                props={"socket": "hanger", "order": i + 1})
+    for i, x in enumerate((-0.34, 0.0, 0.34)):
+        K.empty(f"APPAREL_FOLD_SLOT_{i + 1:02d}", (x, -0.02, 0.632), parent=root, size=0.05,
+                props={"socket": "folded", "order": i + 1})
+    for i, z in enumerate((1.25, 1.55)):
+        K.empty(f"APPAREL_SHELF_SLOT_{i + 1:02d}", (0, BACKP - 0.13, z), parent=root, size=0.05,
+                props={"socket": "shelf_mount", "order": i + 1})
+    for i, x in enumerate((-0.30, 0.30)):
+        K.empty(f"APPAREL_HOOK_SLOT_{i + 1:02d}", (x, BACKP - 0.235, 1.09), parent=root, size=0.04,
+                props={"socket": "hook", "order": i + 1})
+
+    K.collision_box("COL_ApparelWall", (W, D, H), (0, 0, H / 2), M, root)
+    return root
 
 
 # ======================================================= scannable product =====
@@ -861,6 +1037,7 @@ BUILDERS = {
     "payment_card": build_payment_card,
     **{f"cash_bill_{d}": make_bill_builder(d) for d in (1, 5, 10, 20, 50)},
     **{f"cash_coin_{c}": make_coin_builder(c) for c in ("01", "05", "10", "25", "50")},
+    "apparel_wall": build_apparel_wall,
     "scannable_product_box": build_scannable_product_box,
     "customer_display": build_customer_display,
     "loose_receipt": build_loose_receipt,
@@ -884,6 +1061,7 @@ EXTRA_PREVIEWS = {
     "checkout_counter": [("checkout_counter_front", 208, 14)],
     "shopping_bag": [("shopping_bag_top", 33, 55)],
     "payment_terminal": [("payment_terminal_front", 356, 22)],
+    "apparel_wall": [("apparel_wall_front", 25, 8), ("apparel_wall_back", 208, 6)],
 }
 
 

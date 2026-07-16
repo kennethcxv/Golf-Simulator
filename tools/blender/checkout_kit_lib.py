@@ -293,6 +293,21 @@ def oakslat_img(name="OakSlat", *, w=1024, h=1024):
     return np_image(name, col)
 
 
+def apparel_header_img(name="ApparelHeader", *, w=1024, h=176):
+    """The APPAREL category header board: charcoal field, cream lettering,
+    thin brass rules — the retail sign language of the club."""
+    import numpy as np
+    rng = np.random.default_rng(23)
+    base = np.array((0.020, 0.022, 0.026), "float32")
+    arr = np.ones((h, w, 3), "float32") * base
+    arr *= (1.0 + (L._fbm(rng, w, h, 30, 8, 3)[..., None] - 0.5) * 0.10)
+    gold = np.array((0.52, 0.36, 0.11), "float32")
+    arr[24:27, 56:w - 56] = gold * 0.8
+    arr[h - 27:h - 24, 56:w - 56] = gold * 0.8
+    draw_text(arr, "APPAREL", w // 2, h // 2, 9, (0.62, 0.575, 0.47))
+    return np_image(name, arr)
+
+
 def receipt_img(name="ReceiptPaper", *, w=256, h=768):
     """A printed thermal receipt (matches the reference sheet): club header,
     date/register line, item lines, rules, bold total, paid line, barcode and
@@ -744,7 +759,7 @@ def m_flat(name, rgb, *, rough=0.6, metal=0.0, emit=None, estr=0.0, alpha=1.0, d
     return m
 
 
-def m_tex(name, img, *, rough=0.6, metal=0.0, ds=False, emit_img=False, estr=0.0):
+def m_tex(name, img, *, rough=0.6, metal=0.0, ds=False, emit_img=False, estr=0.0, normal=None, normal_strength=1.0):
     m = bpy.data.materials.get(name)
     if m:
         return m
@@ -758,6 +773,15 @@ def m_tex(name, img, *, rough=0.6, metal=0.0, ds=False, emit_img=False, estr=0.0
     t.image = img
     t.extension = "REPEAT"
     nt.links.new(t.outputs["Color"], b.inputs["Base Color"])
+    if normal is not None:
+        # baked tangent-space relief (glTF exports this as normalTexture)
+        tn = nt.nodes.new("ShaderNodeTexImage")
+        tn.image = normal
+        tn.extension = "REPEAT"
+        nm = nt.nodes.new("ShaderNodeNormalMap")
+        nm.inputs["Strength"].default_value = normal_strength
+        nt.links.new(tn.outputs["Color"], nm.inputs["Color"])
+        nt.links.new(nm.outputs["Normal"], b.inputs["Normal"])
     if emit_img:
         sock = b.inputs.get("Emission Color") or b.inputs.get("Emission")
         if sock:

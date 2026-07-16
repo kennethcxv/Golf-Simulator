@@ -275,38 +275,54 @@ export function buildFixtures(B) {
     return g;
   }
 
-  // -------------------------------------------------------- apparel rail ----
+  // -------------------------------------------------- apparel wall fixture ----
+  // The Sheet-02 modular apparel wall (assets/checkout/apparel_wall): two
+  // 1.10 m kit modules side by side fill the rail's 2.2 yd footprint. The rod
+  // sits at the same y 1.68 the old freestanding rail put its bar, so the
+  // hanger slots in fixtureSlots.js stay on the metal. Until the kit loads,
+  // the old millwork rail stands in.
   function railUnit(f) {
     const g = new THREE.Group();
+    const legacy = new THREE.Group();
     for (const rx of [-1.0, 1.0]) {
       const upright = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1.66, 10), mats.iron);
       upright.position.set(rx, 0.85, 0);
       upright.castShadow = true;
-      g.add(upright);
+      legacy.add(upright);
       const foot = new THREE.Mesh(roundedBox(0.16, 0.05, 0.7, 0.02), mats.walnut);
       foot.position.set(rx, 0.025, 0);
-      g.add(foot);
+      legacy.add(foot);
     }
     const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 2.1, 10), mats.brass);
     bar.rotation.z = Math.PI / 2;
     bar.position.set(0, 1.68, 0);
-    g.add(bar);
-    // hanging sign board: walnut backer on two brass drops off the bar
+    legacy.add(bar);
     const signBacker = new THREE.Mesh(roundedBox(0.98, 0.26, 0.03, 0.012), mats.walnut);
     signBacker.position.set(0, 1.92, 0);
-    g.add(signBacker);
+    legacy.add(signBacker);
     const signBoard = categorySign(f.title, { w: 0.9, h: 0.2 });
     signBoard.position.set(0, 1.92, 0.017);
-    g.add(signBoard);
+    legacy.add(signBoard);
     const signBoardB = categorySign(f.title, { w: 0.9, h: 0.2 });
     signBoardB.position.set(0, 1.92, -0.017);
     signBoardB.rotation.y = Math.PI;
-    g.add(signBoardB);
+    legacy.add(signBoardB);
     for (const dx of [-0.4, 0.4]) {
       const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.14, 6), mats.brass);
       drop.position.set(dx, 1.75, 0);
-      g.add(drop);
+      legacy.add(drop);
     }
+    g.add(legacy);
+    if (merch) merch.onReady(() => {
+      const modules = [-0.55, 0.55].map((mx) => {
+        const m = merch.instantiateKit && merch.instantiateKit('apparel_wall');
+        if (m) m.position.x = mx;
+        return m;
+      });
+      if (modules.some((m) => !m)) return;
+      for (const m of modules) g.add(m);
+      g.remove(legacy);
+    });
     addCol(colBoxAt(f.x, f.z, Math.abs(Math.sin(f.ry)) > 0.5 ? 0.9 : 2.2, Math.abs(Math.sin(f.ry)) > 0.5 ? 2.2 : 0.9));
     return g;
   }

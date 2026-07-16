@@ -106,13 +106,12 @@ function tableApparel(skuId) {
   return out;
 }
 
-// an outerwear rail: hangers, spaced so the garments nest but do not merge
-function railHang(skuId, n = 8, step = 0.28) {
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    out.push({ x: -((n - 1) / 2) * step + i * step, y: 1.68, z: 0, ry: 0.06 + (i % 2) * 0.08 });
-  }
-  return out;
+// hangers on the apparel wall's two rods: four to a module, hook on the metal
+// (the kit authors APPAREL_HANGER_SLOT_01..04 at local x ±0.39/±0.13, rod y
+// 1.68 — module centres sit at ±0.55, same bar height the old rail used)
+function railHang(skuId, n = 8) {
+  const xs = [-0.94, -0.68, -0.42, -0.16, 0.16, 0.42, 0.68, 0.94];
+  return xs.slice(0, n).map((x, i) => ({ x, y: 1.68, z: 0, ry: 0.06 + (i % 2) * 0.08 }));
 }
 
 // the hat tree: two tiers, bills pointing out

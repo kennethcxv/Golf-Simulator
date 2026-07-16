@@ -240,7 +240,7 @@ export function createMerch(mats) {
   const KIT = [
     'checkout_counter', 'pos_monitor', 'cash_drawer', 'payment_terminal',
     'receipt_printer', 'shopping_bag', 'payment_card', 'customer_display',
-    'loose_receipt',
+    'loose_receipt', 'apparel_wall',
     'cash_bill_1', 'cash_bill_5', 'cash_bill_10', 'cash_bill_20', 'cash_bill_50',
     'cash_coin_01', 'cash_coin_05', 'cash_coin_10', 'cash_coin_25', 'cash_coin_50',
   ];

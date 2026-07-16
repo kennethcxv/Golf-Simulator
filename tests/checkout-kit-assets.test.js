@@ -13,6 +13,7 @@ const KIT = [
   'cash_bill_1', 'cash_bill_5', 'cash_bill_10', 'cash_bill_20', 'cash_bill_50',
   'cash_coin_01', 'cash_coin_05', 'cash_coin_10', 'cash_coin_25', 'cash_coin_50',
   'scannable_product_box', 'customer_display', 'loose_receipt', 'cash_handoff_stack',
+  'apparel_wall',
 ];
 
 function makeLoader() {
@@ -155,10 +156,13 @@ test('bag, product box and helpers expose their sockets', async () => {
 
 test('denominations are correctly sized, centred and lightweight', async () => {
   const kit = await kitPromise;
+  // Sheet-02 ladders: note length and coin diameter both grow with value
+  const BILL_LEN = { 1: 0.122, 5: 0.132, 10: 0.142, 20: 0.149, 50: 0.156 };
+  const COIN_DIA = { '01': 0.018, '05': 0.021, 10: 0.024, 25: 0.026, 50: 0.030 };
   for (const d of ['1', '5', '10', '20', '50']) {
     const scene = (await kit.get(`cash_bill_${d}`)).scene;
     const s = sizeOf(scene);
-    assert.ok(Math.abs(s.x - 0.156) < 0.01, `bill ${d} length ${s.x}`);
+    assert.ok(Math.abs(s.x - BILL_LEN[d]) < 0.005, `bill ${d} length ${s.x}`);
     let tris = 0;
     scene.traverse((o) => { if (o.isMesh) tris += o.geometry.index.count / 3; });
     assert.ok(tris < 500, `bill ${d} tris ${tris}`);
@@ -166,11 +170,37 @@ test('denominations are correctly sized, centred and lightweight', async () => {
   for (const c of ['01', '05', '10', '25', '50']) {
     const scene = (await kit.get(`cash_coin_${c}`)).scene;
     const s = sizeOf(scene);
-    assert.ok(s.x > 0.015 && s.x < 0.032, `coin ${c} diameter ${s.x}`);
+    assert.ok(Math.abs(s.x - COIN_DIA[c]) < 0.002, `coin ${c} diameter ${s.x}`);
     let tris = 0;
     scene.traverse((o) => { if (o.isMesh) tris += o.geometry.index.count / 3; });
     assert.ok(tris < 1000, `coin ${c} tris ${tris}`);
   }
+});
+
+test('apparel wall exposes its display parts and placement sockets', async () => {
+  const kit = await kitPromise;
+  const scene = (await kit.get('apparel_wall')).scene;
+  const n = names(scene);
+  for (const part of ['Slatwall', 'Back_Panel', 'Header', 'Header_Sign', 'Hanging_Rod',
+    'Folded_Shelf', 'Cabinet_Body', 'Cabinet_Door_L', 'Cabinet_Door_R', 'COL_ApparelWall']) {
+    assert.ok(n.has(part), `apparel wall missing ${part}`);
+  }
+  for (let i = 1; i <= 4; i++) assert.ok(n.has(`APPAREL_HANGER_SLOT_0${i}`), `hanger slot ${i}`);
+  for (let i = 1; i <= 3; i++) assert.ok(n.has(`APPAREL_FOLD_SLOT_0${i}`), `fold slot ${i}`);
+  for (let i = 1; i <= 2; i++) assert.ok(n.has(`APPAREL_SHELF_SLOT_0${i}`), `shelf slot ${i}`);
+  for (let i = 1; i <= 2; i++) assert.ok(n.has(`APPAREL_HOOK_SLOT_0${i}`), `hook slot ${i}`);
+  // module envelope: 1.10 wide, 2.20 tall (Y-up after import), 0.45 deep
+  const s = sizeOf(scene);
+  assert.ok(Math.abs(s.x - 1.10) < 0.05, `width ${s.x}`);
+  assert.ok(Math.abs(s.y - 2.20) < 0.05, `height ${s.y}`);
+  assert.ok(Math.abs(s.z - 0.45) < 0.05, `depth ${s.z}`);
+  // the rod carries the hanger slots: they must sit ON the bar line
+  let rodSlotY = null;
+  scene.traverse((o) => { if (o.name === 'APPAREL_HANGER_SLOT_01') rodSlotY = o.getWorldPosition(new THREE.Vector3()).y; });
+  assert.ok(rodSlotY !== null && Math.abs(rodSlotY - 1.68) < 0.02, `hanger slot height ${rodSlotY}`);
+  let tris = 0;
+  scene.traverse((o) => { if (o.isMesh && !o.name.startsWith('COL_')) tris += o.geometry.index.count / 3; });
+  assert.ok(tris < 2800, `apparel wall tris ${tris}`);   // the Sheet-02 budget
 });
 
 test('no missing textures: every referenced image is embedded', async () => {

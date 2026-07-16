@@ -28,6 +28,7 @@ KIT = [
     "cash_bill_1", "cash_bill_5", "cash_bill_10", "cash_bill_20", "cash_bill_50",
     "cash_coin_01", "cash_coin_05", "cash_coin_10", "cash_coin_25", "cash_coin_50",
     "scannable_product_box", "customer_display", "loose_receipt", "cash_handoff_stack",
+    "apparel_wall",
 ]
 
 REQUIRED_NODES = {
@@ -47,6 +48,14 @@ REQUIRED_NODES = {
     "shopping_bag": ["Bag_Body", "Bag_Handle_Left", "Bag_Handle_Right", "Bag_Artwork", "BAG_PICKUP_SOCKET"]
                     + [f"BAG_ITEM_SOCKET_0{i}" for i in range(1, 5)],
     "payment_card": ["Card_Body", "Card_Chip"],
+    "apparel_wall": ["Slatwall", "Back_Panel", "Header", "Header_Sign", "Hanging_Rod",
+                     "Folded_Shelf", "Cabinet_Body", "Cabinet_Door_L", "Cabinet_Door_R",
+                     "Frame_Upright_L", "Frame_Upright_R", "COL_ApparelWall",
+                     "Hook_Arm_01", "Hook_Arm_02"]
+                    + [f"APPAREL_HANGER_SLOT_{i:02d}" for i in range(1, 5)]
+                    + [f"APPAREL_FOLD_SLOT_{i:02d}" for i in range(1, 4)]
+                    + [f"APPAREL_SHELF_SLOT_{i:02d}" for i in range(1, 3)]
+                    + [f"APPAREL_HOOK_SLOT_{i:02d}" for i in range(1, 3)],
 }
 
 # asset: (axis-size checks in Blender Z-up space after import)
@@ -54,11 +63,20 @@ REQUIRED_NODES = {
 SIZE_CHECKS = {
     "checkout_counter": [(0, 2.4, 2.8), (2, 0.9, 1.05)],
     "payment_card": [(0, 0.080, 0.092), (1, 0.048, 0.058)],
-    "cash_bill_1": [(0, 0.146, 0.166)],
-    "cash_bill_50": [(0, 0.146, 0.166)],
-    "cash_coin_01": [(0, 0.015, 0.032)],
-    "cash_coin_50": [(0, 0.015, 0.032)],
+    # Sheet-02 note ladder: value grows with the note
+    "cash_bill_1": [(0, 0.117, 0.127)],
+    "cash_bill_5": [(0, 0.127, 0.137)],
+    "cash_bill_10": [(0, 0.137, 0.147)],
+    "cash_bill_20": [(0, 0.144, 0.154)],
+    "cash_bill_50": [(0, 0.151, 0.161)],
+    # Sheet-02 coin ladder: 18 mm copper up to the 30 mm bimetal 50
+    "cash_coin_01": [(0, 0.0170, 0.0190)],
+    "cash_coin_05": [(0, 0.0200, 0.0220)],
+    "cash_coin_10": [(0, 0.0230, 0.0250)],
+    "cash_coin_25": [(0, 0.0250, 0.0270)],
+    "cash_coin_50": [(0, 0.0290, 0.0310)],
     "shopping_bag": [(2, 0.30, 0.42)],   # rope handles arc ~55 mm above the rim
+    "apparel_wall": [(0, 1.05, 1.15), (2, 2.15, 2.25)],
 }
 
 REQUIRED_CLIPS = {
