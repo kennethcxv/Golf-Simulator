@@ -285,26 +285,8 @@ export function createRegisterMode(B) {
   const itemResources = createRegisterItemResources();
   const itemMeshes = new Map();
   const loose = [];
-  const scanBeam = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.72, 0.075),
-    new THREE.MeshBasicMaterial({
-      color: 0xff3149,
-      transparent: true,
-      opacity: 0,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-    }),
-  );
-  scanBeam.rotation.x = -Math.PI / 2;
-  scanBeam.position.set(
-    (REGISTER.scan.minX + REGISTER.scan.maxX) / 2,
-    COUNTER_TOP + 0.027,
-    (REGISTER.scan.minZ + REGISTER.scan.maxZ) / 2,
-  );
-  root.add(scanBeam);
-  const scanLight = new THREE.PointLight(0xff2640, 0, 0.65, 2);
-  scanLight.position.set(scanBeam.position.x, COUNTER_TOP + 0.13, scanBeam.position.z);
-  root.add(scanLight);
+  // No scanner in the click-to-bag flow: the counter carries no scan glass and no
+  // laser beam. Items are bagged by a click, not swept over a scanner.
 
   const hoverBounds = new THREE.Box3();
   const hoverBox = new THREE.Box3Helper(hoverBounds, 0xb9974e);
@@ -333,7 +315,6 @@ export function createRegisterMode(B) {
   let selectedItem = null;
   let scanDrag = null;
   let scanMotion = null;
-  let scanFlash = 0;
   let scanReturnTimer = 0;
   let paymentAutoTimer = 0;
   let cashAcceptTimer = 0;
@@ -1822,7 +1803,6 @@ export function createRegisterMode(B) {
     if (checkoutFlowState() === 'ProductScanning') {
       flowTo('ProductScanned', `bagged-product:${item.uid}`);
     }
-    scanFlash = 0.22;
     hoverBox.visible = false;
     hoveredItem = null;
     selectedItem = null;
@@ -2808,10 +2788,6 @@ export function createRegisterMode(B) {
       finalizeTimer = Math.max(0, finalizeTimer - dt);
       if (finalizeTimer === 0) finalizeTransaction();
     }
-    if (scanFlash > 0) scanFlash = Math.max(0, scanFlash - dt);
-    const beamStrength = scanFlash > 0 ? scanFlash / 0.28 : (workspace === 'scan' ? 0.045 : 0);
-    scanBeam.material.opacity = Math.min(0.68, beamStrength);
-    scanLight.intensity = beamStrength * 1.25;
     updateCard(dt);
     updateDrawer(dt);
     updateCashMotions(dt);

@@ -936,8 +936,8 @@ export function buildCheckout(B) {
     // atlas UV from smart_project, so a 0..1 canvas lands on it as a magnified corner —
     // the register rendered as a black slab. registerMode hangs its own clean-UV plane.
     if (reg && B.register) B.register.attachScreen(reg);
-    const scanner = placeProp('scanner', REGISTER.scanner, 0.22);
-    if (scanner && B.register) B.register.attachScanner(scanner);
+    // No scanner in the click-to-bag flow — the counter carries only the POS,
+    // the card reader and the (de-emphasised) printer.
     const term = placeProp('cardterm', REGISTER.cardterm, 0);
     if (term && B.register) B.register.attachTerm(term);
     const printer = placeProp('printer', REGISTER.printer, -0.18);
