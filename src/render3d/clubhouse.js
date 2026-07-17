@@ -53,6 +53,9 @@ import { createRegisterItemResources } from './clubhouse/registerItemResources.j
 import {
   buildCatalogProductProxy, catalogCheckoutLayout, catalogProductVisual,
 } from './clubhouse/catalogProductVisual.js';
+import {
+  canBuildDeliveryBoxVisual, createDeliveryBoxVisual,
+} from './clubhouse/deliveryBoxVisual.js';
 import { slotsFor, homeFixture } from '../data/fixtureSlots.js';
 import { buildShell } from './clubhouse/shell.js';
 import { buildDoors } from './clubhouse/doors.js';
@@ -91,6 +94,19 @@ export function makeClubhouse(ctx) {
   group.position.set(center.x, baseY, center.z);
   const interior = new THREE.Group();       // fixtures, stock, grime, decor — distance-gated
   interior.position.set(center.x, floorY, center.z);
+  // Indoor contents sit under the roof — the sun cannot reach them, so casting
+  // into the world sun-shadow map produces physically-wrong shadows AND bloats
+  // the 10 Hz shadow bake (measured ~27% of it, 1300+ caster meshes). Contact
+  // shadows still come from GTAO. Strip castShadow from everything added to the
+  // interior; the building SHELL (group) keeps casting so the clubhouse still
+  // shadows the course. Wrapping add() catches async-loaded kit models too.
+  const _interiorAdd = interior.add.bind(interior);
+  interior.add = (...objs) => {
+    for (const o of objs) {
+      if (o && o.traverse) o.traverse((n) => { if (n.isMesh) n.castShadow = false; });
+    }
+    return _interiorAdd(...objs);
+  };
   const custGroup = new THREE.Group();      // customers walk in WORLD space (they go outside)
   scene.add(group, interior, custGroup);
 
@@ -1992,16 +2008,80 @@ export function makeClubhouse(ctx) {
   let carriedGoodsMesh = null;
   const boxProps = new Map();   // id -> prop, reused across rebuilds so a hold survives a redraw
   const boxCols = new Map();    // id -> { col, sig } — a set-down box is a real obstacle, tracked here
+  const boxViews = new Map();
+  const boxOpeningAnimations = new Set();
+  const boxFlattenAnimations = new Set();
   let boxSig = '';
+
+  // Medium-carton carry pose: the carton keeps its real scale and two hands
+  // visibly brace its side edges. The hands are camera-local and hidden the
+  // instant the carton is set down, so they never become world props.
+  const carriedBoxHands = new THREE.Group();
+  carriedBoxHands.name = 'DeliveryBoxCarryHands';
+  carriedBoxHands.visible = false;
+  camera.add(carriedBoxHands);
+  const carryHandSkin = new THREE.MeshStandardMaterial({ color: 0xd9a97e, roughness: 0.82 });
+  const carryHandCuff = new THREE.MeshStandardMaterial({ color: 0x2f4a35, roughness: 0.9 });
+  const carryPalmGeo = new THREE.CapsuleGeometry(0.034, 0.075, 3, 7);
+  const carryFingerGeo = new THREE.BoxGeometry(0.055, 0.078, 0.038);
+  const carrySleeveGeo = new THREE.CylinderGeometry(0.045, 0.052, 0.14, 8);
+  for (const side of [-1, 1]) {
+    const hand = new THREE.Group();
+    hand.userData.side = side;
+    const palm = new THREE.Mesh(carryPalmGeo, carryHandSkin);
+    palm.rotation.x = Math.PI * 0.5;
+    const fingers = new THREE.Mesh(carryFingerGeo, carryHandSkin);
+    fingers.position.set(-side * 0.018, -0.028, -0.018);
+    fingers.rotation.z = side * 0.45;
+    const sleeve = new THREE.Mesh(carrySleeveGeo, carryHandCuff);
+    sleeve.rotation.x = Math.PI * 0.5;
+    sleeve.position.z = 0.11;
+    hand.add(palm, fingers, sleeve);
+    carriedBoxHands.add(hand);
+  }
+
+  function poseCarriedBoxHands(box) {
+    const dim = boxDims(box.box || 'carton');
+    for (const hand of carriedBoxHands.children) {
+      const side = hand.userData.side;
+      hand.position.set(side * (dim.w * 0.5 + 0.018), -0.54, -0.73);
+      hand.rotation.set(-0.16, side * 0.12, side * -0.24);
+    }
+    carriedBoxHands.visible = true;
+  }
+
+  function poseCarriedGoodsHands() {
+    for (const hand of carriedBoxHands.children) {
+      const side = hand.userData.side;
+      hand.position.set(0.12 + side * 0.16, -0.39, -0.57);
+      hand.rotation.set(-0.28, side * 0.16, side * -0.32);
+    }
+    carriedBoxHands.visible = true;
+  }
 
   // one shipping-label texture per box id (supplier, order #, weight, category, FRAGILE)
   const shipLabelCache = new Map();
   function boxLabelMat(box, sku) {
-    const key = `${box.id}:${box.qty}`;
-    if (shipLabelCache.has(key)) return shipLabelCache.get(key);
-    const cv = document.createElement('canvas');
-    cv.width = 256; cv.height = 160;
-    const c = cv.getContext('2d');
+    const key = String(box.id);
+    let entry = shipLabelCache.get(key);
+    if (!entry) {
+      const cv = document.createElement('canvas');
+      cv.width = 256; cv.height = 160;
+      const tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      entry = {
+        c: cv.getContext('2d'),
+        tex,
+        mat: new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 }),
+        sig: '',
+      };
+      shipLabelCache.set(key, entry);
+    }
+    const sig = `${box.supplier || ''}|${box.orderId || 0}|${box.skuId}|${box.qty}|${box.lb || ''}|${box.fragile ? 1 : 0}`;
+    if (entry.sig === sig) return entry.mat;
+    entry.sig = sig;
+    const c = entry.c;
+    c.clearRect(0, 0, 256, 160);
     c.fillStyle = '#efe7d4'; c.fillRect(0, 0, 256, 160);
     c.strokeStyle = '#b9a074'; c.lineWidth = 4; c.strokeRect(6, 6, 244, 148);
     c.fillStyle = '#1f3a24'; c.font = 'bold 22px Georgia';
@@ -2016,11 +2096,8 @@ export function makeClubhouse(ctx) {
       c.fillStyle = '#a12a1e'; c.font = 'bold 20px Georgia';
       c.fillText('! FRAGILE', 16, 138);
     }
-    const tex = new THREE.CanvasTexture(cv);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 });
-    shipLabelCache.set(key, mat);
-    return mat;
+    entry.tex.needsUpdate = true;
+    return entry.mat;
   }
 
   // a few of the actual product, sitting in the open carton — capped so a big case is a layer, not
@@ -2031,6 +2108,7 @@ export function makeClubhouse(ctx) {
     const cat = sku ? sku.cat : 'accessories';
     const show = Math.min(box.qty, 8);
     const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(CAT_COLORS[cat] || 0xb08d57), roughness: 0.7 });
+    mat.userData.deliveryOwned = true;
     for (let i = 0; i < show; i++) {
       const item = cat === 'balls'
         ? new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), mats.merchWhite)
@@ -2047,6 +2125,7 @@ export function makeClubhouse(ctx) {
   // seams and flaps show exactly what the sim says the box is doing right now.
   function makeBoxMesh(box) {
     const g = new THREE.Group();
+    g.userData.deliveryDisposeAllGeometries = true;
     const { w, h, d } = boxDims(box.box || 'carton');
     const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
 
@@ -2101,9 +2180,11 @@ export function makeClubhouse(ctx) {
         g.add(flap);
       }
       if (flapsOpen(box) && box.qty > 0) g.add(contentsInBox(box, w, h, d));
+      const insideMat = new THREE.MeshStandardMaterial({ color: isEmpty(box) ? 0x241a10 : 0x4a3a28, roughness: 1 });
+      insideMat.userData.deliveryOwned = true;
       const inside = new THREE.Mesh(
         new THREE.PlaneGeometry(w * 0.9, d * 0.9),
-        new THREE.MeshStandardMaterial({ color: isEmpty(box) ? 0x241a10 : 0x4a3a28, roughness: 1 }),
+        insideMat,
       );
       inside.rotation.x = -Math.PI / 2;
       inside.position.y = h * 0.35;
@@ -2116,20 +2197,34 @@ export function makeClubhouse(ctx) {
   // items with a dark edge between them, so an armful reads as an armful and not one pale slab.
   function makeGoodsMesh(carry) {
     const g = new THREE.Group();
+    const resources = createOwnedStockResources();
+    g.userData.deliveryOwnedResources = resources;
     const sku = SHOP_CATALOG.find((s) => s.id === carry.skuId);
     const cat = sku ? sku.cat : 'accessories';
     const base = new THREE.Color(CAT_COLORS[cat] || 0xb08d57);
     const show = Math.min(carry.qty, 6);
     for (let i = 0; i < show; i++) {
       let item;
-      if (cat === 'clubs') {
-        item = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.46, 6), mats.merchSteel);
+      if (cat === 'apparel' && sku) {
+        const built = buildCatalogProductProxy({ sku, merch, mats, resources });
+        item = built.root;
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        item.position.set((col - 0.5) * 0.22, row * 0.085, row * 0.012);
+        item.rotation.y = i % 2 ? 0.08 : -0.05;
+        item.scale.multiplyScalar(0.92);
+      } else if (cat === 'clubs') {
+        item = new THREE.Mesh(
+          resources.geometry(new THREE.CylinderGeometry(0.011, 0.011, 0.46, 6)),
+          mats.merchSteel,
+        );
         item.position.set((i - 2) * 0.03, 0.02, 0);
         item.rotation.z = 1.45 + i * 0.05;
       } else {
         const c = base.clone().offsetHSL(0, 0, (i % 2 ? -0.06 : 0.03));  // alternate shade = a visible seam
-        const m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.75 });
-        item = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.09), m);
+        const m = resources.material(new THREE.MeshStandardMaterial({ color: c, roughness: 0.75 }));
+        m.userData.deliveryOwned = true;
+        item = new THREE.Mesh(resources.geometry(new THREE.BoxGeometry(0.1, 0.05, 0.09)), m);
         const col = i % 3;
         const row = Math.floor(i / 3);
         item.position.set((col - 1) * 0.115, row * 0.06, row * 0.015);
@@ -2144,7 +2239,7 @@ export function makeClubhouse(ctx) {
     const d = state.shop.deliveries;
     if (!d) return '';
     const c = state.shop.carry;
-    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}:${b.tape || 0}:${(b.flaps || [0, 0]).join('')}:${b.qty}:${b.flat ? 1 : 0}`).join(',')
+    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}:${b.tape || 0}:${(b.flapProgress || b.flaps || [0, 0, 0, 0]).join(',')}:${b.qty}:${b.flat ? 1 : 0}:${b.flattenProgress || 0}:${b.lifecycle || ''}`).join(',')
       + '|' + (c ? c.skuId + c.qty : '') + '|' + d.trash;
   }
 
@@ -2260,11 +2355,142 @@ export function makeClubhouse(ctx) {
     }
   }
 
+  function proceduralBoxSignature(box) {
+    return `${box.id}|${box.box}|${box.tape || 0}|${(box.flaps || []).join(',')}|${box.qty}|${box.flat ? 1 : 0}`;
+  }
+
+  function disposeProceduralDelivery(root) {
+    if (!root) return;
+    if (root.userData.deliveryOwnedResources) root.userData.deliveryOwnedResources.dispose(root);
+    root.traverse((object) => {
+      if (object.geometry && root.userData.deliveryDisposeAllGeometries) object.geometry.dispose();
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        if (material && material.userData && material.userData.deliveryOwned) material.dispose();
+      }
+    });
+    root.removeFromParent();
+  }
+
+  function createBoxView(box) {
+    const sku = SHOP_CATALOG.find((candidate) => candidate.id === box.skuId);
+    if (canBuildDeliveryBoxVisual(box, merch)) {
+      const authored = createDeliveryBoxVisual({ box, sku, merch, mats });
+      if (authored) return authored;
+    }
+    const root = makeBoxMesh(box);
+    root.name = `DeliveryBoxFallback_${box.id}`;
+    return {
+      root,
+      authored: false,
+      visualSignature: proceduralBoxSignature(box),
+      update() {},
+      dispose() { disposeProceduralDelivery(root); },
+    };
+  }
+
+  function removeBoxView(id, removeLabel = false) {
+    if (removeLabel) {
+      boxOpeningAnimations.delete(id);
+      boxFlattenAnimations.delete(id);
+    }
+    const view = boxViews.get(id);
+    if (view) {
+      view.dispose();
+      boxViews.delete(id);
+    }
+    if (removeLabel) {
+      const entry = shipLabelCache.get(String(id));
+      if (entry) {
+        entry.tex.dispose();
+        entry.mat.dispose();
+        shipLabelCache.delete(String(id));
+      }
+    }
+  }
+
+  function ensureBoxView(box) {
+    let view = boxViews.get(box.id);
+    const authoredAvailable = canBuildDeliveryBoxVisual(box, merch);
+    const staleFallback = view && !view.authored
+      && (authoredAvailable || view.visualSignature !== proceduralBoxSignature(box));
+    if (!view || staleFallback) {
+      const previous = view && {
+        parent: view.root.parent,
+        position: view.root.position.clone(),
+        rotation: view.root.rotation.clone(),
+        scale: view.root.scale.clone(),
+      };
+      if (view) removeBoxView(box.id, false);
+      view = createBoxView(box);
+      boxViews.set(box.id, view);
+      if (previous && previous.parent) {
+        previous.parent.add(view.root);
+        view.root.position.copy(previous.position);
+        view.root.rotation.copy(previous.rotation);
+        view.root.scale.copy(previous.scale);
+      }
+    }
+    view.update(box);
+    return view;
+  }
+
+  function refreshBoxVisual(id) {
+    const box = boxesOf(state).find((candidate) => candidate.id === id);
+    if (!box) return;
+    const view = boxViews.get(id);
+    if (!view || !view.authored) {
+      rebuildBoxes();
+      return;
+    }
+    view.update(box);
+    boxSig = boxSignature();
+  }
+
+  function updateBoxLifecycleAnimations(dt) {
+    for (const id of [...boxOpeningAnimations]) {
+      const box = boxesOf(state).find((candidate) => candidate.id === id);
+      if (!box || box.flat || flapsOpen(box)) {
+        boxOpeningAnimations.delete(id);
+        continue;
+      }
+      const result = openFlap(state, id, dt * 1.55);
+      if (!result.ok) {
+        boxOpeningAnimations.delete(id);
+        continue;
+      }
+      refreshBoxVisual(id);
+      if (result.done) boxOpeningAnimations.delete(id);
+    }
+    for (const id of [...boxFlattenAnimations]) {
+      const box = boxesOf(state).find((candidate) => candidate.id === id);
+      if (!box || box.flat) {
+        boxFlattenAnimations.delete(id);
+        continue;
+      }
+      const result = flattenBox(state, id, dt * 1.35);
+      if (!result.ok) {
+        boxFlattenAnimations.delete(id);
+        continue;
+      }
+      refreshBoxVisual(id);
+      if (result.done) {
+        boxFlattenAnimations.delete(id);
+        say('Flattened carton ready for recycling.');
+      }
+    }
+  }
+
   function rebuildBoxes() {
-    boxGroup.clear();
     const d = state.shop.deliveries;
-    if (carriedBoxMesh) { camera.remove(carriedBoxMesh); carriedBoxMesh = null; }
-    if (carriedGoodsMesh) { camera.remove(carriedGoodsMesh); carriedGoodsMesh = null; }
+    carriedBoxMesh = null;
+    carriedBoxHands.visible = false;
+    carriedBoxHands.position.set(0, 0, 0);
+    if (carriedGoodsMesh) {
+      camera.remove(carriedGoodsMesh);
+      disposeProceduralDelivery(carriedGoodsMesh);
+      carriedGoodsMesh = null;
+    }
 
     const cg = carriedGoods(state);
     if (cg) {
@@ -2272,19 +2498,24 @@ export function makeClubhouse(ctx) {
       carriedGoodsMesh.position.set(0.12, -0.4, -0.62);   // held in the arms, low in frame
       carriedGoodsMesh.rotation.x = 0.35;
       camera.add(carriedGoodsMesh);
+      poseCarriedGoodsHands();
     }
 
     const seen = new Set();
+    const visualSeen = new Set();
     const colSeen = new Set();   // world boxes that hold a live collider this pass
     if (d) {
       const stacks = { pad: 0, stock: 0 };
       for (const box of d.boxes) {
+        visualSeen.add(box.id);
         if (box.loc === 'carried') {
-          carriedBoxMesh = makeBoxMesh(box);
-          carriedBoxMesh.scale.setScalar(0.8);
-          carriedBoxMesh.position.set(0, -0.62, -0.82);
-          carriedBoxMesh.rotation.y = 0.12;
+          const view = ensureBoxView(box);
+          carriedBoxMesh = view.root;
+          carriedBoxMesh.scale.setScalar(1);
+          carriedBoxMesh.position.set(0, -0.70, -0.92);
+          carriedBoxMesh.rotation.set(-0.04, 0.08, 0);
           camera.add(carriedBoxMesh);
+          poseCarriedBoxHands(box);
           continue;
         }
         let lx; let lz; let ry;
@@ -2299,16 +2530,17 @@ export function makeClubhouse(ctx) {
           ry = (box.id % 5) * 0.13;
         }
         const wp = L2W(lx, lz);
-        const m = makeBoxMesh(box);
+        const m = ensureBoxView(box).root;
         const gy = groundYAt(wp.x, wp.z);
+        m.scale.setScalar(1);
         m.position.set(wp.x, gy !== null && gy !== undefined ? gy : heightAt(wp.x, wp.z) + 0.02, wp.z);
-        m.rotation.y = ry;
+        m.rotation.set(0, ry, 0);
         boxGroup.add(m);
 
         seen.add(box.id);
         let prop = boxProps.get(box.id);
         if (!prop) { prop = boxPropFor(box.id); boxProps.set(box.id, prop); }
-        prop.x = wp.x; prop.z = wp.z; prop.lx = lx; prop.lz = lz;
+        prop.x = wp.x; prop.y = m.position.y; prop.z = wp.z; prop.lx = lx; prop.lz = lz; prop.ry = ry;
 
         // a set-down box occupies the floor: register a collider so the player AND the
         // customer nav grid (which bakes from the same list) both treat it as solid. Only
@@ -2335,6 +2567,9 @@ export function makeClubhouse(ctx) {
     for (const [id, entry] of [...boxCols]) {
       if (!colSeen.has(id)) { removeCol(entry.col); boxCols.delete(id); }  // picked up, moved, or gone
     }
+    for (const id of [...boxViews.keys()]) {
+      if (!visualSeen.has(id)) removeBoxView(id, true);
+    }
     boxSig = boxSignature();
   }
 
@@ -2347,6 +2582,7 @@ export function makeClubhouse(ctx) {
   // hold-to-cut is never torn down mid-cut.
   function boxPropFor(id) {
     const box = () => boxesOf(state).find((b) => b.id === id);
+    let lastCutBeat = -1;
     const pickUp = (b) => {
       const r = pickUpBox(state, b.id);
       if (!r.ok) { say(r.reason, 'warn'); return; }
@@ -2361,13 +2597,17 @@ export function makeClubhouse(ctx) {
         const sku = SHOP_CATALOG.find((s) => s.id === b.skuId);
         const name = sku ? sku.name : b.skuId;
         if (b.flat) return 'Flattened carton — [E] carry it to the recycling';
-        if (isEmpty(b)) return `Empty ${name} box — [E] flatten it`;
+        if (isEmpty(b)) return boxFlattenAnimations.has(b.id)
+          ? `Folding the empty ${name} carton...`
+          : `Empty ${name} box — [E] flatten it`;
         if (!unpackHere(prop, b)) {
           return `${b.loc === 'pad' ? 'Delivery: ' : ''}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''} — [E] pick up`;
         }
         if (tapeUncut(b)) return `${name} case · ${b.qty} inside — hold [E] to cut the tape`;
         if (!tapeCut(b)) return `${name} — hold [E] to finish the cut`;
-        if (!flapsOpen(b)) return `${name} — [E] open a flap`;
+        if (!flapsOpen(b)) return boxOpeningAnimations.has(b.id)
+          ? `${name} — opening all four flaps...`
+          : `${name} — [E] open the carton`;
         const held = carriedGoods(state);
         if (held && held.skuId !== b.skuId) return `${name} ×${b.qty}, open — put down what you're holding first`;
         return `${name} ×${b.qty} in the case — [E] take an armful`;
@@ -2377,14 +2617,58 @@ export function makeClubhouse(ctx) {
         if (!b || carriedBox(state)) return null;
         return unpackHere(prop, b) && !b.flat && !tapeCut(b) && !isEmpty(b) ? 'boxcutter' : null;
       },
+      get toolProgress() {
+        const b = box();
+        return b ? Math.max(0, Math.min(1, Number(b.tape) || 0)) : 0;
+      },
+      get toolPath() {
+        const b = box();
+        if (!b || prop.y == null) return null;
+        const dim = boxDims(b.box || 'carton');
+        const ry = prop.ry || 0;
+        const cut = Math.max(0, Math.min(1, Number(b.tape) || 0));
+        const y = prop.y + dim.h + 0.025;
+        let startLocal;
+        let endLocal;
+        let progress;
+        if (cut < 0.6) {
+          startLocal = { x: 0, z: dim.d * 0.42 };
+          endLocal = { x: 0, z: -dim.d * 0.42 };
+          progress = cut / 0.6;
+        } else if (cut < 0.8) {
+          startLocal = { x: 0, z: -dim.d * 0.38 };
+          endLocal = { x: -dim.w * 0.42, z: -dim.d * 0.38 };
+          progress = (cut - 0.6) / 0.2;
+        } else {
+          // Continue from the left endpoint across the same top cross-seam.
+          // The cutter never teleports across the carton between segments.
+          startLocal = { x: -dim.w * 0.42, z: -dim.d * 0.38 };
+          endLocal = { x: dim.w * 0.42, z: -dim.d * 0.38 };
+          progress = (cut - 0.8) / 0.2;
+        }
+        const worldPoint = (local) => ({
+          x: prop.x + local.x * Math.cos(ry) + local.z * Math.sin(ry),
+          y,
+          z: prop.z - local.x * Math.sin(ry) + local.z * Math.cos(ry),
+        });
+        return {
+          start: worldPoint(startLocal),
+          end: worldPoint(endLocal),
+          progress,
+        };
+      },
       hold: (dt) => {
         const b = box();
         if (!b || !unpackHere(prop, b) || b.flat || tapeCut(b) || isEmpty(b)) return;
-        const r = cutTape(state, b.id, dt * 0.7);   // ~1.4s to run the whole seam
+        const r = cutTape(state, b.id, dt * 0.5);   // a deliberate two-second three-segment cut
         if (r.ok) {
-          sfx('tape');
+          const cutBeat = Math.floor((Number(b.tape) || 0) * 10);
+          if (cutBeat !== lastCutBeat || r.done) {
+            lastCutBeat = cutBeat;
+            sfx('tape');
+          }
           if (r.done) tutorialFlag(state, 'boxCut');
-          rebuildBoxes();
+          refreshBoxVisual(b.id);
         }
       },
       action: () => {
@@ -2394,13 +2678,20 @@ export function makeClubhouse(ctx) {
         const name = sku ? sku.name : b.skuId;
         if (b.flat) { pickUp(b); return; }
         if (isEmpty(b)) {
-          if (flattenBox(state, b.id).ok) { sfx('recycle'); say('Flattened — carry it to the recycling.'); rebuildBoxes(); }
+          if (!boxFlattenAnimations.has(b.id)) {
+            boxFlattenAnimations.add(b.id);
+            sfx('recycle');
+            say('Folding the empty carton flat...');
+          }
           return;
         }
         if (!unpackHere(prop, b)) { pickUp(b); return; }
         if (!tapeCut(b)) return;              // cutting is the hold verb; a tap does nothing here
         if (!flapsOpen(b)) {
-          if (openFlap(state, b.id).ok) { sfx('flap'); rebuildBoxes(); }
+          if (!boxOpeningAnimations.has(b.id)) {
+            boxOpeningAnimations.add(b.id);
+            sfx('flap');
+          }
           return;
         }
         const r = takeFromBox(state, b.id);
@@ -3742,6 +4033,7 @@ export function makeClubhouse(ctx) {
     updateCustomers(dt);
     register.update(dt);
     updateStockFlights(dt);
+    updateBoxLifecycleAnimations(dt);
     updateFlicker(dt);
     builder.update();
     if (office.updateLid) office.updateLid(dt);
@@ -3753,8 +4045,16 @@ export function makeClubhouse(ctx) {
     if (carriedBoxMesh || carriedGoodsMesh) {
       carryProp.x = walk.x - Math.sin(walk.yaw) * 0.9;
       carryProp.z = walk.z - Math.cos(walk.yaw) * 0.9;
-      if (carriedBoxMesh) carriedBoxMesh.position.y = -0.62 + Math.sin(now * 6.2) * 0.012; // a carried weight breathes
-      if (carriedGoodsMesh) carriedGoodsMesh.position.y = -0.4 + Math.sin(now * 6.2) * 0.01;
+      if (carriedBoxMesh) {
+        const carryBob = Math.sin(now * 6.2) * 0.012;
+        carriedBoxMesh.position.y = -0.70 + carryBob;
+        carriedBoxHands.position.y = carryBob;
+      }
+      if (carriedGoodsMesh) {
+        const goodsBob = Math.sin(now * 6.2) * 0.01;
+        carriedGoodsMesh.position.y = -0.4 + goodsBob;
+        carriedBoxHands.position.y = goodsBob;
+      }
     } else {
       carryProp.x = 1e6; // parked far away so an empty-handed player never focuses it
     }
@@ -3792,9 +4092,26 @@ export function makeClubhouse(ctx) {
   stockSig = stockSignature();
   // Everything rebuildStock() closes over now exists, so it is safe to let the
   // model loader call back into it when the goods land.
-  merch.onReady(() => { if (interior && interior.parent) rebuildStock(); });
+  merch.onReady(() => {
+    if (!interior || !interior.parent) return;
+    rebuildStock();
+    rebuildBoxes();
+  });
 
   function dispose() {
+    for (const id of [...boxViews.keys()]) removeBoxView(id, true);
+    for (const [id, entry] of shipLabelCache) {
+      entry.tex.dispose();
+      entry.mat.dispose();
+      shipLabelCache.delete(id);
+    }
+    if (carriedGoodsMesh) disposeProceduralDelivery(carriedGoodsMesh);
+    camera.remove(carriedBoxHands);
+    carryPalmGeo.dispose();
+    carryFingerGeo.dispose();
+    carrySleeveGeo.dispose();
+    carryHandSkin.dispose();
+    carryHandCuff.dispose();
     scene.remove(group, interior, custGroup, motes, boxGroup);
     if (carriedBoxMesh) camera.remove(carriedBoxMesh);
     if (carriedGoodsMesh) camera.remove(carriedGoodsMesh);
@@ -3813,6 +4130,12 @@ export function makeClubhouse(ctx) {
     update, rebuildStock, rebuildReno, refreshCondition, repaintGrime,
     rebuildBoxes,
     carrySpeedFactor: () => carrySpeedFactor(state),
+    carryCollisionRadius: () => {
+      const box = carriedBox(state);
+      if (!box || box.flat) return 0;
+      const dim = boxDims(box.box || 'carton');
+      return Math.max(dim.w, dim.d) * 0.5 + 0.16;
+    },
     isInside, groundYAt, vacuumAt, vacuumLabelAt,
     doorWorld: doorW,
     laptopPose: (fovDeg, aspect) => (office.seatPose ? office.seatPose(fovDeg, aspect) : null),
