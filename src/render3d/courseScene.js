@@ -1360,7 +1360,7 @@ export function makeCourseScene(canvas, state) {
   let pathGroup = null;
   // the diffuse map multiplies DOWN, so these read two shades lighter in place
   const PATH_MATERIALS = {
-    asphalt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xb8b4ac, roughness: 0.92 }),
+    asphalt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xc9cdd2, roughness: 0.92 }),
     concrete: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xe8e2d4, roughness: 0.88 }),
     gravel: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xd9cba4, roughness: 1 }),
     dirt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xc09a6a, roughness: 1 }),
@@ -3104,7 +3104,7 @@ export function makeCourseScene(canvas, state) {
   const LIGHT_PRESETS = {
     day: { minute: 13 * 60, rainIn: 0 },
     morning: { minute: 8 * 60 + 30, rainIn: 0 },
-    golden: { minute: 18 * 60 + 40, rainIn: 0 },
+    golden: { minute: 19 * 60 + 35, rainIn: 0 },
     overcast: { minute: 13 * 60, rainIn: 0.28 },
   };
   function setLightingOverride(mode) {
