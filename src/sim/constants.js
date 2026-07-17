@@ -33,6 +33,13 @@ export const TURF_ZONES = new Set([
   ZONE.ROUGH, ZONE.FAIRWAY, ZONE.GREEN, ZONE.TEE, ZONE.FRINGE, ZONE.HEAVY, ZONE.SEMI,
 ]);
 
+// How zone ids are packed into the terrain data texture's red byte. The GLSL
+// decode divides by the SAME constant — and every id × scale must stay ≤ 255,
+// because a Uint8 wrap doesn't error, it silently renders the wrong surface
+// (the "cream and black bands" incident of 2026-07-16).
+export const ZONE_TEX_SCALE = 18;
+export const ZONE_MAX_ID = Math.max(...Object.values(ZONE));
+
 // Zones that get labeled into named sections for the UI / golfer opinions.
 export const SECTION_ZONES = new Set([ZONE.ROUGH, ZONE.FAIRWAY, ZONE.GREEN, ZONE.TEE, ZONE.BUNKER, ZONE.WATER]);
 

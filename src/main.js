@@ -308,6 +308,9 @@ function enterEditor() {
   if (app.courseMode === 'walk') exitWalk();
   app.courseMode = 'editor';
   app.speedIdx = 0; // the world holds its breath while you shape it
+  // the editor is a production surface: data heat-maps (health/moisture) are
+  // grounds-desk tools and must never tint the design view
+  handlers.setViewMode('normal');
   resetCameraInput();
   const hint = document.querySelector('.hint-bar');
   if (hint) hint.style.display = 'none';

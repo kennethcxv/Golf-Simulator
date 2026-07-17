@@ -15,7 +15,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { ZONE, HOLE_STATUS, CELL_YD } from '../sim/constants.js';
+import { ZONE, HOLE_STATUS, CELL_YD, ZONE_TEX_SCALE } from '../sim/constants.js';
 import { holeNumber } from '../sim/course.js';
 import { BALANCE } from '../sim/balance.js';
 import { clamp } from '../core/utils.js';
@@ -3000,7 +3000,9 @@ export function makeCourseScene(canvas, state) {
     for (let i = 0; i < W * H; i++) {
       const o = i * 4;
       const zone = zones[i];
-      zoneData[o] = zone * 18; // ×18 so zone ids up to 14 survive the byte
+      // clamped pack: an unknown/oversized id must degrade to a sane surface,
+      // never wrap the byte into a random one
+      zoneData[o] = Math.min(255, zone * ZONE_TEX_SCALE);
       if (t) {
         zoneData[o + 1] = clamp(t.health[i] * 2.55, 0, 255);
         zoneData[o + 2] = clamp(t.wear[i] * 2.55, 0, 255);

@@ -1645,7 +1645,10 @@ export function createRegisterMode(B) {
     selectedReservationId = null;
     selectedWalkInCustomerId = null;
     activeTab = 'checkout';
-    workspace = 'monitor';
+    // A basket on the counter IS the work — open on the goods framing (the same wide-left
+    // pose an item click uses), with the POS readable at the right. Check-ins keep the
+    // straight-on monitor view; they have nothing on the counter to look at.
+    workspace = tx.stage === 'scanning' && unscannedCount(tx) > 0 ? 'scan' : 'monitor';
     clearPhysicalTransaction();
     // clearPhysicalTransaction intentionally does not clear tx/cust; it only removes
     // stale meshes and gesture state from a prior completed presentation.
@@ -1734,6 +1737,8 @@ export function createRegisterMode(B) {
       workspace = 'cash';
     } else if (tx && ['card-ready', 'card-entry', 'card-busy', 'card-declined'].includes(tx.stage)) {
       workspace = 'card';
+    } else if (tx && transactionKind === 'retail' && tx.stage === 'scanning' && unscannedCount(tx) > 0) {
+      workspace = 'scan'; // stepping back in mid-basket resumes on the goods, same as arriving
     }
     activeTab = tx ? 'checkout' : 'home';
     enterTimer = 0.30;
