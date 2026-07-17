@@ -203,8 +203,8 @@ async function setupReservationArrival(page) {
     if (!made.ok) throw new Error(`Could not create arrival fixture: ${made.reason}`);
     made.res.deskReadyAt = deskReadyAt;
     const walk = app.scene3d.walk.state;
-    walk.x = 2.80 - 8;
-    walk.z = 5.35 + 228;
+    walk.x = 2.80 + app.scene3d.clubhouse().interior.position.x;
+    walk.z = 5.10 + app.scene3d.clubhouse().interior.position.z;
     walk.yaw = 0;
     walk.pitch = -0.18;
     return {
@@ -330,8 +330,8 @@ async function setupWalkIn(page) {
     app.speedIdx = 0;
     app.scene3d.applyTimeWeather(10 * 60, app.state.weather);
     const walk = app.scene3d.walk.state;
-    walk.x = 2.80 - 8;
-    walk.z = 5.35 + 228;
+    walk.x = 2.80 + app.scene3d.clubhouse().interior.position.x;
+    walk.z = 5.10 + app.scene3d.clubhouse().interior.position.z;
     walk.yaw = 0;
     walk.pitch = -0.18;
     let customer = null;
@@ -370,26 +370,16 @@ async function completeCashService(page, shot) {
   }, null, { timeout: 10000 });
   await waitCamera(page, 'cash');
   await shot('09-walk-in-cash-presented.png');
-  const tender = await page.evaluate(() => ({
-    ...(window.__fw.scene3d.clubhouse().register.getTx().tendered || {}),
-  }));
-  for (const [rawDenom, count] of Object.entries(tender)) {
-    const denom = Number(rawDenom);
-    for (let index = 0; index < count; index += 1) {
-      const money = await projectObject(page, { kind: 'money', from: 'tender', denom });
-      assert(money && money.inView, `Walk-in tender ${denom} is outside the cash camera.`);
-      await page.mouse.click(money.x, money.y);
-      await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.getTx()?.drawerOpen,
-        null, { timeout: 5000 });
-      await page.waitForTimeout(420);
-      const slot = await projectObject(page, { kind: 'drawer-slot', denom });
-      assert(slot && slot.inView, `Walk-in drawer slot ${denom} is outside the cash camera.`);
-      await page.mouse.click(slot.x, slot.y);
-      await page.waitForTimeout(180);
-    }
-  }
+  // one click on the presented handful accepts ALL the cash; the drawer opens
+  // and the tender sorts itself into the wells (no per-piece deposit any more)
+  const handful = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.presentedCashScreenPoint());
+  assert(handful && handful.inView, 'Walk-in presented cash is outside the working frame.');
+  await page.mouse.click(handful.x, handful.y);
+  await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.getTx()?.drawerOpen,
+    null, { timeout: 5000 });
+  await waitCamera(page, 'cash');
   await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.getTx()?.deposited,
-    null, { timeout: 7000 });
+    null, { timeout: 8000 });
   await page.waitForTimeout(600);
   await shot('10-walk-in-tender-deposited.png');
   const plan = await page.evaluate(async () => {
@@ -411,17 +401,13 @@ async function completeCashService(page, shot) {
     }
   }
   await shot('11-walk-in-change-selected.png');
-  const review = await projectObject(page, { kind: 'cash-review' });
-  assert(review && review.inView, 'Walk-in Review on Monitor control is outside the cash camera.');
-  await page.mouse.click(review.x, review.y);
-  await waitCamera(page, 'monitor');
-  await shot('12-walk-in-change-review.png');
-  await monitorClick(page, 'confirm-change');
+  // Enter confirms the exact change; the till closes and the service completes
+  await page.keyboard.press('Enter');
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    return tx && tx.stage === 'done';
+    return tx && ['receipt', 'bagging', 'done'].includes(tx.stage);
   }, null, { timeout: 10000 });
-  await waitCamera(page, 'monitor');
+  await shot('12-walk-in-change-confirmed.png');
 }
 
 async function walkInScenario(page, shot) {
@@ -462,10 +448,11 @@ async function walkInScenario(page, shot) {
   await waitCamera(page, 'cash');
   await shot('08-walk-in-slot-booked.png');
   await completeCashService(page, shot);
-  await shot('13-walk-in-ready-to-finalize.png');
-  await monitorClick(page, 'finalize-transaction');
+  await shot('13-walk-in-service-processing.png');
+  // the service banks itself once the receipt reaches the golfer — no manual
+  // finalize button in the automatic flow. Wait for the transaction to clear.
   await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.getTx(), null,
-    { timeout: 5000 });
+    { timeout: 14000 });
   await shot('14-walk-in-check-in-complete.png');
   const final = await page.evaluate(async ({ id, day, teeMinute }) => {
     const reservations = await import('/src/sim/reservations.js');
@@ -548,8 +535,8 @@ async function setupNoShow(page) {
     app.state.clock.minutes = deadline - 1;
     app.scene3d.applyTimeWeather(app.state.clock.minutes % 1440, app.state.weather);
     const walk = app.scene3d.walk.state;
-    walk.x = 2.80 - 8;
-    walk.z = 5.35 + 228;
+    walk.x = 2.80 + app.scene3d.clubhouse().interior.position.x;
+    walk.z = 5.10 + app.scene3d.clubhouse().interior.position.z;
     walk.yaw = 0;
     walk.pitch = -0.18;
     return { reservation: structuredClone(made.res), before, afterBooking, deadline };
