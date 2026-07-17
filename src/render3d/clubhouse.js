@@ -2678,10 +2678,10 @@ export function makeClubhouse(ctx) {
   // a player who is paying attention still has time to save the sale.
   //
   // THE CLOCK ONLY RUNS AT THE REGISTER. A shopper browsing the floor never
-  // "gives up" — the three-minute wait starts when they reach the counter head
+  // "gives up" — the TEN-minute wait starts when they reach the counter head
   // with their goods and stand unserved, and the price of blowing it is a bad
   // review, not a mystery walk-out.
-  const PATIENCE_FULL = 180;
+  const PATIENCE_FULL = 600;
   const patRing = new THREE.RingGeometry(0.10, 0.125, 20, 1, Math.PI / 2, Math.PI * 2);
   function setPatience(c) {
     const frac = clamp(c.patience / PATIENCE_FULL, 0, 1);
@@ -2993,7 +2993,7 @@ export function makeClubhouse(ctx) {
     }
     const hadCart = surrenderCart(c, { announce: false });
     if (hadCart && hooks.toast) {
-      hooks.toast(`${c.name} waited 3 minutes at the register, put it back, and left a bad review.`, 'warn');
+      hooks.toast(`${c.name} waited 10 minutes at the register, put it back, and left a bad review.`, 'warn');
     }
     c.checkoutPhase = 'leaving';
     // they walked out mid-sale: void it, clear the counter, and put the goods back.
