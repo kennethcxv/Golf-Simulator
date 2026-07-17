@@ -33,6 +33,53 @@ test('state serializes to JSON and back without losing the world', () => {
   assert.ok(back.sections.length > 0, 'sections rebuilt on load');
 });
 
+test('v6: the vector course design survives save/load intact', () => {
+  const st = newGame('realistic', 1234);
+  assert.ok(st.course.vec, 'a fresh course is vector-designed');
+  const bunkersBefore = st.course.vec.holes.reduce((a, h) => a + (h.bunkers || []).length, 0);
+  const back = deserialize(serialize(st));
+  assert.ok(back.course.vec, 'vec persists');
+  assert.equal(back.course.vec.holes.length, st.course.vec.holes.length);
+  assert.equal(back.course.vec.waters.length, st.course.vec.waters.length);
+  assert.equal(back.course.vec.holes.reduce((a, h) => a + (h.bunkers || []).length, 0), bunkersBefore);
+  // the derived sim grid + object/path placements round-trip too
+  assert.deepEqual(Array.from(back.course.zones), Array.from(st.course.zones));
+  assert.equal(back.course.objects.length, st.course.objects.length);
+  assert.equal(back.course.paths.length, st.course.paths.length);
+});
+
+test('v6: a painted freeform override survives save/load', () => {
+  const st = newGame('relaxed', 77);
+  // paint a small green override far from play (NW forest corner)
+  const paint = (st.course.paint = st.course.paint
+    || (new Uint8Array(st.course.w * st.course.h).fill(255)));
+  for (let y = 9; y <= 11; y++) for (let x = 9; x <= 11; x++) paint[y * st.course.w + x] = ZONE.GREEN;
+  const back = deserialize(serialize(st));
+  assert.ok(back.course.paint, 'paint layer persists');
+  assert.equal(back.course.paint[10 * st.course.w + 10], ZONE.GREEN, 'override value restored');
+});
+
+test('pre-v6 nine-hole saves regenerate as vector courses, keeping progress', () => {
+  const st = newGame('realistic', 4242);
+  st.cash = 88000;
+  st.progression.prestige = 55;
+  // fabricate a legacy v5 snapshot: no vec, an older SAVE_VERSION
+  const raw = JSON.parse(serialize(st));
+  delete raw.course.vec;
+  delete raw.course.paint;
+  raw.version = 5;
+  const back = deserialize(raw);
+  assert.ok(back.course.vec, 'the migrated course is now vector-designed');
+  assert.equal(back.course.holes.length, 9);
+  assert.equal(back.cash, 88000, 'business cash carries across the migration');
+  assert.equal(back.progression.prestige, 55, 'progression carries across the migration');
+  // every hole validates on the regenerated layout
+  for (const hole of back.course.holes) {
+    assert.equal(hole.status, HOLE_STATUS.OPEN);
+  }
+  assert.ok(back.turf && back.turf.health.length === back.course.zones.length, 'turf sized to the new grid');
+});
+
 test('a corrupted (NaN/null) cash balance heals on save and on load', () => {
   // NaN serializes to JSON null; without the heal every register sale then
   // refuses to bank ("The club books are not available") forever after.
