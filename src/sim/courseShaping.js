@@ -333,7 +333,7 @@ export function routeCartPaths(course, specs, rng) {
     if (!pts.length || Math.hypot(p.x - pts[pts.length - 1].x, p.y - pts[pts.length - 1].y) > 3.2) pts.push(p);
   }
   if (pts.length < 2) return;
-  const path = { id: course.nextPathId++, pts, width: 2.6, material: 'asphalt' };
+  const path = { id: course.nextPathId++, pts, width: 3.2, material: 'asphalt' };
   course.paths.push(path);
   paintPathCells(course, path);
 }
@@ -522,6 +522,31 @@ export function plantVegetation(course, specs, rng, { density = 1 } = {}) {
       const p = edge === 0 ? 0.55 : edge === 1 ? 0.42 : edge === 2 ? 0.26 : 0.14;
       if (rng.chance(p * density)) {
         addTree(course, rng, x, y, { pinePreference: 0.45, scaleMin: 0.95, scaleMax: 1.45 });
+      }
+    }
+  }
+
+  // 5. water dressing: reeds and stones make shorelines read as landscape
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (getZone(course, x, y) === ZONE.WATER) continue;
+      let touchesWater = false;
+      for (const [dx, dy] of N8) {
+        if (getZone(course, x + dx, y + dy) === ZONE.WATER) {
+          touchesWater = true;
+          break;
+        }
+      }
+      if (!touchesWater || !plantable(course, x, y)) continue;
+      if (rng.chance(0.34 * density)) {
+        course.objects.push({
+          id: course.nextObjectId++,
+          type: rng.chance(0.7) ? 'reeds' : rng.chance(0.5) ? 'rock_s' : 'rock_m',
+          x: x + (rng.next() - 0.5) * 0.6,
+          y: y + (rng.next() - 0.5) * 0.6,
+          rot: rng.next() * Math.PI * 2,
+          scale: 0.9 + rng.next() * 0.5,
+        });
       }
     }
   }

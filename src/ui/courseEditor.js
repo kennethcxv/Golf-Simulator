@@ -31,35 +31,45 @@ import {
 } from '../sim/playtest.js';
 
 // Monochrome stroke icons (no emoji — the reference UI is quiet and premium).
+// Each icon is a list of [tag, attrs] built with createElementNS: no HTML parsing.
 const ICONS = {
-  select: '<path d="M4 2l9 7-4.2 1L7 14z"/>',
-  terrain: '<path d="M1.5 13L6 5l3 4.6L11 6l3.5 7z"/><path d="M12 3.5l.01 0"/>',
-  paint: '<path d="M9.5 2.5l4 4L7 13H3v-4z"/><path d="M11 8L8 5"/>',
-  tee: '<path d="M4.5 4h7M8 4v6.5M6.5 13h3M8 10.5V13"/><circle cx="8" cy="2.4" r="1.1"/>',
-  green: '<path d="M5 14V3"/><path d="M5 3.6h6.5L9.5 6l2 2.4H5"/><path d="M2.5 14h7"/>',
-  bunker: '<path d="M2 11.5q6-7.5 12 0"/><path d="M5 13.4h.01M8 12.8h.01M11 13.4h.01"/>',
-  water: '<path d="M8 2.2c2.8 3.6 4.6 5.6 4.6 8a4.6 4.6 0 11-9.2 0c0-2.4 1.8-4.4 4.6-8z"/>',
-  objects: '<path d="M8 2l4 5.4H4z"/><path d="M8 6.6l3.2 4.6H4.8z"/><path d="M8 11.2V14"/>',
-  paths: '<path d="M2 14c4.5-3.5 5-6.5 12-10" stroke-dasharray="2.6 2"/>',
-  measure: '<path d="M3.5 12.5l9-9"/><path d="M5.5 10.5l1.2 1.2M7.5 8.5l1.2 1.2M9.5 6.5l1.2 1.2"/>',
-  play: '<path d="M5.5 3.2l7.5 4.8-7.5 4.8z"/>',
-  undo: '<path d="M6.5 3.5L3 7l3.5 3.5"/><path d="M3 7h6a4 4 0 014 4v1.5"/>',
-  redo: '<path d="M9.5 3.5L13 7l-3.5 3.5"/><path d="M13 7H7a4 4 0 00-4 4v1.5"/>',
-  save: '<path d="M3 3h8.5L13 4.5V13H3z"/><path d="M5 3v3.5h5V3"/><path d="M5 13v-4h6v4"/>',
-  holes: '<path d="M6 14V4"/><path d="M6 4.5h5L9.4 6.4 11 8.3H6"/>',
-  stats: '<path d="M3.5 13V8.5M7.5 13V4M11.5 13V6.5"/><path d="M2 13.5h12"/>',
-  exit: '<path d="M4 4l8 8M12 4l-8 8"/>',
-  flag: '<path d="M5 14V3"/><path d="M5 3.6h6.5L9.5 6l2 2.4H5"/>',
-  frame: '<path d="M2.5 5.5v-3h3M13.5 5.5v-3h-3M2.5 10.5v3h3M13.5 10.5v3h-3"/>',
-  shrub: '<path d="M4.5 13c-2-1.5-2-4.5.5-5.5C4.5 4.5 7 3.5 8 5c1-1.5 3.5-.5 3 2.5 2.5 1 2.5 4 .5 5.5z"/><path d="M8 13v1.5"/>',
-  rock: '<path d="M3 12l1.5-4.5L8 5l4 1.5L13.5 12z"/><path d="M8 5l1 7"/>',
-  prop: '<path d="M3 12.5V9.5h10v3"/><path d="M4 9.5V6h8v3.5"/><path d="M4.5 12.5v1M11.5 12.5v1"/>',
-  decor: '<circle cx="8" cy="5" r="2.4"/><path d="M8 7.5V12"/><path d="M5.5 13.5h5"/><path d="M8 9.5c-1.5-.5-2.5-1.5-3-3M8 9.5c1.5-.5 2.5-1.5 3-3"/>',
+  select: [['path', { d: 'M4 2l9 7-4.2 1L7 14z' }]],
+  terrain: [['path', { d: 'M1.5 13L6 5l3 4.6L11 6l3.5 7z' }]],
+  paint: [['path', { d: 'M9.5 2.5l4 4L7 13H3v-4z' }], ['path', { d: 'M11 8L8 5' }]],
+  tee: [['path', { d: 'M4.5 4h7M8 4v6.5M6.5 13h3M8 10.5V13' }], ['circle', { cx: '8', cy: '2.4', r: '1.1' }]],
+  green: [['path', { d: 'M5 14V3' }], ['path', { d: 'M5 3.6h6.5L9.5 6l2 2.4H5' }], ['path', { d: 'M2.5 14h7' }]],
+  bunker: [['path', { d: 'M2 11.5q6-7.5 12 0' }], ['path', { d: 'M5 13.4h.01M8 12.8h.01M11 13.4h.01' }]],
+  water: [['path', { d: 'M8 2.2c2.8 3.6 4.6 5.6 4.6 8a4.6 4.6 0 11-9.2 0c0-2.4 1.8-4.4 4.6-8z' }]],
+  objects: [['path', { d: 'M8 2l4 5.4H4z' }], ['path', { d: 'M8 6.6l3.2 4.6H4.8z' }], ['path', { d: 'M8 11.2V14' }]],
+  paths: [['path', { d: 'M2 14c4.5-3.5 5-6.5 12-10', 'stroke-dasharray': '2.6 2' }]],
+  measure: [['path', { d: 'M3.5 12.5l9-9' }], ['path', { d: 'M5.5 10.5l1.2 1.2M7.5 8.5l1.2 1.2M9.5 6.5l1.2 1.2' }]],
+  play: [['path', { d: 'M5.5 3.2l7.5 4.8-7.5 4.8z' }]],
+  undo: [['path', { d: 'M6.5 3.5L3 7l3.5 3.5' }], ['path', { d: 'M3 7h6a4 4 0 014 4v1.5' }]],
+  redo: [['path', { d: 'M9.5 3.5L13 7l-3.5 3.5' }], ['path', { d: 'M13 7H7a4 4 0 00-4 4v1.5' }]],
+  save: [['path', { d: 'M3 3h8.5L13 4.5V13H3z' }], ['path', { d: 'M5 3v3.5h5V3' }], ['path', { d: 'M5 13v-4h6v4' }]],
+  holes: [['path', { d: 'M6 14V4' }], ['path', { d: 'M6 4.5h5L9.4 6.4 11 8.3H6' }]],
+  stats: [['path', { d: 'M3.5 13V8.5M7.5 13V4M11.5 13V6.5' }], ['path', { d: 'M2 13.5h12' }]],
+  exit: [['path', { d: 'M4 4l8 8M12 4l-8 8' }]],
+  frame: [['path', { d: 'M2.5 5.5v-3h3M13.5 5.5v-3h-3M2.5 10.5v3h3M13.5 10.5v3h-3' }]],
+  shrub: [['path', { d: 'M4.5 13c-2-1.5-2-4.5.5-5.5C4.5 4.5 7 3.5 8 5c1-1.5 3.5-.5 3 2.5 2.5 1 2.5 4 .5 5.5z' }], ['path', { d: 'M8 13v1.5' }]],
+  rock: [['path', { d: 'M3 12l1.5-4.5L8 5l4 1.5L13.5 12z' }], ['path', { d: 'M8 5l1 7' }]],
+  prop: [['path', { d: 'M3 12.5V9.5h10v3' }], ['path', { d: 'M4 9.5V6h8v3.5' }], ['path', { d: 'M4.5 12.5v1M11.5 12.5v1' }]],
+  decor: [['circle', { cx: '8', cy: '5', r: '2.4' }], ['path', { d: 'M8 7.5V12' }], ['path', { d: 'M5.5 13.5h5' }]],
 };
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function svgIcon(name) {
   const span = el('span', { class: 'ced-ico' });
-  span.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">${ICONS[name] || ICONS.select}</svg>`;
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('aria-hidden', 'true');
+  for (const [tag, attrs] of ICONS[name] || ICONS.select) {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    svg.append(node);
+  }
+  span.append(svg);
   return span;
 }
 
@@ -98,7 +108,7 @@ const EXTRA_ZONE_COLORS = {
 };
 const zoneColor = (z) => EXTRA_ZONE_COLORS[z] || ZONE_COLORS[z] || '#888';
 
-const OBJ_ICON = { tree: '🌳', shrub: '🌿', rock: '🪨', prop: '🪑', decor: '🌸' };
+const OBJ_ICON = { tree: 'objects', shrub: 'shrub', rock: 'rock', prop: 'prop', decor: 'decor' };
 
 export function makeCourseEditor(app, hooks) {
   // hooks: { onExit(), afterApply(), autosave(), money() }
@@ -116,7 +126,7 @@ export function makeCourseEditor(app, hooks) {
     bunker: { shape: 'kidney', sizeYd: 14, depth: 1.6 },
     water: { shape: 'pond', sizeYd: 36, depth: 2.4 },
     objects: { cat: 'tree', type: 'tree_oak', scale: 1, randomRot: true, assist: false, assistCount: 8 },
-    paths: { width: 2.6, material: 'asphalt' },
+    paths: { width: 3.2, material: 'asphalt' },
   };
 
   // transient input state
@@ -140,25 +150,36 @@ export function makeCourseEditor(app, hooks) {
   // ---------------------------------------------------------------- DOM ----
 
   const topLeft = el('div', { class: 'ced-top-left' },
-    ui.playtestBtn = el('button', { class: 'ced-top-btn primary', text: '⛳ Playtest', onclick: () => enterPlaytest() }),
-    ui.undoBtn = el('button', { class: 'ced-top-btn', text: '↶ Undo', onclick: () => doUndo() }),
-    ui.redoBtn = el('button', { class: 'ced-top-btn', text: '↷ Redo', onclick: () => doRedo() }),
-    ui.saveBtn = el('button', { class: 'ced-top-btn', text: '💾 Save', onclick: () => openSaveDialog() }),
-    ui.holesBtn = el('button', { class: 'ced-top-btn', text: '🕳 Holes', onclick: () => openHoleSelect() }),
-    ui.statsBtn = el('button', { class: 'ced-top-btn', text: '📊 Stats', onclick: () => toggleStats() }),
+    el('div', { class: 'ced-title' }, svgIcon('green'), el('span', { text: 'COURSE EDITOR' })),
+    ui.playtestBtn = el('button', { class: 'ced-top-btn primary', title: 'Play the selected hole', onclick: () => enterPlaytest() },
+      svgIcon('play'), el('span', { text: 'Playtest' })),
+    ui.undoBtn = el('button', { class: 'ced-top-btn', title: 'Undo (Ctrl+Z)', onclick: () => doUndo() },
+      svgIcon('undo'), el('span', { text: 'Undo' })),
+    ui.redoBtn = el('button', { class: 'ced-top-btn', title: 'Redo (Ctrl+Y)', onclick: () => doRedo() },
+      svgIcon('redo'), el('span', { text: 'Redo' })),
+    ui.saveBtn = el('button', { class: 'ced-top-btn', title: 'Save the course', onclick: () => openSaveDialog() },
+      svgIcon('save'), el('span', { text: 'Save' })),
+    ui.statsBtn = el('button', { class: 'ced-top-btn', title: 'Course statistics', onclick: () => toggleStats() },
+      svgIcon('stats'), el('span', { text: 'Stats' })),
   );
+
+  // the selected hole is the editor's center of gravity: one chip names it,
+  // clicking it opens the hole cards
+  ui.holeChip = el('button', { class: 'ced-holechip', title: 'Select a hole to edit', onclick: () => openHoleSelect() },
+    svgIcon('holes'), el('span', { text: 'Select a hole' }));
 
   ui.billChip = el('span', { class: 'ced-bill', text: '' });
   ui.applyBtn = el('button', { class: 'ced-top-btn primary', text: 'Build it', onclick: () => doApply() });
   ui.discardBtn = el('button', { class: 'ced-top-btn', text: 'Discard', onclick: () => doDiscard() });
-  const billWrap = el('div', { class: 'ced-bill-wrap' }, ui.billChip, ui.applyBtn, ui.discardBtn);
+  const billWrap = el('div', { class: 'ced-bill-wrap' }, ui.holeChip, ui.billChip, ui.applyBtn, ui.discardBtn);
 
   ui.moneyChip = el('span', { class: 'ced-money', text: '' });
-  ui.lightSel = el('select', { class: 'ced-light' },
-    el('option', { value: 'day', text: '☀ Midday' }),
-    el('option', { value: 'morning', text: '🌅 Morning' }),
-    el('option', { value: 'golden', text: '🌇 Golden hour' }),
-    el('option', { value: 'overcast', text: '☁ Overcast' }),
+  ui.clockChip = el('span', { class: 'ced-clock', text: '' });
+  ui.lightSel = el('select', { class: 'ced-light', title: 'Editor lighting preview' },
+    el('option', { value: 'day', text: 'Midday' }),
+    el('option', { value: 'morning', text: 'Morning' }),
+    el('option', { value: 'golden', text: 'Golden hour' }),
+    el('option', { value: 'overcast', text: 'Overcast' }),
   );
   ui.lightSel.onchange = () => {
     lightMode = ui.lightSel.value;
@@ -166,8 +187,10 @@ export function makeCourseEditor(app, hooks) {
   };
   const topRight = el('div', { class: 'ced-top-right' },
     ui.moneyChip,
+    ui.clockChip,
     ui.lightSel,
-    el('button', { class: 'ced-top-btn', text: '✕ Exit editor', onclick: () => requestExit() }),
+    el('button', { class: 'ced-top-btn', title: 'Leave the editor', onclick: () => requestExit() },
+      svgIcon('exit'), el('span', { text: 'Exit' })),
   );
 
   const topBar = el('div', { class: 'ced-top' }, topLeft, billWrap, topRight);
@@ -176,12 +199,12 @@ export function makeCourseEditor(app, hooks) {
   const railButtons = new Map();
   const rail = el('div', { class: 'ced-rail' },
     el('div', { class: 'ced-rail-head', text: 'SELECT TOOL' }),
-    ...TOOLS.map((t) => {
+    ...TOOLS.map((t, i) => {
       const b = el('button', {
         class: 'ced-tool',
         onclick: () => setTool(t.key),
-        title: t.label,
-      }, el('span', { class: 'ced-tool-ico', text: t.icon }), el('span', { text: t.label }));
+        title: `${t.label} (${i + 1})`,
+      }, svgIcon(t.icon), el('span', { text: t.label }));
       railButtons.set(t.key, b);
       return b;
     }),
@@ -200,11 +223,12 @@ export function makeCourseEditor(app, hooks) {
   // stats panel (toggleable)
   ui.statsPanel = el('div', { class: 'ced-stats', style: 'display:none' });
 
-  // playtest overlay
+  // playtest overlay + its hole mini-map card
   ui.ptBar = el('div', { class: 'ced-pt', style: 'display:none' });
+  ui.ptMap = el('div', { class: 'ced-pt-map', style: 'display:none' });
 
   const root = el('div', { class: 'ced-root', style: 'display:none' },
-    topBar, leftCol, ui.hintBar, ui.measureChip, ui.compass, ui.statsPanel, ui.ptBar);
+    topBar, leftCol, ui.hintBar, ui.measureChip, ui.compass, ui.statsPanel, ui.ptBar, ui.ptMap);
 
   // ------------------------------------------------------------- helpers ----
 
@@ -216,17 +240,54 @@ export function makeCourseEditor(app, hooks) {
 
   function refreshTop() {
     const bill = session ? Math.round(session.bill) : 0;
-    ui.billChip.textContent = bill > 0 ? `Pending works: ${formatMoney(bill)}` : 'No pending works';
-    ui.billChip.classList.toggle('hot', bill > 0);
+    const dirty = !!(session && sessionDirty(session));
+    // the bill trio only exists while something is actually pending — a clean
+    // course shows a clean bar, not permanent status text
+    ui.billChip.style.display = bill > 0 ? '' : 'none';
+    ui.billChip.textContent = bill > 0 ? `Pending works: ${formatMoney(bill)}` : '';
     const canPay = bill <= state().cash;
-    ui.applyBtn.disabled = bill <= 0 && !(session && sessionDirty(session));
+    ui.applyBtn.style.display = dirty ? '' : 'none';
+    ui.applyBtn.disabled = !dirty;
     ui.applyBtn.textContent = bill > 0 && !canPay ? 'Not enough cash' : 'Build it';
     ui.applyBtn.classList.toggle('danger', bill > 0 && !canPay);
-    ui.discardBtn.disabled = !(session && sessionDirty(session));
+    ui.discardBtn.style.display = dirty ? '' : 'none';
+    ui.discardBtn.disabled = !dirty;
     ui.undoBtn.disabled = !(session && session.undo.length);
     ui.redoBtn.disabled = !(session && session.redo.length);
     ui.moneyChip.textContent = formatMoney(state().cash);
+    // the game date rides along, like the reference's "Y1 · Spring · Day 2"
+    try {
+      const chip = document.querySelector('.hud-clock');
+      ui.clockChip.textContent = chip ? chip.textContent.replace(/[⏸▶]/g, '').trim() : '';
+    } catch { /* clock is decoration */ }
+    refreshHoleChip();
     if (ui.statsPanel.style.display !== 'none') renderStats();
+  }
+
+  function selectedHole() {
+    return holesOf().find((h) => h.id === opt.tee.holeId) || holesOf()[0] || null;
+  }
+
+  function refreshHoleChip() {
+    const hole = selectedHole();
+    const label = ui.holeChip.querySelector('span:last-child');
+    if (!hole) {
+      label.textContent = 'Select a hole';
+      return;
+    }
+    const n = holeNumber(state().course, hole.id);
+    const yd = hole.tee && hole.pin ? ` · ${Math.round(holeDistanceYd(hole))} yd` : '';
+    const named = hole.name && hole.name !== `Hole ${n}` ? ` — ${hole.name}` : '';
+    label.textContent = `Hole ${n}${named} · Par ${holePar(hole)}${yd}`;
+  }
+
+  // Selecting a hole is the editor's core gesture: it frames the camera, aims
+  // the tee tool, and names itself in the top bar.
+  function selectHole(hole, { frame = true } = {}) {
+    if (!hole) return;
+    opt.tee.holeId = hole.id;
+    if (frame && scene()) scene().frameHole(hole);
+    refreshHoleChip();
   }
 
   function hint(text) {
@@ -255,7 +316,17 @@ export function makeCourseEditor(app, hooks) {
       if (scene()) scene().setMeasureLine(null);
     }
     if (key !== 'select') setSelected(null);
-    if (scene()) scene().setPlacementGhost(null);
+    if (scene()) {
+      scene().setPlacementGhost(null);
+      // TOOL FOCUS: picking a brush from a satellite distance is guesswork —
+      // ease in far enough that the brush ring stays a readable size
+      const rig = scene().rig;
+      if (key !== 'select' && rig.dist > 340) {
+        rig.dist = 260;
+        rig.pitch = Math.min(rig.pitch, 0.95);
+        rig.apply();
+      }
+    }
     for (const [k, b] of railButtons) b.classList.toggle('on', k === key);
     renderToolPanel();
     hint(HINTS[key] || '');
@@ -459,7 +530,7 @@ export function makeCourseEditor(app, hooks) {
               opt.objects.type = o.type;
               for (const sib of grid.children) sib.classList.toggle('on', sib === e.currentTarget);
             },
-          }, el('span', { text: OBJ_ICON[o.cat] || '❔' }), el('span', { text: o.name })));
+          }, svgIcon(OBJ_ICON[o.cat] || 'decor'), el('span', { text: o.name })));
         }
         p.append(grid);
         p.append(slider('Size', Math.round(opt.objects.scale * 100), 60, 160, 5, (v) => { opt.objects.scale = v / 100; }, (v) => `${v}%`));
@@ -569,6 +640,27 @@ export function makeCourseEditor(app, hooks) {
     root.append(modalEl);
   }
 
+  // full-course thumbnail (save panel): every zone, whole property
+  function courseThumbCanvas(w = 216, h = 148) {
+    const c = state().course;
+    const cnv = el('canvas', { width: String(w), height: String(h), class: 'ced-mini' });
+    const ctx = cnv.getContext('2d');
+    ctx.fillStyle = '#15251a';
+    ctx.fillRect(0, 0, w, h);
+    const s = Math.min(w / c.w, h / c.h);
+    const ox = (w - c.w * s) / 2;
+    const oy = (h - c.h * s) / 2;
+    for (let y = 0; y < c.h; y++) {
+      for (let x = 0; x < c.w; x++) {
+        const z = c.zones[y * c.w + x];
+        if (z === ZONE.OUT) continue;
+        ctx.fillStyle = zoneColor(z);
+        ctx.fillRect(ox + x * s, oy + y * s, Math.ceil(s), Math.ceil(s));
+      }
+    }
+    return cnv;
+  }
+
   // mini overhead layout of one hole (canvas): local zone window around the corridor
   function holeMiniCanvas(hole, w = 92, h = 128) {
     const c = state().course;
@@ -623,32 +715,39 @@ export function makeCourseEditor(app, hooks) {
   function openHoleSelect() {
     const holes = holesOf();
     const grid = el('div', { class: 'ced-holegrid' });
-    let selectedHole = holes[0] || null;
+    let picked = selectedHole() || holes[0] || null;
     const foot = el('div', { class: 'ced-holefoot' });
     const renderFoot = () => {
       foot.replaceChildren();
-      if (!selectedHole) return;
-      const yd = Math.round(holeDistanceYd(selectedHole));
+      if (!picked) return;
+      const yd = Math.round(holeDistanceYd(picked));
       foot.append(
         el('div', {},
-          el('b', { text: `${selectedHole.name}` }),
-          el('span', { class: 'ced-note', text: `  Par ${holePar(selectedHole)} · ${yd} yd · ${selectedHole.status}` }),
+          el('b', { text: `${picked.name}` }),
+          el('span', { class: 'ced-note', text: `  Par ${holePar(picked)} · ${yd} yd · ${picked.status}` }),
         ),
         el('div', {},
           el('button', {
-            text: '🎯 Frame it',
+            title: 'Fly the hole from tee to green',
             onclick: () => {
-              scene().frameHole(selectedHole);
+              closeModal();
+              selectHole(picked, { frame: false });
+              startFlyover(picked);
+            },
+          }, svgIcon('play'), el('span', { text: 'Flyover' })),
+          el('button', {
+            onclick: () => {
+              selectHole(picked);
               closeModal();
             },
-          }),
+          }, svgIcon('frame'), el('span', { text: 'Frame it' })),
           el('button', {
             class: 'primary',
             text: 'Edit Hole',
             onclick: () => {
               closeModal();
-              scene().frameHole(selectedHole);
-              openHoleSettings(selectedHole);
+              selectHole(picked);
+              openHoleSettings(picked);
             },
           }),
         ),
@@ -656,12 +755,12 @@ export function makeCourseEditor(app, hooks) {
     };
     holes.forEach((h) => {
       const n = holeNumber(state().course, h.id);
-      const card = el('button', { class: 'ced-holecard', onclick: () => { selectedHole = h; renderFoot(); for (const sib of grid.children) sib.classList.toggle('on', sib === card); } },
+      const card = el('button', { class: 'ced-holecard', onclick: () => { picked = h; renderFoot(); for (const sib of grid.children) sib.classList.toggle('on', sib === card); } },
         el('div', { class: 'ced-holenum', text: String(n) }),
         holeMiniCanvas(h),
         el('div', { class: 'ced-holemeta', text: h.tee && h.pin ? `Par ${holePar(h)} · ${Math.round(holeDistanceYd(h))} yd` : 'unbuilt' }),
       );
-      if (h === selectedHole) card.classList.add('on');
+      if (h === picked) card.classList.add('on');
       grid.append(card);
     });
     // add-hole card
@@ -811,6 +910,8 @@ export function makeCourseEditor(app, hooks) {
 
   // ------------------------------------------------------------ save ----
 
+  let lastSavedText = null;
+
   function openSaveDialog() {
     const bill = session ? Math.round(session.bill) : 0;
     const nameInput = el('input', { type: 'text', value: state().clubName, maxlength: '40' });
@@ -819,13 +920,22 @@ export function makeCourseEditor(app, hooks) {
         el('b', { text: 'Save course' }),
         el('button', { text: '✕', class: 'ced-x', onclick: closeModal }),
       ),
-      el('div', { class: 'ced-row' }, el('label', { text: 'Course name' }), nameInput),
-      bill > 0
-        ? el('div', { class: 'ced-note warn', text: `Unbuilt works worth ${formatMoney(bill)} are pending — Build applies and pays for them first.` })
-        : el('div', { class: 'ced-note', text: 'The course is settled — saving stores it to the autosave.' }),
+      el('div', { class: 'ced-save-body' },
+        el('div', { class: 'ced-save-fields' },
+          el('div', { class: 'ced-row' }, el('label', { text: 'Course name' }), nameInput),
+          bill > 0
+            ? el('div', { class: 'ced-note warn', text: `Unbuilt works worth ${formatMoney(bill)} are pending — Build applies and pays for them first.` })
+            : el('div', { class: 'ced-note', text: 'The course is settled — saving stores it to the autosave.' }),
+          el('div', { class: 'ced-note', text: lastSavedText ? `Last saved: ${lastSavedText}` : 'Not saved from the editor yet this visit.' }),
+        ),
+        el('div', { class: 'ced-save-thumbwrap' },
+          courseThumbCanvas(),
+          el('div', { class: 'ced-holemeta', text: `${state().clubName}` }),
+        ),
+      ),
       el('div', { class: 'ced-modal-foot' },
         el('button', {
-          text: '⬇ Export JSON',
+          text: 'Export JSON',
           title: 'Download the raw course data as a backup',
           onclick: () => {
             const c = state().course;
@@ -859,6 +969,7 @@ export function makeCourseEditor(app, hooks) {
               if (!doApply()) return;
             }
             hooks.autosave();
+            lastSavedText = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
             toast('Course saved.');
             closeModal();
             refreshTop();
@@ -987,6 +1098,10 @@ export function makeCourseEditor(app, hooks) {
 
   function onPointerDown(e) {
     if (!active || pt) return;
+    if (flyover) {
+      stopFlyover();
+      return;
+    }
     if (modalEl) return;
     if (e.target !== scene().renderer.domElement) return;
     const g = groundAt(e);
@@ -1419,7 +1534,8 @@ export function makeCourseEditor(app, hooks) {
         scene().frameCourse();
         break;
       case 'Escape':
-        if (modalEl) closeModal();
+        if (flyover) stopFlyover();
+        else if (modalEl) closeModal();
         else if (drawingPath) finishDrawing();
         else if (selected) setSelected(null);
         else if (measurePts.length) {
@@ -1430,6 +1546,44 @@ export function makeCourseEditor(app, hooks) {
       default:
         break;
     }
+  }
+
+  // ------------------------------------------------------------ flyover ----
+  // A slow camera ride from tee to green — the classic course-preview shot.
+  let flyover = null; // { hole, t }
+
+  function startFlyover(hole) {
+    if (!hole || !hole.tee || !hole.pin) return;
+    flyover = { hole, t: 0 };
+    hint('Flying the hole — click or press Esc to stop');
+  }
+
+  function stopFlyover() {
+    if (!flyover) return;
+    const hole = flyover.hole;
+    flyover = null;
+    scene().frameHole(hole);
+    hint(HINTS[tool] || '');
+  }
+
+  function stepFlyover(dt) {
+    if (!flyover) return;
+    const sc = scene();
+    const { hole } = flyover;
+    flyover.t = Math.min(1, flyover.t + dt / 7.5);
+    const t = flyover.t;
+    const ease = t * t * (3 - 2 * t);
+    const tx = sc.worldX(hole.tee.x);
+    const tz = sc.worldZ(hole.tee.y);
+    const px = sc.worldX(hole.pin.x);
+    const pz = sc.worldZ(hole.pin.y);
+    const rig = sc.rig;
+    rig.target.set(tx + (px - tx) * ease, 0, tz + (pz - tz) * ease);
+    rig.yaw = Math.atan2(tx - px, tz - pz); // always looking up the hole
+    rig.pitch = 0.52;
+    rig.dist = 105 + Math.sin(t * Math.PI) * 30;
+    rig.apply();
+    if (t >= 1) stopFlyover();
   }
 
   // ------------------------------------------------------------ playtest ----
@@ -1459,6 +1613,12 @@ export function makeCourseEditor(app, hooks) {
     leftCol.style.display = 'none';
     topBar.style.display = 'none';
     ui.ptBar.style.display = '';
+    // the reference playtest carries a hole mini-map beside the first-person view
+    ui.ptMap.replaceChildren(
+      holeMiniCanvas(hole, 108, 150),
+      el('div', { class: 'ced-holemeta', text: `${hole.name} · Par ${holePar(hole)}` }),
+    );
+    ui.ptMap.style.display = '';
     hint('Drag: aim · Hold left button: power · Release: swing · Esc: back to the editor');
     renderPtBar();
     followBallCamera(true);
@@ -1470,10 +1630,13 @@ export function makeCourseEditor(app, hooks) {
     scene().setBallVisual(null);
     scene().setAimArc(null);
     ui.ptBar.style.display = 'none';
+    ui.ptMap.style.display = 'none';
     leftCol.style.display = '';
     topBar.style.display = '';
     hint(HINTS[tool] || '');
-    scene().frameCourse();
+    const hole = selectedHole();
+    if (hole) scene().frameHole(hole);
+    else scene().frameCourse();
   }
 
   function renderPtBar() {
@@ -1493,7 +1656,7 @@ export function makeCourseEditor(app, hooks) {
       el('span', { class: 'ced-pt-chip hot', text: `Strokes ${hud.strokes}` }),
       el('span', { class: 'ced-pt-club' }, el('label', { text: 'Club ' }), clubSel),
       ui.ptPowerBar = el('span', { class: 'ced-pt-power' }, el('span', { class: 'fill' })),
-      el('button', { class: 'ced-top-btn', text: '⟵ Back to editor', onclick: () => exitPlaytest() }),
+      el('button', { class: 'ced-top-btn', text: '← Back to editor', onclick: () => exitPlaytest() }),
     );
     if (hud.holed) {
       ui.ptBar.append(el('span', { class: 'ced-pt-chip good', text: pt.events[pt.events.length - 1] || 'Holed!' }));
@@ -1590,6 +1753,8 @@ export function makeCourseEditor(app, hooks) {
 
   // ------------------------------------------------------------ lifecycle ----
 
+  let camLimits = null; // the rig's own limits, restored on hide
+
   function show() {
     active = true;
     session = makeEditSession(state());
@@ -1599,7 +1764,15 @@ export function makeCourseEditor(app, hooks) {
     ui.lightSel.value = 'day';
     scene().setLightingOverride('day');
     scene().setGolfersFrozen(true);
-    scene().frameCourse();
+    // the editor camera never becomes a satellite: cap distance and pitch so
+    // the course always reads as a 3D place (reference: 35–55° angles)
+    const rig = scene().rig;
+    camLimits = { maxDist: rig.maxDist, maxPitch: rig.maxPitch, minDist: rig.minDist };
+    rig.maxDist = 700; // enough to frame the property on a 16:9 monitor…
+    rig.maxPitch = 1.08; // …but never the flat satellite look (≈62° max)
+    rig.minDist = 36;
+    // open ON the first hole — the selected-hole workflow, not the whole map
+    selectHole(selectedHole(), { frame: true });
     refreshTop();
     window.addEventListener('pointerdown', pdHandler, true);
     window.addEventListener('pointermove', pmHandler, true);
@@ -1612,6 +1785,13 @@ export function makeCourseEditor(app, hooks) {
     if (pt) exitPlaytest();
     active = false;
     closeModal();
+    if (camLimits) {
+      const rig = scene().rig;
+      rig.maxDist = camLimits.maxDist;
+      rig.maxPitch = camLimits.maxPitch;
+      rig.minDist = camLimits.minDist;
+      camLimits = null;
+    }
     scene().setLightingOverride(null);
     scene().setGolfersFrozen(false);
     scene().setEditorBrush(null);
@@ -1635,6 +1815,7 @@ export function makeCourseEditor(app, hooks) {
     // compass follows the camera
     const yawDeg = -(scene().rig.yaw * 180) / Math.PI;
     ui.compass.style.transform = `rotate(${yawDeg}deg)`;
+    if (flyover) stepFlyover(Math.min(0.05, dtMs / 1000));
     if (pt) {
       const dt = Math.min(0.05, dtMs / 1000);
       if (ptPower) {

@@ -560,8 +560,9 @@ export function makeCourseScene(canvas, state) {
           } else if (zone < 4.5) { // TEE
             col = FW_STYLIZE(dTee, vec3(0.132, 0.395, 0.064)); gSplatN = nTee; gSplatUv = uvTee; gSplatRough = 0.93;
             stripeAmp = 0.14; stripeFreq = 0.16; modeSel = uStripeModes.z; followFlow = true;
-          } else if (zone < 5.5) { // BUNKER — warm sand that never washes to white
-            col = FW_STYLIZE(dSand, vec3(0.68, 0.57, 0.36)); gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
+          } else if (zone < 5.5) { // BUNKER — warm sand on a gentler curve (never blows to white)
+            col = (0.35 + dot(dSand, FW_LUMA) * 1.55) * vec3(0.74, 0.62, 0.42);
+            gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
           } else if (zone < 6.5) { // WATER bed
             col = FW_STYLIZE(dScrub, vec3(0.10, 0.16, 0.07)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.85;
           } else if (zone < 7.5) { // PATH — a dusty worn shoulder; the ribbon mesh is the pavement
@@ -1016,7 +1017,8 @@ export function makeCourseScene(canvas, state) {
         let height;
         let rot;
         if (s.obj) {
-          height = (isPine ? 9.4 : 7.3) * (s.obj.scale || 1);
+          // placed trees carry real presence: 8–12 yd canopies like the references
+          height = (isPine ? 10.6 : 8.4) * (s.obj.scale || 1);
           rot = s.obj.rot || 0;
         } else {
           const farBoost = 1 + Math.min(1.1, (s.far || 1) * 0.028); // distant forest reads taller
@@ -1109,7 +1111,28 @@ export function makeCourseScene(canvas, state) {
         console.warn('tree models unavailable — procedural fallback in use');
         rebuildTreesProcedural();
       }
+      freezeStaticCourse(); // freshly planted forests are still furniture
     });
+  }
+
+  // STATIC FURNITURE NEVER RECOMPOSES. The scene census counted every object paying a
+  // matrix recompose in every render pass (beauty + AO G-buffer + shadow bakes) — for
+  // things that never move after their rebuild. Each rebuild bakes world matrices once
+  // and freezes the subtree; a later rebuild recreates fresh auto-updating nodes and
+  // freezes them again. Movers stay auto: holeGroup's waving flags, and everything
+  // under structGroup (the clubhouse hinges its doors and walks its customers).
+  function freezeStatic(node) {
+    if (!node) return;
+    node.updateMatrixWorld(true);
+    node.traverse((o) => { o.matrixAutoUpdate = false; });
+  }
+  function freezeStaticCourse() {
+    freezeStatic(treeGroup);
+    freezeStatic(objectGroup);
+    freezeStatic(pathGroup);
+    freezeStatic(envRing);
+    for (const m of waterMeshes) freezeStatic(m);
+    freezeStatic(terrain);
   }
 
   // --- placed non-tree objects: shrubs, rocks, golf props, decorations -----------
@@ -2920,11 +2943,14 @@ export function makeCourseScene(canvas, state) {
   }
 
   // --- editor camera helpers -------------------------------------------------------------
+  // CINEMATIC framing, not satellite imagery: both compositions keep the
+  // camera at a 35–55° perspective so terrain, trees, and bunker bowls read
+  // with real depth (the references' angle).
   function frameCourse() {
-    rig.target.set(0, 0, 0);
-    rig.yaw = 0;
-    rig.pitch = 1.05;
-    rig.dist = Math.max(worldW, worldH) * 0.62;
+    rig.target.set(0, 0, -30);
+    rig.yaw = 0.35;
+    rig.pitch = 0.8; // ≈46°
+    rig.dist = Math.min(rig.maxDist, Math.max(worldW, worldH) * 0.66);
     rig.apply();
   }
   function frameHole(hole) {
@@ -2933,11 +2959,11 @@ export function makeCourseScene(canvas, state) {
     const tz = worldZ(hole.tee.y);
     const px = worldX(hole.pin.x);
     const pz = worldZ(hole.pin.y);
-    rig.target.set((tx + px) / 2, 0, (tz + pz) / 2);
-    // look UP the hole: camera behind the tee, pin ahead
+    // tee in the lower third, green up the frame: bias the target toward the green
+    rig.target.set(tx + (px - tx) * 0.58, 0, tz + (pz - tz) * 0.58);
     rig.yaw = Math.atan2(tx - px, tz - pz);
-    rig.pitch = 0.78;
-    rig.dist = clamp(Math.hypot(px - tx, pz - tz) * 1.15, 120, 620);
+    rig.pitch = 0.72; // ≈41°
+    rig.dist = clamp(Math.hypot(px - tx, pz - tz) * 1.08, 110, 460);
     rig.apply();
   }
 
@@ -3372,6 +3398,7 @@ export function makeCourseScene(canvas, state) {
     updateHoles();
     rebuildFlowField();
     updateTurf(st);
+    freezeStaticCourse();
     if (walk.active) refreshWalkColliders(); // works can plant or fell obstacles
   }
 
@@ -3388,6 +3415,7 @@ export function makeCourseScene(canvas, state) {
     if (holes) updateHoles();
     if (flow) rebuildFlowField();
     updateTurf(st);
+    freezeStaticCourse();
   }
 
   function dispose() {
