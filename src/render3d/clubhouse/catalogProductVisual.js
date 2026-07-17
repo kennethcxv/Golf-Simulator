@@ -221,11 +221,22 @@ function buildSimpleProduct(root, descriptor, merch, F) {
     case 'folded-polo':
     case 'folded-jacket':
       if (!model) {
-        const fold = F.add(new THREE.BoxGeometry(w, h, d), descriptor.kind === 'folded-jacket' ? F.materials.charcoal : F.materials.sage, 'FoldedGarment');
-        fold.position.y = h / 2;
+        const cloth = descriptor.kind === 'folded-jacket' ? F.materials.charcoal : F.materials.sage;
+        // A folded garment is TWO soft fabric layers with a rounded front crease, not one hard
+        // brick: a lower stack, a slightly smaller upper fold set back, and a rolled front edge.
+        const lower = F.add(new THREE.BoxGeometry(w, h * 0.52, d), cloth, 'FoldedGarment');
+        lower.position.y = h * 0.26;
+        const upper = F.add(new THREE.BoxGeometry(w * 0.96, h * 0.5, d * 0.92), cloth, 'FoldedGarmentTop');
+        upper.position.set(0, h * 0.73, -d * 0.02);
+        const crease = F.add(new THREE.CylinderGeometry(h * 0.24, h * 0.24, w * 0.99, 12), cloth, 'FoldCrease');
+        crease.rotation.z = Math.PI / 2;
+        crease.position.set(0, h * 0.42, d * 0.46);
+        // a shallow seam across the top hints at the sleeve fold
+        const seam = F.add(new THREE.BoxGeometry(w * 0.84, 0.003, d * 0.4), F.materials.charcoal, 'FoldSeam');
+        seam.position.set(0, h * 0.985, d * 0.05);
       }
       {
-        const collar = F.add(new THREE.BoxGeometry(0.075, 0.012, 0.045), F.materials.cream, 'FoldedCollar');
+        const collar = F.add(new THREE.BoxGeometry(0.078, 0.014, 0.052), F.materials.cream, 'FoldedCollar');
         collar.position.set(0, h + 0.006, -d * 0.22);
         if (descriptor.kind === 'folded-jacket') {
           const zip = F.add(new THREE.BoxGeometry(0.008, 0.012, d * 0.72), F.materials.brass, 'JacketZip');
