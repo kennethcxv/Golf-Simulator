@@ -30,17 +30,50 @@ import {
   startPlaytest, strike, stepBall, remainingYd, playtestHud, suggestClub, CLUBS,
 } from '../sim/playtest.js';
 
+// Monochrome stroke icons (no emoji — the reference UI is quiet and premium).
+const ICONS = {
+  select: '<path d="M4 2l9 7-4.2 1L7 14z"/>',
+  terrain: '<path d="M1.5 13L6 5l3 4.6L11 6l3.5 7z"/><path d="M12 3.5l.01 0"/>',
+  paint: '<path d="M9.5 2.5l4 4L7 13H3v-4z"/><path d="M11 8L8 5"/>',
+  tee: '<path d="M4.5 4h7M8 4v6.5M6.5 13h3M8 10.5V13"/><circle cx="8" cy="2.4" r="1.1"/>',
+  green: '<path d="M5 14V3"/><path d="M5 3.6h6.5L9.5 6l2 2.4H5"/><path d="M2.5 14h7"/>',
+  bunker: '<path d="M2 11.5q6-7.5 12 0"/><path d="M5 13.4h.01M8 12.8h.01M11 13.4h.01"/>',
+  water: '<path d="M8 2.2c2.8 3.6 4.6 5.6 4.6 8a4.6 4.6 0 11-9.2 0c0-2.4 1.8-4.4 4.6-8z"/>',
+  objects: '<path d="M8 2l4 5.4H4z"/><path d="M8 6.6l3.2 4.6H4.8z"/><path d="M8 11.2V14"/>',
+  paths: '<path d="M2 14c4.5-3.5 5-6.5 12-10" stroke-dasharray="2.6 2"/>',
+  measure: '<path d="M3.5 12.5l9-9"/><path d="M5.5 10.5l1.2 1.2M7.5 8.5l1.2 1.2M9.5 6.5l1.2 1.2"/>',
+  play: '<path d="M5.5 3.2l7.5 4.8-7.5 4.8z"/>',
+  undo: '<path d="M6.5 3.5L3 7l3.5 3.5"/><path d="M3 7h6a4 4 0 014 4v1.5"/>',
+  redo: '<path d="M9.5 3.5L13 7l-3.5 3.5"/><path d="M13 7H7a4 4 0 00-4 4v1.5"/>',
+  save: '<path d="M3 3h8.5L13 4.5V13H3z"/><path d="M5 3v3.5h5V3"/><path d="M5 13v-4h6v4"/>',
+  holes: '<path d="M6 14V4"/><path d="M6 4.5h5L9.4 6.4 11 8.3H6"/>',
+  stats: '<path d="M3.5 13V8.5M7.5 13V4M11.5 13V6.5"/><path d="M2 13.5h12"/>',
+  exit: '<path d="M4 4l8 8M12 4l-8 8"/>',
+  flag: '<path d="M5 14V3"/><path d="M5 3.6h6.5L9.5 6l2 2.4H5"/>',
+  frame: '<path d="M2.5 5.5v-3h3M13.5 5.5v-3h-3M2.5 10.5v3h3M13.5 10.5v3h-3"/>',
+  shrub: '<path d="M4.5 13c-2-1.5-2-4.5.5-5.5C4.5 4.5 7 3.5 8 5c1-1.5 3.5-.5 3 2.5 2.5 1 2.5 4 .5 5.5z"/><path d="M8 13v1.5"/>',
+  rock: '<path d="M3 12l1.5-4.5L8 5l4 1.5L13.5 12z"/><path d="M8 5l1 7"/>',
+  prop: '<path d="M3 12.5V9.5h10v3"/><path d="M4 9.5V6h8v3.5"/><path d="M4.5 12.5v1M11.5 12.5v1"/>',
+  decor: '<circle cx="8" cy="5" r="2.4"/><path d="M8 7.5V12"/><path d="M5.5 13.5h5"/><path d="M8 9.5c-1.5-.5-2.5-1.5-3-3M8 9.5c1.5-.5 2.5-1.5 3-3"/>',
+};
+
+function svgIcon(name) {
+  const span = el('span', { class: 'ced-ico' });
+  span.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">${ICONS[name] || ICONS.select}</svg>`;
+  return span;
+}
+
 const TOOLS = [
-  { key: 'select', icon: '➤', label: 'Select' },
-  { key: 'terrain', icon: '⛰', label: 'Terrain' },
-  { key: 'paint', icon: '🖌', label: 'Paint' },
-  { key: 'tee', icon: '⛳', label: 'Tee' },
-  { key: 'green', icon: '🟢', label: 'Green' },
-  { key: 'bunker', icon: '🏖', label: 'Bunker' },
-  { key: 'water', icon: '💧', label: 'Water' },
-  { key: 'objects', icon: '🌲', label: 'Objects' },
-  { key: 'paths', icon: '🛤', label: 'Paths' },
-  { key: 'measure', icon: '📐', label: 'Measure' },
+  { key: 'select', icon: 'select', label: 'Select' },
+  { key: 'terrain', icon: 'terrain', label: 'Terrain' },
+  { key: 'paint', icon: 'paint', label: 'Paint' },
+  { key: 'tee', icon: 'tee', label: 'Tee' },
+  { key: 'green', icon: 'green', label: 'Green' },
+  { key: 'bunker', icon: 'bunker', label: 'Bunker' },
+  { key: 'water', icon: 'water', label: 'Water' },
+  { key: 'objects', icon: 'objects', label: 'Objects' },
+  { key: 'paths', icon: 'paths', label: 'Paths' },
+  { key: 'measure', icon: 'measure', label: 'Measure' },
 ];
 
 const PAINT_SURFACES = [

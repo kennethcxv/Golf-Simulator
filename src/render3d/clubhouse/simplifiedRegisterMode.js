@@ -1110,6 +1110,7 @@ export function createRegisterMode(B) {
   const cardTravel = {
     ready: new THREE.Vector3(INSERT_READY.x, INSERT_READY.y, INSERT_READY.z),
     inserted: new THREE.Vector3(INSERTED.x, INSERTED.y, INSERTED.z),
+    mouth: null, // one card-length out along the slot axis — the corner the path must round
     quaternion: new THREE.Quaternion(),
     fromSocket: false,
   };
@@ -1137,6 +1138,11 @@ export function createRegisterMode(B) {
     // tilts up into it (the slot mouth sits barely above the countertop, so an
     // in-axis ready pose would bury the card in the counter)
     cardTravel.ready.set(inserted.x, COUNTER_TOP + 0.02, inserted.z + 0.20);
+    // the slot MOUTH: a card-length back out along the socket's slide axis. Travel between
+    // mouth and seat is purely axial (card stays in the slot plane), so neither inserting
+    // nor ejecting ever cuts the reader's face — the eject used to leave on the diagonal
+    // and phase through the housing's lip.
+    cardTravel.mouth = root.worldToLocal(cardSocketNode.localToWorld(new THREE.Vector3(0, -0.085, 0)));
     cardTravel.quaternion.copy(socketQuat).multiply(CARD_TO_SOCKET);
     cardTravel.fromSocket = true;
     INSERT_READY.x = cardTravel.ready.x;
@@ -2474,6 +2480,11 @@ export function createRegisterMode(B) {
       );
       receiptMesh.name = 'PrintedReceipt';
       const slot = printerSlotLocal();
+      // stand the paper PROUD of the slot: a nudge up and toward the cashier keeps the
+      // leaning sheet outside the printer shell for the whole feed (it used to grow from
+      // inside the housing and read as paper phasing through plastic)
+      slot.y += 0.012;
+      slot.z += 0.022;
       receiptMesh.position.copy(slot);
       // face the cashier, leaning back like paper standing out of the slot
       receiptMesh.rotation.set(-0.42, 0, 0);
@@ -3082,12 +3093,23 @@ export function createRegisterMode(B) {
 
     if (cardMesh && cardPresentationTimer <= 0) {
       const travel = THREE.MathUtils.smoothstep(cardU, 0, 1);
-      cardMesh.position.lerpVectors(cardTravel.ready, cardTravel.inserted, travel);
-      if (cardTravel.fromSocket) {
-        // rise off the counter and tilt up into the slot plane
-        cardMesh.position.y += Math.sin(travel * Math.PI) * 0.022;
-        cardMesh.quaternion.slerpQuaternions(FLAT_QUAT, cardTravel.quaternion, travel);
+      if (cardTravel.fromSocket && cardTravel.mouth) {
+        // two legs, both directions: counter ↔ slot mouth (rise + tilt), then mouth ↔ seat
+        // strictly along the slot axis at full tilt — the card can only enter or leave the
+        // reader through its own slot
+        const SPLIT = 0.62;
+        if (travel >= SPLIT) {
+          const axial = (travel - SPLIT) / (1 - SPLIT);
+          cardMesh.position.lerpVectors(cardTravel.mouth, cardTravel.inserted, axial);
+          cardMesh.quaternion.copy(cardTravel.quaternion);
+        } else {
+          const approach = travel / SPLIT;
+          cardMesh.position.lerpVectors(cardTravel.ready, cardTravel.mouth, approach);
+          cardMesh.position.y += Math.sin(approach * Math.PI) * 0.022;
+          cardMesh.quaternion.slerpQuaternions(FLAT_QUAT, cardTravel.quaternion, approach);
+        }
       } else {
+        cardMesh.position.lerpVectors(cardTravel.ready, cardTravel.inserted, travel);
         cardMesh.rotation.set(0, 0, 0);
       }
     }
@@ -3167,8 +3189,18 @@ export function createRegisterMode(B) {
       if (receiptMesh) {
         const t = 1 - deliveryTimer / RECEIPT_DELIVER_TIME;
         const eased = THREE.MathUtils.smoothstep(t, 0, 1);
-        receiptMesh.position.lerpVectors(deliveryFrom, deliveryTo, eased);
-        receiptMesh.position.y += Math.sin(t * Math.PI) * 0.16;
+        // a real hand-over arc: up out of the printer, OVER the register gear, down to
+        // the customer — a quadratic bezier whose apex clears the tallest thing between
+        // the slot and the hand (the straight lerp used to cut through the housing)
+        const apexY = Math.max(deliveryFrom.y, deliveryTo.y) + 0.34;
+        const inv = 1 - eased;
+        const midX = (deliveryFrom.x + deliveryTo.x) / 2;
+        const midZ = (deliveryFrom.z + deliveryTo.z) / 2;
+        receiptMesh.position.set(
+          inv * inv * deliveryFrom.x + 2 * inv * eased * midX + eased * eased * deliveryTo.x,
+          inv * inv * deliveryFrom.y + 2 * inv * eased * apexY + eased * eased * deliveryTo.y,
+          inv * inv * deliveryFrom.z + 2 * inv * eased * midZ + eased * eased * deliveryTo.z,
+        );
         receiptMesh.rotation.x = -0.42 + eased * 0.30;
         receiptMesh.rotation.y = eased * 0.5;
       }
