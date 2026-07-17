@@ -964,11 +964,21 @@ export function makeCourseScene(canvas, state) {
         waterNormals: waterNormalsTex,
         sunDirection: sun.position.clone().normalize(),
         sunColor: 0xf4ede0, // soften the specular so low angles don't read as ice
-        waterColor: 0x2a6d8f, // §1: friendly stream blue, not swamp-deep teal
-        distortionScale: 3.6, // choppier normals break the full-sky mirror
+        waterColor: 0x3a7f9c, // §1: friendly stream blue-green, lifted so shaded ponds never read black
+        distortionScale: 3.4, // choppier normals break the full-sky mirror
+        alpha: 0.92, // a touch of the ground shows through — never a pure mirror
         fog: !!scene.fog,
       });
       water.material.uniforms.size.value = 5.5; // ripple scale
+      // Water addon multiplies the reflection into its own colour; without a
+      // floor a tree-shaded pond reflects dark canopy and reads BLACK. Inject a
+      // minimum toward waterColor so every pond stays legibly blue-green.
+      water.material.onBeforeCompile = (sh) => {
+        sh.fragmentShader = sh.fragmentShader.replace(
+          'gl_FragColor = vec4( outgoingLight, alpha );',
+          'gl_FragColor = vec4( max( outgoingLight, waterColor * 0.34 ), alpha );',
+        );
+      };
       water.position.set(cx, level, cz);
       scene.add(water);
       waterMeshes.push(water);
@@ -1235,11 +1245,10 @@ export function makeCourseScene(canvas, state) {
   // geometry within ~26yd, surface-gated (short on greens/tees/fairway, tall on
   // rough/native, none on sand/water/paths), wind-swayed in the vertex shader.
   // Only alive on foot / in playtest — the overview never pays for it.
-  const GRASS_COUNT = 7000;
+  const GRASS_COUNT = 9000; // instance-buffer cap; the lattice fills up to this
   const GRASS_RADIUS = 22; // yards from camera
   let grassMesh = null;
   let grassActive = false;
-  const grassCenter = new THREE.Vector2(9999, 9999);
 
   function bladeGeometry() {
     // a tuft: two crossed tapered blades so it reads from every angle
@@ -1346,43 +1355,77 @@ export function makeCourseScene(canvas, state) {
     }
   }
 
+  function insideStructure(wx, wz) {
+    for (const s of course.structures || []) {
+      const x0 = worldX(s.x) - CELL_YD * 0.5 - 1.5;
+      const x1 = worldX(s.x + s.w - 1) + CELL_YD * 0.5 + 1.5;
+      const z0 = worldZ(s.y) - CELL_YD * 0.5 - 1.5;
+      const z1 = worldZ(s.y + s.h - 1) + CELL_YD * 0.5 + 1.5;
+      if (wx >= x0 && wx <= x1 && wz >= z0 && wz <= z1) return true;
+    }
+    return false;
+  }
+
+  // WORLD-ANCHORED grass: blades live on a fixed ~1.15yd lattice, so when the
+  // camera moves the field stays put (no swimming, no camera-locked circle).
+  // Each frame we fill the instance buffer from the lattice cells within radius.
+  const GRASS_STEP = 0.62; // yards between lattice points (density)
+  const grassAnchor = new THREE.Vector2(1e9, 1e9);
   function updateGrass(camX, camZ, force) {
     if (!grassActive) {
       if (grassMesh && grassMesh.visible) { grassMesh.visible = false; grassMesh.count = 0; }
       return;
     }
     if (!grassMesh) buildGrass();
-    // recenter only when the camera has moved a few yards (keeps blades stable)
-    if (!force && Math.hypot(camX - grassCenter.x, camZ - grassCenter.y) < 3.5) return;
-    grassCenter.set(camX, camZ);
+    // rebuild only every ~1.5yd of camera travel — the field is world-anchored,
+    // so this just changes WHICH lattice points are in range (rim fade hides lag)
+    if (!force && Math.hypot(camX - grassAnchor.x, camZ - grassAnchor.y) < 1.5) return;
+    grassAnchor.set(camX, camZ);
+    const R = GRASS_RADIUS;
+    const R2 = R * R;
+    const gx0 = Math.floor((camX - R) / GRASS_STEP);
+    const gx1 = Math.ceil((camX + R) / GRASS_STEP);
+    const gz0 = Math.floor((camZ - R) / GRASS_STEP);
+    const gz1 = Math.ceil((camZ + R) / GRASS_STEP);
     let n = 0;
-    for (let i = 0; i < GRASS_COUNT; i++) {
-      // low-discrepancy spiral disc so density is even, denser near the camera
-      const a = i * 2.399963; // golden angle
-      const rr = Math.sqrt((i + 0.5) / GRASS_COUNT) * GRASS_RADIUS;
-      const jx = (grassSeed(i * 2 + 1) - 0.5) * 1.4;
-      const jz = (grassSeed(i * 2 + 7) - 0.5) * 1.4;
-      const wx = camX + Math.cos(a) * rr + jx;
-      const wz = camZ + Math.sin(a) * rr + jz;
-      const cx = Math.floor((wx + worldW / 2) / CELL_YD);
-      const cy = Math.floor((wz + worldH / 2) / CELL_YD);
-      if (cx < 0 || cy < 0 || cx >= W || cy >= H) continue;
-      const spec = grassForZone(course.zones[cy * W + cx]);
-      if (!spec) continue;
-      // thin out with distance so the far ring isn't a wall
-      if (rr > GRASS_RADIUS * 0.55 && grassSeed(i * 3 + 2) > 0.62) continue;
-      const wy = heightAt(wx, wz) - 0.03; // roots sit just into the ground
-      const hh = spec.h * (0.75 + grassSeed(i * 5 + 3) * 0.6);
-      const rot = grassSeed(i * 7 + 4) * 6.283;
-      _ge.set(0, rot, 0);
-      _gq.setFromEuler(_ge);
-      const wobble = 0.85 + grassSeed(i * 11 + 9) * 0.4;
-      _gm.compose(_gv.set(wx, wy, wz), _gq, _gs.set(wobble, hh, wobble));
-      grassMesh.setMatrixAt(n, _gm);
-      const b = 0.85 + grassSeed(i * 13 + 6) * 0.3;
-      _gc.setRGB(spec.c[0] * b, spec.c[1] * b, spec.c[2] * b);
-      grassMesh.setColorAt(n, _gc);
-      n++;
+    for (let gz = gz0; gz <= gz1 && n < GRASS_COUNT; gz++) {
+      for (let gx = gx0; gx <= gx1 && n < GRASS_COUNT; gx++) {
+        // deterministic hash keyed by WORLD lattice cell → stable per location
+        const hk = ((gx * 92837111) ^ (gz * 689287499)) >>> 0;
+        const s1 = ((hk ^ (hk >>> 13)) >>> 0) / 4294967296;
+        const s2 = (((hk * 1274126177) ^ (hk >>> 16)) >>> 0) / 4294967296;
+        const s3 = (((hk * 2246822519) ^ (hk >>> 11)) >>> 0) / 4294967296;
+        const s4 = (((hk * 3266489917) ^ (hk >>> 15)) >>> 0) / 4294967296;
+        const wx = gx * GRASS_STEP + (s1 - 0.5) * GRASS_STEP * 0.9;
+        const wz = gz * GRASS_STEP + (s2 - 0.5) * GRASS_STEP * 0.9;
+        const dx = wx - camX;
+        const dz = wz - camZ;
+        const d2 = dx * dx + dz * dz;
+        if (d2 > R2) continue;
+        const cx = Math.floor((wx + worldW / 2) / CELL_YD);
+        const cy = Math.floor((wz + worldH / 2) / CELL_YD);
+        if (cx < 0 || cy < 0 || cx >= W || cy >= H) continue;
+        const spec = grassForZone(course.zones[cy * W + cx]);
+        if (!spec) continue;
+        if (insideStructure(wx, wz)) continue;
+        // density falls with distance so the far ring dissolves, no hard circle
+        const distN = d2 / R2; // 0 near → 1 at the rim
+        if (distN > 0.35 && s3 < (distN - 0.35) / 0.9) continue;
+        const wy = heightAt(wx, wz) - 0.03;
+        // fade height at the rim so blades sink out instead of popping
+        const rimFade = distN > 0.8 ? 1 - (distN - 0.8) / 0.2 : 1;
+        const hh = spec.h * (0.72 + s3 * 0.6) * rimFade;
+        if (hh < 0.03) continue;
+        _ge.set(0, s4 * 6.283, 0);
+        _gq.setFromEuler(_ge);
+        const wobble = 0.85 + s1 * 0.4;
+        _gm.compose(_gv.set(wx, wy, wz), _gq, _gs.set(wobble, hh, wobble));
+        grassMesh.setMatrixAt(n, _gm);
+        const b = 0.85 + s2 * 0.3;
+        _gc.setRGB(spec.c[0] * b, spec.c[1] * b, spec.c[2] * b);
+        grassMesh.setColorAt(n, _gc);
+        n++;
+      }
     }
     grassMesh.count = n;
     grassMesh.visible = n > 0;
@@ -1393,7 +1436,8 @@ export function makeCourseScene(canvas, state) {
   function setGrassActive(on) {
     grassActive = on;
     if (on && !grassMesh) buildGrass();
-    if (!on && grassMesh) { grassMesh.visible = false; grassMesh.count = 0; grassCenter.set(9999, 9999); }
+    if (on) grassAnchor.set(1e9, 1e9); // force a rebuild on (re)activation
+    if (!on && grassMesh) { grassMesh.visible = false; grassMesh.count = 0; }
   }
 
   // --- placed non-tree objects: shrubs, rocks, golf props, decorations -----------

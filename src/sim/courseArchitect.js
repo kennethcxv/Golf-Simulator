@@ -387,21 +387,26 @@ export function designCourse(rng, opts = {}) {
   };
   // start at the clubhouse cart staging
   push(CLUBHOUSE.x + CLUBHOUSE.w + 0.8, CLUBHOUSE.y + CLUBHOUSE.h - 0.6);
+  const courseCx = 60;
+  const courseCy = 40;
   for (let i = 0; i < designed.length; i++) {
     const d = designed[i];
-    // side of the corridor the path rides: away from the NEXT hole's tee walk
-    const side = [1, 1, -1, -1, 1, 1, -1, -1, -1][i] || 1;
-    const n = 10;
+    const n = 12;
     for (let k = 0; k <= n; k++) {
       const t = k / n;
       const p = alongPoly(d.lineSampled, t);
-      // ride in the rough, just inside the tree line — max fairway half-width
-      // at the landing plus a margin, so the path never crosses the short grass
+      // the path ALWAYS rides the OUTWARD side of the hole (away from the course
+      // interior, toward the boundary forest) so it never crosses another
+      // fairway. Pick the corridor-perpendicular sign that points away from the
+      // course centre.
+      const nx = -p.ty; // corridor normal (one side)
+      const ny = p.tx;
+      const outward = (p.x - courseCx) * nx + (p.y - courseCy) * ny >= 0 ? 1 : -1;
       const fwHalf = d.vh.width ? d.vh.width.reduce((mx, s) => Math.max(mx, s.w), 0) / CELL_YD : 3;
-      const off = side * (fwHalf + (d.vh.roughW / CELL_YD) * 0.5 + 0.6 + Math.sin(t * 4.4 + i) * 0.4);
+      const off = outward * (fwHalf + (d.vh.roughW / CELL_YD) * 0.5 + 0.8 + Math.sin(t * 3.6 + i) * 0.3);
       // pull in tight at the tee and the green so carts actually arrive
-      const pull = t < 0.05 || t > 0.95 ? 0.42 : 1;
-      push(p.x - p.ty * off * pull, p.y + p.tx * off * pull);
+      const pull = t < 0.06 || t > 0.94 ? 0.4 : 1;
+      push(p.x + nx * off * pull, p.y + ny * off * pull);
     }
   }
   // home leg back to the clubhouse
@@ -520,14 +525,40 @@ function addObj(course, type, x, y, rot, scale) {
   return o;
 }
 
-function plantable(course, x, y) {
-  const z = getZone(course, Math.round(x), Math.round(y));
-  return (z === ZONE.OUT || z === ZONE.HEAVY || z === ZONE.ROUGH) && structureClear(course, x, y);
+function plantable(course, x, y, waterClear = null) {
+  const cx = Math.round(x);
+  const cy = Math.round(y);
+  const z = getZone(course, cx, cy);
+  if (z !== ZONE.OUT && z !== ZONE.HEAVY && z !== ZONE.ROUGH) return false;
+  if (!structureClear(course, x, y)) return false;
+  // keep tall canopy off the shoreline so ponds reflect sky, not dark trees
+  if (waterClear && waterClear[cy * course.w + cx]) return false;
+  return true;
+}
+
+// cells within `r` of any water cell — trees stay out so shorelines stay open
+function waterClearField(course, r = 2) {
+  const { w, h, zones } = course;
+  const field = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (zones[y * w + x] !== ZONE.WATER) continue;
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx >= 0 && ny >= 0 && nx < w && ny < h) field[ny * w + nx] = 1;
+        }
+      }
+    }
+  }
+  return field;
 }
 
 function plantProperty(course, designed, rng) {
   const { w, h } = course;
   const dist = playDistance(course, 8);
+  const waterClear = waterClearField(course, 2);
 
   // regional species character: pine belts vs broadleaf, from low-freq noise
   const beltNoise = (x, y) => fbm(x * 0.045 + 71.3, y * 0.045 - 23.7);
@@ -543,7 +574,7 @@ function plantProperty(course, designed, rng) {
       if (rng.next() > dens) continue;
       const px = x + (rng.next() - 0.5) * 0.9;
       const py = y + (rng.next() - 0.5) * 0.9;
-      if (!plantable(course, px, py)) continue;
+      if (!plantable(course, px, py, waterClear)) continue;
       const belt = beltNoise(x, y);
       let type;
       if (belt > 0.62) type = pickSpecies(rng, [['pine_a', 0.42], ['pine_b', 0.28], ['spruce_a', 0.2], ['fill_a', 0.1]]);
@@ -562,7 +593,7 @@ function plantProperty(course, designed, rng) {
       if (gate < 0.35 || rng.next() > 0.55) continue;
       const px = x + (rng.next() - 0.5) * 0.8;
       const py = y + (rng.next() - 0.5) * 0.8;
-      if (!plantable(course, px, py)) continue;
+      if (!plantable(course, px, py, waterClear)) continue;
       const belt = beltNoise(x, y);
       const type = belt > 0.62
         ? pickSpecies(rng, [['pine_a', 0.5], ['pine_b', 0.3], ['spruce_a', 0.2]])
@@ -580,7 +611,7 @@ function plantProperty(course, designed, rng) {
       const r = 3.2 + rng.next() * 1.2;
       const px = wp.x + Math.cos(a) * r;
       const py = wp.y + Math.sin(a) * r;
-      if (!plantable(course, px, py)) continue;
+      if (!plantable(course, px, py, waterClear)) continue;
       addObj(course, rng.next() < 0.6 ? 'oak_a' : 'shade_a', px, py, rng.next() * Math.PI * 2, 1.25 + rng.next() * 0.3);
     }
   }
@@ -594,7 +625,7 @@ function plantProperty(course, designed, rng) {
       const r = 3.0 + rng.next() * 1.8;
       const px = g.cx + Math.cos(a) * r;
       const py = g.cy + Math.sin(a) * r;
-      if (!plantable(course, px, py)) continue;
+      if (!plantable(course, px, py, waterClear)) continue;
       addObj(course, pickSpecies(rng, [['oak_a', 0.3], ['maple_a', 0.3], ['pine_a', 0.2], ['oak_b', 0.2]]),
         px, py, rng.next() * Math.PI * 2, 1.05 + rng.next() * 0.35);
     }
