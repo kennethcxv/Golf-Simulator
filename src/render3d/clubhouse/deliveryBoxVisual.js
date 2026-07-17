@@ -10,9 +10,24 @@ import * as THREE from 'three';
 import { buildCatalogProductProxy } from './catalogProductVisual.js';
 import { createOwnedStockResources } from './stockResources.js';
 
-export const DELIVERY_MODEL_BY_BOX_KIND = Object.freeze({
-  apparel: 'delivery_apparel_box',
+const DELIVERY_BOX_VISUALS = Object.freeze({
+  apparel: Object.freeze({
+    model: 'delivery_apparel_box',
+    productScale: 0.60,
+    layout: 'apparel-pairs',
+    shippingClass: 'APPAREL',
+  }),
+  merchbox: Object.freeze({
+    model: 'delivery_generic_merchandise_box',
+    productScale: 0.85,
+    layout: 'authored',
+    shippingClass: 'MERCHANDISE',
+  }),
 });
+
+export const DELIVERY_MODEL_BY_BOX_KIND = Object.freeze(Object.fromEntries(
+  Object.entries(DELIVERY_BOX_VISUALS).map(([kind, visual]) => [kind, visual.model]),
+));
 
 const FLAP_NAMES = Object.freeze([
   'BOX_FLAP_FRONT',
@@ -102,10 +117,10 @@ function findNamed(root, name) {
     || null;
 }
 
-function drawShippingLabel(ctx, box, sku) {
+function drawShippingLabel(ctx, box, sku, shippingClass) {
   const supplier = String(box.supplier || 'PINEHOLLOW SUPPLY').toUpperCase();
   const order = String(box.orderId || 0).padStart(4, '0');
-  const product = String((sku && sku.name) || box.skuId || 'APPAREL').toUpperCase();
+  const product = String((sku && sku.name) || box.skuId || shippingClass || 'STOCK').toUpperCase();
   const weight = box.lb == null ? '' : `${box.lb} LB`;
 
   ctx.clearRect(0, 0, 512, 320);
@@ -118,7 +133,7 @@ function drawShippingLabel(ctx, box, sku) {
   ctx.strokeRect(10, 10, 492, 300);
   ctx.fillStyle = '#f7f0dd';
   ctx.font = '700 31px Georgia, serif';
-  ctx.fillText('PINEHOLLOW  /  APPAREL', 24, 38);
+  ctx.fillText(`PINEHOLLOW  /  ${shippingClass || 'STOCK'}`.slice(0, 30), 24, 38);
   ctx.fillStyle = '#29322d';
   ctx.font = '700 30px Arial, sans-serif';
   ctx.fillText(supplier.slice(0, 28), 24, 93);
@@ -134,14 +149,14 @@ function drawShippingLabel(ctx, box, sku) {
   ctx.fillText(box.fragile ? 'HANDLE WITH CARE' : 'PRO SHOP STOCK', 40, 271);
 }
 
-function makeDynamicLabel(box, sku, resources) {
+function makeDynamicLabel(box, sku, resources, shippingClass) {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 320;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  drawShippingLabel(ctx, box, sku);
+  drawShippingLabel(ctx, box, sku, shippingClass);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   // Imported glTF UVs already use the texture orientation GLTFLoader expects.
@@ -162,7 +177,7 @@ function makeDynamicLabel(box, sku, resources) {
       const next = `${nextBox.supplier || ''}|${nextBox.orderId || 0}|${shippedQty}|${nextBox.lb || ''}|${nextBox.fragile ? 1 : 0}`;
       if (next === this.signature) return;
       this.signature = next;
-      drawShippingLabel(ctx, nextBox, sku);
+      drawShippingLabel(ctx, nextBox, sku, shippingClass);
       texture.needsUpdate = true;
     },
     dispose() { texture.dispose(); },
@@ -187,25 +202,22 @@ function fallbackSockets(root) {
   return slots;
 }
 
-function putProductsInSockets({ root, sockets, sku, merch, mats, resources }) {
+function putProductsInSockets({ root, sockets, sku, merch, mats, resources, productScale }) {
   return sockets.map((socket, index) => {
     const built = buildCatalogProductProxy({ sku, merch, mats, resources });
     const product = built.root;
     product.name = `BOX_CONTENT_${String(index + 1).padStart(2, '0')}_${sku ? sku.id : 'unknown'}`;
     product.position.set(0, 0, 0);
     product.rotation.y = index % 2 ? Math.PI : 0;
-    // The medium apparel carton presents all eight tightly packed garments in
-    // one shallow fan. Keeping the actual catalog silhouette at a restrained
-    // scale makes every unit readable from the normal first-person camera.
-    product.scale.multiplyScalar(0.60);
+    product.scale.multiplyScalar(productScale || 1);
     socket.add(product);
     return product;
   });
 }
 
-function layoutVisibleProducts(sockets, visible, total) {
+function layoutVisibleProducts(sockets, visible, total, layout) {
   const clampedVisible = Math.max(0, Math.min(total, visible));
-  if (total !== 8 || sockets.length !== 8) {
+  if (layout !== 'apparel-pairs' || total !== 8 || sockets.length !== 8) {
     return new Set(Array.from({ length: clampedVisible }, (_, index) => index));
   }
 
@@ -264,12 +276,13 @@ function applyFlatten(walls, flaps, amount) {
 }
 
 export function canBuildDeliveryBoxVisual(box, merch) {
-  const model = DELIVERY_MODEL_BY_BOX_KIND[box && box.box];
+  const model = DELIVERY_BOX_VISUALS[box && box.box]?.model;
   return !!(model && merch && typeof merch.has === 'function' && merch.has(model));
 }
 
 export function createDeliveryBoxVisual({ box, sku, merch, mats }) {
-  const model = DELIVERY_MODEL_BY_BOX_KIND[box && box.box];
+  const visual = DELIVERY_BOX_VISUALS[box && box.box];
+  const model = visual?.model;
   if (!model || !merch || typeof merch.instantiate !== 'function') return null;
   const authored = merch.instantiate(model);
   if (!authored) return null;
@@ -299,14 +312,22 @@ export function createDeliveryBoxVisual({ box, sku, merch, mats }) {
   const tissue = namedDescendants(authored, (name) => name.includes('TISSUE') || name.includes('DIVIDER') || name.includes('INSERT'));
   let sockets = namedDescendants(authored, (name) => name.startsWith('CONTENT_SLOT_'));
   if (!sockets.length) sockets = fallbackSockets(authored);
-  const products = putProductsInSockets({ root: authored, sockets, sku, merch, mats, resources });
+  const products = putProductsInSockets({
+    root: authored,
+    sockets,
+    sku,
+    merch,
+    mats,
+    resources,
+    productScale: visual.productScale,
+  });
   const flatBundle = findNamed(authored, 'BOX_FLAT_BUNDLE');
   if (flatBundle) {
     rememberPose(flatBundle);
     flatBundle.visible = false;
   }
 
-  const label = makeDynamicLabel(box, sku, resources);
+  const label = makeDynamicLabel(box, sku, resources, visual.shippingClass);
   const labelMeshes = namedDescendants(authored, (name, object) => object.isMesh && (name.includes('LABEL_DYNAMIC') || name.includes('LABEL_SHIPPING')));
   if (label) labelMeshes.forEach((mesh) => { mesh.material = label.material; });
 
@@ -364,7 +385,7 @@ export function createDeliveryBoxVisual({ box, sku, merch, mats }) {
     const interiorRevealed = flapValues.some((value) => value > 0.01)
       || ['OPEN', 'PARTIALLY_EMPTIED', 'EMPTY', 'FLATTENING'].includes(nextBox.lifecycle);
     const visible = visibleContentsForBox(nextBox, products.length);
-    const visibleIndices = layoutVisibleProducts(sockets, visible, products.length);
+    const visibleIndices = layoutVisibleProducts(sockets, visible, products.length, visual.layout);
     products.forEach((product, index) => {
       product.visible = interiorRevealed && visibleIndices.has(index) && flatten < 0.46;
     });

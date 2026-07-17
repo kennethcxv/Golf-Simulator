@@ -988,7 +988,8 @@ export function buildStockroomDressing(B) {
     }
   });
 
-  // packing bench: steel legs, worn walnut top, clipboard + tape gun
+  // packing bench: steel legs, worn walnut top, clipboard, tape gun and the
+  // authored reference-50 roll used by the delivery workflow.
   const bench = new THREE.Group();
   const top = new THREE.Mesh(roundedBox(1.7, 0.07, 0.85, 0.02), mats.rawWood);
   top.position.y = 0.92;
@@ -1011,6 +1012,17 @@ export function buildStockroomDressing(B) {
   tapeGun.position.set(0.35, 0.99, -0.1);
   tapeGun.rotation.y = -0.4;
   bench.add(tapeGun);
+  if (merch) merch.onReady(() => {
+    const tapeRoll = merch.instantiate('delivery_packing_tape_roll');
+    if (!tapeRoll) return;
+    tapeRoll.name = 'PackingBenchTapeRoll';
+    // The authored roll is 10 cm in diameter. With its Z axis rotated upright,
+    // a 1.01 m centre rests its lower rim on the 0.955 m bench surface instead
+    // of burying the prop inside the worktop.
+    tapeRoll.position.set(0.18, 1.01, -0.12);
+    tapeRoll.rotation.set(Math.PI / 2, -0.2, 0);
+    bench.add(tapeRoll);
+  });
   bench.position.set(P.x, 0, P.z);
   bench.rotation.y = P.ry;
   interior.add(bench);

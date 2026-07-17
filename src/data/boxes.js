@@ -25,6 +25,12 @@ export const BOX_KINDS = {
     id: 'ballcase', label: 'Golf-ball case',
     w: 0.52, h: 0.34, d: 0.42, mass: 'heavy', tare: 0.9, // balls are dense: a full case is a lift
   },
+  merchbox: {
+    id: 'merchbox', label: 'Merchandise carton',
+    // Reference 46: a general 60 x 40 x 40 cm shipping case. It remains a
+    // distinct kind instead of silently enlarging the small accessories box.
+    w: 0.60, h: 0.40, d: 0.40, mass: 'medium', tare: 1.1,
+  },
   apparel: {
     id: 'apparel', label: 'Apparel carton',
     // Reference 47: 60 x 40 x 35 cm. Runtime axes are width, height, depth.
@@ -56,6 +62,7 @@ export const BOX_KINDS = {
 // The oversized lines, by id. Matching on the NAME is a trap: the catalogue has a "Tee bag", a
 // "Bag towel" and an "Ironwood stand bag", and the shoes are called "spikes".
 const KIND_BY_ID = {
+  cap1: BOX_KINDS.merchbox,     // eight structured caps fit the reference-46 2 x 2 x 2 case
   bag1: BOX_KINDS.bagcarton,   // Ironwood stand bag
   shoe1: BOX_KINDS.shoebox,    // North Ridge spikes
   vac1: BOX_KINDS.fixture,     // the shop vacuum

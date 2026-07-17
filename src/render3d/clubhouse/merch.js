@@ -48,7 +48,8 @@ const FILES = [
   'checkout_product_sock_pair', 'checkout_product_headcover',
   // Delivery hero carton (tools/blender/build_delivery_hero.py). The cutter is
   // loaded by the first-person tool rig, avoiding a duplicate GLB allocation.
-  'delivery_apparel_box', 'delivery_recycling_station',
+  'delivery_apparel_box', 'delivery_generic_merchandise_box',
+  'delivery_packing_tape_roll', 'delivery_recycling_station',
 ];
 
 // Textured HERO props (Tripo scans, normalised by tools/blender/process_tripo.py).
