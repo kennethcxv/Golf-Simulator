@@ -3044,7 +3044,9 @@ export function makeClubhouse(ctx) {
     }
     const hadCart = surrenderCart(c, { announce: false });
     if (hadCart && hooks.toast) {
-      hooks.toast(`${c.name} waited 10 minutes at the register, put it back, and left a bad review.`, 'warn');
+      // no literal minutes — game clocks and wall clocks disagree, and the player only
+      // needs the cause: they were kept waiting too long
+      hooks.toast(`${c.name} got tired of waiting, put everything back, and left a bad review.`, 'warn');
     }
     c.checkoutPhase = 'leaving';
     // they walked out mid-sale: void it, clear the counter, and put the goods back.
@@ -3479,10 +3481,18 @@ export function makeClubhouse(ctx) {
         if (reaction.complete) customerGiveUp(c);
         continue;
       }
-      if (c.checkoutFlow && ['CustomerApproaching', 'CustomerPlacingProducts'].includes(c.checkoutFlow.state)
-          && checkoutStateTimedOut(c.checkoutFlow, flowNow())) {
-        beginCustomerImpatientBeat(c);
-        continue;
+      // Pre-service patience runs on the SAME ten-real-minute clock as the counter wait.
+      // The flow table's short per-state watchdogs are recovery telemetry, not a fuse —
+      // they used to walk a customer out 45 real seconds after they reached the counter
+      // area, which read as "picked three things up and left for no reason".
+      if (c.checkoutFlow && ['CustomerApproaching', 'CustomerPlacingProducts', 'WaitingForCashier'].includes(c.checkoutFlow.state)) {
+        c.preServiceWait = (c.preServiceWait || 0) + dt;
+        if (c.preServiceWait > PATIENCE_FULL) {
+          beginCustomerImpatientBeat(c);
+          continue;
+        }
+      } else {
+        c.preServiceWait = 0;
       }
       // Keep the completed handoff in the player camera long enough to read as
       // a transfer of ownership. Queue/revenue state has already advanced; this

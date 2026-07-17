@@ -1390,6 +1390,7 @@ function keyboardCamera(dtMs) {
 
 let lastTs = 0;
 let lastHourSeen = -1;
+let autosaveClock = 0;
 // arrival-tutorial senses (reset per game)
 let tutLookSpan = 0;
 let tutLastYaw = null;
@@ -1422,6 +1423,14 @@ function frame(ts) {
         if (app.clubOpen) clubPanel.refresh();
         if (app.empireOpen) empirePanel.refresh();
         if (app.marketRefresh) app.marketRefresh(); // market left open stays live
+        autosave();
+        autosaveClock = 0;
+      }
+      // At a 2×-real clock a nightly autosave is half a wall-day apart — too much to
+      // lose to a crash. A quiet save every five real minutes bounds the damage.
+      autosaveClock += dtMs;
+      if (autosaveClock >= 300000) {
+        autosaveClock = 0;
         autosave();
       }
       const hourNow = Math.floor(app.state.clock.minutes / 60);

@@ -48,7 +48,10 @@ export const BALANCE = {
 
   // --- clock ----------------------------------------------------------------
   // Real-time seconds → game minutes at speed 1. A full day ≈ 2m24s at 1x.
-  gameMinutesPerRealSecond: 10,
+  // Speed 1 is TWO game seconds per real second — a lived-in pace where a tee time
+  // booked for 1:30 is actually reachable, not five wall-seconds per game hour.
+  // 4× and 16× remain the skip gears.
+  gameMinutesPerRealSecond: 1 / 30,
   speeds: [0, 1, 4, 16],
 
   // --- turf simulation --------------------------------------------------------
