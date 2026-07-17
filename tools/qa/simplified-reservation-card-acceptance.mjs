@@ -91,11 +91,13 @@ async function setupFixture(page) {
       drawer: structuredClone(shop.drawer || null),
     };
 
-    // Fixed production player camera at the register. Only the fixture uses
-    // direct placement; the front-desk route itself is keyboard/mouse driven.
+    // Fixed production player camera at the register, via the clubhouse's LIVE
+    // interior offset (a hardcoded one goes stale when the building moves and
+    // drops the player onto the course, where a turf prop steals the [E] focus).
     const walk = app.scene3d.walk.state;
-    walk.x = 2.80 - 8;
-    walk.z = 5.35 + 228;
+    const off = clubhouse.interior.position;
+    walk.x = 2.80 + off.x;
+    walk.z = 5.10 + off.z;
     walk.yaw = 0;
     walk.pitch = -0.18;
 
@@ -187,25 +189,17 @@ async function insertCard(page, shot, midLabel, processingLabel) {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'card-ready';
   }, null, { timeout: 9000 });
+  // handoff frame: the customer holds the card out; the workspace stays 'card'
   await waitCamera(page, 'card');
-  const anchors = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.insertAt());
-  const ready = await projectLocal(page, anchors.ready);
-  const inserted = await projectLocal(page, anchors.inserted);
-  assert(ready.inView && inserted.inView, 'Reservation card insertion anchors are outside the camera.');
-  await page.mouse.move(ready.x, ready.y);
-  await page.mouse.down();
-  await page.mouse.move(
-    ready.x + (inserted.x - ready.x) * 0.55,
-    ready.y + (inserted.y - ready.y) * 0.55,
-    { steps: 8 },
-  );
   await shot(midLabel);
-  await page.mouse.move(inserted.x, inserted.y, { steps: 8 });
-  await page.mouse.up();
+  // click-to-insert: one click on the presented card runs the whole insert
+  const cardPt = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.presentedCardScreenPoint());
+  assert(cardPt && cardPt.inView, 'Reservation card is outside the handoff camera.');
+  await page.mouse.click(cardPt.x, cardPt.y);
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'card-entry' && tx.checkoutFlow?.state === 'CardAmountEntry';
-  }, null, { timeout: 4000 });
+  }, null, { timeout: 5000 });
   const digits = await page.evaluate(async () => {
     const { totalOf } = await import('/src/sim/register.js');
     return String(Math.round(totalOf(window.__fw.scene3d.clubhouse().register.getTx()) * 100));
@@ -366,44 +360,13 @@ export async function runSimplifiedReservationCardAcceptance(page, options = {})
     await waitCamera(page, 'card');
     await shot('07-reservation-card-presented.png');
 
+    // One clean run: the reader always approves once the total is keyed
+    // (gameplay never declines).
     await insertCard(
       page,
       shot,
-      '08-first-card-mid-insert.png',
-      '08b-first-card-processing.png',
-    );
-    await page.waitForFunction(() => {
-      const tx = window.__fw.scene3d.clubhouse().register.getTx();
-      return tx && tx.stage === 'card-declined';
-    }, null, { timeout: 9000 });
-    await shot('09-card-declined.png');
-
-    const afterDecline = await page.evaluate((id) => {
-      const app = window.__fw;
-      const reservation = app.state.reservations.booked.find((entry) => String(entry.id) === String(id));
-      return {
-        reservationStatus: reservation.status,
-        cash: app.state.cash,
-        history: (app.state.shop.transactionHistory || []).length,
-        greenFees: app.state.ledger.today.revenue.greenFees || 0,
-      };
-    }, reservationId);
-    assert(afterDecline.reservationStatus === 'booked', 'A declined card checked the reservation in.');
-    assert(round2(afterDecline.cash) === round2(fixture.before.cash), 'A declined card changed cash.');
-    assert(afterDecline.history === fixture.before.history, 'A declined card wrote transaction history.');
-    assert(round2(afterDecline.greenFees) === round2(fixture.before.greenFees),
-      'A declined card banked green-fee revenue.');
-
-    await waitCamera(page, 'monitor');
-    await page.evaluate(() => {
-      window.__fw.scene3d.clubhouse().register.getTx().rng = () => 0.99;
-    });
-    await monitorClick(page, 'retry-card');
-    await insertCard(
-      page,
-      shot,
-      '10-replacement-card-mid-insert.png',
-      '10b-replacement-card-processing.png',
+      '08-card-handoff.png',
+      '08b-card-processing.png',
     );
     await page.waitForFunction(() => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -415,28 +378,12 @@ export async function runSimplifiedReservationCardAcceptance(page, options = {})
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return tx && tx.stage === 'done';
     }, null, { timeout: 10000 });
-    await waitCamera(page, 'monitor');
-    await shot('12-ready-to-complete-check-in.png');
+    await shot('12-check-in-processing.png');
 
-    // The green fee must still be unbanked until this explicit monitor action.
-    const beforeFinalize = await page.evaluate(() => {
-      const app = window.__fw;
-      return {
-        cash: app.state.cash,
-        greenFees: app.state.ledger.today.revenue.greenFees || 0,
-        history: (app.state.shop.transactionHistory || []).length,
-      };
-    });
-    assert(round2(beforeFinalize.cash) === round2(fixture.before.cash),
-      'Card approval banked cash before explicit check-in completion.');
-    assert(round2(beforeFinalize.greenFees) === round2(fixture.before.greenFees),
-      'Card approval banked green-fee revenue before explicit check-in completion.');
-    assert(beforeFinalize.history === fixture.before.history,
-      'Card approval wrote history before explicit check-in completion.');
-
-    await monitorClick(page, 'finalize-transaction');
+    // The check-in banks ITSELF once the receipt reaches the golfer (no manual
+    // finalize button in the automatic flow). Wait for the transaction to clear.
     await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.getTx(), null,
-      { timeout: 5000 });
+      { timeout: 14000 });
     await shot('13-check-in-complete.png');
     await page.waitForTimeout(1000);
     final = await finalSnapshot(page, reservationId);
