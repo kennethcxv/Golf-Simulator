@@ -475,7 +475,7 @@ _SCENES = {
 # readable and deliberately un-USD (all US notes share one size).
 BILL_DIMS = {
     1: (0.122, 0.054), 5: (0.132, 0.057), 10: (0.142, 0.061),
-    20: (0.149, 0.0635), 50: (0.156, 0.066), 100: (0.163, 0.0685),
+    20: (0.149, 0.0635), 50: (0.156, 0.066),
 }
 
 BILL_STYLE = {
@@ -485,8 +485,6 @@ BILL_STYLE = {
     10: dict(tint=(0.230, 0.330, 0.085), scene="oakbridge", back="pavilion", label="TEN"),
     20: dict(tint=(0.070, 0.270, 0.100), scene="fairway", back="golfer", label="TWENTY"),
     50: dict(tint=(0.155, 0.200, 0.090), scene="mountains", back="clubhouse", label="FIFTY"),
-    # the top note wears the club's own gold — unmistakable at a glance in the drawer
-    100: dict(tint=(0.320, 0.235, 0.070), scene="clubhouse", back="mountains", label="HUNDRED"),
 }
 
 

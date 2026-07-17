@@ -11,13 +11,12 @@ import {
   stackTotal, stackCount, addToStack, takeFromStack,
 } from '../src/sim/register.js';
 
-test('denominations are six bills then five coins, descending through the penny', () => {
-  assert.deepEqual(BILLS, [100, 50, 20, 10, 5, 1]);
+test('denominations are bills then five coins, descending through the penny', () => {
+  assert.deepEqual(BILLS, [50, 20, 10, 5, 1]);
   assert.deepEqual(COINS, [0.5, 0.25, 0.1, 0.05, 0.01]);
-  assert.deepEqual(DENOMS, [100, 50, 20, 10, 5, 1, 0.5, 0.25, 0.1, 0.05, 0.01]);
+  assert.deepEqual(DENOMS, [50, 20, 10, 5, 1, 0.5, 0.25, 0.1, 0.05, 0.01]);
   for (let i = 1; i < DENOMS.length; i++) assert.ok(DENOMS[i] < DENOMS[i - 1], 'descending');
   assert.ok(DENOMS.includes(0.01), 'cent-accurate cash can make arbitrary change');
-  assert.ok(DENOMS.includes(100), 'big spenders can hand over a hundred');
 });
 
 test('cash and card retain the same cent-accurate total', () => {

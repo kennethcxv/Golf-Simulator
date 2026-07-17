@@ -71,19 +71,24 @@ const INSERTED = {
   z: CARD_STATION.z + 0.27,
 };
 
-const DRAWER_BILLS = [1, 5, 10, 20, 50, 100];
+const DRAWER_BILLS = [1, 5, 10, 20, 50];
 const DRAWER_COINS = [0.01, 0.05, 0.1, 0.25, 0.5];
 const SLOT = {};
 // fallbacks only — the kit drawer's authored money sockets remap these on load
 DRAWER_BILLS.forEach((denom, index) => {
-  SLOT[denom] = { x: -0.170 + index * 0.068, y: 0.118, z: 0.095 };
+  SLOT[denom] = { x: -0.164 + index * 0.082, y: 0.118, z: 0.095 };
 });
 DRAWER_COINS.forEach((denom, index) => {
   SLOT[denom] = { x: -0.164 + index * 0.082, y: 0.112, z: -0.098 };
 });
+// the Sheet-02 note footprint (metres, pre kit-scale) — drawer bills stretch to fill
+// their well the way the reference drawer reads, so the sizes matter here
+const BILL_FOOTPRINT = {
+  1: [0.122, 0.054], 5: [0.132, 0.057], 10: [0.142, 0.061], 20: [0.149, 0.0635], 50: [0.156, 0.066],
+};
 
 const moneyLabel = (denom) => (denom < 1
-  ? `${Math.round(denom * 100)}c`
+  ? `${Math.round(denom * 100)}¢`
   : `$${denom}`);
 
 function textTexture(text, {
@@ -1353,37 +1358,44 @@ export function createRegisterMode(B) {
       hotspot.userData = { pick: true, kind: 'drawer-slot', denom };
       drawerMotionRoot.add(hotspot);
       slotHotspots.push(hotspot);
-      // No printed denomination plates: the notes and coins identify themselves (size
-      // ladder, art, alloy), and hovering a well floats its value above the money.
+      // The value floats OVER the money, reference-style: bold white text with a dark
+      // stroke lying flat above each well — no plates on the tray, no hover required.
+      const tag = makeMoneyTag(moneyLabel(denom));
+      tag.position.set(slot.x, slot.y - 0.017 + (bill ? 0.030 : 0.026), slot.z + (bill ? 0.055 : 0.030));
+      drawerMotionRoot.add(tag);
+      slotLabels.push(tag);
     }
   }
 
-  // the floating value readout that follows the hovered well — one mesh, retextured per denom
-  let hoverValueMesh = null;
-  let hoverValueDenom = null;
-  function showHoverValue(denom, anchor) {
-    if (denom == null || !anchor) {
-      if (hoverValueMesh) hoverValueMesh.visible = false;
-      hoverValueDenom = null;
-      return;
-    }
-    if (!hoverValueMesh) {
-      hoverValueMesh = makeFlatLabel(moneyLabel(denom), 0.062, 0.026);
-      hoverValueMesh.name = 'DrawerHoverValue';
-      hoverValueMesh.rotation.x = -0.9; // tilted up toward the steep cash camera
-      root.add(hoverValueMesh);
-    }
-    if (hoverValueDenom !== denom) {
-      hoverValueDenom = denom;
-      const fresh = makeFlatLabel(moneyLabel(denom), 0.062, 0.026);
-      hoverValueMesh.geometry.dispose();
-      if (hoverValueMesh.material.map) hoverValueMesh.material.map.dispose();
-      hoverValueMesh.geometry = fresh.geometry;
-      hoverValueMesh.material.dispose();
-      hoverValueMesh.material = fresh.material;
-    }
-    hoverValueMesh.position.set(anchor.x, anchor.y + 0.055, anchor.z + 0.012);
-    hoverValueMesh.visible = true;
+  // TCG-style denomination tag: white 900-weight text, dark outline, transparent
+  // ground, always readable over whatever money sits beneath it.
+  function makeMoneyTag(text) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 128;
+    const c2 = canvas.getContext('2d');
+    c2.clearRect(0, 0, 256, 128);
+    c2.font = '900 84px "Segoe UI", Arial, sans-serif';
+    c2.textAlign = 'center';
+    c2.textBaseline = 'middle';
+    c2.lineWidth = 14;
+    c2.lineJoin = 'round';
+    c2.strokeStyle = 'rgba(20,22,20,0.9)';
+    c2.strokeText(text, 128, 68);
+    c2.fillStyle = '#ffffff';
+    c2.fillText(text, 128, 68);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 4;
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.056, 0.028),
+      new THREE.MeshBasicMaterial({
+        map: texture, transparent: true, toneMapped: false, side: THREE.DoubleSide, depthWrite: false,
+      }),
+    );
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.renderOrder = 4;
+    return mesh;
   }
 
   function buildDrawer() {
@@ -1452,21 +1464,52 @@ export function createRegisterMode(B) {
     }
   }
 
+  // Deterministic jumble for the coin cups — same seed, same heap, so a reload
+  // doesn't reshuffle the till behind the player's back.
+  const scramble = (denom, index, salt) => {
+    const h = Math.sin(denom * 127.1 + index * 311.7 + salt * 74.7) * 43758.5453;
+    return h - Math.floor(h);
+  };
+
   function refillDrawerMoney() {
     if (!drawerMoney || !drawer || !tx) return;
     drawerMoney.clear();
     const contents = drawerContents(tx, drawer);
     for (const denom of DENOMS) {
-      const count = Math.min(contents[denom] || 0, 7);
+      const bill = BILLS.includes(denom);
+      const count = Math.min(contents[denom] || 0, bill ? 7 : 12);
       const slot = SLOT[denom];
+      // the authored socket floats 20mm above the insert floor; money LIVES on the floor
+      const floorY = slot.y - 0.017;
       for (let index = 0; index < count; index += 1) {
         const piece = makeMoney(denom, 'drawer');
-        piece.position.set(
-          slot.x,
-          slot.y + 0.004 + index * (BILLS.includes(denom) ? 0.0024 : 0.0031),
-          slot.z,
-        );
-        if (BILLS.includes(denom)) piece.rotation.y = Math.PI / 2 + (index % 3 - 1) * 0.018;
+        if (bill) {
+          // notes lie FLAT on the well floor and stretch to fill it, reference-style:
+          // long axis to ~95% of the well depth, width capped to the well mouth
+          const [len, wid] = BILL_FOOTPRINT[denom] || [0.15, 0.064];
+          piece.scale.x *= Math.min(1.62, 0.232 / (len * 1.3));
+          piece.scale.z *= Math.min(1.14, 0.072 / (wid * 1.3));
+          piece.position.set(
+            slot.x + (scramble(denom, index, 1) - 0.5) * 0.004,
+            floorY + 0.0015 + index * 0.0016,
+            slot.z + (scramble(denom, index, 2) - 0.5) * 0.006,
+          );
+          piece.rotation.y = Math.PI / 2 + (scramble(denom, index, 3) - 0.5) * 0.05;
+        } else {
+          // coins land as a scrambled heap in the cup, not a minted column
+          const r = 0.017 * Math.sqrt(scramble(denom, index, 4));
+          const ang = scramble(denom, index, 5) * Math.PI * 2;
+          piece.position.set(
+            slot.x + Math.cos(ang) * r,
+            floorY + 0.002 + Math.floor(index / 5) * 0.0035 + scramble(denom, index, 6) * 0.002,
+            slot.z + Math.sin(ang) * r * 0.7,
+          );
+          piece.rotation.set(
+            (scramble(denom, index, 7) - 0.5) * 0.5,
+            scramble(denom, index, 8) * Math.PI * 2,
+            (scramble(denom, index, 9) - 0.5) * 0.5,
+          );
+        }
         drawerMoney.add(piece);
       }
     }
@@ -1493,9 +1536,11 @@ export function createRegisterMode(B) {
     const slot = SLOT[denom];
     if (!slot || !drawerMotionRoot) return new THREE.Vector3();
     root.updateMatrixWorld(true);
+    // deposits land at the well FLOOR (the socket floats 20mm above it) — the refill
+    // pass then folds them into the flat-note / coin-heap look
     const world = drawerMotionRoot.localToWorld(new THREE.Vector3(
       slot.x,
-      slot.y + 0.012 + stackOffset,
+      slot.y - 0.014 + stackOffset,
       slot.z,
     ));
     return root.worldToLocal(world);
@@ -2852,14 +2897,7 @@ export function createRegisterMode(B) {
     } else {
       hoverBox.visible = false;
     }
-    // the hovered well names its value — the printed plates are gone, so this and the
-    // money's own art are how a denomination introduces itself
-    if (target && target.userData && target.userData.kind === 'drawer-slot') {
-      const spot = SLOT[target.userData.denom];
-      showHoverValue(target.userData.denom, spot && drawerSlotPosition(target.userData.denom, 0.02));
-    } else {
-      showHoverValue(null, null);
-    }
+    // denomination identity is carried by the permanent white tags over each well
     setHoverCursor(!!target || !!monitorActionAt(event));
   }
 

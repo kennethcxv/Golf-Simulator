@@ -10,7 +10,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const KIT = [
   'checkout_counter', 'pos_monitor', 'cash_drawer', 'payment_terminal',
   'barcode_scanner', 'receipt_printer', 'shopping_bag', 'payment_card',
-  'cash_bill_1', 'cash_bill_5', 'cash_bill_10', 'cash_bill_20', 'cash_bill_50', 'cash_bill_100',
+  'cash_bill_1', 'cash_bill_5', 'cash_bill_10', 'cash_bill_20', 'cash_bill_50',
   'cash_coin_01', 'cash_coin_05', 'cash_coin_10', 'cash_coin_25', 'cash_coin_50',
   'scannable_product_box', 'customer_display', 'loose_receipt', 'cash_handoff_stack',
   'apparel_wall',
@@ -106,7 +106,7 @@ test('cash drawer has open/close clips + all money sockets', async () => {
   const clips = gltf.animations.map((a) => a.name).sort();
   assert.deepEqual(clips, ['CashDrawer_Close', 'CashDrawer_Open']);
   const n = names(gltf.scene);
-  for (const b of ['1', '5', '10', '20', '50', '100']) assert.ok(n.has(`BILL_${b}_SOCKET`), `BILL_${b}_SOCKET`);
+  for (const b of ['1', '5', '10', '20', '50']) assert.ok(n.has(`BILL_${b}_SOCKET`), `BILL_${b}_SOCKET`);
   for (const c of ['01', '05', '10', '25', '50']) assert.ok(n.has(`COIN_${c}_SOCKET`), `COIN_${c}_SOCKET`);
   for (const part of ['CashDrawer_Housing', 'CashDrawer_Tray', 'CashDrawer_Insert', 'CashDrawer_Lock']) {
     assert.ok(n.has(part), part);
@@ -166,9 +166,9 @@ test('bag, product box and helpers expose their sockets', async () => {
 test('denominations are correctly sized, centred and lightweight', async () => {
   const kit = await kitPromise;
   // Sheet-02 ladders: note length and coin diameter both grow with value
-  const BILL_LEN = { 1: 0.122, 5: 0.132, 10: 0.142, 20: 0.149, 50: 0.156, 100: 0.163 };
+  const BILL_LEN = { 1: 0.122, 5: 0.132, 10: 0.142, 20: 0.149, 50: 0.156 };
   const COIN_DIA = { '01': 0.018, '05': 0.021, 10: 0.024, 25: 0.026, 50: 0.030 };
-  for (const d of ['1', '5', '10', '20', '50', '100']) {
+  for (const d of ['1', '5', '10', '20', '50']) {
     const scene = (await kit.get(`cash_bill_${d}`)).scene;
     const s = sizeOf(scene);
     assert.ok(Math.abs(s.x - BILL_LEN[d]) < 0.005, `bill ${d} length ${s.x}`);
