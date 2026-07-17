@@ -30,6 +30,7 @@ import lib_props as L
 import checkout_kit_lib as K
 import checkout_money_lib as K2
 import checkout_retail_lib as K3
+import checkout_furniture_lib as K4
 
 
 # ================================================================ counter ======
@@ -1045,6 +1046,8 @@ BUILDERS = {
     "cash_handoff_stack": build_cash_handoff_stack,
     # Asset Sheet 03: the retail fixture family (checkout_retail_lib)
     **K3.BUILDERS,
+    # Asset Sheet 04: retail fixtures & furniture (checkout_furniture_lib)
+    **K4.BUILDERS,
 }
 
 
@@ -1066,6 +1069,7 @@ EXTRA_PREVIEWS = {
     "payment_terminal": [("payment_terminal_front", 356, 22)],
     "apparel_wall": [("apparel_wall_front", 25, 8), ("apparel_wall_back", 208, 6)],
     **K3.EXTRA_PREVIEWS,
+    **K4.EXTRA_PREVIEWS,
 }
 
 

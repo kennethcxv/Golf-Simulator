@@ -1,0 +1,24 @@
+{
+ "id": "pf_hook_double",
+ "kind": "fixtures",
+ "category": "hooks",
+ "dims_m": [
+  0.038,
+  0.1135,
+  0.0755
+ ],
+ "min_z": -0.0375,
+ "tris": 656,
+ "textures": [],
+ "sockets": [
+  "HOOK_TIP"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_hook_double.glb",
+ "blend": "assets/pro_shop/source/fixtures/hooks/pf_hook_double.blend",
+ "name": "Pf Slatwall Hook Double",
+ "variant": "walnut_black",
+ "price": 0,
+ "fixture": "-",
+ "slot_type": "-",
+ "packaging": "-"
+}

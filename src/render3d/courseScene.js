@@ -471,11 +471,14 @@ export function makeCourseScene(canvas, state) {
           warped = clamp(warped, vec2(0.0), uCells - 0.001);
           vec2 sUv = (floor(warped) + 0.5) / uCells;
           vec4 zd = texture2D(uZoneTex, sUv);
-          float zone = floor(zd.r * 255.0 / 30.0 + 0.5);
+          float zone = floor(zd.r * 255.0 / 18.0 + 0.5);
           float hRel = zd.a * 255.0 / 64.0;
           vec4 ax = texture2D(uAuxTex, sUv);
           float disType = floor(ax.r * 255.0 / 100.0 + 0.5);
           float disSev = ax.g;
+          // per-cell mowing direction (radians / 2pi in aux.a), smoothed across
+          // cells so stripe bands bend with the hole instead of snapping
+          float dirN = ax.a;
 
           // smooth (manual bilinear) reads for the condition tints so per-cell
           // variance doesn't render as camouflage blocks
@@ -533,33 +536,61 @@ export function makeCourseScene(canvas, state) {
           float stripeAmp = 0.0;
           float stripeFreq = 0.0;
           float modeSel = 0.0;
-          if (zone < 0.5) {
-            col = FW_STYLIZE(dScrub, vec3(0.125, 0.215, 0.075)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
-          } else if (zone < 1.5) {
-            col = FW_STYLIZE(dRough, vec3(0.09, 0.275, 0.045)); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.96;
-          } else if (zone < 2.5) {
-            col = FW_STYLIZE(dFair, vec3(0.115, 0.345, 0.052)); gSplatN = nFair; gSplatUv = uvFair; gSplatRough = 0.94;
-            stripeAmp = 0.2; stripeFreq = 0.062; modeSel = uStripeModes.y;
-          } else if (zone < 3.5) {
-            col = FW_STYLIZE(dGreen, vec3(0.145, 0.45, 0.075)); gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.9;
-            stripeAmp = 0.1; stripeFreq = 0.24; modeSel = uStripeModes.x;
-          } else if (zone < 4.5) {
-            col = FW_STYLIZE(dTee, vec3(0.13, 0.39, 0.062)); gSplatN = nTee; gSplatUv = uvTee; gSplatRough = 0.93;
-            stripeAmp = 0.14; stripeFreq = 0.16; modeSel = uStripeModes.z;
-          } else if (zone < 5.5) {
-            col = FW_STYLIZE(dSand, vec3(0.80, 0.68, 0.43)); gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
-          } else if (zone < 6.5) {
+          bool followFlow = false;
+          if (zone < 0.5) {        // OUT — native scrub
+            col = FW_STYLIZE(dScrub, vec3(0.148, 0.225, 0.082)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
+          } else if (zone < 1.5) { // ROUGH
+            col = FW_STYLIZE(dRough, vec3(0.105, 0.295, 0.055)); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.96;
+          } else if (zone < 2.5) { // FAIRWAY
+            col = FW_STYLIZE(dFair, vec3(0.118, 0.35, 0.055)); gSplatN = nFair; gSplatUv = uvFair; gSplatRough = 0.94;
+            stripeAmp = 0.22; stripeFreq = 0.062; modeSel = uStripeModes.y; followFlow = true;
+          } else if (zone < 3.5) { // GREEN
+            col = FW_STYLIZE(dGreen, vec3(0.148, 0.455, 0.078)); gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.9;
+            stripeAmp = 0.1; stripeFreq = 0.24; modeSel = uStripeModes.x; followFlow = true;
+          } else if (zone < 4.5) { // TEE
+            col = FW_STYLIZE(dTee, vec3(0.132, 0.395, 0.064)); gSplatN = nTee; gSplatUv = uvTee; gSplatRough = 0.93;
+            stripeAmp = 0.14; stripeFreq = 0.16; modeSel = uStripeModes.z; followFlow = true;
+          } else if (zone < 5.5) { // BUNKER
+            col = FW_STYLIZE(dSand, vec3(0.82, 0.70, 0.45)); gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
+          } else if (zone < 6.5) { // WATER bed
             col = FW_STYLIZE(dScrub, vec3(0.10, 0.16, 0.07)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.85;
-          } else {
-            col = FW_STYLIZE(dPath, vec3(0.44, 0.42, 0.36)); gSplatN = nPath; gSplatUv = uvPath; gSplatRough = 0.9;
+          } else if (zone < 7.5) { // PATH
+            col = FW_STYLIZE(dPath, vec3(0.46, 0.44, 0.38)); gSplatN = nPath; gSplatUv = uvPath; gSplatRough = 0.9;
+          } else if (zone < 8.5) { // FRINGE — a shade deeper than green, tight cut
+            col = FW_STYLIZE(dGreen, vec3(0.128, 0.40, 0.066)); gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.92;
+          } else if (zone < 9.5) { // HEAVY rough — tall, warm, golden-tipped
+            col = FW_STYLIZE(dRough, vec3(0.155, 0.26, 0.06)); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.97;
+            col = mix(col, vec3(0.38, 0.36, 0.14), fwNoise(cellUv * 2.7) * 0.28); // seedhead shimmer
+          } else if (zone < 10.5) { // DIRT
+            col = FW_STYLIZE(dPath, vec3(0.42, 0.31, 0.20)); gSplatN = nPath; gSplatUv = uvPath; gSplatRough = 0.95;
+          } else if (zone < 11.5) { // BED — dark mulch
+            col = FW_STYLIZE(dScrub, vec3(0.23, 0.15, 0.09)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.98;
+          } else {                 // SEMI — first cut between fairway and rough
+            col = FW_STYLIZE(dFair, vec3(0.108, 0.315, 0.050)); gSplatN = nFair; gSplatUv = uvFair; gSplatRough = 0.95;
+            stripeAmp = 0.08; stripeFreq = 0.062; modeSel = uStripeModes.y; followFlow = true;
           }
           // large-scale luminance drift breaks photo-texture tiling repetition
           col *= 0.93 + fwNoise(cellUv * 0.33) * 0.14;
 
           if (stripeAmp > 0.001 && modeSel > 0.5) {
             float fade = clamp(1.7 - hRel, 0.0, 1.0);
-            vec2 dir1 = normalize(vec2(1.0, 0.32));
-            vec2 dir2 = normalize(vec2(-dir1.y, dir1.x));
+            // mow bands follow the HOLE: per-cell direction from the flow field
+            // (bilinear-smoothed so the bands bend around doglegs)
+            vec2 texel2 = 1.0 / uCells;
+            vec2 f0 = (floor(cellUv - 0.5) + 0.5) * texel2;
+            vec2 fF = fract(cellUv - 0.5);
+            float a00 = texture2D(uAuxTex, f0).a;
+            float a10 = texture2D(uAuxTex, f0 + vec2(texel2.x, 0.0)).a;
+            float a01 = texture2D(uAuxTex, f0 + vec2(0.0, texel2.y)).a;
+            float a11 = texture2D(uAuxTex, f0 + texel2).a;
+            // average as VECTORS (angles wrap); flow is stored as angle/2pi
+            vec2 v00 = vec2(cos(a00 * 6.28318), sin(a00 * 6.28318));
+            vec2 v10 = vec2(cos(a10 * 6.28318), sin(a10 * 6.28318));
+            vec2 v01 = vec2(cos(a01 * 6.28318), sin(a01 * 6.28318));
+            vec2 v11 = vec2(cos(a11 * 6.28318), sin(a11 * 6.28318));
+            vec2 flow = normalize(mix(mix(v00, v10, fF.x), mix(v01, v11, fF.x), fF.y) + vec2(1e-5));
+            vec2 dir1 = followFlow ? vec2(-flow.y, flow.x) : normalize(vec2(1.0, 0.32));
+            vec2 dir2 = vec2(-dir1.y, dir1.x);
             float s1 = sin(dot(vWp.xz, dir1) * stripeFreq * 6.28318);
             float band = smoothstep(-0.35, 0.35, s1) * 2.0 - 1.0;
             if (modeSel > 1.5) {
@@ -569,7 +600,8 @@ export function makeCourseScene(canvas, state) {
             col *= 1.0 + band * stripeAmp * fade;
           }
 
-          if (zone > 0.5 && zone < 4.5) {
+          bool isTurf = (zone > 0.5 && zone < 4.5) || (zone > 7.5 && zone < 9.5) || zone > 11.5;
+          if (isTurf) {
             float dry = clamp(1.0 - health / 0.78, 0.0, 1.0);
             // §1: decay reads as OLIVE-TAN desaturation, never brown-black
             col = mix(col, vec3(0.42, 0.40, 0.16), dry * 0.55);
@@ -595,9 +627,9 @@ export function makeCourseScene(canvas, state) {
           }
 
           if (uViewMode > 0.5 && uViewMode < 1.5) {
-            col = (zone > 0.5 && zone < 4.5) ? fwHeat(health) : col * 0.22;
+            col = isTurf ? fwHeat(health) : col * 0.22;
           } else if (uViewMode > 1.5) {
-            col = (zone > 0.5 && zone < 4.5)
+            col = isTurf
               ? mix(vec3(0.76, 0.66, 0.44), vec3(0.14, 0.34, 0.72), moisture)
               : col * 0.22;
           }
@@ -637,6 +669,71 @@ export function makeCourseScene(canvas, state) {
   terrain.receiveShadow = true;
   terrain.castShadow = true; // rolling land self-shadows at low sun
   scene.add(terrain);
+
+  // --- surrounding countryside: the course sits IN a landscape, not on a slab
+  // floating in the void. A big displaced ring matched to the boundary heights
+  // rolls away into forested hills; fog and the boundary forest close the seam.
+  const RING_REACH = 2600; // yards of world beyond the course edge
+  let envRing = null;
+  function envHillNoise(x, z) {
+    return (
+      Math.sin(x * 0.0021 + 1.7) * Math.cos(z * 0.0017 + 0.4) * 26 +
+      Math.sin(x * 0.0063 + 4.2) * Math.cos(z * 0.0051 + 2.1) * 9 +
+      Math.sin(x * 0.017 + 0.8) * Math.cos(z * 0.013 + 5.2) * 2.5
+    );
+  }
+  function buildEnvironmentRing() {
+    if (envRing) {
+      scene.remove(envRing);
+      envRing.geometry.dispose();
+    }
+    const w = worldW + RING_REACH * 2;
+    const h = worldH + RING_REACH * 2;
+    const geo = new THREE.PlaneGeometry(w, h, 110, 90);
+    geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position;
+    const halfW = worldW / 2;
+    const halfH = worldH / 2;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      // how far outside the property this vertex sits
+      const dx = Math.max(0, Math.abs(x) - halfW);
+      const dz = Math.max(0, Math.abs(z) - halfH);
+      const outside = Math.hypot(dx, dz);
+      const edgeH = heightAt(clamp(x, -halfW + 1, halfW - 1), clamp(z, -halfH + 1, halfH - 1));
+      if (outside <= 0.001) {
+        pos.setY(i, edgeH - 1.2); // tucked safely under the real terrain
+        continue;
+      }
+      // rolling hills that grow with distance; a slight rise closes the horizon
+      const ramp = Math.min(1, outside / 420);
+      const hills = envHillNoise(x, z) * ramp + outside * 0.012 * ramp;
+      pos.setY(i, edgeH * (1 - Math.min(1, outside / 260)) + hills - 0.5);
+    }
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({
+      map: texScrub,
+      normalMap: texScrubN,
+      normalScale: new THREE.Vector2(0.4, 0.4),
+      color: 0x99a878, // OUT-zone family so the seam reads as one landscape
+      roughness: 1,
+    });
+    mat.onBeforeCompile = (sh) => {
+      // same stylize trick as the terrain: texture supplies brightness only
+      sh.fragmentShader = sh.fragmentShader.replace(
+        '#include <map_fragment>',
+        `{
+          vec4 sampledDiffuseColor = texture2D( map, vMapUv * 90.0 );
+          float luma = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+          diffuseColor.rgb *= 0.35 + luma * 1.9;
+        }`,
+      );
+    };
+    envRing = new THREE.Mesh(geo, mat);
+    envRing.receiveShadow = true;
+    scene.add(envRing);
+  }
 
   // purely visual micro-undulation so gentle land still catches light;
   // damped on greens/tees so putting surfaces read flat and true
@@ -746,7 +843,9 @@ export function makeCourseScene(canvas, state) {
       let maxX = 0;
       let minY = H;
       let maxY = 0;
-      let sum = 0;
+      // the water table sits just under the LOWEST point of the shore ring —
+      // carved beds vary, but a pond's surface answers its banks
+      let shoreMin = Infinity;
       for (const j of cells) {
         const x = j % W;
         const y = (j / W) | 0;
@@ -754,9 +853,18 @@ export function makeCourseScene(canvas, state) {
         maxX = Math.max(maxX, x);
         minY = Math.min(minY, y);
         maxY = Math.max(maxY, y);
-        sum += rawHeightAtCellCoords(x + 0.5, y + 0.5);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+          if (course.zones[ny * W + nx] === ZONE.WATER) continue;
+          shoreMin = Math.min(shoreMin, rawHeightAtCellCoords(nx + 0.5, ny + 0.5));
+        }
       }
-      const level = sum / cells.length - 0.7;
+      let bedAvg = 0;
+      for (const j of cells) bedAvg += rawHeightAtCellCoords((j % W) + 0.5, ((j / W) | 0) + 0.5);
+      bedAvg /= cells.length;
+      const level = Number.isFinite(shoreMin) ? shoreMin - 0.32 : bedAvg - 0.7;
       const cx = worldX((minX + maxX) / 2);
       const cz = worldZ((minY + maxY) / 2);
       const radius = (Math.max(maxX - minX, maxY - minY) / 2 + 1.4) * CELL_YD;
@@ -780,6 +888,9 @@ export function makeCourseScene(canvas, state) {
   }
 
   // --- trees --------------------------------------------------------------------------------
+  // Placed trees come from course.objects — the editor's (and the generator's)
+  // INTENTIONAL planting. Only the boundary forest outside the property line is
+  // procedural: a deep hash ring that fades with distance and closes the horizon.
   let treeGroup = null;
 
   function treeHash(x, y) {
@@ -789,41 +900,50 @@ export function makeCourseScene(canvas, state) {
     return (h >>> 0) / 4294967296;
   }
 
+  const RING_DEPTH = 34; // cells of procedural forest beyond the property line
+
   function computeTreeSpots() {
     const spots = [];
-    // keep the clubhouse's porch, approach, and yard clear of scrub trees —
-    // the entrance is a real walkway now, not scenery
-    const clear = [];
-    for (const s of course.structures) {
-      clear.push({ x0: s.x - 2, x1: s.x + s.w + 2, y0: s.y - 2, y1: s.y + s.h + 4 });
+    // placed trees (typed, exact positions)
+    for (const o of course.objects || []) {
+      if (!o.type.startsWith('tree_')) continue;
+      spots.push({ obj: o, x: o.x, y: o.y });
     }
-    // interior scrub trees
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        if (course.zones[y * W + x] !== ZONE.OUT) continue;
-        if (clear.some((c) => x >= c.x0 && x <= c.x1 && y >= c.y0 && y <= c.y1)) continue;
-        const h = treeHash(x * 7 + 3, y * 5 + 1);
-        if (h > 0.78) spots.push({ x, y, r: h });
-      }
-    }
-    // boundary forest ring (outside the property line)
-    for (let y = -6; y < H + 6; y++) {
-      for (let x = -6; x < W + 6; x++) {
+    // boundary forest ring (outside the property line), density fading outward
+    for (let y = -RING_DEPTH; y < H + RING_DEPTH; y++) {
+      for (let x = -RING_DEPTH; x < W + RING_DEPTH; x++) {
         if (x >= 0 && y >= 0 && x < W && y < H) continue;
+        const d = Math.max(x < 0 ? -x : x - (W - 1), y < 0 ? -y : y - (H - 1), 1);
+        const p = d <= 3 ? 0.62 : d <= 8 ? 0.42 : d <= 16 ? 0.24 : 0.13;
         const h = treeHash(x * 11 + 5, y * 13 + 7);
-        if (h > 0.5) spots.push({ x, y, r: h, edge: true });
+        if (h < 1 - p) continue;
+        spots.push({ x, y, r: h, edge: true, far: d });
       }
     }
     return spots;
   }
 
   function placeSpot(s) {
+    if (s.obj) {
+      const x = worldX(s.obj.x);
+      const z = worldZ(s.obj.y);
+      return { x, y: heightAt(x, z), z };
+    }
     const jx = (treeHash(s.x + 91, s.y + 3) - 0.5) * 6;
     const jz = (treeHash(s.x + 7, s.y + 43) - 0.5) * 6;
     const x = worldX(s.x) + jx;
     const z = worldZ(s.y) + jz;
-    const inMap = s.x >= 0 && s.y >= 0 && s.x < W && s.y < H;
-    const y = inMap ? heightAt(x, z) : heightAt(clamp(x, -worldW / 2 + 1, worldW / 2 - 1), clamp(z, -worldH / 2 + 1, worldH / 2 - 1));
+    // ring trees stand on the environment ring: sample its same hill function
+    const halfW = worldW / 2;
+    const halfH = worldH / 2;
+    const dx = Math.max(0, Math.abs(x) - halfW);
+    const dz = Math.max(0, Math.abs(z) - halfH);
+    const outside = Math.hypot(dx, dz);
+    const edgeH = heightAt(clamp(x, -halfW + 1, halfW - 1), clamp(z, -halfH + 1, halfH - 1));
+    const ramp = Math.min(1, outside / 420);
+    const y = outside <= 0.001
+      ? edgeH
+      : edgeH * (1 - Math.min(1, outside / 260)) + envHillNoise(x, z) * ramp + outside * 0.012 * ramp - 0.5;
     return { x, y, z };
   }
 
@@ -843,16 +963,24 @@ export function makeCourseScene(canvas, state) {
   function rebuildTreesFromModels(assets) {
     clearTreeGroup();
     const spots = computeTreeSpots();
+    const byName = new Map();
+    for (const v of [...assets.deciduous, ...assets.pine]) byName.set(v.name, v);
 
-    // bucket spots: 72% deciduous, 28% pine; then by variant within the class
-    const buckets = new Map(); // key `${class}:${variantIdx}` -> spots[]
+    // bucket by variant: placed trees use their exact type, ring trees hash one
+    const buckets = new Map(); // variantName -> { variant, isPine, list }
     for (const s of spots) {
-      const isPine = treeHash(s.x + 31, s.y + 17) >= 0.72;
-      const variants = isPine ? assets.pine : assets.deciduous;
-      const vi = Math.floor(treeHash(s.x + 57, s.y + 5) * variants.length) % variants.length;
-      const key = `${isPine ? 'p' : 'd'}:${vi}`;
-      if (!buckets.has(key)) buckets.set(key, { variant: variants[vi], isPine, list: [] });
-      buckets.get(key).list.push(s);
+      let name;
+      if (s.obj && byName.has(s.obj.type)) {
+        name = s.obj.type;
+      } else {
+        const isPine = treeHash(Math.round(s.x) + 31, Math.round(s.y) + 17) >= 0.62;
+        const variants = isPine ? assets.pine : assets.deciduous;
+        name = variants[Math.floor(treeHash(Math.round(s.x) + 57, Math.round(s.y) + 5) * variants.length) % variants.length].name;
+      }
+      if (!buckets.has(name)) {
+        buckets.set(name, { variant: byName.get(name), isPine: /pine/i.test(name), list: [] });
+      }
+      buckets.get(name).list.push(s);
     }
 
     const m = new THREE.Matrix4();
@@ -871,14 +999,23 @@ export function makeCourseScene(canvas, state) {
       });
       list.forEach((s, i) => {
         const p = placeSpot(s);
-        const height = isPine
-          ? 8 + treeHash(s.x + 3, s.y + 77) * 4 // 8–12 yd pines
-          : 6 + treeHash(s.x + 3, s.y + 77) * 3.2; // 6–9 yd deciduous
-        eu.set(0, treeHash(s.x, s.y) * 6.28, 0);
+        const hx = Math.round(s.x);
+        const hy = Math.round(s.y);
+        let height;
+        let rot;
+        if (s.obj) {
+          height = (isPine ? 9.4 : 7.3) * (s.obj.scale || 1);
+          rot = s.obj.rot || 0;
+        } else {
+          const farBoost = 1 + Math.min(1.1, (s.far || 1) * 0.028); // distant forest reads taller
+          height = (isPine ? 8 + treeHash(hx + 3, hy + 77) * 4 : 6 + treeHash(hx + 3, hy + 77) * 3.2) * farBoost;
+          rot = treeHash(hx, hy) * 6.28;
+        }
+        eu.set(0, rot, 0);
         q.setFromEuler(eu);
         m.compose(v.set(p.x, p.y, p.z), q, sc.set(height, height, height));
-        const b = 0.82 + treeHash(s.x + 13, s.y + 29) * 0.32; // brightness variety
-        col.setRGB(b * (0.95 + treeHash(s.x, s.y + 1) * 0.1), b, b * 0.92);
+        const b = 0.82 + treeHash(hx + 13, hy + 29) * 0.32; // brightness variety
+        col.setRGB(b * (0.95 + treeHash(hx, hy + 1) * 0.1), b, b * 0.92);
         for (const im of meshes) {
           im.setMatrixAt(i, m);
           im.setColorAt(i, col);
@@ -961,6 +1098,323 @@ export function makeCourseScene(canvas, state) {
         rebuildTreesProcedural();
       }
     });
+  }
+
+  // --- placed non-tree objects: shrubs, rocks, golf props, decorations -----------
+  // GLBs from vendor/models/course/<type>.glb are preferred; a procedural
+  // factory covers every type so the editor never places an invisible thing.
+  let objectGroup = null;
+  const objectGlbCache = new Map(); // type -> { parts: [{geometry, material}] } | 'missing'
+  let objectGlbPending = 0;
+
+  function proceduralObjectParts(type) {
+    const std = (color, rough = 0.9) => new THREE.MeshStandardMaterial({ color, roughness: rough });
+    const parts = [];
+    const push = (geo, mat) => parts.push({ geometry: geo, material: mat });
+    switch (type) {
+      case 'bush_round': {
+        const g1 = new THREE.IcosahedronGeometry(0.55, 1);
+        g1.scale(1, 0.8, 1);
+        g1.translate(0, 0.42, 0);
+        const g2 = new THREE.IcosahedronGeometry(0.4, 1);
+        g2.translate(0.35, 0.32, 0.1);
+        push(g1, std(0x3d5c2e));
+        push(g2, std(0x466b34));
+        break;
+      }
+      case 'bush_flower': {
+        const g1 = new THREE.IcosahedronGeometry(0.5, 1);
+        g1.scale(1, 0.75, 1);
+        g1.translate(0, 0.38, 0);
+        push(g1, std(0x44603a));
+        for (let i = 0; i < 5; i++) {
+          const f = new THREE.SphereGeometry(0.07, 6, 5);
+          const a = (i / 5) * Math.PI * 2;
+          f.translate(Math.cos(a) * 0.34, 0.62, Math.sin(a) * 0.34);
+          push(f, std(i % 2 ? 0xd98bb0 : 0xe8e0c8, 0.7));
+        }
+        break;
+      }
+      case 'hedge': {
+        const g = new THREE.BoxGeometry(1.6, 0.8, 0.5);
+        g.translate(0, 0.4, 0);
+        push(g, std(0x3a5730));
+        break;
+      }
+      case 'grass_clump': {
+        for (let i = 0; i < 7; i++) {
+          const blade = new THREE.ConeGeometry(0.045, 0.7 + (i % 3) * 0.2, 4);
+          const a = (i / 7) * Math.PI * 2;
+          blade.translate(Math.cos(a) * 0.16, 0.36, Math.sin(a) * 0.16);
+          blade.rotateZ((i % 2 ? 1 : -1) * 0.13);
+          push(blade, std(0x8a8f4a, 0.95));
+        }
+        break;
+      }
+      case 'reeds': {
+        for (let i = 0; i < 8; i++) {
+          const reed = new THREE.CylinderGeometry(0.02, 0.03, 1.1 + (i % 4) * 0.22, 4);
+          const a = (i / 8) * Math.PI * 2;
+          reed.translate(Math.cos(a) * 0.2, 0.6, Math.sin(a) * 0.2);
+          reed.rotateZ((i % 2 ? 1 : -1) * 0.08);
+          push(reed, std(0x6d7a3f, 0.95));
+        }
+        break;
+      }
+      case 'flowers': {
+        const bed = new THREE.CylinderGeometry(0.5, 0.55, 0.1, 10);
+        bed.translate(0, 0.05, 0);
+        push(bed, std(0x4a3421));
+        for (let i = 0; i < 8; i++) {
+          const f = new THREE.SphereGeometry(0.06, 6, 5);
+          const a = (i / 8) * Math.PI * 2;
+          f.translate(Math.cos(a) * 0.3, 0.26, Math.sin(a) * 0.3);
+          push(f, std([0xd98bb0, 0xe8d34a, 0xe8e0c8][i % 3], 0.7));
+        }
+        break;
+      }
+      case 'rock_s':
+      case 'rock_m':
+      case 'rock_l': {
+        const size = type === 'rock_s' ? 0.35 : type === 'rock_m' ? 0.7 : 1.15;
+        const g = new THREE.IcosahedronGeometry(size, 1);
+        g.scale(1, 0.62, 0.85);
+        g.translate(0, size * 0.45, 0);
+        push(g, std(0x8d8a82, 0.98));
+        break;
+      }
+      case 'rock_cluster': {
+        for (const [ox, oz, s] of [[0, 0, 0.7], [0.7, 0.3, 0.42], [-0.5, 0.4, 0.34], [0.2, -0.55, 0.4]]) {
+          const g = new THREE.IcosahedronGeometry(s, 1);
+          g.scale(1, 0.6, 0.85);
+          g.translate(ox, s * 0.42, oz);
+          push(g, std(0x8d8a82, 0.98));
+        }
+        break;
+      }
+      case 'bench': {
+        const seat = new THREE.BoxGeometry(1.5, 0.08, 0.45);
+        seat.translate(0, 0.48, 0);
+        const back = new THREE.BoxGeometry(1.5, 0.4, 0.07);
+        back.translate(0, 0.78, -0.2);
+        push(seat, std(0x7a5c38, 0.8));
+        push(back, std(0x7a5c38, 0.8));
+        for (const sx of [-0.62, 0.62]) {
+          const leg = new THREE.BoxGeometry(0.08, 0.48, 0.4);
+          leg.translate(sx, 0.24, 0);
+          push(leg, std(0x2e2b26, 0.7));
+        }
+        break;
+      }
+      case 'trash_bin': {
+        const g = new THREE.CylinderGeometry(0.26, 0.22, 0.75, 10);
+        g.translate(0, 0.38, 0);
+        push(g, std(0x3d5c40, 0.7));
+        const rim = new THREE.TorusGeometry(0.26, 0.03, 6, 12);
+        rim.rotateX(Math.PI / 2);
+        rim.translate(0, 0.76, 0);
+        push(rim, std(0x2e2b26, 0.6));
+        break;
+      }
+      case 'ball_washer': {
+        const post = new THREE.CylinderGeometry(0.05, 0.05, 0.9, 8);
+        post.translate(0, 0.45, 0);
+        push(post, std(0x2e4d24, 0.6));
+        const body = new THREE.CylinderGeometry(0.14, 0.14, 0.34, 10);
+        body.translate(0, 1.0, 0);
+        push(body, std(0x2e4d24, 0.55));
+        const crank = new THREE.SphereGeometry(0.05, 6, 5);
+        crank.translate(0, 1.22, 0);
+        push(crank, std(0xc9b98a, 0.5));
+        break;
+      }
+      case 'distance_marker': {
+        const g = new THREE.CylinderGeometry(0.09, 0.11, 0.55, 8);
+        g.translate(0, 0.27, 0);
+        push(g, std(0xe5ddc4, 0.7));
+        const band = new THREE.CylinderGeometry(0.1, 0.1, 0.1, 8);
+        band.translate(0, 0.42, 0);
+        push(band, std(0xd8402e, 0.7));
+        break;
+      }
+      case 'tee_sign': {
+        const post = new THREE.CylinderGeometry(0.05, 0.05, 1.1, 6);
+        post.translate(0, 0.55, 0);
+        push(post, std(0x5b4630, 0.85));
+        const board = new THREE.BoxGeometry(0.85, 0.55, 0.06);
+        board.translate(0, 1.25, 0);
+        push(board, std(0x2e4d24, 0.7));
+        break;
+      }
+      case 'planter': {
+        const g = new THREE.CylinderGeometry(0.4, 0.32, 0.42, 10);
+        g.translate(0, 0.21, 0);
+        push(g, std(0x9a8f78, 0.9));
+        const soil = new THREE.CylinderGeometry(0.36, 0.36, 0.05, 10);
+        soil.translate(0, 0.42, 0);
+        push(soil, std(0x4a3421, 1));
+        const plant = new THREE.IcosahedronGeometry(0.3, 1);
+        plant.translate(0, 0.62, 0);
+        push(plant, std(0x466b34));
+        break;
+      }
+      default: {
+        const g = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        g.translate(0, 0.25, 0);
+        push(g, std(0xb05fa0));
+      }
+    }
+    return { parts };
+  }
+
+  function objectParts(type) {
+    const cached = objectGlbCache.get(type);
+    if (cached && cached !== 'missing' && cached !== 'loading') return cached;
+    if (!cached) {
+      objectGlbCache.set(type, 'loading');
+      objectGlbPending++;
+      new GLTFLoader().load(
+        `vendor/models/course/${type}.glb`,
+        (g) => {
+          try {
+            g.scene.updateMatrixWorld(true);
+            const parts = [];
+            g.scene.traverse((o) => {
+              if (!o.isMesh || !o.geometry) return;
+              const geo = o.geometry.clone().applyMatrix4(o.matrixWorld);
+              parts.push({ geometry: geo, material: o.material });
+            });
+            objectGlbCache.set(type, parts.length ? { parts } : 'missing');
+          } catch {
+            objectGlbCache.set(type, 'missing');
+          }
+          if (--objectGlbPending === 0) rebuildObjects();
+        },
+        undefined,
+        () => {
+          objectGlbCache.set(type, 'missing');
+          if (--objectGlbPending === 0) rebuildObjects();
+        },
+      );
+    }
+    return proceduralObjectParts(type);
+  }
+
+  function rebuildObjects() {
+    if (objectGroup) {
+      scene.remove(objectGroup);
+      objectGroup.traverse((o) => {
+        if (o.isInstancedMesh) o.dispose();
+      });
+    }
+    objectGroup = new THREE.Group();
+    const byType = new Map();
+    for (const o of course.objects || []) {
+      if (o.type.startsWith('tree_')) continue; // trees have their own pipeline
+      if (!byType.has(o.type)) byType.set(o.type, []);
+      byType.get(o.type).push(o);
+    }
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const eu = new THREE.Euler();
+    const v = new THREE.Vector3();
+    const sc = new THREE.Vector3();
+    for (const [type, list] of byType) {
+      const { parts } = objectParts(type);
+      for (const part of parts) {
+        const im = new THREE.InstancedMesh(part.geometry, part.material, list.length);
+        im.castShadow = true;
+        im.frustumCulled = false;
+        list.forEach((o, i) => {
+          const x = worldX(o.x);
+          const z = worldZ(o.y);
+          eu.set(0, o.rot || 0, 0);
+          q.setFromEuler(eu);
+          const s = o.scale || 1;
+          m.compose(v.set(x, heightAt(x, z), z), q, sc.set(s, s, s));
+          im.setMatrixAt(i, m);
+        });
+        objectGroup.add(im);
+      }
+    }
+    scene.add(objectGroup);
+  }
+
+  // nearest placed object to a world point (for the Select tool)
+  function pickObject(wx, wz, maxDistYd = 3) {
+    let best = null;
+    let bestD = maxDistYd;
+    for (const o of course.objects || []) {
+      const d = Math.hypot(worldX(o.x) - wx, worldZ(o.y) - wz);
+      if (d < bestD) {
+        bestD = d;
+        best = o;
+      }
+    }
+    return best;
+  }
+
+  // --- cart-path ribbons: smooth curves laid on the terrain ------------------------
+  let pathGroup = null;
+  const PATH_MATERIALS = {
+    asphalt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0x63605c, roughness: 0.92 }),
+    concrete: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xa9a49a, roughness: 0.88 }),
+    gravel: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0x99917e, roughness: 1 }),
+    dirt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0x71583c, roughness: 1 }),
+  };
+
+  function ribbonForPath(path) {
+    // Catmull-Rom through the stored points (cell coords → world)
+    const pts = path.pts.map((p) => new THREE.Vector3(worldX(p.x), 0, worldZ(p.y)));
+    if (pts.length < 2) return null;
+    const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
+    const segs = Math.max(8, Math.round(curve.getLength() / 3));
+    const half = (path.width || 2.6) / 2;
+    const positions = [];
+    const uvs = [];
+    const indices = [];
+    for (let i = 0; i <= segs; i++) {
+      const t = i / segs;
+      const p = curve.getPointAt(t);
+      const tan = curve.getTangentAt(t);
+      const nx = -tan.z;
+      const nz = tan.x;
+      const lx = p.x + nx * half;
+      const lz = p.z + nz * half;
+      const rx = p.x - nx * half;
+      const rz = p.z - nz * half;
+      positions.push(lx, heightAt(lx, lz) + 0.09, lz, rx, heightAt(rx, rz) + 0.09, rz);
+      uvs.push(0, t * segs * 0.4, 1, t * segs * 0.4);
+      if (i < segs) {
+        const b = i * 2;
+        indices.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+    const mat = (PATH_MATERIALS[path.material] || PATH_MATERIALS.asphalt)();
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.receiveShadow = true;
+    return mesh;
+  }
+
+  function rebuildPaths() {
+    if (pathGroup) {
+      scene.remove(pathGroup);
+      pathGroup.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material && o.material.dispose) o.material.dispose();
+      });
+    }
+    pathGroup = new THREE.Group();
+    for (const p of course.paths || []) {
+      const mesh = ribbonForPath(p);
+      if (mesh) pathGroup.add(mesh);
+    }
+    scene.add(pathGroup);
   }
 
   // --- structures: a real little clubhouse ------------------------------------------------
@@ -2277,6 +2731,182 @@ export function makeCourseScene(canvas, state) {
     brushRing.material.color.set(kind === 'marker' ? 0xffe9a0 : 0xffffff);
   }
 
+  // world-space editor brush: fractional position, yard radius, mood color
+  function setEditorBrush(opts) {
+    if (!opts) {
+      brushRing.visible = false;
+      return;
+    }
+    brushRing.visible = true;
+    brushRing.position.set(opts.x, heightAt(opts.x, opts.z) + 0.25, opts.z);
+    brushRing.scale.setScalar(Math.max(1.2, opts.radiusYd || 8));
+    brushRing.material.color.set(opts.color || 0xffffff);
+  }
+
+  // --- placement ghost: the object you are about to place, green/red ----------------
+  let ghost = null;
+  let ghostType = null;
+  function setPlacementGhost(type, x, z, { rot = 0, scale = 1, valid = true } = {}) {
+    if (!type) {
+      if (ghost) ghost.visible = false;
+      ghostType = null;
+      return;
+    }
+    if (ghostType !== type) {
+      if (ghost) scene.remove(ghost);
+      ghost = new THREE.Group();
+      const { parts } = ghostPartsFor(type);
+      for (const p of parts) {
+        const mesh = new THREE.Mesh(p.geometry, p.material.clone());
+        mesh.material.transparent = true;
+        mesh.material.opacity = 0.62;
+        ghost.add(mesh);
+      }
+      const disc = new THREE.Mesh(
+        new THREE.RingGeometry(0.85, 1, 32),
+        new THREE.MeshBasicMaterial({ color: 0x7fd66b, transparent: true, opacity: 0.9, depthTest: false, side: THREE.DoubleSide }),
+      );
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.y = 0.15;
+      disc.renderOrder = 998;
+      disc.userData.isDisc = true;
+      ghost.add(disc);
+      scene.add(ghost);
+      ghostType = type;
+    }
+    ghost.visible = true;
+    ghost.position.set(x, heightAt(x, z), z);
+    ghost.rotation.y = rot;
+    const tint = valid ? 0x7fd66b : 0xd84b3a;
+    ghost.traverse((o) => {
+      if (o.userData.isDisc) {
+        o.material.color.set(tint);
+        o.scale.setScalar(2.2 * scale);
+      } else if (o.isMesh) {
+        o.material.emissive = new THREE.Color(valid ? 0x1a3a12 : 0x511710);
+        o.scale.setScalar(type.startsWith('tree_') ? 7.3 * scale : scale);
+      }
+    });
+  }
+
+  function ghostPartsFor(type) {
+    if (type.startsWith('tree_')) {
+      // a light stand-in silhouette (trunk + crown) — the real instanced model
+      // appears the moment it is placed
+      const trunk = new THREE.CylinderGeometry(0.02, 0.03, 0.35, 6);
+      trunk.translate(0, 0.17, 0);
+      const crown = new THREE.IcosahedronGeometry(/pine/i.test(type) ? 0.22 : 0.3, 1);
+      if (/pine/i.test(type)) crown.scale(1, 1.8, 1);
+      crown.translate(0, /pine/i.test(type) ? 0.6 : 0.62, 0);
+      return {
+        parts: [
+          { geometry: trunk, material: new THREE.MeshStandardMaterial({ color: 0x5a4630 }) },
+          { geometry: crown, material: new THREE.MeshStandardMaterial({ color: 0x3f7a34 }) },
+        ],
+      };
+    }
+    return proceduralObjectParts(type);
+  }
+
+  // --- measure tool line -----------------------------------------------------------
+  let measureGroup = null;
+  function setMeasureLine(worldPts, label) {
+    if (measureGroup) {
+      scene.remove(measureGroup);
+      measureGroup.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material && o.material.map && o.material.map.isCanvasTexture) o.material.map.dispose();
+      });
+      measureGroup = null;
+    }
+    if (!worldPts || worldPts.length < 1) return;
+    measureGroup = new THREE.Group();
+    const lift = (p) => new THREE.Vector3(p.x, heightAt(p.x, p.z) + 0.5, p.z);
+    if (worldPts.length >= 2) {
+      const pts = [];
+      for (let i = 0; i < worldPts.length - 1; i++) {
+        const a = lift(worldPts[i]);
+        const b = lift(worldPts[i + 1]);
+        for (let k = 0; k <= 18; k++) {
+          const t = k / 18;
+          const x = a.x + (b.x - a.x) * t;
+          const z = a.z + (b.z - a.z) * t;
+          pts.push(new THREE.Vector3(x, heightAt(x, z) + 0.5, z));
+        }
+      }
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      measureGroup.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xfff2c8, depthTest: false, transparent: true })));
+    }
+    for (const p of worldPts) {
+      const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.55, 10, 8),
+        new THREE.MeshBasicMaterial({ color: 0xfff2c8, depthTest: false }),
+      );
+      dot.renderOrder = 999;
+      dot.position.copy(lift(p));
+      measureGroup.add(dot);
+    }
+    if (label && worldPts.length >= 2) {
+      const mid = lift(worldPts[Math.floor(worldPts.length / 2)]);
+      const sp = textSprite(label, { w: 384, fontPx: 72, scaleW: 16 });
+      sp.position.set(mid.x, mid.y + 4, mid.z);
+      measureGroup.add(sp);
+    }
+    scene.add(measureGroup);
+  }
+
+  // --- the playtest ball + aim arc ----------------------------------------------------
+  const ballMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.12, 14, 12),
+    new THREE.MeshStandardMaterial({ color: 0xf6f4ea, roughness: 0.35 }),
+  );
+  ballMesh.castShadow = true;
+  ballMesh.visible = false;
+  scene.add(ballMesh);
+  let aimArc = null;
+  function setBallVisual(pos) {
+    if (!pos) {
+      ballMesh.visible = false;
+      return;
+    }
+    ballMesh.visible = true;
+    ballMesh.position.set(pos.x, pos.y + 0.12, pos.z);
+  }
+  function setAimArc(pts) {
+    if (aimArc) {
+      scene.remove(aimArc);
+      aimArc.geometry.dispose();
+      aimArc = null;
+    }
+    if (!pts || pts.length < 2) return;
+    const geo = new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p.x, p.y, p.z)));
+    aimArc = new THREE.Line(geo, new THREE.LineDashedMaterial({ color: 0xfff2c8, dashSize: 1.4, gapSize: 0.9, transparent: true, opacity: 0.9 }));
+    aimArc.computeLineDistances();
+    scene.add(aimArc);
+  }
+
+  // --- editor camera helpers -------------------------------------------------------------
+  function frameCourse() {
+    rig.target.set(0, 0, 0);
+    rig.yaw = 0;
+    rig.pitch = 1.05;
+    rig.dist = Math.max(worldW, worldH) * 0.62;
+    rig.apply();
+  }
+  function frameHole(hole) {
+    if (!hole || !hole.tee || !hole.pin) return frameCourse();
+    const tx = worldX(hole.tee.x);
+    const tz = worldZ(hole.tee.y);
+    const px = worldX(hole.pin.x);
+    const pz = worldZ(hole.pin.y);
+    rig.target.set((tx + px) / 2, 0, (tz + pz) / 2);
+    // look UP the hole: camera behind the tee, pin ahead
+    rig.yaw = Math.atan2(tx - px, tz - pz);
+    rig.pitch = 0.78;
+    rig.dist = clamp(Math.hypot(px - tx, pz - tz) * 1.15, 120, 620);
+    rig.apply();
+  }
+
   // --- data texture refresh from sim state -----------------------------------------------------------
   const ideals = BALANCE.turf.ideal;
   const IDEAL_BY_ZONE = {
@@ -2284,7 +2914,51 @@ export function makeCourseScene(canvas, state) {
     [ZONE.TEE]: ideals.tee.height,
     [ZONE.FAIRWAY]: ideals.fairway.height,
     [ZONE.ROUGH]: ideals.rough.height,
+    [ZONE.FRINGE]: ideals.tee.height,
+    [ZONE.SEMI]: ideals.fairway.height,
+    [ZONE.HEAVY]: ideals.rough.height,
   };
+
+  // --- mow-direction flow field: every fairway/tee/green cell knows the local
+  // direction of its hole, so stripe bands bend with the routing. Angle/2π is
+  // packed into auxData alpha (recomputed only when holes or zones change).
+  const flowField = new Float32Array(W * H); // angle / 2π, 0..1
+  function rebuildFlowField() {
+    const holes = course.holes.filter((h) => h.tee && h.pin);
+    const segs = [];
+    for (const h of holes) {
+      // route through the hole's waypoints when the generator recorded them,
+      // so stripes bend around doglegs instead of cutting the corner
+      const pts = [h.tee, ...(h.wp || []), h.pin];
+      for (let i = 0; i < pts.length - 1; i++) {
+        segs.push({ ax: pts[i].x, ay: pts[i].y, bx: pts[i + 1].x, by: pts[i + 1].y });
+      }
+    }
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        let best = null;
+        let bestD = Infinity;
+        for (const s of segs) {
+          const vx = s.bx - s.ax;
+          const vy = s.by - s.ay;
+          const len2 = vx * vx + vy * vy || 1;
+          const t = clamp(((x - s.ax) * vx + (y - s.ay) * vy) / len2, 0, 1);
+          const dx = x - (s.ax + vx * t);
+          const dy = y - (s.ay + vy * t);
+          const d = dx * dx + dy * dy;
+          if (d < bestD) {
+            bestD = d;
+            best = s;
+          }
+        }
+        let ang = 0.13; // default diagonal for land that belongs to no hole
+        if (best) ang = Math.atan2(best.by - best.ay, best.bx - best.ax);
+        const norm = ((ang % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        flowField[y * W + x] = norm / (Math.PI * 2);
+      }
+    }
+  }
+  rebuildFlowField();
 
   function updateTurf(st) {
     const t = st.turf;
@@ -2292,7 +2966,7 @@ export function makeCourseScene(canvas, state) {
     for (let i = 0; i < W * H; i++) {
       const o = i * 4;
       const zone = zones[i];
-      zoneData[o] = zone * 30;
+      zoneData[o] = zone * 18; // ×18 so zone ids up to 14 survive the byte
       if (t) {
         zoneData[o + 1] = clamp(t.health[i] * 2.55, 0, 255);
         zoneData[o + 2] = clamp(t.wear[i] * 2.55, 0, 255);
@@ -2301,12 +2975,11 @@ export function makeCourseScene(canvas, state) {
         auxData[o] = t.disType[i] * 100;
         auxData[o + 1] = clamp(t.disSev[i] * 2.55, 0, 255);
         auxData[o + 2] = clamp(t.moisture[i] * 2.55, 0, 255);
-        auxData[o + 3] = 255;
       } else {
         zoneData[o + 1] = 180;
         zoneData[o + 3] = 64;
-        auxData[o + 3] = 255;
       }
+      auxData[o + 3] = clamp(Math.round(flowField[i] * 255), 0, 255);
       zoneData[o + 3] = zoneData[o + 3] || 64;
     }
     zoneTex.needsUpdate = true;
@@ -2401,7 +3074,27 @@ export function makeCourseScene(canvas, state) {
     rainGeo.attributes.position.needsUpdate = true;
   }
 
-  function applyTimeWeather(minuteOfDay, weather) {
+  // The editor edits in daylight regardless of the game clock: a lighting
+  // override pins the sun to a preview preset until cleared.
+  let lightingOverride = null; // null | 'day' | 'morning' | 'golden' | 'overcast'
+  const LIGHT_PRESETS = {
+    day: { minute: 13 * 60, rainIn: 0 },
+    morning: { minute: 8 * 60 + 30, rainIn: 0 },
+    golden: { minute: 18 * 60 + 40, rainIn: 0 },
+    overcast: { minute: 13 * 60, rainIn: 0.28 },
+  };
+  function setLightingOverride(mode) {
+    lightingOverride = LIGHT_PRESETS[mode] ? mode : null;
+  }
+
+  function applyTimeWeather(minuteOfDayIn, weatherIn) {
+    let minuteOfDay = minuteOfDayIn;
+    let weather = weatherIn;
+    if (lightingOverride) {
+      const p = LIGHT_PRESETS[lightingOverride];
+      minuteOfDay = p.minute;
+      weather = { today: { ...(weatherIn && weatherIn.today), rainIn: p.rainIn } };
+    }
     const t = clamp((minuteOfDay - 330) / (1260 - 330), 0, 1); // 5:30 → 21:00
     const elevDeg = Math.sin(t * Math.PI) * 62 - 2;
     const azimDeg = 96 + t * 168;
@@ -2472,6 +3165,26 @@ export function makeCourseScene(canvas, state) {
     const cy = Math.floor((p.z + worldH / 2) / CELL_YD);
     if (cx < 0 || cy < 0 || cx >= W || cy >= H) return null;
     return { x: cx, y: cy, point: p };
+  }
+
+  // the editor's ray: fractional cell coords + the world point (smooth brushes)
+  function raycastGround(px, py) {
+    const rect = canvas.getBoundingClientRect();
+    ndc.x = ((px - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -(((py - rect.top) / rect.height) * 2 - 1);
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObject(terrain, false);
+    if (!hits.length) return null;
+    const p = hits[0].point;
+    const fx = (p.x + worldW / 2) / CELL_YD - 0.5;
+    const fy = (p.z + worldH / 2) / CELL_YD - 0.5;
+    return {
+      fx, fy,
+      x: clamp(Math.round(fx), 0, W - 1),
+      y: clamp(Math.round(fy), 0, H - 1),
+      point: p,
+      inBounds: fx >= -0.5 && fy >= -0.5 && fx <= W - 0.5 && fy <= H - 0.5,
+    };
   }
 
   // --- frame -------------------------------------------------------------------------------------------

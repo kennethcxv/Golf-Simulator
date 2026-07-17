@@ -1,0 +1,48 @@
+{
+ "id": "pf_fixture_rangefinder_display",
+ "kind": "fixtures",
+ "category": "rangefinder_display",
+ "dims_m": [
+  1.2,
+  0.45,
+  1.75
+ ],
+ "min_z": 0.0,
+ "tris": 1632,
+ "textures": [
+  "Header_pf_fixture_rangefinder_display:512x128",
+  "NRM_leather_0.35_512:512x512",
+  "NRM_wood_0.6_512:512x512",
+  "NRM_wood_0.7_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSCharcoal:512x512",
+  "PSOak:1024x512",
+  "PSWalnut:1024x512"
+ ],
+ "sockets": [
+  "SHELF_SLOT_A01",
+  "SHELF_SLOT_A02",
+  "SHELF_SLOT_A03",
+  "SHELF_SLOT_A04",
+  "SHELF_SLOT_B01",
+  "SHELF_SLOT_B02",
+  "SHELF_SLOT_B03",
+  "SHELF_SLOT_B04",
+  "SHELF_SLOT_C01",
+  "SHELF_SLOT_C02",
+  "SHELF_SLOT_C03",
+  "SHELF_SLOT_C04",
+  "SHELF_SLOT_Z01",
+  "SHELF_SLOT_Z02",
+  "SHELF_SLOT_Z03",
+  "SHELF_SLOT_Z04"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_fixture_rangefinder_display.glb",
+ "blend": "assets/pro_shop/source/fixtures/rangefinder_display/pf_fixture_rangefinder_display.blend",
+ "name": "Pf Rangefinder Display",
+ "variant": "walnut_black",
+ "price": 0,
+ "fixture": "-",
+ "slot_type": "-",
+ "packaging": "-"
+}

@@ -1,0 +1,28 @@
+{
+ "id": "pf_giftcard",
+ "kind": "products",
+ "category": "extras",
+ "dims_m": [
+  0.09,
+  0.0022,
+  0.135
+ ],
+ "min_z": 0.0,
+ "tris": 128,
+ "textures": [
+  "GiftCard:512x768"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_giftcard.glb",
+ "blend": "assets/pro_shop/source/products/extras/pf_giftcard.blend",
+ "name": "PF Gift Card",
+ "variant": "navy",
+ "price": 25.0,
+ "fixture": "pf_fixture_checkout",
+ "slot_type": "hook_card",
+ "packaging": "hang-card"
+}

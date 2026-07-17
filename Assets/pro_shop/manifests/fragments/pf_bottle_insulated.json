@@ -1,0 +1,29 @@
+{
+ "id": "pf_bottle_insulated",
+ "kind": "products",
+ "category": "bottles",
+ "dims_m": [
+  0.0862,
+  0.0862,
+  0.3095
+ ],
+ "min_z": 0.0,
+ "tris": 2048,
+ "textures": [
+  "LblInsul:1024x512"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_bottle_insulated.glb",
+ "blend": "assets/pro_shop/source/products/bottles/pf_bottle_insulated.blend",
+ "name": "PF Insulated Flask",
+ "variant": "sage_steel",
+ "price": 34.99,
+ "fixture": "pf_fixture_snack_shelf",
+ "slot_type": "shelf_bottle",
+ "packaging": "none",
+ "material": "stainless"
+}

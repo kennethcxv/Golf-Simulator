@@ -1,0 +1,32 @@
+{
+ "id": "pf_hat_bucket",
+ "kind": "products",
+ "category": "hats",
+ "dims_m": [
+  0.306,
+  0.3043,
+  0.115
+ ],
+ "min_z": 0.0,
+ "tris": 2990,
+ "textures": [
+  "M_HatBandSage2_alb:512x512",
+  "M_HatCreamB2_alb:512x512",
+  "NRM_canvas_0.35_512:512x512",
+  "NRM_canvas_0.3_512:512x512",
+  "RGH_canvas_0.66:256x256",
+  "RGH_canvas_0.74:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_hat_bucket.glb",
+ "blend": "assets/pro_shop/source/products/hats/pf_hat_bucket.blend",
+ "name": "PF Bucket Hat",
+ "variant": "cream_sage",
+ "price": 34.99,
+ "fixture": "pf_fixture_hat_wall",
+ "slot_type": "hat_shelf",
+ "packaging": "none"
+}

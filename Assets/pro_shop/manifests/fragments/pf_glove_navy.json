@@ -1,0 +1,32 @@
+{
+ "id": "pf_glove_navy",
+ "kind": "products",
+ "category": "gloves",
+ "dims_m": [
+  0.1244,
+  0.0386,
+  0.178
+ ],
+ "min_z": -0.0,
+ "tris": 1258,
+ "textures": [
+  "GloveRibAlb_navy:128x128",
+  "GloveTab_navy:256x128",
+  "M_Glove_navy_alb:512x512",
+  "NRM_rib_1.6_512:512x512",
+  "NRM_ripstop_0.8_512:512x512",
+  "RGH_ripstop_0.62:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_glove_navy.glb",
+ "blend": "assets/pro_shop/source/products/gloves/pf_glove_navy.blend",
+ "name": "FORGE 360 Golf Glove",
+ "variant": "navy",
+ "price": 19.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "loose",
+ "packaging": "loose"
+}

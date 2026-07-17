@@ -1,0 +1,30 @@
+{
+ "id": "pf_teebox_bamboo",
+ "kind": "products",
+ "category": "tees",
+ "dims_m": [
+  0.078,
+  0.036,
+  0.139
+ ],
+ "min_z": 0.0,
+ "tris": 2600,
+ "textures": [
+  "PSBoard:512x512",
+  "TeeBox_bamboo:1024x1024"
+ ],
+ "sockets": [
+  "BARCODE_AREA",
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_teebox_bamboo.glb",
+ "blend": "assets/pro_shop/source/products/tees/pf_teebox_bamboo.blend",
+ "name": "Eco Bamboo Tees 20pk",
+ "variant": "bamboo_navy",
+ "price": 7.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "hook_card",
+ "packaging": "window box + hang tab"
+}

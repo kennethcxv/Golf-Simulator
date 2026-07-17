@@ -1,0 +1,1898 @@
+{
+ "count": 233,
+ "textures": [
+  {
+   "name": "BagPlate_pf_bag_cart_FORG",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_bag_cart"
+   ]
+  },
+  {
+   "name": "BagPlate_pf_bag_stand_AERO",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_bag_stand"
+   ]
+  },
+  {
+   "name": "BagPlate_pf_bag_sunday_SUND",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_bag_sunday"
+   ]
+  },
+  {
+   "name": "BallBoxRange12",
+   "resolution": "1024x1024",
+   "used_by": [
+    "pf_ballbox_range12"
+   ]
+  },
+  {
+   "name": "BallBoxSoft12",
+   "resolution": "1024x1024",
+   "used_by": [
+    "pf_ballbox_soft12"
+   ]
+  },
+  {
+   "name": "BallBoxTour12",
+   "resolution": "1024x1024",
+   "used_by": [
+    "pf_ballbox_tour12"
+   ]
+  },
+  {
+   "name": "BallSleeveValue3",
+   "resolution": "1024x1024",
+   "used_by": [
+    "pf_ballsleeve_value3"
+   ]
+  },
+  {
+   "name": "BookletCover",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_scorecard_booklet"
+   ]
+  },
+  {
+   "name": "BookNavy",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_scorecard_booklet"
+   ]
+  },
+  {
+   "name": "CarbonWeave",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_driver_aero_max",
+    "pf_driver_forge_tour"
+   ]
+  },
+  {
+   "name": "Card_pf_divot_classic_card",
+   "resolution": "512x852",
+   "used_by": [
+    "pf_divot_classic_card"
+   ]
+  },
+  {
+   "name": "Card_pf_divot_folding_black_card",
+   "resolution": "512x852",
+   "used_by": [
+    "pf_divot_folding_black_card"
+   ]
+  },
+  {
+   "name": "Card_pf_divot_folding_sage_card",
+   "resolution": "512x852",
+   "used_by": [
+    "pf_divot_folding_sage_card"
+   ]
+  },
+  {
+   "name": "Card_pf_divot_slim_card",
+   "resolution": "512x852",
+   "used_by": [
+    "pf_divot_slim_card"
+   ]
+  },
+  {
+   "name": "Card_pf_glove_black_card",
+   "resolution": "512x1024",
+   "used_by": [
+    "pf_glove_black_card"
+   ]
+  },
+  {
+   "name": "Card_pf_glove_navy_card",
+   "resolution": "512x1024",
+   "used_by": [
+    "pf_glove_navy_card"
+   ]
+  },
+  {
+   "name": "Card_pf_glove_sage_card",
+   "resolution": "512x1024",
+   "used_by": [
+    "pf_glove_sage_card"
+   ]
+  },
+  {
+   "name": "Card_pf_glove_white_card",
+   "resolution": "512x1024",
+   "used_by": [
+    "pf_glove_white_card"
+   ]
+  },
+  {
+   "name": "Card_pf_marker_clip_card",
+   "resolution": "512x820",
+   "used_by": [
+    "pf_marker_clip_card"
+   ]
+  },
+  {
+   "name": "Card_pf_marker_coin_card",
+   "resolution": "512x820",
+   "used_by": [
+    "pf_marker_coin_card"
+   ]
+  },
+  {
+   "name": "Card_pf_marker_enamel_card",
+   "resolution": "512x820",
+   "used_by": [
+    "pf_marker_enamel_card"
+   ]
+  },
+  {
+   "name": "Card_pf_marker_engraved_card",
+   "resolution": "512x820",
+   "used_by": [
+    "pf_marker_engraved_card"
+   ]
+  },
+  {
+   "name": "Card_pf_towel_card",
+   "resolution": "512x590",
+   "used_by": [
+    "pf_towel_card"
+   ]
+  },
+  {
+   "name": "ClubGripTex",
+   "resolution": "128x256",
+   "used_by": [
+    "pf_driver_aero_max",
+    "pf_driver_elevate_lite",
+    "pf_driver_forge_tour",
+    "pf_driver_vantage_pro",
+    "pf_hybrid_aero_2h",
+    "pf_hybrid_elevate_5h",
+    "pf_hybrid_forge_4h",
+    "pf_hybrid_vantage_3h",
+    "pf_iron_cavity_7",
+    "pf_iron_distance_7",
+    "pf_iron_gameimp_7",
+    "pf_iron_players_7",
+    "pf_putter_blade",
+    "pf_putter_fang",
+    "pf_putter_mallet_spider",
+    "pf_putter_wide_blade",
+    "pf_wedge_gap_50",
+    "pf_wedge_lob_60",
+    "pf_wedge_sand_56",
+    "pf_wedge_versa_54",
+    "pf_wood_aero_max_3",
+    "pf_wood_elevate_tour_3",
+    "pf_wood_forge_pro_5",
+    "pf_wood_vantage_xlt_7"
+   ]
+  },
+  {
+   "name": "CtrCrest",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_fixture_checkout_counter_shop"
+   ]
+  },
+  {
+   "name": "Decal_pf_driver_aero_max",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_driver_aero_max"
+   ]
+  },
+  {
+   "name": "Decal_pf_driver_elevate_lite",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_driver_elevate_lite"
+   ]
+  },
+  {
+   "name": "Decal_pf_driver_forge_tour",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_driver_forge_tour"
+   ]
+  },
+  {
+   "name": "Decal_pf_driver_vantage_pro",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_driver_vantage_pro"
+   ]
+  },
+  {
+   "name": "Decal_pf_hybrid_aero_2h",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_hybrid_aero_2h"
+   ]
+  },
+  {
+   "name": "Decal_pf_hybrid_elevate_5h",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_hybrid_elevate_5h"
+   ]
+  },
+  {
+   "name": "Decal_pf_hybrid_forge_4h",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_hybrid_forge_4h"
+   ]
+  },
+  {
+   "name": "Decal_pf_hybrid_vantage_3h",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_hybrid_vantage_3h"
+   ]
+  },
+  {
+   "name": "Decal_pf_wood_aero_max_3",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_wood_aero_max_3"
+   ]
+  },
+  {
+   "name": "Decal_pf_wood_elevate_tour_3",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_wood_elevate_tour_3"
+   ]
+  },
+  {
+   "name": "Decal_pf_wood_forge_pro_5",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_wood_forge_pro_5"
+   ]
+  },
+  {
+   "name": "Decal_pf_wood_vantage_xlt_7",
+   "resolution": "256x96",
+   "used_by": [
+    "pf_wood_vantage_xlt_7"
+   ]
+  },
+  {
+   "name": "DialKnurl",
+   "resolution": "64x64",
+   "used_by": [
+    "pf_shoe_spiked_pro"
+   ]
+  },
+  {
+   "name": "DivKnurl",
+   "resolution": "64x64",
+   "used_by": [
+    "pf_divot_classic",
+    "pf_divot_classic_card"
+   ]
+  },
+  {
+   "name": "FaceSteelAlb",
+   "resolution": "128x128",
+   "used_by": [
+    "pf_driver_aero_max",
+    "pf_driver_elevate_lite",
+    "pf_driver_forge_tour",
+    "pf_driver_vantage_pro",
+    "pf_hybrid_aero_2h",
+    "pf_hybrid_elevate_5h",
+    "pf_hybrid_forge_4h",
+    "pf_hybrid_vantage_3h",
+    "pf_wood_aero_max_3",
+    "pf_wood_elevate_tour_3",
+    "pf_wood_forge_pro_5",
+    "pf_wood_vantage_xlt_7"
+   ]
+  },
+  {
+   "name": "GiftCard",
+   "resolution": "512x768",
+   "used_by": [
+    "pf_giftcard"
+   ]
+  },
+  {
+   "name": "GloveRibAlb_black",
+   "resolution": "128x128",
+   "used_by": [
+    "pf_glove_black",
+    "pf_glove_black_card"
+   ]
+  },
+  {
+   "name": "GloveRibAlb_navy",
+   "resolution": "128x128",
+   "used_by": [
+    "pf_glove_navy",
+    "pf_glove_navy_card"
+   ]
+  },
+  {
+   "name": "GloveRibAlb_sage",
+   "resolution": "128x128",
+   "used_by": [
+    "pf_glove_sage",
+    "pf_glove_sage_card"
+   ]
+  },
+  {
+   "name": "GloveRibAlb_white",
+   "resolution": "128x128",
+   "used_by": [
+    "pf_glove_white",
+    "pf_glove_white_card"
+   ]
+  },
+  {
+   "name": "GloveTab_black",
+   "resolution": "256x128",
+   "used_by": [
+    "pf_glove_black",
+    "pf_glove_black_card"
+   ]
+  },
+  {
+   "name": "GloveTab_navy",
+   "resolution": "256x128",
+   "used_by": [
+    "pf_glove_navy",
+    "pf_glove_navy_card"
+   ]
+  },
+  {
+   "name": "GloveTab_sage",
+   "resolution": "256x128",
+   "used_by": [
+    "pf_glove_sage",
+    "pf_glove_sage_card"
+   ]
+  },
+  {
+   "name": "GloveTab_white",
+   "resolution": "256x128",
+   "used_by": [
+    "pf_glove_white",
+    "pf_glove_white_card"
+   ]
+  },
+  {
+   "name": "HatRopeSpeck",
+   "resolution": "128x32",
+   "used_by": [
+    "pf_hat_performance"
+   ]
+  },
+  {
+   "name": "HatSagePerfV2",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_hat_performance"
+   ]
+  },
+  {
+   "name": "HC_pf_headcover_driver",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_headcover_driver"
+   ]
+  },
+  {
+   "name": "HC_pf_headcover_wood",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_headcover_wood"
+   ]
+  },
+  {
+   "name": "HCKnit_pf_headcover_driver",
+   "resolution": "128x128",
+   "used_by": [
+    "pf_headcover_driver"
+   ]
+  },
+  {
+   "name": "HCKnit_pf_headcover_wood",
+   "resolution": "128x128",
+   "used_by": [
+    "pf_headcover_wood"
+   ]
+  },
+  {
+   "name": "HCNum_pf_headcover_driver",
+   "resolution": "128x128",
+   "used_by": [
+    "pf_headcover_driver"
+   ]
+  },
+  {
+   "name": "HCNum_pf_headcover_wood",
+   "resolution": "128x128",
+   "used_by": [
+    "pf_headcover_wood"
+   ]
+  },
+  {
+   "name": "Header_pf_fixture_accessory_slatwall",
+   "resolution": "512x128",
+   "used_by": [
+    "pf_fixture_accessory_slatwall"
+   ]
+  },
+  {
+   "name": "Header_pf_fixture_apparel_wall",
+   "resolution": "512x128",
+   "used_by": [
+    "pf_fixture_apparel_wall"
+   ]
+  },
+  {
+   "name": "Header_pf_fixture_bag_display",
+   "resolution": "512x128",
+   "used_by": [
+    "pf_fixture_bag_display"
+   ]
+  },
+  {
+   "name": "Header_pf_fixture_ball_shelf",
+   "resolution": "512x128",
+   "used_by": [
+    "pf_fixture_ball_shelf"
+   ]
+  },
+  {
+   "name": "Header_pf_fixture_hat_wall",
+   "resolution": "512x128",
+   "used_by": [
+    "pf_fixture_hat_wall"
+   ]
+  },
+  {
+   "name": "Header_pf_fixture_rangefinder_display",
+   "resolution": "512x128",
+   "used_by": [
+    "pf_fixture_rangefinder_display"
+   ]
+  },
+  {
+   "name": "Header_pf_fixture_shoe_display",
+   "resolution": "512x128",
+   "used_by": [
+    "pf_fixture_shoe_display"
+   ]
+  },
+  {
+   "name": "Header_pf_fixture_snack_shelf",
+   "resolution": "512x128",
+   "used_by": [
+    "pf_fixture_snack_shelf"
+   ]
+  },
+  {
+   "name": "HeadGlossAlb",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_driver_aero_max",
+    "pf_driver_elevate_lite",
+    "pf_driver_forge_tour",
+    "pf_driver_vantage_pro",
+    "pf_hybrid_aero_2h",
+    "pf_hybrid_elevate_5h",
+    "pf_hybrid_forge_4h",
+    "pf_hybrid_vantage_3h",
+    "pf_wood_aero_max_3",
+    "pf_wood_elevate_tour_3",
+    "pf_wood_forge_pro_5",
+    "pf_wood_vantage_xlt_7"
+   ]
+  },
+  {
+   "name": "HoleGuide",
+   "resolution": "512x1024",
+   "used_by": [
+    "pf_scorecard_holeguide"
+   ]
+  },
+  {
+   "name": "IronBadge_pf_iron_cavity_7",
+   "resolution": "192x96",
+   "used_by": [
+    "pf_iron_cavity_7"
+   ]
+  },
+  {
+   "name": "IronBadge_pf_iron_distance_7",
+   "resolution": "192x96",
+   "used_by": [
+    "pf_iron_distance_7"
+   ]
+  },
+  {
+   "name": "IronBadge_pf_iron_gameimp_7",
+   "resolution": "192x96",
+   "used_by": [
+    "pf_iron_gameimp_7"
+   ]
+  },
+  {
+   "name": "IronBadge_pf_wedge_gap_50",
+   "resolution": "192x96",
+   "used_by": [
+    "pf_wedge_gap_50"
+   ]
+  },
+  {
+   "name": "IronStamp_pf_iron_players_7",
+   "resolution": "192x64",
+   "used_by": [
+    "pf_iron_players_7"
+   ]
+  },
+  {
+   "name": "IronStamp_pf_wedge_lob_60",
+   "resolution": "192x64",
+   "used_by": [
+    "pf_wedge_lob_60"
+   ]
+  },
+  {
+   "name": "IronStamp_pf_wedge_sand_56",
+   "resolution": "192x64",
+   "used_by": [
+    "pf_wedge_sand_56"
+   ]
+  },
+  {
+   "name": "IronStamp_pf_wedge_versa_54",
+   "resolution": "192x64",
+   "used_by": [
+    "pf_wedge_versa_54"
+   ]
+  },
+  {
+   "name": "LblInsul",
+   "resolution": "1024x512",
+   "used_by": [
+    "pf_bottle_insulated"
+   ]
+  },
+  {
+   "name": "LblSlim",
+   "resolution": "1024x512",
+   "used_by": [
+    "pf_bottle_slim"
+   ]
+  },
+  {
+   "name": "LblSport",
+   "resolution": "1024x512",
+   "used_by": [
+    "pf_bottle_sport"
+   ]
+  },
+  {
+   "name": "LblSqueeze",
+   "resolution": "1024x512",
+   "used_by": [
+    "pf_bottle_squeeze"
+   ]
+  },
+  {
+   "name": "Logo_pf_hoodie_hanging",
+   "resolution": "128x128",
+   "used_by": [
+    "pf_hoodie_hanging"
+   ]
+  },
+  {
+   "name": "Logo_pf_jacket_hanging",
+   "resolution": "128x128",
+   "used_by": [
+    "pf_jacket_hanging"
+   ]
+  },
+  {
+   "name": "Logo_pf_polo_hanging",
+   "resolution": "128x128",
+   "used_by": [
+    "pf_polo_hanging"
+   ]
+  },
+  {
+   "name": "Logo_pf_quarterzip_hanging",
+   "resolution": "128x128",
+   "used_by": [
+    "pf_quarterzip_hanging"
+   ]
+  },
+  {
+   "name": "M_BagChar_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_bag_cart"
+   ]
+  },
+  {
+   "name": "M_BagNavy_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_bag_staff"
+   ]
+  },
+  {
+   "name": "M_BagNavyC_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_bag_sunday"
+   ]
+  },
+  {
+   "name": "M_BagSage_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_bag_stand"
+   ]
+  },
+  {
+   "name": "M_BagWhite_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_bag_stand"
+   ]
+  },
+  {
+   "name": "M_BagWhiteC_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_bag_sunday"
+   ]
+  },
+  {
+   "name": "M_BagWhiteL_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_bag_staff"
+   ]
+  },
+  {
+   "name": "M_BeltNavy_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_belt_coiled"
+   ]
+  },
+  {
+   "name": "M_Glove_black_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_glove_black",
+    "pf_glove_black_card"
+   ]
+  },
+  {
+   "name": "M_Glove_navy_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_glove_navy",
+    "pf_glove_navy_card"
+   ]
+  },
+  {
+   "name": "M_Glove_sage_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_glove_sage",
+    "pf_glove_sage_card"
+   ]
+  },
+  {
+   "name": "M_Glove_white_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_glove_white",
+    "pf_glove_white_card"
+   ]
+  },
+  {
+   "name": "M_HatBandSage2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_hat_bucket"
+   ]
+  },
+  {
+   "name": "M_HatCreamB2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_hat_bucket"
+   ]
+  },
+  {
+   "name": "M_HatCreamV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_hat_structured"
+   ]
+  },
+  {
+   "name": "M_HatNavyV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_hat_visor"
+   ]
+  },
+  {
+   "name": "M_HatTerry_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_hat_visor"
+   ]
+  },
+  {
+   "name": "M_HCPom_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_headcover_driver",
+    "pf_headcover_wood"
+   ]
+  },
+  {
+   "name": "M_HoodieNavyV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_hoodie_hanging"
+   ]
+  },
+  {
+   "name": "M_JacketCharV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_jacket_hanging"
+   ]
+  },
+  {
+   "name": "M_PantsCreamV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_pants_hanging"
+   ]
+  },
+  {
+   "name": "M_pf_pants_foldedV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_pants_folded"
+   ]
+  },
+  {
+   "name": "M_pf_polo_foldedV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_polo_folded"
+   ]
+  },
+  {
+   "name": "M_pf_quarterzip_foldedV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_quarterzip_folded"
+   ]
+  },
+  {
+   "name": "M_pf_shorts_foldedV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_shorts_folded"
+   ]
+  },
+  {
+   "name": "M_PoloCreamV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_polo_hanging"
+   ]
+  },
+  {
+   "name": "M_QZSageV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_quarterzip_hanging"
+   ]
+  },
+  {
+   "name": "M_ShoeCharV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_shoe_waterproof_trail"
+   ]
+  },
+  {
+   "name": "M_ShoeKnitV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_shoe_knit_flex"
+   ]
+  },
+  {
+   "name": "M_ShoeWhiteV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_shoe_saddle_classic",
+    "pf_shoe_spiked_pro"
+   ]
+  },
+  {
+   "name": "M_ShortsNavyV2_alb",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_shorts_hanging"
+   ]
+  },
+  {
+   "name": "MarkerClip",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_marker_clip",
+    "pf_marker_clip_card"
+   ]
+  },
+  {
+   "name": "MarkerEnamel",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_marker_enamel",
+    "pf_marker_enamel_card"
+   ]
+  },
+  {
+   "name": "MarkerEngraved",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_marker_engraved",
+    "pf_marker_engraved_card"
+   ]
+  },
+  {
+   "name": "MiniCard",
+   "resolution": "1024x512",
+   "used_by": [
+    "pf_scorecard_mini"
+   ]
+  },
+  {
+   "name": "NRM_canvas_0.25_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_teebox_wood"
+   ]
+  },
+  {
+   "name": "NRM_canvas_0.3_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_hat_bucket"
+   ]
+  },
+  {
+   "name": "NRM_canvas_0.35_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_hat_bucket"
+   ]
+  },
+  {
+   "name": "NRM_canvas_0.6_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_bag_cart",
+    "pf_bag_sunday"
+   ]
+  },
+  {
+   "name": "NRM_canvas_0.9_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_hat_structured",
+    "pf_hat_visor"
+   ]
+  },
+  {
+   "name": "NRM_canvas_1.5_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_towel_folded"
+   ]
+  },
+  {
+   "name": "NRM_crinkle_0.12_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_divot_classic",
+    "pf_divot_classic_card",
+    "pf_divot_folding_black",
+    "pf_divot_folding_black_card",
+    "pf_divot_folding_sage",
+    "pf_divot_folding_sage_card",
+    "pf_divot_slim",
+    "pf_divot_slim_card",
+    "pf_hoodie_hanging",
+    "pf_iron_cavity_7",
+    "pf_iron_distance_7",
+    "pf_iron_gameimp_7",
+    "pf_iron_players_7",
+    "pf_jacket_hanging",
+    "pf_quarterzip_hanging",
+    "pf_shoe_saddle_classic",
+    "pf_shoe_waterproof_trail",
+    "pf_wedge_gap_50",
+    "pf_wedge_lob_60",
+    "pf_wedge_sand_56",
+    "pf_wedge_versa_54"
+   ]
+  },
+  {
+   "name": "NRM_dimple_1.0_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_ballbox_range12",
+    "pf_ballsleeve_value3"
+   ]
+  },
+  {
+   "name": "NRM_dimple_1.2_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_ball_loose_white",
+    "pf_ball_loose_yellow"
+   ]
+  },
+  {
+   "name": "NRM_fleece_0.5_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_hoodie_hanging"
+   ]
+  },
+  {
+   "name": "NRM_fleece_1.2_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_hat_visor"
+   ]
+  },
+  {
+   "name": "NRM_fleece_1.4_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_headcover_driver",
+    "pf_headcover_wood"
+   ]
+  },
+  {
+   "name": "NRM_knit_0.35_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_quarterzip_folded"
+   ]
+  },
+  {
+   "name": "NRM_knit_0.45_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_quarterzip_hanging"
+   ]
+  },
+  {
+   "name": "NRM_knit_1.0_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_hat_performance"
+   ]
+  },
+  {
+   "name": "NRM_knit_1.2_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_shoe_knit_flex"
+   ]
+  },
+  {
+   "name": "NRM_knurl_0.15_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_driver_aero_max",
+    "pf_driver_forge_tour"
+   ]
+  },
+  {
+   "name": "NRM_knurl_0.8_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_shoe_spiked_pro"
+   ]
+  },
+  {
+   "name": "NRM_knurl_1.0_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_driver_aero_max",
+    "pf_driver_elevate_lite",
+    "pf_driver_forge_tour",
+    "pf_driver_vantage_pro",
+    "pf_hybrid_aero_2h",
+    "pf_hybrid_elevate_5h",
+    "pf_hybrid_forge_4h",
+    "pf_hybrid_vantage_3h",
+    "pf_iron_cavity_7",
+    "pf_iron_distance_7",
+    "pf_iron_gameimp_7",
+    "pf_iron_players_7",
+    "pf_putter_blade",
+    "pf_putter_fang",
+    "pf_putter_mallet_spider",
+    "pf_putter_wide_blade",
+    "pf_shoe_waterproof_trail",
+    "pf_wedge_gap_50",
+    "pf_wedge_lob_60",
+    "pf_wedge_sand_56",
+    "pf_wedge_versa_54",
+    "pf_wood_aero_max_3",
+    "pf_wood_elevate_tour_3",
+    "pf_wood_forge_pro_5",
+    "pf_wood_vantage_xlt_7"
+   ]
+  },
+  {
+   "name": "NRM_knurl_1.4_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_rangefinder_armor",
+    "pf_rangefinder_field",
+    "pf_rangefinder_stealth",
+    "pf_rangefinder_tour"
+   ]
+  },
+  {
+   "name": "NRM_knurl_1.6_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_shoe_spiked_pro"
+   ]
+  },
+  {
+   "name": "NRM_leather_0.35_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_fixture_accessory_slatwall",
+    "pf_fixture_apparel_wall",
+    "pf_fixture_ball_shelf",
+    "pf_fixture_checkout_counter_shop",
+    "pf_fixture_club_rack",
+    "pf_fixture_freestanding_gondola",
+    "pf_fixture_hat_wall",
+    "pf_fixture_rangefinder_display",
+    "pf_fixture_shoe_display",
+    "pf_fixture_snack_shelf"
+   ]
+  },
+  {
+   "name": "NRM_leather_0.5_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_bag_staff",
+    "pf_belt_coiled",
+    "pf_shoe_saddle_classic",
+    "pf_shoe_spiked_pro"
+   ]
+  },
+  {
+   "name": "NRM_leather_0.55_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_glove_black",
+    "pf_glove_black_card",
+    "pf_glove_sage",
+    "pf_glove_sage_card",
+    "pf_glove_white",
+    "pf_glove_white_card",
+    "pf_shoe_waterproof_trail"
+   ]
+  },
+  {
+   "name": "NRM_pique_0.28_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_polo_hanging"
+   ]
+  },
+  {
+   "name": "NRM_pique_0.35_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_polo_folded"
+   ]
+  },
+  {
+   "name": "NRM_rib_1.2_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_driver_aero_max",
+    "pf_driver_elevate_lite",
+    "pf_driver_forge_tour",
+    "pf_driver_vantage_pro",
+    "pf_hybrid_aero_2h",
+    "pf_hybrid_elevate_5h",
+    "pf_hybrid_forge_4h",
+    "pf_hybrid_vantage_3h",
+    "pf_wood_aero_max_3",
+    "pf_wood_elevate_tour_3",
+    "pf_wood_forge_pro_5",
+    "pf_wood_vantage_xlt_7"
+   ]
+  },
+  {
+   "name": "NRM_rib_1.6_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_glove_black",
+    "pf_glove_black_card",
+    "pf_glove_navy",
+    "pf_glove_navy_card",
+    "pf_glove_sage",
+    "pf_glove_sage_card",
+    "pf_glove_white",
+    "pf_glove_white_card"
+   ]
+  },
+  {
+   "name": "NRM_rib_1.8_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_quarterzip_hanging"
+   ]
+  },
+  {
+   "name": "NRM_rib_2.0_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_headcover_driver",
+    "pf_headcover_wood",
+    "pf_jacket_hanging",
+    "pf_quarterzip_hanging"
+   ]
+  },
+  {
+   "name": "NRM_ripstop_0.35_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_jacket_hanging"
+   ]
+  },
+  {
+   "name": "NRM_ripstop_0.6_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_bag_stand"
+   ]
+  },
+  {
+   "name": "NRM_ripstop_0.7_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_bag_stand"
+   ]
+  },
+  {
+   "name": "NRM_ripstop_0.8_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_glove_navy",
+    "pf_glove_navy_card"
+   ]
+  },
+  {
+   "name": "NRM_twill_0.35_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_pants_folded",
+    "pf_shorts_folded"
+   ]
+  },
+  {
+   "name": "NRM_twill_0.45_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_pants_hanging",
+    "pf_shorts_hanging"
+   ]
+  },
+  {
+   "name": "NRM_wood_0.6_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_fixture_ball_shelf",
+    "pf_fixture_freestanding_gondola",
+    "pf_fixture_hat_wall",
+    "pf_fixture_rangefinder_display",
+    "pf_fixture_shoe_display",
+    "pf_fixture_snack_shelf",
+    "pf_hanger_clip",
+    "pf_hanger_wood"
+   ]
+  },
+  {
+   "name": "NRM_wood_0.7_512",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_fixture_accessory_slatwall",
+    "pf_fixture_apparel_wall",
+    "pf_fixture_bag_display",
+    "pf_fixture_ball_shelf",
+    "pf_fixture_center_table",
+    "pf_fixture_checkout_counter_shop",
+    "pf_fixture_club_rack",
+    "pf_fixture_freestanding_gondola",
+    "pf_fixture_hat_wall",
+    "pf_fixture_rangefinder_display",
+    "pf_fixture_shoe_display",
+    "pf_fixture_snack_shelf"
+   ]
+  },
+  {
+   "name": "pf_ball_loose_white_tex",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_ball_loose_white"
+   ]
+  },
+  {
+   "name": "pf_ball_loose_yellow_tex",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_ball_loose_yellow"
+   ]
+  },
+  {
+   "name": "PSBlackSteel",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_divot_slim",
+    "pf_divot_slim_card",
+    "pf_fixture_accessory_slatwall",
+    "pf_fixture_apparel_wall",
+    "pf_fixture_bag_display",
+    "pf_fixture_ball_shelf",
+    "pf_fixture_center_table",
+    "pf_fixture_checkout_counter_shop",
+    "pf_fixture_freestanding_gondola",
+    "pf_fixture_hat_wall",
+    "pf_fixture_rangefinder_display",
+    "pf_fixture_shoe_display",
+    "pf_fixture_snack_shelf",
+    "pf_iron_cavity_7",
+    "pf_iron_distance_7",
+    "pf_iron_gameimp_7",
+    "pf_umbrella_closed",
+    "pf_wedge_gap_50"
+   ]
+  },
+  {
+   "name": "PSBoard",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_ballbox_range12",
+    "pf_polo_folded",
+    "pf_polo_hanging",
+    "pf_quarterzip_folded",
+    "pf_teebox_bamboo",
+    "pf_teebox_performance",
+    "pf_teebox_prolaunch"
+   ]
+  },
+  {
+   "name": "PSCharcoal",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_fixture_accessory_slatwall",
+    "pf_fixture_apparel_wall",
+    "pf_fixture_ball_shelf",
+    "pf_fixture_checkout_counter_shop",
+    "pf_fixture_club_rack",
+    "pf_fixture_freestanding_gondola",
+    "pf_fixture_hat_wall",
+    "pf_fixture_rangefinder_display",
+    "pf_fixture_shoe_display",
+    "pf_fixture_snack_shelf"
+   ]
+  },
+  {
+   "name": "PSKraft",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_teebox_wood"
+   ]
+  },
+  {
+   "name": "PSOak",
+   "resolution": "1024x512",
+   "used_by": [
+    "pf_fixture_ball_shelf",
+    "pf_fixture_freestanding_gondola",
+    "pf_fixture_hat_wall",
+    "pf_fixture_rangefinder_display",
+    "pf_fixture_shoe_display",
+    "pf_fixture_snack_shelf",
+    "pf_hanger_clip",
+    "pf_hanger_wood"
+   ]
+  },
+  {
+   "name": "PSSatinAlb",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_divot_classic",
+    "pf_divot_classic_card",
+    "pf_divot_folding_black",
+    "pf_divot_folding_black_card",
+    "pf_divot_folding_sage",
+    "pf_divot_folding_sage_card",
+    "pf_divot_slim",
+    "pf_divot_slim_card",
+    "pf_hoodie_hanging",
+    "pf_iron_cavity_7",
+    "pf_iron_distance_7",
+    "pf_iron_gameimp_7",
+    "pf_iron_players_7",
+    "pf_jacket_hanging",
+    "pf_quarterzip_hanging",
+    "pf_shoe_saddle_classic",
+    "pf_shoe_waterproof_trail",
+    "pf_wedge_gap_50",
+    "pf_wedge_lob_60",
+    "pf_wedge_sand_56",
+    "pf_wedge_versa_54"
+   ]
+  },
+  {
+   "name": "PSWalnut",
+   "resolution": "1024x512",
+   "used_by": [
+    "pf_fixture_accessory_slatwall",
+    "pf_fixture_apparel_wall",
+    "pf_fixture_bag_display",
+    "pf_fixture_ball_shelf",
+    "pf_fixture_center_table",
+    "pf_fixture_checkout_counter_shop",
+    "pf_fixture_club_rack",
+    "pf_fixture_freestanding_gondola",
+    "pf_fixture_hat_wall",
+    "pf_fixture_rangefinder_display",
+    "pf_fixture_shoe_display",
+    "pf_fixture_snack_shelf"
+   ]
+  },
+  {
+   "name": "QZRibAlb",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_quarterzip_hanging"
+   ]
+  },
+  {
+   "name": "RackBand_pf_fixture_club_rack",
+   "resolution": "512x64",
+   "used_by": [
+    "pf_fixture_club_rack"
+   ]
+  },
+  {
+   "name": "RangeBall_green",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_ballbox_range12"
+   ]
+  },
+  {
+   "name": "RangeBall_orange",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_ballbox_range12"
+   ]
+  },
+  {
+   "name": "RangeBall_pink",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_ballbox_range12"
+   ]
+  },
+  {
+   "name": "RangeBall_yellow",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_ballbox_range12"
+   ]
+  },
+  {
+   "name": "RFArmor_armor",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_rangefinder_armor"
+   ]
+  },
+  {
+   "name": "RFArmor_field",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_rangefinder_field"
+   ]
+  },
+  {
+   "name": "RFArmor_stealth",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_rangefinder_stealth"
+   ]
+  },
+  {
+   "name": "RFArmor_tour",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_rangefinder_tour"
+   ]
+  },
+  {
+   "name": "RFBody_armor",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_rangefinder_armor"
+   ]
+  },
+  {
+   "name": "RFBody_field",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_rangefinder_field"
+   ]
+  },
+  {
+   "name": "RFBody_stealth",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_rangefinder_stealth"
+   ]
+  },
+  {
+   "name": "RFBody_tour",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_rangefinder_tour"
+   ]
+  },
+  {
+   "name": "RFBox",
+   "resolution": "1024x1024",
+   "used_by": [
+    "pf_rangefinder_box"
+   ]
+  },
+  {
+   "name": "RFBrand_armor",
+   "resolution": "256x64",
+   "used_by": [
+    "pf_rangefinder_armor"
+   ]
+  },
+  {
+   "name": "RFBrand_field",
+   "resolution": "256x64",
+   "used_by": [
+    "pf_rangefinder_field"
+   ]
+  },
+  {
+   "name": "RFBrand_stealth",
+   "resolution": "256x64",
+   "used_by": [
+    "pf_rangefinder_stealth"
+   ]
+  },
+  {
+   "name": "RFBrand_tour",
+   "resolution": "256x64",
+   "used_by": [
+    "pf_rangefinder_tour"
+   ]
+  },
+  {
+   "name": "RGH_canvas_0.58",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_bag_cart"
+   ]
+  },
+  {
+   "name": "RGH_canvas_0.62",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_bag_sunday"
+   ]
+  },
+  {
+   "name": "RGH_canvas_0.66",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_hat_bucket"
+   ]
+  },
+  {
+   "name": "RGH_canvas_0.68",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_hat_visor"
+   ]
+  },
+  {
+   "name": "RGH_canvas_0.72",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_hat_structured"
+   ]
+  },
+  {
+   "name": "RGH_canvas_0.74",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_hat_bucket"
+   ]
+  },
+  {
+   "name": "RGH_fleece_0.85",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_hat_visor",
+    "pf_hoodie_hanging"
+   ]
+  },
+  {
+   "name": "RGH_fleece_0.9",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_headcover_driver",
+    "pf_headcover_wood"
+   ]
+  },
+  {
+   "name": "RGH_knit_0.62",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_hat_performance"
+   ]
+  },
+  {
+   "name": "RGH_knit_0.72",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_quarterzip_folded",
+    "pf_quarterzip_hanging"
+   ]
+  },
+  {
+   "name": "RGH_knit_0.8",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_shoe_knit_flex"
+   ]
+  },
+  {
+   "name": "RGH_leather_0.42",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_belt_coiled",
+    "pf_glove_black",
+    "pf_glove_black_card",
+    "pf_glove_sage",
+    "pf_glove_sage_card",
+    "pf_glove_white",
+    "pf_glove_white_card",
+    "pf_shoe_saddle_classic",
+    "pf_shoe_spiked_pro"
+   ]
+  },
+  {
+   "name": "RGH_leather_0.44",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_bag_staff"
+   ]
+  },
+  {
+   "name": "RGH_leather_0.48",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_shoe_waterproof_trail"
+   ]
+  },
+  {
+   "name": "RGH_pique_0.72",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_polo_folded"
+   ]
+  },
+  {
+   "name": "RGH_pique_0.74",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_polo_hanging"
+   ]
+  },
+  {
+   "name": "RGH_ripstop_0.55",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_jacket_hanging"
+   ]
+  },
+  {
+   "name": "RGH_ripstop_0.62",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_bag_stand",
+    "pf_glove_navy",
+    "pf_glove_navy_card"
+   ]
+  },
+  {
+   "name": "RGH_twill_0.62",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_pants_hanging",
+    "pf_shorts_hanging"
+   ]
+  },
+  {
+   "name": "RGH_twill_0.72",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_pants_folded",
+    "pf_shorts_folded"
+   ]
+  },
+  {
+   "name": "ScorecardCover",
+   "resolution": "1024x512",
+   "used_by": [
+    "pf_scorecard_course"
+   ]
+  },
+  {
+   "name": "ScorecardInside",
+   "resolution": "1024x512",
+   "used_by": [
+    "pf_scorecard_course"
+   ]
+  },
+  {
+   "name": "SGBox",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_sunglasses_box"
+   ]
+  },
+  {
+   "name": "ShoeTab_pf_shoe_knit_flex",
+   "resolution": "128x64",
+   "used_by": [
+    "pf_shoe_knit_flex"
+   ]
+  },
+  {
+   "name": "ShoeTab_pf_shoe_saddle_classic",
+   "resolution": "128x64",
+   "used_by": [
+    "pf_shoe_saddle_classic"
+   ]
+  },
+  {
+   "name": "ShoeTab_pf_shoe_spiked_pro",
+   "resolution": "128x64",
+   "used_by": [
+    "pf_shoe_spiked_pro"
+   ]
+  },
+  {
+   "name": "ShoeTab_pf_shoe_waterproof_trail",
+   "resolution": "128x64",
+   "used_by": [
+    "pf_shoe_waterproof_trail"
+   ]
+  },
+  {
+   "name": "SideLogo_pf_shoe_knit_flex",
+   "resolution": "96x96",
+   "used_by": [
+    "pf_shoe_knit_flex"
+   ]
+  },
+  {
+   "name": "SideLogo_pf_shoe_saddle_classic",
+   "resolution": "96x96",
+   "used_by": [
+    "pf_shoe_saddle_classic"
+   ]
+  },
+  {
+   "name": "SideLogo_pf_shoe_spiked_pro",
+   "resolution": "96x96",
+   "used_by": [
+    "pf_shoe_spiked_pro"
+   ]
+  },
+  {
+   "name": "SideLogo_pf_shoe_waterproof_trail",
+   "resolution": "96x96",
+   "used_by": [
+    "pf_shoe_waterproof_trail"
+   ]
+  },
+  {
+   "name": "SnackChips",
+   "resolution": "1024x1024",
+   "used_by": [
+    "pf_snack_chips"
+   ]
+  },
+  {
+   "name": "SnackGranola",
+   "resolution": "1024x1024",
+   "used_by": [
+    "pf_snack_granola_box"
+   ]
+  },
+  {
+   "name": "SnackProtein",
+   "resolution": "1024x512",
+   "used_by": [
+    "pf_snack_protein_bar"
+   ]
+  },
+  {
+   "name": "SnackTrailmix",
+   "resolution": "1024x1024",
+   "used_by": [
+    "pf_snack_trailmix"
+   ]
+  },
+  {
+   "name": "SoleGreyAlb",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_shoe_waterproof_trail"
+   ]
+  },
+  {
+   "name": "SoleWhiteAlb",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_shoe_spiked_pro"
+   ]
+  },
+  {
+   "name": "StaffCrest",
+   "resolution": "512x512",
+   "used_by": [
+    "pf_bag_staff"
+   ]
+  },
+  {
+   "name": "TeeBox_bamboo",
+   "resolution": "1024x1024",
+   "used_by": [
+    "pf_teebox_bamboo"
+   ]
+  },
+  {
+   "name": "TeeBox_performance",
+   "resolution": "1024x1024",
+   "used_by": [
+    "pf_teebox_performance"
+   ]
+  },
+  {
+   "name": "TeeBox_prolaunch",
+   "resolution": "1024x1024",
+   "used_by": [
+    "pf_teebox_prolaunch"
+   ]
+  },
+  {
+   "name": "TeeBox_wood",
+   "resolution": "1024x1024",
+   "used_by": [
+    "pf_teebox_wood"
+   ]
+  },
+  {
+   "name": "TowelGreen",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_towel_card"
+   ]
+  },
+  {
+   "name": "TowelGreenV2",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_towel_folded"
+   ]
+  },
+  {
+   "name": "UmbCream",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_umbrella_closed"
+   ]
+  },
+  {
+   "name": "UmbGreen",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_umbrella_closed"
+   ]
+  },
+  {
+   "name": "ValueBall",
+   "resolution": "256x256",
+   "used_by": [
+    "pf_ballsleeve_value3"
+   ]
+  },
+  {
+   "name": "ZipTeeth_pf_jacket_hanging_front",
+   "resolution": "64x64",
+   "used_by": [
+    "pf_jacket_hanging"
+   ]
+  },
+  {
+   "name": "ZipTeeth_pf_quarterzip_hanging_front",
+   "resolution": "64x64",
+   "used_by": [
+    "pf_quarterzip_hanging"
+   ]
+  }
+ ]
+}

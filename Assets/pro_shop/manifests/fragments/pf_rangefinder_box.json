@@ -1,0 +1,28 @@
+{
+ "id": "pf_rangefinder_box",
+ "kind": "products",
+ "category": "rangefinders",
+ "dims_m": [
+  0.13,
+  0.095,
+  0.145
+ ],
+ "min_z": 0.0,
+ "tris": 108,
+ "textures": [
+  "RFBox:1024x1024"
+ ],
+ "sockets": [
+  "BARCODE_AREA",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_rangefinder_box.glb",
+ "blend": "assets/pro_shop/source/products/rangefinders/pf_rangefinder_box.blend",
+ "name": "PF Optics Rangefinder Box",
+ "variant": "retail",
+ "price": 219.99,
+ "fixture": "pf_fixture_rangefinder_display",
+ "slot_type": "shelf_box",
+ "packaging": "retail box"
+}

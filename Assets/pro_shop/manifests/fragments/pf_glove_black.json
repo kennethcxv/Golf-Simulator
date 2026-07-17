@@ -1,0 +1,32 @@
+{
+ "id": "pf_glove_black",
+ "kind": "products",
+ "category": "gloves",
+ "dims_m": [
+  0.1244,
+  0.0386,
+  0.178
+ ],
+ "min_z": -0.0,
+ "tris": 1258,
+ "textures": [
+  "GloveRibAlb_black:128x128",
+  "GloveTab_black:256x128",
+  "M_Glove_black_alb:512x512",
+  "NRM_leather_0.55_512:512x512",
+  "NRM_rib_1.6_512:512x512",
+  "RGH_leather_0.42:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_glove_black.glb",
+ "blend": "assets/pro_shop/source/products/gloves/pf_glove_black.blend",
+ "name": "VANTAGE PRO Golf Glove",
+ "variant": "black",
+ "price": 19.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "loose",
+ "packaging": "loose"
+}

@@ -1,0 +1,29 @@
+{
+ "id": "pf_belt_coiled",
+ "kind": "products",
+ "category": "extras",
+ "dims_m": [
+  0.1302,
+  0.1258,
+  0.0223
+ ],
+ "min_z": 0.0001,
+ "tris": 1572,
+ "textures": [
+  "M_BeltNavy_alb:512x512",
+  "NRM_leather_0.5_512:512x512",
+  "RGH_leather_0.42:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_belt_coiled.glb",
+ "blend": "assets/pro_shop/source/products/extras/pf_belt_coiled.blend",
+ "name": "PF Leather Belt",
+ "variant": "navy",
+ "price": 44.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "shelf_small",
+ "packaging": "coiled"
+}

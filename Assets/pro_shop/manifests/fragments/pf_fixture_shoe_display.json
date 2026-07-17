@@ -1,0 +1,46 @@
+{
+ "id": "pf_fixture_shoe_display",
+ "kind": "fixtures",
+ "category": "shoe_display",
+ "dims_m": [
+  1.4,
+  0.62,
+  1.58
+ ],
+ "min_z": 0.0,
+ "tris": 1740,
+ "textures": [
+  "Header_pf_fixture_shoe_display:512x128",
+  "NRM_leather_0.35_512:512x512",
+  "NRM_wood_0.6_512:512x512",
+  "NRM_wood_0.7_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSCharcoal:512x512",
+  "PSOak:1024x512",
+  "PSWalnut:1024x512"
+ ],
+ "sockets": [
+  "SHOE_LEFT_SLOT_01",
+  "SHOE_LEFT_SLOT_02",
+  "SHOE_LEFT_SLOT_03",
+  "SHOE_LEFT_SLOT_04",
+  "SHOE_LEFT_SLOT_05",
+  "SHOE_LEFT_SLOT_06",
+  "SHOE_LEFT_SLOT_90",
+  "SHOE_RIGHT_SLOT_01",
+  "SHOE_RIGHT_SLOT_02",
+  "SHOE_RIGHT_SLOT_03",
+  "SHOE_RIGHT_SLOT_04",
+  "SHOE_RIGHT_SLOT_05",
+  "SHOE_RIGHT_SLOT_06",
+  "SHOE_RIGHT_SLOT_90"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_fixture_shoe_display.glb",
+ "blend": "assets/pro_shop/source/fixtures/shoe_display/pf_fixture_shoe_display.blend",
+ "name": "Pf Shoe Display",
+ "variant": "walnut_black",
+ "price": 0,
+ "fixture": "-",
+ "slot_type": "-",
+ "packaging": "-"
+}

@@ -1,0 +1,34 @@
+{
+ "id": "pf_glove_white_card",
+ "kind": "products",
+ "category": "gloves",
+ "dims_m": [
+  0.1152,
+  0.0371,
+  0.225
+ ],
+ "min_z": 0.0,
+ "tris": 1386,
+ "textures": [
+  "Card_pf_glove_white_card:512x1024",
+  "GloveRibAlb_white:128x128",
+  "GloveTab_white:256x128",
+  "M_Glove_white_alb:512x512",
+  "NRM_leather_0.55_512:512x512",
+  "NRM_rib_1.6_512:512x512",
+  "RGH_leather_0.42:256x256"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_glove_white_card.glb",
+ "blend": "assets/pro_shop/source/products/gloves/pf_glove_white_card.blend",
+ "name": "AERO MAX Golf Glove (Card)",
+ "variant": "white",
+ "price": 19.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "hook_card",
+ "packaging": "hang-card"
+}

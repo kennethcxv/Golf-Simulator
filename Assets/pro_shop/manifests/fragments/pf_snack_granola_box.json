@@ -1,0 +1,28 @@
+{
+ "id": "pf_snack_granola_box",
+ "kind": "products",
+ "category": "snacks",
+ "dims_m": [
+  0.16,
+  0.05,
+  0.19
+ ],
+ "min_z": 0.0,
+ "tris": 108,
+ "textures": [
+  "SnackGranola:1024x1024"
+ ],
+ "sockets": [
+  "BARCODE_AREA",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_snack_granola_box.glb",
+ "blend": "assets/pro_shop/source/products/snacks/pf_snack_granola_box.blend",
+ "name": "Fairway Fuel Granola Bars (6)",
+ "variant": "oats_honey",
+ "price": 7.49,
+ "fixture": "pf_fixture_snack_shelf",
+ "slot_type": "shelf_box",
+ "packaging": "carton"
+}

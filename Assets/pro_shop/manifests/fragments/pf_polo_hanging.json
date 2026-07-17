@@ -1,0 +1,32 @@
+{
+ "id": "pf_polo_hanging",
+ "kind": "products",
+ "category": "apparel",
+ "dims_m": [
+  0.477,
+  0.1509,
+  0.6095
+ ],
+ "min_z": -0.6648,
+ "tris": 3004,
+ "textures": [
+  "Logo_pf_polo_hanging:128x128",
+  "M_PoloCreamV2_alb:512x512",
+  "NRM_pique_0.28_512:512x512",
+  "PSBoard:512x512",
+  "RGH_pique_0.74:256x256"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_polo_hanging.glb",
+ "blend": "assets/pro_shop/source/products/apparel/pf_polo_hanging.blend",
+ "name": "Pf Polo Hanging",
+ "variant": "base",
+ "price": 12.99,
+ "fixture": "pf_fixture_apparel_wall",
+ "slot_type": "hanger_slot",
+ "packaging": "none"
+}

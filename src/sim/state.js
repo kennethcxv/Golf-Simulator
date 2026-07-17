@@ -4,8 +4,9 @@
 // loaded save resumes the exact same stream.
 
 import { makeRng, rngOf } from '../core/utils.js';
-import { labelSections } from './course.js';
+import { labelSections, ensureCourseShape } from './course.js';
 import { buildStartingCourse } from './startingCourse.js';
+import { plantVegetation } from './courseShaping.js';
 import { newClock, advanceClock, calendarOf } from './time.js';
 import { tickRenovationsDaily } from './terrainEdit.js';
 import { newWeather, rollDailyWeather } from './weather.js';
@@ -37,13 +38,13 @@ import { BALANCE } from './balance.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 // opts lets the GOLF EMPIRE layer boot this same fresh-club wiring onto a
 // marketplace property: an injected course grid and club name, nothing else.
 export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts = {}) {
   const rng = makeRng(seed);
-  const course = opts.course || buildStartingCourse(rng);
+  const course = ensureCourseShape(opts.course || buildStartingCourse(rng));
   const state = {
     version: SAVE_VERSION,
     mode, // 'relaxed' | 'realistic'
@@ -194,6 +195,19 @@ export function snapshot(state) {
       holes: course.holes,
       nextHoleId: course.nextHoleId,
       structures: course.structures,
+      objects: course.objects ? course.objects.map((o) => ({
+        ...o,
+        x: Math.round(o.x * 100) / 100,
+        y: Math.round(o.y * 100) / 100,
+        rot: Math.round(o.rot * 1000) / 1000,
+        scale: Math.round(o.scale * 100) / 100,
+      })) : [],
+      nextObjectId: course.nextObjectId || 1,
+      paths: course.paths ? course.paths.map((p) => ({
+        ...p,
+        pts: p.pts.map((q) => ({ x: Math.round(q.x * 100) / 100, y: Math.round(q.y * 100) / 100 })),
+      })) : [],
+      nextPathId: course.nextPathId || 1,
     },
     weather: {
       today: state.weather.today,
@@ -266,7 +280,23 @@ export function deserialize(json) {
     holes: raw.course.holes,
     nextHoleId: raw.course.nextHoleId,
     structures: raw.course.structures || [],
+    objects: raw.course.objects || null, // null = pre-v5 save, migrated below
+    nextObjectId: raw.course.nextObjectId,
+    paths: raw.course.paths || [],
+    nextPathId: raw.course.nextPathId,
   };
+  // pre-v5 saves carry no placed objects: their trees were renderer noise.
+  // Plant an intentional layout deterministically from the save's own seed so
+  // the migrated course looks designed, not bald.
+  if (!course.objects) {
+    course.objects = [];
+    course.nextObjectId = 1;
+    const specs = (course.holes || [])
+      .filter((h) => h.tee && h.pin)
+      .map((h) => ({ tee: h.tee, pin: h.pin, wp: [] }));
+    plantVegetation(course, specs, makeRng(((raw.seed >>> 0) ^ 0x7ee5) || 1), { density: 1 });
+  }
+  ensureCourseShape(course);
   const state = {
     version: SAVE_VERSION,
     mode: raw.mode,

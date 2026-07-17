@@ -1,0 +1,28 @@
+{
+ "id": "pf_snack_protein_bar",
+ "kind": "products",
+ "category": "snacks",
+ "dims_m": [
+  0.095,
+  0.035,
+  0.02
+ ],
+ "min_z": 0.0,
+ "tris": 132,
+ "textures": [
+  "SnackProtein:1024x512"
+ ],
+ "sockets": [
+  "BARCODE_AREA",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_snack_protein_bar.glb",
+ "blend": "assets/pro_shop/source/products/snacks/pf_snack_protein_bar.blend",
+ "name": "Green Drive Protein Bar",
+ "variant": "chocolate_chip",
+ "price": 3.49,
+ "fixture": "pf_fixture_snack_shelf",
+ "slot_type": "shelf_small",
+ "packaging": "flow wrap"
+}

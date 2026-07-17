@@ -1,0 +1,31 @@
+{
+ "id": "pf_putter_wide_blade",
+ "kind": "products",
+ "category": "clubs",
+ "dims_m": [
+  0.102,
+  0.0693,
+  0.8984
+ ],
+ "min_z": -0.0,
+ "tris": 972,
+ "textures": [
+  "ClubGripTex:128x256",
+  "NRM_knurl_1.0_512:512x512"
+ ],
+ "sockets": [
+  "CLUB_BUTT",
+  "CLUB_HEAD_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_putter_wide_blade.glb",
+ "blend": "assets/pro_shop/source/products/clubs/pf_putter_wide_blade.blend",
+ "name": "Elevate Wide Putter",
+ "variant": "wide",
+ "price": 249.99,
+ "fixture": "pf_fixture_club_rack",
+ "slot_type": "club_slot",
+ "packaging": "none",
+ "length_m": 0.87
+}

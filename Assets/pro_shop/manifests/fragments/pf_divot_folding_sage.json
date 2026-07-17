@@ -1,0 +1,28 @@
+{
+ "id": "pf_divot_folding_sage",
+ "kind": "products",
+ "category": "divot_tools",
+ "dims_m": [
+  0.022,
+  0.074,
+  0.0095
+ ],
+ "min_z": -0.0003,
+ "tris": 1004,
+ "textures": [
+  "NRM_crinkle_0.12_512:512x512",
+  "PSSatinAlb:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_divot_folding_sage.glb",
+ "blend": "assets/pro_shop/source/products/divot_tools/pf_divot_folding_sage.blend",
+ "name": "Folding Divot Tool Field",
+ "variant": "sage_brass",
+ "price": 18.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "loose",
+ "packaging": "loose"
+}

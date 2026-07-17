@@ -1,0 +1,24 @@
+{
+ "id": "pf_hook_long",
+ "kind": "fixtures",
+ "category": "hooks",
+ "dims_m": [
+  0.038,
+  0.1635,
+  0.0755
+ ],
+ "min_z": -0.0375,
+ "tris": 436,
+ "textures": [],
+ "sockets": [
+  "HOOK_TIP"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_hook_long.glb",
+ "blend": "assets/pro_shop/source/fixtures/hooks/pf_hook_long.blend",
+ "name": "Pf Slatwall Hook Long",
+ "variant": "walnut_black",
+ "price": 0,
+ "fixture": "-",
+ "slot_type": "-",
+ "packaging": "-"
+}

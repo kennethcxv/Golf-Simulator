@@ -34,6 +34,11 @@ const ZONE_KEY = {
   [ZONE.TEE]: 'tee',
   [ZONE.FAIRWAY]: 'fairway',
   [ZONE.ROUGH]: 'rough',
+  // editor-era surfaces ride the nearest policy class — fringe is mown like a
+  // tee collar, the first cut like fairway, heavy rough like rough
+  [ZONE.FRINGE]: 'tee',
+  [ZONE.SEMI]: 'fairway',
+  [ZONE.HEAVY]: 'rough',
 };
 
 export function zonePolicyKey(zone) {

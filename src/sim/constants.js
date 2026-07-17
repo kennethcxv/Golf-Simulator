@@ -16,12 +16,22 @@ export const ZONE = {
   BUNKER: 5,
   WATER: 6,
   PATH: 7,
+  FRINGE: 8, // the collar mown tight around a green
+  HEAVY: 9, // heavy rough / native tall grass at the edges of play
+  DIRT: 10, // bare worn ground
+  BED: 11, // landscaping bed — mulch and plantings
+  SEMI: 12, // the first cut between fairway and rough
 };
 
-export const ZONE_NAMES = ['Out of play', 'Rough', 'Fairway', 'Green', 'Tee', 'Bunker', 'Water', 'Path'];
+export const ZONE_NAMES = [
+  'Out of play', 'Rough', 'Fairway', 'Green', 'Tee', 'Bunker', 'Water', 'Path',
+  'Fringe', 'Heavy rough', 'Dirt', 'Landscaping', 'First cut',
+];
 
 // Zones that grow grass and therefore participate in the turf simulation.
-export const TURF_ZONES = new Set([ZONE.ROUGH, ZONE.FAIRWAY, ZONE.GREEN, ZONE.TEE]);
+export const TURF_ZONES = new Set([
+  ZONE.ROUGH, ZONE.FAIRWAY, ZONE.GREEN, ZONE.TEE, ZONE.FRINGE, ZONE.HEAVY, ZONE.SEMI,
+]);
 
 // Zones that get labeled into named sections for the UI / golfer opinions.
 export const SECTION_ZONES = new Set([ZONE.ROUGH, ZONE.FAIRWAY, ZONE.GREEN, ZONE.TEE, ZONE.BUNKER, ZONE.WATER]);

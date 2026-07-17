@@ -1,0 +1,25 @@
+{
+ "id": "pf_pencil",
+ "kind": "products",
+ "category": "scorecards",
+ "dims_m": [
+  0.0878,
+  0.0077,
+  0.0077
+ ],
+ "min_z": -0.0001,
+ "tris": 512,
+ "textures": [],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_pencil.glb",
+ "blend": "assets/pro_shop/source/products/scorecards/pf_pencil.blend",
+ "name": "PF Scoring Pencil",
+ "variant": "green",
+ "price": 0.49,
+ "fixture": "pf_fixture_rangefinder_display",
+ "slot_type": "loose",
+ "packaging": "loose"
+}

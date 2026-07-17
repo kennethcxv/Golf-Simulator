@@ -1,0 +1,30 @@
+{
+ "id": "pf_bag_cart",
+ "kind": "products",
+ "category": "golf_bags",
+ "dims_m": [
+  0.3182,
+  0.3038,
+  1.0139
+ ],
+ "min_z": 0.0,
+ "tris": 2164,
+ "textures": [
+  "BagPlate_pf_bag_cart_FORG:256x96",
+  "M_BagChar_alb:512x512",
+  "NRM_canvas_0.6_512:512x512",
+  "RGH_canvas_0.58:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_bag_cart.glb",
+ "blend": "assets/pro_shop/source/products/golf_bags/pf_bag_cart.blend",
+ "name": "Forge 460 Cart Bag",
+ "variant": "charcoal",
+ "price": 269.99,
+ "fixture": "pf_fixture_bag_display",
+ "slot_type": "bag_slot",
+ "packaging": "none"
+}
