@@ -18,7 +18,7 @@ import { recordSale } from './shop.js';
 // Shop prices land on arbitrary cents. The drawer carries five coin
 // denominations down through the penny, so cash and card share one exact total.
 
-export const BILLS = [50, 20, 10, 5, 1];
+export const BILLS = [100, 50, 20, 10, 5, 1];
 export const COINS = [0.5, 0.25, 0.1, 0.05, 0.01];
 export const DENOMS = [...BILLS, ...COINS];
 
@@ -389,6 +389,7 @@ export function payCashInstead(tx) {
 
 export function newDrawer() {
   return {
+    100: 1,
     50: 2,
     20: 5,
     10: 8,

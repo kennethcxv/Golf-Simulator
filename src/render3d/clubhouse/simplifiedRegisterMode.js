@@ -71,11 +71,12 @@ const INSERTED = {
   z: CARD_STATION.z + 0.27,
 };
 
-const DRAWER_BILLS = [1, 5, 10, 20, 50];
+const DRAWER_BILLS = [1, 5, 10, 20, 50, 100];
 const DRAWER_COINS = [0.01, 0.05, 0.1, 0.25, 0.5];
 const SLOT = {};
+// fallbacks only — the kit drawer's authored money sockets remap these on load
 DRAWER_BILLS.forEach((denom, index) => {
-  SLOT[denom] = { x: -0.164 + index * 0.082, y: 0.118, z: 0.095 };
+  SLOT[denom] = { x: -0.170 + index * 0.068, y: 0.118, z: 0.095 };
 });
 DRAWER_COINS.forEach((denom, index) => {
   SLOT[denom] = { x: -0.164 + index * 0.082, y: 0.112, z: -0.098 };
@@ -1352,16 +1353,37 @@ export function createRegisterMode(B) {
       hotspot.userData = { pick: true, kind: 'drawer-slot', denom };
       drawerMotionRoot.add(hotspot);
       slotHotspots.push(hotspot);
-
-      // the denomination plate sits on the tray at the FRONT lip of its well
-      // (the old offsets pointed backward and hid the plates under the top) —
-      // and the plate itself is a click target for that well
-      const label = makeFlatLabel(moneyLabel(denom), bill ? 0.073 : 0.064, 0.029);
-      label.position.set(slot.x, slot.y + 0.006, slot.z + (bill ? 0.125 : 0.078));
-      label.userData = { pick: true, kind: 'drawer-slot', denom };
-      drawerMotionRoot.add(label);
-      slotLabels.push(label);
+      // No printed denomination plates: the notes and coins identify themselves (size
+      // ladder, art, alloy), and hovering a well floats its value above the money.
     }
+  }
+
+  // the floating value readout that follows the hovered well — one mesh, retextured per denom
+  let hoverValueMesh = null;
+  let hoverValueDenom = null;
+  function showHoverValue(denom, anchor) {
+    if (denom == null || !anchor) {
+      if (hoverValueMesh) hoverValueMesh.visible = false;
+      hoverValueDenom = null;
+      return;
+    }
+    if (!hoverValueMesh) {
+      hoverValueMesh = makeFlatLabel(moneyLabel(denom), 0.062, 0.026);
+      hoverValueMesh.name = 'DrawerHoverValue';
+      hoverValueMesh.rotation.x = -0.9; // tilted up toward the steep cash camera
+      root.add(hoverValueMesh);
+    }
+    if (hoverValueDenom !== denom) {
+      hoverValueDenom = denom;
+      const fresh = makeFlatLabel(moneyLabel(denom), 0.062, 0.026);
+      hoverValueMesh.geometry.dispose();
+      if (hoverValueMesh.material.map) hoverValueMesh.material.map.dispose();
+      hoverValueMesh.geometry = fresh.geometry;
+      hoverValueMesh.material.dispose();
+      hoverValueMesh.material = fresh.material;
+    }
+    hoverValueMesh.position.set(anchor.x, anchor.y + 0.055, anchor.z + 0.012);
+    hoverValueMesh.visible = true;
   }
 
   function buildDrawer() {
@@ -1416,7 +1438,10 @@ export function createRegisterMode(B) {
             SLOT[denom] = { x: local.x, y: local.y, z: local.z };
             remapped += 1;
           }
-          if (remapped === DENOMS.length) buildSlotFurniture();
+          // apply whatever the kit authored; a denomination the tray predates (an older
+          // GLB without the $100 well) keeps its fallback slot instead of dragging every
+          // OTHER well back to fallbacks with it
+          if (remapped > 0) buildSlotFurniture();
           refillDrawerMoney();
         } else {
           drawerGroup.add(model);
@@ -2826,6 +2851,14 @@ export function createRegisterMode(B) {
       hoverBox.visible = true;
     } else {
       hoverBox.visible = false;
+    }
+    // the hovered well names its value — the printed plates are gone, so this and the
+    // money's own art are how a denomination introduces itself
+    if (target && target.userData && target.userData.kind === 'drawer-slot') {
+      const spot = SLOT[target.userData.denom];
+      showHoverValue(target.userData.denom, spot && drawerSlotPosition(target.userData.denom, 0.02));
+    } else {
+      showHoverValue(null, null);
     }
     setHoverCursor(!!target || !!monitorActionAt(event));
   }
