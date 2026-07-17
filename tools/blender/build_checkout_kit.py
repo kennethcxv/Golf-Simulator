@@ -29,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lib_props as L
 import checkout_kit_lib as K
 import checkout_money_lib as K2
+import checkout_retail_lib as K3
 
 
 # ================================================================ counter ======
@@ -1042,6 +1043,8 @@ BUILDERS = {
     "customer_display": build_customer_display,
     "loose_receipt": build_loose_receipt,
     "cash_handoff_stack": build_cash_handoff_stack,
+    # Asset Sheet 03: the retail fixture family (checkout_retail_lib)
+    **K3.BUILDERS,
 }
 
 
@@ -1062,6 +1065,7 @@ EXTRA_PREVIEWS = {
     "shopping_bag": [("shopping_bag_top", 33, 55)],
     "payment_terminal": [("payment_terminal_front", 356, 22)],
     "apparel_wall": [("apparel_wall_front", 25, 8), ("apparel_wall_back", 208, 6)],
+    **K3.EXTRA_PREVIEWS,
 }
 
 

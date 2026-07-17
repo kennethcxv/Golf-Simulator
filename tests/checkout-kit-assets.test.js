@@ -14,6 +14,10 @@ const KIT = [
   'cash_coin_01', 'cash_coin_05', 'cash_coin_10', 'cash_coin_25', 'cash_coin_50',
   'scannable_product_box', 'customer_display', 'loose_receipt', 'cash_handoff_stack',
   'apparel_wall',
+  // Asset Sheet 03: the retail fixture family
+  'apparel_wall_display', 'hat_wall', 'accessory_slatwall', 'club_rack',
+  'putter_rack', 'bag_display', 'shoe_wall', 'ball_shelf', 'snack_shelf',
+  'rangefinder_display',
 ];
 
 function makeLoader() {
@@ -201,6 +205,73 @@ test('apparel wall exposes its display parts and placement sockets', async () =>
   let tris = 0;
   scene.traverse((o) => { if (o.isMesh && !o.name.startsWith('COL_')) tris += o.geometry.index.count / 3; });
   assert.ok(tris < 2800, `apparel wall tris ${tris}`);   // the Sheet-02 budget
+});
+
+test('the Sheet-03 fixtures expose their parts, sockets, envelopes and budgets', async () => {
+  const kit = await kitPromise;
+  // { asset: [ [required node names...], [w, h] envelope (x/z ±0.06), tri cap ] }
+  const FIXTURES = {
+    apparel_wall_display: [['Slatwall', 'Back_Panel', 'Header_Sign', 'Base_Shelf',
+      'Faceout_Arm_01', 'Faceout_Arm_06', 'DISPLAY_ARM_SLOT_06', 'DISPLAY_BASE_SLOT_03',
+      'COL_ApparelWallDisplay'], [1.20, 2.20], 2400 * 1.25],
+    hat_wall: [['Slatwall', 'Back_Panel', 'Header_Sign', 'Peg_Arm_01', 'Peg_Arm_12',
+      'HAT_PEG_SLOT_01', 'HAT_PEG_SLOT_12', 'COL_HatWall'], [1.00, 2.20], 1600 * 1.25],
+    accessory_slatwall: [['Slatwall', 'Shelf_01', 'Shelf_03', 'Hook_Short_Plate_01',
+      'Hook_Long_Plate_02', 'Hook_Double_Plate_02', 'ACC_SHELF_SLOT_03', 'ACC_HOOK_SLOT_06',
+      'COL_AccessorySlatwall'], [1.00, 2.00], 1700 * 1.25],
+    club_rack: [['Base', 'Head_Rail_F', 'Head_Rail_R', 'Trough_Felt_F', 'End_Cap_L',
+      'CLUB_SLOT_F01', 'CLUB_SLOT_F09', 'CLUB_SLOT_R09', 'COL_ClubRack'], [1.20, 1.10], 2200 * 1.25],
+    putter_rack: [['Base', 'Base_Felt', 'Grip_Rail', 'Groove_Divider_01', 'Groove_Divider_05',
+      'PUTTER_SLOT_01', 'PUTTER_SLOT_06', 'COL_PutterRack'], [1.00, 1.00], 1800 * 1.25],
+    bag_display: [['Deck', 'Lean_Rail', 'Rail_Post_L', 'BAG_SLOT_01', 'BAG_SLOT_04',
+      'COL_BagDisplay'], [1.60, 1.10], 2600 * 1.25],
+    shoe_wall: [['Slatwall', 'Display_Board_01', 'Display_Board_03', 'Box_Shelf',
+      'Prop_ShoeBox_01', 'SHOE_SLOT_01', 'SHOE_SLOT_06', 'SHOEBOX_SLOT_03',
+      'COL_ShoeWall'], [1.20, 2.00], 2600 * 1.25],
+    ball_shelf: [['Side_L', 'Board_01', 'Board_03', 'Board_Lip_01', 'BALL_SLOT_01',
+      'BALL_SLOT_15', 'COL_BallShelf'], [1.00, 1.22], 1500 * 1.25],
+    snack_shelf: [['Frame_Post_LF', 'Shelf_01', 'Shelf_04', 'Prop_Bottle_S01',
+      'Prop_Bottle_W07', 'Prop_Chip_01', 'Prop_BarTray_02', 'SNACK_SHELF_SLOT_04',
+      'COL_SnackShelf'], [1.00, 1.62], 2200 * 1.25],
+    rangefinder_display: [['Case_Base', 'Tier_01', 'Tier_02', 'Acrylic_Front',
+      'Prop_OpticBox_01', 'RF_SLOT_01', 'RF_SLOT_06', 'COL_RangefinderDisplay'],
+    [0.60, 0.35], 1100 * 1.25],
+  };
+  for (const [asset, [required, [w, h], cap]] of Object.entries(FIXTURES)) {
+    const scene = (await kit.get(asset)).scene;
+    const n = names(scene);
+    for (const part of required) assert.ok(n.has(part), `${asset}: missing ${part}`);
+    const s = sizeOf(scene);
+    assert.ok(Math.abs(s.x - w) < 0.06, `${asset} width ${s.x.toFixed(3)} vs ${w}`);
+    assert.ok(Math.abs(s.y - h) < 0.06, `${asset} height ${s.y.toFixed(3)} vs ${h}`);
+    let tris = 0;
+    scene.traverse((o) => { if (o.isMesh && !o.name.startsWith('COL_')) tris += o.geometry.index.count / 3; });
+    assert.ok(tris < cap, `${asset} tris ${tris} over ${cap}`);
+  }
+});
+
+test('the club rack seats a full-length driver: comb rail under the head, grip in the trough', async () => {
+  const kit = await kitPromise;
+  const scene = (await kit.get('club_rack')).scene;
+  let slot = null;
+  let railTop = null;
+  scene.traverse((o) => {
+    if (o.name === 'CLUB_SLOT_F05') slot = o.getWorldPosition(new THREE.Vector3());
+    if (o.name === 'Head_Tooth_F04') {
+      const box = new THREE.Box3().setFromObject(o);
+      railTop = box.max.y;
+    }
+  });
+  assert.ok(slot, 'centre front slot exists');
+  assert.ok(railTop !== null, 'comb tooth exists');
+  // fixtureSlots stands a 1.05 shaft in the 0.055 trough: head pivot 1.105.
+  // The head hangs 0.087 below its pivot, so it must SEAT on the comb: rail
+  // top within a few mm under the head's underside.
+  const headPivot = 0.055 + 1.05;
+  const headUnderside = headPivot - 0.087;
+  assert.ok(Math.abs(slot.y - 0.99) < 0.03, `comb slot height ${slot.y.toFixed(3)}`);
+  assert.ok(headUnderside > railTop - 0.005 && headUnderside < railTop + 0.03,
+    `driver underside ${headUnderside.toFixed(3)} vs rail top ${railTop.toFixed(3)}`);
 });
 
 test('no missing textures: every referenced image is embedded', async () => {

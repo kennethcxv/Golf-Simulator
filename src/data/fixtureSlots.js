@@ -20,8 +20,14 @@
 
 import { FIXTURES } from './shopLayout.js';
 
-const SHELF_BOARDS = [0.5, 1.05, 1.6];   // wall unit
-const SHOE_BOARDS = [0.35, 0.85, 1.35];  // the lit shoe wall
+// Sheet-03 kit module geometry (assets/checkout). Positions are FIXTURE-LOCAL:
+// module centres along x, board TOP surfaces as measured from the authored GLBs.
+const ACC_MODULES = [-1.0, 0.0, 1.0];      // three 1.0 m slatwall/shelf modules per wall run
+const ACC_SHELF_TOPS = [0.562, 0.962, 1.362];   // accessory_slatwall bracket shelves
+const BALL_BOARD_TOPS = [0.317, 0.657, 0.997];  // ball_shelf boards
+const SHOE_ROWS = [0.62, 1.02, 1.42];      // shoe_wall display boards (angled -0.18)
+const HAT_ROWS = [0.62, 1.02, 1.42, 1.82]; // hat_wall peg rows
+const CLUB_SLOT_XS = Array.from({ length: 9 }, (_, k) => (k - 4) * 0.1125); // club_rack comb
 
 // --- who lives where ------------------------------------------------------------------------
 const HOME = new Map();
@@ -50,38 +56,75 @@ function laneX(skuId, usable) {
 // Each returns its slots BOTTOM BOARD FIRST, left to right. The order is load-bearing: three boxes
 // on a wall unit have to sit on the bottom shelf, not float on the top one with nothing beneath.
 
-// boxes/cartons fronted on the boards of a wall unit
-function shelfGrid(skuId, { cols, pitch, lift, z = 0.10, boards = SHELF_BOARDS, usable = 2.8 }) {
-  const cx = laneX(skuId, usable);
+// The Sheet-03 club rack: two 1.20 m double-comb modules at x ±0.60. Clubs
+// stand FULL LENGTH, grip in the felt trough, shaft through a comb slot, head
+// seated on the rail (headUp tells the renderer to build the club downward
+// from the head). The front rank fills first; wedges take the rear rank of
+// the irons rack, peeking over the spine exactly like the sheet's angled view.
+function clubRack(skuId, len) {
+  const h = HOME.get(skuId);
+  const lane = h ? h.lane : 0;
+  const front = [];
+  for (const m of [-0.6, 0.6]) {
+    for (const lx of CLUB_SLOT_XS) {
+      front.push({
+        x: m + lx, y: 0.055 + len, z: 0.075,
+        len, headUp: true, lean: 0,
+        ry: 0.05 - (front.length % 2) * 0.10,
+      });
+    }
+  }
+  if (lane <= 2) return front.slice(lane * 6, lane * 6 + 6);
+  // the fourth lane stands in the rear rank (three per module, alternating)
+  const rear = [];
+  for (const m of [-0.6, 0.6]) {
+    for (const k of [2, 4, 6]) {
+      rear.push({
+        x: m + CLUB_SLOT_XS[k], y: 0.055 + len, z: -0.075,
+        len, headUp: true, lean: 0, ry: 0.05,
+      });
+    }
+  }
+  return rear;
+}
+
+// the putter rack: two 1.00 m groove modules at x ±0.53, heads down in the
+// felt grooves (the game's native head-at-slot pose), grips on the rail
+function putterRack(skuId) {
+  const h = HOME.get(skuId);
+  const m = (h && h.lane === 1) ? 0.53 : -0.53;
+  return Array.from({ length: 6 }, (_, k) => ({
+    x: m + (k - 2.5) * 0.15,
+    y: 0.185,
+    z: 0.045,
+    lean: (k % 2) * 0.04 - 0.02,
+    len: 0.80,
+    ry: 0.12 + (k % 2) * 0.10,
+  }));
+}
+
+// dozen-boxes fronted on a ball_shelf module — one module per line
+function ballModule(skuId) {
+  const h = HOME.get(skuId);
+  const m = ACC_MODULES[h ? h.lane : 0];
   const out = [];
-  for (const y of boards) {
-    for (let c = 0; c < cols; c++) {
-      out.push({ x: cx + (c - (cols - 1) / 2) * pitch, y: y + lift, z });
+  for (const top of BALL_BOARD_TOPS) {
+    for (let c = 0; c < 5; c++) {
+      out.push({ x: m + (c - 2) * 0.175, y: top + 0.0605, z: 0.09 });
     }
   }
   return out;
 }
 
-// a club bay: two racks, three clubs to a rack, each leaning on the one before it
-function clubBay(skuId) {
-  const h = HOME.get(skuId);
-  const lanes = Math.max(1, h ? h.lanes : 1);
-  const lw = 2.5 / lanes;
-  const cx = -1.25 + lw * ((h ? h.lane : 0) + 0.5);
+// cartons/rolls on an accessory_slatwall module's bracket shelves.
+// mx picks the module, ox a block offset within it (markers and towels share
+// the middle module as left/right blocks).
+function accShelf(cols, pitch, lift, { mx = 0, ox = 0, z = 0.02, ry = 0 } = {}) {
   const out = [];
-  for (let i = 0; i < 6; i++) {
-    const row = Math.floor(i / 3);
-    const k = i % 3;
-    const y = row === 0 ? 0.18 : 1.32;
-    const len = row === 0 ? 1.06 : 0.82;   // the upper rack is shallower
-    out.push({
-      x: cx + (k - 1) * Math.min(0.11, lw / 3.4),
-      y,
-      z: 0.10 - k * 0.03,
-      lean: 0.14 + k * 0.03,
-      len,
-      ry: 0.30 + (k % 2) * 0.18,           // fan the faces slightly
-    });
+  for (const top of ACC_SHELF_TOPS) {
+    for (let c = 0; c < cols; c++) {
+      out.push({ x: mx + ox + (c - (cols - 1) / 2) * pitch, y: top + lift, z, ry });
+    }
   }
   return out;
 }
@@ -114,100 +157,84 @@ function railHang(skuId, n = 8) {
   return xs.slice(0, n).map((x, i) => ({ x, y: 1.68, z: 0, ry: 0.06 + (i % 2) * 0.08 }));
 }
 
-// the hat tree: two tiers, bills pointing out
-function hatTree(n = 12, per = 6) {
+// the hat wall: twelve pegs, four rows of three, caps nosed down and out
+// (bill runs +x on the model; ry -PI turns it out the front, rx tips it)
+function hatWall() {
   const out = [];
-  for (let i = 0; i < n; i++) {
-    const tier = Math.floor(i / per);
-    const a = ((i % per) / per) * Math.PI * 2 + tier * 0.5;
-    out.push({ x: Math.sin(a) * 0.30, y: 1.05 + tier * 0.38, z: Math.cos(a) * 0.30, ry: a });
-  }
-  return out;
-}
-
-// Gloves, STOOD UP and fronted, eight to a board.
-//
-// They used to be laid flat (rotation.x = -PI/2), and a glove lying flat on a shelf board at chest
-// height is edge-on to a standing player: twelve of them rendered as twelve white slivers and the
-// shelf read as EMPTY at full capacity, which fails "full must look full" exactly as badly as
-// drawing too few would. A shop stands its gloves up, because a shop wants you to see them.
-function gloveFan(skuId) {
-  const cx = laneX(skuId, 2.8);
-  const out = [];
-  for (const y of SHELF_BOARDS) {
-    for (let c = 0; c < 8; c++) {
-      out.push({ x: cx + (c - 3.5) * 0.155, y: y + 0.10, z: 0.06, ry: (c % 2) * 0.10 - 0.05 });
-    }
-  }
-  return out;
-}
-
-// socks, rolled — a wicker basket on each board, eight rolls to a basket
-function sockBasket(skuId) {
-  const cx = laneX(skuId, 2.8);
-  const out = [];
-  for (const y of SHELF_BOARDS) {
-    for (let i = 0; i < 8; i++) {
+  for (const row of HAT_ROWS) {
+    for (const x of [-0.30, 0, 0.30]) {
       out.push({
-        x: cx + ((i % 4) - 1.5) * 0.085,
-        y: y + 0.14 + Math.floor(i / 4) * 0.055,
-        z: 0.10,
-        base: y,           // the board this basket stands on
+        x, y: row + 0.035, z: 0.175,
+        ry: -Math.PI + (out.length % 2) * 0.10 - 0.05,
+        rx: -0.30,
       });
     }
   }
   return out;
 }
 
-// towels, rolled and stacked on the boards
-function towelRolls(skuId) {
-  const cx = laneX(skuId, 2.8);
+// Gloves, STOOD UP and fronted, eight to a shelf in two staggered ranks (a
+// single rank of eight would interpenetrate on a 1.0 m module; two ranks of
+// four at double pitch keep every glove clear and the shelf reads FULLER).
+function gloveModule(skuId) {
+  const h = HOME.get(skuId);
+  const m = ACC_MODULES[h ? h.lane : 0];
   const out = [];
-  for (const y of SHELF_BOARDS) {
-    for (let c = 0; c < 4; c++) out.push({ x: cx + (c - 1.5) * 0.11, y: y + 0.08, z: 0.10 });
+  for (const top of ACC_SHELF_TOPS) {
+    for (let c = 0; c < 8; c++) {
+      const rank = Math.floor(c / 4);        // front four, then the rank behind
+      out.push({
+        x: m + ((c % 4) - 1.5) * 0.23 + rank * 0.115,
+        y: top + 0.10,
+        z: 0.075 - rank * 0.095,
+        ry: (c % 2) * 0.10 - 0.05,
+      });
+    }
   }
   return out;
 }
 
-// rangefinders on little risers — two to a board, because they are 279 dollars each
-function riser(skuId) {
-  const cx = laneX(skuId, 2.8);
+// sock rolls fronted straight on the module shelves (no basket: the slatwall
+// shelves are 0.26 deep and the rolls read best in a neat row)
+function sockModule(skuId) {
+  const h = HOME.get(skuId);
+  const m = ACC_MODULES[h ? h.lane : 0];
   const out = [];
-  for (const y of SHELF_BOARDS) {
-    for (const s of [-1, 1]) out.push({ x: cx + s * 0.11, y: y + 0.085, z: 0.10, ry: -0.4 });
+  for (const top of ACC_SHELF_TOPS) {
+    for (let c = 0; c < 8; c++) {
+      out.push({ x: m + (c - 3.5) * 0.11, y: top + 0.033, z: 0.03 });
+    }
   }
   return out;
 }
 
-// umbrellas, stood in a barrel at the end of the run
-function barrel(skuId, n = 8) {
-  const cx = laneX(skuId, 2.8);
+// umbrellas, stood in a barrel at the end of the accessory run
+function barrel(n = 8) {
   const out = [];
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;
-    out.push({ x: cx + Math.sin(a) * 0.09, y: 0.25, z: 0.30 + Math.cos(a) * 0.09, lean: Math.sin(a) * 0.12 });
+    out.push({ x: 1.42 + Math.sin(a) * 0.09, y: 0.25, z: 0.33 + Math.cos(a) * 0.09, lean: Math.sin(a) * 0.12 });
   }
   return out;
 }
 
-// pairs on the lit shoe wall
-function shoeBoards(n = 12, per = 4) {
+// pairs on the shoe wall: two 1.20 m modules at x ±0.60, two pair positions
+// per angled display board, three boards a module
+function shoeWall() {
   const out = [];
-  for (let i = 0; i < n; i++) {
-    out.push({
-      x: -1.05 + (i % per) * 0.70,
-      y: SHOE_BOARDS[Math.floor(i / per) % 3] + 0.055,
-      z: 0.06,
-    });
+  for (const row of SHOE_ROWS) {
+    for (const x of [-0.88, -0.32, 0.32, 0.88]) {
+      out.push({ x, y: row + 0.054, z: 0.03 });
+    }
   }
   return out;
 }
 
-// bags, stood on their platforms
+// bags, stood on the display platform, leaned onto its rear rail
 function bagPlinth(n = 4) {
   const out = [];
   for (let i = 0; i < n; i++) {
-    out.push({ x: -0.90 + i * 0.60, y: 0.12, z: -0.10, ry: -0.5 + i * 0.34, lean: -0.10 });
+    out.push({ x: -0.57 + i * 0.38, y: 0.12, z: 0.01, ry: -0.18 + i * 0.12, lean: -0.075 });
   }
   return out;
 }
@@ -216,32 +243,42 @@ function bagPlinth(n = 4) {
 // One entry per line for sale. If it is not here it does not go on a shelf, and the sim will not
 // let you put it on one.
 const BUILD = {
-  // clubs — six to a bay, whichever bay they live on
-  driver1: clubBay, driver2: clubBay, driver3: clubBay,
-  irons1: clubBay, irons2: clubBay,
-  putter1: clubBay, putter2: clubBay,
-  wedge1: clubBay, wedge2: clubBay,
+  // clubs — full length in the Sheet-03 racks: drivers own one two-module
+  // rack; irons + wedges the other (wedge2 stands in its rear rank);
+  // putters head-down in the groove modules
+  // lengths keep every head VISIBLE above the comb: an iron blade is thin, so
+  // a 0.95 shaft seats it level with the rail and it vanishes into the teeth
+  driver1: (id) => clubRack(id, 1.05),
+  driver2: (id) => clubRack(id, 1.05),
+  driver3: (id) => clubRack(id, 1.05),
+  irons1: (id) => clubRack(id, 1.04),
+  irons2: (id) => clubRack(id, 1.04),
+  wedge1: (id) => clubRack(id, 1.03),
+  wedge2: (id) => clubRack(id, 1.03),
+  putter1: putterRack,
+  putter2: putterRack,
 
-  // the ball wall: five fronted boxes to a board, three boards, three lines side by side
-  balls1: (id) => shelfGrid(id, { cols: 5, pitch: 0.175, lift: 0.062 }),
-  balls2: (id) => shelfGrid(id, { cols: 5, pitch: 0.175, lift: 0.062 }),
-  balls3: (id) => shelfGrid(id, { cols: 5, pitch: 0.175, lift: 0.062 }),
+  // the ball wall: one ball_shelf module per line, five boxes to a board
+  balls1: ballModule,
+  balls2: ballModule,
+  balls3: ballModule,
 
-  // cartoned smalls
-  tees1: (id) => shelfGrid(id, { cols: 4, pitch: 0.135, lift: 0.085, z: 0.08 }),
-  marker1: (id) => shelfGrid(id, { cols: 4, pitch: 0.135, lift: 0.085, z: 0.08 }),
-  towel1: towelRolls,
-  range2: riser,
-  umb1: (id) => barrel(id, 8),
+  // the accessory slatwall run: tees on the west module; markers and towels
+  // split the middle one; rangefinders pair up on the east module's shelves
+  tees1: () => accShelf(4, 0.115, 0.05, { mx: -1.0 }),
+  marker1: () => accShelf(4, 0.112, 0.05, { mx: 0, ox: -0.22 }),
+  towel1: () => accShelf(4, 0.105, 0.05, { mx: 0, ox: 0.2575 }),
+  range2: () => accShelf(2, 0.28, 0.001, { mx: 1.0, ry: -0.4 }),
+  umb1: () => barrel(8),
 
   // apparel
   polo1: tableApparel,
   polo2: tableApparel,
   jacket2: (id) => railHang(id, 8),
-  cap1: () => hatTree(12),
-  glove1: gloveFan,
-  sock1: sockBasket,
-  shoe1: () => shoeBoards(12),
+  cap1: hatWall,
+  glove1: gloveModule,
+  sock1: sockModule,
+  shoe1: shoeWall,
 
   // bags
   bag1: () => bagPlinth(4),

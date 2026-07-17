@@ -1562,6 +1562,9 @@ export function makeClubhouse(ctx) {
   // the basket / barrel a line lives in — furniture, drawn only under the stock it actually holds
   function stockHolder(sku, count) {
     if (sku.id === 'sock1') {
+      // the Sheet-03 slatwall shelves front their rolls in the open — a slot
+      // without a `base` board wants no basket under it
+      if (!slotsFor('sock1').length || slotsFor('sock1')[0].base == null) return null;
       // one basket per board that has socks in it: an empty basket on the top shelf is a prop
       const g = new THREE.Group();
       const used = slotsFor('sock1').slice(0, count);
@@ -1595,24 +1598,35 @@ export function makeClubhouse(ctx) {
       // A club is a shaft, a grip and a HEAD, and the head was the tell: a driver was a squashed
       // sphere and an iron a flat tab. The heads are modelled (vendor/models/clubhouse/head_*.glb),
       // pivoted at the shaft entry, so they hang off the tip of the shaft.
+      //
+      // Two rack poses share this build: head at the slot with the shaft rising
+      // (putter grooves), and headUp — the Sheet-03 club rack — where the club
+      // stands grip-down in the trough and the slot marks the HEAD seated on
+      // the comb rail, so the shaft grows DOWNWARD from it.
       const g = new THREE.Group();
       const isDriver = id.startsWith('driver');
       const headModel = isDriver ? 'head_driver'
         : id.startsWith('putter') ? 'head_putter'
           : id.startsWith('wedge') ? 'head_wedge' : 'head_iron';
+      const dir = s.headUp ? -1 : 1;
       const shaft = new THREE.Mesh(
         new THREE.CylinderGeometry(0.0075, 0.0105, s.len, 10),
         isDriver ? mats.merchDark : mats.merchSteel,
       );
-      shaft.position.set(s.x + Math.sin(s.lean) * s.len / 2, s.y + Math.cos(s.lean) * s.len / 2, s.z);
+      shaft.position.set(
+        s.x + dir * Math.sin(s.lean) * s.len / 2,
+        s.y + dir * Math.cos(s.lean) * s.len / 2,
+        s.z,
+      );
       shaft.rotation.z = -s.lean;
       shaft.castShadow = true;
+      const gripAlong = s.headUp ? s.len - 0.14 : s.len - 0.10;
       const grip = new THREE.Mesh(
         new THREE.CylinderGeometry(0.0135, 0.0115, 0.24, 8), mats.merchRubber,
       );
       grip.position.set(
-        s.x + Math.sin(s.lean) * (s.len - 0.10),
-        s.y + Math.cos(s.lean) * (s.len - 0.10),
+        s.x + dir * Math.sin(s.lean) * gripAlong,
+        s.y + dir * Math.cos(s.lean) * gripAlong,
         s.z,
       );
       grip.rotation.z = -s.lean;
@@ -1657,7 +1671,10 @@ export function makeClubhouse(ctx) {
       const cap = merch.instantiateRaw('cap_pro');   // a real six-panel cap (Tripo)
       if (!cap) return null;
       cap.position.set(s.x, s.y, s.z);
-      cap.rotation.y = s.ry + Math.PI / 2;   // the model's bill runs +x; turn it out off the tree
+      // yaw first (bill runs +x on the model), then nose the crown down over
+      // the peg when the slot asks for it (the Sheet-03 hat wall)
+      cap.rotation.order = 'YXZ';
+      cap.rotation.set(s.rx || 0, s.ry + Math.PI / 2, 0);
       return cap;
     }
 

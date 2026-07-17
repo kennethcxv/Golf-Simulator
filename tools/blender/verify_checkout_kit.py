@@ -29,6 +29,10 @@ KIT = [
     "cash_coin_01", "cash_coin_05", "cash_coin_10", "cash_coin_25", "cash_coin_50",
     "scannable_product_box", "customer_display", "loose_receipt", "cash_handoff_stack",
     "apparel_wall",
+    # Asset Sheet 03: the retail fixture family
+    "apparel_wall_display", "hat_wall", "accessory_slatwall", "club_rack",
+    "putter_rack", "bag_display", "shoe_wall", "ball_shelf", "snack_shelf",
+    "rangefinder_display",
 ]
 
 REQUIRED_NODES = {
@@ -56,6 +60,47 @@ REQUIRED_NODES = {
                     + [f"APPAREL_FOLD_SLOT_{i:02d}" for i in range(1, 4)]
                     + [f"APPAREL_SHELF_SLOT_{i:02d}" for i in range(1, 3)]
                     + [f"APPAREL_HOOK_SLOT_{i:02d}" for i in range(1, 3)],
+    # --- Asset Sheet 03 -------------------------------------------------------
+    "apparel_wall_display": ["Slatwall", "Back_Panel", "Header", "Header_Sign",
+                             "Base_Shelf", "Faceout_Arm_01", "Faceout_Arm_06",
+                             "COL_ApparelWallDisplay"]
+                            + [f"DISPLAY_ARM_SLOT_{i:02d}" for i in range(1, 7)]
+                            + [f"DISPLAY_BASE_SLOT_{i:02d}" for i in range(1, 4)],
+    "hat_wall": ["Slatwall", "Back_Panel", "Header", "Header_Sign", "Plinth",
+                 "Peg_Arm_01", "Peg_Arm_12", "COL_HatWall"]
+                + [f"HAT_PEG_SLOT_{i:02d}" for i in range(1, 13)],
+    "accessory_slatwall": ["Slatwall", "Back_Panel", "Header", "Header_Sign",
+                           "Shelf_01", "Shelf_02", "Shelf_03",
+                           "Hook_Short_Plate_01", "Hook_Long_Plate_01", "Hook_Double_Plate_01",
+                           "COL_AccessorySlatwall"]
+                          + [f"ACC_SHELF_SLOT_{i:02d}" for i in range(1, 4)]
+                          + [f"ACC_HOOK_SLOT_{i:02d}" for i in range(1, 7)],
+    "club_rack": ["Base", "Trough_Felt_F", "Trough_Felt_R", "Head_Rail_F", "Head_Rail_R",
+                  "End_Cap_L", "End_Cap_R", "Crest_Badge", "COL_ClubRack"]
+                 + [f"CLUB_SLOT_F{i:02d}" for i in range(1, 10)]
+                 + [f"CLUB_SLOT_R{i:02d}" for i in range(1, 10)],
+    "putter_rack": ["Base", "Base_Felt", "Grip_Rail", "Cheek_L", "Cheek_R",
+                    "Groove_Divider_01", "Groove_Divider_05", "COL_PutterRack"]
+                   + [f"PUTTER_SLOT_{i:02d}" for i in range(1, 7)],
+    "bag_display": ["Deck", "Lean_Rail", "Rail_Post_L", "Rail_Post_R", "Crest_Badge",
+                    "COL_BagDisplay"]
+                   + [f"BAG_SLOT_{i:02d}" for i in range(1, 5)],
+    "shoe_wall": ["Slatwall", "Back_Panel", "Header", "Header_Sign", "Box_Shelf",
+                  "Display_Board_01", "Display_Board_03", "Prop_ShoeBox_01",
+                  "COL_ShoeWall"]
+                 + [f"SHOE_SLOT_{i:02d}" for i in range(1, 7)]
+                 + [f"SHOEBOX_SLOT_{i:02d}" for i in range(1, 4)],
+    "ball_shelf": ["Side_L", "Side_R", "Top", "Back_Panel", "Board_01", "Board_02",
+                   "Board_03", "Board_Lip_01", "Crest_Badge", "COL_BallShelf"]
+                  + [f"BALL_SLOT_{i:02d}" for i in range(1, 16)],
+    "snack_shelf": ["Frame_Post_LF", "Frame_Post_RB", "Back_Panel", "Shelf_01", "Shelf_04",
+                    "Prop_Bottle_S01", "Prop_Bottle_W07", "Prop_Chip_01", "Prop_BarTray_01",
+                    "COL_SnackShelf"]
+                   + [f"SNACK_SHELF_SLOT_{i:02d}" for i in range(1, 5)],
+    "rangefinder_display": ["Case_Base", "Case_Back", "Case_Cheek_L", "Case_Cheek_R",
+                            "Tier_01", "Tier_02", "Acrylic_Front", "Prop_OpticBox_01",
+                            "Crest_Badge", "COL_RangefinderDisplay"]
+                           + [f"RF_SLOT_{i:02d}" for i in range(1, 7)],
 }
 
 # asset: (axis-size checks in Blender Z-up space after import)
@@ -77,6 +122,17 @@ SIZE_CHECKS = {
     "cash_coin_50": [(0, 0.0290, 0.0310)],
     "shopping_bag": [(2, 0.30, 0.42)],   # rope handles arc ~55 mm above the rim
     "apparel_wall": [(0, 1.05, 1.15), (2, 2.15, 2.25)],
+    # Sheet-03 envelopes straight off the sheet (W, H in Blender X/Z)
+    "apparel_wall_display": [(0, 1.15, 1.25), (2, 2.15, 2.25)],
+    "hat_wall": [(0, 0.95, 1.05), (2, 2.15, 2.25)],
+    "accessory_slatwall": [(0, 0.95, 1.05), (2, 1.95, 2.05)],
+    "club_rack": [(0, 1.15, 1.25), (2, 1.00, 1.12)],
+    "putter_rack": [(0, 0.95, 1.05), (2, 0.90, 1.02)],
+    "bag_display": [(0, 1.55, 1.65), (2, 1.02, 1.12)],
+    "shoe_wall": [(0, 1.15, 1.25), (2, 1.95, 2.05)],
+    "ball_shelf": [(0, 0.98, 1.08), (2, 1.15, 1.25)],
+    "snack_shelf": [(0, 0.95, 1.05), (2, 1.55, 1.65)],
+    "rangefinder_display": [(0, 0.55, 0.65), (2, 0.30, 0.40)],
 }
 
 REQUIRED_CLIPS = {
