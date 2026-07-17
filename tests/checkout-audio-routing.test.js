@@ -169,14 +169,20 @@ test('card insertion and processing cues have separate one-shot edges', () => {
     'the active renderer exposes no swipe interaction surface');
 });
 
-test('drawer close is emitted once only after an exact-once cash finalization', () => {
-  const finalizeTransaction = extractFunction(registerSource, 'finalizeTransaction');
+test('drawer close is emitted once only, when the counted change is handed over', () => {
+  // The till slides shut with its close sound the instant the change leaves for
+  // the customer (confirmChange) — one call site, no double-close, and cash-only
+  // by construction (confirmChange only runs on the cash-drawer stage).
+  const confirmChange = extractFunction(registerSource, 'confirmChange');
   assert.equal(cueCalls(registerSource, 'drawerClose').length, 1,
-    'the active cash flow has one drawer-close call site');
-  assert.equal(cueCalls(finalizeTransaction, 'drawerClose').length, 1);
-  assert.match(finalizeTransaction,
-    /if\s*\(\s*finishedTx\.method\s*===\s*['"]cash['"]\s*\)\s*sfx\s*\(\s*['"]drawerClose['"]\s*\)/,
-    'only a successfully finalized cash transaction closes the drawer');
+    'the active cash flow has exactly one drawer-close call site');
+  assert.equal(cueCalls(confirmChange, 'drawerClose').length, 1,
+    'the drawer closes in confirmChange, as the change is given');
+  assert.match(confirmChange, /drawerWant\s*=\s*0/,
+    'confirmChange also slides the drawer visually shut');
+  // and finalizeTransaction no longer re-closes an already-closed till
+  const finalizeTransaction = extractFunction(registerSource, 'finalizeTransaction');
+  assert.equal(cueCalls(finalizeTransaction, 'drawerClose').length, 0);
 });
 
 test('bagging and automatic receipt cues remain transition-local one-shots', () => {

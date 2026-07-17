@@ -2869,7 +2869,8 @@ export function createRegisterMode(B) {
       method: finishedTx.method,
       items: displayItems,
     };
-    if (finishedTx.method === 'cash') sfx('drawerClose');
+    // (the till already slid shut with its sound the moment the change was handed
+    // over in confirmChange — see the drawerClose there; nothing to close here)
     sfx('checkoutComplete');
     clearPhysicalTransaction();
     if (finishedCustomer) finishedCustomer.tx = null;
