@@ -29,10 +29,13 @@ import { makeCameraRig } from './cameraRig.js';
 import { makeCharacter } from './characterAsset.js';
 import { makeClubhouse } from './clubhouse.js';
 import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture } from './proceduralTextures.js';
+import { makeVisualField, computeVisualField, updateVisualFieldRegion, FIELD_SCALE } from './visualField.js';
 import { ZONE_COLORS } from '../render/palette.js';
 
 const ELEV_FT_TO_YD = (1 / 3) * 1.5; // real feet→yards with 1.5x readability exaggeration
-const SEG_PER_CELL = 2;
+// terrain vertices every 2 yd: bunker bowls, banks, and sculpted slopes read as
+// continuous surfaces instead of 4-yd facets
+const SEG_PER_CELL = 4;
 
 // --- asset-idle tracking: every loader here uses THREE.DefaultLoadingManager, so the
 // prewarm can wait for in-flight GLB/texture loads before compiling and uploading
@@ -374,6 +377,24 @@ export function makeCourseScene(canvas, state) {
     t.generateMipmaps = false;
   }
 
+  // --- the HIGH-RESOLUTION visual surface field (visualField.js) -----------------
+  // 8 texels per simulation cell (one per yard): the renderer's surface truth.
+  // Categorical ids → nearest filtering; smoothness lives in the DATA (warped,
+  // feathered boundaries), not in texture interpolation.
+  const visField = makeVisualField(course);
+  const zoneHiTex = new THREE.DataTexture(visField.data, visField.w, visField.h, THREE.RedFormat, THREE.UnsignedByteType);
+  zoneHiTex.magFilter = THREE.NearestFilter;
+  zoneHiTex.minFilter = THREE.NearestFilter;
+  zoneHiTex.generateMipmaps = false;
+
+  // Recompute the visual field from the sim grid — everything, or one padded
+  // cell-rect while a paint stroke is in flight.
+  function updateZoneField(st, rect = null) {
+    if (rect) updateVisualFieldRegion(st.course, visField, rect.x0, rect.y0, rect.x1, rect.y1);
+    else computeVisualField(st.course, visField);
+    zoneHiTex.needsUpdate = true;
+  }
+
   // --- terrain ------------------------------------------------------------------------------
   const segsX = W * SEG_PER_CELL;
   const segsY = H * SEG_PER_CELL;
@@ -393,17 +414,27 @@ export function makeCourseScene(canvas, state) {
     return course.zones[cy * W + cx] === ZONE.WATER ? 1 : 0;
   }
 
-  // bilinear ground height (before water carve) at fractional cell coords
+  // smooth (Catmull-Rom bicubic) ground height at fractional cell coords —
+  // 8-yd elevation samples become continuous slopes, bowls, and banks instead
+  // of bilinear facets
+  function crSpline(p0, p1, p2, p3, t) {
+    return 0.5 * ((2 * p1) + (-p0 + p2) * t
+      + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t
+      + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
+  }
+
   function rawHeightAtCellCoords(fx, fy) {
-    const x0 = Math.floor(fx - 0.5);
-    const y0 = Math.floor(fy - 0.5);
-    const tx = fx - 0.5 - x0;
-    const ty = fy - 0.5 - y0;
-    const h00 = elevAtCell(x0, y0);
-    const h10 = elevAtCell(x0 + 1, y0);
-    const h01 = elevAtCell(x0, y0 + 1);
-    const h11 = elevAtCell(x0 + 1, y0 + 1);
-    return (h00 * (1 - tx) + h10 * tx) * (1 - ty) + (h01 * (1 - tx) + h11 * tx) * ty;
+    const x = fx - 0.5;
+    const y = fy - 0.5;
+    const xi = Math.floor(x);
+    const yi = Math.floor(y);
+    const tx = x - xi;
+    const ty = y - yi;
+    const r0 = crSpline(elevAtCell(xi - 1, yi - 1), elevAtCell(xi, yi - 1), elevAtCell(xi + 1, yi - 1), elevAtCell(xi + 2, yi - 1), tx);
+    const r1 = crSpline(elevAtCell(xi - 1, yi), elevAtCell(xi, yi), elevAtCell(xi + 1, yi), elevAtCell(xi + 2, yi), tx);
+    const r2 = crSpline(elevAtCell(xi - 1, yi + 1), elevAtCell(xi, yi + 1), elevAtCell(xi + 1, yi + 1), elevAtCell(xi + 2, yi + 1), tx);
+    const r3 = crSpline(elevAtCell(xi - 1, yi + 2), elevAtCell(xi, yi + 2), elevAtCell(xi + 1, yi + 2), elevAtCell(xi + 2, yi + 2), tx);
+    return crSpline(r0, r1, r2, r3, ty);
   }
 
   function waterMaskAtCellCoords(fx, fy) {
@@ -432,6 +463,8 @@ export function makeCourseScene(canvas, state) {
   const shaderRefs = { uniforms: null };
   terrainMat.onBeforeCompile = (shader) => {
     shader.uniforms.uZoneTex = { value: zoneTex };
+    shader.uniforms.uZoneHi = { value: zoneHiTex };
+    shader.uniforms.uHiTexel = { value: new THREE.Vector2(1 / visField.w, 1 / visField.h) };
     shader.uniforms.uAuxTex = { value: auxTex };
     shader.uniforms.uPlanTex = { value: planTex };
     shader.uniforms.uCells = { value: new THREE.Vector2(W, H) };
@@ -457,9 +490,9 @@ export function makeCourseScene(canvas, state) {
         '#include <common>',
         `#include <common>
         varying vec3 vWp;
-        uniform sampler2D uZoneTex, uAuxTex, uPlanTex, tRough, tSand, tScrub, tPath;
+        uniform sampler2D uZoneTex, uZoneHi, uAuxTex, uPlanTex, tRough, tSand, tScrub, tPath;
         uniform sampler2D tRoughN, tSandN, tScrubN, tPathN;
-        uniform vec2 uCells;
+        uniform vec2 uCells, uHiTexel;
         uniform float uViewMode, uTime;
         uniform vec3 uStripeModes;
         vec3 gSplatN = vec3(0.5, 0.5, 1.0);
@@ -475,20 +508,18 @@ export function makeCourseScene(canvas, state) {
           // data textures line up with world positions
           vec2 flippedUv = vec2(vMapUv.x, 1.0 - vMapUv.y);
           vec2 cellUv = flippedUv * uCells;
-          float wn1 = fwNoise(cellUv * 1.6 + 13.1) * 0.75 + fwNoise(cellUv * 5.2 + 40.0) * 0.25;
-          float wn2 = fwNoise(cellUv * 1.6 + 71.7) * 0.75 + fwNoise(cellUv * 5.2 + 90.0) * 0.25;
-          vec2 warped = cellUv + (vec2(wn1, wn2) - 0.5) * 0.9;
-          warped = clamp(warped, vec2(0.0), uCells - 0.001);
-          vec2 sUv = (floor(warped) + 0.5) / uCells;
+          // THE SURFACE comes from the high-resolution visual field (1 texel
+          // per yard, boundaries already feathered + warped in the data). A
+          // sub-texel jitter melts the last 1-yd steps into grass-scale dither.
+          vec2 hj = vec2(fwNoise(cellUv * 21.0 + 3.7), fwNoise(cellUv * 21.0 + 63.2)) - 0.5;
+          float zone = floor(texture2D(uZoneHi, flippedUv + hj * uHiTexel * 1.4).r * 255.0 + 0.5);
+          // turf condition stays at simulation resolution (it IS sim data)
+          vec2 sUv = (floor(cellUv) + 0.5) / uCells;
           vec4 zd = texture2D(uZoneTex, sUv);
-          float zone = floor(zd.r * 255.0 / 18.0 + 0.5);
           float hRel = zd.a * 255.0 / 64.0;
           vec4 ax = texture2D(uAuxTex, sUv);
           float disType = floor(ax.r * 255.0 / 100.0 + 0.5);
           float disSev = ax.g;
-          // per-cell mowing direction (radians / 2pi in aux.a), smoothed across
-          // cells so stripe bands bend with the hole instead of snapping
-          float dirN = ax.a;
 
           // smooth (manual bilinear) reads for the condition tints so per-cell
           // variance doesn't render as camouflage blocks
@@ -770,7 +801,8 @@ export function makeCourseScene(canvas, state) {
         const fy = (vy / SEG_PER_CELL);
         let h = rawHeightAtCellCoords(fx, fy) + microRelief(fx, fy);
         const wm = waterMaskAtCellCoords(fx, fy);
-        if (wm > 0.01) h -= wm * 2.3; // carve pond bowls
+        // smoothstep the carve so pond bowls curve into their banks
+        if (wm > 0.01) h -= wm * wm * (3 - 2 * wm) * 2.3;
         heights[vy * vertsX + vx] = h;
         pos.setY(vi, h);
       }
@@ -1141,6 +1173,16 @@ export function makeCourseScene(canvas, state) {
   let objectGroup = null;
   const objectGlbCache = new Map(); // type -> { parts: [{geometry, material}] } | 'missing'
   let objectGlbPending = 0;
+  // only probe GLBs the manifest lists — a 404 per missing type is console
+  // noise even when the procedural fallback is intentional
+  let objectGlbAvailable = null; // null until the manifest answers; [] = none
+  fetch('vendor/models/course/_manifest.json')
+    .then((r) => (r.ok ? r.json() : null))
+    .then((m) => {
+      objectGlbAvailable = (m && m.available) || [];
+      if (objectGlbAvailable.length) rebuildObjects();
+    })
+    .catch(() => { objectGlbAvailable = []; });
 
   function proceduralObjectParts(type) {
     const std = (color, rough = 0.9) => new THREE.MeshStandardMaterial({ color, roughness: rough });
@@ -1305,6 +1347,9 @@ export function makeCourseScene(canvas, state) {
   function objectParts(type) {
     const cached = objectGlbCache.get(type);
     if (cached && cached !== 'missing' && cached !== 'loading') return cached;
+    if (!objectGlbAvailable || !objectGlbAvailable.includes(type)) {
+      return proceduralObjectParts(type); // manifest says no model — no probe
+    }
     if (!cached) {
       objectGlbCache.set(type, 'loading');
       objectGlbPending++;
@@ -3397,14 +3442,16 @@ export function makeCourseScene(canvas, state) {
     rebuildStructures();
     updateHoles();
     rebuildFlowField();
+    updateZoneField(st);
     updateTurf(st);
     freezeStaticCourse();
     if (walk.active) refreshWalkColliders(); // works can plant or fell obstacles
   }
 
   // the editor's cheap incremental refresh after a stroke: terrain heights +
-  // water + paths follow the land; trees/objects only when asked
-  function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false } = {}) {
+  // water + paths follow the land; trees/objects only when asked. zoneRect
+  // limits the visual-field recompute to the edited cells.
+  function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false, zoneRect = null, zones = true } = {}) {
     rebuildTerrainHeights();
     if (water) rebuildWater();
     if (paths) rebuildPaths();
@@ -3414,6 +3461,7 @@ export function makeCourseScene(canvas, state) {
     }
     if (holes) updateHoles();
     if (flow) rebuildFlowField();
+    if (zones) updateZoneField(st, zoneRect);
     updateTurf(st);
     freezeStaticCourse();
   }
@@ -3800,6 +3848,7 @@ export function makeCourseScene(canvas, state) {
     updateHoles,
     rebuildAll,
     refreshGround,
+    updateZoneField,
     rebuildObjects,
     rebuildPaths,
     rebuildTrees,

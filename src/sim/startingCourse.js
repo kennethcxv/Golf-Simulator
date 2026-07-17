@@ -24,12 +24,12 @@ const HOLES = [
   { tee: { x: 16, y: 47 }, pin: { x: 11, y: 33 }, wp: [] },
   // 3 · par 4 · strong dogleg right climbing to the north plateau
   { tee: { x: 8, y: 27 }, pin: { x: 40, y: 12 }, wp: [{ x: 15, y: 19 }, { x: 27, y: 13 }] },
-  // 4 · par 5 · the long S along the northern boundary, split landing lines
-  { tee: { x: 45, y: 6 }, pin: { x: 105, y: 17 }, wp: [{ x: 63, y: 12 }, { x: 82, y: 7 }, { x: 95, y: 12 }] },
+  // 4 · par 5 · the long S that dips through the upper middle of the property
+  { tee: { x: 45, y: 6 }, pin: { x: 105, y: 17 }, wp: [{ x: 60, y: 16 }, { x: 78, y: 21 }, { x: 94, y: 13 }] },
   // 5 · par 3 · all carry over the pond
   { tee: { x: 108, y: 22 }, pin: { x: 105, y: 37 }, wp: [] },
-  // 6 · par 4 · sweeping left back toward the middle
-  { tee: { x: 101, y: 43 }, pin: { x: 66, y: 50 }, wp: [{ x: 89, y: 49 }, { x: 76, y: 53 }] },
+  // 6 · par 4 · driving deep into the heart of the course
+  { tee: { x: 101, y: 43 }, pin: { x: 63, y: 41 }, wp: [{ x: 88, y: 47 }, { x: 74, y: 46 }] },
   // 7 · par 4 · the long two-bend run home along the south valley
   { tee: { x: 60, y: 57 }, pin: { x: 10, y: 64 }, wp: [{ x: 44, y: 61 }, { x: 28, y: 67 }, { x: 17, y: 66 }] },
   // 8 · par 3 · the corner flick

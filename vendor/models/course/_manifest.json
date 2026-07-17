@@ -1,0 +1,4 @@
+{
+  "comment": "GLBs present in this folder, by object type. The renderer only attempts to load types listed here; everything else uses its procedural stand-in. Add the filename stem when you drop in a real model.",
+  "available": []
+}

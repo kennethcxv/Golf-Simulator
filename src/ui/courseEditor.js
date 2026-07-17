@@ -1180,7 +1180,7 @@ export function makeCourseEditor(app, hooks) {
           kidney: opt.green.shape === 'kidney',
         });
         if (res.ok) {
-          scene().refreshGround(state(), {});
+          scene().refreshGround(state(), { zoneRect: zr(g.fx, g.fy, r * 1.6 + 2) });
           refreshTop();
         }
         break;
@@ -1193,7 +1193,7 @@ export function makeCourseEditor(app, hooks) {
           angle: Math.random() * Math.PI,
         });
         if (res.ok) {
-          scene().refreshGround(state(), {});
+          scene().refreshGround(state(), { zoneRect: zr(g.fx, g.fy, yd2cells(opt.bunker.sizeYd) * 2 + 2) });
           refreshTop();
         } else {
           toast('No sand here — bunkers dig into grass.', 'warn');
@@ -1214,7 +1214,7 @@ export function makeCourseEditor(app, hooks) {
           angle: Math.random() * Math.PI,
         });
         if (res.ok) {
-          scene().refreshGround(state(), { water: true });
+          scene().refreshGround(state(), { water: true, zoneRect: zr(g.fx, g.fy, yd2cells(opt.water.sizeYd) * 2.2 + 2) });
           refreshTop();
         } else {
           toast('The water needs open ground.', 'warn');
@@ -1300,13 +1300,19 @@ export function makeCourseEditor(app, hooks) {
   }
 
   function applyPaintAt(g, erase) {
-    paintAt(state(), stroke.s, g.fx, g.fy, erase ? ZONE.ROUGH : opt.paint.zone, {
-      radius: yd2cells(opt.paint.radiusYd * 2),
-    });
+    const r = yd2cells(opt.paint.radiusYd * 2);
+    paintAt(state(), stroke.s, g.fx, g.fy, erase ? ZONE.ROUGH : opt.paint.zone, { radius: r });
     stroke.erase = erase;
+    // grow the stroke's dirty rect (cells) for visual-field updates
+    stroke.rect = stroke.rect || { x0: g.fx - r, y0: g.fy - r, x1: g.fx + r, y1: g.fy + r };
+    stroke.rect.x0 = Math.min(stroke.rect.x0, g.fx - r);
+    stroke.rect.y0 = Math.min(stroke.rect.y0, g.fy - r);
+    stroke.rect.x1 = Math.max(stroke.rect.x1, g.fx + r);
+    stroke.rect.y1 = Math.max(stroke.rect.y1, g.fy + r);
     const now = performance.now();
     if (now - strokeClock > 70) {
       strokeClock = now;
+      scene().updateZoneField(state(), stroke.rect);
       scene().updateTurf(state());
     }
   }
@@ -1408,11 +1414,14 @@ export function makeCourseEditor(app, hooks) {
     if (stroke && tool === 'terrain') {
       const res = endTerrainStroke(state(), session, stroke, 'Terrain');
       stroke = null;
-      scene().refreshGround(state(), { water: true, paths: true });
+      // sculpting moves land, not surfaces: skip the visual-field recompute
+      scene().refreshGround(state(), { water: true, paths: true, zones: false });
       if (res.ok) refreshTop();
     } else if (stroke && tool === 'paint') {
       const res = endPaintStroke(state(), session, stroke.s, 'Paint');
+      const rect = stroke.rect;
       stroke = null;
+      scene().updateZoneField(state(), rect || null);
       scene().updateTurf(state());
       if (res.ok) refreshTop();
     }
@@ -1448,7 +1457,12 @@ export function makeCourseEditor(app, hooks) {
     } else {
       const res = stampStream(state(), session, drawingPath, { width: Math.max(0.8, yd2cells(opt.water.sizeYd) * 0.55), depth: opt.water.depth });
       if (res.ok) {
-        scene().refreshGround(state(), { water: true });
+        const xs = drawingPath.map((q) => q.x);
+        const ys = drawingPath.map((q) => q.y);
+        scene().refreshGround(state(), {
+          water: true,
+          zoneRect: { x0: Math.min(...xs) - 3, y0: Math.min(...ys) - 3, x1: Math.max(...xs) + 3, y1: Math.max(...ys) + 3 },
+        });
         refreshTop();
         toast('Stream cut.');
       }
