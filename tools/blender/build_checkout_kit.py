@@ -266,7 +266,7 @@ def build_cash_drawer(M):
     L.cyl("lock_keyhole", 0.0028, 0.0028, (0, -HD - 0.052, HH / 2 - 0.024), M["alu"], rot=(math.radians(90), 0, 0), verts=8, parent=key_bow)
     L.parent_keep(lock, tray)
 
-    # --- removable light-gray insert: 5 bill wells (back) + 5 coin cups (front) ---
+    # --- removable light-gray insert: 6 bill wells (back) + 5 coin cups (front) ---
     IW, ID = TW - 0.03, TD - 0.05
     ix0 = -IW / 2
     iy_back = -t - 0.02                            # insert back edge
@@ -281,27 +281,31 @@ def build_cash_drawer(M):
     ip.append(L.box("i_right", (wall, ID, 0.055), (-ix0 - wall / 2, iy_back - ID / 2, iz + 0.030), M["tray_gray"], bevel=0.001))
     # bill/coin separator
     ip.append(L.box("i_mid", (IW, wall, 0.05), (0, iy_back - bill_d, iz + 0.027), M["tray_gray"], bevel=0.001))
-    pitch = IW / 5
-    for i in range(1, 5):
-        x = ix0 + i * pitch
+    # bills run their own tighter pitch (six wells); the five coin cups keep theirs
+    b_pitch = IW / 6
+    c_pitch = IW / 5
+    for i in range(1, 6):
+        x = ix0 + i * b_pitch
         ip.append(L.box(f"i_bdiv{i}", (wall, bill_d, 0.05), (x, iy_back - bill_d / 2, iz + 0.027), M["tray_gray"], bevel=0.001))
+    for i in range(1, 5):
+        x = ix0 + i * c_pitch
         ip.append(L.box(f"i_cdiv{i}", (wall, coin_d, 0.04), (x, iy_back - bill_d - coin_d / 2, iz + 0.022), M["tray_gray"], bevel=0.001))
     # angled bill weights (clip detail, one per well)
-    for i in range(5):
-        x = ix0 + pitch / 2 + i * pitch
-        ip.append(L.box(f"i_clip{i}", (pitch - 0.03, 0.05, 0.004), (x, iy_back - 0.06, iz + 0.038), M["alu"], rot=(math.radians(-14), 0, 0), bevel=0.001))
+    for i in range(6):
+        x = ix0 + b_pitch / 2 + i * b_pitch
+        ip.append(L.box(f"i_clip{i}", (b_pitch - 0.024, 0.05, 0.004), (x, iy_back - 0.06, iz + 0.038), M["alu"], rot=(math.radians(-14), 0, 0), bevel=0.001))
     insert = _join(ip, "CashDrawer_Insert")
     L.parent_keep(insert, tray)
 
     # --- money placement sockets (children of the tray so they slide with it) ---
-    bills = ["1", "5", "10", "20", "50"]
+    bills = ["1", "5", "10", "20", "50", "100"]
     coins = ["01", "05", "10", "25", "50"]
     for i, b in enumerate(bills):
-        x = ix0 + pitch / 2 + i * pitch
+        x = ix0 + b_pitch / 2 + i * b_pitch
         K.empty(f"BILL_{b}_SOCKET", (x, iy_back - bill_d / 2, iz + 0.020), (0, 0, 0), parent=tray, size=0.03,
                 props={"socket": "bill", "denomination": b})
     for i, c in enumerate(coins):
-        x = ix0 + pitch / 2 + i * pitch
+        x = ix0 + c_pitch / 2 + i * c_pitch
         K.empty(f"COIN_{c}_SOCKET", (x, iy_back - bill_d - coin_d / 2, iz + 0.016), (0, 0, 0), parent=tray, size=0.02,
                 props={"socket": "coin", "denomination": c})
 
@@ -1037,7 +1041,7 @@ BUILDERS = {
     "receipt_printer": build_receipt_printer,
     "shopping_bag": build_shopping_bag,
     "payment_card": build_payment_card,
-    **{f"cash_bill_{d}": make_bill_builder(d) for d in (1, 5, 10, 20, 50)},
+    **{f"cash_bill_{d}": make_bill_builder(d) for d in (1, 5, 10, 20, 50, 100)},
     **{f"cash_coin_{c}": make_coin_builder(c) for c in ("01", "05", "10", "25", "50")},
     "apparel_wall": build_apparel_wall,
     "scannable_product_box": build_scannable_product_box,
