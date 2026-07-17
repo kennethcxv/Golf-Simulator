@@ -736,6 +736,18 @@ export function makeClubhouse(ctx) {
     trackpad.rotation.x = -Math.PI / 2;
     trackpad.position.set(0, LAPTOP.deck.t + 0.0014, LAPTOP.trackpad.z); // the palm rest, nearest the seat
     laptop.add(trackpad);
+    // the small honest details: four rubber feet under the deck and a charge port on the
+    // left flank, rear — the things that make a slab read as a machine somebody plugs in
+    const rubber = new THREE.MeshStandardMaterial({ color: 0x1b1d20, roughness: 0.95 });
+    const footGeo = new THREE.CylinderGeometry(0.006, 0.007, 0.0035, 10);
+    for (const [fx, fz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const foot = new THREE.Mesh(footGeo, rubber);
+      foot.position.set(fx * (LAPTOP.deck.w / 2 - 0.022), 0.0002, fz * (LAPTOP.deck.d / 2 - 0.022));
+      laptop.add(foot);
+    }
+    const chargePort = new THREE.Mesh(new THREE.BoxGeometry(0.0022, 0.006, 0.016), rubber);
+    chargePort.position.set(-LAPTOP.deck.w / 2 + 0.0008, LAPTOP.deck.t * 0.55, LAPTOP.hingeZ - 0.045);
+    laptop.add(chargePort);
 
     // lid: hinged on the FAR edge (local +z), so it opens AWAY from the seated player and the
     // display leans back toward them. angle 0 = CLOSED, flat over the deck.
@@ -833,23 +845,24 @@ export function makeClubhouse(ctx) {
       }
       if (screenMode === 'boot') {
         const p = Math.min(1, (performance.now() - bootT0) / 850);
-        c2.fillStyle = '#10141a';
+        c2.fillStyle = '#0a160e';
         c2.fillRect(0, 0, 512, 320);
         pineMark(c2, 256, 120, 48, '#2e5a35');
-        c2.fillStyle = '#f4f0e6';
+        c2.fillStyle = '#cfa860';
         c2.font = 'bold 21px Georgia, serif';
         c2.textAlign = 'center';
-        c2.fillText('Fairway Office', 256, 208);
-        c2.strokeStyle = '#2b3138';
+        c2.fillText('GOLF SIMULATOR', 256, 208);
+        c2.strokeStyle = '#26422e';
         c2.strokeRect(176, 232, 160, 8);
-        c2.fillStyle = '#35d06a';
+        c2.fillStyle = '#cfa860';
         c2.fillRect(178, 234, 156 * p, 4);
         screenTex.needsUpdate = true;
         return;
       }
       if (screenMode === 'live') {
-        // the interface itself is a DOM welded to this rectangle. Underneath it, paper.
-        c2.fillStyle = '#f4f0e6';
+        // the interface itself is a DOM welded to this rectangle. Underneath it, the same deep
+        // pine the interface is painted on — a bezel seam shows glass, never a second screen.
+        c2.fillStyle = '#0d1b12';
         c2.fillRect(0, 0, 512, 320);
         screenTex.needsUpdate = true;
         return;
@@ -870,7 +883,7 @@ export function makeClubhouse(ctx) {
       c2.fillText(clock12(), 256, 224);
       c2.fillStyle = '#5d7a64';
       c2.font = '12px system-ui, sans-serif';
-      c2.fillText('Fairway Office — press E to sign in', 256, 286);
+      c2.fillText('GOLF SIMULATOR — press E to sign in', 256, 286);
       screenTex.needsUpdate = true;
     }
     paintScreen('off');
@@ -916,7 +929,7 @@ export function makeClubhouse(ctx) {
     const compWp = L2W(OFFICE.laptop.x, OFFICE.laptop.z);
     office.computerProp = addProp({
       x: compWp.x, z: compWp.z, r: 2.3,
-      label: () => 'Laptop — [E] open Fairway Office',
+      label: () => 'Laptop — [E] open GOLF SIMULATOR',
       action: () => { if (hooks.openLaptop) hooks.openLaptop(); },
     });
     office.laptop = laptop;

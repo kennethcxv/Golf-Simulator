@@ -34,6 +34,7 @@ import { simulateDayRounds } from './rounds.js';
 import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
 import { initTutorial, ensureTutorial } from './tutorial.js';
 import { initLedger, addExpense, closeBooks } from './economy.js';
+import { initNotifications, ensureNotifications } from './notifications.js';
 import { BALANCE } from './balance.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
@@ -74,6 +75,8 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initLedger(state);
   initProgression(state);
   initTutorial(state);
+  initNotifications(state);
+  state.uiPrefs = {};
   return state;
 }
 
@@ -226,6 +229,8 @@ export function snapshot(state) {
     props: state.props,
     progression: state.progression,
     tutorial: state.tutorial,
+    notifications: state.notifications, // unread warnings survive the reload
+    uiPrefs: state.uiPrefs || null, // the office machine's own settings (scale, default views)
     property: state.property, // the rent schedule, or reloading is a rent holiday
     debtDays: state.debtDays || 0,
     failed: state.failed || null,
@@ -263,6 +268,17 @@ function healLedger(ledger) {
   healLines(ledger.today);
   healLines(ledger.yesterday);
   if (Array.isArray(ledger.history)) ledger.history.forEach((entry) => healLines(entry));
+  // the transaction log: keep only well-formed rows, heal their money numbers
+  if (!Array.isArray(ledger.txLog)) ledger.txLog = [];
+  ledger.txLog = ledger.txLog
+    .filter((t) => t && typeof t === 'object' && typeof t.key === 'string')
+    .map((t) => ({
+      m: Number.isFinite(t.m) ? t.m : 0,
+      kind: t.kind === 'rev' || t.kind === 'refund' ? t.kind : 'exp',
+      key: t.key,
+      amt: Number.isFinite(t.amt) ? t.amt : 0,
+      bal: Number.isFinite(t.bal) ? t.bal : 0,
+    }));
   return ledger;
 }
 
@@ -378,6 +394,9 @@ export function deserialize(json) {
   if (raw.tutorial) state.tutorial = raw.tutorial;
   else initTutorial(state);
   ensureTutorial(state); // older saves re-derive their spot in the chaptered arc
+  if (raw.notifications) state.notifications = raw.notifications;
+  ensureNotifications(state); // pre-feed saves gain an empty, well-formed inbox
+  state.uiPrefs = raw.uiPrefs && typeof raw.uiPrefs === 'object' ? raw.uiPrefs : {};
   state.debtDays = raw.debtDays || 0;
   state.failed = raw.failed || null;
   return state;

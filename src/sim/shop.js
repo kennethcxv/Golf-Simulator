@@ -19,6 +19,7 @@ import {
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
 import { members } from './golfers.js';
+import { notify } from './notifications.js';
 
 // --- restoration arc ------------------------------------------------------------
 // The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
@@ -513,6 +514,10 @@ export function tickDeliveries(state, nowMin) {
         if (!o.blocked) {
           o.blocked = true;
           events.push({ kind: 'blocked', order: o, need, free: PAD_CAPACITY - padCount(state) - reserved });
+          notify(state, {
+            kind: 'delivery',
+            text: `A van could not unload — the receiving pad is full. Order #${o.id} is circling until you clear cartons.`,
+          });
         }
         continue;
       }
@@ -721,6 +726,19 @@ export function shopDailyAccrual(state) {
   }
 
   if (revenue > 0) addRevenue(state, 'shopSales', revenue);
+
+  // a line that sold down to nothing today is a fact worth filing — once per line per day
+  for (const sku of SHOP_CATALOG) {
+    if (!RETAIL_CATS.has(sku.cat) || sku.tier > shop.unlockedTier) continue;
+    const inv = shop.inventory[sku.id];
+    if (inv && inv.shelf === 0 && inv.back === 0 && velocity(state, sku.id) > 0) {
+      notify(state, {
+        kind: 'stock',
+        text: `Sold out: ${sku.name}. Nothing on the shelf, nothing in the back.`,
+        dedupeKey: `sellout:${sku.id}:${cal.dayAbs}`,
+      });
+    }
+  }
 
   // --- rentals: guests without clubs -------------------------------------------
   const fleet = shop.rentalFleet;

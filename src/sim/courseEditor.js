@@ -994,7 +994,7 @@ export function courseStats(state, session = null) {
   const bunkerCells = counts[ZONE.BUNKER] || 0;
   const waterCells = counts[ZONE.WATER] || 0;
   const difficulty = clamp(Math.round(
-    1 + (totalYd / holes.length / 150 || 0) + bunkerCells / 60 + waterCells / 60,
+    1 + (totalYd / holes.length / 240 || 0) + bunkerCells / 150 + waterCells / 120,
   ), 1, 5);
   return {
     holes: course.holes.length,

@@ -43,18 +43,18 @@ export function suggestClub(remainingYd, onGreen) {
 // Per-surface ball behavior: restitution (bounce keep), rollFriction (per-second
 // horizontal decay while rolling), flyFriction (extra first-bounce kill).
 const SURFACE = {
-  [ZONE.GREEN]: { rest: 0.32, roll: 0.55, label: 'Green' },
-  [ZONE.FRINGE]: { rest: 0.3, roll: 0.9, label: 'Fringe' },
-  [ZONE.TEE]: { rest: 0.32, roll: 0.8, label: 'Tee' },
-  [ZONE.FAIRWAY]: { rest: 0.34, roll: 0.85, label: 'Fairway' },
-  [ZONE.SEMI]: { rest: 0.3, roll: 1.3, label: 'First cut' },
-  [ZONE.ROUGH]: { rest: 0.22, roll: 2.4, label: 'Rough' },
-  [ZONE.HEAVY]: { rest: 0.12, roll: 4.5, label: 'Heavy rough' },
-  [ZONE.OUT]: { rest: 0.16, roll: 3.4, label: 'Scrub' },
-  [ZONE.BUNKER]: { rest: 0.05, roll: 6.0, label: 'Bunker' },
-  [ZONE.PATH]: { rest: 0.55, roll: 0.7, label: 'Cart path' },
-  [ZONE.DIRT]: { rest: 0.3, roll: 1.4, label: 'Dirt' },
-  [ZONE.BED]: { rest: 0.1, roll: 4.0, label: 'Landscaping' },
+  [ZONE.GREEN]: { rest: 0.32, roll: 0.85, label: 'Green' },
+  [ZONE.FRINGE]: { rest: 0.3, roll: 1.25, label: 'Fringe' },
+  [ZONE.TEE]: { rest: 0.32, roll: 1.1, label: 'Tee' },
+  [ZONE.FAIRWAY]: { rest: 0.34, roll: 1.15, label: 'Fairway' },
+  [ZONE.SEMI]: { rest: 0.3, roll: 1.6, label: 'First cut' },
+  [ZONE.ROUGH]: { rest: 0.22, roll: 2.8, label: 'Rough' },
+  [ZONE.HEAVY]: { rest: 0.12, roll: 4.8, label: 'Heavy rough' },
+  [ZONE.OUT]: { rest: 0.16, roll: 3.6, label: 'Scrub' },
+  [ZONE.BUNKER]: { rest: 0.05, roll: 6.5, label: 'Bunker' },
+  [ZONE.PATH]: { rest: 0.55, roll: 0.9, label: 'Cart path' },
+  [ZONE.DIRT]: { rest: 0.3, roll: 1.6, label: 'Dirt' },
+  [ZONE.BED]: { rest: 0.1, roll: 4.2, label: 'Landscaping' },
   [ZONE.WATER]: { rest: 0, roll: 0, label: 'Water' },
 };
 
@@ -163,24 +163,34 @@ export function stepBall(pt, dt) {
       const zone = hooks.zoneAt(b.x, b.z);
       if (handleHazards(pt, zone)) return pt.phase !== 'aim';
       const s = surfaceInfo(zone);
-      b.vx -= gx * 6.5 * h; // downhill pull
-      b.vz -= gz * 6.5 * h;
+      const speedNow = Math.hypot(b.vx, b.vz);
+      if (speedNow > 0.9 || Math.hypot(gx, gz) > 0.09) {
+        // slope pulls a moving ball; a nearly-stopped ball only yields to real grades
+        b.vx -= gx * 6.5 * h;
+        b.vz -= gz * 6.5 * h;
+      }
       const decay = Math.max(0, 1 - s.roll * h);
       b.vx *= decay;
       b.vz *= decay;
       b.x += b.vx * h;
       b.z += b.vz * h;
       b.y = ground;
-      // the cup: close and slow = in
+      // the cup: a slow ball near the hole curls in (the lip is forgiving —
+      // this is a playtest, not the US Open)
       const toPin = Math.hypot(pt.pin.x - b.x, pt.pin.z - b.z);
       const speed = Math.hypot(b.vx, b.vz);
-      if (toPin < 0.16 && speed < 3.2) {
+      if (toPin < 0.75 && speed < 4.5 && speed > 0.01) {
+        const pull = (0.75 - toPin) * 14 * h;
+        b.vx += ((pt.pin.x - b.x) / (toPin || 1)) * pull;
+        b.vz += ((pt.pin.z - b.z) / (toPin || 1)) * pull;
+      }
+      if (toPin < 0.24 && speed < 4.2) {
         pt.phase = 'holed';
         pt.holedOut = true;
         pt.events.push(`In the hole! ${pt.strokes} stroke${pt.strokes === 1 ? '' : 's'}.`);
         return false;
       }
-      if (speed < 0.22) {
+      if (speed < 0.45) {
         b.vx = 0;
         b.vz = 0;
         pt.phase = 'aim';

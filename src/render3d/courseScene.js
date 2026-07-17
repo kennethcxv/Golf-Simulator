@@ -875,12 +875,12 @@ export function makeCourseScene(canvas, state) {
         textureHeight: 512,
         waterNormals: waterNormalsTex,
         sunDirection: sun.position.clone().normalize(),
-        sunColor: 0xffffff,
+        sunColor: 0xf4ede0, // soften the specular so low angles don't read as ice
         waterColor: 0x2a6d8f, // §1: friendly stream blue, not swamp-deep teal
-        distortionScale: 2.2,
+        distortionScale: 3.6, // choppier normals break the full-sky mirror
         fog: !!scene.fog,
       });
-      water.material.uniforms.size.value = 3.5; // ripple scale
+      water.material.uniforms.size.value = 5.5; // ripple scale
       water.position.set(cx, level, cz);
       scene.add(water);
       waterMeshes.push(water);
@@ -1439,7 +1439,12 @@ export function makeCourseScene(canvas, state) {
     structGroup = new THREE.Group();
     windowMats.length = 0;
     if (clubhouseApi) {
-      clubhouseApi.dispose();
+      // never let a clubhouse teardown bug take the whole course rebuild down
+      try {
+        clubhouseApi.dispose();
+      } catch (e) {
+        console.warn('clubhouse dispose failed (continuing)', e);
+      }
       clubhouseApi = null;
     }
     const s = course.structures[0];
@@ -3241,12 +3246,31 @@ export function makeCourseScene(canvas, state) {
 
   function rebuildAll(st) {
     rebuildTerrainHeights();
+    buildEnvironmentRing();
     rebuildWater();
     rebuildTrees();
+    rebuildObjects();
+    rebuildPaths();
     rebuildStructures();
     updateHoles();
+    rebuildFlowField();
     updateTurf(st);
     if (walk.active) refreshWalkColliders(); // works can plant or fell obstacles
+  }
+
+  // the editor's cheap incremental refresh after a stroke: terrain heights +
+  // water + paths follow the land; trees/objects only when asked
+  function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false } = {}) {
+    rebuildTerrainHeights();
+    if (water) rebuildWater();
+    if (paths) rebuildPaths();
+    if (objects) {
+      rebuildTrees();
+      rebuildObjects();
+    }
+    if (holes) updateHoles();
+    if (flow) rebuildFlowField();
+    updateTurf(st);
   }
 
   function dispose() {
@@ -3623,14 +3647,39 @@ export function makeCourseScene(canvas, state) {
     render,
     resize,
     raycastCell,
+    raycastGround,
     updateTurf,
     updatePlan,
     updateHoles,
     rebuildAll,
+    refreshGround,
+    rebuildObjects,
+    rebuildPaths,
+    rebuildTrees,
+    rebuildWater,
+    rebuildFlowField,
     setViewMode,
     setBrush,
+    setEditorBrush,
+    setPlacementGhost,
+    setMeasureLine,
+    setBallVisual,
+    setAimArc,
+    setLightingOverride,
+    frameCourse,
+    frameHole,
+    pickObject,
+    worldX,
+    worldZ,
     applyTimeWeather,
     heightAt,
+    zoneAtWorld: (x, z) => {
+      const cx = Math.floor((x + worldW / 2) / CELL_YD);
+      const cy = Math.floor((z + worldH / 2) / CELL_YD);
+      if (cx < 0 || cy < 0 || cx >= W || cy >= H) return ZONE.OUT;
+      return course.zones[cy * W + cx];
+    },
+    inBoundsWorld: (x, z) => Math.abs(x) <= worldW / 2 + 40 && Math.abs(z) <= worldH / 2 + 40,
     setGolfersFrozen: (v) => { golfersFrozen = !!v; },
     clubhouse: () => clubhouseApi,
     walk: {

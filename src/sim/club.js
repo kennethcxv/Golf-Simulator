@@ -13,6 +13,7 @@ import { addRevenue, addExpense, closeBooks } from './economy.js';
 import { staffDailyWages, bestSkill, groundsCrewHours, ROLE } from './staff.js';
 import { members, nonMembers } from './golfers.js';
 import { outingPayoutFactor, hasUpgrade } from './progression.js';
+import { notify } from './notifications.js';
 
 export const TIERS = {
   weekday: {
@@ -134,6 +135,11 @@ export function maybeGenerateOutingOffer(state) {
   };
   state.club.outings.offers.push(offer);
   pushFeed(state, { kind: 'offer', text: `${offer.company} wants a ${size}-player outing — ${payout.toLocaleString('en-US')} dollars.` });
+  notify(state, {
+    kind: 'event',
+    text: `${offer.company} wants a ${size}-player outing — $${payout.toLocaleString('en-US')}. The offer expires day ${offer.expiresDay + 1}.`,
+    dedupeKey: `offer:${offer.id}`,
+  });
 }
 
 export function acceptOuting(state, offerId) {

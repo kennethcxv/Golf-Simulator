@@ -10,6 +10,7 @@ import { distToSegment, clamp } from '../core/utils.js';
 import { idx, inBounds, getZone, validateHole, labelSections } from './course.js';
 import { turfOnZonesChanged } from './turf.js';
 import { spend } from './economy.js';
+import { notify } from './notifications.js';
 
 const ZONE_COST_KEY = {
   [ZONE.OUT]: 'out',
@@ -231,17 +232,28 @@ export function worksSetPin(state, holeId, x, y) {
 // --- daily countdown ----------------------------------------------------------
 
 export function tickRenovationsDaily(state) {
-  for (const hole of state.course.holes) {
-    if (hole.status !== HOLE_STATUS.RENOVATION && hole.status !== HOLE_STATUS.CONSTRUCTION) continue;
+  state.course.holes.forEach((hole, i) => {
+    if (hole.status !== HOLE_STATUS.RENOVATION && hole.status !== HOLE_STATUS.CONSTRUCTION) return;
+    const wasBuilding = hole.status === HOLE_STATUS.CONSTRUCTION;
     hole.daysLeft = Math.max(0, (hole.daysLeft || 0) - 1);
     if (hole.daysLeft === 0) {
       if (validateHole(state.course, hole).valid) {
         hole.status = HOLE_STATUS.OPEN;
         hole.everOpen = true;
+        notify(state, {
+          kind: 'course',
+          text: `${wasBuilding ? 'Construction' : 'Renovation'} finished — hole ${i + 1} is open for play.`,
+          dedupeKey: `holeopen:${hole.id}:${Math.floor(state.clock ? state.clock.minutes / 1440 : 0)}`,
+        });
       } else {
         // work finished but the hole is incomplete (e.g. its green was dug up)
         hole.status = HOLE_STATUS.UNBUILT;
+        notify(state, {
+          kind: 'course',
+          text: `Work on hole ${i + 1} finished, but the hole is incomplete — it needs a tee and a green before it can open.`,
+          dedupeKey: `holeincomplete:${hole.id}:${Math.floor(state.clock ? state.clock.minutes / 1440 : 0)}`,
+        });
       }
     }
-  }
+  });
 }

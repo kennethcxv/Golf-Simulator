@@ -12,14 +12,10 @@ import {
 import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
 import { formatMoney } from './core/utils.js';
 import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS } from './core/heldKeys.js';
-import {
-  makePlan, planPaintZone, planAdjustElev, planSmoothElev, applyPlan,
-  worksSetTee, worksSetPin,
-} from './sim/terrainEdit.js';
 import { calendarOf } from './sim/time.js';
 import { el, toast, modal } from './ui/ui.js';
 import { makeHud } from './ui/hud.js';
-import { makeWorksPanel } from './ui/worksPanel.js';
+import { makeCourseEditor } from './ui/courseEditor.js';
 import { makeInspectPanel } from './ui/inspectPanel.js';
 import { makeGroundsPanel } from './ui/groundsPanel.js';
 import { makeClubPanel } from './ui/clubPanel.js';
@@ -44,15 +40,11 @@ const uiRoot = document.getElementById('ui');
 const app = {
   screen: 'menu', // 'menu' | 'game'
   view: 'course', // one continuous world — the shop is a building you walk into
-  courseMode: 'walk', // 'walk' (first-person, the default) | 'overview' (management rig)
+  courseMode: 'walk', // 'walk' (first-person, default) | 'overview' (management rig) | 'editor' (course editor)
   empire: null, // the whole game: wallet, market, holdings
   empireOpen: false,
   state: null, // the ACTIVE property's club state (== activeState(app.empire))
   scene3d: null,
-  plan: null,
-  worksMode: false,
-  activeTool: null,
-  brushSize: 1,
   hoverCell: null,
   selectedSection: null,
   speedIdx: 1,
@@ -65,8 +57,14 @@ const app = {
   sectionsRef: null,
 };
 
+function editorActive() {
+  return app.courseMode === 'editor';
+}
+
 let hud = null;
-let worksPanel = null;
+let editorUi = null;
+let editorPrevMode = 'walk';
+let editorPrevSpeed = 1;
 let inspectPanel = null;
 let groundsPanel = null;
 let clubPanel = null;
@@ -293,10 +291,54 @@ for (const evt of ['pointerdown', 'keydown']) {
 }
 
 function closeLeftPanels(except) {
-  if (except !== 'works' && app.worksMode) handlers.toggleWorks();
   if (except !== 'grounds' && app.groundsOpen) groundsPanel.setVisible(false);
   if (except !== 'club' && app.clubOpen) clubPanel.setVisible(false);
   if (except !== 'empire' && app.empireOpen) empirePanel.setVisible(false);
+}
+
+// --- the course editor: a full mode, like walking or the overview ---------------
+function enterEditor() {
+  if (editorActive() || !app.scene3d || app.screen !== 'game') return;
+  closePauseMenu();
+  closeLeftPanels('none');
+  inspectPanel.hide();
+  if (app.laptopOpen) exitLaptop(true);
+  editorPrevMode = app.courseMode === 'editor' ? 'walk' : app.courseMode;
+  editorPrevSpeed = app.speedIdx || 1;
+  if (app.courseMode === 'walk') exitWalk();
+  app.courseMode = 'editor';
+  app.speedIdx = 0; // the world holds its breath while you shape it
+  resetCameraInput();
+  const hint = document.querySelector('.hint-bar');
+  if (hint) hint.style.display = 'none';
+  const vt = document.querySelector('.view-toggle');
+  if (vt) vt.style.display = 'none';
+  hud.root.style.display = 'none'; // the editor bar carries money + clock itself
+  objectivesPanel.root.style.display = 'none';
+  editorUi.show();
+}
+
+function exitEditor() {
+  if (!editorActive()) return;
+  editorUi.hide();
+  hud.root.style.display = '';
+  objectivesPanel.root.style.display = '';
+  app.speedIdx = editorPrevSpeed || 1;
+  resetCameraInput();
+  app.scene3d.rebuildAll(app.state); // trees/paths/heights all current again
+  rebuildSectionIndex();
+  recomputeRating();
+  const vt = document.querySelector('.view-toggle');
+  if (vt) vt.style.display = '';
+  if (editorPrevMode === 'walk') {
+    app.courseMode = 'walk';
+    enterWalk('resume');
+  } else {
+    app.courseMode = 'overview';
+    const hint = document.querySelector('.hint-bar');
+    if (hint) hint.style.display = '';
+  }
+  autosave();
 }
 
 // --- section lookup --------------------------------------------------------
@@ -504,9 +546,7 @@ function startGame(state) {
       ? '🧹 This sand is raked smooth · [F] next tool'
       : `🧹 Bunker — footprints ${w} — hold the mouse button to rake`;
   };
-  app.plan = makePlan();
-  app.worksMode = false;
-  app.activeTool = null;
+  if (editorUi && editorUi.isActive()) editorUi.hide();
   app.speedIdx = 1;
   app.viewMode = 'normal';
   app.courseMode = 'walk'; // the course is experienced on foot; Tab for the overview
@@ -522,7 +562,6 @@ function startGame(state) {
   recomputeRating();
   lastDiseasedNames = currentDiseasedSet(); // prime silently
   if (groundsPanel) groundsPanel.setVisible(false);
-  if (worksPanel) worksPanel.setVisible(false);
   menu.setVisible(false);
   gameUi.style.display = '';
   hud.update();
@@ -626,24 +665,8 @@ const handlers = {
   setSpeed(i) {
     app.speedIdx = i;
   },
-  toggleWorks() {
-    if (!app.worksMode && walkActive()) {
-      toast('Course Works is being redesigned for the walkable course. For now, press Tab for the overview camera and edit from there.', 'warn');
-      return;
-    }
-    app.worksMode = !app.worksMode;
-    if (!app.worksMode) {
-      handlers.cancelPlan(true);
-      app.activeTool = null;
-      app.scene3d.setBrush(null, 0, null);
-    } else {
-      closeLeftPanels('works');
-    }
-    worksPanel.setVisible(app.worksMode);
-    worksPanel.updateToolHighlight();
-    inspectPanel.hide();
-    const hint = document.querySelector('.hint-bar');
-    if (hint) hint.style.display = app.worksMode ? 'none' : '';
+  openEditor() {
+    enterEditor();
   },
   toggleGrounds() {
     const next = !app.groundsOpen;
@@ -657,58 +680,20 @@ const handlers = {
     clubPanel.setVisible(next);
   },
   toggleCourseMode() {
-    if (app.view !== 'course' || !app.scene3d) return;
+    if (app.view !== 'course' || !app.scene3d || editorActive()) return;
     resetCameraInput(); // the map opens still — nothing carries over from the walk
     if (app.courseMode === 'walk') {
       app.courseMode = 'overview';
       exitWalk();
       toast('Overview camera — Tab returns you to your feet.');
     } else {
-      if (app.worksMode) handlers.toggleWorks(); // plans belong to the overview
+      app.courseMode = 'walk';
       enterWalk('resume');
     }
   },
   setViewMode(mode) {
     app.viewMode = mode;
     app.scene3d.setViewMode(mode);
-  },
-  setTool(tool) {
-    app.activeTool = tool;
-    worksPanel.updateToolHighlight();
-  },
-  setBrush(v) {
-    app.brushSize = v;
-  },
-  newHole() {
-    addHole(app.state.course);
-    worksPanel.refreshHoles();
-  },
-  confirmPlan() {
-    const res = applyPlan(app.state, app.plan);
-    if (!res.ok) {
-      toast(res.reason, 'warn');
-      return;
-    }
-    app.scene3d.rebuildAll(app.state);
-    app.scene3d.updatePlan(app.plan);
-    rebuildSectionIndex();
-    recomputeRating();
-    worksPanel.refreshPlan();
-    worksPanel.refreshHoles();
-    const closed = res.report.holesAffected.length;
-    toast(
-      `Works confirmed — ${res.report.cells} cells for ${res.report.cost.toLocaleString('en-US')} dollars` +
-        (closed ? ` · ${closed} hole${closed > 1 ? 's' : ''} closed for renovation` : ''),
-    );
-    autosave();
-  },
-  cancelPlan(silent = false) {
-    if (app.plan && app.plan.cells.size > 0) {
-      app.plan.cells.clear();
-      app.scene3d.updatePlan(app.plan);
-      worksPanel.refreshPlan();
-      if (!silent) toast('Plan scrapped.');
-    }
   },
   openMenu() {
     openPauseMenu();
@@ -1049,54 +1034,12 @@ function openPauseMenu() {
 
 // --- input ------------------------------------------------------------------------
 
-let dragging = null; // { mode: 'pan'|'orbit'|'paint'|'pan-or-click', lastX, lastY, moved, strokeCells, cell }
-
-function applyToolAtCell(cell, strokeCells) {
-  const t = app.activeTool;
-  if (!t || !cell) return;
-  const key = cell.x + cell.y * 100000;
-  if (t.kind === 'zone') {
-    planPaintZone(app.plan, app.state.course, cell.x, cell.y, app.brushSize, t.zone);
-  } else if (t.kind === 'elev') {
-    if (strokeCells.has(key)) return;
-    strokeCells.add(key);
-    if (t.dir === 'raise') planAdjustElev(app.plan, app.state.course, cell.x, cell.y, app.brushSize, +0.5);
-    else if (t.dir === 'lower') planAdjustElev(app.plan, app.state.course, cell.x, cell.y, app.brushSize, -0.5);
-    else planSmoothElev(app.plan, app.state.course, cell.x, cell.y, Math.max(1, app.brushSize), 0.5);
-  }
-  app.scene3d.updatePlan(app.plan);
-  worksPanel.refreshPlan();
-}
-
-function placeMarkerAt(cell) {
-  const t = app.activeTool;
-  const fn = t.which === 'tee' ? worksSetTee : worksSetPin;
-  const res = fn(app.state, t.holeId, cell.x, cell.y);
-  if (!res.ok) {
-    toast(res.reason, 'warn');
-    return;
-  }
-  const n = holeNumber(app.state.course, t.holeId);
-  toast(`${t.which === 'tee' ? 'Tee' : 'Pin'} set for hole ${n}.`);
-  app.activeTool = null;
-  app.scene3d.setBrush(null, 0, null);
-  app.scene3d.updateHoles();
-  worksPanel.updateToolHighlight();
-  worksPanel.refreshHoles();
-  worksPanel.refreshPlan();
-  rebuildSectionIndex();
-  recomputeRating();
-}
+let dragging = null; // { mode: 'pan'|'orbit'|'pan-or-click', lastX, lastY, moved, cell }
 
 function refreshHover(clientX, clientY) {
   if (!app.scene3d) return;
   const hit = app.scene3d.raycastCell(clientX, clientY);
   app.hoverCell = hit ? { x: hit.x, y: hit.y } : null;
-  if (app.worksMode && app.activeTool) {
-    app.scene3d.setBrush(app.hoverCell, app.brushSize, app.activeTool.kind);
-  } else {
-    app.scene3d.setBrush(null, 0, null);
-  }
 }
 
 // REGISTER MODE. While it is up the camera is frozen (walk.focusOn) and the pointer
@@ -1116,14 +1059,27 @@ function regActive() {
 canvas.addEventListener('click', () => {
   // first-person walking: clicking (re)captures the mouse — but NOT while the player
   // is behind the till, where the cursor is the whole interface
-  if (regActive()) return;
+  if (regActive() || editorActive()) return;
   if (app.screen === 'game' && !document.pointerLockElement && walkActive()) {
     requestLook();
+    return;
+  }
+  // Pointer already captured and the crosshair is on the laptop: a click opens it, exactly
+  // like [E]. Only the laptop gets the click verb — everything else keeps its established
+  // key so a stray click can't fling boxes or swing doors.
+  if (app.screen === 'game' && document.pointerLockElement && walkActive()
+    && !app.laptopOpen && app.courseMode !== 'overview') {
+    const bld = buildApi();
+    if (bld && bld.isActive()) return; // build placement owns the mouse
+    if (app.scene3d.walk.getTool && app.scene3d.walk.getTool()) return; // so does a held tool
+    const label = app.scene3d.walk.getFocusLabel && app.scene3d.walk.getFocusLabel();
+    if (label && /laptop/i.test(label) && app.scene3d.walk.interact) app.scene3d.walk.interact(false);
   }
 });
 
 canvas.addEventListener('pointerdown', (e) => {
   if (app.screen !== 'game') return;
+  if (editorActive()) return; // the editor owns its own pointer plumbing
   if (regActive()) { e.preventDefault(); regApi().onDown(e); return; }
   if (app.courseMode !== 'overview') {
     // walking with any tool out: the held button is the use trigger
@@ -1153,15 +1109,6 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   if (e.button === 0) {
     refreshHover(e.clientX, e.clientY);
-    if (app.worksMode && app.activeTool) {
-      if (app.activeTool.kind === 'marker') {
-        if (app.hoverCell) placeMarkerAt(app.hoverCell);
-        return;
-      }
-      dragging = { mode: 'paint', lastX: e.clientX, lastY: e.clientY, moved: 0, strokeCells: new Set(), lastCell: app.hoverCell };
-      applyToolAtCell(app.hoverCell, dragging.strokeCells);
-      return;
-    }
     dragging = { mode: 'pan-or-click', lastX: e.clientX, lastY: e.clientY, moved: 0, cell: app.hoverCell };
   }
 });
@@ -1181,18 +1128,6 @@ canvas.addEventListener('pointermove', (e) => {
   } else if (dragging.mode === 'pan' || (dragging.mode === 'pan-or-click' && dragging.moved > 6)) {
     dragging.mode = 'pan';
     app.scene3d.rig.pan(dx, dy, canvas.clientHeight || window.innerHeight);
-  } else if (dragging.mode === 'paint') {
-    const from = dragging.lastCell;
-    const to = app.hoverCell;
-    if (from && to) {
-      const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y), 1);
-      for (let i = 1; i <= steps; i++) {
-        const cx = Math.round(from.x + ((to.x - from.x) * i) / steps);
-        const cy = Math.round(from.y + ((to.y - from.y) * i) / steps);
-        applyToolAtCell({ x: cx, y: cy }, dragging.strokeCells);
-      }
-    }
-    dragging.lastCell = to;
   }
   dragging.lastX = e.clientX;
   dragging.lastY = e.clientY;
@@ -1219,6 +1154,7 @@ canvas.addEventListener('pointerup', () => {
 });
 
 canvas.addEventListener('wheel', (e) => {
+  if (editorActive()) return; // the editor's own wheel handler zooms
   if (regActive()) {
     e.preventDefault();
     regApi().onWheel(e.deltaY, e.shiftKey);
@@ -1233,6 +1169,7 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('keydown', (e) => {
   if (app.screen !== 'game') return;
+  if (editorActive()) return; // the editor's capture-phase handler owns the keys
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
 
   // BEHIND THE TILL, THE TILL OWNS THE ACTION KEYS — but not the feet. WASD
@@ -1292,6 +1229,9 @@ window.addEventListener('keydown', (e) => {
     switch (e.key) {
       case 'e': case 'E':
         if (app.scene3d.walk.interact) app.scene3d.walk.interact(e.repeat);
+        break;
+      case 'j': case 'J': // the drafting table: open the course editor from your feet
+        enterEditor();
         break;
       case 'b': case 'B': {
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
@@ -1370,7 +1310,8 @@ window.addEventListener('keydown', (e) => {
 
   switch (e.key) {
     case 'e': case 'E':
-      handlers.toggleWorks();
+    case 'j': case 'J':
+      enterEditor();
       break;
     case 'g': case 'G':
       handlers.toggleGrounds();
@@ -1389,12 +1330,6 @@ window.addEventListener('keydown', (e) => {
     case 'Escape':
       if (isPauseOpen()) {
         closePauseMenu();
-      } else if (app.activeTool) {
-        app.activeTool = null;
-        app.scene3d.setBrush(null, 0, null);
-        worksPanel.updateToolHighlight();
-      } else if (app.worksMode) {
-        handlers.toggleWorks();
       } else if (app.selectedSection) {
         inspectPanel.hide();
       } else if (app.groundsOpen || app.clubOpen) {
@@ -1439,7 +1374,8 @@ function resetCameraInput() {
 }
 
 function keyboardCamera(dtMs) {
-  if (app.screen !== 'game' || app.view !== 'course' || app.courseMode !== 'overview' || !app.scene3d) return;
+  if (app.screen !== 'game' || app.view !== 'course' || !app.scene3d) return;
+  if (app.courseMode !== 'overview' && !(editorActive() && !editorUi.isPlaytesting())) return;
   const { panX, panY, orbit, moving } = overviewCameraDelta(held, dtMs);
   if (moving) {
     if (panX || panY) app.scene3d.rig.pan(-panX, -panY, canvas.clientHeight || window.innerHeight);
@@ -1470,7 +1406,6 @@ function frame(ts) {
       const { daysPassed } = empireUpdate(app.empire, gameMinutes);
       if (daysPassed > 0) {
         rebuildSectionIndex();
-        worksPanel.refreshHoles();
         app.scene3d.updateHoles();
         announceReopenings();
         announceOutbreaks();
@@ -1528,6 +1463,7 @@ function frame(ts) {
         }
       }
     }
+    if (editorUi) editorUi.onFrame(dtMs); // compass, power bar, the flying ball
     if (walkActive()) {
       app.scene3d.walk.update(dtMs);
       updateWalkOverlay();
@@ -1615,7 +1551,7 @@ function updateWalkOverlay() {
   lockHint.style.display = document.pointerLockElement ? 'none' : '';
   lockHint.textContent = learned
     ? 'Click to play'
-    : 'Click to look around · WASD walk · Shift run · E interact · F tool · Tab: overview camera · Esc: office menu';
+    : 'Click to look around · WASD walk · Shift run · E interact · F tool · J course editor · Tab overview · Esc menu';
   // inside the shop: the condition chip rides along (and tier-ups chime)
   const cond = walkOverlay.querySelector('.shop-cond');
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
@@ -1716,8 +1652,22 @@ function boot() {
 
   gameUi = el('div', { style: 'display:none' });
   hud = makeHud(app, handlers);
-  laptopUi = makeLaptop(app, { close: () => exitLaptop() });
-  worksPanel = makeWorksPanel(app, handlers);
+  laptopUi = makeLaptop(app, {
+    close: () => exitLaptop(),
+    // The Course page's "Open the works desk": the laptop closes cleanly and the real
+    // course editor takes the screen — same enterEditor every other entry point uses.
+    openCourseEditor: () => enterEditor(),
+  });
+  editorUi = makeCourseEditor(app, {
+    onExit: () => exitEditor(),
+    afterApply: () => {
+      app.scene3d.rebuildAll(app.state);
+      rebuildSectionIndex();
+      recomputeRating();
+      autosave();
+    },
+    autosave: () => autosave(),
+  });
   inspectPanel = makeInspectPanel(app, recomputeRating);
   groundsPanel = makeGroundsPanel(app);
   clubPanel = makeClubPanel(app, recomputeRating);
@@ -1728,7 +1678,7 @@ function boot() {
     el('div', { class: 'shop-crosshair' }),
     el('div', { class: 'shop-prompt', text: '' }),
     el('div', { class: 'shop-cond', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F tool · Tab: overview camera · Esc: office menu' }),
+    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F tool · J course editor · Tab overview · Esc menu' }),
   );
 
   // BEHIND THE TILL the walk overlay is hidden — no crosshair, no prompt — so the
@@ -1756,8 +1706,8 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle,
-    el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · 🗂 Manage or E/G/C/M keys for the desks · V: view · Space: pause · Tab/Esc: back on foot' }));
+  gameUi.append(hud.root, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle, editorUi.root,
+    el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · E: course editor · G/C/M: desks · V: view · Space: pause · Tab/Esc: back on foot' }));
 
   uiRoot.append(menu.root, gameUi);
   requestAnimationFrame(frame);
@@ -1773,3 +1723,4 @@ boot();
 // be testing the wrong thing.
 app.autosave = autosave;
 window.__fw = app;
+app.editorUi = () => editorUi; // QA hook: drive the editor from tooling

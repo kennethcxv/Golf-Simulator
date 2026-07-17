@@ -5,6 +5,7 @@
 import { skuById } from '../data/shopItems.js';
 import { boxKindFor, planShipment, boxWeight } from '../data/boxes.js';
 import { armRoom, setCarry } from './stocking.js';
+import { notify } from './notifications.js';
 
 // kept for old callers; the truth is unitsPerBox(sku), which knows that a stand bag
 // does not pack twelve to a carton just because its category says 'accessories'
@@ -150,6 +151,11 @@ export function arriveOrder(state, order) {
     boxCount: manifest.boxCount,
     weight: manifest.weight,
     landedMin: (state.clock && state.clock.minutes) || 0,
+  });
+  notify(state, {
+    kind: 'delivery',
+    text: `Delivered: ${sku.name} × ${order.qty} — ${manifest.boxCount} box${manifest.boxCount === 1 ? '' : 'es'} on the receiving pad.`,
+    dedupeKey: `arrived:${order.id}`,
   });
   return made;
 }
