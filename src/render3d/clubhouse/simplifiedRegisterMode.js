@@ -2575,6 +2575,12 @@ export function createRegisterMode(B) {
       });
     });
     selectedChangeMeshes = [];
+    // the change is out — the till slides shut and the camera eases back to the
+    // working frame for the receipt+bag handover, instead of hanging open on the
+    // drawer through the whole delivery
+    drawerWant = 0;
+    sfx('drawerClose');
+    setWorkspace('monitor');
     if (checkoutFlowState() === 'GivingChange') {
       flowTo('PaymentComplete', 'change-slid-to-customer-without-hands');
     }
