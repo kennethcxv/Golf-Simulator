@@ -3,7 +3,7 @@
 // Headless like every sim module; the clubhouse renders THIS state.
 
 import { skuById } from '../data/shopItems.js';
-import { boxKindFor, planShipment, boxWeight } from '../data/boxes.js';
+import { planShipment, boxWeight } from '../data/boxes.js';
 import { armRoom, setCarry } from './stocking.js';
 import { notify } from './notifications.js';
 
@@ -20,9 +20,167 @@ export const ORDER_FLOW = ['received', 'processing', 'packed', 'shipped', 'out',
 // full pad, and pretending it can is how you end up with a tower of cardboard in the yard.
 export const PAD_CAPACITY = 9;
 
+// Packaging evolves independently from the course save, so it carries a small local schema.
+export const DELIVERIES_SCHEMA_VERSION = 3;
+export const BOX_SCHEMA_VERSION = 2;
+
+// Location and contents are separate facts. This is the one persisted lifecycle of the carton.
+export const BOX_LIFECYCLE = Object.freeze({
+  SEALED: 'SEALED',
+  CUTTING: 'CUTTING',
+  CUT_COMPLETE: 'CUT_COMPLETE',
+  OPENING: 'OPENING',
+  OPEN: 'OPEN',
+  PARTIALLY_EMPTIED: 'PARTIALLY_EMPTIED',
+  EMPTY: 'EMPTY',
+  FLATTENING: 'FLATTENING',
+  DISCARDED: 'DISCARDED',
+});
+
+const BOX_LIFECYCLE_ORDER = Object.freeze([
+  BOX_LIFECYCLE.SEALED,
+  BOX_LIFECYCLE.CUTTING,
+  BOX_LIFECYCLE.CUT_COMPLETE,
+  BOX_LIFECYCLE.OPENING,
+  BOX_LIFECYCLE.OPEN,
+  BOX_LIFECYCLE.PARTIALLY_EMPTIED,
+  BOX_LIFECYCLE.EMPTY,
+  BOX_LIFECYCLE.FLATTENING,
+  BOX_LIFECYCLE.DISCARDED,
+]);
+const BOX_LIFECYCLE_SET = new Set(BOX_LIFECYCLE_ORDER);
+
+export function canTransitionBoxState(from, to) {
+  const a = typeof from === 'object' && from ? boxLifecycleState(from) : from;
+  const b = typeof to === 'object' && to ? boxLifecycleState(to) : to;
+  const i = BOX_LIFECYCLE_ORDER.indexOf(a);
+  return i >= 0 && BOX_LIFECYCLE_ORDER[i + 1] === b;
+}
+
+const clamp01 = (value) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+
+// One authored cut path drives three independently visible tape strips.
+export const TAPE_SEGMENT_RANGES = Object.freeze({
+  centre: Object.freeze([0, 0.6]),
+  left: Object.freeze([0.6, 0.8]),
+  right: Object.freeze([0.8, 1]),
+});
+
+function tapeSegmentsAt(progress) {
+  const p = clamp01(progress);
+  const segment = ([start, end]) => clamp01((p - start) / (end - start));
+  return {
+    centre: segment(TAPE_SEGMENT_RANGES.centre),
+    left: segment(TAPE_SEGMENT_RANGES.left),
+    right: segment(TAPE_SEGMENT_RANGES.right),
+  };
+}
+
+function normalizeFlaps(flaps, legacyOpened = false) {
+  if (!Array.isArray(flaps)) return legacyOpened ? [1, 1, 1, 1] : [0, 0, 0, 0];
+  if (flaps.length === 2) {
+    // The shipped controls opened two opposing pairs. Preserve that pose across four panels.
+    return [clamp01(flaps[0]), clamp01(flaps[1]), clamp01(flaps[0]), clamp01(flaps[1])];
+  }
+  return [0, 1, 2, 3].map((i) => clamp01(flaps[i]));
+}
+
+function flapValues(box) {
+  return Array.isArray(box.flapProgress) ? box.flapProgress : (box.flaps || []);
+}
+
+function inferredLifecycle(box) {
+  if (box.discarded || box.recycled) return BOX_LIFECYCLE.DISCARDED;
+  if (box.flat || (box.flattenProgress || 0) > 0) return BOX_LIFECYCLE.FLATTENING;
+  if ((box.qty || 0) <= 0) return BOX_LIFECYCLE.EMPTY;
+  if (flapsOpen(box)) {
+    return isPartial(box) ? BOX_LIFECYCLE.PARTIALLY_EMPTIED : BOX_LIFECYCLE.OPEN;
+  }
+  if ((box.openingProgress || 0) > 0 || flapValues(box).some((f) => f > 0)) {
+    return BOX_LIFECYCLE.OPENING;
+  }
+  if ((box.cutProgress ?? box.tape ?? 0) >= 1) return BOX_LIFECYCLE.CUT_COMPLETE;
+  if ((box.cutProgress ?? box.tape ?? 0) > 0) return BOX_LIFECYCLE.CUTTING;
+  return BOX_LIFECYCLE.SEALED;
+}
+
+export function boxLifecycleState(box) {
+  return box && BOX_LIFECYCLE_SET.has(box.lifecycle) ? box.lifecycle : inferredLifecycle(box || {});
+}
+
+function advanceLifecycle(box, target) {
+  let current = boxLifecycleState(box);
+  const targetIndex = BOX_LIFECYCLE_ORDER.indexOf(target);
+  if (targetIndex < 0 || BOX_LIFECYCLE_ORDER.indexOf(current) > targetIndex) return false;
+  while (current !== target) {
+    const next = BOX_LIFECYCLE_ORDER[BOX_LIFECYCLE_ORDER.indexOf(current) + 1];
+    if (!canTransitionBoxState(current, next)) return false;
+    box.lifecycle = next;
+    current = next;
+  }
+  return true;
+}
+
+function migrateBox(box) {
+  const legacyOpened = !!(box.cut || box.opened);
+  let cutProgress;
+  if (Number.isFinite(box.cutProgress)) cutProgress = clamp01(box.cutProgress);
+  else if (Number.isFinite(box.tape)) cutProgress = clamp01(box.tape);
+  else cutProgress = legacyOpened ? 1 : 0;
+
+  box.cutProgress = cutProgress;
+  box.tape = cutProgress; // compatibility for already-shipped renderers and callers
+  box.tapeSegments = tapeSegmentsAt(cutProgress);
+  box.flapProgress = normalizeFlaps(
+    Array.isArray(box.flapProgress) ? box.flapProgress : box.flaps,
+    legacyOpened,
+  );
+  // `flaps` is the shipped two-input compatibility mirror; new visuals use all four values above.
+  box.flaps = [
+    Math.min(box.flapProgress[0], box.flapProgress[2]),
+    Math.min(box.flapProgress[1], box.flapProgress[3]),
+  ];
+  box.openingProgress = clamp01(
+    Number.isFinite(box.openingProgress)
+      ? box.openingProgress
+      : box.flapProgress.reduce((sum, flap) => sum + flap, 0) / box.flapProgress.length,
+  );
+  box.flattenProgress = clamp01(
+    Number.isFinite(box.flattenProgress) ? box.flattenProgress : (box.flat ? 1 : 0),
+  );
+  box.flat = box.flattenProgress >= 1;
+  if (box.cap === undefined) box.cap = box.qty;
+  if (box.initialQty === undefined) box.initialQty = box.cap;
+  if (box.lb === undefined) {
+    const sku = skuById(box.skuId);
+    box.lb = boxWeight(sku, box.qty);
+  }
+  box.lifecycle = inferredLifecycle(box);
+  box.schemaVersion = BOX_SCHEMA_VERSION;
+  return box;
+}
+
+function boxNeedsMigration(box) {
+  return !box
+    || box.schemaVersion !== BOX_SCHEMA_VERSION
+    || !Number.isFinite(box.cutProgress)
+    || !box.tapeSegments
+    || !Array.isArray(box.flapProgress)
+    || box.flapProgress.length !== 4
+    || !Array.isArray(box.flaps)
+    || box.flaps.length !== 2
+    || !Number.isFinite(box.openingProgress)
+    || !Number.isFinite(box.flattenProgress)
+    || !BOX_LIFECYCLE_SET.has(box.lifecycle)
+    || box.cap === undefined
+    || box.initialQty === undefined
+    || box.lb === undefined;
+}
+
 export function initDeliveries(state) {
   state.shop.deliveries = {
-    boxes: [], nextBoxId: 1, trash: 0, recycled: 0, shipments: [],
+    schemaVersion: DELIVERIES_SCHEMA_VERSION,
+    boxes: [], nextBoxId: 1, trash: 0, recycled: 0, shipments: [], arrivedOrderIds: [],
   };
 }
 
@@ -30,23 +188,39 @@ export function ensureDeliveries(state) {
   if (!state.shop) return;
   if (!state.shop.deliveries) initDeliveries(state);
   const d = state.shop.deliveries;
+  if (!Array.isArray(d.boxes)) d.boxes = [];
   if (!d.shipments) d.shipments = [];        // saves written before shipments existed
+  if (!Array.isArray(d.arrivedOrderIds)) {
+    d.arrivedOrderIds = [...new Set([
+      ...d.boxes.map((box) => box.orderId),
+      ...d.shipments.map((shipment) => shipment.orderId),
+    ].filter((id) => id !== undefined && id !== null))];
+  }
+  if (typeof d.trash !== 'number') d.trash = 0;
   if (typeof d.recycled !== 'number') d.recycled = 0;
   if (state.shop.carry === undefined) state.shop.carry = null;
 
   // BOXES FROM BEFORE THE TAPE EXISTED (2026-07-14). An old save's box carries `cut: true` and
   // nothing else. Without this, tapeCut() reads `b.tape || 0` -> 0, and a box the player had
   // already opened would silently seal itself back up and demand to be cut again.
-  for (const b of d.boxes) {
-    if (b.tape === undefined) b.tape = (b.cut || b.opened) ? 1 : 0;
-    if (!Array.isArray(b.flaps)) b.flaps = (b.cut || b.opened) ? [1, 1] : [0, 0];
-    if (b.cap === undefined) b.cap = b.qty;   // best guess: what is in it is what it came with
-    if (b.flat === undefined) b.flat = false;
-    if (b.lb === undefined) {
-      const sku = skuById(b.skuId);
-      b.lb = boxWeight(sku, b.qty);
-    }
+  const deliveryNeedsMigration = d.schemaVersion !== DELIVERIES_SCHEMA_VERSION;
+  const migrationFlags = d.boxes.map(boxNeedsMigration);
+  const needsMetadataBackfill = deliveryNeedsMigration || migrationFlags.some(Boolean);
+  const shipmentByOrder = needsMetadataBackfill
+    ? new Map(d.shipments.map((shipment) => [shipment.orderId, shipment]))
+    : null;
+  for (let index = 0; index < d.boxes.length; index++) {
+    const b = d.boxes[index];
+    if (migrationFlags[index]) migrateBox(b);
+    if (!shipmentByOrder) continue;
+    const shipment = shipmentByOrder.get(b.orderId);
+    if (!b.supplier && shipment) b.supplier = shipment.supplier || null;
+    if (!b.supplierId && shipment) b.supplierId = shipment.supplierId || null;
   }
+  if (!Number.isFinite(d.nextBoxId)) {
+    d.nextBoxId = d.boxes.reduce((greatest, b) => Math.max(greatest, Number(b.id) || 0), 0) + 1;
+  }
+  d.schemaVersion = DELIVERIES_SCHEMA_VERSION;
 }
 
 export function boxesOf(state) {
@@ -74,11 +248,11 @@ export function padHasRoom(state, n) {
 // axes, and writing them as fourteen booleans is how you end up with a box that is both `empty`
 // and `full` because two code paths disagreed. So: WHERE it is (loc), HOW SEALED it is (tape,
 // flaps), and WHAT IS LEFT IN IT (qty against cap). Everything below is derived from those.
-export const tapeUncut = (b) => (b.tape || 0) <= 0;
-export const tapePartlyCut = (b) => (b.tape || 0) > 0 && (b.tape || 0) < 1;
-export const tapeCut = (b) => (b.tape || 0) >= 1;
-export const flapsClosed = (b) => !b.flaps || (b.flaps[0] <= 0 && b.flaps[1] <= 0);
-export const flapsOpen = (b) => !!b.flaps && b.flaps[0] >= 1 && b.flaps[1] >= 1;
+export const tapeUncut = (b) => (b.cutProgress ?? b.tape ?? 0) <= 0;
+export const tapePartlyCut = (b) => (b.cutProgress ?? b.tape ?? 0) > 0 && (b.cutProgress ?? b.tape ?? 0) < 1;
+export const tapeCut = (b) => (b.cutProgress ?? b.tape ?? 0) >= 1;
+export const flapsClosed = (b) => !flapValues(b).length || flapValues(b).every((flap) => flap <= 0);
+export const flapsOpen = (b) => flapValues(b).length >= 2 && flapValues(b).every((flap) => flap >= 1);
 export const isEmpty = (b) => (b.qty || 0) <= 0;
 export const isFull = (b) => (b.qty || 0) >= (b.cap || b.qty || 0);
 export const isPartial = (b) => !isEmpty(b) && !isFull(b);
@@ -87,7 +261,7 @@ export const boxOpened = (b) => (b.tape || 0) > 0 || !!b.cut;
 
 // one word for the whole box, for a label or a test
 export function boxState(b) {
-  if (b.recycled) return 'recycled';
+  if (boxLifecycleState(b) === BOX_LIFECYCLE.DISCARDED || b.recycled) return 'recycled';
   if (b.flat) return 'flattened';
   if (b.loc === 'carried') return 'carried';
   if (isEmpty(b)) return 'empty';
@@ -123,6 +297,9 @@ export function retireShipments(state) {
 export function arriveOrder(state, order) {
   ensureDeliveries(state);
   const d = state.shop.deliveries;
+  if (order.id !== undefined && order.id !== null && d.arrivedOrderIds.includes(order.id)) {
+    return d.boxes.filter((box) => box.orderId === order.id);
+  }
   const sku = skuById(order.skuId);
   const manifest = order.manifest || planShipment(sku, order.qty);
   const made = [];
@@ -132,20 +309,32 @@ export function arriveOrder(state, order) {
       skuId: order.skuId,
       orderId: order.id,
       qty: b.qty,
+      initialQty: b.qty,
       cap: b.qty,             // what it shipped with — 'partial contents' means qty < cap
       lb: b.lb,
       box: b.kind,
       fragile: !!b.fragile,
+      supplierId: manifest.supplierId || order.supplierId || null,
+      supplier: manifest.supplier || order.supplier || null,
       loc: 'pad',
-      tape: 0,                // 0 uncut · 0<t<1 partially cut · 1 cut
-      flaps: [0, 0],          // two flaps, each 0 closed .. 1 open
+      tape: 0,                // compatibility mirror of cutProgress
+      cutProgress: 0,
+      tapeSegments: tapeSegmentsAt(0),
+      flaps: [0, 0],           // compatibility: the two opposing-pair inputs
+      flapProgress: [0, 0, 0, 0], // four physical panels, each 0 closed .. 1 open
+      openingProgress: 0,
+      flattenProgress: 0,
       flat: false,
+      lifecycle: BOX_LIFECYCLE.SEALED,
+      schemaVersion: BOX_SCHEMA_VERSION,
     });
   }
   d.boxes.push(...made);
+  if (order.id !== undefined && order.id !== null) d.arrivedOrderIds.push(order.id);
   d.shipments.push({
     orderId: order.id,
     skuId: order.skuId,
+    supplierId: manifest.supplierId || order.supplierId || null,
     supplier: manifest.supplier,
     units: order.qty,
     boxCount: manifest.boxCount,
@@ -230,28 +419,59 @@ export function cutTape(state, id, amount = 1) {
   if (box.loc === 'carried') return { ok: false, reason: 'Set it down first — you need both hands.' };
   if (box.flat) return { ok: false, reason: 'It is already flattened.' };
   if (tapeCut(box)) return { ok: false, reason: 'The tape is already cut.', done: true };
-  const before = box.tape || 0;
-  box.tape = Math.min(1, before + Math.max(0, amount));
+  const before = box.cutProgress ?? box.tape ?? 0;
+  const step = Number.isFinite(amount) ? Math.max(0, amount) : 0;
+  box.cutProgress = Math.min(1, before + step);
+  box.tape = box.cutProgress;
+  box.tapeSegments = tapeSegmentsAt(box.cutProgress);
+  if (box.cutProgress > 0) advanceLifecycle(box, BOX_LIFECYCLE.CUTTING);
+  if (box.cutProgress >= 1) advanceLifecycle(box, BOX_LIFECYCLE.CUT_COMPLETE);
   return {
     ok: true,
     tape: box.tape,
+    cutProgress: box.cutProgress,
+    tapeSegments: { ...box.tapeSegments },
     seam: before < CENTRE_SEAM ? 'centre' : 'side',
-    done: box.tape >= 1,
+    done: box.cutProgress >= 1,
   };
 }
 
 // --- the flaps -----------------------------------------------------------------------------------
-// Two of them. They open one at a time, and not through the tape.
-export function openFlap(state, id) {
+// Two inputs open two opposing pairs, preserving shipped controls while driving four panels.
+export function openFlap(state, id, amount = 1) {
   const box = findBox(state, id);
   if (!box) return { ok: false, reason: 'No box there.' };
   if (box.loc === 'carried') return { ok: false, reason: 'Set it down first.' };
   if (!tapeCut(box)) return { ok: false, reason: 'Cut the tape first.' };
-  if (!box.flaps) box.flaps = [0, 0];
-  const i = box.flaps.findIndex((f) => f < 1);
-  if (i < 0) return { ok: false, reason: 'Both flaps are open.', done: true };
-  box.flaps[i] = 1;
-  return { ok: true, flap: i, done: flapsOpen(box) };
+  box.flapProgress = normalizeFlaps(
+    Array.isArray(box.flapProgress) ? box.flapProgress : box.flaps,
+  );
+  const pairs = [[0, 2], [1, 3]];
+  const i = pairs.findIndex((pair) => pair.some((flap) => box.flapProgress[flap] < 1));
+  if (i < 0) return { ok: false, reason: 'All four flaps are open.', done: true };
+  const step = Number.isFinite(amount) ? Math.max(0, amount) : 0;
+  if (step <= 0) return { ok: false, reason: 'Keep opening the flap.' };
+  for (const flap of pairs[i]) {
+    box.flapProgress[flap] = Math.min(1, box.flapProgress[flap] + step);
+  }
+  box.flaps = [
+    Math.min(box.flapProgress[0], box.flapProgress[2]),
+    Math.min(box.flapProgress[1], box.flapProgress[3]),
+  ];
+  box.openingProgress = box.flapProgress.reduce((sum, flap) => sum + flap, 0)
+    / box.flapProgress.length;
+  advanceLifecycle(box, BOX_LIFECYCLE.OPENING);
+  const done = flapsOpen(box);
+  if (done) {
+    advanceLifecycle(box, isPartial(box) ? BOX_LIFECYCLE.PARTIALLY_EMPTIED : BOX_LIFECYCLE.OPEN);
+  }
+  return {
+    ok: true,
+    flap: i,
+    physicalFlaps: [...pairs[i]],
+    progress: box.openingProgress,
+    done,
+  };
 }
 
 // --- reaching in ----------------------------------------------------------------------------------
@@ -279,13 +499,20 @@ export function takeFromBox(state, id, want) {
     };
   }
 
-  const taken = Math.min(want == null ? room : want, room, box.qty);
+  const requested = want == null
+    ? room
+    : Math.max(0, Math.floor(Number.isFinite(want) ? want : 0));
+  const taken = Math.min(requested, room, box.qty);
+  if (taken <= 0) return { ok: false, reason: 'Choose at least one item to take.' };
   box.qty -= taken;
   const c = state.shop.carry;
   setCarry(state, box.skuId, (c ? c.qty : 0) + taken);
   if (box.qty <= 0) {
+    advanceLifecycle(box, BOX_LIFECYCLE.EMPTY);
     const d = state.shop.deliveries;
     d.openedTotal = (d.openedTotal || 0) + 1;   // lifetime unboxings (onboarding reads this)
+  } else {
+    advanceLifecycle(box, BOX_LIFECYCLE.PARTIALLY_EMPTIED);
   }
   return { ok: true, taken, left: box.qty, carrying: state.shop.carry.qty };
 }
@@ -293,17 +520,25 @@ export function takeFromBox(state, id, want) {
 // --- the cardboard ----------------------------------------------------------------------------
 // An empty carton is not gone. You break it down, you carry it to the bin, and THEN it is gone.
 
-export function flattenBox(state, id) {
+export function flattenBox(state, id, amount = 1) {
   const box = findBox(state, id);
   if (!box) return { ok: false, reason: 'No box there.' };
   if (box.loc === 'carried') return { ok: false, reason: 'Set it down first.' };
-  if (box.flat) return { ok: false, reason: 'Already flat.' };
+  if (box.flat) return { ok: false, reason: 'Already flat.', done: true };
   if (!isEmpty(box)) return { ok: false, reason: 'Still has stock in it.' };
-  box.flat = true;
+  const step = Number.isFinite(amount) ? Math.max(0, amount) : 0;
+  if (step <= 0) return { ok: false, reason: 'Keep folding the carton.' };
+  advanceLifecycle(box, BOX_LIFECYCLE.FLATTENING);
+  const before = box.flattenProgress || 0;
+  box.flattenProgress = Math.min(1, before + step);
+  box.flat = box.flattenProgress >= 1;
   box.flaps = [1, 1];
-  const d = state.shop.deliveries;
-  d.trash = (d.trash || 0) + 1;
-  return { ok: true };
+  box.flapProgress = [1, 1, 1, 1];
+  if (box.flat && before < 1) {
+    const d = state.shop.deliveries;
+    d.trash = (d.trash || 0) + 1;
+  }
+  return { ok: true, progress: box.flattenProgress, done: box.flat };
 }
 
 export function recycleBox(state, id) {
@@ -311,11 +546,13 @@ export function recycleBox(state, id) {
   const box = findBox(state, id);
   if (!box) return { ok: false, reason: 'No box there.' };
   if (!box.flat) return { ok: false, reason: 'Break it down flat first.' };
+  advanceLifecycle(box, BOX_LIFECYCLE.DISCARDED);
+  box.discarded = true;
   d.boxes.splice(d.boxes.indexOf(box), 1);
   d.recycled = (d.recycled || 0) + 1;
   d.trash = Math.max(0, (d.trash || 0) - 1);
   retireShipments(state);
-  return { ok: true };
+  return { ok: true, box, state: BOX_LIFECYCLE.DISCARDED };
 }
 
 // --- the employee path -------------------------------------------------------------------------
@@ -329,9 +566,23 @@ export function openBox(state, id) {
   if (!box) return { ok: false, reason: 'No box there.' };
   if (box.loc === 'carried') return { ok: false, reason: 'Set it down first.' };
   const inv = state.shop.inventory[box.skuId];
+  if (!inv) return { ok: false, reason: 'That stock line is not in the catalog.' };
   const qty = box.qty;
-  if (inv) inv.back += qty;
+  inv.back += qty;
+  box.cutProgress = 1;
+  box.tape = 1;
+  box.tapeSegments = tapeSegmentsAt(1);
+  box.flaps = [1, 1];
+  box.flapProgress = [1, 1, 1, 1];
+  box.openingProgress = 1;
+  advanceLifecycle(box, BOX_LIFECYCLE.OPEN);
   box.qty = 0;
+  advanceLifecycle(box, BOX_LIFECYCLE.EMPTY);
+  box.flattenProgress = 1;
+  box.flat = true;
+  advanceLifecycle(box, BOX_LIFECYCLE.FLATTENING);
+  advanceLifecycle(box, BOX_LIFECYCLE.DISCARDED);
+  box.discarded = true;
   d.boxes.splice(d.boxes.indexOf(box), 1);
   // they break it down and stack it by the bin — the cardboard does not evaporate just because
   // somebody else handled it. `trash` is what is waiting to go out; `recycled` is what has gone.

@@ -27,7 +27,8 @@ export const BOX_KINDS = {
   },
   apparel: {
     id: 'apparel', label: 'Apparel carton',
-    w: 0.66, h: 0.40, d: 0.50, mass: 'light', tare: 1.0, // big and airy
+    // Reference 47: 60 x 40 x 35 cm. Runtime axes are width, height, depth.
+    w: 0.60, h: 0.35, d: 0.40, mass: 'light', tare: 1.0,
   },
   shoebox: {
     id: 'shoebox', label: 'Shoe carton',

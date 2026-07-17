@@ -19,7 +19,16 @@ import { FIXTURES } from '../data/shopLayout.js';
 import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
 
 // how many of a thing you can hold at once. Not a number of items — a pair of arms.
-const ARMFUL_CAT = { clubs: 2, balls: 6, apparel: 6, accessories: 8, supplies: 1, decor: 1 };
+const ARMFUL_CAT = {
+  clubs: 2,
+  balls: 6,
+  // Two folded garments make the hero carton deplete through full, 3/4,
+  // half, low and empty states while remaining a believable two-hand bundle.
+  apparel: 2,
+  accessories: 8,
+  supplies: 1,
+  decor: 1,
+};
 const ARMFUL_ID = {
   bag1: 1,       // a stand bag IS the carry
   irons1: 1, irons2: 1,
