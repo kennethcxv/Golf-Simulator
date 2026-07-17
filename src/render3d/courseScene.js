@@ -180,10 +180,13 @@ export function makeCourseScene(canvas, state) {
   const worldH = H * CELL_YD;
 
   // --- renderer / scene / camera -------------------------------------------------
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  // DPR 1.5 cap: above that the post chain pays quadratically for sharpness nobody reads
+  // at gameplay distance — a 4K/200% desktop was rendering 78% more pixels than this.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.autoUpdate = false; // baked on the throttle in render(), not per frame
   // STYLE GUIDE §3: neutral, bright, no filmic grade — saturation lives in albedo
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1.12;
@@ -219,6 +222,13 @@ export function makeCourseScene(canvas, state) {
     screenSpaceRadius: false,
   });
   gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 8 });
+  // AO at HALF resolution. The pass re-renders the whole scene for depth+normals and then
+  // runs two more full-screen passes; at full size that measured ~5ms/frame on the fixed
+  // spin route (90.5 → 175.8 fps with the pass off). setSize here touches only the pass's
+  // own targets — the beauty image stays full-res and the soft contact darkening (§3) is
+  // upsampled bilinearly, which its own denoiser already smooths past noticing.
+  const gtaoFullSetSize = gtao.setSize.bind(gtao);
+  gtao.setSize = (w, h) => gtaoFullSetSize(Math.max(1, Math.ceil(w * 0.5)), Math.max(1, Math.ceil(h * 0.5)));
   composer.addPass(gtao);
   // STYLE GUIDE §3: bloom effectively OFF for the scene — only the sun disc
   // (radiance in the thousands) may glint; turf and trim never halo
@@ -3134,7 +3144,13 @@ export function makeCourseScene(canvas, state) {
 
     const day = elevDeg > 2;
     const dusk = elevDeg > -6 && elevDeg <= 2;
-    sun.position.copy(sunPos).multiplyScalar(1600);
+    // anchored on the shadow target (the world origin in overview, the player on foot) so the
+    // shading direction and the fitted shadow frustum always agree
+    sun.position.set(
+      sun.target.position.x + sunPos.x * 1600,
+      sunPos.y * 1600,
+      sun.target.position.z + sunPos.z * 1600,
+    );
     sun.position.y = Math.max(sun.position.y, -200);
 
     if (day) {
@@ -3157,7 +3173,9 @@ export function makeCourseScene(canvas, state) {
       hemi.intensity = 0.45;
       scene.fog.density = 0.0004;
     }
-    sun.target.position.set(0, 0, 0);
+    // the sun TARGET is owned by fitSunShadow — the world origin from the overview map,
+    // the player on foot. Resetting it here every frame is what once yanked the fitted
+    // shadow box back to the origin and left the player's surroundings shadowless.
 
     // stylized cumulus only belong to a bright sky
     cloudGroup.visible = day && !heavyRain;
@@ -3214,8 +3232,86 @@ export function makeCourseScene(canvas, state) {
   // --- frame -------------------------------------------------------------------------------------------
   let time = 0;
 
+  // THE SHADOW THROTTLE. The sun's shadow map is world-space: moving the CAMERA never
+  // changes it, only the sun's crawl and the handful of things that walk or get built do —
+  // and none of those need a 4096² rebake 90 times a second. Measured on the fixed spin
+  // route, the every-frame bake was ~5ms of GPU per frame (90.5 → 164.1 fps frozen). Ten
+  // bakes a second keeps character shadows visually glued to their feet and gives almost
+  // all of that time back.
+  const SHADOW_BAKE_MS = 100;
+  let shadowClock = Infinity; // Infinity → the very first frame always bakes
+  let shadowBakes = 0; // perf probes read this to attribute frame spikes to bakes
+
+  // SHADOW FITTING. On foot, only the ±120 yards around the player can ever be read — so
+  // that is all the shadow map covers: a 2048 map over 240yd is 2.5× the texel density the
+  // old whole-course 4096 had, for a quarter of the raster cost, and the pass culls to the
+  // box so far-course casters stop being drawn at all. The overview map keeps the classic
+  // whole-course fit. The box is snapped to the shadow texel grid in light space, so a
+  // 10Hz rebake never swims as the player moves.
+  const SHADOW_WALK_SPAN = 120;
+  const SHADOW_WALK_MAP = 2048;
+  const SHADOW_FULL_MAP = 4096;
+  let shadowFitMode = null;
+  const shadowFwd = new THREE.Vector3();
+  const shadowRight = new THREE.Vector3();
+  const shadowUp = new THREE.Vector3();
+  const shadowFocus = new THREE.Vector3();
+  const WORLD_UP = new THREE.Vector3(0, 1, 0);
+
+  function fitSunShadow() {
+    const mode = walk.active ? 'walk' : 'full';
+    const size = mode === 'walk' ? SHADOW_WALK_MAP : SHADOW_FULL_MAP;
+    // re-assert on size drift too, not just mode flips — a QA/debug hand on mapSize
+    // must never leave the fit half-applied
+    if (mode !== shadowFitMode || sun.shadow.mapSize.x !== size) {
+      shadowFitMode = mode;
+      sun.shadow.mapSize.set(size, size);
+      if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+      if (mode === 'full') {
+        sc.left = -worldW * 0.62;
+        sc.right = worldW * 0.62;
+        sc.top = worldH * 0.75;
+        sc.bottom = -worldH * 0.75;
+        sun.target.position.set(0, 0, 0);
+      } else {
+        sc.left = -SHADOW_WALK_SPAN;
+        sc.right = SHADOW_WALK_SPAN;
+        sc.top = SHADOW_WALK_SPAN;
+        sc.bottom = -SHADOW_WALK_SPAN;
+      }
+      sc.updateProjectionMatrix();
+    }
+    if (mode === 'walk') {
+      // sunPos is the unit sun direction applyTimeWeather maintains every frame
+      shadowFwd.copy(sunPos).negate().normalize();
+      shadowRight.crossVectors(WORLD_UP, shadowFwd);
+      if (shadowRight.lengthSq() < 1e-6) shadowRight.set(1, 0, 0); else shadowRight.normalize();
+      shadowUp.crossVectors(shadowFwd, shadowRight).normalize();
+      shadowFocus.set(walk.x, 0, walk.z);
+      const texel = (SHADOW_WALK_SPAN * 2) / SHADOW_WALK_MAP;
+      const px = shadowFocus.dot(shadowRight);
+      const py = shadowFocus.dot(shadowUp);
+      shadowFocus.addScaledVector(shadowRight, Math.round(px / texel) * texel - px);
+      shadowFocus.addScaledVector(shadowUp, Math.round(py / texel) * texel - py);
+      sun.target.position.set(shadowFocus.x, 0, shadowFocus.z);
+      sun.position.set(
+        shadowFocus.x + sunPos.x * 1600,
+        Math.max(sunPos.y * 1600, -200),
+        shadowFocus.z + sunPos.z * 1600,
+      );
+      sun.target.updateMatrixWorld();
+    }
+  }
+
   function render(dtMs, st) {
     time += dtMs / 1000;
+    shadowClock += dtMs;
+    if (shadowClock >= SHADOW_BAKE_MS) {
+      fitSunShadow();
+      renderer.shadowMap.needsUpdate = true;
+      shadowClock = 0;
+      shadowBakes++;
+    }
     if (shaderRefs.uniforms) shaderRefs.uniforms.uTime.value = time;
     for (const w of waterMeshes) {
       w.material.uniforms.time.value = time * 0.55;
@@ -3645,12 +3741,14 @@ export function makeCourseScene(canvas, state) {
     scene.traverse((o) => {
       if (o.frustumCulled) { culled.push(o); o.frustumCulled = false; }
     });
+    renderer.shadowMap.needsUpdate = true; // bake once here so depth-pass programs compile behind the veil
     try { composer.render(); } catch (e) { renderer.render(scene, camera); }
     for (const o of culled) o.frustumCulled = true;
     await tick();
     // a couple of normal frames settle the AO history and bloom targets
     for (let i = 0; i < 3; i++) {
       camera.rotation.set(0, (i * Math.PI * 2) / 3, 0, 'YXZ');
+      renderer.shadowMap.needsUpdate = true;
       try { composer.render(); } catch (e) { renderer.render(scene, camera); }
       await tick();
     }
@@ -3662,7 +3760,7 @@ export function makeCourseScene(canvas, state) {
     prewarm,
     camera,
     rig,
-    post: { composer, gtao, bloom },
+    post: { composer, gtao, bloom, sun, stats: () => ({ shadowBakes }) },
     render,
     resize,
     raycastCell,

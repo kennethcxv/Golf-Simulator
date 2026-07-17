@@ -1466,7 +1466,7 @@ function frame(ts) {
     if (editorUi) editorUi.onFrame(dtMs); // compass, power bar, the flying ball
     if (walkActive()) {
       app.scene3d.walk.update(dtMs);
-      updateWalkOverlay();
+      updateWalkOverlay(dtMs);
       // arrival-chapter senses: real looking and real walking
       if (app.state.tutorial && !app.state.tutorial.complete) {
         const w = app.scene3d.walk.state;
@@ -1520,7 +1520,14 @@ const CONDITION_WORD = (c) =>
   c < 25 ? 'filthy' : c < 45 ? 'grimy' : c < 70 ? 'getting there' : c < 90 ? 'clean' : 'showroom';
 let lastCondWord = null;
 
-function updateWalkOverlay() {
+// The overlay runs every frame, so it must cost nothing when nothing changed: element
+// lookups are cached once, every DOM write is guarded by a last-value check (an identical
+// textContent assignment still rebuilds the text node and dirties layout), and the shop
+// condition — a whole grime-grid scan — is polled at 4Hz instead of 90.
+const ovEl = { prompt: null, lockHint: null, cond: null };
+const ovLast = { prompt: null, opacity: null, lockDisp: null, lockText: null, condText: null, condDisp: null };
+let condClock = 0;
+function updateWalkOverlay(dtMs = 16.7) {
   const registerActive = regActive();
   const registerDisplay = registerActive ? 'flex' : 'none';
   if (regHint && regHint.style.display !== registerDisplay) regHint.style.display = registerDisplay;
@@ -1534,38 +1541,67 @@ function updateWalkOverlay() {
     if (regHintTotal && regHintTotal.style.display !== totalDisplay) regHintTotal.style.display = totalDisplay;
     if (regHintDrawer && regHintDrawer.style.display !== drawerDisplay) regHintDrawer.style.display = drawerDisplay;
   }
-  const prompt = walkOverlay.querySelector('.shop-prompt');
+  if (!ovEl.prompt) {
+    ovEl.prompt = walkOverlay.querySelector('.shop-prompt');
+    ovEl.lockHint = walkOverlay.querySelector('.shop-lockhint');
+    ovEl.cond = walkOverlay.querySelector('.shop-cond');
+  }
   // build mode speaks over the world's own prompts: while it is on, the only controls that
   // matter are its controls
   const bld = buildApi();
   const label = (bld && bld.isActive() && bld.label())
-    || (app.scene3d.walk.getFocusLabel ? app.scene3d.walk.getFocusLabel() : null);
-  prompt.textContent = label || '';
-  prompt.style.opacity = label ? '1' : '0';
-  const lockHint = walkOverlay.querySelector('.shop-lockhint');
+    || (app.scene3d.walk.getFocusLabel ? app.scene3d.walk.getFocusLabel() : null)
+    || '';
+  if (label !== ovLast.prompt) {
+    ovLast.prompt = label;
+    ovEl.prompt.textContent = label;
+  }
+  const opacity = label ? '1' : '0';
+  if (opacity !== ovLast.opacity) {
+    ovLast.opacity = opacity;
+    ovEl.prompt.style.opacity = opacity;
+  }
   // the control bar retires once the controls are demonstrably learned
   // (opening arc past the shelving step) — after that it only returns while
   // the pointer is free, as a click-to-play reminder
   const tut = app.state && app.state.tutorial;
   const learned = tut && (tut.complete || tut.hidden || tut.step >= 5);
-  lockHint.style.display = document.pointerLockElement ? 'none' : '';
-  lockHint.textContent = learned
+  const lockDisp = document.pointerLockElement ? 'none' : '';
+  if (lockDisp !== ovLast.lockDisp) {
+    ovLast.lockDisp = lockDisp;
+    ovEl.lockHint.style.display = lockDisp;
+  }
+  const lockText = learned
     ? 'Click to play'
     : 'Click to look around · WASD walk · Shift run · E interact · F tool · J course editor · Tab overview · Esc menu';
-  // inside the shop: the condition chip rides along (and tier-ups chime)
-  const cond = walkOverlay.querySelector('.shop-cond');
-  const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
-  const inside = ch && ch.isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z);
-  if (inside && app.state && app.state.shop) {
-    if (app.state.tutorial) tutorialFlag(app.state, 'shopWalked');
-    const c = shopCondition(app.state);
-    const word = CONDITION_WORD(c);
-    cond.textContent = `🧹 Shop condition ${c} — ${word}`;
-    cond.style.display = '';
-    if (lastCondWord && word !== lastCondWord && c >= 25 && audio.ready) audio.chime();
-    lastCondWord = word;
-  } else {
-    cond.style.display = 'none';
+  if (lockText !== ovLast.lockText) {
+    ovLast.lockText = lockText;
+    ovEl.lockHint.textContent = lockText;
+  }
+  // inside the shop: the condition chip rides along (and tier-ups chime) — 4Hz is plenty
+  condClock += dtMs;
+  if (condClock >= 250) {
+    condClock = 0;
+    const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
+    const inside = ch && ch.isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z);
+    let condText = null;
+    if (inside && app.state && app.state.shop) {
+      if (app.state.tutorial) tutorialFlag(app.state, 'shopWalked');
+      const c = shopCondition(app.state);
+      const word = CONDITION_WORD(c);
+      condText = `🧹 Shop condition ${c} — ${word}`;
+      if (lastCondWord && word !== lastCondWord && c >= 25 && audio.ready) audio.chime();
+      lastCondWord = word;
+    }
+    if (condText !== ovLast.condText) {
+      ovLast.condText = condText;
+      if (condText) ovEl.cond.textContent = condText;
+    }
+    const condDisp = condText ? '' : 'none';
+    if (condDisp !== ovLast.condDisp) {
+      ovLast.condDisp = condDisp;
+      ovEl.cond.style.display = condDisp;
+    }
   }
 }
 

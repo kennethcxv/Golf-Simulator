@@ -23,6 +23,7 @@ export function makeHud(app, handlers) {
   const root = el('div', { class: 'hud-min' }, cash, clock);
 
   let last = '';
+  let lastCash = '';
   function update() {
     if (!app.state) return;
     const cal = calendarOf(app.state.clock.minutes);
@@ -33,7 +34,12 @@ export function makeHud(app, handlers) {
       clock.textContent = line;
       clock.classList.toggle('paused', app.speedIdx === 0);
     }
-    cash.textContent = formatMoney(app.empire ? app.empire.cash : app.state.cash);
+    // this runs every frame — only touch the DOM when the number actually moved
+    const cashLine = formatMoney(app.empire ? app.empire.cash : app.state.cash);
+    if (cashLine !== lastCash) {
+      lastCash = cashLine;
+      cash.textContent = cashLine;
+    }
   }
 
   return { root, update };
