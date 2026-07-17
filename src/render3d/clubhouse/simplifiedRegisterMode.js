@@ -439,19 +439,21 @@ export function createRegisterMode(B) {
   //   cardTake  – the handed card waiting on the counter + the reader.
   //   cash      – POS above, open drawer below, both readable at once.
   //   receipt   – printer, paper, and customer.
+  // THE ONE WORKING FRAME. Browsing, scanning and the receipt all share a single composed
+  // pose — goods on the left half, POS readable on the right, reference-style — so serving
+  // a customer stops feeling like a camera ride. Only the drawer (cash), the terminal
+  // (card) and the check-in tab still move the eye, because their hardware needs it.
+  const MIXED_POSE = { pose: poseBetween(
+    { x: 2.84, y: 1.76, z: 5.58 },
+    { x: 2.96, y: 1.06, z: 4.12 },
+  ), fov: 52 };
   const POSES = {
-    overview: { pose: poseBetween(
-      { x: 3.02, y: 1.70, z: 5.36 },
-      { x: 3.12, y: 1.22, z: 4.33 },
-    ), fov: 46 },
+    overview: MIXED_POSE,
     checkin: { pose: poseBetween(
       { x: 3.42, y: 1.68, z: 5.02 },
       { x: 3.42, y: 1.44, z: 4.37 },
     ), fov: 42 },
-    scan: { pose: poseBetween(
-      { x: 2.60, y: 1.72, z: 5.45 },
-      { x: 2.62, y: 1.00, z: 3.95 },
-    ), fov: 54 },
+    scan: MIXED_POSE,
     card: { pose: poseBetween(
       { x: 3.00, y: 1.64, z: 4.52 },
       { x: 3.00, y: 1.08, z: 3.98 },
@@ -464,10 +466,6 @@ export function createRegisterMode(B) {
       { x: 3.42, y: 1.98, z: 5.42 },
       { x: 3.42, y: 0.98, z: 4.48 },
     ), fov: 52 },
-    receipt: { pose: poseBetween(
-      { x: 3.35, y: 1.70, z: 5.60 },
-      { x: 3.00, y: 1.02, z: 3.60 },
-    ), fov: 54 },
   };
 
   // A timed, eased move between two poses: short, predictable, and stable while
@@ -1059,6 +1057,13 @@ export function createRegisterMode(B) {
     drawScreen();
   }
 
+  // While the player keys the amount, the terminal RISES off the counter toward the
+  // camera, reference-style — the keypad becomes the whole show instead of a slab the
+  // card animation used to fight the table over. The seated card gets the same lift so
+  // reader and card never separate.
+  const TERM_FLOAT_LIFT = 0.26;
+  let termFloat = 0;
+
   function attachTerm(terminal) {
     // Bring the authored reader into the same visible work plane as the POS.
     terminal.position.set(CARD_STATION.x, COUNTER_TOP, CARD_STATION.z);
@@ -1113,6 +1118,8 @@ export function createRegisterMode(B) {
   // socket with the card's long axis along the slot's insertion direction;
   // ready floats one card-length out along that same axis.
   const FLAT_QUAT = new THREE.Quaternion();
+  // how a customer actually holds a card out: tilted up toward the cashier
+  const HELD_QUAT = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.62, 0, 0));
   const cardTravel = {
     ready: new THREE.Vector3(INSERT_READY.x, INSERT_READY.y, INSERT_READY.z),
     inserted: new THREE.Vector3(INSERTED.x, INSERTED.y, INSERTED.z),
@@ -1515,20 +1522,20 @@ export function createRegisterMode(B) {
     }
   }
 
-  // The presented cash: a loose fan on the customer side of the counter with a
-  // generous click target. One click on any piece accepts the whole handful.
-  const TENDER_SPOT = Object.freeze({ x: 2.55, z: 3.92 });
-
+  // The presented cash rides IN THE CUSTOMER'S OUTSTRETCHED HAND — a tilted fan held
+  // over the counter, never laid out on the desk. One click on any piece accepts the
+  // whole handful.
   function tenderPose(index) {
+    const hand = customerHandPoint(COUNTER_TOP + 0.24);
     const row = Math.floor(index / 4);
     const column = index % 4;
     return {
       position: new THREE.Vector3(
-        TENDER_SPOT.x - 0.10 + column * 0.068,
-        COUNTER_TOP + 0.014 + row * 0.0045 + column * 0.0012,
-        TENDER_SPOT.z + row * 0.052,
+        hand.x - 0.075 + column * 0.05,
+        hand.y + row * 0.02 + column * 0.006,
+        hand.z + 0.02 + row * 0.028,
       ),
-      rotation: new THREE.Euler(0, 0.35 - column * 0.17 - row * 0.06, 0),
+      rotation: new THREE.Euler(-0.55, 0.2 - column * 0.13 - row * 0.05, 0),
     };
   }
 
@@ -1587,13 +1594,14 @@ export function createRegisterMode(B) {
   function presentTender() {
     tenderMeshes.forEach((mesh, index) => {
       const pose = tenderPose(index);
-      // the customer's hand slides the notes across from their side
+      // the notes come UP from the customer's pocket into their held-out hand
+      const hand = customerHandPoint(COUNTER_TOP + 0.24);
       mesh.position.set(
-        TENDER_SPOT.x - 0.14 + (index % 4) * 0.03,
-        COUNTER_TOP + 0.10 + Math.floor(index / 4) * 0.006,
-        TENDER_SPOT.z - 0.55,
+        hand.x - 0.10 + (index % 4) * 0.03,
+        hand.y - 0.22 + Math.floor(index / 4) * 0.006,
+        hand.z - 0.18,
       );
-      mesh.rotation.set(0, -0.06, 0);
+      mesh.rotation.set(-0.3, -0.06, 0);
       queueCashMotion(mesh, pose.position, {
         delay: index * 0.055,
         duration: 0.48,
@@ -2020,6 +2028,9 @@ export function createRegisterMode(B) {
     if (method === 'card') {
       if (checkoutFlowState() === 'ChoosingPayment') flowTo('CardPresented', 'customer-presented-card');
       createCardMesh();
+      // the card waits HELD OUT in the customer's hand, not laid on the counter — the
+      // eject leg returns it to the same hand
+      cardTravel.ready.copy(customerHandPoint(COUNTER_TOP + 0.30));
       cardPresentationTimer = 0.55;
       cardU = 0;
       insertDrag = null;
@@ -2221,6 +2232,7 @@ export function createRegisterMode(B) {
     }
     createCardMesh();
     cardU = 0;
+    cardTravel.ready.copy(customerHandPoint(COUNTER_TOP + 0.30)); // the replacement is held out too
     cardPresentationTimer = 0.52;
     insertDrag = null;
     insertSnap = false;
@@ -3097,19 +3109,24 @@ export function createRegisterMode(B) {
 
   function updateCard(dt) {
     if (!tx || tx.method !== 'card') return;
+    // the keypad phases float the reader; everything else settles it back down
+    const wantFloat = ['card-entry', 'card-busy'].includes(tx.stage) ? 1 : 0;
+    termFloat += (wantFloat - termFloat) * Math.min(1, dt * 7);
+    if (termFloat < 0.001 && wantFloat === 0) termFloat = 0;
+    if (termObject) termObject.position.y = COUNTER_TOP + termFloat * TERM_FLOAT_LIFT;
     if (cardPresentationTimer > 0) {
       cardPresentationTimer = Math.max(0, cardPresentationTimer - dt);
       const progress = 1 - cardPresentationTimer / 0.55;
       if (cardMesh) {
+        // out of the customer's pocket, up into their outstretched hand
         const start = new THREE.Vector3(
-          CARD_STATION.x - 0.24,
-          COUNTER_TOP + 0.22,
-          CARD_STATION.z - 0.26,
+          cardTravel.ready.x + 0.06,
+          cardTravel.ready.y - 0.24,
+          cardTravel.ready.z - 0.20,
         );
         const eased = THREE.MathUtils.smoothstep(progress, 0, 1);
         cardMesh.position.lerpVectors(start, cardTravel.ready, eased);
-        // the customer slides it across flat; the tilt happens at the slot
-        cardMesh.rotation.set(0, 0, 0);
+        cardMesh.quaternion.copy(HELD_QUAT); // held tilted toward the cashier, readable
       }
       if (cardPresentationTimer === 0 && tx.stage === 'card-present') {
         const presented = presentCard(tx);
@@ -3172,12 +3189,17 @@ export function createRegisterMode(B) {
         if (travel >= SPLIT) {
           const axial = (travel - SPLIT) / (1 - SPLIT);
           cardMesh.position.lerpVectors(cardTravel.mouth, cardTravel.inserted, axial);
+          cardMesh.position.y += termFloat * TERM_FLOAT_LIFT; // ride the floated reader
           cardMesh.quaternion.copy(cardTravel.quaternion);
         } else {
           const approach = travel / SPLIT;
           cardMesh.position.lerpVectors(cardTravel.ready, cardTravel.mouth, approach);
           cardMesh.position.y += Math.sin(approach * Math.PI) * 0.022;
-          cardMesh.quaternion.slerpQuaternions(FLAT_QUAT, cardTravel.quaternion, approach);
+          cardMesh.quaternion.slerpQuaternions(HELD_QUAT, cardTravel.quaternion, approach);
+          // waiting in the hand, the card breathes — an obvious "click me"
+          if (!insertSnap && cardU === 0) {
+            cardMesh.position.y += Math.sin(performance.now() / 420) * 0.006;
+          }
         }
       } else {
         cardMesh.position.lerpVectors(cardTravel.ready, cardTravel.inserted, travel);
@@ -3373,7 +3395,7 @@ export function createRegisterMode(B) {
         ? 'cardTake' : 'card';
     }
     if (workspace === 'cash') return 'cash';
-    if (deliveryPhase && deliveryPhase !== 'released') return 'receipt';
+    // the receipt/bag handover plays out inside the working frame — no jump to watch paper
     if (activeTab === 'check-in') return 'checkin';
     return 'overview';
   }
