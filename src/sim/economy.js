@@ -21,16 +21,20 @@ export function initLedger(state) {
 
 const r2 = (v) => Math.round(v * 100) / 100;
 
+// NaN is the one amount that must never move: `NaN <= 0` is false, so a naive
+// guard lets it through, `cash += NaN` poisons the balance, and the corruption
+// then survives every close-of-books (this exact chain took a live save down —
+// a reservation with no fee posted round2(undefined) into greenFees).
 export function addRevenue(state, key, amount) {
   const amt = r2(amount);
-  if (amt <= 0) return;
+  if (!Number.isFinite(amt) || amt <= 0) return;
   state.cash += amt;
   state.ledger.today.revenue[key] = r2((state.ledger.today.revenue[key] || 0) + amt);
 }
 
 export function addExpense(state, key, amount) {
   const amt = r2(amount);
-  if (amt <= 0) return;
+  if (!Number.isFinite(amt) || amt <= 0) return;
   state.cash -= amt;
   state.ledger.today.expense[key] = r2((state.ledger.today.expense[key] || 0) + amt);
 }
@@ -46,7 +50,7 @@ export function addExpense(state, key, amount) {
 // amount that was genuinely booked to it.
 export function unbill(state, key, amount) {
   const amt = r2(amount);
-  if (amt <= 0) return;
+  if (!Number.isFinite(amt) || amt <= 0) return;
   state.cash += amt;
   if (state.ledger) {
     state.ledger.today.expense[key] = r2((state.ledger.today.expense[key] || 0) - amt);
@@ -57,7 +61,7 @@ export function unbill(state, key, amount) {
 // so sim modules can bill consistently from anywhere.
 export function spend(state, key, amount) {
   if (state.ledger) addExpense(state, key, amount);
-  else state.cash -= amount;
+  else if (Number.isFinite(amount)) state.cash -= amount;
 }
 
 export function totals(lines) {

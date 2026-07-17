@@ -7,6 +7,7 @@ import { calendarOf } from '../src/sim/time.js';
 import { bookSlot, generateOnlineReservations } from '../src/sim/reservations.js';
 import { customerIdentityById } from '../src/sim/customerIdentity.js';
 import { stackTotal } from '../src/sim/register.js';
+import { addRevenue, addExpense } from '../src/sim/economy.js';
 
 test('newGame builds a complete starting state per mode', () => {
   const st = newGame('relaxed', 42);
@@ -44,6 +45,35 @@ test('a corrupted (NaN/null) cash balance heals on save and on load', () => {
   const healed = deserialize(JSON.stringify(doctored));
   assert.equal(healed.cash, 0, 'deserialize heals a null balance to a finite number');
   assert.ok(Number.isFinite(healed.cash));
+});
+
+test('the books refuse a non-finite amount at the gateway', () => {
+  // `NaN <= 0` is false, so the old positive-amount guard let NaN through and
+  // one bad posting corrupted cash forever after.
+  const st = newGame('relaxed', 91);
+  const cash = st.cash;
+  const fees = st.ledger.today.revenue.greenFees;
+  addRevenue(st, 'greenFees', NaN);
+  addRevenue(st, 'greenFees', undefined);
+  addRevenue(st, 'greenFees', Infinity);
+  addExpense(st, 'upkeep', NaN);
+  assert.equal(st.cash, cash, 'cash never moves on a non-finite amount');
+  assert.equal(st.ledger.today.revenue.greenFees, fees, 'no ledger line moves either');
+  addRevenue(st, 'greenFees', 12.5);
+  assert.equal(st.cash, cash + 12.5, 'real money still books normally');
+});
+
+test('a ledger poisoned by an old build heals to zeros on load', () => {
+  const st = newGame('relaxed', 92);
+  st.ledger.today.revenue.greenFees = NaN;
+  st.ledger.yesterday = { revenue: { greenFees: NaN }, expense: {}, revenueTotal: NaN, net: NaN };
+  st.ledger.history.push({ day: 1, revenue: { greenFees: NaN }, expense: {}, net: NaN });
+  const healed = deserialize(serialize(st)); // NaN crosses JSON as null
+  assert.equal(healed.ledger.today.revenue.greenFees, 0);
+  assert.equal(healed.ledger.yesterday.revenue.greenFees, 0);
+  assert.equal(healed.ledger.yesterday.net, 0);
+  assert.equal(healed.ledger.history.at(-1).net, 0);
+  assert.ok(Number.isFinite(healed.ledger.yesterday.revenueTotal));
 });
 
 test('legacy drawers rebalance into penny and half-dollar slots without minting value', () => {

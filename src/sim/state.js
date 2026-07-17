@@ -230,6 +230,28 @@ export function snapshot(state) {
   });
 }
 
+// A NaN that ever reached the books serializes to JSON null and reloads as a
+// hole every Finances page and close-of-books trips over. Money lines are
+// numbers; anything else in a number slot heals to zero on load.
+function healLedger(ledger) {
+  const healLines = (lines, depth = 0) => {
+    if (!lines || typeof lines !== 'object' || depth > 3) return lines;
+    for (const k of Object.keys(lines)) {
+      const v = lines[k];
+      if (typeof v === 'number' || v === null) {
+        if (!Number.isFinite(v)) lines[k] = 0;
+      } else if (typeof v === 'object') {
+        healLines(v, depth + 1);
+      }
+    }
+    return lines;
+  };
+  healLines(ledger.today);
+  healLines(ledger.yesterday);
+  if (Array.isArray(ledger.history)) ledger.history.forEach((entry) => healLines(entry));
+  return ledger;
+}
+
 export function serialize(state) {
   return JSON.stringify(snapshot(state));
 }
@@ -294,7 +316,7 @@ export function deserialize(json) {
   else initStaff(state);
   if (raw.club) state.club = raw.club;
   else initClub(state);
-  if (raw.ledger) state.ledger = raw.ledger;
+  if (raw.ledger) state.ledger = healLedger(raw.ledger);
   else initLedger(state);
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);

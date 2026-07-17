@@ -429,14 +429,17 @@ export function createRegisterMode(B) {
   // spanning 0.54×0.33; terminal screen (3.00, 1.22, 3.97); bag (1.96, 4.60);
   // drawer tray (3.42, 0.82, 4.18→4.6 open); printer slot (3.97, 1.06, 4.54).
   const POSES = {
+    // The overview leans toward the POS: its screen must be READABLE from the
+    // resting pose (the old 1.4 yd eye left it a postage stamp), while the
+    // staging tray and presented tender stay in frame on the left.
     overview: { pose: poseBetween(
-      { x: 2.86, y: 1.50, z: 5.66 },
-      { x: 2.90, y: 1.26, z: 4.30 },
-    ), fov: 50 },
+      { x: 3.02, y: 1.51, z: 5.30 },
+      { x: 3.12, y: 1.29, z: 4.33 },
+    ), fov: 46 },
     checkin: { pose: poseBetween(
-      { x: 3.42, y: 1.56, z: 5.15 },
-      { x: 3.42, y: 1.49, z: 4.37 },
-    ), fov: 44 },
+      { x: 3.42, y: 1.55, z: 4.96 },
+      { x: 3.42, y: 1.48, z: 4.37 },
+    ), fov: 42 },
     scan: { pose: poseBetween(
       { x: 2.60, y: 1.55, z: 5.45 },
       { x: 2.62, y: 1.02, z: 3.95 },
@@ -445,6 +448,14 @@ export function createRegisterMode(B) {
       { x: 3.00, y: 1.50, z: 4.44 },
       { x: 3.00, y: 1.10, z: 3.98 },
     ), fov: 40 },
+    // The handed card waits on the staff side of the terminal (z +0.40): this
+    // wider pose keeps BOTH the waiting card and the reader in frame so the
+    // card is a visible, clickable object; the tight `card` pose takes over
+    // once it seats and the keypad becomes the interaction.
+    cardTake: { pose: poseBetween(
+      { x: 3.00, y: 1.62, z: 4.86 },
+      { x: 3.00, y: 1.02, z: 4.18 },
+    ), fov: 46 },
     cash: { pose: poseBetween(
       { x: 3.42, y: 1.98, z: 5.38 },
       { x: 3.42, y: 1.00, z: 4.35 },
@@ -606,7 +617,7 @@ export function createRegisterMode(B) {
     if (tx.stage === 'cash-drawer') return 'SORT RECEIVED CASH';
     if (tx.stage === 'cash-tender') return 'CASH PRESENTED';
     if (tx.stage === 'card-entry') return tx.cardEntryError || 'ENTER CARD AMOUNT';
-    if (tx.stage === 'card-ready') return 'INSERT CARD';
+    if (tx.stage === 'card-ready') return 'CLICK THE CARD';
     if (tx.stage === 'card-present') return 'CARD PRESENTED';
     if (unscannedCount(tx) === 0) return 'ALL ITEMS SCANNED';
     return workspace === 'scan' ? 'SCANNING ITEMS' : 'PRODUCTS READY';
@@ -616,14 +627,12 @@ export function createRegisterMode(B) {
     if (!tx) return 'The register is ready for the next customer.';
     if (tx.stage === 'scanning') {
       if (unscannedCount(tx)) {
-        return workspace === 'scan'
-          ? 'Click each product to drop it into the bag.'
-          : 'Open the counter, then click each product to bag it.';
+        return 'Click each product on the counter to ring it up and bag it.';
       }
-      return `Opening the ${preferredPayment() === 'cash' ? 'cash drawer' : 'card reader'} automatically.`;
+      return `The customer is getting their ${preferredPayment() === 'cash' ? 'cash' : 'card'} out.`;
     }
-    if (tx.stage === 'card-present') return 'The card is moving into the reader. No hands are required.';
-    if (tx.stage === 'card-ready') return 'Push the aligned card forward into the chip slot.';
+    if (tx.stage === 'card-present') return 'The customer is handing their card across the counter.';
+    if (tx.stage === 'card-ready') return 'Click the customer’s card — the reader does the rest.';
     if (tx.stage === 'card-entry') return `Use the reader keypad to enter $${totalOf(tx).toFixed(2)}, then press OK.`;
     if (tx.stage === 'card-busy') return 'The card reader is processing the payment.';
     if (tx.stage === 'card-declined') return 'Try a replacement card or switch this transaction to cash.';
@@ -2690,6 +2699,10 @@ export function createRegisterMode(B) {
     setNdc(event);
     ray.setFromCamera(ndc, camera);
     const presentedCash = tx && tx.stage === 'cash-tender' ? tenderMeshes : [];
+    // Counter products are live click targets whenever the order is still
+    // ringing up — clicking the goods IS the interaction, no "Bag Items"
+    // button first.
+    const counterItems = tx && tx.stage === 'scanning' ? loose : [];
     // the drawer money itself is a click target: any part of the $5 stack IS
     // the $5 well, not just the invisible hotspot floating over it
     const candidates = workspace === 'scan'
@@ -2697,7 +2710,7 @@ export function createRegisterMode(B) {
       : workspace === 'cash'
         ? [...presentedCash, ...selectedChangeMeshes, ...slotHotspots,
           ...(drawerMoney ? [drawerMoney] : [])]
-        : presentedCash;
+        : [...presentedCash, ...counterItems];
     // items already dropped into the bag are hidden, not removed — they must
     // not keep swallowing clicks (the raycaster tests invisible meshes too)
     const hits = ray.intersectObjects(candidates, true).filter((hit) => {
@@ -2712,6 +2725,16 @@ export function createRegisterMode(B) {
     let object = primary.object;
     while (object && !object.userData.pick && object.parent) object = object.parent;
     return object && object.userData.pick ? object : null;
+  }
+
+  // Did this click land on the customer's presented card?  The card close-up
+  // pose makes the card a large target; nothing else in that view takes clicks
+  // at the card-ready stage.
+  function cardHitAt(event) {
+    if (!cardMesh) return false;
+    setNdc(event);
+    ray.setFromCamera(ndc, camera);
+    return ray.intersectObject(cardMesh, true).length > 0;
   }
 
   function handleCashPick(object) {
@@ -2775,14 +2798,23 @@ export function createRegisterMode(B) {
         handleMonitorAction(action);
         return true;
       }
-      // the customer's presented cash waits on the counter in this view
       const object = physicalPick(event);
+      // Clicking a counter product from the monitor IS the scan: it rings up
+      // and arcs into the bag in one gesture. With more goods still waiting,
+      // the camera swings to the counter for the rest of the order.
+      if (object && object.userData.kind === 'item') {
+        const moreAfterThis = tx && unscannedCount(tx) > 1;
+        if (bagProduct(object) && moreAfterThis) setWorkspace('scan');
+        return true;
+      }
+      // the customer's presented cash waits on the counter in this view
       if (object) handleCashPick(object);
       return true;
     }
     if (workspace === 'card') {
       if (tx && tx.stage === 'card-entry') handleCardKeypadAt(event);
-      else startInsert(event);
+      // The handed card is the click target: one click runs the whole insert.
+      else if (tx && tx.stage === 'card-ready' && cardHitAt(event)) autoInsertCard();
       return true;
     }
     if (workspace === 'scan') {
@@ -2811,6 +2843,16 @@ export function createRegisterMode(B) {
       feedInsert(event);
       return true;
     }
+    if (workspace === 'card' && tx && tx.stage === 'card-ready' && !insertSnap) {
+      // the handed card glows under the cursor so "click the card" is obvious
+      if (cardHitAt(event)) {
+        hoverBounds.setFromObject(cardMesh);
+        hoverBox.visible = true;
+      } else {
+        hoverBox.visible = false;
+      }
+      return true;
+    }
     if (workspace === 'scan' && !scanMotion) {
       const object = physicalPick(event);
       hoveredItem = object && object.userData.kind === 'item'
@@ -2825,11 +2867,19 @@ export function createRegisterMode(B) {
       updateCashHover(event);
       return true;
     }
-    if (workspace === 'monitor' && tx && tx.stage === 'cash-tender') {
-      // the presented cash glows under the cursor so "click the cash" is obvious
+    if (workspace === 'monitor' && tx) {
+      // counter goods and presented cash glow under the cursor — both are
+      // direct click targets from the monitor view
       const object = physicalPick(event);
-      if (object && object.userData.kind === 'money' && object.userData.from === 'tender') {
-        hoverBounds.setFromObject(object);
+      let target = null;
+      if (object && object.userData.kind === 'item'
+          && !tx.items.find((item) => item.uid === object.userData.uid)?.scanned) {
+        target = itemMeshes.get(object.userData.uid) || object;
+      } else if (object && object.userData.kind === 'money' && object.userData.from === 'tender') {
+        target = object;
+      }
+      if (target) {
+        hoverBounds.setFromObject(target);
         hoverBox.visible = true;
       } else {
         hoverBox.visible = false;
@@ -2908,17 +2958,18 @@ export function createRegisterMode(B) {
     return false;
   }
 
-  // The customer hands the card and it enters the chip slot on its own — no
-  // click, no push, no graded gesture. The player's only card action is typing
-  // the total on the keypad; authorization then always approves (see runCard
-  // force below). startInsert/endInsert remain as a harmless manual fallback.
+  // The customer hands the card across the counter; the PLAYER runs it: one
+  // click on the presented card starts the full insert animation (rise, tilt,
+  // seat in the chip slot) — no drag gesture, no push. After that the player
+  // types the total on the keypad.
   function autoInsertCard() {
     if (!tx || tx.stage !== 'card-ready' || insertSnap || cardU >= 1) return;
     insertSnap = true;
     insertMessage = 'INSERTING';
     if (checkoutFlowState() === 'CardInsertReady') {
-      flowTo('CardInserting', 'card-auto-inserted-no-gesture');
+      flowTo('CardInserting', 'player-clicked-presented-card');
     }
+    hoverBox.visible = false;
     sfx('cardInsert');
   }
 
@@ -2942,9 +2993,10 @@ export function createRegisterMode(B) {
         const presented = presentCard(tx);
         if (presented.ok) {
           if (checkoutFlowState() === 'CardPresented') {
-            flowTo('CardInsertReady', 'card-auto-aligned-at-chip-slot');
+            flowTo('CardInsertReady', 'card-handed-awaiting-player-click');
           }
-          autoInsertCard();
+          // the card now WAITS at the counter for the player's click
+          insertMessage = '';
         }
         sfx('cardTap');
         drawTerm();
@@ -2952,9 +3004,9 @@ export function createRegisterMode(B) {
       } else if (cardPresentationTimer === 0 && tx.stage === 'card-ready'
           && !insertSnap && cardU < 1) {
         if (checkoutFlowState() === 'CardPresented') {
-          flowTo('CardInsertReady', 'replacement-card-auto-aligned');
+          flowTo('CardInsertReady', 'replacement-card-awaiting-player-click');
         }
-        autoInsertCard();
+        insertMessage = '';
       }
     }
 
@@ -3171,7 +3223,12 @@ export function createRegisterMode(B) {
   // the monitor workspace splits by what the player is actually doing there.
   function poseKey() {
     if (workspace === 'scan') return 'scan';
-    if (workspace === 'card') return 'card';
+    if (workspace === 'card') {
+      // while the customer's card is being handed over / waiting for the
+      // player's click, frame the card; tighten onto the keypad after it seats
+      return tx && (tx.stage === 'card-present' || tx.stage === 'card-ready')
+        ? 'cardTake' : 'card';
+    }
     if (workspace === 'cash') return 'cash';
     if (deliveryPhase && deliveryPhase !== 'released') return 'receipt';
     if (activeTab === 'check-in') return 'checkin';

@@ -906,7 +906,10 @@ export function checkInReservation(state, id) {
   res.checkedInAt = state.clock ? state.clock.minutes : null;
   res.currentDestination = 'course';
   res.paymentStatus = 'paid';
-  res.paidAmount = round2(res.balanceDue ?? res.fee);
+  // `??` does not skip NaN — a fee-less or corrupted booking must settle at
+  // zero, not post NaN into the ledger
+  res.paidAmount = round2(Number.isFinite(res.balanceDue) ? res.balanceDue
+    : (Number.isFinite(res.fee) ? res.fee : 0));
   res.balanceDue = 0;
   addRevenue(state, 'greenFees', res.paidAmount);
   return { ok: true, fee: res.paidAmount, res };

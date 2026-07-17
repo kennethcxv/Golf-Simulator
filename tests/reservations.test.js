@@ -89,6 +89,28 @@ test('a booked golfer checks in at the counter and pays the snapshotted fee once
   assert.equal(dueForCheckIn(state).length, 0, 'checked-in golfers leave the due list');
 });
 
+test('a booking with no snapshotted fee settles at zero, never NaN', () => {
+  // `balanceDue ?? fee` does not skip NaN, and round2(undefined) IS NaN — one
+  // such check-in used to poison greenFees, then close-of-books, then cash.
+  const state = newGame('relaxed', 42);
+  const day = today(state) + 1;
+  const { res } = bookSlot(state, day, 480, 'Fee Less');
+  delete res.fee;
+  res.balanceDue = NaN;
+  res.arrivalStatus = 'arrived';
+  update(state, MINUTES_PER_DAY);
+  const cashBefore = state.cash;
+  const pay = checkInReservation(state, res.id);
+  assert.ok(pay.ok, 'the check-in itself still completes');
+  assert.equal(pay.fee, 0, 'nothing to collect settles at zero');
+  assert.equal(state.cash, cashBefore, 'the wallet is untouched');
+  assert.ok(Number.isFinite(state.cash), 'and remains a number');
+  assert.ok(
+    Number.isFinite(state.ledger.today.revenue.greenFees),
+    'the green-fee line stays finite',
+  );
+});
+
 test('unclaimed bookings expire as no-shows and can no longer pay', () => {
   const state = newGame('relaxed', 42);
   const day = today(state) + 1;
