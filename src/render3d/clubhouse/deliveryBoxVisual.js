@@ -23,6 +23,13 @@ const DELIVERY_BOX_VISUALS = Object.freeze({
     layout: 'authored',
     shippingClass: 'MERCHANDISE',
   }),
+  clubbox: Object.freeze({
+    model: 'delivery_golf_club_box',
+    productScale: 0.96,
+    layout: 'authored',
+    shippingClass: 'GOLF CLUBS',
+    alternateProductYaw: false,
+  }),
 });
 
 export const DELIVERY_MODEL_BY_BOX_KIND = Object.freeze(Object.fromEntries(
@@ -202,13 +209,17 @@ function fallbackSockets(root) {
   return slots;
 }
 
-function putProductsInSockets({ root, sockets, sku, merch, mats, resources, productScale }) {
+function putProductsInSockets({
+  root, sockets, sku, merch, mats, resources, productScale, alternateProductYaw = true,
+}) {
   return sockets.map((socket, index) => {
     const built = buildCatalogProductProxy({ sku, merch, mats, resources });
     const product = built.root;
     product.name = `BOX_CONTENT_${String(index + 1).padStart(2, '0')}_${sku ? sku.id : 'unknown'}`;
     product.position.set(0, 0, 0);
-    product.rotation.y = index % 2 ? Math.PI : 0;
+    // Compact soft goods alternate for a readable packed rhythm. Long club
+    // cartons keep both heads at the authored +X foam supports.
+    product.rotation.y = alternateProductYaw && index % 2 ? Math.PI : 0;
     product.scale.multiplyScalar(productScale || 1);
     socket.add(product);
     return product;
@@ -320,6 +331,7 @@ export function createDeliveryBoxVisual({ box, sku, merch, mats }) {
     mats,
     resources,
     productScale: visual.productScale,
+    alternateProductYaw: visual.alternateProductYaw,
   });
   const flatBundle = findNamed(authored, 'BOX_FLAT_BUNDLE');
   if (flatBundle) {

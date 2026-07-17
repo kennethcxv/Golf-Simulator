@@ -32,15 +32,21 @@ export function createOwnedStockResources() {
     });
   }
 
-  function dispose(root) {
+  function disposeGeometries(root) {
     let disposedGeometries = 0;
-    let disposedMaterials = 0;
     root.traverse((object) => {
       if (object.geometry && geometries.has(object.geometry)) {
         object.geometry.dispose();
         geometries.delete(object.geometry);
         disposedGeometries++;
       }
+    });
+    return disposedGeometries;
+  }
+
+  function disposeMaterials(root) {
+    let disposedMaterials = 0;
+    root.traverse((object) => {
       const objectMaterials = Array.isArray(object.material) ? object.material : [object.material];
       for (const objectMaterial of objectMaterials) {
         if (!objectMaterial || !materials.has(objectMaterial)) continue;
@@ -49,7 +55,14 @@ export function createOwnedStockResources() {
         disposedMaterials++;
       }
     });
-    return { geometries: disposedGeometries, materials: disposedMaterials };
+    return disposedMaterials;
+  }
+
+  function dispose(root) {
+    return {
+      geometries: disposeGeometries(root),
+      materials: disposeMaterials(root),
+    };
   }
 
   return {
@@ -57,6 +70,7 @@ export function createOwnedStockResources() {
     material,
     snapshotGeometries,
     ownNewGeometries,
+    disposeGeometries,
     dispose,
   };
 }

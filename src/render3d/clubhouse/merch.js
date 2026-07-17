@@ -48,7 +48,7 @@ const FILES = [
   'checkout_product_sock_pair', 'checkout_product_headcover',
   // Delivery hero carton (tools/blender/build_delivery_hero.py). The cutter is
   // loaded by the first-person tool rig, avoiding a duplicate GLB allocation.
-  'delivery_apparel_box', 'delivery_generic_merchandise_box',
+  'delivery_apparel_box', 'delivery_generic_merchandise_box', 'delivery_golf_club_box',
   'delivery_packing_tape_roll', 'delivery_recycling_station',
 ];
 
@@ -99,6 +99,7 @@ const SLOT = {
   M_Glass: 'glass',
   M_Paper: 'trimPaint',
   M_Kraft: 'kraft',
+  M_Label: 'trimPaint',
 };
 
 // These small authored materials carry meaningful emissive feedback. Keeping the
@@ -168,7 +169,8 @@ export function createMerch(mats) {
       o.userData.slot = (src && src.name) || null;
       // Authoring-only collision and contents volumes are valuable to validators
       // and runtime lookup, but must never become visible shop geometry.
-      if (o.name.startsWith('COL_') || o.name.startsWith('VOLUME_') || o.name === 'ScannerBeam') {
+      if (o.userData?.collision_proxy || o.name.startsWith('COL_') || o.name.startsWith('COLLISION_')
+        || o.name.startsWith('VOLUME_') || o.name === 'ScannerBeam') {
         o.visible = false;
       }
       o.material = Array.isArray(o.material)

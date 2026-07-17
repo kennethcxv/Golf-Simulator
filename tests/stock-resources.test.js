@@ -48,3 +48,22 @@ test('owned stock resources shared within one display are disposed exactly once'
   assert.equal(cachedMaterial.disposeCalls, 0);
   assert.deepEqual(resources.dispose(display), { geometries: 0, materials: 0 });
 });
+
+test('baking may release owned source geometry without invalidating a reused material', () => {
+  const resources = createOwnedStockResources();
+  const sourceGeometry = resources.geometry(disposable());
+  const bakedGeometry = disposable();
+  const reusedMaterial = resources.material(disposable());
+  const source = tree({ isMesh: true, geometry: sourceGeometry, material: reusedMaterial });
+  const snapshot = resources.snapshotGeometries(source);
+  const baked = tree({ isMesh: true, geometry: bakedGeometry, material: reusedMaterial });
+
+  resources.ownNewGeometries(baked, snapshot);
+  assert.equal(resources.disposeGeometries(source), 1);
+  assert.equal(sourceGeometry.disposeCalls, 1);
+  assert.equal(reusedMaterial.disposeCalls, 0, 'baked output still uses this material');
+
+  assert.deepEqual(resources.dispose(baked), { geometries: 1, materials: 1 });
+  assert.equal(bakedGeometry.disposeCalls, 1);
+  assert.equal(reusedMaterial.disposeCalls, 1);
+});

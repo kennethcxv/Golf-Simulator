@@ -42,7 +42,8 @@ export const BOX_KINDS = {
   },
   clubbox: {
     id: 'clubbox', label: 'Long club box',
-    w: 1.32, h: 0.22, d: 0.30, mass: 'medium', tare: 1.3, // a driver is 45 inches of box
+    // Reference 48: a close-fitting 125 x 18 x 18 cm two-club shipping case.
+    w: 1.25, h: 0.18, d: 0.18, mass: 'medium', tare: 1.1,
   },
   bagcarton: {
     id: 'bagcarton', label: 'Golf-bag carton',

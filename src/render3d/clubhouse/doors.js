@@ -325,6 +325,7 @@ export function buildDoors(B) {
 
   function updateDoors(dt, now) {
     const customers = getCustomers();
+    const playerDeliveryBox = walk.active ? carriedBox(state) : null;
     const snaps = [];
     for (const c of customers) {
       const p = c.mesh.position;
@@ -357,7 +358,7 @@ export function buildDoors(B) {
         }
       }
       // arms full of delivery box: the door swings for you when you reach it
-      if (walk.active && playerDist < 1.6 && !d.open && carriedBox(state)) {
+      if (walk.active && playerDist < 1.6 && !d.open && playerDeliveryBox) {
         d.openFor(walk.x, walk.z);
         if (audible && hooks.sfx) hooks.sfx('doorSwing');
       }
@@ -377,8 +378,10 @@ export function buildDoors(B) {
       if (Math.abs(d.angle - prev) > 0.0005) {
         d.hinge.rotation.y = d.angle;
         updateDoorCollider(d);
-        // never sweep through the player: radial push out of the moving slab's arc
-        if (walk.active && Math.abs(d.angle) > 0.05) {
+        // A full delivery box already triggers this door before contact and uses
+        // the live slab collider. The body-only radial correction would otherwise
+        // shove a long carried profile sideways into the opposite jamb.
+        if (walk.active && !playerDeliveryBox && Math.abs(d.angle) > 0.05) {
           const lp = W2L(walk.x, walk.z);
           const dx = lp.x - d.lx;
           const dz = lp.z - d.lz;

@@ -1538,6 +1538,11 @@ export function makeClubhouse(ctx) {
   function bakeStockGroup(group) {
     const sourceGeometries = ownedStockResources.snapshotGeometries(group);
     const baked = merch.bake(group);
+    // bake() clones every mergeable source mesh while reusing its materials.
+    // Release only owned procedural source geometry; cached GLB geometry is not
+    // in the ownership set, live output materials remain valid, and a no-op bake
+    // may safely return the source group itself.
+    if (baked !== group) ownedStockResources.disposeGeometries(group);
     ownedStockResources.ownNewGeometries(baked, sourceGeometries);
     return baked;
   }
@@ -1683,7 +1688,7 @@ export function makeClubhouse(ctx) {
           : id.startsWith('wedge') ? 'head_wedge' : 'head_iron';
       const dir = s.headUp ? -1 : 1;
       const shaft = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.0075, 0.0105, s.len, 10),
+        ownedStockResources.geometry(new THREE.CylinderGeometry(0.0075, 0.0105, s.len, 10)),
         isDriver ? mats.merchDark : mats.merchSteel,
       );
       shaft.position.set(
@@ -1695,7 +1700,8 @@ export function makeClubhouse(ctx) {
       shaft.castShadow = true;
       const gripAlong = s.headUp ? s.len - 0.14 : s.len - 0.10;
       const grip = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.0135, 0.0115, 0.24, 8), mats.merchRubber,
+        ownedStockResources.geometry(new THREE.CylinderGeometry(0.0135, 0.0115, 0.24, 8)),
+        mats.merchRubber,
       );
       grip.position.set(
         s.x + dir * Math.sin(s.lean) * gripAlong,
@@ -2060,11 +2066,19 @@ export function makeClubhouse(ctx) {
 
   function poseCarriedBoxHands(box) {
     const dim = boxDims(box.box || 'carton');
+    const longClubCarton = box.box === 'clubbox';
     for (const hand of carriedBoxHands.children) {
       const side = hand.userData.side;
       if (box.flat) {
-        hand.position.set(side * (dim.w * 0.40), -0.31, -0.86);
-        hand.rotation.set(-0.42, side * 0.10, side * -0.20);
+        const support = longClubCarton ? dim.w * 0.34 : dim.w * 0.40;
+        hand.position.set(side * support, -0.31 - (longClubCarton ? side * 0.055 : 0), -0.91);
+        hand.rotation.set(-0.42, side * 0.10, side * (longClubCarton ? -0.30 : -0.20));
+      } else if (longClubCarton) {
+        // Support the long case inboard of its ends. Its ground-plane diagonal
+        // lets the 1.25 m length lead through receiving doors instead of being
+        // carried broadside; opposing Y/Z offsets keep both palms in contact.
+        hand.position.set(side * (dim.w * 0.19), -0.49 - side * 0.050, -1.30 - side * 0.24);
+        hand.rotation.set(-0.22, side * 0.08, side * -0.34);
       } else {
         hand.position.set(side * (dim.w * 0.5 + 0.018), -0.54, -0.73);
         hand.rotation.set(-0.16, side * 0.12, side * -0.24);
@@ -2073,11 +2087,16 @@ export function makeClubhouse(ctx) {
     carriedBoxHands.visible = true;
   }
 
-  function poseCarriedGoodsHands() {
+  function poseCarriedGoodsHands(profile = 'standard') {
     for (const hand of carriedBoxHands.children) {
       const side = hand.userData.side;
-      hand.position.set(0.10 + side * 0.16, -0.27, -0.66);
-      hand.rotation.set(-0.28, side * 0.16, side * -0.32);
+      if (profile === 'long-clubs') {
+        hand.position.set(side * 0.38, -0.34 - side * 0.075, -0.91);
+        hand.rotation.set(-0.24, side * 0.10, side * -0.34);
+      } else {
+        hand.position.set(0.10 + side * 0.16, -0.27, -0.66);
+        hand.rotation.set(-0.28, side * 0.16, side * -0.32);
+      }
     }
     carriedBoxHands.visible = true;
   }
@@ -2236,13 +2255,15 @@ export function makeClubhouse(ctx) {
         item.position.set((col - 0.5) * 0.22, row * 0.085, row * 0.012);
         item.rotation.y = i % 2 ? 0.08 : -0.05;
         item.scale.multiplyScalar(0.92);
-      } else if (cat === 'clubs') {
-        item = new THREE.Mesh(
-          resources.geometry(new THREE.CylinderGeometry(0.011, 0.011, 0.46, 6)),
-          mats.merchSteel,
-        );
-        item.position.set((i - 2) * 0.03, 0.02, 0);
-        item.rotation.z = 1.45 + i * 0.05;
+      } else if (cat === 'clubs' && sku) {
+        // Carry the same authored sale product that was visible inside the
+        // carton and will land in the club rack; a cylinder cannot communicate
+        // the head, grip, tier identity or honest two-club armful.
+        const built = buildCatalogProductProxy({ sku, merch, mats, resources });
+        item = built.root;
+        item.position.set(0, i * 0.072, (i - 0.5) * 0.036);
+        item.rotation.y = 0;
+        item.scale.multiplyScalar(0.92);
       } else {
         const c = base.clone().offsetHSL(0, 0, (i % 2 ? -0.06 : 0.03));  // alternate shade = a visible seam
         const m = resources.material(new THREE.MeshStandardMaterial({ color: c, roughness: 0.75 }));
@@ -2255,6 +2276,7 @@ export function makeClubhouse(ctx) {
       }
       g.add(item);
     }
+    if (cat === 'clubs') g.userData.deliveryCarryProfile = 'long-clubs';
     return g;
   }
 
@@ -2542,10 +2564,17 @@ export function makeClubhouse(ctx) {
     const cg = carriedGoods(state);
     if (cg) {
       carriedGoodsMesh = makeGoodsMesh(cg);
-      carriedGoodsMesh.position.set(0.10, -0.28, -0.72);   // held in the arms, fully framed low in view
-      carriedGoodsMesh.rotation.x = 0.28;
+      const profile = carriedGoodsMesh.userData.deliveryCarryProfile;
+      if (profile === 'long-clubs') {
+        carriedGoodsMesh.position.set(0, -0.38, -1.06);
+        carriedGoodsMesh.rotation.set(0.05, 0.06, -0.20);
+      } else {
+        carriedGoodsMesh.position.set(0.10, -0.28, -0.72);   // held in the arms, fully framed low in view
+        carriedGoodsMesh.rotation.x = 0.28;
+      }
+      carriedGoodsMesh.userData.deliveryCarryBaseY = carriedGoodsMesh.position.y;
       camera.add(carriedGoodsMesh);
-      poseCarriedGoodsHands();
+      poseCarriedGoodsHands(profile);
     }
 
     const seen = new Set();
@@ -2559,13 +2588,21 @@ export function makeClubhouse(ctx) {
           const view = ensureBoxView(box);
           carriedBoxMesh = view.root;
           carriedBoxMesh.scale.setScalar(1);
+          const longClubCarton = box.box === 'clubbox';
+          carriedBoxMesh.userData.deliveryRuntimeCarryProfile = longClubCarton
+            ? 'long-two-hand-diagonal'
+            : 'medium-two-hand';
           if (box.flat) {
-            carriedBoxMesh.position.set(0, -0.34, -1.18);
-            carriedBoxMesh.rotation.set(1.12, 0.08, 0);
+            carriedBoxMesh.position.set(0, longClubCarton ? -0.28 : -0.34, longClubCarton ? -1.28 : -1.18);
+            carriedBoxMesh.rotation.set(1.12, 0.08, longClubCarton ? -0.14 : 0);
+          } else if (longClubCarton) {
+            carriedBoxMesh.position.set(0, -0.58, -1.30);
+            carriedBoxMesh.rotation.set(0.02, 0.78, -0.16);
           } else {
             carriedBoxMesh.position.set(0, -0.70, -0.92);
             carriedBoxMesh.rotation.set(-0.04, 0.08, 0);
           }
+          carriedBoxMesh.userData.deliveryCarryBaseY = carriedBoxMesh.position.y;
           camera.add(carriedBoxMesh);
           poseCarriedBoxHands(box);
           continue;
@@ -4106,7 +4143,10 @@ export function makeClubhouse(ctx) {
       if (carriedBoxMesh) {
         const carryBob = Math.sin(now * 6.2) * 0.012;
         const carried = carriedBox(state);
-        const flatBaseY = carried?.flat ? -0.34 : -0.70;
+        const configuredBaseY = Number(carriedBoxMesh.userData.deliveryCarryBaseY);
+        const flatBaseY = Number.isFinite(configuredBaseY)
+          ? configuredBaseY
+          : (carried?.flat ? -0.34 : -0.70);
         const dropProgress = recyclingDrop ? recyclingDrop.progress : 0;
         const dropEase = dropProgress * dropProgress * (3 - 2 * dropProgress);
         const drop = dropEase * 0.72;
@@ -4115,7 +4155,8 @@ export function makeClubhouse(ctx) {
       }
       if (carriedGoodsMesh) {
         const goodsBob = Math.sin(now * 6.2) * 0.01;
-        carriedGoodsMesh.position.y = -0.28 + goodsBob;
+        const configuredBaseY = Number(carriedGoodsMesh.userData.deliveryCarryBaseY);
+        carriedGoodsMesh.position.y = (Number.isFinite(configuredBaseY) ? configuredBaseY : -0.28) + goodsBob;
         carriedBoxHands.position.y = goodsBob;
       }
     } else {
@@ -4198,6 +4239,12 @@ export function makeClubhouse(ctx) {
       const box = carriedBox(state);
       if (!box || box.flat) return 0;
       const dim = boxDims(box.box || 'carton');
+      // The long case is carried lengthwise on a 0.78 rad ground-plane
+      // diagonal. Its half-span across a doorway is about 0.51 m, so the 0.53 m
+      // profile protects its physical corners and clears the open hinge leaf.
+      // Treating its full length as a circle makes the receiving route
+      // impossible even though the authored case visibly fits lengthwise.
+      if (box.box === 'clubbox') return 0.53;
       return Math.max(dim.w, dim.d) * 0.5 + 0.16;
     },
     isInside, groundYAt, vacuumAt, vacuumLabelAt,
