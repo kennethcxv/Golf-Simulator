@@ -226,6 +226,8 @@ export function createRegisterMode(B) {
   const { interior, mats, merch, hooks, state, L2W } = B;
   const camera = B.ctx.camera;
   const canvas = B.ctx.canvas || document.querySelector('canvas');
+  const focusOn = B.ctx.focusOn || (() => {});
+  const clearFocus = B.ctx.clearFocus || (() => {});
   const sfx = (name) => { if (hooks.sfx) hooks.sfx(name); };
   const toast = (message, kind) => { if (hooks.toast) hooks.toast(message, kind); };
 
@@ -310,6 +312,16 @@ export function createRegisterMode(B) {
   let selectedWalkInCustomerId = null;
   let checkInPage = 0;
   let postSaleDisplay = null;
+  let restorePointerLock = false;
+  let previousFov = null;
+  let cameraPose = null;
+  let activePoseKey = null;
+  // mouse look-around WITHIN the pose: the cursor's screen position leans the
+  // head (left edge looks left, top looks up), eased so it feels like a neck
+  let lookYaw = 0;
+  let lookPitch = 0;
+  let lookTargetYaw = 0;
+  let lookTargetPitch = 0;
   let enterTimer = 0;
   // receipt/bag delivery sequencing: null | 'receipt-print' | 'receipt-ready'
   // | 'receipt-deliver' | 'bag-deliver' | 'released'
@@ -392,18 +404,102 @@ export function createRegisterMode(B) {
     return true;
   }
 
-  // The register is worked from wherever the player actually stands: under
-  // pointer lock the CROSSHAIR is the pointer (centre of the frame); with the
-  // cursor free (menus, QA drivers) the mouse position is used as-is.
+  function poseBetween(eye, at) {
+    const world = L2W(eye.x, eye.z);
+    const dx = at.x - eye.x;
+    const dy = at.y - eye.y;
+    const dz = at.z - eye.z;
+    const horizontal = Math.hypot(dx, dz) || 1;
+    return {
+      x: world.x,
+      y: interior.position.y + eye.y,
+      z: world.z,
+      yaw: Math.atan2(-dx / horizontal, -dz / horizontal),
+      pitch: Math.atan2(dy, horizontal),
+    };
+  }
+
+  // STATE-SPECIFIC CAMERA PRESETS. One compromised angle cannot serve reading a
+  // reservation, keying a terminal, and counting a drawer. Each checkout state
+  // owns a pose (eye, look-target, fov); transitions are short timed tweens,
+  // and the mouse leans the view around each pose (see updateCamera) so the
+  // cashier can glance left and right without leaving the station.
+  // Eyes sit at STANDING height (~1.7) — the till is worked upright, looking
+  // DOWN at the counter, never chin-on-the-glass.
+  //   overview  – goods centre, readable POS right, customer across the counter.
+  //   checkin   – nearly straight-on, POS dominates the frame.
+  //   scan      – every unscanned product + bag mouth + POS.
+  //   card      – the one physical terminal, keypad clickable, card visible.
+  //   cardTake  – the handed card waiting on the counter + the reader.
+  //   cash      – POS above, open drawer below, both readable at once.
+  //   receipt   – printer, paper, and customer.
+  const POSES = {
+    overview: { pose: poseBetween(
+      { x: 3.02, y: 1.70, z: 5.36 },
+      { x: 3.12, y: 1.22, z: 4.33 },
+    ), fov: 46 },
+    checkin: { pose: poseBetween(
+      { x: 3.42, y: 1.68, z: 5.02 },
+      { x: 3.42, y: 1.44, z: 4.37 },
+    ), fov: 42 },
+    scan: { pose: poseBetween(
+      { x: 2.60, y: 1.72, z: 5.45 },
+      { x: 2.62, y: 1.00, z: 3.95 },
+    ), fov: 54 },
+    card: { pose: poseBetween(
+      { x: 3.00, y: 1.64, z: 4.52 },
+      { x: 3.00, y: 1.08, z: 3.98 },
+    ), fov: 42 },
+    cardTake: { pose: poseBetween(
+      { x: 3.00, y: 1.72, z: 4.90 },
+      { x: 3.00, y: 1.00, z: 4.18 },
+    ), fov: 46 },
+    cash: { pose: poseBetween(
+      { x: 3.42, y: 1.98, z: 5.38 },
+      { x: 3.42, y: 1.00, z: 4.35 },
+    ), fov: 52 },
+    receipt: { pose: poseBetween(
+      { x: 3.35, y: 1.70, z: 5.60 },
+      { x: 3.00, y: 1.02, z: 3.60 },
+    ), fov: 54 },
+  };
+
+  // A timed, eased move between two poses: short, predictable, and stable while
+  // the player is clicking (no perpetual exponential drift under the cursor).
+  const CAMERA_TWEEN_SECONDS = 0.38;
+  let cameraTween = null;
+
+  function lerpPose(a, b, t) {
+    let dy = b.yaw - a.yaw;
+    while (dy > Math.PI) dy -= Math.PI * 2;
+    while (dy < -Math.PI) dy += Math.PI * 2;
+    return {
+      x: a.x + (b.x - a.x) * t,
+      y: a.y + (b.y - a.y) * t,
+      z: a.z + (b.z - a.z) * t,
+      yaw: a.yaw + dy * t,
+      pitch: a.pitch + (b.pitch - a.pitch) * t,
+    };
+  }
+
   function setNdc(event) {
-    if (document.pointerLockElement) {
-      ndc.x = 0;
-      ndc.y = 0;
-      return;
-    }
     const rect = canvas.getBoundingClientRect();
     ndc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     ndc.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+  }
+
+  // how far the head leans with the cursor: enough to glance around the shop
+  // from the till, never enough to lose the station
+  const LOOK_YAW_MAX = 0.34;
+  const LOOK_PITCH_MAX = 0.16;
+
+  function updateLookTarget(event) {
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const nx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const nyRaw = ((event.clientY - rect.top) / rect.height) * 2 - 1;
+    lookTargetYaw = -THREE.MathUtils.clamp(nx, -1, 1) * LOOK_YAW_MAX;
+    lookTargetPitch = -THREE.MathUtils.clamp(nyRaw, -1, 1) * LOOK_PITCH_MAX;
   }
 
   function projectLocal(point) {
@@ -1618,16 +1714,16 @@ export function createRegisterMode(B) {
     drawTerm();
   }
 
-  // MANNING THE REGISTER IS NOT A CUTSCENE. The old mode captured the camera
-  // into fixed poses (eye at counter height — "way too low") and killed
-  // movement. Now the walk controls stay LIVE the whole time: the player
-  // stands at full height, looks and moves freely, and works the register
-  // with the crosshair (pointer-locked) or the mouse cursor (unlocked).
-  // Walking out of arm's reach suspends the desk exactly like Escape does —
-  // a mid-transaction return re-opens the workspace the stage needs.
+  // THE TILL SCREENS YOU IN — the camera glides between the station's staged
+  // poses (monitor, terminal, drawer, counter) exactly as the checkout state
+  // needs, standing at full height, and the mouse leans the view around each
+  // pose so the cashier can glance left and right without leaving the frame.
+  // The cursor is the whole interface; Escape or right-click steps away.
   function enter() {
     if (active) return false;
     active = true;
+    restorePointerLock = !!document.pointerLockElement;
+    previousFov = camera.fov;
     // Re-entering mid-transaction resumes the workspace that stage needs —
     // a suspended cash count re-opens over the drawer, a suspended card
     // payment re-opens at the terminal. Otherwise the drawer/keypad would be
@@ -1643,6 +1739,18 @@ export function createRegisterMode(B) {
     if (checkoutFlowState() === 'WaitingForCashier') {
       flowTo('EnteringCashierMode', 'player-opened-front-desk-monitor');
     }
+    const opening = POSES[poseKey()] || POSES.overview;
+    cameraPose = { ...opening.pose };
+    activePoseKey = poseKey();
+    cameraTween = null;
+    lookYaw = 0;
+    lookPitch = 0;
+    lookTargetYaw = 0;
+    lookTargetPitch = 0;
+    camera.fov = opening.fov;
+    camera.updateProjectionMatrix();
+    focusOn(cameraPose);
+    if (document.pointerLockElement) document.exitPointerLock();
     document.body.classList.add('register-mode');
     drawScreen();
     drawTerm();
@@ -1654,7 +1762,24 @@ export function createRegisterMode(B) {
     recoverInput('front-desk exit');
     active = false;
     setWorkspace('monitor');
+    clearFocus();
     document.body.classList.remove('register-mode');
+    if (previousFov != null && camera.fov !== previousFov) {
+      camera.fov = previousFov;
+      camera.updateProjectionMatrix();
+    }
+    if (restorePointerLock && document.hasFocus() && canvas.requestPointerLock) {
+      setTimeout(() => {
+        try {
+          const promise = canvas.requestPointerLock();
+          if (promise && promise.catch) promise.catch(() => {});
+        } catch (_) {
+          // Browsers may require the next direct user gesture. Normal click-to-look
+          // remains available in main.js if restoration is rejected.
+        }
+      }, 0);
+    }
+    restorePointerLock = false;
   }
 
   function recoverInput() {
@@ -2735,6 +2860,7 @@ export function createRegisterMode(B) {
 
   function onMove(event) {
     if (!active) return false;
+    updateLookTarget(event);   // the cursor leans the view around the pose
     if (workspace === 'card' && insertDrag) {
       feedInsert(event);
       return true;
@@ -3111,20 +3237,66 @@ export function createRegisterMode(B) {
     }
   }
 
-  // The desk works within arm's reach. Wander further and it suspends itself
-  // (same as Escape); the transaction waits and re-opens on return.
-  const DESK_REACH = 2.8;
-  const deskWorld = L2W(REGISTER.monitor.x, REGISTER.monitor.z);
+  // Which preset the current checkout state deserves. Workspaces map directly;
+  // the monitor workspace splits by what the player is actually doing there.
+  function poseKey() {
+    if (workspace === 'scan') return 'scan';
+    if (workspace === 'card') {
+      // while the customer's card is being handed over / waiting for the
+      // player's click, frame the card; tighten onto the keypad after it seats
+      return tx && (tx.stage === 'card-present' || tx.stage === 'card-ready')
+        ? 'cardTake' : 'card';
+    }
+    if (workspace === 'cash') return 'cash';
+    if (deliveryPhase && deliveryPhase !== 'released') return 'receipt';
+    if (activeTab === 'check-in') return 'checkin';
+    return 'overview';
+  }
 
-  function updateDeskReach() {
+  function updateCamera(dt) {
     if (!active) return;
-    const dx = camera.position.x - deskWorld.x;
-    const dz = camera.position.z - deskWorld.z;
-    if (Math.hypot(dx, dz) > DESK_REACH) leave();
+    const key = poseKey();
+    const target = POSES[key] || POSES.overview;
+    if (!cameraPose) {
+      cameraPose = { ...target.pose };
+      activePoseKey = key;
+      camera.fov = target.fov;
+      camera.updateProjectionMatrix();
+    }
+    if (key !== activePoseKey) {
+      // retarget mid-flight from wherever the camera currently is
+      cameraTween = {
+        from: { ...cameraPose },
+        to: target.pose,
+        fovFrom: camera.fov,
+        fovTo: target.fov,
+        t: 0,
+      };
+      activePoseKey = key;
+    }
+    if (cameraTween) {
+      cameraTween.t = Math.min(1, cameraTween.t + dt / CAMERA_TWEEN_SECONDS);
+      const s = THREE.MathUtils.smoothstep(cameraTween.t, 0, 1);
+      cameraPose = lerpPose(cameraTween.from, cameraTween.to, s);
+      const fov = THREE.MathUtils.lerp(cameraTween.fovFrom, cameraTween.fovTo, s);
+      if (Math.abs(fov - camera.fov) > 0.001) {
+        camera.fov = fov;
+        camera.updateProjectionMatrix();
+      }
+      if (cameraTween.t >= 1) cameraTween = null;
+    }
+    // the mouse leans the head around the pose — eased, so it reads as a neck
+    const ease = Math.min(1, dt * 7);
+    lookYaw += (lookTargetYaw - lookYaw) * ease;
+    lookPitch += (lookTargetPitch - lookPitch) * ease;
+    focusOn({
+      ...cameraPose,
+      yaw: cameraPose.yaw + lookYaw,
+      pitch: cameraPose.pitch + lookPitch,
+    });
   }
 
   function update(dt) {
-    updateDeskReach();
     if (enterTimer > 0) {
       enterTimer = Math.max(0, enterTimer - dt);
       if (enterTimer === 0 && checkoutFlowState() === 'EnteringCashierMode') {
@@ -3160,6 +3332,7 @@ export function createRegisterMode(B) {
     updateCashMotions(dt);
     updateReceipt(dt);
     updateDelivery(dt);
+    updateCamera(dt);
   }
 
   function hint() {

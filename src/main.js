@@ -1419,9 +1419,9 @@ window.addEventListener('blur', () => {
 });
 document.addEventListener('pointerlockchange', () => {
   resetCameraInput();
-  // Manning the register no longer forces the cursor out of pointer lock:
-  // the till is worked with the crosshair while walking stays live. (With
-  // the lock dropped — Escape, alt-tab — the cursor works the till instead.)
+  // behind the till the CURSOR is the interface — never let a stray relock
+  // swallow it while the register is active
+  if (regActive() && document.pointerLockElement) document.exitPointerLock();
 });
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) return;

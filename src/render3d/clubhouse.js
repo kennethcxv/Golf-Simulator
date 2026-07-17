@@ -2631,7 +2631,7 @@ export function makeClubhouse(ctx) {
       cart: [],
       targetCartSize: organicPlan.target,
       scanned: 0,
-      patience: 30 + identity.patience * 45,
+      patience: PATIENCE_FULL,   // the 3-minute register clock; browsing never drains it
       awaitingCheckout: false,
       itemMeshes: new Map(),
       checkoutProductResources: createRegisterItemResources(),
@@ -2664,6 +2664,7 @@ export function makeClubhouse(ctx) {
       bagAcceptanceYaw: null,
       impatientBeat: null,
       giveUpHandled: false,
+      reachedRegHead: false,   // the 3-minute register clock arms here, never while browsing
       visitRecorded: false,
     });
     return customers[customers.length - 1];
@@ -2672,10 +2673,15 @@ export function makeClubhouse(ctx) {
   // HOW LONG THEY HAVE BEEN WAITING, shown RESTRAINEDLY — the brief's word. A red bar
   // over a shopper's head in a stylised pro shop is a mobile-game tell. This is a thin
   // ring that fills as their patience burns down, and it only appears once they have
-  // actually been kept waiting: 45 seconds of goodwill costs them nothing, so nothing
-  // is drawn. It goes amber at half and red at a quarter, which is the point at which
+  // actually been kept waiting — early goodwill costs them nothing, so nothing is
+  // drawn. It goes amber at half and red at a quarter, which is the point at which
   // a player who is paying attention still has time to save the sale.
-  const PATIENCE_FULL = 45;
+  //
+  // THE CLOCK ONLY RUNS AT THE REGISTER. A shopper browsing the floor never
+  // "gives up" — the three-minute wait starts when they reach the counter head
+  // with their goods and stand unserved, and the price of blowing it is a bad
+  // review, not a mystery walk-out.
+  const PATIENCE_FULL = 180;
   const patRing = new THREE.RingGeometry(0.10, 0.125, 20, 1, Math.PI / 2, Math.PI * 2);
   function setPatience(c) {
     const frac = clamp(c.patience / PATIENCE_FULL, 0, 1);
@@ -2986,8 +2992,8 @@ export function makeClubhouse(ctx) {
       if (recovered.ok) c.checkoutFlow = recovered.flow;
     }
     const hadCart = surrenderCart(c, { announce: false });
-    if (hadCart && hooks.toast && walk.active && isInside(walk.x, walk.z)) {
-      hooks.toast(`${c.name} gave up waiting at the register and put it back.`, 'warn');
+    if (hadCart && hooks.toast) {
+      hooks.toast(`${c.name} waited 3 minutes at the register, put it back, and left a bad review.`, 'warn');
     }
     c.checkoutPhase = 'leaving';
     // they walked out mid-sale: void it, clear the counter, and put the goods back.
@@ -3450,8 +3456,10 @@ export function makeClubhouse(ctx) {
       // route turns for the door — patience, closing time, any path at all —
       // the goods go back on the display before they take a step. (Paid
       // customers carry a bag, not a cart; their cart emptied at the sale.)
+      // Silent: the register give-up path owns the messaging; this net only
+      // catches structural leavers and should never narrate.
       if (c.cart.length && (stop.kind === 'exit' || stop.kind === 'gone')) {
-        surrenderCart(c);
+        surrenderCart(c, { announce: false });
       }
 
       let tx = stop.x;
@@ -3540,6 +3548,13 @@ export function makeClubhouse(ctx) {
             c.dialogue = `Hi, I'm ${c.fullName}. These are all for me.`;
             say(c.dialogue);
           }
+          // THE THREE-MINUTE CLOCK starts the moment they stand at the register
+          // head — never earlier (browsing costs them nothing), fresh every
+          // time they get here.
+          if (!c.reachedRegHead) {
+            c.reachedRegHead = true;
+            c.patience = PATIENCE_FULL;
+          }
           if (!c.awaitingCheckout) {
             // One product crosses from their hands to the staging mat at a time.
             // Only after the last settles does registerMode take ownership.
@@ -3549,9 +3564,14 @@ export function makeClubhouse(ctx) {
               c.awaitingCheckout = handPlacedItemsToRegister(c);
             }
           }
-          const activelyServed = c.awaitingCheckout
+          // The clock PAUSES only while the cashier is actually at the till
+          // working their sale. A transaction parked open while the player
+          // wanders the shop is still a customer kept waiting. (The old check
+          // skipped isActive(), so a placed customer could never time out —
+          // and a pre-handoff one timed out on the SHOPPING clock instead.)
+          const activelyServed = register.isActive()
             && register.getCustomer() === c && register.hasTx();
-          if (c.awaitingCheckout && !activelyServed) c.patience -= dt;
+          if (!activelyServed) c.patience -= dt;
           setPatience(c);
           if (char) {
             const flowState = c.checkoutFlow && c.checkoutFlow.state;
