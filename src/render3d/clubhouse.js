@@ -3848,6 +3848,10 @@ export function makeClubhouse(ctx) {
       monitorActionPoint: (id) => register.monitorActionPoint(id),
       monitorScreenPoint: (id) => register.monitorScreenPoint(id),
       cardKeyScreenPoint: (label) => register.cardKeyScreenPoint(label),
+      cardXScreenPoint: () => register.cardXScreenPoint(),
+      presentedCashScreenPoint: () => register.presentedCashScreenPoint(),
+      presentedCardScreenPoint: () => register.presentedCardScreenPoint(),
+      cardTerminalLocked: () => register.cardTerminalLocked(),
       monitorHotspots: () => register.monitorHotspots(),
       workspace: () => register.workspace(),
       // development-only diagnostics; never surfaced in player UI

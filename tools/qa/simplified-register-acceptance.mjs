@@ -71,8 +71,13 @@ async function setupFixture(page, mode) {
       shelf: Object.fromEntries(skuIds.map((id) => [id, shop.inventory[id].shelf])),
     };
     const walk = app.scene3d.walk.state;
-    walk.x = 2.80 - 8;
-    walk.z = 5.35 + 228;
+    // Place the player at the staff stand using the clubhouse's LIVE interior
+    // offset. A hardcoded offset goes stale the moment the building's world
+    // placement moves (the course rebuild shifted it ~350yd), which drops the
+    // player out on the course where a turf prop steals the [E] focus.
+    const off = clubhouse.interior.position;
+    walk.x = 2.80 + off.x;
+    walk.z = 5.10 + off.z;
     walk.yaw = 0;
     walk.pitch = -0.18;
     const customer = clubhouse.sendToCounter(skuIds, payment);
@@ -296,7 +301,7 @@ async function insertCardGesture(page, shot, {
     return tx && tx.stage === 'card-ready';
   }, null, { timeout: 7000 });
   // handoff frame: the camera is on the CUSTOMER, the card waits in their hand
-  await waitCamera(page, 'cardTake');
+  await waitCamera(page, 'card'); // workspace stays 'card' across handoff+entry
   // While the card is waiting, the reader is already modal: Escape must NOT
   // leave, and the X must be visible as the only way out.
   const beforeEsc = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.workspace());
@@ -326,11 +331,11 @@ async function insertCardGesture(page, shot, {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'card-ready';
   }, null, { timeout: 7000 });
-  await waitCamera(page, 'cardTake');
+  await waitCamera(page, 'card'); // workspace stays 'card' across handoff+entry
   // click-to-insert: ONE click on the presented card runs the whole insert; the
   // camera follows it up to the raised terminal
-  const cardPt = await projectLocal(page, (await page.evaluate(() => window.__fw.scene3d.clubhouse().register.insertAt())).ready);
-  assert(cardPt.inView, `The presented card is outside the handoff camera: ${JSON.stringify(cardPt)}`);
+  const cardPt = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.presentedCardScreenPoint());
+  assert(cardPt && cardPt.inView, `The presented card is outside the handoff camera: ${JSON.stringify(cardPt)}`);
   await page.mouse.click(cardPt.x, cardPt.y);
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -387,35 +392,19 @@ async function cardRoute(page, shot) {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && (tx.stage === 'card-present' || tx.stage === 'card-ready');
   }, null, { timeout: 7000 });
-  await page.evaluate(() => {
-    window.__fw.scene3d.clubhouse().register.getTx().rng = () => 0;
-  });
   await waitCamera(page, 'card');
   await shot('08-card-presented.png');
+  // one clean run: the reader always approves once the correct total is keyed
+  // (gameplay never declines). insertCardGesture also asserts Escape is blocked,
+  // the X is visible, and the X round-trips before the card is finally run.
   await insertCardGesture(page, shot, {
-    midLabel: '09-card-mid-insert.png',
-    insertedLabel: '09b-card-inserted-zero.png',
+    midLabel: '09-card-handoff.png',
+    insertedLabel: '09b-card-inserted.png',
     amountLabel: '09c-card-amount-entered.png',
     processingLabel: '09d-card-processing.png',
     clickKeypad: true,
     emptyLabel: '09b1-card-empty-amount-error.png',
     wrongLabel: '09b2-card-wrong-amount-error.png',
-  });
-  await page.waitForFunction(() => {
-    const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    return tx && tx.stage === 'card-declined';
-  }, null, { timeout: 7000 });
-  await shot('10-card-declined.png');
-  await waitCamera(page, 'monitor');
-  await page.evaluate(() => {
-    window.__fw.scene3d.clubhouse().register.getTx().rng = () => 0.99;
-  });
-  await monitorClick(page, 'retry-card');
-  await insertCardGesture(page, shot, {
-    midLabel: '11-replacement-card-mid-insert.png',
-    insertedLabel: '11b-replacement-card-inserted-zero.png',
-    amountLabel: '11c-replacement-card-amount-entered.png',
-    processingLabel: '11d-replacement-card-processing.png',
   });
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -443,7 +432,7 @@ async function cashRoute(page, shot) {
   assert(cashFacts.change === 4.28, `Expected $4.28 change, got $${cashFacts.change}.`);
   // the cash is offered IN the customer's hand inside the mixed working frame —
   // the camera only moves once the drawer actually opens
-  const handful = await projectObject(page, { kind: 'money', from: 'tender' });
+  const handful = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.presentedCashScreenPoint());
   assert(handful && handful.inView, 'The presented cash is not visible in the working frame.');
   await shot('08-cash-presented.png');
 
@@ -497,12 +486,14 @@ async function cashRoute(page, shot) {
     }
   }
   await shot('11-correct-change-selected.png');
-  const review = await projectObject(page, { kind: 'cash-review' });
-  assert(review && review.inView, 'Review on Monitor control is not visible.');
-  await page.mouse.click(review.x, review.y);
-  await waitCamera(page, 'monitor');
-  await shot('12-change-review.png');
-  await monitorClick(page, 'confirm-change');
+  // Enter confirms the exact change (the affordance named in the cash hint); the
+  // sale then banks itself and moves to the receipt/bag handover.
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx && ['receipt', 'bagging', 'done'].includes(tx.stage);
+  }, null, { timeout: 6000 });
+  await shot('12-change-confirmed.png');
 }
 
 async function finalSnapshot(page, customerName) {
@@ -656,10 +647,10 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'done';
   }, null, { timeout: 8000 });
-  await waitCamera(page, 'monitor');
-  await shot(mode === 'card' ? '13-ready-to-finalize.png' : '13-ready-to-finalize.png');
-  await monitorClick(page, 'finalize-transaction');
-  await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.getTx(), null, { timeout: 5000 });
+  await shot('13-receipt-and-bag-handover.png');
+  // The sale banks ITSELF once the receipt and bag reach the customer — there is
+  // no finalize click in the automatic flow. Wait for the transaction to clear.
+  await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.getTx(), null, { timeout: 14000 });
   await shot('14-transaction-complete.png');
 
   const final = await finalSnapshot(page, fixture.customer);

@@ -13,10 +13,13 @@
 // height. Frames the upper torso; the counter falls out of the bottom of the shot.
 export function cardHandoffPose(customer, counterTop) {
   const cx = Math.max(2.15, Math.min(3.15, customer.x));
+  // the card is held OUT over the counter at ~z 3.9 (customerHandPoint); aim
+  // between the extended card and the customer's torso so both read, with the
+  // eye high on the staff side to keep the upper body in frame
   return {
-    eye: { x: cx + 0.34, y: 1.60, z: 4.74 },
-    look: { x: cx, y: counterTop + 0.30, z: customer.z + 0.34 },
-    fov: 46,
+    eye: { x: cx + 0.30, y: 1.66, z: 4.98 },
+    look: { x: cx, y: counterTop + 0.26, z: 3.66 },
+    fov: 50,
   };
 }
 

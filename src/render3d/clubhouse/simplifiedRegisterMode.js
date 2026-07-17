@@ -482,9 +482,9 @@ export function createRegisterMode(B) {
     ), fov: 42 },
     scan: MIXED_POSE,
     cash: { pose: poseBetween(
-      { x: 3.42, y: 1.98, z: 5.42 },
-      { x: 3.42, y: 0.98, z: 4.48 },
-    ), fov: 52 },
+      { x: 3.42, y: 2.12, z: 5.78 },
+      { x: 3.42, y: 0.72, z: 4.66 },
+    ), fov: 55 },
   };
 
   // A timed, eased move between two poses: short, predictable, and stable while
@@ -570,10 +570,13 @@ export function createRegisterMode(B) {
 
   function customerHandPoint(y = COUNTER_TOP + 0.06) {
     const at = customerLocalPosition();
+    // the customer reaches OUT over the counter to hand payment across — z sits
+    // just past the counter's front edge (3.7), above the surface, so the card
+    // or cash fan is held clear of the customer's body and their carried goods
     return new THREE.Vector3(
       THREE.MathUtils.clamp(at.x, 2.0, 3.4),
       y,
-      3.66,
+      3.9,
     );
   }
 
@@ -2996,7 +2999,9 @@ export function createRegisterMode(B) {
   function physicalPick(event) {
     setNdc(event);
     ray.setFromCamera(ndc, camera);
-    const presentedCash = tx && tx.stage === 'cash-tender' ? tenderMeshes : [];
+    const presentedCash = tx && tx.stage === 'cash-tender'
+      ? [...tenderMeshes, ...(tenderHandful ? [tenderHandful] : [])]
+      : [];
     // Counter products are live click targets whenever the order is still
     // ringing up — clicking the goods IS the interaction, no "Bag Items"
     // button first.
@@ -3790,8 +3795,28 @@ export function createRegisterMode(B) {
   drawScreen();
   drawTerm();
 
+  // Where the presented cash handful / card project to on screen — stable click
+  // targets for a driver, from the actual mesh world position (not a re-derived
+  // local point that drifts if the register root is offset from the interior).
+  function meshScreenPoint(mesh) {
+    if (!mesh) return null;
+    root.updateMatrixWorld(true);
+    const world = mesh.getWorldPosition(new THREE.Vector3());
+    world.project(camera);
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: rect.left + ((world.x + 1) / 2) * rect.width,
+      y: rect.top + ((-world.y + 1) / 2) * rect.height,
+      inView: world.z >= -1 && world.z <= 1 && Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
+    };
+  }
+  const presentedCashScreenPoint = () => meshScreenPoint(tenderHandful);
+  const presentedCardScreenPoint = () => meshScreenPoint(cardMesh);
+
   return {
     simplified: true,
+    presentedCashScreenPoint,
+    presentedCardScreenPoint,
     root,
     screenMaterial,
     termMaterial,
