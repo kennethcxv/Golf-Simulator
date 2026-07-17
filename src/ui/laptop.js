@@ -145,6 +145,19 @@ const hour12 = (m) => {
   return `${((h + 11) % 12) + 1} ${h >= 12 ? 'PM' : 'AM'}`;
 };
 const pct = (v) => `${Math.round(v * 100)}%`;
+// The ledger feed must visibly reconcile: Amount + prior Balance = Balance. The game-wide
+// formatMoney rounds to whole dollars (right for the HUD, wrong for a bank statement), so
+// money that carries cents shows them here — $82.50 stays $82.50.
+const exactMoney = (v) => {
+  const n = Number(v) || 0;
+  const a = Math.abs(n);
+  const whole = Math.abs(a - Math.round(a)) < 0.005;
+  const body = whole ? Math.round(a).toLocaleString('en-US')
+    : a.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (n < -0.005 ? '-$' : '$') + body;
+};
+// 'Fall' is already short; slicing every season to three letters printed "Fal".
+const seasonShort = (name) => (String(name).length <= 4 ? String(name) : String(name).slice(0, 3));
 
 const reservationBalance = (reservation) => {
   if (reservation.status !== 'booked') return 0;
@@ -1736,11 +1749,11 @@ export function makeLaptop(app, opts) {
       const label = t.kind === 'rev' ? (REV_LABEL[t.key] || t.key) : (EXP_LABEL[t.key] || t.key);
       const desc = t.kind === 'refund' ? `${label} — refunded` : label;
       return el('tr', {},
-        el('td', { text: `${c.seasonName.slice(0, 3)} ${c.dayOfSeason} · ${clock12(c.minuteOfDay)}` }),
+        el('td', { text: `${seasonShort(c.seasonName)} ${c.dayOfSeason} · ${clock12(c.minuteOfDay)}` }),
         el('td', { text: desc }),
         el('td', {}, chip(t.kind === 'exp' ? 'money out' : t.kind === 'refund' ? 'refund' : 'money in', t.kind === 'exp' ? '' : 'ok')),
-        el('td', { class: `lt-num ${t.kind === 'exp' ? 'lt-neg' : 'lt-pos'}`, text: `${t.kind === 'exp' ? '−' : '+'}${formatMoney(t.amt)}` }),
-        el('td', { class: 'lt-num', text: formatMoney(t.bal) }));
+        el('td', { class: `lt-num ${t.kind === 'exp' ? 'lt-neg' : 'lt-pos'}`, text: `${t.kind === 'exp' ? '−' : '+'}${exactMoney(t.amt)}` }),
+        el('td', { class: 'lt-num', text: exactMoney(t.bal) }));
     });
 
     paint(
