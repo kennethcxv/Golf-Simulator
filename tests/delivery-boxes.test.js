@@ -77,6 +77,7 @@ test('opening is physical: cut the tape, open the flaps, take armfuls, flatten t
 
   openFlap(state, box.id);
   openFlap(state, box.id);
+  openFlap(state, box.id);
   assert.ok(flapsOpen(box));
 
   const t1 = takeFromBox(state, box.id);

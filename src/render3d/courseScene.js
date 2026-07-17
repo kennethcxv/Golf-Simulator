@@ -2505,9 +2505,13 @@ export function makeCourseScene(canvas, state) {
     const cutterGroup = heldGroups.boxcutter;
     const cutterVisual = new THREE.Group();
     cutterVisual.name = 'DeliveryBoxCutterVisual';
-    cutterVisual.scale.setScalar(1.35);
+    cutterVisual.scale.setScalar(1);
     cutterGroup.add(cutterVisual);
+    const fallbackRoot = new THREE.Group();
+    fallbackRoot.name = 'DeliveryBoxCutterLoadingFallback';
+    cutterVisual.add(fallbackRoot);
     const fallback = () => {
+      if (fallbackRoot.children.length) return;
       const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd8b23a, roughness: 0.5 });
       const bladeMat = new THREE.MeshStandardMaterial({ color: 0xcdd2d6, roughness: 0.25, metalness: 0.8 });
       const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.14), bodyMat);
@@ -2516,12 +2520,22 @@ export function makeCourseScene(canvas, state) {
       const blade = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.03, 0.05), bladeMat);
       blade.position.set(0, 0.03, -0.085);
       blade.rotation.x = -0.5;
-      cutterVisual.add(handle, slide, blade);
+      fallbackRoot.add(handle, slide, blade);
       cutterGroup.userData.deliveryCutterFallback = true;
+      cutterGroup.userData.deliveryCutterBlade = blade;
+      cutterGroup.userData.deliveryCutterSlider = slide;
     };
+    fallback();
     new GLTFLoader().load(
       'vendor/models/clubhouse/delivery_box_cutter.glb',
       (gltf) => {
+        fallbackRoot.traverse((object) => {
+          if (object.geometry) object.geometry.dispose();
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          for (const material of materials) if (material) material.dispose();
+        });
+        fallbackRoot.clear();
+        cutterGroup.userData.deliveryCutterFallback = false;
         const model = gltf.scene;
         model.name = 'DeliveryBoxCutterAuthored';
         model.traverse((object) => {
@@ -2529,12 +2543,21 @@ export function makeCourseScene(canvas, state) {
           if (object.name.startsWith('COL_')) object.visible = false;
         });
         cutterVisual.add(model);
+        const contact = model.getObjectByName('BLADE_CONTACT');
+        if (contact) {
+          cutterVisual.updateMatrixWorld(true);
+          const contactLocal = new THREE.Vector3();
+          contact.getWorldPosition(contactLocal);
+          cutterVisual.worldToLocal(contactLocal);
+          model.position.sub(contactLocal);
+        }
         cutterGroup.userData.deliveryCutterModel = model;
+        cutterGroup.userData.deliveryCutterContact = contact || null;
         cutterGroup.userData.deliveryCutterBlade = model.getObjectByName('CUTTER_BLADE') || model.getObjectByName('BLADE');
         cutterGroup.userData.deliveryCutterSlider = model.getObjectByName('CUTTER_SLIDER') || model.getObjectByName('SLIDER');
       },
       undefined,
-      fallback,
+      () => {},
     );
     cutterGroup.position.set(0.22, -0.30, -0.5);
     cutterGroup.rotation.set(0.15, -0.2, 0);
@@ -2809,6 +2832,13 @@ export function makeCourseScene(canvas, state) {
     } else if (walkFocus.kind === 'prop') {
       // a prop that has a hold verb is driven per-frame; the tap only fires its one-shot action
       if (isRepeat) return;
+      const requestedTool = walkFocus.prop.tool || null;
+      if (requestedTool && walkTool !== requestedTool && (!walkTool || walkTool === autoTool)) {
+        walkSetTool(requestedTool);
+        autoTool = requestedTool;
+        contextToolRequiresRelease = true;
+        return;
+      }
       if (walkFocus.prop.action) walkFocus.prop.action();
     } else if ((walkFocus.kind === 'turf' || walkFocus.kind === 'hose') && walkFocus.cell && walkHooks.inspectAt) {
       if (!isRepeat) walkHooks.inspectAt(walkFocus.cell.x, walkFocus.cell.y);
@@ -2817,9 +2847,10 @@ export function makeCourseScene(canvas, state) {
 
   // --- HOLD-TO-PROGRESS + CONTEXTUAL TOOL ----------------------------------------------------
   // A prop can expose `hold(dt)` (run the box cutter down the seam, feed the shelf one at a time)
-  // and `tool` (what appears in your hands while you are looking at it). Both are reconciled every
-  // frame from whatever you are focused on, so nothing here is a mode you enter and forget.
-  let autoTool = null;         // a tool equipped BY context, to be taken away again when you look off
+  // and `tool`. The first interaction equips that contextual tool; releasing E
+  // arms the subsequent deliberate hold. Looking away stows it automatically.
+  let autoTool = null;
+  let contextToolRequiresRelease = false;
   let holdActive = false;      // are we mid-hold this frame? (drives the hands' cutting motion)
   let cutterContactBlend = 0;
   let cutterBladeBlend = 0;
@@ -2827,24 +2858,23 @@ export function makeCourseScene(canvas, state) {
   const cutterPathStartWorld = new THREE.Vector3();
   const cutterPathEndWorld = new THREE.Vector3();
   const cutterContactWorld = new THREE.Vector3();
+  const cutterAimWorld = new THREE.Vector3();
   const cutterContactLocal = new THREE.Vector3();
 
   function reconcileAutoTool() {
     const want = (walkFocus && walkFocus.kind === 'prop' && walkFocus.prop.tool) || null;
-    // never fight a tool the player chose by hand (the vacuum, the washer): only manage our own
-    if (want === autoTool) return;
-    if (autoTool && (walkTool === autoTool || walkTool === null)) {
-      walkSetTool(want);       // swap straight from one contextual tool to the next, or to nothing
-    } else if (!walkTool) {
-      walkSetTool(want);
+    if (autoTool && (want !== autoTool || walkTool !== autoTool)) {
+      if (walkTool === autoTool) walkSetTool(null);
+      autoTool = null;
+      contextToolRequiresRelease = false;
     }
-    autoTool = want;
   }
 
   function runHold(dt) {
     holdActive = false;
     if (!walkFocus || walkFocus.kind !== 'prop' || !walkFocus.prop.hold) return;
     if (!walkHeld.has('e')) return;
+    if (contextToolRequiresRelease) return;
     walkFocus.prop.hold(dt);
     holdActive = true;
   }
@@ -2863,14 +2893,14 @@ export function makeCourseScene(canvas, state) {
     if (blade) {
       if (!blade.userData.cutterRetracted) {
         blade.userData.cutterRetracted = blade.position.clone();
-        blade.userData.cutterExtended = blade.position.clone().add(new THREE.Vector3(0, 0, -0.026));
+        blade.userData.cutterExtended = blade.position.clone().add(new THREE.Vector3(0, 0, -0.016));
       }
       blade.position.lerpVectors(blade.userData.cutterRetracted, blade.userData.cutterExtended, cutterBladeBlend);
     }
     if (slider) {
       if (!slider.userData.cutterRetracted) {
         slider.userData.cutterRetracted = slider.position.clone();
-        slider.userData.cutterExtended = slider.position.clone().add(new THREE.Vector3(0, 0, -0.018));
+        slider.userData.cutterExtended = slider.position.clone().add(new THREE.Vector3(0, 0, -0.012));
       }
       slider.position.lerpVectors(slider.userData.cutterRetracted, slider.userData.cutterExtended, cutterBladeBlend);
     }
@@ -2894,8 +2924,13 @@ export function makeCourseScene(canvas, state) {
     heldRoot.worldToLocal(cutterContactLocal);
     cutter.position.lerp(cutterContactLocal, cutterContactBlend);
     if (cutterContactBlend > 0.05) {
-      cutter.lookAt(cutterPathEndWorld);
-      cutter.rotateZ(Math.PI * 0.5);
+      cutterAimWorld.subVectors(cutterPathEndWorld, cutterPathStartWorld).normalize().add(cutterContactWorld);
+      cutter.lookAt(cutterAimWorld);
+      // The authored cutter's broad face is X-by-Z. A quarter-turn here put
+      // that face edge-on to the downward player camera and let the hand hide
+      // the entire handle; retain only a slight natural wrist roll instead.
+      cutter.rotateZ(0.10);
+      cutter.rotateY(0.42); // expose the handle side while the blade-contact origin stays pinned
     }
   }
 
@@ -2904,9 +2939,11 @@ export function makeCourseScene(canvas, state) {
   }
   function walkKeyUp(e) {
     walkHeld.delete(e.key.toLowerCase());
+    if (e.key.toLowerCase() === 'e') contextToolRequiresRelease = false;
   }
   function walkBlur() {
     walkHeld.clear();
+    contextToolRequiresRelease = false;
   }
   // Ignore the first mouse events after (re)acquiring pointer lock. Browsers can
   // deliver a large accumulated movementX/Y in that first event — the classic
@@ -3137,8 +3174,8 @@ export function makeCourseScene(canvas, state) {
     walkFindFocus();
     reconcileAutoTool();   // the box cutter appears when you look at a taped box, and only then
     runHold(dt);           // holding E runs whatever the focused prop exposes as a hold verb
-    updateBoxCutterPose(dt);
     updateHeldFeel(dt);
+    updateBoxCutterPose(dt);
 
     // the pressure washer works against the BUILDING, not the turf: raycast where the player is
     // actually pointing, erode the grime mask at that exact spot, and put the stream on screen
@@ -4292,7 +4329,14 @@ export function makeCourseScene(canvas, state) {
       exit: walkExit,
       update: walkUpdate,
       interact: walkInteract,
-      getFocusLabel: () => (walkFocus ? walkFocus.label : null),
+      getFocusLabel: () => {
+        if (!walkFocus) return null;
+        const requestedTool = walkFocus.kind === 'prop' ? walkFocus.prop.tool : null;
+        if (requestedTool === 'boxcutter' && walkTool !== requestedTool) {
+          return `${walkFocus.label} — tap [E] once to equip the box cutter`;
+        }
+        return walkFocus.label;
+      },
       getFocus: () => walkFocus,
       hooks: walkHooks,
       placeCart: (x, z, yaw) => {

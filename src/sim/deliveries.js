@@ -135,11 +135,9 @@ function migrateBox(box) {
     Array.isArray(box.flapProgress) ? box.flapProgress : box.flaps,
     legacyOpened,
   );
-  // `flaps` is the shipped two-input compatibility mirror; new visuals use all four values above.
-  box.flaps = [
-    Math.min(box.flapProgress[0], box.flapProgress[2]),
-    Math.min(box.flapProgress[1], box.flapProgress[3]),
-  ];
+  // `flaps` remains the shipped two-value compatibility mirror for the two
+  // main panels; new visuals persist all four physical values above.
+  box.flaps = [box.flapProgress[0], box.flapProgress[1]];
   box.openingProgress = clamp01(
     Number.isFinite(box.openingProgress)
       ? box.openingProgress
@@ -437,7 +435,8 @@ export function cutTape(state, id, amount = 1) {
 }
 
 // --- the flaps -----------------------------------------------------------------------------------
-// Two inputs open two opposing pairs, preserving shipped controls while driving four panels.
+// Medium-carton sequence: front main flap, back main flap, then both side
+// flaps. Incremental amounts let the scene author a smooth deterministic arc.
 export function openFlap(state, id, amount = 1) {
   const box = findBox(state, id);
   if (!box) return { ok: false, reason: 'No box there.' };
@@ -446,18 +445,15 @@ export function openFlap(state, id, amount = 1) {
   box.flapProgress = normalizeFlaps(
     Array.isArray(box.flapProgress) ? box.flapProgress : box.flaps,
   );
-  const pairs = [[0, 2], [1, 3]];
-  const i = pairs.findIndex((pair) => pair.some((flap) => box.flapProgress[flap] < 1));
+  const phases = [[0], [1], [2, 3]];
+  const i = phases.findIndex((phase) => phase.some((flap) => box.flapProgress[flap] < 1));
   if (i < 0) return { ok: false, reason: 'All four flaps are open.', done: true };
   const step = Number.isFinite(amount) ? Math.max(0, amount) : 0;
   if (step <= 0) return { ok: false, reason: 'Keep opening the flap.' };
-  for (const flap of pairs[i]) {
+  for (const flap of phases[i]) {
     box.flapProgress[flap] = Math.min(1, box.flapProgress[flap] + step);
   }
-  box.flaps = [
-    Math.min(box.flapProgress[0], box.flapProgress[2]),
-    Math.min(box.flapProgress[1], box.flapProgress[3]),
-  ];
+  box.flaps = [box.flapProgress[0], box.flapProgress[1]];
   box.openingProgress = box.flapProgress.reduce((sum, flap) => sum + flap, 0)
     / box.flapProgress.length;
   advanceLifecycle(box, BOX_LIFECYCLE.OPENING);
@@ -468,7 +464,7 @@ export function openFlap(state, id, amount = 1) {
   return {
     ok: true,
     flap: i,
-    physicalFlaps: [...pairs[i]],
+    physicalFlaps: [...phases[i]],
     progress: box.openingProgress,
     done,
   };

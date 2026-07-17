@@ -81,15 +81,15 @@ async (page) => {
 
   // 3. HOLD E to cut
   await page.keyboard.down('e');
-  await page.waitForTimeout(1800);
+  await page.waitForTimeout(2250);
   await page.keyboard.up('e');
   await page.waitForTimeout(200);
   let b = await ballBox();
   log.push({ step: '3. held E — tape', tape: b.tape, cut: b.tape >= 1 });
 
-  // 4. tap to open each flap
-  await page.keyboard.press('e'); await page.waitForTimeout(250);
-  await page.keyboard.press('e'); await page.waitForTimeout(250);
+  // 4. one normal action starts the deterministic four-flap sequence
+  await page.keyboard.press('e');
+  await page.waitForTimeout(1550);
   b = await ballBox();
   log.push({ step: '4. flaps', flaps: b.flaps, open: b.flaps[0] >= 1 && b.flaps[1] >= 1 });
   await page.screenshot({ path: `${OUT}/loop-3-open.png` });

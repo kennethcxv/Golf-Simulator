@@ -319,7 +319,7 @@ input[type="range"] { accent-color: var(--accent); }
 .shop-prompt {
   position: absolute;
   left: 50%;
-  top: 56%;
+  bottom: 28px;
   transform: translateX(-50%);
   background: rgba(14, 20, 12, 0.85);
   border: 1px solid var(--line);
@@ -500,7 +500,7 @@ input[type="range"] { accent-color: var(--accent); }
 
 .toast-wrap {
   position: absolute;
-  bottom: 90px;
+  bottom: 92px;
   left: 50%;
   transform: translateX(-50%);
   pointer-events: none;

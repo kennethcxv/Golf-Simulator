@@ -47,7 +47,10 @@ export const GRIPS = {
   // the box cutter is a one-handed tool held low and forward, the way you hold a knife you are
   // about to draw toward you down a seam. The recoil is a short draw stroke, not a kick.
   boxcutter: {
-    grip: { pos: [0.06, -0.12, 0.18], rot: [-0.5, -0.2, 0.15] },
+    // The cutter group is anchored at BLADE_CONTACT. Its authored grip point
+    // sits 12.4 cm back along local +Z; this offset wraps the fingers around
+    // that point while leaving the contrasting body readable beside the palm.
+    grip: { pos: [0.035, 0.045, 0.118], rot: [-0.12, 0, 0.12] },
     support: null,
     recoil: 0.06,
   },

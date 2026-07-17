@@ -30,7 +30,7 @@ import {
   tapeCut, tapeUncut, flapsOpen, isEmpty, boxState,
 } from '../sim/deliveries.js';
 import {
-  carriedGoods, stockFixture, storeInBack, homeOf, carrySpeedFactor,
+  carriedGoods, stockFixture, storeInBack, carrySpeedFactor,
 } from '../sim/stocking.js';
 import { boxDims, boxKindFor } from '../data/boxes.js';
 import { pickFromShelf, returnToShelf } from '../sim/checkout.js';
@@ -1094,12 +1094,28 @@ export function makeClubhouse(ctx) {
     truck.rotation.y = 0.6;
     interior.add(truck);
 
-    const bin = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.26, 0.22, 0.6, 10),
-      new THREE.MeshStandardMaterial({ color: 0x4a5258, roughness: 0.7 }),
+    const recyclingStation = new THREE.Group();
+    recyclingStation.name = 'DeliveryRecyclingStation';
+    recyclingStation.position.set(STOCKROOM.bin.x, 0, STOCKROOM.bin.z);
+    recyclingStation.rotation.y = -Math.PI * 0.5;
+    interior.add(recyclingStation);
+    const fallbackBin = new THREE.Mesh(
+      new THREE.BoxGeometry(0.72, 0.82, 0.58),
+      new THREE.MeshStandardMaterial({ color: 0x31543b, roughness: 0.82 }),
     );
-    bin.position.set(STOCKROOM.bin.x, 0.3, STOCKROOM.bin.z);
-    interior.add(bin);
+    fallbackBin.name = 'DeliveryRecyclingStationFallback';
+    fallbackBin.position.y = 0.41;
+    recyclingStation.add(fallbackBin);
+    merch.onReady(() => {
+      if (!recyclingStation.parent) return;
+      const authored = merch.instantiate('delivery_recycling_station');
+      if (!authored) return;
+      fallbackBin.removeFromParent();
+      fallbackBin.geometry.dispose();
+      fallbackBin.material.dispose();
+      authored.name = 'DeliveryRecyclingStationAuthored';
+      recyclingStation.add(authored);
+    });
 
     // receiving pad — deliveries will land here (gravel patch + posts)
     const padWp = L2W(STOCKROOM.padOutside.x, STOCKROOM.padOutside.z);
@@ -2010,7 +2026,9 @@ export function makeClubhouse(ctx) {
   const boxCols = new Map();    // id -> { col, sig } — a set-down box is a real obstacle, tracked here
   const boxViews = new Map();
   const boxOpeningAnimations = new Set();
+  const boxOpeningPhases = new Map();
   const boxFlattenAnimations = new Set();
+  let recyclingDrop = null;
   let boxSig = '';
 
   // Medium-carton carry pose: the carton keeps its real scale and two hands
@@ -2044,8 +2062,13 @@ export function makeClubhouse(ctx) {
     const dim = boxDims(box.box || 'carton');
     for (const hand of carriedBoxHands.children) {
       const side = hand.userData.side;
-      hand.position.set(side * (dim.w * 0.5 + 0.018), -0.54, -0.73);
-      hand.rotation.set(-0.16, side * 0.12, side * -0.24);
+      if (box.flat) {
+        hand.position.set(side * (dim.w * 0.40), -0.31, -0.86);
+        hand.rotation.set(-0.42, side * 0.10, side * -0.20);
+      } else {
+        hand.position.set(side * (dim.w * 0.5 + 0.018), -0.54, -0.73);
+        hand.rotation.set(-0.16, side * 0.12, side * -0.24);
+      }
     }
     carriedBoxHands.visible = true;
   }
@@ -2053,7 +2076,7 @@ export function makeClubhouse(ctx) {
   function poseCarriedGoodsHands() {
     for (const hand of carriedBoxHands.children) {
       const side = hand.userData.side;
-      hand.position.set(0.12 + side * 0.16, -0.39, -0.57);
+      hand.position.set(0.10 + side * 0.16, -0.27, -0.66);
       hand.rotation.set(-0.28, side * 0.16, side * -0.32);
     }
     carriedBoxHands.visible = true;
@@ -2392,6 +2415,7 @@ export function makeClubhouse(ctx) {
   function removeBoxView(id, removeLabel = false) {
     if (removeLabel) {
       boxOpeningAnimations.delete(id);
+      boxOpeningPhases.delete(id);
       boxFlattenAnimations.delete(id);
     }
     const view = boxViews.get(id);
@@ -2452,15 +2476,23 @@ export function makeClubhouse(ctx) {
       const box = boxesOf(state).find((candidate) => candidate.id === id);
       if (!box || box.flat || flapsOpen(box)) {
         boxOpeningAnimations.delete(id);
+        boxOpeningPhases.delete(id);
         continue;
       }
       const result = openFlap(state, id, dt * 1.55);
       if (!result.ok) {
         boxOpeningAnimations.delete(id);
+        boxOpeningPhases.delete(id);
         continue;
       }
+      const priorPhase = boxOpeningPhases.get(id);
+      if (priorPhase != null && priorPhase !== result.flap) sfx('flap');
+      boxOpeningPhases.set(id, result.flap);
       refreshBoxVisual(id);
-      if (result.done) boxOpeningAnimations.delete(id);
+      if (result.done) {
+        boxOpeningAnimations.delete(id);
+        boxOpeningPhases.delete(id);
+      }
     }
     for (const id of [...boxFlattenAnimations]) {
       const box = boxesOf(state).find((candidate) => candidate.id === id);
@@ -2481,6 +2513,21 @@ export function makeClubhouse(ctx) {
     }
   }
 
+  function updateRecyclingDrop(dt) {
+    if (!recyclingDrop) return;
+    const box = boxesOf(state).find((candidate) => candidate.id === recyclingDrop.id);
+    if (!box || !box.flat || box.loc !== 'carried') {
+      recyclingDrop = null;
+      return;
+    }
+    recyclingDrop.progress = Math.min(1, recyclingDrop.progress + dt / 0.72);
+    if (recyclingDrop.progress < 1) return;
+    putDownBox(state, box.id, { x: STOCKROOM.bin.x, z: STOCKROOM.bin.z, ry: 0 });
+    if (recycleBox(state, box.id).ok) say('Cardboard recycled.');
+    recyclingDrop = null;
+    rebuildBoxes();
+  }
+
   function rebuildBoxes() {
     const d = state.shop.deliveries;
     carriedBoxMesh = null;
@@ -2495,8 +2542,8 @@ export function makeClubhouse(ctx) {
     const cg = carriedGoods(state);
     if (cg) {
       carriedGoodsMesh = makeGoodsMesh(cg);
-      carriedGoodsMesh.position.set(0.12, -0.4, -0.62);   // held in the arms, low in frame
-      carriedGoodsMesh.rotation.x = 0.35;
+      carriedGoodsMesh.position.set(0.10, -0.28, -0.72);   // held in the arms, fully framed low in view
+      carriedGoodsMesh.rotation.x = 0.28;
       camera.add(carriedGoodsMesh);
       poseCarriedGoodsHands();
     }
@@ -2512,8 +2559,13 @@ export function makeClubhouse(ctx) {
           const view = ensureBoxView(box);
           carriedBoxMesh = view.root;
           carriedBoxMesh.scale.setScalar(1);
-          carriedBoxMesh.position.set(0, -0.70, -0.92);
-          carriedBoxMesh.rotation.set(-0.04, 0.08, 0);
+          if (box.flat) {
+            carriedBoxMesh.position.set(0, -0.34, -1.18);
+            carriedBoxMesh.rotation.set(1.12, 0.08, 0);
+          } else {
+            carriedBoxMesh.position.set(0, -0.70, -0.92);
+            carriedBoxMesh.rotation.set(-0.04, 0.08, 0);
+          }
           camera.add(carriedBoxMesh);
           poseCarriedBoxHands(box);
           continue;
@@ -2632,18 +2684,20 @@ export function makeClubhouse(ctx) {
         let endLocal;
         let progress;
         if (cut < 0.6) {
-          startLocal = { x: 0, z: dim.d * 0.42 };
-          endLocal = { x: 0, z: -dim.d * 0.42 };
+          // Draw the blade from the far seam toward the player/front label,
+          // matching the authored CUT_PATH and visible tape placement.
+          startLocal = { x: 0, z: -dim.d * 0.42 };
+          endLocal = { x: 0, z: dim.d * 0.42 };
           progress = cut / 0.6;
         } else if (cut < 0.8) {
-          startLocal = { x: 0, z: -dim.d * 0.38 };
-          endLocal = { x: -dim.w * 0.42, z: -dim.d * 0.38 };
+          startLocal = { x: 0, z: dim.d * 0.42 };
+          endLocal = { x: -dim.w * 0.42, z: dim.d * 0.42 };
           progress = (cut - 0.6) / 0.2;
         } else {
           // Continue from the left endpoint across the same top cross-seam.
           // The cutter never teleports across the carton between segments.
-          startLocal = { x: -dim.w * 0.42, z: -dim.d * 0.38 };
-          endLocal = { x: dim.w * 0.42, z: -dim.d * 0.38 };
+          startLocal = { x: -dim.w * 0.42, z: dim.d * 0.42 };
+          endLocal = { x: dim.w * 0.42, z: dim.d * 0.42 };
           progress = (cut - 0.8) / 0.2;
         }
         const worldPoint = (local) => ({
@@ -2690,6 +2744,7 @@ export function makeClubhouse(ctx) {
         if (!flapsOpen(b)) {
           if (!boxOpeningAnimations.has(b.id)) {
             boxOpeningAnimations.add(b.id);
+            boxOpeningPhases.set(b.id, 0);
             sfx('flap');
           }
           return;
@@ -2698,9 +2753,7 @@ export function makeClubhouse(ctx) {
         if (!r.ok) { say(r.reason, 'warn'); return; }
         sfx('product');
         tutorialFlag(state, 'boxCarried');
-        say(r.left > 0
-          ? `${r.taken} × ${name} in your arms — ${r.left} still in the case.`
-          : `${r.taken} × ${name} — the case is empty.`);
+        if (r.left <= 0) say(`${r.taken} × ${name} — the case is empty.`);
         rebuildBoxes();
       },
     });
@@ -2738,8 +2791,10 @@ export function makeClubhouse(ctx) {
         const sku = SHOP_CATALOG.find((s) => s.id === cg.skuId);
         const l = W2L(walk.x, walk.z);
         if (inStockroomBounds(l.x, l.z)) return `Holding ${sku.name} ×${cg.qty} — [E] set them on the backroom shelf`;
-        const home = homeOf(cg.skuId);
-        return `Holding ${sku.name} ×${cg.qty} — carry them to the ${home ? home.title.toLowerCase() : 'shelf'}`;
+        // Outside the stockroom, let the real shelf fixture own the prompt.
+        // This helper follows 0.9 m ahead and otherwise always wins nearest-
+        // focus selection, preventing the player from physically stocking.
+        return null;
       }
       return null;
     },
@@ -2782,6 +2837,7 @@ export function makeClubhouse(ctx) {
       x: wp.x, z: wp.z, r: 1.8,
       label: () => {
         const cb = carriedBox(state);
+        if (recyclingDrop) return 'Recycling — lowering the flattened carton in...';
         if (cb && cb.flat) return 'Recycling — [E] drop the flattened carton in';
         const dd = state.shop.deliveries;
         const flatNear = dd && dd.boxes.some((b) => b.flat && b.loc !== 'carried');
@@ -2790,8 +2846,9 @@ export function makeClubhouse(ctx) {
       action: () => {
         const cb = carriedBox(state);
         if (cb && cb.flat) {
-          putDownBox(state, cb.id, { x: STOCKROOM.bin.x, z: STOCKROOM.bin.z, ry: 0 });
-          if (recycleBox(state, cb.id).ok) { sfx('recycle'); say('Cardboard recycled.'); rebuildBoxes(); }
+          if (recyclingDrop) return;
+          recyclingDrop = { id: cb.id, progress: 0 };
+          sfx('recycle');
           return;
         }
         if (emptyTrash(state).ok) { sfx('recycle'); say('Cardboard recycled — the stockroom breathes again.'); rebuildBoxes(); }
@@ -4034,6 +4091,7 @@ export function makeClubhouse(ctx) {
     register.update(dt);
     updateStockFlights(dt);
     updateBoxLifecycleAnimations(dt);
+    updateRecyclingDrop(dt);
     updateFlicker(dt);
     builder.update();
     if (office.updateLid) office.updateLid(dt);
@@ -4047,12 +4105,17 @@ export function makeClubhouse(ctx) {
       carryProp.z = walk.z - Math.cos(walk.yaw) * 0.9;
       if (carriedBoxMesh) {
         const carryBob = Math.sin(now * 6.2) * 0.012;
-        carriedBoxMesh.position.y = -0.70 + carryBob;
-        carriedBoxHands.position.y = carryBob;
+        const carried = carriedBox(state);
+        const flatBaseY = carried?.flat ? -0.34 : -0.70;
+        const dropProgress = recyclingDrop ? recyclingDrop.progress : 0;
+        const dropEase = dropProgress * dropProgress * (3 - 2 * dropProgress);
+        const drop = dropEase * 0.72;
+        carriedBoxMesh.position.y = flatBaseY + carryBob - drop;
+        carriedBoxHands.position.y = carryBob - drop;
       }
       if (carriedGoodsMesh) {
         const goodsBob = Math.sin(now * 6.2) * 0.01;
-        carriedGoodsMesh.position.y = -0.4 + goodsBob;
+        carriedGoodsMesh.position.y = -0.28 + goodsBob;
         carriedBoxHands.position.y = goodsBob;
       }
     } else {
@@ -4129,6 +4192,7 @@ export function makeClubhouse(ctx) {
     group, interior,
     update, rebuildStock, rebuildReno, refreshCondition, repaintGrime,
     rebuildBoxes,
+    assetsReady: () => merch.isReady(),
     carrySpeedFactor: () => carrySpeedFactor(state),
     carryCollisionRadius: () => {
       const box = carriedBox(state);

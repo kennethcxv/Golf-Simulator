@@ -46,6 +46,9 @@ const FILES = [
   'checkout_product_rangefinder', 'checkout_product_umbrella',
   'checkout_product_stand_bag', 'checkout_product_shoe_pair',
   'checkout_product_sock_pair', 'checkout_product_headcover',
+  // Delivery hero carton (tools/blender/build_delivery_hero.py). The cutter is
+  // loaded by the first-person tool rig, avoiding a duplicate GLB allocation.
+  'delivery_apparel_box', 'delivery_recycling_station',
 ];
 
 // Textured HERO props (Tripo scans, normalised by tools/blender/process_tripo.py).
@@ -99,7 +102,13 @@ const SLOT = {
 
 // These small authored materials carry meaningful emissive feedback. Keeping the
 // imported material preserves that signal without adding a per-instance material.
-const PRESERVE = new Set(['M_Screen', 'M_ScannerBeam', 'M_StatusLED']);
+const PRESERVE = new Set([
+  'M_Screen', 'M_ScannerBeam', 'M_StatusLED',
+  // Delivery cartons need their authored translucent kraft tape and dark
+  // corrugated interior. Mapping these to generic white/charcoal destroys the
+  // material read and makes the hero carton look like a flat legacy prop.
+  'M_tape', 'M_KraftDark',
+]);
 
 // The slots that take a per-item colour. A polo's body is fabric; a golf shoe's
 // upper is LEATHER — tinting only fabric left every shoe on the wall the same

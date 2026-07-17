@@ -32,6 +32,7 @@ function openFully(state, box) {
   assert.ok(cutTape(state, box.id, 1).ok);
   assert.ok(openFlap(state, box.id).ok);
   assert.ok(openFlap(state, box.id).ok);
+  assert.ok(openFlap(state, box.id).ok);
 }
 
 test('hero box follows the legal sealed-to-cut-complete lifecycle with three persisted tape segments', () => {
@@ -62,21 +63,28 @@ test('hero box follows the legal sealed-to-cut-complete lifecycle with three per
   assert.deepEqual(box.tapeSegments, { centre: 1, left: 1, right: 1 });
 });
 
-test('two compatible opening inputs persist progress for all four physical flaps', () => {
+test('front, back, then side opening phases persist all four physical flaps', () => {
   const state = landed();
   const box = boxesOf(state)[0];
   cutTape(state, box.id, 1);
 
   const first = openFlap(state, box.id);
-  assert.deepEqual(first.physicalFlaps, [0, 2]);
-  assert.deepEqual(box.flapProgress, [1, 0, 1, 0]);
+  assert.deepEqual(first.physicalFlaps, [0]);
+  assert.deepEqual(box.flapProgress, [1, 0, 0, 0]);
   assert.deepEqual(box.flaps, [1, 0], 'the shipped two-input mirror remains compatible');
-  assert.equal(box.openingProgress, 0.5);
+  assert.equal(box.openingProgress, 0.25);
   assert.equal(boxLifecycleState(box), BOX_LIFECYCLE.OPENING);
 
   const second = openFlap(state, box.id);
-  assert.deepEqual(second.physicalFlaps, [1, 3]);
-  assert.ok(second.done);
+  assert.deepEqual(second.physicalFlaps, [1]);
+  assert.deepEqual(box.flapProgress, [1, 1, 0, 0]);
+  assert.deepEqual(box.flaps, [1, 1]);
+  assert.equal(box.openingProgress, 0.5);
+  assert.equal(second.done, false);
+
+  const third = openFlap(state, box.id);
+  assert.deepEqual(third.physicalFlaps, [2, 3]);
+  assert.ok(third.done);
   assert.deepEqual(box.flapProgress, [1, 1, 1, 1]);
   assert.equal(box.openingProgress, 1);
   assert.equal(boxLifecycleState(box), BOX_LIFECYCLE.OPEN);

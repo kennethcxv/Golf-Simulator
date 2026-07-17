@@ -8,7 +8,7 @@
 //
 // They exist now:
 //
-//   cut the tape (progressive)  ->  open one flap  ->  open the other  ->  take an armful into
+//   cut the tape (progressive)  ->  front main flap  ->  back main flap  ->  side flaps  ->  take an armful into
 //   YOUR HANDS  ->  walk it to a fixture  ->  hold to stock it, one at a time, until the shelf is
 //   full  ->  keep whatever would not fit  ->  flatten the empty  ->  carry it to the bin  ->
 //   recycle it.
@@ -45,6 +45,12 @@ function landed(skuId = 'balls2', qty = 12) {
   const st = bareShop();
   arriveOrder(st, { id: 1, skuId, qty });
   return st;
+}
+
+function openAllFlaps(st, id) {
+  let result = null;
+  for (let phase = 0; phase < 3; phase += 1) result = openFlap(st, id);
+  return result;
 }
 
 // every unit of a line, wherever it is
@@ -119,9 +125,16 @@ test('the flaps open one at a time, and only once the tape is gone', () => {
   const two = openFlap(st, b.id);
   assert.ok(two.ok);
   assert.equal(two.flap, 1);
-  assert.ok(two.done);
+  assert.equal(two.done, false, 'both main flaps still leave the side pair closed');
+  assert.ok(!flapsOpen(b));
+
+  const three = openFlap(st, b.id);
+  assert.ok(three.ok);
+  assert.equal(three.flap, 2);
+  assert.deepEqual(three.physicalFlaps, [2, 3]);
+  assert.ok(three.done);
   assert.ok(flapsOpen(b));
-  assert.equal(openFlap(st, b.id).ok, false, 'there are only two');
+  assert.equal(openFlap(st, b.id).ok, false, 'all four physical flaps are already open');
 });
 
 // --- the contents come out into your hands ----------------------------------------------------
@@ -130,7 +143,7 @@ test('contents come out into YOUR HANDS — they do not teleport into the backro
   const st = landed('balls2', 12);
   const b = boxesOf(st)[0];
   const before = unitsOf(st, 'balls2');
-  cutTape(st, b.id, 1); openFlap(st, b.id); openFlap(st, b.id);
+  cutTape(st, b.id, 1); openAllFlaps(st, b.id);
 
   const t = takeFromBox(st, b.id);
   assert.ok(t.ok);
@@ -148,7 +161,7 @@ test('contents come out into YOUR HANDS — they do not teleport into the backro
 test('an armful is an armful: a big case takes more than one trip', () => {
   const st = landed('balls2', 12);
   const b = boxesOf(st)[0];
-  cutTape(st, b.id, 1); openFlap(st, b.id); openFlap(st, b.id);
+  cutTape(st, b.id, 1); openAllFlaps(st, b.id);
   const arm = armfulOf(skuById('balls2'));
   assert.ok(arm < 12, 'twelve dozen boxes is not one armful');
 
@@ -169,7 +182,7 @@ test('you cannot carry a box and an armful at the same time, or two different li
   arriveOrder(st, { id: 2, skuId: 'glove1', qty: 8 });
   const [ballBox, gloveBox] = boxesOf(st);
   for (const b of [ballBox, gloveBox]) {
-    cutTape(st, b.id, 1); openFlap(st, b.id); openFlap(st, b.id);
+    cutTape(st, b.id, 1); openAllFlaps(st, b.id);
   }
   takeFromBox(st, ballBox.id);
   assert.equal(pickUpBox(st, gloveBox.id).ok, false, 'not with your arms full of golf balls');
@@ -182,7 +195,7 @@ test('you cannot carry a box and an armful at the same time, or two different li
 test('an empty box stays in the world as an empty box — it does not vanish when you take the last one', () => {
   const st = landed('glove1', 8);
   const b = boxesOf(st)[0];
-  cutTape(st, b.id, 1); openFlap(st, b.id); openFlap(st, b.id);
+  cutTape(st, b.id, 1); openAllFlaps(st, b.id);
   let guard = 20;
   while (b.qty > 0 && guard-- > 0) {
     takeFromBox(st, b.id);
@@ -200,7 +213,7 @@ test('an empty box stays in the world as an empty box — it does not vanish whe
 test('a fixture takes what belongs on it, and tells you where the rest goes', () => {
   const st = landed('cap1', 8);
   const b = boxesOf(st)[0];
-  cutTape(st, b.id, 1); openFlap(st, b.id); openFlap(st, b.id);
+  cutTape(st, b.id, 1); openAllFlaps(st, b.id);
   takeFromBox(st, b.id);
 
   const wrong = stockFixture(st, 'shelf_balls');
@@ -292,7 +305,7 @@ test('flatten only when empty; recycle only when flat; and a flattened box is st
   const b = boxesOf(st)[0];
   assert.equal(flattenBox(st, b.id).ok, false, 'you cannot flatten a full carton');
 
-  cutTape(st, b.id, 1); openFlap(st, b.id); openFlap(st, b.id);
+  cutTape(st, b.id, 1); openAllFlaps(st, b.id);
   let guard = 20;
   while (b.qty > 0 && guard-- > 0) { takeFromBox(st, b.id); storeInBack(st); }
   assert.ok(isEmpty(b));
@@ -383,8 +396,7 @@ test('THE LOOP: pad -> stockroom -> cut -> flaps -> hands -> shelf, and not one 
     cutTape(st, b.id, 0.5);
     assert.equal(unitsOf(st, 'balls1'), total);
     cutTape(st, b.id, 0.5);
-    openFlap(st, b.id);
-    openFlap(st, b.id);
+    openAllFlaps(st, b.id);
 
     let guard = 30;
     while (b.qty > 0 && guard-- > 0) {
