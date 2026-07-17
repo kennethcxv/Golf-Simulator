@@ -1230,6 +1230,172 @@ export function makeCourseScene(canvas, state) {
     freezeStatic(terrain);
   }
 
+  // --- near-camera grass blades ------------------------------------------------
+  // A GPU-instanced tuft field that follows the ground-level camera: real
+  // geometry within ~26yd, surface-gated (short on greens/tees/fairway, tall on
+  // rough/native, none on sand/water/paths), wind-swayed in the vertex shader.
+  // Only alive on foot / in playtest — the overview never pays for it.
+  const GRASS_COUNT = 7000;
+  const GRASS_RADIUS = 22; // yards from camera
+  let grassMesh = null;
+  let grassActive = false;
+  const grassCenter = new THREE.Vector2(9999, 9999);
+
+  function bladeGeometry() {
+    // a tuft: two crossed tapered blades so it reads from every angle
+    // (2 stacked quads each = 8 tris total), pivot at the base
+    const g = new THREE.BufferGeometry();
+    const seg = 2;
+    const halfW = 0.075;
+    const pos = [];
+    const uv = [];
+    const idx = [];
+    let base = 0;
+    for (const ang of [0, Math.PI / 2]) {
+      const ca = Math.cos(ang);
+      const sa = Math.sin(ang);
+      for (let s = 0; s <= seg; s++) {
+        const t = s / seg;
+        const y = t;
+        const w = halfW * (1 - t * 0.8); // taper to the tip
+        const bend = t * t * 0.22; // gentle forward lean
+        pos.push(-w * ca, y, -w * sa + bend, w * ca, y, w * sa + bend);
+        uv.push(0, t, 1, t);
+        if (s < seg) {
+          idx.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+          base += 2;
+        }
+      }
+      base += 2;
+    }
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  }
+
+  function buildGrass() {
+    const geo = bladeGeometry();
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xffffff, roughness: 0.9, metalness: 0, side: THREE.DoubleSide,
+      vertexColors: false, transparent: false,
+    });
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uGrassTime = { value: 0 };
+      grassUniforms = sh.uniforms;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', `#include <common>
+          uniform float uGrassTime;
+          varying float vBladeH;`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          // per-instance world base (from the instance matrix translation)
+          vec3 iBase = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+          float sway = sin(uGrassTime * 1.6 + iBase.x * 0.35 + iBase.z * 0.28) * 0.12
+                     + sin(uGrassTime * 2.7 + iBase.z * 0.5) * 0.05;
+          // bend grows with height up the blade (uv.y)
+          transformed.x += sway * uv.y * uv.y;
+          transformed.z += sway * 0.5 * uv.y * uv.y;
+          vBladeH = uv.y;`);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>
+          varying float vBladeH;`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          // slightly darker at the base, brighter tips — depth in the sward
+          diffuseColor.rgb *= mix(0.78, 1.15, vBladeH);`);
+    };
+    grassMesh = new THREE.InstancedMesh(geo, mat, GRASS_COUNT);
+    grassMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(GRASS_COUNT * 3), 3);
+    grassMesh.frustumCulled = false;
+    grassMesh.castShadow = false;
+    grassMesh.receiveShadow = false;
+    grassMesh.count = 0; // nothing until placed
+    grassMesh.visible = false;
+    scene.add(grassMesh);
+  }
+  let grassUniforms = null;
+
+  // deterministic per-index jitter so blades don't swim when the patch recenters
+  const grassSeed = (i) => {
+    let h = (i * 374761393) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  };
+
+  const _gm = new THREE.Matrix4();
+  const _gq = new THREE.Quaternion();
+  const _gv = new THREE.Vector3();
+  const _gs = new THREE.Vector3();
+  const _ge = new THREE.Euler();
+  const _gc = new THREE.Color();
+
+  // surface → { height(yd), tint } ; null = no grass (sand/water/path/deep native)
+  function grassForZone(z) {
+    switch (z) {
+      case ZONE.GREEN: return { h: 0.09, c: [0.30, 0.56, 0.20] };
+      case ZONE.TEE: return { h: 0.12, c: [0.28, 0.52, 0.18] };
+      case ZONE.FAIRWAY: return { h: 0.17, c: [0.32, 0.58, 0.17] };
+      case ZONE.SEMI: return { h: 0.3, c: [0.28, 0.52, 0.16] };
+      case ZONE.FRINGE: return { h: 0.22, c: [0.26, 0.5, 0.17] };
+      case ZONE.ROUGH: return { h: 0.5, c: [0.26, 0.47, 0.14] };
+      case ZONE.HEAVY: return { h: 0.8, c: [0.4, 0.43, 0.17] };
+      case ZONE.OUT: return { h: 0.62, c: [0.38, 0.42, 0.18] };
+      case ZONE.BED: return { h: 0.2, c: [0.26, 0.4, 0.15] };
+      default: return null; // bunker, water, path, dirt
+    }
+  }
+
+  function updateGrass(camX, camZ, force) {
+    if (!grassActive) {
+      if (grassMesh && grassMesh.visible) { grassMesh.visible = false; grassMesh.count = 0; }
+      return;
+    }
+    if (!grassMesh) buildGrass();
+    // recenter only when the camera has moved a few yards (keeps blades stable)
+    if (!force && Math.hypot(camX - grassCenter.x, camZ - grassCenter.y) < 3.5) return;
+    grassCenter.set(camX, camZ);
+    let n = 0;
+    for (let i = 0; i < GRASS_COUNT; i++) {
+      // low-discrepancy spiral disc so density is even, denser near the camera
+      const a = i * 2.399963; // golden angle
+      const rr = Math.sqrt((i + 0.5) / GRASS_COUNT) * GRASS_RADIUS;
+      const jx = (grassSeed(i * 2 + 1) - 0.5) * 1.4;
+      const jz = (grassSeed(i * 2 + 7) - 0.5) * 1.4;
+      const wx = camX + Math.cos(a) * rr + jx;
+      const wz = camZ + Math.sin(a) * rr + jz;
+      const cx = Math.floor((wx + worldW / 2) / CELL_YD);
+      const cy = Math.floor((wz + worldH / 2) / CELL_YD);
+      if (cx < 0 || cy < 0 || cx >= W || cy >= H) continue;
+      const spec = grassForZone(course.zones[cy * W + cx]);
+      if (!spec) continue;
+      // thin out with distance so the far ring isn't a wall
+      if (rr > GRASS_RADIUS * 0.55 && grassSeed(i * 3 + 2) > 0.62) continue;
+      const wy = heightAt(wx, wz) - 0.03; // roots sit just into the ground
+      const hh = spec.h * (0.75 + grassSeed(i * 5 + 3) * 0.6);
+      const rot = grassSeed(i * 7 + 4) * 6.283;
+      _ge.set(0, rot, 0);
+      _gq.setFromEuler(_ge);
+      const wobble = 0.85 + grassSeed(i * 11 + 9) * 0.4;
+      _gm.compose(_gv.set(wx, wy, wz), _gq, _gs.set(wobble, hh, wobble));
+      grassMesh.setMatrixAt(n, _gm);
+      const b = 0.85 + grassSeed(i * 13 + 6) * 0.3;
+      _gc.setRGB(spec.c[0] * b, spec.c[1] * b, spec.c[2] * b);
+      grassMesh.setColorAt(n, _gc);
+      n++;
+    }
+    grassMesh.count = n;
+    grassMesh.visible = n > 0;
+    grassMesh.instanceMatrix.needsUpdate = true;
+    if (grassMesh.instanceColor) grassMesh.instanceColor.needsUpdate = true;
+  }
+
+  function setGrassActive(on) {
+    grassActive = on;
+    if (on && !grassMesh) buildGrass();
+    if (!on && grassMesh) { grassMesh.visible = false; grassMesh.count = 0; grassCenter.set(9999, 9999); }
+  }
+
   // --- placed non-tree objects: shrubs, rocks, golf props, decorations -----------
   // GLBs from vendor/models/course/<type>.glb are preferred; a procedural
   // factory covers every type so the editor never places an invisible thing.
@@ -3455,6 +3621,25 @@ export function makeCourseScene(canvas, state) {
     if (shaderRefs.uniforms) shaderRefs.uniforms.uTime.value = time;
     for (const w of waterMeshes) {
       w.material.uniforms.time.value = time * 0.55;
+    }
+    // near-camera grass: alive whenever the camera is low (on foot, in
+    // playtest, or a tee/green ground view) — the overview never pays for it
+    let groundLevel = walk.active;
+    let gx = walk.x;
+    let gz = walk.z;
+    if (!groundLevel) {
+      const camAbove = camera.position.y - heightAt(camera.position.x, camera.position.z);
+      if (camAbove < 14) {
+        groundLevel = true;
+        // look a little ahead of the camera so the field sits in view, not behind
+        gx = camera.position.x - Math.sin(rig.yaw || 0) * 8;
+        gz = camera.position.z - Math.cos(rig.yaw || 0) * 8;
+      }
+    }
+    if (groundLevel !== grassActive) setGrassActive(groundLevel);
+    if (grassActive) {
+      updateGrass(gx, gz, false);
+      if (grassUniforms) grassUniforms.uGrassTime.value = time;
     }
     if (st) updateGolfers(dtMs / 1000, st);
     if (st) updateRain(dtMs / 1000, st.weather);

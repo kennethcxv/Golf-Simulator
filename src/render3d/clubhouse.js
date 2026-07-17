@@ -1842,33 +1842,35 @@ export function makeClubhouse(ctx) {
       if (f.kind === 'feature') {
         const cat = state.shop.featureCategory;
         const g = new THREE.Group();
-        const catSkus = SHOP_CATALOG.filter((s) => s.cat === cat);
-        const total = catSkus.reduce((a, s) => a + (inv[s.id] ? inv[s.id].shelf : 0), 0);
+        // Real product proxies of the featured category's in-stock lines — the SAME
+        // Blender family the register belt and the apparel table use — instead of the
+        // category-coloured cubes this used to stack (a feature of golf balls read as a
+        // pile of plain white boxes). Round-robin across the in-stock SKUs for variety.
+        const inStock = SHOP_CATALOG.filter((s) => s.cat === cat && inv[s.id] && inv[s.id].shelf > 0);
+        const total = inStock.reduce((a, s) => a + inv[s.id].shelf, 0);
         const show = Math.min(total, 8);
-        const fm = ownedStockResources.material(new THREE.MeshStandardMaterial({
-          color: CAT_COLORS[cat] || 0x999999,
-          roughness: 0.6,
-        }));
         const TOP_SPOTS = [[-0.45, -0.20], [0, -0.20], [0.45, -0.20], [-0.45, 0.20], [0, 0.20], [0.45, 0.20]];
         const LOW_SPOTS = [[-0.45, 0], [0.45, 0]];
-        for (let i = 0; i < show; i++) {
+        for (let i = 0; i < show && inStock.length; i++) {
+          const sku = inStock[i % inStock.length];
           const onTop = i < TOP_SPOTS.length;
           const [sx, sz] = onTop ? TOP_SPOTS[i] : LOW_SPOTS[i - TOP_SPOTS.length];
-          const item = new THREE.Mesh(
-            ownedStockResources.geometry(new THREE.BoxGeometry(0.16, 0.12, 0.14)),
-            fm,
-          );
-          item.position.set(sx, (onTop ? 0.75 : 0.294) + 0.061, sz);
-          item.rotation.y = ((i % 3) - 1) * 0.25;
+          const built = buildCatalogProductProxy({ sku, merch, mats, resources: ownedStockResources });
+          const item = built.root;
+          item.scale.setScalar(0.9);
+          item.position.set(sx, onTop ? 0.751 : 0.295, sz);
+          item.rotation.y = ((i % 3) - 1) * 0.28;
+          item.traverse((o) => { if (o.isMesh) o.castShadow = true; });
           g.add(item);
         }
-        const tent = new THREE.Mesh(
+        // a small angled "featured" card at the back of the deck
+        const sign = new THREE.Mesh(
           ownedStockResources.geometry(new THREE.BoxGeometry(0.3, 0.16, 0.02)),
           ownedStockResources.material(new THREE.MeshStandardMaterial({ color: 0x1f8a34, roughness: 0.8 })),
         );
-        tent.position.set(0, 0.83, 0);
-        tent.rotation.x = -0.2;
-        g.add(tent);
+        sign.position.set(0, 0.83, -0.02);
+        sign.rotation.x = -0.2;
+        g.add(sign);
         g.position.copy(anchor.position);
         g.rotation.copy(anchor.rotation);
         stockGroup.add(g);
