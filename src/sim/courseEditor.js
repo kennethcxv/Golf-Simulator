@@ -20,6 +20,14 @@ import { paintPathCells, splinePoints } from './courseShaping.js';
 import { turfOnZonesChanged } from './turf.js';
 import { spend } from './economy.js';
 
+// the tall-canopy flora species (for tree counting in stats); matches the
+// renderer's TREE_SPECIES set plus the legacy Kenney aliases
+const TREE_OBJECT_TYPES = new Set([
+  'oak_a', 'oak_b', 'maple_a', 'birch_a', 'shade_a', 'flower_a', 'fill_a', 'fill_b',
+  'pine_a', 'pine_b', 'spruce_a', 'cedar_a',
+  'tree_default', 'tree_oak', 'tree_detailed', 'tree_fat', 'tree_pineDefaultA', 'tree_pineRoundB',
+]);
+
 const ZONE_COST_KEY = {
   [ZONE.OUT]: 'out',
   [ZONE.ROUGH]: 'rough',
@@ -989,7 +997,7 @@ export function courseStats(state, session = null) {
   const holes = course.holes.filter((h) => h.tee && h.pin);
   const totalYd = holes.reduce((a, h) => a + holeDistanceYd(h), 0);
   const totalPar = holes.reduce((a, h) => a + holePar(h), 0);
-  const treeCount = course.objects.filter((o) => o.type.startsWith('tree_')).length;
+  const treeCount = course.objects.filter((o) => TREE_OBJECT_TYPES.has(o.type)).length;
   // difficulty: length + hazards + green size pressure, 1..5 stars
   const bunkerCells = counts[ZONE.BUNKER] || 0;
   const waterCells = counts[ZONE.WATER] || 0;

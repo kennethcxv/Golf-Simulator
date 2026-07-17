@@ -17,6 +17,7 @@ import {
 import {
   buildStartingCourse, paintDisk, paintCorridor, shapeElevation, flattenUnder,
 } from './startingCourse.js';
+import { designCourse } from './courseArchitect.js';
 import {
   paintShapedCorridor, fairwayProfile, paintGreenComplex, paintTeeBox,
   paintBunkerBlob, shapeHoleElevation, finishCourse,
@@ -359,7 +360,22 @@ function buildSerpentineCourse(property, rng) {
 
 export function buildPropertyCourse(property) {
   const rng = makeRng(property.seed);
-  if (property.layout.kind === 'willow') return buildStartingCourse(rng);
+  // nine-hole properties are architect-designed vector courses now — one
+  // builder, feature levers mapped from the archetype so a pristine parkland
+  // and a modest muni come out genuinely different. The big 18-hole estates
+  // still come from the serpentine painter (legacy render path).
+  if (property.size <= 9) {
+    const L = property.layout;
+    const isWillow = L.kind === 'willow';
+    return designCourse(rng, {
+      jitter: isWillow ? 0.35 : 0.7,
+      elevAmp: L.elevAmp ?? 1,
+      bunkerBudget: isWillow ? Infinity : (L.bunkers ?? 6),
+      water: isWillow ? true : (L.ponds ?? 1) > 0,
+      greenSizeMul: isWillow ? 1 : clamp((L.greenR ?? 1.9) / 1.9, 0.72, 1.35),
+      moundMul: isWillow ? 1 : clamp((L.elevAmp ?? 1) * 0.9, 0.2, 1.4),
+    });
+  }
   return buildSerpentineCourse(property, rng);
 }
 

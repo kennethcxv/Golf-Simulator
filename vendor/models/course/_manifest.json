@@ -1,4 +1,22 @@
 {
-  "comment": "GLBs present in this folder, by object type. The renderer only attempts to load types listed here; everything else uses its procedural stand-in. Add the filename stem when you drop in a real model.",
-  "available": []
+  "comment": "GLBs present in this folder, by object type. The renderer only attempts to load types listed here; everything else uses its procedural stand-in. Add the filename stem when you drop in a real model. Built by tools/blender/build_course_props.py (metres, base on Z=0).",
+  "available": [
+    "flagstick",
+    "cup_flag_base",
+    "tee_marker_gold",
+    "tee_marker_silver",
+    "tee_marker_blue",
+    "tee_marker_red",
+    "tee_sign",
+    "yardage_marker",
+    "ball_washer",
+    "bench_course",
+    "trash_course",
+    "rake_prop",
+    "bridge_path",
+    "stake_boundary",
+    "sign_directional",
+    "divot_box",
+    "bell_post"
+  ]
 }

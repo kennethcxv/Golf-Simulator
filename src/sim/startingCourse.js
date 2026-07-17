@@ -8,6 +8,7 @@
 
 import { ZONE, HOLE_STATUS } from './constants.js';
 import { makeCourse, setZone, getZone, addHole, inBounds, idx } from './course.js';
+import { designCourse } from './courseArchitect.js';
 import { clamp } from '../core/utils.js';
 import {
   paintShapedCorridor, fairwayProfile, paintGreenComplex, paintTeeBox,
@@ -113,7 +114,14 @@ export function flattenUnder(course, x0, y0, w, h) {
   }
 }
 
+// The flagship starter: a fully vector-designed parkland nine. The old
+// cell-painted generator below survives as buildLegacyStartingCourse for
+// tests that exercise the painted pipeline.
 export function buildStartingCourse(rng) {
+  return designCourse(rng, { jitter: 0.35 });
+}
+
+export function buildLegacyStartingCourse(rng) {
   const course = makeCourse();
   shapeElevation(course, rng);
   shapeHoleElevation(course, HOLES, rng);

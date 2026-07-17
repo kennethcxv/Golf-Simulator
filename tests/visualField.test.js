@@ -4,8 +4,14 @@ import { ZONE } from '../src/sim/constants.js';
 import { newGame } from '../src/sim/state.js';
 import { getZone } from '../src/sim/course.js';
 import {
-  makeVisualField, computeVisualField, updateVisualFieldRegion, fieldZoneAt, FIELD_SCALE,
+  makeVisualField, computeVisualField, updateVisualFieldRegion, fieldZoneAt,
 } from '../src/render3d/visualField.js';
+import { ensurePaint } from '../src/sim/courseVec.js';
+
+// the field stores interleaved (zone, dist) byte pairs
+function zoneAtTexel(field, tx, ty) {
+  return field.data[(ty * field.w + tx) * 2];
+}
 
 function builtField(seed = 4242) {
   const st = newGame('relaxed', seed);
@@ -16,11 +22,13 @@ function builtField(seed = 4242) {
 
 test('field has the expected hi-res dimensions and only valid zone ids', () => {
   const { st, field } = builtField();
-  assert.equal(field.w, st.course.w * FIELD_SCALE);
-  assert.equal(field.h, st.course.h * FIELD_SCALE);
-  assert.ok(field.w >= 960, 'meets the ≥1024-class visual mask target for the property');
+  assert.equal(field.w, st.course.w * field.scale);
+  assert.equal(field.h, st.course.h * field.scale);
+  // vector courses rasterize at 16 texels/cell (1 per half-yard) → 1920 wide,
+  // comfortably past the ≥1024-class visual-mask target
+  assert.ok(field.w >= 1024, 'meets the ≥1024-class visual mask target for the property');
   const maxId = Math.max(...Object.values(ZONE));
-  for (let i = 0; i < field.data.length; i += 97) {
+  for (let i = 0; i < field.data.length; i += 2 * 97) {
     assert.ok(field.data[i] <= maxId, `texel ${i} holds invalid zone ${field.data[i]}`);
   }
 });
@@ -28,7 +36,7 @@ test('field has the expected hi-res dimensions and only valid zone ids', () => {
 test('field generation is deterministic', () => {
   const a = builtField(777).field;
   const b = builtField(777).field;
-  assert.deepEqual(Array.from(a.data.slice(0, 50000)), Array.from(b.data.slice(0, 50000)));
+  assert.deepEqual(Array.from(a.data.slice(0, 100000)), Array.from(b.data.slice(0, 100000)));
 });
 
 test('surface coverage is preserved: cell centers mostly keep their zone class', () => {
@@ -55,7 +63,7 @@ test('greens and water survive smoothing (small high-priority shapes are not eat
     assert.equal(z, ZONE.GREEN, `hole pin at (${hole.pin.x},${hole.pin.y}) sits on visual green, got ${z}`);
   }
   let waterTexels = 0;
-  for (let i = 0; i < field.data.length; i += 13) {
+  for (let i = 0; i < field.data.length; i += 2 * 13) {
     if (field.data[i] === ZONE.WATER) waterTexels++;
   }
   assert.ok(waterTexels > 100, `the pond exists in the visual field (${waterTexels} sampled texels)`);
@@ -64,47 +72,46 @@ test('greens and water survive smoothing (small high-priority shapes are not eat
 test('boundaries are smooth: fairway edges vary at sub-cell resolution', () => {
   const { st, field } = builtField();
   const c = st.course;
-  // walk a horizontal texel scanline band through hole 1's corridor and record
-  // where fairway→non-fairway transitions happen; cell-locked edges would only
-  // ever land on multiples of FIELD_SCALE
+  // walk a horizontal texel scanline band across the course and record where
+  // fairway→non-fairway transitions happen; cell-locked edges would only ever
+  // land on multiples of the field scale
   const h1 = c.holes[0];
-  const yTex = Math.round(((h1.tee.y + h1.pin.y) / 2) * FIELD_SCALE);
+  const yTex = Math.round(((h1.tee.y + h1.pin.y) / 2) * field.scale);
   const offsets = new Set();
   let transitions = 0;
-  for (let row = -12; row <= 12; row++) {
+  for (let row = -40; row <= 40; row++) {
     const ty = yTex + row;
     if (ty < 1 || ty >= field.h) continue;
-    let prev = field.data[ty * field.w];
+    let prev = zoneAtTexel(field, 0, ty);
     for (let tx = 1; tx < field.w; tx++) {
-      const cur = field.data[ty * field.w + tx];
+      const cur = zoneAtTexel(field, tx, ty);
       if ((prev === ZONE.FAIRWAY) !== (cur === ZONE.FAIRWAY)) {
         transitions++;
-        offsets.add(tx % FIELD_SCALE);
+        offsets.add(tx % field.scale);
       }
       prev = cur;
     }
   }
   assert.ok(transitions > 10, `scanlines cross fairway edges (${transitions})`);
-  assert.ok(offsets.size >= FIELD_SCALE - 1, `edge positions use nearly all sub-cell offsets (${offsets.size}/${FIELD_SCALE}) — not cell-locked`);
+  assert.ok(offsets.size >= field.scale - 2, `edge positions use nearly all sub-cell offsets (${offsets.size}/${field.scale}) — not cell-locked`);
 });
 
 test('the first cut and fringe render as NARROW bands, not 8-yd donuts', () => {
   const { field } = builtField();
   // measure the run length of consecutive SEMI texels along scanlines: the
-  // visual first cut should typically be under a cell wide (8 texels)
+  // visual first cut should typically be about a cell wide or less. At 16
+  // texels/cell a 1.4-yd band is ~3 texels; the diagonal-aware cap is 24.
   let runs = 0;
   let overwide = 0;
   for (let ty = 0; ty < field.h; ty += 5) {
     let run = 0;
     for (let tx = 0; tx <= field.w; tx++) {
-      const z = tx < field.w ? field.data[ty * field.w + tx] : -1;
+      const z = tx < field.w ? zoneAtTexel(field, tx, ty) : -1;
       if (z === ZONE.SEMI) run++;
       else {
         if (run > 0) {
           runs++;
-          // horizontal runs over-read oblique bands (a 6-yd band crossed at
-          // 30° spans 12 texels), so the cap is diagonal-aware
-          if (run > 12) overwide++;
+          if (run > 24) overwide++;
         }
         run = 0;
       }
@@ -117,9 +124,11 @@ test('the first cut and fringe render as NARROW bands, not 8-yd donuts', () => {
 test('dirty-rect update equals a full rebuild over the edited region', () => {
   const { st, field } = builtField();
   const c = st.course;
-  // paint a green blob in open ground, then update only the region
+  // paint a freeform blob via the paint layer, then update only the region;
+  // (vector courses derive the field from vec + paint, so edit the paint layer)
+  const paint = ensurePaint(c);
   for (let y = 30; y <= 33; y++) {
-    for (let x = 64; x <= 68; x++) c.zones[y * c.w + x] = ZONE.GREEN;
+    for (let x = 64; x <= 68; x++) paint[y * c.w + x] = ZONE.GREEN;
   }
   updateVisualFieldRegion(c, field, 64, 30, 68, 33);
   const fresh = makeVisualField(c);

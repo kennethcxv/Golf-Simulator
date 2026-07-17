@@ -1,31 +1,31 @@
 // GOLF EMPIRE — the high-resolution VISUAL surface field.
 //
-// The 120×80 simulation grid stays authoritative for gameplay (turf, costs,
-// classification, saves). This module derives what the RENDERER shows: a
-// categorical field at FIELD_SCALE texels per cell (8 → one texel per yard)
-// whose boundaries are smooth, curved, and organically warped instead of
-// stepping at 8-yard cells.
+// Two sources, one output shape:
 //
-// Method: for each hi-res texel, its (domain-warped) position gathers the
-// surrounding simulation cells; every zone accumulates a compact smooth-kernel
-// score shaped by a per-zone sigma (edge reach) and weight (priority). The
-// argmax zone wins the texel. Blend widths between surfaces fall out of the
-// sigma/weight table: tight zones (green, tee, bunker, water) keep crisp
-// shapes, band zones (fringe, first cut) get squeezed into narrow collars,
-// broad zones (rough, native) feather wide. Deterministic — hash noise only.
+//  · VECTOR courses (course.vec — the architect/editor design): the field is
+//    rasterized straight from the authored splines by sim/courseVec.js at
+//    VEC_SCALE texels per cell (16 → one texel per HALF yard), with a signed
+//    boundary-distance channel for shader edge treatments (bunker lips,
+//    collar shading). This is the production path.
+//
+//  · LEGACY grid courses (old saves, the big 18-hole estates): the original
+//    kernel-argmax smoothing over the 8-yd sim cells at 8 texels per cell,
+//    distance channel flat. Nothing old renders worse than it did.
+//
+// The field object: { w, h, scale, data: Uint8Array(w*h*2) } — interleaved
+// (zone, dist) byte pairs, uploadable directly as an RG texture.
+// dist: 128 = on the boundary, ±4 cells range in 1/32-cell steps.
 //
 // Pure data in, pure data out: no three.js, no DOM. Unit-tested headlessly.
 
 import { ZONE } from '../sim/constants.js';
+import { makeField, rasterizeRect } from '../sim/courseVec.js';
 
-export const FIELD_SCALE = 8; // texels per simulation cell edge (8 → 1 yd)
+export const FIELD_SCALE = 8;   // legacy kernel path: 1 texel per yard
+export const VEC_SCALE = 16;    // vector path: 1 texel per half yard
 
-// kernel radius in cells around the warped sample point
-const REACH = 2;
+// --- legacy kernel table (unchanged from the resolution pass) -----------------
 
-// sigma: how far a zone's influence feathers (cells). weight: argmax priority
-// (>1 grows into neighbors, <1 gets squeezed thin). Together they implement
-// the spec's per-boundary blend widths.
 const KERNEL = new Array(16).fill(null);
 KERNEL[ZONE.OUT] = { sigma: 1.2, weight: 0.92 };
 KERNEL[ZONE.ROUGH] = { sigma: 1.05, weight: 1.0 };
@@ -41,11 +41,9 @@ KERNEL[ZONE.DIRT] = { sigma: 0.8, weight: 1.05 };
 KERNEL[ZONE.BED] = { sigma: 0.7, weight: 1.25 };
 KERNEL[ZONE.SEMI] = { sigma: 0.75, weight: 0.6 }; // first cut: a narrow mown step
 
-// precomputed 1/(2σ²)-style factors for the compact kernel
 const INV = KERNEL.map((k) => (k ? 1 / (2.2 * k.sigma * 2.2 * k.sigma) : 0));
 const WEIGHT = KERNEL.map((k) => (k ? k.weight : 0));
-
-// --- deterministic value noise (same family as the renderer's hashes) --------
+const REACH = 2;
 
 function hash2(x, y) {
   let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263)) | 0;
@@ -54,7 +52,6 @@ function hash2(x, y) {
   return (h >>> 0) / 4294967296;
 }
 
-// smooth value noise over cell coords (bilinear-blended lattice hashes)
 function vnoise(x, y, seed) {
   const xi = Math.floor(x);
   const yi = Math.floor(y);
@@ -69,7 +66,6 @@ function vnoise(x, y, seed) {
   return (a + (b - a) * sx) + ((c + (d - c) * sx) - (a + (b - a) * sx)) * sy;
 }
 
-// organic domain warp: two octaves, ±~0.75 cells at the low octave
 function warp(fx, fy, out) {
   const w1x = vnoise(fx * 0.52, fy * 0.52, 101) - 0.5;
   const w1y = vnoise(fx * 0.52, fy * 0.52, 907) - 0.5;
@@ -79,36 +75,45 @@ function warp(fx, fy, out) {
   out.y = fy + w1y * 1.15 + w2y * 0.4;
 }
 
-// --- field construction ---------------------------------------------------------
+// --- construction ---------------------------------------------------------------
 
 export function fieldDims(course) {
-  return { w: course.w * FIELD_SCALE, h: course.h * FIELD_SCALE };
+  const s = course.vec ? VEC_SCALE : FIELD_SCALE;
+  return { w: course.w * s, h: course.h * s, scale: s };
 }
 
 export function makeVisualField(course) {
-  const { w, h } = fieldDims(course);
-  return { w, h, data: new Uint8Array(w * h) };
+  const field = makeField(course, course.vec ? VEC_SCALE : FIELD_SCALE);
+  computeVisualField(course, field);
+  return field;
 }
 
 // Recompute the field inside a CELL-space rectangle (inclusive), or everything
-// when rect is null. The kernel reaches REACH cells plus ~0.8 cells of warp,
-// so callers should already have padded their dirty rect (updateRegion does).
+// when rect is null.
 export function computeVisualField(course, field, rect = null) {
+  if (course.vec) {
+    rasterizeRect(course, field, rect || { x0: 0, y0: 0, x1: course.w, y1: course.h });
+    return field;
+  }
+  return computeLegacyField(course, field, rect);
+}
+
+function computeLegacyField(course, field, rect) {
   const { w: W, h: H, zones } = course;
-  const FS = FIELD_SCALE;
+  const FS = field.scale;
   const x0 = rect ? Math.max(0, Math.floor(rect.x0 * FS)) : 0;
   const y0 = rect ? Math.max(0, Math.floor(rect.y0 * FS)) : 0;
   const x1 = rect ? Math.min(field.w - 1, Math.ceil((rect.x1 + 1) * FS) - 1) : field.w - 1;
   const y1 = rect ? Math.min(field.h - 1, Math.ceil((rect.y1 + 1) * FS) - 1) : field.h - 1;
   const scores = new Float32Array(16);
   const p = { x: 0, y: 0 };
+  const data = field.data;
 
   for (let ty = y0; ty <= y1; ty++) {
     const fy = (ty + 0.5) / FS;
     for (let tx = x0; tx <= x1; tx++) {
       const fx = (tx + 0.5) / FS;
       warp(fx, fy, p);
-      // clamp the warped position inside the grid so edges stay defined
       const wx = p.x < 0.01 ? 0.01 : p.x > W - 0.01 ? W - 0.01 : p.x;
       const wy = p.y < 0.01 ? 0.01 : p.y > H - 0.01 ? H - 0.01 : p.y;
       const cx0 = Math.max(0, Math.floor(wx) - REACH);
@@ -123,7 +128,7 @@ export function computeVisualField(course, field, rect = null) {
           const dx = cx + 0.5 - wx;
           const z = zones[rowBase + cx];
           const d2 = (dx * dx + dy * dy) * INV[z];
-          if (d2 >= 1) continue; // outside this zone's compact kernel
+          if (d2 >= 1) continue;
           const fall = 1 - d2;
           scores[z] += WEIGHT[z] * fall * fall;
         }
@@ -136,13 +141,15 @@ export function computeVisualField(course, field, rect = null) {
           best = z;
         }
       }
-      field.data[ty * field.w + tx] = best;
+      const o = (ty * field.w + tx) * 2;
+      data[o] = best;
+      data[o + 1] = 128; // legacy path carries no boundary distance
     }
   }
   return field;
 }
 
-// dirty-rect update after cell edits: pad by kernel reach + warp amplitude
+// dirty-rect update after edits: pad by kernel reach + warp amplitude
 export function updateVisualFieldRegion(course, field, cx0, cy0, cx1, cy1) {
   const PAD = REACH + 1.2;
   return computeVisualField(course, field, {
@@ -153,9 +160,16 @@ export function updateVisualFieldRegion(course, field, cx0, cy0, cx1, cy1) {
   });
 }
 
-// test/QA helper: the zone the field shows at fractional CELL coords
+// the zone the field shows at fractional CELL coords (ball lies, QA, tests)
 export function fieldZoneAt(field, course, fx, fy) {
-  const tx = Math.max(0, Math.min(field.w - 1, Math.floor(fx * FIELD_SCALE)));
-  const ty = Math.max(0, Math.min(field.h - 1, Math.floor(fy * FIELD_SCALE)));
-  return field.data[ty * field.w + tx];
+  const tx = Math.max(0, Math.min(field.w - 1, Math.floor(fx * field.scale)));
+  const ty = Math.max(0, Math.min(field.h - 1, Math.floor(fy * field.scale)));
+  return field.data[(ty * field.w + tx) * 2];
+}
+
+// signed boundary distance (in YARDS) of the winning zone at cell coords
+export function fieldDistAt(field, course, fx, fy) {
+  const tx = Math.max(0, Math.min(field.w - 1, Math.floor(fx * field.scale)));
+  const ty = Math.max(0, Math.min(field.h - 1, Math.floor(fy * field.scale)));
+  return ((field.data[(ty * field.w + tx) * 2 + 1] - 128) / 32) * 8;
 }

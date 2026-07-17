@@ -28,14 +28,17 @@ import { conditionRating } from '../sim/turf.js';
 import { makeCameraRig } from './cameraRig.js';
 import { makeCharacter } from './characterAsset.js';
 import { makeClubhouse } from './clubhouse.js';
-import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture } from './proceduralTextures.js';
+import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture, makeAsphaltTexture } from './proceduralTextures.js';
 import { makeVisualField, computeVisualField, updateVisualFieldRegion, FIELD_SCALE } from './visualField.js';
+import { buildRelief, reliefAt, getGeom, mowAngleAt } from '../sim/courseVec.js';
 import { ZONE_COLORS } from '../render/palette.js';
 
 const ELEV_FT_TO_YD = (1 / 3) * 1.5; // real feet→yards with 1.5x readability exaggeration
-// terrain vertices every 2 yd: bunker bowls, banks, and sculpted slopes read as
-// continuous surfaces instead of 4-yd facets
-const SEG_PER_CELL = 4;
+// terrain vertices every ~1.33 yd on vector courses: bunker bowls, rolled lips,
+// pond banks and sculpted slopes read as continuous surfaces. Legacy grid
+// courses keep the coarser 2-yd spacing (their features are cell-blocky anyway).
+const SEG_PER_CELL_VEC = 6;
+const SEG_PER_CELL_LEGACY = 4;
 
 // --- asset-idle tracking: every loader here uses THREE.DefaultLoadingManager, so the
 // prewarm can wait for in-flight GLB/texture loads before compiling and uploading
@@ -55,101 +58,106 @@ function whenAssetsIdle(timeoutMs) {
   });
 }
 
-// --- real tree models (Kenney Nature Kit, CC0) — loaded once, shared across scenes ---
-const TREE_FILES = {
-  deciduous: ['tree_default', 'tree_oak', 'tree_detailed', 'tree_fat'],
-  pine: ['tree_pineDefaultA', 'tree_pineRoundB'],
-};
-let treeAssetsPromise = null;
+// --- production flora kit (tools/blender/build_course_flora.py) — authored
+// vertex-colored GLBs, loaded once and shared across scenes. Each variant
+// normalizes to height 1 keeping its baked colors; placement scales to yards.
+let floraAssetsPromise = null;
 
-function loadTreeAssets() {
-  if (treeAssetsPromise) return treeAssetsPromise;
+// The species pools the boundary forest and any untyped spot draw from.
+const FLORA_FOREST = ['fill_a', 'fill_b', 'oak_b', 'oak_a', 'maple_a', 'pine_a', 'pine_b', 'spruce_a', 'birch_a', 'shade_a'];
+const FLORA_PINE = ['pine_a', 'pine_b', 'spruce_a', 'cedar_a'];
+// every object type the flora pipeline owns (so rebuildObjects skips them)
+const FLORA_IDS = new Set([
+  'oak_a', 'oak_b', 'maple_a', 'birch_a', 'shade_a', 'flower_a', 'fill_a', 'fill_b',
+  'pine_a', 'pine_b', 'spruce_a', 'cedar_a', 'shrub_round', 'shrub_flower', 'bush_native',
+  'reed_clump', 'grass_clump', 'rock_s', 'rock_m', 'boulder_a', 'shore_rock',
+  'tree_default', 'tree_oak', 'tree_detailed', 'tree_fat', 'tree_pineDefaultA', 'tree_pineRoundB', 'reeds',
+]);
+// the tall canopy species (block the walker; the rest are stepped past)
+const TREE_SPECIES = new Set([
+  'oak_a', 'oak_b', 'maple_a', 'birch_a', 'shade_a', 'flower_a', 'fill_a', 'fill_b',
+  'pine_a', 'pine_b', 'spruce_a', 'cedar_a',
+  'tree_default', 'tree_oak', 'tree_detailed', 'tree_fat', 'tree_pineDefaultA', 'tree_pineRoundB',
+]);
+
+function loadFloraAssets() {
+  if (floraAssetsPromise) return floraAssetsPromise;
   const loader = new GLTFLoader();
-
-  const loadOne = (name) =>
-    new Promise((resolve) => {
-      loader.load(
-        `vendor/models/trees/${name}.glb`,
-        (gltf) => {
-          try {
-            gltf.scene.updateMatrixWorld(true);
-            // gather geometry per material, transforms baked in
-            const groups = new Map();
-            gltf.scene.traverse((o) => {
-              if (!o.isMesh || !o.geometry) return;
-              const mats = Array.isArray(o.material) ? o.material : [o.material];
-              // per-group split for multi-material meshes is rare in this kit;
-              // treat the whole mesh as its first material
-              const mat = mats[0];
-              const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
-              // keep merges compatible: position + normal only (flat-color kit)
-              for (const attr of Object.keys(g.attributes)) {
-                if (attr !== 'position' && attr !== 'normal') g.deleteAttribute(attr);
-              }
-              if (!groups.has(mat.uuid)) groups.set(mat.uuid, { mat, list: [] });
-              groups.get(mat.uuid).list.push(g);
+  const loadOne = (id) => new Promise((resolve) => {
+    loader.load(
+      `vendor/models/flora/${id}.glb`,
+      (gltf) => {
+        try {
+          gltf.scene.updateMatrixWorld(true);
+          const groups = new Map(); // material.uuid -> {mat, list}
+          gltf.scene.traverse((o) => {
+            if (!o.isMesh || !o.geometry) return;
+            const mat = Array.isArray(o.material) ? o.material[0] : o.material;
+            const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
+            for (const attr of Object.keys(g.attributes)) {
+              if (attr !== 'position' && attr !== 'normal' && attr !== 'color') g.deleteAttribute(attr);
+            }
+            if (!groups.has(mat.uuid)) groups.set(mat.uuid, { mat, list: [] });
+            groups.get(mat.uuid).list.push(g);
+          });
+          const parts = [];
+          for (const { mat, list } of groups.values()) {
+            const merged = list.length === 1 ? list[0] : BufferGeometryUtils.mergeGeometries(list, false);
+            const hasColor = !!merged.attributes.color;
+            const material = new THREE.MeshStandardMaterial({
+              vertexColors: hasColor,
+              color: hasColor ? 0xffffff : (mat.color || new THREE.Color(0x6a7d4a)),
+              roughness: 0.9,
+              metalness: 0,
             });
-            const parts = [];
-            const isPineModel = /pine/i.test(name);
-            let partIdx = 0;
-            for (const { mat, list } of groups.values()) {
-              const merged = list.length === 1 ? list[0] : BufferGeometryUtils.mergeGeometries(list, false);
-              // Kenney's pastel-mint palette reads toy-like against photo ground —
-              // remap: green-dominant parts become believable leaf greens, the
-              // rest becomes bark brown. Shapes stay, colors get real.
-              const src = mat.color || new THREE.Color(0xffffff);
-              const isFoliage = src.g > src.r * 1.02;
-              const color = new THREE.Color();
-              if (isFoliage) {
-                const hueJitter = ((name.charCodeAt(5) + partIdx * 37) % 10) / 10;
-                // §1 vegetation: brighter, more saturated canopies that hold color at distance
-                if (isPineModel) color.setHSL(0.36 + hueJitter * 0.03, 0.5, 0.26 + hueJitter * 0.05);
-                else color.setHSL(0.28 + hueJitter * 0.05, 0.55, 0.33 + hueJitter * 0.06);
-              } else {
-                color.setHSL(0.07, 0.38, 0.28); // bark
-              }
-              const material = new THREE.MeshStandardMaterial({
-                color,
-                roughness: 0.92,
-                metalness: 0,
-              });
-              parts.push({ geometry: merged, material });
-              partIdx++;
-            }
-            // normalize the whole tree: feet on y=0, centered, height exactly 1
-            const box = new THREE.Box3();
-            for (const p of parts) {
-              p.geometry.computeBoundingBox();
-              box.union(p.geometry.boundingBox);
-            }
-            const height = Math.max(0.001, box.max.y - box.min.y);
-            const cx = (box.min.x + box.max.x) / 2;
-            const cz = (box.min.z + box.max.z) / 2;
-            for (const p of parts) {
-              p.geometry.translate(-cx, -box.min.y, -cz);
-              p.geometry.scale(1 / height, 1 / height, 1 / height);
-              p.geometry.computeBoundingSphere();
-            }
-            resolve({ name, parts });
-          } catch (e) {
-            console.warn(`tree model ${name} parse failed`, e);
-            resolve(null);
+            parts.push({ geometry: merged, material });
           }
-        },
-        undefined,
-        () => resolve(null),
-      );
-    });
+          // normalize: feet on y=0, centered on xz, unit height
+          const box = new THREE.Box3();
+          for (const p of parts) {
+            p.geometry.computeBoundingBox();
+            box.union(p.geometry.boundingBox);
+          }
+          const height = Math.max(0.001, box.max.y - box.min.y);
+          const cx = (box.min.x + box.max.x) / 2;
+          const cz = (box.min.z + box.max.z) / 2;
+          for (const p of parts) {
+            p.geometry.translate(-cx, -box.min.y, -cz);
+            p.geometry.scale(1 / height, 1 / height, 1 / height);
+            p.geometry.computeBoundingSphere();
+          }
+          resolve({ id, parts });
+        } catch (e) {
+          console.warn(`flora ${id} parse failed`, e);
+          resolve(null);
+        }
+      },
+      undefined,
+      () => resolve(null),
+    );
+  });
 
-  treeAssetsPromise = Promise.all([
-    Promise.all(TREE_FILES.deciduous.map(loadOne)),
-    Promise.all(TREE_FILES.pine.map(loadOne)),
-  ]).then(([dec, pine]) => ({
-    deciduous: dec.filter(Boolean),
-    pine: pine.filter(Boolean),
-  }));
-  return treeAssetsPromise;
+  floraAssetsPromise = fetch('vendor/models/flora/_manifest.json')
+    .then((r) => (r.ok ? r.json() : null))
+    .then((manifest) => {
+      if (!manifest || !manifest.variants) return null;
+      const meta = new Map(manifest.variants.map((v) => [v.id, v]));
+      return Promise.all(manifest.variants.map((v) => loadOne(v.id))).then((loaded) => {
+        const byId = new Map();
+        for (const a of loaded) {
+          if (!a) continue;
+          const m = meta.get(a.id);
+          a.kind = m.kind;
+          a.baseH = (m.height[0] + m.height[1]) / 2; // yards
+          byId.set(a.id, a);
+        }
+        return byId.size ? byId : null;
+      });
+    })
+    .catch(() => null);
+  return floraAssetsPromise;
 }
+
 
 const GLSL_NOISE = /* glsl */ `
   float fwHash(vec2 p) {
@@ -181,6 +189,7 @@ export function makeCourseScene(canvas, state) {
   const H = course.h;
   const worldW = W * CELL_YD;
   const worldH = H * CELL_YD;
+  const SEG_PER_CELL = course.vec ? SEG_PER_CELL_VEC : SEG_PER_CELL_LEGACY;
 
   // --- renderer / scene / camera -------------------------------------------------
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -363,6 +372,10 @@ export function makeCourseScene(canvas, state) {
   const texScrubN = loadGroundTex('scrub_nor.jpg');
   const texPath = loadGroundTex('path_diff.jpg', { srgb: true, fallback: () => makePathTexture({}) });
   const texPathN = loadGroundTex('path_nor.jpg');
+  // cool-gray asphalt just for the cart-path ribbons (the warm tPath reads as dirt)
+  const texAsphalt = makeAsphaltTexture({});
+  texAsphalt.wrapS = texAsphalt.wrapT = THREE.RepeatWrapping;
+  texAsphalt.colorSpace = THREE.SRGBColorSpace;
 
   // --- data textures fed from sim state --------------------------------------------------
   const zoneData = new Uint8Array(W * H * 4);
@@ -382,7 +395,10 @@ export function makeCourseScene(canvas, state) {
   // Categorical ids → nearest filtering; smoothness lives in the DATA (warped,
   // feathered boundaries), not in texture interpolation.
   const visField = makeVisualField(course);
-  const zoneHiTex = new THREE.DataTexture(visField.data, visField.w, visField.h, THREE.RedFormat, THREE.UnsignedByteType);
+  // interleaved (zone, boundaryDist) bytes → an RG texture. zone is categorical
+  // (nearest-sampled); the boundary-distance channel drives edge treatments
+  // (bunker lip shading, green collar) at sub-yard precision.
+  const zoneHiTex = new THREE.DataTexture(visField.data, visField.w, visField.h, THREE.RGFormat, THREE.UnsignedByteType);
   zoneHiTex.magFilter = THREE.NearestFilter;
   zoneHiTex.minFilter = THREE.NearestFilter;
   zoneHiTex.generateMipmaps = false;
@@ -512,7 +528,10 @@ export function makeCourseScene(canvas, state) {
           // per yard, boundaries already feathered + warped in the data). A
           // sub-texel jitter melts the last 1-yd steps into grass-scale dither.
           vec2 hj = vec2(fwNoise(cellUv * 21.0 + 3.7), fwNoise(cellUv * 21.0 + 63.2)) - 0.5;
-          float zone = floor(texture2D(uZoneHi, flippedUv + hj * uHiTexel * 1.4).r * 255.0 + 0.5);
+          vec2 zoneSample = texture2D(uZoneHi, flippedUv + hj * uHiTexel * 1.4).rg;
+          float zone = floor(zoneSample.r * 255.0 + 0.5);
+          // signed distance to the winning zone's boundary, in yards (neg = inside)
+          float edgeYd = (zoneSample.g * 255.0 - 128.0) / 32.0 * ${CELL_YD.toFixed(1)};
           // turf condition stays at simulation resolution (it IS sim data)
           vec2 sUv = (floor(cellUv) + 0.5) / uCells;
           vec4 zd = texture2D(uZoneTex, sUv);
@@ -663,12 +682,21 @@ export function makeCourseScene(canvas, state) {
           }
 
           if (zone > 4.5 && zone < 5.5) {
+            // grass-lip shadow: the sand right under the rolled turf edge sits in
+            // shade; the middle of the bunker takes full sun (edgeYd < 0 inside)
+            float lip = smoothstep(-3.5, -0.4, edgeYd);
+            col *= mix(1.0, 0.80, lip);
+            // faint rake grooves following the sand's long axis
+            float rake = sin(dot(vWp.xz, vec2(0.82, 0.30)) * 2.6) * 0.5 + 0.5;
+            col *= 0.96 + 0.04 * rake * (1.0 - lip);
             // footprinted sand: visibly churned and shadowed — raking smooths it back
             float foot = smoothstep(0.1, 0.8, wear);
             col *= 1.0 - foot * 0.24;
             float churn = fwNoise(cellUv * 9.0) * 0.6 + fwNoise(cellUv * 23.0) * 0.4;
             col = mix(col, vec3(0.55, 0.44, 0.27), foot * smoothstep(0.35, 0.8, churn) * 0.6);
           }
+          // green + fringe gain a whisper of edge shadow for depth off the collar
+          if (zone > 2.5 && zone < 3.5) col *= 0.95 + 0.05 * smoothstep(-0.5, -4.0, edgeYd);
 
           if (uViewMode > 0.5 && uViewMode < 1.5) {
             col = isTurf ? fwHeat(health) : col * 0.22;
@@ -792,17 +820,32 @@ export function makeCourseScene(canvas, state) {
     return n * damp;
   }
 
+  // vector courses sculpt greens/tees/bunker bowls/water/mounds analytically
+  // over the base rolling land, at the terrain-mesh resolution — no cell steps.
+  let relief = null;
+  function rebuildRelief() {
+    relief = course.vec ? buildRelief(course, (cx, cy) => rawHeightAtCellCoords(cx, cy) / ELEV_FT_TO_YD) : null;
+  }
+
   function rebuildTerrainHeights() {
+    if (course.vec && !relief) rebuildRelief();
     const pos = terrainGeo.attributes.position;
     let vi = 0;
     for (let vy = 0; vy < vertsY; vy++) {
       for (let vx = 0; vx < vertsX; vx++, vi++) {
         const fx = (vx / SEG_PER_CELL);
         const fy = (vy / SEG_PER_CELL);
-        let h = rawHeightAtCellCoords(fx, fy) + microRelief(fx, fy);
-        const wm = waterMaskAtCellCoords(fx, fy);
-        // smoothstep the carve so pond bowls curve into their banks
-        if (wm > 0.01) h -= wm * wm * (3 - 2 * wm) * 2.3;
+        let h;
+        if (relief) {
+          // base rolling land (feet) → analytic feature sculpt (feet) → yards
+          const baseFt = rawHeightAtCellCoords(fx, fy) / ELEV_FT_TO_YD;
+          h = reliefAt(relief, fx, fy, baseFt) * ELEV_FT_TO_YD + microRelief(fx, fy);
+        } else {
+          h = rawHeightAtCellCoords(fx, fy) + microRelief(fx, fy);
+          const wm = waterMaskAtCellCoords(fx, fy);
+          // smoothstep the carve so pond bowls curve into their banks
+          if (wm > 0.01) h -= wm * wm * (3 - 2 * wm) * 2.3;
+        }
         heights[vy * vertsX + vx] = h;
         pos.setY(vi, h);
       }
@@ -947,12 +990,24 @@ export function makeCourseScene(canvas, state) {
 
   const RING_DEPTH = 34; // cells of procedural forest beyond the property line
 
-  function computeTreeSpots() {
+  // legacy object types (courseShaping / old saves) → flora ids
+  const FLORA_ALIAS = {
+    tree_default: 'fill_a', tree_oak: 'oak_a', tree_detailed: 'shade_a', tree_fat: 'oak_b',
+    tree_pineDefaultA: 'pine_a', tree_pineRoundB: 'pine_b', reeds: 'reed_clump',
+  };
+  function floraIdFor(type, assets) {
+    if (assets.has(type)) return type;
+    const a = FLORA_ALIAS[type];
+    return a && assets.has(a) ? a : null;
+  }
+
+  function computeTreeSpots(assets) {
     const spots = [];
-    // placed trees (typed, exact positions)
+    // placed flora (trees/shrubs/rocks/reeds), exact positions
     for (const o of course.objects || []) {
-      if (!o.type.startsWith('tree_')) continue;
-      spots.push({ obj: o, x: o.x, y: o.y });
+      const id = assets ? floraIdFor(o.type, assets) : (o.type.startsWith('tree_') ? o.type : null);
+      if (!id) continue;
+      spots.push({ obj: o, id, x: o.x, y: o.y });
     }
     // boundary forest ring (outside the property line), density fading outward
     for (let y = -RING_DEPTH; y < H + RING_DEPTH; y++) {
@@ -1004,28 +1059,33 @@ export function makeCourseScene(canvas, state) {
     treeGroup = new THREE.Group();
   }
 
-  // Real Kenney Nature Kit models (CC0), one InstancedMesh per model part.
-  function rebuildTreesFromModels(assets) {
+  // Production flora kit: one InstancedMesh per variant part, authored vertex
+  // colors preserved. Placed objects (trees, shrubs, rocks, reeds) use their
+  // exact species; the boundary ring hashes a forest species.
+  function rebuildFloraFromModels(assets) {
     clearTreeGroup();
-    const spots = computeTreeSpots();
-    const byName = new Map();
-    for (const v of [...assets.deciduous, ...assets.pine]) byName.set(v.name, v);
+    const spots = computeTreeSpots(assets);
+    const pineSet = new Set(FLORA_PINE);
 
-    // bucket by variant: placed trees use their exact type, ring trees hash one
-    const buckets = new Map(); // variantName -> { variant, isPine, list }
+    // bucket by species id
+    const buckets = new Map(); // id -> { variant, list, isPine }
     for (const s of spots) {
-      let name;
-      if (s.obj && byName.has(s.obj.type)) {
-        name = s.obj.type;
+      let id;
+      if (s.id && assets.has(s.id)) {
+        id = s.id;
       } else {
-        const isPine = treeHash(Math.round(s.x) + 31, Math.round(s.y) + 17) >= 0.62;
-        const variants = isPine ? assets.pine : assets.deciduous;
-        name = variants[Math.floor(treeHash(Math.round(s.x) + 57, Math.round(s.y) + 5) * variants.length) % variants.length].name;
+        const belt = treeHash(Math.round(s.x) + 31, Math.round(s.y) + 17);
+        const pool = belt >= 0.66 ? FLORA_PINE : FLORA_FOREST;
+        id = pool[Math.floor(treeHash(Math.round(s.x) + 57, Math.round(s.y) + 5) * pool.length) % pool.length];
       }
-      if (!buckets.has(name)) {
-        buckets.set(name, { variant: byName.get(name), isPine: /pine/i.test(name), list: [] });
+      let b = buckets.get(id);
+      if (!b) {
+        const variant = assets.get(id);
+        if (!variant) continue;
+        b = { variant, isPine: pineSet.has(id), list: [] };
+        buckets.set(id, b);
       }
-      buckets.get(name).list.push(s);
+      b.list.push(s);
     }
 
     const m = new THREE.Matrix4();
@@ -1035,10 +1095,13 @@ export function makeCourseScene(canvas, state) {
     const sc = new THREE.Vector3();
     const col = new THREE.Color();
 
-    for (const { variant, isPine, list } of buckets.values()) {
+    for (const { variant, list } of buckets.values()) {
+      const isReed = variant.kind === 'reed';
       const meshes = variant.parts.map(({ geometry, material }) => {
+        if (isReed) material.side = THREE.DoubleSide; // thin blades read from both faces
         const im = new THREE.InstancedMesh(geometry, material, list.length);
-        im.castShadow = true;
+        im.castShadow = variant.kind !== 'reed'; // reeds too thin to cast usefully
+        im.receiveShadow = variant.kind === 'rock';
         im.frustumCulled = false; // base-geometry bounds would cull the whole forest
         return im;
       });
@@ -1049,19 +1112,19 @@ export function makeCourseScene(canvas, state) {
         let height;
         let rot;
         if (s.obj) {
-          // placed trees carry real presence: 8–12 yd canopies like the references
-          height = (isPine ? 10.6 : 8.4) * (s.obj.scale || 1);
+          height = variant.baseH * (s.obj.scale || 1);
           rot = s.obj.rot || 0;
         } else {
-          const farBoost = 1 + Math.min(1.1, (s.far || 1) * 0.028); // distant forest reads taller
-          height = (isPine ? 8 + treeHash(hx + 3, hy + 77) * 4 : 6 + treeHash(hx + 3, hy + 77) * 3.2) * farBoost;
+          const farBoost = 1 + Math.min(0.5, (s.far || 1) * 0.02); // distant forest reads a touch taller
+          height = variant.baseH * (0.86 + treeHash(hx + 3, hy + 77) * 0.4) * farBoost;
           rot = treeHash(hx, hy) * 6.28;
         }
         eu.set(0, rot, 0);
         q.setFromEuler(eu);
         m.compose(v.set(p.x, p.y, p.z), q, sc.set(height, height, height));
-        const b = 0.82 + treeHash(hx + 13, hy + 29) * 0.32; // brightness variety
-        col.setRGB(b * (0.95 + treeHash(hx, hy + 1) * 0.1), b, b * 0.92);
+        // subtle per-instance brightness variety multiplying the authored colors
+        const b = 0.9 + treeHash(hx + 13, hy + 29) * 0.18;
+        col.setRGB(b * (0.98 + treeHash(hx, hy + 1) * 0.05), b, b * 0.97);
         for (const im of meshes) {
           im.setMatrixAt(i, m);
           im.setColorAt(i, col);
@@ -1072,10 +1135,10 @@ export function makeCourseScene(canvas, state) {
     scene.add(treeGroup);
   }
 
-  // offline fallback: the old primitive forest
+  // offline fallback: the old primitive forest (flora GLBs missing)
   function rebuildTreesProcedural() {
     clearTreeGroup();
-    const spots = computeTreeSpots();
+    const spots = computeTreeSpots(null);
 
     const trunkGeo = new THREE.CylinderGeometry(0.28, 0.5, 2.8, 6);
     const crownGeo = new THREE.IcosahedronGeometry(2.7, 1);
@@ -1135,12 +1198,12 @@ export function makeCourseScene(canvas, state) {
 
   function rebuildTrees() {
     const token = ++treeBuildToken;
-    loadTreeAssets().then((assets) => {
+    loadFloraAssets().then((assets) => {
       if (token !== treeBuildToken) return; // superseded by a newer rebuild
-      if (assets && assets.deciduous.length && assets.pine.length) {
-        rebuildTreesFromModels(assets);
+      if (assets && assets.size) {
+        rebuildFloraFromModels(assets);
       } else {
-        console.warn('tree models unavailable — procedural fallback in use');
+        console.warn('flora models unavailable — procedural fallback in use');
         rebuildTreesProcedural();
       }
       freezeStaticCourse(); // freshly planted forests are still furniture
@@ -1390,7 +1453,7 @@ export function makeCourseScene(canvas, state) {
     objectGroup = new THREE.Group();
     const byType = new Map();
     for (const o of course.objects || []) {
-      if (o.type.startsWith('tree_')) continue; // trees have their own pipeline
+      if (FLORA_IDS.has(o.type)) continue; // flora (trees/shrubs/rocks/reeds) has its own pipeline
       if (!byType.has(o.type)) byType.set(o.type, []);
       byType.get(o.type).push(o);
     }
@@ -1438,8 +1501,8 @@ export function makeCourseScene(canvas, state) {
   let pathGroup = null;
   // the diffuse map multiplies DOWN, so these read two shades lighter in place
   const PATH_MATERIALS = {
-    asphalt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xc9cdd2, roughness: 0.92 }),
-    concrete: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xe8e2d4, roughness: 0.88 }),
+    asphalt: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0x8f9499, roughness: 0.94 }),
+    concrete: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xc8cabf, roughness: 0.9 }),
     gravel: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xd9cba4, roughness: 1 }),
     dirt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xc09a6a, roughness: 1 }),
   };
@@ -1876,10 +1939,14 @@ export function makeCourseScene(canvas, state) {
 
   function refreshWalkColliders() {
     treeColliders.length = 0;
-    for (const s of computeTreeSpots()) {
-      if (s.x < 0 || s.y < 0 || s.x >= W || s.y >= H) continue; // boundary forest sits outside the walkable clamp
-      const p = placeSpot(s);
-      treeColliders.push({ x: p.x, z: p.z, r: 0.55 }); // trunk-and-a-bit — forgiving under a wide canopy
+    // only tree-family flora blocks the walker; low shrubs/reeds/rocks are
+    // brushed past. Boundary-ring trees sit outside the walkable clamp.
+    for (const o of course.objects || []) {
+      if (o.x < 0 || o.y < 0 || o.x >= W || o.y >= H) continue;
+      if (!TREE_SPECIES.has(o.type)) continue;
+      const x = worldX(o.x);
+      const z = worldZ(o.y);
+      treeColliders.push({ x, z, r: 0.55 }); // trunk-and-a-bit — forgiving under a wide canopy
     }
     structColliders.length = 0;
     // the clubhouse no longer blocks as one solid box — its walls register
@@ -3433,6 +3500,7 @@ export function makeCourseScene(canvas, state) {
   }
 
   function rebuildAll(st) {
+    relief = null; // the vector design may have changed — re-derive the sculpt
     rebuildTerrainHeights();
     buildEnvironmentRing();
     rebuildWater();
@@ -3451,7 +3519,8 @@ export function makeCourseScene(canvas, state) {
   // the editor's cheap incremental refresh after a stroke: terrain heights +
   // water + paths follow the land; trees/objects only when asked. zoneRect
   // limits the visual-field recompute to the edited cells.
-  function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false, zoneRect = null, zones = true } = {}) {
+  function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false, zoneRect = null, zones = true, relief: reReliefsculpt = false } = {}) {
+    if (reReliefsculpt) relief = null; // a vector feature (green/bunker/water/tee) moved
     rebuildTerrainHeights();
     if (water) rebuildWater();
     if (paths) rebuildPaths();

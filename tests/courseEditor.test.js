@@ -22,9 +22,9 @@ function fresh() {
   return st;
 }
 
-// a quiet corner of scrub far from any hole corridor
-const QX = 66;
-const QY = 30;
+// a quiet corner of scrub far from any hole corridor (the NW forest)
+const QX = 11;
+const QY = 11;
 
 test('terrain stroke: raise applies live, undo restores exactly, bill follows', () => {
   const st = fresh();
@@ -208,9 +208,10 @@ test('holes: add, settings, reorder, delete — with undo', () => {
   assert.equal(res.cost, BALANCE.newHoleCost);
 
   const h1 = st.course.holes[0];
-  const set = setHoleSettings(st, s, h1.id, { name: 'Opening Drive', handicap: 6, parOverride: 4 });
+  const originalName = h1.name;
+  const set = setHoleSettings(st, s, h1.id, { name: 'Renamed Test Hole', handicap: 6, parOverride: 4 });
   assert.equal(set.ok, true);
-  assert.equal(h1.name, 'Opening Drive');
+  assert.equal(h1.name, 'Renamed Test Hole');
 
   assert.equal(reorderHole(st, s, h1.id, +1).ok, true);
   assert.equal(st.course.holes[1].id, h1.id);
@@ -222,7 +223,7 @@ test('holes: add, settings, reorder, delete — with undo', () => {
   while (s.undo.length && guard++ < 100) undo(st, s);
   assert.equal(st.course.holes.length, n);
   assert.equal(st.course.holes[0].id, h1.id, 'order restored');
-  assert.notEqual(st.course.holes[0].name, 'Opening Drive');
+  assert.equal(st.course.holes[0].name, originalName, 'name restored by undo');
 });
 
 test('economics: preview accumulates, apply charges exactly once, insufficient funds refuse', () => {

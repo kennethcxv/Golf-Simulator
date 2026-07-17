@@ -1,0 +1,194 @@
+{
+  "comment": "Course flora kit. Loader keeps authored vertex colors. Heights in yards.",
+  "variants": [
+    {
+      "id": "oak_a",
+      "kind": "deciduous",
+      "height": [
+        13,
+        17
+      ],
+      "tris": 716
+    },
+    {
+      "id": "oak_b",
+      "kind": "deciduous",
+      "height": [
+        11,
+        14
+      ],
+      "tris": 528
+    },
+    {
+      "id": "maple_a",
+      "kind": "deciduous",
+      "height": [
+        11,
+        14
+      ],
+      "tris": 500
+    },
+    {
+      "id": "birch_a",
+      "kind": "deciduous",
+      "height": [
+        10,
+        13
+      ],
+      "tris": 180
+    },
+    {
+      "id": "shade_a",
+      "kind": "deciduous",
+      "height": [
+        12,
+        15
+      ],
+      "tris": 636
+    },
+    {
+      "id": "flower_a",
+      "kind": "ornamental",
+      "height": [
+        5,
+        7
+      ],
+      "tris": 200
+    },
+    {
+      "id": "fill_a",
+      "kind": "deciduous",
+      "height": [
+        10,
+        15
+      ],
+      "tris": 152
+    },
+    {
+      "id": "fill_b",
+      "kind": "deciduous",
+      "height": [
+        10,
+        15
+      ],
+      "tris": 132
+    },
+    {
+      "id": "pine_a",
+      "kind": "evergreen",
+      "height": [
+        14,
+        18
+      ],
+      "tris": 336
+    },
+    {
+      "id": "pine_b",
+      "kind": "evergreen",
+      "height": [
+        12,
+        15
+      ],
+      "tris": 276
+    },
+    {
+      "id": "spruce_a",
+      "kind": "evergreen",
+      "height": [
+        12,
+        16
+      ],
+      "tris": 396
+    },
+    {
+      "id": "cedar_a",
+      "kind": "evergreen",
+      "height": [
+        9,
+        12
+      ],
+      "tris": 456
+    },
+    {
+      "id": "shrub_round",
+      "kind": "shrub",
+      "height": [
+        1.4,
+        2.2
+      ],
+      "tris": 160
+    },
+    {
+      "id": "shrub_flower",
+      "kind": "shrub",
+      "height": [
+        1.2,
+        1.8
+      ],
+      "tris": 240
+    },
+    {
+      "id": "bush_native",
+      "kind": "shrub",
+      "height": [
+        1.5,
+        2.6
+      ],
+      "tris": 240
+    },
+    {
+      "id": "reed_clump",
+      "kind": "reed",
+      "height": [
+        1.6,
+        2.4
+      ],
+      "tris": 90
+    },
+    {
+      "id": "grass_clump",
+      "kind": "reed",
+      "height": [
+        0.9,
+        1.4
+      ],
+      "tris": 72
+    },
+    {
+      "id": "rock_s",
+      "kind": "rock",
+      "height": [
+        0.5,
+        0.9
+      ],
+      "tris": 80
+    },
+    {
+      "id": "rock_m",
+      "kind": "rock",
+      "height": [
+        0.9,
+        1.6
+      ],
+      "tris": 80
+    },
+    {
+      "id": "boulder_a",
+      "kind": "rock",
+      "height": [
+        1.6,
+        2.8
+      ],
+      "tris": 80
+    },
+    {
+      "id": "shore_rock",
+      "kind": "rock",
+      "height": [
+        0.6,
+        1.2
+      ],
+      "tris": 80
+    }
+  ]
+}

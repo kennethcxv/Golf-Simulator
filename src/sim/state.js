@@ -6,6 +6,7 @@
 import { makeRng, rngOf } from '../core/utils.js';
 import { labelSections, ensureCourseShape } from './course.js';
 import { buildStartingCourse } from './startingCourse.js';
+import { designCourse } from './courseArchitect.js';
 import { plantVegetation } from './courseShaping.js';
 import { newClock, advanceClock, calendarOf } from './time.js';
 import { tickRenovationsDaily } from './terrainEdit.js';
@@ -39,7 +40,11 @@ import { BALANCE } from './balance.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
-export const SAVE_VERSION = 5;
+// v6: course.vec (the authored vector design) + course.paint (freeform surface
+// overrides) join the save. Pre-v6 nine-hole saves regenerate their course
+// through the architect — business progress, cash and turf condition carry
+// over; the old cell-painted racetrack layout does not.
+export const SAVE_VERSION = 6;
 
 // opts lets the GOLF EMPIRE layer boot this same fresh-club wiring onto a
 // marketplace property: an injected course grid and club name, nothing else.
@@ -211,6 +216,8 @@ export function snapshot(state) {
         pts: p.pts.map((q) => ({ x: Math.round(q.x * 100) / 100, y: Math.round(q.y * 100) / 100 })),
       })) : [],
       nextPathId: course.nextPathId || 1,
+      vec: course.vec || null,
+      paint: course.paint && course.paint.some((v) => v !== 255) ? Array.from(course.paint) : null,
     },
     weather: {
       today: state.weather.today,
@@ -286,9 +293,28 @@ export function serialize(state) {
   return JSON.stringify(snapshot(state));
 }
 
+// Old turf state can't map cell-for-cell onto a regenerated course, but the
+// CONDITION the player earned can: carry each zone class's average over.
+function transferTurfByZone(oldCourse, oldTurf, newCourse, newTurf) {
+  const fields = ['health', 'moisture', 'nutrients', 'heightMm', 'wear'];
+  const sums = new Map(); // zone -> {field: sum, n}
+  for (let i = 0; i < oldCourse.zones.length; i++) {
+    const z = oldCourse.zones[i];
+    let s = sums.get(z);
+    if (!s) sums.set(z, s = { n: 0, health: 0, moisture: 0, nutrients: 0, heightMm: 0, wear: 0 });
+    s.n++;
+    for (const f of fields) s[f] += oldTurf[f][i];
+  }
+  for (let i = 0; i < newCourse.zones.length; i++) {
+    const s = sums.get(newCourse.zones[i]);
+    if (!s || !s.n) continue;
+    for (const f of fields) newTurf[f][i] = s[f] / s.n;
+  }
+}
+
 export function deserialize(json) {
   const raw = typeof json === 'string' ? JSON.parse(json) : json;
-  const course = {
+  let course = {
     w: raw.course.w,
     h: raw.course.h,
     zones: Uint8Array.from(raw.course.zones),
@@ -301,6 +327,26 @@ export function deserialize(json) {
     paths: raw.course.paths || [],
     nextPathId: raw.course.nextPathId,
   };
+  if (raw.course.vec) {
+    course.vec = raw.course.vec;
+    if (raw.course.paint) course.paint = Uint8Array.from(raw.course.paint);
+  }
+  // pre-v6 nine-hole saves: the old cell-painted course regenerates through
+  // the architect, deterministically from the save's own seed. Larger legacy
+  // properties (18 holes) keep their grid — the renderer has a legacy path.
+  let migratedCourse = null;
+  if (!course.vec && (raw.version || 0) < 6 && (course.holes || []).length <= 9) {
+    migratedCourse = designCourse(makeRng(((raw.seed >>> 0) ^ 0x5eed) || 1), { jitter: 0.35 });
+    migratedCourse.holes.forEach((h, i) => {
+      const old = course.holes[i];
+      if (old) {
+        h.status = old.status;
+        h.everOpen = old.everOpen;
+        h.daysLeft = old.daysLeft || 0;
+      }
+    });
+    course = migratedCourse;
+  }
   // pre-v5 saves carry no placed objects: their trees were renderer noise.
   // Plant an intentional layout deterministically from the save's own seed so
   // the migrated course looks designed, not bald.
@@ -331,7 +377,16 @@ export function deserialize(json) {
       : newWeather(),
     maintenance: raw.maintenance || null,
   };
-  if (raw.turf) {
+  if (raw.turf && migratedCourse) {
+    // regenerated layout: cells moved, the earned condition carries by class
+    initTurf(state);
+    const oldCourse = { zones: Uint8Array.from(raw.course.zones) };
+    const oldTurf = {
+      health: raw.turf.health, moisture: raw.turf.moisture, nutrients: raw.turf.nutrients,
+      heightMm: raw.turf.heightMm, wear: raw.turf.wear,
+    };
+    transferTurfByZone(oldCourse, oldTurf, course, state.turf);
+  } else if (raw.turf) {
     state.turf = {
       health: Float32Array.from(raw.turf.health),
       moisture: Float32Array.from(raw.turf.moisture),
