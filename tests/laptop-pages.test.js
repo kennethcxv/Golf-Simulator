@@ -33,8 +33,9 @@ class MiniNode {
 
   setAttribute(k, v) { this.attrs[k] = String(v); }
   getAttribute(k) { return this.attrs[k]; }
-  addEventListener() {}
+  addEventListener(type, fn) { (this._listeners ||= {})[type] ||= []; this._listeners[type].push(fn); }
   removeEventListener() {}
+  click() { for (const fn of (this._listeners && this._listeners.click) || []) fn({ target: this }); }
   append(...kids) { for (const k of kids) this.children.push(k && k.nodeType ? k : { nodeType: 3, text: String(k) }); }
   appendChild(k) { this.children.push(k); return k; }
   replaceChildren(...kids) { this.children = []; this.append(...kids); }
@@ -63,13 +64,20 @@ const { calendarOf } = await import('../src/sim/time.js');
 const { notify } = await import('../src/sim/notifications.js');
 const { postReview } = await import('../src/sim/reviews.js');
 
+// THE WHOLE SIDEBAR: seven pages, nothing else. Retired desk ids stay routable
+// through PAGE_ALIAS — tested separately below.
 const PAGE_IDS = [
-  'home', 'reservations', 'customers', 'memberships', 'rentals',
-  'shop', 'inventory', 'supplier', 'orders', 'deliveries', 'pricing',
-  'finances', 'employees', 'reviews', 'marketing',
-  'course', 'maintenance', 'upgrades', 'events', 'reno',
-  'analytics', 'notifications', 'settings', 'help',
+  'home', 'reservations', 'shop', 'course', 'upgrades', 'finances', 'settings',
 ];
+// every retired desk id and the (page, tab) it must land on
+const ALIASES = {
+  inventory: ['shop'], supplier: ['shop'], pricing: ['shop'], orders: ['shop'], deliveries: ['shop'],
+  maintenance: ['course'], reno: ['course'],
+  employees: ['upgrades'], rentals: ['upgrades'], events: ['upgrades'],
+  analytics: ['finances'],
+  reviews: ['home'], marketing: ['home'], notifications: ['home'], help: ['home'],
+  customers: ['reservations'], memberships: ['reservations'],
+};
 
 function walk(node, fn) {
   fn(node);
@@ -123,6 +131,47 @@ test('every page also draws on a lived-in club — orders, bookings, staff, revi
     const crash = crashCard(lap.root);
     assert.equal(crash, null, `page "${id}" drew an error card: ${crash}`);
   }
+  lap.close();
+});
+
+test('every retired desk id forwards to the page that absorbed it', () => {
+  const st = newGame('relaxed', 75);
+  const lap = openLaptop(st);
+  for (const [oldId, [target]] of Object.entries(ALIASES)) {
+    lap.go('home', { replace: true });
+    lap.go(oldId);
+    assert.equal(lap.pageId(), target, `"${oldId}" should land on "${target}"`);
+    const crash = crashCard(lap.root);
+    assert.equal(crash, null, `alias "${oldId}" drew an error card: ${crash}`);
+  }
+  lap.close();
+});
+
+test('the tabbed pages draw every tab without throwing', () => {
+  const st = newGame('relaxed', 76);
+  st.cash = 60000;
+  placeOrder(st, 'balls1', 12);
+  update(st, 1440);
+  const lap = openLaptop(st);
+  const clickTab = (label) => {
+    let btn = null;
+    walk(lap.root, (n) => {
+      if (!btn && n.tagName === 'button' && String(n.className).includes('lt-tab') && n.textContent === label) btn = n;
+    });
+    assert.ok(btn, `tab "${label}" exists`);
+    btn.click();
+  };
+  const drive = (pageId, tabs) => {
+    lap.go(pageId);
+    for (const tab of tabs) {
+      clickTab(tab);
+      const crash = crashCard(lap.root);
+      assert.equal(crash, null, `${pageId}:${tab} drew an error card: ${crash}`);
+    }
+  };
+  drive('shop', ['Stock', 'Order', 'Prices', 'Deliveries']);
+  drive('course', ['Overview', 'Tasks', 'Holes']);
+  drive('upgrades', ['Course', 'Clubhouse', 'Staff', 'Equipment']);
   lap.close();
 });
 

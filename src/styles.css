@@ -857,6 +857,47 @@ input[type="range"] { accent-color: var(--accent); }
 .lt-input { min-width: 200px; }
 .lt-check { accent-color: #cfa860; width: 15px; height: 15px; }
 
+/* --- the simplified seven-page shell (2026-07-17) --------------------------------- */
+/* A narrower rail with seven larger targets and no group headings — readable at arm's
+   length, understandable in a glance, no scrollbar ever. */
+.lt-nav-simple { width: 142px; }
+.lt-nav-simple .lt-navlist { overflow-y: visible; gap: 3px; }
+.lt-navbtn-big { font-size: 0.95em; padding: 8px 10px; }
+.lt-navbtn-big .lt-navicon { font-size: 1.05em; }
+/* exactly four summary cards, never a wrapping wall of metrics */
+.lt-stats4 { grid-template-columns: repeat(4, 1fr); }
+/* the Home task line */
+.lt-tasktitle { font-weight: 700; font-size: 1.0em; margin: 2px 0 3px; }
+/* clickable attention rows */
+.lt-alerts { display: flex; flex-direction: column; gap: 5px; }
+.lt-alert { display: flex; gap: 8px; align-items: center; width: 100%; text-align: left;
+  background: rgba(237,228,205,0.045); border: 1px solid var(--lt-edge); border-radius: 7px;
+  padding: 6px 9px; color: var(--lt-ink); font-family: inherit; font-size: 0.84em; }
+button.lt-alert { cursor: pointer; }
+button.lt-alert:hover { border-color: var(--lt-gold); background: var(--lt-panel2); }
+.lt-alert.bad { border-left: 3px solid var(--lt-bad); }
+.lt-alert.warn { border-left: 3px solid var(--lt-warn); }
+.lt-alerticon { flex-shrink: 0; }
+.lt-alerttext { flex: 1; min-width: 0; }
+.lt-alertgo { color: var(--lt-gold); font-weight: 700; }
+/* page-level tabs read bigger than toolbar chips */
+.lt-tabs-big .lt-tab { font-size: 0.9em; padding: 5px 14px; }
+/* the order-basket summary bar */
+.lt-ordersummary { display: flex; gap: 10px; align-items: center; background: var(--lt-panel);
+  border: 1px solid var(--lt-edge); border-radius: 8px; padding: 8px 12px; }
+.lt-ordersummary .bad { color: var(--lt-bad); }
+/* the small in-glass detail modal. `fixed` resolves against the nearest TRANSFORMED
+   ancestor — the .lt-frame the 3D screen maps — so the veil covers the whole glass
+   no matter how far the page behind it is scrolled. */
+.lt-modal { position: fixed; inset: 0; background: rgba(8, 14, 10, 0.62); z-index: 5;
+  display: flex; align-items: center; justify-content: center; }
+.lt-modalcard { background: var(--lt-bg2); border: 1px solid var(--lt-edge2); border-radius: 10px;
+  padding: 14px 16px; width: min(430px, 86%); max-height: 82%; overflow-y: auto;
+  box-shadow: 0 14px 44px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 4px; }
+.lt-modalbtns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+/* the content area anchors the modal overlay */
+.lt-content { position: relative; }
+
 
 /* --- minimal HUD (2026-07-13): two corner chips, nothing else permanent --- */
 .hud-min {
