@@ -1501,8 +1501,8 @@ export function makeCourseScene(canvas, state) {
   let pathGroup = null;
   // the diffuse map multiplies DOWN, so these read two shades lighter in place
   const PATH_MATERIALS = {
-    asphalt: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0x8f9499, roughness: 0.94 }),
-    concrete: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xc8cabf, roughness: 0.9 }),
+    asphalt: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0x9a968f, roughness: 0.95 }),
+    concrete: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xcac6bd, roughness: 0.9 }),
     gravel: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xd9cba4, roughness: 1 }),
     dirt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xc09a6a, roughness: 1 }),
   };

@@ -92,14 +92,16 @@ test('green stamp paints green + fringe collar and smooths a plateau', () => {
   const res = stampGreen(st, s, QX, QY, { r: 2, elong: 1.3, angle: 0.5 });
   assert.equal(res.ok, true);
   assert.equal(getZone(st.course, QX, QY), ZONE.GREEN);
-  // a fringe cell must exist adjacent to the green somewhere
+  // a fringe collar must exist around the green. It is a genuinely narrow
+  // real-world collar (~1yd), so the coarse 8-yd sim grid catches only a few
+  // cells (the 0.5-yd visual field renders it densely — see visualField.test)
   let fringe = 0;
-  for (let y = QY - 5; y <= QY + 5; y++) {
-    for (let x = QX - 5; x <= QX + 5; x++) {
+  for (let y = QY - 6; y <= QY + 6; y++) {
+    for (let x = QX - 6; x <= QX + 6; x++) {
       if (getZone(st.course, x, y) === ZONE.FRINGE) fringe++;
     }
   }
-  assert.ok(fringe >= 6, `fringe collar exists (${fringe} cells)`);
+  assert.ok(fringe >= 3, `fringe collar exists (${fringe} cells)`);
   undo(st, s);
   assert.notEqual(getZone(st.course, QX, QY), ZONE.GREEN);
 });
@@ -107,19 +109,23 @@ test('green stamp paints green + fringe collar and smooths a plateau', () => {
 test('bunker stamp digs a lobed depression; water floods a bowl', () => {
   const st = fresh();
   const s = makeEditSession(st);
-  const i = QY * st.course.w + QX;
-  const elevBefore = st.course.elevation[i];
+  // on a vector course the bowl is analytic (rendered), so the sim truth is the
+  // vec feature + the derived BUNKER zone — the renderer sculpts the depression
+  const bunkersBefore = st.course.vec.holes.reduce((a, h) => a + (h.bunkers || []).length, 0);
   const res = stampBunker(st, s, QX, QY, { r: 1.6, depth: 1.5 });
   assert.equal(res.ok, true);
   assert.equal(getZone(st.course, QX, QY), ZONE.BUNKER);
-  assert.ok(st.course.elevation[i] < elevBefore - 0.5, 'sand sits below its lip');
+  const bunkersAfter = st.course.vec.holes.reduce((a, h) => a + (h.bunkers || []).length, 0);
+  assert.equal(bunkersAfter, bunkersBefore + 1, 'a bunker feature was authored');
 
   const res2 = stampWater(st, s, QX + 8, QY + 4, { r: 2.2, depth: 2 });
   assert.equal(res2.ok, true);
   assert.equal(getZone(st.course, QX + 8, QY + 4), ZONE.WATER);
+  assert.ok(st.course.vec.waters.length >= 1, 'a pond feature was authored');
 
   const res3 = stampStream(st, s, [{ x: QX + 4, y: QY + 10 }, { x: QX + 10, y: QY + 12 }, { x: QX + 15, y: QY + 10 }]);
   assert.equal(res3.ok, true);
+  assert.ok(st.course.vec.streams.length >= 1, 'a stream feature was authored');
 });
 
 test('tee stamp builds a level pad and sets the hole tee; pins A/B/C work', () => {
@@ -186,7 +192,9 @@ test('paths: add paints pavement, edit reroutes, remove restores, undo is exact'
   for (let i = 0; i < st.course.zones.length; i++) {
     if (st.course.zones[i] === ZONE.PATH && zonesBefore[i] !== ZONE.PATH) paved++;
   }
-  assert.ok(paved >= 8, `pavement painted (${paved} cells)`);
+  // a 2.6-yd ribbon is sub-cell on the 8-yd sim grid, so only the cells its
+  // centerline crosses register PATH (the ribbon mesh + shoulder render full width)
+  assert.ok(paved >= 3, `pavement painted (${paved} cells)`);
 
   const pid = res.path.id;
   assert.equal(editPath(st, s, pid, { width: 4 }).ok, true);

@@ -19,6 +19,11 @@ import {
 import { paintPathCells, splinePoints } from './courseShaping.js';
 import { turfOnZonesChanged } from './turf.js';
 import { spend } from './economy.js';
+import {
+  ensurePaint, invalidateGeom, deriveZones, vecId,
+  makeVecGreen, makeVecBunker, makeVecPond, makeVecTee,
+} from './courseVec.js';
+import { CELL_YD } from './constants.js';
 
 // the tall-canopy flora species (for tree counting in stats); matches the
 // renderer's TREE_SPECIES set plus the legacy Kenney aliases
@@ -124,7 +129,13 @@ function pathOp(state, session, label, mutate, { chargeNewPavement = false } = {
   const zonesBefore = Uint8Array.from(course.zones);
   const pathsBefore = JSON.parse(JSON.stringify(course.paths));
   mutate();
-  repaintPathZones(course);
+  if (course.vec) {
+    // vector courses rasterize PATH from the spline geometry — re-derive
+    invalidateGeom(course);
+    deriveZones(course);
+  } else {
+    repaintPathZones(course);
+  }
   const cells = [];
   const changed = [];
   let newlyPaved = 0;
@@ -140,6 +151,57 @@ function pathOp(state, session, label, mutate, { chargeNewPavement = false } = {
   pushOp(state, session, {
     kind: 'path', label, cost, cells,
     pathsBefore, pathsAfter: JSON.parse(JSON.stringify(course.paths)),
+  });
+  return { ok: true, cost, cells: cells.length };
+}
+
+// --- vector-course edits -------------------------------------------------------------
+// On a vector course the visible surfaces + relief derive from course.vec and
+// the freeform course.paint layer, NOT from course.zones directly — so the
+// green/bunker/water/tee tools and the paint brush write THERE, then re-derive
+// the sim grid. One vecOp = one undo step, storing vec + paint + zone diffs.
+
+function nearestVecHole(course, cx, cy) {
+  let best = null;
+  let bestD = Infinity;
+  for (const h of course.vec.holes) {
+    // distance to the hole's centerline endpoints is a cheap, good-enough pick
+    for (const p of h.line) {
+      const d = (p.x - cx) ** 2 + (p.y - cy) ** 2;
+      if (d < bestD) { bestD = d; best = h; }
+    }
+  }
+  return best;
+}
+
+function vecOp(state, session, label, mutate, { extraCost = 0 } = {}) {
+  const { course } = state;
+  ensurePaint(course);
+  const vecBefore = JSON.parse(JSON.stringify(course.vec));
+  const paintBefore = Uint8Array.from(course.paint);
+  const zonesBefore = Uint8Array.from(course.zones);
+  const mutCost = mutate() || 0;
+  invalidateGeom(course);
+  deriveZones(course);
+  const cells = [];
+  const changed = [];
+  for (let i = 0; i < course.zones.length; i++) {
+    if (course.zones[i] !== zonesBefore[i]) {
+      cells.push({ i, zoneBefore: zonesBefore[i], zoneAfter: course.zones[i] });
+      changed.push(i);
+    }
+  }
+  if (changed.length) turfOnZonesChanged(state, changed);
+  let paintChanged = false;
+  for (let i = 0; i < course.paint.length; i++) {
+    if (course.paint[i] !== paintBefore[i]) { paintChanged = true; break; }
+  }
+  const cost = Math.round(mutCost + extraCost);
+  pushOp(state, session, {
+    kind: 'vec', label, cost, cells,
+    vecBefore, vecAfter: JSON.parse(JSON.stringify(course.vec)),
+    paintBefore: paintChanged ? Array.from(paintBefore) : null,
+    paintAfter: paintChanged ? Array.from(course.paint) : null,
   });
   return { ok: true, cost, cells: cells.length };
 }
@@ -236,6 +298,19 @@ const UNPAINTABLE = new Set([ZONE.WATER]); // water is the water tool's business
 export function paintAt(state, stroke, cx, cy, zone, { radius = 1.5, over = null } = {}) {
   const { course } = state;
   const cells = brushCells(course, cx, cy, radius, 0.0);
+  if (course.vec) {
+    // vector courses derive surfaces from vec + the paint override layer; the
+    // brush writes overrides so the change survives re-derivation and renders.
+    const paint = ensurePaint(course);
+    for (const c of cells) {
+      const cur = paint[c.i];
+      if (cur === zone) continue;
+      if (!stroke.before.has(c.i)) stroke.before.set(c.i, cur);
+      paint[c.i] = zone;
+      stroke.after.set(c.i, zone);
+    }
+    return cells;
+  }
   for (const c of cells) {
     const cur = course.zones[c.i];
     if (cur === zone) continue;
@@ -250,6 +325,41 @@ export function paintAt(state, stroke, cx, cy, zone, { radius = 1.5, over = null
 
 export function endPaintStroke(state, session, stroke, label = 'Paint') {
   if (!stroke.before.size) return { ok: false, cost: 0 };
+  const { course } = state;
+  if (course.vec) {
+    // the override layer is already painted live; wrap it as a vec op for undo
+    const paintAfter = Array.from(course.paint);
+    const paintBefore = paintAfter.slice();
+    for (const [i, before] of stroke.before) paintBefore[i] = before;
+    // zones before this stroke (paint reverted) vs after
+    course.paint = Uint8Array.from(paintBefore);
+    invalidateGeom(course);
+    deriveZones(course);
+    const zonesBefore = Uint8Array.from(course.zones);
+    course.paint = Uint8Array.from(paintAfter);
+    invalidateGeom(course);
+    deriveZones(course);
+    const cells = [];
+    const changed = [];
+    let cost = 0;
+    for (let i = 0; i < course.zones.length; i++) {
+      if (course.zones[i] !== zonesBefore[i]) {
+        cells.push({ i, zoneBefore: zonesBefore[i], zoneAfter: course.zones[i] });
+        changed.push(i);
+        cost += zoneCost(course.zones[i]);
+      }
+    }
+    if (!cells.length) return { ok: false, cost: 0 };
+    turfOnZonesChanged(state, changed);
+    cost = Math.round(cost);
+    pushOp(state, session, {
+      kind: 'vec', label, cells, cost,
+      vecBefore: JSON.parse(JSON.stringify(course.vec)),
+      vecAfter: JSON.parse(JSON.stringify(course.vec)),
+      paintBefore, paintAfter,
+    });
+    return { ok: true, cost, cells: cells.length };
+  }
   const cells = [];
   let cost = 0;
   const changed = [];
@@ -310,6 +420,37 @@ export function stampGreen(state, session, cx, cy, {
   r = 1.8, elong = 1.25, angle = 0, kidney = false, raise = 1.4,
 } = {}) {
   const { course } = state;
+  if (course.vec) {
+    const hole = nearestVecHole(course, cx, cy);
+    return vecOp(state, session, 'Green', () => {
+      const g = makeVecGreen(cx, cy, r * CELL_YD, elong, angle, vecId(course.vec));
+      g.raise = raise + 0.2;
+      const rc = r;
+      g.pins = [
+        { x: cx, y: cy },
+        { x: cx + Math.cos(angle) * rc * 0.5, y: cy + Math.sin(angle) * rc * 0.5 },
+        { x: cx - Math.cos(angle) * rc * 0.4, y: cy - Math.sin(angle) * rc * 0.4 },
+      ];
+      if (hole) {
+        hole.green = g;
+        const ch = course.holes.find((h) => h.vecId === hole.id);
+        if (ch) {
+          ch.pin = { x: Math.round(cx), y: Math.round(cy) };
+          ch.pins = {
+            A: { x: Math.round(g.pins[0].x), y: Math.round(g.pins[0].y) },
+            B: { x: Math.round(g.pins[1].x), y: Math.round(g.pins[1].y) },
+            C: { x: Math.round(g.pins[2].x), y: Math.round(g.pins[2].y) },
+          };
+          ch.activePin = 'A';
+        }
+      } else {
+        // standalone green (no hole nearby) — parked on the first hole so it renders
+        if (course.vec.holes[0]) course.vec.holes[0].green = g;
+      }
+      const area = Math.PI * (r * elong) * r; // cells²
+      return area * zoneCost(ZONE.GREEN);
+    });
+  }
   const edits = [];
   const ca = Math.cos(angle);
   const sa = Math.sin(angle);
@@ -375,6 +516,17 @@ export function stampBunker(state, session, cx, cy, {
   r = 1.4, depth = 1.6, lobes = 2, angle = 0,
 } = {}) {
   const { course } = state;
+  if (course.vec) {
+    const hole = nearestVecHole(course, cx, cy) || course.vec.holes[0];
+    return vecOp(state, session, 'Bunker', () => {
+      const b = makeVecBunker(cx, cy, r * CELL_YD, vecId(course.vec), {
+        depth: depth + 0.8, lobes: Math.max(2, lobes), angle,
+      });
+      (hole.bunkers || (hole.bunkers = [])).push(b);
+      const area = Math.PI * r * r * 1.2;
+      return area * zoneCost(ZONE.BUNKER);
+    });
+  }
   const centers = [{ x: cx, y: cy, r }];
   for (let i = 1; i < lobes; i++) {
     const a = angle + i * 2.4;
@@ -406,6 +558,15 @@ export function stampWater(state, session, cx, cy, {
   r = 2.4, depth = 2.4, elong = 1.2, angle = 0,
 } = {}) {
   const { course } = state;
+  if (course.vec) {
+    return vecOp(state, session, 'Water', () => {
+      const pond = makeVecPond(cx, cy, r * elong * CELL_YD, r * CELL_YD, vecId(course.vec));
+      pond.depth = depth + 2;
+      course.vec.waters.push({ id: vecId(course.vec), ...pond });
+      const area = Math.PI * (r * elong) * r;
+      return area * zoneCost(ZONE.WATER);
+    });
+  }
   const ca = Math.cos(angle);
   const sa = Math.sin(angle);
   const rx = r * elong;
@@ -433,6 +594,14 @@ export function stampWater(state, session, cx, cy, {
 // Stream: a narrow water spline.
 export function stampStream(state, session, pts, { width = 1.0, depth = 1.4 } = {}) {
   const { course } = state;
+  if (course.vec) {
+    return vecOp(state, session, 'Stream', () => {
+      course.vec.streams.push({ id: vecId(course.vec), pts: pts.map((p) => ({ x: p.x, y: p.y })), w: width * 2 * CELL_YD, depth: depth + 0.8 });
+      let len = 0;
+      for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+      return len * width * 2 * zoneCost(ZONE.WATER);
+    });
+  }
   const line = splinePoints(pts, 0.5);
   const floodable = new Set([ZONE.ROUGH, ZONE.FAIRWAY, ZONE.SEMI, ZONE.HEAVY, ZONE.OUT, ZONE.DIRT, ZONE.BED, ZONE.FRINGE]);
   const edits = new Map();
@@ -461,6 +630,26 @@ export function stampTee(state, session, holeId, teeKey, cx, cy, aimX, aimY, { w
   const hole = course.holes.find((h) => h.id === holeId);
   if (!hole) return { ok: false, reason: 'No such hole.' };
   ensureHoleShape(hole, holeNumber(course, holeId));
+  if (course.vec) {
+    const vh = course.vec.holes.find((h) => h.id === hole.vecId);
+    const tierKey = teeKey === 'back' ? 'back' : teeKey === 'forward' ? 'forward' : 'middle';
+    return vecOp(state, session, 'Tee', () => {
+      const rot = Math.atan2(aimY - cy, aimX - cx);
+      const tee = makeVecTee(cx, cy, rot, tierKey, w * 2 * CELL_YD, len * 2 * CELL_YD);
+      tee.raise = 1.2;
+      if (vh) {
+        vh.tees = (vh.tees || []).filter((t) => t.tier !== tierKey);
+        vh.tees.push(tee);
+      }
+      const marker = { x: Math.round(cx), y: Math.round(cy) };
+      hole.tees = hole.tees || {};
+      hole.tees[tierKey] = marker;
+      hole.activeTee = teeKey;      // the newly-built tee becomes the one in play
+      hole.tee = { ...marker };
+      const area = (w * 2) * (len * 2);
+      return area * zoneCost(ZONE.TEE);
+    });
+  }
   const a = Math.atan2(aimY - cy, aimX - cx);
   const ca = Math.cos(a);
   const sa = Math.sin(a);
@@ -796,6 +985,13 @@ function invertOp(state, session, op) {
     case 'path':
       applyCellsBackward(state, op.cells);
       state.course.paths = JSON.parse(JSON.stringify(op.pathsBefore));
+      if (course.vec) invalidateGeom(course);
+      break;
+    case 'vec':
+      applyCellsBackward(state, op.cells);
+      course.vec = JSON.parse(JSON.stringify(op.vecBefore));
+      if (op.paintBefore) course.paint = Uint8Array.from(op.paintBefore);
+      invalidateGeom(course);
       break;
     case 'hole-add':
       course.holes = course.holes.filter((h) => h.id !== op.holeId);
@@ -848,6 +1044,13 @@ function replayOp(state, session, op) {
     case 'path':
       applyCellsForward(state, op.cells);
       state.course.paths = JSON.parse(JSON.stringify(op.pathsAfter));
+      if (course.vec) invalidateGeom(course);
+      break;
+    case 'vec':
+      applyCellsForward(state, op.cells);
+      course.vec = JSON.parse(JSON.stringify(op.vecAfter));
+      if (op.paintAfter) course.paint = Uint8Array.from(op.paintAfter);
+      invalidateGeom(course);
       break;
     case 'hole-add': {
       const hole = addHole(course);

@@ -1153,7 +1153,7 @@ export function makeCourseEditor(app, hooks) {
         const res = stampTee(state(), session, hole.id, opt.tee.teeKey, g.fx, g.fy, aim.x, aim.y);
         if (!res.ok) toast(res.reason || 'Cannot build here.', 'warn');
         else {
-          scene().refreshGround(state(), { holes: true, flow: true });
+          scene().refreshGround(state(), { holes: true, flow: true, relief: true, zoneRect: zr(g.fx, g.fy, 6) });
           refreshTop();
           renderToolPanel();
           toast(`${opt.tee.teeKey[0].toUpperCase()}${opt.tee.teeKey.slice(1)} tee built (${formatMoney(res.cost)} pending).`);
@@ -1180,7 +1180,7 @@ export function makeCourseEditor(app, hooks) {
           kidney: opt.green.shape === 'kidney',
         });
         if (res.ok) {
-          scene().refreshGround(state(), { zoneRect: zr(g.fx, g.fy, r * 1.6 + 2) });
+          scene().refreshGround(state(), { relief: true, holes: true, zoneRect: zr(g.fx, g.fy, r * 1.8 + 3) });
           refreshTop();
         }
         break;
@@ -1193,7 +1193,7 @@ export function makeCourseEditor(app, hooks) {
           angle: Math.random() * Math.PI,
         });
         if (res.ok) {
-          scene().refreshGround(state(), { zoneRect: zr(g.fx, g.fy, yd2cells(opt.bunker.sizeYd) * 2 + 2) });
+          scene().refreshGround(state(), { relief: true, zoneRect: zr(g.fx, g.fy, yd2cells(opt.bunker.sizeYd) * 2 + 3) });
           refreshTop();
         } else {
           toast('No sand here — bunkers dig into grass.', 'warn');
@@ -1214,7 +1214,7 @@ export function makeCourseEditor(app, hooks) {
           angle: Math.random() * Math.PI,
         });
         if (res.ok) {
-          scene().refreshGround(state(), { water: true, zoneRect: zr(g.fx, g.fy, yd2cells(opt.water.sizeYd) * 2.2 + 2) });
+          scene().refreshGround(state(), { water: true, relief: true, zoneRect: zr(g.fx, g.fy, yd2cells(opt.water.sizeYd) * 2.4 + 3) });
           refreshTop();
         } else {
           toast('The water needs open ground.', 'warn');
@@ -1461,6 +1461,7 @@ export function makeCourseEditor(app, hooks) {
         const ys = drawingPath.map((q) => q.y);
         scene().refreshGround(state(), {
           water: true,
+          relief: true,
           zoneRect: { x0: Math.min(...xs) - 3, y0: Math.min(...ys) - 3, x1: Math.max(...xs) + 3, y1: Math.max(...ys) + 3 },
         });
         refreshTop();
