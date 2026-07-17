@@ -40,7 +40,7 @@ import { addRevenue } from '../sim/economy.js';
 import { tutorialFlag } from '../sim/tutorial.js';
 import {
   dueForCheckIn, dueForArrivals, markReservationEnRoute, markReservationArrived,
-  walkInAvailability, selectWalkInSlot, fmtSlot,
+  walkInAvailability, selectWalkInSlot, fmtSlot, deskReservationList,
 } from '../sim/reservations.js';
 import {
   allocateCustomerIdentity, customerIdentityById, paymentChoiceDialogue,
@@ -3240,7 +3240,15 @@ export function makeClubhouse(ctx) {
   // list, resolves the exact waiting person, and releases that presentation after
   // the sim-layer payment has committed.
   B.frontDeskReservations = {
-    list: () => dueForCheckIn(state),
+    // due by the book, plus whoever is PHYSICALLY here for a booking — a guest who walks
+    // in ten minutes early must show on the desk while they stand at it
+    list: () => deskReservationList(
+      state,
+      customers
+        .filter((c) => c.reservationId != null && !c.reservationReleased
+          && String(c.checkoutPhase || '').startsWith('reservation'))
+        .map((c) => c.reservationId),
+    ),
     walkIns: () => customers
       .filter((customer) => openWalkInCustomer(customer))
       .map((customer) => ({

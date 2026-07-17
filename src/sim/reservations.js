@@ -894,6 +894,31 @@ export function dueForCheckIn(state) {
     && (r.arrivalStatus === 'arrived' || at >= r.plannedArrival));
 }
 
+// THE DESK LIST the front-of-house monitor shows: everyone due by the book PLUS anyone
+// physically standing in the shop with a live booking for today. dueForCheckIn alone hides a
+// guest who walks in ahead of their planned arrival (their arrivalStatus is still 'scheduled'
+// and the clock has not reached plannedArrival) — which is exactly the person at the counter
+// asking why the computer can't see their 1:30. Physical presence outranks the schedule; even
+// a pre-rolled no-show who showed up anyway gets listed, because there they are.
+export function deskReservationList(state, presentReservationIds = []) {
+  const due = dueForCheckIn(state);
+  if (!presentReservationIds || !presentReservationIds.length) return due;
+  const seen = new Set(due.map((r) => String(r.id)));
+  const cal = calendarOf(state.clock.minutes);
+  for (const rawId of presentReservationIds) {
+    const key = String(rawId);
+    if (seen.has(key)) continue;
+    const r = bookOf(state).booked.find(
+      (b) => String(b.id) === key || String(b.reservationId) === key,
+    );
+    if (r && r.status === 'booked' && r.dayAbs === cal.dayAbs) {
+      seen.add(String(r.id));
+      due.push(r);
+    }
+  }
+  return due.sort((a, b) => a.minute - b.minute || a.id - b.id);
+}
+
 export function checkInReservation(state, id) {
   const res = reservationById(state, id);
   if (!res || res.status !== 'booked') return { ok: false, reason: 'No open booking under that name.' };
