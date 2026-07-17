@@ -16,8 +16,8 @@ function box(w, h, d, mat, y = 0, z = 0) {
   return m;
 }
 
-function ellipsoid(w, h, d, mat, y = 0, z = 0, segments = 10) {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(0.5, segments, Math.max(7, segments - 2)), mat);
+function ellipsoid(w, h, d, mat, y = 0, z = 0, segments = 14) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.5, segments, Math.max(10, segments - 2)), mat);
   m.scale.set(w, h, d);
   m.position.set(0, y, z);
   m.castShadow = true;
@@ -25,8 +25,18 @@ function ellipsoid(w, h, d, mat, y = 0, z = 0, segments = 10) {
 }
 
 function capsule(radius, straight, mat, y = 0) {
-  const m = new THREE.Mesh(new THREE.CapsuleGeometry(radius, straight, 4, 8), mat);
+  // rounder caps/rings than the old 4x8 — at counter distance the low silhouette
+  // was the single biggest "made of tubes" tell.
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(radius, straight, 6, 14), mat);
   m.position.y = y;
+  m.castShadow = true;
+  return m;
+}
+
+// A sphere sized in absolute units — used for the joints that tie the body's
+// tubes together (neck, shoulders, hips) so the figure reads as one piece.
+function ball(radius, mat, segments = 16) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(radius, segments, Math.max(10, segments - 4)), mat);
   m.castShadow = true;
   return m;
 }
@@ -50,10 +60,34 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   const torso = capsule(0.18, 0.22, mPolo, 0.26);
   torso.scale.set(1.28, 1, 0.76);
   chest.add(torso);
+
+  // --- CONNECTIVE TISSUE ---------------------------------------------------------------------
+  // The figure used to be a pile of separate tubes and balls with air at every joint — a
+  // floating head worst of all. These pieces are children of the chest, so they lean, twist
+  // and bob WITH the torso; they carry no rig, they just close the gaps.
+  // A polo shoulder yoke lying across the top of the chest, tying both arm-roots into the body.
+  const yoke = new THREE.Mesh(new THREE.CapsuleGeometry(0.135, 0.26, 6, 14), mPolo);
+  yoke.rotation.z = Math.PI / 2;
+  yoke.scale.set(1, 1, 0.82);
+  yoke.position.y = 0.4;
+  yoke.castShadow = true;
+  chest.add(yoke);
+  // A skin neck rising out of the collar and into the skull — no more floating head.
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.076, 0.18, 16), mSkin);
+  neck.position.y = 0.47;
+  neck.castShadow = true;
+  chest.add(neck);
+  // The polo hem, draped over the waistband so the shirt-to-trousers seam is covered.
+  const hem = new THREE.Mesh(new THREE.CylinderGeometry(0.216, 0.198, 0.17, 18), mPolo);
+  hem.scale.set(1, 1, 0.74);
+  hem.position.y = 0.02;
+  hem.castShadow = true;
+  chest.add(hem);
+
   const head = new THREE.Group();
   head.position.y = 0.62;
   chest.add(head);
-  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.155, 12, 9), mSkin);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.155, 20, 14), mSkin);
   skull.position.y = 0.06;
   skull.castShadow = true;
   head.add(skull);
@@ -95,6 +129,11 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     const shoulder = new THREE.Group();
     shoulder.position.set(sx * 0.285, 0.43, 0);
     chest.add(shoulder);
+    // deltoid cap at the pivot: a polo ball merging the yoke into the sleeve. Sitting on
+    // the joint centre, it caps the shoulder at every arm angle without a visible socket.
+    const deltoid = ball(0.092, mPolo, 16);
+    deltoid.scale.set(1, 0.95, 0.9);
+    shoulder.add(deltoid);
     const upperArm = capsule(0.060, 0.20, mPolo, -0.15);
     upperArm.scale.z = 0.88;
     shoulder.add(upperArm);
@@ -125,6 +164,11 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     const hip = new THREE.Group();
     hip.position.set(sx * 0.11, 0.98, 0);
     root.add(hip);
+    // hip cap at the pivot: a khaki ball tying the pelvis into the thigh, closing the
+    // crotch/hip gap that made the legs read as two loose posts under a bowl.
+    const hipCap = ball(0.10, mKhaki, 14);
+    hipCap.scale.set(1, 0.9, 0.95);
+    hip.add(hipCap);
     const thigh = capsule(0.078, 0.30, mKhaki, -0.22);
     thigh.scale.z = 0.92;
     hip.add(thigh);
