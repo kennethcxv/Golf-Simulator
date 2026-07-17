@@ -1409,6 +1409,17 @@ export function makeCourseScene(canvas, state) {
         const spec = grassForZone(course.zones[cy * W + cx]);
         if (!spec) continue;
         if (insideStructure(wx, wz)) continue;
+        // ALSO honour the clubhouse's own footprint. insideStructure derives from
+        // the structure-cell grid, which the terrain-resolution rebuild can desync
+        // from where the interior actually stands; isInside is authoritative (it
+        // asks the building). A margin catches blades that would poke under the
+        // walls or through the floor from a steep indoor camera (the cash drawer).
+        if (clubhouseApi && clubhouseApi.isInside) {
+          const M = 1.0;
+          if (clubhouseApi.isInside(wx, wz)
+            || clubhouseApi.isInside(wx + M, wz) || clubhouseApi.isInside(wx - M, wz)
+            || clubhouseApi.isInside(wx, wz + M) || clubhouseApi.isInside(wx, wz - M)) continue;
+        }
         // density falls with distance so the far ring dissolves, no hard circle
         const distN = d2 / R2; // 0 near → 1 at the rim
         if (distN > 0.35 && s3 < (distN - 0.35) / 0.9) continue;
@@ -2492,6 +2503,10 @@ export function makeCourseScene(canvas, state) {
     // the box cutter: a stubby retractable utility knife. Yellow body, a short angled blade — read
     // at arm's length, it is unmistakably the thing you run down a seam of tape.
     const cutterGroup = heldGroups.boxcutter;
+    const cutterVisual = new THREE.Group();
+    cutterVisual.name = 'DeliveryBoxCutterVisual';
+    cutterVisual.scale.setScalar(1.35);
+    cutterGroup.add(cutterVisual);
     const fallback = () => {
       const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd8b23a, roughness: 0.5 });
       const bladeMat = new THREE.MeshStandardMaterial({ color: 0xcdd2d6, roughness: 0.25, metalness: 0.8 });
@@ -2501,7 +2516,7 @@ export function makeCourseScene(canvas, state) {
       const blade = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.03, 0.05), bladeMat);
       blade.position.set(0, 0.03, -0.085);
       blade.rotation.x = -0.5;
-      cutterGroup.add(handle, slide, blade);
+      cutterVisual.add(handle, slide, blade);
       cutterGroup.userData.deliveryCutterFallback = true;
     };
     new GLTFLoader().load(
@@ -2513,7 +2528,7 @@ export function makeCourseScene(canvas, state) {
           if (object.isMesh) { object.castShadow = true; object.receiveShadow = false; }
           if (object.name.startsWith('COL_')) object.visible = false;
         });
-        cutterGroup.add(model);
+        cutterVisual.add(model);
         cutterGroup.userData.deliveryCutterModel = model;
         cutterGroup.userData.deliveryCutterBlade = model.getObjectByName('CUTTER_BLADE') || model.getObjectByName('BLADE');
         cutterGroup.userData.deliveryCutterSlider = model.getObjectByName('CUTTER_SLIDER') || model.getObjectByName('SLIDER');
@@ -2521,7 +2536,6 @@ export function makeCourseScene(canvas, state) {
       undefined,
       fallback,
     );
-    cutterGroup.scale.setScalar(1.35);
     cutterGroup.position.set(0.22, -0.30, -0.5);
     cutterGroup.rotation.set(0.15, -0.2, 0);
   }
@@ -2814,7 +2828,6 @@ export function makeCourseScene(canvas, state) {
   const cutterPathEndWorld = new THREE.Vector3();
   const cutterContactWorld = new THREE.Vector3();
   const cutterContactLocal = new THREE.Vector3();
-  const cutterPathEndLocal = new THREE.Vector3();
 
   function reconcileAutoTool() {
     const want = (walkFocus && walkFocus.kind === 'prop' && walkFocus.prop.tool) || null;
@@ -2876,12 +2889,12 @@ export function makeCourseScene(canvas, state) {
     cutterPathStartWorld.set(path.start.x, path.start.y, path.start.z);
     cutterPathEndWorld.set(path.end.x, path.end.y, path.end.z);
     cutterContactWorld.lerpVectors(cutterPathStartWorld, cutterPathEndWorld, progress);
-    camera.updateMatrixWorld(true);
-    cutterContactLocal.copy(camera.worldToLocal(cutterContactWorld));
-    cutterPathEndLocal.copy(camera.worldToLocal(cutterPathEndWorld));
+    heldRoot.updateMatrixWorld(true);
+    cutterContactLocal.copy(cutterContactWorld);
+    heldRoot.worldToLocal(cutterContactLocal);
     cutter.position.lerp(cutterContactLocal, cutterContactBlend);
     if (cutterContactBlend > 0.05) {
-      cutter.lookAt(cutterPathEndLocal);
+      cutter.lookAt(cutterPathEndWorld);
       cutter.rotateZ(Math.PI * 0.5);
     }
   }
