@@ -300,8 +300,10 @@ def build_cash_drawer(M):
         x = ix0 + i * pitch
         ip.append(L.box(f"i_bdiv{i}", (wall, bill_d, h_bdiv), (x, y_bill_c, zf + h_bdiv / 2), M["tray_gray"], bevel=0.001))
         ip.append(L.box(f"i_cdiv{i}", (wall, coin_d, h_cdiv), (x, y_coin_c, zf + h_cdiv / 2), M["tray_gray"], bevel=0.001))
-    # clip hinge lugs on the separator top, one pair per bill slot
-    arm_len, arm_w = 0.088, pitch - 0.024
+    # clip hinge lugs on the separator top, one pair per bill slot.
+    # The paddle is a SHORT front retaining bar (~front quarter of the note), not
+    # a big flap: a long paddle read as a dark hole covering the bill artwork.
+    arm_len, arm_w = 0.052, pitch - 0.024
     hinge_z = zf + h_mid + 0.003                   # rod axis just above the separator
     for i in range(5):
         x = ix0 + pitch / 2 + i * pitch
