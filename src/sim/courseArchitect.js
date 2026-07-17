@@ -631,12 +631,16 @@ function plantProperty(course, designed, rng) {
     }
   }
 
-  // 5. clubhouse landscaping: ornamentals + shrubs + the arrival garden
+  // 5. clubhouse landscaping: a restrained arrival garden — two ornamentals
+  // flanking the entrance, then mostly leafy shrubs (flowering trees are a
+  // seasonal accent, not the headline)
   const ch = course.structures[0];
-  for (let k = 0; k < 6; k++) {
-    const px = ch.x - 1.5 + rng.next() * (ch.w + 3);
-    const py = ch.y - 2.2 + rng.next() * 1.2;
-    addObj(course, k % 2 ? 'flower_a' : 'shrub_flower', px, py, rng.next() * Math.PI * 2, 0.9 + rng.next() * 0.3);
+  addObj(course, 'flower_a', ch.x - 0.5, ch.y - 1.8, rng.next() * Math.PI * 2, 0.9 + rng.next() * 0.2);
+  addObj(course, 'flower_a', ch.x + ch.w + 0.5, ch.y - 1.8, rng.next() * Math.PI * 2, 0.9 + rng.next() * 0.2);
+  for (let k = 0; k < 3; k++) {
+    const px = ch.x - 1 + rng.next() * (ch.w + 2);
+    const py = ch.y - 2.2 + rng.next() * 1.0;
+    addObj(course, 'shrub_flower', px, py, rng.next() * Math.PI * 2, 0.85 + rng.next() * 0.25);
   }
   for (let k = 0; k < 8; k++) {
     const a = rng.next() * Math.PI * 2;

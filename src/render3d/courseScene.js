@@ -1255,7 +1255,7 @@ export function makeCourseScene(canvas, state) {
     // (2 stacked quads each = 8 tris total), pivot at the base
     const g = new THREE.BufferGeometry();
     const seg = 2;
-    const halfW = 0.075;
+    const halfW = 0.055;
     const pos = [];
     const uv = [];
     const idx = [];
@@ -1342,15 +1342,15 @@ export function makeCourseScene(canvas, state) {
   // surface → { height(yd), tint } ; null = no grass (sand/water/path/deep native)
   function grassForZone(z) {
     switch (z) {
-      case ZONE.GREEN: return { h: 0.09, c: [0.30, 0.56, 0.20] };
-      case ZONE.TEE: return { h: 0.12, c: [0.28, 0.52, 0.18] };
-      case ZONE.FAIRWAY: return { h: 0.17, c: [0.32, 0.58, 0.17] };
-      case ZONE.SEMI: return { h: 0.3, c: [0.28, 0.52, 0.16] };
-      case ZONE.FRINGE: return { h: 0.22, c: [0.26, 0.5, 0.17] };
-      case ZONE.ROUGH: return { h: 0.5, c: [0.26, 0.47, 0.14] };
-      case ZONE.HEAVY: return { h: 0.8, c: [0.4, 0.43, 0.17] };
-      case ZONE.OUT: return { h: 0.62, c: [0.38, 0.42, 0.18] };
-      case ZONE.BED: return { h: 0.2, c: [0.26, 0.4, 0.15] };
+      case ZONE.GREEN: return null; // a putting surface is mown to the texture — no blades
+      case ZONE.TEE: return { h: 0.06, c: [0.28, 0.52, 0.18] };
+      case ZONE.FAIRWAY: return { h: 0.11, c: [0.32, 0.58, 0.17] };
+      case ZONE.SEMI: return { h: 0.22, c: [0.28, 0.52, 0.16] };
+      case ZONE.FRINGE: return { h: 0.13, c: [0.26, 0.5, 0.17] };
+      case ZONE.ROUGH: return { h: 0.42, c: [0.26, 0.47, 0.14] };
+      case ZONE.HEAVY: return { h: 0.72, c: [0.4, 0.43, 0.17] };
+      case ZONE.OUT: return { h: 0.55, c: [0.38, 0.42, 0.18] };
+      case ZONE.BED: return { h: 0.16, c: [0.26, 0.4, 0.15] };
       default: return null; // bunker, water, path, dirt
     }
   }
@@ -2815,11 +2815,27 @@ export function makeCourseScene(canvas, state) {
   function walkBlur() {
     walkHeld.clear();
   }
+  // Ignore the first mouse events after (re)acquiring pointer lock. Browsers can
+  // deliver a large accumulated movementX/Y in that first event — the classic
+  // cause of a sudden 180 spin after an alt-tab, a click-back, or a re-lock.
+  let walkLockGuard = 0;
+  const WALK_DELTA_MAX = 140; // px; a single real mouse move is never larger
+  function walkLockChange() {
+    if (document.pointerLockElement === canvas) walkLockGuard = 2;
+  }
   function walkMouseMove(e) {
     if (document.pointerLockElement !== canvas) return;
+    if (walkLockGuard > 0) { walkLockGuard -= 1; return; }
     const sens = walk.sens || 1; // pause-menu mouse sensitivity
-    walk.yaw -= e.movementX * 0.0021 * sens;
-    walk.pitch = clamp(walk.pitch - e.movementY * 0.0019 * sens, -1.35, 1.35);
+    // Clamp impossible per-event deltas so no single event can whip the view
+    // around — a reacquisition or synthetic jump is capped, real motion is not.
+    const mx = clamp(e.movementX, -WALK_DELTA_MAX, WALK_DELTA_MAX);
+    const my = clamp(e.movementY, -WALK_DELTA_MAX, WALK_DELTA_MAX);
+    walk.yaw -= mx * 0.0021 * sens;
+    walk.pitch = clamp(walk.pitch - my * 0.0019 * sens, -1.35, 1.35);
+    // keep yaw wrapped to [-PI, PI] so it never drifts to a huge magnitude
+    if (walk.yaw > Math.PI) walk.yaw -= Math.PI * 2;
+    else if (walk.yaw < -Math.PI) walk.yaw += Math.PI * 2;
   }
 
   // where you land when stepping out the clubhouse door: just past the porch
@@ -2855,6 +2871,8 @@ export function makeCourseScene(canvas, state) {
     window.addEventListener('keyup', walkKeyUp);
     window.addEventListener('blur', walkBlur);
     document.addEventListener('mousemove', walkMouseMove);
+    document.addEventListener('pointerlockchange', walkLockChange);
+    walkLockGuard = 2; // guard the initial lock too
   }
 
   function walkExit() {
@@ -2867,6 +2885,7 @@ export function makeCourseScene(canvas, state) {
     window.removeEventListener('keyup', walkKeyUp);
     window.removeEventListener('blur', walkBlur);
     document.removeEventListener('mousemove', walkMouseMove);
+    document.removeEventListener('pointerlockchange', walkLockChange);
     if (document.pointerLockElement === canvas) document.exitPointerLock();
     camera.fov = 46; // hand the camera back to the management rig
     camera.near = 1;

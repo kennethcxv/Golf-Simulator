@@ -363,8 +363,8 @@ CATALOG = [
       trunk_r=0.06, leaf_hsv=(0.225, 0.55, 0.44), branches=2, subdiv=1, amp=0.24, stack=True),
     V("shade_a", "deciduous", "deciduous", 12, 15, lobes=6, height=2.8, canopy_w=3.3, canopy_squash=0.68,
       trunk_r=0.13, leaf_hsv=(0.29, 0.55, 0.32), branches=4, amp=0.24),
-    V("flower_a", "ornamental", "deciduous", 5, 7, lobes=5, height=2.2, canopy_w=2.2, canopy_squash=0.9,
-      trunk_r=0.08, leaf_hsv=(0.915, 0.34, 0.74), branches=2, subdiv=1, amp=0.28),
+    V("flower_a", "ornamental", "deciduous", 5, 7, lobes=6, height=2.2, canopy_w=2.3, canopy_squash=0.86,
+      trunk_r=0.08, leaf_hsv=(0.955, 0.30, 0.80), branches=2, subdiv=2, amp=0.24),
     # forest fill (cheap, subdiv 1)
     V("fill_a", "deciduous", "deciduous", 10, 15, lobes=4, height=3.0, canopy_w=2.4, canopy_squash=0.9,
       trunk_r=0.11, leaf_hsv=(0.272, 0.58, 0.33), branches=1, subdiv=1, amp=0.24),
@@ -377,7 +377,7 @@ CATALOG = [
     V("cedar_a", "evergreen", "conifer", 9, 12, tiers=7, height=3.0, base_w=0.95, leaf_hsv=(0.33, 0.45, 0.28)),
     # shrubs / ground
     V("shrub_round", "shrub", "shrub", 1.4, 2.2, lobes=2, width=1.5, height=1.1, leaf_hsv=(0.30, 0.55, 0.30)),
-    V("shrub_flower", "shrub", "shrub", 1.2, 1.8, lobes=3, width=1.4, height=1.0, leaf_hsv=(0.86, 0.30, 0.66), amp=0.24),
+    V("shrub_flower", "shrub", "shrub", 1.2, 1.8, lobes=3, width=1.4, height=1.0, leaf_hsv=(0.93, 0.22, 0.62), amp=0.24),
     V("bush_native", "shrub", "shrub", 1.5, 2.6, lobes=3, width=1.8, height=1.2, leaf_hsv=(0.21, 0.48, 0.34), amp=0.3),
     V("reed_clump", "reed", "blades", 1.6, 2.4, blades=15, height=1.5, spread=0.5, hsv=(0.20, 0.5, 0.42), w=0.035),
     V("grass_clump", "reed", "blades", 0.9, 1.4, blades=12, height=0.8, spread=0.45, hsv=(0.23, 0.55, 0.4), tip_droop=0.5, w=0.05),
