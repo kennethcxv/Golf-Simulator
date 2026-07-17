@@ -51,12 +51,15 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
 
   const root = new THREE.Group();
 
-  // pelvis + legs hang off the root; chest carries torso/head/arms for lean+twist
-  const pelvis = ellipsoid(0.34, 0.20, 0.22, mKhaki, 1.03);
+  // pelvis + legs hang off the root; chest carries torso/head/arms for lean+twist.
+  // The whole figure is built so the SHOE SOLES sit at model y≈0: the game places a
+  // character's root exactly on the floor/terrain, so a body whose feet were at y≈0.05
+  // hovered ~5 cm above the ground. Every base height below is lowered to plant the feet.
+  const pelvis = ellipsoid(0.34, 0.20, 0.22, mKhaki, 0.98);
   root.add(pelvis);
 
   const chest = new THREE.Group();
-  chest.position.y = 1.12;
+  chest.position.y = 1.07;
   root.add(chest);
   const torso = capsule(0.18, 0.22, mPolo, 0.26);
   torso.scale.set(1.28, 1, 0.76);
@@ -199,7 +202,7 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     limbs[`carryGrip${side}`] = carryGrip;
 
     const hip = new THREE.Group();
-    hip.position.set(sx * 0.11, 0.98, 0);
+    hip.position.set(sx * 0.11, 0.93, 0);
     root.add(hip);
     // hip cap at the pivot: a khaki ball tying the pelvis into the thigh, closing the
     // crotch/hip gap that made the legs read as two loose posts under a bowl.
@@ -405,8 +408,8 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     chest.rotation.x = lean;
     chest.rotation.y = twist;
     head.rotation.x = headTilt;
-    chest.position.y = 1.12 + bob; // bob lives on the body — root stays placeable
-    pelvis.position.y = 1.03 + bob * 0.7;
+    chest.position.y = 1.07 + bob; // bob lives on the body — root stays placeable
+    pelvis.position.y = 0.98 + bob * 0.7;
   };
 
   char.update(0.001); // land in a valid pose immediately
