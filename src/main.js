@@ -788,7 +788,10 @@ function saveSettings() {
 }
 function applySettings() {
   if (!app.scene3d) return;
-  app.scene3d.renderer.setPixelRatio(Math.min(2.5, (window.devicePixelRatio || 1) * (settings.renderScale || 1)));
+  // Cap device pixel ratio at 1.5 — the perf ceiling the scene is tuned for. A
+  // 4K/retina panel at native DPR quadruples the pixel cost for no visible gain
+  // at this art style. renderScale still lets the player trade sharpness for fps.
+  app.scene3d.renderer.setPixelRatio(Math.min(1.5, (window.devicePixelRatio || 1) * (settings.renderScale || 1)));
   app.scene3d.resize();
   if (app.scene3d.post) {
     if (app.scene3d.post.gtao) app.scene3d.post.gtao.enabled = settings.ao !== false;
@@ -1678,8 +1681,21 @@ function announceReopenings() {
 
 // --- boot ------------------------------------------------------------------------------
 
+// Debounce resize: a window drag fires dozens of resize events per second, and
+// each one re-allocates the renderer + composer buffers (expensive, and a source
+// of judder while dragging). Coalesce them to one setSize after motion settles,
+// with a light immediate pass so the aspect never looks stretched mid-drag.
+let resizeTimer = 0;
+let resizeCoarse = 0;
 function resize() {
-  if (app.scene3d) app.scene3d.resize();
+  if (!app.scene3d) return;
+  const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+  if (now - resizeCoarse > 120) { // at most ~8 immediate passes/sec while dragging
+    resizeCoarse = now;
+    app.scene3d.resize();
+  }
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (app.scene3d) app.scene3d.resize(); }, 160);
 }
 window.addEventListener('resize', resize);
 

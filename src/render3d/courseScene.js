@@ -29,6 +29,7 @@ import { makeCameraRig } from './cameraRig.js';
 import { makeCharacter } from './characterAsset.js';
 import { makeClubhouse } from './clubhouse.js';
 import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture, makeAsphaltTexture } from './proceduralTextures.js';
+import { applyMouseLook } from './mouseLook.js';
 import { makeVisualField, computeVisualField, updateVisualFieldRegion, FIELD_SCALE } from './visualField.js';
 import { buildRelief, reliefAt, getGeom, mowAngleAt } from '../sim/courseVec.js';
 import { ZONE_COLORS } from '../render/palette.js';
@@ -2490,18 +2491,39 @@ export function makeCourseScene(canvas, state) {
   {
     // the box cutter: a stubby retractable utility knife. Yellow body, a short angled blade — read
     // at arm's length, it is unmistakably the thing you run down a seam of tape.
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd8b23a, roughness: 0.5 });
-    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xcdd2d6, roughness: 0.25, metalness: 0.8 });
-    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.14), bodyMat);
-    const slide = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.012, 0.05), new THREE.MeshStandardMaterial({ color: 0x2a2d30, roughness: 0.7 }));
-    slide.position.set(0.016, 0.02, 0.01);
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.03, 0.05), bladeMat);
-    blade.position.set(0, 0.03, -0.085);
-    blade.rotation.x = -0.5;
-    heldGroups.boxcutter.add(handle, slide, blade);
-    heldGroups.boxcutter.scale.setScalar(1.6);          // a utility knife is small; read it at arm's length
-    heldGroups.boxcutter.position.set(0.22, -0.30, -0.5);
-    heldGroups.boxcutter.rotation.set(0.15, -0.2, 0);
+    const cutterGroup = heldGroups.boxcutter;
+    const fallback = () => {
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd8b23a, roughness: 0.5 });
+      const bladeMat = new THREE.MeshStandardMaterial({ color: 0xcdd2d6, roughness: 0.25, metalness: 0.8 });
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.14), bodyMat);
+      const slide = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.012, 0.05), new THREE.MeshStandardMaterial({ color: 0x2a2d30, roughness: 0.7 }));
+      slide.position.set(0.016, 0.02, 0.01);
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.03, 0.05), bladeMat);
+      blade.position.set(0, 0.03, -0.085);
+      blade.rotation.x = -0.5;
+      cutterGroup.add(handle, slide, blade);
+      cutterGroup.userData.deliveryCutterFallback = true;
+    };
+    new GLTFLoader().load(
+      'vendor/models/clubhouse/delivery_box_cutter.glb',
+      (gltf) => {
+        const model = gltf.scene;
+        model.name = 'DeliveryBoxCutterAuthored';
+        model.traverse((object) => {
+          if (object.isMesh) { object.castShadow = true; object.receiveShadow = false; }
+          if (object.name.startsWith('COL_')) object.visible = false;
+        });
+        cutterGroup.add(model);
+        cutterGroup.userData.deliveryCutterModel = model;
+        cutterGroup.userData.deliveryCutterBlade = model.getObjectByName('CUTTER_BLADE') || model.getObjectByName('BLADE');
+        cutterGroup.userData.deliveryCutterSlider = model.getObjectByName('CUTTER_SLIDER') || model.getObjectByName('SLIDER');
+      },
+      undefined,
+      fallback,
+    );
+    cutterGroup.scale.setScalar(1.35);
+    cutterGroup.position.set(0.22, -0.30, -0.5);
+    cutterGroup.rotation.set(0.15, -0.2, 0);
   }
   const loadHeld = (url, group, scale, pos, rot) => {
     new GLTFLoader().load(url, (g) => {
@@ -2785,6 +2807,14 @@ export function makeCourseScene(canvas, state) {
   // frame from whatever you are focused on, so nothing here is a mode you enter and forget.
   let autoTool = null;         // a tool equipped BY context, to be taken away again when you look off
   let holdActive = false;      // are we mid-hold this frame? (drives the hands' cutting motion)
+  let cutterContactBlend = 0;
+  let cutterBladeBlend = 0;
+  const cutterRestLocal = new THREE.Vector3(0.22, -0.30, -0.5);
+  const cutterPathStartWorld = new THREE.Vector3();
+  const cutterPathEndWorld = new THREE.Vector3();
+  const cutterContactWorld = new THREE.Vector3();
+  const cutterContactLocal = new THREE.Vector3();
+  const cutterPathEndLocal = new THREE.Vector3();
 
   function reconcileAutoTool() {
     const want = (walkFocus && walkFocus.kind === 'prop' && walkFocus.prop.tool) || null;
@@ -2806,6 +2836,56 @@ export function makeCourseScene(canvas, state) {
     holdActive = true;
   }
 
+  function updateBoxCutterPose(dt) {
+    const cutter = heldGroups.boxcutter;
+    const focusedProp = walkFocus && walkFocus.kind === 'prop' ? walkFocus.prop : null;
+    const path = focusedProp && focusedProp.toolPath;
+    const wantsContact = walkTool === 'boxcutter' && path ? 1 : 0;
+    const wantsBlade = walkTool === 'boxcutter' ? 1 : 0;
+    cutterContactBlend += (wantsContact - cutterContactBlend) * Math.min(1, dt * 10);
+    cutterBladeBlend += (wantsBlade - cutterBladeBlend) * Math.min(1, dt * 12);
+
+    const blade = cutter.userData.deliveryCutterBlade;
+    const slider = cutter.userData.deliveryCutterSlider;
+    if (blade) {
+      if (!blade.userData.cutterRetracted) {
+        blade.userData.cutterRetracted = blade.position.clone();
+        blade.userData.cutterExtended = blade.position.clone().add(new THREE.Vector3(0, 0, -0.026));
+      }
+      blade.position.lerpVectors(blade.userData.cutterRetracted, blade.userData.cutterExtended, cutterBladeBlend);
+    }
+    if (slider) {
+      if (!slider.userData.cutterRetracted) {
+        slider.userData.cutterRetracted = slider.position.clone();
+        slider.userData.cutterExtended = slider.position.clone().add(new THREE.Vector3(0, 0, -0.018));
+      }
+      slider.position.lerpVectors(slider.userData.cutterRetracted, slider.userData.cutterExtended, cutterBladeBlend);
+    }
+
+    if (!path) {
+      cutter.position.lerp(cutterRestLocal, Math.min(1, dt * 12));
+      cutter.rotation.x += (0.15 - cutter.rotation.x) * Math.min(1, dt * 12);
+      cutter.rotation.y += (-0.2 - cutter.rotation.y) * Math.min(1, dt * 12);
+      cutter.rotation.z += (0 - cutter.rotation.z) * Math.min(1, dt * 12);
+      return;
+    }
+
+    const progress = Math.max(0, Math.min(1,
+      path.progress == null ? (Number(focusedProp.toolProgress) || 0) : Number(path.progress),
+    ));
+    cutterPathStartWorld.set(path.start.x, path.start.y, path.start.z);
+    cutterPathEndWorld.set(path.end.x, path.end.y, path.end.z);
+    cutterContactWorld.lerpVectors(cutterPathStartWorld, cutterPathEndWorld, progress);
+    camera.updateMatrixWorld(true);
+    cutterContactLocal.copy(camera.worldToLocal(cutterContactWorld));
+    cutterPathEndLocal.copy(camera.worldToLocal(cutterPathEndWorld));
+    cutter.position.lerp(cutterContactLocal, cutterContactBlend);
+    if (cutterContactBlend > 0.05) {
+      cutter.lookAt(cutterPathEndLocal);
+      cutter.rotateZ(Math.PI * 0.5);
+    }
+  }
+
   function walkKeyDown(e) {
     walkHeld.add(e.key.toLowerCase());
   }
@@ -2819,7 +2899,6 @@ export function makeCourseScene(canvas, state) {
   // deliver a large accumulated movementX/Y in that first event — the classic
   // cause of a sudden 180 spin after an alt-tab, a click-back, or a re-lock.
   let walkLockGuard = 0;
-  const WALK_DELTA_MAX = 140; // px; a single real mouse move is never larger
   function walkLockChange() {
     if (document.pointerLockElement === canvas) walkLockGuard = 2;
   }
@@ -2827,15 +2906,11 @@ export function makeCourseScene(canvas, state) {
     if (document.pointerLockElement !== canvas) return;
     if (walkLockGuard > 0) { walkLockGuard -= 1; return; }
     const sens = walk.sens || 1; // pause-menu mouse sensitivity
-    // Clamp impossible per-event deltas so no single event can whip the view
-    // around — a reacquisition or synthetic jump is capped, real motion is not.
-    const mx = clamp(e.movementX, -WALK_DELTA_MAX, WALK_DELTA_MAX);
-    const my = clamp(e.movementY, -WALK_DELTA_MAX, WALK_DELTA_MAX);
-    walk.yaw -= mx * 0.0021 * sens;
-    walk.pitch = clamp(walk.pitch - my * 0.0019 * sens, -1.35, 1.35);
-    // keep yaw wrapped to [-PI, PI] so it never drifts to a huge magnitude
-    if (walk.yaw > Math.PI) walk.yaw -= Math.PI * 2;
-    else if (walk.yaw < -Math.PI) walk.yaw += Math.PI * 2;
+    // applyMouseLook clamps the per-event delta (no 180 whip on a reacquisition
+    // jump), applies sensitivity, wraps yaw and clamps pitch — see mouseLook.js.
+    const next = applyMouseLook(walk.yaw, walk.pitch, e.movementX, e.movementY, sens);
+    walk.yaw = next.yaw;
+    walk.pitch = next.pitch;
   }
 
   // where you land when stepping out the clubhouse door: just past the porch
@@ -2989,6 +3064,9 @@ export function makeCourseScene(canvas, state) {
       const run = walkHeld.has('shift') ? walk.runMult : 1;
       // a full armful or a heavy carton slows you down — sim/stocking says by how much
       const load = clubhouseApi && clubhouseApi.carrySpeedFactor ? clubhouseApi.carrySpeedFactor() : 1;
+      const carryRadius = clubhouseApi && clubhouseApi.carryCollisionRadius
+        ? Math.max(walk.radius, clubhouseApi.carryCollisionRadius())
+        : walk.radius;
       let mx = 0;
       let mz = 0;
       if (walkHeld.has('w')) mz -= 1;
@@ -3001,7 +3079,7 @@ export function makeCourseScene(canvas, state) {
         const s = (walk.speed * run * load * dt) / len;
         const sin = Math.sin(walk.yaw);
         const cos = Math.cos(walk.yaw);
-        walkTryMove((mx * cos + mz * sin) * s, (-mx * sin + mz * cos) * s);
+        walkTryMove((mx * cos + mz * sin) * s, (-mx * sin + mz * cos) * s, carryRadius);
       }
     }
 
@@ -3046,6 +3124,7 @@ export function makeCourseScene(canvas, state) {
     walkFindFocus();
     reconcileAutoTool();   // the box cutter appears when you look at a taped box, and only then
     runHold(dt);           // holding E runs whatever the focused prop exposes as a hold verb
+    updateBoxCutterPose(dt);
     updateHeldFeel(dt);
 
     // the pressure washer works against the BUILDING, not the turf: raycast where the player is
