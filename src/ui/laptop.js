@@ -1,17 +1,18 @@
-// GOLF SIMULATOR — the clubhouse laptop, simulator-simple.
+// GOLF SIMULATOR — the clubhouse laptop, in its final skin (LaptopUIFinal).
 //
 // This is diegetic software. It renders into `.laptop-screen`, which main.js maps corner-to-
 // corner onto the laptop's physical display every frame — the interface IS the screen. Nothing
 // here knows about 3D; it just has to be a good 1024x640 application.
 //
 // SEVEN PAGES, NO MORE. Home answers "what now?" on one screen; Tee Times is an appointment
-// list; Shop folds stock, ordering, prices and deliveries into four tabs; Course folds
+// list; Shop folds stock, ordering, pricing and deliveries into four tabs; Course folds
 // condition, tasks and holes into three; Upgrades is where money becomes lasting improvement;
-// Finances is a money history a player can trust; Settings is small. Everything the old
-// twenty-four-desk office did that mattered still happens — it just happens inside these seven.
+// Finances is a money history a player can trust; Settings is small. The look is the approved
+// reference set: white sidebar, soft gray canvas, white cards, one calm blue, colored words
+// for status — a polished simulator screen, never accounting software.
 //
-// THE ONE RULE SURVIVES THE SIMPLIFICATION: every number on these pages is read live from the
-// sim. Where the sim does not model something, the page says so in place rather than showing a
+// THE ONE RULE SURVIVES EVERY RESKIN: every number on these pages is read live from the sim.
+// Where the sim does not model something, the page says so in place rather than showing a
 // plausible number. And the laptop only MANAGES — boxes are carried, shelves are stocked,
 // change is counted and greens are mowed out in the world, by hands.
 
@@ -22,11 +23,10 @@ import {
   SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS,
 } from '../data/shopItems.js';
 import {
-  placeOrder, cancelOrder, orderCost, shopCondition, priceFor,
-  velocity, buyRentalSets,
+  placeOrder, cancelOrder, orderCost, priceFor, velocity, buyRentalSets,
 } from '../sim/shop.js';
 import {
-  boxesOf, shipmentsOf, shipmentStatus, padCount, PAD_CAPACITY, boxOpened,
+  boxesOf, shipmentsOf, shipmentStatus, padCount, PAD_CAPACITY,
 } from '../sim/deliveries.js';
 import { planShipment, unitsPerBox } from '../data/boxes.js';
 import {
@@ -50,13 +50,15 @@ import {
   UPGRADES, TOURNAMENTS, hasUpgrade, purchaseUpgrade, canScheduleTournament, scheduleTournament,
 } from '../sim/progression.js';
 import {
-  ensureNotifications, unreadCount, markRead, markAllRead,
+  NOTIF_KINDS, ensureNotifications, unreadCount, markRead, markAllRead,
 } from '../sim/notifications.js';
 import { currentStep } from '../sim/tutorial.js';
 import { holePar, holeDistanceYd } from '../sim/course.js';
 import { capacityOf } from '../data/fixtureSlots.js';
 import { ZONE, HOLE_STATUS } from '../sim/constants.js';
-import { SERIES, lineChart, applyTableQuery, searchBox, filterTabs } from './laptopWidgets.js';
+import {
+  SERIES, svgEl, lineChart, applyTableQuery, searchBox, filterTabs,
+} from './laptopWidgets.js';
 
 const CAT_LABEL = {
   clubs: 'Clubs', balls: 'Golf balls', apparel: 'Apparel', accessories: 'Accessories',
@@ -85,15 +87,161 @@ const ORDER_STATUS = {
   unpacked: { label: 'Unpacked', tone: 'ok' },
 };
 
+// --- the line-icon set — inline SVG, stroke follows the text color ---------------------------
+// Each glyph is a few strokes on a 24-box; ['c', cx, cy, r] draws a circle.
+const ICONS = {
+  logo: [['p', 'M8 20.5V3.5l8.5 2.6L8 8.9'], ['c', 15.7, 18.6, 2.5], ['p', 'M3.5 20.5h8.7']],
+  home: [['p', 'M3.5 10.4 12 3.2l8.5 7.2'], ['p', 'M5.6 8.9V20.5h12.8V8.9'], ['p', 'M9.9 20.5v-5.7h4.2v5.7']],
+  calendar: [['p', 'M5 5.6h14a1.4 1.4 0 0 1 1.4 1.4v12A1.4 1.4 0 0 1 19 20.4H5A1.4 1.4 0 0 1 3.6 19V7A1.4 1.4 0 0 1 5 5.6z'], ['p', 'M3.6 9.6h16.8'], ['p', 'M8.2 3.4v4'], ['p', 'M15.8 3.4v4']],
+  bag: [['p', 'M6.3 7.6h11.4l1.2 12.9H5.1L6.3 7.6z'], ['p', 'M9.1 10.1V6.4a2.9 2.9 0 0 1 5.8 0v3.7']],
+  flag: [['p', 'M6.6 20.8V4'], ['p', 'M6.6 4.6l9.6 2.9-9.6 3'], ['p', 'M3.8 20.8h5.6']],
+  up: [['p', 'M5 20.6h14'], ['p', 'M12 16.6V5.4'], ['p', 'M7.2 9.9 12 5.2l4.8 4.7']],
+  dollar: [['p', 'M4.4 6.9h15.2a1.3 1.3 0 0 1 1.3 1.3v7.6a1.3 1.3 0 0 1-1.3 1.3H4.4a1.3 1.3 0 0 1-1.3-1.3V8.2a1.3 1.3 0 0 1 1.3-1.3z'], ['c', 12, 12, 2.6], ['p', 'M6.5 12h.01'], ['p', 'M17.5 12h.01']],
+  gear: [['c', 12, 12, 3.1], ['p', 'M12 2.6v2.8'], ['p', 'M12 18.6v2.8'], ['p', 'M2.6 12h2.8'], ['p', 'M18.6 12h2.8'], ['p', 'M5.2 5.2l2 2'], ['p', 'M16.8 16.8l2 2'], ['p', 'M18.8 5.2l-2 2'], ['p', 'M7.2 16.8l-2 2']],
+  bell: [['p', 'M17.8 8.8a5.8 5.8 0 1 0-11.6 0c0 6.2-2.4 7.2-2.4 7.2h16.4s-2.4-1-2.4-7.2'], ['p', 'M10.4 19.4a1.85 1.85 0 0 0 3.2 0']],
+  power: [['p', 'M12 3.2v7.6'], ['p', 'M17.5 6.4a7.7 7.7 0 1 1-11 0']],
+  target: [['c', 12, 12, 8.4], ['c', 12, 12, 4.6], ['c', 12, 12, 1.1]],
+  clock: [['c', 12, 12, 8.5], ['p', 'M12 7.4V12l3.1 2']],
+  users: [['c', 9, 8.4, 3.2], ['p', 'M3.4 19.6c0-3.1 2.5-5.1 5.6-5.1s5.6 2 5.6 5.1'], ['c', 16.6, 9.4, 2.5], ['p', 'M16.2 14.6c2.6.3 4.4 2.1 4.4 5']],
+  box: [['p', 'M12 3 3.9 7.5v9L12 21l8.1-4.5v-9L12 3z'], ['p', 'M3.9 7.5 12 12l8.1-4.5'], ['p', 'M12 12v9']],
+  leaf: [['p', 'M5.4 18.9C5.4 11 10.5 6 19 5c-1 8.5-6 13.6-13.6 13.9z'], ['p', 'M5.4 18.9C8.2 14 11.6 11 15.6 9']],
+  back: [['p', 'M14.4 5.6 8 12l6.4 6.4']],
+};
+function icon(name, cls = 'lt-ic') {
+  const parts = ICONS[name] || ICONS.target;
+  return svgEl('svg', { class: cls, viewBox: '0 0 24 24', 'aria-hidden': 'true' },
+    ...parts.map((p) => (p[0] === 'c'
+      ? svgEl('circle', { cx: p[1], cy: p[2], r: p[3] })
+      : svgEl('path', { d: p[1] }))));
+}
+
+// --- the overhead course painting — the real splat, softened into an aerial ------------------
+// Colors tuned for the light interface; the OUT scrub doubles as the frame around play.
+const LAND = {
+  [ZONE.OUT]: '#42502f',
+  [ZONE.ROUGH]: '#5b7f42',
+  [ZONE.FAIRWAY]: '#79b154',
+  [ZONE.GREEN]: '#95d377',
+  [ZONE.TEE]: '#88c166',
+  [ZONE.BUNKER]: '#e3d3a3',
+  [ZONE.WATER]: '#4f8ec2',
+  [ZONE.PATH]: '#b9b09b',
+  [ZONE.FRINGE]: '#86c465',
+  [ZONE.HEAVY]: '#4e6a37',
+  [ZONE.DIRT]: '#8f7a5b',
+  [ZONE.BED]: '#6d5943',
+  [ZONE.SEMI]: '#6a9d4b',
+};
+const LAND_RGB = Object.fromEntries(Object.entries(LAND).map(([z, hex]) => [z, [
+  parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16),
+]]));
+
+/**
+ * Paint the property (or a window of it) into a canvas: one pixel per cell, then scaled up
+ * with smoothing so the splat reads as an aerial photograph rather than a tile grid.
+ * win: {x0, y0, w, h} cell window; marks: [{x, y, kind:'number'|'tee'|'pin', n}] in cell coords.
+ */
+function paintCourse(cnv, st, { win = null, marks = [] } = {}) {
+  if (!cnv.getContext) return; // headless tests draw nothing
+  const c = st.course;
+  const ctx = cnv.getContext('2d');
+  const W = cnv.width;
+  const H = cnv.height;
+  ctx.fillStyle = LAND[ZONE.OUT];
+  ctx.fillRect(0, 0, W, H);
+  const x0 = win ? win.x0 : 0;
+  const y0 = win ? win.y0 : 0;
+  const cw = Math.max(1, win ? win.w : c.w);
+  const chh = Math.max(1, win ? win.h : c.h);
+  const off = document.createElement('canvas');
+  if (!off.getContext) return;
+  off.width = cw;
+  off.height = chh;
+  const octx = off.getContext('2d');
+  const img = octx.createImageData(cw, chh);
+  for (let y = 0; y < chh; y++) {
+    for (let x = 0; x < cw; x++) {
+      const zx = x0 + x;
+      const zy = y0 + y;
+      const inb = zx >= 0 && zy >= 0 && zx < c.w && zy < c.h;
+      const rgb = LAND_RGB[inb ? c.zones[zy * c.w + zx] : ZONE.OUT] || LAND_RGB[ZONE.OUT];
+      const i = (y * cw + x) * 4;
+      img.data[i] = rgb[0];
+      img.data[i + 1] = rgb[1];
+      img.data[i + 2] = rgb[2];
+      img.data[i + 3] = 255;
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  const s = Math.min(W / cw, H / chh);
+  const ox = (W - cw * s) / 2;
+  const oy = (H - chh * s) / 2;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(off, ox, oy, cw * s, chh * s);
+  for (const m of marks) {
+    const px = ox + (m.x + 0.5 - x0) * s;
+    const py = oy + (m.y + 0.5 - y0) * s;
+    if (px < 6 || py < 6 || px > W - 6 || py > H - 6) continue;
+    if (m.kind === 'number') {
+      const r = Math.max(13, Math.min(17, s * 1.15));
+      ctx.beginPath();
+      ctx.arc(px, py, r, 0, 7);
+      ctx.fillStyle = 'rgba(16,24,40,0.28)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(px, py - 1, r, 0, 7);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.fillStyle = '#1d2531';
+      ctx.font = `700 ${Math.round(r * 1.05)}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(m.n), px, py);
+    } else {
+      ctx.beginPath();
+      ctx.arc(px, py, m.kind === 'pin' ? 4.5 : 3.5, 0, 7);
+      ctx.fillStyle = m.kind === 'pin' ? '#ffd75e' : '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(16,24,40,0.4)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+  }
+}
+
+const clock12 = (m) => {
+  const mm = ((Math.floor(m) % 1440) + 1440) % 1440;
+  const h = Math.floor(mm / 60);
+  return `${((h + 11) % 12) + 1}:${String(mm % 60).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+};
+const hour12 = (m) => {
+  const mm = ((Math.floor(m) % 1440) + 1440) % 1440;
+  const h = Math.floor(mm / 60);
+  return `${((h + 11) % 12) + 1} ${h >= 12 ? 'PM' : 'AM'}`;
+};
+// The money history must visibly reconcile: amounts show cents when they carry them.
+const exactMoney = (v) => {
+  const n = Number(v) || 0;
+  const a = Math.abs(n);
+  const whole = Math.abs(a - Math.round(a)) < 0.005;
+  const body = whole ? Math.round(a).toLocaleString('en-US')
+    : a.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (n < -0.005 ? '-$' : '$') + body;
+};
+// A condition number, said in words a player reads faster than a percentage.
+const conditionWord = (h) => (h >= 70 ? 'Good' : h >= 45 ? 'Fair' : 'Poor');
+const conditionTone = (h) => (h >= 70 ? 'ok' : h >= 45 ? 'warn' : 'bad');
+
 // THE WHOLE SIDEBAR. Seven entries, no groups, no scroll.
 const NAV = [
-  { id: 'home', icon: '⌂', label: 'Home' },
-  { id: 'reservations', icon: '📅', label: 'Tee Times' },
-  { id: 'shop', icon: '🏪', label: 'Shop' },
-  { id: 'course', icon: '⛳', label: 'Course' },
-  { id: 'upgrades', icon: '🏗', label: 'Upgrades' },
-  { id: 'finances', icon: '💰', label: 'Finances' },
-  { id: 'settings', icon: '⚙', label: 'Settings' },
+  { id: 'home', icon: 'home', label: 'Home' },
+  { id: 'reservations', icon: 'calendar', label: 'Tee Times' },
+  { id: 'shop', icon: 'bag', label: 'Shop' },
+  { id: 'course', icon: 'flag', label: 'Course' },
+  { id: 'upgrades', icon: 'up', label: 'Upgrades' },
+  { id: 'finances', icon: 'dollar', label: 'Finances' },
+  { id: 'settings', icon: 'gear', label: 'Settings' },
 ];
 
 // Every retired desk forwards to the page (and tab) that absorbed its job, so old links —
@@ -117,30 +265,6 @@ const PAGE_ALIAS = {
   notifications: ['home', null],
   help: ['home', null],
 };
-
-const clock12 = (m) => {
-  const mm = ((Math.floor(m) % 1440) + 1440) % 1440;
-  const h = Math.floor(mm / 60);
-  return `${((h + 11) % 12) + 1}:${String(mm % 60).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
-};
-const hour12 = (m) => {
-  const mm = ((Math.floor(m) % 1440) + 1440) % 1440;
-  const h = Math.floor(mm / 60);
-  return `${((h + 11) % 12) + 1} ${h >= 12 ? 'PM' : 'AM'}`;
-};
-const pct = (v) => `${Math.round(v * 100)}%`;
-// The money history must visibly reconcile: amounts show cents when they carry them.
-const exactMoney = (v) => {
-  const n = Number(v) || 0;
-  const a = Math.abs(n);
-  const whole = Math.abs(a - Math.round(a)) < 0.005;
-  const body = whole ? Math.round(a).toLocaleString('en-US')
-    : a.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return (n < -0.005 ? '-$' : '$') + body;
-};
-// A condition number, said in words a player reads faster than a percentage.
-const conditionWord = (h) => (h >= 70 ? 'Good' : h >= 45 ? 'Fair' : 'Poor');
-const conditionTone = (h) => (h >= 70 ? 'ok' : h >= 45 ? 'warn' : 'bad');
 
 const reservationBalance = (reservation) => {
   if (reservation.status !== 'booked') return 0;
@@ -274,15 +398,16 @@ export function makeLaptop(app, opts) {
   }
 
   const nav = el('nav', { class: 'lt-nav lt-nav-simple' },
-    el('div', { class: 'lt-brand' }, el('span', { text: '⛳' }), el('span', { text: 'GOLF SIMULATOR' })),
+    el('div', { class: 'lt-brand' }, icon('logo'), el('span', { text: 'GOLF SIMULATOR' })),
     el('div', { class: 'lt-navlist' },
       ...NAV.map((n) => {
         const b = el('button', { class: 'lt-navbtn lt-navbtn-big', title: n.label, onclick: () => go(n.id) },
-          el('span', { class: 'lt-navicon', text: n.icon }), el('span', { text: n.label }));
+          el('span', { class: 'lt-navicon' }, icon(n.icon)), el('span', { text: n.label }));
         navBtns[n.id] = b;
         return b;
       })),
-    el('button', { class: 'lt-navbtn lt-close', text: '⏻  Close the lid', onclick: () => opts.close() }),
+    el('button', { class: 'lt-navbtn lt-close', onclick: () => opts.close() },
+      el('span', { class: 'lt-navicon' }, icon('power')), el('span', { text: 'Close Laptop' })),
   );
 
   const statusbar = el('div', { class: 'lt-status' });
@@ -295,11 +420,17 @@ export function makeLaptop(app, opts) {
   const sect = (t) => el('div', { class: 'lt-sect', text: t });
   const row = (...kids) => el('div', { class: 'lt-row' }, ...kids);
   const chip = (t, kind = '') => el('span', { class: `lt-chip ${kind}`, text: t });
+  const word = (t, kind = '') => el('span', { class: `lt-word ${kind}`, text: t });
   const meta = (t) => el('span', { class: 'lt-meta', text: t });
   const card = (...kids) => el('div', { class: 'lt-card' }, ...kids);
   const note = (t) => el('div', { class: 'lt-card lt-note', text: t });
   const empty = (t) => el('div', { class: 'lt-empty' }, el('div', { class: 'lt-emptymark', text: '◌' }), el('div', { text: t }));
   const errBox = (t) => el('div', { class: 'lt-card lt-err' }, el('span', { text: '⚠ ' }), el('span', { text: t }));
+  const stat = (label, value, sub, tone = '', extra = null) => el('div', { class: 'lt-stat' },
+    el('div', { class: 'lt-statlabel', text: label }),
+    el('div', { class: `lt-statvalue ${tone}`, text: value }),
+    sub ? el('div', { class: `lt-statsub ${typeof sub === 'object' ? sub.tone || '' : ''}`, text: typeof sub === 'object' ? sub.text : sub }) : null,
+    extra);
 
   function head(title, help, primary) {
     const kids = [el('h1', { class: 'lt-h1', text: title })];
@@ -393,33 +524,86 @@ export function makeLaptop(app, opts) {
     return sum / s.cells.length > 25;
   }).length;
 
+  // the short course-work list Home and the Course page agree on
+  function courseChores(st) {
+    const chores = [];
+    const rakes = rakeableBunkers(st);
+    if (rakes) chores.push({ icon: '🏖', name: `Rake ${rakes} bunker${rakes === 1 ? '' : 's'}`, detail: 'Take the rake out to the sand — nobody does it from a desk.' });
+    const reno = st.shop.reno;
+    const clutterLeft = reno ? reno.clutter.filter((c) => !c.cleared).length : 0;
+    if (clutterLeft) chores.push({ icon: '🧹', name: `Haul ${clutterLeft} clutter pile${clutterLeft === 1 ? '' : 's'}`, detail: 'Old junk in the clubhouse — pick it up and carry it out.' });
+    const grime = reno ? reno.grime.reduce((a, v) => a + v, 0) / reno.grime.length : 0;
+    if (grime > 0.4) chores.push({ icon: '🧽', name: 'Vacuum the clubhouse floor', detail: 'The vacuum lives in the cleaning corner.' });
+    if (st.tractor && !st.tractor.repaired) {
+      const missing = TRACTOR_STEPS.filter((s2) => !st.tractor.steps[s2]);
+      chores.push({ icon: '🚜', name: 'Repair the tractor', detail: `Still needs: ${missing.map((s2) => STEP_LABEL[s2]).join(', ')} — hands-on at the machine.`, tone: 'bad' });
+    }
+    return chores;
+  }
+
+  // the bell — a small in-glass list of what the club recorded, newest first
+  function openNotifications() {
+    const st = app.state;
+    openModal(() => {
+      const feed = ensureNotifications(st);
+      const items = feed.items.slice(0, 10);
+      return el('div', {},
+        el('div', { class: 'lt-minihead' }, icon('bell'), el('span', { text: 'Notifications' })),
+        items.length
+          ? el('div', {}, ...items.map((i) => el('button', {
+            class: `lt-notif ${i.read ? '' : 'unread'}`,
+            onclick: () => {
+              markRead(st, i.id);
+              const dest = i.page;
+              closeModal();
+              if (dest) go(dest);
+            },
+          },
+          el('span', { class: `lt-notifdot ${i.read ? 'read' : ''}` }),
+          el('span', { class: 'lt-listbody' },
+            el('div', { class: 'lt-listname', text: `${(NOTIF_KINDS[i.kind] || NOTIF_KINDS.system).icon}  ${i.text}` }),
+            el('div', { class: 'lt-listsub', text: `Day ${calendarOf(i.minute).dayOfSeason} · ${clock12(calendarOf(i.minute).minuteOfDay)}` })))))
+          : empty('Nothing yet — the club writes here when something happens.'),
+        el('div', { class: 'lt-modalbtns' },
+          items.some((i) => !i.read)
+            ? el('button', { class: 'lt-mini', text: 'Mark all read', onclick: () => { markAllRead(st); click(); render(); } })
+            : null,
+          el('button', { class: 'lt-primary', text: 'Close', onclick: () => closeModal() })),
+      );
+    });
+  }
+
   function refreshStatus() {
     const st = app.state;
     if (!st) return;
     const cal = calendarOf(st.clock.minutes);
     const unread = unreadCount(st);
+    const showBadge = prefsOf().notifBadge !== false;
     statusbar.replaceChildren(
-      el('button', { class: 'lt-crumb', title: 'Back', text: '‹', disabled: history.length ? undefined : 'disabled', onclick: () => back() }),
-      el('button', { class: 'lt-crumb', title: 'Home', text: '⌂', onclick: () => go('home') }),
+      el('button', { class: 'lt-crumb', title: 'Back', disabled: history.length ? undefined : 'disabled', onclick: () => back() }, icon('back')),
       el('span', { class: 'lt-statusname', text: (NAV.find((n) => n.id === page) || NAV[0]).label }),
       el('span', { text: `Day ${cal.dayOfSeason} · ${clock12(cal.minuteOfDay)}` }),
       el('span', { class: `lt-chip ${shopIsOpen(st) ? 'ok' : ''}`, text: shopIsOpen(st) ? 'Open' : 'Closed' }),
-      el('span', { class: 'lt-cash', text: formatMoney(cashOf()) }),
+      el('span', { class: 'lt-headspace' }),
       el('button', {
-        class: 'lt-crumb', title: unread ? `${unread} unread — see Needs attention` : 'Nothing needs you',
-        text: '🔔', onclick: () => go('home'),
-      }, unread ? el('span', { class: 'lt-belldot', text: unread > 9 ? '9+' : String(unread) }) : null),
+        class: 'lt-crumb', title: unread ? `${unread} unread notification${unread === 1 ? '' : 's'}` : 'Notifications',
+        onclick: () => openNotifications(),
+      }, icon('bell'), unread && showBadge ? el('span', { class: 'lt-belldot', text: unread > 9 ? '9+' : String(unread) }) : null),
+      el('button', { class: 'lt-cashcard', title: 'Open Finances', onclick: () => go('finances') },
+        el('div', { class: 'lt-cashval', text: formatMoney(cashOf()) }),
+        el('div', { class: 'lt-cashlabel', text: 'Cash balance' })),
     );
   }
 
   // ==========================================================================================
-  // HOME — one screen: money, task, who's next, what needs attention, three big actions
+  // HOME — one screen: four numbers, today's objective, and the three lists that matter
   // ==========================================================================================
   function pageHome() {
     const st = app.state;
     const cal = calendarOf(st.clock.minutes);
     const ratings = clubRatings(st);
     const revToday = sumLines(st.ledger?.today?.revenue);
+    const condition = ratings.condition;
 
     const teeSheet = laptopReservationSheet(st, cal.dayAbs);
     const upcoming = teeSheet.slots
@@ -428,122 +612,101 @@ export function makeLaptop(app, opts) {
       .sort((a, b) => a.minute - b.minute);
     const next = upcoming[0] || null;
 
-    // --- the at-most-three alerts, most urgent first ---------------------------------------
-    const alerts = [];
-    const owed = arrearsOf(st);
-    if (owed > 0) alerts.push({ icon: '🏠', text: `${formatMoney(owed)} behind on the property`, dest: 'finances', tone: 'bad' });
-    const blocked = st.shop.orders.filter((o) => o.blocked).length;
-    if (blocked) alerts.push({ icon: '🚚', text: 'A van cannot unload — the pad is full', dest: 'deliveries', tone: 'bad' });
-    const outLines = retailSkus(st).filter((s) => st.shop.inventory[s.id].shelf === 0
-      && st.shop.inventory[s.id].back === 0);
-    if (outLines.length) alerts.push({ icon: '📦', text: `${outLines.length} product${outLines.length === 1 ? ' is' : 's are'} out of stock`, dest: 'supplier', tone: 'bad' });
-    const shelveLines = retailSkus(st).filter((s) => st.shop.inventory[s.id].shelf === 0
-      && st.shop.inventory[s.id].back > 0);
-    if (shelveLines.length) alerts.push({ icon: '🛒', text: `${shelveLines.length} empty shelf${shelveLines.length === 1 ? ' has' : 's have'} stock in the back`, dest: 'inventory', tone: 'warn' });
-    const boxes = boxesOf(st).filter((b) => b.loc !== 'gone');
-    if (boxes.length) alerts.push({ icon: '📬', text: `${boxes.length} delivered box${boxes.length === 1 ? '' : 'es'} to carry in and unpack`, dest: 'deliveries', tone: 'warn' });
-    const problems = (st.sections || []).filter((s) => sectionStatus(st, s) !== 'Healthy').length;
-    const rakes = rakeableBunkers(st);
-    if (problems || rakes) {
-      alerts.push({
-        icon: '⛳',
-        text: [problems ? `${problems} turf spot${problems === 1 ? '' : 's'} suffering` : null,
-          rakes ? `${rakes} bunker${rakes === 1 ? '' : 's'} to rake` : null].filter(Boolean).join(' · '),
-        dest: 'maintenance',
-        tone: 'warn',
-      });
-    }
-    const reno = st.shop.reno;
-    const clutterLeft = reno ? reno.clutter.filter((c) => !c.cleared).length : 0;
-    const cond = shopCondition(st);
-    if (cond < 45) alerts.push({ icon: '🧹', text: `The clubhouse is ${cond < 30 ? 'filthy' : 'grubby'}${clutterLeft ? ` — ${clutterLeft} clutter pile${clutterLeft === 1 ? '' : 's'}` : ''} (hands-on work)`, dest: null, tone: 'warn' });
-    const rs = reviewSummary(st, { waitedSec: 0, queueLen: 0, played: true });
-    if (rs.count && rs.worst && rs.worst.score < 0.5) {
-      alerts.push({ icon: '⭐', text: `Reviews say: ${rs.worst.label.toLowerCase()} (${rs.average}★ average)`, dest: null, tone: 'warn' });
-    }
-    const feed = ensureNotifications(st);
-    const firstUnread = feed.items.find((i) => !i.read);
-    if (firstUnread) alerts.push({ icon: '🔔', text: firstUnread.text, dest: firstUnread.page || null, id: firstUnread.id, tone: '' });
-
-    const alertRow = (a) => {
-      const kids = [
-        el('span', { class: 'lt-alerticon', text: a.icon }),
-        el('span', { class: 'lt-alerttext', text: a.text }),
-      ];
-      if (a.dest) kids.push(el('span', { class: 'lt-alertgo', text: '›' }));
-      const attrs = { class: `lt-alert ${a.tone}` };
-      if (a.dest) {
-        attrs.onclick = () => {
-          if (a.id) markRead(st, a.id);
-          go(a.dest);
-        };
-        return el('button', attrs, ...kids);
-      }
-      return el('div', attrs, ...kids);
-    };
-
-    // mark glanced notifications read once they have been shown among the alerts
+    // today's objective, straight from the tutorial — or an honest "all caught up"
     const step = st.tutorial && !st.tutorial.complete ? currentStep(st) : null;
-    const condition = ratings.condition;
+    const rs = reviewSummary(st, { waitedSec: 0, queueLen: 0, played: true });
 
-    const stat = (label, value, sub, tone = '') => el('div', { class: 'lt-stat' },
-      el('div', { class: 'lt-statlabel', text: label }),
-      el('div', { class: `lt-statvalue ${tone}`, text: value }),
-      sub ? el('div', { class: 'lt-statsub', text: sub }) : null);
+    // low stock — out lines first, then the thinnest shelves
+    const lowStock = retailSkus(st)
+      .map((s) => ({ sku: s, e: st.shop.inventory[s.id] }))
+      .filter((m) => m.e.shelf < 3)
+      .sort((a, b) => (a.e.shelf + a.e.back * 0.01) - (b.e.shelf + b.e.back * 0.01))
+      .slice(0, 3);
+
+    // course work — turf problems and hands-on chores, worst first
+    const problems = (st.sections || [])
+      .map((section) => ({ section, status: sectionStatus(st, section) }))
+      .filter((p) => p.status !== 'Healthy');
+    const chores = courseChores(st);
+    const tasks = [
+      ...problems.map((p) => ({ name: p.section.name || 'Section', detail: p.status, tone: p.status === 'Declining' ? 'bad' : 'warn' })),
+      ...chores.map((c) => ({ name: c.name, detail: 'hands-on', tone: c.tone || 'warn' })),
+    ].slice(0, 3);
+
+    const listRow = (kids) => el('div', { class: 'lt-listrow' }, ...kids);
+    const greetWord = cal.minuteOfDay < 12 * 60 ? 'Good morning' : cal.minuteOfDay < 17 * 60 ? 'Good afternoon' : 'Good evening';
 
     paint(
       confirmBar(),
+      el('div', { class: 'lt-greet' },
+        el('h1', { text: `${greetWord}, Manager` }),
+        el('div', { class: 'lt-greetsub', text: `Here's what's happening at ${st.clubName || 'your club'}.` })),
+
       el('div', { class: 'lt-stats lt-stats4' },
-        stat('Cash', formatMoney(cashOf()), null, 'gold'),
-        stat('Earned today', formatMoney(revToday), null, revToday > 0 ? 'ok' : ''),
-        stat('Next tee time', next ? fmtSlot(next.minute) : '—', next ? next.fullName : 'nothing later today'),
-        stat('Course', conditionWord(condition), `${Math.round(condition)} of 100`, conditionTone(condition)),
+        stat('Cash', formatMoney(cashOf())),
+        stat("Today's Revenue", formatMoney(revToday), revToday > 0 ? { text: 'earned so far today', tone: 'ok' } : 'nothing banked yet'),
+        stat('Next Tee Time', next ? fmtSlot(next.minute) : '—', next ? next.fullName : 'nothing later today'),
+        stat('Course Condition', conditionWord(condition), `${Math.round(condition)} of 100`, conditionTone(condition),
+          el('div', { class: 'lt-statbar' }, el('div', { class: conditionTone(condition), style: `width:${Math.max(2, Math.min(100, condition))}%` }))),
+      ),
+
+      el('div', { class: 'lt-objbar' },
+        el('div', { class: 'lt-objicon' }, icon('target')),
+        el('div', { class: 'lt-objbody' },
+          el('div', { class: 'lt-objlabel', text: "Today's objective" }),
+          el('div', { class: 'lt-tasktitle', text: step ? step.title : 'All caught up' }),
+          el('div', { class: 'lt-listsub', text: step ? (step.hint || '') : (rs.count ? `${rs.average}★ from ${rs.count} reviews — keep it rolling.` : 'Run the club your way.') })),
       ),
 
       el('div', { class: 'lt-cols' },
         card(
-          el('div', { class: 'lt-minihead', text: "📌  Today's task" }),
-          step
-            ? el('div', {},
-              el('div', { class: 'lt-tasktitle', text: step.title }),
-              el('div', { class: 'lt-meta', text: step.hint || '' }))
-            : el('div', {},
-              el('div', { class: 'lt-tasktitle', text: 'All caught up' }),
-              el('div', { class: 'lt-meta', text: rs.count ? `${rs.average}★ from ${rs.count} reviews — keep it rolling.` : 'Run the club your way.' })),
+          el('div', { class: 'lt-minihead' }, icon('clock'), el('span', { text: 'Upcoming Tee Times' })),
+          upcoming.length
+            ? el('div', {}, ...upcoming.slice(0, 3).map((b) => listRow([
+              el('span', { class: 'lt-slottime', text: fmtSlot(b.minute) }),
+              el('span', { class: 'lt-listbody' },
+                el('div', { class: 'lt-listname', text: b.fullName }),
+                el('div', { class: 'lt-listsub', text: `${b.groupSize} player${b.groupSize === 1 ? '' : 's'}${b.outstandingRevenue > 0 ? ` · ${formatMoney(b.outstandingRevenue)} due` : ''}` })),
+            ])))
+            : empty(`No more today — ${teeSheet.reservationCount} came through in all.`),
+          el('div', { class: 'lt-cardfoot' },
+            el('button', { class: 'lt-mini', text: 'View Tee Times', onclick: () => go('reservations') })),
         ),
         card(
-          el('div', { class: 'lt-minihead', text: '👥  Up next' }),
-          next
-            ? el('div', {},
-              el('div', { class: 'lt-tasktitle', text: `${fmtSlot(next.minute)} — ${next.fullName}` }),
-              el('div', { class: 'lt-meta', text: `${next.groupSize} player${next.groupSize === 1 ? '' : 's'} · ${next.outstandingRevenue > 0 ? `${formatMoney(next.outstandingRevenue)} due at the desk` : 'paid'}` }),
-              el('button', { class: 'lt-mini', text: 'Open Tee Times', onclick: () => go('reservations') }))
-            : el('div', {},
-              el('div', { class: 'lt-tasktitle', text: 'No more tee times today' }),
-              el('div', { class: 'lt-meta', text: `${teeSheet.reservationCount} booked today in all.` }),
-              el('button', { class: 'lt-mini', text: 'Open Tee Times', onclick: () => go('reservations') })),
+          el('div', { class: 'lt-minihead' }, icon('box'), el('span', { text: 'Low Stock' })),
+          lowStock.length
+            ? el('div', {}, ...lowStock.map((m) => listRow([
+              thumbOf(m.sku),
+              el('span', { class: 'lt-listbody' },
+                el('div', { class: 'lt-listname', text: m.sku.name }),
+                el('div', { class: 'lt-listsub', text: m.e.back > 0 ? `${m.e.back} in the back room` : 'none in the back' })),
+              word(m.e.shelf === 0 ? 'Out' : `Stock: ${m.e.shelf}`, m.e.shelf === 0 ? 'bad' : 'warn'),
+            ])))
+            : empty('Shelves are holding.'),
+          el('div', { class: 'lt-cardfoot' },
+            el('button', {
+              class: 'lt-mini',
+              text: 'Order Stock',
+              onclick: () => { ts('shop').tab = 'order'; go('shop'); },
+            })),
         ),
         card(
-          el('div', { class: 'lt-minihead', text: '⚠  Needs attention' }),
-          alerts.length
-            ? el('div', { class: 'lt-alerts' }, ...alerts.slice(0, 3).map(alertRow))
-            : empty('Nothing is on fire.'),
+          el('div', { class: 'lt-minihead' }, icon('leaf'), el('span', { text: 'Course Tasks' })),
+          tasks.length
+            ? el('div', {}, ...tasks.map((t) => listRow([
+              el('span', { class: 'lt-listbody' },
+                el('div', { class: 'lt-listname', text: t.name }),
+                el('div', { class: 'lt-listsub', text: t.detail })),
+              word(t.tone === 'bad' ? 'Urgent' : 'Needs work', t.tone),
+            ])))
+            : empty('Nothing needs doing out there.'),
+          el('div', { class: 'lt-cardfoot' },
+            el('button', {
+              class: 'lt-mini',
+              text: 'View All Tasks',
+              onclick: () => { ts('course').tab = 'tasks'; go('course'); },
+            })),
         ),
-      ),
-
-      el('div', { class: 'lt-tiles' },
-        el('button', { class: 'lt-tile', onclick: () => go('reservations') },
-          el('div', { class: 'lt-tileicon', text: '📅' }),
-          el('div', { class: 'lt-tiletitle', text: 'View Tee Times' }),
-          el('div', { class: 'lt-tilesub', text: `${teeSheet.reservationCount} booked today` })),
-        el('button', { class: 'lt-tile', onclick: () => go('supplier') },
-          el('div', { class: 'lt-tileicon', text: '🛒' }),
-          el('div', { class: 'lt-tiletitle', text: 'Order Stock' }),
-          el('div', { class: 'lt-tilesub', text: outLines.length ? `${outLines.length} out of stock` : 'shelves holding' })),
-        el('button', { class: 'lt-tile', onclick: () => go('course') },
-          el('div', { class: 'lt-tileicon', text: '⛳' }),
-          el('div', { class: 'lt-tiletitle', text: 'Check Course' }),
-          el('div', { class: 'lt-tilesub', text: `${conditionWord(condition).toLowerCase()} condition` })),
       ),
     );
   }
@@ -583,9 +746,9 @@ export function makeLaptop(app, opts) {
       const due = m.entry.outstandingRevenue;
       return el('div', {},
         el('div', { class: 'lt-minihead', text: m.entry.fullName }),
-        row(el('span', { class: 'lt-mulabel', text: 'Tee time' }), el('span', { text: `${fmtSlot(m.slot.minute)}, ${teeDay === 0 ? 'today' : teeDay === 1 ? 'tomorrow' : `in ${teeDay} days`}` })),
-        row(el('span', { class: 'lt-mulabel', text: 'Party' }), el('span', { text: `${m.entry.groupSize} player${m.entry.groupSize === 1 ? '' : 's'}` })),
-        row(el('span', { class: 'lt-mulabel', text: 'Green fee' }), el('span', { text: formatMoney(m.r.fee || 0) }), deposit ? meta(`deposit ${formatMoney(deposit)} paid`) : null),
+        row(el('span', { class: 'lt-mulabel', text: 'Tee time' }), el('span', { style: 'font-size:0.84em', text: `${fmtSlot(m.slot.minute)}, ${teeDay === 0 ? 'today' : teeDay === 1 ? 'tomorrow' : `in ${teeDay} days`}` })),
+        row(el('span', { class: 'lt-mulabel', text: 'Party' }), el('span', { style: 'font-size:0.84em', text: `${m.entry.groupSize} player${m.entry.groupSize === 1 ? '' : 's'}` })),
+        row(el('span', { class: 'lt-mulabel', text: 'Green fee' }), el('span', { style: 'font-size:0.84em', text: formatMoney(m.r.fee || 0) }), deposit ? meta(`deposit ${formatMoney(deposit)} paid`) : null),
         row(el('span', { class: 'lt-mulabel', text: 'Due at desk' }), chip(due > 0 ? formatMoney(due) : 'Paid', due > 0 ? 'warn' : 'ok')),
         row(el('span', { class: 'lt-mulabel', text: 'Status' }), chip(statusText(m.r), statusTone(m.r))),
         m.r.status === 'noShow' && m.r.noShowFeeStatus
@@ -623,18 +786,18 @@ export function makeLaptop(app, opts) {
       );
     });
 
-    const rowOf = (m) => el('div', { class: 'lt-order' },
-      el('span', { class: 'lt-slottime', text: fmtSlot(m.slot.minute) }),
-      el('div', { class: 'lt-orderbody' },
-        el('div', { class: 'lt-ordername', text: m.entry.fullName }),
-        el('div', { class: 'lt-prodmeta', text: `${m.entry.groupSize} player${m.entry.groupSize === 1 ? '' : 's'}` })),
-      chip(m.entry.outstandingRevenue > 0 && m.r.status === 'booked' ? `${formatMoney(m.entry.outstandingRevenue)} due` : 'Paid',
-        m.entry.outstandingRevenue > 0 && m.r.status === 'booked' ? 'warn' : 'ok'),
-      chip(statusText(m.r), statusTone(m.r)),
-      el('button', { class: 'lt-mini', text: 'View', onclick: () => viewReservation(m) }));
+    const rowOf = (m) => el('tr', {},
+      el('td', {}, el('span', { class: 'lt-slottime', text: fmtSlot(m.slot.minute) })),
+      el('td', {}, el('span', { style: 'font-weight:600', text: m.entry.fullName })),
+      el('td', { text: `${m.entry.groupSize} player${m.entry.groupSize === 1 ? '' : 's'}` }),
+      el('td', {}, word(statusText(m.r), statusTone(m.r))),
+      el('td', { class: 'lt-num' },
+        el('button', { class: 'lt-mini', text: 'View', onclick: () => viewReservation(m) })));
 
-    // the walk-in adder: pick a time with room, pick a party size, done
-    const openSlots = model.slots.filter((s) => s.remainingCapacity >= teePartySize);
+    // the walk-in adder: pick a time with room, pick a party size, done. A walk-in is
+    // standing at the desk NOW — today's already-passed times are not on offer.
+    const openSlots = model.slots.filter((s) => s.remainingCapacity >= teePartySize
+      && (teeDay > 0 || s.minute >= cal.minuteOfDay - 10));
     const timeSel = el('select', { class: 'lt-select' },
       ...openSlots.map((s) => el('option', { value: String(s.minute), text: `${fmtSlot(s.minute)} (${s.remainingCapacity} open)` })));
     const partySel = el('select', {
@@ -672,12 +835,12 @@ export function makeLaptop(app, opts) {
 
     paint(
       head('Tee Times', 'Booked golfers walk in around their time; the green fee is collected face to face at the front desk.',
-        primaryBtn('Add Walk-In', () => { rs.adding = !rs.adding; click(); render(); })),
+        primaryBtn('+ Add Walk-In', () => { rs.adding = !rs.adding; click(); render(); })),
       confirmBar(),
       row(
-        el('button', { class: 'lt-mini', text: '‹ Previous', disabled: teeDay === 0 ? 'disabled' : undefined, onclick: () => { teeDay--; click(); render(); } }),
+        el('button', { class: 'lt-day', text: '‹', disabled: teeDay === 0 ? 'disabled' : undefined, onclick: () => { teeDay--; click(); render(); } }),
         el('button', { class: `lt-day ${teeDay === 0 ? 'on' : ''}`, text: 'Today', onclick: () => { teeDay = 0; click(); render(); } }),
-        el('button', { class: 'lt-mini', text: 'Next ›', disabled: teeDay >= TEE_SHEET.horizonDays - 1 ? 'disabled' : undefined, onclick: () => { teeDay++; click(); render(); } }),
+        el('button', { class: 'lt-day', text: '›', disabled: teeDay >= TEE_SHEET.horizonDays - 1 ? 'disabled' : undefined, onclick: () => { teeDay++; click(); render(); } }),
         meta(teeDay === 0 ? 'today' : teeDay === 1 ? 'tomorrow' : `${teeDay} days out`),
         el('span', { style: 'flex:1' }),
         meta(`${model.bookedPlayers} booked · ${model.openPlayerCapacity} spots open · ${formatMoney(model.expectedRevenue)} to collect`),
@@ -688,19 +851,22 @@ export function makeLaptop(app, opts) {
         { value: 'checkedin', label: 'Checked in' }, { value: 'noshow', label: 'No show' },
       ], () => { click(); render(); }),
       shown.length
-        ? el('div', { class: 'lt-orderlist' }, ...shown.map(rowOf))
+        ? card(el('table', { class: 'lt-table' },
+          el('thead', {}, el('tr', {},
+            el('th', { text: 'Time' }), el('th', { text: 'Customer' }), el('th', { text: 'Party' }),
+            el('th', { text: 'Status' }), el('th', {}))),
+          el('tbody', {}, ...shown.map(rowOf))))
         : empty(flat.length ? 'Nothing under that filter.' : 'Nothing booked this day — walk-ins welcome.'),
-      modalLayer(),
     );
   }
 
   // ==========================================================================================
-  // SHOP — stock, order, prices, deliveries. Four tabs, one page.
+  // SHOP — stock, order, pricing, deliveries. Four tabs, one page.
   // ==========================================================================================
   function pageShop() {
     const st = app.state;
     const ss = ts('shop', { tab: 'stock', cat: 'all' });
-    const tabs = [['stock', 'Stock'], ['order', 'Order'], ['prices', 'Prices'], ['deliveries', 'Deliveries']];
+    const tabs = [['stock', 'Stock'], ['order', 'Order'], ['prices', 'Pricing'], ['deliveries', 'Deliveries']];
 
     const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' }, ...tabs.map(([v, label]) => el('button', {
       class: `lt-tab ${ss.tab === v ? 'on' : ''}`, text: label,
@@ -744,20 +910,29 @@ export function makeLaptop(app, opts) {
     });
 
     const suggestedQty = (m) => Math.max(2, Math.ceil(velocity(st, m.sku.id) * LEAD_DAYS[m.sku.cat]) || 6);
-    const rows = q.rows.map((m) => el('div', { class: 'lt-order' },
-      thumbOf(m.sku),
-      el('div', { class: 'lt-orderbody' },
-        el('div', { class: 'lt-ordername', text: m.sku.name }),
-        el('div', { class: 'lt-prodmeta', text: `Shelf ${m.e.shelf} of ${m.cap} · storage ${m.e.back}${m.incoming ? ` · ${m.incoming} on the way` : ''}` })),
-      m.e.shelf === 0
-        ? chip(m.e.back > 0 ? 'Shelve it' : 'Out', m.e.back > 0 ? 'warn' : 'bad')
-        : m.e.shelf < 3 ? chip('Low', 'warn') : chip('Stocked', 'ok'),
-      el('button', {
-        class: 'lt-mini',
-        text: 'Order',
-        onclick: () => { cart.set(m.sku.id, (cart.get(m.sku.id) || 0) + suggestedQty(m)); ss.tab = 'order'; click(); render(); },
-      }),
-      el('button', { class: 'lt-mini', text: 'Price', onclick: () => { ss.tab = 'prices'; click(); render(); } })));
+    const statusOf = (m) => (m.e.shelf === 0
+      ? (m.e.back > 0 ? ['Shelve it', 'warn'] : ['Out of stock', 'bad'])
+      : m.e.shelf < 3 ? ['Low stock', 'warn'] : ['In stock', 'ok']);
+    const rows = q.rows.map((m) => {
+      const [label, tone] = statusOf(m);
+      return el('tr', {},
+        el('td', {}, el('div', { style: 'display:flex;gap:8px;align-items:center' },
+          thumbOf(m.sku),
+          el('span', { style: 'font-weight:600', text: m.sku.name }))),
+        el('td', { text: CAT_LABEL[m.sku.cat] }),
+        el('td', {},
+          el('div', { style: `font-weight:700;font-variant-numeric:tabular-nums${m.e.shelf === 0 ? ';color:var(--lt-bad)' : m.e.shelf < 3 ? ';color:var(--lt-warn)' : ''}`, text: `${m.e.shelf} / ${m.cap}` }),
+          m.e.back || m.incoming
+            ? el('div', { class: 'lt-listsub', text: `${m.e.back ? `${m.e.back} in back` : ''}${m.e.back && m.incoming ? ' · ' : ''}${m.incoming ? `${m.incoming} coming` : ''}` })
+            : null),
+        el('td', { class: 'lt-num', text: formatMoney(priceFor(m.sku, st.shop.markup[m.sku.cat] || 1, null)) }),
+        el('td', {}, word(label, tone)),
+        el('td', { class: 'lt-num' }, el('button', {
+          class: 'lt-mini',
+          text: 'Order',
+          onclick: () => { cart.set(m.sku.id, (cart.get(m.sku.id) || 0) + suggestedQty(m)); ss.tab = 'order'; click(); render(); },
+        })));
+    });
 
     return [
       el('div', { class: 'lt-toolbar' },
@@ -765,7 +940,13 @@ export function makeLaptop(app, opts) {
         filterTabs(ss, [
           { value: 'all', label: 'All' }, { value: 'low', label: 'Low' }, { value: 'out', label: 'Out' },
         ], () => { click(); render(); })),
-      rows.length ? el('div', { class: 'lt-orderlist' }, ...rows) : empty(models.length ? 'Nothing matches.' : 'No product lines unlocked yet.'),
+      rows.length
+        ? card(el('table', { class: 'lt-table' },
+          el('thead', {}, el('tr', {},
+            el('th', { text: 'Product' }), el('th', { text: 'Category' }), el('th', { text: 'On shelf' }),
+            el('th', { class: 'lt-num', text: 'Price' }), el('th', { text: 'Status' }), el('th', {}))),
+          el('tbody', {}, ...rows)))
+        : empty(models.length ? 'Nothing matches.' : 'No product lines unlocked yet.'),
       note('Stocking is physical — carry goods from the storage room to the displays. "Shelve it" means the stock is already in the back.'),
     ];
   }
@@ -855,7 +1036,7 @@ export function makeLaptop(app, opts) {
 
     return [
       el('div', { class: 'lt-ordersummary' },
-        el('span', { text: `${cart.size} item${cart.size === 1 ? '' : 's'}` }),
+        el('span', { style: 'font-weight:600', text: `${cart.size} item${cart.size === 1 ? '' : 's'}` }),
         meta(`delivery ${formatMoney(freight)}`),
         el('span', { class: 'lt-headspace' }),
         el('span', { class: `lt-cash ${affordable ? '' : 'bad'}`, text: `Total ${formatMoney(total)}` }),
@@ -995,7 +1176,7 @@ export function makeLaptop(app, opts) {
   }
 
   // ==========================================================================================
-  // COURSE — overview, tasks, holes. Condition in words, jobs as a list, the editor one click.
+  // COURSE — overview, tasks, holes. A real aerial, condition in words, the editor one click.
   // ==========================================================================================
   function pageCourse() {
     const st = app.state;
@@ -1031,33 +1212,44 @@ export function makeLaptop(app, opts) {
     const closed = st.course.holes.filter((h) => h.status !== HOLE_STATUS.OPEN).length;
     const problems = (st.sections || []).filter((s) => sectionStatus(st, s) !== 'Healthy').length;
     const rakes = rakeableBunkers(st);
+    const jobs = problems + rakes;
+
+    const heroMap = el('canvas', { class: 'lt-heromap', width: '940', height: '620' });
+    paintCourse(heroMap, st, {
+      marks: st.course.holes
+        .map((h, i) => (h.pin ? { x: h.pin.x, y: h.pin.y, kind: 'number', n: i + 1 } : null))
+        .filter(Boolean),
+    });
 
     const bar = (label, zone) => {
       const h = zoneHealth(st, zone);
       if (h == null) return null;
       return el('div', { class: 'lt-facrow' },
-        el('span', { class: 'lt-faclabel', style: 'width:72px', text: label }),
-        el('div', { class: 'lt-facbar' }, el('div', { class: `lt-facfill ${h < 45 ? 'bad' : h < 70 ? '' : 'ok'}`, style: `width:${Math.max(2, Math.min(100, h))}%` })),
-        chip(conditionWord(h), conditionTone(h)));
+        el('span', { class: 'lt-faclabel', text: label }),
+        el('div', { class: 'lt-facbar' }, el('div', { class: `lt-facfill ${h < 45 ? 'bad' : h < 70 ? 'warn' : 'ok'}`, style: `width:${Math.max(2, Math.min(100, h))}%` })),
+        el('span', { class: 'lt-facpct', text: `${Math.round(h)}%` }));
     };
 
     return [
-      el('div', { class: 'lt-stats lt-stats4' },
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Condition' }), el('div', { class: `lt-statvalue ${conditionTone(ratings.condition)}`, text: conditionWord(ratings.condition) }), el('div', { class: 'lt-statsub', text: `${Math.round(ratings.condition)} of 100` })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Holes' }), el('div', { class: `lt-statvalue ${closed ? 'bad' : 'ok'}`, text: closed ? `${closed} closed` : 'All open' }), el('div', { class: 'lt-statsub', text: `${st.course.holes.length} in play` })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Weather' }), el('div', { class: 'lt-statvalue', text: `${Math.round(w.tempHiF)}°` }), el('div', { class: 'lt-statsub', text: w.rainIn > 0.02 ? `rain ${w.rainIn.toFixed(2)}"` : 'dry' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Jobs' }), el('div', { class: `lt-statvalue ${problems + rakes ? 'warn' : 'ok'}`, text: String(problems + rakes) }), el('div', { class: 'lt-statsub', text: 'on the task list' })),
-      ),
-      card(
-        el('div', { class: 'lt-minihead', text: 'Turf, zone by zone' }),
-        bar('Greens', ZONE.GREEN),
-        bar('Fairways', ZONE.FAIRWAY),
-        bar('Tees', ZONE.TEE),
-        bar('Rough', ZONE.ROUGH),
-      ),
-      row(
-        el('button', { class: 'lt-mini', text: 'View Tasks', onclick: () => { cs.tab = 'tasks'; click(); render(); } }),
-        el('button', { class: 'lt-mini', text: 'View Holes', onclick: () => { cs.tab = 'holes'; click(); render(); } }),
+      el('div', { class: 'lt-hero' },
+        heroMap,
+        el('div', { class: 'lt-card', style: 'margin-bottom:0;display:flex;flex-direction:column' },
+          el('div', { class: 'lt-minihead', text: 'Overall Course Condition' }),
+          el('div', { class: 'lt-heropct' },
+            el('span', { text: `${Math.round(ratings.condition)}%` }),
+            word(conditionWord(ratings.condition), conditionTone(ratings.condition))),
+          el('div', { class: 'lt-statbar', style: 'margin:8px 0 12px' },
+            el('div', { class: conditionTone(ratings.condition), style: `width:${Math.max(2, Math.min(100, ratings.condition))}%` })),
+          bar('Greens', ZONE.GREEN),
+          bar('Fairways', ZONE.FAIRWAY),
+          bar('Tees', ZONE.TEE),
+          bar('Rough', ZONE.ROUGH),
+          el('div', { class: 'lt-listrow', style: 'margin-top:8px' },
+            el('span', { class: 'lt-listbody' }, el('div', { class: 'lt-listsub', text: `Weather ${Math.round(w.tempHiF)}°${w.rainIn > 0.02 ? `, rain ${w.rainIn.toFixed(2)}"` : ', dry'} · ${closed ? `${closed} hole${closed === 1 ? '' : 's'} closed` : 'all holes open'}` })),
+            jobs ? word(`${jobs} job${jobs === 1 ? '' : 's'}`, 'warn') : word('No jobs', 'ok')),
+          el('div', { class: 'lt-cardfoot' },
+            el('button', { class: 'lt-mini', text: 'View Tasks', onclick: () => { cs.tab = 'tasks'; click(); render(); } })),
+        ),
       ),
     ];
   }
@@ -1074,12 +1266,6 @@ export function makeLaptop(app, opts) {
       if (status === 'Healthy') return null;
       return { section, status, summary: sectionTurfSummary(st, section), diagnosis: diagnoseSection(st, section) };
     }).filter(Boolean).slice(0, 8);
-    const rakes = rakeableBunkers(st);
-    const reno = st.shop.reno;
-    const clutterLeft = reno ? reno.clutter.filter((c) => !c.cleared).length : 0;
-    const grime = reno ? reno.grime.reduce((a, v) => a + v, 0) / reno.grime.length : 0;
-    const tractorFixed = st.tractor && st.tractor.repaired;
-    const tractorMissing = st.tractor ? TRACTOR_STEPS.filter((s2) => !st.tractor.steps[s2]) : [];
 
     const problemRow = (p) => {
       const treatCost = Math.round(p.section.cells.length * 2.2);
@@ -1109,18 +1295,13 @@ export function makeLaptop(app, opts) {
           }),
         }));
     };
-    const choreRow = (icon, name, detail, tone = 'warn') => el('div', { class: 'lt-order' },
-      el('span', { class: 'lt-alerticon', text: icon }),
+    const choreRow = (c) => el('div', { class: 'lt-order' },
+      el('span', { class: 'lt-alerticon', text: c.icon }),
       el('div', { class: 'lt-orderbody' },
-        el('div', { class: 'lt-ordername', text: name }),
-        el('div', { class: 'lt-prodmeta', text: detail })),
-      chip('hands-on', tone));
-
-    const chores = [];
-    if (rakes) chores.push(choreRow('🏖', `Rake ${rakes} bunker${rakes === 1 ? '' : 's'}`, 'Take the rake out to the sand — nobody does it from a desk.'));
-    if (clutterLeft) chores.push(choreRow('🧹', `Haul ${clutterLeft} clutter pile${clutterLeft === 1 ? '' : 's'}`, 'Old junk in the clubhouse — pick it up and carry it out.'));
-    if (grime > 0.4) chores.push(choreRow('🧽', 'Vacuum the clubhouse floor', 'The vacuum lives in the cleaning corner.'));
-    if (!tractorFixed && st.tractor) chores.push(choreRow('🚜', 'Repair the tractor', `Still needs: ${tractorMissing.map((s2) => STEP_LABEL[s2]).join(', ')} — hands-on at the machine.`, 'bad'));
+        el('div', { class: 'lt-ordername', text: c.name }),
+        el('div', { class: 'lt-prodmeta', text: c.detail })),
+      chip('hands-on', c.tone || 'warn'));
+    const chores = courseChores(st).map(choreRow);
 
     // the crew's standing orders — the sliders write straight into the policy the crew reads at dawn
     const ZONE_RANGE = {
@@ -1170,45 +1351,74 @@ export function makeLaptop(app, opts) {
       }
       return null;
     };
-    const holes = st.course.holes.map((h, i) => {
+    const holeCard = (h, i) => {
       const activePin = pinKeyOf(h);
       const isOpen = h.status === HOLE_STATUS.OPEN;
-      return el('div', { class: 'lt-order' },
-        el('span', { class: 'lt-slottime', text: h.name || `Hole ${i + 1}` }),
-        el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-prodmeta', text: h.tee && h.pin ? `par ${holePar(st.course, h)} · ${Math.round(holeDistanceYd(h))} yd` : 'unrouted' }),
-          (h.status === HOLE_STATUS.RENOVATION || h.status === HOLE_STATUS.CONSTRUCTION) && h.daysLeft > 0
-            ? el('div', { class: 'lt-prodmeta', text: `${h.daysLeft} day${h.daysLeft === 1 ? '' : 's'} of rest left — reopens by itself` }) : null),
-        chip(isOpen ? 'Open' : 'Closed', isOpen ? 'ok' : 'warn'),
-        isOpen && h.pins && h.pins.A
-          ? el('span', { style: 'display:flex;gap:3px;align-items:center' },
-            meta('pin'),
-            ...['A', 'B', 'C'].filter((k) => h.pins[k]).map((k) => el('button', {
-              class: `lt-day ${activePin === k ? 'on' : ''}`,
-              style: 'padding:1px 7px;font-size:0.74em',
-              text: k,
-              onclick: () => {
-                h.pin = { x: h.pins[k].x, y: h.pins[k].y };
-                toast(`${h.name || `Hole ${i + 1}`} now plays to pin ${k}.`);
-                click();
-                render();
-              },
-            })))
-          : null,
-        isOpen
-          ? el('button', {
-            class: 'lt-mini',
-            text: 'Rest 1 day',
-            onclick: () => askConfirm(`Rest ${h.name || `hole ${i + 1}`} for a day? Golfers route around it; it reopens on its own.`, 'Rest the hole', () => {
-              h.status = HOLE_STATUS.RENOVATION;
-              h.daysLeft = 1;
-              toast(`${h.name || `Hole ${i + 1}`} is roped off until tomorrow.`);
-            }),
-          })
-          : null);
-    });
+      const routed = h.tee && h.pin;
+      const map = el('canvas', { class: 'lt-holemap', width: '360', height: '128' });
+      if (routed) {
+        const pts = [h.tee, ...(h.wp || []), h.pin];
+        let minX = Infinity; let maxX = -Infinity; let minY = Infinity; let maxY = -Infinity;
+        for (const p of pts) {
+          minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+          minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+        }
+        paintCourse(map, st, {
+          win: { x0: Math.floor(minX - 6), y0: Math.floor(minY - 6), w: Math.ceil(maxX - minX + 12), h: Math.ceil(maxY - minY + 12) },
+          marks: [{ x: h.tee.x, y: h.tee.y, kind: 'tee' }, { x: h.pin.x, y: h.pin.y, kind: 'pin' }],
+        });
+      } else {
+        paintCourse(map, st, { win: { x0: 0, y0: 0, w: st.course.w, h: st.course.h } });
+      }
+      return el('div', { class: 'lt-holecard' },
+        el('div', { class: 'lt-holetop' },
+          el('span', { class: 'lt-holename', text: h.name || `Hole ${i + 1}` }),
+          word(isOpen ? 'Open' : 'Closed', isOpen ? 'ok' : 'warn')),
+        map,
+        el('div', { class: 'lt-listsub', text: routed ? `Par ${holePar(st.course, h)} · ${Math.round(holeDistanceYd(h))} yd${!isOpen && h.daysLeft > 0 ? ` · reopens in ${h.daysLeft} day${h.daysLeft === 1 ? '' : 's'}` : ''}` : 'Unrouted — draw it in the editor.' }),
+        el('div', { class: 'lt-holebtns' },
+          isOpen && h.pins && h.pins.A
+            ? el('span', { style: 'display:flex;gap:3px;align-items:center' },
+              meta('pin'),
+              ...['A', 'B', 'C'].filter((k) => h.pins[k]).map((k) => el('button', {
+                class: `lt-day ${activePin === k ? 'on' : ''}`,
+                style: 'padding:1px 8px',
+                text: k,
+                onclick: () => {
+                  h.pin = { x: h.pins[k].x, y: h.pins[k].y };
+                  toast(`${h.name || `Hole ${i + 1}`} now plays to pin ${k}.`);
+                  click();
+                  render();
+                },
+              })))
+            : null,
+          el('span', { style: 'flex:1' }),
+          isOpen
+            ? el('button', {
+              class: 'lt-mini',
+              text: 'Rest',
+              title: 'Close this hole for one day — golfers route around it and it reopens on its own.',
+              onclick: () => askConfirm(`Rest ${h.name || `hole ${i + 1}`} for a day? Golfers route around it; it reopens on its own.`, 'Rest the hole', () => {
+                h.status = HOLE_STATUS.RENOVATION;
+                h.daysLeft = 1;
+                toast(`${h.name || `Hole ${i + 1}`} is roped off until tomorrow.`);
+              }),
+            })
+            : null,
+          opts.openCourseEditor
+            ? el('button', {
+              class: 'lt-mini',
+              text: 'Edit',
+              onclick: () => askConfirm(
+                `Redesign ${h.name || `hole ${i + 1}`}? The laptop closes and the course opens under the editing camera.`,
+                'Open the editor',
+                () => opts.openCourseEditor(),
+              ),
+            })
+            : null));
+    };
     return [
-      el('div', { class: 'lt-orderlist' }, ...holes),
+      el('div', { class: 'lt-holegrid' }, ...st.course.holes.map(holeCard)),
       note('Redesigning holes — terrain, zones, new routing — happens in the Course Editor.'),
     ];
   }
@@ -1238,26 +1448,34 @@ export function makeLaptop(app, opts) {
     );
   }
 
+  const UPGRADE_ICON = {
+    greensMowerII: '🚜', fairwayMowerII: '🚜', aerator: '🌱', sprayRig: '🧪',
+    smartIrrigation: '💧', premiumSupplier: '📦', reciprocalClubs: '🤝',
+    corporatePartners: '💼', tournamentHost: '🏆',
+  };
+
   function upgradeCard(st, id, u) {
     const prestige = st.progression ? st.progression.prestige : 0;
     const owned = hasUpgrade(st, id);
     const locked = prestige < u.prestige;
     const affordable = cashOf() >= u.cost;
-    return el('div', { class: 'lt-order' },
-      el('div', { class: 'lt-orderbody' },
-        el('div', { class: 'lt-ordername', text: u.name }),
-        el('div', { class: 'lt-prodmeta', text: u.blurb })),
-      owned ? chip('Owned', 'ok')
-        : locked ? chip(`Needs prestige ${u.prestige}`, '')
-          : el('button', {
-            class: 'lt-primary', text: `Buy — ${formatMoney(u.cost)}`,
-            disabled: affordable ? undefined : 'disabled',
-            title: affordable ? undefined : 'Not enough cash',
-            onclick: () => askConfirm(`Buy ${u.name} for ${formatMoney(u.cost)}? It bills once and starts working tomorrow.`, 'Buy it', () => {
-              const res = purchaseUpgrade(st, id);
-              toast(res.ok ? `${u.name} — done.` : res.reason, res.ok ? '' : 'warn');
-            }),
-          }));
+    return el('div', { class: `lt-upcard ${locked && !owned ? 'locked' : ''}` },
+      el('div', { class: 'lt-upicon', text: UPGRADE_ICON[id] || '🏗' }),
+      el('div', { class: 'lt-uptitle', text: u.name }),
+      el('div', { class: 'lt-updesc', text: u.blurb }),
+      el('div', { class: 'lt-upfoot' },
+        el('span', { class: 'lt-upprice', text: owned ? '' : formatMoney(u.cost) }),
+        owned ? chip('Owned', 'ok')
+          : locked ? chip(`Needs prestige ${u.prestige}`, '')
+            : el('button', {
+              class: 'lt-primary', text: 'Buy',
+              disabled: affordable ? undefined : 'disabled',
+              title: affordable ? undefined : 'Not enough cash',
+              onclick: () => askConfirm(`Buy ${u.name} for ${formatMoney(u.cost)}? It bills once and starts working tomorrow.`, 'Buy it', () => {
+                const res = purchaseUpgrade(st, id);
+                toast(res.ok ? `${u.name} — done.` : res.reason, res.ok ? '' : 'warn');
+              }),
+            })));
   }
 
   function upgradesCourseTab(st) {
@@ -1271,6 +1489,7 @@ export function makeLaptop(app, opts) {
       const spec = TOURNAMENTS[tier];
       const gate = canScheduleTournament(st, tier);
       return el('div', { class: 'lt-order' },
+        el('span', { class: 'lt-alerticon', text: '🏆' }),
         el('div', { class: 'lt-orderbody' },
           el('div', { class: 'lt-ordername', text: spec.name }),
           el('div', { class: 'lt-prodmeta', text: `stage ${formatMoney(spec.cost)} · entries ${formatMoney(spec.entryRevenue)} · needs ${spec.conditionReq}+ condition on the day` })),
@@ -1285,6 +1504,7 @@ export function makeLaptop(app, opts) {
           : chip(gate.reason, ''));
     };
     const offerRow = (o) => el('div', { class: 'lt-order' },
+      el('span', { class: 'lt-alerticon', text: '🤝' }),
       el('div', { class: 'lt-orderbody' },
         el('div', { class: 'lt-ordername', text: `${o.company} outing — ${o.size} players` }),
         el('div', { class: 'lt-prodmeta', text: `pays ${formatMoney(o.payout)} · plays day ${o.day + 1}` })),
@@ -1305,7 +1525,7 @@ export function makeLaptop(app, opts) {
 
     return [
       row(meta(`Prestige ${Math.round(prestige)} — the golf world's opinion. It rises with wins and good seasons, and it unlocks the locked cards.`)),
-      el('div', { class: 'lt-orderlist' }, ...Object.entries(UPGRADES).map(([id, u]) => upgradeCard(st, id, u))),
+      el('div', { class: 'lt-upgrid' }, ...Object.entries(UPGRADES).map(([id, u]) => upgradeCard(st, id, u))),
       ev
         ? card(el('div', { class: 'lt-minihead', text: `🏆 ${TOURNAMENTS[ev.tier]?.name || 'Tournament'} — ${ev.day - cal.dayAbs === 0 ? 'today' : `in ${ev.day - cal.dayAbs} day${ev.day - cal.dayAbs === 1 ? '' : 's'}`}` }),
           row(meta(`Needs condition ${TOURNAMENTS[ev.tier]?.conditionReq}+ on the day. Current: ${Math.round(clubRatings(st).condition)}.`)))
@@ -1318,12 +1538,14 @@ export function makeLaptop(app, opts) {
   }
 
   function upgradesClubhouseTab(st) {
+    const AMENITY_ICON = { range: '🎯', putting: '⛳', lounge: '🛋', lockers: '🚪', spa: '🧖', dining: '🍽' };
     const amenityRow = (key) => {
       const spec = AMENITIES[key];
       const level = st.club.amenities[key] || 0;
       const maxed = level >= spec.maxLevel;
       const cost = maxed ? 0 : spec.cost[level];
       return el('div', { class: 'lt-order' },
+        el('span', { class: 'lt-alerticon', text: AMENITY_ICON[key] || '🏛' }),
         el('div', { class: 'lt-orderbody' },
           el('div', { class: 'lt-ordername', text: `${spec.name} — level ${level} of ${spec.maxLevel}` }),
           el('div', { class: 'lt-prodmeta', text: `upkeep ${formatMoney(spec.upkeepPerLevel)}/day per level` })),
@@ -1378,7 +1600,7 @@ export function makeLaptop(app, opts) {
       el('div', { class: 'lt-orderbody' },
         el('div', { class: 'lt-ordername', text: e.name }),
         el('div', { class: 'lt-prodmeta', text: `${ROLE_LABEL[e.role] || e.role} · ${stars(e.skill)} · ${formatMoney(e.wage)}/day` })),
-      e.trainingDays > 0 ? chip('Training', 'warn') : chip('Working', 'ok'),
+      e.trainingDays > 0 ? word('Training', 'warn') : word('On duty', 'ok'),
       el('button', {
         class: 'lt-mini',
         text: 'Train',
@@ -1430,7 +1652,7 @@ export function makeLaptop(app, opts) {
       card(
         el('div', { class: 'lt-minihead', text: 'Rental club sets' }),
         row(el('span', { class: 'lt-mulabel', text: 'Fleet' }),
-          el('span', { text: `${f.sets} sets` }),
+          el('span', { style: 'font-size:0.84em;font-weight:600', text: `${f.sets} sets` }),
           chip(f.condition <= 15 ? 'Too rough to rent' : f.condition < 40 ? 'Needs replacing' : 'Serviceable', f.condition <= 15 ? 'bad' : f.condition < 40 ? 'warn' : 'ok')),
         row(
           el('span', { class: 'lt-mulabel', text: 'Buy sets' }),
@@ -1458,7 +1680,7 @@ export function makeLaptop(app, opts) {
   }
 
   // ==========================================================================================
-  // FINANCES — cash, today, a seven-day line, and the last ten money movements
+  // FINANCES — cash, today, one line chart, and the last ten money movements
   // ==========================================================================================
   function pageFinances() {
     const st = app.state;
@@ -1490,36 +1712,35 @@ export function makeLaptop(app, opts) {
       rentalFleet: 'Rental sets', events: 'Event costs', rent: 'Property bill',
       cashOverShort: 'Register over/short',
     };
-    const rows = txAll.slice(-10).reverse().map((t) => {
+    const txRow = (t) => {
       const c = calendarOf(t.m);
       const label = t.kind === 'rev' ? (REV_LABEL[t.key] || t.key) : (EXP_LABEL[t.key] || t.key);
-      return el('div', { class: 'lt-order' },
-        el('span', { class: 'lt-slottime', text: `${clock12(c.minuteOfDay)}` }),
-        el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: t.kind === 'refund' ? `${label} — refunded` : label }),
-          el('div', { class: 'lt-prodmeta', text: `Day ${c.dayOfSeason} · balance ${exactMoney(t.bal)}` })),
-        el('span', { class: `lt-num ${t.kind === 'exp' ? 'lt-neg' : 'lt-pos'}`, text: `${t.kind === 'exp' ? '−' : '+'}${exactMoney(t.amt)}` }));
-    });
-
-    const stat = (label, value, sub, tone = '') => el('div', { class: 'lt-stat' },
-      el('div', { class: 'lt-statlabel', text: label }),
-      el('div', { class: `lt-statvalue ${tone}`, text: value }),
-      sub ? el('div', { class: 'lt-statsub', text: sub }) : null);
+      return el('tr', { title: `Balance after: ${exactMoney(t.bal)}` },
+        el('td', { class: 'lt-listsub', text: `Day ${c.dayOfSeason} · ${clock12(c.minuteOfDay)}` }),
+        el('td', {}, el('span', { style: 'font-weight:600', text: t.kind === 'refund' ? `${label} — refunded` : label })),
+        el('td', {}, word(t.kind === 'exp' ? 'Expense' : t.kind === 'refund' ? 'Refund' : 'Income', t.kind === 'exp' ? '' : t.kind === 'refund' ? 'warn' : 'ok')),
+        el('td', { class: 'lt-num' },
+          el('div', { class: t.kind === 'exp' ? 'lt-neg' : 'lt-pos', text: `${t.kind === 'exp' ? '−' : '+'}${exactMoney(t.amt)}` }),
+          el('div', { class: 'lt-listsub', text: `bal ${exactMoney(t.bal)}` })));
+    };
+    const rows = txAll.slice(-10).reverse().map(txRow);
 
     paint(
       head('Finances', 'Every cash movement routes through one ledger, so this history reconciles with the wallet to the cent.'),
       confirmBar(),
       el('div', { class: 'lt-stats lt-stats4' },
-        stat('Cash', formatMoney(cashOf()), null, 'gold'),
-        stat('Earned today', formatMoney(revToday), null, revToday > 0 ? 'ok' : ''),
-        stat('Spent today', formatMoney(expToday), null, expToday > 0 ? 'bad' : ''),
-        stat('Profit today', `${revToday - expToday >= 0 ? '+' : ''}${formatMoney(revToday - expToday)}`, null, revToday - expToday >= 0 ? 'ok' : 'bad'),
+        stat('Current Cash', formatMoney(cashOf())),
+        stat("Today's Revenue", formatMoney(revToday), null, revToday > 0 ? 'ok' : ''),
+        stat("Today's Expenses", formatMoney(expToday), null, expToday > 0 ? 'bad' : ''),
+        stat("Today's Profit", `${revToday - expToday >= 0 ? '+' : ''}${formatMoney(revToday - expToday)}`, null, revToday - expToday >= 0 ? 'ok' : 'bad'),
       ),
       owed > 0 ? errBox(`${formatMoney(owed)} behind on the property, and it accrues interest. It comes out of the next bill you can cover.`) : null,
       card(
-        el('div', { class: 'lt-tabs' },
-          el('button', { class: `lt-tab ${fs.win === 'week' ? 'on' : ''}`, text: '7 days', onclick: () => { fs.win = 'week'; click(); render(); } }),
-          el('button', { class: `lt-tab ${fs.win === 'season' ? 'on' : ''}`, text: 'Season', onclick: () => { fs.win = 'season'; click(); render(); } })),
+        el('div', { class: 'lt-minihead' },
+          el('span', { text: 'Revenue Trend' }),
+          el('span', { class: 'lt-headspace' }),
+          el('button', { class: `lt-day ${fs.win === 'week' ? 'on' : ''}`, text: '7 days', onclick: () => { fs.win = 'week'; click(); render(); } }),
+          el('button', { class: `lt-day ${fs.win === 'season' ? 'on' : ''}`, text: 'Season', onclick: () => { fs.win = 'season'; click(); render(); } })),
         pts.length >= 2
           ? lineChart({
             series: [
@@ -1531,8 +1752,14 @@ export function makeLaptop(app, opts) {
           })
           : empty('The chart starts once a day has closed on the books.'),
       ),
-      sect('Recent activity'),
-      rows.length ? el('div', { class: 'lt-orderlist' }, ...rows) : empty('Money movements appear here as they happen.'),
+      sect('Recent Transactions'),
+      rows.length
+        ? card(el('table', { class: 'lt-table' },
+          el('thead', {}, el('tr', {},
+            el('th', { text: 'When' }), el('th', { text: 'Description' }), el('th', { text: 'Type' }),
+            el('th', { class: 'lt-num', text: 'Amount' }))),
+          el('tbody', {}, ...rows)))
+        : empty('Money movements appear here as they happen.'),
     );
   }
 
@@ -1546,12 +1773,38 @@ export function makeLaptop(app, opts) {
     const checkRow = (label, detail, checked, onchange) => el('label', { class: 'lt-row' },
       el('input', { type: 'checkbox', class: 'lt-check', checked: checked ? 'checked' : undefined, onchange }),
       el('span', {},
-        el('div', { text: label }),
+        el('div', { style: 'font-size:0.84em;font-weight:600', text: label }),
         el('div', { class: 'lt-meta', text: detail })));
+
+    // master volume — the audio engine's own persisted setting, not a fake knob
+    const audio = app.audio;
+    const volOut = el('span', { class: 'lt-mupct', text: audio ? `${Math.round((audio.getVolume ? audio.getVolume() : 0.8) * 100)}%` : '—' });
+    const volRange = el('input', {
+      type: 'range', min: '0', max: '100', step: '5', class: 'lt-range',
+      value: String(Math.round((audio && audio.getVolume ? audio.getVolume() : 0.8) * 100)),
+      disabled: audio ? undefined : 'disabled',
+      oninput: (e) => {
+        if (!audio || !audio.setVolume) return;
+        const v = Number(e.target.value) / 100;
+        audio.setVolume(v);
+        volOut.textContent = `${Math.round(v * 100)}%`;
+      },
+    });
 
     paint(
       head('Settings'),
       confirmBar(),
+      card(
+        el('div', { class: 'lt-minihead', text: 'Sound' }),
+        row(el('span', { class: 'lt-mulabel', text: 'Volume' }), volRange, volOut),
+        audio ? null : row(meta('Sound wakes with your first click in the world.')),
+        audio && audio.setMuted
+          ? checkRow('Mute everything', 'Silence the whole game, laptop included.', audio.isMuted && audio.isMuted(),
+            (e) => { audio.setMuted(!!e.target.checked); toast(e.target.checked ? 'Muted.' : 'Sound is back.'); })
+          : null,
+        checkRow('Laptop sounds', 'Clicks and chimes on this screen.', prefs.uiSounds !== false,
+          (e) => { prefs.uiSounds = !!e.target.checked; toast(prefs.uiSounds ? 'Sounds on.' : 'Sounds off.'); }),
+      ),
       card(
         el('div', { class: 'lt-minihead', text: 'Display' }),
         row(
@@ -1562,6 +1815,18 @@ export function makeLaptop(app, opts) {
             onclick: () => { setScale(s); prefs.laptopScale = s; click(); render(); },
           })),
         ),
+      ),
+      card(
+        el('div', { class: 'lt-minihead', text: 'Game' }),
+        checkRow('Notification badge', 'Show the red unread count on the bell.', prefs.notifBadge !== false,
+          (e) => { prefs.notifBadge = !!e.target.checked; toast(prefs.notifBadge ? 'Badge on.' : 'Badge hidden — the bell still keeps the list.'); render(); }),
+        checkRow('Confirm every purchase', 'When off, stock orders under $100 skip the confirmation step.', prefs.confirmOrders !== false,
+          (e) => { prefs.confirmOrders = !!e.target.checked; toast(prefs.confirmOrders ? 'Every order asks first.' : 'Small orders go straight through.'); }),
+        checkRow('Simplified checkout', 'The register still opens and you still scan and bag — but change is counted for you.', !!st.shop.simpleCheckout,
+          (e) => {
+            st.shop.simpleCheckout = !!e.target.checked;
+            toast(st.shop.simpleCheckout ? 'Checkout simplified.' : 'Checkout is fully manual again.');
+          }),
         row(el('span', { class: 'lt-mulabel', text: 'Club name' }),
           el('input', {
             class: 'lt-input', type: 'text', value: st.clubName || '',
@@ -1573,26 +1838,10 @@ export function makeLaptop(app, opts) {
               render();
             },
           })),
+        row(el('span', { class: 'lt-mulabel', text: 'Hours' }),
+          meta(`Shop ${hour12(SHOP_OPEN_MIN)}–${hour12(SHOP_CLOSE_MIN)} · tee times ${hour12(TEE_SHEET.openMin)}–${hour12(TEE_SHEET.closeMin)} · autosave nightly`)),
       ),
-      card(
-        el('div', { class: 'lt-minihead', text: 'Behaviour' }),
-        checkRow('Laptop sounds', 'Clicks and chimes on this screen.', prefs.uiSounds !== false,
-          (e) => { prefs.uiSounds = !!e.target.checked; toast(prefs.uiSounds ? 'Sounds on.' : 'Sounds off.'); }),
-        checkRow('Confirm every order', 'When off, stock orders under $100 skip the confirmation step.', prefs.confirmOrders !== false,
-          (e) => { prefs.confirmOrders = !!e.target.checked; toast(prefs.confirmOrders ? 'Every order asks first.' : 'Small orders go straight through.'); }),
-        checkRow('Simplified checkout', 'The register still opens and you still scan and bag — but change is counted for you.', !!st.shop.simpleCheckout,
-          (e) => {
-            st.shop.simpleCheckout = !!e.target.checked;
-            toast(st.shop.simpleCheckout ? 'Checkout simplified.' : 'Checkout is fully manual again.');
-          }),
-      ),
-      card(
-        el('div', { class: 'lt-minihead', text: 'The club' }),
-        row(el('span', { class: 'lt-mulabel', text: 'Shop hours' }), el('span', { text: `${hour12(SHOP_OPEN_MIN)} – ${hour12(SHOP_CLOSE_MIN)}` })),
-        row(el('span', { class: 'lt-mulabel', text: 'Tee times' }), el('span', { text: `${hour12(TEE_SHEET.openMin)} – ${hour12(TEE_SHEET.closeMin)}` })),
-        row(el('span', { class: 'lt-mulabel', text: 'Autosave' }), el('span', { text: 'Nightly, plus the office menu (Esc)' })),
-      ),
-      row(el('span', { class: 'lt-headspace' }), primaryBtn('Close the laptop', () => opts.close())),
+      row(el('span', { class: 'lt-headspace' }), primaryBtn('Close Laptop', () => opts.close())),
     );
   }
 
@@ -1631,6 +1880,9 @@ export function makeLaptop(app, opts) {
         errBox(`The ${page} page could not be drawn: ${e && e.message ? e.message : e}`),
         el('button', { class: 'lt-primary', text: 'Back to Home', onclick: () => go('home') }));
     }
+    // the modal rides above whatever page just painted — one layer, owned by the shell
+    const overlay = modalLayer();
+    if (overlay) content.appendChild(overlay);
   }
 
   let liveTimer = null;

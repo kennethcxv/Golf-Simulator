@@ -169,7 +169,7 @@ test('the tabbed pages draw every tab without throwing', () => {
       assert.equal(crash, null, `${pageId}:${tab} drew an error card: ${crash}`);
     }
   };
-  drive('shop', ['Stock', 'Order', 'Prices', 'Deliveries']);
+  drive('shop', ['Stock', 'Order', 'Pricing', 'Deliveries']);
   drive('course', ['Overview', 'Tasks', 'Holes']);
   drive('upgrades', ['Course', 'Clubhouse', 'Staff', 'Equipment']);
   lap.close();

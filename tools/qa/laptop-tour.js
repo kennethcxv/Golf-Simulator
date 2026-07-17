@@ -115,13 +115,9 @@ async (page) => {
   }, null, { timeout: 15000, polling: 120 });
   await page.waitForTimeout(300);
 
-  // every nav destination, clicked where it really is on the glass — all 24 desks
+  // every nav destination, clicked where it really is on the glass — the seven pages
   const PAGES = [
-    'Dashboard', 'Tee Times', 'Customers', 'Memberships', 'Rentals',
-    'Pro Shop', 'Inventory', 'Suppliers', 'Orders', 'Deliveries', 'Pricing',
-    'Finances', 'Employees', 'Reviews', 'Marketing',
-    'Course', 'Maintenance', 'Upgrades', 'Events', 'Renovation',
-    'Reports', 'Notifications', 'Settings', 'Help',
+    'Home', 'Tee Times', 'Shop', 'Course', 'Upgrades', 'Finances', 'Settings',
   ];
 
   for (const label of PAGES) {

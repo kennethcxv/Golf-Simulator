@@ -1,27 +1,27 @@
 // GOLF SIMULATOR — the laptop's shared instruments: charts and tables.
 //
 // Charts here are drawn from the ledger's real closed days, never from invented series.
-// The palette is the validated dark-surface set (OKLCH band 0.48–0.67, CVD-checked):
-// adjacency order [green, blue, gold, violet, terracotta]. Category identity keeps the
-// same hue on every chart — a filter never repaints the survivors. Values, labels and
-// legends wear the text tokens; only marks wear series color.
+// The palette is the light-surface set that matches LaptopUIFinal: the money-in line is
+// the interface blue, money-out is the status red, and categorical series stay muted.
+// Category identity keeps the same hue on every chart — a filter never repaints the
+// survivors. Values, labels and legends wear the text tokens; only marks wear color.
 
 import { el } from './ui.js';
 
-// entity → hue, fixed for the life of the application (validated adjacency order)
+// entity → hue, fixed for the life of the application
 export const SERIES = {
-  revenue: '#3f9d47',
-  expenses: '#4f88c9',
-  greenFees: '#3f9d47',
-  shopSales: '#4f88c9',
-  dues: '#bd8722',
-  rentals: '#9a6ec2',
-  other: '#c06744',
+  revenue: '#2f6fe4',
+  expenses: '#e05d5d',
+  greenFees: '#2f6fe4',
+  shopSales: '#189a54',
+  dues: '#b3760e',
+  rentals: '#7c66d9',
+  other: '#d97b4f',
 };
-const INK = '#ede4cd';
-const INK_DIM = '#6e8672';
-const GRID = 'rgba(237,228,205,0.07)';
-const SURFACE = '#14251a';
+const INK = '#1d2531';
+const INK_DIM = '#8b95a5';
+const GRID = 'rgba(29,37,49,0.07)';
+const SURFACE = '#ffffff';
 
 export function svgEl(tag, attrs = {}, ...kids) {
   const n = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -94,10 +94,19 @@ export function lineChart({ series, labels, w = 640, h = 168, fmt = shortMoney }
       'stroke-linejoin': 'round', 'stroke-linecap': 'round',
       'stroke-dasharray': s.dash ? '5 4' : null,
     }));
+    // the reference draws a small dot on every closed day — skip them once the series
+    // is dense enough that dots would fuse into a rope
+    if (pts.length <= 16) {
+      for (const p of pts) {
+        chart.appendChild(svgEl('circle', {
+          cx: p.x, cy: p.y, r: 2.6, fill: s.color, stroke: SURFACE, 'stroke-width': 1.4,
+        }));
+      }
+    }
   });
 
   // crosshair + tooltip
-  const cross = svgEl('line', { y1: padY, y2: h - padY, stroke: 'rgba(237,228,205,0.25)', 'stroke-width': 1, visibility: 'hidden' });
+  const cross = svgEl('line', { y1: padY, y2: h - padY, stroke: 'rgba(29,37,49,0.2)', 'stroke-width': 1, visibility: 'hidden' });
   chart.appendChild(cross);
   const dots = series.map((s) => {
     const d = svgEl('circle', { r: 3.4, fill: s.color, stroke: SURFACE, 'stroke-width': 2, visibility: 'hidden' });
@@ -107,8 +116,8 @@ export function lineChart({ series, labels, w = 640, h = 168, fmt = shortMoney }
 
   const tip = el('div', {
     class: 'lt-charttip',
-    style: 'position:absolute;display:none;pointer-events:none;background:#0a160e;border:1px solid #35573f;'
-      + 'border-radius:6px;padding:5px 8px;font-size:0.72em;color:#ede4cd;z-index:5;white-space:nowrap;box-shadow:0 3px 10px rgba(3,8,5,0.5)',
+    style: 'position:absolute;display:none;pointer-events:none;background:#ffffff;border:1px solid #e7ebf1;'
+      + 'border-radius:8px;padding:5px 8px;font-size:0.72em;color:#1d2531;z-index:5;white-space:nowrap;box-shadow:0 6px 18px rgba(16,24,40,0.14)',
   });
   const wrap = el('div', { style: 'position:relative' }, chart, tip);
 
@@ -128,7 +137,7 @@ export function lineChart({ series, labels, w = 640, h = 168, fmt = shortMoney }
       dots[si].setAttribute('visibility', 'visible');
     });
     tip.replaceChildren(
-      el('div', { style: 'color:#6e8672;margin-bottom:2px', text: labels && labels[i] != null ? String(labels[i]) : `#${i + 1}` }),
+      el('div', { style: 'color:#8b95a5;margin-bottom:2px', text: labels && labels[i] != null ? String(labels[i]) : `#${i + 1}` }),
       ...series.map((s, si) => el('div', {},
         el('span', { style: `display:inline-block;width:7px;height:7px;border-radius:2px;background:${s.color};margin-right:5px` }),
         el('span', { text: `${s.label}  ${fmt(s.values[i] || 0)}` }))),
@@ -185,7 +194,7 @@ export function donutChart({ entries, size = 128, thickness = 15, fmt = shortMon
   const total = entries.reduce((a, e) => a + Math.max(0, e.value), 0);
   const segs = donutSegments(entries, { cx, cy, r });
   const svg = svgEl('svg', { class: 'lt-chart', viewBox: `0 0 ${size} ${size}`, width: size, height: size, style: 'flex-shrink:0' });
-  svg.appendChild(svgEl('circle', { cx, cy, r, fill: 'none', stroke: 'rgba(237,228,205,0.06)', 'stroke-width': thickness }));
+  svg.appendChild(svgEl('circle', { cx, cy, r, fill: 'none', stroke: 'rgba(29,37,49,0.06)', 'stroke-width': thickness }));
   for (const s of segs) {
     svg.appendChild(svgEl('path', {
       d: s.d, fill: 'none', stroke: s.color, 'stroke-width': thickness, 'stroke-linecap': 'butt',
@@ -200,9 +209,9 @@ export function donutChart({ entries, size = 128, thickness = 15, fmt = shortMon
   const legend = el('div', { style: 'display:flex;flex-direction:column;gap:4px;justify-content:center;min-width:0' },
     ...entries.filter((e) => e.value > 0).map((e) => el('div', { class: 'lt-legenditem', style: 'font-size:0.78em' },
       el('span', { class: 'lt-legenddot', style: `background:${e.color}` }),
-      el('span', { style: 'color:#a7bda6', text: e.label }),
-      el('span', { style: 'color:#ede4cd;font-weight:600;font-variant-numeric:tabular-nums', text: fmt(e.value) }),
-      el('span', { style: 'color:#6e8672', text: total > 0 ? `${Math.round((e.value / total) * 100)}%` : '' }))));
+      el('span', { style: 'color:#5b6574', text: e.label }),
+      el('span', { style: 'color:#1d2531;font-weight:600;font-variant-numeric:tabular-nums', text: fmt(e.value) }),
+      el('span', { style: 'color:#8b95a5', text: total > 0 ? `${Math.round((e.value / total) * 100)}%` : '' }))));
   return el('div', { style: 'display:flex;gap:14px;align-items:center;flex-wrap:wrap;min-width:0' }, svg, legend);
 }
 
