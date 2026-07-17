@@ -47,6 +47,7 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   const mSkin = M(skin, 0.7);
   const mCap = cap == null ? null : M(cap, 0.8);
   const mShoe = M(0x33291f, 0.9);
+  const mSole = M(0x1c1916, 0.95); // rubber shoe sole, darker than the leather upper
 
   const root = new THREE.Group();
 
@@ -83,6 +84,20 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   hem.position.y = 0.02;
   hem.castShadow = true;
   chest.add(hem);
+  // A folded polo collar at the neckline — the fabric detail that turns "blue tube with a
+  // ball on top" into a shirt. An open flared cone in the shirt material.
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.108, 0.072, 0.058, 18, 1, true), mPolo);
+  collar.position.y = 0.415;
+  collar.castShadow = true;
+  chest.add(collar);
+  // A short placket + two buttons down the chest so the front reads as a polo.
+  const placket = box(0.028, 0.17, 0.012, M(polo, 0.62), 0.30, 0.138);
+  chest.add(placket);
+  for (const by of [0.34, 0.26]) {
+    const button = new THREE.Mesh(new THREE.SphereGeometry(0.010, 8, 6), M(0xf3efe6, 0.5));
+    button.position.set(0, by, 0.144);
+    chest.add(button);
+  }
 
   const head = new THREE.Group();
   head.position.y = 0.62;
@@ -112,11 +127,20 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   mouth.rotation.x = 0.12; // a faint upward set, so the resting face is neutral-friendly
   head.add(mouth);
   if (mCap) {
-    const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 12), mCap);
-    capTop.position.y = 0.19;
-    head.add(capTop);
-    const brim = box(0.2, 0.03, 0.16, mCap, 0.16, 0.16);
-    head.add(brim);
+    // A soft golf cap: a domed crown hugging the skull, a top button, and a curved bill —
+    // not a soup can with a slab stuck to it.
+    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.168, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.58), mCap);
+    crown.scale.set(1.02, 0.94, 1.06);
+    crown.position.y = 0.05;
+    crown.castShadow = true;
+    head.add(crown);
+    const button = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), mCap);
+    button.position.y = 0.196;
+    head.add(button);
+    // curved bill: a flattened, slightly down-tilted disc projecting from the crown front
+    const bill = ellipsoid(0.185, 0.026, 0.155, mCap, 0.108, 0.14, 16);
+    bill.rotation.x = 0.17;
+    head.add(bill);
   } else {
     // bare head gets hair instead of a cap
     const hair = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.1), M(0x4a3a28, 0.95));
@@ -137,14 +161,27 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     const upperArm = capsule(0.060, 0.20, mPolo, -0.15);
     upperArm.scale.z = 0.88;
     shoulder.add(upperArm);
+    // the short-sleeve hem, a slightly proud fabric ring where the polo sleeve ends
+    const sleeveCuff = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.062, 0.03, 14), mPolo);
+    sleeveCuff.position.y = -0.275;
+    sleeveCuff.castShadow = true;
+    shoulder.add(sleeveCuff);
     const elbow = new THREE.Group();
     elbow.position.y = -0.32;
     shoulder.add(elbow);
+    // elbow cap: a skin ball at the pivot closing the sleeve→forearm gap at every arm angle
+    const elbowCap = ball(0.052, mSkin, 12);
+    elbow.add(elbowCap);
     const forearm = capsule(0.050, 0.18, mSkin, -0.13);
     forearm.scale.z = 0.88;
     elbow.add(forearm);
-    const hand = ellipsoid(0.095, 0.115, 0.075, mSkin, -0.295, -0.005, 8);
+    // a shaped hand — a flatter palm than the old blob, plus a thumb, so it reads as a hand
+    // that could hold a card. Position is preserved: the carry grip below copies it.
+    const hand = ellipsoid(0.074, 0.118, 0.052, mSkin, -0.295, -0.005, 10);
     elbow.add(hand);
+    const thumb = ellipsoid(0.030, 0.060, 0.030, mSkin, -0.262, 0.028, 8);
+    thumb.position.x = sx * 0.046;
+    elbow.add(thumb);
     // A sibling of the non-uniformly scaled hand mesh gives carried props a
     // stable attachment joint.  Parenting a shopping bag to the hand mesh
     // itself would squash it; parenting it to the elbow loses the authored
@@ -175,11 +212,25 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     const knee = new THREE.Group();
     knee.position.y = -0.46;
     hip.add(knee);
+    // knee cap: a khaki ball at the pivot closing the thigh→shin gap
+    const kneeCap = ball(0.072, mKhaki, 12);
+    kneeCap.scale.set(1, 0.92, 0.98);
+    knee.add(kneeCap);
     const shin = capsule(0.064, 0.29, mKhaki, -0.19);
     shin.scale.z = 0.92;
     knee.add(shin);
-    const shoe = box(0.13, 0.09, 0.26, mShoe, -0.42, -0.04);
-    knee.add(shoe);
+    // a real shoe: a soft leather upper on a rubber sole with a rounded toe, in place of the
+    // dark block that used to sit under the trouser cuff.
+    const sole = box(0.135, 0.035, 0.30, mSole, -0.452, -0.03);
+    sole.castShadow = true;
+    knee.add(sole);
+    const foot = ellipsoid(0.128, 0.115, 0.235, mShoe, -0.398, -0.05, 12);
+    knee.add(foot);
+    const toe = ellipsoid(0.118, 0.088, 0.13, mShoe, -0.41, -0.135, 12);
+    knee.add(toe);
+    const tongue = box(0.075, 0.05, 0.10, mShoe, -0.352, 0.01);
+    tongue.rotation.x = -0.25;
+    knee.add(tongue);
     limbs[`hip${side}`] = hip;
     limbs[`knee${side}`] = knee;
   }
