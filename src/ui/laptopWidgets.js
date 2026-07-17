@@ -203,7 +203,7 @@ export function donutChart({ entries, size = 128, thickness = 15, fmt = shortMon
       el('span', { style: 'color:#a7bda6', text: e.label }),
       el('span', { style: 'color:#ede4cd;font-weight:600;font-variant-numeric:tabular-nums', text: fmt(e.value) }),
       el('span', { style: 'color:#6e8672', text: total > 0 ? `${Math.round((e.value / total) * 100)}%` : '' }))));
-  return el('div', { style: 'display:flex;gap:16px;align-items:center' }, svg, legend);
+  return el('div', { style: 'display:flex;gap:14px;align-items:center;flex-wrap:wrap;min-width:0' }, svg, legend);
 }
 
 /**

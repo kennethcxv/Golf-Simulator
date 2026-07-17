@@ -550,12 +550,12 @@ export function makeCourseScene(canvas, state) {
           } else if (zone < 4.5) { // TEE
             col = FW_STYLIZE(dTee, vec3(0.132, 0.395, 0.064)); gSplatN = nTee; gSplatUv = uvTee; gSplatRough = 0.93;
             stripeAmp = 0.14; stripeFreq = 0.16; modeSel = uStripeModes.z; followFlow = true;
-          } else if (zone < 5.5) { // BUNKER
-            col = FW_STYLIZE(dSand, vec3(0.82, 0.70, 0.45)); gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
+          } else if (zone < 5.5) { // BUNKER — warm sand that never washes to white
+            col = FW_STYLIZE(dSand, vec3(0.68, 0.57, 0.36)); gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
           } else if (zone < 6.5) { // WATER bed
             col = FW_STYLIZE(dScrub, vec3(0.10, 0.16, 0.07)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.85;
-          } else if (zone < 7.5) { // PATH
-            col = FW_STYLIZE(dPath, vec3(0.46, 0.44, 0.38)); gSplatN = nPath; gSplatUv = uvPath; gSplatRough = 0.9;
+          } else if (zone < 7.5) { // PATH — a dusty worn shoulder; the ribbon mesh is the pavement
+            col = FW_STYLIZE(dRough, vec3(0.16, 0.275, 0.09)); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.95;
           } else if (zone < 8.5) { // FRINGE — a shade deeper than green, tight cut
             col = FW_STYLIZE(dGreen, vec3(0.128, 0.40, 0.066)); gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.92;
           } else if (zone < 9.5) { // HEAVY rough — tall, warm, golden-tipped
@@ -573,7 +573,9 @@ export function makeCourseScene(canvas, state) {
           col *= 0.93 + fwNoise(cellUv * 0.33) * 0.14;
 
           if (stripeAmp > 0.001 && modeSel > 0.5) {
-            float fade = clamp(1.7 - hRel, 0.0, 1.0);
+            // overgrown turf softens the bands but never erases the pattern —
+            // a freshly-mown surface still pops the most
+            float fade = max(0.4, clamp(1.7 - hRel, 0.0, 1.0));
             // mow bands follow the HOLE: per-cell direction from the flow field
             // (bilinear-smoothed so the bands bend around doglegs)
             vec2 texel2 = 1.0 / uCells;
@@ -1356,11 +1358,12 @@ export function makeCourseScene(canvas, state) {
 
   // --- cart-path ribbons: smooth curves laid on the terrain ------------------------
   let pathGroup = null;
+  // the diffuse map multiplies DOWN, so these read two shades lighter in place
   const PATH_MATERIALS = {
-    asphalt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0x63605c, roughness: 0.92 }),
-    concrete: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xa9a49a, roughness: 0.88 }),
-    gravel: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0x99917e, roughness: 1 }),
-    dirt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0x71583c, roughness: 1 }),
+    asphalt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xb8b4ac, roughness: 0.92 }),
+    concrete: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xe8e2d4, roughness: 0.88 }),
+    gravel: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xd9cba4, roughness: 1 }),
+    dirt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xc09a6a, roughness: 1 }),
   };
 
   function ribbonForPath(path) {
@@ -1368,7 +1371,7 @@ export function makeCourseScene(canvas, state) {
     const pts = path.pts.map((p) => new THREE.Vector3(worldX(p.x), 0, worldZ(p.y)));
     if (pts.length < 2) return null;
     const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
-    const segs = Math.max(8, Math.round(curve.getLength() / 3));
+    const segs = Math.max(16, Math.round(curve.getLength() / 1.6));
     const half = (path.width || 2.6) / 2;
     const positions = [];
     const uvs = [];
@@ -1383,7 +1386,8 @@ export function makeCourseScene(canvas, state) {
       const lz = p.z + nz * half;
       const rx = p.x - nx * half;
       const rz = p.z - nz * half;
-      positions.push(lx, heightAt(lx, lz) + 0.09, lz, rx, heightAt(rx, rz) + 0.09, rz);
+      // ride safely above the micro-relief between height samples
+      positions.push(lx, heightAt(lx, lz) + 0.24, lz, rx, heightAt(rx, rz) + 0.24, rz);
       uvs.push(0, t * segs * 0.4, 1, t * segs * 0.4);
       if (i < segs) {
         const b = i * 2;
@@ -1395,6 +1399,20 @@ export function makeCourseScene(canvas, state) {
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geo.setIndex(indices);
     geo.computeVertexNormals();
+    // the strip must face the sky: flip the winding if the curve ran the other way
+    const nrm = geo.attributes.normal;
+    let upSum = 0;
+    for (let i = 0; i < nrm.count; i += 7) upSum += nrm.getY(i);
+    if (upSum < 0) {
+      const idx = geo.getIndex();
+      for (let i = 0; i < idx.count; i += 3) {
+        const a = idx.getX(i + 1);
+        idx.setX(i + 1, idx.getX(i + 2));
+        idx.setX(i + 2, a);
+      }
+      idx.needsUpdate = true;
+      geo.computeVertexNormals();
+    }
     const mat = (PATH_MATERIALS[path.material] || PATH_MATERIALS.asphalt)();
     const mesh = new THREE.Mesh(geo, mat);
     mesh.receiveShadow = true;
@@ -1410,6 +1428,7 @@ export function makeCourseScene(canvas, state) {
       });
     }
     pathGroup = new THREE.Group();
+    pathGroup.name = 'courseCartPaths';
     for (const p of course.paths || []) {
       const mesh = ribbonForPath(p);
       if (mesh) pathGroup.add(mesh);

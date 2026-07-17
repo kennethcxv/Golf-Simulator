@@ -471,7 +471,7 @@ export function makeLaptop(app, opts) {
         if (!n) return null;
         const h = health / n;
         return el('div', { class: 'lt-facrow' },
-          el('span', { class: 'lt-faclabel', text: label }),
+          el('span', { class: 'lt-faclabel', style: 'width:64px', text: label }),
           el('div', { class: 'lt-facbar' }, el('div', { class: `lt-facfill ${h < 45 ? 'bad' : h < 70 ? '' : 'ok'}`, style: `width:${Math.max(2, Math.min(100, h))}%` })),
           el('span', { class: 'lt-facpct', text: String(Math.round(h)) }));
       }).filter(Boolean);

@@ -481,20 +481,20 @@ export function plantVegetation(course, specs, rng, { density = 1 } = {}) {
     }
   }
 
-  // 2. interior groves: clump seeds far from play, 3–7 trees each, meadows between
+  // 2. interior groves: clump seeds far from play, 4–9 trees each, meadows between
   const groveSeeds = [];
   for (let y = 2; y < h - 2; y += 2) {
     for (let x = 2; x < w - 2; x += 2) {
       const d = dist[y * w + x];
-      if (d >= 4 && rng.chance(0.05 * density)) groveSeeds.push({ x, y });
+      if (d >= 4 && rng.chance(0.075 * density)) groveSeeds.push({ x, y });
     }
   }
   for (const g of groveSeeds) {
-    const n = 3 + rng.int(5);
+    const n = 4 + rng.int(6);
     const pine = rng.chance(0.4); // groves lean one species — reads as planted stands
     for (let i = 0; i < n; i++) {
       const a = rng.next() * Math.PI * 2;
-      const r = 0.6 + rng.next() * 2.6;
+      const r = 0.6 + rng.next() * 3.0;
       addTree(course, rng, g.x + Math.cos(a) * r, g.y + Math.sin(a) * r, {
         pinePreference: pine ? 0.85 : 0.12,
       });
