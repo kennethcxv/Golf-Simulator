@@ -864,13 +864,14 @@ export function reliefAt(relief, px, py, baseH) {
       case 'bunker': {
         const d = polygonSDF(px, py, f.poly);
         if (d < 0) {
-          // eased bowl, deepest at the middle of the sand
+          // eased bowl: a distinct step down at the sand line, deepest at the
+          // middle — reads as a recessed hazard, not a shallow scrape
           const k = smooth01(-d / Math.max(0.3, f.inR * 0.85));
-          hgt -= f.depth * (0.35 + 0.65 * k);
-        } else if (d < 1.1) {
-          // rolled turf lip just outside the sand line
-          const g = (d - 0.30) / 0.34;
-          hgt += f.lip * Math.exp(-g * g);
+          hgt -= f.depth * (0.5 + 0.5 * k) + 0.35;
+        } else if (d < 1.35) {
+          // a taller rolled turf lip hugging the sand line, fading into the grass
+          const g = (d - 0.28) / 0.42;
+          hgt += f.lip * 1.5 * Math.exp(-g * g);
         }
         break;
       }
