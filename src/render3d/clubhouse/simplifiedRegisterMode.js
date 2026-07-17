@@ -14,7 +14,7 @@ import {
   subtotal, discountOf, totalOf, dueOf, cashTotalOf,
   presentCard, insertCard, cardEnteredAmount, enterCardDigit,
   backspaceCardAmount, clearCardAmount, submitCardAmount,
-  runCard, retryCard, cancelCard, payCashInstead,
+  runCard, retryCard, cancelCard, abandonCardBeforeSubmit, payCashInstead,
   customerCash, acceptCash, openDrawer,
   depositTendered, takeFromDrawer, returnToDrawer, changeDue, handTotal,
   handOverChange, changeGivingState, MAX_EXTRA_CHANGE_CENTS,
@@ -37,6 +37,7 @@ import { createFrontDeskMonitorUi } from './frontDeskMonitorUi.js';
 import {
   billFit, billLayout, clipFillRatio, coinLayout,
 } from './drawerMoneyLayout.js';
+import { cardHandoffPose, cardTerminalPose } from './registerCameraPoses.js';
 
 const SCREEN_W = 1024;
 const SCREEN_H = 640;
@@ -48,6 +49,8 @@ const TERM_SCREEN_W = 0.070;
 const TERM_SCREEN_H = 0.064;
 const TERM_CANVAS_W = 512;
 const TERM_CANVAS_H = 468;
+// the reader's cancel-the-run X, top-right of the screen, in canvas pixels
+const TERM_X_BOX = { x0: TERM_CANVAS_W - 70, y0: 12, x1: TERM_CANVAS_W - 14, y1: 68 };
 const REST_Y = COUNTER_TOP + 0.012;
 const SCAN_Y = COUNTER_TOP + 0.13;
 const CARD_TIME = 1.15;
@@ -459,10 +462,10 @@ export function createRegisterMode(B) {
   //   overview  – goods centre, readable POS right, customer across the counter.
   //   checkin   – nearly straight-on, POS dominates the frame.
   //   scan      – every unscanned product + bag mouth + POS.
-  //   card      – the one physical terminal, keypad clickable, card visible.
-  //   cardTake  – the handed card waiting on the counter + the reader.
   //   cash      – POS above, open drawer below, both readable at once.
-  //   receipt   – printer, paper, and customer.
+  // The card flow's two frames (cardTake handoff, card terminal-entry) are NOT
+  // here: they are computed live in dynamicPose() from where the customer stands
+  // and where the terminal floats, so they track a moving subject.
   // THE ONE WORKING FRAME. Browsing, scanning and the receipt all share a single composed
   // pose — goods on the left half, POS readable on the right, reference-style — so serving
   // a customer stops feeling like a camera ride. Only the drawer (cash), the terminal
@@ -478,14 +481,6 @@ export function createRegisterMode(B) {
       { x: 3.42, y: 1.44, z: 4.37 },
     ), fov: 42 },
     scan: MIXED_POSE,
-    card: { pose: poseBetween(
-      { x: 3.00, y: 1.64, z: 4.52 },
-      { x: 3.00, y: 1.08, z: 3.98 },
-    ), fov: 42 },
-    cardTake: { pose: poseBetween(
-      { x: 3.00, y: 1.72, z: 4.90 },
-      { x: 3.00, y: 1.00, z: 4.18 },
-    ), fov: 46 },
     cash: { pose: poseBetween(
       { x: 3.42, y: 1.98, z: 5.42 },
       { x: 3.42, y: 0.98, z: 4.48 },
@@ -972,7 +967,99 @@ export function createRegisterMode(B) {
       ctx.font = '700 50px Arial, sans-serif';
       ctx.fillText('FAIRHOLLOW', W / 2, H * 0.45);
     }
+    // The cancel-the-run X, drawn last so it sits over whatever the stage shows.
+    // It appears ONLY before the amount is submitted; while the reader is
+    // processing (card-busy) there is no X — the payment cannot be pulled.
+    if (terminalXVisible()) {
+      const b = TERM_X_BOX;
+      const r = 10;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(b.x0 + r, b.y0);
+      ctx.arcTo(b.x1, b.y0, b.x1, b.y1, r);
+      ctx.arcTo(b.x1, b.y1, b.x0, b.y1, r);
+      ctx.arcTo(b.x0, b.y1, b.x0, b.y0, r);
+      ctx.arcTo(b.x0, b.y0, b.x1, b.y0, r);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(120,28,24,0.92)';
+      ctx.fill();
+      ctx.strokeStyle = '#ffd9d2';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.strokeStyle = '#fff3ee';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      const pad = 16;
+      ctx.beginPath();
+      ctx.moveTo(b.x0 + pad, b.y0 + pad);
+      ctx.lineTo(b.x1 - pad, b.y1 - pad);
+      ctx.moveTo(b.x1 - pad, b.y0 + pad);
+      ctx.lineTo(b.x0 + pad, b.y1 - pad);
+      ctx.stroke();
+      ctx.restore();
+    }
     termTexture.needsUpdate = true;
+  }
+
+  // The reader is MODAL while a card is running: only its on-screen X leaves it.
+  // The X shows (and cancels) only before the amount is submitted — never while
+  // the authorization is in flight, so a payment can't be pulled mid-settle.
+  function terminalXVisible() {
+    return !!(active && tx && tx.method === 'card'
+      && ['card-present', 'card-ready', 'card-entry'].includes(tx.stage));
+  }
+
+  // True whenever the card reader owns the screen — Escape is swallowed for every
+  // one of these states (including card-busy and the brief declined result), so a
+  // stray Escape can never cancel a payment, drop the card, or break camera lock.
+  function cardTerminalLocked() {
+    return !!(active && workspace === 'card' && tx && tx.method === 'card'
+      && ['card-present', 'card-ready', 'card-entry', 'card-busy', 'card-declined'].includes(tx.stage));
+  }
+
+  function terminalScreenUV(event) {
+    if (!termScreenPlane) return null;
+    setNdc(event);
+    ray.setFromCamera(ndc, camera);
+    const hit = ray.intersectObject(termScreenPlane, false)[0];
+    if (!hit || !hit.uv) return null;
+    return { u: hit.uv.x, v: 1 - hit.uv.y }; // v measured from the top, like the canvas
+  }
+
+  function terminalXHitAt(event) {
+    if (!terminalXVisible()) return false;
+    const uv = terminalScreenUV(event);
+    if (!uv) return false;
+    const px = uv.u * TERM_CANVAS_W;
+    const py = uv.v * TERM_CANVAS_H;
+    return px >= TERM_X_BOX.x0 && px <= TERM_X_BOX.x1
+      && py >= TERM_X_BOX.y0 && py <= TERM_X_BOX.y1;
+  }
+
+  // Pull the card run from the reader's X. Legal only before submit; returns the
+  // sale to the post-scan choice point and re-arms the automatic re-presentation
+  // so the customer is never stranded. The card mesh goes back to the customer.
+  function cancelCardAtTerminal() {
+    if (!tx || tx.method !== 'card') return false;
+    const abandoned = abandonCardBeforeSubmit(tx);
+    if (!abandoned.ok) return false; // card-busy / resolved — the X is not offered then
+    if (checkoutFlowState() && checkoutFlowState().startsWith('Card')) {
+      flowTo('AllProductsScanned', 'cashier-pulled-card-at-reader');
+    }
+    if (cardMesh) cardMesh.removeFromParent();
+    cardMesh = null;
+    cardU = 0;
+    insertSnap = false;
+    insertDrag = null;
+    insertMessage = '';
+    cardPresentationTimer = 0;
+    cardEjectTimer = 0;
+    setWorkspace('monitor');
+    paymentAutoTimer = 1.35; // the customer re-presents their payment after a beat
+    sfx('cardPresent');
+    drawScreen();
+    drawTerm();
+    return true;
   }
 
   // A click anywhere on the terminal resolves to its nearest physical key. The
@@ -1917,7 +2004,7 @@ export function createRegisterMode(B) {
     if (checkoutFlowState() === 'WaitingForCashier') {
       flowTo('EnteringCashierMode', 'player-opened-front-desk-monitor');
     }
-    const opening = POSES[poseKey()] || POSES.overview;
+    const opening = dynamicPose(poseKey());
     cameraPose = { ...opening.pose };
     activePoseKey = poseKey();
     cameraTween = null;
@@ -3006,7 +3093,9 @@ export function createRegisterMode(B) {
   function onDown(event) {
     if (!active) return false;
     if (event.button === 2) {
-      leave();
+      // right-click backs out of the register — but NOT while the card reader is
+      // modal, or it would be a second way to abandon a running payment
+      if (!cardTerminalLocked()) leave();
       return true;
     }
     if (event.button !== 0) return true;
@@ -3031,6 +3120,12 @@ export function createRegisterMode(B) {
       return true;
     }
     if (workspace === 'card') {
+      // the reader's on-screen X is the ONLY way to leave a running card payment
+      if (terminalXHitAt(event)) {
+        sfx('uiTick');
+        cancelCardAtTerminal();
+        return true;
+      }
       if (tx && tx.stage === 'card-entry') handleCardKeypadAt(event);
       // The handed card is the click target: one click runs the whole insert.
       else if (tx && tx.stage === 'card-ready' && cardHitAt(event)) autoInsertCard();
@@ -3136,6 +3231,10 @@ export function createRegisterMode(B) {
   function onKey(key) {
     if (!active) return false;
     if (key === 'Escape') {
+      // The card reader is MODAL while a payment is running: Escape must not
+      // cancel it, drop the card, leave the register, or break the camera lock.
+      // Only the reader's on-screen X leaves this state.
+      if (cardTerminalLocked()) return true;
       if (workspace !== 'monitor') {
         setWorkspace('monitor');
       } else if (selectedWalkInCustomerId != null) {
@@ -3479,10 +3578,13 @@ export function createRegisterMode(B) {
   function poseKey() {
     if (workspace === 'scan') return 'scan';
     if (workspace === 'card') {
-      // while the customer's card is being handed over / waiting for the
-      // player's click, frame the card; tighten onto the keypad after it seats
-      return tx && (tx.stage === 'card-present' || tx.stage === 'card-ready')
-        ? 'cardTake' : 'card';
+      // Frame the CUSTOMER while the card waits in their outstretched hand. The
+      // instant the player clicks it (insert begins, or it is already travelling
+      // or ejecting), switch to the terminal so the camera pans WITH the card up
+      // to the raised reader — never a snap to an old low counter preset.
+      const waiting = tx && (tx.stage === 'card-present'
+        || (tx.stage === 'card-ready' && !insertSnap && cardU === 0 && cardEjectTimer === 0));
+      return waiting ? 'cardTake' : 'card';
     }
     if (workspace === 'cash') return 'cash';
     // the receipt/bag handover plays out inside the working frame — no jump to watch paper
@@ -3490,10 +3592,31 @@ export function createRegisterMode(B) {
     return 'overview';
   }
 
+  // The card flow's two poses are computed LIVE, not from constants: the handoff
+  // frames the PERSON where they actually stand (the old preset aimed at the
+  // empty counter the reader used to sit on), and the entry frames the reader at
+  // its actual FLOATED height (the old preset aimed low, at the countertop). All
+  // other states keep their static presets.
+  function dynamicPose(key) {
+    if (key === 'cardTake') {
+      const p = cardHandoffPose(customerLocalPosition(), COUNTER_TOP);
+      return { pose: poseBetween(p.eye, p.look), fov: p.fov };
+    }
+    if (key === 'card') {
+      // rise WITH the terminal: its live floated height drives the whole framing
+      const p = cardTerminalPose(CARD_STATION, COUNTER_TOP, TERM_FLOAT_LIFT, termFloat);
+      return { pose: poseBetween(p.eye, p.look), fov: p.fov };
+    }
+    return POSES[key] || POSES.overview;
+  }
+
   function updateCamera(dt) {
     if (!active) return;
     const key = poseKey();
-    const target = POSES[key] || POSES.overview;
+    // dynamic poses (cardTake/card) re-read their live target EVERY frame, so
+    // the camera follows the customer and rises with the floating reader; static
+    // poses return a constant, so tracking them each frame is a no-op.
+    const target = dynamicPose(key);
     if (!cameraPose) {
       cameraPose = { ...target.pose };
       activePoseKey = key;
@@ -3501,26 +3624,24 @@ export function createRegisterMode(B) {
       camera.updateProjectionMatrix();
     }
     if (key !== activePoseKey) {
-      // retarget mid-flight from wherever the camera currently is
-      cameraTween = {
-        from: { ...cameraPose },
-        to: target.pose,
-        fovFrom: camera.fov,
-        fovTo: target.fov,
-        t: 0,
-      };
+      // ease in from wherever the camera currently is; the tween chases the LIVE
+      // target below, so a moving subject is followed rather than snapped to
+      cameraTween = { from: { ...cameraPose }, fovFrom: camera.fov, t: 0 };
       activePoseKey = key;
     }
+    let desiredFov = target.fov;
     if (cameraTween) {
       cameraTween.t = Math.min(1, cameraTween.t + dt / CAMERA_TWEEN_SECONDS);
       const s = THREE.MathUtils.smoothstep(cameraTween.t, 0, 1);
-      cameraPose = lerpPose(cameraTween.from, cameraTween.to, s);
-      const fov = THREE.MathUtils.lerp(cameraTween.fovFrom, cameraTween.fovTo, s);
-      if (Math.abs(fov - camera.fov) > 0.001) {
-        camera.fov = fov;
-        camera.updateProjectionMatrix();
-      }
+      cameraPose = lerpPose(cameraTween.from, target.pose, s);
+      desiredFov = THREE.MathUtils.lerp(cameraTween.fovFrom, target.fov, s);
       if (cameraTween.t >= 1) cameraTween = null;
+    } else {
+      cameraPose = target.pose; // track the live target (constant for static poses)
+    }
+    if (Math.abs(desiredFov - camera.fov) > 0.001) {
+      camera.fov = desiredFov;
+      camera.updateProjectionMatrix();
     }
     // the mouse leans the head around the pose — eased, so it reads as a neck
     const ease = Math.min(1, dt * 7);
@@ -3644,6 +3765,26 @@ export function createRegisterMode(B) {
     };
   }
 
+  // Where the reader's cancel-the-run X projects to on screen, so a driver can
+  // click it and assert it is shown only before the amount is submitted.
+  function cardXScreenPoint() {
+    if (!termScreenPlane) return null;
+    const cx = (TERM_X_BOX.x0 + TERM_X_BOX.x1) / 2;
+    const cy = (TERM_X_BOX.y0 + TERM_X_BOX.y1) / 2;
+    const lx = (cx / TERM_CANVAS_W - 0.5) * TERM_SCREEN_W;
+    const ly = (0.5 - cy / TERM_CANVAS_H) * TERM_SCREEN_H;
+    root.updateMatrixWorld(true);
+    const world = termScreenPlane.localToWorld(new THREE.Vector3(lx, ly, 0.003));
+    world.project(camera);
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: rect.left + ((world.x + 1) / 2) * rect.width,
+      y: rect.top + ((-world.y + 1) / 2) * rect.height,
+      inView: world.z >= -1 && world.z <= 1 && Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
+      visible: terminalXVisible(),
+    };
+  }
+
   buildDrawer();
   buildBag();
   drawScreen();
@@ -3674,6 +3815,8 @@ export function createRegisterMode(B) {
     monitorActionPoint,
     monitorScreenPoint,
     cardKeyScreenPoint,
+    cardXScreenPoint,
+    cardTerminalLocked: () => cardTerminalLocked(),
     monitorHotspots: () => monitorUi.hotspots(),
     // dev-only: what would a click at these client coordinates pick?
     debugPickAt: (clientX, clientY) => {

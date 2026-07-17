@@ -490,10 +490,13 @@ const FORWARD_TRANSITIONS = {
   ProductScanned: ['WaitingForScan', 'AllProductsScanned'],
   AllProductsScanned: ['ChoosingPayment'],
   ChoosingPayment: ['CardPresented', 'CashPresented'],
-  CardPresented: ['CardInsertReady', 'ChoosingPayment'],
-  CardInsertReady: ['CardInserting', 'ChoosingPayment'],
+  // The reader's X pulls a card run before authorization, dropping the sale back
+  // to the post-scan choice point (basket intact, every item still scanned).
+  // Legal from every pre-submit card state; never once processing has begun.
+  CardPresented: ['CardInsertReady', 'ChoosingPayment', 'AllProductsScanned'],
+  CardInsertReady: ['CardInserting', 'ChoosingPayment', 'AllProductsScanned'],
   CardInserting: ['CardInsertReady', 'CardAmountEntry'],
-  CardAmountEntry: ['CardProcessing'],
+  CardAmountEntry: ['CardProcessing', 'AllProductsScanned'],
   CardProcessing: ['CardApproved', 'CardDeclined'],
   CardApproved: ['PaymentComplete'],
   CardDeclined: ['CardPresented', 'ChoosingPayment'],

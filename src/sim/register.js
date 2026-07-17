@@ -374,6 +374,26 @@ export function cancelCard(tx) {
   return { ok: true };
 }
 
+// The cashier pulls a card run at the reader's X BEFORE the amount is submitted.
+// The basket is intact and every item is still scanned, so the sale drops back
+// to the post-scan choice point where the customer re-presents payment. This is
+// only legal before authorization: never while it is in flight (card-busy) or
+// resolved (declined/approved), so it can never double-settle or strand a paid
+// customer.
+export function abandonCardBeforeSubmit(tx) {
+  if (tx.method !== 'card') return { ok: false, reason: 'No card run to pull.' };
+  if (!['card-present', 'card-ready', 'card-entry'].includes(tx.stage)) {
+    return { ok: false, reason: 'The card can only be pulled before the amount is submitted.' };
+  }
+  tx.cardResult = null;
+  tx.cardEntryCents = 0;
+  tx.cardEntryDigits = '';
+  tx.cardEntryError = null;
+  tx.method = null;
+  tx.stage = 'scanning'; // items stay scanned+staged; the payment choice re-opens
+  return { ok: true };
+}
+
 // they give up on plastic and reach for their wallet
 export function payCashInstead(tx) {
   if (tx.stage !== 'payment') return { ok: false, reason: 'Not at the payment choice.' };

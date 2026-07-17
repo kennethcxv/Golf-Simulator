@@ -295,26 +295,51 @@ async function insertCardGesture(page, shot, {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'card-ready';
   }, null, { timeout: 7000 });
-  await waitCamera(page, 'card');
-  const channel = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.insertAt());
-  const ready = await projectLocal(page, channel.ready);
-  const inserted = await projectLocal(page, channel.inserted);
-  assert(ready.inView && inserted.inView,
-    `Card insertion anchors are outside the camera: ${JSON.stringify({ ready, inserted })}`);
-  await page.mouse.move(ready.x, ready.y);
-  await page.mouse.down();
-  await page.mouse.move(
-    ready.x + (inserted.x - ready.x) * 0.55,
-    ready.y + (inserted.y - ready.y) * 0.55,
-    { steps: 8 },
-  );
+  // handoff frame: the camera is on the CUSTOMER, the card waits in their hand
+  await waitCamera(page, 'cardTake');
+  // While the card is waiting, the reader is already modal: Escape must NOT
+  // leave, and the X must be visible as the only way out.
+  const beforeEsc = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.workspace());
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(160);
+  const afterEsc = await page.evaluate(() => ({
+    workspace: window.__fw.scene3d.clubhouse().register.workspace(),
+    active: window.__fw.scene3d.clubhouse().register.isActive(),
+    locked: window.__fw.scene3d.clubhouse().register.cardTerminalLocked(),
+  }));
+  assert(afterEsc.active && afterEsc.workspace === beforeEsc,
+    `Escape left the card reader (was ${beforeEsc}, now ${afterEsc.workspace}, active=${afterEsc.active}).`);
+  assert(afterEsc.locked, 'The card reader should report itself modal-locked during the handoff.');
+  const xBefore = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.cardXScreenPoint());
+  assert(xBefore && xBefore.visible && xBefore.inView, 'The cancel X is not visible/on-screen during the handoff.');
   await shot(midLabel);
-  await page.mouse.move(inserted.x, inserted.y, { steps: 8 });
-  await page.mouse.up();
+  // the X is the ONE exit: click it and the run drops back to the post-scan
+  // choice point with the basket intact, then the customer re-presents the card
+  await page.mouse.click(xBefore.x, xBefore.y);
+  await page.waitForFunction(() => {
+    const r = window.__fw.scene3d.clubhouse().register;
+    const tx = r.getTx();
+    return r.workspace() === 'monitor' && tx && tx.stage === 'scanning'
+      && tx.items.every((item) => item.scanned);
+  }, null, { timeout: 4000 });
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx && tx.stage === 'card-ready';
+  }, null, { timeout: 7000 });
+  await waitCamera(page, 'cardTake');
+  // click-to-insert: ONE click on the presented card runs the whole insert; the
+  // camera follows it up to the raised terminal
+  const cardPt = await projectLocal(page, (await page.evaluate(() => window.__fw.scene3d.clubhouse().register.insertAt())).ready);
+  assert(cardPt.inView, `The presented card is outside the handoff camera: ${JSON.stringify(cardPt)}`);
+  await page.mouse.click(cardPt.x, cardPt.y);
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'card-entry' && tx.checkoutFlow?.state === 'CardAmountEntry';
-  }, null, { timeout: 4000 });
+  }, null, { timeout: 5000 }).catch(async (error) => {
+    throw new Error(`${error.message} — ${await clickDiagnostic(page, cardPt.x, cardPt.y)}`);
+  });
+  // entry frame: the camera has risen to the FLOATED terminal
+  await waitCamera(page, 'card');
   await shot(insertedLabel);
   const digits = await page.evaluate(async () => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
