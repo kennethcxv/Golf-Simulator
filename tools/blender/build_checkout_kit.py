@@ -248,63 +248,109 @@ def build_cash_drawer(M):
         L.box("t_left", (0.012, TD, 0.07), (-TW / 2 + 0.006, -t - TD / 2, t + 0.045), M["plastic_mid"], bevel=0.002),
         L.box("t_right", (0.012, TD, 0.07), (TW / 2 - 0.006, -t - TD / 2, t + 0.045), M["plastic_mid"], bevel=0.002),
         L.box("t_back", (TW - 0.02, 0.012, 0.07), (0, -t - 0.006, t + 0.045), M["plastic_mid"], bevel=0.002),
-        # front face proud of the housing + brushed pull lip
+        # front face proud of the housing
         L.box("t_face", (HW + 0.012, 0.026, HH + 0.012), (0, -HD - 0.013, HH / 2), M["charcoal"], bevel=0.006),
-        L.box("t_pull", (0.20, 0.020, 0.022), (0, -HD - 0.034, HH - 0.028), M["alu"], bevel=0.005),
     ]
     tray = _join(tp, "CashDrawer_Tray")
+    # centred round pull knob (reference till) — brushed, on a short neck
+    knob_y = -HD - 0.026
+    knob = L.cyl("CashDrawer_Knob", 0.012, 0.010, (0, knob_y - 0.006, HH * 0.34), M["alu"],
+                 rot=(math.radians(90), 0, 0), verts=24)
+    L.cyl("knob_neck", 0.005, 0.012, (0, knob_y, HH * 0.34), M["charcoal"],
+          rot=(math.radians(90), 0, 0), verts=12, parent=knob)
+    L.parent_keep(knob, tray)
     tray["movable"] = "drawer"
     tray["slide_axis"] = "-Y"
     tray["open_travel_m"] = 0.36
     L.parent_keep(tray, root)
 
-    # lock cylinder on the face, with the key left in it (reference detail)
-    lock = L.cyl("CashDrawer_Lock", 0.016, 0.012, (0, -HD - 0.030, HH / 2 - 0.014), M["alu"], rot=(math.radians(90), 0, 0), verts=20)
-    L.box("lock_key", (0.004, 0.012, 0.018), (0, -HD - 0.035, HH / 2 - 0.014), M["black"], bevel=0.0, parent=lock)
-    L.cyl("lock_keyshaft", 0.0028, 0.014, (0, -HD - 0.044, HH / 2 - 0.014), M["alu"], rot=(math.radians(90), 0, 0), verts=10, parent=lock)
-    key_bow = L.cyl("lock_keybow", 0.0085, 0.0025, (0, -HD - 0.052, HH / 2 - 0.020), M["black"], rot=(math.radians(90), 0, 0), verts=14, parent=lock)
-    L.cyl("lock_keyhole", 0.0028, 0.0028, (0, -HD - 0.052, HH / 2 - 0.024), M["alu"], rot=(math.radians(90), 0, 0), verts=8, parent=key_bow)
+    # lock cylinder on the face (right of the knob), with the key left in it
+    lx = HW * 0.30
+    lock = L.cyl("CashDrawer_Lock", 0.014, 0.012, (lx, -HD - 0.030, HH * 0.34), M["alu"], rot=(math.radians(90), 0, 0), verts=20)
+    L.box("lock_key", (0.004, 0.012, 0.018), (lx, -HD - 0.035, HH * 0.34), M["black"], bevel=0.0, parent=lock)
+    L.cyl("lock_keyshaft", 0.0028, 0.014, (lx, -HD - 0.044, HH * 0.34), M["alu"], rot=(math.radians(90), 0, 0), verts=10, parent=lock)
+    key_bow = L.cyl("lock_keybow", 0.0085, 0.0025, (lx, -HD - 0.052, HH * 0.34 - 0.006), M["black"], rot=(math.radians(90), 0, 0), verts=14, parent=lock)
+    L.cyl("lock_keyhole", 0.0028, 0.0028, (lx, -HD - 0.052, HH * 0.34 - 0.010), M["alu"], rot=(math.radians(90), 0, 0), verts=8, parent=key_bow)
     L.parent_keep(lock, tray)
 
-    # --- removable light-gray insert: 5 bill wells (back) + 5 coin cups (front) ---
+    # --- removable light-gray insert: 5 bill slots (back) + 5 coin wells (front) ---
+    # Proportioned like a real retail till: deep bill slots behind, wider/shallower
+    # coin wells in front with LOW walls so the change-counting camera sees the piles.
     IW, ID = TW - 0.03, TD - 0.05
     ix0 = -IW / 2
     iy_back = -t - 0.02                            # insert back edge
-    bill_d, coin_d = 0.20, 0.15
     wall = 0.006
-    iz = t + 0.014                                 # insert floor top
+    bill_d, coin_d = 0.212, ID - 3 * wall - 0.212  # interiors fill the WHOLE insert depth
+    y_bill_c = iy_back - wall - bill_d / 2         # bill slot interior centre
+    y_mid = iy_back - wall - bill_d - wall / 2     # bill/coin separator centre
+    y_coin_c = iy_back - 2 * wall - bill_d - coin_d / 2
+    y_front = iy_back - ID + wall / 2
+    iz = t + 0.014                                 # insert floor CENTRE
+    zf = iz + 0.004                                # insert floor TOP (money rests here)
+    h_back, h_side, h_bdiv, h_mid, h_cdiv, h_front = 0.050, 0.044, 0.044, 0.036, 0.028, 0.024
     ip = [L.box("i_floor", (IW, ID, 0.008), (0, iy_back - ID / 2, iz), M["tray_gray"], bevel=0.002)]
-    # perimeter walls
-    ip.append(L.box("i_back", (IW, wall, 0.055), (0, iy_back - wall / 2, iz + 0.030), M["tray_gray"], bevel=0.001))
-    ip.append(L.box("i_front", (IW, wall, 0.045), (0, iy_back - ID + wall / 2, iz + 0.025), M["tray_gray"], bevel=0.001))
-    ip.append(L.box("i_left", (wall, ID, 0.055), (ix0 + wall / 2, iy_back - ID / 2, iz + 0.030), M["tray_gray"], bevel=0.001))
-    ip.append(L.box("i_right", (wall, ID, 0.055), (-ix0 - wall / 2, iy_back - ID / 2, iz + 0.030), M["tray_gray"], bevel=0.001))
-    # bill/coin separator
-    ip.append(L.box("i_mid", (IW, wall, 0.05), (0, iy_back - bill_d, iz + 0.027), M["tray_gray"], bevel=0.001))
-    # five bill wells over five coin cups, one shared pitch
+    ip.append(L.box("i_back", (IW, wall, h_back), (0, iy_back - wall / 2, zf + h_back / 2), M["tray_gray"], bevel=0.001))
+    ip.append(L.box("i_front", (IW, wall, h_front), (0, y_front, zf + h_front / 2), M["tray_gray"], bevel=0.001))
+    ip.append(L.box("i_left", (wall, ID, h_side), (ix0 + wall / 2, iy_back - ID / 2, zf + h_side / 2), M["tray_gray"], bevel=0.001))
+    ip.append(L.box("i_right", (wall, ID, h_side), (-ix0 - wall / 2, iy_back - ID / 2, zf + h_side / 2), M["tray_gray"], bevel=0.001))
+    # bill/coin separator — low enough that notes read over it from the cash camera
+    ip.append(L.box("i_mid", (IW, wall, h_mid), (0, y_mid, zf + h_mid / 2), M["tray_gray"], bevel=0.001))
     pitch = IW / 5
     for i in range(1, 5):
         x = ix0 + i * pitch
-        ip.append(L.box(f"i_bdiv{i}", (wall, bill_d, 0.05), (x, iy_back - bill_d / 2, iz + 0.027), M["tray_gray"], bevel=0.001))
-        ip.append(L.box(f"i_cdiv{i}", (wall, coin_d, 0.04), (x, iy_back - bill_d - coin_d / 2, iz + 0.022), M["tray_gray"], bevel=0.001))
-    # angled bill weights (clip detail, one per well)
+        ip.append(L.box(f"i_bdiv{i}", (wall, bill_d, h_bdiv), (x, y_bill_c, zf + h_bdiv / 2), M["tray_gray"], bevel=0.001))
+        ip.append(L.box(f"i_cdiv{i}", (wall, coin_d, h_cdiv), (x, y_coin_c, zf + h_cdiv / 2), M["tray_gray"], bevel=0.001))
+    # clip hinge lugs on the separator top, one pair per bill slot
+    arm_len, arm_w = 0.088, pitch - 0.024
+    hinge_z = zf + h_mid + 0.003                   # rod axis just above the separator
     for i in range(5):
         x = ix0 + pitch / 2 + i * pitch
-        ip.append(L.box(f"i_clip{i}", (pitch - 0.03, 0.05, 0.004), (x, iy_back - 0.06, iz + 0.038), M["alu"], rot=(math.radians(-14), 0, 0), bevel=0.001))
+        for s in (-1, 1):
+            ip.append(L.box(f"i_lug{i}{'L' if s < 0 else 'R'}", (0.006, 0.010, 0.010),
+                            (x + s * (arm_w / 2 + 0.005), y_mid, zf + h_mid + 0.002), M["tray_gray"], bevel=0.001))
     insert = _join(ip, "CashDrawer_Insert")
     L.parent_keep(insert, tray)
 
-    # --- money placement sockets (children of the tray so they slide with it) ---
+    # --- articulated retaining clips: one named object per bill slot, origin at the
+    # hinge rod so the RUNTIME can rest each paddle on top of its note stack.
+    # Authored pose = empty drawer (paddle tip on the slot floor); rotation 0 = level.
     bills = ["1", "5", "10", "20", "50"]
     coins = ["01", "05", "10", "25", "50"]
+    hinge_drop = hinge_z - zf                      # paddle tip falls this far when empty
+    rest_rx = -math.asin(min(1.0, hinge_drop / arm_len))
     for i, b in enumerate(bills):
         x = ix0 + pitch / 2 + i * pitch
-        K.empty(f"BILL_{b}_SOCKET", (x, iy_back - bill_d / 2, iz + 0.020), (0, 0, 0), parent=tray, size=0.03,
-                props={"socket": "bill", "denomination": b})
+        # rod on the hinge axis, paddle reaching back (+Y) over the slot's front
+        # portion, roller at the tip so it rides the top note without biting it
+        cp = [
+            # paddle FIRST — _join keeps the active (first) part's transform, so it
+            # must carry an identity rotation for the joined clip to stay upright
+            L.box(f"c_pad{i}", (arm_w, arm_len - 0.010, 0.0028), (x, y_mid + 0.004 + (arm_len - 0.010) / 2, hinge_z - 0.0016), M["black"], bevel=0.0008),
+            L.cyl(f"c_rod{i}", 0.0022, arm_w + 0.008, (x, y_mid, hinge_z), M["alu"], rot=(0, math.radians(90), 0), verts=10),
+            L.cyl(f"c_tip{i}", 0.0030, arm_w - 0.006, (x, y_mid + arm_len - 0.004, hinge_z - 0.0022), M["alu"], rot=(0, math.radians(90), 0), verts=10),
+        ]
+        clip = _join(cp, f"CashDrawer_Clip_{b}", origin=(x, y_mid, hinge_z))
+        clip.rotation_euler = (rest_rx, 0, 0)
+        clip["clip"] = "bill"
+        clip["denomination"] = b
+        clip["arm_len_m"] = arm_len
+        clip["hinge_drop_m"] = hinge_drop
+        L.parent_keep(clip, tray)
+
+    # --- money placement sockets: children of the tray (they slide with it), sitting
+    # AT the slot floor, each carrying its compartment's authored placement contract.
+    bill_meta = {"well_w": pitch - 2 * wall, "well_d": bill_d - 0.004, "wall_h": h_bdiv,
+                 "max_pieces": 12, "spacing_m": 0.0016, "hinge_drop_m": hinge_drop}
+    coin_meta = {"well_w": pitch - 2 * wall, "well_d": coin_d - 0.004, "wall_h": h_cdiv,
+                 "max_pieces": 30, "pile_h_m": 0.0032}
+    for i, b in enumerate(bills):
+        x = ix0 + pitch / 2 + i * pitch
+        K.empty(f"BILL_{b}_SOCKET", (x, y_bill_c, zf), (0, 0, 0), parent=tray, size=0.03,
+                props={"socket": "bill", "denomination": b, "clip": f"CashDrawer_Clip_{b}", **bill_meta})
     for i, c in enumerate(coins):
         x = ix0 + pitch / 2 + i * pitch
-        K.empty(f"COIN_{c}_SOCKET", (x, iy_back - bill_d - coin_d / 2, iz + 0.016), (0, 0, 0), parent=tray, size=0.02,
-                props={"socket": "coin", "denomination": c})
+        K.empty(f"COIN_{c}_SOCKET", (x, y_coin_c, zf), (0, 0, 0), parent=tray, size=0.02,
+                props={"socket": "coin", "denomination": c, **coin_meta})
 
     # --- animations: CashDrawer_Open / CashDrawer_Close on the tray ---
     open_frames = int(0.6 * K.FPS)                 # 0.6 s

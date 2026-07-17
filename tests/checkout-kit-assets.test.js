@@ -108,12 +108,61 @@ test('cash drawer has open/close clips + all money sockets', async () => {
   const n = names(gltf.scene);
   for (const b of ['1', '5', '10', '20', '50']) assert.ok(n.has(`BILL_${b}_SOCKET`), `BILL_${b}_SOCKET`);
   for (const c of ['01', '05', '10', '25', '50']) assert.ok(n.has(`COIN_${c}_SOCKET`), `COIN_${c}_SOCKET`);
-  for (const part of ['CashDrawer_Housing', 'CashDrawer_Tray', 'CashDrawer_Insert', 'CashDrawer_Lock']) {
+  for (const part of ['CashDrawer_Housing', 'CashDrawer_Tray', 'CashDrawer_Insert', 'CashDrawer_Lock',
+    'CashDrawer_Knob']) {
     assert.ok(n.has(part), part);
   }
   // clips target the tray
   const open = gltf.animations.find((a) => a.name === 'CashDrawer_Open');
   assert.ok(open.tracks.some((t) => t.name.includes('CashDrawer_Tray')), 'open animates tray');
+});
+
+test('every drawer socket carries its authored placement contract', async () => {
+  const kit = await kitPromise;
+  const scene = (await kit.get('cash_drawer')).scene;
+  scene.updateMatrixWorld(true);
+  const socket = (name) => {
+    let found = null;
+    scene.traverse((o) => { if (o.name === name) found = o; });
+    return found;
+  };
+  for (const b of ['1', '5', '10', '20', '50']) {
+    const s = socket(`BILL_${b}_SOCKET`);
+    const u = s.userData;
+    assert.equal(u.socket, 'bill', `bill ${b} socket kind`);
+    assert.equal(u.denomination, b);
+    assert.ok(u.well_w > 0.04 && u.well_w < 0.09, `bill ${b} well_w ${u.well_w}`);
+    assert.ok(u.well_d > 0.15 && u.well_d < 0.26, `bill ${b} well_d ${u.well_d}`);
+    assert.ok(u.max_pieces >= 8, `bill ${b} max_pieces`);
+    assert.ok(u.spacing_m > 0.0005 && u.spacing_m < 0.004, `bill ${b} spacing`);
+    assert.ok(u.hinge_drop_m > 0.015 && u.hinge_drop_m < 0.08, `bill ${b} hinge drop`);
+    // a full authored stack must still fit BELOW the clip hinge
+    assert.ok(u.max_pieces * u.spacing_m + 0.0015 < u.hinge_drop_m,
+      `bill ${b}: max stack ${u.max_pieces * u.spacing_m} vs hinge ${u.hinge_drop_m}`);
+    // the articulated clip the socket names must exist and rest TILTED (empty pose)
+    const clip = socket(u.clip);
+    assert.ok(clip, `bill ${b} clip object ${u.clip}`);
+    assert.ok(Math.abs(clip.rotation.x) > 0.1, `bill ${b} clip rests tilted, rx=${clip.rotation.x}`);
+  }
+  for (const c of ['01', '05', '10', '25', '50']) {
+    const s = socket(`COIN_${c}_SOCKET`);
+    const u = s.userData;
+    assert.equal(u.socket, 'coin', `coin ${c} socket kind`);
+    assert.equal(u.denomination, c);
+    assert.ok(u.well_w > 0.04 && u.well_w < 0.09, `coin ${c} well_w ${u.well_w}`);
+    assert.ok(u.well_d > 0.10 && u.well_d < 0.20, `coin ${c} well_d ${u.well_d}`);
+    assert.ok(u.max_pieces >= 20, `coin ${c} max_pieces`);
+    assert.ok(u.pile_h_m > 0.001 && u.pile_h_m < 0.008, `coin ${c} pile step`);
+  }
+  // sockets sit ON the insert floor, all at one height, all inside the tray
+  const heights = new Set();
+  for (const name of ['BILL_1_SOCKET', 'BILL_50_SOCKET', 'COIN_01_SOCKET', 'COIN_50_SOCKET']) {
+    const s = socket(name);
+    const w = new THREE.Vector3();
+    s.getWorldPosition(w);
+    heights.add(Math.round(w.y * 1000));
+  }
+  assert.ok(heights.size <= 2, `socket heights should be flat-ish: ${[...heights]}`);
 });
 
 test('payment terminal exposes every key + card socket; card fits the slot', async () => {

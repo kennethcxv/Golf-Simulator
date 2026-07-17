@@ -186,8 +186,35 @@ async function escapeFrontDesk(page) {
   assert(!active, 'Escape did not back out through the shared monitor and leave the front desk.');
 }
 
+// what does a pick ray at this screen point actually hit? (failure forensics)
+async function clickDiagnostic(page, x, y) {
+  const hits = await page.evaluate(async (point) => {
+    const THREE = await import('/vendor/three.module.js');
+    const app = window.__fw;
+    const rect = document.querySelector('canvas').getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((point.x - rect.left) / rect.width) * 2 - 1,
+      -(((point.y - rect.top) / rect.height) * 2 - 1),
+    );
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(ndc, app.scene3d.camera);
+    return ray.intersectObjects(app.scene3d.clubhouse().interior.children, true)
+      .slice(0, 6)
+      .map((h) => ({
+        name: h.object.name || '(unnamed)',
+        kind: h.object.userData.kind || null,
+        uid: h.object.userData.uid || null,
+        pick: !!h.object.userData.pick,
+        d: Math.round(h.distance * 100) / 100,
+      }));
+  }, { x, y });
+  return `click at ${Math.round(x)},${Math.round(y)} hit: ${JSON.stringify(hits)}`;
+}
+
 async function scanAll(page, shot, mode) {
-  await monitorClick(page, 'start-scanning');
+  // Arrival already opens ON the goods (the one mixed working frame); the
+  // separate "Bag Items" monitor step only exists when re-entering via the
+  // monitor workspace, so the acceptance route rings items up directly.
   await waitCamera(page, 'scan');
   await shot('05-scanner-workspace.png');
   const items = await page.evaluate(() => (
@@ -195,22 +222,36 @@ async function scanAll(page, shot, mode) {
   ));
   for (let index = 0; index < items.length; index += 1) {
     const uid = items[index];
-    const product = await projectObject(page, { kind: 'item', uid });
+    // bagging the previous item re-lays the remaining goods out on the counter,
+    // so wait for THIS item's projected position to stop moving before aiming
+    let product = await projectObject(page, { kind: 'item', uid });
+    for (let settle = 0; settle < 20; settle += 1) {
+      await page.waitForTimeout(160);
+      const next = await projectObject(page, { kind: 'item', uid });
+      if (next && product && Math.abs(next.x - product.x) < 1.5 && Math.abs(next.y - product.y) < 1.5) {
+        product = next;
+        break;
+      }
+      product = next;
+    }
     assert(product && product.inView, `${uid} is not visible in the scan workspace.`);
+    // click-to-bag: one click on the goods rings the item up and sends it to
+    // the bag — there is no centring or swipe gesture in the production flow
     await page.mouse.click(product.x, product.y);
-    await page.waitForTimeout(480);
-    const centered = await projectObject(page, { kind: 'item', uid });
-    assert(centered && centered.inView, `${uid} did not center for scanning.`);
-    await page.mouse.move(centered.x, centered.y);
-    await page.mouse.down();
-    await page.mouse.move(Math.min(VIEWPORT.width - 80, centered.x + 760), centered.y, { steps: 18 });
-    await page.mouse.up();
     await page.waitForFunction((id) => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return tx && tx.items.find((item) => item.uid === id)?.scanned;
-    }, uid, { timeout: 5000 });
+    }, uid, { timeout: 5000 }).catch(async (error) => {
+      throw new Error(`${error.message} — ${await clickDiagnostic(page, product.x, product.y)}`);
+    });
     if (index === 0) await shot('06-first-product-scanned.png');
-    await page.waitForTimeout(420);
+    // let the bagged item finish its flight — it crosses OVER the remaining
+    // goods on the way to the bag, and a click through it would be swallowed
+    await page.waitForFunction((id) => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      return tx && tx.items.find((item) => item.uid === id)?.staged;
+    }, uid, { timeout: 8000 });
+    await page.waitForTimeout(220);
   }
   await page.waitForFunction(() => {
     const register = window.__fw.scene3d.clubhouse().register;
@@ -363,7 +404,6 @@ async function cashRoute(page, shot) {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'cash-tender';
   }, null, { timeout: 7000 });
-  await waitCamera(page, 'cash');
   const cashFacts = await page.evaluate(async () => {
     const register = await import('/src/sim/register.js');
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -376,40 +416,32 @@ async function cashRoute(page, shot) {
   assert(cashFacts.total === 35.72, `Expected exact cash total $35.72, got $${cashFacts.total}.`);
   assert(cashFacts.tendered === 40, `Expected $40.00 tender, got $${cashFacts.tendered}.`);
   assert(cashFacts.change === 4.28, `Expected $4.28 change, got $${cashFacts.change}.`);
+  // the cash is offered IN the customer's hand inside the mixed working frame —
+  // the camera only moves once the drawer actually opens
+  const handful = await projectObject(page, { kind: 'money', from: 'tender' });
+  assert(handful && handful.inView, 'The presented cash is not visible in the working frame.');
   await shot('08-cash-presented.png');
-  await shot('09-cash-workspace.png');
 
-  let tender = await page.evaluate(() => ({
-    ...(window.__fw.scene3d.clubhouse().register.getTx().tendered || {}),
-  }));
-  for (const [rawDenom, count] of Object.entries(tender)) {
-    const denom = Number(rawDenom);
-    for (let index = 0; index < count; index += 1) {
-      const piece = await projectObject(page, { kind: 'money', from: 'tender', denom });
-      assert(piece && piece.inView, `Tender ${denom} is not visible.`);
-      await page.mouse.click(piece.x, piece.y);
-      await page.waitForFunction(() => {
-        const tx = window.__fw.scene3d.clubhouse().register.getTx();
-        return tx && tx.drawerOpen;
-      }, null, { timeout: 5000 });
-      await page.waitForTimeout(420);
-      if (index === 0 && Number(rawDenom) === Number(Object.keys(tender)[0])) {
-        for (const coin of [0.5, 0.25, 0.1, 0.05, 0.01]) {
-          const coinSlot = await projectObject(page, { kind: 'drawer-slot', denom: coin });
-          assert(coinSlot && coinSlot.inView, `Coin slot ${coin} is outside the cash camera.`);
-        }
-        await shot('09b-cash-drawer-open.png');
-      }
-      const slot = await projectObject(page, { kind: 'drawer-slot', denom });
-      assert(slot && slot.inView, `Drawer slot ${denom} is not visible.`);
-      await page.mouse.click(slot.x, slot.y);
-      await page.waitForTimeout(160);
-    }
+  // one click on the handful accepts ALL of it; the drawer slides open itself
+  await page.mouse.click(handful.x, handful.y);
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx && tx.drawerOpen;
+  }, null, { timeout: 5000 }).catch(async (error) => {
+    throw new Error(`${error.message} — ${await clickDiagnostic(page, handful.x, handful.y)}`);
+  });
+  await waitCamera(page, 'cash');
+  await shot('09-cash-workspace.png');
+  // the change-counting pose frames the ENTIRE till: both rows and every label
+  for (const denom of [50, 20, 10, 5, 1, 0.5, 0.25, 0.1, 0.05, 0.01]) {
+    const slot = await projectObject(page, { kind: 'drawer-slot', denom });
+    assert(slot && slot.inView, `Drawer slot ${denom} is outside the cash camera.`);
   }
+  await shot('09b-cash-drawer-open.png');
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.deposited;
-  }, null, { timeout: 5000 });
+  }, null, { timeout: 8000 });
   await shot('10-received-cash-sorted.png');
 
   const wrongSlot = await projectObject(page, { kind: 'drawer-slot', denom: 5 });
@@ -574,8 +606,10 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   await shot('02-products-ready-at-counter.png');
   await page.keyboard.press('e');
   await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isActive(), null, { timeout: 5000 });
-  await waitCamera(page, 'monitor');
-  await shot('03-front-desk-monitor.png');
+  // A retail arrival with unscanned goods opens ON the goods (the one mixed
+  // working frame) — entry stopped defaulting to the monitor workspace.
+  await waitCamera(page, 'scan');
+  await shot('03-front-desk-entry.png');
 
   // Exit/re-entry is part of the acceptance route: the customer and exact tx must
   // survive a normal Escape and E without losing held inventory or resetting scans.
@@ -585,7 +619,7 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   await page.waitForTimeout(650);
   await page.keyboard.press('e');
   await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isActive());
-  await waitCamera(page, 'monitor');
+  await waitCamera(page, 'scan');
   const reenteredNumber = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getTx().number);
   assert(reenteredNumber === txNumber, 'Exit/re-entry replaced the active transaction.');
   await shot('04-safe-reentry.png');

@@ -34,6 +34,9 @@ import {
   buildCatalogProductProxy, catalogCheckoutLayout,
 } from './catalogProductVisual.js';
 import { createFrontDeskMonitorUi } from './frontDeskMonitorUi.js';
+import {
+  billFit, billLayout, clipFillRatio, coinLayout,
+} from './drawerMoneyLayout.js';
 
 const SCREEN_W = 1024;
 const SCREEN_H = 640;
@@ -74,18 +77,37 @@ const INSERTED = {
 const DRAWER_BILLS = [1, 5, 10, 20, 50];
 const DRAWER_COINS = [0.01, 0.05, 0.1, 0.25, 0.5];
 const SLOT = {};
-// fallbacks only — the kit drawer's authored money sockets remap these on load
+const SLOT_META = {};
+const SLOT_CLIP = {};
+// Fallbacks only — the kit drawer's authored money sockets remap these on load.
+// SLOT sits AT the compartment floor; SLOT_META mirrors the sockets' authored
+// placement contract (world units after the kit scale is applied).
+const FALLBACK_BILL_META = {
+  well_w: 0.070, well_d: 0.250, wall_h: 0.053, max_pieces: 12, spacing: 0.0019, hinge_drop: 0.047,
+};
+const FALLBACK_COIN_META = {
+  well_w: 0.070, well_d: 0.185, wall_h: 0.034, max_pieces: 30, pile_h: 0.0039,
+};
 DRAWER_BILLS.forEach((denom, index) => {
-  SLOT[denom] = { x: -0.164 + index * 0.082, y: 0.118, z: 0.095 };
+  SLOT[denom] = { x: -0.164 + index * 0.082, y: 0.101, z: 0.095 };
+  SLOT_META[denom] = { ...FALLBACK_BILL_META };
 });
 DRAWER_COINS.forEach((denom, index) => {
-  SLOT[denom] = { x: -0.164 + index * 0.082, y: 0.112, z: -0.098 };
+  SLOT[denom] = { x: -0.164 + index * 0.082, y: 0.095, z: -0.098 };
+  SLOT_META[denom] = { ...FALLBACK_COIN_META };
 });
 // the Sheet-02 note footprint (metres, pre kit-scale) — drawer bills stretch to fill
 // their well the way the reference drawer reads, so the sizes matter here
 const BILL_FOOTPRINT = {
   1: [0.122, 0.054], 5: [0.132, 0.057], 10: [0.142, 0.061], 20: [0.149, 0.0635], 50: [0.156, 0.066],
 };
+// Sheet-02 coin blanks (diameter, metres, pre kit-scale) — the mound math needs
+// each piece's real radius and thickness to keep piles inside their well
+const COIN_BLANK = {
+  0.01: 0.018, 0.05: 0.021, 0.1: 0.024, 0.25: 0.026, 0.5: 0.030,
+};
+const MONEY_KIT_SCALE = 1.3;
+const CLIP_LEVEL_QUAT = new THREE.Quaternion();
 
 const moneyLabel = (denom) => (denom < 1
   ? `${Math.round(denom * 100)}¢`
@@ -364,7 +386,9 @@ export function createRegisterMode(B) {
   let drawerAssetSlideBaseZ = 0;
   const slotHotspots = [];
   const slotLabels = [];
+  const slotTags = {};
   let tenderMeshes = [];
+  let tenderHandful = null;
   let selectedChangeMeshes = [];
   let cashMotions = [];
   let cashMotionRefillPending = false;
@@ -1352,25 +1376,28 @@ export function createRegisterMode(B) {
     slotLabels.length = 0;
     for (const denom of DENOMS) {
       const slot = SLOT[denom];
+      const meta = SLOT_META[denom];
       const bill = BILLS.includes(denom);
-      // Targets HUG their wells. The old hotspots were 0.13 tall — from the
-      // steep cash pose the COIN row's invisible tops formed a wall in front
-      // of the bill row, so a click aimed at a note kept landing on a coin.
-      // Low, well-fitted boxes mean the ray reaches whatever the eye is on.
+      // Targets HUG their wells — sized from the AUTHORED compartment bounds so
+      // each box fills exactly its own well volume (a click near a divider goes
+      // to the compartment the cursor is visually over, never its neighbour),
+      // and stays LOW so the coin row can't shadow the bill row from the cash pose.
       const hotspot = new THREE.Mesh(
-        new THREE.BoxGeometry(bill ? 0.082 : 0.074, 0.055, bill ? 0.21 : 0.12),
+        new THREE.BoxGeometry(meta.well_w, meta.wall_h, meta.well_d),
         new THREE.MeshBasicMaterial({ visible: false }),
       );
-      hotspot.position.set(slot.x, slot.y + 0.018, slot.z);
+      hotspot.position.set(slot.x, slot.y + meta.wall_h / 2, slot.z);
       hotspot.userData = { pick: true, kind: 'drawer-slot', denom };
       drawerMotionRoot.add(hotspot);
       slotHotspots.push(hotspot);
-      // The value floats OVER the money, reference-style: bold white text with a dark
-      // stroke lying flat above each well — no plates on the tray, no hover required.
+      // The value reads at the BOTTOM-FRONT of each compartment, reference-style:
+      // bold white text with a dark stroke hugging the money. refillDrawerMoney
+      // re-seats it on top of the stack/pile as the count changes.
       const tag = makeMoneyTag(moneyLabel(denom));
-      tag.position.set(slot.x, slot.y - 0.017 + (bill ? 0.030 : 0.026), slot.z + (bill ? 0.055 : 0.030));
+      tag.position.set(slot.x, slot.y + 0.0022, slot.z + meta.well_d / 2 - (bill ? 0.026 : 0.020));
       drawerMotionRoot.add(tag);
       slotLabels.push(tag);
+      slotTags[denom] = tag;
     }
   }
 
@@ -1445,6 +1472,9 @@ export function createRegisterMode(B) {
           if (drawerAssetSlide) drawerAssetSlideBaseZ = drawerAssetSlide.position.z;
           // Re-derive the denomination slots from the kit's authored money
           // sockets so hotspots, labels and cash stacks land exactly in the wells.
+          // Each socket ALSO carries its compartment's placement contract
+          // (interior bounds, wall height, piece cap, note spacing, clip hinge
+          // drop) as authored extras — scaled here into world units once.
           root.updateMatrixWorld(true);
           const socketName = (denom) => (BILLS.includes(denom)
             ? `BILL_${denom}_SOCKET`
@@ -1455,6 +1485,32 @@ export function createRegisterMode(B) {
             if (!socket) continue;
             const local = drawerMotionRoot.worldToLocal(socket.getWorldPosition(new THREE.Vector3()));
             SLOT[denom] = { x: local.x, y: local.y, z: local.z };
+            const s = socket.getWorldScale(new THREE.Vector3()).x || 1;
+            const u = socket.userData || {};
+            if (u.well_w && u.well_d) {
+              SLOT_META[denom] = BILLS.includes(denom)
+                ? {
+                  well_w: u.well_w * s,
+                  well_d: u.well_d * s,
+                  wall_h: (u.wall_h || 0.044) * s,
+                  max_pieces: u.max_pieces || 12,
+                  spacing: (u.spacing_m || 0.0016) * s,
+                  hinge_drop: (u.hinge_drop_m || 0.039) * s,
+                }
+                : {
+                  well_w: u.well_w * s,
+                  well_d: u.well_d * s,
+                  wall_h: (u.wall_h || 0.028) * s,
+                  max_pieces: u.max_pieces || 30,
+                  pile_h: (u.pile_h_m || 0.0032) * s,
+                };
+            }
+            // the authored retaining clip: rest pose = paddle on the slot floor;
+            // refills slerp it up so it rides the top of the note stack
+            if (u.clip) {
+              const clip = model.getObjectByName(u.clip);
+              if (clip) SLOT_CLIP[denom] = { object: clip, rest: clip.quaternion.clone() };
+            }
             remapped += 1;
           }
           // apply whatever the kit authored; a denomination the tray predates (an older
@@ -1471,60 +1527,65 @@ export function createRegisterMode(B) {
     }
   }
 
-  // Deterministic jumble for the coin cups — same seed, same heap, so a reload
-  // doesn't reshuffle the till behind the player's back.
-  const scramble = (denom, index, salt) => {
-    const h = Math.sin(denom * 127.1 + index * 311.7 + salt * 74.7) * 43758.5453;
-    return h - Math.floor(h);
-  };
-
   function refillDrawerMoney() {
     if (!drawerMoney || !drawer || !tx) return;
     drawerMoney.clear();
     const contents = drawerContents(tx, drawer);
     for (const denom of DENOMS) {
       const bill = BILLS.includes(denom);
-      const count = Math.min(contents[denom] || 0, bill ? 7 : 12);
-      const slot = SLOT[denom];
-      // the authored socket floats 20mm above the insert floor; money LIVES on the floor
-      const floorY = slot.y - 0.017;
-      for (let index = 0; index < count; index += 1) {
-        const piece = makeMoney(denom, 'drawer');
-        if (bill) {
-          // notes lie FLAT on the well floor and stretch to fill it, reference-style:
-          // long axis to ~95% of the well depth, width capped to the well mouth
-          const [len, wid] = BILL_FOOTPRINT[denom] || [0.15, 0.064];
-          piece.scale.x *= Math.min(1.62, 0.232 / (len * 1.3));
-          piece.scale.z *= Math.min(1.14, 0.072 / (wid * 1.3));
-          piece.position.set(
-            slot.x + (scramble(denom, index, 1) - 0.5) * 0.004,
-            floorY + 0.0015 + index * 0.0016,
-            slot.z + (scramble(denom, index, 2) - 0.5) * 0.006,
-          );
-          piece.rotation.y = Math.PI / 2 + (scramble(denom, index, 3) - 0.5) * 0.05;
-        } else {
-          // coins land as a scrambled heap in the cup, not a minted column
-          const r = 0.017 * Math.sqrt(scramble(denom, index, 4));
-          const ang = scramble(denom, index, 5) * Math.PI * 2;
-          piece.position.set(
-            slot.x + Math.cos(ang) * r,
-            floorY + 0.002 + Math.floor(index / 5) * 0.0035 + scramble(denom, index, 6) * 0.002,
-            slot.z + Math.sin(ang) * r * 0.7,
-          );
-          piece.rotation.set(
-            (scramble(denom, index, 7) - 0.5) * 0.5,
-            scramble(denom, index, 8) * Math.PI * 2,
-            (scramble(denom, index, 9) - 0.5) * 0.5,
-          );
+      const meta = SLOT_META[denom];
+      const slot = SLOT[denom];               // the socket sits AT the well floor
+      const count = Math.min(contents[denom] || 0, meta.max_pieces);
+      if (bill) {
+        // notes lie FLAT, aligned front-to-back, filling their slot the way the
+        // reference drawer reads — sized against the AUTHORED interior, not tuned
+        const [len, wid] = BILL_FOOTPRINT[denom] || [0.15, 0.064];
+        const fit = billFit(meta, len * MONEY_KIT_SCALE, wid * MONEY_KIT_SCALE);
+        for (const p of billLayout(meta, count, denom)) {
+          const piece = makeMoney(denom, 'drawer');
+          piece.scale.x *= fit.scaleLen;
+          piece.scale.z *= fit.scaleWid;
+          piece.position.set(slot.x + p.dx, slot.y + p.dy, slot.z + p.dz);
+          piece.rotation.y = Math.PI / 2 + p.ry;
+          drawerMoney.add(piece);
         }
-        drawerMoney.add(piece);
+        // the retaining clip rides the top of the stack: rest pose (authored)
+        // = paddle on the floor, level = a stack tall enough to reach the hinge
+        const clip = SLOT_CLIP[denom];
+        if (clip) {
+          clip.object.quaternion.copy(clip.rest).slerp(CLIP_LEVEL_QUAT, clipFillRatio(meta, count));
+        }
+      } else {
+        // a scrambled mound: dense, centre-high, every coin inside its well
+        const coinR = ((COIN_BLANK[denom] || 0.024) * MONEY_KIT_SCALE) / 2;
+        const coinT = meta.pile_h;
+        for (const p of coinLayout(meta, count, coinR, coinT, denom).pieces) {
+          const piece = makeMoney(denom, 'drawer');
+          piece.position.set(slot.x + p.dx, slot.y + p.dy, slot.z + p.dz);
+          piece.rotation.set(p.rx, p.ry, p.rz);
+          drawerMoney.add(piece);
+        }
+      }
+      // the denomination tag hugs the money at the well's FRONT (bottom-front
+      // region, reference-style): on the note stack for bills, riding the
+      // front slope of the pile for coins — updated every refill
+      const tag = slotTags[denom];
+      if (tag) {
+        const stackTop = bill
+          ? (count > 0 ? 0.0015 + count * meta.spacing : 0)
+          : (count > 0 ? meta.pile_h * 1.6 : 0);
+        tag.position.set(
+          slot.x,
+          slot.y + stackTop + 0.0022,
+          slot.z + meta.well_d / 2 - (bill ? 0.026 : 0.020),
+        );
       }
     }
   }
 
-  // The presented cash rides IN THE CUSTOMER'S OUTSTRETCHED HAND — a tilted fan held
-  // over the counter, never laid out on the desk. One click on any piece accepts the
-  // whole handful.
+  // The presented cash rides IN THE CUSTOMER'S OUTSTRETCHED HAND — a fan held
+  // over the counter facing the cashier's eye (not edge-on to it), never laid
+  // out on the desk. One click anywhere on the handful accepts all of it.
   function tenderPose(index) {
     const hand = customerHandPoint(COUNTER_TOP + 0.24);
     const row = Math.floor(index / 4);
@@ -1535,7 +1596,9 @@ export function createRegisterMode(B) {
         hand.y + row * 0.02 + column * 0.006,
         hand.z + 0.02 + row * 0.028,
       ),
-      rotation: new THREE.Euler(-0.55, 0.2 - column * 0.13 - row * 0.05, 0),
+      // tipped well back so the note faces the standing camera — at the old
+      // -0.55 the fan read (and picked) nearly edge-on from the working frame
+      rotation: new THREE.Euler(-1.12, 0.2 - column * 0.13 - row * 0.05, 0),
     };
   }
 
@@ -1543,11 +1606,11 @@ export function createRegisterMode(B) {
     const slot = SLOT[denom];
     if (!slot || !drawerMotionRoot) return new THREE.Vector3();
     root.updateMatrixWorld(true);
-    // deposits land at the well FLOOR (the socket floats 20mm above it) — the refill
-    // pass then folds them into the flat-note / coin-heap look
+    // deposits land at the well FLOOR (the socket sits on it) — the refill
+    // pass then folds them into the flat-note / coin-mound look
     const world = drawerMotionRoot.localToWorld(new THREE.Vector3(
       slot.x,
-      slot.y - 0.014 + stackOffset,
+      slot.y + 0.002 + stackOffset,
       slot.z,
     ));
     return root.worldToLocal(world);
@@ -1561,14 +1624,17 @@ export function createRegisterMode(B) {
     kind = 'cash',
     drawerDenom = null,
     stackOffset = 0,
+    toRotation = null,
   } = {}) {
     if (!mesh) return;
     const from = mesh.position.clone();
     const fromQuaternion = mesh.quaternion.clone();
+    // default landing pose is drawer-flat; a presentation (the held fan) passes
+    // its own facing so the piece arrives readable, not edge-on
     const toQuaternion = new THREE.Quaternion().setFromEuler(
-      BILLS.includes(mesh.userData.denom)
+      toRotation || (BILLS.includes(mesh.userData.denom)
         ? new THREE.Euler(0, Math.PI / 2, 0)
-        : new THREE.Euler(0, 0, 0),
+        : new THREE.Euler(0, 0, 0)),
     );
     // a piece in flight takes no clicks — including its child meshes, whose
     // copied pick flags would otherwise route a click into a stale branch
@@ -1607,8 +1673,29 @@ export function createRegisterMode(B) {
         duration: 0.48,
         enablePick: true,
         kind: 'tender-present',
+        toRotation: pose.rotation,
       });
     });
+    // ...and the WHOLE handful is one generous click target: the player clicks
+    // the money in the customer's hand, not a two-pixel note edge. Tracked
+    // apart from tenderMeshes so it never rides the deposit choreography.
+    clearTenderHandful();
+    const hand = customerHandPoint(COUNTER_TOP + 0.24);
+    tenderHandful = new THREE.Mesh(
+      new THREE.SphereGeometry(0.15, 10, 8),
+      new THREE.MeshBasicMaterial({ visible: false }),
+    );
+    tenderHandful.position.set(hand.x, hand.y + 0.03, hand.z + 0.03);
+    tenderHandful.userData = {
+      pick: true, kind: 'money', from: 'tender', denom: Number(Object.keys(tx.tendered || { 1: 1 })[0]),
+    };
+    root.add(tenderHandful);
+  }
+
+  function clearTenderHandful() {
+    if (!tenderHandful) return;
+    tenderHandful.removeFromParent();
+    tenderHandful = null;
   }
 
   // Selected change stacks on the counter beside the open drawer where both
@@ -1647,6 +1734,7 @@ export function createRegisterMode(B) {
     loose.length = 0;
     tenderMeshes.forEach((mesh) => mesh.removeFromParent());
     tenderMeshes = [];
+    clearTenderHandful();
     selectedChangeMeshes.forEach((mesh) => mesh.removeFromParent());
     selectedChangeMeshes = [];
     cashMotions.forEach((motion) => motion.mesh.removeFromParent());
@@ -1997,6 +2085,7 @@ export function createRegisterMode(B) {
   function createTender() {
     tenderMeshes.forEach((mesh) => mesh.removeFromParent());
     tenderMeshes = [];
+    clearTenderHandful();
     customerCash(tx);
     if (!makeChangeFrom(drawerContents(tx, drawer), changeDue(tx))) {
       tx.tendered = makeChange(cashTotalOf(tx));
@@ -2286,6 +2375,7 @@ export function createRegisterMode(B) {
     }
     const depositedMeshes = [...tenderMeshes];
     tenderMeshes = [];
+    clearTenderHandful();
     const perDenom = new Map();
     depositedMeshes.forEach((mesh, index) => {
       const denom = Number(mesh.userData.denom);

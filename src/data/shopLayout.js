@@ -129,7 +129,11 @@ export const STAFF_CORRIDOR_MIN = 1.1;
 export const COUNTER = {
   x: 2.9, z: 4.2, len: 3.2, depth: 1.0, ry: 0,   // island parallel to the south wall
   registerX: 1.7,                                 // register at the west (aisle) end
-  queueBase: { x: 1.6, z: 3.05 },                 // slot 0: at the register, clear of the counter
+  // Slot 0 faces the STAGING zone across the counter — the paying customer must
+  // stand inside the register's one working frame (goods left, POS right), where
+  // their held-out card/cash is visible. The old head (x 1.6) predated the
+  // click-to-bag staging move and left the payer hidden at the bag end.
+  queueBase: { x: 2.42, z: 3.15 },
   queueStep: { x: -0.8, z: -0.45 },               // line falls back SW, clear of the door
   staffStand: { x: 2.80, z: 5.10 },               // where you stand to work it: behind the counter
 };
