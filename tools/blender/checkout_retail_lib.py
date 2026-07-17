@@ -446,12 +446,10 @@ def build_shoe_wall(M):
             K.empty(f"SHOE_SLOT_{n:02d}", (sx * 0.28, BACKP - 0.045 - 0.16, z + 0.014), parent=root, size=0.04,
                     props={"socket": "shoe_pair", "order": n})
 
+    # The box shelf ships EMPTY — boxed shoes are products the player stocks;
+    # the sockets mark where a stack lands.
     L.rounded_box("Box_Shelf", (W - 0.08, 0.32, 0.028), (0, 0.0, 0.24), M["walnut"], corner=0.005, bevel=0.003, segments=3, uv=True, parent=root)
-    art = K.m_tex("M_ShoeBoxArt", shoebox_img(), rough=0.75)
-    xs = (-0.40, -0.065, 0.28)
-    for i, x in enumerate(xs):
-        h = prop_shoebox(root, M, f"{i * 2 + 1:02d}", x, 0.0, 0.256, art, ry=(i - 1) * 0.05)
-        prop_shoebox(root, M, f"{i * 2 + 2:02d}", x, 0.0, 0.256 + h, art, ry=(i - 1) * 0.05 + 0.03)
+    for i, x in enumerate((-0.40, -0.065, 0.28)):
         K.empty(f"SHOEBOX_SLOT_{i + 1:02d}", (x, 0.0, 0.256), parent=root, size=0.04,
                 props={"socket": "shoe_box", "order": i + 1})
 
@@ -652,44 +650,22 @@ def build_snack_shelf(M):
         K.empty(f"SNACK_SHELF_SLOT_{i + 1:02d}", (0, 0, z + 0.014), parent=root, size=0.04,
                 props={"socket": "shelf_mount", "order": i + 1})
 
-    # --- prop stock (all fictional) ------------------------------------------
-    ink = (0.055, 0.06, 0.05)
-    cream = (0.72, 0.68, 0.58)
-    m_sport = K.m_flat("M_SportBottle", (0.10, 0.28, 0.16), rough=0.35)
-    m_water = K.m_flat("M_WaterBottle", (0.55, 0.62, 0.66), rough=0.15)
-    m_cap = K.m_flat("M_BottleCap", (0.045, 0.05, 0.055), rough=0.5)
-    band_sport = K.m_tex("M_SportLabel", label_img("SportLabel", ["BIRDIE", "FUEL"], (0.05, 0.16, 0.10), cream, band=GOLD, repeat=True), rough=0.5)
-    band_water = K.m_tex("M_WaterLabel", label_img("WaterLabel", ["GREENSIDE", "SPRING"], (0.60, 0.64, 0.66), ink, band=(0.10, 0.30, 0.42), repeat=True), rough=0.4)
-    top1 = shelf_zs[0] + 0.014
-    top2 = shelf_zs[1] + 0.014
-    for i in range(7):
-        x = (i - 3) * 0.13
-        prop_bottle(root, f"S{i + 1:02d}", x, -0.055, top1, m_sport, band_sport, m_cap, r=0.033, h=0.215)
-        prop_bottle(root, f"W{i + 1:02d}", x, -0.055, top2, m_water, band_water, m_cap, r=0.029, h=0.195)
-
-    m_bag1 = K.m_flat("M_ChipBag1", (0.32, 0.10, 0.05), rough=0.45)
-    m_bag2 = K.m_flat("M_ChipBag2", (0.07, 0.16, 0.09), rough=0.45)
-    lab_chip1 = K.m_tex("M_ChipLabel1", label_img("ChipLabel1", ["FAIRWAY", "CRISPS"], (0.36, 0.12, 0.06), cream), rough=0.5)
-    lab_chip2 = K.m_tex("M_ChipLabel2", label_img("ChipLabel2", ["FAIRWAY", "CRISPS"], (0.08, 0.18, 0.10), cream), rough=0.5)
-    top3 = shelf_zs[2] + 0.014
-    for i in range(5):
-        x = (i - 2) * 0.175
-        prop_chip(root, f"{i + 1:02d}", x, -0.03, top3, m_bag1 if i % 2 else m_bag2,
-                  lab_chip1 if i % 2 else lab_chip2, ry=(i % 3 - 1) * 0.06)
-
-    m_tray = K.m_flat("M_BarTray", (0.16, 0.09, 0.045), rough=0.7)
-    m_bar = K.m_flat("M_ClubBar", (0.42, 0.30, 0.12), rough=0.55)
-    lab_bar = K.m_tex("M_BarLabel", label_img("BarLabel", ["CLUB BAR"], (0.30, 0.20, 0.08), ink), rough=0.5)
-    top4 = shelf_zs[3] + 0.014
-    prop_bar_tray(root, "01", -0.28, -0.02, top4, m_tray, m_bar, lab_bar)
-    prop_bar_tray(root, "02", -0.06, -0.02, top4, m_tray, m_bar, lab_bar)
-    m_candy = K.m_flat("M_CandyBox", (0.34, 0.26, 0.08), rough=0.5)
-    lab_candy = K.m_tex("M_CandyLabel", label_img("CandyLabel", ["DROPS"], (0.40, 0.30, 0.10), ink, w=128, h=64), rough=0.5)
-    for i in range(3):
-        x = 0.18 + i * 0.10
-        L.box(f"Prop_Candy_{i + 1:02d}", (0.085, 0.06, 0.10), (x, -0.03, top4 + 0.05), m_candy, bevel=0, parent=root)
-        lb = K.uv_plane(f"Prop_CandyLabel_{i + 1:02d}", 0.07, 0.05, (x, -0.03 - 0.031, top4 + 0.052), lab_candy)
-        L.parent_keep(lb, root)
+    # The shelves ship EMPTY — snacks and drinks are future products the
+    # player stocks. Sockets mark every landing spot: seven drink positions
+    # on each of the two tall lower shelves, five snack positions on each of
+    # the two upper ones.
+    n = 0
+    for z in (shelf_zs[0], shelf_zs[1]):
+        for i in range(7):
+            n += 1
+            K.empty(f"DRINK_SLOT_{n:02d}", ((i - 3) * 0.13, -0.055, z + 0.014), parent=root, size=0.03,
+                    props={"socket": "drink", "order": n})
+    n = 0
+    for z in (shelf_zs[2], shelf_zs[3]):
+        for i in range(5):
+            n += 1
+            K.empty(f"SNACK_SLOT_{n:02d}", ((i - 2) * 0.175, -0.03, z + 0.014), parent=root, size=0.03,
+                    props={"socket": "snack", "order": n})
 
     K.collision_box("COL_SnackShelf", (W, D, H), (0, 0, H / 2), M, root)
     return root
@@ -733,12 +709,8 @@ def build_rangefinder_display(M):
     L.parent_keep(glass, root)
     L.box("Acrylic_Rail", (W - 0.04, 0.020, 0.014), (0, -D / 2 + 0.02, 0.067), M["brass"], bevel=0, parent=root)
 
-    boxart = K.m_tex("M_OpticBox", label_img("OpticBox", ["LONGVIEW", "OPTICS"], (0.05, 0.07, 0.09), (0.62, 0.55, 0.42), w=256, h=256), rough=0.6)
-    for i, x in enumerate((-0.245, 0.245)):
-        L.box(f"Prop_OpticBox_{i + 1:02d}", (0.058, 0.09, 0.115), (x, 0.115, 0.22 + 0.0575), M["charcoal"], bevel=0, parent=root)
-        lb = K.uv_plane(f"Prop_OpticBoxLabel_{i + 1:02d}", 0.048, 0.095, (x, 0.115 - 0.046, 0.22 + 0.058), boxart)
-        L.parent_keep(lb, root)
-
+    # The case ships EMPTY — rangefinders and their retail boxes are stocked
+    # by the player; RF_SLOT_* mark the felt positions.
     n = 0
     for (zt, yc, dd) in tiers:
         for x in (-0.18, 0.0, 0.18):

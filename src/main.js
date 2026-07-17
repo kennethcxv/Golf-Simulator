@@ -1235,9 +1235,10 @@ window.addEventListener('keydown', (e) => {
   if (app.screen !== 'game') return;
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
 
-  // BEHIND THE TILL, THE TILL OWNS THE KEYBOARD. This sits above even the speed keys
-  // and Tab, deliberately: Tab would swap to the overview camera while the cashier
-  // pose is still latched, which strands the player looking at a counter from orbit.
+  // BEHIND THE TILL, THE TILL OWNS THE ACTION KEYS — but not the feet. WASD
+  // reaches the walk controller through its own listener (walkHeld), so the
+  // cashier can shuffle along the counter mid-transaction; Tab stays blocked
+  // (swapping to the overview from behind the till is never what you meant).
   // Escape is the way out, and registerMode handles it.
   if (regActive()) {
     e.preventDefault();
@@ -1418,7 +1419,9 @@ window.addEventListener('blur', () => {
 });
 document.addEventListener('pointerlockchange', () => {
   resetCameraInput();
-  if (regActive() && document.pointerLockElement) document.exitPointerLock();
+  // Manning the register no longer forces the cursor out of pointer lock:
+  // the till is worked with the crosshair while walking stays live. (With
+  // the lock dropped — Escape, alt-tab — the cursor works the till instead.)
 });
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) return;

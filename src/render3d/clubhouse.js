@@ -53,7 +53,7 @@ import { createRegisterItemResources } from './clubhouse/registerItemResources.j
 import {
   buildCatalogProductProxy, catalogCheckoutLayout, catalogProductVisual,
 } from './clubhouse/catalogProductVisual.js';
-import { slotsFor } from '../data/fixtureSlots.js';
+import { slotsFor, homeFixture } from '../data/fixtureSlots.js';
 import { buildShell } from './clubhouse/shell.js';
 import { buildDoors } from './clubhouse/doors.js';
 import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } from './clubhouse/fixtures.js';
@@ -1757,6 +1757,7 @@ export function makeClubhouse(ctx) {
   }
 
   function rebuildStock() {
+    clearStockFlights();   // any airborne placements land instantly in the bake
     for (const g of stockMeshes.values()) {
       stockGroup.remove(g);
       ownedStockResources.dispose(g);
@@ -2100,11 +2101,21 @@ export function makeClubhouse(ctx) {
   const sfx = (name) => { if (hooks.sfx) hooks.sfx(name); };
   const say = (msg, tone) => { if (hooks.toast) hooks.toast(msg, tone); };
 
-  // put an armful onto the fixture it belongs on (or say why not) — the fixture props call this
+  // put an armful onto the fixture it belongs on (or say why not) — the fixture props call this.
+  // Placement is VISIBLE: each unit flies from the player's arms onto the exact
+  // slot it will occupy and clicks into place; the shelf bakes when the last
+  // one lands (see stockFlights below).
   function stockFromHands(fixtureId, units) {
+    const held = carriedGoods(state);
+    const before = held && state.shop.inventory[held.skuId]
+      ? state.shop.inventory[held.skuId].shelf : 0;
     const res = stockFixture(state, fixtureId, units);
     if (res.ok) {
-      rebuildStock();
+      const placed = held && state.shop.inventory[held.skuId]
+        ? state.shop.inventory[held.skuId].shelf - before : 0;
+      if (!(placed > 0 && beginStockFlight(held.skuId, before, placed))) {
+        rebuildStock();   // no flight possible: land it the classic way
+      }
       rebuildBoxes();       // the arms emptied by that much
       tutorialFlag(state, 'shelved');
     }
@@ -2113,6 +2124,88 @@ export function makeClubhouse(ctx) {
   B.stockFromHands = stockFromHands;
   B.carriedGoods = () => carriedGoods(state);
   B.rebuildCarry = () => rebuildBoxes();
+
+  // --- stock flights: the hang-it-up animation --------------------------------
+  // A stocked unit doesn't teleport onto the display: it leaves the player's
+  // arms, arcs to its slot, and CLICKS into the exact pose the shelf will bake
+  // it at (same makeStockItem, same slot, same fixture anchor — so the landing
+  // is pixel-identical to the final placement). The real shelf redraw is
+  // deferred until the last flight lands; any external redraw clears them.
+  const stockFlights = [];
+
+  function beginStockFlight(skuId, startIndex, count) {
+    const fixture = homeFixture(skuId);
+    const anchor = fixture && fixtureAnchors.get(fixture.id);
+    const sku = SHOP_CATALOG.find((s) => s.id === skuId);
+    if (!anchor || !sku) return false;
+    const slots = slotsFor(skuId).slice(startIndex, startIndex + count);
+    if (!slots.length) return false;
+
+    const ghost = new THREE.Group();
+    ghost.position.copy(anchor.position);
+    ghost.rotation.copy(anchor.rotation);
+    stockGroup.add(ghost);
+    ghost.updateMatrixWorld(true);
+
+    // launch point: where the armful renders, just below the camera's nose
+    const hand = new THREE.Vector3(0.1, -0.35, -0.6).applyMatrix4(camera.matrixWorld);
+    const handLocal = ghost.worldToLocal(hand.clone());
+
+    slots.forEach((slot, k) => {
+      const item = makeStockItem(sku, slot, startIndex + k);
+      if (!item) return;
+      const carrier = new THREE.Group();
+      carrier.add(item);
+      ghost.add(carrier);
+      const offset = new THREE.Vector3(
+        handLocal.x - slot.x,
+        handLocal.y - slot.y,
+        handLocal.z - slot.z,
+      );
+      carrier.position.copy(offset);
+      carrier.rotation.set(0.25, 0.4, 0.1);
+      stockFlights.push({
+        carrier, ghost, offset,
+        t: -k * 0.07,             // a stagger, so an armful lands as a patter
+        duration: 0.45,
+      });
+    });
+    if (!ghost.children.length) { stockGroup.remove(ghost); return false; }
+    return true;
+  }
+
+  function clearStockFlights() {
+    const ghosts = new Set(stockFlights.map((f) => f.ghost));
+    for (const g of ghosts) {
+      stockGroup.remove(g);
+      ownedStockResources.dispose(g);
+    }
+    stockFlights.length = 0;
+  }
+
+  function updateStockFlights(dt) {
+    if (!stockFlights.length) return;
+    let landedAll = true;
+    for (const f of stockFlights) {
+      f.t = Math.min(f.duration, f.t + dt);
+      if (f.t < f.duration) landedAll = false;
+      const linear = Math.max(0, f.t) / f.duration;
+      const eased = linear * linear * (3 - 2 * linear);
+      f.carrier.position.set(
+        f.offset.x * (1 - eased),
+        f.offset.y * (1 - eased) + Math.sin(linear * Math.PI) * 0.22,
+        f.offset.z * (1 - eased),
+      );
+      f.carrier.rotation.set(0.25 * (1 - eased), 0.4 * (1 - eased), 0.1 * (1 - eased));
+      // the "click": a whisker of overshoot right before it seats
+      const pop = linear > 0.82 ? 1 + 0.08 * Math.sin(((linear - 0.82) / 0.18) * Math.PI) : 1;
+      f.carrier.scale.setScalar(pop);
+    }
+    if (landedAll) {
+      if (hooks.sfx) hooks.sfx('stock');
+      rebuildStock();          // bakes the real shelf; also clears the ghosts
+    }
+  }
 
   function rebuildBoxes() {
     boxGroup.clear();
@@ -2841,6 +2934,31 @@ export function makeClubhouse(ctx) {
     }
   }
 
+  // Put every unpaid unit back on the display, visibly and immediately: shelf
+  // credited, hand meshes gone, oversize armfuls gone. The sim never lost the
+  // stock (returnToShelf always ran at removal) — but the MESHES used to ride
+  // out the door in their arms, which read as shoplifting. Idempotent.
+  function surrenderCart(c, { announce = true } = {}) {
+    if (!c || !c.cart || !c.cart.length) return false;
+    for (const it of c.cart) returnToShelf(state, it.skuId, it.uid);
+    state.shop.lostSalesTotal = (state.shop.lostSalesTotal || 0) + 1;
+    c.cart = [];
+    c.tx = null;
+    c.awaitingCheckout = false;
+    c.checkoutPlacedCount = 0;
+    clearCustomerItemMeshes(c);
+    if (c.oversizeCarryRoot) {
+      if (c.checkoutProductResources) c.checkoutProductResources.dispose(c.oversizeCarryRoot);
+      c.oversizeCarryRoot.removeFromParent();
+      c.oversizeCarryRoot = null;
+    }
+    if (announce && hooks.toast && walk.active && isInside(walk.x, walk.z)) {
+      hooks.toast(`${c.name} put back what they were carrying.`, 'warn');
+    }
+    rebuildStock();
+    return true;
+  }
+
   // the line gave up on us: put the pick back, remember the walk-out
   function customerGiveUp(c) {
     if (!c || c.giveUpHandled) return false;
@@ -2867,19 +2985,11 @@ export function makeClubhouse(ctx) {
       });
       if (recovered.ok) c.checkoutFlow = recovered.flow;
     }
-    for (const it of c.cart) returnToShelf(state, it.skuId, it.uid);
-    if (c.cart.length) {
-      state.shop.lostSalesTotal = (state.shop.lostSalesTotal || 0) + 1;
-      if (hooks.toast && walk.active && isInside(walk.x, walk.z)) {
-        hooks.toast(`${c.name} gave up waiting at the register and put it back.`, 'warn');
-      }
-      rebuildStock();
+    const hadCart = surrenderCart(c, { announce: false });
+    if (hadCart && hooks.toast && walk.active && isInside(walk.x, walk.z)) {
+      hooks.toast(`${c.name} gave up waiting at the register and put it back.`, 'warn');
     }
-    c.cart = [];
-    c.tx = null;
-    c.awaitingCheckout = false;
     c.checkoutPhase = 'leaving';
-    c.checkoutPlacedCount = 0;
     // they walked out mid-sale: void it, clear the counter, and put the goods back.
     // registerMode holds no authority over stock — the shelf is credited right here.
     if (register.getCustomer() === c) { register.abandon(); register.leave(); }
@@ -3336,6 +3446,14 @@ export function makeClubhouse(ctx) {
       const stop = c.stops[c.stopIdx];
       if (!stop) { removeCustomer(i); continue; }
 
+      // NOBODY LEAVES HOLDING MERCHANDISE. The moment an unpaid cart-holder's
+      // route turns for the door — patience, closing time, any path at all —
+      // the goods go back on the display before they take a step. (Paid
+      // customers carry a bag, not a cart; their cart emptied at the sale.)
+      if (c.cart.length && (stop.kind === 'exit' || stop.kind === 'gone')) {
+        surrenderCart(c);
+      }
+
       let tx = stop.x;
       let tz = stop.z;
       if (stop.kind === 'counter') {
@@ -3532,6 +3650,7 @@ export function makeClubhouse(ctx) {
     updateDoors(dt, now);
     updateCustomers(dt);
     register.update(dt);
+    updateStockFlights(dt);
     updateFlicker(dt);
     builder.update();
     if (office.updateLid) office.updateLid(dt);

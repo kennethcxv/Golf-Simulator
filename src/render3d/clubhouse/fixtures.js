@@ -194,17 +194,6 @@ export function buildFixtures(B) {
       sign.position.set(0, f.id === 'shelf_balls' ? 1.48 : 2.06, 0.17);
       g.add(sign);
       g.remove(legacy);
-      if (f.id !== 'shelf_balls' && merch.instantiateRaw) {
-        // dress the east module's TOP hook row with headcovers (the lower row
-        // sits behind the third shelf — a cover hung there clips the board)
-        for (const hx of [0.7, 1.0, 1.3]) {
-          const hc = merch.instantiateRaw('headcover');
-          if (!hc) break;
-          hc.position.set(hx, 1.47, 0.115);
-          hc.rotation.y = Math.PI + (hx - 1) * 0.3;
-          g.add(hc);
-        }
-      }
     });
     const w = Math.abs(f.ry % Math.PI) < 0.1 ? 3.0 : 0.5;
     const d = Math.abs(f.ry % Math.PI) < 0.1 ? 0.5 : 3.0;
@@ -599,19 +588,12 @@ export function buildFixtures(B) {
     // where a pro shop keeps its branded bags and boxed stock (ref 4).
     if (merch) merch.onReady(() => {
       // the Sheet-03 rangefinder case presents the premium optics behind the
-      // counter, where a shop keeps its $279 glass — dressed with display
-      // units on its felt tiers (props, not stock; range2 sells off the wall)
+      // counter, where a shop keeps its $279 glass. It ships EMPTY like every
+      // fixture — its felt tiers fill when optics are stocked, not before.
       const kase = merch.instantiateKit && merch.instantiateKit('rangefinder_display');
       if (kase) {
         kase.position.set(-1.05, 1.01, 0.0);
         g.add(kase);
-        for (const [rx, rz, rh] of [[-0.18, 0.15, 0.112], [0.18, 0.15, 0.112], [0, -0.115, 0.222]]) {
-          const rf = merch.instantiateRaw && merch.instantiateRaw('rangefinder');
-          if (!rf) break;
-          rf.position.set(-1.05 + rx, 1.01 + rh, rz);
-          rf.rotation.y = rx * 0.8;
-          g.add(rf);
-        }
       }
       const dress = new THREE.Group();
       for (let i = 0; i < 7; i++) {
@@ -746,37 +728,13 @@ export function buildFixtures(B) {
       snack.rotation.y = Math.PI;
       interior.add(snack);
     }
-    // The face-out apparel display dresses the partition beside the shoe wall
-    // (display stock, not inventory — the sellable rail is the Sheet-02 wall).
+    // The face-out apparel display stands EMPTY beside the shoe wall — its
+    // arms and base shelf are landing spots for garments the player hangs,
+    // not pre-dressed decor. (Every fixture ships bare; stock is earned.)
     const disp = merch.instantiateKit && merch.instantiateKit('apparel_wall_display');
     if (disp) {
       disp.position.set(5.44, 0, 1.35);
       disp.rotation.y = -Math.PI / 2;
-      const looks = [
-        ['jacket_hanging', 0x33455e], ['polo_hanging', 0x4e7a52], ['polo_hanging', 0xd8d3c4],
-        ['polo_hanging', 0x5b7f9e], ['jacket_hanging', 0x5a5f45], ['polo_hanging', 0x9a7a56],
-      ];
-      const arms = [[-0.40, 1.99], [0, 1.99], [0.40, 1.99], [-0.40, 1.19], [0, 1.19], [0.40, 1.19]];
-      const dress = new THREE.Group();
-      arms.forEach(([ax, az], i) => {
-        const [model, tint] = looks[i];
-        const piece = merch.instantiate(model, { tint });
-        if (piece) {
-          piece.position.set(ax, az, 0.185);
-          dress.add(piece);
-        }
-      });
-      for (const [fx, tint] of [[-0.38, 0x4e7a52], [0, 0xd8d3c4], [0.38, 0x5b7f9e]]) {
-        for (let k = 0; k < 2; k += 1) {
-          const fold = merch.instantiate('polo_folded', { tint });
-          if (fold) {
-            fold.position.set(fx, 0.273 + k * 0.058, 0.06);
-            fold.rotation.y = (k % 2) * 0.08 - 0.04;
-            dress.add(fold);
-          }
-        }
-      }
-      disp.add(merch.bake(dress));
       interior.add(disp);
     }
   });

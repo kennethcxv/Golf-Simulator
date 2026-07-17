@@ -86,7 +86,7 @@ REQUIRED_NODES = {
                     "COL_BagDisplay"]
                    + [f"BAG_SLOT_{i:02d}" for i in range(1, 5)],
     "shoe_wall": ["Slatwall", "Back_Panel", "Header", "Header_Sign", "Box_Shelf",
-                  "Display_Board_01", "Display_Board_03", "Prop_ShoeBox_01",
+                  "Display_Board_01", "Display_Board_03",
                   "COL_ShoeWall"]
                  + [f"SHOE_SLOT_{i:02d}" for i in range(1, 7)]
                  + [f"SHOEBOX_SLOT_{i:02d}" for i in range(1, 4)],
@@ -94,11 +94,12 @@ REQUIRED_NODES = {
                    "Board_03", "Board_Lip_01", "Crest_Badge", "COL_BallShelf"]
                   + [f"BALL_SLOT_{i:02d}" for i in range(1, 16)],
     "snack_shelf": ["Frame_Post_LF", "Frame_Post_RB", "Back_Panel", "Shelf_01", "Shelf_04",
-                    "Prop_Bottle_S01", "Prop_Bottle_W07", "Prop_Chip_01", "Prop_BarTray_01",
                     "COL_SnackShelf"]
-                   + [f"SNACK_SHELF_SLOT_{i:02d}" for i in range(1, 5)],
+                   + [f"SNACK_SHELF_SLOT_{i:02d}" for i in range(1, 5)]
+                   + [f"DRINK_SLOT_{i:02d}" for i in range(1, 15)]
+                   + [f"SNACK_SLOT_{i:02d}" for i in range(1, 11)],
     "rangefinder_display": ["Case_Base", "Case_Back", "Case_Cheek_L", "Case_Cheek_R",
-                            "Tier_01", "Tier_02", "Acrylic_Front", "Prop_OpticBox_01",
+                            "Tier_01", "Tier_02", "Acrylic_Front",
                             "Crest_Badge", "COL_RangefinderDisplay"]
                            + [f"RF_SLOT_{i:02d}" for i in range(1, 7)],
 }
