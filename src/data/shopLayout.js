@@ -178,9 +178,12 @@ export const REGISTER = {
   divider:  { x: 4.42, z: 4.05 },                       // where the next order starts
   impulse:  { x: 4.18, z: 3.86 },                       // markers and tees, facing the queue
 
-  // the drawer lives UNDER the counter, directly below the POS, and slides out
-  // toward the staff side
-  drawer: { x: 3.42, y: 0.86, w: 0.46, d: 0.40, travel: 0.34 },
+  // The drawer lives UNDER the counter, directly below the POS, and slides out
+  // toward the staff side. Travel 0.44 pulls the BILL row (the tray's rear
+  // rank) fully past the counter slab — at 0.34 the notes sat half-hidden
+  // under the top and reads/clicks went to the coin row in front. The staff
+  // corridor keeps 0.71 yd with it open (player is 0.68).
+  drawer: { x: 3.42, y: 0.86, w: 0.46, d: 0.40, travel: 0.44 },
 
   // surfaces
   staging: { minX: 2.05, maxX: 2.80, minZ: 3.78, maxZ: 4.10 },  // customer lays goods out here

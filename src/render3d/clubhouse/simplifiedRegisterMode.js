@@ -455,8 +455,8 @@ export function createRegisterMode(B) {
       { x: 3.00, y: 1.00, z: 4.18 },
     ), fov: 46 },
     cash: { pose: poseBetween(
-      { x: 3.42, y: 1.98, z: 5.38 },
-      { x: 3.42, y: 1.00, z: 4.35 },
+      { x: 3.42, y: 1.98, z: 5.42 },
+      { x: 3.42, y: 0.98, z: 4.48 },
     ), fov: 52 },
     receipt: { pose: poseBetween(
       { x: 3.35, y: 1.70, z: 5.60 },
@@ -466,7 +466,7 @@ export function createRegisterMode(B) {
 
   // A timed, eased move between two poses: short, predictable, and stable while
   // the player is clicking (no perpetual exponential drift under the cursor).
-  const CAMERA_TWEEN_SECONDS = 0.38;
+  const CAMERA_TWEEN_SECONDS = 0.30;
   let cameraTween = null;
 
   function lerpPose(a, b, t) {
@@ -1334,24 +1334,25 @@ export function createRegisterMode(B) {
     for (const denom of DENOMS) {
       const slot = SLOT[denom];
       const bill = BILLS.includes(denom);
-      // Generous, non-overlapping targets: full well pitch wide, tall and deep
-      // enough that any part of the visible stack (or the empty well) takes
-      // the click — no hunting for the "top section".
+      // Targets HUG their wells. The old hotspots were 0.13 tall — from the
+      // steep cash pose the COIN row's invisible tops formed a wall in front
+      // of the bill row, so a click aimed at a note kept landing on a coin.
+      // Low, well-fitted boxes mean the ray reaches whatever the eye is on.
       const hotspot = new THREE.Mesh(
-        new THREE.BoxGeometry(bill ? 0.082 : 0.074, 0.13, bill ? 0.26 : 0.17),
+        new THREE.BoxGeometry(bill ? 0.082 : 0.074, 0.055, bill ? 0.21 : 0.12),
         new THREE.MeshBasicMaterial({ visible: false }),
       );
-      hotspot.position.set(
-        slot.x,
-        slot.y + 0.05,
-        slot.z - (bill ? 0.06 : 0.035),
-      );
+      hotspot.position.set(slot.x, slot.y + 0.018, slot.z);
       hotspot.userData = { pick: true, kind: 'drawer-slot', denom };
       drawerMotionRoot.add(hotspot);
       slotHotspots.push(hotspot);
 
+      // the denomination plate sits on the tray at the FRONT lip of its well
+      // (the old offsets pointed backward and hid the plates under the top) —
+      // and the plate itself is a click target for that well
       const label = makeFlatLabel(moneyLabel(denom), bill ? 0.073 : 0.064, 0.029);
-      label.position.set(slot.x, slot.y + 0.049, slot.z - (bill ? 0.066 : 0.035));
+      label.position.set(slot.x, slot.y + 0.006, slot.z + (bill ? 0.125 : 0.078));
+      label.userData = { pick: true, kind: 'drawer-slot', denom };
       drawerMotionRoot.add(label);
       slotLabels.push(label);
     }
@@ -1763,6 +1764,7 @@ export function createRegisterMode(B) {
     active = false;
     setWorkspace('monitor');
     clearFocus();
+    setHoverCursor(false);
     document.body.classList.remove('register-mode');
     if (previousFov != null && camera.fov !== previousFov) {
       camera.fov = previousFov;
@@ -2729,7 +2731,7 @@ export function createRegisterMode(B) {
     const candidates = workspace === 'scan'
       ? loose
       : workspace === 'cash'
-        ? [...presentedCash, ...selectedChangeMeshes, ...slotHotspots,
+        ? [...presentedCash, ...selectedChangeMeshes, ...slotHotspots, ...slotLabels,
           ...(drawerMoney ? [drawerMoney] : [])]
         : [...presentedCash, ...counterItems];
     // items already dropped into the bag are hidden, not removed — they must
@@ -2779,6 +2781,12 @@ export function createRegisterMode(B) {
     return false;
   }
 
+  // the cursor itself says "clickable": a pointer over money, wells, goods,
+  // the handed card and the monitor's buttons
+  function setHoverCursor(on) {
+    if (canvas && canvas.style) canvas.style.cursor = on ? 'pointer' : '';
+  }
+
   // Hover feedback for money: a brass outline over whatever the cursor would
   // take — the whole labeled well for drawer money, the piece itself for
   // presented cash and counted change.
@@ -2803,6 +2811,7 @@ export function createRegisterMode(B) {
     } else {
       hoverBox.visible = false;
     }
+    setHoverCursor(!!target || !!monitorActionAt(event));
   }
 
   function onDown(event) {
@@ -2873,6 +2882,7 @@ export function createRegisterMode(B) {
       } else {
         hoverBox.visible = false;
       }
+      setHoverCursor(hoverBox.visible);
       return true;
     }
     if (workspace === 'scan' && !scanMotion) {
@@ -2883,6 +2893,7 @@ export function createRegisterMode(B) {
         : null;
       hoverBox.visible = !!hoveredItem;
       if (hoveredItem) hoverBounds.setFromObject(hoveredItem);
+      setHoverCursor(!!hoveredItem);
       return true;
     }
     if (workspace === 'cash') {
@@ -2906,9 +2917,15 @@ export function createRegisterMode(B) {
       } else {
         hoverBox.visible = false;
       }
+      setHoverCursor(!!target || !!monitorActionAt(event));
+      return true;
+    }
+    if (workspace === 'monitor') {
+      setHoverCursor(!!monitorActionAt(event));
       return true;
     }
     if (hoverBox.visible) hoverBox.visible = false;
+    setHoverCursor(false);
     return true;
   }
 
