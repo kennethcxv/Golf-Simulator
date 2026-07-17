@@ -50,21 +50,29 @@ def leather_img(name, base, *, seed=51, w=512, h=512):
     return K.np_image(name, arr)
 
 
-def tote_label_img(name, line, *, w=256, h=128):
-    """The paper card in a tote's label holder."""
+def tote_label_img(name, line, *, w=256, h=128, header=True):
+    """The paper card in a tote's label holder (or a bare drawer label when
+    header=False). Glyphs run ~5*px wide, so each line's px derives from the
+    canvas span — long lines shrink instead of overflowing into noise."""
     import numpy as np
     arr = K.noise_base((0.80, 0.78, 0.72), w, h, mottle=0.03, seed=57, cells=5).copy()
     ink = (0.10, 0.11, 0.10)
-    arr[10:14, 12:w - 12] = (0.16, 0.30, 0.20)
-    K.draw_text(arr, "FAIRHOLLOW SUPPLY", w // 2, int(h * 0.34), 5, ink)
-    K.draw_text(arr, line, w // 2, int(h * 0.66), 7, ink)
+    if header:
+        arr[10:14, 12:w - 12] = (0.16, 0.30, 0.20)
+        hpx = max(1, int(w * 0.90 / (len("FAIRHOLLOW SUPPLY") * 5)))
+        K.draw_text(arr, "FAIRHOLLOW SUPPLY", w // 2, int(h * 0.34), hpx, ink)
+        lpx = max(1, int(w * 0.78 / (max(len(line), 8) * 5)))
+        K.draw_text(arr, line, w // 2, int(h * 0.66), lpx, ink)
+    else:
+        lpx = max(1, int(w * 0.85 / (max(len(line), 6) * 5)))
+        K.draw_text(arr, line, w // 2, h // 2, lpx, ink)
     return K.np_image(name, arr)
 
 
 def furniture_mats(M):
     """Sheet-04 additions to the shared kit palette (built once per scene)."""
     return {
-        "leather": K.m_tex("M_ClubLeather", leather_img("ClubLeather", (0.235, 0.130, 0.070)), rough=0.55),
+        "leather": K.m_tex("M_ClubLeather", leather_img("ClubLeather", (0.148, 0.080, 0.044)), rough=0.52),
         "leather_black": K.m_tex("M_TaskLeather", leather_img("TaskLeather", (0.052, 0.054, 0.058), seed=53), rough=0.48),
         "filing_steel": K.m_tex("M_FilingSteel", K.plastic_img("FilingSteel", (0.230, 0.250, 0.240), seed=55, mottle=0.05), rough=0.42, metal=0.45),
         "tote_olive": K.m_tex("M_ToteOlive", K.plastic_img("ToteOlive", (0.135, 0.165, 0.095), seed=61), rough=0.62),
@@ -184,7 +192,7 @@ def build_retail_gondola(M):
     W, D, H = 1.20, 0.60, 1.40
     root = K.asset_root("retail_gondola", (W, D, H))
     L.box("Plinth", (W - 0.04, D - 0.06, 0.10), (0, 0, 0.05), M["counter_black"], bevel=0.004, parent=root)
-    L.box("Spine", (W - 0.06, 0.05, H - 0.22), (0, 0, (H - 0.22) / 2 + 0.10), M["walnut"], bevel=0.004, parent=root)
+    L.box("Spine", (W - 0.06, 0.05, H - 0.145), (0, 0, (H - 0.145) / 2 + 0.10), M["walnut"], bevel=0.004, parent=root)
     L.rounded_box("Top_Cap", (W, D * 0.36, 0.045), (0, 0, H - 0.0225), M["walnut"], corner=0.010, bevel=0.005, segments=3, uv=True, parent=root)
     shelf_zs = (0.34, 0.72, 1.06)
     n = {"F": 0, "B": 0}
@@ -204,7 +212,7 @@ def build_retail_gondola(M):
     # accessory wall): the slat's -Y face rotates to -X on the left end, +X on
     # the right
     for sx, tag in ((-1, "L"), (1, "R")):
-        end = K3.hslat(f"End_Slat_{tag}", 0.52, 1.10, M["oak_slat"], seed=71 + (sx > 0), thick=0.014, board_h=0.088, gap=0.010)
+        end = K3.hslat(f"End_Slat_{tag}", 0.52, 1.195, M["oak_slat"], seed=71 + (sx > 0), thick=0.014, board_h=0.088, gap=0.010)
         end.location = (sx * (W / 2 - 0.012), 0, 0.16)
         end.rotation_euler = (0, 0, sx * math.pi / 2)
         L.parent_keep(end, root)
@@ -261,12 +269,23 @@ def make_tote_builder(color_key, label_line):
             L.box(f"Rim_{'FB'[sy > 0]}", (W, 0.030, 0.030), (0, sy * (D / 2 - 0.015), H - 0.015), body, bevel=0.003, parent=root)
         for sx in (-1, 1):
             L.box(f"Rim_{'LR'[sx > 0]}", (0.030, D - 0.06, 0.030), (sx * (W / 2 - 0.015), 0, H - 0.015), body, bevel=0.003, parent=root)
+        # the walls taper (0.04/0.03 narrower at the base over body_h), so
+        # surface features must ride the slanted face, not the top footprint
+        body_h = H - 0.03
+        lean_f = math.atan2(0.03, body_h)
+        lean_s = math.atan2(0.04, body_h)
+        zg = H - 0.055
+        side_x = (W - 0.08) / 2 + 0.04 * (zg / body_h)
         for sx in (-1, 1):
-            L.box(f"Grip_{'LR'[sx > 0]}", (0.022, 0.14, 0.035), (sx * (W / 2 - 0.035), 0, H - 0.055), M["charcoal"], bevel=0, parent=root)
-        L.box("Label_Holder", (0.19, 0.012, 0.12), (0, -D / 2 + 0.023, H - 0.115), M["charcoal"], bevel=0, parent=root)
-        lab = K.uv_plane("Label_Card", 0.165, 0.095, (0, -D / 2 + 0.0155, H - 0.115),
+            grip = L.box(f"Grip_{'LR'[sx > 0]}", (0.022, 0.14, 0.035), (sx * (side_x + 0.002), 0, zg), M["charcoal"], bevel=0, parent=root)
+            grip.rotation_euler = (0, sx * lean_s, 0)
+        zl = H - 0.115
+        face_y = (D - 0.06) / 2 + 0.03 * (zl / body_h)
+        hold = L.box("Label_Holder", (0.19, 0.012, 0.12), (0, -(face_y + 0.004), zl), M["charcoal"], bevel=0, parent=root)
+        hold.rotation_euler = (lean_f, 0, 0)
+        lab = K.uv_plane("Label_Card", 0.165, 0.095, (0, -(face_y + 0.013), zl),
                          K.m_tex(f"M_ToteLabel_{color_key}", tote_label_img(f"ToteLabel_{color_key}", label_line), rough=0.8))
-        lab.rotation_euler = (math.radians(4), 0, 0)
+        lab.rotation_euler = (lean_f, 0, 0)
         L.parent_keep(lab, root)
         K.empty("TOTE_STACK_SOCKET", (0, 0, H - 0.012), parent=root, size=0.04, props={"socket": "tote_stack"})
         K.collision_box(f"COL_StorageTote_{color_key}", (W, D, H), (0, 0, H / 2), M, root)
@@ -384,16 +403,16 @@ def build_filing_cabinet(M):
     W, D, H = 0.48, 0.62, 1.32
     root = K.asset_root("filing_cabinet", (W, D, H))
     steel = F["filing_steel"]
-    L.rounded_box("Body", (W, D, H - 0.03), (0, 0, (H - 0.03) / 2 + 0.03), steel, corner=0.010, bevel=0.004, segments=3, uv=True, parent=root)
+    L.box("Body", (W, D, H - 0.03), (0, 0, (H - 0.03) / 2 + 0.03), steel, bevel=0.007, parent=root)
     L.box("Plinth", (W - 0.04, D - 0.04, 0.05), (0, 0, 0.025), M["counter_black"], bevel=0, parent=root)
     for i in range(4):
         z = 0.20 + i * 0.30
         L.box(f"Drawer_{i + 1:02d}", (W - 0.05, 0.018, 0.255), (0, -D / 2 - 0.002, z + 0.10), steel, bevel=0.004, parent=root)
-        L.box(f"Pull_{i + 1:02d}", (0.13, 0.020, 0.030), (0, -D / 2 - 0.016, z + 0.185), M["charcoal"], bevel=0.003, parent=root)
+        L.box(f"Pull_{i + 1:02d}", (0.13, 0.020, 0.030), (0, -D / 2 - 0.016, z + 0.185), M["charcoal"], bevel=0, parent=root)
         L.box(f"Label_Frame_{i + 1:02d}", (0.09, 0.008, 0.045), (0, -D / 2 - 0.014, z + 0.115), M["charcoal"], bevel=0, parent=root)
         word = ("LEDGERS", "SUPPLIERS", "STAFF", "COURSE")[i]
         lab = K.uv_plane(f"Label_{i + 1:02d}", 0.075, 0.032, (0, -D / 2 - 0.019, z + 0.115),
-                         K.m_tex(f"M_FileLabel_{i + 1}", tote_label_img(f"FileLabel_{i + 1}", word, w=128, h=64), rough=0.8))
+                         K.m_tex(f"M_FileLabel_{i + 1}", tote_label_img(f"FileLabel_{i + 1}", word, w=128, h=64, header=False), rough=0.8))
         L.parent_keep(lab, root)
     K.collision_box("COL_FilingCabinet", (W, D, H), (0, 0, H / 2), M, root)
     return root

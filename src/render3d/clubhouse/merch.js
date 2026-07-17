@@ -247,6 +247,11 @@ export function createMerch(mats) {
     'apparel_wall_display', 'hat_wall', 'accessory_slatwall', 'club_rack',
     'putter_rack', 'bag_display', 'shoe_wall', 'ball_shelf', 'snack_shelf',
     'rangefinder_display',
+    // Asset Sheet 04: the furniture family
+    'merch_table', 'retail_gondola', 'apparel_table', 'stock_shelving',
+    'storage_tote_olive', 'storage_tote_slate', 'storage_tote_charcoal',
+    'storage_tote_stone', 'lounge_armchair', 'lounge_coffee_table',
+    'lounge_side_table', 'office_desk', 'office_chair', 'filing_cabinet',
   ];
 
   function instantiateKit(name, { scale = 1 } = {}) {

@@ -551,6 +551,11 @@ export function makeClubhouse(ctx) {
   // computer that opens the management desk — the real laptop lands next
   const office = { computerProp: null };
   {
+    // The Sheet-04 executive desk (walnut top, two drawer pedestals, brass
+    // pulls) replaces the plank desk. Its top is a real 0.75 desk height —
+    // the laptop rig is self-relative, so the laptop simply sits lower.
+    // Kit front (drawer faces) points +Z at ry 0; the desk faces the chair
+    // to its west, so ry −π/2.
     const desk = new THREE.Group();
     const top = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.08, 0.95), woodMat);
     top.position.y = 0.92;
@@ -568,16 +573,36 @@ export function makeClubhouse(ctx) {
     desk.rotation.y = OFFICE.desk.ry;
     interior.add(desk);
     addCol(colBoxAt(OFFICE.desk.x, OFFICE.desk.z, 1.1, 2.0));
-
-    // task chair (ref 10) — a real green-leather executive chair (Tripo scan) with a
-    // gas lift, five-star base and casters, replacing the procedural block.
     merch.onReady(() => {
-      const chair = merch.instantiateRaw('office_chair');
+      const kitDesk = merch.instantiateKit && merch.instantiateKit('office_desk');
+      if (!kitDesk) return;
+      kitDesk.position.set(OFFICE.desk.x, 0, OFFICE.desk.z);
+      kitDesk.rotation.y = -Math.PI / 2;
+      interior.add(kitDesk);
+      interior.remove(desk);
+    });
+
+    // task chair — the Sheet-04 kit chair (five-star base, casters, black
+    // leather), facing east toward the desk. The Tripo scan is the fallback.
+    merch.onReady(() => {
+      const kitChair = merch.instantiateKit && merch.instantiateKit('office_chair');
+      const chair = kitChair || merch.instantiateRaw('office_chair');
       if (!chair) return;
       chair.position.set(OFFICE.chair.x, 0, OFFICE.chair.z);
-      chair.rotation.y = -Math.PI / 2;
+      chair.rotation.y = kitChair ? Math.PI / 2 : -Math.PI / 2;
       interior.add(chair);
     });
+
+    // the Sheet-04 filing cabinet against the east wall, north of the desk —
+    // LEDGERS / SUPPLIERS / STAFF / COURSE, which is the office's whole job
+    merch.onReady(() => {
+      const filing = merch.instantiateKit && merch.instantiateKit('filing_cabinet');
+      if (!filing) return;
+      filing.position.set(9.92, 0, 3.4);
+      filing.rotation.y = -Math.PI / 2;
+      interior.add(filing);
+    });
+    addCol(colBoxAt(9.92, 3.4, 0.75, 0.6));
 
     // wall course map — a real framed board, flush on the office's south wall:
     // backing panel with thickness, mitered frame lip, map face proud of the
@@ -753,7 +778,10 @@ export function makeClubhouse(ctx) {
     );
     led.position.set(LAPTOP.led.x, LAPTOP.deck.t, LAPTOP.led.z); // front lip, player side
     laptop.add(led, lidHinge);
-    laptop.position.set(OFFICE.laptop.x - 0.10, 0.96, OFFICE.laptop.z);
+    // 0.752 = the Sheet-04 kit desk's top (0.75) + clearance. The whole sit
+    // rig (seat pose, screen corners) derives from the laptop's live world
+    // matrix, so lowering the laptop reseats everything with it.
+    laptop.position.set(OFFICE.laptop.x - 0.10, 0.752, OFFICE.laptop.z);
     laptop.rotation.y = OFFICE.laptop.ry;
     interior.add(laptop);
 
@@ -1795,7 +1823,9 @@ export function makeClubhouse(ctx) {
         stockMeshes.set(f.id + ':' + skuId, baked);
       }
 
-      // the feature display shows whatever the featured category has on shelves
+      // the feature display shows whatever the featured category has on
+      // shelves, dressed onto the Sheet-04 merch table's slot grid: six
+      // spots on the walnut top (0.75), two more on the lower shelf (0.294)
       if (f.kind === 'feature') {
         const cat = state.shop.featureCategory;
         const g = new THREE.Group();
@@ -1806,24 +1836,28 @@ export function makeClubhouse(ctx) {
           color: CAT_COLORS[cat] || 0x999999,
           roughness: 0.6,
         }));
+        const TOP_SPOTS = [[-0.45, -0.20], [0, -0.20], [0.45, -0.20], [-0.45, 0.20], [0, 0.20], [0.45, 0.20]];
+        const LOW_SPOTS = [[-0.45, 0], [0.45, 0]];
         for (let i = 0; i < show; i++) {
-          const a = (i / 8) * Math.PI * 2;
+          const onTop = i < TOP_SPOTS.length;
+          const [sx, sz] = onTop ? TOP_SPOTS[i] : LOW_SPOTS[i - TOP_SPOTS.length];
           const item = new THREE.Mesh(
             ownedStockResources.geometry(new THREE.BoxGeometry(0.16, 0.12, 0.14)),
             fm,
           );
-          item.position.set(Math.sin(a) * 0.5, 1.02 + (i % 2) * 0.13, Math.cos(a) * 0.5);
-          item.rotation.y = a;
+          item.position.set(sx, (onTop ? 0.75 : 0.294) + 0.061, sz);
+          item.rotation.y = ((i % 3) - 1) * 0.25;
           g.add(item);
         }
         const tent = new THREE.Mesh(
           ownedStockResources.geometry(new THREE.BoxGeometry(0.3, 0.16, 0.02)),
           ownedStockResources.material(new THREE.MeshStandardMaterial({ color: 0x1f8a34, roughness: 0.8 })),
         );
-        tent.position.set(0, 1.06, 0);
+        tent.position.set(0, 0.83, 0);
         tent.rotation.x = -0.2;
         g.add(tent);
         g.position.copy(anchor.position);
+        g.rotation.copy(anchor.rotation);
         stockGroup.add(g);
         stockMeshes.set(f.id + ':feature', g);
       }
@@ -1836,9 +1870,13 @@ export function makeClubhouse(ctx) {
         const g = new THREE.Group();
         const totalBack = SHOP_CATALOG.reduce((a, s) => a + (inv[s.id] ? inv[s.id].back : 0), 0);
         const show = Math.min(Math.ceil(totalBack / 6), 12);
+        // case columns line up with the Sheet-04 stock_shelving modules; the
+        // case bases sit exactly on the upper three board tops (the ground
+        // board belongs to the carton dressing)
+        const cols = f.short ? [-0.31, 0.31] : [-0.93, -0.31, 0.31, 0.93];
         for (let i = 0; i < show; i++) {
-          const bx = -0.95 + (i % 4) * 0.62;
-          const by = [0.46, 1.11, 1.76][Math.floor(i / 4) % 3];
+          const bx = cols[i % cols.length];
+          const by = [0.6455, 1.1455, 1.6455][Math.floor(i / cols.length) % 3];
           const caseB = new THREE.Mesh(
             ownedStockResources.geometry(new THREE.BoxGeometry(0.5, 0.36, 0.44)),
             i % 2 ? cardboard : cardboardDark,

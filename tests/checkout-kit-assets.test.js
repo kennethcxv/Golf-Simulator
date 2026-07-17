@@ -18,6 +18,11 @@ const KIT = [
   'apparel_wall_display', 'hat_wall', 'accessory_slatwall', 'club_rack',
   'putter_rack', 'bag_display', 'shoe_wall', 'ball_shelf', 'snack_shelf',
   'rangefinder_display',
+  // Asset Sheet 04: the furniture family
+  'merch_table', 'retail_gondola', 'apparel_table', 'stock_shelving',
+  'storage_tote_olive', 'storage_tote_slate', 'storage_tote_charcoal',
+  'storage_tote_stone', 'lounge_armchair', 'lounge_coffee_table',
+  'lounge_side_table', 'office_desk', 'office_chair', 'filing_cabinet',
 ];
 
 function makeLoader() {
@@ -272,6 +277,99 @@ test('the club rack seats a full-length driver: comb rail under the head, grip i
   assert.ok(Math.abs(slot.y - 0.99) < 0.03, `comb slot height ${slot.y.toFixed(3)}`);
   assert.ok(headUnderside > railTop - 0.005 && headUnderside < railTop + 0.03,
     `driver underside ${headUnderside.toFixed(3)} vs rail top ${railTop.toFixed(3)}`);
+});
+
+test('the Sheet-04 furniture exposes its parts, sockets, envelopes and budgets', async () => {
+  const kit = await kitPromise;
+  // { asset: [ [required node names...], [w, h] envelope (x/y ±0.06), tri cap ] }
+  const FURNITURE = {
+    merch_table: [['Top', 'Lower_Shelf', 'Shelf_Rail_L', 'Leg_01', 'Leg_04', 'Crest_Badge',
+      'MERCH_TABLE_SLOT_01', 'MERCH_TABLE_SLOT_06', 'MERCH_TABLE_LOWER_04',
+      'COL_MerchTable'], [1.40, 0.75], 2200 * 1.25],
+    retail_gondola: [['Plinth', 'Spine', 'Top_Cap', 'Shelf_F01', 'Shelf_B03',
+      'End_Slat_L', 'End_Slat_R', 'GONDOLA_SLOT_F01', 'GONDOLA_SLOT_F12',
+      'GONDOLA_SLOT_B12', 'COL_RetailGondola'], [1.20, 1.40], 3400 * 1.25],
+    apparel_table: [['Top', 'Lower_Shelf', 'Leg_01', 'Crest_Badge',
+      'APPAREL_TABLE_SLOT_01', 'APPAREL_TABLE_SLOT_08', 'APPAREL_TABLE_LOWER_04',
+      'COL_ApparelTable'], [1.60, 0.80], 2300 * 1.25],
+    stock_shelving: [['Post_LF', 'Post_RB', 'Board_01', 'Board_04', 'Board_Lip_01',
+      'Brace_01a', 'Brace_03b', 'STOCK_SHELF_SLOT_01', 'STOCK_SHELF_SLOT_04',
+      'COL_StockShelving'], [1.20, 2.00], 1800 * 1.25],
+    storage_tote_olive: [['Tote_Body', 'Rim_F', 'Rim_L', 'Grip_L', 'Grip_R',
+      'Label_Holder', 'Label_Card', 'TOTE_STACK_SOCKET',
+      'COL_StorageTote_olive'], [0.60, 0.30], 600 * 1.25],
+    lounge_armchair: [['Base', 'Seat_Cushion', 'Arm_L', 'Arm_Roll_R', 'Back',
+      'Back_Cushion', 'Back_Roll', 'Foot_LF', 'COL_LoungeArmchair'], [0.85, 0.85], 2500 * 1.25],
+    lounge_coffee_table: [['Top', 'Band', 'Leg_01', 'Leg_03', 'Ring_Shelf',
+      'COL_LoungeCoffeeTable'], [1.00, 0.45], 1100 * 1.25],
+    lounge_side_table: [['Top', 'Band', 'Leg_03', 'Ring_Shelf',
+      'COL_LoungeSideTable'], [0.55, 0.38], 1100 * 1.25],
+    office_desk: [['Top', 'Pedestal_L', 'Pedestal_R', 'Drawer_L01', 'Drawer_R03', 'Pull_L01',
+      'Modesty_Panel', 'DESK_LAPTOP_SOCKET', 'COL_OfficeDesk'], [1.60, 0.75], 2800 * 1.25],
+    office_chair: [['Star_Leg_01', 'Star_Leg_05', 'Caster_01', 'Gas_Lift', 'Seat', 'Back',
+      'Arm_Post_L', 'Arm_Pad_R', 'COL_OfficeChair'], [0.65, 1.10], 1600 * 1.25],
+    filing_cabinet: [['Body', 'Plinth', 'Drawer_01', 'Drawer_04', 'Pull_01',
+      'Label_Frame_01', 'Label_01', 'Label_04', 'COL_FilingCabinet'], [0.48, 1.32], 800 * 1.25],
+  };
+  for (const [asset, [required, [w, h], cap]] of Object.entries(FURNITURE)) {
+    const scene = (await kit.get(asset)).scene;
+    const n = names(scene);
+    for (const part of required) assert.ok(n.has(part), `${asset}: missing ${part}`);
+    const s = sizeOf(scene);
+    assert.ok(Math.abs(s.x - w) < 0.06, `${asset} width ${s.x.toFixed(3)} vs ${w}`);
+    assert.ok(Math.abs(s.y - h) < 0.06, `${asset} height ${s.y.toFixed(3)} vs ${h}`);
+    let tris = 0;
+    scene.traverse((o) => { if (o.isMesh && !o.name.startsWith('COL_')) tris += o.geometry.index.count / 3; });
+    assert.ok(tris < cap, `${asset} tris ${tris} over ${cap}`);
+  }
+});
+
+test('the apparel table top carries both polo lanes: eight clear stack positions', async () => {
+  const kit = await kitPromise;
+  const scene = (await kit.get('apparel_table')).scene;
+  scene.updateMatrixWorld(true);
+  const slots = [];
+  scene.traverse((o) => { if (o.name.startsWith('APPAREL_TABLE_SLOT_')) slots.push(o.getWorldPosition(new THREE.Vector3())); });
+  assert.equal(slots.length, 8, 'eight stack sockets');
+  // every socket sits on the walnut top (0.80) and inside its edge with room
+  // for a 0.30 x 0.25 folded polo around it
+  for (const p of slots) {
+    assert.ok(Math.abs(p.y - 0.801) < 0.01, `socket on the top: y ${p.y.toFixed(3)}`);
+    assert.ok(Math.abs(p.x) + 0.15 <= 0.80, `folded polo inside the long edge at x ${p.x.toFixed(2)}`);
+    assert.ok(Math.abs(p.z) + 0.125 <= 0.45, `folded polo inside the short edge at z ${p.z.toFixed(2)}`);
+  }
+  // stacks must not overlap: 0.38/0.42 pitch vs the 0.30 garment
+  const xs = [...new Set(slots.map((p) => Math.round(p.x * 100) / 100))].sort((a, b) => a - b);
+  for (let i = 1; i < xs.length; i++) {
+    assert.ok(xs[i] - xs[i - 1] >= 0.30, `stack pitch ${(xs[i] - xs[i - 1]).toFixed(2)} clears the garment`);
+  }
+  // and the fixtureSlots poses must match the sockets this table authors
+  const { slotsFor } = await import('../src/data/fixtureSlots.js');
+  for (const lane of ['polo1', 'polo2']) {
+    const poses = slotsFor(lane);
+    assert.equal(poses.length, 12, `${lane} keeps its capacity of 12`);
+    for (const pose of poses) {
+      assert.ok(pose.folded, `${lane} pose is folded`);
+      const hit = slots.some((p) => Math.abs(p.x - pose.x) < 0.03 && Math.abs(Math.abs(p.z) - Math.abs(pose.z)) < 0.03);
+      assert.ok(hit, `${lane} pose (${pose.x}, ${pose.z}) lands on an authored socket`);
+      assert.ok(pose.y >= 0.80 && pose.y <= 0.92, `${lane} stack height ${pose.y}`);
+    }
+  }
+});
+
+test('the storage totes nest: the stack socket seats the next tote inside the rim', async () => {
+  const kit = await kitPromise;
+  for (const color of ['olive', 'slate', 'charcoal', 'stone']) {
+    const scene = (await kit.get(`storage_tote_${color}`)).scene;
+    scene.updateMatrixWorld(true);
+    let sock = null;
+    scene.traverse((o) => { if (o.name === 'TOTE_STACK_SOCKET') sock = o.getWorldPosition(new THREE.Vector3()); });
+    assert.ok(sock, `${color}: stack socket exists`);
+    // the next tote's base (0.52 x 0.34) drops just inside this tote's mouth,
+    // slightly below the rim so the stack reads nested, not floated
+    assert.ok(sock.y > 0.27 && sock.y < 0.30, `${color}: socket rides the rim at ${sock.y.toFixed(3)}`);
+    assert.ok(Math.abs(sock.x) < 0.01 && Math.abs(sock.z) < 0.01, `${color}: socket centred`);
+  }
 });
 
 test('no missing textures: every referenced image is embedded', async () => {

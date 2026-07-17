@@ -33,6 +33,11 @@ KIT = [
     "apparel_wall_display", "hat_wall", "accessory_slatwall", "club_rack",
     "putter_rack", "bag_display", "shoe_wall", "ball_shelf", "snack_shelf",
     "rangefinder_display",
+    # Asset Sheet 04: the furniture family
+    "merch_table", "retail_gondola", "apparel_table", "stock_shelving",
+    "storage_tote_olive", "storage_tote_slate", "storage_tote_charcoal",
+    "storage_tote_stone", "lounge_armchair", "lounge_coffee_table",
+    "lounge_side_table", "office_desk", "office_chair", "filing_cabinet",
 ]
 
 REQUIRED_NODES = {
@@ -102,6 +107,40 @@ REQUIRED_NODES = {
                             "Tier_01", "Tier_02", "Acrylic_Front",
                             "Crest_Badge", "COL_RangefinderDisplay"]
                            + [f"RF_SLOT_{i:02d}" for i in range(1, 7)],
+    # --- Asset Sheet 04 -------------------------------------------------------
+    "merch_table": ["Top", "Lower_Shelf", "Shelf_Rail_L", "Shelf_Rail_R",
+                    "Leg_01", "Leg_04", "Crest_Badge", "COL_MerchTable"]
+                   + [f"MERCH_TABLE_SLOT_{i:02d}" for i in range(1, 7)]
+                   + [f"MERCH_TABLE_LOWER_{i:02d}" for i in range(1, 5)],
+    "retail_gondola": ["Plinth", "Spine", "Top_Cap", "Shelf_F01", "Shelf_B03",
+                       "End_Slat_L", "End_Slat_R", "COL_RetailGondola"]
+                      + [f"GONDOLA_SLOT_F{i:02d}" for i in range(1, 13)]
+                      + [f"GONDOLA_SLOT_B{i:02d}" for i in range(1, 13)],
+    "apparel_table": ["Top", "Lower_Shelf", "Shelf_Rail_L", "Shelf_Rail_R",
+                      "Leg_01", "Leg_04", "Crest_Badge", "COL_ApparelTable"]
+                     + [f"APPAREL_TABLE_SLOT_{i:02d}" for i in range(1, 9)]
+                     + [f"APPAREL_TABLE_LOWER_{i:02d}" for i in range(1, 5)],
+    "stock_shelving": ["Post_LF", "Post_RB", "Board_01", "Board_04", "Board_Lip_01",
+                       "Brace_01a", "Brace_03b", "COL_StockShelving"]
+                      + [f"STOCK_SHELF_SLOT_{i:02d}" for i in range(1, 5)],
+    "storage_tote_olive": ["Tote_Body", "Rim_F", "Rim_B", "Rim_L", "Rim_R", "Grip_L", "Grip_R",
+                           "Label_Holder", "Label_Card", "TOTE_STACK_SOCKET", "COL_StorageTote_olive"],
+    "storage_tote_slate": ["Tote_Body", "Label_Card", "TOTE_STACK_SOCKET", "COL_StorageTote_slate"],
+    "storage_tote_charcoal": ["Tote_Body", "Label_Card", "TOTE_STACK_SOCKET", "COL_StorageTote_charcoal"],
+    "storage_tote_stone": ["Tote_Body", "Label_Card", "TOTE_STACK_SOCKET", "COL_StorageTote_stone"],
+    "lounge_armchair": ["Base", "Seat_Cushion", "Arm_L", "Arm_R", "Arm_Roll_L", "Arm_Roll_R",
+                        "Back", "Back_Cushion", "Back_Roll", "Foot_LF", "Foot_RB",
+                        "COL_LoungeArmchair"],
+    "lounge_coffee_table": ["Top", "Band", "Leg_01", "Leg_03", "Ring_Shelf",
+                            "COL_LoungeCoffeeTable"],
+    "lounge_side_table": ["Top", "Band", "Leg_01", "Leg_03", "Ring_Shelf",
+                          "COL_LoungeSideTable"],
+    "office_desk": ["Top", "Pedestal_L", "Pedestal_R", "Drawer_L01", "Drawer_R03",
+                    "Pull_L01", "Modesty_Panel", "DESK_LAPTOP_SOCKET", "COL_OfficeDesk"],
+    "office_chair": ["Star_Leg_01", "Star_Leg_05", "Caster_01", "Gas_Lift", "Seat", "Back",
+                     "Arm_Post_L", "Arm_Pad_R", "COL_OfficeChair"],
+    "filing_cabinet": ["Body", "Plinth", "Drawer_01", "Drawer_04", "Pull_01",
+                       "Label_Frame_01", "Label_01", "Label_04", "COL_FilingCabinet"],
 }
 
 # asset: (axis-size checks in Blender Z-up space after import)
@@ -134,6 +173,21 @@ SIZE_CHECKS = {
     "ball_shelf": [(0, 0.98, 1.08), (2, 1.15, 1.25)],
     "snack_shelf": [(0, 0.95, 1.05), (2, 1.55, 1.65)],
     "rangefinder_display": [(0, 0.55, 0.65), (2, 0.30, 0.40)],
+    # Sheet-04 envelopes straight off the sheet
+    "merch_table": [(0, 1.35, 1.45), (2, 0.70, 0.80)],
+    "retail_gondola": [(0, 1.15, 1.25), (2, 1.35, 1.45)],
+    "apparel_table": [(0, 1.55, 1.65), (2, 0.75, 0.85)],
+    "stock_shelving": [(0, 1.15, 1.25), (2, 1.95, 2.05)],
+    "storage_tote_olive": [(0, 0.55, 0.65), (2, 0.26, 0.34)],
+    "storage_tote_slate": [(0, 0.55, 0.65), (2, 0.26, 0.34)],
+    "storage_tote_charcoal": [(0, 0.55, 0.65), (2, 0.26, 0.34)],
+    "storage_tote_stone": [(0, 0.55, 0.65), (2, 0.26, 0.34)],
+    "lounge_armchair": [(0, 0.80, 0.90), (2, 0.80, 0.90)],
+    "lounge_coffee_table": [(0, 0.95, 1.05), (2, 0.40, 0.50)],
+    "lounge_side_table": [(0, 0.50, 0.60), (2, 0.33, 0.43)],
+    "office_desk": [(0, 1.55, 1.65), (2, 0.70, 0.80)],
+    "office_chair": [(0, 0.55, 0.70), (2, 1.02, 1.12)],
+    "filing_cabinet": [(0, 0.43, 0.53), (2, 1.27, 1.37)],
 }
 
 REQUIRED_CLIPS = {

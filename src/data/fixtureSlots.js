@@ -129,22 +129,23 @@ function accShelf(cols, pitch, lift, { mx = 0, ox = 0, z = 0.02, ry = 0 } = {}) 
   return out;
 }
 
-// folded on the table top, then hung from its rail behind
+// folded stacks on the Sheet-04 apparel_table (kit top surface 0.80; stack
+// positions match the table's APPAREL_TABLE_SLOT grid at x ±0.57/±0.19,
+// z ±0.21). Each lane owns four stacks of three — polo1 the west pair of
+// columns, polo2 the east pair. Twelve per lane, same capacity as ever.
 function tableApparel(skuId) {
-  const cx = laneX(skuId, 1.8);
+  const lane = laneOf(skuId);
+  const colXs = lane === 0 ? [-0.57, -0.19] : [0.19, 0.57];
   const out = [];
-  for (let i = 0; i < 9; i++) {              // three stacks of three, folded
-    const col = Math.floor(i / 3);
+  for (let i = 0; i < 12; i++) {             // four stacks of three, folded
+    const stack = Math.floor(i / 3);
     out.push({
-      x: cx + (col - 1) * 0.28,
-      y: 1.005 + (i % 3) * 0.055,
-      z: -0.05,
+      x: colXs[stack % 2],
+      y: 0.801 + (i % 3) * 0.055,
+      z: stack < 2 ? -0.21 : 0.21,
       ry: (i % 2) * 0.09 - 0.045,
       folded: true,
     });
-  }
-  for (let j = 0; j < 3; j++) {              // and three on the hang rail
-    out.push({ x: cx + (j - 1) * 0.32, y: 1.68, z: -0.62, ry: 0.06 + (j % 2) * 0.08 });
   }
   return out;
 }
