@@ -1291,7 +1291,12 @@ export function makeCourseScene(canvas, state) {
       map: texScrub,
       normalMap: texScrubN,
       normalScale: new THREE.Vector2(0.4, 0.4),
-      color: 0x99a878, // OUT-zone family so the seam reads as one landscape
+      // OUT-zone family so the seam reads as one landscape, but deeper than the
+      // mown course rather than lighter than it. At 0x99a878 the surround was
+      // brighter than the rough it meets, which inverts the natural contrast:
+      // unmown land reads darker than fairway, and the course should be the
+      // bright subject in the frame instead of a pale patch on a paler plain.
+      color: 0x7e8f5e,
       roughness: 1,
     });
     mat.onBeforeCompile = (sh) => {
