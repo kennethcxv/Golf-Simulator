@@ -313,9 +313,24 @@ def build_lounge_armchair(M):
     cushion.rotation_euler = (math.radians(-7), 0, 0)
     roll = L.cyl("Back_Roll", 0.062, W - 0.06, (0, D / 2 - 0.115, 0.825), lea, verts=14, bevel=0, parent=root)
     roll.rotation_euler = (0, math.radians(90), 0)
+
+    # Tufting. The docstring has always claimed a "tufted-look back cushion",
+    # but nothing carried it in geometry, so every mass shared one flat leather
+    # and the chair read as a single soft blob. Sunk buttons in a diamond grid
+    # give the back the shadow breaks the reference sheet shows.
+    for r, (count, z) in enumerate(((3, 0.475), (2, 0.615))):
+        for c in range(count):
+            u = (c - (count - 1) / 2) * 0.145
+            btn = L.cyl(f"Tuft_Button_{r + 1}{c + 1}", 0.021, 0.020,
+                        (u, D / 2 - 0.245, z), lea, verts=10, bevel=0, parent=root)
+            btn.rotation_euler = (math.radians(83), 0, 0)
+
+    # Tapered walnut feet. The old 28 mm stubs were invisible under the skirt;
+    # the reference stands the chair on legs you can actually see.
     for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
-        L.cyl(f"Foot_{'L' if sx < 0 else 'R'}{'F' if sy < 0 else 'B'}", 0.028, 0.07,
-              (sx * (W / 2 - 0.09), sy * (D / 2 - 0.11), 0.035), M["walnut"], verts=10, bevel=0, parent=root)
+        L.frustum(f"Foot_{'L' if sx < 0 else 'R'}{'F' if sy < 0 else 'B'}", 0.042, 0.028, 0.11,
+                  (sx * (W / 2 - 0.09), sy * (D / 2 - 0.11), 0.055), M["walnut"],
+                  segments=8, parent=root)
     K.collision_box("COL_LoungeArmchair", (W, D, H), (0, 0, H / 2), M, root)
     return root
 

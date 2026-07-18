@@ -82,6 +82,46 @@ const VISUAL_VERDICTS = {
   34: { verdict: 'pass', note: 'inspected: 4 uprights, lipped oak shelves, X bracing, foot plates - matches sheet' },
   37: { verdict: 'pass', note: 'rebuilt: solid walnut disc replaced by the steel support ring the sheet names' },
   38: { verdict: 'pass', note: 'inspected: executive desk, twin 3-drawer pedestals, brass pulls - matches sheet' },
+  // Sheet 1/2/3/4 remainder, inspected via contact sheet against their panels.
+  2: { verdict: 'pass', note: 'inspected: monitor on stand; sheet shows a squarer POS panel, minor' },
+  7: { verdict: 'pass', note: 'inspected: chip, embossed detail, fictional branding' },
+  20: { verdict: 'pass', note: 'inspected: APPAREL header, hanging rail, folded lower shelf' },
+  22: { verdict: 'pass', note: 'inspected: slatwall with pegged grid for individual hats' },
+  23: { verdict: 'pass', note: 'inspected: slatwall with angled shelves and hooks' },
+  27: { verdict: 'pass', note: 'inspected: angled display boards plus lower box shelf' },
+  28: { verdict: 'pass', note: 'inspected: three lipped shelves sized for ball boxes' },
+  29: { verdict: 'pass', note: 'inspected: steel frame, wood shelves at mixed heights' },
+  32: { verdict: 'pass', note: 'inspected: double-sided slatwall gondola, multiple shelf levels' },
+  35: { verdict: 'pass', note: 'inspected: tapered tote, label holder, side handles, 4 colourways' },
+  36: { verdict: 'pass', note: 'rebuilt: tufting the docstring promised but never built, plus tapered visible feet. A welt-piping pass was tried and reverted - it rendered as a floating plank.' },
+  39: { verdict: 'pass', note: 'inspected: 5-star caster base, arms, padded back' },
+  40: { verdict: 'pass', note: 'inspected: 4 drawers, label holders, pulls' },
+  // Sheet 5 rendered fresh via tools/blender/render_glb_preview.py - these had
+  // no previews at all before, so nothing had ever been looked at outside the game.
+  41: { verdict: 'pass', note: 'rendered: crest livery, cargo doors, wheels, glazing' },
+  42: { verdict: 'deviation-noted', note: 'structure matches (frame, two wheels, toe plate) but finished in house green; the sheet shows bare silver metal' },
+  43: { verdict: 'deviation-noted', note: 'structure matches (3 shelves, casters, push handle) but finished in house green; the sheet shows dark grey' },
+  44: { verdict: 'pass', note: 'rendered: stringers and deck boards, standard pallet construction' },
+  45: { verdict: 'pass', note: 'M_PalletJackSafetyYellow linear rgb(148,92,3) = sRGB ~(202,161,29); the pink in the preview was my overexposed key light, not the asset' },
+  46: { verdict: 'pass', note: 'rendered: kraft carton, crest, PLAY BETTER EVERY DAY, tape and flap seams' },
+  47: { verdict: 'pass', note: 'rendered: green APPAREL band and shipping label' },
+  48: { verdict: 'pass', note: 'rendered: long slim carton with handling marks' },
+  49: { verdict: 'pass', note: 'rebuilt: body was brass and read as a gold tool; now M_CutterSafetyYellow per the sheet bullet' },
+  50: { verdict: 'pass', note: 'rendered: kraft roll with crest and hollow core, matching the sheet image (bullet says clear, image shows kraft - image is authoritative)' },
+  // Currency family, inspected as a contact sheet. Colour coding matches the
+  // sheet exactly (green 50/20/10, purple 5, blue 1) and coin diameters visibly
+  // descend 50 > 20 > 10 > 5 > 1 per the printed sizes.
+  9: { verdict: 'pass', note: 'inspected: green 20-unit note, printed both faces' },
+  10: { verdict: 'pass', note: 'inspected: bimetallic hero 5-unit, gold ring / silver centre' },
+  11: { verdict: 'pass', note: 'inspected: green 50-unit note' },
+  12: { verdict: 'pass', note: 'inspected: green 10-unit note' },
+  13: { verdict: 'pass', note: 'inspected: muted purple 5-unit note, per sheet' },
+  14: { verdict: 'pass', note: 'inspected: blue 1-unit note, per sheet' },
+  15: { verdict: 'pass', note: 'inspected: bimetallic 50, largest diameter' },
+  16: { verdict: 'pass', note: 'inspected: bimetallic 20' },
+  17: { verdict: 'pass', note: 'inspected: bimetallic 10' },
+  18: { verdict: 'pass', note: 'inspected: bimetallic 5, smaller than the hero 5' },
+  19: { verdict: 'pass', note: 'inspected: solid copper 1-unit, per sheet' },
 };
 
 

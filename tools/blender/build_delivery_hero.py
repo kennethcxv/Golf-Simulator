@@ -52,7 +52,7 @@ SOURCE_DIR.mkdir(parents=True, exist_ok=True)
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 QA_DIR.mkdir(parents=True, exist_ok=True)
 
-BUILD_VERSION = 2
+BUILD_VERSION = 4
 BOX_ID = "delivery_apparel_box"
 CUTTER_ID = "delivery_box_cutter"
 RECYCLING_ID = "delivery_recycling_station"
@@ -67,6 +67,11 @@ def delivery_materials():
     M["tape"] = mat("M_tape", (0.82, 0.59, 0.25, 0.82), roughness=0.66)
     M["label_cream"] = mat("M_Paper", (0.92, 0.86, 0.72, 1), roughness=0.90)
     M["blade"] = mat("M_Steel", (0.70, 0.73, 0.75, 1), roughness=0.22, metallic=0.92)
+    # Sheet-05 #49 calls for a yellow/black body. The cutter shipped in brass,
+    # which read as a gold tool rather than the safety-yellow utility knife the
+    # reference shows. Same hue family as the pallet jack's safety yellow so the
+    # two receiving-bay tools agree.
+    M["cutter_yellow"] = mat("M_CutterSafetyYellow", (0.78, 0.62, 0.06, 1), roughness=0.42)
     return M
 
 
@@ -119,12 +124,23 @@ def front_label_quad(name, width, height, loc, material, parent):
 
 
 def wall_panel(name, pivot_name, dims, pivot_loc, panel_loc, root, M, inner_loc, inner_dims):
+    pivot_props = {
+        "pivot_kind": "bottom_fold",
+        "closed_rotation": [0, 0, 0],
+        "flatten_angle_deg": 90,
+    }
+    if pivot_name == "BOX_WALL_FRONT":
+        pivot_props.update({
+            "hinge_axis": "X",
+            "open_reveal_angle_deg": 82,
+            "reveal_contents": True,
+        })
     pivot = empty(
         pivot_name,
         pivot_loc,
         parent=root,
         size=0.035,
-        props={"pivot_kind": "bottom_fold", "closed_rotation": [0, 0, 0]},
+        props=pivot_props,
     )
     panel = box(name, dims, panel_loc, M["kraft"], bevel=0.003, parent=pivot)
     box(f"{name}_INNER", inner_dims, inner_loc, M["kraft_dark"], bevel=0.001, parent=pivot)
@@ -399,6 +415,13 @@ def build_apparel_box(M):
                 [0, d * 0.42, h + 0.025], [0, -d * 0.42, h + 0.025],
                 [-w * 0.42, -d * 0.42, h + 0.025], [w * 0.42, -d * 0.42, h + 0.025],
             ]),
+            "segment_nodes": json.dumps([
+                "TAPE_SEG_RIGHT",
+                *[f"TAPE_CENTER_SEG_{index:02d}" for index in range(2, 6)],
+                "TAPE_SEG_LEFT",
+                "TAPE_CROSS_LEFT_INNER", "TAPE_SIDE_LEFT",
+                "TAPE_CROSS_RIGHT_INNER", "TAPE_SIDE_RIGHT",
+            ]),
             "duration_sec": 2.0,
         },
     )
@@ -436,7 +459,7 @@ def build_cutter(M):
 
     # Tapered silhouette is built from overlapping bevelled shells, but every
     # operational component remains separately named and transformable.
-    body = box("CUTTER_BODY", (0.038, 0.140, 0.018), (0, 0.070, 0.010), M["brass"], bevel=0.005, parent=root)
+    body = box("CUTTER_BODY", (0.038, 0.140, 0.018), (0, 0.070, 0.010), M["cutter_yellow"], bevel=0.005, parent=root)
     body["grip_axis"] = "+Y"
     box("CUTTER_RUBBER_GRIP", (0.040, 0.065, 0.020), (0, 0.035, 0.0105), M["rubber"], bevel=0.005, parent=root)
     box("CUTTER_CHANNEL", (0.012, 0.118, 0.003), (0, 0.085, 0.0195), M["charcoal"], bevel=0.001, parent=root)
@@ -761,6 +784,10 @@ def render_preview(asset_id, root, opened=False):
                 pivot.rotation_euler.x = angle
             else:
                 pivot.rotation_euler.y = angle
+        front_wall = bpy.data.objects.get("BOX_WALL_FRONT")
+        if front_wall:
+            changed.append((front_wall, front_wall.rotation_euler.copy()))
+            front_wall.rotation_euler.x = math.radians(82)
     scene.render.filepath = str(QA_DIR / f"{asset_id}_{'open' if opened else 'sealed'}.png")
     bpy.ops.render.render(write_still=True)
     for obj, rotation in changed:
