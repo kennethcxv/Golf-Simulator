@@ -1494,6 +1494,79 @@ export function makeCourseScene(canvas, state) {
     t.wrapT = THREE.RepeatWrapping;
   });
 
+  // Trace the boundary of a flood-filled water component and round it off.
+  // Editor-drawn and legacy ponds have no authored outline, and a disc sized to
+  // the longest bbox axis is both far too big for an elongated pond and square
+  // with nothing. Following the cells and smoothing the result gives every pond
+  // its own shoreline without inventing an author for it.
+  function cellComponentOutline(cells, gridW) {
+    const member = new Set(cells);
+    const has = (x, y) => member.has(y * gridW + x);
+    const key = (x, y) => `${x},${y}`;
+    // One directed edge per exposed cell side, wound consistently around each
+    // cell so the segments chain head-to-tail around the component.
+    const edges = new Map();
+    for (const j of cells) {
+      const x = j % gridW;
+      const y = (j / gridW) | 0;
+      if (!has(x, y - 1)) edges.set(key(x, y), { x: x + 1, y });
+      if (!has(x + 1, y)) edges.set(key(x + 1, y), { x: x + 1, y: y + 1 });
+      if (!has(x, y + 1)) edges.set(key(x + 1, y + 1), { x, y: y + 1 });
+      if (!has(x - 1, y)) edges.set(key(x, y + 1), { x, y });
+    }
+    if (edges.size < 4) return null;
+
+    // Longest closed chain wins; islands inside a pond are not cut out.
+    let best = null;
+    const used = new Set();
+    for (const startKey of edges.keys()) {
+      if (used.has(startKey)) continue;
+      const loop = [];
+      let cur = startKey;
+      while (cur && edges.has(cur) && !used.has(cur)) {
+        used.add(cur);
+        const parts = cur.split(',');
+        loop.push({ x: Number(parts[0]), y: Number(parts[1]) });
+        const next = edges.get(cur);
+        cur = key(next.x, next.y);
+      }
+      if (loop.length >= 4 && (!best || loop.length > best.length)) best = loop;
+    }
+    if (!best) return null;
+
+    // Chaikin: corner-cutting turns the cell staircase into a shoreline.
+    let pts = best;
+    const passes = pts.length > 260 ? 2 : 3;
+    for (let pass = 0; pass < passes; pass++) {
+      const next = [];
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i];
+        const b = pts[(i + 1) % pts.length];
+        next.push({ x: a.x * 0.75 + b.x * 0.25, y: a.y * 0.75 + b.y * 0.25 });
+        next.push({ x: a.x * 0.25 + b.x * 0.75, y: a.y * 0.25 + b.y * 0.75 });
+      }
+      pts = next;
+    }
+
+    // Corner-cutting pulls the loop in; push it back out along the vertex
+    // normal so the plane tucks under the bank instead of stopping on it.
+    let area2 = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i];
+      const b = pts[(i + 1) % pts.length];
+      area2 += a.x * b.y - b.x * a.y;
+    }
+    const facing = area2 >= 0 ? 1 : -1;
+    return pts.map((p, i) => {
+      const prev = pts[(i - 1 + pts.length) % pts.length];
+      const next = pts[(i + 1) % pts.length];
+      const nx = (next.y - prev.y) * facing;
+      const ny = -(next.x - prev.x) * facing;
+      const len = Math.hypot(nx, ny) || 1;
+      return { x: p.x + (nx / len) * 0.3, y: p.y + (ny / len) * 0.3 };
+    });
+  }
+
   function rebuildWater() {
     for (const m of waterMeshes) {
       scene.remove(m);
@@ -1582,8 +1655,27 @@ export function makeCourseScene(canvas, state) {
         geo = new THREE.ShapeGeometry(shape);
         geo.rotateX(-Math.PI / 2);
       } else {
-        const radius = (Math.max(maxX - minX, maxY - minY) / 2 + 1.4) * CELL_YD;
-        geo = new THREE.CircleGeometry(radius, 40);
+        // No authored outline: trace the pond's own cells instead of covering
+        // them with a disc sized to its longest axis.
+        const outline = cellComponentOutline(cells, W);
+        if (outline && outline.length >= 3) {
+          const shape = new THREE.Shape();
+          for (let pointIndex = 0; pointIndex < outline.length; pointIndex++) {
+            const point = outline[pointIndex];
+            const x = point.x * CELL_YD - worldW / 2 - cx;
+            // ShapeGeometry is authored in XY, then laid onto XZ below.
+            const y = -(point.y * CELL_YD - worldH / 2 - cz);
+            if (pointIndex === 0) shape.moveTo(x, y);
+            else shape.lineTo(x, y);
+          }
+          shape.closePath();
+          geo = new THREE.ShapeGeometry(shape);
+        } else {
+          // Degenerate component (a single cell, or a pinched trace): the disc
+          // is still the safe answer at that size.
+          const radius = (Math.max(maxX - minX, maxY - minY) / 2 + 1.4) * CELL_YD;
+          geo = new THREE.CircleGeometry(radius, 40);
+        }
         geo.rotateX(-Math.PI / 2);
       }
       const water = new Water(geo, {
