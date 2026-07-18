@@ -836,8 +836,11 @@ export function designCourse(rng, opts = {}) {
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const tilt = ((x / w) * 0.62 + (1 - y / h) * 0.38 - 0.42) * (opts.elevAmp ?? 1) * 17;
-      const roll = (fbm(x * 0.052 + vec.seed * 0.13, y * 0.052) - 0.5) * 9
-        + (fbm(x * 0.16 + 31, y * 0.16 - 17) - 0.5) * 2.6;
+      // Local roll carries the parkland character; the regional tilt above is
+      // drainage and is left alone. At 9 ft the property read as a table from
+      // every camera — about a 0.7% grade across 960 yards.
+      const roll = (fbm(x * 0.052 + vec.seed * 0.13, y * 0.052) - 0.5) * 13
+        + (fbm(x * 0.16 + 31, y * 0.16 - 17) - 0.5) * 3.4;
       elev[y * w + x] = tilt + roll;
     }
   }
