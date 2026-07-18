@@ -65,6 +65,8 @@ const ICONS = {
   stats: [['path', { d: 'M3.5 13V8.5M7.5 13V4M11.5 13V6.5' }], ['path', { d: 'M2 13.5h12' }]],
   exit: [['path', { d: 'M4 4l8 8M12 4l-8 8' }]],
   frame: [['path', { d: 'M2.5 5.5v-3h3M13.5 5.5v-3h-3M2.5 10.5v3h3M13.5 10.5v3h-3' }]],
+  // a flight path climbing away from the tee, with its heading arrow
+  flyover: [['path', { d: 'M1.5 12.5C5.5 12 10 9.5 13.5 4.5' }], ['path', { d: 'M10.2 4.6h3.6v3.5' }]],
   shrub: [['path', { d: 'M4.5 13c-2-1.5-2-4.5.5-5.5C4.5 4.5 7 3.5 8 5c1-1.5 3.5-.5 3 2.5 2.5 1 2.5 4 .5 5.5z' }], ['path', { d: 'M8 13v1.5' }]],
   rock: [['path', { d: 'M3 12l1.5-4.5L8 5l4 1.5L13.5 12z' }], ['path', { d: 'M8 5l1 7' }]],
   prop: [['path', { d: 'M3 12.5V9.5h10v3' }], ['path', { d: 'M4 9.5V6h8v3.5' }], ['path', { d: 'M4.5 12.5v1M11.5 12.5v1' }]],
@@ -687,8 +689,21 @@ export function makeCourseEditor(app, hooks) {
     ui.flyoverOpt,
   );
   ui.cameraSel.onchange = () => setCameraView(ui.cameraSel.value);
+  // Flyover is a timed flight that restores the preset it interrupted, so it is
+  // deliberately NOT one of the persistable camera views (see
+  // normalizeCourseCameraView). It still belongs beside them where the
+  // reference puts it, rather than buried in the hole picker — so it gets a
+  // button next to the selector instead of an option inside it.
+  ui.flyoverBtn = el('button', {
+    class: 'ced-top-btn ced-flyover',
+    title: 'Fly the selected hole from tee to green',
+    onclick: () => {
+      if (flyover) stopFlyover();
+      else startFlyover(selectedHole());
+    },
+  }, svgIcon('flyover'), el('span', { text: 'Flyover' }));
   const billWrap = el('div', { class: 'ced-bill-wrap' },
-    ui.holeChip, ui.cameraSel, ui.billChip, ui.applyBtn, ui.discardBtn,
+    ui.holeChip, ui.cameraSel, ui.flyoverBtn, ui.billChip, ui.applyBtn, ui.discardBtn,
   );
 
   ui.moneyChip = el('span', { class: 'ced-money', text: '' });
@@ -782,6 +797,17 @@ export function makeCourseEditor(app, hooks) {
     ui.discardBtn.disabled = !dirty;
     ui.undoBtn.disabled = !(session && session.undo.length);
     ui.redoBtn.disabled = !(session && session.redo.length);
+    // startFlyover needs a hole with both a tee and a pin; say so on the button
+    // rather than letting the click quietly do nothing.
+    const flyable = selectedHole();
+    const canFly = !!(flyable && flyable.tee && flyable.pin);
+    ui.flyoverBtn.disabled = !canFly && !flyover;
+    ui.flyoverBtn.classList.toggle('on', !!flyover);
+    ui.flyoverBtn.title = flyover
+      ? 'Stop the flyover and return to the previous camera'
+      : canFly
+        ? 'Fly the selected hole from tee to green'
+        : 'This hole needs a tee and a pin before it can be flown';
     ui.moneyChip.textContent = compactMoney(state().cash);
     ui.moneyChip.title = `Available cash: ${formatMoney(state().cash)}`;
     // the game date rides along, like the reference's "Y1 · Spring · Day 2"
@@ -3181,6 +3207,7 @@ export function makeCourseEditor(app, hooks) {
     renderFlyoverStatus();
     sc.flyoverHole(hole, 0);
     hint('Flying the hole — click or press Esc to stop');
+    refreshTop(); // the flyover button becomes the stop control while flying
   }
 
   function stopFlyover() {
@@ -3189,6 +3216,7 @@ export function makeCourseEditor(app, hooks) {
     clearFlyoverState();
     setCameraView(restoreView, hole);
     hint(HINTS[tool] || '');
+    refreshTop();
   }
 
   function stepFlyover(dt) {
