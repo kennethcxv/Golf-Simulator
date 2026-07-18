@@ -1911,17 +1911,30 @@ export function makeCourseScene(canvas, state) {
       const hy = Math.round(s.y);
       let height;
       let rot;
+      // Girth and lean are what stop a belt of one GLB reading as one tree
+      // stamped a thousand times. A uniform scale keeps every silhouette
+      // similar however much the height varies, so vary the width against the
+      // height and let trunks lean a few degrees off vertical. Both pivot on
+      // the spot's ground point, so a leaning trunk stays planted.
+      let width;
+      let leanX = 0;
+      let leanZ = 0;
       if (s.obj) {
         height = sourceVariant.baseH * (s.obj.scale || 1);
         rot = s.obj.rot || 0;
+        width = height; // player-placed objects stay exactly as authored
       } else {
         const farBoost = 1 + Math.min(0.5, (s.far || 1) * 0.02); // distant forest reads a touch taller
-        height = sourceVariant.baseH * (0.86 + treeHash(hx + 3, hy + 77) * 0.4) * farBoost;
+        height = sourceVariant.baseH * (0.82 + treeHash(hx + 3, hy + 77) * 0.5) * farBoost;
         rot = treeHash(hx, hy) * 6.28;
+        width = height * (0.88 + treeHash(hx + 41, hy + 19) * 0.26);
+        const lean = 0.075; // ~4 degrees at most
+        leanX = (treeHash(hx + 7, hy + 53) - 0.5) * lean;
+        leanZ = (treeHash(hx + 67, hy + 11) - 0.5) * lean;
       }
-      eu.set(0, rot, 0);
+      eu.set(leanX, rot, leanZ);
       q.setFromEuler(eu);
-      m.compose(v.set(p.x, p.y, p.z), q, sc.set(height, height, height));
+      m.compose(v.set(p.x, p.y, p.z), q, sc.set(width, height, width));
       // Preserve the authored sage/canopy values. Instance color adds age and
       // exposure variety without crushing every shaded crown toward black.
       const brightness = 0.91 + treeHash(hx + 13, hy + 29) * 0.13;
