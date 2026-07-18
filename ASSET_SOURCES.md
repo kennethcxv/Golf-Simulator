@@ -165,7 +165,7 @@ assets, no generation credits spent.
 
 | Model | Notes |
 |---|---|
-| `cash_drawer.glb` | **REBUILT EMPTY.** Five bill wells for [50, 20, 10, 5, 1] and three coin cups for [0.25, 0.10, 0.05], matching DENOMS. |
+| `cash_drawer.glb` | **REBUILT EMPTY.** Five bill wells for [50, 20, 10, 5, 1] and five coin cups for [0.50, 0.20, 0.10, 0.05, 0.01], matching DENOMS. |
 | `basket.glb` | Shop basket: flared slatted tub, trapezoid handle. |
 | `bag_open.glb` | The open carrier goods are dropped into (the closed one a customer walks out with is separate). |
 | `impulse_rack.glb` | Three-tier counter rack of markers and tee packets, facing the queue. |

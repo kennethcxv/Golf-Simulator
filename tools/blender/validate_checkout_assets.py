@@ -24,6 +24,18 @@ ROOT = Path(__file__).resolve().parents[2]
 EXPORT_DIR = ROOT / "vendor" / "models" / "clubhouse"
 
 REQUIREMENTS = {
+    "checkout_product_staging_tray": {
+        "nodes": {"ProductStagingTrayBase", "ProductStagingTrayInset", "ANCHOR_ProductStagingSurface"},
+        "min_anchors": 1,
+        "min_collisions": 1,
+        "actions": set(),
+    },
+    "checkout_change_handoff_tray": {
+        "nodes": {"ChangeHandoffTrayBase", "ChangeHandoffTrayFelt", "ANCHOR_ChangeHandoffSurface", "ANCHOR_ChangePickup"},
+        "min_anchors": 2,
+        "min_collisions": 1,
+        "actions": set(),
+    },
     "checkout_counter": {
         "nodes": {"ANCHOR_POS", "ANCHOR_DrawerHousing", "ANCHOR_Scanner", "ANCHOR_CardReader", "ANCHOR_ReceiptPrinter", "ANCHOR_Bag"},
         "min_anchors": 11,
@@ -46,7 +58,7 @@ REQUIREMENTS = {
             "BillLabelText_50",
             "CoinLabelText_5",
             "CoinLabelText_10",
-            "CoinLabelText_25",
+            "CoinLabelText_20",
             "CoinLabelText_50",
             "CoinLabelText_1",
             "ANCHOR_DrawerClosed",
@@ -178,7 +190,7 @@ def validate(asset_id: str, spec: dict) -> tuple[list[str], dict]:
                     errors.append(f"bill well does not fit currency: {denomination}")
             if anchor is not None and (anchor.parent is None or anchor.parent.name != "DrawerSlide"):
                 errors.append(f"invalid bill-well anchor hierarchy: {denomination}")
-        for cents in (1, 5, 10, 25, 50):
+        for cents in (1, 5, 10, 20, 50):
             label = bpy.data.objects.get(f"CoinLabelText_{cents}")
             anchor = bpy.data.objects.get(f"ANCHOR_CoinCup_{cents}")
             if label is not None and (label.parent is None or label.parent.name != "DrawerSlide"):

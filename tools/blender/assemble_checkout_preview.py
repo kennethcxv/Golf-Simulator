@@ -105,7 +105,7 @@ def main():
         broot.location = (0, 0, 0.002)
         broot.rotation_euler = (0, 0, math.radians(90))
         fills.append(broot)
-    for code in ("01", "05", "10", "25", "50"):
+    for code in ("01", "05", "10", "20", "50"):
         criot, _ = import_glb(f"cash_coin_{code}")
         sock = next(o for o in dobjs if o.name == f"COIN_{code}_SOCKET")
         criot.parent = sock

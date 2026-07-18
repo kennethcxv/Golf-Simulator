@@ -37,13 +37,14 @@ EXPORT_DIR = ROOT / "vendor" / "models" / "clubhouse"
 SOURCE_DIR.mkdir(parents=True, exist_ok=True)
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
-BUILD_VERSION = 5
+BUILD_VERSION = 9
 
 PALETTE = {
     "cream": (0.91, 0.86, 0.73, 1.0),
     "offwhite": (0.95, 0.93, 0.86, 1.0),
     "green": (0.055, 0.22, 0.12, 1.0),
     "sage": (0.38, 0.52, 0.40, 1.0),
+    "sage_dark": (0.27, 0.40, 0.29, 1.0),
     "walnut": (0.28, 0.17, 0.095, 1.0),
     "walnut_dark": (0.13, 0.075, 0.040, 1.0),
     "oak": (0.66, 0.47, 0.27, 1.0),
@@ -118,6 +119,7 @@ def materials() -> dict[str, bpy.types.Material]:
         "offwhite": mat("M_OffWhite", PALETTE["offwhite"], roughness=0.68),
         "green": mat("M_DeepGreen", PALETTE["green"], roughness=0.52),
         "sage": mat("M_Sage", PALETTE["sage"], roughness=0.66),
+        "sage_dark": mat("M_SageDark", PALETTE["sage_dark"], roughness=0.74),
         "walnut": mat("M_Walnut", PALETTE["walnut"], roughness=0.50),
         "walnut_dark": mat("M_DarkWalnut", PALETTE["walnut_dark"], roughness=0.56),
         "oak": mat("M_NaturalOak", PALETTE["oak"], roughness=0.57),
@@ -597,7 +599,7 @@ def build_drawer(M):
 
     # Five compact coin cups mirror the live exact-cent denomination set. Their
     # 82 mm pitch matches the bill wells while retaining 8 mm between rims.
-    coins = [(1, -0.164), (5, -0.082), (10, 0.0), (25, 0.082), (50, 0.164)]
+    coins = [(1, -0.164), (5, -0.082), (10, 0.0), (20, 0.082), (50, 0.164)]
     for cents, x in coins:
         torus(f"CoinCupRim_{cents}", 0.037, 0.005, (x, 0.108, 0.080), M["brass"], parent=slide)
         cylinder(f"CoinCupFloor_{cents}", 0.032, 0.006, (x, 0.108, 0.055), M["green"], vertices=20, bevel=0.001, parent=slide)
@@ -866,6 +868,83 @@ def build_bag(M):
     return root
 
 
+def build_product_staging_tray(M):
+    """Shallow counter tray for the customer's unscanned products.
+
+    The footprint matches ``REGISTER.staging`` with a small safety margin.  Its
+    open, low profile preserves the one-click product targets while giving every
+    product an unmistakable physical home in the first-person register frame.
+    """
+    W, D, H = 0.82, 0.38, 0.026
+    root = asset_root("checkout_product_staging_tray", (W, D, H))
+    furniture = empty("ProductStagingTrayFurniture", parent=root)
+    box("ProductStagingTrayBase", (W, D, 0.010), (0, 0, 0.005), M["green"], bevel=0.008, parent=furniture)
+    box("ProductStagingTrayInset", (W - 0.040, D - 0.040, 0.006), (0, 0, 0.013), M["sage_dark"], bevel=0.010, parent=furniture)
+    # Walnut rails keep brass restrained to small corner fasteners; the former
+    # full gold perimeter dominated the merchandise at player-camera distance.
+    box("ProductStagingTrayRailFront", (W, 0.012, 0.018), (0, -D / 2 + 0.006, 0.017), M["walnut"], bevel=0.004, parent=furniture)
+    box("ProductStagingTrayRailBack", (W, 0.012, 0.018), (0, D / 2 - 0.006, 0.017), M["walnut"], bevel=0.004, parent=furniture)
+    box("ProductStagingTrayRailLeft", (0.012, D - 0.024, 0.018), (-W / 2 + 0.006, 0, 0.017), M["walnut"], bevel=0.004, parent=furniture)
+    box("ProductStagingTrayRailRight", (0.012, D - 0.024, 0.018), (W / 2 - 0.006, 0, 0.017), M["walnut"], bevel=0.004, parent=furniture)
+    for corner_index, (x, y) in enumerate((
+        (-W / 2 + 0.012, -D / 2 + 0.012),
+        (W / 2 - 0.012, -D / 2 + 0.012),
+        (-W / 2 + 0.012, D / 2 - 0.012),
+        (W / 2 - 0.012, D / 2 - 0.012),
+    ), start=1):
+        cylinder(f"ProductStagingTrayBrassFastener_{corner_index:02d}", 0.008, 0.006, (x, y, 0.026), M["brass"], vertices=12, bevel=0.001, parent=furniture)
+    # Five subtle capacity pips communicate that the layout is data-driven up
+    # to the master brief's maximum without forcing products into fixed slots.
+    for marker_index in range(5):
+        cylinder(
+            f"ProductStagingCapacityMarker_{marker_index + 1:02d}",
+            0.006,
+            0.003,
+            (-0.12 + marker_index * 0.06, D / 2 - 0.038, 0.019),
+            M["brass"],
+            vertices=12,
+            bevel=0.0005,
+            parent=furniture,
+        )
+    anchor(
+        "ANCHOR_ProductStagingSurface",
+        (0, 0, 0.018),
+        parent=root,
+        kind="surface",
+        props={"size_x_m": W - 0.040, "size_y_m": D - 0.040},
+    )
+    collision_box("COL_ProductStagingTray", (W, D, H), (0, 0, H / 2), M, parent=root)
+    return root
+
+
+def build_change_handoff_tray(M):
+    """Small cashier-side tray for counted change before customer handoff."""
+    W, D, H = 0.38, 0.20, 0.024
+    root = asset_root("checkout_change_handoff_tray", (W, D, H))
+    furniture = empty("ChangeHandoffTrayFurniture", parent=root)
+    box("ChangeHandoffTrayBase", (W, D, 0.010), (0, 0, 0.005), M["charcoal"], bevel=0.008, parent=furniture)
+    box("ChangeHandoffTrayFelt", (W - 0.034, D - 0.034, 0.006), (0, 0, 0.013), M["green"], bevel=0.009, parent=furniture)
+    # Leave the customer-facing edge low/open so bills can slide off naturally.
+    box("ChangeHandoffTrayRailBack", (W, 0.012, 0.018), (0, D / 2 - 0.006, 0.017), M["walnut"], bevel=0.004, parent=furniture)
+    box("ChangeHandoffTrayRailLeft", (0.012, D - 0.012, 0.018), (-W / 2 + 0.006, 0.006, 0.017), M["walnut"], bevel=0.004, parent=furniture)
+    box("ChangeHandoffTrayRailRight", (0.012, D - 0.012, 0.018), (W / 2 - 0.006, 0.006, 0.017), M["walnut"], bevel=0.004, parent=furniture)
+    for corner_index, (x, y) in enumerate((
+        (-W / 2 + 0.012, D / 2 - 0.012),
+        (W / 2 - 0.012, D / 2 - 0.012),
+    ), start=1):
+        cylinder(f"ChangeHandoffTrayBrassFastener_{corner_index:02d}", 0.008, 0.006, (x, y, 0.026), M["brass"], vertices=12, bevel=0.001, parent=furniture)
+    anchor(
+        "ANCHOR_ChangeHandoffSurface",
+        (0, 0, 0.018),
+        parent=root,
+        kind="surface",
+        props={"size_x_m": W - 0.034, "size_y_m": D - 0.034},
+    )
+    anchor("ANCHOR_ChangePickup", (0, -D / 2, 0.030), parent=root, kind="grip")
+    collision_box("COL_ChangeHandoffTray", (W, D, H), (0, 0, H / 2), M, parent=root)
+    return root
+
+
 def build_counter(M):
     """Production shell for reference Asset 01.
 
@@ -968,6 +1047,8 @@ def build_counter(M):
 
 BUILDERS = {
     "checkout_counter": build_counter,
+    "checkout_product_staging_tray": build_product_staging_tray,
+    "checkout_change_handoff_tray": build_change_handoff_tray,
     "checkout_cash_drawer": build_drawer,
     "checkout_scanner": build_scanner,
     "checkout_card_reader": build_card_reader,

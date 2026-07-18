@@ -471,11 +471,11 @@ _SCENES = {
 }
 
 # ============================================================== banknotes ======
-# Physical note sizes step with value (Sheet 02): a size ladder is instantly
-# readable and deliberately un-USD (all US notes share one size).
+# Physical note sizes follow the exact sheet references. The Sheet-01 twenty
+# and Sheet-02 fifty share the largest footprint by design.
 BILL_DIMS = {
     1: (0.122, 0.054), 5: (0.132, 0.057), 10: (0.142, 0.061),
-    20: (0.149, 0.0635), 50: (0.156, 0.066),
+    20: (0.156, 0.066), 50: (0.156, 0.066),
 }
 
 BILL_STYLE = {
@@ -623,24 +623,38 @@ def bill_img(denom, *, w=1024, h=1024):
 
 
 # ================================================================= coinage =====
-# Monotonic size ladder (value grows with the coin — deliberately un-US),
-# five distinct alloys, relief baked to color + a real normal map.
+# Monotonic size ladder from Asset Sheet 02.  Segment counts are chosen so the
+# exported, bevelled cylinders land close to the sheet's approximate triangle
+# budgets (180 / 220 / 250 / 280 / 300) without wasting silhouette geometry.
 COIN_SPECS = {
     # code: (label, radius m, thickness m, segments)
-    "01": ("1", 0.0090, 0.0014, 26),
-    "05": ("5", 0.0105, 0.0016, 26),
-    "10": ("10", 0.0120, 0.0018, 28),
-    "25": ("25", 0.0130, 0.0020, 28),
-    "50": ("50", 0.0150, 0.0022, 32),
+    "01": ("1", 0.0090, 0.0014, 24),
+    "05": ("5", 0.0105, 0.0016, 28),
+    "10": ("10", 0.0120, 0.0018, 32),
+    "20": ("20", 0.0130, 0.0020, 36),
+    "50": ("50", 0.0150, 0.0022, 38),
+    # Asset 10 is a separate five-unit hero coin from Sheet 01.  It must not
+    # alias the smaller 21 mm Sheet-02 five-unit coin above: the reference uses
+    # a 24 mm bimetallic piece with different reverse artwork.
+    "05_sheet01": ("5", 0.0120, 0.0018, 28),
 }
 
 COIN_STYLE = {
     # core rgb, collar rgb (None = mono-metal), roughness, value word, reeded?
-    "01": dict(core=(0.420, 0.235, 0.130), ring=None, rough=0.46, word="ONE UNIT", reeded=False),
-    "05": dict(core=(0.400, 0.410, 0.385), ring=None, rough=0.38, word="FIVE UNITS", reeded=True),
-    "10": dict(core=(0.500, 0.360, 0.100), ring=None, rough=0.36, word="TEN UNITS", reeded=True),
-    "25": dict(core=(0.480, 0.500, 0.545), ring=None, rough=0.30, word="TWENTY FIVE", reeded=True),
-    "50": dict(core=(0.270, 0.280, 0.310), ring=(0.550, 0.400, 0.130), rough=0.33, word="FIFTY UNITS", reeded=True),
+    "01": dict(core=(0.420, 0.235, 0.130), ring=None, rough=0.46, word="ONE UNIT", reeded=True),
+    "05": dict(core=(0.470, 0.490, 0.520), ring=(0.550, 0.400, 0.130), core_ratio=0.65, numeral_alloy="core", rough=0.38, word="FIVE UNITS", reeded=True),
+    "10": dict(core=(0.255, 0.270, 0.285), ring=(0.550, 0.400, 0.130), core_ratio=0.65, rough=0.36, word="TEN UNITS", reeded=True),
+    "20": dict(core=(0.355, 0.375, 0.410), ring=(0.550, 0.400, 0.130), core_ratio=0.65, rough=0.34, word="TWENTY UNITS", reeded=True),
+    "50": dict(core=(0.270, 0.280, 0.310), ring=(0.550, 0.400, 0.130), core_ratio=0.65, rough=0.33, word="FIFTY UNITS", reeded=True),
+    "05_sheet01": dict(
+        core=(0.500, 0.515, 0.535),
+        ring=(0.545, 0.395, 0.125),
+        rough=0.34,
+        word="FIVE UNITS",
+        reeded=True,
+        reverse="golfer",
+        seed=615,
+    ),
 }
 
 
@@ -734,19 +748,26 @@ def coin_img(code, *, w=512, h=1024):
     (color_image, normal_image); relief lives in a real height field."""
     st = COIN_STYLE[code]
     label, _r, _t, _segs = COIN_SPECS[code]
-    rng = np.random.default_rng(310 + int(code))
+    seed = st.get("seed")
+    if seed is None:
+        seed = 310 + int(code)
+    rng = np.random.default_rng(seed)
     core = np.array(st["core"], "float32")
     ring = None if st["ring"] is None else np.array(st["ring"], "float32")
     dark = core * 0.45
     bright = np.clip(core * 1.5, 0, 1)
-    AY = (0.462 * h) / w                       # v-span of one face vs u-span
+    # A square 1024 atlas keeps two 512-square face cells stacked vertically;
+    # the hero 1024x2048 atlas keeps two 1024-square cells. Work in that logical
+    # face span so numerals, rims and relief do not stretch with atlas width.
+    face_span = min(w, h // 2)
+    AY = (0.462 * h) / face_span               # v-span of one face vs face u-span
 
     arr = np.ones((h, w, 3), "float32") * core
     arr *= (1.0 + (L._fbm(rng, w, h, 40, 40, 4)[..., None] - 0.5) * 0.06)
     hgt = np.zeros((h, w), "float32")
 
-    R = int(w * 0.462)                         # face radius in px (mesh edge = w/2)
-    CORE_R = 0.56                              # bimetal core boundary (of R)
+    R = int(face_span * 0.462)                 # face radius inside its square cell
+    CORE_R = st.get("core_ratio", 0.56)       # bimetal core boundary (of R)
 
     def metal_at(rr_):
         """The local alloy per pixel: collar metal outside CORE_R on a bimetal."""
@@ -800,10 +821,12 @@ def coin_img(code, *, w=512, h=1024):
             # legend on the top arc, engraved
             leg_col = tuple((metal_out * 0.72).tolist())
             _arc_text(arr, hgt, st["word"], cx, cy, R * 0.72, -math.pi * 0.84, -math.pi * 0.16,
-                      max(3, w // 128), leg_col, 0.55, AY)
+                      max(3, face_span // 128), leg_col, 0.55, AY)
             # the big minted numeral (the ref reads value-first at a glance)
             npx = 26 if len(label) < 2 else 18
-            num_col = np.clip(ring * 1.05, 0, 1) if ring is not None else np.clip(core * 1.24, 0, 1)
+            numeral_metal = core if st.get("numeral_alloy") == "core" else ring
+            num_col = (np.clip(numeral_metal * 1.05, 0, 1) if numeral_metal is not None
+                       else np.clip(core * 1.24, 0, 1))
             canvas = _layer(w, h)
             K.draw_text(canvas, label, int(cx), int(cy), npx, (1, 1, 1))
             m = canvas[..., 0] > 0.5
@@ -827,20 +850,31 @@ def coin_img(code, *, w=512, h=1024):
             beads = (np.abs(rr / R - 0.905) < 0.022) & (np.abs(bfrac - 0.5) < 0.22)
             relief(fmask & beads, 1.16, 0.55)
             canvas = _layer(w, h)
-            if code == "01":
-                _leaf_sprig(canvas, cx, cy, w / 512 * 3.6, AY)
+            if st.get("reverse") == "golfer":
+                # Sheet-01 reverse: a fictional golfer relief, intentionally
+                # distinct from Sheet-02's crest/crossed-club family.
+                K._stamp_golfer(canvas, cx, cy + R * 0.04 * AY, face_span / 512 * 3.05, (1, 1, 1))
+            elif code == "01":
+                _leaf_sprig(canvas, cx, cy, face_span / 512 * 3.6, AY)
             else:
-                _crown(canvas, cx, cy - R * 0.36 * AY, w / 512 * 2.8, AY)
-                _crossed_clubs(canvas, cx, cy + R * 0.14 * AY, w / 512 * 3.2, AY)
+                _crown(canvas, cx, cy - R * 0.36 * AY, face_span / 512 * 2.8, AY)
+                _crossed_clubs(canvas, cx, cy + R * 0.14 * AY, face_span / 512 * 3.2, AY)
             m = canvas[..., 0] > 0.5
             sh = np.roll(np.roll(m, 3, axis=0), 3, axis=1) & ~m
             arr[sh] = lm[sh] * 0.60
-            relief(m, 0.72, 0.7)
+            if ring is not None:
+                # The reference family strikes its reverse crest in a pale
+                # nickel alloy even when the field is dark gunmetal.  Keep the
+                # clubs legible at drawer scale instead of dark-on-dark.
+                arr[m] = np.array((0.62, 0.65, 0.69), "float32")
+                hgt[m] = np.maximum(hgt[m], 0.7)
+            else:
+                relief(m, 0.72, 0.7)
             arc_col = tuple((metal_out * 0.72).tolist())
             _arc_text(arr, hgt, "FAIRHOLLOW", cx, cy, R * 0.70, -math.pi * 0.82, -math.pi * 0.18,
-                      max(3, w // 150), arc_col, 0.5, AY)
+                      max(3, face_span // 150), arc_col, 0.5, AY)
             _arc_text(arr, hgt, "GOLF CLUB", cx, cy, R * 0.70, math.pi * 0.80, math.pi * 0.20,
-                      max(3, w // 150), arc_col, 0.5, AY, bottom=True)
+                      max(3, face_span // 150), arc_col, 0.5, AY, bottom=True)
 
     face(int(h * 0.25), front=True)
     face(int(h * 0.75), front=False)
@@ -870,7 +904,7 @@ def coin_img(code, *, w=512, h=1024):
     arr *= (1.0 - ao[..., None] * 0.8)
 
     # ------------------------------------------------------- normal map -------
-    hs = _blur(hgt, 2) * (w / 512 * 2.6)         # relief strength in px
+    hs = _blur(hgt, 2) * (face_span / 512 * 2.6) # relief strength in face px
     gy_, gx_ = np.gradient(hs)
     nx, ny, nz = -gx_, gy_, np.ones_like(hs)
     ln = np.sqrt(nx * nx + ny * ny + nz * nz)

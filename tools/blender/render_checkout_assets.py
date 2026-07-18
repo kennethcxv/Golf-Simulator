@@ -64,7 +64,9 @@ def bounds(meshes: list[bpy.types.Object]) -> tuple[Vector, Vector]:
     return low, high
 
 
-def add_studio(meshes: list[bpy.types.Object], *, wide: bool = False) -> None:
+def add_studio(
+    meshes: list[bpy.types.Object], *, wide: bool = False, customer_side: bool = False,
+) -> None:
     scene = bpy.context.scene
     scene.render.engine = "BLENDER_EEVEE"
     scene.render.resolution_x = 960 if wide else 720
@@ -99,7 +101,12 @@ def add_studio(meshes: list[bpy.types.Object], *, wide: bool = False) -> None:
     floor.data.materials.append(material)
 
     distance = extent * (2.45 if wide else 2.70)
-    camera_location = center + Vector((distance * 0.78, -distance, distance * 0.62))
+    camera_offset = (
+        Vector((-distance * 0.78, distance, distance * 0.62))
+        if customer_side
+        else Vector((distance * 0.78, -distance, distance * 0.62))
+    )
+    camera_location = center + camera_offset
     bpy.ops.object.camera_add(location=camera_location)
     camera = bpy.context.object
     camera.name = "QA_Camera"
@@ -122,9 +129,9 @@ def add_studio(meshes: list[bpy.types.Object], *, wide: bool = False) -> None:
         light.rotation_euler = (center - location).to_track_quat("-Z", "Y").to_euler()
 
 
-def render(path: Path, *, wide: bool = False) -> None:
+def render(path: Path, *, wide: bool = False, customer_side: bool = False) -> None:
     meshes = visible_meshes()
-    add_studio(meshes, wide=wide)
+    add_studio(meshes, wide=wide, customer_side=customer_side)
     bpy.context.scene.render.filepath = str(path)
     bpy.ops.render.render(write_still=True)
     print(f"RENDERED|{path}")
@@ -169,6 +176,10 @@ def render_individuals(out: Path) -> None:
         wipe()
         import_asset(asset_id)
         render(out / f"{asset_id}.png", wide=asset_id == "checkout_counter")
+
+    wipe()
+    import_asset("checkout_counter")
+    render(out / "checkout_counter_customer.png", wide=True, customer_side=True)
 
     state_renders = (
         ("checkout_cash_drawer", "DrawerSlide_OpenHoldClose", "DrawerSlide", 24, "checkout_cash_drawer_open.png"),
