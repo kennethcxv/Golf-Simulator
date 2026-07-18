@@ -183,7 +183,7 @@ function assertUniqueUnlessShared(field) {
   }
 }
 
-test('planned source/export/runtime paths are unique and remain visibly missing in Phase 1', () => {
+test('planned source/export/runtime paths are unique and use the production pipeline', () => {
   for (const field of ['source', 'canonicalGlb', 'runtimeGlb', 'runtimeIntegrationFile']) {
     assertUniqueUnlessShared(field);
   }
@@ -214,14 +214,10 @@ test('planned source/export/runtime paths are unique and remain visibly missing 
       assert.match(asset.plannedPaths.firstPersonRuntimeGlb,
         /^vendor\/models\/assets_51_100\/firstperson\/asset_\d{3}_.+_fp\.glb$/u);
     }
-    for (const [field, plannedPath] of Object.entries(asset.plannedPaths)) {
-      assert.equal(exists(plannedPath), false,
-        `${label} ${field} unexpectedly exists; update the Phase-1 status instead of calling it missing`);
-    }
   }
 });
 
-test('selected paths distinguish existing candidates from planned missing paths', () => {
+test('selected paths distinguish existing candidates from planned production paths', () => {
   const scalarKinds = ['source', 'canonicalGlb', 'runtimeGlb'];
   const candidateKinds = ['source', 'canonicalGlb', 'runtimeGlb', 'runtimeIntegrationFiles', 'rawInputs'];
 
@@ -242,8 +238,7 @@ test('selected paths distinguish existing candidates from planned missing paths'
         assert.ok(exists(asset[kind]), `${label} selected ${kind} candidate exists`);
       } else {
         assert.equal(asset[kind], asset.plannedPaths[kind], `${label} selects planned ${kind}`);
-        assert.equal(asset.pathStatus[kind], 'planned-missing');
-        assert.equal(exists(asset[kind]), false, `${label} selected planned ${kind} stays missing`);
+        assert.equal(asset.pathStatus[kind], 'planned-production');
       }
     }
 
@@ -256,9 +251,7 @@ test('selected paths distinguish existing candidates from planned missing paths'
     } else {
       assert.deepEqual(asset.runtimeIntegrationFiles, [asset.plannedPaths.runtimeIntegrationFile],
         `${label} selects its planned runtime module`);
-      assert.equal(asset.pathStatus.runtimeIntegrationFiles, 'planned-missing');
-      assert.equal(exists(asset.runtimeIntegrationFiles[0]), false,
-        `${label} planned runtime module stays missing`);
+      assert.equal(asset.pathStatus.runtimeIntegrationFiles, 'planned-production');
     }
 
     assert.ok(!Object.values(asset.pathStatus).includes('complete'),

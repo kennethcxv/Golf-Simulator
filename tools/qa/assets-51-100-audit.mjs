@@ -29,7 +29,13 @@ import {
 const ROOT = process.cwd();
 const OUTPUT_DIRECTORY = path.join(ROOT, 'qa', 'assets_51_100_master');
 const GENERATOR_PATH = 'tools/qa/assets-51-100-audit.mjs';
-const NON_FINAL_STATUS = 'PHASE_1_DISCOVERY_NON_FINAL';
+const HAS_PLANNED_PRODUCTION_ARTIFACT = ASSETS.some((asset) => (
+  Object.values(asset.plannedPaths).some((repoPath) => existsSync(path.resolve(ROOT, repoPath)))
+));
+const AUDIT_STAGE = HAS_PLANNED_PRODUCTION_ARTIFACT
+  ? 'PRODUCTION_IN_PROGRESS'
+  : 'PHASE_1_DISCOVERY';
+const NON_FINAL_STATUS = `${AUDIT_STAGE}_NON_FINAL`;
 const FINAL_STATUS = 'NOT_ACCEPTED';
 
 mkdirSync(OUTPUT_DIRECTORY, { recursive: true });
@@ -448,7 +454,7 @@ const metadata = {
   generatedAt,
   generator: GENERATOR_PATH,
   nodeVersion: process.version,
-  phase: 'PHASE_1_DISCOVERY',
+  phase: AUDIT_STAGE,
   status: NON_FINAL_STATUS,
   final: false,
   repositoryRoot: '.',
@@ -476,7 +482,7 @@ const manifest = {
 const finalAudit = {
   ...metadata,
   documentType: 'STRUCTURAL_ASSET_AUDIT',
-  auditStage: 'PHASE_1_DISCOVERY',
+  auditStage: AUDIT_STAGE,
   summary,
   missingCurrentCandidateArtifacts: auditRecords.flatMap((record) => (
     record.missingCandidateArtifacts.map((artifact) => ({
@@ -508,14 +514,14 @@ const manifestLines = [
   '',
   `Status: **${NON_FINAL_STATUS}**. Reuse candidates are production inputs only; no asset is finally accepted.`,
   '',
-  '## Phase-1 counts',
+  '## Production counts',
   '',
   '| Measure | Count | Meaning |',
   '|---|---:|---|',
   `| Existing candidate assets | ${summary.existingCandidateCount} | ${mdCell(summary.existingCandidateCountUnit)} |`,
   `| Selected existing runtime GLBs | ${summary.selectedExistingRuntimeGlbCount} | Reuse candidates selected by the Phase-1 spec |`,
   `| Planned production artifacts | ${summary.plannedProductionArtifactCount} | ${mdCell(summary.plannedProductionArtifactCountIncludes)} |`,
-  `| Planned artifacts present | ${summary.plannedProductionArtifactsPresentCount} | Expected to be zero at Phase 1 |`,
+  `| Planned artifacts present | ${summary.plannedProductionArtifactsPresentCount} | Discovery baseline was zero; current disk census |`,
   `| Structurally accepted planned assets | ${summary.structurallyAcceptedCount} | Complete planned world plus required first-person artifacts |`,
   `| Finally production accepted | ${summary.finalProductionAcceptedCount} | Requires later gameplay, visual, save/load, and performance evidence |`,
   '',
