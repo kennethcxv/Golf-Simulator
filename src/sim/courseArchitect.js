@@ -22,109 +22,510 @@ import { makeCourse, addHole, idx, inBounds, getZone } from './course.js';
 import {
   emptyVec, makeVecTee, makeVecGreen, makeVecBunker, makeVecPond,
   deriveZones, sampleOpen, polyLength, alongPoly, ensurePaint, invalidateGeom,
+  evaluateSurface, getGeom,
 } from './courseVec.js';
+import {
+  applyAuthoredTerrainProfiles, compileVegetationExclusions, tallVegetationAllowed,
+} from './courseLandscape.js';
 import { clamp } from '../core/utils.js';
 
 // ------------------------------------------------------------ the template ----
 
 // Cell coordinates (1 cell = 8 yd) on the 120×80 property. y grows south.
+function corridorLandscape(leftTypes, rightTypes, options = {}) {
+  const treeT0 = options.treeT0 ?? 0.18;
+  const treeT1 = options.treeT1 ?? 0.88;
+  const spacingYd = options.spacingYd ?? 31;
+  const openingClearYd = options.openingClearYd ?? 30;
+  const approachClearYd = options.approachClearYd ?? 26;
+  return {
+    exclusions: [
+      { kind: 'route', t0: 0, t1: 0.18, clearHalfYd: openingClearYd },
+      { kind: 'route', t0: 0.18, t1: 0.76, beyondFairwayYd: 7 },
+      { kind: 'route', t0: 0.76, t1: 1, clearHalfYd: approachClearYd },
+      { kind: 'green', bufferYd: 22 },
+      { kind: 'bunker', bufferYd: 7 },
+      { kind: 'path', bufferYd: 5 },
+    ],
+    plantings: [
+      {
+        side: 'left', t0: treeT0, t1: treeT1, beyondFairwayYd: 11,
+        spacingYd, lateralJitterYd: 2.5, minClearYd: 7,
+        scale: [0.92, 1.28], types: leftTypes,
+      },
+      {
+        side: 'right', t0: treeT0, t1: treeT1, beyondFairwayYd: 12,
+        spacingYd: spacingYd + 3, lateralJitterYd: 2.5, minClearYd: 7,
+        scale: [0.9, 1.25], types: rightTypes,
+      },
+      {
+        side: 'left', t0: 0.14, t1: 0.94, beyondFairwayYd: 3,
+        spacingYd: 21, lateralJitterYd: 3, minClearYd: 3,
+        scale: [0.78, 1.12], types: ['grass_clump', 'bush_native', 'rock_m', 'shrub_round'],
+      },
+      {
+        side: 'right', t0: 0.16, t1: 0.92, beyondFairwayYd: 4,
+        spacingYd: 23, lateralJitterYd: 3, minClearYd: 3,
+        scale: [0.78, 1.12], types: ['bush_native', 'grass_clump', 'shrub_round', 'rock_s'],
+      },
+    ],
+  };
+}
+
+// Hero water can use an architect-controlled normalized outline while retaining
+// makeVecPond's schema, depth, and deterministic construction. The generic
+// seeded silhouette remains the fallback for every other pond/property.
+function makeAuthoredPond(spec, cx, cy, seed) {
+  const pond = makeVecPond(cx, cy, spec.rx, spec.ry, seed);
+  const outline = Array.isArray(spec.outline) && spec.outline.length >= 8
+    ? spec.outline.filter((point) => (
+      Array.isArray(point) && Number.isFinite(point[0]) && Number.isFinite(point[1])
+    ))
+    : null;
+  if (outline?.length >= 8) {
+    const angle = Number(spec.angle) || 0;
+    const ca = Math.cos(angle);
+    const sa = Math.sin(angle);
+    pond.pts = outline.map(([across, front]) => {
+      const ex = across * spec.rx / CELL_YD;
+      const ey = front * spec.ry / CELL_YD;
+      return { x: cx + ex * ca - ey * sa, y: cy + ex * sa + ey * ca };
+    });
+  }
+  if (spec.role) pond.role = spec.role;
+  if (spec.surface) pond.surface = spec.surface;
+  return pond;
+}
+
 const TEMPLATE = [
   {
-    name: 'Opening Drive', par: 4, hcp: 4, roughW: 26,
-    line: [[18.75, 38.75], [36.25, 34.0], [53.75, 32.25], [71.25, 36.25]],
-    width: [[0.05, 9], [0.18, 13], [0.55, 19], [0.72, 13.5], [0.88, 14], [1, 15]],
-    green: { r: 12, elong: 1.3 },
+    name: 'Opening Drive', par: 4, hcp: 6, roughW: 25,
+    line: [[20.75, 34.75], [36.75, 30.5], [54.25, 31.5], [71.75, 27.75]],
+    width: [[0.05, 9], [0.18, 13], [0.48, 20.5], [0.64, 18.5], [0.8, 12], [1, 14]],
+    green: {
+      r: 12, elong: 1.3, raise: 2.35, tilt: 0.18,
+      // An angled pear rather than a seeded oval. Coordinates are normalized
+      // [across play, toward the approach]; Catmull-Rom sampling turns these
+      // restrained control points into a continuous, mowable boundary. The
+      // forward nose supplies a ground-access throat between the two traps.
+      angleOffset: 0.06,
+      tiltOffset: 0.1,
+      style: 'opening-drive-angled-pear',
+      outline: [
+        [0.98, -0.08], [0.91, 0.31], [0.68, 0.68], [0.36, 0.98],
+        [0.06, 1.2], [-0.28, 1.08], [-0.62, 0.79], [-0.94, 0.39],
+        [-1.07, -0.04], [-0.91, -0.48], [-0.62, -0.81], [-0.24, -1.02],
+        [0.2, -1.06], [0.59, -0.91], [0.85, -0.63], [0.97, -0.33],
+      ],
+      // Broad rolls measured relative to the outline: a quiet back-left shelf
+      // and a shallow front-right feed. Heights are feet, deliberately below
+      // five inches so the surface reads as shaped without becoming miniature.
+      contours: [
+        { role: 'back-left-shelf', across: -0.4, front: -0.28, radius: 0.76, heightFt: 0.3 },
+        { role: 'front-right-feed', across: 0.46, front: 0.34, radius: 0.62, heightFt: -0.12 },
+      ],
+    },
     bunkers: [
-      { at: [54.4, 36.9], r: 7.5, depth: 2.2 },          // right of the landing
-      { at: [68.3, 33.6], r: 6.0, depth: 2.6 },          // greenside left
+      { at: [50.5, 34.0], r: 8.5, depth: 2.2, lip: 1.1, stretch: 1.35, angle: -0.18, lobes: 3 }, // landing edge, right
+      { at: [69.5, 25.6], r: 6.2, depth: 2.7, lip: 1.35, stretch: 1.28, angle: 0.52, lobes: 3 }, // greenside left
     ],
+    // Pure, hash-shaped authored features. These never draw from rng, consume a
+    // vector id, or count against the quality-scaled bunker budget.
+    fixedBunkers: [
+      { at: [68.7, 30.6], r: 5.4, depth: 2.5, lip: 1.25, stretch: 1.15, angle: -0.2, lobes: 3 },
+    ],
+    path: {
+      side: 'outward', arrivalPull: 0.5,
+      fullOffsetFromT: 0.08, fullOffsetToT: 0.92,
+      minFairwayEdgeClearYd: 26,
+    },
+    vegetation: {
+      exclusions: [
+        { kind: 'route', t0: 0, t1: 0.18, clearHalfYd: 34 },
+        { kind: 'route', t0: 0.18, t1: 0.72, beyondFairwayYd: 6 },
+        { kind: 'route', t0: 0.72, t1: 1, clearHalfYd: 26 },
+        { kind: 'green', bufferYd: 24 },
+        { kind: 'bunker', bufferYd: 8 },
+        { kind: 'path', bufferYd: 6 },
+      ],
+      // Route-relative, RNG-free plantings make the opening corridor read as a
+      // deliberately framed golf hole. They are sockets in authored data, not
+      // renderer coordinates; the planting pass projects them from the spline.
+      plantings: [
+        { side: 'left', t0: 0.2, t1: 0.7, beyondFairwayYd: 9, spacingYd: 30, lateralJitterYd: 2.5,
+          types: ['oak_a', 'maple_a', 'pine_a', 'oak_b'] },
+        { side: 'right', t0: 0.22, t1: 0.7, beyondFairwayYd: 10, spacingYd: 33, lateralJitterYd: 2,
+          types: ['pine_a', 'oak_b', 'spruce_a', 'maple_a'] },
+        { side: 'left', t0: 0.72, t1: 0.93, beyondFairwayYd: 17, spacingYd: 25, lateralJitterYd: 1.5,
+          types: ['oak_a', 'pine_b', 'maple_a'] },
+        { side: 'right', t0: 0.72, t1: 0.93, beyondFairwayYd: 17, spacingYd: 27, lateralJitterYd: 1.5,
+          types: ['spruce_a', 'oak_b', 'pine_a'] },
+        { side: 'left', t0: 0.16, t1: 0.94, beyondFairwayYd: 3, spacingYd: 18, lateralJitterYd: 3,
+          minClearYd: 3, scale: [0.82, 1.18], types: ['grass_clump', 'bush_native', 'rock_m', 'shrub_round'] },
+        { side: 'right', t0: 0.18, t1: 0.92, beyondFairwayYd: 4, spacingYd: 20, lateralJitterYd: 3,
+          minClearYd: 3, scale: [0.78, 1.14], types: ['bush_native', 'grass_clump', 'shrub_round', 'rock_s'] },
+      ],
+    },
+    terrainProfile: {
+      relativeFeet: [[0, 0], [0.16, 2.4], [0.34, 6.6], [0.5, 5.0], [0.64, 3.3], [0.82, 7.3], [1, 8.2]],
+      landingPlateau: { t0: 0.42, t1: 0.64, maxCrossSlope: 0.025 },
+      landingCrown: { t0: 0.2, t1: 0.72, edgeDropFt: 2.6 },
+      approachShoulder: { t0: 0.74, t1: 0.94, side: 'right', heightFt: 3.1 },
+    },
+    // Unequal shoulders sit behind the putting surface instead of forming the
+    // previous symmetric dome. Local distances are real-world yards.
+    greenBackstops: {
+      mounds: [
+        { role: 'back-left-shoulder', backYd: 22, acrossYd: -15, radiusYd: 18, heightFt: 2.8 },
+        { role: 'back-right-shoulder', backYd: 17, acrossYd: 18, radiusYd: 14, heightFt: 2.1 },
+      ],
+    },
   },
   {
-    name: 'The Overlook', par: 3, hcp: 7, roughW: 22,
-    line: [[76.25, 33.75], [86.5, 31.5], [96.9, 30.0]],
-    width: [[0, 5], [1, 7]],
-    green: { r: 13.5, elong: 1.2 },
+    name: 'The Overlook', par: 3, hcp: 7, roughW: 24,
+    line: [[76.25, 33.75], [84.8, 32.4], [91.3, 30.8], [96.8, 29.1]],
+    width: [[0, 5.5], [0.25, 4.5], [0.6, 6.5], [0.82, 9], [1, 12]],
+    green: {
+      r: 13, elong: 1.26, angleOffset: 0.3, raise: 2, tilt: 0.16, tiltOffset: -0.05,
+      style: 'overlook-diagonal-fan',
+      outline: [
+        [0.92, -0.58], [1.02, -0.08], [0.86, 0.48], [0.52, 0.92],
+        [0.08, 1.12], [-0.42, 1.02], [-0.82, 0.68], [-1.02, 0.18],
+        [-0.92, -0.36], [-0.58, -0.82], [-0.08, -1], [0.48, -0.9],
+      ],
+      contours: [
+        { role: 'rear-right-shelf', across: 0.38, front: -0.28, radius: 0.66, heightFt: 0.22 },
+        { role: 'front-feed', across: -0.1, front: 0.42, radius: 0.7, heightFt: -0.1 },
+      ],
+    },
     bunkers: [
-      { at: [94.2, 28.4], r: 6.0, depth: 2.8 },
-      { at: [97.6, 32.2], r: 5.2, depth: 2.4 },
+      { at: [94.8, 27.8], r: 5.8, depth: 2.8, lip: 1.25, stretch: 1.3, angle: 0.28, lobes: 3 },
+      { at: [97.6, 31.4], r: 5.2, depth: 2.5, lip: 1.15, stretch: 1.15, angle: -0.2, lobes: 3 },
     ],
-    teeKnoll: 7,
+    teeKnoll: 3.5,
+    terrainProfile: {
+      relativeFeet: [[0, 0], [0.14, -1.2], [0.42, -4.2], [0.72, -8.4], [1, -11.2]],
+      approachShoulder: { t0: 0.72, t1: 0.96, side: 'right', heightFt: 1.8 },
+    },
+    path: {
+      side: 'outward', arrivalPull: 0.42, fullOffsetFromT: 0.1,
+      fullOffsetToT: 0.88, minFairwayEdgeClearYd: 16,
+      transitionAfter: [[100.5, 27.5], [105, 26], [108, 23], [106, 19.5]],
+    },
+    vegetation: corridorLandscape(
+      ['birch_a', 'pine_a', 'maple_a'], ['pine_a', 'spruce_a', 'oak_b'],
+      { openingClearYd: 32, approachClearYd: 28, spacingYd: 34 },
+    ),
+    teeAmenities: { bench: true, washer: false, trash: true },
   },
   {
-    name: 'Long Meadow', par: 5, hcp: 2, roughW: 28,
-    line: [[101.25, 25.6], [96.25, 18.75], [77.5, 16.5], [58.75, 18.75], [41.25, 21.5]],
-    width: [[0.04, 9], [0.16, 13], [0.42, 18.5], [0.58, 13], [0.74, 17], [0.9, 13.5], [1, 14.5]],
-    green: { r: 11.5, elong: 1.35 },
+    name: 'Long Meadow', par: 5, hcp: 2, roughW: 30,
+    line: [[104.5, 23.4], [94.5, 17.4], [78, 12.8], [61, 11.8], [44.5, 13.2]],
+    width: [[0.04, 9], [0.16, 13], [0.32, 18], [0.46, 20], [0.58, 14], [0.72, 18.5], [0.88, 12], [1, 14.5]],
+    green: {
+      r: 12, elong: 1.42, angleOffset: -0.22, raise: 2.1, tilt: 0.18, tiltOffset: 0.08,
+      style: 'long-meadow-diagonal-kidney',
+      outline: [
+        [1.05, -0.52], [1.06, 0.02], [0.82, 0.58], [0.42, 1], [-0.06, 1.1],
+        [-0.52, 0.92], [-0.84, 0.55], [-0.9, 0.12], [-0.7, -0.14],
+        [-0.82, -0.56], [-0.42, -0.9], [0.04, -0.98], [0.54, -0.88], [0.88, -0.7],
+      ],
+      contours: [
+        { role: 'back-shelf', across: -0.34, front: -0.32, radius: 0.72, heightFt: 0.25 },
+        { role: 'run-in-feed', across: 0.3, front: 0.42, radius: 0.65, heightFt: -0.1 },
+      ],
+    },
     bunkers: [
-      { at: [88.0, 15.6], r: 8.0, depth: 2.2 },          // first landing right
-      { at: [56.2, 20.1], r: 9.0, depth: 2.0, stretch: 1.7 }, // cross bunker
-      { at: [44.5, 23.1], r: 6.5, depth: 2.7 },          // greenside front-left
+      { at: [75, 10.4], r: 8, depth: 2.2, lip: 1.05, stretch: 1.45, angle: -0.1, lobes: 3 },
+      { at: [61.5, 15.2], r: 8.7, depth: 2.3, lip: 1.1, stretch: 1.65, angle: 0.15, lobes: 3 },
+      { at: [46.7, 15.2], r: 6.2, depth: 2.7, lip: 1.25, stretch: 1.2, angle: 0.4, lobes: 3 },
     ],
+    terrainProfile: {
+      relativeFeet: [[0, 0], [0.14, 1.2], [0.3, 4.5], [0.46, 6.2], [0.62, 4.1], [0.76, 7], [0.9, 5.4], [1, 6.4]],
+      landingPlateau: { t0: 0.34, t1: 0.52, maxCrossSlope: 0.028 },
+      landingCrown: { t0: 0.2, t1: 0.76, edgeDropFt: 2 },
+      approachShoulder: { t0: 0.76, t1: 0.94, side: 'left', heightFt: 2.3 },
+    },
+    path: {
+      side: 'outward', arrivalPull: 0.28, fullOffsetFromT: 0.09,
+      fullOffsetToT: 0.92, minFairwayEdgeClearYd: 15,
+    },
+    vegetation: corridorLandscape(
+      ['oak_a', 'maple_a', 'oak_b'], ['pine_a', 'oak_b', 'spruce_a'],
+      { treeT0: 0.14, treeT1: 0.92, spacingYd: 38, openingClearYd: 34, approachClearYd: 28 },
+    ),
+    teeAmenities: { bench: true, washer: true, trash: true },
   },
   {
-    name: 'The Elbow', par: 4, hcp: 5, roughW: 24,
-    line: [[40.5, 17.4], [27.5, 20.9], [18.9, 27.5], [16.9, 34.4], [23.1, 38.75]],
-    width: [[0.05, 8.5], [0.2, 12.5], [0.48, 17], [0.7, 12], [1, 14]],
-    green: { r: 12, elong: 1.25 },
+    name: 'The Elbow', par: 4, hcp: 5, roughW: 25,
+    line: [[37.8, 8], [26.5, 10], [16, 17], [7.8, 30], [7.2, 45.5]],
+    width: [[0.04, 8], [0.16, 11], [0.34, 17], [0.48, 20], [0.6, 14], [0.76, 11], [0.9, 13], [1, 14]],
+    green: {
+      r: 12.2, elong: 1.2, angleOffset: 0.34, raise: 2, tilt: 0.17, tiltOffset: -0.08,
+      style: 'elbow-offset-boomerang',
+      outline: [
+        [1.02, -0.42], [1, 0.08], [0.72, 0.66], [0.3, 1.04], [-0.18, 1.08],
+        [-0.62, 0.86], [-0.96, 0.42], [-1, -0.08], [-0.72, -0.5],
+        [-0.3, -0.9], [0.16, -0.96], [0.66, -0.78],
+      ],
+      contours: [
+        { role: 'rear-left-shelf', across: -0.36, front: -0.3, radius: 0.68, heightFt: 0.24 },
+        { role: 'front-right-feed', across: 0.42, front: 0.38, radius: 0.6, heightFt: -0.11 },
+      ],
+    },
     bunkers: [
-      { at: [24.9, 24.6], r: 7.5, depth: 2.3 },          // inside the elbow
-      { at: [20.2, 36.6], r: 5.6, depth: 2.6 },
+      { at: [16.5, 21.5], r: 8, depth: 2.4, lip: 1.15, stretch: 1.45, angle: 0.72, lobes: 3 },
+      { at: [9.8, 42.6], r: 6, depth: 2.7, lip: 1.3, stretch: 1.2, angle: 0.25, lobes: 3 },
     ],
     strongDogleg: true,
+    terrainProfile: {
+      relativeFeet: [[0, 0], [0.18, 2], [0.4, 5.5], [0.53, 4.8], [0.68, 0.5], [0.84, -3], [1, -1.5]],
+      landingPlateau: { t0: 0.34, t1: 0.54, maxCrossSlope: 0.025 },
+      landingCrown: { t0: 0.22, t1: 0.66, edgeDropFt: 2.3 },
+      approachShoulder: { t0: 0.72, t1: 0.94, side: 'left', heightFt: 2.4 },
+    },
+    path: {
+      side: 'outward', arrivalPull: 0.32, fullOffsetFromT: 0.08,
+      fullOffsetToT: 0.92, minFairwayEdgeClearYd: 14,
+      transitionAfter: [[4.2, 48.5], [8.5, 51], [14.5, 52.5], [18, 49], [21, 46.5]],
+    },
+    vegetation: corridorLandscape(
+      ['oak_a', 'maple_a', 'fill_a'], ['pine_a', 'spruce_a', 'oak_b'],
+      { treeT0: 0.12, treeT1: 0.94, spacingYd: 29, openingClearYd: 32, approachClearYd: 26 },
+    ),
+    teeAmenities: {
+      bench: true, washer: false, trash: false,
+      // Keep the furniture beside the walk-on rather than between the player
+      // camera and this sharply turning opening shot.
+      signLateralYd: 7.5, signAlongYd: 2.4,
+      benchLateralYd: 12, benchAlongYd: -6,
+    },
   },
   {
     name: 'Millpond', par: 4, hcp: 1, roughW: 26,
-    line: [[23.1, 49.4], [40.0, 53.75], [57.5, 56.0], [75.0, 58.75]],
-    width: [[0.05, 9], [0.2, 13.5], [0.55, 19.5], [0.75, 13], [1, 14.5]],
-    green: { r: 12, elong: 1.3 },
+    line: [[23.5, 50.8], [37, 52.8], [50.5, 53.2], [62, 54.7], [75.5, 58]],
+    width: [[0.04, 9], [0.16, 13.5], [0.38, 20], [0.56, 18], [0.72, 13.5], [0.86, 11.5], [1, 14]],
+    green: {
+      r: 13, elong: 1.24, angleOffset: -0.18, raise: 2.05, tilt: 0.22, tiltOffset: 0.12,
+      style: 'millpond-diagonal-cape',
+      outline: [
+        [0.98, -0.16], [0.92, 0.28], [0.68, 0.72], [0.28, 1.06], [-0.14, 1.16],
+        [-0.57, 0.92], [-0.91, 0.48], [-1.02, -0.04], [-0.84, -0.56],
+        [-0.46, -0.96], [0.02, -1.08], [0.48, -0.88], [0.82, -0.54],
+      ],
+      contours: [
+        { role: 'safe-left-shelf', across: -0.38, front: -0.12, radius: 0.72, heightFt: 0.28 },
+        { role: 'pond-feed', across: 0.48, front: 0.28, radius: 0.6, heightFt: -0.16 },
+      ],
+    },
     bunkers: [
-      { at: [40.6, 51.0], r: 8.0, depth: 2.2 },          // landing left — bail-out costs you
-      { at: [77.6, 60.6], r: 6.0, depth: 2.5 },
+      { at: [42, 50.4], r: 7.8, depth: 2.2, lip: 1.1, stretch: 1.55, angle: 0.15, lobes: 3 },
+      { at: [77.3, 55.8], r: 5.8, depth: 2.7, lip: 1.3, stretch: 1.25, angle: -0.25, lobes: 3 },
     ],
-    pond: { at: [64.4, 61.2], rx: 42, ry: 27 },          // guards the right approach
+    // The pond follows the right side of the diagonal approach as a single
+    // strategic cape. Its fairway-facing bank stays open; the broader back bank
+    // carries the landscape dressing so the target edge remains readable.
+    pond: {
+      at: [67.25, 60.15], rx: 36, ry: 29, angle: 0.12,
+      role: 'millpond-approach', surface: 'outline',
+      outline: [
+        [1.02, -0.12], [0.95, 0.18], [0.78, 0.48], [0.52, 0.75], [0.15, 0.91],
+        [-0.17, 0.86], [-0.48, 0.99], [-0.75, 0.72], [-0.95, 0.38], [-1.02, -0.02],
+        [-0.9, -0.34], [-0.64, -0.58], [-0.31, -0.72], [0.02, -0.9], [0.34, -0.78],
+        [0.63, -0.61], [0.86, -0.4], [0.98, -0.25],
+      ],
+    },
+    terrainProfile: {
+      relativeFeet: [[0, 0], [0.15, 2], [0.38, 1], [0.55, 0], [0.7, -2.5], [0.84, -0.5], [1, 3.5]],
+      landingPlateau: { t0: 0.3, t1: 0.55, maxCrossSlope: 0.025 },
+      landingCrown: { t0: 0.2, t1: 0.72, edgeDropFt: 2 },
+    },
+    path: {
+      side: 'inward', arrivalPull: 1, fullOffsetFromT: 0.08,
+      fullOffsetToT: 0.92, minFairwayEdgeClearYd: 14, waterBufferYd: 8,
+      transitionAfter: [
+        [84, 51], [83.5, 51.75], [83, 52.5], [82, 53.25], [81, 54],
+        [80.25, 54.75], [79.5, 55.5], [78.75, 56.25], [78.25, 57],
+        [78.1, 57.75], [78.1, 58.5], [78.1, 59.25], [77.8, 60],
+        [77.5, 60.75], [77.75, 61.5], [78.5, 62.25], [79.25, 63],
+        [80, 63.75],
+      ],
+    },
+    vegetation: corridorLandscape(
+      ['oak_a', 'maple_a', 'birch_a'], ['oak_b', 'pine_a', 'maple_a'],
+      { spacingYd: 34, openingClearYd: 32, approachClearYd: 30 },
+    ),
+    teeAmenities: { bench: true, washer: false, trash: true },
   },
   {
-    name: 'Short Iron', par: 3, hcp: 9, roughW: 20,
-    line: [[80.0, 62.5], [87.0, 64.2], [94.4, 66.25]],
-    width: [[0, 4.5], [1, 6.5]],
-    green: { r: 13, elong: 1.15 },
+    name: 'Short Iron', par: 3, hcp: 9, roughW: 21,
+    line: [[78.8, 61], [87.2, 63.3], [96.3, 65.8]],
+    width: [[0, 4.5], [0.28, 3.2], [0.68, 2.7], [0.88, 5], [1, 8.5]],
+    green: {
+      r: 12.8, elong: 1.34, angleOffset: 0.38, raise: 2.2, tilt: 0.24, tiltOffset: -0.15,
+      style: 'short-iron-kidney',
+      outline: [
+        [0.96, -0.1], [0.82, 0.42], [0.48, 0.88], [0.02, 1.08], [-0.45, 0.94],
+        [-0.83, 0.56], [-0.96, 0.04], [-0.7, -0.46], [-0.26, -0.82],
+        [0.18, -0.72], [0.58, -0.92], [0.9, -0.56],
+      ],
+      contours: [
+        { role: 'high-back-pad', across: -0.25, front: -0.32, radius: 0.66, heightFt: 0.24 },
+        { role: 'bailout-feed', across: 0.38, front: 0.38, radius: 0.58, heightFt: -0.1 },
+      ],
+    },
     bunkers: [
-      { at: [91.7, 65.1], r: 4.6, depth: 3.0 },          // pot ring
-      { at: [93.0, 67.8], r: 4.2, depth: 3.0 },
-      { at: [96.1, 64.0], r: 4.4, depth: 3.0 },
+      { at: [94.1, 66.9], r: 5.8, depth: 3.2, lip: 1.35, stretch: 1.25, angle: 0.3, lobes: 3 },
+      { at: [96, 62.9], r: 4.2, depth: 2.5, lip: 1.15, stretch: 1.05, angle: -0.2, lobes: 2 },
+      { at: [98.5, 65.7], r: 3.9, depth: 2.8, lip: 1.2, stretch: 1, angle: 0.1, lobes: 2 },
     ],
+    terrainProfile: {
+      relativeFeet: [[0, 0], [0.18, -1], [0.45, -3], [0.7, 0], [0.88, 4], [1, 6.5]],
+    },
+    path: {
+      side: 'outward', arrivalPull: 1, fullOffsetFromT: 0.1,
+      fullOffsetToT: 0.88, minFairwayEdgeClearYd: 14,
+      transitionAfter: [
+        [94, 68], [95, 68.1], [96, 68.2], [97, 68.3], [98, 68.4],
+        [99, 68.6], [100, 68.8], [101, 69], [101.5, 69.7],
+        [101.8, 70.5], [101.8, 71.25], [101.5, 72], [101, 72.75],
+        [100.5, 73.5], [99.75, 74.25], [99, 75],
+      ],
+    },
+    vegetation: corridorLandscape(
+      ['pine_a', 'spruce_a', 'birch_a'], ['oak_b', 'maple_a', 'pine_a'],
+      { treeT0: 0.26, treeT1: 0.9, spacingYd: 38, openingClearYd: 34, approachClearYd: 28 },
+    ),
+    teeAmenities: { bench: true, washer: false, trash: true },
   },
   {
     name: 'Cascades', par: 5, hcp: 3, roughW: 28,
-    line: [[100.0, 68.1], [83.1, 71.9], [65.0, 71.0], [48.75, 68.1], [35.0, 65.0]],
-    width: [[0.04, 9], [0.15, 13], [0.4, 18], [0.56, 13.5], [0.72, 17.5], [0.88, 13], [1, 14.5]],
-    green: { r: 11.5, elong: 1.4 },
+    line: [[100, 70.5], [86.5, 73.3], [71, 72.7], [55.5, 69.5], [43, 68], [35, 65.5]],
+    width: [[0.03, 8.5], [0.14, 12], [0.28, 18.5], [0.43, 14], [0.6, 19.5], [0.75, 13], [0.88, 16], [1, 13.5]],
+    green: {
+      r: 12, elong: 1.28, angleOffset: 0.2, raise: 1.95, tilt: 0.21, tiltOffset: 0.1,
+      style: 'cascades-saddle',
+      outline: [
+        [0.96, -0.12], [0.86, 0.34], [0.58, 0.78], [0.18, 1.05], [-0.26, 1],
+        [-0.68, 0.7], [-0.94, 0.24], [-0.92, -0.28], [-0.62, -0.72],
+        [-0.18, -1], [0.3, -0.94], [0.7, -0.66], [0.94, -0.3],
+      ],
+      contours: [
+        { role: 'upper-shelf', across: -0.35, front: -0.28, radius: 0.72, heightFt: 0.26 },
+        { role: 'lower-feed', across: 0.32, front: 0.4, radius: 0.62, heightFt: -0.12 },
+      ],
+    },
     bunkers: [
-      { at: [82.4, 69.6], r: 8.0, depth: 2.2 },          // staggered pair —
-      { at: [62.0, 73.3], r: 7.5, depth: 2.2 },          // pick a side to attack
-      { at: [37.8, 66.6], r: 6.2, depth: 2.6 },
+      { at: [84, 70.4], r: 8.2, depth: 2.2, lip: 1.05, stretch: 1.5, angle: 0.15, lobes: 3 },
+      { at: [64, 74.8], r: 8, depth: 2.25, lip: 1.1, stretch: 1.35, angle: -0.25, lobes: 3 },
+      { at: [38.2, 67.9], r: 6.2, depth: 2.7, lip: 1.25, stretch: 1.2, angle: 0.25, lobes: 3 },
     ],
     rollers: true,
+    terrainProfile: {
+      relativeFeet: [[0, 0], [0.12, -3], [0.25, -8], [0.37, -4.5], [0.51, -10], [0.63, -6.5], [0.78, -14], [0.9, -16], [1, -13.5]],
+      landingPlateau: { t0: 0.2, t1: 0.36, maxCrossSlope: 0.028 },
+      landingCrown: { t0: 0.16, t1: 0.78, edgeDropFt: 2.2 },
+      approachShoulder: { t0: 0.78, t1: 0.94, side: 'left', heightFt: 2.5 },
+    },
+    path: {
+      side: 'outward', arrivalPull: 1, fullOffsetFromT: 0.07,
+      fullOffsetToT: 0.93, minFairwayEdgeClearYd: 14,
+      transitionAfter: [
+        [31, 70.5], [31, 69.5], [31.2, 68.5], [31.5, 67.5],
+        [31.8, 66.5], [32.2, 65.5], [33, 64.5], [34, 63.5],
+        [35, 63.2], [36, 63.1], [37, 63.2], [38, 63.4],
+        [39, 63.6], [40, 63.8], [41, 64], [42, 64.3],
+        [43, 64.7], [44, 65],
+      ],
+    },
+    vegetation: corridorLandscape(
+      ['pine_a', 'spruce_a', 'oak_b'], ['oak_a', 'maple_a', 'pine_b'],
+      { treeT0: 0.12, treeT1: 0.94, spacingYd: 36, openingClearYd: 36, approachClearYd: 28 },
+    ),
+    teeAmenities: { bench: true, washer: true, trash: true },
   },
   {
     name: 'The Glade', par: 3, hcp: 8, roughW: 21,
-    line: [[33.1, 61.9], [41.5, 56.5], [50.5, 50.4]],
-    width: [[0, 4.5], [1, 6.5]],
-    green: { r: 13, elong: 1.2 },
+    line: [[39, 61.5], [48.2, 60.9], [58.5, 61]],
+    width: [[0, 5], [0.28, 3.8], [0.62, 4.2], [0.84, 7], [1, 9.5]],
+    green: {
+      r: 12.8, elong: 1.3, angleOffset: -0.24, raise: 1.9, tilt: 0.16, tiltOffset: 0.12,
+      style: 'glade-wide-saddle',
+      outline: [
+        [1.02, -0.2], [0.92, 0.3], [0.62, 0.78], [0.18, 1.02], [-0.28, 1.08],
+        [-0.72, 0.78], [-0.98, 0.3], [-0.94, -0.2], [-0.7, -0.62],
+        [-0.24, -0.94], [0.24, -0.88], [0.66, -0.72], [0.94, -0.44],
+      ],
+      contours: [
+        { role: 'back-glade-shelf', across: -0.32, front: -0.3, radius: 0.7, heightFt: 0.2 },
+        { role: 'center-run-in', across: 0.2, front: 0.42, radius: 0.68, heightFt: -0.1 },
+      ],
+    },
     bunkers: [
-      { at: [47.6, 52.6], r: 5.6, depth: 2.6 },
-      { at: [52.9, 48.4], r: 5.0, depth: 2.4 },
+      { at: [56.1, 59.2], r: 5.8, depth: 2.6, lip: 1.25, stretch: 1.35, angle: 0.18, lobes: 3 },
+      { at: [59.9, 62.9], r: 5, depth: 2.5, lip: 1.15, stretch: 1.1, angle: -0.3, lobes: 3 },
     ],
+    // A restrained pad still separates the tee complex, while the former
+    // 4.5-foot dome hid the entire par-3 target from a player's eye height.
+    teeKnoll: 1.35,
+    terrainProfile: {
+      relativeFeet: [[0, 0], [0.22, -0.8], [0.5, -2], [0.78, -0.8], [1, 0.8]],
+      approachShoulder: { t0: 0.7, t1: 0.96, side: 'right', heightFt: 1.5 },
+    },
+    path: {
+      side: 'outward', arrivalPull: 1, fullOffsetFromT: 0.12,
+      fullOffsetToT: 0.86, minFairwayEdgeClearYd: 8,
+      // H8 exits into the shared H5/H6 circulation spine. Keeping this as a
+      // branch avoids an implausible paved lap around the east boundary (and
+      // removes the old transfer that sat in H6's target view).
+      transitionAfter: [[64, 65], [72, 68], [80, 63.75]],
+    },
+    vegetation: corridorLandscape(
+      ['birch_a', 'maple_a', 'oak_a'], ['pine_a', 'spruce_a', 'birch_a'],
+      { treeT0: 0.08, treeT1: 0.95, spacingYd: 27, openingClearYd: 34, approachClearYd: 30 },
+    ),
+    teeAmenities: { bench: true, washer: false, trash: true },
   },
   {
     name: 'Homeward', par: 4, hcp: 6, roughW: 25,
-    line: [[65.0, 48.75], [47.5, 43.8], [31.25, 42.75], [20.0, 45.0]],
-    width: [[0.05, 9], [0.2, 13], [0.52, 18.5], [0.74, 12.5], [1, 14.5]],
-    green: { r: 12.5, elong: 1.3 },
+    line: [[65, 48.2], [49.5, 44.2], [33, 43.2], [20.5, 45.5]],
+    width: [[0.04, 9], [0.18, 13], [0.42, 19], [0.58, 17], [0.72, 12], [0.88, 13.5], [1, 14]],
+    green: {
+      r: 12.5, elong: 1.28, angleOffset: 0.16, raise: 2.15, tilt: 0.19, tiltOffset: -0.08,
+      style: 'homeward-terrace-pear',
+      outline: [
+        [0.96, -0.18], [0.9, 0.28], [0.66, 0.7], [0.26, 1.06], [-0.2, 1.12],
+        [-0.62, 0.86], [-0.94, 0.42], [-1.02, -0.06], [-0.82, -0.52],
+        [-0.42, -0.9], [0.06, -1.02], [0.52, -0.84], [0.84, -0.5],
+      ],
+      contours: [
+        { role: 'clubhouse-rear-shelf', across: -0.34, front: -0.3, radius: 0.7, heightFt: 0.25 },
+        { role: 'home-run-in', across: 0.28, front: 0.42, radius: 0.64, heightFt: -0.1 },
+      ],
+    },
     bunkers: [
-      { at: [23.4, 42.6], r: 6.2, depth: 2.5 },
-      { at: [21.4, 47.5], r: 5.4, depth: 2.4 },
+      { at: [47.2, 46.6], r: 7.2, depth: 2.3, lip: 1.1, stretch: 1.45, angle: -0.12, lobes: 3 },
+      { at: [22.8, 48.2], r: 5.6, depth: 2.6, lip: 1.25, stretch: 1.2, angle: 0.32, lobes: 3 },
     ],
+    terrainProfile: {
+      relativeFeet: [[0, 0], [0.2, 1.5], [0.42, 3], [0.62, 1], [0.8, 2.5], [1, 5]],
+      landingPlateau: { t0: 0.3, t1: 0.56, maxCrossSlope: 0.03 },
+      landingCrown: { t0: 0.2, t1: 0.7, edgeDropFt: 1.8 },
+      approachShoulder: { t0: 0.72, t1: 0.94, side: 'right', heightFt: 1.8 },
+    },
+    path: {
+      side: 'inward', arrivalPull: 1, fullOffsetFromT: 0.08,
+      fullOffsetToT: 0.9, minFairwayEdgeClearYd: 10,
+      // This branch leaves the south junction of the H5/H6 spine and reaches
+      // the finishing tee below Millpond. It is deliberately separate from
+      // H8's exit so the path network can join like real course infrastructure.
+      accessBefore: [[84, 51], [86, 49], [80, 44], [65, 43]],
+    },
+    vegetation: corridorLandscape(
+      ['oak_a', 'maple_a', 'oak_b'], ['oak_b', 'birch_a', 'pine_a'],
+      { treeT0: 0.14, treeT1: 0.86, spacingYd: 33, openingClearYd: 34, approachClearYd: 30 },
+    ),
+    teeAmenities: { bench: true, washer: true, trash: true },
   },
 ];
 
@@ -178,6 +579,19 @@ function fairHalfCells(stops, t) {
   return stops[stops.length - 1].w / CELL_YD;
 }
 
+// Copy authored metadata without sharing template references. Keeping this
+// deterministic and data-only means optional presentation/shaping records can
+// travel with a vector hole without advancing the course RNG.
+function cloneAuthored(value) {
+  if (Array.isArray(value)) return value.map(cloneAuthored);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [key, child] of Object.entries(value)) out[key] = cloneAuthored(child);
+    return out;
+  }
+  return value;
+}
+
 // ------------------------------------------------------------- the designer ----
 
 export function designCourse(rng, opts = {}) {
@@ -227,6 +641,9 @@ export function designCourse(rng, opts = {}) {
       bunkers: [],
       mowPhase: rng.next() * Math.PI * 2,
     };
+    for (const key of ['path', 'vegetation', 'terrainProfile']) {
+      if (t[key]) vh[key] = cloneAuthored(t[key]);
+    }
 
     // par-3 walk apron still renders as a slim fairway ribbon
     if (vh.apron) vh.width = vh.apron.map((s) => ({ t: s.t, w: s.w }));
@@ -247,11 +664,41 @@ export function designCourse(rng, opts = {}) {
 
     // green complex, oriented across the approach
     const gr = t.green.r * greenSizeMul + J(1.0);
-    const gAngle = appA + Math.PI / 2 + J(0.3);
-    const green = makeVecGreen(last.x, last.y, gr, t.green.elong + J(0.08), gAngle, vec.seed + i * 13);
+    const randomizedGAngle = appA + Math.PI / 2 + J(0.3);
+    const gAngle = Number.isFinite(t.green.angleOffset)
+      ? appA + Math.PI / 2 + t.green.angleOffset
+      : randomizedGAngle;
+    const greenElong = t.green.elong + J(0.08);
+    const green = makeVecGreen(
+      last.x, last.y, gr, greenElong, gAngle, vec.seed + i * 13, t.green.outline,
+    );
     green.raise = 1.5 + rng.next() * 0.7;
-    green.tiltA = appA + Math.PI + J(0.5); // greens tilt back toward the approach
+    const randomizedTiltA = appA + Math.PI + J(0.5);
+    green.tiltA = Number.isFinite(t.green.tiltOffset)
+      ? appA + Math.PI + t.green.tiltOffset
+      : randomizedTiltA; // greens tilt back toward the approach
     green.tilt = 0.2 + rng.next() * 0.15;
+    // Keep the same random draw sequence for every hole, then let a hero-hole
+    // specification pin its final playable contour deterministically.
+    if (Number.isFinite(t.green.raise)) green.raise = t.green.raise;
+    if (Number.isFinite(t.green.tilt)) green.tilt = t.green.tilt;
+    if (t.green.style) green.style = t.green.style;
+    if (Array.isArray(t.green.contours)) {
+      const ca = Math.cos(gAngle);
+      const sa = Math.sin(gAngle);
+      const rc = gr / CELL_YD;
+      green.contours = t.green.contours.map((contour) => {
+        const across = (Number(contour.across) || 0) * rc * greenElong;
+        const front = (Number(contour.front) || 0) * rc;
+        return {
+          role: contour.role || null,
+          x: last.x + across * ca - front * sa,
+          y: last.y + across * sa + front * ca,
+          r: Math.max(0.25, (Number(contour.radius) || 0.5) * rc),
+          h: Number(contour.heightFt) || 0,
+        };
+      });
+    }
     // pins A/B/C spread across the surface
     const gca = Math.cos(gAngle);
     const gsa = Math.sin(gAngle);
@@ -266,19 +713,55 @@ export function designCourse(rng, opts = {}) {
     for (let b = 0; b < t.bunkers.length; b++) {
       if (bunkersPlaced >= bunkerBudget) break; // low-quality courses carry fewer traps
       const spec = t.bunkers[b];
+      // Preserve the historical J/J/J/lobes draw order so authored H1
+      // silhouettes cannot reshuffle any downstream hole's seeded design.
+      const bx = spec.at[0] + J(0.4);
+      const by = spec.at[1] + J(0.4);
+      const br = spec.r + J(0.8);
+      const randomLobes = 2 + Math.floor(rng.next() * 3);
       const bunk = makeVecBunker(
-        spec.at[0] + J(0.4), spec.at[1] + J(0.4), spec.r + J(0.8),
+        bx, by, br,
         vec.seed * 7 + i * 31 + b * 11,
-        { depth: spec.depth, lobes: 2 + Math.floor(rng.next() * 3), stretch: spec.stretch || 1 },
+        {
+          depth: spec.depth,
+          lobes: spec.lobes ?? randomLobes,
+          stretch: spec.stretch || 1,
+          angle: spec.angle || 0,
+        },
       );
+      if (Number.isFinite(spec.lip)) bunk.lip = spec.lip;
       vh.bunkers.push(bunk);
       bunkersPlaced++;
+    }
+
+    // Extra authored bunkers use only their fixed data and makeVecBunker's
+    // deterministic hash. In particular: no J(), rng.next(), nextId, or
+    // bunker-budget mutation here, so every H2-H9 random draw remains stable.
+    for (let b = 0; b < (t.fixedBunkers || []).length; b++) {
+      const spec = t.fixedBunkers[b];
+      const bunker = makeVecBunker(
+        spec.at[0], spec.at[1], spec.r,
+        vec.seed * 7 + i * 31 + (t.bunkers.length + b) * 11,
+        {
+          depth: spec.depth,
+          lobes: spec.lobes ?? 3,
+          stretch: spec.stretch || 1,
+          angle: spec.angle || 0,
+        },
+      );
+      if (Number.isFinite(spec.lip)) bunker.lip = spec.lip;
+      vh.bunkers.push(bunker);
     }
 
     if (t.pond && includeWater) {
       vec.waters.push({
         id: vec.nextId++,
-        ...makeVecPond(t.pond.at[0] + J(0.5), t.pond.at[1] + J(0.3), t.pond.rx, t.pond.ry, vec.seed + 91 + i),
+        ...makeAuthoredPond(
+          t.pond,
+          t.pond.at[0] + J(0.5),
+          t.pond.at[1] + J(0.3),
+          vec.seed + 91 + i,
+        ),
       });
     }
     if (t.teeKnoll) {
@@ -298,12 +781,28 @@ export function designCourse(rng, opts = {}) {
     if (moundMul > 0.35) {
       for (let k = 0; k < 2; k++) {
         const side = k === 0 ? 1 : -1;
-        vec.mounds.push({
+        const mound = {
           id: vec.nextId++,
           x: last.x + Math.cos(appA) * 2.4 + Math.cos(appA + Math.PI / 2) * side * 1.7 + J(0.5),
           y: last.y + Math.sin(appA) * 2.4 + Math.sin(appA + Math.PI / 2) * side * 1.7 + J(0.5),
           r: 1.9 + rng.next() * 0.9, h: (1.4 + rng.next() * 1.1) * moundMul,
-        });
+        };
+        if (t.greenBackstops) {
+          const authored = t.greenBackstops.mounds?.[k];
+          if (authored) {
+            const back = authored.backYd / CELL_YD;
+            const across = authored.acrossYd / CELL_YD;
+            mound.x = last.x + Math.cos(appA) * back + Math.cos(appA + Math.PI / 2) * across;
+            mound.y = last.y + Math.sin(appA) * back + Math.sin(appA + Math.PI / 2) * across;
+            mound.r = authored.radiusYd / CELL_YD;
+            mound.h = authored.heightFt * moundMul;
+            mound.role = authored.role || null;
+          } else {
+            mound.r = t.greenBackstops.radiusCells;
+            mound.h = t.greenBackstops.heightFt * moundMul;
+          }
+        }
+        vec.mounds.push(mound);
       }
     }
 
@@ -311,11 +810,12 @@ export function designCourse(rng, opts = {}) {
     designed.push({ t, vh, lineSampled, lenC, aimA, appA });
   }
 
-  // a scenic pond in the north-east elbow between H2's green and H3's tee
+  // A small scenic basin behind the north-east routing transition. It stays
+  // well outside both playable corridors and reads as property drainage.
   if (includeWater) {
     vec.waters.push({
       id: vec.nextId++,
-      ...makeVecPond(106.5 + J(0.8), 21.8 + J(0.6), 16, 12, vec.seed + 777),
+      ...makeVecPond(110.2 + J(0.8), 18.8 + J(0.6), 14, 10, vec.seed + 777),
     });
   }
 
@@ -387,6 +887,10 @@ export function designCourse(rng, opts = {}) {
       elev[i] += (t - elev[i]) * 0.6;
     }
   }
+  // Authored longitudinal profiles sit on top of the generic rolling base.
+  // They give every hole a readable journey, playable landing shelves, and
+  // restrained approach shoulders without consuming generator RNG.
+  applyAuthoredTerrainProfiles(course);
   // clubhouse pad sits dead level
   {
     const cx = CLUBHOUSE.x + CLUBHOUSE.w / 2;
@@ -407,47 +911,115 @@ export function designCourse(rng, opts = {}) {
   course.structures.push({ ...CLUBHOUSE });
 
   const pathPts = [];
-  const push = (x, y) => {
+  const splitStarts = [0];
+  const pushTo = (points, x, y, minDistance = 2.4) => {
     const p = { x, y };
-    if (!pathPts.length || Math.hypot(p.x - pathPts[pathPts.length - 1].x, p.y - pathPts[pathPts.length - 1].y) > 2.4) {
-      pathPts.push(p);
+    if (!points.length || Math.hypot(p.x - points[points.length - 1].x, p.y - points[points.length - 1].y) > minDistance) {
+      points.push(p);
     }
+    return points.length - 1;
   };
-  // start at the clubhouse cart staging
-  push(CLUBHOUSE.x + CLUBHOUSE.w + 0.8, CLUBHOUSE.y + CLUBHOUSE.h - 0.6);
-  const courseCx = 60;
-  const courseCy = 40;
-  for (let i = 0; i < designed.length; i++) {
-    const d = designed[i];
+  const push = (x, y) => pushTo(pathPts, x, y);
+  const appendHolePath = (points, d, holeIndex) => {
     const n = 12;
+    // Choose the property-facing side once for the whole hole. Re-evaluating
+    // this sign at every control point lets a dogleg (or a return hole crossing
+    // the property centreline) flip the path through its own fairway.
+    const sideAnchor = alongPoly(d.lineSampled, 0.5);
+    const sideNx = -sideAnchor.ty;
+    const sideNy = sideAnchor.tx;
+    const outwardSide = (sideAnchor.x - 60) * sideNx + (sideAnchor.y - 40) * sideNy >= 0 ? 1 : -1;
+    let start = -1;
+    let end = -1;
     for (let k = 0; k <= n; k++) {
       const t = k / n;
       const p = alongPoly(d.lineSampled, t);
-      // the path ALWAYS rides the OUTWARD side of the hole (away from the course
-      // interior, toward the boundary forest) so it never crosses another
-      // fairway. Pick the corridor-perpendicular sign that points away from the
-      // course centre.
-      const nx = -p.ty; // corridor normal (one side)
+      // Pick the corridor-perpendicular side requested by the authored hole.
+      // "outward" remains relative to the property centre; explicit left/right
+      // options are useful where routing folds back through the interior.
+      const nx = -p.ty;
       const ny = p.tx;
-      const outward = (p.x - courseCx) * nx + (p.y - courseCy) * ny >= 0 ? 1 : -1;
-      const fwHalf = d.vh.width ? d.vh.width.reduce((mx, s) => Math.max(mx, s.w), 0) / CELL_YD : 3;
-      const off = outward * (fwHalf + (d.vh.roughW / CELL_YD) * 0.5 + 0.8 + Math.sin(t * 3.6 + i) * 0.3);
-      // pull in tight at the tee and the green so carts actually arrive
-      const pull = t < 0.06 || t > 0.94 ? 0.4 : 1;
-      push(p.x + nx * off * pull, p.y + ny * off * pull);
+      const outward = outwardSide;
+      const fwHalf = d.vh.width ? fairHalfCells(d.vh.width, t) : 3;
+      const authoredPath = d.vh.path;
+      let pathSide = outward;
+      if (authoredPath?.side === 'inward') pathSide = -outward;
+      else if (authoredPath?.side === 'left') pathSide = 1;
+      else if (authoredPath?.side === 'right') pathSide = -1;
+      const edgeClear = authoredPath?.minFairwayEdgeClearYd != null
+        ? authoredPath.minFairwayEdgeClearYd / CELL_YD
+        : (d.vh.roughW / CELL_YD) * 0.5 + 0.8;
+      const off = pathSide * (fwHalf + edgeClear + Math.sin(t * 3.6 + holeIndex) * 0.22);
+      const fromT = authoredPath?.fullOffsetFromT ?? 0.06;
+      const toT = authoredPath?.fullOffsetToT ?? 0.94;
+      const arrivalPull = authoredPath?.arrivalPull ?? 0.4;
+      let pull = 1;
+      if (t < fromT) pull = arrivalPull + (1 - arrivalPull) * (t / Math.max(0.001, fromT));
+      else if (t > toT) pull = 1 - (1 - arrivalPull) * ((t - toT) / Math.max(0.001, 1 - toT));
+      const retained = pushTo(points, p.x + nx * off * pull, p.y + ny * off * pull);
+      if (start < 0) start = retained;
+      end = retained;
+    }
+    return { start, end };
+  };
+  // start at the clubhouse cart staging
+  push(CLUBHOUSE.x + CLUBHOUSE.w + 0.8, CLUBHOUSE.y + CLUBHOUSE.h - 0.6);
+  // The opening hole's path belongs on its woodland edge, but the staging bay
+  // sits on the opposite side of the tee. Route the connector around the back
+  // of the clubhouse and outside the tee complex before it joins H1; a direct
+  // chord here used to cut straight across the player's opening view.
+  push(CLUBHOUSE.x + CLUBHOUSE.w + 2.8, CLUBHOUSE.y + CLUBHOUSE.h + 3.0);
+  push(CLUBHOUSE.x + CLUBHOUSE.w - 1.0, CLUBHOUSE.y + CLUBHOUSE.h + 4.0);
+  push(CLUBHOUSE.x - 1.0, CLUBHOUSE.y + CLUBHOUSE.h + 4.0);
+  push(CLUBHOUSE.x - 3.5, CLUBHOUSE.y + CLUBHOUSE.h + 0.5);
+  push(CLUBHOUSE.x - 3.5, TEMPLATE[0].line[0][1] + 1.5);
+  push(CLUBHOUSE.x, TEMPLATE[0].line[0][1] - 3.5);
+  push(TEMPLATE[0].line[0][0] - 4.5, TEMPLATE[0].line[0][1] - 5.0);
+  let southJunction = -1;
+  let northJunction = -1;
+  let h6PathStart = -1;
+  let h8Exit = -1;
+  // H1-H8 form the main circulation graph. H9 is appended later as a branch
+  // from the H5/H6 spine, preventing a sequential spline from lapping the east
+  // boundary and crossing the H6 target view.
+  for (let i = 0; i < designed.length - 1; i++) {
+    const d = designed[i];
+    const range = appendHolePath(pathPts, d, i);
+    // These are renderer spline boundaries, not disconnected path ends: slices
+    // overlap one control point so the paved network remains physically joined.
+    if (i === 5 || i === 6) splitStarts.push(range.start);
+    if (i === 5) h6PathStart = range.start;
+    // Long green-to-tee transfers are authored as circulation, not inferred as
+    // a direct Catmull-Rom chord through unrelated playing corridors.
+    let transitionStarted = false;
+    const transition = d.vh.path?.transitionAfter || [];
+    for (let k = 0; k < transition.length; k++) {
+      const point = transition[k];
+      const retained = pushTo(pathPts, point[0], point[1], 0.45);
+      // These authored transfer controls are deliberately dense around adjacent
+      // green/tee complexes. Preserve them through the generic relaxation pass;
+      // otherwise the clearance solver can flip a safe junction through the
+      // neighboring target it was meant to skirt.
+      if (i >= 4 && i <= 6) pathPts[retained].pathLocked = true;
+      if (!transitionStarted) {
+        transitionStarted = true;
+        if (i === 6) splitStarts.push(retained);
+      }
+      if (i === 4 && k === 0) southJunction = retained;
+      if (i === 4 && k === transition.length - 1) northJunction = retained;
+      if (i === 7 && k === transition.length - 1) h8Exit = retained;
     }
   }
-  // home leg back to the clubhouse
-  push(CLUBHOUSE.x + CLUBHOUSE.w + 2.4, CLUBHOUSE.y + CLUBHOUSE.h + 1.8);
   // clearance pass: shove any point that still sits on a fairway off it (the
   // connectors between interior holes are the usual offenders). Smoothing runs
   // FIRST (to relax the initial pushes) then the clearance has the LAST word so
   // nothing is pulled back onto a fairway. Margin covers CatmullRom overshoot.
-  const clearFairways = (margin) => {
+  const clearFairways = (points, margin) => {
     for (let iter = 0; iter < 14; iter++) {
       let moved = false;
-      for (let pi = 1; pi < pathPts.length - 1; pi++) { // pin the clubhouse endpoints
-        const p = pathPts[pi];
+      for (let pi = 1; pi < points.length - 1; pi++) { // pin network junctions/endpoints
+        const p = points[pi];
+        if (p.pathLocked) continue;
         let worst = 0;
         let pushX = 0;
         let pushY = 0;
@@ -487,22 +1059,86 @@ export function designCourse(rng, opts = {}) {
       if (!moved) break;
     }
   };
-  clearFairways(1.6);
-  // relax kinks the pushes may have left (endpoints pinned)
-  for (let s = 0; s < 2; s++) {
-    for (let i = 1; i < pathPts.length - 1; i++) {
-      pathPts[i].x = (pathPts[i - 1].x + pathPts[i].x * 2 + pathPts[i + 1].x) / 4;
-      pathPts[i].y = (pathPts[i - 1].y + pathPts[i].y * 2 + pathPts[i + 1].y) / 4;
+  const finishPath = (points) => {
+    clearFairways(points, 1.6);
+    // Relax kinks the pushes may have left (endpoints pinned).
+    for (let s = 0; s < 2; s++) {
+      for (let i = 1; i < points.length - 1; i++) {
+        if (points[i].pathLocked) continue;
+        points[i].x = (points[i - 1].x + points[i].x * 2 + points[i + 1].x) / 4;
+        points[i].y = (points[i - 1].y + points[i].y * 2 + points[i + 1].y) / 4;
+      }
+    }
+    clearFairways(points, 2.4); // wider final margin absorbs Catmull-Rom overshoot
+    for (const point of points) {
+      point.x = clamp(point.x, 2, w - 3);
+      point.y = clamp(point.y, 2, h - 3);
+    }
+  };
+  finishPath(pathPts);
+
+  // Snap H8's branch to the already-cleared north junction. Both occurrences
+  // become endpoints after slicing, so the three-way join is exact and stable.
+  if (northJunction >= 0) {
+    if (h6PathStart >= 0) {
+      pathPts[h6PathStart].x = pathPts[northJunction].x;
+      pathPts[h6PathStart].y = pathPts[northJunction].y;
+    }
+    if (h8Exit >= 0) {
+      pathPts[h8Exit].x = pathPts[northJunction].x;
+      pathPts[h8Exit].y = pathPts[northJunction].y;
     }
   }
-  clearFairways(2.4); // final word: a wider margin absorbs CatmullRom overshoot
-  const loop = {
-    id: course.nextPathId++,
-    pts: pathPts.map((p) => ({ x: clamp(p.x, 2, w - 3), y: clamp(p.y, 2, h - 3) })),
-    width: 3.4,
-    material: 'asphalt',
+
+  const homePathPts = [];
+  const h9 = designed[8];
+  if (southJunction >= 0) pushTo(homePathPts, pathPts[southJunction].x, pathPts[southJunction].y);
+  const access = h9.vh.path?.accessBefore || [];
+  // access[0] names the shared junction; use its cleared coordinate above.
+  for (let i = southJunction >= 0 ? 1 : 0; i < access.length; i++) {
+    const retained = pushTo(homePathPts, access[i][0], access[i][1], 0.45);
+    homePathPts[retained].pathLocked = true;
+  }
+  appendHolePath(homePathPts, h9, 8);
+  // The stable H9 side now finishes north of its green, already beside the
+  // clubhouse. A short staging connection is cleaner than the old ornamental
+  // loop, which doubled back through its own ribbon.
+  pushTo(homePathPts, pathPts[0].x, pathPts[0].y, 0.2);
+  finishPath(homePathPts);
+  // Close the network on the exact staging control rather than leaving a
+  // sub-cell seam that becomes visible from the clubhouse camera.
+  homePathPts[homePathPts.length - 1].x = pathPts[0].x;
+  homePathPts[homePathPts.length - 1].y = pathPts[0].y;
+
+  splitStarts.push(southJunction, northJunction, pathPts.length - 1);
+  const cuts = [...new Set(splitStarts.filter((index) => index >= 0))].sort((a, b) => a - b);
+  const addPath = (points) => {
+    const compact = [];
+    for (let i = 0; i < points.length; i++) {
+      const point = points[i];
+      const previous = compact[compact.length - 1];
+      if (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < 0.5) {
+        // Preserve the network endpoint if the final relaxed control collapsed
+        // onto its predecessor; otherwise discard the redundant near-duplicate.
+        if (i === points.length - 1) compact[compact.length - 1] = point;
+        continue;
+      }
+      compact.push(point);
+    }
+    if (compact.length < 2) return;
+    course.paths.push({
+      id: course.nextPathId++,
+      pts: compact.map((p) => ({ x: p.x, y: p.y })),
+      width: 2.7, // eight-foot paved ribbon, matching a real single-lane cart path
+      material: 'asphalt',
+    });
   };
-  course.paths.push(loop);
+  for (let i = 0; i < cuts.length - 1; i++) {
+    // Share the cut control at both ends: no gaps, while each renderer spline
+    // gets a local tangent and cannot weave through an unrelated branch.
+    addPath(pathPts.slice(cuts[i], cuts[i + 1] + 1));
+  }
+  addPath(homePathPts);
 
   // ---- 4. back-compat hole records (golfers, sections, saves, editor) —
   // BEFORE deriveZones so the tee/pin anchors get stamped into the grid
@@ -587,6 +1223,11 @@ const FOREST_MIX = [
   ['birch_a', 0.03], ['shade_a', 0.01],
 ];
 
+const TALL_PLANT_TYPES = new Set([
+  'fill_a', 'fill_b', 'oak_a', 'oak_b', 'maple_a', 'birch_a', 'shade_a', 'flower_a',
+  'pine_a', 'pine_b', 'spruce_a', 'cedar_a',
+]);
+
 function pickSpecies(rng, mix) {
   let r = rng.next();
   for (const [id, p] of mix) {
@@ -610,10 +1251,120 @@ function addObj(course, type, x, y, rot, scale) {
   return o;
 }
 
+function authoredObjectClear(course, x, y, minClearYd) {
+  const minCells = Math.max(0, minClearYd) / CELL_YD;
+  const d2 = minCells * minCells;
+  for (const object of course.objects) {
+    const dx = object.x - x;
+    const dy = object.y - y;
+    if (dx * dx + dy * dy < d2) return false;
+  }
+  return true;
+}
+
+// Millpond's open fairway bank is part of the shot picture, so its accent
+// planting belongs on the broad back shore rather than around the whole water
+// line. Fixed sockets append after procedural planting: they neither spend RNG
+// nor renumber any existing authored object.
+function dressMillpondShore(course) {
+  const pond = course.vec?.waters?.find((water) => water.role === 'millpond-approach');
+  if (!pond?.pts?.length) return;
+  let cx = 0;
+  let cy = 0;
+  for (const point of pond.pts) {
+    cx += point.x;
+    cy += point.y;
+  }
+  cx /= pond.pts.length;
+  cy /= pond.pts.length;
+  const accents = [
+    { index: 2, type: 'reed_clump', offset: 0.14, scale: 1.18 },
+    { index: 3, type: 'shore_rock', offset: 0.24, scale: 0.92 },
+    { index: 4, type: 'reed_clump', offset: 0.16, scale: 1.32 },
+    { index: 5, type: 'grass_clump', offset: 0.25, scale: 1.08 },
+    { index: 6, type: 'reed_clump', offset: 0.14, scale: 1.22 },
+    { index: 7, type: 'shore_rock', offset: 0.26, scale: 1.04 },
+    { index: 8, type: 'reed_clump', offset: 0.15, scale: 1.16 },
+    { index: 9, type: 'grass_clump', offset: 0.24, scale: 1.02 },
+  ];
+  for (let i = 0; i < accents.length; i++) {
+    const accent = accents[i];
+    const point = pond.pts[accent.index % pond.pts.length];
+    const dx = point.x - cx;
+    const dy = point.y - cy;
+    const length = Math.hypot(dx, dy) || 1;
+    const object = addObj(
+      course,
+      accent.type,
+      point.x + dx / length * accent.offset,
+      point.y + dy / length * accent.offset,
+      (i * 2.399963229728653) % (Math.PI * 2),
+      accent.scale,
+    );
+    if (object) object.role = 'millpond-shore';
+  }
+}
+
+// Project route-relative planting sockets after the seeded property scatter has
+// completed. This is deliberately RNG-free: strengthening the hero corridor can
+// never perturb the routing, hazards, IDs, or random character of Holes 2-9.
+function plantAuthoredCorridors(course, designed, waterClear, tallAllowed) {
+  for (let holeIndex = 0; holeIndex < designed.length; holeIndex++) {
+    const design = designed[holeIndex];
+    const specs = design.vh.vegetation?.plantings;
+    if (!Array.isArray(specs)) continue;
+    const routeYd = design.lenC * CELL_YD;
+    for (let specIndex = 0; specIndex < specs.length; specIndex++) {
+      const spec = specs[specIndex];
+      const types = Array.isArray(spec.types) ? spec.types.filter(Boolean) : [];
+      if (!types.length || routeYd <= 0) continue;
+      const t0 = clamp(Number(spec.t0) || 0, 0, 1);
+      const t1 = clamp(Number(spec.t1) || 0, t0, 1);
+      const spacingYd = Math.max(6, Number(spec.spacingYd) || 24);
+      const count = Math.max(1, Math.ceil(routeYd * (t1 - t0) / spacingYd));
+      const side = spec.side === 'left' ? 1 : -1;
+      const scaleRange = Array.isArray(spec.scale) && spec.scale.length >= 2
+        ? spec.scale : [0.92, 1.32];
+
+      for (let k = 0; k < count; k++) {
+        const key = course.vec.seed * 0.001 + holeIndex * 17.1 + specIndex * 3.7 + k * 0.83;
+        const alongNoise = fbm(key + 11.3, k * 0.71 + 5.2);
+        const lateralNoise = fbm(key - 8.7, k * 0.53 - 2.1);
+        const typeNoise = fbm(key + 31.9, k * 1.17 + 0.4);
+        const scaleNoise = fbm(key - 19.4, k * 0.91 + 8.3);
+        const binT = t0 + (t1 - t0) * ((k + 0.5) / count);
+        const alongJitterT = ((alongNoise - 0.5) * spacingYd * 0.34) / routeYd;
+        const t = clamp(binT + alongJitterT, t0, t1);
+        const p = alongPoly(design.lineSampled, t);
+        const fairHalfYd = fairHalfCells(design.vh.width, t) * CELL_YD;
+        const lateralJitterYd = (lateralNoise - 0.5) * 2 * Math.max(0, Number(spec.lateralJitterYd) || 0);
+        const offsetCells = (fairHalfYd + Math.max(0, Number(spec.beyondFairwayYd) || 0) + lateralJitterYd) / CELL_YD;
+        const x = p.x - p.ty * side * offsetCells;
+        const y = p.y + p.tx * side * offsetCells;
+        const type = types[Math.min(types.length - 1, Math.floor(typeNoise * types.length))];
+        const tall = TALL_PLANT_TYPES.has(type);
+        const minClearYd = Math.max(0, Number(spec.minClearYd) || (tall ? 7 : 3));
+        if (!plantable(course, x, y, waterClear)) continue;
+        if (tall && !tallAllowed(x, y)) continue;
+        if (!authoredObjectClear(course, x, y, minClearYd)) continue;
+        const scale = scaleRange[0] + (scaleRange[1] - scaleRange[0]) * scaleNoise;
+        const rot = fbm(key + 71.2, k * 0.37 - 6.4) * Math.PI * 2;
+        addObj(course, type, x, y, rot, scale);
+      }
+    }
+  }
+}
+
 function plantable(course, x, y, waterClear = null) {
   const cx = Math.round(x);
   const cy = Math.round(y);
-  const z = getZone(course, cx, cy);
+  // A six-yard bunker or narrow first cut can sit entirely between centers of
+  // the eight-yard gameplay grid. Planting against that coarse lookup put
+  // shrubs and rocks inside authored sand. Vector courses have exact surface
+  // truth available; use it for placement while legacy grids retain getZone.
+  const z = course.vec
+    ? evaluateSurface(course, getGeom(course), x, y, course.paint || null).zone
+    : getZone(course, cx, cy);
   if (z !== ZONE.OUT && z !== ZONE.HEAVY && z !== ZONE.ROUGH) return false;
   if (!structureClear(course, x, y)) return false;
   // keep tall canopy off the shoreline so ponds reflect sky, not dark trees
@@ -644,6 +1395,8 @@ function plantProperty(course, designed, rng) {
   const { w, h } = course;
   const dist = playDistance(course, 8);
   const waterClear = waterClearField(course, 2);
+  const tallExclusions = compileVegetationExclusions(course);
+  const tallAllowed = (x, y) => tallVegetationAllowed(tallExclusions, x, y);
 
   // regional species character: pine belts vs broadleaf, from low-freq noise
   const beltNoise = (x, y) => fbm(x * 0.045 + 71.3, y * 0.045 - 23.7);
@@ -665,7 +1418,10 @@ function plantProperty(course, designed, rng) {
       if (belt > 0.62) type = pickSpecies(rng, [['pine_a', 0.42], ['pine_b', 0.28], ['spruce_a', 0.2], ['fill_a', 0.1]]);
       else if (belt < 0.3 && fbm(x * 0.2, y * 0.2) > 0.55) type = pickSpecies(rng, [['birch_a', 0.6], ['fill_b', 0.4]]);
       else type = pickSpecies(rng, FOREST_MIX);
-      addObj(course, type, px, py, rng.next() * Math.PI * 2, 0.85 + rng.next() * 0.5);
+      const rot = rng.next() * Math.PI * 2;
+      const scale = 0.85 + rng.next() * 0.5;
+      if (!tallAllowed(px, py)) continue;
+      addObj(course, type, px, py, rot, scale);
     }
   }
 
@@ -683,7 +1439,10 @@ function plantProperty(course, designed, rng) {
       const type = belt > 0.62
         ? pickSpecies(rng, [['pine_a', 0.5], ['pine_b', 0.3], ['spruce_a', 0.2]])
         : pickSpecies(rng, [['oak_b', 0.3], ['fill_a', 0.3], ['maple_a', 0.2], ['oak_a', 0.2]]);
-      addObj(course, type, px, py, rng.next() * Math.PI * 2, 0.9 + rng.next() * 0.45);
+      const rot = rng.next() * Math.PI * 2;
+      const scale = 0.9 + rng.next() * 0.45;
+      if (!tallAllowed(px, py)) continue;
+      addObj(course, type, px, py, rot, scale);
     }
   }
 
@@ -697,7 +1456,11 @@ function plantProperty(course, designed, rng) {
       const px = wp.x + Math.cos(a) * r;
       const py = wp.y + Math.sin(a) * r;
       if (!plantable(course, px, py, waterClear)) continue;
-      addObj(course, rng.next() < 0.6 ? 'oak_a' : 'shade_a', px, py, rng.next() * Math.PI * 2, 1.25 + rng.next() * 0.3);
+      const type = rng.next() < 0.6 ? 'oak_a' : 'shade_a';
+      const rot = rng.next() * Math.PI * 2;
+      const scale = 1.25 + rng.next() * 0.3;
+      if (!tallAllowed(px, py)) continue;
+      addObj(course, type, px, py, rot, scale);
     }
   }
 
@@ -711,8 +1474,11 @@ function plantProperty(course, designed, rng) {
       const px = g.cx + Math.cos(a) * r;
       const py = g.cy + Math.sin(a) * r;
       if (!plantable(course, px, py, waterClear)) continue;
-      addObj(course, pickSpecies(rng, [['oak_a', 0.3], ['maple_a', 0.3], ['pine_a', 0.2], ['oak_b', 0.2]]),
-        px, py, rng.next() * Math.PI * 2, 1.05 + rng.next() * 0.35);
+      const type = pickSpecies(rng, [['oak_a', 0.3], ['maple_a', 0.3], ['pine_a', 0.2], ['oak_b', 0.2]]);
+      const rot = rng.next() * Math.PI * 2;
+      const scale = 1.05 + rng.next() * 0.35;
+      if (!tallAllowed(px, py)) continue;
+      addObj(course, type, px, py, rot, scale);
     }
   }
 
@@ -720,8 +1486,12 @@ function plantProperty(course, designed, rng) {
   // flanking the entrance, then mostly leafy shrubs (flowering trees are a
   // seasonal accent, not the headline)
   const ch = course.structures[0];
-  addObj(course, 'flower_a', ch.x - 0.5, ch.y - 1.8, rng.next() * Math.PI * 2, 0.9 + rng.next() * 0.2);
-  addObj(course, 'flower_a', ch.x + ch.w + 0.5, ch.y - 1.8, rng.next() * Math.PI * 2, 0.9 + rng.next() * 0.2);
+  for (const x of [ch.x - 0.5, ch.x + ch.w + 0.5]) {
+    const y = ch.y - 1.8;
+    const rot = rng.next() * Math.PI * 2;
+    const scale = 0.9 + rng.next() * 0.2;
+    if (tallAllowed(x, y)) addObj(course, 'flower_a', x, y, rot, scale);
+  }
   for (let k = 0; k < 3; k++) {
     const px = ch.x - 1 + rng.next() * (ch.w + 2);
     const py = ch.y - 2.2 + rng.next() * 1.0;
@@ -774,8 +1544,14 @@ function plantProperty(course, designed, rng) {
     const back = tees[0];
     const ca = Math.cos(back.rot);
     const sa = Math.sin(back.rot);
+    const teeSide = (lateralYd, alongYd) => ({
+      x: back.x - sa * (lateralYd / CELL_YD) + ca * (alongYd / CELL_YD),
+      y: back.y + ca * (lateralYd / CELL_YD) + sa * (alongYd / CELL_YD),
+    });
     // tee sign beside the back tee, facing the walk-on
-    addObj(course, 'tee_sign', back.x - sa * 1.5 - ca * 0.6, back.y + ca * 1.5 - sa * 0.6, back.rot + Math.PI / 2, 1);
+    const amenities = d.t.teeAmenities || {};
+    const sign = teeSide(amenities.signLateralYd ?? 4.2, amenities.signAlongYd ?? -1.4);
+    addObj(course, 'tee_sign', sign.x, sign.y, back.rot + Math.PI / 2, 1);
     const markerFor = { back: 'tee_marker_blue', middle: 'tee_marker_gold', forward: 'tee_marker_red' };
     for (const tee of tees) {
       const mw = (tee.w / CELL_YD) * 0.36;
@@ -784,9 +1560,15 @@ function plantProperty(course, designed, rng) {
       addObj(course, markerFor[tee.tier] || 'tee_marker_gold', tee.x - msa * mw, tee.y + mca * mw, tee.rot, 1);
       addObj(course, markerFor[tee.tier] || 'tee_marker_gold', tee.x + msa * mw, tee.y - mca * mw, tee.rot, 1);
     }
-    if (rng.next() < 0.6) addObj(course, 'bench_course', back.x - sa * 2.1 + ca * 1.2, back.y + ca * 2.1 + sa * 1.2, back.rot + Math.PI, 1);
-    if (rng.next() < 0.5) addObj(course, 'ball_washer', back.x - sa * 1.9 + ca * 2.0, back.y + ca * 1.9 + sa * 2.0, 0, 1);
-    if (rng.next() < 0.4) addObj(course, 'trash_course', back.x - sa * 2.3 + ca * 2.6, back.y + ca * 2.3 + sa * 2.6, 0, 1);
+    const hasBench = rng.next() < 0.6;
+    const hasWasher = rng.next() < 0.5;
+    const hasTrash = rng.next() < 0.4;
+    const bench = teeSide(amenities.benchLateralYd ?? 6.4, amenities.benchAlongYd ?? -2.2);
+    const washer = teeSide(5.4, -3.1);
+    const trash = teeSide(7.4, -3.6);
+    if (amenities.bench ?? (i === 0 || hasBench)) addObj(course, 'bench_course', bench.x, bench.y, back.rot + Math.PI, 1);
+    if (amenities.washer ?? (i === 0 || hasWasher)) addObj(course, 'ball_washer', washer.x, washer.y, 0, 1);
+    if (amenities.trash ?? (i === 0 || hasTrash)) addObj(course, 'trash_course', trash.x, trash.y, 0, 1);
     // 150-yd plate up the fairway
     if (d.vh.par >= 4) {
       const remain = 150 / CELL_YD;
@@ -801,6 +1583,9 @@ function plantProperty(course, designed, rng) {
       addObj(course, 'rake_prop', p0.x, p0.y, rng.next() * Math.PI * 2, 1);
     }
   }
+
+  plantAuthoredCorridors(course, designed, waterClear, tallAllowed);
+  dressMillpondShore(course);
 }
 
 function J2(rng) {

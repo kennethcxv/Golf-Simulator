@@ -44,19 +44,35 @@ export function makeVecTee(x, y, rot, tier, wYd = 8, dYd = 10) {
   return { x, y, rot, tier, w: wYd, d: dYd };
 }
 
-export function makeVecGreen(cx, cy, rYd, elong, angle, seed) {
-  // an authored green boundary: 10 control points around a rotated ellipse,
-  // radii jittered so no two greens share a silhouette
+export function makeVecGreen(cx, cy, rYd, elong, angle, seed, authoredOutline = null) {
+  // Most greens use ten seeded points around a rotated ellipse. Hero greens can
+  // instead provide a normalized [across, front] outline: the same spline path
+  // and SDF pipeline smooths it, while the architect controls its silhouette
+  // without spending RNG draws or changing the serialized vector schema.
   const pts = [];
-  const n = 10;
   const rc = rYd / CELL_YD;
+  const outline = Array.isArray(authoredOutline) && authoredOutline.length >= 8
+    ? authoredOutline.filter((point) => (
+      Array.isArray(point) && Number.isFinite(point[0]) && Number.isFinite(point[1])
+    ))
+    : null;
+  const ca = Math.cos(angle);
+  const sa = Math.sin(angle);
+  if (outline?.length >= 8) {
+    for (const [across, front] of outline) {
+      const ex = across * rc * elong;
+      const ey = front * rc;
+      pts.push({ x: cx + ex * ca - ey * sa, y: cy + ex * sa + ey * ca });
+    }
+    return { cx, cy, pts, fringe: 1.0, raise: 1.6, pins: [] };
+  }
+
+  const n = 10;
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;
     const j = 0.82 + 0.30 * hashN(seed * 31 + i * 7.13);
     const rx = rc * elong * j;
     const ry = rc * j;
-    const ca = Math.cos(angle);
-    const sa = Math.sin(angle);
     const ex = Math.cos(a) * rx;
     const ey = Math.sin(a) * ry;
     pts.push({ x: cx + ex * ca - ey * sa, y: cy + ex * sa + ey * ca });
@@ -82,15 +98,19 @@ export function makeVecBunker(cx, cy, rYd, seed, { depth = 2.4, lobes = 3, stret
   return { pts, depth, lip: 0.9 };
 }
 
-export function makeVecPond(cx, cy, rxYd, ryYd, seed, kind = 'pond') {
+export function makeVecPond(cx, cy, rxYd, ryYd, seed, kind = 'pond', angle = 0) {
   const pts = [];
   const n = 12;
+  const ca = Math.cos(angle);
+  const sa = Math.sin(angle);
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;
     const j = 0.72 + 0.42 * hashN(seed * 23 + i * 5.3);
+    const ex = Math.cos(a) * (rxYd / CELL_YD) * j;
+    const ey = Math.sin(a) * (ryYd / CELL_YD) * j;
     pts.push({
-      x: cx + Math.cos(a) * (rxYd / CELL_YD) * j,
-      y: cy + Math.sin(a) * (ryYd / CELL_YD) * j,
+      x: cx + ex * ca - ey * sa,
+      y: cy + ex * sa + ey * ca,
     });
   }
   return { kind, pts, depth: 4.5 };
@@ -512,15 +532,17 @@ function warpSample(geom, arr, px, py) {
 
 // Per-boundary organic warp amplitudes (cells). Small for engineered surfaces,
 // large for grass-on-grass transitions — this is where "natural edge
-// irregularity" comes from without hand-placing every wiggle.
+// irregularity" comes from without hand-placing every wiggle. Fairways use the
+// lower-frequency rag channel as a signed edge offset below; the other classes
+// use the shared two-axis coordinate warp.
 const WARP = {
   tee: 0.10,
-  green: 0.16,
+  green: 0.08,
   bunker: 0.22,
   water: 0.26,
   path: 0.14,
-  fairway: 0.34,
-  bands: 0.55,
+  fairway: 0.04,
+  bands: 0.28,
 };
 
 // Transition band widths (yards) — the real-world mowing numbers.
@@ -549,6 +571,7 @@ function evalPacked(course, geom, px, py, paint) {
 
   let greenD = F_INF;
   let greenFringe = BANDS.fringe;
+  let greenApron = 0;
   let teeD = F_INF;
 
   if (bucket) {
@@ -583,6 +606,7 @@ function evalPacked(course, geom, px, py, paint) {
         if (d < greenD) {
           greenD = d;
           greenFringe = (g.green.fringe || BANDS.fringe);
+          greenApron = Number.isFinite(g.green.apron) && g.green.apron > 0 ? g.green.apron : 0;
         }
       }
     }
@@ -627,19 +651,29 @@ function evalPacked(course, geom, px, py, paint) {
   // ---- fringe collar
   if (greenD <= greenFringe / CELL_YD) return packZD(ZONE.FRINGE, greenD - greenFringe / CELL_YD);
 
+  // ---- approach apron: optional closely-mown SEMI immediately outside the
+  // fringe. Missing/zero metadata preserves authored and legacy greens.
+  const apronEdge = (greenFringe + greenApron) / CELL_YD;
+  if (greenApron > 0 && greenD <= apronEdge) return packZD(ZONE.SEMI, greenD - apronEdge);
+
   // ---- fairway corridors (7): nearest corridor segment → width profile
   let fairD = F_INF;
   let roughW = 24 / CELL_YD;
+  let rag = null;
   const fsegs = geom.fairSegs[bi];
   if (fsegs) {
-    const pfx = px + wx * WARP.fairway;
-    const pfy = py + wy * WARP.fairway;
+    // The shared XY warp contains a short octave and previously displaced this
+    // boundary by as much as 1.44 yd, producing regular close-view scallops.
+    // Modulate the signed corridor distance with the already-cached, much
+    // lower-frequency rag channel instead. Its 0.04-cell scale keeps organic
+    // movement below 0.4 yd while preserving the architect's corridor shape.
+    rag = warpSample(geom, geom.warpR, px, py);
     let bestD2 = F_INF;
     let bestSeg = null;
     let bestT = 0;
     for (let k = 0; k < fsegs.length; k++) {
       const s = fsegs[k];
-      const r = segDist2(pfx, pfy, s.ax, s.ay, s.bx, s.by);
+      const r = segDist2(px, py, s.ax, s.ay, s.bx, s.by);
       if (r.d2 < bestD2) {
         bestD2 = r.d2;
         bestSeg = s;
@@ -648,7 +682,7 @@ function evalPacked(course, geom, px, py, paint) {
     }
     if (bestSeg) {
       const h = geom.holes[bestSeg.hi];
-      fairD = Math.sqrt(bestD2) - widthAt(h.width, bestT);
+      fairD = Math.sqrt(bestD2) - widthAt(h.width, bestT) + rag * WARP.fairway;
       roughW = h.roughW;
     }
   }
@@ -675,7 +709,7 @@ function evalPacked(course, geom, px, py, paint) {
   if (td < playD) playD = td;
   if (playD <= roughW) return packZD(ZONE.ROUGH, playD - roughW);
   if (playD > 12) return packZD(ZONE.OUT, 4); // deep native — skip the band math
-  const rag = warpSample(geom, geom.warpR, px, py);
+  if (rag === null) rag = warpSample(geom, geom.warpR, px, py);
   const heavyW = BANDS.heavy / CELL_YD;
   if (playD <= roughW + heavyW + rag) return packZD(ZONE.HEAVY, playD - (roughW + heavyW));
   return packZD(ZONE.OUT, playD - (roughW + heavyW));
@@ -776,12 +810,23 @@ export function buildRelief(course, baseAt) {
       feats.push({
         kind: 'green', poly: h.greenPoly, bbox: h.greenBbox,
         raise: g.raise ?? 1.6, base: baseAt(g.cx, g.cy),
-        // subtle putting contours: slope away from the approach + one soft roll
+        // Subtle putting contours: every green retains its broad tilt. Authored
+        // complexes may add a few low, wide rolls; legacy/editor greens keep the
+        // original single-roll fallback exactly as before.
         tiltX: Math.cos((g.tiltA ?? 0)) * (g.tilt ?? 0.25),
         tiltY: Math.sin((g.tiltA ?? 0)) * (g.tilt ?? 0.25),
         cx: g.cx, cy: g.cy,
         rollX: g.cx + Math.cos((g.tiltA ?? 0) + 1.9) * 0.8,
         rollY: g.cy + Math.sin((g.tiltA ?? 0) + 1.9) * 0.8,
+        contours: Array.isArray(g.contours)
+          ? g.contours.filter((contour) => (
+            Number.isFinite(contour?.x) && Number.isFinite(contour?.y)
+            && Number.isFinite(contour?.r) && contour.r > 0
+            && Number.isFinite(contour?.h)
+          )).map((contour) => ({
+            x: contour.x, y: contour.y, r: contour.r, h: contour.h,
+          }))
+          : null,
       });
     }
     for (const t of h.tees) {
@@ -845,8 +890,16 @@ export function reliefAt(relief, px, py, baseH) {
         const d = polygonSDF(px, py, f.poly); // neg inside
         const wPad = smooth01((0.9 - d) / 2.1); // 1 well inside → 0 at ~0.9c out
         if (wPad > 0.001) {
-          const contour = f.tiltX * (px - f.cx) + f.tiltY * (py - f.cy)
-            + 0.24 * Math.exp(-((px - f.rollX) ** 2 + (py - f.rollY) ** 2) / 1.4);
+          let rolling = 0;
+          if (f.contours?.length) {
+            for (const roll of f.contours) {
+              const d2 = (px - roll.x) ** 2 + (py - roll.y) ** 2;
+              rolling += roll.h * Math.exp(-d2 / (2 * roll.r * roll.r));
+            }
+          } else {
+            rolling = 0.24 * Math.exp(-((px - f.rollX) ** 2 + (py - f.rollY) ** 2) / 1.4);
+          }
+          const contour = f.tiltX * (px - f.cx) + f.tiltY * (py - f.cy) + rolling;
           const target = f.base + f.raise + contour;
           hgt = hgt + (target - hgt) * wPad;
         }
@@ -864,14 +917,17 @@ export function reliefAt(relief, px, py, baseH) {
       case 'bunker': {
         const d = polygonSDF(px, py, f.poly);
         if (d < 0) {
-          // eased bowl: a distinct step down at the sand line, deepest at the
-          // middle — reads as a recessed hazard, not a shallow scrape
+          // Continuous rolled lip into an eased bowl. The old fixed step at
+          // d=0 created two-foot vertical sand cliffs and exposed individual
+          // terrain triangles from ground-level cameras.
           const k = smooth01(-d / Math.max(0.3, f.inR * 0.85));
-          hgt -= f.depth * (0.5 + 0.5 * k) + 0.35;
-        } else if (d < 1.35) {
-          // a taller rolled turf lip hugging the sand line, fading into the grass
-          const g = (d - 0.28) / 0.42;
-          hgt += f.lip * 1.5 * Math.exp(-g * g);
+          hgt += f.lip * 0.34 * (1 - k);
+          hgt -= f.depth * k;
+        } else if (d < 1.2) {
+          // The outside roll meets the sand-side roll at the same height, then
+          // fades through several yards of turf without a visible seam.
+          const g = d / 0.62;
+          hgt += f.lip * 0.34 * Math.exp(-g * g);
         }
         break;
       }

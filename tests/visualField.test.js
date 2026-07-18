@@ -5,12 +5,20 @@ import { newGame } from '../src/sim/state.js';
 import { getZone } from '../src/sim/course.js';
 import {
   makeVisualField, computeVisualField, updateVisualFieldRegion, fieldZoneAt,
+  makeSurfaceDistanceField, computeSurfaceDistanceField, updateSurfaceDistanceFieldRegion,
+  decodeSurfaceDistanceByte, SURFACE_DISTANCE_CHANNEL,
+  VISUAL_FIELD_DISTANCE_QUANTUM_YD, SURFACE_COVERAGE_MIN_AA_YD,
+  SURFACE_FIRST_CUT_YD, SURFACE_GREEN_FRINGE_YD,
 } from '../src/render3d/visualField.js';
 import { ensurePaint } from '../src/sim/courseVec.js';
 
 // the field stores interleaved (zone, dist) byte pairs
 function zoneAtTexel(field, tx, ty) {
   return field.data[(ty * field.w + tx) * 2];
+}
+
+function surfaceDistanceAtTexel(distance, tx, ty, channel) {
+  return decodeSurfaceDistanceByte(distance.data[(ty * distance.w + tx) * 4 + channel]);
 }
 
 function builtField(seed = 4242) {
@@ -37,6 +45,72 @@ test('field generation is deterministic', () => {
   const a = builtField(777).field;
   const b = builtField(777).field;
   assert.deepEqual(Array.from(a.data.slice(0, 100000)), Array.from(b.data.slice(0, 100000)));
+});
+
+test('surface distance field keeps half-yard contours in one RGBA texture', () => {
+  const { field } = builtField(778);
+  const distance = makeSurfaceDistanceField(field);
+  assert.equal(distance.scale, field.scale);
+  assert.equal(distance.w, field.w);
+  assert.equal(distance.h, field.h);
+  assert.equal(distance.data.length, distance.w * distance.h * 4);
+  assert.equal(distance.data.byteLength, field.w * field.h * 4, 'one RGBA8 companion texture');
+});
+
+test('coverage AA spans half the source-distance quantum without widening mowing bands', () => {
+  assert.equal(VISUAL_FIELD_DISTANCE_QUANTUM_YD, 0.25);
+  assert.equal(SURFACE_COVERAGE_MIN_AA_YD, 0.125);
+  assert.ok(SURFACE_COVERAGE_MIN_AA_YD * 2 < SURFACE_FIRST_CUT_YD,
+    'the complete AA transition remains narrower than the authored first cut');
+  assert.ok(SURFACE_COVERAGE_MIN_AA_YD * 2 < SURFACE_GREEN_FRINGE_YD,
+    'the complete AA transition remains narrower than the authored green collar');
+});
+
+test('surface distance channels encode categorical cores and real mowing-band thresholds', () => {
+  const { field } = builtField(780);
+  const distance = makeSurfaceDistanceField(field);
+  const samples = new Map();
+  for (let ty = 0; ty < field.h; ty++) {
+    for (let tx = 0; tx < field.w; tx++) {
+      const zone = zoneAtTexel(field, tx, ty);
+      if (!samples.has(zone)) samples.set(zone, { tx, ty });
+    }
+  }
+
+  const d = (zone, channel) => {
+    const p = samples.get(zone);
+    assert.ok(p, `course contains zone ${zone}`);
+    return surfaceDistanceAtTexel(distance, p.tx, p.ty, channel);
+  };
+  assert.ok(d(ZONE.FAIRWAY, SURFACE_DISTANCE_CHANNEL.FAIRWAY) < 0, 'fairway core is inside its zero contour');
+  assert.ok(d(ZONE.SEMI, SURFACE_DISTANCE_CHANNEL.FAIRWAY) >= 0, 'first cut lies outside the fairway zero contour');
+  assert.ok(d(ZONE.SEMI, SURFACE_DISTANCE_CHANNEL.FAIRWAY) < SURFACE_FIRST_CUT_YD, 'first cut remains inside its outer threshold');
+  assert.ok(d(ZONE.ROUGH, SURFACE_DISTANCE_CHANNEL.FAIRWAY) > SURFACE_FIRST_CUT_YD, 'rough lies outside the first-cut threshold');
+  assert.ok(d(ZONE.GREEN, SURFACE_DISTANCE_CHANNEL.GREEN) < 0, 'green core is inside its zero contour');
+  assert.ok(d(ZONE.FRINGE, SURFACE_DISTANCE_CHANNEL.GREEN) >= 0, 'fringe lies outside the green zero contour');
+  assert.ok(d(ZONE.FRINGE, SURFACE_DISTANCE_CHANNEL.GREEN) < SURFACE_GREEN_FRINGE_YD, 'fringe remains inside its collar threshold');
+  assert.ok(d(ZONE.TEE, SURFACE_DISTANCE_CHANNEL.TEE) < 0, 'tee has an independent signed contour');
+  assert.ok(d(ZONE.BUNKER, SURFACE_DISTANCE_CHANNEL.BUNKER) < 0, 'bunker has an independent signed contour');
+});
+
+test('signed fairway contour brackets zero across sub-cell material edges', () => {
+  const { field } = builtField(781);
+  const distance = makeSurfaceDistanceField(field);
+  const zeroCrossings = [];
+  for (let ty = 1; ty < field.h - 1 && zeroCrossings.length < 64; ty++) {
+    for (let tx = 1; tx < field.w - 1 && zeroCrossings.length < 64; tx++) {
+      if (zoneAtTexel(field, tx, ty) !== ZONE.FAIRWAY) continue;
+      const a = surfaceDistanceAtTexel(distance, tx, ty, SURFACE_DISTANCE_CHANNEL.FAIRWAY);
+      for (const [ox, oy] of [[1, 0], [0, 1]]) {
+        if (zoneAtTexel(field, tx + ox, ty + oy) !== ZONE.SEMI) continue;
+        const b = surfaceDistanceAtTexel(distance, tx + ox, ty + oy, SURFACE_DISTANCE_CHANNEL.FAIRWAY);
+        if (a < 0 && b >= 0) zeroCrossings.push(-a / (b - a));
+      }
+    }
+  }
+  assert.ok(zeroCrossings.length >= 16, `found ${zeroCrossings.length} fairway signed-distance edge pairs`);
+  assert.ok(zeroCrossings.every((t) => t >= 0 && t <= 1), 'linear sampling reconstructs zero within adjacent texels');
+  assert.ok(new Set(zeroCrossings.map((t) => t.toFixed(2))).size >= 2, 'analytical distances preserve varied sub-texel contour positions');
 });
 
 test('surface coverage is preserved: cell centers mostly keep their zone class', () => {
@@ -134,4 +208,19 @@ test('dirty-rect update equals a full rebuild over the edited region', () => {
   const fresh = makeVisualField(c);
   computeVisualField(c, fresh);
   assert.deepEqual(Array.from(field.data), Array.from(fresh.data), 'regional update matches full recompute everywhere');
+});
+
+test('regional surface-distance update equals a full derived rebuild', () => {
+  const { st, field } = builtField(779);
+  const c = st.course;
+  const distance = makeSurfaceDistanceField(field);
+  const paint = ensurePaint(c);
+  for (let y = 30; y <= 33; y++) {
+    for (let x = 64; x <= 68; x++) paint[y * c.w + x] = ZONE.GREEN;
+  }
+  updateVisualFieldRegion(c, field, 64, 30, 68, 33);
+  updateSurfaceDistanceFieldRegion(c, field, distance, 64, 30, 68, 33);
+  const fresh = makeSurfaceDistanceField(field);
+  computeSurfaceDistanceField(field, fresh);
+  assert.deepEqual(Array.from(distance.data), Array.from(fresh.data));
 });

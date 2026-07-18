@@ -64,13 +64,30 @@ export function surfaceInfo(zone) {
 
 // --- session ------------------------------------------------------------------------
 
-// hooks: { heightAt(x, z) -> yd, zoneAt(x, z) -> ZONE.*, cellToWorld({x,y}) -> {x,z} }
+// hooks: { heightAt(x, z) -> yd, zoneAt(x, z) -> ZONE.*,
+//   cellToWorld({x,y}) -> {x,z}, courseToWorld?({x,y}) -> {x,z} }
 export function startPlaytest(state, holeId, hooks) {
   const course = state.course;
   const hole = course.holes.find((h) => h.id === holeId) || course.holes[0];
   if (!hole || !hole.tee || !hole.pin) return null;
-  const tee = hooks.cellToWorld(hole.tee);
-  const pin = hooks.cellToWorld(hole.pin);
+  // Legacy holes store integer cell indices, while vector holes store rounded
+  // coordinates in the same continuous space as their high-resolution shapes.
+  // Let the renderer supply the latter transform so a saved marker at (21, 35)
+  // samples (21, 35), not the adjacent half-cell point (21.5, 35.5).
+  const toWorld = course.vec && typeof hooks.courseToWorld === 'function'
+    ? hooks.courseToWorld
+    : hooks.cellToWorld;
+  const tee = toWorld(hole.tee);
+  const pin = toWorld(hole.pin);
+  // A dogleg's opening shot follows its authored route, not the tee-to-pin
+  // chord. The latter used to point H7's camera and guide across the inside of
+  // the S-bend, leaving the actual landing corridor off screen. Legacy holes
+  // without waypoints retain their direct-to-pin behavior.
+  const firstRoutePoint = Array.isArray(hole.wp)
+    ? hole.wp.find((point) => Number.isFinite(point?.x) && Number.isFinite(point?.y))
+    : null;
+  const openingTarget = firstRoutePoint ? toWorld(firstRoutePoint) : pin;
+  const initialSurface = hooks.zoneAt(tee.x, tee.z);
   const pt = {
     holeId: hole.id,
     hole,
@@ -82,8 +99,8 @@ export function startPlaytest(state, holeId, hooks) {
     lastRest: { x: tee.x, z: tee.z },
     pin,
     tee,
-    aimYaw: Math.atan2(pin.x - tee.x, pin.z - tee.z),
-    surface: ZONE.TEE,
+    aimYaw: Math.atan2(openingTarget.x - tee.x, openingTarget.z - tee.z),
+    surface: initialSurface,
     events: [], // strings the UI can toast
     holedOut: false,
   };
@@ -104,7 +121,9 @@ export function strike(pt, club, power, aimYaw) {
   const p = clamp(power, 0.08, 1);
   pt.strokes += 1;
   pt.lastRest = { x: pt.ball.x, z: pt.ball.z };
-  const zone = pt.hooks.zoneAt(pt.ball.x, pt.ball.z);
+  // `surface` is sampled at spawn and refreshed whenever the ball comes to
+  // rest, so the strike always uses the same lie that the player sees.
+  const zone = pt.surface ?? pt.hooks.zoneAt(pt.ball.x, pt.ball.z);
   // lies matter: heavy stuff robs distance
   const lieMul = zone === ZONE.HEAVY ? 0.62 : zone === ZONE.ROUGH ? 0.78 : zone === ZONE.BUNKER ? 0.68 : zone === ZONE.OUT ? 0.7 : 1;
   if (club.key === 'putter') {
@@ -237,7 +256,9 @@ function handleHazards(pt, zone) {
 // A quick descriptor for the HUD: lie, remaining, suggested club.
 export function playtestHud(pt) {
   const rem = remainingYd(pt);
-  const zone = pt.hooks.zoneAt(pt.ball.x, pt.ball.z);
+  // At rest, use the surface sampled at spawn/settle so HUD and strike share
+  // one lie even if the visual field is being rebuilt by an editor action.
+  const zone = pt.phase === 'aim' ? pt.surface : pt.hooks.zoneAt(pt.ball.x, pt.ball.z);
   return {
     strokes: pt.strokes,
     penalties: pt.penalties,

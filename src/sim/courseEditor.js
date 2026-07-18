@@ -24,6 +24,10 @@ import {
   makeVecGreen, makeVecBunker, makeVecPond, makeVecTee,
 } from './courseVec.js';
 import { CELL_YD } from './constants.js';
+import {
+  objectCollisionOk,
+  objectCollisionRadiusYd,
+} from './courseEditorObjectPlacement.js';
 
 // the tall-canopy flora species (for tree counting in stats); matches the
 // renderer's TREE_SPECIES set plus the legacy Kenney aliases
@@ -67,16 +71,40 @@ export function makeEditSession(state) {
 }
 
 export function sessionDirty(session) {
-  return session.undo.length > 0 || session.redo.length > 0 || session.changedCells.size > 0;
+  // Redo is only a history branch: after undoing back to the opening state the
+  // live course has no pending work and must not show a false Apply/exit prompt.
+  return session.undo.length > 0 || session.changedCells.size > 0;
 }
 
 // --- op plumbing -------------------------------------------------------------------
+
+// `changedCells` is the NET footprint of the pending undo stack, not a history
+// of every cell the cursor ever touched. That distinction matters because the
+// footprint drives renovation closures: undone work must not close a hole.
+function refreshChangedCells(state, session) {
+  const baseline = new Map();
+  for (const op of session.undo) {
+    for (const cell of op.cells || []) {
+      let first = baseline.get(cell.i);
+      if (!first) baseline.set(cell.i, first = {});
+      if (cell.zoneBefore !== undefined && first.zone === undefined) first.zone = cell.zoneBefore;
+      if (cell.elevBefore !== undefined && first.elev === undefined) first.elev = cell.elevBefore;
+    }
+  }
+  session.changedCells.clear();
+  const { course } = state;
+  for (const [i, first] of baseline) {
+    const zoneChanged = first.zone !== undefined && course.zones[i] !== first.zone;
+    const elevChanged = first.elev !== undefined && Math.abs(course.elevation[i] - first.elev) >= 1e-4;
+    if (zoneChanged || elevChanged) session.changedCells.add(i);
+  }
+}
 
 function pushOp(state, session, op) {
   session.undo.push(op);
   session.redo.length = 0;
   session.bill = Math.max(0, session.bill + op.cost);
-  if (op.cells) for (const c of op.cells) session.changedCells.add(c.i);
+  refreshChangedCells(state, session);
 }
 
 function applyCellsForward(state, cells) {
@@ -174,13 +202,51 @@ function nearestVecHole(course, cx, cy) {
   return best;
 }
 
-function vecOp(state, session, label, mutate, { extraCost = 0 } = {}) {
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function jsonEqual(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function snapshotHoleRecords(course, holeIds) {
+  return [...new Set(holeIds || [])].map((holeId) => {
+    const hole = course.holes.find((candidate) => candidate.id === holeId);
+    return hole ? cloneJson(hole) : null;
+  }).filter(Boolean);
+}
+
+// Restore tracked hole records without replacing surviving record objects.
+// UI panels commonly retain a selected-hole reference during undo/redo.
+function restoreHoleRecords(course, snapshots) {
+  for (const snapshot of snapshots || []) {
+    const hole = course.holes.find((candidate) => candidate.id === snapshot.id);
+    if (!hole) continue;
+    for (const key of Object.keys(hole)) {
+      if (!Object.prototype.hasOwnProperty.call(snapshot, key)) delete hole[key];
+    }
+    Object.assign(hole, cloneJson(snapshot));
+  }
+}
+
+function vecOp(state, session, label, mutate, { extraCost = 0, holeIds = [] } = {}) {
   const { course } = state;
   ensurePaint(course);
-  const vecBefore = JSON.parse(JSON.stringify(course.vec));
+  const vecBefore = cloneJson(course.vec);
+  const holesBefore = snapshotHoleRecords(course, holeIds);
   const paintBefore = Uint8Array.from(course.paint);
   const zonesBefore = Uint8Array.from(course.zones);
   const mutCost = mutate() || 0;
+  const vecAfter = cloneJson(course.vec);
+  const holesAfter = snapshotHoleRecords(course, holeIds);
+  let paintChanged = false;
+  for (let i = 0; i < course.paint.length; i++) {
+    if (course.paint[i] !== paintBefore[i]) { paintChanged = true; break; }
+  }
+  if (jsonEqual(vecBefore, vecAfter) && jsonEqual(holesBefore, holesAfter) && !paintChanged) {
+    return { ok: true, cost: 0, cells: 0, unchanged: true };
+  }
   invalidateGeom(course);
   deriveZones(course);
   const cells = [];
@@ -192,14 +258,11 @@ function vecOp(state, session, label, mutate, { extraCost = 0 } = {}) {
     }
   }
   if (changed.length) turfOnZonesChanged(state, changed);
-  let paintChanged = false;
-  for (let i = 0; i < course.paint.length; i++) {
-    if (course.paint[i] !== paintBefore[i]) { paintChanged = true; break; }
-  }
   const cost = Math.round(mutCost + extraCost);
   pushOp(state, session, {
     kind: 'vec', label, cost, cells,
-    vecBefore, vecAfter: JSON.parse(JSON.stringify(course.vec)),
+    vecBefore, vecAfter,
+    holesBefore, holesAfter,
     paintBefore: paintChanged ? Array.from(paintBefore) : null,
     paintAfter: paintChanged ? Array.from(course.paint) : null,
   });
@@ -380,6 +443,261 @@ export function endPaintStroke(state, session, stroke, label = 'Paint') {
 // --- shaped feature stamps (green / bunker / water / tee) -----------------------------------
 // One call = one undo op. The caller previews; this commits.
 
+const FEATURE_OPEN_GROUND = new Set([
+  ZONE.ROUGH, ZONE.FAIRWAY, ZONE.SEMI, ZONE.HEAVY,
+  ZONE.OUT, ZONE.FRINGE, ZONE.DIRT, ZONE.BED,
+]);
+const FEATURE_ALLOWED_ZONES = {
+  green: new Set([...FEATURE_OPEN_GROUND, ZONE.GREEN]),
+  bunker: FEATURE_OPEN_GROUND,
+  water: FEATURE_OPEN_GROUND,
+  tee: new Set([...FEATURE_OPEN_GROUND, ZONE.TEE]),
+};
+const FEATURE_SURFACE_REASONS = {
+  green: 'Greens require open ground.',
+  bunker: 'Bunkers require open turf.',
+  water: 'Water requires open ground.',
+  tee: 'Tee boxes require open ground.',
+};
+const FEATURE_BOUNDS_REASONS = {
+  green: 'Greens must fit inside the course.',
+  bunker: 'Bunkers must fit inside the course.',
+  water: 'Water must fit inside the course.',
+  tee: 'Tee boxes must fit inside the course.',
+};
+const GREEN_KIDNEY_OUTLINE = [
+  [1.02, -0.18], [0.9, 0.28], [0.62, 0.74], [0.14, 1.02],
+  [-0.34, 0.94], [-0.74, 0.62], [-0.94, 0.14], [-0.82, -0.34],
+  [-0.42, -0.72], [0.02, -0.42], [0.42, -0.82], [0.82, -0.62],
+];
+
+function boundsOfPoints(points, margin = 0) {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of points) {
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
+  }
+  return { minX: minX - margin, minY: minY - margin, maxX: maxX + margin, maxY: maxY + margin };
+}
+
+function ellipseBounds(cx, cy, rx, ry, angle, margin = 0) {
+  const ca = Math.cos(angle);
+  const sa = Math.sin(angle);
+  const dx = Math.hypot(rx * ca, ry * sa) + margin;
+  const dy = Math.hypot(rx * sa, ry * ca) + margin;
+  return { minX: cx - dx, minY: cy - dy, maxX: cx + dx, maxY: cy + dy };
+}
+
+function rectBounds(cx, cy, halfLength, halfWidth, angle) {
+  const ca = Math.cos(angle);
+  const sa = Math.sin(angle);
+  const dx = Math.abs(ca) * halfLength + Math.abs(sa) * halfWidth;
+  const dy = Math.abs(sa) * halfLength + Math.abs(ca) * halfWidth;
+  return { minX: cx - dx, minY: cy - dy, maxX: cx + dx, maxY: cy + dy };
+}
+
+function boundsFitCourse(course, bounds) {
+  return bounds.minX >= 0 && bounds.minY >= 0
+    && bounds.maxX <= course.w && bounds.maxY <= course.h;
+}
+
+function pointOnSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const cross = (px - ax) * dy - (py - ay) * dx;
+  if (Math.abs(cross) > 1e-8) return false;
+  const dot = (px - ax) * dx + (py - ay) * dy;
+  return dot >= -1e-8 && dot <= dx * dx + dy * dy + 1e-8;
+}
+
+function pointInPolygon(px, py, points) {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const a = points[j];
+    const b = points[i];
+    if (pointOnSegment(px, py, a.x, a.y, b.x, b.y)) return true;
+    if ((b.y > py) !== (a.y > py)
+      && px < ((a.x - b.x) * (py - b.y)) / (a.y - b.y) + b.x) inside = !inside;
+  }
+  return inside;
+}
+
+function pointSegmentDistanceSq(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const denom = dx * dx + dy * dy;
+  const t = denom > 0 ? clamp(((px - ax) * dx + (py - ay) * dy) / denom, 0, 1) : 0;
+  const qx = ax + dx * t;
+  const qy = ay + dy * t;
+  return (px - qx) ** 2 + (py - qy) ** 2;
+}
+
+function pointInPolygonMargin(px, py, points, margin) {
+  if (pointInPolygon(px, py, points)) return true;
+  if (!(margin > 0)) return false;
+  const limit = margin * margin;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    if (pointSegmentDistanceSq(px, py, points[j].x, points[j].y, points[i].x, points[i].y) <= limit) return true;
+  }
+  return false;
+}
+
+function vectorPond(cx, cy, r, elong, angle, seed) {
+  return makeVecPond(cx, cy, r * elong * CELL_YD, r * CELL_YD, seed, 'pond', angle);
+}
+
+function addCellsWithin(course, bounds, contains, cells) {
+  const x0 = Math.max(0, Math.floor(bounds.minX - 0.5));
+  const y0 = Math.max(0, Math.floor(bounds.minY - 0.5));
+  const x1 = Math.min(course.w - 1, Math.ceil(bounds.maxX - 0.5));
+  const y1 = Math.min(course.h - 1, Math.ceil(bounds.maxY - 0.5));
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      if (contains(x + 0.5, y + 0.5)) cells.add(y * course.w + x);
+    }
+  }
+}
+
+function featureFootprint(course, feature, cx, cy, options) {
+  const cells = new Set();
+  if (feature === 'tee') {
+    const { aimX, aimY, w = 1.2, len = 1.8 } = options;
+    if (![cx, cy, aimX, aimY, w, len].every(Number.isFinite) || !(w > 0) || !(len > 0)) return null;
+    const angle = Math.atan2(aimY - cy, aimX - cx);
+    const bounds = rectBounds(cx, cy, len, w, angle);
+    const ca = Math.cos(angle);
+    const sa = Math.sin(angle);
+    addCellsWithin(course, bounds, (px, py) => {
+      const dx = px - cx;
+      const dy = py - cy;
+      const lx = dx * ca + dy * sa;
+      const ly = -dx * sa + dy * ca;
+      return Math.abs(lx) <= len && Math.abs(ly) <= w;
+    }, cells);
+    return { bounds, cells };
+  }
+
+  if (feature === 'green') {
+    const { r = 1.8, elong = 1.25, angle = 0, kidney = false } = options;
+    if (![cx, cy, r, elong, angle].every(Number.isFinite) || !(r > 0) || !(elong > 0)) return null;
+    if (course.vec) {
+      const green = makeVecGreen(
+        cx, cy, r * CELL_YD, elong, angle, course.vec.nextId,
+        kidney ? GREEN_KIDNEY_OUTLINE : null,
+      );
+      const margin = (green.fringe || 1) / CELL_YD;
+      const bounds = boundsOfPoints(green.pts, margin);
+      addCellsWithin(course, bounds, (px, py) => pointInPolygonMargin(px, py, green.pts, margin), cells);
+      return { bounds, cells };
+    }
+    const rx = r * elong;
+    const ry = r;
+    const bounds = ellipseBounds(cx, cy, rx, ry, angle, 1);
+    const ca = Math.cos(angle);
+    const sa = Math.sin(angle);
+    const greenCells = new Set();
+    addCellsWithin(course, ellipseBounds(cx, cy, rx, ry, angle), (px, py) => {
+      const dx = px - cx;
+      const dy = py - cy;
+      const lx = dx * ca + dy * sa;
+      const ly = -dx * sa + dy * ca;
+      let inside = (lx * lx) / (rx * rx) + (ly * ly) / (ry * ry) <= 1;
+      if (inside && kidney) {
+        const bdx = lx - rx * 0.85;
+        const bdy = ly - ry * 0.7;
+        if (bdx * bdx + bdy * bdy < r * 0.7 * r * 0.7) inside = false;
+      }
+      return inside;
+    }, greenCells);
+    for (const i of greenCells) {
+      cells.add(i);
+      const x = i % course.w;
+      const y = (i / course.w) | 0;
+      if (x > 0) cells.add(i - 1);
+      if (x + 1 < course.w) cells.add(i + 1);
+      if (y > 0) cells.add(i - course.w);
+      if (y + 1 < course.h) cells.add(i + course.w);
+    }
+    return { bounds, cells };
+  }
+
+  if (feature === 'bunker') {
+    const { r = 1.4, lobes = 2, stretch = 1, angle = 0 } = options;
+    if (![cx, cy, r, lobes, stretch, angle].every(Number.isFinite)
+      || !(r > 0) || !(stretch > 0) || !(lobes >= 1)) return null;
+    if (course.vec) {
+      const bunker = makeVecBunker(cx, cy, r * CELL_YD, course.vec.nextId, {
+        lobes: Math.max(1, lobes), stretch, angle,
+      });
+      const bounds = boundsOfPoints(bunker.pts);
+      addCellsWithin(course, bounds, (px, py) => pointInPolygon(px, py, bunker.pts), cells);
+      return { bounds, cells };
+    }
+    const centers = [{ x: cx, y: cy, r }];
+    for (let i = 1; i < lobes; i++) {
+      const a = angle + i * 2.4;
+      centers.push({ x: cx + Math.cos(a) * r * 0.75, y: cy + Math.sin(a) * r * 0.75, r: r * 0.7 });
+    }
+    const bounds = {
+      minX: Math.min(...centers.map((c) => c.x - c.r)),
+      minY: Math.min(...centers.map((c) => c.y - c.r)),
+      maxX: Math.max(...centers.map((c) => c.x + c.r)),
+      maxY: Math.max(...centers.map((c) => c.y + c.r)),
+    };
+    addCellsWithin(course, bounds, (px, py) => centers.some((c) => Math.hypot(px - c.x, py - c.y) <= c.r), cells);
+    return { bounds, cells };
+  }
+
+  const { r = 2.4, elong = 1.2, angle = 0 } = options;
+  if (![cx, cy, r, elong, angle].every(Number.isFinite) || !(r > 0) || !(elong > 0)) return null;
+  if (course.vec) {
+    const pond = vectorPond(cx, cy, r, elong, angle, course.vec.nextId);
+    const bounds = boundsOfPoints(pond.pts);
+    addCellsWithin(course, bounds, (px, py) => pointInPolygon(px, py, pond.pts), cells);
+    return { bounds, cells };
+  }
+  const rx = r * elong;
+  const ry = r;
+  const bounds = ellipseBounds(cx, cy, rx, ry, angle);
+  const ca = Math.cos(angle);
+  const sa = Math.sin(angle);
+  addCellsWithin(course, bounds, (px, py) => {
+    const dx = px - cx;
+    const dy = py - cy;
+    const lx = dx * ca + dy * sa;
+    const ly = -dx * sa + dy * ca;
+    return (lx * lx) / (rx * rx) + (ly * ly) / (ry * ry) <= 1;
+  }, cells);
+  return { bounds, cells };
+}
+
+// Pure placement authority shared by hover previews and stamp commits.
+// Pond/lake are aliases for the water stamp; callers still pass the exact
+// stamp-native dimensions and angle chosen for that shape.
+export function featurePlacementOk(course, feature, cx, cy, options = {}) {
+  const kind = feature === 'pond' || feature === 'lake' ? 'water' : feature;
+  if (!FEATURE_ALLOWED_ZONES[kind]) return { ok: false, reason: 'Unknown editor feature.' };
+  if (kind === 'tee' && !course.holes.some((hole) => hole.id === options.holeId)) {
+    return { ok: false, reason: 'No such hole.' };
+  }
+  const footprint = featureFootprint(course, kind, cx, cy, options);
+  if (!footprint) return { ok: false, reason: 'Invalid placement dimensions.' };
+  if (!boundsFitCourse(course, footprint.bounds)) {
+    return { ok: false, reason: FEATURE_BOUNDS_REASONS[kind] };
+  }
+  const allowed = FEATURE_ALLOWED_ZONES[kind];
+  if (!footprint.cells.size) return { ok: false, reason: FEATURE_SURFACE_REASONS[kind] };
+  for (const i of footprint.cells) {
+    if (!allowed.has(course.zones[i])) return { ok: false, reason: FEATURE_SURFACE_REASONS[kind] };
+  }
+  return { ok: true, reason: null };
+}
+
 function stampCells(state, session, edits, label, extraCost = 0) {
   const { course } = state;
   const cells = [];
@@ -417,13 +735,27 @@ function stampCells(state, session, edits, label, extraCost = 0) {
 // Green: rotated ellipse (+ optional kidney), fringe collar, gentle plateau,
 // and elevation smoothing so the surface putts true.
 export function stampGreen(state, session, cx, cy, {
-  r = 1.8, elong = 1.25, angle = 0, kidney = false, raise = 1.4,
+  r = 1.8, elong = 1.25, angle = 0, kidney = false, raise = 1.4, holeId = null,
 } = {}) {
   const { course } = state;
+  const legal = featurePlacementOk(course, 'green', cx, cy, { r, elong, angle, kidney });
+  if (!legal.ok) return legal;
   if (course.vec) {
-    const hole = nearestVecHole(course, cx, cy);
+    const requestedHole = holeId == null
+      ? null
+      : course.holes.find((candidate) => candidate.id === holeId);
+    if (holeId != null && !requestedHole) return { ok: false, reason: 'No such hole.' };
+    const hole = requestedHole
+      ? course.vec.holes.find((candidate) => candidate.id === requestedHole.vecId)
+      : nearestVecHole(course, cx, cy);
+    if (requestedHole && !hole) return { ok: false, reason: 'That hole has no vector design.' };
+    const courseHole = requestedHole
+      || (hole ? course.holes.find((candidate) => candidate.vecId === hole.id) : null);
     return vecOp(state, session, 'Green', () => {
-      const g = makeVecGreen(cx, cy, r * CELL_YD, elong, angle, vecId(course.vec));
+      const g = makeVecGreen(
+        cx, cy, r * CELL_YD, elong, angle, vecId(course.vec),
+        kidney ? GREEN_KIDNEY_OUTLINE : null,
+      );
       g.raise = raise + 0.2;
       const rc = r;
       g.pins = [
@@ -433,15 +765,14 @@ export function stampGreen(state, session, cx, cy, {
       ];
       if (hole) {
         hole.green = g;
-        const ch = course.holes.find((h) => h.vecId === hole.id);
-        if (ch) {
-          ch.pin = { x: Math.round(cx), y: Math.round(cy) };
-          ch.pins = {
-            A: { x: Math.round(g.pins[0].x), y: Math.round(g.pins[0].y) },
-            B: { x: Math.round(g.pins[1].x), y: Math.round(g.pins[1].y) },
-            C: { x: Math.round(g.pins[2].x), y: Math.round(g.pins[2].y) },
+        if (courseHole) {
+          courseHole.pin = { x: Math.round(cx - 0.5), y: Math.round(cy - 0.5) };
+          courseHole.pins = {
+            A: { x: Math.round(g.pins[0].x - 0.5), y: Math.round(g.pins[0].y - 0.5) },
+            B: { x: Math.round(g.pins[1].x - 0.5), y: Math.round(g.pins[1].y - 0.5) },
+            C: { x: Math.round(g.pins[2].x - 0.5), y: Math.round(g.pins[2].y - 0.5) },
           };
-          ch.activePin = 'A';
+          courseHole.activePin = 'A';
         }
       } else {
         // standalone green (no hole nearby) — parked on the first hole so it renders
@@ -449,7 +780,7 @@ export function stampGreen(state, session, cx, cy, {
       }
       const area = Math.PI * (r * elong) * r; // cells²
       return area * zoneCost(ZONE.GREEN);
-    });
+    }, { holeIds: courseHole ? [courseHole.id] : [] });
   }
   const edits = [];
   const ca = Math.cos(angle);
@@ -513,15 +844,25 @@ export function stampGreen(state, session, cx, cy, {
 
 // Bunker: lobed blob, depressed floor, blended lip.
 export function stampBunker(state, session, cx, cy, {
-  r = 1.4, depth = 1.6, lobes = 2, angle = 0,
+  r = 1.4, depth = 1.6, lobes = 2, stretch = 1, angle = 0, holeId = null,
 } = {}) {
   const { course } = state;
+  const legal = featurePlacementOk(course, 'bunker', cx, cy, { r, lobes, stretch, angle });
+  if (!legal.ok) return legal;
   if (course.vec) {
-    const hole = nearestVecHole(course, cx, cy) || course.vec.holes[0];
+    const requestedHole = holeId == null
+      ? null
+      : course.holes.find((candidate) => candidate.id === holeId);
+    if (holeId != null && !requestedHole) return { ok: false, reason: 'No such hole.' };
+    const hole = requestedHole
+      ? course.vec.holes.find((candidate) => candidate.id === requestedHole.vecId)
+      : nearestVecHole(course, cx, cy) || course.vec.holes[0];
+    if (!hole) return { ok: false, reason: 'That hole has no vector design.' };
     return vecOp(state, session, 'Bunker', () => {
-      const b = makeVecBunker(cx, cy, r * CELL_YD, vecId(course.vec), {
-        depth: depth + 0.8, lobes: Math.max(2, lobes), angle,
-      });
+      const id = vecId(course.vec);
+      const b = { id, ...makeVecBunker(cx, cy, r * CELL_YD, id, {
+        depth: depth + 0.8, lobes: Math.max(1, lobes), stretch, angle,
+      }) };
       (hole.bunkers || (hole.bunkers = [])).push(b);
       const area = Math.PI * r * r * 1.2;
       return area * zoneCost(ZONE.BUNKER);
@@ -558,9 +899,11 @@ export function stampWater(state, session, cx, cy, {
   r = 2.4, depth = 2.4, elong = 1.2, angle = 0,
 } = {}) {
   const { course } = state;
+  const legal = featurePlacementOk(course, 'water', cx, cy, { r, elong, angle });
+  if (!legal.ok) return legal;
   if (course.vec) {
     return vecOp(state, session, 'Water', () => {
-      const pond = makeVecPond(cx, cy, r * elong * CELL_YD, r * CELL_YD, vecId(course.vec));
+      const pond = vectorPond(cx, cy, r, elong, angle, vecId(course.vec));
       pond.depth = depth + 2;
       course.vec.waters.push({ id: vecId(course.vec), ...pond });
       const area = Math.PI * (r * elong) * r;
@@ -627,8 +970,9 @@ export function stampStream(state, session, pts, { width = 1.0, depth = 1.4 } = 
 // Tee box stamp: pad + flatten + becomes the hole's tee of the given color.
 export function stampTee(state, session, holeId, teeKey, cx, cy, aimX, aimY, { w = 1.2, len = 1.8 } = {}) {
   const { course } = state;
+  const legal = featurePlacementOk(course, 'tee', cx, cy, { holeId, aimX, aimY, w, len });
+  if (!legal.ok) return legal;
   const hole = course.holes.find((h) => h.id === holeId);
-  if (!hole) return { ok: false, reason: 'No such hole.' };
   ensureHoleShape(hole, holeNumber(course, holeId));
   if (course.vec) {
     const vh = course.vec.holes.find((h) => h.id === hole.vecId);
@@ -641,14 +985,14 @@ export function stampTee(state, session, holeId, teeKey, cx, cy, aimX, aimY, { w
         vh.tees = (vh.tees || []).filter((t) => t.tier !== tierKey);
         vh.tees.push(tee);
       }
-      const marker = { x: Math.round(cx), y: Math.round(cy) };
+      const marker = { x: Math.round(cx - 0.5), y: Math.round(cy - 0.5) };
       hole.tees = hole.tees || {};
       hole.tees[tierKey] = marker;
       hole.activeTee = teeKey;      // the newly-built tee becomes the one in play
       hole.tee = { ...marker };
       const area = (w * 2) * (len * 2);
       return area * zoneCost(ZONE.TEE);
-    });
+    }, { holeIds: [holeId] });
   }
   const a = Math.atan2(aimY - cy, aimX - cx);
   const ca = Math.cos(a);
@@ -726,9 +1070,19 @@ export function selectPin(state, session, holeId, pinKey) {
   ensureHoleShape(hole, holeNumber(state.course, holeId));
   const pos = hole.pins[pinKey];
   if (!pos) return { ok: false, reason: `No pin ${pinKey} set yet — place it on the green.` };
+  if (hole.activePin === pinKey && hole.pin?.x === pos.x && hole.pin?.y === pos.y) {
+    return { ok: true, cost: 0, unchanged: true };
+  }
+  const before = { activePin: hole.activePin, pin: hole.pin ? { ...hole.pin } : null };
   hole.activePin = pinKey;
   hole.pin = { ...pos };
-  return { ok: true };
+  pushOp(state, session, {
+    kind: 'hole', label: `Select pin ${pinKey}`, cost: 0, cells: null,
+    holeId,
+    before,
+    after: { activePin: pinKey, pin: { ...pos } },
+  });
+  return { ok: true, cost: 0 };
 }
 
 export function selectTee(state, session, holeId, teeKey) {
@@ -737,9 +1091,435 @@ export function selectTee(state, session, holeId, teeKey) {
   ensureHoleShape(hole, holeNumber(state.course, holeId));
   const pos = hole.tees[teeKey];
   if (!pos) return { ok: false, reason: `No ${teeKey} tee built yet.` };
+  if (hole.activeTee === teeKey && hole.tee?.x === pos.x && hole.tee?.y === pos.y) {
+    return { ok: true, cost: 0, unchanged: true };
+  }
+  const before = { activeTee: hole.activeTee, tee: hole.tee ? { ...hole.tee } : null };
   hole.activeTee = teeKey;
   hole.tee = { ...pos };
+  pushOp(state, session, {
+    kind: 'hole', label: `Select ${teeKey} tee`, cost: 0, cells: null,
+    holeId,
+    before,
+    after: { activeTee: teeKey, tee: { ...pos } },
+  });
+  return { ok: true, cost: 0 };
+}
+
+// --- existing vector feature editing --------------------------------------------------
+
+const PATH_MATERIAL_VALUES = new Set(['asphalt', 'concrete', 'gravel', 'dirt']);
+const SHORELINE_STYLE_VALUES = new Set(['natural', 'mown', 'reeds', 'rock', 'bulkhead']);
+const BRIDGE_DECK_MATERIAL_VALUES = new Set(['timber', 'concrete', 'steel']);
+const OWN = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
+
+function vectorUnsupported(reason = 'This course uses the legacy grid format; vector feature editing is unavailable.') {
+  return { ok: false, unsupported: true, reason };
+}
+
+function editableVectorCourse(course) {
+  return !!(course?.vec && Array.isArray(course.vec.holes) && Array.isArray(course.vec.waters));
+}
+
+function vecHoleFromCourseRecord(course, holeId) {
+  if (!editableVectorCourse(course)) return vectorUnsupported();
+  const courseHole = course.holes.find((hole) => hole.id === holeId);
+  if (!courseHole) return { ok: false, reason: 'No such hole.' };
+  const vecHole = course.vec.holes.find((hole) => hole.id === courseHole.vecId);
+  if (!vecHole) {
+    return vectorUnsupported('This hole is not linked to an editable vector record.');
+  }
+  return { ok: true, courseHole, vecHole };
+}
+
+function validPoint(point) {
+  return !!point && Number.isFinite(point.x) && Number.isFinite(point.y);
+}
+
+function pointsInsideCourse(course, points) {
+  return points.every((point) => (
+    point.x >= 0 && point.y >= 0 && point.x <= course.w && point.y <= course.h
+  ));
+}
+
+function polygonArea(points) {
+  let twice = 0;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    twice += points[j].x * points[i].y - points[i].x * points[j].y;
+  }
+  return Math.abs(twice) * 0.5;
+}
+
+function validateControlPoints(course, points, { closed = true } = {}) {
+  const min = closed ? 3 : 2;
+  if (!Array.isArray(points) || points.length < min || !points.every(validPoint)) {
+    return { ok: false, reason: `${closed ? 'A boundary' : 'A path'} needs at least ${min} finite points.` };
+  }
+  if (!pointsInsideCourse(course, points)) {
+    return { ok: false, reason: `${closed ? 'Boundary' : 'Path'} points must stay inside the course.` };
+  }
+  if (closed && polygonArea(points) <= 1e-5) {
+    return { ok: false, reason: 'A boundary must enclose a positive area.' };
+  }
+  if (!closed) {
+    let length = 0;
+    for (let i = 1; i < points.length; i++) {
+      length += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+    }
+    if (length <= 1e-5) return { ok: false, reason: 'A path must have positive length.' };
+  }
   return { ok: true };
+}
+
+function pointCentroid(points) {
+  let x = 0;
+  let y = 0;
+  for (const point of points) { x += point.x; y += point.y; }
+  return { x: x / points.length, y: y / points.length };
+}
+
+function normalizeTransform(transform, points) {
+  if (transform === undefined) return { ok: true, value: null };
+  if (!transform || typeof transform !== 'object' || Array.isArray(transform)) {
+    return { ok: false, reason: 'Feature transform must be an object.' };
+  }
+  const allowed = new Set(['dx', 'dy', 'rotate', 'scale', 'scaleX', 'scaleY', 'origin']);
+  if (Object.keys(transform).some((key) => !allowed.has(key))) {
+    return { ok: false, reason: 'Feature transform contains an unsupported value.' };
+  }
+  const dx = OWN(transform, 'dx') ? transform.dx : 0;
+  const dy = OWN(transform, 'dy') ? transform.dy : 0;
+  const rotate = OWN(transform, 'rotate') ? transform.rotate : 0;
+  const baseScale = OWN(transform, 'scale') ? transform.scale : 1;
+  const scaleX = OWN(transform, 'scaleX') ? transform.scaleX : baseScale;
+  const scaleY = OWN(transform, 'scaleY') ? transform.scaleY : baseScale;
+  if (![dx, dy, rotate, scaleX, scaleY].every(Number.isFinite) || scaleX <= 0 || scaleY <= 0) {
+    return { ok: false, reason: 'Transform offsets and rotation must be finite; scales must be positive.' };
+  }
+  const origin = transform.origin === undefined ? pointCentroid(points) : transform.origin;
+  if (!validPoint(origin)) return { ok: false, reason: 'Transform origin must be a finite point.' };
+  return { ok: true, value: { dx, dy, rotate, scaleX, scaleY, origin: { x: origin.x, y: origin.y } } };
+}
+
+function transformPoint(point, transform) {
+  if (!transform) return { x: point.x, y: point.y };
+  const lx = (point.x - transform.origin.x) * transform.scaleX;
+  const ly = (point.y - transform.origin.y) * transform.scaleY;
+  const ca = Math.cos(transform.rotate);
+  const sa = Math.sin(transform.rotate);
+  return {
+    x: transform.origin.x + lx * ca - ly * sa + transform.dx,
+    y: transform.origin.y + lx * sa + ly * ca + transform.dy,
+  };
+}
+
+function prepareControlPointEdit(course, current, patch, { closed = true } = {}) {
+  let points = OWN(patch, 'pts') ? patch.pts : current;
+  const initial = validateControlPoints(course, points, { closed });
+  if (!initial.ok) return initial;
+  points = points.map((point) => ({ x: point.x, y: point.y }));
+  const normalized = normalizeTransform(patch.transform, points);
+  if (!normalized.ok) return normalized;
+  if (normalized.value) points = points.map((point) => transformPoint(point, normalized.value));
+  const final = validateControlPoints(course, points, { closed });
+  if (!final.ok) return final;
+  return { ok: true, points, transform: normalized.value };
+}
+
+function validatePatchKeys(patch, allowed) {
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+    return { ok: false, reason: 'Feature changes must be an object.' };
+  }
+  if (Object.keys(patch).some((key) => !allowed.has(key))) {
+    return { ok: false, reason: 'Feature changes contain an unsupported value.' };
+  }
+  return { ok: true };
+}
+
+function featureIndex(items, ref, label) {
+  if (ref == null) return { ok: false, reason: `Select a ${label} first.` };
+  const selector = (typeof ref === 'object' && !Array.isArray(ref)) ? ref : { id: ref };
+  if (OWN(selector, 'id')) {
+    const index = items.findIndex((item) => item?.id === selector.id);
+    return index === -1 ? { ok: false, reason: `No such ${label}.` } : { ok: true, index };
+  }
+  if (OWN(selector, 'index') && Number.isInteger(selector.index)
+    && selector.index >= 0 && selector.index < items.length) {
+    return { ok: true, index: selector.index };
+  }
+  return { ok: false, reason: `Invalid ${label} reference; use { id } or { index }.` };
+}
+
+function stableFeatureRef(feature, index) {
+  return feature?.id === undefined ? { index } : { id: feature.id };
+}
+
+function normalizeContours(value, course) {
+  if (value === null) return { ok: true, value: null };
+  if (!Array.isArray(value)) return { ok: false, reason: 'Green contours must be an array.' };
+  const contours = [];
+  for (const contour of value) {
+    if (!contour || typeof contour !== 'object'
+      || !Number.isFinite(contour.x) || !Number.isFinite(contour.y)
+      || !Number.isFinite(contour.r) || contour.r <= 0 || !Number.isFinite(contour.h)
+      || contour.x < 0 || contour.y < 0 || contour.x > course.w || contour.y > course.h
+      || (contour.role != null && typeof contour.role !== 'string')) {
+      return { ok: false, reason: 'Green contours need finite in-bounds centers, positive radii, and finite heights.' };
+    }
+    contours.push({
+      ...(contour.role == null ? {} : { role: contour.role }),
+      x: contour.x, y: contour.y, r: contour.r, h: contour.h,
+    });
+  }
+  return { ok: true, value: contours };
+}
+
+function transformedContours(contours, transform) {
+  if (!transform || !Array.isArray(contours)) return contours;
+  const radiusScale = Math.sqrt(transform.scaleX * transform.scaleY);
+  return contours.map((contour) => ({
+    ...contour,
+    ...transformPoint(contour, transform),
+    r: contour.r * radiusScale,
+  }));
+}
+
+function transformHolePins(hole, transform) {
+  if (!transform) return;
+  if (hole.pin && validPoint(hole.pin)) hole.pin = transformPoint(hole.pin, transform);
+  if (hole.pins && typeof hole.pins === 'object') {
+    for (const key of Object.keys(hole.pins)) {
+      const pin = hole.pins[key];
+      if (validPoint(pin)) hole.pins[key] = transformPoint(pin, transform);
+    }
+  }
+}
+
+// Edit a vector green through the stable back-compat course hole record id.
+// `pts` replaces the control boundary; transform values are deltas applied once.
+export function editVectorGreen(state, session, holeId, patch) {
+  const linked = vecHoleFromCourseRecord(state.course, holeId);
+  if (!linked.ok) return linked;
+  const keys = validatePatchKeys(patch, new Set(['pts', 'transform', 'fringe', 'apron', 'sculpt']));
+  if (!keys.ok) return keys;
+  const current = linked.vecHole.green;
+  if (!current || !Array.isArray(current.pts)) return { ok: false, reason: 'This hole has no vector green.' };
+  const geometry = prepareControlPointEdit(state.course, current.pts, patch);
+  if (!geometry.ok) return geometry;
+  const next = cloneJson(current);
+  next.pts = geometry.points;
+  const priorCenter = Number.isFinite(current.cx) && Number.isFinite(current.cy)
+    ? { x: current.cx, y: current.cy }
+    : pointCentroid(current.pts);
+  const replacedBoundary = OWN(patch, 'pts') && !jsonEqual(current.pts, patch.pts);
+  const boundaryChanged = !jsonEqual(current.pts, geometry.points);
+  const center = geometry.transform
+    ? transformPoint(replacedBoundary ? pointCentroid(patch.pts) : priorCenter, geometry.transform)
+    : (boundaryChanged ? pointCentroid(next.pts) : priorCenter);
+  next.cx = center.x;
+  next.cy = center.y;
+  if (geometry.transform) {
+    if (Array.isArray(next.pins)) next.pins = next.pins.map((pin) => transformPoint(pin, geometry.transform));
+    next.contours = transformedContours(next.contours, geometry.transform);
+  }
+  for (const field of ['fringe', 'apron']) {
+    if (!OWN(patch, field)) continue;
+    if (!Number.isFinite(patch[field]) || patch[field] < 0) {
+      return { ok: false, reason: `${field[0].toUpperCase() + field.slice(1)} width must be a finite non-negative yard value.` };
+    }
+    next[field] = patch[field];
+  }
+  if (OWN(patch, 'sculpt')) {
+    const sculpt = patch.sculpt;
+    if (!sculpt || typeof sculpt !== 'object' || Array.isArray(sculpt)) {
+      return { ok: false, reason: 'Green sculpt settings must be an object.' };
+    }
+    const allowed = new Set(['raise', 'tilt', 'tiltA', 'contours']);
+    if (Object.keys(sculpt).some((key) => !allowed.has(key))) {
+      return { ok: false, reason: 'Green sculpt settings contain an unsupported value.' };
+    }
+    for (const field of ['raise', 'tilt']) {
+      if (!OWN(sculpt, field)) continue;
+      if (!Number.isFinite(sculpt[field]) || sculpt[field] < 0) {
+        return { ok: false, reason: `Green ${field} must be finite and non-negative.` };
+      }
+      next[field] = sculpt[field];
+    }
+    if (OWN(sculpt, 'tiltA')) {
+      if (!Number.isFinite(sculpt.tiltA)) return { ok: false, reason: 'Green tilt angle must be finite.' };
+      next.tiltA = sculpt.tiltA;
+    }
+    if (OWN(sculpt, 'contours')) {
+      const contours = normalizeContours(sculpt.contours, state.course);
+      if (!contours.ok) return contours;
+      if (contours.value === null) delete next.contours;
+      else next.contours = contours.value;
+    }
+  }
+  const holeAfter = cloneJson(linked.courseHole);
+  transformHolePins(holeAfter, geometry.transform);
+  if (jsonEqual(current, next) && jsonEqual(linked.courseHole, holeAfter)) {
+    return { ok: true, cost: 0, cells: 0, unchanged: true, green: current };
+  }
+  const result = vecOp(state, session, 'Edit green', () => {
+    linked.vecHole.green = next;
+    if (geometry.transform) {
+      linked.courseHole.pin = holeAfter.pin;
+      linked.courseHole.pins = holeAfter.pins;
+    }
+  }, { holeIds: [holeId] });
+  return { ...result, green: linked.vecHole.green };
+}
+
+export function editVectorBunker(state, session, holeId, ref, patch) {
+  const linked = vecHoleFromCourseRecord(state.course, holeId);
+  if (!linked.ok) return linked;
+  const items = Array.isArray(linked.vecHole.bunkers) ? linked.vecHole.bunkers : [];
+  const found = featureIndex(items, ref, 'bunker');
+  if (!found.ok) return found;
+  const keys = validatePatchKeys(patch, new Set(['pts', 'transform', 'depth', 'lip']));
+  if (!keys.ok) return keys;
+  const current = items[found.index];
+  const geometry = prepareControlPointEdit(state.course, current.pts, patch);
+  if (!geometry.ok) return geometry;
+  const next = { ...cloneJson(current), pts: geometry.points };
+  for (const field of ['depth', 'lip']) {
+    if (!OWN(patch, field)) continue;
+    const minimum = field === 'depth' ? Number.EPSILON : 0;
+    if (!Number.isFinite(patch[field]) || patch[field] < minimum) {
+      return { ok: false, reason: `Bunker ${field} must be ${field === 'depth' ? 'positive' : 'non-negative'} and finite.` };
+    }
+    next[field] = patch[field];
+  }
+  if (jsonEqual(current, next)) {
+    return { ok: true, cost: 0, cells: 0, unchanged: true, bunker: current, ref: stableFeatureRef(current, found.index) };
+  }
+  const result = vecOp(state, session, 'Edit bunker', () => { items[found.index] = next; });
+  return { ...result, bunker: items[found.index], ref: stableFeatureRef(next, found.index) };
+}
+
+export function deleteVectorBunker(state, session, holeId, ref) {
+  const linked = vecHoleFromCourseRecord(state.course, holeId);
+  if (!linked.ok) return linked;
+  const items = Array.isArray(linked.vecHole.bunkers) ? linked.vecHole.bunkers : [];
+  const found = featureIndex(items, ref, 'bunker');
+  if (!found.ok) return found;
+  const removed = cloneJson(items[found.index]);
+  const result = vecOp(state, session, 'Delete bunker', () => { items.splice(found.index, 1); });
+  return { ...result, removed, ref: stableFeatureRef(removed, found.index) };
+}
+
+function normalizeShoreline(current, value) {
+  if (value === null) return { ok: true, value: null };
+  const patch = typeof value === 'string' ? { style: value } : value;
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+    return { ok: false, reason: 'Shoreline settings must be a style or settings object.' };
+  }
+  const allowed = new Set(['style', 'widthYd', 'softness']);
+  if (Object.keys(patch).some((key) => !allowed.has(key))) {
+    return { ok: false, reason: 'Shoreline settings contain an unsupported value.' };
+  }
+  const next = current && typeof current === 'object' && !Array.isArray(current) ? cloneJson(current) : {};
+  if (OWN(patch, 'style')) {
+    if (!SHORELINE_STYLE_VALUES.has(patch.style)) return { ok: false, reason: 'Unsupported shoreline style.' };
+    next.style = patch.style;
+  }
+  if (OWN(patch, 'widthYd')) {
+    if (!Number.isFinite(patch.widthYd) || patch.widthYd < 0) {
+      return { ok: false, reason: 'Shoreline width must be finite and non-negative.' };
+    }
+    next.widthYd = patch.widthYd;
+  }
+  if (OWN(patch, 'softness')) {
+    if (!Number.isFinite(patch.softness) || patch.softness < 0 || patch.softness > 1) {
+      return { ok: false, reason: 'Shoreline softness must be between 0 and 1.' };
+    }
+    next.softness = patch.softness;
+  }
+  return { ok: true, value: next };
+}
+
+export function editVectorWater(state, session, ref, patch) {
+  const { course } = state;
+  if (!editableVectorCourse(course)) return vectorUnsupported();
+  const found = featureIndex(course.vec.waters, ref, 'water feature');
+  if (!found.ok) return found;
+  const keys = validatePatchKeys(patch, new Set(['pts', 'transform', 'depth', 'shoreline']));
+  if (!keys.ok) return keys;
+  const current = course.vec.waters[found.index];
+  const geometry = prepareControlPointEdit(course, current.pts, patch);
+  if (!geometry.ok) return geometry;
+  const next = { ...cloneJson(current), pts: geometry.points };
+  if (!jsonEqual(current.pts, geometry.points)) next.surface = 'outline';
+  if (OWN(patch, 'depth')) {
+    if (!Number.isFinite(patch.depth) || patch.depth <= 0) {
+      return { ok: false, reason: 'Water depth must be positive and finite.' };
+    }
+    next.depth = patch.depth;
+  }
+  if (OWN(patch, 'shoreline')) {
+    const shoreline = normalizeShoreline(current.shoreline, patch.shoreline);
+    if (!shoreline.ok) return shoreline;
+    if (shoreline.value === null) delete next.shoreline;
+    else next.shoreline = shoreline.value;
+  }
+  if (jsonEqual(current, next)) {
+    return { ok: true, cost: 0, cells: 0, unchanged: true, water: current, ref: stableFeatureRef(current, found.index) };
+  }
+  const result = vecOp(state, session, 'Edit water', () => { course.vec.waters[found.index] = next; });
+  return { ...result, water: course.vec.waters[found.index], ref: stableFeatureRef(next, found.index) };
+}
+
+export function deleteVectorWater(state, session, ref) {
+  const { course } = state;
+  if (!editableVectorCourse(course)) return vectorUnsupported();
+  const found = featureIndex(course.vec.waters, ref, 'water feature');
+  if (!found.ok) return found;
+  const removed = cloneJson(course.vec.waters[found.index]);
+  const result = vecOp(state, session, 'Delete water', () => { course.vec.waters.splice(found.index, 1); });
+  return { ...result, removed, ref: stableFeatureRef(removed, found.index) };
+}
+
+export function editVectorStream(state, session, ref, patch) {
+  const { course } = state;
+  if (!editableVectorCourse(course)) return vectorUnsupported();
+  const streams = Array.isArray(course.vec.streams) ? course.vec.streams : [];
+  const found = featureIndex(streams, ref, 'stream');
+  if (!found.ok) return found;
+  const keys = validatePatchKeys(patch, new Set(['pts', 'transform', 'width', 'depth']));
+  if (!keys.ok) return keys;
+  const current = streams[found.index];
+  const geometry = prepareControlPointEdit(course, current.pts, patch, { closed: false });
+  if (!geometry.ok) return geometry;
+  const next = { ...cloneJson(current), pts: geometry.points };
+  if (OWN(patch, 'width')) {
+    if (!Number.isFinite(patch.width) || patch.width <= 0) {
+      return { ok: false, reason: 'Stream width must be positive and finite.' };
+    }
+    next.w = patch.width;
+  }
+  if (OWN(patch, 'depth')) {
+    if (!Number.isFinite(patch.depth) || patch.depth <= 0) {
+      return { ok: false, reason: 'Stream depth must be positive and finite.' };
+    }
+    next.depth = patch.depth;
+  }
+  if (jsonEqual(current, next)) {
+    return { ok: true, cost: 0, cells: 0, unchanged: true, stream: current, ref: stableFeatureRef(current, found.index) };
+  }
+  const result = vecOp(state, session, 'Edit stream', () => { streams[found.index] = next; });
+  return { ...result, stream: streams[found.index], ref: stableFeatureRef(next, found.index) };
+}
+
+export function deleteVectorStream(state, session, ref) {
+  const { course } = state;
+  if (!editableVectorCourse(course)) return vectorUnsupported();
+  const streams = Array.isArray(course.vec.streams) ? course.vec.streams : [];
+  const found = featureIndex(streams, ref, 'stream');
+  if (!found.ok) return found;
+  const removed = cloneJson(streams[found.index]);
+  const result = vecOp(state, session, 'Delete stream', () => { streams.splice(found.index, 1); });
+  return { ...result, removed, ref: stableFeatureRef(removed, found.index) };
 }
 
 // --- objects --------------------------------------------------------------------------
@@ -782,7 +1562,9 @@ export function objectCostOf(type) {
 
 // Placement legality: no trees on greens/tees/bunkers/water/paths; props may
 // stand on rough/fringe; nothing floats on water except reeds at the shore.
-export function objectPlacementOk(course, type, x, y) {
+export function objectPlacementOk(course, type, x, y, {
+  scale = 1, ignoreId = null, clearanceYd = 0.5,
+} = {}) {
   const cx = Math.round(x);
   const cy = Math.round(y);
   if (!inBounds(course, cx, cy)) return { ok: false, reason: 'Outside the property.' };
@@ -798,12 +1580,14 @@ export function objectPlacementOk(course, type, x, y) {
       return { ok: false, reason: 'Too close to the clubhouse.' };
     }
   }
+  const collision = objectCollisionOk(course, type, x, y, { scale, ignoreId, clearanceYd });
+  if (!collision.ok) return collision;
   return { ok: true };
 }
 
 export function addObject(state, session, type, x, y, { rot = 0, scale = 1 } = {}) {
   const { course } = state;
-  const legal = objectPlacementOk(course, type, x, y);
+  const legal = objectPlacementOk(course, type, x, y, { scale });
   if (!legal.ok) return legal;
   const obj = { id: course.nextObjectId++, type, x, y, rot, scale };
   course.objects.push(obj);
@@ -824,27 +1608,70 @@ export function removeObject(state, session, id) {
   return { ok: true, cost: BALANCE.objectRemoveCost };
 }
 
-export function moveObject(state, session, id, patch) {
-  const { course } = state;
-  const obj = findObject(course, id);
+export function beginObjectGesture(state, id, label = 'Move object') {
+  const obj = findObject(state.course, id);
+  if (!obj) return null;
+  return { id, label, before: { ...obj } };
+}
+
+export function previewObjectGesture(state, gesture, patch) {
+  const obj = gesture && findObject(state.course, gesture.id);
   if (!obj) return { ok: false, reason: 'No such object.' };
-  if (patch.x !== undefined || patch.y !== undefined) {
-    const legal = objectPlacementOk(course, obj.type, patch.x ?? obj.x, patch.y ?? obj.y);
+  if (patch.x !== undefined || patch.y !== undefined || patch.scale !== undefined) {
+    const legal = objectPlacementOk(state.course, obj.type, patch.x ?? obj.x, patch.y ?? obj.y, {
+      scale: patch.scale ?? obj.scale,
+      ignoreId: obj.id,
+    });
     if (!legal.ok) return legal;
   }
-  const before = { ...obj };
   Object.assign(obj, patch);
+  return { ok: true, cost: 0, object: obj };
+}
+
+export function endObjectGesture(state, session, gesture) {
+  const obj = gesture && findObject(state.course, gesture.id);
+  if (!obj) return { ok: false, reason: 'No such object.' };
+  const after = { ...obj };
+  const keys = new Set([...Object.keys(gesture.before), ...Object.keys(after)]);
+  if ([...keys].every((key) => Object.is(gesture.before[key], after[key]))) {
+    return { ok: true, cost: 0, unchanged: true };
+  }
   pushOp(state, session, {
-    kind: 'object-move', label: 'Move object', cost: 0, cells: null, id, before, after: { ...obj },
+    kind: 'object-move', label: gesture.label, cost: 0, cells: null,
+    id: gesture.id, before: gesture.before, after,
   });
   return { ok: true, cost: 0 };
+}
+
+export function moveObject(state, session, id, patch) {
+  const gesture = beginObjectGesture(state, id);
+  if (!gesture) return { ok: false, reason: 'No such object.' };
+  const preview = previewObjectGesture(state, gesture, patch);
+  if (!preview.ok) return preview;
+  return endObjectGesture(state, session, gesture);
 }
 
 export function duplicateObject(state, session, id) {
   const { course } = state;
   const obj = findObject(course, id);
   if (!obj) return { ok: false, reason: 'No such object.' };
-  return addObject(state, session, obj.type, obj.x + 1, obj.y + 1, { rot: obj.rot + 0.6, scale: obj.scale });
+  const radiusYd = objectCollisionRadiusYd(obj.type, obj.scale) || 1.35;
+  const firstRingCells = Math.max(1, (radiusYd * 2 + 0.5) / CELL_YD);
+  for (let ring = 1; ring <= 4; ring += 1) {
+    const distance = firstRingCells * ring;
+    for (let index = 0; index < 12; index += 1) {
+      const angle = Math.PI / 4 + index * Math.PI / 6;
+      const x = obj.x + Math.cos(angle) * distance;
+      const y = obj.y + Math.sin(angle) * distance;
+      const legal = objectPlacementOk(course, obj.type, x, y, { scale: obj.scale });
+      if (!legal.ok) continue;
+      return addObject(state, session, obj.type, x, y, {
+        rot: obj.rot + 0.6,
+        scale: obj.scale,
+      });
+    }
+  }
+  return { ok: false, reason: 'No collision-free room near that object.' };
 }
 
 // Assisted landscaping: scatter a category over a disk, respecting legality.
@@ -861,8 +1688,10 @@ export function scatterObjects(state, session, types, cx, cy, {
     const x = cx + Math.cos(a) * r;
     const y = cy + Math.sin(a) * r;
     const type = types[Math.floor(rng() * types.length)];
-    if (!objectPlacementOk(course, type, x, y).ok) continue;
-    const obj = { id: course.nextObjectId++, type, x, y, rot: rng() * Math.PI * 2, scale: scaleMin + rng() * (scaleMax - scaleMin) };
+    const rot = rng() * Math.PI * 2;
+    const scale = scaleMin + rng() * (scaleMax - scaleMin);
+    if (!objectPlacementOk(course, type, x, y, { scale }).ok) continue;
+    const obj = { id: course.nextObjectId++, type, x, y, rot, scale };
     course.objects.push(obj);
     created.push({ ...obj });
     cost += objectCostOf(type);
@@ -874,12 +1703,81 @@ export function scatterObjects(state, session, types, cx, cy, {
 
 // --- paths -----------------------------------------------------------------------------
 
-export function addPath(state, session, pts, { width = 2.6, material = 'asphalt' } = {}) {
+function normalizeBridge(current, value) {
+  if (value === null || value === false) return { ok: true, value: null };
+  if (value === true) return { ok: true, value: true };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { ok: false, reason: 'Bridge settings must be a boolean or settings object.' };
+  }
+  const allowed = new Set([
+    'enabled', 'startT', 'endT', 'deckHeightFt', 'clearanceFt',
+    'supportSpacingYd', 'railings', 'deckMaterial',
+  ]);
+  if (Object.keys(value).some((key) => !allowed.has(key))) {
+    return { ok: false, reason: 'Bridge settings contain an unsupported value.' };
+  }
+  const next = current && typeof current === 'object' && !Array.isArray(current) ? cloneJson(current) : {};
+  for (const field of ['enabled', 'railings']) {
+    if (OWN(value, field)) {
+      if (typeof value[field] !== 'boolean') return { ok: false, reason: `Bridge ${field} must be true or false.` };
+      next[field] = value[field];
+    }
+  }
+  for (const field of ['startT', 'endT']) {
+    if (OWN(value, field)) {
+      if (!Number.isFinite(value[field]) || value[field] < 0 || value[field] > 1) {
+        return { ok: false, reason: `Bridge ${field} must be between 0 and 1.` };
+      }
+      next[field] = value[field];
+    }
+  }
+  if (Number.isFinite(next.startT) && Number.isFinite(next.endT) && next.startT >= next.endT) {
+    return { ok: false, reason: 'Bridge start must come before bridge end.' };
+  }
+  for (const field of ['deckHeightFt', 'clearanceFt']) {
+    if (OWN(value, field)) {
+      if (!Number.isFinite(value[field]) || value[field] < 0) {
+        return { ok: false, reason: `Bridge ${field} must be finite and non-negative.` };
+      }
+      next[field] = value[field];
+    }
+  }
+  if (OWN(value, 'supportSpacingYd')) {
+    if (!Number.isFinite(value.supportSpacingYd) || value.supportSpacingYd <= 0) {
+      return { ok: false, reason: 'Bridge support spacing must be positive and finite.' };
+    }
+    next.supportSpacingYd = value.supportSpacingYd;
+  }
+  if (OWN(value, 'deckMaterial')) {
+    if (!BRIDGE_DECK_MATERIAL_VALUES.has(value.deckMaterial)) {
+      return { ok: false, reason: 'Unsupported bridge deck material.' };
+    }
+    next.deckMaterial = value.deckMaterial;
+  }
+  return { ok: true, value: next };
+}
+
+function validatePathWidthMaterial(width, material) {
+  if (!Number.isFinite(width) || width <= 0) return { ok: false, reason: 'Path width must be positive and finite.' };
+  if (!PATH_MATERIAL_VALUES.has(material)) return { ok: false, reason: 'Unsupported path material.' };
+  return { ok: true };
+}
+
+export function addPath(state, session, pts, { width = 2.6, material = 'asphalt', bridge = null } = {}) {
   const { course } = state;
-  if (!pts || pts.length < 2) return { ok: false, reason: 'A path needs at least two points.' };
+  if (!editableVectorCourse(course)) {
+    return vectorUnsupported('Path construction is unavailable for legacy grid courses.');
+  }
+  const points = validateControlPoints(course, pts, { closed: false });
+  if (!points.ok) return points;
+  const dimensions = validatePathWidthMaterial(width, material);
+  if (!dimensions.ok) return dimensions;
+  const bridgeSettings = normalizeBridge(null, bridge);
+  if (!bridgeSettings.ok) return bridgeSettings;
   let path = null;
   const res = pathOp(state, session, 'Path', () => {
     path = { id: course.nextPathId++, pts: pts.map((p) => ({ x: p.x, y: p.y })), width, material };
+    if (bridgeSettings.value !== null) path.bridge = bridgeSettings.value;
     course.paths.push(path);
   }, { chargeNewPavement: true });
   return { ...res, path };
@@ -887,15 +1785,58 @@ export function addPath(state, session, pts, { width = 2.6, material = 'asphalt'
 
 export function editPath(state, session, id, patch) {
   const { course } = state;
+  if (!editableVectorCourse(course)) {
+    return vectorUnsupported('Path editing is unavailable for legacy grid courses.');
+  }
   const path = findPath(course, id);
   if (!path) return { ok: false, reason: 'No such path.' };
+  const keys = validatePatchKeys(patch, new Set(['pts', 'width', 'material', 'bridge']));
+  if (!keys.ok) return keys;
+  const next = cloneJson(path);
+  if (OWN(patch, 'pts')) {
+    const points = validateControlPoints(course, patch.pts, { closed: false });
+    if (!points.ok) return points;
+    next.pts = patch.pts.map((point) => ({ x: point.x, y: point.y }));
+  }
+  if (OWN(patch, 'width')) next.width = patch.width;
+  if (OWN(patch, 'material')) next.material = patch.material;
+  const dimensions = validatePathWidthMaterial(next.width, next.material);
+  if (!dimensions.ok) return dimensions;
+  if (OWN(patch, 'bridge')) {
+    const bridge = normalizeBridge(path.bridge, patch.bridge);
+    if (!bridge.ok) return bridge;
+    if (bridge.value === null) delete next.bridge;
+    else next.bridge = bridge.value;
+  }
+  if (jsonEqual(path, next)) return { ok: true, cost: 0, cells: 0, unchanged: true, path };
   return pathOp(state, session, 'Edit path', () => {
-    Object.assign(path, patch, patch.pts ? { pts: patch.pts.map((p) => ({ x: p.x, y: p.y })) } : null);
+    Object.assign(path, next);
+    if (!OWN(next, 'bridge')) delete path.bridge;
   }, { chargeNewPavement: true });
+}
+
+// Path-point dragging previews directly against the live spline. Restore the
+// captured geometry before committing so pathOp records a true before/after
+// pair and the whole drag remains one exact undo step.
+export function commitPathPointDrag(state, session, id, originalPts, previewPts) {
+  const path = findPath(state.course, id);
+  if (!path) return { ok: false, reason: 'No such path.' };
+  if (!editableVectorCourse(state.course)) {
+    return vectorUnsupported('Path editing is unavailable for legacy grid courses.');
+  }
+  const before = validateControlPoints(state.course, originalPts, { closed: false });
+  if (!before.ok) return before;
+  const after = validateControlPoints(state.course, previewPts, { closed: false });
+  if (!after.ok) return after;
+  path.pts = originalPts.map((p) => ({ x: p.x, y: p.y }));
+  return editPath(state, session, id, { pts: previewPts });
 }
 
 export function removePath(state, session, id) {
   const { course } = state;
+  if (!editableVectorCourse(course)) {
+    return vectorUnsupported('Path removal is unavailable for legacy grid courses.');
+  }
   if (!findPath(course, id)) return { ok: false, reason: 'No such path.' };
   return pathOp(state, session, 'Remove path', () => {
     course.paths = course.paths.filter((p) => p.id !== id);
@@ -991,6 +1932,7 @@ function invertOp(state, session, op) {
       applyCellsBackward(state, op.cells);
       course.vec = JSON.parse(JSON.stringify(op.vecBefore));
       if (op.paintBefore) course.paint = Uint8Array.from(op.paintBefore);
+      restoreHoleRecords(course, op.holesBefore);
       invalidateGeom(course);
       break;
     case 'hole-add':
@@ -1050,6 +1992,7 @@ function replayOp(state, session, op) {
       applyCellsForward(state, op.cells);
       course.vec = JSON.parse(JSON.stringify(op.vecAfter));
       if (op.paintAfter) course.paint = Uint8Array.from(op.paintAfter);
+      restoreHoleRecords(course, op.holesAfter);
       invalidateGeom(course);
       break;
     case 'hole-add': {
@@ -1084,6 +2027,7 @@ export function undo(state, session) {
   invertOp(state, session, op);
   session.redo.push(op);
   session.bill = Math.max(0, session.bill - op.cost);
+  refreshChangedCells(state, session);
   return { ok: true, label: op.label };
 }
 
@@ -1093,6 +2037,7 @@ export function redo(state, session) {
   replayOp(state, session, op);
   session.undo.push(op);
   session.bill += op.cost;
+  refreshChangedCells(state, session);
   return { ok: true, label: op.label };
 }
 
@@ -1148,8 +2093,10 @@ export function applySession(state, session) {
 }
 
 export function discardSession(state, session) {
-  let guard = 0;
-  while (session.undo.length && guard++ < 10000) undo(state, session);
+  // undo() always pops exactly one entry, so the finite stack is its own guard.
+  // A hard 10k cutoff silently left sufficiently long editing sessions partly
+  // applied after the player chose Discard.
+  while (session.undo.length) undo(state, session);
   session.redo.length = 0;
   session.bill = 0;
   session.changedCells.clear();

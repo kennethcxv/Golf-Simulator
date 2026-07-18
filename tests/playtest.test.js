@@ -1,7 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ZONE, CELL_YD } from '../src/sim/constants.js';
+import { makeRng } from '../src/core/utils.js';
+import { designCourse } from '../src/sim/courseArchitect.js';
+import { evaluateSurface, getGeom } from '../src/sim/courseVec.js';
 import { newGame } from '../src/sim/state.js';
+import {
+  buildCourseBridgeSurfaceIndex,
+  queryCourseBridgeSurface,
+} from '../src/sim/courseBridgeSurface.js';
 import {
   startPlaytest, strike, stepBall, remainingYd, playtestHud, suggestClub, CLUBS, surfaceInfo,
 } from '../src/sim/playtest.js';
@@ -48,6 +55,54 @@ test('playtest spawns on the tee with the pin measured', () => {
   assert.ok(hud.club.key !== 'putter');
 });
 
+test('Opening Drive maps vector markers to their actual course surface', () => {
+  // Same deterministic Willow Creek property as the browser course-master QA
+  // fixture (newEmpire relaxed/424242 -> property seed 276398324).
+  const course = designCourse(makeRng(276398324), { jitter: 0.35 });
+  const state = { course };
+  const hole = course.holes[0];
+  const geom = getGeom(course);
+  const worldW = course.w * CELL_YD;
+  const worldH = course.h * CELL_YD;
+  const hooks = {
+    cellToWorld: (p) => ({
+      x: (p.x + 0.5) * CELL_YD - worldW / 2,
+      z: (p.y + 0.5) * CELL_YD - worldH / 2,
+    }),
+    courseToWorld: (p) => ({
+      x: p.x * CELL_YD - worldW / 2,
+      z: p.y * CELL_YD - worldH / 2,
+    }),
+    heightAt: () => 0,
+    zoneAt: (x, z) => evaluateSurface(
+      course,
+      geom,
+      (x + worldW / 2) / CELL_YD,
+      (z + worldH / 2) / CELL_YD,
+      course.paint,
+    ).zone,
+  };
+
+  const pt = startPlaytest(state, hole.id, hooks);
+  assert.ok(pt, 'Opening Drive starts');
+  assert.equal(pt.strokes, 0);
+  assert.equal(hooks.zoneAt(pt.ball.x, pt.ball.z), ZONE.TEE,
+    'the actual visual and physics spawn lies inside the authored tee rectangle');
+  assert.equal(pt.surface, ZONE.TEE, 'the session records the sampled starting surface');
+  assert.equal(playtestHud(pt).lie, 'Tee');
+  assert.equal(Math.round(remainingYd(pt)), 412, 'the persisted 412-yard measurement is unchanged');
+
+  const cascades = course.holes[6];
+  const routed = startPlaytest(state, cascades.id, hooks);
+  const routePoint = hooks.courseToWorld(cascades.wp[0]);
+  const expectedYaw = Math.atan2(routePoint.x - routed.tee.x, routePoint.z - routed.tee.z);
+  const pinYaw = Math.atan2(routed.pin.x - routed.tee.x, routed.pin.z - routed.tee.z);
+  assert.ok(Math.abs(routed.aimYaw - expectedYaw) < 1e-9,
+    'a dogleg playtest opens toward its first authored landing route');
+  assert.ok(Math.abs(routed.aimYaw - pinYaw) > 0.02,
+    'the Cascades opening shot does not cut across the tee-to-pin chord');
+});
+
 test('a full-power drive flies, lands, and rolls out to rest', () => {
   const st = newGame('relaxed', 4242);
   const pt = startPlaytest(st, st.course.holes[0].id, hooksFor(st));
@@ -65,6 +120,49 @@ test('surfaces behave differently: green rolls farther than heavy rough', () => 
   assert.ok(surfaceInfo(ZONE.GREEN).roll < surfaceInfo(ZONE.ROUGH).roll);
   assert.ok(surfaceInfo(ZONE.ROUGH).roll < surfaceInfo(ZONE.BUNKER).roll);
   assert.ok(surfaceInfo(ZONE.PATH).rest > surfaceInfo(ZONE.BUNKER).rest, 'cart path bounces, sand deadens');
+});
+
+test('playtest hooks treat a bridge deck as cart path while adjacent water remains a hazard', () => {
+  const width = 20;
+  const height = 12;
+  const worldW = width * CELL_YD;
+  const worldH = height * CELL_YD;
+  const course = {
+    w: width,
+    h: height,
+    elevation: new Float32Array(width * height),
+    zones: new Uint8Array(width * height).fill(ZONE.WATER),
+    holes: [{ id: 1, tee: { x: 2, y: 5 }, pin: { x: 16, y: 5 } }],
+    paths: [{
+      id: 9,
+      pts: [{ x: 2, y: 5 }, { x: 9, y: 5 }, { x: 16, y: 5 }],
+      width: 4,
+      bridge: { deckHeightFt: 1.5, clearanceFt: 1, deckMaterial: 'timber' },
+    }],
+  };
+  const bridgeIndex = buildCourseBridgeSurfaceIndex(course, { terrainHeightYdAt: () => 0 });
+  const toCourse = (x, z) => ({
+    x: (x + worldW / 2) / CELL_YD - 0.5,
+    y: (z + worldH / 2) / CELL_YD - 0.5,
+  });
+  const bridgeAt = (x, z) => queryCourseBridgeSurface(bridgeIndex, toCourse(x, z));
+  const hooks = {
+    cellToWorld: (point) => ({
+      x: (point.x + 0.5) * CELL_YD - worldW / 2,
+      z: (point.y + 0.5) * CELL_YD - worldH / 2,
+    }),
+    heightAt: (x, z) => bridgeAt(x, z)?.deckHeightYd ?? 0,
+    zoneAt: (x, z) => bridgeAt(x, z)?.zone ?? ZONE.WATER,
+    inBoundsWorld: () => true,
+  };
+
+  const pt = startPlaytest({ course }, 1, hooks);
+  assert.ok(pt);
+  assert.equal(pt.surface, ZONE.PATH);
+  assert.equal(playtestHud(pt).lie, 'Cart path');
+  assert.ok(pt.ball.y > 0.5, 'the ball rests on the raised visible deck');
+  assert.equal(hooks.zoneAt(pt.tee.x, pt.tee.z + 3), ZONE.WATER,
+    'water immediately outside the four-yard deck remains hazardous');
 });
 
 test('water costs a penalty stroke and drops at the last rest', () => {

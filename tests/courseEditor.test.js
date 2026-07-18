@@ -8,9 +8,10 @@ import {
   makeEditSession, sessionDirty,
   beginTerrainStroke, sculptAt, endTerrainStroke,
   beginPaintStroke, paintAt, endPaintStroke,
-  stampGreen, stampBunker, stampWater, stampStream, stampTee, setPinPosition, selectPin,
-  addObject, removeObject, moveObject, duplicateObject, scatterObjects, objectPlacementOk,
-  addPath, editPath, removePath,
+  stampGreen, stampBunker, stampWater, stampStream, stampTee, setPinPosition, selectPin, selectTee,
+  addObject, removeObject, moveObject, beginObjectGesture, previewObjectGesture, endObjectGesture,
+  duplicateObject, scatterObjects, objectPlacementOk,
+  addPath, editPath, commitPathPointDrag, removePath,
   newHole, deleteHole, setHoleSettings, reorderHole,
   undo, redo, applySession, discardSession,
   measure, courseStats, affectedHoles,
@@ -22,9 +23,9 @@ function fresh() {
   return st;
 }
 
-// a quiet corner of scrub far from any hole corridor (the NW forest)
-const QX = 11;
-const QY = 11;
+// A quiet out-of-play scrub cell, clear of authored hole and cart-path corridors.
+const QX = 35;
+const QY = 22;
 
 test('terrain stroke: raise applies live, undo restores exactly, bill follows', () => {
   const st = fresh();
@@ -48,6 +49,19 @@ test('terrain stroke: raise applies live, undo restores exactly, bill follows', 
   assert.equal(redo(st, s).ok, true);
   assert.ok(st.course.elevation[i] > before + 1.5, 'redo re-applies');
   assert.equal(s.bill, res.cost);
+});
+
+test('undoing to the session baseline is clean even while redo remains available', () => {
+  const st = fresh();
+  const s = makeEditSession(st);
+  const placed = addObject(st, s, 'rock_s', QX, QY);
+  assert.equal(placed.ok, true);
+  assert.equal(sessionDirty(s), true);
+  assert.equal(undo(st, s).ok, true);
+  assert.equal(s.undo.length, 0);
+  assert.equal(s.redo.length, 1, 'the action can still be redone');
+  assert.equal(sessionDirty(s), false, 'history alone is not pending construction');
+  assert.equal(applySession(st, s).ok, false, 'there is nothing live to build');
 });
 
 test('terrain smooth and flatten converge instead of exploding', () => {
@@ -106,6 +120,87 @@ test('green stamp paints green + fringe collar and smooths a plateau', () => {
   assert.notEqual(getZone(st.course, QX, QY), ZONE.GREEN);
 });
 
+test('vector green and bunker shape choices author distinct silhouettes', () => {
+  const ovalState = fresh();
+  const ovalSession = makeEditSession(ovalState);
+  stampGreen(ovalState, ovalSession, QX, QY, { r: 2, elong: 1.35, angle: 0.3, kidney: false });
+  const ovalGreen = ovalState.course.vec.holes.find((hole) => hole.green?.cx === QX && hole.green?.cy === QY)?.green;
+
+  const kidneyState = fresh();
+  const kidneySession = makeEditSession(kidneyState);
+  stampGreen(kidneyState, kidneySession, QX, QY, { r: 2, elong: 1.35, angle: 0.3, kidney: true });
+  const kidneyGreen = kidneyState.course.vec.holes.find((hole) => hole.green?.cx === QX && hole.green?.cy === QY)?.green;
+  assert.ok(ovalGreen && kidneyGreen);
+  assert.notDeepEqual(kidneyGreen.pts, ovalGreen.pts, 'Kidney is not a cosmetic alias for Oval');
+
+  const roundState = fresh();
+  const roundIds = new Set(roundState.course.vec.holes.flatMap((hole) => hole.bunkers).map((bunker) => bunker.id));
+  stampBunker(roundState, makeEditSession(roundState), QX, QY, { r: 1.6, lobes: 1, stretch: 1, angle: 0.2 });
+  const roundBunker = roundState.course.vec.holes.flatMap((hole) => hole.bunkers).find((bunker) => !roundIds.has(bunker.id));
+
+  const ovalBunkerState = fresh();
+  const ovalIds = new Set(ovalBunkerState.course.vec.holes.flatMap((hole) => hole.bunkers).map((bunker) => bunker.id));
+  stampBunker(ovalBunkerState, makeEditSession(ovalBunkerState), QX, QY, { r: 1.6, lobes: 2, stretch: 1.45, angle: 0.2 });
+  const ovalBunker = ovalBunkerState.course.vec.holes.flatMap((hole) => hole.bunkers).find((bunker) => !ovalIds.has(bunker.id));
+  assert.ok(roundBunker && ovalBunker);
+  assert.notDeepEqual(roundBunker.pts, ovalBunker.pts, 'Round is not a cosmetic alias for Oval');
+});
+
+test('vector green and bunker stamps honor the explicitly selected hole', () => {
+  const greenState = fresh();
+  const greenSession = makeEditSession(greenState);
+  const firstGreenHole = greenState.course.holes[0];
+  const targetGreenHole = greenState.course.holes[1];
+  const firstGreenBefore = structuredClone(
+    greenState.course.vec.holes.find((hole) => hole.id === firstGreenHole.vecId).green,
+  );
+
+  const greenResult = stampGreen(greenState, greenSession, QX, QY, {
+    r: 1.8,
+    holeId: targetGreenHole.id,
+  });
+  assert.equal(greenResult.ok, true);
+  const targetedGreen = greenState.course.vec.holes.find((hole) => hole.id === targetGreenHole.vecId).green;
+  assert.equal(targetedGreen.cx, QX);
+  assert.equal(targetedGreen.cy, QY);
+  assert.deepEqual(
+    greenState.course.vec.holes.find((hole) => hole.id === firstGreenHole.vecId).green,
+    firstGreenBefore,
+    'a selected-hole stamp must not replace the geographically nearest hole green',
+  );
+  assert.deepEqual(targetGreenHole.pin, { x: QX, y: QY });
+
+  const bunkerState = fresh();
+  const bunkerSession = makeEditSession(bunkerState);
+  const firstBunkerHole = bunkerState.course.holes[0];
+  const targetBunkerHole = bunkerState.course.holes[1];
+  const firstCount = bunkerState.course.vec.holes.find((hole) => hole.id === firstBunkerHole.vecId).bunkers.length;
+  const targetBunkers = bunkerState.course.vec.holes.find((hole) => hole.id === targetBunkerHole.vecId).bunkers;
+  const targetIds = new Set(targetBunkers.map((bunker) => bunker.id));
+
+  const bunkerResult = stampBunker(bunkerState, bunkerSession, QX, QY, {
+    r: 1.4,
+    holeId: targetBunkerHole.id,
+  });
+  assert.equal(bunkerResult.ok, true);
+  assert.equal(
+    bunkerState.course.vec.holes.find((hole) => hole.id === firstBunkerHole.vecId).bunkers.length,
+    firstCount,
+  );
+  const created = targetBunkers.find((bunker) => !targetIds.has(bunker.id));
+  assert.ok(created, 'the bunker is attached to the selected vector hole');
+  const bunkerCenter = created.pts.reduce(
+    (sum, point) => ({ x: sum.x + point.x / created.pts.length, y: sum.y + point.y / created.pts.length }),
+    { x: 0, y: 0 },
+  );
+  assert.ok(Math.hypot(bunkerCenter.x - QX, bunkerCenter.y - QY) < 0.5, 'the authored outline is at the click');
+
+  const invalidState = fresh();
+  const invalid = stampGreen(invalidState, makeEditSession(invalidState), QX, QY, { holeId: 999999 });
+  assert.equal(invalid.ok, false);
+  assert.match(invalid.reason, /no such hole/i);
+});
+
 test('bunker stamp digs a lobed depression; water floods a bowl', () => {
   const st = fresh();
   const s = makeEditSession(st);
@@ -148,6 +243,49 @@ test('tee stamp builds a level pad and sets the hole tee; pins A/B/C work', () =
   assert.deepEqual(hole.pin, hole.pins.A);
 });
 
+test('selecting an existing tee or pin is dirty, undoable, and free', () => {
+  const st = fresh();
+  const s = makeEditSession(st);
+  const hole = st.course.holes[0];
+  const originalPin = hole.activePin;
+  const originalTee = hole.activeTee;
+  const alternatePin = ['A', 'B', 'C'].find((key) => key !== originalPin && hole.pins[key]);
+  const alternateTee = ['back', 'middle', 'forward'].find((key) => key !== originalTee && hole.tees[key]);
+
+  assert.equal(selectPin(st, s, hole.id, alternatePin).ok, true);
+  assert.equal(selectTee(st, s, hole.id, alternateTee).ok, true);
+  assert.equal(sessionDirty(s), true);
+  assert.equal(s.bill, 0);
+  assert.equal(hole.activePin, alternatePin);
+  assert.equal(hole.activeTee, alternateTee);
+
+  undo(st, s);
+  undo(st, s);
+  assert.equal(hole.activePin, originalPin);
+  assert.equal(hole.activeTee, originalTee);
+  assert.equal(sessionDirty(s), false, 'undoing every live choice returns to the clean baseline');
+  discardSession(st, s);
+  assert.equal(sessionDirty(s), false);
+});
+
+test('undo clears the renovation footprint for work no longer pending', () => {
+  const st = fresh();
+  const s = makeEditSession(st);
+  const hole = st.course.holes[0];
+  const mx = Math.round((hole.tee.x + hole.pin.x) / 2);
+  const my = Math.round((hole.tee.y + hole.pin.y) / 2);
+  const stroke = beginPaintStroke();
+  paintAt(st, stroke, mx, my, ZONE.BUNKER, { radius: 2 });
+  assert.equal(endPaintStroke(st, s, stroke).ok, true);
+  assert.ok(s.changedCells.size > 0);
+
+  assert.equal(undo(st, s).ok, true);
+  assert.equal(s.changedCells.size, 0);
+  assert.deepEqual(affectedHoles(st, s), []);
+  assert.equal(applySession(st, s).ok, false, 'fully undone work cannot be built');
+  assert.equal(hole.status, HOLE_STATUS.OPEN);
+});
+
 test('objects: place, refuse greens, move, duplicate, remove, scatter, undo chain', () => {
   const st = fresh();
   const s = makeEditSession(st);
@@ -178,6 +316,88 @@ test('objects: place, refuse greens, move, duplicate, remove, scatter, undo chai
   assert.equal(s.bill, 0);
 });
 
+test('object placement, move, scale, and duplicate enforce collision footprints', () => {
+  const st = fresh();
+  st.course.objects = [];
+  st.course.nextObjectId = 1;
+  const s = makeEditSession(st);
+  const tree = addObject(st, s, 'tree_oak', QX, QY, { scale: 1 });
+  assert.equal(tree.ok, true);
+
+  const overlap = addObject(st, s, 'bench', QX, QY, { scale: 1 });
+  assert.equal(overlap.ok, false);
+  assert.equal(overlap.reason, 'Too close to another object.');
+
+  const scaleGesture = beginObjectGesture(st, tree.object.id, 'Scale object');
+  assert.equal(previewObjectGesture(st, scaleGesture, { scale: 1.4 }).ok, true,
+    'selected-object scale ignores its own footprint');
+  assert.equal(endObjectGesture(st, s, scaleGesture).ok, true);
+
+  const rock = addObject(st, s, 'rock_s', QX + 8, QY + 7);
+  assert.equal(rock.ok, true);
+  const moveGesture = beginObjectGesture(st, tree.object.id, 'Move object');
+  const blockedMove = previewObjectGesture(st, moveGesture, { x: rock.object.x, y: rock.object.y });
+  assert.equal(blockedMove.ok, false);
+  assert.equal(blockedMove.collidesWith, rock.object.id);
+
+  const copy = duplicateObject(st, s, tree.object.id);
+  assert.equal(copy.ok, true);
+  assert.notDeepEqual(
+    { x: copy.object.x, y: copy.object.y },
+    { x: tree.object.x, y: tree.object.y },
+    'duplicate searches for nearby collision-free ground',
+  );
+});
+
+test('object drag and transform gestures preview live but commit one undo entry each', () => {
+  const cases = [
+    {
+      label: 'Move object',
+      patches: [
+        { x: QX + 5, y: QY + 4 },
+        { x: QX + 8, y: QY + 7 },
+        { x: QX + 10, y: QY + 10 },
+      ],
+    },
+    {
+      label: 'Rotate object',
+      patches: [{ rot: 0.4 }, { rot: 0.9 }, { rot: 1.3 }],
+    },
+    {
+      label: 'Scale object',
+      patches: [{ scale: 1.1 }, { scale: 1.25 }, { scale: 1.4 }],
+    },
+  ];
+
+  for (const { label, patches } of cases) {
+    const st = fresh();
+    const setup = makeEditSession(st);
+    const placed = addObject(st, setup, 'tree_oak', QX, QY, { rot: 0.1, scale: 1 });
+    assert.equal(placed.ok, true);
+    assert.equal(applySession(st, setup).ok, true);
+
+    const s = makeEditSession(st);
+    const before = { ...placed.object };
+    const gesture = beginObjectGesture(st, placed.object.id, label);
+    assert.ok(gesture);
+    for (const patch of patches) {
+      assert.equal(previewObjectGesture(st, gesture, patch).ok, true);
+      assert.equal(s.undo.length, 0, `${label} preview does not write history`);
+    }
+    const after = { ...placed.object };
+    assert.notDeepEqual(after, before, `${label} updates the live object`);
+
+    assert.equal(endObjectGesture(st, s, gesture).ok, true);
+    assert.equal(s.undo.length, 1, `${label} commits one history entry`);
+    assert.equal(s.undo[0].label, label);
+
+    assert.equal(undo(st, s).ok, true);
+    assert.deepEqual(placed.object, before, `${label} undo restores the opening pose`);
+    assert.equal(redo(st, s).ok, true);
+    assert.deepEqual(placed.object, after, `${label} redo restores the final preview`);
+  }
+});
+
 test('paths: add paints pavement, edit reroutes, remove restores, undo is exact', () => {
   const st = fresh();
   const s = makeEditSession(st);
@@ -204,6 +424,40 @@ test('paths: add paints pavement, edit reroutes, remove restores, undo is exact'
   let guard = 0;
   while (s.undo.length && guard++ < 100) undo(st, s);
   assert.deepEqual(Array.from(st.course.zones), Array.from(zonesBefore), 'zones byte-identical after full undo');
+});
+
+test('path-point live preview commits one exact undoable drag', () => {
+  const st = fresh();
+  const s = makeEditSession(st);
+  const path = st.course.paths[0];
+  const pointsBefore = structuredClone(path.pts);
+  const zonesBefore = Uint8Array.from(st.course.zones);
+
+  // The UI previews against the live spline while the pointer is held.
+  path.pts[0] = { x: pointsBefore[0].x + 3, y: pointsBefore[0].y + 2 };
+  const previewPts = structuredClone(path.pts);
+  const res = commitPathPointDrag(st, s, path.id, pointsBefore, previewPts);
+  const zonesAfter = Uint8Array.from(st.course.zones);
+
+  assert.equal(res.ok, true);
+  assert.equal(s.undo.length, 1, 'one pointer drag records one edit');
+  assert.deepEqual(st.course.paths.find((p) => p.id === path.id).pts, previewPts,
+    'committed spline matches the live preview');
+
+  assert.equal(undo(st, s).ok, true);
+  assert.deepEqual(st.course.paths.find((p) => p.id === path.id).pts, pointsBefore,
+    'undo restores the captured spline geometry');
+  assert.deepEqual(Array.from(st.course.zones), Array.from(zonesBefore), 'undo restores its raster footprint');
+
+  assert.equal(redo(st, s).ok, true);
+  assert.deepEqual(st.course.paths.find((p) => p.id === path.id).pts, previewPts,
+    'redo restores the dragged geometry');
+  assert.deepEqual(Array.from(st.course.zones), Array.from(zonesAfter), 'redo restores its raster footprint');
+
+  discardSession(st, s);
+  assert.deepEqual(st.course.paths.find((p) => p.id === path.id).pts, pointsBefore,
+    'discard restores the pre-drag geometry');
+  assert.deepEqual(Array.from(st.course.zones), Array.from(zonesBefore), 'discard restores the pre-drag raster');
 });
 
 test('holes: add, settings, reorder, delete — with undo', () => {
@@ -302,7 +556,8 @@ test('edits survive serialize/deserialize: objects, paths, hole extras, surfaces
   const st = fresh();
   const s = makeEditSession(st);
   stampGreen(st, s, QX, QY, { r: 1.8 });
-  addObject(st, s, 'bench', QX + 5, QY + 5, { rot: 0.4, scale: 1.1 });
+  const bench = addObject(st, s, 'bench', QX + 8, QY + 8, { rot: 0.4, scale: 1.1 });
+  assert.equal(bench.ok, true, 'the persisted bench is placed on collision-free ground');
   addPath(st, s, [{ x: QX, y: QY + 8 }, { x: QX + 8, y: QY + 8 }]);
   setHoleSettings(st, s, st.course.holes[0].id, { name: 'The Test', handicap: 3 });
   setPinPosition(st, s, st.course.holes[0].id, 'C', st.course.holes[0].pins.A.x, st.course.holes[0].pins.A.y);

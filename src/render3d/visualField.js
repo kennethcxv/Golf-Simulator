@@ -18,11 +18,34 @@
 //
 // Pure data in, pure data out: no three.js, no DOM. Unit-tested headlessly.
 
-import { ZONE } from '../sim/constants.js';
-import { makeField, rasterizeRect } from '../sim/courseVec.js';
+import { ZONE, CELL_YD } from '../sim/constants.js';
+import { BANDS, makeField, rasterizeRect } from '../sim/courseVec.js';
 
 export const FIELD_SCALE = 8;   // legacy kernel path: 1 texel per yard
 export const VEC_SCALE = 16;    // vector path: 1 texel per half yard
+
+// Rendering-only signed distances packed into one RGBA texture. The categorical
+// RG field above remains authoritative for gameplay; these channels reconstruct
+// sharp subpixel material contours in the shader without spending another
+// texture unit. One byte stores 1/32 yd and saturates about four yards from an
+// edge -- ample for the 1.4 yd first cut and 1 yd green collar.
+export const SURFACE_DISTANCE_CHANNEL = Object.freeze({
+  FAIRWAY: 0,
+  GREEN: 1,
+  TEE: 2,
+  BUNKER: 3,
+});
+export const SURFACE_DISTANCE_UNITS_PER_YD = 32;
+export const SURFACE_DISTANCE_ZERO = 128;
+// courseVec's compact winning-zone distance uses 1/32 cell steps. Coverage
+// needs at least half this world-space quantum to hide the residual contour
+// position error at player height without widening a mowing band.
+export const VISUAL_FIELD_DISTANCE_QUANTUM_YD = CELL_YD / 32;
+export const SURFACE_COVERAGE_MIN_AA_YD = VISUAL_FIELD_DISTANCE_QUANTUM_YD * 0.5;
+export const SURFACE_DISTANCE_MIN_YD = -SURFACE_DISTANCE_ZERO / SURFACE_DISTANCE_UNITS_PER_YD;
+export const SURFACE_DISTANCE_MAX_YD = (255 - SURFACE_DISTANCE_ZERO) / SURFACE_DISTANCE_UNITS_PER_YD;
+export const SURFACE_FIRST_CUT_YD = BANDS.firstCut;
+export const SURFACE_GREEN_FRINGE_YD = BANDS.fringe;
 
 // --- legacy kernel table (unchanged from the resolution pass) -----------------
 
@@ -84,13 +107,221 @@ export function fieldDims(course) {
 
 export function makeVisualField(course) {
   const field = makeField(course, course.vec ? VEC_SCALE : FIELD_SCALE);
+  field.hasAnalyticDistance = Boolean(course.vec);
   computeVisualField(course, field);
   return field;
+}
+
+export function encodeSurfaceDistanceYd(distanceYd) {
+  const d = Math.max(SURFACE_DISTANCE_MIN_YD, Math.min(SURFACE_DISTANCE_MAX_YD, distanceYd));
+  return Math.round(SURFACE_DISTANCE_ZERO + d * SURFACE_DISTANCE_UNITS_PER_YD);
+}
+
+export function decodeSurfaceDistanceByte(byte) {
+  return (byte - SURFACE_DISTANCE_ZERO) / SURFACE_DISTANCE_UNITS_PER_YD;
+}
+
+export function makeSurfaceDistanceField(field) {
+  // Match the vector field's half-yard resolution. Unlike the previous one-yard
+  // occupancy average, this preserves the authored analytical boundary distance
+  // at each sample. Linear GPU sampling then reconstructs the zero contour;
+  // fwidth controls only pixel antialiasing, not the world-space shape.
+  const distance = {
+    w: field.w,
+    h: field.h,
+    scale: field.scale,
+    data: new Uint8Array(field.w * field.h * 4),
+  };
+  computeSurfaceDistanceField(field, distance);
+  return distance;
+}
+
+function winnerDistanceYd(field, sourceOffset) {
+  if (!(field.hasAnalyticDistance ?? field.scale === VEC_SCALE)) return null;
+  return ((field.data[sourceOffset + 1] - 128) / 32) * CELL_YD;
+}
+
+function baseFairwayDistance(field, tx, ty, exteriorStepYd) {
+  const sourceOffset = (ty * field.w + tx) * 2;
+  const zone = field.data[sourceOffset];
+  const winnerD = winnerDistanceYd(field, sourceOffset);
+  if (zone === ZONE.FAIRWAY) return winnerD === null ? -exteriorStepYd : Math.min(-1e-4, winnerD);
+  if (zone === ZONE.SEMI) {
+    return winnerD === null
+      ? SURFACE_FIRST_CUT_YD * 0.5
+      : Math.max(1e-4, winnerD + SURFACE_FIRST_CUT_YD);
+  }
+  if (zone === ZONE.ROUGH) return SURFACE_FIRST_CUT_YD + exteriorStepYd;
+  return null;
+}
+
+function underlyingFairwayDistance(field, tx, ty, exteriorStepYd) {
+  const direct = baseFairwayDistance(field, tx, ty, exteriorStepYd);
+  if (direct !== null) return direct;
+
+  const zone = field.data[(ty * field.w + tx) * 2];
+  if (zone !== ZONE.GREEN && zone !== ZONE.FRINGE && zone !== ZONE.TEE && zone !== ZONE.BUNKER) {
+    return SURFACE_FIRST_CUT_YD + exteriorStepYd;
+  }
+
+  // Bunkers, greens, and tees have priority over the corridor in the categorical
+  // field. Extend the adjacent base-turf distance by one texel beneath those
+  // overlays so their antialiased rim blends back to the actual surrounding lie,
+  // rather than producing a dark rough halo. The interior value is irrelevant
+  // once the overlay coverage reaches one.
+  let sum = 0;
+  let samples = 0;
+  for (let oy = -1; oy <= 1; oy++) {
+    const sy = ty + oy;
+    if (sy < 0 || sy >= field.h) continue;
+    for (let ox = -1; ox <= 1; ox++) {
+      if (ox === 0 && oy === 0) continue;
+      const sx = tx + ox;
+      if (sx < 0 || sx >= field.w) continue;
+      const neighbor = baseFairwayDistance(field, sx, sy, exteriorStepYd);
+      if (neighbor === null) continue;
+      sum += neighbor;
+      samples++;
+    }
+  }
+  return samples ? sum / samples : SURFACE_FIRST_CUT_YD + exteriorStepYd;
+}
+
+function greenDistance(field, tx, ty, exteriorStepYd) {
+  const sourceOffset = (ty * field.w + tx) * 2;
+  const zone = field.data[sourceOffset];
+  const winnerD = winnerDistanceYd(field, sourceOffset);
+  if (zone === ZONE.GREEN) return winnerD === null ? -exteriorStepYd : Math.min(-1e-4, winnerD);
+  if (zone === ZONE.FRINGE) {
+    return winnerD === null
+      ? SURFACE_GREEN_FRINGE_YD * 0.5
+      : Math.max(1e-4, winnerD + SURFACE_GREEN_FRINGE_YD);
+  }
+
+  // Preserve a green/fringe base under the first bunker texel when a bunker cuts
+  // into a green complex. Sand remains the higher-priority material in shader.
+  if (zone === ZONE.BUNKER) {
+    let sum = 0;
+    let samples = 0;
+    for (let oy = -1; oy <= 1; oy++) {
+      const sy = ty + oy;
+      if (sy < 0 || sy >= field.h) continue;
+      for (let ox = -1; ox <= 1; ox++) {
+        if (ox === 0 && oy === 0) continue;
+        const sx = tx + ox;
+        if (sx < 0 || sx >= field.w) continue;
+        const so = (sy * field.w + sx) * 2;
+        const sz = field.data[so];
+        const sd = winnerDistanceYd(field, so);
+        if (sz === ZONE.GREEN) {
+          sum += sd === null ? -exteriorStepYd : Math.min(-1e-4, sd);
+          samples++;
+        } else if (sz === ZONE.FRINGE) {
+          sum += sd === null
+            ? SURFACE_GREEN_FRINGE_YD * 0.5
+            : Math.max(1e-4, sd + SURFACE_GREEN_FRINGE_YD);
+          samples++;
+        }
+      }
+    }
+    if (samples) return sum / samples;
+  }
+  return SURFACE_GREEN_FRINGE_YD + exteriorStepYd;
+}
+
+function prioritySurfaceDistance(field, sourceOffset, zoneId, exteriorStepYd) {
+  if (field.data[sourceOffset] !== zoneId) return exteriorStepYd;
+  const winnerD = winnerDistanceYd(field, sourceOffset);
+  return winnerD === null ? -exteriorStepYd : Math.min(-1e-4, winnerD);
+}
+
+// Derive four band-limited signed distances from the categorical visual field.
+// The zero level set is the authored material edge. FAIRWAY and GREEN also use
+// positive thresholds for their real-world first-cut/collar widths, allowing two
+// related boundaries to share a channel without sacrificing tee antialiasing.
+export function computeSurfaceDistanceField(field, distance, rect = null) {
+  if (distance.scale !== field.scale || distance.w !== field.w || distance.h !== field.h) {
+    throw new RangeError('surface distance field must match the visual field dimensions');
+  }
+  // The only neighbourhood operation is a one-texel base-material extension
+  // under priority overlays. Recompute one extra source texel so a dirty update
+  // is byte-identical to a full rebuild.
+  const tx0 = rect ? Math.max(0, Math.floor(rect.x0 * distance.scale) - 1) : 0;
+  const ty0 = rect ? Math.max(0, Math.floor(rect.y0 * distance.scale) - 1) : 0;
+  const tx1 = rect ? Math.min(distance.w - 1, Math.ceil(rect.x1 * distance.scale) + 1) : distance.w - 1;
+  const ty1 = rect ? Math.min(distance.h - 1, Math.ceil(rect.y1 * distance.scale) + 1) : distance.h - 1;
+  const exteriorStepYd = CELL_YD / (distance.scale * 2);
+
+  // A one-texel separable level-set relaxation removes the sampling-frequency
+  // scallop from diagonal zero contours. Crucially this operates on signed
+  // distance, not material color or coverage: the shader still renders a sharp
+  // fwidth-antialiased threshold. The extra halo makes regional and full builds
+  // mathematically identical.
+  const rawTx0 = Math.max(0, tx0 - 1);
+  const rawTy0 = Math.max(0, ty0 - 1);
+  const rawTx1 = Math.min(distance.w - 1, tx1 + 1);
+  const rawTy1 = Math.min(distance.h - 1, ty1 + 1);
+  const rawW = rawTx1 - rawTx0 + 1;
+  const rawH = rawTy1 - rawTy0 + 1;
+  const raw = new Uint8Array(rawW * rawH * 4);
+
+  for (let ty = rawTy0; ty <= rawTy1; ty++) {
+    let dst = ((ty - rawTy0) * rawW) * 4;
+    for (let tx = rawTx0; tx <= rawTx1; tx++, dst += 4) {
+      const sourceOffset = (ty * field.w + tx) * 2;
+      raw[dst + SURFACE_DISTANCE_CHANNEL.FAIRWAY] = encodeSurfaceDistanceYd(
+        underlyingFairwayDistance(field, tx, ty, exteriorStepYd),
+      );
+      raw[dst + SURFACE_DISTANCE_CHANNEL.GREEN] = encodeSurfaceDistanceYd(
+        greenDistance(field, tx, ty, exteriorStepYd),
+      );
+      raw[dst + SURFACE_DISTANCE_CHANNEL.TEE] = encodeSurfaceDistanceYd(
+        prioritySurfaceDistance(field, sourceOffset, ZONE.TEE, exteriorStepYd),
+      );
+      raw[dst + SURFACE_DISTANCE_CHANNEL.BUNKER] = encodeSurfaceDistanceYd(
+        prioritySurfaceDistance(field, sourceOffset, ZONE.BUNKER, exteriorStepYd),
+      );
+    }
+  }
+
+  const horizontal = new Uint8Array(raw.length);
+  for (let y = 0; y < rawH; y++) {
+    const row = y * rawW * 4;
+    for (let x = 0; x < rawW; x++) {
+      const center = row + x * 4;
+      const left = x > 0 ? center - 4 : center;
+      const right = x + 1 < rawW ? center + 4 : center;
+      for (let channel = 0; channel < 4; channel++) {
+        horizontal[center + channel] = (raw[left + channel] + raw[center + channel] * 2 + raw[right + channel] + 2) >> 2;
+      }
+    }
+  }
+
+  for (let ty = ty0; ty <= ty1; ty++) {
+    const localY = ty - rawTy0;
+    const upY = localY > 0 ? localY - 1 : localY;
+    const downY = localY + 1 < rawH ? localY + 1 : localY;
+    let dst = (ty * distance.w + tx0) * 4;
+    for (let tx = tx0; tx <= tx1; tx++, dst += 4) {
+      const localX = tx - rawTx0;
+      const center = (localY * rawW + localX) * 4;
+      const up = (upY * rawW + localX) * 4;
+      const down = (downY * rawW + localX) * 4;
+      for (let channel = 0; channel < 4; channel++) {
+        distance.data[dst + channel] = (horizontal[up + channel]
+          + horizontal[center + channel] * 2
+          + horizontal[down + channel] + 2) >> 2;
+      }
+    }
+  }
+  distance.updatedRect = { tx0, ty0, tx1, ty1 };
+  return distance;
 }
 
 // Recompute the field inside a CELL-space rectangle (inclusive), or everything
 // when rect is null.
 export function computeVisualField(course, field, rect = null) {
+  field.hasAnalyticDistance = Boolean(course.vec);
   if (course.vec) {
     rasterizeRect(course, field, rect || { x0: 0, y0: 0, x1: course.w, y1: course.h });
     return field;
@@ -153,6 +384,16 @@ function computeLegacyField(course, field, rect) {
 export function updateVisualFieldRegion(course, field, cx0, cy0, cx1, cy1) {
   const PAD = REACH + 1.2;
   return computeVisualField(course, field, {
+    x0: Math.max(0, cx0 - PAD),
+    y0: Math.max(0, cy0 - PAD),
+    x1: Math.min(course.w - 1, cx1 + PAD),
+    y1: Math.min(course.h - 1, cy1 + PAD),
+  });
+}
+
+export function updateSurfaceDistanceFieldRegion(course, field, distance, cx0, cy0, cx1, cy1) {
+  const PAD = REACH + 1.2;
+  return computeSurfaceDistanceField(field, distance, {
     x0: Math.max(0, cx0 - PAD),
     y0: Math.max(0, cy0 - PAD),
     x1: Math.min(course.w - 1, cx1 + PAD),
