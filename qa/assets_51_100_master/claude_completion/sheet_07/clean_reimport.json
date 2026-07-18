@@ -470,10 +470,9 @@
         "collisionMeshCount": 4,
         "triangleCount": 4892,
         "collisionTriangleCount": 48,
-        "materialCount": 8,
+        "materialCount": 7,
         "materials": [
           "MAT_PH_DeepGolfGreen",
-          "MAT_PH_NaturalOak",
           "MAT_PH_RestrainedBrass",
           "MAT_PH_WarmCream",
           "MAT_S07_DarkWalnut",
@@ -515,7 +514,7 @@
             2.45
           ]
         },
-        "fileBytes": 182904,
+        "fileBytes": 182648,
         "meshes": [
           {
             "name": "MESH_BenchLegSet",
@@ -1773,10 +1772,9 @@
         "collisionMeshCount": 3,
         "triangleCount": 4056,
         "collisionTriangleCount": 36,
-        "materialCount": 8,
+        "materialCount": 7,
         "materials": [
           "MAT_PH_DeepGolfGreen",
-          "MAT_PH_MediumWalnut",
           "MAT_PH_NaturalOak",
           "MAT_PH_RestrainedBrass",
           "MAT_PH_RestrainedGlass",
@@ -1821,7 +1819,7 @@
             2.1
           ]
         },
-        "fileBytes": 158568,
+        "fileBytes": 158308,
         "meshes": [
           {
             "name": "MESH_DisplayBack",

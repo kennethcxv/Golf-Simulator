@@ -18,13 +18,11 @@
         "collisionMeshCount": 1,
         "triangleCount": 2948,
         "collisionTriangleCount": 44,
-        "materialCount": 7,
+        "materialCount": 5,
         "materials": [
           "MAT_PH_BrushedSteel",
           "MAT_PH_RestrainedBrass",
           "MAT_S10_ExtinguisherRed",
-          "MAT_S10_GaugeFace",
-          "MAT_S10_HoseBlack",
           "MAT_S10_MatteBlack",
           "MAT_S10_SignWhite"
         ],
@@ -57,7 +55,7 @@
             0.571
           ]
         },
-        "fileBytes": 106208,
+        "fileBytes": 105692,
         "meshes": [
           {
             "name": "MESH_ExtinguisherBase",

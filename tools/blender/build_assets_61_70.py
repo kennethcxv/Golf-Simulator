@@ -408,7 +408,9 @@ def build_63() -> bpy.types.Object:
     ]
     _join_meshes(wainscot, "FittingRoomWainscot", shell)
 
-    _box("BenchSeat", (0.82, 0.38, 0.09), (0.0, 0.43, 0.48), p["natural_oak"], interior,
+    # The bench shares the room's dark walnut rather than introducing a ninth material
+    # for one seat, which is what put this asset over its 8-material budget.
+    _box("BenchSeat", (0.82, 0.38, 0.09), (0.0, 0.43, 0.48), m["dark_walnut"], interior,
          bevel=0.025, properties={"sittable": True})
     bench_legs = [
         _box("BenchLegWest", (0.09, 0.32, 0.44), (-0.34, 0.43, 0.22), m["dark_walnut"], interior, bevel=0.012),
@@ -823,7 +825,9 @@ def build_70() -> bpy.types.Object:
         _box("DisplaySideEast", (0.10, 0.42, 1.94), (0.68, 0.0, 1.03), m["dark_walnut"], carcass, bevel=0.018),
     ]
     _join_meshes(sides, "DisplayCabinetSideSet", carcass)
-    _box("DisplayCrown", (1.50, 0.45, 0.11), (0.0, 0.0, 2.045), p["medium_walnut"], carcass,
+    # The crown reuses the lighter inset walnut, which keeps its tonal lift off the dark
+    # carcass without a ninth material for a single moulding.
+    _box("DisplayCrown", (1.50, 0.45, 0.11), (0.0, 0.0, 2.045), m["walnut_inset"], carcass,
          bevel=0.024, bevel_segments=3)
     _box("DisplayPlinth", (1.46, 0.44, 0.10), (0.0, 0.0, 0.05), m["dark_walnut"], carcass, bevel=0.018)
     _box("LowerStorageCarcass", (1.30, 0.40, 0.53), (0.0, 0.01, 0.365), m["dark_walnut"], carcass,

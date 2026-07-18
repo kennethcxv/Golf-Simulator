@@ -337,14 +337,17 @@ def build_91() -> bpy.types.Object:
     A.torus("ValvePinRing", 0.014, 0.0035, (0.038, -0.088, cylinder_z + 0.294),
             p["restrained_brass"], rotation=(0.0, math.pi / 2.0, 0.0),
             major_segments=14, minor_segments=5, parent=body)
+    # The gauge face reuses the label white and the hose reuses the matte black rather
+    # than introducing near-identical materials for a 2 cm disc and a 1 cm tube. That is
+    # the difference between meeting the 6-material budget for this category and not.
     A.cylinder("PressureGauge", 0.020, 0.016, (0.0, -0.132, cylinder_z + 0.276),
-               m["gauge_face"], rotation=(math.pi / 2.0, 0.0, 0.0), vertices=16,
+               m["sign_white"], rotation=(math.pi / 2.0, 0.0, 0.0), vertices=16,
                parent=body, bevel=0.003)
     # Hose sweeping down the side to a horn.
     A.curve_tube("ExtinguisherHose", (
         (0.030, -0.088, cylinder_z + 0.268), (0.086, -0.108, cylinder_z + 0.180),
         (0.092, -0.120, cylinder_z + 0.020), (0.070, -0.128, cylinder_z - 0.110),
-    ), 0.010, m["hose_black"], parent=body, resolution=3, bevel_resolution=4)
+    ), 0.010, m["matte_black"], parent=body, resolution=3, bevel_resolution=4)
     A.cylinder("ExtinguisherHorn", 0.020, 0.055, (0.066, -0.130, cylinder_z - 0.155),
                m["matte_black"], vertices=14, parent=body, bevel=0.004)
     # Instruction panel as a recessed plate; no generated label text ships.

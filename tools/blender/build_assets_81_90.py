@@ -272,50 +272,64 @@ def build_81() -> bpy.types.Object:
 
     # Five-star base. Casters touch the floor, which is what stops a chair from
     # looking like it is hovering next to the desk.
+    #
+    # The parts are authored individually and joined once each half is finished. A chair
+    # is 30-odd little boxes and cylinders, and shipping them as 30 nodes costs a matrix
+    # update and a draw call apiece for detail nobody resolves from across the office.
+    # Joining respects the swivel: base parts and seat parts stay in separate meshes,
+    # because the seat turns and the base does not.
+    base_parts, seat_parts = [], []
     caster_r = 0.026
     for index in range(5):
         angle = index * math.tau / 5.0
         reach = 0.275
         cx, cy = math.cos(angle) * reach, math.sin(angle) * reach
-        A.box(f"ChairStar{index}", (0.052, reach, 0.030),
-              (cx / 2.0, cy / 2.0, 0.070), m["matte_black"], parent=base, bevel=0.008,
-              rotation=(0.0, 0.0, angle - math.pi / 2.0))
-        A.cylinder(f"ChairCaster{index}", caster_r, 0.020, (cx, cy, caster_r),
-                   m["matte_black"], rotation=(0.0, math.pi / 2.0, 0.0), vertices=12,
-                   parent=base, bevel=0.003)
-        A.cylinder(f"ChairCasterStem{index}", 0.010, 0.034, (cx, cy, caster_r + 0.028),
-                   m["hard_black"], vertices=8, parent=base, bevel=0.002)
-    A.cylinder("ChairColumn", 0.042, 0.230, (0.0, 0.0, 0.200), m["matte_black"],
-               vertices=16, parent=base, bevel=0.005)
-    A.cylinder("ChairGasCover", 0.052, 0.110, (0.0, 0.0, 0.150), m["hard_black"],
-               vertices=16, parent=base, bevel=0.005)
-    A.box("ChairMech", (0.185, 0.215, 0.055), (0.0, 0.0, 0.335), m["matte_black"],
-          parent=base, bevel=0.008)
+        base_parts.append(A.box(f"ChairStar{index}", (0.052, reach, 0.030),
+                                (cx / 2.0, cy / 2.0, 0.070), m["matte_black"], parent=base,
+                                bevel=0.008, rotation=(0.0, 0.0, angle - math.pi / 2.0)))
+        base_parts.append(A.cylinder(f"ChairCaster{index}", caster_r, 0.020, (cx, cy, caster_r),
+                                     m["matte_black"], rotation=(0.0, math.pi / 2.0, 0.0),
+                                     vertices=12, parent=base, bevel=0.003))
+        base_parts.append(A.cylinder(f"ChairCasterStem{index}", 0.010, 0.034,
+                                     (cx, cy, caster_r + 0.028), m["hard_black"], vertices=8,
+                                     parent=base, bevel=0.002))
+    base_parts.append(A.cylinder("ChairColumn", 0.042, 0.230, (0.0, 0.0, 0.200), m["matte_black"],
+                                 vertices=16, parent=base, bevel=0.005))
+    base_parts.append(A.cylinder("ChairGasCover", 0.052, 0.110, (0.0, 0.0, 0.150), m["hard_black"],
+                                 vertices=16, parent=base, bevel=0.005))
+    base_parts.append(A.box("ChairMech", (0.185, 0.215, 0.055), (0.0, 0.0, 0.335),
+                            m["matte_black"], parent=base, bevel=0.008))
+    _join(base_parts, "ChairBaseAssembly", base)
 
-    A.box("ChairSeatPad", (0.500, 0.480, 0.105), (0.0, 0.0, 0.415), m["black_leather"],
-          parent=seat, bevel=0.036, bevel_segments=3)
-    A.box("ChairSeatWelt", (0.510, 0.490, 0.020), (0.0, 0.0, 0.368), m["leather_seam"],
-          parent=seat, bevel=0.008)
+    seat_parts.append(A.box("ChairSeatPad", (0.500, 0.480, 0.105), (0.0, 0.0, 0.415),
+                            m["black_leather"], parent=seat, bevel=0.036, bevel_segments=3))
+    seat_parts.append(A.box("ChairSeatWelt", (0.510, 0.490, 0.020), (0.0, 0.0, 0.368),
+                            m["leather_seam"], parent=seat, bevel=0.008))
     # Backrest rakes back slightly; a vertical slab reads as a bench, not a chair.
-    A.box("ChairBackLower", (0.470, 0.095, 0.330), (0.0, 0.215, 0.630), m["black_leather"],
-          parent=seat, bevel=0.032, bevel_segments=3, rotation=(math.radians(-8.0), 0.0, 0.0))
-    A.box("ChairBackUpper", (0.440, 0.090, 0.230), (0.0, 0.258, 0.925), m["black_leather"],
-          parent=seat, bevel=0.036, bevel_segments=3, rotation=(math.radians(-8.0), 0.0, 0.0))
-    A.box("ChairHeadRoll", (0.420, 0.100, 0.070), (0.0, 0.272, 1.055), m["black_leather"],
-          parent=seat, bevel=0.030, bevel_segments=3, rotation=(math.radians(-8.0), 0.0, 0.0))
+    seat_parts.append(A.box("ChairBackLower", (0.470, 0.095, 0.330), (0.0, 0.215, 0.630),
+                            m["black_leather"], parent=seat, bevel=0.032, bevel_segments=3,
+                            rotation=(math.radians(-8.0), 0.0, 0.0)))
+    seat_parts.append(A.box("ChairBackUpper", (0.440, 0.090, 0.230), (0.0, 0.258, 0.925),
+                            m["black_leather"], parent=seat, bevel=0.036, bevel_segments=3,
+                            rotation=(math.radians(-8.0), 0.0, 0.0)))
+    seat_parts.append(A.box("ChairHeadRoll", (0.420, 0.100, 0.070), (0.0, 0.272, 1.055),
+                            m["black_leather"], parent=seat, bevel=0.030, bevel_segments=3,
+                            rotation=(math.radians(-8.0), 0.0, 0.0)))
     # Shallow tufting, as the reference shows, without modelling every button.
-    tufts = []
     for col in range(3):
         for row in range(2):
-            tufts.append(A.sphere(f"ChairTuft_{col}{row}", 0.014,
-                                  (-0.130 + col * 0.130, 0.168 - row * 0.006, 0.560 + row * 0.145),
-                                  m["leather_seam"], segments=10, parent=seat))
-    _join(tufts, "ChairTufting", seat)
+            seat_parts.append(A.sphere(f"ChairTuft_{col}{row}", 0.014,
+                                       (-0.130 + col * 0.130, 0.168 - row * 0.006,
+                                        0.560 + row * 0.145),
+                                       m["leather_seam"], segments=10, parent=seat))
     for side, sx in (("L", -1.0), ("R", 1.0)):
-        A.box(f"ChairArmPad{side}", (0.060, 0.290, 0.040), (sx * 0.283, 0.010, 0.595),
-              p["medium_walnut"], parent=seat, bevel=0.016, bevel_segments=3)
-        A.box(f"ChairArmPost{side}", (0.032, 0.048, 0.180), (sx * 0.268, 0.075, 0.490),
-              m["matte_black"], parent=seat, bevel=0.008)
+        seat_parts.append(A.box(f"ChairArmPad{side}", (0.060, 0.290, 0.040),
+                                (sx * 0.283, 0.010, 0.595), p["medium_walnut"], parent=seat,
+                                bevel=0.016, bevel_segments=3))
+        seat_parts.append(A.box(f"ChairArmPost{side}", (0.032, 0.048, 0.180),
+                                (sx * 0.268, 0.075, 0.490), m["matte_black"], parent=seat,
+                                bevel=0.008))
+    _join(seat_parts, "ChairSeatAssembly", seat)
 
     _marker("Seat", root, (0.0, -0.020, 0.470), rotation=FORWARD, seat_role="office")
     _marker("DeskAlignment", root, (0.0, -0.330, 0.415), rotation=FORWARD,

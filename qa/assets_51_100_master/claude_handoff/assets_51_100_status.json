@@ -3548,7 +3548,7 @@
         "sourceExists": true,
         "canonicalGlbExists": true,
         "runtimeGlbExists": true,
-        "fileBytes": 182904,
+        "fileBytes": 182648,
         "reimport": {
           "asset": 63,
           "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_07/asset_063_pro_shop_fitting_room.glb",
@@ -3563,10 +3563,9 @@
             "collisionMeshCount": 4,
             "triangleCount": 4892,
             "collisionTriangleCount": 48,
-            "materialCount": 8,
+            "materialCount": 7,
             "materials": [
               "MAT_PH_DeepGolfGreen",
-              "MAT_PH_NaturalOak",
               "MAT_PH_RestrainedBrass",
               "MAT_PH_WarmCream",
               "MAT_S07_DarkWalnut",
@@ -3608,7 +3607,7 @@
                 2.45
               ]
             },
-            "fileBytes": 182904,
+            "fileBytes": 182648,
             "meshes": [
               {
                 "name": "MESH_BenchLegSet",
@@ -3813,7 +3812,7 @@
         },
         "triangles": 4892,
         "meshes": 14,
-        "materials": 8,
+        "materials": 7,
         "collisionMeshes": 4,
         "boundsMeters": {
           "minimum": [
@@ -5201,7 +5200,7 @@
         "sourceExists": true,
         "canonicalGlbExists": true,
         "runtimeGlbExists": true,
-        "fileBytes": 158568,
+        "fileBytes": 158308,
         "reimport": {
           "asset": 70,
           "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_07/asset_070_trophy_display_cabinet.glb",
@@ -5216,10 +5215,9 @@
             "collisionMeshCount": 3,
             "triangleCount": 4056,
             "collisionTriangleCount": 36,
-            "materialCount": 8,
+            "materialCount": 7,
             "materials": [
               "MAT_PH_DeepGolfGreen",
-              "MAT_PH_MediumWalnut",
               "MAT_PH_NaturalOak",
               "MAT_PH_RestrainedBrass",
               "MAT_PH_RestrainedGlass",
@@ -5264,7 +5262,7 @@
                 2.1
               ]
             },
-            "fileBytes": 158568,
+            "fileBytes": 158308,
             "meshes": [
               {
                 "name": "MESH_DisplayBack",
@@ -5469,7 +5467,7 @@
         },
         "triangles": 4056,
         "meshes": 15,
-        "materials": 8,
+        "materials": 7,
         "collisionMeshes": 3,
         "boundsMeters": {
           "minimum": [
@@ -5517,7 +5515,7 @@
         "sourceExists": true,
         "canonicalGlbExists": true,
         "runtimeGlbExists": true,
-        "fileBytes": 242908,
+        "fileBytes": 235372,
         "reimport": {
           "asset": 71,
           "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_071_vacuum_cleaner.glb",
@@ -5527,8 +5525,8 @@
           "issues": [],
           "stats": {
             "root": "A_071_VACUUM_CLEANER_ROOT",
-            "nodeCount": 45,
-            "visibleMeshCount": 31,
+            "nodeCount": 23,
+            "visibleMeshCount": 9,
             "collisionMeshCount": 2,
             "triangleCount": 6640,
             "collisionTriangleCount": 56,
@@ -5571,257 +5569,15 @@
                 0.650173
               ]
             },
-            "fileBytes": 242908,
+            "fileBytes": 235372,
             "meshes": [
               {
-                "name": "MESH_VacCasterBL_Hub",
-                "triangles": 116,
+                "name": "MESH_VacuumMachine",
+                "triangles": 3780,
                 "uvLayers": 1,
-                "materialSlots": 1,
+                "materialSlots": 4,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacCasterBL_Stem",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacCasterBL_Tyre",
-                "triangles": 164,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 84,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacCasterBR_Hub",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacCasterBR_Stem",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacCasterBR_Tyre",
-                "triangles": 164,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 84,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacCasterFL_Hub",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacCasterFL_Stem",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacCasterFL_Tyre",
-                "triangles": 164,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 84,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacCasterFR_Hub",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacCasterFR_Stem",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacCasterFR_Tyre",
-                "triangles": 164,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 84,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacDrum",
-                "triangles": 332,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 136,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacDrumRib",
-                "triangles": 332,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 136,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacExhaust",
-                "triangles": 188,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 88,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacHandleBar",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacHandlePostB",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacHandlePostF",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacInletPort",
-                "triangles": 188,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 94,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacLatchL",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacLatchR",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacLid",
-                "triangles": 332,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 136,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_VacMotorDome",
-                "triangles": 284,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 120,
+                "boundaryEdges": 1918,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -5940,7 +5696,7 @@
           }
         },
         "triangles": 6640,
-        "meshes": 31,
+        "meshes": 9,
         "materials": 6,
         "collisionMeshes": 2,
         "boundsMeters": {
@@ -6468,7 +6224,7 @@
         "sourceExists": true,
         "canonicalGlbExists": true,
         "runtimeGlbExists": true,
-        "fileBytes": 144104,
+        "fileBytes": 142396,
         "reimport": {
           "asset": 73,
           "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_073_mop_bucket_and_wringer.glb",
@@ -6478,8 +6234,8 @@
           "issues": [],
           "stats": {
             "root": "A_073_MOP_BUCKET_AND_WRINGER_ROOT",
-            "nodeCount": 45,
-            "visibleMeshCount": 31,
+            "nodeCount": 21,
+            "visibleMeshCount": 7,
             "collisionMeshCount": 2,
             "triangleCount": 3700,
             "collisionTriangleCount": 24,
@@ -6527,213 +6283,26 @@
                 0.930816
               ]
             },
-            "fileBytes": 144104,
+            "fileBytes": 142396,
             "meshes": [
               {
-                "name": "MESH_BucketCasterBL_Hub",
-                "triangles": 116,
+                "name": "MESH_BucketCasters",
+                "triangles": 1584,
                 "uvLayers": 1,
-                "materialSlots": 1,
+                "materialSlots": 2,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
+                "boundaryEdges": 832,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
               },
               {
-                "name": "MESH_BucketCasterBL_Stem",
-                "triangles": 116,
+                "name": "MESH_BucketShell",
+                "triangles": 756,
                 "uvLayers": 1,
-                "materialSlots": 1,
+                "materialSlots": 2,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketCasterBL_Tyre",
-                "triangles": 164,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 80,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketCasterBR_Hub",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketCasterBR_Stem",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketCasterBR_Tyre",
-                "triangles": 164,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 80,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketCasterFL_Hub",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketCasterFL_Stem",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketCasterFL_Tyre",
-                "triangles": 164,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 80,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketCasterFR_Hub",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketCasterFR_Stem",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketCasterFR_Tyre",
-                "triangles": 164,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 80,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketCaution_0",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 88,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketCaution_1",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 88,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketCaution_2",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 88,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketDrainSpout",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketFloor",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketRim",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_BucketWall",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 132,
+                "boundaryEdges": 612,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -6750,89 +6319,12 @@
                 "appliedRotation": true
               },
               {
-                "name": "MESH_WringerBody",
-                "triangles": 108,
+                "name": "MESH_WringerCage",
+                "triangles": 864,
                 "uvLayers": 1,
-                "materialSlots": 1,
+                "materialSlots": 2,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WringerLegL",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WringerLegR",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WringerSlat_0",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WringerSlat_1",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WringerSlat_2",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WringerSlat_3",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WringerSlat_4",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
+                "boundaryEdges": 576,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -6896,7 +6388,7 @@
           }
         },
         "triangles": 3700,
-        "meshes": 31,
+        "meshes": 7,
         "materials": 5,
         "collisionMeshes": 2,
         "boundsMeters": {
@@ -8342,7 +7834,7 @@
         "sourceExists": true,
         "canonicalGlbExists": true,
         "runtimeGlbExists": true,
-        "fileBytes": 185020,
+        "fileBytes": 182236,
         "reimport": {
           "asset": 78,
           "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_078_pressure_washer.glb",
@@ -8352,8 +7844,8 @@
           "issues": [],
           "stats": {
             "root": "A_078_PRESSURE_WASHER_ROOT",
-            "nodeCount": 46,
-            "visibleMeshCount": 30,
+            "nodeCount": 23,
+            "visibleMeshCount": 7,
             "collisionMeshCount": 3,
             "triangleCount": 5224,
             "collisionTriangleCount": 100,
@@ -8402,290 +7894,37 @@
                 0.753524
               ]
             },
-            "fileBytes": 185020,
+            "fileBytes": 182236,
             "meshes": [
               {
-                "name": "MESH_WasherAirFilter",
-                "triangles": 212,
+                "name": "MESH_WasherEngineAssembly",
+                "triangles": 1168,
                 "uvLayers": 1,
-                "materialSlots": 1,
+                "materialSlots": 5,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 100,
+                "boundaryEdges": 606,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
               },
               {
-                "name": "MESH_WasherEngineBlock",
-                "triangles": 108,
+                "name": "MESH_WasherChassis",
+                "triangles": 1200,
                 "uvLayers": 1,
-                "materialSlots": 1,
+                "materialSlots": 2,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 60,
+                "boundaryEdges": 680,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
               },
               {
-                "name": "MESH_WasherEngineCowl",
-                "triangles": 108,
+                "name": "MESH_WasherHoseReelAssembly",
+                "triangles": 2104,
                 "uvLayers": 1,
-                "materialSlots": 1,
+                "materialSlots": 3,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WasherInletPort",
-                "triangles": 140,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 66,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WasherMuffler",
-                "triangles": 164,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 80,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WasherOutletPort",
-                "triangles": 140,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 68,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WasherPumpBody",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WasherPumpBoss",
-                "triangles": 188,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 88,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_FrameCrossBack",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 60,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_FrameCrossFront",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 60,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_FrameDeck",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_FrameRailL",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_FrameRailR",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WasherFootL",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 60,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WasherFootR",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 60,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WasherHandleBar",
-                "triangles": 164,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 80,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WasherHandlePostL",
-                "triangles": 140,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_WasherHandlePostR",
-                "triangles": 140,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ReelCoil_0",
-                "triangles": 308,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 58,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ReelCoil_1",
-                "triangles": 308,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 58,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ReelCoil_2",
-                "triangles": 308,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 58,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ReelCoil_3",
-                "triangles": 308,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 58,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ReelCrank",
-                "triangles": 116,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 64,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ReelDrum",
-                "triangles": 236,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 104,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ReelFlangeL",
-                "triangles": 260,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 112,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ReelFlangeR",
-                "triangles": 260,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 112,
+                "boundaryEdges": 624,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -8771,7 +8010,7 @@
           }
         },
         "triangles": 5224,
-        "meshes": 30,
+        "meshes": 7,
         "materials": 6,
         "collisionMeshes": 3,
         "boundsMeters": {
@@ -9648,7 +8887,7 @@
         "sourceExists": true,
         "canonicalGlbExists": true,
         "runtimeGlbExists": true,
-        "fileBytes": 179936,
+        "fileBytes": 173448,
         "reimport": {
           "asset": 81,
           "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_081_office_chair_sheet09.glb",
@@ -9658,8 +8897,8 @@
           "issues": [],
           "stats": {
             "root": "A_081_OFFICE_CHAIR_SHEET09_ROOT",
-            "nodeCount": 39,
-            "visibleMeshCount": 28,
+            "nodeCount": 13,
+            "visibleMeshCount": 2,
             "collisionMeshCount": 3,
             "triangleCount": 4876,
             "collisionTriangleCount": 68,
@@ -9686,327 +8925,41 @@
             ],
             "boundsMeters": {
               "minimum": [
-                -0.313061,
+                -0.313128,
                 -0.287541,
                 0
               ],
               "maximum": [
-                0.313053,
-                0.324129,
+                0.313097,
+                0.32417,
                 1.09428
               ],
               "size": [
-                0.626115,
-                0.61167,
+                0.626225,
+                0.611711,
                 1.09428
               ]
             },
-            "fileBytes": 179936,
+            "fileBytes": 173448,
             "meshes": [
               {
-                "name": "MESH_ChairCaster0",
-                "triangles": 140,
+                "name": "MESH_ChairBaseAssembly",
+                "triangles": 2824,
                 "uvLayers": 1,
-                "materialSlots": 1,
+                "materialSlots": 2,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 66,
+                "boundaryEdges": 1580,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
               },
               {
-                "name": "MESH_ChairCaster1",
-                "triangles": 140,
+                "name": "MESH_ChairSeatAssembly",
+                "triangles": 2052,
                 "uvLayers": 1,
-                "materialSlots": 1,
+                "materialSlots": 4,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 66,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairCaster2",
-                "triangles": 140,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 66,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairCaster3",
-                "triangles": 140,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 66,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairCaster4",
-                "triangles": 140,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 66,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairCasterStem0",
-                "triangles": 220,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 128,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairCasterStem1",
-                "triangles": 220,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 128,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairCasterStem2",
-                "triangles": 220,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 128,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairCasterStem3",
-                "triangles": 220,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 128,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairCasterStem4",
-                "triangles": 220,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 128,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairColumn",
-                "triangles": 188,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 88,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairGasCover",
-                "triangles": 188,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 90,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairMech",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairStar0",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairStar1",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairStar2",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairStar3",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairStar4",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairArmPadL",
-                "triangles": 188,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 120,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairArmPadR",
-                "triangles": 188,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 120,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairArmPostL",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairArmPostR",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairBackLower",
-                "triangles": 188,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 104,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairBackUpper",
-                "triangles": 188,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 104,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairHeadRoll",
-                "triangles": 188,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 104,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairSeatPad",
-                "triangles": 188,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 88,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairSeatWelt",
-                "triangles": 108,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
-                "zeroAreaFaces": 0,
-                "appliedScale": true,
-                "appliedRotation": true
-              },
-              {
-                "name": "MESH_ChairTufting",
-                "triangles": 600,
-                "uvLayers": 1,
-                "materialSlots": 1,
-                "nonManifoldEdges": 0,
-                "boundaryEdges": 288,
+                "boundaryEdges": 1144,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -10048,23 +9001,23 @@
           }
         },
         "triangles": 4876,
-        "meshes": 28,
+        "meshes": 2,
         "materials": 5,
         "collisionMeshes": 3,
         "boundsMeters": {
           "minimum": [
-            -0.313061,
+            -0.313128,
             -0.287541,
             0
           ],
           "maximum": [
-            0.313053,
-            0.324129,
+            0.313097,
+            0.32417,
             1.09428
           ],
           "size": [
-            0.626115,
-            0.61167,
+            0.626225,
+            0.611711,
             1.09428
           ]
         },
@@ -11934,7 +10887,7 @@
         "sourceExists": true,
         "canonicalGlbExists": true,
         "runtimeGlbExists": true,
-        "fileBytes": 106208,
+        "fileBytes": 105692,
         "reimport": {
           "asset": 91,
           "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_091_fire_extinguisher.glb",
@@ -11949,13 +10902,11 @@
             "collisionMeshCount": 1,
             "triangleCount": 2948,
             "collisionTriangleCount": 44,
-            "materialCount": 7,
+            "materialCount": 5,
             "materials": [
               "MAT_PH_BrushedSteel",
               "MAT_PH_RestrainedBrass",
               "MAT_S10_ExtinguisherRed",
-              "MAT_S10_GaugeFace",
-              "MAT_S10_HoseBlack",
               "MAT_S10_MatteBlack",
               "MAT_S10_SignWhite"
             ],
@@ -11988,7 +10939,7 @@
                 0.571
               ]
             },
-            "fileBytes": 106208,
+            "fileBytes": 105692,
             "meshes": [
               {
                 "name": "MESH_ExtinguisherBase",
@@ -12171,7 +11122,7 @@
         },
         "triangles": 2948,
         "meshes": 15,
-        "materials": 7,
+        "materials": 5,
         "collisionMeshes": 1,
         "boundsMeters": {
           "minimum": [

@@ -666,31 +666,40 @@ def build_71() -> bpy.types.Object:
     body = _group("VacuumBody", root)
     rig = _group("VacuumHoseRig", root)
 
-    A.cylinder("VacDrum", 0.235, 0.375, (0.0, 0.0, 0.205), m["machine_green"],
-               vertices=28, parent=body, bevel=0.010)
-    A.cylinder("VacDrumRib", 0.242, 0.022, (0.0, 0.0, 0.150), m["machine_shell"],
-               vertices=28, parent=body, bevel=0.004)
-    A.cylinder("VacLid", 0.238, 0.130, (0.0, 0.0, 0.455), m["hard_black"],
-               vertices=28, parent=body, bevel=0.012)
-    A.cylinder("VacMotorDome", 0.170, 0.105, (0.0, 0.0, 0.555), m["hard_black"],
-               vertices=24, parent=body, bevel=0.020)
-    A.cylinder("VacExhaust", 0.058, 0.030, (0.0, 0.0, 0.612), m["matte_black"],
-               vertices=16, parent=body, bevel=0.004)
-    # Carry handle across the lid.
-    A.box("VacHandleBar", (0.028, 0.185, 0.026), (0.0, 0.0, 0.640), m["matte_black"],
-          parent=body, bevel=0.010)
+    # The machine is one static object: drum, lid, motor, handle, four casters and the
+    # latches never move relative to each other, so they are authored separately and
+    # joined once. Twenty-one nodes for a stationary shop vac is twenty-one matrix
+    # updates a frame for detail that reads as one silhouette.
+    parts = [
+        A.cylinder("VacDrum", 0.235, 0.375, (0.0, 0.0, 0.205), m["machine_green"],
+                   vertices=28, parent=body, bevel=0.010),
+        A.cylinder("VacDrumRib", 0.242, 0.022, (0.0, 0.0, 0.150), m["machine_shell"],
+                   vertices=28, parent=body, bevel=0.004),
+        A.cylinder("VacLid", 0.238, 0.130, (0.0, 0.0, 0.455), m["hard_black"],
+                   vertices=28, parent=body, bevel=0.012),
+        A.cylinder("VacMotorDome", 0.170, 0.105, (0.0, 0.0, 0.555), m["hard_black"],
+                   vertices=24, parent=body, bevel=0.020),
+        A.cylinder("VacExhaust", 0.058, 0.030, (0.0, 0.0, 0.612), m["matte_black"],
+                   vertices=16, parent=body, bevel=0.004),
+        # Carry handle across the lid.
+        A.box("VacHandleBar", (0.028, 0.185, 0.026), (0.0, 0.0, 0.640), m["matte_black"],
+              parent=body, bevel=0.010),
+    ]
     for sy in (-1.0, 1.0):
-        A.box(f"VacHandlePost{'F' if sy < 0 else 'B'}", (0.024, 0.026, 0.062),
-              (0.0, sy * 0.088, 0.600), m["matte_black"], parent=body, bevel=0.006)
+        parts.append(A.box(f"VacHandlePost{'F' if sy < 0 else 'B'}", (0.024, 0.026, 0.062),
+                           (0.0, sy * 0.088, 0.600), m["matte_black"], parent=body, bevel=0.006))
     for side, sx, sy in (("FL", -1.0, -1.0), ("FR", 1.0, -1.0), ("BL", -1.0, 1.0), ("BR", 1.0, 1.0)):
-        _caster(f"VacCaster{side}", (sx * 0.145, sy * 0.145, 0.035), body, m, radius=0.033)
+        parts.extend(_caster(f"VacCaster{side}", (sx * 0.145, sy * 0.145, 0.035), body, m,
+                             radius=0.033))
     # Latches read as the drum being removable, which is what a shop vac is.
     for sx in (-1.0, 1.0):
-        A.box(f"VacLatch{'L' if sx < 0 else 'R'}", (0.030, 0.022, 0.055),
-              (sx * 0.232, 0.0, 0.400), m["matte_black"], parent=body, bevel=0.006)
-    inlet = A.cylinder("VacInletPort", 0.046, 0.055, (0.0, -0.238, 0.300), m["hard_black"],
-                       rotation=(math.pi / 2.0, 0.0, 0.0), vertices=16, parent=body, bevel=0.004)
-    inlet["port_role"] = "hose_body_connection"
+        parts.append(A.box(f"VacLatch{'L' if sx < 0 else 'R'}", (0.030, 0.022, 0.055),
+                           (sx * 0.232, 0.0, 0.400), m["matte_black"], parent=body, bevel=0.006))
+    parts.append(A.cylinder("VacInletPort", 0.046, 0.055, (0.0, -0.238, 0.300), m["hard_black"],
+                            rotation=(math.pi / 2.0, 0.0, 0.0), vertices=16, parent=body,
+                            bevel=0.004))
+    machine = _join(parts, "VacuumMachine", body)
+    machine["port_role"] = "hose_body_connection"
 
     # A corrugated hose arcing up over the drum and down to a wand parked against it.
     # Kept tight deliberately: a shop vac stored in a cleaning bay has its hose coiled,
@@ -749,44 +758,54 @@ def build_73() -> bpy.types.Object:
     tub = _group("BucketTub", root)
     frame = _group("BucketFrame", root)
 
-    # Tapered tub: wider at the rim, as a moulded bucket is.
-    A.profile_prism(
-        "BucketWall",
-        ((-0.215, 0.105), (0.215, 0.105), (0.255, 0.470), (-0.255, 0.470)),
-        0.40, (0.0, 0.0, 0.0), m["bucket_yellow"], rotation=(0.0, 0.0, math.pi / 2.0),
-        parent=tub, bevel=0.008,
-    )
-    A.box("BucketFloor", (0.42, 0.385, 0.022), (0.0, 0.0, 0.116), m["bucket_yellow"],
-          parent=tub, bevel=0.006)
-    A.box("BucketRim", (0.535, 0.405, 0.024), (0.0, 0.0, 0.478), m["bucket_yellow"],
-          parent=tub, bevel=0.008)
+    # Tapered tub: wider at the rim, as a moulded bucket is. Static shell parts are
+    # joined; the water plane stays its own mesh because the runtime retints it between
+    # clean and dirty, and the lever stays separate because it moves.
+    tub_parts = [
+        A.profile_prism(
+            "BucketWall",
+            ((-0.215, 0.105), (0.215, 0.105), (0.255, 0.470), (-0.255, 0.470)),
+            0.40, (0.0, 0.0, 0.0), m["bucket_yellow"], rotation=(0.0, 0.0, math.pi / 2.0),
+            parent=tub, bevel=0.008,
+        ),
+        A.box("BucketFloor", (0.42, 0.385, 0.022), (0.0, 0.0, 0.116), m["bucket_yellow"],
+              parent=tub, bevel=0.006),
+        A.box("BucketRim", (0.535, 0.405, 0.024), (0.0, 0.0, 0.478), m["bucket_yellow"],
+              parent=tub, bevel=0.008),
+        A.box("BucketDrainSpout", (0.070, 0.030, 0.050), (0.215, 0.0, 0.170), m["bucket_yellow"],
+              parent=tub, bevel=0.008),
+    ]
+    # Caution motif: original chevron geometry, no generated text.
+    for index in range(3):
+        tub_parts.append(A.box(f"BucketCaution_{index}", (0.030, 0.006, 0.070),
+                               (-0.060 + index * 0.060, -0.204, 0.300), m["caution_black"],
+                               parent=tub, bevel=0.002, rotation=(0.0, math.radians(24.0), 0.0),
+                               properties={"decorative_only": True}))
+    _join(tub_parts, "BucketShell", tub)
     # A still water plane the runtime can retint between clean and dirty.
     water = A.box("BucketWater", (0.475, 0.360, 0.008), (0.0, 0.0, 0.352), m["bottle_fluid"],
                   parent=tub, bevel=0.002)
     water["water_surface_proxy"] = True
     water["state_tintable"] = "clean|dirty"
-    # Caution motif: original chevron geometry, no generated text.
-    for index in range(3):
-        A.box(f"BucketCaution_{index}", (0.030, 0.006, 0.070),
-              (-0.060 + index * 0.060, -0.204, 0.300), m["caution_black"],
-              parent=tub, bevel=0.002, rotation=(0.0, math.radians(24.0), 0.0),
-              properties={"decorative_only": True})
-    A.box("BucketDrainSpout", (0.070, 0.030, 0.050), (0.215, 0.0, 0.170), m["bucket_yellow"],
-          parent=tub, bevel=0.008)
 
+    caster_parts = []
     for side, sx, sy in (("FL", -1.0, -1.0), ("FR", 1.0, -1.0), ("BL", -1.0, 1.0), ("BR", 1.0, 1.0)):
-        _caster(f"BucketCaster{side}", (sx * 0.205, sy * 0.155, 0.038), frame, m, radius=0.036)
+        caster_parts.extend(_caster(f"BucketCaster{side}", (sx * 0.205, sy * 0.155, 0.038),
+                                    frame, m, radius=0.036))
+    _join(caster_parts, "BucketCasters", frame)
 
     # Wringer: a fixed cage plus a hinged press on its own pivot.
     wringer = _group("BucketWringer", root)
-    A.box("WringerBody", (0.335, 0.230, 0.180), (0.0, 0.115, 0.600), m["matte_black"],
-          parent=wringer, bevel=0.012)
+    cage = [A.box("WringerBody", (0.335, 0.230, 0.180), (0.0, 0.115, 0.600), m["matte_black"],
+                  parent=wringer, bevel=0.012)]
     for sx in (-1.0, 1.0):
-        A.box(f"WringerLeg{'L' if sx < 0 else 'R'}", (0.030, 0.028, 0.135),
-              (sx * 0.150, 0.115, 0.470), m["matte_black"], parent=wringer, bevel=0.006)
+        cage.append(A.box(f"WringerLeg{'L' if sx < 0 else 'R'}", (0.030, 0.028, 0.135),
+                          (sx * 0.150, 0.115, 0.470), m["matte_black"], parent=wringer, bevel=0.006))
     for index in range(5):
-        A.box(f"WringerSlat_{index}", (0.300, 0.016, 0.014),
-              (0.0, 0.030 + index * 0.040, 0.520), m["hard_black"], parent=wringer, bevel=0.003)
+        cage.append(A.box(f"WringerSlat_{index}", (0.300, 0.016, 0.014),
+                          (0.0, 0.030 + index * 0.040, 0.520), m["hard_black"],
+                          parent=wringer, bevel=0.003))
+    _join(cage, "WringerCage", wringer)
 
     # The lever swings about a pivot at the back of the wringer. Its parts are placed in
     # world space, not as offsets from that pivot: `parent_keep_world` preserves a
@@ -934,15 +953,19 @@ def build_78() -> bpy.types.Object:
     frame = _group("WasherFrame", root)
     shell = _group("WasherShell", root)
 
+    # Static chassis parts are joined once. Only the wheels turn, and they live on the
+    # axle pivot, so nothing here needs to be an independent node.
+    frame_parts = []
     for sx in (-1.0, 1.0):
-        A.box(f"FrameRail{'L' if sx < 0 else 'R'}", (0.032, 0.660, 0.032),
-              (sx * 0.265, 0.0, 0.070), m["matte_black"], parent=frame, bevel=0.006)
-    A.box("FrameCrossFront", (0.560, 0.032, 0.032), (0.0, -0.315, 0.070), m["matte_black"],
-          parent=frame, bevel=0.006)
-    A.box("FrameCrossBack", (0.560, 0.032, 0.032), (0.0, 0.315, 0.070), m["matte_black"],
-          parent=frame, bevel=0.006)
-    A.box("FrameDeck", (0.545, 0.600, 0.024), (0.0, 0.0, 0.100), m["matte_black"],
-          parent=frame, bevel=0.005)
+        frame_parts.append(A.box(f"FrameRail{'L' if sx < 0 else 'R'}", (0.032, 0.660, 0.032),
+                                 (sx * 0.265, 0.0, 0.070), m["matte_black"], parent=frame,
+                                 bevel=0.006))
+    frame_parts.append(A.box("FrameCrossFront", (0.560, 0.032, 0.032), (0.0, -0.315, 0.070),
+                             m["matte_black"], parent=frame, bevel=0.006))
+    frame_parts.append(A.box("FrameCrossBack", (0.560, 0.032, 0.032), (0.0, 0.315, 0.070),
+                             m["matte_black"], parent=frame, bevel=0.006))
+    frame_parts.append(A.box("FrameDeck", (0.545, 0.600, 0.024), (0.0, 0.0, 0.100),
+                             m["matte_black"], parent=frame, bevel=0.005))
     # Big rear wheels and small front feet: this machine is dragged, not driven. Both
     # wheels share one axle, so they hang off a single pivot on that axle line and the
     # roll clip turns them about it. A group at the asset origin would have swung them
@@ -958,47 +981,59 @@ def build_78() -> bpy.types.Object:
         A.cylinder(f"WasherHub{'L' if sx < 0 else 'R'}", 0.038, 0.050,
                    (sx * 0.300, 0.235, 0.105), m["hard_black"],
                    rotation=(0.0, math.pi / 2.0, 0.0), vertices=12, parent=axle, bevel=0.003)
-        A.box(f"WasherFoot{'L' if sx < 0 else 'R'}", (0.045, 0.055, 0.055),
-              (sx * 0.245, -0.290, 0.028), m["hard_black"], parent=frame, bevel=0.006)
+        frame_parts.append(A.box(f"WasherFoot{'L' if sx < 0 else 'R'}", (0.045, 0.055, 0.055),
+                                 (sx * 0.245, -0.290, 0.028), m["hard_black"], parent=frame,
+                                 bevel=0.006))
 
-    A.box("WasherEngineBlock", (0.400, 0.400, 0.245), (0.0, 0.045, 0.240), m["machine_green"],
-          parent=shell, bevel=0.018, bevel_segments=2)
-    A.box("WasherEngineCowl", (0.360, 0.340, 0.085), (0.0, 0.045, 0.400), m["machine_shell"],
-          parent=shell, bevel=0.020, bevel_segments=2)
-    A.cylinder("WasherAirFilter", 0.085, 0.110, (0.0, 0.240, 0.430), m["hard_black"],
-               rotation=(math.pi / 2.0, 0.0, 0.0), vertices=18, parent=shell, bevel=0.008)
-    A.cylinder("WasherMuffler", 0.052, 0.170, (0.195, 0.130, 0.330), m["matte_black"],
-               rotation=(0.0, 0.0, math.radians(12.0)), vertices=14, parent=shell, bevel=0.005)
-    # Brass pump head, the single warmest note on an otherwise dark machine.
-    A.box("WasherPumpBody", (0.230, 0.185, 0.140), (0.0, -0.215, 0.205),
-          p["restrained_brass"], parent=shell, bevel=0.012)
-    A.cylinder("WasherPumpBoss", 0.052, 0.075, (0.0, -0.300, 0.215), p["restrained_brass"],
-               rotation=(math.pi / 2.0, 0.0, 0.0), vertices=16, parent=shell, bevel=0.004)
-    A.cylinder("WasherInletPort", 0.026, 0.055, (-0.120, -0.300, 0.165), m["hard_black"],
-               rotation=(math.pi / 2.0, 0.0, 0.0), vertices=12, parent=shell, bevel=0.003)
-    A.cylinder("WasherOutletPort", 0.019, 0.055, (0.120, -0.300, 0.165), p["restrained_brass"],
-               rotation=(math.pi / 2.0, 0.0, 0.0), vertices=12, parent=shell, bevel=0.003)
+    shell_parts = [
+        A.box("WasherEngineBlock", (0.400, 0.400, 0.245), (0.0, 0.045, 0.240), m["machine_green"],
+              parent=shell, bevel=0.018, bevel_segments=2),
+        A.box("WasherEngineCowl", (0.360, 0.340, 0.085), (0.0, 0.045, 0.400), m["machine_shell"],
+              parent=shell, bevel=0.020, bevel_segments=2),
+        A.cylinder("WasherAirFilter", 0.085, 0.110, (0.0, 0.240, 0.430), m["hard_black"],
+                   rotation=(math.pi / 2.0, 0.0, 0.0), vertices=18, parent=shell, bevel=0.008),
+        A.cylinder("WasherMuffler", 0.052, 0.170, (0.195, 0.130, 0.330), m["matte_black"],
+                   rotation=(0.0, 0.0, math.radians(12.0)), vertices=14, parent=shell, bevel=0.005),
+        # Brass pump head, the single warmest note on an otherwise dark machine.
+        A.box("WasherPumpBody", (0.230, 0.185, 0.140), (0.0, -0.215, 0.205),
+              p["restrained_brass"], parent=shell, bevel=0.012),
+        A.cylinder("WasherPumpBoss", 0.052, 0.075, (0.0, -0.300, 0.215), p["restrained_brass"],
+                   rotation=(math.pi / 2.0, 0.0, 0.0), vertices=16, parent=shell, bevel=0.004),
+        A.cylinder("WasherInletPort", 0.026, 0.055, (-0.120, -0.300, 0.165), m["hard_black"],
+                   rotation=(math.pi / 2.0, 0.0, 0.0), vertices=12, parent=shell, bevel=0.003),
+        A.cylinder("WasherOutletPort", 0.019, 0.055, (0.120, -0.300, 0.165), p["restrained_brass"],
+                   rotation=(math.pi / 2.0, 0.0, 0.0), vertices=12, parent=shell, bevel=0.003),
+    ]
+    _join(shell_parts, "WasherEngineAssembly", shell)
     # Push handle.
     for sx in (-1.0, 1.0):
-        A.cylinder(f"WasherHandlePost{'L' if sx < 0 else 'R'}", 0.017, 0.470,
-                   (sx * 0.230, 0.300, 0.500), m["matte_black"],
-                   rotation=(math.radians(14.0), 0.0, 0.0), vertices=12, parent=frame, bevel=0.003)
-    A.cylinder("WasherHandleBar", 0.019, 0.480, (0.0, 0.360, 0.735), m["matte_black"],
-               rotation=(0.0, math.pi / 2.0, 0.0), vertices=14, parent=frame, bevel=0.003)
+        frame_parts.append(A.cylinder(f"WasherHandlePost{'L' if sx < 0 else 'R'}", 0.017, 0.470,
+                                      (sx * 0.230, 0.300, 0.500), m["matte_black"],
+                                      rotation=(math.radians(14.0), 0.0, 0.0), vertices=12,
+                                      parent=frame, bevel=0.003))
+    frame_parts.append(A.cylinder("WasherHandleBar", 0.019, 0.480, (0.0, 0.360, 0.735),
+                                  m["matte_black"], rotation=(0.0, math.pi / 2.0, 0.0),
+                                  vertices=14, parent=frame, bevel=0.003))
+    _join(frame_parts, "WasherChassis", frame)
     # Hose reel with a coiled hose, straight from the reference.
     reel = _group("WasherHoseReel", root)
-    A.cylinder("ReelDrum", 0.088, 0.150, (0.0, -0.120, 0.560), m["matte_black"],
-               rotation=(0.0, math.pi / 2.0, 0.0), vertices=20, parent=reel, bevel=0.006)
+    reel_parts = [
+        A.cylinder("ReelDrum", 0.088, 0.150, (0.0, -0.120, 0.560), m["matte_black"],
+                   rotation=(0.0, math.pi / 2.0, 0.0), vertices=20, parent=reel, bevel=0.006),
+        A.cylinder("ReelCrank", 0.010, 0.090, (0.104, -0.190, 0.560), m["hard_black"],
+                   rotation=(0.0, math.pi / 2.0, 0.0), vertices=10, parent=reel, bevel=0.002),
+    ]
     for sx in (-1.0, 1.0):
-        A.cylinder(f"ReelFlange{'L' if sx < 0 else 'R'}", 0.135, 0.014,
-                   (sx * 0.082, -0.120, 0.560), m["hard_black"],
-                   rotation=(0.0, math.pi / 2.0, 0.0), vertices=22, parent=reel, bevel=0.003)
+        reel_parts.append(A.cylinder(f"ReelFlange{'L' if sx < 0 else 'R'}", 0.135, 0.014,
+                                     (sx * 0.082, -0.120, 0.560), m["hard_black"],
+                                     rotation=(0.0, math.pi / 2.0, 0.0), vertices=22,
+                                     parent=reel, bevel=0.003))
     for index in range(4):
-        A.torus(f"ReelCoil_{index}", 0.108 + index * 0.008, 0.013,
-                (0.0, -0.120, 0.560), m["hose_black"], rotation=(0.0, math.pi / 2.0, 0.0),
-                major_segments=22, minor_segments=7, parent=reel)
-    A.cylinder("ReelCrank", 0.010, 0.090, (0.104, -0.190, 0.560), m["hard_black"],
-               rotation=(0.0, math.pi / 2.0, 0.0), vertices=10, parent=reel, bevel=0.002)
+        reel_parts.append(A.torus(f"ReelCoil_{index}", 0.108 + index * 0.008, 0.013,
+                                  (0.0, -0.120, 0.560), m["hose_black"],
+                                  rotation=(0.0, math.pi / 2.0, 0.0),
+                                  major_segments=22, minor_segments=7, parent=reel))
+    _join(reel_parts, "WasherHoseReelAssembly", reel)
 
     _marker("Carry", root, (0.0, 0.360, 0.740), grip_role="push_handle")
     _marker("WaterInlet", root, (-0.120, -0.330, 0.165), rotation=FORWARD, port="garden_hose_in")
