@@ -1315,15 +1315,34 @@ export function makeCourseScene(canvas, state) {
 
   // purely visual micro-undulation so gentle land still catches light;
   // damped on greens/tees so putting surfaces read flat and true
+  function microReliefDampAtCell(cx, cy) {
+    const zone = course.zones[clamp(cy, 0, H - 1) * W + clamp(cx, 0, W - 1)];
+    return zone === ZONE.GREEN || zone === ZONE.TEE ? 0.12 : zone === ZONE.BUNKER ? 0.4 : 1;
+  }
+
   function microRelief(fx, fy) {
     const n =
       Math.sin(fx * 0.9 + Math.sin(fy * 0.55) * 1.7) * Math.cos(fy * 0.74 + Math.sin(fx * 0.42) * 1.3) * 0.34 +
       Math.sin(fx * 2.3 + 1.7) * Math.cos(fy * 1.9 + 0.6) * 0.12;
-    const cx = clamp(Math.floor(fx), 0, W - 1);
-    const cy = clamp(Math.floor(fy), 0, H - 1);
-    const zone = course.zones[cy * W + cx];
-    const damp = zone === ZONE.GREEN || zone === ZONE.TEE ? 0.12 : zone === ZONE.BUNKER ? 0.4 : 1;
-    return n * damp;
+    // The damp factor must be a continuous field, not a per-cell lookup. Picking
+    // it with a bare floor() made it a step function on 8-yard borders: the noise
+    // reaches ~0.46 yd and damp jumps 0.12 -> 1 across a cell edge, so terrain
+    // vertices 1.33 yd apart could differ by ~0.4 yd. computeVertexNormals then
+    // baked that cliff into the shading as visible 8-yard square facets — turf
+    // that looked like a tile map even though the surface masks were smooth.
+    //
+    // zones is sampled at cell CENTRES (courseVec deriveZones), so the
+    // interpolation lattice sits at -0.5, matching rawHeightAtCellCoords.
+    // Interiors are unaffected (all four corners agree); only the edge ramps.
+    const x = fx - 0.5;
+    const y = fy - 0.5;
+    const xi = Math.floor(x);
+    const yi = Math.floor(y);
+    const tx = x - xi;
+    const ty = y - yi;
+    const d0 = microReliefDampAtCell(xi, yi) * (1 - tx) + microReliefDampAtCell(xi + 1, yi) * tx;
+    const d1 = microReliefDampAtCell(xi, yi + 1) * (1 - tx) + microReliefDampAtCell(xi + 1, yi + 1) * tx;
+    return n * (d0 * (1 - ty) + d1 * ty);
   }
 
   // vector courses sculpt greens/tees/bunker bowls/water/mounds analytically

@@ -42,13 +42,13 @@ test('hysteresis prevents hero/proxy popping while the camera hovers at the thre
   assert.equal(remainsProxy.tier, 'proxy');
 });
 
-test('boundary heroes always use non-shadowing proxies while native light flora is preserved', () => {
-  const boundaryHero = floraLodChoice('spruce_a', 2, null, { boundary: true });
-  const boundaryLight = floraLodChoice('birch_a', 2, null, { boundary: true });
+test('distant boundary planting stays on the cheap proxy silhouette', () => {
+  const boundaryFar = floraLodChoice('spruce_a', 400, null, { boundary: true });
+  const boundaryLight = floraLodChoice('birch_a', 400, null, { boundary: true });
   const authoredLightTree = floraLodChoice('birch_a', 2, null, { tree: true });
   const authoredSupport = floraLodChoice('shrub_round', 900, null);
 
-  assert.deepEqual(boundaryHero, {
+  assert.deepEqual(boundaryFar, {
     sourceId: 'spruce_a', renderId: 'pine_far', tier: 'boundary-proxy', hero: false, castShadow: false,
   });
   assert.equal(boundaryLight.renderId, 'birch_a');
@@ -59,6 +59,45 @@ test('boundary heroes always use non-shadowing proxies while native light flora 
   assert.equal(authoredSupport.renderId, 'shrub_round');
   assert.equal(authoredSupport.tier, 'native');
   assert.equal(authoredSupport.castShadow, true);
+});
+
+// The boundary belt is ~3,000 instances and used to return a proxy with no
+// distance test at all, so the treeline you stand next to rendered as the
+// 158-triangle flat-shaded `pine_far` cone stack. That belt is the horizon in
+// every ground-level shot, so it capped the look of the whole course.
+test('boundary planting graduates to hero geometry once the camera is close', () => {
+  const near = floraLodChoice('spruce_a', 20, null, { boundary: true });
+  assert.equal(near.renderId, 'spruce_a', 'a treeline tree 20 yd away must use real geometry');
+  assert.equal(near.tier, 'boundary-hero');
+  assert.equal(near.hero, true);
+
+  const atEdge = floraLodChoice('pine_a', FLORA_LOD_DEFAULTS.boundaryHeroEnterYd + 1, null, { boundary: true });
+  assert.equal(atEdge.renderId, 'pine_far', 'just outside the band stays cheap');
+  assert.equal(atEdge.tier, 'boundary-proxy');
+});
+
+test('boundary hero band is much tighter than the authored band and hysteretic', () => {
+  const { boundaryHeroEnterYd, boundaryHeroExitYd, heroEnterYd } = FLORA_LOD_DEFAULTS;
+  assert.ok(boundaryHeroEnterYd < heroEnterYd,
+    'thousands of belt instances must not promote at the authored-tree radius');
+  assert.ok(boundaryHeroExitYd > boundaryHeroEnterYd, 'needs hysteresis to avoid popping');
+
+  const entering = floraLodChoice('pine_a', boundaryHeroEnterYd - 1, false, { boundary: true });
+  const retained = floraLodChoice('pine_a', boundaryHeroExitYd - 1, entering.hero, { boundary: true });
+  const exited = floraLodChoice('pine_a', boundaryHeroExitYd + 1, retained.hero, { boundary: true });
+
+  assert.equal(entering.tier, 'boundary-hero');
+  assert.equal(retained.tier, 'boundary-hero', 'must not pop back while hovering the threshold');
+  assert.equal(exited.tier, 'boundary-proxy');
+});
+
+test('boundary flora never joins the shadow map, hero or not', () => {
+  // The belt is dense and rings the property; adding it to the fitted sun
+  // shadow map would cost far more than the silhouette gain is worth.
+  for (const distance of [5, 20, 60, 400]) {
+    assert.equal(floraLodChoice('spruce_a', distance, null, { boundary: true }).castShadow, false);
+    assert.equal(floraLodChoice('birch_a', distance, null, { boundary: true }).castShadow, false);
+  }
 });
 
 test('LOD buckets refresh only after meaningful camera travel', () => {

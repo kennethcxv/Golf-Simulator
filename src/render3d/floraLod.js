@@ -17,6 +17,13 @@ export const FLORA_LOD_DEFAULTS = Object.freeze({
   heroEnterYd: 125,
   heroExitYd: 150,
   refreshDistanceYd: 18,
+  // The boundary belt is ~3,000 instances, so it cannot use the authored radius
+  // above — that would promote most of the ring at once. But it also cannot stay
+  // proxy-only: the belt IS the horizon in every ground-level view, and its
+  // proxies are flat-shaded low-poly cones. A tight band promotes only the few
+  // dozen trees actually near the camera, which is what the player reads.
+  boundaryHeroEnterYd: 55,
+  boundaryHeroExitYd: 72,
 });
 
 function finiteDistance(value) {
@@ -40,27 +47,31 @@ export function floraLodChoice(sourceId, distanceYd, previousHero, options = {})
     };
   }
 
-  // Boundary planting closes the horizon and is never player-authored. Its
-  // lightweight normalized silhouette is sufficient even at the property edge;
-  // intentional trees still graduate to their full hero geometry near camera.
+  // Boundary planting closes the horizon and is never player-authored, so it
+  // stays on the cheap silhouette for all the distance that matters. It still
+  // graduates near the camera: the belt is what a player standing on a tee
+  // actually looks at, and its proxy is a flat-shaded cone stack.
+  const enter = Number.isFinite(options.heroEnterYd)
+    ? Math.max(1, options.heroEnterYd)
+    : boundary ? FLORA_LOD_DEFAULTS.boundaryHeroEnterYd : FLORA_LOD_DEFAULTS.heroEnterYd;
+  const exit = Number.isFinite(options.heroExitYd)
+    ? Math.max(enter, options.heroExitYd)
+    : Math.max(enter, boundary ? FLORA_LOD_DEFAULTS.boundaryHeroExitYd : FLORA_LOD_DEFAULTS.heroExitYd);
+  const distance = finiteDistance(distanceYd);
+  const hero = previousHero === true ? distance <= exit : distance <= enter;
+
   if (boundary) {
     return {
       sourceId,
-      renderId: proxyId,
-      tier: 'boundary-proxy',
-      hero: false,
+      renderId: hero ? sourceId : proxyId,
+      tier: hero ? 'boundary-hero' : 'boundary-proxy',
+      hero,
+      // Never a shadow caster either way. The belt rings the whole property and
+      // its penumbra is redundant beside the authored trees already in the map.
       castShadow: false,
     };
   }
 
-  const enter = Number.isFinite(options.heroEnterYd)
-    ? Math.max(1, options.heroEnterYd)
-    : FLORA_LOD_DEFAULTS.heroEnterYd;
-  const exit = Number.isFinite(options.heroExitYd)
-    ? Math.max(enter, options.heroExitYd)
-    : FLORA_LOD_DEFAULTS.heroExitYd;
-  const distance = finiteDistance(distanceYd);
-  const hero = previousHero === true ? distance <= exit : distance <= enter;
   return {
     sourceId,
     renderId: hero ? sourceId : proxyId,

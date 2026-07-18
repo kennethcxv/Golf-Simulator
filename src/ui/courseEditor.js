@@ -491,6 +491,13 @@ export function makeCourseEditor(app, hooks) {
     };
   }
 
+  // Centre + radius (cells) → the dirty rect refreshGround takes. The stamp
+  // tools call this on their success branch; callers pad the radius themselves,
+  // so this stays a plain square around the point.
+  function zr(x, y, r) {
+    return { x0: x - r, y0: y - r, x1: x + r, y1: y + r };
+  }
+
   function refreshEditedFeature(kind, beforePts, afterPts) {
     const sc = scene();
     sc.refreshGround(state(), {
@@ -2218,7 +2225,13 @@ export function makeCourseEditor(app, hooks) {
 
   function fullRefresh() {
     if (selectedPathId != null && !selectedPath()) clearPathSelection();
-    scene().refreshGround(state(), { water: true, objects: true, paths: true, holes: true, flow: true });
+    // relief: true is required here. Undo/redo/discard can revert a green, tee,
+    // bunker or water feature, and on vector courses those live in the cached
+    // analytic relief sculpt — without invalidating it the data and the surface
+    // colours roll back but the old plateau or bowl stays in the terrain mesh.
+    scene().refreshGround(state(), {
+      water: true, objects: true, paths: true, holes: true, flow: true, relief: true,
+    });
     scene().updateTurf(state());
     scene().setEditorFeaturePreview?.(null);
     refreshTop();
