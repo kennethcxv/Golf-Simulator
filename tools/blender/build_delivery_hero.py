@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -44,12 +45,14 @@ from build_checkout_assets import (  # noqa: E402
 
 SOURCE_DIR = ROOT / "asset_sources" / "blender" / "delivery"
 EXPORT_DIR = ROOT / "vendor" / "models" / "clubhouse"
-QA_DIR = ROOT / "qa" / "box_system_master" / "hero_apparel" / "blender"
+QA_ROOT = ROOT / "qa" / "box_system_master" / "hero_apparel" / "blender"
+QA_PASS = os.environ.get("DELIVERY_HERO_QA_PASS", "").strip()
+QA_DIR = QA_ROOT / QA_PASS if QA_PASS else QA_ROOT
 SOURCE_DIR.mkdir(parents=True, exist_ok=True)
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 QA_DIR.mkdir(parents=True, exist_ok=True)
 
-BUILD_VERSION = 1
+BUILD_VERSION = 2
 BOX_ID = "delivery_apparel_box"
 CUTTER_ID = "delivery_box_cutter"
 RECYCLING_ID = "delivery_recycling_station"
@@ -150,6 +153,13 @@ def build_apparel_box(M):
     root["box_profile"] = "medium_apparel"
     root["carry_profile"] = "medium_two_hand"
     root["content_capacity"] = 8
+    root["version"] = BUILD_VERSION
+    root["physical_shell_id"] = BOX_ID
+    root["packaging_shell_id"] = "APPAREL_CARTON"
+    root["content_layouts"] = json.dumps(["APPAREL8", "FLAT8"])
+    root["default_content_layout"] = "APPAREL8"
+    root["content_scale"] = 1.0
+    root["allow_scale"] = False
 
     # Floor and reinforced corner pads. There is deliberately no top cap.
     box("BOX_BASE", (w - 2 * t, d - 2 * t, t), (0, 0, t / 2), M["kraft_dark"], bevel=0.002, parent=root)
@@ -254,8 +264,10 @@ def build_apparel_box(M):
 
     # Interior inserts and tissue form a believable product bed. Sockets are
     # empties; runtime attaches the actual catalog folded-polo GLBs once.
-    box("DIVIDER_LONG", (0.008, d - 0.055, 0.105), (0, 0, 0.072), M["paper"], bevel=0.001, parent=root)
-    box("DIVIDER_CROSS", (w - 0.065, 0.008, 0.105), (0, 0, 0.072), M["paper"], bevel=0.001, parent=root)
+    # Low layout-neutral scores divide the tissue bed without intersecting the
+    # full-scale garment/socket envelopes that begin 52 mm above the floor.
+    box("DIVIDER_LONG", (0.008, d - 0.055, 0.024), (0, 0, 0.038), M["paper"], bevel=0.001, parent=root)
+    box("DIVIDER_CROSS", (w - 0.065, 0.008, 0.024), (0, 0, 0.038), M["paper"], bevel=0.001, parent=root)
     box("TISSUE_BASE", (w - 0.045, d - 0.045, 0.006), (0, 0, 0.021), M["paper"], bevel=0.002, parent=root)
     for side, x in enumerate((-0.248, 0.248), start=1):
         tissue = box(
@@ -274,6 +286,90 @@ def build_apparel_box(M):
                 kind="box_content", props={"slot_index": slot_index, "sku_family": "folded_apparel"},
             )
             slot_index += 1
+
+    # Exact, layout-aware sockets coexist with the legacy short names above.
+    # APPAREL8 uses two honest full-width stacks with four compressed soft-good
+    # layers apiece. FLAT8 uses a roomy 2 x 2 x 2 grid for banded sock pairs.
+    def add_content_layout(layout_id, category, allowed_skus, packaging_state, definitions):
+        layout_root = empty(
+            f"CONTENT_LAYOUT_{layout_id}",
+            parent=root,
+            size=0.040,
+            props={
+                "layout_id": layout_id,
+                "capacity": len(definitions),
+                "allowed_category": category,
+                "catalog_category": "apparel",
+                "allowed_skus": json.dumps(allowed_skus),
+                "packaging_state": packaging_state,
+                "physical_shell_id": BOX_ID,
+                "packaging_shell_id": "APPAREL_CARTON",
+                "socket_prefix": f"CONTENT_SLOT_{layout_id}_",
+                "selection_rule": "exact_sku_category_quantity_dimensions_packaging_state",
+                "content_scale": 1.0,
+                "allow_scale": False,
+            },
+        )
+        capacity = len(definitions)
+        for index, definition in enumerate(definitions, start=1):
+            position, stack_column, stack_layer, max_dims = definition
+            max_w, max_d, max_h = max_dims
+            socket = anchor(
+                f"CONTENT_SLOT_{layout_id}_{index:02d}",
+                position,
+                parent=layout_root,
+                kind="box_content",
+                props={
+                    "layout_id": layout_id,
+                    "slot_index": index,
+                    "allowed_category": category,
+                    "catalog_category": "apparel",
+                    "allowed_skus": json.dumps(allowed_skus),
+                    "packaging_state": packaging_state,
+                    "packaging_shell_id": "APPAREL_CARTON",
+                    "max_w": max_w,
+                    "max_d": max_d,
+                    "max_h": max_h,
+                    "display_state": "opened_face_out",
+                    "stack_order": index,
+                    "stack_column": stack_column,
+                    "stack_layer": stack_layer,
+                    "visibility_threshold": round(1.0 - (index - 1) / max(1, capacity - 1), 4),
+                    "visible_when_remaining_at_least": capacity - index + 1,
+                    "removal_order": capacity - index + 1,
+                    "removal_policy": "highest_removal_order_first",
+                    "content_scale": 1.0,
+                    "allow_scale": False,
+                },
+            )
+            socket["authored_rotation_rad"] = json.dumps([0.0, 0.0, 0.0])
+
+    apparel_definitions = []
+    for stack_column, x in enumerate((-0.120, 0.120), start=1):
+        for stack_layer, z in enumerate((0.102, 0.158, 0.214, 0.270), start=1):
+            apparel_definitions.append(((x, 0.0, z), stack_column, stack_layer, (0.220, 0.190, 0.100)))
+    add_content_layout(
+        "APPAREL8",
+        "apparel",
+        ("polo1", "polo2", "jacket2"),
+        "folded-with-tissue-and-size-tag",
+        apparel_definitions,
+    )
+
+    flat_definitions = []
+    stack_column = 0
+    for y in (-0.082, 0.082):
+        for x in (-0.105, 0.105):
+            stack_column += 1
+            for stack_layer, z in enumerate((0.092, 0.177), start=1):
+                flat_definitions.append(((x, y, z), stack_column, stack_layer, (0.180, 0.150, 0.080)))
+    add_content_layout(
+        "FLAT8",
+        "apparel",
+        ("sock1",),
+        "banded-folded-pair",
+        flat_definitions,
+    )
 
     # A compact authored end-state avoids the four hinged walls fighting for
     # the same plane once the carton is fully broken down. Runtime reveals this
@@ -415,6 +511,10 @@ def build_recycling_station(M):
 
 def add_build_info(asset_id):
     text = bpy.data.texts.new("BUILD_INFO.txt")
+    layout_note = (
+        "apparel content layouts: APPAREL8 and FLAT8; authored scale: 1.0; shrink fallback: forbidden\n"
+        if asset_id == BOX_ID else ""
+    )
     text.write(
         "Pinehollow Golf delivery hero asset\n"
         f"asset_id: {asset_id}\n"
@@ -423,6 +523,7 @@ def add_build_info(asset_id):
         "units: metres\n"
         "source: original in-repository geometry; no external assets\n"
         "raw Tripo sources: untouched and not imported\n"
+        f"{layout_note}"
     )
 
 
@@ -474,6 +575,9 @@ BOX_REQUIRED = {
     "BOX_FLAT_BUNDLE", "FLAT_PANEL_BASE", "FLAT_PANEL_FRONT",
     "FLAT_FOLD_LEFT", "FLAT_FOLD_RIGHT", "FLAT_BRAND_BAND", "FLAT_LABEL",
     *{f"CONTENT_SLOT_{index:02d}" for index in range(1, 9)},
+    "CONTENT_LAYOUT_APPAREL8", "CONTENT_LAYOUT_FLAT8",
+    *{f"CONTENT_SLOT_APPAREL8_{index:02d}" for index in range(1, 9)},
+    *{f"CONTENT_SLOT_FLAT8_{index:02d}" for index in range(1, 9)},
 }
 CUTTER_REQUIRED = {
     "CUTTER_BODY", "CUTTER_SLIDER", "CUTTER_BLADE", "CUTTER_CHANNEL",
@@ -491,14 +595,57 @@ RECYCLING_REQUIRED = {
 
 
 def validate_scene(asset_id, root, required):
-    names = {obj.name for obj in descendants(root)}
-    missing = sorted(required - names)
+    nodes = descendants(root)
+    by_name = {obj.name: obj for obj in nodes}
+    missing = sorted(required - set(by_name))
     if missing:
         raise RuntimeError(f"{asset_id} missing required nodes: {missing}")
-    for obj in descendants(root):
+    for obj in nodes:
         if obj.type == "MESH":
             if any(abs(scale - 1.0) > 1e-5 for scale in obj.scale):
                 raise RuntimeError(f"{asset_id} unapplied scale: {obj.name} {tuple(obj.scale)}")
+    if asset_id == BOX_ID:
+        expected_layouts = {
+            "APPAREL8": {
+                "capacity": 8,
+                "skus": ("polo1", "polo2", "jacket2"),
+                "max_dims": (0.220, 0.190, 0.100),
+            },
+            "FLAT8": {
+                "capacity": 8,
+                "skus": ("sock1",),
+                "max_dims": (0.180, 0.150, 0.080),
+            },
+        }
+        if tuple(json.loads(root.get("content_layouts", "[]"))) != tuple(expected_layouts):
+            raise RuntimeError("apparel content layout declaration changed")
+        for layout_id, expected in expected_layouts.items():
+            layout = by_name[f"CONTENT_LAYOUT_{layout_id}"]
+            if layout.parent is not root or int(layout.get("capacity", -1)) != expected["capacity"]:
+                raise RuntimeError(f"{layout_id} hierarchy or capacity changed")
+            if layout.get("packaging_shell_id") != "APPAREL_CARTON":
+                raise RuntimeError(f"{layout_id} packaging shell contract changed")
+            if tuple(json.loads(layout.get("allowed_skus", "[]"))) != expected["skus"]:
+                raise RuntimeError(f"{layout_id} allowed SKU contract changed")
+            for index in range(1, expected["capacity"] + 1):
+                socket = by_name[f"CONTENT_SLOT_{layout_id}_{index:02d}"]
+                if socket.parent is not layout:
+                    raise RuntimeError(f"{socket.name} must be directly under {layout.name}")
+                for key in (
+                    "layout_id", "slot_index", "allowed_category", "catalog_category", "allowed_skus",
+                    "packaging_state", "packaging_shell_id", "max_w", "max_d", "max_h", "display_state",
+                    "stack_order", "stack_column", "stack_layer", "visibility_threshold",
+                    "removal_order", "content_scale", "allow_scale",
+                ):
+                    if key not in socket:
+                        raise RuntimeError(f"{socket.name} missing {key}")
+                actual_dims = tuple(round(float(socket[key]), 6) for key in ("max_w", "max_d", "max_h"))
+                if actual_dims != expected["max_dims"]:
+                    raise RuntimeError(f"{socket.name} envelope changed: {actual_dims}")
+                if socket["packaging_shell_id"] != "APPAREL_CARTON":
+                    raise RuntimeError(f"{socket.name} packaging shell contract changed")
+                if float(socket["content_scale"]) != 1.0 or bool(socket["allow_scale"]):
+                    raise RuntimeError(f"{socket.name} must remain authored at 1:1 scale")
     metrics = asset_metrics(root)
     triangle_budget = 12000 if asset_id in (BOX_ID, RECYCLING_ID) else 6000
     if metrics["triangles"] > triangle_budget:
@@ -556,9 +703,14 @@ def render_preview(asset_id, root, opened=False):
     if scene.world is None:
         scene.world = bpy.data.worlds.new("QA_World")
     scene.world.color = (0.035, 0.045, 0.038)
+    try:
+        scene.view_settings.look = "AgX - Medium High Contrast"
+    except Exception:
+        pass
+    scene.view_settings.exposure = -1.25
     if asset_id == BOX_ID:
-        camera_location = (0.88, -1.05, 0.72)
-        camera_target = (0, 0, 0.17)
+        camera_location = (0.42, -0.44, 1.02) if opened else (0.88, -1.05, 0.72)
+        camera_target = (0, 0, 0.115) if opened else (0, 0, 0.17)
     elif asset_id == CUTTER_ID:
         camera_location = (0.26, -0.38, 0.24)
         camera_target = (0, 0.075, 0.015)
@@ -572,9 +724,9 @@ def render_preview(asset_id, root, opened=False):
     camera.data.lens = 54
     scene.camera = camera
     for name, energy, loc, size in [
-        ("Key", 850, (-0.6, -0.6, 1.25), 1.4),
-        ("Fill", 420, (0.8, -0.2, 0.75), 1.0),
-        ("Rim", 600, (0.1, 0.8, 1.0), 0.8),
+        ("Key", 220, (-0.6, -0.6, 1.25), 1.4),
+        ("Fill", 105, (0.8, -0.2, 0.75), 1.0),
+        ("Rim", 150, (0.1, 0.8, 1.0), 0.8),
     ]:
         bpy.ops.object.light_add(type="AREA", location=loc)
         light = bpy.context.object
@@ -585,6 +737,17 @@ def render_preview(asset_id, root, opened=False):
         look_at(light, (0, 0, 0.15))
     floor_mat = mat("QA_Floor", (0.10, 0.13, 0.11, 1), roughness=0.95)
     floor = box("QA_Floor", (2.4, 2.4, 0.025), (0, 0, -0.018), floor_mat, bevel=0.004)
+    hidden_variants = []
+    if asset_id == BOX_ID:
+        flat_bundle = bpy.data.objects.get("BOX_FLAT_BUNDLE")
+        if flat_bundle:
+            for obj in descendants(flat_bundle):
+                hidden_variants.append((obj, obj.hide_render))
+                obj.hide_render = True
+        for obj in descendants(root):
+            if obj.name.startswith("TAPE_PEELED_") or (opened and obj.name.startswith("TAPE_")):
+                hidden_variants.append((obj, obj.hide_render))
+                obj.hide_render = True
     changed = []
     if opened and asset_id == BOX_ID:
         poses = {
@@ -602,6 +765,8 @@ def render_preview(asset_id, root, opened=False):
     bpy.ops.render.render(write_still=True)
     for obj, rotation in changed:
         obj.rotation_euler = rotation
+    for obj, was_hidden in hidden_variants:
+        obj.hide_render = was_hidden
     # Camera and floor already use QA_ names; remove a unique snapshot so no
     # invalid StructRNA reference is visited twice after deletion.
     for obj in [o for o in list(bpy.data.objects) if o.name.startswith("QA_")]:
@@ -645,15 +810,29 @@ def build_one(asset_id):
 
 
 def main():
+    target = os.environ.get("DELIVERY_HERO_TARGET", "").strip()
+    asset_ids = (BOX_ID, CUTTER_ID, RECYCLING_ID) if not target else (target,)
+    unknown = [asset_id for asset_id in asset_ids if asset_id not in (BOX_ID, CUTTER_ID, RECYCLING_ID)]
+    if unknown:
+        raise RuntimeError(f"unknown DELIVERY_HERO_TARGET: {unknown[0]}")
     built = []
     requirements = {}
-    for asset_id in (BOX_ID, CUTTER_ID, RECYCLING_ID):
+    for asset_id in asset_ids:
         metrics, required = build_one(asset_id)
         built.append(metrics)
         requirements[asset_id] = required
-    for asset_id in (BOX_ID, CUTTER_ID, RECYCLING_ID):
+    for asset_id in asset_ids:
         clean_reimport_validate(asset_id, requirements[asset_id])
-    (QA_DIR / "delivery_hero_build_report.json").write_text(json.dumps(built, indent=2), encoding="utf8")
+    report = {
+        "builder": SCRIPT.relative_to(ROOT).as_posix(),
+        "build_version": BUILD_VERSION,
+        "qa_pass": QA_PASS or "default",
+        "asset_target": target or "all",
+        "external_assets": [],
+        "raw_tripo_sources_modified": False,
+        "assets": built,
+    }
+    (QA_DIR / "delivery_hero_build_report.json").write_text(json.dumps(report, indent=2), encoding="utf8")
     print(f"COMPLETE|assets={len(built)}|source_dir={SOURCE_DIR}|export_dir={EXPORT_DIR}")
 
 

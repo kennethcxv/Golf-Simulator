@@ -44,7 +44,7 @@ from build_checkout_assets import (  # noqa: E402
 
 
 ASSET_ID = "delivery_golf_club_box"
-BUILD_VERSION = 1
+BUILD_VERSION = 2
 REFERENCE_ID = "48"
 TARGET_DIMS = (1.25, 0.18, 0.18)  # Blender X length, Y depth, Z height.
 REFERENCE_PATH = (
@@ -81,6 +81,7 @@ REQUIRED = {
     "SHAFT_SUPPORT_01", "SHAFT_SUPPORT_02",
     "HEAD_SUPPORT_01", "HEAD_SUPPORT_02",
     "CONTENT_SLOT_01", "CONTENT_SLOT_02",
+    "CONTENT_LAYOUT_CLUB2", "CONTENT_SLOT_CLUB2_01", "CONTENT_SLOT_CLUB2_02",
     "COLLISION_CLOSED", "COLLISION_OPEN",
     "INTERACTION_TARGET", "CUT_PATH", "VOLUME_CONTENTS",
     "BOX_FLAT_BUNDLE",
@@ -141,6 +142,12 @@ def root_object() -> bpy.types.Object:
             "box_profile": "long_golf_club",
             "carry_profile": "long_two_hand",
             "content_capacity": 2,
+            "physical_shell_id": ASSET_ID,
+            "packaging_shell_id": "LONG_CLUB_CARTON",
+            "content_layouts": json.dumps(["CLUB2"]),
+            "default_content_layout": "CLUB2",
+            "content_scale": 1.0,
+            "allow_scale": False,
             "builder": SCRIPT.relative_to(ROOT).as_posix(),
         },
         size=0.055,
@@ -643,6 +650,65 @@ def build_box(M: dict[str, bpy.types.Material]) -> bpy.types.Object:
             },
         )
 
+    # Contract-authoritative CLUB2 sockets. Two complete, full-scale retail
+    # clubs stack vertically inside the 180 mm shell; the upper club rotates
+    # 180 degrees so the protected heads oppose one another instead of sharing
+    # the same end cradle. Legacy CONTENT_SLOT_01/02 remain for old saves.
+    layout_id = "CLUB2"
+    allowed_skus = ("driver1", "driver2", "driver3", "putter1", "putter2", "wedge1", "wedge2")
+    packaging_state = "head-and-shaft-guarded"
+    layout_root = empty(
+        f"CONTENT_LAYOUT_{layout_id}",
+        parent=root,
+        size=0.040,
+        props={
+            "layout_id": layout_id,
+            "capacity": 2,
+            "allowed_category": "clubs",
+            "catalog_category": "clubs",
+            "allowed_skus": json.dumps(allowed_skus),
+            "packaging_state": packaging_state,
+            "physical_shell_id": ASSET_ID,
+            "packaging_shell_id": "LONG_CLUB_CARTON",
+            "socket_prefix": f"CONTENT_SLOT_{layout_id}_",
+            "selection_rule": "exact_sku_category_quantity_dimensions_packaging_state",
+            "packed_orientation": "lengthwise-heads-opposed",
+            "content_scale": 1.0,
+            "allow_scale": False,
+        },
+    )
+    for index, (z, rotation_z) in enumerate(((0.065, 0.0), (0.115, math.pi)), start=1):
+        socket = anchor(
+            f"CONTENT_SLOT_{layout_id}_{index:02d}",
+            (0.0, 0.0, z),
+            rot=(0.0, 0.0, rotation_z),
+            parent=layout_root,
+            kind="box_content",
+            props={
+                "layout_id": layout_id,
+                "slot_index": index,
+                "allowed_category": "clubs",
+                "catalog_category": "clubs",
+                "allowed_skus": json.dumps(allowed_skus),
+                "packaging_state": packaging_state,
+                "packaging_shell_id": "LONG_CLUB_CARTON",
+                "max_w": 1.19,
+                "max_d": 0.13,
+                "max_h": 0.09,
+                "display_state": "opened_lengthwise",
+                "stack_order": index,
+                "stack_column": 1,
+                "stack_layer": index,
+                "visibility_threshold": 0.01 if index == 1 else 0.51,
+                "visible_when_remaining_at_least": 3 - index,
+                "removal_order": 3 - index,
+                "removal_policy": "highest_removal_order_first",
+                "content_scale": 1.0,
+                "allow_scale": False,
+            },
+        )
+        socket["authored_rotation_rad"] = json.dumps([0.0, 0.0, round(rotation_z, 6)])
+
     # Compact authored flattened variant. Required children are direct so the
     # runtime can switch the whole bundle without resolving nested decoration.
     flat = empty(
@@ -827,7 +893,9 @@ def asset_metrics(root: bpy.types.Object) -> dict:
 
 
 def validate(root: bpy.types.Object, *, imported: bool = False) -> dict:
-    names = {obj.name for obj in descendants(root)}
+    nodes = descendants(root)
+    by_name = {obj.name: obj for obj in nodes}
+    names = set(by_name)
     missing = sorted(REQUIRED - names)
     if missing:
         raise RuntimeError(f"{ASSET_ID} missing required nodes: {missing}")
@@ -868,12 +936,42 @@ def validate(root: bpy.types.Object, *, imported: bool = False) -> dict:
         raise RuntimeError(f"reference_id changed: {root['reference_id']}")
 
     for index in (1, 2):
-        socket = bpy.data.objects.get(f"CONTENT_SLOT_{index:02d}")
+        socket = by_name.get(f"CONTENT_SLOT_{index:02d}")
         for key in ("allowed_category", "max_w", "max_d", "max_h", "stack_order", "visibility_threshold", "removal_order"):
             if socket is None or key not in socket.keys():
                 raise RuntimeError(f"CONTENT_SLOT_{index:02d} missing {key}")
         if socket["allowed_category"] != "clubs":
             raise RuntimeError(f"CONTENT_SLOT_{index:02d} category changed")
+
+    layout = by_name["CONTENT_LAYOUT_CLUB2"]
+    expected_skus = ("driver1", "driver2", "driver3", "putter1", "putter2", "wedge1", "wedge2")
+    if layout.parent is not root or int(layout.get("capacity", -1)) != 2:
+        raise RuntimeError("CLUB2 layout hierarchy or capacity changed")
+    if layout.get("packaging_shell_id") != "LONG_CLUB_CARTON":
+        raise RuntimeError("CLUB2 packaging shell contract changed")
+    if tuple(json.loads(layout.get("allowed_skus", "[]"))) != expected_skus:
+        raise RuntimeError("CLUB2 allowed SKU contract changed")
+    for index in (1, 2):
+        socket = by_name[f"CONTENT_SLOT_CLUB2_{index:02d}"]
+        if socket.parent is not layout:
+            raise RuntimeError(f"{socket.name} must be directly under CONTENT_LAYOUT_CLUB2")
+        for key in (
+            "layout_id", "slot_index", "allowed_category", "catalog_category", "allowed_skus",
+            "packaging_state", "packaging_shell_id", "max_w", "max_d", "max_h", "display_state",
+            "stack_order", "stack_column", "stack_layer", "visibility_threshold",
+            "removal_order", "content_scale", "allow_scale", "authored_rotation_rad",
+        ):
+            if key not in socket:
+                raise RuntimeError(f"{socket.name} missing {key}")
+        exported = tuple(round(float(socket[key]), 6) for key in ("max_w", "max_d", "max_h"))
+        if exported != (1.19, 0.13, 0.09):
+            raise RuntimeError(f"{socket.name} CLUB2 envelope changed: {exported}")
+        if socket["packaging_shell_id"] != "LONG_CLUB_CARTON":
+            raise RuntimeError(f"{socket.name} packaging shell contract changed")
+        if float(socket["content_scale"]) != 1.0 or bool(socket["allow_scale"]):
+            raise RuntimeError(f"{socket.name} must remain authored at 1:1 scale")
+    if json.loads(by_name["CONTENT_SLOT_CLUB2_02"]["authored_rotation_rad"]) != [0.0, 0.0, 3.141593]:
+        raise RuntimeError("CLUB2 opposing-head rotation changed")
 
     metrics["validation"] = "clean_reimport_ok" if imported else "source_ok"
     return metrics
@@ -891,6 +989,7 @@ def add_build_info() -> None:
         "units: metres\n"
         "source: user-provided Asset Sheet 05 reference 48; original in-repository geometry\n"
         "license: user-provided design reference; project-owned derivative; no external assets\n"
+        "content layout: CLUB2; authored content scale: 1.0; opposing protected heads; shrink fallback: forbidden\n"
     )
 
 

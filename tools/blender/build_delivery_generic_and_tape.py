@@ -9,8 +9,9 @@ Run from the repository root with Blender 5.1:
 All geometry is original, deterministic, project-owned work authored in metres.
 Blender Z is up; the glTF exporter converts to a Y-up runtime scene.  This
 script deliberately creates new assets and never opens or overwrites legacy
-carton sources.  Set DELIVERY_ASSET_QA_PASS (for example ``pass-02``) to keep
-successive comparison renders under the ignored QA tree.
+carton sources. Set DELIVERY_ASSET_QA_PASS (for example ``pass-02``) to keep
+successive comparison renders under the ignored QA tree. Set
+DELIVERY_ASSET_TARGET to either asset id to rebuild only that asset.
 """
 
 from __future__ import annotations
@@ -56,7 +57,7 @@ SOURCE_DIR.mkdir(parents=True, exist_ok=True)
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 QA_DIR.mkdir(parents=True, exist_ok=True)
 
-BUILD_VERSION = 1
+BUILD_VERSION = 3
 BOX_ID = "delivery_generic_merchandise_box"
 TAPE_ID = "delivery_packing_tape_roll"
 BOX_DIMS = (0.60, 0.40, 0.40)  # X width, Y depth, Z height
@@ -114,6 +115,29 @@ def set_helper(obj, helper_kind):
     obj["helper"] = True
     obj["helper_kind"] = helper_kind
     obj.hide_render = True
+    return obj
+
+
+def rear_label_quad(name, width, height, loc, material, parent):
+    """Create a +Y-facing label surface with landscape, explicit 0..1 UVs."""
+    mesh = bpy.data.meshes.new(f"{name}Mesh")
+    verts = [
+        (-width / 2, 0, -height / 2),
+        (-width / 2, 0, height / 2),
+        (width / 2, 0, height / 2),
+        (width / 2, 0, -height / 2),
+    ]
+    mesh.from_pydata(verts, [], [(0, 1, 2, 3)])
+    mesh.materials.append(material)
+    uv_layer = mesh.uv_layers.new(name="UVMap")
+    uvs = ((0, 0), (0, 1), (1, 1), (1, 0))
+    for loop in mesh.loops:
+        uv_layer.data[loop.index].uv = uvs[loop.vertex_index]
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj.location = loc
+    parent_keep(obj, parent)
     return obj
 
 
@@ -197,6 +221,12 @@ def build_generic_box(M):
     root["content_capacity"] = 8
     root["recommended_sku"] = "cap1"
     root["reference_dimensions_cm"] = [60, 40, 40]
+    root["physical_shell_id"] = BOX_ID
+    root["packaging_shell_id"] = "GENERIC_MERCHANDISE"
+    root["content_layouts"] = json.dumps(["CAP_NEST8"])
+    root["default_content_layout"] = "CAP_NEST8"
+    root["content_scale"] = 1.0
+    root["allow_scale"] = False
 
     # Corrugated shell.  The base and every wall remain logically independent.
     box("BOX_BASE", (w - 2 * t, d - 2 * t, t), (0, 0, t / 2), M["kraft_dark"], bevel=0.002, parent=root)
@@ -302,22 +332,30 @@ def build_generic_box(M):
         box(f"HANDLING_UP_HEAD_L_{arrow_index:02d}", (0.010, 0.0015, 0.0028), (x - 0.0035, -d / 2 - 0.0015, 0.061), M["green"], rot=(0, math.radians(-40), 0), bevel=0.0005, parent=front_wall)
         box(f"HANDLING_UP_HEAD_R_{arrow_index:02d}", (0.010, 0.0015, 0.0028), (x + 0.0035, -d / 2 - 0.0015, 0.061), M["green"], rot=(0, math.radians(40), 0), bevel=0.0005, parent=front_wall)
 
-    # Separate shipping and dynamic label meshes sit on the rear face so the
-    # clean crest side remains recognizable to reference 46.
-    box("LABEL_SHIPPING", (0.174, 0.0018, 0.105), (0.175, d / 2 + 0.001, 0.182), M["paper"], bevel=0.002, parent=back_wall)
-    dynamic = box("LABEL_DYNAMIC", (0.154, 0.0021, 0.024), (0.175, d / 2 + 0.001, 0.208), M["green"], bevel=0.001, parent=back_wall)
+    # The runtime paints one 512x320 landscape canvas onto LABEL_DYNAMIC. Keep
+    # that surface a single explicit-UV quad on the rear face; the old narrow
+    # cuboid stretched the full label into a tiny, quarter-turned strip.
+    label_pivot = empty(
+        "LABEL_SHIPPING", (0.135, d / 2, 0.180),
+        parent=back_wall, size=0.025, props={"label_mount": True, "face": "+Y"},
+    )
+    box(
+        "SHIPPING_LABEL_BACKING", (0.238, 0.0020, 0.150),
+        (0.135, d / 2 + 0.0010, 0.180), M["paper"], bevel=0.0008, parent=label_pivot,
+    )
+    dynamic = rear_label_quad(
+        "LABEL_DYNAMIC", 0.232, 0.144,
+        (0.135, d / 2 + 0.0022, 0.180), M["paper"], label_pivot,
+    )
     dynamic["fields"] = json.dumps(["order_number", "sku", "unit_count", "weight_kg"])
     dynamic["default_unit_count"] = 8
-    for index, x in enumerate((0.115, 0.127, 0.141, 0.158, 0.176, 0.198, 0.222, 0.238), start=1):
-        box(f"SHIPPING_BAR_{index:02d}", (0.004 if index % 3 else 0.007, 0.0022, 0.031), (x, d / 2 + 0.001, 0.165), M["charcoal"], bevel=0.0004, parent=back_wall)
 
-    # Protective bed and low dividers define four cap columns without hiding
-    # the products from the player camera.
+    # Protective bed and one low longitudinal divider define the two physical
+    # cap stacks used by CAP_NEST8 without hiding nested crowns from the player.
     box("INSERT_BOTTOM", (w - 0.048, d - 0.048, 0.010), (0, 0, 0.022), M["paper"], bevel=0.002, parent=root)
     box("INSERT_SIDE_LEFT", (0.026, d - 0.060, 0.120), (-w / 2 + 0.031, 0, 0.078), M["paper"], bevel=0.003, parent=root)
     box("INSERT_SIDE_RIGHT", (0.026, d - 0.060, 0.120), (w / 2 - 0.031, 0, 0.078), M["paper"], bevel=0.003, parent=root)
     box("INSERT_DIVIDER_LONG", (0.007, d - 0.074, 0.055), (0, 0, 0.055), M["kraft_dark"], bevel=0.001, parent=root)
-    box("INSERT_DIVIDER_CROSS", (w - 0.074, 0.007, 0.055), (0, 0, 0.055), M["kraft_dark"], bevel=0.001, parent=root)
 
     # Pair-consecutive 2x2x2 sockets.  Removing two units at a time clears one
     # full vertical pair, so 8 -> 6 -> 4 -> 2 stays visually tidy.
@@ -340,6 +378,66 @@ def build_generic_box(M):
                     "removal_order": 9 - slot_index,
                 },
             )
+            slot_index += 1
+
+    # Contract-authoritative CAP_NEST8 layout. The two 215 mm-wide stacks sit
+    # side by side, while four full-scale cap crowns nest vertically in each
+    # stack. The legacy CONTENT_SLOT_01..08 anchors above remain untouched for
+    # pre-layout runtime compatibility; new code selects only this exact root.
+    layout_id = "CAP_NEST8"
+    allowed_skus = ("cap1",)
+    packaging_state = "nested-crowns-with-tissue-form"
+    layout_root = empty(
+        f"CONTENT_LAYOUT_{layout_id}",
+        parent=root,
+        size=0.040,
+        props={
+            "layout_id": layout_id,
+            "capacity": 8,
+            "allowed_category": "apparel:cap",
+            "catalog_category": "apparel",
+            "allowed_skus": json.dumps(allowed_skus),
+            "packaging_state": packaging_state,
+            "physical_shell_id": BOX_ID,
+            "packaging_shell_id": "GENERIC_MERCHANDISE",
+            "socket_prefix": f"CONTENT_SLOT_{layout_id}_",
+            "selection_rule": "exact_sku_category_quantity_dimensions_packaging_state",
+            "content_scale": 1.0,
+            "allow_scale": False,
+        },
+    )
+    slot_index = 1
+    for stack_column, x in enumerate((-0.1125, 0.1125), start=1):
+        for stack_layer, z in enumerate((0.075, 0.110, 0.145, 0.180), start=1):
+            socket = anchor(
+                f"CONTENT_SLOT_{layout_id}_{slot_index:02d}",
+                (x, 0.0, z),
+                parent=layout_root,
+                kind="box_content",
+                props={
+                    "layout_id": layout_id,
+                    "slot_index": slot_index,
+                    "allowed_category": "apparel:cap",
+                    "catalog_category": "apparel",
+                    "allowed_skus": json.dumps(allowed_skus),
+                    "packaging_state": packaging_state,
+                    "packaging_shell_id": "GENERIC_MERCHANDISE",
+                    "max_w": 0.215,
+                    "max_d": 0.215,
+                    "max_h": 0.075,
+                    "display_state": "opened_nested",
+                    "stack_order": slot_index,
+                    "stack_column": stack_column,
+                    "stack_layer": stack_layer,
+                    "visibility_threshold": round(1.0 - (slot_index - 1) / 7.0, 4),
+                    "visible_when_remaining_at_least": 9 - slot_index,
+                    "removal_order": 9 - slot_index,
+                    "removal_policy": "highest_removal_order_first",
+                    "content_scale": 1.0,
+                    "allow_scale": False,
+                },
+            )
+            socket["authored_rotation_rad"] = json.dumps([0.0, 0.0, 0.0])
             slot_index += 1
 
     # Compact, single-group flatten variant.  Every named panel is a direct
@@ -574,6 +672,8 @@ BOX_REQUIRED = {
     "LABEL_MAIN", "LABEL_SHIPPING", "LABEL_DYNAMIC",
     "INSERT_BOTTOM", "INSERT_SIDE_LEFT", "INSERT_SIDE_RIGHT",
     *{f"CONTENT_SLOT_{index:02d}" for index in range(1, 9)},
+    "CONTENT_LAYOUT_CAP_NEST8",
+    *{f"CONTENT_SLOT_CAP_NEST8_{index:02d}" for index in range(1, 9)},
     "COLLISION_CLOSED", "COLLISION_OPEN", "INTERACTION_TARGET", "CUT_PATH", "VOLUME_CONTENTS",
     "BOX_FLAT_BUNDLE", "FLAT_PANEL_BASE", "FLAT_PANEL_FRONT", "FLAT_PANEL_BACK",
     "FLAT_PANEL_LEFT", "FLAT_PANEL_RIGHT", "FLAT_LABEL",
@@ -687,6 +787,32 @@ def validate_scene(asset_id, root, required):
                     raise RuntimeError(f"{slot.name} missing {prop}")
             if max(float(slot["max_w"]), float(slot["max_d"]), float(slot["max_h"])) > 0.18001:
                 raise RuntimeError(f"{slot.name} exceeds authored cap bounds")
+        layout = by_name["CONTENT_LAYOUT_CAP_NEST8"]
+        if layout.parent is not root or int(layout.get("capacity", -1)) != 8:
+            raise RuntimeError("CAP_NEST8 layout hierarchy or capacity changed")
+        if layout.get("packaging_shell_id") != "GENERIC_MERCHANDISE":
+            raise RuntimeError("CAP_NEST8 packaging shell contract changed")
+        if tuple(json.loads(layout.get("allowed_skus", "[]"))) != ("cap1",):
+            raise RuntimeError("CAP_NEST8 allowed SKU contract changed")
+        for index in range(1, 9):
+            slot = by_name[f"CONTENT_SLOT_CAP_NEST8_{index:02d}"]
+            if slot.parent is not layout:
+                raise RuntimeError(f"{slot.name} must be directly under CAP_NEST8")
+            for prop in (
+                "layout_id", "slot_index", "allowed_category", "catalog_category", "allowed_skus",
+                "packaging_state", "packaging_shell_id", "max_w", "max_d", "max_h", "display_state",
+                "stack_order", "stack_column", "stack_layer", "visibility_threshold",
+                "removal_order", "content_scale", "allow_scale",
+            ):
+                if prop not in slot:
+                    raise RuntimeError(f"{slot.name} missing {prop}")
+            authored = tuple(round(float(slot[key]), 6) for key in ("max_w", "max_d", "max_h"))
+            if authored != (0.215, 0.215, 0.075):
+                raise RuntimeError(f"{slot.name} cap envelope changed: {authored}")
+            if slot["packaging_shell_id"] != "GENERIC_MERCHANDISE":
+                raise RuntimeError(f"{slot.name} packaging shell contract changed")
+            if float(slot["content_scale"]) != 1.0 or bool(slot["allow_scale"]):
+                raise RuntimeError(f"{slot.name} must remain authored at 1:1 scale")
         pivot_checks = exercise_box_pivots()
     else:
         pivot_checks = []
@@ -713,6 +839,7 @@ def add_build_info(asset_id):
         "license: project-owned / UNLICENSED\n"
         "external downloads: none\n"
         "legacy carton sources: untouched\n"
+        "content layout: CAP_NEST8; authored content scale: 1.0; shrink fallback: forbidden\n"
     )
 
 
@@ -925,17 +1052,23 @@ def build_one(asset_id):
 
 
 def main():
+    target = os.environ.get("DELIVERY_ASSET_TARGET", "").strip()
+    asset_ids = (BOX_ID, TAPE_ID) if not target else (target,)
+    unknown = [asset_id for asset_id in asset_ids if asset_id not in (BOX_ID, TAPE_ID)]
+    if unknown:
+        raise RuntimeError(f"unknown DELIVERY_ASSET_TARGET: {unknown[0]}")
     built = []
     requirements = {}
-    for asset_id in (BOX_ID, TAPE_ID):
+    for asset_id in asset_ids:
         metrics, required = build_one(asset_id)
         built.append(metrics)
         requirements[asset_id] = required
-    reimports = [clean_reimport_validate(asset_id, requirements[asset_id]) for asset_id in (BOX_ID, TAPE_ID)]
+    reimports = [clean_reimport_validate(asset_id, requirements[asset_id]) for asset_id in asset_ids]
     report = {
         "builder": SCRIPT.relative_to(ROOT).as_posix(),
         "build_version": BUILD_VERSION,
         "qa_pass": QA_PASS,
+        "asset_target": target or "all",
         "reference_sheet": "Designs/RefrenceImages/41-50_refrence_images/ChatGPT Image Jul 17, 2026, 11_45_44 AM.png",
         "external_assets": [],
         "legacy_sources_modified": False,
