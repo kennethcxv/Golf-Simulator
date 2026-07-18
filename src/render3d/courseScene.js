@@ -1386,6 +1386,18 @@ export function makeCourseScene(canvas, state) {
     nrm.needsUpdate = true;
   }
 
+  // three uploads the whole buffer when updateRanges is empty, so a scoped edit
+  // must declare its span and a full rebuild must clear any span left behind.
+  function markTerrainAttributeRange(attr, firstVertex, lastVertex, scoped) {
+    attr.clearUpdateRanges();
+    if (scoped) {
+      const start = firstVertex * attr.itemSize;
+      const count = (lastVertex - firstVertex + 1) * attr.itemSize;
+      attr.addUpdateRange(start, count);
+    }
+    attr.needsUpdate = true;
+  }
+
   // rectCells (course cells) scopes the rebuild to an edited region. Omit it
   // for a full rebuild. A terrain stroke used to pay the whole 346,801-vertex
   // loop plus a full computeVertexNormals() on every throttled tick.
@@ -1413,12 +1425,22 @@ export function makeCourseScene(canvas, state) {
         pa[i * 3 + 1] = h;
       }
     }
-    pos.needsUpdate = true;
+    // Upload only the touched span. needsUpdate alone re-sends the whole
+    // 347k-vertex buffer (~4 MB position + ~4 MB normal) to the GPU every tick,
+    // which was the remaining stroke hitch once the CPU work was scoped.
+    // Rows are contiguous in the array, so one range covering first..last
+    // vertex is a few rows rather than the entire mesh.
+    markTerrainAttributeRange(pos, vy0 * vertsX + vx0, vy1 * vertsX + vx1, Boolean(rectCells));
 
     // normals reach one vertex beyond the moved positions
-    recomputeTerrainNormals(
-      Math.max(0, vx0 - 1), Math.max(0, vy0 - 1),
-      Math.min(vertsX - 1, vx1 + 1), Math.min(vertsY - 1, vy1 + 1),
+    const nvx0 = Math.max(0, vx0 - 1);
+    const nvy0 = Math.max(0, vy0 - 1);
+    const nvx1 = Math.min(vertsX - 1, vx1 + 1);
+    const nvy1 = Math.min(vertsY - 1, vy1 + 1);
+    recomputeTerrainNormals(nvx0, nvy0, nvx1, nvy1);
+    markTerrainAttributeRange(
+      terrainGeo.attributes.normal,
+      nvy0 * vertsX + nvx0, nvy1 * vertsX + nvx1, Boolean(rectCells),
     );
 
     // A local sculpt moves land by a few yards inside a 960x640 yd plane, so it
