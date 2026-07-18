@@ -81,8 +81,9 @@ test('every packed product and authored socket fits at 1:1 scale under an allowe
 
   const range = productPackagingFor('range2');
   const rangeSlot = PACKAGING_LAYOUTS[range.layoutId].slotMaxDimensions;
-  assert.ok(range.packing.dimensions.d > rangeSlot.d, 'rangefinder does not fit without rotation');
-  assert.ok(dimensionsFitUnderRotation(range.packing.dimensions, rangeSlot), 'rangefinder fits in its authored rotated pose');
+  assert.ok(range.packing.dimensions.w <= rangeSlot.w, 'rangefinder width fits its padded cell');
+  assert.ok(range.packing.dimensions.h <= rangeSlot.h, 'rangefinder height fits its padded cell');
+  assert.ok(range.packing.dimensions.d <= rangeSlot.d, 'rangefinder depth fits its padded cell');
 });
 
 test('SKU quantities equal exact socket capacities rather than a representative visual count', () => {

@@ -144,13 +144,13 @@ export const PACKAGING_SHELLS = deepFreeze({
 // number of separately authored/removable sockets, not a renderer-side representative count.
 export const PACKAGING_LAYOUTS = deepFreeze({
   ACCESSORY_CARD12: layout('ACCESSORY_CARD12', 'ACCESSORY_CARTON', 12, dimensions(0.205, 0.13, 0.08)),
-  GLOVE8: layout('GLOVE8', 'ACCESSORY_CARTON', 8, dimensions(0.23, 0.18, 0.04)),
-  RANGE4: layout('RANGE4', 'ACCESSORY_CARTON', 4, dimensions(0.20, 0.15, 0.11)),
+  GLOVE8: layout('GLOVE8', 'ACCESSORY_CARTON', 8, dimensions(0.18, 0.04, 0.23)),
+  RANGE4: layout('RANGE4', 'ACCESSORY_CARTON', 4, dimensions(0.195, 0.11, 0.15)),
   BALL12: layout('BALL12', 'BALL_CASE', 12, dimensions(0.16, 0.075, 0.13)),
   CAP_NEST8: layout('CAP_NEST8', 'GENERIC_MERCHANDISE', 8, dimensions(0.215, 0.075, 0.215)),
   APPAREL8: layout('APPAREL8', 'APPAREL_CARTON', 8, dimensions(0.22, 0.10, 0.19)),
   FLAT8: layout('FLAT8', 'APPAREL_CARTON', 8, dimensions(0.18, 0.08, 0.15)),
-  SHOE4: layout('SHOE4', 'SHOE_CARTON', 4, dimensions(0.32, 0.14, 0.25)),
+  SHOE4: layout('SHOE4', 'SHOE_CARTON', 4, dimensions(0.25, 0.14, 0.33)),
   CLUB2: layout('CLUB2', 'LONG_CLUB_CARTON', 2, dimensions(1.19, 0.09, 0.13)),
   BAG1: layout('BAG1', 'GOLF_BAG_CARTON', 1, dimensions(0.67, 0.98, 0.45)),
   FIXTURE1: layout('FIXTURE1', 'FIXTURE_PACKAGE', 1, dimensions(0.59, 0.50, 0.37)),
@@ -160,7 +160,7 @@ export const PACKAGING_LAYOUTS = deepFreeze({
   // face-out pouches span the exact 0.48 m clear width of the bulk carton;
   // the authored sockets provide the packing clearance without shrinking it.
   SNACK12: layout('SNACK12', 'BULK_PROVISIONS', 12, dimensions(0.160, 0.200, 0.075)),
-  UMBRELLA6: layout('UMBRELLA6', 'UMBRELLA_CARTON', 6, dimensions(0.87, 0.13, 0.13)),
+  UMBRELLA6: layout('UMBRELLA6', 'UMBRELLA_CARTON', 6, dimensions(0.87, 0.12, 0.112)),
   IRONSET1: layout('IRONSET1', 'IRON_SET_CARTON', 1, dimensions(1.07, 0.19, 0.19)),
 });
 
@@ -267,7 +267,7 @@ const PRODUCT_SPECS = [
   product({ skuId: 'towel1', status: 'retail', category: 'accessories', physical: dimensions(0.2000, 0.1034, 0.0751), packed: dimensions(0.2000, 0.1034, 0.0751), packedState: 'rolled-and-banded', packedOrientation: 'hang-tag-face-up', layoutId: 'ACCESSORY_CARD12', unitWeightLb: 0.4, fixtureIds: RETAIL_FIXTURES.accessories }),
   product({ skuId: 'marker1', status: 'retail', category: 'accessories', physical: dimensions(0.1400, 0.1050, 0.0195), packed: dimensions(0.1400, 0.1050, 0.0195), packedState: 'sealed-retail-blister-card', packedOrientation: 'card-face-up', layoutId: 'ACCESSORY_CARD12', unitWeightLb: 0.2, fixtureIds: RETAIL_FIXTURES.accessories }),
   product({ skuId: 'range2', status: 'retail', category: 'accessories', physical: dimensions(0.1900, 0.1023, 0.1435), packed: dimensions(0.1900, 0.1023, 0.1435), packedState: 'retail-box-in-padded-cell', packedOrientation: 'display-face-up', layoutId: 'RANGE4', unitWeightLb: 0.75, fragile: true, fixtureIds: RETAIL_FIXTURES.accessories }),
-  product({ skuId: 'umb1', status: 'retail', category: 'accessories', physical: dimensions(0.8400, 0.1116, 0.1077), packed: dimensions(0.86, 0.12, 0.12), packedState: 'sleeved-with-tip-and-handle-guards', packedOrientation: 'lengthwise-alternating-handles', layoutId: 'UMBRELLA6', unitWeightLb: 1.2, longProduct: true, fixtureIds: RETAIL_FIXTURES.accessories, exceptionProfile: 'UMBRELLA_LONG6' }),
+  product({ skuId: 'umb1', status: 'retail', category: 'accessories', physical: dimensions(0.8400, 0.1116, 0.1077), packed: dimensions(0.86, 0.115, 0.112), packedState: 'sleeved-with-tip-and-handle-guards', packedOrientation: 'lengthwise-alternating-handles', layoutId: 'UMBRELLA6', unitWeightLb: 1.2, longProduct: true, fixtureIds: RETAIL_FIXTURES.accessories, exceptionProfile: 'UMBRELLA_LONG6' }),
   product({ skuId: 'bag1', status: 'retail', category: 'accessories', physical: dimensions(0.72, 0.25, 0.30), packed: dimensions(0.66, 0.24, 0.30), packedState: 'protective-sleeve-with-straps-compressed', packedOrientation: 'length-axis-vertical', layoutId: 'BAG1', unitWeightLb: 5.5, longProduct: true, fixtureIds: RETAIL_FIXTURES.bag }),
 
   product({ skuId: 'vac1', status: 'nonretail', category: 'supplies', physical: dimensions(0.42, 0.68, 0.38), packed: dimensions(0.58, 0.36, 0.37), packedState: 'hose-and-wand-detached-in-moulded-insert', packedOrientation: 'motor-base-on-side', layoutId: 'FIXTURE1', unitWeightLb: 17, fixtureIds: ['restoration-bay'] }),
