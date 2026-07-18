@@ -2372,7 +2372,7 @@
       "issues": [],
       "stats": {
         "root": "A_078_PRESSURE_WASHER_ROOT",
-        "nodeCount": 45,
+        "nodeCount": 46,
         "visibleMeshCount": 30,
         "collisionMeshCount": 3,
         "triangleCount": 5224,
@@ -2395,9 +2395,14 @@
           "SOCKET_PressureOutlet",
           "SOCKET_WaterInlet"
         ],
-        "pivotCount": 0,
-        "pivots": [],
+        "pivotCount": 1,
+        "pivots": [
+          "PIVOT_WheelAxle"
+        ],
         "animationNames": [
+          "PressureWasher_Running",
+          "PressureWasher_Start",
+          "PressureWasher_Stop",
           "PressureWasher_WheelRoll"
         ],
         "boundsMeters": {
@@ -2417,8 +2422,96 @@
             0.753524
           ]
         },
-        "fileBytes": 181704,
+        "fileBytes": 185020,
         "meshes": [
+          {
+            "name": "MESH_WasherAirFilter",
+            "triangles": 212,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 100,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherEngineBlock",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 60,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherEngineCowl",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherInletPort",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 66,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherMuffler",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 80,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherOutletPort",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 68,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherPumpBody",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherPumpBoss",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
           {
             "name": "MESH_FrameCrossBack",
             "triangles": 108,
@@ -2530,50 +2623,6 @@
             "appliedRotation": true
           },
           {
-            "name": "MESH_WasherHubL",
-            "triangles": 140,
-            "uvLayers": 1,
-            "materialSlots": 1,
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 70,
-            "zeroAreaFaces": 0,
-            "appliedScale": true,
-            "appliedRotation": true
-          },
-          {
-            "name": "MESH_WasherHubR",
-            "triangles": 140,
-            "uvLayers": 1,
-            "materialSlots": 1,
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 70,
-            "zeroAreaFaces": 0,
-            "appliedScale": true,
-            "appliedRotation": true
-          },
-          {
-            "name": "MESH_WasherWheelL",
-            "triangles": 236,
-            "uvLayers": 1,
-            "materialSlots": 1,
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 108,
-            "zeroAreaFaces": 0,
-            "appliedScale": true,
-            "appliedRotation": true
-          },
-          {
-            "name": "MESH_WasherWheelR",
-            "triangles": 236,
-            "uvLayers": 1,
-            "materialSlots": 1,
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 108,
-            "zeroAreaFaces": 0,
-            "appliedScale": true,
-            "appliedRotation": true
-          },
-          {
             "name": "MESH_ReelCoil_0",
             "triangles": 308,
             "uvLayers": 1,
@@ -2662,89 +2711,45 @@
             "appliedRotation": true
           },
           {
-            "name": "MESH_WasherAirFilter",
-            "triangles": 212,
-            "uvLayers": 1,
-            "materialSlots": 1,
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 100,
-            "zeroAreaFaces": 0,
-            "appliedScale": true,
-            "appliedRotation": true
-          },
-          {
-            "name": "MESH_WasherEngineBlock",
-            "triangles": 108,
-            "uvLayers": 1,
-            "materialSlots": 1,
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 60,
-            "zeroAreaFaces": 0,
-            "appliedScale": true,
-            "appliedRotation": true
-          },
-          {
-            "name": "MESH_WasherEngineCowl",
-            "triangles": 108,
-            "uvLayers": 1,
-            "materialSlots": 1,
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 72,
-            "zeroAreaFaces": 0,
-            "appliedScale": true,
-            "appliedRotation": true
-          },
-          {
-            "name": "MESH_WasherInletPort",
+            "name": "MESH_WasherHubL",
             "triangles": 140,
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 66,
+            "boundaryEdges": 70,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true
           },
           {
-            "name": "MESH_WasherMuffler",
-            "triangles": 164,
-            "uvLayers": 1,
-            "materialSlots": 1,
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 80,
-            "zeroAreaFaces": 0,
-            "appliedScale": true,
-            "appliedRotation": true
-          },
-          {
-            "name": "MESH_WasherOutletPort",
+            "name": "MESH_WasherHubR",
             "triangles": 140,
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 68,
+            "boundaryEdges": 70,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true
           },
           {
-            "name": "MESH_WasherPumpBody",
-            "triangles": 108,
+            "name": "MESH_WasherWheelL",
+            "triangles": 236,
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 72,
+            "boundaryEdges": 108,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true
           },
           {
-            "name": "MESH_WasherPumpBoss",
-            "triangles": 188,
+            "name": "MESH_WasherWheelR",
+            "triangles": 236,
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 88,
+            "boundaryEdges": 108,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true

@@ -143,7 +143,8 @@ REQUIRED_ANIMATIONS = {
     71: (), 72: (), 74: (), 75: (), 77: (), 80: (),
     73: ("Bucket_WringerClose", "Bucket_WringerOpen", "Bucket_LeverDown", "Bucket_LeverUp"),
     76: ("SprayBottle_Trigger",),
-    78: ("PressureWasher_WheelRoll",),
+    78: ("PressureWasher_Start", "PressureWasher_Stop", "PressureWasher_WheelRoll",
+         "PressureWasher_Running"),
     79: ("WasherWand_TriggerDown", "WasherWand_TriggerUp"),
 }
 
@@ -942,16 +943,21 @@ def build_78() -> bpy.types.Object:
           parent=frame, bevel=0.006)
     A.box("FrameDeck", (0.545, 0.600, 0.024), (0.0, 0.0, 0.100), m["matte_black"],
           parent=frame, bevel=0.005)
-    # Big rear wheels and small front feet: this machine is dragged, not driven.
-    wheels = []
+    # Big rear wheels and small front feet: this machine is dragged, not driven. Both
+    # wheels share one axle, so they hang off a single pivot on that axle line and the
+    # roll clip turns them about it. A group at the asset origin would have swung them
+    # around the machine instead -- and an empty one, which is what this was first, turns
+    # nothing at all while still exporting a clip that looks present.
+    axle = _pivot("WheelAxle", root, (0.0, 0.235, 0.105),
+                  moving_part="washer_wheels", rotation_axis="+X")
     for sx in (-1.0, 1.0):
-        wheels.append(A.cylinder(f"WasherWheel{'L' if sx < 0 else 'R'}", 0.105, 0.045,
-                                 (sx * 0.300, 0.235, 0.105), m["matte_black"],
-                                 rotation=(0.0, math.pi / 2.0, 0.0), vertices=20,
-                                 parent=frame, bevel=0.005))
+        A.cylinder(f"WasherWheel{'L' if sx < 0 else 'R'}", 0.105, 0.045,
+                   (sx * 0.300, 0.235, 0.105), m["matte_black"],
+                   rotation=(0.0, math.pi / 2.0, 0.0), vertices=20,
+                   parent=axle, bevel=0.005)
         A.cylinder(f"WasherHub{'L' if sx < 0 else 'R'}", 0.038, 0.050,
                    (sx * 0.300, 0.235, 0.105), m["hard_black"],
-                   rotation=(0.0, math.pi / 2.0, 0.0), vertices=12, parent=frame, bevel=0.003)
+                   rotation=(0.0, math.pi / 2.0, 0.0), vertices=12, parent=axle, bevel=0.003)
         A.box(f"WasherFoot{'L' if sx < 0 else 'R'}", (0.045, 0.055, 0.055),
               (sx * 0.245, -0.290, 0.028), m["hard_black"], parent=frame, bevel=0.006)
 
@@ -1008,11 +1014,36 @@ def build_78() -> bpy.types.Object:
     A.collision_cylinder("WasherWheelHullR", 0.108, 0.050, (0.300, 0.235, 0.105),
                          rotation=(0.0, math.pi / 2.0, 0.0), parent=collision)
 
-    roll = _group("WasherWheelSpin", root)
-    A.animate_transform_clip(roll, "PressureWasher_WheelRoll",
+    A.animate_transform_clip(axle, "PressureWasher_WheelRoll",
                              ({"frame": 1, "rotation": (0.0, 0.0, 0.0)},
-                              {"frame": 24, "rotation": (0.0, math.tau, 0.0)}),
+                              {"frame": 24, "rotation": (math.tau, 0.0, 0.0)}),
                              interpolation="LINEAR")
+    axle.rotation_euler = (0.0, 0.0, 0.0)
+
+    # Engine motion. A petrol washer shakes when it fires, settles into a fast idle, and
+    # rocks once as it dies -- three clips the runtime can sequence against its audio.
+    engine = _group("WasherEngineMotion", root)
+    A.parent_keep_world(shell, engine)
+    A.animate_transform_clip(engine, "PressureWasher_Start", (
+        {"frame": 1, "location": (0.0, 0.0, 0.0), "rotation": (0.0, 0.0, 0.0)},
+        {"frame": 4, "location": (0.0, 0.0, 0.006), "rotation": (math.radians(0.9), 0.0, 0.0)},
+        {"frame": 9, "location": (0.0, 0.0, -0.003), "rotation": (math.radians(-0.5), 0.0, 0.0)},
+        {"frame": 18, "location": (0.0, 0.0, 0.0), "rotation": (0.0, 0.0, 0.0)},
+    ), interpolation="SINE")
+    # Running is a tight loop: first and last keys match so it can repeat seamlessly.
+    A.animate_transform_clip(engine, "PressureWasher_Running", (
+        {"frame": 1, "location": (0.0, 0.0, 0.0)},
+        {"frame": 3, "location": (0.0005, 0.0, 0.0012)},
+        {"frame": 6, "location": (-0.0005, 0.0, 0.0)},
+        {"frame": 9, "location": (0.0, 0.0, 0.0)},
+    ), interpolation="LINEAR")
+    A.animate_transform_clip(engine, "PressureWasher_Stop", (
+        {"frame": 1, "location": (0.0, 0.0, 0.0), "rotation": (0.0, 0.0, 0.0)},
+        {"frame": 6, "location": (0.0, 0.0, 0.004), "rotation": (math.radians(-0.7), 0.0, 0.0)},
+        {"frame": 20, "location": (0.0, 0.0, 0.0), "rotation": (0.0, 0.0, 0.0)},
+    ), interpolation="SINE")
+    engine.location = (0.0, 0.0, 0.0)
+    engine.rotation_euler = (0.0, 0.0, 0.0)
     bpy.context.view_layer.update()
     return root
 
