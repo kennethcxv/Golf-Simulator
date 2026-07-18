@@ -5,7 +5,7 @@
     "runtimeGlbsOnDisk": 50,
     "cleanReimportPassed": 50,
     "registryBound": 50,
-    "sceneMounted": 10,
+    "sceneMounted": 40,
     "firstPersonRequired": 8,
     "firstPersonBuilt": 8,
     "worldTriangles": 184004,
@@ -14,8 +14,8 @@
     "missingRequiredAnimations": 0
   },
   "statusTally": {
-    "Verified complete": 10,
-    "Bound to the runtime, not yet mounted in the scene": 40
+    "Verified complete": 40,
+    "Bound to the runtime, not yet mounted in the scene": 10
   },
   "assets": [
     {
@@ -5776,12 +5776,12 @@
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_071_vacuum_cleaner_fp.glb"
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
         "runtimeGlbExists": true,
-        "fileBytes": 235372,
+        "fileBytes": 235196,
         "reimport": {
           "asset": 71,
           "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_071_vacuum_cleaner.glb",
@@ -5834,21 +5834,21 @@
             "boundsMeters": {
               "minimum": [
                 -0.247,
-                -0.567483,
+                -0.362066,
                 0.002827
               ],
               "maximum": [
                 0.429456,
-                0.343338,
-                0.653
+                0.411467,
+                0.698028
               ],
               "size": [
                 0.676456,
-                0.910821,
-                0.650173
+                0.773533,
+                0.695201
               ]
             },
-            "fileBytes": 235372,
+            "fileBytes": 235196,
             "meshes": [
               {
                 "name": "MESH_VacuumMachine",
@@ -5889,7 +5889,7 @@
                 "uvLayers": 1,
                 "materialSlots": 1,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 66,
+                "boundaryEdges": 72,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -5922,7 +5922,7 @@
                 "uvLayers": 1,
                 "materialSlots": 1,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 88,
+                "boundaryEdges": 82,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -5933,7 +5933,7 @@
                 "uvLayers": 1,
                 "materialSlots": 1,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
+                "boundaryEdges": 66,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -5944,7 +5944,7 @@
                 "uvLayers": 1,
                 "materialSlots": 1,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 88,
+                "boundaryEdges": 84,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -5981,18 +5981,18 @@
         "boundsMeters": {
           "minimum": [
             -0.247,
-            -0.567483,
+            -0.362066,
             0.002827
           ],
           "maximum": [
             0.429456,
-            0.343338,
-            0.653
+            0.411467,
+            0.698028
           ],
           "size": [
             0.676456,
-            0.910821,
-            0.650173
+            0.773533,
+            0.695201
           ]
         },
         "missingSockets": [],
@@ -6001,7 +6001,7 @@
       "firstPerson": {
         "sourceExists": true,
         "runtimeGlbExists": true,
-        "fileBytes": 106864,
+        "fileBytes": 106700,
         "reimport": {
           "asset": 71,
           "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_071_vacuum_cleaner_fp.glb",
@@ -6052,21 +6052,21 @@
             "boundsMeters": {
               "minimum": [
                 -0.117803,
-                -0.996047,
-                -0.809813
+                -0.737926,
+                -0.982749
               ],
               "maximum": [
                 0.157363,
-                0.187127,
-                -0.229326
+                0.127127,
+                -0.252874
               ],
               "size": [
                 0.275167,
-                1.183175,
-                0.580487
+                0.865054,
+                0.729875
               ]
             },
-            "fileBytes": 106864,
+            "fileBytes": 106700,
             "meshes": [
               {
                 "name": "MESH_VacHeadBrushStrip",
@@ -6085,7 +6085,7 @@
                 "uvLayers": 1,
                 "materialSlots": 1,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 66,
+                "boundaryEdges": 72,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -6129,7 +6129,7 @@
                 "uvLayers": 1,
                 "materialSlots": 1,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 88,
+                "boundaryEdges": 82,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -6140,7 +6140,7 @@
                 "uvLayers": 1,
                 "materialSlots": 1,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 72,
+                "boundaryEdges": 66,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -6151,7 +6151,7 @@
                 "uvLayers": 1,
                 "materialSlots": 1,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 88,
+                "boundaryEdges": 84,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -6175,7 +6175,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 72,
@@ -6196,7 +6196,7 @@
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_072_mop_fp.glb"
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -6373,7 +6373,7 @@
       "firstPerson": {
         "sourceExists": true,
         "runtimeGlbExists": true,
-        "fileBytes": 131924,
+        "fileBytes": 131636,
         "reimport": {
           "asset": 72,
           "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_072_mop_fp.glb",
@@ -6437,7 +6437,7 @@
                 1.011192
               ]
             },
-            "fileBytes": 131924,
+            "fileBytes": 131636,
             "meshes": [
               {
                 "name": "MESH_MopBand",
@@ -6445,7 +6445,7 @@
                 "uvLayers": 1,
                 "materialSlots": 1,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 98,
+                "boundaryEdges": 88,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -6489,7 +6489,7 @@
                 "uvLayers": 1,
                 "materialSlots": 1,
                 "nonManifoldEdges": 0,
-                "boundaryEdges": 82,
+                "boundaryEdges": 76,
                 "zeroAreaFaces": 0,
                 "appliedScale": true,
                 "appliedRotation": true
@@ -6513,7 +6513,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 73,
@@ -6533,7 +6533,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -6739,7 +6739,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 74,
@@ -6760,7 +6760,7 @@
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_074_broom_fp.glb"
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -7077,7 +7077,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 75,
@@ -7098,7 +7098,7 @@
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_075_dustpan_fp.glb"
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -7477,7 +7477,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 76,
@@ -7498,7 +7498,7 @@
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_076_cleaning_spray_bottle_fp.glb"
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -7893,7 +7893,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 77,
@@ -7914,7 +7914,7 @@
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_077_cleaning_cloth_and_sponge_set_fp.glb"
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -8232,7 +8232,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 78,
@@ -8252,7 +8252,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -8322,13 +8322,13 @@
               ],
               "maximum": [
                 0.325,
-                0.379,
-                0.753524
+                0.468992,
+                0.706107
               ],
               "size": [
                 0.65,
-                0.7165,
-                0.753524
+                0.806492,
+                0.706107
               ]
             },
             "fileBytes": 182236,
@@ -8458,20 +8458,20 @@
           ],
           "maximum": [
             0.325,
-            0.379,
-            0.753524
+            0.468992,
+            0.706107
           ],
           "size": [
             0.65,
-            0.7165,
-            0.753524
+            0.806492,
+            0.706107
           ]
         },
         "missingSockets": [],
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 79,
@@ -8492,7 +8492,7 @@
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_079_pressure_washer_hose_and_wand_fp.glb"
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -8985,7 +8985,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 80,
@@ -9006,7 +9006,7 @@
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_080_trash_bag_fp.glb"
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -9347,7 +9347,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 81,
@@ -9367,7 +9367,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -9525,7 +9525,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 82,
@@ -9545,7 +9545,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -9746,7 +9746,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 83,
@@ -9766,7 +9766,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -9980,7 +9980,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 84,
@@ -10000,7 +10000,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -10210,7 +10210,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 85,
@@ -10230,7 +10230,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -10498,7 +10498,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 86,
@@ -10518,7 +10518,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -10681,7 +10681,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 87,
@@ -10701,7 +10701,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -10898,7 +10898,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 88,
@@ -10918,7 +10918,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -11070,7 +11070,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 89,
@@ -11090,7 +11090,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -11265,7 +11265,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 90,
@@ -11285,7 +11285,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -11483,7 +11483,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 91,
@@ -11503,7 +11503,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -11779,7 +11779,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 92,
@@ -11799,7 +11799,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -12056,7 +12056,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 93,
@@ -12076,7 +12076,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -12238,7 +12238,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 94,
@@ -12258,7 +12258,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -12440,7 +12440,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 95,
@@ -12460,7 +12460,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -12666,7 +12666,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 96,
@@ -12686,7 +12686,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -12816,7 +12816,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 97,
@@ -12836,7 +12836,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -13060,7 +13060,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 98,
@@ -13080,7 +13080,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -13280,7 +13280,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 99,
@@ -13300,7 +13300,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -13497,7 +13497,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     },
     {
       "assetNumber": 100,
@@ -13517,7 +13517,7 @@
         "firstPersonRuntimeGlb": null
       },
       "registryBound": true,
-      "sceneMounted": false,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -13655,7 +13655,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Bound to the runtime, not yet mounted in the scene"
+      "status": "Verified complete"
     }
   ]
 }

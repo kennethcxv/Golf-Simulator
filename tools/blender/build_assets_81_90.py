@@ -445,26 +445,24 @@ def build_83() -> bpy.types.Object:
     # The arms reach up and forward to put the shade over the desk. Both segments lean
     # toward -Y; a lower arm that leans back and an upper that leans forward reads as a
     # zigzag rather than a task lamp.
-    lower = _pivot("ArmLower", root, (0.0, 0.0, 0.052), moving_part="lamp_arm", rotation_axis="+X")
-    lower_len = 0.360
-    lower_tilt = math.radians(-20.0)
-    ldy, ldz = math.sin(lower_tilt), math.cos(lower_tilt)
-    A.cylinder("LampArmLower", 0.011, lower_len,
-               (0.0, ldy * lower_len / 2.0, 0.052 + ldz * lower_len / 2.0),
-               p["restrained_brass"], rotation=(lower_tilt, 0.0, 0.0), vertices=12,
-               parent=lower, bevel=0.002)
-    elbow = (0.0, ldy * lower_len, 0.052 + ldz * lower_len)
+    # A cylinder with rotation_euler.x = t points its length along (0, -sin t, cos t) --
+    # verified in Blender, not assumed. Deriving each joint from that one function keeps
+    # the chain connected; computing endpoints with the opposite sign, which is what this
+    # did first, left the shade and upper arm floating a hand's width off the elbow.
+    def segment(name, radius, length, start, tilt, parent_obj):
+        dy, dz = -math.sin(tilt), math.cos(tilt)
+        centre = (start[0], start[1] + dy * length / 2.0, start[2] + dz * length / 2.0)
+        A.cylinder(name, radius, length, centre, p["restrained_brass"],
+                   rotation=(tilt, 0.0, 0.0), vertices=12, parent=parent_obj, bevel=0.002)
+        return (start[0], start[1] + dy * length, start[2] + dz * length)
+
+    shoulder = (0.0, 0.0, 0.052)
+    lower = _pivot("ArmLower", root, shoulder, moving_part="lamp_arm", rotation_axis="+X")
+    elbow = segment("LampArmLower", 0.011, 0.360, shoulder, math.radians(20.0), lower)
     A.sphere("LampElbow", 0.018, elbow, p["restrained_brass"], segments=14, parent=lower)
 
     upper = _pivot("ArmUpper", lower, elbow, moving_part="lamp_arm", rotation_axis="+X")
-    upper_len = 0.280
-    upper_tilt = math.radians(-62.0)
-    udy, udz = math.sin(upper_tilt), math.cos(upper_tilt)
-    A.cylinder("LampArmUpper", 0.010, upper_len,
-               (0.0, elbow[1] + udy * upper_len / 2.0, elbow[2] + udz * upper_len / 2.0),
-               p["restrained_brass"], rotation=(upper_tilt, 0.0, 0.0), vertices=12,
-               parent=upper, bevel=0.002)
-    head = (0.0, elbow[1] + udy * upper_len, elbow[2] + udz * upper_len)
+    head = segment("LampArmUpper", 0.010, 0.280, elbow, math.radians(62.0), upper)
 
     shade = _pivot("Shade", upper, head, moving_part="lamp_shade", rotation_axis="+X")
     A.sphere("LampShadeJoint", 0.016, head, p["restrained_brass"], segments=12, parent=shade)

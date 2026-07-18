@@ -85,14 +85,14 @@ SPEC_BODY_DIMENSIONS = {
 # of the tub, 79 includes 7.5 m of hose coiled into a 0.5 m loop. Width (X), depth (Y),
 # height (Z), metres. These are measured from the built GLBs, not estimated.
 DIMENSIONS = {
-    71: (0.68, 0.91, 0.65),
+    71: (0.68, 0.77, 0.65),
     72: (0.29, 0.29, 1.46),
     73: (0.54, 0.66, 0.93),
     74: (0.48, 0.55, 1.39),
     75: (0.30, 0.28, 0.82),
     76: (0.08, 0.10, 0.26),
     77: (0.36, 0.19, 0.06),
-    78: (0.65, 0.72, 0.75),
+    78: (0.65, 0.81, 0.75),
     79: (0.51, 1.40, 0.22),
     80: (0.50, 0.38, 0.76),
 }
@@ -100,7 +100,7 @@ DIMENSIONS = {
 # Viewmodels are authored with the origin on the primary grip, so their bounds are
 # measured about the hand rather than about a floor.
 FP_DIMENSIONS = {
-    71: (0.25, 1.11, 0.57),
+    71: (0.25, 0.70, 0.69),
     72: (0.29, 1.17, 0.91),
     74: (0.48, 1.03, 1.06),
     75: (0.30, 0.61, 0.73),
@@ -371,13 +371,13 @@ def _mop_geometry(parent: bpy.types.Object, m: dict, *, tip_z: float = 0.0,
         return (0.0, dy * distance, tip_z + dz * distance)
 
     A.cylinder("MopHandle", 0.016, handle_len, along(0.26 + handle_len / 2.0),
-               m["ash_handle"], rotation=(rake, 0.0, 0.0), vertices=14, parent=parent, bevel=0.003)
+               m["ash_handle"], rotation=(-rake, 0.0, 0.0), vertices=14, parent=parent, bevel=0.003)
     A.cylinder("MopHandleCap", 0.018, 0.030, along(0.26 + handle_len + 0.004),
-               m["hard_black"], rotation=(rake, 0.0, 0.0), vertices=14, parent=parent, bevel=0.003)
+               m["hard_black"], rotation=(-rake, 0.0, 0.0), vertices=14, parent=parent, bevel=0.003)
     A.cylinder("MopCollar", 0.042, 0.085, along(0.240),
-               m["hard_black"], rotation=(rake, 0.0, 0.0), vertices=16, parent=parent, bevel=0.004)
+               m["hard_black"], rotation=(-rake, 0.0, 0.0), vertices=16, parent=parent, bevel=0.004)
     A.cylinder("MopBand", 0.050, 0.028, along(0.188),
-               m["hard_black"], rotation=(rake, 0.0, 0.0), vertices=16, parent=parent, bevel=0.003)
+               m["hard_black"], rotation=(-rake, 0.0, 0.0), vertices=16, parent=parent, bevel=0.003)
     # Fibres hang under gravity regardless of how the handle is held.
     strands = _fan_strands("MopStrand", parent, m["mop_cotton"], count=26,
                            origin=(0.0, dy * 0.178, tip_z + 0.185), length=0.185,
@@ -422,9 +422,9 @@ def _broom_geometry(parent: bpy.types.Object, m: dict, *, floor_z: float = 0.0,
         return (0.0, dy * distance, base_z + dz * distance)
 
     A.cylinder("BroomFerrule", 0.026, 0.075, along(0.030), m["hard_black"],
-               rotation=(tilt, 0.0, 0.0), vertices=12, parent=parent, bevel=0.003)
+               rotation=(-tilt, 0.0, 0.0), vertices=12, parent=parent, bevel=0.003)
     A.cylinder("BroomHandle", 0.0155, handle_len, along(handle_len / 2.0), m["ash_handle"],
-               rotation=(tilt, 0.0, 0.0), vertices=14, parent=parent, bevel=0.003)
+               rotation=(-tilt, 0.0, 0.0), vertices=14, parent=parent, bevel=0.003)
     return {
         "block_z": block_z, "tilt": tilt, "handle_len": handle_len,
         "contact": (0.0, 0.0, floor_z + 0.004),
@@ -465,11 +465,11 @@ def _dustpan_geometry(parent: bpy.types.Object, m: dict, *, floor_z: float = 0.0
         return (0.0, base_y + dy * distance, base_z + dz * distance)
 
     A.cylinder("DustpanHandle", 0.014, handle_len, along(handle_len / 2.0),
-               m["hard_black"], rotation=(rake, 0.0, 0.0), vertices=12, parent=parent, bevel=0.003)
+               m["hard_black"], rotation=(-rake, 0.0, 0.0), vertices=12, parent=parent, bevel=0.003)
     A.cylinder("DustpanHandleGrip", 0.020, 0.115, along(handle_len - 0.070),
-               m["matte_black"], rotation=(rake, 0.0, 0.0), vertices=12, parent=parent, bevel=0.004)
+               m["matte_black"], rotation=(-rake, 0.0, 0.0), vertices=12, parent=parent, bevel=0.004)
     A.torus("DustpanHangLoop", 0.020, 0.005, along(handle_len + 0.016), m["hard_black"],
-            rotation=(math.pi / 2.0 + rake, 0.0, 0.0), major_segments=16, minor_segments=6,
+            rotation=(math.pi / 2.0 - rake, 0.0, 0.0), major_segments=16, minor_segments=6,
             parent=parent)
     return {
         "pan_depth": pan_d,
@@ -603,14 +603,24 @@ def _vacuum_wand_geometry(parent: bpy.types.Object, m: dict) -> dict:
     defect this asset exists to remove.
     """
 
+    # The wand runs from the head's neck up to the grip along one axis, and every part on
+    # it is placed by distance along that axis. Positioning them independently is how the
+    # first version ended up with a shaft that met neither the head nor the hand.
+    rake = math.radians(30.0)
+    base = (0.0, -0.110, 0.055)
+    dy, dz = math.sin(rake), math.cos(rake)
+
+    def along(distance: float) -> tuple[float, float, float]:
+        return (0.0, base[1] + dy * distance, base[2] + dz * distance)
+
     wand_len = 0.72
-    A.cylinder("VacWand", 0.019, wand_len, (0.0, -wand_len / 2.0 + 0.05, 0.30),
-               m["matte_black"], rotation=(math.radians(74.0), 0.0, 0.0), vertices=14,
+    A.cylinder("VacWand", 0.019, wand_len, along(wand_len / 2.0),
+               m["matte_black"], rotation=(-rake, 0.0, 0.0), vertices=14,
                parent=parent, bevel=0.002)
-    A.cylinder("VacWandGrip", 0.026, 0.150, (0.0, 0.140, 0.475), m["hard_black"],
-               rotation=(math.radians(74.0), 0.0, 0.0), vertices=14, parent=parent, bevel=0.004)
-    A.cylinder("VacWandCollar", 0.023, 0.040, (0.0, -0.115, 0.140), m["hard_black"],
-               rotation=(math.radians(74.0), 0.0, 0.0), vertices=12, parent=parent, bevel=0.002)
+    A.cylinder("VacWandGrip", 0.026, 0.150, along(0.600), m["hard_black"],
+               rotation=(-rake, 0.0, 0.0), vertices=14, parent=parent, bevel=0.004)
+    A.cylinder("VacWandCollar", 0.023, 0.040, along(0.060), m["hard_black"],
+               rotation=(-rake, 0.0, 0.0), vertices=12, parent=parent, bevel=0.002)
     # Floor head: a wide shallow wedge with a brush strip along its leading edge.
     A.profile_prism(
         "VacHeadShell",
@@ -623,13 +633,13 @@ def _vacuum_wand_geometry(parent: bpy.types.Object, m: dict) -> dict:
     strip = _bristle_block("VacHeadBrush", parent, m["bristle"], width=0.225, depth=0.016,
                            height=0.014, center=(0.0, -0.232, 0.010), columns=16, rows=1)
     _join(strip, "VacHeadBrushStrip", parent)
-    A.cylinder("VacHeadNeck", 0.021, 0.070, (0.0, -0.095, 0.062), m["hard_black"],
-               rotation=(math.radians(74.0), 0.0, 0.0), vertices=12, parent=parent, bevel=0.003)
+    A.cylinder("VacHeadNeck", 0.021, 0.075, along(0.010), m["hard_black"],
+               rotation=(-rake, 0.0, 0.0), vertices=12, parent=parent, bevel=0.003)
     return {
         "intake": (0.0, -0.196, 0.006),
-        "grip_primary": (0.0, 0.150, 0.492),
-        "grip_support": (0.0, 0.020, 0.318),
-        "hose_wand": (0.0, 0.205, 0.545),
+        "grip_primary": along(0.640),
+        "grip_support": along(0.360),
+        "hose_wand": along(wand_len),
     }
 
 
@@ -872,7 +882,7 @@ def build_74() -> bpy.types.Object:
     A.collision_box("BroomHeadHull", (0.48, 0.09, 0.13), (0.0, 0.0, 0.065), parent=collision)
     A.collision_cylinder("BroomHandleHull", 0.045, geom["handle_len"],
                          (0.0, geom["tip"][1] * 0.5, geom["tip"][2] * 0.5),
-                         rotation=(geom["tilt"], 0.0, 0.0), parent=collision)
+                         rotation=(-geom["tilt"], 0.0, 0.0), parent=collision)
     return root
 
 
@@ -1005,13 +1015,21 @@ def build_78() -> bpy.types.Object:
                    rotation=(math.pi / 2.0, 0.0, 0.0), vertices=12, parent=shell, bevel=0.003),
     ]
     _join(shell_parts, "WasherEngineAssembly", shell)
-    # Push handle.
+    # Push handle. The posts rise from the rear frame rail and the bar sits exactly on
+    # their tops -- both computed from one axis. Placing them by eye left the posts
+    # starting 16 cm above the deck, so the whole handle floated in mid-air behind the
+    # machine, which every structural check passed without complaint.
+    handle_rake = math.radians(14.0)
+    post_base_z, post_base_y, post_len = 0.086, 0.300, 0.620
+    hdy, hdz = math.sin(handle_rake), math.cos(handle_rake)
+    post_top = (post_base_y + hdy * post_len, post_base_z + hdz * post_len)
     for sx in (-1.0, 1.0):
-        frame_parts.append(A.cylinder(f"WasherHandlePost{'L' if sx < 0 else 'R'}", 0.017, 0.470,
-                                      (sx * 0.230, 0.300, 0.500), m["matte_black"],
-                                      rotation=(math.radians(14.0), 0.0, 0.0), vertices=12,
-                                      parent=frame, bevel=0.003))
-    frame_parts.append(A.cylinder("WasherHandleBar", 0.019, 0.480, (0.0, 0.360, 0.735),
+        frame_parts.append(A.cylinder(
+            f"WasherHandlePost{'L' if sx < 0 else 'R'}", 0.017, post_len,
+            (sx * 0.230, post_base_y + hdy * post_len / 2.0, post_base_z + hdz * post_len / 2.0),
+            m["matte_black"], rotation=(-handle_rake, 0.0, 0.0), vertices=12,
+            parent=frame, bevel=0.003))
+    frame_parts.append(A.cylinder("WasherHandleBar", 0.019, 0.480, (0.0, post_top[0], post_top[1]),
                                   m["matte_black"], rotation=(0.0, math.pi / 2.0, 0.0),
                                   vertices=14, parent=frame, bevel=0.003))
     _join(frame_parts, "WasherChassis", frame)
@@ -1035,7 +1053,7 @@ def build_78() -> bpy.types.Object:
                                   major_segments=22, minor_segments=7, parent=reel))
     _join(reel_parts, "WasherHoseReelAssembly", reel)
 
-    _marker("Carry", root, (0.0, 0.360, 0.740), grip_role="push_handle")
+    _marker("Carry", root, (0.0, post_top[0], post_top[1] + 0.020), grip_role="push_handle")
     _marker("WaterInlet", root, (-0.120, -0.330, 0.165), rotation=FORWARD, port="garden_hose_in")
     _marker("PressureOutlet", root, (0.120, -0.330, 0.165), rotation=FORWARD, port="high_pressure_out")
     _marker("Hose", root, (0.0, -0.205, 0.560), rotation=FORWARD, port="reel_feed", connects_asset=79)

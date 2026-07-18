@@ -56,21 +56,21 @@
         "boundsMeters": {
           "minimum": [
             -0.247,
-            -0.567483,
+            -0.362066,
             0.002827
           ],
           "maximum": [
             0.429456,
-            0.343338,
-            0.653
+            0.411467,
+            0.698028
           ],
           "size": [
             0.676456,
-            0.910821,
-            0.650173
+            0.773533,
+            0.695201
           ]
         },
-        "fileBytes": 235372,
+        "fileBytes": 235196,
         "meshes": [
           {
             "name": "MESH_VacuumMachine",
@@ -111,7 +111,7 @@
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 66,
+            "boundaryEdges": 72,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true
@@ -144,7 +144,7 @@
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 88,
+            "boundaryEdges": 82,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true
@@ -155,7 +155,7 @@
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 72,
+            "boundaryEdges": 66,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true
@@ -166,7 +166,7 @@
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 88,
+            "boundaryEdges": 84,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true
@@ -246,21 +246,21 @@
         "boundsMeters": {
           "minimum": [
             -0.117803,
-            -0.996047,
-            -0.809813
+            -0.737926,
+            -0.982749
           ],
           "maximum": [
             0.157363,
-            0.187127,
-            -0.229326
+            0.127127,
+            -0.252874
           ],
           "size": [
             0.275167,
-            1.183175,
-            0.580487
+            0.865054,
+            0.729875
           ]
         },
-        "fileBytes": 106864,
+        "fileBytes": 106700,
         "meshes": [
           {
             "name": "MESH_VacHeadBrushStrip",
@@ -279,7 +279,7 @@
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 66,
+            "boundaryEdges": 72,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true
@@ -323,7 +323,7 @@
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 88,
+            "boundaryEdges": 82,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true
@@ -334,7 +334,7 @@
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 72,
+            "boundaryEdges": 66,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true
@@ -345,7 +345,7 @@
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 88,
+            "boundaryEdges": 84,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true
@@ -560,7 +560,7 @@
             1.011192
           ]
         },
-        "fileBytes": 131924,
+        "fileBytes": 131636,
         "meshes": [
           {
             "name": "MESH_MopBand",
@@ -568,7 +568,7 @@
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 98,
+            "boundaryEdges": 88,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true
@@ -612,7 +612,7 @@
             "uvLayers": 1,
             "materialSlots": 1,
             "nonManifoldEdges": 0,
-            "boundaryEdges": 82,
+            "boundaryEdges": 76,
             "zeroAreaFaces": 0,
             "appliedScale": true,
             "appliedRotation": true
@@ -2071,13 +2071,13 @@
           ],
           "maximum": [
             0.325,
-            0.379,
-            0.753524
+            0.468992,
+            0.706107
           ],
           "size": [
             0.65,
-            0.7165,
-            0.753524
+            0.806492,
+            0.706107
           ]
         },
         "fileBytes": 182236,
