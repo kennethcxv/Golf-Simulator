@@ -33,6 +33,9 @@ import {
   carriedGoods, stockFixture, storeInBack, carrySpeedFactor,
 } from '../sim/stocking.js';
 import { boxDims, boxKindFor } from '../data/boxes.js';
+import {
+  DELIVERY_PALLET_STAGING, deliveryPalletCentres, planPalletizedPadBoxes,
+} from '../data/deliveryStaging.js';
 import { pickFromShelf, returnToShelf } from '../sim/checkout.js';
 import { drawPaymentMethod, paymentDistributionReport } from '../sim/paymentBag.js';
 import { totalOf } from '../sim/register.js';
@@ -50,6 +53,10 @@ import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel }
 import { createMerch } from './clubhouse/merch.js';
 import { createOwnedStockResources } from './clubhouse/stockResources.js';
 import { createRegisterItemResources } from './clubhouse/registerItemResources.js';
+import {
+  collectMaterialResources, collectRenderableResources, disposeRenderableResources,
+  mergeRenderableResources,
+} from './clubhouse/resourceLifecycle.js';
 import {
   buildCatalogProductProxy, catalogCheckoutLayout, catalogProductVisual,
 } from './clubhouse/catalogProductVisual.js';
@@ -87,6 +94,10 @@ const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrai
 export function makeClubhouse(ctx) {
   // ctx: { scene, camera, state, center:{x,z}, heightAt, walkProps, propColliders, walk, hooks }
   const { scene, camera, state, center, heightAt, walkProps, propColliders, walk, hooks } = ctx;
+  // Course resources already resident when this clubhouse is built can be
+  // referenced by its Object3D tree, but remain owned by the course. Everything
+  // new beneath the clubhouse roots is released on a structure rebuild.
+  const protectedRenderableResources = collectRenderableResources([scene, camera]);
   const baseY = heightAt(center.x, center.z);
   const floorY = baseY + FLOOR_TOP;
 
@@ -160,6 +171,12 @@ export function makeClubhouse(ctx) {
 
   // --- materials + the building shell (clubhouse/materials.js + clubhouse/shell.js) ------
   const mats = makeClubhouseMaterials((state && state.clubName) || 'The Club');
+  const materialKitResources = collectMaterialResources(mats);
+  function disposeClubhouseFallback(root) {
+    if (!root) return;
+    root.removeFromParent();
+    disposeRenderableResources(collectRenderableResources(root), materialKitResources);
+  }
   // The Blender-authored goods. They arrive after the shop is built, so the shop
   // restocks once they land — a shelf that is briefly bare beats one permanently
   // made of boxes. The restock hook is registered at the END of the build, not
@@ -167,6 +184,7 @@ export function makeClubhouse(ctx) {
   // running, and rebuildStock() closes over state declared further down (it hit
   // exactly that dead zone once).
   const merch = createMerch(mats);
+  let deliveryPadSurfaceY = null;
   // legacy aliases: sections still awaiting their v2 pass draw from the kit
   const woodMat = mats.walnut;
   const darkMat = mats.walnutDark;
@@ -595,7 +613,7 @@ export function makeClubhouse(ctx) {
       kitDesk.position.set(OFFICE.desk.x, 0, OFFICE.desk.z);
       kitDesk.rotation.y = -Math.PI / 2;
       interior.add(kitDesk);
-      interior.remove(desk);
+      disposeClubhouseFallback(desk);
     });
 
     // task chair — the Sheet-04 kit chair (five-star base, casters, black
@@ -1119,15 +1137,95 @@ export function makeClubhouse(ctx) {
 
     // receiving pad — deliveries will land here (gravel patch + posts)
     const padWp = L2W(STOCKROOM.padOutside.x, STOCKROOM.padOutside.z);
+    const apron = DELIVERY_PALLET_STAGING.receivingApron;
+    const terrainSamples = [];
+    for (const xFactor of [-1, -0.5, 0, 0.5, 1]) {
+      for (const zFactor of [-1, -0.5, 0, 0.5, 1]) {
+        const sample = L2W(
+          STOCKROOM.padOutside.x + xFactor * apron.length / 2,
+          STOCKROOM.padOutside.z + zFactor * apron.width / 2,
+        );
+        const height = heightAt(sample.x, sample.z);
+        if (Number.isFinite(height)) terrainSamples.push(height);
+      }
+    }
+    deliveryPadSurfaceY = Math.max(...terrainSamples) + 0.018;
     const pad = new THREE.Mesh(
-      new THREE.CircleGeometry(2.2, 18),
-      new THREE.MeshStandardMaterial({ color: 0xa89f8d, roughness: 1 }),
+      roundedBox(apron.length, apron.depth, apron.width, 0.025),
+      new THREE.MeshStandardMaterial({ color: 0x73736b, roughness: 0.96 }),
     );
-    pad.rotation.x = -Math.PI / 2;
-    pad.position.set(padWp.x, heightAt(padWp.x, padWp.z) + 0.03, padWp.z);
+    pad.name = 'DeliveryReceivingSlab';
+    pad.position.set(padWp.x, deliveryPadSurfaceY - apron.depth / 2, padWp.z);
+    pad.receiveShadow = true;
     scene.add(pad);
+    const drainage = new THREE.Mesh(
+      new THREE.BoxGeometry(0.075, 0.012, apron.width - 0.30),
+      new THREE.MeshStandardMaterial({ color: 0x353934, roughness: 0.82, metalness: 0.18 }),
+    );
+    drainage.name = 'DeliveryReceivingDrainageChannel';
+    drainage.position.set(
+      padWp.x + apron.length / 2 - 0.14,
+      deliveryPadSurfaceY + 0.006,
+      padWp.z,
+    );
+    drainage.receiveShadow = true;
+    scene.add(drainage);
     ctx.extraMeshes = ctx.extraMeshes || [];
-    ctx.extraMeshes.push(pad);
+    ctx.extraMeshes.push(pad, drainage);
+
+    // Five exact ref-44 pallets bound the nine-box receiving capacity to two
+    // cartons high. Their visible meshes are baked together from the authored
+    // GLB; lightweight anchors retain physical identity and collision.
+    const palletStage = new THREE.Group();
+    palletStage.name = 'DeliveryPalletStage';
+    palletStage.userData.ready = false;
+    scene.add(palletStage);
+    ctx.extraMeshes.push(palletStage);
+    merch.onReady(() => {
+      if (!palletStage.parent || palletStage.userData.ready) return;
+      const visualSources = new THREE.Group();
+      visualSources.name = 'DeliveryPalletBakeSources';
+      let authoredCount = 0;
+      for (const centre of deliveryPalletCentres()) {
+        // Ref 44 owns a deliberately pale, matte shipping-oak palette. Keep its
+        // authored materials instead of remapping M_NaturalOak/M_Walnut onto the
+        // much darker clubhouse furniture kit.
+        const pallet = merch.instantiateRaw(DELIVERY_PALLET_STAGING.model);
+        if (!pallet) continue;
+        const world = L2W(centre.x, centre.z);
+        pallet.position.set(world.x, deliveryPadSurfaceY, world.z);
+        pallet.rotation.y = centre.ry;
+        visualSources.add(pallet);
+
+        const anchor = new THREE.Group();
+        anchor.name = `DeliveryPallet_${centre.palletIndex + 1}`;
+        anchor.position.set(world.x, deliveryPadSurfaceY, world.z);
+        anchor.rotation.y = centre.ry;
+        anchor.userData.asset_id = DELIVERY_PALLET_STAGING.model;
+        anchor.userData.reference_id = '44';
+        anchor.userData.palletIndex = centre.palletIndex;
+        anchor.userData.dimensions = [
+          DELIVERY_PALLET_STAGING.length,
+          DELIVERY_PALLET_STAGING.height,
+          DELIVERY_PALLET_STAGING.width,
+        ];
+        palletStage.add(anchor);
+        authoredCount += 1;
+        const collider = colBoxAt(
+          centre.x, centre.z,
+          DELIVERY_PALLET_STAGING.length, DELIVERY_PALLET_STAGING.width,
+        );
+        collider.kind = 'delivery-pallet';
+        collider.palletIndex = centre.palletIndex;
+        addCol(collider);
+      }
+      if (authoredCount !== DELIVERY_PALLET_STAGING.count) return;
+      const baked = merch.bake(visualSources, { visibleOnly: true });
+      baked.name = 'DeliveryPalletBatchedVisuals';
+      palletStage.add(baked);
+      palletStage.userData.authoredPalletCount = authoredCount;
+      palletStage.userData.ready = true;
+    });
   }
 
   // --- clutter piles ------------------------------------------------------------------------
@@ -2031,6 +2129,7 @@ export function makeClubhouse(ctx) {
   const boxProps = new Map();   // id -> prop, reused across rebuilds so a hold survives a redraw
   const boxCols = new Map();    // id -> { col, sig } — a set-down box is a real obstacle, tracked here
   const boxViews = new Map();
+  let exposedPadBoxIds = new Set(); // only the top carton in each pallet stack is reachable
   const boxOpeningAnimations = new Set();
   const boxOpeningPhases = new Map();
   const boxFlattenAnimations = new Set();
@@ -2284,7 +2383,7 @@ export function makeClubhouse(ctx) {
     const d = state.shop.deliveries;
     if (!d) return '';
     const c = state.shop.carry;
-    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}:${b.tape || 0}:${(b.flapProgress || b.flaps || [0, 0, 0, 0]).join(',')}:${b.qty}:${b.flat ? 1 : 0}:${b.flattenProgress || 0}:${b.lifecycle || ''}`).join(',')
+    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}:${b.padPalletIndex ?? ''}:${b.padStagingOverflow ? 1 : 0}:${b.tape || 0}:${(b.flapProgress || b.flaps || [0, 0, 0, 0]).join(',')}:${b.qty}:${b.flat ? 1 : 0}:${b.flattenProgress || 0}:${b.lifecycle || ''}`).join(',')
       + '|' + (c ? c.skuId + c.qty : '') + '|' + d.trash;
   }
 
@@ -2580,7 +2679,19 @@ export function makeClubhouse(ctx) {
     const seen = new Set();
     const visualSeen = new Set();
     const colSeen = new Set();   // world boxes that hold a live collider this pass
+    exposedPadBoxIds = new Set();
     if (d) {
+      const padPlanList = planPalletizedPadBoxes(
+        d.boxes.filter((box) => box.loc === 'pad'),
+        {
+          palletHeight: scene.getObjectByName('DeliveryPalletStage')?.userData.ready
+            ? DELIVERY_PALLET_STAGING.height : 0,
+        },
+      );
+      const padPlans = new Map(padPlanList.map((plan) => [plan.boxId, plan]));
+      const topByPallet = new Map();
+      for (const plan of padPlanList) topByPallet.set(plan.palletIndex, plan.boxId);
+      exposedPadBoxIds = new Set(topByPallet.values());
       const stacks = { pad: 0, stock: 0 };
       for (const box of d.boxes) {
         visualSeen.add(box.id);
@@ -2610,8 +2721,11 @@ export function makeClubhouse(ctx) {
         let lx; let lz; let ry;
         if (box.loc === 'world') {
           lx = box.x; lz = box.z; ry = box.ry || 0;
+        } else if (box.loc === 'pad') {
+          const plan = padPlans.get(box.id);
+          lx = plan.x; lz = plan.z; ry = plan.ry;
         } else {
-          const at = box.loc === 'pad' ? STOCKROOM.padOutside : STOCKROOM.receivingInside;
+          const at = STOCKROOM.receivingInside;
           const i = stacks[box.loc]++;
           const dim = boxDims(box.box || 'carton');
           lx = at.x + (i % 3 - 1) * Math.max(0.62, dim.w + 0.14);
@@ -2620,9 +2734,15 @@ export function makeClubhouse(ctx) {
         }
         const wp = L2W(lx, lz);
         const m = ensureBoxView(box).root;
-        const gy = groundYAt(wp.x, wp.z);
+        const gy = box.loc === 'pad' && Number.isFinite(deliveryPadSurfaceY)
+          ? deliveryPadSurfaceY : groundYAt(wp.x, wp.z);
+        const padLift = box.loc === 'pad' ? (padPlans.get(box.id)?.baseY || 0) : 0;
         m.scale.setScalar(1);
-        m.position.set(wp.x, gy !== null && gy !== undefined ? gy : heightAt(wp.x, wp.z) + 0.02, wp.z);
+        m.position.set(
+          wp.x,
+          (gy !== null && gy !== undefined ? gy : heightAt(wp.x, wp.z) + 0.02) + padLift,
+          wp.z,
+        );
         m.rotation.set(0, ry, 0);
         boxGroup.add(m);
 
@@ -2683,6 +2803,7 @@ export function makeClubhouse(ctx) {
       label: () => {
         const b = box();
         if (!b || b.loc === 'carried' || carriedBox(state)) return null;
+        if (b.loc === 'pad' && !exposedPadBoxIds.has(b.id)) return null;
         const sku = SHOP_CATALOG.find((s) => s.id === b.skuId);
         const name = sku ? sku.name : b.skuId;
         if (b.flat) return 'Flattened carton — [E] carry it to the recycling';
@@ -2765,6 +2886,7 @@ export function makeClubhouse(ctx) {
       action: () => {
         const b = box();
         if (!b) return;
+        if (b.loc === 'pad' && !exposedPadBoxIds.has(b.id)) return;
         const sku = SHOP_CATALOG.find((s) => s.id === b.skuId);
         const name = sku ? sku.name : b.skuId;
         if (b.flat) { pickUp(b); return; }
@@ -2896,6 +3018,8 @@ export function makeClubhouse(ctx) {
   // --- customers: they walk in from the course, through the real door -------------------
   let unitSeq = 0;   // every unit a shopper lifts gets its own identity
   const customers = [];
+  let disposing = false;
+  let disposalSummary = null;
   // golfer-wardrobe palette, muted to the club color language
   const CUST_COLORS = [0x4a6d94, 0x2c3e66, 0xb0788f, 0xb3714a, 0x4a7050, 0x8a8577, 0x6b4f37];
   const counterQueue = [];
@@ -3504,7 +3628,7 @@ export function makeClubhouse(ctx) {
     if (c.cart && c.cart.length) {
       for (const it of c.cart) returnToShelf(state, it.skuId, it.uid);
       c.cart = [];
-      rebuildStock();
+      if (!disposing) rebuildStock();
     }
     if (c.tx) c.tx = null;
     c.awaitingCheckout = false;
@@ -4203,30 +4327,61 @@ export function makeClubhouse(ctx) {
   });
 
   function dispose() {
+    if (disposing) return disposalSummary;
+    disposing = true;
+    register.leave();
     for (const id of [...boxViews.keys()]) removeBoxView(id, true);
+    // removeBoxView owns and releases the carried box view too. Clear the stale
+    // alias before collecting static roots so it cannot be disposed twice.
+    carriedBoxMesh = null;
     for (const [id, entry] of shipLabelCache) {
       entry.tex.dispose();
       entry.mat.dispose();
       shipLabelCache.delete(id);
     }
-    if (carriedGoodsMesh) disposeProceduralDelivery(carriedGoodsMesh);
-    camera.remove(carriedBoxHands);
-    carryPalmGeo.dispose();
-    carryFingerGeo.dispose();
-    carrySleeveGeo.dispose();
-    carryHandSkin.dispose();
-    carryHandCuff.dispose();
-    scene.remove(group, interior, custGroup, motes, boxGroup);
-    if (carriedBoxMesh) camera.remove(carriedBoxMesh);
-    if (carriedGoodsMesh) camera.remove(carriedGoodsMesh);
-    for (const p of [...registeredProps]) removeProp(p);
-    for (const c of [...registeredCols]) removeCol(c);
-    for (const m of ctx.extraMeshes || []) scene.remove(m);
+    if (carriedGoodsMesh) {
+      disposeProceduralDelivery(carriedGoodsMesh);
+      carriedGoodsMesh = null;
+    }
     // tearing the scene down must not pocket whatever shoppers were holding: the save is written
     // from `state`, and stock in a deleted shopper's hands would simply cease to exist.
     for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
-    customerItemGeo.dispose();
-    for (const material of customerItemMats.values()) material.dispose();
+
+    const staticRoots = [
+      group, interior, custGroup, motes, boxGroup, carriedBoxHands,
+      washing.jet, washing.mist,
+      ...(ctx.extraMeshes || []),
+    ];
+    const looseResources = mergeRenderableResources(
+      materialKitResources,
+      collectMaterialResources([
+        cardboardDark, tapeMat, paperMat, shipLabelMat, ghostMat,
+        ...labelCache.values(), ...skuMats.values(), ...ballBoxMats.values(),
+      ]),
+    );
+    looseResources.geometries.add(BALL_BOX_GEO);
+    looseResources.geometries.add(CARTON_GEO);
+    looseResources.geometries.add(patRing);
+    const ownedResources = mergeRenderableResources(
+      collectRenderableResources(staticRoots), looseResources,
+    );
+    const protectedResources = mergeRenderableResources(
+      protectedRenderableResources,
+      merch.ownedResources ? merch.ownedResources() : null,
+    );
+
+    camera.remove(carriedBoxHands);
+    scene.remove(group, interior, custGroup, motes, boxGroup, washing.jet, washing.mist);
+    for (const p of [...registeredProps]) removeProp(p);
+    for (const c of [...registeredCols]) removeCol(c);
+    for (const m of ctx.extraMeshes || []) scene.remove(m);
+
+    // Release procedural/static resources once, while loader-owned clone data
+    // remains exclusively under createMerch's ownership boundary.
+    const procedural = disposeRenderableResources(ownedResources, protectedResources);
+    const merchandise = merch.dispose ? merch.dispose() : null;
+    disposalSummary = Object.freeze({ procedural, merchandise });
+    return disposalSummary;
   }
 
   return {

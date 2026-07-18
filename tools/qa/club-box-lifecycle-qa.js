@@ -54,7 +54,10 @@ async (page) => {
   });
 
   const cameras = Object.freeze({
-    receivingPad: { x: 12.55, z: -3.60, yaw: Math.PI / 2, pitch: -0.22 },
+    // This remains the established exterior start for the straight-W doorway
+    // probe. Delivery cartons now land on the five-pallet apron at z ~= 0, so
+    // pickup uses a separate pose derived from the delivered carton below.
+    receivingDoorExterior: { x: 12.55, z: -3.60, yaw: Math.PI / 2, pitch: -0.22 },
     box: { x: 8.25, z: -0.43, yaw: 0, pitch: -0.58 },
     boxOpen: { x: 8.25, z: -0.43, yaw: 0, pitch: -0.78 },
     clubRack: { x: -8.35, z: -3.2, yaw: Math.PI / 2, pitch: -0.12 },
@@ -173,6 +176,46 @@ async (page) => {
       walk.state.pitch = next.pitch;
     }, pose);
     await page.waitForTimeout(280);
+  }
+
+  async function deliveredBoxPickupCamera(boxId) {
+    const pickup = await page.evaluate(async (id) => {
+      const S = await import('/src/data/deliveryStaging.js');
+      const app = window.__fw;
+      const origin = app.scene3d.clubhouse().interior.position;
+      const scene = app.scene3d.scene;
+      const box = app.state.shop.deliveries.boxes.find((candidate) => candidate.id === id);
+      const plan = S.planPalletizedPadBoxes(
+        app.state.shop.deliveries.boxes.filter((candidate) => candidate.loc === 'pad'),
+      ).find((entry) => entry.boxId === id);
+      const root = scene.getObjectByName(`DeliveryBox_${id}`)
+        || scene.getObjectByName(`DeliveryBoxFallback_${id}`);
+      if (!box || !plan || !root) return null;
+
+      root.updateWorldMatrix(true, true);
+      const rendered = root.getWorldPosition(root.position.clone());
+      // Approach the delivered carton from the apron-facing north edge. The
+      // 1.03 m offset is the validated normal-pickup range used by ref-44, but
+      // X/Z are always anchored to this carton's live rendered/pallet pose.
+      const camera = {
+        x: rendered.x - origin.x,
+        z: rendered.z - origin.z + 1.03,
+        yaw: 0,
+        pitch: -0.34,
+      };
+      return {
+        camera,
+        boxId: id,
+        palletIndex: plan.palletIndex,
+        renderedLocal: {
+          x: +(rendered.x - origin.x).toFixed(4),
+          z: +(rendered.z - origin.z).toFixed(4),
+        },
+        plannedLocal: { x: +plan.x.toFixed(4), z: +plan.z.toFixed(4) },
+      };
+    }, boxId);
+    if (!pickup) throw new Error(`Cannot derive the receiving-apron pickup camera for box ${boxId}.`);
+    return pickup;
   }
 
   async function focusInfo() {
@@ -554,13 +597,9 @@ async (page) => {
       resetDelivery: true,
       atPad: true,
     });
-    await setCamera(cameras.receivingPad);
-    await waitForFocus(/Delivery:.*Fairline driver.*pick up/i);
-    const start = await page.evaluate(() => {
-      const origin = window.__fw.scene3d.clubhouse().interior.position;
-      const walk = window.__fw.scene3d.walk.state;
-      return { x: walk.x - origin.x, z: walk.z - origin.z };
-    });
+    const pickup = await deliveredBoxPickupCamera(staged.id);
+    await setCamera(pickup.camera);
+    pickup.focus = await waitForFocus(/Delivery:.*Fairline driver.*pick up/i);
     await page.keyboard.press('e');
     await waitForBox(staged.id, 'loc:carried');
     await page.waitForFunction((boxId) => {
@@ -568,6 +607,16 @@ async (page) => {
       return root?.parent === window.__fw.scene3d.camera
         && root.userData.deliveryRuntimeCarryProfile === 'long-two-hand-diagonal';
     }, staged.id, { timeout: 5000 });
+
+    // The apron pickup and doorway traversal are deliberately separate. Put
+    // the carried carton at the unchanged exterior lane start, then measure
+    // only normal straight-W input across the same threshold as before.
+    await setCamera(cameras.receivingDoorExterior);
+    const start = await page.evaluate(() => {
+      const origin = window.__fw.scene3d.clubhouse().interior.position;
+      const walk = window.__fw.scene3d.walk.state;
+      return { x: walk.x - origin.x, z: walk.z - origin.z };
+    });
 
     await page.evaluate(() => {
       window.__clubDoorPath = [];
@@ -636,6 +685,7 @@ async (page) => {
     const doorLaneSamples = path.filter((sample) => sample.x <= 10.75 && sample.x >= 9.45);
     return {
       boxId: staged.id,
+      apronPickup: pickup,
       controls: ['pointer lock', 'E pick up', 'straight W through doorway', 'E set down'],
       movementInput: 'keyboard-only straight W; no camera-position mutation during traversal',
       start: { x: +start.x.toFixed(4), z: +start.z.toFixed(4) },

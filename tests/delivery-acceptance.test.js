@@ -15,6 +15,7 @@ import {
   boxesOf, shipmentsOf, shipmentStatus, cutTape, openFlap, takeFromBox,
   flattenBox, recycleBox, pickUpBox, putDownBox, boxState, flapsOpen,
 } from '../src/sim/deliveries.js';
+import { exposedDeliveryPadBoxIds } from '../src/data/deliveryStaging.js';
 import {
   carriedGoods, stockFixture, storeInBack, homeOf,
 } from '../src/sim/stocking.js';
@@ -76,8 +77,16 @@ test('drop every box a few times: identities and contents survive, nothing dupli
 
   const before = totalUnits(st);
   const ids = boxesOf(st).map((b) => b.id);
+  const staged = boxesOf(st).map((entry) => ({ ...entry }));
+  const pickupOrder = [];
+  while (staged.length) {
+    const exposed = exposedDeliveryPadBoxIds(staged);
+    const next = staged.find((entry) => exposed.has(entry.id));
+    pickupOrder.push(next.id);
+    staged.splice(staged.indexOf(next), 1);
+  }
   // pick each box up and set it down three times, in different spots
-  for (const id of ids) {
+  for (const id of pickupOrder) {
     for (let k = 0; k < 3; k++) {
       const up = pickUpBox(st, id);
       assert.ok(up.ok, `box ${id} lifted (drop ${k})`);

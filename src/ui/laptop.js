@@ -1121,7 +1121,8 @@ export function makeLaptop(app, opts) {
       const s = ORDER_STATUS[o.status] || { label: o.status, tone: '' };
       const days = o.arrivesDay - cal.dayAbs;
       const when = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
-      const canCancel = o.status !== 'arriving' && o.status !== 'delivered';
+      // A blocked driver unloaded nothing, so the player can still turn that van away.
+      const canCancel = !!o.blocked || (o.status !== 'arriving' && o.status !== 'delivered');
       const man = o.manifest || shipOf(sku, o.qty);
       return el('div', { class: 'lt-order' },
         thumbOf(sku),

@@ -20,6 +20,10 @@ import { skuById } from '../../data/shopItems.js';
 import { placedFixtures } from '../../sim/layout.js';
 import { tutorialFlag } from '../../sim/tutorial.js';
 import { roundedBox, makeSignTexture, makeRugTexture } from './materials.js';
+import {
+  collectMaterialResources, collectRenderableResources, disposeRenderableResources,
+  mergeRenderableResources,
+} from './resourceLifecycle.js';
 
 // warm under-shelf light strip (pure emissive — the real lights are the rig's)
 function lightStrip(mats, w) {
@@ -40,6 +44,16 @@ function categorySign(title, { w = 1.5, h = 0.26, charcoal = false } = {}) {
     new THREE.PlaneGeometry(w, h),
     new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }),
   );
+}
+
+function releaseReplacedFixture(root, mats, merch) {
+  if (!root) return;
+  root.removeFromParent();
+  const protectedResources = mergeRenderableResources(
+    collectMaterialResources(mats),
+    merch?.ownedResources ? merch.ownedResources() : null,
+  );
+  disposeRenderableResources(collectRenderableResources(root), protectedResources);
 }
 
 export function buildFixtures(B) {
@@ -63,6 +77,9 @@ export function buildFixtures(B) {
     return made;
   };
   const fixtureAnchors = new Map();
+  function disposeReplacedFixture(root) {
+    releaseReplacedFixture(root, mats, merch);
+  }
 
   function shelfLabel(f) {
     const inv = state.shop.inventory;
@@ -193,7 +210,7 @@ export function buildFixtures(B) {
       const sign = categorySign(f.title);
       sign.position.set(0, f.id === 'shelf_balls' ? 1.48 : 2.06, 0.17);
       g.add(sign);
-      g.remove(legacy);
+      disposeReplacedFixture(legacy);
     });
     const w = Math.abs(f.ry % Math.PI) < 0.1 ? 3.0 : 0.5;
     const d = Math.abs(f.ry % Math.PI) < 0.1 ? 0.5 : 3.0;
@@ -268,7 +285,7 @@ export function buildFixtures(B) {
       const sign = categorySign(f.title, { w: 1.9, h: 0.3, charcoal: true });
       sign.position.set(0, 1.78, -0.40);
       g.add(sign);
-      g.remove(legacy);
+      disposeReplacedFixture(legacy);
     });
     addCol(colBoxAt(f.x, f.z, Math.abs(Math.sin(f.ry)) > 0.5 ? 1.0 : 3.0, Math.abs(Math.sin(f.ry)) > 0.5 ? 3.0 : 1.0));
     return g;
@@ -302,7 +319,7 @@ export function buildFixtures(B) {
       const m = merch.instantiateKit && merch.instantiateKit('apparel_table');
       if (!m) return;
       g.add(m);
-      g.remove(legacy);
+      disposeReplacedFixture(legacy);
     });
     addCol(colBoxAt(f.x, f.z, 1.9, 1.2));
     return g;
@@ -354,7 +371,7 @@ export function buildFixtures(B) {
       });
       if (modules.some((m) => !m)) return;
       for (const m of modules) g.add(m);
-      g.remove(legacy);
+      disposeReplacedFixture(legacy);
     });
     addCol(colBoxAt(f.x, f.z, Math.abs(Math.sin(f.ry)) > 0.5 ? 0.9 : 2.2, Math.abs(Math.sin(f.ry)) > 0.5 ? 2.2 : 0.9));
     return g;
@@ -393,7 +410,7 @@ export function buildFixtures(B) {
       const m = merch.instantiateKit && merch.instantiateKit('hat_wall');
       if (!m) return;
       g.add(m);
-      g.remove(legacy);
+      disposeReplacedFixture(legacy);
     });
     addCol(colBoxAt(f.x, f.z, 0.8, 0.8));
     return g;
@@ -434,7 +451,7 @@ export function buildFixtures(B) {
       const sign = categorySign(f.title, { w: 1.0, h: 0.2 });
       sign.position.set(0, 1.18, -0.245);
       g.add(sign);
-      g.remove(legacy);
+      disposeReplacedFixture(legacy);
     });
     addCol(colBoxAt(f.x, f.z, 2.6, 1.3));
     return g;
@@ -488,7 +505,7 @@ export function buildFixtures(B) {
       const sign = categorySign(f.title);
       sign.position.set(0, 2.06, 0.16);
       g.add(sign);
-      g.remove(legacy);
+      disposeReplacedFixture(legacy);
     });
     const swap = Math.abs(Math.sin(f.ry)) > 0.5;
     addCol(colBoxAt(f.x, f.z, swap ? 0.7 : 2.9, swap ? 2.9 : 0.7));
@@ -546,7 +563,7 @@ export function buildFixtures(B) {
       const m = merch.instantiateKit && merch.instantiateKit('merch_table');
       if (!m) return;
       g.add(m);
-      g.remove(legacy);
+      disposeReplacedFixture(legacy);
       if (B.rebuildStock) B.rebuildStock();   // re-dress the feature onto the table grid
     });
     addCol(colBoxAt(f.x, f.z, 1.7, 1.1));
@@ -693,7 +710,7 @@ export function buildFixtures(B) {
       });
       if (modules.some((m) => !m)) return;
       for (const m of modules) g.add(m);
-      g.remove(legacy);
+      disposeReplacedFixture(legacy);
     });
     const swap = Math.abs(Math.sin(f.ry)) > 0.5;
     const halfLen = wZ / 2 + 0.15;
@@ -732,7 +749,7 @@ export function buildFixtures(B) {
     for (const p of laidProps) removeProp(p);
     laidCols.length = 0;
     laidProps.length = 0;
-    for (const g of fixtureAnchors.values()) interior.remove(g);
+    for (const g of fixtureAnchors.values()) disposeReplacedFixture(g);
     fixtureAnchors.clear();
     layFixtures();
   }
@@ -865,7 +882,7 @@ export function buildLounge(B) {
     g.add(table, coffeeDressing(0.45));
     g.position.set(LOUNGE.coffee.x, 0, LOUNGE.coffee.z);
     interior.add(g);
-    interior.remove(coffee);
+    releaseReplacedFixture(coffee, mats, merch);
     // the companion side table in the corner beside chair A
     const side = merch.instantiateKit && merch.instantiateKit('lounge_side_table');
     if (side) {
@@ -1104,7 +1121,7 @@ export function buildCheckout(B) {
     counter.scale.set(COUNTER.len / 2.6, COUNTER_TOP / 0.95, COUNTER.depth / 0.85);
     counter.position.set(COUNTER.x, 0, COUNTER.z);
     interior.add(counter);
-    interior.remove(legacyCounter);
+    releaseReplacedFixture(legacyCounter, mats, merch);
   });
 
   // REGISTER KIT. The positions are no longer eyeballed offsets from registerX —

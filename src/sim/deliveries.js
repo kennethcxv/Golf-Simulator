@@ -4,6 +4,9 @@
 
 import { skuById } from '../data/shopItems.js';
 import { planShipment, boxWeight } from '../data/boxes.js';
+import {
+  assignDeliveryPallets, exposedDeliveryPadBoxIds,
+} from '../data/deliveryStaging.js';
 import { armRoom, setCarry } from './stocking.js';
 import { notify } from './notifications.js';
 
@@ -21,7 +24,7 @@ export const ORDER_FLOW = ['received', 'processing', 'packed', 'shipped', 'out',
 export const PAD_CAPACITY = 9;
 
 // Packaging evolves independently from the course save, so it carries a small local schema.
-export const DELIVERIES_SCHEMA_VERSION = 3;
+export const DELIVERIES_SCHEMA_VERSION = 4;
 export const BOX_SCHEMA_VERSION = 2;
 
 // Location and contents are separate facts. This is the one persisted lifecycle of the carton.
@@ -215,6 +218,9 @@ export function ensureDeliveries(state) {
     if (!b.supplier && shipment) b.supplier = shipment.supplier || null;
     if (!b.supplierId && shipment) b.supplierId = shipment.supplierId || null;
   }
+  // v4 persists a balanced physical pallet lane. Rebuild legacy layouts once;
+  // thereafter safe assignments survive selective pickup and save/load.
+  assignDeliveryPallets(d.boxes, { rebalance: deliveryNeedsMigration });
   if (!Number.isFinite(d.nextBoxId)) {
     d.nextBoxId = d.boxes.reduce((greatest, b) => Math.max(greatest, Number(b.id) || 0), 0) + 1;
   }
@@ -327,6 +333,10 @@ export function arriveOrder(state, order) {
       schemaVersion: BOX_SCHEMA_VERSION,
     });
   }
+  assignDeliveryPallets([
+    ...d.boxes.filter((box) => box.loc === 'pad'),
+    ...made,
+  ]);
   d.boxes.push(...made);
   if (order.id !== undefined && order.id !== null) d.arrivedOrderIds.push(order.id);
   d.shipments.push({
@@ -371,6 +381,12 @@ export function carriedBox(state) {
 export function pickUpBox(state, id) {
   const box = findBox(state, id);
   if (!box) return { ok: false, reason: 'No box there.' };
+  if (box.loc === 'pad') {
+    const padBoxes = boxesOf(state).filter((entry) => entry.loc === 'pad');
+    if (!exposedDeliveryPadBoxIds(padBoxes).has(box.id)) {
+      return { ok: false, reason: 'Move the carton stacked above it first.' };
+    }
+  }
   if (carriedBox(state)) return { ok: false, reason: 'Your arms are full — set that one down first.' };
   // arms are arms: a box OR an armful of goods, never both
   const goods = state.shop.carry;
@@ -379,6 +395,8 @@ export function pickUpBox(state, id) {
     return { ok: false, reason: `Not with your arms full of ${(sku ? sku.name : 'stock').toLowerCase()}.` };
   }
   box.loc = 'carried';
+  delete box.padPalletIndex;
+  delete box.padStagingOverflow;
   return { ok: true, box };
 }
 
@@ -389,14 +407,22 @@ export function putDownBox(state, id, spot = 'stock') {
   if (!box || box.loc !== 'carried') return { ok: false, reason: 'Not carrying that.' };
   if (spot && typeof spot === 'object') {
     box.loc = 'world';
+    delete box.padPalletIndex;
+    delete box.padStagingOverflow;
     box.x = spot.x;
     box.z = spot.z;
     box.ry = spot.ry || 0;
   } else {
+    if (spot === 'pad' && padCount(state) >= PAD_CAPACITY) {
+      return { ok: false, reason: 'The receiving pad is full.' };
+    }
     box.loc = spot === 'pad' ? 'pad' : 'stock';
+    delete box.padPalletIndex;
+    delete box.padStagingOverflow;
     delete box.x;
     delete box.z;
     delete box.ry;
+    if (box.loc === 'pad') assignDeliveryPallets(state.shop.deliveries.boxes);
   }
   return { ok: true, box };
 }

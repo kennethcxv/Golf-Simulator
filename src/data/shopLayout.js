@@ -88,7 +88,9 @@ export const PARTITIONS = [
 export const STOCKROOM = {
   bounds: { minX: 5.7, maxX: INTERIOR.w / 2, minZ: -INTERIOR.d / 2, maxZ: 2.0 },
   receivingInside: { x: 7.2, z: -5.3 },    // set-down stack, out of the doorway clearway
-  padOutside: { x: 12.4, z: -3.6 },        // gravel pad past the back door — deliveries land here
+  // Diagonal to the receiving door: close to the carry route, but clear of its
+  // exterior aperture and the raised service road beside the east wall.
+  padOutside: { x: 13.0, z: 0.0 },
   packing: { x: 6.9, z: -0.9, ry: 0 },     // the packing bench (tape gun, clipboard)
   handTruck: { x: 6.1, z: -5.9 },
   bin: { x: 9.85, z: 1.3 },                // recycling by the stock door, east of the swing

@@ -363,10 +363,23 @@ export function placeOrder(state, skuId, qty) {
   const sku = skuById(skuId);
   if (!sku) return { ok: false, reason: 'No such item.' };
   if (sku.tier > state.shop.unlockedTier) return { ok: false, reason: 'Supplier account not unlocked yet.' };
+  if (!Number.isInteger(qty) || qty < 1) return { ok: false, reason: 'Order quantity must be a positive whole number.' };
 
   // pack it NOW. The manifest is what the Orders screen promises and what the receiving pad
   // stands there — one object, read twice, so the two can never disagree.
   const manifest = planShipment(sku, qty);
+  // One order has to fit on an EMPTY receiving pad. Several smaller orders may
+  // still queue and arrive as the player clears cartons, but a single manifest
+  // larger than the pad can never satisfy the atomic unloading contract below.
+  // Reject it before billing instead of creating paid stock that circles forever.
+  if (manifest.boxCount > PAD_CAPACITY) {
+    return {
+      ok: false,
+      reason: `This order needs ${manifest.boxCount} boxes, but the receiving pad holds ${PAD_CAPACITY}. Split it into smaller orders.`,
+      boxes: manifest.boxCount,
+      capacity: PAD_CAPACITY,
+    };
+  }
   const goods = orderCost(sku, qty);
   const fee = manifest.fee;
   const cost = Math.round((goods + fee) * 100) / 100;   // `cost` is what you actually paid
@@ -479,7 +492,9 @@ export function cancelOrder(state, id) {
   if (i < 0) return { ok: false, reason: 'No such order.' };
   const o = orders[i];
   // once it is inside its delivery window the goods are on the pad any minute — too late.
-  if (o.status === 'arriving' || o.status === 'delivered') {
+  // A blocked van has explicitly unloaded nothing, so it can still be turned
+  // away. This also rescues legacy oversized paid manifests from permanent limbo.
+  if ((o.status === 'arriving' || o.status === 'delivered') && !o.blocked) {
     return { ok: false, reason: 'The van is at the door — too late to cancel.' };
   }
   orders.splice(i, 1);
@@ -551,8 +566,27 @@ export function deliverOrdersDue(state, dayAbs) {
   // windowed orders due TODAY belong to their window (tickDeliveries) — only
   // strictly-past days force-land here; legacy windowless orders keep day-of
   const due = (o) => (o.window === undefined ? o.arrivesDay <= dayAbs : o.arrivesDay < dayAbs);
-  const arrived = state.shop.orders.filter(due);
-  state.shop.orders = state.shop.orders.filter((o) => !due(o));
+  const arrived = [];
+  let reserved = 0;
+  for (const order of state.shop.orders) {
+    if (!due(order)) continue;
+    const need = (order.manifest && order.manifest.boxCount) || 1;
+    if (!padHasRoom(state, need + reserved)) {
+      order.status = 'arriving';
+      if (!order.blocked) {
+        order.blocked = true;
+        notify(state, {
+          kind: 'delivery',
+          text: `A van could not unload — the receiving pad is full. Order #${order.id} is waiting until you clear cartons.`,
+        });
+      }
+      continue;
+    }
+    order.blocked = false;
+    reserved += need;
+    arrived.push(order);
+  }
+  state.shop.orders = state.shop.orders.filter((order) => !arrived.includes(order));
   // 2026-07-13 physical retail: arrivals are BOXES on the receiving pad —
   // contents reach the backroom when someone opens them (you, or the
   // morning floor staff in restockShelvesByStaff)

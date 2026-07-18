@@ -49,6 +49,7 @@ const FILES = [
   // Delivery hero carton (tools/blender/build_delivery_hero.py). The cutter is
   // loaded by the first-person tool rig, avoiding a duplicate GLB allocation.
   'delivery_apparel_box', 'delivery_generic_merchandise_box', 'delivery_golf_club_box',
+  'delivery_wooden_pallet',
   'delivery_packing_tape_roll', 'delivery_recycling_station',
 ];
 
@@ -129,8 +130,69 @@ export function createMerch(mats) {
   const protos = new Map();
   const clips = new Map();
   const tints = new Map();     // 'fabric|0x3f7a34' -> Material, built once, reused forever
+  // GLTF clones deliberately share their prototype resources. Keep ownership at
+  // this loader boundary so tearing down a clubhouse can release each imported
+  // resource exactly once without ever touching the caller-owned material kit.
+  const prototypeGeometries = new Set();
+  const prototypeMaterials = new Set();
+  const prototypeTextures = new Set();
+  const bakedGeometries = new Set();
   let ready = false;
+  let disposed = false;
+  let disposalSummary = null;
   const waiting = [];
+
+  function resourcesIn(root) {
+    const geometries = new Set();
+    const materials = new Set();
+    const textures = new Set();
+    if (!root || typeof root.traverse !== 'function') return { geometries, materials, textures };
+    root.traverse((object) => {
+      if (object.geometry) geometries.add(object.geometry);
+      const list = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of list) {
+        if (!material) continue;
+        materials.add(material);
+        for (const value of Object.values(material)) {
+          if (value?.isTexture) textures.add(value);
+        }
+      }
+    });
+    return { geometries, materials, textures };
+  }
+
+  function rememberPrototype(root) {
+    const resources = resourcesIn(root);
+    resources.geometries.forEach((resource) => prototypeGeometries.add(resource));
+    resources.materials.forEach((resource) => prototypeMaterials.add(resource));
+    resources.textures.forEach((resource) => prototypeTextures.add(resource));
+  }
+
+  function disposeRootResources(root) {
+    const resources = resourcesIn(root);
+    resources.textures.forEach((resource) => resource.dispose());
+    resources.materials.forEach((resource) => resource.dispose());
+    resources.geometries.forEach((resource) => resource.dispose());
+    return {
+      geometries: resources.geometries.size,
+      materials: resources.materials.size,
+      textures: resources.textures.size,
+    };
+  }
+
+  function rememberBakedGeometry(geometry) {
+    if (!geometry || bakedGeometries.has(geometry)) return geometry;
+    bakedGeometries.add(geometry);
+    // Existing stock rebuilds already dispose their owned baked geometry. Drop
+    // that externally released resource from this registry immediately so the
+    // loader neither retains it nor attempts a second release at teardown.
+    const forget = () => {
+      bakedGeometries.delete(geometry);
+      geometry.removeEventListener('dispose', forget);
+    };
+    geometry.addEventListener('dispose', forget);
+    return geometry;
+  }
 
   function tinted(slot, tint) {
     const base = mats[TINTABLE[slot]];
@@ -155,6 +217,7 @@ export function createMerch(mats) {
   // A clone shares geometry (free) and we overwrite the material with a shared
   // one, so an instantiated polo costs a draw call and nothing else.
   function instantiate(name, { tint = null, scale = 1 } = {}) {
+    if (disposed) return null;
     const proto = protos.get(name);
     if (!proto) return null;
     const obj = proto.clone(true);
@@ -185,6 +248,7 @@ export function createMerch(mats) {
   // reference, so ten instances cost ten draw calls and exactly ONE material) with no
   // slot remapping — the Tripo atlas is left exactly as authored.
   function instantiateRaw(name, { scale = 1 } = {}) {
+    if (disposed) return null;
     const proto = protos.get(name);
     if (!proto) return null;
     const obj = proto.clone(true);
@@ -202,12 +266,24 @@ export function createMerch(mats) {
 
   // Collapse a built group into one mesh per material. Rebuilt only when stock
   // changes, so the merge cost is paid on restock, not per frame.
-  function bake(group) {
+  function bake(group, { visibleOnly = false } = {}) {
+    if (!group || disposed) return group || null;
     const buckets = new Map();
     const keep = [];
     group.updateMatrixWorld(true);
-    group.traverse((o) => {
+    const visit = visibleOnly
+      ? (visitor) => group.traverseVisible(visitor)
+      : (visitor) => group.traverse(visitor);
+    visit((o) => {
       if (!o.isMesh) return;
+      // Visibility is the primary contract. The metadata checks are defensive:
+      // a malformed export must not turn an authoring helper or collision volume
+      // into visible geometry merely because its visibility flag was left on.
+      if (visibleOnly && (
+        o.userData?.helper
+        || o.userData?.collision_proxy
+        || /^(?:COL_|COLLISION_|VOLUME_)/i.test(String(o.name || ''))
+      )) return;
       if (Array.isArray(o.material) || !o.geometry) { keep.push(o); return; }
       const m = o.material;
       const g = o.geometry.clone();
@@ -235,15 +311,41 @@ export function createMerch(mats) {
       }
       if (!merged) { // a mismatched set: keep them loose rather than lose them
         for (const g of geos) out.add(new THREE.Mesh(g, m));
+        for (const g of geos) rememberBakedGeometry(g);
         continue;
       }
+      // mergeGeometries creates a new BufferGeometry. Its cloned inputs are no
+      // longer reachable and must be explicitly released instead of waiting for
+      // a later renderer teardown. A one-geometry bucket already is its output.
+      for (const g of geos) if (g !== merged) g.dispose();
+      rememberBakedGeometry(merged);
       const mesh = new THREE.Mesh(merged, m);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       out.add(mesh);
     }
     for (const k of keep) out.add(k);
+    out.userData.merchBaked = true;
+    out.userData.merchBakeVisibleOnly = visibleOnly;
     return out;
+  }
+
+  // Dispose only geometry minted by bake(). Shared prototype geometry and the
+  // caller's material kit are deliberately outside this method's ownership.
+  // If several clones share one baked geometry, pass a common ancestor after
+  // removing every clone; the Set makes duplicate references and repeat calls
+  // safe.
+  function disposeBaked(root) {
+    if (!root || typeof root.traverse !== 'function') return 0;
+    const found = new Set();
+    root.traverse((object) => {
+      if (object.geometry && bakedGeometries.has(object.geometry)) found.add(object.geometry);
+    });
+    for (const geometry of found) {
+      geometry.dispose();
+      bakedGeometries.delete(geometry);
+    }
+    return found.size;
   }
 
   // THE CHECKOUT KIT (assets/checkout/glb, staged to vendor/models/checkout).
@@ -267,6 +369,7 @@ export function createMerch(mats) {
   ];
 
   function instantiateKit(name, { scale = 1 } = {}) {
+    if (disposed) return null;
     const proto = protos.get(`kit:${name}`);
     if (!proto) return null;
     const obj = proto.clone(true);
@@ -281,6 +384,7 @@ export function createMerch(mats) {
   const loader = new GLTFLoader();
   let pending = FILES.length + RAW.length + KIT.length;
   const done = () => {
+    if (disposed) return;
     if (--pending > 0) return;
     ready = true;
     for (const fn of waiting) fn();
@@ -291,7 +395,12 @@ export function createMerch(mats) {
       `vendor/models/clubhouse/${name}.glb`,
       (g) => {
         const root = g.scene;
+        if (disposed) {
+          disposeRootResources(root);
+          return;
+        }
         root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+        rememberPrototype(root);
         protos.set(name, root);
         clips.set(name, g.animations || []);
         done();
@@ -305,7 +414,12 @@ export function createMerch(mats) {
       `vendor/models/clubhouse/${name}.glb`,
       (g) => {
         const root = g.scene;
+        if (disposed) {
+          disposeRootResources(root);
+          return;
+        }
         root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+        rememberPrototype(root);
         protos.set(name, root);
         done();
       },
@@ -318,7 +432,12 @@ export function createMerch(mats) {
       `vendor/models/checkout/${name}.glb`,
       (g) => {
         const root = g.scene;
+        if (disposed) {
+          disposeRootResources(root);
+          return;
+        }
         root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+        rememberPrototype(root);
         protos.set(`kit:${name}`, root);
         clips.set(`kit:${name}`, g.animations || []);
         done();
@@ -328,17 +447,66 @@ export function createMerch(mats) {
     );
   }
 
+  function dispose() {
+    if (disposed) return { ...disposalSummary, alreadyDisposed: true };
+    disposed = true;
+    ready = false;
+    waiting.length = 0;
+
+    const summary = {
+      bakedGeometries: bakedGeometries.size,
+      tintMaterials: tints.size,
+      prototypeTextures: prototypeTextures.size,
+      prototypeMaterials: prototypeMaterials.size,
+      prototypeGeometries: prototypeGeometries.size,
+    };
+    bakedGeometries.forEach((resource) => resource.dispose());
+    tints.forEach((resource) => resource.dispose());
+    prototypeTextures.forEach((resource) => resource.dispose());
+    prototypeMaterials.forEach((resource) => resource.dispose());
+    prototypeGeometries.forEach((resource) => resource.dispose());
+
+    bakedGeometries.clear();
+    tints.clear();
+    prototypeTextures.clear();
+    prototypeMaterials.clear();
+    prototypeGeometries.clear();
+    protos.clear();
+    clips.clear();
+    disposalSummary = Object.freeze(summary);
+    return { ...disposalSummary, alreadyDisposed: false };
+  }
+
+  // The clubhouse teardown walks its procedural Object3D roots, some of which
+  // contain clones backed by this loader's prototypes. Expose identity-only
+  // snapshots so the outer owner can exclude those resources and leave their
+  // single release to dispose(). Caller-owned material-kit textures are not
+  // included merely because a tint clone references them.
+  function ownedResources() {
+    return {
+      geometries: new Set([...prototypeGeometries, ...bakedGeometries]),
+      materials: new Set([...prototypeMaterials, ...tints.values()]),
+      textures: new Set(prototypeTextures),
+    };
+  }
+
   return {
     instantiate,
     instantiateRaw,
     instantiateKit,
     slotMesh,
     bake,
-    isReady: () => ready,
-    has: (n) => protos.has(n),
-    hasKit: (n) => protos.has(`kit:${n}`),
-    animations: (n) => clips.get(n) || [],
+    disposeBaked,
+    ownedResources,
+    dispose,
+    isReady: () => ready && !disposed,
+    has: (n) => !disposed && protos.has(n),
+    hasKit: (n) => !disposed && protos.has(`kit:${n}`),
+    animations: (n) => (disposed ? [] : clips.get(n) || []),
     // the models arrive after the shop is built; the caller restocks on ready
-    onReady(fn) { if (ready) fn(); else waiting.push(fn); },
+    onReady(fn) {
+      if (disposed) return;
+      if (ready) fn(); else waiting.push(fn);
+    },
   };
 }

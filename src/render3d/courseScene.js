@@ -4297,6 +4297,7 @@ export function makeCourseScene(canvas, state) {
     updateZoneField,
     rebuildObjects,
     rebuildPaths,
+    rebuildStructures,
     rebuildTrees,
     rebuildWater,
     rebuildFlowField,
