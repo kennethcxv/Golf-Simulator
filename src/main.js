@@ -1469,8 +1469,22 @@ function frame(ts) {
         } else if (ev.kind === 'soon') {
           toast(`📦 The ${ev.order.supplier || name} van is close — under an hour out.`);
         } else if (ev.kind === 'arrived') {
-          toast(`📦 Delivery! ${name} ×${ev.order.qty} — ${boxes} on the receiving pad.`);
-          if (audio.ready && audio.truck) audio.truck();
+          toast(`📦 Delivery inbound! ${name} ×${ev.order.qty} — the van is turning into receiving with ${boxes}.`);
+          const clubhouse = app.scene3d && app.scene3d.clubhouse
+            ? app.scene3d.clubhouse() : null;
+          const presented = clubhouse && clubhouse.presentDeliveryArrival
+            ? clubhouse.presentDeliveryArrival({
+              orderId: ev.order.id,
+              skuId: ev.order.skuId,
+              name,
+              qty: ev.order.qty,
+              boxCount: man ? man.boxCount : 1,
+              supplier: ev.order.supplier || man?.supplier || null,
+            })
+            : false;
+          // The authored runtime owns the brake-beat sound. Keep the old cue as
+          // a reliable fallback if the model is unavailable or the scene is rebuilding.
+          if (!presented && audio.ready && audio.truck) audio.truck();
         } else if (ev.kind === 'blocked') {
           // The receiving area is blocked. The van did not dump the boxes anyway, and it did not
           // quietly delete them either — the order is still out there and will try again.

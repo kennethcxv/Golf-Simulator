@@ -22,6 +22,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { closeTextureImages } from './resourceLifecycle.js';
 
 const FILES = [
   // goods
@@ -49,7 +50,8 @@ const FILES = [
   // Delivery hero carton (tools/blender/build_delivery_hero.py). The cutter is
   // loaded by the first-person tool rig, avoiding a duplicate GLB allocation.
   'delivery_apparel_box', 'delivery_generic_merchandise_box', 'delivery_golf_club_box',
-  'delivery_wooden_pallet',
+  'delivery_wooden_pallet', 'delivery_van', 'delivery_hand_truck',
+  'delivery_stocking_cart', 'delivery_pallet_jack',
   'delivery_packing_tape_roll', 'delivery_recycling_station',
 ];
 
@@ -170,7 +172,11 @@ export function createMerch(mats) {
 
   function disposeRootResources(root) {
     const resources = resourcesIn(root);
-    resources.textures.forEach((resource) => resource.dispose());
+    const closedImages = new Set();
+    resources.textures.forEach((resource) => {
+      closeTextureImages(resource, closedImages);
+      resource.dispose();
+    });
     resources.materials.forEach((resource) => resource.dispose());
     resources.geometries.forEach((resource) => resource.dispose());
     return {
@@ -460,9 +466,13 @@ export function createMerch(mats) {
       prototypeMaterials: prototypeMaterials.size,
       prototypeGeometries: prototypeGeometries.size,
     };
+    const closedImages = new Set();
     bakedGeometries.forEach((resource) => resource.dispose());
     tints.forEach((resource) => resource.dispose());
-    prototypeTextures.forEach((resource) => resource.dispose());
+    prototypeTextures.forEach((resource) => {
+      closeTextureImages(resource, closedImages);
+      resource.dispose();
+    });
     prototypeMaterials.forEach((resource) => resource.dispose());
     prototypeGeometries.forEach((resource) => resource.dispose());
 

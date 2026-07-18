@@ -13,7 +13,7 @@
 
 import * as THREE from 'three';
 import {
-  FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, LOGO_RUG, REGISTER, COUNTER_TOP,
+  FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, SHELL, LOGO_RUG, REGISTER, COUNTER_TOP,
 } from '../../data/shopLayout.js';
 import { restockShelfFromBackroom } from '../../sim/shop.js';
 import { skuById } from '../../data/shopItems.js';
@@ -24,6 +24,7 @@ import {
   collectMaterialResources, collectRenderableResources, disposeRenderableResources,
   mergeRenderableResources,
 } from './resourceLifecycle.js';
+import { DELIVERY_EQUIPMENT_DEFAULT_LAYOUT } from './deliveryEquipment.js';
 
 // warm under-shelf light strip (pure emissive — the real lights are the rig's)
 function lightStrip(mats, w) {
@@ -968,23 +969,9 @@ export function buildStockroomDressing(B) {
         }
       }
     }
-    // a stack by the receiving door, and the hand truck parked beside it
-    for (let i = 0; i < 3; i++) {
-      const box = merch.instantiate('carton');
-      if (!box) break;
-      box.scale.setScalar(0.9 + i * 0.06);
-      box.position.set(STOCKROOM.receivingInside.x + (i % 2) * 0.12,
-        i * 0.30, STOCKROOM.receivingInside.z + 0.5 + (i % 2) * 0.08);
-      box.rotation.y = 0.2 + i * 0.5;
-      dress.add(box);
-    }
-    const truck = merch.instantiate('handtruck');
-    if (truck) {
-      truck.position.set(STOCKROOM.handTruck.x, 0, STOCKROOM.handTruck.z);
-      truck.rotation.y = 1.9;
-      dress.add(truck);
-      addCol(colBoxAt(STOCKROOM.handTruck.x, STOCKROOM.handTruck.z, 0.5, 0.5));
-    }
+    // Real delivery boxes and the authored Ref42 hand truck own the receiving
+    // door area. Decorative cartons here looked like interactable inventory and
+    // the legacy handtruck duplicated the canonical delivery-equipment prop.
     interior.add(merch.bake(dress));
 
     // Sheet-04 storage totes, stacked where the work happens: a supply pair
@@ -1075,6 +1062,112 @@ export function buildStockroomDressing(B) {
   rec.position.set(INTERIOR.w / 2 - 0.04, 2.62, -3.6);
   rec.rotation.y = -Math.PI / 2;
   interior.add(rec);
+
+  // Give the cart-and-dolly corner a deliberate visual anchor. This restrained
+  // operations board replaces a large blank partition in the player view and
+  // makes the equipment zone legible from the stockroom doorway.
+  // The partition is a 0.25 m solid centered on x=5.7. Mount every layer from
+  // its actual stockroom face instead of embedding the sign inside that wall.
+  const operationsWallFaceX = STOCKROOM.bounds.minX + SHELL.wallT / 2;
+  const operationsBackingX = operationsWallFaceX + 0.026;
+  const operationsSignX = operationsWallFaceX + 0.052;
+  const operationsFrameX = operationsWallFaceX + 0.058;
+  const operationsTex = makeSignTexture(['BACKROOM OPERATIONS', 'CARTS  •  RECEIVING'], {
+    w: 640, h: 240, field: '#f1ecdc', ink: '#173f29', sizes: [58, 34],
+  });
+  const operationsBoard = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.92, 0.72),
+    new THREE.MeshStandardMaterial({
+      map: operationsTex,
+      roughness: 0.84,
+      side: THREE.DoubleSide,
+    }),
+  );
+  operationsBoard.name = 'BackroomOperationsBoard';
+  // Center the board behind the cart bay instead of the far hand-truck corner;
+  // from both stockroom doors this is the large otherwise-empty partition.
+  operationsBoard.position.set(operationsSignX, 1.68, -3.28);
+  operationsBoard.rotation.y = Math.PI / 2;
+  interior.add(operationsBoard);
+  const operationsBacking = new THREE.Mesh(
+    roundedBox(0.045, 0.84, 2.06, 0.025),
+    mats.greenPaint,
+  );
+  operationsBacking.name = 'BackroomOperationsBoardBacking';
+  operationsBacking.position.set(operationsBackingX, 1.68, -3.28);
+  interior.add(operationsBacking);
+  for (const [name, y, z, h, d] of [
+    ['Top', 2.085, -3.28, 0.035, 2.04],
+    ['Bottom', 1.275, -3.28, 0.035, 2.04],
+    ['North', 1.68, -4.282, 0.78, 0.035],
+    ['South', 1.68, -2.278, 0.78, 0.035],
+  ]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.026, h, d), mats.brass);
+    rail.name = `BackroomOperationsBoardFrame${name}`;
+    rail.position.set(operationsFrameX, y, z);
+    interior.add(rail);
+  }
+
+  const handTruckSafetyTex = makeSignTexture(['LOAD SAFELY', 'SECURE  •  TILT  •  MOVE'], {
+    w: 512, h: 224, field: '#173f29', ink: '#f1ecdc', accent: '#b89a4e',
+    secondaryInk: '#e3d8b7', sizes: [62, 30],
+  });
+  const handTruckSafety = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.15, 0.50),
+    new THREE.MeshStandardMaterial({
+      map: handTruckSafetyTex,
+      roughness: 0.84,
+      side: THREE.DoubleSide,
+    }),
+  );
+  handTruckSafety.name = 'HandTruckSafetyPlacard';
+  handTruckSafety.position.set(operationsSignX, 1.55, -5.72);
+  handTruckSafety.rotation.y = Math.PI / 2;
+  interior.add(handTruckSafety);
+  const handTruckSafetyBacking = new THREE.Mesh(
+    roundedBox(0.045, 0.60, 1.25, 0.025),
+    mats.walnut,
+  );
+  handTruckSafetyBacking.name = 'HandTruckSafetyPlacardBacking';
+  handTruckSafetyBacking.position.set(operationsBackingX, 1.55, -5.72);
+  interior.add(handTruckSafetyBacking);
+
+  const addEquipmentParkingBay = (layout, width, depth, name) => {
+    const bay = new THREE.Group();
+    bay.name = name;
+    bay.position.set(layout.x, 0.011, layout.z);
+    bay.rotation.y = layout.ry;
+    const thickness = 0.025;
+    for (const z of [-depth / 2, depth / 2]) {
+      const line = new THREE.Mesh(
+        new THREE.BoxGeometry(width, 0.008, thickness),
+        mats.brass,
+      );
+      line.position.z = z;
+      bay.add(line);
+    }
+    for (const x of [-width / 2, width / 2]) {
+      const line = new THREE.Mesh(
+        new THREE.BoxGeometry(thickness, 0.008, depth),
+        mats.brass,
+      );
+      line.position.x = x;
+      bay.add(line);
+    }
+    interior.add(bay);
+  };
+  addEquipmentParkingBay(
+    DELIVERY_EQUIPMENT_DEFAULT_LAYOUT.delivery_stocking_cart,
+    1.18,
+    0.68,
+    'StockingCartParkingBay',
+  );
+  addEquipmentParkingBay(
+    DELIVERY_EQUIPMENT_DEFAULT_LAYOUT.delivery_hand_truck,
+    0.72,
+    0.62,
+    'HandTruckParkingBay',
+  );
 }
 
 // ----------------------------------------------------------- checkout -------
@@ -1112,13 +1205,19 @@ export function buildCheckout(B) {
   addCol(colBoxAt(COUNTER.x, COUNTER.z, COUNTER.len + 0.3, COUNTER.depth + 0.2));
 
   if (merch) merch.onReady(() => {
-    // The finished checkout-kit counter (assets/checkout): charcoal top with alu
-    // trim, lit cream staff shelf, closed register cabinet under the POS block.
-    // Authored 2.60 x 0.85 m with the top at 0.95; non-uniform scale maps it onto
-    // the plan's 3.2 x 1.0 footprint with the top exactly at COUNTER_TOP.
-    const counter = merch.instantiateKit && merch.instantiateKit('checkout_counter');
+    // Prefer the current Blender production counter, retaining the older kit as
+    // a zero-network fallback while its prototype is unavailable.
+    const productionCounter = merch.instantiate && merch.instantiate('checkout_counter');
+    const counter = productionCounter
+      || (merch.instantiateKit && merch.instantiateKit('checkout_counter'));
     if (!counter) return;
-    counter.scale.set(COUNTER.len / 2.6, COUNTER_TOP / 0.95, COUNTER.depth / 0.85);
+    if (productionCounter) {
+      // Blender-authored at 3.10 m wide, 0.992 m deep, with the worktop at
+      // 1.015 m. Preserve that near-real-world shape while fitting the layout.
+      counter.scale.set(COUNTER.len / 3.10, COUNTER_TOP / 1.015, COUNTER.depth / 0.992);
+    } else {
+      counter.scale.set(COUNTER.len / 2.6, COUNTER_TOP / 0.95, COUNTER.depth / 0.85);
+    }
     counter.position.set(COUNTER.x, 0, COUNTER.z);
     interior.add(counter);
     releaseReplacedFixture(legacyCounter, mats, merch);

@@ -27,12 +27,16 @@ import {
 import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
   cutTape, openFlap, takeFromBox, flattenBox, recycleBox,
-  tapeCut, tapeUncut, flapsOpen, isEmpty, boxState,
+  tapeCut, tapeUncut, flapsOpen, isEmpty, boxState, boxAtStockroomLocation,
+  stockingCartPlacementForCarriedBox, PAD_CAPACITY,
 } from '../sim/deliveries.js';
 import {
   carriedGoods, stockFixture, storeInBack, carrySpeedFactor,
 } from '../sim/stocking.js';
 import { boxDims, boxKindFor } from '../data/boxes.js';
+import {
+  deliveryVanCargoOrientations, planDeliveryVanCargo,
+} from '../data/deliveryVanCargo.js';
 import {
   DELIVERY_PALLET_STAGING, deliveryPalletCentres, planPalletizedPadBoxes,
 } from '../data/deliveryStaging.js';
@@ -51,6 +55,10 @@ import {
 } from '../sim/customerIdentity.js';
 import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel } from './clubhouse/materials.js';
 import { createMerch } from './clubhouse/merch.js';
+import {
+  createDeliveryEquipment, DELIVERY_EQUIPMENT_DEFAULT_LAYOUT, DELIVERY_VAN_BEATS,
+  DELIVERY_VAN_ROUTE,
+} from './clubhouse/deliveryEquipment.js';
 import { createOwnedStockResources } from './clubhouse/stockResources.js';
 import { createRegisterItemResources } from './clubhouse/registerItemResources.js';
 import {
@@ -90,6 +98,44 @@ import {
 
 const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
+// The east pallet in row one has an unobstructed authored +Z approach. Its
+// persisted padPalletIndex remains the authority for which saved cartons move.
+const DELIVERY_PALLET_JACK_COUPLED_INDEX = 2;
+
+const DELIVERY_VAN_REAR_LOADING_ANCHOR = 'REAR_LOADING_ANCHOR';
+const DELIVERY_VAN_BOX_TRANSFER_SECONDS = 1.35;
+const DELIVERY_VAN_BOX_TRANSFER_STAGGER = 0.11;
+
+function deliveryBoxIdCompare(a, b) {
+  const an = Number(a?.id);
+  const bn = Number(b?.id);
+  if (Number.isSafeInteger(an) && Number.isSafeInteger(bn)) return an - bn;
+  return String(a?.id ?? '').localeCompare(String(b?.id ?? ''), undefined, { numeric: true });
+}
+
+// Compatibility view retained for focused renderer tests and diagnostics. The
+// data planner owns the physical volume, dimensions, support and overflow
+// policy; this helper simply exposes its first numbered van load.
+export function planPendingDeliveryVanCargo(boxes) {
+  return planDeliveryVanCargo(Array.isArray(boxes) ? boxes.filter(Boolean) : [])
+    .loads[0]?.placements || [];
+}
+
+// Compatibility rest summary. Shipping-safe orientations are defined once in
+// the pure cargo planner and consumed by both tests and runtime mounting.
+export function deliveryVanCargoRestPose(kind) {
+  const id = typeof kind === 'string' ? kind : kind?.id;
+  const orientation = deliveryVanCargoOrientations(id)[0];
+  return Object.freeze({
+    profile: orientation.profile,
+    rotationX: orientation.euler.x,
+    rotationY: orientation.euler.y,
+    rotationZ: orientation.euler.z,
+    packedHeight: orientation.orientedDimensions.y,
+    footprintLength: orientation.orientedDimensions.x,
+    footprintWidth: orientation.orientedDimensions.z,
+  });
+}
 
 export function makeClubhouse(ctx) {
   // ctx: { scene, camera, state, center:{x,z}, heightAt, walkProps, propColliders, walk, hooks }
@@ -185,6 +231,13 @@ export function makeClubhouse(ctx) {
   // exactly that dead zone once).
   const merch = createMerch(mats);
   let deliveryPadSurfaceY = null;
+  let deliveryVanBaySurfaceY = null;
+  let deliveryVanBayBounds = null;
+  let deliveryPalletStage = null;
+  let coupledDeliveryPalletAnchor = null;
+  let coupledDeliveryPalletAssetRoot = null;
+  let coupledDeliveryPalletCollider = null;
+  let coupledDeliveryPalletLiftOffset = 0;
   // legacy aliases: sections still awaiting their v2 pass draw from the kit
   const woodMat = mats.walnut;
   const darkMat = mats.walnutDark;
@@ -1092,26 +1145,9 @@ export function makeClubhouse(ctx) {
     interior.add(photoFrame);
   }
 
-  // stockroom dressing: hand truck, bin, receiving pad outside the back door
+  // stockroom delivery dressing: authored equipment is installed by the shared
+  // delivery-equipment runtime below; this block owns recycling and receiving.
   {
-    const truck = new THREE.Group();
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.4), darkMat);
-    plate.position.set(0, 0.04, 0.18);
-    truck.add(plate);
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.05), new THREE.MeshStandardMaterial({ color: 0xc23327, roughness: 0.55 }));
-    frame.position.set(0, 0.6, -0.02);
-    frame.rotation.x = -0.16;
-    truck.add(frame);
-    for (const wx of [-0.2, 0.2]) {
-      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.05, 10), darkMat);
-      wheel.rotation.z = Math.PI / 2;
-      wheel.position.set(wx, 0.11, -0.05);
-      truck.add(wheel);
-    }
-    truck.position.set(STOCKROOM.handTruck.x, 0, STOCKROOM.handTruck.z);
-    truck.rotation.y = 0.6;
-    interior.add(truck);
-
     const recyclingStation = new THREE.Group();
     recyclingStation.name = 'DeliveryRecyclingStation';
     recyclingStation.position.set(STOCKROOM.bin.x, 0, STOCKROOM.bin.z);
@@ -1158,6 +1194,254 @@ export function makeClubhouse(ctx) {
     pad.position.set(padWp.x, deliveryPadSurfaceY - apron.depth / 2, padWp.z);
     pad.receiveShadow = true;
     scene.add(pad);
+
+    // Paint the five physical receiving bays from the same offsets that own
+    // their pallet anchors. One top sheet is cheaper and harder to desynchronise
+    // than a collection of loose line meshes.
+    const apronCanvas = document.createElement('canvas');
+    apronCanvas.width = 1024;
+    apronCanvas.height = 640;
+    const apronInk = apronCanvas.getContext('2d');
+    apronInk.fillStyle = '#777970';
+    apronInk.fillRect(0, 0, apronCanvas.width, apronCanvas.height);
+    apronInk.strokeStyle = '#203f2b';
+    apronInk.lineWidth = 10;
+    apronInk.strokeRect(12, 12, apronCanvas.width - 24, apronCanvas.height - 24);
+    apronInk.strokeStyle = '#d0b061';
+    apronInk.lineWidth = 9;
+    apronInk.setLineDash([24, 14]);
+    const apronPxX = apronCanvas.width / apron.length;
+    const apronPxZ = apronCanvas.height / apron.width;
+    for (const offset of DELIVERY_PALLET_STAGING.offsets) {
+      const bayW = (DELIVERY_PALLET_STAGING.length + 0.10) * apronPxX;
+      const bayH = (DELIVERY_PALLET_STAGING.width + 0.10) * apronPxZ;
+      const bayX = (offset.x + apron.length / 2) * apronPxX - bayW / 2;
+      const bayY = (apron.width / 2 - offset.z) * apronPxZ - bayH / 2;
+      apronInk.strokeRect(bayX, bayY, bayW, bayH);
+    }
+    apronInk.setLineDash([]);
+    const apronTexture = new THREE.CanvasTexture(apronCanvas);
+    apronTexture.colorSpace = THREE.SRGBColorSpace;
+    const apronMarkings = new THREE.Mesh(
+      new THREE.PlaneGeometry(apron.length - 0.05, apron.width - 0.05),
+      new THREE.MeshStandardMaterial({ map: apronTexture, roughness: 0.94 }),
+    );
+    apronMarkings.name = 'DeliveryReceivingBayMarkings';
+    apronMarkings.rotation.x = -Math.PI / 2;
+    apronMarkings.position.set(padWp.x, deliveryPadSurfaceY + 0.002, padWp.z);
+    apronMarkings.receiveShadow = true;
+    scene.add(apronMarkings);
+
+    // Ref 41 parks beside receiving, not on the golf turf. The service bay is
+    // derived from the authored van envelope and its shared runtime layout, so
+    // it remains aligned if the presentation route is tuned later.
+    const vanLayout = DELIVERY_EQUIPMENT_DEFAULT_LAYOUT.delivery_van;
+    const vanBayWidth = 2.72;
+    const vanBayLength = 6.35;
+    const vanBayDepth = 0.065;
+    const vanBayWorld = L2W(vanLayout.x, vanLayout.z);
+    const vanBayTerrain = [];
+    for (const xFactor of [-1, -0.5, 0, 0.5, 1]) {
+      for (const zFactor of [-1, -0.66, -0.33, 0, 0.33, 0.66, 1]) {
+        const sample = L2W(
+          vanLayout.x + xFactor * vanBayWidth / 2,
+          vanLayout.z + zFactor * vanBayLength / 2,
+        );
+        const height = heightAt(sample.x, sample.z);
+        if (Number.isFinite(height)) vanBayTerrain.push(height);
+      }
+    }
+    // The course path is rendered slightly proud of the terrain. Lift the
+    // service slab enough to remain one continuous, readable pad where the two
+    // surfaces cross, while keeping the resulting curb below a normal step.
+    deliveryVanBaySurfaceY = Math.max(...vanBayTerrain) + 0.040;
+    deliveryVanBayBounds = Object.freeze({
+      minX: vanBayWorld.x - vanBayWidth / 2,
+      maxX: vanBayWorld.x + vanBayWidth / 2,
+      minZ: vanBayWorld.z - vanBayLength / 2,
+      maxZ: vanBayWorld.z + vanBayLength / 2,
+      centerX: vanBayWorld.x,
+      centerZ: vanBayWorld.z,
+      blend: 0.42,
+    });
+    const vanBay = new THREE.Mesh(
+      roundedBox(vanBayWidth, vanBayDepth, vanBayLength, 0.035),
+      new THREE.MeshStandardMaterial({ color: 0x50534d, roughness: 0.97 }),
+    );
+    vanBay.name = 'DeliveryVanServiceBay';
+    vanBay.userData.surfaceY = deliveryVanBaySurfaceY;
+    vanBay.userData.localCenter = { x: vanLayout.x, z: vanLayout.z };
+    vanBay.userData.dimensions = { width: vanBayWidth, length: vanBayLength, depth: vanBayDepth };
+    vanBay.position.set(
+      vanBayWorld.x,
+      deliveryVanBaySurfaceY - vanBayDepth / 2,
+      vanBayWorld.z,
+    );
+    vanBay.receiveShadow = true;
+    scene.add(vanBay);
+
+    // Ref 41 now follows a visible service route for its entire authored
+    // approach and departure instead of materialising from raw turf. Each
+    // direction is built as two terrain-conforming half-lanes: the four named
+    // meshes remain cheap and auditable, but meet at the centreline to read as
+    // one deliberate service drive instead of isolated debug wheel strips.
+    const makeServiceTrack = (name, localX, localZStart, localZEnd) => {
+      const segments = 24;
+      const width = vanBayWidth / 2;
+      const positions = [];
+      const uvs = [];
+      const indices = [];
+      for (let i = 0; i <= segments; i += 1) {
+        const t = i / segments;
+        const localZ = THREE.MathUtils.lerp(localZStart, localZEnd, t);
+        for (const side of [-0.5, 0.5]) {
+          const world = L2W(localX + side * width, localZ);
+          const terrainY = heightAt(world.x, world.z);
+          positions.push(world.x, (Number.isFinite(terrainY) ? terrainY : 0) + 0.022, world.z);
+          uvs.push(side + 0.5, t * 8);
+        }
+        if (i < segments) {
+          const a = i * 2;
+          indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+        }
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      const mesh = new THREE.Mesh(
+        geometry,
+        new THREE.MeshStandardMaterial({ color: 0x50534d, roughness: 0.98 }),
+      );
+      mesh.name = name;
+      mesh.receiveShadow = true;
+      return mesh;
+    };
+    const trackNearBayZ = vanBayLength / 2 - 0.18;
+    const routeApproachZ = vanLayout.z + Math.abs(DELIVERY_VAN_ROUTE.approachOffset.z) + 0.35;
+    const routeDepartureZ = vanLayout.z - Math.abs(DELIVERY_VAN_ROUTE.departureOffset.z) - 0.35;
+    const serviceTracks = new THREE.Group();
+    serviceTracks.name = 'DeliveryVanServiceDrive';
+    for (const [side, localX] of [
+      ['Left', vanLayout.x - vanBayWidth / 4],
+      ['Right', vanLayout.x + vanBayWidth / 4],
+    ]) {
+      serviceTracks.add(
+        makeServiceTrack(
+          `DeliveryVanApproachTrack${side}`,
+          localX,
+          vanLayout.z + trackNearBayZ,
+          routeApproachZ,
+        ),
+        makeServiceTrack(
+          `DeliveryVanDepartureTrack${side}`,
+          localX,
+          vanLayout.z - trackNearBayZ,
+          routeDepartureZ,
+        ),
+      );
+    }
+    scene.add(serviceTracks);
+
+    const bayCanvas = document.createElement('canvas');
+    bayCanvas.width = 512;
+    bayCanvas.height = 1024;
+    const bayInk = bayCanvas.getContext('2d');
+    bayInk.fillStyle = '#50534d';
+    bayInk.fillRect(0, 0, bayCanvas.width, bayCanvas.height);
+    bayInk.strokeStyle = '#b89a4e';
+    bayInk.lineWidth = 9;
+    bayInk.setLineDash([34, 20]);
+    for (const x of [55, bayCanvas.width - 55]) {
+      bayInk.beginPath();
+      bayInk.moveTo(x, 46);
+      bayInk.lineTo(x, bayCanvas.height - 46);
+      bayInk.stroke();
+    }
+    bayInk.setLineDash([]);
+    bayInk.strokeStyle = '#d7cfb2';
+    bayInk.lineWidth = 7;
+    bayInk.strokeRect(18, 18, bayCanvas.width - 36, bayCanvas.height - 36);
+    bayInk.fillStyle = '#d7cfb2';
+    bayInk.font = '700 46px sans-serif';
+    bayInk.textAlign = 'center';
+    bayInk.textBaseline = 'middle';
+    bayInk.fillText('DELIVERY', bayCanvas.width / 2, bayCanvas.height * 0.43);
+    bayInk.font = '600 30px sans-serif';
+    bayInk.fillText('RECEIVING ONLY', bayCanvas.width / 2, bayCanvas.height * 0.49);
+    bayInk.fillStyle = '#b89a4e';
+    bayInk.beginPath();
+    bayInk.moveTo(bayCanvas.width / 2, bayCanvas.height * 0.60);
+    bayInk.lineTo(bayCanvas.width / 2 - 46, bayCanvas.height * 0.67);
+    bayInk.lineTo(bayCanvas.width / 2 + 46, bayCanvas.height * 0.67);
+    bayInk.closePath();
+    bayInk.fill();
+    const bayTexture = new THREE.CanvasTexture(bayCanvas);
+    bayTexture.colorSpace = THREE.SRGBColorSpace;
+    bayTexture.anisotropy = 4;
+    const bayMarkings = new THREE.Mesh(
+      new THREE.PlaneGeometry(vanBayWidth - 0.05, vanBayLength - 0.05),
+      new THREE.MeshStandardMaterial({ map: bayTexture, roughness: 0.95 }),
+    );
+    bayMarkings.name = 'DeliveryVanServiceBayMarkings';
+    bayMarkings.rotation.x = -Math.PI / 2;
+    bayMarkings.position.set(vanBayWorld.x, deliveryVanBaySurfaceY + 0.002, vanBayWorld.z);
+    bayMarkings.receiveShadow = true;
+    scene.add(bayMarkings);
+
+    const transferStrip = new THREE.Mesh(
+      roundedBox(0.07, 0.018, apron.width - 0.32, 0.008),
+      new THREE.MeshStandardMaterial({ color: 0xb89a4e, roughness: 0.75, metalness: 0.12 }),
+    );
+    transferStrip.name = 'DeliveryApronVanBayTransferStrip';
+    transferStrip.position.set(
+      (padWp.x + apron.length / 2 + deliveryVanBayBounds.minX) / 2,
+      Math.max(deliveryPadSurfaceY, deliveryVanBaySurfaceY) + 0.007,
+      padWp.z,
+    );
+    transferStrip.receiveShadow = true;
+    scene.add(transferStrip);
+
+    // Join the slab to the service threshold. The previous grass strip made
+    // the loading area read as a detached display instead of a usable route.
+    const connectorNearZ = STOCKROOM.padOutside.z - apron.width / 2;
+    const connectorFarZ = DOOR_BACK.z;
+    const connectorCentre = L2W(
+      INTERIOR.w / 2 + 0.45,
+      (connectorNearZ + connectorFarZ) / 2,
+    );
+    const connectorDepth = apron.depth * 0.78;
+    const connectorRun = connectorNearZ - connectorFarZ;
+    const connectorRise = deliveryPadSurfaceY - floorY;
+    const connectorLength = Math.hypot(connectorRun, connectorRise);
+    // roundedBox's long axis is local +Z. Rotating about X aligns that axis
+    // with the two top-surface endpoints without extending beneath either
+    // surface, so the apron edge cannot z-fight a coplanar overlap strip.
+    const connectorPitch = Math.atan2(-connectorRise, connectorRun);
+    const connector = new THREE.Mesh(
+      roundedBox(
+        0.92,
+        connectorDepth,
+        connectorLength,
+        0.025,
+      ),
+      new THREE.MeshStandardMaterial({ color: 0x73736b, roughness: 0.96 }),
+    );
+    connector.name = 'DeliveryReceivingThresholdConnector';
+    connector.rotation.x = connectorPitch;
+    connector.position.set(
+      connectorCentre.x,
+      (deliveryPadSurfaceY + floorY) / 2
+        - Math.cos(connectorPitch) * connectorDepth / 2,
+      connectorCentre.z,
+    );
+    connector.userData.padSurfaceY = deliveryPadSurfaceY;
+    connector.userData.floorSurfaceY = floorY;
+    connector.userData.localNearZ = connectorNearZ;
+    connector.userData.localFarZ = connectorFarZ;
+    connector.receiveShadow = true;
+    scene.add(connector);
     const drainage = new THREE.Mesh(
       new THREE.BoxGeometry(0.075, 0.012, apron.width - 0.30),
       new THREE.MeshStandardMaterial({ color: 0x353934, roughness: 0.82, metalness: 0.18 }),
@@ -1171,21 +1455,57 @@ export function makeClubhouse(ctx) {
     drainage.receiveShadow = true;
     scene.add(drainage);
     ctx.extraMeshes = ctx.extraMeshes || [];
-    ctx.extraMeshes.push(pad, drainage);
+    ctx.extraMeshes.push(
+      pad, apronMarkings, connector, drainage,
+      vanBay, bayMarkings, transferStrip, serviceTracks,
+    );
+
+    // The interior plaque helps once the player is in the stockroom; this
+    // exterior marker makes the service entrance legible from the van, road,
+    // and pallet apron as one deliberate receiving zone.
+    const receivingSign = new THREE.Group();
+    receivingSign.name = 'DeliveryReceivingExteriorSign';
+    receivingSign.position.set(halfW + 0.10, FLOOR_TOP + DOOR_BACK.h + 0.42, DOOR_BACK.z);
+    group.add(receivingSign);
+    const receivingBack = new THREE.Mesh(
+      roundedBox(0.08, 0.68, 1.62, 0.025),
+      mats.greenPaint,
+    );
+    receivingBack.name = 'DeliveryReceivingExteriorSignBack';
+    receivingBack.castShadow = true;
+    receivingSign.add(receivingBack);
+    const receivingTexture = makeSignTexture(['RECEIVING', 'FAIRWAY SUPPLY'], {
+      w: 512,
+      h: 224,
+      field: '#f1ecdc',
+      ink: '#173f29',
+      accent: '#b89a4e',
+      sizes: [64, 35],
+    });
+    const receivingFace = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.48, 0.56),
+      new THREE.MeshStandardMaterial({ map: receivingTexture, roughness: 0.82 }),
+    );
+    receivingFace.name = 'DeliveryReceivingExteriorSignFace';
+    receivingFace.position.x = 0.041;
+    receivingFace.rotation.y = Math.PI / 2;
+    receivingSign.add(receivingFace);
 
     // Five exact ref-44 pallets bound the nine-box receiving capacity to two
-    // cartons high. Their visible meshes are baked together from the authored
-    // GLB; lightweight anchors retain physical identity and collision.
-    const palletStage = new THREE.Group();
-    palletStage.name = 'DeliveryPalletStage';
-    palletStage.userData.ready = false;
-    scene.add(palletStage);
-    ctx.extraMeshes.push(palletStage);
+    // cartons high. Four fixed controls share one baked visual; pallet index 2
+    // stays as an authored hierarchy so Ref 45 can lift the real pallet rather
+    // than animating its forks beneath a static duplicate.
+    deliveryPalletStage = new THREE.Group();
+    deliveryPalletStage.name = 'DeliveryPalletStage';
+    deliveryPalletStage.userData.ready = false;
+    scene.add(deliveryPalletStage);
+    ctx.extraMeshes.push(deliveryPalletStage);
     merch.onReady(() => {
-      if (!palletStage.parent || palletStage.userData.ready) return;
+      if (!deliveryPalletStage?.parent || deliveryPalletStage.userData.ready) return;
       const visualSources = new THREE.Group();
       visualSources.name = 'DeliveryPalletBakeSources';
       let authoredCount = 0;
+      let batchedCount = 0;
       for (const centre of deliveryPalletCentres()) {
         // Ref 44 owns a deliberately pale, matte shipping-oak palette. Keep its
         // authored materials instead of remapping M_NaturalOak/M_Walnut onto the
@@ -1193,9 +1513,6 @@ export function makeClubhouse(ctx) {
         const pallet = merch.instantiateRaw(DELIVERY_PALLET_STAGING.model);
         if (!pallet) continue;
         const world = L2W(centre.x, centre.z);
-        pallet.position.set(world.x, deliveryPadSurfaceY, world.z);
-        pallet.rotation.y = centre.ry;
-        visualSources.add(pallet);
 
         const anchor = new THREE.Group();
         anchor.name = `DeliveryPallet_${centre.palletIndex + 1}`;
@@ -1209,7 +1526,32 @@ export function makeClubhouse(ctx) {
           DELIVERY_PALLET_STAGING.height,
           DELIVERY_PALLET_STAGING.width,
         ];
-        palletStage.add(anchor);
+        deliveryPalletStage.add(anchor);
+
+        if (centre.palletIndex === DELIVERY_PALLET_JACK_COUPLED_INDEX) {
+          // Raw clones retain authoring helpers because the fixed pallets only
+          // hide them during bake. Explicitly suppress those proxies on the one
+          // articulated clone that remains in the live scene.
+          pallet.traverse((object) => {
+            if (object.isMesh && (
+              object.userData?.helper
+              || object.userData?.collision_proxy
+              || /^(?:COL_|COLLISION_|VOLUME_)/i.test(String(object.name || ''))
+            )) object.visible = false;
+          });
+          pallet.name = 'DeliveryPalletCoupledVisual';
+          pallet.position.set(0, 0, 0);
+          pallet.rotation.set(0, 0, 0);
+          anchor.add(pallet);
+          coupledDeliveryPalletAnchor = anchor;
+          coupledDeliveryPalletAssetRoot = pallet.getObjectByName(DELIVERY_PALLET_STAGING.model)
+            || pallet;
+        } else {
+          pallet.position.set(world.x, deliveryPadSurfaceY, world.z);
+          pallet.rotation.y = centre.ry;
+          visualSources.add(pallet);
+          batchedCount += 1;
+        }
         authoredCount += 1;
         const collider = colBoxAt(
           centre.x, centre.z,
@@ -1217,14 +1559,21 @@ export function makeClubhouse(ctx) {
         );
         collider.kind = 'delivery-pallet';
         collider.palletIndex = centre.palletIndex;
+        collider.minY = deliveryPadSurfaceY;
+        collider.maxY = deliveryPadSurfaceY + DELIVERY_PALLET_STAGING.height;
         addCol(collider);
+        if (centre.palletIndex === DELIVERY_PALLET_JACK_COUPLED_INDEX) {
+          coupledDeliveryPalletCollider = collider;
+        }
       }
       if (authoredCount !== DELIVERY_PALLET_STAGING.count) return;
       const baked = merch.bake(visualSources, { visibleOnly: true });
       baked.name = 'DeliveryPalletBatchedVisuals';
-      palletStage.add(baked);
-      palletStage.userData.authoredPalletCount = authoredCount;
-      palletStage.userData.ready = true;
+      deliveryPalletStage.add(baked);
+      deliveryPalletStage.userData.authoredPalletCount = authoredCount;
+      deliveryPalletStage.userData.batchedPalletCount = batchedCount;
+      deliveryPalletStage.userData.coupledPalletIndex = DELIVERY_PALLET_JACK_COUPLED_INDEX;
+      deliveryPalletStage.userData.ready = true;
     });
   }
 
@@ -2123,12 +2472,23 @@ export function makeClubhouse(ctx) {
   // Nothing teleports. The state lives in the sim (sim/deliveries.js, sim/stocking.js); this draws
   // it and turns [E] into the right verb for whatever the box is currently doing.
   const boxGroup = new THREE.Group();
+  boxGroup.name = 'DeliveryBoxWorldRoot';
   scene.add(boxGroup);
   let carriedBoxMesh = null;
   let carriedGoodsMesh = null;
   const boxProps = new Map();   // id -> prop, reused across rebuilds so a hold survives a redraw
   const boxCols = new Map();    // id -> { col, sig } — a set-down box is a real obstacle, tracked here
   const boxViews = new Map();
+  const deliveryBoxTransfers = new Map();
+  const deliveryBoxTransferHistory = [];
+  let deliveryTransferBatch = null;
+  const deliveryPendingBoxIds = new Set();
+  const deliveryLoadPlansByArrivalId = new Map();
+  let deliveryActiveLoad = null;
+  let deliveryCargoSnapshot = Object.freeze({
+    orderId: null, arrivalId: null, loadId: null, loadIndex: null, loadCount: 0,
+    planned: [], overflowBoxIds: [],
+  });
   let exposedPadBoxIds = new Set(); // only the top carton in each pallet stack is reachable
   const boxOpeningAnimations = new Set();
   const boxOpeningPhases = new Map();
@@ -2179,7 +2539,7 @@ export function makeClubhouse(ctx) {
         hand.position.set(side * (dim.w * 0.19), -0.49 - side * 0.050, -1.30 - side * 0.24);
         hand.rotation.set(-0.22, side * 0.08, side * -0.34);
       } else {
-        hand.position.set(side * (dim.w * 0.5 + 0.018), -0.54, -0.73);
+        hand.position.set(side * (dim.w * 0.5 + 0.018), -0.62, -0.88);
         hand.rotation.set(-0.16, side * 0.12, side * -0.24);
       }
     }
@@ -2379,11 +2739,21 @@ export function makeClubhouse(ctx) {
     return g;
   }
 
+  // Refs 41/42/43/45 are loaded through the same merchandise cache but keep
+  // their authored pivots at runtime. The reference is assigned after the box
+  // helpers are initialized and before the first boot rebuild.
+  let deliveryEquipment = null;
+  const deliveryArrivalHandles = new Set();
+  const deliveryArrivalPresentations = new Map();
+  const registeredDeliveryEquipmentIds = new Set();
+  const deliveryEquipmentColliders = [];
+  let deliveryVanColliders = new Map();
+
   function boxSignature() {
     const d = state.shop.deliveries;
     if (!d) return '';
     const c = state.shop.carry;
-    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}:${b.padPalletIndex ?? ''}:${b.padStagingOverflow ? 1 : 0}:${b.tape || 0}:${(b.flapProgress || b.flaps || [0, 0, 0, 0]).join(',')}:${b.qty}:${b.flat ? 1 : 0}:${b.flattenProgress || 0}:${b.lifecycle || ''}`).join(',')
+    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}:${b.equipmentId || ''}:${b.socketId || ''}:${b.padPalletIndex ?? ''}:${b.padStagingOverflow ? 1 : 0}:${b.tape || 0}:${(b.flapProgress || b.flaps || [0, 0, 0, 0]).join(',')}:${b.qty}:${b.flat ? 1 : 0}:${b.flattenProgress || 0}:${b.lifecycle || ''}`).join(',')
       + '|' + (c ? c.skuId + c.qty : '') + '|' + d.trash;
   }
 
@@ -2649,6 +3019,441 @@ export function makeClubhouse(ctx) {
     rebuildBoxes();
   }
 
+  function deliveryOrderPending(box) {
+    return !!(box && deliveryPendingBoxIds.has(box.id));
+  }
+
+  function equipmentBoxPlacement(box) {
+    if (!deliveryEquipment || box?.loc !== 'equipment') return null;
+    const socket = deliveryEquipment.socketWorldPose(box.equipmentId, box.socketId);
+    const equipmentRoot = deliveryEquipment.rootFor(box.equipmentId);
+    if (!socket || !equipmentRoot) return null;
+    equipmentRoot.updateWorldMatrix(true, false);
+    const worldRotation = equipmentRoot.getWorldQuaternion(new THREE.Quaternion());
+    const yaw = new THREE.Euler().setFromQuaternion(worldRotation, 'YXZ').y;
+    const local = W2L(socket.position.x, socket.position.z);
+    return {
+      lx: local.x,
+      lz: local.z,
+      ry: yaw,
+      x: socket.position.x,
+      y: socket.position.y,
+      z: socket.position.z,
+    };
+  }
+
+  function sameDeliveryOrder(box, orderId) {
+    return box?.orderId != null && orderId != null
+      && String(box.orderId) === String(orderId);
+  }
+
+  function clearDeliveryBoxPresentationState(root) {
+    if (!root) return;
+    for (const key of [
+      'deliveryPresentationState', 'deliveryCargoSocket', 'deliveryCargoTier',
+      'deliveryCargoOrderId', 'deliveryCargoRestProfile', 'deliveryCargoClearanceSafe',
+      'deliveryCargoAnchorError', 'deliveryCargoLoadId', 'deliveryCargoPlacementIndex',
+      'deliveryTransferProgress', 'deliveryTransferPhase', 'deliveryInteractionEnabled',
+    ]) delete root.userData[key];
+  }
+
+  function cargoRootLocalPose(box, placement) {
+    const dimensions = boxDims(box?.box);
+    const quaternion = new THREE.Quaternion(
+      placement.localQuaternion.x,
+      placement.localQuaternion.y,
+      placement.localQuaternion.z,
+      placement.localQuaternion.w,
+    ).normalize();
+    // Delivery visuals use a floor-centred root. The planner describes the
+    // oriented AABB centre, so rotate the source centre and subtract it to
+    // recover the exact root pose for upright, side-rest and broad-rest cases.
+    const rotatedSourceCentre = new THREE.Vector3(0, dimensions.h / 2, 0)
+      .applyQuaternion(quaternion);
+    const position = new THREE.Vector3(
+      placement.localPosition.x,
+      placement.localPosition.y,
+      placement.localPosition.z,
+    ).sub(rotatedSourceCentre);
+    return { position, quaternion };
+  }
+
+  function mountDeliveryCargoBox(box, placement, loadContext) {
+    if (!deliveryEquipment) return null;
+    const vanRoot = deliveryEquipment.rootFor('delivery_van');
+    const modelRoot = deliveryEquipment.modelRootFor('delivery_van');
+    if (!vanRoot || !modelRoot) return null;
+    const view = ensureBoxView(box);
+    const root = view.root;
+    const pose = cargoRootLocalPose(box, placement);
+    const authoredLocal = new THREE.Matrix4().compose(
+      pose.position, pose.quaternion, new THREE.Vector3(1, 1, 1),
+    );
+    modelRoot.updateWorldMatrix(true, false);
+    const desiredWorld = modelRoot.matrixWorld.clone().multiply(authoredLocal);
+    vanRoot.updateWorldMatrix(true, false);
+    const local = vanRoot.matrixWorld.clone().invert().multiply(desiredWorld);
+    vanRoot.add(root);
+    local.decompose(root.position, root.quaternion, root.scale);
+    root.visible = true;
+    root.userData.deliveryPresentationState = 'van-cargo-pending';
+    root.userData.deliveryCargoLoadId = placement.loadId;
+    root.userData.deliveryCargoPlacementIndex = placement.placementIndex;
+    root.userData.deliveryCargoOrderId = box.orderId;
+    root.userData.deliveryCargoRestProfile = placement.restProfile;
+    root.userData.deliveryCargoClearanceSafe = placement.withinBounds;
+    root.userData.deliveryInteractionEnabled = false;
+    root.updateWorldMatrix(true, false);
+    root.userData.deliveryCargoAnchorError = root.matrixWorld.elements.reduce(
+      (error, value, index) => Math.max(error, Math.abs(value - desiredWorld.elements[index])), 0,
+    );
+    return { root, placement, loadContext };
+  }
+
+  function mountDeliveryCargoLoad(loadContext) {
+    if (!loadContext) return new Set();
+    const boxById = new Map(boxesOf(state).map((box) => [box.id, box]));
+    const mounted = new Set();
+    const planned = [];
+    for (const placement of loadContext.placements) {
+      const box = boxById.get(placement.boxId);
+      if (!box) continue;
+      const result = mountDeliveryCargoBox(box, placement, loadContext);
+      if (result) mounted.add(box.id);
+      planned.push(Object.freeze({
+        boxId: placement.boxId,
+        loadId: placement.loadId,
+        loadIndex: placement.loadIndex,
+        loadSequence: placement.loadSequence,
+        placementIndex: placement.placementIndex,
+        orientationId: placement.orientationId,
+        restProfile: placement.restProfile,
+        localPosition: Object.freeze({ ...placement.localPosition }),
+        localQuaternion: Object.freeze({ ...placement.localQuaternion }),
+        orientedDimensions: Object.freeze({ ...placement.orientedDimensions }),
+        support: Object.freeze({ ...placement.support }),
+        clearance: Object.freeze({
+          ...placement.clearance,
+          faces: Object.freeze({ ...placement.clearance.faces }),
+        }),
+        mounted: !!result,
+        clearanceSafe: placement.withinBounds,
+      }));
+    }
+    deliveryCargoSnapshot = Object.freeze({
+      orderId: loadContext.authorityOrderId,
+      arrivalId: loadContext.arrivalId,
+      loadId: loadContext.loadId,
+      loadIndex: loadContext.loadIndex,
+      loadCount: loadContext.loadCount,
+      planned: Object.freeze(planned),
+      overflowBoxIds: Object.freeze([...loadContext.remainingBoxIds]),
+    });
+    return mounted;
+  }
+
+  function deliveryPadTransferTarget(box, padPlans) {
+    const plan = padPlans.get(box.id);
+    if (!plan) return null;
+    const wp = L2W(plan.x, plan.z);
+    const gy = Number.isFinite(deliveryPadSurfaceY)
+      ? deliveryPadSurfaceY : groundYAt(wp.x, wp.z);
+    const surfaceY = gy !== null && gy !== undefined
+      ? gy : heightAt(wp.x, wp.z) + 0.02;
+    const baseY = surfaceY + (plan.baseY || 0);
+    const lift = plan.palletIndex === DELIVERY_PALLET_JACK_COUPLED_INDEX
+      ? coupledDeliveryPalletLiftOffset : 0;
+    const worldMatrix = new THREE.Matrix4().compose(
+      new THREE.Vector3(wp.x, baseY + lift, wp.z),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, plan.ry, 0)),
+      new THREE.Vector3(1, 1, 1),
+    );
+    boxGroup.updateWorldMatrix(true, false);
+    const local = boxGroup.matrixWorld.clone().invert().multiply(worldMatrix);
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+    local.decompose(position, quaternion, scale);
+    return {
+      position, quaternion, scale,
+      baseY: position.y - lift,
+      palletIndex: plan.palletIndex,
+    };
+  }
+
+  function deliveryTransferWaypoints(root, placement, target) {
+    const anchor = deliveryEquipment?.nodeWorldPose(
+      'delivery_van', DELIVERY_VAN_REAR_LOADING_ANCHOR,
+    );
+    const modelRoot = deliveryEquipment?.modelRootFor('delivery_van');
+    if (!anchor || !modelRoot) return null;
+    root.updateWorldMatrix(true, false);
+    boxGroup.updateWorldMatrix(true, false);
+    modelRoot.updateWorldMatrix(true, false);
+    const startWorld = root.getWorldPosition(new THREE.Vector3());
+    const modelRotation = modelRoot.getWorldQuaternion(new THREE.Quaternion());
+    const rearDirection = new THREE.Vector3(1, 0, 0).applyQuaternion(modelRotation).normalize();
+    const lateralDirection = new THREE.Vector3(0, 0, 1).applyQuaternion(modelRotation).normalize();
+    const laneOffset = clamp(Number(placement.localPosition.z) || 0, -0.42, 0.42);
+    const apertureWorld = anchor.position.clone().addScaledVector(lateralDirection, laneOffset);
+    apertureWorld.y = Math.max(apertureWorld.y + 0.06, startWorld.y);
+    const outsideWorld = apertureWorld.clone().addScaledVector(rearDirection, 0.88);
+    outsideWorld.y = apertureWorld.y + 0.06;
+    const targetWorld = boxGroup.localToWorld(target.position.clone());
+    const aboveTargetWorld = targetWorld.clone();
+    aboveTargetWorld.y += 0.44;
+    const asLocal = (world) => boxGroup.worldToLocal(world.clone());
+    return Object.freeze({
+      mode: 'rear-aperture-piecewise',
+      start: asLocal(startWorld),
+      aperture: asLocal(apertureWorld),
+      outside: asLocal(outsideWorld),
+      aboveTarget: asLocal(aboveTargetWorld),
+      target: target.position.clone(),
+      world: Object.freeze({
+        aperture: Object.freeze(apertureWorld.toArray()),
+        outside: Object.freeze(outsideWorld.toArray()),
+        aboveTarget: Object.freeze(aboveTargetWorld.toArray()),
+      }),
+    });
+  }
+
+  function beginDeliveryBoxTransfers(loadContext) {
+    if (!loadContext) return 0;
+    const allBoxes = boxesOf(state);
+    const loadIds = new Set(loadContext.boxIds);
+    const cargoBoxes = allBoxes.filter((box) => box.loc === 'pad' && loadIds.has(box.id));
+    if (!cargoBoxes.length) return 0;
+    // Reapply the measured load once at the UNLOAD boundary, then reveal only
+    // these exact identities. Later numbered trips for the same order remain
+    // hidden and cannot become interactive early.
+    mountDeliveryCargoLoad(loadContext);
+    for (const boxId of loadContext.boxIds) deliveryPendingBoxIds.delete(boxId);
+    const padPlans = new Map(planPalletizedPadBoxes(
+      allBoxes.filter((box) => box.loc === 'pad' && !deliveryOrderPending(box)),
+      {
+        palletHeight: scene.getObjectByName('DeliveryPalletStage')?.userData.ready
+          ? DELIVERY_PALLET_STAGING.height : 0,
+      },
+    ).map((plan) => [plan.boxId, plan]));
+    let started = 0;
+    // Reverse packing order unloads top/light supports before the boxes below.
+    const placements = [...loadContext.placements]
+      .sort((a, b) => b.placementIndex - a.placementIndex);
+    for (const placement of placements) {
+      const box = cargoBoxes.find((candidate) => candidate.id === placement.boxId);
+      const root = boxViews.get(placement.boxId)?.root;
+      const target = box && deliveryPadTransferTarget(box, padPlans);
+      if (!box || !root || !target) continue;
+      root.updateWorldMatrix(true, false);
+      const worldStart = root.getWorldPosition(new THREE.Vector3());
+      boxGroup.attach(root);
+      root.updateWorldMatrix(true, false);
+      const reparentError = root.getWorldPosition(new THREE.Vector3()).distanceTo(worldStart);
+      root.userData.deliveryPresentationState = 'unloading-transfer';
+      root.userData.deliveryTransferProgress = 0;
+      root.userData.deliveryTransferPhase = 'cargo-to-aperture';
+      root.userData.deliveryInteractionEnabled = false;
+      const existingProp = boxProps.get(box.id);
+      if (existingProp) { removeProp(existingProp); boxProps.delete(box.id); }
+      const existingCollider = boxCols.get(box.id);
+      if (existingCollider) { removeCol(existingCollider.col); boxCols.delete(box.id); }
+      const waypoints = deliveryTransferWaypoints(root, placement, target);
+      if (!waypoints) continue;
+      deliveryBoxTransfers.set(box.id, {
+        boxId: box.id,
+        orderId: box.orderId,
+        loadId: loadContext.loadId,
+        loadIndex: loadContext.loadIndex,
+        placementIndex: placement.placementIndex,
+        orientationId: placement.orientationId,
+        root,
+        elapsed: -started * DELIVERY_VAN_BOX_TRANSFER_STAGGER,
+        duration: DELIVERY_VAN_BOX_TRANSFER_SECONDS,
+        startPosition: root.position.clone(),
+        startQuaternion: root.quaternion.clone(),
+        startScale: root.scale.clone(),
+        targetPosition: target.position.clone(),
+        targetQuaternion: target.quaternion,
+        targetScale: target.scale,
+        targetBaseY: target.baseY,
+        palletIndex: target.palletIndex,
+        waypoints,
+        reparentError,
+      });
+      started += 1;
+    }
+    deliveryTransferBatch = started > 0 ? {
+      loadId: loadContext.loadId,
+      loadIndex: loadContext.loadIndex,
+      loadCount: loadContext.loadCount,
+      expected: started,
+      completed: 0,
+      elapsed: 0,
+      finalMessage: null,
+    } : null;
+    return started;
+  }
+
+  function updateDeliveryBoxTransfers(dt) {
+    if (deliveryTransferBatch) {
+      deliveryTransferBatch.elapsed += dt;
+      // The ordinary toast lifetime is 2.6 s plus its fade. Hold the completion
+      // note until the in-progress note has actually cleared instead of stacking
+      // two contradictory delivery states in the same player-camera frame.
+      if (deliveryTransferBatch.finalMessage && deliveryTransferBatch.elapsed >= 3.05) {
+        say(deliveryTransferBatch.finalMessage);
+        deliveryTransferBatch = null;
+      }
+    }
+    if (!deliveryBoxTransfers.size) return;
+    const current = new Map(boxesOf(state).map((box) => [box.id, box]));
+    let rebuild = false;
+    for (const [boxId, transfer] of deliveryBoxTransfers) {
+      const box = current.get(boxId);
+      if (!box || box.loc !== 'pad') {
+        deliveryBoxTransfers.delete(boxId);
+        rebuild = true;
+        continue;
+      }
+      transfer.elapsed = Math.min(transfer.duration, transfer.elapsed + dt);
+      const linear = clamp(transfer.elapsed / transfer.duration, 0, 1);
+      const eased = linear * linear * (3 - 2 * linear);
+      const lift = transfer.palletIndex === DELIVERY_PALLET_JACK_COUPLED_INDEX
+        ? coupledDeliveryPalletLiftOffset : 0;
+      transfer.targetPosition.y = transfer.targetBaseY + lift;
+      transfer.waypoints.target.copy(transfer.targetPosition);
+      transfer.waypoints.aboveTarget.x = transfer.targetPosition.x;
+      transfer.waypoints.aboveTarget.z = transfer.targetPosition.z;
+      transfer.waypoints.aboveTarget.y = transfer.targetPosition.y + 0.44;
+      let phase = 'cargo-to-aperture';
+      let segment = 0;
+      let from = transfer.waypoints.start;
+      let to = transfer.waypoints.aperture;
+      if (linear < 0.30) {
+        segment = linear / 0.30;
+      } else if (linear < 0.52) {
+        phase = 'through-aperture';
+        segment = (linear - 0.30) / 0.22;
+        from = transfer.waypoints.aperture;
+        to = transfer.waypoints.outside;
+      } else if (linear < 0.84) {
+        phase = 'outside-to-pallet';
+        segment = (linear - 0.52) / 0.32;
+        from = transfer.waypoints.outside;
+        to = transfer.waypoints.aboveTarget;
+      } else {
+        phase = 'pallet-settle';
+        segment = (linear - 0.84) / 0.16;
+        from = transfer.waypoints.aboveTarget;
+        to = transfer.waypoints.target;
+      }
+      const segmentEased = segment * segment * (3 - 2 * segment);
+      transfer.root.position.lerpVectors(from, to, segmentEased);
+      if (phase === 'outside-to-pallet') {
+        transfer.root.position.y += Math.sin(Math.PI * segmentEased) * 0.20;
+      }
+      const rotateProgress = clamp((linear - 0.48) / 0.36, 0, 1);
+      const rotateEased = rotateProgress * rotateProgress * (3 - 2 * rotateProgress);
+      transfer.root.quaternion.slerpQuaternions(
+        transfer.startQuaternion, transfer.targetQuaternion, rotateEased,
+      );
+      transfer.root.scale.lerpVectors(transfer.startScale, transfer.targetScale, eased);
+      transfer.root.userData.deliveryTransferProgress = linear;
+      transfer.root.userData.deliveryTransferPhase = phase;
+      if (linear < 1) continue;
+      transfer.root.position.copy(transfer.targetPosition);
+      transfer.root.quaternion.copy(transfer.targetQuaternion);
+      transfer.root.scale.copy(transfer.targetScale);
+      transfer.root.userData.deliveryPresentationState = 'pallet-landed';
+      transfer.root.userData.deliveryInteractionEnabled = false;
+      deliveryBoxTransfers.delete(boxId);
+      deliveryBoxTransferHistory.push(Object.freeze({
+        boxId,
+        orderId: transfer.orderId,
+        loadId: transfer.loadId,
+        loadIndex: transfer.loadIndex,
+        placementIndex: transfer.placementIndex,
+        orientationId: transfer.orientationId,
+        pathMode: transfer.waypoints.mode,
+        duration: transfer.duration,
+        palletIndex: transfer.palletIndex,
+        reparentError: transfer.reparentError,
+        waypoints: transfer.waypoints.world,
+        target: Object.freeze(transfer.targetPosition.toArray()),
+      }));
+      if (deliveryBoxTransferHistory.length > 64) deliveryBoxTransferHistory.shift();
+      if (deliveryTransferBatch?.loadId === transfer.loadId) {
+        deliveryTransferBatch.completed += 1;
+      }
+      rebuild = true;
+    }
+    if (rebuild) rebuildBoxes();
+    if (deliveryTransferBatch && ![...deliveryBoxTransfers.values()]
+      .some((transfer) => transfer.loadId === deliveryTransferBatch.loadId)) {
+      const { expected, completed, loadIndex, loadCount } = deliveryTransferBatch;
+      const trip = loadCount > 1 ? ` (load ${loadIndex + 1} of ${loadCount})` : '';
+      if (completed === expected) {
+        sfx('boxdown');
+        deliveryTransferBatch.finalMessage = `${completed} carton${completed === 1 ? '' : 's'} staged safely on the receiving pallets${trip}.`;
+      } else {
+        say(`Carton transfer interrupted; ${completed} of ${expected} reached receiving${trip}.`);
+        deliveryTransferBatch = null;
+      }
+    }
+  }
+
+  function deliveryBoxPresentationDiagnostics() {
+    const cargoIds = new Set(deliveryCargoSnapshot.planned.map((entry) => entry.boxId));
+    const pending = boxesOf(state).filter(deliveryOrderPending).map((box) => ({
+      boxId: box.id,
+      orderId: box.orderId,
+      activeCargo: cargoIds.has(box.id)
+        && boxViews.get(box.id)?.root?.userData?.deliveryPresentationState === 'van-cargo-pending',
+      viewMounted: boxViews.has(box.id),
+      interactionEnabled: boxProps.has(box.id),
+      colliderEnabled: boxCols.has(box.id),
+    }));
+    return {
+      quantityAuthority: 'state.shop.deliveries.boxes',
+      capacity: PAD_CAPACITY,
+      cargoPlanner: 'dimension-aware-ref41-volume-v1',
+      transferDurationSeconds: DELIVERY_VAN_BOX_TRANSFER_SECONDS,
+      cargoOrderId: deliveryCargoSnapshot.orderId,
+      cargoArrivalId: deliveryCargoSnapshot.arrivalId,
+      cargoLoadId: deliveryCargoSnapshot.loadId,
+      cargoLoadIndex: deliveryCargoSnapshot.loadIndex,
+      cargoLoadCount: deliveryCargoSnapshot.loadCount,
+      pending,
+      cargo: deliveryCargoSnapshot.planned.map((entry) => ({
+        ...entry,
+        state: boxViews.get(entry.boxId)?.root?.userData?.deliveryPresentationState || null,
+        interactionEnabled: boxProps.has(entry.boxId),
+        colliderEnabled: boxCols.has(entry.boxId),
+      })),
+      overflowBoxIds: [...deliveryCargoSnapshot.overflowBoxIds],
+      transfers: [...deliveryBoxTransfers.values()].map((entry) => ({
+        boxId: entry.boxId,
+        orderId: entry.orderId,
+        loadId: entry.loadId,
+        loadIndex: entry.loadIndex,
+        placementIndex: entry.placementIndex,
+        orientationId: entry.orientationId,
+        pathMode: entry.waypoints.mode,
+        phase: entry.root.userData.deliveryTransferPhase,
+        state: entry.root.userData.deliveryPresentationState,
+        progress: clamp(entry.elapsed / entry.duration, 0, 1),
+        reparentError: entry.reparentError,
+        palletIndex: entry.palletIndex,
+        apertureWorld: [...entry.waypoints.world.aperture],
+        outsideWorld: [...entry.waypoints.world.outside],
+        interactionEnabled: boxProps.has(entry.boxId),
+        colliderEnabled: boxCols.has(entry.boxId),
+      })),
+      recentTransfers: deliveryBoxTransferHistory.map((entry) => ({ ...entry })),
+    };
+  }
+
   function rebuildBoxes() {
     const d = state.shop.deliveries;
     carriedBoxMesh = null;
@@ -2681,8 +3486,13 @@ export function makeClubhouse(ctx) {
     const colSeen = new Set();   // world boxes that hold a live collider this pass
     exposedPadBoxIds = new Set();
     if (d) {
+      const activeLoadPending = deliveryActiveLoad?.boxIds.some((boxId) => (
+        deliveryPendingBoxIds.has(boxId)
+      ));
+      const mountedCargoIds = activeLoadPending
+        ? mountDeliveryCargoLoad(deliveryActiveLoad) : new Set();
       const padPlanList = planPalletizedPadBoxes(
-        d.boxes.filter((box) => box.loc === 'pad'),
+        d.boxes.filter((box) => box.loc === 'pad' && !deliveryOrderPending(box)),
         {
           palletHeight: scene.getObjectByName('DeliveryPalletStage')?.userData.ready
             ? DELIVERY_PALLET_STAGING.height : 0,
@@ -2694,10 +3504,22 @@ export function makeClubhouse(ctx) {
       exposedPadBoxIds = new Set(topByPallet.values());
       const stacks = { pad: 0, stock: 0 };
       for (const box of d.boxes) {
+        // Pending paid stock is a view of boxes[] mounted into the currently
+        // active van only. Queued orders remain hidden; neither pending cargo
+        // nor a mid-air transfer receives a walk prop or collision entry.
+        if (deliveryOrderPending(box)) {
+          if (mountedCargoIds.has(box.id)) visualSeen.add(box.id);
+          continue;
+        }
+        if (deliveryBoxTransfers.has(box.id)) {
+          visualSeen.add(box.id);
+          continue;
+        }
         visualSeen.add(box.id);
         if (box.loc === 'carried') {
           const view = ensureBoxView(box);
           carriedBoxMesh = view.root;
+          clearDeliveryBoxPresentationState(carriedBoxMesh);
           carriedBoxMesh.scale.setScalar(1);
           const longClubCarton = box.box === 'clubbox';
           carriedBoxMesh.userData.deliveryRuntimeCarryProfile = longClubCarton
@@ -2710,7 +3532,9 @@ export function makeClubhouse(ctx) {
             carriedBoxMesh.position.set(0, -0.58, -1.30);
             carriedBoxMesh.rotation.set(0.02, 0.78, -0.16);
           } else {
-            carriedBoxMesh.position.set(0, -0.70, -0.92);
+            // Keep the real-scale case in both hands without hiding the pickup
+            // source and walking route across the lower third of the view.
+            carriedBoxMesh.position.set(0, -0.78, -1.10);
             carriedBoxMesh.rotation.set(-0.04, 0.08, 0);
           }
           carriedBoxMesh.userData.deliveryCarryBaseY = carriedBoxMesh.position.y;
@@ -2718,15 +3542,31 @@ export function makeClubhouse(ctx) {
           poseCarriedBoxHands(box);
           continue;
         }
-        let lx; let lz; let ry;
+        let lx; let lz; let ry; let fixedSurfaceY = null;
         if (box.loc === 'world') {
           lx = box.x; lz = box.z; ry = box.ry || 0;
         } else if (box.loc === 'pad') {
           const plan = padPlans.get(box.id);
           lx = plan.x; lz = plan.z; ry = plan.ry;
+        } else if (box.loc === 'equipment') {
+          const placement = equipmentBoxPlacement(box);
+          if (placement) {
+            ({ lx, lz, ry } = placement);
+            fixedSurfaceY = placement.y;
+          } else {
+            // A save must remain playable while the async GLB cache warms up or
+            // if an optional prop fails to load. Show the same box at receiving;
+            // the onReady rebuild snaps it back to its persisted socket.
+            const at = STOCKROOM.receivingInside;
+            const i = stacks.stock++;
+            const dim = boxDims(box.box || 'carton');
+            lx = at.x + (i % 3 - 1) * Math.max(0.62, dim.w + 0.14);
+            lz = at.z + Math.floor(i / 3) * Math.max(0.56, dim.d + 0.14) - 0.3;
+            ry = (box.id % 5) * 0.13;
+          }
         } else {
           const at = STOCKROOM.receivingInside;
-          const i = stacks[box.loc]++;
+          const i = stacks.stock++;
           const dim = boxDims(box.box || 'carton');
           lx = at.x + (i % 3 - 1) * Math.max(0.62, dim.w + 0.14);
           lz = at.z + Math.floor(i / 3) * Math.max(0.56, dim.d + 0.14) - 0.3;
@@ -2734,15 +3574,29 @@ export function makeClubhouse(ctx) {
         }
         const wp = L2W(lx, lz);
         const m = ensureBoxView(box).root;
+        clearDeliveryBoxPresentationState(m);
         const gy = box.loc === 'pad' && Number.isFinite(deliveryPadSurfaceY)
           ? deliveryPadSurfaceY : groundYAt(wp.x, wp.z);
-        const padLift = box.loc === 'pad' ? (padPlans.get(box.id)?.baseY || 0) : 0;
+        const padPlan = box.loc === 'pad' ? padPlans.get(box.id) : null;
+        const padLift = padPlan?.baseY || 0;
+        const boxBaseY = (Number.isFinite(fixedSurfaceY)
+          ? fixedSurfaceY
+          : (gy !== null && gy !== undefined ? gy : heightAt(wp.x, wp.z) + 0.02)) + padLift;
+        const coupledLift = padPlan?.palletIndex === DELIVERY_PALLET_JACK_COUPLED_INDEX
+          ? coupledDeliveryPalletLiftOffset : 0;
         m.scale.setScalar(1);
         m.position.set(
           wp.x,
-          (gy !== null && gy !== undefined ? gy : heightAt(wp.x, wp.z) + 0.02) + padLift,
+          boxBaseY + coupledLift,
           wp.z,
         );
+        if (padPlan?.palletIndex === DELIVERY_PALLET_JACK_COUPLED_INDEX) {
+          m.userData.deliveryPalletBaseY = boxBaseY;
+          m.userData.deliveryPalletIndex = DELIVERY_PALLET_JACK_COUPLED_INDEX;
+        } else {
+          delete m.userData.deliveryPalletBaseY;
+          delete m.userData.deliveryPalletIndex;
+        }
         m.rotation.set(0, ry, 0);
         boxGroup.add(m);
 
@@ -2750,6 +3604,8 @@ export function makeClubhouse(ctx) {
         let prop = boxProps.get(box.id);
         if (!prop) { prop = boxPropFor(box.id); boxProps.set(box.id, prop); }
         prop.x = wp.x; prop.y = m.position.y; prop.z = wp.z; prop.lx = lx; prop.lz = lz; prop.ry = ry;
+        m.userData.deliveryPresentationState = box.loc === 'pad' ? 'pallet-ready' : 'world-ready';
+        m.userData.deliveryInteractionEnabled = true;
 
         // a set-down box occupies the floor: register a collider so the player AND the
         // customer nav grid (which bakes from the same list) both treat it as solid. Only
@@ -2784,7 +3640,8 @@ export function makeClubhouse(ctx) {
 
   // a box in the stockroom is unpacked in place; anywhere else, [E] lifts it into your arms
   function unpackHere(prop, b) {
-    return b.loc === 'stock' || (b.loc === 'world' && inStockroomBounds(prop.lx, prop.lz));
+    return boxAtStockroomLocation(b)
+      || (b.loc === 'world' && inStockroomBounds(prop.lx, prop.lz));
   }
 
   // the box's verbs, chosen live from its state. Reused across rebuilds (keyed by id) so a
@@ -2933,6 +3790,45 @@ export function makeClubhouse(ctx) {
     }
     return { x: dx, z: dz };
   }
+
+  function stockingCartPlacementContext(box = carriedBox(state), radius = 1.75) {
+    if (!box || !deliveryEquipment) return null;
+    const target = deliveryEquipment.nodeWorldPose(
+      'delivery_stocking_cart',
+      'INTERACTION_TARGET',
+    );
+    if (!target || Math.hypot(target.position.x - walk.x, target.position.z - walk.z) > radius) {
+      return null;
+    }
+    return {
+      target,
+      placement: stockingCartPlacementForCarriedBox(state, box.id),
+    };
+  }
+
+  function placeCarriedBoxOnStockingCart({ requireNearby = true } = {}) {
+    const box = carriedBox(state);
+    if (!box) return false;
+    const context = requireNearby
+      ? stockingCartPlacementContext(box)
+      : { placement: stockingCartPlacementForCarriedBox(state, box.id) };
+    if (!context) return false;
+    if (!context.placement.ok) {
+      say(context.placement.reason, 'warn');
+      return true;
+    }
+    const result = putDownBox(state, box.id, context.placement.target);
+    if (!result.ok) {
+      say(result.reason, 'warn');
+      return true;
+    }
+    const sku = SHOP_CATALOG.find((entry) => entry.id === box.skuId);
+    sfx('boxdown');
+    say(`${sku ? sku.name : 'Carton'} placed securely on the stocking cart.`);
+    rebuildBoxes();
+    return true;
+  }
+
   const carryProp = addProp({
     x: 0, z: 0, r: 2.5,
     label: () => {
@@ -2941,6 +3837,11 @@ export function makeClubhouse(ctx) {
         const sku = SHOP_CATALOG.find((s) => s.id === cb.skuId);
         const name = sku ? sku.name : cb.skuId;
         const l = W2L(walk.x, walk.z);
+        const cart = stockingCartPlacementContext(cb);
+        if (cart) {
+          if (cart.placement.ok) return `Carrying ${name} ×${cb.qty} — [E] place it on the stocking cart`;
+          return `${cart.placement.reason} Turn away to set the carton on the floor.`;
+        }
         if (cb.flat) return 'Carrying a flattened carton — [E] set it down';
         if (inStockroomBounds(l.x, l.z)) return `Carrying ${name} ×${cb.qty} — [E] set it down to open it`;
         return `Carrying ${name} ×${cb.qty} — [E] set it down`;
@@ -2960,6 +3861,7 @@ export function makeClubhouse(ctx) {
     action: () => {
       const cb = carriedBox(state);
       if (cb) {
+        if (placeCarriedBoxOnStockingCart()) return;
         const drop = boxDropSpot();
         const l = W2L(drop.x, drop.z);
         // refuse a drop into a wall/fixture/doorway/another box — snap to the nearest legal
@@ -3014,6 +3916,454 @@ export function makeClubhouse(ctx) {
       },
     });
   }
+
+  function mutableEquipmentCollider(descriptor) {
+    return {
+      minX: descriptor.minX,
+      maxX: descriptor.maxX,
+      minZ: descriptor.minZ,
+      maxZ: descriptor.maxZ,
+      minY: descriptor.minY,
+      maxY: descriptor.maxY,
+      kind: 'delivery-equipment',
+      equipmentId: descriptor.equipmentId,
+      name: descriptor.name,
+    };
+  }
+
+  function syncColliderFromDescriptor(collider, descriptor) {
+    collider.minX = descriptor.minX;
+    collider.maxX = descriptor.maxX;
+    collider.minZ = descriptor.minZ;
+    collider.maxZ = descriptor.maxZ;
+    collider.minY = descriptor.minY;
+    collider.maxY = descriptor.maxY;
+  }
+
+  function syncStaticDeliveryColliders(equipmentId) {
+    if (!deliveryEquipment) return;
+    const current = new Map(
+      deliveryEquipment.colliderDescriptors(equipmentId).map((entry) => [entry.name, entry]),
+    );
+    for (const collider of deliveryEquipmentColliders) {
+      if (collider.equipmentId !== equipmentId) continue;
+      const descriptor = current.get(collider.name);
+      if (descriptor) syncColliderFromDescriptor(collider, descriptor);
+    }
+  }
+
+  function coupleDeliveryPalletJack() {
+    if (!deliveryEquipment || !coupledDeliveryPalletAssetRoot
+      || !Number.isFinite(deliveryPadSurfaceY)) return null;
+    const result = deliveryEquipment.couplePalletJackToPallet({
+      palletRoot: coupledDeliveryPalletAssetRoot,
+      palletIndex: DELIVERY_PALLET_JACK_COUPLED_INDEX,
+      surfaceY: deliveryPadSurfaceY,
+    });
+    if (result?.ok && deliveryPalletStage) {
+      deliveryPalletStage.userData.palletJackCoupled = true;
+      deliveryPalletStage.userData.channelAlignmentDot = result.channelAlignmentDot;
+      deliveryPalletStage.userData.socketHorizontalError = result.socketHorizontalError;
+    }
+    return result;
+  }
+
+  function syncCoupledDeliveryPalletLift() {
+    if (!deliveryEquipment || !coupledDeliveryPalletAnchor
+      || !Number.isFinite(deliveryPadSurfaceY)) return false;
+    const measured = Number(deliveryEquipment.palletJackLiftOffset?.());
+    const liftOffset = Number.isFinite(measured) ? measured : 0;
+    coupledDeliveryPalletLiftOffset = liftOffset;
+    coupledDeliveryPalletAnchor.position.y = deliveryPadSurfaceY + liftOffset;
+    if (coupledDeliveryPalletCollider) {
+      coupledDeliveryPalletCollider.minY = deliveryPadSurfaceY + liftOffset;
+      coupledDeliveryPalletCollider.maxY = coupledDeliveryPalletCollider.minY
+        + DELIVERY_PALLET_STAGING.height;
+    }
+    const coupledBoxIds = [];
+    for (const box of boxesOf(state)) {
+      if (box.loc !== 'pad'
+        || box.padPalletIndex !== DELIVERY_PALLET_JACK_COUPLED_INDEX
+        || deliveryOrderPending(box)) continue;
+      const view = boxViews.get(box.id);
+      const base = Number(view?.root?.userData?.deliveryPalletBaseY);
+      if (view?.root && Number.isFinite(base)) {
+        view.root.position.y = base + liftOffset;
+        const prop = boxProps.get(box.id);
+        if (prop) prop.y = view.root.position.y;
+      }
+      coupledBoxIds.push(box.id);
+    }
+    if (deliveryPalletStage) {
+      deliveryPalletStage.userData.liftOffset = liftOffset;
+      deliveryPalletStage.userData.coupledBoxIds = coupledBoxIds;
+      deliveryPalletStage.userData.coupledVisualY = coupledDeliveryPalletAnchor.position.y;
+      deliveryPalletStage.userData.coupledColliderMinY = coupledDeliveryPalletCollider?.minY ?? null;
+      deliveryPalletStage.userData.coupledColliderMaxY = coupledDeliveryPalletCollider?.maxY ?? null;
+    }
+    return true;
+  }
+
+  function deliveryPalletCouplingDiagnostics() {
+    const runtime = deliveryEquipment?.diagnostics?.().palletJack?.coupling || null;
+    if (!runtime && !coupledDeliveryPalletAnchor) return null;
+    const control = deliveryPalletStage?.getObjectByName('DeliveryPallet_1') || null;
+    return {
+      ...runtime,
+      coupledPalletIndex: DELIVERY_PALLET_JACK_COUPLED_INDEX,
+      baseY: deliveryPadSurfaceY,
+      visualY: coupledDeliveryPalletAnchor?.position.y ?? null,
+      controlPalletIndex: 0,
+      controlVisualY: control?.position.y ?? null,
+      colliderMinY: coupledDeliveryPalletCollider?.minY ?? null,
+      colliderMaxY: coupledDeliveryPalletCollider?.maxY ?? null,
+      liftOffset: coupledDeliveryPalletLiftOffset,
+      coupledBoxIds: boxesOf(state).filter((box) => (
+        box.loc === 'pad' && box.padPalletIndex === DELIVERY_PALLET_JACK_COUPLED_INDEX
+      )).map((box) => box.id),
+    };
+  }
+
+  function clearDeliveryVanColliders() {
+    for (const collider of deliveryVanColliders.values()) removeCol(collider);
+    deliveryVanColliders = new Map();
+  }
+
+  function installDeliveryVanColliders({ closedCargo = false } = {}) {
+    clearDeliveryVanColliders();
+    if (!deliveryEquipment) return;
+    const descriptors = deliveryEquipment.colliderDescriptors('delivery_van');
+    for (const descriptor of descriptors) {
+      // Player collision is currently 2D. Register the vertical shell here;
+      // the raised load-floor footprint is represented once below as an honest
+      // non-walkable platform until a deployable ramp/dynamic floor exists.
+      if (descriptor.name === 'COL_VAN_CARGO_FLOOR'
+        || descriptor.name === 'COL_VAN_CARGO_ROOF') continue;
+      const collider = mutableEquipmentCollider(descriptor);
+      addCol(collider);
+      deliveryVanColliders.set(descriptor.name, collider);
+    }
+    // The authored floor is about 0.50 m above grade. Removing its 2D footprint
+    // when the doors opened let a normal-W player walk underneath/intersect it
+    // at turf height. Reuse that exact footprint in every phase: closed it is
+    // the cargo hull; open it is the raised platform's safety boundary.
+    const cargoFootprint = descriptors.find((entry) => entry.name === 'COL_VAN_CARGO_FLOOR');
+    if (cargoFootprint) {
+      const hull = mutableEquipmentCollider(cargoFootprint);
+      hull.name = closedCargo
+        ? 'COL_VAN_CLOSED_CARGO_HULL'
+        : 'COL_VAN_OPEN_CARGO_PLATFORM_HULL';
+      addCol(hull);
+      deliveryVanColliders.set(hull.name, hull);
+    }
+  }
+
+  function syncDeliveryVanColliders() {
+    if (!deliveryEquipment || !deliveryVanColliders.size) return;
+    const descriptors = deliveryEquipment.colliderDescriptors('delivery_van');
+    const current = new Map(descriptors.map((entry) => [entry.name, entry]));
+    const cargoFootprint = current.get('COL_VAN_CARGO_FLOOR');
+    if (cargoFootprint) {
+      current.set('COL_VAN_CLOSED_CARGO_HULL', cargoFootprint);
+      current.set('COL_VAN_OPEN_CARGO_PLATFORM_HULL', cargoFootprint);
+    }
+    for (const [name, collider] of deliveryVanColliders) {
+      const descriptor = current.get(name);
+      if (descriptor) syncColliderFromDescriptor(collider, descriptor);
+    }
+  }
+
+  function deliveryEquipmentProp(entry, x, z) {
+    // These are full-size wheeled props with collision shells; their handles
+    // must become focusable before the player's capsule is stopped by the
+    // frame/forks. Keep the reach restrained but outside each footprint.
+    const interactionRadius = {
+      delivery_hand_truck: 2.20,
+      delivery_stocking_cart: 2.05,
+      delivery_pallet_jack: 1.90,
+    }[entry.id] || 1.8;
+    const common = { x, z, r: interactionRadius };
+    if (entry.id === 'delivery_hand_truck') {
+      return addProp({
+        ...common,
+        label: () => deliveryEquipment?.diagnostics().handTruck.active
+          ? 'Delivery hand truck — checking the axle balance...'
+          : 'Delivery hand truck — [E] tip it back and check the load balance',
+        action: () => {
+          const started = deliveryEquipment?.triggerHandTruckTilt?.();
+          if (started === false) return;
+          sfx('thunk');
+          equipmentColliderSyncSeconds = 1.6;
+        },
+      });
+    }
+    if (entry.id === 'delivery_stocking_cart') {
+      return addProp({
+        ...common,
+        label: () => {
+          const box = carriedBox(state);
+          if (box) {
+            const placement = stockingCartPlacementForCarriedBox(state, box.id);
+            return placement.ok
+              ? 'Stocking cart — [E] place the carton on the top deck'
+              : `Stocking cart — ${placement.reason}`;
+          }
+          const occupied = boxesOf(state).filter((boxEntry) => (
+            boxEntry.loc === 'equipment'
+            && boxEntry.equipmentId === 'delivery_stocking_cart'
+          )).length;
+          return occupied
+            ? `Stocking cart — ${occupied} saved carton position${occupied === 1 ? '' : 's'} in use`
+            : 'Stocking cart — top deck ready for a delivery carton';
+        },
+        action: () => {
+          if (carriedBox(state)) {
+            placeCarriedBoxOnStockingCart({ requireNearby: false });
+          } else {
+            say('Bring a compatible carton here to stage it on the cart.');
+          }
+        },
+      });
+    }
+    return addProp({
+      ...common,
+      label: () => {
+        const status = deliveryEquipment?.diagnostics().palletJack;
+        if (status?.active) return 'Pallet jack — hydraulic stroke in progress...';
+        return status?.raised
+          ? 'Pallet jack — [E] pump once to lower the forks'
+          : 'Pallet jack — [E] pump once to raise the forks';
+      },
+      action: () => {
+        const started = deliveryEquipment?.triggerPalletJackPump?.();
+        if (started === false) return;
+        sfx('thunk');
+        equipmentColliderSyncSeconds = 2.2;
+      },
+    });
+  }
+
+  function registerDeliveryEquipmentAssets() {
+    if (!deliveryEquipment) return;
+    coupleDeliveryPalletJack();
+    for (const entry of deliveryEquipment.staticPropRoots()) {
+      if (!entry.modelRoot || registeredDeliveryEquipmentIds.has(entry.id)) continue;
+      // Interior contents never enter the course sun-shadow atlas. These models
+      // arrive below an already-mounted empty wrapper, so enforce that invariant
+      // again after the asynchronous clone is attached.
+      if (entry.zone === 'interior') {
+        entry.root.traverse((object) => { if (object.isMesh) object.castShadow = false; });
+      }
+      for (const descriptor of entry.colliders) {
+        const collider = addCol(mutableEquipmentCollider(descriptor));
+        deliveryEquipmentColliders.push(collider);
+      }
+      entry.root.updateWorldMatrix(true, true);
+      const target = entry.interactionTarget
+        ? entry.interactionTarget.getWorldPosition(new THREE.Vector3())
+        : entry.root.getWorldPosition(new THREE.Vector3());
+      deliveryEquipmentProp(entry, target.x, target.z);
+      registeredDeliveryEquipmentIds.add(entry.id);
+    }
+    rebuildBoxes();
+  }
+
+  function handleDeliveryEquipmentBeat(beat, event) {
+    const loadContext = deliveryLoadPlansByArrivalId.get(event?.id) || null;
+    if (beat === DELIVERY_VAN_BEATS.QUEUED) {
+      // Multiple orders may enter the authoritative pad collection in one sim
+      // tick. Hide each newly queued order immediately; only activeArrival is
+      // allowed to occupy the one visible van below.
+      rebuildBoxes();
+    } else if (beat === DELIVERY_VAN_BEATS.APPROACH) {
+      // The van is solid for its whole visible route; every frame below keeps
+      // these mutable bounds synchronized with the authored moving proxies.
+      installDeliveryVanColliders({ closedCargo: true });
+      deliveryActiveLoad = loadContext;
+      sfx('truck');
+      rebuildBoxes();
+    } else if (beat === DELIVERY_VAN_BEATS.PARKED) {
+      installDeliveryVanColliders({ closedCargo: true });
+    } else if (beat === DELIVERY_VAN_BEATS.CARGO_OPEN) {
+      // Once the doors finish opening, swap the closed-volume hull for the
+      // authored cab/wall/pillar shell so both cargo approaches are genuinely
+      // navigable instead of being sealed by a horizontal proxy.
+      installDeliveryVanColliders({ closedCargo: false });
+      sfx('doorSwing');
+    } else if (beat === DELIVERY_VAN_BEATS.UNLOAD) {
+      const count = loadContext?.boxIds.length || 0;
+      const started = beginDeliveryBoxTransfers(loadContext);
+      const trip = loadContext?.loadCount > 1
+        ? ` (load ${loadContext.loadIndex + 1} of ${loadContext.loadCount})` : '';
+      say(`Unloading ${started || count} carton${(started || count) === 1 ? '' : 's'}${trip}.`);
+    } else if (beat === DELIVERY_VAN_BEATS.DOORS_CLOSING) {
+      sfx('doorShut');
+    } else if (beat === DELIVERY_VAN_BEATS.DEPARTING) {
+      // The doors have reached their exact closed pose before this beat. The
+      // course walk recovery will depenetrate anyone still in the footprint,
+      // then the synchronized hull pushes safely along the departure route.
+      installDeliveryVanColliders({ closedCargo: true });
+    } else if (beat === DELIVERY_VAN_BEATS.COMPLETE) {
+      clearDeliveryVanColliders();
+      if (deliveryActiveLoad?.arrivalId === event?.id) deliveryActiveLoad = null;
+      if (event?.id) deliveryLoadPlansByArrivalId.delete(event.id);
+    }
+  }
+
+  function presentDeliveryArrival(payload = {}) {
+    if (!deliveryEquipment) return false;
+    const orderId = payload.orderId;
+    const authorityOrderId = orderId == null ? null : String(orderId);
+    const presentationKey = authorityOrderId ?? `anonymous-${Date.now()}`;
+    const existing = deliveryArrivalPresentations.get(presentationKey);
+    if (existing) return existing;
+    const cargoBoxes = boxesOf(state).filter((box) => (
+      box.loc === 'pad' && sameDeliveryOrder(box, orderId)
+    ));
+    if (!cargoBoxes.length) return false;
+    const cargoPlan = planDeliveryVanCargo(cargoBoxes);
+    const allBoxIds = cargoPlan.placements.map((entry) => entry.boxId);
+    for (const boxId of allBoxIds) deliveryPendingBoxIds.add(boxId);
+    const handles = [];
+    for (const load of cargoPlan.loads) {
+      const suffix = cargoPlan.loadCount > 1
+        ? `-load-${String(load.loadSequence).padStart(2, '0')}` : '';
+      const arrivalId = authorityOrderId == null
+        ? `delivery-arrival-${load.loadId}`
+        : `delivery-order-${authorityOrderId}${suffix}`;
+      const remainingBoxIds = cargoPlan.loads
+        .slice(load.loadIndex + 1).flatMap((entry) => entry.boxIds);
+      const loadContext = Object.freeze({
+        arrivalId,
+        authorityOrderId,
+        loadId: load.loadId,
+        loadIndex: load.loadIndex,
+        loadCount: cargoPlan.loadCount,
+        boxIds: Object.freeze([...load.boxIds]),
+        remainingBoxIds: Object.freeze(remainingBoxIds),
+        placements: Object.freeze([...load.placements]),
+        diagnostics: Object.freeze({ ...load.diagnostics }),
+      });
+      deliveryLoadPlansByArrivalId.set(arrivalId, loadContext);
+      const handle = deliveryEquipment.presentArrival({
+        id: arrivalId,
+        orderId,
+        payload: {
+          ...payload,
+          boxCount: load.boxIds.length,
+          deliveryLoadId: load.loadId,
+          deliveryLoadIndex: load.loadIndex,
+          deliveryLoadCount: cargoPlan.loadCount,
+          boxIds: [...load.boxIds],
+        },
+      });
+      if (!handle) {
+        deliveryLoadPlansByArrivalId.delete(arrivalId);
+        for (const boxId of load.boxIds) deliveryPendingBoxIds.delete(boxId);
+        continue;
+      }
+      handles.push(handle);
+      deliveryArrivalHandles.add(handle);
+      handle.promise.then((result) => {
+        deliveryArrivalHandles.delete(handle);
+        deliveryLoadPlansByArrivalId.delete(arrivalId);
+        if (result?.status === 'cancelled') {
+          for (const boxId of loadContext.boxIds) deliveryPendingBoxIds.delete(boxId);
+          if (deliveryActiveLoad?.arrivalId === arrivalId) deliveryActiveLoad = null;
+          if (deliveryEquipment) rebuildBoxes();
+        }
+      });
+    }
+    if (!handles.length) {
+      for (const boxId of allBoxIds) deliveryPendingBoxIds.delete(boxId);
+      return false;
+    }
+    let returned = handles[0];
+    if (handles.length > 1) {
+      const promise = Promise.all(handles.map((handle) => handle.promise)).then((results) => Object.freeze({
+        id: `delivery-order-${authorityOrderId}`,
+        orderId: authorityOrderId,
+        loadCount: handles.length,
+        status: results.every((result) => result.status === 'completed') ? 'completed' : 'cancelled',
+        unloaded: results.every((result) => result.unloaded !== false),
+        results: Object.freeze(results),
+      }));
+      returned = Object.freeze({
+        id: `delivery-order-${authorityOrderId}`,
+        orderId: authorityOrderId,
+        loadCount: handles.length,
+        promise,
+        get status() {
+          if (handles.every((handle) => handle.status === 'completed')) return 'completed';
+          if (handles.some((handle) => handle.status === 'active')) return 'active';
+          return handles.every((handle) => handle.status === 'cancelled') ? 'cancelled' : 'queued';
+        },
+        cancel: (reason = 'cancelled') => handles.reduce(
+          (cancelled, handle) => (handle.cancel(reason) ? cancelled + 1 : cancelled), 0,
+        ),
+      });
+    }
+    deliveryArrivalPresentations.set(presentationKey, returned);
+    return returned;
+  }
+
+  let equipmentColliderSyncSeconds = 0;
+  function deliveryVanContactSurfaceY(x, z) {
+    const terrainY = heightAt(x, z);
+    if (!deliveryVanBayBounds || !Number.isFinite(deliveryVanBaySurfaceY)) return terrainY;
+    const inside = Math.min(
+      x - deliveryVanBayBounds.minX,
+      deliveryVanBayBounds.maxX - x,
+      z - deliveryVanBayBounds.minZ,
+      deliveryVanBayBounds.maxZ - z,
+    );
+    if (inside <= 0) return terrainY;
+    const blend = clamp(inside / deliveryVanBayBounds.blend, 0, 1);
+    return THREE.MathUtils.lerp(terrainY, deliveryVanBaySurfaceY, blend);
+  }
+
+  function deliveryEquipmentGroundY(x, z, equipmentId) {
+    if (equipmentId === 'delivery_pallet_jack' && Number.isFinite(deliveryPadSurfaceY)) {
+      return deliveryPadSurfaceY;
+    }
+    if (equipmentId !== 'delivery_van') return heightAt(x, z);
+    // Ref 41's fixed -90-degree parking orientation puts its four authored
+    // wheel contacts at world ±0.91 X and ±1.72 Z from the wrapper. Ground the
+    // body from all four patches instead of the centre point so the approach
+    // cannot bury one axle while another reaches the flat service slab.
+    const contacts = [];
+    for (const dx of [-0.91, 0.91]) {
+      for (const dz of [-1.72, 1.72]) {
+        const sample = deliveryVanContactSurfaceY(x + dx, z + dz);
+        if (Number.isFinite(sample)) contacts.push(sample);
+      }
+    }
+    if (!contacts.length) return heightAt(x, z);
+    return contacts.reduce((sum, value) => sum + value, 0) / contacts.length;
+  }
+
+  deliveryEquipment = createDeliveryEquipment({
+    merch,
+    parents: { interior, exterior: scene },
+    localToWorld: (x, z) => L2W(x, z),
+    groundYAt: deliveryEquipmentGroundY,
+    onBeat: handleDeliveryEquipmentBeat,
+    onUnload: () => rebuildBoxes(),
+    onError: (_error, detail) => say(`Delivery presentation recovered from ${detail.label}.`, 'warn'),
+  });
+  deliveryEquipment.onReady(registerDeliveryEquipmentAssets);
+  // createDeliveryEquipment registers its loader callback first. This callback
+  // therefore sees the final mounted/missing set and can fail open: a bad van
+  // must never leave already-paid boxes hidden forever.
+  merch.onReady(() => {
+    registerDeliveryEquipmentAssets();
+    if (deliveryEquipment.missingAssets().includes('delivery_van')) {
+      for (const handle of [...deliveryArrivalHandles]) handle.cancel('delivery-van-unavailable');
+      sfx('truck');
+      say('The van could not be shown, but the paid delivery was placed safely on receiving.', 'warn');
+      rebuildBoxes();
+    }
+  });
 
   // --- customers: they walk in from the course, through the real door -------------------
   let unitSeq = 0;   // every unit a shopper lifts gets its own identity
@@ -4248,6 +5598,17 @@ export function makeClubhouse(ctx) {
     const dt = Math.min(0.1, dtMs / 1000);
     now += dt;
     updateDoors(dt, now);
+    if (deliveryEquipment) {
+      deliveryEquipment.update(dt);
+      syncCoupledDeliveryPalletLift();
+      syncDeliveryVanColliders();
+      if (equipmentColliderSyncSeconds > 0) {
+        equipmentColliderSyncSeconds = Math.max(0, equipmentColliderSyncSeconds - dt);
+        syncStaticDeliveryColliders('delivery_hand_truck');
+        syncStaticDeliveryColliders('delivery_pallet_jack');
+      }
+    }
+    updateDeliveryBoxTransfers(dt);
     updateCustomers(dt);
     register.update(dt);
     updateStockFlights(dt);
@@ -4330,6 +5691,16 @@ export function makeClubhouse(ctx) {
     if (disposing) return disposalSummary;
     disposing = true;
     register.leave();
+    deliveryBoxTransfers.clear();
+    deliveryBoxTransferHistory.length = 0;
+    deliveryTransferBatch = null;
+    deliveryPendingBoxIds.clear();
+    deliveryLoadPlansByArrivalId.clear();
+    deliveryActiveLoad = null;
+    deliveryCargoSnapshot = Object.freeze({
+      orderId: null, arrivalId: null, loadId: null, loadIndex: null, loadCount: 0,
+      planned: [], overflowBoxIds: [],
+    });
     for (const id of [...boxViews.keys()]) removeBoxView(id, true);
     // removeBoxView owns and releases the carried box view too. Clear the stale
     // alias before collecting static roots so it cannot be disposed twice.
@@ -4346,6 +5717,12 @@ export function makeClubhouse(ctx) {
     // tearing the scene down must not pocket whatever shoppers were holding: the save is written
     // from `state`, and stock in a deleted shopper's hands would simply cease to exist.
     for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
+
+    const equipmentBorrowedResources = deliveryEquipment?.borrowedResources?.() || null;
+    clearDeliveryVanColliders();
+    const deliveryEquipmentDisposal = deliveryEquipment?.dispose?.() || null;
+    deliveryArrivalHandles.clear();
+    deliveryArrivalPresentations.clear();
 
     const staticRoots = [
       group, interior, custGroup, motes, boxGroup, carriedBoxHands,
@@ -4367,6 +5744,7 @@ export function makeClubhouse(ctx) {
     );
     const protectedResources = mergeRenderableResources(
       protectedRenderableResources,
+      equipmentBorrowedResources,
       merch.ownedResources ? merch.ownedResources() : null,
     );
 
@@ -4380,15 +5758,45 @@ export function makeClubhouse(ctx) {
     // remains exclusively under createMerch's ownership boundary.
     const procedural = disposeRenderableResources(ownedResources, protectedResources);
     const merchandise = merch.dispose ? merch.dispose() : null;
-    disposalSummary = Object.freeze({ procedural, merchandise });
+    deliveryEquipment = null;
+    disposalSummary = Object.freeze({ procedural, merchandise, deliveryEquipment: deliveryEquipmentDisposal });
     return disposalSummary;
   }
 
   return {
     group, interior,
     update, rebuildStock, rebuildReno, refreshCondition, repaintGrime,
-    rebuildBoxes,
+    rebuildBoxes, presentDeliveryArrival,
     assetsReady: () => merch.isReady(),
+    deliveryEquipmentReady: () => !!deliveryEquipment?.isReady(),
+    deliveryBoxPresentationDiagnostics,
+    deliveryEquipmentDiagnostics: () => {
+      const diagnostics = deliveryEquipment?.diagnostics() || null;
+      if (!diagnostics?.palletJack) return diagnostics
+        ? { ...diagnostics, boxPresentation: deliveryBoxPresentationDiagnostics() }
+        : diagnostics;
+      return {
+        ...diagnostics,
+        boxPresentation: deliveryBoxPresentationDiagnostics(),
+        palletJack: {
+          ...diagnostics.palletJack,
+          coupling: deliveryPalletCouplingDiagnostics(),
+        },
+      };
+    },
+    deliveryEquipmentMetrics: () => deliveryEquipment?.metrics() || null,
+    deliveryEquipmentPose: (asset, nodeName = null) => {
+      if (!deliveryEquipment) return null;
+      if (nodeName) return deliveryEquipment.nodeWorldPose(asset, nodeName);
+      const root = deliveryEquipment.rootFor(asset);
+      if (!root) return null;
+      root.updateWorldMatrix(true, false);
+      return {
+        position: root.getWorldPosition(new THREE.Vector3()),
+        quaternion: root.getWorldQuaternion(new THREE.Quaternion()),
+        visible: root.visible,
+      };
+    },
     carrySpeedFactor: () => carrySpeedFactor(state),
     carryCollisionRadius: () => {
       const box = carriedBox(state);

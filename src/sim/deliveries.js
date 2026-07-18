@@ -7,6 +7,14 @@ import { planShipment, boxWeight } from '../data/boxes.js';
 import {
   assignDeliveryPallets, exposedDeliveryPadBoxIds,
 } from '../data/deliveryStaging.js';
+import {
+  STOCKING_CART_EQUIPMENT_ID,
+  deliveryEquipmentFit,
+  deliveryEquipmentPlacementForBox,
+  deliveryEquipmentSocketsConflict,
+  normalizeDeliveryEquipmentId,
+  preferredDeliveryEquipmentSocketIds,
+} from '../data/deliveryEquipment.js';
 import { armRoom, setCarry } from './stocking.js';
 import { notify } from './notifications.js';
 
@@ -25,7 +33,7 @@ export const PAD_CAPACITY = 9;
 
 // Packaging evolves independently from the course save, so it carries a small local schema.
 export const DELIVERIES_SCHEMA_VERSION = 4;
-export const BOX_SCHEMA_VERSION = 2;
+export const BOX_SCHEMA_VERSION = 3;
 
 // Location and contents are separate facts. This is the one persisted lifecycle of the carton.
 export const BOX_LIFECYCLE = Object.freeze({
@@ -157,8 +165,87 @@ function migrateBox(box) {
     box.lb = boxWeight(sku, box.qty);
   }
   box.lifecycle = inferredLifecycle(box);
+  migrateEquipmentFields(box);
   box.schemaVersion = BOX_SCHEMA_VERSION;
   return box;
+}
+
+function clearEquipmentFields(box) {
+  delete box.equipmentId;
+  delete box.socketId;
+  // Early development saves used these names before the persisted contract was
+  // settled. Consume them once, then keep the save surface deliberately small.
+  delete box.cartSocketId;
+  delete box.equipmentSocketId;
+  delete box.cartId;
+  delete box.equipment;
+}
+
+function clearWorldFields(box) {
+  delete box.x;
+  delete box.z;
+  delete box.ry;
+}
+
+function migrateEquipmentFields(box) {
+  const legacyEquipmentLoc = box.loc === 'cart' || box.loc === 'stocking_cart';
+  if (legacyEquipmentLoc) box.loc = 'equipment';
+  if (box.loc !== 'equipment') {
+    clearEquipmentFields(box);
+    return;
+  }
+
+  const rawEquipmentId = box.equipmentId
+    ?? box.equipment
+    ?? box.cartId
+    ?? (legacyEquipmentLoc ? STOCKING_CART_EQUIPMENT_ID : null);
+  const rawSocketId = box.socketId ?? box.equipmentSocketId ?? box.cartSocketId;
+  box.equipmentId = normalizeDeliveryEquipmentId(rawEquipmentId) || rawEquipmentId;
+  box.socketId = rawSocketId;
+  delete box.cartSocketId;
+  delete box.equipmentSocketId;
+  delete box.cartId;
+  delete box.equipment;
+  clearWorldFields(box);
+  delete box.padPalletIndex;
+  delete box.padStagingOverflow;
+}
+
+// Equipment references live on boxes, not in a parallel cart inventory. Heal
+// malformed, incompatible, or duplicate references to the stockroom so no box
+// (and therefore no quantity) can disappear from a legacy save.
+function healEquipmentPlacements(boxes) {
+  const occupied = [];
+  for (const box of boxes) {
+    migrateEquipmentFields(box);
+    if (box.loc !== 'equipment') continue;
+    const placement = deliveryEquipmentPlacementForBox(box);
+    const fit = placement
+      ? deliveryEquipmentFit(box, placement.equipmentId, placement.socketId)
+      : { ok: false };
+    const conflicts = placement && occupied.some((entry) => (
+      entry.equipmentId === placement.equipmentId
+      && deliveryEquipmentSocketsConflict(
+        placement.equipmentId,
+        entry.socketId,
+        placement.socketId,
+      )
+    ));
+    if (!fit.ok || conflicts) {
+      box.loc = 'stock';
+      clearEquipmentFields(box);
+      clearWorldFields(box);
+      delete box.padPalletIndex;
+      delete box.padStagingOverflow;
+      continue;
+    }
+    box.equipmentId = placement.equipmentId;
+    box.socketId = placement.socketId;
+    clearWorldFields(box);
+    delete box.padPalletIndex;
+    delete box.padStagingOverflow;
+    occupied.push(placement);
+  }
 }
 
 function boxNeedsMigration(box) {
@@ -218,6 +305,7 @@ export function ensureDeliveries(state) {
     if (!b.supplier && shipment) b.supplier = shipment.supplier || null;
     if (!b.supplierId && shipment) b.supplierId = shipment.supplierId || null;
   }
+  healEquipmentPlacements(d.boxes);
   // v4 persists a balanced physical pallet lane. Rebuild legacy layouts once;
   // thereafter safe assignments survive selective pickup and save/load.
   assignDeliveryPallets(d.boxes, { rebalance: deliveryNeedsMigration });
@@ -351,7 +439,7 @@ export function arriveOrder(state, order) {
   });
   notify(state, {
     kind: 'delivery',
-    text: `Delivered: ${sku.name} × ${order.qty} — ${manifest.boxCount} box${manifest.boxCount === 1 ? '' : 'es'} on the receiving pad.`,
+    text: `Delivery arriving: ${sku.name} × ${order.qty} — the van checked in with ${manifest.boxCount} box${manifest.boxCount === 1 ? '' : 'es'} for receiving.`,
     dedupeKey: `arrived:${order.id}`,
   });
   return made;
@@ -378,6 +466,70 @@ export function carriedBox(state) {
   return boxesOf(state).find((b) => b.loc === 'carried') || null;
 }
 
+// The cart is a stockroom workstation. Render/input code can combine this with
+// its existing world-coordinate stockroom check for freely placed floor boxes.
+export function boxAtStockroomLocation(box) {
+  return box?.loc === 'stock' || box?.loc === 'equipment';
+}
+
+function deliveryEquipmentPlacementBlocker(boxes, boxId, equipmentId, socketId) {
+  return boxes.find((entry) => (
+    entry.id !== boxId
+    && entry.loc === 'equipment'
+    && normalizeDeliveryEquipmentId(entry.equipmentId) === equipmentId
+    && deliveryEquipmentSocketsConflict(equipmentId, entry.socketId, socketId)
+  )) || null;
+}
+
+// Pure placement query for input/render code. Persisted box locations are the
+// occupancy authority; this does not migrate, heal, reserve, or move anything.
+// Pass the successful `target` straight to putDownBox for the authoritative
+// validation-and-write step.
+export function stockingCartPlacementForCarriedBox(state, id) {
+  const boxes = state?.shop?.deliveries?.boxes;
+  if (!Array.isArray(boxes)) {
+    return { ok: false, code: 'no-deliveries', reason: 'Delivery state is not available.' };
+  }
+  const box = boxes.find((entry) => entry.id === id);
+  if (!box || box.loc !== 'carried') {
+    return { ok: false, code: 'not-carried', reason: 'Not carrying that box.' };
+  }
+
+  const socketIds = preferredDeliveryEquipmentSocketIds(box, STOCKING_CART_EQUIPMENT_ID);
+  if (!socketIds.length) {
+    return {
+      ok: false,
+      code: 'no-compatible-socket',
+      reason: 'That carton does not fit on the stocking cart.',
+    };
+  }
+  for (const socketId of socketIds) {
+    const blocker = deliveryEquipmentPlacementBlocker(
+      boxes,
+      box.id,
+      STOCKING_CART_EQUIPMENT_ID,
+      socketId,
+    );
+    if (blocker) continue;
+    const target = {
+      loc: 'equipment',
+      equipmentId: STOCKING_CART_EQUIPMENT_ID,
+      socketId,
+    };
+    return {
+      ok: true,
+      equipmentId: STOCKING_CART_EQUIPMENT_ID,
+      socketId,
+      target,
+    };
+  }
+  return {
+    ok: false,
+    code: 'no-free-socket',
+    reason: 'Every compatible stocking-cart position is occupied.',
+  };
+}
+
 export function pickUpBox(state, id) {
   const box = findBox(state, id);
   if (!box) return { ok: false, reason: 'No box there.' };
@@ -397,6 +549,7 @@ export function pickUpBox(state, id) {
   box.loc = 'carried';
   delete box.padPalletIndex;
   delete box.padStagingOverflow;
+  clearEquipmentFields(box);
   return { ok: true, box };
 }
 
@@ -405,7 +558,41 @@ export function pickUpBox(state, id) {
 export function putDownBox(state, id, spot = 'stock') {
   const box = findBox(state, id);
   if (!box || box.loc !== 'carried') return { ok: false, reason: 'Not carrying that.' };
-  if (spot && typeof spot === 'object') {
+  const equipmentTarget = spot && typeof spot === 'object' && (
+    spot.loc === 'equipment'
+    || spot.type === 'equipment'
+    || spot.equipmentId !== undefined
+    || spot.socketId !== undefined
+  );
+  if (equipmentTarget) {
+    const fit = deliveryEquipmentFit(box, spot.equipmentId, spot.socketId);
+    if (!fit.ok) return fit;
+    const occupied = deliveryEquipmentPlacementBlocker(
+      boxesOf(state),
+      box.id,
+      fit.equipmentId,
+      fit.socketId,
+    );
+    if (occupied) {
+      const exactSocket = occupied.socketId === fit.socketId;
+      return {
+        ok: false,
+        code: exactSocket ? 'socket-occupied' : 'socket-conflict',
+        reason: exactSocket
+          ? `${fit.socketId} on the stocking cart is already occupied; choose an empty slot.`
+          : `${fit.socketId} overlaps the carton at ${occupied.socketId}; clear the top shelf first.`,
+        occupiedByBoxId: occupied.id,
+        conflictingSocketId: occupied.socketId,
+      };
+    }
+    box.loc = 'equipment';
+    box.equipmentId = fit.equipmentId;
+    box.socketId = fit.socketId;
+    clearWorldFields(box);
+    delete box.padPalletIndex;
+    delete box.padStagingOverflow;
+  } else if (spot && typeof spot === 'object') {
+    clearEquipmentFields(box);
     box.loc = 'world';
     delete box.padPalletIndex;
     delete box.padStagingOverflow;
@@ -417,11 +604,10 @@ export function putDownBox(state, id, spot = 'stock') {
       return { ok: false, reason: 'The receiving pad is full.' };
     }
     box.loc = spot === 'pad' ? 'pad' : 'stock';
+    clearEquipmentFields(box);
     delete box.padPalletIndex;
     delete box.padStagingOverflow;
-    delete box.x;
-    delete box.z;
-    delete box.ry;
+    clearWorldFields(box);
     if (box.loc === 'pad') assignDeliveryPallets(state.shop.deliveries.boxes);
   }
   return { ok: true, box };

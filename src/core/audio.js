@@ -820,9 +820,9 @@ export function makeAudio() {
   // --- delivery + stocking (the physical retail loop) ------------------------------------------
   // A tiny shared noise-burst helper: a band of filtered noise with an amplitude envelope. Cardboard,
   // tape and paper are all noise at heart — what tells them apart is the band and the shape.
-  function burst({ dur = 0.2, band = 1500, q = 1, type = 'bandpass', peak = 0.05, attack = 0.02, hp = 0 }) {
+  function burst({ dur = 0.2, delay = 0, band = 1500, q = 1, type = 'bandpass', peak = 0.05, attack = 0.02, hp = 0 }) {
     if (!ctx) return null;
-    const t0 = ctx.currentTime;
+    const t0 = ctx.currentTime + Math.max(0, Number(delay) || 0);
     const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
@@ -844,28 +844,31 @@ export function makeAudio() {
     return { t0, g };
   }
 
-  // the delivery van: a low diesel rumble that fades in and out, capped with an air-brake hiss
+  // The delivery van: one authored approach-length cue. The former 1.7 second
+  // burst was fired only after the van had parked, and its "delayed" brake hiss
+  // actually started immediately because the noise source was already running.
+  // This four-second envelope now follows the visible approach and lands its
+  // restrained air-brake release just before the parked beat.
   function truck() {
     if (!ctx) return;
     const t0 = ctx.currentTime;
     const osc = ctx.createOscillator();
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(46, t0);
-    osc.frequency.linearRampToValueAtTime(38, t0 + 1.4);
+    osc.frequency.setValueAtTime(48, t0);
+    osc.frequency.linearRampToValueAtTime(40, t0 + 3.55);
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
     lp.frequency.value = 180;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.linearRampToValueAtTime(0.06, t0 + 0.5);
-    g.gain.linearRampToValueAtTime(0.05, t0 + 1.1);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.7);
+    g.gain.linearRampToValueAtTime(0.045, t0 + 3.35);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 4.15);
     osc.connect(lp).connect(g).connect(sfxBus);
     osc.start(t0);
-    osc.stop(t0 + 1.75);
+    osc.stop(t0 + 4.2);
     // air brake at the stop
-    const hiss = burst({ dur: 0.4, band: 3200, q: 0.7, peak: 0.04, attack: 0.01 });
-    if (hiss) hiss.g.gain.setValueAtTime(0.0001, t0 + 1.2);
+    burst({ dur: 0.4, delay: 3.55, band: 3200, q: 0.7, peak: 0.04, attack: 0.01 });
   }
 
   // hoisting a carton: a short cardboard scuff
