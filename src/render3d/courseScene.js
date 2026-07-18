@@ -1168,8 +1168,11 @@ export function makeCourseScene(canvas, state) {
 
           if (zone > 4.5 && zone < 5.5) {
             // grass-lip shadow: the sand right under the rolled turf edge sits in
-            // shade; the middle of the bunker takes full sun (edgeYd < 0 inside)
-            float lip = smoothstep(-3.5, -0.4, edgeYd);
+            // shade; the middle of the bunker takes full sun (negative inside).
+            // Driven by the bunker's own LINEAR distance channel rather than the
+            // nearest-sampled, quarter-yard-quantized edgeYd — a 20% darkening
+            // ramp off a quantized input banded visibly across the sand.
+            float lip = smoothstep(-3.5, -0.4, surfaceDistanceYd.a);
             col *= mix(1.0, 0.80, lip);
             // faint rake grooves following the sand's long axis
             float rake = sin(dot(vWp.xz, vec2(0.82, 0.30)) * 2.6) * 0.5 + 0.5;
@@ -1180,8 +1183,9 @@ export function makeCourseScene(canvas, state) {
             float churn = fwNoise(cellUv * 9.0) * 0.6 + fwNoise(cellUv * 23.0) * 0.4;
             col = mix(col, vec3(0.55, 0.44, 0.27), foot * smoothstep(0.35, 0.8, churn) * 0.6);
           }
-          // green + fringe gain a whisper of edge shadow for depth off the collar
-          if (zone > 2.5 && zone < 3.5) col *= 0.95 + 0.05 * smoothstep(-0.5, -4.0, edgeYd);
+          // green + fringe gain a whisper of edge shadow for depth off the collar,
+          // off the green's linear distance channel for the same reason as the lip
+          if (zone > 2.5 && zone < 3.5) col *= 0.95 + 0.05 * smoothstep(-0.5, -4.0, surfaceDistanceYd.g);
 
           if (uViewMode > 0.5 && uViewMode < 1.5) {
             col = isTurf ? fwHeat(health) : col * 0.22;
