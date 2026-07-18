@@ -2316,11 +2316,51 @@ export function makeCourseEditor(app, hooks) {
     };
   }
 
+  // Grow both dirty rects a stroke carries, in cells:
+  //   rect     — cumulative, for the commit/undo refresh at stroke end
+  //   liveRect — only what changed since the last live refresh
+  // The live refresh must use liveRect. Feeding it the cumulative rect makes
+  // every tick of a long drag re-scope over everything painted so far, so the
+  // work grows with stroke length instead of staying brush-sized.
+  function growStrokeRect(point, r) {
+    if (!stroke) return;
+    for (const key of ['rect', 'liveRect']) {
+      const box = stroke[key];
+      if (!box) {
+        stroke[key] = { x0: point.x - r, y0: point.y - r, x1: point.x + r, y1: point.y + r };
+        continue;
+      }
+      box.x0 = Math.min(box.x0, point.x - r);
+      box.y0 = Math.min(box.y0, point.y - r);
+      box.x1 = Math.max(box.x1, point.x + r);
+      box.y1 = Math.max(box.y1, point.y + r);
+    }
+  }
+
+  function takeLiveRect() {
+    if (!stroke) return null;
+    const box = stroke.liveRect || stroke.rect || null;
+    stroke.liveRect = null;
+    return box;
+  }
+
+  // Terrain only (applyTerrainAt is the sole caller).
   function liveRefreshThrottled() {
     const now = performance.now();
     if (now - strokeClock > 80) {
       strokeClock = now;
-      scene().refreshGround(state(), {});
+      // zones: false — sculpting moves land, not surfaces, exactly as the
+      // stroke-end refresh already documents. evalPacked never reads elevation,
+      // so the zone/distance field cannot change under a terrain brush.
+      //
+      // This used to pass {}, which defaults zones:true, so every tick of a
+      // drag rebuilt the entire 1920x1280 visual field. Measured: ~1452 ms per
+      // tick, against ~276 ms with the field skipped — ~81% of the cost of
+      // dragging the terrain brush was rebuilding a mask that cannot change.
+      //
+      // terrainRect then scopes the remaining mesh rebuild to the brush, so a
+      // stroke no longer walks all 346,801 vertices per tick either.
+      scene().refreshGround(state(), { zones: false, terrainRect: takeLiveRect() });
     }
   }
 
@@ -2696,6 +2736,9 @@ export function makeCourseEditor(app, hooks) {
         mode: 'smooth', radius: radius * 1.15, strength: 0.24, falloff: opt.terrain.falloff,
       });
     }
+    // autoSmooth reaches 1.15x the brush; +2 cells covers the ring of shared
+    // vertices whose normals move even though their own height did not.
+    growStrokeRect(point, radius * 1.15 + 2);
     liveRefreshThrottled();
   }
 
@@ -2704,16 +2747,15 @@ export function makeCourseEditor(app, hooks) {
     const r = yd2cells(opt.paint.radiusYd * 2);
     paintAt(state(), stroke.s, point.x, point.y, erase ? ZONE.ROUGH : opt.paint.zone, { radius: r });
     stroke.erase = erase;
-    // grow the stroke's dirty rect (cells) for visual-field updates
-    stroke.rect = stroke.rect || { x0: point.x - r, y0: point.y - r, x1: point.x + r, y1: point.y + r };
-    stroke.rect.x0 = Math.min(stroke.rect.x0, point.x - r);
-    stroke.rect.y0 = Math.min(stroke.rect.y0, point.y - r);
-    stroke.rect.x1 = Math.max(stroke.rect.x1, point.x + r);
-    stroke.rect.y1 = Math.max(stroke.rect.y1, point.y + r);
+    // grow the stroke's dirty rects (cells) for visual-field updates
+    growStrokeRect(point, r);
     const now = performance.now();
     if (now - strokeClock > 70) {
       strokeClock = now;
-      scene().updateZoneField(state(), stroke.rect);
+      // liveRect, not the cumulative rect: regions updated on an earlier tick
+      // are already correct, and updateVisualFieldRegion re-derives its own
+      // halo, so the non-local part of the distance field stays right.
+      scene().updateZoneField(state(), takeLiveRect());
       scene().updateTurf(state());
     }
   }
@@ -2982,9 +3024,12 @@ export function makeCourseEditor(app, hooks) {
     }
     if (stroke && tool === 'terrain') {
       const res = endTerrainStroke(state(), session, stroke, 'Terrain');
+      // the cumulative rect, not the live one: this single commit refresh has
+      // to cover everything the whole stroke touched
+      const terrainRect = stroke.rect || null;
       stroke = null;
       // sculpting moves land, not surfaces: skip the visual-field recompute
-      scene().refreshGround(state(), { water: true, paths: true, zones: false });
+      scene().refreshGround(state(), { water: true, paths: true, zones: false, terrainRect });
       if (res.ok) refreshTop();
     } else if (stroke && tool === 'paint') {
       const res = endPaintStroke(state(), session, stroke.s, 'Paint');
