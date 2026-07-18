@@ -88,13 +88,21 @@ async (page) => {
     const rect = { x0: centre.x - 3, y0: centre.y - 3, x1: centre.x + 3, y1: centre.y + 3 };
 
     return {
-      // what the live terrain drag actually calls today: no zoneRect at all
-      liveStrokeCall: time(() => scene.refreshGround(st, {})),
-      // same minus the visual field, to separate mesh cost from mask cost
-      withoutZoneField: time(() => scene.refreshGround(st, { zones: false })),
-      // what it would cost if the mask update were scoped to the brush
-      withScopedZoneRect: time(() => scene.refreshGround(st, { zoneRect: rect })),
-      terrainVertexCount: scene.qa?.terrainVertexCount?.() ?? null,
+      // full-course rebuild: the cost a stamp used to pay unconditionally
+      fullRebuildCall: time(() => scene.refreshGround(st, {})),
+      // the live terrain tick after scoping (what the drag does now)
+      liveTerrainTick: time(() => scene.refreshGround(st, { zones: false, terrainRect: rect })),
+      // paint's live tick
+      paintTick: time(() => scene.updateZoneField(st, rect), 8),
+      // stamp tools (green/bunker/water/tee): relief invalidation forces a full
+      // terrain rebuild today, even though the feature is local
+      stampCall: time(() => scene.refreshGround(st, {
+        relief: true, holes: true, zoneRect: rect,
+      }), 6),
+      // the same stamp with the mesh rebuild scoped to the feature
+      stampCallScoped: time(() => scene.refreshGround(st, {
+        relief: true, holes: true, zoneRect: rect, terrainRect: rect,
+      }), 6),
     };
   });
 

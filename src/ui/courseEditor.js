@@ -498,14 +498,28 @@ export function makeCourseEditor(app, hooks) {
     return { x0: x - r, y0: y - r, x1: x + r, y1: y + r };
   }
 
+  // The analytic relief sculpt behind a feature — a green's pad, a bunker's
+  // bowl and lip, a pond's bed — blends out past the surface footprint, so the
+  // terrain window has to be wider than the zone window. 4 cells is 32 yd.
+  const RELIEF_PAD_CELLS = 4;
+
   function refreshEditedFeature(kind, beforePts, afterPts) {
     const sc = scene();
+    // covers both the old and the new outline, so dragging a boundary repairs
+    // the terrain it vacated as well as the terrain it now occupies
+    const zoneRect = pointsZoneRect(beforePts, afterPts);
     sc.refreshGround(state(), {
       water: kind === 'water',
       holes: kind === 'green',
       flow: kind === 'green',
       relief: true,
-      zoneRect: pointsZoneRect(beforePts, afterPts),
+      zoneRect,
+      terrainRect: zoneRect ? {
+        x0: zoneRect.x0 - RELIEF_PAD_CELLS,
+        y0: zoneRect.y0 - RELIEF_PAD_CELLS,
+        x1: zoneRect.x1 + RELIEF_PAD_CELLS,
+        y1: zoneRect.y1 + RELIEF_PAD_CELLS,
+      } : null,
     });
     sc.updateTurf(state());
     refreshTop();
@@ -2565,7 +2579,7 @@ export function makeCourseEditor(app, hooks) {
         const res = stampTee(state(), session, hole.id, opt.tee.teeKey, point.x, point.y, aim.x, aim.y);
         if (!res.ok) toast(res.reason || 'Cannot build here.', 'warn');
         else {
-          scene().refreshGround(state(), { holes: true, flow: true, relief: true, zoneRect: zr(point.x, point.y, 6) });
+          scene().refreshGround(state(), { holes: true, flow: true, relief: true, zoneRect: zr(point.x, point.y, 6), terrainRect: zr(point.x, point.y, 6 + RELIEF_PAD_CELLS) });
           refreshTop();
           renderToolPanel();
           toast(`${opt.tee.teeKey[0].toUpperCase()}${opt.tee.teeKey.slice(1)} tee built (${formatMoney(res.cost)} pending).`);
@@ -2609,7 +2623,7 @@ export function makeCourseEditor(app, hooks) {
           holeId: hole.id,
         });
         if (res.ok) {
-          scene().refreshGround(state(), { relief: true, holes: true, zoneRect: zr(point.x, point.y, r * 1.8 + 3) });
+          scene().refreshGround(state(), { relief: true, holes: true, zoneRect: zr(point.x, point.y, r * 1.8 + 3), terrainRect: zr(point.x, point.y, r * 1.8 + 3 + RELIEF_PAD_CELLS) });
           refreshTop();
           renderToolPanel();
         } else toast(res.reason || 'The green needs open ground.', 'warn');
@@ -2635,7 +2649,7 @@ export function makeCourseEditor(app, hooks) {
           holeId: hole.id,
         });
         if (res.ok) {
-          scene().refreshGround(state(), { relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3) });
+          scene().refreshGround(state(), { relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3), terrainRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3 + RELIEF_PAD_CELLS) });
           refreshTop();
           renderToolPanel();
         } else {
@@ -2662,7 +2676,7 @@ export function makeCourseEditor(app, hooks) {
           angle: (opt.water.rot * Math.PI) / 180,
         });
         if (res.ok) {
-          scene().refreshGround(state(), { water: true, relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3) });
+          scene().refreshGround(state(), { water: true, relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3), terrainRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3 + RELIEF_PAD_CELLS) });
           refreshTop();
           renderToolPanel();
         } else {
@@ -3070,10 +3084,18 @@ export function makeCourseEditor(app, hooks) {
       if (res.ok) {
         const xs = drawingPath.map((q) => q.x);
         const ys = drawingPath.map((q) => q.y);
+        const streamRect = {
+          x0: Math.min(...xs) - 3, y0: Math.min(...ys) - 3,
+          x1: Math.max(...xs) + 3, y1: Math.max(...ys) + 3,
+        };
         scene().refreshGround(state(), {
           water: true,
           relief: true,
-          zoneRect: { x0: Math.min(...xs) - 3, y0: Math.min(...ys) - 3, x1: Math.max(...xs) + 3, y1: Math.max(...ys) + 3 },
+          zoneRect: streamRect,
+          terrainRect: {
+            x0: streamRect.x0 - RELIEF_PAD_CELLS, y0: streamRect.y0 - RELIEF_PAD_CELLS,
+            x1: streamRect.x1 + RELIEF_PAD_CELLS, y1: streamRect.y1 + RELIEF_PAD_CELLS,
+          },
         });
         refreshTop();
         renderToolPanel();

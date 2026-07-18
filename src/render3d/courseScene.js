@@ -5598,10 +5598,13 @@ export function makeCourseScene(canvas, state) {
   // limits the visual-field recompute to the edited cells.
   function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false, zoneRect = null, zones = true, relief: reReliefsculpt = false, terrainRect = null } = {}) {
     if (reReliefsculpt) relief = null; // a vector feature (green/bunker/water/tee) moved
-    // terrainRect scopes the mesh rebuild to an edited region. A relief
-    // invalidation re-sculpts analytic features course-wide, so that case must
-    // stay a full rebuild whatever the caller asked for.
-    rebuildTerrainHeights(reReliefsculpt ? null : terrainRect);
+    // terrainRect scopes the mesh rebuild to an edited region, and it is honoured
+    // even alongside a relief invalidation. Dropping and rebuilding the relief
+    // cache re-buckets every analytic feature, but a stamped green or bunker only
+    // CHANGES the sculpt near itself — vertices outside the rect re-evaluate to
+    // the heights they already hold. Callers that move something course-wide
+    // (rebuildAll) pass no rect and still get the full pass.
+    rebuildTerrainHeights(terrainRect);
     if (water) rebuildWater();
     const rebuiltPaths = paths
       || ((water || reReliefsculpt) && course.paths?.some(pathBridgeEnabled));
