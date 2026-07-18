@@ -76,6 +76,9 @@ const METERS_TO_YARDS = 1.0936133;
 // below every authored core plus interpolation headroom so it cannot punch
 // through the playable terrain as a false turf island.
 const ENV_RING_INTERIOR_TUCK_YD = 4;
+// The ring meets the property at its own edge height; this is only enough drop
+// to keep the two surfaces from z-fighting along the seam.
+const ENV_RING_SEAM_BIAS_YD = 0.15;
 // terrain vertices every ~1.33 yd on vector courses: bunker bowls, rolled lips,
 // pond banks and sculpted slopes read as continuous surfaces. Legacy grid
 // courses keep the coarser 2-yd spacing (their features are cell-blocky anyway).
@@ -1244,7 +1247,10 @@ export function makeCourseScene(canvas, state) {
     }
     const w = worldW + RING_REACH * 2;
     const h = worldH + RING_REACH * 2;
-    const geo = new THREE.PlaneGeometry(w, h, 110, 90);
+    // Denser than it needs to be for the hills, because the quads that straddle
+    // the property line are the ones that decide whether the course looks like
+    // a slab set down on a plain.
+    const geo = new THREE.PlaneGeometry(w, h, 180, 150);
     geo.rotateX(-Math.PI / 2);
     const pos = geo.attributes.position;
     const halfW = worldW / 2;
@@ -1258,13 +1264,23 @@ export function makeCourseScene(canvas, state) {
       const outside = Math.hypot(dx, dz);
       const edgeH = heightAt(clamp(x, -halfW + 1, halfW - 1), clamp(z, -halfH + 1, halfH - 1));
       if (outside <= 0.001) {
-        pos.setY(i, edgeH - ENV_RING_INTERIOR_TUCK_YD);
+        // Inside the property the ring only has to stay hidden beneath the real
+        // terrain. Ramp the tuck with depth instead of applying it flat: at this
+        // quad size a full-depth vertex one step inside the line drags a visible
+        // trench out past the boundary.
+        const inside = Math.min(halfW - Math.abs(x), halfH - Math.abs(z));
+        const tuck = ENV_RING_INTERIOR_TUCK_YD * Math.min(1, inside / 120);
+        pos.setY(i, edgeH - Math.max(ENV_RING_SEAM_BIAS_YD, tuck));
         continue;
       }
-      // rolling hills that grow with distance; a slight rise closes the horizon
-      const ramp = Math.min(1, outside / 420);
-      const hills = envHillNoise(x, z) * ramp + outside * 0.012 * ramp;
-      pos.setY(i, edgeH * (1 - Math.min(1, outside / 260)) + hills - 0.5);
+      // Leave the property at its own edge height and let the wider landscape
+      // grow in from there. The previous ramp dropped half a yard at the
+      // boundary and decayed the edge height to sea level within 260 yd, which
+      // is precisely what made the property read as a slab on empty ground.
+      const blend = Math.min(1, outside / 240);
+      const eased = blend * blend * (3 - 2 * blend);
+      const hills = envHillNoise(x, z) * eased + outside * 0.012 * eased;
+      pos.setY(i, edgeH - ENV_RING_SEAM_BIAS_YD + hills);
     }
     geo.computeVertexNormals();
     const mat = new THREE.MeshStandardMaterial({
