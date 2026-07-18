@@ -1088,6 +1088,28 @@ export function makeCourseScene(canvas, state) {
             gSplatN = mix(gSplatN, nSand, sandCov);
             gSplatUv = uvSand;
           }
+          // The ROUGH -> HEAVY -> OUT gradient rings every hole, and those three
+          // bands are the ones with no surface-distance channel: their colour
+          // came straight off the nearest-filtered categorical id, so each band
+          // edge was a hard half-yard step. They do carry a real signed distance
+          // to their own outward boundary in edgeYd, so feather each band into
+          // the neighbour it borders across the last yard and the step goes away
+          // without softening anything that owns an SDF channel.
+          vec3 heavyBand = FW_STYLIZE(dRough, vec3(0.155, 0.205, 0.072));
+          heavyBand = mix(heavyBand, vec3(0.34, 0.32, 0.13), fwNoise(cellUv * 2.7) * 0.2);
+          vec3 scrubBand = FW_STYLIZE(dScrub, vec3(0.145, 0.185, 0.082));
+          const float bandFeatherYd = 1.25;
+          if (zone < 0.5) {
+            // native scrub, fading back toward the heavy band on its inner edge
+            col = mix(heavyBand, col, smoothstep(0.0, bandFeatherYd, edgeYd));
+          } else if (zone > 8.5 && zone < 9.5) {
+            // the heavy band, fading out into native at its outer edge
+            col = mix(col, scrubBand, smoothstep(-bandFeatherYd, 0.0, edgeYd));
+          } else if (zone > 0.5 && zone < 1.5 && managedCov < 0.001) {
+            // mown rough, fading into the heavy band where the mowing stops
+            col = mix(col, heavyBand, smoothstep(-bandFeatherYd, 0.0, edgeYd));
+          }
+
           // Broad, low-amplitude turf drift breaks repetition without turning
           // the playing surface into camouflage. One noise feature spans about
           // five simulation cells (roughly forty yards).
