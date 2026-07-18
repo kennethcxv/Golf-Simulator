@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 
 const DRIVER_URL = new URL(
@@ -11,6 +12,8 @@ const source = fs.readFileSync(DRIVER_URL, 'utf8');
 test('recovery accessibility projection compares coherent pad and visible-product world bounds', async () => {
   const driver = await import(DRIVER_URL);
   assert.equal(typeof driver.runRecoveryAccessibilityAudit, 'function');
+  assert.equal(typeof driver.resolveRecoveryAccessibilityOutput, 'function');
+  assert.equal(typeof driver.resolveRecoveryAccessibilityLaunchConfig, 'function');
 
   assert.match(source, /interior\.updateWorldMatrix\(true, true\)/);
   assert.match(source, /camera\.updateWorldMatrix\(true, false\)/);
@@ -20,6 +23,33 @@ test('recovery accessibility projection compares coherent pad and visible-produc
   assert.match(source, /itemClickPad: itemClickPadDiagnostic/);
   assert.match(source, /visibleProduct: visibleProductDiagnostic/);
   assert.match(source, /padToVisibleCenterDistance:/);
+});
+
+test('recovery accessibility output can be isolated without removing prior evidence', async () => {
+  const {
+    resolveRecoveryAccessibilityLaunchConfig,
+    resolveRecoveryAccessibilityOutput,
+  } = await import(DRIVER_URL);
+  assert.equal(
+    resolveRecoveryAccessibilityOutput({ REGISTER_RECOVERY_ACCESSIBILITY_ROOT: 'qa/fresh-recovery' }),
+    path.resolve('qa/fresh-recovery'),
+  );
+  assert.match(source, /REGISTER_RECOVERY_ACCESSIBILITY_ROOT/);
+
+  const config = resolveRecoveryAccessibilityLaunchConfig({
+    REGISTER_RECOVERY_ACCESSIBILITY_ROOT: "qa/O'Brien/recovery",
+    VIDEO_DIR: 'qa/fresh-recovery/video',
+    QA_BASE_URL: 'http://127.0.0.1:8457/',
+    HEADED: '1',
+  });
+  assert.equal(config.videoDirectory, path.resolve('qa/fresh-recovery/video'));
+  assert.equal(config.browserMode, 'headed');
+  assert.match(config.command, /O''Brien/);
+  assert.match(config.command, /\$env:VIDEO_DIR=/);
+  assert.match(config.command, /\$env:QA_BASE_URL='http:\/\/127\.0\.0\.1:8457\/'/);
+  const noVideo = resolveRecoveryAccessibilityLaunchConfig({});
+  assert.equal(noVideo.videoDirectory, null);
+  assert.doesNotMatch(noVideo.command, /VIDEO_DIR/);
 });
 
 test('recovery accessibility projection keeps the exact fixed-camera NDC gate', () => {
@@ -36,8 +66,9 @@ test('recovery accessibility evidence is finalized against one schema-v2 build b
     'success and blocker results must both be finalized');
   assert.equal((source.match(/beforeSnapshot: productionBuildBefore/g) || []).length, 2);
   assert.match(source, /evidencePngs: evidence,/);
-  assert.match(source, /evidencePngs: \[\.\.\.evidence, blocker\],/);
-  assert.equal((source.match(/evidenceRoot: OUT,/g) || []).length, 2);
+  assert.match(source, /evidencePngs: blockerEvidence,/);
+  assert.equal((source.match(/evidenceRoot: out,/g) || []).length, 2);
+  assert.match(source, /screenshot: blockerCaptured \? blocker : null/);
 });
 
 test('recovery exact-40 candidate frames remain in the finalized evidence inventory', () => {

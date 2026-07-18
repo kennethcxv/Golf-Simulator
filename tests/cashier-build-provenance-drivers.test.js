@@ -95,8 +95,9 @@ test('success and blocker paths retain every driver-specific screenshot referenc
 
   const recoveryAccessibility = fs.readFileSync(DRIVERS[4], 'utf8');
   assert.match(recoveryAccessibility, /evidencePngs: evidence,/);
-  assert.match(recoveryAccessibility, /evidencePngs: \[\.\.\.evidence, blocker\],/);
-  assert.match(recoveryAccessibility, /evidenceRoot: OUT,/);
+  assert.match(recoveryAccessibility, /evidencePngs: blockerEvidence,/);
+  assert.match(recoveryAccessibility, /REGISTER_RECOVERY_ACCESSIBILITY_ROOT/);
+  assert.match(recoveryAccessibility, /evidenceRoot: out,/);
 
   const evidencePlan = fs.readFileSync(EVIDENCE_PLAN_GENERATOR, 'utf8');
   assert.match(evidencePlan, /number: 19[^\n]+08a-cash-clicked\.png/);

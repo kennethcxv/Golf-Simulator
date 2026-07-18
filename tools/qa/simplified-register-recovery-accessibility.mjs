@@ -9,7 +9,7 @@ import {
 
 const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
 const VIEWPORT = Object.freeze({ width: 1600, height: 900 });
-const OUT = path.resolve('qa/cashier_master_final/recovery_accessibility/final-current-hash');
+const DEFAULT_OUT = 'qa/cashier_master_final/recovery_accessibility/final-current-hash';
 const AUTOSAVE_KEY = 'golfempire:autosave';
 const CHECKPOINT_KEY = 'golfempire:qa:recovery-accessibility-checkpoint';
 const SKUS = Object.freeze(['tees1', 'marker1', 'glove1']);
@@ -20,6 +20,34 @@ function assert(value, message) {
 
 function same(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+export function resolveRecoveryAccessibilityOutput(env = process.env) {
+  return path.resolve(env.REGISTER_RECOVERY_ACCESSIBILITY_ROOT || DEFAULT_OUT);
+}
+
+function powershellSingleQuoted(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+export function resolveRecoveryAccessibilityLaunchConfig(env = process.env) {
+  const out = resolveRecoveryAccessibilityOutput(env);
+  const videoDirectory = env.VIDEO_DIR ? path.resolve(env.VIDEO_DIR) : null;
+  const baseUrl = env.QA_BASE_URL || 'http://localhost:8457/';
+  const browserMode = env.HEADED === '1' ? 'headed' : 'headless';
+  const assignments = [
+    `$env:REGISTER_RECOVERY_ACCESSIBILITY_ROOT=${powershellSingleQuoted(out)}`,
+    `$env:QA_BASE_URL=${powershellSingleQuoted(baseUrl)}`,
+    env.HEADED === '1' ? "$env:HEADED='1'" : null,
+    videoDirectory ? `$env:VIDEO_DIR=${powershellSingleQuoted(videoDirectory)}` : null,
+  ].filter(Boolean);
+  return {
+    out,
+    videoDirectory,
+    baseUrl,
+    browserMode,
+    command: `${assignments.join('; ')}; node tools/qa/run-playwright.cjs tools/qa/simplified-register-recovery-accessibility.js --bootstrap`,
+  };
 }
 
 function poseDelta(left, right) {
@@ -1067,7 +1095,9 @@ function markdown(result) {
 }
 
 export async function runRecoveryAccessibilityAudit(page) {
-  fs.mkdirSync(OUT, { recursive: true });
+  const launchConfig = resolveRecoveryAccessibilityLaunchConfig();
+  const { out } = launchConfig;
+  fs.mkdirSync(out, { recursive: true });
   const productionBuildBefore = captureCashierBuildSnapshot();
   const diagnostics = {
     consoleErrors: [], pageErrors: [], warnings: [], failedRequests: [], httpErrors: [],
@@ -1088,7 +1118,7 @@ export async function runRecoveryAccessibilityAudit(page) {
   let shotNumber = 0;
   const shot = async (label) => {
     shotNumber += 1;
-    const file = path.join(OUT, `${String(shotNumber).padStart(2, '0')}-${label}.png`);
+    const file = path.join(out, `${String(shotNumber).padStart(2, '0')}-${label}.png`);
     await page.screenshot({ path: file });
     evidence.push(file);
     return file;
@@ -1690,10 +1720,12 @@ export async function runRecoveryAccessibilityAudit(page) {
 
     let result = {
       ok: true,
-      command: 'VIDEO_DIR=qa/cashier_master_final/recovery_accessibility/video node tools/qa/run-playwright.cjs tools/qa/simplified-register-recovery-accessibility.js --bootstrap',
+      command: launchConfig.command,
       viewport: { ...VIEWPORT, deviceScaleFactor: 1 },
-      evidenceDirectory: OUT,
-      videoDirectory: process.env.VIDEO_DIR ? path.resolve(process.env.VIDEO_DIR) : null,
+      evidenceDirectory: out,
+      videoDirectory: launchConfig.videoDirectory,
+      qaBaseUrl: launchConfig.baseUrl,
+      browserMode: launchConfig.browserMode,
       nodeTests: {
         command: 'node --test tests/register-flow.test.js tests/checkout-preferences.test.js tests/laptop-pages.test.js tests/register-abandon.test.js tests/register-card-abort.test.js tests/register-complete.test.js tests/register-integrity.test.js tests/register-watchdog-recovery.test.js tests/customer-checkout-flow.test.js tests/customer-checkout-recovery.test.js',
         pass: 73, total: 73,
@@ -1792,30 +1824,37 @@ export async function runRecoveryAccessibilityAudit(page) {
       result,
       beforeSnapshot: productionBuildBefore,
       evidencePngs: evidence,
-      evidenceRoot: OUT,
+      evidenceRoot: out,
     });
-    fs.writeFileSync(path.join(OUT, 'latest-result.json'), `${JSON.stringify(result, null, 2)}\n`);
-    fs.writeFileSync(path.join(OUT, 'REPORT.md'), markdown(result));
+    fs.writeFileSync(path.join(out, 'latest-result.json'), `${JSON.stringify(result, null, 2)}\n`);
+    fs.writeFileSync(path.join(out, 'REPORT.md'), markdown(result));
     return result;
   } catch (error) {
-    const blocker = path.join(OUT, `99-blocker-${stage.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}.png`);
-    await page.screenshot({ path: blocker }).catch(() => {});
+    const blocker = path.join(out, `99-blocker-${stage.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}.png`);
+    const blockerCaptured = await page.screenshot({ path: blocker })
+      .then(() => true, () => false);
+    const blockerEvidence = blockerCaptured ? [...evidence, blocker] : [...evidence];
     let result = {
       ok: false,
       stage,
-      blocker: { message: error.message, stack: error.stack, screenshot: blocker },
+      blocker: {
+        message: error.message,
+        stack: error.stack,
+        screenshot: blockerCaptured ? blocker : null,
+        screenshotCaptured: blockerCaptured,
+      },
       diagnostics,
-      evidence: [...evidence, blocker],
+      evidence: blockerEvidence,
       generatedAt: new Date().toISOString(),
     };
     result = finalizeCashierQaResult({
       result,
       beforeSnapshot: productionBuildBefore,
-      evidencePngs: [...evidence, blocker],
-      evidenceRoot: OUT,
+      evidencePngs: blockerEvidence,
+      evidenceRoot: out,
     });
-    fs.writeFileSync(path.join(OUT, 'latest-result.json'), `${JSON.stringify(result, null, 2)}\n`);
-    fs.writeFileSync(path.join(OUT, 'REPORT.md'), `# Cashier recovery and accessibility audit\n\nBLOCKED at **${stage}**: ${error.message}\n`);
+    fs.writeFileSync(path.join(out, 'latest-result.json'), `${JSON.stringify(result, null, 2)}\n`);
+    fs.writeFileSync(path.join(out, 'REPORT.md'), `# Cashier recovery and accessibility audit\n\nBLOCKED at **${stage}**: ${error.message}\n`);
     return result;
   }
 }
