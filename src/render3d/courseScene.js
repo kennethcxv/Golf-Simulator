@@ -1541,11 +1541,14 @@ export function makeCourseScene(canvas, state) {
       if (m.material && m.material.dispose) m.material.dispose();
     }
     waterMeshes = [];
-    // Hero ponds can opt into their analytic shoreline for the water plane.
-    // Generic/editor/legacy water keeps the established component-disc fallback.
-    const outlinedWaters = course.vec
-      ? getGeom(course).waters.filter((water) => water.ref.surface === 'outline')
-      : [];
+    // Every vec water carries the same sampled polygon that carves its bowl
+    // (courseVec buildGeom feeds w.poly to both), so the surface can always use
+    // it — and using it is what guarantees the plane lines up with the bowl.
+    // This used to be gated on an opt-in `surface: 'outline'` tag that exactly
+    // one authored millpond set; every other pond fell back to a disc sized from
+    // the 8-yd cell bounding box, which overhangs any elongated pond and cannot
+    // follow a shoreline. Legacy grid courses have no vec and still get the disc.
+    const outlinedWaters = course.vec ? getGeom(course).waters : [];
     // find pond components on the cell grid
     const seen = new Uint8Array(W * H);
     for (let i = 0; i < W * H; i++) {
@@ -1599,10 +1602,20 @@ export function makeCourseScene(canvas, state) {
       const centerCellY = (minY + maxY) / 2 + 0.5;
       const cx = centerCellX * CELL_YD - worldW / 2;
       const cz = centerCellY * CELL_YD - worldH / 2;
-      const outlined = outlinedWaters.find((feature) => (
-        centerCellX >= feature.bbox.x0 && centerCellX <= feature.bbox.x1
-        && centerCellY >= feature.bbox.y0 && centerCellY <= feature.bbox.y1
-      ));
+      // With every water eligible, two nearby ponds can both contain this
+      // component's centre in their padded bbox. Take the tightest match rather
+      // than the first, so a small pond beside a large one keeps its own shape.
+      let outlined = null;
+      let outlinedArea = Infinity;
+      for (const feature of outlinedWaters) {
+        const { x0, y0, x1, y1 } = feature.bbox;
+        if (centerCellX < x0 || centerCellX > x1 || centerCellY < y0 || centerCellY > y1) continue;
+        const area = Math.max(1e-6, (x1 - x0) * (y1 - y0));
+        if (area < outlinedArea) {
+          outlined = feature;
+          outlinedArea = area;
+        }
+      }
       let geo;
       if (outlined?.poly?.length >= 3) {
         // Flood the same smooth analytic loop that sculpts the pond bowl. The
