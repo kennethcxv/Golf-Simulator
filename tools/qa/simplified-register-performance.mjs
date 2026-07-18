@@ -533,6 +533,22 @@ async function exitFrontDesk(page) {
   assert(!active, 'Escape did not back out through the shared monitor and leave the front desk.');
 }
 
+async function enterFrontDeskAtMonitor(page, transactionNumber = null) {
+  await page.keyboard.press('e');
+  await page.waitForFunction((number) => {
+    const register = window.__fw.scene3d.clubhouse().register;
+    return register.isActive() && (number == null || register.getTx()?.number === number);
+  }, transactionNumber, { timeout: 10000 });
+  const workspace = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.workspace());
+  if (workspace !== 'monitor') await page.keyboard.press('Escape');
+  await page.waitForFunction((number) => {
+    const register = window.__fw.scene3d.clubhouse().register;
+    return register.isActive()
+      && register.workspace() === 'monitor'
+      && (number == null || register.getTx()?.number === number);
+  }, transactionNumber, { timeout: 10000 });
+}
+
 async function projectObject(page, predicate) {
   return page.evaluate(async (query) => {
     const THREE = await import('/vendor/three.module.js');
@@ -583,21 +599,33 @@ async function projectLocal(page, local) {
 async function scanAll(page) {
   const itemIds = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getTx().items.map((item) => item.uid));
   for (const uid of itemIds) {
-    const product = await projectObject(page, { kind: 'item', uid });
+    let product = await projectObject(page, { kind: 'item', uid });
+    // The preceding product's click-to-bag flight can briefly cross the next
+    // product. Wait for this visible target to settle before aiming at it.
+    for (let settle = 0; settle < 20; settle += 1) {
+      await page.waitForTimeout(120);
+      const next = await projectObject(page, { kind: 'item', uid });
+      if (next && product
+          && Math.abs(next.x - product.x) < 1.5
+          && Math.abs(next.y - product.y) < 1.5) {
+        product = next;
+        break;
+      }
+      product = next;
+    }
     assert(product?.inView, `${uid} is outside the scanner production camera.`);
+    // Production scanning is one click: it rings the item and sends it to the
+    // bag. The retired auto-centre + drag gesture must never return to this QA.
     await page.mouse.click(product.x, product.y);
-    await page.waitForTimeout(500);
-    const centered = await projectObject(page, { kind: 'item', uid });
-    assert(centered?.inView, `${uid} did not auto-center in the scanner workspace.`);
-    await page.mouse.move(centered.x, centered.y);
-    await page.mouse.down();
-    await page.mouse.move(Math.min(VIEWPORT.width - 70, centered.x + 760), centered.y, { steps: 18 });
-    await page.mouse.up();
     await page.waitForFunction((id) => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return !!tx?.items.find((item) => item.uid === id)?.scanned;
     }, uid, { timeout: 5000 });
-    await page.waitForTimeout(400);
+    await page.waitForFunction((id) => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      return !!tx?.items.find((item) => item.uid === id)?.staged;
+    }, uid, { timeout: 8000 });
+    await page.waitForTimeout(180);
   }
   await page.waitForFunction(() => {
     const register = window.__fw.scene3d.clubhouse().register;
@@ -608,36 +636,46 @@ async function scanAll(page) {
 }
 
 async function declineCardAndSwitchToCash(page, onCardEntry = null) {
-  await page.evaluate(() => { window.__fw.scene3d.clubhouse().register.getTx().rng = () => 0; });
-  const anchors = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.insertAt());
-  const ready = await projectLocal(page, anchors.ready);
-  const inserted = await projectLocal(page, anchors.inserted);
-  assert(ready.inView && inserted.inView, 'Card insertion anchors are outside the production card camera.');
-  await page.mouse.move(ready.x, ready.y);
-  await page.mouse.down();
-  await page.mouse.move(inserted.x, inserted.y, { steps: 16 });
-  await page.mouse.up();
+  // Keep authorization deterministic without bypassing the live card path. The
+  // normal click and keypad actions below still own every state transition.
+  await page.evaluate(() => {
+    window.__fw.scene3d.clubhouse().register.getTx().rng = () => 0;
+  });
+  const card = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.presentedCardScreenPoint()
+  ));
+  assert(card?.inView, 'The presented card is outside the production card camera.');
+  // One normal click runs the complete insertion. No drag or second card click.
+  await page.mouse.click(card.x, card.y);
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx?.stage === 'card-entry' && tx.checkoutFlow?.state === 'CardAmountEntry';
   }, null, { timeout: 4000 });
   if (onCardEntry) await onCardEntry();
-  const digits = await page.evaluate(async () => {
-    const { totalOf } = await import('/src/sim/register.js');
-    return String(Math.round(totalOf(window.__fw.scene3d.clubhouse().register.getTx()) * 100));
-  });
-  await page.keyboard.type(digits, { delay: 35 });
-  await page.keyboard.press('Enter');
+
+  const ok = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint('OK')
+  ));
+  assert(ok?.inView, 'The card reader OK key is outside the production card camera.');
+  await page.mouse.click(ok.x, ok.y);
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx?.stage === 'card-busy' && tx.checkoutFlow?.state === 'CardProcessing';
   }, null, { timeout: 4000 });
-  await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'card-declined', null, { timeout: 7000 });
-  await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.workspace() === 'monitor', null, { timeout: 7000 });
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.stage === 'card-declined' && tx.checkoutFlow?.state === 'CardDeclined';
+  }, null, { timeout: 7000 });
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.workspace() === 'monitor'
+  ), null, { timeout: 7000 });
   await waitForCameraStable(page);
   await monitorClick(page, 'card-to-cash');
-  await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'cash-tender', null, { timeout: 5000 });
-  await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.workspace() === 'cash', null, { timeout: 5000 });
+  await page.waitForFunction(() => {
+    const register = window.__fw.scene3d.clubhouse().register;
+    const tx = register.getTx();
+    return register.workspace() === 'cash' && tx?.stage === 'cash-tender';
+  }, null, { timeout: 7000 });
   await waitForCameraStable(page);
 }
 
@@ -660,6 +698,7 @@ This is a current-build, matched-scene feature-overhead capture. The idle baseli
 ## Protocol
 
 - Chrome ${result.environment.browserVersion}, ${result.environment.viewport.width}x${result.environment.viewport.height}, DPR ${result.environment.devicePixelRatio}
+- Browser mode: ${result.protocol.browserMode}
 - GPU: ${result.environment.webglRenderer}
 - Fixture: ${result.fixture.fixture}
 - ${result.protocol.sampleCount} x ${result.protocol.sampleMs / 1000}-second rAF samples per scene, after explicit GC, ${result.protocol.gcSettleMs} ms settle, and ${result.protocol.warmupMs / 1000}-second warm-up
@@ -698,7 +737,7 @@ The tolerances are local QA budgets, not repository product requirements: active
 
 ## Limitations
 
-- Headless Chrome rAF timing reflects this host, browser, viewport, and current background load; it is not a multi-hardware benchmark.
+- ${result.protocol.browserMode === 'headed' ? 'Headed' : 'Headless'} Chrome rAF timing reflects this host, browser, viewport, and current background load; it is not a multi-hardware benchmark.
 - Exact GPU texture allocation and GPU frame time are unavailable through WebGL; visible texture bytes are explicitly estimated as RGBA8 with mip assumptions.
 - The listener probe cannot enumerate inaccessible non-DOM EventTargets.
 - The leak probe exercises repeated safe exit/re-entry on one preserved transaction; it does not replace a multi-sale lifecycle stress test.
@@ -753,11 +792,8 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
   environment.browserVersion = await page.context().browser().version();
 
   // Idle is the normal shared monitor with no transaction; production owns the camera.
-  await page.keyboard.press('e');
-  await page.waitForFunction(() => {
-    const register = window.__fw.scene3d.clubhouse().register;
-    return register.isActive() && !register.getTx() && register.workspace() === 'monitor';
-  }, null, { timeout: 5000 });
+  await enterFrontDeskAtMonitor(page);
+  assert(!await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getTx()), 'Idle monitor unexpectedly has a transaction.');
   await waitForCameraStable(page);
   const scenes = {};
   scenes.idleMonitor = await captureScene(page, cdp, '01-idle-monitor', 'Idle shared monitor');
@@ -767,11 +803,8 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
   const customer = await page.evaluate((skuIds) => window.__fw.scene3d.clubhouse().sendToCounter(skuIds, 'card'), ITEMS);
   assert(customer, 'Could not create deterministic performance customer.');
   await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.getTx()?.items.length === 3, null, { timeout: 15000 });
-  await page.keyboard.press('e');
-  await page.waitForFunction(() => {
-    const register = window.__fw.scene3d.clubhouse().register;
-    return register.isActive() && register.getTx()?.items.length === 3 && register.workspace() === 'monitor';
-  }, null, { timeout: 5000 });
+  await enterFrontDeskAtMonitor(page);
+  assert(await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getTx()?.items.length === 3), 'Active monitor lost the three-item transaction.');
   await waitForCameraStable(page);
   scenes.activeMonitor = await captureScene(page, cdp, '02-active-monitor', 'Active three-item monitor');
 
@@ -781,11 +814,7 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
     await exitFrontDesk(page);
     await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.isActive(), null, { timeout: 3000 });
     await page.waitForTimeout(45);
-    await page.keyboard.press('e');
-    await page.waitForFunction((number) => {
-      const register = window.__fw.scene3d.clubhouse().register;
-      return register.isActive() && register.getTx()?.number === number && register.workspace() === 'monitor';
-    }, transactionNumber, { timeout: 3000 });
+    await enterFrontDeskAtMonitor(page, transactionNumber);
     await page.waitForTimeout(70);
     if (cycle % 5 === 0) reentrySamples.push(await stabilitySnapshot(page, cdp, cycle));
   }
@@ -824,7 +853,9 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
     scenes.cardEntry = await captureScene(page, cdp, '04b-card-entry', 'Inserted card and active amount keypad');
   });
   scenes.cash = await captureScene(page, cdp, '05-cash', 'Cash workspace, tender presented');
-  const tender = await projectObject(page, { kind: 'money', from: 'tender' });
+  const tender = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.presentedCashScreenPoint()
+  ));
   assert(tender?.inView, 'Presented cash is outside the production cash camera.');
   await page.mouse.click(tender.x, tender.y);
   await page.waitForFunction(() => {
@@ -916,12 +947,13 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
       baseUrl: BASE_URL,
       viewport: VIEWPORT,
       requiredViewports: REQUIRED_VIEWPORTS,
+      browserMode: process.env.HEADED === '1' ? 'headed' : 'headless',
       sampleCount: SAMPLE_COUNT,
       sampleMs: SAMPLE_MS,
       warmupMs: WARMUP_MS,
       gcSettleMs: GC_SETTLE_MS,
       reentryCycles: REENTRY_CYCLES,
-      productionInputRoute: 'E/Escape, physical monitor clicks, automatic customer payment choice, physical product drag, physical card insertion, physical tender click',
+      productionInputRoute: 'E/Escape, physical monitor clicks, automatic customer payment choice, click-to-bag products, physical card click and reader OK, physical tender click',
     },
     fixture,
     environment,
@@ -937,7 +969,7 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
     },
     gates,
     limitations: [
-      'Single-host headless Chrome measurement; not a multi-device hardware benchmark.',
+      `${process.env.HEADED === '1' ? 'Headed' : 'Headless'} Chrome measurement on one host; not a multi-device hardware benchmark.`,
       'Texture memory is an RGBA8/mipmap estimate because WebGL does not expose exact GPU allocation.',
       'Listener enumeration excludes inaccessible non-DOM EventTargets.',
       'Leak stress covers 20 safe enter/exit cycles on one transaction, not repeated completed-sale lifecycle cleanup.',

@@ -18,17 +18,14 @@ import assert from 'node:assert/strict';
 import { newGame } from '../src/sim/state.js';
 import {
   createTx, scanItem, requestPayment, presentCard, insertCard,
-  enterCardDigit, submitCardAmount, totalOf, runCard,
+  submitCardAmount, runCard,
   printReceipt, takeReceipt, packReceipt, bagItem, handOverGoods, completeSale, voidTx,
   openDrawer, takeFromDrawer, handOverChange, newDrawer, stackTotal,
 } from '../src/sim/register.js';
 import { pickFromShelf, returnToShelf, heldUnits } from '../src/sim/checkout.js';
 
 const rngFor = (seq) => { let i = 0; return () => seq[i++ % seq.length]; };
-const enterExactAmount = (tx) => {
-  for (const digit of String(Math.round(totalOf(tx) * 100))) enterCardDigit(tx, Number(digit));
-  return submitCardAmount(tx);
-};
+const confirmExactAmount = (tx) => submitCardAmount(tx);
 const items = () => ([
   { uid: 'a', skuId: 'balls3', name: 'Pro-V dozen', price: 47 },
   { uid: 'b', skuId: 'glove1', name: 'Cabretta glove', price: 19 },
@@ -55,7 +52,7 @@ test('a sale abandoned AFTER AN APPROVED CARD still banks nothing', () => {
   requestPayment(tx);
   presentCard(tx);
   insertCard(tx);
-  enterExactAmount(tx);
+  confirmExactAmount(tx);
   assert.equal(runCard(tx).result, 'approved');
   assert.equal(tx.stage, 'receipt');
 
@@ -122,7 +119,7 @@ test('a finished sale cannot then be abandoned INTO a second bank', () => {
   requestPayment(tx);
   presentCard(tx);
   insertCard(tx);
-  enterExactAmount(tx);
+  confirmExactAmount(tx);
   runCard(tx);
   printReceipt(tx);
   takeReceipt(tx);

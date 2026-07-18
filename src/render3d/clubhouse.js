@@ -411,13 +411,17 @@ export function makeClubhouse(ctx) {
     }
     leaveReview(c, true);
     clearCustomerItemMeshes(c);
-    // The simplified front desk transfers the paid products only when FINALIZE
-    // banks the transaction. The old physical bag handoff remains available solely
-    // for an explicit legacy presentation flag and is off in production.
-    if (B.legacyPaidBagHandoff === true) {
+    // FINALIZE is the ownership boundary: only after the sale banks do the
+    // branded carrier, receipt, and any oversize goods attach to the customer.
+    // This keeps unpaid props at the counter while ensuring paid goods remain
+    // visibly theirs through the acceptance beat and walk out.
     // a branded carrier into their hand — they walk out with it
-    const bag = (merch && merch.instantiate('checkout_shopping_bag')) || new THREE.Group();
-    const productionBag = bag.children.length > 0;
+    const kitBag = merch?.instantiateKit
+      ? merch.instantiateKit('shopping_bag', { scale: 0.86 })
+      : null;
+    const legacyBag = !kitBag && merch ? merch.instantiate('checkout_shopping_bag') : null;
+    const bag = kitBag || legacyBag || new THREE.Group();
+    const productionBag = !!(kitBag || legacyBag);
     if (!productionBag) {
       const body = new THREE.Mesh(
         new THREE.BoxGeometry(0.2, 0.26, 0.13),
@@ -425,10 +429,22 @@ export function makeClubhouse(ctx) {
       );
       body.position.y = 0.13;
       bag.add(body);
-    } else {
+    } else if (legacyBag) {
       // A believable 26 cm retail carrier: large enough for the three-item sale
       // and readable as the object the customer owns in the departure shot.
       bag.scale.setScalar(0.78);
+    }
+    const paidReceipt = merch && merch.instantiateKit
+      ? merch.instantiateKit('loose_receipt', { scale: 0.78 })
+      : null;
+    if (paidReceipt) {
+      const pocket = bag.getObjectByName('ANCHOR_ReceiptPocket');
+      const receiptParent = pocket || bag;
+      paidReceipt.position.set(0, 0, 0);
+      if (!pocket) paidReceipt.position.set(0.07, 0.30, -0.045);
+      paidReceipt.rotation.set(-0.16, 0.08, 0.04);
+      paidReceipt.userData.checkoutOwner = 'customer';
+      receiptParent.add(paidReceipt);
     }
     const char = c.mesh.userData.char;
     const hand = char && char.hand ? char.hand('L') : null;
@@ -448,8 +464,6 @@ export function makeClubhouse(ctx) {
     // route locomotion takes over as soon as the acceptance hold expires.
     c.bagAcceptanceFace = null;
     if (char) char.setMode('ReceiveBag');
-    }
-
     c.cart = [];
     c.awaitingCheckout = false;
     c.checkoutPhase = 'complete';
@@ -5690,7 +5704,7 @@ export function makeClubhouse(ctx) {
   function dispose() {
     if (disposing) return disposalSummary;
     disposing = true;
-    register.leave();
+    register.leave({ restorePointer: false });
     deliveryBoxTransfers.clear();
     deliveryBoxTransferHistory.length = 0;
     deliveryTransferBatch = null;
@@ -5840,6 +5854,7 @@ export function makeClubhouse(ctx) {
       getTx: () => register.getTx(),
       getCustomer: () => register.getCustomer(),
       getFlow: () => register.getFlow(),
+      deliveryPhase: () => register.deliveryPhase(),
       hint: () => register.hint(),
       insertAt: () => register.insertAt(),
       monitorActionPoint: (id) => register.monitorActionPoint(id),

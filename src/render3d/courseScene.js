@@ -1845,6 +1845,13 @@ export function makeCourseScene(canvas, state) {
         // exactly like the laptop seat. (Both are function declarations, so hoisted.)
         focusOn: walkFocusOn,
         clearFocus: walkClearFocus,
+        // Checkout owns only a temporary boolean override. These adapters keep
+        // the post pass itself private to the course renderer and let the
+        // register restore the exact player setting it observed on card entry.
+        postEffects: {
+          getGtaoEnabled: () => gtao.enabled,
+          setGtaoEnabled: (enabled) => { gtao.enabled = enabled; },
+        },
       });
     }
     scene.add(structGroup);

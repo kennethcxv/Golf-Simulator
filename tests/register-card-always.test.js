@@ -1,16 +1,14 @@
-// CARD ALWAYS APPROVES (gameplay).
+// CARD AUTHORIZATION OVERRIDES (domain diagnostics).
 //
-// The player-facing card flow never declines: the customer hands the card, it
-// auto-inserts, the player types the total, and it approves. The decline logic
-// stays in register.js (and register-payment.test.js still covers it rng-driven),
-// but the live renderer drives runCard with { force: 'approved' } so gameplay is
-// deterministic. These tests lock that capability.
+// Normal gameplay uses the rng-driven authorization path, including decline and
+// replacement-card retry. Explicit force outcomes remain available to focused
+// domain tests so approval and decline settlement can be exercised deterministically.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createTx, scanItem, requestPayment, totalOf,
-  presentCard, insertCard, enterCardDigit, submitCardAmount, runCard,
+  createTx, scanItem, requestPayment,
+  presentCard, insertCard, submitCardAmount, runCard,
 } from '../src/sim/register.js';
 
 const basket = () => ([
@@ -24,7 +22,6 @@ const toCardBusy = (rng) => {
   requestPayment(tx);
   presentCard(tx);
   insertCard(tx);
-  for (const digit of String(Math.round(totalOf(tx) * 100))) enterCardDigit(tx, Number(digit));
   submitCardAmount(tx);
   return tx;
 };

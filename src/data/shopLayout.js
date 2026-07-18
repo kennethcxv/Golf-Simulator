@@ -179,7 +179,7 @@ export const REGISTER = {
   scanner:  { x: 2.70, z: 4.22, ry: Math.PI + 0.22 },   // unused by the click-to-bag flow
   printer:  { x: 3.98, z: 4.48, ry: Math.PI - 0.18 },
   custdisplay: { x: 3.84, z: 4.10 },                    // faces the queue (customer side)
-  bag: { x: 1.70, z: 4.62 },                            // the OPEN kraft bag — far-left corner of its zone, out of the working frame
+  bag: { x: 2.04, z: 4.44 },                            // open kraft bag, left of goods but fully inside the working frame
   bagstand: { x: 4.20, z: 4.50 },                       // the stack of folded carriers
   divider:  { x: 4.42, z: 4.05 },                       // where the next order starts
   impulse:  { x: 4.18, z: 3.86 },                       // markers and tees, facing the queue
@@ -195,7 +195,7 @@ export const REGISTER = {
   staging: { minX: 2.05, maxX: 2.80, minZ: 3.78, maxZ: 4.10 },  // customer lays goods out here
   // the bag handoff zone: items arc from staging INTO THE BAG at counter-left
   // (click-to-bag) — there is no separate bagging mat any more
-  bagging: { minX: 1.66, maxX: 2.28, minZ: 4.38, maxZ: 4.68 },
+  bagging: { minX: 1.84, maxX: 2.24, minZ: 4.30, maxZ: 4.58 },
 
   // THE SCAN VOLUME. An item counts as scanned when its barcode passes THROUGH this
   // box — not when it comes to rest in it. Both surfaces sit clear of it, so nothing

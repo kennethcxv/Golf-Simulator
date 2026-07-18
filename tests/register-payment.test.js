@@ -12,18 +12,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createTx, scanItem, requestPayment, dueOf, cashTotalOf, totalOf,
-  presentCard, insertCard, enterCardDigit, submitCardAmount, runCard, retryCard, cancelCard,
+  createTx, scanItem, requestPayment, dueOf, cashTotalOf,
+  presentCard, insertCard, submitCardAmount, runCard, retryCard, cancelCard,
   customerCash, acceptCash, openDrawer, closeDrawer, depositTendered,
   takeFromDrawer, returnToDrawer, changeDue, handTotal, handOverChange,
   newDrawer, stackTotal, makeChange, drawerContents,
 } from '../src/sim/register.js';
 
 const rngFor = (seq) => { let i = 0; return () => seq[i++ % seq.length]; };
-const enterExactAmount = (tx) => {
-  for (const digit of String(Math.round(totalOf(tx) * 100))) enterCardDigit(tx, Number(digit));
-  return submitCardAmount(tx);
-};
+const confirmExactAmount = (tx) => submitCardAmount(tx);
 // one Pro-V dozen at $47 and a glove at $19.55 → $66.55
 const basket = () => ([
   { uid: 'a', skuId: 'balls3', name: 'Pro-V dozen', price: 47 },
@@ -53,7 +50,7 @@ test('a card sale: present, run, approve — and it takes more than one call', (
   assert.equal(runCard(tx).ok, false);
   assert.equal(insertCard(tx).ok, true);
   assert.equal(tx.stage, 'card-entry');
-  assert.equal(enterExactAmount(tx).ok, true);
+  assert.equal(confirmExactAmount(tx).ok, true);
   assert.equal(tx.stage, 'card-busy');
 
   const res = runCard(tx);
@@ -68,7 +65,7 @@ test('a declined card does not end the sale — the customer tries a second one'
   requestPayment(tx);
   presentCard(tx);
   insertCard(tx);
-  enterExactAmount(tx);
+  confirmExactAmount(tx);
 
   const bad = runCard(tx);
   assert.equal(bad.result, 'declined');
@@ -83,7 +80,7 @@ test('a declined card does not end the sale — the customer tries a second one'
   assert.equal(tx.stage, 'card-ready');
 
   assert.equal(insertCard(tx).ok, true);
-  enterExactAmount(tx);
+  confirmExactAmount(tx);
   const good = runCard(tx);
   assert.equal(good.result, 'approved');
   assert.equal(tx.stage, 'receipt');
@@ -106,7 +103,7 @@ test('a card that times out is not an approval', () => {
   requestPayment(tx);
   presentCard(tx);
   insertCard(tx);
-  enterExactAmount(tx);
+  confirmExactAmount(tx);
   const res = runCard(tx, { timeout: true });
   assert.equal(res.result, 'timeout');
   assert.equal(tx.stage, 'card-declined', 'same recovery path as a decline');

@@ -1,8 +1,8 @@
 // Pure geometry for the card-payment camera. The register composes these eye/
 // look points into world poses via poseBetween; keeping the math here (THREE-
 // free, interior-local yards) lets node --test pin the framing invariants the
-// user cares about — the handoff frames the PERSON, the entry frames the RAISED
-// reader — without booting the game.
+// user cares about: the handoff frames the person and the entry frames the
+// fixed counter-mounted reader without booting the game.
 //
 // Frame of reference: +z is the STAFF/north side, lower z is the customer/south
 // side; the camera always sits on the staff side (high z) and looks south (a
@@ -23,14 +23,13 @@ export function cardHandoffPose(customer, counterTop) {
   };
 }
 
-// Terminal entry: the eye and look rise WITH the reader's live floated height
-// (floatT 0 = seated on the counter, 1 = fully lifted), so the keypad stays
-// centred and readable at whatever height the reader settles.
-export function cardTerminalPose(station, counterTop, termLift, floatT) {
-  const ty = counterTop + termLift * Math.max(0, Math.min(1, floatT));
+// Terminal entry: the reader remains physically seated on the counter. The
+// camera moves close and looks down at the fixed keypad so the hardware never
+// has to lift, float, or detach from its authored station.
+export function cardTerminalPose(station, counterTop) {
   return {
-    eye: { x: station.x + 0.02, y: ty + 0.34, z: station.z + 0.92 },
-    look: { x: station.x, y: ty + 0.07, z: station.z },
+    eye: { x: station.x + 0.02, y: counterTop + 0.34, z: station.z + 0.92 },
+    look: { x: station.x, y: counterTop + 0.07, z: station.z },
     fov: 40,
   };
 }

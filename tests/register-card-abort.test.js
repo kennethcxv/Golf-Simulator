@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createTx, scanItem, requestPayment, presentCard, insertCard,
-  enterCardDigit, submitCardAmount, runCard, totalOf,
+  submitCardAmount, runCard,
   abandonCardBeforeSubmit,
 } from '../src/sim/register.js';
 import { canTransitionCheckout, validateCheckoutTransition } from '../src/sim/registerFlow.js';
@@ -28,8 +28,7 @@ function scannedCardTx(stage) {
   if (stage === 'card-ready') return tx;
   insertCard(tx);             // -> card-entry
   if (stage === 'card-entry') return tx;
-  for (const d of String(Math.round(totalOf(tx) * 100))) enterCardDigit(tx, Number(d));
-  submitCardAmount(tx);       // -> card-busy
+  submitCardAmount(tx);       // confirm the prefilled total -> card-busy
   return tx;
 }
 
@@ -78,6 +77,7 @@ test('the flow contract makes the X reachable pre-submit and forbidden while pro
   // every pre-submit card state can drop back to the post-scan choice point...
   assert.equal(canTransitionCheckout('CardPresented', 'AllProductsScanned'), true);
   assert.equal(canTransitionCheckout('CardInsertReady', 'AllProductsScanned'), true);
+  assert.equal(canTransitionCheckout('CardInserting', 'AllProductsScanned'), true);
   assert.equal(canTransitionCheckout('CardAmountEntry', 'AllProductsScanned'), true);
   // ...but once the authorization is running (or done) it cannot
   assert.equal(canTransitionCheckout('CardProcessing', 'AllProductsScanned'), false);

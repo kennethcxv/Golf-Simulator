@@ -37,7 +37,7 @@ EXPORT_DIR = ROOT / "vendor" / "models" / "clubhouse"
 SOURCE_DIR.mkdir(parents=True, exist_ok=True)
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
-BUILD_VERSION = 4
+BUILD_VERSION = 5
 
 PALETTE = {
     "cream": (0.91, 0.86, 0.73, 1.0),
@@ -149,6 +149,13 @@ def materials() -> dict[str, bpy.types.Material]:
             roughness=0.18,
             emissive=(0.04, 1.0, 0.15),
             emission_strength=3.5,
+        ),
+        "warm_led": mat(
+            "M_WarmCounterLED",
+            (0.96, 0.58, 0.18, 1.0),
+            roughness=0.24,
+            emissive=(1.0, 0.42, 0.08),
+            emission_strength=2.4,
         ),
         "collision": mat("M_Collision", PALETTE["collision"], roughness=1.0),
     }
@@ -860,28 +867,84 @@ def build_bag(M):
 
 
 def build_counter(M):
+    """Production shell for reference Asset 01.
+
+    The live checkout reach/collision plan is deliberately 3.10 x 0.96 m, so
+    this build preserves that tested footprint and every ANCHOR_/COL_ contract.
+    Its visible language follows the sheet: black worktop, vertical natural-oak
+    slats, a warm reveal light, recessed dark plinth and an open staff shelf.
+    """
     root = asset_root("checkout_counter", (3.10, 0.96, 1.00))
     furniture = empty("CheckoutCounterFurniture", parent=root)
 
-    box("CounterTop", (3.10, 0.96, 0.070), (0, 0, 0.965), M["walnut_dark"], bevel=0.020, parent=furniture)
-    box("CustomerApron", (2.96, 0.20, 0.80), (0, 0.350, 0.510), M["walnut"], bevel=0.014, parent=furniture)
-    box("CounterPlinth", (3.00, 0.72, 0.090), (0, 0.035, 0.045), M["walnut_dark"], bevel=0.012, parent=furniture)
+    box("CounterTop", (3.10, 0.96, 0.070), (0, 0, 0.965), M["charcoal"], bevel=0.020, parent=furniture)
+    box("CustomerApronBacking", (2.98, 0.055, 0.80), (0, 0.422, 0.510), M["charcoal"], bevel=0.008, parent=furniture)
+    box("CounterPlinth", (3.00, 0.72, 0.090), (0, 0.035, 0.045), M["charcoal"], bevel=0.010, parent=furniture)
 
-    for x in (-1.02, -0.34, 0.34, 1.02):
-        box(f"CustomerPanelRail_{x:+.2f}", (0.030, 0.018, 0.620), (x, 0.456, 0.535), M["walnut_dark"], bevel=0.004, parent=furniture)
-    for i, x in enumerate((-1.02, -0.34, 0.34, 1.02)):
-        box(f"CustomerPanel_{i + 1}", (0.56, 0.014, 0.48), (x, 0.464, 0.535), M["sage"], bevel=0.010, parent=furniture)
+    # Individually modelled slats keep real shadow gaps at first-person range.
+    slat_count = 48
+    slat_pitch = 2.92 / slat_count
+    slat_width = slat_pitch - 0.009
+    for index in range(slat_count):
+        x = -1.46 + slat_pitch * (index + 0.5)
+        material = M["oak"] if index % 5 else M["walnut"]
+        box(
+            f"CustomerOakSlat_{index + 1:02d}",
+            (slat_width, 0.034, 0.735),
+            (x, 0.462, 0.515),
+            material,
+            bevel=0.0,
+            parent=furniture,
+        )
+    # Carry the same rhythm around both end cheeks so the model reads finished
+    # from the queue and from either end of the island.
+    end_pitch = 0.82 / 13
+    for side, x in (("L", -1.506), ("R", 1.506)):
+        for index in range(13):
+            y = -0.39 + end_pitch * (index + 0.5)
+            material = M["oak"] if index % 4 else M["walnut"]
+            box(
+                f"EndOakSlat_{side}_{index + 1:02d}",
+                (0.034, end_pitch - 0.009, 0.735),
+                (x, y, 0.515),
+                material,
+                bevel=0.0,
+                parent=furniture,
+            )
 
-    box("StaffCabinetLeft", (1.10, 0.62, 0.82), (-0.88, -0.090, 0.455), M["walnut"], bevel=0.014, parent=furniture)
-    box("StaffCabinetRight", (0.82, 0.62, 0.82), (1.02, -0.090, 0.455), M["walnut"], bevel=0.014, parent=furniture)
-    box("StaffWorkApron", (0.74, 0.12, 0.24), (0.10, 0.185, 0.810), M["walnut"], bevel=0.010, parent=furniture)
+    box("CounterLEDFront", (2.94, 0.012, 0.012), (0, 0.470, 0.910), M["warm_led"], bevel=0.002, parent=furniture)
+    box("CounterLEDEndL", (0.012, 0.84, 0.012), (-1.520, 0.0, 0.910), M["warm_led"], bevel=0.002, parent=furniture)
+    box("CounterLEDEndR", (0.012, 0.84, 0.012), (1.520, 0.0, 0.910), M["warm_led"], bevel=0.002, parent=furniture)
+
+    # Closed equipment cabinets flank a warm, stocked staff-side shelf. The
+    # original all-cream cavity clipped under shop lighting and read unfinished
+    # across the lower third of the first-person checkout frame.
+    box("StaffCabinetLeft", (1.10, 0.62, 0.82), (-0.88, -0.090, 0.455), M["charcoal"], bevel=0.014, parent=furniture)
+    box("StaffCabinetRight", (0.82, 0.62, 0.82), (1.02, -0.090, 0.455), M["charcoal"], bevel=0.014, parent=furniture)
+    box("StaffShelfBack", (0.74, 0.035, 0.70), (0.10, 0.185, 0.500), M["walnut_dark"], bevel=0.004, parent=furniture)
+    box("StaffShelfFloor", (0.74, 0.54, 0.035), (0.10, -0.065, 0.155), M["oak"], bevel=0.004, parent=furniture)
+    box("StaffShelfMid", (0.74, 0.54, 0.035), (0.10, -0.065, 0.515), M["oak"], bevel=0.004, parent=furniture)
+    box("StaffShelfTop", (0.74, 0.54, 0.035), (0.10, -0.065, 0.850), M["oak"], bevel=0.004, parent=furniture)
+    box("StaffShelfSideL", (0.035, 0.54, 0.73), (-0.270, -0.065, 0.505), M["walnut"], bevel=0.004, parent=furniture)
+    box("StaffShelfSideR", (0.035, 0.54, 0.73), (0.470, -0.065, 0.505), M["walnut"], bevel=0.004, parent=furniture)
+    box("StaffReceiptStock", (0.28, 0.32, 0.14), (-0.085, -0.110, 0.243), M["cream"], bevel=0.010, parent=furniture)
+    box("StaffReceiptStockBand", (0.18, 0.010, 0.036), (-0.085, -0.275, 0.244), M["green"], bevel=0.002, parent=furniture)
+    for index in range(4):
+        box(
+            f"StaffFoldedBagStock_{index + 1:02d}",
+            (0.27, 0.30, 0.022),
+            (0.285, -0.095, 0.548 + index * 0.026),
+            M["sage"] if index % 2 == 0 else M["kraft"],
+            bevel=0.003,
+            parent=furniture,
+        )
     box("DrawerBay", (0.54, 0.035, 0.20), (-0.66, -0.414, 0.765), M["charcoal"], bevel=0.006, parent=furniture)
 
     box("StagingInlay", (0.78, 0.40, 0.010), (-0.10, 0.155, 1.006), M["green"], bevel=0.006, parent=furniture)
     box("BaggingInlay", (0.72, 0.38, 0.010), (0.94, -0.120, 1.006), M["sage"], bevel=0.006, parent=furniture)
     box("ScannerInlay", (0.30, 0.32, 0.012), (0.15, 0.020, 1.008), M["charcoal"], bevel=0.008, parent=furniture)
 
-    cylinder("CustomerFootRail", 0.017, 2.76, (0, 0.480, 0.185), M["brass"], rot=(0, math.pi / 2, 0), vertices=16, bevel=0.002, parent=furniture)
+    cylinder("CustomerFootRail", 0.017, 2.76, (0, 0.500, 0.185), M["brass"], rot=(0, math.pi / 2, 0), vertices=16, bevel=0.002, parent=furniture)
     for x in (-1.32, 1.32):
         cylinder(f"FootRailBracket_{x:+.2f}", 0.012, 0.22, (x, 0.402, 0.185), M["brass"], rot=(math.pi / 2, 0, 0), vertices=12, bevel=0.002, parent=furniture)
 

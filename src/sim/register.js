@@ -247,11 +247,12 @@ export function insertCard(tx) {
   if (tx.stage !== 'card-ready') {
     return { ok: false, reason: tx.stage === 'card-declined' ? 'Use a different card.' : 'No card is ready to insert.' };
   }
-  tx.cardEntryCents = 0;
-  tx.cardEntryDigits = '';
+  const exactCents = cents(totalOf(tx));
+  tx.cardEntryCents = exactCents;
+  tx.cardEntryDigits = String(exactCents);
   tx.cardEntryError = null;
   tx.stage = 'card-entry';
-  return { ok: true };
+  return { ok: true, amount: dollars(exactCents) };
 }
 
 export function cardEnteredAmount(tx) {
@@ -327,9 +328,8 @@ export function runCard(tx, { timeout = false, force = null } = {}) {
     tx.stage = 'card-declined';
     return { ok: true, result: 'timeout' };
   }
-  // The live renderer forces a deterministic result: gameplay never declines a
-  // card (force:'approved'). The rng path below still exists for the decline
-  // mechanic that register-payment.test.js exercises.
+  // Explicit force values are retained for deterministic domain tests and
+  // scripted recovery checks. Normal gameplay uses the probability path below.
   if (force === 'approved') {
     tx.cardResult = 'approved';
     tx.stage = 'receipt';

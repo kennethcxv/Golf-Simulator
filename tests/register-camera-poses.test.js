@@ -1,28 +1,27 @@
-// Framing invariants for the card-payment camera. These pin the exact
-// complaints the rebuild addresses: the handoff must frame the CUSTOMER (not
-// the empty counter the reader used to sit on), the entry must frame the reader
-// at its RAISED height (not aimed low at the countertop), and the camera must
-// not spin between the two.
+// Framing invariants for the card-payment camera. The handoff frames the
+// customer, then the entry camera moves close enough to read a reader that stays
+// physically seated on the counter. The reader itself never rises or floats.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { cardHandoffPose, cardTerminalPose } from '../src/render3d/clubhouse/registerCameraPoses.js';
+import { receiptGeometryUsesFeedAxis } from '../src/render3d/clubhouse/simplifiedRegisterMode.js';
 
 const COUNTER_TOP = 1.055;
-const TERM_LIFT = 0.26;
 const STATION = { x: 3.00, z: 4.04 };
-// customers stand on the south (low-z) side; the staff/camera side is high z
+// Customers stand on the south (low-z) side; the staff/camera side is high z.
 const CUSTOMER = { x: 2.42, z: 3.15 };
 
 test('handoff frames the customer across the counter, not the counter surface', () => {
   const p = cardHandoffPose(CUSTOMER, COUNTER_TOP);
-  // eye on the staff side (behind the counter), at standing height
+  // Eye on the staff side (behind the counter), at standing height.
   assert.ok(p.eye.z > 4.2, `eye is on the staff side (z=${p.eye.z})`);
   assert.ok(p.eye.y > 1.4 && p.eye.y < 1.8, `eye at standing height (y=${p.eye.y})`);
-  // looking SOUTH toward the customer, and at chest height — not down at the desk
+  // Look south toward the customer at chest height, not down at the desk.
   assert.ok(p.look.z < p.eye.z, 'looks south toward the customer');
   assert.ok(Math.abs(p.look.z - CUSTOMER.z) < 0.6, 'look point is at the customer, not mid-counter');
   assert.ok(p.look.y > COUNTER_TOP + 0.15, `look point is at chest height, not the countertop (y=${p.look.y})`);
-  // the aim is only gently downward — the customer's torso is in frame
+  // The aim is only gently downward so the customer's torso remains in frame.
   const dropAngle = Math.atan2(p.eye.y - p.look.y, Math.hypot(p.eye.x - p.look.x, p.eye.z - p.look.z));
   assert.ok(dropAngle < 0.35, `handoff is not a steep look-down (${dropAngle.toFixed(2)} rad)`);
 });
@@ -35,35 +34,54 @@ test('handoff keeps the customer in frame no matter where they stand', () => {
   }
 });
 
-test('terminal entry aims at the RAISED reader and rises with it', () => {
-  const seated = cardTerminalPose(STATION, COUNTER_TOP, TERM_LIFT, 0);
-  const lifted = cardTerminalPose(STATION, COUNTER_TOP, TERM_LIFT, 1);
-  // the look point climbs as the reader floats up — the old bug aimed low and stayed low
-  assert.ok(lifted.look.y > seated.look.y + 0.2, `look rises with the float (${seated.look.y} -> ${lifted.look.y})`);
-  assert.ok(lifted.eye.y > seated.eye.y + 0.2, 'eye rises with the float too');
-  // fully lifted, the aim sits at the floated reader, well above the countertop
-  assert.ok(lifted.look.y > COUNTER_TOP + TERM_LIFT - 0.05, 'look point reaches the raised reader');
-  // eye stays above the look point (a readable downward glance at the keypad), never below the counter
-  assert.ok(lifted.eye.y > lifted.look.y, 'eye above the look point (keypad readable)');
-  assert.ok(seated.eye.y > COUNTER_TOP, 'eye never dips below the counter');
-  // on the staff side, looking south at the reader
-  assert.ok(lifted.eye.z > STATION.z, 'eye is on the staff side of the terminal');
-  assert.ok(lifted.look.z < lifted.eye.z, 'looks south at the terminal');
+test('terminal entry frames the fixed reader with a close downward view', () => {
+  const terminal = cardTerminalPose(STATION, COUNTER_TOP);
+  assert.equal(cardTerminalPose.length, 2, 'the fixed pose has no lift or float parameters');
+  // Aim stays at the seated device, only slightly above the physical countertop.
+  assert.ok(terminal.look.y >= COUNTER_TOP, 'look point is not below the counter');
+  assert.ok(terminal.look.y < COUNTER_TOP + 0.15, 'look point stays on the seated reader');
+  // Eye is close and above the keypad for a readable, natural downward glance.
+  assert.ok(terminal.eye.y > terminal.look.y, 'eye is above the reader');
+  assert.ok(terminal.eye.y < COUNTER_TOP + 0.60, 'eye stays close instead of simulating a reader lift');
+  const distance = Math.hypot(
+    terminal.eye.x - terminal.look.x,
+    terminal.eye.y - terminal.look.y,
+    terminal.eye.z - terminal.look.z,
+  );
+  assert.ok(distance < 1.1, `reader view is close enough to read (${distance.toFixed(2)})`);
+  // On the staff side, looking south at the reader.
+  assert.ok(terminal.eye.z > STATION.z, 'eye is on the staff side of the terminal');
+  assert.ok(terminal.look.z < terminal.eye.z, 'looks south at the terminal');
 });
 
-test('handoff and terminal poses both look south — no 180 spin between them', () => {
+test('handoff and terminal poses both look south with no 180 spin between them', () => {
   const handoff = cardHandoffPose(CUSTOMER, COUNTER_TOP);
-  const terminal = cardTerminalPose(STATION, COUNTER_TOP, TERM_LIFT, 1);
-  // both look vectors point toward lower z (south); the yaw never flips around
+  const terminal = cardTerminalPose(STATION, COUNTER_TOP);
   assert.ok(handoff.look.z - handoff.eye.z < 0, 'handoff looks south');
   assert.ok(terminal.look.z - terminal.eye.z < 0, 'terminal looks south');
-  // and they are laterally close (a pan, not a whip across the room)
   assert.ok(Math.abs(handoff.eye.x - terminal.eye.x) < 1.2, 'eyes are near each other in x');
 });
 
-test('float clamps: absurd float values never throw the framing off', () => {
-  const under = cardTerminalPose(STATION, COUNTER_TOP, TERM_LIFT, -3);
-  const over = cardTerminalPose(STATION, COUNTER_TOP, TERM_LIFT, 9);
-  assert.equal(under.look.y, cardTerminalPose(STATION, COUNTER_TOP, TERM_LIFT, 0).look.y);
-  assert.equal(over.look.y, cardTerminalPose(STATION, COUNTER_TOP, TERM_LIFT, 1).look.y);
+test('the live reader has no state-driven lift or float mutation', () => {
+  const source = fs.readFileSync(
+    new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
+    'utf8',
+  );
+  assert.doesNotMatch(source, /\bTERM_FLOAT_LIFT\b/, 'reader lift constant must stay removed');
+  assert.doesNotMatch(source, /\btermFloat\b/, 'reader position must not depend on checkout state');
+  assert.doesNotMatch(source, /termObject\.position\.y\s*=/, 'reader y-position must not animate after attachment');
+});
+
+test('receipt printing accepts only geometry whose long edge follows the feed axis', () => {
+  assert.equal(
+    receiptGeometryUsesFeedAxis({ x: 0.075, y: 0.185, z: 0.0356 }),
+    true,
+    'the rebuilt upright receipt uses its authored geometry',
+  );
+  assert.equal(
+    receiptGeometryUsesFeedAxis({ x: 0.068, y: 0.0366, z: 0.1515 }),
+    false,
+    'the legacy Z-long receipt falls back to the printable owned strip',
+  );
+  assert.equal(receiptGeometryUsesFeedAxis({ x: 0.075, y: Number.NaN, z: 0.03 }), false);
 });

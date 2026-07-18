@@ -17,7 +17,7 @@ import { newGame } from '../src/sim/state.js';
 import { snapshot, deserialize, serialize } from '../src/sim/state.js';
 import {
   createTx, scanItem, requestPayment, presentCard, insertCard,
-  enterCardDigit, submitCardAmount, runCard,
+  submitCardAmount, runCard,
   printReceipt, takeReceipt, packReceipt, bagItem, allBagged, handOverGoods,
   canComplete, completeSale, voidTx, totalOf,
 } from '../src/sim/register.js';
@@ -25,10 +25,7 @@ import { pickFromShelf, returnToShelf, heldUnits, recoverCheckout } from '../src
 
 const rngFor = (seq) => { let i = 0; return () => seq[i++ % seq.length]; };
 
-const enterExactAmount = (tx) => {
-  for (const digit of String(Math.round(totalOf(tx) * 100))) enterCardDigit(tx, Number(digit));
-  return submitCardAmount(tx);
-};
+const confirmExactAmount = (tx) => submitCardAmount(tx);
 
 const holdForSale = (state, tx) => {
   for (const item of tx.items) {
@@ -52,7 +49,7 @@ const paidTx = (mode = 'relaxed') => {
   requestPayment(tx);
   presentCard(tx);
   insertCard(tx);
-  enterExactAmount(tx);
+  confirmExactAmount(tx);
   runCard(tx);
   return tx;
 };
@@ -126,7 +123,7 @@ test('REVENUE moves only when the sale completes — not when it is scanned or p
   requestPayment(tx);
   presentCard(tx);
   insertCard(tx);
-  enterExactAmount(tx);
+  confirmExactAmount(tx);
   runCard(tx);
   assert.equal(tx.stage, 'receipt', 'approved');
   assert.equal((st.shop.salesLive || {}).revenue || 0, before, 'an approval alone banks nothing');

@@ -16,6 +16,31 @@ function texturesIn(material, textures) {
   }
 }
 
+function closeImageValue(value, closedImages) {
+  if (!value) return 0;
+  if (Array.isArray(value)) {
+    let count = 0;
+    for (const entry of value) count += closeImageValue(entry, closedImages);
+    return count;
+  }
+  if (typeof value !== 'object' || closedImages.has(value) || typeof value.close !== 'function') return 0;
+  closedImages.add(value);
+  value.close();
+  return 1;
+}
+
+// GLTFLoader decodes embedded images to ImageBitmap objects. Texture.dispose()
+// only releases the renderer's GPU handle; it does not release that decoded
+// backing store. Resource owners call this exactly where they already own the
+// texture lifetime, while protected/borrowed textures bypass it.
+export function closeTextureImages(texture, closedImages = new Set()) {
+  if (!texture) return 0;
+  const sourceImage = texture.source?.data;
+  let count = closeImageValue(sourceImage, closedImages);
+  if (texture.image !== sourceImage) count += closeImageValue(texture.image, closedImages);
+  return count;
+}
+
 export function collectMaterialResources(input) {
   const materials = new Set();
   const textures = new Set();

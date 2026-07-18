@@ -13,9 +13,7 @@ import {
   requestPayment,
   presentCard,
   insertCard,
-  enterCardDigit,
   submitCardAmount,
-  totalOf,
   runCard,
   retryCard,
   customerCash,
@@ -43,10 +41,7 @@ const rngFor = (sequence) => {
 
 const round2 = (value) => Math.round(value * 100) / 100;
 
-const enterExactAmount = (tx) => {
-  for (const digit of String(Math.round(totalOf(tx) * 100))) enterCardDigit(tx, Number(digit));
-  return submitCardAmount(tx);
-};
+const confirmExactAmount = (tx) => submitCardAmount(tx);
 
 function reserve(state, name = 'Ray Falk', minute = 480) {
   const day = calendarOf(state.clock.minutes).dayAbs + 1;
@@ -64,7 +59,7 @@ function approvedCard(state, reservation, rng = rngFor([0.9])) {
   assert.equal(requestPayment(tx).ok, true);
   assert.equal(presentCard(tx).ok, true);
   assert.equal(insertCard(tx).ok, true);
-  assert.equal(enterExactAmount(tx).ok, true);
+  assert.equal(confirmExactAmount(tx).ok, true);
   const card = runCard(tx);
   assert.equal(card.result, 'approved');
   return tx;
@@ -169,7 +164,7 @@ test('decline and retry remain compatible, and a decline cannot check the golfer
   requestPayment(tx);
   presentCard(tx);
   insertCard(tx);
-  enterExactAmount(tx);
+  confirmExactAmount(tx);
   assert.equal(runCard(tx).result, 'declined');
 
   assert.equal(finalizeReservationCheckIn(state, tx).ok, false);
@@ -179,7 +174,7 @@ test('decline and retry remain compatible, and a decline cannot check the golfer
 
   assert.equal(retryCard(tx).ok, true);
   assert.equal(insertCard(tx).ok, true);
-  assert.equal(enterExactAmount(tx).ok, true);
+  assert.equal(confirmExactAmount(tx).ok, true);
   assert.equal(runCard(tx).result, 'approved');
   assert.equal(finalizeReservationCheckIn(state, tx).ok, true);
   assert.equal(reservation.status, 'played');
@@ -234,7 +229,7 @@ test('legacy check-in stays compatible and blocks a pending monitor payment from
   requestPayment(made.tx);
   presentCard(made.tx);
   insertCard(made.tx);
-  enterExactAmount(made.tx);
+  confirmExactAmount(made.tx);
   runCard(made.tx);
 
   const cashBefore = state.cash;

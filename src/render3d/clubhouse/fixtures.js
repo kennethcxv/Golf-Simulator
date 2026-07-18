@@ -1245,17 +1245,16 @@ export function buildCheckout(B) {
       interior.add(o);
       return o;
     };
-    // Large readable POS head like the reference. The kit monitor is authored
-    // real-world sized; the reference treats the POS as the primary gameplay
-    // interface, so it carries a deliberate scale-up — the physical bezel and
-    // the live screen scale together (the canvas hangs on the POS_Screen node).
-    const reg = placeKit('pos_monitor', REGISTER.monitor, { scale: 1.6 });
+    // The checkout kit is authored at believable real-world dimensions. Keep
+    // every device at 1:1 so the fixed camera, sockets, and countertop reach
+    // contract all describe the same physical reader and POS.
+    const reg = placeKit('pos_monitor', REGISTER.monitor, { scale: 1.0 });
     // NOT `slotMesh(...).material = screenMaterial`: registerMode hangs its own
     // clean-UV canvas plane onto the kit's POS_Screen face.
     if (reg && B.register) B.register.attachScreen(reg);
-    const term = placeKit('payment_terminal', REGISTER.cardterm, { scale: 1.35 });
+    const term = placeKit('payment_terminal', REGISTER.cardterm, { scale: 1.0 });
     if (term && B.register) B.register.attachTerm(term);
-    const printer = placeKit('receipt_printer', REGISTER.printer, { ry: -0.18, scale: 1.1 });
+    const printer = placeKit('receipt_printer', REGISTER.printer, { ry: -0.18, scale: 1.0 });
     if (printer && B.register) B.register.attachPrinter(printer);
     // Customer-facing total display, turned toward the queue.
     placeKit('customer_display', REGISTER.custdisplay, { ry: Math.PI, scale: 1.15 });
