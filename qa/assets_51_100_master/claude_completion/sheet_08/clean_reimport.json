@@ -1,0 +1,3480 @@
+{
+  "verified": 18,
+  "ok": true,
+  "errorCount": 0,
+  "warningCount": 0,
+  "results": [
+    {
+      "asset": 71,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_071_vacuum_cleaner.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_071_VACUUM_CLEANER_ROOT",
+        "nodeCount": 45,
+        "visibleMeshCount": 31,
+        "collisionMeshCount": 2,
+        "triangleCount": 6640,
+        "collisionTriangleCount": 56,
+        "materialCount": 6,
+        "materials": [
+          "MAT_S08_Bristle",
+          "MAT_S08_HardBlack",
+          "MAT_S08_HoseBlack",
+          "MAT_S08_MachineGreen",
+          "MAT_S08_MachineShell",
+          "MAT_S08_MatteBlack"
+        ],
+        "socketCount": 7,
+        "sockets": [
+          "SOCKET_Audio",
+          "SOCKET_Carry",
+          "SOCKET_DirtIntake",
+          "SOCKET_Grip",
+          "SOCKET_HoseBody",
+          "SOCKET_HoseWand",
+          "SOCKET_PLACEMENT"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.247,
+            -0.567483,
+            0.002827
+          ],
+          "maximum": [
+            0.429456,
+            0.343338,
+            0.653
+          ],
+          "size": [
+            0.676456,
+            0.910821,
+            0.650173
+          ]
+        },
+        "fileBytes": 242908,
+        "meshes": [
+          {
+            "name": "MESH_VacCasterBL_Hub",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacCasterBL_Stem",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacCasterBL_Tyre",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 84,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacCasterBR_Hub",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacCasterBR_Stem",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacCasterBR_Tyre",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 84,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacCasterFL_Hub",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacCasterFL_Stem",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacCasterFL_Tyre",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 84,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacCasterFR_Hub",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacCasterFR_Stem",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacCasterFR_Tyre",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 84,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacDrum",
+            "triangles": 332,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 136,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacDrumRib",
+            "triangles": 332,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 136,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacExhaust",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacHandleBar",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacHandlePostB",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacHandlePostF",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacInletPort",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 94,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacLatchL",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacLatchR",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacLid",
+            "triangles": 332,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 136,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacMotorDome",
+            "triangles": 284,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 120,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacHose",
+            "triangles": 308,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 176,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacHeadBrushStrip",
+            "triangles": 1728,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1152,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacHeadNeck",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 66,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacHeadShell",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 126,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacHeadSole",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacWand",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacWandCollar",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacWandGrip",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_VacDrumHull",
+            "triangles": 44,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_VacHeadHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 71,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_071_vacuum_cleaner_fp.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_071_VACUUM_CLEANER_FP_ROOT",
+        "nodeCount": 14,
+        "visibleMeshCount": 8,
+        "collisionMeshCount": 0,
+        "triangleCount": 2716,
+        "collisionTriangleCount": 0,
+        "materialCount": 4,
+        "materials": [
+          "MAT_S08_Bristle",
+          "MAT_S08_HardBlack",
+          "MAT_S08_HoseBlack",
+          "MAT_S08_MatteBlack"
+        ],
+        "socketCount": 4,
+        "sockets": [
+          "SOCKET_Audio",
+          "SOCKET_DirtIntake",
+          "SOCKET_GripPrimary",
+          "SOCKET_GripSupport"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [
+          "Vacuum_Equip",
+          "Vacuum_FloorHeadContact",
+          "Vacuum_Start",
+          "Vacuum_Stop",
+          "Vacuum_Unequip"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.117803,
+            -0.996047,
+            -0.809813
+          ],
+          "maximum": [
+            0.157363,
+            0.187127,
+            -0.229326
+          ],
+          "size": [
+            0.275167,
+            1.183175,
+            0.580487
+          ]
+        },
+        "fileBytes": 106864,
+        "meshes": [
+          {
+            "name": "MESH_VacHeadBrushStrip",
+            "triangles": 1728,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1152,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacHeadNeck",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 66,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacHeadShell",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 126,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacHeadSole",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacHoseTail",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 96,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacWand",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacWandCollar",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_VacWandGrip",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 72,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_072_mop.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_072_MOP_ROOT",
+        "nodeCount": 16,
+        "visibleMeshCount": 5,
+        "collisionMeshCount": 2,
+        "triangleCount": 3512,
+        "collisionTriangleCount": 88,
+        "materialCount": 3,
+        "materials": [
+          "MAT_S08_AshHandle",
+          "MAT_S08_HardBlack",
+          "MAT_S08_MopCotton"
+        ],
+        "socketCount": 6,
+        "sockets": [
+          "SOCKET_Carry",
+          "SOCKET_Drip",
+          "SOCKET_FloorContact",
+          "SOCKET_GripPrimary",
+          "SOCKET_GripSupport",
+          "SOCKET_PLACEMENT"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.142625,
+            -0.141164,
+            0.007583
+          ],
+          "maximum": [
+            0.146626,
+            0.145662,
+            1.469
+          ],
+          "size": [
+            0.289251,
+            0.286826,
+            1.461417
+          ]
+        },
+        "fileBytes": 134740,
+        "meshes": [
+          {
+            "name": "MESH_MopBand",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 90,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_MopCollar",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 104,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_MopFibres",
+            "triangles": 2808,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1976,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_MopHandle",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 82,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_MopHandleCap",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 80,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_MopHandleHull",
+            "triangles": 44,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_MopHeadHull",
+            "triangles": 44,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 72,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_072_mop_fp.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_072_MOP_FP_ROOT",
+        "nodeCount": 11,
+        "visibleMeshCount": 5,
+        "collisionMeshCount": 0,
+        "triangleCount": 3512,
+        "collisionTriangleCount": 0,
+        "materialCount": 3,
+        "materials": [
+          "MAT_S08_AshHandle",
+          "MAT_S08_HardBlack",
+          "MAT_S08_MopCotton"
+        ],
+        "socketCount": 4,
+        "sockets": [
+          "SOCKET_Drip",
+          "SOCKET_FloorContact",
+          "SOCKET_GripPrimary",
+          "SOCKET_GripSupport"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [
+          "Mop_Equip",
+          "Mop_HeadCompress",
+          "Mop_StrokeLeft",
+          "Mop_StrokeRight",
+          "Mop_Unequip"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.232782,
+            -1.211712,
+            -1.260974
+          ],
+          "maximum": [
+            0.144632,
+            0.186882,
+            -0.249782
+          ],
+          "size": [
+            0.377414,
+            1.398594,
+            1.011192
+          ]
+        },
+        "fileBytes": 131924,
+        "meshes": [
+          {
+            "name": "MESH_MopBand",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 98,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_MopCollar",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 92,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_MopFibres",
+            "triangles": 2808,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1976,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_MopHandle",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 80,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_MopHandleCap",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 82,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 73,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_073_mop_bucket_and_wringer.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_073_MOP_BUCKET_AND_WRINGER_ROOT",
+        "nodeCount": 45,
+        "visibleMeshCount": 31,
+        "collisionMeshCount": 2,
+        "triangleCount": 3700,
+        "collisionTriangleCount": 24,
+        "materialCount": 5,
+        "materials": [
+          "MAT_S08_BucketYellow",
+          "MAT_S08_CautionMark",
+          "MAT_S08_CleanerFluid",
+          "MAT_S08_HardBlack",
+          "MAT_S08_MatteBlack"
+        ],
+        "socketCount": 6,
+        "sockets": [
+          "SOCKET_Carry",
+          "SOCKET_Drip",
+          "SOCKET_MopInsertion",
+          "SOCKET_PLACEMENT",
+          "SOCKET_WaterSurface",
+          "SOCKET_Wringer"
+        ],
+        "pivotCount": 1,
+        "pivots": [
+          "PIVOT_WringerLever"
+        ],
+        "animationNames": [
+          "Bucket_LeverDown",
+          "Bucket_LeverUp",
+          "Bucket_WringerClose",
+          "Bucket_WringerOpen"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.2675,
+            -0.254129,
+            0.002903
+          ],
+          "maximum": [
+            0.2675,
+            0.41032,
+            0.933719
+          ],
+          "size": [
+            0.535,
+            0.664448,
+            0.930816
+          ]
+        },
+        "fileBytes": 144104,
+        "meshes": [
+          {
+            "name": "MESH_BucketCasterBL_Hub",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCasterBL_Stem",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCasterBL_Tyre",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 80,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCasterBR_Hub",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCasterBR_Stem",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCasterBR_Tyre",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 80,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCasterFL_Hub",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCasterFL_Stem",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCasterFL_Tyre",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 80,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCasterFR_Hub",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCasterFR_Stem",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCasterFR_Tyre",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 80,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCaution_0",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCaution_1",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketCaution_2",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketDrainSpout",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketFloor",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketRim",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketWall",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 132,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BucketWater",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WringerBody",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WringerLegL",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WringerLegR",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WringerSlat_0",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WringerSlat_1",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WringerSlat_2",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WringerSlat_3",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WringerSlat_4",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WringerLeverArm",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WringerLeverGrip",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WringerPressPlate",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_BucketTubHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_BucketWringerHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 74,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_074_broom.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_074_BROOM_ROOT",
+        "nodeCount": 16,
+        "visibleMeshCount": 5,
+        "collisionMeshCount": 2,
+        "triangleCount": 5272,
+        "collisionTriangleCount": 56,
+        "materialCount": 3,
+        "materials": [
+          "MAT_S08_AshHandle",
+          "MAT_S08_Bristle",
+          "MAT_S08_HardBlack"
+        ],
+        "socketCount": 6,
+        "sockets": [
+          "SOCKET_Carry",
+          "SOCKET_DebrisPush",
+          "SOCKET_FloorContact",
+          "SOCKET_GripPrimary",
+          "SOCKET_GripSupport",
+          "SOCKET_PLACEMENT"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.24,
+            -0.0375,
+            0.0
+          ],
+          "maximum": [
+            0.24,
+            0.507728,
+            1.391537
+          ],
+          "size": [
+            0.48,
+            0.545228,
+            1.391537
+          ]
+        },
+        "fileBytes": 193196,
+        "meshes": [
+          {
+            "name": "MESH_BroomBlock",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BroomBlockCap",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BroomBristles",
+            "triangles": 4752,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 3168,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BroomFerrule",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BroomHandle",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 84,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_BroomHandleHull",
+            "triangles": 44,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_BroomHeadHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 74,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_074_broom_fp.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_074_BROOM_FP_ROOT",
+        "nodeCount": 11,
+        "visibleMeshCount": 5,
+        "collisionMeshCount": 0,
+        "triangleCount": 5272,
+        "collisionTriangleCount": 0,
+        "materialCount": 3,
+        "materials": [
+          "MAT_S08_AshHandle",
+          "MAT_S08_Bristle",
+          "MAT_S08_HardBlack"
+        ],
+        "socketCount": 4,
+        "sockets": [
+          "SOCKET_DebrisPush",
+          "SOCKET_FloorContact",
+          "SOCKET_GripPrimary",
+          "SOCKET_GripSupport"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [
+          "Broom_BristleContact",
+          "Broom_Equip",
+          "Broom_SweepLeft",
+          "Broom_SweepRight",
+          "Broom_Unequip"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.24,
+            -0.881118,
+            -0.923222
+          ],
+          "maximum": [
+            0.24,
+            0.146449,
+            0.133291
+          ],
+          "size": [
+            0.48,
+            1.027567,
+            1.056513
+          ]
+        },
+        "fileBytes": 191476,
+        "meshes": [
+          {
+            "name": "MESH_BroomBlock",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BroomBlockCap",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BroomBristles",
+            "triangles": 4752,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 3168,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BroomFerrule",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 70,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BroomHandle",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 80,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 75,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_075_dustpan.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_075_DUSTPAN_ROOT",
+        "nodeCount": 19,
+        "visibleMeshCount": 8,
+        "collisionMeshCount": 2,
+        "triangleCount": 1012,
+        "collisionTriangleCount": 56,
+        "materialCount": 2,
+        "materials": [
+          "MAT_S08_HardBlack",
+          "MAT_S08_MatteBlack"
+        ],
+        "socketCount": 6,
+        "sockets": [
+          "SOCKET_Carry",
+          "SOCKET_DebrisFill",
+          "SOCKET_Emptying",
+          "SOCKET_Grip",
+          "SOCKET_PLACEMENT",
+          "SOCKET_PanIntake"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.15,
+            -0.1335,
+            0.002
+          ],
+          "maximum": [
+            0.15,
+            0.1475,
+            0.823
+          ],
+          "size": [
+            0.3,
+            0.281,
+            0.821
+          ]
+        },
+        "fileBytes": 48496,
+        "meshes": [
+          {
+            "name": "MESH_DustpanBack",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanFloor",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 146,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanHandle",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanHandleGrip",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanHangLoop",
+            "triangles": 192,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 44,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanLip",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanWallL",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanWallR",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_DustpanHandleHull",
+            "triangles": 44,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_DustpanPanHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 75,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_075_dustpan_fp.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_075_DUSTPAN_FP_ROOT",
+        "nodeCount": 13,
+        "visibleMeshCount": 8,
+        "collisionMeshCount": 0,
+        "triangleCount": 1012,
+        "collisionTriangleCount": 0,
+        "materialCount": 2,
+        "materials": [
+          "MAT_S08_HardBlack",
+          "MAT_S08_MatteBlack"
+        ],
+        "socketCount": 3,
+        "sockets": [
+          "SOCKET_DebrisFill",
+          "SOCKET_Grip",
+          "SOCKET_PanIntake"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [
+          "Dustpan_Empty",
+          "Dustpan_Equip",
+          "Dustpan_PickUp",
+          "Dustpan_SetDown",
+          "Dustpan_Unequip"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.15,
+            -0.55612,
+            -0.632713
+          ],
+          "maximum": [
+            0.15,
+            0.048929,
+            0.102392
+          ],
+          "size": [
+            0.3,
+            0.605049,
+            0.735105
+          ]
+        },
+        "fileBytes": 47296,
+        "meshes": [
+          {
+            "name": "MESH_DustpanBack",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanFloor",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 146,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanHandle",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanHandleGrip",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanHangLoop",
+            "triangles": 192,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 44,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanLip",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanWallL",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DustpanWallR",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 76,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_076_cleaning_spray_bottle.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_076_CLEANING_SPRAY_BOTTLE_ROOT",
+        "nodeCount": 20,
+        "visibleMeshCount": 9,
+        "collisionMeshCount": 1,
+        "triangleCount": 1280,
+        "collisionTriangleCount": 12,
+        "materialCount": 4,
+        "materials": [
+          "MAT_S08_BottleWhite",
+          "MAT_S08_CleanerFluid",
+          "MAT_S08_HardBlack",
+          "MAT_S08_TriggerGreen"
+        ],
+        "socketCount": 6,
+        "sockets": [
+          "SOCKET_Carry",
+          "SOCKET_Grip",
+          "SOCKET_LiquidLevel",
+          "SOCKET_PLACEMENT",
+          "SOCKET_SprayEmission",
+          "SOCKET_Trigger"
+        ],
+        "pivotCount": 1,
+        "pivots": [
+          "PIVOT_Trigger"
+        ],
+        "animationNames": [
+          "SprayBottle_Trigger"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.041,
+            -0.065,
+            0.0
+          ],
+          "maximum": [
+            0.041,
+            0.039439,
+            0.262
+          ],
+          "size": [
+            0.082,
+            0.104439,
+            0.262
+          ]
+        },
+        "fileBytes": 55224,
+        "meshes": [
+          {
+            "name": "MESH_SprayBody",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayBrandRing",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 48,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayCollar",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 90,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayFluid",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayHead",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayNozzle",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 70,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayNozzleTip",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 68,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayShoulder",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 148,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayTriggerBlade",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_SprayBottleHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 76,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_076_cleaning_spray_bottle_fp.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_076_CLEANING_SPRAY_BOTTLE_FP_ROOT",
+        "nodeCount": 15,
+        "visibleMeshCount": 9,
+        "collisionMeshCount": 0,
+        "triangleCount": 1280,
+        "collisionTriangleCount": 0,
+        "materialCount": 4,
+        "materials": [
+          "MAT_S08_BottleWhite",
+          "MAT_S08_CleanerFluid",
+          "MAT_S08_HardBlack",
+          "MAT_S08_TriggerGreen"
+        ],
+        "socketCount": 3,
+        "sockets": [
+          "SOCKET_Grip",
+          "SOCKET_SprayEmission",
+          "SOCKET_Trigger"
+        ],
+        "pivotCount": 1,
+        "pivots": [
+          "PIVOT_Trigger"
+        ],
+        "animationNames": [
+          "SprayBottle_Equip",
+          "SprayBottle_Trigger",
+          "SprayBottle_Unequip"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.052732,
+            -0.563946,
+            -0.568003
+          ],
+          "maximum": [
+            0.048023,
+            -0.185587,
+            -0.225665
+          ],
+          "size": [
+            0.100755,
+            0.378358,
+            0.342338
+          ]
+        },
+        "fileBytes": 54892,
+        "meshes": [
+          {
+            "name": "MESH_SprayBody",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayBrandRing",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 48,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayCollar",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 90,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayFluid",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayHead",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayNozzle",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 70,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayNozzleTip",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 68,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayShoulder",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 148,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SprayTriggerBlade",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 77,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_077_cleaning_cloth_and_sponge_set.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_077_CLEANING_CLOTH_AND_SPONGE_SET_ROOT",
+        "nodeCount": 16,
+        "visibleMeshCount": 5,
+        "collisionMeshCount": 2,
+        "triangleCount": 780,
+        "collisionTriangleCount": 24,
+        "materialCount": 3,
+        "materials": [
+          "MAT_S08_MicrofibreGreen",
+          "MAT_S08_SpongeScour",
+          "MAT_S08_SpongeYellow"
+        ],
+        "socketCount": 5,
+        "sockets": [
+          "SOCKET_ClothContact",
+          "SOCKET_ClothGrip",
+          "SOCKET_PLACEMENT",
+          "SOCKET_SpongeContact",
+          "SOCKET_SpongeGrip"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.1625,
+            -0.0625,
+            0.0
+          ],
+          "maximum": [
+            0.2,
+            0.127,
+            0.056
+          ],
+          "size": [
+            0.3625,
+            0.1895,
+            0.056
+          ]
+        },
+        "fileBytes": 35220,
+        "meshes": [
+          {
+            "name": "MESH_ClothFoldedLower",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClothFoldedUpper",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClothFoldSeam",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SpongeFoam",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 106,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SpongeScourPad",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_ClothStackHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_SpongeHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 77,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_077_cleaning_cloth_and_sponge_set_fp.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_077_CLEANING_CLOTH_AND_SPONGE_SET_FP_ROOT",
+        "nodeCount": 12,
+        "visibleMeshCount": 5,
+        "collisionMeshCount": 0,
+        "triangleCount": 700,
+        "collisionTriangleCount": 0,
+        "materialCount": 3,
+        "materials": [
+          "MAT_S08_MicrofibreGreen",
+          "MAT_S08_SpongeScour",
+          "MAT_S08_SpongeYellow"
+        ],
+        "socketCount": 4,
+        "sockets": [
+          "SOCKET_ClothContact",
+          "SOCKET_ClothGrip",
+          "SOCKET_SpongeContact",
+          "SOCKET_SpongeGrip"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [
+          "Cloth_Equip",
+          "Cloth_Unequip",
+          "Cloth_Wipe",
+          "Sponge_Equip",
+          "Sponge_Scrub",
+          "Sponge_Unequip"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.10029,
+            -0.360779,
+            -0.358332
+          ],
+          "maximum": [
+            0.235,
+            0.035,
+            0.037
+          ],
+          "size": [
+            0.33529,
+            0.395779,
+            0.395332
+          ]
+        },
+        "fileBytes": 34320,
+        "meshes": [
+          {
+            "name": "MESH_ClothBody",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClothFoldA",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClothFoldB",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SpongeFoam",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 106,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_SpongeScourPad",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 78,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_078_pressure_washer.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_078_PRESSURE_WASHER_ROOT",
+        "nodeCount": 45,
+        "visibleMeshCount": 30,
+        "collisionMeshCount": 3,
+        "triangleCount": 5224,
+        "collisionTriangleCount": 100,
+        "materialCount": 6,
+        "materials": [
+          "MAT_PH_RestrainedBrass",
+          "MAT_S08_HardBlack",
+          "MAT_S08_HoseBlack",
+          "MAT_S08_MachineGreen",
+          "MAT_S08_MachineShell",
+          "MAT_S08_MatteBlack"
+        ],
+        "socketCount": 6,
+        "sockets": [
+          "SOCKET_Audio",
+          "SOCKET_Carry",
+          "SOCKET_Hose",
+          "SOCKET_PLACEMENT",
+          "SOCKET_PressureOutlet",
+          "SOCKET_WaterInlet"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [
+          "PressureWasher_WheelRoll"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.325,
+            -0.3375,
+            0.0
+          ],
+          "maximum": [
+            0.325,
+            0.379,
+            0.753524
+          ],
+          "size": [
+            0.65,
+            0.7165,
+            0.753524
+          ]
+        },
+        "fileBytes": 181704,
+        "meshes": [
+          {
+            "name": "MESH_FrameCrossBack",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 60,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrameCrossFront",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 60,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrameDeck",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrameRailL",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrameRailR",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherFootL",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 60,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherFootR",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 60,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherHandleBar",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 80,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherHandlePostL",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherHandlePostR",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherHubL",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 70,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherHubR",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 70,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherWheelL",
+            "triangles": 236,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 108,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherWheelR",
+            "triangles": 236,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 108,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ReelCoil_0",
+            "triangles": 308,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 58,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ReelCoil_1",
+            "triangles": 308,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 58,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ReelCoil_2",
+            "triangles": 308,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 58,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ReelCoil_3",
+            "triangles": 308,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 58,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ReelCrank",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ReelDrum",
+            "triangles": 236,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 104,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ReelFlangeL",
+            "triangles": 260,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 112,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ReelFlangeR",
+            "triangles": 260,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 112,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherAirFilter",
+            "triangles": 212,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 100,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherEngineBlock",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 60,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherEngineCowl",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherInletPort",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 66,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherMuffler",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 80,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherOutletPort",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 68,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherPumpBody",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherPumpBoss",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_WasherBodyHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_WasherWheelHullL",
+            "triangles": 44,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_WasherWheelHullR",
+            "triangles": 44,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 79,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_079_pressure_washer_hose_and_wand.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_079_PRESSURE_WASHER_HOSE_AND_WAND_ROOT",
+        "nodeCount": 27,
+        "visibleMeshCount": 13,
+        "collisionMeshCount": 2,
+        "triangleCount": 2224,
+        "collisionTriangleCount": 56,
+        "materialCount": 5,
+        "materials": [
+          "MAT_PH_RestrainedBrass",
+          "MAT_S08_HardBlack",
+          "MAT_S08_HoseBlack",
+          "MAT_S08_MatteBlack",
+          "MAT_S08_SafetyYellow"
+        ],
+        "socketCount": 7,
+        "sockets": [
+          "SOCKET_GripPrimary",
+          "SOCKET_GripSupport",
+          "SOCKET_HoseGun",
+          "SOCKET_HoseMachine",
+          "SOCKET_PLACEMENT",
+          "SOCKET_SprayEmission",
+          "SOCKET_Trigger"
+        ],
+        "pivotCount": 1,
+        "pivots": [
+          "PIVOT_Trigger"
+        ],
+        "animationNames": [
+          "WasherWand_TriggerDown",
+          "WasherWand_TriggerUp"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.157927,
+            -0.752,
+            -0.005002
+          ],
+          "maximum": [
+            0.347937,
+            0.644606,
+            0.212
+          ],
+          "size": [
+            0.505864,
+            1.396606,
+            0.217002
+          ]
+        },
+        "fileBytes": 90704,
+        "meshes": [
+          {
+            "name": "MESH_GunBody",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_GunGrip",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 104,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_GunGripStrap",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_GunHoseInlet",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 70,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_GunInletNut",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 68,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_GunShroud",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_GunTriggerGuard",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 48,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WandLance",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 80,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WandNozzle",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 66,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WandTipCollar",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 68,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WandTriggerBlade",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_HoseMachineCoupler",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WasherHoseCoil",
+            "triangles": 524,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 270,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_WandGunHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_WandLanceHull",
+            "triangles": 44,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 79,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_079_pressure_washer_hose_and_wand_fp.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_079_PRESSURE_WASHER_HOSE_AND_WAND_FP_ROOT",
+        "nodeCount": 19,
+        "visibleMeshCount": 12,
+        "collisionMeshCount": 0,
+        "triangleCount": 1724,
+        "collisionTriangleCount": 0,
+        "materialCount": 4,
+        "materials": [
+          "MAT_S08_HardBlack",
+          "MAT_S08_HoseBlack",
+          "MAT_S08_MatteBlack",
+          "MAT_S08_SafetyYellow"
+        ],
+        "socketCount": 4,
+        "sockets": [
+          "SOCKET_GripPrimary",
+          "SOCKET_GripSupport",
+          "SOCKET_SprayEmission",
+          "SOCKET_Trigger"
+        ],
+        "pivotCount": 1,
+        "pivots": [
+          "PIVOT_Trigger"
+        ],
+        "animationNames": [
+          "WasherWand_Equip",
+          "WasherWand_Recoil",
+          "WasherWand_TriggerDown",
+          "WasherWand_TriggerUp",
+          "WasherWand_Unequip"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.059418,
+            -1.044116,
+            -0.706257
+          ],
+          "maximum": [
+            0.122851,
+            -0.044684,
+            -0.024864
+          ],
+          "size": [
+            0.182269,
+            0.999432,
+            0.681394
+          ]
+        },
+        "fileBytes": 71196,
+        "meshes": [
+          {
+            "name": "MESH_GunBody",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_GunGrip",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 104,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_GunGripStrap",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_GunHoseInlet",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 70,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_GunInletNut",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 68,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_GunShroud",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_GunTriggerGuard",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 48,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WandHoseTail",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 96,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WandLance",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 80,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WandNozzle",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 66,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WandTipCollar",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 68,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WandTriggerBlade",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 80,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_080_trash_bag.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_080_TRASH_BAG_ROOT",
+        "nodeCount": 17,
+        "visibleMeshCount": 7,
+        "collisionMeshCount": 1,
+        "triangleCount": 1356,
+        "collisionTriangleCount": 20,
+        "materialCount": 1,
+        "materials": [
+          "MAT_S08_BagPolyethylene"
+        ],
+        "socketCount": 6,
+        "sockets": [
+          "SOCKET_Carry",
+          "SOCKET_Disposal",
+          "SOCKET_Grip",
+          "SOCKET_Opening",
+          "SOCKET_PLACEMENT",
+          "SOCKET_TrashFill"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.25,
+            -0.19,
+            0.0
+          ],
+          "maximum": [
+            0.25,
+            0.19,
+            0.761942
+          ],
+          "size": [
+            0.5,
+            0.38,
+            0.761942
+          ]
+        },
+        "fileBytes": 50644,
+        "meshes": [
+          {
+            "name": "MESH_BagBase",
+            "triangles": 300,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 120,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BagBelly",
+            "triangles": 300,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 120,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BagEarL",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BagEarR",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BagKnot",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 104,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BagNeck",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 84,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BagShoulder",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_TrashBagHull",
+            "triangles": 20,
+            "uvLayers": 0,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 40,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 80,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_080_trash_bag_fp.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_080_TRASH_BAG_FP_ROOT",
+        "nodeCount": 12,
+        "visibleMeshCount": 7,
+        "collisionMeshCount": 0,
+        "triangleCount": 1356,
+        "collisionTriangleCount": 0,
+        "materialCount": 1,
+        "materials": [
+          "MAT_S08_BagPolyethylene"
+        ],
+        "socketCount": 3,
+        "sockets": [
+          "SOCKET_Grip",
+          "SOCKET_Opening",
+          "SOCKET_TrashFill"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [
+          "TrashBag_Dispose",
+          "TrashBag_Equip",
+          "TrashBag_Tie",
+          "TrashBag_Unequip"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.25,
+            -0.191815,
+            -0.698811
+          ],
+          "maximum": [
+            0.25,
+            0.188744,
+            0.063554
+          ],
+          "size": [
+            0.5,
+            0.380559,
+            0.762365
+          ]
+        },
+        "fileBytes": 51256,
+        "meshes": [
+          {
+            "name": "MESH_BagBase",
+            "triangles": 300,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 120,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BagBelly",
+            "triangles": 300,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 120,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BagEarL",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BagEarR",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BagKnot",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 104,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BagNeck",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 84,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BagShoulder",
+            "triangles": 188,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 88,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    }
+  ]
+}

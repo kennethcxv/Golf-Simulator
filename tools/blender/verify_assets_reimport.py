@@ -195,8 +195,13 @@ def verify_glb(asset_number: int, slug: str | None, glb_path: Path) -> dict:
 
     if not visible:
         fail("visible-mesh", "GLB contains no MESH_ geometry")
-    if not collisions:
+    # A viewmodel deliberately ships no collision -- a tool held in front of the camera
+    # must never block the player who is holding it -- so only world assets are checked.
+    first_person_variant = bool(slug and slug.endswith("_fp"))
+    if not collisions and not first_person_variant:
         warn("collision-missing", "GLB ships no COL_ proxy")
+    if collisions and first_person_variant:
+        fail("viewmodel-collision", f"viewmodel ships {len(collisions)} COL_ proxy/proxies")
     for name in stray_meshes:
         fail("mesh-prefix", "mesh is neither MESH_ nor COL_", name)
 
@@ -268,11 +273,14 @@ def discover(sheet: int | None, asset: int | None) -> list[tuple[int, str, Path]
 
     found: list[tuple[int, str, Path]] = []
     for number in numbers:
-        sheet_dir = A.RUNTIME_ROOT / f"sheet_{A.sheet_for_asset(number):02d}"
-        matches = sorted(sheet_dir.glob(f"asset_{number:03d}_*.glb"))
-        for path in matches:
-            slug = path.stem[len(f"asset_{number:03d}_"):]
-            found.append((number, slug, path))
+        prefix = f"asset_{number:03d}_"
+        # An asset can ship twice: the world copy under its sheet, and a viewmodel under
+        # firstperson/. Both are loaded by the game, so both are verified.
+        for directory in (A.RUNTIME_ROOT / f"sheet_{A.sheet_for_asset(number):02d}",
+                          A.RUNTIME_ROOT / "firstperson"):
+            for path in sorted(directory.glob(f"{prefix}*.glb")):
+                slug = path.stem[len(prefix):]
+                found.append((number, slug, path))
     return found
 
 
