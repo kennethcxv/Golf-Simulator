@@ -99,9 +99,11 @@ export function disposeRenderableResources(resources, protectedResources = null)
   const protectedMaterials = protectedResources?.materials || new Set();
   const protectedTextures = protectedResources?.textures || new Set();
   const disposed = { geometries: 0, materials: 0, textures: 0 };
+  const closedImages = new Set();
 
   for (const texture of resources?.textures || []) {
     if (protectedTextures.has(texture) || typeof texture.dispose !== 'function') continue;
+    closeTextureImages(texture, closedImages);
     texture.dispose();
     disposed.textures += 1;
   }

@@ -23,6 +23,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { closeTextureImages } from './resourceLifecycle.js';
+import {
+  CLUBHOUSE_SHARED_TEXTURE_FAMILIES, createSharedTexturePool,
+} from './sharedTexturePool.js';
 
 const FILES = [
   // goods
@@ -142,6 +145,7 @@ export function createMerch(mats) {
   const prototypeMaterials = new Set();
   const prototypeTextures = new Set();
   const bakedGeometries = new Set();
+  const sharedTexturePool = createSharedTexturePool();
   let ready = false;
   let disposed = false;
   let disposalSummary = null;
@@ -398,11 +402,21 @@ export function createMerch(mats) {
     return obj;
   }
 
+  const sharedImageSourceCache = new Map();
   const loader = new GLTFLoader();
+  if (typeof loader.setSharedImageCache === 'function') {
+    loader.setSharedImageCache(
+      sharedImageSourceCache,
+      (source) => CLUBHOUSE_SHARED_TEXTURE_FAMILIES[source?.name] || null,
+    );
+  }
   let pending = FILES.length + RAW.length + KIT.length;
   const done = () => {
     if (disposed) return;
     if (--pending > 0) return;
+    // Materials/prototypes now own the canonical Textures. The decode-promise
+    // cache has served its startup purpose and must not become a second owner.
+    sharedImageSourceCache.clear();
     ready = true;
     for (const fn of waiting) fn();
     waiting.length = 0;
@@ -417,6 +431,7 @@ export function createMerch(mats) {
           return;
         }
         root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+        sharedTexturePool.intern(root);
         rememberPrototype(root);
         protos.set(name, root);
         clips.set(name, g.animations || []);
@@ -436,6 +451,7 @@ export function createMerch(mats) {
           return;
         }
         root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+        sharedTexturePool.intern(root);
         rememberPrototype(root);
         protos.set(name, root);
         done();
@@ -454,6 +470,7 @@ export function createMerch(mats) {
           return;
         }
         root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+        sharedTexturePool.intern(root);
         rememberPrototype(root);
         protos.set(`kit:${name}`, root);
         clips.set(`kit:${name}`, g.animations || []);
@@ -492,6 +509,8 @@ export function createMerch(mats) {
     prototypeTextures.clear();
     prototypeMaterials.clear();
     prototypeGeometries.clear();
+    sharedTexturePool.clear();
+    sharedImageSourceCache.clear();
     protos.clear();
     clips.clear();
     disposalSummary = Object.freeze(summary);
@@ -519,6 +538,7 @@ export function createMerch(mats) {
     bake,
     disposeBaked,
     ownedResources,
+    sharedTextureStats: () => sharedTexturePool.stats(),
     dispose,
     isReady: () => ready && !disposed,
     has: (n) => !disposed && protos.has(n),

@@ -139,6 +139,8 @@ class GLTFLoader extends Loader {
 		this.dracoLoader = null;
 		this.ktx2Loader = null;
 		this.meshoptDecoder = null;
+		this.sharedImageCache = null;
+		this.sharedImageCacheKey = null;
 
 		this.pluginCallbacks = [];
 
@@ -381,6 +383,23 @@ class GLTFLoader extends Loader {
 	}
 
 	/**
+	 * Shares decoded embedded image sources across separate glTF parser instances.
+	 * The caller must provide a key only for images it has proven byte-identical.
+	 * Texture sampler and color-space state remains parser-local on cloned Textures.
+	 *
+	 * @param {Map} cache - Promise cache owned by the caller.
+	 * @param {Function} keyForSource - Returns a stable key or null for no sharing.
+	 * @return {GLTFLoader} A reference to this loader.
+	 */
+	setSharedImageCache( cache, keyForSource ) {
+
+		this.sharedImageCache = cache;
+		this.sharedImageCacheKey = keyForSource;
+		return this;
+
+	}
+
+	/**
 	 * Registers a plugin callback. This API is internally used to implement the various
 	 * glTF extensions but can also used by third-party code to add additional logic
 	 * to the loader.
@@ -482,7 +501,9 @@ class GLTFLoader extends Loader {
 			requestHeader: this.requestHeader,
 			manager: this.manager,
 			ktx2Loader: this.ktx2Loader,
-			meshoptDecoder: this.meshoptDecoder
+			meshoptDecoder: this.meshoptDecoder,
+			sharedImageCache: this.sharedImageCache,
+			sharedImageCacheKey: this.sharedImageCacheKey
 
 		} );
 
@@ -3289,6 +3310,7 @@ class GLTFParser {
 		const parser = this;
 		const json = this.json;
 		const options = this.options;
+		const sourceDef = json.images[ sourceIndex ];
 
 		if ( this.sourceCache[ sourceIndex ] !== undefined ) {
 
@@ -3296,7 +3318,16 @@ class GLTFParser {
 
 		}
 
-		const sourceDef = json.images[ sourceIndex ];
+		const sharedImageKey = typeof options.sharedImageCacheKey === 'function'
+			? options.sharedImageCacheKey( sourceDef )
+			: null;
+		if ( sharedImageKey !== null && sharedImageKey !== undefined && options.sharedImageCache?.has( sharedImageKey ) ) {
+
+			const sharedPromise = options.sharedImageCache.get( sharedImageKey );
+			this.sourceCache[ sourceIndex ] = sharedPromise;
+			return sharedPromise.then( ( texture ) => texture.clone() );
+
+		}
 
 		const URL = self.URL || self.webkitURL;
 
@@ -3347,13 +3378,8 @@ class GLTFParser {
 
 		} ).then( function ( texture ) {
 
-			// Clean up resources and configure Texture.
-
-			if ( isObjectURL === true ) {
-
-				URL.revokeObjectURL( sourceURI );
-
-			}
+			// Configure Texture. Object URLs are released in finally so failed
+			// embedded-image decodes cannot retain their backing Blob.
 
 			assignExtrasToUserData( texture, sourceDef );
 
@@ -3366,9 +3392,18 @@ class GLTFParser {
 			console.error( 'THREE.GLTFLoader: Couldn\'t load texture', sourceURI );
 			throw error;
 
+		} ).finally( function () {
+
+			if ( isObjectURL === true ) URL.revokeObjectURL( sourceURI );
+
 		} );
 
 		this.sourceCache[ sourceIndex ] = promise;
+		if ( sharedImageKey !== null && sharedImageKey !== undefined && options.sharedImageCache ) {
+
+			options.sharedImageCache.set( sharedImageKey, promise );
+
+		}
 		return promise;
 
 	}
