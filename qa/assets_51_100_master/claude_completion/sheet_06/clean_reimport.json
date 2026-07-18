@@ -13,9 +13,27 @@
       "issues": [],
       "stats": {
         "root": "A_051_FINISHED_CLUBHOUSE_EXTERIOR_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 51,
+          "asset_slug": "finished_clubhouse_exterior",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 66,
         "visibleMeshCount": 42,
         "collisionMeshCount": 9,
+        "collisionPurposes": {
+          "COL_BackWall": "blocking",
+          "COL_EastDoorHeader": "blocking",
+          "COL_EastWallNorth": "blocking",
+          "COL_EastWallSouth": "blocking",
+          "COL_Foundation": "walkable",
+          "COL_FrontDoorHeader": "blocking",
+          "COL_FrontWallEast": "blocking",
+          "COL_FrontWallWest": "blocking",
+          "COL_WestWall": "blocking"
+        },
+        "blockingCollisionCount": 8,
         "triangleCount": 10768,
         "collisionTriangleCount": 108,
         "materialCount": 7,
@@ -634,9 +652,20 @@
       "issues": [],
       "stats": {
         "root": "A_052_DILAPIDATED_CLUBHOUSE_EXTERIOR_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 52,
+          "asset_slug": "dilapidated_clubhouse_exterior",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 26,
         "visibleMeshCount": 11,
         "collisionMeshCount": 2,
+        "collisionPurposes": {
+          "COL_Damage_RoofRaycast": "raycast-only",
+          "COL_Damage_TrimRaycast": "raycast-only"
+        },
+        "blockingCollisionCount": 0,
         "triangleCount": 6532,
         "collisionTriangleCount": 24,
         "materialCount": 8,
@@ -838,9 +867,23 @@
       "issues": [],
       "stats": {
         "root": "A_053_MAIN_ENTRANCE_DOUBLE_DOOR_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 53,
+          "asset_slug": "main_entrance_double_door",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 32,
         "visibleMeshCount": 18,
         "collisionMeshCount": 5,
+        "collisionPurposes": {
+          "COL_FrameHeader": "blocking",
+          "COL_FrameLeft": "blocking",
+          "COL_FrameRight": "blocking",
+          "COL_DoorLeft": "animated-blocking",
+          "COL_DoorRight": "animated-blocking"
+        },
+        "blockingCollisionCount": 3,
         "triangleCount": 6112,
         "collisionTriangleCount": 60,
         "materialCount": 4,
@@ -1152,9 +1195,24 @@
       "issues": [],
       "stats": {
         "root": "A_054_EXTERIOR_PORCH_AND_STEPS_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 54,
+          "asset_slug": "exterior_porch_and_steps",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 30,
         "visibleMeshCount": 12,
         "collisionMeshCount": 6,
+        "collisionPurposes": {
+          "COL_Column_0": "blocking",
+          "COL_Column_1": "blocking",
+          "COL_Column_2": "blocking",
+          "COL_Column_3": "blocking",
+          "COL_Deck": "walkable",
+          "COL_StepRamp": "walkable"
+        },
+        "blockingCollisionCount": 4,
         "triangleCount": 12960,
         "collisionTriangleCount": 72,
         "materialCount": 7,
@@ -1408,9 +1466,21 @@
       "issues": [],
       "stats": {
         "root": "A_055_CLUBHOUSE_WINDOWS_SET_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 55,
+          "asset_slug": "clubhouse_windows_set",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 30,
         "visibleMeshCount": 16,
         "collisionMeshCount": 3,
+        "collisionPurposes": {
+          "COL_WindowFrameLeft": "blocking",
+          "COL_WindowFrameRight": "blocking",
+          "COL_WindowGlassRaycast": "raycast-only"
+        },
+        "blockingCollisionCount": 2,
         "triangleCount": 10152,
         "collisionTriangleCount": 36,
         "materialCount": 3,
@@ -1670,9 +1740,19 @@
       "issues": [],
       "stats": {
         "root": "A_056_INTERIOR_WALL_PANEL_KIT_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 56,
+          "asset_slug": "interior_wall_panel_kit",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 24,
         "visibleMeshCount": 11,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_PanelSelection": "selection-blocking"
+        },
+        "blockingCollisionCount": 0,
         "triangleCount": 3780,
         "collisionTriangleCount": 12,
         "materialCount": 4,
@@ -1857,9 +1937,19 @@
       "issues": [],
       "stats": {
         "root": "A_057_INTERIOR_TRIM_AND_BASEBOARD_KIT_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 57,
+          "asset_slug": "interior_trim_and_baseboard_kit",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 24,
         "visibleMeshCount": 8,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_TrimRaycast": "raycast-only"
+        },
+        "blockingCollisionCount": 0,
         "triangleCount": 2376,
         "collisionTriangleCount": 12,
         "materialCount": 2,
@@ -2009,9 +2099,19 @@
       "issues": [],
       "stats": {
         "root": "A_058_CEILING_AND_BEAM_KIT_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 58,
+          "asset_slug": "ceiling_and_beam_kit",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 19,
         "visibleMeshCount": 6,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_BeamOverhead": "overhead-blocking"
+        },
+        "blockingCollisionCount": 0,
         "triangleCount": 1240,
         "collisionTriangleCount": 12,
         "materialCount": 4,
@@ -2140,9 +2240,19 @@
       "issues": [],
       "stats": {
         "root": "A_059_RENOVATED_FLOORING_SET_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 59,
+          "asset_slug": "renovated_flooring_set",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 19,
         "visibleMeshCount": 7,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_FloorWalkable": "walkable"
+        },
+        "blockingCollisionCount": 0,
         "triangleCount": 5376,
         "collisionTriangleCount": 12,
         "materialCount": 7,
@@ -2283,9 +2393,19 @@
       "issues": [],
       "stats": {
         "root": "A_060_DAMAGED_FLOORING_SET_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 60,
+          "asset_slug": "damaged_flooring_set",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 20,
         "visibleMeshCount": 11,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_FloorDamageRaycast": "raycast-only"
+        },
+        "blockingCollisionCount": 0,
         "triangleCount": 4704,
         "collisionTriangleCount": 12,
         "materialCount": 6,

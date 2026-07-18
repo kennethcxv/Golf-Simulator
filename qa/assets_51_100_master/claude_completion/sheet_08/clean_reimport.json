@@ -13,9 +13,22 @@
       "issues": [],
       "stats": {
         "root": "A_071_VACUUM_CLEANER_ROOT",
+        "rootExtras": {
+          "representation": "world",
+          "production_sheet": "08",
+          "asset_number": 71,
+          "asset_slug": "vacuum_cleaner",
+          "spec_body_dimensions_m": "[0.48, 0.58, 0.67]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 23,
         "visibleMeshCount": 9,
         "collisionMeshCount": 2,
+        "collisionPurposes": {
+          "COL_VacDrumHull": "blocking",
+          "COL_VacHeadHull": "blocking"
+        },
+        "blockingCollisionCount": 2,
         "triangleCount": 6640,
         "collisionTriangleCount": 56,
         "materialCount": 6,
@@ -192,9 +205,19 @@
       "issues": [],
       "stats": {
         "root": "A_071_VACUUM_CLEANER_FP_ROOT",
+        "rootExtras": {
+          "representation": "first-person",
+          "production_sheet": "08",
+          "asset_number": 71,
+          "asset_slug": "vacuum_cleaner",
+          "spec_body_dimensions_m": "[0.48, 0.58, 0.67]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 14,
         "visibleMeshCount": 8,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 2716,
         "collisionTriangleCount": 0,
         "materialCount": 4,
@@ -339,9 +362,22 @@
       "issues": [],
       "stats": {
         "root": "A_072_MOP_ROOT",
+        "rootExtras": {
+          "representation": "world",
+          "production_sheet": "08",
+          "asset_number": 72,
+          "asset_slug": "mop",
+          "spec_body_dimensions_m": "[0.32, 0.32, 1.45]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 16,
         "visibleMeshCount": 5,
         "collisionMeshCount": 2,
+        "collisionPurposes": {
+          "COL_MopHandleHull": "blocking",
+          "COL_MopHeadHull": "blocking"
+        },
+        "blockingCollisionCount": 2,
         "triangleCount": 3512,
         "collisionTriangleCount": 88,
         "materialCount": 3,
@@ -470,9 +506,19 @@
       "issues": [],
       "stats": {
         "root": "A_072_MOP_FP_ROOT",
+        "rootExtras": {
+          "representation": "first-person",
+          "production_sheet": "08",
+          "asset_number": 72,
+          "asset_slug": "mop",
+          "spec_body_dimensions_m": "[0.32, 0.32, 1.45]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 11,
         "visibleMeshCount": 5,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 3512,
         "collisionTriangleCount": 0,
         "materialCount": 3,
@@ -583,9 +629,22 @@
       "issues": [],
       "stats": {
         "root": "A_073_MOP_BUCKET_AND_WRINGER_ROOT",
+        "rootExtras": {
+          "representation": "world",
+          "production_sheet": "08",
+          "asset_number": 73,
+          "asset_slug": "mop_bucket_and_wringer",
+          "spec_body_dimensions_m": "[0.55, 0.42, 0.92]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 21,
         "visibleMeshCount": 7,
         "collisionMeshCount": 2,
+        "collisionPurposes": {
+          "COL_BucketTubHull": "blocking",
+          "COL_BucketWringerHull": "non-blocking-interaction"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 3700,
         "collisionTriangleCount": 24,
         "materialCount": 5,
@@ -745,9 +804,22 @@
       "issues": [],
       "stats": {
         "root": "A_074_BROOM_ROOT",
+        "rootExtras": {
+          "representation": "world",
+          "production_sheet": "08",
+          "asset_number": 74,
+          "asset_slug": "broom",
+          "spec_body_dimensions_m": "[0.48, 0.09, 1.5]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 16,
         "visibleMeshCount": 5,
         "collisionMeshCount": 2,
+        "collisionPurposes": {
+          "COL_BroomHandleHull": "blocking",
+          "COL_BroomHeadHull": "blocking"
+        },
+        "blockingCollisionCount": 2,
         "triangleCount": 5272,
         "collisionTriangleCount": 56,
         "materialCount": 3,
@@ -876,9 +948,19 @@
       "issues": [],
       "stats": {
         "root": "A_074_BROOM_FP_ROOT",
+        "rootExtras": {
+          "representation": "first-person",
+          "production_sheet": "08",
+          "asset_number": 74,
+          "asset_slug": "broom",
+          "spec_body_dimensions_m": "[0.48, 0.09, 1.5]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 11,
         "visibleMeshCount": 5,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 5272,
         "collisionTriangleCount": 0,
         "materialCount": 3,
@@ -989,9 +1071,22 @@
       "issues": [],
       "stats": {
         "root": "A_075_DUSTPAN_ROOT",
+        "rootExtras": {
+          "representation": "world",
+          "production_sheet": "08",
+          "asset_number": 75,
+          "asset_slug": "dustpan",
+          "spec_body_dimensions_m": "[0.32, 0.3, 0.85]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 19,
         "visibleMeshCount": 8,
         "collisionMeshCount": 2,
+        "collisionPurposes": {
+          "COL_DustpanHandleHull": "blocking",
+          "COL_DustpanPanHull": "blocking"
+        },
+        "blockingCollisionCount": 2,
         "triangleCount": 1012,
         "collisionTriangleCount": 56,
         "materialCount": 2,
@@ -1152,9 +1247,19 @@
       "issues": [],
       "stats": {
         "root": "A_075_DUSTPAN_FP_ROOT",
+        "rootExtras": {
+          "representation": "first-person",
+          "production_sheet": "08",
+          "asset_number": 75,
+          "asset_slug": "dustpan",
+          "spec_body_dimensions_m": "[0.32, 0.3, 0.85]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 13,
         "visibleMeshCount": 8,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 1012,
         "collisionTriangleCount": 0,
         "materialCount": 2,
@@ -1296,9 +1401,21 @@
       "issues": [],
       "stats": {
         "root": "A_076_CLEANING_SPRAY_BOTTLE_ROOT",
+        "rootExtras": {
+          "representation": "world",
+          "production_sheet": "08",
+          "asset_number": 76,
+          "asset_slug": "cleaning_spray_bottle",
+          "spec_body_dimensions_m": "[0.1, 0.07, 0.28]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 20,
         "visibleMeshCount": 9,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_SprayBottleHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 1280,
         "collisionTriangleCount": 12,
         "materialCount": 4,
@@ -1465,9 +1582,19 @@
       "issues": [],
       "stats": {
         "root": "A_076_CLEANING_SPRAY_BOTTLE_FP_ROOT",
+        "rootExtras": {
+          "representation": "first-person",
+          "production_sheet": "08",
+          "asset_number": 76,
+          "asset_slug": "cleaning_spray_bottle",
+          "spec_body_dimensions_m": "[0.1, 0.07, 0.28]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 15,
         "visibleMeshCount": 9,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 1280,
         "collisionTriangleCount": 0,
         "materialCount": 4,
@@ -1622,9 +1749,22 @@
       "issues": [],
       "stats": {
         "root": "A_077_CLEANING_CLOTH_AND_SPONGE_SET_ROOT",
+        "rootExtras": {
+          "representation": "world",
+          "production_sheet": "08",
+          "asset_number": 77,
+          "asset_slug": "cleaning_cloth_and_sponge_set",
+          "spec_body_dimensions_m": "[0.35, 0.35, 0.09]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 16,
         "visibleMeshCount": 5,
         "collisionMeshCount": 2,
+        "collisionPurposes": {
+          "COL_ClothStackHull": "blocking",
+          "COL_SpongeHull": "blocking"
+        },
+        "blockingCollisionCount": 2,
         "triangleCount": 780,
         "collisionTriangleCount": 24,
         "materialCount": 3,
@@ -1752,9 +1892,19 @@
       "issues": [],
       "stats": {
         "root": "A_077_CLEANING_CLOTH_AND_SPONGE_SET_FP_ROOT",
+        "rootExtras": {
+          "representation": "first-person",
+          "production_sheet": "08",
+          "asset_number": 77,
+          "asset_slug": "cleaning_cloth_and_sponge_set",
+          "spec_body_dimensions_m": "[0.35, 0.35, 0.09]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 12,
         "visibleMeshCount": 5,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 700,
         "collisionTriangleCount": 0,
         "materialCount": 3,
@@ -1866,9 +2016,23 @@
       "issues": [],
       "stats": {
         "root": "A_078_PRESSURE_WASHER_ROOT",
+        "rootExtras": {
+          "representation": "world",
+          "production_sheet": "08",
+          "asset_number": 78,
+          "asset_slug": "pressure_washer",
+          "spec_body_dimensions_m": "[0.62, 0.72, 0.95]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 23,
         "visibleMeshCount": 7,
         "collisionMeshCount": 3,
+        "collisionPurposes": {
+          "COL_WasherBodyHull": "blocking",
+          "COL_WasherWheelHullL": "blocking",
+          "COL_WasherWheelHullR": "blocking"
+        },
+        "blockingCollisionCount": 3,
         "triangleCount": 5224,
         "collisionTriangleCount": 100,
         "materialCount": 6,
@@ -2040,9 +2204,22 @@
       "issues": [],
       "stats": {
         "root": "A_079_PRESSURE_WASHER_HOSE_AND_WAND_ROOT",
+        "rootExtras": {
+          "representation": "world",
+          "production_sheet": "08",
+          "asset_number": 79,
+          "asset_slug": "pressure_washer_hose_and_wand",
+          "spec_body_dimensions_m": "[0.18, 0.95, 0.3]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 27,
         "visibleMeshCount": 13,
         "collisionMeshCount": 2,
+        "collisionPurposes": {
+          "COL_WandGunHull": "blocking",
+          "COL_WandLanceHull": "blocking"
+        },
+        "blockingCollisionCount": 2,
         "triangleCount": 2224,
         "collisionTriangleCount": 56,
         "materialCount": 5,
@@ -2267,9 +2444,19 @@
       "issues": [],
       "stats": {
         "root": "A_079_PRESSURE_WASHER_HOSE_AND_WAND_FP_ROOT",
+        "rootExtras": {
+          "representation": "first-person",
+          "production_sheet": "08",
+          "asset_number": 79,
+          "asset_slug": "pressure_washer_hose_and_wand",
+          "spec_body_dimensions_m": "[0.18, 0.95, 0.3]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 19,
         "visibleMeshCount": 12,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 1724,
         "collisionTriangleCount": 0,
         "materialCount": 4,
@@ -2460,9 +2647,21 @@
       "issues": [],
       "stats": {
         "root": "A_080_TRASH_BAG_ROOT",
+        "rootExtras": {
+          "representation": "world",
+          "production_sheet": "08",
+          "asset_number": 80,
+          "asset_slug": "trash_bag",
+          "spec_body_dimensions_m": "[0.55, 0.42, 0.75]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 17,
         "visibleMeshCount": 7,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_TrashBagHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 1356,
         "collisionTriangleCount": 20,
         "materialCount": 1,
@@ -2600,9 +2799,19 @@
       "issues": [],
       "stats": {
         "root": "A_080_TRASH_BAG_FP_ROOT",
+        "rootExtras": {
+          "representation": "first-person",
+          "production_sheet": "08",
+          "asset_number": 80,
+          "asset_slug": "trash_bag",
+          "spec_body_dimensions_m": "[0.55, 0.42, 0.75]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 12,
         "visibleMeshCount": 7,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 1356,
         "collisionTriangleCount": 0,
         "materialCount": 1,

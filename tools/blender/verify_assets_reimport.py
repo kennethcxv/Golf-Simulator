@@ -204,11 +204,20 @@ def verify_glb(asset_number: int, slug: str | None, glb_path: Path) -> dict:
     collision_expected = root.get("collision_expected", True) not in (False, 0, "false", "False")
     if not collisions and collision_expected and not first_person_variant:
         warn("collision-missing", "GLB ships no COL_ proxy")
-    if collisions and not collision_expected:
-        warn("collision-unexpected",
-             f"root declares collision_expected=false but ships {len(collisions)} COL_ proxy/proxies")
-    if collisions and first_person_variant:
-        fail("viewmodel-collision", f"viewmodel ships {len(collisions)} COL_ proxy/proxies")
+
+    # "No collision" means no *player blocker*, not no proxy at all. Asset 57's contract
+    # asks for exactly this: "No player blocker; use small placement/raycast proxies only
+    # where selection requires them." So the check is on purpose, not on presence -- a
+    # raycast proxy on a no-collision asset is the design, a blocking one is a defect.
+    purposes = {}
+    for obj in collisions:
+        purpose = str(obj.get("collision_purpose", "blocking"))
+        purposes[obj.name] = purpose
+        if not collision_expected and purpose == "blocking":
+            fail("collision-blocking",
+                 "asset declares collision_expected=false but ships a blocking proxy", obj.name)
+        if first_person_variant:
+            fail("viewmodel-collision", "viewmodel ships a collision proxy", obj.name)
     for name in stray_meshes:
         fail("mesh-prefix", "mesh is neither MESH_ nor COL_", name)
 
@@ -237,11 +246,25 @@ def verify_glb(asset_number: int, slug: str | None, glb_path: Path) -> dict:
     })
     animations = sorted(action.name for action in bpy.data.actions)
 
+    # Authoring intent the builder stamped on the root and glTF carried through as
+    # extras. Emitting it here lets downstream tooling derive a runtime binding from the
+    # shipped binary rather than from a second, hand-maintained copy of the same facts.
+    root_extras = {
+        key: root.get(key)
+        for key in ("mount", "collision_expected", "representation", "production_sheet",
+                    "asset_number", "asset_slug", "spec_body_dimensions_m",
+                    "spec_contract_dimensions_m", "runtime_unit_conversion")
+        if root.get(key) is not None
+    }
+
     stats = {
         "root": root.name,
+        "rootExtras": root_extras,
         "nodeCount": len(nodes),
         "visibleMeshCount": len(visible),
         "collisionMeshCount": len(collisions),
+        "collisionPurposes": purposes,
+        "blockingCollisionCount": sum(1 for p in purposes.values() if p == "blocking"),
         "triangleCount": sum(m["triangles"] for m in meshes if m["name"].startswith("MESH_")),
         "collisionTriangleCount": sum(m["triangles"] for m in meshes if m["name"].startswith("COL_")),
         "materialCount": len(materials),

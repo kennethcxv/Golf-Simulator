@@ -13,9 +13,24 @@
       "issues": [],
       "stats": {
         "root": "A_081_OFFICE_CHAIR_SHEET09_ROOT",
+        "rootExtras": {
+          "mount": "floor",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 81,
+          "asset_slug": "office_chair_sheet09",
+          "spec_contract_dimensions_m": "[0.65, 0.65, 1.1]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 13,
         "visibleMeshCount": 2,
         "collisionMeshCount": 3,
+        "collisionPurposes": {
+          "COL_ChairBackHull": "blocking",
+          "COL_ChairBaseHull": "blocking",
+          "COL_ChairSeatHull": "blocking"
+        },
+        "blockingCollisionCount": 3,
         "triangleCount": 4876,
         "collisionTriangleCount": 68,
         "materialCount": 5,
@@ -125,9 +140,22 @@
       "issues": [],
       "stats": {
         "root": "A_082_FILING_CABINET_SHEET09_ROOT",
+        "rootExtras": {
+          "mount": "floor",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 82,
+          "asset_slug": "filing_cabinet_sheet09",
+          "spec_contract_dimensions_m": "[0.48, 0.62, 1.32]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 19,
         "visibleMeshCount": 8,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_CabinetHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 1728,
         "collisionTriangleCount": 12,
         "materialCount": 2,
@@ -282,9 +310,22 @@
       "issues": [],
       "stats": {
         "root": "A_083_DESK_LAMP_ROOT",
+        "rootExtras": {
+          "mount": "surface",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 83,
+          "asset_slug": "desk_lamp",
+          "spec_contract_dimensions_m": "[0.18, 0.65, 0.55]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 20,
         "visibleMeshCount": 9,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_LampBaseHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 1476,
         "collisionTriangleCount": 44,
         "materialCount": 4,
@@ -452,9 +493,22 @@
       "issues": [],
       "stats": {
         "root": "A_084_OFFICE_PRINTER_ROOT",
+        "rootExtras": {
+          "mount": "surface",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 84,
+          "asset_slug": "office_printer",
+          "spec_contract_dimensions_m": "[0.43, 0.38, 0.25]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 19,
         "visibleMeshCount": 9,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_PrinterHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 972,
         "collisionTriangleCount": 12,
         "materialCount": 4,
@@ -618,9 +672,22 @@
       "issues": [],
       "stats": {
         "root": "A_085_OFFICE_TELEPHONE_ROOT",
+        "rootExtras": {
+          "mount": "surface",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 85,
+          "asset_slug": "office_telephone",
+          "spec_contract_dimensions_m": "[0.22, 0.24, 0.12]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 25,
         "visibleMeshCount": 14,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_PhoneHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 3476,
         "collisionTriangleCount": 12,
         "materialCount": 3,
@@ -842,9 +909,20 @@
       "issues": [],
       "stats": {
         "root": "A_086_CORKBOARD_NOTICEBOARD_ROOT",
+        "rootExtras": {
+          "mount": "wall",
+          "collision_expected": false,
+          "production_sheet": "09",
+          "asset_number": 86,
+          "asset_slug": "corkboard_noticeboard",
+          "spec_contract_dimensions_m": "[0.9, 0.05, 0.65]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 14,
         "visibleMeshCount": 6,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 2508,
         "collisionTriangleCount": 0,
         "materialCount": 4,
@@ -963,9 +1041,20 @@
       "issues": [],
       "stats": {
         "root": "A_087_WALL_CLOCK_ROOT",
+        "rootExtras": {
+          "mount": "wall",
+          "collision_expected": false,
+          "production_sheet": "09",
+          "asset_number": 87,
+          "asset_slug": "wall_clock",
+          "spec_contract_dimensions_m": "[0.34, 0.065, 0.34]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 16,
         "visibleMeshCount": 9,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 3568,
         "collisionTriangleCount": 0,
         "materialCount": 5,
@@ -1118,9 +1207,20 @@
       "issues": [],
       "stats": {
         "root": "A_088_KEY_RACK_ROOT",
+        "rootExtras": {
+          "mount": "wall",
+          "collision_expected": false,
+          "production_sheet": "09",
+          "asset_number": 88,
+          "asset_slug": "key_rack",
+          "spec_contract_dimensions_m": "[0.75, 0.08, 0.25]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 14,
         "visibleMeshCount": 5,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 3104,
         "collisionTriangleCount": 0,
         "materialCount": 3,
@@ -1228,9 +1328,22 @@
       "issues": [],
       "stats": {
         "root": "A_089_RESERVATION_CLIPBOARD_ROOT",
+        "rootExtras": {
+          "mount": "surface",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 89,
+          "asset_slug": "reservation_clipboard",
+          "spec_contract_dimensions_m": "[0.23, 0.33, 0.018]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 15,
         "visibleMeshCount": 6,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_ClipboardHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 1412,
         "collisionTriangleCount": 12,
         "materialCount": 4,
@@ -1359,9 +1472,22 @@
       "issues": [],
       "stats": {
         "root": "A_090_SCORECARD_HOLDER_ROOT",
+        "rootExtras": {
+          "mount": "surface",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 90,
+          "asset_slug": "scorecard_holder",
+          "spec_contract_dimensions_m": "[0.38, 0.25, 0.28]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 18,
         "visibleMeshCount": 8,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_HolderHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 2724,
         "collisionTriangleCount": 12,
         "materialCount": 4,

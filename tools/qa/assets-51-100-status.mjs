@@ -19,11 +19,12 @@
 //   node tools/qa/assets-51-100-status.mjs
 //   node tools/qa/assets-51-100-status.mjs --write
 
-import { existsSync, statSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, statSync, readFileSync, mkdirSync, writeFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ASSETS } from './assets-51-100-spec.mjs';
+import { ASSETS_BY_NUMBER } from '../../src/render3d/assets51to100/assetsRegistry.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const EVIDENCE_ROOT = join(REPO_ROOT, 'qa', 'assets_51_100_master', 'claude_completion');
@@ -52,7 +53,44 @@ function loadReimportReports() {
   return byGlb;
 }
 
-function statusFor(asset, world, firstPerson, hasBinding) {
+/**
+ * Which sheets the scene actually mounts.
+ *
+ * "Has a runtime binding" and "appears in the game" are different questions, and
+ * conflating them is how a report claims fifty assets are integrated when forty of them
+ * are registered and nothing places them. A sheet counts as mounted only when something
+ * outside `assets51to100/` imports it -- the scene reaching in, not the registry
+ * describing itself.
+ */
+function mountedSheets() {
+  const render3d = join(REPO_ROOT, 'src', 'render3d');
+  const mounted = new Set();
+  const scan = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== 'assets51to100') scan(full);
+        continue;
+      }
+      if (!entry.name.endsWith('.js')) continue;
+      const text = readFileSync(full, 'utf8');
+      for (const sheet of [6, 7, 8, 9, 10]) {
+        const pad = String(sheet).padStart(2, '0');
+        if (text.includes(`sheet${pad}Manifest`) || text.includes(`sheet${pad}Production`)
+          || text.includes(`Sheet${pad}Production`) || text.includes(`sheet${pad}ClubhouseAdapter`)) {
+          mounted.add(sheet);
+        }
+      }
+      if (text.includes('assetsRegistry')) for (const s of [6, 7, 8, 9, 10]) mounted.add(s);
+    }
+  };
+  scan(render3d);
+  return mounted;
+}
+
+const MOUNTED_SHEETS = mountedSheets();
+
+function statusFor(asset, world, firstPerson, registryBound, sceneMounted) {
   if (!world.sourceExists && !world.runtimeGlbExists) return 'Missing';
   if (!world.runtimeGlbExists) return 'Partially complete';
   if (!world.reimport) return 'Present but unverified';
@@ -61,7 +99,9 @@ function statusFor(asset, world, firstPerson, hasBinding) {
   if (firstPerson && !firstPerson.reimport) return 'Partially complete';
   if (firstPerson && !firstPerson.reimport.ok) return 'Broken';
   if (firstPerson && (firstPerson.missingAnimations.length)) return 'Partially complete';
-  return hasBinding ? 'Verified complete' : 'Built and verified, not integrated';
+  if (!registryBound) return 'Built and verified, no runtime binding';
+  if (!sceneMounted) return 'Bound to the runtime, not yet mounted in the scene';
+  return 'Verified complete';
 }
 
 function describe(asset, reports) {
@@ -118,7 +158,8 @@ function describe(asset, reports) {
     world.missingAnimations = [];
   }
 
-  const hasBinding = exists(bindingPath);
+  const registryBound = Boolean(ASSETS_BY_NUMBER[asset.assetNumber]);
+  const sceneMounted = registryBound && MOUNTED_SHEETS.has(asset.referenceSheet);
   return {
     assetNumber: asset.assetNumber,
     sheet: asset.referenceSheet,
@@ -134,10 +175,11 @@ function describe(asset, reports) {
       runtimeIntegrationFile: bindingPath,
       firstPersonRuntimeGlb: planned.firstPersonRuntimeGlb || null,
     },
-    runtimeIntegrated: hasBinding,
+    registryBound,
+    sceneMounted,
     world,
     firstPerson,
-    status: statusFor(asset, world, firstPerson, hasBinding),
+    status: statusFor(asset, world, firstPerson, registryBound, sceneMounted),
   };
 }
 
@@ -154,7 +196,8 @@ const totals = {
   sourcesOnDisk: records.filter((r) => r.world.sourceExists).length,
   runtimeGlbsOnDisk: records.filter((r) => r.world.runtimeGlbExists).length,
   cleanReimportPassed: records.filter((r) => r.world.reimport && r.world.reimport.ok).length,
-  runtimeIntegrated: records.filter((r) => r.runtimeIntegrated).length,
+  registryBound: records.filter((r) => r.registryBound).length,
+  sceneMounted: records.filter((r) => r.sceneMounted).length,
   firstPersonRequired: records.filter((r) => r.firstPerson).length,
   firstPersonBuilt: records.filter((r) => r.firstPerson && r.firstPerson.runtimeGlbExists).length,
   worldTriangles: records.reduce((n, r) => n + (r.world.triangles || 0), 0),
@@ -181,7 +224,8 @@ function markdown() {
   lines.push(`| Blender sources on disk | ${totals.sourcesOnDisk} |`);
   lines.push(`| Runtime GLBs on disk | ${totals.runtimeGlbsOnDisk} |`);
   lines.push(`| Passing clean reimport | ${totals.cleanReimportPassed} |`);
-  lines.push(`| Wired into the runtime | ${totals.runtimeIntegrated} |`);
+  lines.push(`| Bound to the runtime registry | ${totals.registryBound} |`);
+  lines.push(`| Mounted in the scene | ${totals.sceneMounted} |`);
   lines.push(`| First-person variants required / built | ${totals.firstPersonRequired} / ${totals.firstPersonBuilt} |`);
   lines.push(`| Missing required sockets | ${totals.missingRequiredSockets} |`);
   lines.push(`| Missing required animations | ${totals.missingRequiredAnimations} |`);
@@ -198,8 +242,8 @@ function markdown() {
   lines.push('');
   lines.push('## Per asset');
   lines.push('');
-  lines.push('| # | Name | Status | Blend | GLB | Reimport | Runtime | Tris | Sockets | Anims | FP |');
-  lines.push('|---|---|---|---|---|---|---|---:|---|---|---|');
+  lines.push('| # | Name | Status | Blend | GLB | Reimport | Bound | Mounted | Tris | Sockets | Anims | FP |');
+  lines.push('|---|---|---|---|---|---|---|---|---:|---|---|---|');
   for (const r of records) {
     const reimport = r.world.reimport ? (r.world.reimport.ok ? 'pass' : 'FAIL') : '—';
     const sockets = r.world.missingSockets.length ? `missing ${r.world.missingSockets.length}` : 'ok';
@@ -207,7 +251,8 @@ function markdown() {
     const fp = r.firstPerson ? (r.firstPerson.runtimeGlbExists ? 'built' : 'MISSING') : '—';
     lines.push(
       `| ${r.assetNumber} | ${r.name} | ${r.status} | ${r.world.sourceExists ? 'yes' : 'no'} | `
-      + `${r.world.runtimeGlbExists ? 'yes' : 'no'} | ${reimport} | ${r.runtimeIntegrated ? 'yes' : 'no'} | `
+      + `${r.world.runtimeGlbExists ? 'yes' : 'no'} | ${reimport} | ${r.registryBound ? 'yes' : 'no'} | `
+      + `${r.sceneMounted ? 'yes' : 'no'} | `
       + `${r.world.triangles ?? '—'} | ${sockets} | ${anims} | ${fp} |`,
     );
   }

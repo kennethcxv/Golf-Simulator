@@ -13,9 +13,21 @@
       "issues": [],
       "stats": {
         "root": "A_061_FRONT_DESK_COUNTER_SHELL_ROOT",
+        "rootExtras": {
+          "production_sheet": "07",
+          "asset_number": 61,
+          "asset_slug": "front_desk_counter_shell",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 25,
         "visibleMeshCount": 10,
         "collisionMeshCount": 3,
+        "collisionPurposes": {
+          "COL_CounterMainHull": "blocking",
+          "COL_CounterStaffPedestal": "blocking",
+          "COL_CounterTop": "blocking-placement"
+        },
+        "blockingCollisionCount": 2,
         "triangleCount": 4364,
         "collisionTriangleCount": 36,
         "materialCount": 5,
@@ -214,9 +226,22 @@
       "issues": [],
       "stats": {
         "root": "A_062_BACK_COUNTER_STORAGE_CABINETS_ROOT",
+        "rootExtras": {
+          "production_sheet": "07",
+          "asset_number": 62,
+          "asset_slug": "back_counter_storage_cabinets",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 28,
         "visibleMeshCount": 13,
         "collisionMeshCount": 4,
+        "collisionPurposes": {
+          "COL_BaseCabinetHull": "blocking",
+          "COL_WallCabinetHull": "blocking",
+          "COL_AnimatedDoor": "state-aware-door",
+          "COL_AnimatedDrawer": "state-aware-drawer"
+        },
+        "blockingCollisionCount": 2,
         "triangleCount": 8004,
         "collisionTriangleCount": 48,
         "materialCount": 6,
@@ -465,9 +490,22 @@
       "issues": [],
       "stats": {
         "root": "A_063_PRO_SHOP_FITTING_ROOM_ROOT",
+        "rootExtras": {
+          "production_sheet": "07",
+          "asset_number": 63,
+          "asset_slug": "pro_shop_fitting_room",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 29,
         "visibleMeshCount": 14,
         "collisionMeshCount": 4,
+        "collisionPurposes": {
+          "COL_Bench": "blocking",
+          "COL_EastWall": "blocking",
+          "COL_RearWall": "blocking",
+          "COL_WestWall": "blocking"
+        },
+        "blockingCollisionCount": 4,
         "triangleCount": 4892,
         "collisionTriangleCount": 48,
         "materialCount": 7,
@@ -726,9 +764,23 @@
       "issues": [],
       "stats": {
         "root": "A_064_STOCKROOM_SHELVING_SYSTEM_ROOT",
+        "rootExtras": {
+          "production_sheet": "07",
+          "asset_number": 64,
+          "asset_slug": "stockroom_shelving_system",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 19,
         "visibleMeshCount": 5,
         "collisionMeshCount": 5,
+        "collisionPurposes": {
+          "COL_ShelfLevel1": "blocking-placement",
+          "COL_ShelfLevel2": "blocking-placement",
+          "COL_ShelfLevel3": "blocking-placement",
+          "COL_ShelfLevel4": "blocking-placement",
+          "COL_UprightFrame": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 2592,
         "collisionTriangleCount": 60,
         "materialCount": 2,
@@ -889,9 +941,22 @@
       "issues": [],
       "stats": {
         "root": "A_065_STOCKROOM_WORKTABLE_ROOT",
+        "rootExtras": {
+          "production_sheet": "07",
+          "asset_number": 65,
+          "asset_slug": "stockroom_worktable",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 19,
         "visibleMeshCount": 6,
         "collisionMeshCount": 4,
+        "collisionPurposes": {
+          "COL_EastLegFrame": "blocking",
+          "COL_LowerShelf": "blocking-placement",
+          "COL_WestLegFrame": "blocking",
+          "COL_Worktop": "blocking-placement"
+        },
+        "blockingCollisionCount": 2,
         "triangleCount": 1700,
         "collisionTriangleCount": 48,
         "materialCount": 4,
@@ -1054,9 +1119,21 @@
       "issues": [],
       "stats": {
         "root": "A_066_OFFICE_LAPTOP_DESK_ROOT",
+        "rootExtras": {
+          "production_sheet": "07",
+          "asset_number": 66,
+          "asset_slug": "office_laptop_desk",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 21,
         "visibleMeshCount": 8,
         "collisionMeshCount": 3,
+        "collisionPurposes": {
+          "COL_Desktop": "blocking-placement",
+          "COL_EastPedestal": "blocking",
+          "COL_WestPedestal": "blocking"
+        },
+        "blockingCollisionCount": 2,
         "triangleCount": 4004,
         "collisionTriangleCount": 36,
         "materialCount": 4,
@@ -1230,9 +1307,21 @@
       "issues": [],
       "stats": {
         "root": "A_067_CLUBHOUSE_LOUNGE_SOFA_ROOT",
+        "rootExtras": {
+          "production_sheet": "07",
+          "asset_number": 67,
+          "asset_slug": "clubhouse_lounge_sofa",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 22,
         "visibleMeshCount": 10,
         "collisionMeshCount": 3,
+        "collisionPurposes": {
+          "COL_SofaArms": "blocking",
+          "COL_SofaBack": "blocking",
+          "COL_SofaBody": "blocking"
+        },
+        "blockingCollisionCount": 3,
         "triangleCount": 5020,
         "collisionTriangleCount": 36,
         "materialCount": 5,
@@ -1428,9 +1517,20 @@
       "issues": [],
       "stats": {
         "root": "A_068_LOUNGE_ARMCHAIR_SHEET07_ROOT",
+        "rootExtras": {
+          "production_sheet": "07",
+          "asset_number": 68,
+          "asset_slug": "lounge_armchair_sheet07",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 19,
         "visibleMeshCount": 10,
         "collisionMeshCount": 2,
+        "collisionPurposes": {
+          "COL_ArmchairBack": "blocking",
+          "COL_ArmchairBody": "blocking"
+        },
+        "blockingCollisionCount": 2,
         "triangleCount": 3428,
         "collisionTriangleCount": 24,
         "materialCount": 5,
@@ -1613,9 +1713,21 @@
       "issues": [],
       "stats": {
         "root": "A_069_LOUNGE_COFFEE_TABLE_SHEET07_ROOT",
+        "rootExtras": {
+          "production_sheet": "07",
+          "asset_number": 69,
+          "asset_slug": "lounge_coffee_table_sheet07",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 18,
         "visibleMeshCount": 6,
         "collisionMeshCount": 3,
+        "collisionPurposes": {
+          "COL_LegEnvelope": "blocking",
+          "COL_LowerShelf": "blocking-placement",
+          "COL_Tabletop": "blocking-placement"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 1484,
         "collisionTriangleCount": 36,
         "materialCount": 4,
@@ -1767,9 +1879,21 @@
       "issues": [],
       "stats": {
         "root": "A_070_TROPHY_DISPLAY_CABINET_ROOT",
+        "rootExtras": {
+          "production_sheet": "07",
+          "asset_number": 70,
+          "asset_slug": "trophy_display_cabinet",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 30,
         "visibleMeshCount": 15,
         "collisionMeshCount": 3,
+        "collisionPurposes": {
+          "COL_DisplayMainHull": "blocking",
+          "COL_DisplayDoorLeft": "state-aware-door",
+          "COL_DisplayDoorRight": "state-aware-door"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 4056,
         "collisionTriangleCount": 36,
         "materialCount": 7,

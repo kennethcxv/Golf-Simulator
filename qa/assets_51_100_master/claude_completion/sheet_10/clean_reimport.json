@@ -13,9 +13,22 @@
       "issues": [],
       "stats": {
         "root": "A_091_FIRE_EXTINGUISHER_ROOT",
+        "rootExtras": {
+          "mount": "wall",
+          "collision_expected": true,
+          "production_sheet": "10",
+          "asset_number": 91,
+          "asset_slug": "fire_extinguisher",
+          "spec_contract_dimensions_m": "[0.16, 0.34, 0.55]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 26,
         "visibleMeshCount": 15,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_ExtinguisherHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 2948,
         "collisionTriangleCount": 44,
         "materialCount": 5,
@@ -245,9 +258,22 @@
       "issues": [],
       "stats": {
         "root": "A_092_FIRST_AID_KIT_CABINET_ROOT",
+        "rootExtras": {
+          "mount": "wall",
+          "collision_expected": true,
+          "production_sheet": "10",
+          "asset_number": 92,
+          "asset_slug": "first_aid_kit_cabinet",
+          "spec_contract_dimensions_m": "[0.42, 0.16, 0.55]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 23,
         "visibleMeshCount": 13,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_FirstAidHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 1952,
         "collisionTriangleCount": 12,
         "materialCount": 4,
@@ -458,9 +484,20 @@
       "issues": [],
       "stats": {
         "root": "A_093_SECURITY_CAMERA_ROOT",
+        "rootExtras": {
+          "mount": "ceiling",
+          "collision_expected": false,
+          "production_sheet": "10",
+          "asset_number": 93,
+          "asset_slug": "security_camera",
+          "spec_contract_dimensions_m": "[0.18, 0.18, 0.13]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 12,
         "visibleMeshCount": 6,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 1812,
         "collisionTriangleCount": 0,
         "materialCount": 4,
@@ -578,9 +615,20 @@
       "issues": [],
       "stats": {
         "root": "A_094_EXIT_SIGN_ROOT",
+        "rootExtras": {
+          "mount": "wall",
+          "collision_expected": false,
+          "production_sheet": "10",
+          "asset_number": 94,
+          "asset_slug": "exit_sign",
+          "spec_contract_dimensions_m": "[0.48, 0.085, 0.22]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 14,
         "visibleMeshCount": 8,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 1840,
         "collisionTriangleCount": 0,
         "materialCount": 3,
@@ -718,9 +766,20 @@
       "issues": [],
       "stats": {
         "root": "A_095_EMERGENCY_LIGHT_ROOT",
+        "rootExtras": {
+          "mount": "wall",
+          "collision_expected": false,
+          "production_sheet": "10",
+          "asset_number": 95,
+          "asset_slug": "emergency_light",
+          "spec_contract_dimensions_m": "[0.42, 0.13, 0.24]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 17,
         "visibleMeshCount": 10,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 1524,
         "collisionTriangleCount": 0,
         "materialCount": 3,
@@ -882,9 +941,20 @@
       "issues": [],
       "stats": {
         "root": "A_096_BULLETIN_BOARD_ROOT",
+        "rootExtras": {
+          "mount": "wall",
+          "collision_expected": false,
+          "production_sheet": "10",
+          "asset_number": 96,
+          "asset_slug": "bulletin_board",
+          "spec_contract_dimensions_m": "[0.95, 0.055, 0.7]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 11,
         "visibleMeshCount": 3,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 2508,
         "collisionTriangleCount": 0,
         "materialCount": 4,
@@ -970,9 +1040,22 @@
       "issues": [],
       "stats": {
         "root": "A_097_KEY_CABINET_ROOT",
+        "rootExtras": {
+          "mount": "wall",
+          "collision_expected": true,
+          "production_sheet": "10",
+          "asset_number": 97,
+          "asset_slug": "key_cabinet",
+          "spec_contract_dimensions_m": "[0.48, 0.16, 0.65]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 21,
         "visibleMeshCount": 10,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_KeyCabinetHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 6392,
         "collisionTriangleCount": 12,
         "materialCount": 3,
@@ -1150,9 +1233,22 @@
       "issues": [],
       "stats": {
         "root": "A_098_HAND_SANITIZER_STATION_ROOT",
+        "rootExtras": {
+          "mount": "wall",
+          "collision_expected": true,
+          "production_sheet": "10",
+          "asset_number": 98,
+          "asset_slug": "hand_sanitizer_station",
+          "spec_contract_dimensions_m": "[0.13, 0.12, 0.31]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 19,
         "visibleMeshCount": 8,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_SanitizerHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 916,
         "collisionTriangleCount": 12,
         "materialCount": 4,
@@ -1306,9 +1402,22 @@
       "issues": [],
       "stats": {
         "root": "A_099_UMBRELLA_STAND_ROOT",
+        "rootExtras": {
+          "mount": "floor",
+          "collision_expected": true,
+          "production_sheet": "10",
+          "asset_number": 99,
+          "asset_slug": "umbrella_stand",
+          "spec_contract_dimensions_m": "[0.34, 0.34, 0.62]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 18,
         "visibleMeshCount": 8,
         "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_StandHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
         "triangleCount": 2740,
         "collisionTriangleCount": 44,
         "materialCount": 3,
@@ -1459,9 +1568,20 @@
       "issues": [],
       "stats": {
         "root": "A_100_FLOOR_MAT_WELCOME_MAT_ROOT",
+        "rootExtras": {
+          "mount": "floor",
+          "collision_expected": false,
+          "production_sheet": "10",
+          "asset_number": 100,
+          "asset_slug": "floor_mat_welcome_mat",
+          "spec_contract_dimensions_m": "[1.2, 0.75, 0.012]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
         "nodeCount": 10,
         "visibleMeshCount": 4,
         "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
         "triangleCount": 984,
         "collisionTriangleCount": 0,
         "materialCount": 3,

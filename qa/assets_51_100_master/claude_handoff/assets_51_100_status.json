@@ -4,7 +4,8 @@
     "sourcesOnDisk": 50,
     "runtimeGlbsOnDisk": 50,
     "cleanReimportPassed": 50,
-    "runtimeIntegrated": 10,
+    "registryBound": 50,
+    "sceneMounted": 10,
     "firstPersonRequired": 8,
     "firstPersonBuilt": 8,
     "worldTriangles": 184004,
@@ -14,7 +15,7 @@
   },
   "statusTally": {
     "Verified complete": 10,
-    "Built and verified, not integrated": 40
+    "Bound to the runtime, not yet mounted in the scene": 40
   },
   "assets": [
     {
@@ -34,7 +35,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_051_finished_clubhouse_exterior.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": true,
+      "registryBound": true,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -49,9 +51,27 @@
           "issues": [],
           "stats": {
             "root": "A_051_FINISHED_CLUBHOUSE_EXTERIOR_ROOT",
+            "rootExtras": {
+              "production_sheet": "06",
+              "asset_number": 51,
+              "asset_slug": "finished_clubhouse_exterior",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 66,
             "visibleMeshCount": 42,
             "collisionMeshCount": 9,
+            "collisionPurposes": {
+              "COL_BackWall": "blocking",
+              "COL_EastDoorHeader": "blocking",
+              "COL_EastWallNorth": "blocking",
+              "COL_EastWallSouth": "blocking",
+              "COL_Foundation": "walkable",
+              "COL_FrontDoorHeader": "blocking",
+              "COL_FrontWallEast": "blocking",
+              "COL_FrontWallWest": "blocking",
+              "COL_WestWall": "blocking"
+            },
+            "blockingCollisionCount": 8,
             "triangleCount": 10768,
             "collisionTriangleCount": 108,
             "materialCount": 7,
@@ -705,7 +725,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_052_dilapidated_clubhouse_exterior.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": true,
+      "registryBound": true,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -720,9 +741,20 @@
           "issues": [],
           "stats": {
             "root": "A_052_DILAPIDATED_CLUBHOUSE_EXTERIOR_ROOT",
+            "rootExtras": {
+              "production_sheet": "06",
+              "asset_number": 52,
+              "asset_slug": "dilapidated_clubhouse_exterior",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 26,
             "visibleMeshCount": 11,
             "collisionMeshCount": 2,
+            "collisionPurposes": {
+              "COL_Damage_RoofRaycast": "raycast-only",
+              "COL_Damage_TrimRaycast": "raycast-only"
+            },
+            "blockingCollisionCount": 0,
             "triangleCount": 6532,
             "collisionTriangleCount": 24,
             "materialCount": 8,
@@ -959,7 +991,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_053_main_entrance_double_door.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": true,
+      "registryBound": true,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -974,9 +1007,23 @@
           "issues": [],
           "stats": {
             "root": "A_053_MAIN_ENTRANCE_DOUBLE_DOOR_ROOT",
+            "rootExtras": {
+              "production_sheet": "06",
+              "asset_number": 53,
+              "asset_slug": "main_entrance_double_door",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 32,
             "visibleMeshCount": 18,
             "collisionMeshCount": 5,
+            "collisionPurposes": {
+              "COL_FrameHeader": "blocking",
+              "COL_FrameLeft": "blocking",
+              "COL_FrameRight": "blocking",
+              "COL_DoorLeft": "animated-blocking",
+              "COL_DoorRight": "animated-blocking"
+            },
+            "blockingCollisionCount": 3,
             "triangleCount": 6112,
             "collisionTriangleCount": 60,
             "materialCount": 4,
@@ -1323,7 +1370,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_054_exterior_porch_and_steps.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": true,
+      "registryBound": true,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -1338,9 +1386,24 @@
           "issues": [],
           "stats": {
             "root": "A_054_EXTERIOR_PORCH_AND_STEPS_ROOT",
+            "rootExtras": {
+              "production_sheet": "06",
+              "asset_number": 54,
+              "asset_slug": "exterior_porch_and_steps",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 30,
             "visibleMeshCount": 12,
             "collisionMeshCount": 6,
+            "collisionPurposes": {
+              "COL_Column_0": "blocking",
+              "COL_Column_1": "blocking",
+              "COL_Column_2": "blocking",
+              "COL_Column_3": "blocking",
+              "COL_Deck": "walkable",
+              "COL_StepRamp": "walkable"
+            },
+            "blockingCollisionCount": 4,
             "triangleCount": 12960,
             "collisionTriangleCount": 72,
             "materialCount": 7,
@@ -1629,7 +1692,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_055_clubhouse_windows_set.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": true,
+      "registryBound": true,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -1644,9 +1708,21 @@
           "issues": [],
           "stats": {
             "root": "A_055_CLUBHOUSE_WINDOWS_SET_ROOT",
+            "rootExtras": {
+              "production_sheet": "06",
+              "asset_number": 55,
+              "asset_slug": "clubhouse_windows_set",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 30,
             "visibleMeshCount": 16,
             "collisionMeshCount": 3,
+            "collisionPurposes": {
+              "COL_WindowFrameLeft": "blocking",
+              "COL_WindowFrameRight": "blocking",
+              "COL_WindowGlassRaycast": "raycast-only"
+            },
+            "blockingCollisionCount": 2,
             "triangleCount": 10152,
             "collisionTriangleCount": 36,
             "materialCount": 3,
@@ -1941,7 +2017,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_056_interior_wall_panel_kit.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": true,
+      "registryBound": true,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -1956,9 +2033,19 @@
           "issues": [],
           "stats": {
             "root": "A_056_INTERIOR_WALL_PANEL_KIT_ROOT",
+            "rootExtras": {
+              "production_sheet": "06",
+              "asset_number": 56,
+              "asset_slug": "interior_wall_panel_kit",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 24,
             "visibleMeshCount": 11,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_PanelSelection": "selection-blocking"
+            },
+            "blockingCollisionCount": 0,
             "triangleCount": 3780,
             "collisionTriangleCount": 12,
             "materialCount": 4,
@@ -2178,7 +2265,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_057_interior_trim_and_baseboard_kit.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": true,
+      "registryBound": true,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -2193,9 +2281,19 @@
           "issues": [],
           "stats": {
             "root": "A_057_INTERIOR_TRIM_AND_BASEBOARD_KIT_ROOT",
+            "rootExtras": {
+              "production_sheet": "06",
+              "asset_number": 57,
+              "asset_slug": "interior_trim_and_baseboard_kit",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 24,
             "visibleMeshCount": 8,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_TrimRaycast": "raycast-only"
+            },
+            "blockingCollisionCount": 0,
             "triangleCount": 2376,
             "collisionTriangleCount": 12,
             "materialCount": 2,
@@ -2380,7 +2478,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_058_ceiling_and_beam_kit.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": true,
+      "registryBound": true,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -2395,9 +2494,19 @@
           "issues": [],
           "stats": {
             "root": "A_058_CEILING_AND_BEAM_KIT_ROOT",
+            "rootExtras": {
+              "production_sheet": "06",
+              "asset_number": 58,
+              "asset_slug": "ceiling_and_beam_kit",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 19,
             "visibleMeshCount": 6,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_BeamOverhead": "overhead-blocking"
+            },
+            "blockingCollisionCount": 0,
             "triangleCount": 1240,
             "collisionTriangleCount": 12,
             "materialCount": 4,
@@ -2561,7 +2670,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_059_renovated_flooring_set.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": true,
+      "registryBound": true,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -2576,9 +2686,19 @@
           "issues": [],
           "stats": {
             "root": "A_059_RENOVATED_FLOORING_SET_ROOT",
+            "rootExtras": {
+              "production_sheet": "06",
+              "asset_number": 59,
+              "asset_slug": "renovated_flooring_set",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 19,
             "visibleMeshCount": 7,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_FloorWalkable": "walkable"
+            },
+            "blockingCollisionCount": 0,
             "triangleCount": 5376,
             "collisionTriangleCount": 12,
             "materialCount": 7,
@@ -2754,7 +2874,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_060_damaged_flooring_set.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": true,
+      "registryBound": true,
+      "sceneMounted": true,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -2769,9 +2890,19 @@
           "issues": [],
           "stats": {
             "root": "A_060_DAMAGED_FLOORING_SET_ROOT",
+            "rootExtras": {
+              "production_sheet": "06",
+              "asset_number": 60,
+              "asset_slug": "damaged_flooring_set",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 20,
             "visibleMeshCount": 11,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_FloorDamageRaycast": "raycast-only"
+            },
+            "blockingCollisionCount": 0,
             "triangleCount": 4704,
             "collisionTriangleCount": 12,
             "materialCount": 6,
@@ -2991,7 +3122,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_061_front_desk_counter_shell.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -3006,9 +3138,21 @@
           "issues": [],
           "stats": {
             "root": "A_061_FRONT_DESK_COUNTER_SHELL_ROOT",
+            "rootExtras": {
+              "production_sheet": "07",
+              "asset_number": 61,
+              "asset_slug": "front_desk_counter_shell",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 25,
             "visibleMeshCount": 10,
             "collisionMeshCount": 3,
+            "collisionPurposes": {
+              "COL_CounterMainHull": "blocking",
+              "COL_CounterStaffPedestal": "blocking",
+              "COL_CounterTop": "blocking-placement"
+            },
+            "blockingCollisionCount": 2,
             "triangleCount": 4364,
             "collisionTriangleCount": 36,
             "materialCount": 5,
@@ -3223,7 +3367,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 62,
@@ -3242,7 +3386,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_062_back_counter_storage_cabinets.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -3257,9 +3402,22 @@
           "issues": [],
           "stats": {
             "root": "A_062_BACK_COUNTER_STORAGE_CABINETS_ROOT",
+            "rootExtras": {
+              "production_sheet": "07",
+              "asset_number": 62,
+              "asset_slug": "back_counter_storage_cabinets",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 28,
             "visibleMeshCount": 13,
             "collisionMeshCount": 4,
+            "collisionPurposes": {
+              "COL_BaseCabinetHull": "blocking",
+              "COL_WallCabinetHull": "blocking",
+              "COL_AnimatedDoor": "state-aware-door",
+              "COL_AnimatedDrawer": "state-aware-drawer"
+            },
+            "blockingCollisionCount": 2,
             "triangleCount": 8004,
             "collisionTriangleCount": 48,
             "materialCount": 6,
@@ -3524,7 +3682,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 63,
@@ -3543,7 +3701,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_063_pro_shop_fitting_room.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -3558,9 +3717,22 @@
           "issues": [],
           "stats": {
             "root": "A_063_PRO_SHOP_FITTING_ROOM_ROOT",
+            "rootExtras": {
+              "production_sheet": "07",
+              "asset_number": 63,
+              "asset_slug": "pro_shop_fitting_room",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 29,
             "visibleMeshCount": 14,
             "collisionMeshCount": 4,
+            "collisionPurposes": {
+              "COL_Bench": "blocking",
+              "COL_EastWall": "blocking",
+              "COL_RearWall": "blocking",
+              "COL_WestWall": "blocking"
+            },
+            "blockingCollisionCount": 4,
             "triangleCount": 4892,
             "collisionTriangleCount": 48,
             "materialCount": 7,
@@ -3835,7 +4007,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 64,
@@ -3854,7 +4026,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_064_stockroom_shelving_system.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -3869,9 +4042,23 @@
           "issues": [],
           "stats": {
             "root": "A_064_STOCKROOM_SHELVING_SYSTEM_ROOT",
+            "rootExtras": {
+              "production_sheet": "07",
+              "asset_number": 64,
+              "asset_slug": "stockroom_shelving_system",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 19,
             "visibleMeshCount": 5,
             "collisionMeshCount": 5,
+            "collisionPurposes": {
+              "COL_ShelfLevel1": "blocking-placement",
+              "COL_ShelfLevel2": "blocking-placement",
+              "COL_ShelfLevel3": "blocking-placement",
+              "COL_ShelfLevel4": "blocking-placement",
+              "COL_UprightFrame": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 2592,
             "collisionTriangleCount": 60,
             "materialCount": 2,
@@ -4048,7 +4235,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 65,
@@ -4067,7 +4254,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_065_stockroom_worktable.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -4082,9 +4270,22 @@
           "issues": [],
           "stats": {
             "root": "A_065_STOCKROOM_WORKTABLE_ROOT",
+            "rootExtras": {
+              "production_sheet": "07",
+              "asset_number": 65,
+              "asset_slug": "stockroom_worktable",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 19,
             "visibleMeshCount": 6,
             "collisionMeshCount": 4,
+            "collisionPurposes": {
+              "COL_EastLegFrame": "blocking",
+              "COL_LowerShelf": "blocking-placement",
+              "COL_WestLegFrame": "blocking",
+              "COL_Worktop": "blocking-placement"
+            },
+            "blockingCollisionCount": 2,
             "triangleCount": 1700,
             "collisionTriangleCount": 48,
             "materialCount": 4,
@@ -4263,7 +4464,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 66,
@@ -4282,7 +4483,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_066_office_laptop_desk.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -4297,9 +4499,21 @@
           "issues": [],
           "stats": {
             "root": "A_066_OFFICE_LAPTOP_DESK_ROOT",
+            "rootExtras": {
+              "production_sheet": "07",
+              "asset_number": 66,
+              "asset_slug": "office_laptop_desk",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 21,
             "visibleMeshCount": 8,
             "collisionMeshCount": 3,
+            "collisionPurposes": {
+              "COL_Desktop": "blocking-placement",
+              "COL_EastPedestal": "blocking",
+              "COL_WestPedestal": "blocking"
+            },
+            "blockingCollisionCount": 2,
             "triangleCount": 4004,
             "collisionTriangleCount": 36,
             "materialCount": 4,
@@ -4489,7 +4703,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 67,
@@ -4508,7 +4722,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_067_clubhouse_lounge_sofa.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -4523,9 +4738,21 @@
           "issues": [],
           "stats": {
             "root": "A_067_CLUBHOUSE_LOUNGE_SOFA_ROOT",
+            "rootExtras": {
+              "production_sheet": "07",
+              "asset_number": 67,
+              "asset_slug": "clubhouse_lounge_sofa",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 22,
             "visibleMeshCount": 10,
             "collisionMeshCount": 3,
+            "collisionPurposes": {
+              "COL_SofaArms": "blocking",
+              "COL_SofaBack": "blocking",
+              "COL_SofaBody": "blocking"
+            },
+            "blockingCollisionCount": 3,
             "triangleCount": 5020,
             "collisionTriangleCount": 36,
             "materialCount": 5,
@@ -4737,7 +4964,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 68,
@@ -4756,7 +4983,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_068_lounge_armchair_sheet07.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -4771,9 +4999,20 @@
           "issues": [],
           "stats": {
             "root": "A_068_LOUNGE_ARMCHAIR_SHEET07_ROOT",
+            "rootExtras": {
+              "production_sheet": "07",
+              "asset_number": 68,
+              "asset_slug": "lounge_armchair_sheet07",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 19,
             "visibleMeshCount": 10,
             "collisionMeshCount": 2,
+            "collisionPurposes": {
+              "COL_ArmchairBack": "blocking",
+              "COL_ArmchairBody": "blocking"
+            },
+            "blockingCollisionCount": 2,
             "triangleCount": 3428,
             "collisionTriangleCount": 24,
             "materialCount": 5,
@@ -4972,7 +5211,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 69,
@@ -4991,7 +5230,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_069_lounge_coffee_table_sheet07.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -5006,9 +5246,21 @@
           "issues": [],
           "stats": {
             "root": "A_069_LOUNGE_COFFEE_TABLE_SHEET07_ROOT",
+            "rootExtras": {
+              "production_sheet": "07",
+              "asset_number": 69,
+              "asset_slug": "lounge_coffee_table_sheet07",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 18,
             "visibleMeshCount": 6,
             "collisionMeshCount": 3,
+            "collisionPurposes": {
+              "COL_LegEnvelope": "blocking",
+              "COL_LowerShelf": "blocking-placement",
+              "COL_Tabletop": "blocking-placement"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 1484,
             "collisionTriangleCount": 36,
             "materialCount": 4,
@@ -5176,7 +5428,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 70,
@@ -5195,7 +5447,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_070_trophy_display_cabinet.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -5210,9 +5463,21 @@
           "issues": [],
           "stats": {
             "root": "A_070_TROPHY_DISPLAY_CABINET_ROOT",
+            "rootExtras": {
+              "production_sheet": "07",
+              "asset_number": 70,
+              "asset_slug": "trophy_display_cabinet",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 30,
             "visibleMeshCount": 15,
             "collisionMeshCount": 3,
+            "collisionPurposes": {
+              "COL_DisplayMainHull": "blocking",
+              "COL_DisplayDoorLeft": "state-aware-door",
+              "COL_DisplayDoorRight": "state-aware-door"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 4056,
             "collisionTriangleCount": 36,
             "materialCount": 7,
@@ -5490,7 +5755,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 71,
@@ -5510,7 +5775,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_071_vacuum_cleaner.js",
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_071_vacuum_cleaner_fp.glb"
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -5525,9 +5791,22 @@
           "issues": [],
           "stats": {
             "root": "A_071_VACUUM_CLEANER_ROOT",
+            "rootExtras": {
+              "representation": "world",
+              "production_sheet": "08",
+              "asset_number": 71,
+              "asset_slug": "vacuum_cleaner",
+              "spec_body_dimensions_m": "[0.48, 0.58, 0.67]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 23,
             "visibleMeshCount": 9,
             "collisionMeshCount": 2,
+            "collisionPurposes": {
+              "COL_VacDrumHull": "blocking",
+              "COL_VacHeadHull": "blocking"
+            },
+            "blockingCollisionCount": 2,
             "triangleCount": 6640,
             "collisionTriangleCount": 56,
             "materialCount": 6,
@@ -5732,9 +6011,19 @@
           "issues": [],
           "stats": {
             "root": "A_071_VACUUM_CLEANER_FP_ROOT",
+            "rootExtras": {
+              "representation": "first-person",
+              "production_sheet": "08",
+              "asset_number": 71,
+              "asset_slug": "vacuum_cleaner",
+              "spec_body_dimensions_m": "[0.48, 0.58, 0.67]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 14,
             "visibleMeshCount": 8,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 2716,
             "collisionTriangleCount": 0,
             "materialCount": 4,
@@ -5886,7 +6175,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 72,
@@ -5906,7 +6195,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_072_mop.js",
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_072_mop_fp.glb"
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -5921,9 +6211,22 @@
           "issues": [],
           "stats": {
             "root": "A_072_MOP_ROOT",
+            "rootExtras": {
+              "representation": "world",
+              "production_sheet": "08",
+              "asset_number": 72,
+              "asset_slug": "mop",
+              "spec_body_dimensions_m": "[0.32, 0.32, 1.45]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 16,
             "visibleMeshCount": 5,
             "collisionMeshCount": 2,
+            "collisionPurposes": {
+              "COL_MopHandleHull": "blocking",
+              "COL_MopHeadHull": "blocking"
+            },
+            "blockingCollisionCount": 2,
             "triangleCount": 3512,
             "collisionTriangleCount": 88,
             "materialCount": 3,
@@ -6080,9 +6383,19 @@
           "issues": [],
           "stats": {
             "root": "A_072_MOP_FP_ROOT",
+            "rootExtras": {
+              "representation": "first-person",
+              "production_sheet": "08",
+              "asset_number": 72,
+              "asset_slug": "mop",
+              "spec_body_dimensions_m": "[0.32, 0.32, 1.45]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 11,
             "visibleMeshCount": 5,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 3512,
             "collisionTriangleCount": 0,
             "materialCount": 3,
@@ -6200,7 +6513,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 73,
@@ -6219,7 +6532,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_073_mop_bucket_and_wringer.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -6234,9 +6548,22 @@
           "issues": [],
           "stats": {
             "root": "A_073_MOP_BUCKET_AND_WRINGER_ROOT",
+            "rootExtras": {
+              "representation": "world",
+              "production_sheet": "08",
+              "asset_number": 73,
+              "asset_slug": "mop_bucket_and_wringer",
+              "spec_body_dimensions_m": "[0.55, 0.42, 0.92]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 21,
             "visibleMeshCount": 7,
             "collisionMeshCount": 2,
+            "collisionPurposes": {
+              "COL_BucketTubHull": "blocking",
+              "COL_BucketWringerHull": "non-blocking-interaction"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 3700,
             "collisionTriangleCount": 24,
             "materialCount": 5,
@@ -6412,7 +6739,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 74,
@@ -6432,7 +6759,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_074_broom.js",
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_074_broom_fp.glb"
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -6447,9 +6775,22 @@
           "issues": [],
           "stats": {
             "root": "A_074_BROOM_ROOT",
+            "rootExtras": {
+              "representation": "world",
+              "production_sheet": "08",
+              "asset_number": 74,
+              "asset_slug": "broom",
+              "spec_body_dimensions_m": "[0.48, 0.09, 1.5]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 16,
             "visibleMeshCount": 5,
             "collisionMeshCount": 2,
+            "collisionPurposes": {
+              "COL_BroomHandleHull": "blocking",
+              "COL_BroomHeadHull": "blocking"
+            },
+            "blockingCollisionCount": 2,
             "triangleCount": 5272,
             "collisionTriangleCount": 56,
             "materialCount": 3,
@@ -6606,9 +6947,19 @@
           "issues": [],
           "stats": {
             "root": "A_074_BROOM_FP_ROOT",
+            "rootExtras": {
+              "representation": "first-person",
+              "production_sheet": "08",
+              "asset_number": 74,
+              "asset_slug": "broom",
+              "spec_body_dimensions_m": "[0.48, 0.09, 1.5]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 11,
             "visibleMeshCount": 5,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 5272,
             "collisionTriangleCount": 0,
             "materialCount": 3,
@@ -6726,7 +7077,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 75,
@@ -6746,7 +7097,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_075_dustpan.js",
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_075_dustpan_fp.glb"
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -6761,9 +7113,22 @@
           "issues": [],
           "stats": {
             "root": "A_075_DUSTPAN_ROOT",
+            "rootExtras": {
+              "representation": "world",
+              "production_sheet": "08",
+              "asset_number": 75,
+              "asset_slug": "dustpan",
+              "spec_body_dimensions_m": "[0.32, 0.3, 0.85]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 19,
             "visibleMeshCount": 8,
             "collisionMeshCount": 2,
+            "collisionPurposes": {
+              "COL_DustpanHandleHull": "blocking",
+              "COL_DustpanPanHull": "blocking"
+            },
+            "blockingCollisionCount": 2,
             "triangleCount": 1012,
             "collisionTriangleCount": 56,
             "materialCount": 2,
@@ -6952,9 +7317,19 @@
           "issues": [],
           "stats": {
             "root": "A_075_DUSTPAN_FP_ROOT",
+            "rootExtras": {
+              "representation": "first-person",
+              "production_sheet": "08",
+              "asset_number": 75,
+              "asset_slug": "dustpan",
+              "spec_body_dimensions_m": "[0.32, 0.3, 0.85]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 13,
             "visibleMeshCount": 8,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 1012,
             "collisionTriangleCount": 0,
             "materialCount": 2,
@@ -7102,7 +7477,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 76,
@@ -7122,7 +7497,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_076_cleaning_spray_bottle.js",
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_076_cleaning_spray_bottle_fp.glb"
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -7137,9 +7513,21 @@
           "issues": [],
           "stats": {
             "root": "A_076_CLEANING_SPRAY_BOTTLE_ROOT",
+            "rootExtras": {
+              "representation": "world",
+              "production_sheet": "08",
+              "asset_number": 76,
+              "asset_slug": "cleaning_spray_bottle",
+              "spec_body_dimensions_m": "[0.1, 0.07, 0.28]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 20,
             "visibleMeshCount": 9,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_SprayBottleHull": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 1280,
             "collisionTriangleCount": 12,
             "materialCount": 4,
@@ -7334,9 +7722,19 @@
           "issues": [],
           "stats": {
             "root": "A_076_CLEANING_SPRAY_BOTTLE_FP_ROOT",
+            "rootExtras": {
+              "representation": "first-person",
+              "production_sheet": "08",
+              "asset_number": 76,
+              "asset_slug": "cleaning_spray_bottle",
+              "spec_body_dimensions_m": "[0.1, 0.07, 0.28]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 15,
             "visibleMeshCount": 9,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 1280,
             "collisionTriangleCount": 0,
             "materialCount": 4,
@@ -7495,7 +7893,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 77,
@@ -7515,7 +7913,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_077_cleaning_cloth_and_sponge_set.js",
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_077_cleaning_cloth_and_sponge_set_fp.glb"
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -7530,9 +7929,22 @@
           "issues": [],
           "stats": {
             "root": "A_077_CLEANING_CLOTH_AND_SPONGE_SET_ROOT",
+            "rootExtras": {
+              "representation": "world",
+              "production_sheet": "08",
+              "asset_number": 77,
+              "asset_slug": "cleaning_cloth_and_sponge_set",
+              "spec_body_dimensions_m": "[0.35, 0.35, 0.09]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 16,
             "visibleMeshCount": 5,
             "collisionMeshCount": 2,
+            "collisionPurposes": {
+              "COL_ClothStackHull": "blocking",
+              "COL_SpongeHull": "blocking"
+            },
+            "blockingCollisionCount": 2,
             "triangleCount": 780,
             "collisionTriangleCount": 24,
             "materialCount": 3,
@@ -7688,9 +8100,19 @@
           "issues": [],
           "stats": {
             "root": "A_077_CLEANING_CLOTH_AND_SPONGE_SET_FP_ROOT",
+            "rootExtras": {
+              "representation": "first-person",
+              "production_sheet": "08",
+              "asset_number": 77,
+              "asset_slug": "cleaning_cloth_and_sponge_set",
+              "spec_body_dimensions_m": "[0.35, 0.35, 0.09]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 12,
             "visibleMeshCount": 5,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 700,
             "collisionTriangleCount": 0,
             "materialCount": 3,
@@ -7810,7 +8232,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 78,
@@ -7829,7 +8251,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_078_pressure_washer.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -7844,9 +8267,23 @@
           "issues": [],
           "stats": {
             "root": "A_078_PRESSURE_WASHER_ROOT",
+            "rootExtras": {
+              "representation": "world",
+              "production_sheet": "08",
+              "asset_number": 78,
+              "asset_slug": "pressure_washer",
+              "spec_body_dimensions_m": "[0.62, 0.72, 0.95]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 23,
             "visibleMeshCount": 7,
             "collisionMeshCount": 3,
+            "collisionPurposes": {
+              "COL_WasherBodyHull": "blocking",
+              "COL_WasherWheelHullL": "blocking",
+              "COL_WasherWheelHullR": "blocking"
+            },
+            "blockingCollisionCount": 3,
             "triangleCount": 5224,
             "collisionTriangleCount": 100,
             "materialCount": 6,
@@ -8034,7 +8471,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 79,
@@ -8054,7 +8491,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_079_pressure_washer_hose_and_wand.js",
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_079_pressure_washer_hose_and_wand_fp.glb"
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -8069,9 +8507,22 @@
           "issues": [],
           "stats": {
             "root": "A_079_PRESSURE_WASHER_HOSE_AND_WAND_ROOT",
+            "rootExtras": {
+              "representation": "world",
+              "production_sheet": "08",
+              "asset_number": 79,
+              "asset_slug": "pressure_washer_hose_and_wand",
+              "spec_body_dimensions_m": "[0.18, 0.95, 0.3]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 27,
             "visibleMeshCount": 13,
             "collisionMeshCount": 2,
+            "collisionPurposes": {
+              "COL_WandGunHull": "blocking",
+              "COL_WandLanceHull": "blocking"
+            },
+            "blockingCollisionCount": 2,
             "triangleCount": 2224,
             "collisionTriangleCount": 56,
             "materialCount": 5,
@@ -8324,9 +8775,19 @@
           "issues": [],
           "stats": {
             "root": "A_079_PRESSURE_WASHER_HOSE_AND_WAND_FP_ROOT",
+            "rootExtras": {
+              "representation": "first-person",
+              "production_sheet": "08",
+              "asset_number": 79,
+              "asset_slug": "pressure_washer_hose_and_wand",
+              "spec_body_dimensions_m": "[0.18, 0.95, 0.3]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 19,
             "visibleMeshCount": 12,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 1724,
             "collisionTriangleCount": 0,
             "materialCount": 4,
@@ -8524,7 +8985,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 80,
@@ -8544,7 +9005,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_080_trash_bag.js",
         "firstPersonRuntimeGlb": "vendor/models/assets_51_100/firstperson/asset_080_trash_bag_fp.glb"
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -8559,9 +9021,21 @@
           "issues": [],
           "stats": {
             "root": "A_080_TRASH_BAG_ROOT",
+            "rootExtras": {
+              "representation": "world",
+              "production_sheet": "08",
+              "asset_number": 80,
+              "asset_slug": "trash_bag",
+              "spec_body_dimensions_m": "[0.55, 0.42, 0.75]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 17,
             "visibleMeshCount": 7,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_TrashBagHull": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 1356,
             "collisionTriangleCount": 20,
             "materialCount": 1,
@@ -8727,9 +9201,19 @@
           "issues": [],
           "stats": {
             "root": "A_080_TRASH_BAG_FP_ROOT",
+            "rootExtras": {
+              "representation": "first-person",
+              "production_sheet": "08",
+              "asset_number": 80,
+              "asset_slug": "trash_bag",
+              "spec_body_dimensions_m": "[0.55, 0.42, 0.75]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 12,
             "visibleMeshCount": 7,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 1356,
             "collisionTriangleCount": 0,
             "materialCount": 1,
@@ -8863,7 +9347,7 @@
         ],
         "missingAnimations": []
       },
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 81,
@@ -8882,7 +9366,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_081_office_chair_sheet09.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -8897,9 +9382,24 @@
           "issues": [],
           "stats": {
             "root": "A_081_OFFICE_CHAIR_SHEET09_ROOT",
+            "rootExtras": {
+              "mount": "floor",
+              "collision_expected": true,
+              "production_sheet": "09",
+              "asset_number": 81,
+              "asset_slug": "office_chair_sheet09",
+              "spec_contract_dimensions_m": "[0.65, 0.65, 1.1]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 13,
             "visibleMeshCount": 2,
             "collisionMeshCount": 3,
+            "collisionPurposes": {
+              "COL_ChairBackHull": "blocking",
+              "COL_ChairBaseHull": "blocking",
+              "COL_ChairSeatHull": "blocking"
+            },
+            "blockingCollisionCount": 3,
             "triangleCount": 4876,
             "collisionTriangleCount": 68,
             "materialCount": 5,
@@ -9025,7 +9525,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 82,
@@ -9044,7 +9544,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_082_filing_cabinet_sheet09.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -9059,9 +9560,22 @@
           "issues": [],
           "stats": {
             "root": "A_082_FILING_CABINET_SHEET09_ROOT",
+            "rootExtras": {
+              "mount": "floor",
+              "collision_expected": true,
+              "production_sheet": "09",
+              "asset_number": 82,
+              "asset_slug": "filing_cabinet_sheet09",
+              "spec_contract_dimensions_m": "[0.48, 0.62, 1.32]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 19,
             "visibleMeshCount": 8,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_CabinetHull": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 1728,
             "collisionTriangleCount": 12,
             "materialCount": 2,
@@ -9232,7 +9746,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 83,
@@ -9251,7 +9765,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_083_desk_lamp.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -9266,9 +9781,22 @@
           "issues": [],
           "stats": {
             "root": "A_083_DESK_LAMP_ROOT",
+            "rootExtras": {
+              "mount": "surface",
+              "collision_expected": true,
+              "production_sheet": "09",
+              "asset_number": 83,
+              "asset_slug": "desk_lamp",
+              "spec_contract_dimensions_m": "[0.18, 0.65, 0.55]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 20,
             "visibleMeshCount": 9,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_LampBaseHull": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 1476,
             "collisionTriangleCount": 44,
             "materialCount": 4,
@@ -9452,7 +9980,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 84,
@@ -9471,7 +9999,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_084_office_printer.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -9486,9 +10015,22 @@
           "issues": [],
           "stats": {
             "root": "A_084_OFFICE_PRINTER_ROOT",
+            "rootExtras": {
+              "mount": "surface",
+              "collision_expected": true,
+              "production_sheet": "09",
+              "asset_number": 84,
+              "asset_slug": "office_printer",
+              "spec_contract_dimensions_m": "[0.43, 0.38, 0.25]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 19,
             "visibleMeshCount": 9,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_PrinterHull": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 972,
             "collisionTriangleCount": 12,
             "materialCount": 4,
@@ -9668,7 +10210,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 85,
@@ -9687,7 +10229,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_085_office_telephone.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -9702,9 +10245,22 @@
           "issues": [],
           "stats": {
             "root": "A_085_OFFICE_TELEPHONE_ROOT",
+            "rootExtras": {
+              "mount": "surface",
+              "collision_expected": true,
+              "production_sheet": "09",
+              "asset_number": 85,
+              "asset_slug": "office_telephone",
+              "spec_contract_dimensions_m": "[0.22, 0.24, 0.12]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 25,
             "visibleMeshCount": 14,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_PhoneHull": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 3476,
             "collisionTriangleCount": 12,
             "materialCount": 3,
@@ -9942,7 +10498,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 86,
@@ -9961,7 +10517,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_086_corkboard_noticeboard.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -9976,9 +10533,20 @@
           "issues": [],
           "stats": {
             "root": "A_086_CORKBOARD_NOTICEBOARD_ROOT",
+            "rootExtras": {
+              "mount": "wall",
+              "collision_expected": false,
+              "production_sheet": "09",
+              "asset_number": 86,
+              "asset_slug": "corkboard_noticeboard",
+              "spec_contract_dimensions_m": "[0.9, 0.05, 0.65]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 14,
             "visibleMeshCount": 6,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 2508,
             "collisionTriangleCount": 0,
             "materialCount": 4,
@@ -10113,7 +10681,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 87,
@@ -10132,7 +10700,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_087_wall_clock.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -10147,9 +10716,20 @@
           "issues": [],
           "stats": {
             "root": "A_087_WALL_CLOCK_ROOT",
+            "rootExtras": {
+              "mount": "wall",
+              "collision_expected": false,
+              "production_sheet": "09",
+              "asset_number": 87,
+              "asset_slug": "wall_clock",
+              "spec_contract_dimensions_m": "[0.34, 0.065, 0.34]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 16,
             "visibleMeshCount": 9,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 3568,
             "collisionTriangleCount": 0,
             "materialCount": 5,
@@ -10318,7 +10898,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 88,
@@ -10337,7 +10917,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_088_key_rack.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -10352,9 +10933,20 @@
           "issues": [],
           "stats": {
             "root": "A_088_KEY_RACK_ROOT",
+            "rootExtras": {
+              "mount": "wall",
+              "collision_expected": false,
+              "production_sheet": "09",
+              "asset_number": 88,
+              "asset_slug": "key_rack",
+              "spec_contract_dimensions_m": "[0.75, 0.08, 0.25]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 14,
             "visibleMeshCount": 5,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 3104,
             "collisionTriangleCount": 0,
             "materialCount": 3,
@@ -10478,7 +11070,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 89,
@@ -10497,7 +11089,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_089_reservation_clipboard.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -10512,9 +11105,22 @@
           "issues": [],
           "stats": {
             "root": "A_089_RESERVATION_CLIPBOARD_ROOT",
+            "rootExtras": {
+              "mount": "surface",
+              "collision_expected": true,
+              "production_sheet": "09",
+              "asset_number": 89,
+              "asset_slug": "reservation_clipboard",
+              "spec_contract_dimensions_m": "[0.23, 0.33, 0.018]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 15,
             "visibleMeshCount": 6,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_ClipboardHull": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 1412,
             "collisionTriangleCount": 12,
             "materialCount": 4,
@@ -10659,7 +11265,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 90,
@@ -10678,7 +11284,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_090_scorecard_holder.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -10693,9 +11300,22 @@
           "issues": [],
           "stats": {
             "root": "A_090_SCORECARD_HOLDER_ROOT",
+            "rootExtras": {
+              "mount": "surface",
+              "collision_expected": true,
+              "production_sheet": "09",
+              "asset_number": 90,
+              "asset_slug": "scorecard_holder",
+              "spec_contract_dimensions_m": "[0.38, 0.25, 0.28]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 18,
             "visibleMeshCount": 8,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_HolderHull": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 2724,
             "collisionTriangleCount": 12,
             "materialCount": 4,
@@ -10863,7 +11483,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 91,
@@ -10882,7 +11502,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_091_fire_extinguisher.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -10897,9 +11518,22 @@
           "issues": [],
           "stats": {
             "root": "A_091_FIRE_EXTINGUISHER_ROOT",
+            "rootExtras": {
+              "mount": "wall",
+              "collision_expected": true,
+              "production_sheet": "10",
+              "asset_number": 91,
+              "asset_slug": "fire_extinguisher",
+              "spec_contract_dimensions_m": "[0.16, 0.34, 0.55]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 26,
             "visibleMeshCount": 15,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_ExtinguisherHull": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 2948,
             "collisionTriangleCount": 44,
             "materialCount": 5,
@@ -11145,7 +11779,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 92,
@@ -11164,7 +11798,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_092_first_aid_kit_cabinet.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -11179,9 +11814,22 @@
           "issues": [],
           "stats": {
             "root": "A_092_FIRST_AID_KIT_CABINET_ROOT",
+            "rootExtras": {
+              "mount": "wall",
+              "collision_expected": true,
+              "production_sheet": "10",
+              "asset_number": 92,
+              "asset_slug": "first_aid_kit_cabinet",
+              "spec_contract_dimensions_m": "[0.42, 0.16, 0.55]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 23,
             "visibleMeshCount": 13,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_FirstAidHull": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 1952,
             "collisionTriangleCount": 12,
             "materialCount": 4,
@@ -11408,7 +12056,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 93,
@@ -11427,7 +12075,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_093_security_camera.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -11442,9 +12091,20 @@
           "issues": [],
           "stats": {
             "root": "A_093_SECURITY_CAMERA_ROOT",
+            "rootExtras": {
+              "mount": "ceiling",
+              "collision_expected": false,
+              "production_sheet": "10",
+              "asset_number": 93,
+              "asset_slug": "security_camera",
+              "spec_contract_dimensions_m": "[0.18, 0.18, 0.13]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 12,
             "visibleMeshCount": 6,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 1812,
             "collisionTriangleCount": 0,
             "materialCount": 4,
@@ -11578,7 +12238,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 94,
@@ -11597,7 +12257,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_094_exit_sign.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -11612,9 +12273,20 @@
           "issues": [],
           "stats": {
             "root": "A_094_EXIT_SIGN_ROOT",
+            "rootExtras": {
+              "mount": "wall",
+              "collision_expected": false,
+              "production_sheet": "10",
+              "asset_number": 94,
+              "asset_slug": "exit_sign",
+              "spec_contract_dimensions_m": "[0.48, 0.085, 0.22]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 14,
             "visibleMeshCount": 8,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 1840,
             "collisionTriangleCount": 0,
             "materialCount": 3,
@@ -11768,7 +12440,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 95,
@@ -11787,7 +12459,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_095_emergency_light.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -11802,9 +12475,20 @@
           "issues": [],
           "stats": {
             "root": "A_095_EMERGENCY_LIGHT_ROOT",
+            "rootExtras": {
+              "mount": "wall",
+              "collision_expected": false,
+              "production_sheet": "10",
+              "asset_number": 95,
+              "asset_slug": "emergency_light",
+              "spec_contract_dimensions_m": "[0.42, 0.13, 0.24]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 17,
             "visibleMeshCount": 10,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 1524,
             "collisionTriangleCount": 0,
             "materialCount": 3,
@@ -11982,7 +12666,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 96,
@@ -12001,7 +12685,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_096_bulletin_board.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -12016,9 +12701,20 @@
           "issues": [],
           "stats": {
             "root": "A_096_BULLETIN_BOARD_ROOT",
+            "rootExtras": {
+              "mount": "wall",
+              "collision_expected": false,
+              "production_sheet": "10",
+              "asset_number": 96,
+              "asset_slug": "bulletin_board",
+              "spec_contract_dimensions_m": "[0.95, 0.055, 0.7]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 11,
             "visibleMeshCount": 3,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 2508,
             "collisionTriangleCount": 0,
             "materialCount": 4,
@@ -12120,7 +12816,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 97,
@@ -12139,7 +12835,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_097_key_cabinet.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -12154,9 +12851,22 @@
           "issues": [],
           "stats": {
             "root": "A_097_KEY_CABINET_ROOT",
+            "rootExtras": {
+              "mount": "wall",
+              "collision_expected": true,
+              "production_sheet": "10",
+              "asset_number": 97,
+              "asset_slug": "key_cabinet",
+              "spec_contract_dimensions_m": "[0.48, 0.16, 0.65]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 21,
             "visibleMeshCount": 10,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_KeyCabinetHull": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 6392,
             "collisionTriangleCount": 12,
             "materialCount": 3,
@@ -12350,7 +13060,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 98,
@@ -12369,7 +13079,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_098_hand_sanitizer_station.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -12384,9 +13095,22 @@
           "issues": [],
           "stats": {
             "root": "A_098_HAND_SANITIZER_STATION_ROOT",
+            "rootExtras": {
+              "mount": "wall",
+              "collision_expected": true,
+              "production_sheet": "10",
+              "asset_number": 98,
+              "asset_slug": "hand_sanitizer_station",
+              "spec_contract_dimensions_m": "[0.13, 0.12, 0.31]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 19,
             "visibleMeshCount": 8,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_SanitizerHull": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 916,
             "collisionTriangleCount": 12,
             "materialCount": 4,
@@ -12556,7 +13280,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 99,
@@ -12575,7 +13299,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_099_umbrella_stand.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -12590,9 +13315,22 @@
           "issues": [],
           "stats": {
             "root": "A_099_UMBRELLA_STAND_ROOT",
+            "rootExtras": {
+              "mount": "floor",
+              "collision_expected": true,
+              "production_sheet": "10",
+              "asset_number": 99,
+              "asset_slug": "umbrella_stand",
+              "spec_contract_dimensions_m": "[0.34, 0.34, 0.62]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 18,
             "visibleMeshCount": 8,
             "collisionMeshCount": 1,
+            "collisionPurposes": {
+              "COL_StandHull": "blocking"
+            },
+            "blockingCollisionCount": 1,
             "triangleCount": 2740,
             "collisionTriangleCount": 44,
             "materialCount": 3,
@@ -12759,7 +13497,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     },
     {
       "assetNumber": 100,
@@ -12778,7 +13516,8 @@
         "runtimeIntegrationFile": "src/render3d/assets51to100/asset_100_floor_mat_welcome_mat.js",
         "firstPersonRuntimeGlb": null
       },
-      "runtimeIntegrated": false,
+      "registryBound": true,
+      "sceneMounted": false,
       "world": {
         "sourceExists": true,
         "canonicalGlbExists": true,
@@ -12793,9 +13532,20 @@
           "issues": [],
           "stats": {
             "root": "A_100_FLOOR_MAT_WELCOME_MAT_ROOT",
+            "rootExtras": {
+              "mount": "floor",
+              "collision_expected": false,
+              "production_sheet": "10",
+              "asset_number": 100,
+              "asset_slug": "floor_mat_welcome_mat",
+              "spec_contract_dimensions_m": "[1.2, 0.75, 0.012]",
+              "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+            },
             "nodeCount": 10,
             "visibleMeshCount": 4,
             "collisionMeshCount": 0,
+            "collisionPurposes": {},
+            "blockingCollisionCount": 0,
             "triangleCount": 984,
             "collisionTriangleCount": 0,
             "materialCount": 3,
@@ -12905,7 +13655,7 @@
         "missingAnimations": []
       },
       "firstPerson": null,
-      "status": "Built and verified, not integrated"
+      "status": "Bound to the runtime, not yet mounted in the scene"
     }
   ]
 }
