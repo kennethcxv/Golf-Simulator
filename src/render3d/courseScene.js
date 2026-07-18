@@ -77,6 +77,10 @@ const METERS_TO_YARDS = 1.0936133;
 // below every authored core plus interpolation headroom so it cannot punch
 // through the playable terrain as a false turf island.
 const ENV_RING_INTERIOR_TUCK_YD = 4;
+// Yards inside the property over which that tuck ramps in. Must exceed the ring
+// mesh's quad size (~56 yd) or the ramp lands inside a single span and becomes a
+// step again.
+const ENV_RING_TUCK_RAMP_YD = 140;
 // terrain vertices every ~1.33 yd on vector courses: bunker bowls, rolled lips,
 // pond banks and sculpted slopes read as continuous surfaces. Legacy grid
 // courses keep the coarser 2-yd spacing (their features are cell-blocky anyway).
@@ -1232,35 +1236,53 @@ export function makeCourseScene(canvas, state) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
       // how far outside the property this vertex sits
-      const dx = Math.max(0, Math.abs(x) - halfW);
-      const dz = Math.max(0, Math.abs(z) - halfH);
+      const sdx = Math.abs(x) - halfW;
+      const sdz = Math.abs(z) - halfH;
+      const dx = Math.max(0, sdx);
+      const dz = Math.max(0, sdz);
       const outside = Math.hypot(dx, dz);
       const edgeH = heightAt(clamp(x, -halfW + 1, halfW - 1), clamp(z, -halfH + 1, halfH - 1));
       if (outside <= 0.001) {
-        pos.setY(i, edgeH - ENV_RING_INTERIOR_TUCK_YD);
+        // Tuck the ring under the property so it cannot z-fight the terrain,
+        // but ramp that tuck out as the boundary approaches. This mesh is ~56 yd
+        // per quad, so a flat tuck applied right up to the line meant the shared
+        // edge quad fell 4 yd across a single span — a trench ringing the
+        // property, reinforcing the very silhouette the ring exists to hide.
+        const depthInside = -Math.max(sdx, sdz);
+        const ramp = Math.min(1, depthInside / ENV_RING_TUCK_RAMP_YD);
+        pos.setY(i, edgeH - ENV_RING_INTERIOR_TUCK_YD * ramp);
         continue;
       }
-      // rolling hills that grow with distance; a slight rise closes the horizon
+      // rolling hills that grow with distance; a slight rise closes the horizon.
+      // No constant drop at the seam: the first vertex outside the line must sit
+      // at the terrain's own edge height or the boundary reads as a step.
       const ramp = Math.min(1, outside / 420);
       const hills = envHillNoise(x, z) * ramp + outside * 0.012 * ramp;
-      pos.setY(i, edgeH * (1 - Math.min(1, outside / 260)) + hills - 0.5);
+      pos.setY(i, edgeH * (1 - Math.min(1, outside / 260)) + hills);
     }
     geo.computeVertexNormals();
     const mat = new THREE.MeshStandardMaterial({
       map: texScrub,
       normalMap: texScrubN,
       normalScale: new THREE.Vector2(0.4, 0.4),
-      color: 0x99a878, // OUT-zone family so the seam reads as one landscape
+      // White base: the shader below ASSIGNS the OUT-zone colour outright rather
+      // than tinting, so the ring cannot drift from the terrain it continues.
+      color: 0xffffff,
       roughness: 1,
     });
     mat.onBeforeCompile = (sh) => {
-      // same stylize trick as the terrain: texture supplies brightness only
+      // Reproduce the terrain shader's OUT branch exactly — same FW_STYLIZE
+      // curve, same tint, same luma weights. The previous tint (0x99a878 through
+      // a different 0.35 + luma*1.9 curve) resolved roughly 2.6x brighter than
+      // the terrain's native scrub, which is what made the property read as a
+      // dark rectangle stamped on a pale surround: the silhouette was a COLOUR
+      // discontinuity along the property line, not missing geometry.
       sh.fragmentShader = sh.fragmentShader.replace(
         '#include <map_fragment>',
         `{
           vec4 sampledDiffuseColor = texture2D( map, vMapUv * 90.0 );
           float luma = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-          diffuseColor.rgb *= 0.35 + luma * 1.9;
+          diffuseColor.rgb = (0.46 + luma * 1.28) * vec3(0.145, 0.185, 0.082);
         }`,
       );
     };
