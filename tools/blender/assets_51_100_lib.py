@@ -1292,11 +1292,14 @@ def validate_asset_scene(
                 allowed = max(0.01, abs(target) * dimension_tolerance)
                 if abs(actual - target) > allowed:
                     report.add("warning", "dimensions", f"{axis} size {actual:.4f}m differs from target {target:.4f}m", root)
-        # A viewmodel is attached to a hand, not stood on a floor: its origin is the grip
-        # and the tool legitimately hangs below it. Warning about that on every
-        # first-person asset buries the cases where a world asset really is sunk.
+        # "Below floor" only means something for an asset that stands on one. A viewmodel
+        # hangs from a hand and a wall or ceiling fixture hangs from its mount, so both
+        # legitimately extend below their own origin. Warning on those buries the cases
+        # where a floor-standing asset really is sunk, which is what this check is for.
+        # Non-floor assets declare `mount` on their root.
+        floor_standing = str(root.get("mount", "floor")) == "floor"
         first_person_variant = identity is not None and identity.first_person
-        if bounds.minimum[2] < -0.01 and not first_person_variant:
+        if bounds.minimum[2] < -0.01 and floor_standing and not first_person_variant:
             report.add("warning", "below-floor", f"visible geometry reaches z={bounds.minimum[2]:.4f}m", root)
     except ValueError as exc:
         report.add("error", "bounds", str(exc), root)

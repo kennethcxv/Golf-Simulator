@@ -195,11 +195,18 @@ def verify_glb(asset_number: int, slug: str | None, glb_path: Path) -> dict:
 
     if not visible:
         fail("visible-mesh", "GLB contains no MESH_ geometry")
-    # A viewmodel deliberately ships no collision -- a tool held in front of the camera
-    # must never block the player who is holding it -- so only world assets are checked.
+    # Not everything is supposed to have collision. A viewmodel must never block the
+    # player holding it, and wall dressing at head height -- a noticeboard, a clock, a key
+    # rack -- must not snag someone walking past. Assets that ship none on purpose say so
+    # on their root, and glTF carries that through as an extra; the default is that
+    # collision is expected, so silence is never mistaken for intent.
     first_person_variant = bool(slug and slug.endswith("_fp"))
-    if not collisions and not first_person_variant:
+    collision_expected = root.get("collision_expected", True) not in (False, 0, "false", "False")
+    if not collisions and collision_expected and not first_person_variant:
         warn("collision-missing", "GLB ships no COL_ proxy")
+    if collisions and not collision_expected:
+        warn("collision-unexpected",
+             f"root declares collision_expected=false but ships {len(collisions)} COL_ proxy/proxies")
     if collisions and first_person_variant:
         fail("viewmodel-collision", f"viewmodel ships {len(collisions)} COL_ proxy/proxies")
     for name in stray_meshes:
