@@ -318,7 +318,8 @@ def build_hat_wall(M):
     L.box("Plinth", (W - 0.06, D - 0.06, 0.11), (0, 0, 0.055), M["counter_black"], bevel=0.004, parent=root)
 
     rows = (0.62, 1.02, 1.42, 1.82)
-    cols = (-0.30, 0.0, 0.30)
+    # Four columns match the reference and the compact 0.21 m checkout cap.
+    cols = (-0.345, -0.115, 0.115, 0.345)
     n = 0
     for z in rows:
         for x in cols:
@@ -357,6 +358,12 @@ def build_accessory_slatwall(M):
         bracket_shelf(root, M, f"{i + 1:02d}", W - 0.08, 0.26, z, BACKP)
         K.empty(f"ACC_SHELF_SLOT_{i + 1:02d}", (0, BACKP - 0.06, z), parent=root, size=0.04,
                 props={"socket": "shelf_mount", "order": i + 1})
+        # Author every package landing, not merely the shelf centre. Runtime
+        # resolves these module-qualified sockets after the GLB loads.
+        for col, x in enumerate((-0.345, -0.115, 0.115, 0.345)):
+            order = i * 4 + col + 1
+            K.empty(f"ACC_PRODUCT_SLOT_{order:02d}", (x, BACKP - 0.15, z + 0.014), parent=root, size=0.03,
+                    props={"socket": "shelf_product", "order": order, "row": i + 1})
 
     hooks = (
         ("Hook_Short", "01", -0.30, 1.54, 0.075, False),
@@ -391,9 +398,9 @@ def build_ball_shelf(M):
         L.box(f"Side_{tag}", (0.05, D - 0.02, H - 0.05), (sx * (W / 2 - 0.025), 0, (H - 0.05) / 2), M["walnut"], bevel=0.004, parent=root)
         L.box(f"PinRail_{tag}", (0.012, 0.02, 0.86), (sx * (W / 2 - 0.055), -0.05, 0.62), M["charcoal"], bevel=0, parent=root)
     L.box("Back_Panel", (W - 0.08, 0.022, H - 0.14), (0, BACKP - 0.035, (H - 0.14) / 2 + 0.02), M["walnut"], bevel=0, parent=root)
-    L.rounded_box("Top", (W + 0.02, D + 0.01, 0.05), (0, 0, H - 0.025), M["walnut"], corner=0.008, bevel=0.004, segments=3, uv=True, parent=root)
+    L.rounded_box("Top", (W, D, 0.05), (0, 0, H - 0.025), M["walnut"], corner=0.008, bevel=0.004, segments=3, uv=True, parent=root)
     L.box("Plinth", (W - 0.05, D - 0.06, 0.10), (0, 0, 0.05), M["counter_black"], bevel=0.004, parent=root)
-    badge = K.uv_plane("Crest_Badge", 0.09, 0.09, (0, -D / 2 - 0.0012, H - 0.025), K.m_tex("M_RetailBadge", crest_badge_img(), rough=0.62))
+    badge = K.uv_plane("Crest_Badge", 0.060, 0.050, (0, -D / 2 - 0.0012, H - 0.040), K.m_tex("M_RetailBadge", crest_badge_img(), rough=0.62))
     L.parent_keep(badge, root)
 
     boards = (0.30, 0.64, 0.98)
@@ -481,17 +488,22 @@ def build_apparel_wall_display(M):
     L.rounded_box("Base_Shelf", (W - 0.02, 0.44, 0.032), (0, 0.0, 0.256), M["oak_slat"], corner=0.008, bevel=0.004, segments=3, uv=True, parent=root)
     L.box("Plinth", (W - 0.10, 0.38, 0.075), (0, 0.01, 0.0375), M["counter_black"], bevel=0.004, parent=root)
 
+    # Four garments per row match the sheet.  The arm tips step forward by a
+    # few millimetres so overlapping face-out shoulders remain readable.
     n = 0
-    for z in (1.98, 1.18):
-        for x in (-0.40, 0.0, 0.40):
+    arm_xs = (-0.405, -0.135, 0.135, 0.405)
+    for row, z in enumerate((1.98, 1.18)):
+        for col, x in enumerate(arm_xs):
             n += 1
             tag = f"{n:02d}"
-            L.box(f"Faceout_Plate_{tag}", (0.036, 0.012, 0.065), (x, BACKP - 0.111, z - 0.02), M["black"], bevel=0, parent=root)
-            L.box(f"Faceout_Arm_{tag}", (0.018, 0.30, 0.018), (x, BACKP - 0.117 - 0.15, z), M["black"], bevel=0, parent=root)
-            L.box(f"Faceout_Stop_{tag}", (0.018, 0.018, 0.038), (x, BACKP - 0.117 - 0.30, z + 0.019), M["black"], bevel=0, parent=root)
-            K.empty(f"DISPLAY_ARM_SLOT_{tag}", (x, BACKP - 0.117 - 0.27, z + 0.02), parent=root, size=0.04,
+            waterfall = (col % 2) * 0.012 + row * 0.004
+            arm_len = 0.292 + waterfall
+            L.box(f"Faceout_Plate_{tag}", (0.032, 0.012, 0.060), (x, BACKP - 0.111, z - 0.02), M["black"], bevel=0, parent=root)
+            L.box(f"Faceout_Arm_{tag}", (0.016, arm_len, 0.016), (x, BACKP - 0.117 - arm_len / 2, z), M["black"], bevel=0, parent=root)
+            L.box(f"Faceout_Stop_{tag}", (0.016, 0.018, 0.034), (x, BACKP - 0.117 - arm_len, z + 0.017), M["black"], bevel=0, parent=root)
+            K.empty(f"DISPLAY_ARM_SLOT_{tag}", (x, BACKP - 0.117 - arm_len + 0.025, z + 0.02), parent=root, size=0.04,
                     props={"socket": "faceout", "order": n})
-    for i, x in enumerate((-0.38, 0.0, 0.38)):
+    for i, x in enumerate(arm_xs):
         K.empty(f"DISPLAY_BASE_SLOT_{i + 1:02d}", (x, -0.02, 0.272), parent=root, size=0.04,
                 props={"socket": "folded", "order": i + 1})
 
@@ -517,14 +529,12 @@ def build_club_rack(M):
     L.rounded_box("Base", (W, D, 0.075), (0, 0, 0.0875), M["walnut"], corner=0.010, bevel=0.004, segments=3, uv=True, parent=root)
     L.box("Base_Kick", (W - 0.08, D - 0.08, 0.05), (0, 0, 0.025), M["counter_black"], bevel=0, parent=root)
     felt = K.m_flat("M_TroughFelt", (0.030, 0.075, 0.045), rough=0.92)
-    for sy, tag in ((1, "F"), (-1, "R")):
-        y = -sy * 0.075          # front trough toward -Y
-        L.box(f"Trough_Floor_{tag}", (W - 0.14, 0.10, 0.012), (0, y, 0.131), M["walnut"], bevel=0, parent=root)
-        fp = K.uv_plane(f"Trough_Felt_{tag}", W - 0.15, 0.085, (0, y, 0.1375), felt)
-        fp.rotation_euler = (math.radians(-90), 0, 0)
-        L.parent_keep(fp, root)
-        L.box(f"Trough_Lip_{tag}", (W - 0.14, 0.014, 0.030), (0, y - sy * 0.055, 0.146), M["walnut"], bevel=0, parent=root)
-    L.box("Trough_Spine", (W - 0.14, 0.020, 0.030), (0, 0, 0.146), M["walnut"], bevel=0, parent=root)
+    trough_y = -0.015
+    L.box("Trough_Floor", (W - 0.14, 0.15, 0.012), (0, trough_y, 0.131), M["walnut"], bevel=0, parent=root)
+    fp = K.uv_plane("Trough_Felt", W - 0.15, 0.135, (0, trough_y, 0.1375), felt)
+    fp.rotation_euler = (math.radians(-90), 0, 0)
+    L.parent_keep(fp, root)
+    L.box("Trough_Lip", (W - 0.14, 0.014, 0.030), (0, -0.095, 0.146), M["walnut"], bevel=0, parent=root)
 
     # end frames: an A-pair of posts a side, tops drawn in under a shared cap
     for sx, tag in ((-1, "L"), (1, "R")):
@@ -533,22 +543,23 @@ def build_club_rack(M):
             bar = L.box(f"End_Bar_{tag}{sub}", (0.032, 0.050, 0.905), (x, sy * 0.075, 0.5775), M["black"], bevel=0, parent=root)
             bar.rotation_euler = (sy * -0.045, 0, 0)
         L.box(f"End_Cap_{tag}", (0.036, 0.21, 0.032), (x, 0, 1.046), M["black"], bevel=0.003, parent=root)
-    L.box("Cross_Brace", (W - 0.10, 0.030, 0.030), (0, 0, 0.52), M["black"], bevel=0, parent=root)
+    # Sit behind the shaft plane (y=-0.015) while still lapping the rear posts.
+    L.box("Cross_Brace", (W - 0.10, 0.030, 0.030), (0, 0.095, 0.52), M["black"], bevel=0, parent=root)
     badge = K.uv_plane("Crest_Badge", 0.075, 0.075, (0, -D / 2 - 0.0012, 0.0875), K.m_tex("M_RetailBadge", crest_badge_img(), rough=0.62))
     L.parent_keep(badge, root)
 
-    # the two notched head rails (combs), one per rank
-    SLOT_XS = [(k - 4) * 0.1125 for k in range(9)]
-    for sy, tag in ((-1, "F"), (1, "R")):
-        y = sy * 0.075
-        L.box(f"Head_Rail_{tag}", (W - 0.06, 0.050, 0.026), (0, y, 0.955), M["walnut"], bevel=0.003, parent=root)
-        for j in range(10):
-            left = -(W - 0.06) / 2 if j == 0 else SLOT_XS[j - 1] + 0.0125
-            right = (W - 0.06) / 2 if j == 9 else SLOT_XS[j] - 0.0125
-            L.box(f"Head_Tooth_{tag}{j:02d}", (right - left, 0.050, 0.042), ((left + right) / 2, y, 0.989), M["walnut"], bevel=0, parent=root)
-        for k, x in enumerate(SLOT_XS):
-            K.empty(f"CLUB_SLOT_{tag}{k + 1:02d}", (x, y, 0.99), parent=root, size=0.035,
-                    props={"socket": "club_shaft", "order": k + 1, "rank": tag})
+    # One ten-position comb matches the reference silhouette. The socket marks
+    # shaft contact; runtime adds the product-specific head-pivot offset.
+    SLOT_XS = [(k - 4.5) * 0.105 for k in range(10)]
+    rail_y = -0.015
+    L.box("Head_Rail", (W - 0.06, 0.060, 0.026), (0, rail_y, 0.955), M["walnut"], bevel=0.003, parent=root)
+    for j in range(11):
+        left = -(W - 0.06) / 2 if j == 0 else SLOT_XS[j - 1] + 0.0125
+        right = (W - 0.06) / 2 if j == 10 else SLOT_XS[j] - 0.0125
+        L.box(f"Head_Tooth_{j:02d}", (right - left, 0.060, 0.042), ((left + right) / 2, rail_y, 0.989), M["walnut"], bevel=0, parent=root)
+    for k, x in enumerate(SLOT_XS):
+        K.empty(f"CLUB_SLOT_{k + 1:02d}", (x, rail_y, 0.99), parent=root, size=0.035,
+                props={"socket": "club_shaft", "order": k + 1})
 
     K.collision_box("COL_ClubRack", (W, D, H), (0, 0, H / 2), M, root)
     return root
@@ -574,18 +585,20 @@ def build_putter_rack(M):
     L.parent_keep(fp, root)
     L.box("Brass_Trim", (W - 0.02, 0.012, 0.014), (0, -D / 2 + 0.006, 0.117), M["brass"], bevel=0, parent=root)
 
-    SLOT_XS = [(k - 2.5) * 0.15 for k in range(6)]
-    for j in range(5):                      # five interior dividers; the cheeks close the end grooves
-        L.box(f"Groove_Divider_{j + 1:02d}", (0.025, 0.24, 0.055), ((j - 2) * 0.15, -0.005, 0.138), M["walnut"], bevel=0, parent=root)
+    # Ten staggered positions reproduce the denser reference without making
+    # neighbouring 0.115 m heads occupy the same depth plane.
+    SLOT_XS = [(k - 4.5) * 0.09 for k in range(10)]
+    for j in range(9):
+        L.box(f"Groove_Divider_{j + 1:02d}", (0.016, 0.24, 0.048), ((j - 4) * 0.09, -0.005, 0.134), M["walnut"], bevel=0, parent=root)
     for sx, tag in ((-1, "L"), (1, "R")):
-        L.box(f"Cheek_{tag}", (0.05, D - 0.04, 0.93), (sx * (W / 2 - 0.025), 0.02, 0.535), M["walnut"], bevel=0.004, parent=root)
+        L.box(f"Cheek_{tag}", (0.032, D - 0.04, 0.93), (sx * (W / 2 - 0.016), 0.02, 0.535), M["walnut"], bevel=0.004, parent=root)
     rail = L.box("Grip_Rail", (W - 0.10, 0.035, 0.055), (0, -0.02, 0.83), M["black"], bevel=0.003, parent=root)
     L.box("Grip_Rail_Pad", (W - 0.11, 0.010, 0.045), (0, -0.0405, 0.83), M["rubber"], bevel=0, parent=root)
     badge = K.uv_plane("Crest_Badge", 0.07, 0.07, (0, -D / 2 - 0.0012, 0.075), K.m_tex("M_RetailBadge", crest_badge_img(), rough=0.62))
     L.parent_keep(badge, root)
 
     for k, x in enumerate(SLOT_XS):
-        K.empty(f"PUTTER_SLOT_{k + 1:02d}", (x, -0.045, 0.185), parent=root, size=0.035,
+        K.empty(f"PUTTER_SLOT_{k + 1:02d}", (x, -0.045 + (k % 2) * 0.055, 0.185), parent=root, size=0.035,
                 props={"socket": "putter_head", "order": k + 1})
 
     K.collision_box("COL_PutterRack", (W, D, H), (0, 0, H / 2), M, root)
@@ -594,32 +607,90 @@ def build_putter_rack(M):
 
 def build_bag_display(M):
     """Sheet-03 #26: the golf bag display — a walnut floor platform on a black
-    steel frame with a rear lean rail.  1.60 x 0.44 platform, rail at 1.05.
+    steel frame with a rear lean rail.  1.60 x 0.40 platform, rail at 1.05.
 
     Fit: the display bag (with its club fan) is 0.343 wide and spans z
-    -0.160..+0.199 about its base centre; four positions at 0.38 pitch, each
-    at depth -0.01 with lean -0.075, put every footprint on the deck and rest
-    the bag's back on the rail face (rail centre y -0.245, r 0.016)."""
-    W, D, H = 1.60, 0.44, 1.10
+    -0.160..+0.199 about its base centre; five positions at 0.30 pitch, each
+    at depth -0.01 with a restrained lean, put every footprint on the deck.
+
+    Built to the sheet's "wood platform with metal frame": the deck is six
+    real planks over a welded perimeter channel on four legs, and each bay
+    carries a cradle that gives the leaning bag something to sit against.
+    The earlier version drew the deck as one slab with painted-on seam strips
+    and stood two bare posts behind it, which read as a bench rather than a
+    fixture.  Slot empties, declared dimensions and the collider are
+    unchanged — fixtureSlots.bagPlinth(5) and the acceptance poses bind to
+    those exact positions."""
+    W, D, H = 1.60, 0.40, 1.10
     root = K.asset_root("bag_display", (W, D, H))
 
-    L.rounded_box("Deck", (W, D, 0.055), (0, 0, 0.0925), M["walnut"], corner=0.012, bevel=0.004, segments=3, uv=True, parent=root)
-    L.box("Deck_Skirt", (W - 0.05, D - 0.05, 0.068), (0, 0, 0.032), M["counter_black"], bevel=0, parent=root)
-    for i in (-1, 0, 1):
-        L.box(f"Deck_Seam_{i + 2:02d}", (0.006, D - 0.02, 0.003), (i * 0.40, 0, 0.121), M["charcoal"], bevel=0, parent=root)
+    # --- deck: six planks, gapped, top face held at z = 0.12 ----------------
+    DECK_TOP, PLANK_T = 0.12, 0.055
+    plank_z = DECK_TOP - PLANK_T / 2
+    gap, count = 0.008, 6
+    plank_w = (W - gap * (count - 1)) / count
+    for i in range(count):
+        x = -W / 2 + plank_w / 2 + i * (plank_w + gap)
+        # plain beveled boxes: a rounded_box per plank triples the deck cost for
+        # a corner radius no one reads at shop distance
+        L.box(f"Deck_Plank_{i + 1:02d}", (plank_w, D - 0.012, PLANK_T), (x, 0, plank_z),
+              M["walnut"], bevel=0.0025, parent=root)
+
+    # --- welded perimeter channel the planks sit in -------------------------
+    rail_z, rail_t = 0.076, 0.030
+    L.box("Frame_Rail_Front", (W, rail_t, 0.052), (0, -D / 2 + rail_t / 2, rail_z), M["black"], bevel=0.003, parent=root)
+    L.box("Frame_Rail_Back", (W, rail_t, 0.052), (0, D / 2 - rail_t / 2, rail_z), M["black"], bevel=0.003, parent=root)
+    for sx, tag in ((-1, "L"), (1, "R")):
+        L.box(f"Frame_Rail_{tag}", (rail_t, D - rail_t * 2, 0.052), (sx * (W / 2 - rail_t / 2), 0, rail_z),
+              M["black"], bevel=0.003, parent=root)
+    # --- four legs on rubber feet -------------------------------------------
+    leg_x, leg_y = W / 2 - 0.055, D / 2 - 0.055
+    for sx, tx in ((-1, "L"), (1, "R")):
+        for sy, ty in ((-1, "F"), (1, "B")):
+            L.box(f"Leg_{tx}{ty}", (0.042, 0.042, 0.050), (sx * leg_x, sy * leg_y, 0.025),
+                  M["black"], bevel=0.003, parent=root)
+            L.cyl(f"Foot_{tx}{ty}", 0.024, 0.010, (sx * leg_x, sy * leg_y, 0.005),
+                  M["rubber"], verts=8, bevel=0, parent=root)
+
     badge = K.uv_plane("Crest_Badge", 0.08, 0.08, (0, -D / 2 - 0.0012, 0.075), K.m_tex("M_RetailBadge", crest_badge_img(), rough=0.62))
     L.parent_keep(badge, root)
 
-    # rear lean rail on two posts rising just behind the deck
+    # --- rear lean rail on two posts, inside the declared 0.40 m depth ------
+    rail_y = D / 2 - 0.019
     for sx, tag in ((-1, "L"), (1, "R")):
         x = sx * (W / 2 - 0.06)
-        L.box(f"Rail_Post_{tag}", (0.038, 0.038, 1.06), (x, 0.245, 0.53), M["black"], bevel=0, parent=root)
-        L.box(f"Rail_Foot_{tag}", (0.07, 0.07, 0.018), (x, 0.245, 0.009), M["black"], bevel=0, parent=root)
-    rail = L.cyl("Lean_Rail", 0.016, W - 0.08, (0, 0.245, 1.05), M["black"], verts=12, bevel=0, parent=root)
+        L.box(f"Rail_Post_{tag}", (0.038, 0.038, 1.06), (x, rail_y, 0.53), M["black"], bevel=0.003, parent=root)
+        L.box(f"Rail_Foot_{tag}", (0.07, 0.038, 0.018), (x, rail_y, 0.009), M["black"], bevel=0, parent=root)
+        # cast collar where the rail lands on the post
+        collar = L.cyl(f"Rail_Collar_{tag}", 0.023, 0.028, (x - sx * 0.026, rail_y, 1.05), M["charcoal"], verts=8, bevel=0, parent=root)
+        collar.rotation_euler = (0, math.radians(90), 0)
+    rail = L.cyl("Lean_Rail", 0.016, W - 0.08, (0, rail_y, 1.05), M["black"], verts=12, bevel=0, parent=root)
     rail.rotation_euler = (0, math.radians(90), 0)
+    # A mid rail at bag-hip height. Without it the per-bay bumpers below hang in
+    # open air with nothing carrying them, which reads as loose primitives.
+    mid = L.cyl("Mid_Rail", 0.013, W - 0.08, (0, rail_y, 0.62), M["black"], verts=10, bevel=0, parent=root)
+    mid.rotation_euler = (0, math.radians(90), 0)
 
-    for i, x in enumerate((-0.57, -0.19, 0.19, 0.57)):
-        K.empty(f"BAG_SLOT_{i + 1:02d}", (x, -0.01, 0.12), parent=root, size=0.05,
+    # --- per-bay cradle + price card holder ---------------------------------
+    # Each bay gets a shallow steel saddle at deck level and a padded rear
+    # bumper at hip height, so a leaning bag is located rather than floating.
+    for i, x in enumerate((-0.60, -0.30, 0.0, 0.30, 0.60)):
+        tag = f"{i + 1:02d}"
+        for sx, side in ((-1, "L"), (1, "R")):
+            # flat plates seen edge-on from the aisle: a 2-segment bevel costs
+            # ~80 tris each here and reads as nothing
+            L.box(f"Cradle_Arm_{tag}_{side}", (0.020, 0.150, 0.085), (x + sx * 0.088, 0.030, DECK_TOP + 0.042),
+                  M["black"], bevel=0, parent=root)
+        saddle = L.cyl(f"Cradle_Saddle_{tag}", 0.016, 0.176, (x, 0.030, DECK_TOP + 0.078), M["charcoal"], verts=8, bevel=0, parent=root)
+        saddle.rotation_euler = (0, math.radians(90), 0)
+        bumper = L.cyl(f"Cradle_Bumper_{tag}", 0.019, 0.150, (x, rail_y - 0.014, 0.62), M["rubber"], verts=8, bevel=0, parent=root)
+        bumper.rotation_euler = (0, math.radians(90), 0)
+        L.box(f"Price_Card_{tag}", (0.075, 0.006, 0.042), (x, -D / 2 + 0.012, DECK_TOP + 0.028),
+              M["cream"], bevel=0, parent=root)
+        L.box(f"Price_Clip_{tag}", (0.081, 0.010, 0.008), (x, -D / 2 + 0.012, DECK_TOP + 0.006),
+              M["brass"], bevel=0, parent=root)
+
+        K.empty(f"BAG_SLOT_{tag}", (x, -0.01, 0.12), parent=root, size=0.05,
                 props={"socket": "bag", "order": i + 1})
 
     K.collision_box("COL_BagDisplay", (W, D, 0.14), (0, 0, 0.07), M, root)
@@ -635,15 +706,20 @@ def build_snack_shelf(M):
 
     for sx in (-1, 1):
         for sy in (-1, 1):
-            L.box(f"Frame_Post_{'LR'[sx > 0]}{'FB'[sy > 0]}", (0.042, 0.042, H - 0.02),
-                  (sx * (W / 2 - 0.025), sy * (D / 2 - 0.025), (H - 0.02) / 2), M["black"], bevel=0, parent=root)
-    L.box("Frame_Crown", (W, 0.06, 0.05), (0, D / 2 - 0.03, H - 0.025), M["black"], bevel=0.003, parent=root)
+            L.rounded_box(f"Frame_Post_{'LR'[sx > 0]}{'FB'[sy > 0]}", (0.042, 0.042, H - 0.02),
+                          (sx * (W / 2 - 0.025), sy * (D / 2 - 0.025), (H - 0.02) / 2),
+                          M["black"], corner=0.004, bevel=0.002, segments=2, parent=root)
+    L.rounded_box("Header_Fascia", (W - 0.04, 0.055, 0.12),
+                  (0, -D / 2 + 0.0275, H - 0.06), M["charcoal"],
+                  corner=0.006, bevel=0.003, segments=3, parent=root)
+    L.box("Header_BrassLine", (W - 0.12, 0.006, 0.010),
+          (0, -D / 2 - 0.003, H - 0.105), M["brass"], bevel=0, parent=root)
     L.box("Back_Panel", (W - 0.08, 0.018, H - 0.24), (0, D / 2 - 0.035, (H - 0.24) / 2 + 0.06), M["charcoal"], bevel=0, parent=root)
     L.box("Kick", (W - 0.06, D - 0.06, 0.05), (0, 0, 0.025), M["counter_black"], bevel=0, parent=root)
-    badge = K.uv_plane("Crest_Badge", 0.08, 0.08, (0, -D / 2 - 0.024, H - 0.025), K.m_tex("M_RetailBadge", crest_badge_img(), rough=0.62))
+    badge = K.uv_plane("Crest_Badge", 0.065, 0.065, (0, -D / 2 - 0.004, H - 0.057), K.m_tex("M_RetailBadge", crest_badge_img(), rough=0.62))
     L.parent_keep(badge, root)
 
-    shelf_zs = (0.16, 0.58, 0.98, 1.30)
+    shelf_zs = (0.16, 0.56, 0.94, 1.27)
     for i, z in enumerate(shelf_zs):
         L.rounded_box(f"Shelf_{i + 1:02d}", (W - 0.05, D - 0.06, 0.028), (0, 0, z), M["walnut"], corner=0.006, bevel=0.003, segments=3, uv=True, parent=root)
         L.box(f"Shelf_Rail_{i + 1:02d}", (W - 0.05, 0.008, 0.018), (0, -D / 2 + 0.035, z + 0.022), M["black"], bevel=0, parent=root)
@@ -679,33 +755,38 @@ def build_rangefinder_display(M):
     Fit: a rangefinder is 0.048 x 0.083 x 0.121; tier positions at 0.18
     x-pitch and 0.10 tier rise present six units at eye level when the case
     stands on the 0.98 back counter."""
-    W, D, H = 0.60, 0.60, 0.35
+    # Reference axes are width, height, depth. The previous implementation
+    # accidentally used the second value as depth and shipped a squat case.
+    W, D, H = 0.60, 0.35, 0.60
     root = K.asset_root("rangefinder_display", (W, D, H))
 
     L.rounded_box("Case_Base", (W, D, 0.06), (0, 0, 0.03), M["charcoal"], corner=0.010, bevel=0.004, segments=3, uv=True, parent=root)
     felt = K.m_flat("M_CaseFelt", (0.048, 0.115, 0.068), rough=0.92)
     # (top z, y centre, depth): a low walnut step in front, a tall one behind —
     # walnut against the charcoal shell so the terracing actually reads
-    tiers = ((0.11, -0.15, 0.24), (0.22, 0.115, 0.27))
+    tiers = ((0.15, -0.015, 0.25), (0.37, 0.015, 0.25))
     for i, (zt, yc, dd) in enumerate(tiers):
-        L.box(f"Tier_{i + 1:02d}", (W - 0.06, dd, zt - 0.06), (0, yc, (zt + 0.06) / 2), M["walnut"], bevel=0.003, parent=root)
+        L.box(f"Tier_{i + 1:02d}", (W - 0.06, dd, 0.035), (0, yc, zt - 0.0175), M["walnut"], bevel=0.003, parent=root)
         fp = K.uv_plane(f"Tier_Felt_{i + 1:02d}", W - 0.08, dd - 0.02, (0, yc, zt + 0.0012), felt)
         fp.rotation_euler = (math.radians(-90), 0, 0)
         L.parent_keep(fp, root)
     # back wall + crest
     L.box("Case_Back", (W - 0.02, 0.025, H - 0.06), (0, D / 2 - 0.0125, (H - 0.06) / 2 + 0.06), M["charcoal"], bevel=0.003, parent=root)
-    badge = K.uv_plane("Crest_Badge", 0.10, 0.10, (0, D / 2 - 0.026, H - 0.09), K.m_tex("M_RetailBadge", crest_badge_img(), rough=0.62))
+    badge = K.uv_plane("Crest_Badge", 0.085, 0.085, (0, D / 2 - 0.026, H - 0.085), K.m_tex("M_RetailBadge", crest_badge_img(), rough=0.62))
     L.parent_keep(badge, root)
     # sloped side cheeks: low at the front rail, full height at the back
-    prof = [(-D / 2 + 0.01, 0.06), (D / 2 - 0.01, 0.06), (D / 2 - 0.01, H), (-D / 2 + 0.01, 0.20)]
+    prof = [(-D / 2 + 0.01, 0.06), (D / 2 - 0.01, 0.06),
+            (D / 2 - 0.01, H), (-D / 2 + 0.01, H - 0.12)]
     for sx, tag in ((-1, "L"), (1, "R")):
         prism_x(f"Case_Cheek_{tag}", prof, 0.022, M["charcoal"], loc=(sx * (W / 2 - 0.011), 0, 0), parent=root)
     # acrylic front: a steep short pane over the LOW tier only — the rear tier
     # presents open-air above it (the sheet's angled-top look)
     acr = K.m_flat("M_Acrylic", (0.80, 0.85, 0.88), rough=0.06, alpha=0.16, ds=True)
-    glass = K.uv_plane("Acrylic_Front", W - 0.06, 0.24, (0, 0, 0), acr)
-    glass.rotation_euler = (math.radians(-62), 0, 0)
-    glass.location = (0, -0.205, 0.165)
+    glass = K.uv_plane("Acrylic_Front", W - 0.06, 0.45, (0, 0, 0), acr)
+    # uv_plane is already vertical in X/Z and faces -Y. A shallow back-lean
+    # keeps the acrylic within the 0.35 m case depth; -80 degrees laid it flat.
+    glass.rotation_euler = (math.radians(-10), 0, 0)
+    glass.location = (0, -0.125, 0.285)
     L.parent_keep(glass, root)
     L.box("Acrylic_Rail", (W - 0.04, 0.020, 0.014), (0, -D / 2 + 0.02, 0.067), M["brass"], bevel=0, parent=root)
 
@@ -715,7 +796,7 @@ def build_rangefinder_display(M):
     for (zt, yc, dd) in tiers:
         for x in (-0.18, 0.0, 0.18):
             n += 1
-            K.empty(f"RF_SLOT_{n:02d}", (x, yc + 0.02, zt + 0.001), parent=root, size=0.03,
+            K.empty(f"RF_SLOT_{n:02d}", (x, yc - 0.035, zt + 0.002), parent=root, size=0.03,
                     props={"socket": "rangefinder", "order": n})
 
     K.collision_box("COL_RangefinderDisplay", (W, D, H), (0, 0, H / 2), M, root)
@@ -747,5 +828,5 @@ EXTRA_PREVIEWS = {
     "putter_rack": [("putter_rack_front", 25, 10)],
     "bag_display": [("bag_display_front", 25, 12)],
     "snack_shelf": [("snack_shelf_front", 25, 8)],
-    "rangefinder_display": [("rangefinder_display_front", 12, 18)],
+    "rangefinder_display": [("rangefinder_display_front", 12, 18), ("rangefinder_display_end", 105, 18)],
 }

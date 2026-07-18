@@ -567,25 +567,37 @@ def build_barcode_scanner(M):
 
 # ========================================================= receipt printer =====
 
-def _curved_strip(name, w, length, mat, *, segments=12, curl=0.18, parent=None):
-    """A vertical paper strip, slightly curled toward -Y at the top, UV 0..1."""
+def _curved_strip(name, w, length, mat, *, segments=12, curl=0.18, parent=None, cross=0, cross_cols=2):
+    """A vertical paper strip, slightly curled toward -Y at the top, UV 0..1.
+
+    `cross` cups the strip across its width by that fraction of w, spread over
+    `cross_cols` columns. Real thermal paper never lies flat across the roll
+    axis, and the shallow trough catches a highlight that stops the strip
+    reading as a rigid ribbon. cross=0 keeps the original two-column ladder."""
+    cols = max(2, cross_cols if cross else 2)
     bm = bmesh.new()
     layer_verts = []
     for i in range(segments + 1):
         t = i / segments
         z = t * length
         y = -curl * length * (t ** 2) * 0.35
-        v0 = bm.verts.new((-w / 2, y, z))
-        v1 = bm.verts.new((w / 2, y, z))
-        layer_verts.append((v0, v1))
+        row = []
+        for c in range(cols):
+            u = c / (cols - 1)
+            # parabolic trough: zero at both edges, deepest at mid-width
+            dip = cross * w * (1.0 - (2.0 * u - 1.0) ** 2)
+            row.append(bm.verts.new((-w / 2 + u * w, y + dip, z)))
+        layer_verts.append(row)
     uvl = bm.loops.layers.uv.new("UVMap")
     for i in range(segments):
-        (a0, a1), (b0, b1) = layer_verts[i], layer_verts[i + 1]
-        f = bm.faces.new((a0, a1, b1, b0))
+        a, b = layer_verts[i], layer_verts[i + 1]
         t0, t1 = i / segments, (i + 1) / segments
-        uvs = [(0, t0), (1, t0), (1, t1), (0, t1)]
-        for loop, uv in zip(f.loops, uvs):
-            loop[uvl].uv = uv
+        for c in range(cols - 1):
+            u0, u1 = c / (cols - 1), (c + 1) / (cols - 1)
+            f = bm.faces.new((a[c], a[c + 1], b[c + 1], b[c]))
+            uvs = [(u0, t0), (u1, t0), (u1, t1), (u0, t1)]
+            for loop, uv in zip(f.loops, uvs):
+                loop[uvl].uv = uv
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()
@@ -1045,88 +1057,81 @@ def _hslat_wall(name, width, height, mat, *, seed, parent, thick=0.018, board_h=
 
 
 def build_apparel_wall(M):
-    """Sheet-02 #20: the modular apparel wall — metal frame, horizontal oak
-    slatwall, APPAREL header, removable brass rod + hooks + shelf, folded-stack
-    counter over a two-door cabinet.  One 1.10 m module; the shop stands two
-    side by side on the outerwear rail's footprint.  Front faces -Y.
+    """Sheet-02 #20: one 1.20 m apparel wall with an open folded-stock base.
 
-    Fit contract (measured from the live garment GLBs): rod at 1.68 puts a
-    hanging jacket's hem at 0.89 and a polo's at 1.00 — both clear the 0.82
-    top of a three-high folded stack on the 0.63 counter.  Counter depth 0.42
-    swallows the deepest folded piece (pants, 0.37) with margin."""
-    W, D, H = 1.10, 0.45, 2.20
+    The fixture faces -Y and is finished on the rear because ``rail_outer`` is
+    freestanding in the live shop.  Visible garments are runtime inventory, not
+    baked dressing: four named sockets sit on the rail and four more sit on the
+    two open oak shelves, bottom shelf first.  The single-module dimensions,
+    socket order and collision envelope are shared with the runtime fallback."""
+    W, D, H = 1.20, 0.45, 2.20
     root = K.asset_root("apparel_wall", (W, D, H))
     BACKP = D / 2
 
-    # --- metal frame: back uprights, top rail, forward feet ------------------
+    # --- slim powder-coated frame, finished for a mid-floor placement --------
     for sx, tag in ((-1, "L"), (1, "R")):
         x = sx * (W / 2 - 0.028)
         L.box(f"Frame_Upright_{tag}", (0.055, 0.055, H - 0.02), (x, BACKP - 0.0475, (H - 0.02) / 2), M["black"], bevel=0.004, parent=root)
         L.box(f"Frame_Foot_{tag}", (0.055, D - 0.055, 0.045), (x, 0.0, 0.0225), M["black"], bevel=0.004, parent=root)
     L.box("Frame_TopRail", (W - 0.06, 0.055, 0.05), (0, BACKP - 0.0475, H - 0.045), M["black"], bevel=0.004, parent=root)
+    L.box("Frame_BottomRail", (W - 0.06, 0.055, 0.055), (0, BACKP - 0.0475, 0.075), M["black"], bevel=0.004, parent=root)
 
-    # --- rear construction: rails + finished oak back (a mid-floor unit) -----
+    # Rear slats close the construction cleanly without a cabinet block.
     L.box("Back_Rail_Top", (W - 0.11, 0.022, 0.07), (0, BACKP - 0.011, H - 0.125), M["charcoal"], bevel=0, parent=root)
-    L.box("Back_Rail_Bottom", (W - 0.11, 0.022, 0.07), (0, BACKP - 0.011, 0.665), M["charcoal"], bevel=0, parent=root)
-    back = _hslat_wall("Back_Panel", W - 0.11, H - 0.16 - 0.70, M["oak_slat"], seed=61, parent=None, thick=0.014, board_h=0.14, gap=0.004)
-    back.location = (0, BACKP - 0.010, 0.70)
+    L.box("Back_Rail_Bottom", (W - 0.11, 0.022, 0.07), (0, BACKP - 0.011, 0.125), M["charcoal"], bevel=0, parent=root)
+    back = _hslat_wall("Back_Panel", W - 0.11, H - 0.18, M["oak_slat"], seed=61, parent=None, thick=0.014, board_h=0.14, gap=0.004)
+    back.location = (0, BACKP - 0.010, 0.08)
     back.rotation_euler = (0, 0, math.pi)          # boards face outward (+Y)
     L.parent_keep(back, root)
 
-    # --- the display slatwall -------------------------------------------------
-    slats = _hslat_wall("Slatwall", W - 0.10, 1.36, M["oak_slat"], seed=17, parent=None)
-    slats.location = (0, BACKP - 0.105, 0.66)
+    # One continuous display field keeps the hanging and folded zones cohesive.
+    slats = _hslat_wall("Slatwall", W - 0.10, 1.90, M["oak_slat"], seed=17, parent=None)
+    slats.location = (0, BACKP - 0.105, 0.10)
     L.parent_keep(slats, root)
 
-    # --- header board + sign --------------------------------------------------
+    # Header: texture supplies the charcoal field/rules; mesh lettering avoids
+    # the blocky bitmap wordmark visible in the previous player-camera pass.
     L.box("Header", (W, 0.16, 0.18), (0, BACKP - 0.13, H - 0.09), M["charcoal"], bevel=0.006, parent=root)
     sign = K.uv_plane("Header_Sign", 1.02, 0.155, (0, BACKP - 0.2115, H - 0.09),
-                      K.m_tex("M_ApparelHeader", K.apparel_header_img(), rough=0.62))
+                      K.m_tex("M_ApparelHeader", K.apparel_header_img(lettering=False), rough=0.62))
     L.parent_keep(sign, root)
+    L.sign_text("Header_Lettering", "APPAREL", 0, H - 0.09, 0.092,
+                {"gold": M["cream"]}, root, y=BACKP - 0.216, depth=0.0)
 
-    # --- hanging rod on two brackets (removable: separate meshes) ------------
+    # Hanging rail and separate brackets remain individually readable parts.
     ROD_Z, ROD_Y = 1.68, 0.0
     for sx, tag in ((-1, "L"), (1, "R")):
-        x = sx * 0.42
+        x = sx * 0.50
         L.box(f"Rod_Bracket_{tag}", (0.030, BACKP - 0.115 - ROD_Y + 0.015, 0.026),
               (x, (ROD_Y + BACKP - 0.115) / 2 - 0.0075, ROD_Z + 0.026), M["black"], bevel=0, parent=root)
         L.cyl(f"Rod_BracketRing_{tag}", 0.019, 0.024, (x, ROD_Y, ROD_Z), M["black"], verts=12, bevel=0, parent=root)
     rod = L.cyl("Hanging_Rod", 0.0135, W - 0.14, (0, ROD_Y, ROD_Z), M["brass"], verts=14, bevel=0, parent=root)
     rod.rotation_euler = (0, math.radians(90), 0)
 
-    # --- slat hooks (removable) ----------------------------------------------
-    for sx, tag in ((-1, "01"), (1, "02")):
-        x = sx * 0.30
-        L.box(f"Hook_Plate_{tag}", (0.036, 0.012, 0.070), (x, BACKP - 0.120, 1.10), M["black"], bevel=0, parent=root)
-        arm = L.cyl(f"Hook_Arm_{tag}", 0.0055, 0.105, (x, BACKP - 0.170, 1.085), M["brass"], verts=10, bevel=0, parent=root)
-        arm.rotation_euler = (math.radians(97), 0, 0)
-        L.cyl(f"Hook_Tip_{tag}", 0.0075, 0.012, (x, BACKP - 0.222, 1.092), M["brass"], verts=10, bevel=0, parent=root)
-
-    # --- folded-stack counter over the cabinet --------------------------------
-    L.rounded_box("Folded_Shelf", (W - 0.04, 0.42, 0.030), (0, 0, 0.615), M["oak_slat"], corner=0.008, bevel=0.004, segments=3, uv=True, parent=root)
+    # Open lower shelving: two oak decks on narrow black side rails/brackets.
+    # Their top surfaces are the exact Z values used by the folded sockets.
+    shelf_levels = (("Lower", 0.315), ("Upper", 0.615))
+    for tag, z in shelf_levels:
+        L.rounded_box(f"Folded_Shelf_{tag}", (W - 0.08, 0.40, 0.030), (0, 0, z),
+                      M["oak_slat"], corner=0.007, bevel=0.0035, segments=3, uv=True, parent=root)
+        L.box(f"Shelf_Front_Lip_{tag}", (W - 0.10, 0.018, 0.024), (0, -0.199, z - 0.010),
+              M["black"], bevel=0.002, parent=root)
+        for sx, side in ((-1, "L"), (1, "R")):
+            L.box(f"Shelf_Bracket_{tag}_{side}", (0.026, 0.30, 0.022),
+                  (sx * (W / 2 - 0.09), 0.03, z - 0.026), M["black"], bevel=0, parent=root)
     for sx, tag in ((-1, "L"), (1, "R")):
-        L.box(f"Shelf_Bracket_{tag}", (0.026, 0.30, 0.022), (sx * (W / 2 - 0.09), 0.03, 0.589), M["black"], bevel=0, parent=root)
+        L.box(f"Lower_Frame_Side_{tag}", (0.045, 0.39, 0.64),
+              (sx * (W / 2 - 0.050), 0.005, 0.32), M["black"], bevel=0.003, parent=root)
 
-    # --- cabinet: carcass, two doors, brass pulls, plinth ---------------------
-    L.box("Cabinet_Body", (W - 0.06, 0.40, 0.52), (0, 0.01, 0.34), M["charcoal"], bevel=0.005, parent=root)
-    for sx, tag in ((-1, "L"), (1, "R")):
-        L.rounded_box(f"Cabinet_Door_{tag}", (0.495, 0.020, 0.46), (sx * 0.2575, -0.20, 0.325), M["walnut"], corner=0.006, bevel=0.004, segments=3, uv=True, parent=root)
-        L.cyl(f"Cabinet_Pull_{tag}", 0.0075, 0.030, (sx * 0.065, -0.218, 0.325), M["brass"], verts=10, bevel=0, parent=root)
-    L.box("Plinth", (W - 0.10, 0.36, 0.075), (0, 0.01, 0.0425), M["counter_black"], bevel=0.004, parent=root)
-
-    # --- placement sockets -----------------------------------------------------
-    for i, x in enumerate((-0.39, -0.13, 0.13, 0.39)):
+    # Exactly eight inventory positions. Hangers fill first; folded stock fills
+    # the lower shelf before the upper shelf as quantity rises from four to eight.
+    for i, x in enumerate((-0.405, -0.135, 0.135, 0.405)):
         K.empty(f"APPAREL_HANGER_SLOT_{i + 1:02d}", (x, ROD_Y, ROD_Z), parent=root, size=0.05,
                 props={"socket": "hanger", "order": i + 1})
-    for i, x in enumerate((-0.34, 0.0, 0.34)):
-        K.empty(f"APPAREL_FOLD_SLOT_{i + 1:02d}", (x, -0.02, 0.632), parent=root, size=0.05,
+    fold_positions = ((-0.27, 0.332), (0.27, 0.332), (-0.27, 0.632), (0.27, 0.632))
+    for i, (x, z) in enumerate(fold_positions):
+        K.empty(f"APPAREL_FOLD_SLOT_{i + 1:02d}", (x, -0.03, z), parent=root, size=0.05,
                 props={"socket": "folded", "order": i + 1})
-    for i, z in enumerate((1.25, 1.55)):
-        K.empty(f"APPAREL_SHELF_SLOT_{i + 1:02d}", (0, BACKP - 0.13, z), parent=root, size=0.05,
-                props={"socket": "shelf_mount", "order": i + 1})
-    for i, x in enumerate((-0.30, 0.30)):
-        K.empty(f"APPAREL_HOOK_SLOT_{i + 1:02d}", (x, BACKP - 0.235, 1.09), parent=root, size=0.04,
-                props={"socket": "hook", "order": i + 1})
 
     K.collision_box("COL_ApparelWall", (W, D, H), (0, 0, H / 2), M, root)
     return root
@@ -1185,7 +1190,12 @@ def build_loose_receipt(M):
     # A till receipt keeps a gentle memory curl after leaving the roll. The
     # stronger silhouette remains restrained at 18.5 cm long but no longer
     # reads as a rigid vertical placard from the cashier camera.
-    strip = _curved_strip("Receipt_Strip", 0.075, 0.185, paper_mat, segments=16, curl=0.55)
+    # 16 flat segments faceted the curl and left the strip a rigid ribbon at
+    # 32 tris against the sheet's ~200. A finer curl plus a shallow cross-width
+    # trough spends that budget where the reference asks for it ("slight curl
+    # for realism") and still lands well inside it.
+    strip = _curved_strip("Receipt_Strip", 0.075, 0.185, paper_mat,
+                          segments=32, curl=0.55, cross=0.035, cross_cols=3)
     L.parent_keep(strip, root)
     K.empty("RECEIPT_FEED_SOCKET", (0, 0, 0), parent=root, size=0.025,
             props={"socket": "receipt", "state": "feed"})

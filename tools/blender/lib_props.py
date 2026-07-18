@@ -291,6 +291,10 @@ def _finish(obj, material, *, bevel=0.0, uv=True, smooth=38):
         bpy.ops.object.shade_auto_smooth(angle=math.radians(smooth))
     except Exception:
         pass
+    # glTF takes mesh names from the datablock, not the object, so an unnamed
+    # datablock ships as Cylinder.008 however well the object is named.
+    if obj.data is not None:
+        obj.data.name = obj.name
     return obj
 
 

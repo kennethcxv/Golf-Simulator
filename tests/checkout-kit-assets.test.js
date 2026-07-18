@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { slotsFor } from '../src/data/fixtureSlots.js';
 
 const KIT = [
   'checkout_counter', 'pos_monitor', 'cash_drawer', 'payment_terminal',
@@ -318,26 +319,61 @@ test('apparel wall exposes its display parts and placement sockets', async () =>
   const kit = await kitPromise;
   const scene = (await kit.get('apparel_wall')).scene;
   const n = names(scene);
-  for (const part of ['Slatwall', 'Back_Panel', 'Header', 'Header_Sign', 'Hanging_Rod',
-    'Folded_Shelf', 'Cabinet_Body', 'Cabinet_Door_L', 'Cabinet_Door_R', 'COL_ApparelWall']) {
+  for (const part of ['Slatwall', 'Back_Panel', 'Header', 'Header_Sign', 'Header_Lettering',
+    'Hanging_Rod', 'Folded_Shelf_Lower', 'Folded_Shelf_Upper',
+    'Lower_Frame_Side_L', 'Lower_Frame_Side_R', 'COL_ApparelWall']) {
     assert.ok(n.has(part), `apparel wall missing ${part}`);
   }
-  for (let i = 1; i <= 4; i++) assert.ok(n.has(`APPAREL_HANGER_SLOT_0${i}`), `hanger slot ${i}`);
-  for (let i = 1; i <= 3; i++) assert.ok(n.has(`APPAREL_FOLD_SLOT_0${i}`), `fold slot ${i}`);
-  for (let i = 1; i <= 2; i++) assert.ok(n.has(`APPAREL_SHELF_SLOT_0${i}`), `shelf slot ${i}`);
-  for (let i = 1; i <= 2; i++) assert.ok(n.has(`APPAREL_HOOK_SLOT_0${i}`), `hook slot ${i}`);
-  // module envelope: 1.10 wide, 2.20 tall (Y-up after import), 0.45 deep
+  const expectedSockets = [
+    ...Array.from({ length: 4 }, (_, i) => `APPAREL_HANGER_SLOT_0${i + 1}`),
+    ...Array.from({ length: 4 }, (_, i) => `APPAREL_FOLD_SLOT_0${i + 1}`),
+  ];
+  const sockets = [];
+  scene.traverse((o) => { if (/^APPAREL_(HANGER|FOLD)_SLOT_/.test(o.name)) sockets.push(o); });
+  assert.deepEqual(sockets.map((o) => o.name).sort(), expectedSockets.sort(), 'exactly four hanging + four folded sockets');
+  for (const socket of sockets) {
+    assert.equal(socket.isMesh, undefined, `${socket.name} is transform-only`);
+    assert.ok(['hanger', 'folded'].includes(socket.userData.socket), `${socket.name} socket type`);
+    assert.ok(socket.userData.order >= 1 && socket.userData.order <= 4, `${socket.name} order`);
+  }
+  assert.ok(![...n].some((name) => /^APPAREL_(HOOK|SHELF)_SLOT_/.test(name)), 'no unused apparel sockets');
+  assert.ok(![...n].some((name) => /^Cabinet_/.test(name)), 'lower stock area stays open');
+  assert.ok(![...n].some((name) => /(Jacket|Polo|Shirt|Garment)/.test(name)), 'inventory garments are not baked into the fixture');
+
+  const root = scene.getObjectByName('apparel_wall');
+  assert.deepEqual(root.userData.target_dimensions_m, [1.2, 0.45, 2.2]);
+  // single-module envelope: 1.20 wide, 2.20 tall (Y-up after import), 0.45 deep
   const s = sizeOf(scene);
-  assert.ok(Math.abs(s.x - 1.10) < 0.05, `width ${s.x}`);
+  assert.ok(Math.abs(s.x - 1.20) < 0.05, `width ${s.x}`);
   assert.ok(Math.abs(s.y - 2.20) < 0.05, `height ${s.y}`);
   assert.ok(Math.abs(s.z - 0.45) < 0.05, `depth ${s.z}`);
-  // the rod carries the hanger slots: they must sit ON the bar line
-  let rodSlotY = null;
-  scene.traverse((o) => { if (o.name === 'APPAREL_HANGER_SLOT_01') rodSlotY = o.getWorldPosition(new THREE.Vector3()).y; });
-  assert.ok(rodSlotY !== null && Math.abs(rodSlotY - 1.68) < 0.02, `hanger slot height ${rodSlotY}`);
+
+  scene.updateMatrixWorld(true);
+  const logical = slotsFor('jacket2');
+  for (let i = 0; i < logical.length; i++) {
+    const point = scene.getObjectByName(logical[i].socketName).getWorldPosition(new THREE.Vector3());
+    assert.ok(point.distanceTo(new THREE.Vector3(logical[i].x, logical[i].y, logical[i].z)) < 1e-5,
+      `${logical[i].socketName} matches its immediate-load fallback`);
+  }
+
+  const collisions = [];
+  scene.traverse((o) => { if (o.name === 'COL_ApparelWall') collisions.push(o); });
+  assert.equal(collisions.length, 1, 'one apparel collision proxy');
+  const collision = collisions[0];
+  collision.geometry.computeBoundingBox();
+  const collisionBox = collision.geometry.boundingBox.clone().applyMatrix4(collision.matrixWorld);
+  const collisionSize = collisionBox.getSize(new THREE.Vector3());
+  const collisionCenter = collisionBox.getCenter(new THREE.Vector3());
+  assert.ok(collisionSize.distanceTo(new THREE.Vector3(1.2, 2.2, 0.45)) < 1e-5, `collision size ${collisionSize.toArray()}`);
+  assert.ok(collisionCenter.distanceTo(new THREE.Vector3(0, 1.1, 0)) < 1e-5, `collision center ${collisionCenter.toArray()}`);
+
   let tris = 0;
-  scene.traverse((o) => { if (o.isMesh && !o.name.startsWith('COL_')) tris += o.geometry.index.count / 3; });
-  assert.ok(tris < 2800, `apparel wall tris ${tris}`);   // the Sheet-02 budget
+  scene.traverse((o) => {
+    if (o.isMesh && !o.name.startsWith('COL_')) {
+      tris += o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3;
+    }
+  });
+  assert.ok(tris <= 2800, `apparel wall tris ${tris}`);   // the Sheet-02 budget
 });
 
 test('the Sheet-03 fixtures expose their parts, sockets, envelopes and budgets', async () => {
@@ -345,42 +381,79 @@ test('the Sheet-03 fixtures expose their parts, sockets, envelopes and budgets',
   // { asset: [ [required node names...], [w, h] envelope (x/z ±0.06), tri cap ] }
   const FIXTURES = {
     apparel_wall_display: [['Slatwall', 'Back_Panel', 'Header_Sign', 'Base_Shelf',
-      'Faceout_Arm_01', 'Faceout_Arm_06', 'DISPLAY_ARM_SLOT_06', 'DISPLAY_BASE_SLOT_03',
+      'Faceout_Arm_01', 'Faceout_Arm_08', 'DISPLAY_ARM_SLOT_08', 'DISPLAY_BASE_SLOT_04',
       'COL_ApparelWallDisplay'], [1.20, 2.20], 2400 * 1.25],
-    hat_wall: [['Slatwall', 'Back_Panel', 'Header_Sign', 'Peg_Arm_01', 'Peg_Arm_12',
-      'HAT_PEG_SLOT_01', 'HAT_PEG_SLOT_12', 'COL_HatWall'], [1.00, 2.20], 1600 * 1.25],
+    hat_wall: [['Slatwall', 'Back_Panel', 'Header_Sign', 'Peg_Arm_01', 'Peg_Arm_16',
+      'HAT_PEG_SLOT_01', 'HAT_PEG_SLOT_16', 'COL_HatWall'], [1.00, 2.20], 1600 * 1.25],
     accessory_slatwall: [['Slatwall', 'Shelf_01', 'Shelf_03', 'Hook_Short_Plate_01',
       'Hook_Long_Plate_02', 'Hook_Double_Plate_02', 'ACC_SHELF_SLOT_03', 'ACC_HOOK_SLOT_06',
+      'ACC_PRODUCT_SLOT_01', 'ACC_PRODUCT_SLOT_12',
       'COL_AccessorySlatwall'], [1.00, 2.00], 1700 * 1.25],
-    club_rack: [['Base', 'Head_Rail_F', 'Head_Rail_R', 'Trough_Felt_F', 'End_Cap_L',
-      'CLUB_SLOT_F01', 'CLUB_SLOT_F09', 'CLUB_SLOT_R09', 'COL_ClubRack'], [1.20, 1.10], 2200 * 1.25],
-    putter_rack: [['Base', 'Base_Felt', 'Grip_Rail', 'Groove_Divider_01', 'Groove_Divider_05',
-      'PUTTER_SLOT_01', 'PUTTER_SLOT_06', 'COL_PutterRack'], [1.00, 1.00], 1800 * 1.25],
-    bag_display: [['Deck', 'Lean_Rail', 'Rail_Post_L', 'BAG_SLOT_01', 'BAG_SLOT_04',
-      'COL_BagDisplay'], [1.60, 1.10], 2600 * 1.25],
+    club_rack: [['Base', 'Head_Rail', 'Trough_Floor', 'Trough_Felt', 'Trough_Lip', 'End_Cap_L',
+      'CLUB_SLOT_01', 'CLUB_SLOT_10', 'COL_ClubRack'], [1.20, 1.10], 2200 * 1.25],
+    putter_rack: [['Base', 'Base_Felt', 'Grip_Rail', 'Groove_Divider_01', 'Groove_Divider_09',
+      'PUTTER_SLOT_01', 'PUTTER_SLOT_10', 'COL_PutterRack'], [1.00, 1.00], 1800 * 1.25],
+    // The deck is six real planks over a welded perimeter channel on four
+    // legs, and every bay carries a cradle - assert that construction rather
+    // than the single 'Deck' slab it replaced.
+    bag_display: [['Deck_Plank_01', 'Deck_Plank_06', 'Frame_Rail_Front', 'Frame_Rail_Back',
+      'Leg_LF', 'Leg_RB', 'Foot_LF', 'Lean_Rail', 'Mid_Rail', 'Rail_Post_L',
+      'Cradle_Arm_01_L', 'Cradle_Saddle_05', 'Price_Card_03',
+      'BAG_SLOT_01', 'BAG_SLOT_05', 'COL_BagDisplay'], [1.60, 1.10, 0.40], 2600 * 1.25],
     shoe_wall: [['Slatwall', 'Display_Board_01', 'Display_Board_03', 'Box_Shelf',
       'SHOE_SLOT_01', 'SHOE_SLOT_06', 'SHOEBOX_SLOT_03',
       'COL_ShoeWall'], [1.20, 2.00], 2600 * 1.25],
     ball_shelf: [['Side_L', 'Board_01', 'Board_03', 'Board_Lip_01', 'BALL_SLOT_01',
       'BALL_SLOT_15', 'COL_BallShelf'], [1.00, 1.22], 1500 * 1.25],
-    snack_shelf: [['Frame_Post_LF', 'Shelf_01', 'Shelf_04', 'SNACK_SHELF_SLOT_04',
+    snack_shelf: [['Frame_Post_LF', 'Header_Fascia', 'Shelf_01', 'Shelf_04', 'SNACK_SHELF_SLOT_04',
       'DRINK_SLOT_01', 'DRINK_SLOT_14', 'SNACK_SLOT_10',
       'COL_SnackShelf'], [1.00, 1.62], 2200 * 1.25],
     rangefinder_display: [['Case_Base', 'Tier_01', 'Tier_02', 'Acrylic_Front',
       'RF_SLOT_01', 'RF_SLOT_06', 'COL_RangefinderDisplay'],
-    [0.60, 0.35], 1100 * 1.25],
+    [0.60, 0.60, 0.35], 1100 * 1.25],
   };
-  for (const [asset, [required, [w, h], cap]] of Object.entries(FIXTURES)) {
+  for (const [asset, [required, [w, h, d], cap]] of Object.entries(FIXTURES)) {
     const scene = (await kit.get(asset)).scene;
     const n = names(scene);
     for (const part of required) assert.ok(n.has(part), `${asset}: missing ${part}`);
     const s = sizeOf(scene);
     assert.ok(Math.abs(s.x - w) < 0.06, `${asset} width ${s.x.toFixed(3)} vs ${w}`);
     assert.ok(Math.abs(s.y - h) < 0.06, `${asset} height ${s.y.toFixed(3)} vs ${h}`);
+    if (d != null) assert.ok(Math.abs(s.z - d) < 0.02, `${asset} depth ${s.z.toFixed(3)} vs ${d}`);
     let tris = 0;
     scene.traverse((o) => { if (o.isMesh && !o.name.startsWith('COL_')) tris += o.geometry.index.count / 3; });
     assert.ok(tris < cap, `${asset} tris ${tris} over ${cap}`);
   }
+});
+
+test('the Sheet-03 GLBs expose the exact stock-landing counts from the reference sheet', async () => {
+  const kit = await kitPromise;
+  const expected = {
+    apparel_wall_display: { DISPLAY_ARM_SLOT_: 8, DISPLAY_BASE_SLOT_: 4 },
+    hat_wall: { HAT_PEG_SLOT_: 16 },
+    accessory_slatwall: { ACC_PRODUCT_SLOT_: 12, ACC_HOOK_SLOT_: 6, ACC_SHELF_SLOT_: 3 },
+    club_rack: { CLUB_SLOT_: 10 },
+    putter_rack: { PUTTER_SLOT_: 10 },
+    bag_display: { BAG_SLOT_: 5 },
+    shoe_wall: { SHOE_SLOT_: 6, SHOEBOX_SLOT_: 3 },
+    ball_shelf: { BALL_SLOT_: 15 },
+    snack_shelf: { DRINK_SLOT_: 14, SNACK_SLOT_: 10 },
+    rangefinder_display: { RF_SLOT_: 6 },
+  };
+  for (const [asset, prefixes] of Object.entries(expected)) {
+    const n = names((await kit.get(asset)).scene);
+    for (const [prefix, count] of Object.entries(prefixes)) {
+      assert.equal([...n].filter((name) => name.startsWith(prefix)).length, count,
+        `${asset} ${prefix} count`);
+    }
+  }
+
+  const clubNames = names((await kit.get('club_rack')).scene);
+  assert.ok(![...clubNames].some((name) => /^CLUB_SLOT_[FR]/.test(name)), 'single-rank club rack has no legacy F/R sockets');
+
+  const rangefinder = (await kit.get('rangefinder_display')).scene.getObjectByName('rangefinder_display');
+  assert.deepEqual(rangefinder.userData.target_dimensions_m, [0.60, 0.35, 0.60],
+    'Asset 30 metadata is width, depth, height');
 });
 
 test('the club rack seats a full-length driver: comb rail under the head, grip in the trough', async () => {
@@ -389,13 +462,13 @@ test('the club rack seats a full-length driver: comb rail under the head, grip i
   let slot = null;
   let railTop = null;
   scene.traverse((o) => {
-    if (o.name === 'CLUB_SLOT_F05') slot = o.getWorldPosition(new THREE.Vector3());
-    if (o.name === 'Head_Tooth_F04') {
+    if (o.name === 'CLUB_SLOT_05') slot = o.getWorldPosition(new THREE.Vector3());
+    if (o.name === 'Head_Tooth_04') {
       const box = new THREE.Box3().setFromObject(o);
       railTop = box.max.y;
     }
   });
-  assert.ok(slot, 'centre front slot exists');
+  assert.ok(slot, 'centre slot exists');
   assert.ok(railTop !== null, 'comb tooth exists');
   // fixtureSlots stands a 1.05 shaft in the 0.055 trough: head pivot 1.105.
   // The head hangs 0.087 below its pivot, so it must SEAT on the comb: rail
@@ -452,7 +525,7 @@ test('the Sheet-04 furniture exposes its parts, sockets, envelopes and budgets',
   }
 });
 
-test('the apparel table top carries both polo lanes: eight clear stack positions', async () => {
+test('the apparel table top carries the polo1 lane: eight clear stack positions', async () => {
   const kit = await kitPromise;
   const scene = (await kit.get('apparel_table')).scene;
   scene.updateMatrixWorld(true);
@@ -473,15 +546,27 @@ test('the apparel table top carries both polo lanes: eight clear stack positions
   }
   // and the fixtureSlots poses must match the sockets this table authors
   const { slotsFor } = await import('../src/data/fixtureSlots.js');
-  for (const lane of ['polo1', 'polo2']) {
-    const poses = slotsFor(lane);
-    assert.equal(poses.length, 12, `${lane} keeps its capacity of 12`);
-    for (const pose of poses) {
-      assert.ok(pose.folded, `${lane} pose is folded`);
-      const hit = slots.some((p) => Math.abs(p.x - pose.x) < 0.03 && Math.abs(Math.abs(p.z) - Math.abs(pose.z)) < 0.03);
-      assert.ok(hit, `${lane} pose (${pose.x}, ${pose.z}) lands on an authored socket`);
-      assert.ok(pose.y >= 0.80 && pose.y <= 0.92, `${lane} stack height ${pose.y}`);
-    }
+  const poses = slotsFor('polo1');
+  assert.equal(poses.length, 12, 'polo1 keeps its capacity of 12');
+  for (const pose of poses) {
+    assert.ok(pose.folded, 'polo1 pose is folded');
+    const hit = slots.some((p) => Math.abs(p.x - pose.x) < 0.03 && Math.abs(Math.abs(p.z) - Math.abs(pose.z)) < 0.03);
+    assert.ok(hit, `polo1 pose (${pose.x}, ${pose.z}) lands on an authored socket`);
+    assert.ok(pose.y >= 0.80 && pose.y <= 0.92, `polo1 stack height ${pose.y}`);
+  }
+});
+
+test('the apparel wall display carries polo2 on eight arms and four folded sockets', async () => {
+  const kit = await kitPromise;
+  const scene = (await kit.get('apparel_wall_display')).scene;
+  const n = names(scene);
+  const poses = slotsFor('polo2');
+  assert.equal(poses.length, 12, 'polo2 capacity matches its twelve authored landings');
+  assert.equal(poses.filter((pose) => !pose.folded).length, 8, 'eight hanging polos');
+  assert.equal(poses.filter((pose) => pose.folded).length, 4, 'four folded polos');
+  for (const pose of poses) {
+    assert.ok(pose.socketName, 'every polo2 pose resolves an authored node');
+    assert.ok(n.has(pose.socketName), `apparel wall missing ${pose.socketName}`);
   }
 });
 
