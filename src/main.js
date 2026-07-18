@@ -11,7 +11,7 @@ import {
 } from './sim/empire.js';
 import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
 import { formatMoney } from './core/utils.js';
-import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS } from './core/heldKeys.js';
+import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS, isTextEntryTarget } from './core/heldKeys.js';
 import { calendarOf } from './sim/time.js';
 import { el, toast, modal } from './ui/ui.js';
 import { makeHud } from './ui/hud.js';
@@ -1503,7 +1503,11 @@ window.addEventListener('keydown', (e) => {
 // held-key camera movement. The set is normalised and repeat-safe (see core/heldKeys.js) —
 // a key released mid-run used to strand its shifted spelling here and pan the map forever.
 const held = createHeldKeys(OVERVIEW_KEYS);
-window.addEventListener('keydown', (e) => held.down(e.key, e.repeat));
+window.addEventListener('keydown', (e) => {
+  // text typed into a field is not camera input (see heldKeys rule 3)
+  if (isTextEntryTarget(e.target)) return;
+  held.down(e.key, e.repeat);
+});
 window.addEventListener('keyup', (e) => held.up(e.key));
 window.addEventListener('blur', () => {
   resetCameraInput();
@@ -1536,6 +1540,11 @@ function keyboardCamera(dtMs) {
   if (app.courseMode !== 'overview' && !(editorActive() && !editorUi.isPlaytesting())) return;
   const { panX, panY, orbit, moving } = overviewCameraDelta(held, dtMs);
   if (moving) {
+    // Hand-driving the camera has to retire the active preset, exactly as every
+    // editor-side camera write already does. Without this the preset survives,
+    // and the next resize() re-applies it (frameCourse / frameHole / flyover) —
+    // so the view snaps back to where it was before the player panned.
+    app.scene3d.clearCourseCameraPreset?.();
     if (panX || panY) app.scene3d.rig.pan(-panX, -panY, canvas.clientHeight || window.innerHeight);
     if (orbit) app.scene3d.rig.orbit(orbit, 0);
   }
