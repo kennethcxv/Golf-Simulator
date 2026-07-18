@@ -25,12 +25,12 @@ function assertDeepFrozen(value, path = 'value') {
   for (const [key, child] of Object.entries(value)) assertDeepFrozen(child, `${path}.${key}`);
 }
 
-test('the contract covers every current catalog SKU and only the two planned provisions SKUs', () => {
+test('the contract covers every current catalog SKU with no planned-only provisions SKUs', () => {
   const current = SHOP_CATALOG.map((sku) => sku.id).sort();
   const expected = [...current, ...PLANNED_PACKAGING_SKU_IDS].sort();
 
-  assert.equal(SHOP_CATALOG.length, 32, 'catalog audit count did not silently change');
-  assert.deepEqual(PLANNED_PACKAGING_SKU_IDS, ['water1', 'snack1']);
+  assert.equal(SHOP_CATALOG.length, 34, 'catalog audit count did not silently change');
+  assert.deepEqual(PLANNED_PACKAGING_SKU_IDS, []);
   assert.deepEqual(PRODUCT_PACKAGING_SKU_IDS, expected);
   assert.equal(new Set(PRODUCT_PACKAGING_SKU_IDS).size, PRODUCT_PACKAGING_SKU_IDS.length);
   assert.equal(validateProductPackagingCatalog(PRODUCT_PACKAGING, expected), true);

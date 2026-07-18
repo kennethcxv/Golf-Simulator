@@ -68,7 +68,7 @@ export const WINDOW_DIM = { w: 2.4, h: 1.9, sill: 0.85 };
 export const FIXTURE_HALF = {
   shelf: [1.6, 0.35], rack: [1.5, 0.45], table: [1.2, 0.8], hatstand: [0.4, 0.4],
   bagstand: [1.3, 0.75], shoerack: [1.3, 0.4], feature: [0.9, 0.9], backshelf: [1.4, 0.45],
-  rail: [1.1, 0.45], backcounter: [1.6, 0.3],
+  rail: [1.1, 0.45], backcounter: [1.6, 0.3], snackrack: [0.53, 0.25],
 };
 
 export function fixtureRect(f) {
@@ -216,7 +216,7 @@ export const HOURS_SIGN = { x: 1.1, z: 6.77 };         // beside the door, on th
 
 // --- retail fixtures ----------------------------------------------------------------
 // kind: shelf | rack | table | rail | hatstand | bagstand | shoerack | feature
-//     | backcounter | backshelf
+//     | snackrack | backcounter | backshelf
 export const FIXTURES = [
   // the club wall — one architectural run down the west wall (refs 1/5)
   { id: 'rack_drivers', kind: 'rack', x: -9.9, z: -3.2, ry: Math.PI / 2, skus: ['driver1', 'driver2', 'driver3'], title: 'Drivers & woods', zone: 'clubwall' },
@@ -233,6 +233,8 @@ export const FIXTURES = [
   // bag & shoe fitting, against the service partition (ref 7)
   { id: 'bagstand', kind: 'bagstand', x: 2.2, z: -2.6, ry: 0, skus: ['bag1'], title: 'Bag platforms', zone: 'bags' },
   { id: 'shoerack', kind: 'shoerack', x: 5.1, z: -0.6, ry: -Math.PI / 2, skus: ['shoe1'], title: 'Shoe wall', zone: 'shoes' },
+  // existing authored Sheet-03 grab-and-go shelf between the south windows
+  { id: 'snackrack', kind: 'snackrack', x: -6.6, z: 6.02, ry: Math.PI, skus: ['water1', 'snack1'], title: 'Grab & Go', zone: 'provisions' },
   // entrance feature display (shows whatever category is featured)
   { id: 'feature', kind: 'feature', x: -3.2, z: 3.8, ry: 0, skus: [], title: 'Feature display', zone: 'entrance' },
   // checkout back-counter: wordmark wall, cabinets, bag stack (ref 4)

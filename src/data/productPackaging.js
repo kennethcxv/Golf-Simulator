@@ -288,7 +288,7 @@ export const PRODUCT_PACKAGING = deepFreeze(Object.fromEntries(
   PRODUCT_SPECS.map((entry) => [entry.skuId, entry]),
 ));
 
-export const PLANNED_PACKAGING_SKU_IDS = Object.freeze(['water1', 'snack1']);
+export const PLANNED_PACKAGING_SKU_IDS = Object.freeze([]);
 export const PRODUCT_PACKAGING_SKU_IDS = Object.freeze(Object.keys(PRODUCT_PACKAGING).sort());
 
 const PRODUCT_BY_ID = new Map(Object.entries(PRODUCT_PACKAGING));

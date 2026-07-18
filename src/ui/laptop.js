@@ -62,10 +62,10 @@ import {
 
 const CAT_LABEL = {
   clubs: 'Clubs', balls: 'Golf balls', apparel: 'Apparel', accessories: 'Accessories',
-  supplies: 'Shop supplies', decor: 'Decor & fixtures',
+  provisions: 'Drinks & snacks', supplies: 'Shop supplies', decor: 'Decor & fixtures',
 };
 const CAT_ICON = {
-  clubs: '🏌', balls: '🥎', apparel: '👕', accessories: '🧢', supplies: '🧹', decor: '🪴',
+  clubs: '🏌', balls: '🥎', apparel: '👕', accessories: '🧢', provisions: '🥤', supplies: '🧹', decor: '🪴',
 };
 const ROLE_LABEL = {
   groundskeeper: 'Groundskeeper', instructor: 'Teaching pro', fnb: 'Grill room', proshop: 'Pro shop',
@@ -967,7 +967,7 @@ export function makeLaptop(app, opts) {
     const total = Math.round((goods + freight) * 100) / 100;
     const affordable = total <= cashOf();
 
-    const cats = ['balls', 'clubs', 'apparel', 'accessories', 'supplies', 'decor'];
+    const cats = ['balls', 'clubs', 'apparel', 'accessories', 'provisions', 'supplies', 'decor'];
     const catBar = el('div', { class: 'lt-tabs' },
       el('button', { class: `lt-tab ${ss.cat === 'all' ? 'on' : ''}`, text: 'All', onclick: () => { ss.cat = 'all'; click(); render(); } }),
       ...cats.map((c) => el('button', {
@@ -1052,7 +1052,7 @@ export function makeLaptop(app, opts) {
     const ratings = clubRatings(st);
     const fair = fairGreenFee(ratings.overall, st.club.amenities ? Object.values(st.club.amenities).reduce((a, v) => a + v, 0) : 0);
 
-    const markups = ['clubs', 'balls', 'apparel', 'accessories'].map((cat) => {
+    const markups = ['clubs', 'balls', 'apparel', 'accessories', 'provisions'].map((cat) => {
       const val = st.shop.markup[cat] || 1;
       const sample = SHOP_CATALOG.find((s) => s.cat === cat && s.tier <= st.shop.unlockedTier);
       const out = el('span', { class: 'lt-muval' });

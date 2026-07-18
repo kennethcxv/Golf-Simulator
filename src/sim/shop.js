@@ -117,6 +117,10 @@ export function ensureShopReno(state) {
   for (const sku of SHOP_CATALOG) {
     if (!state.shop.inventory[sku.id]) state.shop.inventory[sku.id] = { shelf: 0, back: 0 };
   }
+  // Provisions joined the sellable catalog after launch. Preserve every
+  // existing category setting while giving older saves a valid base markup.
+  if (!state.shop.markup || typeof state.shop.markup !== 'object') state.shop.markup = {};
+  if (!Number.isFinite(state.shop.markup.provisions)) state.shop.markup.provisions = 1.0;
   ensureDeliveries(state); // physical-retail block (2026-07-13)
 
   // EXTERIOR NEGLECT (2026-07-14 stabilization P2): pre-exterior saves gain the
@@ -318,7 +322,7 @@ export function initShop(state) {
     inventory,
     orders: [],
     nextOrderId: 1,
-    markup: { clubs: 1.0, balls: 1.0, apparel: 1.0, accessories: 1.0 },
+    markup: { clubs: 1.0, balls: 1.0, apparel: 1.0, accessories: 1.0, provisions: 1.0 },
     featureCategory: 'balls', // the front table the player merchandises
     rentalFleet: { sets: 3, condition: 55, pricePerRound: 18 },
     deliveries: { boxes: [], nextBoxId: 1, trash: 0, recycled: 0, shipments: [] },
@@ -661,6 +665,7 @@ export function demandWeight(cat, seasonIndex) {
     clubs: [1.0, 1.1, 0.8, 0.4],
     apparel: [0.9, 0.8, 1.05, 1.35],
     accessories: [1.0, 1.0, 0.95, 0.6],
+    provisions: [1.05, 1.35, 0.95, 0.55],
   };
   return table[cat][seasonIndex];
 }
@@ -712,14 +717,16 @@ export function shopDailyAccrual(state) {
     // what did they come in wanting?
     const catRoll = rng.next();
     let cat;
-    const wBalls = 0.44 * demandWeight('balls', seasonIndex);
-    const wAcc = 0.2 * demandWeight('accessories', seasonIndex);
-    const wApp = 0.24 * demandWeight('apparel', seasonIndex);
-    const wClubs = 0.12 * demandWeight('clubs', seasonIndex);
-    const total = wBalls + wAcc + wApp + wClubs;
+    const wBalls = 0.38 * demandWeight('balls', seasonIndex);
+    const wAcc = 0.18 * demandWeight('accessories', seasonIndex);
+    const wApp = 0.20 * demandWeight('apparel', seasonIndex);
+    const wClubs = 0.11 * demandWeight('clubs', seasonIndex);
+    const wProvisions = 0.13 * demandWeight('provisions', seasonIndex);
+    const total = wBalls + wAcc + wApp + wClubs + wProvisions;
     if (catRoll < wBalls / total) cat = 'balls';
     else if (catRoll < (wBalls + wAcc) / total) cat = 'accessories';
     else if (catRoll < (wBalls + wAcc + wApp) / total) cat = 'apparel';
+    else if (catRoll < (wBalls + wAcc + wApp + wProvisions) / total) cat = 'provisions';
     else cat = 'clubs';
 
     // the feature table nudges attention toward what you merchandise
@@ -741,12 +748,13 @@ export function shopDailyAccrual(state) {
     const pickIdx = clamp(Math.floor((wealth - 1 + rng.next()) / 4 * options.length), 0, options.length - 1);
     const sku = options[pickIdx];
 
-    let accept = priceAcceptance(shop.markup[cat], wealth, sku.tier);
+    const markup = Number.isFinite(shop.markup[cat]) ? shop.markup[cat] : 1.0;
+    let accept = priceAcceptance(markup, wealth, sku.tier);
     if (cat === 'clubs') accept *= proOnFloor ? 0.55 + floorSkill * 0.14 : 0.3; // big tickets need help
     else if (proOnFloor) accept *= 1 + floorSkill * 0.03;
 
     if (rng.chance(clamp(accept, 0, 0.97))) {
-      const price = priceFor(sku, shop.markup[cat], member ? member.memberTier : null);
+      const price = priceFor(sku, markup, member ? member.memberTier : null);
       revenue += price;
       units++;
       recordSale(state, sku.id);

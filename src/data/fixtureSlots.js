@@ -29,6 +29,31 @@ const SHOE_ROWS = [0.62, 1.02, 1.42];      // shoe_wall display boards (angled -
 const HAT_ROWS = [0.62, 1.02, 1.42, 1.82]; // hat_wall peg rows
 const CLUB_SLOT_XS = Array.from({ length: 9 }, (_, k) => (k - 4) * 0.1125); // club_rack comb
 
+// The snack_shelf GLB authors named sockets for every sellable unit. Keep the
+// exact node translations and names here so capacity, stocking, and the future
+// runtime renderer all share the physical shelf contract.
+function authoredSnackrackSlots(prefix, xs, rows, z) {
+  return Object.freeze(rows.flatMap((y, row) => xs.map((x, col) => Object.freeze({
+    socket: `${prefix}_${String(row * xs.length + col + 1).padStart(2, '0')}`,
+    x, y, z, ry: 0,
+  }))));
+}
+
+export const SNACKRACK_AUTHORED_SLOTS = Object.freeze({
+  water1: authoredSnackrackSlots(
+    'DRINK_SLOT',
+    [-0.39, -0.26, -0.13, 0, 0.13, 0.26, 0.39],
+    [0.174, 0.594],
+    0.055,
+  ),
+  snack1: authoredSnackrackSlots(
+    'SNACK_SLOT',
+    [-0.35, -0.175, 0, 0.175, 0.35],
+    [0.994, 1.314],
+    0.03,
+  ),
+});
+
 // --- who lives where ------------------------------------------------------------------------
 const HOME = new Map();
 for (const f of FIXTURES) {
@@ -283,6 +308,10 @@ const BUILD = {
 
   // bags
   bag1: () => bagPlinth(4),
+
+  // authored grab-and-go sockets: fourteen bottles and ten snack pouches
+  water1: () => SNACKRACK_AUTHORED_SLOTS.water1,
+  snack1: () => SNACKRACK_AUTHORED_SLOTS.snack1,
 };
 
 const CACHE = new Map();

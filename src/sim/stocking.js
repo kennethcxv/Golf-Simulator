@@ -26,6 +26,7 @@ const ARMFUL_CAT = {
   // half, low and empty states while remaining a believable two-hand bundle.
   apparel: 2,
   accessories: 8,
+  provisions: 8,
   supplies: 1,
   decor: 1,
 };
@@ -36,6 +37,8 @@ const ARMFUL_ID = {
   range2: 4,
   umb1: 4,
   jacket2: 4,
+  water1: 6,
+  snack1: 12,
 };
 
 export function armfulOf(sku) {
