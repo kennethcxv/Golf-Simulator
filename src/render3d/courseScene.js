@@ -1834,7 +1834,7 @@ export function makeCourseScene(canvas, state) {
       const wx = (s.x + s.w / 2) * CELL_YD - worldW / 2;
       const wz = (s.y + s.h / 2) * CELL_YD - worldH / 2;
       clubhouseApi = makeClubhouse({
-        scene, camera, state,
+        scene, camera, renderer, state,
         center: { x: wx, z: wz },
         heightAt, walkProps, propColliders, walk,
         hooks: walkHooks,
@@ -4240,6 +4240,11 @@ export function makeCourseScene(canvas, state) {
     const step = (label) => { if (onStep) onStep(label); };
     step('Loading models');
     await whenAssetsIdle(8000);
+    // DefaultLoadingManager deliberately fails open after eight seconds. Give
+    // checkout's exact cash prototypes their own bounded readiness handshake so
+    // a slow local GLB decode cannot turn an empty representative root into a
+    // false-success warm-up and permanently defer the cost to first tender.
+    await clubhouseApi?.register?.waitForCashGpuPrewarmRepresentatives?.(12000);
     await tick();
     step('Compiling shaders');
     await tick();
@@ -4283,6 +4288,10 @@ export function makeCourseScene(canvas, state) {
       try { composer.render(); } catch (e) { renderer.render(scene, camera); }
       await tick();
     }
+    // These exact cash representatives exist only so the forced warm-up draw
+    // realizes checkout geometry and materials behind the opaque loading veil.
+    // Keep GPU residency, but remove their scene nodes before player control.
+    clubhouseApi?.register?.releaseCashGpuPrewarmRepresentatives?.({ drawn: true });
   }
 
   return {

@@ -17,9 +17,9 @@ export function cardHandoffPose(customer, counterTop) {
   // between the extended card and the customer's torso so both read, with the
   // eye high on the staff side to keep the upper body in frame
   return {
-    eye: { x: cx + 0.30, y: 1.66, z: 4.98 },
-    look: { x: cx, y: counterTop + 0.26, z: 3.66 },
-    fov: 50,
+    eye: { x: cx + 0.26, y: 1.62, z: 4.90 },
+    look: { x: cx, y: counterTop + 0.29, z: 3.64 },
+    fov: 46,
   };
 }
 
@@ -28,8 +28,8 @@ export function cardHandoffPose(customer, counterTop) {
 // has to lift, float, or detach from its authored station.
 export function cardTerminalPose(station, counterTop) {
   return {
-    eye: { x: station.x + 0.02, y: counterTop + 0.34, z: station.z + 0.92 },
+    eye: { x: station.x + 0.01, y: counterTop + 0.27, z: station.z + 0.55 },
     look: { x: station.x, y: counterTop + 0.07, z: station.z },
-    fov: 40,
+    fov: 32,
   };
 }

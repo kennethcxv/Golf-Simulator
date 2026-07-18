@@ -1215,11 +1215,55 @@ export function buildCheckout(B) {
       // Blender-authored at 3.10 m wide, 0.992 m deep, with the worktop at
       // 1.015 m. Preserve that near-real-world shape while fitting the layout.
       counter.scale.set(COUNTER.len / 3.10, COUNTER_TOP / 1.015, COUNTER.depth / 0.992);
+      // The authored staging tray supersedes this old flat inlay. Keep the
+      // fallback counter untouched; only the known production node is hidden.
+      const obsoleteStagingInlay = counter.getObjectByName('StagingInlay');
+      if (obsoleteStagingInlay) obsoleteStagingInlay.visible = false;
     } else {
       counter.scale.set(COUNTER.len / 2.6, COUNTER_TOP / 0.95, COUNTER.depth / 0.85);
     }
     counter.position.set(COUNTER.x, 0, COUNTER.z);
-    interior.add(counter);
+    // The counter and its two task trays are static after construction. Build
+    // them under an unattached, identity-space root so merch.bake() can collapse
+    // their many authored submeshes without baking the clubhouse transform into
+    // the output (which would be applied a second time when added to interior).
+    const staticCheckoutIsland = new THREE.Group();
+    staticCheckoutIsland.add(counter);
+
+    // Two authored, counter-integrated task surfaces turn the broad worktop
+    // into an intentional production line. Their dimensions are generated in
+    // metres by build_checkout_assets.py and their centres come from the same
+    // tested REGISTER layout that owns product and change choreography.
+    const stagingTray = merch.instantiate && merch.instantiate('checkout_product_staging_tray');
+    if (stagingTray) {
+      stagingTray.position.set(
+        (REGISTER.staging.minX + REGISTER.staging.maxX) / 2,
+        COUNTER_TOP + 0.001,
+        (REGISTER.staging.minZ + REGISTER.staging.maxZ) / 2,
+      );
+      staticCheckoutIsland.add(stagingTray);
+    }
+    const changeTray = merch.instantiate && merch.instantiate('checkout_change_handoff_tray');
+    if (changeTray) {
+      changeTray.position.set(
+        REGISTER.changeHandoff.x,
+        COUNTER_TOP + 0.001,
+        REGISTER.changeHandoff.z,
+      );
+      staticCheckoutIsland.add(changeTray);
+    }
+
+    const checkoutIslandVisual = merch.bake
+      ? merch.bake(staticCheckoutIsland, { visibleOnly: true })
+      : staticCheckoutIsland;
+    checkoutIslandVisual.name = 'CheckoutIslandStaticVisual';
+    // instantiate() deliberately makes these authored surfaces cast-only. The
+    // generic stock batcher enables receiving for shelves, so restore the exact
+    // checkout render state after batching instead of changing its lighting.
+    checkoutIslandVisual.traverse((object) => {
+      if (object.isMesh) object.receiveShadow = false;
+    });
+    interior.add(checkoutIslandVisual);
     releaseReplacedFixture(legacyCounter, mats, merch);
   });
 

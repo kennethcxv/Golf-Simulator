@@ -93,6 +93,27 @@ export function createSequentialPlacement(items) {
   return { uids, index: 0, activeUid: null, elapsed: 0, complete: uids.length === 0 };
 }
 
+// Rebuild a timed-out placement from durable item facts only. A placed flag is
+// a checkpoint only when it has the authored counter pose that can restore its
+// mesh; an interrupted item (placedAt assigned, placed still false) remains in
+// the sequential work list. UID de-duplication matches the normal controller.
+export function createSequentialPlacementRecovery(items) {
+  const seen = new Set();
+  const placedUids = [];
+  const unplacedItems = [];
+  for (const item of items || []) {
+    if (!item || item.uid == null || seen.has(item.uid)) continue;
+    seen.add(item.uid);
+    if (item.placed === true && item.placedAt) placedUids.push(item.uid);
+    else unplacedItems.push(item);
+  }
+  return {
+    placedUids,
+    unplacedUids: unplacedItems.map((item) => item.uid),
+    placement: createSequentialPlacement(unplacedItems),
+  };
+}
+
 // At most one product can start OR finish placement in one call. Even a long frame
 // cannot teleport the rest of the order onto the counter behind the player's back.
 export function stepSequentialPlacement(state, dt, duration = PRODUCT_PLACE_SECONDS) {

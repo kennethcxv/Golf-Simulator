@@ -53,6 +53,9 @@ import {
   NOTIF_KINDS, ensureNotifications, unreadCount, markRead, markAllRead,
 } from '../sim/notifications.js';
 import { currentStep } from '../sim/tutorial.js';
+import {
+  checkoutPreferences, setCheckoutPreference,
+} from '../sim/checkoutPreferences.js';
 import { holePar, holeDistanceYd } from '../sim/course.js';
 import { capacityOf } from '../data/fixtureSlots.js';
 import { ZONE, HOLE_STATUS } from '../sim/constants.js';
@@ -1770,6 +1773,7 @@ export function makeLaptop(app, opts) {
   function pageSettings() {
     const st = app.state;
     const prefs = prefsOf();
+    const checkoutPrefs = checkoutPreferences(st);
 
     const checkRow = (label, detail, checked, onchange) => el('label', { class: 'lt-row' },
       el('input', { type: 'checkbox', class: 'lt-check', checked: checked ? 'checked' : undefined, onchange }),
@@ -1823,11 +1827,6 @@ export function makeLaptop(app, opts) {
           (e) => { prefs.notifBadge = !!e.target.checked; toast(prefs.notifBadge ? 'Badge on.' : 'Badge hidden — the bell still keeps the list.'); render(); }),
         checkRow('Confirm every purchase', 'When off, stock orders under $100 skip the confirmation step.', prefs.confirmOrders !== false,
           (e) => { prefs.confirmOrders = !!e.target.checked; toast(prefs.confirmOrders ? 'Every order asks first.' : 'Small orders go straight through.'); }),
-        checkRow('Simplified checkout', 'The register still opens and you still scan and bag — but change is counted for you.', !!st.shop.simpleCheckout,
-          (e) => {
-            st.shop.simpleCheckout = !!e.target.checked;
-            toast(st.shop.simpleCheckout ? 'Checkout simplified.' : 'Checkout is fully manual again.');
-          }),
         row(el('span', { class: 'lt-mulabel', text: 'Club name' }),
           el('input', {
             class: 'lt-input', type: 'text', value: st.clubName || '',
@@ -1841,6 +1840,34 @@ export function makeLaptop(app, opts) {
           })),
         row(el('span', { class: 'lt-mulabel', text: 'Hours' }),
           meta(`Shop ${hour12(SHOP_OPEN_MIN)}–${hour12(SHOP_CLOSE_MIN)} · tee times ${hour12(TEE_SHEET.openMin)}–${hour12(TEE_SHEET.closeMin)} · autosave nightly`)),
+      ),
+      card(
+        el('div', { class: 'lt-minihead', text: 'Checkout accessibility' }),
+        checkRow('Larger POS text and targets', 'Enlarges register copy and the safe click area around products, payment, and monitor controls.', checkoutPrefs.largeTextAndTargets,
+          (e) => {
+            setCheckoutPreference(st, 'largeTextAndTargets', !!e.target.checked);
+            toast(e.target.checked ? 'Checkout text and targets enlarged.' : 'Checkout text and targets use standard size.');
+          }),
+        checkRow('Reduced checkout camera motion', 'Uses stable camera cuts and disables cursor-driven head sway at the register.', checkoutPrefs.reducedCameraMotion,
+          (e) => {
+            setCheckoutPreference(st, 'reducedCameraMotion', !!e.target.checked);
+            toast(e.target.checked ? 'Checkout camera motion reduced.' : 'Checkout camera easing restored.');
+          }),
+        checkRow('Faster checkout animations', 'Shortens product, payment, drawer, receipt, and handoff choreography without skipping steps.', checkoutPrefs.fasterAnimations,
+          (e) => {
+            setCheckoutPreference(st, 'fasterAnimations', !!e.target.checked);
+            toast(e.target.checked ? 'Checkout animations accelerated.' : 'Checkout animations use standard timing.');
+          }),
+        checkRow('Automatic exact change', 'Counts the fewest exact pieces the current drawer can safely provide; Undo and Clear still work.', checkoutPrefs.automaticExactChange,
+          (e) => {
+            setCheckoutPreference(st, 'automaticExactChange', !!e.target.checked);
+            toast(e.target.checked ? 'Exact-change assistance on.' : 'Change selection is manual.');
+          }),
+        checkRow('Confirm cash purchases', 'When off, exact change hands over automatically. Card purchases still require the reader’s one Confirm.', checkoutPrefs.confirmCashPurchase,
+          (e) => {
+            setCheckoutPreference(st, 'confirmCashPurchase', !!e.target.checked);
+            toast(e.target.checked ? 'Exact cash waits for Done.' : 'Exact cash hands over automatically.');
+          }),
       ),
       row(el('span', { class: 'lt-headspace' }), primaryBtn('Close Laptop', () => opts.close())),
     );

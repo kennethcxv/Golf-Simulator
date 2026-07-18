@@ -9,25 +9,16 @@ const carryPoint = new THREE.Vector3();
 
 export function syncPaidBagCarry(customer, dt = 0) {
   if (!customer || !customer.mesh || !customer.bagCarryRoot || !customer.bagCarryTarget) return false;
-  if (customer.bagAcceptanceHold > 0) {
-    // Hold the purchased bag centered against the customer's torso for
-    // the ownership beat. The counter otherwise hides a side-hung bag almost
-    // completely from the cashier camera, even though it is correctly attached.
-    // The cashier POS occupies the customer's visual center. Keep the bag at
-    // their receiving hand so the branded face clears the monitor on camera.
-    carryPoint.set(0.40, 1.40, 0.46);
-  } else {
-    customer.bagCarryTarget.getWorldPosition(carryPoint);
-    customer.mesh.worldToLocal(carryPoint);
-  }
+  // The authored handoff socket must remain physically at the receiving palm
+  // during both the acceptance beat and departure. A fixed torso showcase pose
+  // left the handle roughly 20 cm above/behind the hand in ReceiveBag.
+  customer.bagCarryTarget.getWorldPosition(carryPoint);
+  customer.mesh.worldToLocal(carryPoint);
 
-  if (dt > 0) {
-    // When the hold ends, ease the bag from the two-hand acceptance pose to the
-    // walking hand instead of popping sideways on the first departure frame.
-    customer.bagCarryRoot.position.lerp(carryPoint, 1 - Math.exp(-dt * 7));
-  } else {
-    customer.bagCarryRoot.position.copy(carryPoint);
-  }
+  // The character rig owns the short ReceiveBag -> WalkBag easing. Copying the
+  // resulting grip exactly keeps the handle in the palm instead of introducing
+  // a second spring that visibly trails the hand.
+  customer.bagCarryRoot.position.copy(carryPoint);
   return true;
 }
 

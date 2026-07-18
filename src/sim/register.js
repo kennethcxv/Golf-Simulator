@@ -19,12 +19,12 @@ import { recordSale } from './shop.js';
 // denominations down through the penny, so cash and card share one exact total.
 
 export const BILLS = [50, 20, 10, 5, 1];
-export const COINS = [0.5, 0.25, 0.1, 0.05, 0.01];
+export const COINS = [0.5, 0.2, 0.1, 0.05, 0.01];
 export const DENOMS = [...BILLS, ...COINS];
 
 const cents = (v) => Math.round(v * 100);
 const dollars = (c) => c / 100;
-const DENOM_CENTS = DENOMS.map(cents); // [5000, 2000, 1000, 500, 100, 25, 10, 5]
+const DENOM_CENTS = DENOMS.map(cents);
 
 export function roundCash(v) {
   return dollars(cents(v));
@@ -140,6 +140,7 @@ export function createTx({ items = [], mode = 'relaxed', discount = 0, rng = Mat
     cardEntryError: null,
     // cash
     tendered: null,       // the pieces the customer physically handed over
+    acceptedTender: null, // immutable transaction-local checkpoint for visual recovery
     tenderedTotal: null,  // ...and what they were worth, before they get put away
     drawerOpen: false,
     deposited: false,   // the tendered cash has been put away in the till
@@ -318,6 +319,30 @@ export function submitCardAmount(tx) {
   return { ok: true, amount: dollars(enteredCents) };
 }
 
+// A renderer watchdog may lose an in-flight terminal animation before runCard()
+// has produced an authorization result. Roll that unresolved request back to a
+// fresh physical presentation without inventing an approval/decline or changing
+// attempt counters. This is deliberately unavailable after a result lands.
+export function recoverUnresolvedCardAuthorization(tx) {
+  if (!tx || tx.stage !== 'card-busy') {
+    return { ok: false, reason: 'No unresolved card authorization to recover.' };
+  }
+  if (tx.cardResult === 'approved') {
+    return { ok: false, reason: 'An approved card cannot be rolled back.' };
+  }
+  tx.cardResult = null;
+  tx.cardEntryCents = 0;
+  tx.cardEntryDigits = '';
+  tx.cardEntryError = null;
+  tx.stage = 'card-present';
+  return {
+    ok: true,
+    stage: tx.stage,
+    cardAttempts: tx.cardAttempts,
+    cardsTried: tx.cardsTried,
+  };
+}
+
 export function runCard(tx, { timeout = false, force = null } = {}) {
   if (tx.stage !== 'card-busy') {
     return { ok: false, reason: tx.stage === 'card-declined' ? 'Declined — they need another card.' : 'No card presented.' };
@@ -415,7 +440,7 @@ export function newDrawer() {
     5: 10,
     1: 25,
     0.5: 16,
-    0.25: 20,
+    0.2: 25,
     0.1: 20,
     0.05: 20,
     0.01: 50,
@@ -472,12 +497,27 @@ export function makeChangeFrom(drawer, amount) {
   return best[target] ? best[target].stack : null;
 }
 
+// Asset Sheet 02 defines a 20-unit coin, while early saves used an out-of-
+// contract 25-unit coin.  One legacy quarter is exactly one 20-unit coin plus
+// one 5-unit coin, so old drawer value can be retained without rounding.  This
+// helper is intentionally exported for save-migration and regression tests.
+export function migrateLegacyQuarterStack(stack) {
+  const out = copyStack(stack);
+  const legacyQuarters = out[0.25] || 0;
+  if (!legacyQuarters) return out;
+  delete out[0.25];
+  out[0.2] = (out[0.2] || 0) + legacyQuarters;
+  out[0.05] = (out[0.05] || 0) + legacyQuarters;
+  return out;
+}
+
 // Pre-cent-accurate saves contain no half-dollars or pennies. Rebalance a small
 // part of that existing float into the new slots without creating or deleting
-// value. The exchange is idempotent and leaves unusually sparse drawers alone
+// value. The exchanges are idempotent and leave unusually sparse drawers alone
 // when their current contents cannot fund the target slot.
 export function migrateDrawer(drawer) {
-  const out = copyStack(drawer);
+  const migrated = migrateLegacyQuarterStack(drawer);
+  const out = { ...migrated };
   const openingCents = cents(stackTotal(out));
   const exchangeInto = (denom, minimumCount) => {
     const have = out[denom] || 0;
@@ -496,7 +536,7 @@ export function migrateDrawer(drawer) {
   };
   exchangeInto(0.01, 50);
   exchangeInto(0.5, 16);
-  return cents(stackTotal(out)) === openingCents ? out : copyStack(drawer);
+  return cents(stackTotal(out)) === openingCents ? out : migrated;
 }
 
 // What they handed over, remembered as a NUMBER — because the pieces themselves are
@@ -512,9 +552,40 @@ export function changeDue(tx) {
 export function acceptCash(tx) {
   if (tx.stage !== 'cash-tender') return { ok: false, reason: 'No cash offered.' };
   if (!tx.tendered || !stackCount(tx.tendered)) return { ok: false, reason: 'They have not counted it out yet.' };
+  tx.acceptedTender = copyStack(tx.tendered);
   tx.tenderedTotal = stackTotal(tx.tendered);
   tx.stage = 'cash-drawer';
   return { ok: true, taken: tx.tenderedTotal };
+}
+
+// Restore the last safe cash checkpoint using only the transaction-local drawer
+// journal. The persistent drawer passed by the caller is copied, never mutated.
+// This lets a visual drawer/deposit/change animation retry without duplicating
+// tender, committing change, or touching the player's books.
+export function recoverCashAcceptedCheckpoint(tx, drawer = {}) {
+  if (!tx || tx.method !== 'cash' || tx.banked || tx.receiptPrinted) {
+    return { ok: false, reason: 'That cash transaction is past the recoverable checkpoint.' };
+  }
+  if (!tx.acceptedTender || !stackCount(tx.acceptedTender)) {
+    return { ok: false, reason: 'The accepted tender checkpoint is missing.' };
+  }
+  const baseline = tx.drawerStart ? copyStack(tx.drawerStart) : copyStack(drawer);
+  tx.tendered = copyStack(tx.acceptedTender);
+  tx.drawerStart = copyStack(baseline);
+  tx.drawerPending = copyStack(baseline);
+  tx.drawerOpen = false;
+  tx.deposited = false;
+  tx.hand = {};
+  tx.changeGiven = null;
+  tx.lost = 0;
+  tx.receiptPacked = false;
+  tx.stage = 'cash-drawer';
+  return {
+    ok: true,
+    stage: tx.stage,
+    tendered: copyStack(tx.tendered),
+    drawer: copyStack(tx.drawerPending),
+  };
 }
 
 export function openDrawer(tx) {
@@ -705,6 +776,7 @@ export function canComplete(tx) {
 export function voidTx(tx) {
   tx.stage = 'voided';
   tx.hand = {};
+  tx.acceptedTender = null;
   tx.drawerOpen = false;
   tx.receiptPacked = false;
   // No persistent drawer entry was touched; discarding the local stacks is the

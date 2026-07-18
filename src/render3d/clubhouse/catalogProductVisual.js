@@ -37,6 +37,9 @@ const VISUALS = {
   range2: visual('rangefinder', { model: 'checkout_product_rangefinder', tier: 3, barcode: 'hang-tag', size: [0.1900, 0.1023, 0.1435] }),
   umb1: visual('umbrella', { model: 'checkout_product_umbrella', tint: 0x315c43, tier: 1, barcode: 'hang-tag', size: [0.8400, 0.1116, 0.1077], grip: 'two-hand', oversize: true }),
   bag1: visual('stand-bag', { model: 'checkout_product_stand_bag', tint: 0x315c43, tier: 2, barcode: 'hang-tag', size: [0.72, 0.25, 0.30], grip: 'two-hand', oversize: true }),
+
+  water1: visual('water-bottle', { model: 'provisions_fairway_spring_water', raw: true, barcode: 'package-back', size: [0.068, 0.218, 0.068] }),
+  snack1: visual('snack-pouch', { model: 'provisions_bunker_bites_chips', raw: true, barcode: 'package-back', size: [0.160, 0.195, 0.0715] }),
 };
 
 function visual(kind, options = {}) {
@@ -105,15 +108,33 @@ function fitAuthored(object, target, rotation = null) {
   return fitted;
 }
 
+function authoredDimensionsMatch(object, target) {
+  if (!object || !Array.isArray(target) || target.length !== 3) return false;
+  const size = visibleBounds(object).getSize(new THREE.Vector3());
+  return ['x', 'y', 'z'].every((axis, index) => {
+    const expected = Number(target[index]);
+    const actual = Number(size[axis]);
+    const tolerance = Math.max(0.0015, expected * 0.01);
+    return Number.isFinite(actual) && Math.abs(actual - expected) <= tolerance;
+  });
+}
+
 function authored(merch, descriptor, { rotation = null, size = descriptor.size } = {}) {
   if (!merch || !descriptor.model || typeof merch.has !== 'function' || !merch.has(descriptor.model)) return null;
   const object = descriptor.raw
     ? merch.instantiateRaw(descriptor.model)
     : merch.instantiate(descriptor.model, { tint: descriptor.tint });
+  if (!object) return null;
+  const metadataRoot = object.getObjectByName(descriptor.model) || object;
+  if (descriptor.raw && metadataRoot.userData?.allow_runtime_scale === false) {
+    if (rotation || (size && !authoredDimensionsMatch(object, size))) return null;
+    object.userData.catalogRuntimeScalePolicy = 'authored-1:1';
+    return object;
+  }
   const authoredRotation = rotation || (descriptor.authoredRotation
     ? { x: descriptor.authoredRotation[0], y: descriptor.authoredRotation[1], z: descriptor.authoredRotation[2] }
     : null);
-  return object && size ? fitAuthored(object, size, authoredRotation) : object;
+  return size ? fitAuthored(object, size, authoredRotation) : object;
 }
 
 function palette(mats, resources) {
@@ -333,6 +354,20 @@ function buildSimpleProduct(root, descriptor, merch, F) {
         }
       }
       break;
+    case 'water-bottle':
+      if (!model) {
+        const bottle = F.add(new THREE.CylinderGeometry(w * 0.42, w * 0.50, h * 0.84, 12), F.materials.white, 'WaterBottleFallback');
+        bottle.position.y = h * 0.44;
+        const cap = F.add(new THREE.CylinderGeometry(w * 0.28, w * 0.28, h * 0.14, 12), F.materials.green, 'WaterCapFallback');
+        cap.position.y = h * 0.93;
+      }
+      break;
+    case 'snack-pouch':
+      if (!model) {
+        const pouch = F.add(new THREE.BoxGeometry(w, h, d), F.materials.green, 'SnackPouchFallback');
+        pouch.position.y = h / 2;
+      }
+      break;
     case 'headcover':
       {
         const hood = F.add(new THREE.CapsuleGeometry(w * 0.34, h * 0.34, 5, 10), F.materials.green, 'HeadcoverHood');
@@ -389,7 +424,8 @@ function makeAnchor(root, descriptor, resources, materials, authoredAnchor = nul
 }
 
 function makeGripAnchors(root, descriptor) {
-  const authoredPrimary = root.getObjectByName('ANCHOR_ProductGripPrimary');
+  const authoredPrimary = root.getObjectByName('ANCHOR_ProductGripPrimary')
+    || root.getObjectByName('PICKUP_TARGET');
   const authoredSecondary = root.getObjectByName('ANCHOR_ProductGripSecondary');
   if (authoredPrimary && (descriptor.gripMode !== 'two-hand' || authoredSecondary)) {
     return { primary: authoredPrimary, secondary: authoredSecondary || null };
@@ -432,7 +468,7 @@ export function buildCatalogProductProxy({ sku, merch = null, mats = null, resou
     descriptor,
     resources,
     materials,
-    root.getObjectByName('ANCHOR_ProductBarcode'),
+    root.getObjectByName('ANCHOR_ProductBarcode') || root.getObjectByName('BARCODE_AREA'),
   );
   const gripAnchors = makeGripAnchors(root, descriptor);
   root.userData.catalogVisual = descriptor;

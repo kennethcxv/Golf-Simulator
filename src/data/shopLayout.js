@@ -193,6 +193,10 @@ export const REGISTER = {
 
   // surfaces
   staging: { minX: 2.05, maxX: 2.80, minZ: 3.78, maxZ: 4.10 },  // customer lays goods out here
+  // Counted change rests in this shallow authored tray before handoff. Keeping
+  // the footprint in the shared layout makes the prop, money, reach tests and
+  // camera composition use one source of truth.
+  changeHandoff: { x: 3.10, z: 4.60, w: 0.38, d: 0.20 },
   // the bag handoff zone: items arc from staging INTO THE BAG at counter-left
   // (click-to-bag) — there is no separate bagging mat any more
   bagging: { minX: 1.84, maxX: 2.24, minZ: 4.30, maxZ: 4.58 },

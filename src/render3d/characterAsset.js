@@ -48,6 +48,7 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   const mCap = cap == null ? null : M(cap, 0.8);
   const mShoe = M(0x33291f, 0.9);
   const mSole = M(0x1c1916, 0.95); // rubber shoe sole, darker than the leather upper
+  const mBelt = M(0x40382f, 0.78);
 
   const root = new THREE.Group();
 
@@ -55,14 +56,33 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   // The whole figure is built so the SHOE SOLES sit at model y≈0: the game places a
   // character's root exactly on the floor/terrain, so a body whose feet were at y≈0.05
   // hovered ~5 cm above the ground. Every base height below is lowered to plant the feet.
-  const pelvis = ellipsoid(0.34, 0.20, 0.22, mKhaki, 0.98);
+  const pelvis = ellipsoid(0.32, 0.18, 0.21, mKhaki, 0.98);
   root.add(pelvis);
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.198, 0.038, 18), mBelt);
+  belt.position.y = 1.055;
+  belt.scale.z = 0.74;
+  belt.castShadow = true;
+  root.add(belt);
 
   const chest = new THREE.Group();
   chest.position.y = 1.07;
   root.add(chest);
-  const torso = capsule(0.18, 0.22, mPolo, 0.26);
-  torso.scale.set(1.28, 1, 0.76);
+  // A smooth revolved shirt profile provides a waist, ribcage and collar slope
+  // without the visibly flat cap of a tapered cylinder.
+  const torso = new THREE.Mesh(new THREE.LatheGeometry([
+    // Close the underside on the axis. Leaving the first ring open exposed
+    // alternating triangle backs as a sawtooth hem in the player camera.
+    new THREE.Vector2(0, -0.061),
+    new THREE.Vector2(0.190, -0.060),
+    new THREE.Vector2(0.202, -0.018),
+    new THREE.Vector2(0.212, 0.035),
+    new THREE.Vector2(0.238, 0.320),
+    new THREE.Vector2(0.226, 0.425),
+    new THREE.Vector2(0.150, 0.492),
+    new THREE.Vector2(0.094, 0.515),
+  ], 24), mPolo);
+  torso.scale.z = 0.72;
+  torso.castShadow = true;
   chest.add(torso);
 
   // --- CONNECTIVE TISSUE ---------------------------------------------------------------------
@@ -81,12 +101,9 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   neck.position.y = 0.47;
   neck.castShadow = true;
   chest.add(neck);
-  // The polo hem, draped over the waistband so the shirt-to-trousers seam is covered.
-  const hem = new THREE.Mesh(new THREE.CylinderGeometry(0.216, 0.198, 0.17, 18), mPolo);
-  hem.scale.set(1, 1, 0.74);
-  hem.position.y = 0.02;
-  hem.castShadow = true;
-  chest.add(hem);
+  // The lathed torso itself now overlaps the waistband. The previous separate
+  // cylinder hem occupied the same surface and produced a dark, jagged
+  // z-fighting seam in every handoff frame.
   // A folded polo collar at the neckline — the fabric detail that turns "blue tube with a
   // ball on top" into a shirt. An open flared cone in the shirt material.
   const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.108, 0.072, 0.058, 18, 1, true), mPolo);
@@ -111,24 +128,36 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   head.add(skull);
   const mFace = M(0x2b2521, 0.9);
   const mBrow = M(0x4a3524, 0.9);
+  const mEyeLight = M(0xf5ead7, 0.55);
   for (const x of [-0.057, 0.057]) {
     // The old eyes were 12 mm dots that vanished into a blank, faintly unsettling face
     // at the counter distance. A slightly larger almond eye with a soft brow above it
     // gives a readable, friendly expression without breaking the shop's simple heads.
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.0165, 10, 7), mFace);
-    eye.position.set(x, 0.083, 0.139);
+    // Keep the features proud of the 15.5 cm skull. At the former z=0.139,
+    // almost the entire eye sat behind the sphere at register distance.
+    eye.position.set(x, 0.083, 0.157);
     eye.scale.set(0.9, 1.12, 0.72);
     head.add(eye);
+    const catchlight = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 7, 5), mEyeLight);
+    catchlight.position.set(x - 0.004, 0.088, 0.168);
+    head.add(catchlight);
     const brow = box(0.052, 0.012, 0.014, mBrow, 0.114, 0.137);
     brow.position.x = x * 1.02;
+    brow.position.z = 0.158;
     brow.rotation.z = x < 0 ? 0.14 : -0.14;
     head.add(brow);
   }
-  const nose = ellipsoid(0.034, 0.045, 0.030, mSkin, 0.043, 0.153, 8);
+  const nose = ellipsoid(0.034, 0.045, 0.030, mSkin, 0.043, 0.163, 8);
   head.add(nose);
-  const mouth = box(0.058, 0.011, 0.010, mFace, -0.028, 0.150);
+  const mouth = box(0.058, 0.011, 0.010, mFace, -0.028, 0.158);
   mouth.rotation.x = 0.12; // a faint upward set, so the resting face is neutral-friendly
   head.add(mouth);
+  for (const x of [-0.158, 0.158]) {
+    const ear = ellipsoid(0.025, 0.052, 0.020, mSkin, 0.052, 0.004, 8);
+    ear.position.x = x;
+    head.add(ear);
+  }
   if (mCap) {
     // A soft golf cap: a domed crown hugging the skull, a top button, and a curved bill —
     // not a soup can with a slab stuck to it.
@@ -154,14 +183,14 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   const limbs = {};
   for (const [side, sx] of [['L', 1], ['R', -1]]) {
     const shoulder = new THREE.Group();
-    shoulder.position.set(sx * 0.285, 0.43, 0);
+    shoulder.position.set(sx * 0.265, 0.42, 0);
     chest.add(shoulder);
     // deltoid cap at the pivot: a polo ball merging the yoke into the sleeve. Sitting on
     // the joint centre, it caps the shoulder at every arm angle without a visible socket.
-    const deltoid = ball(0.092, mPolo, 16);
-    deltoid.scale.set(1, 0.95, 0.9);
+    const deltoid = ball(0.080, mPolo, 16);
+    deltoid.scale.set(0.94, 0.90, 0.84);
     shoulder.add(deltoid);
-    const upperArm = capsule(0.060, 0.20, mPolo, -0.15);
+    const upperArm = capsule(0.056, 0.20, mPolo, -0.15);
     upperArm.scale.z = 0.88;
     shoulder.add(upperArm);
     // the short-sleeve hem, a slightly proud fabric ring where the polo sleeve ends
@@ -185,6 +214,23 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     const thumb = ellipsoid(0.030, 0.060, 0.030, mSkin, -0.262, 0.028, 8);
     thumb.position.x = sx * 0.046;
     elbow.add(thumb);
+    // Four overlapping low-poly finger forms preserve the stylised silhouette
+    // while making card, cash, receipt and bag ownership readable in close-ups.
+    // They remain geometry only; the generous gameplay hit targets stay hidden.
+    for (let fingerIndex = 0; fingerIndex < 4; fingerIndex += 1) {
+      const finger = ellipsoid(
+        0.018,
+        0.052 - fingerIndex * 0.003,
+        0.024,
+        mSkin,
+        -0.340 + Math.abs(fingerIndex - 1.5) * 0.002,
+        0.010,
+        8,
+      );
+      finger.position.x = (fingerIndex - 1.5) * 0.014;
+      finger.rotation.z = (fingerIndex - 1.5) * -0.025;
+      elbow.add(finger);
+    }
     // A sibling of the non-uniformly scaled hand mesh gives carried props a
     // stable attachment joint.  Parenting a shopping bag to the hand mesh
     // itself would squash it; parenting it to the elbow loses the authored
@@ -202,12 +248,12 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     limbs[`carryGrip${side}`] = carryGrip;
 
     const hip = new THREE.Group();
-    hip.position.set(sx * 0.11, 0.93, 0);
+    hip.position.set(sx * 0.10, 0.93, 0);
     root.add(hip);
     // hip cap at the pivot: a khaki ball tying the pelvis into the thigh, closing the
     // crotch/hip gap that made the legs read as two loose posts under a bowl.
-    const hipCap = ball(0.10, mKhaki, 14);
-    hipCap.scale.set(1, 0.9, 0.95);
+    const hipCap = ball(0.072, mKhaki, 14);
+    hipCap.scale.set(0.90, 0.76, 0.86);
     hip.add(hipCap);
     const thigh = capsule(0.078, 0.30, mKhaki, -0.22);
     thigh.scale.z = 0.92;
@@ -307,15 +353,16 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
         const settle = u * u * (3 - 2 * u);
         // Keep the loaded carrier at waist height until the shopper clears the
         // counter. A fully dropped arm hides the entire bag behind the walnut top.
-        shL = -0.92 * (1 - settle) + (-1.18 + 0.025 * Math.sin(w * 0.5)) * settle;
+        shL = -1.18 + 0.025 * Math.sin(w * 0.5) * settle;
         shR = -1.00 * (1 - settle) + 0.38 * Math.sin(w) * settle;
         elb = -0.66 * (1 - settle) - 0.68 * settle;
+        lean = 0.14 * (1 - settle) + 0.07 * settle;
       } else {
         shL = -0.45 * Math.sin(w);
         shR = 0.45 * Math.sin(w);
         elb = -0.35;
+        lean = 0.07;
       }
-      lean = 0.07;
       bob = 0.02 * Math.sin(2 * w);
     } else if (char.mode === 'Swing') {
       const t = p % 2.6;
@@ -357,7 +404,7 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       headTilt = 0.16;
     } else if (char.mode === 'ReceiveBag') {
       shR = -1.00;
-      shL = -0.92;
+      shL = -1.18;
       elb = -0.66;
       lean = 0.14;
       // A small appreciative nod makes the ownership transfer read as a positive

@@ -87,8 +87,11 @@ function fillRound(ctx, x, y, width, height, radius, fill, stroke = null, lineWi
   }
 }
 
+const TEXT_SCALE = new WeakMap();
+
 function setFont(ctx, size, weight = 500) {
-  ctx.font = `${weight} ${size}px Arial, sans-serif`;
+  const scale = TEXT_SCALE.get(ctx) || 1;
+  ctx.font = `${weight} ${Math.round(size * scale)}px Arial, sans-serif`;
 }
 
 function fitText(ctx, value, maxWidth) {
@@ -239,12 +242,20 @@ export function createFrontDeskMonitorUi(canvas) {
   canvas.height = FRONT_DESK_MONITOR_HEIGHT;
 
   let activeHotspots = [];
+  let targetPadding = 0;
 
   function addHotspot(id, label, kind, x, y, width, height, disabled = false) {
     if (!id) return;
+    const left = Math.max(0, x - targetPadding);
+    const top = Math.max(0, y - targetPadding);
+    const right = Math.min(FRONT_DESK_MONITOR_WIDTH, x + width + targetPadding);
+    const bottom = Math.min(FRONT_DESK_MONITOR_HEIGHT, y + height + targetPadding);
     activeHotspots.push({
       id: text(id), label: text(label), kind: text(kind, 'action'),
-      x, y, width, height, disabled: Boolean(disabled),
+      x: left, y: top, width: right - left, height: bottom - top,
+      centerX: x + width / 2, centerY: y + height / 2,
+      visualWidth: width, visualHeight: height,
+      disabled: Boolean(disabled),
     });
   }
 
@@ -507,12 +518,12 @@ export function createFrontDeskMonitorUi(canvas) {
       ctx.beginPath();
       ctx.arc(57, y + 24, 7, 0, Math.PI * 2);
       ctx.fill();
-      setFont(ctx, 19, scanned ? 600 : 700);
+      setFont(ctx, 22, scanned ? 650 : 750);
       ctx.fillStyle = scanned ? COLORS.muted : COLORS.charcoal;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(fitText(ctx, text(item.name ?? item.label ?? item.sku, 'Product'), 336), 76, y + 24);
-      setFont(ctx, 18, 600);
+      setFont(ctx, 20, 700);
       ctx.textAlign = 'right';
       const quantity = Math.max(1, Math.round(finite(item.qty ?? item.quantity, 1)));
       ctx.fillText(money(item.unitPrice ?? item.price), 476, y + 24);
@@ -559,7 +570,7 @@ export function createFrontDeskMonitorUi(canvas) {
     const choiceOffset = choice ? 32 : 0;
     if (choice) {
       drawPill(ctx, `CUSTOMER CHOSE ${choice}`, 670, 238, 306);
-      setFont(ctx, 12, 600);
+      setFont(ctx, 14, 650);
       ctx.fillStyle = COLORS.muted;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
@@ -575,7 +586,7 @@ export function createFrontDeskMonitorUi(canvas) {
     ctx.fillStyle = statusForeground;
     ctx.textAlign = 'left';
     ctx.fillText(fitText(ctx, status, 278), 686, statusY + 27);
-    setFont(ctx, 14, 500);
+    setFont(ctx, 16, 600);
     const lines = wrapLines(ctx, instruction, 278, 2);
     lines.forEach((line, index) => ctx.fillText(line, 686, statusY + 53 + index * 18));
 
@@ -700,6 +711,11 @@ export function createFrontDeskMonitorUi(canvas) {
 
   function draw(model = {}) {
     activeHotspots = [];
+    const accessibility = model.accessibility && typeof model.accessibility === 'object'
+      ? model.accessibility
+      : {};
+    TEXT_SCALE.set(ctx, Math.max(1, Math.min(1.2, finite(accessibility.textScale, 1))));
+    targetPadding = Math.max(0, Math.min(12, finite(accessibility.targetPadding, 0)));
     const app = canonicalApp(model.app ?? model.tab ?? model.view);
     ctx.save();
     ctx.clearRect(0, 0, FRONT_DESK_MONITOR_WIDTH, FRONT_DESK_MONITOR_HEIGHT);
@@ -718,23 +734,38 @@ export function createFrontDeskMonitorUi(canvas) {
     const x = finite(canvasX, NaN);
     const y = finite(canvasY, NaN);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    let closest = null;
+    let closestDistance = Infinity;
     for (let index = activeHotspots.length - 1; index >= 0; index -= 1) {
       const hotspot = activeHotspots[index];
       if (hotspot.disabled) continue;
       if (x >= hotspot.x && x <= hotspot.x + hotspot.width
-        && y >= hotspot.y && y <= hotspot.y + hotspot.height) return hotspot.id;
+        && y >= hotspot.y && y <= hotspot.y + hotspot.height) {
+        // Expanded neighboring controls can overlap by a few pixels. Resolve
+        // that seam by the nearest visible control center, not draw order.
+        const dx = (x - hotspot.centerX) / Math.max(1, hotspot.visualWidth);
+        const dy = (y - hotspot.centerY) / Math.max(1, hotspot.visualHeight);
+        const distance = dx * dx + dy * dy;
+        if (distance < closestDistance) {
+          closest = hotspot.id;
+          closestDistance = distance;
+        }
+      }
     }
-    return null;
+    return closest;
   }
 
   function actionPoint(actionId) {
     const hotspot = activeHotspots.find((candidate) => candidate.id === actionId && !candidate.disabled);
     if (!hotspot) return null;
-    return { x: hotspot.x + hotspot.width / 2, y: hotspot.y + hotspot.height / 2 };
+    return { x: hotspot.centerX, y: hotspot.centerY };
   }
 
   function hotspots() {
-    return activeHotspots.map((hotspot) => ({ ...hotspot }));
+    return activeHotspots.map((hotspot) => {
+      const { centerX, centerY, visualWidth, visualHeight, ...publicHotspot } = hotspot;
+      return { ...publicHotspot };
+    });
   }
 
   const api = Object.freeze({ draw, hit, actionPoint, hotspots });

@@ -35,7 +35,8 @@ const FILES = [
   // the register kit a cashier's hands touch (tools/blender/build_register.py)
   'basket', 'bag_open', 'impulse_rack', 'divider',
   // production checkout kit (tools/blender/build_checkout_assets.py)
-  'checkout_counter', 'checkout_cash_drawer', 'checkout_scanner',
+  'checkout_counter', 'checkout_product_staging_tray', 'checkout_change_handoff_tray',
+  'checkout_cash_drawer', 'checkout_scanner',
   'checkout_card_reader', 'checkout_receipt_printer', 'checkout_shopping_bag',
   // Compact, checkout-scale product families (tools/blender/build_checkout_products.py).
   // Sibling SKUs share one authored silhouette and vary through tint/tier identity.
@@ -66,6 +67,8 @@ const RAW = [
   // repeated products — one baked-atlas material each, so a whole shelf of them still
   // bakes (see bake()) into a single draw call, texture intact.
   'shoe_pro', 'cap_pro', 'rangefinder',
+  // Original project-owned provisions products keep their authored materials.
+  'provisions_fairway_spring_water', 'provisions_bunker_bites_chips',
 ];
 
 // Which slot in the GLB maps to which material in the clubhouse kit.
@@ -258,7 +261,15 @@ export function createMerch(mats) {
     const proto = protos.get(name);
     if (!proto) return null;
     const obj = proto.clone(true);
-    obj.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+    obj.traverse((o) => {
+      if (!o.isMesh) return;
+      o.castShadow = true;
+      o.receiveShadow = false;
+      if (o.userData?.collision_proxy || o.name.startsWith('COL_')
+        || o.name.startsWith('COLLISION_') || o.name.startsWith('VOLUME_')) {
+        o.visible = false;
+      }
+    });
     if (scale !== 1) obj.scale.setScalar(scale);
     return obj;
   }
@@ -362,7 +373,7 @@ export function createMerch(mats) {
     'receipt_printer', 'shopping_bag', 'payment_card', 'customer_display',
     'loose_receipt', 'apparel_wall',
     'cash_bill_1', 'cash_bill_5', 'cash_bill_10', 'cash_bill_20', 'cash_bill_50',
-    'cash_coin_01', 'cash_coin_05', 'cash_coin_10', 'cash_coin_25', 'cash_coin_50',
+    'cash_coin_01', 'cash_coin_05', 'cash_coin_05_sheet01', 'cash_coin_10', 'cash_coin_20', 'cash_coin_50',
     // Asset Sheet 03: the retail fixture family
     'apparel_wall_display', 'hat_wall', 'accessory_slatwall', 'club_rack',
     'putter_rack', 'bag_display', 'shoe_wall', 'ball_shelf', 'snack_shelf',

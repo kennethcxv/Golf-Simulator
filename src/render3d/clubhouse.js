@@ -61,6 +61,7 @@ import {
 } from './clubhouse/deliveryEquipment.js';
 import { createOwnedStockResources } from './clubhouse/stockResources.js';
 import { createRegisterItemResources } from './clubhouse/registerItemResources.js';
+import { suppressInteriorSunShadows } from './clubhouse/interiorShadowPolicy.js';
 import {
   collectMaterialResources, collectRenderableResources, disposeRenderableResources,
   mergeRenderableResources,
@@ -83,7 +84,7 @@ import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
 import {
   planOrganicOrder, reconcileCustomerItemMeshes,
-  createSequentialPlacement, stepSequentialPlacement,
+  createSequentialPlacement, createSequentialPlacementRecovery, stepSequentialPlacement,
   createCustomerImpatientBeat, stepCustomerImpatientBeat,
 } from './clubhouse/customerFlow.js';
 import {
@@ -94,9 +95,10 @@ import { buildBuildMode } from './clubhouse/buildMode.js';
 import { reviewFor, postReview } from '../sim/reviews.js';
 import {
   createCheckoutFlow, transitionCheckout, enterCheckoutRecovery, checkoutStateTimedOut,
+  recoverTimedOutCheckout, resumeCheckout,
 } from '../sim/registerFlow.js';
 
-const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
+const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265, provisions: 0x78957e };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
 // The east pallet in row one has an unobstructed authored +Z approach. Its
 // persisted padPalletIndex remains the authority for which saved cartons move.
@@ -159,9 +161,7 @@ export function makeClubhouse(ctx) {
   // shadows the course. Wrapping add() catches async-loaded kit models too.
   const _interiorAdd = interior.add.bind(interior);
   interior.add = (...objs) => {
-    for (const o of objs) {
-      if (o && o.traverse) o.traverse((n) => { if (n.isMesh) n.castShadow = false; });
-    }
+    for (const object of objs) suppressInteriorSunShadows(object);
     return _interiorAdd(...objs);
   };
   const custGroup = new THREE.Group();      // customers walk in WORLD space (they go outside)
@@ -328,13 +328,19 @@ export function makeClubhouse(ctx) {
   B.register = register;
 
   const flowNow = () => performance.now();
+  function syncCustomerCheckoutFlow(c, flow) {
+    if (!c || !flow) return false;
+    c.checkoutFlow = flow;
+    if (c.tx) c.tx.checkoutFlow = flow;
+    return true;
+  }
+
   function advanceCustomerCheckout(c, next, event) {
     if (!c) return false;
     if (!c.checkoutFlow) c.checkoutFlow = createCheckoutFlow({ nowMs: flowNow() });
     const moved = transitionCheckout(c.checkoutFlow, next, { nowMs: flowNow(), event });
     if (!moved.ok) return false;
-    c.checkoutFlow = moved.flow;
-    if (c.tx) c.tx.checkoutFlow = moved.flow;
+    syncCustomerCheckoutFlow(c, moved.flow);
     return true;
   }
 
@@ -2406,6 +2412,10 @@ export function makeClubhouse(ctx) {
         stockMeshes.set(f.id + ':back', g);
       }
     }
+    // stockGroup is mounted while empty. Every direct restock and inventory
+    // poll populates below that existing root, so enforce the roof policy after
+    // the complete rebuild rather than relying on interior.add().
+    suppressInteriorSunShadows(stockGroup);
   }
 
   let stockSig = '';
@@ -2847,6 +2857,8 @@ export function makeClubhouse(ctx) {
       });
     });
     if (!ghost.children.length) { stockGroup.remove(ghost); return false; }
+    // Animated stock is added below the already-mounted stockGroup.
+    suppressInteriorSunShadows(ghost);
     return true;
   }
 
@@ -4574,6 +4586,7 @@ export function makeClubhouse(ctx) {
       checkoutPlacedCount: 0,
       checkoutPlacement: null,
       checkoutFlow: organicPlan.target ? createCheckoutFlow({ nowMs: flowNow() }) : null,
+      checkoutApproachArmed: false,
       // what a review will be written from: did they get in, did they buy, did they wait
       seed: rng.next(),
       entered: false,
@@ -4608,7 +4621,9 @@ export function makeClubhouse(ctx) {
   // with their goods and stand unserved, and the price of blowing it is a bad
   // review, not a mystery walk-out.
   const PATIENCE_FULL = 600;
-  const patRing = new THREE.RingGeometry(0.10, 0.125, 20, 1, Math.PI / 2, Math.PI * 2);
+  const PATIENCE_SEGMENTS = 24;
+  const PATIENCE_INDICES_PER_SEGMENT = 6;
+  const patRing = new THREE.RingGeometry(0.10, 0.125, PATIENCE_SEGMENTS, 1, Math.PI / 2, -Math.PI * 2);
   function setPatience(c) {
     const frac = clamp(c.patience / PATIENCE_FULL, 0, 1);
     if (frac > 0.72) {                       // still fresh — do not nag
@@ -4626,9 +4641,12 @@ export function makeClubhouse(ctx) {
     }
     const m = c.patienceMesh;
     m.visible = true;
-    // the ring EMPTIES clockwise as the patience runs out
-    m.geometry.dispose();
-    m.geometry = new THREE.RingGeometry(0.10, 0.125, 24, 1, Math.PI / 2, -Math.PI * 2 * frac);
+    // The ring empties clockwise as patience runs out. A fixed indexed ring plus
+    // drawRange preserves the 24-step readout without rebuilding GPU geometry
+    // every frame (including frames where an active cashier freezes patience).
+    const visibleSegments = Math.ceil(frac * PATIENCE_SEGMENTS);
+    const indexCount = visibleSegments * PATIENCE_INDICES_PER_SEGMENT;
+    if (m.geometry.drawRange.count !== indexCount) m.geometry.setDrawRange(0, indexCount);
     m.material.color.setHex(frac < 0.25 ? 0xe8635a : frac < 0.5 ? 0xf2a03d : 0xf2c14e);
     m.material.opacity = 0.55 + (1 - frac) * 0.35;
     // it always faces the player, so it reads from anywhere on the floor
@@ -4814,6 +4832,104 @@ export function makeClubhouse(ctx) {
       }
     }
     return false;
+  }
+
+  function armCustomerCheckoutApproach(c) {
+    if (!c || !c.cart || !c.cart.length || c.checkoutApproachArmed) return false;
+    c.checkoutApproachArmed = true;
+    c.preServiceWait = 0;
+    // Organic shoppers previously started this clock at spawn, so browsing and
+    // fixture linger consumed a counter-navigation watchdog. Start a fresh flow
+    // only when this cart-holder's active route is actually the counter.
+    if (!c.checkoutFlow || c.checkoutFlow.state === 'CustomerApproaching') {
+      syncCustomerCheckoutFlow(c, createCheckoutFlow({
+        state: 'CustomerApproaching',
+        nowMs: flowNow(),
+      }));
+    }
+    return true;
+  }
+
+  function reconcileCustomerPlacementRecovery(c) {
+    syncCustomerItemMeshes(c);
+    const recovery = createSequentialPlacementRecovery(c.cart);
+    const placed = new Set(recovery.placedUids);
+    c.placeMotion = null;
+
+    for (const item of c.cart) {
+      const mesh = c.itemMeshes.get(item.uid);
+      if (placed.has(item.uid)) {
+        if (!mesh || !item.placedAt) continue;
+        if (mesh.parent !== interior) interior.add(mesh);
+        mesh.position.set(item.placedAt.x, item.placedAt.y, item.placedAt.z);
+        mesh.rotation.set(0, item.placedAt.ry, 0);
+        continue;
+      }
+      // Only interrupted/unplaced products return to the customer's carry.
+      // Already placed meshes remain at their exact authored counter poses.
+      item.placed = false;
+      if (mesh && mesh.parent !== c.mesh) c.mesh.add(mesh);
+    }
+    layoutCustomerCarry(c);
+    c.checkoutPlacement = recovery.placement;
+    c.checkoutPlacedCount = recovery.placedUids.length;
+    c.checkoutPhase = 'placing';
+    if (register.setPlacementPreview) register.setPlacementPreview(c);
+    return recovery;
+  }
+
+  function reconcileCustomerCheckoutTimeout(c, fromState) {
+    if (fromState === 'CustomerApproaching') {
+      c.path = null;
+      c.pathGoal = null;
+      c.stuckT = 0;
+      c.repathed = false;
+      navVersion = -1;
+      return true;
+    }
+    if (fromState === 'CustomerPlacingProducts') {
+      reconcileCustomerPlacementRecovery(c);
+      return true;
+    }
+    if (fromState === 'WaitingForCashier') {
+      // This checkpoint owns no sale rollback. It only drops unsafe input and
+      // cashier camera state while preserving the same register tx/order.
+      if (register.getCustomer() === c) {
+        if (register.isActive()) register.leave({ restorePointer: false });
+        else register.recoverInput('waiting-customer-watchdog');
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function recoverCustomerCheckoutTimeout(c, nowMs = flowNow()) {
+    const flow = c && c.checkoutFlow;
+    if (!c.checkoutApproachArmed || !flow
+        || !['CustomerApproaching', 'CustomerPlacingProducts', 'WaitingForCashier'].includes(flow.state)
+        || !checkoutStateTimedOut(flow, nowMs)) return false;
+    const fromState = flow.state;
+    const entered = recoverTimedOutCheckout(flow, { nowMs });
+    if (!entered.ok) return false;
+    syncCustomerCheckoutFlow(c, entered.flow);
+    if (!reconcileCustomerCheckoutTimeout(c, fromState)) return true;
+    const resumed = resumeCheckout(c.checkoutFlow, { nowMs: nowMs + 0.001 });
+    if (!resumed.ok) return true;
+    syncCustomerCheckoutFlow(c, resumed.flow);
+    if (!Array.isArray(c.checkoutWatchdogEvents)) c.checkoutWatchdogEvents = [];
+    c.checkoutWatchdogEvents.push({
+      atMs: nowMs,
+      fromState,
+      resumeState: resumed.flow.state,
+      recoverySequence: entered.flow.sequence,
+      resumeSequence: resumed.flow.sequence,
+      patience: c.patience,
+      cartUids: c.cart.map((item) => item.uid),
+    });
+    c.checkoutWatchdogEvents = c.checkoutWatchdogEvents.slice(-12);
+    // The caller skips the remainder of this customer update. Repath, placement,
+    // or player waiting can progress from the clean checkpoint next frame only.
+    return true;
   }
 
   function customerPick(c, stop) {
@@ -5356,11 +5472,16 @@ export function makeClubhouse(ctx) {
         if (reaction.complete) customerGiveUp(c);
         continue;
       }
-      // Pre-service patience runs on the SAME ten-real-minute clock as the counter wait.
-      // The flow table's short per-state watchdogs are recovery telemetry, not a fuse —
-      // they used to walk a customer out 45 real seconds after they reached the counter
-      // area, which read as "picked three things up and left for no reason".
-      if (c.checkoutFlow && ['CustomerApproaching', 'CustomerPlacingProducts', 'WaitingForCashier'].includes(c.checkoutFlow.state)) {
+      const checkoutTarget = c.stops[c.stopIdx];
+      if (checkoutTarget?.kind === 'counter' && c.cart.length) {
+        armCustomerCheckoutApproach(c);
+      }
+      if (recoverCustomerCheckoutTimeout(c)) continue;
+      // Pre-service patience runs on the same ten-real-minute clock as the counter wait.
+      // The short watchdogs above reconcile and resume presentation state; only this
+      // independent patience fuse may abandon the order, return stock, or write a review.
+      if (c.checkoutApproachArmed && c.checkoutFlow
+          && ['CustomerApproaching', 'CustomerPlacingProducts', 'WaitingForCashier'].includes(c.checkoutFlow.state)) {
         c.preServiceWait = (c.preServiceWait || 0) + dt;
         if (c.preServiceWait > PATIENCE_FULL) {
           beginCustomerImpatientBeat(c);
@@ -5520,7 +5641,9 @@ export function makeClubhouse(ctx) {
           if (char) {
             const flowState = c.checkoutFlow && c.checkoutFlow.state;
             let checkoutMode = c.checkoutPhase === 'placing' ? 'Checkout' : 'Idle';
-            if (['ChoosingPayment', 'CardPresented', 'CashPresented'].includes(flowState)) checkoutMode = 'Present';
+            if (['ChoosingPayment', 'CardPresented', 'CardInsertReady', 'CardInserting',
+              'CardAmountEntry', 'CardProcessing', 'CardApproved', 'CashPresented',
+              'PaymentComplete', 'ReceiptPrinting'].includes(flowState)) checkoutMode = 'Present';
             else if (flowState === 'CardDeclined') checkoutMode = 'Declined';
             else if (['SelectingChange', 'GivingChange'].includes(flowState)) checkoutMode = 'Receive';
             else if (['Bagging', 'BagHandoff'].includes(flowState)) checkoutMode = 'ReceiveBag';
@@ -5699,6 +5822,10 @@ export function makeClubhouse(ctx) {
     if (!interior || !interior.parent) return;
     rebuildStock();
     rebuildBoxes();
+    // Fixture and register kit callbacks also populate long-lived empty roots.
+    // This final ready callback runs after those registrations and establishes
+    // a zero-caster startup invariant for the entire indoor subtree.
+    suppressInteriorSunShadows(interior);
   });
 
   function dispose() {
@@ -5854,6 +5981,14 @@ export function makeClubhouse(ctx) {
       getTx: () => register.getTx(),
       getCustomer: () => register.getCustomer(),
       getFlow: () => register.getFlow(),
+      drawerPrewarmStatus: () => register.drawerPrewarmStatus(),
+      cashGpuPrewarmStatus: () => register.cashGpuPrewarmStatus(),
+      waitForCashGpuPrewarmRepresentatives: (timeoutMs) => (
+        register.waitForCashGpuPrewarmRepresentatives(timeoutMs)
+      ),
+      releaseCashGpuPrewarmRepresentatives: (options) => (
+        register.releaseCashGpuPrewarmRepresentatives(options)
+      ),
       deliveryPhase: () => register.deliveryPhase(),
       hint: () => register.hint(),
       insertAt: () => register.insertAt(),
