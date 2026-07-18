@@ -1,9 +1,38 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const BASE_URL = 'http://localhost:8457/';
+const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
 const DEFAULT_VIEWPORT = Object.freeze({ width: 1600, height: 900 });
 const DEFAULT_CYCLES = 20;
+const PROFILE_COUNTS = Object.freeze({
+  master: Object.freeze({
+    enterExits: 100,
+    cardTransactions: 100,
+    cashTransactions: 100,
+    preAuthCancellations: 50,
+    declineRecoveries: 50,
+    drawerOpenCloses: 100,
+    customerSpawnRemovalsMinimum: 100,
+  }),
+  smoke: Object.freeze({
+    enterExits: 2,
+    cardTransactions: 2,
+    cashTransactions: 2,
+    preAuthCancellations: 1,
+    declineRecoveries: 1,
+    drawerOpenCloses: 2,
+    customerSpawnRemovalsMinimum: 2,
+  }),
+});
+const COUNT_OPTIONS = Object.freeze([
+  ['enterExits', 'REGISTER_QA_ENTER_EXITS'],
+  ['cardTransactions', 'REGISTER_QA_CARD_TRANSACTIONS'],
+  ['cashTransactions', 'REGISTER_QA_CASH_TRANSACTIONS'],
+  ['preAuthCancellations', 'REGISTER_QA_PREAUTH_CANCELLATIONS'],
+  ['declineRecoveries', 'REGISTER_QA_DECLINE_RECOVERIES'],
+  ['drawerOpenCloses', 'REGISTER_QA_DRAWER_OPEN_CLOSES'],
+  ['customerSpawnRemovalsMinimum', 'REGISTER_QA_CUSTOMER_LIFECYCLES'],
+]);
 const SKUS = Object.freeze(['tees1', 'marker1', 'glove1']);
 let VIEWPORT = { ...DEFAULT_VIEWPORT };
 
@@ -28,12 +57,599 @@ function configureViewport(value) {
 function configureCycles(value) {
   const parsed = Number(value);
   const cycles = Number.isFinite(parsed) ? Math.floor(parsed) : DEFAULT_CYCLES;
-  assert(cycles >= 2 && cycles <= 40, `REGISTER_QA_CYCLES must be between 2 and 40, got ${value}.`);
+  assert(Number.isInteger(cycles) && cycles >= 2,
+    `REGISTER_QA_CYCLES must be an integer of at least 2, got ${value}.`);
   return cycles;
+}
+
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== '');
+}
+
+function configureCount(name, value, fallback) {
+  const raw = firstDefined(value, fallback);
+  const parsed = Number(raw);
+  assert(Number.isFinite(parsed) && Number.isInteger(parsed) && parsed >= 0,
+    `${name} must be a non-negative integer, got ${raw}.`);
+  return parsed;
+}
+
+export function resolveLifecycleConfig(options = {}, env = process.env) {
+  const requestedProfile = String(firstDefined(options.profile, env.REGISTER_QA_PROFILE) || '')
+    .trim().toLowerCase();
+  assert(!requestedProfile || ['master', 'smoke', 'legacy'].includes(requestedProfile),
+    `REGISTER_QA_PROFILE must be master, smoke, or legacy; got ${requestedProfile}.`);
+  const legacyCycleValue = firstDefined(options.cycles, env.REGISTER_QA_CYCLES);
+  const hasIndividualOverride = COUNT_OPTIONS.some(([key, envName]) => (
+    firstDefined(options.counts?.[key], options[key], env[envName]) !== undefined
+  ));
+  const useLegacy = requestedProfile === 'legacy'
+    || (!requestedProfile && legacyCycleValue !== undefined && !hasIndividualOverride);
+
+  if (useLegacy) {
+    const cycles = configureCycles(legacyCycleValue);
+    const cardTransactions = Math.ceil(cycles / 2);
+    const cashTransactions = Math.floor(cycles / 2);
+    return {
+      profile: 'legacy',
+      legacyCycles: cycles,
+      totalSales: cycles,
+      counts: {
+        enterExits: 0,
+        cardTransactions,
+        cashTransactions,
+        preAuthCancellations: 0,
+        declineRecoveries: 0,
+        drawerOpenCloses: cashTransactions,
+        customerSpawnRemovalsMinimum: cycles,
+      },
+    };
+  }
+
+  const profile = requestedProfile || 'master';
+  const base = PROFILE_COUNTS[profile];
+  assert(base, `Lifecycle profile ${profile} does not define cardinalities.`);
+  const counts = {};
+  for (const [key, envName] of COUNT_OPTIONS) {
+    counts[key] = configureCount(envName,
+      firstDefined(options.counts?.[key], options[key], env[envName]), base[key]);
+  }
+  const totalSales = counts.cardTransactions + counts.cashTransactions;
+  assert(totalSales >= 2,
+    `Lifecycle stress needs at least two completed transactions, got ${totalSales}.`);
+  assert(counts.preAuthCancellations <= counts.cardTransactions,
+    `Pre-authorization cancellations (${counts.preAuthCancellations}) cannot exceed card transactions (${counts.cardTransactions}).`);
+  assert(counts.declineRecoveries <= counts.cardTransactions,
+    `Decline recoveries (${counts.declineRecoveries}) cannot exceed card transactions (${counts.cardTransactions}).`);
+  assert(counts.drawerOpenCloses === counts.cashTransactions,
+    `Every normal-control cash transaction opens and closes the drawer once; drawerOpenCloses (${counts.drawerOpenCloses}) must equal cashTransactions (${counts.cashTransactions}).`);
+  assert(counts.customerSpawnRemovalsMinimum <= totalSales,
+    `Customer lifecycle minimum (${counts.customerSpawnRemovalsMinimum}) exceeds the ${totalSales} transaction customers this profile creates.`);
+  return { profile, legacyCycles: null, totalSales, counts };
+}
+
+function buildSalesPlan(counts) {
+  const plan = [];
+  let cardRemaining = counts.cardTransactions;
+  let cashRemaining = counts.cashTransactions;
+  let cardOrdinal = 0;
+  let cashOrdinal = 0;
+  let preferred = 'card';
+  while (cardRemaining > 0 || cashRemaining > 0) {
+    const method = preferred === 'card'
+      ? (cardRemaining > 0 ? 'card' : 'cash')
+      : (cashRemaining > 0 ? 'cash' : 'card');
+    if (method === 'card') {
+      cardRemaining -= 1;
+      cardOrdinal += 1;
+      plan.push({
+        method,
+        methodOrdinal: cardOrdinal,
+        cancelBeforeAuthorization: cardOrdinal <= counts.preAuthCancellations,
+        declineThenRecover: cardOrdinal <= counts.declineRecoveries,
+      });
+    } else {
+      cashRemaining -= 1;
+      cashOrdinal += 1;
+      plan.push({ method, methodOrdinal: cashOrdinal });
+    }
+    preferred = method === 'card' ? 'cash' : 'card';
+  }
+  return plan.map((entry, index) => ({ ...entry, cycle: index + 1 }));
+}
+
+function createObservedCounts() {
+  return {
+    frontDeskEntries: 0,
+    frontDeskExits: 0,
+    cardTransactions: 0,
+    cashTransactions: 0,
+    preAuthCancellations: 0,
+    declineRecoveries: 0,
+    drawerOpens: 0,
+    drawerCloses: 0,
+    customerSpawns: 0,
+    customerRemovals: 0,
+  };
+}
+
+export function buildCardinalityReport(requested, observed) {
+  const exact = (requestedCount, completed, details = {}) => ({
+    comparison: 'exact',
+    requested: requestedCount,
+    completed,
+    ok: completed === requestedCount,
+    ...details,
+  });
+  const atLeast = (requestedMinimum, completed, details = {}) => ({
+    comparison: 'at-least',
+    requestedMinimum,
+    completed,
+    ok: completed >= requestedMinimum,
+    ...details,
+  });
+  const frontDesk = exact(requested.enterExits,
+    Math.min(observed.frontDeskEntries, observed.frontDeskExits), {
+        observedEntries: observed.frontDeskEntries,
+        observedExits: observed.frontDeskExits,
+      });
+  frontDesk.ok = observed.frontDeskEntries === requested.enterExits
+    && observed.frontDeskExits === requested.enterExits;
+  const drawer = exact(requested.drawerOpenCloses,
+    Math.min(observed.drawerOpens, observed.drawerCloses), {
+      observedOpens: observed.drawerOpens,
+      observedCloses: observed.drawerCloses,
+    });
+  drawer.ok = observed.drawerOpens === requested.drawerOpenCloses
+    && observed.drawerCloses === requested.drawerOpenCloses;
+  const customers = atLeast(requested.customerSpawnRemovalsMinimum,
+    Math.min(observed.customerSpawns, observed.customerRemovals), {
+      observedSpawns: observed.customerSpawns,
+      observedRemovals: observed.customerRemovals,
+      rationale: 'Each completed sale owns one fresh customer, so the full 100-card + 100-cash master workload honestly observes 200 pairs while gating the brief minimum of 100.',
+    });
+  customers.ok = observed.customerSpawns >= requested.customerSpawnRemovalsMinimum
+    && observed.customerRemovals >= requested.customerSpawnRemovalsMinimum;
+  return {
+    frontDeskEnterExits: frontDesk,
+    cardTransactions: exact(requested.cardTransactions, observed.cardTransactions),
+    cashTransactions: exact(requested.cashTransactions, observed.cashTransactions),
+    preAuthorizationXCancellations: exact(requested.preAuthCancellations,
+      observed.preAuthCancellations),
+    declinesWithRecovery: exact(requested.declineRecoveries, observed.declineRecoveries),
+    drawerOpenCloses: drawer,
+    customerSpawnsRemovals: customers,
+  };
 }
 
 function round2(value) {
   return Math.round(Number(value) * 100) / 100;
+}
+
+function finiteNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function overlayMetric(finalSample, summaries, pathSpec) {
+  const summary = summaries?.[pathSpec] || null;
+  return {
+    path: pathSpec,
+    final: finiteNumber(getMetric(finalSample, pathSpec)),
+    stableDelta: finiteNumber(summary?.delta),
+    stableRange: finiteNumber(summary?.range),
+  };
+}
+
+function overlayOperation(id, label, counter) {
+  const comparison = counter?.comparison || 'exact';
+  return {
+    id,
+    label,
+    comparison,
+    requested: finiteNumber(comparison === 'at-least'
+      ? counter?.requestedMinimum
+      : counter?.requested),
+    completed: finiteNumber(counter?.completed),
+    observedEntries: finiteNumber(counter?.observedEntries),
+    observedExits: finiteNumber(counter?.observedExits),
+    observedOpens: finiteNumber(counter?.observedOpens),
+    observedCloses: finiteNumber(counter?.observedCloses),
+    observedSpawns: finiteNumber(counter?.observedSpawns),
+    observedRemovals: finiteNumber(counter?.observedRemovals),
+    ok: !!counter?.ok,
+  };
+}
+
+export function buildLongSessionResourceOverlayModel(result) {
+  const finalSample = result?.finalSample || result?.lastSample || {};
+  const summaries = result?.gates?.summaries || {};
+  const runtimeSummaries = result?.gates?.runtimeSummaries || {};
+  const cardinality = result?.cardinality || {};
+  const checks = Array.isArray(result?.gates?.checks) ? result.gates.checks : [];
+  const failedChecks = checks.filter((entry) => !entry.ok);
+  const stableWindow = result?.protocol?.stableWindow || {};
+  const requestedCycles = finiteNumber(result?.protocol?.requestedCycles);
+  const completedCycles = finiteNumber(result?.protocol?.completedCycles
+    ?? result?.cycles?.length);
+  const salesCounter = {
+    comparison: 'exact',
+    requested: requestedCycles,
+    completed: completedCycles,
+    ok: requestedCycles !== null && completedCycles === requestedCycles,
+  };
+
+  return {
+    schemaVersion: 1,
+    captureNumber: 39,
+    title: 'Long-session resource counts',
+    ok: !!result?.ok,
+    result: result?.ok ? 'PASS' : 'FAIL',
+    profile: result?.protocol?.profile || 'unknown',
+    viewport: result?.protocol?.viewport || 'unknown',
+    stableWindow: {
+      firstCycle: finiteNumber(stableWindow.firstCycle),
+      lastCycle: finiteNumber(stableWindow.lastCycle),
+      sampleCount: finiteNumber(stableWindow.sampleCount),
+    },
+    exactOperations: [
+      overlayOperation('completedSales', 'Completed sales', salesCounter),
+      overlayOperation('cardTransactions', 'Card sales', cardinality.cardTransactions),
+      overlayOperation('cashTransactions', 'Cash sales', cardinality.cashTransactions),
+      overlayOperation('frontDeskEnterExits', 'Desk enter / exit',
+        cardinality.frontDeskEnterExits),
+      overlayOperation('preAuthorizationXCancellations', 'Pre-auth X cancellations',
+        cardinality.preAuthorizationXCancellations),
+      overlayOperation('declinesWithRecovery', 'Decline recoveries',
+        cardinality.declinesWithRecovery),
+      overlayOperation('drawerOpenCloses', 'Drawer open / close',
+        cardinality.drawerOpenCloses),
+      overlayOperation('customerSpawnsRemovals', 'Customer spawn / removal',
+        cardinality.customerSpawnsRemovals),
+    ],
+    exactOnce: {
+      units: finiteNumber(finalSample?.state?.units) !== null
+        && finiteNumber(result?.fixture?.units) !== null
+        ? Number(finalSample.state.units) - Number(result.fixture.units)
+        : null,
+      tickets: finiteNumber(result?.cycles?.length),
+      heldInventoryFinal: finiteNumber(finalSample?.state?.held),
+    },
+    resources: {
+      sceneNodes: overlayMetric(finalSample, summaries, 'scene.nodes'),
+      geometries: {
+        scene: overlayMetric(finalSample, summaries, 'scene.geometries'),
+        renderer: overlayMetric(finalSample, summaries, 'renderer.memory.geometries'),
+      },
+      materials: overlayMetric(finalSample, summaries, 'scene.materials'),
+      textures: {
+        scene: overlayMetric(finalSample, summaries, 'scene.textures'),
+        renderer: overlayMetric(finalSample, summaries, 'renderer.memory.textures'),
+      },
+      listeners: {
+        net: overlayMetric(finalSample, summaries, 'listeners.net'),
+        cdp: overlayMetric(finalSample, summaries, 'dom.jsEventListeners'),
+      },
+      mixers: overlayMetric(finalSample, runtimeSummaries, 'animationMixers.count'),
+      timers: {
+        timeouts: overlayMetric(finalSample, runtimeSummaries, 'timers.activeTimeouts'),
+        intervals: overlayMetric(finalSample, runtimeSummaries, 'timers.activeIntervals'),
+        animationFrames: overlayMetric(finalSample, runtimeSummaries,
+          'timers.activeAnimationFrames'),
+      },
+      dom: {
+        live: overlayMetric(finalSample, summaries, 'dom.liveNodes'),
+        cdp: overlayMetric(finalSample, summaries, 'dom.nodes'),
+        detachedEstimate: overlayMetric(finalSample, summaries, 'dom.detachedNodesEstimate'),
+      },
+      heap: {
+        finalBytes: finiteNumber(finalSample?.heap?.runtimeUsedBytes),
+        stableDeltaBytes: finiteNumber(result?.gates?.heap?.growthBytes),
+        slopeBytesPerCycle: finiteNumber(result?.gates?.heap?.slopeBytesPerCycle),
+      },
+      audio: {
+        contexts: overlayMetric(finalSample, runtimeSummaries, 'audio.openContexts'),
+        activeSources: overlayMetric(finalSample, runtimeSummaries, 'audio.activeSources'),
+      },
+    },
+    gates: {
+      passed: checks.length - failedChecks.length,
+      total: checks.length,
+      failed: failedChecks.length,
+      stabilityEnforced: result?.gates?.stabilityEnforced !== false,
+    },
+    provenance: {
+      kind: 'qa-only DOM overlay',
+      injectedBy: 'tools/qa/simplified-register-lifecycle-stress.mjs',
+      overlayElementId: 'register-lifecycle-metrics',
+      presentationOnly: true,
+      gameplaySourceModified: false,
+      rawJsonAuthoritative: true,
+      authoritativeRawJson: path.basename(result?.evidence?.json || 'lifecycle-result.json'),
+      authoritativeResourceDetails: path.basename(
+        result?.evidence?.resourceDetails || 'lifecycle-resource-details.json',
+      ),
+    },
+  };
+}
+
+function escapeOverlayHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function overlayInteger(value) {
+  const number = finiteNumber(value);
+  return number === null ? 'n/a' : Math.round(number).toLocaleString('en-US');
+}
+
+function overlaySigned(value, formatter = overlayInteger) {
+  const number = finiteNumber(value);
+  if (number === null) return 'n/a';
+  return `${number > 0 ? '+' : ''}${formatter(number)}`;
+}
+
+function overlayMiB(value) {
+  const number = finiteNumber(value);
+  return number === null ? 'n/a' : `${(number / (1024 * 1024)).toFixed(2)} MiB`;
+}
+
+function overlayMetricText(metric, formatter = overlayInteger) {
+  return `${formatter(metric?.final)} | delta ${overlaySigned(metric?.stableDelta, formatter)} | range ${formatter(metric?.stableRange)}`;
+}
+
+function overlayOperationText(operation) {
+  const target = operation.comparison === 'at-least'
+    ? `target >= ${overlayInteger(operation.requested)}`
+    : `target ${overlayInteger(operation.requested)}`;
+  if (operation.observedEntries !== null || operation.observedExits !== null) {
+    return `${overlayInteger(operation.observedEntries)} / ${overlayInteger(operation.observedExits)} | ${target}`;
+  }
+  if (operation.observedOpens !== null || operation.observedCloses !== null) {
+    return `${overlayInteger(operation.observedOpens)} / ${overlayInteger(operation.observedCloses)} | ${target}`;
+  }
+  if (operation.observedSpawns !== null || operation.observedRemovals !== null) {
+    return `${overlayInteger(operation.observedSpawns)} / ${overlayInteger(operation.observedRemovals)} | ${target}`;
+  }
+  return `${overlayInteger(operation.completed)} / ${overlayInteger(operation.requested)}`;
+}
+
+export function renderLongSessionResourceOverlayHtml(model) {
+  const row = (label, value, ok = null) => {
+    const color = ok === false ? '#ff9b8f' : '#d9bd78';
+    return `<div style="display:grid;grid-template-columns:minmax(128px,.9fr) minmax(0,1.45fr);gap:10px;border-top:1px solid rgba(244,237,219,.14);padding:4px 0"><span>${escapeOverlayHtml(label)}</span><strong style="color:${color};text-align:right;white-space:nowrap">${escapeOverlayHtml(value)}</strong></div>`;
+  };
+  const operationRows = model.exactOperations
+    .map((operation) => row(operation.label, overlayOperationText(operation), operation.ok))
+    .join('');
+  const resources = model.resources;
+  const resourceRows = [
+    row('Scene nodes', overlayMetricText(resources.sceneNodes)),
+    row('Geometries scene / GPU', `${overlayMetricText(resources.geometries.scene)} || ${overlayMetricText(resources.geometries.renderer)}`),
+    row('Materials', overlayMetricText(resources.materials)),
+    row('Textures scene / GPU', `${overlayMetricText(resources.textures.scene)} || ${overlayMetricText(resources.textures.renderer)}`),
+    row('Listeners net / CDP', `${overlayMetricText(resources.listeners.net)} || ${overlayMetricText(resources.listeners.cdp)}`),
+    row('AnimationMixers', overlayMetricText(resources.mixers)),
+    row('Timers timeout / interval / rAF', [
+      overlayMetricText(resources.timers.timeouts),
+      overlayMetricText(resources.timers.intervals),
+      overlayMetricText(resources.timers.animationFrames),
+    ].join(' || ')),
+    row('DOM live / CDP / detached', [
+      overlayMetricText(resources.dom.live),
+      overlayMetricText(resources.dom.cdp),
+      overlayMetricText(resources.dom.detachedEstimate),
+    ].join(' || ')),
+    row('Forced-GC heap', `${overlayMiB(resources.heap.finalBytes)} | delta ${overlaySigned(resources.heap.stableDeltaBytes, overlayMiB)} | slope ${overlaySigned(resources.heap.slopeBytesPerCycle, overlayMiB)}/cycle`),
+    row('Audio contexts / sources', `${overlayMetricText(resources.audio.contexts)} || ${overlayMetricText(resources.audio.activeSources)}`),
+  ].join('');
+  const stable = model.stableWindow;
+  const gateValue = `${model.gates.passed} / ${model.gates.total} passed`;
+  return `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:8px">
+      <div>
+        <div style="font:800 22px/1.05 Georgia,serif;color:#fff">Capture #39 | ${escapeOverlayHtml(model.title)}</div>
+        <div style="color:#a9c5ae;margin-top:4px">${escapeOverlayHtml(model.profile)} | ${escapeOverlayHtml(model.viewport)} | stable cycles ${escapeOverlayHtml(overlayInteger(stable.firstCycle))}-${escapeOverlayHtml(overlayInteger(stable.lastCycle))} (${escapeOverlayHtml(overlayInteger(stable.sampleCount))} samples)</div>
+      </div>
+      <div style="border:1px solid ${model.ok ? '#79c88a' : '#ff9b8f'};border-radius:999px;padding:5px 12px;color:${model.ok ? '#a9e5b5' : '#ffb2a9'};font-weight:800">${escapeOverlayHtml(model.result)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:minmax(275px,.85fr) minmax(470px,1.45fr);gap:14px">
+      <div>
+        <div style="color:#fff;font-weight:800;margin-bottom:3px">Exact completed operations</div>
+        ${operationRows}
+        ${row('Exact-once units / tickets', `${overlayInteger(model.exactOnce.units)} / ${overlayInteger(model.exactOnce.tickets)}`)}
+        ${row('Held inventory final', overlayInteger(model.exactOnce.heldInventoryFinal), model.exactOnce.heldInventoryFinal === 0)}
+        ${row('All gates', gateValue, model.gates.failed === 0)}
+      </div>
+      <div>
+        <div style="color:#fff;font-weight:800;margin-bottom:3px">Final count | stable delta | stable range</div>
+        ${resourceRows}
+      </div>
+    </div>
+    <div style="margin-top:8px;padding-top:7px;border-top:1px solid rgba(244,237,219,.22);color:#a9c5ae;font-size:11px">
+      ${escapeOverlayHtml(model.provenance.kind)} | ${escapeOverlayHtml(model.provenance.authoritativeRawJson)} is authoritative | resource detail: ${escapeOverlayHtml(model.provenance.authoritativeResourceDetails)} | gameplay source unchanged
+    </div>
+  `;
+}
+
+async function installEarlyLifecycleProbe(page) {
+  await page.addInitScript(() => {
+    if (window.__registerEarlyLifecycleProbe) return;
+    const timerStats = {
+      timeoutsScheduled: 0,
+      timeoutsFired: 0,
+      timeoutsCleared: 0,
+      intervalsScheduled: 0,
+      intervalTicks: 0,
+      intervalsCleared: 0,
+      animationFramesScheduled: 0,
+      animationFramesFired: 0,
+      animationFramesCancelled: 0,
+    };
+    const activeTimeouts = new Set();
+    const activeIntervals = new Set();
+    const activeAnimationFrames = new Set();
+    const originalSetTimeout = window.setTimeout.bind(window);
+    const originalClearTimeout = window.clearTimeout.bind(window);
+    const originalSetInterval = window.setInterval.bind(window);
+    const originalClearInterval = window.clearInterval.bind(window);
+    const originalRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+    const originalCancelAnimationFrame = window.cancelAnimationFrame.bind(window);
+    const originalAddEventListener = EventTarget.prototype.addEventListener;
+
+    window.setTimeout = (handler, delay, ...args) => {
+      let id = null;
+      const wrapped = (...callbackArgs) => {
+        activeTimeouts.delete(id);
+        timerStats.timeoutsFired += 1;
+        if (typeof handler === 'function') return handler.apply(window, callbackArgs);
+        return undefined;
+      };
+      id = originalSetTimeout(wrapped, delay, ...args);
+      activeTimeouts.add(id);
+      timerStats.timeoutsScheduled += 1;
+      return id;
+    };
+    window.clearTimeout = (id) => {
+      if (activeTimeouts.delete(id)) timerStats.timeoutsCleared += 1;
+      return originalClearTimeout(id);
+    };
+    window.setInterval = (handler, delay, ...args) => {
+      let id = null;
+      const wrapped = (...callbackArgs) => {
+        timerStats.intervalTicks += 1;
+        if (typeof handler === 'function') return handler.apply(window, callbackArgs);
+        return undefined;
+      };
+      id = originalSetInterval(wrapped, delay, ...args);
+      activeIntervals.add(id);
+      timerStats.intervalsScheduled += 1;
+      return id;
+    };
+    window.clearInterval = (id) => {
+      if (activeIntervals.delete(id)) timerStats.intervalsCleared += 1;
+      return originalClearInterval(id);
+    };
+    window.requestAnimationFrame = (callback) => {
+      let id = null;
+      const wrapped = (timestamp) => {
+        activeAnimationFrames.delete(id);
+        timerStats.animationFramesFired += 1;
+        return callback(timestamp);
+      };
+      id = originalRequestAnimationFrame(wrapped);
+      activeAnimationFrames.add(id);
+      timerStats.animationFramesScheduled += 1;
+      return id;
+    };
+    window.cancelAnimationFrame = (id) => {
+      if (activeAnimationFrames.delete(id)) timerStats.animationFramesCancelled += 1;
+      return originalCancelAnimationFrame(id);
+    };
+
+    const audio = {
+      available: false,
+      contextsCreated: 0,
+      contextsClosed: 0,
+      sourcesCreated: 0,
+      sourcesStarted: 0,
+      sourcesStopped: 0,
+      sourcesEnded: 0,
+      activeSources: 0,
+      createdByType: Object.create(null),
+    };
+    const contexts = [];
+    const instrumentSource = (source, type) => {
+      if (!source || source.__registerLifecycleInstrumented) return source;
+      Object.defineProperty(source, '__registerLifecycleInstrumented', { value: true });
+      audio.sourcesCreated += 1;
+      audio.createdByType[type] = (audio.createdByType[type] || 0) + 1;
+      let active = false;
+      const originalStart = source.start?.bind(source);
+      const originalStop = source.stop?.bind(source);
+      if (originalStart) {
+        source.start = (...args) => {
+          if (!active) {
+            active = true;
+            audio.activeSources += 1;
+            audio.sourcesStarted += 1;
+          }
+          return originalStart(...args);
+        };
+      }
+      if (originalStop) {
+        source.stop = (...args) => {
+          audio.sourcesStopped += 1;
+          return originalStop(...args);
+        };
+      }
+      originalAddEventListener.call(source, 'ended', () => {
+        audio.sourcesEnded += 1;
+        if (active) {
+          active = false;
+          audio.activeSources = Math.max(0, audio.activeSources - 1);
+        }
+      }, { once: true });
+      return source;
+    };
+    const instrumentContext = (context) => {
+      audio.contextsCreated += 1;
+      contexts.push(context);
+      for (const factory of ['createBufferSource', 'createOscillator', 'createConstantSource']) {
+        if (typeof context[factory] !== 'function') continue;
+        const original = context[factory].bind(context);
+        context[factory] = (...args) => instrumentSource(original(...args), factory);
+      }
+      if (typeof context.close === 'function') {
+        const originalClose = context.close.bind(context);
+        context.close = (...args) => {
+          audio.contextsClosed += 1;
+          return originalClose(...args);
+        };
+      }
+      return context;
+    };
+    const wrapAudioContext = (key) => {
+      const Original = window[key];
+      if (typeof Original !== 'function') return;
+      audio.available = true;
+      function LifecycleAudioContext(...args) {
+        return instrumentContext(Reflect.construct(Original, args, Original));
+      }
+      LifecycleAudioContext.prototype = Original.prototype;
+      Object.setPrototypeOf(LifecycleAudioContext, Original);
+      window[key] = LifecycleAudioContext;
+    };
+    wrapAudioContext('AudioContext');
+    if (window.webkitAudioContext !== window.AudioContext) wrapAudioContext('webkitAudioContext');
+
+    window.__registerEarlyLifecycleProbe = {
+      installedAtMs: performance.now(),
+      read() {
+        return {
+          timers: {
+            ...timerStats,
+            activeTimeouts: activeTimeouts.size,
+            activeIntervals: activeIntervals.size,
+            activeAnimationFrames: activeAnimationFrames.size,
+            scope: 'window timer/rAF calls observed from document initialization',
+          },
+          audio: {
+            ...audio,
+            createdByType: { ...audio.createdByType },
+            contextStates: contexts.map((context) => context.state || 'unknown'),
+            openContexts: contexts.filter((context) => context.state !== 'closed').length,
+            activeSourcesMeasurement: 'started AudioScheduledSourceNodes minus observed ended events',
+          },
+        };
+      },
+    };
+  });
 }
 
 async function boot(page) {
@@ -131,101 +747,160 @@ async function installResourceLifecycleProbe(page) {
     if (window.__registerResourceLifecycleProbe) return;
     const THREE = await import('/vendor/three.module.js');
     const probe = {
-      current: { cycle: 0, phase: 'probe-install' },
-      geometries: Object.create(null),
-      disposalEvents: [],
+      current: { scenario: 'setup', iteration: 0, phase: 'probe-install' },
+      resources: {
+        geometry: Object.create(null),
+        material: Object.create(null),
+        texture: Object.create(null),
+      },
+      disposalEvents: { geometry: [], material: [], texture: [] },
       phaseMarks: [],
-      lastLive: new Set(),
+      lastLive: {
+        geometry: new Set(),
+        material: new Set(),
+        texture: new Set(),
+      },
+      animationMixers: new Set(),
+      animationMixerUpdateCalls: 0,
     };
-    const originalDispose = THREE.BufferGeometry.prototype.dispose;
-    THREE.BufferGeometry.prototype.dispose = function registerLifecycleGeometryDispose() {
-      const entry = probe.geometries[this.uuid] || {
-        uuid: this.uuid,
-        type: this.type || this.constructor?.name || 'BufferGeometry',
-        names: [],
-        kinds: [],
-        from: [],
-        ancestry: [],
-        cycles: [],
-        firstSeen: null,
-        lastSeen: null,
-        disposeCalls: 0,
-        disposeEvents: [],
+    const newEntry = (resource, kind) => ({
+      uuid: resource.uuid,
+      resourceKind: kind,
+      type: resource.type || resource.constructor?.name || kind,
+      resourceNames: resource.name ? [resource.name] : [],
+      names: [],
+      kinds: [],
+      from: [],
+      ancestry: [],
+      iterations: [],
+      firstSeen: null,
+      lastSeen: null,
+      disposeCalls: 0,
+      disposeEvents: [],
+    });
+    const instrumentDispose = (kind, prototype) => {
+      const originalDispose = prototype?.dispose;
+      if (typeof originalDispose !== 'function') return;
+      prototype.dispose = function registerLifecycleResourceDispose() {
+        const entries = probe.resources[kind];
+        const entry = entries[this.uuid] || newEntry(this, kind);
+        entries[this.uuid] = entry;
+        entry.disposeCalls += 1;
+        const event = {
+          uuid: this.uuid,
+          resourceKind: kind,
+          type: entry.type,
+          scenario: probe.current.scenario,
+          iteration: probe.current.iteration,
+          cycle: probe.current.iteration,
+          phase: probe.current.phase,
+          names: [...entry.names],
+          kinds: [...entry.kinds],
+          from: [...entry.from],
+        };
+        entry.disposeEvents.push(event);
+        probe.disposalEvents[kind].push(event);
+        return originalDispose.call(this);
       };
-      probe.geometries[this.uuid] = entry;
-      entry.disposeCalls += 1;
-      const event = {
-        uuid: this.uuid,
-        type: entry.type,
-        cycle: probe.current.cycle,
-        phase: probe.current.phase,
-        names: [...entry.names],
-        kinds: [...entry.kinds],
-        from: [...entry.from],
-      };
-      entry.disposeEvents.push(event);
-      probe.disposalEvents.push(event);
-      return originalDispose.call(this);
+    };
+    instrumentDispose('geometry', THREE.BufferGeometry.prototype);
+    instrumentDispose('material', THREE.Material.prototype);
+    instrumentDispose('texture', THREE.Texture.prototype);
+    const observeMixer = function observeAnimationMixer(...args) {
+      probe.animationMixers.add(this);
+      return args;
+    };
+    const originalMixerUpdate = THREE.AnimationMixer.prototype.update;
+    THREE.AnimationMixer.prototype.update = function registerLifecycleMixerUpdate(...args) {
+      observeMixer.call(this);
+      probe.animationMixerUpdateCalls += 1;
+      return originalMixerUpdate.apply(this, args);
+    };
+    const originalClipAction = THREE.AnimationMixer.prototype.clipAction;
+    THREE.AnimationMixer.prototype.clipAction = function registerLifecycleMixerClipAction(...args) {
+      observeMixer.call(this);
+      return originalClipAction.apply(this, args);
     };
     window.__registerResourceLifecycleProbe = probe;
   });
 }
 
-async function markResourcePhase(page, cycle, phase) {
-  return page.evaluate(({ cycleNumber, phaseName }) => {
+async function markResourcePhase(page, iteration, phase, scenario = 'sale') {
+  return page.evaluate(({ iterationNumber, phaseName, scenarioName }) => {
     const app = window.__fw;
     const scene = app.scene3d.scene;
     const probe = window.__registerResourceLifecycleProbe;
     if (!probe) throw new Error('Resource lifecycle probe is not installed.');
-    probe.current = { cycle: cycleNumber, phase: phaseName };
-    const addLimited = (array, value, limit = 12) => {
+    probe.current = {
+      scenario: scenarioName,
+      iteration: iterationNumber,
+      phase: phaseName,
+    };
+    const addLimited = (array, value, limit = 512) => {
       if (value != null && value !== '' && !array.includes(value) && array.length < limit) array.push(value);
     };
-    const live = new Set();
-    scene.traverse((object) => {
-      const geometry = object.geometry;
-      if (!geometry?.uuid) return;
-      live.add(geometry.uuid);
-      let entry = probe.geometries[geometry.uuid];
+    const live = {
+      geometry: new Set(),
+      material: new Set(),
+      texture: new Set(),
+    };
+    const observe = (kind, resource, object) => {
+      if (!resource?.uuid) return;
+      live[kind].add(resource.uuid);
+      const entries = probe.resources[kind];
+      let entry = entries[resource.uuid];
       if (!entry) {
         entry = {
-          uuid: geometry.uuid,
-          type: geometry.type || geometry.constructor?.name || 'BufferGeometry',
+          uuid: resource.uuid,
+          resourceKind: kind,
+          type: resource.type || resource.constructor?.name || kind,
+          resourceNames: resource.name ? [resource.name] : [],
           names: [],
           kinds: [],
           from: [],
           ancestry: [],
-          cycles: [],
-          firstSeen: { cycle: cycleNumber, phase: phaseName },
+          iterations: [],
+          firstSeen: { scenario: scenarioName, iteration: iterationNumber, phase: phaseName },
           lastSeen: null,
           disposeCalls: 0,
           disposeEvents: [],
         };
-        probe.geometries[geometry.uuid] = entry;
+        entries[resource.uuid] = entry;
       }
-      entry.lastSeen = { cycle: cycleNumber, phase: phaseName };
-      addLimited(entry.cycles, cycleNumber, 24);
-      addLimited(entry.names, object.name || '(unnamed)');
-      addLimited(entry.kinds, object.userData?.kind || null);
-      addLimited(entry.from, object.userData?.from || null);
+      entry.lastSeen = { scenario: scenarioName, iteration: iterationNumber, phase: phaseName };
+      addLimited(entry.iterations, `${scenarioName}:${iterationNumber}`);
+      addLimited(entry.resourceNames, resource.name || null, 24);
+      addLimited(entry.names, object.name || '(unnamed)', 24);
+      addLimited(entry.kinds, object.userData?.kind || null, 24);
+      addLimited(entry.from, object.userData?.from || null, 24);
       const ancestry = [];
       let cursor = object;
       for (let depth = 0; cursor && depth < 5; depth += 1, cursor = cursor.parent) {
         if (cursor.name) ancestry.push(cursor.name);
       }
-      addLimited(entry.ancestry, ancestry.join(' < '));
+      addLimited(entry.ancestry, ancestry.join(' < '), 24);
+    };
+    scene.traverse((object) => {
+      observe('geometry', object.geometry, object);
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        if (!material) continue;
+        observe('material', material, object);
+        for (const value of Object.values(material)) {
+          if (value?.isTexture) observe('texture', value, object);
+        }
+        for (const uniform of Object.values(material.uniforms || {})) {
+          if (uniform?.value?.isTexture) observe('texture', uniform.value, object);
+        }
+      }
     });
-    const initializingBaseline = probe.lastLive.size === 0 && cycleNumber === 0;
-    const added = initializingBaseline
-      ? []
-      : [...live].filter((uuid) => !probe.lastLive.has(uuid));
-    const removed = [...probe.lastLive].filter((uuid) => !live.has(uuid));
-    probe.lastLive = live;
-    const focused = (uuid) => {
-      const entry = probe.geometries[uuid];
+    const focused = (kind, uuid) => {
+      const entry = probe.resources[kind][uuid];
       return {
         uuid,
+        resourceKind: kind,
         type: entry?.type || null,
+        resourceNames: entry?.resourceNames || [],
         names: entry?.names || [],
         kinds: entry?.kinds || [],
         from: entry?.from || [],
@@ -233,76 +908,120 @@ async function markResourcePhase(page, cycle, phase) {
         disposeCalls: entry?.disposeCalls || 0,
       };
     };
+    const changes = {};
+    for (const kind of ['geometry', 'material', 'texture']) {
+      const initializingBaseline = probe.lastLive[kind].size === 0 && iterationNumber === 0;
+      const added = initializingBaseline
+        ? []
+        : [...live[kind]].filter((uuid) => !probe.lastLive[kind].has(uuid));
+      const removed = [...probe.lastLive[kind]].filter((uuid) => !live[kind].has(uuid));
+      changes[kind] = {
+        liveCount: live[kind].size,
+        added: added.map((uuid) => focused(kind, uuid)),
+        removed: removed.map((uuid) => focused(kind, uuid)),
+        disposalEventCount: probe.disposalEvents[kind].length,
+      };
+      probe.lastLive[kind] = live[kind];
+    }
     const mark = {
-      cycle: cycleNumber,
+      scenario: scenarioName,
+      iteration: iterationNumber,
+      cycle: iterationNumber,
       phase: phaseName,
       rendererGeometries: app.scene3d.renderer.info.memory.geometries,
       rendererTextures: app.scene3d.renderer.info.memory.textures,
-      liveGeometryCount: live.size,
-      added: added.map(focused),
-      removed: removed.map(focused),
-      disposalEventCount: probe.disposalEvents.length,
+      liveGeometryCount: live.geometry.size,
+      liveMaterialCount: live.material.size,
+      liveTextureCount: live.texture.size,
+      changes,
+      added: changes.geometry.added,
+      removed: changes.geometry.removed,
+      disposalEventCount: probe.disposalEvents.geometry.length,
+      animationMixerCount: probe.animationMixers.size,
     };
     probe.phaseMarks.push(mark);
     return mark;
-  }, { cycleNumber: cycle, phaseName: phase });
+  }, { iterationNumber: iteration, phaseName: phase, scenarioName: scenario });
 }
 
 async function readResourceLifecycleProbe(page) {
   return page.evaluate(() => {
     const probe = window.__registerResourceLifecycleProbe;
     if (!probe) return null;
-    const liveAtEnd = probe.lastLive;
-    const geometries = Object.values(probe.geometries).map((entry) => ({
-      ...entry,
-      liveAtEnd: liveAtEnd.has(entry.uuid),
-      names: [...entry.names],
-      kinds: [...entry.kinds],
-      from: [...entry.from],
-      ancestry: [...entry.ancestry],
-      cycles: [...entry.cycles],
-      disposeEvents: [...entry.disposeEvents],
-    }));
-    const ephemeralUndisposed = geometries.filter((entry) => (
-      !entry.liveAtEnd
-      && entry.disposeCalls === 0
-      && Number(entry.firstSeen?.cycle) > 0
-    ));
-    const groups = new Map();
-    for (const entry of ephemeralUndisposed) {
-      const key = [
-        entry.type,
-        entry.names.join('|') || '(unnamed)',
-        entry.kinds.join('|') || '(no-kind)',
-        entry.from.join('|') || '(no-from)',
-        entry.ancestry[0] || '(no-ancestry)',
-      ].join(' :: ');
-      const group = groups.get(key) || {
-        signature: key,
-        count: 0,
-        uuids: [],
-        cycles: [],
-        firstSeenPhases: [],
-      };
-      group.count += 1;
-      group.uuids.push(entry.uuid);
-      for (const cycle of entry.cycles) if (!group.cycles.includes(cycle)) group.cycles.push(cycle);
-      if (entry.firstSeen?.phase && !group.firstSeenPhases.includes(entry.firstSeen.phase)) {
-        group.firstSeenPhases.push(entry.firstSeen.phase);
+    const resources = {};
+    for (const kind of ['geometry', 'material', 'texture']) {
+      const all = Object.values(probe.resources[kind]).map((entry) => ({
+        ...entry,
+        liveAtEnd: probe.lastLive[kind].has(entry.uuid),
+        resourceNames: [...entry.resourceNames],
+        names: [...entry.names],
+        kinds: [...entry.kinds],
+        from: [...entry.from],
+        ancestry: [...entry.ancestry],
+        iterations: [...entry.iterations],
+        cycles: [...entry.iterations],
+        disposeEvents: [...entry.disposeEvents],
+      }));
+      const cycleResources = all.filter((entry) => (
+        Number(entry.firstSeen?.iteration) > 0
+        || entry.disposeEvents.some((event) => Number(event.iteration) > 0)
+      ));
+      const ephemeralUndisposed = cycleResources.filter((entry) => (
+        !entry.liveAtEnd && entry.disposeCalls === 0
+      ));
+      const groups = new Map();
+      for (const entry of ephemeralUndisposed) {
+        const key = [
+          entry.type,
+          entry.resourceNames.join('|') || '(unnamed-resource)',
+          entry.names.join('|') || '(unnamed-object)',
+          entry.kinds.join('|') || '(no-kind)',
+          entry.from.join('|') || '(no-from)',
+          entry.ancestry[0] || '(no-ancestry)',
+        ].join(' :: ');
+        const group = groups.get(key) || {
+          signature: key,
+          count: 0,
+          uuids: [],
+          iterations: [],
+          firstSeenPhases: [],
+        };
+        group.count += 1;
+        group.uuids.push(entry.uuid);
+        for (const iteration of entry.iterations) {
+          if (!group.iterations.includes(iteration)) group.iterations.push(iteration);
+        }
+        if (entry.firstSeen?.phase && !group.firstSeenPhases.includes(entry.firstSeen.phase)) {
+          group.firstSeenPhases.push(entry.firstSeen.phase);
+        }
+        groups.set(key, group);
       }
-      groups.set(key, group);
+      resources[kind] = {
+        observedCount: all.length,
+        liveAtEndCount: all.filter((entry) => entry.liveAtEnd).length,
+        disposedCount: all.filter((entry) => entry.disposeCalls > 0).length,
+        disposeCallCount: all.reduce((sum, entry) => sum + entry.disposeCalls, 0),
+        disposalEventCount: probe.disposalEvents[kind].length,
+        ephemeralUndisposedCount: ephemeralUndisposed.length,
+        ephemeralUndisposedGroups: [...groups.values()].sort((left, right) => right.count - left.count),
+        cycleResources,
+        disposalEvents: [...probe.disposalEvents[kind]],
+      };
     }
     return {
       phaseMarks: [...probe.phaseMarks],
-      disposalEvents: [...probe.disposalEvents],
-      geometryCount: geometries.length,
-      disposedGeometryCount: geometries.filter((entry) => entry.disposeCalls > 0).length,
-      ephemeralUndisposedCount: ephemeralUndisposed.length,
-      ephemeralUndisposedGroups: [...groups.values()].sort((left, right) => right.count - left.count),
-      cycleGeometries: geometries.filter((entry) => (
-        Number(entry.firstSeen?.cycle) > 0
-        || entry.disposeEvents.some((event) => Number(event.cycle) > 0)
-      )),
+      resources,
+      animationMixers: {
+        count: probe.animationMixers.size,
+        updateCalls: probe.animationMixerUpdateCalls,
+        measurement: 'unique AnimationMixer instances observed through clipAction/update after probe installation; explicit 0 means none were observed',
+      },
+      disposalEvents: resources.geometry.disposalEvents,
+      geometryCount: resources.geometry.observedCount,
+      disposedGeometryCount: resources.geometry.disposedCount,
+      ephemeralUndisposedCount: resources.geometry.ephemeralUndisposedCount,
+      ephemeralUndisposedGroups: resources.geometry.ephemeralUndisposedGroups,
+      cycleGeometries: resources.geometry.cycleResources,
     };
   });
 }
@@ -436,7 +1155,6 @@ async function waitForCycleTransaction(page, fixture) {
     if (owner?.__registerLifecycleCycle !== cycle) {
       throw new Error(`Cycle ${cycle} does not own the active transaction.`);
     }
-    tx.rng = () => 0.99;
     if (method === 'cash') {
       tx.items[0].price = 5;
       tx.items[0].priceCents = 500;
@@ -471,12 +1189,65 @@ async function scanSingleProduct(page, uid) {
   }, uid, { timeout: 9000 });
 }
 
-async function completeCard(page) {
+async function waitForCardReady(page) {
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx?.stage === 'card-ready';
   }, null, { timeout: 10000 });
   await waitCamera(page, 'card');
+}
+
+async function cancelPreAuthorizationWithX(page) {
+  // The X is a pre-authorization exit in both card-ready and card-entry. Use the
+  // inserted, exact-total reader view so the physical X is guaranteed to be in
+  // the player's close camera even when the customer-handoff framing places the
+  // seated terminal just outside a narrow viewport.
+  const prefill = await insertCardToAmountEntry(page);
+  await waitCamera(page, 'card');
+  const before = await page.evaluate(() => {
+    const register = window.__fw.scene3d.clubhouse().register;
+    const tx = register.getTx();
+    return {
+      number: tx?.number,
+      stage: tx?.stage,
+      cardAttempts: tx?.cardAttempts,
+      itemUids: tx?.items?.map((item) => item.uid) || [],
+      x: register.cardXScreenPoint(),
+    };
+  });
+  assert(before.x?.visible && before.x?.inView,
+    `The pre-authorization X is not visible from the player camera: ${JSON.stringify(before.x)}.`);
+  assert(before.stage === 'card-entry' && Number(before.cardAttempts || 0) === 0,
+    `The X cancellation was not captured before authorization: ${JSON.stringify(before)}.`);
+  await page.mouse.click(before.x.x, before.x.y);
+  await page.waitForFunction((transactionNumber) => {
+    const register = window.__fw.scene3d.clubhouse().register;
+    const tx = register.getTx();
+    return register.workspace() === 'monitor'
+      && tx?.number === transactionNumber
+      && tx.stage === 'scanning'
+      && tx.items.every((item) => item.scanned && item.staged);
+  }, before.number, { timeout: 5000 });
+  const cancelled = await page.evaluate(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return {
+      number: tx?.number,
+      stage: tx?.stage,
+      method: tx?.method,
+      itemUids: tx?.items?.map((item) => item.uid) || [],
+    };
+  });
+  assert(cancelled.number === before.number
+      && cancelled.stage === 'scanning'
+      && cancelled.method === null
+      && JSON.stringify(cancelled.itemUids) === JSON.stringify(before.itemUids),
+  `Pre-authorization X did not preserve the transaction basket: ${JSON.stringify({ before, cancelled })}.`);
+  await waitForCardReady(page);
+  return { before, cancelled, prefill, represented: true };
+}
+
+async function insertCardToAmountEntry(page) {
+  await waitForCardReady(page);
   const card = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.presentedCardScreenPoint()
   ));
@@ -497,6 +1268,11 @@ async function completeCard(page) {
   assert(prefill.enteredCents === prefill.totalCents
       && prefill.digits === String(prefill.totalCents),
   `Card total was not prefilled exactly: ${JSON.stringify(prefill)}.`);
+  return prefill;
+}
+
+async function insertAndConfirmCard(page) {
+  const prefill = await insertCardToAmountEntry(page);
   const confirm = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint('OK')
   ));
@@ -504,9 +1280,89 @@ async function completeCard(page) {
   await page.mouse.click(confirm.x, confirm.y);
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    return tx?.stage === 'receipt' && tx.cardResult === 'approved' && tx.cardAttempts === 1;
-  }, null, { timeout: 10000 });
+    return tx && ['card-busy', 'card-declined', 'receipt'].includes(tx.stage);
+  }, null, { timeout: 5000 });
   return { prefill };
+}
+
+async function completeCard(page, {
+  cancelBeforeAuthorization = false,
+  declineThenRecover = false,
+  onPhase = async () => {},
+} = {}) {
+  const cancellation = cancelBeforeAuthorization
+    ? await cancelPreAuthorizationWithX(page)
+    : null;
+  if (cancellation) await onPhase('pre-authorization-x-cancelled');
+  await page.evaluate((declineFirst) => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    const values = declineFirst ? [0, 0.99] : [0.99];
+    tx.__registerLifecycleCardRngTrace = [];
+    tx.rng = () => {
+      const value = values.length ? values.shift() : 0.99;
+      tx.__registerLifecycleCardRngTrace.push(value);
+      return value;
+    };
+  }, declineThenRecover);
+
+  const attempts = [await insertAndConfirmCard(page)];
+  let declined = null;
+  if (declineThenRecover) {
+    await page.waitForFunction(() => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      return tx?.stage === 'card-declined'
+        && tx.cardResult === 'declined'
+        && tx.cardAttempts === 1;
+    }, null, { timeout: 10000 });
+    declined = await page.evaluate(() => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      return {
+        stage: tx?.stage,
+        flow: tx?.checkoutFlow?.state,
+        result: tx?.cardResult,
+        attempts: tx?.cardAttempts,
+        cardsTried: tx?.cardsTried,
+        rngTrace: [...(tx?.__registerLifecycleCardRngTrace || [])],
+      };
+    });
+    assert(declined.attempts === 1 && declined.cardsTried === 1
+        && JSON.stringify(declined.rngTrace) === JSON.stringify([0]),
+    `The first normal authorization did not decline exactly once: ${JSON.stringify(declined)}.`);
+    await onPhase('card-declined-before-recovery');
+    await waitCamera(page, 'monitor');
+    await clickMonitorAction(page, 'retry-card', 'monitor');
+    attempts.push(await insertAndConfirmCard(page));
+  }
+
+  const expectedAttempts = declineThenRecover ? 2 : 1;
+  await page.waitForFunction((attemptCount) => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.stage === 'receipt' && tx.cardResult === 'approved'
+      && tx.cardAttempts === attemptCount;
+  }, expectedAttempts, { timeout: 10000 });
+  const approved = await page.evaluate(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return {
+      result: tx?.cardResult,
+      attempts: tx?.cardAttempts,
+      cardsTried: tx?.cardsTried,
+      rngTrace: [...(tx?.__registerLifecycleCardRngTrace || [])],
+    };
+  });
+  const expectedTrace = declineThenRecover ? [0, 0.99] : [0.99];
+  assert(JSON.stringify(approved.rngTrace) === JSON.stringify(expectedTrace),
+    `Normal card authorization consumed the wrong RNG sequence: ${JSON.stringify(approved)}.`);
+  assert(!declineThenRecover || approved.cardsTried === 2,
+    `Declined-card recovery did not use a replacement card: ${JSON.stringify(approved)}.`);
+  await onPhase(declineThenRecover ? 'card-decline-recovered' : 'card-approved');
+  return {
+    cancellation,
+    declined,
+    approved,
+    attempts,
+    cancellationCompleted: !!cancellation,
+    declineRecoveryCompleted: !!declined && approved.result === 'approved',
+  };
 }
 
 async function completeCash(page) {
@@ -546,7 +1402,7 @@ async function completeCash(page) {
     return tx && ['receipt', 'bagging', 'done'].includes(tx.stage)
       && !tx.drawerOpen && tx.changeGiven === 0;
   }, null, { timeout: 8000 });
-  return { tender, change };
+  return { tender, change, drawerOpened: true, drawerClosed: true };
 }
 
 async function forceGarbageCollection(cdp) {
@@ -555,7 +1411,12 @@ async function forceGarbageCollection(cdp) {
   await cdp.send('HeapProfiler.collectGarbage').catch(() => {});
 }
 
-async function snapshot(page, cdp, { cycle, phase, forceGc = true } = {}) {
+async function snapshot(page, cdp, {
+  cycle,
+  phase,
+  scenario = 'sale',
+  forceGc = true,
+} = {}) {
   if (forceGc) {
     // Register mode maps pointer position to a bounded first-person head lean.
     // Normalize to the exact viewport centre before every cleanup sample; a
@@ -577,7 +1438,7 @@ async function snapshot(page, cdp, { cycle, phase, forceGc = true } = {}) {
   const cdpMetrics = Object.fromEntries(
     performanceMetrics.metrics.map((entry) => [entry.name, entry.value]),
   );
-  const game = await page.evaluate(({ cycleNumber, samplePhase }) => {
+  const game = await page.evaluate(({ cycleNumber, samplePhase, sampleScenario }) => {
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
     const scene = app.scene3d.scene;
@@ -653,7 +1514,24 @@ async function snapshot(page, cdp, { cycle, phase, forceGc = true } = {}) {
     const shop = app.state.shop;
     const renderer = app.scene3d.renderer;
     const tx = clubhouse.register.getTx();
+    const earlyRuntime = window.__registerEarlyLifecycleProbe?.read?.() || {
+      timers: {
+        activeTimeouts: null,
+        activeIntervals: null,
+        activeAnimationFrames: null,
+        unavailable: true,
+      },
+      audio: {
+        available: false,
+        contextsCreated: 0,
+        openContexts: 0,
+        sourcesCreated: 0,
+        activeSources: 0,
+      },
+    };
+    const resourceProbe = window.__registerResourceLifecycleProbe;
     return {
+      scenario: sampleScenario,
       cycle: cycleNumber,
       phase: samplePhase,
       atMs: Math.round(performance.now()),
@@ -663,6 +1541,7 @@ async function snapshot(page, cdp, { cycle, phase, forceGc = true } = {}) {
         txNumber: tx?.number || null,
         txStage: tx?.stage || null,
         txMethod: tx?.method || null,
+        txCheckoutFlowState: tx?.checkoutFlow?.state || null,
         deliveryPhase: clubhouse.register.deliveryPhase(),
         ownerCustomerId: clubhouse.register.getCustomer()?.customerId || null,
         queue: clubhouse.checkoutQueue().length,
@@ -674,6 +1553,7 @@ async function snapshot(page, cdp, { cycle, phase, forceGc = true } = {}) {
         units: shop.salesLive?.units || 0,
         revenue: shop.salesLive?.revenue || 0,
         history: (shop.transactionHistory || []).length,
+        nextTransactionNo: Number(shop.nextTransactionNo || 1),
         held: (shop.held || []).length,
         cash: app.state.cash,
       },
@@ -691,9 +1571,16 @@ async function snapshot(page, cdp, { cycle, phase, forceGc = true } = {}) {
         bodyElements: document.body.getElementsByTagName('*').length,
       },
       listeners: { net: listenerNet, byTargetAndType: listeners },
+      timers: earlyRuntime.timers,
+      audio: earlyRuntime.audio,
+      animationMixers: {
+        count: resourceProbe?.animationMixers?.size || 0,
+        updateCalls: resourceProbe?.animationMixerUpdateCalls || 0,
+        measurement: 'unique AnimationMixer instances observed through clipAction/update after the resource probe was installed',
+      },
       pageHeapBytes: performance.memory?.usedJSHeapSize ?? null,
     };
-  }, { cycleNumber: cycle, samplePhase: phase });
+  }, { cycleNumber: cycle, samplePhase: phase, sampleScenario: scenario });
   return {
     ...game,
     dom: {
@@ -709,6 +1596,12 @@ async function snapshot(page, cdp, { cycle, phase, forceGc = true } = {}) {
       runtimeTotalBytes: runtimeHeap.totalSize,
       cdpJsHeapUsedBytes: cdpMetrics.JSHeapUsedSize ?? null,
       cdpJsHeapTotalBytes: cdpMetrics.JSHeapTotalSize ?? null,
+    },
+    cdpPerformance: {
+      taskDurationSeconds: cdpMetrics.TaskDuration ?? null,
+      scriptDurationSeconds: cdpMetrics.ScriptDuration ?? null,
+      layoutDurationSeconds: cdpMetrics.LayoutDuration ?? null,
+      recalcStyleDurationSeconds: cdpMetrics.RecalcStyleDuration ?? null,
     },
   };
 }
@@ -765,6 +1658,7 @@ function selectTrailingStableWindow(samples) {
     ['renderer.memory.textures', 2],
     ['dom.liveNodes', 4],
     ['dom.nodes', 12],
+    ['dom.detachedNodesEstimate', 12],
     ['dom.jsEventListeners', 2],
     ['listeners.net', 0],
   ];
@@ -792,7 +1686,70 @@ function selectTrailingStableWindow(samples) {
   };
 }
 
-function buildGates({ baseline, stableSamples, transientSamples, finalSample, cycles, fixture, tickets, diagnostics }) {
+function durationSummary(values) {
+  const finite = values.map(Number).filter(Number.isFinite).sort((left, right) => left - right);
+  if (!finite.length) return { count: 0, totalMs: 0, averageMs: null, p95Ms: null, maxMs: null };
+  const totalMs = finite.reduce((sum, value) => sum + value, 0);
+  return {
+    count: finite.length,
+    totalMs: round2(totalMs),
+    averageMs: round2(totalMs / finite.length),
+    p95Ms: round2(finite[Math.min(finite.length - 1, Math.ceil(finite.length * 0.95) - 1)]),
+    maxMs: round2(finite[finite.length - 1]),
+  };
+}
+
+function summarizeResourceLifecycle(details) {
+  if (!details) return null;
+  const resources = {};
+  for (const kind of ['geometry', 'material', 'texture']) {
+    const entry = details.resources?.[kind];
+    resources[kind] = entry ? {
+      observedCount: entry.observedCount,
+      liveAtEndCount: entry.liveAtEndCount,
+      disposedCount: entry.disposedCount,
+      disposeCallCount: entry.disposeCallCount,
+      disposalEventCount: entry.disposalEventCount,
+      cycleResourceCount: entry.cycleResources?.length || 0,
+      ephemeralUndisposedCount: entry.ephemeralUndisposedCount,
+      topEphemeralUndisposedGroups: (entry.ephemeralUndisposedGroups || []).slice(0, 12),
+    } : {
+      observedCount: 0,
+      liveAtEndCount: 0,
+      disposedCount: 0,
+      disposeCallCount: 0,
+      disposalEventCount: 0,
+      cycleResourceCount: 0,
+      ephemeralUndisposedCount: 0,
+      topEphemeralUndisposedGroups: [],
+    };
+  }
+  return {
+    phaseMarkCount: details.phaseMarks?.length || 0,
+    resources,
+    animationMixers: details.animationMixers || {
+      count: 0,
+      updateCalls: 0,
+      measurement: 'resource probe unavailable; no AnimationMixer was observed',
+    },
+  };
+}
+
+function buildGates({
+  baseline,
+  stableSamples,
+  transientSamples,
+  finalSample,
+  cycles,
+  fixture,
+  tickets,
+  diagnostics,
+  cardinality,
+  salesPlan,
+  resourceLifecycle,
+  frontDeskLifecycle,
+  enforceStability = true,
+}) {
   const tolerances = {
     sceneNodesRange: 4,
     clubhouseNodesRange: 4,
@@ -817,10 +1774,22 @@ function buildGates({ baseline, stableSamples, transientSamples, finalSample, cy
     'renderer.memory.textures',
     'dom.liveNodes',
     'dom.nodes',
+    'dom.detachedNodesEstimate',
     'dom.jsEventListeners',
     'listeners.net',
   ];
   const summaries = Object.fromEntries(paths.map((metric) => [metric, metricSummary(stableSamples, metric)]));
+  const runtimePaths = [
+    'timers.activeTimeouts',
+    'timers.activeIntervals',
+    'timers.activeAnimationFrames',
+    'animationMixers.count',
+    'audio.openContexts',
+    'audio.activeSources',
+  ];
+  const runtimeSummaries = Object.fromEntries(runtimePaths.map((metric) => (
+    [metric, metricSummary(stableSamples, metric)]
+  )));
   const heapValues = stableSamples.map((sample) => sample.heap.runtimeUsedBytes);
   const heap = {
     first: heapValues[0],
@@ -831,10 +1800,19 @@ function buildGates({ baseline, stableSamples, transientSamples, finalSample, cy
   };
   const checks = [];
   const check = (id, ok, actual, expected) => checks.push({ id, ok: !!ok, actual, expected });
+  const stabilityCheck = (id, observedOk, actual, expected) => checks.push({
+    id,
+    ok: enforceStability ? !!observedOk : true,
+    observedOk: !!observedOk,
+    enforced: enforceStability,
+    actual,
+    expected,
+  });
   const rangeCheck = (metric, limit) => {
     const summary = summaries[metric];
-    check(`${metric}-stable-range`, summary.range <= limit, summary.range, `<= ${limit}`);
-    check(`${metric}-not-monotonic-leak`, !summary.monotonicLeak, summary, 'no repeated strict monotonic growth');
+    stabilityCheck(`${metric}-stable-range`, summary.range <= limit, summary.range, `<= ${limit}`);
+    stabilityCheck(`${metric}-not-monotonic-leak`, !summary.monotonicLeak,
+      summary, 'no repeated strict monotonic growth');
   };
   rangeCheck('scene.nodes', tolerances.sceneNodesRange);
   rangeCheck('clubhouse.nodes', tolerances.clubhouseNodesRange);
@@ -846,23 +1824,72 @@ function buildGates({ baseline, stableSamples, transientSamples, finalSample, cy
   rangeCheck('renderer.memory.textures', tolerances.rendererMemoryRange);
   rangeCheck('dom.liveNodes', tolerances.liveDomNodeRange);
   rangeCheck('dom.nodes', tolerances.cdpDomNodeRange);
+  rangeCheck('dom.detachedNodesEstimate', tolerances.cdpDomNodeRange);
   rangeCheck('dom.jsEventListeners', tolerances.jsListenerRange);
   rangeCheck('listeners.net', tolerances.listenerNetRange);
-  check('forced-gc-heap-growth', heap.growthBytes <= tolerances.maxHeapGrowthBytes,
+  for (const metric of runtimePaths) {
+    stabilityCheck(`${metric}-not-monotonic-leak`, !runtimeSummaries[metric].monotonicLeak,
+      runtimeSummaries[metric], 'no repeated strict monotonic growth in active instances');
+  }
+  if (frontDeskLifecycle?.sampleCount >= 2) {
+    const frontDeskLimits = {
+      'scene.nodes': tolerances.sceneNodesRange,
+      'scene.geometries': tolerances.uniqueResourceRange,
+      'scene.materials': tolerances.uniqueResourceRange,
+      'scene.textures': tolerances.uniqueResourceRange,
+      'renderer.memory.geometries': tolerances.rendererMemoryRange,
+      'renderer.memory.textures': tolerances.rendererMemoryRange,
+      'dom.liveNodes': tolerances.liveDomNodeRange,
+      'dom.nodes': tolerances.cdpDomNodeRange,
+      'dom.detachedNodesEstimate': tolerances.cdpDomNodeRange,
+      'dom.jsEventListeners': tolerances.jsListenerRange,
+      'listeners.net': tolerances.listenerNetRange,
+    };
+    for (const [metric, limit] of Object.entries(frontDeskLimits)) {
+      const summary = frontDeskLifecycle.summaries[metric];
+      stabilityCheck(`front-desk.${metric}-stable-range`, summary.range <= limit,
+        summary.range, `<= ${limit}`);
+      stabilityCheck(`front-desk.${metric}-not-monotonic-leak`, !summary.monotonicLeak,
+        summary, 'no repeated strict monotonic growth after front-desk exit');
+    }
+    for (const metric of runtimePaths) {
+      const summary = frontDeskLifecycle.summaries[metric];
+      stabilityCheck(`front-desk.${metric}-not-monotonic-leak`, !summary.monotonicLeak,
+        summary, 'no repeated strict monotonic growth in active instances after front-desk exit');
+    }
+    stabilityCheck('front-desk.forced-gc-heap-growth',
+      frontDeskLifecycle.heap.growthBytes <= 8 * 1024 * 1024,
+      frontDeskLifecycle.heap.growthBytes, `<= ${8 * 1024 * 1024}`);
+    stabilityCheck('front-desk.forced-gc-heap-slope',
+      frontDeskLifecycle.heap.slopeBytesPerIteration <= tolerances.maxHeapSlopeBytesPerCycle,
+      frontDeskLifecycle.heap.slopeBytesPerIteration,
+      `<= ${tolerances.maxHeapSlopeBytesPerCycle} bytes/front-desk iteration`);
+  }
+  stabilityCheck('forced-gc-heap-growth', heap.growthBytes <= tolerances.maxHeapGrowthBytes,
     heap.growthBytes, `<= ${tolerances.maxHeapGrowthBytes}`);
-  check('forced-gc-heap-slope', heap.slopeBytesPerCycle <= tolerances.maxHeapSlopeBytesPerCycle,
+  stabilityCheck('forced-gc-heap-slope', heap.slopeBytesPerCycle <= tolerances.maxHeapSlopeBytesPerCycle,
     heap.slopeBytesPerCycle, `<= ${tolerances.maxHeapSlopeBytesPerCycle} bytes/cycle`);
   check('completed-cycle-count', tickets.length === cycles, tickets.length, cycles);
+  for (const [name, counter] of Object.entries(cardinality)) {
+    check(`cardinality-${name}`, counter.ok, counter,
+      counter.comparison === 'exact'
+        ? { comparison: 'exact', requested: counter.requested }
+        : { comparison: 'at-least', requestedMinimum: counter.requestedMinimum });
+  }
   check('units-exact-once', finalSample.state.units === fixture.units + cycles,
     finalSample.state.units - fixture.units, cycles);
-  check('history-exact-once', finalSample.state.history === fixture.history + cycles,
-    finalSample.state.history - fixture.history, cycles);
+  const expectedHistory = Math.min(100, fixture.history + cycles);
+  check('bounded-history-exact', finalSample.state.history === expectedHistory,
+    finalSample.state.history, expectedHistory);
+  check('next-transaction-number-exact-once',
+    finalSample.state.nextTransactionNo === fixture.nextTransactionNo + cycles,
+    finalSample.state.nextTransactionNo, fixture.nextTransactionNo + cycles);
   check('held-reset', finalSample.state.held === fixture.held, finalSample.state.held, fixture.held);
   check('ticket-number-unique', new Set(tickets.map((ticket) => ticket.number)).size === cycles,
     tickets.map((ticket) => ticket.number), 'one unique transaction number per cycle');
-  check('ticket-method-alternation', tickets.every((ticket, index) => (
-    ticket.method === (index % 2 === 0 ? 'card' : 'cash')
-  )), tickets.map((ticket) => ticket.method), 'card,cash alternating');
+  check('ticket-method-plan', tickets.every((ticket, index) => (
+    ticket.method === salesPlan[index]?.method
+  )), tickets.map((ticket) => ticket.method), salesPlan.map((entry) => entry.method));
   check('receipt-observed-every-cycle', transientSamples.length === cycles
       && transientSamples.every((sample) => sample.props.printedReceipts === 1
         && sample.props.visibleBagContents === 1
@@ -899,54 +1926,282 @@ function buildGates({ baseline, stableSamples, transientSamples, finalSample, cy
       && finalSample.props.frontDeskBags === 1,
   { baseline: baseline.props.frontDeskBags, final: finalSample.props.frontDeskBags },
   { baseline: 1, final: 1 });
+  const animationMixerCount = resourceLifecycle?.animationMixers?.count ?? 0;
+  check('animation-mixer-count-reported', Number.isInteger(animationMixerCount)
+      && animationMixerCount >= 0,
+  animationMixerCount, 'a non-negative integer, with explicit 0 when none are observed');
   return {
     ok: checks.every((entry) => entry.ok),
     tolerances,
+    stabilityEnforced: enforceStability,
     checks,
     summaries,
+    runtimeSummaries,
     heap,
   };
 }
 
-async function addMetricsOverlay(page, result) {
-  await page.evaluate((summary) => {
+function buildSampleWindowReport(samples) {
+  if (!samples?.length) return {
+    sampleCount: 0,
+    firstIteration: null,
+    lastIteration: null,
+    summaries: {},
+    heap: null,
+  };
+  const paths = [
+    'scene.nodes',
+    'scene.geometries',
+    'scene.materials',
+    'scene.textures',
+    'renderer.memory.geometries',
+    'renderer.memory.textures',
+    'dom.liveNodes',
+    'dom.nodes',
+    'dom.detachedNodesEstimate',
+    'dom.jsEventListeners',
+    'listeners.net',
+    'timers.activeTimeouts',
+    'timers.activeIntervals',
+    'timers.activeAnimationFrames',
+    'animationMixers.count',
+    'audio.openContexts',
+    'audio.activeSources',
+  ];
+  const heapValues = samples.map((sample) => sample.heap.runtimeUsedBytes);
+  const iterationSpan = Math.max(1, Number(samples.at(-1).cycle) - Number(samples[0].cycle));
+  const heapGrowthBytes = heapValues.at(-1) - heapValues[0];
+  return {
+    sampleCount: samples.length,
+    firstIteration: samples[0].cycle,
+    lastIteration: samples.at(-1).cycle,
+    summaries: Object.fromEntries(paths.map((metric) => [metric, metricSummary(samples, metric)])),
+    heap: {
+      first: heapValues[0],
+      last: heapValues.at(-1),
+      growthBytes: heapGrowthBytes,
+      slopeBytesPerSample: linearSlope(heapValues),
+      slopeBytesPerIteration: heapGrowthBytes / iterationSpan,
+      iterationSpan,
+      values: heapValues,
+    },
+  };
+}
+
+function buildFrontDeskLifecycleReport(samples) {
+  if (!samples?.length) return {
+    ...buildSampleWindowReport([]),
+    capturedSampleCount: 0,
+    stableWindow: null,
+  };
+  const selection = samples.length >= 2 ? selectTrailingStableWindow(samples) : {
+    samples,
+    startIndex: 0,
+    minimumSamples: samples.length,
+    selectionCriteria: {},
+  };
+  return {
+    ...buildSampleWindowReport(selection.samples),
+    capturedSampleCount: samples.length,
+    stableWindow: {
+      firstIteration: selection.samples[0]?.cycle ?? null,
+      lastIteration: selection.samples.at(-1)?.cycle ?? null,
+      sampleCount: selection.samples.length,
+      minimumSamples: selection.minimumSamples,
+      selectionCriteria: selection.selectionCriteria,
+      rationale: 'Trailing post-exit samples exclude finite first-entry lazy realization while retaining every later captured point.',
+    },
+  };
+}
+
+function markdownValue(value) {
+  if (value === null || value === undefined) return 'unavailable';
+  if (typeof value === 'number') return Number.isInteger(value) ? String(value) : String(round2(value));
+  return String(value).replaceAll('|', '\\|').replaceAll('\n', ' ');
+}
+
+export function renderLifecycleMarkdown(result) {
+  const lines = [
+    '# Simplified register lifecycle stress',
+    '',
+    `- Result: **${result.ok ? 'PASS' : 'FAIL'}**`,
+    `- Profile: \`${result.protocol?.profile || 'unknown'}\``,
+    `- Viewport: \`${result.protocol?.viewport || 'unknown'}\``,
+    `- Requested/completed sales: ${result.protocol?.requestedCycles ?? 0} / ${result.protocol?.completedCycles ?? 0}`,
+    `- Elapsed: ${markdownValue(result.timings?.run?.elapsedMs)} ms`,
+    '',
+    '## Lifecycle cardinalities',
+    '',
+    '| Lifecycle | Rule | Requested | Completed / observed | Result |',
+    '|---|---:|---:|---:|---:|',
+  ];
+  for (const [name, counter] of Object.entries(result.cardinality || {})) {
+    const requested = counter.comparison === 'exact' ? counter.requested : counter.requestedMinimum;
+    const observed = [
+      counter.completed,
+      counter.observedEntries != null ? `entries ${counter.observedEntries}` : null,
+      counter.observedExits != null ? `exits ${counter.observedExits}` : null,
+      counter.observedOpens != null ? `opens ${counter.observedOpens}` : null,
+      counter.observedCloses != null ? `closes ${counter.observedCloses}` : null,
+      counter.observedSpawns != null ? `spawns ${counter.observedSpawns}` : null,
+      counter.observedRemovals != null ? `removals ${counter.observedRemovals}` : null,
+    ].filter((value) => value !== null).join('; ');
+    lines.push(`| ${name} | ${counter.comparison} | ${requested} | ${observed} | ${counter.ok ? 'PASS' : 'FAIL'} |`);
+  }
+
+  const final = result.finalSample || result.lastSample || null;
+  const baseline = result.baseline || result.outsideBaseline || null;
+  lines.push(
+    '',
+    '## Runtime lifecycle counters',
+    '',
+    '| Metric | Baseline | Final | Delta |',
+    '|---|---:|---:|---:|',
+  );
+  const runtimeRows = [
+    ['Window active timeouts', 'timers.activeTimeouts'],
+    ['Window active intervals', 'timers.activeIntervals'],
+    ['Window active animation frames', 'timers.activeAnimationFrames'],
+    ['AnimationMixer instances', 'animationMixers.count'],
+    ['AudioContext open', 'audio.openContexts'],
+    ['Audio sources created', 'audio.sourcesCreated'],
+    ['Audio sources active', 'audio.activeSources'],
+    ['Live DOM nodes', 'dom.liveNodes'],
+    ['CDP DOM nodes', 'dom.nodes'],
+    ['Detached DOM node estimate', 'dom.detachedNodesEstimate'],
+    ['CDP JS event listeners', 'dom.jsEventListeners'],
+    ['Listener probe net', 'listeners.net'],
+    ['Forced-GC heap bytes', 'heap.runtimeUsedBytes'],
+  ];
+  for (const [label, metric] of runtimeRows) {
+    const first = baseline ? getMetric(baseline, metric) : null;
+    const last = final ? getMetric(final, metric) : null;
+    const delta = first !== null && first !== undefined && last !== null && last !== undefined
+      && Number.isFinite(Number(first)) && Number.isFinite(Number(last))
+      ? Number(last) - Number(first)
+      : null;
+    lines.push(`| ${label} | ${markdownValue(first)} | ${markdownValue(last)} | ${markdownValue(delta)} |`);
+  }
+
+  lines.push(
+    '',
+    '## Disposal instrumentation',
+    '',
+    '| Resource | Observed | Cycle resources | Disposed | Dispose calls | Ephemeral undisposed |',
+    '|---|---:|---:|---:|---:|---:|',
+  );
+  for (const kind of ['geometry', 'material', 'texture']) {
+    const entry = result.resourceLifecycle?.resources?.[kind] || {};
+    lines.push(`| ${kind} | ${markdownValue(entry.observedCount)} | ${markdownValue(entry.cycleResourceCount)} | ${markdownValue(entry.disposedCount)} | ${markdownValue(entry.disposeCallCount)} | ${markdownValue(entry.ephemeralUndisposedCount)} |`);
+  }
+  const mixer = result.resourceLifecycle?.animationMixers || { count: 0, updateCalls: 0 };
+  lines.push(
+    '',
+    `AnimationMixer count: **${markdownValue(mixer.count)}**; observed update calls: ${markdownValue(mixer.updateCalls)}.`,
+    '',
+    '## Timing',
+    '',
+    '| Scenario | Count | Average ms | P95 ms | Max ms |',
+    '|---|---:|---:|---:|---:|',
+  );
+  for (const [name, timing] of Object.entries(result.timings?.scenarios || {})) {
+    lines.push(`| ${name} | ${markdownValue(timing.count)} | ${markdownValue(timing.averageMs)} | ${markdownValue(timing.p95Ms)} | ${markdownValue(timing.maxMs)} |`);
+  }
+  const failedChecks = result.gates?.checks?.filter((entry) => !entry.ok) || [];
+  const informationalStabilityMisses = result.gates?.checks?.filter((entry) => (
+    entry.enforced === false && entry.observedOk === false
+  )) || [];
+  lines.push(
+    '',
+    '## Diagnostics and gates',
+    '',
+    `- Console errors: ${result.diagnostics?.consoleErrors?.length || 0}`,
+    `- Page errors: ${result.diagnostics?.pageErrors?.length || 0}`,
+    `- Non-aborted request failures: ${result.diagnostics?.nonAbortedFailedRequests?.length || 0}`,
+    `- Failed gates: ${failedChecks.length}`,
+    `- Smoke-only informational stability misses: ${informationalStabilityMisses.length}`,
+  );
+  for (const check of failedChecks) {
+    lines.push(`  - \`${check.id}\`: expected ${markdownValue(JSON.stringify(check.expected))}; got ${markdownValue(JSON.stringify(check.actual))}`);
+  }
+  for (const check of informationalStabilityMisses) {
+    lines.push(`  - informational \`${check.id}\`: expected ${markdownValue(JSON.stringify(check.expected))}; observed ${markdownValue(JSON.stringify(check.actual))}`);
+  }
+  const capture39 = result.evidence?.longSessionResourceCounts;
+  if (capture39) {
+    lines.push(
+      '',
+      '## Capture #39 provenance',
+      '',
+      `- Requirement: ${markdownValue(capture39.requirement)}`,
+      `- Capture status: **${markdownValue(capture39.status)}**`,
+      `- Screenshot: \`${markdownValue(capture39.screenshot)}\``,
+      `- Overlay: \`${markdownValue(capture39.provenance?.kind)}\` (`
+        + `\`${markdownValue(capture39.provenance?.overlayElementId)}\`)`,
+      `- Authoritative raw JSON: \`${markdownValue(capture39.authoritativeRawJson)}\``,
+      `- Authoritative resource details: \`${markdownValue(capture39.authoritativeResourceDetails)}\``,
+      `- Gameplay source modified by overlay: **${capture39.provenance?.gameplaySourceModified ? 'yes' : 'no'}**`,
+    );
+  }
+  if (result.blocker) lines.push('', `Blocker: ${markdownValue(result.blocker.message)}`);
+  lines.push('');
+  return `${lines.join('\n')}\n`;
+}
+
+function writeLifecycleEvidence(result, resourceDetails = null) {
+  if (result.evidence?.resourceDetails) {
+    const resourceArtifact = resourceDetails || {
+      available: false,
+      blocker: result.blocker || { message: 'Resource probe was unavailable.' },
+    };
+    fs.writeFileSync(result.evidence.resourceDetails, `${JSON.stringify(resourceArtifact, null, 2)}\n`);
+  }
+  fs.writeFileSync(result.evidence.json, `${JSON.stringify(result, null, 2)}\n`);
+  fs.writeFileSync(result.evidence.markdown, renderLifecycleMarkdown(result));
+}
+
+async function addMetricsOverlay(page, model) {
+  const html = renderLongSessionResourceOverlayHtml(model);
+  await page.evaluate(({ overlayHtml, provenance }) => {
     document.getElementById('register-lifecycle-metrics')?.remove();
     const panel = document.createElement('div');
-    panel.id = 'register-lifecycle-metrics';
+    panel.id = provenance.overlayElementId;
+    panel.setAttribute('role', 'status');
+    panel.setAttribute('aria-label', 'Capture 39 long-session resource counts');
+    panel.dataset.qaOnly = 'true';
+    panel.dataset.rawJsonAuthoritative = String(provenance.rawJsonAuthoritative);
+    panel.dataset.gameplaySourceModified = String(provenance.gameplaySourceModified);
     panel.style.cssText = [
-      'position:fixed', 'left:24px', 'top:24px', 'z-index:2147483647',
-      'width:520px', 'padding:20px 22px', 'border:2px solid #b9974e',
+      'position:fixed', 'left:50%', 'top:18px', 'transform:translateX(-50%)',
+      'z-index:2147483647', 'box-sizing:border-box',
+      'width:calc(100vw - 36px)', 'max-width:1540px', 'max-height:calc(100vh - 36px)',
+      'overflow:hidden', 'padding:14px 18px', 'border:2px solid #b9974e',
       'border-radius:12px', 'background:rgba(17,32,25,.94)', 'color:#f4eddb',
-      'font:600 15px/1.45 Segoe UI,Arial,sans-serif',
+      'font:600 12px/1.25 Segoe UI,Arial,sans-serif',
       'box-shadow:0 18px 48px rgba(0,0,0,.42)',
     ].join(';');
-    const row = (label, value) => `<div style="display:flex;justify-content:space-between;gap:16px;border-top:1px solid rgba(244,237,219,.16);padding:6px 0"><span>${label}</span><strong style="color:#d5b66f">${value}</strong></div>`;
-    panel.innerHTML = `
-      <div style="font:800 24px/1.1 Georgia,serif;color:#fff;margin-bottom:4px">Checkout lifecycle QA</div>
-      <div style="color:#a9c5ae;margin-bottom:12px">Normal-control card/cash stress</div>
-      ${row('Result', summary.ok ? 'PASS' : 'FAIL')}
-      ${row('Completed sales', summary.cycles)}
-      ${row('Payment route', 'card / cash alternating')}
-      ${row('Units / tickets', `${summary.units} / ${summary.history}`)}
-      ${row('Held inventory', summary.held)}
-      ${row('Stable scene-node range', summary.sceneRange)}
-      ${row('Stable geometry / texture range', `${summary.geometryRange} / ${summary.textureRange}`)}
-      ${row('Listener-net range', summary.listenerRange)}
-      ${row('Forced-GC heap growth', `${summary.heapGrowthMiB} MiB`)}
-      ${row('Console / page errors', `${summary.consoleErrors} / ${summary.pageErrors}`)}
-    `;
+    panel.innerHTML = overlayHtml;
     document.body.appendChild(panel);
-  }, result);
+  }, { overlayHtml: html, provenance: model.provenance });
 }
 
 export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
   const viewport = configureViewport(options.viewport
     || process.env.REGISTER_QA_VIEWPORT
     || process.env.QA_VIEWPORT);
-  const cycles = configureCycles(options.cycles || process.env.REGISTER_QA_CYCLES);
-  const root = path.resolve(process.env.REGISTER_QA_ROOT
+  const config = resolveLifecycleConfig(options);
+  const cycles = config.totalSales;
+  const requestedCounts = config.counts;
+  const salesPlan = buildSalesPlan(requestedCounts);
+  const root = path.resolve(options.root || process.env.REGISTER_QA_ROOT
     || 'qa/cashier_master_final/lifecycle/browser');
   fs.mkdirSync(root, { recursive: true });
+  const evidencePaths = {
+    json: path.join(root, 'lifecycle-result.json'),
+    markdown: path.join(root, 'lifecycle-summary.md'),
+    resourceDetails: path.join(root, 'lifecycle-resource-details.json'),
+    screenshot: path.join(root, 'lifecycle-metrics.png'),
+  };
 
   const diagnostics = {
     consoleErrors: [],
@@ -967,14 +2222,75 @@ export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
 
   let cdp = null;
   let fixture = null;
+  let outsideBaseline = null;
   let baseline = null;
   const cyclesRun = [];
   const postCycleSamples = [];
   const transientSamples = [];
+  const frontDeskModeSamples = [];
+  const frontDeskCycles = [];
   const tickets = [];
+  const observedCounts = createObservedCounts();
+  let resourceDetails = null;
   let resourceLifecycle = null;
+  let lastSample = null;
+  let currentScenario = 'boot';
   let currentCycle = 0;
+  const runStartedAt = Date.now();
+  const shouldSampleIteration = (iteration, total) => {
+    if (total <= 0) return false;
+    const interval = Math.max(1, Math.ceil(total / 20));
+    return iteration === 1 || iteration === total || iteration % interval === 0;
+  };
+  const buildTimings = () => ({
+    run: {
+      startedAt: new Date(runStartedAt).toISOString(),
+      finishedAt: new Date().toISOString(),
+      elapsedMs: Date.now() - runStartedAt,
+    },
+    scenarios: {
+      frontDeskEnterExit: durationSummary(frontDeskCycles.map((entry) => entry.durationMs)),
+      allTransactions: durationSummary(cyclesRun.map((entry) => entry.durationMs)),
+      cardTransactions: durationSummary(cyclesRun
+        .filter((entry) => entry.method === 'card').map((entry) => entry.durationMs)),
+      cashTransactions: durationSummary(cyclesRun
+        .filter((entry) => entry.method === 'cash').map((entry) => entry.durationMs)),
+    },
+  });
+  const protocolBase = () => ({
+    profile: config.profile,
+    viewport,
+    deviceScaleFactor: 1,
+    requestedCycles: cycles,
+    completedCycles: cyclesRun.length,
+    requestedCounts,
+    observedCounts: { ...observedCounts },
+    legacyCycles: config.legacyCycles,
+    configuration: {
+      profile: 'REGISTER_QA_PROFILE=master|smoke|legacy (master is the no-option default)',
+      legacy: 'REGISTER_QA_CYCLES=N preserves the prior alternating-sale interface and has no 40-cycle cap',
+      individualCountEnvironmentVariables: Object.fromEntries(COUNT_OPTIONS),
+    },
+    route: 'Fixture code only seeds deterministic customer inventory/payment preference and authorization RNG; front-desk E/Escape, product click, reader X, presented-card click, physical Confirm, retry-card monitor click, customer cash click, and change confirmation all use Playwright keyboard/mouse input.',
+    schedule: 'Card and cash sales alternate while both remain; configured X cancellations and genuine decline/replacement-card recoveries are embedded in completed card sales.',
+    cleanupBoundary: 'Each transaction clears and its paid customer reaches the physical exit/despawn before the post-cycle sample and next customer spawn.',
+    customerCardinality: 'The customer lifecycle is an explicit minimum gate: 100 card + 100 cash sales necessarily create/remove 200 distinct one-sale customers.',
+    stabilityGate: config.profile === 'smoke'
+      ? 'Smoke runs report every resource/runtime metric and observed stability outcome, but do not enforce long-session range/heap gates before the card/cash lazy warm-up can converge.'
+      : 'Long-session scene/resource/DOM/listener/timer/audio/heap stability gates are enforced.',
+    metrics: {
+      rendererMemory: 'THREE.WebGLRenderer.info.memory',
+      uniqueResources: 'UUID sets from live scene traversal',
+      disposal: 'BufferGeometry, Material, and Texture dispose calls intercepted after boot; full event details are in the separate resource artifact',
+      animationMixers: 'unique AnimationMixer instances observed through AnimationMixer.clipAction/update; 0 is emitted explicitly when none are observed',
+      timers: 'setTimeout/setInterval/requestAnimationFrame scheduled, fired/cleared, and active counts instrumented from document initialization',
+      audio: 'AudioContext construction plus AudioScheduledSourceNode create/start/stop/ended counts instrumented from document initialization where WebAudio is available',
+      heap: 'CDP Runtime.getHeapUsage after two HeapProfiler.collectGarbage calls',
+      domAndListeners: 'CDP Memory.getDOMCounters plus an EventTarget add/remove net probe installed before front-desk lifecycle work',
+    },
+  });
   try {
+    await installEarlyLifecycleProbe(page);
     await boot(page);
     cdp = await page.context().newCDPSession(page);
     await cdp.send('HeapProfiler.enable');
@@ -982,24 +2298,79 @@ export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
     await installListenerProbe(page);
     await installResourceLifecycleProbe(page);
     fixture = await setupFixture(page, cycles);
+
+    currentScenario = 'front-desk-enter-exit';
+    outsideBaseline = await snapshot(page, cdp, {
+      cycle: 0,
+      scenario: currentScenario,
+      phase: 'inactive-outside-baseline',
+    });
+    lastSample = outsideBaseline;
+    await markResourcePhase(page, 0, 'inactive-outside-baseline', currentScenario);
+    for (let iteration = 1; iteration <= requestedCounts.enterExits; iteration += 1) {
+      currentCycle = iteration;
+      const startedAt = Date.now();
+      await enterFrontDesk(page);
+      observedCounts.frontDeskEntries += 1;
+      await markResourcePhase(page, iteration, 'active-after-normal-e', currentScenario);
+      await leaveFrontDesk(page);
+      observedCounts.frontDeskExits += 1;
+      await markResourcePhase(page, iteration, 'inactive-after-normal-escape', currentScenario);
+      const record = {
+        iteration,
+        entered: true,
+        exited: true,
+        durationMs: Date.now() - startedAt,
+        sampleIndex: null,
+      };
+      if (shouldSampleIteration(iteration, requestedCounts.enterExits)) {
+        lastSample = await snapshot(page, cdp, {
+          cycle: iteration,
+          scenario: currentScenario,
+          phase: 'post-enter-exit-pair',
+        });
+        frontDeskModeSamples.push(lastSample);
+        record.sampleIndex = frontDeskModeSamples.length - 1;
+      }
+      frontDeskCycles.push(record);
+    }
+
+    currentScenario = 'completed-sales';
     await enterFrontDesk(page);
-    baseline = await snapshot(page, cdp, { cycle: 0, phase: 'active-empty-baseline' });
-    await markResourcePhase(page, 0, 'active-empty-baseline');
+    baseline = await snapshot(page, cdp, {
+      cycle: 0,
+      scenario: currentScenario,
+      phase: 'active-empty-baseline',
+    });
+    lastSample = baseline;
+    await markResourcePhase(page, 0, 'active-empty-baseline', currentScenario);
 
     const usage = Object.fromEntries(SKUS.map((skuId) => [skuId, 0]));
-    for (let cycle = 1; cycle <= cycles; cycle += 1) {
+    for (const planned of salesPlan) {
+      const { cycle, method } = planned;
       currentCycle = cycle;
-      const method = cycle % 2 === 1 ? 'card' : 'cash';
+      const cycleStartedAt = Date.now();
       const skuId = SKUS[(cycle - 1) % SKUS.length];
-      await markResourcePhase(page, cycle, 'pre-customer-spawn');
+      await markResourcePhase(page, cycle, 'pre-customer-spawn', currentScenario);
       const fixtureCustomer = await spawnCycleCustomer(page, cycle, method, skuId);
+      observedCounts.customerSpawns += 1;
       fixtureCustomer.cycle = cycle;
       const tx = await waitForCycleTransaction(page, fixtureCustomer);
       await page.waitForTimeout(120);
-      await markResourcePhase(page, cycle, 'transaction-ready-before-product-click');
+      await markResourcePhase(page, cycle, 'transaction-ready-before-product-click', currentScenario);
       usage[skuId] += 1;
       await scanSingleProduct(page, tx.uid);
-      const payment = method === 'card' ? await completeCard(page) : await completeCash(page);
+      const payment = method === 'card'
+        ? await completeCard(page, {
+          cancelBeforeAuthorization: planned.cancelBeforeAuthorization,
+          declineThenRecover: planned.declineThenRecover,
+          onPhase: (phase) => markResourcePhase(page, cycle, phase, currentScenario),
+        })
+        : await completeCash(page);
+      if (payment.cancellationCompleted) observedCounts.preAuthCancellations += 1;
+      if (payment.declineRecoveryCompleted) observedCounts.declineRecoveries += 1;
+      if (payment.drawerOpened) observedCounts.drawerOpens += 1;
+      if (payment.drawerClosed) observedCounts.drawerCloses += 1;
 
       await page.waitForFunction(() => {
         const register = window.__fw.scene3d.clubhouse().register;
@@ -1008,24 +2379,31 @@ export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
       }, null, { timeout: 5000, polling: 25 });
       transientSamples.push(await snapshot(page, cdp, {
         cycle,
+        scenario: currentScenario,
         phase: 'receipt-and-handoff-live',
         forceGc: false,
       }));
-      await markResourcePhase(page, cycle, 'receipt-and-bag-live');
+      await markResourcePhase(page, cycle, 'receipt-and-bag-live', currentScenario);
       await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.getTx(), null,
         { timeout: 16000 });
       await page.waitForTimeout(120);
-      await markResourcePhase(page, cycle, 'transaction-cleared-customer-holds-purchase');
+      await markResourcePhase(page, cycle, 'transaction-cleared-customer-holds-purchase', currentScenario);
       await page.waitForFunction((customerId) => (
         !(typeof window.__fw.scene3d.clubhouse().customers === 'function'
           ? window.__fw.scene3d.clubhouse().customers()
           : window.__fw.scene3d.clubhouse().customers)
           .some((customer) => customer.customerId === customerId)
       ), fixtureCustomer.customerId, { timeout: 22000 });
+      observedCounts.customerRemovals += 1;
       await page.waitForTimeout(260);
 
-      const post = await snapshot(page, cdp, { cycle, phase: 'post-customer-exit' });
-      await markResourcePhase(page, cycle, 'post-customer-exit');
+      const post = await snapshot(page, cdp, {
+        cycle,
+        scenario: currentScenario,
+        phase: 'post-customer-exit',
+      });
+      lastSample = post;
+      await markResourcePhase(page, cycle, 'post-customer-exit', currentScenario);
       postCycleSamples.push(post);
       const ticket = await page.evaluate((transactionNumber) => {
         const shop = window.__fw.state.shop;
@@ -1038,17 +2416,21 @@ export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
         `Cycle ${cycle} ticket is not one ${method} item: ${JSON.stringify(ticket)}.`);
       assert(post.state.units === fixture.units + cycle,
         `Cycle ${cycle} banked ${post.state.units - fixture.units} units instead of ${cycle}.`);
-      assert(post.state.history === fixture.history + cycle,
-        `Cycle ${cycle} wrote ${post.state.history - fixture.history} tickets instead of ${cycle}.`);
+      const expectedHistory = Math.min(100, fixture.history + cycle);
+      assert(post.state.history === expectedHistory,
+        `Cycle ${cycle} retained ${post.state.history} bounded tickets instead of ${expectedHistory}.`);
+      assert(post.state.nextTransactionNo === fixture.nextTransactionNo + cycle,
+        `Cycle ${cycle} advanced nextTransactionNo to ${post.state.nextTransactionNo} instead of ${fixture.nextTransactionNo + cycle}.`);
       assert(post.state.held === fixture.held,
         `Cycle ${cycle} held inventory did not reset (${fixture.held} -> ${post.state.held}).`);
       assert(post.state.customers === 0 && post.state.txNumber === null
           && post.state.ownerCustomerId === null,
       `Cycle ${cycle} did not release its customer/transaction boundary.`);
       tickets.push(ticket);
+      if (method === 'card') observedCounts.cardTransactions += 1;
+      else observedCounts.cashTransactions += 1;
       cyclesRun.push({
-        cycle,
-        method,
+        ...planned,
         skuId,
         customer: fixtureCustomer,
         transaction: tx,
@@ -1059,6 +2441,15 @@ export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
           total: ticket.total,
           itemCount: ticket.items.length,
         },
+        observed: {
+          customerSpawned: true,
+          customerRemoved: true,
+          preAuthorizationXCancelled: !!payment.cancellationCompleted,
+          declineRecovered: !!payment.declineRecoveryCompleted,
+          drawerOpened: !!payment.drawerOpened,
+          drawerClosed: !!payment.drawerClosed,
+        },
+        durationMs: Date.now() - cycleStartedAt,
         transientSampleIndex: transientSamples.length - 1,
         postCycleSampleIndex: postCycleSamples.length - 1,
       });
@@ -1070,13 +2461,16 @@ export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
         `${skuId} shelf stock changed ${fixture.shelf[skuId] - shelf} times; expected ${usage[skuId]}.`);
     }
     const finalSample = postCycleSamples[postCycleSamples.length - 1];
-    resourceLifecycle = await readResourceLifecycleProbe(page);
+    resourceDetails = await readResourceLifecycleProbe(page);
+    resourceLifecycle = summarizeResourceLifecycle(resourceDetails);
     diagnostics.nonAbortedFailedRequests = diagnostics.failedRequests.filter((failure) => (
       !/ERR_ABORTED|NS_BINDING_ABORTED/i.test(failure.error)
     ));
     const stableSelection = selectTrailingStableWindow(postCycleSamples);
     const stableSamples = stableSelection.samples;
     assert(stableSamples.length >= 2, 'Lifecycle run did not produce a two-sample stable window.');
+    const cardinality = buildCardinalityReport(requestedCounts, observedCounts);
+    const frontDeskLifecycle = buildFrontDeskLifecycleReport(frontDeskModeSamples);
     const gates = buildGates({
       baseline,
       stableSamples,
@@ -1086,7 +2480,13 @@ export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
       fixture,
       tickets,
       diagnostics,
+      cardinality,
+      salesPlan,
+      resourceLifecycle,
+      frontDeskLifecycle,
+      enforceStability: config.profile !== 'smoke',
     });
+    const timings = buildTimings();
     const result = {
       ok: gates.ok,
       blocker: gates.ok ? null : {
@@ -1095,13 +2495,7 @@ export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
           .join('; '),
       },
       protocol: {
-        viewport,
-        deviceScaleFactor: 1,
-        requestedCycles: cycles,
-        completedCycles: cyclesRun.length,
-        route: 'fixture customer creation only; every product, customer-held payment, fixed-reader Confirm, cash acceptance, and change confirmation uses Playwright mouse/keyboard input',
-        alternation: 'odd cycles card; even cycles exact cash',
-        cleanupBoundary: 'transaction cleared and the paid customer physically reached the exit/despawn before every post-cycle sample',
+        ...protocolBase(),
         baseline: 'front desk active with no transaction, no customer, and organic walk-ins disabled',
         stableWindow: {
           firstCycle: stableSamples[0].cycle,
@@ -1111,77 +2505,93 @@ export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
           selectionCriteria: stableSelection.selectionCriteria,
           rationale: 'earliest trailing window whose live scene, register, renderer-memory, DOM, and listener ranges meet the declared cleanup tolerances; this excludes finite lazy customer/product realization and authored drawer-stack saturation without ignoring later growth',
         },
-        metrics: {
-          rendererMemory: 'THREE.WebGLRenderer.info.memory',
-          uniqueResources: 'UUID sets from live scene traversal',
-          heap: 'CDP Runtime.getHeapUsage after two HeapProfiler.collectGarbage calls',
-          domAndListeners: 'CDP Memory.getDOMCounters plus an EventTarget add/remove net probe installed before front-desk entry',
-        },
       },
+      cardinality,
+      observedCounts: { ...observedCounts },
       fixture,
+      outsideBaseline,
       baseline,
+      frontDeskCycles,
+      frontDeskModeSamples,
+      frontDeskLifecycle,
       cycles: cyclesRun,
       transientSamples,
       postCycleSamples,
       finalSample,
       gates,
       resourceLifecycle,
+      timings,
       diagnostics,
-      evidence: {
-        json: path.join(root, 'lifecycle-result.json'),
-        screenshot: path.join(root, 'lifecycle-metrics.png'),
-      },
+      evidence: evidencePaths,
     };
-    fs.writeFileSync(result.evidence.json, `${JSON.stringify(result, null, 2)}\n`);
-    await addMetricsOverlay(page, {
-      ok: result.ok,
-      cycles: cyclesRun.length,
-      units: finalSample.state.units - fixture.units,
-      history: finalSample.state.history - fixture.history,
-      held: finalSample.state.held,
-      sceneRange: gates.summaries['scene.nodes'].range,
-      geometryRange: gates.summaries['renderer.memory.geometries'].range,
-      textureRange: gates.summaries['renderer.memory.textures'].range,
-      listenerRange: gates.summaries['listeners.net'].range,
-      heapGrowthMiB: Math.round((gates.heap.growthBytes / (1024 * 1024)) * 100) / 100,
-      consoleErrors: diagnostics.consoleErrors.length,
-      pageErrors: diagnostics.pageErrors.length,
-    });
+    const overlayModel = buildLongSessionResourceOverlayModel(result);
+    result.evidence.longSessionResourceCounts = {
+      captureNumber: 39,
+      requirement: 'long-session resource counts',
+      status: 'pending screenshot capture',
+      screenshot: result.evidence.screenshot,
+      authoritativeRawJson: result.evidence.json,
+      authoritativeResourceDetails: result.evidence.resourceDetails,
+      overlayModel,
+      provenance: overlayModel.provenance,
+    };
+    writeLifecycleEvidence(result, resourceDetails);
+    await addMetricsOverlay(page, overlayModel);
     await page.screenshot({ path: result.evidence.screenshot });
+    result.evidence.longSessionResourceCounts.status = 'captured';
+    result.evidence.longSessionResourceCounts.capturedAt = new Date().toISOString();
+    writeLifecycleEvidence(result, resourceDetails);
     await leaveFrontDesk(page);
     return result;
   } catch (error) {
     diagnostics.nonAbortedFailedRequests = diagnostics.failedRequests.filter((failure) => (
       !/ERR_ABORTED|NS_BINDING_ABORTED/i.test(failure.error)
     ));
-    resourceLifecycle = resourceLifecycle || await readResourceLifecycleProbe(page).catch(() => null);
+    if (cdp) {
+      lastSample = await snapshot(page, cdp, {
+        cycle: currentCycle,
+        scenario: currentScenario,
+        phase: 'failure-last-observable-state',
+        forceGc: false,
+      }).catch(() => lastSample);
+    }
+    resourceDetails = resourceDetails || await readResourceLifecycleProbe(page).catch(() => null);
+    resourceLifecycle = resourceLifecycle || summarizeResourceLifecycle(resourceDetails);
     const failureScreenshot = path.join(root, 'lifecycle-failure.png');
     await page.screenshot({ path: failureScreenshot }).catch(() => {});
+    const cardinality = buildCardinalityReport(requestedCounts, observedCounts);
+    const frontDeskLifecycle = buildFrontDeskLifecycleReport(frontDeskModeSamples);
     const result = {
       ok: false,
       blocker: {
         cycle: currentCycle,
+        scenario: currentScenario,
         message: error?.message || String(error),
         stack: error?.stack || null,
       },
-      protocol: {
-        viewport,
-        requestedCycles: cycles,
-        completedCycles: cyclesRun.length,
-      },
+      protocol: protocolBase(),
+      cardinality,
+      observedCounts: { ...observedCounts },
       fixture,
+      outsideBaseline,
       baseline,
+      frontDeskCycles,
+      frontDeskModeSamples,
+      frontDeskLifecycle,
       cycles: cyclesRun,
       transientSamples,
       postCycleSamples,
+      finalSample: lastSample,
+      gates: null,
       resourceLifecycle,
+      timings: buildTimings(),
       diagnostics,
       evidence: {
-        json: path.join(root, 'lifecycle-result.json'),
+        ...evidencePaths,
         screenshot: failureScreenshot,
       },
     };
-    fs.writeFileSync(result.evidence.json, `${JSON.stringify(result, null, 2)}\n`);
+    writeLifecycleEvidence(result, resourceDetails);
     return result;
   }
 }

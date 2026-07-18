@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const BASE_URL = 'http://localhost:8457/';
+const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
 const VIEWPORT = { width: 1600, height: 900 };
 const COUNTER_TOP = 1.055;
 const CARRY_Y = COUNTER_TOP + 0.115;
@@ -1454,12 +1454,12 @@ export async function runRegisterRecovery(page) {
       const flow = window.__fw.scene3d.clubhouse().register.getFlow();
       return !!tx && tx.deposited && flow && flow.state === 'SelectingChange';
     }, null, { timeout: 8000 });
-    const quarter = await page.evaluate(() => window.__qaRecovery.money('drawer', 0.25));
-    assert(quarter, 'No physical quarter was available for focus-loss recovery.');
-    const quarterPoint = await project(page, quarter);
-    await page.mouse.move(quarterPoint.x, quarterPoint.y);
+    const twentyCoin = await page.evaluate(() => window.__qaRecovery.money('drawer', 0.2));
+    assert(twentyCoin, 'No physical 20-unit coin was available for focus-loss recovery.');
+    const twentyCoinPoint = await project(page, twentyCoin);
+    await page.mouse.move(twentyCoinPoint.x, twentyCoinPoint.y);
     await page.mouse.down();
-    await page.waitForFunction(() => !!window.__qaRecovery.money('hand', 0.25), null,
+    await page.waitForFunction(() => !!window.__qaRecovery.money('hand', 0.2), null,
       { timeout: 3000 });
     const selectedBeforeBlur = await snapshot(page, cashSkus, cashFixture.name);
     const selectedShot = await shot('cash-focus-loss-with-change-selected');
@@ -1502,15 +1502,15 @@ export async function runRegisterRecovery(page) {
       return !!flow && flow.state === 'SelectingChange';
     }, null, { timeout: 8000 });
     await waitForCameraStable(page);
-    const retryQuarter = await page.evaluate(() => window.__qaRecovery.money('drawer', 0.25));
-    const retryQuarterPoint = await project(page, retryQuarter);
-    await page.mouse.click(retryQuarterPoint.x, retryQuarterPoint.y);
-    await page.waitForFunction(() => !!window.__qaRecovery.money('hand', 0.25), null,
+    const retryTwentyCoin = await page.evaluate(() => window.__qaRecovery.money('drawer', 0.2));
+    const retryTwentyCoinPoint = await project(page, retryTwentyCoin);
+    await page.mouse.click(retryTwentyCoinPoint.x, retryTwentyCoinPoint.y);
+    await page.waitForFunction(() => !!window.__qaRecovery.money('hand', 0.2), null,
       { timeout: 3000 });
-    const returnedQuarter = await page.evaluate(() => window.__qaRecovery.money('hand', 0.25));
-    const returnedQuarterPoint = await project(page, returnedQuarter);
-    await page.mouse.click(returnedQuarterPoint.x, returnedQuarterPoint.y);
-    await page.waitForFunction(() => !window.__qaRecovery.money('hand', 0.25), null,
+    const returnedTwentyCoin = await page.evaluate(() => window.__qaRecovery.money('hand', 0.2));
+    const returnedTwentyCoinPoint = await project(page, returnedTwentyCoin);
+    await page.mouse.click(returnedTwentyCoinPoint.x, returnedTwentyCoinPoint.y);
+    await page.waitForFunction(() => !window.__qaRecovery.money('hand', 0.2), null,
       { timeout: 3000 });
     const cashReentryShot = await shot('cash-change-select-and-return-after-reentry');
     await page.keyboard.press('Escape');
@@ -1520,7 +1520,7 @@ export async function runRegisterRecovery(page) {
     const cashFinal = await snapshot(page, cashSkus, cashFixture.name);
     assertEscapeCleanup(cashFinal, 'Cash final Escape', { drawerClosed: true });
     assertBooksUnchanged(cashReady, cashFinal, 'Cash recovery sequence');
-    cashTrace.push({ action: 'normal-control drawer re-open, quarter select, and undo after recovery',
+    cashTrace.push({ action: 'normal-control drawer re-open, 20-unit coin select, and undo after recovery',
       evidence: cashReentryShot });
 
     // CHANGE HANDOFF: count the exact visible denominations, start the physical

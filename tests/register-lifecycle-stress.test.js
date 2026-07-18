@@ -34,6 +34,7 @@ import {
   changeDue,
 } from '../src/sim/register.js';
 import { pickFromShelf, heldUnits } from '../src/sim/checkout.js';
+import { restockShelfFromBackroom } from '../src/sim/shop.js';
 
 const cents = (value) => Math.round(value * 100);
 
@@ -96,7 +97,11 @@ test('120 alternating card/cash sales settle once, reset cleanly, and keep persi
   state.shop.drawer = newDrawer();
 
   const skuIds = ['balls1', 'tees1', 'glove1'];
-  for (const skuId of skuIds) state.shop.inventory[skuId].shelf = SALE_COUNT;
+  for (const skuId of skuIds) {
+    state.shop.inventory[skuId].shelf = 0;
+    state.shop.inventory[skuId].back = SALE_COUNT;
+    must(restockShelfFromBackroom(state, skuId), `initial restock ${skuId}`);
+  }
 
   const openingCashCents = cents(state.cash);
   const openingDrawerCents = cents(stackTotal(state.shop.drawer));
@@ -111,6 +116,9 @@ test('120 alternating card/cash sales settle once, reset cleanly, and keep persi
     const method = index % 2 === 0 ? 'card' : 'cash';
     const item = { uid, skuId, name: `Stress item ${index + 1}`, price };
 
+    if (state.shop.inventory[skuId].shelf === 0) {
+      must(restockShelfFromBackroom(state, skuId), `restock ${skuId}`);
+    }
     must(pickFromShelf(state, skuId, uid), `hold ${uid}`);
     const tx = createTx({
       items: [item],

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import * as THREE from 'three';
 
 import { makeCharacter } from '../src/render3d/characterAsset.js';
@@ -8,6 +9,18 @@ import {
 } from '../src/render3d/clubhouse/customerPaidBag.js';
 
 const close = (a, b, epsilon = 1e-8) => a.distanceTo(b) <= epsilon;
+
+const registerSource = fs.readFileSync(
+  new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
+  'utf8',
+);
+
+function registerFunction(name) {
+  const start = registerSource.indexOf(`  function ${name}(`);
+  assert.notEqual(start, -1, `${name} exists`);
+  const end = registerSource.indexOf('\n  function ', start + 1);
+  return registerSource.slice(start, end === -1 ? registerSource.length : end);
+}
 
 test('the customer rig exposes a scale-independent carry grip beside each hand', () => {
   const char = makeCharacter();
@@ -72,8 +85,11 @@ test('the paid bag follows the authored palm point while staying gravity-upright
   assert.ok(PAID_BAG_ACCEPTANCE_HOLD_SEC >= 1.2, 'acceptance pose remains visible long enough to read');
 });
 
-test('the acceptance beat holds the paid bag clear of the cashier POS before easing to the walking hand', () => {
+test('the acceptance beat keeps the authored bag handle in the receiving palm', () => {
   const char = makeCharacter();
+  char.setMode('ReceiveBag');
+  char.update(0);
+  char.root.updateMatrixWorld(true);
   const bag = new THREE.Group();
   const handoff = new THREE.Group();
   handoff.name = 'ANCHOR_BagHandoff';
@@ -85,18 +101,42 @@ test('the acceptance beat holds the paid bag clear of the cashier POS before eas
 
   attachPaidBagToCustomer(customer, bag, {
     productionBag: true,
-    carryTarget: char.carryGrip('R'),
+    carryTarget: char.carryGrip('L'),
   });
+  char.root.updateMatrixWorld(true);
   assert.ok(close(
-    customer.bagCarryRoot.position,
-    new THREE.Vector3(0.40, 1.40, 0.46),
-  ), 'bag is staged against the receiving torso where the cashier can see it');
+    handoff.getWorldPosition(new THREE.Vector3()),
+    char.carryGrip('L').getWorldPosition(new THREE.Vector3()),
+  ), 'acceptance starts with the authored handoff socket exactly in the palm');
 
   customer.bagAcceptanceHold = 0;
-  const before = customer.bagCarryRoot.position.clone();
+  char.setMode('WalkBag');
+  char.update(0.6);
   syncPaidBagCarry(customer, 1 / 60);
-  assert.ok(customer.bagCarryRoot.position.distanceTo(before) > 0,
-    'bag begins a smooth move toward the walking grip when the hold expires');
-  assert.ok(customer.bagCarryRoot.position.distanceTo(char.carryGrip('R').position) > 0.01,
-    'the first walking frame does not pop directly to the side carry pose');
+  char.root.updateMatrixWorld(true);
+  assert.ok(close(
+    handoff.getWorldPosition(new THREE.Vector3()),
+    char.carryGrip('L').getWorldPosition(new THREE.Vector3()),
+  ), 'the bag remains exactly attached to the animated walking palm');
+});
+
+test('handed-off bag cleanup hides the counter copy and retry resets it safely', () => {
+  const clearPhysicalTransaction = registerFunction('clearPhysicalTransaction');
+  assert.match(
+    clearPhysicalTransaction,
+    /if \(resetCounterBag\) resetBagAtCounter\(\);\s*else if \(bagGroup\) bagGroup\.visible = false;/,
+    'finalization hides the handed-off counter bag instead of respawning it',
+  );
+
+  const retryFulfillmentPresentation = registerFunction('retryFulfillmentPresentation');
+  assert.equal(
+    retryFulfillmentPresentation.match(/\bresetBagAtCounter\(\)/g)?.length,
+    1,
+    'retry restores exactly one fresh bag at the counter',
+  );
+  assert.doesNotMatch(
+    retryFulfillmentPresentation,
+    /\bresetCounterBag\b/,
+    'retry cannot reference clearPhysicalTransaction\'s out-of-scope option',
+  );
 });

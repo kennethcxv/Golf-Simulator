@@ -1,7 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const BASE_URL = 'http://localhost:8457/';
+import {
+  captureCashierBuildSnapshot,
+  finalizeCashierQaResult,
+} from './cashier-build-snapshot.mjs';
+
+const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
 const DEFAULT_VIEWPORT = Object.freeze({ width: 1600, height: 900 });
 const REQUIRED_VIEWPORTS = Object.freeze(['1280x720', '1600x900', '1920x1080']);
 let VIEWPORT = { ...DEFAULT_VIEWPORT };
@@ -381,6 +386,14 @@ async function insertCardGesture(page, shot, {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.checkoutFlow?.state === 'CardInserting';
   }, null, { timeout: 2000 });
+  await shot(`${insertedLabel.replace(/\.png$/i, '')}-cashier-pickup-hold.png`);
+  await page.waitForFunction(() => {
+    const register = window.__fw.scene3d.clubhouse().register;
+    const tx = register.getTx();
+    const insertion = register.insertAt();
+    return tx?.checkoutFlow?.state === 'CardInserting'
+      && insertion.u >= 0.62 && insertion.u < 1;
+  }, null, { timeout: 2000 });
   await shot(`${insertedLabel.replace(/\.png$/i, '')}-automatic-insert-motion.png`);
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -545,12 +558,80 @@ async function cashRoute(page, shot) {
   assert(handful && handful.inView, 'The presented cash is not visible in the working frame.');
   await shot('08-cash-presented.png');
 
+  // Bind the QA proof to the authored tray, not a timer or transaction flag.
+  // Capture its closed local Z and world scale before normal input so the later
+  // midpoint uses the same world-space travel units as REGISTER.drawer.travel.
+  const drawerTravelStart = await page.evaluate(async () => {
+    const THREE = await import('/vendor/three.module.js');
+    const { REGISTER } = await import('/src/data/shopLayout.js');
+    const clubhouse = window.__fw.scene3d.clubhouse();
+    const trays = [];
+    clubhouse.interior.traverse((object) => {
+      if (object.name === 'CashDrawer_Tray') trays.push(object);
+    });
+    if (trays.length !== 1) {
+      throw new Error(`Expected one authored CashDrawer_Tray, found ${trays.length}.`);
+    }
+    clubhouse.interior.updateMatrixWorld(true);
+    const tray = trays[0];
+    const worldScaleZ = Math.abs(tray.getWorldScale(new THREE.Vector3()).z);
+    const closedWorldZ = tray.getWorldPosition(new THREE.Vector3()).z;
+    window.__registerQaCashDrawerTray = tray;
+    window.__registerQaCashDrawerMidpoint = null;
+    return {
+      uuid: tray.uuid,
+      closedLocalZ: tray.position.z,
+      closedWorldZ,
+      worldScaleZ,
+      travel: Number(REGISTER.drawer.travel),
+    };
+  });
+  assert(Number.isFinite(drawerTravelStart.closedLocalZ)
+      && drawerTravelStart.worldScaleZ > 0 && drawerTravelStart.travel > 0,
+  `The authored drawer travel baseline is invalid: ${JSON.stringify(drawerTravelStart)}.`);
+
   // one click on the handful accepts ALL of it; the drawer slides open itself
   await page.mouse.click(handful.x, handful.y);
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.checkoutFlow?.state === 'DrawerOpening';
   }, null, { timeout: 2000 });
+  // Capture #19 at the normal-input boundary, independently of drawer travel.
+  await shot('08a-cash-clicked.png');
+  // Capture #20 only while the authored tray is genuinely in flight. Polling
+  // its transform makes a PASS impossible on a fully closed or fully open till.
+  await page.waitForFunction((baseline) => {
+    const tray = window.__registerQaCashDrawerTray;
+    if (!tray || tray.uuid !== baseline.uuid) return false;
+    const localDelta = tray.position.z - baseline.closedLocalZ;
+    const worldTravel = localDelta * baseline.worldScaleZ;
+    const progress = worldTravel / baseline.travel;
+    if (progress < 0.25 || progress > 0.75) return false;
+    window.__registerQaCashDrawerMidpoint = {
+      uuid: tray.uuid,
+      localZ: tray.position.z,
+      localDelta,
+      worldTravel,
+      progress,
+    };
+    return true;
+  }, drawerTravelStart, { timeout: 2000, polling: 'raf' });
+  const drawerTravelMidpoint = await page.evaluate((baseline) => {
+    const tray = window.__registerQaCashDrawerTray;
+    if (!tray || tray.uuid !== baseline.uuid) return null;
+    const localDelta = tray.position.z - baseline.closedLocalZ;
+    const worldTravel = localDelta * baseline.worldScaleZ;
+    return {
+      uuid: tray.uuid,
+      localZ: tray.position.z,
+      localDelta,
+      worldTravel,
+      progress: worldTravel / baseline.travel,
+    };
+  }, drawerTravelStart);
+  assert(drawerTravelMidpoint && drawerTravelMidpoint.progress >= 0.25
+      && drawerTravelMidpoint.progress <= 0.75,
+  `CashDrawer_Tray was not captured between 25% and 75% travel: ${JSON.stringify(drawerTravelMidpoint)}.`);
   await shot('08b-cash-clicked-drawer-opening.png');
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -561,7 +642,7 @@ async function cashRoute(page, shot) {
   await waitCamera(page, 'cash');
   await shot('09-cash-workspace.png');
   // the change-counting pose frames the ENTIRE till: both rows and every label
-  for (const denom of [50, 20, 10, 5, 1, 0.5, 0.25, 0.1, 0.05, 0.01]) {
+  for (const denom of [50, 20, 10, 5, 1, 0.5, 0.2, 0.1, 0.05, 0.01]) {
     const slot = await projectObject(page, { kind: 'drawer-slot', denom });
     assert(slot && slot.inView, `Drawer slot ${denom} is outside the cash camera.`);
   }
@@ -578,7 +659,7 @@ async function cashRoute(page, shot) {
     return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
   };
   await shot('09c-bill-close-up.png', { clip: await moneyRowClip([1, 5, 10, 20, 50]) });
-  await shot('09d-coin-close-up.png', { clip: await moneyRowClip([0.01, 0.05, 0.1, 0.25, 0.5]) });
+  await shot('09d-coin-close-up.png', { clip: await moneyRowClip([0.01, 0.05, 0.1, 0.2, 0.5]) });
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.deposited;
@@ -591,7 +672,7 @@ async function cashRoute(page, shot) {
     return register.makeChangeFrom(register.drawerContents(tx, window.__fw.state.shop.drawer), register.changeDue(tx));
   });
   assert(plan, 'The drawer cannot make the required change.');
-  assert(JSON.stringify(plan) === JSON.stringify({ 1: 4, 0.25: 1, 0.01: 3 }),
+  assert(JSON.stringify(plan) === JSON.stringify({ 1: 4, 0.2: 1, 0.05: 1, 0.01: 3 }),
     `Expected the exact $4.28 plan, got ${JSON.stringify(plan)}.`);
 
   const givingFacts = () => page.evaluate(async () => {
@@ -636,7 +717,8 @@ async function cashRoute(page, shot) {
   // Count $4.27 first: one cent under must remain a hard rejection even when
   // the player explicitly presses the normal cash-confirm key.
   await selectFromSlot(1, 4);
-  await selectFromSlot(0.25);
+  await selectFromSlot(0.2);
+  await selectFromSlot(0.05);
   await selectFromSlot(0.01, 2);
   const under = await givingFacts();
   assert(under.stage === 'cash-drawer' && under.drawerOpen && under.deposited,
@@ -722,6 +804,7 @@ async function cashRoute(page, shot) {
       && !confirmed.drawerOpen && confirmed.changeGiven === 4.28 && confirmed.lost === 0,
   `Exact change did not complete cleanly: ${JSON.stringify(confirmed)}.`);
   await shot('12-exact-change-confirmed.png');
+  return { start: drawerTravelStart, midpoint: drawerTravelMidpoint };
 }
 
 async function finalSnapshot(page, customerName) {
@@ -758,12 +841,13 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   const viewportRun = configureViewport(options.viewport
     || process.env.REGISTER_QA_VIEWPORT
     || process.env.QA_VIEWPORT);
-  const rootBase = path.resolve(process.env.REGISTER_QA_ROOT
+  const rootBase = path.resolve(options.root || process.env.REGISTER_QA_ROOT
     || 'qa/cash-register-production/simplified-rebuild/acceptance');
   const root = viewportRun.explicit
     ? path.join(rootBase, viewportRun.tag, mode)
     : path.join(rootBase, mode);
   fs.mkdirSync(root, { recursive: true });
+  const productionBuildBefore = captureCashierBuildSnapshot();
   const captureOutput = process.env.REGISTER_AUDIO_CAPTURE === '0'
     ? null
     : path.resolve(process.env.REGISTER_CAPTURE_PATH
@@ -869,8 +953,9 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   await shot('04-safe-reentry.png');
 
   await scanAll(page, shot, mode);
+  let cashDrawerTravelEvidence = null;
   if (mode === 'card') await cardRoute(page, shot);
-  else await cashRoute(page, shot);
+  else cashDrawerTravelEvidence = await cashRoute(page, shot);
   await page.waitForFunction(() => (
     window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
   ), null, { timeout: 10000 });
@@ -880,19 +965,23 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'done';
   }, null, { timeout: 8000 });
-  await page.waitForFunction(() => (
-    window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-deliver'
-  ), null, { timeout: 5000 });
-  // Capture the acceptance end of the arc, where the paper is visibly landing
-  // in the authored palm grip, rather than a context-free mid-air frame.
-  await page.waitForTimeout(450);
-  await shot('13-receipt-handover.png');
+  await page.waitForFunction(() => {
+    const phase = window.__fw.scene3d.clubhouse().register.deliveryPhase();
+    return phase === 'receipt-deliver' || phase === 'bag-deliver';
+  }, null, { timeout: 5000 });
   if (mode === 'card' || mode === 'cash') {
     await page.waitForFunction(() => (
       window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'bag-deliver'
     ), null, { timeout: 5000 });
-    await page.waitForTimeout(500);
+    // The bag phase begins only after Receipt_Strip is parented to the authored
+    // palm grip, giving deterministic contact evidence without freezing a
+    // context-free frame midway through the preceding arc.
+    await shot('13-receipt-handover.png');
+    await page.waitForTimeout(340);
     await shot('13b-bag-handover.png');
+  } else {
+    await page.waitForTimeout(320);
+    await shot('13-receipt-handover.png');
   }
   // The sale banks ITSELF once the receipt and bag reach the customer — there is
   // no finalize click in the automatic flow. Wait for the transaction to clear.
@@ -921,8 +1010,13 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
         : Array.isArray(clubhouse.customers) ? clubhouse.customers : [];
       const customer = customers.find((entry) => entry.name === name);
       if (!customer) return true;
-      return Math.hypot(customer.mesh.position.x - start.x, customer.mesh.position.z - start.z) > 0.55;
+      return Math.hypot(customer.mesh.position.x - start.x, customer.mesh.position.z - start.z) > 0.20;
     }, { name: fixture.customer, start: departureStart }, { timeout: 12000 });
+    // Follow the departing customer with the register mode's normal bounded
+    // mouse-look so the paid bag remains in frame instead of being cropped by
+    // a camera that keeps staring at the now-empty POS.
+    await page.mouse.move(VIEWPORT.width * 0.12, VIEWPORT.height * 0.50);
+    await page.waitForTimeout(220);
     await shot('15-customer-leaving.png');
   } else {
     // Some production wrappers intentionally omit raw customer mesh access.
@@ -937,7 +1031,7 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   assert(nonAborted.length === 0, `Non-aborted request failures: ${JSON.stringify(nonAborted)}`);
   await stopMediaCapture();
 
-  const result = {
+  let result = {
     ok: true,
     mode,
     viewport: { ...VIEWPORT },
@@ -946,9 +1040,16 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     before: fixture.before,
     final,
     evidence,
+    cashDrawerTravelEvidence,
     audioVideoCapture,
     console: { errors, pageErrors, failedRequests, nonAbortedFailedRequests: nonAborted },
   };
+  result = finalizeCashierQaResult({
+    result,
+    beforeSnapshot: productionBuildBefore,
+    evidencePngs: evidence,
+    evidenceRoot: root,
+  });
   fs.writeFileSync(path.join(root, 'latest-result.json'), JSON.stringify(result, null, 2));
   return result;
 }

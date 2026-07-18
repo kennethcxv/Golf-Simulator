@@ -1,7 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const BASE_URL = 'http://localhost:8457/';
+import {
+  captureCashierBuildSnapshot,
+  finalizeCashierQaResult,
+} from './cashier-build-snapshot.mjs';
+
+const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
 const DEFAULT_VIEWPORT = Object.freeze({ width: 1600, height: 900 });
 const FIRST_SKUS = Object.freeze(['tees1', 'marker1']);
 const SECOND_SKUS = Object.freeze(['glove1']);
@@ -539,6 +544,7 @@ export async function runSimplifiedRegisterQueueAcceptance(page, options = {}) {
     || process.env.QA_VIEWPORT);
   const root = path.resolve(process.env.REGISTER_QA_ROOT || 'qa/cashier_master_final/queue');
   fs.mkdirSync(root, { recursive: true });
+  const productionBuildBefore = captureCashierBuildSnapshot();
 
   const consoleErrors = [];
   const consoleWarnings = [];
@@ -658,6 +664,26 @@ export async function runSimplifiedRegisterQueueAcceptance(page, options = {}) {
       { timeout: 14000 });
     await shot('07-second-complete-queue-empty.png', 'second sale complete and queue empty');
 
+    // A transaction clears before the paid customer necessarily finishes the
+    // authored bag/departure animation. Prove the reusable in-register reset
+    // only after both seeded QA customers have left the clubhouse runtime.
+    await page.waitForFunction(([firstId, secondId]) => {
+      const clubhouse = window.__fw.scene3d.clubhouse();
+      const register = clubhouse.register;
+      const customers = typeof clubhouse.customers === 'function'
+        ? clubhouse.customers()
+        : Array.isArray(clubhouse.customers) ? clubhouse.customers : [];
+      return register.isActive()
+        && !register.getTx()
+        && !register.getCustomer()
+        && clubhouse.checkoutQueue().length === 0
+        && !customers.some((customer) => (
+          customer.customerId === firstId || customer.customerId === secondId
+        ));
+    }, [fixture.first.customerId, fixture.second.customerId], { timeout: 20000 });
+    await shot('07b-register-reset-empty.png',
+      'in-register reset; no transaction, owner, queue, or seeded customer remains');
+
     await exitFrontDesk(page);
     await shot('08-front-desk-released-after-queue.png', 'normal Escape releases the reset front desk');
 
@@ -689,13 +715,14 @@ export async function runSimplifiedRegisterQueueAcceptance(page, options = {}) {
       assert(final.shelf[skuId] === fixture.before.shelf[skuId] - 1,
         `${skuId} shelf stock did not decrement exactly once.`);
     }
-    // Customer one may already have crossed the exit despawn marker while the
-    // second sale is running. Absence is therefore a successful departure;
-    // if still rendered, their settled ownership invariants must remain true.
+    // Both customers should have crossed the exit despawn marker before the
+    // reset checkpoint. Absence is a successful departure; retain the settled
+    // invariants as a fail-closed guard if a wrapper still exposes either one.
     assert(!final.first || (final.first.bought && final.first.cart === 0
       && !final.first.queued && !final.first.hasTx),
     `First customer ownership was not released: ${JSON.stringify(final.first)}.`);
-    assert(final.second?.bought && final.second.cart === 0 && !final.second.queued && !final.second.hasTx,
+    assert(!final.second || (final.second.bought && final.second.cart === 0
+      && !final.second.queued && !final.second.hasTx),
       `Second customer ownership was not released: ${JSON.stringify(final.second)}.`);
     assert(final.queue.length === 0 && final.tx === null && final.owner === null
       && final.txHolderIds.length === 0 && !final.active,
@@ -713,7 +740,7 @@ export async function runSimplifiedRegisterQueueAcceptance(page, options = {}) {
     assert(nonAborted.length === 0,
       `Non-aborted request failures: ${JSON.stringify(nonAborted)}.`);
 
-    const result = {
+    let result = {
       ok: true,
       viewport,
       fixture,
@@ -729,13 +756,19 @@ export async function runSimplifiedRegisterQueueAcceptance(page, options = {}) {
         nonAbortedFailedRequests: nonAborted,
       },
     };
+    result = finalizeCashierQaResult({
+      result,
+      beforeSnapshot: productionBuildBefore,
+      evidencePngs: evidence,
+      evidenceRoot: root,
+    });
     fs.writeFileSync(path.join(root, 'latest-result.json'), `${JSON.stringify(result, null, 2)}\n`);
     return result;
   } catch (error) {
     ownership = await stopOwnershipProbe(page);
     const failureShot = path.join(root, 'failure.png');
     await page.screenshot({ path: failureShot }).catch(() => {});
-    const result = {
+    let result = {
       ok: false,
       viewport,
       blocker: { message: error?.message || String(error), stack: error?.stack || null },
@@ -745,6 +778,12 @@ export async function runSimplifiedRegisterQueueAcceptance(page, options = {}) {
       evidence: [...evidence, failureShot],
       console: { errors: consoleErrors, warnings: consoleWarnings, pageErrors, failedRequests },
     };
+    result = finalizeCashierQaResult({
+      result,
+      beforeSnapshot: productionBuildBefore,
+      evidencePngs: [...evidence, failureShot],
+      evidenceRoot: root,
+    });
     fs.writeFileSync(path.join(root, 'latest-result.json'), `${JSON.stringify(result, null, 2)}\n`);
     return result;
   }

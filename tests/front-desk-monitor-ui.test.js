@@ -9,14 +9,19 @@ import {
 
 function makeCanvas() {
   const calls = [];
+  const fonts = [];
   const context = {
-    calls,
+    calls, fonts,
     save() {}, restore() {}, clearRect() {}, fillRect() {}, beginPath() {},
     moveTo() {}, lineTo() {}, quadraticCurveTo() {}, closePath() {}, fill() {},
     stroke() {}, arc() {},
     fillText(value, x, y) { calls.push({ value, x, y }); },
     measureText(value) { return { width: String(value).length * 9 }; },
   };
+  Object.defineProperty(context, 'font', {
+    get() { return this._font || ''; },
+    set(value) { this._font = value; fonts.push(value); },
+  });
   return { width: 0, height: 0, getContext: (kind) => kind === '2d' ? context : null, context };
 }
 
@@ -241,4 +246,36 @@ test('renderer is presentation-only and does not mutate the supplied model', () 
     items: [{ name: 'Marker', qty: 1, price: 8 }],
     actions: [{ id: 'insert', label: 'Insert card' }],
   });
+});
+
+test('large checkout accessibility mode increases POS type and safe hit areas', () => {
+  const normalCanvas = makeCanvas();
+  const normal = createFrontDeskMonitorUi(normalCanvas);
+  const model = {
+    app: 'checkout',
+    customer: 'Avery Stone',
+    total: 24.5,
+    actions: [{ id: 'confirm-change', label: 'Confirm', kind: 'primary' }],
+  };
+  normal.draw(model);
+  const normalHotspot = normal.hotspots().find((hotspot) => hotspot.id === 'confirm-change');
+  const normalLargestFont = Math.max(...normalCanvas.context.fonts.map((font) => Number(/ (\d+)px/.exec(font)?.[1] || 0)));
+
+  const largeCanvas = makeCanvas();
+  const large = createFrontDeskMonitorUi(largeCanvas);
+  large.draw({
+    ...model,
+    accessibility: { textScale: 1.14, targetPadding: 8 },
+  });
+  const largeHotspot = large.hotspots().find((hotspot) => hotspot.id === 'confirm-change');
+  const largeLargestFont = Math.max(...largeCanvas.context.fonts.map((font) => Number(/ (\d+)px/.exec(font)?.[1] || 0)));
+
+  assert.ok(largeHotspot.width > normalHotspot.width);
+  assert.ok(largeHotspot.height > normalHotspot.height);
+  assert.ok(largeLargestFont > normalLargestFont);
+  assert.equal(
+    large.hit(normalHotspot.x - 4, normalHotspot.y + normalHotspot.height / 2),
+    'confirm-change',
+    'the padded area accepts a near-edge click',
+  );
 });

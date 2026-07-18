@@ -11,6 +11,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const {
+  acquirePlaywrightRunLock,
+  releasePlaywrightRunLock,
+} = require('./playwright-run-lock.cjs');
+
+const QA_BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
 
 function loadPlaywright() {
   const candidates = [
@@ -24,7 +30,7 @@ function loadPlaywright() {
   throw new Error('Playwright is not available from the project or the known local npm cache.');
 }
 
-async function main() {
+async function runUnlocked() {
   const rel = process.argv[2];
   if (!rel) throw new Error('Pass a QA function file, for example tools/qa/register-boot.js.');
   const file = path.resolve(rel);
@@ -67,7 +73,7 @@ async function main() {
   });
   try {
     if (process.argv.includes('--bootstrap')) {
-      await page.goto('http://localhost:8457/');
+      await page.goto(QA_BASE_URL);
       await page.waitForFunction(() => document.readyState === 'complete');
       await page.evaluate(async () => {
         const E = await import('/src/sim/empire.js');
@@ -82,7 +88,13 @@ async function main() {
       });
     }
     const result = await run(page);
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    const resultJson = `${JSON.stringify(result, null, 2)}\n`;
+    process.stdout.write(resultJson);
+    if (process.env.QA_RESULT_PATH) {
+      const resultPath = path.resolve(process.env.QA_RESULT_PATH);
+      fs.mkdirSync(path.dirname(resultPath), { recursive: true });
+      fs.writeFileSync(resultPath, resultJson);
+    }
     // Acceptance/recovery drivers persist a structured blocker and return it so the
     // failure state remains inspectable. Treat that result as a failed process too;
     // otherwise CI and manual PowerShell runs can look green while latest-result.json
@@ -101,6 +113,26 @@ async function main() {
   } finally {
     await context.close();
     await browser.close();
+  }
+}
+
+async function main() {
+  const lock = await acquirePlaywrightRunLock({
+    metadata: { qaScript: process.argv[2] || null },
+  });
+  const release = () => releasePlaywrightRunLock(lock);
+  const onSignal = () => {
+    release();
+    process.exit(130);
+  };
+  process.once('SIGINT', onSignal);
+  process.once('SIGTERM', onSignal);
+  try {
+    await runUnlocked();
+  } finally {
+    process.removeListener('SIGINT', onSignal);
+    process.removeListener('SIGTERM', onSignal);
+    release();
   }
 }
 

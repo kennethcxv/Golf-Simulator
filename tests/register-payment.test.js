@@ -311,7 +311,7 @@ test('you cannot close out a cash sale without putting the tendered money away',
 test('the drawer starts with a real float — you can always make change', () => {
   const drawer = newDrawer();
   assert.ok(stackTotal(drawer) > 0);
-  for (const d of [50, 20, 10, 5, 1, 0.5, 0.25, 0.1, 0.05, 0.01]) {
+  for (const d of [50, 20, 10, 5, 1, 0.5, 0.2, 0.1, 0.05, 0.01]) {
     assert.ok((drawer[d] || 0) > 0, `the float has ${d}s`);
   }
 });

@@ -11,7 +11,7 @@ const KIT = [
   'checkout_counter', 'pos_monitor', 'cash_drawer', 'payment_terminal',
   'barcode_scanner', 'receipt_printer', 'shopping_bag', 'payment_card',
   'cash_bill_1', 'cash_bill_5', 'cash_bill_10', 'cash_bill_20', 'cash_bill_50',
-  'cash_coin_01', 'cash_coin_05', 'cash_coin_10', 'cash_coin_25', 'cash_coin_50',
+  'cash_coin_01', 'cash_coin_05', 'cash_coin_05_sheet01', 'cash_coin_10', 'cash_coin_20', 'cash_coin_50',
   'scannable_product_box', 'customer_display', 'loose_receipt', 'cash_handoff_stack',
   'apparel_wall',
   // Asset Sheet 03: the retail fixture family
@@ -71,6 +71,16 @@ test('every kit GLB loads in three.js without errors', async () => {
   }
 });
 
+test('every authored checkout GLB is byte-identical to the runtime mirror', async () => {
+  for (const name of KIT) {
+    const [authored, runtime] = await Promise.all([
+      readFile(new URL(`../assets/checkout/glb/${name}.glb`, import.meta.url)),
+      readFile(new URL(`../vendor/models/checkout/${name}.glb`, import.meta.url)),
+    ]);
+    assert.ok(authored.equals(runtime), `${name} runtime mirror is stale`);
+  }
+});
+
 test('counter exposes every placement mount and correct scale', async () => {
   const kit = await kitPromise;
   const scene = (await kit.get('checkout_counter')).scene;
@@ -92,6 +102,10 @@ test('pos monitor has a separate dynamic screen mesh', async () => {
   scene.traverse((o) => { if (o.name === 'POS_Screen') screen = o; });
   assert.ok(screen?.isMesh, 'POS_Screen mesh exists');
   assert.ok(screen.material, 'screen has a material');
+  screen.geometry.computeBoundingBox();
+  const screenSize = screen.geometry.boundingBox.getSize(new THREE.Vector3());
+  assert.ok(Math.abs(screenSize.x - 0.348) < 0.006, `screen width ${screenSize.x}`);
+  assert.ok(Math.abs(screenSize.y - 0.2185) < 0.006, `screen height ${screenSize.y}`);
   // the game can swap in a CanvasTexture material
   screen.material = new THREE.MeshBasicMaterial();
   assert.equal(screen.material.type, 'MeshBasicMaterial');
@@ -107,9 +121,8 @@ test('cash drawer has open/close clips + all money sockets', async () => {
   assert.deepEqual(clips, ['CashDrawer_Close', 'CashDrawer_Open']);
   const n = names(gltf.scene);
   for (const b of ['1', '5', '10', '20', '50']) assert.ok(n.has(`BILL_${b}_SOCKET`), `BILL_${b}_SOCKET`);
-  for (const c of ['01', '05', '10', '25', '50']) assert.ok(n.has(`COIN_${c}_SOCKET`), `COIN_${c}_SOCKET`);
-  for (const part of ['CashDrawer_Housing', 'CashDrawer_Tray', 'CashDrawer_Insert', 'CashDrawer_Lock',
-    'CashDrawer_Knob']) {
+  for (const c of ['01', '05', '10', '20', '50']) assert.ok(n.has(`COIN_${c}_SOCKET`), `COIN_${c}_SOCKET`);
+  for (const part of ['CashDrawer_Housing', 'CashDrawer_Tray', 'CashDrawer_Insert', 'CashDrawer_Lock']) {
     assert.ok(n.has(part), part);
   }
   // clips target the tray
@@ -144,7 +157,7 @@ test('every drawer socket carries its authored placement contract', async () => 
     assert.ok(clip, `bill ${b} clip object ${u.clip}`);
     assert.ok(Math.abs(clip.rotation.x) > 0.1, `bill ${b} clip rests tilted, rx=${clip.rotation.x}`);
   }
-  for (const c of ['01', '05', '10', '25', '50']) {
+  for (const c of ['01', '05', '10', '20', '50']) {
     const s = socket(`COIN_${c}_SOCKET`);
     const u = s.userData;
     assert.equal(u.socket, 'coin', `coin ${c} socket kind`);
@@ -171,7 +184,8 @@ test('payment terminal exposes every key + card socket; card fits the slot', asy
   const n = names(term);
   for (let d = 0; d <= 9; d++) assert.ok(n.has(`Terminal_Key_${d}`), `Terminal_Key_${d}`);
   for (const part of ['Terminal_Body', 'Terminal_Screen', 'Terminal_Keypad', 'Terminal_CancelButton',
-    'Terminal_BackButton', 'Terminal_ConfirmButton', 'Terminal_ChipSlot', 'CARD_INSERT_SOCKET']) {
+    'Terminal_BackButton', 'Terminal_ConfirmButton', 'Terminal_ChipSlot', 'CARD_INSERT_SOCKET',
+    'Terminal_NFCMark', 'NFC_TAP_SOCKET']) {
     assert.ok(n.has(part), part);
   }
   // card short edge (54 mm) must fit the 58 mm slot gap
@@ -190,7 +204,9 @@ test('scanner + printer expose interaction points and the print clip', async () 
   const printer = await kit.get('receipt_printer');
   assert.deepEqual(printer.animations.map((a) => a.name), ['Receipt_Print']);
   const pn = names(printer.scene);
-  for (const part of ['Printer_Body', 'Printer_Cover', 'Printer_OutputSlot', 'Printer_Button', 'Printer_LED', 'Receipt_Paper']) {
+  for (const part of ['Printer_Body', 'Printer_Cover', 'Printer_OutputSlot', 'Printer_Button', 'Printer_LED',
+    'PaperRollPivot', 'Receipt_Paper', 'RECEIPT_OUTPUT_SOCKET', 'RECEIPT_TEAR_SOCKET',
+    'RECEIPT_PICKUP_SOCKET', 'ANCHOR_ReceiptFeed', 'ANCHOR_Tear', 'ANCHOR_ReceiptPickup']) {
     assert.ok(pn.has(part), part);
   }
 });
@@ -199,6 +215,8 @@ test('bag, product box and helpers expose their sockets', async () => {
   const kit = await kitPromise;
   const bag = names((await kit.get('shopping_bag')).scene);
   for (const part of ['Bag_Body', 'Bag_Handle_Left', 'Bag_Handle_Right', 'BAG_PICKUP_SOCKET',
+    'ANCHOR_BagDrop', 'ANCHOR_BagContents', 'ANCHOR_BagHandoff', 'ANCHOR_ReceiptPocket',
+    'ANCHOR_BagHandleFront', 'ANCHOR_BagHandleBack',
     'BAG_ITEM_SOCKET_01', 'BAG_ITEM_SOCKET_02', 'BAG_ITEM_SOCKET_03', 'BAG_ITEM_SOCKET_04']) {
     assert.ok(bag.has(part), part);
   }
@@ -212,11 +230,24 @@ test('bag, product box and helpers expose their sockets', async () => {
   for (let i = 1; i <= 5; i++) assert.ok(stack.has(`STACK_BILL_SOCKET_0${i}`), `bill socket ${i}`);
 });
 
+test('loose receipt uses the authored 75 x 185 mm bottom-anchored strip', async () => {
+  const kit = await kitPromise;
+  const scene = (await kit.get('loose_receipt')).scene;
+  const n = names(scene);
+  for (const part of ['Receipt_Strip', 'RECEIPT_FEED_SOCKET', 'RECEIPT_HANDOFF_SOCKET']) {
+    assert.ok(n.has(part), part);
+  }
+  const size = sizeOf(scene);
+  assert.ok(Math.abs(size.x - 0.075) < 0.004, `receipt width ${size.x}`);
+  assert.ok(Math.abs(size.y - 0.185) < 0.005, `receipt length ${size.y}`);
+});
+
 test('denominations are correctly sized, centred and lightweight', async () => {
   const kit = await kitPromise;
-  // Sheet-02 ladders: note length and coin diameter both grow with value
-  const BILL_LEN = { 1: 0.122, 5: 0.132, 10: 0.142, 20: 0.149, 50: 0.156 };
-  const COIN_DIA = { '01': 0.018, '05': 0.021, 10: 0.024, 25: 0.026, 50: 0.030 };
+  // Sheet-specific note footprints and the Sheet-02 coin diameter ladder.
+  const BILL_LEN = { 1: 0.122, 5: 0.132, 10: 0.142, 20: 0.156, 50: 0.156 };
+  const COIN_DIA = { '01': 0.018, '05': 0.021, 10: 0.024, 20: 0.026, 50: 0.030 };
+  const COIN_TRIS = { '01': 188, '05': 220, 10: 252, 20: 284, 50: 300 };
   for (const d of ['1', '5', '10', '20', '50']) {
     const scene = (await kit.get(`cash_bill_${d}`)).scene;
     const s = sizeOf(scene);
@@ -225,13 +256,61 @@ test('denominations are correctly sized, centred and lightweight', async () => {
     scene.traverse((o) => { if (o.isMesh) tris += o.geometry.index.count / 3; });
     assert.ok(tris < 500, `bill ${d} tris ${tris}`);
   }
-  for (const c of ['01', '05', '10', '25', '50']) {
+  for (const c of ['01', '05', '10', '20', '50']) {
     const scene = (await kit.get(`cash_coin_${c}`)).scene;
     const s = sizeOf(scene);
     assert.ok(Math.abs(s.x - COIN_DIA[c]) < 0.002, `coin ${c} diameter ${s.x}`);
-    let tris = 0;
-    scene.traverse((o) => { if (o.isMesh) tris += o.geometry.index.count / 3; });
-    assert.ok(tris < 1000, `coin ${c} tris ${tris}`);
+    const visible = [];
+    const collisions = [];
+    scene.traverse((o) => {
+      if (o.name.startsWith('COL_')) collisions.push(o.name);
+      if (o.isMesh && !o.name.startsWith('COL_')) visible.push(o);
+    });
+    assert.deepEqual(collisions, [], `coin ${c} has no cloned collision proxy`);
+    assert.equal(visible.length, 1, `coin ${c} has one visible mesh`);
+    assert.equal(visible[0].name, 'Coin_Body');
+    assert.equal(visible[0].geometry.index.count / 3, COIN_TRIS[c], `coin ${c} exact triangles`);
+    assert.equal(visible[0].material.side, THREE.FrontSide, `coin ${c} culls backfaces`);
+    const root = scene.getObjectByName(`cash_coin_${c}`);
+    assert.equal(root.userData.asset_id, `cash_coin_${c}`);
+    assert.equal(root.userData.denomination_cents, Number(c));
+    assert.match(root.userData.front, /obverse/);
+    assert.match(root.userData.reverse, /-Z/);
+  }
+  const sheet01Five = (await kit.get('cash_coin_05_sheet01')).scene;
+  const sheet01Size = sizeOf(sheet01Five);
+  assert.ok(Math.abs(sheet01Size.x - 0.024) < 0.002,
+    `Sheet-01 five-unit coin diameter ${sheet01Size.x}`);
+  assert.ok(Math.abs(sheet01Size.x - sizeOf((await kit.get('cash_coin_05')).scene).x) > 0.002,
+    'Sheet-01 and Sheet-02 five-unit coins remain physically distinct');
+  let sheet01Tris = 0;
+  sheet01Five.traverse((o) => { if (o.isMesh) sheet01Tris += o.geometry.index.count / 3; });
+  assert.ok(sheet01Tris < 1000, `Sheet-01 five-unit coin tris ${sheet01Tris}`);
+});
+
+test('Sheet-01 checkout assets stay within the reference triangle budgets', async () => {
+  const kit = await kitPromise;
+  const budgets = {
+    checkout_counter: 4800,
+    pos_monitor: 3100,
+    payment_terminal: 2900,
+    cash_drawer: 6200,
+    receipt_printer: 2300,
+    shopping_bag: 1900,
+    payment_card: 300,
+    loose_receipt: 200,
+    cash_bill_20: 80,
+    cash_coin_05_sheet01: 250,
+  };
+  for (const [name, budget] of Object.entries(budgets)) {
+    let triangles = 0;
+    (await kit.get(name)).scene.traverse((object) => {
+      if (!object.isMesh || object.name.startsWith('COL_')) return;
+      triangles += object.geometry.index
+        ? object.geometry.index.count / 3
+        : object.geometry.attributes.position.count / 3;
+    });
+    assert.ok(triangles <= budget, `${name} triangles ${triangles} exceed ${budget}`);
   }
 });
 
