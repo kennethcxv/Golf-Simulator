@@ -14,7 +14,11 @@ const performanceSource = readFileSync(
 test('Capture #38 accepts only schema-valid authoritative master PASS results', () => {
   assert.equal(typeof Function(`return (${overlaySource});`)(), 'function');
   assert.match(overlaySource, /result\.protocol\.profile !== 'master'/);
+  assert.match(overlaySource, /result\.schemaVersion !== PERFORMANCE_SCHEMA_VERSION/);
   assert.match(overlaySource, /result\.schemaValidation\?\.valid !== true/);
+  assert.match(overlaySource, /validatePerformanceResultSchema\(result\)/);
+  assert.match(overlaySource, /currentSchemaValidation\.valid !== true/);
+  assert.match(overlaySource, /REQUIRED_PERFORMANCE_GATE_KEYS\.some/);
   assert.match(overlaySource, /result\.ok !== true \|\| result\.gates\.pass !== true/);
   assert.match(overlaySource, /entry\?\.pass !== true/);
   assert.match(overlaySource, /result\.gates\.pass \? 'PASS' : 'FAIL'/);
@@ -41,7 +45,16 @@ test('performance master brackets the full v2 production build without replacing
   }
   assert.match(performanceSource, /discoverMeasuredFiles\('src\/render3d\/assets51to100'/);
   assert.match(performanceSource, /discoverMeasuredFiles\('vendor\/models\/checkout'/);
-  assert.match(performanceSource, /discoverMeasuredFiles\('vendor\/models\/checkout'/);
+  assert.equal(
+    performanceSource.match(/await captureNormalizedTransactionBoundary\(page, cdp\)/g)?.length,
+    4,
+    'the live route must normalize all four transaction boundaries',
+  );
+  assert.match(performanceSource, /dynamicWindows\.cardApprovedRepeat = await captureDynamicPhase\(/);
+  assert.match(performanceSource, /transactionStabilityReport\(\s*transactionStart,\s*transactionAfterFirstSale,\s*transactionAfterWarmSale,\s*transactionEnd,\s*\)/);
+  assert.match(performanceSource, /two consecutive complete approved-card sales/);
+  assert.doesNotMatch(performanceSource, /plus one approved card completion/);
+  assert.match(performanceSource, /path\.join\(OUT, 'transaction-stability\.json'\)[\s\S]*schemaVersion: PERFORMANCE_SCHEMA_VERSION,[\s\S]*generatedAt,[\s\S]*protocol: \{ gcSettleMs: protocol\.gcSettleMs \}/);
   assert.match(performanceSource, /if \(now <= state\.startedAt\) \{\s*requestAnimationFrame\(frame\);\s*return;/,
     'the first rAF timestamp cannot precede the explicit zero-time heap boundary');
   assert.doesNotMatch(performanceSource, /if \(now <= state\.startedAt\) \{\s*state\.previousAt\s*=/,
@@ -67,14 +80,19 @@ test('Capture #38 binds every displayed metric family to authoritative JSON fiel
     /result\.dynamicPhases/,
     /result\.dynamicWindows/,
     /result\.reentryLeak\?\.delta/,
-    /result\.transactionStability\?\.repeatSaleDelta/,
+    /result\.transactionStability\.methodMatchedDelta/,
     /result\.gates\.details/,
     /result\.build\?\.measuredFiles/,
   ]) {
     assert.match(overlaySource, contract);
   }
+  assert.doesNotMatch(overlaySource, /transactionStability\?\.repeatSaleDelta/,
+    'schema-v4 overlays must bind the canonical method-matched delta without a stale-v3 fallback');
+  assert.match(overlaySource, /const repeat = result\.transactionStability\.methodMatchedDelta;/);
+  assert.match(overlaySource, /repeatSale: 'transactionStability\.methodMatchedDelta'/);
   assert.match(overlaySource, /No direct GPU timer in the authoritative master protocol/);
   assert.match(overlaySource, /dynamic_transactionRendererResidency/);
+  assert.match(overlaySource, /dynamic_transactionRepeatRendererResidency/);
   assert.match(overlaySource, /dynamic_transactionPostGcHeap/);
 });
 

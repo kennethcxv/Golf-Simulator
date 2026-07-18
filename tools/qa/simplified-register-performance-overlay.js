@@ -10,6 +10,13 @@ async (page) => {
   } = await import(pathToFileURL(
     path.resolve('tools/qa/cashier-build-snapshot.mjs'),
   ).href);
+  const {
+    PERFORMANCE_SCHEMA_VERSION,
+    REQUIRED_PERFORMANCE_GATE_KEYS,
+    validatePerformanceResultSchema,
+  } = await import(pathToFileURL(
+    path.resolve('tools/qa/simplified-register-performance.mjs'),
+  ).href);
 
   const productionBuildBefore = captureCashierBuildSnapshot();
   const sha256Pattern = /^[a-f0-9]{64}$/;
@@ -48,10 +55,18 @@ async (page) => {
   if (result.protocol.profile !== 'master') {
     throw new Error(`Capture #38 requires an authoritative master profile; got ${result.protocol.profile}.`);
   }
-  if (result.schemaValidation?.valid !== true) {
-    throw new Error('Capture #38 requires a schema-valid authoritative performance result.');
+  const currentSchemaValidation = validatePerformanceResultSchema(result);
+  if (result.schemaVersion !== PERFORMANCE_SCHEMA_VERSION
+      || result.schemaValidation?.valid !== true
+      || currentSchemaValidation.valid !== true) {
+    throw new Error(
+      `Capture #38 requires a freshly validated schema-v${PERFORMANCE_SCHEMA_VERSION} authoritative performance result: ${currentSchemaValidation.issues.join(' | ')}`,
+    );
   }
   if (result.ok !== true || result.gates.pass !== true
+      || REQUIRED_PERFORMANCE_GATE_KEYS.some(
+        (key) => result.gates.details?.[key]?.pass !== true,
+      )
       || Object.values(result.gates.details || {}).some((entry) => entry?.pass !== true)) {
     throw new Error('Capture #38 requires an authoritative master PASS with every gate passing.');
   }
@@ -134,7 +149,7 @@ async (page) => {
       entries,
     };
   };
-  const repeat = result.transactionStability?.repeatSaleDelta || {};
+  const repeat = result.transactionStability.methodMatchedDelta;
   const reentry = result.reentryLeak?.delta || {};
   const live = active.liveSceneResources || {};
   const baseline = result.storedBaselineComparison || {};
@@ -246,6 +261,7 @@ async (page) => {
       ]),
       gpuResources: gateGroup([
         'reentryRendererMemory', 'reentryLiveResources',
+        'dynamic_transactionRepeatRendererResidency',
         'dynamic_transactionRendererResidency', 'dynamic_transactionLiveResources',
         'dynamic_storedBaseline',
       ]),
@@ -257,6 +273,7 @@ async (page) => {
         'dynamic_transactionPostGcHeap', 'dynamic_transactionResetState',
         'dynamic_transactionListeners', 'dynamic_transactionDom',
         'dynamic_transactionSceneNodes', 'dynamic_transactionLiveResources',
+        'dynamic_transactionRepeatRendererResidency',
         'dynamic_transactionRendererResidency',
       ]),
     },
@@ -473,7 +490,7 @@ async (page) => {
         dynamicFrames: 'dynamicPhases.*.aggregate',
         longTasks: 'dynamicWindows.*.longTasks',
         reentry: 'reentryLeak.delta',
-        repeatSale: 'transactionStability.repeatSaleDelta',
+        repeatSale: 'transactionStability.methodMatchedDelta',
         sourceHashes: 'build.measuredFiles',
         productionBuildHashes: 'productionBuildHashes',
         productionBuildSnapshot: 'productionBuildSnapshot',

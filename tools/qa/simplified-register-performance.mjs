@@ -18,7 +18,7 @@ let OUT = path.resolve('qa/cash-register-production/simplified-rebuild/performan
 const DEFAULT_BASELINE = path.resolve(
   'qa/cashier_master_final/performance/final/simplified-register-performance.json',
 );
-export const PERFORMANCE_SCHEMA_VERSION = 3;
+export const PERFORMANCE_SCHEMA_VERSION = 4;
 export const RENDER_CAPTURE_FRAME_COUNT = 24;
 export const HEAP_TRANSIENT_EXCESS_BUDGET_MIB = 16;
 // The control is sampled once per rAF. A matched prefix may therefore end one
@@ -42,6 +42,46 @@ export const REQUIRED_DYNAMIC_PHASES = Object.freeze([
   'customerCleanup',
   'cardApprovedResult',
   'cardApprovedCleanup',
+]);
+export const REQUIRED_DYNAMIC_WINDOWS = Object.freeze([
+  'scanAndCardHandoff',
+  'cardAuthorization',
+  'cashAcceptance',
+  'cashFulfillment',
+  'cardApproved',
+  'cardApprovedRepeat',
+]);
+export const REQUIRED_PERFORMANCE_GATE_KEYS = Object.freeze([
+  'cameraMatch',
+  'activeMonitorAverageFps',
+  'activeMonitorOnePercentLow',
+  'everyWorkspaceAverageFps',
+  'everyWorkspaceWorstFrame',
+  'reentryHeap',
+  'reentryListeners',
+  'reentryDom',
+  'reentryLiveResources',
+  'reentryRendererMemory',
+  'staticUiFrequency',
+  'runtimeErrors',
+  'requestFailures',
+  'dynamic_dynamicPhaseCoverage',
+  'dynamic_dynamicFrameCoverage',
+  'dynamic_dynamicAverageFps',
+  'dynamic_dynamicP99Frame',
+  'dynamic_dynamicWorstFrame',
+  'dynamic_dynamicHeapHighWater',
+  'dynamic_transactionPostGcHeap',
+  'dynamic_transactionResetState',
+  'dynamic_transactionListeners',
+  'dynamic_transactionDom',
+  'dynamic_transactionSceneNodes',
+  'dynamic_transactionLiveResources',
+  'dynamic_transactionRepeatRendererResidency',
+  'dynamic_transactionRendererResidency',
+  'dynamic_storedBaseline',
+  'productionBuildUnchanged',
+  'schemaContract',
 ]);
 const PROFILE_DEFAULTS = Object.freeze({
   master: Object.freeze({
@@ -115,7 +155,7 @@ export function resolvePerformanceConfig(options = {}, env = process.env) {
       options.gcSettleMs ?? env.REGISTER_PERF_GC_SETTLE_MS,
       defaults.gcSettleMs,
       'gcSettleMs',
-      0,
+      1,
     ),
     reentryCycles: integerOption(
       options.reentryCycles ?? env.REGISTER_PERF_REENTRY_CYCLES,
@@ -547,9 +587,26 @@ export function validatePerformanceResultSchema(result) {
     if (!Number.isFinite(value)) issues.push(`${label} must be finite.`);
   };
   const protocolHeapControlMs = result?.protocol?.heapControlMs;
+  const protocolGcSettleMs = result?.protocol?.gcSettleMs;
+  if (!['master', 'smoke'].includes(result?.protocol?.profile)) {
+    issues.push('protocol.profile must be master or smoke.');
+  }
+  if (!['headed', 'headless'].includes(result?.protocol?.browserMode)) {
+    issues.push('protocol.browserMode must be headed or headless.');
+  }
+  for (const metric of ['width', 'height']) {
+    const value = result?.protocol?.viewport?.[metric];
+    if (!Number.isSafeInteger(value) || value < 1) {
+      issues.push(`protocol.viewport.${metric} must be a positive integer.`);
+    }
+  }
   requireFinite(protocolHeapControlMs, 'protocol.heapControlMs');
   if (Number.isFinite(protocolHeapControlMs) && protocolHeapControlMs <= 0) {
     issues.push('protocol.heapControlMs must be positive.');
+  }
+  requireFinite(protocolGcSettleMs, 'protocol.gcSettleMs');
+  if (Number.isFinite(protocolGcSettleMs) && protocolGcSettleMs <= 0) {
+    issues.push('protocol.gcSettleMs must be positive.');
   }
   if (result?.schemaVersion !== PERFORMANCE_SCHEMA_VERSION) {
     issues.push(`schemaVersion must be ${PERFORMANCE_SCHEMA_VERSION}.`);
@@ -559,6 +616,9 @@ export function validatePerformanceResultSchema(result) {
     if (!scene) {
       issues.push(`scenes.${key} is required.`);
       continue;
+    }
+    if (typeof scene.screenshot !== 'string' || !scene.screenshot.trim()) {
+      issues.push(`scenes.${key}.screenshot is required.`);
     }
     for (const metric of ['avgFps', 'onePercentLowFps', 'p95FrameMs', 'p99FrameMs', 'worstFrameMs']) {
       requireFinite(scene.aggregate?.[metric], `scenes.${key}.aggregate.${metric}`);
@@ -577,6 +637,9 @@ export function validatePerformanceResultSchema(result) {
     if (!phase) {
       issues.push(`dynamicPhases.${key} is required.`);
       continue;
+    }
+    if (typeof phase.screenshot !== 'string' || !phase.screenshot.trim()) {
+      issues.push(`dynamicPhases.${key}.screenshot is required.`);
     }
     requireFinite(phase.aggregate?.frameCount, `dynamicPhases.${key}.aggregate.frameCount`);
     for (const metric of ['avgFps', 'onePercentLowFps', 'p95FrameMs', 'p99FrameMs', 'worstFrameMs']) {
@@ -684,6 +747,52 @@ export function validatePerformanceResultSchema(result) {
       }
     }
   }
+  for (const key of REQUIRED_DYNAMIC_WINDOWS) {
+    const window = result?.dynamicWindows?.[key];
+    if (!window) {
+      issues.push(`dynamicWindows.${key} is required.`);
+      continue;
+    }
+    if (typeof window.screenshot !== 'string' || !window.screenshot.trim()) {
+      issues.push(`dynamicWindows.${key}.screenshot is required.`);
+    }
+    requireFinite(window.aggregate?.frameCount, `dynamicWindows.${key}.aggregate.frameCount`);
+    requireFinite(window.longTasks?.count, `dynamicWindows.${key}.longTasks.count`);
+    requireFinite(
+      window.longTasks?.totalDurationMs,
+      `dynamicWindows.${key}.longTasks.totalDurationMs`,
+    );
+    if (typeof window.longTasks?.supported !== 'boolean'
+        || !Array.isArray(window.longTasks?.entries)) {
+      issues.push(`dynamicWindows.${key}.longTasks must include support and raw entries.`);
+    }
+  }
+  const reentryLeak = result?.reentryLeak;
+  if (!reentryLeak
+      || !Number.isSafeInteger(reentryLeak.cycles)
+      || reentryLeak.cycles < 1
+      || reentryLeak.cycles !== result?.protocol?.reentryCycles
+      || !Array.isArray(reentryLeak.samples)
+      || reentryLeak.samples.length < 2) {
+    issues.push('reentryLeak must include the declared positive cycle count and at least two samples.');
+  }
+  for (const metric of [
+    'heapMiB', 'listeners', 'domElements', 'liveGeometries', 'liveMaterials',
+    'liveTextures', 'rendererGeometries', 'rendererTextures',
+  ]) {
+    requireFinite(reentryLeak?.delta?.[metric], `reentryLeak.delta.${metric}`);
+  }
+  const measuredFiles = result?.build?.measuredFiles;
+  if (!Array.isArray(measuredFiles) || measuredFiles.length === 0) {
+    issues.push('build.measuredFiles must contain the QA harness provenance map.');
+  } else {
+    for (const [index, entry] of measuredFiles.entries()) {
+      if (typeof entry?.path !== 'string' || !entry.path
+          || entry.exists !== true || !sha256Pattern.test(entry.sha256 || '')) {
+        issues.push(`build.measuredFiles[${index}] must name an existing file with a lowercase SHA-256.`);
+      }
+    }
+  }
   const heapIdleControl = result?.heapIdleControl;
   if (!heapIdleControl || typeof heapIdleControl.stateStable !== 'boolean'
       || !Array.isArray(heapIdleControl.heapTimeline)) {
@@ -783,14 +892,134 @@ export function validatePerformanceResultSchema(result) {
       }
     }
   }
-  if (!result?.transactionStability?.start
-      || !result?.transactionStability?.afterFirstSale
-      || !result?.transactionStability?.end) {
-    issues.push('transactionStability.start, afterFirstSale, and end are required.');
-  }
-  for (const key of ['firstUseDelta', 'repeatSaleDelta', 'totalDelta']) {
-    if (!result?.transactionStability?.[key]) {
+  const transactionStability = result?.transactionStability;
+  const transactionBoundaryKeys = ['start', 'afterFirstSale', 'afterWarmSale', 'end'];
+  const boundaryCountMetrics = [
+    ['listeners.total', (boundary) => boundary.listeners?.total],
+    ['dom.elements', (boundary) => boundary.dom?.elements],
+    ['liveSceneResources.objects', (boundary) => boundary.liveSceneResources?.objects],
+    ['liveSceneResources.meshes', (boundary) => boundary.liveSceneResources?.meshes],
+    ['liveSceneResources.geometries', (boundary) => boundary.liveSceneResources?.geometries],
+    ['liveSceneResources.materials', (boundary) => boundary.liveSceneResources?.materials],
+    ['liveSceneResources.textures', (boundary) => boundary.liveSceneResources?.textures],
+    ['liveSceneResources.rendererMemory.geometries',
+      (boundary) => boundary.liveSceneResources?.rendererMemory?.geometries],
+    ['liveSceneResources.rendererMemory.textures',
+      (boundary) => boundary.liveSceneResources?.rendererMemory?.textures],
+  ];
+  for (const key of transactionBoundaryKeys) {
+    const boundary = transactionStability?.[key];
+    if (!boundary) {
       issues.push(`transactionStability.${key} is required.`);
+      continue;
+    }
+    if (boundary.heap?.explicitGcRequested !== true
+        || boundary.heap?.explicitGcImmediatelyBeforeRead !== true) {
+      issues.push(`transactionStability.${key}.heap must prove a successful explicit GC immediately before the heap read.`);
+    }
+    if (!Number.isFinite(boundary.heap?.jsHeapUsedMiB)
+        || boundary.heap.jsHeapUsedMiB < 0) {
+      issues.push(`transactionStability.${key}.heap.jsHeapUsedMiB must be finite and non-negative.`);
+    }
+    for (const [metric, read] of boundaryCountMetrics) {
+      const value = read(boundary);
+      if (!Number.isSafeInteger(value) || value < 0) {
+        issues.push(`transactionStability.${key}.${metric} must be a non-negative integer.`);
+      }
+    }
+    const state = boundary.state;
+    if (state?.active !== true
+        || state.workspace !== 'monitor'
+        || state.transactionNumber != null
+        || state.transactionStage != null
+        || state.customerCount !== 0
+        || state.drawerOpen !== false) {
+      issues.push(`transactionStability.${key}.state must be the clean active monitor with no transaction, customer, or open drawer.`);
+    }
+    const normalization = boundary.heapNormalization;
+    if (!normalization
+        || normalization.kind !== 'clear-diagnostics-precollect-settle-final-immediate-gc'
+        || !Number.isFinite(normalization.settleMs)
+        || normalization.settleMs < 0
+        || normalization.dynamicDiagnosticsAvailable !== true
+        || (key !== 'start' && normalization.dynamicDiagnosticsCleared !== true)
+        || normalization.dynamicDiagnosticsWasRunning !== false
+        || normalization.preSettleExplicitGcSucceeded !== true
+        || normalization.finalExplicitGcImmediatelyBeforeRead !== true) {
+      issues.push(`transactionStability.${key}.heapNormalization must prove cleared diagnostics, a settled pre-collection, and a final immediate GC.`);
+    }
+    if (Number.isFinite(normalization?.settleMs)
+        && Number.isFinite(protocolGcSettleMs)
+        && normalization.settleMs !== protocolGcSettleMs) {
+      issues.push(`transactionStability.${key}.heapNormalization.settleMs must equal protocol.gcSettleMs.`);
+    }
+    for (const metric of ['clearedFrameSamples', 'clearedStateSamples', 'clearedHeapSamples']) {
+      const value = normalization?.[metric];
+      if (!Number.isSafeInteger(value) || value < 0) {
+        issues.push(`transactionStability.${key}.heapNormalization.${metric} must be a non-negative integer.`);
+      }
+    }
+    if (key !== 'start' && normalization) {
+      if (normalization.clearedFrameSamples < 1
+          || normalization.clearedStateSamples < 1
+          || normalization.clearedHeapSamples < 2) {
+        issues.push(`transactionStability.${key}.heapNormalization must prove non-empty completed recorder timelines were cleared.`);
+      }
+      if (normalization.clearedFrameSamples !== normalization.clearedStateSamples) {
+        issues.push(`transactionStability.${key}.heapNormalization cleared frame/state sample counts must match.`);
+      }
+    }
+  }
+  const transactionDeltaKeys = [
+    'firstUseDelta', 'pathWarmupDelta', 'methodMatchedDelta',
+    'repeatSaleDelta', 'totalDelta', 'delta',
+  ];
+  const transactionDeltaMetrics = [
+    'postGcHeapMiB', 'listeners', 'domElements', 'liveSceneObjects',
+    'liveSceneMeshes', 'liveGeometries', 'liveMaterials', 'liveTextures',
+    'rendererGeometries', 'rendererTextures',
+  ];
+  for (const key of transactionDeltaKeys) {
+    const delta = transactionStability?.[key];
+    if (!delta) {
+      issues.push(`transactionStability.${key} is required.`);
+      continue;
+    }
+    for (const metric of transactionDeltaMetrics) {
+      if (!Number.isFinite(delta[metric])) {
+        issues.push(`transactionStability.${key}.${metric} must be finite.`);
+      }
+    }
+  }
+  if (transactionStability?.methodMatchedDelta
+      && JSON.stringify(transactionStability.repeatSaleDelta)
+        !== JSON.stringify(transactionStability.methodMatchedDelta)) {
+    issues.push('transactionStability.repeatSaleDelta must alias methodMatchedDelta.');
+  }
+  if (transactionStability?.methodMatchedDelta
+      && JSON.stringify(transactionStability.delta)
+        !== JSON.stringify(transactionStability.methodMatchedDelta)) {
+    issues.push('transactionStability.delta must alias methodMatchedDelta.');
+  }
+  const canRecomputeTransactionDeltas = transactionBoundaryKeys.every((key) => {
+    const boundary = transactionStability?.[key];
+    return boundary
+      && Number.isFinite(boundary.heap?.jsHeapUsedMiB)
+      && boundaryCountMetrics.every(([, read]) => Number.isFinite(read(boundary)));
+  });
+  if (canRecomputeTransactionDeltas) {
+    const recomputed = transactionStabilityReport(
+      transactionStability.start,
+      transactionStability.afterFirstSale,
+      transactionStability.afterWarmSale,
+      transactionStability.end,
+    );
+    for (const key of ['firstUseDelta', 'pathWarmupDelta', 'methodMatchedDelta', 'totalDelta']) {
+      for (const metric of transactionDeltaMetrics) {
+        if (transactionStability[key]?.[metric] !== recomputed[key][metric]) {
+          issues.push(`transactionStability.${key}.${metric} must equal the boundary-derived delta ${recomputed[key][metric]}.`);
+        }
+      }
     }
   }
   if (!result?.storedBaselineComparison
@@ -896,7 +1125,7 @@ export function buildDynamicGateReport(dynamicPhases, transactionStability, base
   const maximumHeapExcess = heapHighWaterComplete
     ? Math.max(...heapCalibrations.map((calibration) => calibration.excessMaxDrawupMiB))
     : null;
-  const deltaValues = transactionStability?.delta || {};
+  const deltaValues = transactionStability?.methodMatchedDelta || {};
   const totalDeltaValues = transactionStability?.totalDelta || {};
   const resetState = transactionStability?.end?.state || {};
   const detail = (pass, value) => ({ pass: !!pass, detail: value });
@@ -914,7 +1143,7 @@ export function buildDynamicGateReport(dynamicPhases, transactionStability, base
     ),
     transactionPostGcHeap: detail(
       Number.isFinite(deltaValues.postGcHeapMiB) && deltaValues.postGcHeapMiB <= 4,
-      `${deltaValues.postGcHeapMiB} MiB retained-heap delta from warm sale-one cleanup to sale-two cleanup; budget <= +4 MiB growth`,
+      `${deltaValues.postGcHeapMiB} MiB retained-heap delta from one approved-card cleanup to the next method-matched approved-card cleanup; budget <= +4 MiB growth`,
     ),
     transactionResetState: detail(
       resetState.active === true
@@ -938,10 +1167,15 @@ export function buildDynamicGateReport(dynamicPhases, transactionStability, base
         && Math.abs(deltaValues.liveTextures ?? Infinity) <= 2,
       `${deltaValues.liveGeometries}/${deltaValues.liveMaterials}/${deltaValues.liveTextures} geometry/material/texture across the repeated sale; budget <= 2 each`,
     ),
+    transactionRepeatRendererResidency: detail(
+      Math.abs(deltaValues.rendererGeometries ?? Infinity) <= 2
+        && Math.abs(deltaValues.rendererTextures ?? Infinity) <= 2,
+      `${deltaValues.rendererGeometries}/${deltaValues.rendererTextures} renderer geometry/texture across the method-matched repeated sale; budget <= 2 each`,
+    ),
     transactionRendererResidency: detail(
       Math.abs(totalDeltaValues.rendererGeometries ?? Infinity) <= 200
         && Math.abs(totalDeltaValues.rendererTextures ?? Infinity) <= 32,
-      `${totalDeltaValues.rendererGeometries}/${totalDeltaValues.rendererTextures} renderer geometry/texture across both sales; first-use residency budget <= 200/32`,
+      `${totalDeltaValues.rendererGeometries}/${totalDeltaValues.rendererTextures} renderer geometry/texture across the three-sale envelope; first-use residency budget <= 200/32`,
     ),
     storedBaseline: detail(
       baselineComparison?.pass !== false,
@@ -1135,7 +1369,15 @@ async function cameraSnapshot(page) {
 }
 
 async function heapSnapshot(page, cdp, collect = true) {
-  if (collect) await cdp.send('HeapProfiler.collectGarbage').catch(() => {});
+  let collectionSucceeded = !collect;
+  if (collect) {
+    try {
+      await cdp.send('HeapProfiler.collectGarbage');
+      collectionSucceeded = true;
+    } catch (_) {
+      collectionSucceeded = false;
+    }
+  }
   const response = await cdp.send('Performance.getMetrics');
   const metrics = Object.fromEntries(response.metrics.map((metric) => [metric.name, metric.value]));
   const memory = await page.evaluate(() => performance.memory ? {
@@ -1145,8 +1387,11 @@ async function heapSnapshot(page, cdp, collect = true) {
   } : null);
   const used = metrics.JSHeapUsedSize ?? memory?.used ?? null;
   return {
-    source: 'Chrome DevTools Protocol Performance.getMetrics after explicit HeapProfiler.collectGarbage',
-    explicitGcImmediatelyBeforeRead: collect,
+    source: collect
+      ? 'Chrome DevTools Protocol Performance.getMetrics after an immediate explicit HeapProfiler.collectGarbage request'
+      : 'Chrome DevTools Protocol Performance.getMetrics without an immediately preceding explicit collection',
+    explicitGcRequested: collect,
+    explicitGcImmediatelyBeforeRead: collect && collectionSucceeded,
     jsHeapUsedBytes: used,
     jsHeapUsedMiB: used == null ? null : round(used / 1048576),
     jsHeapTotalBytes: metrics.JSHeapTotalSize ?? memory?.total ?? null,
@@ -1456,6 +1701,60 @@ async function dynamicBoundarySnapshot(page, cdp, { collectGarbage = false } = {
     dom: await domSnapshot(page),
     liveSceneResources: await sceneResourceSnapshot(page),
     browserWork: await cdpPerformanceSnapshot(cdp),
+  };
+}
+
+export async function captureNormalizedTransactionBoundary(
+  page,
+  cdp,
+  {
+    settleMs = RUN_CONFIG.gcSettleMs,
+    captureSnapshot = dynamicBoundarySnapshot,
+  } = {},
+) {
+  const diagnostics = await page.evaluate(() => {
+    const perf = window.__simplifiedRegisterPerf;
+    const dynamic = perf?.dynamic || null;
+    const wasRunning = dynamic?.running === true;
+    if (wasRunning) {
+      throw new Error('Cannot normalize a transaction boundary while the dynamic probe is running.');
+    }
+    const result = {
+      available: !!perf,
+      cleared: !!dynamic,
+      wasRunning,
+      frameSamples: Array.isArray(dynamic?.frameTimesMs) ? dynamic.frameTimesMs.length : 0,
+      stateSamples: Array.isArray(dynamic?.stateTimeline) ? dynamic.stateTimeline.length : 0,
+      heapSamples: Array.isArray(dynamic?.heapSampleTimeline)
+        ? dynamic.heapSampleTimeline.length : 0,
+    };
+    if (perf) perf.dynamic = null;
+    return result;
+  });
+  let preSettleExplicitGcSucceeded = false;
+  try {
+    await cdp.send('HeapProfiler.collectGarbage');
+    preSettleExplicitGcSucceeded = true;
+  } catch (_) {
+    preSettleExplicitGcSucceeded = false;
+  }
+  await page.waitForTimeout(settleMs);
+  const boundary = await captureSnapshot(page, cdp, { collectGarbage: true });
+  return {
+    ...boundary,
+    heapNormalization: {
+      kind: 'clear-diagnostics-precollect-settle-final-immediate-gc',
+      settleMs,
+      dynamicDiagnosticsAvailable: diagnostics.available,
+      dynamicDiagnosticsCleared: diagnostics.cleared,
+      dynamicDiagnosticsWasRunning: diagnostics.wasRunning,
+      clearedFrameSamples: diagnostics.frameSamples,
+      clearedStateSamples: diagnostics.stateSamples,
+      clearedHeapSamples: diagnostics.heapSamples,
+      preSettleExplicitGcSucceeded,
+      finalExplicitGcImmediatelyBeforeRead:
+        boundary?.heap?.explicitGcImmediatelyBeforeRead === true,
+    },
   };
 }
 
@@ -2217,6 +2516,49 @@ async function sendPerformanceCustomer(page, method, { exactCashFixture = false 
   return customer.created;
 }
 
+async function stageApprovedCardSale(page) {
+  await exitFrontDesk(page);
+  await page.waitForFunction(
+    () => !window.__fw.scene3d.clubhouse().register.isActive(),
+    null,
+    { timeout: 5000 },
+  );
+  const customer = await sendPerformanceCustomer(page, 'card');
+  await enterFrontDeskAtMonitor(page);
+  await monitorClick(page, 'start-scanning');
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.workspace() === 'scan'
+  ), null, { timeout: 5000 });
+  await waitForCameraStable(page);
+  await scanAll(page);
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.stage === 'card-ready' && tx.checkoutFlow?.state === 'CardInsertReady';
+  }, null, { timeout: 7000 });
+  await waitForCameraStable(page);
+  await page.evaluate(() => {
+    window.__fw.scene3d.clubhouse().register.getTx().rng = () => 0.99;
+  });
+  await clickPresentedCard(page);
+  return customer;
+}
+
+async function completeApprovedCardSale(page) {
+  await clickCardConfirm(page);
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.stage === 'card-busy' && tx.checkoutFlow?.state === 'CardProcessing';
+  }, null, { timeout: 4000 });
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.stage === 'receipt' && tx.checkoutFlow?.state === 'CardApproved';
+  }, null, { timeout: 7000 });
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'bag-deliver'
+  ), null, { timeout: 12000 });
+  await waitForAllCustomersRemoved(page);
+}
+
 function transactionBoundaryDelta(before, after) {
   return {
     postGcHeapMiB: difference(after.heap.jsHeapUsedMiB, before.heap.jsHeapUsedMiB),
@@ -2238,20 +2580,24 @@ function transactionBoundaryDelta(before, after) {
   };
 }
 
-function transactionStabilityReport(start, afterFirstSale, end) {
+export function transactionStabilityReport(start, afterFirstSale, afterWarmSale, end) {
   const firstUseDelta = transactionBoundaryDelta(start, afterFirstSale);
-  const repeatSaleDelta = transactionBoundaryDelta(afterFirstSale, end);
+  const pathWarmupDelta = transactionBoundaryDelta(afterFirstSale, afterWarmSale);
+  const methodMatchedDelta = transactionBoundaryDelta(afterWarmSale, end);
   const totalDelta = transactionBoundaryDelta(start, end);
   return {
     start,
     afterFirstSale,
+    afterWarmSale,
     end,
     firstUseDelta,
-    repeatSaleDelta,
+    pathWarmupDelta,
+    methodMatchedDelta,
+    // Compatibility aliases consumed by the existing overlay and summaries.
+    // Both now describe the canonical approved-card-to-approved-card comparison.
+    repeatSaleDelta: methodMatchedDelta,
     totalDelta,
-    // The primary stability delta is sale-two cleanup versus the already-warm
-    // sale-one cleanup. This distinguishes lazy first-use residency from leaks.
-    delta: repeatSaleDelta,
+    delta: methodMatchedDelta,
   };
 }
 
@@ -2456,15 +2802,16 @@ Raw peak growth remains diagnostic. The transient-memory gate uses maximum draw-
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
 ${dynamicRows}
 
-## Two-sale transaction stability
+## Three-sale transaction stability
 
-The complete envelope starts on the no-transaction monitor, completes the declined-card-to-cash sale, records a forced-GC warm boundary, completes a separate approved card sale, waits for both customers to be removed, returns to the no-transaction monitor, and then performs forced-GC normalization. Repeat-sale gates compare the second clean boundary with the already-warm first clean boundary; total deltas retain one-time renderer residency for diagnosis.
+The complete envelope starts on the no-transaction monitor, completes the declined-card-to-cash coverage sale, then completes two consecutive approved-card sales through the same normal controls. Every retained-heap boundary clears completed QA recorder arrays, performs a pre-collection and settle, and performs a final successful collection immediately before the read. The primary repeat-sale gate compares the two method-matched approved-card cleanup boundaries; total deltas retain one-time renderer residency for diagnosis.
 
 | Boundary delta | Post-GC heap MiB | Listeners / DOM | Scene objects / meshes | Live geometry / material / texture | Renderer geometry / texture |
 |---|---:|---:|---:|---:|---:|
-| First-use: start to sale one | ${result.transactionStability.firstUseDelta.postGcHeapMiB} | ${result.transactionStability.firstUseDelta.listeners} / ${result.transactionStability.firstUseDelta.domElements} | ${result.transactionStability.firstUseDelta.liveSceneObjects} / ${result.transactionStability.firstUseDelta.liveSceneMeshes} | ${result.transactionStability.firstUseDelta.liveGeometries} / ${result.transactionStability.firstUseDelta.liveMaterials} / ${result.transactionStability.firstUseDelta.liveTextures} | ${result.transactionStability.firstUseDelta.rendererGeometries} / ${result.transactionStability.firstUseDelta.rendererTextures} |
-| Repeat sale: sale one to sale two | ${result.transactionStability.repeatSaleDelta.postGcHeapMiB} | ${result.transactionStability.repeatSaleDelta.listeners} / ${result.transactionStability.repeatSaleDelta.domElements} | ${result.transactionStability.repeatSaleDelta.liveSceneObjects} / ${result.transactionStability.repeatSaleDelta.liveSceneMeshes} | ${result.transactionStability.repeatSaleDelta.liveGeometries} / ${result.transactionStability.repeatSaleDelta.liveMaterials} / ${result.transactionStability.repeatSaleDelta.liveTextures} | ${result.transactionStability.repeatSaleDelta.rendererGeometries} / ${result.transactionStability.repeatSaleDelta.rendererTextures} |
-| Total: start to sale two | ${result.transactionStability.totalDelta.postGcHeapMiB} | ${result.transactionStability.totalDelta.listeners} / ${result.transactionStability.totalDelta.domElements} | ${result.transactionStability.totalDelta.liveSceneObjects} / ${result.transactionStability.totalDelta.liveSceneMeshes} | ${result.transactionStability.totalDelta.liveGeometries} / ${result.transactionStability.totalDelta.liveMaterials} / ${result.transactionStability.totalDelta.liveTextures} | ${result.transactionStability.totalDelta.rendererGeometries} / ${result.transactionStability.totalDelta.rendererTextures} |
+| First-use: start to decline-to-cash cleanup | ${result.transactionStability.firstUseDelta.postGcHeapMiB} | ${result.transactionStability.firstUseDelta.listeners} / ${result.transactionStability.firstUseDelta.domElements} | ${result.transactionStability.firstUseDelta.liveSceneObjects} / ${result.transactionStability.firstUseDelta.liveSceneMeshes} | ${result.transactionStability.firstUseDelta.liveGeometries} / ${result.transactionStability.firstUseDelta.liveMaterials} / ${result.transactionStability.firstUseDelta.liveTextures} | ${result.transactionStability.firstUseDelta.rendererGeometries} / ${result.transactionStability.firstUseDelta.rendererTextures} |
+| Path warm-up: cash cleanup to approved-card cleanup | ${result.transactionStability.pathWarmupDelta.postGcHeapMiB} | ${result.transactionStability.pathWarmupDelta.listeners} / ${result.transactionStability.pathWarmupDelta.domElements} | ${result.transactionStability.pathWarmupDelta.liveSceneObjects} / ${result.transactionStability.pathWarmupDelta.liveSceneMeshes} | ${result.transactionStability.pathWarmupDelta.liveGeometries} / ${result.transactionStability.pathWarmupDelta.liveMaterials} / ${result.transactionStability.pathWarmupDelta.liveTextures} | ${result.transactionStability.pathWarmupDelta.rendererGeometries} / ${result.transactionStability.pathWarmupDelta.rendererTextures} |
+| Method-matched repeat: approved-card cleanup to approved-card cleanup | ${result.transactionStability.methodMatchedDelta.postGcHeapMiB} | ${result.transactionStability.methodMatchedDelta.listeners} / ${result.transactionStability.methodMatchedDelta.domElements} | ${result.transactionStability.methodMatchedDelta.liveSceneObjects} / ${result.transactionStability.methodMatchedDelta.liveSceneMeshes} | ${result.transactionStability.methodMatchedDelta.liveGeometries} / ${result.transactionStability.methodMatchedDelta.liveMaterials} / ${result.transactionStability.methodMatchedDelta.liveTextures} | ${result.transactionStability.methodMatchedDelta.rendererGeometries} / ${result.transactionStability.methodMatchedDelta.rendererTextures} |
+| Total: start to sale three | ${result.transactionStability.totalDelta.postGcHeapMiB} | ${result.transactionStability.totalDelta.listeners} / ${result.transactionStability.totalDelta.domElements} | ${result.transactionStability.totalDelta.liveSceneObjects} / ${result.transactionStability.totalDelta.liveSceneMeshes} | ${result.transactionStability.totalDelta.liveGeometries} / ${result.transactionStability.totalDelta.liveMaterials} / ${result.transactionStability.totalDelta.liveTextures} | ${result.transactionStability.totalDelta.rendererGeometries} / ${result.transactionStability.totalDelta.rendererTextures} |
 
 ## Stored pre-tray comparison
 
@@ -2494,7 +2841,7 @@ ${gateRows}
 
 Overall proposed-budget verdict: **${result.gates.pass ? 'PASS' : 'FAIL'}**.
 
-The tolerances are local QA budgets, not repository product requirements: median-sample active monitor average FPS no more than 35% below idle, median-sample 1% low no more than 40% below idle, every static and dynamic phase at least 30 FPS, static median sample-max no more than 100 ms, dynamic p99 no more than 100 ms and dynamic absolute worst no more than 250 ms, exact production-camera match, matched-control transient heap excess no more than +${HEAP_TRANSIENT_EXCESS_BUDGET_MIB} MiB, bounded two-sale forced-GC heap growth, stable listeners/DOM/live resources, no console/page/HTTP/non-benign request errors, and the matched stored-baseline tolerances recorded in JSON.
+The tolerances are local QA budgets, not repository product requirements: median-sample active monitor average FPS no more than 35% below idle, median-sample 1% low no more than 40% below idle, every static and dynamic phase at least 30 FPS, static median sample-max no more than 100 ms, dynamic p99 no more than 100 ms and dynamic absolute worst no more than 250 ms, exact production-camera match, matched-control transient heap excess no more than +${HEAP_TRANSIENT_EXCESS_BUDGET_MIB} MiB, bounded method-matched approved-card forced-GC heap growth, stable listeners/DOM/live resources, no console/page/HTTP/non-benign request errors, and the matched stored-baseline tolerances recorded in JSON.
 
 ## Limitations
 
@@ -2502,7 +2849,7 @@ The tolerances are local QA budgets, not repository product requirements: median
 - The worst-frame gate uses the median of ${result.protocol.sampleCount} per-scene sample ${result.protocol.sampleCount === 1 ? 'maximum' : 'maxima'} so a recurrent game stall fails while an isolated host/driver scheduling pause remains visible in the raw absolute worst-frame metric.
 - Exact GPU texture allocation and GPU frame time are unavailable through WebGL; visible texture bytes are explicitly estimated as RGBA8 with mip assumptions.
 - The listener probe cannot enumerate inaccessible non-DOM EventTargets.
-- The re-entry probe covers camera/input ownership; the separate two-sale envelope measures completed checkout cleanup. The master-cardinality lifecycle stress remains a separate driver.
+- The re-entry probe covers camera/input ownership; the separate three-sale envelope measures completed checkout cleanup and gates the two method-matched approved-card cleanups. The master-cardinality lifecycle stress remains a separate driver.
 - Stable Web Performance APIs do not expose attributed V8 GC event timing; raw frame spikes, long tasks, heap high-water, and forced-GC boundaries are measured without silently labeling a spike as GC.
 - Raw live-heap magnitudes and GC-cycle timing are browser-specific. Only same-run matched-duration excess is gated; the complete control/action timelines and raw absolute peaks remain in JSON.
 - Canvas clear instrumentation reports update frequency for known register canvas dimensions, not compositor paints or total UI CPU time.
@@ -2581,7 +2928,7 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
   await waitForCameraStable(page);
   const scenes = {};
   scenes.idleMonitor = await captureScene(page, cdp, '01-idle-monitor', 'Idle shared monitor');
-  const transactionStart = await dynamicBoundarySnapshot(page, cdp, { collectGarbage: true });
+  const transactionStart = await captureNormalizedTransactionBoundary(page, cdp);
 
   await exitFrontDesk(page);
   await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.isActive(), null, { timeout: 5000 });
@@ -2845,56 +3192,22 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
   );
 
   // First-use checkout resources are legitimate residency, not repeat-sale
-  // leakage. Preserve the cold boundary above, then compare the second completed
-  // sale against this matched, already-warm post-sale state.
+  // leakage. Preserve the mixed decline-to-cash cleanup as a cold-path boundary,
+  // then warm and repeat the exact approved-card route before judging retention.
   await page.waitForFunction(() => {
     const register = window.__fw.scene3d.clubhouse().register;
     return register.isActive() && register.workspace() === 'monitor' && !register.getTx();
   }, null, { timeout: 5000 });
   await waitForCameraStable(page);
-  await cdp.send('HeapProfiler.collectGarbage').catch(() => {});
-  await page.waitForTimeout(RUN_CONFIG.gcSettleMs);
-  const transactionAfterFirstSale = await dynamicBoundarySnapshot(page, cdp, { collectGarbage: false });
+  const transactionAfterFirstSale = await captureNormalizedTransactionBoundary(page, cdp);
 
-  await exitFrontDesk(page);
-  await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.isActive(), null, { timeout: 5000 });
-  const approvedCustomer = await sendPerformanceCustomer(page, 'card');
-  await enterFrontDeskAtMonitor(page);
-  await monitorClick(page, 'start-scanning');
-  await page.waitForFunction(() => (
-    window.__fw.scene3d.clubhouse().register.workspace() === 'scan'
-  ), null, { timeout: 5000 });
-  await waitForCameraStable(page);
-  await scanAll(page);
-  await page.waitForFunction(() => {
-    const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    return tx?.stage === 'card-ready' && tx.checkoutFlow?.state === 'CardInsertReady';
-  }, null, { timeout: 7000 });
-  await waitForCameraStable(page);
-  await page.evaluate(() => {
-    window.__fw.scene3d.clubhouse().register.getTx().rng = () => 0.99;
-  });
-  await clickPresentedCard(page);
+  const approvedCustomer = await stageApprovedCardSale(page);
   dynamicWindows.cardApproved = await captureDynamicPhase(
     page,
     cdp,
     'cardApprovedWindow',
     'Uninterrupted confirm, approval, receipt/bag delivery, reset, and customer removal',
-    async () => {
-      await clickCardConfirm(page);
-      await page.waitForFunction(() => {
-        const tx = window.__fw.scene3d.clubhouse().register.getTx();
-        return tx?.stage === 'card-busy' && tx.checkoutFlow?.state === 'CardProcessing';
-      }, null, { timeout: 4000 });
-      await page.waitForFunction(() => {
-        const tx = window.__fw.scene3d.clubhouse().register.getTx();
-        return tx?.stage === 'receipt' && tx.checkoutFlow?.state === 'CardApproved';
-      }, null, { timeout: 7000 });
-      await page.waitForFunction(() => (
-        window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'bag-deliver'
-      ), null, { timeout: 12000 });
-      await waitForAllCustomersRemoved(page);
-    },
+    async () => completeApprovedCardSale(page),
     { tailMs: 180, heapControl: heapIdleControl },
   );
   dynamicPhases.cardApprovedResult = deriveDynamicSubphase(
@@ -2919,12 +3232,27 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
     return register.isActive() && register.workspace() === 'monitor' && !register.getTx();
   }, null, { timeout: 5000 });
   await waitForCameraStable(page);
-  await cdp.send('HeapProfiler.collectGarbage').catch(() => {});
-  await page.waitForTimeout(RUN_CONFIG.gcSettleMs);
-  const transactionEnd = await dynamicBoundarySnapshot(page, cdp, { collectGarbage: false });
+  const transactionAfterWarmSale = await captureNormalizedTransactionBoundary(page, cdp);
+
+  const repeatApprovedCustomer = await stageApprovedCardSale(page);
+  dynamicWindows.cardApprovedRepeat = await captureDynamicPhase(
+    page,
+    cdp,
+    'cardApprovedRepeatWindow',
+    'Method-matched repeat approved-card cleanup for retained-memory judging',
+    async () => completeApprovedCardSale(page),
+    { tailMs: 180, heapControl: heapIdleControl },
+  );
+  await page.waitForFunction(() => {
+    const register = window.__fw.scene3d.clubhouse().register;
+    return register.isActive() && register.workspace() === 'monitor' && !register.getTx();
+  }, null, { timeout: 5000 });
+  await waitForCameraStable(page);
+  const transactionEnd = await captureNormalizedTransactionBoundary(page, cdp);
   const transactionStability = transactionStabilityReport(
     transactionStart,
     transactionAfterFirstSale,
+    transactionAfterWarmSale,
     transactionEnd,
   );
 
@@ -3065,7 +3393,7 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
     heapControlMs: RUN_CONFIG.heapControlMs,
     allocationSamplingDiagnostic: RUN_CONFIG.allocationSampling,
     renderCaptureFrames: RENDER_CAPTURE_FRAME_COUNT,
-    productionInputRoute: 'E/Escape, physical monitor clicks, one click per product, one click on customer card, physical reader OK, visible decline-to-cash recovery, one click on customer tender, physical drawer denominations, visible confirm-change, automatic receipt/bag/customer cleanup, then one complete approved card sale',
+    productionInputRoute: 'E/Escape, physical monitor clicks, one click per product, one click on customer card, physical reader OK, visible decline-to-cash recovery, one click on customer tender, physical drawer denominations, visible confirm-change, automatic receipt/bag/customer cleanup, then two consecutive complete approved-card sales through the same controls',
   };
   const baselineSource = readStoredBaseline(RUN_CONFIG.baselinePath);
   if (baselineSource.rawText) {
@@ -3103,6 +3431,7 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
     environment,
     customer,
     approvedCustomer,
+    repeatApprovedCustomer,
     scenes,
     heapIdleControl,
     dynamicPhases,
@@ -3124,7 +3453,7 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
       `${process.env.HEADED === '1' ? 'Headed' : 'Headless'} Chrome measurement on one host; not a multi-device hardware benchmark.`,
       'Texture memory is an RGBA8/mipmap estimate because WebGL does not expose exact GPU allocation.',
       'Listener enumeration excludes inaccessible non-DOM EventTargets.',
-      `Re-entry stress covers ${RUN_CONFIG.reentryCycles} safe enter/exit cycles; the separate stability envelope covers one declined-card-to-cash completion plus one approved card completion.`,
+      `Re-entry stress covers ${RUN_CONFIG.reentryCycles} safe enter/exit cycles; the separate stability envelope covers one declined-card-to-cash completion plus two consecutive approved-card completions.`,
       'Canvas instrumentation counts known full-canvas operations, not compositor paints or total UI CPU time.',
       'Stable Web Performance APIs do not expose attributed V8 GC event timing. The driver retains raw frame spikes, long tasks, per-frame heap high-water marks, and forced-GC boundary snapshots without claiming which spikes were GC.',
       `The transient heap gate compares each raw action-window draw-up with a duration-matched prefix of one same-run active-monitor no-action control; explicit boundary samples and a ${HEAP_TRACE_COVERAGE_TOLERANCE_MS} ms maximum final-sample gap make incomplete traces fail closed. Raw absolute high-water values remain diagnostic and the repeated-sale forced-GC retention gate remains independent.`,
@@ -3176,7 +3505,12 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
   );
   fs.writeFileSync(
     path.join(OUT, 'transaction-stability.json'),
-    JSON.stringify(transactionStability, null, 2),
+    JSON.stringify({
+      schemaVersion: PERFORMANCE_SCHEMA_VERSION,
+      generatedAt,
+      protocol: { gcSettleMs: protocol.gcSettleMs },
+      ...transactionStability,
+    }, null, 2),
   );
   fs.writeFileSync(
     path.join(OUT, 'stored-baseline-comparison.json'),
@@ -3227,6 +3561,8 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
     reentryLeak: reentryLeak.delta,
     transactionStability: {
       firstUseDelta: transactionStability.firstUseDelta,
+      pathWarmupDelta: transactionStability.pathWarmupDelta,
+      methodMatchedDelta: transactionStability.methodMatchedDelta,
       repeatSaleDelta: transactionStability.repeatSaleDelta,
       totalDelta: transactionStability.totalDelta,
       delta: transactionStability.delta,

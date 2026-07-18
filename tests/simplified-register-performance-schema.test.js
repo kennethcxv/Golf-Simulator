@@ -6,14 +6,18 @@ import {
   HEAP_TRACE_COVERAGE_TOLERANCE_MS,
   RENDER_CAPTURE_FRAME_COUNT,
   REQUIRED_DYNAMIC_PHASES,
+  REQUIRED_DYNAMIC_WINDOWS,
+  REQUIRED_PERFORMANCE_GATE_KEYS,
   buildDynamicGateReport,
   buildMatchedHeapCalibration,
   buildStoredBaselineComparison,
+  captureNormalizedTransactionBoundary,
   qualifyHeapControl,
   resolvePerformanceConfig,
   startDynamicProbe,
   summarizeHeapTrace,
   summarizeRenderFrameDistribution,
+  transactionStabilityReport,
   validatePerformanceResultSchema,
 } from '../tools/qa/simplified-register-performance.mjs';
 
@@ -29,6 +33,7 @@ const STATIC_SCENES = [
 
 function staticScene(overrides = {}) {
   return {
+    screenshot: 'static-scene.png',
     aggregate: {
       avgFps: 60,
       onePercentLowFps: 48,
@@ -58,6 +63,7 @@ function dynamicPhase(overrides = {}) {
     atMs: 1000 + (index + 1) * frameTimeMs,
   }));
   return {
+    screenshot: 'dynamic-phase.png',
     aggregate: {
       frameCount: 20,
       avgFps: 60,
@@ -135,10 +141,94 @@ function dynamicPhase(overrides = {}) {
   };
 }
 
+function dynamicWindow(overrides = {}) {
+  return {
+    screenshot: 'dynamic-window.png',
+    aggregate: { frameCount: 20 },
+    longTasks: {
+      supported: true,
+      count: 0,
+      totalDurationMs: 0,
+      entries: [],
+    },
+    ...overrides,
+  };
+}
+
+function normalizedTransactionBoundary(overrides = {}) {
+  return {
+    heap: {
+      explicitGcRequested: true,
+      explicitGcImmediatelyBeforeRead: true,
+      jsHeapUsedMiB: 40,
+    },
+    heapNormalization: {
+      kind: 'clear-diagnostics-precollect-settle-final-immediate-gc',
+      settleMs: 600,
+      dynamicDiagnosticsAvailable: true,
+      dynamicDiagnosticsCleared: true,
+      dynamicDiagnosticsWasRunning: false,
+      clearedFrameSamples: 10,
+      clearedStateSamples: 10,
+      clearedHeapSamples: 12,
+      preSettleExplicitGcSucceeded: true,
+      finalExplicitGcImmediatelyBeforeRead: true,
+    },
+    listeners: { total: 10 },
+    dom: { elements: 20 },
+    liveSceneResources: {
+      objects: 100,
+      meshes: 50,
+      geometries: 25,
+      materials: 15,
+      textures: 8,
+      rendererMemory: { geometries: 30, textures: 9 },
+    },
+    state: {
+      active: true,
+      workspace: 'monitor',
+      transactionNumber: null,
+      transactionStage: null,
+      customerCount: 0,
+      drawerOpen: false,
+    },
+    ...overrides,
+  };
+}
+
+function transactionDelta(overrides = {}) {
+  return {
+    postGcHeapMiB: 0,
+    listeners: 0,
+    domElements: 0,
+    liveSceneObjects: 0,
+    liveSceneMeshes: 0,
+    liveGeometries: 0,
+    liveMaterials: 0,
+    liveTextures: 0,
+    rendererGeometries: 0,
+    rendererTextures: 0,
+    ...overrides,
+  };
+}
+
 function completeResult() {
+  const start = normalizedTransactionBoundary();
+  start.heapNormalization.dynamicDiagnosticsCleared = false;
+  start.heapNormalization.clearedFrameSamples = 0;
+  start.heapNormalization.clearedStateSamples = 0;
+  start.heapNormalization.clearedHeapSamples = 0;
+  const methodMatchedDelta = transactionDelta();
   return {
     schemaVersion: PERFORMANCE_SCHEMA_VERSION,
-    protocol: { heapControlMs: 16000 },
+    protocol: {
+      profile: 'master',
+      browserMode: 'headed',
+      viewport: { width: 1600, height: 900 },
+      reentryCycles: 20,
+      heapControlMs: 16000,
+      gcSettleMs: 600,
+    },
     scenes: Object.fromEntries(STATIC_SCENES.map((key) => [key, staticScene()])),
     heapIdleControl: {
       stateStable: true,
@@ -180,16 +270,41 @@ function completeResult() {
       },
     },
     dynamicPhases: Object.fromEntries(REQUIRED_DYNAMIC_PHASES.map((key) => [key, dynamicPhase()])),
+    dynamicWindows: Object.fromEntries(REQUIRED_DYNAMIC_WINDOWS.map((key) => [key, dynamicWindow()])),
+    reentryLeak: {
+      cycles: 20,
+      samples: [{ cycle: 0 }, { cycle: 20 }],
+      delta: {
+        heapMiB: 0,
+        listeners: 0,
+        domElements: 0,
+        liveGeometries: 0,
+        liveMaterials: 0,
+        liveTextures: 0,
+        rendererGeometries: 0,
+        rendererTextures: 0,
+      },
+    },
     transactionStability: {
-      start: {},
-      afterFirstSale: {},
-      end: {},
-      firstUseDelta: {},
-      repeatSaleDelta: {},
-      totalDelta: {},
-      delta: {},
+      start,
+      afterFirstSale: normalizedTransactionBoundary(),
+      afterWarmSale: normalizedTransactionBoundary(),
+      end: normalizedTransactionBoundary(),
+      firstUseDelta: transactionDelta(),
+      pathWarmupDelta: transactionDelta(),
+      methodMatchedDelta,
+      repeatSaleDelta: methodMatchedDelta,
+      totalDelta: transactionDelta(),
+      delta: methodMatchedDelta,
     },
     storedBaselineComparison: { available: true },
+    build: {
+      measuredFiles: [{
+        path: 'tools/qa/simplified-register-performance.mjs',
+        exists: true,
+        sha256: '2'.repeat(64),
+      }],
+    },
     productionBuildHashes: { 'src/main.js': '0'.repeat(64) },
     productionBuildSnapshot: {
       schemaVersion: 2,
@@ -205,6 +320,9 @@ function completeResult() {
 }
 
 test('performance profiles are explicit and smoke preserves the dynamic route', () => {
+  assert.equal(PERFORMANCE_SCHEMA_VERSION, 4);
+  assert.equal(REQUIRED_DYNAMIC_WINDOWS.length, 6);
+  assert.ok(REQUIRED_PERFORMANCE_GATE_KEYS.includes('dynamic_transactionRepeatRendererResidency'));
   const master = resolvePerformanceConfig({}, {});
   assert.equal(master.profile, 'master');
   assert.deepEqual(
@@ -237,6 +355,7 @@ test('performance profiles are explicit and smoke preserves the dynamic route', 
   assert.equal(resolvePerformanceConfig({}, { REGISTER_PERF_ALLOCATION_SAMPLING: '1' }).allocationSampling, true);
   assert.equal(resolvePerformanceConfig({}, { REGISTER_PERF_HEAP_CONTROL_MS: '17000' }).heapControlMs, 17000);
   assert.throws(() => resolvePerformanceConfig({ sampleMs: 100 }, {}), /sampleMs/);
+  assert.throws(() => resolvePerformanceConfig({ gcSettleMs: 0 }, {}), /gcSettleMs/);
   assert.throws(() => resolvePerformanceConfig({ heapControlMs: 999 }, {}), /heapControlMs/);
 });
 
@@ -317,6 +436,110 @@ test('dynamic recorder rejects a stale first rAF without seeding the accepted fr
   } finally {
     restoreGlobals();
   }
+});
+
+test('transaction boundaries clear finished recorder arrays and bracket the read with successful collections', async () => {
+  const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const dynamic = {
+    running: false,
+    frameTimesMs: [16, 17],
+    stateTimeline: [{}, {}],
+    heapSampleTimeline: [{}, {}, {}],
+  };
+  const gcCalls = [];
+  const settleCalls = [];
+  const snapshotOptions = [];
+  try {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { __simplifiedRegisterPerf: { dynamic } },
+    });
+    const page = {
+      evaluate: async (callback) => callback(),
+      waitForTimeout: async (milliseconds) => settleCalls.push(milliseconds),
+    };
+    const cdp = {
+      send: async (method) => {
+        gcCalls.push(method);
+        return {};
+      },
+    };
+    const captureSnapshot = async (_page, innerCdp, options) => {
+      snapshotOptions.push(options);
+      await innerCdp.send('HeapProfiler.collectGarbage');
+      return normalizedTransactionBoundary({
+        heap: {
+          explicitGcRequested: true,
+          explicitGcImmediatelyBeforeRead: true,
+          jsHeapUsedMiB: 41,
+        },
+      });
+    };
+
+    const boundary = await captureNormalizedTransactionBoundary(page, cdp, {
+      settleMs: 750,
+      captureSnapshot,
+    });
+    assert.equal(globalThis.window.__simplifiedRegisterPerf.dynamic, null);
+    assert.deepEqual(gcCalls, [
+      'HeapProfiler.collectGarbage',
+      'HeapProfiler.collectGarbage',
+    ]);
+    assert.deepEqual(settleCalls, [750]);
+    assert.deepEqual(snapshotOptions, [{ collectGarbage: true }]);
+    assert.deepEqual(
+      {
+        cleared: boundary.heapNormalization.dynamicDiagnosticsCleared,
+        frames: boundary.heapNormalization.clearedFrameSamples,
+        states: boundary.heapNormalization.clearedStateSamples,
+        heap: boundary.heapNormalization.clearedHeapSamples,
+        preGc: boundary.heapNormalization.preSettleExplicitGcSucceeded,
+        finalGc: boundary.heapNormalization.finalExplicitGcImmediatelyBeforeRead,
+      },
+      { cleared: true, frames: 2, states: 2, heap: 3, preGc: true, finalGc: true },
+    );
+
+    globalThis.window.__simplifiedRegisterPerf.dynamic = { running: true };
+    await assert.rejects(
+      () => captureNormalizedTransactionBoundary(page, cdp, { captureSnapshot }),
+      /dynamic probe is running/,
+    );
+  } finally {
+    if (windowDescriptor) Object.defineProperty(globalThis, 'window', windowDescriptor);
+    else delete globalThis.window;
+  }
+});
+
+test('transaction stability gates the method-matched approved-card boundary pair', () => {
+  const boundary = (heapMiB, listeners, objects, rendererGeometries) => (
+    normalizedTransactionBoundary({
+      heap: {
+        explicitGcRequested: true,
+        explicitGcImmediatelyBeforeRead: true,
+        jsHeapUsedMiB: heapMiB,
+      },
+      listeners: { total: listeners },
+      liveSceneResources: {
+        ...normalizedTransactionBoundary().liveSceneResources,
+        objects,
+        rendererMemory: { geometries: rendererGeometries, textures: 9 },
+      },
+    })
+  );
+  const start = boundary(40, 10, 100, 30);
+  const afterFirstSale = boundary(50, 10, 105, 35);
+  const afterWarmSale = boundary(46, 10, 101, 31);
+  const end = boundary(47.5, 10, 102, 32);
+  const report = transactionStabilityReport(start, afterFirstSale, afterWarmSale, end);
+
+  assert.equal(report.firstUseDelta.postGcHeapMiB, 10);
+  assert.equal(report.pathWarmupDelta.postGcHeapMiB, -4);
+  assert.equal(report.methodMatchedDelta.postGcHeapMiB, 1.5);
+  assert.equal(report.methodMatchedDelta.liveSceneObjects, 1);
+  assert.equal(report.methodMatchedDelta.rendererGeometries, 1);
+  assert.strictEqual(report.repeatSaleDelta, report.methodMatchedDelta);
+  assert.strictEqual(report.delta, report.methodMatchedDelta);
+  assert.equal(report.totalDelta.postGcHeapMiB, 7.5);
 });
 
 test('render snapshots use the non-shadow median and retain the scheduled-bake tail', () => {
@@ -629,11 +852,133 @@ test('schema requires every static resource metric and critical dynamic phase', 
 
   const missingBoundary = completeResult();
   delete missingBoundary.transactionStability.afterFirstSale;
+  delete missingBoundary.transactionStability.afterWarmSale;
+  delete missingBoundary.transactionStability.methodMatchedDelta;
   delete missingBoundary.transactionStability.repeatSaleDelta;
   const missingBoundaryResult = validatePerformanceResultSchema(missingBoundary);
   assert.equal(missingBoundaryResult.valid, false);
   assert.ok(missingBoundaryResult.issues.some((issue) => issue.includes('afterFirstSale')));
+  assert.ok(missingBoundaryResult.issues.some((issue) => issue.includes('afterWarmSale')));
+  assert.ok(missingBoundaryResult.issues.some((issue) => issue.includes('methodMatchedDelta')));
   assert.ok(missingBoundaryResult.issues.some((issue) => issue.includes('repeatSaleDelta')));
+
+  const incompleteOverlayEvidence = completeResult();
+  delete incompleteOverlayEvidence.protocol.viewport;
+  delete incompleteOverlayEvidence.scenes.activeMonitor.screenshot;
+  delete incompleteOverlayEvidence.dynamicWindows.cardApprovedRepeat;
+  delete incompleteOverlayEvidence.reentryLeak;
+  delete incompleteOverlayEvidence.build.measuredFiles;
+  const incompleteOverlayEvidenceResult = validatePerformanceResultSchema(incompleteOverlayEvidence);
+  assert.equal(incompleteOverlayEvidenceResult.valid, false);
+  for (const expected of [
+    'protocol.viewport.width',
+    'scenes.activeMonitor.screenshot',
+    'dynamicWindows.cardApprovedRepeat',
+    'reentryLeak',
+    'build.measuredFiles',
+  ]) {
+    assert.ok(incompleteOverlayEvidenceResult.issues.some((issue) => issue.includes(expected)), expected);
+  }
+
+  const invalidNormalization = completeResult();
+  invalidNormalization.transactionStability.afterWarmSale.heap.explicitGcImmediatelyBeforeRead = false;
+  invalidNormalization.transactionStability.end.heapNormalization.preSettleExplicitGcSucceeded = false;
+  const invalidNormalizationResult = validatePerformanceResultSchema(invalidNormalization);
+  assert.equal(invalidNormalizationResult.valid, false);
+  assert.ok(invalidNormalizationResult.issues.some((issue) => (
+    issue.includes('afterWarmSale.heap must prove a successful explicit GC')
+  )));
+  assert.ok(invalidNormalizationResult.issues.some((issue) => (
+    issue.includes('end.heapNormalization')
+  )));
+
+  const normalizedStartWithoutPriorRecorder = completeResult();
+  assert.equal(
+    normalizedStartWithoutPriorRecorder.transactionStability.start
+      .heapNormalization.dynamicDiagnosticsCleared,
+    false,
+  );
+  assert.deepEqual(
+    validatePerformanceResultSchema(normalizedStartWithoutPriorRecorder),
+    { valid: true, issues: [] },
+    'the start boundary is valid before any dynamic recorder exists',
+  );
+
+  const unclearedDiagnostics = completeResult();
+  unclearedDiagnostics.transactionStability.afterFirstSale.heapNormalization.dynamicDiagnosticsCleared = false;
+  const unclearedDiagnosticsResult = validatePerformanceResultSchema(unclearedDiagnostics);
+  assert.equal(unclearedDiagnosticsResult.valid, false);
+  assert.ok(unclearedDiagnosticsResult.issues.some((issue) => (
+    issue.includes('afterFirstSale.heapNormalization')
+  )));
+
+  for (const [field, value] of [
+    ['dynamicDiagnosticsAvailable', false],
+    ['dynamicDiagnosticsWasRunning', true],
+    ['finalExplicitGcImmediatelyBeforeRead', false],
+  ]) {
+    const invalidProof = completeResult();
+    invalidProof.transactionStability.afterWarmSale.heapNormalization[field] = value;
+    const invalidProofResult = validatePerformanceResultSchema(invalidProof);
+    assert.equal(invalidProofResult.valid, false, `${field} must fail closed`);
+    assert.ok(invalidProofResult.issues.some((issue) => (
+      issue.includes('afterWarmSale.heapNormalization')
+    )), `${field} must produce a boundary-specific issue`);
+  }
+
+  const driftedAliases = completeResult();
+  driftedAliases.transactionStability.repeatSaleDelta = { postGcHeapMiB: 3 };
+  driftedAliases.transactionStability.delta = { postGcHeapMiB: 4 };
+  const driftedAliasesResult = validatePerformanceResultSchema(driftedAliases);
+  assert.equal(driftedAliasesResult.valid, false);
+  assert.ok(driftedAliasesResult.issues.some((issue) => issue.includes('repeatSaleDelta must alias')));
+  assert.ok(driftedAliasesResult.issues.some((issue) => issue.includes('delta must alias')));
+
+  const missingDeltaEvidence = completeResult();
+  missingDeltaEvidence.transactionStability.methodMatchedDelta.postGcHeapMiB = null;
+  const missingDeltaEvidenceResult = validatePerformanceResultSchema(missingDeltaEvidence);
+  assert.equal(missingDeltaEvidenceResult.valid, false);
+  assert.ok(missingDeltaEvidenceResult.issues.some((issue) => (
+    issue.includes('methodMatchedDelta.postGcHeapMiB must be finite')
+  )));
+
+  const malformedBoundaryEvidence = completeResult();
+  malformedBoundaryEvidence.transactionStability.end.liveSceneResources.rendererMemory.textures = -1;
+  malformedBoundaryEvidence.transactionStability.end.heapNormalization.clearedFrameSamples = 1.5;
+  const malformedBoundaryEvidenceResult = validatePerformanceResultSchema(malformedBoundaryEvidence);
+  assert.equal(malformedBoundaryEvidenceResult.valid, false);
+  assert.ok(malformedBoundaryEvidenceResult.issues.some((issue) => (
+    issue.includes('end.liveSceneResources.rendererMemory.textures')
+  )));
+  assert.ok(malformedBoundaryEvidenceResult.issues.some((issue) => (
+    issue.includes('end.heapNormalization.clearedFrameSamples')
+  )));
+
+  const emptyRecorderProof = completeResult();
+  emptyRecorderProof.transactionStability.afterWarmSale.heapNormalization.clearedFrameSamples = 0;
+  emptyRecorderProof.transactionStability.afterWarmSale.heapNormalization.clearedStateSamples = 0;
+  emptyRecorderProof.transactionStability.afterWarmSale.heapNormalization.clearedHeapSamples = 0;
+  const emptyRecorderProofResult = validatePerformanceResultSchema(emptyRecorderProof);
+  assert.equal(emptyRecorderProofResult.valid, false);
+  assert.ok(emptyRecorderProofResult.issues.some((issue) => (
+    issue.includes('non-empty completed recorder timelines')
+  )));
+
+  const spoofedMethodMatchedDelta = completeResult();
+  spoofedMethodMatchedDelta.transactionStability.methodMatchedDelta.postGcHeapMiB = 2;
+  const spoofedMethodMatchedDeltaResult = validatePerformanceResultSchema(spoofedMethodMatchedDelta);
+  assert.equal(spoofedMethodMatchedDeltaResult.valid, false);
+  assert.ok(spoofedMethodMatchedDeltaResult.issues.some((issue) => (
+    issue.includes('methodMatchedDelta.postGcHeapMiB must equal the boundary-derived delta')
+  )));
+
+  const dirtyMethodMatchedBoundary = completeResult();
+  dirtyMethodMatchedBoundary.transactionStability.afterWarmSale.state.customerCount = 1;
+  const dirtyMethodMatchedBoundaryResult = validatePerformanceResultSchema(dirtyMethodMatchedBoundary);
+  assert.equal(dirtyMethodMatchedBoundaryResult.valid, false);
+  assert.ok(dirtyMethodMatchedBoundaryResult.issues.some((issue) => (
+    issue.includes('afterWarmSale.state must be the clean active monitor')
+  )));
 
   const truncatedControl = completeResult();
   truncatedControl.heapIdleControl.heapTimeline[1].elapsedMs = 8000;
@@ -664,6 +1009,20 @@ test('schema binds the declared heap-control protocol to measured control eviden
   let validation = validatePerformanceResultSchema(nonfiniteProtocol);
   assert.equal(validation.valid, false);
   assert.ok(validation.issues.some((issue) => issue.includes('protocol.heapControlMs must be finite')));
+
+  const missingGcSettle = completeResult();
+  delete missingGcSettle.protocol.gcSettleMs;
+  validation = validatePerformanceResultSchema(missingGcSettle);
+  assert.equal(validation.valid, false);
+  assert.ok(validation.issues.some((issue) => issue.includes('protocol.gcSettleMs must be finite')));
+
+  const mismatchedGcSettle = completeResult();
+  mismatchedGcSettle.transactionStability.afterWarmSale.heapNormalization.settleMs = 601;
+  validation = validatePerformanceResultSchema(mismatchedGcSettle);
+  assert.equal(validation.valid, false);
+  assert.ok(validation.issues.some((issue) => (
+    issue.includes('afterWarmSale.heapNormalization.settleMs must equal protocol.gcSettleMs')
+  )));
 
   const nonpositiveProtocol = completeResult();
   nonpositiveProtocol.protocol.heapControlMs = 0;
@@ -714,9 +1073,15 @@ test('schema binds the declared heap-control protocol to measured control eviden
 });
 
 test('schema requires the complete cashier production snapshot v2 envelope', () => {
+  const stalePerformanceSchema = completeResult();
+  stalePerformanceSchema.schemaVersion = PERFORMANCE_SCHEMA_VERSION - 1;
+  let validation = validatePerformanceResultSchema(stalePerformanceSchema);
+  assert.equal(validation.valid, false);
+  assert.ok(validation.issues.some((issue) => issue.includes('schemaVersion must be')));
+
   const missingHashes = completeResult();
   delete missingHashes.productionBuildHashes;
-  let validation = validatePerformanceResultSchema(missingHashes);
+  validation = validatePerformanceResultSchema(missingHashes);
   assert.equal(validation.valid, false);
   assert.ok(validation.issues.some((issue) => issue.includes('productionBuildHashes')));
 
@@ -783,11 +1148,12 @@ test('stored baseline comparison judges only matched static protocols', () => {
   assert.equal(incomplete.qualified, false);
 });
 
-test('dynamic gate report enforces transition tails and two-sale cleanup stability', () => {
+test('dynamic gate report enforces transition tails and method-matched three-sale cleanup stability', () => {
   const phases = Object.fromEntries(REQUIRED_DYNAMIC_PHASES.map((key) => [key, dynamicPhase()]));
   const stability = {
     start: { state: { active: true, workspace: 'monitor', customerCount: 0 } },
     afterFirstSale: { state: { active: true, workspace: 'monitor', customerCount: 0 } },
+    afterWarmSale: { state: { active: true, workspace: 'monitor', customerCount: 0 } },
     end: {
       state: {
         active: true,
@@ -798,7 +1164,7 @@ test('dynamic gate report enforces transition tails and two-sale cleanup stabili
         drawerOpen: false,
       },
     },
-    repeatSaleDelta: {
+    methodMatchedDelta: {
       postGcHeapMiB: 0.5,
       listeners: 0,
       domElements: 0,
@@ -812,7 +1178,8 @@ test('dynamic gate report enforces transition tails and two-sale cleanup stabili
     },
     totalDelta: { rendererGeometries: 120, rendererTextures: 8 },
   };
-  stability.delta = stability.repeatSaleDelta;
+  stability.repeatSaleDelta = stability.methodMatchedDelta;
+  stability.delta = stability.methodMatchedDelta;
   const baseline = { available: true, qualified: true, pass: true };
   assert.equal(buildDynamicGateReport(phases, stability, baseline).pass, true);
 
@@ -823,6 +1190,15 @@ test('dynamic gate report enforces transition tails and two-sale cleanup stabili
     'first-use renderer residency is judged across the total envelope',
   );
   stability.totalDelta.rendererGeometries = 120;
+
+  stability.methodMatchedDelta.rendererGeometries = 3;
+  assert.equal(
+    buildDynamicGateReport(phases, stability, baseline)
+      .details.transactionRepeatRendererResidency.pass,
+    false,
+    'method-matched renderer residency is judged independently of cold first-use residency',
+  );
+  stability.methodMatchedDelta.rendererGeometries = 0;
 
   phases.cardInsertion = dynamicPhase({
     aggregate: {
@@ -854,7 +1230,7 @@ test('dynamic retained-heap and high-water gates are one-sided and fail closed',
         drawerOpen: false,
       },
     },
-    delta: {
+    methodMatchedDelta: {
       postGcHeapMiB: -4.32,
       listeners: 0,
       domElements: 0,
@@ -866,6 +1242,7 @@ test('dynamic retained-heap and high-water gates are one-sided and fail closed',
     },
     totalDelta: { rendererGeometries: 0, rendererTextures: 0 },
   };
+  stability.delta = stability.methodMatchedDelta;
   const baseline = { available: false, qualified: false, pass: null };
 
   assert.equal(buildDynamicGateReport(phases, stability, baseline).details.transactionPostGcHeap.pass, true,
@@ -875,11 +1252,11 @@ test('dynamic retained-heap and high-water gates are one-sided and fail closed',
   stability.delta.postGcHeapMiB = 4.001;
   assert.equal(buildDynamicGateReport(phases, stability, baseline).details.transactionPostGcHeap.pass, false);
   for (const missing of [undefined, null, Number.NaN, Number.POSITIVE_INFINITY]) {
-    stability.delta.postGcHeapMiB = missing;
+    stability.methodMatchedDelta.postGcHeapMiB = missing;
     assert.equal(buildDynamicGateReport(phases, stability, baseline).details.transactionPostGcHeap.pass, false);
   }
 
-  stability.delta.postGcHeapMiB = 0;
+  stability.methodMatchedDelta.postGcHeapMiB = 0;
   phases.cardInsertion.heapHighWater.peakGrowthMiB = 1000;
   phases.cardInsertion.heapHighWater.calibration.excessMaxDrawupMiB = 16;
   assert.equal(buildDynamicGateReport(phases, stability, baseline).details.dynamicHeapHighWater.pass, true);
