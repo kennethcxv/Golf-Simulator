@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "inspectedAt": "2026-07-17T23:50:58.1389251-07:00",
+  "inspectionStatus": "ALL_AUTHORITATIVE_IMAGES_OPENED_AT_ORIGINAL_RESOLUTION",
+  "root": "Designs/RefrenceImages",
+  "resolvedFolders": [
+    "Designs/RefrenceImages/51-60_refrence_images",
+    "Designs/RefrenceImages/61-70_refrence_images",
+    "Designs/RefrenceImages/71-80_refrence_images",
+    "Designs/RefrenceImages/81-90_refrence_images",
+    "Designs/RefrenceImages/91-100_refrence_images",
+    "Designs/RefrenceImages/firstpersonView"
+  ],
+  "images": [
+    {
+      "mapping": "assets_51_60",
+      "path": "Designs/RefrenceImages/51-60_refrence_images/ChatGPT Image Jul 17, 2026, 11_23_56 PM.png",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 2232796,
+      "sha256": "71E8C32972035BEA1BB1627DA29F726CFE9E97B257BD1759D0FD2AFA243B9F84"
+    },
+    {
+      "mapping": "assets_61_70",
+      "path": "Designs/RefrenceImages/61-70_refrence_images/ChatGPT Image Jul 17, 2026, 11_24_00 PM.png",
+      "width": 1402,
+      "height": 1122,
+      "bytes": 2022881,
+      "sha256": "E3FDC6549733D76D54C78AC420EBC67DEB9F4FA145FDB3C2747F57761D23DFB9"
+    },
+    {
+      "mapping": "assets_71_80",
+      "path": "Designs/RefrenceImages/71-80_refrence_images/ChatGPT Image Jul 17, 2026, 11_24_02 PM.png",
+      "width": 1402,
+      "height": 1122,
+      "bytes": 1998828,
+      "sha256": "53346276FF75C5431354550D165DFFB85DAB312930FD4ADC6DD24A0ED4040A3A"
+    },
+    {
+      "mapping": "assets_81_90",
+      "path": "Designs/RefrenceImages/81-90_refrence_images/ChatGPT Image Jul 17, 2026, 11_24_05 PM.png",
+      "width": 1402,
+      "height": 1122,
+      "bytes": 2019677,
+      "sha256": "4B789C5D7DBDBBDFCC63D04958A55B3EB0F55BE3A51B5EFF1DD9C0B072B9D76C"
+    },
+    {
+      "mapping": "assets_91_100",
+      "path": "Designs/RefrenceImages/91-100_refrence_images/ChatGPT Image Jul 17, 2026, 11_24_15 PM.png",
+      "width": 1402,
+      "height": 1122,
+      "bytes": 1962415,
+      "sha256": "6C1935685407E34FCED4C77D589729608C485040650329AD7EB3A944AC36809B"
+    },
+    {
+      "mapping": "first_person_static_views",
+      "path": "Designs/RefrenceImages/firstpersonView/ChatGPT Image Jul 17, 2026, 11_24_17 PM.png",
+      "width": 1402,
+      "height": 1122,
+      "bytes": 2244384,
+      "sha256": "192E658F5C3FD87C2C6D5594C9A352AACA1380B45E68C1EB696E161B9A8F9BA7"
+    },
+    {
+      "mapping": "first_person_action_sequences",
+      "path": "Designs/RefrenceImages/firstpersonView/ChatGPT Image Jul 17, 2026, 11_24_22 PM.png",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 2571501,
+      "sha256": "713FED388EFCD63B9F3B345B916C66275ACCD7D03BB85164822812BE79BAF527"
+    }
+  ],
+  "referencePrecedence": [
+    "The written objective governs gameplay, persistence, performance, collision, and exact asset numbering.",
+    "The sheet images govern silhouette, proportions, material language, construction, variants, placement, and first-person framing where they are not contradicted by the written objective.",
+    "Asset 51 is the canonical clubhouse shell; Asset 52 must use aligned damage modules and material states even though the two reference renders are not geometry-identical.",
+    "Path-based cleaning, visible vacuum debris travel, broom pile formation, authored effect origins, and real tool contact override simplified progress-bar or disappearing-debris depictions.",
+    "Pineview marks and AI-rendered labels are visual placeholders only and must be replaced with original Pinehollow/Golf Flipper-safe branding and deliberate production copy."
+  ],
+  "coverageGaps": [
+    "No dimensions, orthographic views, pivots, collision meshes, LODs, UV layouts, or material values are supplied.",
+    "The sponge has no first-person reference.",
+    "The mop bucket has no staged wringer-use view.",
+    "Spray, cloth, sponge, and trash-bag fill/disposal lack complete staged action references.",
+    "The pressure-washer base and hose-management behavior are not shown in first-person use.",
+    "Garden hose, trash can, wheelbarrow, and leaf blower appear as supporting first-person references outside the 50-primary-asset count."
+  ]
+}
