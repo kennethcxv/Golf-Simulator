@@ -374,10 +374,92 @@ function computeLegacyField(course, field, rect) {
       }
       const o = (ty * field.w + tx) * 2;
       data[o] = best;
-      data[o + 1] = 128; // legacy path carries no boundary distance
+      data[o + 1] = 128; // filled below, once every winner in the region is known
     }
   }
+  fillLegacyBoundaryDistance(field, x0, y0, x1, y1);
+  // The bytes now mean what packZD's do on the vector path, so the surface
+  // channels can read them instead of falling back to their step constants.
+  field.hasAnalyticDistance = true;
   return field;
+}
+
+// The legacy kernel path wrote a flat 128 — no boundary distance — so
+// winnerDistanceYd returned null and every surface channel collapsed to a
+// three-level step function at one-yard texels. That is what makes an 18-hole
+// estate's fairway and green edges read blobby and quantised next to a
+// nine-hole vector course.
+//
+// The categorical field is already rasterised at this point, so a chamfer
+// distance transform recovers a real signed distance to the winning zone's
+// boundary — the same quantity packZD encodes analytically on the vector path.
+function fillLegacyBoundaryDistance(field, tx0, ty0, tx1, ty1) {
+  const { w, h, data, scale } = field;
+  // The encoding saturates about four cells out, so nothing further away can
+  // change a byte in the requested region — that bound makes a dirty-rect
+  // update identical to a full rebuild.
+  const reach = Math.ceil(4 * scale) + 1;
+  const px0 = Math.max(0, tx0 - reach);
+  const py0 = Math.max(0, ty0 - reach);
+  const px1 = Math.min(w - 1, tx1 + reach);
+  const py1 = Math.min(h - 1, ty1 + reach);
+  const rw = px1 - px0 + 1;
+  const rh = py1 - py0 + 1;
+  const INF = 1e9;
+  const dist = new Float32Array(rw * rh);
+  const zoneAt = (x, y) => data[(y * w + x) * 2];
+
+  // Seed: a texel touching a different zone sits on the boundary.
+  for (let y = py0; y <= py1; y++) {
+    for (let x = px0; x <= px1; x++) {
+      const z = zoneAt(x, y);
+      const edge = (x > 0 && zoneAt(x - 1, y) !== z)
+        || (x < w - 1 && zoneAt(x + 1, y) !== z)
+        || (y > 0 && zoneAt(x, y - 1) !== z)
+        || (y < h - 1 && zoneAt(x, y + 1) !== z);
+      dist[(y - py0) * rw + (x - px0)] = edge ? 0 : INF;
+    }
+  }
+
+  // Two-pass chamfer with exact diagonal weights.
+  const DD = Math.SQRT2;
+  for (let y = 0; y < rh; y++) {
+    for (let x = 0; x < rw; x++) {
+      const i = y * rw + x;
+      let d = dist[i];
+      if (d === 0) continue;
+      if (x > 0) d = Math.min(d, dist[i - 1] + 1);
+      if (y > 0) d = Math.min(d, dist[i - rw] + 1);
+      if (x > 0 && y > 0) d = Math.min(d, dist[i - rw - 1] + DD);
+      if (x < rw - 1 && y > 0) d = Math.min(d, dist[i - rw + 1] + DD);
+      dist[i] = d;
+    }
+  }
+  for (let y = rh - 1; y >= 0; y--) {
+    for (let x = rw - 1; x >= 0; x--) {
+      const i = y * rw + x;
+      let d = dist[i];
+      if (d === 0) continue;
+      if (x < rw - 1) d = Math.min(d, dist[i + 1] + 1);
+      if (y < rh - 1) d = Math.min(d, dist[i + rw] + 1);
+      if (x < rw - 1 && y < rh - 1) d = Math.min(d, dist[i + rw + 1] + DD);
+      if (x > 0 && y < rh - 1) d = Math.min(d, dist[i + rw - 1] + DD);
+      dist[i] = d;
+    }
+  }
+
+  // packZD's encoding: 128 + distanceInCells * 32, negative inside. The extra
+  // half texel puts the zero contour on the boundary itself rather than on the
+  // last texel inside it.
+  const perTexel = 32 / scale;
+  for (let y = ty0; y <= ty1; y++) {
+    for (let x = tx0; x <= tx1; x++) {
+      const d = dist[(y - py0) * rw + (x - px0)];
+      let enc = 128 - (d + 0.5) * perTexel;
+      enc = enc < 0 ? 0 : enc > 255 ? 255 : enc | 0;
+      data[(y * w + x) * 2 + 1] = enc;
+    }
+  }
 }
 
 // dirty-rect update after edits: pad by kernel reach + warp amplitude
