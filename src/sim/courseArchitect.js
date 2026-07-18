@@ -150,6 +150,34 @@ function fbm(x, y) {
   return vn(x, y) * 0.62 + vn(x * 2.07 + 13.1, y * 2.07 - 7.7) * 0.26 + vn(x * 4.3 - 3.3, y * 4.3 + 9.9) * 0.12;
 }
 
+// point→segment squared distance + parameter (for path fairway-clearance)
+function pathSegDist2(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const L2 = dx * dx + dy * dy;
+  let t = L2 > 1e-12 ? ((px - ax) * dx + (py - ay) * dy) / L2 : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  const ex = px - (ax + dx * t);
+  const ey = py - (ay + dy * t);
+  return { d2: ex * ex + ey * ey, t };
+}
+
+// fairway half-width (cells) at arc parameter t from a width profile [{t,w(yd)}]
+function fairHalfCells(stops, t) {
+  if (!stops || !stops.length) return 2.4;
+  if (t <= stops[0].t) return stops[0].w / CELL_YD;
+  for (let i = 1; i < stops.length; i++) {
+    if (t <= stops[i].t) {
+      const a = stops[i - 1];
+      const b = stops[i];
+      const k = (t - a.t) / Math.max(1e-6, b.t - a.t);
+      const s = k * k * (3 - 2 * k);
+      return (a.w + (b.w - a.w) * s) / CELL_YD;
+    }
+  }
+  return stops[stops.length - 1].w / CELL_YD;
+}
+
 // ------------------------------------------------------------- the designer ----
 
 export function designCourse(rng, opts = {}) {
@@ -411,6 +439,63 @@ export function designCourse(rng, opts = {}) {
   }
   // home leg back to the clubhouse
   push(CLUBHOUSE.x + CLUBHOUSE.w + 2.4, CLUBHOUSE.y + CLUBHOUSE.h + 1.8);
+  // clearance pass: shove any point that still sits on a fairway off it (the
+  // connectors between interior holes are the usual offenders). Smoothing runs
+  // FIRST (to relax the initial pushes) then the clearance has the LAST word so
+  // nothing is pulled back onto a fairway. Margin covers CatmullRom overshoot.
+  const clearFairways = (margin) => {
+    for (let iter = 0; iter < 14; iter++) {
+      let moved = false;
+      for (let pi = 1; pi < pathPts.length - 1; pi++) { // pin the clubhouse endpoints
+        const p = pathPts[pi];
+        let worst = 0;
+        let pushX = 0;
+        let pushY = 0;
+        for (const d of designed) {
+          if (!d.vh.width) continue;
+          const line = d.lineSampled;
+          let bestD2 = Infinity;
+          let cxp = 0;
+          let cyp = 0;
+          let bestT = 0;
+          for (let i = 1; i < line.length; i++) {
+            const r = pathSegDist2(p.x, p.y, line[i - 1].x, line[i - 1].y, line[i].x, line[i].y);
+            if (r.d2 < bestD2) {
+              bestD2 = r.d2;
+              cxp = line[i - 1].x + (line[i].x - line[i - 1].x) * r.t;
+              cyp = line[i - 1].y + (line[i].y - line[i - 1].y) * r.t;
+              bestT = (i - 1 + r.t) / (line.length - 1);
+            }
+          }
+          const half = fairHalfCells(d.vh.width, bestT);
+          const intr = half + margin - Math.sqrt(bestD2);
+          if (intr > worst) {
+            worst = intr;
+            const dx = p.x - cxp;
+            const dy = p.y - cyp;
+            const L = Math.hypot(dx, dy) || 1;
+            pushX = dx / L;
+            pushY = dy / L;
+          }
+        }
+        if (worst > 0.05) {
+          p.x += pushX * (worst + 0.4);
+          p.y += pushY * (worst + 0.4);
+          moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+  };
+  clearFairways(1.6);
+  // relax kinks the pushes may have left (endpoints pinned)
+  for (let s = 0; s < 2; s++) {
+    for (let i = 1; i < pathPts.length - 1; i++) {
+      pathPts[i].x = (pathPts[i - 1].x + pathPts[i].x * 2 + pathPts[i + 1].x) / 4;
+      pathPts[i].y = (pathPts[i - 1].y + pathPts[i].y * 2 + pathPts[i + 1].y) / 4;
+    }
+  }
+  clearFairways(2.4); // final word: a wider margin absorbs CatmullRom overshoot
   const loop = {
     id: course.nextPathId++,
     pts: pathPts.map((p) => ({ x: clamp(p.x, 2, w - 3), y: clamp(p.y, 2, h - 3) })),
