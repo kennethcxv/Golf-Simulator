@@ -640,12 +640,12 @@ function evalPacked(course, geom, px, py, paint) {
 
   // ---- painted freeform overrides (player edits), organically warped
   if (paint) {
-    const cx0 = px + wx * WARP.bands - 0.5;
-    const cy0 = py + wy * WARP.bands - 0.5;
-    const cx = cx0 < 0 ? 0 : cx0 >= course.w - 1 ? course.w - 1 : Math.round(cx0);
-    const cy = cy0 < 0 ? 0 : cy0 >= course.h - 1 ? course.h - 1 : Math.round(cy0);
-    const pz = paint[cy * course.w + cx];
-    if (pz !== 255) return packZD(pz, -0.6);
+    const zd = paintedZD(
+      paint, course.w, course.h,
+      px + wx * WARP.bands - 0.5,
+      py + wy * WARP.bands - 0.5,
+    );
+    if (zd >= 0) return zd;
   }
 
   // ---- fringe collar
@@ -713,6 +713,57 @@ function evalPacked(course, geom, px, py, paint) {
   const heavyW = BANDS.heavy / CELL_YD;
   if (playD <= roughW + heavyW + rag) return packZD(ZONE.HEAVY, playD - (roughW + heavyW));
   return packZD(ZONE.OUT, playD - (roughW + heavyW));
+}
+
+// Painted overrides are authored on the 8-yard simulation grid, but the visual
+// field samples every half yard. Returning a constant distance made the encoded
+// zero-crossing snap to the cell border, so every brush stroke rendered as
+// 8-yard squares. Reconstruct the stroke boundary as the 0.5 isoline of the
+// bilinear indicator instead, and measure to it through the analytic gradient:
+// that puts the edge at a smooth sub-cell position and hands the shader the
+// real gradient it needs to antialias. Returns -1 when the sample is not inside
+// a painted stroke, which is outside packZD's non-negative range.
+function paintedZD(paint, w, h, cx0, cy0) {
+  let x0 = Math.floor(cx0);
+  let y0 = Math.floor(cy0);
+  x0 = x0 < 0 ? 0 : x0 > w - 2 ? w - 2 : x0;
+  y0 = y0 < 0 ? 0 : y0 > h - 2 ? h - 2 : y0;
+  let fx = cx0 - x0;
+  let fy = cy0 - y0;
+  fx = fx < 0 ? 0 : fx > 1 ? 1 : fx;
+  fy = fy < 0 ? 0 : fy > 1 ? 1 : fy;
+
+  const i00 = y0 * w + x0;
+  const p00 = paint[i00];
+  const p10 = paint[i00 + 1];
+  const p01 = paint[i00 + w];
+  const p11 = paint[i00 + w + 1];
+
+  // The cell under the sample still picks the zone, exactly as the previous
+  // nearest-cell lookup did; neighbours only shape where its boundary falls.
+  const zone = fx < 0.5 ? (fy < 0.5 ? p00 : p01) : (fy < 0.5 ? p10 : p11);
+  if (zone === 255) return -1;
+
+  const m00 = p00 === zone ? 1 : 0;
+  const m10 = p10 === zone ? 1 : 0;
+  const m01 = p01 === zone ? 1 : 0;
+  const m11 = p11 === zone ? 1 : 0;
+
+  const a = m00 + (m10 - m00) * fx;
+  const b = m01 + (m11 - m01) * fx;
+  const f = a + (b - a) * fy;
+
+  const gx = (m10 - m00) * (1 - fy) + (m11 - m01) * fy;
+  const gy = (m01 - m00) * (1 - fx) + (m11 - m10) * fx;
+  const g = Math.sqrt(gx * gx + gy * gy);
+
+  // A uniform neighbourhood holds no boundary, so the sample sits well inside
+  // the stroke (or well outside it, and the generated surface keeps the point).
+  if (g < 1e-6) return f >= 0.5 ? packZD(zone, -1.5) : -1;
+
+  const d = (0.5 - f) / g;
+  if (d >= 0) return -1; // the isoline puts this sample outside the stroke
+  return packZD(zone, d);
 }
 
 function packZD(zone, d) {

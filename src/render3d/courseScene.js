@@ -925,18 +925,16 @@ export function makeCourseScene(canvas, state) {
           float zone = floor(zoneSample.r * 255.0 + 0.5);
           // signed distance to the winning zone's boundary, in yards (neg = inside)
           float edgeYd = (zoneSample.g * 255.0 - 128.0) / 32.0 * ${CELL_YD.toFixed(1)};
-          // turf condition stays at simulation resolution (it IS sim data)
+          // turf condition stays at simulation resolution (it IS sim data).
+          // Disease TYPE is categorical, so it alone keeps the nearest read —
+          // interpolating between two disease ids would name a third.
           vec2 sUv = (floor(cellUv) + 0.5) / uCells;
-          vec4 zd = texture2D(uZoneTex, sUv);
-          float hRel = zd.a * 255.0 / 64.0;
           vec4 ax = texture2D(uAuxTex, sUv);
           float disType = floor(ax.r * 255.0 / 100.0 + 0.5);
-          float disSev = ax.g;
 
           // smooth (manual bilinear) reads for the condition tints so per-cell
           // variance doesn't render as camouflage blocks
           vec2 texel = 1.0 / uCells;
-          vec2 bUv = (cellUv - 0.5) * texel;
           vec2 bF = fract(cellUv - 0.5);
           vec2 b0 = (floor(cellUv - 0.5) + 0.5) * texel;
           vec4 z00 = texture2D(uZoneTex, b0);
@@ -950,7 +948,13 @@ export function makeCourseScene(canvas, state) {
           vec4 a10 = texture2D(uAuxTex, b0 + vec2(texel.x, 0.0));
           vec4 a01 = texture2D(uAuxTex, b0 + vec2(0.0, texel.y));
           vec4 a11 = texture2D(uAuxTex, b0 + texel);
-          float moisture = mix(mix(a00, a10, bF.x), mix(a01, a11, bF.x), bF.y).b;
+          vec4 aSmooth = mix(mix(a00, a10, bF.x), mix(a01, a11, bF.x), bF.y);
+          float moisture = aSmooth.b;
+          // Grass height sets mow-stripe amplitude and disease severity sets
+          // blotch strength. Read nearest, both stepped in hard 8-yard squares
+          // while the tints beside them were already smooth.
+          float hRel = zSmooth.a * 255.0 / 64.0;
+          float disSev = aSmooth.g;
 
           // real PBR surfaces — sample every set in uniform control flow so mip
           // derivatives stay valid across warped zone borders, then select
