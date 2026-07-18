@@ -25,7 +25,6 @@ export const CASHIER_PRODUCTION_SOURCE_FILES = Object.freeze([
   'src/render3d/clubhouse/catalogProductVisual.js',
   'src/render3d/clubhouse/customerFlow.js',
   'src/render3d/clubhouse/customerPaidBag.js',
-  'src/render3d/clubhouse/fixtureCoreBatching.js',
   'src/render3d/clubhouse/fixtures.js',
   'src/render3d/clubhouse/frontDeskMonitorUi.js',
   'src/render3d/clubhouse/interiorShadowPolicy.js',

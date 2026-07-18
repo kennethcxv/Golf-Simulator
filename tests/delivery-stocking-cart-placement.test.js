@@ -25,9 +25,14 @@ import {
   deliveryEquipmentSocketsConflict,
   preferredDeliveryEquipmentSocketIds,
 } from '../src/data/deliveryEquipment.js';
+import { FLOOR_BOX_SURFACE_ID } from '../src/data/boxPlacementSurfaces.js';
 
 const target = (socketId, equipmentId = STOCKING_CART_EQUIPMENT_ID) => ({
   loc: 'equipment', equipmentId, socketId,
+});
+
+const floorTarget = (x, z, ry = 0) => ({
+  kind: 'surface', surfaceId: FLOOR_BOX_SURFACE_ID, x, z, ry,
 });
 
 function fresh(seed = 43) {
@@ -167,8 +172,8 @@ test('an occupied socket rejects a duplicate without moving either carton', () =
 test('picking a cart box clears ownership and it can be replaced exactly once', () => {
   const st = fresh(45);
   const box = land(st, 1);
-  pickUpBox(st, box.id);
-  putDownBox(st, box.id, target('STOCK_SOCKET_05'));
+  assert.ok(pickUpBox(st, box.id).ok);
+  assert.ok(putDownBox(st, box.id, target('STOCK_SOCKET_05')).ok);
 
   assert.ok(pickUpBox(st, box.id).ok);
   assert.equal(box.loc, 'carried');
@@ -178,9 +183,10 @@ test('picking a cart box clears ownership and it can be replaced exactly once', 
   assert.equal(box.loc, 'equipment');
   assert.equal(box.socketId, 'STOCK_SOCKET_05');
 
-  pickUpBox(st, box.id);
-  assert.ok(putDownBox(st, box.id, { x: 7.2, z: -5.3, ry: 0.4 }).ok);
+  assert.ok(pickUpBox(st, box.id).ok);
+  assert.ok(putDownBox(st, box.id, floorTarget(0, 2, 0.4)).ok);
   assert.equal(box.loc, 'world', 'ordinary world placement behavior is preserved');
+  assert.equal(box.surfaceId, FLOOR_BOX_SURFACE_ID);
   assert.equal(box.equipmentId, undefined);
   assert.equal(box.socketId, undefined);
 });
@@ -397,7 +403,7 @@ test('legacy aliases migrate and malformed, duplicate or incompatible placements
       { id: 3, skuId: 'tees1', orderId: 3, qty: 7, cap: 12, box: 'carton', loc: 'equipment', equipmentId: 'stocking_cart' },
       { id: 4, skuId: 'tees1', orderId: 4, qty: 6, cap: 12, box: 'carton', loc: 'equipment', equipmentId: 'unknown_cart', socketId: 'STOCK_SOCKET_06' },
       { id: 5, skuId: 'driver1', orderId: 5, qty: 2, cap: 2, box: 'clubbox', loc: 'equipment', equipmentId: 'stocking_cart', socketId: 'STOCK_SOCKET_06' },
-      { id: 6, skuId: 'tees1', orderId: 6, qty: 5, cap: 12, box: 'carton', loc: 'world', x: 7, z: -5, equipmentId: 'stocking_cart', socketId: 'STOCK_SOCKET_06' },
+      { id: 6, skuId: 'tees1', orderId: 6, qty: 5, cap: 12, box: 'carton', loc: 'world', surfaceId: FLOOR_BOX_SURFACE_ID, x: 7.2, z: -5.3, ry: 0, equipmentId: 'stocking_cart', socketId: 'STOCK_SOCKET_06' },
       { id: 7, skuId: 'tees1', orderId: 7, qty: 4, cap: 12, box: 'carton', loc: 'equipment', equipment: 'stockingCart', equipmentSocketId: 'STOCK_SOCKET_06' },
       { id: 8, skuId: 'cap1', orderId: 8, qty: 8, cap: 8, box: 'merchbox', loc: 'equipment', equipmentId: 'stocking_cart', socketId: 'STOCK_BOX_SOCKET_TOP' },
     ],
@@ -425,8 +431,8 @@ test('legacy aliases migrate and malformed, duplicate or incompatible placements
     assert.equal(healed[index].equipmentId, undefined);
     assert.equal(healed[index].socketId, undefined);
   }
-  assert.equal(healed[5].loc, 'world', 'a non-equipment location is otherwise untouched');
-  assert.deepEqual({ x: healed[5].x, z: healed[5].z }, { x: 7, z: -5 });
+  assert.equal(healed[5].loc, 'world', 'a valid non-equipment location is otherwise untouched');
+  assert.deepEqual({ x: healed[5].x, z: healed[5].z }, { x: 7.2, z: -5.3 });
   assert.equal(healed[5].equipmentId, undefined, 'stray ownership fields are removed');
   assert.equal(healed[5].socketId, undefined);
 

@@ -3,7 +3,7 @@
 // these truth/scale/anchor checks do not depend on Blender, WebGL, or Three.js.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 
@@ -354,8 +354,16 @@ test('packed furniture meshes retain UVs/normals, applied scale, and runtime bud
 });
 
 
-test('clean Blender reimports preserve packed dimensions, nodes, sockets, and source lineage', () => {
-  const buildReport = JSON.parse(readFileSync(new URL('nonretail_furniture_packed_build_report.json', QA_DIR), 'utf8'));
+test('clean Blender reimports preserve packed dimensions, nodes, sockets, and source lineage', (t) => {
+  const reportUrls = [
+    new URL('nonretail_furniture_packed_build_report.json', QA_DIR),
+    ...Object.keys(SPECS).map((assetId) => new URL(`${assetId}_reimport.json`, QA_DIR)),
+  ];
+  if (reportUrls.some((reportUrl) => !existsSync(reportUrl))) {
+    t.skip('local Blender clean-reimport evidence is intentionally ignored by git');
+    return;
+  }
+  const buildReport = JSON.parse(readFileSync(reportUrls[0], 'utf8'));
   assert.equal(buildReport.builder, 'tools/blender/build_nonretail_furniture_packed_products.py');
   assert.equal(buildReport.asset_target, 'all');
   assert.deepEqual(buildReport.external_assets, []);

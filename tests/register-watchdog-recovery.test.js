@@ -162,7 +162,7 @@ test('live delivery holds BagHandoff and CustomerLeaving around their physical w
   const source = fs.readFileSync(
     new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
     'utf8',
-  );
+  ).replaceAll('\r\n', '\n');
   const deliveryStart = source.indexOf('  function updateDelivery(dt) {');
   const deliveryEnd = source.indexOf('\n  function updateCashMotions(dt) {', deliveryStart);
   const finalizeStart = source.indexOf('  function finalizeTransaction() {');

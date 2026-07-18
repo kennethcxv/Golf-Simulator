@@ -21,6 +21,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/sim/state.js';
 import { skuById } from '../src/data/shopItems.js';
+import { FLOOR_BOX_SURFACE_ID } from '../src/data/boxPlacementSurfaces.js';
 import {
   boxesOf, arriveOrder, pickUpBox, putDownBox, carriedBox,
   cutTape, openFlap, takeFromBox, flattenBox, recycleBox,
@@ -31,6 +32,10 @@ import {
   carriedGoods, armfulOf, stockFixture, storeInBack, takeFromBack,
   homeOf, carrySpeedFactor,
 } from '../src/sim/stocking.js';
+
+const floorTarget = (x, z, ry = 0) => ({
+  kind: 'surface', surfaceId: FLOOR_BOX_SURFACE_ID, x, z, ry,
+});
 
 // The fixer-upper opens with a sad little spread already on the shelves (10 dozen range rocks, 14
 // tee bags, 4 gloves, 5 caps). Every test here is about MOVEMENT, so start from a bare shop and
@@ -100,10 +105,10 @@ test('cutting the tape is a cut, not a switch — half-cut is a real state you c
 test('you cannot cut a box you are holding — you need both hands', () => {
   const st = landed();
   const b = boxesOf(st)[0];
-  pickUpBox(st, b.id);
+  assert.ok(pickUpBox(st, b.id).ok);
   assert.equal(cutTape(st, b.id, 1).ok, false);
   assert.match(cutTape(st, b.id, 1).reason, /down|hands/i);
-  putDownBox(st, b.id, { x: 7.2, z: -5.3, ry: 0 });
+  assert.ok(putDownBox(st, b.id, floorTarget(7.2, -5.3)).ok);
   assert.ok(cutTape(st, b.id, 1).ok);
 });
 
@@ -319,7 +324,7 @@ test('flatten only when empty; recycle only when flat; and a flattened box is st
   // and you can carry the flat one to the bin
   assert.ok(pickUpBox(st, b.id).ok);
   assert.equal(carriedBox(st).id, b.id);
-  putDownBox(st, b.id, { x: 9.85, z: 1.3, ry: 0 });
+  assert.ok(putDownBox(st, b.id, floorTarget(7.2, -5.3)).ok);
 
   assert.ok(recycleBox(st, b.id).ok);
   assert.equal(boxesOf(st).length, 0, 'now it is gone');
@@ -368,12 +373,12 @@ test('a heavy box slows you down, and a flattened one does not', () => {
 
   assert.equal(carrySpeedFactor(st), 1, 'empty-handed you walk at your own pace');
 
-  pickUpBox(st, crate.id);
+  assert.ok(pickUpBox(st, crate.id).ok);
   const heavy = carrySpeedFactor(st);
   assert.ok(heavy < 0.6, `the lounge suite is a genuine burden (${heavy.toFixed(2)})`);
-  putDownBox(st, crate.id, { x: 7, z: -5, ry: 0 });
+  assert.ok(putDownBox(st, crate.id, floorTarget(0, 2)).ok);
 
-  pickUpBox(st, carton.id);
+  assert.ok(pickUpBox(st, carton.id).ok);
   const light = carrySpeedFactor(st);
   assert.ok(light > heavy, 'a box of tees is not');
   assert.ok(light > 0.9, `and barely slows you at all (${light.toFixed(2)})`);
@@ -388,9 +393,9 @@ test('THE LOOP: pad -> stockroom -> cut -> flaps -> hands -> shelf, and not one 
 
   for (const b of [...boxesOf(st)]) {
     assert.equal(b.loc, 'pad');
-    pickUpBox(st, b.id);
+    assert.ok(pickUpBox(st, b.id).ok);
     assert.equal(unitsOf(st, 'balls1'), total, 'carrying a box does not change the count');
-    putDownBox(st, b.id, { x: 7.2, z: -5.3, ry: 0 });   // into the stockroom
+    assert.ok(putDownBox(st, b.id, floorTarget(7.2, -5.3)).ok);   // into the stockroom
     assert.equal(b.loc, 'world');
 
     cutTape(st, b.id, 0.5);

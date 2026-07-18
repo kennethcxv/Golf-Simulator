@@ -9,14 +9,19 @@
 import { BOX_KINDS, boxDims } from './boxes.js';
 
 export const STOCKING_CART_EQUIPMENT_ID = 'delivery_stocking_cart';
+export const HAND_TRUCK_EQUIPMENT_ID = 'delivery_hand_truck';
 
-const LEGACY_EQUIPMENT_IDS = new Set([
-  STOCKING_CART_EQUIPMENT_ID,
-  'stocking_cart',
-  'stockingCart',
+const EQUIPMENT_ID_ALIASES = new Map([
+  [STOCKING_CART_EQUIPMENT_ID, STOCKING_CART_EQUIPMENT_ID],
+  ['stocking_cart', STOCKING_CART_EQUIPMENT_ID],
+  ['stockingCart', STOCKING_CART_EQUIPMENT_ID],
+  [HAND_TRUCK_EQUIPMENT_ID, HAND_TRUCK_EQUIPMENT_ID],
+  ['hand_truck', HAND_TRUCK_EQUIPMENT_ID],
+  ['handTruck', HAND_TRUCK_EQUIPMENT_ID],
 ]);
 
 export const STOCKING_CART_BOX_SOCKET_ID = 'STOCK_BOX_SOCKET_TOP';
+export const HAND_TRUCK_BOX_SOCKET_ID = 'LOAD_ORIGIN';
 
 const stockingCartSocket = (index, shelf, maxH, conflicts = []) => Object.freeze({
   equipmentId: STOCKING_CART_EQUIPMENT_ID,
@@ -59,18 +64,43 @@ export const STOCKING_CART_PLACEMENT_SOCKETS = Object.freeze([
   STOCKING_CART_BOX_SOCKET,
 ]);
 
+// Ref 42 authors a 0.50 x 0.40 m toe plate, a centred 0.60 x 0.40 m
+// shipping-carton allowance, and 0.05 m side overhangs. Persist the authored
+// LOAD_ORIGIN itself so the carton follows the true operational axle tilt.
+export const HAND_TRUCK_BOX_SOCKET = Object.freeze({
+  equipmentId: HAND_TRUCK_EQUIPMENT_ID,
+  socketId: HAND_TRUCK_BOX_SOCKET_ID,
+  shelf: 1,
+  column: 0,
+  maxW: 0.600,
+  maxD: 0.400,
+  maxH: 0.650,
+  plateW: 0.500,
+  plateD: 0.400,
+  maximumSideOverhangEach: 0.050,
+  preferredForSealedBoxes: true,
+  conflicts: Object.freeze([]),
+});
+
 const STOCKING_CART_SOCKET_BY_ID = new Map(
   STOCKING_CART_PLACEMENT_SOCKETS.map((socket) => [socket.socketId, socket]),
 );
 
+const DELIVERY_EQUIPMENT_SOCKETS = new Map([
+  [STOCKING_CART_EQUIPMENT_ID, STOCKING_CART_SOCKET_BY_ID],
+  [HAND_TRUCK_EQUIPMENT_ID, new Map([
+    [HAND_TRUCK_BOX_SOCKET.socketId, HAND_TRUCK_BOX_SOCKET],
+  ])],
+]);
+
 export function normalizeDeliveryEquipmentId(equipmentId) {
-  return LEGACY_EQUIPMENT_IDS.has(equipmentId) ? STOCKING_CART_EQUIPMENT_ID : null;
+  return EQUIPMENT_ID_ALIASES.get(equipmentId) || null;
 }
 
 export function deliveryEquipmentSocket(equipmentId, socketId) {
   const canonicalId = normalizeDeliveryEquipmentId(equipmentId);
   if (!canonicalId || typeof socketId !== 'string') return null;
-  return STOCKING_CART_SOCKET_BY_ID.get(socketId) || null;
+  return DELIVERY_EQUIPMENT_SOCKETS.get(canonicalId)?.get(socketId) || null;
 }
 
 export function deliveryEquipmentPlacementForBox(box) {
@@ -116,7 +146,7 @@ export function deliveryEquipmentFit(box, equipmentId, socketId) {
     return {
       ok: false,
       code: 'unknown-socket',
-      reason: 'That stocking-cart position does not exist.',
+      reason: 'That delivery-equipment position does not exist.',
     };
   }
 
@@ -140,7 +170,7 @@ export function deliveryEquipmentFit(box, equipmentId, socketId) {
     return {
       ok: false,
       code: 'too-tall',
-      reason: `That carton is too tall for ${socket.socketId}'s ${socket.maxH.toFixed(2)} m clearance; use ${STOCKING_CART_BOX_SOCKET_ID} or flatten it when empty.`,
+      reason: `That carton is too tall for ${socket.socketId}'s ${socket.maxH.toFixed(2)} m clearance.`,
       socket,
       dimensions,
     };
@@ -155,8 +185,12 @@ export function preferredDeliveryEquipmentSocketIds(
   box,
   equipmentId = STOCKING_CART_EQUIPMENT_ID,
 ) {
-  const fits = STOCKING_CART_PLACEMENT_SOCKETS.filter(
-    (socket) => deliveryEquipmentFit(box, equipmentId, socket.socketId).ok,
+  const canonicalId = normalizeDeliveryEquipmentId(equipmentId);
+  const sockets = canonicalId
+    ? [...(DELIVERY_EQUIPMENT_SOCKETS.get(canonicalId)?.values() || [])]
+    : [];
+  const fits = sockets.filter(
+    (socket) => deliveryEquipmentFit(box, canonicalId, socket.socketId).ok,
   );
   const flattenedEmpty = box?.flat && (box?.qty || 0) <= 0;
   return fits
@@ -168,8 +202,7 @@ export function preferredDeliveryEquipmentSocketIds(
         if (a.socketId === STOCKING_CART_BOX_SOCKET_ID) return 1;
         if (b.socketId === STOCKING_CART_BOX_SOCKET_ID) return -1;
       }
-      return STOCKING_CART_PLACEMENT_SOCKETS.indexOf(a)
-        - STOCKING_CART_PLACEMENT_SOCKETS.indexOf(b);
+      return sockets.indexOf(a) - sockets.indexOf(b);
     })
     .map((socket) => socket.socketId);
 }

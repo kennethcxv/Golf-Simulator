@@ -32,7 +32,7 @@ test('performance master brackets the full v2 production build without replacing
   assert.match(performanceSource, /const measuredFiles = \[/,
     'the smaller QA harness hash list must remain separate from the full production map');
   for (const currentHotspot of [
-    'src/render3d/clubhouse/fixtureCoreBatching.js',
+    'src/render3d/clubhouse/simplifiedRegisterMode.js',
     'src/data/fixtureSlots.js',
     'src/render3d/clubhouse/resourceLifecycle.js',
     'vendor/three.module.js',
@@ -41,7 +41,7 @@ test('performance master brackets the full v2 production build without replacing
   }
   assert.match(performanceSource, /discoverMeasuredFiles\('src\/render3d\/assets51to100'/);
   assert.match(performanceSource, /discoverMeasuredFiles\('vendor\/models\/checkout'/);
-  assert.match(performanceSource, /discoverMeasuredFiles\('vendor\/models\/assets_51_100\/sheet_06'/);
+  assert.match(performanceSource, /discoverMeasuredFiles\('vendor\/models\/checkout'/);
   assert.match(performanceSource, /if \(now <= state\.startedAt\) \{\s*requestAnimationFrame\(frame\);\s*return;/,
     'the first rAF timestamp cannot precede the explicit zero-time heap boundary');
   assert.doesNotMatch(performanceSource, /if \(now <= state\.startedAt\) \{\s*state\.previousAt\s*=/,

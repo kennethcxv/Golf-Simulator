@@ -26,7 +26,7 @@ test('organic checkout watchdog arms only for a cart-holder actively routed to t
   );
   const update = between(
     '  function updateCustomers(dt) {',
-    '  function syncCameraVisibility() {',
+    '  function update(dtMs) {',
   );
 
   assert.match(source, /checkoutApproachArmed: false/,
@@ -82,7 +82,7 @@ test('WaitingForCashier recovery releases only unsafe input while the patience f
   );
   const update = between(
     '  function updateCustomers(dt) {',
-    '  function syncCameraVisibility() {',
+    '  function update(dtMs) {',
   );
   const waitingStart = reconcile.indexOf("if (fromState === 'WaitingForCashier')");
   assert.ok(waitingStart >= 0);

@@ -2297,7 +2297,6 @@ function gitBuildSnapshot() {
     'src/render3d/clubhouse/catalogProductVisual.js',
     'src/render3d/clubhouse/customerFlow.js',
     'src/render3d/clubhouse/customerPaidBag.js',
-    'src/render3d/clubhouse/fixtureCoreBatching.js',
     'src/render3d/clubhouse/fixtures.js',
     'src/render3d/clubhouse/frontDeskMonitorUi.js',
     'src/render3d/clubhouse/interiorShadowPolicy.js',
@@ -2342,7 +2341,6 @@ function gitBuildSnapshot() {
     'vendor/models/checkout/cash_coin_05_sheet01.glb',
     ...discoverMeasuredFiles('src/render3d/assets51to100', (file) => file.endsWith('.js')),
     ...discoverMeasuredFiles('vendor/models/checkout', (file) => file.endsWith('.glb')),
-    ...discoverMeasuredFiles('vendor/models/assets_51_100/sheet_06', (file) => file.endsWith('.glb')),
   ].filter((file, index, files) => files.indexOf(file) === index)
     .sort()
     .map(fingerprint);
