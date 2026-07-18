@@ -3,11 +3,19 @@
 // Headless like every sim module; the clubhouse renders THIS state.
 
 import { skuById } from '../data/shopItems.js';
-import { planShipment, boxWeight } from '../data/boxes.js';
+import {
+  BOX_KINDS,
+  SHIPMENT_PACKAGING_SCHEMA_VERSION,
+  boxWeight,
+  packagingMetadataForSavedBox,
+  planShipment,
+} from '../data/boxes.js';
+import { FLOOR_BOX_SURFACE_ID } from '../data/boxPlacementSurfaces.js';
 import {
   assignDeliveryPallets, exposedDeliveryPadBoxIds,
 } from '../data/deliveryStaging.js';
 import {
+  HAND_TRUCK_EQUIPMENT_ID,
   STOCKING_CART_EQUIPMENT_ID,
   deliveryEquipmentFit,
   deliveryEquipmentPlacementForBox,
@@ -17,10 +25,22 @@ import {
 } from '../data/deliveryEquipment.js';
 import { armRoom, setCarry } from './stocking.js';
 import { notify } from './notifications.js';
+import {
+  previewBoxPlacement,
+  surfaceById,
+} from './boxPlacement.js';
 
 // kept for old callers; the truth is unitsPerBox(sku), which knows that a stand bag
 // does not pack twelve to a carton just because its category says 'accessories'
-export const CASE_SIZE = { clubs: 2, balls: 12, apparel: 8, accessories: 12, supplies: 1, decor: 1 };
+export const CASE_SIZE = {
+  clubs: 2,
+  balls: 12,
+  apparel: 8,
+  accessories: 12,
+  provisions: 12,
+  supplies: 1,
+  decor: 1,
+};
 
 // THE SIX STATUSES AN ORDER WEARS WHILE IT IS STILL OUT THERE. The other three
 // ('delivered', 'partial', 'unpacked') belong to a shipment on your floor, not to
@@ -32,8 +52,8 @@ export const ORDER_FLOW = ['received', 'processing', 'packed', 'shipped', 'out',
 export const PAD_CAPACITY = 9;
 
 // Packaging evolves independently from the course save, so it carries a small local schema.
-export const DELIVERIES_SCHEMA_VERSION = 4;
-export const BOX_SCHEMA_VERSION = 3;
+export const DELIVERIES_SCHEMA_VERSION = 5;
+export const BOX_SCHEMA_VERSION = 5;
 
 // Location and contents are separate facts. This is the one persisted lifecycle of the carton.
 export const BOX_LIFECYCLE = Object.freeze({
@@ -60,6 +80,12 @@ const BOX_LIFECYCLE_ORDER = Object.freeze([
   BOX_LIFECYCLE.DISCARDED,
 ]);
 const BOX_LIFECYCLE_SET = new Set(BOX_LIFECYCLE_ORDER);
+
+// ensureDeliveries() is intentionally safe to call from renderer loops. A
+// newly parsed save owns a new boxes array and is fully validated once even if
+// it already claims the current schema. Subsequent calls pay only for this
+// small deterministic signature unless a placement/layout blocker changes.
+const WORLD_PLACEMENT_HEAL_CACHE = new WeakMap();
 
 export function canTransitionBoxState(from, to) {
   const a = typeof from === 'object' && from ? boxLifecycleState(from) : from;
@@ -158,14 +184,33 @@ function migrateBox(box) {
     Number.isFinite(box.flattenProgress) ? box.flattenProgress : (box.flat ? 1 : 0),
   );
   box.flat = box.flattenProgress >= 1;
+  const packaging = packagingMetadataForSavedBox(box);
+  box.box = packaging.kind;
+  box.familyId = packaging.familyId;
+  box.layoutId = packaging.layoutId;
+  box.shellId = packaging.shellId;
+  box.modelId = packaging.modelId;
+  box.packingState = packaging.packingState;
+  box.packingOrientation = packaging.packingOrientation;
+  box.contentScale = 1;
+  box.fragile = packaging.fragile;
+  box.longProduct = packaging.longProduct;
   if (box.cap === undefined) box.cap = box.qty;
   if (box.initialQty === undefined) box.initialQty = box.cap;
   if (box.lb === undefined) {
     const sku = skuById(box.skuId);
-    box.lb = boxWeight(sku, box.qty);
+    if (sku) box.lb = boxWeight(sku, box.qty);
+    else {
+      const kind = BOX_KINDS[box.box] || BOX_KINDS.carton;
+      box.lb = Math.round((kind.tare + 0.5 * Math.max(0, Number(box.qty) || 0)) * 10) / 10;
+    }
   }
   box.lifecycle = inferredLifecycle(box);
   migrateEquipmentFields(box);
+  if (box.loc === 'world') {
+    if (!box.surfaceId) box.surfaceId = FLOOR_BOX_SURFACE_ID;
+    if (box.ry === undefined) box.ry = 0;
+  }
   box.schemaVersion = BOX_SCHEMA_VERSION;
   return box;
 }
@@ -182,6 +227,7 @@ function clearEquipmentFields(box) {
 }
 
 function clearWorldFields(box) {
+  delete box.surfaceId;
   delete box.x;
   delete box.z;
   delete box.ry;
@@ -248,7 +294,121 @@ function healEquipmentPlacements(boxes) {
   }
 }
 
+function stablePlacementNumber(value) {
+  return Number.isFinite(value) ? value : String(value);
+}
+
+function worldPlacementHealingSignature(state, boxes) {
+  const layout = state?.shop?.layout;
+  const moved = Object.entries(layout?.moved || {})
+    .sort(([first], [second]) => first.localeCompare(second))
+    .map(([id, pose]) => [
+      id,
+      stablePlacementNumber(pose?.x),
+      stablePlacementNumber(pose?.z),
+      stablePlacementNumber(pose?.ry),
+    ]);
+  const extra = (Array.isArray(layout?.extra) ? layout.extra : []).map((fixture) => [
+    fixture?.id,
+    fixture?.kind,
+    stablePlacementNumber(fixture?.x),
+    stablePlacementNumber(fixture?.z),
+    stablePlacementNumber(fixture?.ry),
+    !!fixture?.short,
+  ]);
+  const clutter = (Array.isArray(state?.shop?.reno?.clutter)
+    ? state.shop.reno.clutter : []).map((pile) => [
+    stablePlacementNumber(pile?.x),
+    stablePlacementNumber(pile?.z),
+    stablePlacementNumber(pile?.ry),
+    !!pile?.cleared,
+  ]);
+  const decor = (Array.isArray(state?.shop?.reno?.decor)
+    ? state.shop.reno.decor : []).map((entry) => [entry?.skuId, entry?.spot]);
+  const placements = boxes.map((box) => [
+    box?.id,
+    box?.loc,
+    box?.surfaceId,
+    stablePlacementNumber(box?.x),
+    stablePlacementNumber(box?.z),
+    stablePlacementNumber(box?.ry),
+    box?.box,
+  ]);
+  return JSON.stringify({
+    placements,
+    moved,
+    stored: [...(Array.isArray(layout?.stored) ? layout.stored : [])].sort(),
+    extra,
+    poloShelf: [
+      Number(state?.shop?.inventory?.polo1?.shelf) || 0,
+      Number(state?.shop?.inventory?.polo2?.shelf) || 0,
+    ],
+    clutter,
+    decor,
+  });
+}
+
+function healWorldBoxToStock(box) {
+  // Preserve the same authoritative object and every inventory/lifecycle/order
+  // field. Only the illegal placement ownership is cleared.
+  box.loc = 'stock';
+  clearEquipmentFields(box);
+  clearWorldFields(box);
+  delete box.padPalletIndex;
+  delete box.padStagingOverflow;
+}
+
+function healWorldSurfacePlacements(state, boxes) {
+  const before = worldPlacementHealingSignature(state, boxes);
+  if (WORLD_PLACEMENT_HEAL_CACHE.get(boxes) === before) return;
+
+  // Validate against a progressively accepted world set. Save-array order is
+  // the stable tie-break: the earliest legal capacity-one shelf occupant stays,
+  // while a later duplicate heals visibly instead of evicting the first box.
+  const nonWorld = boxes.filter((box) => box?.loc !== 'world');
+  const acceptedWorld = [];
+  const validationDeliveries = {
+    ...(state?.shop?.deliveries || {}),
+    boxes: [],
+  };
+  const validationState = {
+    ...state,
+    shop: {
+      ...state.shop,
+      deliveries: validationDeliveries,
+    },
+  };
+
+  for (const box of boxes) {
+    if (box?.loc !== 'world') continue;
+    if (!box.surfaceId) box.surfaceId = FLOOR_BOX_SURFACE_ID;
+    validationDeliveries.boxes = [...nonWorld, ...acceptedWorld, box];
+    const support = surfaceById(validationState, box.surfaceId);
+    const ordinarySurface = support && !['equipment-socket', 'pallet'].includes(support.kind);
+    const placement = ordinarySurface
+      ? previewBoxPlacement(validationState, box, {
+        kind: 'surface',
+        surfaceId: box.surfaceId,
+        x: box.x,
+        z: box.z,
+        ry: box.ry,
+      })
+      : { ok: false };
+    if (placement.ok && placement.target?.loc === 'world') {
+      acceptedWorld.push(box);
+    } else {
+      healWorldBoxToStock(box);
+    }
+  }
+
+  WORLD_PLACEMENT_HEAL_CACHE.set(
+    boxes,
+    worldPlacementHealingSignature(state, boxes),
+  );
+}
+
 function boxNeedsMigration(box) {
+  const packaging = box && packagingMetadataForSavedBox(box);
   return !box
     || box.schemaVersion !== BOX_SCHEMA_VERSION
     || !Number.isFinite(box.cutProgress)
@@ -262,7 +422,18 @@ function boxNeedsMigration(box) {
     || !BOX_LIFECYCLE_SET.has(box.lifecycle)
     || box.cap === undefined
     || box.initialQty === undefined
-    || box.lb === undefined;
+    || box.lb === undefined
+    || box.box !== packaging.kind
+    || box.familyId !== packaging.familyId
+    || box.layoutId !== packaging.layoutId
+    || box.shellId !== packaging.shellId
+    || box.modelId !== packaging.modelId
+    || box.packingState !== packaging.packingState
+    || box.packingOrientation !== packaging.packingOrientation
+    || box.contentScale !== 1
+    || box.fragile !== packaging.fragile
+    || box.longProduct !== packaging.longProduct
+    || (box.loc === 'world' && typeof box.surfaceId !== 'string');
 }
 
 export function initDeliveries(state) {
@@ -306,6 +477,7 @@ export function ensureDeliveries(state) {
     if (!b.supplierId && shipment) b.supplierId = shipment.supplierId || null;
   }
   healEquipmentPlacements(d.boxes);
+  healWorldSurfacePlacements(state, d.boxes);
   // v4 persists a balanced physical pallet lane. Rebuild legacy layouts once;
   // thereafter safe assignments survive selective pickup and save/load.
   assignDeliveryPallets(d.boxes, { rebalance: deliveryNeedsMigration });
@@ -386,14 +558,164 @@ export function retireShipments(state) {
 // The manifest was packed once, at order time (data/boxes.js planShipment), and the laptop has
 // already promised it to you. So this does NOT re-pack — it reads. Re-packing here is how the
 // screen and the pad end up one box apart with nobody able to say which is right.
+const positiveSafeInteger = (value) => Number.isSafeInteger(value) && value > 0;
+
+function arrivedBoxesForReplay(state, orderId) {
+  if (orderId === undefined || orderId === null) return null;
+  const deliveries = state?.shop?.deliveries;
+  if (!deliveries) return null;
+  const boxes = Array.isArray(deliveries.boxes) ? deliveries.boxes : [];
+  const shipments = Array.isArray(deliveries.shipments) ? deliveries.shipments : [];
+  const knownArrival = (
+    Array.isArray(deliveries.arrivedOrderIds)
+      && deliveries.arrivedOrderIds.includes(orderId)
+  ) || boxes.some((box) => box?.orderId === orderId)
+    || shipments.some((shipment) => shipment?.orderId === orderId);
+  if (!knownArrival) return null;
+
+  // Preserve the old duplicate-arrival contract for legacy saves: the replay
+  // still performs their normal delivery/box migrations, but never mints a
+  // second carton or consumes another ID.
+  ensureDeliveries(state);
+  return state.shop.deliveries.boxes.filter((box) => box.orderId === orderId);
+}
+
+function manifestDimensionsAreValid(box, kind) {
+  const axes = ['w', 'h', 'd'];
+  const supplied = axes.map((axis) => box[axis] !== undefined);
+  // Compact pre-dimension manifests are still safe: physical dimensions have
+  // always resolved from the registered kind, not from fields copied to boxes.
+  if (supplied.every((present) => !present)) return true;
+  if (!supplied.every(Boolean)) return false;
+  return axes.every((axis) => (
+    Number.isFinite(box[axis])
+    && box[axis] > 0
+    && box[axis] === kind[axis]
+  ));
+}
+
+const PACKAGING_MANIFEST_FIELDS = Object.freeze([
+  'familyId',
+  'layoutId',
+  'shellId',
+  'modelId',
+  'packingState',
+  'packingOrientation',
+  'contentScale',
+]);
+
+function hasAnyPackagingManifestField(box) {
+  if (!box || typeof box !== 'object' || Array.isArray(box)) return false;
+  return PACKAGING_MANIFEST_FIELDS.some((field) => (
+    Object.prototype.hasOwnProperty.call(box, field)
+  ));
+}
+
+function strictManifestBoxMatches(box, expected) {
+  if (box.kind !== expected.kind || box.qty !== expected.qty) return false;
+  if (!Number.isFinite(box.lb) || box.lb !== expected.lb) return false;
+  if (box.fragile !== expected.fragile || box.longProduct !== expected.longProduct) return false;
+  return PACKAGING_MANIFEST_FIELDS.every((field) => (
+    Object.prototype.hasOwnProperty.call(box, field)
+    && box[field] === expected[field]
+  ));
+}
+
+function normalizedLegacyManifest(manifest, planned, sku) {
+  // Pre-contract orders stored only kind/qty/dimensions. Re-plan their physical
+  // shell identity at the migration boundary while retaining its promised box
+  // split and every paid unit. The saved promise object itself is never mutated.
+  const authored = planned.boxes[0];
+  const boxes = manifest.boxes.map((legacy) => ({
+    ...authored,
+    qty: legacy.qty,
+    lb: boxWeight(sku, legacy.qty),
+  }));
+  return {
+    ...planned,
+    boxes,
+    boxCount: boxes.length,
+    weight: Math.round(boxes.reduce((sum, box) => sum + box.lb, 0) * 10) / 10,
+    supplierId: manifest.supplierId || planned.supplierId,
+    supplier: manifest.supplier || planned.supplier,
+    fee: Number.isFinite(manifest.fee) ? manifest.fee : planned.fee,
+  };
+}
+
+function validatedArrival(order) {
+  if (!order || typeof order !== 'object' || Array.isArray(order)) return null;
+  if (!positiveSafeInteger(order.qty)) return null;
+  const sku = skuById(order.skuId);
+  if (!sku) return null;
+
+  const planned = planShipment(sku, order.qty);
+  // A missing manifest is the supported pre-manifest save path. Keep its
+  // deterministic planner fallback, after the strict boundary check above.
+  const manifest = order.manifest == null ? planned : order.manifest;
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) return null;
+  if (!Array.isArray(manifest.boxes) || manifest.boxes.length === 0) return null;
+  if (manifest.boxCount !== undefined && (
+    !positiveSafeInteger(manifest.boxCount)
+    || manifest.boxCount !== manifest.boxes.length
+  )) return null;
+
+  const hasPackagingMetadata = manifest.boxes.some(hasAnyPackagingManifestField);
+  const strictContractManifest = hasPackagingMetadata
+    || manifest.packagingSchemaVersion !== undefined;
+  if (strictContractManifest
+    && manifest.packagingSchemaVersion !== SHIPMENT_PACKAGING_SCHEMA_VERSION) return null;
+  let units = 0;
+  for (let index = 0; index < manifest.boxes.length; index++) {
+    const box = manifest.boxes[index];
+    if (!box || typeof box !== 'object' || Array.isArray(box)) return null;
+    if (!positiveSafeInteger(box.qty)) return null;
+    const kind = typeof box.kind === 'string'
+      && Object.prototype.hasOwnProperty.call(BOX_KINDS, box.kind)
+      ? BOX_KINDS[box.kind]
+      : null;
+    if (!kind || !manifestDimensionsAreValid(box, kind)) return null;
+    if (strictContractManifest) {
+      const expected = planned.boxes[index];
+      if (!expected || !strictManifestBoxMatches(box, expected)) return null;
+    }
+    units += box.qty;
+    if (!Number.isSafeInteger(units) || units > order.qty) return null;
+  }
+  if (units !== order.qty) return null;
+
+  if (!strictContractManifest) {
+    return { sku, manifest: normalizedLegacyManifest(manifest, planned, sku) };
+  }
+  if (manifest.boxes.length !== planned.boxes.length) return null;
+  if (manifest.weight !== undefined && manifest.weight !== planned.weight) return null;
+  return {
+    sku,
+    manifest: {
+      ...manifest,
+      boxCount: manifest.boxes.length,
+      weight: manifest.weight ?? planned.weight,
+    },
+  };
+}
+
 export function arriveOrder(state, order) {
+  // Replays short-circuit before inspecting payload details, matching the
+  // shipped idempotency behavior even if a retry carries stale/corrupt fields.
+  const replay = arrivedBoxesForReplay(state, order?.id);
+  if (replay) return replay;
+
+  // Rejection is deliberately a read-only empty result. In particular, it
+  // happens before ensureDeliveries(), notification allocation, pallet
+  // assignment, shipment writes, or nextBoxId consumption.
+  const validated = validatedArrival(order);
+  if (!validated) return [];
+
   ensureDeliveries(state);
   const d = state.shop.deliveries;
   if (order.id !== undefined && order.id !== null && d.arrivedOrderIds.includes(order.id)) {
     return d.boxes.filter((box) => box.orderId === order.id);
   }
-  const sku = skuById(order.skuId);
-  const manifest = order.manifest || planShipment(sku, order.qty);
+  const { sku, manifest } = validated;
   const made = [];
   for (const b of manifest.boxes) {
     made.push({
@@ -406,6 +728,14 @@ export function arriveOrder(state, order) {
       lb: b.lb,
       box: b.kind,
       fragile: !!b.fragile,
+      longProduct: !!b.longProduct,
+      familyId: b.familyId,
+      layoutId: b.layoutId,
+      shellId: b.shellId,
+      modelId: b.modelId,
+      packingState: b.packingState,
+      packingOrientation: b.packingOrientation,
+      contentScale: b.contentScale,
       supplierId: manifest.supplierId || order.supplierId || null,
       supplier: manifest.supplier || order.supplier || null,
       loc: 'pad',
@@ -485,7 +815,11 @@ function deliveryEquipmentPlacementBlocker(boxes, boxId, equipmentId, socketId) 
 // occupancy authority; this does not migrate, heal, reserve, or move anything.
 // Pass the successful `target` straight to putDownBox for the authoritative
 // validation-and-write step.
-export function stockingCartPlacementForCarriedBox(state, id) {
+export function deliveryEquipmentPlacementForCarriedBox(
+  state,
+  id,
+  requestedEquipmentId = STOCKING_CART_EQUIPMENT_ID,
+) {
   const boxes = state?.shop?.deliveries?.boxes;
   if (!Array.isArray(boxes)) {
     return { ok: false, code: 'no-deliveries', reason: 'Delivery state is not available.' };
@@ -495,30 +829,36 @@ export function stockingCartPlacementForCarriedBox(state, id) {
     return { ok: false, code: 'not-carried', reason: 'Not carrying that box.' };
   }
 
-  const socketIds = preferredDeliveryEquipmentSocketIds(box, STOCKING_CART_EQUIPMENT_ID);
+  const equipmentId = normalizeDeliveryEquipmentId(requestedEquipmentId);
+  if (!equipmentId) {
+    return { ok: false, code: 'unknown-equipment', reason: 'That delivery equipment is not available.' };
+  }
+  const equipmentName = equipmentId === HAND_TRUCK_EQUIPMENT_ID
+    ? 'hand truck' : 'stocking cart';
+  const socketIds = preferredDeliveryEquipmentSocketIds(box, equipmentId);
   if (!socketIds.length) {
     return {
       ok: false,
       code: 'no-compatible-socket',
-      reason: 'That carton does not fit on the stocking cart.',
+      reason: `That carton does not fit on the ${equipmentName}.`,
     };
   }
   for (const socketId of socketIds) {
     const blocker = deliveryEquipmentPlacementBlocker(
       boxes,
       box.id,
-      STOCKING_CART_EQUIPMENT_ID,
+      equipmentId,
       socketId,
     );
     if (blocker) continue;
     const target = {
       loc: 'equipment',
-      equipmentId: STOCKING_CART_EQUIPMENT_ID,
+      equipmentId,
       socketId,
     };
     return {
       ok: true,
-      equipmentId: STOCKING_CART_EQUIPMENT_ID,
+      equipmentId,
       socketId,
       target,
     };
@@ -526,8 +866,16 @@ export function stockingCartPlacementForCarriedBox(state, id) {
   return {
     ok: false,
     code: 'no-free-socket',
-    reason: 'Every compatible stocking-cart position is occupied.',
+    reason: `Every compatible ${equipmentName} position is occupied.`,
   };
+}
+
+export function stockingCartPlacementForCarriedBox(state, id) {
+  return deliveryEquipmentPlacementForCarriedBox(state, id, STOCKING_CART_EQUIPMENT_ID);
+}
+
+export function handTruckPlacementForCarriedBox(state, id) {
+  return deliveryEquipmentPlacementForCarriedBox(state, id, HAND_TRUCK_EQUIPMENT_ID);
 }
 
 export function pickUpBox(state, id) {
@@ -550,6 +898,7 @@ export function pickUpBox(state, id) {
   delete box.padPalletIndex;
   delete box.padStagingOverflow;
   clearEquipmentFields(box);
+  clearWorldFields(box);
   return { ok: true, box };
 }
 
@@ -558,47 +907,50 @@ export function pickUpBox(state, id) {
 export function putDownBox(state, id, spot = 'stock') {
   const box = findBox(state, id);
   if (!box || box.loc !== 'carried') return { ok: false, reason: 'Not carrying that.' };
-  const equipmentTarget = spot && typeof spot === 'object' && (
-    spot.loc === 'equipment'
-    || spot.type === 'equipment'
-    || spot.equipmentId !== undefined
-    || spot.socketId !== undefined
-  );
-  if (equipmentTarget) {
-    const fit = deliveryEquipmentFit(box, spot.equipmentId, spot.socketId);
-    if (!fit.ok) return fit;
-    const occupied = deliveryEquipmentPlacementBlocker(
-      boxesOf(state),
-      box.id,
-      fit.equipmentId,
-      fit.socketId,
-    );
-    if (occupied) {
-      const exactSocket = occupied.socketId === fit.socketId;
-      return {
-        ok: false,
-        code: exactSocket ? 'socket-occupied' : 'socket-conflict',
-        reason: exactSocket
-          ? `${fit.socketId} on the stocking cart is already occupied; choose an empty slot.`
-          : `${fit.socketId} overlaps the carton at ${occupied.socketId}; clear the top shelf first.`,
-        occupiedByBoxId: occupied.id,
-        conflictingSocketId: occupied.socketId,
-      };
+  if (spot && typeof spot === 'object') {
+    const requested = (
+      spot.loc || spot.kind || spot.type || spot.surfaceId
+      || spot.equipmentId !== undefined || spot.socketId !== undefined
+    ) ? spot : {
+      loc: 'world',
+      surfaceId: FLOOR_BOX_SURFACE_ID,
+      x: spot.x,
+      z: spot.z,
+      ry: spot.ry || 0,
+    };
+    // Preview and commit share this exact validator. Re-running it here closes
+    // the race where another box or a moved fixture invalidates a green ghost
+    // between frames; rejection leaves the carried carton wholly unchanged.
+    const placement = previewBoxPlacement(state, box, requested);
+    if (!placement.ok) return placement;
+    const target = placement.target;
+    if (target.loc === 'equipment') {
+      box.loc = 'equipment';
+      box.equipmentId = target.equipmentId;
+      box.socketId = target.socketId;
+      clearWorldFields(box);
+      delete box.padPalletIndex;
+      delete box.padStagingOverflow;
+    } else if (target.loc === 'pad') {
+      box.loc = 'pad';
+      clearEquipmentFields(box);
+      clearWorldFields(box);
+      box.padPalletIndex = target.padPalletIndex;
+      delete box.padStagingOverflow;
+      assignDeliveryPallets(state.shop.deliveries.boxes);
+    } else if (target.loc === 'world') {
+      box.loc = 'world';
+      clearEquipmentFields(box);
+      delete box.padPalletIndex;
+      delete box.padStagingOverflow;
+      box.surfaceId = target.surfaceId;
+      box.x = target.x;
+      box.z = target.z;
+      box.ry = target.ry;
+    } else {
+      return { ok: false, code: 'invalid-target', reason: 'That placement target cannot hold a delivery box.' };
     }
-    box.loc = 'equipment';
-    box.equipmentId = fit.equipmentId;
-    box.socketId = fit.socketId;
-    clearWorldFields(box);
-    delete box.padPalletIndex;
-    delete box.padStagingOverflow;
-  } else if (spot && typeof spot === 'object') {
-    clearEquipmentFields(box);
-    box.loc = 'world';
-    delete box.padPalletIndex;
-    delete box.padStagingOverflow;
-    box.x = spot.x;
-    box.z = spot.z;
-    box.ry = spot.ry || 0;
+    return { ok: true, box, placement };
   } else {
     if (spot === 'pad' && padCount(state) >= PAD_CAPACITY) {
       return { ok: false, reason: 'The receiving pad is full.' };
@@ -761,6 +1113,19 @@ export function recycleBox(state, id) {
   d.trash = Math.max(0, (d.trash || 0) - 1);
   retireShipments(state);
   return { ok: true, box, state: BOX_LIFECYCLE.DISCARDED };
+}
+
+// The recycling-bin animation ends while the carton is still parented to the
+// first-person carry rig. This is an explicit sink, not an unvalidated world
+// drop: placement validation therefore remains authoritative everywhere a box
+// is actually set down, while the bin can atomically consume carried cardboard.
+export function recycleCarriedBox(state, id) {
+  const box = findBox(state, id);
+  if (!box || box.loc !== 'carried') {
+    return { ok: false, reason: 'Carry the flattened carton to the recycling bin first.' };
+  }
+  if (!box.flat) return { ok: false, reason: 'Break it down flat first.' };
+  return recycleBox(state, id);
 }
 
 // --- the employee path -------------------------------------------------------------------------
