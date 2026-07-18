@@ -14,6 +14,10 @@
 async (page) => {
   const phase = process.env.COURSE_QA_PHASE || 'baseline';
   const outDir = `qa/course_master_final/${phase}`;
+  // The runner already honours QA_BASE_URL; this script used to hardcode 8457,
+  // so a run launched against another port silently drove the default tree
+  // instead — which matters when a worktree is under test on its own server.
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const diagnostics = {
     console: [],
     benignConsole: [],
@@ -49,7 +53,7 @@ async (page) => {
     else diagnostics.ignoredPreProbeRequestFailures.push(record);
   });
   page.on('framenavigated', (frame) => {
-    if (frame === page.mainFrame() && frame.url().startsWith('http://localhost:8457/')) {
+    if (frame === page.mainFrame() && frame.url().startsWith(baseUrl)) {
       qaDocumentCommitted = true;
     }
   });
@@ -550,7 +554,7 @@ async (page) => {
   // scope for failed-request acceptance diagnostics.
   qaDocumentCommitted = false;
   qaDocumentRequests = new WeakSet();
-  await page.goto('http://localhost:8457/');
+  await page.goto(baseUrl);
   await page.waitForFunction(() => document.readyState === 'complete');
   const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
   await continueButton.waitFor({ state: 'visible' });

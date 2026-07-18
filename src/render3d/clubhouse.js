@@ -139,6 +139,60 @@ export function deliveryVanCargoRestPose(kind) {
   });
 }
 
+// BRIDGE — drop this block when clubhouse.js is merged from the concurrent
+// checkout workstream, which owns the fuller version of this helper.
+//
+// courseScene.js imports `clubhouseInteriorGtaoExcludedAt` (committed in the
+// course checkpoint), but its counterpart export lives in an uncommitted
+// clubhouse.js on the other session's tree. One half of the pair was committed
+// and the other was not, so this branch cannot resolve the module without it.
+// Ported verbatim rather than reimplemented, so the merge is a clean delete.
+export const CLUBHOUSE_GTAO_EXCLUSION_CLEARANCE_YD = 15;
+
+// Allocation-free interior test shared by normal clubhouse checks and the
+// grass exclusion margin. The margin is deliberately an axial five-probe
+// union, not a rectangular expansion: diagonal corner points remain outside,
+// exactly as they did when the grass loop called isInside five times.
+export function pointInsideClubhouseInterior(
+  wx,
+  wz,
+  centerX,
+  centerZ,
+  halfWidth,
+  halfDepth,
+  axialMargin = 0,
+) {
+  const localX = wx - centerX;
+  const localZ = wz - centerZ;
+  const insideX = Math.abs(localX) < halfWidth;
+  const insideZ = Math.abs(localZ) < halfDepth;
+  if (insideX && insideZ) return true;
+  if (axialMargin === 0) return false;
+  return (insideZ && Math.abs((wx + axialMargin) - centerX) < halfWidth)
+    || (insideZ && Math.abs((wx - axialMargin) - centerX) < halfWidth)
+    || (insideX && Math.abs((wz + axialMargin) - centerZ) < halfDepth)
+    || (insideX && Math.abs((wz - axialMargin) - centerZ) < halfDepth);
+}
+
+// The beauty pass keeps the furnished interior visible through the clubhouse
+// windows. At distant exterior viewpoints, measurements show no visible
+// contribution from redrawing those covered meshes into GTAO's depth/normal
+// buffers. Clearance is measured from the interior footprint rather than its
+// centre, so checkout, the porch and the walk spawn retain indoor AO.
+export function clubhouseInteriorGtaoExcludedAt(
+  cameraX,
+  cameraZ,
+  centerX,
+  centerZ,
+  minClearance = CLUBHOUSE_GTAO_EXCLUSION_CLEARANCE_YD,
+) {
+  if (![cameraX, cameraZ, centerX, centerZ, minClearance].every(Number.isFinite)
+    || minClearance < 0) return false;
+  const dx = Math.max(Math.abs(cameraX - centerX) - INTERIOR.w / 2, 0);
+  const dz = Math.max(Math.abs(cameraZ - centerZ) - INTERIOR.d / 2, 0);
+  return Math.hypot(dx, dz) >= minClearance;
+}
+
 export function makeClubhouse(ctx) {
   // ctx: { scene, camera, state, center:{x,z}, heightAt, walkProps, propColliders, walk, hooks }
   const { scene, camera, state, center, heightAt, walkProps, propColliders, walk, hooks } = ctx;
@@ -169,10 +223,13 @@ export function makeClubhouse(ctx) {
 
   const L2W = (lx, lz) => ({ x: center.x + lx, z: center.z + lz });
   const W2L = (wx, wz) => ({ x: wx - center.x, z: wz - center.z });
-  const isInside = (wx, wz) => {
-    const l = W2L(wx, wz);
-    return Math.abs(l.x) < INTERIOR.w / 2 && Math.abs(l.z) < INTERIOR.d / 2;
-  };
+  // BRIDGE (see the note above pointInsideClubhouseInterior): the grass loop
+  // calls this per blade, so it must not allocate a local point per probe.
+  const interiorHalfWidth = INTERIOR.w / 2;
+  const interiorHalfDepth = INTERIOR.d / 2;
+  const isInside = (wx, wz, axialMargin = 0) => pointInsideClubhouseInterior(
+    wx, wz, center.x, center.z, interiorHalfWidth, interiorHalfDepth, axialMargin,
+  );
   const onPorch = (wx, wz) => {
     const l = W2L(wx, wz);
     return Math.abs(l.x) < SHELL.w * 0.35 && l.z >= INTERIOR.d / 2 && l.z <= SHELL.d / 2 + SHELL.porchD;
