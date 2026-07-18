@@ -304,6 +304,14 @@ test('content layout roots and exact sockets preserve quantity, fit and depletio
 
 
 test('authoritative special grids and fit envelopes stay exact', async () => {
+  const { root: accessory } = await loadAsset('delivery_accessory_carton');
+  const gloveSocket = exactNode(accessory, 'CONTENT_SLOT_GLOVE8_01');
+  assert.deepEqual(
+    parseJsonArray(gloveSocket.userData.authored_rotation_rad, 'GLOVE8 rotation'),
+    [0, 0, 1.570796],
+    'flat glove sleeves rotate into the authored 180 mm width / 230 mm depth cell',
+  );
+
   const { root: balls } = await loadAsset('delivery_golf_ball_case');
   const ballSockets = Array.from({ length: 12 }, (_, index) =>
     exactNode(balls, `CONTENT_SLOT_BALL12_${String(index + 1).padStart(2, '0')}`));
@@ -321,6 +329,20 @@ test('authoritative special grids and fit envelopes stay exact', async () => {
     assert.equal(Number(socket.userData.max_h), 0.23, `${socket.name} accepts the sealed bottle height`);
     assert.equal(socket.userData.display_state, 'opened_upright', `${socket.name} stays upright`);
   });
+
+  const { root: shoes } = await loadAsset('delivery_shoe_carton');
+  assert.deepEqual(
+    parseJsonArray(exactNode(shoes, 'CONTENT_SLOT_SHOE4_01').userData.authored_rotation_rad, 'SHOE4 rotation'),
+    [0, 0, 1.570796],
+    'shoe pairs turn lengthwise into their retail cells without scaling',
+  );
+
+  const { root: bag } = await loadAsset('delivery_golf_bag_carton');
+  assert.deepEqual(
+    parseJsonArray(exactNode(bag, 'CONTENT_SLOT_BAG1_01').userData.authored_rotation_rad, 'BAG1 rotation'),
+    [0, -1.570796, 0],
+    'the full-size bag stands vertically in its fitted carton',
+  );
 
   const { root: umbrella } = await loadAsset('delivery_umbrella_carton');
   for (let index = 1; index <= 6; index += 1) {

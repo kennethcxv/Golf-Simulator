@@ -89,7 +89,7 @@ def slot(
     }
 
 
-def grid_slots(xs, ys, zs, max_dims, *, upright=False):
+def grid_slots(xs, ys, zs, max_dims, *, upright=False, rotation=(0.0, 0.0, 0.0)):
     """Stable X-major, depth-next, layer-last authored grid."""
     result = []
     column = 0
@@ -103,7 +103,7 @@ def grid_slots(xs, ys, zs, max_dims, *, upright=False):
                         max_dims=max_dims,
                         layer=layer,
                         column=column,
-                        rotation=(0.0, 0.0, 0.0),
+                        rotation=rotation,
                         display="opened_upright" if upright else "opened_face_out",
                     )
                 )
@@ -157,6 +157,7 @@ PROFILES = {
                     (0.0,),
                     (0.045, 0.092, 0.139, 0.186),
                     (0.180, 0.230, 0.040),
+                    rotation=(0.0, 0.0, math.pi / 2),
                 ),
             ),
             layout(
@@ -215,6 +216,7 @@ PROFILES = {
                     (0.0,),
                     (0.082, 0.218),
                     (0.250, 0.330, 0.140),
+                    rotation=(0.0, 0.0, math.pi / 2),
                 ),
             ),
         ),
@@ -238,6 +240,7 @@ PROFILES = {
                         max_dims=(0.670, 0.450, 0.980),
                         layer=1,
                         column=1,
+                        rotation=(0.0, -math.pi / 2, 0.0),
                         display="opened_vertical",
                     ),
                 ),
