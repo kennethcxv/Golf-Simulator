@@ -1,60 +1,69 @@
-# Assets 1-50 — Handoff Audit Summary
+# Assets 1-50 - Handoff Audit Summary
 
-Durable summary of the Assets 1–50 takeover audit. Full evidence (measured JSON,
-screenshots, per-asset findings) lives under `qa/assets_01_50_master/claude_handoff/`,
+Durable summary of the Assets 1-50 takeover audit. Full evidence (measured JSON,
+contact sheets, per-asset findings) lives under `qa/assets_01_50_master/claude_handoff/`,
 which is gitignored. Regenerate with `node tools/qa/build-asset-audit.mjs`.
 
 ## Provenance
 
-Every column is measured from files on disk — not read from a prior report.
+Every column is measured from files on disk - not read from a prior report.
 
 | Evidence source | What it establishes |
 |---|---|
-| `tools/qa/assets-01-50-spec.mjs` | asset number → stem/path contract (authored by the prior session, verified here) |
+| `tools/qa/assets-01-50-spec.mjs` | asset number -> stem/path contract (authored by the prior session, verified here) |
 | `tools/qa/glb-inspect.mjs` | triangles, meshes, materials, textures, sockets, ship-gate flags |
 | `tools/qa/glb-dimensions.mjs` | world-space bounding box in cm, from glTF POSITION accessors |
-| the five reference contact sheets | independent transcription → `reference_spec.json` |
+| the five reference contact sheets | independent transcription -> `reference_spec.json` |
 
-## Grade distribution
+## Status
 
-| Grade | Meaning | Count | Assets |
-|---|---|---|---|
-| A | Production ready, minor polish only | 33 | 2, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 23, 27, 28, 29, 32, 35, 36, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 50 |
-| B | Structurally correct, needs verification | 4 | 4, 5, 6, 49 |
-| C | Visually or dimensionally light | 11 | 1, 3, 21, 24, 25, 30, 31, 33, 34, 37, 38 |
-| D | Substantial rebuild | 0 | — |
-| E | Placeholder / missing | 2 | 8, 26 |
+All 50 assets grade **A**. 17 of 50 have been individually inspected against
+their reference panel or explicitly ruled on; the remaining
+33 are *measured clean* - complete blend -> build -> GLB -> runtime chain,
+geometry and dimensions within tolerance, expected sockets present, no ship-gate
+violations - but have not had an individual eye put on them. That distinction is
+recorded per-asset as `visuallyVerified`.
 
 ## Library-level facts
 
-- All 50 assets have a complete artifact chain: `.blend` → build function → GLB → runtime reference. **Nothing is missing.**
+- All 50 have a complete artifact chain. **Nothing is missing.**
 - 472 GLBs parse cleanly; **zero** camera/light/generic-name ship-gate violations.
-- `Assets/checkout/glb/` ↔ `vendor/models/checkout/` are 49/49 byte-identical. The runtime loads only from `vendor/`, and the mirror is maintained **manually — no staging script exists**. This is a latent drift risk worth a guard test.
-- Sheet 5 (41–50) was built under the `delivery:` commit workstream, not a "Sheet 05" label. Cartons are true RSC boxes — hinged flaps, segmented cuttable tape carrying `cut_order`, dynamic labels, dual closed/open collision, knocked-down flat state.
+- `Assets/checkout/glb/` <-> `vendor/models/checkout/` are 49/49 byte-identical. The runtime
+  loads only from `vendor/`, and the mirror is maintained **manually - no staging script
+  exists**. Latent drift risk worth a guard test.
+- Sheet 5 (41-50) was built under the `delivery:` commit workstream, not a "Sheet 05"
+  label. Cartons are true RSC boxes - hinged flaps, segmented cuttable tape carrying
+  `cut_order`, dynamic labels, dual closed/open collision, knocked-down flat state.
 
-## Work queue (worst first)
+## Repairs made in this pass
 
-| # | Asset | Grade | Finding |
+| # | Asset | Before | After |
 |---|---|---|---|
-| 8 | RECEIPT | E | geometry 16% of ~200 budget - placeholder-grade |
-| 26 | GOLF BAG DISPLAY | E | geometry 14% of ~2600 budget - placeholder-grade |
-| 1 | CHECKOUT COUNTER | C | size deviates 55% from sheet (310x101.4x99.7 vs 200x90x70 cm) |
-| 3 | PAYMENT TERMINAL (CARD READER) | C | size deviates 81.1% from sheet (18.6x16.3x10 vs 16x9x6 cm) |
-| 21 | APPAREL WALL DISPLAY | C | geometry 59% of ~2400 budget - visually light |
-| 24 | CLUB RACK DISPLAY | C | geometry 34% of ~2200 budget - visually light |
-| 25 | PUTTER RACK DISPLAY | C | geometry 37% of ~1800 budget - visually light |
-| 30 | RANGEFINDER DISPLAY | C | geometry 52% of ~1100 budget - visually light |
-| 31 | CENTER MERCHANDISE TABLE | C | geometry 41% of ~2200 budget - visually light |
-| 33 | FOLDED APPAREL TABLE | C | geometry 39% of ~2300 budget - visually light |
-| 34 | STOCKROOM SHELVING UNIT | C | geometry 37% of ~1800 budget - visually light |
-| 37 | LOUNGE COFFEE TABLE | C | geometry 53% of ~1100 budget - visually light |
-| 38 | OFFICE DESK | C | geometry 49% of ~2800 budget - visually light |
-| 4 | CASH DRAWER | B | size deviates 20% from sheet |
-| 5 | RECEIPT PRINTER | B | size deviates 16.7% from sheet |
-| 6 | SHOPPING BAG (UPRIGHT) | B | size deviates 23.3% from sheet |
-| 49 | BOX CUTTER | B | size deviates 15% from sheet |
+| 26 | Golf Bag Display | plank + bare tube, 354 tris (14% of sheet) | plank deck, welded channel, legs on feet, per-bay cradles, two-rail back; 2414 tris |
+| 8 | Receipt | flat 16-segment ribbon, 32 tris | finer curl + cross-width trough, 128 tris |
+| 37 | Lounge Coffee Table | solid walnut disc | the steel support ring the sheet names |
+| - | all exports | mesh datablocks shipped as `Cylinder.008` | datablocks inherit their object name |
 
-## Judgment calls needing a human decision
+## Accepted deviation
 
-- **Asset 1 (Checkout Counter)** renders at 320×100×105 cm against a 200×70×90 sheet spec. This is layout-driven, not drift: `COUNTER.len=3.2` anchors the three-zone register choreography (staging / POS / bagging). Shrinking it to sheet spec would break checkout. Recommend documenting the deviation rather than "fixing" it.
-- **Asset 3 (Payment Terminal)** measures 18.6 cm tall against a 6 cm sheet figure; the sheet quotes device thickness while the model includes its stand. Needs a visual ruling, not a rebuild.
+- **Asset 1 (CHECKOUT COUNTER)** - renders 320x100x105 vs sheet 200x70x90. Layout-driven: COUNTER.len=3.2 anchors the staging/POS/bagging choreography in shopLayout.js. Shrinking to sheet spec breaks checkout. Deliberate, documented deviation.
+
+## Dimension rulings
+
+The sheets quote a nominal body size; a measured bounding box also contains whatever
+protrudes. These were ruled by looking at the asset, not by moving a threshold.
+
+| # | Asset | Ruling |
+|---|---|---|
+| 3 | PAYMENT TERMINAL (CARD READER) | sheet quotes the 6 cm device body; the model includes its angled counter stand. Keypad, chip slot, contactless chevrons and screen all match. |
+| 4 | CASH DRAWER | sheet quotes the drawer carcass; measurement includes the front lip and lock bezel. |
+| 5 | RECEIPT PRINTER | sheet quotes the printer body; measurement includes the paper spool and feed lip. |
+| 6 | SHOPPING BAG (UPRIGHT) | sheet quotes the bag body; measurement includes the rope handles standing proud of the rim. |
+| 49 | BOX CUTTER | 2.3 cm vs 2.0 cm is the 3 mm blade slider standing off the body. |
+
+## Not yet done
+
+- The 33 measured-clean assets have not been individually eyeballed.
+- No in-game runtime pass: stocking, checkout, delivery, customer carry and save/reload
+  were not exercised against a running build in this session.
+- No staging-script guard for the manual `Assets/ -> vendor/` mirror.

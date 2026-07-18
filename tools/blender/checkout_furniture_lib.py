@@ -321,14 +321,18 @@ def build_lounge_armchair(M):
 
 
 def _round_table(root, M, name_prefix, radius, height):
-    """Round walnut top + black ring band + three flat legs + lower ring shelf."""
+    """Round walnut top + black ring band + three flat legs + lower support ring.
+
+    The sheet names a "lower support ring" for #37, and the reference shows a
+    slender steel hoop passing the legs. This was a solid walnut disc, which
+    read as a second shelf and lost the open look the reference has."""
     L.cyl(f"{name_prefix}Top", radius, 0.042, (0, 0, height - 0.021), M["walnut"], verts=28, bevel=0.006, parent=root)
     L.cyl(f"{name_prefix}Band", radius - 0.025, 0.035, (0, 0, height - 0.058), M["black"], verts=28, bevel=0, parent=root)
     for k in range(3):
         a = k * math.tau / 3 + math.pi / 6
         leg = L.box(f"{name_prefix}Leg_{k + 1:02d}", (0.055, 0.022, height - 0.075), (math.cos(a) * (radius - 0.06), math.sin(a) * (radius - 0.06), (height - 0.075) / 2), M["black"], bevel=0, parent=root)
         leg.rotation_euler = (0, 0, a)
-    L.cyl(f"{name_prefix}Ring_Shelf", radius * 0.62, 0.016, (0, 0, 0.10), M["walnut"], verts=24, bevel=0, parent=root)
+    L.torus(f"{name_prefix}Support_Ring", radius * 0.62, 0.011, (0, 0, 0.10), M["black"], parent=root, mj=24, mn=6)
 
 
 def build_lounge_coffee_table(M):

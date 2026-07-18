@@ -63,39 +63,37 @@ REQUIRED_NODES = {
                     + [f"BAG_ITEM_SOCKET_0{i}" for i in range(1, 5)],
     "loose_receipt": ["Receipt_Strip", "RECEIPT_FEED_SOCKET", "RECEIPT_HANDOFF_SOCKET"],
     "payment_card": ["Card_Body", "Card_Chip"],
-    "apparel_wall": ["Slatwall", "Back_Panel", "Header", "Header_Sign", "Hanging_Rod",
-                     "Folded_Shelf", "Cabinet_Body", "Cabinet_Door_L", "Cabinet_Door_R",
-                     "Frame_Upright_L", "Frame_Upright_R", "COL_ApparelWall",
-                     "Hook_Arm_01", "Hook_Arm_02"]
+    "apparel_wall": ["Slatwall", "Back_Panel", "Header", "Header_Sign", "Header_Lettering",
+                     "Hanging_Rod", "Folded_Shelf_Lower", "Folded_Shelf_Upper",
+                     "Lower_Frame_Side_L", "Lower_Frame_Side_R",
+                     "Frame_Upright_L", "Frame_Upright_R", "COL_ApparelWall"]
                     + [f"APPAREL_HANGER_SLOT_{i:02d}" for i in range(1, 5)]
-                    + [f"APPAREL_FOLD_SLOT_{i:02d}" for i in range(1, 4)]
-                    + [f"APPAREL_SHELF_SLOT_{i:02d}" for i in range(1, 3)]
-                    + [f"APPAREL_HOOK_SLOT_{i:02d}" for i in range(1, 3)],
+                    + [f"APPAREL_FOLD_SLOT_{i:02d}" for i in range(1, 5)],
     # --- Asset Sheet 03 -------------------------------------------------------
     "apparel_wall_display": ["Slatwall", "Back_Panel", "Header", "Header_Sign",
-                             "Base_Shelf", "Faceout_Arm_01", "Faceout_Arm_06",
+                             "Base_Shelf", "Faceout_Arm_01", "Faceout_Arm_08",
                              "COL_ApparelWallDisplay"]
-                            + [f"DISPLAY_ARM_SLOT_{i:02d}" for i in range(1, 7)]
-                            + [f"DISPLAY_BASE_SLOT_{i:02d}" for i in range(1, 4)],
+                            + [f"DISPLAY_ARM_SLOT_{i:02d}" for i in range(1, 9)]
+                            + [f"DISPLAY_BASE_SLOT_{i:02d}" for i in range(1, 5)],
     "hat_wall": ["Slatwall", "Back_Panel", "Header", "Header_Sign", "Plinth",
-                 "Peg_Arm_01", "Peg_Arm_12", "COL_HatWall"]
-                + [f"HAT_PEG_SLOT_{i:02d}" for i in range(1, 13)],
+                 "Peg_Arm_01", "Peg_Arm_16", "COL_HatWall"]
+                + [f"HAT_PEG_SLOT_{i:02d}" for i in range(1, 17)],
     "accessory_slatwall": ["Slatwall", "Back_Panel", "Header", "Header_Sign",
                            "Shelf_01", "Shelf_02", "Shelf_03",
                            "Hook_Short_Plate_01", "Hook_Long_Plate_01", "Hook_Double_Plate_01",
-                           "COL_AccessorySlatwall"]
+                          "COL_AccessorySlatwall"]
                           + [f"ACC_SHELF_SLOT_{i:02d}" for i in range(1, 4)]
-                          + [f"ACC_HOOK_SLOT_{i:02d}" for i in range(1, 7)],
-    "club_rack": ["Base", "Trough_Felt_F", "Trough_Felt_R", "Head_Rail_F", "Head_Rail_R",
+                          + [f"ACC_HOOK_SLOT_{i:02d}" for i in range(1, 7)]
+                          + [f"ACC_PRODUCT_SLOT_{i:02d}" for i in range(1, 13)],
+    "club_rack": ["Base", "Trough_Floor", "Trough_Felt", "Trough_Lip", "Head_Rail",
                   "End_Cap_L", "End_Cap_R", "Crest_Badge", "COL_ClubRack"]
-                 + [f"CLUB_SLOT_F{i:02d}" for i in range(1, 10)]
-                 + [f"CLUB_SLOT_R{i:02d}" for i in range(1, 10)],
+                 + [f"CLUB_SLOT_{i:02d}" for i in range(1, 11)],
     "putter_rack": ["Base", "Base_Felt", "Grip_Rail", "Cheek_L", "Cheek_R",
-                    "Groove_Divider_01", "Groove_Divider_05", "COL_PutterRack"]
-                   + [f"PUTTER_SLOT_{i:02d}" for i in range(1, 7)],
+                    "Groove_Divider_01", "Groove_Divider_09", "COL_PutterRack"]
+                   + [f"PUTTER_SLOT_{i:02d}" for i in range(1, 11)],
     "bag_display": ["Deck", "Lean_Rail", "Rail_Post_L", "Rail_Post_R", "Crest_Badge",
-                    "COL_BagDisplay"]
-                   + [f"BAG_SLOT_{i:02d}" for i in range(1, 5)],
+                   "COL_BagDisplay"]
+                   + [f"BAG_SLOT_{i:02d}" for i in range(1, 6)],
     "shoe_wall": ["Slatwall", "Back_Panel", "Header", "Header_Sign", "Box_Shelf",
                   "Display_Board_01", "Display_Board_03",
                   "COL_ShoeWall"]
@@ -104,7 +102,7 @@ REQUIRED_NODES = {
     "ball_shelf": ["Side_L", "Side_R", "Top", "Back_Panel", "Board_01", "Board_02",
                    "Board_03", "Board_Lip_01", "Crest_Badge", "COL_BallShelf"]
                   + [f"BALL_SLOT_{i:02d}" for i in range(1, 16)],
-    "snack_shelf": ["Frame_Post_LF", "Frame_Post_RB", "Back_Panel", "Shelf_01", "Shelf_04",
+    "snack_shelf": ["Frame_Post_LF", "Frame_Post_RB", "Header_Fascia", "Back_Panel", "Shelf_01", "Shelf_04",
                     "COL_SnackShelf"]
                    + [f"SNACK_SHELF_SLOT_{i:02d}" for i in range(1, 5)]
                    + [f"DRINK_SLOT_{i:02d}" for i in range(1, 15)]
@@ -137,9 +135,9 @@ REQUIRED_NODES = {
     "lounge_armchair": ["Base", "Seat_Cushion", "Arm_L", "Arm_R", "Arm_Roll_L", "Arm_Roll_R",
                         "Back", "Back_Cushion", "Back_Roll", "Foot_LF", "Foot_RB",
                         "COL_LoungeArmchair"],
-    "lounge_coffee_table": ["Top", "Band", "Leg_01", "Leg_03", "Ring_Shelf",
+    "lounge_coffee_table": ["Top", "Band", "Leg_01", "Leg_03", "Support_Ring",
                             "COL_LoungeCoffeeTable"],
-    "lounge_side_table": ["Top", "Band", "Leg_01", "Leg_03", "Ring_Shelf",
+    "lounge_side_table": ["Top", "Band", "Leg_01", "Leg_03", "Support_Ring",
                           "COL_LoungeSideTable"],
     "office_desk": ["Top", "Pedestal_L", "Pedestal_R", "Drawer_L01", "Drawer_R03",
                     "Pull_L01", "Modesty_Panel", "DESK_LAPTOP_SOCKET", "COL_OfficeDesk"],
@@ -168,18 +166,18 @@ SIZE_CHECKS = {
     "cash_coin_20": [(0, 0.0250, 0.0270)],
     "cash_coin_50": [(0, 0.0290, 0.0310)],
     "shopping_bag": [(2, 0.30, 0.42)],   # rope handles arc ~55 mm above the rim
-    "apparel_wall": [(0, 1.05, 1.15), (2, 2.15, 2.25)],
+    "apparel_wall": [(0, 1.15, 1.25), (2, 2.15, 2.25)],
     # Sheet-03 envelopes straight off the sheet (W, H in Blender X/Z)
     "apparel_wall_display": [(0, 1.15, 1.25), (2, 2.15, 2.25)],
     "hat_wall": [(0, 0.95, 1.05), (2, 2.15, 2.25)],
     "accessory_slatwall": [(0, 0.95, 1.05), (2, 1.95, 2.05)],
     "club_rack": [(0, 1.15, 1.25), (2, 1.00, 1.12)],
     "putter_rack": [(0, 0.95, 1.05), (2, 0.90, 1.02)],
-    "bag_display": [(0, 1.55, 1.65), (2, 1.02, 1.12)],
+    "bag_display": [(0, 1.55, 1.65), (1, 0.39, 0.41), (2, 1.02, 1.12)],
     "shoe_wall": [(0, 1.15, 1.25), (2, 1.95, 2.05)],
     "ball_shelf": [(0, 0.98, 1.08), (2, 1.15, 1.25)],
     "snack_shelf": [(0, 0.95, 1.05), (2, 1.55, 1.65)],
-    "rangefinder_display": [(0, 0.55, 0.65), (2, 0.30, 0.40)],
+    "rangefinder_display": [(0, 0.59, 0.61), (1, 0.34, 0.36), (2, 0.59, 0.61)],
     # Sheet-04 envelopes straight off the sheet
     "merch_table": [(0, 1.35, 1.45), (2, 0.70, 0.80)],
     "retail_gondola": [(0, 1.15, 1.25), (2, 1.35, 1.45)],

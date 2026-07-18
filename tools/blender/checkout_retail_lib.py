@@ -616,6 +616,8 @@ def build_bag_display(M):
     Built to the sheet's "wood platform with metal frame": the deck is six
     real planks over a welded perimeter channel on four legs, and each bay
     carries a cradle that gives the leaning bag something to sit against.
+    Deliberately no price furniture: the sheet does not show it for #26, and the
+    extra materials cost draws against the fixture-core batching ceiling.
     The earlier version drew the deck as one slab with painted-on seam strips
     and stood two bare posts behind it, which read as a bench rather than a
     fixture.  Slot empties, declared dimensions and the collider are
@@ -685,11 +687,6 @@ def build_bag_display(M):
         saddle.rotation_euler = (0, math.radians(90), 0)
         bumper = L.cyl(f"Cradle_Bumper_{tag}", 0.019, 0.150, (x, rail_y - 0.014, 0.62), M["rubber"], verts=8, bevel=0, parent=root)
         bumper.rotation_euler = (0, math.radians(90), 0)
-        L.box(f"Price_Card_{tag}", (0.075, 0.006, 0.042), (x, -D / 2 + 0.012, DECK_TOP + 0.028),
-              M["cream"], bevel=0, parent=root)
-        L.box(f"Price_Clip_{tag}", (0.081, 0.010, 0.008), (x, -D / 2 + 0.012, DECK_TOP + 0.006),
-              M["brass"], bevel=0, parent=root)
-
         K.empty(f"BAG_SLOT_{tag}", (x, -0.01, 0.12), parent=root, size=0.05,
                 props={"socket": "bag", "order": i + 1})
 
