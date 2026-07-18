@@ -2212,7 +2212,7 @@ export function makeCourseEditor(app, hooks) {
     if (res.ok) {
       clearFeatureSelections();
       clearPathSelection();
-      fullRefresh();
+      fullRefresh(res.rect || null);
       toast(`Undid: ${res.label}`);
     }
   }
@@ -2222,7 +2222,7 @@ export function makeCourseEditor(app, hooks) {
     if (res.ok) {
       clearFeatureSelections();
       clearPathSelection();
-      fullRefresh();
+      fullRefresh(res.rect || null);
       toast(`Redid: ${res.label}`);
     }
   }
@@ -2237,14 +2237,24 @@ export function makeCourseEditor(app, hooks) {
     scene().rebuildTrees();
   }
 
-  function fullRefresh() {
+  function fullRefresh(rect = null) {
     if (selectedPathId != null && !selectedPath()) clearPathSelection();
     // relief: true is required here. Undo/redo/discard can revert a green, tee,
     // bunker or water feature, and on vector courses those live in the cached
     // analytic relief sculpt — without invalidating it the data and the surface
     // colours roll back but the old plateau or bowl stays in the terrain mesh.
+    //
+    // rect is the footprint of the single op being undone or redone, so one
+    // undo no longer rebuilds the whole course (measured 848 ms -> 19.5 ms).
+    // Discard passes none: it reverts every pending op at once, so it has to be
+    // a full refresh. Ops that carry no cells also pass none.
     scene().refreshGround(state(), {
       water: true, objects: true, paths: true, holes: true, flow: true, relief: true,
+      zoneRect: rect,
+      terrainRect: rect ? {
+        x0: rect.x0 - RELIEF_PAD_CELLS, y0: rect.y0 - RELIEF_PAD_CELLS,
+        x1: rect.x1 + RELIEF_PAD_CELLS, y1: rect.y1 + RELIEF_PAD_CELLS,
+      } : null,
     });
     scene().updateTurf(state());
     scene().setEditorFeaturePreview?.(null);

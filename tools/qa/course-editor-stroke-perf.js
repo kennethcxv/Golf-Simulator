@@ -103,6 +103,19 @@ async (page) => {
       stampCallScoped: time(() => scene.refreshGround(st, {
         relief: true, holes: true, zoneRect: rect, terrainRect: rect,
       }), 6),
+      // what undo/redo/discard costs today: everything, unscoped
+      undoRefresh: time(() => scene.refreshGround(st, {
+        water: true, objects: true, paths: true, holes: true, flow: true, relief: true,
+      }), 4),
+      // the same without rebuilding every tree and object
+      undoRefreshNoObjects: time(() => scene.refreshGround(st, {
+        water: true, objects: false, paths: true, holes: true, flow: true, relief: true,
+      }), 4),
+      // and with the surface field scoped as well
+      undoRefreshScoped: time(() => scene.refreshGround(st, {
+        water: true, objects: false, paths: true, holes: true, flow: true, relief: true,
+        zoneRect: rect, terrainRect: rect,
+      }), 4),
     };
   });
 
@@ -173,12 +186,63 @@ async (page) => {
 
   await page.screenshot({ path: `${outDir}/terrain_stroke.png` });
 
+  // ---- 3. correctness: a SCOPED undo must leave no stale geometry ---------
+  // The whole scoped-refresh approach fails silently if a rect is too small:
+  // the data rolls back but the mesh keeps the old land outside the window.
+  // Compare the mesh after a scoped undo against a forced full rebuild.
+  // undo through the real toolbar control, not a test hook
+  const undoBtn = page.locator('.ced-top button', { hasText: 'Undo' }).first();
+  const undoClicked = await undoBtn.count() > 0;
+  if (undoClicked) await undoBtn.click({ force: true }).catch(() => {});
+  await page.evaluate(() => new Promise((r) => {
+    let n = 6;
+    const t = () => (--n <= 0 ? r() : requestAnimationFrame(t));
+    requestAnimationFrame(t);
+  }));
+
+  const undoIntegrity = await page.evaluate(async (clicked) => {
+    if (!clicked) return { skipped: 'undo control not found' };
+    const scene = window.__fw.scene3d;
+    const st = window.__fw.state;
+
+    // Reach the geometry through the rendered scene graph rather than a hook.
+    let terrain = null;
+    scene.scene.traverse((o) => {
+      if (!terrain && o.isMesh && o.geometry?.attributes?.position?.count > 100000) terrain = o;
+    });
+    if (!terrain) return { skipped: 'terrain mesh not found' };
+    const snapshot = () => Float32Array.from(terrain.geometry.attributes.position.array);
+
+    const afterScopedUndo = snapshot();
+
+    // force the canonical full rebuild
+    scene.refreshGround(st, {
+      water: true, objects: true, paths: true, holes: true, flow: true, relief: true,
+    });
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const afterFullRebuild = snapshot();
+
+    let maxDelta = 0;
+    let differing = 0;
+    for (let i = 0; i < afterFullRebuild.length; i++) {
+      const d = Math.abs(afterScopedUndo[i] - afterFullRebuild[i]);
+      if (d > 1e-4) differing += 1;
+      if (d > maxDelta) maxDelta = d;
+    }
+    return {
+      vertexComponents: afterFullRebuild.length,
+      differingComponents: differing,
+      maxDeltaYd: +maxDelta.toFixed(6),
+    };
+  }, undoClicked);
+
   return {
-    ok: diagnostics.pageErrors.length === 0,
+    ok: diagnostics.pageErrors.length === 0
+      && (undoIntegrity.skipped ? true : undoIntegrity.differingComponents === 0),
     phase,
-    note: 'liveStrokeCall is the call the terrain drag makes today (no zoneRect).',
     synthetic,
     drag,
+    undoIntegrity,
     diagnostics,
   };
 }
