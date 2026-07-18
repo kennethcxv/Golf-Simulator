@@ -2316,11 +2316,15 @@ export function makeCourseEditor(app, hooks) {
     };
   }
 
-  function liveRefreshThrottled() {
+  // A live terrain stroke used to ask for a whole-course refresh every 80 ms.
+  // Measured at 1,454 ms per call against ~304 ms for the same call carrying a
+  // dirty rect, which is why dragging the terrain brush locked the editor up.
+  // The stroke knows exactly which cells it touched, so it says so.
+  function liveRefreshThrottled(rect = null) {
     const now = performance.now();
     if (now - strokeClock > 80) {
       strokeClock = now;
-      scene().refreshGround(state(), {});
+      scene().refreshGround(state(), rect ? { zoneRect: rect } : {});
     }
   }
 
@@ -2696,7 +2700,19 @@ export function makeCourseEditor(app, hooks) {
         mode: 'smooth', radius: radius * 1.15, strength: 0.24, falloff: opt.terrain.falloff,
       });
     }
-    liveRefreshThrottled();
+    // Grow the stroke's dirty rect the way the paint tool does. The refresh is
+    // throttled, so the rect has to cover everything sculpted since the last
+    // one — the auto-smooth pass reaches 15% further than the brush itself.
+    const r = radius * 1.15 + 2;
+    if (!stroke.rect) {
+      stroke.rect = { x0: point.x - r, y0: point.y - r, x1: point.x + r, y1: point.y + r };
+    } else {
+      stroke.rect.x0 = Math.min(stroke.rect.x0, point.x - r);
+      stroke.rect.y0 = Math.min(stroke.rect.y0, point.y - r);
+      stroke.rect.x1 = Math.max(stroke.rect.x1, point.x + r);
+      stroke.rect.y1 = Math.max(stroke.rect.y1, point.y + r);
+    }
+    liveRefreshThrottled(stroke.rect);
   }
 
   function applyPaintAt(g, erase) {

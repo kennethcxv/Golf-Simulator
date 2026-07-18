@@ -1394,12 +1394,30 @@ export function makeCourseScene(canvas, state) {
     relief = course.vec ? buildRelief(course, (cx, cy) => rawHeightAtCellCoords(cx, cy) / ELEV_FT_TO_YD) : null;
   }
 
-  function rebuildTerrainHeights() {
+  // `rect` is in cell coordinates and restricts the height rewrite to the cells
+  // an edit actually touched. Only safe when the analytic relief sculpt has NOT
+  // been invalidated — if that changed, every vertex can move and the caller
+  // must ask for the whole field. Normals are still recomputed across the whole
+  // geometry: outside the rect the inputs are identical, so the result is too.
+  function rebuildTerrainHeights(rect = null) {
     if (course.vec && !relief) rebuildRelief();
     const pos = terrainGeo.attributes.position;
-    let vi = 0;
-    for (let vy = 0; vy < vertsY; vy++) {
-      for (let vx = 0; vx < vertsX; vx++, vi++) {
+    let vx0 = 0;
+    let vx1 = vertsX - 1;
+    let vy0 = 0;
+    let vy1 = vertsY - 1;
+    if (rect) {
+      // two cells of margin: rawHeightAtCellCoords is a bicubic, so an edited
+      // cell moves its neighbours' interpolated height too
+      vx0 = Math.max(0, Math.floor((rect.x0 - 2) * SEG_PER_CELL));
+      vx1 = Math.min(vertsX - 1, Math.ceil((rect.x1 + 2) * SEG_PER_CELL));
+      vy0 = Math.max(0, Math.floor((rect.y0 - 2) * SEG_PER_CELL));
+      vy1 = Math.min(vertsY - 1, Math.ceil((rect.y1 + 2) * SEG_PER_CELL));
+      if (vx0 > vx1 || vy0 > vy1) return;
+    }
+    for (let vy = vy0; vy <= vy1; vy++) {
+      for (let vx = vx0; vx <= vx1; vx++) {
+        const vi = vy * vertsX + vx;
         const fx = (vx / SEG_PER_CELL);
         const fy = (vy / SEG_PER_CELL);
         let h;
@@ -5686,7 +5704,9 @@ export function makeCourseScene(canvas, state) {
   // limits the visual-field recompute to the edited cells.
   function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false, zoneRect = null, zones = true, relief: reReliefsculpt = false } = {}) {
     if (reReliefsculpt) relief = null; // a vector feature (green/bunker/water/tee) moved
-    rebuildTerrainHeights();
+    // A dropped relief sculpt can move any vertex, so that case still rewrites
+    // the whole field; a plain terrain stroke only moved what it painted.
+    rebuildTerrainHeights(reReliefsculpt ? null : zoneRect);
     if (water) rebuildWater();
     if (paths || ((water || reReliefsculpt) && course.paths?.some(pathBridgeEnabled))) rebuildPaths();
     if (objects) {
