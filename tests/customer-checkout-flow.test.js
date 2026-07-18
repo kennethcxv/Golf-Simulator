@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {
   planOrganicOrder,
   reconcileCustomerItemMeshes,
-  createSequentialPlacement,
+  createSequentialPlacement, createSequentialPlacementRecovery,
   stepSequentialPlacement,
   checkoutStagingPose,
   CUSTOMER_IMPATIENT_BEAT_SECONDS,
@@ -92,6 +92,29 @@ test('three products are placed in order and never finish in the same frame', ()
   const staging = { minX: 1, maxX: 2.2, minZ: 3, maxZ: 3.6 };
   const poses = [0, 1, 2].map((i) => checkoutStagingPose(i, 3, staging, 1.1));
   assert.equal(new Set(poses.map((pose) => `${pose.x},${pose.z}`)).size, 3, 'each product owns a separate counter pose');
+});
+
+test('placement recovery preserves only durable counter poses and rebuilds unique unfinished work', () => {
+  const items = [
+    { uid: 'placed', placed: true, placedAt: { x: 1, y: 2, z: 3, ry: 0.4 } },
+    { uid: 'interrupted', placed: false, placedAt: { x: 4, y: 5, z: 6, ry: 0.7 } },
+    { uid: 'missing-pose', placed: true },
+    { uid: 'interrupted', placed: false },
+    null,
+  ];
+
+  const recovered = createSequentialPlacementRecovery(items);
+
+  assert.deepEqual(recovered.placedUids, ['placed']);
+  assert.deepEqual(recovered.unplacedUids, ['interrupted', 'missing-pose']);
+  assert.deepEqual(recovered.placement.uids, ['interrupted', 'missing-pose']);
+  assert.equal(recovered.placement.index, 0);
+  assert.equal(recovered.placement.complete, false);
+  assert.equal(stepSequentialPlacement(recovered.placement, 10).started, 'interrupted');
+  assert.equal(stepSequentialPlacement(recovered.placement, 10).placed, 'interrupted');
+  assert.equal(stepSequentialPlacement(recovered.placement, 10).started, 'missing-pose');
+  assert.equal(stepSequentialPlacement(recovered.placement, 10).placed, 'missing-pose');
+  assert.equal(recovered.placement.complete, true);
 });
 
 test('a shelf with fewer than two available units produces a browse visit, not a one-item checkout', () => {

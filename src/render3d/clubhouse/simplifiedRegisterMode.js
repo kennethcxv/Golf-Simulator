@@ -188,6 +188,13 @@ export function cashGpuPrewarmReleaseReady({ ready, built, expected, drawn } = {
     && Number(drawn) === expectedCount;
 }
 
+export function cashGpuPrewarmShouldRelease(status, { renderFinished = false } = {}) {
+  // A bounded asset wait may expire before the merchandise callback fires. Once
+  // the opaque warm-up render has finished, the offscreen representative root
+  // must still be retired so late model readiness cannot leak hidden scene nodes.
+  return renderFinished === true || cashGpuPrewarmReleaseReady(status);
+}
+
 export function shouldPrewarmDrawerCoin(denom) {
   const value = Number(denom);
   return Number.isFinite(value) && value > 0 && value < 1;
@@ -2008,13 +2015,15 @@ export function createRegisterMode(B) {
   }
 
   function cashGpuPrewarmStatus() {
+    const complete = cashGpuPrewarmReady && cashGpuPrewarmBuilt === cashGpuPrewarmExpected;
     return {
       ready: cashGpuPrewarmReady,
-      complete: cashGpuPrewarmReady && cashGpuPrewarmBuilt === cashGpuPrewarmExpected,
+      complete,
       expected: cashGpuPrewarmExpected,
       built: cashGpuPrewarmBuilt,
       drawn: cashGpuPrewarmDrawn,
       released: cashGpuPrewarmReleased,
+      aborted: cashGpuPrewarmReleased && !complete,
       releasedCount: cashGpuPrewarmReleasedCount,
       representatives: cashGpuPrewarmRoot.children.length,
     };
@@ -2061,13 +2070,17 @@ export function createRegisterMode(B) {
   }
 
   function releaseCashGpuPrewarmRepresentatives({ drawn = false } = {}) {
+    if (cashGpuPrewarmReleased) return cashGpuPrewarmStatus();
     if (drawn) cashGpuPrewarmDrawn = cashGpuPrewarmRoot.children.length;
-    if (!cashGpuPrewarmReleaseReady({
+    const status = {
       ready: cashGpuPrewarmReady,
       built: cashGpuPrewarmBuilt,
       expected: cashGpuPrewarmExpected,
       drawn: cashGpuPrewarmDrawn,
-    })) return cashGpuPrewarmStatus();
+    };
+    if (!cashGpuPrewarmShouldRelease(status, { renderFinished: drawn })) {
+      return cashGpuPrewarmStatus();
+    }
     cashGpuPrewarmReleasedCount = cashGpuPrewarmRoot.children.length;
     cashGpuPrewarmReleased = true;
     cashGpuPrewarmRoot.clear();

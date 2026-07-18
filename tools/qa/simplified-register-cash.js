@@ -1,7 +1,8 @@
 async (page) => {
-  const root = process.cwd().replace(/\\/g, '/');
-  const driver = await import(`file:///${root}/tools/qa/simplified-register-acceptance.mjs`);
+  const driver = await import('./simplified-register-acceptance.mjs');
+  const query = new URL(page.url()).searchParams;
   return driver.runSimplifiedRegisterAcceptance(page, 'cash', {
-    viewport: process.env.REGISTER_QA_VIEWPORT || process.env.QA_VIEWPORT,
+    viewport: query.get('registerQaViewport') || undefined,
+    root: query.get('registerQaRoot') || undefined,
   });
 }

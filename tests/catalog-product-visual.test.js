@@ -30,7 +30,13 @@ function visibleBounds(root, { excludeRuntimeTag = false } = {}) {
 }
 
 async function loadProductScenes() {
-  const models = [...new Set(retail.map((sku) => catalogProductVisual(sku).model))];
+  // Original provisions retain embedded brand art and are validated separately.
+  // Node's GLTFLoader has no browser image decoder, so this structural family
+  // loader covers the non-textured checkout GLBs and skips raw products.
+  const models = [...new Set(retail
+    .map((sku) => catalogProductVisual(sku))
+    .filter((visual) => !visual.raw)
+    .map((visual) => visual.model))];
   models.push('checkout_product_headcover');
   const scenes = new Map();
   for (const model of models) {
@@ -67,16 +73,50 @@ function fakeCanvasContext() {
 
 test('every sellable catalog SKU has an explicit physical family, barcode surface and grip', () => {
   const ids = new Set(explicitCatalogVisualIds());
-  assert.equal(retail.length, 25);
+  assert.equal(retail.length, 27);
   for (const sku of retail) {
     const visual = catalogProductVisual(sku);
     assert.ok(ids.has(sku.id), `${sku.id} has an explicit checkout visual`);
     assert.notEqual(visual.kind, 'unknown-product', `${sku.id} never falls through to a box`);
-    assert.ok(visual.model?.startsWith('checkout_product_'), `${sku.id} prefers a checkout Blender GLB`);
+    assert.ok(
+      visual.model?.startsWith('checkout_product_') || (visual.raw && visual.model?.startsWith('provisions_')),
+      `${sku.id} prefers its explicit Blender GLB`,
+    );
     assert.ok(visual.barcodeSurface, `${sku.id} has a logical barcode/tag surface`);
     assert.ok(['small', 'medium', 'two-hand'].includes(visual.gripMode), `${sku.id} has a grip class`);
   }
   assert.equal(catalogProductVisual({ id: 'future-headcover', name: 'Driver head cover' }).kind, 'headcover');
+});
+
+test('exact raw provisions metadata bypasses runtime fitting without losing anchors', () => {
+  const sku = SHOP_CATALOG.find((entry) => entry.id === 'water1');
+  const descriptor = catalogProductVisual(sku);
+  const source = new THREE.Group();
+  source.name = descriptor.model;
+  source.userData.allow_runtime_scale = false;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(...descriptor.size), new THREE.MeshStandardMaterial());
+  body.position.y = descriptor.size[1] / 2;
+  source.add(body);
+  const barcode = new THREE.Object3D();
+  barcode.name = 'BARCODE_AREA';
+  source.add(barcode);
+  const pickup = new THREE.Object3D();
+  pickup.name = 'PICKUP_TARGET';
+  source.add(pickup);
+  const merch = {
+    has: (model) => model === descriptor.model,
+    instantiateRaw: () => source,
+  };
+  const resources = createRegisterItemResources();
+  const built = buildCatalogProductProxy({ sku, merch, resources });
+
+  assert.equal(built.root.children[0], source, 'the raw hierarchy is attached directly');
+  assert.deepEqual(source.scale.toArray(), [1, 1, 1]);
+  assert.equal(source.userData.catalogRuntimeScalePolicy, 'authored-1:1');
+  assert.equal(built.barcodeAnchor.position.distanceTo(barcode.position), 0,
+    'the authored barcode area remains the logical label location');
+  assert.equal(built.gripAnchors.primary, pickup, 'the authored pickup target remains primary');
+  resources.dispose(built.root);
 });
 
 test('POS thumbnails are product silhouettes, never category-initial text tiles', () => {
@@ -199,10 +239,14 @@ test('GLB-preferred proxies fit declared dimensions and use authored barcode pos
     }
 
     const authoredBarcode = built.root.getObjectByName('ANCHOR_ProductBarcode');
-    assert.ok(authoredBarcode, `${sku.id} retains authored barcode anchor`);
-    const sourcePoint = authoredBarcode.getWorldPosition(new THREE.Vector3());
-    const runtimePoint = built.barcodeAnchor.getWorldPosition(new THREE.Vector3());
-    assert.ok(sourcePoint.distanceTo(runtimePoint) < 1e-6, `${sku.id} runtime label uses authored position`);
+    if (visual.raw) {
+      assert.ok(built.barcodeAnchor, `${sku.id} retains a barcode contract during decoder fallback`);
+    } else {
+      assert.ok(authoredBarcode, `${sku.id} retains authored barcode anchor`);
+      const sourcePoint = authoredBarcode.getWorldPosition(new THREE.Vector3());
+      const runtimePoint = built.barcodeAnchor.getWorldPosition(new THREE.Vector3());
+      assert.ok(sourcePoint.distanceTo(runtimePoint) < 1e-6, `${sku.id} runtime label uses authored position`);
+    }
 
     const initialNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(built.barcodeAnchor.getWorldQuaternion(new THREE.Quaternion()));
     if (visual.barcodeSurface !== 'package-back') assert.ok(initialNormal.z < -0.98, `${sku.id} label initially faces cashier-side -Z`);

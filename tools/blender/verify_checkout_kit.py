@@ -26,7 +26,7 @@ KIT = [
     "checkout_counter", "pos_monitor", "cash_drawer", "payment_terminal",
     "barcode_scanner", "receipt_printer", "shopping_bag", "payment_card",
     "cash_bill_1", "cash_bill_5", "cash_bill_10", "cash_bill_20", "cash_bill_50",
-    "cash_coin_01", "cash_coin_05", "cash_coin_10", "cash_coin_25", "cash_coin_50",
+    "cash_coin_01", "cash_coin_05", "cash_coin_05_sheet01", "cash_coin_10", "cash_coin_20", "cash_coin_50",
     "scannable_product_box", "customer_display", "loose_receipt", "cash_handoff_stack",
     "apparel_wall",
     # Asset Sheet 03: the retail fixture family
@@ -45,17 +45,23 @@ REQUIRED_NODES = {
                          "BARCODE_SCANNER_MOUNT", "RECEIPT_PRINTER_MOUNT", "CUSTOMER_DISPLAY_MOUNT",
                          "BAG_PLACEMENT", "UNSCANNED_ITEM_AREA", "SCANNED_ITEM_AREA",
                          "COL_CheckoutCounter", "SlatsFront", "LED_Front"],
-    "pos_monitor": ["POS_Screen", "POS_Body", "POS_Stand", "POS_Base"],
+    "pos_monitor": ["POS_Screen", "POS_Body", "POS_Stand", "POS_Base", "POS_CableChannel"],
     "cash_drawer": ["CashDrawer_Housing", "CashDrawer_Tray", "CashDrawer_Insert", "CashDrawer_Lock"]
                    + [f"BILL_{b}_SOCKET" for b in ("1", "5", "10", "20", "50")]
-                   + [f"COIN_{c}_SOCKET" for c in ("01", "05", "10", "25", "50")],
+                   + [f"COIN_{c}_SOCKET" for c in ("01", "05", "10", "20", "50")],
     "payment_terminal": ["Terminal_Body", "Terminal_Screen", "Terminal_Keypad", "Terminal_CancelButton",
                          "Terminal_BackButton", "Terminal_ConfirmButton", "Terminal_ChipSlot",
-                         "CARD_INSERT_SOCKET"] + [f"Terminal_Key_{d}" for d in range(10)],
+                         "CARD_INSERT_SOCKET", "Terminal_NFCMark", "NFC_TAP_SOCKET"]
+                        + [f"Terminal_Key_{d}" for d in range(10)],
     "receipt_printer": ["Printer_Body", "Printer_Cover", "Printer_OutputSlot", "Printer_Button",
-                        "Printer_LED", "Receipt_Paper"],
-    "shopping_bag": ["Bag_Body", "Bag_Handle_Left", "Bag_Handle_Right", "Bag_Artwork", "BAG_PICKUP_SOCKET"]
+                        "Printer_LED", "PaperRollPivot", "Receipt_Paper", "RECEIPT_OUTPUT_SOCKET",
+                        "RECEIPT_TEAR_SOCKET", "RECEIPT_PICKUP_SOCKET", "ANCHOR_ReceiptFeed",
+                        "ANCHOR_Tear", "ANCHOR_ReceiptPickup"],
+    "shopping_bag": ["Bag_Body", "Bag_Handle_Left", "Bag_Handle_Right", "Bag_Artwork", "BAG_PICKUP_SOCKET",
+                     "ANCHOR_BagDrop", "ANCHOR_BagContents", "ANCHOR_BagHandoff", "ANCHOR_ReceiptPocket",
+                     "ANCHOR_BagHandleFront", "ANCHOR_BagHandleBack"]
                     + [f"BAG_ITEM_SOCKET_0{i}" for i in range(1, 5)],
+    "loose_receipt": ["Receipt_Strip", "RECEIPT_FEED_SOCKET", "RECEIPT_HANDOFF_SOCKET"],
     "payment_card": ["Card_Body", "Card_Chip"],
     "apparel_wall": ["Slatwall", "Back_Panel", "Header", "Header_Sign", "Hanging_Rod",
                      "Folded_Shelf", "Cabinet_Body", "Cabinet_Door_L", "Cabinet_Door_R",
@@ -152,13 +158,14 @@ SIZE_CHECKS = {
     "cash_bill_1": [(0, 0.117, 0.127)],
     "cash_bill_5": [(0, 0.127, 0.137)],
     "cash_bill_10": [(0, 0.137, 0.147)],
-    "cash_bill_20": [(0, 0.144, 0.154)],
+    "cash_bill_20": [(0, 0.151, 0.161), (1, 0.063, 0.069)],
     "cash_bill_50": [(0, 0.151, 0.161)],
     # Sheet-02 coin ladder: 18 mm copper up to the 30 mm bimetal 50
     "cash_coin_01": [(0, 0.0170, 0.0190)],
     "cash_coin_05": [(0, 0.0200, 0.0220)],
+    "cash_coin_05_sheet01": [(0, 0.0230, 0.0250)],
     "cash_coin_10": [(0, 0.0230, 0.0250)],
-    "cash_coin_25": [(0, 0.0250, 0.0270)],
+    "cash_coin_20": [(0, 0.0250, 0.0270)],
     "cash_coin_50": [(0, 0.0290, 0.0310)],
     "shopping_bag": [(2, 0.30, 0.42)],   # rope handles arc ~55 mm above the rim
     "apparel_wall": [(0, 1.05, 1.15), (2, 2.15, 2.25)],
@@ -193,6 +200,14 @@ SIZE_CHECKS = {
 REQUIRED_CLIPS = {
     "cash_drawer": {"CashDrawer_Open", "CashDrawer_Close"},
     "receipt_printer": {"Receipt_Print"},
+}
+
+COIN_CONTRACTS = {
+    "cash_coin_50": {"code": "50", "cents": 50, "diameter": 0.030, "thickness": 0.0022, "tris": 300, "rough": 0.33},
+    "cash_coin_20": {"code": "20", "cents": 20, "diameter": 0.026, "thickness": 0.0020, "tris": 284, "rough": 0.34},
+    "cash_coin_10": {"code": "10", "cents": 10, "diameter": 0.024, "thickness": 0.0018, "tris": 252, "rough": 0.36},
+    "cash_coin_05": {"code": "05", "cents": 5, "diameter": 0.021, "thickness": 0.0016, "tris": 220, "rough": 0.38},
+    "cash_coin_01": {"code": "01", "cents": 1, "diameter": 0.018, "thickness": 0.0014, "tris": 188, "rough": 0.46},
 }
 
 
@@ -254,6 +269,67 @@ def verify(asset):
     for clip in REQUIRED_CLIPS.get(asset, set()):
         if not any(clip in c for c in clips):
             errors.append(f"missing animation clip {clip} (have {sorted(clips)})")
+
+    coin = COIN_CONTRACTS.get(asset)
+    if coin:
+        visible = [o for o in objs if o.type == "MESH" and not o.name.startswith("COL_")]
+        collisions = [o.name for o in objs if o.name.startswith("COL_")]
+        if collisions:
+            errors.append(f"coin must not ship collision proxies: {collisions}")
+        if len(visible) != 1 or visible[0].name != "Coin_Body":
+            errors.append(f"coin visible mesh contract invalid: {[o.name for o in visible]}")
+        else:
+            body = visible[0]
+            body.data.calc_loop_triangles()
+            triangles = len(body.data.loop_triangles)
+            if triangles != coin["tris"]:
+                errors.append(f"coin triangles {triangles} != {coin['tris']}")
+            corners = [body.matrix_world @ Vector(corner) for corner in body.bound_box]
+            mins = Vector(tuple(min(p[i] for p in corners) for i in range(3)))
+            maxs = Vector(tuple(max(p[i] for p in corners) for i in range(3)))
+            centre = (mins + maxs) * 0.5
+            if centre.length > 1e-5:
+                errors.append(f"coin bounds centre {tuple(round(v, 7) for v in centre)} is not origin")
+            dims = maxs - mins
+            if abs(dims.x - coin["diameter"]) > 0.0005 or abs(dims.y - coin["diameter"]) > 0.0005:
+                errors.append(f"coin planar bounds {dims.x:.5f} x {dims.y:.5f} != {coin['diameter']:.5f}")
+            if abs(dims.z - coin["thickness"]) > 0.0001:
+                errors.append(f"coin thickness {dims.z:.5f} != {coin['thickness']:.5f}")
+            mats = [m for m in body.data.materials if m]
+            expected_mat = f"M_Coin{coin['code']}"
+            if len(mats) != 1 or mats[0].name != expected_mat:
+                errors.append(f"coin material contract {[m.name for m in mats]} != [{expected_mat}]")
+            elif mats:
+                mat = mats[0]
+                if not mat.use_backface_culling:
+                    errors.append("coin material exports double-sided")
+                bsdf = mat.node_tree.nodes.get("Principled BSDF") if mat.use_nodes else None
+                if bsdf is None:
+                    errors.append("coin material has no Principled BSDF")
+                else:
+                    rough = float(bsdf.inputs["Roughness"].default_value)
+                    metal = float(bsdf.inputs["Metallic"].default_value)
+                    if abs(rough - coin["rough"]) > 0.002:
+                        errors.append(f"coin roughness {rough:.3f} != {coin['rough']:.3f}")
+                    if abs(metal - 0.92) > 0.002:
+                        errors.append(f"coin metalness {metal:.3f} != 0.920")
+        root = next((o for o in objs if o.name == asset), None)
+        if root is None:
+            errors.append(f"missing coin root {asset}")
+        else:
+            if root.get("asset_id") != asset or int(root.get("denomination_cents", -1)) != coin["cents"]:
+                errors.append("coin root identity/denomination extras invalid")
+            if "obverse" not in str(root.get("front", "")) or not str(root.get("reverse", "")):
+                errors.append("coin face-orientation extras invalid")
+        for suffix in ("", "_N"):
+            image_name = f"Coin_{coin['code']}{suffix}"
+            image = next((img for img in bpy.data.images if img.name == image_name), None)
+            if image is None:
+                errors.append(f"missing embedded image {image_name}")
+            elif tuple(image.size) != (1024, 1024):
+                errors.append(f"image {image_name} size {tuple(image.size)} != (1024, 1024)")
+            elif suffix == "_N" and image.colorspace_settings.name != "Non-Color":
+                errors.append(f"normal image {image_name} colorspace {image.colorspace_settings.name} != Non-Color")
 
     return errors
 

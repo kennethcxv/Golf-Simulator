@@ -11,6 +11,22 @@ const COUNTER_TOP = 1.055;
 const STATION = { x: 3.00, z: 4.04 };
 // Customers stand on the south (low-z) side; the staff/camera side is high z.
 const CUSTOMER = { x: 2.42, z: 3.15 };
+const registerSource = fs.readFileSync(
+  new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
+  'utf8',
+);
+
+function functionBody(source, name) {
+  const start = source.indexOf(`function ${name}(`);
+  assert.notEqual(start, -1, `${name} exists`);
+  const open = source.indexOf('{', start);
+  let depth = 0;
+  for (let index = open; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1;
+    if (source[index] === '}' && --depth === 0) return source.slice(start, index + 1);
+  }
+  throw new Error(`${name} has an unterminated body`);
+}
 
 test('handoff frames the customer across the counter, not the counter surface', () => {
   const p = cardHandoffPose(CUSTOMER, COUNTER_TOP);
@@ -62,14 +78,40 @@ test('handoff and terminal poses both look south with no 180 spin between them',
   assert.ok(Math.abs(handoff.eye.x - terminal.eye.x) < 1.2, 'eyes are near each other in x');
 });
 
-test('the live reader has no state-driven lift or float mutation', () => {
-  const source = fs.readFileSync(
-    new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
-    'utf8',
+test('declined-card cash fallback presents tender before opening the drawer camera', () => {
+  const switchToCash = functionBody(registerSource, 'switchDeclinedCardToCash');
+  const createTender = switchToCash.indexOf('createTender()');
+  const presentationWorkspace = switchToCash.indexOf("setWorkspace('monitor')");
+  assert.ok(createTender >= 0, 'switching to cash creates the customer tender');
+  assert.ok(
+    createTender < presentationWorkspace,
+    'the shared monitor presentation workspace is selected only after tender exists',
   );
-  assert.doesNotMatch(source, /\bTERM_FLOAT_LIFT\b/, 'reader lift constant must stay removed');
-  assert.doesNotMatch(source, /\btermFloat\b/, 'reader position must not depend on checkout state');
-  assert.doesNotMatch(source, /termObject\.position\.y\s*=/, 'reader y-position must not animate after attachment');
+  assert.doesNotMatch(
+    switchToCash,
+    /setWorkspace\('cash'\)/,
+    'switching payment cannot skip directly to the drawer camera',
+  );
+
+  const acceptCash = functionBody(registerSource, 'acceptPresentedCash');
+  const sortTender = acceptCash.indexOf('sortReceivedCash()');
+  const drawerWorkspace = acceptCash.indexOf("setWorkspace('cash')");
+  assert.ok(sortTender >= 0, 'accepting the tender sorts it into the drawer');
+  assert.ok(
+    sortTender < drawerWorkspace,
+    'the cash/drawer workspace opens only after the presented cash is accepted',
+  );
+  assert.doesNotMatch(
+    acceptCash,
+    /setWorkspace\('monitor'\)/,
+    'cash acceptance stays in the drawer workspace',
+  );
+});
+
+test('the live reader has no state-driven lift or float mutation', () => {
+  assert.doesNotMatch(registerSource, /\bTERM_FLOAT_LIFT\b/, 'reader lift constant must stay removed');
+  assert.doesNotMatch(registerSource, /\btermFloat\b/, 'reader position must not depend on checkout state');
+  assert.doesNotMatch(registerSource, /termObject\.position\.y\s*=/, 'reader y-position must not animate after attachment');
 });
 
 test('receipt printing accepts only geometry whose long edge follows the feed axis', () => {

@@ -17,8 +17,9 @@ const ACTIVE_SIMPLIFIED_CUES = Object.freeze([
   'productPlace', 'productPickup',
   'scannerActivate', 'scanSuccess', 'scanInvalid', 'posAdd',
   'cardInsert', 'cardProcessing', 'cardApproved', 'cardDeclined',
-  'cashPresent', 'drawerUnlock', 'drawerOpen', 'drawerClose',
+  'cashPresent', 'billHandle', 'coinHandle', 'drawerUnlock', 'drawerOpen', 'drawerClose',
   'changeSelect', 'changeHandoff', 'receiptPrint', 'receiptTear',
+  'bagItem', 'bagHandoff',
   'checkoutComplete',
 ]);
 
@@ -187,8 +188,10 @@ test('drawer close is emitted once only, when the counted change is handed over'
 
 test('bagging and automatic receipt cues remain transition-local one-shots', () => {
   const bagProduct = extractFunction(registerSource, 'bagProduct');
+  const updateScanMotion = extractFunction(registerSource, 'updateScanMotion');
   const beginAutomaticReceipt = extractFunction(registerSource, 'beginAutomaticReceipt');
   const finishAutomaticFulfillment = extractFunction(registerSource, 'finishAutomaticFulfillment');
+  const updateDelivery = extractFunction(registerSource, 'updateDelivery');
 
   // Click-to-bag rings up an item once: pickup + register beep + POS add all on
   // the single bagProduct edge, after the ProductScanning transition. There is
@@ -199,8 +202,10 @@ test('bagging and automatic receipt cues remain transition-local one-shots', () 
   assert.equal(cueCalls(bagProduct, 'posAdd').length, 1,
     'the POS add cue fires once per bagged item');
   assert.equal(cueCalls(bagProduct, 'scanSuccess').length, 1);
+  assert.equal(cueCalls(updateScanMotion, 'bagItem').length, 1,
+    'a compact product landing in the bag owns one physical bag impact/rustle cue');
   assert.equal(cueCalls(beginAutomaticReceipt, 'receiptPrint').length, 1);
   assert.equal(cueCalls(finishAutomaticFulfillment, 'receiptTear').length, 1);
-  assert.equal(cueCalls(registerSource, 'bagHandoff').length, 0,
-    'the user-requested simplified path does not fake a manual bag handoff');
+  assert.equal(cueCalls(updateDelivery, 'bagHandoff').length, 1,
+    'the authored bag-handle ownership transfer owns one handoff cue');
 });

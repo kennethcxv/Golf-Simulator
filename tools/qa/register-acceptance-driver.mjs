@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const BASE_URL = 'http://localhost:8457/';
+const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
 const VIEWPORT = { width: 1600, height: 900 };
 const SKUS = (process.env.REGISTER_QA_SKUS || 'tees1,marker1,glove1')
   .split(',')
@@ -708,19 +708,19 @@ export async function runRegisterAcceptance(page, mode) {
       currentStep = 'physically select correct change';
       // Prove a coin is a real selectable/undoable drawer object even on the customer
       // RNG branch that tenders odd cents and therefore needs whole-dollar change.
-      const undoCoin = await page.evaluate(() => window.__qaRegister.money('drawer', 0.25));
-      assert(undoCoin, 'The physical drawer had no quarter available for the change undo check.');
+      const undoCoin = await page.evaluate(() => window.__qaRegister.money('drawer', 0.2));
+      assert(undoCoin, 'The physical drawer had no 20-unit coin available for the change undo check.');
       const undoCoinPx = await project({ x: undoCoin.x, y: undoCoin.y, z: undoCoin.z });
       screenPoints.changeCoinUndo = roundedPoint(undoCoinPx);
       await page.mouse.click(undoCoinPx.x, undoCoinPx.y);
-      await page.waitForFunction(() => !!window.__qaRegister.money('hand', 0.25), null, { timeout: 4000 });
+      await page.waitForFunction(() => !!window.__qaRegister.money('hand', 0.2), null, { timeout: 4000 });
       await shot('physical-coin-selected');
-      const heldCoin = await page.evaluate(() => window.__qaRegister.money('hand', 0.25));
+      const heldCoin = await page.evaluate(() => window.__qaRegister.money('hand', 0.2));
       const heldCoinPx = await project({ x: heldCoin.x, y: heldCoin.y, z: heldCoin.z });
       screenPoints.changeCoinUndoReturn = roundedPoint(heldCoinPx);
       await page.mouse.click(heldCoinPx.x, heldCoinPx.y);
-      await page.waitForFunction(() => !window.__qaRegister.money('hand', 0.25), null, { timeout: 4000 });
-      log.push({ action: 'physical quarter selected then returned to its drawer compartment' });
+      await page.waitForFunction(() => !window.__qaRegister.money('hand', 0.2), null, { timeout: 4000 });
+      log.push({ action: 'physical 20-unit coin selected then returned to its drawer compartment' });
 
       const change = await page.evaluate(async () => {
         const R = await import('/src/sim/register.js');

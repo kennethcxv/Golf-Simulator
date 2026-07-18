@@ -8,14 +8,14 @@ import {
   billFit, billLayout, clipFillRatio, coinLayout, fillState, scramble,
 } from '../src/render3d/clubhouse/drawerMoneyLayout.js';
 
-// the shipped drawer contract, in world units (authored extras x kit scale 1.22)
+// the shipped drawer contract, in world units (the Sheet-01 drawer is 1:1 scale)
 const BILL_META = {
-  well_w: 0.0584 * 1.22, well_d: 0.208 * 1.22, wall_h: 0.044 * 1.22,
-  max_pieces: 12, spacing: 0.0016 * 1.22, hinge_drop: 0.039 * 1.22,
+  well_w: 0.0572, well_d: 0.176, wall_h: 0.044,
+  max_pieces: 12, spacing: 0.0016, hinge_drop: 0.039,
 };
 const COIN_META = {
-  well_w: 0.0584 * 1.22, well_d: 0.152 * 1.22, wall_h: 0.028 * 1.22,
-  max_pieces: 30, pile_h: 0.0032 * 1.22,
+  well_w: 0.0572, well_d: 0.136, wall_h: 0.028,
+  max_pieces: 30, pile_h: 0.0032,
 };
 const COIN_R = (0.024 * 1.3) / 2;
 const COIN_T = COIN_META.pile_h;
@@ -48,13 +48,13 @@ test('bill fit fills the slot without escaping it', () => {
 
 test('the piece count is capped by the authored contract', () => {
   assert.equal(billLayout(BILL_META, 500, 20).length, BILL_META.max_pieces);
-  assert.equal(coinLayout(COIN_META, 500, COIN_R, COIN_T, 0.25).pieces.length, COIN_META.max_pieces);
+  assert.equal(coinLayout(COIN_META, 500, COIN_R, COIN_T, 0.2).pieces.length, COIN_META.max_pieces);
   assert.equal(billLayout(BILL_META, 0, 20).length, 0);
-  assert.equal(coinLayout(COIN_META, 0, COIN_R, COIN_T, 0.25).pieces.length, 0);
+  assert.equal(coinLayout(COIN_META, 0, COIN_R, COIN_T, 0.2).pieces.length, 0);
 });
 
 test('every coin lands inside its well, resting, never re-rolled', () => {
-  for (const denom of [0.01, 0.05, 0.1, 0.25, 0.5]) {
+  for (const denom of [0.01, 0.05, 0.1, 0.2, 0.5]) {
     const a = coinLayout(COIN_META, 30, COIN_R, COIN_T, denom).pieces;
     const b = coinLayout(COIN_META, 30, COIN_R, COIN_T, denom).pieces;
     assert.deepEqual(a, b, `coin ${denom} layout is deterministic`);
@@ -95,6 +95,6 @@ test('fill state bands follow the authored cap', () => {
 
 test('the scramble hash is stable across calls (no visual re-rolls on reload)', () => {
   for (let i = 0; i < 20; i += 1) {
-    assert.equal(scramble(0.25, i, 3), scramble(0.25, i, 3));
+    assert.equal(scramble(0.2, i, 3), scramble(0.2, i, 3));
   }
 });

@@ -93,6 +93,17 @@ function crashCard(root) {
   return found;
 }
 
+function checkboxForLabel(root, label) {
+  let match = null;
+  walk(root, (node) => {
+    if (match || node.tagName !== 'label' || !node.textContent.includes(label)) return;
+    walk(node, (child) => {
+      if (!match && child.tagName === 'input' && child.attrs.type === 'checkbox') match = child;
+    });
+  });
+  return match;
+}
+
 function openLaptop(state) {
   const app = { state, audio: null, scene3d: null, empire: null };
   const lap = makeLaptop(app, { close: () => {}, openCourseEditor: () => {} });
@@ -193,5 +204,33 @@ test('back() walks the history it came from', () => {
   assert.equal(lap.pageId(), 'finances');
   lap.back();
   assert.equal(lap.pageId(), 'home');
+  lap.close();
+});
+
+test('checkout accessibility settings are player-facing and write persisted ui preferences', () => {
+  const st = newGame('relaxed', 77);
+  const lap = openLaptop(st);
+  lap.go('settings');
+  const choices = [
+    ['Larger POS text and targets', 'largeTextAndTargets', true],
+    ['Reduced checkout camera motion', 'reducedCameraMotion', true],
+    ['Faster checkout animations', 'fasterAnimations', true],
+    ['Automatic exact change', 'automaticExactChange', true],
+    ['Confirm cash purchases', 'confirmCashPurchase', false],
+  ];
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = (callback) => { callback(); return 0; };
+  try {
+    for (const [label, key, checked] of choices) {
+      const input = checkboxForLabel(lap.root, label);
+      assert.ok(input, `setting "${label}" is visible`);
+      const listener = input._listeners?.change?.[0];
+      assert.equal(typeof listener, 'function', `setting "${label}" is wired`);
+      listener({ target: { checked } });
+      assert.equal(st.uiPrefs.checkout[key], checked);
+    }
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
   lap.close();
 });
