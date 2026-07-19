@@ -7293,6 +7293,10 @@ export function makeClubhouse(ctx) {
       center.z,
     );
     interior.visible = visible;
+    props61to100.setCameraVisibility(
+      camera.position.x - center.x,
+      camera.position.z - center.z,
+    );
     return visible;
   }
 

@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CLEANING_TOOLS } from '../../data/cleaningTools.js';
+import { INTERIOR } from '../../data/shopLayout.js';
 import {
   PLACED_ASSET_NUMBERS, PROP_PLACEMENTS, RUNTIME_ASSET_MANIFEST_BY_NUMBER,
 } from './runtimeManifest.js';
@@ -30,6 +31,24 @@ export const SUPERSEDES = Object.freeze([
   { legacy: 'LegacyOfficeFilingCabinet', replacedBy: [82] },
   { legacy: 'LegacyWelcomeMat', replacedBy: [100] },
 ]);
+
+// Entrance-facing dressing can remain visible through the door and windows. Deeper interior
+// props are fully occluded once the camera is beyond the porch, so culling them avoids needless
+// draw calls during exterior cleaning without introducing a near-door pop.
+export const EXTERIOR_VISIBLE_PROP_NUMBERS = Object.freeze([93, 94, 98, 99, 100]);
+const EXTERIOR_VISIBLE_PROP_SET = new Set(EXTERIOR_VISIBLE_PROP_NUMBERS);
+export const PROP_DETAIL_EXTERIOR_CLEARANCE_YD = 1.5;
+
+export function detailedPropsVisibleAt(
+  cameraLocalX,
+  cameraLocalZ,
+  clearance = PROP_DETAIL_EXTERIOR_CLEARANCE_YD,
+) {
+  if (![cameraLocalX, cameraLocalZ, clearance].every(Number.isFinite) || clearance < 0) return true;
+  const dx = Math.max(Math.abs(cameraLocalX) - INTERIOR.w / 2, 0);
+  const dz = Math.max(Math.abs(cameraLocalZ) - INTERIOR.d / 2, 0);
+  return Math.hypot(dx, dz) < clearance;
+}
 
 const vectorFromTransform = (record) => new THREE.Vector3(...record.defaultTransform.position);
 
@@ -561,6 +580,7 @@ export function buildProps({
   let materialCanonicalizations = 0;
   let placedStaticBatch = null;
   let disposed = false;
+  let detailedVisible = true;
 
   function anchorFor(fixtureId) {
     return typeof getFixtureAnchor === 'function' ? getFixtureAnchor(fixtureId) : null;
@@ -878,6 +898,19 @@ export function buildProps({
       return mounted;
     },
     roots: () => [...placedByNumber.values()].flat().map((entry) => entry.root),
+    setCameraVisibility(cameraLocalX, cameraLocalZ) {
+      detailedVisible = detailedPropsVisibleAt(cameraLocalX, cameraLocalZ);
+      let visible = 0;
+      let total = 0;
+      for (const [number, entries] of placedByNumber) {
+        for (const entry of entries) {
+          entry.root.visible = detailedVisible || EXTERIOR_VISIBLE_PROP_SET.has(number);
+          if (entry.root.visible) visible += 1;
+          total += 1;
+        }
+      }
+      return { detailedVisible, visible, total };
+    },
     interactionTargets: () => {
       updateInteractionOrigins();
       return interactionProps.map((prop) => ({
@@ -953,6 +986,8 @@ export function buildProps({
       placedStaticBatchSourceDrawCalls: placedStaticBatch?.sourceDrawCalls || 0,
       placedStaticBatchDrawCalls: placedStaticBatch?.batchedDrawCalls || 0,
       placedStaticBatchSavedDrawCalls: placedStaticBatch?.savedDrawCalls || 0,
+      detailedVisible,
+      visible: [...placedByNumber.values()].flat().filter((entry) => entry.root.visible).length,
     }),
     dispose() {
       if (disposed) return;

@@ -184,6 +184,9 @@ export function buildToolViewmodels() {
     const entry = loaded.get(toolId);
     if (!entry || entry.equipped === !!on) return false;
     entry.equipped = !!on;
+    // A clamped equip/unequip pose must not blend with the next belt cycle.
+    entry.mixer?.stopAllAction();
+    entry.activeAction = null;
     return playClip(toolId, on
       ? [`${toolId}_equip`, `${toolId}wand_equip`, 'equip']
       : [`${toolId}_unequip`, `${toolId}wand_unequip`, 'unequip', 'putaway']);
@@ -205,9 +208,7 @@ export function buildToolViewmodels() {
   function authoredGrip(group, root, name, fallback) {
     const node = name ? root.getObjectByName(name) : null;
     if (!node) return fallback ? { ...fallback, pos: [...fallback.pos], rot: [...fallback.rot] } : null;
-    group.updateWorldMatrix(true, false);
-    node.updateWorldMatrix(true, false);
-    const position = node.getWorldPosition(new THREE.Vector3());
+    const position = new THREE.Vector3().setFromMatrixPosition(node.matrixWorld);
     group.worldToLocal(position);
     return {
       ...(fallback || {}),
@@ -314,6 +315,7 @@ export function buildToolViewmodels() {
               : [...(gltf.animations || [])];
             group.updateWorldMatrix(true, true);
             const entry = {
+              group,
               root,
               mixer: authoredClips.length ? new THREE.AnimationMixer(root) : null,
               clips: authoredClips,
@@ -324,9 +326,13 @@ export function buildToolViewmodels() {
               equipped: false,
               activeAction: null,
               activeVariant: 0,
-              grips: {
-                grip: authoredGrip(group, root, def.fp.grips?.right, def.grip),
-                support: authoredGrip(group, root, def.fp.grips?.left, def.support),
+              gripNames: {
+                right: def.fp.grips?.right || null,
+                left: def.fp.grips?.left || null,
+              },
+              gripFallbacks: {
+                right: def.grip,
+                left: def.support,
               },
               lastClip: null,
             };
@@ -357,7 +363,16 @@ export function buildToolViewmodels() {
     setActive,
     setEquipped,
     setUsing,
-    gripsFor: (id) => loaded.get(id)?.grips || null,
+    gripsFor(id) {
+      const entry = loaded.get(id);
+      if (!entry) return null;
+      // Resolve sockets after the current animation step so the hands follow authored motion.
+      entry.group.updateWorldMatrix(true, true);
+      return {
+        grip: authoredGrip(entry.group, entry.root, entry.gripNames.right, entry.gripFallbacks.right),
+        support: authoredGrip(entry.group, entry.root, entry.gripNames.left, entry.gripFallbacks.left),
+      };
+    },
     play(id, needles, options) {
       loaded.get(id)?.mixer?.stopAllAction();
       return playClip(id, needles, options);

@@ -3852,7 +3852,7 @@ export function makeCourseScene(canvas, state) {
     }
     // brought in from the frame edge once it had hands on it: a two-handed tool has to be far
     // enough into shot that you can see somebody holding it
-    heldGroups.washer.position.set(0.24, -0.34, -0.60);
+    heldGroups.washer.position.set(0.24, -0.20, -0.60);
     heldGroups.washer.rotation.set(0.06, -0.13, 0);
   }
   for (const [id, group] of Object.entries(heldGroups)) {
@@ -4088,6 +4088,9 @@ export function makeCourseScene(canvas, state) {
     // the hands breathe, rise into frame, and shove back under the trigger — or draw the box
     // cutter down the seam while you hold E on a taped carton
     toolViewmodels.update(dt);
+    if (walkTool && CLEANING_TOOLS[walkTool]) {
+      fpHands.syncGrips(toolViewmodels.gripsFor(walkTool));
+    }
     fpHands.update(dt, walkSpraying || walkSoaping || holdActive);
     if (!heldRoot.visible) return;
     heldAnim.t = Math.min(1, heldAnim.t + dt / 0.26);

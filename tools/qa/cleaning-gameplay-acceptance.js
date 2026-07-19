@@ -150,6 +150,7 @@ async (page) => {
 
   async function screenshot(name, description) {
     const file = path.join(shotsDir, name);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
     await page.screenshot({ path: file });
     const context = await page.evaluate(() => {
       const app = window.__fw;
@@ -356,11 +357,15 @@ async (page) => {
     await page.waitForTimeout(120);
     const dom = await cdp.send('Memory.getDOMCounters');
     const app = await snapshot();
-    const liveDomNodes = await page.evaluate(() => document.querySelectorAll('*').length);
+    const browser = await page.evaluate(() => ({
+      liveDomNodes: document.querySelectorAll('*').length,
+      jsHeapUsedBytes: performance.memory?.usedJSHeapSize || null,
+    }));
     return {
       documents: dom.documents,
       nodes: dom.nodes,
-      liveDomNodes,
+      liveDomNodes: browser.liveDomNodes,
+      jsHeapUsedBytes: browser.jsHeapUsedBytes,
       jsEventListeners: dom.jsEventListeners,
       sceneNodes: app.nodes,
       renderer: app.renderer,
@@ -371,16 +376,55 @@ async (page) => {
   }
 
   async function performanceSample(label, durationMs = 2500) {
+    await cdp.send('HeapProfiler.collectGarbage').catch(() => {});
+    await page.waitForTimeout(120);
     const beforeDom = await cdp.send('Memory.getDOMCounters');
     const sample = await page.evaluate(async ({ label, durationMs }) => {
       const app = window.__fw;
+      const renderer = app.scene3d.renderer;
+      const info = renderer.info;
+      const priorAutoReset = info.autoReset;
       const frames = [];
-      let previous = performance.now();
       const observerTarget = document.querySelector('#ui') || document.body;
       let mutations = 0;
       const observer = new MutationObserver((list) => { mutations += list.length; });
       observer.observe(observerTarget, { subtree: true, childList: true, attributes: true, characterData: true });
-      const start = performance.now();
+
+      const materials = new Set();
+      const referencedTextures = new Map();
+      const rememberTexture = (texture) => {
+        if (!texture?.isTexture || referencedTextures.has(texture.uuid)) return;
+        const data = texture.source?.data ?? texture.image;
+        const images = Array.isArray(data) ? data : [data];
+        let bytes = 0;
+        for (const image of images) {
+          const width = image?.videoWidth || image?.naturalWidth || image?.width || 0;
+          const height = image?.videoHeight || image?.naturalHeight || image?.height || 0;
+          if (width && height) {
+            // Comparable upper-bound estimate: decoded RGBA8 texels plus a full mip chain.
+            bytes += width * height * 4 * (texture.generateMipmaps === false ? 1 : 4 / 3);
+          }
+        }
+        referencedTextures.set(texture.uuid, Math.round(bytes));
+      };
+      app.scene3d.scene.traverse((object) => {
+        if (!object.material) return;
+        const entries = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of entries) {
+          if (!material) continue;
+          materials.add(material);
+          for (const value of Object.values(material)) rememberTexture(value);
+        }
+      });
+
+      // EffectComposer invokes renderer.render several times per display frame. Three's default
+      // auto-reset therefore exposes only the last fullscreen pass (one draw / one triangle).
+      // Accumulate every pass across this bounded interval, divide by observed display frames,
+      // then restore the renderer before returning.
+      info.autoReset = false;
+      info.reset();
+      let previous = performance.now();
+      const start = previous;
       await new Promise((resolve) => {
         const frame = (now) => {
           frames.push(now - previous);
@@ -391,12 +435,16 @@ async (page) => {
         requestAnimationFrame(frame);
       });
       observer.disconnect();
-      const duration = performance.now() - start;
-      frames.shift();
+      const duration = previous - start;
       const sorted = frames.slice().sort((a, b) => b - a);
       const slowCount = Math.max(1, Math.ceil(sorted.length * 0.01));
       const slowMean = sorted.slice(0, slowCount).reduce((sum, value) => sum + value, 0) / slowCount;
-      const info = app.scene3d.renderer.info;
+      const renderTotals = {
+        calls: info.render.calls,
+        triangles: info.render.triangles,
+      };
+      info.reset();
+      info.autoReset = priorAutoReset;
       return {
         label,
         durationMs: duration,
@@ -404,10 +452,17 @@ async (page) => {
         averageFps: frames.length * 1000 / duration,
         onePercentLowFps: 1000 / slowMean,
         worstFrameMs: sorted[0] || null,
-        drawCalls: info.render.calls,
-        renderedTriangles: info.render.triangles,
-        materialCount: info.programs?.length || 0,
+        drawCalls: renderTotals.calls / Math.max(1, frames.length),
+        renderedTriangles: renderTotals.triangles / Math.max(1, frames.length),
+        drawCallsTotal: renderTotals.calls,
+        renderedTrianglesTotal: renderTotals.triangles,
+        materialCount: materials.size,
+        geometryCount: info.memory.geometries,
         textureCount: info.memory.textures,
+        referencedTextureCount: referencedTextures.size,
+        textureMemoryBytes: [...referencedTextures.values()].reduce((sum, value) => sum + value, 0),
+        textureMemoryMethod: 'unique scene-referenced decoded RGBA8 texels plus mip-chain estimate',
+        programCount: info.programs?.length || 0,
         jsHeapUsedBytes: performance.memory?.usedJSHeapSize || null,
         uiMutationsPerSecond: mutations / (duration / 1000),
       };
@@ -415,7 +470,10 @@ async (page) => {
     const afterDom = await cdp.send('Memory.getDOMCounters');
     sample.eventListeners = afterDom.jsEventListeners;
     sample.domNodeDelta = afterDom.nodes - beforeDom.nodes;
-    for (const key of ['durationMs', 'averageFps', 'onePercentLowFps', 'worstFrameMs', 'uiMutationsPerSecond']) {
+    for (const key of [
+      'durationMs', 'averageFps', 'onePercentLowFps', 'worstFrameMs',
+      'drawCalls', 'renderedTriangles', 'uiMutationsPerSecond',
+    ]) {
       sample[key] = round(sample[key]);
     }
     return sample;
@@ -423,7 +481,21 @@ async (page) => {
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await page.getByText('Continue', { exact: true }).click();
+  // The shared QA browser can retain a prior run's save. Clear it once, then reload before the
+  // route begins; do not install a persistent init script because this same run must save/reload.
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
+  if (await continueButton.isEnabled()) await continueButton.click();
+  else {
+    await page.getByRole('button', { name: /New Empire — Relaxed/i }).click();
+    await page.getByRole('heading', { name: 'Property market', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
+    normalControlProof.push({ control: 'New Empire — Relaxed > first listing > Buy', ok: true });
+  }
   await waitForGame();
   const prepared = await prepareGame();
   check('gameplay booted in first-person with cleaning equipment owned',
@@ -432,14 +504,20 @@ async (page) => {
   // The abandoned shipment occupying the cleaning corner is removed with the ordinary E verb.
   const clutterFocus = await findFocus(7.6, 1.3, /Old clutter/i, { pitch: -0.08 });
   check('cleaning-bay clutter can be focused through normal first-person view', /Old clutter/i.test(clutterFocus.label || ''), clutterFocus);
+  const clearedClutterBefore = await page.evaluate(() => (
+    window.__fw.state.shop.reno.clutter.filter((entry) => entry.cleared).length
+  ));
   if (/Old clutter/i.test(clutterFocus.label || '')) {
     await page.keyboard.press('e');
     normalControlProof.push({ control: 'E', action: 'haul cleaning-bay clutter', label: clutterFocus.label });
     await page.waitForTimeout(450);
   }
-  const clutterCleared = await page.evaluate(() => !!window.__fw.state.shop.reno.clutter
-    .find((entry) => Math.hypot(entry.x - 7.6, entry.z - 1.3) < 0.3)?.cleared);
-  check('cleaning-bay approach opens after hauling clutter', clutterCleared);
+  const clearedClutterAfter = await page.evaluate(() => (
+    window.__fw.state.shop.reno.clutter.filter((entry) => entry.cleared).length
+  ));
+  check('cleaning-bay approach opens after hauling clutter',
+    clearedClutterAfter === clearedClutterBefore + 1,
+    { before: clearedClutterBefore, after: clearedClutterAfter });
   // Accessible west-side stockroom lane; the packing bench remains foreground context without
   // putting the camera inside its collider.
   await poseFacing(6.30, -2.25, 7.85, 1.08, -0.10);
@@ -774,6 +852,11 @@ async (page) => {
       && lifecycleAfter.liveDomNodes <= lifecycleBefore.liveDomNodes + 2
       && lifecycleAfter.nodes <= lifecycleBefore.nodes + 2,
     { before: lifecycleBefore, after: lifecycleAfter });
+  check('100 normal tool switches keep the post-GC JavaScript heap bounded',
+    Number.isFinite(lifecycleBefore.jsHeapUsedBytes)
+      && Number.isFinite(lifecycleAfter.jsHeapUsedBytes)
+      && lifecycleAfter.jsHeapUsedBytes <= lifecycleBefore.jsHeapUsedBytes * 1.15 + 5_000_000,
+    { before: lifecycleBefore.jsHeapUsedBytes, after: lifecycleAfter.jsHeapUsedBytes });
   check('100 normal tool switches do not allocate scene or GPU resources',
     lifecycleAfter.sceneNodes === lifecycleBefore.sceneNodes
       && lifecycleAfter.renderer.geometries === lifecycleBefore.renderer.geometries
@@ -784,47 +867,110 @@ async (page) => {
     lifecycleAfter.authoredViewmodels === 9 && lifecycleAfter.playingViewmodels.length === 0,
     lifecycleAfter);
 
-  // FOV + resolution matrix. The camera change is a visual fixture; equipment still comes from F.
-  await cycleTo('spray');
-  await pose(-5.5, 3.2, 0, -0.82);
-  await waitForToasts();
+  // FOV + resolution matrix. Every item is equipped through F and retained as a player-view
+  // screenshot at low/default/high FOV; one representative bottle keeps the original top-level
+  // filenames so baseline/final reviews remain easy to navigate.
   const fovMatrix = [];
-  for (const spec of [
-    { width: 1280, height: 720, fov: 50, file: '13-spray-1280x720-fov50.png' },
-    { width: 1600, height: 900, fov: 66, file: '14-spray-1600x900-fov66.png' },
-    { width: 1920, height: 1080, fov: 90, file: '15-spray-1920x1080-fov90.png' },
-  ]) {
+  const fovTools = ['broom', 'dustpan', 'vacuum', 'mop', 'spray', 'cloth', 'sponge', 'trashbag', 'washer'];
+  const fovSpecs = [
+    { width: 1280, height: 720, fov: 50, key: 'low' },
+    { width: 1600, height: 900, fov: 66, key: 'default' },
+    { width: 1920, height: 1080, fov: 90, key: 'high' },
+  ];
+  for (const spec of fovSpecs) {
     await page.setViewportSize({ width: spec.width, height: spec.height });
-    const visibility = await page.evaluate((fov) => {
-      const app = window.__fw;
-      const camera = app.scene3d.camera;
-      camera.fov = fov;
-      camera.updateProjectionMatrix();
-      camera.updateMatrixWorld(true);
-      const group = app.scene3d.scene.getObjectByName('Tool_spray');
-      let meshes = 0;
-      let projectedInFrame = 0;
-      group?.updateWorldMatrix(true, true);
-      group?.traverse((object) => {
-        if (!object.isMesh || !object.visible) return;
-        meshes += 1;
-        object.geometry.computeBoundingSphere?.();
-        const point = object.geometry.boundingSphere?.center?.clone() || object.position.clone();
-        object.localToWorld(point);
-        point.project(camera);
-        if (Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z)
-          && Math.abs(point.x) <= 1.1 && Math.abs(point.y) <= 1.1 && point.z >= -1 && point.z <= 1) {
-          projectedInFrame += 1;
-        }
-      });
-      return { cameraFov: camera.fov, meshes, projectedInFrame };
+    await page.evaluate((fov) => {
+      window.__fw.scene3d.camera.fov = fov;
+      window.__fw.scene3d.camera.updateProjectionMatrix();
     }, spec.fov);
-    await page.waitForTimeout(350);
-    await screenshot(spec.file, `Spray viewmodel at ${spec.width}x${spec.height}, ${spec.fov}-degree FOV.`);
-    fovMatrix.push({ ...spec, visibility });
+    for (const tool of fovTools) {
+      if (tool === 'washer') {
+        await poseFacing(5.6, 9.2, 5.6, 6.5, 0.06);
+        await cycleTo(tool, 'outdoor');
+      } else {
+        const pitch = ['spray', 'cloth', 'sponge'].includes(tool) ? -0.82 : -0.62;
+        await pose(-5.5, 3.2, 0, pitch);
+        await cycleTo(tool, 'indoor');
+      }
+      await waitForToasts();
+      const visibility = await page.evaluate((toolId) => {
+        const app = window.__fw;
+        const camera = app.scene3d.camera;
+        camera.updateMatrixWorld(true);
+        const group = app.scene3d.scene.getObjectByName(`Tool_${toolId}`);
+        let toolMeshes = 0;
+        let projectedToolMeshes = 0;
+        group?.updateWorldMatrix(true, true);
+        group?.traverse((object) => {
+          if (!object.isMesh || !object.visible) return;
+          let parent = object.parent;
+          let belongsToHands = false;
+          while (parent && parent !== group) {
+            if (parent.name === 'FirstPersonHands') belongsToHands = true;
+            parent = parent.parent;
+          }
+          if (belongsToHands) return;
+          toolMeshes += 1;
+          object.geometry.computeBoundingSphere?.();
+          const point = object.geometry.boundingSphere?.center?.clone() || object.position.clone();
+          object.localToWorld(point);
+          point.project(camera);
+          if (Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z)
+            && Math.abs(point.x) <= 1.1 && Math.abs(point.y) <= 1.1 && point.z >= -1 && point.z <= 1) {
+            projectedToolMeshes += 1;
+          }
+        });
+
+        const gripSockets = [];
+        group?.traverse((object) => {
+          if (!/^SOCKET_.*Grip/i.test(object.name || '')) return;
+          const point = object.getWorldPosition(object.position.clone());
+          gripSockets.push({ name: object.name, point });
+        });
+        const hands = ['Hand_Right', 'Hand_Left']
+          .map((name) => group?.getObjectByName(name)).filter((hand) => hand?.visible);
+        const handDetails = hands.map((hand) => {
+          const world = hand.getWorldPosition(hand.position.clone());
+          const projected = world.clone().project(camera);
+          const nearest = gripSockets.length
+            ? Math.min(...gripSockets.map((socket) => world.distanceTo(socket.point)))
+            : Infinity;
+          return {
+            name: hand.name,
+            projected: projected.toArray(),
+            projectedInFrame: Number.isFinite(projected.x) && Number.isFinite(projected.y)
+              && Number.isFinite(projected.z) && Math.abs(projected.x) <= 1.1
+              && Math.abs(projected.y) <= 1.1 && projected.z >= -1 && projected.z <= 1,
+            nearestGripDistance: nearest,
+          };
+        });
+        return {
+          equipped: app.scene3d.walk.getTool(),
+          cameraFov: camera.fov,
+          toolMeshes,
+          projectedToolMeshes,
+          hands: handDetails.length,
+          projectedHands: handDetails.filter((hand) => hand.projectedInFrame).length,
+          maxGripDistance: Math.max(0, ...handDetails.map((hand) => hand.nearestGripDistance)),
+          handDetails,
+        };
+      }, tool);
+      const file = tool === 'spray'
+        ? `${spec.fov === 50 ? 13 : spec.fov === 66 ? 14 : 15}-spray-${spec.width}x${spec.height}-fov${spec.fov}.png`
+        : path.join('fov-matrix', `${spec.key}-fov${spec.fov}-${tool}.png`);
+      await screenshot(file,
+        `${tool} viewmodel at ${spec.width}x${spec.height}, ${spec.fov}-degree FOV.`);
+      fovMatrix.push({ ...spec, tool, file, visibility });
+    }
   }
-  check('held equipment remains projected in-frame across FOV and resolution matrix',
-    fovMatrix.every((entry) => entry.visibility.meshes > 0 && entry.visibility.projectedInFrame > 0), fovMatrix);
+  check('all nine held tools remain projected in-frame across the low/default/high FOV matrix',
+    fovMatrix.length === fovTools.length * fovSpecs.length
+      && fovMatrix.every((entry) => entry.visibility.equipped === entry.tool
+        && entry.visibility.toolMeshes > 0
+        && entry.visibility.projectedToolMeshes > 0
+        && entry.visibility.hands > 0
+        && entry.visibility.projectedHands === entry.visibility.hands
+        && entry.visibility.maxGripDistance < 0.01), fovMatrix);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.evaluate(() => {
     window.__fw.scene3d.camera.fov = 66;
@@ -887,10 +1033,11 @@ async (page) => {
       && mediaCapture.nonSilentAudioWindows > 0,
     mediaCapture);
 
-  // Matched performance: same 1440x900 indoor pose and 2.5-second sampling as the baseline.
+  // Matched performance: same 1440x900 poses, 2.5-second samples, three repetitions, DPR 1,
+  // fixed 14:00 clear lighting, and warmed assets as the retained immutable-base measurements.
   await pose(-5.5, 3.2, 0, -0.62);
   await cycleTo(null);
-  const performance = { idleIndoor: [], vacuumActive: [] };
+  const performance = { idleIndoor: [], vacuumActive: [], washerIdle: [], washerActive: [] };
   for (let index = 0; index < 3; index += 1) {
     performance.idleIndoor.push(await performanceSample(`idle-indoor-${index + 1}`));
   }
@@ -905,12 +1052,72 @@ async (page) => {
   await page.mouse.up({ button: 'left' });
   await page.waitForTimeout(300);
 
-  const baselinePath = path.join(repo, 'qa', 'overnight', 'cleaning-gameplay', 'baseline', 'baseline-result.json');
+  await poseFacing(5.6, 9.2, 5.6, 6.5, 0.06);
+  await cycleTo('washer', 'outdoor');
+  const washerPerfViewport = page.viewportSize();
+  await page.mouse.move(Math.floor(washerPerfViewport.width / 2), Math.floor(washerPerfViewport.height / 2));
+  for (let index = 0; index < 3; index += 1) {
+    performance.washerIdle.push(await performanceSample(`washer-idle-${index + 1}`));
+    await page.mouse.down({ button: 'left' });
+    await page.waitForTimeout(300);
+    performance.washerActive.push(await performanceSample(`washer-active-${index + 1}`));
+    await page.mouse.up({ button: 'left' });
+    await page.waitForTimeout(300);
+  }
+
+  const baselinePath = path.join(
+    repo, 'qa', 'overnight', 'cleaning-gameplay', 'baseline',
+    'baseline-performance-comparable.json',
+  );
   const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
+  const baselineWasherIdle = baseline.performance.washerIdle;
+  const baselineWasherActive = baseline.performance.washerActive;
+  const comparableMetrics = [
+    'averageFps', 'onePercentLowFps', 'worstFrameMs', 'drawCalls', 'renderedTriangles',
+    'materialCount', 'geometryCount', 'textureCount', 'referencedTextureCount',
+    'textureMemoryBytes', 'programCount', 'jsHeapUsedBytes', 'eventListeners',
+    'uiMutationsPerSecond',
+  ];
+  const summarizePerformance = (entries) => Object.fromEntries(comparableMetrics.map((metric) => [
+    metric, median(entries.map((entry) => entry[metric])),
+  ]));
+  const pairedMetrics = Object.fromEntries(Object.keys(performance).map((scenario) => {
+    const baselineSummary = summarizePerformance(baseline.performance[scenario]);
+    const finalSummary = summarizePerformance(performance[scenario]);
+    const metrics = Object.fromEntries(comparableMetrics.map((metric) => {
+      const before = baselineSummary[metric];
+      const after = finalSummary[metric];
+      return [metric, {
+        baselineMedian: before,
+        finalMedian: after,
+        delta: Number.isFinite(before) && Number.isFinite(after) ? after - before : null,
+        deltaPercent: Number.isFinite(before) && before !== 0 && Number.isFinite(after)
+          ? (after - before) / before : null,
+      }];
+    }));
+    return [scenario, metrics];
+  }));
   const comparison = {
     viewport: { width: 1440, height: 900, deviceScaleFactor: 1 },
     sampleDurationSeconds: 2.5,
     samplesPerScenario: 3,
+    tolerances: {
+      averageFpsRetention: 0.75,
+      onePercentLowRetention: 0.65,
+      maximumDrawCallRatio: 1.25,
+      maximumTriangleRatio: 1.15,
+      additionalMaterials: 16,
+      additionalGeometries: 128,
+      additionalResidentTextures: 8,
+      additionalReferencedTextures: 8,
+      additionalTextureMemoryBytes: 64 * 1024 * 1024,
+      additionalPrograms: 16,
+      maximumPostGcHeapBytes: 384 * 1024 * 1024,
+      additionalEventListeners: 4,
+      additionalUiMutationsPerSecond: 2,
+      rationale: 'Headless WebGL 1% lows are scheduler-sensitive; medians of three retain 65% and averages 75%. Nine viewmodels plus thirty world props may add bounded resident resources, while covered deep-interior dressing is camera-culled outdoors. Post-GC heap remains under 384 MiB and repeated-switch growth is gated separately.',
+    },
+    pairedMetrics,
     idleAverageFps: {
       baselineMedian: median(baseline.performance.idleIndoor.map((entry) => entry.averageFps)),
       finalMedian: median(performance.idleIndoor.map((entry) => entry.averageFps)),
@@ -927,17 +1134,86 @@ async (page) => {
       baselineMedian: median(baseline.performance.vacuumActive.map((entry) => entry.onePercentLowFps)),
       finalMedian: median(performance.vacuumActive.map((entry) => entry.onePercentLowFps)),
     },
+    washerIdleAverageFps: {
+      baselineMedian: median(baselineWasherIdle.map((entry) => entry.averageFps)),
+      finalMedian: median(performance.washerIdle.map((entry) => entry.averageFps)),
+    },
+    washerAverageFps: {
+      baselineMedian: median(baselineWasherActive.map((entry) => entry.averageFps)),
+      finalMedian: median(performance.washerActive.map((entry) => entry.averageFps)),
+    },
+    washerOnePercentLow: {
+      baselineMedian: median(baselineWasherActive.map((entry) => entry.onePercentLowFps)),
+      finalMedian: median(performance.washerActive.map((entry) => entry.onePercentLowFps)),
+    },
   };
-  comparison.idleAverageFps.retention = comparison.idleAverageFps.finalMedian / comparison.idleAverageFps.baselineMedian;
-  comparison.vacuumAverageFps.retention = comparison.vacuumAverageFps.finalMedian / comparison.vacuumAverageFps.baselineMedian;
-  comparison.idleOnePercentLow.retention = comparison.idleOnePercentLow.finalMedian / comparison.idleOnePercentLow.baselineMedian;
-  comparison.vacuumOnePercentLow.retention = comparison.vacuumOnePercentLow.finalMedian / comparison.vacuumOnePercentLow.baselineMedian;
+  for (const entry of Object.values(comparison)) {
+    if (!entry || !Number.isFinite(entry.baselineMedian) || !Number.isFinite(entry.finalMedian)) continue;
+    entry.retention = entry.finalMedian / entry.baselineMedian;
+    entry.delta = entry.finalMedian - entry.baselineMedian;
+    entry.deltaPercent = entry.baselineMedian ? entry.delta / entry.baselineMedian : null;
+  }
   check('matched indoor idle performance retains at least 75% of baseline median FPS',
     comparison.idleAverageFps.retention >= 0.75, comparison.idleAverageFps);
   check('matched active-vacuum performance retains at least 75% of baseline median FPS',
     comparison.vacuumAverageFps.retention >= 0.75, comparison.vacuumAverageFps);
+  check('matched active-washer performance retains at least 75% of baseline median FPS',
+    comparison.washerAverageFps.retention >= 0.75, comparison.washerAverageFps);
+  check('matched 1% lows remain within the declared headless-browser tolerance',
+    comparison.idleOnePercentLow.retention >= 0.65
+      && comparison.vacuumOnePercentLow.retention >= 0.65
+      && comparison.washerOnePercentLow.retention >= 0.65,
+    {
+      idle: comparison.idleOnePercentLow,
+      vacuum: comparison.vacuumOnePercentLow,
+      washer: comparison.washerOnePercentLow,
+    });
+  const pairedValues = Object.values(pairedMetrics);
+  check('matched renderer work remains inside the declared draw-call and triangle budgets',
+    pairedValues.every((entry) => (
+      entry.drawCalls.finalMedian <= entry.drawCalls.baselineMedian
+        * comparison.tolerances.maximumDrawCallRatio
+      && entry.renderedTriangles.finalMedian <= entry.renderedTriangles.baselineMedian
+        * comparison.tolerances.maximumTriangleRatio
+    )), pairedMetrics);
+  check('resident materials, geometry, textures, programs, and estimated texture bytes are bounded',
+    pairedValues.every((entry) => (
+      entry.materialCount.finalMedian <= entry.materialCount.baselineMedian
+        + comparison.tolerances.additionalMaterials
+      && entry.geometryCount.finalMedian <= entry.geometryCount.baselineMedian
+        + comparison.tolerances.additionalGeometries
+      && entry.textureCount.finalMedian <= entry.textureCount.baselineMedian
+        + comparison.tolerances.additionalResidentTextures
+      && entry.referencedTextureCount.finalMedian <= entry.referencedTextureCount.baselineMedian
+        + comparison.tolerances.additionalReferencedTextures
+      && entry.textureMemoryBytes.finalMedian <= entry.textureMemoryBytes.baselineMedian
+        + comparison.tolerances.additionalTextureMemoryBytes
+      && entry.programCount.finalMedian <= entry.programCount.baselineMedian
+        + comparison.tolerances.additionalPrograms
+    )), pairedMetrics);
+  check('post-GC heap, event listeners, and UI mutation rate stay inside declared budgets',
+    pairedValues.every((entry) => (
+      entry.jsHeapUsedBytes.finalMedian <= comparison.tolerances.maximumPostGcHeapBytes
+      && entry.eventListeners.finalMedian <= entry.eventListeners.baselineMedian
+        + comparison.tolerances.additionalEventListeners
+      && entry.uiMutationsPerSecond.finalMedian <= entry.uiMutationsPerSecond.baselineMedian
+        + comparison.tolerances.additionalUiMutationsPerSecond
+    )), pairedMetrics);
+  const measuredScenarios = Object.values(performance).flat();
+  check('performance instrumentation captures full EffectComposer work and memory counters',
+    measuredScenarios.every((entry) => entry.drawCalls > 100
+      && entry.renderedTriangles > 100_000
+      && entry.materialCount > 0
+      && entry.textureCount > 0
+      && entry.referencedTextureCount > 0
+      && entry.textureMemoryBytes > 0
+      && Number.isFinite(entry.jsHeapUsedBytes)),
+    measuredScenarios);
 
   await cycleTo(null);
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().cleaningEffectsDiagnostics().washerWet.activeCells === 0
+  ), null, { timeout: 16000 });
   // Matched opposite angle from another walk-free point, showing bucket, wall tools, and supplies.
   await poseFacing(8.55, -1.25, 7.65, 1.08, -0.22);
   await waitForToasts();
@@ -964,7 +1240,7 @@ async (page) => {
     { consoleErrors, unexpectedFailedRequests, abortedDuringSceneReload, consoleWarnings });
 
   const failedChecks = checks.filter((entry) => !entry.pass);
-  return {
+  const result = {
     ok: failedChecks.length === 0,
     capturedAt: new Date().toISOString(),
     branch: 'overnight/cleaning-gameplay',
@@ -983,4 +1259,7 @@ async (page) => {
     diagnostics: { consoleErrors, consoleWarnings, failedRequests },
     finalSnapshot,
   };
+  const resultPath = path.join(out, 'acceptance-result.json');
+  fs.writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`);
+  return { ...result, resultPath };
 }
