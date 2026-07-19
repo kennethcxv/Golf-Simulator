@@ -16,17 +16,17 @@ async (page) => {
   const viewport = { width: 1600, height: 900 };
   const cameras = [
     { id: '01-checkout-overview', x: 0.5, z: 2.3, tx: 2.9, tz: 4.5, pitch: -0.10 },
-    { id: '02-checkout-customer-side', x: 4.5, z: 5.4, tx: 2.7, tz: 4.4, pitch: -0.10 },
+    { id: '02-checkout-customer-side', x: 5.0, z: 5.8, tx: 2.8, tz: 4.4, pitch: -0.06 },
     { id: '03-club-and-putter-racks', x: -6.3, z: -0.2, tx: -9.9, tz: -0.4, pitch: 0.02 },
     { id: '04-ball-and-accessory-walls', x: -6.9, z: -3.5, tx: -6.9, tz: -6.2, pitch: 0.05 },
     { id: '05-apparel-and-tables', x: -4.0, z: 3.4, tx: -5.4, tz: 0.0, pitch: -0.02 },
     { id: '06-bag-and-shoe-displays', x: 2.3, z: 1.7, tx: 3.7, tz: -1.9, pitch: -0.02 },
-    { id: '07-lounge', x: 1.3, z: -3.3, tx: 4.3, tz: -5.3, pitch: -0.03 },
-    { id: '08-office', x: 7.2, z: 4.3, tx: 9.6, tz: 4.6, pitch: -0.06 },
-    { id: '09-stockroom', x: 7.4, z: -2.3, tx: 8.1, tz: -5.9, pitch: -0.04 },
+    { id: '07-lounge', x: 0.8, z: -2.9, tx: 3.6, tz: -5.3, pitch: -0.07 },
+    { id: '08-office', x: 6.5, z: 3.7, tx: 9.4, tz: 4.5, pitch: -0.07 },
+    { id: '09-stockroom', x: 6.7, z: -2.1, tx: 8.0, tz: -5.5, pitch: -0.08 },
     { id: '10-receiving-and-pallets', x: 16.3, z: 4.9, yaw: 0.52, pitch: -0.25 },
     { id: '11-delivery-service-bay', x: 25.2, z: 9.2, yaw: 1.00, pitch: -0.14 },
-    { id: '12-stockroom-equipment-close', x: 8.8, z: -1.8, yaw: 0.74, pitch: -0.20 },
+    { id: '12-stockroom-equipment-close', x: 8.4, z: -1.9, tx: 6.7, tz: -5.3, pitch: -0.16 },
     { id: '13-exterior', x: 6.5, z: 15.5, tx: -0.5, tz: 3.0, pitch: 0.03 },
     // Asset 20 was hidden behind the polo-table framing in camera 05. These
     // dedicated normal-eye-height views prove its front, depth and finished rear.
@@ -127,12 +127,15 @@ async (page) => {
   });
   await page.waitForTimeout(1200);
 
-  // Fixed-camera evidence has its own normal-control acceptance route. Hide only the
-  // automation reminder here so changing pointer-lock state cannot pollute performance samples.
+  // Fixed-camera evidence has its own normal-control acceptance route. Hide transient control
+  // and focus labels here so they do not cover the asset being judged; changing pointer-lock
+  // state would pollute the matched performance samples.
   const pointerLockAcquired = false;
   await page.evaluate(() => {
-    const hint = document.querySelector('.shop-lockhint');
-    if (hint) hint.style.visibility = 'hidden';
+    for (const selector of ['.shop-lockhint', '.shop-prompt']) {
+      const element = document.querySelector(selector);
+      if (element) element.style.visibility = 'hidden';
+    }
   });
   await page.waitForTimeout(180);
 

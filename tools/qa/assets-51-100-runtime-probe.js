@@ -39,6 +39,8 @@ async (page) => {
   return {
     ok: runtime.result?.placed === 40
       && runtime.result?.failed === 0
+      && runtime.result?.staticBatchSavedDrawCalls > 0
+      && runtime.result?.placedStaticBatchSavedDrawCalls > 0
       && runtime.fittingRoom?.structuralColliders === 4
       && runtime.fittingRoom?.curtainColliderActive === true
       && runtime.interactionTargets.length === 22

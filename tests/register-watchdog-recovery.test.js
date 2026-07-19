@@ -185,3 +185,21 @@ test('live delivery holds BagHandoff and CustomerLeaving around their physical w
   assert.doesNotMatch(finalize, /flowTo\('BagHandoff'|flowTo\('CustomerLeaving'/,
     'finalize must not traverse timed physical states synchronously');
 });
+
+test('a customer arriving while the cashier remains active enters the normal scan flow', () => {
+  const source = fs.readFileSync(
+    new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
+    'utf8',
+  ).replaceAll('\r\n', '\n');
+  const beginStart = source.indexOf('  function begin(customer) {');
+  const beginEnd = source.indexOf('\n  function beginReservationPayment(', beginStart);
+  assert.ok(beginStart >= 0 && beginEnd > beginStart);
+  const begin = source.slice(beginStart, beginEnd);
+
+  assert.match(begin, /active && checkoutFlowState\(\) === 'WaitingForCashier'/,
+    'an already-active cashier must detect the newly waiting customer');
+  assert.match(begin, /flowTo\('EnteringCashierMode', 'customer-arrived-while-cashier-active'\)/,
+    'the active-arrival route must use the same authored entry transition as normal E input');
+  assert.match(begin, /enterTimer = 0\.30/,
+    'the active-arrival route must retain the visible entry beat before WaitingForScan');
+});

@@ -2473,6 +2473,10 @@ export function makeClubhouse(ctx) {
     rebuildDecor();
     decorSig = decorSignature();
     repaintGrime();
+    // Debris can change as part of a loaded renovation snapshot or a deterministic QA fixture.
+    // Keep its instanced presentation in lockstep with that state whenever the renovation layer
+    // is rebuilt; cleaning interactions already call the same refresh directly.
+    refreshDebrisVisual();
     refreshCondition();
     void sheet06Production.applyState(state);
   }

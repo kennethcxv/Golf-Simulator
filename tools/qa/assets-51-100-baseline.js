@@ -51,13 +51,13 @@ async (page) => {
     { id: '17-front-and-back-counter-context', x: 0.2, z: 2.0, tx: 3.2, tz: 4.6, pitch: -0.08 },
     { id: '18-lounge-furniture-context', x: 1.0, z: -2.6, tx: 4.0, tz: -5.0, pitch: -0.05 },
     { id: '19-office-desk-chair-and-props', x: 7.0, z: 3.6, tx: 9.3, tz: 4.6, pitch: -0.04 },
-    { id: '20-stockroom-shelving-and-cleaning-corner', x: 7.1, z: -2.0, tx: 6.1, tz: 1.45, pitch: -0.07 },
-    { id: '23-fitting-room-three-quarter', x: -6.75, z: 4.40, tx: -9.30, tz: 4.40, pitch: -0.04 },
-    { id: '24-packing-worktable-and-mounted-tools', x: 8.75, z: 0.45, tx: 6.90, tz: -0.90, pitch: -0.24 },
-    { id: '25-cleaning-bay-player-approach', x: 8.85, z: 0.05, tx: 6.85, tz: 1.52, pitch: -0.24 },
-    { id: '26-stock-shelf-box-supports', x: 6.95, z: -3.25, tx: 8.10, tz: -5.82, pitch: -0.12 },
-    { id: '27-entry-safety-and-utilities', x: 2.70, z: 3.85, tx: -0.40, tz: 6.25, pitch: 0.10 },
-    { id: '28-pressure-washer-storage-clearance', x: 8.15, z: -4.45, tx: 6.38, tz: -5.65, pitch: -0.24 },
+    { id: '20-stockroom-shelving-and-cleaning-corner', x: 8.90, z: -0.10, tx: 6.72, tz: 1.48, pitch: -0.27 },
+    { id: '23-fitting-room-three-quarter', x: -5.95, z: 3.20, tx: -9.30, tz: 4.40, pitch: -0.03 },
+    { id: '24-packing-worktable-and-mounted-tools', x: 9.10, z: 0.15, tx: 6.90, tz: -0.90, pitch: -0.25 },
+    { id: '25-cleaning-bay-player-approach', x: 9.55, z: 0.05, tx: 6.50, tz: 1.60, pitch: -0.27 },
+    { id: '26-stock-shelf-box-supports', x: 8.80, z: -3.05, tx: 7.90, tz: -5.72, pitch: -0.09 },
+    { id: '27-entry-safety-and-utilities', x: 1.15, z: 3.90, tx: -0.35, tz: 6.20, pitch: 0.04 },
+    { id: '28-pressure-washer-storage-clearance', x: 7.40, z: -3.15, tx: 6.30, tz: -5.70, pitch: -0.14 },
   ];
 
   async function pose(camera, tool = null, dirty = false) {
@@ -92,6 +92,14 @@ async (page) => {
   }
 
   const extraCaptures = [];
+  // The normal-control route records every prompt. Fixed-camera captures are the complementary
+  // art-review pass, so keep transient focus labels from covering the furniture being judged.
+  await page.evaluate(() => {
+    for (const selector of ['.shop-prompt', '.shop-lockhint']) {
+      const element = document.querySelector(selector);
+      if (element) element.style.visibility = 'hidden';
+    }
+  });
   for (const camera of cameras) {
     await pose(camera);
     const file = path.join(out, `${camera.id}.png`);

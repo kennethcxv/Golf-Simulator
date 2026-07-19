@@ -104,7 +104,7 @@ export const PROP_PLACEMENTS = Object.freeze([
     note: 'equipment storage at the partition end of receiving, outside the door and shelf access lanes' },
   { n: 79, x: 6.72, z: -5.58, mount: 'floor', ry: 0.45, category: 'cleaning-tool', collision: 'none',
     tool: 'washer', note: 'coiled hose and wand sit beside their pressure-washer machine' },
-  { n: 80, x: 7.72, z: 0.78, mount: 'floor', ry: -0.15, category: 'cleaning-tool', collision: 'none',
+  { n: 80, x: 5.82, z: 0.78, mount: 'floor', ry: -0.15, category: 'cleaning-tool', collision: 'none',
     tool: 'trashbag', note: 'trash bag marks the disposal end of the cleaning bay' },
 
   // Sheet 9 — office and service-desk props.

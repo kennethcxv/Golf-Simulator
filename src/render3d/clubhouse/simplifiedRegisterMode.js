@@ -123,6 +123,11 @@ const INSERTED = {
 
 const DRAWER_BILLS = [1, 5, 10, 20, 50];
 const DRAWER_COINS = [0.01, 0.05, 0.1, 0.2, 0.5];
+// A till opening in roughly 0.31 s was over before the player could read the physical motion (and
+// before a single full-resolution evidence frame could be retained). Give the opening stroke one
+// deliberate second; closing can remain brisk after the handoff is complete.
+const DRAWER_OPEN_SPEED = 1;
+const DRAWER_CLOSE_SPEED = 2.4;
 const SLOT = {};
 const SLOT_META = {};
 const SLOT_CLIP = {};
@@ -2715,6 +2720,14 @@ export function createRegisterMode(B) {
     // pose an item click uses), with the POS readable at the right. Check-ins keep the
     // straight-on monitor view; they have nothing on the counter to look at.
     assignWorkspace(tx.stage === 'scanning' && unscannedCount(tx) > 0 ? 'scan' : 'monitor');
+    // A cashier may remain at the desk between customers. In that case enter() will not run
+    // again, so begin the same authored entry transition here; otherwise the payment verbs can
+    // advance while the flow remains stranded at WaitingForCashier and the completed physical
+    // handoff can never unlock exact-once banking.
+    if (active && checkoutFlowState() === 'WaitingForCashier') {
+      flowTo('EnteringCashierMode', 'customer-arrived-while-cashier-active');
+      enterTimer = 0.30;
+    }
     clearPhysicalTransaction();
     // clearPhysicalTransaction intentionally does not clear tx/cust; it only removes
     // stale meshes and gesture state from a prior completed presentation.
@@ -4675,7 +4688,7 @@ export function createRegisterMode(B) {
     if (drawerPresentationVisible(drawerWant, drawerAmount)
         && !drawerMotionRoot.visible) drawerMotionRoot.visible = true;
     if (Math.abs(drawerAmount - drawerWant) > 0.001) {
-      const speed = drawerWant > drawerAmount ? 3.2 : 2.4;
+      const speed = drawerWant > drawerAmount ? DRAWER_OPEN_SPEED : DRAWER_CLOSE_SPEED;
       drawerAmount += Math.sign(drawerWant - drawerAmount)
         * Math.min(Math.abs(drawerWant - drawerAmount), dt * speed);
       drawerMotionRoot.position.z = drawerAmount * REGISTER.drawer.travel;

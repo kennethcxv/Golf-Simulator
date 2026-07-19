@@ -815,7 +815,9 @@ export function buildShell(B) {
   }
   // service wing
   const officeCan = addCan(8.2, 4.3, { real: true, intensity: 10 });
-  const stockCan = addCan(7.9, -2.4, { real: true, intensity: 10 });
+  // Put the service-wing practical between the cleaning bay and the back shelves. Its old
+  // position lit the doorway while leaving the authored stock faces in a murky green corner.
+  const stockCan = addCan(7.9, -3.6, { real: true, intensity: 11 });
   addCan(8.6, 0.4);
   addCan(8.6, -5.2);
   void officeCan; void stockCan;
