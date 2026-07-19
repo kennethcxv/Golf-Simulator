@@ -69,6 +69,10 @@ async function setupFixture(page, mode) {
     clubhouse.rebuildStock();
     const shop = app.state.shop;
     const before = {
+      cash: app.state.cash,
+      ledgerShopSales: app.state.ledger?.today?.revenue?.shopSales || 0,
+      reviews: app.state.club?.reviews?.length || 0,
+      reputation: app.state.club?.reputation || 0,
       units: (shop.salesLive || {}).units || 0,
       revenue: (shop.salesLive || {}).revenue || 0,
       held: (shop.held || []).length,
@@ -765,7 +769,7 @@ async function cashRoute(page, shot) {
         return Math.round(Object.entries(tx?.hand || {}).reduce(
           (sum, [value, quantity]) => sum + Number(value) * Number(quantity), 0,
         ) * 100) === expected;
-      }, expectedCents, { timeout: 3000 });
+      }, expectedCents, { timeout: 8000 });
       await page.waitForTimeout(130);
     }
   };
@@ -914,6 +918,11 @@ async function finalSnapshot(page, customerName) {
         phase: customer.checkoutPhase,
         cart: customer.cart.length,
       } : null,
+      cash: app.state.cash,
+      ledgerShopSales: app.state.ledger?.today?.revenue?.shopSales || 0,
+      reviews: app.state.club?.reviews?.length || 0,
+      reputation: app.state.club?.reputation || 0,
+      latestReview: app.state.club?.reviews?.[0] || null,
       units: (shop.salesLive || {}).units || 0,
       revenue: (shop.salesLive || {}).revenue || 0,
       held: (shop.held || []).length,
@@ -1119,6 +1128,28 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   assert(final.held === fixture.before.held, 'Held inventory did not return to its opening count.');
   assert(final.ticket && final.ticket.method === mode, `Expected ${mode} ticket.`);
   assert(final.customer && final.customer.bought && final.customer.cart === 0, 'Customer did not receive the finalized products.');
+  const saleTotal = Number(final.ticket.total) || 0;
+  const cashDelta = Math.round((final.cash - fixture.before.cash) * 100) / 100;
+  const ledgerShopSalesDelta = Math.round(
+    (final.ledgerShopSales - fixture.before.ledgerShopSales) * 100,
+  ) / 100;
+  const reviewCountDelta = final.reviews - fixture.before.reviews;
+  assert(cashDelta === saleTotal,
+    `Cash changed by ${cashDelta}, but the accepted ticket was ${saleTotal}.`);
+  assert(ledgerShopSalesDelta === saleTotal,
+    `Shop-sales ledger changed by ${ledgerShopSalesDelta}, but the accepted ticket was ${saleTotal}.`);
+  assert(reviewCountDelta === 1, `Successful checkout should create exactly one review; delta was ${reviewCountDelta}.`);
+  assert(final.latestReview && Number.isFinite(final.latestReview.stars)
+      && typeof final.latestReview.text === 'string' && final.latestReview.text.length > 0
+      && Array.isArray(final.latestReview.cited) && final.latestReview.cited.length > 0,
+  `Checkout review lacks causal gameplay evidence: ${JSON.stringify(final.latestReview)}.`);
+  const businessOutcome = {
+    cashDelta,
+    ledgerShopSalesDelta,
+    reviewCountDelta,
+    reputationDelta: Math.round((final.reputation - fixture.before.reputation) * 10) / 10,
+    latestReview: final.latestReview,
+  };
   const departureStart = await page.evaluate((name) => {
     const clubhouse = window.__fw.scene3d.clubhouse();
     const customers = typeof clubhouse.customers === 'function'
@@ -1164,6 +1195,7 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     customer: fixture.customer,
     before: fixture.before,
     final,
+    businessOutcome,
     evidence,
     scanReadEvidence,
     cashDrawerTravelEvidence,

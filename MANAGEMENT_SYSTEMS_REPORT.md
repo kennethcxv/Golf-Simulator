@@ -56,26 +56,32 @@ Key accepted outcomes:
 - Front desk: reservation lounge/arrival and Escape hierarchy; capacity-safe walk-in; one $64 cash ticket; no-show deposit and fee provenance unchanged through two normal Save/Load cycles.
 - Card checkout: three physical products, one $37.95 ticket, one unit removed from each shelf, decline/retry, receipt and bag handoff.
 - Cash checkout: three physical products, one $35.72 ticket, $40 tender, exact $4.28 change, under/over/excess rejection boundaries, authored drawer midpoint, receipt and bag handoff.
+- Strengthened 1600x900 business outcome: both normal-control sales also banked their ticket total to cash and `ledger.today.revenue.shopSales` exactly once, created exactly one causal gameplay review, and moved reputation from 30.0 to 30.6. The review cited the observed wait-time and clubhouse-exterior factors. Structured results and fresh 30-frame audio/video evidence are under `qa/management/acceptance/register/1600x900/{card,cash}/`.
 - Register resolution matrix: card and cash pass at 1280x720, 1600x900, and 1920x1080; every run references all 30 PNGs and preserves production build hashes.
 - Persistence: green fee, ball markup, membership dues, featured category, club name, and reduced checkout camera motion survive production autosave, full reload, and Continue exactly.
 
 ## Performance comparison
 
-The comparable before/after scenario is the physical laptop at 1600x900, followed by ten normal open/close cycles.
+The comparable before/after scenario is the physical laptop at 1600x900, DPR 1, the fixed office-chair camera at day-local 09:00, a 2.5-second warm-up, a six-second sample, traversal of every available management destination, and ten normal `E`/`Escape` open/close cycles. FPS is derived from `requestAnimationFrame`; scene counts come from Three.js; DOM/listener/heap values come from Chrome DevTools Protocol. GPU-resident texture bytes are unavailable from Three.js and are explicitly unmeasured.
 
-| Metric | Before | After |
-| --- | ---: | ---: |
-| Average FPS | 120.00 | 120.00 |
-| 1% low FPS | 117.65 | 117.30 |
-| Worst frame | 8.5 ms | 8.6 ms |
-| Scene geometries | 2,658 | 2,658 |
-| Scene materials | 768 | 768 |
-| Scene textures | 205 | 205 |
-| Post-cycle listeners | 99 | 99 |
-| Post-cycle DOM nodes | 793 | 794 |
-| Post-cycle JS heap | 53.98 MB | 54.35 MB |
+The repository has no published performance budget. The acceptance tolerance used here is under 5% movement in average/1%-low FPS, under 2 ms worst-frame movement, no post-cycle listener growth, under 5 MB post-GC heap growth, and live heap below 250 MB. Those bounds preserve a stable 120 Hz presentation while catching persistent UI leaks.
 
-The after run reported zero console errors, page errors, or failed requests. The only warning was the same Chromium `X4000` shader compiler warning present in the baseline.
+| Metric | Before | After | Absolute delta | Percent delta |
+| --- | ---: | ---: | ---: | ---: |
+| Average FPS | 120.00 | 120.00 | 0.00 | 0.00% |
+| 1% low FPS | 117.65 | 117.30 | -0.35 | -0.30% |
+| Worst frame | 8.5 ms | 8.6 ms | +0.1 ms | +1.18% |
+| Draw calls | 1 | 1 | 0 | 0.00% |
+| Rendered triangles | 1 | 1 | 0 | 0.00% |
+| Scene geometries | 2,658 | 2,658 | 0 | 0.00% |
+| Scene materials | 768 | 768 | 0 | 0.00% |
+| Scene textures | 205 | 205 | 0 | 0.00% |
+| UI mutations / second | 1.0 | 1.0 | 0.0 | 0.00% |
+| Post-cycle listeners | 99 | 99 | 0 | 0.00% |
+| Post-cycle DOM nodes | 793 | 794 | +1 | +0.13% |
+| Post-cycle JS heap | 53.98 MB | 54.35 MB | +0.37 MB | +0.69% |
+
+The expanded application legitimately creates more transient UI while every new tab is visited: the pre-GC open-laptop sample moved from 157.44 MB / 225 listeners / 2,190 DOM nodes to 192.52 MB / 593 listeners / 6,055 DOM nodes. The after route includes 17 page-level tabs that do not exist in the legacy traversal, so those transient counts are workload rather than an apples-to-apples leak comparison. After closing the laptop, ten repeated cycles, and collection, listeners returned to exactly 99 and heap/DOM deltas were only +0.69%/+0.13%; FPS and scene resources stayed flat. The after run reported zero console errors, page errors, or failed requests. The only warning was the same Chromium `X4000` shader compiler warning present in the baseline.
 
 The resolution samples also passed all pages, 17 tabs, and ten cycles:
 
@@ -88,15 +94,19 @@ The resolution samples also passed all pages, 17 tabs, and ten cycles:
 - Focused management/business regression: 183/183 passing.
 - Single-state connected business loop: 1/1 passing.
 - Cashier QA provenance contracts after timing hardening: 3/3 passing.
+- Completion-audit rerun: 28/28 changed management/turf checks, 3/3 cashier provenance checks, all 13 changed JavaScript/MJS files pass syntax checks, and `git diff --check` passes.
+- Strengthened checkout/business acceptance: card and cash pass at 1600x900 with exact cash, shop-sales ledger, inventory, and causal-review deltas in addition to the physical transaction gates.
 - `git diff --check`: passing.
 - Full-suite baseline: 1,654 passed, 1 failed, 3 skipped out of 1,658 tests.
 - Final low-concurrency full suite: 1,659 passed, 1 failed, 3 skipped out of 1,663 tests. All five added tests and the corrected QA provenance contract pass. The sole failure is the identical baseline Blender evidence gate.
+- Completion-audit low-concurrency full suite on the final QA/report change: 1,659 passed, 1 failed, 3 skipped out of 1,663 tests in 1,288,786 ms. Its sole failure is again the identical baseline Blender evidence gate; retained TAP is `qa/management/final/full-tests-completion-audit-final.tap`.
 
 ## Known limitations
 
 - `tests/assets-51-60-reimport-report.test.js` remains red before and after this branch because `generated/blender/assets_51_60_reimport_report.json` has not been produced by the required Blender verification script. This branch does not run Blender or fabricate that evidence.
 - Paid advertising campaigns are not simulated. Marketing exposes the real featured-category attention nudge and live demand drivers, and explicitly says paid campaigns are unavailable.
 - The recurring Chromium `X4000` shader warning remains unchanged from baseline.
+- The named ref `overnight/base-2026-07-18` is no longer present. Isolation is still directly provable: `50c8614^`, the branch merge-base, and the original integration worktree HEAD are all `1dfb9de646c6785b027ddb023dda1e3a6af9a5c6`.
 - No Git remote is configured in this repository, so this branch cannot be pushed until a maintainer adds or restores the intended remote.
 
 ## Integration
