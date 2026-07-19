@@ -174,6 +174,10 @@ async (page) => {
         st.course, probeField, probeDistance, rect.x0, rect.y0, rect.x1, rect.y1, 2,
       ), 8),
       turfPackFull: time(() => scene.updateTurf(st), 8),
+      waterRebuild: time(() => scene.rebuildWater(), 4),
+      pathRebuild: time(() => scene.rebuildPaths(), 4),
+      objectRebuild: time(() => scene.rebuildObjects(), 4),
+      floraRebuild: time(() => scene.rebuildTrees(), 4),
       // stamp tools (green/bunker/water/tee): relief invalidation forces a full
       // terrain rebuild today, even though the feature is local
       stampCall: time(() => scene.refreshGround(st, {

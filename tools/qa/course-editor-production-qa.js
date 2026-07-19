@@ -33,6 +33,7 @@ async (page) => {
   const startedAt = new Date().toISOString();
   const captures = [];
   const checkpoints = [];
+  const actionTimings = [];
   const blockers = [];
   const diagnostics = {
     consoleErrors: [],
@@ -90,6 +91,13 @@ async (page) => {
   const settle = async (count = 6) => {
     await waitFrames(count);
     await page.waitForTimeout(80);
+  };
+
+  const measureAction = async (label, action) => {
+    const started = Date.now();
+    const value = await action();
+    actionTimings.push({ label, durationMs: Date.now() - started });
+    return value;
   };
 
   const capture = async (name, description, extra = {}) => {
@@ -397,13 +405,15 @@ async (page) => {
     },
   );
 
-  const dragControl = async (control) => {
+  const dragControl = async (control, label = 'feature control drag') => {
+    const started = Date.now();
     requireTruth(control?.from?.safe && control?.to?.safe, 'No visible editable control point was found.', control);
     await page.mouse.move(control.from.x, control.from.y);
     await page.mouse.down();
     await page.mouse.move(control.to.x, control.to.y, { steps: 10 });
     await page.mouse.up();
     await settle(10);
+    actionTimings.push({ label, durationMs: Date.now() - started });
   };
 
   const greenPinCandidate = (holeId, pinKey) => page.evaluate(async ({ selectedHoleId, key }) => {
@@ -644,7 +654,12 @@ async (page) => {
     requestAnimationFrame(tick);
   }), durationMs);
 
-  const waitForRendererMemoryStable = async ({ timeoutMs = 15000, intervalMs = 500, confirmations = 3 } = {}) => {
+  const waitForRendererMemoryStable = async ({
+    timeoutMs = 15000,
+    intervalMs = 500,
+    confirmations = 4,
+    minimumDurationMs = 4500,
+  } = {}) => {
     const started = Date.now();
     const samples = [];
     let previous = null;
@@ -666,7 +681,7 @@ async (page) => {
         && current.resources === previous.resources) unchanged += 1;
       else unchanged = 0;
       previous = current;
-      if (unchanged >= confirmations) {
+      if (unchanged >= confirmations && Date.now() - started >= minimumDurationMs) {
         return { stable: true, durationMs: Date.now() - started, samples };
       }
     }
@@ -798,7 +813,7 @@ async (page) => {
         control = await featureControl('green', { holeId: selectedHole.id });
       }
       requireTruth(control, 'The selected green has no reachable boundary control.', before);
-      await dragControl(control);
+      await dragControl(control, 'green boundary drag');
       const fringe = await setRange('Fringe', 2.25);
       const apron = await setRange('Apron', 5);
       const raise = await setRange('Raise', 2.2);
@@ -807,7 +822,7 @@ async (page) => {
       await panelButton('B', 0);
       const pinCandidate = await greenPinCandidate(selectedHole.id, 'B');
       requireTruth(pinCandidate, 'No reachable legal pin-B position was found on the edited green.');
-      await page.mouse.click(pinCandidate.x, pinCandidate.y);
+      await measureAction('pin socket placement', () => page.mouse.click(pinCandidate.x, pinCandidate.y));
       await settle(8);
       await toolPanel().getByRole('button', { name: 'Play B', exact: true }).click();
       await settle(6);
@@ -850,22 +865,33 @@ async (page) => {
       const rows = toolPanel().locator('.ced-pathrow');
       await rows.nth(control.recordIndex).getByRole('button', { name: 'Edit', exact: true }).click();
       await settle(4);
+      // Edit selection may frame the retained feature. Reproject the handle
+      // after that production camera move instead of dragging stale pixels.
+      control = await featureControl('bunker', {
+        holeId: selectedHole.id,
+        recordIndex: control.recordIndex,
+      });
+      requireTruth(control, 'The selected bunker has no reachable control after feature framing.');
       const beforeFeature = await findBunker(selectedHole.id, control.id, control.recordIndex);
       const beforeCount = await rows.count();
-      await dragControl(control);
+      await dragControl(control, 'bunker boundary drag');
       const depth = await setRange('Depth', 3.2 * 10);
       const lip = await setRange('Lip', 1.4 * 10);
       const editedFeature = await findBunker(selectedHole.id, control.id, control.recordIndex);
-      await toolPanel().getByRole('button', { name: 'Delete bunker', exact: true }).click();
-      await settle(8);
+      await measureAction('bunker delete', async () => {
+        await toolPanel().getByRole('button', { name: 'Delete bunker', exact: true }).click();
+        await settle(8);
+      });
       const afterDeleteCount = await page.evaluate((holeId) => {
         const course = window.__fw.state.course;
         const hole = course.holes.find((candidate) => candidate.id === holeId);
         return course.vec?.holes?.find((candidate) => candidate.id === hole?.vecId)?.bunkers?.length || 0;
       }, selectedHole.id);
       const deletedScreenshot = await capture('bunker-deleted', 'Bunker deletion before Undo.');
-      await page.locator('.ced-top-btn[title^="Undo"]').click();
-      await settle(10);
+      await measureAction('bunker undo', async () => {
+        await page.locator('.ced-top-btn[title^="Undo"]').click();
+        await settle(10);
+      });
       const restoredFeature = await findBunker(selectedHole.id, control.id, control.recordIndex);
       const restoredScreenshot = await capture('bunker-restored-by-undo', 'Bunker restored through the top-bar Undo control.');
       const checks = {
@@ -900,8 +926,13 @@ async (page) => {
       await toolPanel().locator('.ced-pathrow').nth(waterControl.displayIndex)
         .getByRole('button', { name: 'Edit', exact: true }).click();
       await settle(4);
+      waterControl = await featureControl('water', {
+        holeId: selectedHole.id,
+        recordIndex: waterControl.recordIndex,
+      });
+      requireTruth(waterControl, 'The selected pond has no reachable shoreline after feature framing.');
       const waterBefore = await findWater(waterControl.id, waterControl.recordIndex);
-      await dragControl(waterControl);
+      await dragControl(waterControl, 'pond shoreline drag');
       const waterDepthInput = await setRange('Depth', 5.6 * 10);
       const waterAfter = await findWater(waterControl.id, waterControl.recordIndex);
 
@@ -912,9 +943,11 @@ async (page) => {
       const route = await openRoute();
       requireTruth(route?.length === 3, 'No reachable open route was found for stream drawing.');
       const streamCountBefore = await page.evaluate(() => window.__fw.state.course.vec?.streams?.length || 0);
-      for (const point of route) await page.mouse.click(point.x, point.y);
-      await page.mouse.click(route[2].x, route[2].y, { button: 'right' });
-      await settle(12);
+      await measureAction('stream draw and finish', async () => {
+        for (const point of route) await page.mouse.click(point.x, point.y);
+        await page.mouse.click(route[2].x, route[2].y, { button: 'right' });
+        await settle(12);
+      });
       const streamCountAfterDraw = await page.evaluate(() => window.__fw.state.course.vec?.streams?.length || 0);
       requireTruth(streamCountAfterDraw === streamCountBefore + 1, 'Normal pointer drawing did not add a stream.', {
         streamCountBefore,
@@ -933,11 +966,16 @@ async (page) => {
       await toolPanel().locator('.ced-pathrow').nth(streamControl.displayIndex)
         .getByRole('button', { name: 'Edit', exact: true }).click();
       await settle(4);
+      streamControl = await featureControl('stream', {
+        holeId: selectedHole.id,
+        recordIndex: streamIndex,
+      });
+      requireTruth(streamControl, 'The selected stream has no reachable centerline after feature framing.');
       const streamBeforeEdit = await page.evaluate((index) => JSON.parse(JSON.stringify(
         window.__fw.state.course.vec.streams[index],
       )), streamIndex);
       const editedStreamWidth = await setRange('Width', 10);
-      await dragControl(streamControl);
+      await dragControl(streamControl, 'stream centerline drag');
       const streamAfterEdit = await page.evaluate((index) => JSON.parse(JSON.stringify(
         window.__fw.state.course.vec.streams[index],
       )), streamIndex);
@@ -980,9 +1018,11 @@ async (page) => {
       }
       requireTruth(bridgeRoute?.route?.length === 3, 'No reachable route crosses an authored water body for bridge QA.');
       const pathCountBefore = await page.evaluate(() => window.__fw.state.course.paths.length);
-      for (const screen of bridgeRoute.screens) await page.mouse.click(screen.x, screen.y);
-      await page.mouse.click(bridgeRoute.screens[2].x, bridgeRoute.screens[2].y, { button: 'right' });
-      await settle(16);
+      await measureAction('bridge path draw and finish', async () => {
+        for (const screen of bridgeRoute.screens) await page.mouse.click(screen.x, screen.y);
+        await page.mouse.click(bridgeRoute.screens[2].x, bridgeRoute.screens[2].y, { button: 'right' });
+        await settle(16);
+      });
       const created = await page.evaluate(() => JSON.parse(JSON.stringify(window.__fw.state.course.paths.at(-1))));
       requireTruth(created && (await page.evaluate(() => window.__fw.state.course.paths.length)) === pathCountBefore + 1,
         'Normal pointer drawing did not create the bridge path.', { pathCountBefore, created, bridgeRoute });
@@ -1008,7 +1048,7 @@ async (page) => {
       const beforeDrag = await page.evaluate((id) => JSON.parse(JSON.stringify(
         window.__fw.state.course.paths.find((candidate) => candidate.id === id),
       )), bridgePathId);
-      await dragControl(pathControl);
+      await dragControl(pathControl, 'bridge path centerline drag');
       const edited = await page.evaluate((id) => JSON.parse(JSON.stringify(
         window.__fw.state.course.paths.find((candidate) => candidate.id === id),
       )), bridgePathId);
@@ -1017,12 +1057,16 @@ async (page) => {
         'Bridge path after selected width/material/deck/rail/support edits and centerline drag.',
       );
 
-      await toolPanel().getByRole('button', { name: 'Delete path', exact: true }).click();
-      await settle(10);
+      await measureAction('bridge path delete', async () => {
+        await toolPanel().getByRole('button', { name: 'Delete path', exact: true }).click();
+        await settle(10);
+      });
       const deleted = await page.evaluate((id) => !window.__fw.state.course.paths.some((candidate) => candidate.id === id), bridgePathId);
       const deletedScreenshot = await capture('bridge-path-deleted', 'Selected bridge path deleted through its production control.');
-      await page.locator('.ced-top-btn[title^="Undo"]').click();
-      await settle(14);
+      await measureAction('bridge path undo', async () => {
+        await page.locator('.ced-top-btn[title^="Undo"]').click();
+        await settle(14);
+      });
       const restored = await page.evaluate((id) => {
         const found = window.__fw.state.course.paths.find((candidate) => candidate.id === id);
         return found ? JSON.parse(JSON.stringify(found)) : null;
@@ -1080,8 +1124,10 @@ async (page) => {
         'Green one-yard-snapped placement ghost for a Bench.',
       );
       const objectCountBefore = await page.evaluate(() => window.__fw.state.course.objects.length);
-      await page.mouse.click(firstCandidate.x, firstCandidate.y);
-      await settle(12);
+      await measureAction('object placement', async () => {
+        await page.mouse.click(firstCandidate.x, firstCandidate.y);
+        await settle(12);
+      });
       const placed = await page.evaluate(() => JSON.parse(JSON.stringify(window.__fw.state.course.objects.at(-1))));
       const objectCountAfterPlace = await page.evaluate(() => window.__fw.state.course.objects.length);
 
@@ -1092,8 +1138,10 @@ async (page) => {
         'bench-collision-ghost',
         'Red collision ghost over the just-placed Bench.',
       );
-      await page.mouse.click(firstCandidate.x, firstCandidate.y);
-      await settle(8);
+      await measureAction('object collision rejection', async () => {
+        await page.mouse.click(firstCandidate.x, firstCandidate.y);
+        await settle(8);
+      });
       const objectCountAfterRejectedClick = await page.evaluate(() => window.__fw.state.course.objects.length);
 
       await useTool('Select');
@@ -1106,27 +1154,33 @@ async (page) => {
         avoidCell: { x: placed.x, y: placed.y },
       });
       requireTruth(moveCandidate, 'No second collision-safe snapped location exists for moving the Bench.');
-      await page.mouse.move(placedScreen.x, placedScreen.y);
-      await page.mouse.down();
-      await page.mouse.move(moveCandidate.x, moveCandidate.y, { steps: 14 });
-      await page.mouse.up();
-      await settle(12);
+      await measureAction('object move', async () => {
+        await page.mouse.move(placedScreen.x, placedScreen.y);
+        await page.mouse.down();
+        await page.mouse.move(moveCandidate.x, moveCandidate.y, { steps: 14 });
+        await page.mouse.up();
+        await settle(12);
+      });
       const moved = await page.evaluate((id) => JSON.parse(JSON.stringify(
         window.__fw.state.course.objects.find((object) => object.id === id),
       )), placed.id);
-      const rotate = await setRange('Rotate', 90);
-      const scale = await setRange('Scale', 125);
+      const rotate = await measureAction('object rotate', () => setRange('Rotate', 90));
+      const scale = await measureAction('object scale', () => setRange('Scale', 125));
       const transformed = await page.evaluate((id) => JSON.parse(JSON.stringify(
         window.__fw.state.course.objects.find((object) => object.id === id),
       )), placed.id);
 
       const countBeforeDuplicate = await page.evaluate(() => window.__fw.state.course.objects.length);
-      await toolPanel().getByRole('button', { name: 'Duplicate', exact: true }).click();
-      await settle(12);
+      await measureAction('object duplicate', async () => {
+        await toolPanel().getByRole('button', { name: 'Duplicate', exact: true }).click();
+        await settle(12);
+      });
       const countAfterDuplicate = await page.evaluate(() => window.__fw.state.course.objects.length);
       const duplicate = await page.evaluate(() => JSON.parse(JSON.stringify(window.__fw.state.course.objects.at(-1))));
-      await toolPanel().getByRole('button', { name: 'Remove', exact: true }).click();
-      await settle(12);
+      await measureAction('object remove', async () => {
+        await toolPanel().getByRole('button', { name: 'Remove', exact: true }).click();
+        await settle(12);
+      });
       const countAfterRemove = await page.evaluate(() => window.__fw.state.course.objects.length);
       const transformedScreenshot = await capture(
         'bench-moved-rotated-scaled',
@@ -1139,9 +1193,11 @@ async (page) => {
       await saveModal.waitFor({ state: 'visible', timeout: 5000 });
       const primarySave = saveModal.getByRole('button', { name: /^(Build & save|Save)$/ });
       const saveAction = (await primarySave.textContent())?.trim();
-      await primarySave.click();
-      await saveModal.waitFor({ state: 'hidden', timeout: 30000 });
-      await settle(10);
+      await measureAction('course build and save', async () => {
+        await primarySave.click();
+        await saveModal.waitFor({ state: 'hidden', timeout: 30000 });
+        await settle(10);
+      });
 
       expectedNavigation = true;
       await page.reload({ waitUntil: 'domcontentloaded' });
@@ -1460,6 +1516,7 @@ async (page) => {
         postReload: postReloadPerformance,
         postReloadRendererStability,
         final: finalPerformance,
+        actionTimings,
         ratio: {
           averageFps: Number((finalPerformance.averageFps / Math.max(0.01, baselinePerformance.averageFps)).toFixed(3)),
           onePercentLowFps: Number((finalPerformance.onePercentLowFps
@@ -1520,7 +1577,7 @@ async (page) => {
       },
       checkpoints,
       blockers,
-      performance: { baseline: baselinePerformance, final: finalPerformance },
+      performance: { baseline: baselinePerformance, final: finalPerformance, actionTimings },
       diagnostics,
       visualReview: {
         status: 'blocked',
