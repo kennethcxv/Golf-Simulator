@@ -1277,16 +1277,20 @@ body.register-mode .view-toggle { display: none !important; }
 }
 .ced-title .ced-ico { color: var(--ced-gold); }
 .ced-top-left, .ced-top-right, .ced-bill-wrap { display: flex; align-items: center; gap: 8px; }
+.ced-top-left, .ced-top-right { flex: none; }
+.ced-bill-wrap { min-width: 0; flex: 1 1 auto; justify-content: center; gap: 6px; }
 .ced-top-btn {
   height: 38px; padding: 0 14px; font-size: 0.95rem; white-space: nowrap;
   display: inline-flex; align-items: center; gap: 8px;
 }
 .ced-holechip {
+  min-width: 0; max-width: 300px; overflow: hidden; text-overflow: ellipsis;
   height: 38px; padding: 0 14px; display: inline-flex; align-items: center; gap: 9px;
   background: var(--ced-panel); border: 1px solid var(--ced-gold); border-radius: 8px;
   color: var(--ced-ink); font-size: 0.95rem; white-space: nowrap;
 }
 .ced-holechip b { color: var(--ced-gold2); font-weight: 600; }
+.ced-holechip span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ced-money { color: var(--accent); font-weight: 700; font-size: 1.08rem; white-space: nowrap; }
 .ced-clock { color: var(--ced-sage); font-size: 0.9rem; white-space: nowrap; }
 .ced-bill { color: var(--ced-gold2); font-size: 0.94rem; font-weight: 600; white-space: nowrap; }
@@ -1294,6 +1298,12 @@ body.register-mode .view-toggle { display: none !important; }
   background: var(--ced-panel); color: var(--ced-ink); border: 1px solid var(--ced-edge);
   border-radius: 8px; padding: 8px 10px; height: 38px; font-size: 0.92rem;
 }
+.ced-camera {
+  width: 148px; height: 38px; flex: 0 1 148px;
+  background: var(--ced-panel); color: var(--ced-ink); border: 1px solid var(--ced-gold);
+  border-radius: 8px; padding: 8px 9px; font-size: 0.9rem;
+}
+.ced-camera:focus-visible { outline: 2px solid var(--ced-gold2); outline-offset: 1px; }
 
 /* --- left column: tool rail + contextual controls -------------------------- */
 .ced-left {
@@ -1448,13 +1458,13 @@ body.register-mode .view-toggle { display: none !important; }
 /* --- playtest -------------------------------------------------------------- */
 .ced-pt {
   position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-content: center;
+  display: flex; align-items: center; gap: 7px; flex-wrap: nowrap; justify-content: center;
   background: var(--ced-bg); border: 1px solid var(--ced-edge); border-radius: 13px;
-  padding: 10px 14px; box-shadow: var(--shadow); max-width: 94vw;
+  padding: 8px 10px; box-shadow: var(--shadow); max-width: 94vw;
 }
 .ced-pt-chip {
-  padding: 7px 13px; background: var(--ced-panel); border: 1px solid var(--ced-edge);
-  border-radius: 999px; font-size: 0.94rem;
+  padding: 6px 10px; background: var(--ced-panel); border: 1px solid var(--ced-edge);
+  border-radius: 999px; font-size: 0.88rem; white-space: nowrap;
 }
 .ced-pt-chip.hot { color: var(--ced-gold2); border-color: var(--ced-gold); }
 .ced-pt-chip.good { color: var(--accent); font-weight: 600; }
@@ -1465,7 +1475,7 @@ body.register-mode .view-toggle { display: none !important; }
   border-radius: 7px; padding: 7px 9px; font-size: 0.94rem;
 }
 .ced-pt-power {
-  width: 150px; height: 14px; background: #0a1207; border: 1px solid var(--ced-edge);
+  width: 120px; height: 12px; background: #0a1207; border: 1px solid var(--ced-edge);
   border-radius: 999px; overflow: hidden; display: inline-block;
 }
 .ced-pt-power .fill { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #45d052, #e0a33c, #d84b3a); }
@@ -1483,15 +1493,30 @@ body.register-mode .view-toggle { display: none !important; }
 .ced-save-thumbwrap .ced-holemeta { margin-top: 6px; }
 
 /* smaller screens: the rail compresses, panels stay readable */
+@media (max-width: 1700px) {
+  .ced-title span { display: none; }
+  .ced-title { margin-right: 0; }
+  .ced-clock { display: none; }
+  .ced-top-left .ced-top-btn:not(.primary) span:not(.ced-ico) { display: none; }
+  .ced-holechip { max-width: 240px; }
+  .ced-camera { width: 134px; flex-basis: 134px; }
+}
 @media (max-width: 1500px) {
   .ced-left { width: 232px; }
+}
+@media (max-width: 1420px) {
+  .ced-holechip { max-width: 190px; }
+  .ced-camera { width: 116px; flex-basis: 116px; }
+  .ced-bill-wrap { gap: 4px; }
 }
 @media (max-width: 1360px) {
   .ced-clock { display: none; }
   .ced-top-btn { padding: 0 11px; }
+  .ced-camera { width: 110px; flex-basis: 110px; }
 }
 @media (max-width: 1180px) {
   .ced-left { width: 210px; }
   .ced-title span { display: none; }
-  .ced-holechip { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+  .ced-holechip { max-width: 160px; }
+  .ced-camera { width: 105px; flex-basis: 105px; }
 }

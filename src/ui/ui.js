@@ -33,6 +33,7 @@ export function toast(msg, kind = '') {
     t.style.opacity = '0';
     setTimeout(() => t.remove(), 380);
   }, 2600);
+  return t;
 }
 
 export function modal(title, buildBody) {
