@@ -128,7 +128,7 @@ function createNativeSaveStore({ dir }) {
     return withKeyLock(key, () => saveUnlocked(key, value));
   }
 
-  async function loadStatus(key, { repair = true } = {}) {
+  async function loadStatusUnlocked(key, { repair = true } = {}) {
     await ensureDir();
     const files = pathsFor(key);
     const primary = await readCandidate(files.primary);
@@ -175,6 +175,10 @@ function createNativeSaveStore({ dir }) {
     };
   }
 
+  function loadStatus(key, options) {
+    return withKeyLock(key, () => loadStatusUnlocked(key, options));
+  }
+
   async function load(key) {
     return (await loadStatus(key)).value;
   }
@@ -198,10 +202,12 @@ function createNativeSaveStore({ dir }) {
   async function list() {
     await ensureDir();
     const files = await fsp.readdir(dir);
-    return files
-      .filter((file) => file.endsWith('.json'))
-      .map((file) => file.slice(0, -5))
-      .sort();
+    const keys = new Set();
+    for (const file of files) {
+      if (file.endsWith('.json')) keys.add(file.slice(0, -5));
+      else if (file.endsWith('.json.bak')) keys.add(file.slice(0, -9));
+    }
+    return [...keys].sort();
   }
 
   return Object.freeze({ save, load, loadStatus, del, list, pathsFor });

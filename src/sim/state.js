@@ -6,7 +6,7 @@
 import { makeRng, rngOf } from '../core/utils.js';
 import { labelSections, ensureCourseShape } from './course.js';
 import { buildStartingCourse } from './startingCourse.js';
-import { GRID_W, GRID_H, ZONE, ZONE_MAX_ID } from './constants.js';
+import { GRID_W, GRID_H, HOLE_STATUS, ZONE, ZONE_MAX_ID } from './constants.js';
 import { plantVegetation } from './courseShaping.js';
 import { newClock, advanceClock, calendarOf } from './time.js';
 import { tickRenovationsDaily } from './terrainEdit.js';
@@ -596,23 +596,197 @@ function normalizeIds(value, report, path, {
   return normalized;
 }
 
-function normalizePoint(value) {
+function normalizePoint(value, report = null, path = '$') {
   if (!isRecord(value) || !Number.isFinite(value.x) || !Number.isFinite(value.y)) return null;
-  return { ...value, x: finiteNumber(value.x, 0, { min: -10_000, max: 10_000 }), y: finiteNumber(value.y, 0, { min: -10_000, max: 10_000 }) };
+  const x = finiteNumber(value.x, 0, { min: -10_000, max: 10_000 });
+  const y = finiteNumber(value.y, 0, { min: -10_000, max: 10_000 });
+  if (!Object.is(x, value.x) || !Object.is(y, value.y)) {
+    noteRepair(report, path, 'out-of-range point coordinates normalized');
+  }
+  return { ...value, x, y };
+}
+
+function normalizePointArray(value, minimum, report, path, { max = 20_000 } = {}) {
+  if (!Array.isArray(value)) {
+    noteRepair(report, path, 'missing or invalid point array removed');
+    return null;
+  }
+  const points = [];
+  let coordinatesRepaired = false;
+  for (let index = 0; index < Math.min(value.length, max); index += 1) {
+    const source = value[index];
+    const point = normalizePoint(source, report, `${path}[${index}]`);
+    if (!point) continue;
+    if (!Object.is(point.x, source.x) || !Object.is(point.y, source.y)) coordinatesRepaired = true;
+    points.push(point);
+  }
+  if (points.length !== value.length) noteRepair(report, path, 'invalid or excess points removed');
+  if (coordinatesRepaired) noteRepair(report, path, 'out-of-range point coordinates normalized');
+  if (points.length < minimum) {
+    noteRepair(report, path, `feature requires at least ${minimum} valid point(s)`);
+    return null;
+  }
+  return points;
+}
+
+function normalizeVecHole(hole, report, path) {
+  const line = normalizePointArray(hole.line, 2, report, `${path}.line`);
+  if (!line) return null;
+  hole.line = line;
+  hole.name = typeof hole.name === 'string' ? hole.name.slice(0, 200) : '';
+  hole.par = finiteSave(hole.par, 4, { integer: true, min: 3, max: 5 }, report, `${path}.par`);
+  hole.hcp = finiteSave(hole.hcp, 1, { integer: true, min: 1, max: 18 }, report, `${path}.hcp`);
+  hole.roughW = finiteSave(hole.roughW, 26, { min: 1, max: 200 }, report, `${path}.roughW`);
+
+  if (Array.isArray(hole.width)) {
+    const width = [];
+    let repaired = hole.width.length > 1000;
+    for (const stop of hole.width.slice(0, 1000)) {
+      if (!isRecord(stop) || !Number.isFinite(stop.t) || !Number.isFinite(stop.w)) {
+        repaired = true;
+        continue;
+      }
+      const normalized = {
+        ...stop,
+        t: finiteNumber(stop.t, 0, { min: 0, max: 1 }),
+        w: finiteNumber(stop.w, 8, { min: 0.1, max: 500 }),
+      };
+      if (!Object.is(normalized.t, stop.t) || !Object.is(normalized.w, stop.w)) repaired = true;
+      width.push(normalized);
+    }
+    const originalOrder = width.map((stop) => stop.t);
+    width.sort((a, b) => a.t - b.t);
+    if (width.some((stop, index) => !Object.is(stop.t, originalOrder[index]))) repaired = true;
+    if (repaired) noteRepair(report, `${path}.width`, 'invalid or unordered width stops normalized');
+    if (width.length) hole.width = width;
+    else delete hole.width;
+  } else if (hole.width != null) {
+    delete hole.width;
+    noteRepair(report, `${path}.width`, 'invalid width profile removed');
+  }
+
+  if (Array.isArray(hole.tees)) {
+    const tees = [];
+    let repaired = hole.tees.length > 100;
+    for (let index = 0; index < Math.min(hole.tees.length, 100); index += 1) {
+      const tee = hole.tees[index];
+      const point = normalizePoint(tee, report, `${path}.tees[${index}]`);
+      if (!point) continue;
+      const normalized = {
+        ...point,
+        rot: finiteNumber(tee.rot, 0, { min: -Math.PI * 8, max: Math.PI * 8 }),
+        tier: typeof tee.tier === 'string' ? tee.tier.slice(0, 40) : 'back',
+        w: finiteNumber(tee.w, 8, { min: 0.1, max: 500 }),
+        d: finiteNumber(tee.d, 10, { min: 0.1, max: 500 }),
+        ...(Number.isFinite(tee.raise)
+          ? { raise: finiteNumber(tee.raise, 0, { min: -100, max: 100 }) }
+          : {}),
+      };
+      if (!Object.is(normalized.rot, tee.rot) || normalized.tier !== tee.tier
+          || !Object.is(normalized.w, tee.w) || !Object.is(normalized.d, tee.d)
+          || (Number.isFinite(tee.raise) && !Object.is(normalized.raise, tee.raise))) repaired = true;
+      tees.push(normalized);
+    }
+    if (tees.length !== hole.tees.length) repaired = true;
+    if (repaired) noteRepair(report, `${path}.tees`, 'invalid tee records normalized');
+    hole.tees = tees;
+  } else if (hole.tees != null) {
+    hole.tees = [];
+    noteRepair(report, `${path}.tees`, 'invalid tee array defaulted');
+  }
+
+  if (hole.green != null) {
+    if (!isRecord(hole.green)) {
+      hole.green = null;
+      noteRepair(report, `${path}.green`, 'invalid green removed');
+    } else {
+      const pts = normalizePointArray(hole.green.pts, 3, report, `${path}.green.pts`);
+      if (!pts) {
+        hole.green = null;
+      } else {
+        const cx = pts.reduce((sum, point) => sum + point.x, 0) / pts.length;
+        const cy = pts.reduce((sum, point) => sum + point.y, 0) / pts.length;
+        const pinsWereArray = Array.isArray(hole.green.pins);
+        const pins = pinsWereArray
+          ? normalizePointArray(hole.green.pins, 0, report, `${path}.green.pins`, { max: 100 }) || []
+          : [];
+        hole.green = {
+          ...hole.green,
+          pts,
+          cx: finiteSave(hole.green.cx, cx, { min: -10_000, max: 10_000 }, report, `${path}.green.cx`),
+          cy: finiteSave(hole.green.cy, cy, { min: -10_000, max: 10_000 }, report, `${path}.green.cy`),
+          fringe: finiteSave(hole.green.fringe, 1, { min: 0, max: 100 }, report, `${path}.green.fringe`),
+          raise: finiteSave(hole.green.raise, 0, { min: -100, max: 100 }, report, `${path}.green.raise`),
+          pins,
+        };
+        if (!pinsWereArray) {
+          noteRepair(report, `${path}.green.pins`, 'invalid pin array defaulted');
+        }
+      }
+    }
+  }
+
+  const bunkers = [];
+  if (Array.isArray(hole.bunkers)) {
+    for (let index = 0; index < Math.min(hole.bunkers.length, 1000); index += 1) {
+      const bunker = hole.bunkers[index];
+      if (!isRecord(bunker)) continue;
+      const pts = normalizePointArray(
+        bunker.pts, 3, report, `${path}.bunkers[${index}].pts`, { max: 2000 },
+      );
+      if (!pts) continue;
+      bunkers.push({
+        ...bunker,
+        pts,
+        depth: finiteSave(bunker.depth, 2.4, { min: 0, max: 100 }, report, `${path}.bunkers[${index}].depth`),
+        lip: finiteSave(bunker.lip, 0.9, { min: 0, max: 100 }, report, `${path}.bunkers[${index}].lip`),
+      });
+    }
+  }
+  if (!Array.isArray(hole.bunkers) || bunkers.length !== hole.bunkers.length) {
+    noteRepair(report, `${path}.bunkers`, 'invalid bunker records removed');
+  }
+  hole.bunkers = bunkers;
+  return hole;
 }
 
 function normalizeHole(hole, report, path) {
   for (const key of ['tee', 'pin']) {
     if (hole[key] == null) continue;
-    const point = normalizePoint(hole[key]);
+    const point = normalizePoint(hole[key], report, `${path}.${key}`);
     if (!point) noteRepair(report, `${path}.${key}`, 'invalid point cleared');
     hole[key] = point;
   }
   for (const [containerKey, names] of [['tees', ['back', 'middle', 'forward']], ['pins', ['A', 'B', 'C']]]) {
     if (!isRecord(hole[containerKey])) continue;
     const normalized = {};
-    for (const name of names) normalized[name] = normalizePoint(hole[containerKey][name]);
+    for (const name of names) {
+      const source = hole[containerKey][name];
+      normalized[name] = normalizePoint(
+        source, report, `${path}.${containerKey}.${name}`,
+      );
+      if (source != null && !normalized[name]) {
+        noteRepair(report, `${path}.${containerKey}.${name}`, 'invalid point cleared');
+      }
+    }
     hole[containerKey] = normalized;
+  }
+  const validStatuses = new Set(Object.values(HOLE_STATUS));
+  if (!validStatuses.has(hole.status)) {
+    hole.status = HOLE_STATUS.UNBUILT;
+    noteRepair(report, `${path}.status`, 'invalid hole status normalized');
+  }
+  hole.daysLeft = finiteSave(hole.daysLeft, 0, {
+    integer: true, min: 0, max: 1_000_000,
+  }, report, `${path}.daysLeft`);
+  if (typeof hole.everOpen !== 'boolean') {
+    hole.everOpen = !!hole.everOpen;
+    noteRepair(report, `${path}.everOpen`, 'invalid open-history flag normalized');
+  }
+  if (hole.parOverride != null) {
+    hole.parOverride = finiteSave(hole.parOverride, 4, {
+      integer: true, min: 3, max: 5,
+    }, report, `${path}.parOverride`);
   }
   return hole;
 }
@@ -621,10 +795,98 @@ function normalizeCourseVector(value, seed, report) {
   if (!isRecord(value)) return null;
   const vector = cloneSaveValue(value, null);
   if (!vector) return null;
-  vector.v = finiteNumber(vector.v, 1, { integer: true, min: 1, max: 1000 });
-  vector.seed = finiteNumber(vector.seed, seed, { integer: true, min: 1, max: 2147483647 });
-  for (const key of ['holes', 'waters', 'streams', 'beds', 'mounds', 'lawns']) {
-    vector[key] = recordsOnly(vector[key], report, `$.course.vec.${key}`, { max: 10_000 });
+  vector.v = finiteSave(vector.v, 1, {
+    integer: true, min: 1, max: 1000,
+  }, report, '$.course.vec.v');
+  vector.seed = finiteSave(vector.seed, seed, {
+    integer: true, min: 1, max: 2147483647,
+  }, report, '$.course.vec.seed');
+  vector.holes = normalizeIds(vector.holes, report, '$.course.vec.holes', {
+    max: 1000,
+    accept: (hole) => !!normalizeVecHole(hole, report, '$.course.vec.holes[]'),
+  });
+  const polygonFeatures = (key, minimum, max) => normalizeIds(
+    vector[key], report, `$.course.vec.${key}`, {
+      max,
+      accept: (feature) => {
+        const pts = normalizePointArray(
+          feature.pts, minimum, report, `$.course.vec.${key}[].pts`, { max: 20_000 },
+        );
+        if (!pts) return false;
+        feature.pts = pts;
+        if (key === 'waters') {
+          feature.depth = finiteSave(feature.depth, 4.5, {
+            min: 0, max: 1000,
+          }, report, '$.course.vec.waters[].depth');
+          const kind = typeof feature.kind === 'string' && feature.kind.trim()
+            ? feature.kind.slice(0, 80)
+            : 'pond';
+          if (kind !== feature.kind) {
+            noteRepair(report, '$.course.vec.waters[].kind', 'invalid water kind normalized');
+          }
+          feature.kind = kind;
+        } else if (key === 'streams') {
+          feature.w = finiteSave(feature.w, 4, {
+            min: 0.1, max: 500,
+          }, report, '$.course.vec.streams[].w');
+          feature.depth = finiteSave(feature.depth, 2, {
+            min: 0, max: 1000,
+          }, report, '$.course.vec.streams[].depth');
+        }
+        return true;
+      },
+    },
+  );
+  vector.waters = polygonFeatures('waters', 3, 10_000);
+  vector.streams = polygonFeatures('streams', 2, 10_000);
+  vector.beds = polygonFeatures('beds', 3, 10_000);
+  vector.mounds = normalizeIds(vector.mounds, report, '$.course.vec.mounds', {
+    max: 10_000,
+    accept: (mound) => {
+      if (!Number.isFinite(mound.x) || !Number.isFinite(mound.y)
+          || !Number.isFinite(mound.r) || mound.r <= 0) return false;
+      mound.x = finiteSave(mound.x, 0, {
+        min: -10_000, max: 10_000,
+      }, report, '$.course.vec.mounds[].x');
+      mound.y = finiteSave(mound.y, 0, {
+        min: -10_000, max: 10_000,
+      }, report, '$.course.vec.mounds[].y');
+      mound.r = finiteSave(mound.r, 1, {
+        min: 0.01, max: 1000,
+      }, report, '$.course.vec.mounds[].r');
+      mound.h = finiteSave(mound.h, 0, {
+        min: -1000, max: 1000,
+      }, report, '$.course.vec.mounds[].h');
+      return true;
+    },
+  });
+  const rawLawns = recordsOnly(vector.lawns, report, '$.course.vec.lawns', { max: 10_000 });
+  vector.lawns = [];
+  for (const lawn of rawLawns) {
+    if (!Number.isFinite(lawn.x) || !Number.isFinite(lawn.y)
+        || !Number.isFinite(lawn.w) || lawn.w <= 0
+        || !Number.isFinite(lawn.d) || lawn.d <= 0) continue;
+    vector.lawns.push({
+      ...lawn,
+      x: finiteSave(lawn.x, 0, {
+        min: -10_000, max: 10_000,
+      }, report, '$.course.vec.lawns[].x'),
+      y: finiteSave(lawn.y, 0, {
+        min: -10_000, max: 10_000,
+      }, report, '$.course.vec.lawns[].y'),
+      w: finiteSave(lawn.w, 1, {
+        min: 0.01, max: 1000,
+      }, report, '$.course.vec.lawns[].w'),
+      d: finiteSave(lawn.d, 1, {
+        min: 0.01, max: 1000,
+      }, report, '$.course.vec.lawns[].d'),
+      rot: finiteSave(lawn.rot, 0, {
+        min: -Math.PI * 8, max: Math.PI * 8,
+      }, report, '$.course.vec.lawns[].rot'),
+    });
+  }
+  if (vector.lawns.length !== rawLawns.length) {
+    noteRepair(report, '$.course.vec.lawns', 'invalid lawn records removed');
   }
   const all = ['holes', 'waters', 'streams', 'beds', 'mounds', 'lawns']
     .flatMap((key) => Array.isArray(vector[key]) ? vector[key] : []);
@@ -672,21 +934,81 @@ function normalizeCourse(savedCourse, seed, persistedVersion, report) {
   );
   const holes = normalizeIds(savedCourse.holes, report, '$.course.holes', { max: 1000 })
     .map((hole, index) => normalizeHole(hole, report, `$.course.holes[${index}]`));
-  const structures = recordsOnly(savedCourse.structures, report, '$.course.structures', { max: 10_000 });
+  const rawStructures = recordsOnly(
+    savedCourse.structures, report, '$.course.structures', { max: 10_000 },
+  );
+  const structures = [];
+  for (let index = 0; index < rawStructures.length; index += 1) {
+    const structure = rawStructures[index];
+    if (typeof structure.type !== 'string' || !structure.type.trim()
+        || !Number.isFinite(structure.x) || !Number.isFinite(structure.y)
+        || !Number.isFinite(structure.w) || structure.w <= 0
+        || !Number.isFinite(structure.h) || structure.h <= 0) continue;
+    structures.push({
+      ...structure,
+      type: structure.type.trim().slice(0, 100),
+      x: finiteSave(structure.x, 0, {
+        min: -10_000, max: 10_000,
+      }, report, `$.course.structures[${index}].x`),
+      y: finiteSave(structure.y, 0, {
+        min: -10_000, max: 10_000,
+      }, report, `$.course.structures[${index}].y`),
+      w: finiteSave(structure.w, 1, {
+        min: 0.01, max: 10_000,
+      }, report, `$.course.structures[${index}].w`),
+      h: finiteSave(structure.h, 1, {
+        min: 0.01, max: 10_000,
+      }, report, `$.course.structures[${index}].h`),
+    });
+  }
+  if (structures.length !== rawStructures.length) {
+    noteRepair(report, '$.course.structures', 'invalid structure records removed');
+  }
   const hadPersistedObjects = Array.isArray(savedCourse.objects);
   const objects = hadPersistedObjects
     ? normalizeIds(savedCourse.objects, report, '$.course.objects', {
       max: 100_000,
-      accept: (object) => typeof object.type === 'string'
-        && Number.isFinite(object.x) && Number.isFinite(object.y),
+      accept: (object) => {
+        if (typeof object.type !== 'string' || !object.type.trim()
+            || !Number.isFinite(object.x) || !Number.isFinite(object.y)) return false;
+        const originalType = object.type;
+        object.type = object.type.trim().slice(0, 100);
+        object.x = finiteSave(object.x, 0, {
+          min: -10_000, max: 10_000,
+        }, report, '$.course.objects[].x');
+        object.y = finiteSave(object.y, 0, {
+          min: -10_000, max: 10_000,
+        }, report, '$.course.objects[].y');
+        object.rot = finiteSave(object.rot, 0, {
+          min: -Math.PI * 100, max: Math.PI * 100,
+        }, report, '$.course.objects[].rot');
+        object.scale = finiteSave(object.scale, 1, {
+          min: 0.01, max: 100,
+        }, report, '$.course.objects[].scale');
+        if (object.type !== originalType) {
+          noteRepair(report, '$.course.objects[].type', 'invalid object type normalized');
+        }
+        return true;
+      },
     })
     : [];
   const paths = normalizeIds(savedCourse.paths, report, '$.course.paths', {
     max: 10_000,
     accept: (path) => {
-      if (!Array.isArray(path.pts)) return false;
-      path.pts = path.pts.map(normalizePoint).filter(Boolean);
-      return path.pts.length >= 2;
+      const pts = normalizePointArray(path.pts, 2, report, '$.course.paths[].pts', { max: 4096 });
+      if (!pts) return false;
+      path.pts = pts;
+      path.width = finiteSave(path.width, 3.2, {
+        min: 0.1, max: 500,
+      }, report, '$.course.paths[].width');
+      const material = typeof path.material === 'string' && path.material.trim()
+        ? path.material.slice(0, 100)
+        : 'asphalt';
+      if (material !== path.material) {
+        noteRepair(report, '$.course.paths[].material', 'invalid path material normalized');
+      }
+      path.material = material;
+      return true;
     },
   });
   const course = {
@@ -784,9 +1106,17 @@ function normalizeShopState(state, rawShop, defaults, report) {
     .filter((unit) => typeof unit.uid === 'string' && unit.uid && typeof unit.skuId === 'string'
       && !!shop.inventory[unit.skuId]);
   shop.held = dedupeRecords(held, (unit) => unit.uid, report, '$.shop.held');
-  if (shop.carry !== null && !isRecord(shop.carry)) {
-    shop.carry = null;
-    noteRepair(report, '$.shop.carry', 'invalid carried-goods state cleared');
+  if (shop.carry !== null) {
+    if (!isRecord(shop.carry) || typeof shop.carry.skuId !== 'string'
+        || !shop.inventory[shop.carry.skuId]
+        || !Number.isFinite(Number(shop.carry.qty)) || Number(shop.carry.qty) <= 0) {
+      shop.carry = null;
+      noteRepair(report, '$.shop.carry', 'invalid carried-goods state cleared');
+    } else {
+      shop.carry.qty = finiteSave(shop.carry.qty, 1, {
+        integer: true, min: 1, max: 1_000_000_000,
+      }, report, '$.shop.carry.qty');
+    }
   }
   const bag = shop.paymentBag;
   const cashInBag = Array.isArray(bag) ? bag.filter((method) => method === 'cash').length : 0;

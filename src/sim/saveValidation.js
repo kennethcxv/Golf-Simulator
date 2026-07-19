@@ -36,7 +36,10 @@ export function isRecord(value) {
 function cloneSafeValue(value, depth, seen) {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
   if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
-  if (typeof value === 'bigint') return Number(value);
+  if (typeof value === 'bigint') {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : undefined;
+  }
   if (ArrayBuffer.isView(value) && !(value instanceof DataView)) {
     return cloneSafeValue(Array.from(value), depth, seen);
   }
@@ -153,8 +156,11 @@ export function finiteNumber(value, fallback, {
   max = Number.MAX_VALUE,
 } = {}) {
   const number = Number(value);
-  if (!Number.isFinite(number)) return fallback;
-  const normalized = integer ? Math.trunc(number) : number;
+  const fallbackNumber = Number(fallback);
+  const candidate = Number.isFinite(number)
+    ? number
+    : (Number.isFinite(fallbackNumber) ? fallbackNumber : 0);
+  const normalized = integer ? Math.trunc(candidate) : candidate;
   return Math.min(max, Math.max(min, normalized));
 }
 
