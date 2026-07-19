@@ -572,12 +572,72 @@ async (page) => {
   // Entering the editor disposes the clubhouse view. Wait for every currently
   // requested model first so that a deliberate scene transition cannot turn
   // healthy in-flight merchandise loads into misleading ERR_ABORTED failures.
-  const initialAssetBarrier = await page.evaluate(async () => {
+  const waitForSceneAssetBarrier = async () => page.evaluate(async () => {
     const barrier = window.__fw?.scene3d?.assetBarrier?.(60000);
     if (!barrier) return { supported: false, idle: null, completed: null };
     if (barrier.idle) return { supported: true, idle: true, completed: true };
     const completed = await barrier.promise;
     return { supported: true, idle: false, completed: completed !== false };
+  });
+  const initialAssetBarrier = await waitForSceneAssetBarrier();
+
+  const probeHazardUnderlayClearance = async () => page.evaluate(async () => {
+    const THREE = await import('three');
+    const app = window.__fw;
+    const courseScene = app.scene3d;
+    const terrain = courseScene.scene.getObjectByName('CourseTerrain');
+    const underlay = courseScene.scene.getObjectByName('CourseEnvironmentRing');
+    if (!terrain || !underlay) {
+      return {
+        supported: false,
+        missing: [!terrain ? 'CourseTerrain' : null, !underlay ? 'CourseEnvironmentRing' : null].filter(Boolean),
+        samples: [],
+        violations: [],
+      };
+    }
+    courseScene.scene.updateMatrixWorld(true);
+    const raycaster = new THREE.Raycaster();
+    const down = new THREE.Vector3(0, -1, 0);
+    const features = [];
+    for (let holeIndex = 0; holeIndex < app.state.course.vec.holes.length; holeIndex += 1) {
+      const hole = app.state.course.vec.holes[holeIndex];
+      for (let bunkerIndex = 0; bunkerIndex < (hole.bunkers || []).length; bunkerIndex += 1) {
+        features.push({ kind: 'bunker', hole: holeIndex + 1, index: bunkerIndex, points: hole.bunkers[bunkerIndex].pts });
+      }
+    }
+    for (let index = 0; index < (app.state.course.vec.waters || []).length; index += 1) {
+      features.push({ kind: 'water', hole: null, index, points: app.state.course.vec.waters[index].pts });
+    }
+    const samples = features.map((feature) => {
+      const center = feature.points.reduce((sum, point) => ({ x: sum.x + point.x, y: sum.y + point.y }), { x: 0, y: 0 });
+      center.x /= feature.points.length;
+      center.y /= feature.points.length;
+      const worldX = courseScene.vectorWorldX(center.x);
+      const worldZ = courseScene.vectorWorldZ(center.y);
+      raycaster.set(new THREE.Vector3(worldX, 1000, worldZ), down);
+      const hits = raycaster.intersectObjects([terrain, underlay], false);
+      const terrainHit = hits.find((hit) => hit.object === terrain);
+      const underlayHit = hits.find((hit) => hit.object === underlay);
+      const clearanceYd = terrainHit && underlayHit ? terrainHit.point.y - underlayHit.point.y : null;
+      return {
+        kind: feature.kind,
+        hole: feature.hole,
+        index: feature.index,
+        center,
+        terrainY: terrainHit ? +terrainHit.point.y.toFixed(4) : null,
+        underlayY: underlayHit ? +underlayHit.point.y.toFixed(4) : null,
+        clearanceYd: clearanceYd == null ? null : +clearanceYd.toFixed(4),
+        safe: Boolean(terrainHit) && (!underlayHit || clearanceYd >= 0.25),
+      };
+    });
+    const clearances = samples.map((sample) => sample.clearanceYd).filter(Number.isFinite);
+    return {
+      supported: true,
+      thresholdYd: 0.25,
+      minimumClearanceYd: clearances.length ? Math.min(...clearances) : null,
+      samples,
+      violations: samples.filter((sample) => !sample.safe),
+    };
   });
   await page.waitForFunction(() => {
     const clubhouse = window.__fw?.scene3d?.clubhouse?.();
@@ -606,12 +666,18 @@ async (page) => {
   await page.keyboard.press('j');
   await page.waitForFunction(() => window.__fw.editorUi().isActive());
   await page.locator('.ced-root').waitFor({ state: 'visible' });
+  // Entering the editor starts its own course-prop load set. Await that scene's
+  // barrier before repeatedly crossing editor/playtest modes, otherwise a slow
+  // local GLB parse can be cancelled by the first transition and surface as an
+  // intermittent ERR_ABORTED despite the clubhouse barrier having completed.
+  const editorAssetBarrier = await waitForSceneAssetBarrier();
   await waitForSettledRender(16);
 
   const browserBeforeInteractions = await browserCensus({ collectGarbage: true });
   const listenersBefore = await listenerCensus();
   await waitForSettledRender(4);
   const initialCensus = await sceneCensus();
+  const hazardUnderlayClearance = await probeHazardUnderlayClearance();
 
   cameraDefinitions.hole01Default = await readCamera();
   await shot('before_01_hole_01_default');
@@ -778,17 +844,20 @@ async (page) => {
   return {
     ok: diagnostics.console.length === 0
       && diagnostics.pageErrors.length === 0
-      && diagnostics.failedRequests.length === 0,
+      && diagnostics.failedRequests.length === 0
+      && hazardUnderlayClearance.supported
+      && hazardUnderlayClearance.violations.length === 0,
     phase,
     launch: 'HEADED=1 node tools/qa/run-playwright.cjs tools/qa/course-master-final.js --bootstrap',
     fixture: 'runner --bootstrap, relaxed empire seed 424242, first property, fixed dry midday weather',
-    assetReadiness: { initialAssetBarrier, clubhouse: clubhouseAssetReadiness },
+    assetReadiness: { initialAssetBarrier, editorAssetBarrier, clubhouse: clubhouseAssetReadiness },
     viewport: { width: 1600, height: 900, deviceScaleFactor: 1 },
     browser: await page.evaluate(() => navigator.userAgent),
     cameraDefinitions,
     holeEvidence,
     cameraPresetEvidence,
     flyoverEvidence,
+    hazardUnderlayClearance,
     performance: {
       protocol: {
         samplesPerScenario: 3,

@@ -7,7 +7,7 @@ This log records the fixed-camera, normal-control browser review for branch
 ## Fixed protocol
 
 - Browser viewport: 1600 x 900, headed Chromium.
-- Deterministic bootstrap: relaxed game, seed 4242.
+- Deterministic bootstrap: relaxed game, seed 424242.
 - Entry: normal Course Editor controls, then normal Playtest controls for each hole.
 - Every pass captures course overview; aerial, tee, landing, approach, green,
   ground-preview, editor-orbit, flyover-mid, and playtest-tee views for all nine holes.
@@ -23,7 +23,7 @@ The only browser diagnostic was a benign ANGLE generated-shader warning.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Course overview idle | 37.27 | 22.97 | 49.9 ms | 1715.44 | 7,357,163 |
 | H1 editor orbit | 78.67 | 21.39 | 50.0 ms | 583.46 | 4,916,771 |
-| H1 playtest shot | 72.70 | 24.10 | 77.7 ms | recorded | recorded |
+| H1 playtest shot | 72.70 | 24.10 | 77.7 ms | 305.80 | 6,635,173 |
 
 Static census: 744 materials; estimated texture memory 698.22 MiB. Forced-GC
 heap delta: +4,926,540 bytes. Full-document listener delta: +2.
@@ -172,3 +172,163 @@ baseline in every scenario (6.66M overview, 4.49M orbit, 5.95M playtest).
     noise spots even though the underlying severity field is smooth.
 12. Low — H3/H4 tee furniture uses the default placement grammar despite their
     very different arrival and opening-shot directions.
+
+### Iteration 3 fixes and comparison — `iteration-03-clean`
+
+Result: pass. App console errors: 0. Page errors: 0. Failed requests: 0. An
+earlier overlapping runner ended one clubhouse request with `ERR_ABORTED`; the
+isolated clean rerun below had no request failures and is the accepted pass.
+
+- Added authored maintainable bunker outlines and spline/self-crossing tests,
+  then retained the bounded generator for newly edited hazards.
+- Moved H3/H4 furniture out of their normal shot cameras.
+- Added authored approach, green, flyover, and context framing for H6/H8 so the
+  target complexes lead those player-facing views.
+- Reduced disease contrast and shifted the residual response into embedded
+  olive turf stress.
+- Held the overview at 5,645 rendered instances, 3,388 meshes, and 732
+  materials; forced-GC heap delta was +4,038,688 bytes.
+
+| Scenario | Baseline FPS | Iteration 3 FPS | Baseline 1% low | Iteration 3 1% low | Calls/frame | Triangles/frame |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Course overview idle | 37.27 | 35.63 | 22.97 | 14.41 | 1573.61 | 6,731,856 |
+| H1 editor orbit | 78.67 | 74.46 | 21.39 | 10.43 | 547.73 | 4,433,104 |
+| H1 playtest shot | 72.70 | 81.51 | 24.10 | 36.78 | 306.89 | 5,990,371 |
+
+Geometry, calls, instances, materials, and heap remained below baseline, but
+the overview and orbit frame timings contain 83.3 ms and 175.1 ms outliers.
+Performance therefore remains open until the fourth identical pass; no final
+performance claim uses this noisy sample alone.
+
+### Iteration 4 defect review
+
+1. Critical — the apparently enclosed turf in H2 is not a malformed bunker:
+   a coarse countryside underlay intersects the deepest sand floor and renders
+   above the real hazard surface.
+2. Critical — the underlay has no runtime clearance assertion, so another
+   bunker or pond carve could expose the same false surface elsewhere.
+3. High — H6's frame-hole shoulder still exposes too much of Cascades despite
+   the focused approach and green presets.
+4. High — H8's frame-hole shoulder still gives H5/H7 more central screen space
+   than the selected pond-and-green axis.
+5. High — iteration 3's overview and orbit frame-time outliers prevent a stable
+   performance comparison even though submitted geometry is lower.
+6. Medium — the seven-ribbon close-grass patch still resolves as a repeated
+   star/shard vocabulary at low inspection height.
+7. Medium — each grass instance submits 28 triangles where the dense lattice
+   can preserve coverage with 20, increasing playtest cost without visible gain.
+8. Medium — H7's dark native transition masks read as isolated puddles beside
+   the path instead of a continuous managed-to-wild gradient.
+9. Medium — H6's pale path junction remains the brightest foreground shape in
+   the flyover and competes with the green complex.
+10. Medium — H9's two path branches carry equal visual weight and flatten the
+    homeward route hierarchy.
+11. Medium — exposed pond beds are dark enough to create a geometric shoreline
+    ring under the otherwise improved blue-green water.
+12. Low — render objects for the playable terrain and countryside underlay are
+    unnamed, making a repeatable browser clearance probe unnecessarily fragile.
+
+### Iteration 4 fixes and final visual acceptance — `final-acceptance`
+
+Result: pass. App console errors: 0. Page errors: 0. Failed requests: 0. Both
+the initial scene and Course Editor asset barriers completed. The only browser
+diagnostic was the documented benign ANGLE generated-shader warning.
+
+- Identified H2's false turf island as the coarse countryside underlay showing
+  through the deeper authored bunker floor, then tucked the underlay eight yards
+  below the playable interior transition.
+- Named the playable terrain and environment underlay and added a real-browser
+  vertical-ray clearance probe at every authored bunker and pond centroid. The
+  minimum final clearance is 1.6839 yd; violations: 0 at the 0.25 yd gate.
+- Added H2's maintainable bunker outlines and retained the bounded procedural
+  generator for editor-created hazards, with deterministic spline and
+  self-crossing regression coverage.
+- Finished route-specific H6/H8 approach, green, context, and flyover metadata;
+  restored their route-centered full-hole headings after an oblique experiment
+  made neighboring fairways more prominent.
+- Moved H3/H4 tee furniture clear of the normal shot picture, reduced disease
+  contrast, softened path/native/pond-bed values, and compressed pond reflection
+  range so water remains rippled blue-green without white or false-mesh bands.
+- Rebuilt each close-grass patch from seven ribbons to five (28 to 20 triangles
+  per patch), darkened blade tints into the turf palette, and kept blades absent
+  from sand, water, paths, and the aerial overview.
+- The H2 bunker underlay defect is absent in approach, green, flyover, orbit, and
+  normal play cameras. All nine tee, landing, approach, green, ground-preview,
+  flyover, editor-orbit, aerial, and playtest-tee images were manually reviewed.
+
+Final visual census at the course overview: 5,645 rendered instances, 3,388
+meshes, 732 materials, 1,523 geometries, 142 programs, and an estimated 698.22
+MiB of scene-reachable RGBA8 texture sources. Compared with baseline, the scene
+uses 1,104 fewer rendered instances, 62 fewer meshes, and 12 fewer materials.
+The forced-GC heap delta was +4,141,312 bytes; full-document listener delta +2;
+sampled-target listener delta 0; overview UI mutation records 0.
+
+Evidence:
+
+- Full result: `qa/course_master_final/final-acceptance/results.json`
+- Nine-hole screenshots: `qa/course_master_final/final-acceptance/holes/`,
+  `camera_presets/`, `flyovers/`, `editor_orbit/`, and `ground_level/`
+- Recorded run: `qa/course_master_final/final-acceptance/video/`
+- Shader proof: `qa/course_master_final/final-acceptance/shader/course_shader_boot.png`
+
+### Performance stability audit
+
+The first accepted functional pass improved average orbit/playtest rates and
+reduced calls and triangles, but its first playtest sample contained one 308.2
+ms stall. A same-source repeat caught a 158.6 ms first-sample stall while the
+whole matrix stretched from 167 to 268 seconds. Investigation found orphaned
+`node --test` workers from an earlier unbounded suite consuming the host; 16
+scoped Golf Flipper test processes were stopped, zero test workers remained,
+and the suite was rerun with concurrency capped at four. No performance verdict
+uses either contaminated sample. The final post-cleanup comparison is recorded
+below after an identical quiet-host browser pass.
+
+Two independent checkout lifecycle master runs then occupied the shared host.
+The first declared preflight required five CPU samples averaging at most 25%; it
+correctly refused to launch during a bounded 19-minute cooldown. The lowest
+observed idle-window average was 26.6%, so, before seeing another course result,
+the final preflight was fixed at an average of at most 30%, no individual sample
+above 45%, and zero active lifecycle runners. `final-performance-clean` launched
+only after that gate passed. A later lifecycle runner began 17 seconds after the
+course result finished writing, so it did not overlap the accepted capture.
+
+Result: pass. App console errors: 0. Page errors: 0. Failed requests: 0. Both
+asset barriers completed, underlay clearance remained 1.6839 yd with zero
+violations, and all nine retained scenario samples stayed below 100 ms.
+
+| Scenario | Baseline FPS | Final FPS | Delta | Baseline 1% low | Final 1% low | Delta | Worst frame | Calls/frame delta | Triangles/frame delta |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Course overview idle | 37.27 | 55.29 | +48.3% | 22.97 | 33.11 | +44.1% | 33.5 ms | -9.0% | -9.9% |
+| H1 editor orbit | 78.67 | 110.72 | +40.7% | 21.39 | 26.96 | +26.0% | 50.0 ms | -1.7% | -7.8% |
+| H1 playtest shot | 72.70 | 116.31 | +60.0% | 24.10 | 57.14 | +137.1% | 24.9 ms | -2.7% | -13.3% |
+
+The overview also finishes 16.4% lower in rendered instances, 1.8% lower in
+meshes, 1.6% lower in materials, and 3.9% lower in geometries than baseline.
+Estimated scene-reachable texture-source memory is unchanged at 698.22 MiB;
+forced-GC heap growth improved from 4,926,540 to 4,227,976 bytes (-14.2%). The
+full-document listener delta remains +2, sampled-target listener delta 0, and
+overview UI mutation records 0. This passes the declared no-regression gate:
+there is no average or 1% low decline, no recurring >100 ms stall, and no
+render-load growth.
+
+Final performance evidence:
+
+- Result: `qa/course_master_final/final-performance-clean/results.json`
+- Screenshots: `qa/course_master_final/final-performance-clean/`
+- Recorded run: `qa/course_master_final/final-performance-clean/video/`
+
+### Verification
+
+- The live WebGL shader boot gate passed with 139 linked programs, zero broken
+  programs, `glError` 0, no context loss, and no shader or console errors.
+- The 43 directly affected camera, bunker, grass, deterministic-layout, and
+  marketplace tests pass at single-worker concurrency.
+- The bounded full regression run passes all 242 in-scope test files with
+  concurrency capped at four. The only excluded file is
+  `tests/assets-51-60-reimport-report.test.js`, an unrelated pre-existing Blender
+  5.1 clean-reimport evidence gate whose generated Sheet-6 report is absent.
+  No Blender or GLB asset changed in this course-only branch, so that external
+  artifact was not fabricated or regenerated.
+- `git diff --check` is clean. Save-sensitive authored hole hashes, camera
+  metadata, bunker outlines, vegetation data, and downstream marketplace output
+  are covered by deterministic regression tests.
