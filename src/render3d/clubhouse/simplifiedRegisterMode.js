@@ -2728,6 +2728,16 @@ export function createRegisterMode(B) {
     buildDrawer();
     refillDrawerMoney();
     scheduleCheckoutTexturePrewarm();
+    // A player may already be standing at the open till when the customer
+    // finishes placing their products. In that route enter() has already run,
+    // so it cannot advance the newly-created WaitingForCashier flow. Arm the
+    // same cashier-entry transition here; otherwise the domain transaction can
+    // reach `done` while the physical flow remains at its initial checkpoint,
+    // preventing the handoff from banking the sale or releasing the customer.
+    if (active && checkoutFlowState() === 'WaitingForCashier') {
+      flowTo('EnteringCashierMode', 'customer-order-arrived-at-open-front-desk');
+      enterTimer = 0.30;
+    }
     drawScreen();
     drawTerm();
     return true;
