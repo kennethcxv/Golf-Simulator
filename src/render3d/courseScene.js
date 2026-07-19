@@ -1298,22 +1298,27 @@ export function makeCourseScene(canvas, state) {
       map: texScrub,
       normalMap: texScrubN,
       normalScale: new THREE.Vector2(0.4, 0.4),
-      // OUT-zone family so the seam reads as one landscape, but deeper than the
-      // mown course rather than lighter than it. At 0x99a878 the surround was
-      // brighter than the rough it meets, which inverts the natural contrast:
-      // unmown land reads darker than fairway, and the course should be the
-      // bright subject in the frame instead of a pale patch on a paler plain.
-      color: 0x7e8f5e,
+      // White base: the shader below ASSIGNS the OUT-zone colour outright rather
+      // than tinting, so the ring cannot drift from the terrain it continues.
+      // The course still reads as the bright subject for free — the fairway tint
+      // (0.158, 0.318, 0.082) is already brighter than scrub (0.145, 0.185, 0.082).
+      color: 0xffffff,
       roughness: 1,
     });
     mat.onBeforeCompile = (sh) => {
-      // same stylize trick as the terrain: texture supplies brightness only
+      // Reproduce the terrain shader's OUT branch exactly — same FW_STYLIZE
+      // curve, same tint, same luma weights. Tinting a colour through a
+      // different curve (0x99a878 through 0.35 + luma*1.9) resolved roughly
+      // 2.6x brighter than the terrain it abuts; 0x7e8f5e narrowed that to
+      // ~1.7x but left a tonal step that varied with luma, so it shimmered
+      // with texture detail. Assigning the OUT branch outright lands at 1.00x
+      // flat across the luma range, which is what removes the property edge.
       sh.fragmentShader = sh.fragmentShader.replace(
         '#include <map_fragment>',
         `{
           vec4 sampledDiffuseColor = texture2D( map, vMapUv * 90.0 );
           float luma = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-          diffuseColor.rgb *= 0.35 + luma * 1.9;
+          diffuseColor.rgb = (0.46 + luma * 1.28) * vec3(0.145, 0.185, 0.082);
         }`,
       );
     };
@@ -1864,17 +1869,26 @@ export function makeCourseScene(canvas, state) {
     const jz = (treeHash(s.x + 7, s.y + 43) - 0.5) * 6;
     const x = worldX(s.x) + jx;
     const z = worldZ(s.y) + jz;
-    // ring trees stand on the environment ring: sample its same hill function
+    // Ring trees stand ON the environment ring, so this MUST sample the same
+    // surface buildEnvironmentRing() writes — see the vertex loop there. It used
+    // to carry its own copy of an older profile that decayed edgeH to sea level
+    // within 260 yd. Once the ring stopped decaying, that copy sank the outer
+    // boundary forest into the ring by as much as ~16 yd at the far edge, which
+    // is exactly the "one tree stamped a thousand times" symptom in reverse:
+    // the trees were there, they were just buried.
     const halfW = worldW / 2;
     const halfH = worldH / 2;
     const dx = Math.max(0, Math.abs(x) - halfW);
     const dz = Math.max(0, Math.abs(z) - halfH);
     const outside = Math.hypot(dx, dz);
     const edgeH = heightAt(clamp(x, -halfW + 1, halfW - 1), clamp(z, -halfH + 1, halfH - 1));
-    const ramp = Math.min(1, outside / 420);
-    const y = outside <= 0.001
-      ? edgeH
-      : edgeH * (1 - Math.min(1, outside / 260)) + envHillNoise(x, z) * ramp + outside * 0.012 * ramp - 0.5;
+    if (outside <= 0.001) return { x, y: edgeH, z }; // inside: stand on real terrain
+    const blend = Math.min(1, outside / 240);
+    const eased = blend * blend * (3 - 2 * blend);
+    const hills = envHillNoise(x, z) * eased + outside * 0.012 * eased;
+    // the same 0.5 yd embed the previous profile carried, so trunks bed into the
+    // surface instead of floating on a 34 yd quad
+    const y = edgeH - ENV_RING_SEAM_BIAS_YD + hills - 0.5;
     return { x, y, z };
   }
 
