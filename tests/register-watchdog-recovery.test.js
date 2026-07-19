@@ -125,12 +125,12 @@ test('cash watchdog rebuilds from accepted tender and the transaction-local open
     'even a resumed payment stays local until completeSale');
 });
 
-test('the live register watchdog covers automatic states and excludes deliberate player waits', () => {
+test('the live register watchdog covers bounded active states and excludes untimed waits', () => {
   const expectedActiveRegisterStates = [
     'EnteringCashierMode',
     'ProductHeld', 'ProductScanning', 'ProductScanned',
     'AllProductsScanned', 'ChoosingPayment',
-    'CardPresented', 'CardInserting', 'CardProcessing', 'CardApproved',
+    'CardPresented', 'CardSwiping', 'CardProcessing', 'CardApproved',
     'CashAccepted', 'DrawerOpening', 'DepositingCash', 'GivingChange',
     'PaymentComplete', 'ReceiptPrinting', 'Bagging', 'BagHandoff', 'CustomerLeaving',
   ];
@@ -142,7 +142,7 @@ test('the live register watchdog covers automatic states and excludes deliberate
   }
 
   for (const state of [
-    'WaitingForScan', 'CardInsertReady', 'CardAmountEntry',
+    'WaitingForScan', 'CardSwipeReady',
     'CardDeclined', 'CashPresented', 'SelectingChange',
     'TransactionComplete', 'Recovery',
   ]) {

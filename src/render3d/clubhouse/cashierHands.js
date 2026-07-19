@@ -195,12 +195,14 @@ export function makeCashierHands(interior) {
     // a tan tube dominate the counter and is not how first-person viewmodels are
     // framed. The short trail points back toward the player and stays consistent
     // at the scanner, terminal, drawer, and customer handoff depths.
+    const forearmLength = pose === 'swipe-card' ? 0.105 : VIEWMODEL_FOREARM;
+    const sleeveLength = pose === 'swipe-card' ? 0.036 : VIEWMODEL_SLEEVE;
     const cuff = arm.cuff.copy(shownWrist)
-      .addScaledVector(camForward, -VIEWMODEL_FOREARM)
+      .addScaledVector(camForward, -forearmLength)
       .addScaledVector(camUp, -0.045)
       .addScaledVector(camRight, side * 0.018);
     const shoulder = arm.shoulder.copy(cuff)
-      .addScaledVector(camForward, -VIEWMODEL_SLEEVE)
+      .addScaledVector(camForward, -sleeveLength)
       .addScaledVector(camUp, -0.020)
       .addScaledVector(camRight, side * 0.010);
     const cuffEdgeEnd = arm.cuffEdgeEnd.copy(cuff).lerp(shownWrist,

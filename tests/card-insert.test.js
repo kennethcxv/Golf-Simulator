@@ -132,24 +132,27 @@ test('keypad editing preserves trailing-zero totals and enforces its input bound
   assert.equal(overflow.cardEntryDigits, '');
 });
 
-test('the active simplified renderer exposes insertion and contains no swipe judge', () => {
+test('the active simplified renderer exposes one physical swipe path and no legacy insertion UI', () => {
   const source = fs.readFileSync(
     new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
     'utf8',
   );
-  assert.match(source, /insertAt:\s*\(\)/);
-  assert.match(source, /function startInsert\(/);
-  assert.match(source, /function endInsert\(/);
-  assert.doesNotMatch(source, /judgeSwipe|SWIPE_TOP|SWIPE_BOT|function startSwipe\(|swipeAt:/);
+  assert.match(source, /import \{ judgeSwipe, SWIPE_MSG \}/);
+  assert.match(source, /function startSwipe\(/);
+  assert.match(source, /function endSwipe\(/);
+  assert.match(source, /swipeAt,/);
+  assert.doesNotMatch(source, /function (?:startInsert|endInsert|autoInsertCard)\(|cardKeyScreenPoint|insertAt:/);
 });
 
-test('the live card flow auto-inserts and uses the normal authorization result', () => {
+test('the live card flow validates the swipe and uses the normal authorization result', () => {
   const source = fs.readFileSync(
     new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
     'utf8',
   );
-  // One click on the presented card starts insertion; no second insert action is required.
-  assert.match(source, /function autoInsertCard\(/, 'card insertion is automatic');
+  assert.match(source, /const judgment = judgeSwipe\(gesture\.samples\)/,
+    'the visible pointer gesture is judged before authorization');
+  assert.match(source, /const inserted = insertCard\(tx\);[\s\S]*const submitted = submitCardAmount\(tx\);/,
+    'one valid swipe crosses the existing insertion and amount-confirmation domain checkpoints');
   // The live route must preserve decline/retry behavior instead of forcing approval.
   assert.match(source, /const result = runCard\(tx\);/, 'gameplay uses normal authorization');
   assert.doesNotMatch(

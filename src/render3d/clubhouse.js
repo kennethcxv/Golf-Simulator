@@ -6816,8 +6816,8 @@ export function makeClubhouse(ctx) {
           if (char) {
             const flowState = c.checkoutFlow && c.checkoutFlow.state;
             let checkoutMode = c.checkoutPhase === 'placing' ? 'Checkout' : 'Idle';
-            if (['ChoosingPayment', 'CardPresented', 'CardInsertReady', 'CardInserting',
-              'CardAmountEntry', 'CardProcessing', 'CardApproved', 'CashPresented',
+            if (['ChoosingPayment', 'CardPresented', 'CardSwipeReady', 'CardSwiping',
+              'CardProcessing', 'CardApproved', 'CashPresented',
               'PaymentComplete', 'ReceiptPrinting'].includes(flowState)) checkoutMode = 'Present';
             else if (flowState === 'CardDeclined') checkoutMode = 'Declined';
             else if (['SelectingChange', 'GivingChange'].includes(flowState)) checkoutMode = 'Receive';
@@ -7256,13 +7256,13 @@ export function makeClubhouse(ctx) {
       ),
       deliveryPhase: () => register.deliveryPhase(),
       hint: () => register.hint(),
-      insertAt: () => register.insertAt(),
       monitorActionPoint: (id) => register.monitorActionPoint(id),
       monitorScreenPoint: (id) => register.monitorScreenPoint(id),
-      cardKeyScreenPoint: (label) => register.cardKeyScreenPoint(label),
       cardXScreenPoint: () => register.cardXScreenPoint(),
       presentedCashScreenPoint: () => register.presentedCashScreenPoint(),
       presentedCardScreenPoint: () => register.presentedCardScreenPoint(),
+      cardTerminalScreenPoint: () => register.cardTerminalScreenPoint(),
+      swipeAt: () => register.swipeAt(),
       cardTerminalLocked: () => register.cardTerminalLocked(),
       monitorHotspots: () => register.monitorHotspots(),
       workspace: () => register.workspace(),

@@ -80,12 +80,12 @@ test('handoff and terminal poses both look south with no 180 spin between them',
   assert.ok(Math.abs(handoff.eye.x - terminal.eye.x) < 1.2, 'eyes are near each other in x');
 });
 
-test('card pickup keeps the customer-facing pose until the physical grip delay ends', () => {
+test('card handoff keeps the customer-facing pose until the terminal is armed', () => {
   const poseKey = functionBody(registerSource, 'poseKey');
   assert.match(
     poseKey,
-    /cardPickupDelay\s*>\s*0/,
-    'the pickup delay remains part of the card-take camera condition',
+    /&& !cardSwipeArmed/,
+    'the customer remains framed until the player activates the terminal',
   );
   assert.match(
     poseKey,
@@ -110,13 +110,15 @@ test('declined-card cash fallback presents tender before opening the drawer came
   );
 
   const acceptCash = functionBody(registerSource, 'acceptPresentedCash');
-  const sortTender = acceptCash.indexOf('sortReceivedCash()');
+  const layoutTender = acceptCash.indexOf('layoutAcceptedTender()');
   const drawerWorkspace = acceptCash.indexOf("setWorkspace('cash')");
-  assert.ok(sortTender >= 0, 'accepting the tender sorts it into the drawer');
+  assert.ok(layoutTender >= 0, 'accepting the tender lays every piece within reach');
   assert.ok(
-    sortTender < drawerWorkspace,
-    'the cash/drawer workspace opens only after the presented cash is accepted',
+    layoutTender < drawerWorkspace,
+    'the cash workspace opens only after the unsorted tender is reachable',
   );
+  assert.doesNotMatch(acceptCash, /depositPiece|sortReceivedCash|openDrawer|drawerWant\s*=\s*1/,
+    'acceptance cannot sort money or open the drawer for the player');
   assert.doesNotMatch(
     acceptCash,
     /setWorkspace\('monitor'\)/,
@@ -130,19 +132,19 @@ test('the live reader has no state-driven lift or float mutation', () => {
   assert.doesNotMatch(registerSource, /termObject\.position\.y\s*=/, 'reader y-position must not animate after attachment');
 });
 
-test('product scanning and monitor controls keep a fixed camera while edge targets are clicked', () => {
+test('precision checkout workspaces keep a fixed camera while edge targets are clicked', () => {
   const updateLookTarget = functionBody(registerSource, 'updateLookTarget');
   assert.match(
     updateLookTarget,
-    /workspace === 'scan' \|\| workspace === 'monitor'/,
-    'scan products and monitor buttons cannot steer their working camera',
+    /workspace === 'scan' \|\| workspace === 'monitor' \|\| workspace === 'card'/,
+    'scan products, monitor buttons, and the card channel cannot steer their working camera',
   );
 
   const updateCamera = functionBody(registerSource, 'updateCamera');
   assert.match(
     updateCamera,
-    /if \(workspace === 'scan' \|\| workspace === 'monitor'\) \{[\s\S]*?lookYaw = 0;[\s\S]*?lookTargetYaw = 0;/,
-    'entering or remaining in scan or monitor view clears prior cursor sway immediately',
+    /if \(workspace === 'scan' \|\| workspace === 'monitor' \|\| workspace === 'card'\) \{[\s\S]*?lookYaw = 0;[\s\S]*?lookTargetYaw = 0;/,
+    'entering a precision workspace clears prior cursor sway immediately',
   );
 });
 

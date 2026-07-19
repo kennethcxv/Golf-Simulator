@@ -246,6 +246,9 @@ export const REGISTER = {
 
   // surfaces
   staging: { minX: 2.05, maxX: 2.80, minZ: 3.78, maxZ: 4.10 },  // customer lays goods out here
+  // Scanned goods stay visible and loose until payment is complete. This strip
+  // is downstream of the reader but clear of both the open bag and POS hardware.
+  scannedStaging: { minX: 1.62, maxX: 2.28, minZ: 4.08, maxZ: 4.24 },
   // counted change rests in this shallow authored tray before handoff. Keeping
   // the footprint in the shared layout makes the prop, money, reach tests and
   // camera composition use one source of truth.
