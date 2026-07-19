@@ -51,6 +51,20 @@ test('front-desk no-show evidence uses the production Tee Times laptop label', (
     'the assertion accepts the player-facing No show status');
 });
 
+test('front-desk cancellation evidence uses the normal laptop confirmation route', () => {
+  for (const proof of [
+    "name: 'Cancel booking'",
+    "name: 'Cancel the booking'",
+    "toastText.includes('spot is open again')",
+    "reservation?.status === 'cancelled'",
+    'fixture.bookedSlot.bookedPlayers - fixture.reservation.partySize',
+    'fixture.identityBefore.visitHistory.cancellations + 1',
+    'cancellation-second-load-idempotent.png',
+  ]) {
+    assert.ok(frontDeskLifecycleDriver.includes(proof), `missing cancellation proof: ${proof}`);
+  }
+});
+
 test('patience evidence proves real abandonment and resolves URL/output from the worktree', () => {
   assert.match(patienceDriver, /process\.env\.QA_BASE_URL \|\| 'http:\/\/localhost:8457\/'/);
   assert.match(patienceDriver, /process\.env\.PATIENCE_QA_ROOT/);
