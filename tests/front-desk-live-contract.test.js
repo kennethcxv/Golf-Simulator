@@ -54,6 +54,18 @@ test('Escape unwinds physical workspace, selection, tab, and only then leaves th
   assert.doesNotMatch(onKey, /abandon\s*\(/);
 });
 
+test('an order arriving at an already-open till arms the cashier-entry transition', () => {
+  const begin = functionBody(registerSource, 'begin');
+  assert.match(begin, /if \(active && checkoutFlowState\(\) === 'WaitingForCashier'\)/);
+  assert.match(begin,
+    /flowTo\('EnteringCashierMode', 'customer-order-arrived-at-open-front-desk'\)/);
+  assert.match(begin, /enterTimer\s*=\s*0\.30/);
+  assert.ok(
+    begin.indexOf("flowTo('EnteringCashierMode'") < begin.indexOf('drawScreen()'),
+    'the physical flow advances before the newly-arrived order is first redrawn',
+  );
+});
+
 test('early reservation guests wait against game time and introduce their full name at the desk', () => {
   assert.match(clubhouseSource, /state\.clock\.minutes\s*<\s*c\.loungeUntil/);
   assert.match(clubhouseSource, /I have a reservation under \$\{c\.fullName\}/);
