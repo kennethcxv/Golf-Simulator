@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   buildCardinalityReport,
   buildLongSessionResourceOverlayModel,
@@ -7,6 +8,11 @@ import {
   renderLifecycleMarkdown,
   resolveLifecycleConfig,
 } from '../tools/qa/simplified-register-lifecycle-stress.mjs';
+
+const LIFECYCLE_SOURCE = readFileSync(
+  new URL('../tools/qa/simplified-register-lifecycle-stress.mjs', import.meta.url),
+  'utf8',
+).replaceAll('\r\n', '\n');
 
 function makeMasterOverlayResult() {
   const requested = resolveLifecycleConfig({}, {}).counts;
@@ -97,6 +103,39 @@ test('lifecycle stress defaults to the complete master cardinalities', () => {
     drawerOpenCloses: 100,
     customerSpawnRemovalsMinimum: 100,
   });
+});
+
+test('master resource evidence stays bounded without weakening exact counters', () => {
+  assert.match(LIFECYCLE_SOURCE,
+    /resourceStates:\s*\{\s*geometry: new WeakMap\(\),\s*material: new WeakMap\(\),\s*texture: new WeakMap\(\)/,
+    'per-object lifecycle state must not keep disposed Three.js resources alive');
+  assert.match(LIFECYCLE_SOURCE,
+    /cycleResourceSamples:[\s\S]*createSampler\(2000\)/,
+    'cycle-resource forensics must use a bounded head/tail sample');
+  assert.match(LIFECYCLE_SOURCE,
+    /disposalEventSamples:[\s\S]*createSampler\(2000\)/,
+    'dispose-event forensics must use a bounded head/tail sample');
+  assert.match(LIFECYCLE_SOURCE,
+    /const sampledUuids = \(uuids, limit = 12\)/,
+    'each phase mark must retain bounded added/removed resource detail');
+  assert.match(LIFECYCLE_SOURCE,
+    /if \(!isLive\) delete probe\.resources\[kind\]\[entry\.uuid\]/,
+    'non-live forensic entries must be released after their exact counters are recorded');
+  assert.match(LIFECYCLE_SOURCE,
+    /evidenceSampling:\s*\{\s*bounded: true,[\s\S]*cycleResourcesPerKind: 2000,[\s\S]*disposalEventsPerKind: 2000/,
+    'the emitted artifact must declare its bounded sampling protocol');
+  assert.match(LIFECYCLE_SOURCE,
+    /animationMixers:\s*\{\s*count: resourceProbe\?\.animationMixerCount \?\? 0/,
+    'runtime samples must read the exact WeakSet-backed mixer counter');
+  assert.match(LIFECYCLE_SOURCE,
+    /front-desk-register-retained'[\s\S]*baseline\.register\.nodes > 0[\s\S]*finalSample\.register\.nodes > 0/,
+    'the retained-register gate must inspect the register root, not a transferred bag prop');
+  assert.doesNotMatch(LIFECYCLE_SOURCE,
+    /disposalEvents:\s*\{\s*geometry:\s*\[\],\s*material:\s*\[\],\s*texture:\s*\[\]/,
+    'the master probe must not restore the unbounded event arrays that exceeded V8 string limits');
+  assert.doesNotMatch(LIFECYCLE_SOURCE,
+    /front-desk-register-retained'[\s\S]{0,300}frontDeskBags/,
+    'the exact bag may leave with its customer and cannot proxy register retention');
 });
 
 test('smoke profile keeps every lifecycle branch while using low counts', () => {
