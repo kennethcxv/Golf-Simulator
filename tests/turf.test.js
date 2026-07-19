@@ -4,7 +4,8 @@ import { ZONE, MINUTES_PER_DAY } from '../src/sim/constants.js';
 import { newGame, update } from '../src/sim/state.js';
 import {
   DISEASE, sectionTurfSummary, sectionStatus, diagnoseSection, treatSection,
-  aerateSection, conditionRating, greenSpeedOf, diseasePressure,
+  aerateSection, treatSectionCost, aerateSectionCost,
+  conditionRating, greenSpeedOf, diseasePressure,
 } from '../src/sim/turf.js';
 
 function freshState(mode = 'realistic', seed = 42) {
@@ -181,6 +182,30 @@ test('aeration relieves wear for a fee', () => {
   assert.ok(st.cash < cashBefore);
   const after = sectionTurfSummary(st, tee);
   assert.ok(after.wear < before.wear - 15 || after.wear === 0, `wear ${before.wear} → ${after.wear}`);
+});
+
+test('turf action previews exactly match the charged upgrade-aware costs', () => {
+  const st = freshState();
+  const tee = st.sections.find((section) => section.zone === ZONE.TEE);
+  const sick = greenSections(st).find((section) => sectionTurfSummary(st, section).disease);
+
+  const aerateFull = aerateSectionCost(st, tee);
+  st.progression.unlocks.aerator = 0;
+  const aerateDiscounted = aerateSectionCost(st, tee);
+  assert.equal(aerateDiscounted, Math.round(aerateFull * 0.5));
+  const aerateCash = st.cash;
+  const aerate = aerateSection(st, tee);
+  assert.equal(aerate.cost, aerateDiscounted);
+  assert.equal(aerateCash - st.cash, aerateDiscounted);
+
+  const treatFull = treatSectionCost(st, sick);
+  st.progression.unlocks.sprayRig = 0;
+  const treatDiscounted = treatSectionCost(st, sick);
+  assert.equal(treatDiscounted, Math.round(treatFull * 0.6));
+  const treatCash = st.cash;
+  const treated = treatSection(st, sick);
+  assert.equal(treated.cost, treatDiscounted);
+  assert.equal(treatCash - st.cash, treatDiscounted);
 });
 
 test('green speed reflects height and health, and condition affects play quality', () => {

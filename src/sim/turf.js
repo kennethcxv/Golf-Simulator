@@ -399,9 +399,19 @@ export function runMorningMaintenance(state, dayAbs) {
 
 // --- player actions ---------------------------------------------------------------------
 
+export function treatSectionCost(state, section) {
+  return Math.round(section.cells.length * T().fungicideCostPerCell
+    * (state.progression ? fungicideCostFactor(state) : 1));
+}
+
+export function aerateSectionCost(state, section) {
+  return Math.round(section.cells.length * T().aerateCostPerCell
+    * (state.progression ? aerateCostFactor(state) : 1));
+}
+
 export function treatSection(state, section) {
   const t = state.turf;
-  const cost = Math.round(section.cells.length * T().fungicideCostPerCell * (state.progression ? fungicideCostFactor(state) : 1));
+  const cost = treatSectionCost(state, section);
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash for fungicide.' };
   spend(state, 'chemicals', cost);
   for (const i of section.cells) {
@@ -413,7 +423,7 @@ export function treatSection(state, section) {
 
 export function aerateSection(state, section) {
   const t = state.turf;
-  const cost = Math.round(section.cells.length * T().aerateCostPerCell * (state.progression ? aerateCostFactor(state) : 1));
+  const cost = aerateSectionCost(state, section);
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash to aerate.' };
   spend(state, 'upkeep', cost);
   for (const i of section.cells) {

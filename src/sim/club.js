@@ -45,7 +45,7 @@ export const AMENITIES = {
   instruction: { name: 'Teaching program', maxLevel: 2, cost: [3000, 8000], upkeepPerLevel: 15 },
 };
 
-const UTILITIES_PER_DAY = 45;
+export const UTILITIES_PER_DAY = 45;
 
 export function initClub(state) {
   state.club = {
