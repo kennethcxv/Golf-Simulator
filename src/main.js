@@ -1748,7 +1748,10 @@ function updateWalkOverlay(dtMs = 16.7) {
     ovLast.prompt = label;
     ovEl.prompt.textContent = label;
   }
-  const opacity = label ? '1' : '0';
+  // A focus prompt only has meaning while mouse-look owns the pointer. When
+  // the pointer is free, "Click to play" is the single actionable instruction;
+  // stacking both bars made the queue/customer name unreadable.
+  const opacity = label && document.pointerLockElement ? '1' : '0';
   if (opacity !== ovLast.opacity) {
     ovLast.opacity = opacity;
     ovEl.prompt.style.opacity = opacity;

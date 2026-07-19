@@ -248,7 +248,10 @@ async function runtimeSnapshot(page) {
       bags: 0,
     };
     let itemPad = null;
-    clubhouse.interior.traverse((object) => {
+    const visitedPhysicalObjects = new Set();
+    const countPhysicalObject = (object) => {
+      if (visitedPhysicalObjects.has(object)) return;
+      visitedPhysicalObjects.add(object);
       const kind = object.userData?.kind;
       if (kind === 'item' && object.parent?.userData?.kind !== 'item') physical.itemRoots += 1;
       if (object.name === 'ItemClickPad') {
@@ -268,7 +271,13 @@ async function runtimeSnapshot(page) {
           && object.parent?.userData?.kind !== 'money') physical.changeRoots += 1;
       if (object.name === 'PrintedReceipt') physical.receipts += 1;
       if (object.name === 'FrontDeskShoppingBag') physical.bags += 1;
-    });
+    };
+    // The exact receipt is reparented to the active customer's authored grip
+    // before BagHandoff. Customers live in the world-space custGroup rather
+    // than the clubhouse interior, so count both ownership roots while the
+    // transaction is live. The visited set keeps this safe across reparenting.
+    clubhouse.interior.traverse(countPhysicalObject);
+    register.getCustomer()?.mesh?.traverse(countPhysicalObject);
     const shop = app.state.shop;
     const prefs = checkoutPreferences(app.state);
     const activePreferencesCapability = typeof register.accessibilityPreferences === 'function';
@@ -763,12 +772,23 @@ async function scanAll(page) {
 }
 
 async function cameraSwayProbe(page) {
-  const before = (await runtimeSnapshot(page)).camera;
   const rect = (await runtimeSnapshot(page)).canvas;
+  await page.mouse.move(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+  await page.waitForTimeout(450);
+  const before = (await runtimeSnapshot(page)).camera;
   await page.mouse.move(rect.x + rect.width * 0.94, rect.y + rect.height * 0.14);
   await page.waitForTimeout(450);
   const after = (await runtimeSnapshot(page)).camera;
   return { before, after, delta: poseDelta(before, after) };
+}
+
+async function waitForSwayWorkspace(page) {
+  await page.waitForFunction(() => {
+    const register = window.__fw.scene3d.clubhouse().register;
+    return register.workspace() === 'card'
+      && ['CardPresented', 'CardInsertReady'].includes(register.getFlow()?.state);
+  }, null, { timeout: 12000 });
+  await page.waitForTimeout(600);
 }
 
 async function moveToLaptop(page) {
@@ -789,16 +809,14 @@ async function openSettings(page) {
   await page.keyboard.press('e');
   await page.waitForFunction(() => window.__fw.laptopOpen && document.querySelector('.lt-frame'),
     null, { timeout: 12000 });
-  const point = await page.evaluate(() => {
-    const button = [...document.querySelectorAll('.lt-navbtn')]
-      .find((entry) => entry.textContent.trim().includes('Settings'));
-    if (!button) return null;
-    button.scrollIntoView({ block: 'nearest' });
-    const rect = button.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  });
-  assert(point, 'Settings navigation is missing from the physical laptop.');
-  await page.mouse.click(point.x, point.y);
+  const settings = page.locator('.lt-navbtn').filter({ hasText: /^Settings$/ });
+  await settings.waitFor({ state: 'visible', timeout: 5000 });
+  assert(await settings.count() === 1, 'Settings navigation is missing from the physical laptop.');
+  // The laptop overlay eases into its projected screen pose. Playwright's
+  // actionability check waits for those bounds to settle before issuing the
+  // same trusted pointer click a player uses; a point captured immediately
+  // after laptopOpen can otherwise land on the prior Home position.
+  await settings.click();
   await page.waitForFunction(() => document.querySelector('.lt-h1')?.textContent.includes('Settings'),
     null, { timeout: 5000 });
   await page.waitForTimeout(300);
@@ -828,17 +846,12 @@ async function checkoutSettingsUi(page) {
 }
 
 async function setSetting(page, label, checked) {
-  const point = await page.evaluate(([wanted, value]) => {
-    const row = [...document.querySelectorAll('label.lt-row')]
-      .find((entry) => entry.textContent.includes(wanted));
-    const input = row?.querySelector('input[type="checkbox"]');
-    if (!input) return null;
-    if (input.checked === value) return { already: true, x: 0, y: 0 };
-    const rect = input.getBoundingClientRect();
-    return { already: false, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  }, [label, checked]);
-  assert(point, `Setting ${label} is missing.`);
-  if (!point.already) await page.mouse.click(point.x, point.y);
+  const row = page.locator('label.lt-row').filter({ hasText: label });
+  await row.waitFor({ state: 'attached', timeout: 3000 });
+  assert(await row.count() === 1, `Setting ${label} is missing.`);
+  const input = row.locator('input[type="checkbox"]');
+  await input.scrollIntoViewIfNeeded();
+  if (await input.isChecked() !== checked) await input.click();
   await page.waitForFunction(([wanted, value]) => {
     const row = [...document.querySelectorAll('label.lt-row')]
       .find((entry) => entry.textContent.includes(wanted));
@@ -847,7 +860,10 @@ async function setSetting(page, label, checked) {
 }
 
 async function closeLaptop(page) {
-  await page.keyboard.press('Escape');
+  const close = page.locator('button.lt-primary').filter({ hasText: /^Close Laptop$/ });
+  await close.waitFor({ state: 'visible', timeout: 3000 });
+  assert(await close.count() === 1, 'The Settings page Close Laptop control is missing.');
+  await close.click();
   await page.waitForFunction(() => window.__fw.laptopOpen === false, null, { timeout: 5000 });
 }
 
@@ -1277,8 +1293,13 @@ export async function runRecoveryAccessibilityAudit(page) {
     await enterCheckout(page);
     const defaultBefore = await runtimeSnapshot(page);
     await shot('default-checkout-baseline');
-    const defaultSway = await cameraSwayProbe(page);
     const defaultScan = await scanNext(page);
+    await scanAll(page);
+    // The scan workspace is intentionally fixed so edge products cannot be
+    // panned out of reach. Measure optional cursor sway in the automatically
+    // reached card-handoff workspace, where standard motion still applies.
+    await waitForSwayWorkspace(page);
+    const defaultSway = await cameraSwayProbe(page);
     assert(defaultBefore.prefs.largeTextAndTargets === false
         && defaultBefore.prefs.reducedCameraMotion === false
         && defaultBefore.prefs.fasterAnimations === false,
@@ -1325,8 +1346,9 @@ export async function runRecoveryAccessibilityAudit(page) {
     const cardFixture = await prepareFixture(page, 'card');
     await enterCheckout(page);
     const enabledBefore = await runtimeSnapshot(page);
-    const reducedSway = await cameraSwayProbe(page);
     const fastScans = await scanAll(page);
+    await waitForSwayWorkspace(page);
+    const reducedSway = await cameraSwayProbe(page);
     assert(enabledBefore.activePreferences.largeTextAndTargets
         && enabledBefore.activePreferences.reducedCameraMotion
         && enabledBefore.activePreferences.fasterAnimations,
@@ -1578,14 +1600,32 @@ export async function runRecoveryAccessibilityAudit(page) {
         && recoveryEntries(liveBagHandoff, bagHandoffMarker).resumed.length === 1,
     'BagHandoff watchdog looped after replaying its idempotent physical handoff.');
     await shot('recovered-sale-live-bag-handoff');
-    await page.waitForFunction(() => (
-      window.__fw.scene3d.clubhouse().register.getFlow()?.state === 'CustomerLeaving'
-    ), null, { timeout: 5000 });
-    const liveCustomerLeaving = await runtimeSnapshot(page);
+    const customerLeavingHandle = await page.waitForFunction(() => {
+      const register = window.__fw.scene3d.clubhouse().register;
+      const flow = register.getFlow();
+      if (flow?.state !== 'CustomerLeaving') return false;
+      return {
+        flow: {
+          state: flow.state,
+          sequence: flow.sequence,
+          history: structuredClone(flow.history || []),
+        },
+        txNumber: register.getTx()?.number || null,
+        txStage: register.getTx()?.stage || null,
+        deliveryPhase: register.deliveryPhase(),
+        delivery: register.deliveryPresentation(),
+      };
+    }, null, { timeout: 5000 });
+    // Faster animations leave a deliberately short pre-bank departure window.
+    // Keep the frame-coherent value returned by waitForFunction instead of
+    // starting an async module-heavy snapshot after the transaction may clear.
+    const liveCustomerLeaving = await customerLeavingHandle.jsonValue();
     assert(liveBagHandoff.flow.state === 'BagHandoff'
         && liveBagHandoff.watchdog.managedStates.includes('BagHandoff')
+        && liveBagHandoff.watchdog.managedStates.includes('CustomerLeaving')
         && liveCustomerLeaving.flow.state === 'CustomerLeaving'
-        && liveCustomerLeaving.watchdog.managedStates.includes('CustomerLeaving'),
+        && liveCustomerLeaving.txStage === 'done'
+        && liveCustomerLeaving.deliveryPhase === 'released',
     'Timed delivery states were not held across their live physical/finalize windows.');
     await shot('recovered-sale-live-customer-leaving');
     await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.getTx(), null,

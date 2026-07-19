@@ -158,6 +158,28 @@ test('the live register watchdog covers automatic states and excludes deliberate
   }
 });
 
+test('an already-active cashier advances the next queued owner through cashier entry', () => {
+  const source = fs.readFileSync(
+    new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
+    'utf8',
+  ).replaceAll('\r\n', '\n');
+  const helperStart = source.indexOf('  function beginCashierEntry(event) {');
+  const helperEnd = source.indexOf('\n  function poseBetween(', helperStart);
+  const beginStart = source.indexOf('  function begin(customer) {');
+  const beginEnd = source.indexOf('\n  function beginReservationPayment(', beginStart);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  assert.ok(beginStart >= 0 && beginEnd > beginStart);
+  const helper = source.slice(helperStart, helperEnd);
+  const begin = source.slice(beginStart, beginEnd);
+
+  assert.match(helper, /checkoutFlowState\(\) !== 'WaitingForCashier'/);
+  assert.match(helper, /flowTo\('EnteringCashierMode', event\)/);
+  assert.match(helper, /enterTimer = 0\.30/,
+    'the normal camera/input settling beat remains between queued owners');
+  assert.match(begin, /if \(active\) beginCashierEntry\('active-cashier-accepted-next-queued-customer'\)/,
+    'a fresh queue owner cannot remain in WaitingForCashier while the till is already open');
+});
+
 test('live delivery holds BagHandoff and CustomerLeaving around their physical windows', () => {
   const source = fs.readFileSync(
     new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
@@ -185,6 +207,11 @@ test('live delivery holds BagHandoff and CustomerLeaving around their physical w
     'the bag must reach a readable customer-owned hold before departure');
   assert.ok(customerLeaving >= 0 && customerLeaving < release,
     'CustomerLeaving must begin after the customer-owned bag hold');
+  assert.match(delivery, /checkoutFlowState\(\) !== 'BagHandoff'\) return false/,
+    'delivery must fail closed if the physical flow never reached BagHandoff');
+  assert.match(delivery,
+    /checkoutFlowState\(\) !== 'BagHandoff'[\s\S]*!flowTo\('CustomerLeaving',[\s\S]*\)\) return;/,
+    'customer goods cannot be marked released when the departure transition is rejected');
   assert.match(finalize, /checkoutFlowState\(\) !== 'CustomerLeaving'/,
     'banking must require the held CustomerLeaving checkpoint');
   assert.doesNotMatch(finalize, /flowTo\('BagHandoff'|flowTo\('CustomerLeaving'/,
