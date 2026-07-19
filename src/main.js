@@ -13,7 +13,7 @@ import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
 import { formatMoney } from './core/utils.js';
 import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS, isTextEntryTarget } from './core/heldKeys.js';
 import { calendarOf } from './sim/time.js';
-import { el, toast, modal } from './ui/ui.js';
+import { el, toast, clearToasts, modal } from './ui/ui.js';
 import { makeHud } from './ui/hud.js';
 import { makeCourseEditor } from './ui/courseEditor.js';
 import { makeInspectPanel } from './ui/inspectPanel.js';
@@ -324,6 +324,7 @@ function enterEditor() {
   if (app.courseMode === 'walk') exitWalk();
   app.courseMode = 'editor';
   app.speedIdx = 0; // the world holds its breath while you shape it
+  clearToasts(); // customer/shop dialogue must not leak into the design surface
   // the editor is a production surface: data heat-maps (health/moisture) are
   // grounds-desk tools and must never tint the design view
   handlers.setViewMode('normal');
@@ -488,7 +489,9 @@ function startGameNow(state) {
   app.scene3d = makeCourseScene(canvas, state);
   // walk-up inspection: the walking controller asks, the app answers with the
   // same sections and status words the top-down click-to-inspect always used
-  app.scene3d.walk.hooks.toast = (msg, kind) => toast(msg, kind);
+  app.scene3d.walk.hooks.toast = (msg, kind) => {
+    if (!editorActive()) toast(msg, kind);
+  };
   // a restrained note when the game had to dig the player out of geometry
   app.scene3d.walk.hooks.recovered = (how) => toast(
     how === 'lastSafe' ? 'Stepped you back to where you last had room.' : 'Moved you clear of the furniture.',

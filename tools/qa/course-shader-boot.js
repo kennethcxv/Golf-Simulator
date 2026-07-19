@@ -20,7 +20,7 @@ async function courseShaderBoot(page) {
   });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 
-  await page.goto('http://localhost:8457/');
+  await page.goto(process.env.QA_BASE_URL || 'http://localhost:8457/');
   await page.waitForFunction(() => document.readyState === 'complete');
 
   const cont = page.getByRole('button', { name: 'Continue', exact: true });

@@ -98,14 +98,14 @@ const GRASS_STRUCTURE_MARGIN_YD = 1.5;
 // immutable scalar record per grassy zone so the hot loop does not allocate a
 // fresh object and tint array for each probe.
 export const GRASS_ZONE_SPECS = Object.freeze({
-  [ZONE.OUT]: Object.freeze({ h: 0.25, r: 0.40, g: 0.46, b: 0.20 }),
-  [ZONE.ROUGH]: Object.freeze({ h: 0.14, r: 0.32, g: 0.54, b: 0.18 }),
-  [ZONE.FAIRWAY]: Object.freeze({ h: 0.035, r: 0.38, g: 0.65, b: 0.22 }),
-  [ZONE.TEE]: Object.freeze({ h: 0.025, r: 0.36, g: 0.62, b: 0.22 }),
-  [ZONE.FRINGE]: Object.freeze({ h: 0.03, r: 0.34, g: 0.60, b: 0.21 }),
-  [ZONE.HEAVY]: Object.freeze({ h: 0.32, r: 0.42, g: 0.48, b: 0.20 }),
-  [ZONE.BED]: Object.freeze({ h: 0.12, r: 0.26, g: 0.40, b: 0.15 }),
-  [ZONE.SEMI]: Object.freeze({ h: 0.065, r: 0.32, g: 0.57, b: 0.19 }),
+  [ZONE.OUT]: Object.freeze({ h: 0.25, r: 0.34, g: 0.43, b: 0.17 }),
+  [ZONE.ROUGH]: Object.freeze({ h: 0.14, r: 0.29, g: 0.5, b: 0.17 }),
+  [ZONE.FAIRWAY]: Object.freeze({ h: 0.035, r: 0.32, g: 0.57, b: 0.19 }),
+  [ZONE.TEE]: Object.freeze({ h: 0.025, r: 0.31, g: 0.55, b: 0.19 }),
+  [ZONE.FRINGE]: Object.freeze({ h: 0.03, r: 0.3, g: 0.53, b: 0.18 }),
+  [ZONE.HEAVY]: Object.freeze({ h: 0.32, r: 0.36, g: 0.45, b: 0.17 }),
+  [ZONE.BED]: Object.freeze({ h: 0.12, r: 0.25, g: 0.37, b: 0.14 }),
+  [ZONE.SEMI]: Object.freeze({ h: 0.065, r: 0.29, g: 0.51, b: 0.17 }),
 });
 
 export function grassSpecForZone(z) {
@@ -627,7 +627,7 @@ export function makeCourseScene(canvas, state) {
   scene.add(sun.target);
 
   // STYLE GUIDE §3: strong sky fill so shadows stay colorful (~60-70% of lit)
-  const hemi = new THREE.HemisphereLight(0xcfe6fa, 0x5d7a44, 1.25);
+  const hemi = new THREE.HemisphereLight(0xcfe6fa, 0x71875d, 1.4);
   scene.add(hemi);
 
   const sky = new Sky();
@@ -1004,19 +1004,19 @@ export function makeCourseScene(canvas, state) {
           #define FW_LUMA vec3(0.299, 0.587, 0.114)
           #define FW_STYLIZE(tex, tint) ((0.46 + dot(tex, FW_LUMA) * 1.28) * (tint))
 
-          vec3 colRough = FW_STYLIZE(dRough, vec3(0.135, 0.205, 0.070));
-          vec3 colFair = FW_STYLIZE(dFair, vec3(0.158, 0.318, 0.082));
+          vec3 colRough = FW_STYLIZE(dRough, vec3(0.145, 0.235, 0.082));
+          vec3 colFair = FW_STYLIZE(dFair, vec3(0.150, 0.325, 0.080));
           // First cut is a deliberate intermediate ribbon, not a blurred
           // fairway edge.  The darker sage value stays above rough while
           // remaining legible from tee height.
-          vec3 colSemi = FW_STYLIZE(dFair, vec3(0.138, 0.260, 0.068));
+          vec3 colSemi = FW_STYLIZE(dFair, vec3(0.145, 0.275, 0.074));
           // Close-cut complexes need a readable identity from both the editor
           // camera and tee height.  Keep the parkland hue, but give greens a
           // brighter, cooler value and their collar a deliberate dark frame.
-          vec3 colGreen = FW_STYLIZE(dGreen, vec3(0.188, 0.378, 0.084));
-          vec3 colFringe = FW_STYLIZE(dGreen, vec3(0.128, 0.286, 0.060));
-          vec3 colTee = FW_STYLIZE(dTee, vec3(0.180, 0.365, 0.090));
-          vec3 colSand = (0.48 + dot(dSand, FW_LUMA) * 1.20) * vec3(0.70, 0.58, 0.40);
+          vec3 colGreen = FW_STYLIZE(dGreen, vec3(0.180, 0.360, 0.082));
+          vec3 colFringe = FW_STYLIZE(dGreen, vec3(0.150, 0.300, 0.070));
+          vec3 colTee = FW_STYLIZE(dTee, vec3(0.168, 0.340, 0.084));
+          vec3 colSand = (0.5 + dot(dSand, FW_LUMA) * 1.18) * vec3(0.78, 0.66, 0.46);
 
           vec3 col;
           float stripeAmp = 0.0;
@@ -1024,20 +1024,20 @@ export function makeCourseScene(canvas, state) {
           float modeSel = 0.0;
           bool followFlow = false;
           if (zone < 0.5) {        // OUT — native scrub
-            col = FW_STYLIZE(dScrub, vec3(0.145, 0.185, 0.082)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
+            col = FW_STYLIZE(dScrub, vec3(0.160, 0.205, 0.095)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
           } else if (zone < 1.5) { // ROUGH
             col = colRough; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.96;
           } else if (zone < 2.5) { // FAIRWAY
             col = colFair; gSplatN = nFair; gSplatUv = uvFair; gSplatRough = 0.94;
             // Roughly six-yard alternating cuts make the mowing read down the
             // hole at player height as well as from the planning camera.
-            stripeAmp = 0.18; stripeFreq = 0.082; modeSel = uStripeModes.y; followFlow = true;
+            stripeAmp = 0.12; stripeFreq = 0.082; modeSel = uStripeModes.y; followFlow = true;
           } else if (zone < 3.5) { // GREEN
             col = colGreen; gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.9;
-            stripeAmp = 0.075; stripeFreq = 0.24; modeSel = uStripeModes.x; followFlow = true;
+            stripeAmp = 0.055; stripeFreq = 0.24; modeSel = uStripeModes.x; followFlow = true;
           } else if (zone < 4.5) { // TEE
             col = colTee; gSplatN = nTee; gSplatUv = uvTee; gSplatRough = 0.93;
-            stripeAmp = 0.085; stripeFreq = 0.16; modeSel = uStripeModes.z; followFlow = true;
+            stripeAmp = 0.06; stripeFreq = 0.16; modeSel = uStripeModes.z; followFlow = true;
           } else if (zone < 5.5) { // BUNKER — warm sand on a gentler curve (never blows to white)
             col = colSand;
             gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
@@ -1048,8 +1048,8 @@ export function makeCourseScene(canvas, state) {
           } else if (zone < 8.5) { // FRINGE — a shade deeper than green, tight cut
             col = colFringe; gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.92;
           } else if (zone < 9.5) { // HEAVY rough — tall, warm, golden-tipped
-            col = FW_STYLIZE(dRough, vec3(0.155, 0.205, 0.072)); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.97;
-            col = mix(col, vec3(0.34, 0.32, 0.13), fwNoise(cellUv * 2.7) * 0.2); // seedhead shimmer
+            col = FW_STYLIZE(dRough, vec3(0.170, 0.225, 0.085)); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.97;
+            col = mix(col, vec3(0.30, 0.29, 0.12), fwNoise(cellUv * 2.7) * 0.16); // seedhead shimmer
           } else if (zone < 10.5) { // DIRT
             col = FW_STYLIZE(dPath, vec3(0.42, 0.31, 0.20)); gSplatN = nPath; gSplatUv = uvPath; gSplatRough = 0.95;
           } else if (zone < 11.5) { // BED — dark mulch
@@ -1105,9 +1105,9 @@ export function makeCourseScene(canvas, state) {
           // to their own outward boundary in edgeYd, so feather each band into
           // the neighbour it borders across the last yard and the step goes away
           // without softening anything that owns an SDF channel.
-          vec3 heavyBand = FW_STYLIZE(dRough, vec3(0.155, 0.205, 0.072));
-          heavyBand = mix(heavyBand, vec3(0.34, 0.32, 0.13), fwNoise(cellUv * 2.7) * 0.2);
-          vec3 scrubBand = FW_STYLIZE(dScrub, vec3(0.145, 0.185, 0.082));
+          vec3 heavyBand = FW_STYLIZE(dRough, vec3(0.170, 0.225, 0.085));
+          heavyBand = mix(heavyBand, vec3(0.30, 0.29, 0.12), fwNoise(cellUv * 2.7) * 0.16);
+          vec3 scrubBand = FW_STYLIZE(dScrub, vec3(0.160, 0.205, 0.095));
           const float bandFeatherYd = 1.25;
           if (zone < 0.5) {
             // native scrub, fading back toward the heavy band on its inner edge
@@ -1123,7 +1123,7 @@ export function makeCourseScene(canvas, state) {
           // Broad, low-amplitude turf drift breaks repetition without turning
           // the playing surface into camouflage. One noise feature spans about
           // five simulation cells (roughly forty yards).
-          col *= 0.93 + fwNoise(cellUv * 0.18 + vec2(9.7, 21.3)) * 0.14;
+          col *= 0.96 + fwNoise(cellUv * 0.18 + vec2(9.7, 21.3)) * 0.08;
 
           if (stripeAmp > 0.001 && modeSel > 0.5) {
             // overgrown turf softens the bands but never erases the pattern —
@@ -1168,8 +1168,8 @@ export function makeCourseScene(canvas, state) {
               float spots = fwNoise(cellUv * (disType < 1.5 ? 6.5 : 3.2) + disType * 31.0);
               float cut = 1.0 - disSev * 0.6;
               float blot = smoothstep(cut, cut + 0.12, spots);
-              vec3 blotch = disType < 1.5 ? vec3(0.84, 0.79, 0.6) : vec3(0.52, 0.4, 0.24);
-              col = mix(col, blotch, blot * 0.78);
+              vec3 blotch = disType < 1.5 ? vec3(0.64, 0.58, 0.34) : vec3(0.48, 0.38, 0.22);
+              col = mix(col, blotch, blot * 0.5);
             }
           }
 
@@ -1318,7 +1318,7 @@ export function makeCourseScene(canvas, state) {
         `{
           vec4 sampledDiffuseColor = texture2D( map, vMapUv * 90.0 );
           float luma = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-          diffuseColor.rgb = (0.46 + luma * 1.28) * vec3(0.145, 0.185, 0.082);
+          diffuseColor.rgb = (0.46 + luma * 1.28) * vec3(0.160, 0.205, 0.095);
         }`,
       );
     };
@@ -1367,11 +1367,13 @@ export function makeCourseScene(canvas, state) {
       mesh.castShadow = false;
       return mesh;
     };
-    // Two fog-separated silhouettes cost four hundred triangles and close the
-    // ground-level horizon without instancing thousands of distant full trees.
+    // Three fog-separated silhouettes cost well under a thousand triangles and
+    // replace the old single-height wallpaper with near, middle, and distant
+    // parkland ridges.
     horizonLandscape.add(
-      ridge(1250, 0.7, 12, 38, 0x66785d),
-      ridge(1800, 2.2, 28, 54, 0x82907b),
+      ridge(1050, 4.1, 7, 31, 0x526a50),
+      ridge(1450, 0.7, 18, 48, 0x66785d),
+      ridge(2050, 2.2, 34, 66, 0x899687),
     );
     scene.add(horizonLandscape);
   }
@@ -1771,10 +1773,10 @@ export function makeCourseScene(canvas, state) {
         textureHeight: 512,
         waterNormals: waterNormalsTex,
         sunDirection: sun.position.clone().normalize(),
-        sunColor: 0xf4ede0, // soften the specular so low angles don't read as ice
-        waterColor: 0x3a7f9c, // §1: friendly stream blue-green, lifted so shaded ponds never read black
-        distortionScale: 3.4, // choppier normals break the full-sky mirror
-        alpha: 0.92, // a touch of the ground shows through — never a pure mirror
+        sunColor: 0xcbd3c1, // muted specular: low angles read as water, never white ice
+        waterColor: 0x34777d, // restrained golf-course blue-green
+        distortionScale: 2.7,
+        alpha: 0.95,
         fog: !!scene.fog,
       });
       guardCourseWaterReflection(water);
@@ -1785,7 +1787,8 @@ export function makeCourseScene(canvas, state) {
       water.material.onBeforeCompile = (sh) => {
         sh.fragmentShader = sh.fragmentShader.replace(
           'gl_FragColor = vec4( outgoingLight, alpha );',
-          'gl_FragColor = vec4( max( outgoingLight, waterColor * 0.34 ), alpha );',
+          `vec3 courseReflection = min( outgoingLight, waterColor * 1.7 + vec3( 0.10 ) );
+          gl_FragColor = vec4( max( mix( waterColor * 0.76, courseReflection, 0.58 ), waterColor * 0.46 ), alpha );`,
         );
       };
       water.position.set(cx, level, cz);
@@ -1850,7 +1853,7 @@ export function makeCourseScene(canvas, state) {
       for (let x = -RING_DEPTH; x < W + RING_DEPTH; x++) {
         if (x >= 0 && y >= 0 && x < W && y < H) continue;
         const d = Math.max(x < 0 ? -x : x - (W - 1), y < 0 ? -y : y - (H - 1), 1);
-        const p = d <= 3 ? 0.48 : d <= 8 ? 0.32 : d <= 16 ? 0.18 : 0.09;
+        const p = d <= 3 ? 0.42 : d <= 8 ? 0.27 : d <= 16 ? 0.14 : 0.07;
         const h = treeHash(x * 11 + 5, y * 13 + 7);
         if (h < 1 - p) continue;
         spots.push({ x, y, r: h, edge: true, far: d });
@@ -1979,9 +1982,23 @@ export function makeCourseScene(canvas, state) {
       if (s.id && assets.has(s.id)) {
         sourceId = s.id;
       } else {
-        const belt = treeHash(Math.round(s.x) + 31, Math.round(s.y) + 17);
-        const pool = belt >= 0.66 ? FLORA_PINE : FLORA_FOREST;
-        sourceId = pool[Math.floor(treeHash(Math.round(s.x) + 57, Math.round(s.y) + 5) * pool.length) % pool.length];
+        // Boundary trees grow in coherent eight-cell stands. Most members use
+        // the stand's primary species, with a restrained local secondary mix,
+        // instead of changing species at every trunk like visual confetti.
+        const standX = Math.floor(s.x / 8);
+        const standY = Math.floor(s.y / 8);
+        const stand = treeHash(standX * 17 + 31, standY * 19 + 17);
+        const pool = stand >= 0.64 ? FLORA_PINE : FLORA_FOREST;
+        const primary = pool[
+          Math.floor(treeHash(standX * 29 + 57, standY * 31 + 5) * pool.length) % pool.length
+        ];
+        const local = treeHash(Math.round(s.x) + 71, Math.round(s.y) + 43);
+        sourceId = local < 0.72
+          ? primary
+          : pool[
+            Math.floor(treeHash(Math.round(s.x) + 57, Math.round(s.y) + 5) * pool.length)
+              % pool.length
+          ];
       }
       const sourceVariant = assets.get(sourceId);
       if (!sourceVariant) continue;
@@ -2016,7 +2033,7 @@ export function makeCourseScene(canvas, state) {
       m.compose(v.set(p.x, p.y, p.z), q, sc.set(width, height, width));
       // Preserve the authored sage/canopy values. Instance color adds age and
       // exposure variety without crushing every shaded crown toward black.
-      const brightness = 0.91 + treeHash(hx + 13, hy + 29) * 0.13;
+      const brightness = 0.95 + treeHash(hx + 13, hy + 29) * 0.12;
       col.setRGB(
         brightness * (0.99 + treeHash(hx, hy + 1) * 0.035),
         brightness,
@@ -2336,7 +2353,7 @@ export function makeCourseScene(canvas, state) {
     const mat = new THREE.MeshStandardMaterial({
       color: 0xffffff, roughness: 0.9, metalness: 0, side: THREE.DoubleSide,
       vertexColors: false, transparent: false,
-      emissive: 0x14230d, emissiveIntensity: 0.12,
+      emissive: 0x14230d, emissiveIntensity: 0.04,
     });
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.uGrassTime = { value: 0 };
@@ -2359,7 +2376,7 @@ export function makeCourseScene(canvas, state) {
           varying float vBladeH;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
           // slightly darker at the base, brighter tips — depth in the sward
-          diffuseColor.rgb *= mix(0.96, 1.10, vBladeH);`);
+          diffuseColor.rgb *= mix(0.97, 1.04, vBladeH);`);
     };
     grassMesh = new THREE.InstancedMesh(geo, mat, GRASS_COUNT);
     grassMesh.name = 'CourseGrassSward';
@@ -2847,7 +2864,7 @@ export function makeCourseScene(canvas, state) {
   const editorGroundTargets = [terrain];
   // the diffuse map multiplies DOWN, so these read two shades lighter in place
   const PATH_MATERIALS = {
-    asphalt: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0x9a968f, roughness: 0.95 }),
+    asphalt: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xc2b59b, roughness: 0.98 }),
     concrete: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xcac6bd, roughness: 0.9 }),
     gravel: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xd9cba4, roughness: 1 }),
     dirt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xc09a6a, roughness: 1 }),

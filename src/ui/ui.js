@@ -36,6 +36,13 @@ export function toast(msg, kind = '') {
   return t;
 }
 
+// Mode changes should not inherit transient dialogue from the surface they
+// replace. This deliberately clears only existing toasts; Course Editor actions
+// can still create their own feedback immediately after entry.
+export function clearToasts() {
+  if (toastWrap) toastWrap.replaceChildren();
+}
+
 export function modal(title, buildBody) {
   const backdrop = el('div', { class: 'modal-backdrop' });
   const box = el('div', { class: 'modal' });
