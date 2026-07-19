@@ -569,6 +569,32 @@ async (page) => {
     return !veil || getComputedStyle(veil).opacity === '0';
   }, null, { timeout: 90000 });
 
+  // Entering the editor disposes the clubhouse view. Wait for every currently
+  // requested model first so that a deliberate scene transition cannot turn
+  // healthy in-flight merchandise loads into misleading ERR_ABORTED failures.
+  const initialAssetBarrier = await page.evaluate(async () => {
+    const barrier = window.__fw?.scene3d?.assetBarrier?.(60000);
+    if (!barrier) return { supported: false, idle: null, completed: null };
+    if (barrier.idle) return { supported: true, idle: true, completed: true };
+    const completed = await barrier.promise;
+    return { supported: true, idle: false, completed: completed !== false };
+  });
+  await page.waitForFunction(() => {
+    const clubhouse = window.__fw?.scene3d?.clubhouse?.();
+    const sheet06 = clubhouse?.sheet06Production?.diagnostics?.();
+    return clubhouse?.assetsReady?.() === true
+      && clubhouse?.deliveryEquipmentReady?.() === true
+      && ['active', 'fallback'].includes(sheet06?.lifecycle);
+  }, null, { timeout: 90000 });
+  const clubhouseAssetReadiness = await page.evaluate(() => {
+    const clubhouse = window.__fw.scene3d.clubhouse();
+    return {
+      merchandise: clubhouse.assetsReady(),
+      deliveryEquipment: clubhouse.deliveryEquipmentReady(),
+      sheet06Production: clubhouse.sheet06Production.diagnostics()?.lifecycle || null,
+    };
+  });
+
   // Documented deterministic visual fixture: weather is fixed while all player
   // navigation and editor operation continue through real controls.
   await page.evaluate(() => {
@@ -601,11 +627,63 @@ async (page) => {
   await shot('before_03_hole_01_aerial');
 
   const holeEvidence = [];
+  const cameraPresetEvidence = [];
+  const flyoverEvidence = [];
   for (let index = 0; index < 9; index += 1) {
     await selectHoleThroughUi(index);
     const number = String(index + 1).padStart(2, '0');
     const aerial = await shot(`holes/hole_${number}_aerial`);
     const aerialCamera = await readCamera();
+
+    // Exercise every player-facing view for every hole through the visible
+    // camera selector. The fairway preset is the authored landing-area view;
+    // ground-preview is the low player-readable inspection view outside the
+    // stroke loop.
+    const views = [];
+    for (const [mode, name] of [
+      ['tee', 'tee'],
+      ['fairway', 'landing_area'],
+      ['approach', 'approach'],
+      ['green', 'green'],
+      ['ground-preview', 'ground_preview'],
+    ]) {
+      await page.locator('.ced-camera').selectOption(mode);
+      await waitForSettledRender(10);
+      const record = {
+        mode,
+        screenshot: await shot(`camera_presets/hole_${number}_${name}`),
+        camera: await readCamera(),
+      };
+      views.push(record);
+      cameraPresetEvidence.push({ hole: index + 1, ...record });
+    }
+
+    // A real right-mouse orbit proves the editor view is navigable for each
+    // hole, while returning through the selector keeps the next view stable.
+    await page.locator('.ced-camera').selectOption('frame-hole');
+    await waitForSettledRender(8);
+    await orbitEditorThroughNormalInput(900);
+    await waitForSettledRender(6);
+    const editorOrbit = {
+      screenshot: await shot(`editor_orbit/hole_${number}_orbit`),
+      camera: await readCamera(),
+    };
+    await page.locator('.ced-camera').selectOption('frame-hole');
+    await waitForSettledRender(8);
+
+    // Start each route-aware flyover from the player-facing top-bar control and
+    // stop it through Escape. The mid-route frame is retained as visual evidence.
+    await page.locator('.ced-flyover').click();
+    await page.waitForTimeout(2400);
+    await waitForSettledRender(6);
+    const flyover = {
+      hole: index + 1,
+      screenshot: await shot(`flyovers/hole_${number}_mid`),
+      camera: await readCamera(),
+    };
+    flyoverEvidence.push(flyover);
+    await page.keyboard.press('Escape');
+    await waitForSettledRender(8);
 
     await page.getByRole('button', { name: 'Playtest', exact: true }).click();
     await page.waitForFunction(() => window.__fw.editorUi().isPlaytesting());
@@ -614,43 +692,19 @@ async (page) => {
     const teeCamera = await readCamera();
     await page.getByRole('button', { name: /Editor$/ }).click();
     await page.waitForFunction(() => !window.__fw.editorUi().isPlaytesting());
-    holeEvidence.push({ hole: index + 1, aerial, tee, aerialCamera, teeCamera });
+    holeEvidence.push({
+      hole: index + 1,
+      aerial,
+      tee,
+      aerialCamera,
+      teeCamera,
+      views,
+      editorOrbit,
+      flyover,
+    });
   }
 
   await selectHoleThroughUi(0);
-
-  // Exercise every player-facing camera preset through the new top-bar control.
-  // These are acceptance views; the fixed cameras below remain comparison views.
-  const cameraPresetEvidence = [];
-  for (const [mode, name] of [
-    ['tee', 'tee'],
-    ['fairway', 'fairway'],
-    ['approach', 'approach'],
-    ['green', 'green'],
-    ['ground-preview', 'ground_preview'],
-  ]) {
-    await page.locator('.ced-camera').selectOption(mode);
-    await waitForSettledRender(10);
-    cameraPresetEvidence.push({
-      mode,
-      screenshot: await shot(`camera_presets/hole_01_${name}`),
-      camera: await readCamera(),
-    });
-  }
-  await page.locator('.ced-camera').selectOption('frame-hole');
-  await waitForSettledRender(8);
-
-  // Start and stop the route-aware flyover through the hole-selection modal.
-  await page.locator('.ced-holechip').click();
-  await page.getByRole('button', { name: 'Flyover', exact: true }).click();
-  await page.waitForTimeout(3500);
-  await waitForSettledRender(6);
-  const flyoverEvidence = {
-    screenshot: await shot('camera_presets/hole_01_flyover_mid'),
-    camera: await readCamera(),
-  };
-  await page.keyboard.press('Escape');
-  await waitForSettledRender(8);
 
   const fixedViews = [
     ['before_04_hole_01_tee', 0.00, 0.13, { backYd: 7, eyeHeightYd: 1.8 }],
@@ -728,6 +782,7 @@ async (page) => {
     phase,
     launch: 'HEADED=1 node tools/qa/run-playwright.cjs tools/qa/course-master-final.js --bootstrap',
     fixture: 'runner --bootstrap, relaxed empire seed 424242, first property, fixed dry midday weather',
+    assetReadiness: { initialAssetBarrier, clubhouse: clubhouseAssetReadiness },
     viewport: { width: 1600, height: 900, deviceScaleFactor: 1 },
     browser: await page.evaluate(() => navigator.userAgent),
     cameraDefinitions,
