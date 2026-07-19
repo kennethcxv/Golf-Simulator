@@ -124,6 +124,11 @@ const CARD_STATION = Object.freeze({ x: REGISTER.cardterm.x, z: REGISTER.cardter
 
 const DRAWER_BILLS = [1, 5, 10, 20, 50];
 const DRAWER_COINS = [0.01, 0.05, 0.1, 0.2, 0.5];
+// A till opening in roughly 0.31 s was over before the player could read the physical motion (and
+// before a single full-resolution evidence frame could be retained). Give the opening stroke one
+// deliberate second; closing can remain brisk after the handoff is complete.
+const DRAWER_OPEN_SPEED = 1;
+const DRAWER_CLOSE_SPEED = 2.4;
 const SLOT = {};
 const SLOT_META = {};
 const SLOT_CLIP = {};
@@ -5355,7 +5360,7 @@ export function createRegisterMode(B) {
     if (drawerPresentationVisible(drawerWant, drawerAmount)
         && !drawerMotionRoot.visible) drawerMotionRoot.visible = true;
     if (Math.abs(drawerAmount - drawerWant) > 0.001) {
-      const speed = drawerWant > drawerAmount ? 3.2 : 2.4;
+      const speed = drawerWant > drawerAmount ? DRAWER_OPEN_SPEED : DRAWER_CLOSE_SPEED;
       drawerAmount += Math.sign(drawerWant - drawerAmount)
         * Math.min(Math.abs(drawerWant - drawerAmount), dt * speed);
       drawerMotionRoot.position.z = drawerAmount * REGISTER.drawer.travel;

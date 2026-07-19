@@ -49,6 +49,8 @@ async (page) => {
       const runtime = clubhouse?.assets51to100Runtime?.diagnostics?.();
       const viewmodels = app?.scene3d?.walk?.toolViewmodelDiagnostics?.();
       return runtime?.placed === 40 && runtime?.failed === 0
+        && runtime?.staticBatchSavedDrawCalls > 0
+        && runtime?.placedStaticBatchSavedDrawCalls > 0
         && viewmodels?.authoredCount === 9;
     }, null, { timeout: 90000 });
     await page.waitForFunction(() => {
@@ -294,6 +296,9 @@ async (page) => {
     });
     requireCheck(initial.runtime.placed === 40 && initial.runtime.failed === 0,
       'The complete runtime was not ready.', initial);
+    requireCheck(initial.runtime.staticBatchSavedDrawCalls > 0
+      && initial.runtime.placedStaticBatchSavedDrawCalls > 0,
+    'The static runtime batching contract was not active.', initial.runtime);
     requireCheck(initial.interactionCount === 22, 'The runtime did not expose all 22 normal interactions.', initial);
     requireCheck(initial.fittingRoom.curtainColliderActive === true,
       'The closed fitting curtain had no active blocker.', initial);
@@ -446,6 +451,8 @@ async (page) => {
       after: checks.fixtureAttachmentsAfterReload,
     });
     requireCheck(reloaded.runtime.placed === 40 && reloaded.runtime.failed === 0
+      && reloaded.runtime.staticBatchSavedDrawCalls > 0
+      && reloaded.runtime.placedStaticBatchSavedDrawCalls > 0
       && reloaded.interactionCount === 22,
     'The runtime did not fully recover after reload.', reloaded);
     await focusTarget(63);

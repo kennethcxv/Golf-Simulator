@@ -101,7 +101,7 @@ test('the counted-change tray is fully supported, reachable, and uses its author
   assert.deepEqual([tray.w, tray.d], [0.38, 0.20]);
 });
 
-test('the static checkout counter and task trays share one root-local render batch', () => {
+test('the replaceable checkout shell stays separate from persistent task-surface batching', () => {
   const interior = new THREE.Group();
   interior.position.set(12, 3, -8);
   const mats = {
@@ -110,7 +110,7 @@ test('the static checkout counter and task trays share one root-local render bat
     brass: new THREE.MeshStandardMaterial(),
   };
   const made = [];
-  let baked = null;
+  const bakes = [];
   const merch = {
     onReady(callback) { callback(); },
     instantiate(name) {
@@ -121,7 +121,7 @@ test('the static checkout counter and task trays share one root-local render bat
     },
     instantiateKit() { return null; },
     bake(group, options) {
-      baked = { group, options, parentAtBake: group.parent };
+      bakes.push({ group, options, parentAtBake: group.parent });
       const output = new THREE.Group();
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(), mats.walnut);
       mesh.receiveShadow = true;
@@ -139,16 +139,24 @@ test('the static checkout counter and task trays share one root-local render bat
     register: { simplified: true },
   });
 
-  assert.ok(baked, 'checkout island is passed through the merchandise batcher');
-  assert.equal(baked.parentAtBake, null, 'the batch source remains outside the translated interior root');
-  assert.deepEqual(baked.options, { visibleOnly: true });
+  assert.equal(bakes.length, 2, 'the replaceable shell and persistent trays use distinct batches');
+  assert.ok(bakes.every((bake) => bake.parentAtBake === null),
+    'batch sources remain outside the translated interior root');
+  assert.ok(bakes.every((bake) => bake.options.visibleOnly === true));
   assert.deepEqual(
-    baked.group.children.map((object) => object.name),
-    ['checkout_counter', 'checkout_product_staging_tray', 'checkout_change_handoff_tray'],
+    bakes[0].group.children.map((object) => object.name),
+    ['checkout_counter'],
   );
-  const visual = interior.getObjectByName('CheckoutIslandStaticVisual');
-  assert.ok(visual, 'one named static visual replaces the three authored roots');
-  assert.equal(visual.children[0].receiveShadow, false, 'batching preserves the authored cast-only state');
+  assert.deepEqual(
+    bakes[1].group.children.map((object) => object.name),
+    ['checkout_product_staging_tray', 'checkout_change_handoff_tray'],
+  );
+  const shell = interior.getObjectByName('LegacyCheckoutProductionCounter');
+  const taskSurfaces = interior.getObjectByName('CheckoutTaskSurfaceVisual');
+  assert.ok(shell, 'the production shell remains independently removable by Asset 61');
+  assert.ok(taskSurfaces, 'the transaction trays remain after Asset 61 retires the old shell');
+  assert.equal(shell.children[0].receiveShadow, false, 'shell batching preserves cast-only state');
+  assert.equal(taskSurfaces.children[0].receiveShadow, false, 'tray batching preserves cast-only state');
   assert.equal(made.slice(0, 3).some((object) => object.parent === interior), false,
     'the unbatched counter and trays are not left in the live interior');
 });

@@ -49,6 +49,10 @@ async function boot(page, baseUrl = BASE_URL) {
     return !veil || veil.style.display === 'none'
       || getComputedStyle(veil).opacity === '0';
   }, null, { timeout: 40000 });
+  await page.waitForFunction(() => {
+    const runtime = window.__fw?.scene3d?.clubhouse?.()?.assets51to100Runtime?.diagnostics?.();
+    return !runtime || (runtime.placed === 40 && runtime.failed === 0);
+  }, null, { timeout: 40000 });
   await page.waitForTimeout(1200);
   // Exercise the same normal canvas click a player uses to resume first-person
   // control. Keeping the "Click to play" veil out of retained screenshots makes
@@ -445,7 +449,8 @@ export async function runRegisterAcceptance(page, mode, { baseUrl = BASE_URL } =
         tempHiF: 72, tempLoF: 54, rainIn: 0, humidity: 0.48, windMph: 5,
       };
       app.scene3d.applyTimeWeather(14 * 60, app.state.weather);
-      app.scene3d.clubhouse().rebuildStock();
+      const clubhouse = app.scene3d.clubhouse();
+      clubhouse.rebuildStock();
       const walk = app.scene3d.walk.state;
       const clubhouseOrigin = chFixture.interior.position;
       walk.x = clubhouseOrigin.x + 2.80;
