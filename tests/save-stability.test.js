@@ -25,6 +25,7 @@ import { getGeom } from '../src/sim/courseVec.js';
 import { arriveOrder } from '../src/sim/deliveries.js';
 import { bookReservation } from '../src/sim/reservations.js';
 import { pickFromShelf } from '../src/sim/checkout.js';
+import { ensureLayout } from '../src/sim/layout.js';
 import { notify } from '../src/sim/notifications.js';
 import { WASH_SURFACES } from '../src/sim/washing.js';
 
@@ -120,7 +121,8 @@ test('every player-owned domain survives one current-schema round trip', () => {
   state.shop.inventory.balls1.back = 7;
   state.shop.drawer[20] = 9;
   state.shop.paymentBag = ['cash', 'card', 'cash'];
-  state.shop.layout.moved['fixture:wall-balls'] = { x: -4.5, z: -3.75, ry: 0.25 };
+  ensureLayout(state);
+  state.shop.layout.moved.table_polos = { x: -5.5, z: 1.5, ry: 0 };
   arriveOrder(state, { id: 501, skuId: 'polo1', qty: 8 });
   const reservation = bookReservation(state, {
     dayAbs: 3,
@@ -163,7 +165,7 @@ test('every player-owned domain survives one current-schema round trip', () => {
   assert.equal(back.shop.inventory.balls1.back, 7);
   assert.equal(back.shop.drawer[20], 9);
   assert.deepEqual(back.shop.paymentBag, ['cash', 'card', 'cash']);
-  assert.deepEqual(back.shop.layout.moved['fixture:wall-balls'], { x: -4.5, z: -3.75, ry: 0.25 });
+  assert.deepEqual(back.shop.layout.moved.table_polos, { x: -5.5, z: 1.5, ry: 0 });
   assert.equal(back.shop.deliveries.boxes.length > 0, true);
   assert.equal(back.reservations.booked[0].fullName, 'Save Stability');
   assert.equal(back.customerDirectory.customers.length >= 2, true);

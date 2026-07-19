@@ -96,7 +96,6 @@ export const SAVE_MIGRATIONS = Object.freeze([
 
 const CLEANING_FIELD = wetGridForRoom(RENO.room);
 
-const FIXTURE_FOOTPRINT_SAVE_VERSION = 10;
 const ROUTE_FAILURE = /customers could not get around/i;
 
 // Keep every owned unit while making the serialized inventory agree with the
@@ -132,24 +131,27 @@ function migrateFeatureCategory(shop, persistedVersion) {
 }
 
 // Fixture envelopes became more exact over several retail passes (notably the
-// asymmetric shoe wall and the authored apparel table). A moved pose that was
-// legal against an old approximate box can therefore load inside a wall or on
-// another unit. Validate only legacy overrides and delete only the unsafe pose:
-// the sparse layout then resolves that fixture to its known-safe authored
-// default without changing inventory, stored state, or valid player moves.
-function reconcileLegacyMovedFixturePoses(state, persistedVersion) {
-  if (persistedVersion >= FIXTURE_FOOTPRINT_SAVE_VERSION) return;
+// asymmetric shoe wall and the authored apparel table), and hand-edited saves
+// can carry the same impossible overlaps at any schema version. Validate every
+// persisted override and delete only unsafe poses: the sparse layout then
+// resolves that fixture to its known-safe authored default without changing
+// inventory, stored state, or valid player moves.
+function reconcileMovedFixturePoses(state, report) {
   const moved = state.shop?.layout?.moved;
   if (!moved || typeof moved !== 'object' || Array.isArray(moved)) return;
 
   const ids = Object.keys(moved);
+  let repairedRotation = false;
   for (const id of ids) {
     const pose = moved[id];
     if (!pose || !Number.isFinite(pose.x) || !Number.isFinite(pose.z)) {
       delete moved[id];
       continue;
     }
-    if (!Number.isFinite(pose.ry)) pose.ry = 0;
+    if (!Number.isFinite(pose.ry)) {
+      pose.ry = 0;
+      repairedRotation = true;
+    }
   }
 
   // A route-only failure can be caused by a different corrupt legacy pose.
@@ -198,6 +200,13 @@ function reconcileLegacyMovedFixturePoses(state, persistedVersion) {
       if (validatePlacement(state, id, pose.x, pose.z, pose.ry).ok) moved[id] = pose;
     }
   }
+  const removed = ids.filter((id) => !moved[id]);
+  if (removed.length) {
+    noteRepair(report, '$.shop.layout.moved', `${removed.length} unsafe fixture pose(s) removed`);
+  }
+  if (repairedRotation) {
+    noteRepair(report, '$.shop.layout.moved', 'invalid fixture rotations normalized');
+  }
 }
 
 // A stored authored fixture has no shelf in the world. Crafted/interrupted
@@ -245,11 +254,11 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initClub(state);
   initShop(state);
   reconcileShelfCapacity(state.shop);
-  // Persisted interaction authorities exist from the first save, not only
-  // after the renderer happens to construct the clubhouse or register.
+  // Persisted register authorities exist from the first save, not only after
+  // the renderer happens to construct the clubhouse or register. Fixture
+  // layout stays lazy because read-only placement queries must remain pure.
   state.shop.drawer = newDrawer();
   ensurePaymentBag(state);
-  ensureLayout(state);
   ensureShopReno(state);
   ensureClubhouseArchitecture(state);
   ensureDebris(state);
@@ -1321,6 +1330,13 @@ export function deserializeWithReport(json) {
   for (const key of domains) {
     state[key] = mergeSaveDefaults(state[key], raw[key], report, `$.${key}`);
   }
+  // The restoration module owns legacy grime-grid resampling. Run that before
+  // fixed-length validation so a 7x5 save retains its cleaning progress instead
+  // of being replaced by the current dirty defaults.
+  ensureShopReno(state);
+  // Missing tractor state predates the repair arc. Do not let newGame's fresh,
+  // broken default hide that absence from the compatibility adapter below.
+  if (!isRecord(raw.tractor)) delete state.tractor;
   state.turf = normalizeTurf(raw.turf, state.turf, report);
   state.debtDays = finiteSave(
     raw.debtDays,
@@ -1340,7 +1356,6 @@ export function deserializeWithReport(json) {
   state.shop.drawer = migrateDrawer(persistedDrawer || state.shop.drawer || newDrawer());
   ensurePaymentBag(state); // a half-used balanced batch survives the reload intact
   paymentBagStats(state);
-  ensureShopReno(state); // pre-restoration saves gain the rundown shop state
   ensureLayout(state);
   ensureClubhouseArchitecture(state);
   ensureDebris(state);
@@ -1348,7 +1363,7 @@ export function deserializeWithReport(json) {
   ensureWash(state);
   migrateLegacyRetailLayout(state.shop, persistedVersion);
   migrateFeatureCategory(state.shop, persistedVersion);
-  reconcileLegacyMovedFixturePoses(state, persistedVersion);
+  reconcileMovedFixturePoses(state, report);
   recoverCheckout(state); // a save taken mid-sale: the shoppers are gone, so put their goods back
   reconcileShelfCapacity(state.shop); // authored shelf slots win; overflow remains owned in back stock
   reconcileStoredFixtureStock(state.shop); // absent fixtures cannot retain invisible shelf inventory
