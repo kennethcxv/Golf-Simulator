@@ -84,10 +84,103 @@ function fakeDocument(canvas) {
   };
 }
 
+const CLUB_BOX_ALLOWED_SKUS = Object.freeze([
+  'driver1', 'driver2', 'driver3', 'putter1', 'putter2', 'wedge1', 'wedge2',
+]);
+
+const CLUB_BOX_TAPE_SEGMENTS = Object.freeze([
+  ...Array.from({ length: 12 }, (_, index) => `TAPE_CENTER_SEG_${String(index + 1).padStart(2, '0')}`),
+  'TAPE_END_RIGHT',
+  'TAPE_END_LEFT',
+]);
+
+function addClubBoxAuthoredContract(root, geometry, material) {
+  const tape = new THREE.Group();
+  tape.name = 'TAPE_CENTER';
+  tape.userData = { tape_path: 'left_to_right_then_ends', segment_count: CLUB_BOX_TAPE_SEGMENTS.length };
+  root.add(tape);
+  CLUB_BOX_TAPE_SEGMENTS.forEach((name, index) => {
+    const segment = new THREE.Mesh(geometry, material);
+    segment.name = name;
+    segment.userData = { cut_order: index + 1, tape_segment: true };
+    tape.add(segment);
+  });
+
+  const cutPath = new THREE.Object3D();
+  cutPath.name = 'CUT_PATH';
+  cutPath.userData = {
+    anchor: true,
+    anchor_kind: 'cut_path',
+    points: JSON.stringify([
+      [-0.588, 0, 0.18], [0.588, 0, 0.18], [0.568, -0.078, 0.18],
+      [0.568, 0.078, 0.18], [-0.568, 0.078, 0.18], [-0.568, -0.078, 0.18],
+    ]),
+    duration_sec: 2.7,
+    segment_count: CLUB_BOX_TAPE_SEGMENTS.length,
+    segment_nodes: JSON.stringify(CLUB_BOX_TAPE_SEGMENTS),
+  };
+  root.add(cutPath);
+
+  const layoutId = 'CLUB2';
+  const shellId = 'LONG_CLUB_CARTON';
+  const packingState = 'head-and-shaft-guarded';
+  const allowedSkus = JSON.stringify(CLUB_BOX_ALLOWED_SKUS);
+  const layout = new THREE.Group();
+  layout.name = `CONTENT_LAYOUT_${layoutId}`;
+  layout.userData = {
+    layout_id: layoutId,
+    capacity: 2,
+    allowed_skus: allowedSkus,
+    packaging_state: packingState,
+    physical_shell_id: 'delivery_golf_club_box',
+    packaging_shell_id: shellId,
+    socket_prefix: `CONTENT_SLOT_${layoutId}_`,
+    selection_rule: 'exact_sku_category_quantity_dimensions_packaging_state',
+    content_scale: 1,
+    allow_scale: false,
+  };
+  root.add(layout);
+  for (let index = 1; index <= 2; index += 1) {
+    const socket = new THREE.Object3D();
+    socket.name = `CONTENT_SLOT_${layoutId}_${String(index).padStart(2, '0')}`;
+    socket.position.set(0, index === 1 ? 0.045 : 0.125, 0);
+    socket.rotation.z = index === 1 ? 0 : Math.PI;
+    socket.userData = {
+      anchor: true,
+      anchor_kind: 'box_content',
+      layout_id: layoutId,
+      slot_index: index,
+      allowed_skus: allowedSkus,
+      packaging_state: packingState,
+      packaging_shell_id: shellId,
+      content_scale: 1,
+      allow_scale: false,
+      visible_when_remaining_at_least: index === 1 ? 2 : 1,
+    };
+    layout.add(socket);
+  }
+}
+
+function addDriverAuthoredAnchors(root) {
+  for (const [name, anchorKind, hand] of [
+    ['ANCHOR_ProductBarcode', 'barcode', null],
+    ['ANCHOR_ProductGripPrimary', 'grip', 'primary'],
+    ['ANCHOR_ProductGripSecondary', 'grip', 'support'],
+  ]) {
+    const anchor = new THREE.Object3D();
+    anchor.name = name;
+    anchor.userData = { anchor: true, anchor_kind: anchorKind };
+    if (hand) anchor.userData.hand = hand;
+    root.add(anchor);
+  }
+}
+
 function fakeLoadedAsset(id, geometry, material) {
   const root = new THREE.Group();
   root.name = id;
   root.add(new THREE.Mesh(geometry, material));
+  if (id === 'delivery_golf_club_box') addClubBoxAuthoredContract(root, geometry, material);
+  if (id === 'checkout_product_driver') addDriverAuthoredAnchors(root);
   if (id === 'delivery_van') {
     let socket = 1;
     for (const x of [0.10, 1.05, 2.00]) {

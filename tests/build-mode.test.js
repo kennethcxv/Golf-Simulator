@@ -12,7 +12,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/sim/state.js';
-import { FIXTURES, INTERIOR, COUNTER, DOOR_CLEARWAY, fixtureRect } from '../src/data/shopLayout.js';
+import {
+  FIXTURES, INTERIOR, COUNTER, DOOR_CLEARWAY, fixtureRect, fixtureBrowsePoint,
+} from '../src/data/shopLayout.js';
 import {
   ensureLayout, placedFixtures, fixtureById, validatePlacement, commitPlacement,
   storeFixture, storedFixtures, restoreFixture, routesIntact, GRID,
@@ -77,6 +79,21 @@ test('a fixture may not be dropped in the till workspace', () => {
   const r = validatePlacement(st, f.id, COUNTER.staffStand.x, COUNTER.staffStand.z, 0);
   assert.equal(r.ok, false);
   assert.ok(r.reasons.some((x) => /checkout|till|counter/i.test(x)), `says why: ${r.reasons.join(', ')}`);
+});
+
+test('a moved fixture is rejected when its authored local-front browse target leaves the shop', () => {
+  const st = fresh();
+  const feature = FIXTURES.find((fixture) => fixture.id === 'feature');
+  const candidate = { ...feature, x: 4, z: -5.5, ry: Math.PI };
+  const target = fixtureBrowsePoint(candidate);
+  assert.ok(target.z < -INTERIOR.d / 2, 'the runtime local +Z browse pose is beyond the north wall');
+
+  const result = validatePlacement(st, candidate.id, candidate.x, candidate.z, candidate.ry);
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.reasons.some((reason) => /customers could not get around/i.test(reason)),
+    `the authored customer target is part of candidate routing: ${result.reasons.join(', ')}`,
+  );
 });
 
 test('a legal move sticks, and moves the fixture', () => {

@@ -199,17 +199,17 @@ test('a bad held UID rejects the whole sale before stock or money can partially 
 test('reload recovery respects per-SKU fixture capacity and sends overflow to back stock', () => {
   const state = newGame('relaxed', 106);
   const inv = state.shop.inventory.bag1;
-  inv.shelf = 4; // bag1 has four physical platform slots; its category fallback is 24
+  inv.shelf = 5; // bag1 has five physical platform slots; its category fallback is 24
   inv.back = 1;
   pickFromShelf(state, 'bag1', 'bag-held');
-  assert.equal(inv.shelf, 3);
+  assert.equal(inv.shelf, 4);
 
   // The display was replenished while the shopper still had the original bag.
   inv.back -= 1;
   inv.shelf += 1;
   const reloaded = deserialize(serialize(state));
 
-  assert.equal(reloaded.shop.inventory.bag1.shelf, 4, 'the physical fixture did not overfill');
+  assert.equal(reloaded.shop.inventory.bag1.shelf, 5, 'the physical fixture did not overfill');
   assert.equal(reloaded.shop.inventory.bag1.back, 1, 'the recovered unit remained owned in back stock');
   assert.deepEqual(heldUnits(reloaded), []);
 });

@@ -155,6 +155,7 @@ function makePalletJack(material) {
   });
   steering.add(handle);
   handle.add(makeMesh('HANDLE_GRIP', new THREE.BoxGeometry(0.08, 0.5, 0.3), material));
+  addAnchor(handle, 'HANDLE_GRIP_TARGET', [0.61, 1.175, 0], 'operator_grip');
   const coupling = addAnchor(root, 'PALLET_COUPLING_SOCKET', [-0.235, 0.094, 0], 'pallet_coupling');
   coupling.userData.target_semantics = 'pallet_center';
   coupling.userData.approach_anchor = 'PALLET_JACK_ENTRY';
@@ -248,7 +249,7 @@ test('delivery equipment mounts all authored hierarchies without baking and hide
   assert.equal(equipment.exteriorRoot.parent, exterior);
 
   const handTruck = equipment.rootFor('handTruck');
-  assert.deepEqual(handTruck.position.toArray(), [6.1, 0, -5.9]);
+  assert.deepEqual(handTruck.position.toArray(), [8.35, 0, -3.95]);
   assert.equal(handTruck.rotation.y, 0.6);
   const van = equipment.rootFor('delivery_van');
   assert.deepEqual(van.position.toArray(), [116.5, 7, -50]);
@@ -279,6 +280,11 @@ test('delivery equipment mounts all authored hierarchies without baking and hide
     'delivery_hand_truck', 'delivery_stocking_cart', 'delivery_pallet_jack',
   ]);
   assert.ok(props.every((prop) => prop.root && prop.modelRoot && prop.interactionTarget));
+  assert.equal(
+    props.find((prop) => prop.id === 'delivery_pallet_jack').interactionTarget.name,
+    'HANDLE_GRIP_TARGET',
+    'the pallet jack is focused at the authored operator grip rather than its fork frame',
+  );
   assert.ok(props.every((prop) => prop.colliders.length >= 1));
   assert.ok(equipment.colliderDescriptors('delivery_van')[0].minX > 100);
 

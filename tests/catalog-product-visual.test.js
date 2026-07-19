@@ -5,6 +5,12 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import { SHOP_CATALOG, RETAIL_CATS } from '../src/data/shopItems.js';
+import { boxKindFor } from '../src/data/boxes.js';
+import {
+  PACKAGING_LAYOUTS,
+  dimensionsFitUnderRotation,
+  productPackagingFor,
+} from '../src/data/productPackaging.js';
 import {
   buildCatalogProductProxy,
   catalogCheckoutLayout,
@@ -12,10 +18,16 @@ import {
   drawProductThumbnail,
   explicitCatalogVisualIds,
 } from '../src/render3d/clubhouse/catalogProductVisual.js';
+import {
+  deliveryBoxVisualConfig,
+  deliveryContentContract,
+  selectDeliveryContentLayout,
+} from '../src/render3d/clubhouse/deliveryBoxVisual.js';
 import { createRegisterItemResources } from '../src/render3d/clubhouse/registerItemResources.js';
 import { createMerch } from '../src/render3d/clubhouse/merch.js';
 
 const retail = SHOP_CATALOG.filter((sku) => RETAIL_CATS.has(sku.cat));
+const RAW_TWO_HAND_SKUS = Object.freeze(['vac1', 'board1', 'rug1', 'lounge1']);
 
 function visibleBounds(root, { excludeRuntimeTag = false } = {}) {
   root.updateMatrixWorld(true);
@@ -29,15 +41,7 @@ function visibleBounds(root, { excludeRuntimeTag = false } = {}) {
   return bounds;
 }
 
-async function loadProductScenes() {
-  // Original provisions retain embedded brand art and are validated separately.
-  // Node's GLTFLoader has no browser image decoder, so this structural family
-  // loader covers the non-textured checkout GLBs and skips raw products.
-  const models = [...new Set(retail
-    .map((sku) => catalogProductVisual(sku))
-    .filter((visual) => !visual.raw)
-    .map((visual) => visual.model))];
-  models.push('checkout_product_headcover');
+async function loadScenes(models) {
   const scenes = new Map();
   for (const model of models) {
     const bytes = await readFile(new URL(`../vendor/models/clubhouse/${model}.glb`, import.meta.url));
@@ -46,6 +50,37 @@ async function loadProductScenes() {
     scenes.set(model, gltf.scene);
   }
   return scenes;
+}
+
+async function loadProductScenes() {
+  // Original provisions retain embedded brand art and are validated by the
+  // dedicated binary/reimport suite. Node's GLTFLoader has no browser image
+  // decoder, so this structural checkout-family loader covers non-textured GLBs.
+  const models = [...new Set(retail
+    .map((sku) => catalogProductVisual(sku))
+    .filter((visual) => !visual.raw)
+    .map((visual) => visual.model))];
+  models.push('checkout_product_headcover');
+  return loadScenes(models);
+}
+
+async function glbNodeNames(model) {
+  const bytes = await readFile(new URL(`../vendor/models/clubhouse/${model}.glb`, import.meta.url));
+  assert.equal(bytes.readUInt32LE(0), 0x46546c67, `${model} is a GLB`);
+  assert.equal(bytes.readUInt32LE(4), 2, `${model} uses glTF 2`);
+  assert.equal(bytes.readUInt32LE(8), bytes.length, `${model} GLB is complete`);
+  let json = null;
+  let offset = 12;
+  while (offset + 8 <= bytes.length) {
+    const chunkLength = bytes.readUInt32LE(offset);
+    const chunkType = bytes.readUInt32LE(offset + 4);
+    if (chunkType === 0x4e4f534a) {
+      json = JSON.parse(bytes.subarray(offset + 8, offset + 8 + chunkLength).toString('utf8'));
+    }
+    offset += 8 + chunkLength;
+  }
+  assert.ok(json, `${model} has a JSON chunk`);
+  return new Set((json.nodes || []).map((node) => node.name).filter(Boolean));
 }
 
 function merchFrom(scenes) {
@@ -88,7 +123,122 @@ test('every sellable catalog SKU has an explicit physical family, barcode surfac
   assert.equal(catalogProductVisual({ id: 'future-headcover', name: 'Driver head cover' }).kind, 'headcover');
 });
 
-test('exact raw provisions metadata bypasses runtime fitting without losing anchors', () => {
+test('all 34 catalog SKUs resolve explicit physical descriptors aligned to exact delivery contracts', () => {
+  const catalogIds = SHOP_CATALOG.map((sku) => sku.id).sort();
+  assert.equal(SHOP_CATALOG.length, 34, 'the audited catalog count changed');
+  assert.deepEqual(explicitCatalogVisualIds().sort(), catalogIds,
+    'explicit visuals neither omit a catalog SKU nor retain a stale generic entry');
+
+  for (const sku of SHOP_CATALOG) {
+    const visual = catalogProductVisual(sku);
+    const packaging = productPackagingFor(sku.id);
+    const kind = boxKindFor(sku);
+    const boxVisual = deliveryBoxVisualConfig(kind.id);
+    const delivery = deliveryContentContract({ id: `coverage-${sku.id}`, skuId: sku.id, box: kind.id });
+
+    assert.notEqual(visual.kind, 'unknown-product', `${sku.id} cannot use the unknown cube fallback`);
+    assert.ok(String(visual.model).length > 5, `${sku.id} names a physical GLB`);
+    assert.equal(visual.size.length, 3, `${sku.id} declares three runtime dimensions`);
+    assert.ok(visual.size.every((value) => Number.isFinite(value) && value > 0),
+      `${sku.id} dimensions are finite and positive`);
+    assert.ok(['club-tag', 'hang-tag', 'apparel-tag', 'package-side', 'package-back'].includes(visual.barcodeSurface),
+      `${sku.id} declares a real barcode surface`);
+    assert.ok(['small', 'medium', 'two-hand'].includes(visual.gripMode), `${sku.id} declares a grip mode`);
+
+    // Sellable goods render their real unpacked product bounds. Equipment and
+    // decor deliberately render the exact packed assembly removed from freight.
+    const expectedDimensions = packaging.retail
+      ? packaging.physicalDimensions
+      : packaging.packing.dimensions;
+    assert.deepEqual(visual.size, [expectedDimensions.w, expectedDimensions.h, expectedDimensions.d],
+      `${sku.id} visual dimensions agree with its ${packaging.retail ? 'physical' : 'packed'} contract`);
+
+    assert.equal(kind.modelId, packaging.box.modelId, `${sku.id} box kind preserves the contract model`);
+    assert.equal(boxVisual.model, packaging.box.modelId, `${sku.id} renderer selects the exact authored shell`);
+    assert.equal(delivery.familyId, packaging.familyId, `${sku.id} family alignment`);
+    assert.equal(delivery.layoutId, packaging.layoutId, `${sku.id} socket layout alignment`);
+    assert.equal(delivery.shellId, packaging.box.shellId, `${sku.id} shell alignment`);
+    assert.equal(delivery.modelId, packaging.box.modelId, `${sku.id} delivery model alignment`);
+    assert.equal(delivery.packingState, packaging.packing.state, `${sku.id} packed-state alignment`);
+    assert.equal(delivery.packingOrientation, packaging.packing.orientation, `${sku.id} orientation alignment`);
+    assert.equal(delivery.capacity, packaging.unitsPerBox, `${sku.id} exact quantity alignment`);
+    assert.equal(delivery.contentScale, 1, `${sku.id} forbids a shrink fallback`);
+  }
+
+  assert.equal(catalogProductVisual({ id: 'future-unmapped' }).kind, 'unknown-product',
+    'unknown products remain visibly exceptional instead of masquerading as an authored SKU');
+});
+
+test('all 34 SKU selections satisfy their shipped carton layout metadata at runtime', async () => {
+  const models = [...new Set(SHOP_CATALOG.map((sku) => productPackagingFor(sku.id).box.modelId))];
+  const cartonScenes = await loadScenes(models);
+  for (const sku of SHOP_CATALOG) {
+    const contract = productPackagingFor(sku.id);
+    const scene = cartonScenes.get(contract.box.modelId).clone(true);
+    const selected = selectDeliveryContentLayout(scene, contract.layoutId, contract.unitsPerBox, {
+      skuId: sku.id,
+      shellId: contract.box.shellId,
+      modelId: contract.box.modelId,
+      packingState: contract.packing.state,
+      allowScale: false,
+    });
+    assert.equal(selected.layoutRoot.name, `CONTENT_LAYOUT_${contract.layoutId}`);
+    assert.equal(selected.sockets.length, contract.unitsPerBox);
+  }
+});
+
+test('every raw catalog model ships its authored pickup target and barcode anchor where applicable', async () => {
+  const rawSkus = SHOP_CATALOG.filter((sku) => catalogProductVisual(sku).raw);
+  assert.deepEqual(rawSkus.map((sku) => sku.id).sort(),
+    ['board1', 'light1', 'lounge1', 'plant1', 'poster1', 'rug1', 'snack1', 'vac1', 'water1']);
+
+  for (const sku of rawSkus) {
+    const visual = catalogProductVisual(sku);
+    const names = await glbNodeNames(visual.model);
+    assert.ok(names.has('PICKUP_TARGET'), `${sku.id}/${visual.model} retains its authored pickup target`);
+    if (visual.kind === 'packed-furniture') {
+      assert.equal(visual.barcodeSurface, 'package-back', `${sku.id} explicitly requests a runtime freight label`);
+    } else {
+      assert.ok(names.has('BARCODE_AREA'), `${sku.id}/${visual.model} retains its authored barcode area`);
+    }
+  }
+});
+
+test('raw two-hand freight preserves PICKUP_TARGET and synthesizes only the support hand', async () => {
+  const models = RAW_TWO_HAND_SKUS.map((id) => (
+    catalogProductVisual(SHOP_CATALOG.find((sku) => sku.id === id)).model
+  ));
+  const scenes = await loadScenes(models);
+  const merch = merchFrom(scenes);
+
+  for (const id of RAW_TWO_HAND_SKUS) {
+    const sku = SHOP_CATALOG.find((entry) => entry.id === id);
+    const resources = createRegisterItemResources();
+    const built = buildCatalogProductProxy({ sku, merch, resources });
+    const authoredPickup = built.root.getObjectByName('PICKUP_TARGET');
+    const support = built.root.getObjectByName('ANCHOR_ProductGripSecondary');
+
+    assert.ok(authoredPickup, `${id} has its shipped PICKUP_TARGET at runtime`);
+    assert.equal(built.gripAnchors.primary, authoredPickup, `${id} keeps the authored target as primary`);
+    assert.equal(built.root.userData.gripPrimary, authoredPickup, `${id} exposes that same primary to interaction`);
+    assert.equal(built.gripAnchors.secondary, support, `${id} exposes one synthesized support hand`);
+    assert.equal(support.parent, built.root, `${id} support hand is runtime-owned`);
+    const authoredProduct = built.root.children[0];
+    assert.equal(authoredProduct.userData.catalogRuntimeScalePolicy, 'authored-1:1',
+      `${id} honors the shipped allow_runtime_scale=false policy`);
+    assert.deepEqual(authoredProduct.scale.toArray(), [1, 1, 1],
+      `${id} exact raw assembly bypasses fitAuthored scaling`);
+    const spacing = authoredPickup.getWorldPosition(new THREE.Vector3()).distanceTo(
+      support.getWorldPosition(new THREE.Vector3()),
+    );
+    assert.ok(spacing >= 0.08 && spacing <= 0.241,
+      `${id} support-hand spacing is practical (${spacing}m)`);
+
+    resources.dispose(built.root);
+  }
+});
+
+test('exact raw product metadata bypasses runtime fitting without losing anchors', () => {
   const sku = SHOP_CATALOG.find((entry) => entry.id === 'water1');
   const descriptor = catalogProductVisual(sku);
   const source = new THREE.Group();
@@ -108,14 +258,14 @@ test('exact raw provisions metadata bypasses runtime fitting without losing anch
     instantiateRaw: () => source,
   };
   const resources = createRegisterItemResources();
-  const built = buildCatalogProductProxy({ sku, merch, resources });
+  const built = buildCatalogProductProxy({ sku, merch, resources, context: 'delivery-packed' });
 
-  assert.equal(built.root.children[0], source, 'the raw hierarchy is attached directly');
+  assert.equal(built.root.children[0], source, 'the exact raw hierarchy is attached directly, not through a fitter');
   assert.deepEqual(source.scale.toArray(), [1, 1, 1]);
   assert.equal(source.userData.catalogRuntimeScalePolicy, 'authored-1:1');
   assert.equal(built.barcodeAnchor.position.distanceTo(barcode.position), 0,
-    'the authored barcode area remains the logical label location');
-  assert.equal(built.gripAnchors.primary, pickup, 'the authored pickup target remains primary');
+    'the raw authored barcode area remains the logical label location');
+  assert.equal(built.gripAnchors.primary, pickup, 'the raw authored pickup target remains primary');
   resources.dispose(built.root);
 });
 
@@ -240,7 +390,7 @@ test('GLB-preferred proxies fit declared dimensions and use authored barcode pos
 
     const authoredBarcode = built.root.getObjectByName('ANCHOR_ProductBarcode');
     if (visual.raw) {
-      assert.ok(built.barcodeAnchor, `${sku.id} retains a barcode contract during decoder fallback`);
+      assert.ok(built.barcodeAnchor, `${sku.id} retains a runtime barcode contract during decoder fallback`);
     } else {
       assert.ok(authoredBarcode, `${sku.id} retains authored barcode anchor`);
       const sourcePoint = authoredBarcode.getWorldPosition(new THREE.Vector3());
@@ -262,6 +412,52 @@ test('GLB-preferred proxies fit declared dimensions and use authored barcode pos
       ) > 0.08, `${sku.id} has distinct support-hand spacing`);
     }
     resources.dispose(built.root);
+  }
+});
+
+test('delivery-packed proxies omit checkout swing tags and preserve exact socket-fit contracts', async () => {
+  const ids = ['glove1', 'cap1', 'range2', 'umb1'];
+  const skus = ids.map((id) => SHOP_CATALOG.find((sku) => sku.id === id));
+  const scenes = await loadScenes(skus.map((sku) => catalogProductVisual(sku).model));
+  const merch = merchFrom(scenes);
+
+  for (const sku of skus) {
+    const checkoutResources = createRegisterItemResources();
+    const checkout = buildCatalogProductProxy({ sku, merch, resources: checkoutResources });
+    assert.ok(checkout.root.getObjectByName('ProductSwingTag'),
+      `${sku.id} keeps its checkout swing tag by default`);
+
+    const deliveryResources = createRegisterItemResources();
+    const packed = buildCatalogProductProxy({
+      sku,
+      merch,
+      resources: deliveryResources,
+      context: 'delivery-packed',
+    });
+    assert.equal(packed.root.userData.catalogProductContext, 'delivery-packed');
+    assert.equal(packed.root.getObjectByName('ProductSwingTag'), undefined,
+      `${sku.id} has no generated checkout tag inside its carton`);
+    assert.deepEqual(packed.root.scale.toArray(), [1, 1, 1],
+      `${sku.id} delivery wrapper remains at authored scale`);
+
+    const visual = catalogProductVisual(sku);
+    const actual = visibleBounds(packed.root).getSize(new THREE.Vector3());
+    for (const [axis, target] of Object.entries({ x: visual.size[0], y: visual.size[1], z: visual.size[2] })) {
+      const ratio = actual[axis] / target;
+      assert.ok(ratio >= 0.92 && ratio <= 1.08,
+        `${sku.id} actual ${axis} bounds remain physical at 1:1 (${actual[axis]}m versus ${target}m)`);
+    }
+
+    const contract = productPackagingFor(sku.id);
+    const layout = PACKAGING_LAYOUTS[contract.layoutId];
+    assert.equal(
+      dimensionsFitUnderRotation(contract.packing.dimensions, layout.slotMaxDimensions),
+      true,
+      `${sku.id} packed occupied bounds fit the exact ${contract.layoutId} socket without scaling`,
+    );
+
+    checkoutResources.dispose(checkout.root);
+    deliveryResources.dispose(packed.root);
   }
 });
 

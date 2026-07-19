@@ -156,6 +156,10 @@ test('ref 48 keeps every wall and flap on an independent authored pivot', async 
     directChild(wall, `BOX_${side}`);
     directChild(flap, `FLAP_TOP_${side}`);
   }
+  const front = exactNode(root, 'BOX_WALL_FRONT');
+  assert.equal(front.userData.reveal_contents, true, 'front wall owns the open-content reveal');
+  assert.equal(front.userData.hinge_axis, 'X', 'front reveal uses its authored bottom X hinge');
+  assert.equal(Number(front.userData.open_reveal_angle_deg), 82, 'front wall clears the club sightline');
 });
 
 test('ref 48 exposes cut tape, club-care labels, reinforcement and two long sockets', async () => {

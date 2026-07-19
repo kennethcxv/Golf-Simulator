@@ -338,11 +338,37 @@ test('authoritative special grids and fit envelopes stay exact', async () => {
   );
 
   const { root: bag } = await loadAsset('delivery_golf_bag_carton');
+  const bagSocket = exactNode(bag, 'CONTENT_SLOT_BAG1_01');
   assert.deepEqual(
-    parseJsonArray(exactNode(bag, 'CONTENT_SLOT_BAG1_01').userData.authored_rotation_rad, 'BAG1 rotation'),
+    parseJsonArray(bagSocket.userData.authored_rotation_rad, 'BAG1 rotation'),
     [0, -1.570796, 0],
     'the full-size bag stands vertically in its fitted carton',
   );
+  assert.equal(
+    Number(bagSocket.position.y.toFixed(3)),
+    0.680,
+    'the fitted foam pedestal holds the bag top within 10 mm of the open carton rim',
+  );
+  assert.equal(exactNode(bag, 'BAG_FOAM_BLOCK_01').userData.support_role, 'bag_base_riser');
+  assert.equal(exactNode(bag, 'BAG_FOAM_BLOCK_02').userData.support_role, 'bag_upper_side_restraint');
+  assert.equal(exactNode(bag, 'BAG_FOAM_BLOCK_03').userData.support_role, 'bag_upper_side_restraint');
+  const bagSpec = PRODUCT_PACKAGING.bag1;
+  const bagCenter = bagSocket.getWorldPosition(new THREE.Vector3()).y;
+  const bagTop = bagCenter + bagSpec.physicalDimensions.w / 2;
+  const bagBottom = bagCenter - bagSpec.physicalDimensions.w / 2;
+  const rim = SPECS.delivery_golf_bag_carton.dimensions[2];
+  assert.ok(bagTop <= rim && rim - bagTop <= 0.012,
+    `BAG1 top clearance ${(rim - bagTop).toFixed(4)}m stays within its fitted rim`);
+  const riserTop = visibleBounds(exactNode(bag, 'BAG_FOAM_BLOCK_01')).max.y;
+  assert.ok(Math.abs(riserTop - bagBottom) <= 0.003,
+    `BAG1 riser meets the bag base within 3 mm (${riserTop.toFixed(4)} vs ${bagBottom.toFixed(4)})`);
+  const bagHalfWidth = bagSpec.physicalDimensions.h / 2;
+  const leftRestraintInner = visibleBounds(exactNode(bag, 'BAG_FOAM_BLOCK_02')).max.x;
+  const rightRestraintInner = visibleBounds(exactNode(bag, 'BAG_FOAM_BLOCK_03')).min.x;
+  assert.ok(leftRestraintInner <= -bagHalfWidth && -bagHalfWidth - leftRestraintInner <= 0.012,
+    'BAG1 left restraint holds the upper bag with no more than 12 mm clearance');
+  assert.ok(rightRestraintInner >= bagHalfWidth && rightRestraintInner - bagHalfWidth <= 0.012,
+    'BAG1 right restraint holds the upper bag with no more than 12 mm clearance');
 
   const { root: umbrella } = await loadAsset('delivery_umbrella_carton');
   for (let index = 1; index <= 6; index += 1) {

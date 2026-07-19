@@ -114,6 +114,22 @@ test('the live reader has no state-driven lift or float mutation', () => {
   assert.doesNotMatch(registerSource, /termObject\.position\.y\s*=/, 'reader y-position must not animate after attachment');
 });
 
+test('product scanning keeps a fixed camera while edge products are clicked', () => {
+  const updateLookTarget = functionBody(registerSource, 'updateLookTarget');
+  assert.match(
+    updateLookTarget,
+    /accessibilityPrefs\.reducedCameraMotion \|\| workspace === 'scan'/,
+    'scan pointer movement cannot steer the working camera',
+  );
+
+  const updateCamera = functionBody(registerSource, 'updateCamera');
+  assert.match(
+    updateCamera,
+    /if \(workspace === 'scan'\) \{[\s\S]*?lookYaw = 0;[\s\S]*?lookTargetYaw = 0;/,
+    'entering or remaining in scan view clears any prior cursor sway immediately',
+  );
+});
+
 test('receipt printing accepts only geometry whose long edge follows the feed axis', () => {
   assert.equal(
     receiptGeometryUsesFeedAxis({ x: 0.075, y: 0.185, z: 0.0356 }),

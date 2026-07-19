@@ -24,6 +24,7 @@ import {
   toggleMainDoorLeafState,
   toggleMainDoorState,
 } from '../src/sim/clubhouseRestoration.js';
+import { deserialize, newGame, serialize } from '../src/sim/state.js';
 
 const dirtyState = () => ({
   version: 73,
@@ -155,21 +156,76 @@ test('an explicit legacy whole-building completion marker never regresses work',
   for (const component of ARCHITECTURE_COMPONENTS) {
     assert.equal(architecture.components[component].restored, true, component);
   }
+
+  assert.equal(setFloorRestored(state, false).changed, true);
+  assert.equal(ensureClubhouseArchitecture(state), architecture, 'migration produces one canonical authority');
+  assert.equal(
+    architecture.components.floor.restored,
+    false,
+    'a retained legacy marker cannot override a later canonical component update',
+  );
 });
 
-test('ensure is identity-idempotent and later legacy evidence only promotes completion', () => {
+test('canonical architecture is identity-idempotent and ignores later legacy completion evidence', () => {
   const state = dirtyState();
   const architecture = ensureClubhouseArchitecture(state);
   const unchanged = JSON.stringify(architecture);
   assert.equal(ensureClubhouseArchitecture(state), architecture);
   assert.equal(JSON.stringify(architecture), unchanged);
 
-  state.shop.reno.windows = [0, 0];
+  state.shop.reno.grime = [0, 0.005];
+  state.shop.reno.windows = [0, 0.01];
+  state.shop.reno.wash = cleanWash();
+  state.shop.reno.exterior = { weeds: [0, false, 0], gutter: 0, cobwebs: false, light: 0 };
+  state.shop.reno.architectureComplete = true;
+  state.shop.reno.restorationComplete = true;
+
   assert.equal(ensureClubhouseArchitecture(state), architecture, 'canonical object keeps identity');
-  assert.equal(architecture.components.windows.restored, true);
-  state.shop.reno.windows = [0.9, 0.8];
-  ensureClubhouseArchitecture(state);
-  assert.equal(architecture.components.windows.restored, true, 'inference is monotonic');
+  assert.equal(JSON.stringify(architecture), unchanged, 'canonical values remain authoritative');
+  for (const component of ARCHITECTURE_COMPONENTS) {
+    assert.equal(
+      architecture.components[component].restored,
+      false,
+      `${component} is not promoted after canonicalization`,
+    );
+  }
+});
+
+test('clean canonical damage survives the real serializer and an unrelated door mutation', () => {
+  let state = newGame('relaxed', 605106);
+  const architecture = ensureClubhouseArchitecture(state);
+  const reno = state.shop.reno;
+
+  reno.grime.fill(0);
+  reno.windows.fill(0);
+  for (const surface of Object.values(reno.wash)) {
+    if (Array.isArray(surface?.grime)) surface.grime.fill(0);
+  }
+  reno.exterior = { weeds: [0, 0, 0], gutter: 0, cobwebs: 0, light: 0 };
+
+  for (const component of ARCHITECTURE_COMPONENTS) {
+    assert.equal(architecture.components[component].restored, false, component);
+  }
+
+  state = deserialize(serialize(state));
+  const loaded = ensureClubhouseArchitecture(state);
+  for (const component of ARCHITECTURE_COMPONENTS) {
+    assert.equal(
+      loaded.components[component].restored,
+      false,
+      `${component} survives clean save/load as explicitly damaged`,
+    );
+  }
+
+  assert.equal(setMainDoorState(state, 'open').ok, true);
+  assert.deepEqual(loaded.doors.main, { left: 'open', right: 'open' });
+  for (const component of ARCHITECTURE_COMPONENTS) {
+    assert.equal(
+      loaded.components[component].restored,
+      false,
+      `${component} is unchanged by the unrelated door mutation`,
+    );
+  }
 });
 
 test('corrupt architecture data normalizes while valid individual values survive', () => {

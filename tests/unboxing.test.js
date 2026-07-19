@@ -224,7 +224,7 @@ test('a fixture takes what belongs on it, and tells you where the rest goes', ()
   const wrong = stockFixture(st, 'shelf_balls');
   assert.equal(wrong.ok, false, 'caps do not go on the ball wall');
   assert.ok(wrong.invalid);
-  assert.match(wrong.reason, /hat tree/i, 'and it says where they DO go');
+  assert.match(wrong.reason, /hat wall/i, 'and it says where they DO go');
   assert.equal(st.shop.inventory.cap1.shelf, 0, 'nothing moved');
   assert.equal(carriedGoods(st).qty, armfulOf(skuById('cap1')), 'you are still holding them all');
 

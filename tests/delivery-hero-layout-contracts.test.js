@@ -188,6 +188,10 @@ test('CAP_NEST8 is two stacks by four nested layers, apparel layouts stay distin
   }
 
   const { root: apparel } = await loadAsset('delivery_apparel_box');
+  const apparelFront = exactNode(apparel, 'BOX_WALL_FRONT');
+  assert.equal(apparelFront.userData.reveal_contents, true, 'apparel front wall owns its content reveal');
+  assert.equal(Number(apparelFront.userData.open_reveal_angle_deg), 82,
+    'apparel front wall clears all four folded-garment layers');
   const apparelSockets = Array.from({ length: 8 }, (_, index) =>
     exactNode(apparel, `CONTENT_SLOT_APPAREL8_${String(index + 1).padStart(2, '0')}`));
   const flatSockets = Array.from({ length: 8 }, (_, index) =>
@@ -204,13 +208,18 @@ test('CAP_NEST8 is two stacks by four nested layers, apparel layouts stay distin
     'FLAT8 has two vertical layers');
 
   const { root: club } = await loadAsset('delivery_golf_club_box');
+  const clubFront = exactNode(club, 'BOX_WALL_FRONT');
+  assert.equal(clubFront.userData.reveal_contents, true, 'club front wall owns its content reveal');
+  assert.equal(Number(clubFront.userData.open_reveal_angle_deg), 82,
+    'club front wall clears both protected club layers');
   assert.deepEqual(
     parseJsonArray(exactNode(club, 'CONTENT_SLOT_CLUB2_01').userData.authored_rotation_rad, 'CLUB2 first rotation'),
-    [0, 0, 0],
+    [0, 0, -0.034907],
+    'the lower protected club splays two degrees away from its stacked partner',
   );
   assert.deepEqual(
     parseJsonArray(exactNode(club, 'CONTENT_SLOT_CLUB2_02').userData.authored_rotation_rad, 'CLUB2 second rotation'),
-    [0, 0, 3.141593],
-    'the second protected club reverses so its head occupies the opposite end',
+    [0, 0, 3.176499],
+    'the second protected club reverses and splays so both shafts and heads remain readable',
   );
 });

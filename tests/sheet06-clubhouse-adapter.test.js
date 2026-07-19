@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { defaultClubhouseArchitecture } from '../src/sim/clubhouseRestoration.js';
 import { SHEET06_RUNTIME_BY_NUMBER } from '../src/render3d/assets51to100/sheet06Architecture.js';
 import {
+  SHEET06_AUTHORED_FRONT_Z_YARDS,
   SHEET06_GROUP_FLOOR_Y,
   SHEET06_INTERIOR_FLOOR_Y,
   SHEET06_KIT_INSTANTIATION_POLICY,
@@ -66,11 +67,11 @@ test('placement resolver matches current group/interior coordinates and never ap
   assert.equal(p52.mountRoot, 'group');
 
   const p53 = resolveSheet06Placement(SHEET06_RUNTIME_BY_NUMBER[53]);
-  assert.deepEqual(p53.position, [-0.8, 0.3, 6.75]);
+  assert.deepEqual(p53.position, [-0.8, 0.3, SHEET06_AUTHORED_FRONT_Z_YARDS]);
   assert.equal(p53.datum, 'MAIN_ENTRANCE_THRESHOLD_CENTER');
 
   const p54 = resolveSheet06Placement(SHEET06_RUNTIME_BY_NUMBER[54]);
-  assert.deepEqual(p54.position, [-1, 0, 6.75]);
+  assert.deepEqual(p54.position, [-1, 0, SHEET06_AUTHORED_FRONT_Z_YARDS]);
   assert.match(p54.datum, /SOCKET_Porch/);
   assert.ok(Math.abs(p54.position[1] + 0.27432 * 1.0936133 - SHEET06_GROUP_FLOOR_Y) < 1e-8,
     'the scaled authored porch entrance marker lands on the group finished floor');

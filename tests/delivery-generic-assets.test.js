@@ -227,7 +227,22 @@ test('generic carton exposes segmented tape, labels, inserts and eight authored 
   exactNode(root, 'TAPE_SIDE_FRONT');
   exactNode(root, 'TAPE_SIDE_BACK');
 
-  for (const name of ['LABEL_MAIN', 'LABEL_SHIPPING', 'LABEL_DYNAMIC']) exactNode(root, name);
+  exactNode(root, 'LABEL_MAIN');
+  const labelPivot = exactNode(root, 'LABEL_SHIPPING');
+  assert.equal(labelPivot.isMesh, undefined, 'shipping label mount is an articulated transform, not a textured cuboid');
+  assertDirectChild(labelPivot, 'SHIPPING_LABEL_BACKING');
+  const dynamicLabel = exactNode(root, 'LABEL_DYNAMIC');
+  assert.equal(dynamicLabel.parent, labelPivot, 'runtime label quad is mounted under LABEL_SHIPPING');
+  assert.ok(dynamicLabel.isMesh, 'runtime label is visible geometry');
+  assert.equal(trianglesOf(dynamicLabel), 2, 'runtime label stays one cheap quad');
+  const uv = dynamicLabel.geometry.attributes.uv;
+  assert.ok(uv && uv.count === 4, 'runtime label exports four explicit UV corners');
+  const uvValues = Array.from({ length: uv.count }, (_, index) => [uv.getX(index), uv.getY(index)]);
+  assert.deepEqual(new Set(uvValues.map(([u]) => u.toFixed(3))), new Set(['0.000', '1.000']));
+  assert.deepEqual(new Set(uvValues.map(([, v]) => v.toFixed(3))), new Set(['0.000', '1.000']));
+  const labelSize = sizeOf(dynamicLabel);
+  assert.ok(labelSize.x / labelSize.y > 1.55 && labelSize.x / labelSize.y < 1.70,
+    `runtime label remains landscape at 512:320 aspect, got ${labelSize.x} x ${labelSize.y}`);
   for (const name of ['INSERT_BOTTOM', 'INSERT_SIDE_LEFT', 'INSERT_SIDE_RIGHT']) exactNode(root, name);
 
   const sockets = [];

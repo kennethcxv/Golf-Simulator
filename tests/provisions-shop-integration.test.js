@@ -72,16 +72,17 @@ test('one movable logical snack rack owns both SKUs and every retail line has ex
 function expectedSockets(prefix, xs, ys, z) {
   return ys.flatMap((y, row) => xs.map((x, col) => ({
     socket: `${prefix}_${String(row * xs.length + col + 1).padStart(2, '0')}`,
+    socketName: `${prefix}_${String(row * xs.length + col + 1).padStart(2, '0')}`,
     x, y, z, ry: 0,
   })));
 }
 
 test('provisions capacity is the exact authored DRINK_SLOT and SNACK_SLOT mapping', () => {
   const water = expectedSockets(
-    'DRINK_SLOT', [-0.39, -0.26, -0.13, 0, 0.13, 0.26, 0.39], [0.174, 0.594], 0.055,
+    'DRINK_SLOT', [-0.39, -0.26, -0.13, 0, 0.13, 0.26, 0.39], [0.174, 0.574], 0.055,
   );
   const snack = expectedSockets(
-    'SNACK_SLOT', [-0.35, -0.175, 0, 0.175, 0.35], [0.994, 1.314], 0.03,
+    'SNACK_SLOT', [-0.35, -0.175, 0, 0.175, 0.35], [0.954, 1.284], 0.03,
   );
 
   assert.deepEqual(slotsFor('water1'), water);

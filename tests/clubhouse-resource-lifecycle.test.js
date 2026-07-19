@@ -203,6 +203,13 @@ test('makeClubhouse teardown releases receiving resources once and leaves loader
   borrowedGeometry.addEventListener('dispose', () => { borrowedDisposals.geometry += 1; });
   borrowedMaterial.addEventListener('dispose', () => { borrowedDisposals.material += 1; });
   borrowedTexture.addEventListener('dispose', () => { borrowedDisposals.texture += 1; });
+  const sheet06Geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+  const sheet06Texture = new THREE.Texture();
+  const sheet06Material = new THREE.MeshStandardMaterial({ map: sheet06Texture });
+  const sheet06Disposals = { geometry: 0, material: 0, texture: 0 };
+  sheet06Geometry.addEventListener('dispose', () => { sheet06Disposals.geometry += 1; });
+  sheet06Material.addEventListener('dispose', () => { sheet06Disposals.material += 1; });
+  sheet06Texture.addEventListener('dispose', () => { sheet06Disposals.texture += 1; });
   const pendingLoads = [];
 
   GLTFLoader.prototype.load = function loadFixture(url, onLoad) {
@@ -210,7 +217,11 @@ test('makeClubhouse teardown releases receiving resources once and leaves loader
       const id = String(url).split('/').pop().replace(/\.glb$/i, '');
       const root = new THREE.Group();
       root.name = id;
-      root.add(new THREE.Mesh(borrowedGeometry, borrowedMaterial));
+      const sheet06 = String(url).includes('/assets_51_100/');
+      root.add(new THREE.Mesh(
+        sheet06 ? sheet06Geometry : borrowedGeometry,
+        sheet06 ? sheet06Material : borrowedMaterial,
+      ));
       onLoad({ scene: root, animations: [] });
     });
     return this;
@@ -313,10 +324,13 @@ test('makeClubhouse teardown releases receiving resources once and leaves loader
     assert.equal(first.merchandise.prototypeTextures, 1);
     assert.deepEqual(borrowedDisposals, { geometry: 1, material: 1, texture: 1 },
       'borrowed clone resources bypass procedural teardown and are released once by createMerch');
+    assert.deepEqual(sheet06Disposals, { geometry: 1, material: 1, texture: 1 },
+      'failed Sheet-6 prototypes release their isolated cache resources exactly once');
 
     clubhouse.dispose();
     for (const record of records.values()) assert.equal(record.count, 1);
     assert.deepEqual(borrowedDisposals, { geometry: 1, material: 1, texture: 1 });
+    assert.deepEqual(sheet06Disposals, { geometry: 1, material: 1, texture: 1 });
   } finally {
     if (clubhouse) clubhouse.dispose();
     GLTFLoader.prototype.load = originalLoad;

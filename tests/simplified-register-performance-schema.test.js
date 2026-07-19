@@ -9,6 +9,7 @@ import {
   REQUIRED_DYNAMIC_WINDOWS,
   REQUIRED_PERFORMANCE_GATE_KEYS,
   buildDynamicGateReport,
+  buildStaticPerformanceGateReport,
   buildMatchedHeapCalibration,
   buildStoredBaselineComparison,
   captureNormalizedTransactionBoundary,
@@ -32,14 +33,32 @@ const STATIC_SCENES = [
 ];
 
 function staticScene(overrides = {}) {
+  const frameTimesMs = Array.from({ length: 20 }, () => 16.667);
   return {
     screenshot: 'static-scene.png',
+    camera: {
+      position: { x: 1, y: 2, z: 3 },
+      quaternion: { x: 0, y: 0, z: 0, w: 1 },
+      fovDegrees: 50,
+      near: 0.1,
+      far: 1000,
+      ...overrides.camera,
+    },
+    samples: [{
+      index: 1,
+      summary: {
+        avgFps: 59.999,
+        onePercentLowFps: 59.999,
+        worstFrameMs: 16.667,
+      },
+      frameTimesMs,
+    }],
     aggregate: {
-      avgFps: 60,
-      onePercentLowFps: 48,
-      p95FrameMs: 18,
-      p99FrameMs: 24,
-      worstFrameMs: 34,
+      avgFps: 59.999,
+      onePercentLowFps: 59.999,
+      p95FrameMs: 16.667,
+      p99FrameMs: 16.667,
+      worstFrameMs: 16.667,
       ...overrides.aggregate,
     },
     render: {
@@ -53,11 +72,31 @@ function staticScene(overrides = {}) {
       ...overrides.render,
     },
     heap: { jsHeapUsedMiB: 36, ...overrides.heap },
+    listeners: { total: 10, ...overrides.listeners },
+    dom: { elements: 20, ...overrides.dom },
+    liveSceneResources: {
+      objects: 100,
+      meshes: 50,
+      geometries: 25,
+      materials: 15,
+      textures: 8,
+      rendererMemory: { geometries: 30, textures: 9 },
+      ...overrides.liveSceneResources,
+    },
+    ui: {
+      perSecond: {
+        frontDeskMonitor: 0,
+        scannerStatus: 0,
+        cashWorkspace: 0,
+        cardTerminal: 0,
+      },
+      ...overrides.ui,
+    },
   };
 }
 
 function dynamicPhase(overrides = {}) {
-  const frameTimesMs = Array.from({ length: 20 }, () => 50);
+  const frameTimesMs = Array.from({ length: 20 }, () => 16.667);
   const stateTimeline = frameTimesMs.map((frameTimeMs, index) => ({
     frameTimeMs,
     atMs: 1000 + (index + 1) * frameTimeMs,
@@ -142,16 +181,27 @@ function dynamicPhase(overrides = {}) {
 }
 
 function dynamicWindow(overrides = {}) {
+  const phase = dynamicPhase();
   return {
+    ...phase,
     screenshot: 'dynamic-window.png',
-    aggregate: { frameCount: 20 },
+    aggregate: { ...phase.aggregate, ...overrides.aggregate },
     longTasks: {
       supported: true,
       count: 0,
       totalDurationMs: 0,
       entries: [],
+      ...overrides.longTasks,
     },
     ...overrides,
+    aggregate: { ...phase.aggregate, ...overrides.aggregate },
+    longTasks: {
+      supported: true,
+      count: 0,
+      totalDurationMs: 0,
+      entries: [],
+      ...overrides.longTasks,
+    },
   };
 }
 
@@ -212,6 +262,22 @@ function transactionDelta(overrides = {}) {
   };
 }
 
+function reentrySample(cycle, overrides = {}) {
+  return {
+    cycle,
+    heap: { jsHeapUsedMiB: 40 },
+    listeners: { total: 10 },
+    dom: { elements: 20 },
+    liveSceneResources: {
+      geometries: 25,
+      materials: 15,
+      textures: 8,
+      rendererMemory: { geometries: 30, textures: 9 },
+    },
+    ...overrides,
+  };
+}
+
 function completeResult() {
   const start = normalizedTransactionBoundary();
   start.heapNormalization.dynamicDiagnosticsCleared = false;
@@ -225,6 +291,7 @@ function completeResult() {
       profile: 'master',
       browserMode: 'headed',
       viewport: { width: 1600, height: 900 },
+      sampleCount: 1,
       reentryCycles: 20,
       heapControlMs: 16000,
       gcSettleMs: 600,
@@ -273,7 +340,7 @@ function completeResult() {
     dynamicWindows: Object.fromEntries(REQUIRED_DYNAMIC_WINDOWS.map((key) => [key, dynamicWindow()])),
     reentryLeak: {
       cycles: 20,
-      samples: [{ cycle: 0 }, { cycle: 20 }],
+      samples: [reentrySample(0), reentrySample(20)],
       delta: {
         heapMiB: 0,
         listeners: 0,
@@ -298,6 +365,13 @@ function completeResult() {
       delta: methodMatchedDelta,
     },
     storedBaselineComparison: { available: true },
+    errors: {
+      consoleErrors: [],
+      pageErrors: [],
+      failedRequests: [],
+      httpErrors: [],
+      nonBenignRequestFailures: [],
+    },
     build: {
       measuredFiles: [{
         path: 'tools/qa/simplified-register-performance.mjs',
@@ -1150,6 +1224,7 @@ test('stored baseline comparison judges only matched static protocols', () => {
 
 test('dynamic gate report enforces transition tails and method-matched three-sale cleanup stability', () => {
   const phases = Object.fromEntries(REQUIRED_DYNAMIC_PHASES.map((key) => [key, dynamicPhase()]));
+  const windows = Object.fromEntries(REQUIRED_DYNAMIC_WINDOWS.map((key) => [key, dynamicWindow()]));
   const stability = {
     start: { state: { active: true, workspace: 'monitor', customerCount: 0 } },
     afterFirstSale: { state: { active: true, workspace: 'monitor', customerCount: 0 } },
@@ -1181,11 +1256,11 @@ test('dynamic gate report enforces transition tails and method-matched three-sal
   stability.repeatSaleDelta = stability.methodMatchedDelta;
   stability.delta = stability.methodMatchedDelta;
   const baseline = { available: true, qualified: true, pass: true };
-  assert.equal(buildDynamicGateReport(phases, stability, baseline).pass, true);
+  assert.equal(buildDynamicGateReport(phases, stability, baseline, windows).pass, true);
 
   stability.totalDelta.rendererGeometries = 201;
   assert.equal(
-    buildDynamicGateReport(phases, stability, baseline).details.transactionRendererResidency.pass,
+    buildDynamicGateReport(phases, stability, baseline, windows).details.transactionRendererResidency.pass,
     false,
     'first-use renderer residency is judged across the total envelope',
   );
@@ -1193,24 +1268,17 @@ test('dynamic gate report enforces transition tails and method-matched three-sal
 
   stability.methodMatchedDelta.rendererGeometries = 3;
   assert.equal(
-    buildDynamicGateReport(phases, stability, baseline)
+    buildDynamicGateReport(phases, stability, baseline, windows)
       .details.transactionRepeatRendererResidency.pass,
     false,
     'method-matched renderer residency is judged independently of cold first-use residency',
   );
   stability.methodMatchedDelta.rendererGeometries = 0;
 
-  phases.cardInsertion = dynamicPhase({
-    aggregate: {
-      frameCount: 20,
-      avgFps: 28,
-      onePercentLowFps: 20,
-      p95FrameMs: 80,
-      p99FrameMs: 120,
-      worstFrameMs: 280,
-    },
-  });
-  const failed = buildDynamicGateReport(phases, stability, baseline);
+  phases.cardInsertion.frameTimesMs = Array.from({ length: 20 }, (_, index) => (
+    index === 19 ? 280 : 36
+  ));
+  const failed = buildDynamicGateReport(phases, stability, baseline, windows);
   assert.equal(failed.pass, false);
   assert.equal(failed.details.dynamicAverageFps.pass, false);
   assert.equal(failed.details.dynamicP99Frame.pass, false);
@@ -1219,6 +1287,7 @@ test('dynamic gate report enforces transition tails and method-matched three-sal
 
 test('dynamic retained-heap and high-water gates are one-sided and fail closed', () => {
   const phases = Object.fromEntries(REQUIRED_DYNAMIC_PHASES.map((key) => [key, dynamicPhase()]));
+  const windows = Object.fromEntries(REQUIRED_DYNAMIC_WINDOWS.map((key) => [key, dynamicWindow()]));
   const stability = {
     end: {
       state: {
@@ -1245,34 +1314,34 @@ test('dynamic retained-heap and high-water gates are one-sided and fail closed',
   stability.delta = stability.methodMatchedDelta;
   const baseline = { available: false, qualified: false, pass: null };
 
-  assert.equal(buildDynamicGateReport(phases, stability, baseline).details.transactionPostGcHeap.pass, true,
+  assert.equal(buildDynamicGateReport(phases, stability, baseline, windows).details.transactionPostGcHeap.pass, true,
     'a forced-GC heap decrease is not a retained-memory regression');
   stability.delta.postGcHeapMiB = 4;
-  assert.equal(buildDynamicGateReport(phases, stability, baseline).details.transactionPostGcHeap.pass, true);
+  assert.equal(buildDynamicGateReport(phases, stability, baseline, windows).details.transactionPostGcHeap.pass, true);
   stability.delta.postGcHeapMiB = 4.001;
-  assert.equal(buildDynamicGateReport(phases, stability, baseline).details.transactionPostGcHeap.pass, false);
+  assert.equal(buildDynamicGateReport(phases, stability, baseline, windows).details.transactionPostGcHeap.pass, false);
   for (const missing of [undefined, null, Number.NaN, Number.POSITIVE_INFINITY]) {
     stability.methodMatchedDelta.postGcHeapMiB = missing;
-    assert.equal(buildDynamicGateReport(phases, stability, baseline).details.transactionPostGcHeap.pass, false);
+    assert.equal(buildDynamicGateReport(phases, stability, baseline, windows).details.transactionPostGcHeap.pass, false);
   }
 
   stability.methodMatchedDelta.postGcHeapMiB = 0;
   phases.cardInsertion.heapHighWater.peakGrowthMiB = 1000;
   phases.cardInsertion.heapHighWater.calibration.excessMaxDrawupMiB = 16;
-  assert.equal(buildDynamicGateReport(phases, stability, baseline).details.dynamicHeapHighWater.pass, true);
+  assert.equal(buildDynamicGateReport(phases, stability, baseline, windows).details.dynamicHeapHighWater.pass, true);
   phases.cardInsertion.heapHighWater.calibration.excessMaxDrawupMiB = 16.001;
-  assert.equal(buildDynamicGateReport(phases, stability, baseline).details.dynamicHeapHighWater.pass, false);
+  assert.equal(buildDynamicGateReport(phases, stability, baseline, windows).details.dynamicHeapHighWater.pass, false);
   for (const missing of [undefined, null, Number.NaN, Number.POSITIVE_INFINITY]) {
     phases.cardInsertion.heapHighWater.calibration.excessMaxDrawupMiB = missing;
-    assert.equal(buildDynamicGateReport(phases, stability, baseline).details.dynamicHeapHighWater.pass, false);
+    assert.equal(buildDynamicGateReport(phases, stability, baseline, windows).details.dynamicHeapHighWater.pass, false);
   }
   phases.cardInsertion.heapHighWater.calibration.excessMaxDrawupMiB = 0;
   phases.cardInsertion.heapHighWater.calibration.durationMatched = false;
-  assert.equal(buildDynamicGateReport(phases, stability, baseline).details.dynamicHeapHighWater.pass, false);
+  assert.equal(buildDynamicGateReport(phases, stability, baseline, windows).details.dynamicHeapHighWater.pass, false);
   phases.cardInsertion.heapHighWater.calibration.durationMatched = true;
   phases.cardInsertion.heapHighWater.calibration.controlStateStable = false;
-  assert.equal(buildDynamicGateReport(phases, stability, baseline).details.dynamicHeapHighWater.pass, false);
+  assert.equal(buildDynamicGateReport(phases, stability, baseline, windows).details.dynamicHeapHighWater.pass, false);
   phases.cardInsertion.heapHighWater.calibration.controlStateStable = true;
   phases.cardInsertion.heapHighWater.calibration.traceCoverageMatched = false;
-  assert.equal(buildDynamicGateReport(phases, stability, baseline).details.dynamicHeapHighWater.pass, false);
+  assert.equal(buildDynamicGateReport(phases, stability, baseline, windows).details.dynamicHeapHighWater.pass, false);
 });
