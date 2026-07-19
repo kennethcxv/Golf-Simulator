@@ -22,7 +22,7 @@ Sheet-8 world props and first-person GLBs.
 - Machine-readable result: `qa/overnight/cleaning-gameplay/final/acceptance-result.json`
 - Repeatable driver: `tools/qa/cleaning-gameplay-acceptance.js`
 
-The final driver recorded 56/56 passing assertions through `F`, left/right mouse holds, `E`, `X`,
+The final driver recorded 57/57 passing assertions through `F`, left/right mouse holds, `E`, `X`,
 and the pause-menu save/load controls. Direct state access was limited to deterministic dirt/debris
 fixtures and fixed camera poses.
 
@@ -125,7 +125,8 @@ captures, capacity states, and disposal state:
 1. Pass — every authored held tool has a readable player-camera silhouette.
 2. Pass — spray droplets leave the nozzle and land at the same reachable surface the simulation uses.
 3. Pass — vacuum/sweep/mop/wipe/scrub effects are soft round particles rather than square sprites.
-4. Pass — the washer stream is narrow, nozzle-aligned, directional, and accompanied by mist.
+4. Pass — the washer stream is narrow, nozzle-aligned, directional, and accompanied by mist; its
+   surface-local wet sheen remains after release and then dries completely.
 5. Pass — empty/full/tied bag stages are visibly distinct and the full bag remains held.
 6. Pass — bucket, wall tools, supply set, vacuum, litter bag, and waste station are readable from
    walk-free stockroom positions after the normal clutter-removal action.
@@ -136,7 +137,8 @@ captures, capacity states, and disposal state:
 10. Minor — the headless browser displays its normal `Click to play` pointer-lock hint in evidence.
 11. Minor — the spray impact contains a bright wet highlight at steep downward angles, but the bottle,
     nozzle, particle path, and target remain legible.
-12. Minor — one ANGLE shader compiler warning appears; console errors and failed requests are zero.
+12. Minor — one ANGLE shader compiler warning appears; console errors and unexpected failed requests
+    are zero. Three in-flight GLB requests were expectedly aborted by the deliberate save/load reload.
 
 Disposition: no critical/high visual defects remain. Minor findings are consistent with the game's
 stylized direction or browser-driver presentation and do not block normal play.
@@ -157,7 +159,7 @@ stylized direction or browser-driver presentation and do not block normal play.
 | Sponge | `F`, three mouse holds | Three accepted stubborn-grime passes |
 | Trash bag | `F`, hold left mouse | Litter only, finite 7.5 capacity, overflow conserved |
 | Tie/dispose | bay `E`, waste `E` | Tied load preserved; fresh bag installed; totals persist |
-| Pressure washer | outdoor `F`, right/left mouse | Soap and wash change a real exterior surface |
+| Pressure washer | outdoor `F`, right/left mouse | Soap/wash change a real surface; wet sheen appears and dries |
 | Active switch | hold mouse, press `F` | Input/effects/clip/audio stop immediately |
 | Save/reload | pause Save/Load controls | Mid-task resources and dirt fields restored |
 | Stress | 100 normal `F` presses | No live DOM, listener, scene, texture, geometry, or program growth |
@@ -169,10 +171,10 @@ scenario. Medians are used because the browser occasionally schedules a single l
 
 | Scenario | Baseline median FPS | Final median FPS | Retention |
 | --- | ---: | ---: | ---: |
-| Indoor idle | 93.57 | 115.44 | 123.4% |
-| Vacuum active | 95.75 | 112.44 | 117.4% |
-| Indoor idle 1% low | 41.55 | 59.88 | 144.1% |
-| Vacuum active 1% low | 53.76 | 59.76 | 111.2% |
+| Indoor idle | 93.57 | 99.88 | 106.7% |
+| Vacuum active | 95.75 | 99.57 | 104.0% |
+| Indoor idle 1% low | 41.55 | 59.06 | 142.1% |
+| Vacuum active 1% low | 53.76 | 51.28 | 95.4% |
 
 After 100 normal tool switches: live DOM nodes `308 -> 308`, event listeners `92 -> 92`, scene
 nodes `4828 -> 4828`, geometries `1511 -> 1511`, textures `260 -> 260`, shader programs
@@ -180,13 +182,14 @@ nodes `4828 -> 4828`, geometries `1511 -> 1511`, textures `260 -> 260`, shader p
 
 ## Verification
 
-- Focused cleaning/state/save/resource/washing suite: 64 passed, 0 failed; the seven independent
-  socket/occlusion tests also passed (71 total).
-- Browser acceptance: 56 passed, 0 failed.
+- Focused cleaning/state/save/resource/washing suite: 67 passed, 0 failed; the seven independent
+  socket/occlusion tests also passed (74 total).
+- Browser acceptance: 57 passed, 0 failed.
 - Console errors: 0.
-- Failed requests: 0.
+- Unexpected failed requests: 0. Three `ERR_ABORTED` requests from the deliberate save/load scene
+  reload are retained in the machine-readable diagnostics.
 - One non-fatal ANGLE shader compiler warning was recorded verbatim in the JSON evidence.
-- Full repository suite: 1,665 passed, 3 skipped, 1 failed. The lone failure is the unrelated
+- Full repository suite: 1,668 passed, 3 skipped, 1 failed. The lone failure is the unrelated
   environment/evidence gate `tests/assets-51-60-reimport-report.test.js`: it requires the absent
   Sheet-6 Blender report produced by `tools/blender/verify_assets_51_60_reimport.py`. The filtered
   rerun reproduced only that assertion; it does not execute or reference cleaning gameplay.

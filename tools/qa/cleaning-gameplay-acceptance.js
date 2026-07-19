@@ -855,6 +855,15 @@ async (page) => {
       && washerUse.during.diagnostics.effects.washerMistVisible
       && washerUse.during.audio.active === 'washer',
     { diagnostics: washerUse.during.diagnostics, audio: washerUse.during.audio });
+  const washerWetAtRelease = washerUse.after.diagnostics.effects.washerWet;
+  await page.waitForTimeout(1200);
+  const washerWetAfterFade = (await snapshot()).diagnostics.effects.washerWet;
+  check('washer leaves surface-local wetness that keeps fading after trigger release',
+    washerWetAtRelease.activeCells > 0
+      && washerWetAtRelease.max > 0
+      && washerWetAfterFade.activeCells > 0
+      && washerWetAfterFade.max < washerWetAtRelease.max,
+    { atRelease: washerWetAtRelease, after1200ms: washerWetAfterFade });
 
   // Stop and retain the player-view recording before performance measurement.
   if (captureStarted) {
@@ -944,6 +953,7 @@ async (page) => {
       && !finalSnapshot.diagnostics.sprayVisible
       && !finalSnapshot.diagnostics.effects.motesVisible
       && !finalSnapshot.diagnostics.effects.washerJetVisible
+      && finalSnapshot.diagnostics.effects.washerWet.activeCells === 0
       && finalSnapshot.diagnostics.viewmodels.playing.length === 0
       && finalSnapshot.audio.active === null,
     finalSnapshot.diagnostics);

@@ -5034,10 +5034,12 @@ export function makeCourseScene(canvas, state) {
         }
       }
       if (!hit) clubhouseApi.washJet(null, null, false, dt);
-      clubhouseApi.washTick(dt);
     } else if (clubhouseApi && clubhouseApi.washJet) {
       clubhouseApi.washJet(null, null, false, dt);
     }
+    // Exterior wet feedback keeps drying after the washer is stowed. The tick is a no-op once all
+    // runtime wet cells reach zero, so ordinary indoor/course frames pay only this branch.
+    clubhouseApi?.washTick?.(dt);
 
     // hold-to-use: each tool writes through its hook, with the same live
     // texture + particle feedback loop the hose established
