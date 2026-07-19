@@ -133,8 +133,10 @@ test('boundary drag is retained, local on move, and commits through one release 
 test('undo, redo, discard, delete, and tool switches clear stale feature refs', () => {
   const setTool = sourceBetween(editorSource, 'function setTool(key)', 'function setSelected');
   assert.match(setTool, /clearFeatureSelections\(\)/);
+  const discard = sourceBetween(editorSource, 'async function discardPendingWork()', 'function doDiscard()');
+  assert.match(discard, /discardSession\([\s\S]*clearFeatureSelections\(\)/);
   const applyFlow = sourceBetween(editorSource, 'function doDiscard()', 'function refreshObjects');
-  assert.match(applyFlow, /discardSession\([\s\S]*clearFeatureSelections\(\)/);
+  assert.match(applyFlow, /discardPendingWork\(\)/);
   assert.match(applyFlow, /function doUndo\([\s\S]*clearFeatureSelections\(\)/);
   assert.match(applyFlow, /function doRedo\([\s\S]*clearFeatureSelections\(\)/);
   const remove = sourceBetween(editorSource, 'function removeSelectedVectorFeature', 'function renderToolPanel');

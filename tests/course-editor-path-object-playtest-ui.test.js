@@ -80,8 +80,10 @@ test('path picking is spatial and pointer movement only updates cloned preview p
 test('path selection is cleared across tool, undo, redo, discard, delete, and hide flows', () => {
   const setTool = sourceBetween(source, 'function setTool(key)', 'function setSelected');
   assert.match(setTool, /clearPathSelection\(\)/);
+  const discard = sourceBetween(source, 'async function discardPendingWork()', 'function doDiscard()');
+  assert.match(discard, /discardSession\([\s\S]*clearPathSelection\(\)/);
   const history = sourceBetween(source, 'function doDiscard()', 'function refreshObjects');
-  assert.match(history, /discardSession\([\s\S]*clearPathSelection\(\)/);
+  assert.match(history, /discardPendingWork\(\)/);
   assert.match(history, /function doUndo\([\s\S]*clearPathSelection\(\)/);
   assert.match(history, /function doRedo\([\s\S]*clearPathSelection\(\)/);
   const hide = sourceBetween(source, 'function hide()', 'const pdHandler');
