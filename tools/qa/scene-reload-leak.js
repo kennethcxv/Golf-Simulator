@@ -1,5 +1,6 @@
 async (page) => {
   const probeStartedAt = Date.now();
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const numberEnv = (name, fallback, { integer = false, min = 0 } = {}) => {
     const parsed = Number(process.env[name]);
     const value = Number.isFinite(parsed) ? parsed : fallback;
@@ -50,6 +51,7 @@ async (page) => {
     }),
   };
   const protocol = {
+    baseUrl,
     cycles: cycleCount,
     route: 'normal Escape > Office > Exit to main menu > Continue',
     viewport: { width: 1600, height: 900, deviceScaleFactor: 1 },
@@ -214,7 +216,7 @@ async (page) => {
     };
 
     setPhase('bootstrap-menu');
-    await page.goto('http://localhost:8457/', { waitUntil: 'domcontentloaded', timeout: waitTimeoutMs });
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: waitTimeoutMs });
     await page.waitForTimeout(500);
     await page.getByText('Continue', { exact: true }).waitFor({ timeout: 20000 });
     setPhase('initial-game-load');
