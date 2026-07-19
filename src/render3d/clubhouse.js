@@ -16,9 +16,9 @@ import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig
 import { makeCharacter } from './characterAsset.js';
 import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
-  SHELL, INTERIOR, FIXTURES, COUNTER, OFFICE, STOCKROOM, LOUNGE,
+  SHELL, INTERIOR, FIXTURES, FIXTURE_HALF, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
-  MAT, HOURS_SIGN, queueSlot, REGISTER, COUNTER_TOP,
+  MAT, HOURS_SIGN, queueSlot, REGISTER, COUNTER_TOP, fixtureBrowsePoint,
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
@@ -26,14 +26,23 @@ import {
 } from '../sim/shop.js';
 import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
-  cutTape, openFlap, takeFromBox, flattenBox, recycleBox,
-  tapeCut, tapeUncut, flapsOpen, isEmpty, boxState, boxAtStockroomLocation,
-  stockingCartPlacementForCarriedBox, PAD_CAPACITY,
+  cutTape, openFlap, takeFromBox, flattenBox, recycleCarriedBox,
+  tapeCut, tapeUncut, flapsOpen, isEmpty, boxState,
+  deliveryEquipmentPlacementForCarriedBox,
+  handTruckPlacementForCarriedBox, stockingCartPlacementForCarriedBox, PAD_CAPACITY,
 } from '../sim/deliveries.js';
 import {
   carriedGoods, stockFixture, storeInBack, carrySpeedFactor,
 } from '../sim/stocking.js';
 import { boxDims, boxKindFor } from '../data/boxes.js';
+import {
+  FLOOR_BOX_SURFACE_ID,
+  deliveryEquipmentSurfaceId,
+} from '../data/boxPlacementSurfaces.js';
+import {
+  HAND_TRUCK_EQUIPMENT_ID,
+  STOCKING_CART_EQUIPMENT_ID,
+} from '../data/deliveryEquipment.js';
 import {
   deliveryVanCargoOrientations, planDeliveryVanCargo,
 } from '../data/deliveryVanCargo.js';
@@ -72,9 +81,12 @@ import {
 import {
   canBuildDeliveryBoxVisual, createDeliveryBoxVisual,
 } from './clubhouse/deliveryBoxVisual.js';
+import { deliveryBoxCarryProfile } from './clubhouse/deliveryCarryProfile.js';
 import { slotsFor, homeFixture } from '../data/fixtureSlots.js';
 import { buildShell } from './clubhouse/shell.js';
 import { buildDoors } from './clubhouse/doors.js';
+import { createSheet06ProductionRuntime } from './assets51to100/sheet06ProductionRuntime.js';
+import { createSheet06NavigationContract } from './assets51to100/sheet06Navigation.js';
 import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } from './clubhouse/fixtures.js';
 import { createRegisterMode } from './clubhouse/simplifiedRegisterMode.js';
 import { buildDirt } from './clubhouse/dirt.js';
@@ -82,6 +94,15 @@ import { makeNav } from './clubhouse/nav.js';
 import { productThumb } from './clubhouse/thumbs.js';
 import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { buildProps } from './assets51to100/propPlacement.js';
+import {
+  ensureDebris, debrisState, seedDebris, sweepAt, collectAt, suckAt, totalDebris,
+} from '../sim/cleaningDebris.js';
+import {
+  ensureWet, wetAt, solutionAt, solutionLevel, consumeSolution, dryTick, SOLUTION_MIN,
+} from '../sim/cleaningWet.js';
+import { CLEANING_TOOLS, TOOL_CLASS } from '../data/cleaningTools.js';
 import {
   planOrganicOrder, reconcileCustomerItemMeshes,
   createSequentialPlacement, createSequentialPlacementRecovery, stepSequentialPlacement,
@@ -90,16 +111,204 @@ import {
 import {
   PAID_BAG_ACCEPTANCE_HOLD_SEC, attachPaidBagToCustomer, syncPaidBagCarry,
 } from './clubhouse/customerPaidBag.js';
-import { placedFixtures, ensureLayout, legalBoxDrop } from '../sim/layout.js';
+import { placedFixtures, ensureLayout } from '../sim/layout.js';
+import {
+  boxPlacementCapabilities,
+  boxPlacementDimensions,
+  boxPlacementSurfaces,
+  boxesOnSurface,
+  previewBoxPlacement,
+  resolveBoxPose,
+  snapBoxPlacementTarget,
+} from '../sim/boxPlacement.js';
 import { buildBuildMode } from './clubhouse/buildMode.js';
+import { createBoxPlacementMode } from './clubhouse/boxPlacementMode.js';
+import {
+  placementPreviewWorldPose,
+  raycastBoxPlacementSurface,
+  surfaceWorldPlane,
+} from './clubhouse/boxPlacementCoordinates.js';
 import { reviewFor, postReview } from '../sim/reviews.js';
 import {
   createCheckoutFlow, transitionCheckout, enterCheckoutRecovery, checkoutStateTimedOut,
   recoverTimedOutCheckout, resumeCheckout,
 } from '../sim/registerFlow.js';
 
-const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265, provisions: 0x78957e };
+const CAT_COLORS = {
+  balls: 0xf3f0e4,
+  accessories: 0xc9a55a,
+  apparel: 0x7f9fc2,
+  clubs: 0x9a8265,
+  provisions: 0x78957e,
+};
+
+function carriedGoodsProfile(sku, descriptor) {
+  if (sku.cat === 'clubs') return 'long-clubs';
+  if (descriptor.kind === 'stand-bag') return 'bulky-stand-bag';
+  if (descriptor.kind === 'water-bottle') return 'bottle-bundle';
+  if (descriptor.kind === 'shoe-box') return 'shoe-box-stack';
+  if (descriptor.kind === 'ball-box') return 'ball-carton-stack';
+  if (descriptor.kind === 'umbrella') return 'long-accessories';
+  if (['tee-pouch', 'marker-card', 'glove', 'snack-pouch'].includes(descriptor.kind)) {
+    return 'small-merch-fan';
+  }
+  if (sku.cat === 'apparel') return 'apparel-stack';
+  if (descriptor.separateHandoff || descriptor.kind.startsWith('packed-')) return 'bulky-single';
+  return 'compact-merchandise';
+}
+
+function positionCarriedCatalogProduct(item, descriptor, profile, index, count) {
+  if (profile === 'long-clubs') {
+    // Preserve the authored club carry: two complete sale products, with their
+    // heads and grips offset just enough to read as separate clubs.
+    item.position.set(0, index * 0.072, (index - 0.5) * 0.036);
+    item.scale.multiplyScalar(0.92);
+    return;
+  }
+  if (profile === 'apparel-stack') {
+    // Preserve the existing folded-garment bundle.
+    const col = index % 2;
+    const row = Math.floor(index / 2);
+    item.position.set((col - 0.5) * 0.22, row * 0.085, row * 0.012);
+    item.rotation.y = index % 2 ? 0.08 : -0.05;
+    item.scale.multiplyScalar(0.92);
+    return;
+  }
+  if (profile === 'shoe-box-stack') {
+    const centered = index - (count - 1) / 2;
+    item.position.set(centered * 0.018, index * 0.105, index * 0.018);
+    item.rotation.y = centered * 0.055;
+    item.scale.multiplyScalar(0.88);
+    return;
+  }
+  if (profile === 'ball-carton-stack') {
+    const col = index % 3;
+    const row = Math.floor(index / 3);
+    item.position.set((col - 1) * 0.145, row * 0.068, row * 0.018);
+    item.rotation.y = (col - 1) * 0.035;
+    item.scale.multiplyScalar(0.86);
+    return;
+  }
+  if (profile === 'small-merch-fan') {
+    const centered = index - (count - 1) / 2;
+    item.position.set(centered * 0.052, Math.abs(centered) * 0.008, index * 0.009);
+    item.rotation.z = centered * -0.075;
+    item.scale.multiplyScalar(0.88);
+    return;
+  }
+  if (profile === 'bottle-bundle') {
+    const col = index % 3;
+    const row = Math.floor(index / 3);
+    item.position.set((col - 1) * 0.078, row * 0.018, row * 0.075);
+    item.rotation.y = (col - 1) * 0.08;
+    item.scale.multiplyScalar(0.90);
+    return;
+  }
+  if (profile === 'bulky-stand-bag') {
+    // Catalog stand bags rest along X. Rotate the single full silhouette upright
+    // and lift around its midpoint so the body, pockets and legs stay in frame.
+    item.position.set(0.02, 0.31, 0);
+    item.rotation.z = -Math.PI / 2;
+    item.scale.multiplyScalar(0.84);
+    return;
+  }
+  if (profile === 'long-accessories') {
+    item.position.set(0, index * 0.038, (index - (count - 1) / 2) * 0.028);
+    item.rotation.y = (index - (count - 1) / 2) * 0.025;
+    item.scale.multiplyScalar(0.76);
+    return;
+  }
+  if (profile === 'bulky-single') {
+    item.position.y = Math.max(0, (descriptor.size?.[1] || 0) * 0.08);
+    item.scale.multiplyScalar(0.82);
+    return;
+  }
+
+  const columns = descriptor.size?.[0] > 0.18 ? 2 : 3;
+  const col = index % columns;
+  const row = Math.floor(index / columns);
+  item.position.set((col - (columns - 1) / 2) * 0.17, row * 0.11, row * 0.025);
+  item.rotation.y = (col - (columns - 1) / 2) * 0.07;
+  item.scale.multiplyScalar(0.86);
+}
+
+// Camera-carried stock uses the same catalog product builder as cartons, shelves
+// and checkout. The lone cube path is deliberately marked and reserved for a
+// genuinely unknown save/mod SKU, where retaining a visible object is safer than
+// dropping owned inventory from the player's hands.
+export function makeGoodsMesh(carry, {
+  merch = null,
+  mats = null,
+  resources = createOwnedStockResources(),
+} = {}) {
+  const root = new THREE.Group();
+  const skuId = carry?.skuId || 'unknown';
+  root.name = `CarriedGoods_${skuId}`;
+  root.userData.deliveryOwnedResources = resources;
+  root.userData.carriedSkuId = skuId;
+
+  const sku = SHOP_CATALOG.find((entry) => entry.id === skuId);
+  const requestedCount = Math.max(0, Math.floor(Number(carry?.qty) || 0));
+  if (!sku) {
+    root.userData.catalogSkuKnown = false;
+    root.userData.deliveryCarryProfile = 'generic-unknown';
+    const base = new THREE.Color(CAT_COLORS.accessories);
+    const show = Math.min(requestedCount, 6);
+    for (let index = 0; index < show; index++) {
+      const color = base.clone().offsetHSL(0, 0, index % 2 ? -0.06 : 0.03);
+      const material = resources.material(new THREE.MeshStandardMaterial({ color, roughness: 0.75 }));
+      material.userData.deliveryOwned = true;
+      const item = new THREE.Mesh(
+        resources.geometry(new THREE.BoxGeometry(0.1, 0.05, 0.09)),
+        material,
+      );
+      item.name = `GenericCarryCube_${skuId}_${String(index + 1).padStart(2, '0')}`;
+      item.userData.genericCarryCube = true;
+      const col = index % 3;
+      const row = Math.floor(index / 3);
+      item.position.set((col - 1) * 0.115, row * 0.06, row * 0.015);
+      item.rotation.y = index % 2 ? 0.08 : -0.05;
+      root.add(item);
+    }
+    return root;
+  }
+
+  const descriptor = catalogProductVisual(sku);
+  const profile = carriedGoodsProfile(sku, descriptor);
+  // Oversized freight and stand bags are one physical carry. All other armfuls
+  // stay capped at six visible proxies, preserving the prior draw-call bound.
+  const show = profile === 'bulky-single' || profile === 'bulky-stand-bag'
+    ? Math.min(requestedCount, 1)
+    : Math.min(requestedCount, 6);
+  root.userData.catalogSkuKnown = true;
+  root.userData.catalogKind = descriptor.kind;
+  root.userData.deliveryCarryProfile = profile;
+  root.userData.visibleProductCount = show;
+
+  for (let index = 0; index < show; index++) {
+    const built = buildCatalogProductProxy({
+      sku,
+      merch,
+      mats,
+      resources,
+      context: 'stock-carry',
+    });
+    const item = built.root;
+    // Keep buildCatalogProductProxy's canonical CheckoutProduct_<sku> name so
+    // runtime census/debug tooling can prove which authored family is present.
+    item.userData.carryInstanceName = `CarriedCatalogProduct_${sku.id}_${String(index + 1).padStart(2, '0')}`;
+    item.userData.carriedGoodsSkuId = sku.id;
+    item.userData.carriedGoodsKind = descriptor.kind;
+    item.userData.carryVisualRole = 'catalog-product-proxy';
+    positionCarriedCatalogProduct(item, descriptor, profile, index, show);
+    root.add(item);
+  }
+  return root;
+}
+
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
+export const CLUBHOUSE_INTERIOR_DRAW_DISTANCE = 80;
+export const CLUBHOUSE_GTAO_EXCLUSION_CLEARANCE_YD = 15;
 // The east pallet in row one has an unobstructed authored +Z approach. Its
 // persisted padPalletIndex remains the authority for which saved cartons move.
 const DELIVERY_PALLET_JACK_COUPLED_INDEX = 2;
@@ -139,9 +348,84 @@ export function deliveryVanCargoRestPose(kind) {
   });
 }
 
+// Allocation-free interior test shared by normal clubhouse checks and the
+// grass exclusion margin. The margin is deliberately an axial five-probe
+// union, not a rectangular expansion: diagonal corner points remain outside,
+// exactly as they did when the grass loop called isInside five times.
+export function pointInsideClubhouseInterior(
+  wx,
+  wz,
+  centerX,
+  centerZ,
+  halfWidth,
+  halfDepth,
+  axialMargin = 0,
+) {
+  const localX = wx - centerX;
+  const localZ = wz - centerZ;
+  const insideX = Math.abs(localX) < halfWidth;
+  const insideZ = Math.abs(localZ) < halfDepth;
+  if (insideX && insideZ) return true;
+  if (axialMargin === 0) return false;
+  return (insideZ && Math.abs((wx + axialMargin) - centerX) < halfWidth)
+    || (insideZ && Math.abs((wx - axialMargin) - centerX) < halfWidth)
+    || (insideX && Math.abs((wz + axialMargin) - centerZ) < halfDepth)
+    || (insideX && Math.abs((wz - axialMargin) - centerZ) < halfDepth);
+}
+
+export function clubhouseInteriorVisibleAt(
+  cameraX,
+  cameraZ,
+  centerX,
+  centerZ,
+  maxDistance = CLUBHOUSE_INTERIOR_DRAW_DISTANCE,
+) {
+  return Math.hypot(cameraX - centerX, cameraZ - centerZ) < maxDistance;
+}
+
+// The beauty pass keeps the furnished interior visible through the clubhouse
+// windows. At accepted distant exterior viewpoints, however, measurements show
+// no visible contribution from redrawing all of those covered meshes into
+// GTAO's depth/normal buffers. Measure clearance from the interior footprint
+// (rather than its centre) so checkout, the porch and the normal walk spawn
+// retain indoor AO.
+export function clubhouseInteriorGtaoExcludedAt(
+  cameraX,
+  cameraZ,
+  centerX,
+  centerZ,
+  minClearance = CLUBHOUSE_GTAO_EXCLUSION_CLEARANCE_YD,
+) {
+  if (![cameraX, cameraZ, centerX, centerZ, minClearance].every(Number.isFinite)
+    || minClearance < 0) return false;
+  const dx = Math.max(Math.abs(cameraX - centerX) - INTERIOR.w / 2, 0);
+  const dz = Math.max(Math.abs(cameraZ - centerZ) - INTERIOR.d / 2, 0);
+  return Math.hypot(dx, dz) >= minClearance;
+}
+
+// Resolve a logical inventory slot against a named transform authored inside
+// the loaded fixture GLB. Static coordinates remain the immediate-load fallback
+// and the input object is never mutated, so save/stock logic stays model-agnostic.
+export function resolveAuthoredFixtureSlot(anchor, slot) {
+  if (!anchor || !slot?.socketName) return slot;
+  const socket = anchor.getObjectByName(slot.socketName);
+  if (!socket) return slot;
+  anchor.updateWorldMatrix(true, true);
+  const point = socket.getWorldPosition(new THREE.Vector3());
+  anchor.worldToLocal(point);
+  if (slot.socketOffset) {
+    point.x += Number(slot.socketOffset.x) || 0;
+    point.y += Number(slot.socketOffset.y) || 0;
+    point.z += Number(slot.socketOffset.z) || 0;
+  }
+  return { ...slot, x: point.x, y: point.y, z: point.z };
+}
+
 export function makeClubhouse(ctx) {
   // ctx: { scene, camera, state, center:{x,z}, heightAt, walkProps, propColliders, walk, hooks }
-  const { scene, camera, state, center, heightAt, walkProps, propColliders, walk, hooks } = ctx;
+  const {
+    scene, camera, renderer, state, center, heightAt, walkProps, propColliders, walk, hooks,
+  } = ctx;
   // Course resources already resident when this clubhouse is built can be
   // referenced by its Object3D tree, but remain owned by the course. Everything
   // new beneath the clubhouse roots is released on a structure rebuild.
@@ -169,15 +453,16 @@ export function makeClubhouse(ctx) {
 
   const L2W = (lx, lz) => ({ x: center.x + lx, z: center.z + lz });
   const W2L = (wx, wz) => ({ x: wx - center.x, z: wz - center.z });
-  const isInside = (wx, wz) => {
-    const l = W2L(wx, wz);
-    return Math.abs(l.x) < INTERIOR.w / 2 && Math.abs(l.z) < INTERIOR.d / 2;
-  };
+  const interiorHalfWidth = INTERIOR.w / 2;
+  const interiorHalfDepth = INTERIOR.d / 2;
+  const isInside = (wx, wz, axialMargin = 0) => pointInsideClubhouseInterior(
+    wx, wz, center.x, center.z, interiorHalfWidth, interiorHalfDepth, axialMargin,
+  );
   const onPorch = (wx, wz) => {
     const l = W2L(wx, wz);
     return Math.abs(l.x) < SHELL.w * 0.35 && l.z >= INTERIOR.d / 2 && l.z <= SHELL.d / 2 + SHELL.porchD;
   };
-  const groundYAt = (wx, wz) => (isInside(wx, wz) || onPorch(wx, wz) ? floorY : null);
+  const legacyGroundYAt = (wx, wz) => (isInside(wx, wz) || onPorch(wx, wz) ? floorY : null);
 
   // every collider registers in BOTH the player's shared list and the local
   // customer list; dynamic ones (doors, clutter, decor) toggle through these
@@ -199,6 +484,17 @@ export function makeClubhouse(ctx) {
     }
     colVersion++;
   }
+  const sheet06Navigation = createSheet06NavigationContract({
+    centerX: center.x,
+    centerZ: center.z,
+    floorY,
+    terrainHeightAt: heightAt,
+    addCollider: addCol,
+    removeCollider: removeCol,
+  });
+  const groundYAt = (wx, wz) => sheet06Navigation.groundYAt(
+    wx, wz, legacyGroundYAt(wx, wz),
+  );
   function addProp(p) {
     walkProps.push(p);
     registeredProps.push(p);
@@ -260,7 +556,10 @@ export function makeClubhouse(ctx) {
   const repaintGrime = dirt.repaintGrime;
   B.onWindowDirt();
 
-  // welcome mat inside the door
+  // Welcome mat inside the door.
+  //
+  // A canvas stand-in. Asset 100 is the authored version of this exact object, so the prop
+  // placement table disposes this once it lands — two mats on one threshold z-fight.
   {
     const matCv = document.createElement('canvas');
     matCv.width = 128; matCv.height = 64;
@@ -278,6 +577,7 @@ export function makeClubhouse(ctx) {
     matMesh.rotation.x = -Math.PI / 2;
     matMesh.position.set(MAT.x, 0.016, MAT.z);
     matMesh.renderOrder = 1;
+    matMesh.name = 'LegacyWelcomeMat';
     interior.add(matMesh);
   }
 
@@ -285,6 +585,25 @@ export function makeClubhouse(ctx) {
   const doorsApi = buildDoors(B);
   const doors = doorsApi.doors;
   const updateDoors = doorsApi.updateDoors;
+  const sheet06Production = createSheet06ProductionRuntime({
+    group,
+    interior,
+    state,
+    shellFallbacks: shell.productionVisualFallbacks,
+    doorApi: doorsApi,
+    navigationApi: sheet06Navigation,
+  });
+  // Assets 71-100: thirty finished props that nothing was loading. Static dressing, so they skip
+  // the Sheet 6 production machinery entirely and just get placed — each aligned by its own
+  // SOCKET_PLACEMENT rather than by its authoring origin.
+  const props71to100 = buildProps({ interior, loader: new GLTFLoader() });
+
+  const sheet06ProductionPublic = Object.freeze({
+    ready: sheet06Production.ready,
+    diagnostics: () => sheet06Production.diagnostics(),
+    getRoot: (number) => sheet06Production.getRoot(number),
+    getAssemblyRoot: (number) => sheet06Production.getAssemblyRoot(number),
+  });
   buildExterior(B); // yard neglect + physical repair verbs (clubhouse/exterior.js)
   const washing = buildWashing(B); // exterior grime: a mask you erode with the jet, not an [E] verb
   scene.add(washing.jet, washing.mist);
@@ -298,19 +617,103 @@ export function makeClubhouse(ctx) {
 
   // --- fixtures, lounge, stockroom dressing (clubhouse/fixtures.js) ----------------------
   B.rebuildStock = (...a) => rebuildStock(...a); // function is hoisted; wired before use
-  const { fixtureAnchors, relayFixtures } = buildFixtures(B);
+  const {
+    fixtureAnchors,
+    relayFixtures,
+    setFixtureCollidersActive,
+    fixtureColliderDiagnostics,
+  } = buildFixtures(B);
+
+  function fixtureBrowsePose(fixture, localX = 0, localZ = null) {
+    const local = fixtureBrowsePoint(fixture, localX, localZ);
+    const target = L2W(local.x, local.z);
+    const origin = L2W(fixture.x, fixture.z);
+    return {
+      x: target.x,
+      z: target.z,
+      faceX: origin.x,
+      faceZ: origin.z,
+    };
+  }
+
+  function retargetCustomerFixtureStops() {
+    const fixtures = new Map(placedFixtures(state).map((fixture) => [fixture.id, fixture]));
+    for (const customer of customers) {
+      let currentChanged = false;
+      const kept = [];
+      for (let index = 0; index < customer.stops.length; index++) {
+        const stop = customer.stops[index];
+        if (index < customer.stopIdx || stop.kind !== 'fixture' || !stop.fixtureId) {
+          kept.push(stop);
+          continue;
+        }
+        const fixture = fixtures.get(stop.fixtureId);
+        if (!fixture) {
+          if (index === customer.stopIdx) currentChanged = true;
+          continue;
+        }
+        const pose = fixtureBrowsePose(fixture, stop.fixtureLocalX, stop.fixtureLocalZ);
+        if (index === customer.stopIdx
+          && Math.hypot(stop.x - pose.x, stop.z - pose.z) > 1e-6) currentChanged = true;
+        Object.assign(stop, pose, {
+          skus: fixture.skus,
+          title: fixture.title,
+        });
+        kept.push(stop);
+      }
+      customer.stops = kept;
+      if (currentChanged) {
+        customer.path = [];
+        customer.pathGoal = null;
+        customer.stuckT = 0;
+        customer.repathed = false;
+      }
+    }
+  }
 
   // the player moved something: re-lay the floor and put the stock back on it. The customers'
   // paths rebake themselves — removeCol/addCol bump colVersion, and navFresh() watches it — so a
   // shelf that moved is a wall that moved, as far as they are concerned.
   function rebuildLayout() {
     relayFixtures();
+    retargetCustomerFixtureStops();
     rebuildStock();
+    rebuildBoxes();
+  }
+
+  function fixtureMoveBlocker(fixtureId) {
+    const occupied = boxPlacementSurfaces(state)
+      .filter((surface) => surface.parent?.kind === 'fixture' && surface.parent.id === fixtureId)
+      .flatMap((surface) => boxesOnSurface(state, surface.id));
+    if (!occupied.length) return null;
+    return {
+      boxId: occupied[0].id,
+      reason: `Move the delivery carton off ${occupied[0].surfaceId ? 'this fixture' : 'the fixture'} first.`,
+    };
   }
 
   // build mode needs the anchors it is going to hide and the re-lay it is going to trigger, so it
   // is built here rather than up with the rest of the scene
-  const builder = buildBuildMode(B, { rebuildLayout, fixtureAnchors });
+  const hiddenFixtureStock = new Set();
+  const setFixtureStockVisible = (fixtureId, visible) => {
+    if (visible) hiddenFixtureStock.delete(fixtureId);
+    else hiddenFixtureStock.add(fixtureId);
+    const prefix = `${fixtureId}:`;
+    for (const [key, stock] of stockMeshes) {
+      if (key.startsWith(prefix)) stock.visible = visible;
+    }
+    for (const flight of stockFlights) {
+      if (flight.fixtureId === fixtureId) flight.ghost.visible = visible;
+    }
+  };
+  const builder = buildBuildMode(B, {
+    rebuildLayout,
+    fixtureAnchors,
+    fixtureMoveBlocker,
+    setFixtureStockVisible,
+    setFixtureCollidersActive,
+    fixtureColliderDiagnostics,
+  });
   buildLounge(B);
   buildStockroomDressing(B);
 
@@ -697,6 +1100,10 @@ export function makeClubhouse(ctx) {
       if (!chair) return;
       chair.position.set(OFFICE.chair.x, 0, OFFICE.chair.z);
       chair.rotation.y = kitChair ? Math.PI / 2 : -Math.PI / 2;
+      // Asset 81 is the Sheet-09 office chair, authored for this same spot. Named so the prop
+      // placement table can retire this one when that lands — otherwise the office has two
+      // chairs a centimetre apart, which is worse than either alone.
+      chair.name = 'LegacyOfficeChair';
       interior.add(chair);
     });
 
@@ -1991,6 +2398,7 @@ export function makeClubhouse(ctx) {
     decorSig = decorSignature();
     repaintGrime();
     refreshCondition();
+    void sheet06Production.applyState(state);
   }
 
   // --- live stock silhouettes -------------------------------------------------------------
@@ -2004,7 +2412,10 @@ export function makeClubhouse(ctx) {
   const ownedStockResources = createOwnedStockResources();
   function bakeStockGroup(group) {
     const sourceGeometries = ownedStockResources.snapshotGeometries(group);
-    const baked = merch.bake(group);
+    // Authored products carry collision/helper meshes for validation. Their
+    // loader visibility must survive batching or those volumes become opaque
+    // merchandise-shaped blocks in the finished stock display.
+    const baked = merch.bake(group, { visibleOnly: true });
     // bake() clones every mergeable source mesh while reusing its materials.
     // Release only owned procedural source geometry; cached GLB geometry is not
     // in the ownership set, live output materials remain valid, and a no-op bake
@@ -2054,10 +2465,12 @@ export function makeClubhouse(ctx) {
   // list, so this loop cannot draw the wrong number: it walks the slots and puts one thing in each.
   // Every unit on the shelf is on the shelf. Nothing on the shelf is not a unit.
   const BALL_BOX_GEO = new THREE.BoxGeometry(0.165, 0.12, 0.125);
+  const BALL_LABEL_GEO = new THREE.PlaneGeometry(0.145, 0.102);
   // NOT roundedBox: its UVs are planar and world-scaled, which crops a 0..1 label into mush.
   const CARTON_GEO = new THREE.BoxGeometry(0.12, 0.10, 0.11);
   const POLO_TINTS = { polo1: 0x4e7a52, polo2: 0x5b7f9e, jacket2: 0x33455e };
   const BAG_TINTS = [0x53688c, 0x4e8059, 0xb9b3a6, 0x9a7a56];
+  const SHOE_DISPLAY_TINTS = [0xf0ead8, 0x78957e, 0x53688c, 0xd8d1bf, 0x315c43, 0xb8aa91];
   const CARTON_BRAND = { tees1: 'CADDIE CLUB', marker1: 'CADDIE CLUB' };
   const skuMats = new Map();
   const ballBoxMats = new Map();
@@ -2077,8 +2490,7 @@ export function makeClubhouse(ctx) {
         color: sku.tier >= 3 ? 0x1f4a26 : sku.tier === 2 ? 0x2c3e66 : 0xf0ead8,
         roughness: 0.72,
       });
-      // the brand faces the shopper (+z); the other five faces are the carton
-      ballBoxMats.set(sku.id, [plain, plain, plain, plain, ballLabelMat(sku), plain]);
+      ballBoxMats.set(sku.id, plain);
     }
     return ballBoxMats.get(sku.id);
   }
@@ -2156,7 +2568,7 @@ export function makeClubhouse(ctx) {
       const dir = s.headUp ? -1 : 1;
       const shaft = new THREE.Mesh(
         ownedStockResources.geometry(new THREE.CylinderGeometry(0.0075, 0.0105, s.len, 10)),
-        isDriver ? mats.merchDark : mats.merchSteel,
+        mats.merchShaft,
       );
       shaft.position.set(
         s.x + dir * Math.sin(s.lean) * s.len / 2,
@@ -2176,7 +2588,18 @@ export function makeClubhouse(ctx) {
         s.z,
       );
       grip.rotation.z = -s.lean;
-      g.add(shaft, grip);
+      const accentAlong = 0.075;
+      const accent = new THREE.Mesh(
+        ownedStockResources.geometry(new THREE.CylinderGeometry(0.0125, 0.0125, 0.036, 8)),
+        skuMat(sku),
+      );
+      accent.position.set(
+        s.x + dir * Math.sin(s.lean) * accentAlong,
+        s.y + dir * Math.cos(s.lean) * accentAlong,
+        s.z,
+      );
+      accent.rotation.z = -s.lean;
+      g.add(shaft, grip, accent);
       const head = merch.instantiate(headModel);
       if (head) {
         head.position.set(s.x, s.y, s.z);
@@ -2188,25 +2611,39 @@ export function makeClubhouse(ctx) {
     }
 
     if (sku.cat === 'balls') {
+      // Six BoxGeometry materials prevented the stock baker from merging these
+      // repeated cartons.  A shared body plus one shopper-facing label plane
+      // keeps the same visual identity while collapsing each SKU to two draws.
+      const carton = new THREE.Group();
       const box = new THREE.Mesh(BALL_BOX_GEO, ballBoxMat(sku));
       box.position.set(s.x, s.y, s.z);
       box.castShadow = true;
-      return box;
+      const label = new THREE.Mesh(BALL_LABEL_GEO, ballLabelMat(sku));
+      label.position.set(s.x, s.y, s.z + 0.0626);
+      carton.add(box, label);
+      return carton;
     }
 
     if (POLO_TINTS[id]) {
       // THE WORST ASSET IN THE SHOP, per the audit: a hanging polo was a 0.3 x 0.38 x 0.035 box
       // with two box sleeves stuck on at 30 degrees. Both the hanging and the folded shirts are
       // modelled garments now, and the tints sit on the room's palette.
-      const tint = POLO_TINTS[id];
+      const tint = s.tint ?? POLO_TINTS[id];
       if (s.folded) {
-        const fold = merch.instantiate('polo_folded', { tint });
+        const fold = merch.instantiate(
+          id === 'jacket2' ? 'checkout_product_folded_jacket' : 'checkout_product_folded_polo',
+          { tint },
+        );
         if (!fold) return null;
         fold.position.set(s.x, s.y, s.z);
         fold.rotation.y = s.ry || 0;
         return fold;
       }
-      const shirt = merch.instantiate(id === 'jacket2' ? 'jacket_hanging' : 'polo_hanging', { tint });
+      const shirt = merch.instantiate(
+        id === 'jacket2' ? 'checkout_product_hanging_jacket'
+          : id === 'polo2' ? 'checkout_product_hanging_polo' : 'polo_hanging',
+        { tint },
+      );
       if (!shirt) return null;
       shirt.position.set(s.x, s.y, s.z);   // the model's pivot is the hanger HOOK
       shirt.rotation.y = s.ry || 0;
@@ -2214,85 +2651,124 @@ export function makeClubhouse(ctx) {
     }
 
     if (id === 'cap1') {
-      const cap = merch.instantiateRaw('cap_pro');   // a real six-panel cap (Tripo)
+      const cap = merch.instantiate('checkout_product_cap', { tint: s.tint ?? 0x315c43 });
       if (!cap) return null;
       cap.position.set(s.x, s.y, s.z);
       // yaw first (bill runs +x on the model), then nose the crown down over
       // the peg when the slot asks for it (the Sheet-03 hat wall)
       cap.rotation.order = 'YXZ';
-      cap.rotation.set(s.rx || 0, s.ry + Math.PI / 2, 0);
+      cap.rotation.set(s.rx || 0, s.ry || 0, 0);
       return cap;
     }
 
     if (id === 'glove1') {
       // STOOD UP, not laid flat. Flat on a board at chest height they are edge-on to a standing
       // player and a full shelf of them renders as a row of white slivers.
-      const glove = merch.instantiate('glove');
+      const glove = merch.instantiate('checkout_product_glove', { tint: 0xf0ead8 });
       if (!glove) return null;
       glove.position.set(s.x, s.y, s.z);
-      glove.rotation.set(-0.12, s.ry || 0, 0);   // fronted, leaning back on the board
+      glove.rotation.set(-0.08, s.ry || 0, 0);
       return glove;
     }
 
     if (id === 'sock1') {
-      const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.08, 6), mats.merchWhite);
-      roll.rotation.x = Math.PI / 2;
-      roll.position.set(s.x, s.y, s.z);
-      return roll;
+      const socks = merch.instantiate('checkout_product_sock_pair', { tint: 0xd8d1bf });
+      if (!socks) return null;
+      socks.position.set(s.x, s.y, s.z);
+      socks.rotation.y = s.ry || 0;
+      return socks;
     }
 
     if (id === 'towel1') {
-      const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.22, 8), mats.merchWhite);
-      roll.rotation.x = Math.PI / 2;
-      roll.position.set(s.x, s.y, s.z);
-      roll.castShadow = true;
-      return roll;
+      const towel = merch.instantiate('checkout_product_towel_roll', { tint: 0x78957e });
+      if (!towel) return null;
+      towel.position.set(s.x, s.y, s.z);
+      towel.rotation.y = s.ry || 0;
+      return towel;
     }
 
     if (id === 'umb1') {
-      const g = new THREE.Group();
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.0, 5), darkMat);
-      shaft.position.set(s.x, s.y + 0.50, s.z);
-      shaft.rotation.z = s.lean || 0;
-      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 8), skuMat(sku));
-      tip.position.set(s.x, s.y + 1.05, s.z);
-      g.add(shaft, tip);
-      return g;
+      const umbrella = merch.instantiate('checkout_product_umbrella', { tint: 0x315c43 });
+      if (!umbrella) return null;
+      umbrella.position.set(s.x, s.y + 0.42, s.z);
+      umbrella.rotation.z = Math.PI / 2 + (s.lean || 0);
+      return umbrella;
     }
 
     if (id === 'range2') {
-      // was a rounded box with a cylinder lens; a real laser rangefinder now (Tripo)
-      const rf = merch.instantiateRaw('rangefinder');
+      // Project-owned authored optic; the slot yaw presents its objective lens.
+      const rf = merch.instantiate('checkout_product_rangefinder');
       if (!rf) return null;
       rf.position.set(s.x, s.y, s.z);
-      rf.rotation.y = s.ry;
+      rf.rotation.y = s.ry || 0;
       return rf;
     }
 
     if (id === 'shoe1') {
-      // Was a slab sole, a box upper and a sphere toe — a computer mouse. A real spiked
-      // golf shoe now (Tripo), and a slot is still a PAIR, toed apart on the board. The
-      // model's length runs +z, so s.ry aims the toe out; the pair splays a touch.
-      const g = new THREE.Group();
-      for (const so of [-0.075, 0.075]) {
-        const shoe = merch.instantiateRaw('shoe_pro');
-        if (!shoe) break;
-        shoe.position.set(s.x + so, s.y, s.z);
-        shoe.rotation.set(0, (s.ry || 0) + (so > 0 ? 0.18 : -0.18), 0);
-        g.add(shoe);
-      }
-      return g;
+      // A slot is either one boxed retail unit or one authored try-on pair. The
+      // loose samples vary only their palette; inventory and checkout identity
+      // remain the single shoe1 SKU represented by its Fairhollow retail box.
+      const shoe = merch.instantiate(
+        s.boxed ? 'checkout_product_shoe_box' : 'checkout_product_shoe_pair',
+        s.boxed ? {} : { tint: SHOE_DISPLAY_TINTS[i % SHOE_DISPLAY_TINTS.length] },
+      );
+      if (!shoe) return null;
+      shoe.position.set(s.x, s.y, s.z);
+      shoe.rotation.set(s.rx || 0, s.ry || 0, 0);
+      return shoe;
     }
 
     if (id === 'bag1') {
       // The modelled bag ships WITH its fan of clubs, because that fan is the whole silhouette:
       // a golf bag with nothing in it is just a bin (ref 7).
-      const bag = merch.instantiate('bag', { tint: BAG_TINTS[i % 4] });
+      const bag = merch.instantiate('checkout_product_stand_bag', { tint: BAG_TINTS[i % 4] });
       if (!bag) return null;
-      bag.position.set(s.x, s.y, s.z);
-      bag.rotation.x = s.lean || 0;      // leaning on the rail
-      bag.rotation.y = s.ry || 0;
-      return bag;
+      const display = new THREE.Group();
+      display.position.set(s.x, s.y, s.z);
+      display.rotation.set(s.lean || 0, s.ry || 0, 0);
+      bag.rotation.z = Math.PI / 2;
+      bag.position.y = 0.36;
+      display.add(bag);
+      for (let club = 0; club < 3; club++) {
+        const lean = (club - 1) * 0.07;
+        const x = (club - 1) * 0.045;
+        const z = (club % 2) * 0.025 - 0.012;
+        const shaft = new THREE.Mesh(
+          ownedStockResources.geometry(new THREE.CylinderGeometry(0.006, 0.008, 0.58, 8)),
+          mats.merchShaft,
+        );
+        shaft.position.set(x, 0.86, z);
+        shaft.rotation.z = lean;
+        display.add(shaft);
+        const head = merch.instantiate(['head_driver', 'head_iron', 'head_putter'][club]);
+        if (head) {
+          head.position.set(x + Math.sin(lean) * 0.29, 1.15, z);
+          head.rotation.z = lean;
+          head.rotation.y = (club - 1) * 0.18;
+          display.add(head);
+        }
+      }
+      return display;
+    }
+
+    if (id === 'tees1' || id === 'marker1') {
+      const model = id === 'tees1' ? 'checkout_product_tee_pouch' : 'checkout_product_marker_blister';
+      const packageItem = merch.instantiate(model);
+      if (!packageItem) return null;
+      packageItem.position.set(s.x, s.y, s.z);
+      packageItem.rotation.set(s.hangingPackage ? -0.04 : 0, s.ry || 0, 0);
+      return packageItem;
+    }
+
+    if (id === 'water1' || id === 'snack1') {
+      const model = id === 'water1'
+        ? 'provisions_fairway_spring_water'
+        : 'provisions_bunker_bites_chips';
+      const product = merch.instantiateRaw(model);
+      if (!product) return null;
+      product.position.set(s.x, s.y, s.z);
+      product.rotation.y = s.ry || 0;
+      return product;
     }
 
     // cartoned smalls: cream cartons with a branded band, neatly fronted
@@ -2318,7 +2794,7 @@ export function makeClubhouse(ctx) {
       for (const skuId of f.skus) {
         const sku = SHOP_CATALOG.find((s) => s.id === skuId);
         if (!sku) continue;
-        const slots = slotsFor(skuId);
+        const slots = slotsFor(skuId).map((slot) => resolveAuthoredFixtureSlot(anchor, slot));
         // the shelf cannot hold more than it has places for — the sim enforces the same number,
         // so this min() is a belt, not a braces: it can only ever bite on a corrupted save
         const count = Math.min(inv[skuId] ? inv[skuId].shelf : 0, slots.length);
@@ -2337,6 +2813,7 @@ export function makeClubhouse(ctx) {
         const baked = bakeStockGroup(g);
         baked.position.copy(anchor.position);
         baked.rotation.copy(anchor.rotation);
+        baked.visible = !hiddenFixtureStock.has(f.id);
         stockGroup.add(baked);
         stockMeshes.set(f.id + ':' + skuId, baked);
       }
@@ -2344,7 +2821,7 @@ export function makeClubhouse(ctx) {
       // the feature display shows whatever the featured category has on
       // shelves, dressed onto the Sheet-04 merch table's slot grid: six
       // spots on the walnut top (0.75), two more on the lower shelf (0.294)
-      if (f.kind === 'feature') {
+      if (f.kind === 'feature' && !(f.skus && f.skus.length)) {
         const cat = state.shop.featureCategory;
         const g = new THREE.Group();
         // Real product proxies of the featured category's in-stock lines — the SAME
@@ -2378,6 +2855,7 @@ export function makeClubhouse(ctx) {
         g.add(sign);
         g.position.copy(anchor.position);
         g.rotation.copy(anchor.rotation);
+        g.visible = !hiddenFixtureStock.has(f.id);
         stockGroup.add(g);
         stockMeshes.set(f.id + ':feature', g);
       }
@@ -2386,7 +2864,7 @@ export function makeClubhouse(ctx) {
       // the door as cases, not one case per unit (a hundred golf balls do not sit on that shelf as
       // a hundred boxes, they sit as the cases they came in). It is an honest representation of a
       // quantity rather than a count of items, and the difference is stated rather than hidden.
-      if (f.kind === 'backshelf') {
+      if (f.kind === 'backshelf' && f.id !== 'backshelf_e2') {
         const g = new THREE.Group();
         const totalBack = SHOP_CATALOG.reduce((a, s) => a + (inv[s.id] ? inv[s.id].back : 0), 0);
         const show = Math.min(Math.ceil(totalBack / 6), 12);
@@ -2408,6 +2886,7 @@ export function makeClubhouse(ctx) {
         }
         g.position.copy(anchor.position);
         g.rotation.copy(anchor.rotation);
+        g.visible = !hiddenFixtureStock.has(f.id);
         stockGroup.add(g);
         stockMeshes.set(f.id + ':back', g);
       }
@@ -2429,6 +2908,44 @@ export function makeClubhouse(ctx) {
     return sig;
   }
 
+  // Read-only production/QA evidence for the rebuildable stock layer. Stock
+  // bakes are allowed to return their source Group when there is nothing
+  // mergeable, so looking only for the `merchBaked` marker is not a reliable
+  // way to prove that a fixture has visible geometry. Keep that implementation
+  // detail private and expose stable counts keyed by the authored fixture id.
+  function stockDisplayDiagnostics() {
+    const displays = [];
+    for (const [key, root] of stockMeshes) {
+      let meshes = 0;
+      let triangles = 0;
+      root.traverseVisible((object) => {
+        if (!object.isMesh || !object.geometry) return;
+        meshes += 1;
+        triangles += object.geometry.index
+          ? object.geometry.index.count / 3
+          : (object.geometry.attributes?.position?.count || 0) / 3;
+      });
+      const separator = key.indexOf(':');
+      displays.push({
+        key,
+        fixtureId: separator >= 0 ? key.slice(0, separator) : key,
+        stockId: separator >= 0 ? key.slice(separator + 1) : '',
+        visible: root.visible && stockGroup.visible,
+        meshes,
+        triangles,
+        position: {
+          x: root.position.x,
+          y: root.position.y,
+          z: root.position.z,
+        },
+      });
+    }
+    return {
+      displays,
+      hiddenFixtureIds: [...hiddenFixtureStock].sort(),
+    };
+  }
+
   // --- the vacuum hook (the wand mesh rides the walk camera, courseScene-side) ----------
   const MOTES = 26;
   const moteState = [];
@@ -2444,6 +2961,200 @@ export function makeClubhouse(ctx) {
   for (let i = 0; i < MOTES; i++) moteState.push({ t: Math.random(), ox: 0, oz: 0 });
   let cleanClock = 0;
   let moteFade = 0;
+
+  // --- loose debris: swept into piles, then carried away ------------------------------------
+  //
+  // The floor grime mask handles ground-in dirt. Debris is the other half — leaves, grit and
+  // wrappers that a broom PUSHES rather than erases. Piles are drawn as small instanced clumps
+  // whose scale tracks the cluster amount, so a heap you have worked twice visibly reads as a heap.
+  // The wet and solution fields are authored at 0.25 yd — far finer than the 13x8 (=104 cell)
+  // grime grid they sit over, because a wet stripe you can see the edge of is the whole point of
+  // mopping. They are new save fields, so unlike the grime grid they carry no migration debt.
+  const WET_CELL_YD = 0.25;
+  const WET_GRID = {
+    w: Math.ceil(RENO.room.w / WET_CELL_YD),
+    h: Math.ceil(RENO.room.d / WET_CELL_YD),
+    cell: WET_CELL_YD,
+  };
+  // cleanGrimeAt works in room-CENTRED yards; the wet field is indexed from its corner.
+  const toWet = (lx, lz) => ({ x: lx + RENO.room.w / 2, z: lz + RENO.room.d / 2 });
+
+  ensureDebris(state);
+  ensureWet(state, WET_GRID.w, WET_GRID.h);
+  if (debrisState(state).length === 0 && !state.shop.reno.debrisSeeded) {
+    // a property nobody has run for two years does not have a clean floor
+    seedDebris(state, 30, SHELL.w - 3, SHELL.d - 3, 20260718);
+    state.shop.reno.debrisSeeded = true;
+  }
+
+  const DEBRIS_CAP = 96;
+  const debrisGeo = new THREE.IcosahedronGeometry(0.085, 0);
+  const debrisMat = new THREE.MeshStandardMaterial({ color: 0x6b5a3c, roughness: 0.95 });
+  const debrisMesh = new THREE.InstancedMesh(debrisGeo, debrisMat, DEBRIS_CAP);
+  debrisMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  debrisMesh.castShadow = false;
+  debrisMesh.receiveShadow = false;
+  debrisMesh.frustumCulled = false;
+  debrisMesh.count = 0;
+  interior.add(debrisMesh);
+
+  const _dm = new THREE.Matrix4();
+  const _dq = new THREE.Quaternion();
+  const _dp = new THREE.Vector3();
+  const _ds = new THREE.Vector3();
+  const _dUp = new THREE.Vector3(0, 1, 0);
+  let wetVisualDirty = false;
+  let wetRepaintClock = 0;
+  function refreshDebrisVisual() {
+    const list = debrisState(state);
+    const n = Math.min(list.length, DEBRIS_CAP);
+    for (let i = 0; i < n; i++) {
+      const d = list[i];
+      // a pile spreads as it grows rather than becoming one giant pebble
+      const s = Math.min(2.4, 0.55 + Math.sqrt(d.a) * 1.5);
+      // The `interior` group is already at floor height — dirt.js lays its grime overlay at a
+      // plain 0.026. Adding FLOOR_TOP here floated every pile 0.3 yd off the boards.
+      _dp.set(d.x, 0.012 * s, d.z);
+      _dq.setFromAxisAngle(_dUp, (d.x * 7.3 + d.z * 3.1) % Math.PI);
+      _ds.set(s, s * 0.55, s);
+      _dm.compose(_dp, _dq, _ds);
+      debrisMesh.setMatrixAt(i, _dm);
+    }
+    debrisMesh.count = n;
+    debrisMesh.instanceMatrix.needsUpdate = true;
+  }
+  refreshDebrisVisual();
+
+  // --- the wet floor ------------------------------------------------------------------------
+  //
+  // Mopping had no visible result at all: the sim recorded water, the player saw nothing, and the
+  // only feedback was the condition number ticking up. Water reads as two things at once — it
+  // DARKENS the boards and it makes them GLOSSY — so this is one overlay that does both, sitting
+  // just proud of the grime layer.
+  //
+  // It is drawn at the wet field's own resolution (82x52) and scaled up by the GPU with linear
+  // filtering: far cheaper than a 1024px canvas, and it gives exactly the soft-edged puddle the
+  // brush falloff already computes.
+  const wetCanvas = document.createElement('canvas');
+  wetCanvas.width = WET_GRID.w;
+  wetCanvas.height = WET_GRID.h;
+  const wetCtx = wetCanvas.getContext('2d');
+  const wetTex = new THREE.CanvasTexture(wetCanvas);
+  wetTex.colorSpace = THREE.SRGBColorSpace;
+  wetTex.minFilter = THREE.LinearFilter;
+  wetTex.magFilter = THREE.LinearFilter;
+  const wetPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(RENO.room.w, RENO.room.d),
+    new THREE.MeshStandardMaterial({
+      map: wetTex,
+      transparent: true,
+      depthWrite: false,
+      roughness: 0.18, // wet boards are glossy; the dry floor around them is roughness 1
+      metalness: 0.0,
+    }),
+  );
+  wetPlane.rotation.x = -Math.PI / 2;
+  wetPlane.position.y = 0.028; // just above dirt.js's grime overlay at 0.026
+  wetPlane.renderOrder = 4;
+  wetPlane.visible = false;
+  interior.add(wetPlane);
+
+  function repaintWet() {
+    const wet = state.shop.reno.wet;
+    const sol = state.shop.reno.solution;
+    if (!Array.isArray(wet)) return;
+    const img = wetCtx.createImageData(WET_GRID.w, WET_GRID.h);
+    let any = false;
+    for (let i = 0; i < wet.length; i++) {
+      const w = wet[i] || 0;
+      const s = sol ? (sol[i] || 0) : 0;
+      const a = Math.min(1, w * 0.55 + s * 0.42);
+      if (a <= 0.004) continue;
+      any = true;
+      const p = i * 4;
+      // water darkens toward a cool slate; solution skews it paler and bluer
+      img.data[p] = 44 + s * 90;
+      img.data[p + 1] = 52 + s * 96;
+      img.data[p + 2] = 58 + s * 104;
+      img.data[p + 3] = Math.round(a * 235);
+    }
+    wetCtx.putImageData(img, 0, 0);
+    wetTex.needsUpdate = true;
+    wetPlane.visible = any;
+  }
+  repaintWet();
+
+  /**
+   * One entry point for every cleaning tool. The caller passes the tool's own contact or nozzle
+   * point in WORLD space — read from the socket on the viewmodel, never guessed from the camera —
+   * plus the direction it is being worked in.
+   */
+  function cleanWithTool(toolId, wx, wz, dirX, dirZ, dt) {
+    const def = CLEANING_TOOLS[toolId];
+    if (!def) return { did: 0, kind: null };
+    const l = W2L(wx, wz);
+    let did = 0;
+
+    switch (def.toolClass) {
+      case TOOL_CLASS.SWEEP: {
+        // a broom moves debris; it never deletes it
+        did = sweepAt(state, l.x, l.z, dirX, dirZ, def.radius, dt).moved;
+        if (did > 0) refreshDebrisVisual();
+        return { did, kind: 'sweep' };
+      }
+      case TOOL_CLASS.SCOOP: {
+        did = collectAt(state, l.x, l.z, def.radius);
+        if (did > 0) {
+          refreshDebrisVisual();
+          state.shop.reno.pan = Math.round(((state.shop.reno.pan || 0) + did) * 1000) / 1000;
+        }
+        return { did, kind: 'scoop' };
+      }
+      case TOOL_CLASS.SUCTION: {
+        // debris is drawn in and swallowed only at the mouth; ground-in dust comes up under the head
+        did = suckAt(state, l.x, l.z, def.radius, dt);
+        const dust = cleanGrimeAt(state, l.x, l.z, 0.5 * dt);
+        if (did > 0) refreshDebrisVisual();
+        return { did: did + dust.cleaned, kind: 'suction', picked: did > 0 };
+      }
+      case TOOL_CLASS.STROKE: {
+        if (def.id === 'mop') {
+          const res = cleanGrimeAt(state, l.x, l.z, def.strength * 0.55 * dt);
+          const wp = toWet(l.x, l.z);
+          wetAt(state, WET_GRID, wp.x, wp.z, def.radius, dt * 1.6);
+          wetVisualDirty = true;
+          return { did: res.cleaned, kind: 'mop' };
+        }
+        // cloth and sponge: the cloth only lifts what the spray has already loosened
+        const wp = toWet(l.x, l.z);
+        const sol = solutionLevel(state, WET_GRID, wp.x, wp.z);
+        if (def.needsSolution && sol < SOLUTION_MIN) return { did: 0, kind: 'dry', blocked: true };
+        const gain = def.needsSolution ? 1 : 0.55 + sol * 0.8;
+        const res = cleanGrimeAt(state, l.x, l.z, def.strength * gain * 0.5 * dt);
+        if (res.cleaned > 0) {
+          consumeSolution(state, WET_GRID, wp.x, wp.z, def.radius, dt * 0.5);
+          wetVisualDirty = true;
+        }
+        return { did: res.cleaned, kind: def.id };
+      }
+      case TOOL_CLASS.SPRAY: {
+        const sp = toWet(l.x, l.z);
+        did = solutionAt(state, WET_GRID, sp.x, sp.z, def.radius, dt * 2.2);
+        wetVisualDirty = true;
+        return { did, kind: 'spray' };
+      }
+      case TOOL_CLASS.CARRY: {
+        did = collectAt(state, l.x, l.z, def.radius);
+        if (did > 0) {
+          refreshDebrisVisual();
+          state.shop.reno.bag = Math.round(((state.shop.reno.bag || 0) + did) * 1000) / 1000;
+        }
+        return { did, kind: 'bag' };
+      }
+      default:
+        return { did: 0, kind: null };
+    }
+  }
 
   function vacuumAt(wx, wz, dt) {
     const l = W2L(wx, wz);
@@ -2498,6 +3209,9 @@ export function makeClubhouse(ctx) {
   const boxGroup = new THREE.Group();
   boxGroup.name = 'DeliveryBoxWorldRoot';
   scene.add(boxGroup);
+  let boxPlacementMode = null;
+  let placementBoxId = null;
+  let placementDismissedBoxId = null;
   let carriedBoxMesh = null;
   let carriedGoodsMesh = null;
   const boxProps = new Map();   // id -> prop, reused across rebuilds so a hold survives a redraw
@@ -2519,6 +3233,13 @@ export function makeClubhouse(ctx) {
   const boxFlattenAnimations = new Set();
   let recyclingDrop = null;
   let boxSig = '';
+  const placementOcclusionRaycaster = new THREE.Raycaster();
+  const placementOcclusionHits = [];
+  const placementOcclusionRoots = [];
+  const PLACEMENT_OCCLUSION_TOLERANCE = 0.065;
+  let placementOccluderDistance = null;
+  let placementOccluderName = null;
+  let placementOcclusionChecks = 0;
 
   // Medium-carton carry pose: the carton keeps its real scale and two hands
   // visibly brace its side edges. The hands are camera-local and hidden the
@@ -2527,11 +3248,56 @@ export function makeClubhouse(ctx) {
   carriedBoxHands.name = 'DeliveryBoxCarryHands';
   carriedBoxHands.visible = false;
   camera.add(carriedBoxHands);
+  const DELIVERY_CARRY_RENDER_LAYER = 30;
+  let deliveryCarryLightsPrepared = false;
+
+  function setDeliveryCarryOverlay(root, enabled) {
+    if (!root) return;
+    root.traverse((object) => {
+      if (enabled) {
+        if (!Object.hasOwn(object.userData, 'deliveryCarryBaseLayerMask')) {
+          object.userData.deliveryCarryBaseLayerMask = object.layers.mask;
+        }
+        object.layers.set(DELIVERY_CARRY_RENDER_LAYER);
+      } else if (Object.hasOwn(object.userData, 'deliveryCarryBaseLayerMask')) {
+        object.layers.mask = object.userData.deliveryCarryBaseLayerMask;
+        delete object.userData.deliveryCarryBaseLayerMask;
+      }
+    });
+  }
+
+  // First-person cargo uses a second, layer-isolated draw after the complete
+  // world pass. Clearing depth inside the world pass exposes transparent sky,
+  // window, and dust sprites through solid clubhouse walls; isolating the
+  // camera-local carton and hands prevents that leak while still preserving
+  // their own depth ordering. The world scene remains authoritative, so normal
+  // scene diagnostics and the existing box-view cache continue to see the root.
+  function renderDeliveryCarryOverlay() {
+    if (!renderer || (!carriedBoxMesh && !carriedGoodsMesh)) return false;
+    if (!deliveryCarryLightsPrepared) {
+      scene.traverse((object) => {
+        if (object.isLight) object.layers.enable(DELIVERY_CARRY_RENDER_LAYER);
+      });
+      deliveryCarryLightsPrepared = true;
+    }
+    const cameraLayerMask = camera.layers.mask;
+    const autoClear = renderer.autoClear;
+    const renderTarget = renderer.getRenderTarget();
+    camera.layers.set(DELIVERY_CARRY_RENDER_LAYER);
+    renderer.autoClear = false;
+    renderer.setRenderTarget(null);
+    renderer.clearDepth();
+    renderer.render(scene, camera);
+    renderer.setRenderTarget(renderTarget);
+    renderer.autoClear = autoClear;
+    camera.layers.mask = cameraLayerMask;
+    return true;
+  }
   const carryHandSkin = new THREE.MeshStandardMaterial({ color: 0xd9a97e, roughness: 0.82 });
   const carryHandCuff = new THREE.MeshStandardMaterial({ color: 0x2f4a35, roughness: 0.9 });
   const carryPalmGeo = new THREE.CapsuleGeometry(0.034, 0.075, 3, 7);
   const carryFingerGeo = new THREE.BoxGeometry(0.055, 0.078, 0.038);
-  const carrySleeveGeo = new THREE.CylinderGeometry(0.045, 0.052, 0.14, 8);
+  const carrySleeveGeo = new THREE.CylinderGeometry(0.045, 0.052, 0.22, 8);
   for (const side of [-1, 1]) {
     const hand = new THREE.Group();
     hand.userData.side = side;
@@ -2541,31 +3307,33 @@ export function makeClubhouse(ctx) {
     fingers.position.set(-side * 0.018, -0.028, -0.018);
     fingers.rotation.z = side * 0.45;
     const sleeve = new THREE.Mesh(carrySleeveGeo, carryHandCuff);
-    sleeve.rotation.x = Math.PI * 0.5;
-    sleeve.position.z = 0.11;
+    // Aim the short forearm down toward the player instead of straight down
+    // camera Z. The former end-on cylinder read as a detached octagonal mitten;
+    // this diagonal keeps one end at the wrist and carries the other naturally
+    // toward the bottom of frame without obscuring the carton identity.
+    sleeve.rotation.x = -1.08;
+    sleeve.position.set(0, -0.05, 0.095);
     hand.add(palm, fingers, sleeve);
+    hand.traverse((object) => { if (object.isMesh) object.renderOrder = 2002; });
     carriedBoxHands.add(hand);
   }
+  setDeliveryCarryOverlay(carriedBoxHands, true);
 
   function poseCarriedBoxHands(box) {
-    const dim = boxDims(box.box || 'carton');
-    const longClubCarton = box.box === 'clubbox';
+    const profile = deliveryBoxCarryProfile(box);
     for (const hand of carriedBoxHands.children) {
       const side = hand.userData.side;
-      if (box.flat) {
-        const support = longClubCarton ? dim.w * 0.34 : dim.w * 0.40;
-        hand.position.set(side * support, -0.31 - (longClubCarton ? side * 0.055 : 0), -0.91);
-        hand.rotation.set(-0.42, side * 0.10, side * (longClubCarton ? -0.30 : -0.20));
-      } else if (longClubCarton) {
-        // Support the long case inboard of its ends. Its ground-plane diagonal
-        // lets the 1.25 m length lead through receiving doors instead of being
-        // carried broadside; opposing Y/Z offsets keep both palms in contact.
-        hand.position.set(side * (dim.w * 0.19), -0.49 - side * 0.050, -1.30 - side * 0.24);
-        hand.rotation.set(-0.22, side * 0.08, side * -0.34);
-      } else {
-        hand.position.set(side * (dim.w * 0.5 + 0.018), -0.62, -0.88);
-        hand.rotation.set(-0.16, side * 0.12, side * -0.24);
-      }
+      const hands = profile.hands;
+      hand.position.set(
+        side * hands.supportX,
+        hands.y + side * hands.ySkew,
+        hands.z + side * hands.zSkew,
+      );
+      hand.rotation.set(
+        hands.rotationX,
+        side * hands.rotationY,
+        side * hands.rotationZ,
+      );
     }
     carriedBoxHands.visible = true;
   }
@@ -2576,6 +3344,15 @@ export function makeClubhouse(ctx) {
       if (profile === 'long-clubs') {
         hand.position.set(side * 0.38, -0.34 - side * 0.075, -0.91);
         hand.rotation.set(-0.24, side * 0.10, side * -0.34);
+      } else if (profile === 'bulky-stand-bag' || profile === 'bulky-single') {
+        hand.position.set(0.08 + side * 0.25, -0.39 - side * 0.035, -0.88);
+        hand.rotation.set(-0.20, side * 0.12, side * -0.40);
+      } else if (profile === 'long-accessories') {
+        hand.position.set(side * 0.31, -0.34 - side * 0.04, -0.86);
+        hand.rotation.set(-0.24, side * 0.10, side * -0.35);
+      } else if (profile === 'bottle-bundle') {
+        hand.position.set(0.10 + side * 0.18, -0.32, -0.66);
+        hand.rotation.set(-0.30, side * 0.18, side * -0.35);
       } else {
         hand.position.set(0.10 + side * 0.16, -0.27, -0.66);
         hand.rotation.set(-0.28, side * 0.16, side * -0.32);
@@ -2718,51 +3495,6 @@ export function makeClubhouse(ctx) {
     return g;
   }
 
-  // a small stack of the product you are carrying in your arms, on the camera. Distinct little
-  // items with a dark edge between them, so an armful reads as an armful and not one pale slab.
-  function makeGoodsMesh(carry) {
-    const g = new THREE.Group();
-    const resources = createOwnedStockResources();
-    g.userData.deliveryOwnedResources = resources;
-    const sku = SHOP_CATALOG.find((s) => s.id === carry.skuId);
-    const cat = sku ? sku.cat : 'accessories';
-    const base = new THREE.Color(CAT_COLORS[cat] || 0xb08d57);
-    const show = Math.min(carry.qty, 6);
-    for (let i = 0; i < show; i++) {
-      let item;
-      if (cat === 'apparel' && sku) {
-        const built = buildCatalogProductProxy({ sku, merch, mats, resources });
-        item = built.root;
-        const col = i % 2;
-        const row = Math.floor(i / 2);
-        item.position.set((col - 0.5) * 0.22, row * 0.085, row * 0.012);
-        item.rotation.y = i % 2 ? 0.08 : -0.05;
-        item.scale.multiplyScalar(0.92);
-      } else if (cat === 'clubs' && sku) {
-        // Carry the same authored sale product that was visible inside the
-        // carton and will land in the club rack; a cylinder cannot communicate
-        // the head, grip, tier identity or honest two-club armful.
-        const built = buildCatalogProductProxy({ sku, merch, mats, resources });
-        item = built.root;
-        item.position.set(0, i * 0.072, (i - 0.5) * 0.036);
-        item.rotation.y = 0;
-        item.scale.multiplyScalar(0.92);
-      } else {
-        const c = base.clone().offsetHSL(0, 0, (i % 2 ? -0.06 : 0.03));  // alternate shade = a visible seam
-        const m = resources.material(new THREE.MeshStandardMaterial({ color: c, roughness: 0.75 }));
-        m.userData.deliveryOwned = true;
-        item = new THREE.Mesh(resources.geometry(new THREE.BoxGeometry(0.1, 0.05, 0.09)), m);
-        const col = i % 3;
-        const row = Math.floor(i / 3);
-        item.position.set((col - 1) * 0.115, row * 0.06, row * 0.015);
-        item.rotation.y = (i % 2 ? 0.08 : -0.05);
-      }
-      g.add(item);
-    }
-    if (cat === 'clubs') g.userData.deliveryCarryProfile = 'long-clubs';
-    return g;
-  }
-
   // Refs 41/42/43/45 are loaded through the same merchandise cache but keep
   // their authored pivots at runtime. The reference is assigned after the box
   // helpers are initialized and before the first boot rebuild.
@@ -2771,13 +3503,163 @@ export function makeClubhouse(ctx) {
   const deliveryArrivalPresentations = new Map();
   const registeredDeliveryEquipmentIds = new Set();
   const deliveryEquipmentColliders = [];
-  let deliveryVanColliders = new Map();
+  const deliveryVanColliders = new Map();
+  const deliveryVanColliderDescriptors = new Map();
+  let deliveryVanColliderRevision = -1;
+
+  function boxPlacementRuntime() {
+    return {
+      center,
+      floorY,
+      deliveryPadSurfaceY: Number.isFinite(deliveryPadSurfaceY)
+        ? deliveryPadSurfaceY : floorY,
+      coupledPalletIndex: DELIVERY_PALLET_JACK_COUPLED_INDEX,
+      coupledPalletLiftOffset: coupledDeliveryPalletLiftOffset,
+      equipmentSocketPose: (equipmentId, socketId) => (
+        deliveryEquipment?.socketWorldPose(equipmentId, socketId) || null
+      ),
+    };
+  }
+
+  function placementOccluderIsVisible(object) {
+    if (!object?.isMesh || !object.geometry) return false;
+    for (let node = object; node; node = node.parent) {
+      if (!node.visible) return false;
+      if (node === carriedBoxMesh || node === carriedGoodsMesh
+        || node === boxPlacementMode?.root) return false;
+      // Existing delivery cartons are simulation-owned placement blockers, not
+      // opaque scene architecture. Let the analytic floor/support hit through
+      // so previewBoxPlacement can render its exact red overlap envelope. Wall,
+      // shelf-side, counter, bin, pallet, and equipment meshes remain physical
+      // ray occluders; only the boxGroup subtree defers to the conserved-box
+      // overlap authority.
+      if (node === boxGroup) return false;
+    }
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    return materials.some((material) => material && material.visible !== false
+      && (!material.transparent || Number(material.opacity) > 0.02));
+  }
+
+  function sampleNearestPlacementOccluder(origin, direction) {
+    placementOcclusionChecks += 1;
+    placementOcclusionRaycaster.near = 0.05;
+    placementOcclusionRaycaster.far = 3.30;
+    placementOcclusionRaycaster.set(origin, direction);
+    placementOcclusionHits.length = 0;
+    placementOcclusionRoots.length = 0;
+    placementOcclusionRoots.push(group, interior, boxGroup);
+    if (deliveryPalletStage) placementOcclusionRoots.push(deliveryPalletStage);
+    if (deliveryEquipment?.exteriorRoot) {
+      placementOcclusionRoots.push(deliveryEquipment.exteriorRoot);
+    }
+    // One bounded scene query per active placement frame. Surface planes stay
+    // cheap analytic tests; this query only supplies the nearest physical
+    // blocker so a later plane cannot be selected through a wall, shelf side,
+    // bin, or an existing carton.
+    placementOcclusionRaycaster.intersectObjects(
+      placementOcclusionRoots,
+      true,
+      placementOcclusionHits,
+    );
+    const hit = placementOcclusionHits.find((candidate) => (
+      Number.isFinite(candidate.distance) && placementOccluderIsVisible(candidate.object)
+    ));
+    placementOccluderDistance = hit?.distance ?? null;
+    placementOccluderName = hit?.object?.name || null;
+    return placementOccluderDistance;
+  }
+
+  function placementSurfacesForCarriedBox(box) {
+    const selectedEquipmentSurfaces = new Set();
+    for (const [equipmentId, fallbackSocketId] of [
+      [STOCKING_CART_EQUIPMENT_ID, 'STOCK_BOX_SOCKET_TOP'],
+      [HAND_TRUCK_EQUIPMENT_ID, 'LOAD_ORIGIN'],
+    ]) {
+      const query = deliveryEquipmentPlacementForCarriedBox(state, box.id, equipmentId);
+      const socketId = query.ok ? query.socketId : fallbackSocketId;
+      // Equipment surfaces are renderer-authored: the simulation can know a
+      // logical socket before its GLB and named node have mounted. Do not show
+      // the static coordinate-adapter fallback in that warm-up window because
+      // the later authoritative commit resolves the live socket and could land
+      // somewhere other than the preview.
+      const livePose = deliveryEquipment?.socketWorldPose(equipmentId, socketId);
+      if (livePose?.object
+        && livePose.position?.toArray().every(Number.isFinite)
+        && livePose.quaternion?.toArray().every(Number.isFinite)) {
+        selectedEquipmentSurfaces.add(deliveryEquipmentSurfaceId(equipmentId, socketId));
+      }
+    }
+    return boxPlacementSurfaces(state, { includeUnavailable: false }).filter((surface) => (
+      surface.capabilities?.placeBox
+      && (surface.kind !== 'equipment-socket' || selectedEquipmentSurfaces.has(surface.id))
+    ));
+  }
+
+  function placementTargetForHit(surface, hit, rotationY) {
+    if (surface.kind === 'equipment-socket') {
+      return {
+        kind: 'equipment',
+        equipmentId: surface.equipmentId,
+        socketId: surface.socketId,
+      };
+    }
+    if (surface.kind === 'pallet') {
+      return { kind: 'pallet', palletIndex: surface.palletIndex };
+    }
+    return snapBoxPlacementTarget(state, {
+      kind: 'surface',
+      surfaceId: surface.id,
+      x: hit.localPoint.x,
+      z: hit.localPoint.z,
+      ry: rotationY,
+    });
+  }
+
+  function fallbackPlacementPose(surface, hit, target, rotationY) {
+    const plane = hit?.plane || surfaceWorldPlane(surface, boxPlacementRuntime());
+    if (!plane) return null;
+    const localX = target?.kind === 'surface' && Number.isFinite(target.x) ? target.x : 0;
+    const localZ = target?.kind === 'surface' && Number.isFinite(target.z) ? target.z : 0;
+    const cosine = Math.cos(plane.ry);
+    const sine = Math.sin(plane.ry);
+    return {
+      x: plane.x + cosine * localX + sine * localZ,
+      y: plane.y,
+      z: plane.z - sine * localX + cosine * localZ,
+      ry: plane.ry + (target?.kind === 'surface' ? target.ry : rotationY),
+    };
+  }
+
+  boxPlacementMode = createBoxPlacementMode({
+    parent: scene,
+    enumerateSurfaces: ({ box }) => placementSurfacesForCarriedBox(box),
+    raycastSurface: (surface, ray) => {
+      const hit = raycastBoxPlacementSurface(surface, ray, boxPlacementRuntime());
+      if (!hit) return null;
+      if (Number.isFinite(placementOccluderDistance)
+        && hit.distance > placementOccluderDistance + PLACEMENT_OCCLUSION_TOLERANCE) {
+        return null;
+      }
+      return hit;
+    },
+    previewPlacement: ({ box, surface, hit, rotationY }) => {
+      const target = placementTargetForHit(surface, hit, rotationY);
+      const preview = previewBoxPlacement(state, box, target);
+      const pose = placementPreviewWorldPose(
+        preview,
+        surface,
+        boxPlacementRuntime(),
+      ) || fallbackPlacementPose(surface, hit, target, rotationY);
+      return { ...preview, pose };
+    },
+    commitPlacement: (target, { box }) => putDownBox(state, box.id, target),
+  });
 
   function boxSignature() {
     const d = state.shop.deliveries;
     if (!d) return '';
     const c = state.shop.carry;
-    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}:${b.equipmentId || ''}:${b.socketId || ''}:${b.padPalletIndex ?? ''}:${b.padStagingOverflow ? 1 : 0}:${b.tape || 0}:${(b.flapProgress || b.flaps || [0, 0, 0, 0]).join(',')}:${b.qty}:${b.flat ? 1 : 0}:${b.flattenProgress || 0}:${b.lifecycle || ''}`).join(',')
+    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.surfaceId || ''}:${b.x || 0}:${b.z || 0}:${b.ry || 0}:${b.equipmentId || ''}:${b.socketId || ''}:${b.padPalletIndex ?? ''}:${b.padStagingOverflow ? 1 : 0}:${b.tape || 0}:${(b.flapProgress || b.flaps || [0, 0, 0, 0]).join(',')}:${b.qty}:${b.flat ? 1 : 0}:${b.flattenProgress || 0}:${b.lifecycle || ''}`).join(',')
       + '|' + (c ? c.skuId + c.qty : '') + '|' + d.trash;
   }
 
@@ -2824,12 +3706,15 @@ export function makeClubhouse(ctx) {
     const anchor = fixture && fixtureAnchors.get(fixture.id);
     const sku = SHOP_CATALOG.find((s) => s.id === skuId);
     if (!anchor || !sku) return false;
-    const slots = slotsFor(skuId).slice(startIndex, startIndex + count);
+    const slots = slotsFor(skuId)
+      .map((slot) => resolveAuthoredFixtureSlot(anchor, slot))
+      .slice(startIndex, startIndex + count);
     if (!slots.length) return false;
 
     const ghost = new THREE.Group();
     ghost.position.copy(anchor.position);
     ghost.rotation.copy(anchor.rotation);
+    ghost.visible = !hiddenFixtureStock.has(fixture.id);
     stockGroup.add(ghost);
     ghost.updateMatrixWorld(true);
 
@@ -2851,7 +3736,7 @@ export function makeClubhouse(ctx) {
       carrier.position.copy(offset);
       carrier.rotation.set(0.25, 0.4, 0.1);
       stockFlights.push({
-        carrier, ghost, offset,
+        carrier, ghost, offset, fixtureId: fixture.id,
         t: -k * 0.07,             // a stagger, so an armful lands as a patter
         duration: 0.45,
       });
@@ -3039,8 +3924,10 @@ export function makeClubhouse(ctx) {
     }
     recyclingDrop.progress = Math.min(1, recyclingDrop.progress + dt / 0.72);
     if (recyclingDrop.progress < 1) return;
-    putDownBox(state, box.id, { x: STOCKROOM.bin.x, z: STOCKROOM.bin.z, ry: 0 });
-    if (recycleBox(state, box.id).ok) say('Cardboard recycled.');
+    if (recycleCarriedBox(state, box.id).ok) {
+      sfx('disposal');
+      say('Cardboard recycled.');
+    }
     recyclingDrop = null;
     rebuildBoxes();
   }
@@ -3052,16 +3939,15 @@ export function makeClubhouse(ctx) {
   function equipmentBoxPlacement(box) {
     if (!deliveryEquipment || box?.loc !== 'equipment') return null;
     const socket = deliveryEquipment.socketWorldPose(box.equipmentId, box.socketId);
-    const equipmentRoot = deliveryEquipment.rootFor(box.equipmentId);
-    if (!socket || !equipmentRoot) return null;
-    equipmentRoot.updateWorldMatrix(true, false);
-    const worldRotation = equipmentRoot.getWorldQuaternion(new THREE.Quaternion());
+    if (!socket) return null;
+    const worldRotation = socket.quaternion.clone();
     const yaw = new THREE.Euler().setFromQuaternion(worldRotation, 'YXZ').y;
     const local = W2L(socket.position.x, socket.position.z);
     return {
       lx: local.x,
       lz: local.z,
       ry: yaw,
+      quaternion: worldRotation,
       x: socket.position.x,
       y: socket.position.y,
       z: socket.position.z,
@@ -3493,16 +4379,26 @@ export function makeClubhouse(ctx) {
 
     const cg = carriedGoods(state);
     if (cg) {
-      carriedGoodsMesh = makeGoodsMesh(cg);
+      carriedGoodsMesh = makeGoodsMesh(cg, { merch, mats });
       const profile = carriedGoodsMesh.userData.deliveryCarryProfile;
       if (profile === 'long-clubs') {
         carriedGoodsMesh.position.set(0, -0.38, -1.06);
         carriedGoodsMesh.rotation.set(0.05, 0.06, -0.20);
+      } else if (profile === 'bulky-stand-bag' || profile === 'bulky-single') {
+        carriedGoodsMesh.position.set(0.12, -0.46, -1.02);
+        carriedGoodsMesh.rotation.set(0.06, -0.08, 0.06);
+      } else if (profile === 'long-accessories') {
+        carriedGoodsMesh.position.set(0, -0.40, -1.00);
+        carriedGoodsMesh.rotation.set(0.08, 0.04, -0.14);
+      } else if (profile === 'bottle-bundle') {
+        carriedGoodsMesh.position.set(0.10, -0.35, -0.72);
+        carriedGoodsMesh.rotation.x = 0.20;
       } else {
         carriedGoodsMesh.position.set(0.10, -0.28, -0.72);   // held in the arms, fully framed low in view
         carriedGoodsMesh.rotation.x = 0.28;
       }
       carriedGoodsMesh.userData.deliveryCarryBaseY = carriedGoodsMesh.position.y;
+      setDeliveryCarryOverlay(carriedGoodsMesh, true);
       camera.add(carriedGoodsMesh);
       poseCarriedGoodsHands(profile);
     }
@@ -3519,10 +4415,7 @@ export function makeClubhouse(ctx) {
         ? mountDeliveryCargoLoad(deliveryActiveLoad) : new Set();
       const padPlanList = planPalletizedPadBoxes(
         d.boxes.filter((box) => box.loc === 'pad' && !deliveryOrderPending(box)),
-        {
-          palletHeight: scene.getObjectByName('DeliveryPalletStage')?.userData.ready
-            ? DELIVERY_PALLET_STAGING.height : 0,
-        },
+        { palletHeight: DELIVERY_PALLET_STAGING.height },
       );
       const padPlans = new Map(padPlanList.map((plan) => [plan.boxId, plan]));
       const topByPallet = new Map();
@@ -3547,38 +4440,56 @@ export function makeClubhouse(ctx) {
           carriedBoxMesh = view.root;
           clearDeliveryBoxPresentationState(carriedBoxMesh);
           carriedBoxMesh.scale.setScalar(1);
-          const longClubCarton = box.box === 'clubbox';
-          carriedBoxMesh.userData.deliveryRuntimeCarryProfile = longClubCarton
-            ? 'long-two-hand-diagonal'
-            : 'medium-two-hand';
-          if (box.flat) {
-            carriedBoxMesh.position.set(0, longClubCarton ? -0.28 : -0.34, longClubCarton ? -1.28 : -1.18);
-            carriedBoxMesh.rotation.set(1.12, 0.08, longClubCarton ? -0.14 : 0);
-          } else if (longClubCarton) {
-            carriedBoxMesh.position.set(0, -0.58, -1.30);
-            carriedBoxMesh.rotation.set(0.02, 0.78, -0.16);
-          } else {
-            // Keep the real-scale case in both hands without hiding the pickup
-            // source and walking route across the lower third of the view.
-            carriedBoxMesh.position.set(0, -0.78, -1.10);
-            carriedBoxMesh.rotation.set(-0.04, 0.08, 0);
-          }
+          const carryProfile = deliveryBoxCarryProfile(box);
+          carriedBoxMesh.userData.deliveryRuntimeCarryProfile = carryProfile.id;
+          carriedBoxMesh.position.set(...carryProfile.position);
+          carriedBoxMesh.rotation.set(...carryProfile.rotation);
           carriedBoxMesh.userData.deliveryCarryBaseY = carriedBoxMesh.position.y;
+          setDeliveryCarryOverlay(carriedBoxMesh, true);
           camera.add(carriedBoxMesh);
           poseCarriedBoxHands(box);
           continue;
         }
-        let lx; let lz; let ry; let fixedSurfaceY = null;
+        let lx; let lz; let ry;
+        let fixedSurfaceY = null;
+        let fixedQuaternion = null;
+        let resolvedSurfaceId = null;
         if (box.loc === 'world') {
-          lx = box.x; lz = box.z; ry = box.ry || 0;
+          const resolved = resolveBoxPose(state, box);
+          if (resolved.ok) {
+            lx = resolved.pose.x;
+            lz = resolved.pose.z;
+            ry = resolved.pose.ry;
+            fixedSurfaceY = floorY + resolved.pose.baseY;
+            resolvedSurfaceId = resolved.surfaceId;
+          } else {
+            // ensureDeliveries heals invalid persisted surfaces to stock. This
+            // fallback also keeps a just-corrupted live object visible until
+            // that next simulation read, without interpreting local shelf
+            // coordinates as a floor position.
+            const at = STOCKROOM.receivingInside;
+            const i = stacks.stock++;
+            const dim = boxDims(box.box || 'carton');
+            lx = at.x + (i % 3 - 1) * Math.max(0.62, dim.w + 0.14);
+            lz = at.z + Math.floor(i / 3) * Math.max(0.56, dim.d + 0.14) - 0.3;
+            ry = 0;
+          }
         } else if (box.loc === 'pad') {
           const plan = padPlans.get(box.id);
-          lx = plan.x; lz = plan.z; ry = plan.ry;
+          if (plan) {
+            lx = plan.x; lz = plan.z; ry = plan.ry;
+            resolvedSurfaceId = `pallet:receiving:${plan.palletIndex}`;
+          } else {
+            const at = STOCKROOM.receivingInside;
+            lx = at.x; lz = at.z; ry = 0;
+          }
         } else if (box.loc === 'equipment') {
           const placement = equipmentBoxPlacement(box);
           if (placement) {
             ({ lx, lz, ry } = placement);
             fixedSurfaceY = placement.y;
+            fixedQuaternion = placement.quaternion;
+            resolvedSurfaceId = `equipment:${box.equipmentId}:${box.socketId}`;
           } else {
             // A save must remain playable while the async GLB cache warms up or
             // if an optional prop fails to load. Show the same box at receiving;
@@ -3600,6 +4511,7 @@ export function makeClubhouse(ctx) {
         }
         const wp = L2W(lx, lz);
         const m = ensureBoxView(box).root;
+        setDeliveryCarryOverlay(m, false);
         clearDeliveryBoxPresentationState(m);
         const gy = box.loc === 'pad' && Number.isFinite(deliveryPadSurfaceY)
           ? deliveryPadSurfaceY : groundYAt(wp.x, wp.z);
@@ -3623,13 +4535,21 @@ export function makeClubhouse(ctx) {
           delete m.userData.deliveryPalletBaseY;
           delete m.userData.deliveryPalletIndex;
         }
-        m.rotation.set(0, ry, 0);
+        if (fixedQuaternion) m.quaternion.copy(fixedQuaternion);
+        else m.rotation.set(0, ry, 0);
         boxGroup.add(m);
 
         seen.add(box.id);
         let prop = boxProps.get(box.id);
         if (!prop) { prop = boxPropFor(box.id); boxProps.set(box.id, prop); }
-        prop.x = wp.x; prop.y = m.position.y; prop.z = wp.z; prop.lx = lx; prop.lz = lz; prop.ry = ry;
+        prop.x = wp.x;
+        prop.y = m.position.y;
+        prop.aimY = m.position.y + boxPlacementDimensions(box).h / 2;
+        prop.z = wp.z;
+        prop.lx = lx;
+        prop.lz = lz;
+        prop.ry = ry;
+        prop.surfaceId = resolvedSurfaceId;
         m.userData.deliveryPresentationState = box.loc === 'pad' ? 'pallet-ready' : 'world-ready';
         m.userData.deliveryInteractionEnabled = true;
 
@@ -3637,11 +4557,12 @@ export function makeClubhouse(ctx) {
         // customer nav grid (which bakes from the same list) both treat it as solid. Only
         // WORLD drops — the ones a player can put anywhere; pad/stock stacks sit at
         // known-clear spots. The sig gate means a hold-to-cut (same spot) never re-bakes nav.
-        if (box.loc === 'world') {
+        if (box.loc === 'world' && resolvedSurfaceId === FLOOR_BOX_SURFACE_ID) {
           const cdim = boxDims(box.box || 'carton');
-          const cswap = Math.abs(Math.sin(ry)) > 0.5;
-          const cw = cswap ? cdim.d : cdim.w;
-          const cd = cswap ? cdim.w : cdim.d;
+          const cosine = Math.abs(Math.cos(ry));
+          const sine = Math.abs(Math.sin(ry));
+          const cw = cosine * cdim.w + sine * cdim.d;
+          const cd = sine * cdim.w + cosine * cdim.d;
           const csig = `${lx.toFixed(2)},${lz.toFixed(2)},${cw.toFixed(2)},${cd.toFixed(2)}`;
           colSeen.add(box.id);
           const prevc = boxCols.get(box.id);
@@ -3661,13 +4582,175 @@ export function makeClubhouse(ctx) {
     for (const id of [...boxViews.keys()]) {
       if (!visualSeen.has(id)) removeBoxView(id, true);
     }
+    syncCarriedBoxPlacement();
     boxSig = boxSignature();
+  }
+
+  // Saved equipment placement is evaluated from the authored socket every
+  // frame. The hand-truck LOAD_ORIGIN sits below its axle pivot, so its carton
+  // follows the complete tip-back transform instead of remaining upright while
+  // the truck visibly moves through it.
+  function syncEquipmentBoxViews() {
+    if (!deliveryEquipment) return;
+    for (const box of state.shop.deliveries?.boxes || []) {
+      if (box.loc !== 'equipment') continue;
+      const view = boxViews.get(box.id);
+      const placement = equipmentBoxPlacement(box);
+      if (!view || !placement) continue;
+      view.root.position.set(placement.x, placement.y, placement.z);
+      view.root.quaternion.copy(placement.quaternion);
+      const prop = boxProps.get(box.id);
+      if (prop) {
+        prop.x = placement.x;
+        prop.y = placement.y;
+        prop.aimY = placement.y + boxPlacementDimensions(box).h / 2;
+        prop.z = placement.z;
+        prop.lx = placement.lx;
+        prop.lz = placement.lz;
+        prop.ry = placement.ry;
+      }
+    }
+  }
+
+  const placementRayOrigin = new THREE.Vector3();
+  const placementRayDirection = new THREE.Vector3();
+
+  function startRecyclingDrop(box = carriedBox(state)) {
+    if (!box?.flat || box.loc !== 'carried') return false;
+    if (recyclingDrop) return recyclingDrop.id === box.id;
+    placementBoxId = box.id;
+    placementDismissedBoxId = box.id;
+    if (boxPlacementMode?.isActive()) boxPlacementMode.cancel();
+    recyclingDrop = { id: box.id, progress: 0 };
+    return true;
+  }
+
+  function beginCarriedBoxPlacement({ force = false } = {}) {
+    const box = carriedBox(state);
+    if (!box || !boxPlacementMode || recyclingDrop) return false;
+    if (!force && placementDismissedBoxId === box.id) return false;
+    if (boxPlacementMode.isActive() && placementBoxId === box.id) return true;
+    if (boxPlacementMode.isActive()) boxPlacementMode.cancel();
+    placementBoxId = box.id;
+    placementDismissedBoxId = null;
+    return boxPlacementMode.begin({
+      box,
+      dimensions: boxPlacementDimensions(box),
+      rotationY: 0,
+    });
+  }
+
+  function syncCarriedBoxPlacement() {
+    const box = carriedBox(state);
+    if (recyclingDrop) {
+      if (boxPlacementMode?.isActive()) boxPlacementMode.cancel();
+      placementBoxId = box?.id ?? recyclingDrop.id;
+      placementDismissedBoxId = placementBoxId;
+      return;
+    }
+    if (!box) {
+      if (boxPlacementMode?.isActive()) boxPlacementMode.cancel();
+      placementBoxId = null;
+      placementDismissedBoxId = null;
+      return;
+    }
+    if (box.id !== placementBoxId) {
+      placementDismissedBoxId = null;
+      beginCarriedBoxPlacement({ force: true });
+    } else if (!boxPlacementMode.isActive() && placementDismissedBoxId !== box.id) {
+      beginCarriedBoxPlacement({ force: true });
+    }
+  }
+
+  function updateBoxPlacementPreview() {
+    if (recyclingDrop) {
+      if (boxPlacementMode?.isActive()) boxPlacementMode.cancel();
+      return;
+    }
+    if (!boxPlacementMode?.isActive()) return;
+    camera.getWorldPosition(placementRayOrigin);
+    camera.getWorldDirection(placementRayDirection);
+    sampleNearestPlacementOccluder(placementRayOrigin, placementRayDirection);
+    boxPlacementMode.update({
+      origin: placementRayOrigin,
+      direction: placementRayDirection,
+    });
+  }
+
+  function commitCarriedBoxPlacement() {
+    if (!boxPlacementMode?.isActive()) return false;
+    const carried = carriedBox(state);
+    const recyclingWorld = L2W(STOCKROOM.bin.x, STOCKROOM.bin.z);
+    if (carried?.flat && Math.hypot(
+      recyclingWorld.x - walk.x,
+      recyclingWorld.z - walk.z,
+    ) <= 1.8) {
+      startRecyclingDrop(carried);
+      return true;
+    }
+    const result = boxPlacementMode.commit();
+    if (result === false || result?.ok === false) {
+      const reason = result?.reason || boxPlacementMode.diagnostics().reason;
+      if (reason) say(reason, 'warn');
+      return true;
+    }
+    sfx('boxdown');
+    rebuildBoxes();
+    return true;
+  }
+
+  function cancelCarriedBoxPlacement() {
+    const box = carriedBox(state);
+    if (!box || !boxPlacementMode?.isActive()) return false;
+    placementDismissedBoxId = box.id;
+    boxPlacementMode.cancel();
+    return true;
+  }
+
+  function boxPlacementLabel() {
+    const box = carriedBox(state);
+    if (!box) return null;
+    const sku = SHOP_CATALOG.find((entry) => entry.id === box.skuId);
+    const name = sku?.name || box.skuId || 'carton';
+    const recyclingWorld = L2W(STOCKROOM.bin.x, STOCKROOM.bin.z);
+    if (recyclingDrop?.id === box.id) {
+      return 'Recycling — lowering the flattened carton in...';
+    }
+    if (box.flat && Math.hypot(
+      recyclingWorld.x - walk.x,
+      recyclingWorld.z - walk.z,
+    ) <= 1.8) {
+      return 'Recycling — [E] drop the flattened carton in';
+    }
+    if (!boxPlacementMode?.isActive()) {
+      return `Carrying ${name} ×${box.qty} — [E] choose a placement`;
+    }
+    const diagnostics = boxPlacementMode.diagnostics();
+    if (!diagnostics.visible) {
+      return `Carrying ${name} ×${box.qty} — aim down at an approved surface · [R] rotate`;
+    }
+    if (!diagnostics.legal) {
+      return `${diagnostics.reason || 'That placement is blocked.'} · [R] rotate · [Esc] keep carrying`;
+    }
+    return `Carrying ${name} ×${box.qty} — [E] place · [R] rotate · [Esc] keep carrying`;
   }
 
   // a box in the stockroom is unpacked in place; anywhere else, [E] lifts it into your arms
   function unpackHere(prop, b) {
-    return boxAtStockroomLocation(b)
-      || (b.loc === 'world' && inStockroomBounds(prop.lx, prop.lz));
+    return boxPlacementCapabilities(state, b).canUnpack;
+  }
+
+  function canRepositionClosedCarton(prop, b) {
+    if (!b || b.loc === 'carried' || carriedBox(state) || carriedGoods(state)) return false;
+    if (b.loc === 'pad' && !exposedPadBoxIds.has(b.id)) return false;
+    if (!unpackHere(prop, b) || b.flat || isEmpty(b)) return false;
+    if (boxOpeningAnimations.has(b.id) || boxFlattenAnimations.has(b.id)
+      || deliveryBoxTransfers.has(b.id) || recyclingDrop?.id === b.id) return false;
+    if ((Number(b.openingProgress) || 0) > 0.001
+      || (Number(b.flattenProgress) || 0) > 0.001) return false;
+    const flaps = Array.isArray(b.flapProgress) ? b.flapProgress : (b.flaps || []);
+    if (flaps.some((progress) => (Number(progress) || 0) > 0.001)) return false;
+    return !b.lifecycle || ['SEALED', 'CUTTING', 'CUT_COMPLETE'].includes(b.lifecycle);
   }
 
   // the box's verbs, chosen live from its state. Reused across rebuilds (keyed by id) so a
@@ -3681,8 +4764,37 @@ export function makeClubhouse(ctx) {
       sfx('boxup');
       rebuildBoxes();
     };
+    const advanceCut = (amount) => {
+      const b = box();
+      const step = Number(amount);
+      if (!b || !unpackHere(prop, b) || b.flat || tapeCut(b) || isEmpty(b)
+        || !(step > 0) || !Number.isFinite(step)) return;
+      const r = cutTape(state, b.id, step);
+      if (r.ok) {
+        const cutBeat = Math.floor((Number(b.tape) || 0) * 10);
+        if (cutBeat !== lastCutBeat || r.done) {
+          lastCutBeat = cutBeat;
+          sfx('tapeCut');
+        }
+        if (r.done) {
+          sfx('tapeRelease');
+          tutorialFlag(state, 'boxCut');
+        }
+        refreshBoxVisual(b.id);
+      }
+    };
     const prop = addProp({
       x: 0, z: 0, r: 1.9,
+      // When a carton sits on a cart or hand truck its parent equipment prop
+      // occupies almost the same XZ point. The aimed 3D carton receives a
+      // modest score advantage, while looking toward the handle still selects
+      // the equipment control because the carton's facing score falls away.
+      get focusBias() {
+        // Equipment cartons need only a tiny tie-breaker against their parent
+        // prop now that both use true 3D crosshair scoring. Other cartons get
+        // no global distance advantage over nearby doors, bins, or fixtures.
+        return box()?.loc === 'equipment' ? 0.08 : 0;
+      },
       label: () => {
         const b = box();
         if (!b || b.loc === 'carried' || carriedBox(state)) return null;
@@ -3696,8 +4808,8 @@ export function makeClubhouse(ctx) {
         if (!unpackHere(prop, b)) {
           return `${b.loc === 'pad' ? 'Delivery: ' : ''}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''} — [E] pick up`;
         }
-        if (tapeUncut(b)) return `${name} case · ${b.qty} inside — hold [E] to cut the tape`;
-        if (!tapeCut(b)) return `${name} — hold [E] to finish the cut`;
+        if (tapeUncut(b)) return `${name} case · ${b.qty} inside — [LMB] drag along tape · [E] hold alternative`;
+        if (!tapeCut(b)) return `${name} — [LMB] drag along tape · [E] hold alternative`;
         if (!flapsOpen(b)) return boxOpeningAnimations.has(b.id)
           ? `${name} — opening all four flaps...`
           : `${name} — [E] open the carton`;
@@ -3716,56 +4828,23 @@ export function makeClubhouse(ctx) {
       },
       get toolPath() {
         const b = box();
-        if (!b || prop.y == null) return null;
-        const dim = boxDims(b.box || 'carton');
-        const ry = prop.ry || 0;
-        const cut = Math.max(0, Math.min(1, Number(b.tape) || 0));
-        const y = prop.y + dim.h + 0.025;
-        let startLocal;
-        let endLocal;
-        let progress;
-        if (cut < 0.6) {
-          // Draw the blade from the far seam toward the player/front label,
-          // matching the authored CUT_PATH and visible tape placement.
-          startLocal = { x: 0, z: -dim.d * 0.42 };
-          endLocal = { x: 0, z: dim.d * 0.42 };
-          progress = cut / 0.6;
-        } else if (cut < 0.8) {
-          startLocal = { x: 0, z: dim.d * 0.42 };
-          endLocal = { x: -dim.w * 0.42, z: dim.d * 0.42 };
-          progress = (cut - 0.6) / 0.2;
-        } else {
-          // Continue from the left endpoint across the same top cross-seam.
-          // The cutter never teleports across the carton between segments.
-          startLocal = { x: -dim.w * 0.42, z: dim.d * 0.42 };
-          endLocal = { x: dim.w * 0.42, z: dim.d * 0.42 };
-          progress = (cut - 0.8) / 0.2;
-        }
-        const worldPoint = (local) => ({
-          x: prop.x + local.x * Math.cos(ry) + local.z * Math.sin(ry),
-          y,
-          z: prop.z - local.x * Math.sin(ry) + local.z * Math.cos(ry),
-        });
-        return {
-          start: worldPoint(startLocal),
-          end: worldPoint(endLocal),
-          progress,
-        };
+        if (!b) return null;
+        const view = boxViews.get(b.id);
+        return typeof view?.toolPathAtProgress === 'function'
+          ? view.toolPathAtProgress(b.tape)
+          : null;
       },
-      hold: (dt) => {
+      get secondaryLabel() {
         const b = box();
-        if (!b || !unpackHere(prop, b) || b.flat || tapeCut(b) || isEmpty(b)) return;
-        const r = cutTape(state, b.id, dt * 0.5);   // a deliberate two-second three-segment cut
-        if (r.ok) {
-          const cutBeat = Math.floor((Number(b.tape) || 0) * 10);
-          if (cutBeat !== lastCutBeat || r.done) {
-            lastCutBeat = cutBeat;
-            sfx('tape');
-          }
-          if (r.done) tutorialFlag(state, 'boxCut');
-          refreshBoxVisual(b.id);
-        }
+        return canRepositionClosedCarton(prop, b) ? 'reposition closed carton' : null;
       },
+      secondaryAction: () => {
+        const b = box();
+        if (!canRepositionClosedCarton(prop, b)) return;
+        pickUp(b);
+      },
+      drag: (amount) => advanceCut(amount),
+      hold: (dt) => advanceCut(dt * 0.5),
       action: () => {
         const b = box();
         if (!b) return;
@@ -3776,7 +4855,7 @@ export function makeClubhouse(ctx) {
         if (isEmpty(b)) {
           if (!boxFlattenAnimations.has(b.id)) {
             boxFlattenAnimations.add(b.id);
-            sfx('recycle');
+            sfx('boxFlatten');
             say('Folding the empty carton flat...');
           }
           return;
@@ -3793,28 +4872,13 @@ export function makeClubhouse(ctx) {
         }
         const r = takeFromBox(state, b.id);
         if (!r.ok) { say(r.reason, 'warn'); return; }
-        sfx('product');
+        sfx('itemRemoval');
         tutorialFlag(state, 'boxCarried');
         if (r.left <= 0) say(`${r.taken} × ${name} — the case is empty.`);
         rebuildBoxes();
       },
     });
     return prop;
-  }
-
-  // the set-down / put-away verb follows the player while their arms are full — its prop rides just
-  // ahead of the player each frame (see the walkUpdate block far below)
-  function boxDropSpot() {
-    const fx = -Math.sin(walk.yaw);
-    const fz = -Math.cos(walk.yaw);
-    let dx = walk.x + fx * 0.9;
-    let dz = walk.z + fz * 0.9;
-    if (isInside(walk.x, walk.z) !== isInside(dx, dz)) {
-      dx = walk.x + fx * 0.35;
-      dz = walk.z + fz * 0.35;
-      if (isInside(walk.x, walk.z) !== isInside(dx, dz)) { dx = walk.x; dz = walk.z; }
-    }
-    return { x: dx, z: dz };
   }
 
   function stockingCartPlacementContext(box = carriedBox(state), radius = 1.75) {
@@ -3855,28 +4919,58 @@ export function makeClubhouse(ctx) {
     return true;
   }
 
+  function handTruckPlacementContext(box = carriedBox(state), radius = 2.2) {
+    if (!box || !deliveryEquipment) return null;
+    const target = deliveryEquipment.nodeWorldPose(
+      'delivery_hand_truck',
+      'INTERACTION_TARGET',
+    );
+    if (!target || Math.hypot(target.position.x - walk.x, target.position.z - walk.z) > radius) {
+      return null;
+    }
+    return {
+      target,
+      placement: handTruckPlacementForCarriedBox(state, box.id),
+    };
+  }
+
+  function placeCarriedBoxOnHandTruck({ requireNearby = true } = {}) {
+    const box = carriedBox(state);
+    if (!box) return false;
+    const context = requireNearby
+      ? handTruckPlacementContext(box)
+      : { placement: handTruckPlacementForCarriedBox(state, box.id) };
+    if (!context) return false;
+    if (!context.placement.ok) {
+      say(context.placement.reason, 'warn');
+      return true;
+    }
+    const result = putDownBox(state, box.id, context.placement.target);
+    if (!result.ok) {
+      say(result.reason, 'warn');
+      return true;
+    }
+    const sku = SHOP_CATALOG.find((entry) => entry.id === box.skuId);
+    sfx('boxdown');
+    say(`${sku ? sku.name : 'Carton'} placed against the hand-truck back.`);
+    rebuildBoxes();
+    return true;
+  }
+
   const carryProp = addProp({
     x: 0, z: 0, r: 2.5,
     label: () => {
       const cb = carriedBox(state);
-      if (cb) {
-        const sku = SHOP_CATALOG.find((s) => s.id === cb.skuId);
-        const name = sku ? sku.name : cb.skuId;
-        const l = W2L(walk.x, walk.z);
-        const cart = stockingCartPlacementContext(cb);
-        if (cart) {
-          if (cart.placement.ok) return `Carrying ${name} ×${cb.qty} — [E] place it on the stocking cart`;
-          return `${cart.placement.reason} Turn away to set the carton on the floor.`;
-        }
-        if (cb.flat) return 'Carrying a flattened carton — [E] set it down';
-        if (inStockroomBounds(l.x, l.z)) return `Carrying ${name} ×${cb.qty} — [E] set it down to open it`;
-        return `Carrying ${name} ×${cb.qty} — [E] set it down`;
-      }
+      if (cb) return boxPlacementLabel();
       const cg = carriedGoods(state);
       if (cg) {
         const sku = SHOP_CATALOG.find((s) => s.id === cg.skuId);
         const l = W2L(walk.x, walk.z);
-        if (inStockroomBounds(l.x, l.z)) return `Holding ${sku.name} ×${cg.qty} — [E] set them on the backroom shelf`;
+        if (inStockroomBounds(l.x, l.z)) {
+          const fixture = homeFixture(cg.skuId);
+          const units = cg.qty === 1 ? 'this unit' : 'these units';
+          return `Holding ${sku.name} ×${cg.qty} — [E] store ${units} in back · sales floor: ${fixture?.title || 'assigned display'}`;
+        }
         // Outside the stockroom, let the real shelf fixture own the prompt.
         // This helper follows 0.9 m ahead and otherwise always wins nearest-
         // focus selection, preventing the player from physically stocking.
@@ -3887,16 +4981,8 @@ export function makeClubhouse(ctx) {
     action: () => {
       const cb = carriedBox(state);
       if (cb) {
-        if (placeCarriedBoxOnStockingCart()) return;
-        const drop = boxDropSpot();
-        const l = W2L(drop.x, drop.z);
-        // refuse a drop into a wall/fixture/doorway/another box — snap to the nearest legal
-        // spot, or say so if there is genuinely no room in front of you.
-        const spot = legalBoxDrop(state, cb, l.x, l.z, walk.yaw + 0.1);
-        if (!spot) { say('No room to set it down here — turn around.', 'warn'); return; }
-        putDownBox(state, cb.id, spot);
-        sfx('boxdown');
-        rebuildBoxes();
+        if (boxPlacementMode?.isActive()) commitCarriedBoxPlacement();
+        else beginCarriedBoxPlacement({ force: true });
         return;
       }
       const cg = carriedGoods(state);
@@ -3933,12 +5019,10 @@ export function makeClubhouse(ctx) {
       action: () => {
         const cb = carriedBox(state);
         if (cb && cb.flat) {
-          if (recyclingDrop) return;
-          recyclingDrop = { id: cb.id, progress: 0 };
-          sfx('recycle');
+          startRecyclingDrop(cb);
           return;
         }
-        if (emptyTrash(state).ok) { sfx('recycle'); say('Cardboard recycled — the stockroom breathes again.'); rebuildBoxes(); }
+        if (emptyTrash(state).ok) { sfx('disposal'); say('Cardboard recycled — the stockroom breathes again.'); rebuildBoxes(); }
       },
     });
   }
@@ -3968,9 +5052,7 @@ export function makeClubhouse(ctx) {
 
   function syncStaticDeliveryColliders(equipmentId) {
     if (!deliveryEquipment) return;
-    const current = new Map(
-      deliveryEquipment.colliderDescriptors(equipmentId).map((entry) => [entry.name, entry]),
-    );
+    const current = deliveryEquipment.colliderDescriptorMap(equipmentId);
     for (const collider of deliveryEquipmentColliders) {
       if (collider.equipmentId !== equipmentId) continue;
       const descriptor = current.get(collider.name);
@@ -4016,7 +5098,10 @@ export function makeClubhouse(ctx) {
       if (view?.root && Number.isFinite(base)) {
         view.root.position.y = base + liftOffset;
         const prop = boxProps.get(box.id);
-        if (prop) prop.y = view.root.position.y;
+        if (prop) {
+          prop.y = view.root.position.y;
+          prop.aimY = view.root.position.y + boxPlacementDimensions(box).h / 2;
+        }
       }
       coupledBoxIds.push(box.id);
     }
@@ -4052,7 +5137,9 @@ export function makeClubhouse(ctx) {
 
   function clearDeliveryVanColliders() {
     for (const collider of deliveryVanColliders.values()) removeCol(collider);
-    deliveryVanColliders = new Map();
+    deliveryVanColliders.clear();
+    deliveryVanColliderDescriptors.clear();
+    deliveryVanColliderRevision = -1;
   }
 
   function installDeliveryVanColliders({ closedCargo = false } = {}) {
@@ -4068,6 +5155,7 @@ export function makeClubhouse(ctx) {
       const collider = mutableEquipmentCollider(descriptor);
       addCol(collider);
       deliveryVanColliders.set(descriptor.name, collider);
+      deliveryVanColliderDescriptors.set(descriptor.name, descriptor);
     }
     // The authored floor is about 0.50 m above grade. Removing its 2D footprint
     // when the doors opened let a normal-W player walk underneath/intersect it
@@ -4081,25 +5169,26 @@ export function makeClubhouse(ctx) {
         : 'COL_VAN_OPEN_CARGO_PLATFORM_HULL';
       addCol(hull);
       deliveryVanColliders.set(hull.name, hull);
+      deliveryVanColliderDescriptors.set(hull.name, cargoFootprint);
     }
+    deliveryVanColliderRevision = deliveryEquipment.colliderRevision('delivery_van');
   }
 
   function syncDeliveryVanColliders() {
     if (!deliveryEquipment || !deliveryVanColliders.size) return;
-    const descriptors = deliveryEquipment.colliderDescriptors('delivery_van');
-    const current = new Map(descriptors.map((entry) => [entry.name, entry]));
-    const cargoFootprint = current.get('COL_VAN_CARGO_FLOOR');
-    if (cargoFootprint) {
-      current.set('COL_VAN_CLOSED_CARGO_HULL', cargoFootprint);
-      current.set('COL_VAN_OPEN_CARGO_PLATFORM_HULL', cargoFootprint);
-    }
+    const revision = deliveryEquipment.colliderRevision('delivery_van');
+    if (revision === deliveryVanColliderRevision) return;
+    // Refreshes the stable descriptor objects only when the wrapper or an
+    // authored cargo-door pivot has actually moved.
+    deliveryEquipment.colliderDescriptors('delivery_van');
     for (const [name, collider] of deliveryVanColliders) {
-      const descriptor = current.get(name);
+      const descriptor = deliveryVanColliderDescriptors.get(name);
       if (descriptor) syncColliderFromDescriptor(collider, descriptor);
     }
+    deliveryVanColliderRevision = revision;
   }
 
-  function deliveryEquipmentProp(entry, x, z) {
+  function deliveryEquipmentProp(entry, x, z, y = null) {
     // These are full-size wheeled props with collision shells; their handles
     // must become focusable before the player's capsule is stopped by the
     // frame/forks. Keep the reach restrained but outside each footprint.
@@ -4108,14 +5197,44 @@ export function makeClubhouse(ctx) {
       delivery_stocking_cart: 2.05,
       delivery_pallet_jack: 1.90,
     }[entry.id] || 1.8;
-    const common = { x, z, r: interactionRadius };
+    const liveFocusPoint = { x, y: Number.isFinite(y) ? y : floorY, z };
+    const focusPoint = () => {
+      const node = entry.interactionTarget;
+      if (!node?.parent) return liveFocusPoint;
+      node.updateWorldMatrix(true, false);
+      const elements = node.matrixWorld.elements;
+      liveFocusPoint.x = elements[12];
+      liveFocusPoint.y = elements[13];
+      liveFocusPoint.z = elements[14];
+      return liveFocusPoint;
+    };
+    const common = {
+      x, z, r: interactionRadius,
+      aimY: liveFocusPoint.y,
+      focusPoint,
+    };
     if (entry.id === 'delivery_hand_truck') {
       return addProp({
         ...common,
-        label: () => deliveryEquipment?.diagnostics().handTruck.active
-          ? 'Delivery hand truck — checking the axle balance...'
-          : 'Delivery hand truck — [E] tip it back and check the load balance',
+        retainFocus: () => !!deliveryEquipment?.diagnostics().handTruck.active,
+        label: () => {
+          const status = deliveryEquipment?.diagnostics().handTruck;
+          if (status?.active) return 'Delivery hand truck — checking the axle balance...';
+          const box = carriedBox(state);
+          if (box) {
+            const placement = handTruckPlacementForCarriedBox(state, box.id);
+            return placement.ok
+              ? 'Delivery hand truck — [E] place the carton on the toe plate'
+              : `Delivery hand truck — ${placement.reason}`;
+          }
+          return 'Delivery hand truck — [E] tip it back and check the load balance';
+        },
         action: () => {
+          if (deliveryEquipment?.diagnostics().handTruck.active) return;
+          if (carriedBox(state)) {
+            placeCarriedBoxOnHandTruck({ requireNearby: false });
+            return;
+          }
           const started = deliveryEquipment?.triggerHandTruckTilt?.();
           if (started === false) return;
           sfx('thunk');
@@ -4188,7 +5307,7 @@ export function makeClubhouse(ctx) {
       const target = entry.interactionTarget
         ? entry.interactionTarget.getWorldPosition(new THREE.Vector3())
         : entry.root.getWorldPosition(new THREE.Vector3());
-      deliveryEquipmentProp(entry, target.x, target.z);
+      deliveryEquipmentProp(entry, target.x, target.z, target.y);
       registeredDeliveryEquipmentIds.add(entry.id);
     }
     rebuildBoxes();
@@ -4397,7 +5516,7 @@ export function makeClubhouse(ctx) {
   let disposing = false;
   let disposalSummary = null;
   // golfer-wardrobe palette, muted to the club color language
-  const CUST_COLORS = [0x4a6d94, 0x2c3e66, 0xb0788f, 0xb3714a, 0x4a7050, 0x8a8577, 0x6b4f37];
+  const CUST_COLORS = [0x4a6d94, 0x2c3e66, 0xb0788f, 0x8f4f39, 0x4a7050, 0x7b8277, 0x4d4038];
   const counterQueue = [];
   const doorW = L2W(DOOR_MAIN.x, halfD);
   const spawnW = { x: doorW.x + 1.5, z: doorW.z + SHELL.porchD + 9 };
@@ -4482,21 +5601,24 @@ export function makeClubhouse(ctx) {
         : (browsable.length ? [{ fixture: browsable[rng.int(browsable.length)], skuId: null }] : []);
       for (const visit of visits) {
         const f = visit.fixture;
-        const wp = L2W(f.x, f.z);
-        // stand a step off the fixture, on its open side
-        const l = f;
-        const offZ = l.z < -5 ? 1.2 : l.z > 5 ? -1.2 : (l.ry !== 0 ? 0 : 1.2);
-        const offX = Math.abs(l.ry) > 0.5 ? (l.x < 0 ? 1.2 : -1.2) : 0;
+        // Keep a stable fixture-local browse pose so a customer already en
+        // route follows the same display through a build-mode move or turn.
+        const fixtureLocalX = (rng.next() - 0.5) * 0.8;
+        const halfDepth = Number.isFinite(f.footprint?.maxZ)
+          ? f.footprint.maxZ
+          : (FIXTURE_HALF[f.kind] || [1, 1])[1];
+        const fixtureLocalZ = halfDepth + 0.72 + (rng.next() - 0.5) * 0.4;
+        const pose = fixtureBrowsePose(f, fixtureLocalX, fixtureLocalZ);
         stops.push({
           kind: 'fixture',
+          fixtureId: f.id,
+          fixtureLocalX,
+          fixtureLocalZ,
           skus: f.skus,
           plannedSku: visit.skuId,
           browseOnly: !visit.skuId,
           title: f.title,
-          x: wp.x + offX + (rng.next() - 0.5) * 0.8,
-          z: wp.z + offZ + (rng.next() - 0.5) * 0.4,
-          faceX: wp.x,
-          faceZ: wp.z,
+          ...pose,
         });
       }
     }
@@ -5517,6 +6639,19 @@ export function makeClubhouse(ctx) {
       const stop = c.stops[c.stopIdx];
       if (!stop) { removeCustomer(i); continue; }
 
+      // A carried fixture and its stock are intentionally hidden. Hold only
+      // the shopper targeting that fixture until set-down retargets the stop;
+      // everyone else continues through the live store normally.
+      if (stop.kind === 'fixture' && stop.fixtureId
+        && builder.isCarrying() === stop.fixtureId) {
+        c.path = [];
+        c.pathGoal = null;
+        c.stuckT = 0;
+        c.repathed = false;
+        if (char) char.setMode('Idle');
+        continue;
+      }
+
       // NOBODY LEAVES HOLDING MERCHANDISE. The moment an unpaid cart-holder's
       // route turns for the door — patience, closing time, any path at all —
       // the goods go back on the display before they take a step. (Paid
@@ -5731,12 +6866,41 @@ export function makeClubhouse(ctx) {
   let poll = 0;
   let visClock = 0;
 
+  // Render-only visibility sync. Prewarm uses this after applying an editor
+  // camera so the shader draw sees the same PointLight set as the first live
+  // editor frame, without advancing customers, deliveries, or checkout state.
+  function syncCameraVisibility() {
+    const visible = clubhouseInteriorVisibleAt(
+      camera.position.x,
+      camera.position.z,
+      center.x,
+      center.z,
+    );
+    interior.visible = visible;
+    return visible;
+  }
+
   function update(dtMs) {
     const dt = Math.min(0.1, dtMs / 1000);
     now += dt;
+    // A mopped floor dries and sprayed solution flashes off. dryTick reports whether anything
+    // actually moved so an already-dry floor costs one comparison rather than a repaint.
+    if (dryTick(state, dt)) wetVisualDirty = true;
+    // Repainting the wet layer is a 4,264-cell canvas write; at ~12 Hz it is invisible to the
+    // player and costs a fraction of doing it every frame while a mop is down.
+    if (wetVisualDirty) {
+      wetRepaintClock += dt;
+      if (wetRepaintClock >= 0.08) {
+        wetRepaintClock = 0;
+        wetVisualDirty = false;
+        repaintWet();
+      }
+    }
+    sheet06Production.update(dt);
     updateDoors(dt, now);
     if (deliveryEquipment) {
       deliveryEquipment.update(dt);
+      syncEquipmentBoxViews();
       syncCoupledDeliveryPalletLift();
       syncDeliveryVanColliders();
       if (equipmentColliderSyncSeconds > 0) {
@@ -5745,6 +6909,7 @@ export function makeClubhouse(ctx) {
         syncStaticDeliveryColliders('delivery_pallet_jack');
       }
     }
+    updateBoxPlacementPreview();
     updateDeliveryBoxTransfers(dt);
     updateCustomers(dt);
     register.update(dt);
@@ -5806,8 +6971,7 @@ export function makeClubhouse(ctx) {
     visClock += dt;
     if (visClock > 0.5) {
       visClock = 0;
-      const cd = Math.hypot(camera.position.x - center.x, camera.position.z - center.z);
-      interior.visible = cd < 80;
+      syncCameraVisibility();
     }
   }
 
@@ -5828,10 +6992,34 @@ export function makeClubhouse(ctx) {
     suppressInteriorSunShadows(interior);
   });
 
+  // Walls, roof, porch, grime decals, and exterior dressing never change their
+  // transforms after construction. Door hinges are the deliberate exception:
+  // their subtrees remain auto-updating so normal E interactions keep swinging.
+  // Visibility and material changes (washing, weeds, the porch light) do not need
+  // matrix recomposition and continue to work on frozen objects.
+  {
+    const movingDoorRoots = new Set(doors.map((door) => door.hinge));
+    group.updateMatrixWorld(true);
+    const freezeShellBranch = (object) => {
+      if (movingDoorRoots.has(object)) return;
+      object.matrixAutoUpdate = false;
+      object.matrixWorldNeedsUpdate = false;
+      for (const child of object.children) freezeShellBranch(child);
+    };
+    freezeShellBranch(group);
+  }
+
   function dispose() {
     if (disposing) return disposalSummary;
     disposing = true;
     register.leave({ restorePointer: false });
+    const sheet06ProductionDisposal = sheet06Production.dispose();
+    // The 71-100 dressing is NOT released here. Its meshes are GLB clones, and this teardown's
+    // rule for loader clones is that the cache which produced them owns freeing them — the same
+    // boundary createMerch and the Sheet-6 isolated cache sit behind. Freeing them from this side
+    // as well is a double release, which tests/clubhouse-resource-lifecycle.test.js counts.
+    // `props71to100.dispose()` exists for rebuilding the dressing on its own, not for teardown.
+    const boxPlacementDisposal = boxPlacementMode?.dispose?.() || null;
     deliveryBoxTransfers.clear();
     deliveryBoxTransferHistory.length = 0;
     deliveryTransferBatch = null;
@@ -5887,6 +7075,10 @@ export function makeClubhouse(ctx) {
       protectedRenderableResources,
       equipmentBorrowedResources,
       merch.ownedResources ? merch.ownedResources() : null,
+      // Assets 71-100 are GLB clones. Like every other loader clone in this teardown, the cache
+      // that produced them owns releasing them — the procedural walk must not free them a second
+      // time. `interior` is a staticRoot, so without this the walk reaches straight into them.
+      collectRenderableResources([props71to100.group]),
     );
 
     camera.remove(carriedBoxHands);
@@ -5900,15 +7092,44 @@ export function makeClubhouse(ctx) {
     const procedural = disposeRenderableResources(ownedResources, protectedResources);
     const merchandise = merch.dispose ? merch.dispose() : null;
     deliveryEquipment = null;
-    disposalSummary = Object.freeze({ procedural, merchandise, deliveryEquipment: deliveryEquipmentDisposal });
+    boxPlacementMode = null;
+    disposalSummary = Object.freeze({
+      procedural,
+      merchandise,
+      deliveryEquipment: deliveryEquipmentDisposal,
+      boxPlacement: boxPlacementDisposal,
+      sheet06Production: sheet06ProductionDisposal,
+    });
     return disposalSummary;
   }
 
   return {
     group, interior,
-    update, rebuildStock, rebuildReno, refreshCondition, repaintGrime,
-    rebuildBoxes, presentDeliveryArrival,
+    update, syncCameraVisibility, rebuildStock, rebuildReno, refreshCondition, repaintGrime,
+    rebuildBoxes, presentDeliveryArrival, renderDeliveryCarryOverlay,
+    sheet06Production: sheet06ProductionPublic,
+    sheet06ProductionReady: () => sheet06Production.ready,
+    boxPlacement: Object.freeze({
+      isActive: () => !!boxPlacementMode?.isActive(),
+      hasCarriedBox: () => !!carriedBox(state),
+      isTransitioning: () => !!recyclingDrop,
+      activate: () => beginCarriedBoxPlacement({ force: true }),
+      commit: commitCarriedBoxPlacement,
+      rotate: () => (!recyclingDrop && boxPlacementMode?.rotate()) || false,
+      cancel: cancelCarriedBoxPlacement,
+      label: boxPlacementLabel,
+      diagnostics: () => ({
+        ...(boxPlacementMode?.diagnostics() || {}),
+        boxId: placementBoxId,
+        dismissedBoxId: placementDismissedBoxId,
+        transitioning: !!recyclingDrop,
+        occluderDistance: placementOccluderDistance,
+        occluderName: placementOccluderName,
+        occlusionChecks: placementOcclusionChecks,
+      }),
+    }),
     assetsReady: () => merch.isReady(),
+    stockDisplayDiagnostics,
     deliveryEquipmentReady: () => !!deliveryEquipment?.isReady(),
     deliveryBoxPresentationDiagnostics,
     deliveryEquipmentDiagnostics: () => {
@@ -6086,8 +7307,31 @@ export function makeClubhouse(ctx) {
       if (r.cleaned > 0) washing.announceIfDone(hit.id);
       return r;
     },
+    // assets 71-100 dressing
+    props71to100: {
+      ready: props71to100.ready,
+      diagnostics: () => props71to100.diagnostics(),
+    },
     washJet: (from, to, on, dt) => washing.setJet(from, to, on, dt),
     washTick: (dt) => washing.tick(dt),
+    // the cleaning kit: one entry point, dispatched on the tool's declared class. Callers pass
+    // the tool's own socket point in world space — never a guess taken off the camera.
+    cleanWithTool,
+    debrisTotal: () => totalDebris(state),
+    debrisCount: () => debrisState(state).length,
+    panLoad: () => state.shop.reno.pan || 0,
+    bagLoad: () => state.shop.reno.bag || 0,
+    emptyPan: () => {
+      const had = state.shop.reno.pan || 0;
+      state.shop.reno.pan = 0;
+      state.shop.reno.bag = Math.round(((state.shop.reno.bag || 0) + had) * 1000) / 1000;
+      return had;
+    },
+    disposeBag: () => {
+      const had = state.shop.reno.bag || 0;
+      state.shop.reno.bag = 0;
+      return had;
+    },
     customers, doors, // QA access
     debugSpawn: spawnCustomer, // QA: force a walk-in
     setOrganicWalkins: (on) => { organicWalkins = !!on; }, // QA: silence random walk-ins for a scripted run

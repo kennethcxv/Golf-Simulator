@@ -244,31 +244,16 @@ function ensureRenoContainer(state) {
   return state.shop.reno;
 }
 
-// Idempotent and monotonic: an already-canonical object keeps its identity.
-// Newly completed legacy work may promote a false flag to true, but this
-// function never changes true back to false and never writes sibling reno data.
+// Idempotent: an already-canonical object keeps its identity and is the sole
+// authority for architecture restoration. Legacy cleaning/completion evidence
+// is consumed exactly once while an absent or non-canonical block is normalized;
+// later cleaning must not repair structural components behind the save's back.
 export function ensureClubhouseArchitecture(state) {
   const reno = ensureRenoContainer(state);
   if (!reno) return null;
   const source = reno.architecture;
 
-  if (isCanonicalArchitecture(source)) {
-    const evidence = legacyCompletionEvidence(reno, source);
-    const needsPromotion = ARCHITECTURE_COMPONENTS.some(
-      (component) => evidence.has(component) && !source.components[component].restored,
-    );
-    if (!needsPromotion) return source;
-
-    try {
-      for (const component of ARCHITECTURE_COMPONENTS) {
-        if (evidence.has(component)) source.components[component].restored = true;
-      }
-      return source;
-    } catch {
-      // A frozen/corrupt imported block cannot be repaired in place. Normalize
-      // into a fresh mutable value if its parent container permits replacement.
-    }
-  }
+  if (isCanonicalArchitecture(source)) return source;
 
   const normalized = normalizedArchitecture(reno, source);
   try {

@@ -11,7 +11,7 @@ import { calendarOf } from './time.js';
 import { addRevenue, addExpense, unbill } from './economy.js';
 import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
 import { planShipment } from '../data/boxes.js';
-import { capacityOf } from '../data/fixtureSlots.js';
+import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
 import { INTERIOR, CLUTTER_SPOTS, WINDOWS } from '../data/shopLayout.js';
 import {
   arriveOrder, openAllBoxes, ensureDeliveries, padHasRoom, padCount, PAD_CAPACITY,
@@ -20,6 +20,7 @@ import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
 import { members } from './golfers.js';
 import { notify } from './notifications.js';
+import { placedFixtures } from './layout.js';
 
 // --- restoration arc ------------------------------------------------------------
 // The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
@@ -323,7 +324,9 @@ export function initShop(state) {
     orders: [],
     nextOrderId: 1,
     markup: { clubs: 1.0, balls: 1.0, apparel: 1.0, accessories: 1.0, provisions: 1.0 },
-    featureCategory: 'balls', // the front table the player merchandises
+    // The entrance feature is the authored rangefinder display. Rangefinders
+    // are accessories, so its attention nudge must agree with what is visible.
+    featureCategory: 'accessories',
     rentalFleet: { sets: 3, condition: 55, pricePerRound: 18 },
     deliveries: { boxes: [], nextBoxId: 1, trash: 0, recycled: 0, shipments: [] },
     carry: null,         // WHAT IS IN YOUR HANDS: {skuId, qty} — see sim/stocking.js
@@ -614,6 +617,22 @@ export function shelfCapacity(sku) {
   return slots > 0 ? slots : SHELF_CAP[sku.cat];
 }
 
+function placedFixtureIds(state) {
+  return new Set(placedFixtures(state).map((fixture) => fixture.id));
+}
+
+function skuDisplayIsInSet(skuId, fixtureIds) {
+  const fixture = homeFixture(skuId);
+  // Catalog lines without an authored fixture retain their legacy behavior.
+  // Authored lines, however, are sellable/shelfable only while that one real
+  // display is on the floor.
+  return !fixture || fixtureIds.has(fixture.id);
+}
+
+export function skuDisplayIsPlaced(state, skuId) {
+  return skuDisplayIsInSet(skuId, placedFixtureIds(state));
+}
+
 // does the shop own its vacuum yet? (equipment lives in .back, never on shelves)
 export function vacuumOwned(state) {
   const inv = state.shop.inventory.vac1;
@@ -624,6 +643,7 @@ export function vacuumOwned(state) {
 export function restockShelfFromBackroom(state, skuId) {
   const sku = skuById(skuId);
   if (!RETAIL_CATS.has(sku.cat)) return { ok: false, reason: 'Equipment stays in the back.' };
+  if (!skuDisplayIsPlaced(state, skuId)) return { ok: false, reason: 'That display is stored.' };
   const inv = state.shop.inventory[skuId];
   const space = shelfCapacity(sku) - inv.shelf;
   const move = Math.min(space, inv.back);
@@ -638,11 +658,13 @@ export function restockShelvesByStaff(state) {
   const skill = bestSkill(state, ROLE.PROSHOP);
   if (skill <= 0) return 0;
   openAllBoxes(state); // the crew unboxes the truck's drop before shelving
+  const floorFixtures = placedFixtureIds(state);
   let capacity = 30 + skill * 25; // units they can shelve in a morning
   let moved = 0;
   for (const sku of SHOP_CATALOG) {
     if (capacity <= 0) break;
     if (!RETAIL_CATS.has(sku.cat)) continue; // your vacuum is not for sale
+    if (!skuDisplayIsInSet(sku.id, floorFixtures)) continue;
     const inv = state.shop.inventory[sku.id];
     const space = shelfCapacity(sku) - inv.shelf;
     const move = Math.min(space, inv.back, capacity);
@@ -671,8 +693,11 @@ export function demandWeight(cat, seasonIndex) {
 }
 
 export function shopOpenStock(state) {
+  const floorFixtures = placedFixtureIds(state);
   let units = 0;
-  for (const inv of Object.values(state.shop.inventory)) units += inv.shelf;
+  for (const [skuId, inv] of Object.entries(state.shop.inventory)) {
+    if (skuDisplayIsInSet(skuId, floorFixtures)) units += inv.shelf;
+  }
   return units;
 }
 
@@ -691,6 +716,7 @@ export function shopDailyAccrual(state) {
 
   // staff shelve stock before the doors open
   restockShelvesByStaff(state);
+  const floorFixtures = placedFixtureIds(state);
 
   // shopper flow: players on the course + member drop-ins + reputation walk-ins
   const shoppers = Math.round(
@@ -734,7 +760,7 @@ export function shopDailyAccrual(state) {
 
     const options = (catalogByCat[cat] || []).filter((s) => {
       if (s.coldSeason && (seasonIndex === 1)) return false; // no storm shells in July
-      return state.shop.inventory[s.id].shelf > 0;
+      return skuDisplayIsInSet(s.id, floorFixtures) && state.shop.inventory[s.id].shelf > 0;
     });
 
     if (!options.length) {

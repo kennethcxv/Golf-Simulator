@@ -39,7 +39,15 @@ export const INTERIOR = { w: SHELL.w - 2 * SHELL.wallT, d: SHELL.d - 2 * SHELL.w
 
 // --- doors (all real, hinged, E-operated; collide when closed) -------------------
 // Angles/swing are the scene's job; the plan fixes position and clear width.
-export const DOOR_MAIN = { wall: 'S', x: -0.8, w: 1.8, h: 2.6, hingeX: -1.7 };    // porch entrance (glazed, deep green)
+// Asset 53 is authored at exactly 1.80 m x 2.45 m. The floor plan is in yards,
+// so retain the exact conversion here instead of the former rounded single-slab
+// dimensions. `hingeX` is the authored left-leaf outer hinge for legacy readers.
+export const DOOR_MAIN = {
+  wall: 'S', x: -0.8,
+  w: 1.8 / 0.9144,
+  h: 2.45 / 0.9144,
+  hingeX: -0.8 - (0.9 / 0.9144),
+}; // porch entrance (glazed walnut double leaves)
 export const DOOR_STOCK = { wall: 'partS', x: 8.9, z: 2.0, w: 1.3, h: 2.5, hingeX: 8.25 }; // office → stockroom
 export const DOOR_BACK = { wall: 'E', z: -3.6, w: 1.5, h: 2.5, hingeZ: -4.35 };   // stockroom → receiving pad
 
@@ -66,18 +74,56 @@ export const WINDOW_DIM = { w: 2.4, h: 1.9, sill: 0.85 };
 // the collider, the layout tests and the placement validator all read it, so a fixture can never
 // be one size to the physics and another to the rules.
 export const FIXTURE_HALF = {
-  shelf: [1.6, 0.35], rack: [1.5, 0.45], table: [1.2, 0.8], hatstand: [0.4, 0.4],
-  bagstand: [1.3, 0.75], shoerack: [1.3, 0.4], feature: [0.9, 0.9], backshelf: [1.4, 0.45],
-  rail: [1.1, 0.45], backcounter: [1.6, 0.3], snackrack: [0.53, 0.25],
+  shelf: [1.6, 0.35], rack: [1.25, 0.25], table: [0.80, 0.45], hatstand: [0.53, 0.18],
+  bagstand: [0.83, 0.23], shoerack: [1.3, 0.4], apparelwall: [0.63, 0.25],
+  feature: [0.85, 0.55], backshelf: [1.4, 0.45], rail: [0.60, 0.225],
+  backcounter: [1.7, 0.35], snackrack: [0.53, 0.25],
 };
 
 export function fixtureRect(f) {
+  if (f.footprint) {
+    const { minX, maxX, minZ, maxZ } = f.footprint;
+    const c = Math.cos(f.ry || 0);
+    const s = Math.sin(f.ry || 0);
+    const points = [
+      [minX, minZ], [minX, maxZ], [maxX, minZ], [maxX, maxZ],
+    ].map(([x, z]) => ({
+      x: f.x + x * c + z * s,
+      z: f.z - x * s + z * c,
+    }));
+    return {
+      minX: Math.min(...points.map((p) => p.x)),
+      maxX: Math.max(...points.map((p) => p.x)),
+      minZ: Math.min(...points.map((p) => p.z)),
+      maxZ: Math.max(...points.map((p) => p.z)),
+    };
+  }
   let [a, b] = FIXTURE_HALF[f.kind] || [1, 1];
   if (f.short) a = 0.85; // the doorway-adjacent short units (the builders honour this too)
   const swap = Math.abs(Math.sin(f.ry || 0)) > 0.5; // rotated a quarter turn
   const hx = swap ? b : a;
   const hz = swap ? a : b;
   return { minX: f.x - hx, maxX: f.x + hx, minZ: f.z - hz, maxZ: f.z + hz };
+}
+
+// Customer fixture stops are authored in fixture-local space. `+z` is the
+// presentation/front side of every movable display, including asymmetric
+// footprints such as the shoe wall. Keeping the transform here means the
+// runtime path target and build-mode placement validator cannot disagree about
+// which side of a rotated fixture a shopper must be able to reach.
+export function fixtureBrowsePoint(f, localX = 0, localZ = null) {
+  const fallbackHalfDepth = (FIXTURE_HALF[f.kind] || [1, 1])[1];
+  const front = Number.isFinite(f.footprint?.maxZ)
+    ? f.footprint.maxZ
+    : fallbackHalfDepth;
+  const browseZ = Number.isFinite(localZ) ? localZ : front + 0.72;
+  const angle = f.ry || 0;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return {
+    x: f.x + localX * cos + browseZ * sin,
+    z: f.z - localX * sin + browseZ * cos,
+  };
 }
 
 export const PARTITIONS = [
@@ -92,7 +138,11 @@ export const STOCKROOM = {
   // exterior aperture and the raised service road beside the east wall.
   padOutside: { x: 13.0, z: 0.0 },
   packing: { x: 6.9, z: -0.9, ry: 0 },     // the packing bench (tape gun, clipboard)
-  handTruck: { x: 6.1, z: -5.9 },
+  // Ref 42 lives in the open receiving lane: reachable from both sides, clear
+  // of the start-state clutter at (6.4, -4.6), and outside the east-shelf and
+  // stock-cart footprints. Keeping it here makes the toe plate and handle
+  // independently usable even before the player restores the room.
+  handTruck: { x: 8.35, z: -3.95 },
   bin: { x: 9.85, z: 1.3 },                // recycling by the stock door, east of the swing
   cleaning: { x: 6.1, z: 1.45 },           // mop bucket / brooms corner
 };
@@ -193,7 +243,7 @@ export const REGISTER = {
 
   // surfaces
   staging: { minX: 2.05, maxX: 2.80, minZ: 3.78, maxZ: 4.10 },  // customer lays goods out here
-  // Counted change rests in this shallow authored tray before handoff. Keeping
+  // counted change rests in this shallow authored tray before handoff. Keeping
   // the footprint in the shared layout makes the prop, money, reach tests and
   // camera composition use one source of truth.
   changeHandoff: { x: 3.10, z: 4.60, w: 0.38, d: 0.20 },
@@ -219,28 +269,29 @@ export const LOGO_RUG = { x: -0.8, z: 3.1, w: 3.6, d: 2.4 }; // club logo rug on
 export const HOURS_SIGN = { x: 1.1, z: 6.77 };         // beside the door, on the porch face
 
 // --- retail fixtures ----------------------------------------------------------------
-// kind: shelf | rack | table | rail | hatstand | bagstand | shoerack | feature
+// kind: shelf | rack | table | rail | hatstand | bagstand | shoerack | apparelwall | feature
 //     | snackrack | backcounter | backshelf
 export const FIXTURES = [
   // the club wall — one architectural run down the west wall (refs 1/5)
-  { id: 'rack_drivers', kind: 'rack', x: -9.9, z: -3.2, ry: Math.PI / 2, skus: ['driver1', 'driver2', 'driver3'], title: 'Drivers & woods', zone: 'clubwall' },
-  { id: 'rack_irons', kind: 'rack', x: -9.9, z: -0.2, ry: Math.PI / 2, skus: ['irons1', 'irons2', 'wedge1', 'wedge2'], title: 'Irons & wedges', zone: 'clubwall' },
-  { id: 'rack_putters', kind: 'rack', x: -9.9, z: 2.8, ry: Math.PI / 2, skus: ['putter1', 'putter2'], title: 'Putter studio', zone: 'clubwall' },
+  { id: 'rack_drivers', kind: 'rack', x: -9.9, z: -3.45, ry: Math.PI / 2, skus: ['driver1', 'driver2', 'driver3'], title: 'Drivers & woods', zone: 'clubwall', footprint: { minX: -1.23, maxX: 1.23, minZ: -0.23, maxZ: 0.23 } },
+  { id: 'rack_irons', kind: 'rack', x: -9.9, z: -0.99, ry: Math.PI / 2, skus: ['irons1', 'irons2', 'wedge1', 'wedge2'], title: 'Irons & wedges', zone: 'clubwall', footprint: { minX: -1.23, maxX: 1.23, minZ: -0.23, maxZ: 0.23 } },
+  { id: 'rack_putters', kind: 'rack', x: -9.9, z: 2.02, ry: Math.PI / 2, skus: ['putter1', 'putter2'], title: 'Putter studio', zone: 'clubwall', footprint: { minX: -1.03, maxX: 1.03, minZ: -0.205, maxZ: 0.205 } },
   // north wall retail walls
   { id: 'shelf_balls', kind: 'shelf', x: -6.9, z: -6.15, ry: 0, skus: ['balls1', 'balls2', 'balls3'], title: 'Ball wall', zone: 'balls' },
-  { id: 'shelf_acc', kind: 'shelf', x: -3.7, z: -6.15, ry: 0, skus: ['tees1', 'towel1', 'marker1', 'range2', 'umb1'], title: 'Accessories', zone: 'accessories' },
+  { id: 'shelf_acc', kind: 'shelf', x: -3.7, z: -6.15, ry: 0, skus: ['tees1', 'towel1', 'marker1', 'umb1'], title: 'Accessories', zone: 'accessories' },
   { id: 'shelf_small', kind: 'shelf', x: -0.5, z: -6.15, ry: 0, skus: ['glove1', 'sock1'], title: 'Gloves & socks', zone: 'accessories' },
   // apparel block, center floor
-  { id: 'table_polos', kind: 'table', x: -5.9, z: 0.6, ry: 0, skus: ['polo1', 'polo2'], title: 'Apparel tables', zone: 'apparel' },
+  { id: 'table_polos', kind: 'table', x: -5.9, z: 0.6, ry: 0, skus: ['polo1'], title: 'Apparel table', zone: 'apparel' },
   { id: 'rail_outer', kind: 'rail', x: -2.4, z: 0.9, ry: Math.PI / 2, skus: ['jacket2'], title: 'Outerwear rail', zone: 'apparel' },
-  { id: 'hatstand', kind: 'hatstand', x: -3.4, z: -1.6, ry: 0, skus: ['cap1'], title: 'Hat tree', zone: 'apparel' },
+  { id: 'hatstand', kind: 'hatstand', x: -3.4, z: -1.6, ry: 0, skus: ['cap1'], title: 'Hat wall', zone: 'apparel' },
+  { id: 'apparel_display', kind: 'apparelwall', x: 5.44, z: 1.30, ry: -Math.PI / 2, skus: ['polo2'], title: 'Apparel wall', zone: 'apparel' },
   // bag & shoe fitting, against the service partition (ref 7)
   { id: 'bagstand', kind: 'bagstand', x: 2.2, z: -2.6, ry: 0, skus: ['bag1'], title: 'Bag platforms', zone: 'bags' },
-  { id: 'shoerack', kind: 'shoerack', x: 5.1, z: -0.6, ry: -Math.PI / 2, skus: ['shoe1'], title: 'Shoe wall', zone: 'shoes' },
+  { id: 'shoerack', kind: 'shoerack', x: 5.1, z: -0.6, ry: -Math.PI / 2, skus: ['shoe1'], title: 'Shoe wall', zone: 'shoes', footprint: { minX: -1.23, maxX: 1.23, minZ: -0.18, maxZ: 1.18 } },
   // existing authored Sheet-03 grab-and-go shelf between the south windows
   { id: 'snackrack', kind: 'snackrack', x: -6.6, z: 6.02, ry: Math.PI, skus: ['water1', 'snack1'], title: 'Grab & Go', zone: 'provisions' },
   // entrance feature display (shows whatever category is featured)
-  { id: 'feature', kind: 'feature', x: -3.2, z: 3.8, ry: 0, skus: [], title: 'Feature display', zone: 'entrance' },
+  { id: 'feature', kind: 'feature', x: -3.2, z: 3.8, ry: 0, skus: ['range2'], title: 'Rangefinder display', zone: 'entrance' },
   // checkout back-counter: wordmark wall, cabinets, bag stack (ref 4)
   { id: 'backcounter', kind: 'backcounter', x: 3.2, z: 6.15, ry: 0, skus: [], title: 'Back counter', zone: 'checkout' },
   // stockroom (non-retail; visualizes backroom stock + receives boxes)

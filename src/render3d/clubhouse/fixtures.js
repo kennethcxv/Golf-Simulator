@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import {
   FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, SHELL, LOGO_RUG, REGISTER, COUNTER_TOP,
+  fixtureRect,
 } from '../../data/shopLayout.js';
 import { restockShelfFromBackroom } from '../../sim/shop.js';
 import { skuById } from '../../data/shopItems.js';
@@ -25,6 +26,7 @@ import {
   mergeRenderableResources,
 } from './resourceLifecycle.js';
 import { DELIVERY_EQUIPMENT_DEFAULT_LAYOUT } from './deliveryEquipment.js';
+import { createMovableFixtureCoreBatcher } from './fixtureCoreBatching.js';
 
 // warm under-shelf light strip (pure emissive — the real lights are the rig's)
 function lightStrip(mats, w) {
@@ -47,6 +49,11 @@ function categorySign(title, { w = 1.5, h = 0.26, charcoal = false } = {}) {
   );
 }
 
+export function incompatibleStockingLabel(fixtureTitle, skuName, correctFixtureTitle = null) {
+  const destination = correctFixtureTitle || 'its assigned display';
+  return `${fixtureTitle} — ${skuName} cannot be stocked here · take it to ${destination}`;
+}
+
 function releaseReplacedFixture(root, mats, merch) {
   if (!root) return;
   root.removeFromParent();
@@ -57,19 +64,51 @@ function releaseReplacedFixture(root, mats, merch) {
   disposeRenderableResources(collectRenderableResources(root), protectedResources);
 }
 
+// Toggle only the colliders authored by one movable fixture. Registration is
+// stateful so repeated update/cancel calls cannot duplicate an entry in the
+// shared player/customer collider arrays.
+export function setTrackedFixtureCollidersActive(
+  colliders,
+  fixtureId,
+  active,
+  addCollider,
+  removeCollider,
+) {
+  let changed = 0;
+  for (const collider of colliders) {
+    if (collider.fixtureLayoutId !== fixtureId) continue;
+    if (active && collider.fixtureColliderActive === false) {
+      addCollider(collider);
+      collider.fixtureColliderActive = true;
+      changed++;
+    } else if (!active && collider.fixtureColliderActive !== false) {
+      removeCollider(collider);
+      collider.fixtureColliderActive = false;
+      changed++;
+    }
+  }
+  return changed;
+}
+
 export function buildFixtures(B) {
   const {
     interior, mats, merch, addCol: rawAddCol, addProp: rawAddProp, removeCol, removeProp,
     colBoxAt, L2W, state, hooks,
   } = B;
+  const fixtureCoreBatcher = createMovableFixtureCoreBatcher(merch);
 
   // Only what the fixture loop lays down is re-layable; the counter, the rug and the lounge are
   // architecture, not furniture the player pushes around.
   let tracking = false;
+  let activeFixtureId = null;
   const laidCols = [];
   const laidProps = [];
   const addCol = (c) => {
-    if (tracking) laidCols.push(c);
+    if (tracking) {
+      c.fixtureLayoutId = activeFixtureId;
+      c.fixtureColliderActive = true;
+      laidCols.push(c);
+    }
     return rawAddCol(c);
   };
   const addProp = (p) => {
@@ -80,6 +119,26 @@ export function buildFixtures(B) {
   const fixtureAnchors = new Map();
   function disposeReplacedFixture(root) {
     releaseReplacedFixture(root, mats, merch);
+  }
+
+  function qualifyKitSockets(root, fixtureId, moduleTag) {
+    if (!root) return root;
+    root.traverse((object) => {
+      if (!object.name || !object.name.includes('SLOT_')) return;
+      object.name = `${fixtureId}_${moduleTag}_${object.name}`;
+    });
+    return root;
+  }
+
+  function addFixtureCollider(f) {
+    const bounds = fixtureRect(f);
+    addCol(colBoxAt(
+      (bounds.minX + bounds.maxX) / 2,
+      (bounds.minZ + bounds.maxZ) / 2,
+      bounds.maxX - bounds.minX,
+      bounds.maxZ - bounds.minZ,
+    ));
+    return bounds;
   }
 
   function shelfLabel(f) {
@@ -95,7 +154,8 @@ export function buildFixtures(B) {
       if (f.skus.includes(held.skuId)) {
         return `${f.title} — hold [E] to stock the ${heldSku.name.toLowerCase()} (${held.qty} in hand)`;
       }
-      return null;   // wrong fixture: let the player carry on to the right one without a false prompt
+      const correctFixture = placedFixtures(state).find((fixture) => fixture.skus.includes(held.skuId));
+      return incompatibleStockingLabel(f.title, heldSku.name, correctFixture?.title);
     }
 
     if (back > 0) return `${f.title} — ${shelf} out · ${back} in the back — [E] restock`;
@@ -110,7 +170,7 @@ export function buildFixtures(B) {
       return;
     }
     if (hooks.sfx) hooks.sfx(res.full ? 'fullShelf' : 'stock');
-    if (res.full && hooks.toast) hooks.toast(`The ${f.title.toLowerCase()} is full.`);
+    if (res.full && hooks.toast) hooks.toast(`The ${f.title.toLowerCase()} display is full.`);
   }
 
   // the old convenience path: pull already-unpacked stock from the backroom straight to the shelf.
@@ -139,7 +199,20 @@ export function buildFixtures(B) {
       label: () => shelfLabel(f),
       action: () => {
         const held = B.carriedGoods && B.carriedGoods();
-        if (held) { if (f.skus.includes(held.skuId)) stockHere(f, 1); }   // tap: one at a time
+        if (held) {
+          if (f.skus.includes(held.skuId)) stockHere(f, 1); // tap: one at a time
+          else {
+            const heldSku = skuById(held.skuId);
+            const correctFixture = placedFixtures(state)
+              .find((fixture) => fixture.skus.includes(held.skuId));
+            if (hooks.toast) {
+              hooks.toast(
+                `${heldSku.name} belongs on ${correctFixture?.title || 'its assigned display'}.`,
+                'warn',
+              );
+            }
+          }
+        }
         else restockAll(f);
       },
       // hold: stock a flow from the hands. Only when holding something this fixture accepts.
@@ -200,22 +273,18 @@ export function buildFixtures(B) {
     g.add(legacy);
     if (merch) merch.onReady(() => {
       const kitName = f.id === 'shelf_balls' ? 'ball_shelf' : 'accessory_slatwall';
-      const modules = [-1.0, 0.0, 1.0].map((mx) => {
-        const m = merch.instantiateKit && merch.instantiateKit(kitName);
-        if (m) m.position.x = mx;
-        return m;
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [-1.0, 0.0, 1.0].map((x) => ({ model: kitName, position: [x, 0, 0] })),
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
+      core.structure.children.forEach((module, index) => {
+        qualifyKitSockets(module, f.id, ['L', 'C', 'R'][index]);
       });
-      if (modules.some((m) => !m)) return;
-      for (const m of modules) g.add(m);
-      // the aisle sign rides above the modules (the ball merchandiser is low)
-      const sign = categorySign(f.title);
-      sign.position.set(0, f.id === 'shelf_balls' ? 1.48 : 2.06, 0.17);
-      g.add(sign);
       disposeReplacedFixture(legacy);
     });
-    const w = Math.abs(f.ry % Math.PI) < 0.1 ? 3.0 : 0.5;
-    const d = Math.abs(f.ry % Math.PI) < 0.1 ? 0.5 : 3.0;
-    addCol(colBoxAt(f.x, f.z, w + 0.2, d + 0.2));
+    addFixtureCollider(f);
     return g;
   }
 
@@ -274,21 +343,22 @@ export function buildFixtures(B) {
     g.add(legacy);
     if (merch) merch.onReady(() => {
       const putters = f.id === 'rack_putters';
-      const spots = putters ? [-0.53, 0.53] : [-0.6, 0.6];
-      const modules = spots.map((mx) => {
-        const m = merch.instantiateKit && merch.instantiateKit(putters ? 'putter_rack' : 'club_rack');
-        if (m) m.position.x = mx;
-        return m;
+      const spots = putters ? [-0.5, 0.5] : [-0.6, 0.6];
+      const core = fixtureCoreBatcher.mount(
+        g,
+        spots.map((x) => ({
+          model: putters ? 'putter_rack' : 'club_rack',
+          position: [x, 0, 0],
+        })),
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
+      core.structure.children.forEach((module, index) => {
+        qualifyKitSockets(module, f.id, index === 0 ? 'L' : 'R');
       });
-      if (modules.some((m) => !m)) return;
-      for (const m of modules) g.add(m);
-      // the category sign moves to the wall the rack stands against
-      const sign = categorySign(f.title, { w: 1.9, h: 0.3, charcoal: true });
-      sign.position.set(0, 1.78, -0.40);
-      g.add(sign);
       disposeReplacedFixture(legacy);
     });
-    addCol(colBoxAt(f.x, f.z, Math.abs(Math.sin(f.ry)) > 0.5 ? 1.0 : 3.0, Math.abs(Math.sin(f.ry)) > 0.5 ? 3.0 : 1.0));
+    addFixtureCollider(f);
     return g;
   }
 
@@ -301,80 +371,89 @@ export function buildFixtures(B) {
   function tableUnit(f) {
     const g = new THREE.Group();
     const legacy = new THREE.Group();
-    const top = new THREE.Mesh(roundedBox(2.2, 0.09, 1.4, 0.025), mats.walnut);
-    top.position.y = 0.96;
+    // Match the authored apparel_table contract exactly while the GLB warms:
+    // 1.60 x 0.90 m, with the usable top plane at y=0.801 m.
+    const top = new THREE.Mesh(roundedBox(1.6, 0.07, 0.9, 0.025), mats.walnut);
+    top.position.y = 0.766;
     top.castShadow = true;
     top.receiveShadow = true;
     legacy.add(top);
-    const apron = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.09, 1.2), mats.walnutDark);
-    apron.position.y = 0.88;
+    const apron = new THREE.Mesh(new THREE.BoxGeometry(1.46, 0.08, 0.76), mats.walnutDark);
+    apron.position.y = 0.70;
     legacy.add(apron);
-    for (const [lx, lz] of [[-0.95, -0.55], [0.95, -0.55], [-0.95, 0.55], [0.95, 0.55]]) {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.92, 8), mats.walnut);
-      leg.position.set(lx, 0.46, lz);
+    for (const [lx, lz] of [[-0.68, -0.34], [0.68, -0.34], [-0.68, 0.34], [0.68, 0.34]]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.70, 8), mats.walnut);
+      leg.position.set(lx, 0.35, lz);
       leg.castShadow = true;
       legacy.add(leg);
     }
     g.add(legacy);
     if (merch) merch.onReady(() => {
-      const m = merch.instantiateKit && merch.instantiateKit('apparel_table');
-      if (!m) return;
-      g.add(m);
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [{ model: 'apparel_table' }],
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
       disposeReplacedFixture(legacy);
     });
-    addCol(colBoxAt(f.x, f.z, 1.9, 1.2));
+    addFixtureCollider(f);
     return g;
   }
 
   // -------------------------------------------------- apparel wall fixture ----
-  // The Sheet-02 modular apparel wall (assets/checkout/apparel_wall): two
-  // 1.10 m kit modules side by side fill the rail's 2.2 yd footprint. The rod
-  // sits at the same y 1.68 the old freestanding rail put its bar, so the
-  // hanger slots in fixtureSlots.js stay on the metal. Until the kit loads,
-  // the old millwork rail stands in.
+  // Sheet-02 Asset 20 is one 1.20 x 0.45 m wall, not a duplicated rail run.
+  // The temporary form shares the authored socket surfaces and envelope, so
+  // async replacement cannot make stock jump or leave an oversized blocker.
   function railUnit(f) {
     const g = new THREE.Group();
     const legacy = new THREE.Group();
-    for (const rx of [-1.0, 1.0]) {
-      const upright = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1.66, 10), mats.iron);
-      upright.position.set(rx, 0.85, 0);
+    for (const rx of [-0.572, 0.572]) {
+      const upright = new THREE.Mesh(roundedBox(0.055, 2.18, 0.055, 0.004), mats.iron);
+      upright.position.set(rx, 1.09, -0.177);
       upright.castShadow = true;
       legacy.add(upright);
-      const foot = new THREE.Mesh(roundedBox(0.16, 0.05, 0.7, 0.02), mats.walnut);
-      foot.position.set(rx, 0.025, 0);
+      const foot = new THREE.Mesh(roundedBox(0.055, 0.045, 0.395, 0.004), mats.iron);
+      foot.position.set(rx, 0.0225, 0);
       legacy.add(foot);
     }
-    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 2.1, 10), mats.brass);
+    const back = new THREE.Mesh(roundedBox(1.10, 1.90, 0.018, 0.004), mats.walnut);
+    back.position.set(0, 1.05, -0.12);
+    back.receiveShadow = true;
+    legacy.add(back);
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.0135, 0.0135, 1.06, 14), mats.brass);
     bar.rotation.z = Math.PI / 2;
     bar.position.set(0, 1.68, 0);
     legacy.add(bar);
-    const signBacker = new THREE.Mesh(roundedBox(0.98, 0.26, 0.03, 0.012), mats.walnut);
-    signBacker.position.set(0, 1.92, 0);
+    const signBacker = new THREE.Mesh(roundedBox(1.20, 0.18, 0.16, 0.006), mats.iron);
+    signBacker.position.set(0, 2.11, -0.095);
     legacy.add(signBacker);
-    const signBoard = categorySign(f.title, { w: 0.9, h: 0.2 });
-    signBoard.position.set(0, 1.92, 0.017);
+    const signBoard = categorySign('APPAREL', { w: 1.02, h: 0.155, charcoal: true });
+    signBoard.position.set(0, 2.11, -0.012);
     legacy.add(signBoard);
-    const signBoardB = categorySign(f.title, { w: 0.9, h: 0.2 });
-    signBoardB.position.set(0, 1.92, -0.017);
-    signBoardB.rotation.y = Math.PI;
-    legacy.add(signBoardB);
-    for (const dx of [-0.4, 0.4]) {
-      const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.14, 6), mats.brass);
-      drop.position.set(dx, 1.75, 0);
-      legacy.add(drop);
+    for (const y of [0.315, 0.615]) {
+      const shelf = new THREE.Mesh(roundedBox(1.12, 0.03, 0.40, 0.006), mats.walnut);
+      shelf.position.set(0, y, 0);
+      shelf.receiveShadow = true;
+      legacy.add(shelf);
+    }
+    for (const rx of [-0.55, 0.55]) {
+      const side = new THREE.Mesh(roundedBox(0.045, 0.64, 0.39, 0.003), mats.iron);
+      side.position.set(rx, 0.32, -0.005);
+      legacy.add(side);
     }
     g.add(legacy);
     if (merch) merch.onReady(() => {
-      const modules = [-0.55, 0.55].map((mx) => {
-        const m = merch.instantiateKit && merch.instantiateKit('apparel_wall');
-        if (m) m.position.x = mx;
-        return m;
-      });
-      if (modules.some((m) => !m)) return;
-      for (const m of modules) g.add(m);
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [{ model: 'apparel_wall' }],
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
       disposeReplacedFixture(legacy);
     });
-    addCol(colBoxAt(f.x, f.z, Math.abs(Math.sin(f.ry)) > 0.5 ? 0.9 : 2.2, Math.abs(Math.sin(f.ry)) > 0.5 ? 2.2 : 0.9));
+    const bounds = fixtureRect(f);
+    addCol(colBoxAt(f.x, f.z, bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ));
     return g;
   }
 
@@ -408,12 +487,32 @@ export function buildFixtures(B) {
     }
     g.add(legacy);
     if (merch) merch.onReady(() => {
-      const m = merch.instantiateKit && merch.instantiateKit('hat_wall');
-      if (!m) return;
-      g.add(m);
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [{ model: 'hat_wall' }],
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
       disposeReplacedFixture(legacy);
     });
-    addCol(colBoxAt(f.x, f.z, 0.8, 0.8));
+    addFixtureCollider(f);
+    return g;
+  }
+
+  // ------------------------------------------------------ apparel wall -----
+  // Asset 21 is a real stocking fixture, not architectural dressing. Eight
+  // compact face-out garments and four folded stacks land on authored sockets.
+  function apparelwallUnit(f) {
+    const g = new THREE.Group();
+    g.name = 'ApparelWallDisplayFixture';
+    if (merch) merch.onReady(() => {
+      fixtureCoreBatcher.mount(
+        g,
+        [{ model: 'apparel_wall_display' }],
+        { name: `${f.id}FixtureCore` },
+      );
+    });
+    addFixtureCollider(f);
     return g;
   }
 
@@ -446,15 +545,15 @@ export function buildFixtures(B) {
     legacy.add(legacySign);
     g.add(legacy);
     if (merch) merch.onReady(() => {
-      const m = merch.instantiateKit && merch.instantiateKit('bag_display');
-      if (!m) return;
-      g.add(m);
-      const sign = categorySign(f.title, { w: 1.0, h: 0.2 });
-      sign.position.set(0, 1.18, -0.245);
-      g.add(sign);
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [{ model: 'bag_display' }],
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
       disposeReplacedFixture(legacy);
     });
-    addCol(colBoxAt(f.x, f.z, 2.6, 1.3));
+    addFixtureCollider(f);
     return g;
   }
 
@@ -496,21 +595,19 @@ export function buildFixtures(B) {
     }
     g.add(legacy);
     if (merch) merch.onReady(() => {
-      const modules = [-0.6, 0.6].map((mx) => {
-        const m = merch.instantiateKit && merch.instantiateKit('shoe_wall');
-        if (m) m.position.x = mx;
-        return m;
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [-0.6, 0.6].map((x) => ({ model: 'shoe_wall', position: [x, 0, 0] })),
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
+      core.structure.children.forEach((module, index) => {
+        qualifyKitSockets(module, f.id, index === 0 ? 'L' : 'R');
       });
-      if (modules.some((m) => !m)) return;
-      for (const m of modules) g.add(m);
-      const sign = categorySign(f.title);
-      sign.position.set(0, 2.06, 0.16);
-      g.add(sign);
       disposeReplacedFixture(legacy);
     });
-    const swap = Math.abs(Math.sin(f.ry)) > 0.5;
-    addCol(colBoxAt(f.x, f.z, swap ? 0.7 : 2.9, swap ? 2.9 : 0.7));
-    // fitting bench + mirror beside the rack
+    // The fitting bench is part of the fixture's declared composite footprint.
+    // Keeping it in local space makes it follow moves and quarter-turns exactly.
     const benchG = new THREE.Group();
     const cushion = new THREE.Mesh(roundedBox(1.1, 0.14, 0.42, 0.05), mats.sageFabric);
     cushion.position.y = 0.38;
@@ -518,22 +615,9 @@ export function buildFixtures(B) {
     benchBody.position.y = 0.16;
     benchBody.castShadow = true;
     benchG.add(benchBody, cushion);
-    const bwp = { x: f.x - (swap ? 1.2 : 0), z: f.z + (swap ? 2.1 : 1.2) };
-    benchG.position.set(bwp.x - f.x, 0, bwp.z - f.z);
+    benchG.position.set(0, 0, 0.95);
     g.add(benchG);
-    addCol(colBoxAt(bwp.x, bwp.z, 1.2, 0.5));
-    const mirror = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.55, 1.55),
-      new THREE.MeshStandardMaterial({ color: 0xdfe9ee, roughness: 0.05, metalness: 0.9 }),
-    );
-    mirror.position.set(0, 1.15, -0.19);
-    const mirrorFrame = new THREE.Mesh(roundedBox(0.68, 1.7, 0.05, 0.02), mats.walnut);
-    mirrorFrame.position.set(0, 1.15, -0.22);
-    const mirrorHolder = new THREE.Group();
-    mirrorHolder.add(mirrorFrame, mirror);
-    mirrorHolder.position.set(bwp.x - f.x - (swap ? 0 : 1.5), 0, bwp.z - f.z + (swap ? 1.4 : 0.0));
-    // lean the mirror against whatever wall the bench faces
-    g.add(mirrorHolder);
+    addFixtureCollider(f);
     return g;
   }
 
@@ -561,13 +645,24 @@ export function buildFixtures(B) {
     legacy.add(foot);
     g.add(legacy);
     if (merch) merch.onReady(() => {
-      const m = merch.instantiateKit && merch.instantiateKit('merch_table');
-      if (!m) return;
-      g.add(m);
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [
+          { model: 'merch_table' },
+          // The merch-table top is 0.75 m above the floor. Leave only a
+          // millimetre of clearance so the countertop display reads as seated
+          // on the walnut instead of hovering over it.
+          { model: 'rangefinder_display', position: [0, 0.751, 0] },
+        ],
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
       disposeReplacedFixture(legacy);
-      if (B.rebuildStock) B.rebuildStock();   // re-dress the feature onto the table grid
+      // The clubhouse-level merch-ready callback dresses every fixture after
+      // all kit callbacks have mounted. Rebuilding here ran the full stock bake
+      // once in the middle of relayFixtures and then again at the normal end.
     });
-    addCol(colBoxAt(f.x, f.z, 1.7, 1.1));
+    addFixtureCollider(f);
     return g;
   }
 
@@ -610,11 +705,6 @@ export function buildFixtures(B) {
       // the Sheet-03 rangefinder case presents the premium optics behind the
       // counter, where a shop keeps its $279 glass. It ships EMPTY like every
       // fixture — its felt tiers fill when optics are stocked, not before.
-      const kase = merch.instantiateKit && merch.instantiateKit('rangefinder_display');
-      if (kase) {
-        kase.position.set(-1.05, 1.01, 0.0);
-        g.add(kase);
-      }
       const dress = new THREE.Group();
       for (let i = 0; i < 7; i++) {
         const box = merch.instantiate('carton');
@@ -642,7 +732,7 @@ export function buildFixtures(B) {
       }
       g.add(merch.bake(dress));
     });
-    addCol(colBoxAt(f.x, f.z, 3.4, 0.7));
+    addFixtureCollider(f);
     return g;
   }
 
@@ -660,10 +750,10 @@ export function buildFixtures(B) {
   function backshelfUnit(f) {
     const g = new THREE.Group();
     const legacy = new THREE.Group();
-    const wZ = f.short ? 1.7 : 2.6; // doorway-adjacent short unit
-    const D = 0.62;
-    const H = 2.30;
-    const boards = [0.16, 0.62, 1.10, 1.58, 2.06];
+    const wZ = f.short ? 1.20 : 2.40; // one or two exact authored modules
+    const D = 0.50;
+    const H = 2.00;
+    const boardTops = [0.1455, 0.6455, 1.1455, 1.6455];
 
     for (const sx of [-wZ / 2 + 0.04, wZ / 2 - 0.04]) {
       for (const sz of [-D / 2 + 0.04, D / 2 - 0.04]) {
@@ -676,21 +766,21 @@ export function buildFixtures(B) {
         legacy.add(foot);
       }
     }
-    for (const y of boards) {
+    for (const surfaceY of boardTops) {
       const board = new THREE.Mesh(roundedBox(wZ - 0.02, 0.05, D - 0.02, 0.008), mats.rawWood);
-      board.position.set(0, y, 0);
+      board.position.set(0, surfaceY - 0.025, 0);
       board.receiveShadow = true;
       board.castShadow = true;
       legacy.add(board);
       // the front lip that stops a carton walking off the shelf
       const lip = new THREE.Mesh(new THREE.BoxGeometry(wZ - 0.02, 0.05, 0.018), mats.iron);
-      lip.position.set(0, y + 0.048, D / 2 - 0.03);
+      lip.position.set(0, surfaceY + 0.023, D / 2 - 0.03);
       legacy.add(lip);
     }
     // X-bracing across the back — what actually stops a rack racking
-    for (let i = 0; i < boards.length - 1; i++) {
-      const y0 = boards[i];
-      const y1 = boards[i + 1];
+    for (let i = 0; i < boardTops.length - 1; i++) {
+      const y0 = boardTops[i];
+      const y1 = boardTops[i + 1];
       const dy = y1 - y0;
       const len = Math.hypot(wZ - 0.1, dy);
       for (const dir of [1, -1]) {
@@ -704,25 +794,48 @@ export function buildFixtures(B) {
     g.add(legacy);
     if (merch) merch.onReady(() => {
       const spots = f.short ? [0] : [-0.62, 0.62];
-      const modules = spots.map((mx) => {
-        const m = merch.instantiateKit && merch.instantiateKit('stock_shelving');
-        if (m) m.position.x = mx;
-        return m;
-      });
-      if (modules.some((m) => !m)) return;
-      for (const m of modules) g.add(m);
+      const core = fixtureCoreBatcher.mount(
+        g,
+        spots.map((x) => ({ model: 'stock_shelving', position: [x, 0, 0] })),
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
       disposeReplacedFixture(legacy);
     });
     const swap = Math.abs(Math.sin(f.ry)) > 0.5;
-    const halfLen = wZ / 2 + 0.15;
-    addCol(colBoxAt(f.x, f.z, swap ? 0.9 : halfLen * 2, swap ? halfLen * 2 : 0.9));
+    const colliderLength = wZ + 0.10;
+    const colliderDepth = D + 0.12;
+    addCol(colBoxAt(
+      f.x, f.z,
+      swap ? colliderDepth : colliderLength,
+      swap ? colliderLength : colliderDepth,
+    ));
+    return g;
+  }
+
+  // Sheet-03 grab-and-go fixture. Its GLB owns the fourteen bottle and ten
+  // pouch sockets mirrored in data/fixtureSlots.js; this wrapper makes the
+  // authored shelf movable, collidable, stockable, and unique in the live shop.
+  function snackrackUnit(f) {
+    const g = new THREE.Group();
+    g.name = 'GrabAndGoSnackrack';
+    if (merch) merch.onReady(() => {
+      fixtureCoreBatcher.mount(
+        g,
+        [{ model: 'snack_shelf' }],
+        { name: `${f.id}FixtureCore` },
+      );
+    });
+    addFixtureCollider(f);
     return g;
   }
 
   const FIXTURE_BUILDERS = {
     shelf: shelfUnit, rack: rackUnit, table: tableUnit, rail: railUnit,
     hatstand: hatstandUnit, bagstand: bagstandUnit, shoerack: shoerackUnit,
+    apparelwall: apparelwallUnit,
     feature: featureUnit, backcounter: backcounterUnit, backshelf: backshelfUnit,
+    snackrack: snackrackUnit,
   };
   // The shop as the PLAYER has it, not as it was designed — placedFixtures() applies whatever they
   // moved, turned or put away, and falls through to the default plan for everything else.
@@ -735,6 +848,7 @@ export function buildFixtures(B) {
     for (const f of placedFixtures(state)) {
       const build = FIXTURE_BUILDERS[f.kind];
       if (!build) continue;
+      activeFixtureId = f.id;
       const g = build(f);
       g.position.set(f.x, 0, f.z);
       g.rotation.y = f.ry;
@@ -742,11 +856,14 @@ export function buildFixtures(B) {
       fixtureAnchors.set(f.id, g);
       fixtureProp(f);
     }
+    activeFixtureId = null;
     tracking = false;
   }
 
   function relayFixtures() {
-    for (const c of laidCols) removeCol(c);
+    for (const c of laidCols) {
+      if (c.fixtureColliderActive !== false) removeCol(c);
+    }
     for (const p of laidProps) removeProp(p);
     laidCols.length = 0;
     laidProps.length = 0;
@@ -755,27 +872,38 @@ export function buildFixtures(B) {
     layFixtures();
   }
 
+  function setFixtureCollidersActive(fixtureId, active) {
+    return setTrackedFixtureCollidersActive(
+      laidCols,
+      fixtureId,
+      active,
+      rawAddCol,
+      removeCol,
+    );
+  }
+
+  function fixtureColliderDiagnostics(fixtureId) {
+    const colliders = laidCols.filter((collider) => collider.fixtureLayoutId === fixtureId);
+    const activeCount = colliders.reduce(
+      (count, collider) => count + (collider.fixtureColliderActive !== false ? 1 : 0),
+      0,
+    );
+    return Object.freeze({
+      fixtureId,
+      total: colliders.length,
+      activeCount,
+      inactiveCount: colliders.length - activeCount,
+      active: colliders.length > 0 && activeCount === colliders.length,
+    });
+  }
+
   layFixtures();
 
   // --- Sheet-03 standing decor (architecture, not re-layable furniture) -----
-  // The snack & drink shelf stands between the south windows — impulse goods
-  // on the way out. Pure set dressing: its stock is authored into the asset.
   if (merch) merch.onReady(() => {
-    const snack = merch.instantiateKit && merch.instantiateKit('snack_shelf');
-    if (snack) {
-      snack.position.set(-6.6, 0, 6.02);
-      snack.rotation.y = Math.PI;
-      interior.add(snack);
-    }
     // The face-out apparel display stands EMPTY beside the shoe wall — its
     // arms and base shelf are landing spots for garments the player hangs,
     // not pre-dressed decor. (Every fixture ships bare; stock is earned.)
-    const disp = merch.instantiateKit && merch.instantiateKit('apparel_wall_display');
-    if (disp) {
-      disp.position.set(5.44, 0, 1.35);
-      disp.rotation.y = -Math.PI / 2;
-      interior.add(disp);
-    }
     // The Sheet-04 double-sided gondola holds the centre floor between the
     // feature table and the apparel zone. It ships EMPTY — its 24 shelf
     // slots await future product lines.
@@ -785,8 +913,6 @@ export function buildFixtures(B) {
       interior.add(gondola);
     }
   });
-  addCol(colBoxAt(-6.6, 6.02, 1.06, 0.5));
-  addCol(colBoxAt(5.44, 1.35, 0.5, 1.26));
   addCol(colBoxAt(0.4, -0.9, 1.3, 0.7));
 
   // permanent club logo rug on the entry axis
@@ -800,7 +926,13 @@ export function buildFixtures(B) {
   rug.receiveShadow = true;
   interior.add(rug);
 
-  return { fixtureAnchors, relayFixtures };
+  return {
+    fixtureAnchors,
+    relayFixtures,
+    setFixtureCollidersActive,
+    fixtureColliderDiagnostics,
+    fixtureCoreBatchDiagnostics: fixtureCoreBatcher.diagnostics,
+  };
 }
 
 // ------------------------------------------------------------- lounge -------
@@ -941,7 +1073,8 @@ export function buildStockroomDressing(B) {
     const RACKS = [
       { x: 8.05, z: -6.1, ry: 0, len: 2.6 },
       { x: 9.9, z: -5.6, ry: -Math.PI / 2, len: 1.7 },
-      { x: 9.9, z: -0.6, ry: -Math.PI / 2, len: 2.6 },
+      // backshelf_e2 is reserved for the player's persisted physical cartons.
+      // Dressing it as well would duplicate inventory and hide placement ghosts.
     ];
     const dress = new THREE.Group();
     let seed = 7;
@@ -992,8 +1125,8 @@ export function buildStockroomDressing(B) {
     }
   });
 
-  // packing bench: steel legs, worn walnut top, clipboard, tape gun and the
-  // authored reference-50 roll used by the delivery workflow.
+  // Packing bench: keep the authored worktop clear for a real delivery carton.
+  // The clipboard, tape gun, and ref-50 roll live on the lower supply shelf.
   const bench = new THREE.Group();
   const top = new THREE.Mesh(roundedBox(1.7, 0.07, 0.85, 0.02), mats.rawWood);
   top.position.y = 0.92;
@@ -1009,21 +1142,20 @@ export function buildStockroomDressing(B) {
     bench.add(leg);
   }
   const clipboard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.012, 0.3), mats.trimPaint);
-  clipboard.position.set(-0.4, 0.965, 0.1);
+  clipboard.position.set(-0.4, 0.458, 0.1);
   clipboard.rotation.y = 0.3;
   bench.add(clipboard);
   const tapeGun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.09, 0.06), mats.charcoal);
-  tapeGun.position.set(0.35, 0.99, -0.1);
+  tapeGun.position.set(0.35, 0.485, -0.1);
   tapeGun.rotation.y = -0.4;
   bench.add(tapeGun);
   if (merch) merch.onReady(() => {
     const tapeRoll = merch.instantiate('delivery_packing_tape_roll');
     if (!tapeRoll) return;
     tapeRoll.name = 'PackingBenchTapeRoll';
-    // The authored roll is 10 cm in diameter. With its Z axis rotated upright,
-    // a 1.01 m centre rests its lower rim on the 0.955 m bench surface instead
-    // of burying the prop inside the worktop.
-    tapeRoll.position.set(0.18, 1.01, -0.12);
+    // The authored roll is 10 cm in diameter; its 0.50 m centre rests on the
+    // lower shelf without competing with the box-placement surface above.
+    tapeRoll.position.set(0.18, 0.50, -0.12);
     tapeRoll.rotation.set(Math.PI / 2, -0.2, 0);
     bench.add(tapeRoll);
   });
@@ -1032,25 +1164,33 @@ export function buildStockroomDressing(B) {
   interior.add(bench);
   addCol(colBoxAt(P.x, P.z, 1.9, 1.05));
 
-  // cleaning corner: mop bucket, mop, broom against the partition
+  // Cleaning corner: mop bucket, mop, broom against the partition.
+  //
+  // These five primitives are a STAND-IN. Assets 71-75 are authored versions of exactly these
+  // objects, and when the prop placement table puts them here it disposes this group — otherwise
+  // the corner ends up with two mops and two buckets. Grouped and named precisely so that
+  // supersession can find it; see assets51to100/propPlacement.js.
   const C = STOCKROOM.cleaning;
+  const legacyCleaning = new THREE.Group();
+  legacyCleaning.name = 'LegacyCleaningCornerScenery';
   const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.3, 12), new THREE.MeshStandardMaterial({ color: 0xd9c944, roughness: 0.7 }));
   bucket.position.set(C.x, 0.15, C.z);
-  interior.add(bucket);
+  legacyCleaning.add(bucket);
   const mopPole = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 1.45, 6), mats.rawWood);
   mopPole.position.set(C.x + 0.05, 0.75, C.z + 0.03);
   mopPole.rotation.z = 0.18;
-  interior.add(mopPole);
+  legacyCleaning.add(mopPole);
   const mopHead = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.05, 0.16, 8), mats.trimPaint);
   mopHead.position.set(C.x + 0.18, 0.1, C.z + 0.03);
-  interior.add(mopHead);
+  legacyCleaning.add(mopHead);
   const broomPole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.4, 6), mats.rawWood);
   broomPole.position.set(C.x - 0.22, 0.72, C.z);
   broomPole.rotation.z = -0.14;
-  interior.add(broomPole);
+  legacyCleaning.add(broomPole);
   const broomHead = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.05), mats.kraft);
   broomHead.position.set(C.x - 0.4, 0.08, C.z);
-  interior.add(broomHead);
+  legacyCleaning.add(broomHead);
+  interior.add(legacyCleaning);
   addCol(colBoxAt(C.x, C.z, 0.7, 0.5));
 
   // RECEIVING sign over the back door (inside face)
@@ -1231,7 +1371,7 @@ export function buildCheckout(B) {
     staticCheckoutIsland.add(counter);
 
     // Two authored, counter-integrated task surfaces turn the broad worktop
-    // into an intentional production line. Their dimensions are generated in
+    // into an intentional production line.  Their dimensions are generated in
     // metres by build_checkout_assets.py and their centres come from the same
     // tested REGISTER layout that owns product and change choreography.
     const stagingTray = merch.instantiate && merch.instantiate('checkout_product_staging_tray');

@@ -17,9 +17,39 @@ import {
 const GHOST_OK = 0x4ade80;
 const GHOST_BAD = 0xf87171;
 
+// A carried fixture's ghost is the exact local-space footprint that drives
+// fixtureRect(), not a second kind-only approximation. In particular, the shoe
+// wall's authored footprint is offset 0.5 yd toward local +Z; centring its ghost
+// at the fixture origin made the preview disagree with placement/collision.
+export function fixtureGhostProfile(f) {
+  if (f.footprint) {
+    const { minX, maxX, minZ, maxZ } = f.footprint;
+    return {
+      width: maxX - minX,
+      depth: maxZ - minZ,
+      offsetX: (minX + maxX) / 2,
+      offsetZ: (minZ + maxZ) / 2,
+    };
+  }
+  const [halfWidth, halfDepth] = FIXTURE_HALF[f.kind] || [1, 1];
+  return {
+    width: (f.short ? 0.85 : halfWidth) * 2,
+    depth: halfDepth * 2,
+    offsetX: 0,
+    offsetZ: 0,
+  };
+}
+
 export function buildBuildMode(B, deps) {
   const { interior, state, hooks, walk, W2L, L2W, FLOOR_TOP } = B;
-  const { rebuildLayout, fixtureAnchors } = deps;
+  const {
+    rebuildLayout,
+    fixtureAnchors,
+    fixtureMoveBlocker = () => null,
+    setFixtureStockVisible = () => {},
+    setFixtureCollidersActive = () => {},
+    fixtureColliderDiagnostics = () => null,
+  } = deps;
 
   let active = false;
   let carrying = null; // fixture id
@@ -36,6 +66,7 @@ export function buildBuildMode(B, deps) {
   const edgeMat = new THREE.LineBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.9 });
   let ghostBox = null;
   let ghostEdges = null;
+  let currentGhostProfile = null;
 
   // the highlight ring under whatever fixture you are looking at
   const halo = new THREE.Mesh(
@@ -48,16 +79,19 @@ export function buildBuildMode(B, deps) {
   interior.add(halo);
 
   function makeGhost(f) {
-    if (ghostBox) ghost.remove(ghostBox, ghostEdges);
-    const [a, b] = FIXTURE_HALF[f.kind] || [1, 1];
-    const w = (f.short ? 0.85 : a) * 2;
-    const d = b * 2;
+    if (ghostBox) {
+      ghost.remove(ghostBox, ghostEdges);
+      ghostBox.geometry.dispose();
+      ghostEdges.geometry.dispose();
+    }
+    const profile = fixtureGhostProfile(f);
+    currentGhostProfile = { ...profile };
     const h = f.kind === 'table' || f.kind === 'feature' ? 0.9 : f.kind === 'hatstand' ? 1.8 : 2.2;
-    const geo = new THREE.BoxGeometry(w, h, d);
+    const geo = new THREE.BoxGeometry(profile.width, h, profile.depth);
     ghostBox = new THREE.Mesh(geo, ghostMat);
-    ghostBox.position.y = h / 2;
+    ghostBox.position.set(profile.offsetX, h / 2, profile.offsetZ);
     ghostEdges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat);
-    ghostEdges.position.y = h / 2;
+    ghostEdges.position.copy(ghostBox.position);
     ghost.add(ghostBox, ghostEdges);
   }
 
@@ -102,9 +136,46 @@ export function buildBuildMode(B, deps) {
     edgeMat.color.setHex(ok ? GHOST_OK : GHOST_BAD);
   }
 
+  function shelfUnitsOnFixture(id) {
+    const fixture = placedFixtures(state).find((entry) => entry.id === id);
+    const inventory = state.shop && state.shop.inventory;
+    if (!fixture || !inventory || !Array.isArray(fixture.skus)) return 0;
+    return fixture.skus.reduce((total, skuId) => {
+      const shelf = Number(inventory[skuId] && inventory[skuId].shelf);
+      return total + (Number.isFinite(shelf) && shelf > 0 ? shelf : 0);
+    }, 0);
+  }
+
+  function heldUnitsFromFixture(id) {
+    const fixture = placedFixtures(state).find((entry) => entry.id === id);
+    const held = state.shop && state.shop.held;
+    if (!fixture || !Array.isArray(held) || !Array.isArray(fixture.skus)) return 0;
+    const skus = new Set(fixture.skus);
+    return held.reduce((total, unit) => total + (skus.has(unit?.skuId) ? 1 : 0), 0);
+  }
+
   return {
     isActive: () => active,
     isCarrying: () => carrying,
+    diagnostics() {
+      const colliders = carrying ? fixtureColliderDiagnostics(carrying) : null;
+      return Object.freeze({
+        active,
+        carrying,
+        ghost: Object.freeze({
+          visible: ghost.visible,
+          position: Object.freeze({ x: ghost.position.x, y: ghost.position.y, z: ghost.position.z }),
+          rotationY: ghost.rotation.y,
+          profile: currentGhostProfile ? Object.freeze({ ...currentGhostProfile }) : null,
+        }),
+        validation: Object.freeze({
+          ok: !!lastCheck.ok,
+          reasons: Object.freeze([...(lastCheck.reasons || [])]),
+        }),
+        colliderActive: colliders?.active ?? null,
+        colliders,
+      });
+    },
 
     enter() {
       active = true;
@@ -122,22 +193,35 @@ export function buildBuildMode(B, deps) {
     interact() {
       if (!active) return false;
       if (carrying) {
+        const id = carrying;
         const p = aimLocal();
-        const v = validatePlacement(state, carrying, p.x, p.z, ry);
+        const v = validatePlacement(state, id, p.x, p.z, ry);
         if (!v.ok) {
           if (hooks.toast) hooks.toast(v.reasons[0], 'warn');
           return true;
         }
-        commitPlacement(state, carrying, p.x, p.z, ry);
+        commitPlacement(state, id, p.x, p.z, ry);
         carrying = null;
         ghost.visible = false;
         rebuildLayout();
+        setFixtureCollidersActive(id, true);
+        setFixtureStockVisible(id, true);
         if (hooks.sfx) hooks.sfx('thunk');
         if (hooks.toast) hooks.toast('Set down. The customers will find their way round it.');
         return true;
       }
       const f = fixtureUnderAim();
       if (!f) return false;
+      const blocker = fixtureMoveBlocker(f.id);
+      if (blocker) {
+        if (hooks.toast) hooks.toast(
+          typeof blocker === 'string'
+            ? blocker
+            : (blocker.reason || 'Move the carton off this fixture first.'),
+          'warn',
+        );
+        return true;
+      }
       carrying = f.id;
       ry = f.ry || 0;
       makeGhost(f);
@@ -146,6 +230,8 @@ export function buildBuildMode(B, deps) {
       // lift it off the floor so the room reads as it will without it
       const anchor = fixtureAnchors.get(f.id);
       if (anchor) anchor.visible = false;
+      setFixtureCollidersActive(f.id, false);
+      setFixtureStockVisible(f.id, false);
       if (hooks.toast) hooks.toast(`${f.title || f.kind} — [E] set down · [R] turn · [X] into the back · [RMB] cancel`);
       return true;
     },
@@ -160,18 +246,49 @@ export function buildBuildMode(B, deps) {
     stow() {
       if (!active || !carrying) return false;
       const id = carrying;
+      const blocker = fixtureMoveBlocker(id);
+      if (blocker) {
+        if (hooks.toast) hooks.toast(
+          typeof blocker === 'string'
+            ? blocker
+            : (blocker.reason || 'Move the carton off this fixture first.'),
+          'warn',
+        );
+        return true;
+      }
+      const shelfUnits = shelfUnitsOnFixture(id);
+      if (shelfUnits > 0) {
+        if (hooks.toast) hooks.toast(
+          `Empty this fixture before storing it - ${shelfUnits} shelf item${shelfUnits === 1 ? '' : 's'} are still on display.`,
+          'warn',
+        );
+        return true;
+      }
+      const heldUnits = heldUnitsFromFixture(id);
+      if (heldUnits > 0) {
+        if (hooks.toast) hooks.toast(
+          `Wait for ${heldUnits === 1 ? 'the held item' : `${heldUnits} held items`} to be sold or returned before storing this fixture.`,
+          'warn',
+        );
+        return true;
+      }
       storeFixture(state, id);
       carrying = null;
       ghost.visible = false;
       rebuildLayout();
+      setFixtureCollidersActive(id, true);
+      setFixtureStockVisible(id, true);
       if (hooks.toast) hooks.toast('Into the back it goes.');
       return true;
     },
 
     cancel() {
       if (!carrying) return false;
-      const anchor = fixtureAnchors.get(carrying);
+      const id = carrying;
+      const anchor = fixtureAnchors.get(id);
       if (anchor) anchor.visible = true;
+      setFixtureCollidersActive(id, true);
+      setFixtureStockVisible(id, true);
       carrying = null;
       ghost.visible = false;
       return true;

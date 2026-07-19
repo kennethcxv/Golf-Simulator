@@ -12,7 +12,7 @@
 
 import {
   FIXTURES, INTERIOR, PARTITIONS, COUNTER, DOOR_CLEARWAY, BACKDOOR_CLEARWAY,
-  STOCKROOM, OFFICE, PLAYER_DIAM, STAFF_CORRIDOR_MIN, fixtureRect, queueSlot,
+  STOCKROOM, OFFICE, PLAYER_DIAM, STAFF_CORRIDOR_MIN, fixtureRect, fixtureBrowsePoint, queueSlot,
 } from '../data/shopLayout.js';
 import { boxDims } from '../data/boxes.js';
 
@@ -84,10 +84,14 @@ function solidAt(x, z, rects) {
 
 // can a shopper get from the door to everywhere a shopper needs to be?
 export function routesIntact(state, override) {
-  const rects = placedFixtures(state)
-    .filter((f) => !override || f.id !== override.id)
-    .map(fixtureRect);
-  if (override && override.place) rects.push(fixtureRect(override.place));
+  // Build one authoritative candidate plan. The old implementation used the
+  // candidate for collision baking but omitted it from browse-target checks,
+  // so a rotated display could be accepted with its only customer stop outside
+  // the building. This list consistently replaces the moved fixture in both.
+  const fixtures = placedFixtures(state)
+    .filter((f) => !override || f.id !== override.id);
+  if (override?.place) fixtures.push(override.place);
+  const rects = fixtures.map(fixtureRect);
 
   // flood from just inside the main door
   const start = { x: DOOR_CLEARWAY.minX / 2 + DOOR_CLEARWAY.maxX / 2, z: INTERIOR.d / 2 - 1.0 };
@@ -142,15 +146,12 @@ export function routesIntact(state, override) {
   if (!reached(OFFICE.chair)) return false;
   if (!reached(STOCKROOM.receivingInside)) return false;
   // ...and every unit the customer is meant to browse
-  for (const f of placedFixtures(state)) {
+  for (const f of fixtures) {
     if (!f.skus || !f.skus.length) continue;
-    if (override && f.id === override.id) continue;
-    const r = fixtureRect(f);
-    const front = { x: (r.minX + r.maxX) / 2, z: r.maxZ + R + 0.1 };
-    const back = { x: (r.minX + r.maxX) / 2, z: r.minZ - R - 0.1 };
-    const east = { x: r.maxX + R + 0.1, z: (r.minZ + r.maxZ) / 2 };
-    const west = { x: r.minX - R - 0.1, z: (r.minZ + r.maxZ) / 2 };
-    if (!reached(front) && !reached(back) && !reached(east) && !reached(west)) return false;
+    // Runtime customers approach the authored local +Z/front pose. Reaching a
+    // different side of the AABB is not sufficient: the merchandise and its
+    // interaction face do not move to that side.
+    if (!reached(fixtureBrowsePoint(f))) return false;
   }
   return true;
 }

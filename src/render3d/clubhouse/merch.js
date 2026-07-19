@@ -29,49 +29,52 @@ import {
 
 const FILES = [
   // goods
-  'polo_hanging', 'polo_folded', 'jacket_hanging', 'glove', 'shoe', 'bag',
+  'polo_hanging', 'polo_folded', 'jacket_hanging', 'glove', 'bag',
   'head_driver', 'head_iron', 'head_wedge', 'head_putter', 'cap',
   // furniture + operational kit (tools/blender/build_props.py)
-  'chair_lounge', 'chair_office', 'trophy',
-  'register', 'scanner', 'cardterm', 'printer', 'cash_drawer',
-  'carton', 'carton_open', 'handtruck', 'pendant',
+  'trophy', 'cash_drawer',
+  'carton', 'carton_open', 'pendant',
   // the register kit a cashier's hands touch (tools/blender/build_register.py)
-  'basket', 'bag_open', 'impulse_rack', 'divider',
+  'basket',
   // production checkout kit (tools/blender/build_checkout_assets.py)
   'checkout_counter', 'checkout_product_staging_tray', 'checkout_change_handoff_tray',
-  'checkout_cash_drawer', 'checkout_scanner',
-  'checkout_card_reader', 'checkout_receipt_printer', 'checkout_shopping_bag',
+  'checkout_cash_drawer', 'checkout_shopping_bag',
   // Compact, checkout-scale product families (tools/blender/build_checkout_products.py).
   // Sibling SKUs share one authored silhouette and vary through tint/tier identity.
   'checkout_product_driver', 'checkout_product_iron_set', 'checkout_product_putter',
   'checkout_product_wedge', 'checkout_product_ball_carton',
   'checkout_product_folded_polo', 'checkout_product_folded_jacket',
+  'checkout_product_hanging_polo', 'checkout_product_hanging_jacket',
   'checkout_product_cap', 'checkout_product_glove', 'checkout_product_tee_pouch',
   'checkout_product_towel_roll', 'checkout_product_marker_blister',
   'checkout_product_rangefinder', 'checkout_product_umbrella',
-  'checkout_product_stand_bag', 'checkout_product_shoe_pair',
+  'checkout_product_stand_bag', 'checkout_product_shoe_pair', 'checkout_product_shoe_box',
   'checkout_product_sock_pair', 'checkout_product_headcover',
   // Delivery hero carton (tools/blender/build_delivery_hero.py). The cutter is
   // loaded by the first-person tool rig, avoiding a duplicate GLB allocation.
   'delivery_apparel_box', 'delivery_generic_merchandise_box', 'delivery_golf_club_box',
+  'delivery_accessory_carton', 'delivery_golf_ball_case', 'delivery_shoe_carton',
+  'delivery_golf_bag_carton', 'delivery_fixture_package', 'delivery_furniture_crate',
+  'delivery_bulk_provisions_carton', 'delivery_umbrella_carton', 'delivery_iron_set_carton',
   'delivery_wooden_pallet', 'delivery_van', 'delivery_hand_truck',
   'delivery_stocking_cart', 'delivery_pallet_jack',
   'delivery_packing_tape_roll', 'delivery_recycling_station',
 ];
 
-// Textured HERO props (Tripo scans, normalised by tools/blender/process_tripo.py).
-// Unlike FILES, these KEEP their own baked PBR atlas material. They are placed as
-// singletons (a pair of chairs, one card terminal, one gondola), so the material-count
-// discipline that instantiate() enforces buys nothing here and would only throw away
-// the fidelity that is the whole point of using a real scan. Loaded the same way,
-// handed out by instantiateRaw(), never slot-swapped.
+// Textured HERO products (Tripo scans, normalized by tools/blender/process_tripo.py).
+// Unlike FILES, these keep their baked PBR atlas material. Repeated instances are
+// later baked by material, so preserving the authored atlas retains fidelity without
+// multiplying texture ownership. Loaded through instantiateRaw(), never slot-swapped.
 const RAW = [
-  'armchair', 'office_chair', 'cardterm_pro', 'kiosk',
   // repeated products — one baked-atlas material each, so a whole shelf of them still
   // bakes (see bake()) into a single draw call, texture intact.
   'shoe_pro', 'cap_pro', 'rangefinder',
-  // Original project-owned provisions products keep their authored materials.
+  // Exact packed contents and original provisions products retain their authored
+  // stylized PBR materials. They are instanced at 1:1 into contract sockets.
   'provisions_fairway_spring_water', 'provisions_bunker_bites_chips',
+  'delivery_fixture_product_vacuum', 'delivery_fixture_product_plant',
+  'delivery_fixture_product_poster', 'delivery_fixture_product_events_board',
+  'delivery_fixture_product_pendant', 'packed_product_rug1', 'packed_product_lounge1',
 ];
 
 // Which slot in the GLB maps to which material in the clubhouse kit.
@@ -119,6 +122,7 @@ const PRESERVE = new Set([
   // corrugated interior. Mapping these to generic white/charcoal destroys the
   // material read and makes the hero carton look like a flat legacy prop.
   'M_tape', 'M_KraftDark',
+  'M_BoxTape', 'M_BoxKraftInterior', 'M_PackingFoam',
 ]);
 
 // The slots that take a per-item colour. A polo's body is fabric; a golf shoe's

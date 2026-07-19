@@ -778,6 +778,13 @@ export function makeClubhouseMaterials(clubName) {
       map: t(steelC, 2, 2), roughnessMap: r(steelC, 0.14, 0.36, 2, 2),
       roughness: 1, metalness: 0.92,
     }),
+    // Repeated club shafts need a readable mid-value under the shop's warm,
+    // reflection-heavy lighting.  This shares one stable material across racks
+    // and bag displays instead of cloning a brighter material per club.
+    merchShaft: new THREE.MeshStandardMaterial({
+      map: t(steelC, 2, 2), color: 0xe2e5e3,
+      roughnessMap: r(steelC, 0.30, 0.48, 2, 2), roughness: 1, metalness: 0.52,
+    }),
     merchDark: new THREE.MeshStandardMaterial({
       map: t(charC, 2, 2), color: 0x4a5058,
       roughnessMap: r(charC, 0.22, 0.44, 2, 2), roughness: 1, metalness: 0.7,
