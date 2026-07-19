@@ -12,6 +12,7 @@
 async function courseShaderBoot(page) {
   // Evaluated via Function() by the runner, so there is no require here.
   // Playwright creates the screenshot's parent directories itself.
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const outDir = process.env.OUT_DIR || 'qa/course_master_final/claude_completion/handoff';
 
   const errors = [];
@@ -20,7 +21,7 @@ async function courseShaderBoot(page) {
   });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 
-  await page.goto(process.env.QA_BASE_URL || 'http://localhost:8457/');
+  await page.goto(baseUrl);
   await page.waitForFunction(() => document.readyState === 'complete');
 
   const cont = page.getByRole('button', { name: 'Continue', exact: true });

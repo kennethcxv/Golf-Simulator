@@ -8,7 +8,11 @@ async (page) => {
   const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const outFile = process.env.ASSET_RESIDENCY_OUT
     ? path.resolve(repo, process.env.ASSET_RESIDENCY_OUT)
-    : path.join(repo, 'qa', 'steam-performance-master-pass', 'assets', 'runtime-asset-residency.json');
+    : path.join(
+      path.resolve(process.env.ASSET_RESIDENCY_QA_ROOT
+        || path.join(repo, 'qa', 'steam-performance-master-pass', 'assets')),
+      'runtime-asset-residency.json',
+    );
   const outDir = path.dirname(outFile);
   fs.mkdirSync(outDir, { recursive: true });
 
