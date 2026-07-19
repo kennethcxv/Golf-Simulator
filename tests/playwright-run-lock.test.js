@@ -7,8 +7,11 @@ import path from 'node:path';
 import lockModule from '../tools/qa/playwright-run-lock.cjs';
 
 const {
+  DEFAULT_LOCK_PATH,
   acquirePlaywrightRunLock,
+  gitCommonDirectory,
   releasePlaywrightRunLock,
+  repositoryLockPath,
 } = lockModule;
 
 function temporaryLockPath(t) {
@@ -42,4 +45,29 @@ test('Playwright runner lock queues a live contender and heals a stale owner', a
   const replacement = await acquirePlaywrightRunLock({ lockPath, pollMs: 1, timeoutMs: 50 });
   assert.equal(JSON.parse(fs.readFileSync(lockPath, 'utf8')).pid, process.pid);
   assert.equal(releasePlaywrightRunLock(replacement), true);
+});
+
+test('all worktrees from one Git repository derive the same shared lock', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'golf-flipper-lock-worktrees-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const repository = path.join(root, 'repository');
+  const commonGit = path.join(repository, '.git');
+  const worktree = path.join(root, 'feature-worktree');
+  const worktreeGit = path.join(commonGit, 'worktrees', 'feature-worktree');
+  fs.mkdirSync(worktreeGit, { recursive: true });
+  fs.mkdirSync(worktree, { recursive: true });
+  fs.writeFileSync(
+    path.join(worktree, '.git'),
+    `gitdir: ${worktreeGit.replaceAll('\\', '/')}\n`,
+  );
+
+  assert.equal(gitCommonDirectory(repository), fs.realpathSync(commonGit));
+  assert.equal(gitCommonDirectory(worktree), fs.realpathSync(commonGit));
+  assert.equal(repositoryLockPath(repository), repositoryLockPath(worktree));
+  assert.equal(path.dirname(repositoryLockPath(worktree)), os.tmpdir());
+  if (process.env.PLAYWRIGHT_RUN_LOCK_PATH) {
+    assert.equal(DEFAULT_LOCK_PATH, path.resolve(process.env.PLAYWRIGHT_RUN_LOCK_PATH));
+  } else {
+    assert.equal(path.dirname(DEFAULT_LOCK_PATH), os.tmpdir());
+  }
 });
