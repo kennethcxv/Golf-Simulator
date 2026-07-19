@@ -315,7 +315,7 @@ export const CLEANING_TOOLS = {
     strength: 1.2,     // strong, but only on what the spray has already loosened
     dirt: [DIRT.SMEAR, DIRT.FILM],
     needsSolution: true,
-    place: [0.18, -0.34, -0.88],
+    place: [0.18, -0.22, -0.88],
     orient: [0.16, -0.22, 0],
     parts: [
       // a folded cloth: three offset slabs so it reads as fabric, not a brick
@@ -351,7 +351,7 @@ export const CLEANING_TOOLS = {
     strength: 0.75,    // slower than the cloth, but it shifts what the cloth cannot
     dirt: [DIRT.GRIME, DIRT.BONDED, DIRT.SMEAR],
     foams: true,
-    place: [0.18, -0.34, -0.88],
+    place: [0.18, -0.22, -0.88],
     orient: [0.16, -0.22, 0],
     parts: [
       box([0.135, 0.055, 0.092], [0, 0, 0], [0.05, 0.08, 0.02], 'sponge'),
@@ -385,7 +385,7 @@ export const CLEANING_TOOLS = {
     strength: 1.0,
     dirt: [DIRT.DEBRIS],
     fills: true,
-    place: [0.18, -0.53, -1.26],
+    place: [0.18, -0.40, -1.26],
     orient: [0.05, -0.10, 0],
     // Staged, not simulated: the fill states swap scale on these, which is far cheaper than cloth
     // and reads perfectly well at arm's length.

@@ -7,7 +7,12 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROP_PLACEMENTS, PLACED_ASSET_NUMBERS } from '../src/render3d/assets51to100/propPlacement.js';
+import {
+  PROP_PLACEMENTS,
+  PLACED_ASSET_NUMBERS,
+  EXTERIOR_VISIBLE_PROP_NUMBERS,
+  detailedPropsVisibleAt,
+} from '../src/render3d/assets51to100/propPlacement.js';
 import {
   INTERIOR, DOOR_CLEARWAY, BACKDOOR_CLEARWAY, SHELL, WINDOWS, WINDOW_DIM, DOOR_MAIN,
 } from '../src/data/shopLayout.js';
@@ -15,6 +20,16 @@ import {
 const HX = INTERIOR.w / 2;
 const HZ = INTERIOR.d / 2;
 const byNumber = (n) => PROP_PLACEMENTS.find((p) => p.n === n);
+
+test('deep prop dressing retires only beyond the porch while entrance props remain eligible', () => {
+  assert.equal(detailedPropsVisibleAt(0, 0), true, 'interior camera needs every prop');
+  assert.equal(detailedPropsVisibleAt(0, 7.4), true, 'door/porch camera must not pop dressing');
+  assert.equal(detailedPropsVisibleAt(5.6, 9.2), false,
+    'accepted pressure-washer camera should cull covered deep-interior props');
+  assert.deepEqual(EXTERIOR_VISIBLE_PROP_NUMBERS, [93, 94, 98, 99, 100]);
+  assert.ok(!EXTERIOR_VISIBLE_PROP_NUMBERS.includes(71),
+    'stockroom cleaning props are covered from the distant exterior camera');
+});
 
 test('every asset from 71 to 100 has exactly one placement', () => {
   assert.equal(PROP_PLACEMENTS.length, 30);

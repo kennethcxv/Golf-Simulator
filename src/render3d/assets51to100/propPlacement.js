@@ -130,6 +130,24 @@ export const PROP_PLACEMENTS = [
 
 export const PLACED_ASSET_NUMBERS = Object.freeze(PROP_PLACEMENTS.map((p) => p.n));
 
+// These five entrance-facing props can contribute through the door or windows from a close
+// exterior view. The other twenty-five are deep indoor dressing and are completely covered by the
+// shell once the camera is more than a short porch-width beyond the footprint.
+export const EXTERIOR_VISIBLE_PROP_NUMBERS = Object.freeze([93, 94, 98, 99, 100]);
+const EXTERIOR_VISIBLE_PROP_SET = new Set(EXTERIOR_VISIBLE_PROP_NUMBERS);
+export const PROP_DETAIL_EXTERIOR_CLEARANCE_YD = 1.5;
+
+export function detailedPropsVisibleAt(
+  cameraLocalX,
+  cameraLocalZ,
+  clearance = PROP_DETAIL_EXTERIOR_CLEARANCE_YD,
+) {
+  if (![cameraLocalX, cameraLocalZ, clearance].every(Number.isFinite) || clearance < 0) return true;
+  const dx = Math.max(Math.abs(cameraLocalX) - INTERIOR.w / 2, 0);
+  const dz = Math.max(Math.abs(cameraLocalZ) - INTERIOR.d / 2, 0);
+  return Math.hypot(dx, dz) < clearance;
+}
+
 /**
  * Stand-ins these authored assets replace.
  *
@@ -166,6 +184,7 @@ export function buildProps({ interior, loader }) {
   const roots = new Map();
   const mixers = new Map();
   const clips = new Map();
+  let detailedVisible = true;
 
   const jobs = PROP_PLACEMENTS.map((p) => new Promise((resolve) => {
     loader.load(runtimeUrl(p), (gltf) => {
@@ -198,6 +217,7 @@ export function buildProps({ interior, loader }) {
           o.receiveShadow = false;
         });
 
+        root.visible = detailedVisible || EXTERIOR_VISIBLE_PROP_SET.has(p.n);
         group.add(root);
         roots.set(p.n, root);
         if (Array.isArray(gltf.animations) && gltf.animations.length) {
@@ -242,6 +262,15 @@ export function buildProps({ interior, loader }) {
     group,
     ready,
     rootFor: (number) => roots.get(Number(number)) || null,
+    setCameraVisibility(cameraLocalX, cameraLocalZ) {
+      detailedVisible = detailedPropsVisibleAt(cameraLocalX, cameraLocalZ);
+      let visible = 0;
+      for (const [number, root] of roots) {
+        root.visible = detailedVisible || EXTERIOR_VISIBLE_PROP_SET.has(number);
+        if (root.visible) visible++;
+      }
+      return { detailedVisible, visible, total: roots.size };
+    },
     play(number, clipNeedle, { loop = false, fade = 0.08 } = {}) {
       const n = Number(number);
       const mixer = mixers.get(n);
@@ -291,6 +320,8 @@ export function buildProps({ interior, loader }) {
       assetNumbers: placed.map((p) => p.n).sort((a, b) => a - b),
       superseded: [...superseded],
       animated: [...mixers.keys()].sort((a, b) => a - b),
+      detailedVisible,
+      visible: [...roots.values()].filter((root) => root.visible).length,
     }),
     dispose() {
       // Dispose each distinct resource ONCE. Two props can legitimately share a geometry or a

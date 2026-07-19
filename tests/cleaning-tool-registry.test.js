@@ -13,6 +13,7 @@ import {
 } from '../src/data/cleaningTools.js';
 import { buildToolViewmodels } from '../src/render3d/toolViewmodel.js';
 import { socketWorld } from '../src/render3d/toolSockets.js';
+import { makeFpHands } from '../src/render3d/fpHands.js';
 
 const CLASSES = new Set(Object.values(TOOL_CLASS));
 const DIRTS = new Set(Object.values(DIRT));
@@ -208,5 +209,94 @@ test('authored spray animation keeps its trigger attached to the named hinge', a
     assert.deepEqual(built.diagnostics().playing, []);
   } finally {
     built.dispose();
+  }
+});
+
+test('authored grip positions follow the animated socket hierarchy', async () => {
+  const built = buildToolViewmodels();
+  const loader = {
+    load(url, onLoad) {
+      const scene = new THREE.Group();
+      if (url.includes('asset_074_')) {
+        const grip = new THREE.Object3D();
+        grip.name = 'SOCKET_GripPrimary';
+        grip.position.set(0.04, 0.16, 0.12);
+        scene.add(grip);
+      }
+      onLoad({ scene, animations: [] });
+    },
+  };
+  try {
+    await built.adoptAuthored(loader);
+    const before = built.gripsFor('broom').grip.pos;
+    const socket = built.groups.broom.getObjectByName('SOCKET_GripPrimary');
+    socket.position.y += 0.3;
+    const after = built.gripsFor('broom').grip.pos;
+    assert.ok(after[1] > before[1] + 0.25,
+      `animated grip should move with its socket (${before[1]} -> ${after[1]})`);
+  } finally {
+    built.dispose();
+  }
+});
+
+test('repeated equip and unequip clips do not blend stale clamped poses', async () => {
+  const built = buildToolViewmodels();
+  const loader = {
+    load(url, onLoad) {
+      const scene = new THREE.Group();
+      const grip = new THREE.Object3D();
+      grip.name = 'SOCKET_GripPrimary';
+      scene.add(grip);
+      const animations = url.includes('asset_074_') ? [
+        new THREE.AnimationClip('Broom_Equip', 0.2, [
+          new THREE.VectorKeyframeTrack(
+            'SOCKET_GripPrimary.position', [0, 0.2], [0, 0, 0, 0, 1, 0],
+          ),
+        ]),
+        new THREE.AnimationClip('Broom_Unequip', 0.2, [
+          new THREE.VectorKeyframeTrack(
+            'SOCKET_GripPrimary.position', [0, 0.2], [0, 1, 0, 0, -1, 0],
+          ),
+        ]),
+      ] : [];
+      onLoad({ scene, animations });
+    },
+  };
+  try {
+    await built.adoptAuthored(loader);
+    const advanceClip = () => {
+      // Runtime clamps each mixer step to 100 ms, so advance a 200 ms fixture clip in two frames.
+      built.update(0.1);
+      built.update(0.1);
+    };
+    assert.equal(built.setEquipped('broom', true), true);
+    advanceClip();
+    assert.equal(built.setEquipped('broom', false), true);
+    advanceClip();
+    assert.equal(built.setEquipped('broom', true), true);
+    advanceClip();
+    const grip = built.groups.broom.getObjectByName('SOCKET_GripPrimary');
+    assert.ok(grip.position.y > 0.90,
+      `re-equipped socket should reach the equip endpoint, got y=${grip.position.y}`);
+  } finally {
+    built.dispose();
+  }
+});
+
+test('first-person hands resample live authored grip positions without changing pose', () => {
+  const hands = makeFpHands();
+  try {
+    hands.setTool('broom', {
+      grip: { ...CLEANING_TOOLS.broom.grip, pos: [0.1, 0.2, 0.3] },
+      support: { ...CLEANING_TOOLS.broom.support, pos: [-0.1, 0.0, -0.4] },
+    });
+    hands.syncGrips({
+      grip: { ...CLEANING_TOOLS.broom.grip, pos: [0.2, -0.1, 0.5] },
+      support: { ...CLEANING_TOOLS.broom.support, pos: [-0.2, -0.3, -0.6] },
+    });
+    assert.deepEqual(hands.root.getObjectByName('Hand_Right').position.toArray(), [0.2, -0.1, 0.5]);
+    assert.deepEqual(hands.root.getObjectByName('Hand_Left').position.toArray(), [-0.2, -0.3, -0.6]);
+  } finally {
+    hands.dispose();
   }
 });

@@ -184,6 +184,9 @@ export function makeFpHands() {
   const root = new THREE.Group();
   const right = makeHand(mats, 1);
   const left = makeHand(mats, -1);
+  root.name = 'FirstPersonHands';
+  right.group.name = 'Hand_Right';
+  left.group.name = 'Hand_Left';
   root.add(right.group, left.group);
   root.visible = false;
 
@@ -196,6 +199,31 @@ export function makeFpHands() {
   // here would slide the hands along the tool they are gripping.
   const rigOffset = { back: 0, pitch: 0, jitterX: 0 };
 
+  function applyGrips(authored, updatePose) {
+    if (!tool) return;
+    const g = GRIPS[tool];
+    const primary = authored?.grip || g.grip;
+    const support = authored?.support === undefined ? g.support : authored.support;
+    right.group.position.set(...primary.pos);
+    left.group.visible = !!support;
+    if (support) left.group.position.set(...support.pos);
+    if (!updatePose) return;
+
+    // Sockets place the palm on the tool. The arm must then travel toward a lower screen edge,
+    // not straight down the camera axis: a camera-facing cuff reads as a giant green disc and
+    // hides the fingers. Grip pose controls the curl; these biases control where the arm enters.
+    const primaryPose = primary.pose || g.grip.pose || 'wrap';
+    const entryPitch = primaryPose === 'flat' ? 0.82
+      : primaryPose === 'hook' ? 0.64
+        : primaryPose === 'trigger' ? 0.50 : 0.34;
+    right.group.rotation.set(entryPitch, 0.22, (primary.rot?.[2] || 0) - 0.06);
+    right.pose(primary.pose || g.grip.pose || 'wrap');
+    if (support) {
+      left.group.rotation.set(0.32, -0.22, (support.rot?.[2] || 0) + 0.06);
+      left.pose(support.pose || g.support?.pose || 'wrap');
+    }
+  }
+
   return {
     root,
     rigOffset,
@@ -204,29 +232,13 @@ export function makeFpHands() {
     setTool(next, authored = null) {
       tool = GRIPS[next] ? next : null;
       if (!tool) return;
-      const g = GRIPS[tool];
-      const primary = authored?.grip || g.grip;
-      const support = authored?.support === undefined ? g.support : authored.support;
-      right.group.position.set(...primary.pos);
-      // Sockets place the palm on the tool. The arm must then travel toward a lower screen edge,
-      // not straight down the camera axis: a camera-facing cuff reads as a giant green disc and
-      // hides the fingers. Grip pose controls the curl; these biases control where the arm enters.
-      const primaryPose = primary.pose || g.grip.pose || 'wrap';
-      // Compact tools are shown palm-first: the wrist enters from the lower edge while the
-      // fingers remain visible around the bottle, cloth or bag neck. Long handles use a shallower
-      // pitch so both grips stay readable without camera-facing cuffs.
-      const entryPitch = primaryPose === 'flat' ? 0.82
-        : primaryPose === 'hook' ? 0.64
-          : primaryPose === 'trigger' ? 0.50 : 0.34;
-      right.group.rotation.set(entryPitch, 0.22, (primary.rot?.[2] || 0) - 0.06);
-      right.pose(primary.pose || g.grip.pose || 'wrap');
+      applyGrips(authored, true);
+    },
 
-      left.group.visible = !!support;
-      if (support) {
-        left.group.position.set(...support.pos);
-        left.group.rotation.set(0.32, -0.22, (support.rot?.[2] || 0) + 0.06);
-        left.pose(support.pose || g.support?.pose || 'wrap');
-      }
+    // Authored equip/work clips animate the socket hierarchy after the tool is equipped. Keep
+    // the hands on those live sockets instead of freezing their load-time positions.
+    syncGrips(authored = null) {
+      applyGrips(authored, false);
     },
 
     // the trigger went

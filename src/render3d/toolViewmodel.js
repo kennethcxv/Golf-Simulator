@@ -102,7 +102,7 @@ export function buildToolViewmodels() {
     groups[def.id] = group;
   }
 
-  const loaded = new Map(); // toolId -> { root, mixer, clips, using, grips }
+  const loaded = new Map(); // toolId -> { group, root, mixer, clips, using, gripNames/fallbacks }
 
   const lower = (value) => String(value || '').toLowerCase();
   const findClip = (entry, needles) => {
@@ -133,9 +133,7 @@ export function buildToolViewmodels() {
   function authoredGrip(group, root, name, fallback) {
     const node = name ? root.getObjectByName(name) : null;
     if (!node) return fallback ? { ...fallback, pos: [...fallback.pos], rot: [...fallback.rot] } : null;
-    group.updateWorldMatrix(true, false);
-    node.updateWorldMatrix(true, false);
-    const position = node.getWorldPosition(new THREE.Vector3());
+    const position = new THREE.Vector3().setFromMatrixPosition(node.matrixWorld);
     group.worldToLocal(position);
     // Authored sockets are the positional authority. Registry rotations remain the hand-pose
     // authority: Blender empties differ in axis convention between older sheets, while their
@@ -239,17 +237,21 @@ export function buildToolViewmodels() {
             group.updateWorldMatrix(true, true);
             const mixer = Array.isArray(gltf.animations) && gltf.animations.length
               ? new THREE.AnimationMixer(root) : null;
-            const grips = {
-              grip: authoredGrip(group, root, def.fp.grips?.right, def.grip),
-              support: authoredGrip(group, root, def.fp.grips?.left, def.support),
-            };
             loaded.set(def.id, {
+              group,
               root,
               mixer,
               clips: gltf.animations || [],
               using: false,
               equipped: false,
-              grips,
+              gripNames: {
+                right: def.fp.grips?.right || null,
+                left: def.fp.grips?.left || null,
+              },
+              gripFallbacks: {
+                right: def.grip,
+                left: def.support,
+              },
               lastClip: null,
             });
             resolve({ id: def.id, ok: true });
@@ -272,11 +274,25 @@ export function buildToolViewmodels() {
     groups,
     adoptAuthored,
     authoredCount: () => loaded.size,
-    gripsFor: (id) => loaded.get(id)?.grips || null,
+    gripsFor(id) {
+      const entry = loaded.get(id);
+      if (!entry) return null;
+      // AnimationMixer has already advanced this hierarchy for the frame. Resolve the current
+      // socket positions in the held group's frame so hands follow equip, recoil, and work clips.
+      entry.group.updateWorldMatrix(true, true);
+      return {
+        grip: authoredGrip(entry.group, entry.root, entry.gripNames.right, entry.gripFallbacks.right),
+        support: authoredGrip(entry.group, entry.root, entry.gripNames.left, entry.gripFallbacks.left),
+      };
+    },
     setEquipped(id, on) {
       const entry = loaded.get(id);
       if (!entry || entry.equipped === !!on) return false;
       entry.equipped = !!on;
+      // Equip and unequip actions clamp on their final authored pose. Stop the previous action
+      // before starting the next one or repeated belt cycles blend both endpoints together and
+      // progressively park the tool (most visibly the empty bag) below the camera frame.
+      entry.mixer?.stopAllAction();
       return playClip(id, on
         ? [`${id}_equip`, `${id}wand_equip`, 'equip']
         : [`${id}_unequip`, `${id}wand_unequip`, 'unequip', 'putaway']);
