@@ -802,9 +802,12 @@ export function createRegisterMode(B) {
 
   function updateLookTarget(event) {
     // Product clicks must not steer the composed scan view toward the last
-    // item and push the next edge item off-screen. Keep this workspace fixed;
-    // the cursor still raycasts every product without moving the camera.
-    if (accessibilityPrefs.reducedCameraMotion || workspace === 'scan') {
+    // item and push the next edge item off-screen. The monitor is also a fixed
+    // working frame: its canvas buttons must stay under the cursor between
+    // projection, hover, and mouse-down. Card and cash views retain their
+    // restrained lean so the player can glance between physical hardware.
+    if (accessibilityPrefs.reducedCameraMotion
+        || workspace === 'scan' || workspace === 'monitor') {
       lookTargetYaw = 0;
       lookTargetPitch = 0;
       return;
@@ -5373,10 +5376,10 @@ export function createRegisterMode(B) {
       camera.updateProjectionMatrix();
     }
     // the mouse leans the head around the pose — eased, so it reads as a neck
-    // Scanning is a fixed working frame: a click near one edge cannot pan the
-    // remaining products out of reach. Other workspaces retain the eased neck
-    // motion used to glance between their hardware and customer targets.
-    if (workspace === 'scan') {
+    // Scanner goods and monitor buttons use fixed working frames: a click near
+    // one edge cannot pan the remaining target out of reach. Hardware-focused
+    // workspaces retain the eased neck motion used to glance between props.
+    if (workspace === 'scan' || workspace === 'monitor') {
       lookYaw = 0;
       lookPitch = 0;
       lookTargetYaw = 0;

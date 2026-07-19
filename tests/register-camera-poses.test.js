@@ -130,19 +130,19 @@ test('the live reader has no state-driven lift or float mutation', () => {
   assert.doesNotMatch(registerSource, /termObject\.position\.y\s*=/, 'reader y-position must not animate after attachment');
 });
 
-test('product scanning keeps a fixed camera while edge products are clicked', () => {
+test('product scanning and monitor controls keep a fixed camera while edge targets are clicked', () => {
   const updateLookTarget = functionBody(registerSource, 'updateLookTarget');
   assert.match(
     updateLookTarget,
-    /accessibilityPrefs\.reducedCameraMotion \|\| workspace === 'scan'/,
-    'scan pointer movement cannot steer the working camera',
+    /workspace === 'scan' \|\| workspace === 'monitor'/,
+    'scan products and monitor buttons cannot steer their working camera',
   );
 
   const updateCamera = functionBody(registerSource, 'updateCamera');
   assert.match(
     updateCamera,
-    /if \(workspace === 'scan'\) \{[\s\S]*?lookYaw = 0;[\s\S]*?lookTargetYaw = 0;/,
-    'entering or remaining in scan view clears any prior cursor sway immediately',
+    /if \(workspace === 'scan' \|\| workspace === 'monitor'\) \{[\s\S]*?lookYaw = 0;[\s\S]*?lookTargetYaw = 0;/,
+    'entering or remaining in scan or monitor view clears prior cursor sway immediately',
   );
 });
 
