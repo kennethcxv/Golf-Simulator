@@ -6,7 +6,6 @@
 import { makeRng, rngOf } from '../core/utils.js';
 import { labelSections, ensureCourseShape } from './course.js';
 import { buildStartingCourse } from './startingCourse.js';
-import { designCourse } from './courseArchitect.js';
 import { plantVegetation } from './courseShaping.js';
 import { newClock, advanceClock, calendarOf } from './time.js';
 import { tickRenovationsDaily } from './terrainEdit.js';
@@ -37,14 +36,149 @@ import { initTutorial, ensureTutorial } from './tutorial.js';
 import { initLedger, addExpense, closeBooks } from './economy.js';
 import { initNotifications, ensureNotifications } from './notifications.js';
 import { BALANCE } from './balance.js';
+import { SHOP_CATALOG } from '../data/shopItems.js';
+import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
+import { routesIntact, validatePlacement } from './layout.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
-// v6: course.vec (the authored vector design) + course.paint (freeform surface
-// overrides) join the save. Pre-v6 nine-hole saves regenerate their course
-// through the architect — business progress, cash and turf condition carry
-// over; the old cell-painted racetrack layout does not.
-export const SAVE_VERSION = 6;
+// v6: course.vec (the authored vector design) + course.paint joined the save.
+// v7: legacy grid courses remain authoritative on migration. Loading an old
+// save may add compatibility fields, but never replaces the player's zones,
+// elevation, holes, placed objects, paths, or cell-for-cell turf state.
+// v8: authored fixture capacity is authoritative for persisted shelf stock.
+// Overflow moves to the backroom, and legacy saves restore the feature table
+// that became the rangefinder's sellable home in the Sheet-03 retail pass.
+// v9: the rangefinder feature promotes accessories instead of balls. Saves
+// written before this version migrate the old default once, leaving future
+// explicit merchandising choices authoritative.
+// v10: fixture poses written against older approximate envelopes are checked
+// once against the authored footprints. Only unsafe moved overrides fall back
+// to the designed plan; valid player moves and all inventory remain untouched.
+export const SAVE_VERSION = 10;
+
+const FIXTURE_FOOTPRINT_SAVE_VERSION = 10;
+const ROUTE_FAILURE = /customers could not get around/i;
+
+// Keep every owned unit while making the serialized inventory agree with the
+// physical display. Older builds allowed category caps (often 16/24) to exceed
+// the number of authored product sockets. The excess is stockroom inventory,
+// never discarded inventory.
+function reconcileShelfCapacity(shop) {
+  if (!shop || !shop.inventory) return;
+  for (const sku of SHOP_CATALOG) {
+    const inventory = shop.inventory[sku.id];
+    if (!inventory) continue;
+    const capacity = Math.max(0, capacityOf(sku.id));
+    if (!Number.isFinite(inventory.shelf) || inventory.shelf <= capacity) continue;
+    const excess = inventory.shelf - capacity;
+    inventory.shelf = capacity;
+    inventory.back = (Number.isFinite(inventory.back) ? inventory.back : 0) + excess;
+  }
+}
+
+function migrateLegacyRetailLayout(shop, persistedVersion) {
+  // Before v8 the entrance feature was decorative/nonstocking, so storing it
+  // could hide no merchandise. It now owns range2's only physical facing. Heal
+  // that legacy choice once; a v8+ player who intentionally stows an empty case
+  // keeps that choice across every subsequent load.
+  if (persistedVersion >= 8 || !Array.isArray(shop?.layout?.stored)) return;
+  shop.layout.stored = shop.layout.stored.filter((fixtureId) => fixtureId !== 'feature');
+}
+
+function migrateFeatureCategory(shop, persistedVersion) {
+  if (persistedVersion < 9 && shop?.featureCategory === 'balls') {
+    shop.featureCategory = 'accessories';
+  }
+}
+
+// Fixture envelopes became more exact over several retail passes (notably the
+// asymmetric shoe wall and the authored apparel table). A moved pose that was
+// legal against an old approximate box can therefore load inside a wall or on
+// another unit. Validate only legacy overrides and delete only the unsafe pose:
+// the sparse layout then resolves that fixture to its known-safe authored
+// default without changing inventory, stored state, or valid player moves.
+function reconcileLegacyMovedFixturePoses(state, persistedVersion) {
+  if (persistedVersion >= FIXTURE_FOOTPRINT_SAVE_VERSION) return;
+  const moved = state.shop?.layout?.moved;
+  if (!moved || typeof moved !== 'object' || Array.isArray(moved)) return;
+
+  const ids = Object.keys(moved);
+  for (const id of ids) {
+    const pose = moved[id];
+    if (!pose || !Number.isFinite(pose.x) || !Number.isFinite(pose.z)) {
+      delete moved[id];
+      continue;
+    }
+    if (!Number.isFinite(pose.ry)) pose.ry = 0;
+  }
+
+  // A route-only failure can be caused by a different corrupt legacy pose.
+  // Remove direct footprint/wall/fixture failures first, repeating because an
+  // authored fallback can expose a second collision in the remaining plan.
+  let removedDirectPose;
+  do {
+    removedDirectPose = false;
+    for (const id of ids) {
+      const pose = moved[id];
+      if (!pose) continue;
+      const result = validatePlacement(state, id, pose.x, pose.z, pose.ry);
+      if (result.ok || result.reasons.every((reason) => ROUTE_FAILURE.test(reason))) continue;
+      delete moved[id];
+      removedDirectPose = true;
+    }
+  } while (removedDirectPose);
+
+  // Once all direct faults are gone, attribute a remaining route failure by
+  // testing the authored fallback for each legacy override. This preserves all
+  // unrelated moves when one pose alone blocks a required shop route.
+  let removedRoutePose = true;
+  while (!routesIntact(state) && removedRoutePose) {
+    removedRoutePose = false;
+    for (const id of ids) {
+      const pose = moved[id];
+      if (!pose) continue;
+      delete moved[id];
+      if (routesIntact(state)) {
+        removedRoutePose = true;
+        break;
+      }
+      moved[id] = pose;
+    }
+  }
+
+  // Multiple legacy overrides can jointly cut a route even when no single
+  // fallback repairs it. Rebuild that rare case from the safe authored plan,
+  // retaining each override only when the normal placement rules accept it.
+  if (!routesIntact(state)) {
+    const candidates = ids
+      .filter((id) => moved[id])
+      .map((id) => [id, moved[id]]);
+    for (const [id] of candidates) delete moved[id];
+    for (const [id, pose] of candidates) {
+      if (validatePlacement(state, id, pose.x, pose.z, pose.ry).ok) moved[id] = pose;
+    }
+  }
+}
+
+// A stored authored fixture has no shelf in the world. Crafted/interrupted
+// saves may still contain shelf units there, so conservatively return every
+// such unit to back stock. Checkout-held units are recovered first and use the
+// same fixture-presence rule; this final pass also heals already-persisted
+// shelf counts without minting or discarding anything.
+function reconcileStoredFixtureStock(shop) {
+  if (!shop?.inventory || !Array.isArray(shop?.layout?.stored)) return;
+  const stored = new Set(shop.layout.stored);
+  for (const sku of SHOP_CATALOG) {
+    const fixture = homeFixture(sku.id);
+    const inventory = shop.inventory[sku.id];
+    if (!fixture || !stored.has(fixture.id) || !inventory) continue;
+    const shelf = Number.isFinite(inventory.shelf) ? inventory.shelf : 0;
+    if (shelf <= 0) continue;
+    inventory.shelf = 0;
+    inventory.back = (Number.isFinite(inventory.back) ? inventory.back : 0) + shelf;
+  }
+}
 
 // opts lets the GOLF EMPIRE layer boot this same fresh-club wiring onto a
 // marketplace property: an injected course grid and club name, nothing else.
@@ -71,6 +205,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initStaff(state);
   initClub(state);
   initShop(state);
+  reconcileShelfCapacity(state.shop);
   ensureWash(state); // a fixer-upper arrives with a filthy exterior
   ensureProperty(state); // ...and a landlord
   initReservations(state);
@@ -181,6 +316,20 @@ export function update(state, gameMinutes) {
 
 const round1 = (v) => Math.round(v * 10) / 10;
 
+// Mop water and cleaning solution are FEEDBACK, not progress. Both fade to nothing inside a minute
+// of play, and at 0.25 yd over the whole floor they are 4,264 cells each — about 17 KB of zeroes in
+// every save even on a bone-dry floor, and 50 KB on a wet one. A floor you mopped before saving is
+// correctly dry when you come back, so they are rebuilt empty on load by ensureWet() instead.
+//
+// Everything that IS progress — the grime mask, the debris piles, the pan and bag loads — stays.
+function shopForSave(shop) {
+  if (!shop || !shop.reno) return shop;
+  const { wet, solution, ...reno } = shop.reno;
+  void wet;
+  void solution;
+  return { ...shop, reno };
+}
+
 export function snapshot(state) {
   // Reservations keep compatibility name fields for old UI, but the directory
   // is their sole identity authority. Reconcile before every persisted snapshot.
@@ -205,15 +354,18 @@ export function snapshot(state) {
       structures: course.structures,
       objects: course.objects ? course.objects.map((o) => ({
         ...o,
-        x: Math.round(o.x * 100) / 100,
-        y: Math.round(o.y * 100) / 100,
+        // Editor snap increments are expressed in real yards. One yard is
+        // 0.125 simulation cells, so two-decimal cell rounding visibly moved
+        // snapped props after a reload.
+        x: Math.round(o.x * 1000) / 1000,
+        y: Math.round(o.y * 1000) / 1000,
         rot: Math.round(o.rot * 1000) / 1000,
         scale: Math.round(o.scale * 100) / 100,
       })) : [],
       nextObjectId: course.nextObjectId || 1,
       paths: course.paths ? course.paths.map((p) => ({
         ...p,
-        pts: p.pts.map((q) => ({ x: Math.round(q.x * 100) / 100, y: Math.round(q.y * 100) / 100 })),
+        pts: p.pts.map((q) => ({ x: Math.round(q.x * 1000) / 1000, y: Math.round(q.y * 1000) / 1000 })),
       })) : [],
       nextPathId: course.nextPathId || 1,
       vec: course.vec || null,
@@ -229,7 +381,7 @@ export function snapshot(state) {
     staff: state.staff,
     club: state.club,
     ledger: state.ledger,
-    shop: state.shop,
+    shop: shopForSave(state.shop),
     reservations: state.reservations,
     customerDirectory: state.customerDirectory,
     tractor: state.tractor,
@@ -293,71 +445,61 @@ export function serialize(state) {
   return JSON.stringify(snapshot(state));
 }
 
-// Old turf state can't map cell-for-cell onto a regenerated course, but the
-// CONDITION the player earned can: carry each zone class's average over.
-function transferTurfByZone(oldCourse, oldTurf, newCourse, newTurf) {
-  const fields = ['health', 'moisture', 'nutrients', 'heightMm', 'wear'];
-  const sums = new Map(); // zone -> {field: sum, n}
-  for (let i = 0; i < oldCourse.zones.length; i++) {
-    const z = oldCourse.zones[i];
-    let s = sums.get(z);
-    if (!s) sums.set(z, s = { n: 0, health: 0, moisture: 0, nutrients: 0, heightMm: 0, wear: 0 });
-    s.n++;
-    for (const f of fields) s[f] += oldTurf[f][i];
-  }
-  for (let i = 0; i < newCourse.zones.length; i++) {
-    const s = sums.get(newCourse.zones[i]);
-    if (!s || !s.n) continue;
-    for (const f of fields) newTurf[f][i] = s[f] / s.n;
-  }
+function cloneSaveValue(value) {
+  return value == null ? value : structuredClone(value);
+}
+
+// Preserve a valid persisted allocator even when it intentionally leaves gaps,
+// but repair missing/stale counters so the next editor operation cannot reuse
+// an existing id. Existing records are never removed or renumbered.
+function safeNextId(items, persisted) {
+  const highest = (items || []).reduce((max, item) => {
+    const id = Number(item && item.id);
+    return Number.isSafeInteger(id) && id > max ? id : max;
+  }, 0);
+  return Number.isSafeInteger(persisted) && persisted > highest ? persisted : highest + 1;
 }
 
 export function deserialize(json) {
   const raw = typeof json === 'string' ? JSON.parse(json) : json;
-  let course = {
-    w: raw.course.w,
-    h: raw.course.h,
-    zones: Uint8Array.from(raw.course.zones),
-    elevation: Float32Array.from(raw.course.elevation),
-    holes: raw.course.holes,
-    nextHoleId: raw.course.nextHoleId,
-    structures: raw.course.structures || [],
-    objects: raw.course.objects || null, // null = pre-v5 save, migrated below
-    nextObjectId: raw.course.nextObjectId,
-    paths: raw.course.paths || [],
-    nextPathId: raw.course.nextPathId,
+  const persistedVersion = Number.isFinite(raw.version) ? raw.version : 0;
+  const savedCourse = raw.course;
+  const hadPersistedObjects = Array.isArray(savedCourse.objects);
+  const course = {
+    w: savedCourse.w,
+    h: savedCourse.h,
+    zones: Uint8Array.from(savedCourse.zones),
+    elevation: Float32Array.from(savedCourse.elevation),
+    holes: cloneSaveValue(Array.isArray(savedCourse.holes) ? savedCourse.holes : []),
+    nextHoleId: savedCourse.nextHoleId,
+    structures: cloneSaveValue(Array.isArray(savedCourse.structures) ? savedCourse.structures : []),
+    objects: hadPersistedObjects ? cloneSaveValue(savedCourse.objects) : null,
+    nextObjectId: savedCourse.nextObjectId,
+    paths: cloneSaveValue(Array.isArray(savedCourse.paths) ? savedCourse.paths : []),
+    nextPathId: savedCourse.nextPathId,
   };
-  if (raw.course.vec) {
-    course.vec = raw.course.vec;
-    if (raw.course.paint) course.paint = Uint8Array.from(raw.course.paint);
-  }
-  // pre-v6 nine-hole saves: the old cell-painted course regenerates through
-  // the architect, deterministically from the save's own seed. Larger legacy
-  // properties (18 holes) keep their grid — the renderer has a legacy path.
-  let migratedCourse = null;
-  if (!course.vec && (raw.version || 0) < 6 && (course.holes || []).length <= 9) {
-    migratedCourse = designCourse(makeRng(((raw.seed >>> 0) ^ 0x5eed) || 1), { jitter: 0.35 });
-    migratedCourse.holes.forEach((h, i) => {
-      const old = course.holes[i];
-      if (old) {
-        h.status = old.status;
-        h.everOpen = old.everOpen;
-        h.daysLeft = old.daysLeft || 0;
-      }
-    });
-    course = migratedCourse;
-  }
-  // pre-v5 saves carry no placed objects: their trees were renderer noise.
-  // Plant an intentional layout deterministically from the save's own seed so
-  // the migrated course looks designed, not bald.
-  if (!course.objects) {
+  if (savedCourse.vec) course.vec = cloneSaveValue(savedCourse.vec);
+  // Paint is editing data, not proof that a course is vector-based. Preserve it
+  // independently so even unusual intermediary saves lose nothing.
+  if (savedCourse.paint) course.paint = Uint8Array.from(savedCourse.paint);
+  course.nextHoleId = safeNextId(course.holes, course.nextHoleId);
+  course.nextPathId = safeNextId(course.paths, course.nextPathId);
+  // A grid-only course is a supported legacy format. Earlier v6 code replaced
+  // every <=9-hole legacy layout with a newly generated vector course, silently
+  // discarding its terrain, routing, objects and paths. v7 keeps the persisted
+  // grid authoritative; absence of vec is not corruption.
+  if (!hadPersistedObjects) {
+    // Pre-v5 saves had no authored object array (trees were renderer noise).
+    // Keep the established deterministic compatibility planting only when the
+    // field is truly absent. An explicitly empty array remains empty.
     course.objects = [];
     course.nextObjectId = 1;
-    const specs = (course.holes || [])
+    const specs = course.holes
       .filter((h) => h.tee && h.pin)
       .map((h) => ({ tee: h.tee, pin: h.pin, wp: [] }));
     plantVegetation(course, specs, makeRng(((raw.seed >>> 0) ^ 0x7ee5) || 1), { density: 1 });
   }
+  course.nextObjectId = safeNextId(course.objects, course.nextObjectId);
   ensureCourseShape(course);
   const state = {
     version: SAVE_VERSION,
@@ -377,16 +519,7 @@ export function deserialize(json) {
       : newWeather(),
     maintenance: raw.maintenance || null,
   };
-  if (raw.turf && migratedCourse) {
-    // regenerated layout: cells moved, the earned condition carries by class
-    initTurf(state);
-    const oldCourse = { zones: Uint8Array.from(raw.course.zones) };
-    const oldTurf = {
-      health: raw.turf.health, moisture: raw.turf.moisture, nutrients: raw.turf.nutrients,
-      heightMm: raw.turf.heightMm, wear: raw.turf.wear,
-    };
-    transferTurfByZone(oldCourse, oldTurf, course, state.turf);
-  } else if (raw.turf) {
+  if (raw.turf) {
     state.turf = {
       health: Float32Array.from(raw.turf.health),
       moisture: Float32Array.from(raw.turf.moisture),
@@ -424,6 +557,9 @@ export function deserialize(json) {
   if (state.shop.drawer) state.shop.drawer = migrateDrawer(state.shop.drawer);
   ensurePaymentBag(state); // a half-used balanced batch survives the reload intact
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
+  migrateLegacyRetailLayout(state.shop, persistedVersion);
+  migrateFeatureCategory(state.shop, persistedVersion);
+  reconcileLegacyMovedFixturePoses(state, persistedVersion);
   if (!Array.isArray(state.shop.transactionHistory)) state.shop.transactionHistory = [];
   if (!Number.isFinite(state.shop.nextTransactionNo)) {
     const greatestTicket = state.shop.transactionHistory.reduce(
@@ -433,6 +569,8 @@ export function deserialize(json) {
     state.shop.nextTransactionNo = greatestTicket + 1;
   }
   recoverCheckout(state); // a save taken mid-sale: the shoppers are gone, so put their goods back
+  reconcileShelfCapacity(state.shop); // authored shelf slots win; overflow remains owned in back stock
+  reconcileStoredFixtureStock(state.shop); // absent fixtures cannot retain invisible shelf inventory
   ensureWash(state); // ...and a filthy exterior waiting for the pressure washer
   ensureProperty(state); // pre-rent saves gain a schedule rather than a free ride
   if (raw.reservations) state.reservations = raw.reservations;
