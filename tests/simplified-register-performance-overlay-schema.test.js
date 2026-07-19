@@ -47,12 +47,16 @@ test('performance master brackets the full v2 production build without replacing
   assert.match(performanceSource, /discoverMeasuredFiles\('vendor\/models\/checkout'/);
   assert.equal(
     performanceSource.match(/await captureNormalizedTransactionBoundary\(page, cdp\)/g)?.length,
-    4,
-    'the live route must normalize all four transaction boundaries',
+    5,
+    'the live route must normalize four fixed boundaries plus one bounded convergence boundary',
   );
   assert.match(performanceSource, /dynamicWindows\.cardApprovedRepeat = await captureDynamicPhase\(/);
-  assert.match(performanceSource, /transactionStabilityReport\(\s*transactionStart,\s*transactionAfterFirstSale,\s*transactionAfterWarmSale,\s*transactionEnd,\s*\)/);
-  assert.match(performanceSource, /two consecutive complete approved-card sales/);
+  assert.match(performanceSource, /for \(let attempt = 1; attempt <= TRANSACTION_RENDERER_RESIDENCY_ATTEMPTS; attempt\+\+\)/);
+  assert.match(performanceSource, /isRetryableTransactionRendererResidency\(attemptDelta\)/);
+  assert.match(performanceSource, /if \(!retryableRendererGrowth \|\| attempt === TRANSACTION_RENDERER_RESIDENCY_ATTEMPTS\) break;/,
+    'transaction convergence must remain bounded and fail through the final judged delta');
+  assert.match(performanceSource, /transactionStabilityReport\(\s*transactionStart,\s*transactionAfterFirstSale,\s*transactionPairStart,\s*transactionEnd,\s*\)/);
+  assert.match(performanceSource, /two complete approved-card sales plus bounded renderer-residency convergence sales/);
   assert.doesNotMatch(performanceSource, /plus one approved card completion/);
   assert.match(performanceSource, /path\.join\(OUT, 'transaction-stability\.json'\)[\s\S]*schemaVersion: PERFORMANCE_SCHEMA_VERSION,[\s\S]*generatedAt,[\s\S]*protocol: \{ gcSettleMs: protocol\.gcSettleMs \}/);
   assert.match(performanceSource, /if \(now <= state\.startedAt\) \{\s*requestAnimationFrame\(frame\);\s*return;/,
