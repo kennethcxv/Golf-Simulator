@@ -4,8 +4,10 @@
 export function createRegisterItemResources() {
   const ownedGeometries = new WeakSet();
   const ownedMaterials = new WeakSet();
+  const ownedTextures = new WeakSet();
   const disposedGeometries = new WeakSet();
   const disposedMaterials = new WeakSet();
+  const disposedTextures = new WeakSet();
 
   return {
     geometry(resource) {
@@ -18,14 +20,24 @@ export function createRegisterItemResources() {
       return resource;
     },
 
+    texture(resource) {
+      if (resource) ownedTextures.add(resource);
+      return resource;
+    },
+
     dispose(root) {
       if (!root || typeof root.traverse !== 'function') return { geometries: 0, materials: 0 };
       const geometries = new Set();
       const materials = new Set();
+      const textures = new Set();
       root.traverse((object) => {
         if (object.geometry) geometries.add(object.geometry);
         const objectMaterials = Array.isArray(object.material) ? object.material : [object.material];
-        for (const material of objectMaterials) if (material) materials.add(material);
+        for (const material of objectMaterials) {
+          if (!material) continue;
+          materials.add(material);
+          for (const value of Object.values(material)) if (value?.isTexture) textures.add(value);
+        }
       });
 
       let geometryCount = 0;
@@ -41,6 +53,11 @@ export function createRegisterItemResources() {
         disposedMaterials.add(material);
         material.dispose();
         materialCount++;
+      }
+      for (const texture of textures) {
+        if (!ownedTextures.has(texture) || disposedTextures.has(texture)) continue;
+        disposedTextures.add(texture);
+        texture.dispose();
       }
       return { geometries: geometryCount, materials: materialCount };
     },

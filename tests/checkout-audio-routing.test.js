@@ -188,20 +188,20 @@ test('drawer close is emitted once only, when the counted change is handed over'
 
 test('bagging and automatic receipt cues remain transition-local one-shots', () => {
   const bagProduct = extractFunction(registerSource, 'bagProduct');
+  const commitScanMotion = extractFunction(registerSource, 'commitScanMotion');
   const updateScanMotion = extractFunction(registerSource, 'updateScanMotion');
   const beginAutomaticReceipt = extractFunction(registerSource, 'beginAutomaticReceipt');
   const finishAutomaticFulfillment = extractFunction(registerSource, 'finishAutomaticFulfillment');
   const updateDelivery = extractFunction(registerSource, 'updateDelivery');
 
-  // Click-to-bag rings up an item once: pickup + register beep + POS add all on
-  // the single bagProduct edge, after the ProductScanning transition. There is
-  // no scanner drag, no centering, no second activation edge.
+  // One click starts the reader once. The success beep and POS add belong to the
+  // validated barcode-contact edge, never pickup or an unverified flight frame.
   assert.equal(cueCalls(registerSource, 'scannerActivate').length, 1,
     'the single bagging edge owns the one register-activation cue');
   assert.equal(cueCalls(bagProduct, 'scannerActivate').length, 1);
-  assert.equal(cueCalls(bagProduct, 'posAdd').length, 1,
-    'the POS add cue fires once per bagged item');
-  assert.equal(cueCalls(bagProduct, 'scanSuccess').length, 1);
+  assert.equal(cueCalls(commitScanMotion, 'posAdd').length, 1,
+    'the POS add cue fires once per validated barcode read');
+  assert.equal(cueCalls(commitScanMotion, 'scanSuccess').length, 1);
   assert.equal(cueCalls(updateScanMotion, 'bagItem').length, 1,
     'a compact product landing in the bag owns one physical bag impact/rustle cue');
   assert.equal(cueCalls(beginAutomaticReceipt, 'receiptPrint').length, 1);

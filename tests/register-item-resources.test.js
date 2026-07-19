@@ -14,15 +14,18 @@ test('register item cleanup disposes owned fallback geometry and barcode materia
   const resources = createRegisterItemResources();
   const root = new THREE.Group();
   const geometry = resources.geometry(new THREE.BoxGeometry(1, 1, 1));
-  const material = resources.material(new THREE.MeshStandardMaterial({ color: 0x224433 }));
+  const texture = resources.texture(new THREE.Texture());
+  const material = resources.material(new THREE.MeshStandardMaterial({ color: 0x224433, map: texture }));
   const geometryDisposals = disposeCounter(geometry);
   const materialDisposals = disposeCounter(material);
+  const textureDisposals = disposeCounter(texture);
   root.add(new THREE.Mesh(geometry, material));
 
   assert.deepEqual(resources.dispose(root), { geometries: 1, materials: 1 });
   assert.deepEqual(resources.dispose(root), { geometries: 0, materials: 0 });
   assert.equal(geometryDisposals(), 1);
   assert.equal(materialDisposals(), 1);
+  assert.equal(textureDisposals(), 1);
 });
 
 test('register item cleanup preserves shared GLB geometry, cached material and texture', () => {

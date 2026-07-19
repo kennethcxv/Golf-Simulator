@@ -2618,7 +2618,7 @@ async function scanAll(page) {
   const itemIds = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getTx().items.map((item) => item.uid));
   for (const uid of itemIds) {
     let product = await projectObject(page, { kind: 'item', uid });
-    // The preceding product's click-to-bag flight can briefly cross the next
+    // The preceding product's reader-to-bag flight can briefly cross the next
     // product. Wait for this visible target to settle before aiming at it.
     for (let settle = 0; settle < 20; settle += 1) {
       await page.waitForTimeout(120);
@@ -3268,7 +3268,7 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
   dynamicPhases.oneClickBagging = deriveDynamicSubphase(
     dynamicWindows.scanAndCardHandoff,
     'oneClickBagging',
-    'Three normal one-click scans and click-to-bag flights',
+    'Three normal one-click reader scans and bagging flights',
     (entry) => entry.transactionStage === 'scanning' || entry.workspace === 'scan',
     'Frames selected from the uninterrupted scan/handoff window while scanning or the scan workspace was live.',
   );

@@ -230,6 +230,7 @@ async function scanAll(page, shot, mode) {
   const items = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.getTx().items.map((item) => item.uid)
   ));
+  const scanReadEvidence = [];
   for (let index = 0; index < items.length; index += 1) {
     const uid = items[index];
     // bagging the previous item re-lays the remaining goods out on the counter,
@@ -245,8 +246,8 @@ async function scanAll(page, shot, mode) {
       product = next;
     }
     assert(product && product.inView, `${uid} is not visible in the scan workspace.`);
-    // click-to-bag: one click on the goods rings the item up and sends it to
-    // the bag — there is no centring or swipe gesture in the production flow
+    // One click owns pickup, barcode alignment, scanner contact, and bagging.
+    // There is no centring, drag, swipe, or second activation gesture.
     await page.mouse.click(product.x, product.y);
     await page.waitForFunction((id) => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -254,15 +255,40 @@ async function scanAll(page, shot, mode) {
     }, uid, { timeout: 5000 }).catch(async (error) => {
       throw new Error(`${error.message} — ${await clickDiagnostic(page, product.x, product.y)}`);
     });
-    if (index === 0) await shot('06-first-product-scanned.png');
-    // let the bagged item finish its flight — it crosses OVER the remaining
-    // goods on the way to the bag, and a click through it would be swallowed
-    await page.waitForFunction((id) => {
-      const tx = window.__fw.scene3d.clubhouse().register.getTx();
-      return tx && tx.items.find((item) => item.uid === id)?.staged;
-    }, uid, { timeout: 8000 });
-    if (index === 1) await shot('06b-mid-bagging.png');
-    await page.waitForTimeout(220);
+    const read = await page.evaluate(() => (
+      window.__fw.scene3d.clubhouse().register.scanPresentation().lastRead
+    ));
+    assert(read?.uid === uid && read.ok && read.scanHit,
+      `No successful physical scanner read was recorded for ${uid}: ${JSON.stringify(read)}`);
+    assert(read.scannerSource === 'authored-socket',
+      `${uid} used ${read.scannerSource} instead of the authored scanner socket.`);
+    scanReadEvidence.push(read);
+    if (index === 0) {
+      await page.waitForFunction((id) => {
+        const presentation = window.__fw.scene3d.clubhouse().register.scanPresentation();
+        return presentation.active && presentation.uid === id
+          && presentation.phase === 'scan-hold'
+          && presentation.lastRead?.uid === id
+          && presentation.lastRead.ok;
+      }, uid, { timeout: 5000 });
+      await shot('06-first-product-scanned.png');
+    }
+    if (index === 1) {
+      await page.waitForFunction((id) => {
+        const presentation = window.__fw.scene3d.clubhouse().register.scanPresentation();
+        return presentation.active && presentation.uid === id
+          && presentation.phase === 'bag'
+          && presentation.phaseT >= 0.18 && presentation.phaseT <= 0.82;
+      }, uid, { timeout: 5000 });
+      await shot('06b-mid-bagging.png');
+    }
+    // Do not aim through a product that is still leaving the reader. The next
+    // click is armed only after the flow reaches its stable physical checkpoint.
+    await page.waitForFunction(() => {
+      const register = window.__fw.scene3d.clubhouse().register;
+      const state = register.getFlow()?.state;
+      return state === 'WaitingForScan' || state === 'AllProductsScanned';
+    }, null, { timeout: 8000 });
   }
   await page.waitForFunction(() => {
     const register = window.__fw.scene3d.clubhouse().register;
@@ -291,6 +317,7 @@ async function scanAll(page, shot, mode) {
   assert(!automaticChoice.hotspotIds.includes('pay-card') && !automaticChoice.hotspotIds.includes('pay-cash'),
     'The shared monitor still asks the player to choose the customer payment method.');
   await shot('07-all-products-scanned.png');
+  return scanReadEvidence;
 }
 
 async function insertCardGesture(page, shot, {
@@ -951,7 +978,7 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   assert(reenteredNumber === txNumber, 'Exit/re-entry replaced the active transaction.');
   await shot('04-safe-reentry.png');
 
-  await scanAll(page, shot, mode);
+  const scanReadEvidence = await scanAll(page, shot, mode);
   let cashDrawerTravelEvidence = null;
   if (mode === 'card') await cardRoute(page, shot);
   else cashDrawerTravelEvidence = await cashRoute(page, shot);
@@ -1039,6 +1066,7 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     before: fixture.before,
     final,
     evidence,
+    scanReadEvidence,
     cashDrawerTravelEvidence,
     audioVideoCapture,
     console: { errors, pageErrors, failedRequests, nonAbortedFailedRequests: nonAborted },
