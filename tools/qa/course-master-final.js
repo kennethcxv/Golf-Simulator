@@ -147,6 +147,7 @@ async (page) => {
         slowestOnePercentMeanMs: +slowestMeanMs.toFixed(3),
         p99FrameMs: +p99Ms.toFixed(3),
         worstFrameMs: +worstMs.toFixed(3),
+        framesOver100ms: deltas.filter((value) => value > 100).length,
         drawCallsTotal: renderTotals.drawCalls,
         drawCallsPerFrame: +(renderTotals.drawCalls / Math.max(1, deltas.length)).toFixed(2),
         trianglesTotal: renderTotals.triangles,
@@ -181,6 +182,7 @@ async (page) => {
       slowestOnePercentFrameCount: slowCount,
       slowestOnePercentMeanMs: +slowestMeanMs.toFixed(3),
       worstFrameMs: +(ordered[ordered.length - 1] || 0).toFixed(3),
+      framesOver100ms: deltas.filter((value) => value > 100).length,
       drawCallsPerFrame: +(calls / Math.max(1, deltas.length)).toFixed(2),
       trianglesPerFrame: Math.round(triangles / Math.max(1, deltas.length)),
       uiMutationRecords,
@@ -504,6 +506,10 @@ async (page) => {
     const samples = [];
     for (let index = 0; index < count; index += 1) {
       if (beforeEach) await beforeEach(index);
+      // The evidence pass captures dozens of full-size screenshots before these
+      // timing windows. Reclaim that test-only allocation outside the sample so
+      // a screenshot GC pause is not misattributed to ordinary editor input.
+      await cdp.send('HeapProfiler.collectGarbage');
       await waitForSettledRender(8);
       await startUiMutationProbe(`${label}-${index + 1}`);
       const samplePromise = sampleFrameTimes(durationMs);
@@ -724,7 +730,10 @@ async (page) => {
   return {
     ok: diagnostics.console.length === 0
       && diagnostics.pageErrors.length === 0
-      && diagnostics.failedRequests.length === 0,
+      && diagnostics.failedRequests.length === 0
+      && courseOverviewIdle.framesOver100ms === 0
+      && hole1EditorOrbit.framesOver100ms === 0
+      && hole1PlaytestShot.framesOver100ms === 0,
     phase,
     launch: 'HEADED=1 node tools/qa/run-playwright.cjs tools/qa/course-master-final.js --bootstrap',
     fixture: 'runner --bootstrap, relaxed empire seed 424242, first property, fixed dry midday weather',
