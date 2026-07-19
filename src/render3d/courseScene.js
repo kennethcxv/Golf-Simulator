@@ -3793,11 +3793,9 @@ export function makeCourseScene(canvas, state) {
     washer: new THREE.Group(), boxcutter: new THREE.Group(),
     ...toolViewmodels.groups,
   };
-  // the washer's geometry is authored below, so keep the empty group rather than the registry's
-  // The washer's lance is authored below rather than from the registry, so discard the
-  // registry's stand-in group and name the real one — several tools now carry a socket called
-  // SOCKET_nozzle, so anything looking for the washer's must be able to scope its search.
-  heldGroups.washer = heldGroups.washer.name === 'Tool_washer' ? new THREE.Group() : heldGroups.washer;
+  // The washer starts with the synchronous procedural lance below, then this same registry-owned
+  // group adopts Asset 79's authored viewmodel without changing its sockets or trigger state.
+  // The stable name keeps scoped SOCKET_nozzle lookups unambiguous across all cleaning tools.
   heldGroups.washer.name = 'HeldWasher';
   for (const g of Object.values(heldGroups)) {
     g.visible = false;
@@ -4054,6 +4052,7 @@ export function makeCourseScene(canvas, state) {
   function updateHeldFeel(dt) {
     // the hands breathe, rise into frame, and shove back under the trigger — or draw the box
     // cutter down the seam while you hold E on a taped carton
+    toolViewmodels.update(dt);
     fpHands.update(dt, walkSpraying || walkSoaping || holdActive);
     if (!heldRoot.visible) return;
     heldAnim.t = Math.min(1, heldAnim.t + dt / 0.26);
@@ -4160,6 +4159,7 @@ export function makeCourseScene(canvas, state) {
       heldAssetRegistry.ensure(tool, 'equip');
     }
     walkTool = tool;
+    toolViewmodels.setTool(tool, previousTool);
     for (const [name, g] of Object.entries(heldGroups)) g.visible = name === tool;
     // The box cutter is intentionally tool-only in first person: the previous
     // procedural hand/cuff covered both the blade contact and highlighted tape
@@ -4192,7 +4192,11 @@ export function makeCourseScene(canvas, state) {
   }
 
   function walkSetSpraying(on) {
+    const wasSpraying = walkSpraying;
     walkSpraying = !!(on && walkTool && !cart.mounted);
+    if (walkTool && walkSpraying !== wasSpraying) {
+      toolViewmodels.setActive(walkTool, walkSpraying);
+    }
     if (!walkSpraying) sprayPoints.visible = false;
   }
 
@@ -6582,6 +6586,10 @@ export function makeCourseScene(canvas, state) {
       setTool: walkSetTool,
       getTool: () => walkTool,
       heldAssetDiagnostics: heldAssetRegistry.diagnostics,
+      toolViewmodelDiagnostics: () => ({
+        loadResults: toolViewmodelsAuthored,
+        ...toolViewmodels.diagnostics(),
+      }),
       setSpraying: walkSetSpraying,
       isSpraying: () => walkSpraying,
       setSoaping: (on) => { walkSoaping = !!on && walkTool === 'washer'; },

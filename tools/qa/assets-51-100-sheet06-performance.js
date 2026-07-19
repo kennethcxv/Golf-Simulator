@@ -9,7 +9,7 @@ async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const crypto = process.getBuiltinModule('node:crypto');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
   const out = process.env.ASSET_QA_OUT
     ? path.resolve(repo, process.env.ASSET_QA_OUT)
     : path.join(repo, 'qa', 'assets_51_100_master', 'baseline', 'current');

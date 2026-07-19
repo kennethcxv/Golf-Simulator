@@ -6,7 +6,8 @@ async (page) => {
   // repeatable visual fixture; later interaction acceptance uses normal controls.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const out = process.env.ASSET_QA_OUT
     ? path.resolve(repo, process.env.ASSET_QA_OUT)
     : path.join(repo, 'qa', 'assets_01_50_master', 'baseline', 'current');
@@ -50,7 +51,7 @@ async (page) => {
   });
 
   await page.setViewportSize(viewport);
-  await page.goto('http://localhost:8457/', { waitUntil: 'domcontentloaded' });
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   await page.getByText('Continue', { exact: true }).click();
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
   await page.waitForFunction(() => {
@@ -65,7 +66,10 @@ async (page) => {
     const sheet06 = clubhouse.sheet06Production?.diagnostics?.() || null;
     const sheet06Ready = !clubhouse.sheet06Production
       || (sheet06?.actualSharedGameIntegrated === true && sheet06?.activationStatus === 'active');
-    return baseReady && equipmentReady && sheet06Ready;
+    const runtime = clubhouse.assets51to100Runtime?.diagnostics?.() || null;
+    const runtimeReady = !clubhouse.assets51to100Runtime
+      || (runtime?.placed === 40 && runtime?.failed === 0);
+    return baseReady && equipmentReady && sheet06Ready && runtimeReady;
   }, null, { timeout: 90000 });
 
   const fixture = await page.evaluate(async () => {
@@ -89,6 +93,8 @@ async (page) => {
     if (app.state.shop.reno) {
       app.state.shop.reno.grime.fill(0);
       for (const clutter of app.state.shop.reno.clutter || []) clutter.cleared = true;
+      app.state.shop.reno.debris = [];
+      app.state.shop.reno.debrisSeeded = true;
     }
     const nonRetail = new Set(['rug1', 'plant1', 'poster1', 'board1', 'light1', 'lounge1', 'vac1']);
     const parkedNonRetail = [];
@@ -116,9 +122,19 @@ async (page) => {
       inventoryEntries: Object.keys(app.state.shop.inventory || {}).length,
       parkedNonRetail,
       deliveryEquipment: clubhouse.deliveryEquipmentDiagnostics?.() || null,
+      assets51to100Runtime: clubhouse.assets51to100Runtime?.diagnostics?.() || null,
     };
   });
   await page.waitForTimeout(1200);
+
+  // Fixed-camera evidence has its own normal-control acceptance route. Hide only the
+  // automation reminder here so changing pointer-lock state cannot pollute performance samples.
+  const pointerLockAcquired = false;
+  await page.evaluate(() => {
+    const hint = document.querySelector('.shop-lockhint');
+    if (hint) hint.style.visibility = 'hidden';
+  });
+  await page.waitForTimeout(180);
 
   const captured = [];
   for (const camera of cameras) {
@@ -237,6 +253,7 @@ async (page) => {
       frameSampling: 'three consecutive 2.5 second requestAnimationFrame samples at fixed camera 13',
       textureMemory: 'unmeasured; renderer exposes count but not byte size',
       cameraEstablishment: 'documented deterministic fixture; normal-control acceptance is separate',
+      pointerLockAcquired,
     },
     fixture,
     cameras,

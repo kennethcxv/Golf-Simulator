@@ -96,6 +96,7 @@ import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildProps } from './assets51to100/propPlacement.js';
+import { RUNTIME_ASSET_MANIFEST_BY_NUMBER } from './assets51to100/runtimeManifest.js';
 import {
   ensureDebris, debrisState, seedDebris, sweepAt, collectAt, suckAt, totalDebris,
 } from '../sim/cleaningDebris.js';
@@ -526,6 +527,9 @@ export function makeClubhouse(ctx) {
   // running, and rebuildStock() closes over state declared further down (it hit
   // exactly that dead zone once).
   const merch = createMerch(mats);
+  // Resolve only after createMerch has synchronously run every registered ready callback. The
+  // authored runtime can then retire fallbacks without a late kit callback adding a duplicate.
+  const merchReady = new Promise((resolve) => merch.onReady(resolve));
   let deliveryPadSurfaceY = null;
   let deliveryVanBaySurfaceY = null;
   let deliveryVanBayBounds = null;
@@ -596,8 +600,6 @@ export function makeClubhouse(ctx) {
   // Assets 71-100: thirty finished props that nothing was loading. Static dressing, so they skip
   // the Sheet 6 production machinery entirely and just get placed — each aligned by its own
   // SOCKET_PLACEMENT rather than by its authoring origin.
-  const props71to100 = buildProps({ interior, loader: new GLTFLoader() });
-
   const sheet06ProductionPublic = Object.freeze({
     ready: sheet06Production.ready,
     diagnostics: () => sheet06Production.diagnostics(),
@@ -623,6 +625,75 @@ export function makeClubhouse(ctx) {
     setFixtureCollidersActive,
     fixtureColliderDiagnostics,
   } = buildFixtures(B);
+
+  // Asset 63 uses the same analytic-navigation contract as every other clubhouse fixture, but a
+  // fitting booth is not a solid square. Register its rear/side walls and bench separately so the
+  // authored east-facing curtain remains a real entrance. Only the thin curtain collider toggles.
+  const fittingRecord = RUNTIME_ASSET_MANIFEST_BY_NUMBER[63];
+  const fittingPlacement = fittingRecord.placement;
+  const fittingSize = fittingRecord.binding.dimensionsMeters.width
+    * fittingRecord.binding.runtimeScale;
+  const fittingHalf = fittingSize / 2;
+  const fittingWall = 0.13;
+  const fittingRoomColliders = [
+    addCol(colBoxAt(
+      fittingPlacement.x - fittingHalf + fittingWall / 2,
+      fittingPlacement.z,
+      fittingWall,
+      fittingSize,
+    )),
+    addCol(colBoxAt(
+      fittingPlacement.x,
+      fittingPlacement.z - fittingHalf + fittingWall / 2,
+      fittingSize,
+      fittingWall,
+    )),
+    addCol(colBoxAt(
+      fittingPlacement.x,
+      fittingPlacement.z + fittingHalf - fittingWall / 2,
+      fittingSize,
+      fittingWall,
+    )),
+    addCol(colBoxAt(fittingPlacement.x - 0.47, fittingPlacement.z, 0.42, 0.92)),
+  ];
+  const fittingCurtainCollider = colBoxAt(
+    fittingPlacement.x + fittingHalf - fittingWall / 2,
+    fittingPlacement.z,
+    fittingWall,
+    fittingSize - 0.12,
+  );
+  let fittingCurtainColliderActive = false;
+  function setFittingCurtainOpen(open) {
+    if (open && fittingCurtainColliderActive) {
+      removeCol(fittingCurtainCollider);
+      fittingCurtainColliderActive = false;
+    } else if (!open && !fittingCurtainColliderActive) {
+      addCol(fittingCurtainCollider);
+      fittingCurtainColliderActive = true;
+    }
+  }
+  setFittingCurtainOpen(state.shop?.assetRuntime?.asset_063?.open === true);
+
+  const props61to100 = buildProps({
+    interior,
+    loader: new GLTFLoader(),
+    state,
+    addProp,
+    removeProp,
+    L2W,
+    getFixtureAnchor: (fixtureId) => fixtureAnchors.get(fixtureId) || null,
+    legacyReady: merchReady,
+    merch,
+    hooks: {
+      ...hooks,
+      assetStateChanged(change) {
+        hooks?.assetStateChanged?.(change);
+        if (change.assetNumber === 63 && change.state === 'open') {
+          setFittingCurtainOpen(change.value === true);
+        }
+      },
+    },
+  });
 
   function fixtureBrowsePose(fixture, localX = 0, localZ = null) {
     const local = fixtureBrowsePoint(fixture, localX, localZ);
@@ -675,7 +746,9 @@ export function makeClubhouse(ctx) {
   // paths rebake themselves — removeCol/addCol bump colVersion, and navFresh() watches it — so a
   // shelf that moved is a wall that moved, as far as they are concerned.
   function rebuildLayout() {
+    props61to100.detachFixturePlacements();
     relayFixtures();
+    props61to100.syncFixturePlacements();
     retargetCustomerFixtureStops();
     rebuildStock();
     rebuildBoxes();
@@ -1067,6 +1140,7 @@ export function makeClubhouse(ctx) {
     // Kit front (drawer faces) points +Z at ry 0; the desk faces the chair
     // to its west, so ry −π/2.
     const desk = new THREE.Group();
+    desk.name = 'LegacyOfficeDesk';
     const top = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.08, 0.95), woodMat);
     top.position.y = 0.92;
     top.castShadow = true;
@@ -1086,6 +1160,7 @@ export function makeClubhouse(ctx) {
     merch.onReady(() => {
       const kitDesk = merch.instantiateKit && merch.instantiateKit('office_desk');
       if (!kitDesk) return;
+      kitDesk.name = 'LegacyOfficeDeskAuthored';
       kitDesk.position.set(OFFICE.desk.x, 0, OFFICE.desk.z);
       kitDesk.rotation.y = -Math.PI / 2;
       interior.add(kitDesk);
@@ -1112,11 +1187,12 @@ export function makeClubhouse(ctx) {
     merch.onReady(() => {
       const filing = merch.instantiateKit && merch.instantiateKit('filing_cabinet');
       if (!filing) return;
-      filing.position.set(9.92, 0, 3.4);
+      filing.name = 'LegacyOfficeFilingCabinet';
+      filing.position.set(9.88, 0, 2.75);
       filing.rotation.y = -Math.PI / 2;
       interior.add(filing);
     });
-    addCol(colBoxAt(9.92, 3.4, 0.75, 0.6));
+    addCol(colBoxAt(9.88, 2.75, 0.75, 0.6));
 
     // wall course map — a real framed board, flush on the office's south wall:
     // backing panel with thickness, mitered frame lip, map face proud of the
@@ -1307,7 +1383,7 @@ export function makeClubhouse(ctx) {
     // 0.752 = the Sheet-04 kit desk's top (0.75) + clearance. The whole sit
     // rig (seat pose, screen corners) derives from the laptop's live world
     // matrix, so lowering the laptop reseats everything with it.
-    laptop.position.set(OFFICE.laptop.x - 0.10, 0.752, OFFICE.laptop.z);
+    laptop.position.set(OFFICE.laptop.x - 0.10, 0.833, OFFICE.laptop.z);
     laptop.rotation.y = OFFICE.laptop.ry;
     interior.add(laptop);
 
@@ -2871,10 +2947,11 @@ export function makeClubhouse(ctx) {
         // case columns line up with the Sheet-04 stock_shelving modules; the
         // case bases sit exactly on the upper three board tops (the ground
         // board belongs to the carton dressing)
-        const cols = f.short ? [-0.31, 0.31] : [-0.93, -0.31, 0.31, 0.93];
+        const cols = f.short ? [-0.31, 0.31] : [-0.66, -0.22, 0.22, 0.66];
         for (let i = 0; i < show; i++) {
           const bx = cols[i % cols.length];
-          const by = [0.6455, 1.1455, 1.6455][Math.floor(i / cols.length) % 3];
+          const levels = f.short ? [0.6455, 1.1455, 1.6455] : [0.8585, 1.3834, 1.9084];
+          const by = levels[Math.floor(i / cols.length) % 3];
           const caseB = new THREE.Mesh(
             ownedStockResources.geometry(new THREE.BoxGeometry(0.5, 0.36, 0.44)),
             i % 2 ? cardboard : cardboardDark,
@@ -6897,6 +6974,7 @@ export function makeClubhouse(ctx) {
       }
     }
     sheet06Production.update(dt);
+    props61to100.update(dt);
     updateDoors(dt, now);
     if (deliveryEquipment) {
       deliveryEquipment.update(dt);
@@ -7018,7 +7096,7 @@ export function makeClubhouse(ctx) {
     // rule for loader clones is that the cache which produced them owns freeing them — the same
     // boundary createMerch and the Sheet-6 isolated cache sit behind. Freeing them from this side
     // as well is a double release, which tests/clubhouse-resource-lifecycle.test.js counts.
-    // `props71to100.dispose()` exists for rebuilding the dressing on its own, not for teardown.
+    // `props61to100.dispose()` exists for rebuilding the dressing on its own, not for teardown.
     const boxPlacementDisposal = boxPlacementMode?.dispose?.() || null;
     deliveryBoxTransfers.clear();
     deliveryBoxTransferHistory.length = 0;
@@ -7078,7 +7156,7 @@ export function makeClubhouse(ctx) {
       // Assets 71-100 are GLB clones. Like every other loader clone in this teardown, the cache
       // that produced them owns releasing them — the procedural walk must not free them a second
       // time. `interior` is a staticRoot, so without this the walk reaches straight into them.
-      collectRenderableResources([props71to100.group]),
+      collectRenderableResources(props61to100.roots()),
     );
 
     camera.remove(carriedBoxHands);
@@ -7309,8 +7387,19 @@ export function makeClubhouse(ctx) {
     },
     // assets 71-100 dressing
     props71to100: {
-      ready: props71to100.ready,
-      diagnostics: () => props71to100.diagnostics(),
+      ready: props61to100.ready,
+      diagnostics: () => props61to100.diagnostics(),
+    },
+    assets51to100Runtime: {
+      ready: props61to100.ready,
+      diagnostics: () => props61to100.diagnostics(),
+      getRoot: (number, fixtureId = null) => props61to100.getRoot(number, fixtureId),
+      interactionTargets: () => props61to100.interactionTargets(),
+      fittingRoom: () => ({
+        structuralColliders: fittingRoomColliders.length,
+        curtainColliderActive: fittingCurtainColliderActive,
+        curtainOpen: state.shop?.assetRuntime?.asset_063?.open === true,
+      }),
     },
     washJet: (from, to, on, dt) => washing.setJet(from, to, on, dt),
     washTick: (dt) => washing.tick(dt),

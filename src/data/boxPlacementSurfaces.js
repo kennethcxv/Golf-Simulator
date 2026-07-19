@@ -102,8 +102,10 @@ const apparelTable = surface({
   reservationId: 'apparel-product-stacks',
 });
 
-const STOCK_SHELF_LEVELS = Object.freeze([0.1455, 0.6455, 1.1455, 1.6455]);
-const STOCK_SHELF_MODULE_X = Object.freeze([-0.62, 0.62]);
+// Asset 64 is one 1.83 m rack with four authored support sockets. Two logical bays keep the
+// existing eight stable save IDs while fitting completely inside its 2.00 yd runtime width.
+const STOCK_SHELF_LEVELS = Object.freeze([0.3336, 0.8585, 1.3834, 1.9084]);
+const STOCK_SHELF_MODULE_X = Object.freeze([-0.44, 0.44]);
 const stockShelves = [];
 for (let moduleIndex = 1; moduleIndex <= STOCK_SHELF_MODULE_X.length; moduleIndex += 1) {
   for (let levelIndex = 1; levelIndex <= STOCK_SHELF_LEVELS.length; levelIndex += 1) {
@@ -118,8 +120,8 @@ for (let moduleIndex = 1; moduleIndex <= STOCK_SHELF_MODULE_X.length; moduleInde
         0,
         0,
       ),
-      // 1.20 x 0.50 authored module, inset around posts and board edges.
-      bounds: freezeBounds(-0.55, 0.55, -0.20, 0.20),
+      // Logical half-bay inside Asset 64, inset around its posts and board edges.
+      bounds: freezeBounds(-0.38, 0.38, -0.20, 0.20),
       maxHeight: levelIndex < 4 ? 0.44 : 0.33,
       capacity: 1,
       capabilities: capabilities({ canUnpack: true }),
@@ -134,7 +136,7 @@ const packingStation = surface({
   kind: 'unpacking-station',
   label: 'Packing bench',
   parent: WORLD_PARENT,
-  localPose: freezePose(STOCKROOM.packing.x, 0.955, STOCKROOM.packing.z, STOCKROOM.packing.ry),
+  localPose: freezePose(STOCKROOM.packing.x, 1.0061, STOCKROOM.packing.z, STOCKROOM.packing.ry),
   bounds: freezeBounds(-0.80, 0.80, -0.375, 0.375),
   maxHeight: 2.20,
   capacity: 1,
