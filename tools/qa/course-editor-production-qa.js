@@ -16,6 +16,7 @@ async (page) => {
   const path = process.getBuiltinModule('node:path');
 
   const repo = process.cwd();
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const rawPhase = String(process.env.COURSE_EDITOR_QA_PHASE || 'production-tools');
   const phase = rawPhase.replace(/[^a-z0-9._-]+/gi, '_');
   const outDir = path.join(repo, 'qa', 'course_master_final', phase);
@@ -674,7 +675,7 @@ async (page) => {
 
   const bootGame = async ({ navigate = true } = {}) => {
     expectedNavigation = true;
-    if (navigate) await page.goto('http://localhost:8457/');
+    if (navigate) await page.goto(baseUrl);
     await page.waitForFunction(() => document.readyState === 'complete');
     const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
     await continueButton.waitFor({ state: 'visible', timeout: 30000 });

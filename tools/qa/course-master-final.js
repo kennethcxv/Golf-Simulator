@@ -642,7 +642,7 @@ async (page) => {
 
   // Start and stop the route-aware flyover through the hole-selection modal.
   await page.locator('.ced-holechip').click();
-  await page.getByRole('button', { name: 'Flyover', exact: true }).click();
+  await page.locator('.ced-modal').getByRole('button', { name: 'Flyover', exact: true }).click();
   await page.waitForTimeout(3500);
   await waitForSettledRender(6);
   const flyoverEvidence = {
