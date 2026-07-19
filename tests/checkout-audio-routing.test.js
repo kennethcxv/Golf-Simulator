@@ -186,6 +186,25 @@ test('drawer close is emitted once only, when the counted change is handed over'
   assert.equal(cueCalls(finalizeTransaction, 'drawerClose').length, 0);
 });
 
+test('cash change reaches and clears the customer palm before receipt printing', () => {
+  const finishChangeHandoff = extractFunction(registerSource, 'finishChangeHandoff');
+  const updateCashHandoffHold = extractFunction(registerSource, 'updateCashHandoffHold');
+  const updateReceipt = extractFunction(registerSource, 'updateReceipt');
+
+  assert.match(finishChangeHandoff, /cashHandoffPhase\s*=\s*['"]customer-hold['"]/,
+    'change enters a customer-owned hold at physical contact');
+  assert.match(finishChangeHandoff, /cashHandoffHoldTimer\s*=\s*0\.85/,
+    'the customer holds the received change long enough to read');
+  assert.equal((finishChangeHandoff.match(/beginAutomaticReceipt\(\)/g) || []).length, 1,
+    'finishChangeHandoff contains only the no-change receipt edge');
+  assert.match(finishChangeHandoff, /if\s*\(!bundle\)\s*beginAutomaticReceipt\(\)/,
+    'a real change bundle cannot start the receipt at contact');
+  assert.match(updateCashHandoffHold, /cashHandoffBundle\.removeFromParent\(\)[\s\S]*beginAutomaticReceipt\(\)/,
+    'receipt startup follows stowing the customer-held bundle');
+  assert.match(updateReceipt, /\['travel', 'customer-hold'\]\.includes\(cashHandoffPhase\)\) return/,
+    'the generic receipt updater cannot overlap either cash handoff phase');
+});
+
 test('bagging and automatic receipt cues remain transition-local one-shots', () => {
   const bagProduct = extractFunction(registerSource, 'bagProduct');
   const commitScanMotion = extractFunction(registerSource, 'commitScanMotion');
