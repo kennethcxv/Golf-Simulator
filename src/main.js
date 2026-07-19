@@ -494,6 +494,10 @@ function startGameNow(state) {
     how === 'lastSafe' ? 'Stepped you back to where you last had room.' : 'Moved you clear of the furniture.',
   );
   app.scene3d.walk.hooks.sfx = (name) => { if (audio.ready && audio[name]) audio[name](); };
+  // Switching, stowing, focus loss, and mode changes are all trigger releases. The renderer owns
+  // those lifecycle edges, so it tells audio here instead of waiting for a pointerup that may
+  // never arrive (alt-tab and rapid belt cycling are the common cases).
+  app.scene3d.walk.hooks.toolChanged = () => { if (audio.ready) audio.setToolLoop(null); };
   // the clubhouse's in-world management surfaces route through these
   app.scene3d.walk.hooks.openLaptop = () => enterLaptop();
   app.scene3d.walk.hooks.toggleOverview = () => handlers.toggleCourseMode();

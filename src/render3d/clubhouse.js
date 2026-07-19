@@ -14,11 +14,12 @@ import { clamp, rngOf } from '../core/utils.js';
 import { fitDistance } from '../core/screenFit.js';
 import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig.js';
 import { makeCharacter } from './characterAsset.js';
+import { makeSoftParticleTexture } from './proceduralTextures.js';
 import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
   SHELL, INTERIOR, FIXTURES, FIXTURE_HALF, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
-  MAT, HOURS_SIGN, queueSlot, REGISTER, COUNTER_TOP, fixtureBrowsePoint,
+  MAT, HOURS_SIGN, LOGO_RUG, queueSlot, REGISTER, COUNTER_TOP, fixtureBrowsePoint,
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
@@ -103,6 +104,11 @@ import {
   ensureWet, wetAt, solutionAt, solutionLevel, consumeSolution, dryTick, SOLUTION_MIN,
 } from '../sim/cleaningWet.js';
 import { CLEANING_TOOLS, TOOL_CLASS } from '../data/cleaningTools.js';
+import {
+  ensureCleaningToolState, cleaningStatus, panSpace, bagSpace, addToPan, addToBag,
+  emptyPanIntoBag, tieBag, disposeTiedBag, serviceMop, changeBucketWater,
+  consumeMopCharge,
+} from '../sim/cleaningToolState.js';
 import {
   planOrganicOrder, reconcileCustomerItemMeshes,
   createSequentialPlacement, createSequentialPlacementRecovery, stepSequentialPlacement,
@@ -597,6 +603,11 @@ export function makeClubhouse(ctx) {
   // the Sheet 6 production machinery entirely and just get placed — each aligned by its own
   // SOCKET_PLACEMENT rather than by its authoring origin.
   const props71to100 = buildProps({ interior, loader: new GLTFLoader() });
+  const syncBucketVisual = () => {
+    const status = cleaningStatus(state);
+    if (status) props71to100.setBucketWater(status.bucket);
+  };
+  props71to100.ready.then(syncBucketVisual);
 
   const sheet06ProductionPublic = Object.freeze({
     ready: sheet06Production.ready,
@@ -2952,8 +2963,15 @@ export function makeClubhouse(ctx) {
   const motePos = new Float32Array(MOTES * 3);
   const moteGeo = new THREE.BufferGeometry();
   moteGeo.setAttribute('position', new THREE.BufferAttribute(motePos, 3));
+  const moteTexture = makeSoftParticleTexture();
   const motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({
-    color: 0xa2937c, size: 0.05, transparent: true, opacity: 0.85, depthWrite: false,
+    color: 0xa2937c,
+    size: 0.05,
+    map: moteTexture,
+    transparent: true,
+    opacity: 0.82,
+    alphaTest: 0.025,
+    depthWrite: false,
   }));
   motes.visible = false;
   motes.frustumCulled = false;
@@ -2961,6 +2979,46 @@ export function makeClubhouse(ctx) {
   for (let i = 0; i < MOTES; i++) moteState.push({ t: Math.random(), ox: 0, oz: 0 });
   let cleanClock = 0;
   let moteFade = 0;
+
+  function showCleaningMotes(kind, wx, wz, dirX = 0, dirZ = 0, dt = 0.016) {
+    const styles = {
+      suction: { color: 0xb7a88c, size: 0.045 },
+      sweep: { color: 0x9f8a68, size: 0.052 },
+      mop: { color: 0xb9dddf, size: 0.040 },
+      cloth: { color: 0xb8ddca, size: 0.032 },
+      sponge: { color: 0xf0eee1, size: 0.038 },
+    };
+    const style = styles[kind] || styles.sweep;
+    motes.material.color.set(style.color);
+    motes.material.size = style.size;
+    motes.visible = true;
+    moteFade = 0.16;
+    const uxLen = Math.hypot(dirX, dirZ) || 1;
+    const ux = dirX / uxLen;
+    const uz = dirZ / uxLen;
+    for (let i = 0; i < MOTES; i++) {
+      const m = moteState[i];
+      m.t += dt * (kind === 'suction' ? 2.8 : 1.8 + (i % 4) * 0.11);
+      if (m.t >= 1 || !Number.isFinite(m.ox)) {
+        m.t %= 1;
+        m.ox = (Math.random() - 0.5) * 0.78;
+        m.oz = (Math.random() - 0.5) * 0.78;
+      }
+      const t = m.t;
+      const o = i * 3;
+      if (kind === 'suction') {
+        const ease = t * t;
+        motePos[o] = wx + m.ox * (1 - ease);
+        motePos[o + 1] = floorY + 0.025 + Math.sin(t * Math.PI) * 0.07;
+        motePos[o + 2] = wz + m.oz * (1 - ease);
+      } else {
+        motePos[o] = wx + m.ox * 0.34 + ux * t * 0.24;
+        motePos[o + 1] = floorY + 0.025 + Math.sin(t * Math.PI) * (kind === 'sweep' ? 0.15 : 0.07);
+        motePos[o + 2] = wz + m.oz * 0.34 + uz * t * 0.24;
+      }
+    }
+    moteGeo.attributes.position.needsUpdate = true;
+  }
 
   // --- loose debris: swept into piles, then carried away ------------------------------------
   //
@@ -2981,6 +3039,7 @@ export function makeClubhouse(ctx) {
 
   ensureDebris(state);
   ensureWet(state, WET_GRID.w, WET_GRID.h);
+  ensureCleaningToolState(state);
   if (debrisState(state).length === 0 && !state.shop.reno.debrisSeeded) {
     // a property nobody has run for two years does not have a clean floor
     seedDebris(state, 30, SHELL.w - 3, SHELL.d - 3, 20260718);
@@ -2988,7 +3047,7 @@ export function makeClubhouse(ctx) {
   }
 
   const DEBRIS_CAP = 96;
-  const debrisGeo = new THREE.IcosahedronGeometry(0.085, 0);
+  const debrisGeo = new THREE.DodecahedronGeometry(0.070, 0);
   const debrisMat = new THREE.MeshStandardMaterial({ color: 0x6b5a3c, roughness: 0.95 });
   const debrisMesh = new THREE.InstancedMesh(debrisGeo, debrisMat, DEBRIS_CAP);
   debrisMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -2997,6 +3056,17 @@ export function makeClubhouse(ctx) {
   debrisMesh.frustumCulled = false;
   debrisMesh.count = 0;
   interior.add(debrisMesh);
+  const litterGeo = new THREE.BoxGeometry(0.16, 0.018, 0.10, 2, 1, 2);
+  const litterMat = new THREE.MeshStandardMaterial({ color: 0xb8a477, roughness: 0.9 });
+  const litterMesh = new THREE.InstancedMesh(litterGeo, litterMat, DEBRIS_CAP);
+  const litterColors = [0xb79a62, 0x8b9272, 0x9b6f55].map((hex) => new THREE.Color(hex));
+  litterMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  litterMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(DEBRIS_CAP * 3), 3);
+  litterMesh.castShadow = false;
+  litterMesh.receiveShadow = false;
+  litterMesh.frustumCulled = false;
+  litterMesh.count = 0;
+  interior.add(litterMesh);
 
   const _dm = new THREE.Matrix4();
   const _dq = new THREE.Quaternion();
@@ -3007,8 +3077,9 @@ export function makeClubhouse(ctx) {
   let wetRepaintClock = 0;
   function refreshDebrisVisual() {
     const list = debrisState(state);
-    const n = Math.min(list.length, DEBRIS_CAP);
-    for (let i = 0; i < n; i++) {
+    let gritCount = 0;
+    let litterCount = 0;
+    for (let i = 0; i < list.length && gritCount + litterCount < DEBRIS_CAP * 2; i++) {
       const d = list[i];
       // a pile spreads as it grows rather than becoming one giant pebble
       const s = Math.min(2.4, 0.55 + Math.sqrt(d.a) * 1.5);
@@ -3016,12 +3087,23 @@ export function makeClubhouse(ctx) {
       // plain 0.026. Adding FLOOR_TOP here floated every pile 0.3 yd off the boards.
       _dp.set(d.x, 0.012 * s, d.z);
       _dq.setFromAxisAngle(_dUp, (d.x * 7.3 + d.z * 3.1) % Math.PI);
-      _ds.set(s, s * 0.55, s);
+      const litter = d.kind === 'litter';
+      _ds.set(litter ? s * 1.25 : s, litter ? s * 0.65 : s * 0.55, litter ? s * 1.10 : s);
       _dm.compose(_dp, _dq, _ds);
-      debrisMesh.setMatrixAt(i, _dm);
+      if (litter && litterCount < DEBRIS_CAP) {
+        litterMesh.setMatrixAt(litterCount, _dm);
+        const hue = (Math.abs(Math.floor(d.x * 7 + d.z * 13)) % 3);
+        litterMesh.setColorAt(litterCount, litterColors[hue]);
+        litterCount++;
+      } else if (!litter && gritCount < DEBRIS_CAP) {
+        debrisMesh.setMatrixAt(gritCount++, _dm);
+      }
     }
-    debrisMesh.count = n;
+    debrisMesh.count = gritCount;
+    litterMesh.count = litterCount;
     debrisMesh.instanceMatrix.needsUpdate = true;
+    litterMesh.instanceMatrix.needsUpdate = true;
+    if (litterMesh.instanceColor) litterMesh.instanceColor.needsUpdate = true;
   }
   refreshDebrisVisual();
 
@@ -3084,15 +3166,111 @@ export function makeClubhouse(ctx) {
   }
   repaintWet();
 
+  const pointInCollider = (x, z, collider, margin = 0) => {
+    if (collider.minX !== undefined) {
+      return x >= collider.minX - margin && x <= collider.maxX + margin
+        && z >= collider.minZ - margin && z <= collider.maxZ + margin;
+    }
+    if (Number.isFinite(collider.x) && Number.isFinite(collider.z) && Number.isFinite(collider.r)) {
+      return Math.hypot(x - collider.x, z - collider.z) <= collider.r + margin;
+    }
+    return false;
+  };
+
+  // Slab intersection in the horizontal plane. The endpoint is shortened very slightly so a
+  // tool touching the near face of a counter is legal while a socket behind it is not.
+  function segmentHitsCollider(ax, az, bx, bz, collider) {
+    const dx = bx - ax;
+    const dz = bz - az;
+    const length = Math.hypot(dx, dz);
+    if (length < 0.001) return pointInCollider(bx, bz, collider, 0.02);
+    const endT = Math.max(0, 1 - 0.035 / length);
+    if (collider.minX === undefined) {
+      const steps = Math.max(2, Math.ceil(length / 0.08));
+      for (let i = 1; i <= steps; i++) {
+        const t = endT * (i / steps);
+        if (pointInCollider(ax + dx * t, az + dz * t, collider, 0.025)) return true;
+      }
+      return false;
+    }
+    let t0 = 0;
+    let t1 = endT;
+    for (const [p, q] of [
+      [-dx, ax - collider.minX], [dx, collider.maxX - ax],
+      [-dz, az - collider.minZ], [dz, collider.maxZ - az],
+    ]) {
+      if (Math.abs(p) < 1e-8) {
+        if (q < 0) return false;
+        continue;
+      }
+      const r = q / p;
+      if (p < 0) t0 = Math.max(t0, r);
+      else t1 = Math.min(t1, r);
+      if (t0 > t1) return false;
+    }
+    return t0 <= endT && t1 >= 0;
+  }
+
+  function cleaningSurfaceAt(lx, lz) {
+    if (Math.abs(lx - LOGO_RUG.x) <= LOGO_RUG.w / 2
+      && Math.abs(lz - LOGO_RUG.z) <= LOGO_RUG.d / 2) return 'carpet';
+    // The furnished lounge rug is permanent even before its premium decor replacement arrives.
+    if (Math.abs(lx - LOUNGE.rug.x) <= 1.5 && Math.abs(lz - LOUNGE.rug.z) <= 1.15) return 'carpet';
+    for (const entry of state.shop.reno.decor || []) {
+      if (entry.skuId !== 'rug1') continue;
+      const spot = DECOR_SPOTS.rug1?.[entry.spot];
+      if (spot && Math.abs(lx - spot.x) <= 1.5 && Math.abs(lz - spot.z) <= 1.0) return 'carpet';
+    }
+    return 'hard-floor';
+  }
+
+  function cleaningGate(wx, wz, origin = null) {
+    if (!isInside(wx, wz, -0.04)) return { ok: false, reason: 'outside' };
+    const local = W2L(wx, wz);
+    for (const collider of registeredCols) {
+      if (pointInCollider(wx, wz, collider, 0.025)) return { ok: false, reason: 'blocked' };
+      if (origin && segmentHitsCollider(origin.x, origin.z, wx, wz, collider)) {
+        return { ok: false, reason: 'occluded' };
+      }
+    }
+    return { ok: true, local, surface: cleaningSurfaceAt(local.x, local.z) };
+  }
+
+  /** Aim solution at the actual floor hit, with the same collider gate used by contact tools. */
+  function cleaningAim(origin, direction, maxDistance = 1.8) {
+    if (!origin || !direction || direction.y >= -0.035) return null;
+    const t = (floorY + 0.035 - origin.y) / direction.y;
+    if (!(t > 0.05) || t > maxDistance) return null;
+    const point = new THREE.Vector3(
+      origin.x + direction.x * t,
+      floorY + 0.035,
+      origin.z + direction.z * t,
+    );
+    const gate = cleaningGate(point.x, point.z, origin);
+    return gate.ok ? { point, surface: gate.surface } : { point, blocked: true, reason: gate.reason };
+  }
+
+  function recordFloorCleaning(amount, dt) {
+    if (!(amount > 0)) return;
+    if (state.tutorial) tutorialFlag(state, 'vacuumed');
+    cleanClock += Math.max(0, dt || 0);
+    if (cleanClock < 0.12) return;
+    cleanClock = 0;
+    repaintGrime();
+    refreshCondition();
+  }
+
   /**
    * One entry point for every cleaning tool. The caller passes the tool's own contact or nozzle
    * point in WORLD space — read from the socket on the viewmodel, never guessed from the camera —
    * plus the direction it is being worked in.
    */
-  function cleanWithTool(toolId, wx, wz, dirX, dirZ, dt) {
+  function cleanWithTool(toolId, wx, wz, dirX, dirZ, dt, options = null) {
     const def = CLEANING_TOOLS[toolId];
     if (!def) return { did: 0, kind: null };
-    const l = W2L(wx, wz);
+    const gate = cleaningGate(wx, wz, options?.origin || null);
+    if (!gate.ok) return { did: 0, kind: def.toolClass, blocked: true, reason: gate.reason };
+    const l = gate.local;
     let did = 0;
 
     switch (def.toolClass) {
@@ -3100,30 +3278,44 @@ export function makeClubhouse(ctx) {
         // a broom moves debris; it never deletes it
         did = sweepAt(state, l.x, l.z, dirX, dirZ, def.radius, dt).moved;
         if (did > 0) refreshDebrisVisual();
+        if (did > 0) showCleaningMotes('sweep', wx, wz, dirX, dirZ, dt);
         return { did, kind: 'sweep' };
       }
       case TOOL_CLASS.SCOOP: {
-        did = collectAt(state, l.x, l.z, def.radius);
+        const room = panSpace(state);
+        if (room <= 0) return { did: 0, kind: 'scoop', blocked: true, reason: 'pan-full' };
+        did = collectAt(state, l.x, l.z, def.radius, room);
         if (did > 0) {
           refreshDebrisVisual();
-          state.shop.reno.pan = Math.round(((state.shop.reno.pan || 0) + did) * 1000) / 1000;
+          addToPan(state, did);
         }
-        return { did, kind: 'scoop' };
+        return { did, kind: 'scoop', full: panSpace(state) <= 0 };
       }
       case TOOL_CLASS.SUCTION: {
         // debris is drawn in and swallowed only at the mouth; ground-in dust comes up under the head
         did = suckAt(state, l.x, l.z, def.radius, dt);
         const dust = cleanGrimeAt(state, l.x, l.z, 0.5 * dt);
         if (did > 0) refreshDebrisVisual();
+        if (did + dust.cleaned > 0) showCleaningMotes('suction', wx, wz, 0, 0, dt);
+        recordFloorCleaning(did + dust.cleaned, dt);
         return { did: did + dust.cleaned, kind: 'suction', picked: did > 0 };
       }
       case TOOL_CLASS.STROKE: {
         if (def.id === 'mop') {
-          const res = cleanGrimeAt(state, l.x, l.z, def.strength * 0.55 * dt);
+          if (gate.surface === 'carpet') {
+            return { did: 0, kind: 'mop', blocked: true, reason: 'carpet' };
+          }
+          const charge = consumeMopCharge(state, dt, def.strength);
+          if (charge.used <= 0) return { did: 0, kind: 'mop', blocked: true, reason: 'mop-dry' };
+          const res = cleanGrimeAt(
+            state, l.x, l.z, def.strength * charge.efficacy * 0.55 * charge.used,
+          );
           const wp = toWet(l.x, l.z);
-          wetAt(state, WET_GRID, wp.x, wp.z, def.radius, dt * 1.6);
+          wetAt(state, WET_GRID, wp.x, wp.z, def.radius, charge.used * 1.6);
           wetVisualDirty = true;
-          return { did: res.cleaned, kind: 'mop' };
+          if (res.cleaned > 0) showCleaningMotes('mop', wx, wz, dirX, dirZ, dt);
+          recordFloorCleaning(res.cleaned, dt);
+          return { did: res.cleaned, kind: 'mop', charge: charge.charge };
         }
         // cloth and sponge: the cloth only lifts what the spray has already loosened
         const wp = toWet(l.x, l.z);
@@ -3134,6 +3326,8 @@ export function makeClubhouse(ctx) {
         if (res.cleaned > 0) {
           consumeSolution(state, WET_GRID, wp.x, wp.z, def.radius, dt * 0.5);
           wetVisualDirty = true;
+          showCleaningMotes(def.id, wx, wz, dirX, dirZ, dt);
+          recordFloorCleaning(res.cleaned, dt);
         }
         return { did: res.cleaned, kind: def.id };
       }
@@ -3144,12 +3338,16 @@ export function makeClubhouse(ctx) {
         return { did, kind: 'spray' };
       }
       case TOOL_CLASS.CARRY: {
-        did = collectAt(state, l.x, l.z, def.radius);
+        const status = cleaningStatus(state);
+        if (status.bag.tied) return { did: 0, kind: 'bag', blocked: true, reason: 'bag-tied' };
+        const room = bagSpace(state);
+        if (room <= 0) return { did: 0, kind: 'bag', blocked: true, reason: 'bag-full' };
+        did = collectAt(state, l.x, l.z, def.radius, room, (cluster) => cluster.kind === 'litter');
         if (did > 0) {
           refreshDebrisVisual();
-          state.shop.reno.bag = Math.round(((state.shop.reno.bag || 0) + did) * 1000) / 1000;
+          addToBag(state, did);
         }
-        return { did, kind: 'bag' };
+        return { did, kind: 'bag', full: bagSpace(state) <= 0 };
       }
       default:
         return { did: 0, kind: null };
@@ -5003,12 +5201,102 @@ export function makeClubhouse(ctx) {
     },
   });
 
-  // the recycling bin by the stock door
+  // The cleaning bay turns the authored bucket and waste kit into one forgiving, readable loop.
+  // One E press completes the insert + wring sequence; the player never has to pixel-hunt a
+  // lever. The physical animation still shows every part of that action.
+  {
+    const wp = L2W(7.25, 1.10); // the authored asset-73 placement socket
+    addProp({
+      x: wp.x, z: wp.z, r: 1.90, aimY: floorY + 0.72, focusBias: 0.22,
+      label: () => {
+        const held = hooks.getTool?.();
+        const status = cleaningStatus(state);
+        if (!status) return null;
+        if (held === 'mop') {
+          const charge = Math.round((status.mop.charge / status.mop.capacity) * 100);
+          const water = status.bucket.water === 'empty'
+            ? 'empty'
+            : `${status.bucket.water} water ${Math.round(status.bucket.level * 100)}%`;
+          return `Mop bucket · ${water} · mop ${charge}% — [E] insert and wring`;
+        }
+        if (held === 'dustpan') {
+          return status.pan.load > 0
+            ? `Trash bag · pan ${status.pan.load.toFixed(1)}/${status.pan.capacity} — [E] empty pan into bag`
+            : 'Dustpan empty · sweep a pile into it first';
+        }
+        if (held === 'trashbag') {
+          if (status.bag.tied) return 'Trash bag tied — carry it to the waste station';
+          if (status.bag.load > 0) {
+            return `Trash bag ${status.bag.load.toFixed(1)}/${status.bag.capacity} — [E] tie bag`;
+          }
+          return 'Fresh trash bag — collect loose debris or empty the dustpan here';
+        }
+        return 'Cleaning bay — equip the mop, dustpan, or trash bag';
+      },
+      get secondaryLabel() {
+        return hooks.getTool?.() === 'mop' ? 'change bucket water' : null;
+      },
+      secondaryAction: () => {
+        if (changeBucketWater(state).ok) {
+          syncBucketVisual();
+          props71to100.play(73, ['Bucket_WringerOpen', 'WringerOpen', 'LeverUp']);
+          sfx('mopStart');
+          say('Fresh clean water in the bucket.');
+        }
+      },
+      action: () => {
+        const held = hooks.getTool?.();
+        if (held === 'mop') {
+          const result = serviceMop(state);
+          if (!result.ok) {
+            say('The bucket is empty — press [X] here to change the water.', 'warn');
+            return;
+          }
+          syncBucketVisual();
+          props71to100.play(73, ['Bucket_WringerClose', 'WringerClose', 'LeverDown']);
+          hooks.toolAction?.('mop', 'service');
+          sfx('mopStart');
+          say(`Mop wrung and ready · bucket water ${result.water}.`);
+          return;
+        }
+        if (held === 'dustpan') {
+          const result = emptyPanIntoBag(state);
+          if (result.moved > 0) {
+            hooks.toolAction?.('dustpan', 'empty');
+            sfx('disposal');
+            say(result.left > 0
+              ? `Bag full · ${result.left.toFixed(1)} remains in the pan.`
+              : 'Dustpan emptied into the trash bag.');
+          }
+          return;
+        }
+        if (held === 'trashbag') {
+          const result = tieBag(state);
+          if (result.ok) {
+            hooks.toolAction?.('trashbag', 'tie');
+            sfx('paper');
+            say(`Bag tied · ${result.load.toFixed(1)} collected. Take it to the waste station.`);
+          } else if (result.reason === 'bag-empty') {
+            say('The bag is empty.', 'warn');
+          }
+        }
+      },
+    });
+  }
+
+  // the recycling / waste bin by the stock door
   {
     const wp = L2W(STOCKROOM.bin.x, STOCKROOM.bin.z);
     addProp({
       x: wp.x, z: wp.z, r: 1.8,
       label: () => {
+        const held = hooks.getTool?.();
+        const cleaning = cleaningStatus(state);
+        if (held === 'trashbag' && cleaning) {
+          if (cleaning.bag.tied) return 'Waste station — [E] dispose tied trash bag';
+          if (cleaning.bag.load > 0) return 'Waste station — tie the loaded bag at the cleaning bay first';
+          return 'Waste station — the trash bag is empty';
+        }
         const cb = carriedBox(state);
         if (recyclingDrop) return 'Recycling — lowering the flattened carton in...';
         if (cb && cb.flat) return 'Recycling — [E] drop the flattened carton in';
@@ -5017,6 +5305,17 @@ export function makeClubhouse(ctx) {
         return flatNear || (dd && dd.trash > 0) ? 'Recycling — [E] break down the flattened cartons' : null;
       },
       action: () => {
+        if (hooks.getTool?.() === 'trashbag') {
+          const result = disposeTiedBag(state);
+          if (result.ok) {
+            hooks.toolAction?.('trashbag', 'dispose');
+            sfx('disposal');
+            say(`Tied bag disposed · ${result.disposed.toFixed(1)} removed. A fresh bag is ready.`);
+          } else if (result.reason === 'not-tied') {
+            say('Tie the loaded bag at the cleaning bay first.', 'warn');
+          }
+          return;
+        }
         const cb = carriedBox(state);
         if (cb && cb.flat) {
           startRecyclingDrop(cb);
@@ -6897,6 +7196,7 @@ export function makeClubhouse(ctx) {
       }
     }
     sheet06Production.update(dt);
+    props71to100.update(dt);
     updateDoors(dt, now);
     if (deliveryEquipment) {
       deliveryEquipment.update(dt);
@@ -7013,6 +7313,7 @@ export function makeClubhouse(ctx) {
     if (disposing) return disposalSummary;
     disposing = true;
     register.leave({ restorePointer: false });
+    props71to100.stopAnimations();
     const sheet06ProductionDisposal = sheet06Production.dispose();
     // The 71-100 dressing is NOT released here. Its meshes are GLB clones, and this teardown's
     // rule for loader clones is that the cache which produced them owns freeing them — the same
@@ -7317,21 +7618,44 @@ export function makeClubhouse(ctx) {
     // the cleaning kit: one entry point, dispatched on the tool's declared class. Callers pass
     // the tool's own socket point in world space — never a guess taken off the camera.
     cleanWithTool,
+    stopCleaningEffects: () => {
+      moteFade = 0;
+      motes.visible = false;
+    },
+    cleaningAim,
+    cleaningSurfaceAt: (wx, wz) => {
+      const local = W2L(wx, wz);
+      return cleaningSurfaceAt(local.x, local.z);
+    },
+    cleaningStatus: () => cleaningStatus(state),
+    cleaningEffectsDiagnostics: () => ({
+      motesVisible: motes.visible,
+      wetVisible: wetPlane.visible,
+      washerJetVisible: washing.jet.visible,
+      washerMistVisible: washing.mist.visible,
+    }),
+    cleaningLabel: (toolId) => {
+      const status = cleaningStatus(state);
+      if (!status || !CLEANING_TOOLS[toolId]) return null;
+      if (toolId === 'mop') {
+        return status.mop.wet
+          ? `Mop wet ${Math.round((status.mop.charge / status.mop.capacity) * 100)}% · hard floors only`
+          : 'Mop dry · use the bucket in the cleaning bay';
+      }
+      if (toolId === 'dustpan') return `Dustpan ${status.pan.load.toFixed(1)}/${status.pan.capacity}`;
+      if (toolId === 'trashbag') {
+        return `Trash bag ${status.bag.load.toFixed(1)}/${status.bag.capacity}${status.bag.tied ? ' · tied' : ''}`;
+      }
+      if (toolId === 'cloth') return 'Microfibre cloth · spray first, then wipe';
+      if (toolId === 'sponge') return 'Scouring sponge · stubborn grime takes repeated passes';
+      return CLEANING_TOOLS[toolId].label;
+    },
     debrisTotal: () => totalDebris(state),
     debrisCount: () => debrisState(state).length,
-    panLoad: () => state.shop.reno.pan || 0,
-    bagLoad: () => state.shop.reno.bag || 0,
-    emptyPan: () => {
-      const had = state.shop.reno.pan || 0;
-      state.shop.reno.pan = 0;
-      state.shop.reno.bag = Math.round(((state.shop.reno.bag || 0) + had) * 1000) / 1000;
-      return had;
-    },
-    disposeBag: () => {
-      const had = state.shop.reno.bag || 0;
-      state.shop.reno.bag = 0;
-      return had;
-    },
+    panLoad: () => cleaningStatus(state)?.pan.load || 0,
+    bagLoad: () => cleaningStatus(state)?.bag.load || 0,
+    emptyPan: () => emptyPanIntoBag(state).moved,
+    disposeBag: () => disposeTiedBag(state),
     customers, doors, // QA access
     debugSpawn: spawnCustomer, // QA: force a walk-in
     setOrganicWalkins: (on) => { organicWalkins = !!on; }, // QA: silence random walk-ins for a scripted run

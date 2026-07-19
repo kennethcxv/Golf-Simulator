@@ -163,3 +163,50 @@ test('the cloth needs solution first, so spray-then-wipe is a real sequence', ()
   assert.equal(CLEANING_TOOLS.spray.loosens, true,
     'the spray must loosen rather than clean, or the cloth is pointless');
 });
+
+test('authored spray animation keeps its trigger attached to the named hinge', async () => {
+  const built = buildToolViewmodels();
+  const loader = {
+    load(url, onLoad) {
+      const scene = new THREE.Group();
+      const held = new THREE.Group();
+      scene.add(held);
+      const animations = [];
+      if (url.includes('asset_076_')) {
+        const socket = new THREE.Object3D();
+        socket.name = 'SOCKET_Trigger';
+        socket.position.set(0.01, 0.21, 0.03);
+        held.add(socket);
+        const pivot = new THREE.Object3D();
+        pivot.name = 'PIVOT_Trigger';
+        pivot.position.set(-0.2, -0.4, 0.7); // the broken exported rest pose
+        pivot.rotation.set(0.4, -0.2, 0.1);
+        held.add(pivot);
+        animations.push(new THREE.AnimationClip('SprayBottle_Trigger', 0.2, [
+          new THREE.QuaternionKeyframeTrack(
+            'PIVOT_Trigger.quaternion', [0, 0.2], [0, 0, 0, 1, 0.15, 0, 0, 0.9887],
+          ),
+        ]));
+      }
+      onLoad({ scene, animations });
+    },
+  };
+
+  try {
+    const results = await built.adoptAuthored(loader);
+    assert.ok(results.every((result) => result.ok), 'the fixture loader should adopt every tool');
+    const root = built.groups.spray.getObjectByName('PIVOT_Trigger');
+    const socket = built.groups.spray.getObjectByName('SOCKET_Trigger');
+    assert.ok(root && socket);
+    assert.deepEqual(root.position.toArray(), socket.position.toArray(),
+      'the pivot must be restored to the authored trigger socket');
+    assert.deepEqual(root.quaternion.toArray(), [0, 0, 0, 1]);
+    assert.equal(built.setUsing('spray', true), true, 'the real trigger clip should play');
+    built.update(0.1);
+    assert.deepEqual(built.diagnostics().playing, ['spray']);
+    built.setUsing('spray', false);
+    assert.deepEqual(built.diagnostics().playing, []);
+  } finally {
+    built.dispose();
+  }
+});

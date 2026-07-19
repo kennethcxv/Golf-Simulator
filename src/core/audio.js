@@ -1184,6 +1184,7 @@ export function makeAudio() {
 
   // continuous in-use loops, one per tool, crossfaded by setToolLoop(kind|null)
   const toolLoops = {}; // kind -> gain node
+  let activeToolLoop = null;
   function ensureToolLoop(kind) {
     if (!ctx || toolLoops[kind]) return toolLoops[kind];
     const noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
@@ -1307,6 +1308,7 @@ export function makeAudio() {
     // unknown future tool) as silence here rather than manufacturing the
     // divot/rake fallback loop while LMB is merely held stationary.
     const activeKind = kind && Object.hasOwn(TOOL_LOOP_LEVEL, kind) ? kind : null;
+    activeToolLoop = activeKind;
     if (activeKind) ensureToolLoop(activeKind);
     for (const [k, g] of Object.entries(toolLoops)) {
       const level = k === activeKind ? TOOL_LOOP_LEVEL[k] : 0;
@@ -1390,6 +1392,11 @@ export function makeAudio() {
     chime,
     thunk,
     setToolLoop,
+    toolLoopDiagnostics: () => ({
+      active: activeToolLoop,
+      created: Object.keys(toolLoops).sort(),
+      levels: Object.fromEntries(Object.entries(toolLoops).map(([kind, gain]) => [kind, gain.gain.value])),
+    }),
     startCapture,
     stopCapture,
     get captureActive() {

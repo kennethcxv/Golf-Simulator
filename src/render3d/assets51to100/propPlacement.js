@@ -53,26 +53,26 @@ const DESK_TOP = 0.78;           // office desk working surface
 export const PROP_PLACEMENTS = [
   // --- Sheet 8: the stockroom cleaning bay -------------------------------------------------
   // STOCKROOM.cleaning is (6.1, 1.45) — the corner the layout already reserves for this kit.
-  { n: 71, sheet: 'sheet_08', stem: 'asset_071_vacuum_cleaner', x: 6.30, z: 0.95, mount: 'floor', ry: -0.5,
-    note: 'cleaning bay, hose end toward the room' },
-  { n: 72, sheet: 'sheet_08', stem: 'asset_072_mop', x: 5.95, z: 1.78, mount: 'floor', ry: 0.35,
-    note: 'stood against the partition beside the bucket' },
-  { n: 73, sheet: 'sheet_08', stem: 'asset_073_mop_bucket_and_wringer', x: 6.28, z: 1.62, mount: 'floor', ry: -0.3,
-    note: 'the bay the layout names' },
-  { n: 74, sheet: 'sheet_08', stem: 'asset_074_broom', x: 6.62, z: 1.82, mount: 'floor', ry: -0.25,
-    note: 'leant beside the mop' },
-  { n: 75, sheet: 'sheet_08', stem: 'asset_075_dustpan', x: 6.92, z: 1.66, mount: 'floor', ry: 0.4,
-    note: 'hung with the broom' },
-  { n: 76, sheet: 'sheet_08', stem: 'asset_076_cleaning_spray_bottle', x: 7.18, z: 1.30, mount: 'floor', ry: 0.8,
-    note: 'supplies, clear of the stock door swing at x 8.9' },
-  { n: 77, sheet: 'sheet_08', stem: 'asset_077_cleaning_cloth_and_sponge_set', x: 7.44, z: 1.42, mount: 'floor', ry: -0.2,
-    note: 'beside the spray' },
+  { n: 71, sheet: 'sheet_08', stem: 'asset_071_vacuum_cleaner', x: 6.15, z: -0.65, mount: 'floor', ry: -0.5,
+    note: 'parked along the partition north of the working bay so its canister and hose stay out of the approach lane' },
+  { n: 72, sheet: 'sheet_08', stem: 'asset_072_mop', x: 6.15, z: 1.82, mount: 'floor', ry: 0.35,
+    note: 'stood against the partition with clear space around the bucket' },
+  { n: 73, sheet: 'sheet_08', stem: 'asset_073_mop_bucket_and_wringer', x: 7.25, z: 1.10, mount: 'floor', ry: -0.3,
+    note: 'working centre of the bay, reachable from the open stockroom lane' },
+  { n: 74, sheet: 'sheet_08', stem: 'asset_074_broom', x: 7.75, z: 1.82, mount: 'floor', ry: -0.25,
+    note: 'leant along the partition with its bristles clear of the mop' },
+  { n: 75, sheet: 'sheet_08', stem: 'asset_075_dustpan', x: 8.35, z: 1.82, mount: 'floor', ry: 0.4,
+    note: 'hung beside the broom without crossing its head or handle' },
+  { n: 76, sheet: 'sheet_08', stem: 'asset_076_cleaning_spray_bottle', x: 8.95, z: 1.78, mount: 'floor', ry: 0.8,
+    note: 'supply side against the partition, clear of the bucket approach and stock door' },
+  { n: 77, sheet: 'sheet_08', stem: 'asset_077_cleaning_cloth_and_sponge_set', x: 9.40, z: 1.76, mount: 'floor', ry: -0.2,
+    note: 'beside the spray against the partition with a readable gap before recycling' },
   { n: 78, sheet: 'sheet_08', stem: 'asset_078_pressure_washer', x: 9.15, z: -5.55, mount: 'floor', ry: 0.25,
     note: 'equipment storage by the receiving door, clear of BACKDOOR_CLEARWAY' },
   { n: 79, sheet: 'sheet_08', stem: 'asset_079_pressure_washer_hose_and_wand', x: 8.62, z: -5.62, mount: 'floor', ry: 0.6,
     note: 'coiled beside its machine' },
-  { n: 80, sheet: 'sheet_08', stem: 'asset_080_trash_bag', x: 7.70, z: 1.20, mount: 'floor', ry: -0.15,
-    note: 'the disposal end of the bay' },
+  { n: 80, sheet: 'sheet_08', stem: 'asset_080_trash_bag', x: 9.70, z: 0.35, mount: 'floor', ry: -0.15,
+    note: 'fresh-bag supply on the recycling side, outside the bucket approach lane and stock-door swing' },
 
   // --- Sheet 9: office and service desk ------------------------------------------------------
   { n: 81, sheet: 'sheet_09', stem: 'asset_081_office_chair_sheet09',
@@ -163,6 +163,9 @@ export function buildProps({ interior, loader }) {
 
   const placed = [];
   const failed = [];
+  const roots = new Map();
+  const mixers = new Map();
+  const clips = new Map();
 
   const jobs = PROP_PLACEMENTS.map((p) => new Promise((resolve) => {
     loader.load(runtimeUrl(p), (gltf) => {
@@ -196,6 +199,11 @@ export function buildProps({ interior, loader }) {
         });
 
         group.add(root);
+        roots.set(p.n, root);
+        if (Array.isArray(gltf.animations) && gltf.animations.length) {
+          mixers.set(p.n, new THREE.AnimationMixer(root));
+          clips.set(p.n, gltf.animations);
+        }
         placed.push({ n: p.n, name: root.name, at: [p.x, p.y || 0, p.z] });
         resolve(true);
       } catch (err) {
@@ -233,6 +241,48 @@ export function buildProps({ interior, loader }) {
   return {
     group,
     ready,
+    rootFor: (number) => roots.get(Number(number)) || null,
+    play(number, clipNeedle, { loop = false, fade = 0.08 } = {}) {
+      const n = Number(number);
+      const mixer = mixers.get(n);
+      const list = clips.get(n) || [];
+      const needles = Array.isArray(clipNeedle) ? clipNeedle : [clipNeedle];
+      const clip = list.find((candidate) => needles.some((needle) => (
+        String(candidate.name || '').toLowerCase().includes(String(needle || '').toLowerCase())
+      )));
+      if (!mixer || !clip) return false;
+      const action = mixer.clipAction(clip);
+      action.reset();
+      action.enabled = true;
+      action.clampWhenFinished = !loop;
+      action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
+      if (fade > 0) action.fadeIn(fade);
+      action.play();
+      return true;
+    },
+    setBucketWater({ water = 'clean', level = 1 } = {}) {
+      const root = roots.get(73);
+      if (!root) return false;
+      const waterMesh = root.getObjectByName('BucketWater')
+        || root.getObjectByName('MESH_BucketWater');
+      if (!waterMesh) return false;
+      waterMesh.visible = water !== 'empty' && level > 0.02;
+      const materials = Array.isArray(waterMesh.material) ? waterMesh.material : [waterMesh.material];
+      for (const material of materials) {
+        if (!material?.color) continue;
+        material.color.set(water === 'dirty' ? 0x736345 : 0x76aeb1);
+        if ('opacity' in material) material.opacity = water === 'dirty' ? 0.78 : 0.68;
+      }
+      return true;
+    },
+    update(dtSec) {
+      const dt = Math.max(0, Math.min(0.1, Number(dtSec) || 0));
+      for (const mixer of mixers.values()) mixer.update(dt);
+    },
+    stopAnimations() {
+      for (const mixer of mixers.values()) mixer.stopAllAction();
+      return mixers.size;
+    },
     diagnostics: () => ({
       expected: PROP_PLACEMENTS.length,
       placed: placed.length,
@@ -240,6 +290,7 @@ export function buildProps({ interior, loader }) {
       failures: failed,
       assetNumbers: placed.map((p) => p.n).sort((a, b) => a - b),
       superseded: [...superseded],
+      animated: [...mixers.keys()].sort((a, b) => a - b),
     }),
     dispose() {
       // Dispose each distinct resource ONCE. Two props can legitimately share a geometry or a
@@ -257,6 +308,10 @@ export function buildProps({ interior, loader }) {
       for (const g of geometries) g.dispose();
       for (const m of materials) m.dispose();
       group.removeFromParent();
+      for (const mixer of mixers.values()) mixer.stopAllAction();
+      roots.clear();
+      mixers.clear();
+      clips.clear();
       placed.length = 0;
     },
   };

@@ -21,6 +21,7 @@ import { TIERS } from './club.js';
 import { members } from './golfers.js';
 import { notify } from './notifications.js';
 import { placedFixtures } from './layout.js';
+import { ensureCleaningToolState } from './cleaningToolState.js';
 
 // --- restoration arc ------------------------------------------------------------
 // The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
@@ -136,6 +137,7 @@ export function ensureShopReno(state) {
       siding: [1, 1, 1],
     };
   }
+  ensureCleaningToolState(state);
 }
 
 // --- exterior restoration: real verbs against real state ---------------------------
