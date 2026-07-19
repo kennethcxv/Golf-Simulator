@@ -28,7 +28,10 @@ import { conditionRating } from '../sim/turf.js';
 import { makeCameraRig } from './cameraRig.js';
 import { makeCharacter } from './characterAsset.js';
 import { clubhouseInteriorGtaoExcludedAt, makeClubhouse } from './clubhouse.js';
-import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture, makeAsphaltTexture } from './proceduralTextures.js';
+import {
+  makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture, makeAsphaltTexture,
+  makeSoftParticleTexture,
+} from './proceduralTextures.js';
 import { applyMouseLook, setFirstPersonOrientation } from './mouseLook.js';
 import {
   makeVisualField,
@@ -3776,6 +3779,9 @@ export function makeCourseScene(canvas, state) {
   // reused: the nozzle is resolved every frame the trigger is down
   const _washNozzle = new THREE.Vector3();
   const _toolContact = new THREE.Vector3();
+  let cleaningLastResult = null;
+  const cleaningLastContact = new THREE.Vector3();
+  const cleaningLastTarget = new THREE.Vector3();
   let toolHintClock = 0;
   // The cleaning tools build themselves from src/data/cleaningTools.js — geometry, sockets and
   // placement all come from the registry, so adding a mop is a registry entry rather than another
@@ -3787,7 +3793,14 @@ export function makeCourseScene(canvas, state) {
   // background: the procedural tools above are already usable, so equipping never waits on I/O,
   // and each authored mesh (with its own sockets) replaces its stand-in as it lands.
   let toolViewmodelsAuthored = null;
-  toolViewmodels.adoptAuthored(new GLTFLoader()).then((r) => { toolViewmodelsAuthored = r; });
+  toolViewmodels.adoptAuthored(new GLTFLoader()).then((r) => {
+    toolViewmodelsAuthored = r;
+    if (walkTool && CLEANING_TOOLS[walkTool]) {
+      fpHands.setTool(walkTool, toolViewmodels.gripsFor(walkTool));
+      toolViewmodels.setEquipped(walkTool, true);
+      toolViewmodels.setUsing(walkTool, walkSpraying || walkSoaping);
+    }
+  });
   const heldGroups = {
     hose: new THREE.Group(), divot: new THREE.Group(), rake: new THREE.Group(),
     washer: new THREE.Group(), boxcutter: new THREE.Group(),
@@ -3834,12 +3847,34 @@ export function makeCourseScene(canvas, state) {
     // at (0, 0.075, -0.7), and its axis is the lance's own -0.16 rad droop. Half its length along
     // that axis is the actual orifice. The socket is parented to the tool, so it inherits the gait
     // bob, the sway and the equip ease for free — which is the whole point of it existing.
-    attachSocket(heldGroups.washer, 'nozzle', [0, 0.0678, -0.7444], [-0.16, 0, 0]);
+    if (!heldGroups.washer.getObjectByName('SOCKET_nozzle')) {
+      attachSocket(heldGroups.washer, 'nozzle', [0, 0.0678, -0.7444], [-0.16, 0, 0]);
+    }
     // brought in from the frame edge once it had hands on it: a two-handed tool has to be far
     // enough into shot that you can see somebody holding it
     heldGroups.washer.position.set(0.24, -0.34, -0.60);
     heldGroups.washer.rotation.set(0.06, -0.13, 0);
   }
+  for (const [id, group] of Object.entries(heldGroups)) {
+    group.userData.cleaningRestPosition = group.position.clone();
+    group.userData.cleaningRestRotationZ = group.rotation.z;
+    group.userData.cleaningToolId = id;
+  }
+  const dustpanLoadVisual = new THREE.Group();
+  dustpanLoadVisual.name = 'DustpanCollectedDebris';
+  dustpanLoadVisual.position.set(0, -0.035, -1.50);
+  dustpanLoadVisual.visible = false;
+  const dustpanLoadGeometry = new THREE.IcosahedronGeometry(0.048, 0);
+  const dustpanLoadMaterial = new THREE.MeshStandardMaterial({ color: 0x776446, roughness: 0.98 });
+  for (const [x, y, z, scale] of [
+    [-0.065, 0, 0.01, 1], [0.01, 0.012, -0.015, 1.25], [0.072, 0, 0.025, 0.85],
+  ]) {
+    const bit = new THREE.Mesh(dustpanLoadGeometry, dustpanLoadMaterial);
+    bit.position.set(x, y, z);
+    bit.scale.setScalar(scale);
+    dustpanLoadVisual.add(bit);
+  }
+  heldGroups.dustpan.add(dustpanLoadVisual);
   {
     // The vacuum used to be two boxes on a stick built right here — a grey cylinder and a red
     // slab, with no intake to speak of. It now comes from the registry with a proper chrome wand,
@@ -4081,9 +4116,18 @@ export function makeCourseScene(canvas, state) {
   const sprayPositions = new Float32Array(sprayCount * 3);
   const sprayGeo = new THREE.BufferGeometry();
   sprayGeo.setAttribute('position', new THREE.BufferAttribute(sprayPositions, 3));
+  const sprayParticleTexture = makeSoftParticleTexture();
   const sprayPoints = new THREE.Points(
     sprayGeo,
-    new THREE.PointsMaterial({ color: 0xbfe2ff, size: 0.04, transparent: true, opacity: 0.7, depthWrite: false }),
+    new THREE.PointsMaterial({
+      color: 0xbfe2ff,
+      size: 0.04,
+      map: sprayParticleTexture,
+      transparent: true,
+      opacity: 0.72,
+      alphaTest: 0.025,
+      depthWrite: false,
+    }),
   );
   sprayPoints.visible = false;
   sprayPoints.frustumCulled = false;
@@ -4133,12 +4177,12 @@ export function makeCourseScene(canvas, state) {
   }
   scene.add(sprayPoints);
 
-  function updateSpray(aimWorld) {
+  function updateSpray(aimWorld, sourceWorld = null) {
     // a loose parabolic arc from the nozzle to the patch; the arc starts a full
     // yard out and never hugs the camera, so attenuated points stay droplets
-    const hx = walk.x - Math.sin(walk.yaw) * 1.1;
-    const hz = walk.z - Math.cos(walk.yaw) * 1.1;
-    const hy = heightAt(walk.x, walk.z) + walk.eye - 0.55;
+    const hx = sourceWorld?.x ?? (walk.x - Math.sin(walk.yaw) * 1.1);
+    const hz = sourceWorld?.z ?? (walk.z - Math.cos(walk.yaw) * 1.1);
+    const hy = sourceWorld?.y ?? (heightAt(walk.x, walk.z) + walk.eye - 0.55);
     for (let i = 0; i < sprayCount; i++) {
       const t = 0.12 + Math.random() * 0.88;
       const o = i * 3;
@@ -4151,6 +4195,17 @@ export function makeCourseScene(canvas, state) {
 
   function walkSetTool(tool) {
     const previousTool = walkTool;
+    if (previousTool && previousTool !== tool) {
+      toolViewmodels.setUsing(previousTool, false);
+      toolViewmodels.setEquipped(previousTool, false);
+    }
+    if (previousTool !== tool) {
+      walkSpraying = false;
+      walkSoaping = false;
+      sprayPoints.visible = false;
+      clubhouseApi?.stopCleaningEffects?.();
+      walkHooks.toolChanged?.(tool || null, previousTool || null);
+    }
     if (HELD_TOOL_ASSET_MANIFEST[tool]) {
       // Equipping is the first safe actual-use boundary: ordinary boots stay
       // lean, while the authored model begins loading before this frame makes
@@ -4166,7 +4221,8 @@ export function makeCourseScene(canvas, state) {
     // stay visible without leaving the knife floating on the carton.
     if (tool && heldGroups[tool] && GRIPS[tool]) {
       heldGroups[tool].add(fpHands.root);
-      fpHands.setTool(tool);
+      fpHands.setTool(tool, toolViewmodels.gripsFor(tool));
+      toolViewmodels.setEquipped(tool, true);
     } else {
       fpHands.setTool(null);
     }
@@ -4182,10 +4238,7 @@ export function makeCourseScene(canvas, state) {
       sprayPoints.material.color.set(TOOL_SPRAY[tool].color);
       sprayPoints.material.size = TOOL_SPRAY[tool].size;
     }
-    if (!tool) {
-      walkSpraying = false;
-      sprayPoints.visible = false;
-    }
+    if (!tool) sprayPoints.visible = false;
     if (tool === 'boxcutter' && previousTool !== 'boxcutter' && walkHooks.sfx) {
       walkHooks.sfx('cutterExtend');
     }
@@ -4195,14 +4248,45 @@ export function makeCourseScene(canvas, state) {
     const wasSpraying = walkSpraying;
     walkSpraying = !!(on && walkTool && !cart.mounted);
     if (walkTool && walkSpraying !== wasSpraying) {
-      toolViewmodels.setActive(walkTool, walkSpraying);
+      toolViewmodels.setUsing(walkTool, walkSpraying || walkSoaping);
     }
-    if (!walkSpraying) sprayPoints.visible = false;
+    if (!walkSpraying) {
+      sprayPoints.visible = false;
+      clubhouseApi?.stopCleaningEffects?.();
+    }
+  }
+
+  function walkSetSoaping(on) {
+    walkSoaping = !!(on && walkTool === 'washer' && !cart.mounted);
+    toolViewmodels.setUsing(walkTool, walkSpraying || walkSoaping);
+  }
+
+  function cleaningBlockMessage(reason) {
+    return ({
+      carpet: 'Mops stay off carpet — use the vacuum there.',
+      'mop-dry': 'The mop is dry — wring it in the cleaning-bay bucket.',
+      'pan-full': 'The dustpan is full — empty it into the trash bag.',
+      'bag-full': 'The trash bag is full — tie it at the cleaning bay.',
+      'bag-tied': 'That bag is tied — dispose it at the stockroom waste station.',
+      dry: 'Nothing to wipe yet — spray the surface first.',
+      blocked: 'The tool is against a fixture, not the floor.',
+      occluded: 'A counter or wall blocks the tool contact.',
+    })[reason] || 'Nothing to clean at that contact point.';
   }
 
   // --- what you're looking at (shop-style focus + [E]) -------------------------------
   let walkFocus = null; // { kind, label, cell? }
   const walkHooks = {}; // main.js provides turfLabelAt / inspectAt / waterAt / hoseLabelAt
+  walkHooks.getTool = () => walkTool;
+  walkHooks.toolAction = (toolId, action) => {
+    const clips = {
+      'mop:service': ['headcompress', 'compress'],
+      'dustpan:empty': ['empty'],
+      'trashbag:tie': ['tie'],
+      'trashbag:dispose': ['dispose'],
+    }[`${toolId}:${action}`];
+    if (clips) toolViewmodels.play(toolId, clips);
+  };
 
   // the patch of ground a walking player is looking at, in cell coords
   function walkAimCell(dist = 2.4) {
@@ -4299,6 +4383,14 @@ export function makeCourseScene(canvas, state) {
     if (bestProp) {
       walkFocus = { kind: 'prop', label: bestProp.label(), prop: bestProp };
       return;
+    }
+    // a cleaning tool out: the prompt becomes a live capacity / readiness readout.
+    if (CLEANING_TOOLS[walkTool] && clubhouseApi?.cleaningLabel) {
+      const label = clubhouseApi.cleaningLabel(walkTool);
+      if (label) {
+        walkFocus = { kind: 'hose', label: `${label} · [F] next tool`, cell: null };
+        return;
+      }
     }
     // a tool out: the prompt becomes a live readout on the patch ahead
     if (walkTool === 'vacuum') {
@@ -4634,6 +4726,9 @@ export function makeCourseScene(canvas, state) {
   function walkBlur() {
     walkHeld.clear();
     contextToolRequiresRelease = false;
+    walkSetSpraying(false);
+    walkSetSoaping(false);
+    walkHooks.toolChanged?.(walkTool || null, walkTool || null);
   }
   // Ignore the first mouse events after (re)acquiring pointer lock. Browsers can
   // deliver a large accumulated movementX/Y in that first event — the classic
@@ -4737,6 +4832,7 @@ export function makeCourseScene(canvas, state) {
     if (!walk.active) return;
     walk.active = false;
     walkSetSpraying(false);
+    walkSetSoaping(false);
     heldRoot.visible = false; // the overview camera carries no hand tools
     walkHeld.clear();
     window.removeEventListener('keydown', walkKeyDown);
@@ -4754,6 +4850,7 @@ export function makeCourseScene(canvas, state) {
   function walkUpdate(dtMs) {
     if (!walk.active) return;
     const dt = dtMs / 1000;
+    toolViewmodels.update(dt);
     const px0 = walk.x; // where this frame started, so recovery can tell moving from pinned
     const pz0 = walk.z;
 
@@ -4972,19 +5069,59 @@ export function makeCourseScene(canvas, state) {
       const group = heldGroups[walkTool];
       const socketName = def.sockets.contact ? 'contact' : 'nozzle';
       if (group && group.visible) {
+        const rest = group.userData.cleaningRestPosition;
+        let dirX = -Math.sin(walk.yaw);
+        let dirZ = -Math.cos(walk.yaw);
+        if (rest && (def.toolClass === 'stroke' || def.toolClass === 'sweep')) {
+          const rate = walkTool === 'sponge' ? 13 : walkTool === 'cloth' ? 8 : 4.8;
+          const span = walkTool === 'sponge' ? 0.055 : walkTool === 'cloth' ? 0.10 : 0.16;
+          const phase = time * rate;
+          const sign = Math.sign(Math.cos(phase)) || 1;
+          group.position.x = rest.x + Math.sin(phase) * span;
+          group.rotation.z = group.userData.cleaningRestRotationZ + Math.cos(phase) * 0.035;
+          dirX = Math.cos(walk.yaw) * sign;
+          dirZ = -Math.sin(walk.yaw) * sign;
+        }
         socketWorld(group, socketName, _toolContact);
+        let target = _toolContact;
+        let aim = null;
+        const aimedSurfaceTool = def.toolClass === 'spray' || walkTool === 'cloth' || walkTool === 'sponge';
+        if (aimedSurfaceTool && clubhouseApi.cleaningAim) {
+          const rayDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+          aim = clubhouseApi.cleaningAim(camera.position, rayDir, def.reach + 1.0);
+          if (aim?.point && !aim.blocked) target = aim.point;
+        }
         // the sweep direction is the way the player is facing, flattened onto the floor
-        const dirX = -Math.sin(walk.yaw);
-        const dirZ = -Math.cos(walk.yaw);
-        if (clubhouseApi.isInside(_toolContact.x, _toolContact.z)) {
+        if (aimedSurfaceTool && !aim) {
+          if (toolHintClock <= 0) {
+            toolHintClock = 3;
+            walkHooks.toast?.('Aim the bottle down at a reachable surface.', 'warn');
+          }
+          sprayPoints.visible = false;
+        } else if (aim?.blocked) {
+          if (toolHintClock <= 0) {
+            toolHintClock = 3;
+            walkHooks.toast?.('The counter or wall blocks that surface.', 'warn');
+          }
+          sprayPoints.visible = false;
+        } else if (clubhouseApi.isInside(target.x, target.z)) {
           const res = clubhouseApi.cleanWithTool(
-            walkTool, _toolContact.x, _toolContact.z, dirX, dirZ, dt,
+            walkTool, target.x, target.z, dirX, dirZ, dt, { origin: camera.position },
           );
+          cleaningLastResult = { ...res, tool: walkTool };
+          cleaningLastContact.copy(_toolContact);
+          cleaningLastTarget.copy(target);
+          if (walkTool === 'spray' && !res.blocked && aim?.point) {
+            sprayPoints.material.color.set(0xaee7d1);
+            sprayPoints.material.size = 0.026;
+            sprayPoints.visible = true;
+            updateSpray(aim.point, _toolContact);
+          } else if (walkTool !== 'spray') {
+            sprayPoints.visible = false;
+          }
           if (res.blocked && toolHintClock <= 0) {
             toolHintClock = 4;
-            if (walkHooks.toast) {
-              walkHooks.toast('Nothing to wipe up yet — spray the surface first.', 'warn');
-            }
+            walkHooks.toast?.(cleaningBlockMessage(res.reason), 'warn');
           }
         }
       }
@@ -5005,6 +5142,23 @@ export function makeCourseScene(canvas, state) {
       } else {
         sprayPoints.visible = false;
       }
+    }
+    if (!walkSpraying) {
+      for (const [id, group] of Object.entries(heldGroups)) {
+        const rest = group.userData.cleaningRestPosition;
+        if (!rest || !CLEANING_TOOLS[id]) continue;
+        group.position.copy(rest);
+        group.rotation.z = group.userData.cleaningRestRotationZ;
+      }
+    }
+    const cleaning = clubhouseApi?.cleaningStatus?.();
+    if (cleaning) {
+      toolViewmodels.setFillState(
+        'trashbag', cleaning.bag.load / cleaning.bag.capacity, cleaning.bag.tied,
+      );
+      const panFill = cleaning.pan.load / cleaning.pan.capacity;
+      dustpanLoadVisual.visible = panFill > 0.005;
+      dustpanLoadVisual.scale.set(0.72 + panFill * 0.34, 0.55 + panFill * 0.55, 0.72 + panFill * 0.34);
     }
   }
 
@@ -5980,6 +6134,7 @@ export function makeCourseScene(canvas, state) {
     treeBuildToken += 1;
     if (walk.active) walkExit();
     const clubhouse = clubhouseApi?.dispose ? clubhouseApi.dispose() : null;
+    const cleaningViewmodels = toolViewmodels.releaseForSceneDispose();
     while (golfers.length) removeGolfer(golfers.length - 1);
 
     const cachedObjectResources = mergeSceneResources();
@@ -6032,6 +6187,7 @@ export function makeCourseScene(canvas, state) {
     return {
       alreadyDisposed: false,
       clubhouse,
+      cleaningViewmodels,
       sceneResources,
       postPasses: disposedPasses.size,
     };
@@ -6667,8 +6823,20 @@ export function makeCourseScene(canvas, state) {
       }),
       setSpraying: walkSetSpraying,
       isSpraying: () => walkSpraying,
-      setSoaping: (on) => { walkSoaping = !!on && walkTool === 'washer'; },
+      setSoaping: walkSetSoaping,
       isSoaping: () => walkSoaping,
+      toolViewmodelDiagnostics: toolViewmodels.diagnostics,
+      cleaningDiagnostics: () => ({
+        tool: walkTool,
+        using: walkSpraying,
+        soaping: walkSoaping,
+        contact: cleaningLastContact.toArray(),
+        target: cleaningLastTarget.toArray(),
+        result: cleaningLastResult ? { ...cleaningLastResult } : null,
+        sprayVisible: sprayPoints.visible,
+        viewmodels: toolViewmodels.diagnostics(),
+        effects: clubhouseApi?.cleaningEffectsDiagnostics?.() || null,
+      }),
       clearKeys: walkBlur, // a mode change drops whatever was held, so you never resume walking into a wall
       unstick: walkUnstick, // the pause menu's manual fallback; returns how it got you out, or null
       isFree: (x, z, r) => walkFreeAt(x, z, r ?? walk.radius), // also what placement validation asks

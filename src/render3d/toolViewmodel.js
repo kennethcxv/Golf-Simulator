@@ -102,7 +102,7 @@ export function buildToolViewmodels() {
     groups[def.id] = group;
   }
 
-  const loaded = new Map(); // toolId -> { root, mixer, clips, actions }
+  const loaded = new Map();
   const activeTools = new Set();
   let equippedTool = null;
 
@@ -113,23 +113,26 @@ export function buildToolViewmodels() {
     active: /_(?:FloorHeadContact|StrokeLeft|StrokeRight|SweepLeft|SweepRight|Wipe|Scrub|Recoil|Trigger)$/i,
     stop: /_(?:Stop|TriggerUp|SetDown)$/i,
   });
+  const lower = (value) => String(value || '').toLowerCase();
 
   function clipsFor(entry, phase) {
     const pattern = PHASE_CLIP[phase];
     return pattern ? entry.clips.filter((clip) => pattern.test(clip.name || '')) : [];
   }
 
-  function playClip(entry, clip, { loop = false } = {}) {
-    if (!entry || !clip) return null;
+  function playAction(entry, clip, { loop = false, fade = 0 } = {}) {
+    if (!entry?.mixer || !clip) return null;
     const action = entry.mixer.clipAction(clip);
     action.stop();
     action.reset();
     action.enabled = true;
     action.clampWhenFinished = !loop;
     action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
+    if (fade > 0) action.fadeIn(fade);
     action.play();
     entry.actions.add(action);
     entry.played.add(clip.name);
+    entry.lastClip = clip.name;
     return action;
   }
 
@@ -137,19 +140,33 @@ export function buildToolViewmodels() {
     const entry = loaded.get(toolId);
     const clips = entry ? clipsFor(entry, phase) : [];
     if (!clips.length) return null;
-    // Opposed stroke/sweep clips animate the same pivots. Pick one per hold; the next hold uses
-    // the other authored direction instead of blending both into a stationary average.
     const index = phase === 'active' ? entry.activeVariant++ % clips.length : 0;
-    return playClip(entry, clips[index], options);
+    return playAction(entry, clips[index], options);
+  }
+
+  function findClip(entry, needles) {
+    const wanted = (Array.isArray(needles) ? needles : [needles]).map(lower);
+    if (!entry?.clips) return null;
+    for (const needle of wanted) {
+      const clip = entry.clips.find((candidate) => lower(candidate.name).includes(needle));
+      if (clip) return clip;
+    }
+    return null;
+  }
+
+  function playClip(toolId, needles, { loop = false, fade = 0.06 } = {}) {
+    const entry = loaded.get(toolId);
+    return !!playAction(entry, findClip(entry, needles), { loop, fade });
   }
 
   function setActive(toolId, on) {
-    if (!toolId) return;
+    if (!toolId) return false;
     if (on) activeTools.add(toolId);
     else activeTools.delete(toolId);
     const entry = loaded.get(toolId);
-    if (!entry || entry.active === on) return;
-    entry.active = on;
+    if (!entry || entry.active === !!on) return false;
+    entry.active = !!on;
+    entry.using = !!on;
     if (entry.activeAction) {
       entry.activeAction.stop();
       entry.activeAction = null;
@@ -160,15 +177,43 @@ export function buildToolViewmodels() {
     } else {
       playPhase(toolId, 'stop');
     }
+    return true;
+  }
+
+  function setEquipped(toolId, on) {
+    const entry = loaded.get(toolId);
+    if (!entry || entry.equipped === !!on) return false;
+    entry.equipped = !!on;
+    return playClip(toolId, on
+      ? [`${toolId}_equip`, `${toolId}wand_equip`, 'equip']
+      : [`${toolId}_unequip`, `${toolId}wand_unequip`, 'unequip', 'putaway']);
+  }
+
+  function setUsing(toolId, on) {
+    return setActive(toolId, !!on);
   }
 
   function setTool(nextTool, previousTool = equippedTool) {
     if (previousTool && previousTool !== nextTool) {
       setActive(previousTool, false);
-      playPhase(previousTool, 'unequip');
+      setEquipped(previousTool, false);
     }
     equippedTool = nextTool || null;
-    if (nextTool && nextTool !== previousTool) playPhase(nextTool, 'equip');
+    if (nextTool && nextTool !== previousTool) setEquipped(nextTool, true);
+  }
+
+  function authoredGrip(group, root, name, fallback) {
+    const node = name ? root.getObjectByName(name) : null;
+    if (!node) return fallback ? { ...fallback, pos: [...fallback.pos], rot: [...fallback.rot] } : null;
+    group.updateWorldMatrix(true, false);
+    node.updateWorldMatrix(true, false);
+    const position = node.getWorldPosition(new THREE.Vector3());
+    group.worldToLocal(position);
+    return {
+      ...(fallback || {}),
+      pos: [position.x, position.y, position.z],
+      rot: fallback?.rot ? [...fallback.rot] : [0, 0, 0],
+    };
   }
 
   /**
@@ -247,25 +292,47 @@ export function buildToolViewmodels() {
               o.castShadow = false;
               o.receiveShadow = false;
             });
+
+            // The spray sheet's pivot was exported while its equip action was evaluated, leaving
+            // the trigger blade below the bottle in the GLB's static pose. The named trigger socket
+            // is authored at the correct hinge, and the Trigger clip only animates rotation, so
+            // restoring the pivot to that sibling is lossless and keeps the blade attached.
+            if (def.id === 'spray') {
+              const pivot = root.getObjectByName('PIVOT_Trigger');
+              const triggerSocket = root.getObjectByName('SOCKET_Trigger');
+              if (pivot && triggerSocket && pivot.parent === triggerSocket.parent) {
+                pivot.position.copy(triggerSocket.position);
+                pivot.quaternion.identity();
+                pivot.scale.set(1, 1, 1);
+              }
+            }
             group.add(root);
             const authoredClips = def.fp.only
               ? (gltf.animations || []).filter((clip) => (
                 (clip.name || '').toLowerCase().includes(def.fp.only.toLowerCase())
               ))
               : [...(gltf.animations || [])];
+            group.updateWorldMatrix(true, true);
             const entry = {
               root,
-              mixer: new THREE.AnimationMixer(root),
+              mixer: authoredClips.length ? new THREE.AnimationMixer(root) : null,
               clips: authoredClips,
               actions: new Set(),
               played: new Set(),
               active: false,
+              using: false,
+              equipped: false,
               activeAction: null,
               activeVariant: 0,
+              grips: {
+                grip: authoredGrip(group, root, def.fp.grips?.right, def.grip),
+                support: authoredGrip(group, root, def.fp.grips?.left, def.support),
+              },
+              lastClip: null,
             };
             loaded.set(def.id, entry);
-            if (def.id === equippedTool) playPhase(def.id, 'equip');
-            if (activeTools.has(def.id)) setActive(def.id, true);
+            if (def.id === equippedTool) setEquipped(def.id, true);
+            if (activeTools.has(def.id)) setUsing(def.id, true);
             resolve({ id: def.id, ok: true });
           } catch (err) {
             resolve({ id: def.id, ok: false, reason: err.message });
@@ -288,24 +355,89 @@ export function buildToolViewmodels() {
     authoredCount: () => loaded.size,
     setTool,
     setActive,
-    update(dt) {
-      for (const entry of loaded.values()) entry.mixer.update(dt);
+    setEquipped,
+    setUsing,
+    gripsFor: (id) => loaded.get(id)?.grips || null,
+    play(id, needles, options) {
+      loaded.get(id)?.mixer?.stopAllAction();
+      return playClip(id, needles, options);
+    },
+    setFillState(id, fraction = 0, tied = false) {
+      const entry = loaded.get(id);
+      if (!entry || id !== 'trashbag') return false;
+      const f = Math.max(0, Math.min(1, Number(fraction) || 0));
+      entry.root.traverse((object) => {
+        if (!object.isMesh || !/bag/i.test(object.name || '')) return;
+        // Scale mesh geometry around authored origins, leaving the root and grip socket fixed.
+        object.scale.set(0.78 + f * 0.28, 0.82 + f * 0.22, 0.78 + f * 0.28);
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of materials) {
+          if (!material?.color) continue;
+          if (!Number.isFinite(material.userData.cleaningBaseColor)) {
+            material.userData.cleaningBaseColor = material.color.getHex();
+          }
+          material.color.setHex(material.userData.cleaningBaseColor);
+          if (tied) material.color.multiplyScalar(0.82);
+          if ('roughness' in material) material.roughness = 0.82;
+          if ('metalness' in material) material.metalness = 0;
+        }
+      });
+      entry.root.userData.cleaningFill = f;
+      entry.root.userData.cleaningTied = !!tied;
+      return true;
+    },
+    update(dtSec) {
+      const dt = Math.max(0, Math.min(0.1, Number(dtSec) || 0));
+      for (const entry of loaded.values()) entry.mixer?.update(dt);
     },
     diagnostics: () => ({
       authoredCount: loaded.size,
+      authored: loaded.size,
       equippedTool,
       activeTools: [...activeTools],
+      animated: [...loaded.entries()].filter(([, entry]) => !!entry.mixer).map(([id]) => id),
+      playing: [...loaded.entries()].filter(([, entry]) => entry.using).map(([id]) => id),
+      clips: Object.fromEntries([...loaded.entries()].map(([id, entry]) => [id, entry.clips.map((clip) => clip.name)])),
       tools: Object.fromEntries([...loaded.entries()].map(([id, entry]) => [id, {
         clips: entry.clips.map((clip) => clip.name),
         played: [...entry.played],
         active: entry.active,
       }])),
     }),
+    releaseForSceneDispose() {
+      const liveGeometries = new Set();
+      const liveMaterials = new Set();
+      for (const group of Object.values(groups)) group.traverse((object) => {
+        if (!object.isMesh) return;
+        if (object.geometry) liveGeometries.add(object.geometry);
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of materials) if (material) liveMaterials.add(material);
+      });
+      let detachedGeometries = 0;
+      let detachedMaterials = 0;
+      for (const geometry of geoCache.values()) {
+        if (liveGeometries.has(geometry)) continue;
+        geometry.dispose();
+        detachedGeometries++;
+      }
+      for (const material of mats.values()) {
+        if (liveMaterials.has(material)) continue;
+        material.dispose();
+        detachedMaterials++;
+      }
+      for (const entry of loaded.values()) {
+        entry.mixer?.stopAllAction();
+        entry.mixer?.uncacheRoot(entry.root);
+      }
+      geoCache.clear();
+      mats.clear();
+      return { detachedGeometries, detachedMaterials, mixers: loaded.size };
+    },
     dispose() {
       for (const entry of loaded.values()) {
         for (const action of entry.actions) action.stop();
-        entry.mixer.stopAllAction();
-        entry.mixer.uncacheRoot(entry.root);
+        entry.mixer?.stopAllAction();
+        entry.mixer?.uncacheRoot(entry.root);
         entry.root.traverse((o) => {
           if (!o.isMesh) return;
           o.geometry?.dispose();

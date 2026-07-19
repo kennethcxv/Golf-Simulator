@@ -204,14 +204,17 @@ export function buildWashing(B) {
   const jetMat = new THREE.MeshBasicMaterial({
     color: 0xbcdcff,
     transparent: true,
-    opacity: 0.30,
+    opacity: 0.10,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
   });
-  const jet = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.062, 1, 8, 1, true), jetMat);
+  const jet = new THREE.Group();
+  jet.name = 'PressureWasherJet';
+  const jetBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.015, 1, 6, 1, true), jetMat);
+  jetBeam.frustumCulled = false;
+  jet.add(jetBeam);
   jet.visible = false;
-  jet.frustumCulled = false;
 
   // A round, soft droplet. An untextured THREE.Points renders as a hard SQUARE — at 0.075 world
   // units that is a cluster of white cubes stapled to the wall, which is exactly how the shipped
@@ -250,6 +253,30 @@ export function buildWashing(B) {
   }));
   mist.visible = false;
   mist.frustumCulled = false;
+
+  // Moving droplets carry the stream. The faint beam above only connects them at distance; it is
+  // no longer the solid tapered wedge that made the washer look like a white spike.
+  const STREAM = 46;
+  const streamPos = new Float32Array(STREAM * 3);
+  const streamGeo = new THREE.BufferGeometry();
+  streamGeo.setAttribute('position', new THREE.BufferAttribute(streamPos, 3));
+  const stream = new THREE.Points(streamGeo, new THREE.PointsMaterial({
+    color: 0xd8efff,
+    size: 0.040,
+    map: dropletTex,
+    alphaTest: 0.02,
+    transparent: true,
+    opacity: 0.74,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+  }));
+  stream.frustumCulled = false;
+  jet.add(stream);
+  const jetDirection = new THREE.Vector3();
+  const jetNormalized = new THREE.Vector3();
+  const jetMidpoint = new THREE.Vector3();
+  const jetUp = new THREE.Vector3(0, 1, 0);
 
   const REACH = 7;
 
@@ -334,11 +361,22 @@ export function buildWashing(B) {
       jet.visible = !!(on && from && to);
       mist.visible = jet.visible;
       if (!jet.visible) return;
-      const dir = to.clone().sub(from);
-      const len = dir.length();
-      jet.position.copy(from).addScaledVector(dir, 0.5);
-      jet.scale.set(1, len, 1);
-      jet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+      jetDirection.subVectors(to, from);
+      const len = jetDirection.length();
+      jetMidpoint.copy(from).addScaledVector(jetDirection, 0.5);
+      jetBeam.position.copy(jetMidpoint);
+      jetBeam.scale.set(1, len, 1);
+      jetBeam.quaternion.setFromUnitVectors(jetUp, jetNormalized.copy(jetDirection).normalize());
+      const phase = performance.now() * 0.004;
+      for (let i = 0; i < STREAM; i++) {
+        const t = ((i / STREAM) + phase * (0.80 + (i % 3) * 0.07)) % 1;
+        const spread = 0.006 + t * 0.022;
+        const o = i * 3;
+        streamPos[o] = from.x + jetDirection.x * t + Math.sin(i * 4.1 + phase) * spread;
+        streamPos[o + 1] = from.y + jetDirection.y * t + Math.cos(i * 3.7 + phase) * spread;
+        streamPos[o + 2] = from.z + jetDirection.z * t + Math.sin(i * 2.9 - phase) * spread;
+      }
+      streamGeo.attributes.position.needsUpdate = true;
 
       for (let i = 0; i < MIST; i++) {
         mistLife[i] -= dt;

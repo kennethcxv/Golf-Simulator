@@ -480,6 +480,11 @@ function animationController(root, clips) {
         if (clip) mixer.existingAction(clip)?.stop();
       }
     },
+    stopAll() {
+      for (const action of active) action.stop();
+      mixer.stopAllAction();
+      active.clear();
+    },
     update(dt) { mixer.update(dt); },
     dispose() {
       for (const action of active) action.stop();
@@ -710,6 +715,7 @@ export function buildProps({
       stateRecord,
       walkProps: [],
       controller: animationController(root, gltf.animations || []),
+      clips: [...(gltf.animations || [])],
       light: null,
       hiddenCollisionMeshes,
       staticBatch,
@@ -765,6 +771,7 @@ export function buildProps({
           const root = roots[index];
           prepareEntry(root, gltf, placement, fixtureId, index);
         });
+
         resolve(true);
       } catch (error) {
         failed.push({ n: placement.n, reason: error.message });
@@ -887,6 +894,38 @@ export function buildProps({
     getRoot: (number, fixtureId = null) => {
       const entries = placedByNumber.get(Number(number)) || [];
       return (fixtureId ? entries.find((entry) => entry.fixtureId === fixtureId) : entries[0])?.root || null;
+    },
+    rootFor(number) {
+      const entries = placedByNumber.get(Number(number)) || [];
+      return entries[0]?.root || null;
+    },
+    play(number, clipNeedles, { loop = false } = {}) {
+      const entry = (placedByNumber.get(Number(number)) || [])[0];
+      if (!entry?.controller) return false;
+      const needles = (Array.isArray(clipNeedles) ? clipNeedles : [clipNeedles])
+        .map((value) => String(value || '').toLowerCase());
+      const clip = entry.clips.find((candidate) => needles.some((needle) => (
+        String(candidate.name || '').toLowerCase().includes(needle)
+      )));
+      return !!(clip && entry.controller.play([clip.name], { loop }));
+    },
+    setBucketWater({ water = 'clean', level = 1 } = {}) {
+      const root = (placedByNumber.get(73) || [])[0]?.root;
+      const waterMesh = root?.getObjectByName('BucketWater')
+        || root?.getObjectByName('MESH_BucketWater');
+      if (!waterMesh) return false;
+      waterMesh.visible = water !== 'empty' && level > 0.02;
+      const materials = Array.isArray(waterMesh.material) ? waterMesh.material : [waterMesh.material];
+      for (const material of materials) {
+        if (!material?.color) continue;
+        material.color.set(water === 'dirty' ? 0x736345 : 0x76aeb1);
+        if ('opacity' in material) material.opacity = water === 'dirty' ? 0.78 : 0.68;
+      }
+      return true;
+    },
+    stopAnimations() {
+      for (const controller of mixers) controller.stopAll();
+      return mixers.length;
     },
     diagnostics: () => ({
       expected: PROP_PLACEMENTS.length,

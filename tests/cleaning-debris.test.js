@@ -102,6 +102,28 @@ test('the dustpan does not reach across the room', () => {
   assert.equal(clusterCount(s), 1);
 });
 
+test('a seeded neglected room contains both grit and hand-pickable litter', () => {
+  const s = scene();
+  seedDebris(s, 32, 8, 6, 2026);
+  const kinds = new Set(debrisState(s).map((cluster) => cluster.kind));
+  assert.deepEqual(kinds, new Set(['grit', 'litter']),
+    'trash bags need visible litter while brooms and pans still have grit to move');
+});
+
+test('a trash-bag predicate takes litter without deleting nearby grit', () => {
+  const s = scene();
+  debrisState(s).length = 0;
+  debrisState(s).push(
+    { x: 0, z: 0, a: 0.6, kind: 'litter' },
+    { x: 0.04, z: 0.02, a: 0.7, kind: 'grit' },
+  );
+  const got = collectAt(s, 0, 0, 0.5, Infinity, (cluster) => cluster.kind === 'litter');
+  assert.ok(Math.abs(got - 0.6) < 1e-6, 'only the litter should enter the bag');
+  assert.equal(debrisState(s).length, 1);
+  assert.equal(debrisState(s)[0].kind, 'grit');
+  assert.ok(Math.abs(totalDebris(s) - 0.7) < 1e-6, 'nearby grit must remain for the pan/vacuum');
+});
+
 // --- the vacuum --------------------------------------------------------------------------------
 
 test('the vacuum draws debris toward the intake before it takes it', () => {
@@ -165,4 +187,14 @@ test('the healer discards corrupt entries rather than crashing the floor', () =>
   for (const d of debrisState(s)) {
     assert.ok(Number.isFinite(d.x) && Number.isFinite(d.z) && Number.isFinite(d.a) && d.a > 0);
   }
+});
+
+test('the healer gives legacy untyped debris a stable kind', () => {
+  const legacy = { shop: { reno: { debris: [{ x: 1.25, z: -0.5, a: 0.8 }] } } };
+  ensureDebris(legacy);
+  const first = debrisState(legacy)[0].kind;
+  assert.ok(first === 'grit' || first === 'litter');
+  const reloaded = JSON.parse(JSON.stringify(legacy));
+  ensureDebris(reloaded);
+  assert.equal(debrisState(reloaded)[0].kind, first, 'save/load cannot re-roll litter into grit');
 });

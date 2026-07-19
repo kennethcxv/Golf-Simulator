@@ -24,10 +24,10 @@ const CUFF = 0x2f4a35; // the club's own polo green, at the wrist
 // How a hand closes. `curl` drives the finger chain, `thumb` the thumb, `spread` the fan across
 // the knuckles, and `index` lets one finger stay out on a trigger while the rest wrap.
 export const POSES = {
-  wrap: { curl: 1.00, thumb: 0.85, spread: 0.06, index: 1.00 }, // a shaft or a handle
-  trigger: { curl: 0.92, thumb: 0.70, spread: 0.05, index: 0.34 }, // finger on the trigger
-  flat: { curl: 0.14, thumb: 0.20, spread: 0.16, index: 0.14 }, // palm down on a cloth
-  hook: { curl: 0.78, thumb: 0.95, spread: 0.03, index: 0.78 }, // the neck of a bag
+  wrap: { curl: 1.18, thumb: 0.92, spread: 0.025, index: 1.15 }, // a shaft or a handle
+  trigger: { curl: 1.08, thumb: 0.78, spread: 0.022, index: 0.30 }, // finger on the trigger
+  flat: { curl: 0.20, thumb: 0.34, spread: 0.018, index: 0.16 }, // palm down on a cloth
+  hook: { curl: 0.96, thumb: 1.00, spread: 0.018, index: 0.92 }, // the neck of a bag
   pinch: { curl: 0.60, thumb: 1.00, spread: 0.02, index: 0.55 },
 };
 
@@ -87,8 +87,9 @@ export const GRIPS = buildGripTable();
 function makeFinger(mats, len, thick) {
   const root = new THREE.Group();
   const prox = new THREE.Mesh(
-    new THREE.BoxGeometry(thick, thick * 0.92, len * 0.56), mats.skin,
+    new THREE.CapsuleGeometry(thick * 0.47, Math.max(0.002, len * 0.56 - thick), 4, 7), mats.skin,
   );
+  prox.rotation.x = Math.PI / 2;
   prox.position.z = -len * 0.28;
   root.add(prox);
 
@@ -97,8 +98,9 @@ function makeFinger(mats, len, thick) {
   root.add(knuckle);
 
   const dist = new THREE.Mesh(
-    new THREE.BoxGeometry(thick * 0.92, thick * 0.84, len * 0.44), mats.shade,
+    new THREE.CapsuleGeometry(thick * 0.43, Math.max(0.002, len * 0.44 - thick), 4, 7), mats.shade,
   );
+  dist.rotation.x = Math.PI / 2;
   dist.position.z = -len * 0.22;
   knuckle.add(dist);
 
@@ -111,17 +113,18 @@ function makeHand(mats, mirror = 1) {
   // The forearm is deliberately SHORT. It runs back toward the camera and would otherwise punch
   // straight through the near plane and fill the screen with a tan cylinder — which is exactly
   // what the first draft did.
-  const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.050, 0.16, 10), mats.skin);
+  const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.031, 0.037, 0.11, 10), mats.skin);
   forearm.rotation.x = Math.PI / 2;
-  forearm.position.z = 0.10;
+  forearm.position.z = 0.072;
   g.add(forearm);
 
-  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.056, 0.062, 10), mats.cuff);
+  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.039, 0.037, 0.046, 10), mats.cuff);
   sleeve.rotation.x = Math.PI / 2;
-  sleeve.position.z = 0.172;
+  sleeve.position.z = 0.137;
   g.add(sleeve);
 
-  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.046, 0.098), mats.skin);
+  const palm = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), mats.skin);
+  palm.scale.set(0.88, 0.50, 1.06);
   palm.position.set(0, 0, 0.012);
   g.add(palm);
 
@@ -136,19 +139,21 @@ function makeHand(mats, mirror = 1) {
   }
 
   const thumb = new THREE.Group();
-  const thumbProx = new THREE.Mesh(new THREE.BoxGeometry(0.021, 0.021, 0.042), mats.skin);
+  const thumbProx = new THREE.Mesh(new THREE.CapsuleGeometry(0.010, 0.022, 4, 7), mats.skin);
+  thumbProx.rotation.x = Math.PI / 2;
   thumbProx.position.z = -0.021;
   thumb.add(thumbProx);
   const thumbKnuckle = new THREE.Group();
   thumbKnuckle.position.z = -0.042;
   thumb.add(thumbKnuckle);
-  const thumbDist = new THREE.Mesh(new THREE.BoxGeometry(0.019, 0.019, 0.034), mats.shade);
+  const thumbDist = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.016, 4, 7), mats.shade);
+  thumbDist.rotation.x = Math.PI / 2;
   thumbDist.position.z = -0.017;
   thumbKnuckle.add(thumbDist);
   thumb.position.set(0.046 * mirror, -0.004, -0.012);
   g.add(thumb);
 
-  g.scale.x = mirror;
+  g.scale.set(0.88 * mirror, 0.88, 0.88);
 
   // Apply a pose by rotating the joints. Nothing is rebuilt; a grip change is a few euler writes.
   function pose(name) {
@@ -204,7 +209,7 @@ export function makeFpHands() {
     rigOffset,
 
     // which tool are we holding? null puts the hands away.
-    setTool(next) {
+    setTool(next, authored = null) {
       tool = GRIPS[next] ? next : null;
       if (!tool) return;
       const g = GRIPS[tool];
@@ -213,15 +218,28 @@ export function makeFpHands() {
       // forearm is replaced there by the bent arm bridge in courseScene.
       right.forearm.visible = tool !== 'boxcutter';
       right.sleeve.visible = tool !== 'boxcutter';
-      right.group.position.set(...g.grip.pos);
-      right.group.rotation.set(...g.grip.rot);
-      right.pose(g.grip.pose || 'wrap');
+      const primary = authored?.grip || g.grip;
+      const support = authored?.support === undefined ? g.support : authored.support;
+      right.group.position.set(...primary.pos);
+      // Sockets place the palm on the tool. The arm must then travel toward a lower screen edge,
+      // not straight down the camera axis: a camera-facing cuff reads as a giant green disc and
+      // hides the fingers. Grip pose controls the curl; these biases control where the arm enters.
+      const primaryPose = primary.pose || g.grip.pose || 'wrap';
+      // Compact tools are shown palm-first: the wrist enters from the lower edge while the
+      // fingers remain visible around the bottle, cloth or bag neck. Long handles use a shallower
+      // pitch so both grips stay readable without camera-facing cuffs.
+      const entryPitch = primaryPose === 'flat' ? 0.82
+        : primaryPose === 'hook' ? 0.64
+          : primaryPose === 'trigger' ? 0.50 : 0.34;
+      if (tool === 'boxcutter') right.group.rotation.set(...primary.rot);
+      else right.group.rotation.set(entryPitch, 0.22, (primary.rot?.[2] || 0) - 0.06);
+      right.pose(primary.pose || g.grip.pose || 'wrap');
 
-      left.group.visible = !!g.support;
-      if (g.support) {
-        left.group.position.set(...g.support.pos);
-        left.group.rotation.set(...g.support.rot);
-        left.pose(g.support.pose || 'wrap');
+      left.group.visible = !!support;
+      if (support) {
+        left.group.position.set(...support.pos);
+        left.group.rotation.set(0.32, -0.22, (support.rot?.[2] || 0) + 0.06);
+        left.pose(support.pose || g.support?.pose || 'wrap');
       }
     },
 
