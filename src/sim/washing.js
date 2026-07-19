@@ -70,7 +70,16 @@ export function ensureWash(state) {
         grime[i] = Math.round(clamp(s.start * (0.88 + 0.24 * low) * blotch, 0, 1) * 1000) / 1000;
       }
       reno.wash[s.id] = { grime, soap };
+      continue;
     }
+    // Soap is interaction state too: a save can land during the dwell window.
+    // Repair it independently so a missing soap array never re-dirties a valid
+    // washed surface or makes the next spray assignment throw.
+    cur.grime = cur.grime.map((value) => (
+      Number.isFinite(value) ? clamp(value, 0, 1) : 0
+    ));
+    if (!Array.isArray(cur.soap) || cur.soap.length !== n) cur.soap = new Array(n).fill(0);
+    else cur.soap = cur.soap.map((value) => (Number.isFinite(value) ? Math.max(0, value) : 0));
   }
   if (!reno.washer) reno.washer = WASHERS[0].id;
   return reno.wash;

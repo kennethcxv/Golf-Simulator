@@ -1,9 +1,6 @@
-// Cleaning progress survives a save. Cleaning FEEDBACK does not, on purpose.
-//
-// The brief's hard rule is that cleaned dirt must never come back after a reload. The inverse rule
-// is mine: transient cosmetic state must not bloat the save. Mop water and spray solution fade to
-// nothing in under a minute of play and are 4,264 cells each — 17 KB of zeroes per save on a dry
-// floor. A floor you mopped before saving is correctly dry when you come back.
+// Cleaning progress and in-flight interaction state survive a save. Wetness is
+// visual feedback, but solution is also the cloth's authority, so an interrupted
+// spray/wipe or mop loop must resume without changing what the player can use.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -58,19 +55,17 @@ test('exterior washing survives the round trip', () => {
   assert.deepEqual(washState(back)[surf.id].grime, washState(s)[surf.id].grime);
 });
 
-test('mop water is NOT saved — it is feedback, and it would cost 17 KB of zeroes', () => {
+test('mop water and cleaning solution survive a save taken mid-stroke', () => {
   const s = newGame('relaxed', 7);
   ensureWet(s, GEOM.w, GEOM.h);
   wetAt(s, GEOM, 3, 3, 0.5);
+  s.shop.reno.solution[GEOM.w * 3 + 3] = 0.625;
   assert.ok(wetLevel(s, GEOM, 3, 3) > 0, 'the floor is wet before saving');
 
   const back = reload(s);
-  assert.equal(back.shop.reno.wet, undefined, 'wetness must not be written to the save');
-  assert.equal(back.shop.reno.solution, undefined, 'solution must not be written to the save');
-
-  // and the healer gives the reloaded game valid, empty fields
   ensureWet(back, GEOM.w, GEOM.h);
-  assert.equal(wetLevel(back, GEOM, 3, 3), 0, 'a reloaded floor is dry');
+  assert.equal(wetLevel(back, GEOM, 3, 3), wetLevel(s, GEOM, 3, 3));
+  assert.equal(back.shop.reno.solution[GEOM.w * 3 + 3], 0.625);
   assert.equal(back.shop.reno.wet.length, GEOM.w * GEOM.h);
 });
 

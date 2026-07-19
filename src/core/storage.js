@@ -5,22 +5,139 @@
 const native = typeof window !== 'undefined' ? window.fairwayNative : null;
 // distinct prefix so browser-QA localStorage never collides with FAIRWAY STATE's
 const PREFIX = 'golfempire:';
+const BACKUP_PREFIX = 'golfempire-backup:';
+
+function errorInfo(error) {
+  if (!error) return null;
+  return {
+    name: error.name || 'Error',
+    code: error.code || 'SAVE_DATA_ERROR',
+    message: error.message || String(error),
+  };
+}
+
+function encoded(value) {
+  const text = JSON.stringify(value);
+  if (text === undefined) throw new TypeError('Save data must be JSON-serializable.');
+  JSON.parse(text);
+  return text;
+}
 
 export async function saveData(key, obj) {
   if (native) return native.save(key, obj);
-  localStorage.setItem(PREFIX + key, JSON.stringify(obj));
+  const primaryKey = PREFIX + key;
+  const backupKey = BACKUP_PREFIX + key;
+  const text = encoded(obj);
+  const current = localStorage.getItem(primaryKey);
+  if (current !== null) {
+    try {
+      JSON.parse(current);
+      localStorage.setItem(backupKey, current);
+    } catch {
+      // Never replace a known-good backup with a corrupt primary.
+    }
+  }
+  localStorage.setItem(primaryKey, text);
   return true;
 }
 
+export async function loadDataWithStatus(key) {
+  if (native?.loadStatus) return native.loadStatus(key);
+  if (native) {
+    try {
+      const value = await native.load(key);
+      return {
+        value,
+        source: value == null ? 'none' : 'primary',
+        recovered: false,
+        repairedPrimary: false,
+        missing: value == null,
+        primaryError: null,
+        backupError: null,
+      };
+    } catch (error) {
+      return {
+        value: null,
+        source: 'none',
+        recovered: false,
+        repairedPrimary: false,
+        missing: false,
+        primaryError: errorInfo(error),
+        backupError: null,
+      };
+    }
+  }
+
+  const primaryKey = PREFIX + key;
+  const backupKey = BACKUP_PREFIX + key;
+  const raw = localStorage.getItem(primaryKey);
+  let primaryError = null;
+  if (raw !== null) {
+    try {
+      return {
+        value: JSON.parse(raw),
+        source: 'primary',
+        recovered: false,
+        repairedPrimary: false,
+        missing: false,
+        primaryError: null,
+        backupError: null,
+      };
+    } catch (error) {
+      primaryError = errorInfo(error);
+    }
+  }
+
+  const backup = localStorage.getItem(backupKey);
+  if (backup !== null) {
+    try {
+      const value = JSON.parse(backup);
+      let repairedPrimary = false;
+      try {
+        localStorage.setItem(primaryKey, backup);
+        repairedPrimary = true;
+      } catch {}
+      return {
+        value,
+        source: 'backup',
+        recovered: true,
+        repairedPrimary,
+        missing: false,
+        primaryError,
+        backupError: null,
+      };
+    } catch (error) {
+      return {
+        value: null,
+        source: 'none',
+        recovered: false,
+        repairedPrimary: false,
+        missing: false,
+        primaryError,
+        backupError: errorInfo(error),
+      };
+    }
+  }
+
+  return {
+    value: null,
+    source: 'none',
+    recovered: false,
+    repairedPrimary: false,
+    missing: raw === null,
+    primaryError,
+    backupError: null,
+  };
+}
+
 export async function loadData(key) {
-  if (native) return native.load(key);
-  const raw = localStorage.getItem(PREFIX + key);
-  return raw ? JSON.parse(raw) : null;
+  return (await loadDataWithStatus(key)).value;
 }
 
 export async function deleteData(key) {
   if (native) return native.del(key);
   localStorage.removeItem(PREFIX + key);
+  localStorage.removeItem(BACKUP_PREFIX + key);
   return true;
 }
 
