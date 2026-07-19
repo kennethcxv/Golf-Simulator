@@ -81,14 +81,16 @@ export function makeVecGreen(cx, cy, rYd, elong, angle, seed, authoredOutline = 
 }
 
 export function makeVecBunker(cx, cy, rYd, seed, { depth = 2.4, lobes = 3, stretch = 1.0, angle = 0 } = {}) {
-  // freeform lobed silhouette: 8-12 points, strong radial jitter → cloud/kidney
+  // Freeform lobed silhouette: enough irregularity for a hand-shaped
+  // cloud/kidney, but with a bounded radius so neighboring vertices cannot
+  // pinch around a false turf island or form an unmaintainable sand neck.
   const pts = [];
   const n = 8 + Math.floor(hashN(seed * 17.7) * 4);
   const rc = rYd / CELL_YD;
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;
-    const lobe = Math.sin(a * lobes + seed) * 0.24;
-    const j = 0.62 + 0.55 * hashN(seed * 13 + i * 3.7) + lobe;
+    const lobe = Math.sin(a * lobes + seed) * 0.18;
+    const j = 0.74 + 0.38 * hashN(seed * 13 + i * 3.7) + lobe;
     const ex = Math.cos(a) * rc * j * stretch;
     const ey = Math.sin(a) * rc * j;
     const ca = Math.cos(angle);

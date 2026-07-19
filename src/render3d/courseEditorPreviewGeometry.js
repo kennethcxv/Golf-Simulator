@@ -204,8 +204,8 @@ function seededBunkerOutline(center, seed, radiusX, radiusZ, rotationRad, lobes)
   const count = 8 + Math.floor(hashN(seed * 17.7) * 4);
   for (let index = 0; index < count; index += 1) {
     const angle = index / count * TAU;
-    const lobe = Math.sin(angle * lobes + seed) * 0.24;
-    const jitter = 0.62 + 0.55 * hashN(seed * 13 + index * 3.7) + lobe;
+    const lobe = Math.sin(angle * lobes + seed) * 0.18;
+    const jitter = 0.74 + 0.38 * hashN(seed * 13 + index * 3.7) + lobe;
     points.push(rotateLocal(
       center,
       Math.cos(angle) * radiusX * jitter,
