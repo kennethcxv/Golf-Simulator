@@ -313,9 +313,58 @@ The retained non-blocking diagnostics are:
 - Optional `tractor_broken.glb` and `shed.glb` fallback requests aborted during some fixed-camera
   boots; the normal-control final run only retained the optional `shed.glb` abort.
 
+## Iteration 7 final gameplay closeout (2026-07-19)
+
+The closeout runs were served only from the assigned worktree on port 8461. The served runtime
+manifest was hash-checked against the worktree before acceptance, and the reusable Sheet-6 and
+performance drivers now read `QA_REPO_ROOT` and `QA_BASE_URL` instead of silently using the original
+repository and port 8457.
+
+| Gate | Exact-branch result |
+|---|---|
+| Cold Blender 5.1.2 import | 50/50 world GLBs and 8/8 first-person GLBs passed in factory-empty scenes; zero errors or warnings |
+| Assets 61-100 runtime | 40/40 placed roots, 41 visible instances, zero failed loads, 22 interactions, 15 animated assets, and nine live held-tool views |
+| Runtime interaction and persistence | Normal `E`, keyboard, and mouse routes passed for all declared interactions and tools; fixture attachment and `assetRuntime` survived an actual autosave/reload |
+| Sheet-6 live architecture | 11 screenshots covered clean, damaged, and both door pivots; normal `E`/`W` controls crossed 3.41 yd and persisted the final door state |
+| Collision and navigation | Ground, porch, rail, wall, closed/open door, and all five restored/damaged inspection routes passed in 12 screenshots |
+| Mount, customer, and office completion | All 41 instances rendered with finite contained bounds; register/trophy sockets were populated; a normal customer entered/exited without repath; laptop UI stayed welded at 1280x720, 1440x900, and 1920x1080 |
+| State lifecycle | Ten visible-Continue autosave/reload cycles passed: five door-open, five door-closed, 524 Sheet-6 nodes every cycle, 87 listeners every cycle, and zero blocking diagnostics |
+| Supported checkout regression | Card and cash each completed and banked exactly once, decremented three products once, and retained all 30 required screenshots |
+
+The collision route exposed one final defect: the lounge damage point itself was clear, but the
+authored sofa, armchair, table, and trophy cabinet boxed every full player-width inspection route.
+The point moved from local X 3.65 to 2.25 while retaining local Z -3.45. The unit contract now uses
+the live furniture layout, and the browser rerun proved all five routes in both restored and damaged
+states. This changes only the damaged-floor presentation and does not alter save schema or
+navigation authority.
+
+The final exact-branch performance sample passed with no blocking diagnostics:
+
+| Scenario | FPS | 1% low | Worst frame | Draw calls |
+|---|---:|---:|---:|---:|
+| Idle exterior | 34.833 | 27.599 | 41.7 ms | 6,821 |
+| Vacuum active | 87.453 | 39.904 | 25.2 ms | 2,224 |
+| Pressure washer active | 36.875 | 29.895 | 33.5 ms | 6,146 |
+
+The matched three-sample before/after comparison above remains the regression authority; this last
+sample proves the committed lounge-route change and worktree-aware driver on the exact branch.
+Final normal-Continue residency recorded 3,333 scene meshes, 2,843 visible meshes, 3,241,087 scene
+triangles, 611 materials, and 193 textures.
+
+Iteration-7 evidence is retained under both of these gitignored local roots:
+
+- `qa/assets_51_100_master/overnight_assets_51_100_runtime/iteration-7` — runtime acceptance,
+  Sheet-6 live/collision, and completion coverage.
+- `qa/assets_51_100_master/overnight_assets_51_100_runtime/iterations/iteration-7` — cold import,
+  ten-cycle lifecycle, exact-branch performance/residency, and card/cash regressions.
+
+Runtime acceptance also retained a 28.206-second, 11,387,618-byte VP9/Opus gameplay recording with
+non-silent game audio. The existing limitation is unchanged: these card/cash passes cover the
+supported simplified flow, while the legacy physical-barcode scanner benchmark remains unfinished.
+
 ## Full automated test result
 
-`node --test` completed in 334.9 seconds:
+`node --test` completed in 394.8 seconds on the final working tree:
 
 | Result | Count |
 |---|---:|
@@ -338,10 +387,16 @@ Run from the isolated worktree with its server available at `QA_BASE_URL`:
 node tools/qa/assets-51-100-status.mjs
 node --test
 
-$env:QA_BASE_URL='http://localhost:8467/'
+$env:QA_BASE_URL='http://localhost:8461/'
 $env:QA_REPO_ROOT=(Get-Location).Path
 node tools/qa/run-playwright.cjs tools/qa/assets-51-100-runtime-probe.js --bootstrap
 node tools/qa/run-playwright.cjs tools/qa/assets-51-100-runtime-acceptance.js --bootstrap
+node tools/qa/run-playwright.cjs tools/qa/assets-51-100-completion-qa.js --bootstrap
+node tools/qa/run-playwright.cjs tools/qa/assets-51-60-live-qa.js --bootstrap
+node tools/qa/run-playwright.cjs tools/qa/sheet06-collision-navigation-qa.js --bootstrap
+node tools/qa/run-playwright.cjs tools/qa/sheet06-state-lifecycle-qa.js --bootstrap
+node tools/qa/run-playwright.cjs tools/qa/assets-51-100-sheet06-performance.js --bootstrap
+node tools/qa/run-playwright.cjs tools/qa/runtime-asset-residency.js --bootstrap
 node tools/qa/run-playwright.cjs tools/qa/assets-51-100-baseline.js --bootstrap
 node tools/qa/run-playwright.cjs tools/qa/simplified-register-card.js --bootstrap
 node tools/qa/run-playwright.cjs tools/qa/simplified-register-cash.js --bootstrap
