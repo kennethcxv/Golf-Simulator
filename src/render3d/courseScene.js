@@ -5396,19 +5396,27 @@ export function makeCourseScene(canvas, state) {
     color: 0x7fd66b, transparent: true, opacity: 0.72, depthTest: false,
     depthWrite: false,
   });
+  const featureHandleMaterial = new THREE.PointsMaterial({
+    color: 0x7fd66b, transparent: true, opacity: 1, depthTest: false,
+    depthWrite: false, size: 9, sizeAttenuation: false,
+  });
   const featureFill = new THREE.Mesh(dynamicPreviewGeometry(PREVIEW_FILL_VERTS), featureFillMaterial);
   const featureOutline = new THREE.Line(dynamicPreviewGeometry(PREVIEW_LINE_VERTS), featureLineMaterial);
   const featureGuide = new THREE.LineSegments(dynamicPreviewGeometry(PREVIEW_LINE_VERTS), featureGuideMaterial);
+  const featureHandles = new THREE.Points(dynamicPreviewGeometry(128), featureHandleMaterial);
   featureFill.name = 'editor-feature-preview-fill';
   featureOutline.name = 'editor-feature-preview-outline';
   featureGuide.name = 'editor-feature-preview-guide';
+  featureHandles.name = 'editor-feature-preview-handles';
   featureFill.renderOrder = 997;
   featureOutline.renderOrder = 999;
   featureGuide.renderOrder = 999;
+  featureHandles.renderOrder = 1000;
   featureFill.frustumCulled = false;
   featureOutline.frustumCulled = false;
   featureGuide.frustumCulled = false;
-  editorFeaturePreview.add(featureFill, featureOutline, featureGuide);
+  featureHandles.frustumCulled = false;
+  editorFeaturePreview.add(featureFill, featureOutline, featureGuide, featureHandles);
 
   function writePreviewVertex(attribute, index, x, z, lift) {
     if (index >= attribute.count) return index;
@@ -5461,6 +5469,17 @@ export function makeCourseScene(canvas, state) {
     return count;
   }
 
+  function writePreviewPoints(geometry, points, lift = 0.4) {
+    const attribute = geometry.getAttribute('position');
+    let count = 0;
+    for (const point of points || []) {
+      if (count >= attribute.count) break;
+      count = writePreviewVertex(attribute, count, point.x, point.z, lift);
+    }
+    attribute.needsUpdate = true;
+    geometry.setDrawRange(0, count);
+  }
+
   function setEditorFeaturePreview(preview) {
     const points = preview?.outline?.points;
     const closed = preview?.outline?.closed !== false;
@@ -5469,12 +5488,14 @@ export function makeCourseScene(canvas, state) {
       featureFill.geometry.setDrawRange(0, 0);
       featureOutline.geometry.setDrawRange(0, 0);
       featureGuide.geometry.setDrawRange(0, 0);
+      featureHandles.geometry.setDrawRange(0, 0);
       return;
     }
     const color = preview.validity?.color ?? 0x7fd66b;
     featureFillMaterial.color.set(color);
     featureLineMaterial.color.set(color);
     featureGuideMaterial.color.set(color);
+    featureHandleMaterial.color.set(color);
 
     const fillPosition = featureFill.geometry.getAttribute('position');
     let fillCount = 0;
@@ -5494,6 +5515,7 @@ export function makeCourseScene(canvas, state) {
     writePreviewPolyline(featureOutline.geometry, [points], { closed, lift: 0.31 });
     const guides = (preview.guides || []).map((guide) => guide?.points).filter(Boolean);
     writePreviewSegments(featureGuide.geometry, guides, { lift: 0.34 });
+    writePreviewPoints(featureHandles.geometry, preview.controls || [], 0.4);
     editorFeaturePreview.visible = true;
   }
 
@@ -5515,12 +5537,16 @@ export function makeCourseScene(canvas, state) {
       for (const p of parts) {
         const mesh = new THREE.Mesh(p.geometry, p.material.clone());
         mesh.material.transparent = true;
-        mesh.material.opacity = 0.62;
+        mesh.material.opacity = 0.8;
+        mesh.material.depthTest = false;
+        mesh.material.depthWrite = false;
+        mesh.material.emissiveIntensity = 0.7;
+        mesh.renderOrder = 997;
         ghost.add(mesh);
       }
       const disc = new THREE.Mesh(
-        new THREE.RingGeometry(0.85, 1, 32),
-        new THREE.MeshBasicMaterial({ color: 0x7fd66b, transparent: true, opacity: 0.9, depthTest: false, side: THREE.DoubleSide }),
+        new THREE.RingGeometry(0.72, 1.08, 32),
+        new THREE.MeshBasicMaterial({ color: 0x7fd66b, transparent: true, opacity: 1, depthTest: false, side: THREE.DoubleSide }),
       );
       disc.rotation.x = -Math.PI / 2;
       disc.position.y = 0.15;

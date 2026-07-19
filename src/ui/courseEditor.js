@@ -398,12 +398,34 @@ export function makeCourseEditor(app, hooks) {
     else for (const key of Object.keys(featureSelection)) featureSelection[key] = null;
   }
 
+  function focusAuthoredFeature(points) {
+    const sc = scene();
+    if (!sc || !Array.isArray(points) || points.length < 2) return;
+    const worldPoints = points.map((point) => ({
+      x: authoredWorldX(sc, point.x),
+      z: authoredWorldZ(sc, point.y),
+    }));
+    const minX = Math.min(...worldPoints.map((point) => point.x));
+    const maxX = Math.max(...worldPoints.map((point) => point.x));
+    const minZ = Math.min(...worldPoints.map((point) => point.z));
+    const maxZ = Math.max(...worldPoints.map((point) => point.z));
+    const x = (minX + maxX) * 0.5;
+    const z = (minZ + maxZ) * 0.5;
+    const span = Math.max(maxX - minX, maxZ - minZ);
+    sc.clearCourseCameraPreset?.();
+    sc.rig.target.set(x, sc.heightAt(x, z), z);
+    sc.rig.dist = Math.min(sc.rig.dist, clamp(span * 1.35 + 55, 105, 220));
+    sc.rig.pitch = Math.min(sc.rig.pitch, 0.78);
+    sc.rig.apply();
+  }
+
   function setFeatureSelection(kind, selection) {
     featureDrag = null;
     featureSelection[kind] = selection;
     opt[kind].mode = 'edit';
     renderToolPanel();
     refreshSelectedBoundaryPreview();
+    focusAuthoredFeature(resolveFeatureSelection(kind)?.feature?.pts);
   }
 
   function selectedBoundaryPoints() {
@@ -434,6 +456,7 @@ export function makeCourseEditor(app, hooks) {
       shape: 'edit-boundary',
       outline: { closed: true, points: world },
       fill: { points: world },
+      controls: worldControls,
       guides,
       validity: { valid, reason, color: valid ? 0x7fd66b : 0xd84b3a },
     };
@@ -500,6 +523,38 @@ export function makeCourseEditor(app, hooks) {
     return { x0: x - r, y0: y - r, x1: x + r, y1: y + r };
   }
 
+  function rectTouchesPoints(rect, points, padding = 0) {
+    if (!rect) return true;
+    if (!Array.isArray(points) || !points.length) return false;
+    const x0 = Math.min(...points.map((point) => point.x)) - padding;
+    const y0 = Math.min(...points.map((point) => point.y)) - padding;
+    const x1 = Math.max(...points.map((point) => point.x)) + padding;
+    const y1 = Math.max(...points.map((point) => point.y)) + padding;
+    return x1 >= rect.x0 && x0 <= rect.x1 && y1 >= rect.y0 && y0 <= rect.y1;
+  }
+
+  // Water surfaces and terrain-following paths only need rebuilding when the
+  // sculpt actually reaches them. Recreating every pond, stream, path and
+  // bridge after an unrelated fairway stroke generated enough short-lived
+  // geometry to trigger periodic long GC pauses during extended editing.
+  function terrainRefreshDependencies(rect) {
+    if (!rect) return { water: true, paths: true };
+    const course = state().course;
+    const waters = [
+      ...(course.vec?.waters || []).map((feature) => ({ feature, padding: 2 })),
+      ...(course.vec?.streams || []).map((feature) => ({
+        feature,
+        padding: 2 + (Number(feature.w) || 6) / CELL_YD,
+      })),
+    ];
+    return {
+      water: waters.some(({ feature, padding }) => rectTouchesPoints(rect, feature.pts, padding)),
+      paths: (course.paths || []).some((path) => rectTouchesPoints(
+        rect, path.pts, 2 + (Number(path.width) || 6) / CELL_YD,
+      )),
+    };
+  }
+
   // The analytic relief sculpt behind a feature — a green's pad, a bunker's
   // bowl and lip, a pond's bed — blends out past the surface footprint, so the
   // terrain window has to be wider than the zone window. 4 cells is 32 yd.
@@ -508,6 +563,7 @@ export function makeCourseEditor(app, hooks) {
   // Two cells is a proven exact halo; feature edits retain the wider general
   // relief/visual-field padding below.
   const PAINT_FIELD_PAD_CELLS = 2;
+  const DISCARD_TILE_CELLS = 10;
 
   function refreshEditedFeature(kind, beforePts, afterPts) {
     const sc = scene();
@@ -614,6 +670,7 @@ export function makeCourseEditor(app, hooks) {
       shape: 'edit-centerline',
       outline: { closed: false, points: world },
       fill: { points: [] },
+      controls: world,
       guides,
       validity: { valid, reason, color: valid ? 0x7fd66b : 0xd84b3a },
     };
@@ -764,7 +821,7 @@ export function makeCourseEditor(app, hooks) {
   ui.toolPanel = el('div', { class: 'ced-tool-panel' });
   const tip = el('div', { class: 'ced-tip' },
     el('b', { text: 'TIP' }),
-    el('div', { text: 'Choose a tool and click on the course to begin.' }),
+    ui.tipBody = el('div', { text: 'Choose a tool and click on the course to begin.' }),
   );
   const leftCol = el('div', { class: 'ced-left' }, rail, ui.toolPanel, tip);
 
@@ -852,6 +909,7 @@ export function makeCourseEditor(app, hooks) {
     const yd = hole.tee && hole.pin ? ` · ${Math.round(holeDistanceYd(hole))} yd` : '';
     const named = hole.name && hole.name !== `Hole ${n}` ? ` — ${hole.name}` : '';
     label.textContent = `Hole ${n}${named} · Par ${holePar(hole)}${yd}`;
+    ui.holeChip.title = `${label.textContent} — click to select or edit a hole`;
   }
 
   function setCameraView(mode, hole = selectedHole()) {
@@ -895,6 +953,19 @@ export function makeCourseEditor(app, hooks) {
     measure: 'Click two (or more) points · Right-click: clear',
   };
 
+  const TOOL_TIPS = {
+    select: 'Select a placed tree, rock, or prop to reveal move, rotate, scale, duplicate, and remove controls.',
+    terrain: 'Use a smaller brush for precise shaping. Auto smooth softens the edge after every sculpt tick.',
+    paint: 'Surface paint changes the lie and renovation cost. Right-drag restores rough without changing elevation.',
+    tee: 'Choose the hole and tee set first; the preview aims the finished box toward the active pin.',
+    green: 'Edit mode retains the authored green. Bright square handles mark the exact draggable boundary points.',
+    bunker: 'Edit mode preserves the bunker identity, depth, lip, and billing while you reshape its boundary.',
+    water: 'Ponds use shoreline handles; streams use centerline handles and a finished bank-to-bank width.',
+    objects: 'Green previews are legal; red previews collide. Snap and size are applied before placement.',
+    paths: 'Right-click finishes a new route. Edit mode exposes retained centerline handles and bridge controls.',
+    measure: 'Each click extends the measurement; right-click clears it and starts a new route.',
+  };
+
   function setTool(key) {
     commitObjectControlGesture();
     clearFeatureSelections();
@@ -913,22 +984,35 @@ export function makeCourseEditor(app, hooks) {
       // TOOL FOCUS: picking a brush from a satellite distance is guesswork —
       // ease in far enough that the brush ring stays a readable size
       const rig = scene().rig;
-      if (key !== 'select' && rig.dist > 340) {
+      const focusDistance = key === 'objects' ? 155 : 260;
+      if (key !== 'select' && rig.dist > focusDistance) {
         scene().clearCourseCameraPreset?.();
-        rig.dist = 260;
+        rig.dist = focusDistance;
         rig.pitch = Math.min(rig.pitch, 0.95);
         rig.apply();
       }
     }
     for (const [k, b] of railButtons) b.classList.toggle('on', k === key);
     renderToolPanel();
-    hint(HINTS[key] || '');
+    const toolHint = HINTS[key] || '';
+    ui.tipBody.textContent = TOOL_TIPS[key] || toolHint || 'Choose a tool and click on the course to begin.';
+    hint(toolHint);
   }
 
   function setSelected(obj) {
     commitObjectControlGesture();
     selected = obj;
-    if (!obj && scene()) scene().setEditorBrush(null);
+    const sc = scene();
+    if (sc && tool === 'select') {
+      if (obj) {
+        sc.setEditorBrush({
+          x: sc.worldX(obj.x),
+          z: sc.worldZ(obj.y),
+          radiusYd: Math.max(3, objectCollisionRadiusYd(obj.type, obj.scale || 1)),
+          color: 0xffe9a0,
+        });
+      } else sc.setEditorBrush(null);
+    }
     if (tool === 'select') renderToolPanel();
   }
 
@@ -1071,6 +1155,7 @@ export function makeCourseEditor(app, hooks) {
     scene().setMeasureLine(null);
     renderToolPanel();
     refreshSelectedPathPreview();
+    focusAuthoredFeature(selectedPath()?.pts);
   }
 
   function contourPresetOf(green) {
@@ -2215,6 +2300,102 @@ export function makeCourseEditor(app, hooks) {
     return true;
   }
 
+  const nextEditorFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
+  function discardRefreshTiles(operations, kinds, padding = 0, { fullOnMissing = true } = {}) {
+    const course = state().course;
+    const keys = new Set();
+    const addRect = (rect) => {
+      const x0 = clamp(Math.floor(rect.x0 - padding), 0, course.w - 1);
+      const y0 = clamp(Math.floor(rect.y0 - padding), 0, course.h - 1);
+      const x1 = clamp(Math.ceil(rect.x1 + padding), 0, course.w - 1);
+      const y1 = clamp(Math.ceil(rect.y1 + padding), 0, course.h - 1);
+      for (let y = Math.floor(y0 / DISCARD_TILE_CELLS); y <= Math.floor(y1 / DISCARD_TILE_CELLS); y++) {
+        for (let x = Math.floor(x0 / DISCARD_TILE_CELLS); x <= Math.floor(x1 / DISCARD_TILE_CELLS); x++) {
+          keys.add(`${x}:${y}`);
+        }
+      }
+    };
+    for (const operation of operations) {
+      if (!kinds.has(operation.kind)) continue;
+      if (operation.rect) addRect(operation.rect);
+      else if (fullOnMissing) addRect({ x0: 0, y0: 0, x1: course.w - 1, y1: course.h - 1 });
+    }
+    return [...keys].map((key) => {
+      const [tileX, tileY] = key.split(':').map(Number);
+      return {
+        x0: tileX * DISCARD_TILE_CELLS,
+        y0: tileY * DISCARD_TILE_CELLS,
+        x1: Math.min(course.w - 1, (tileX + 1) * DISCARD_TILE_CELLS - 1),
+        y1: Math.min(course.h - 1, (tileY + 1) * DISCARD_TILE_CELLS - 1),
+      };
+    });
+  }
+
+  async function refreshDiscardOperations(operations) {
+    const list = operations || [];
+    const terrainKinds = new Set(['terrain', 'vec', 'stamp']);
+    const zoneKinds = new Set(['paint', 'vector-paint', 'vec', 'stamp', 'path']);
+    const terrainTiles = discardRefreshTiles(list, terrainKinds, RELIEF_PAD_CELLS);
+    const zoneTiles = discardRefreshTiles(list, zoneKinds, PAINT_FIELD_PAD_CELLS, {
+      // A material-only path edit has no raster footprint. Rebuilding the path
+      // mesh is sufficient and avoids turning that case into a full field pass.
+      fullOnMissing: false,
+    });
+    const hasKind = (predicate) => list.some((operation) => predicate(operation.kind));
+    const relief = hasKind((kind) => kind === 'vec' || kind === 'stamp');
+    const terrain = terrainTiles.length > 0;
+    const paths = hasKind((kind) => kind === 'path' || terrainKinds.has(kind));
+    const water = hasKind((kind) => terrainKinds.has(kind));
+    const objects = hasKind((kind) => kind.startsWith('object-'));
+    const holes = hasKind((kind) => kind === 'hole' || kind.startsWith('hole-') || terrainKinds.has(kind));
+    const flow = hasKind((kind) => kind === 'hole' || kind === 'hole-add' || kind === 'hole-delete'
+      || kind === 'vec' || kind === 'stamp');
+
+    // Each terrain tile is a separate browser frame. Even a course-wide
+    // rollback therefore never turns into the old monolithic 1+ second frame.
+    for (let i = 0; i < terrainTiles.length; i++) {
+      scene().refreshGround(state(), {
+        relief: relief && i === 0,
+        terrainRect: terrainTiles[i],
+        zones: false,
+        turf: false,
+      });
+      await nextEditorFrame();
+    }
+
+    if (water || paths || objects || holes || flow) {
+      scene().refreshGround(state(), {
+        terrain: false,
+        zones: false,
+        turf: false,
+        water,
+        paths,
+        objects,
+        holes,
+        flow,
+      });
+      await nextEditorFrame();
+    }
+
+    for (const rect of zoneTiles) {
+      scene().updateZoneField(state(), rect, { padding: 0 });
+      scene().updateTurf(state(), rect);
+      await nextEditorFrame();
+    }
+    finishHistoryRefresh();
+  }
+
+  async function discardPendingWork() {
+    commitObjectControlGesture();
+    setSelected(null);
+    const result = discardSession(state(), session);
+    clearFeatureSelections();
+    clearPathSelection();
+    await refreshDiscardOperations(result.operations);
+    return result;
+  }
+
   function doDiscard() {
     openModal(
       el('div', { class: 'ced-modal-head' }, el('b', { text: 'Discard all pending works?' })),
@@ -2224,13 +2405,20 @@ export function makeCourseEditor(app, hooks) {
         el('button', {
           class: 'danger',
           text: 'Discard',
-          onclick: () => {
-            discardSession(state(), session);
-            clearFeatureSelections();
-            clearPathSelection();
-            fullRefresh();
-            closeModal();
-            toast('Pending works discarded.');
+          onclick: async (event) => {
+            const button = event.currentTarget;
+            button.disabled = true;
+            button.textContent = 'Discarding...';
+            try {
+              await discardPendingWork();
+              closeModal();
+              toast('Pending works discarded.');
+            } catch (error) {
+              console.error('course editor discard refresh failed', error);
+              button.disabled = false;
+              button.textContent = 'Discard';
+              toast('The rollback could not finish rendering. Try again.', 'warn');
+            }
           },
         }),
       ),
@@ -2277,8 +2465,9 @@ export function makeCourseEditor(app, hooks) {
     }
 
     if (kind === 'terrain') {
+      const dependencies = terrainRefreshDependencies(rect);
       scene().refreshGround(state(), {
-        water: true, paths: true, zones: false, relief: true, turf: false,
+        ...dependencies, zones: false, relief: true, turf: false,
         terrainRect: rect ? {
           x0: rect.x0 - RELIEF_PAD_CELLS, y0: rect.y0 - RELIEF_PAD_CELLS,
           x1: rect.x1 + RELIEF_PAD_CELLS, y1: rect.y1 + RELIEF_PAD_CELLS,
@@ -2303,8 +2492,13 @@ export function makeCourseEditor(app, hooks) {
       return;
     }
 
-    if (kind === 'hole' || kind === 'hole-add' || kind === 'hole-delete'
-      || kind === 'hole-settings' || kind === 'hole-reorder') {
+    if (kind === 'hole-settings' || kind === 'hole-reorder') {
+      scene().updateHoles();
+      finishHistoryRefresh();
+      return;
+    }
+
+    if (kind === 'hole' || kind === 'hole-add' || kind === 'hole-delete') {
       scene().updateHoles();
       scene().rebuildFlowField();
       scene().updateTurf(state());
@@ -2337,8 +2531,8 @@ export function makeCourseEditor(app, hooks) {
     //
     // rect is the footprint of the single op being undone or redone, so one
     // undo no longer rebuilds the whole course (measured 848 ms -> 19.5 ms).
-    // Discard passes none: it reverts every pending op at once, so it has to be
-    // a full refresh. Ops that carry no cells also pass none.
+    // Discard has its own tiled refresh path; this broad fallback remains for
+    // history kinds that cannot provide a component-specific footprint.
     scene().refreshGround(state(), {
       water: true, objects: true, paths: true, holes: true, flow: true, relief: true,
       zoneRect: rect,
@@ -2361,13 +2555,20 @@ export function makeCourseEditor(app, hooks) {
           el('button', {
             class: 'danger',
             text: 'Discard & leave',
-            onclick: () => {
-              discardSession(state(), session);
-              clearFeatureSelections();
-              clearPathSelection();
-              fullRefresh();
-              closeModal();
-              hooks.onExit();
+            onclick: async (event) => {
+              const button = event.currentTarget;
+              button.disabled = true;
+              button.textContent = 'Discarding...';
+              try {
+                await discardPendingWork();
+                closeModal();
+                hooks.onExit();
+              } catch (error) {
+                console.error('course editor discard-and-leave refresh failed', error);
+                button.disabled = false;
+                button.textContent = 'Discard & leave';
+                toast('The rollback could not finish rendering. Try again.', 'warn');
+              }
             },
           }),
           el('button', {
@@ -3140,7 +3341,10 @@ export function makeCourseEditor(app, hooks) {
       const terrainRect = stroke.rect || null;
       stroke = null;
       // sculpting moves land, not surfaces: skip the visual-field recompute
-      scene().refreshGround(state(), { water: true, paths: true, zones: false, terrainRect, turf: false });
+      scene().refreshGround(state(), {
+        ...terrainRefreshDependencies(terrainRect),
+        zones: false, terrainRect, turf: false,
+      });
       if (res.ok) refreshTop();
     } else if (stroke && tool === 'paint') {
       const pendingVisualRect = stroke.liveRect || null;
