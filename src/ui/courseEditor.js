@@ -504,6 +504,10 @@ export function makeCourseEditor(app, hooks) {
   // bowl and lip, a pond's bed — blends out past the surface footprint, so the
   // terrain window has to be wider than the zone window. 4 cells is 32 yd.
   const RELIEF_PAD_CELLS = 4;
+  // Paint affects bilinear neighbours plus at most 0.28 cells of organic warp.
+  // Two cells is a proven exact halo; feature edits retain the wider general
+  // relief/visual-field padding below.
+  const PAINT_FIELD_PAD_CELLS = 2;
 
   function refreshEditedFeature(kind, beforePts, afterPts) {
     const sc = scene();
@@ -2238,7 +2242,7 @@ export function makeCourseEditor(app, hooks) {
     if (res.ok) {
       clearFeatureSelections();
       clearPathSelection();
-      fullRefresh(res.rect || null);
+      refreshHistoryOp(res);
       toast(`Undid: ${res.label}`);
     }
   }
@@ -2248,9 +2252,70 @@ export function makeCourseEditor(app, hooks) {
     if (res.ok) {
       clearFeatureSelections();
       clearPathSelection();
-      fullRefresh(res.rect || null);
+      refreshHistoryOp(res);
       toast(`Redid: ${res.label}`);
     }
+  }
+
+  function finishHistoryRefresh() {
+    scene().setEditorFeaturePreview?.(null);
+    refreshTop();
+    renderToolPanel();
+  }
+
+  function refreshHistoryOp({ kind, rect = null }) {
+    if (selectedPathId != null && !selectedPath()) clearPathSelection();
+
+    if (kind === 'paint' || kind === 'vector-paint') {
+      // Paint changes no geometry, water, objects, paths, hole markers, relief,
+      // or flow. Rebuilding all of those made a one-brush undo far more
+      // expensive than the edit itself.
+      scene().updateZoneField(state(), rect, { padding: PAINT_FIELD_PAD_CELLS });
+      scene().updateTurf(state(), rect);
+      finishHistoryRefresh();
+      return;
+    }
+
+    if (kind === 'terrain') {
+      scene().refreshGround(state(), {
+        water: true, paths: true, zones: false, relief: true, turf: false,
+        terrainRect: rect ? {
+          x0: rect.x0 - RELIEF_PAD_CELLS, y0: rect.y0 - RELIEF_PAD_CELLS,
+          x1: rect.x1 + RELIEF_PAD_CELLS, y1: rect.y1 + RELIEF_PAD_CELLS,
+        } : null,
+      });
+      finishHistoryRefresh();
+      return;
+    }
+
+    if (kind === 'object-add' || kind === 'object-remove'
+      || kind === 'object-move' || kind === 'object-scatter') {
+      rebuildObjectVisuals();
+      finishHistoryRefresh();
+      return;
+    }
+
+    if (kind === 'path') {
+      scene().refreshGround(state(), {
+        paths: true, terrain: false, zoneRect: rect,
+      });
+      finishHistoryRefresh();
+      return;
+    }
+
+    if (kind === 'hole' || kind === 'hole-add' || kind === 'hole-delete'
+      || kind === 'hole-settings' || kind === 'hole-reorder') {
+      scene().updateHoles();
+      scene().rebuildFlowField();
+      scene().updateTurf(state());
+      finishHistoryRefresh();
+      return;
+    }
+
+    // Vector feature stamps and edits can affect analytical relief, water,
+    // paths, hole markers, flow, and the visual field. Keep the broad refresh
+    // for those operations, but retain the operation's proven dirty window.
+    fullRefresh(rect);
   }
 
   function refreshObjects() {
@@ -2282,10 +2347,7 @@ export function makeCourseEditor(app, hooks) {
         x1: rect.x1 + RELIEF_PAD_CELLS, y1: rect.y1 + RELIEF_PAD_CELLS,
       } : null,
     });
-    scene().updateTurf(state());
-    scene().setEditorFeaturePreview?.(null);
-    refreshTop();
-    renderToolPanel();
+    finishHistoryRefresh();
   }
 
   function requestExit() {
@@ -2410,7 +2472,7 @@ export function makeCourseEditor(app, hooks) {
       //
       // terrainRect then scopes the remaining mesh rebuild to the brush, so a
       // stroke no longer walks all 346,801 vertices per tick either.
-      scene().refreshGround(state(), { zones: false, terrainRect: takeLiveRect() });
+      scene().refreshGround(state(), { zones: false, terrainRect: takeLiveRect(), turf: false });
     }
   }
 
@@ -2805,8 +2867,7 @@ export function makeCourseEditor(app, hooks) {
       // liveRect, not the cumulative rect: regions updated on an earlier tick
       // are already correct, and updateVisualFieldRegion re-derives its own
       // halo, so the non-local part of the distance field stays right.
-      scene().updateZoneField(state(), takeLiveRect());
-      scene().updateTurf(state());
+      scene().updateZoneField(state(), takeLiveRect(), { padding: PAINT_FIELD_PAD_CELLS });
     }
   }
 
@@ -3079,14 +3140,21 @@ export function makeCourseEditor(app, hooks) {
       const terrainRect = stroke.rect || null;
       stroke = null;
       // sculpting moves land, not surfaces: skip the visual-field recompute
-      scene().refreshGround(state(), { water: true, paths: true, zones: false, terrainRect });
+      scene().refreshGround(state(), { water: true, paths: true, zones: false, terrainRect, turf: false });
       if (res.ok) refreshTop();
     } else if (stroke && tool === 'paint') {
+      const pendingVisualRect = stroke.liveRect || null;
+      const cumulativeRect = stroke.rect || null;
       const res = endPaintStroke(state(), session, stroke.s, 'Paint');
-      const rect = stroke.rect;
       stroke = null;
-      scene().updateZoneField(state(), rect || null);
-      scene().updateTurf(state());
+      // Every region consumed during the drag is already current. Only flush
+      // the since-last-tick tail; reprocessing the cumulative stroke caused the
+      // release hitch on long paint gestures. The coarse turf texture changes
+      // only now, after endPaintStroke derives the local simulation cells.
+      if (pendingVisualRect) {
+        scene().updateZoneField(state(), pendingVisualRect, { padding: PAINT_FIELD_PAD_CELLS });
+      }
+      if (cumulativeRect) scene().updateTurf(state(), cumulativeRect);
       if (res.ok) refreshTop();
     }
     if (draggingObj?.kind === 'object') {

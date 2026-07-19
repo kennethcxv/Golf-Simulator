@@ -20,7 +20,7 @@ import { paintPathCells, splinePoints } from './courseShaping.js';
 import { turfOnZonesChanged } from './turf.js';
 import { spend } from './economy.js';
 import {
-  ensurePaint, invalidateGeom, deriveZones, vecId,
+  ensurePaint, invalidateGeom, deriveZones, evaluateSurface, getGeom, vecId,
   makeVecGreen, makeVecBunker, makeVecPond, makeVecTee,
 } from './courseVec.js';
 import { CELL_YD } from './constants.js';
@@ -386,42 +386,110 @@ export function paintAt(state, stroke, cx, cy, zone, { radius = 1.5, over = null
   return cells;
 }
 
+// A changed paint sample only influences nearby cell-centre evaluations. Keep
+// the set deliberately one cell wider than bilinear interpolation requires so
+// edge clamping and future kernel changes remain covered without falling back
+// to a full-course derive.
+function vectorPaintZoneCandidates(course, paintChanges) {
+  const candidates = new Set();
+  for (const change of paintChanges) {
+    const px = change.i % course.w;
+    const py = (change.i - px) / course.w;
+    for (let y = py - 1; y <= py + 1; y++) {
+      for (let x = px - 1; x <= px + 1; x++) {
+        if (x >= 0 && y >= 0 && x < course.w && y < course.h) candidates.add(y * course.w + x);
+      }
+    }
+  }
+  return candidates;
+}
+
+function vectorPaintAnchorZones(course) {
+  const anchors = new Map();
+  for (const hole of course.holes) {
+    if (hole.pin) {
+      const x = Math.round(hole.pin.x);
+      const y = Math.round(hole.pin.y);
+      if (x >= 0 && y >= 0 && x < course.w && y < course.h) anchors.set(y * course.w + x, ZONE.GREEN);
+    }
+    if (hole.tee) {
+      const x = Math.round(hole.tee.x);
+      const y = Math.round(hole.tee.y);
+      if (x >= 0 && y >= 0 && x < course.w && y < course.h) anchors.set(y * course.w + x, ZONE.TEE);
+    }
+  }
+  return anchors;
+}
+
+function vectorPaintStructureCells(course, candidates) {
+  const cells = new Set();
+  for (const structure of course.structures || []) {
+    const x0 = Math.max(0, structure.x);
+    const y0 = Math.max(0, structure.y);
+    const x1 = Math.min(course.w, structure.x + structure.w);
+    const y1 = Math.min(course.h, structure.y + structure.h);
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const i = y * course.w + x;
+        if (candidates.has(i)) cells.add(i);
+      }
+    }
+  }
+  return cells;
+}
+
 export function endPaintStroke(state, session, stroke, label = 'Paint') {
   if (!stroke.before.size) return { ok: false, cost: 0 };
   const { course } = state;
   if (course.vec) {
-    // the override layer is already painted live; wrap it as a vec op for undo
-    const paintAfter = Array.from(course.paint);
-    const paintBefore = paintAfter.slice();
-    for (const [i, before] of stroke.before) paintBefore[i] = before;
-    // zones before this stroke (paint reverted) vs after
-    course.paint = Uint8Array.from(paintBefore);
-    invalidateGeom(course);
-    deriveZones(course);
-    const zonesBefore = Uint8Array.from(course.zones);
-    course.paint = Uint8Array.from(paintAfter);
-    invalidateGeom(course);
-    deriveZones(course);
-    const cells = [];
+    // The freeform override is already live. The old commit path copied the
+    // entire paint layer, invalidated unchanged vector geometry, and derived
+    // every course cell twice just to price a brush-sized edit. That created a
+    // 300+ ms release frame. Store the actual changed paint samples and evaluate
+    // only the cell centres they can influence.
+    const paintChanges = [];
+    for (const [i, before] of stroke.before) {
+      const after = course.paint[i];
+      if (after !== before) paintChanges.push({ i, before, after });
+    }
+    if (!paintChanges.length) return { ok: false, cost: 0 };
+
+    const candidates = vectorPaintZoneCandidates(course, paintChanges);
+    const anchors = vectorPaintAnchorZones(course);
+    const structures = vectorPaintStructureCells(course, candidates);
+    const geom = getGeom(course);
+    const zoneChanges = [];
     const changed = [];
     let cost = 0;
-    for (let i = 0; i < course.zones.length; i++) {
-      if (course.zones[i] !== zonesBefore[i]) {
-        cells.push({ i, zoneBefore: zonesBefore[i], zoneAfter: course.zones[i] });
+    for (const i of candidates) {
+      const x = i % course.w;
+      const y = (i - x) / course.w;
+      const before = course.zones[i];
+      let after = evaluateSurface(course, geom, x + 0.5, y + 0.5, course.paint).zone;
+      if (structures.has(i)) after = ZONE.OUT;
+      if (anchors.has(i)) after = anchors.get(i);
+      if (after !== before) {
+        course.zones[i] = after;
+        zoneChanges.push({ i, zoneBefore: before, zoneAfter: after });
         changed.push(i);
-        cost += zoneCost(course.zones[i]);
+        cost += zoneCost(after);
       }
     }
-    if (!cells.length) return { ok: false, cost: 0 };
     turfOnZonesChanged(state, changed);
     cost = Math.round(cost);
+
+    // Keep paint-only samples in the operation footprint as well. A sub-cell
+    // edit can be visually real without flipping a coarse simulation centre;
+    // it must still be dirty, undoable, and renderer-scoped.
+    const cells = zoneChanges.slice();
+    const footprint = new Set(cells.map((cell) => cell.i));
+    for (const change of paintChanges) {
+      if (!footprint.has(change.i)) cells.push({ i: change.i });
+    }
     pushOp(state, session, {
-      kind: 'vec', label, cells, cost,
-      vecBefore: JSON.parse(JSON.stringify(course.vec)),
-      vecAfter: JSON.parse(JSON.stringify(course.vec)),
-      paintBefore, paintAfter,
+      kind: 'vector-paint', label, cells, cost, paintChanges,
     });
-    return { ok: true, cost, cells: cells.length };
+    return { ok: true, cost, cells: zoneChanges.length };
   }
   const cells = [];
   let cost = 0;
@@ -1935,6 +2003,10 @@ function invertOp(state, session, op) {
       restoreHoleRecords(course, op.holesBefore);
       invalidateGeom(course);
       break;
+    case 'vector-paint':
+      applyCellsBackward(state, op.cells);
+      for (const change of op.paintChanges) course.paint[change.i] = change.before;
+      break;
     case 'hole-add':
       course.holes = course.holes.filter((h) => h.id !== op.holeId);
       break;
@@ -1995,6 +2067,10 @@ function replayOp(state, session, op) {
       restoreHoleRecords(course, op.holesAfter);
       invalidateGeom(course);
       break;
+    case 'vector-paint':
+      applyCellsForward(state, op.cells);
+      for (const change of op.paintChanges) course.paint[change.i] = change.after;
+      break;
     case 'hole-add': {
       const hole = addHole(course);
       // keep the id stable across undo/redo
@@ -2054,7 +2130,7 @@ export function undo(state, session) {
   session.redo.push(op);
   session.bill = Math.max(0, session.bill - op.cost);
   refreshChangedCells(state, session);
-  return { ok: true, label: op.label, rect };
+  return { ok: true, label: op.label, kind: op.kind, rect };
 }
 
 export function redo(state, session) {
@@ -2065,7 +2141,7 @@ export function redo(state, session) {
   session.undo.push(op);
   session.bill += op.cost;
   refreshChangedCells(state, session);
-  return { ok: true, label: op.label, rect };
+  return { ok: true, label: op.label, kind: op.kind, rect };
 }
 
 // --- apply / discard --------------------------------------------------------------------
