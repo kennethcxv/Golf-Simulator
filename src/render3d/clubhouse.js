@@ -7633,6 +7633,7 @@ export function makeClubhouse(ctx) {
       wetVisible: wetPlane.visible,
       washerJetVisible: washing.jet.visible,
       washerMistVisible: washing.mist.visible,
+      washerWet: washing.wetnessDiagnostics(),
     }),
     cleaningLabel: (toolId) => {
       const status = cleaningStatus(state);
