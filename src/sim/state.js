@@ -34,10 +34,19 @@ import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDai
 import { initTutorial, ensureTutorial } from './tutorial.js';
 import { initLedger, addExpense, closeBooks } from './economy.js';
 import { BALANCE } from './balance.js';
+import {
+  courseMaintenanceDailyTick,
+  courseMaintenanceHourlyTick,
+  initCourseMaintenance,
+  restoreCourseMaintenance,
+  snapshotCourseMaintenance,
+} from './courseMaintenance.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
-export const SAVE_VERSION = 4;
+// Integrated schema: v4 introduced the physical inventory lifecycle; v5 adds
+// the hero-hole maintenance masks/state without changing legacy recovery order.
+export const SAVE_VERSION = 5;
 
 // opts lets the GOLF EMPIRE layer boot this same fresh-club wiring onto a
 // marketplace property: an injected course grid and club name, nothing else.
@@ -74,6 +83,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initLedger(state);
   initProgression(state);
   initTutorial(state);
+  initCourseMaintenance(state);
   return state;
 }
 
@@ -106,6 +116,7 @@ export function dailyTick(state) {
   }
   tickRenovationsDaily(state);
   turfDailyTick(state);
+  courseMaintenanceDailyTick(state, { coarseAdvanced: true });
   if (state.staff) {
     tickStaffDaily(state);
     refreshMarketIfDue(state, calendarOf(state.clock.minutes).dayAbs);
@@ -143,6 +154,7 @@ export function hourlyTick(state, hourOfDay) {
   }
   turfHourlyTick(state, hourOfDay);
   if (state.reservations) golfOperationsTick(state, state.clock.minutes);
+  courseMaintenanceHourlyTick(state, { coarseAdvanced: true });
 }
 
 export function update(state, gameMinutes) {
@@ -197,6 +209,7 @@ export function snapshot(state) {
       bias: state.weather.bias,
     },
     maintenance: state.maintenance,
+    courseMaintenance: snapshotCourseMaintenance(state.courseMaintenance),
     golfers: state.golfers,
     staff: state.staff,
     club: state.club,
@@ -315,6 +328,7 @@ export function deserialize(json) {
   if (raw.tutorial) state.tutorial = raw.tutorial;
   else initTutorial(state);
   ensureTutorial(state); // older saves re-derive their spot in the chaptered arc
+  restoreCourseMaintenance(state, raw.courseMaintenance || null);
   state.debtDays = raw.debtDays || 0;
   state.failed = raw.failed || null;
   state.version = SAVE_VERSION;
