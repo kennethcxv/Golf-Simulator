@@ -125,6 +125,7 @@ An uncorroborated cadence-only shift is retained as a warning. Repeated broad va
 - A canonical/runtime SHA mismatch is advisory because an intentional optimized runtime GLB may differ.
 - A missing source, reference, runtime GLB, escaped path, duplicate ID/stem, incomplete range, or missing declared runtime binding is mandatory red.
 - If a declared per-asset binding was superseded by a consolidated manifest, update the authoritative spec and tests in the owning asset branch. Do not waive a path that the spec still declares required.
+- For a CLI-selected asset gate, top-level `ok` describes that selected gate; `aggregateOk` retains the combined 1–100/path result. This keeps standalone reports consistent with their process exit code.
 
 ## Checkout non-substitution rule
 

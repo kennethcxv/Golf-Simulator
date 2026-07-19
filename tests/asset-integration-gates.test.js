@@ -7,6 +7,7 @@ import test from 'node:test';
 import {
   auditLiteralRuntimePaths,
   auditManifestRange,
+  selectAuditGate,
 } from '../tools/qa/validate-asset-manifests.mjs';
 
 function fixtureAsset(number, root) {
@@ -69,4 +70,26 @@ test('literal runtime-path audit resolves root and module-relative assets', () =
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('selected asset gate reports its own result without losing aggregate status', () => {
+  const aggregate = {
+    ok: false,
+    gates: {
+      assets01to50Manifest: true,
+      assets51to100Manifest: false,
+      runtimeAssetPaths: true,
+    },
+  };
+
+  const firstRange = selectAuditGate(aggregate, 'assets-1-50');
+  assert.equal(firstRange.ok, true);
+  assert.equal(firstRange.aggregateOk, false);
+  assert.deepEqual(firstRange.selectedGate, { id: 'assets-1-50', ok: true });
+
+  const secondRange = selectAuditGate(aggregate, 'assets-51-100');
+  assert.equal(secondRange.ok, false);
+  assert.equal(secondRange.aggregateOk, false);
+
+  assert.throws(() => selectAuditGate(aggregate, 'unknown'), /Unknown --gate value/u);
 });
