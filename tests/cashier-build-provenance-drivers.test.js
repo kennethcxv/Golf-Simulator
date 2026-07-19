@@ -49,15 +49,26 @@ test('success and blocker paths retain every driver-specific screenshot referenc
   assert.doesNotMatch(acceptance, /waitForTimeout\(230\)/,
     'drawer-opening evidence must be transform-driven rather than timer-driven');
   const drawerBaseline = acceptance.indexOf('const drawerTravelStart = await page.evaluate');
+  const drawerObserver = acceptance.indexOf('const drawerMidpointPromise = page.waitForFunction');
   const cashInput = acceptance.indexOf('await page.mouse.click(handful.x, handful.y)');
   const drawerOpeningState = acceptance.indexOf("tx.checkoutFlow?.state === 'DrawerOpening'", cashInput);
   const cashClicked = acceptance.indexOf("await shot('08a-cash-clicked.png')");
-  const drawerMidpoint = acceptance.indexOf('progress < 0.25 || progress > 0.75');
+  const drawerMidpointAwait = acceptance.indexOf('await drawerMidpointPromise');
+  const drawerMidpointRead = acceptance.indexOf('window.__registerQaCashDrawerMidpoint', drawerMidpointAwait);
   const drawerOpening = acceptance.indexOf("await shot('08b-cash-clicked-drawer-opening.png')");
-  assert.ok(drawerBaseline >= 0 && cashInput > drawerBaseline
+  assert.ok(drawerBaseline >= 0 && drawerObserver > drawerBaseline
+      && cashInput > drawerObserver
       && drawerOpeningState > cashInput && cashClicked > drawerOpeningState
-      && drawerMidpoint > cashClicked && drawerOpening > drawerMidpoint,
-    'cash evidence must capture click, assert authored midpoint, then capture drawer opening');
+      && drawerMidpointAwait > cashClicked && drawerMidpointRead > drawerMidpointAwait
+      && drawerOpening > drawerMidpointRead,
+    'cash evidence must arm its authored transform observer before input, retain the midpoint, and capture drawer opening');
+
+  const performance = fs.readFileSync('tools/qa/simplified-register-performance.mjs', 'utf8');
+  const scanClick = performance.indexOf('await page.mouse.click(product.x, product.y)');
+  const scanReleaseWait = performance.indexOf("state === 'WaitingForScan'", scanClick);
+  const finalScanRelease = performance.indexOf("state === 'AllProductsScanned'", scanReleaseWait);
+  assert.ok(scanClick >= 0 && scanReleaseWait > scanClick && finalScanRelease > scanReleaseWait,
+    'performance QA must wait for the visible scan arc to release input before clicking another product');
 
   const queue = fs.readFileSync(DRIVERS[1], 'utf8');
   assert.match(queue, /evidencePngs: evidence/);

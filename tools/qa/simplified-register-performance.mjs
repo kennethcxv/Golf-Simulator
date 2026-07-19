@@ -2643,7 +2643,19 @@ async function scanAll(page) {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return !!tx?.items.find((item) => item.uid === id)?.staged;
     }, uid, { timeout: 8000 });
-    await page.waitForTimeout(180);
+    // `staged` is the durable accounting fact and is set when the one-click
+    // scan begins. The visible 0.5 s product arc still owns input until its
+    // completion state is reached. Wait for that state boundary before aiming
+    // at the next product so this performance route cannot manufacture a
+    // "missed click" by clicking while production correctly rejects repeats.
+    await page.waitForFunction(() => {
+      const register = window.__fw.scene3d.clubhouse().register;
+      const tx = register.getTx();
+      if (!tx) return false;
+      const remaining = tx.items.some((item) => !item.scanned);
+      const state = tx.checkoutFlow?.state;
+      return remaining ? state === 'WaitingForScan' : state === 'AllProductsScanned';
+    }, null, { timeout: 8000 });
   }
   await page.waitForFunction(() => {
     const register = window.__fw.scene3d.clubhouse().register;
