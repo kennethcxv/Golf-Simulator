@@ -51,7 +51,7 @@ SOURCE_DIR = ROOT / "asset_sources" / "blender" / "cash_register"
 EXPORT_DIR = ROOT / "vendor" / "models" / "clubhouse"
 SOURCE_DIR.mkdir(parents=True, exist_ok=True)
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
-BUILD_VERSION = 2
+BUILD_VERSION = 3
 
 
 def product_materials():
@@ -102,6 +102,28 @@ def cone(name, radius1, radius2, depth, loc, material, *, rot=(0, 0, 0), parent=
     obj = bpy.context.object
     obj.name = name
     finish_mesh(obj, material, bevel_width=0.0015)
+    parent_keep(obj, parent)
+    return obj
+
+
+def flat_label_text(name, text, loc, material, *, size, parent=None):
+    """Low-poly front-label type for small products repeated across fixtures."""
+    bpy.ops.object.text_add(location=loc, rotation=(math.pi / 2, 0, 0))
+    obj = bpy.context.object
+    obj.name = name
+    obj.data.body = text
+    obj.data.align_x = "CENTER"
+    obj.data.align_y = "CENTER"
+    obj.data.size = size
+    obj.data.resolution_u = 1
+    obj.data.extrude = 0.00012
+    obj.data.bevel_depth = 0.0
+    obj.data.materials.append(material)
+    activate(obj)
+    bpy.ops.object.convert(target="MESH")
+    obj = bpy.context.object
+    obj.name = name
+    finish_mesh(obj, material, bevel_width=0.0)
     parent_keep(obj, parent)
     return obj
 
@@ -229,13 +251,173 @@ def build_folded_jacket(M):
     return folded_garment("checkout_product_folded_jacket", True, M)
 
 
+def build_hanging_polo(M):
+    """Compact face-out polo for the four-across Sheet-03 apparel display.
+
+    The general clubhouse polo is correctly life-sized for a rail, but scaling
+    only its X axis to fit four waterfall arms turns it into a long flat strip.
+    This authored presentation keeps believable shoulders, tucked short sleeves,
+    a collar/placket and a real hanger inside the same 255 mm retail envelope.
+    The root remains the hook/arm contact so existing sockets and pivots do not
+    move when the visual changes.
+    """
+    dims = (0.255, 0.078, 0.700)
+    root = root_for("checkout_product_hanging_polo", dims)
+    root["pivot_description"] = "hanger hook / waterfall-arm contact at local origin"
+    root["placement"] = "four-across face-out apparel display"
+    root["product_kind"] = "compact hanging polo"
+
+    outline = [
+        (-0.105, -0.665), (-0.110, -0.300), (-0.103, -0.270),
+        (-0.124, -0.250), (-0.126, -0.185), (-0.082, -0.116),
+        (-0.037, -0.096), (0.000, -0.132), (0.037, -0.096),
+        (0.082, -0.116), (0.126, -0.185), (0.124, -0.250),
+        (0.103, -0.270), (0.110, -0.300), (0.105, -0.665),
+    ]
+    panel_mesh("HangingPoloBody", outline, 0.052, 0.0, M["fabric"], parent=root, bevel=0.010)
+
+    # Folded-back sleeve faces and construction seams keep the deliberately
+    # compact display silhouette readable without widening its socket pitch.
+    for sx, tag in ((-1, "L"), (1, "R")):
+        panel_mesh(
+            f"HangingPoloSleeve_{tag}",
+            [(sx * 0.075, -0.121), (sx * 0.123, -0.186),
+             (sx * 0.120, -0.250), (sx * 0.092, -0.276)],
+            0.012, -0.032, M["fabric"], parent=root, bevel=0.004,
+        )
+        curve_tube(
+            f"HangingPoloSleeveSeam_{tag}",
+            [(sx * 0.084, -0.039, -0.143), (sx * 0.112, -0.039, -0.195),
+             (sx * 0.107, -0.039, -0.247)],
+            0.0018, M["cream"], parent=root,
+        )
+
+    panel_mesh(
+        "HangingPoloCollar_L",
+        [(-0.076, -0.108), (-0.006, -0.139), (-0.018, -0.190), (-0.090, -0.136)],
+        0.008, -0.033, M["cream"], parent=root, bevel=0.002,
+    )
+    panel_mesh(
+        "HangingPoloCollar_R",
+        [(0.006, -0.139), (0.076, -0.108), (0.090, -0.136), (0.018, -0.190)],
+        0.008, -0.033, M["cream"], parent=root, bevel=0.002,
+    )
+    box("HangingPoloPlacket", (0.019, 0.007, 0.110), (0, -0.034, -0.215),
+        M["cream"], bevel=0.002, parent=root)
+    for index, z in enumerate((-0.185, -0.220, -0.255), start=1):
+        cylinder(f"HangingPoloButton_{index}", 0.0032, 0.006,
+                 (0, -0.039, z), M["brass"], rot=(math.pi / 2, 0, 0),
+                 vertices=10, parent=root)
+    box("HangingPoloChestMark", (0.020, 0.006, 0.016), (0.060, -0.034, -0.272),
+        M["brass"], bevel=0.002, parent=root)
+    box("HangingPoloHem", (0.198, 0.006, 0.009), (0, -0.033, -0.658),
+        M["cream"], bevel=0.0015, parent=root)
+
+    curve_tube(
+        "HangingPoloHanger",
+        [(-0.105, 0.014, -0.133), (0, 0.014, -0.055), (0.105, 0.014, -0.133)],
+        0.006, M["walnut"], parent=root,
+    )
+    curve_tube(
+        "HangingPoloHook",
+        [(0, 0.012, -0.056), (0, 0.012, -0.012), (0.006, 0.012, 0.020),
+         (0.028, 0.012, 0.032), (0.044, 0.012, 0.012), (0.034, 0.012, -0.008)],
+        0.0035, M["steel"], parent=root,
+    )
+    empty("HANGER_SOCKET", (0, 0, 0), parent=root, size=0.025,
+          props={"socket": "hanger", "pivot_role": "waterfall_arm_contact"})
+    collision_box("COL_HangingPolo", (0.255, 0.078, 0.605),
+                  (0, 0, -0.360), M, parent=root)
+    return root
+
+
+def build_hanging_jacket(M):
+    """Compact front-facing display jacket for Sheet-02's four-place rail.
+
+    The older clubhouse jacket is a realistic 0.575 m across and cannot fit
+    four abreast on a 1.20 m wall without severe interpenetration.  This retail
+    presentation silhouette keeps its sleeves folded behind the torso, yielding
+    a 0.25 m read while preserving a full 0.75 m drop.  The root origin is the
+    hanger/rod contact point rather than the garment's lower bound."""
+    dims = (0.255, 0.080, 0.790)
+    root = root_for("checkout_product_hanging_jacket", dims)
+    # GLTFLoader reserves the exact extras key ``pivot`` for a numeric pivot
+    # vector reconstructed by the exporter/loader contract.  Descriptive text
+    # under that key is interpreted as coordinates and poisons the root matrix.
+    root["pivot_description"] = "hanger hook / rail contact at local origin"
+    root["placement"] = "front-facing apparel wall display"
+
+    outline = [
+        (-0.108, -0.748), (-0.112, -0.275), (-0.124, -0.238),
+        (-0.120, -0.158), (-0.078, -0.112), (-0.036, -0.098),
+        (0.000, -0.137), (0.036, -0.098), (0.078, -0.112),
+        (0.120, -0.158), (0.124, -0.238), (0.112, -0.275),
+        (0.108, -0.748),
+    ]
+    panel_mesh("HangingJacketBody", outline, 0.055, 0.0, M["fabric"], parent=root, bevel=0.010)
+
+    # Folded-back sleeve panels and restrained construction lines keep the
+    # narrow silhouette believable instead of reading as a scaled shirt slab.
+    for sx, tag in ((-1, "L"), (1, "R")):
+        sleeve = [
+            (sx * 0.075, -0.130), (sx * 0.121, -0.168),
+            (sx * 0.110, -0.485), (sx * 0.078, -0.430),
+        ]
+        panel_mesh(f"HangingJacketSleeve_{tag}", sleeve, 0.012, -0.034,
+                   M["fabric"], parent=root, bevel=0.004)
+        curve_tube(
+            f"HangingJacketSeam_{tag}",
+            [(sx * 0.083, -0.041, -0.150), (sx * 0.104, -0.041, -0.285),
+             (sx * 0.091, -0.041, -0.455)],
+            0.0018, M["cream"], parent=root,
+        )
+        box(f"HangingJacketPocket_{tag}", (0.060, 0.006, 0.010),
+            (sx * 0.059, -0.033, -0.505), M["charcoal"],
+            rot=(0, math.radians(sx * 10), math.radians(sx * 8)), bevel=0.002, parent=root)
+
+    panel_mesh("HangingJacketCollar_L",
+               [(-0.078, -0.110), (-0.006, -0.145), (-0.018, -0.205), (-0.096, -0.142)],
+               0.008, -0.034, M["cream"], parent=root, bevel=0.002)
+    panel_mesh("HangingJacketCollar_R",
+               [(0.006, -0.145), (0.078, -0.110), (0.096, -0.142), (0.018, -0.205)],
+               0.008, -0.034, M["cream"], parent=root, bevel=0.002)
+    box("HangingJacketZip", (0.008, 0.007, 0.535), (0, -0.034, -0.468),
+        M["charcoal"], bevel=0.001, parent=root)
+    box("HangingJacketHem", (0.210, 0.006, 0.010), (0, -0.033, -0.741),
+        M["charcoal"], bevel=0.0015, parent=root)
+    box("HangingJacketChestMark", (0.022, 0.006, 0.018), (0.060, -0.034, -0.270),
+        M["brass"], bevel=0.002, parent=root)
+
+    # A real hanger remains full-width inside the shoulders.  The open wire hook
+    # straddles the root so every runtime socket can sit exactly on the rail.
+    curve_tube("HangingJacketHanger",
+               [(-0.105, 0.015, -0.135), (0, 0.015, -0.056), (0.105, 0.015, -0.135)],
+               0.006, M["walnut"], parent=root)
+    curve_tube("HangingJacketHook",
+               [(0, 0.012, -0.058), (0, 0.012, -0.012), (0.006, 0.012, 0.020),
+                (0.028, 0.012, 0.032), (0.044, 0.012, 0.012), (0.034, 0.012, -0.008)],
+               0.0035, M["steel"], parent=root)
+    empty("HANGER_SOCKET", (0, 0, 0), parent=root, size=0.025,
+          props={"socket": "hanger", "pivot_role": "rail_contact"})
+    collision_box("COL_HangingJacket", (0.255, 0.080, 0.690),
+                  (0, 0, -0.410), M, parent=root)
+    return root
+
+
 def build_cap(M):
     dims = (0.21, 0.19, 0.115)
     root = root_for("checkout_product_cap", dims)
     sphere("CapCrown", 0.082, (0, 0.015, 0.052), M["fabric"], scale=(1.0, 0.92, 0.72), parent=root, segments=24, rings=12)
     panel_mesh("CapBrim", [(-0.092, 0.034), (-0.072, 0.070), (0.072, 0.070), (0.092, 0.034), (0.060, 0.018), (-0.060, 0.018)], 0.080, -0.072, M["fabric"], parent=root, bevel=0.006)
-    curve_tube("CapSeam", [(-0.06, -0.012, 0.083), (0, -0.025, 0.110), (0.06, -0.012, 0.083)], 0.002, M["cream"], parent=root)
-    box("CapBadge", (0.050, 0.004, 0.025), (0, -0.079, 0.072), M["cream"], bevel=0.004, parent=root)
+    panel_mesh("CapBrimUnder", [(-0.086, 0.034), (-0.066, 0.065), (0.066, 0.065), (0.086, 0.034), (0.055, 0.021), (-0.055, 0.021)], 0.070, -0.074, M["charcoal"], parent=root, bevel=0.004)
+    for index, x in enumerate((-0.052, 0, 0.052), start=1):
+        curve_tube(f"CapPanelSeam_{index}", [(x * 0.45, -0.012, 0.108), (x, -0.035, 0.073)],
+                   0.0016, M["cream"], parent=root)
+    sphere("CapTopButton", 0.006, (0, 0.015, 0.111), M["brass"], scale=(1, 1, 0.65), parent=root, segments=12, rings=7)
+    for index, x in enumerate((-0.045, 0.045), start=1):
+        torus(f"CapEyelet_{index}", 0.004, 0.0012, (x, -0.057, 0.083), M["brass"], rot=(math.pi / 2, 0, 0), parent=root)
+    cylinder("CapCrest", 0.013, 0.004, (0, -0.0795, 0.072), M["brass"], rot=(math.pi / 2, 0, 0), vertices=16, parent=root)
+    box("CapCrestSlash", (0.017, 0.0045, 0.0025), (0, -0.082, 0.072), M["charcoal"], rot=(0, math.radians(30), 0), bevel=0.0005, parent=root)
     return common_finish(root, dims, M, barcode=(0.065, 0.085, 0.040), primary=(0, 0.005, 0.055), collision=(0.20, 0.18, 0.11), barcode_kind="inside-tag")
 
 
@@ -289,7 +471,11 @@ def build_rangefinder(M):
     for x, name in ((0.067, "Objective"), (-0.067, "Eyepiece")):
         cylinder(f"Rangefinder{name}Barrel", 0.034 if x > 0 else 0.026, 0.027, (x, 0, 0.058), M["plastic"], rot=(0, math.pi / 2, 0), vertices=20, parent=root)
         cylinder(f"Rangefinder{name}Glass", 0.027 if x > 0 else 0.020, 0.003, (x + (0.015 if x > 0 else -0.015), 0, 0.058), M["glass"], rot=(0, math.pi / 2, 0), vertices=20, parent=root)
-    cylinder("RangefinderButton", 0.014, 0.007, (0.025, 0, 0.102), M["brass"], vertices=16, parent=root)
+    torus("RangefinderObjectiveBezel", 0.031, 0.0035, (0.083, 0, 0.058), M["brass"], rot=(0, math.pi / 2, 0), parent=root)
+    box("RangefinderTopScreen", (0.050, 0.047, 0.005), (0.014, 0.006, 0.1015), M["glass"], bevel=0.006, parent=root)
+    for index, (x, y) in enumerate(((0.046, -0.022), (0.046, 0.026)), start=1):
+        cylinder(f"RangefinderButton_{index}", 0.010, 0.007, (x, y, 0.103), M["brass"], vertices=16, parent=root)
+    box("RangefinderSideCrest", (0.004, 0.030, 0.030), (0.074, -0.035, 0.061), M["brass"], bevel=0.005, parent=root)
     curve_tube("RangefinderLanyard", [(-0.075, 0.040, 0.035), (-0.105, 0.065, 0.020), (-0.080, 0.080, 0.010)], 0.003, M["sage"], parent=root)
     return common_finish(root, dims, M, barcode=(-0.045, -0.068, 0.052), primary=(-0.025, 0, 0.055), collision=(0.19, 0.15, 0.105), barcode_kind="lanyard-tag")
 
@@ -311,24 +497,39 @@ def build_stand_bag(M):
     # The visible mesh—not only the collision box—honours the declared
     # 72 x 30 x 25 cm envelope.  Keeping the aspect ratio authored prevents the
     # runtime's uniform GLB fit from shrinking a full-size bag into a tiny prop.
-    cone("StandBagBody", 0.112, 0.085, 0.70, (0, 0, 0.125), M["fabric"], rot=(0, math.pi / 2, 0), parent=root, vertices=18)
+    cone("StandBagBody", 0.120, 0.092, 0.70, (0, 0, 0.125), M["fabric"], rot=(0, math.pi / 2, 0), parent=root, vertices=18)
     torus("StandBagTopRim", 0.092, 0.012, (0.35, 0, 0.125), M["charcoal"], rot=(0, math.pi / 2, 0), parent=root)
     torus("StandBagBaseRim", 0.087, 0.010, (-0.35, 0, 0.125), M["charcoal"], rot=(0, math.pi / 2, 0), parent=root)
+    # The open top is the strongest bag read at aisle distance. A four-way
+    # divider replaces the former empty tube silhouette without changing the
+    # envelope that the delivery and handoff code already use.
+    box("StandBagDividerFrontBack", (0.012, 0.166, 0.014), (0.351, 0, 0.125), M["brass"], bevel=0.003, parent=root)
+    box("StandBagDividerLeftRight", (0.012, 0.014, 0.166), (0.351, 0, 0.125), M["brass"], bevel=0.003, parent=root)
     box("StandBagPocket", (0.22, 0.075, 0.13), (-0.03, -0.105, 0.110), M["green"], bevel=0.018, parent=root)
     box("StandBagBallPocket", (0.13, 0.068, 0.09), (0.18, -0.102, 0.105), M["sage"], bevel=0.014, parent=root)
+    box("StandBagPocketFlap", (0.155, 0.012, 0.042), (0.010, -0.145, 0.158), M["sku_accent"], bevel=0.009, parent=root)
+    box("StandBagPocketZip", (0.128, 0.005, 0.006), (0.010, -0.152, 0.160), M["brass"], bevel=0.001, parent=root)
+    curve_tube("StandBagFrontPiping", [(-0.265, -0.112, 0.176), (-0.020, -0.130, 0.205), (0.270, -0.108, 0.174)], 0.004, M["cream"], parent=root)
+    cylinder("StandBagCrest", 0.025, 0.004, (0.190, -0.142, 0.112), M["brass"], rot=(math.pi / 2, 0, 0), vertices=18, parent=root)
     curve_tube("StandBagShoulderStrap", [(-0.24, 0.105, 0.18), (-0.02, 0.14, 0.225), (0.20, 0.105, 0.19)], 0.014, M["charcoal"], parent=root)
     for i, y in enumerate((-0.065, 0.065)):
         cylinder(f"StandLeg_{i + 1}", 0.007, 0.50, (-0.03, y, 0.058), M["steel"], rot=(0, math.pi / 2 - math.radians(11), 0), vertices=10, parent=root)
+        box(f"StandLegFoot_{i + 1}", (0.050, 0.025, 0.012), (-0.267, y, 0.012), M["rubber"], bevel=0.004, parent=root)
     return common_finish(root, dims, M, barcode=(-0.08, -0.160, 0.140), primary=(-0.02, 0.115, 0.220), secondary=(0.19, 0.080, 0.200), collision=(0.72, 0.30, 0.25), barcode_kind="strap-tag")
 
 
 def shoe_piece(prefix, x, y, M, root, splay):
     box(f"{prefix}Sole", (0.245, 0.082, 0.025), (x, y, 0.014), M["rubber"], rot=(0, 0, splay), bevel=0.010, parent=root)
+    box(f"{prefix}Midsole", (0.226, 0.078, 0.022), (x + 0.004, y, 0.030), M["cream"], rot=(0, 0, splay), bevel=0.010, parent=root)
     box(f"{prefix}Upper", (0.205, 0.073, 0.065), (x - 0.010, y, 0.054), M["leather"], rot=(0, 0, splay), bevel=0.026, parent=root)
     sphere(f"{prefix}Toe", 0.047, (x + math.cos(splay) * 0.082, y + math.sin(splay) * 0.082, 0.050), M["leather"], scale=(1.15, 0.82, 0.68), parent=root, segments=18, rings=10)
+    box(f"{prefix}Tongue", (0.082, 0.052, 0.032), (x - 0.038, y, 0.083), M["green"], rot=(0, 0, splay), bevel=0.012, parent=root)
+    box(f"{prefix}Saddle", (0.073, 0.078, 0.024), (x + 0.002, y, 0.072), M["sku_accent"], rot=(0, 0, splay), bevel=0.009, parent=root)
+    box(f"{prefix}HeelCounter", (0.047, 0.079, 0.055), (x - 0.096, y, 0.057), M["sage"], rot=(0, 0, splay), bevel=0.014, parent=root)
     for lace in range(3):
         lx = x - 0.020 + lace * 0.022
         curve_tube(f"{prefix}Lace_{lace + 1}", [(lx, y - 0.032, 0.082), (lx, y + 0.032, 0.082)], 0.002, M["cream"], parent=root)
+    curve_tube(f"{prefix}QuarterPiping", [(x - 0.083, y - 0.038, 0.067), (x - 0.010, y - 0.040, 0.081), (x + 0.058, y - 0.036, 0.062)], 0.002, M["brass"], parent=root)
     for sx in (-0.065, 0, 0.065):
         cylinder(f"{prefix}Spike_{sx}", 0.005, 0.010, (x + sx, y, 0.002), M["brass"], vertices=8, parent=root)
 
@@ -339,6 +540,85 @@ def build_shoe_pair(M):
     shoe_piece("Left", 0, -0.052, M, root, math.radians(-5))
     shoe_piece("Right", 0, 0.052, M, root, math.radians(5))
     return common_finish(root, dims, M, barcode=(0.025, -0.110, 0.070), primary=(0, 0, 0.060), collision=dims, barcode_kind="lace-tag")
+
+
+def build_shoe_box(M):
+    """Fairhollow retail shoe carton sized for Asset 27's authored sockets.
+
+    This is intentionally a retail package rather than a freight carton: the
+    removable lid, fitted base, end label and barcode all remain readable at
+    the player's shelf-view distance.  The root origin is the physical centre
+    of the lower face, so placement sockets can rest it directly on a shelf.
+    """
+    dims = (0.310, 0.190, 0.115)
+    root = root_for("checkout_product_shoe_box", dims)
+    root["pivot_description"] = "base-centre shelf contact at local Z=0"
+    root["placement"] = "retail shoe-wall shelf; label faces -Y"
+    root["product_kind"] = "retail shoe box"
+    root["fictional_brand"] = "Fairhollow Golf"
+    root["separate_lid"] = True
+
+    # A close-fitting formed-fibre base and a separately named lift-off lid.
+    # The green lid provides the family identity from aisle distance while the
+    # kraft body keeps the package grounded in the shop's restrained palette.
+    box("ShoeBoxBase", (0.302, 0.182, 0.093), (0, 0, 0.0465),
+        M["kraft"], bevel=0.006, parent=root,
+        props={"component": "retail_carton_base", "pivot_role": "base_contact"})
+    box("ShoeBoxLid", (0.310, 0.190, 0.024), (0, 0, 0.101),
+        M["green"], bevel=0.005, parent=root,
+        props={"component": "removable_lid", "grip_edge": "front_and_sides"})
+    box("ShoeBoxLidTopPanel", (0.202, 0.108, 0.0015), (0, 0, 0.11375),
+        M["cream"], bevel=0.0006, parent=root)
+    for side, angle in ((-1, -18), (1, 18)):
+        box(f"ShoeBoxLidCrest_{'L' if side < 0 else 'R'}",
+            (0.058, 0.014, 0.001), (side * 0.026, 0, 0.1145),
+            M["brass"], rot=(0, 0, math.radians(angle)), bevel=0.0004, parent=root)
+
+    # The end label is intentionally geometry-based so it survives the runtime
+    # material-slot remap and remains project-owned without an external texture.
+    label_y = -0.0925
+    box("ShoeBoxFrontLabel", (0.286, 0.003, 0.060), (0, label_y, 0.047),
+        M["cream"], bevel=0.002, parent=root,
+        props={"label_role": "brand_size_barcode", "label_facing": "-Y"})
+    box("ShoeBoxBrandBand", (0.166, 0.0012, 0.017), (-0.057, -0.0940, 0.0665),
+        M["green"], bevel=0.001, parent=root)
+    flat_label_text("ShoeBoxBrand", "FAIRHOLLOW", (-0.057, -0.0938, 0.0665),
+                    M["cream"], size=0.0135, parent=root)
+    flat_label_text("ShoeBoxModel", "TOUR SPIKE", (-0.057, -0.0938, 0.0435),
+                    M["charcoal"], size=0.012, parent=root)
+    flat_label_text("ShoeBoxFit", "MEN  /  WATER RESISTANT", (-0.057, -0.0938, 0.0275),
+                    M["charcoal"], size=0.0055, parent=root)
+
+    box("ShoeBoxSizeBadge", (0.038, 0.0012, 0.044), (0.119, -0.0940, 0.047),
+        M["green"], bevel=0.002, parent=root,
+        props={"label_role": "shoe_size", "size_us": "10"})
+    flat_label_text("ShoeBoxSize", "10", (0.119, -0.0938, 0.047),
+                    M["cream"], size=0.018, parent=root)
+
+    # A small physical barcode marks the same front-label location as the scan
+    # anchor.  Alternating widths/heights are enough to read as a real retail
+    # code without relying on a raster texture at shelf distance.
+    barcode_x = 0.046
+    widths = (1, 2, 1, 1, 2, 1, 2, 1, 1, 2, 1, 1)
+    unit = 0.0018
+    cursor = barcode_x - (sum(widths) + len(widths) - 1) * unit / 2
+    for index, width in enumerate(widths, start=1):
+        bar_w = width * unit
+        bar_h = 0.020 if index in (1, 2, 6, 11, 12) else 0.016
+        box(f"ShoeBoxBarcodeBar_{index:02d}", (bar_w, 0.0010, bar_h),
+            (cursor + bar_w / 2, -0.09435, 0.038), M["charcoal"],
+            bevel=0.0, parent=root)
+        cursor += bar_w + (unit if index < len(widths) else 0)
+
+    return common_finish(
+        root,
+        dims,
+        M,
+        barcode=(barcode_x, -0.095, 0.038),
+        primary=(0, 0, 0.066),
+        collision=dims,
+        barcode_kind="carton-side",
+    )
 
 
 def build_sock_pair(M):
@@ -369,6 +649,8 @@ BUILDERS = {
     "checkout_product_ball_carton": build_ball_carton,
     "checkout_product_folded_polo": build_folded_polo,
     "checkout_product_folded_jacket": build_folded_jacket,
+    "checkout_product_hanging_polo": build_hanging_polo,
+    "checkout_product_hanging_jacket": build_hanging_jacket,
     "checkout_product_cap": build_cap,
     "checkout_product_glove": build_glove,
     "checkout_product_tee_pouch": build_tee_pouch,
@@ -378,6 +660,7 @@ BUILDERS = {
     "checkout_product_umbrella": build_umbrella,
     "checkout_product_stand_bag": build_stand_bag,
     "checkout_product_shoe_pair": build_shoe_pair,
+    "checkout_product_shoe_box": build_shoe_box,
     "checkout_product_sock_pair": build_sock_pair,
     "checkout_product_headcover": build_headcover,
 }
@@ -456,6 +739,26 @@ def save_and_export(asset_id, root):
     print(f"BUILT|{asset_id}|source={blend_path}|export={glb_path}|nodes={len(selected)}")
 
 
+def render_product_preview(asset_id, root):
+    """Render the audited retail package without adding preview rig to source."""
+    audited = {
+        "checkout_product_hanging_polo",
+        "checkout_product_cap",
+        "checkout_product_rangefinder",
+        "checkout_product_stand_bag",
+        "checkout_product_shoe_pair",
+        "checkout_product_shoe_box",
+    }
+    if asset_id not in audited:
+        return
+    # Reuse the cash-register kit's established studio setup and canonical
+    # Assets/checkout/previews destination.  The .blend and GLB were already
+    # saved above, so the temporary floor/lights/camera never enter either asset.
+    from checkout_kit_lib import render_preview
+
+    render_preview(asset_id, root, azimuth=32, elevation=22)
+
+
 def requested_assets():
     args = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
     if not args:
@@ -473,6 +776,7 @@ def main():
         M = product_materials()
         root = BUILDERS[asset_id](M)
         save_and_export(asset_id, root)
+        render_product_preview(asset_id, root)
     print(f"COMPLETE|assets={len(chosen)}|source_dir={SOURCE_DIR}|export_dir={EXPORT_DIR}")
 
 

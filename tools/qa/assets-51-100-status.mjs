@@ -21,7 +21,7 @@
 
 import { existsSync, statSync, readFileSync, mkdirSync, writeFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { ASSETS } from './assets-51-100-spec.mjs';
 import { ASSETS_BY_NUMBER } from '../../src/render3d/assets51to100/assetsRegistry.js';
@@ -62,6 +62,7 @@ function loadReimportReports() {
  * outside `assets51to100/` imports it -- the scene reaching in, not the registry
  * describing itself.
  */
+let mountsProps = false;
 function mountedSheets() {
   const render3d = join(REPO_ROOT, 'src', 'render3d');
   const mounted = new Set();
@@ -82,13 +83,36 @@ function mountedSheets() {
         }
       }
       if (text.includes('assetsRegistry')) for (const s of [6, 7, 8, 9, 10]) mounted.add(s);
+      if (text.includes('propPlacement.js')) mountsProps = true;
     }
   };
   scan(render3d);
   return mounted;
 }
 
+/**
+ * Assets mounted by the prop placement table rather than by a sheet runtime.
+ *
+ * Sheet-level granularity is too coarse for these: the table places 71-100 individually, and a
+ * sheet flag would claim credit for anything that happened to share a sheet with something placed.
+ * So the numbers are read from the table itself — if a prop is dropped from it, this stops
+ * reporting that prop as mounted, with no second place to update.
+ */
+async function mountedPropNumbers() {
+  if (!mountsProps) return new Set();
+  try {
+    const mod = await import(
+      pathToFileURL(join(REPO_ROOT, 'src', 'render3d', 'assets51to100', 'propPlacement.js')).href
+    );
+    return new Set(mod.PLACED_ASSET_NUMBERS || []);
+  } catch {
+    // The table failing to load is itself the answer: nothing it describes is in the scene.
+    return new Set();
+  }
+}
+
 const MOUNTED_SHEETS = mountedSheets();
+const MOUNTED_PROPS = await mountedPropNumbers();
 
 function statusFor(asset, world, firstPerson, registryBound, sceneMounted) {
   if (!world.sourceExists && !world.runtimeGlbExists) return 'Missing';
@@ -159,7 +183,8 @@ function describe(asset, reports) {
   }
 
   const registryBound = Boolean(ASSETS_BY_NUMBER[asset.assetNumber]);
-  const sceneMounted = registryBound && MOUNTED_SHEETS.has(asset.referenceSheet);
+  const sceneMounted = registryBound
+    && (MOUNTED_SHEETS.has(asset.referenceSheet) || MOUNTED_PROPS.has(asset.assetNumber));
   return {
     assetNumber: asset.assetNumber,
     sheet: asset.referenceSheet,

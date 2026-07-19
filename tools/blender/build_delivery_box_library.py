@@ -66,7 +66,7 @@ REFERENCE_PATH = (
 for directory in (SOURCE_DIR, EXPORT_DIR, QA_DIR):
     directory.mkdir(parents=True, exist_ok=True)
 
-BUILD_VERSION = 1
+BUILD_VERSION = 2
 
 
 def slot(
@@ -236,7 +236,7 @@ PROFILES = {
                 "protective_bag_with_foam_blocks",
                 (
                     slot(
-                        (0.0, 0.0, 0.535),
+                        (0.0, 0.0, 0.680),
                         max_dims=(0.670, 0.450, 0.980),
                         layer=1,
                         column=1,
@@ -839,9 +839,29 @@ def add_inserts(root, profile, M):
             support = box(f"LONG_PRODUCT_SUPPORT_{index:02d}", (0.055, d - 0.070, min(0.120, h * 0.42)), (x, 0, min(0.080, h * 0.31)), M["foam"], bevel=0.008, parent=root)
             support["support_role"] = "shaft_and_head_restraint"
     elif kind == "bagcarton":
-        for index, z in enumerate((0.100, h - 0.115), start=1):
-            block = box(f"BAG_FOAM_BLOCK_{index:02d}", (w - 0.130, d - 0.130, 0.095), (0, 0, z), M["foam"], bevel=0.014, parent=root)
-            block["support_role"] = "bag_end_block"
+        # The retail bag is centered at Z=.680 and stands .722 m tall after
+        # its authored quarter turn.  A measured pedestal supports its base
+        # at Z=.319 while narrow upper restraints keep the silhouette visible
+        # from the player camera instead of sealing it beneath a solid cap.
+        pedestal = box(
+            "BAG_FOAM_BLOCK_01",
+            (w - 0.130, d - 0.130, 0.240),
+            (0, 0, 0.199),
+            M["foam"],
+            bevel=0.014,
+            parent=root,
+        )
+        pedestal["support_role"] = "bag_base_riser"
+        for index, x in enumerate((-0.180, 0.180), start=2):
+            restraint = box(
+                f"BAG_FOAM_BLOCK_{index:02d}",
+                (0.105, d - 0.130, 0.180),
+                (x, 0, 0.835),
+                M["foam"],
+                bevel=0.014,
+                parent=root,
+            )
+            restraint["support_role"] = "bag_upper_side_restraint"
     elif kind in {"fixture", "crate"}:
         for index, x in enumerate((-w * 0.38, w * 0.38), start=1):
             box(f"FREIGHT_CORNER_BLOCK_{index:02d}", (0.085, d - 0.105, min(0.180, h * 0.24)), (x, 0, min(0.115, h * 0.18)), M["foam"], bevel=0.012, parent=root)

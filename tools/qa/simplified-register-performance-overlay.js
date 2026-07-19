@@ -13,6 +13,8 @@ async (page) => {
   const {
     PERFORMANCE_SCHEMA_VERSION,
     REQUIRED_PERFORMANCE_GATE_KEYS,
+    buildDynamicGateReport,
+    buildStaticPerformanceGateReport,
     validatePerformanceResultSchema,
   } = await import(pathToFileURL(
     path.resolve('tools/qa/simplified-register-performance.mjs'),
@@ -61,6 +63,44 @@ async (page) => {
       || currentSchemaValidation.valid !== true) {
     throw new Error(
       `Capture #38 requires a freshly validated schema-v${PERFORMANCE_SCHEMA_VERSION} authoritative performance result: ${currentSchemaValidation.issues.join(' | ')}`,
+    );
+  }
+  const recomputedStaticGates = buildStaticPerformanceGateReport(result);
+  const recomputedDynamicGates = buildDynamicGateReport(
+    result.dynamicPhases,
+    result.transactionStability,
+    result.storedBaselineComparison,
+    result.dynamicWindows,
+    result.heapIdleControl,
+  );
+  const recomputedGateDetails = {
+    ...recomputedStaticGates.details,
+    ...Object.fromEntries(Object.entries(recomputedDynamicGates.details).map(
+      ([key, value]) => [`dynamic_${key}`, value],
+    )),
+  };
+  const independentlyVerifiedGateKeys = new Set([
+    'productionBuildUnchanged',
+    'schemaContract',
+  ]);
+  const missingRecomputedGateKeys = REQUIRED_PERFORMANCE_GATE_KEYS.filter((key) => (
+    !independentlyVerifiedGateKeys.has(key) && !recomputedGateDetails[key]
+  ));
+  const recomputedGateFailures = Object.entries(recomputedGateDetails).filter(
+    ([key, recomputed]) => (
+      recomputed?.pass !== true
+        || result.gates?.details?.[key]?.pass !== recomputed.pass
+    ),
+  );
+  if (missingRecomputedGateKeys.length || recomputedGateFailures.length) {
+    const details = [
+      ...missingRecomputedGateKeys.map((key) => `missing recomputation:${key}`),
+      ...recomputedGateFailures.map(([key, recomputed]) => (
+        `${key}: recomputed=${recomputed?.pass} persisted=${result.gates?.details?.[key]?.pass}`
+      )),
+    ];
+    throw new Error(
+      `Capture #38 rejected stale, forged, or failing gate verdicts: ${details.join(' | ')}`,
     );
   }
   if (result.ok !== true || result.gates.pass !== true

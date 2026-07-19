@@ -44,7 +44,7 @@ from build_checkout_assets import (  # noqa: E402
 
 
 ASSET_ID = "delivery_golf_club_box"
-BUILD_VERSION = 2
+BUILD_VERSION = 4
 REFERENCE_ID = "48"
 TARGET_DIMS = (1.25, 0.18, 0.18)  # Blender X length, Y depth, Z height.
 REFERENCE_PATH = (
@@ -281,6 +281,9 @@ def wall(
             "pivot_kind": "bottom_fold",
             "closed_rotation": [0.0, 0.0, 0.0],
             "flatten_angle_deg": 90.0,
+            "hinge_axis": "X" if pivot_name == "BOX_WALL_FRONT" else "",
+            "open_reveal_angle_deg": 82.0 if pivot_name == "BOX_WALL_FRONT" else 0.0,
+            "reveal_contents": pivot_name == "BOX_WALL_FRONT",
         },
     )
     box(panel_name, panel_dims, panel_loc, M[material_key], bevel=0.0022, parent=pivot)
@@ -539,8 +542,8 @@ def build_box(M: dict[str, bpy.types.Material]) -> bpy.types.Object:
         )
         segment["tape_segment"] = True
     for name, x, order in (
-        ("TAPE_END_LEFT", -length * 0.455, 13),
-        ("TAPE_END_RIGHT", length * 0.455, 14),
+        ("TAPE_END_RIGHT", length * 0.455, 13),
+        ("TAPE_END_LEFT", -length * 0.455, 14),
     ):
         box(
             name, (0.040, depth - 0.014, 0.002), (x, 0, 0.179), M["tape"],
@@ -599,22 +602,23 @@ def build_box(M: dict[str, bpy.types.Material]) -> bpy.types.Object:
                 parent=support,
             )
 
-    for index, y in enumerate((-0.034, 0.034), start=1):
+    for index, (x, y) in enumerate(((-0.415, -0.034), (0.415, 0.034)), start=1):
         support = box(
             f"HEAD_SUPPORT_{index:02d}",
-            (0.155, 0.048, 0.077),
-            (0.415, y, 0.071),
+            (0.155, 0.048, 0.025),
+            (x, y, 0.043),
             M["label"],
-            bevel=0.010,
+            bevel=0.006,
             parent=root,
-            props={"support_kind": "club_head_cradle", "row": index},
+            props={"support_kind": "opposed_club_head_cradle", "row": index},
         )
+        backstop_x = x + (-0.071 if x < 0 else 0.071)
         box(
             f"HEAD_SUPPORT_{index:02d}_BACKSTOP",
-            (0.045, 0.052, 0.100),
-            (0.486, y, 0.084),
+            (0.045, 0.052, 0.055),
+            (backstop_x, y, 0.062),
             M["kraft_dark"],
-            bevel=0.007,
+            bevel=0.005,
             parent=support,
         )
 
@@ -651,9 +655,10 @@ def build_box(M: dict[str, bpy.types.Material]) -> bpy.types.Object:
         )
 
     # Contract-authoritative CLUB2 sockets. Two complete, full-scale retail
-    # clubs stack vertically inside the 180 mm shell; the upper club rotates
-    # 180 degrees so the protected heads oppose one another instead of sharing
-    # the same end cradle. Legacy CONTENT_SLOT_01/02 remain for old saves.
+    # clubs stack vertically inside the 180 mm shell. A restrained two-degree
+    # opposing splay keeps both shafts readable from above while the protected
+    # heads still occupy opposite end cradles and the 130 mm fit envelope.
+    # Legacy CONTENT_SLOT_01/02 remain for old saves.
     layout_id = "CLUB2"
     allowed_skus = ("driver1", "driver2", "driver3", "putter1", "putter2", "wedge1", "wedge2")
     packaging_state = "head-and-shaft-guarded"
@@ -677,10 +682,14 @@ def build_box(M: dict[str, bpy.types.Material]) -> bpy.types.Object:
             "allow_scale": False,
         },
     )
-    for index, (z, rotation_z) in enumerate(((0.065, 0.0), (0.115, math.pi)), start=1):
+    splay = math.radians(2.0)
+    for index, (y, z, rotation_z) in enumerate((
+        (-0.0125, 0.065, -splay),
+        (0.0125, 0.115, math.pi + splay),
+    ), start=1):
         socket = anchor(
             f"CONTENT_SLOT_{layout_id}_{index:02d}",
-            (0.0, 0.0, z),
+            (0.0, y, z),
             rot=(0.0, 0.0, rotation_z),
             parent=layout_root,
             kind="box_content",
@@ -693,7 +702,7 @@ def build_box(M: dict[str, bpy.types.Material]) -> bpy.types.Object:
                 "packaging_state": packaging_state,
                 "packaging_shell_id": "LONG_CLUB_CARTON",
                 "max_w": 1.19,
-                "max_d": 0.13,
+                "max_d": 0.105,
                 "max_h": 0.09,
                 "display_state": "opened_lengthwise",
                 "stack_order": index,
@@ -736,6 +745,10 @@ def build_box(M: dict[str, bpy.types.Material]) -> bpy.types.Object:
             ]),
             "duration_sec": 2.7,
             "segment_count": 14,
+            "segment_nodes": json.dumps([
+                *[f"TAPE_CENTER_SEG_{index:02d}" for index in range(1, 13)],
+                "TAPE_END_RIGHT", "TAPE_END_LEFT",
+            ]),
         },
     )
 
@@ -964,14 +977,17 @@ def validate(root: bpy.types.Object, *, imported: bool = False) -> dict:
             if key not in socket:
                 raise RuntimeError(f"{socket.name} missing {key}")
         exported = tuple(round(float(socket[key]), 6) for key in ("max_w", "max_d", "max_h"))
-        if exported != (1.19, 0.13, 0.09):
+        if exported != (1.19, 0.105, 0.09):
             raise RuntimeError(f"{socket.name} CLUB2 envelope changed: {exported}")
         if socket["packaging_shell_id"] != "LONG_CLUB_CARTON":
             raise RuntimeError(f"{socket.name} packaging shell contract changed")
         if float(socket["content_scale"]) != 1.0 or bool(socket["allow_scale"]):
             raise RuntimeError(f"{socket.name} must remain authored at 1:1 scale")
-    if json.loads(by_name["CONTENT_SLOT_CLUB2_02"]["authored_rotation_rad"]) != [0.0, 0.0, 3.141593]:
-        raise RuntimeError("CLUB2 opposing-head rotation changed")
+    expected_rotations = ([0.0, 0.0, -0.034907], [0.0, 0.0, 3.176499])
+    for index, expected in enumerate(expected_rotations, start=1):
+        actual = json.loads(by_name[f"CONTENT_SLOT_CLUB2_{index:02d}"]["authored_rotation_rad"])
+        if actual != expected:
+            raise RuntimeError(f"CLUB2 socket {index} opposing-splay rotation changed: {actual}")
 
     metrics["validation"] = "clean_reimport_ok" if imported else "source_ok"
     return metrics
@@ -1076,6 +1092,10 @@ def render_preview(
             if pivot:
                 rotations.append((pivot, pivot.rotation_euler.copy()))
                 pivot.rotation_euler = rotation
+        front_wall = bpy.data.objects.get("BOX_WALL_FRONT")
+        if front_wall:
+            rotations.append((front_wall, front_wall.rotation_euler.copy()))
+            front_wall.rotation_euler.x = math.radians(82)
     changed_visibility = preview_visibility(root, opened=opened)
     bpy.context.view_layer.update()
 

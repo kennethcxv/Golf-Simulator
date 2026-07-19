@@ -588,6 +588,7 @@ export function validatePerformanceResultSchema(result) {
   };
   const protocolHeapControlMs = result?.protocol?.heapControlMs;
   const protocolGcSettleMs = result?.protocol?.gcSettleMs;
+  const protocolSampleCount = result?.protocol?.sampleCount;
   if (!['master', 'smoke'].includes(result?.protocol?.profile)) {
     issues.push('protocol.profile must be master or smoke.');
   }
@@ -599,6 +600,9 @@ export function validatePerformanceResultSchema(result) {
     if (!Number.isSafeInteger(value) || value < 1) {
       issues.push(`protocol.viewport.${metric} must be a positive integer.`);
     }
+  }
+  if (!Number.isSafeInteger(protocolSampleCount) || protocolSampleCount < 1) {
+    issues.push('protocol.sampleCount must be a positive integer.');
   }
   requireFinite(protocolHeapControlMs, 'protocol.heapControlMs');
   if (Number.isFinite(protocolHeapControlMs) && protocolHeapControlMs <= 0) {
@@ -630,6 +634,40 @@ export function validatePerformanceResultSchema(result) {
     requireFinite(renderFrameCount, `scenes.${key}.render.frameDistribution.frameCount`);
     if (Number.isFinite(renderFrameCount) && renderFrameCount !== RENDER_CAPTURE_FRAME_COUNT) {
       issues.push(`scenes.${key}.render.frameDistribution.frameCount must be ${RENDER_CAPTURE_FRAME_COUNT}.`);
+    }
+    const samples = scene.samples;
+    if (!Array.isArray(samples)
+        || samples.length !== protocolSampleCount
+        || samples.some((sample) => (
+          !Number.isFinite(sample?.summary?.avgFps)
+          || !Number.isFinite(sample?.summary?.onePercentLowFps)
+          || !Number.isFinite(sample?.summary?.worstFrameMs)
+        ))) {
+      issues.push(`scenes.${key}.samples must match protocol.sampleCount with finite summary metrics.`);
+    }
+    requireFinite(scene.heap?.jsHeapUsedMiB, `scenes.${key}.heap.jsHeapUsedMiB`);
+    requireFinite(scene.listeners?.total, `scenes.${key}.listeners.total`);
+    requireFinite(scene.dom?.elements, `scenes.${key}.dom.elements`);
+    for (const metric of [
+      'objects', 'meshes', 'geometries', 'materials', 'textures',
+    ]) {
+      requireFinite(
+        scene.liveSceneResources?.[metric],
+        `scenes.${key}.liveSceneResources.${metric}`,
+      );
+    }
+    for (const metric of ['geometries', 'textures']) {
+      requireFinite(
+        scene.liveSceneResources?.rendererMemory?.[metric],
+        `scenes.${key}.liveSceneResources.rendererMemory.${metric}`,
+      );
+    }
+    if (key === 'idleMonitor' || key === 'activeMonitor') {
+      for (const metric of [
+        'frontDeskMonitor', 'scannerStatus', 'cashWorkspace', 'cardTerminal',
+      ]) {
+        requireFinite(scene.ui?.perSecond?.[metric], `scenes.${key}.ui.perSecond.${metric}`);
+      }
     }
   }
   for (const key of REQUIRED_DYNAMIC_PHASES) {
@@ -765,6 +803,12 @@ export function validatePerformanceResultSchema(result) {
     if (typeof window.longTasks?.supported !== 'boolean'
         || !Array.isArray(window.longTasks?.entries)) {
       issues.push(`dynamicWindows.${key}.longTasks must include support and raw entries.`);
+    }
+    if (!Number.isFinite(window.aggregate?.frameCount) || window.aggregate.frameCount < 2
+        || !Number.isFinite(window.longTasks?.count) || window.longTasks.count < 0
+        || !Number.isFinite(window.longTasks?.totalDurationMs)
+        || window.longTasks.totalDurationMs < 0) {
+      issues.push(`dynamicWindows.${key} must contain at least two frames and non-negative long-task metrics.`);
     }
   }
   const reentryLeak = result?.reentryLeak;
@@ -1077,10 +1121,25 @@ export function validatePerformanceResultSchema(result) {
   return { valid: issues.length === 0, issues };
 }
 
-export function buildDynamicGateReport(dynamicPhases, transactionStability, baselineComparison) {
-  const phases = Object.values(dynamicPhases || {});
+export function buildDynamicGateReport(
+  dynamicPhases,
+  transactionStability,
+  baselineComparison,
+  dynamicWindows = {},
+  heapIdleControl = null,
+) {
+  const repeatApprovedPhase = dynamicWindows?.cardApprovedRepeat;
+  const phases = [
+    ...REQUIRED_DYNAMIC_PHASES.map((key) => dynamicPhases?.[key]).filter(Boolean),
+    ...(repeatApprovedPhase ? [repeatApprovedPhase] : []),
+  ];
   const missing = REQUIRED_DYNAMIC_PHASES.filter((key) => !dynamicPhases?.[key]);
-  const valuesFor = (selector) => phases.map(selector).filter(Number.isFinite);
+  if (!repeatApprovedPhase) missing.push('dynamicWindows.cardApprovedRepeat');
+  const measuredPhases = phases.map((phase) => ({
+    phase,
+    summary: summarizeFrames(Array.isArray(phase?.frameTimesMs) ? phase.frameTimesMs : []),
+  }));
+  const valuesFor = (selector) => measuredPhases.map(selector).filter(Number.isFinite);
   const worst = (selector, fallback = null) => {
     const values = valuesFor(selector);
     return values.length ? Math.max(...values) : fallback;
@@ -1089,11 +1148,22 @@ export function buildDynamicGateReport(dynamicPhases, transactionStability, base
     const values = valuesFor(selector);
     return values.length ? Math.min(...values) : fallback;
   };
-  const minimumFrames = minimum((phase) => phase.aggregate?.frameCount, 0);
-  const minimumAvgFps = minimum((phase) => phase.aggregate?.avgFps, 0);
-  const maximumP99 = worst((phase) => phase.aggregate?.p99FrameMs, Infinity);
-  const maximumWorst = worst((phase) => phase.aggregate?.worstFrameMs, Infinity);
-  const heapCalibrations = phases.map((phase) => phase.heapHighWater?.calibration);
+  const minimumFrames = minimum(({ summary }) => summary.frameCount, 0);
+  const minimumAvgFps = minimum(({ summary }) => summary.avgFps, 0);
+  const maximumP99 = worst(({ summary }) => summary.p99FrameMs, Infinity);
+  const maximumWorst = worst(({ summary }) => summary.worstFrameMs, Infinity);
+  const recomputedControlQualification = heapIdleControl
+    ? qualifyHeapControl(heapIdleControl)
+    : null;
+  const heapCalibrations = phases.map((phase) => (
+    heapIdleControl
+      ? buildMatchedHeapCalibration(phase.heapTimeline, heapIdleControl.heapTimeline, {
+        dynamicDurationMs: phase.heapHighWater?.durationMs,
+        controlDurationMs: heapIdleControl.heapHighWater?.durationMs,
+        controlStateStable: recomputedControlQualification?.qualified === true,
+      })
+      : phase.heapHighWater?.calibration
+  ));
   const heapHighWaterComplete = phases.length > 0
     && heapCalibrations.every((calibration) => calibration?.qualified === true
       && calibration.durationMatched === true
@@ -1187,6 +1257,178 @@ export function buildDynamicGateReport(dynamicPhases, transactionStability, base
     ),
   };
   return { pass: Object.values(details).every((entry) => entry.pass), details };
+}
+
+export function buildStaticPerformanceGateReport(result) {
+  const scenes = result?.scenes || {};
+  const sampleSummary = (sample) => summarizeFrames(
+    Array.isArray(sample?.frameTimesMs) ? sample.frameTimesMs : [],
+  );
+  const sceneMedian = (sceneKey, metric) => median(
+    (Array.isArray(scenes[sceneKey]?.samples) ? scenes[sceneKey].samples : [])
+      .map((sample) => sampleSummary(sample)?.[metric]),
+  );
+  const idleAverageFps = sceneMedian('idleMonitor', 'avgFps');
+  const activeAverageFps = sceneMedian('activeMonitor', 'avgFps');
+  const idleOnePercentLowFps = sceneMedian('idleMonitor', 'onePercentLowFps');
+  const activeOnePercentLowFps = sceneMedian('activeMonitor', 'onePercentLowFps');
+  const averageFpsComparison = delta(idleAverageFps, activeAverageFps);
+  const onePercentLowComparison = delta(idleOnePercentLowFps, activeOnePercentLowFps);
+  const finiteCameraDistance = (paths) => {
+    const differences = paths.map(([group, field]) => {
+      const idleValue = scenes.idleMonitor?.camera?.[group]?.[field];
+      const activeValue = scenes.activeMonitor?.camera?.[group]?.[field];
+      return Number.isFinite(idleValue) && Number.isFinite(activeValue)
+        ? activeValue - idleValue
+        : Infinity;
+    });
+    return differences.every(Number.isFinite) ? Math.hypot(...differences) : Infinity;
+  };
+  const cameraPositionDistance = finiteCameraDistance([
+    ['position', 'x'], ['position', 'y'], ['position', 'z'],
+  ]);
+  const cameraQuaternionDistance = finiteCameraDistance([
+    ['quaternion', 'x'], ['quaternion', 'y'], ['quaternion', 'z'], ['quaternion', 'w'],
+  ]);
+  const idleFov = scenes.idleMonitor?.camera?.fovDegrees;
+  const activeFov = scenes.activeMonitor?.camera?.fovDegrees;
+  const cameraFovDelta = Number.isFinite(idleFov) && Number.isFinite(activeFov)
+    ? activeFov - idleFov
+    : Infinity;
+  const workspaceMedians = BASELINE_SCENES.map((key) => ({
+    key,
+    avgFps: sceneMedian(key, 'avgFps'),
+    worstFrameMs: sceneMedian(key, 'worstFrameMs'),
+  }));
+  const workspaceMetricsComplete = workspaceMedians.every((scene) => (
+    Number.isFinite(scene.avgFps) && Number.isFinite(scene.worstFrameMs)
+  ));
+  const minimumMedianSampleAvg = workspaceMetricsComplete
+    ? Math.min(...workspaceMedians.map((scene) => scene.avgFps))
+    : null;
+  const maximumMedianSampleWorst = workspaceMetricsComplete
+    ? Math.max(...workspaceMedians.map((scene) => scene.worstFrameMs))
+    : null;
+  const staticUiRates = ['idleMonitor', 'activeMonitor'].flatMap((key) => {
+    const rates = scenes[key]?.ui?.perSecond || {};
+    return ['frontDeskMonitor', 'scannerStatus', 'cashWorkspace', 'cardTerminal']
+      .map((metric) => rates[metric]);
+  });
+  const staticUiRate = staticUiRates.length > 0 && staticUiRates.every(Number.isFinite)
+    ? Math.max(...staticUiRates)
+    : Infinity;
+  const reentrySamples = Array.isArray(result?.reentryLeak?.samples)
+    ? result.reentryLeak.samples
+    : [];
+  const reentryStart = reentrySamples[0];
+  const reentryEnd = reentrySamples.at(-1);
+  const reentryDifference = (read, places = null) => {
+    const before = read(reentryStart);
+    const after = read(reentryEnd);
+    if (!Number.isFinite(before) || !Number.isFinite(after)) return null;
+    const value = after - before;
+    return places == null ? value : round(value, places);
+  };
+  const reentryDelta = {
+    heapMiB: reentryDifference((sample) => sample?.heap?.jsHeapUsedMiB, 3),
+    listeners: reentryDifference((sample) => sample?.listeners?.total),
+    domElements: reentryDifference((sample) => sample?.dom?.elements),
+    liveGeometries: reentryDifference((sample) => sample?.liveSceneResources?.geometries),
+    liveMaterials: reentryDifference((sample) => sample?.liveSceneResources?.materials),
+    liveTextures: reentryDifference((sample) => sample?.liveSceneResources?.textures),
+    rendererGeometries: reentryDifference(
+      (sample) => sample?.liveSceneResources?.rendererMemory?.geometries,
+    ),
+    rendererTextures: reentryDifference(
+      (sample) => sample?.liveSceneResources?.rendererMemory?.textures,
+    ),
+  };
+  const errors = result?.errors || {};
+  const errorCount = (key) => Array.isArray(errors[key]) ? errors[key].length : Infinity;
+  const nonBenignRequestFailureCount = Array.isArray(errors.failedRequests)
+    ? errors.failedRequests.filter((entry) => !/ERR_ABORTED/.test(String(entry?.error || ''))).length
+    : Infinity;
+  const detail = (pass, value) => ({ pass: !!pass, detail: value });
+  const sampleCount = result?.protocol?.sampleCount;
+  const reentryCycles = result?.protocol?.reentryCycles;
+  const details = {
+    cameraMatch: detail(
+      cameraPositionDistance <= 0.002
+        && cameraQuaternionDistance <= 0.002
+        && Math.abs(cameraFovDelta) <= 0.02,
+      `position ${round(cameraPositionDistance, 6)}, quaternion ${round(cameraQuaternionDistance, 6)}, FOV ${round(cameraFovDelta, 6)} degrees`,
+    ),
+    activeMonitorAverageFps: detail(
+      Number.isFinite(averageFpsComparison.percent) && averageFpsComparison.percent >= -35,
+      `${averageFpsComparison.percent}% versus idle; budget >= -35%`,
+    ),
+    activeMonitorOnePercentLow: detail(
+      Number.isFinite(onePercentLowComparison.percent)
+        && onePercentLowComparison.percent >= -40,
+      `${onePercentLowComparison.percent}% versus idle; budget >= -40%`,
+    ),
+    everyWorkspaceAverageFps: detail(
+      workspaceMetricsComplete && minimumMedianSampleAvg >= 30,
+      `minimum median-of-${sampleCount} sample average ${minimumMedianSampleAvg} FPS; budget >= 30 FPS`,
+    ),
+    everyWorkspaceWorstFrame: detail(
+      workspaceMetricsComplete && maximumMedianSampleWorst <= 100,
+      `maximum median-of-${sampleCount} sample worst ${maximumMedianSampleWorst} ms; budget <= 100 ms`,
+    ),
+    reentryHeap: detail(
+      Number.isFinite(reentryDelta.heapMiB) && Math.abs(reentryDelta.heapMiB) <= 2,
+      `${reentryDelta.heapMiB} MiB after ${reentryCycles} cycles; budget <= 2 MiB absolute growth`,
+    ),
+    reentryListeners: detail(
+      reentryDelta.listeners === 0,
+      `${reentryDelta.listeners} listeners after ${reentryCycles} cycles; budget 0`,
+    ),
+    reentryDom: detail(
+      reentryDelta.domElements === 0,
+      `${reentryDelta.domElements} elements after ${reentryCycles} cycles; budget 0`,
+    ),
+    reentryLiveResources: detail(
+      reentryDelta.liveGeometries === 0
+        && reentryDelta.liveMaterials === 0
+        && reentryDelta.liveTextures === 0,
+      `${reentryDelta.liveGeometries}/${reentryDelta.liveMaterials}/${reentryDelta.liveTextures} geometry/material/texture; budget 0/0/0`,
+    ),
+    reentryRendererMemory: detail(
+      Number.isFinite(reentryDelta.rendererGeometries)
+        && Number.isFinite(reentryDelta.rendererTextures)
+        && Math.abs(reentryDelta.rendererGeometries) <= 2
+        && Math.abs(reentryDelta.rendererTextures) <= 2,
+      `${reentryDelta.rendererGeometries}/${reentryDelta.rendererTextures} geometry/texture; budget <= 2 lazy resources each`,
+    ),
+    staticUiFrequency: detail(
+      staticUiRate <= 5,
+      `maximum known register full-canvas clear rate ${staticUiRate}/s in static monitor scenes; budget <= 5/s`,
+    ),
+    runtimeErrors: detail(
+      errorCount('consoleErrors') === 0
+        && errorCount('pageErrors') === 0
+        && errorCount('httpErrors') === 0,
+      `${errorCount('consoleErrors')} console errors, ${errorCount('pageErrors')} page errors, ${errorCount('httpErrors')} HTTP errors`,
+    ),
+    requestFailures: detail(
+      nonBenignRequestFailureCount === 0,
+      `${nonBenignRequestFailureCount} non-benign failures recomputed from raw request failures`,
+    ),
+  };
+  return {
+    pass: Object.values(details).every((entry) => entry.pass),
+    details,
+    derived: {
+      cameraPositionDistance: round(cameraPositionDistance, 6),
+      cameraQuaternionDistance: round(cameraQuaternionDistance, 6),
+      cameraFovDelta: round(cameraFovDelta, 6),
+      averageFpsComparison,
+      onePercentLowComparison,
+      workspaceMedians,
+      reentryDelta,
+      staticUiRate: round(staticUiRate),
+    },
+  };
 }
 
 async function boot(page) {
@@ -3336,46 +3578,21 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
     }),
   );
   const gate = (pass, detail) => ({ pass: !!pass, detail });
-  const gateDetails = {
-    cameraMatch: gate(
-      cameraPositionDistance <= 0.002 && cameraQuaternionDistance <= 0.002
-        && Math.abs(comparison.camera.fovDeltaDegrees) <= 0.02,
-      `position ${round(cameraPositionDistance, 6)}, quaternion ${round(cameraQuaternionDistance, 6)}, FOV ${comparison.camera.fovDeltaDegrees} degrees`,
-    ),
-    activeMonitorAverageFps: gate(
-      comparison.avgFps.percent >= -35,
-      `${comparison.avgFps.percent}% versus idle; budget >= -35%`,
-    ),
-    activeMonitorOnePercentLow: gate(
-      comparison.onePercentLowFps.percent >= -40,
-      `${comparison.onePercentLowFps.percent}% versus idle; budget >= -40%`,
-    ),
-    everyWorkspaceAverageFps: gate(
-      workspaceFpsPass,
-      `minimum median-of-${RUN_CONFIG.sampleCount} sample average ${minimumMedianSampleAvg} FPS; budget >= 30 FPS`,
-    ),
-    everyWorkspaceWorstFrame: gate(
-      workspaceTailPass,
-      `maximum median-of-${RUN_CONFIG.sampleCount} sample worst ${maximumMedianSampleWorst} ms; budget <= 100 ms (absolute observed ${absoluteObservedWorst} ms retained for diagnosis)`,
-    ),
-    reentryHeap: gate(Math.abs(reentryLeak.delta.heapMiB) <= 2, `${reentryLeak.delta.heapMiB} MiB after ${RUN_CONFIG.reentryCycles} cycles; budget <= 2 MiB absolute growth`),
-    reentryListeners: gate(reentryLeak.delta.listeners === 0, `${reentryLeak.delta.listeners} listeners after ${RUN_CONFIG.reentryCycles} cycles; budget 0`),
-    reentryDom: gate(reentryLeak.delta.domElements === 0, `${reentryLeak.delta.domElements} elements after ${RUN_CONFIG.reentryCycles} cycles; budget 0`),
-    reentryLiveResources: gate(
-      reentryLeak.delta.liveGeometries === 0 && reentryLeak.delta.liveMaterials === 0 && reentryLeak.delta.liveTextures === 0,
-      `${reentryLeak.delta.liveGeometries}/${reentryLeak.delta.liveMaterials}/${reentryLeak.delta.liveTextures} geometry/material/texture; budget 0/0/0`,
-    ),
-    reentryRendererMemory: gate(
-      Math.abs(reentryLeak.delta.rendererGeometries) <= 2 && Math.abs(reentryLeak.delta.rendererTextures) <= 2,
-      `${reentryLeak.delta.rendererGeometries}/${reentryLeak.delta.rendererTextures} geometry/texture; budget <= 2 lazy resources each`,
-    ),
-    staticUiFrequency: gate(staticUiRate <= 5, `maximum known register full-canvas clear rate ${staticUiRate}/s in static monitor scenes; budget <= 5/s`),
-    runtimeErrors: gate(
-      consoleErrors.length === 0 && pageErrors.length === 0 && httpErrors.length === 0,
-      `${consoleErrors.length} console errors, ${pageErrors.length} page errors, ${httpErrors.length} HTTP errors`,
-    ),
-    requestFailures: gate(nonBenignRequestFailures.length === 0, `${nonBenignRequestFailures.length} non-benign failures`),
-  };
+  const gateDetails = buildStaticPerformanceGateReport({
+    scenes,
+    reentryLeak,
+    errors: {
+      consoleErrors,
+      pageErrors,
+      failedRequests,
+      httpErrors,
+      nonBenignRequestFailures,
+    },
+    protocol: {
+      sampleCount: RUN_CONFIG.sampleCount,
+      reentryCycles: RUN_CONFIG.reentryCycles,
+    },
+  }).details;
   const generatedAt = new Date().toISOString();
   const build = gitBuildSnapshot();
   const protocol = {
@@ -3417,6 +3634,8 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
     dynamicPhases,
     transactionStability,
     storedBaselineComparison,
+    dynamicWindows,
+    heapIdleControl,
   );
   Object.assign(gateDetails, Object.fromEntries(
     Object.entries(dynamicGates.details).map(([key, value]) => [`dynamic_${key}`, value]),

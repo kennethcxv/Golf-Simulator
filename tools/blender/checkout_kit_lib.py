@@ -138,15 +138,17 @@ def draw_text(arr, text, cx, cy, px, rgb, *, align="center"):
 # ============================================================== textures =======
 
 def np_image(name, arr):
-    """Write a float32 HxWx3 LINEAR array as a packed sRGB image + dump PNG.
+    """Write a float32 HxWx3/4 LINEAR array as a packed sRGB image + dump PNG.
     Arrays are authored top-down (row 0 = visual top); Blender stores bottom-up,
     so rows are reversed here.  Therefore v=1 samples array row 0."""
     import numpy as np
     h, w = arr.shape[:2]
     img = L._img(name, w, h)
     img.colorspace_settings.name = "sRGB"     # BEFORE pixels — switching after discards the buffer
-    srgb = L.lin2srgb(np.clip(arr[::-1], 0, 1))
-    rgba = np.concatenate([srgb, np.ones((h, w, 1), "float32")], axis=2)
+    flipped = np.clip(arr[::-1], 0, 1)
+    srgb = L.lin2srgb(flipped[..., :3])
+    alpha = flipped[..., 3:4] if flipped.shape[2] == 4 else np.ones((h, w, 1), "float32")
+    rgba = np.concatenate([srgb, alpha], axis=2)
     img.pixels[:] = rgba.ravel().tolist()
     img.update()
     img.pack()
@@ -293,7 +295,7 @@ def oakslat_img(name="OakSlat", *, w=1024, h=1024):
     return np_image(name, col)
 
 
-def apparel_header_img(name="ApparelHeader", *, w=1024, h=176):
+def apparel_header_img(name="ApparelHeader", *, w=1024, h=176, lettering=True):
     """The APPAREL category header board: charcoal field, cream lettering,
     thin brass rules — the retail sign language of the club."""
     import numpy as np
@@ -304,7 +306,8 @@ def apparel_header_img(name="ApparelHeader", *, w=1024, h=176):
     gold = np.array((0.52, 0.36, 0.11), "float32")
     arr[24:27, 56:w - 56] = gold * 0.8
     arr[h - 27:h - 24, 56:w - 56] = gold * 0.8
-    draw_text(arr, "APPAREL", w // 2, h // 2, 9, (0.62, 0.575, 0.47))
+    if lettering:
+        draw_text(arr, "APPAREL", w // 2, h // 2, 9, (0.62, 0.575, 0.47))
     return np_image(name, arr)
 
 
@@ -759,7 +762,8 @@ def m_flat(name, rgb, *, rough=0.6, metal=0.0, emit=None, estr=0.0, alpha=1.0, d
     return m
 
 
-def m_tex(name, img, *, rough=0.6, metal=0.0, ds=False, emit_img=False, estr=0.0, normal=None, normal_strength=1.0):
+def m_tex(name, img, *, rough=0.6, metal=0.0, ds=False, emit_img=False, estr=0.0,
+          normal=None, normal_strength=1.0, use_alpha=False):
     m = bpy.data.materials.get(name)
     if m:
         return m
@@ -773,6 +777,10 @@ def m_tex(name, img, *, rough=0.6, metal=0.0, ds=False, emit_img=False, estr=0.0
     t.image = img
     t.extension = "REPEAT"
     nt.links.new(t.outputs["Color"], b.inputs["Base Color"])
+    if use_alpha:
+        nt.links.new(t.outputs["Alpha"], b.inputs["Alpha"])
+        if hasattr(m, "surface_render_method"):
+            m.surface_render_method = "BLENDED"
     if normal is not None:
         # baked tangent-space relief (glTF exports this as normalTexture)
         tn = nt.nodes.new("ShaderNodeTexImage")

@@ -3,8 +3,9 @@ async (page) => {
   //
   // The documented fixture below establishes one repeatable delivery and fixed
   // player-camera poses. Every lifecycle transition after staging is exercised
-  // through the game's normal pointer/keyboard path: hold E to cut, tap E to
-  // open/take/flatten/carry/recycle, and hold E at the apparel table to stock.
+  // through the game's normal pointer/keyboard path: drag LMB along each
+  // authored tape segment, tap E to open/take/flatten/carry/recycle, and hold E
+  // at the apparel table to stock.
   //
   // Run through tools/qa/run-playwright.cjs; see
   // qa/box_system_master/hero_apparel/QA_PROTOCOL.md for the four-pass protocol.
@@ -307,6 +308,170 @@ async (page) => {
     await page.keyboard.press('e');
     await page.waitForFunction(() => window.__fw?.scene3d?.walk?.getTool?.() === 'boxcutter');
     await page.waitForTimeout(380);
+  }
+
+  async function cutterPathProjection() {
+    return page.evaluate(() => {
+      const scene = window.__fw.scene3d.scene;
+      const camera = window.__fw.scene3d.camera;
+      const canvas = document.querySelector('canvas');
+      const guide = scene.getObjectByName('BoxCutterActiveTapeGuide');
+      const position = guide?.geometry?.getAttribute?.('position');
+      if (!guide?.visible || !position || position.count < 2 || !canvas) {
+        throw new Error('The live authored box-cutter tape guide is unavailable.');
+      }
+      guide.updateWorldMatrix(true, false);
+      camera.updateMatrixWorld(true);
+      const Vector3 = camera.position.constructor;
+      const project = (index) => {
+        const world = new Vector3(
+          position.getX(index), position.getY(index), position.getZ(index),
+        ).applyMatrix4(guide.matrixWorld);
+        const clip = world.clone().project(camera);
+        return {
+          x: (clip.x * 0.5 + 0.5) * (canvas.clientWidth || canvas.width || innerWidth),
+          y: (0.5 - clip.y * 0.5) * (canvas.clientHeight || canvas.height || innerHeight),
+        };
+      };
+      const start = project(0);
+      const end = project(1);
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const length = Math.hypot(dx, dy);
+      if (!(length > 0.001) || !Number.isFinite(length)) {
+        throw new Error(`Authored cutter path projected to ${length} pixels.`);
+      }
+      return {
+        start,
+        end,
+        length,
+        unitX: dx / length,
+        unitY: dy / length,
+        normalizationPixels: Math.max(24, length),
+      };
+    });
+  }
+
+  async function installCutterDragTrace() {
+    await page.evaluate(() => {
+      window.__heroCutterDragTrace?.cleanup?.();
+      const trace = {
+        lmbDownCount: 0,
+        lmbUpCount: 0,
+        eKeyDownCount: 0,
+        eKeyUpCount: 0,
+        movementEventCount: 0,
+        sprayingMovementCount: 0,
+        pointerHeld: false,
+      };
+      const onPointerDown = (event) => {
+        if (event.button !== 0) return;
+        trace.lmbDownCount += 1;
+        trace.pointerHeld = true;
+      };
+      const onPointerUp = (event) => {
+        if (event.button !== 0) return;
+        trace.lmbUpCount += 1;
+        trace.pointerHeld = false;
+      };
+      const onMouseMove = () => {
+        if (!trace.pointerHeld) return;
+        trace.movementEventCount += 1;
+        if (window.__fw.scene3d.walk.isSpraying?.()) trace.sprayingMovementCount += 1;
+      };
+      const onKeyDown = (event) => {
+        if (event.key.toLowerCase() === 'e') trace.eKeyDownCount += 1;
+      };
+      const onKeyUp = (event) => {
+        if (event.key.toLowerCase() === 'e') trace.eKeyUpCount += 1;
+      };
+      trace.cleanup = () => {
+        document.removeEventListener('pointerdown', onPointerDown, true);
+        window.removeEventListener('pointerup', onPointerUp, true);
+        document.removeEventListener('mousemove', onMouseMove, true);
+        document.removeEventListener('keydown', onKeyDown, true);
+        document.removeEventListener('keyup', onKeyUp, true);
+      };
+      document.addEventListener('pointerdown', onPointerDown, true);
+      window.addEventListener('pointerup', onPointerUp, true);
+      document.addEventListener('mousemove', onMouseMove, true);
+      document.addEventListener('keydown', onKeyDown, true);
+      document.addEventListener('keyup', onKeyUp, true);
+      window.__heroCutterDragTrace = trace;
+    });
+  }
+
+  async function finishCutterDragTrace() {
+    await page.waitForTimeout(0);
+    return page.evaluate(() => {
+      const trace = window.__heroCutterDragTrace;
+      if (!trace) throw new Error('Missing hero cutter-drag trace.');
+      trace.cleanup?.();
+      delete trace.cleanup;
+      delete window.__heroCutterDragTrace;
+      return trace;
+    });
+  }
+
+  async function dragCutterUntilCut(id, { captureMid = false, traceInput = false, primeGuard = false } = {}) {
+    if (primeGuard) {
+      // Pointer lock discards its first two relative events. Consume that guard,
+      // then restore the deterministic evidence camera before measuring input.
+      await page.mouse.move(801, 450);
+      await page.mouse.move(800, 450);
+    } else {
+      // Playwright retains its last logical pointer coordinate under pointer
+      // lock. Recenter between soak cycles so the first measured delta is the
+      // authored path step rather than a jump from the previous carton.
+      await page.mouse.move(800, 450);
+    }
+    await setCamera(cameras.box);
+    await waitForFocus(/\[LMB\] drag along tape.*\[E\] hold alternative/i);
+    await page.waitForTimeout(180);
+    if (traceInput) await installCutterDragTrace();
+    const cursor = { x: 800, y: 450 };
+    let midCaptured = false;
+    let stationary = null;
+    let steps = 0;
+    try {
+      await page.mouse.down({ button: 'left' });
+      await page.waitForFunction(() => window.__fw.scene3d.walk.isSpraying?.() === true, null, {
+        timeout: 3000,
+      });
+      await page.waitForTimeout(90);
+      stationary = await boxSnapshot(id);
+      if (stationary.cutProgress !== 0 || stationary.lifecycle !== 'SEALED') {
+        throw new Error(`Stationary LMB advanced the cutter: ${JSON.stringify(stationary)}.`);
+      }
+      while (steps < 60) {
+        const projection = await cutterPathProjection();
+        const pixels = projection.normalizationPixels * 0.24;
+        cursor.x += projection.unitX * pixels;
+        cursor.y += projection.unitY * pixels;
+        await page.mouse.move(cursor.x, cursor.y);
+        await page.waitForTimeout(45);
+        steps += 1;
+        const snapshot = await boxSnapshot(id);
+        if (captureMid && !midCaptured && snapshot.cutProgress >= 0.35 && snapshot.cutProgress < 1) {
+          midCaptured = true;
+          await capture('03-mid-cut.png', id,
+            'LMB remains held while the blade follows the authored seam and segmented tape separates behind it.', 'box');
+        }
+        if (snapshot.cutProgress >= 1) break;
+      }
+    } finally {
+      await page.mouse.up({ button: 'left' }).catch(() => {});
+      await page.waitForFunction(() => window.__fw.scene3d.walk.isSpraying?.() === false, null, {
+        timeout: 3000,
+      }).catch(() => {});
+    }
+    await waitForBox(id, 'cut', 3000);
+    if (captureMid && !midCaptured) throw new Error('LMB cut completed without a capturable partial-tape state.');
+    return {
+      stationary,
+      steps,
+      input: traceInput ? await finishCutterDragTrace() : null,
+    };
   }
 
   async function waitForStableScene() {
@@ -617,16 +782,14 @@ async (page) => {
   await equipCutter();
   await capture('02-cutter-contact.png', hero.id, 'Authored cutter equipped and settled at the seam start.', 'box');
 
-  await page.keyboard.down('e');
-  try {
-    await waitForBox(hero.id, 'mid-cut', 4000);
-    await capture('03-mid-cut.png', hero.id, 'Blade in contact along the deterministic cut path; segmented tape partly cut.', 'box');
-    await waitForBox(hero.id, 'cut', 4000);
-  } finally {
-    await page.keyboard.up('e').catch(() => {});
-  }
+  const mainCutterDrag = await dragCutterUntilCut(hero.id, {
+    captureMid: true,
+    traceInput: true,
+    primeGuard: true,
+  });
   await page.waitForTimeout(180);
-  await capture('04-cut-complete.png', hero.id, 'All tape segments cut before the carton opens.', 'box');
+  await capture('04-cut-complete.png', hero.id,
+    'A complete LMB pass has cut every authored seam segment before the carton opens.', 'box');
 
   await setCamera(cameras.boxOpen);
   await page.keyboard.press('e');
@@ -722,7 +885,7 @@ async (page) => {
     const staged = await stageHero({ orderId, qty: units, resetDelivery });
     await setCamera(cameras.box);
     await equipCutter();
-    await holdEUntilBox(staged.id, 'cut', 5000);
+    const cut = await dragCutterUntilCut(staged.id);
     await page.keyboard.press('e');
     await waitForBox(staged.id, 'open', 4000);
     let remaining = units;
@@ -747,13 +910,13 @@ async (page) => {
     await chooseRecyclingFocus();
     await page.keyboard.press('e');
     await waitForBox(staged.id, 'gone', 4000);
-    return { index, orderId, recycled: true };
+    return { index, orderId, cutSteps: cut.steps, recycled: true };
   }
 
   await collectGarbage();
   const countersBeforeStress = await domCounters();
   const stressCycles = [];
-  for (let index = 1; index <= 10; index += 1) stressCycles.push(await runCompactNormalCycle(index));
+  for (let index = 1; index <= 20; index += 1) stressCycles.push(await runCompactNormalCycle(index));
   const stressState = await page.evaluate(() => ({
     liveBoxes: window.__fw.state.shop.deliveries.boxes.length,
     recycled: window.__fw.state.shop.deliveries.recycled || 0,
@@ -764,13 +927,14 @@ async (page) => {
   const countersAfterStress = await domCounters();
 
   // Recreate the byte-for-byte fixture state and camera used by preCycle. Any
-  // retained views/listeners/resources now show up as post-ten-cycle growth.
+  // retained views/listeners/resources now show up as post-twenty-cycle growth.
   const postHero = await stageHero({ orderId: heroOrderId, qty: heroQty, resetDelivery: true });
   await setCamera(cameras.box);
   await waitForFocus(/tap \[E\] once to equip the box cutter/i);
   await waitForStableScene();
-  performance.postTenCycles = await measure('identical-sealed-hero-after-10-normal-cycles');
-  await capture('18-post-10-cycles-identical-sealed.png', postHero.id, 'Identical sealed fixture after ten full normal-control lifecycle cycles.', 'box');
+  performance.postTwentyCycles = await measure('identical-sealed-hero-after-20-normal-cycles');
+  await capture('18-post-20-cycles-identical-sealed.png', postHero.id,
+    'Identical sealed fixture after twenty full normal-control LMB-cut lifecycle cycles.', 'box');
 
   const qualityContract = await page.evaluate(() => {
     const scene3d = window.__fw.scene3d;
@@ -811,25 +975,25 @@ async (page) => {
   ];
   const postCycleGrowth = Object.fromEntries(comparableMetrics.map((key) => [
     key,
-    numericDelta(performance.preCycle[key], performance.postTenCycles[key]),
+    numericDelta(performance.preCycle[key], performance.postTwentyCycles[key]),
   ]));
   postCycleGrowth.jsHeapUsedBytes = numericDelta(
     performance.preCycle.countersAfter.jsHeapUsedBytes,
-    performance.postTenCycles.countersAfter.jsHeapUsedBytes,
+    performance.postTwentyCycles.countersAfter.jsHeapUsedBytes,
   );
   postCycleGrowth.jsEventListeners = numericDelta(
     performance.preCycle.countersAfter.jsEventListeners,
-    performance.postTenCycles.countersAfter.jsEventListeners,
+    performance.postTwentyCycles.countersAfter.jsEventListeners,
   );
 
   const worstFrameAllowance = Math.max(2, performance.preCycle.worstFrameMs * 0.15);
   const regressionGate = {
-    avgFps: performance.postTenCycles.avgFps >= performance.preCycle.avgFps * 0.95,
-    low1Fps: performance.postTenCycles.low1Fps >= performance.preCycle.low1Fps * 0.90,
-    worstFrameMs: performance.postTenCycles.worstFrameMs <= performance.preCycle.worstFrameMs + worstFrameAllowance,
-    drawCalls: performance.postTenCycles.actualGlDrawCallsPerFrame <= performance.preCycle.actualGlDrawCallsPerFrame + 10,
-    triangles: performance.postTenCycles.actualGlTrianglesPerFrame <= performance.preCycle.actualGlTrianglesPerFrame * 1.15,
-    textureMemory: performance.postTenCycles.estimatedVisibleTextureBytesRGBA8
+    avgFps: performance.postTwentyCycles.avgFps >= performance.preCycle.avgFps * 0.95,
+    low1Fps: performance.postTwentyCycles.low1Fps >= performance.preCycle.low1Fps * 0.90,
+    worstFrameMs: performance.postTwentyCycles.worstFrameMs <= performance.preCycle.worstFrameMs + worstFrameAllowance,
+    drawCalls: performance.postTwentyCycles.actualGlDrawCallsPerFrame <= performance.preCycle.actualGlDrawCallsPerFrame + 10,
+    triangles: performance.postTwentyCycles.actualGlTrianglesPerFrame <= performance.preCycle.actualGlTrianglesPerFrame * 1.15,
+    textureMemory: performance.postTwentyCycles.estimatedVisibleTextureBytesRGBA8
       <= performance.preCycle.estimatedVisibleTextureBytesRGBA8 + 16 * 1024 * 1024,
     heap: postCycleGrowth.jsHeapUsedBytes.absolute <= 8 * 1024 * 1024,
     listeners: postCycleGrowth.jsEventListeners.absolute <= 0,
@@ -843,6 +1007,13 @@ async (page) => {
     cutterEquippedOnlyAfterPlayerInput:
       captures.find((entry) => entry.file.endsWith('01-sealed.png'))?.focus?.tool == null
       && captures.find((entry) => entry.file.endsWith('02-cutter-contact.png'))?.focus?.tool === 'boxcutter',
+    mouseDragIsPrimaryCutInput: mainCutterDrag.steps > 0
+      && mainCutterDrag.input?.lmbDownCount === 1
+      && mainCutterDrag.input?.lmbUpCount === 1
+      && mainCutterDrag.input?.movementEventCount > 0
+      && mainCutterDrag.input?.sprayingMovementCount > 0
+      && mainCutterDrag.input?.eKeyDownCount === 0
+      && mainCutterDrag.input?.eKeyUpCount === 0,
     quantityVisuals: [
       ['06-open-full-contents.png', 8],
       ['07-three-quarter-and-carried-armful.png', 6],
@@ -853,8 +1024,11 @@ async (page) => {
     pointerLockHeldThroughout: captures.every((entry) => entry.actualCamera.pointerLocked),
     mainRouteConservedUnits: mainRoute.shelf === heroQty && mainRoute.back === 0 && !mainRoute.carry,
     mainRouteDisposedExactlyOnce: mainRoute.liveBoxes === 0 && mainRoute.recycled === 1 && mainRoute.trash === 0,
-    tenStressCyclesDisposed: stressCycles.length === 10 && stressState.liveBoxes === 0 && stressState.recycled === 10 && stressState.trash === 0 && !stressState.carry,
-    noListenerGrowthAfterTenCycles: countersAfterStress.jsEventListeners <= countersBeforeStress.jsEventListeners,
+    twentySequentialLmbCyclesDisposed: stressCycles.length === 20
+      && stressCycles.every((cycle) => cycle.cutSteps > 0 && cycle.recycled)
+      && stressState.liveBoxes === 0 && stressState.recycled === 20
+      && stressState.trash === 0 && !stressState.carry,
+    noListenerGrowthAfterTwentyCycles: countersAfterStress.jsEventListeners <= countersBeforeStress.jsEventListeners,
     performanceRegressionGate: Object.values(regressionGate).every(Boolean),
     noConsoleOrPageErrors: diagnosticCounts.consoleError === 0 && diagnosticCounts.pageError === 0,
     noFailedRequestsDuringProbe: diagnosticCounts.requestFailed === 0,
@@ -884,7 +1058,10 @@ async (page) => {
       crossPhaseComparison = {
         beforeResult: beforePath,
         identicalSealedPreCycle: compareScenario(beforeResult.performance?.preCycle, performance.preCycle),
-        identicalSealedPostTenCycles: compareScenario(beforeResult.performance?.postTenCycles, performance.postTenCycles),
+        identicalSealedPostTwentyCycles: compareScenario(
+          beforeResult.performance?.postTwentyCycles || beforeResult.performance?.postTenCycles,
+          performance.postTwentyCycles,
+        ),
       };
     }
   }
@@ -901,6 +1078,7 @@ async (page) => {
     heroFixture: { skuId: 'polo1', orderId: heroOrderId, qty: heroQty, boxKind: 'apparel', spot: heroSpot },
     assets,
     captures,
+    mainCutterDrag,
     mainRoute,
     recyclingFocus,
     stress: { cycles: stressCycles, state: stressState, countersBefore: countersBeforeStress, countersAfter: countersAfterStress },
@@ -916,8 +1094,8 @@ async (page) => {
       drawCalls: 'no more than 10 additional actual GL calls per frame',
       triangles: 'no more than 15% higher unless the reviewed authored silhouette requires it',
       textureMemory: 'no more than 16 MiB additional estimated visible RGBA8 source memory',
-      heapAfterTenCycles: 'no more than 8 MiB growth',
-      listenersAfterTenCycles: 'zero growth',
+      heapAfterTwentyCycles: 'no more than 8 MiB growth',
+      listenersAfterTwentyCycles: 'zero growth',
       uiUpdates: 'no new continuous static-scene mutations',
     },
     unmeasured: [
