@@ -35,6 +35,9 @@ test('browser storage backs up, recovers, repairs, lists, and deletes one logica
     assert.deepEqual(await api.loadData('autosave'), { generation: 1 });
     assert.deepEqual(await api.listData(), ['autosave']);
 
+    storage.removeItem('golfempire:autosave');
+    assert.deepEqual(await api.listData(), ['autosave'], 'a backup-only slot remains discoverable');
+
     await api.deleteData('autosave');
     assert.equal(storage.getItem('golfempire:autosave'), null);
     assert.equal(storage.getItem('golfempire-backup:autosave'), null);

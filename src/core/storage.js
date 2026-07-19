@@ -143,10 +143,11 @@ export async function deleteData(key) {
 
 export async function listData() {
   if (native) return native.list();
-  const keys = [];
+  const keys = new Set();
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (k && k.startsWith(PREFIX)) keys.push(k.slice(PREFIX.length));
+    if (k?.startsWith(PREFIX)) keys.add(k.slice(PREFIX.length));
+    else if (k?.startsWith(BACKUP_PREFIX)) keys.add(k.slice(BACKUP_PREFIX.length));
   }
-  return keys;
+  return [...keys].sort();
 }

@@ -39,6 +39,7 @@ test('an interrupted replacement with no primary resumes from backup', async () 
     await store.save('slot-1', { generation: 2 });
     const files = store.pathsFor('slot-1');
     await fs.rm(files.primary);
+    assert.deepEqual(await store.list(), ['slot-1'], 'a backup-only slot remains discoverable');
     const recovered = await store.loadStatus('slot-1');
     assert.deepEqual(recovered.value, { generation: 1 });
     assert.equal(recovered.source, 'backup');
@@ -80,5 +81,19 @@ test('overlapping writes are serialized per slot and always leave parseable JSON
     assert.deepEqual(await store.load('autosave'), { generation: 20 });
     const backup = JSON.parse(await fs.readFile(store.pathsFor('autosave').backup, 'utf8'));
     assert.deepEqual(backup, { generation: 19 });
+  });
+});
+
+test('loads share the slot lock so they never observe a replacement gap', async () => {
+  await withStore(async (store) => {
+    const operations = [];
+    for (let generation = 1; generation <= 20; generation += 1) {
+      operations.push(store.save('autosave', { generation }));
+      operations.push(store.load('autosave').then((value) => {
+        assert.deepEqual(value, { generation });
+      }));
+    }
+    await Promise.all(operations);
+    assert.deepEqual(await store.load('autosave'), { generation: 20 });
   });
 });

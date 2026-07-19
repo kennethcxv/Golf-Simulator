@@ -7,7 +7,7 @@ import { BALANCE } from './sim/balance.js';
 import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
 import {
   newEmpire, buyProperty, sellProperty, switchProperty, activeState,
-  empireUpdate, empireSnapshot, deserializeEmpire,
+  empireUpdate, empireSnapshot, deserializeEmpireWithReport,
 } from './sim/empire.js';
 import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
 import { formatMoney } from './core/utils.js';
@@ -27,7 +27,7 @@ import { quadTransform, uvAt } from './core/laptopProjection.js';
 import { makeAudio } from './core/audio.js';
 import { tickTutorial, tutorialFlag, skipTutorial, replayTutorial } from './sim/tutorial.js';
 import { makeMenu } from './screens/menu.js';
-import { saveData, loadData } from './core/storage.js';
+import { saveData, loadData, loadDataWithStatus } from './core/storage.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
 import { shopCondition, vacuumOwned, tickDeliveries } from './sim/shop.js';
 import { ownedWasher } from './sim/washing.js';
@@ -732,6 +732,43 @@ function bootEmpire(empire) {
   }
 }
 
+async function loadEmpireSave(key, label) {
+  let status;
+  try {
+    status = await loadDataWithStatus(key);
+  } catch (error) {
+    console.error(`${label} storage read failed`, error);
+    toast(`${label} could not be read. The current game was left untouched.`, 'warn');
+    return null;
+  }
+  if (status.value == null) {
+    toast(status.missing
+      ? `${label} is empty.`
+      : `${label} is damaged and no valid backup is available.`, 'warn');
+    return null;
+  }
+  try {
+    const loaded = deserializeEmpireWithReport(status.value);
+    const notices = [];
+    if (status.recovered) notices.push('recovered from its previous valid backup');
+    if (loaded.report.migrations.length) {
+      notices.push(`migrated ${loaded.report.migrations.length} save schema step(s)`);
+    }
+    if (loaded.report.recovered) {
+      notices.push(`repaired ${loaded.report.repairs.length} invalid save field(s)`);
+    }
+    if (notices.length) toast(`${label} ${notices.join(' and ')}.`, 'warn');
+    return loaded.empire;
+  } catch (error) {
+    console.warn(`${label} validation refused`, error);
+    const future = error?.code === 'SAVE_VERSION_UNSUPPORTED';
+    toast(future
+      ? `${label} was written by a newer build and was not changed.`
+      : `${label} could not be validated. The current game was left untouched.`, 'warn');
+    return null;
+  }
+}
+
 async function autosave() {
   if (!app.empire) return;
   try {
@@ -942,21 +979,26 @@ function openPauseMenu() {
         text: mode === 'save' ? 'Save here' : 'Load',
         onclick: async () => {
           if (mode === 'save') {
-            await saveData(slot, empireSnapshot(app.empire));
-            const st = app.state;
-            tutorialFlag(st, 'savedGame');
-            await saveData(`${slot}-meta`, {
-              name: st.clubName, when: hudClockText(), cash: st.cash,
-              cond: st.shop && st.shop.reno ? Math.round(st.shop.reno.condition) : null,
-              savedAt: Date.now(),
-            });
-            toast(`Saved to slot ${i + 1}.`);
-            setPage('save');
+            try {
+              await saveData(slot, empireSnapshot(app.empire));
+              const st = app.state;
+              tutorialFlag(st, 'savedGame');
+              await saveData(`${slot}-meta`, {
+                name: st.clubName, when: hudClockText(), cash: st.cash,
+                cond: st.shop && st.shop.reno ? Math.round(st.shop.reno.condition) : null,
+                savedAt: Date.now(),
+              });
+              toast(`Saved to slot ${i + 1}.`);
+              setPage('save');
+            } catch (error) {
+              console.error(`slot ${i + 1} save failed`, error);
+              toast(`Slot ${i + 1} could not be saved.`, 'warn');
+            }
           } else {
-            const data = await loadData(slot);
-            if (!data) { toast(`Slot ${i + 1} is empty.`, 'warn'); return; }
+            const empire = await loadEmpireSave(slot, `Slot ${i + 1}`);
+            if (!empire) return;
             closePauseMenu();
-            bootEmpire(deserializeEmpire(data));
+            bootEmpire(empire);
           }
         },
       });
@@ -1833,10 +1875,11 @@ function checkBigMoments() {
           el('button', {
             class: 'primary', text: 'Load autosave',
             onclick: async () => {
-              const data = await loadData('autosave');
+              const empire = await loadEmpireSave('autosave', 'Autosave');
+              if (!empire) return;
               close();
               failShown = false;
-              if (data) bootEmpire(deserializeEmpire(data));
+              bootEmpire(empire);
             },
           }),
           el('button', { class: 'danger', text: 'Exit to menu', onclick: () => { close(); exitToMenu(); } }),
@@ -1889,9 +1932,8 @@ function boot() {
       openMarketplace(app, handlers);
     },
     async onContinue() {
-      const data = await loadData('autosave');
-      if (data) bootEmpire(deserializeEmpire(data));
-      else toast('No autosave found.', 'warn');
+      const empire = await loadEmpireSave('autosave', 'Autosave');
+      if (empire) bootEmpire(empire);
     },
   });
 

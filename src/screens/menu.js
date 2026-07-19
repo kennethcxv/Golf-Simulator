@@ -1,7 +1,7 @@
 // FAIRWAY STATE — main menu screen.
 
 import { el } from '../ui/ui.js';
-import { loadData } from '../core/storage.js';
+import { listData } from '../core/storage.js';
 
 export function makeMenu(handlers) {
   const continueBtn = el('button', {
@@ -30,8 +30,11 @@ export function makeMenu(handlers) {
   );
 
   async function refresh() {
-    const auto = await loadData('autosave');
-    continueBtn.disabled = !auto;
+    try {
+      continueBtn.disabled = !(await listData()).includes('autosave');
+    } catch {
+      continueBtn.disabled = true;
+    }
   }
 
   function setVisible(v) {
