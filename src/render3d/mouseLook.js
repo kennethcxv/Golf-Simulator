@@ -1,7 +1,8 @@
-// Pure first-person look math. Kept THREE-free and side-effect-free so the
-// anti-180-spin guarantees can be pinned by node --test: a single pointer-lock
-// event can never whip the view around, no matter how large the browser's
-// (sometimes synthetic or reacquisition-inflated) movement delta is.
+// Pure first-person look math. Kept THREE-free so the anti-180-spin and
+// no-roll guarantees can be pinned by node --test: a single pointer-lock event
+// can never whip the view around, no matter how large the browser's (sometimes
+// synthetic or reacquisition-inflated) movement delta is, and the horizon can
+// never end up slanted.
 
 // A single real mouse move is never more than ~140px between frames; anything
 // larger is a reacquisition jump or a synthetic delta and is clamped.
@@ -21,4 +22,19 @@ export function applyMouseLook(yaw, pitch, movementX, movementY, sens = 1) {
   else if (ny < -Math.PI) ny += Math.PI * 2;
   const np = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch - my * PITCH_PER_PX * sens));
   return { yaw: ny, pitch: np };
+}
+
+// Point a camera the way a person looks: yaw, then pitch, and NO ROLL.
+//
+// Write all three angles and the order together, every time. Assigning only .x
+// and .y is what tilted the whole view: the management camera poses itself with
+// lookAt(), three.js re-derives that quaternion into the camera's CURRENT Euler
+// order, and in the default XYZ a roll-free orbit pose still lands a non-zero
+// .z — XYZ's third angle simply isn't roll about the view axis. Switching the
+// order to YXZ for walking reinterprets that leftover as literal roll, and the
+// horizon came up 4.85 degrees off with no input that could straighten it.
+//
+// Takes anything with a THREE.Euler-shaped rotation, so this stays node-testable.
+export function setFirstPersonOrientation(camera, yaw, pitch) {
+  camera.rotation.set(pitch, yaw, 0, 'YXZ');
 }
