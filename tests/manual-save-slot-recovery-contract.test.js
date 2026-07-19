@@ -11,3 +11,10 @@ test('manual load slots are discovered from save keys instead of optional metada
   assert.match(mainSource, /if \(mode === 'load'\) act\.disabled = !hasSave/);
   assert.match(mainSource, /Save found — details unavailable/);
 });
+
+test('successful load recovery notices wait until the opaque prewarm veil clears', () => {
+  assert.match(mainSource, /const loadNotices = new WeakMap\(\)/);
+  assert.match(mainSource, /loadNotices\.set\(loaded\.empire,/);
+  assert.match(mainSource, /startGame\(st, loadNotice\)/);
+  assert.match(mainSource, /veil\.hide\(\);[\s\S]*toast\(loadNotice, 'warn'\)/);
+});

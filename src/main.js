@@ -60,6 +60,11 @@ const app = {
   sectionsRef: null,
 };
 
+// Successful loads can surface migration/recovery details only after their new
+// scene's opaque prewarm veil has cleared. Keying by the deserialized empire
+// keeps the handoff explicit without changing every load caller's return shape.
+const loadNotices = new WeakMap();
+
 function editorActive() {
   return app.courseMode === 'editor';
 }
@@ -454,7 +459,7 @@ function destroyCurrentScene({ hideVeil = false } = {}) {
   return pendingSceneBarrier;
 }
 
-function startGame(state) {
+function startGame(state, loadNotice = null) {
   closePauseMenu(); // any pause overlay dies with the old world
   const generation = ++sceneStartGeneration;
   const veil = ensureLoadVeil();
@@ -475,16 +480,16 @@ function startGame(state) {
         veil.set('Finishing the previous course load');
         barrier.finally(() => {
           if (generation !== sceneStartGeneration) return;
-          startGameNow(state);
+          startGameNow(state, loadNotice, generation);
         });
         return;
       }
-      startGameNow(state);
+      startGameNow(state, loadNotice, generation);
     });
   });
 }
 
-function startGameNow(state) {
+function startGameNow(state, loadNotice = null, generation = sceneStartGeneration) {
   app.state = state;
   app.screen = 'game';
   app.scene3d = makeCourseScene(canvas, state);
@@ -658,6 +663,13 @@ function startGameNow(state) {
       if (app.scene3d !== sceneRef) return;
       app.prewarming = false;
       veil.hide();
+      if (loadNotice) {
+        setTimeout(() => {
+          if (generation === sceneStartGeneration && app.scene3d === sceneRef) {
+            toast(loadNotice, 'warn');
+          }
+        }, 460);
+      }
     });
 }
 
@@ -725,12 +737,15 @@ function exitToMenu() {
 // owned yet (fresh empire, or the whole portfolio was sold) — open the market.
 function bootEmpire(empire) {
   app.empire = empire;
+  const loadNotice = loadNotices.get(empire) || null;
+  loadNotices.delete(empire);
   const st = activeState(empire);
   if (st) {
-    startGame(st);
+    startGame(st, loadNotice);
   } else {
     exitToMenu();
     openMarketplace(app, handlers);
+    if (loadNotice) toast(loadNotice, 'warn');
   }
 }
 
@@ -770,7 +785,9 @@ async function loadEmpireSave(key, label) {
         notices.push('could not repair its primary copy');
       }
     }
-    if (notices.length) toast(`${label} ${notices.join(' and ')}.`, 'warn');
+    if (notices.length) {
+      loadNotices.set(loaded.empire, `${label} ${notices.join(' and ')}.`);
+    }
     return loaded.empire;
   } catch (error) {
     console.warn(`${label} validation refused`, error);
