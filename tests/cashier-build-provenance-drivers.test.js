@@ -103,6 +103,13 @@ test('success and blocker paths retain every driver-specific screenshot referenc
   assert.match(saveReload, /evidencePngs\.push\(file\)/);
   assert.match(saveReload, /evidencePngs\.push\(blockerPath\)/);
   assert.match(saveReload, /const finalized = finalizeCashierQaResult/);
+  const persistenceScanClick = saveReload.indexOf('await page.mouse.click(point.x, point.y)');
+  const persistenceScanRelease = saveReload.indexOf("state === 'WaitingForScan'", persistenceScanClick);
+  const persistenceFinalRelease = saveReload.indexOf("state === 'AllProductsScanned'", persistenceScanRelease);
+  assert.ok(persistenceScanClick >= 0
+      && persistenceScanRelease > persistenceScanClick
+      && persistenceFinalRelease > persistenceScanRelease,
+  'save/reload QA must wait for the visible scan arc to release input before clicking another product');
 
   const recoveryAccessibility = fs.readFileSync(DRIVERS[4], 'utf8');
   assert.match(recoveryAccessibility, /evidencePngs: evidence,/);

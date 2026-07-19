@@ -564,7 +564,18 @@ async function scanItems(page, count = Infinity) {
       const item = tx?.items.find((candidate) => candidate.uid === id);
       return !!item?.staged;
     }, uid, { timeout: 8000 });
-    await page.waitForTimeout(200);
+    // `staged` is durable as soon as the scanner commits, while the authored
+    // reader-to-bag arc still owns the cashier input gate. Wait for the flow
+    // boundary before aiming at another product so this persistence route uses
+    // the same physical one-click contract as acceptance and performance QA.
+    await page.waitForFunction(() => {
+      const register = window.__fw.scene3d.clubhouse().register;
+      const tx = register.getTx();
+      if (!tx) return false;
+      const remaining = tx.items.some((item) => !item.scanned);
+      const state = tx.checkoutFlow?.state;
+      return remaining ? state === 'WaitingForScan' : state === 'AllProductsScanned';
+    }, null, { timeout: 8000 });
   }
   return chosen;
 }
