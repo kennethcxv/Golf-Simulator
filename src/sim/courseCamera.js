@@ -334,7 +334,10 @@ function framePose(route, vecHole, property, coordinateSpace, heightAt, options)
   const authoredYawOffset = finite(vecHole?.camera?.frameYawOffset, 0);
   const yaw = Math.atan2(direction.x, direction.z) + Math.PI
     + finite(options.frameYawOffset, authoredYawOffset);
-  const pitch = clamp(finite(options.framePitch, 0.68), 0.55, 0.9);
+  const pitch = clamp(finite(
+    options.framePitch,
+    finite(vecHole?.camera?.framePitch, 0.68),
+  ), 0.55, 0.9);
   const verticalFov = positive(options.verticalFov, 50) * Math.PI / 180;
   const aspect = positive(options.aspect, 16 / 9);
   const safeX = clamp(positive(options.frameSafeX, 0.82), 0.4, 0.96);
@@ -380,8 +383,15 @@ function framePose(route, vecHole, property, coordinateSpace, heightAt, options)
 
 function greenFeaturePoints(metrics, vecHole, property, coordinateSpace, heightAt, options) {
   const points = [];
-  const routeStartT = clamp(finite(options.greenContextStartT, 0.86), 0.7, 0.94);
-  const contextHalfWidth = clamp(positive(options.greenContextHalfWidthYd, 26), 12, 48);
+  const authored = vecHole?.camera || {};
+  const routeStartT = clamp(finite(
+    options.greenContextStartT,
+    finite(authored.greenContextStartT, 0.86),
+  ), 0.7, 0.94);
+  const contextHalfWidth = clamp(positive(
+    options.greenContextHalfWidthYd,
+    positive(authored.greenContextHalfWidthYd, 26),
+  ), 12, 48);
   for (let index = 0; index <= 8; index++) {
     const t = routeStartT + (1 - routeStartT) * (index / 8);
     const center = sampleMetrics(metrics, t);
@@ -416,7 +426,10 @@ function greenFeaturePoints(metrics, vecHole, property, coordinateSpace, heightA
 function greenPose(metrics, vecHole, property, coordinateSpace, heightAt, options) {
   const routeT = clamp(finite(options.greenTargetT, 0.93), 0.84, 1);
   const target = targetAt(metrics, routeT, heightAt);
-  const yaw = routeYaw(metrics, 0.98, 24);
+  const yaw = routeYaw(metrics, 0.98, 24) + finite(
+    options.greenYawOffset,
+    finite(vecHole?.camera?.greenYawOffset, 0),
+  );
   // Keep the target complex at golf scale. The old 27-degree crane angle made
   // every green read as the same plate on a plan; a lower oblique view exposes
   // bunker lips, shoulders, and the authored putting-surface silhouette.
@@ -598,8 +611,17 @@ export function courseCameraPose(hole, mode = COURSE_CAMERA_MODES.FRAME_HOLE, op
 
   if (normalizedMode === COURSE_CAMERA_MODES.APPROACH) {
     const routeT = 0.86;
+    const defaultDist = clamp(metrics.length * 0.16, 50, 74);
+    const dist = clamp(positive(
+      options.approachDistYd,
+      positive(vecHole?.camera?.approachDistYd, defaultDist),
+    ), 36, 96);
+    const yawOffset = finite(
+      options.approachYawOffset,
+      finite(vecHole?.camera?.approachYawOffset, 0),
+    );
     return pose(normalizedMode, targetAt(metrics, routeT, heightAt),
-      routeYaw(metrics, routeT, 18), 0.29, clamp(metrics.length * 0.16, 50, 74), { routeT });
+      routeYaw(metrics, routeT, 18) + yawOffset, 0.29, dist, { routeT });
   }
 
   // Green view includes the final approach corridor and nearby hazards. This
@@ -629,10 +651,14 @@ export function courseCameraFlyoverPose(hole, progress, options = {}) {
   const p = clamp(progress, 0, 1);
   const routeT = p * p * (3 - 2 * p);
   const lift = Math.sin(p * Math.PI);
+  const yawOffset = finite(
+    options.flyoverYawOffset,
+    finite(options.vecHole?.camera?.flyoverYawOffset, 0),
+  );
   return pose(
     'flyover',
     targetAt(metrics, routeT, options.heightAt),
-    routeYaw(metrics, routeT, 22),
+    routeYaw(metrics, routeT, 22) + yawOffset,
     // Fly through the hole rather than above a miniature of it. Mid-flight
     // still rises for route awareness, but stays close enough for landform and
     // hazard relief to remain legible.

@@ -223,13 +223,54 @@ test('authored frame yaw isolates a short hole while preserving fitted bounds', 
   });
   const isolated = courseCameraPose(hole, COURSE_CAMERA_MODES.FRAME_HOLE, {
     ...WORLD,
-    vecHole: { line, camera: { frameYawOffset: 0.2 } },
+    vecHole: { line, camera: { frameYawOffset: 0.2, framePitch: 0.56 } },
   });
 
   assert.equal(base.frameClipped, false);
   assert.equal(isolated.frameClipped, false);
   assert.ok(Math.abs((isolated.yaw - base.yaw) - 0.2) < 1e-12,
     'authored yaw offset is applied exactly');
+  assert.equal(isolated.pitch, 0.56, 'authored pitch keeps a short hole oblique');
+});
+
+test('authored short-hole camera metadata isolates approach, green, and flyover views', () => {
+  const hole = { tee: { x: 0, z: 0 }, pin: { x: 0, z: 180 } };
+  const line = [{ x: 0, y: 0 }, { x: 0, y: 180 }];
+  const baseVec = { line };
+  const camera = {
+    approachYawOffset: -0.18,
+    greenYawOffset: -0.14,
+    flyoverYawOffset: -0.12,
+    approachDistYd: 44,
+    greenContextStartT: 0.9,
+    greenContextHalfWidthYd: 21,
+  };
+  const authoredVec = { line, camera };
+
+  const baseApproach = courseCameraPose(hole, COURSE_CAMERA_MODES.APPROACH, {
+    ...WORLD, vecHole: baseVec,
+  });
+  const authoredApproach = courseCameraPose(hole, COURSE_CAMERA_MODES.APPROACH, {
+    ...WORLD, vecHole: authoredVec,
+  });
+  assert.ok(Math.abs((authoredApproach.yaw - baseApproach.yaw) + 0.18) < 1e-12);
+  assert.equal(authoredApproach.dist, 44);
+
+  const baseGreen = courseCameraPose(hole, COURSE_CAMERA_MODES.GREEN, {
+    ...WORLD, vecHole: baseVec,
+  });
+  const authoredGreen = courseCameraPose(hole, COURSE_CAMERA_MODES.GREEN, {
+    ...WORLD, vecHole: authoredVec,
+  });
+  assert.ok(Math.abs((authoredGreen.yaw - baseGreen.yaw) + 0.14) < 1e-12);
+
+  const baseFlyover = courseCameraFlyoverPose(hole, 0.5, {
+    ...WORLD, vecHole: baseVec,
+  });
+  const authoredFlyover = courseCameraFlyoverPose(hole, 0.5, {
+    ...WORLD, vecHole: authoredVec,
+  });
+  assert.ok(Math.abs((authoredFlyover.yaw - baseFlyover.yaw) + 0.12) < 1e-12);
 });
 
 test('landing and approach presets retain golf scale instead of reverting to aerial plans', () => {

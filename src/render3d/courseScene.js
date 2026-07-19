@@ -80,9 +80,12 @@ const ELEV_FT_TO_YD = (1 / 3) * 1.5; // real feet→yards with 1.5x readability 
 const METERS_TO_YARDS = 1.0936133;
 // Default water carves reach 4.5 ft (2.25 yd after readability exaggeration)
 // and bunker bowls reach about 1.4 yd. Keep the coarse countryside underlay
-// below every authored core plus interpolation headroom so it cannot punch
-// through the playable terrain as a false turf island.
-const ENV_RING_INTERIOR_TUCK_YD = 4;
+// below every authored core plus the coarse underlay's interpolation headroom
+// so it cannot punch through the playable terrain as a false turf island.
+// Eight yards is intentionally larger than the carve itself: the ring spans
+// ~35-yard quads, whose interpolated base can sit several yards above a local
+// hollow even when each source vertex sampled the course correctly.
+const ENV_RING_INTERIOR_TUCK_YD = 8;
 // The ring meets the property at its own edge height; this is only enough drop
 // to keep the two surfaces from z-fighting along the seam.
 const ENV_RING_SEAM_BIAS_YD = 0.15;
@@ -1024,7 +1027,7 @@ export function makeCourseScene(canvas, state) {
           float modeSel = 0.0;
           bool followFlow = false;
           if (zone < 0.5) {        // OUT — native scrub
-            col = FW_STYLIZE(dScrub, vec3(0.160, 0.205, 0.095)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
+            col = FW_STYLIZE(dScrub, vec3(0.170, 0.225, 0.100)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
           } else if (zone < 1.5) { // ROUGH
             col = colRough; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.96;
           } else if (zone < 2.5) { // FAIRWAY
@@ -1042,7 +1045,7 @@ export function makeCourseScene(canvas, state) {
             col = colSand;
             gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
           } else if (zone < 6.5) { // WATER bed
-            col = FW_STYLIZE(dScrub, vec3(0.10, 0.16, 0.07)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.85;
+            col = FW_STYLIZE(dScrub, vec3(0.13, 0.205, 0.09)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.85;
           } else if (zone < 7.5) { // PATH — a dusty worn shoulder; the ribbon mesh is the pavement
             col = colRough; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.95;
           } else if (zone < 8.5) { // FRINGE — a shade deeper than green, tight cut
@@ -1107,7 +1110,7 @@ export function makeCourseScene(canvas, state) {
           // without softening anything that owns an SDF channel.
           vec3 heavyBand = FW_STYLIZE(dRough, vec3(0.170, 0.225, 0.085));
           heavyBand = mix(heavyBand, vec3(0.30, 0.29, 0.12), fwNoise(cellUv * 2.7) * 0.16);
-          vec3 scrubBand = FW_STYLIZE(dScrub, vec3(0.160, 0.205, 0.095));
+          vec3 scrubBand = FW_STYLIZE(dScrub, vec3(0.170, 0.225, 0.100));
           const float bandFeatherYd = 1.25;
           if (zone < 0.5) {
             // native scrub, fading back toward the heavy band on its inner edge
@@ -1166,10 +1169,12 @@ export function makeCourseScene(canvas, state) {
             col *= 1.0 - smoothstep(0.58, 1.0, moisture) * 0.2;
             if (disSev > 0.03) {
               float spots = fwNoise(cellUv * (disType < 1.5 ? 6.5 : 3.2) + disType * 31.0);
-              float cut = 1.0 - disSev * 0.6;
-              float blot = smoothstep(cut, cut + 0.12, spots);
-              vec3 blotch = disType < 1.5 ? vec3(0.64, 0.58, 0.34) : vec3(0.48, 0.38, 0.22);
-              col = mix(col, blotch, blot * 0.5);
+              float cut = 1.0 - disSev * 0.56;
+              float blot = smoothstep(cut, cut + 0.16, spots);
+              // Turf stress stays olive and embedded in the sward. Pale,
+              // high-contrast flecks read as litter from green-camera height.
+              vec3 blotch = disType < 1.5 ? vec3(0.45, 0.43, 0.22) : vec3(0.39, 0.32, 0.18);
+              col = mix(col, blotch, blot * 0.34);
             }
           }
 
@@ -1234,6 +1239,7 @@ export function makeCourseScene(canvas, state) {
   };
 
   const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+  terrain.name = 'CourseTerrain';
   terrain.receiveShadow = true;
   terrain.castShadow = true; // rolling land self-shadows at low sun
   scene.add(terrain);
@@ -1318,11 +1324,12 @@ export function makeCourseScene(canvas, state) {
         `{
           vec4 sampledDiffuseColor = texture2D( map, vMapUv * 90.0 );
           float luma = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-          diffuseColor.rgb = (0.46 + luma * 1.28) * vec3(0.160, 0.205, 0.095);
+          diffuseColor.rgb = (0.46 + luma * 1.28) * vec3(0.170, 0.225, 0.100);
         }`,
       );
     };
     envRing = new THREE.Mesh(geo, mat);
+    envRing.name = 'CourseEnvironmentRing';
     envRing.receiveShadow = true;
     scene.add(envRing);
 
@@ -1782,13 +1789,15 @@ export function makeCourseScene(canvas, state) {
       guardCourseWaterReflection(water);
       water.material.uniforms.size.value = 5.5; // ripple scale
       // Water addon multiplies the reflection into its own colour; without a
-      // floor a tree-shaded pond reflects dark canopy and reads BLACK. Inject a
-      // minimum toward waterColor so every pond stays legibly blue-green.
+      // floor a tree-shaded pond reflects dark canopy and reads BLACK. Keep a
+      // restrained reflection range around waterColor as well: the bright-sky
+      // half of a pond otherwise meets the bank reflection in a hard diagonal
+      // that reads like a triangulation seam from the editor cameras.
       water.material.onBeforeCompile = (sh) => {
         sh.fragmentShader = sh.fragmentShader.replace(
           'gl_FragColor = vec4( outgoingLight, alpha );',
-          `vec3 courseReflection = min( outgoingLight, waterColor * 1.7 + vec3( 0.10 ) );
-          gl_FragColor = vec4( max( mix( waterColor * 0.76, courseReflection, 0.58 ), waterColor * 0.46 ), alpha );`,
+          `vec3 courseReflection = min( outgoingLight, waterColor * 1.25 + vec3( 0.05 ) );
+          gl_FragColor = vec4( max( mix( waterColor * 0.84, courseReflection, 0.18 ), waterColor * 0.58 ), alpha );`,
         );
       };
       water.position.set(cx, level, cz);
@@ -2296,14 +2305,14 @@ export function makeCourseScene(canvas, state) {
   // geometry within ~12yd, surface-gated (short on tees/fairway, tall on
   // rough/native, none on sand/water/paths), wind-swayed in the vertex shader.
   // Only alive on foot / in playtest — the overview never pays for it.
-  const GRASS_COUNT = 12000; // bounded near-camera sward; at most ~336k blade tris
+  const GRASS_COUNT = 12000; // bounded near-camera sward; at most ~240k blade tris
   const GRASS_RADIUS = 12; // yards from camera; texture carries the middle distance
   let grassMesh = null;
   let grassActive = false;
 
   function bladeGeometry() {
-    // One instance is a small patch, not one stem. Seven offset ribbons fill
-    // the lattice without multiplying the number of submitted instances.
+    // One instance is a small patch, not one stem. Five irregular offset
+    // ribbons fill the dense lattice without the old seven-point star grammar.
     const g = new THREE.BufferGeometry();
     const seg = 2;
     const halfW = 0.035;
@@ -2317,8 +2326,6 @@ export function makeCourseScene(canvas, state) {
       [0.28, -0.20, 2.18, 0.94, 0.10],
       [-0.24, 0.27, 4.36, 0.80, 0.06],
       [0.32, 0.28, 5.25, 0.76, 0.09],
-      [0.00, 0.36, 3.18, 0.68, 0.05],
-      [0.08, -0.36, 1.66, 0.72, 0.07],
     ];
     for (const [ox, oz, ang, bladeH, lean] of blades) {
       const dx = Math.cos(ang);
@@ -2864,7 +2871,7 @@ export function makeCourseScene(canvas, state) {
   const editorGroundTargets = [terrain];
   // the diffuse map multiplies DOWN, so these read two shades lighter in place
   const PATH_MATERIALS = {
-    asphalt: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xc2b59b, roughness: 0.98 }),
+    asphalt: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xb0a58e, roughness: 0.98 }),
     concrete: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xcac6bd, roughness: 0.9 }),
     gravel: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xd9cba4, roughness: 1 }),
     dirt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xc09a6a, roughness: 1 }),

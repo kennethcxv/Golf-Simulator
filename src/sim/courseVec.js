@@ -80,21 +80,37 @@ export function makeVecGreen(cx, cy, rYd, elong, angle, seed, authoredOutline = 
   return { cx, cy, pts, fringe: 1.0, raise: 1.6, pins: [] };
 }
 
-export function makeVecBunker(cx, cy, rYd, seed, { depth = 2.4, lobes = 3, stretch = 1.0, angle = 0 } = {}) {
+export function makeVecBunker(cx, cy, rYd, seed, {
+  depth = 2.4, lobes = 3, stretch = 1.0, angle = 0, outline: authoredOutline = null,
+} = {}) {
   // Freeform lobed silhouette: enough irregularity for a hand-shaped
   // cloud/kidney, but with a bounded radius so neighboring vertices cannot
   // pinch around a false turf island or form an unmaintainable sand neck.
   const pts = [];
-  const n = 8 + Math.floor(hashN(seed * 17.7) * 4);
   const rc = rYd / CELL_YD;
+  const outline = Array.isArray(authoredOutline) && authoredOutline.length >= 8
+    ? authoredOutline.filter((point) => (
+      Array.isArray(point) && Number.isFinite(point[0]) && Number.isFinite(point[1])
+    ))
+    : null;
+  const ca = Math.cos(angle);
+  const sa = Math.sin(angle);
+  if (outline?.length >= 8) {
+    for (const [across, front] of outline) {
+      const ex = across * rc * stretch;
+      const ey = front * rc;
+      pts.push({ x: cx + ex * ca - ey * sa, y: cy + ex * sa + ey * ca });
+    }
+    return { pts, depth, lip: 0.9 };
+  }
+
+  const n = 8 + Math.floor(hashN(seed * 17.7) * 4);
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;
     const lobe = Math.sin(a * lobes + seed) * 0.18;
     const j = 0.74 + 0.38 * hashN(seed * 13 + i * 3.7) + lobe;
     const ex = Math.cos(a) * rc * j * stretch;
     const ey = Math.sin(a) * rc * j;
-    const ca = Math.cos(angle);
-    const sa = Math.sin(angle);
     pts.push({ x: cx + ex * ca - ey * sa, y: cy + ex * sa + ey * ca });
   }
   return { pts, depth, lip: 0.9 };
