@@ -28,7 +28,10 @@ const VISUALS = {
   polo2: visual('folded-polo', { model: 'checkout_product_folded_polo', tint: 0x5b7f9e, tier: 2, barcode: 'apparel-tag', size: [0.2000, 0.0925, 0.1650] }),
   cap1: visual('cap', { model: 'checkout_product_cap', tint: 0x315c43, tier: 1, barcode: 'apparel-tag', size: [0.2081, 0.1235, 0.2100] }),
   jacket2: visual('folded-jacket', { model: 'checkout_product_folded_jacket', tint: 0x33455e, tier: 2, barcode: 'apparel-tag', size: [0.2150, 0.0947, 0.1822] }),
-  shoe1: visual('shoe-pair', { model: 'checkout_product_shoe_pair', tint: 0xf0ead8, tier: 2, barcode: 'hang-tag', size: [0.2900, 0.0998, 0.2298], grip: 'medium' }),
+  // The loose pair on the shoe-wall boards is a try-on sample. The inventory
+  // unit a shopper carries and scans is the authored Fairhollow retail carton,
+  // so its package identity cannot disappear between shelf and checkout.
+  shoe1: visual('shoe-box', { model: 'checkout_product_shoe_box', tint: 0xf0ead8, tier: 2, barcode: 'package-side', size: [0.3100, 0.1150, 0.1900], grip: 'medium' }),
   sock1: visual('sock-pair', { model: 'checkout_product_sock_pair', tint: 0xe8e0cf, tier: 1, barcode: 'apparel-tag', size: [0.1500, 0.0731, 0.1269] }),
 
   tees1: visual('tee-pouch', { model: 'checkout_product_tee_pouch', tier: 1, barcode: 'package-back', size: [0.1300, 0.1200, 0.0460] }),
@@ -40,6 +43,17 @@ const VISUALS = {
 
   water1: visual('water-bottle', { model: 'provisions_fairway_spring_water', raw: true, barcode: 'package-back', size: [0.068, 0.218, 0.068] }),
   snack1: visual('snack-pouch', { model: 'provisions_bunker_bites_chips', raw: true, barcode: 'package-back', size: [0.160, 0.195, 0.0715] }),
+
+  // Equipment and decor are physical deliveries even though they never enter a
+  // customer basket. Their descriptors make the opened freight truthful instead
+  // of falling through to the old category-coloured cube.
+  vac1: visual('packed-fixture', { model: 'delivery_fixture_product_vacuum', raw: true, barcode: 'package-back', size: [0.58, 0.36, 0.37], grip: 'two-hand', oversize: true }),
+  plant1: visual('packed-fixture', { model: 'delivery_fixture_product_plant', raw: true, barcode: 'package-back', size: [0.34, 0.28, 0.34], grip: 'medium' }),
+  poster1: visual('packed-fixture', { model: 'delivery_fixture_product_poster', raw: true, barcode: 'package-back', size: [0.56, 0.07, 0.37], grip: 'medium' }),
+  board1: visual('packed-fixture', { model: 'delivery_fixture_product_events_board', raw: true, barcode: 'package-back', size: [0.58, 0.10, 0.36], grip: 'two-hand', oversize: true }),
+  light1: visual('packed-fixture', { model: 'delivery_fixture_product_pendant', raw: true, barcode: 'package-back', size: [0.36, 0.32, 0.36], grip: 'medium' }),
+  rug1: visual('packed-furniture', { model: 'packed_product_rug1', raw: true, barcode: 'package-back', size: [1.18, 0.24, 0.24], grip: 'two-hand', oversize: true }),
+  lounge1: visual('packed-furniture', { model: 'packed_product_lounge1', raw: true, barcode: 'package-back', size: [1.18, 0.80, 0.78], grip: 'two-hand', oversize: true }),
 };
 
 function visual(kind, options = {}) {
@@ -69,9 +83,17 @@ const UNKNOWN = visual('unknown-product', { barcode: 'package-back', size: [0.16
 
 export function catalogProductVisual(sku) {
   if (!sku) return UNKNOWN;
-  if (VISUALS[sku.id]) return VISUALS[sku.id];
+  const explicit = explicitCatalogProductVisual(sku);
+  if (explicit) return explicit;
   if (/head\s*cover/i.test(`${sku.id || ''} ${sku.name || ''}`)) return HEAD_COVER;
   return UNKNOWN;
+}
+
+export function explicitCatalogProductVisual(sku) {
+  const id = typeof sku === 'string' ? sku : sku?.id;
+  return id && Object.prototype.hasOwnProperty.call(VISUALS, id)
+    ? VISUALS[id]
+    : null;
 }
 
 export function explicitCatalogVisualIds() {
@@ -283,6 +305,16 @@ function buildSimpleProduct(root, descriptor, merch, F) {
         }
       }
       break;
+    case 'shoe-box':
+      if (!model) {
+        const box = F.add(new THREE.BoxGeometry(w, h, d), F.materials.charcoal, 'RetailShoeBox');
+        box.position.y = h / 2;
+        const lid = F.add(new THREE.BoxGeometry(w + 0.004, h * 0.22, d + 0.004), F.materials.green, 'RetailShoeBoxLid');
+        lid.position.y = h * 0.91;
+        const label = F.add(new THREE.BoxGeometry(w * 0.46, h * 0.42, 0.003), F.materials.cream, 'RetailShoeBoxLabel');
+        label.position.set(0, h * 0.48, d / 2 + 0.002);
+      }
+      break;
     case 'sock-pair':
       for (const z of [-0.028, 0.028]) {
         const roll = F.add(new THREE.CylinderGeometry(0.035, 0.035, 0.13, 10), F.materials.cream, `SockRoll_${z}`);
@@ -368,6 +400,15 @@ function buildSimpleProduct(root, descriptor, merch, F) {
         pouch.position.y = h / 2;
       }
       break;
+    case 'packed-fixture':
+    case 'packed-furniture':
+      if (!model) {
+        const pack = F.add(new THREE.BoxGeometry(w, h, d), F.materials.kraft, 'PackedFreightFallback');
+        pack.position.y = h / 2;
+        const strap = F.add(new THREE.BoxGeometry(w * 1.01, Math.min(0.035, h * 0.12), d * 1.01), F.materials.green, 'PackedFreightStrap');
+        strap.position.y = h * 0.55;
+      }
+      break;
     case 'headcover':
       {
         const hood = F.add(new THREE.CapsuleGeometry(w * 0.34, h * 0.34, 5, 10), F.materials.green, 'HeadcoverHood');
@@ -387,7 +428,14 @@ function buildSimpleProduct(root, descriptor, merch, F) {
   }
 }
 
-function makeAnchor(root, descriptor, resources, materials, authoredAnchor = null) {
+function makeAnchor(
+  root,
+  descriptor,
+  resources,
+  materials,
+  authoredAnchor = null,
+  { includeCheckoutSwingTag = true } = {},
+) {
   const bounds = visibleBounds(root);
   const size = bounds.getSize(new THREE.Vector3());
   const anchor = new THREE.Object3D();
@@ -415,7 +463,7 @@ function makeAnchor(root, descriptor, resources, materials, authoredAnchor = nul
   if (descriptor.barcodeSurface !== 'package-back') anchor.rotation.y = Math.PI;
   root.add(anchor);
 
-  if (tagSurface) {
+  if (tagSurface && includeCheckoutSwingTag) {
     const F = factory(anchor, resources, materials);
     const backing = F.add(new THREE.PlaneGeometry(0.078, 0.046), materials.kraft, 'ProductSwingTag', anchor);
     backing.position.z = -0.0015;
@@ -432,23 +480,58 @@ function makeGripAnchors(root, descriptor) {
   }
   const bounds = visibleBounds(root);
   const size = bounds.getSize(new THREE.Vector3());
-  const primary = new THREE.Object3D();
-  primary.name = 'ANCHOR_ProductGripPrimary';
-  primary.position.set(0, bounds.min.y + Math.min(size.y * 0.55, 0.11), 0);
-  root.add(primary);
+  const primary = authoredPrimary || new THREE.Object3D();
+  if (!authoredPrimary) {
+    primary.name = 'ANCHOR_ProductGripPrimary';
+    primary.position.set(0, bounds.min.y + Math.min(size.y * 0.55, 0.11), 0);
+    root.add(primary);
+  }
   let secondary = null;
   if (descriptor.gripMode === 'two-hand') {
     secondary = new THREE.Object3D();
     secondary.name = 'ANCHOR_ProductGripSecondary';
-    secondary.position.copy(primary.position);
-    secondary.position.x -= Math.min(0.24, size.x * 0.24);
+    if (authoredPrimary) {
+      // Packed fixture and furniture GLBs own an exact PICKUP_TARGET but only one
+      // hand socket. Preserve that authored primary pivot. The support hand follows
+      // its orientation along the product's widest horizontal axis, expressed back
+      // in root-local metres so fitting/parent transforms cannot distort spacing.
+      root.updateMatrixWorld(true);
+      const primaryWorld = authoredPrimary.getWorldPosition(new THREE.Vector3());
+      const primaryLocal = root.worldToLocal(primaryWorld.clone());
+      const targetWorldRotation = authoredPrimary.getWorldQuaternion(new THREE.Quaternion());
+      const rootWorldRotation = root.getWorldQuaternion(new THREE.Quaternion());
+      const majorAxis = size.x >= size.z
+        ? new THREE.Vector3(-1, 0, 0)
+        : new THREE.Vector3(0, 0, -1);
+      const rootDirection = majorAxis
+        .applyQuaternion(targetWorldRotation)
+        .applyQuaternion(rootWorldRotation.invert())
+        .normalize();
+      const horizontalExtent = Math.max(size.x, size.z);
+      secondary.position.copy(primaryLocal).addScaledVector(
+        rootDirection,
+        Math.min(0.24, horizontalExtent * 0.24),
+      );
+    } else {
+      secondary.position.copy(primary.position);
+      secondary.position.x -= Math.min(0.24, size.x * 0.24);
+    }
     root.add(secondary);
   }
   return { primary, secondary };
 }
 
-export function buildCatalogProductProxy({ sku, merch = null, mats = null, resources = null } = {}) {
+export function buildCatalogProductProxy({
+  sku,
+  merch = null,
+  mats = null,
+  resources = null,
+  context = 'checkout',
+} = {}) {
   const descriptor = catalogProductVisual(sku);
+  const packedDeliveryContext = context === 'delivery-packed'
+    || context === 'delivery'
+    || context === 'packed';
   const root = new THREE.Group();
   root.name = `CheckoutProduct_${sku && sku.id ? sku.id : 'unknown'}`;
   const materials = palette(mats, resources);
@@ -469,6 +552,7 @@ export function buildCatalogProductProxy({ sku, merch = null, mats = null, resou
     resources,
     materials,
     root.getObjectByName('ANCHOR_ProductBarcode') || root.getObjectByName('BARCODE_AREA'),
+    { includeCheckoutSwingTag: !packedDeliveryContext },
   );
   const gripAnchors = makeGripAnchors(root, descriptor);
   root.userData.catalogVisual = descriptor;
@@ -476,6 +560,7 @@ export function buildCatalogProductProxy({ sku, merch = null, mats = null, resou
   root.userData.separateHandoff = descriptor.separateHandoff;
   root.userData.gripPrimary = gripAnchors.primary;
   root.userData.gripSecondary = gripAnchors.secondary;
+  root.userData.catalogProductContext = context;
   root.traverse((object) => { if (object.isMesh) object.castShadow = true; });
   return { root, descriptor, barcodeAnchor, gripAnchors };
 }
@@ -565,6 +650,10 @@ export function drawProductThumbnail(ctx, sku, x, y, active = true, size = 16) {
     ctx.beginPath(); ctx.ellipse(x + 11 * k, y + 10 * k, 4 * k, 1.5 * k, 0.15, 0, Math.PI * 2); ctx.fill();
   } else if (descriptor.kind === 'shoe-pair') {
     path(ctx, [[x + 2 * k, y + 10 * k], [x + 6 * k, y + 9 * k], [x + 9 * k, y + 5 * k], [x + 11 * k, y + 7 * k], [x + 14 * k, y + 10 * k], [x + 13 * k, y + 13 * k], [x + 3 * k, y + 13 * k]], true); ctx.fill();
+  } else if (descriptor.kind === 'shoe-box') {
+    ctx.strokeRect(x + 2 * k, y + 5 * k, 12 * k, 8 * k);
+    ctx.fillRect(x + 2 * k, y + 4 * k, 12 * k, 2 * k);
+    ctx.strokeRect(x + 8.5 * k, y + 7 * k, 4 * k, 3 * k);
   } else if (descriptor.kind === 'sock-pair') {
     path(ctx, [[x + 4 * k, y + 2 * k], [x + 9 * k, y + 2 * k], [x + 9 * k, y + 9 * k], [x + 13 * k, y + 11 * k], [x + 12 * k, y + 14 * k], [x + 7 * k, y + 12 * k], [x + 4 * k, y + 9 * k]], true); ctx.fill();
   } else if (descriptor.kind === 'tee-pouch') {

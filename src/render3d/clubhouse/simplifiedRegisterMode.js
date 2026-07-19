@@ -729,7 +729,10 @@ export function createRegisterMode(B) {
   const LOOK_PITCH_MAX = 0.16;
 
   function updateLookTarget(event) {
-    if (accessibilityPrefs.reducedCameraMotion) {
+    // Product clicks must not steer the composed scan view toward the last
+    // item and push the next edge item off-screen. Keep this workspace fixed;
+    // the cursor still raycasts every product without moving the camera.
+    if (accessibilityPrefs.reducedCameraMotion || workspace === 'scan') {
       lookTargetYaw = 0;
       lookTargetPitch = 0;
       return;
@@ -4776,9 +4779,19 @@ export function createRegisterMode(B) {
       camera.updateProjectionMatrix();
     }
     // the mouse leans the head around the pose — eased, so it reads as a neck
-    const ease = Math.min(1, dt * 7);
-    lookYaw += (lookTargetYaw - lookYaw) * ease;
-    lookPitch += (lookTargetPitch - lookPitch) * ease;
+    // Scanning is a fixed working frame: a click near one edge cannot pan the
+    // remaining products out of reach. Other workspaces retain the eased neck
+    // motion used to glance between their hardware and customer targets.
+    if (workspace === 'scan') {
+      lookYaw = 0;
+      lookPitch = 0;
+      lookTargetYaw = 0;
+      lookTargetPitch = 0;
+    } else {
+      const ease = Math.min(1, dt * 7);
+      lookYaw += (lookTargetYaw - lookYaw) * ease;
+      lookPitch += (lookTargetPitch - lookPitch) * ease;
+    }
     focusOn({
       ...cameraPose,
       yaw: cameraPose.yaw + lookYaw,

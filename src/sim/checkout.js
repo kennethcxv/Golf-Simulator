@@ -7,7 +7,7 @@
 
 import { addRevenue } from './economy.js';
 import { skuById } from '../data/shopItems.js';
-import { shelfCapacity } from './shop.js';
+import { shelfCapacity, skuDisplayIsPlaced } from './shop.js';
 
 // --- units in flight --------------------------------------------------------------
 // A unit a shopper is carrying is off the shelf but not yet sold. That in-between
@@ -29,6 +29,7 @@ export function heldUnits(state) {
 export function pickFromShelf(state, skuId, uid = null) {
   const inv = state.shop.inventory[skuId];
   if (!inv || inv.shelf <= 0) return { ok: false, reason: 'Nothing on the display.' };
+  if (!skuDisplayIsPlaced(state, skuId)) return { ok: false, reason: 'That display is stored.' };
   if (uid && heldUnits(state).some((unit) => unit.uid === uid)) {
     return { ok: false, reason: 'That held UID is already in use.' };
   }
@@ -51,7 +52,7 @@ export function returnToShelf(state, skuId, uid = null) {
   // A held unit still belongs to the shop even when its display was refilled
   // while the customer had it. Fill the real fixture first, then preserve the
   // overflow in back stock instead of silently deleting it at the capacity cap.
-  const location = inv.shelf < cap ? 'shelf' : 'back';
+  const location = skuDisplayIsPlaced(state, skuId) && inv.shelf < cap ? 'shelf' : 'back';
   inv[location] = (inv[location] || 0) + 1;
   if (uid) {
     heldUnits(state).splice(heldIndex, 1);
