@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-18T07:21:46.411Z",
+  "generatedAt": "2026-07-18T08:51:54.497Z",
   "generator": "tools/qa/assets-51-100-audit.mjs",
   "nodeVersion": "v22.14.0",
-  "phase": "PHASE_1_DISCOVERY",
-  "status": "PHASE_1_DISCOVERY_NON_FINAL",
+  "phase": "PRODUCTION_IN_PROGRESS",
+  "status": "PRODUCTION_IN_PROGRESS_NON_FINAL",
   "final": false,
   "repositoryRoot": ".",
   "assetRange": [
@@ -55,10 +55,10 @@
     "plannedProductionArtifactCountIncludes": "source, canonical GLB, runtime GLB, runtime integration, and optional first-person paths",
     "plannedModelArtifactCount": 174,
     "plannedGlbArtifactCount": 116,
-    "plannedProductionArtifactsPresentCount": 0,
-    "plannedProductionCompleteAssetCount": 0,
+    "plannedProductionArtifactsPresentCount": 40,
+    "plannedProductionCompleteAssetCount": 10,
     "selectedCandidateStructurallyAcceptedCount": 0,
-    "structurallyAcceptedCount": 0,
+    "structurallyAcceptedCount": 10,
     "structurallyAcceptedCountUnit": "assets whose complete planned world and required first-person production artifacts pass structural audit",
     "finalProductionAcceptedCount": 0
   },
@@ -99,8 +99,8 @@
         "kind": "source",
         "path": "asset_sources/blender/assets_51_100/sheet_06/asset_051_finished_clubhouse_exterior.blend",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 428620
       },
       "selectedCanonicalGlb": {
         "kind": "canonicalGlb",
@@ -122,7 +122,7 @@
           "path": "src/render3d/courseScene.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 222596
+          "fileSizeBytes": 240128
         },
         {
           "kind": "runtimeIntegrationFile",
@@ -133,7 +133,7 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
+        "source": "planned-production",
         "canonicalGlb": "current-candidate",
         "runtimeGlb": "current-candidate",
         "runtimeIntegrationFiles": "current-candidate"
@@ -156,29 +156,29 @@
           "kind": "source",
           "path": "asset_sources/blender/assets_51_100/sheet_06/asset_051_finished_clubhouse_exterior.blend",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 428620
         },
         {
           "kind": "canonicalGlb",
           "path": "Assets/assets_51_100/glb/sheet_06/asset_051_finished_clubhouse_exterior.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 559744
         },
         {
           "kind": "runtimeGlb",
           "path": "vendor/models/assets_51_100/sheet_06/asset_051_finished_clubhouse_exterior.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 559744
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/render3d/assets51to100/asset_051_finished_clubhouse_exterior.js",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 2211
         }
       ],
       "plannedBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_051_finished_clubhouse_exterior.blend",
@@ -263,16 +263,15 @@
       ],
       "currentVisualQuality": "UNVERIFIED_REUSE_CANDIDATE_INPUT",
       "currentQuality": "unverified-candidate-or-missing",
-      "currentTechnicalQuality": "Reuse candidate requires structural work: MISSING_BLENDER_SOURCE, MISSING_EXPECTED_COLLISION, MISSING_REQUIRED_SOCKET.",
+      "currentTechnicalQuality": "Reuse candidate requires structural work: MISSING_EXPECTED_COLLISION, MISSING_REQUIRED_SOCKET.",
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
-      "requiredWork": "Build, integrate and verify FINISHED CLUBHOUSE EXTERIOR against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
+      "requiredWork": "Build, integrate and verify FINISHED CLUBHOUSE EXTERIOR against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: none.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
-      "structurallyAccepted": false,
+      "structurallyAccepted": true,
       "finalProductionAccepted": false,
       "auditFlags": [
-        "MISSING_BLENDER_SOURCE",
         "MISSING_EXPECTED_COLLISION",
         "MISSING_REQUIRED_SOCKET",
         "REUSE_CANDIDATE_NOT_FINAL"
@@ -315,8 +314,8 @@
         "kind": "source",
         "path": "asset_sources/blender/assets_51_100/sheet_06/asset_052_dilapidated_clubhouse_exterior.blend",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 227235
       },
       "selectedCanonicalGlb": {
         "kind": "canonicalGlb",
@@ -356,7 +355,7 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
+        "source": "planned-production",
         "canonicalGlb": "current-candidate",
         "runtimeGlb": "current-candidate",
         "runtimeIntegrationFiles": "current-candidate"
@@ -380,29 +379,29 @@
           "kind": "source",
           "path": "asset_sources/blender/assets_51_100/sheet_06/asset_052_dilapidated_clubhouse_exterior.blend",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 227235
         },
         {
           "kind": "canonicalGlb",
           "path": "Assets/assets_51_100/glb/sheet_06/asset_052_dilapidated_clubhouse_exterior.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 237608
         },
         {
           "kind": "runtimeGlb",
           "path": "vendor/models/assets_51_100/sheet_06/asset_052_dilapidated_clubhouse_exterior.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 237608
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/render3d/assets51to100/asset_052_dilapidated_clubhouse_exterior.js",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 2328
         }
       ],
       "plannedBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_052_dilapidated_clubhouse_exterior.blend",
@@ -487,16 +486,15 @@
       ],
       "currentVisualQuality": "UNVERIFIED_REUSE_CANDIDATE_INPUT",
       "currentQuality": "unverified-candidate-or-missing",
-      "currentTechnicalQuality": "Reuse candidate requires structural work: MISSING_BLENDER_SOURCE, MISSING_EXPECTED_COLLISION, MISSING_REQUIRED_SOCKET.",
+      "currentTechnicalQuality": "Reuse candidate requires structural work: MISSING_EXPECTED_COLLISION, MISSING_REQUIRED_SOCKET.",
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
-      "requiredWork": "Build, integrate and verify DILAPIDATED CLUBHOUSE EXTERIOR against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
+      "requiredWork": "Build, integrate and verify DILAPIDATED CLUBHOUSE EXTERIOR against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: none.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
-      "structurallyAccepted": false,
+      "structurallyAccepted": true,
       "finalProductionAccepted": false,
       "auditFlags": [
-        "MISSING_BLENDER_SOURCE",
         "MISSING_EXPECTED_COLLISION",
         "MISSING_REQUIRED_SOCKET",
         "REUSE_CANDIDATE_NOT_FINAL"
@@ -532,22 +530,22 @@
         "kind": "source",
         "path": "asset_sources/blender/assets_51_100/sheet_06/asset_053_main_entrance_double_door.blend",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 231716
       },
       "selectedCanonicalGlb": {
         "kind": "canonicalGlb",
         "path": "Assets/assets_51_100/glb/sheet_06/asset_053_main_entrance_double_door.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 303704
       },
       "selectedRuntimeGlb": {
         "kind": "runtimeGlb",
         "path": "vendor/models/assets_51_100/sheet_06/asset_053_main_entrance_double_door.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 303704
       },
       "selectedRuntimeIntegrationFiles": [
         {
@@ -562,13 +560,13 @@
           "path": "src/data/shopLayout.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 17508
+          "fileSizeBytes": 18070
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_053_main_entrance_double_door.blend",
@@ -589,49 +587,61 @@
           "kind": "source",
           "path": "asset_sources/blender/assets_51_100/sheet_06/asset_053_main_entrance_double_door.blend",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 231716
         },
         {
           "kind": "canonicalGlb",
           "path": "Assets/assets_51_100/glb/sheet_06/asset_053_main_entrance_double_door.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 303704
         },
         {
           "kind": "runtimeGlb",
           "path": "vendor/models/assets_51_100/sheet_06/asset_053_main_entrance_double_door.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 303704
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/render3d/assets51to100/asset_053_main_entrance_double_door.js",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 2195
         }
       ],
       "plannedBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_053_main_entrance_double_door.blend",
       "plannedCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_06/asset_053_main_entrance_double_door.glb",
       "plannedRuntimeGlbPath": "vendor/models/assets_51_100/sheet_06/asset_053_main_entrance_double_door.glb",
       "plannedRuntimeIntegrationFile": "src/render3d/assets51to100/asset_053_main_entrance_double_door.js",
-      "currentDimensions": null,
+      "currentDimensions": {
+        "x": 1.8,
+        "y": 2.45,
+        "z": 0.24
+      },
       "targetDimensions": {
         "width": 1.8,
         "height": 2.45,
         "depth": 0.24
       },
       "dimensionUnit": "m",
-      "currentTriangleCount": null,
-      "currentVertexCount": null,
-      "currentMeshCount": null,
-      "currentMaterialCount": null,
-      "currentTextureCount": null,
-      "currentTextureDimensions": [],
-      "currentFileSizeBytes": null,
+      "currentTriangleCount": 6172,
+      "currentVertexCount": 5368,
+      "currentMeshCount": 23,
+      "currentMaterialCount": 5,
+      "currentTextureCount": 1,
+      "currentTextureDimensions": [
+        {
+          "image": "s06_walnut",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        }
+      ],
+      "currentFileSizeBytes": 303704,
       "budgets": {
         "triangleBudget": 36000,
         "meshBudget": 36,
@@ -646,7 +656,13 @@
       "firstPersonBudget": null,
       "collisionExpected": true,
       "collisionRequirements": "Frame is static; each leaf has a separate state-aware box collider at its physical hinge.",
-      "currentCollisionNodes": [],
+      "currentCollisionNodes": [
+        "COL_FrameHeader",
+        "COL_FrameLeft",
+        "COL_FrameRight",
+        "COL_DoorLeft",
+        "COL_DoorRight"
+      ],
       "interactionType": "Use/open from either side with occupancy protection and persisted state",
       "animationRequirements": "Both leaves rotate from true hinge pivots; collision follows each open/closed state.",
       "requiredAnimations": [
@@ -655,13 +671,13 @@
         "DoorRight_Open",
         "DoorRight_Close"
       ],
-      "currentAnimations": [],
-      "missingRequiredAnimations": [
-        "DoorLeft_Open",
+      "currentAnimations": [
         "DoorLeft_Close",
-        "DoorRight_Open",
-        "DoorRight_Close"
+        "DoorLeft_Open",
+        "DoorRight_Close",
+        "DoorRight_Open"
       ],
+      "missingRequiredAnimations": [],
       "requiredSockets": [
         "PIVOT_DoorLeft",
         "PIVOT_DoorRight",
@@ -669,30 +685,30 @@
         "SOCKET_HandleRight",
         "SOCKET_Threshold"
       ],
-      "currentSockets": [],
-      "placementSockets": [],
-      "missingRequiredSockets": [
-        "PIVOT_DoorLeft",
-        "PIVOT_DoorRight",
+      "currentSockets": [
         "SOCKET_HandleLeft",
         "SOCKET_HandleRight",
+        "SOCKET_PLACEMENT",
         "SOCKET_Threshold"
       ],
+      "placementSockets": [
+        "SOCKET_HandleLeft",
+        "SOCKET_HandleRight",
+        "SOCKET_PLACEMENT",
+        "SOCKET_Threshold"
+      ],
+      "missingRequiredSockets": [],
       "currentVisualQuality": "MISSING_AUTHORED_PRODUCTION_ASSET",
       "currentQuality": "unverified-candidate-or-missing",
-      "currentTechnicalQuality": "No selected runtime GLB exists; production is missing.",
+      "currentTechnicalQuality": "Reuse candidate parsed without automated structural blockers; reference, gameplay, and final production acceptance remain pending.",
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
-      "requiredWork": "Build, integrate and verify MAIN ENTRANCE DOUBLE-DOOR ASSEMBLY against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
+      "requiredWork": "Build, integrate and verify MAIN ENTRANCE DOUBLE-DOOR ASSEMBLY against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: none.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
-      "structurallyAccepted": false,
+      "structurallyAccepted": true,
       "finalProductionAccepted": false,
-      "auditFlags": [
-        "MISSING_BLENDER_SOURCE",
-        "MISSING_PLANNED_PRODUCTION_GLB",
-        "MISSING_RUNTIME_GLB"
-      ]
+      "auditFlags": []
     },
     {
       "assetNumber": 54,
@@ -725,22 +741,22 @@
         "kind": "source",
         "path": "asset_sources/blender/assets_51_100/sheet_06/asset_054_exterior_porch_and_steps.blend",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 535026
       },
       "selectedCanonicalGlb": {
         "kind": "canonicalGlb",
         "path": "Assets/assets_51_100/glb/sheet_06/asset_054_exterior_porch_and_steps.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 770724
       },
       "selectedRuntimeGlb": {
         "kind": "runtimeGlb",
         "path": "vendor/models/assets_51_100/sheet_06/asset_054_exterior_porch_and_steps.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 770724
       },
       "selectedRuntimeIntegrationFiles": [
         {
@@ -766,9 +782,9 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_054_exterior_porch_and_steps.blend",
@@ -790,49 +806,82 @@
           "kind": "source",
           "path": "asset_sources/blender/assets_51_100/sheet_06/asset_054_exterior_porch_and_steps.blend",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 535026
         },
         {
           "kind": "canonicalGlb",
           "path": "Assets/assets_51_100/glb/sheet_06/asset_054_exterior_porch_and_steps.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 770724
         },
         {
           "kind": "runtimeGlb",
           "path": "vendor/models/assets_51_100/sheet_06/asset_054_exterior_porch_and_steps.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 770724
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/render3d/assets51to100/asset_054_exterior_porch_and_steps.js",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 1915
         }
       ],
       "plannedBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_054_exterior_porch_and_steps.blend",
       "plannedCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_06/asset_054_exterior_porch_and_steps.glb",
       "plannedRuntimeGlbPath": "vendor/models/assets_51_100/sheet_06/asset_054_exterior_porch_and_steps.glb",
       "plannedRuntimeIntegrationFile": "src/render3d/assets51to100/asset_054_exterior_porch_and_steps.js",
-      "currentDimensions": null,
+      "currentDimensions": {
+        "x": 11.52,
+        "y": 4.02,
+        "z": 3.29
+      },
       "targetDimensions": {
         "width": 11.52,
         "height": 4.02,
         "depth": 3.29
       },
       "dimensionUnit": "m",
-      "currentTriangleCount": null,
-      "currentVertexCount": null,
-      "currentMeshCount": null,
-      "currentMaterialCount": null,
-      "currentTextureCount": null,
-      "currentTextureDimensions": [],
-      "currentFileSizeBytes": null,
+      "currentTriangleCount": 11952,
+      "currentVertexCount": 10256,
+      "currentMeshCount": 18,
+      "currentMaterialCount": 8,
+      "currentTextureCount": 4,
+      "currentTextureDimensions": [
+        {
+          "image": "s06_fieldstone",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        },
+        {
+          "image": "s06_walnut",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        },
+        {
+          "image": "s06_damaged_wood",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        },
+        {
+          "image": "s06_oak",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        }
+      ],
+      "currentFileSizeBytes": 770724,
       "budgets": {
         "triangleBudget": 36000,
         "meshBudget": 36,
@@ -847,7 +896,14 @@
       "firstPersonBudget": null,
       "collisionExpected": true,
       "collisionRequirements": "Continuous ramped stair proxy plus simple deck, post and railing blockers; no tread snagging.",
-      "currentCollisionNodes": [],
+      "currentCollisionNodes": [
+        "COL_Column_0",
+        "COL_Column_1",
+        "COL_Column_2",
+        "COL_Column_3",
+        "COL_Deck",
+        "COL_StepRamp"
+      ],
       "interactionType": "Walkable restoration and pressure-washing surface",
       "animationRequirements": "Static modular structure; restoration swaps damaged boards/rail sections in place.",
       "requiredAnimations": [],
@@ -860,30 +916,34 @@
         "SOCKET_Column_W",
         "SOCKET_Column_E"
       ],
-      "currentSockets": [],
-      "placementSockets": [],
-      "missingRequiredSockets": [
-        "SOCKET_MainEntrance",
-        "SOCKET_Railing_W",
-        "SOCKET_Railing_E",
+      "currentSockets": [
+        "SOCKET_Column_E",
         "SOCKET_Column_W",
-        "SOCKET_Column_E"
+        "SOCKET_MainEntrance",
+        "SOCKET_PLACEMENT",
+        "SOCKET_Railing_E",
+        "SOCKET_Railing_W"
       ],
+      "placementSockets": [
+        "SOCKET_Column_E",
+        "SOCKET_Column_W",
+        "SOCKET_MainEntrance",
+        "SOCKET_PLACEMENT",
+        "SOCKET_Railing_E",
+        "SOCKET_Railing_W"
+      ],
+      "missingRequiredSockets": [],
       "currentVisualQuality": "MISSING_AUTHORED_PRODUCTION_ASSET",
       "currentQuality": "unverified-candidate-or-missing",
-      "currentTechnicalQuality": "No selected runtime GLB exists; production is missing.",
+      "currentTechnicalQuality": "Reuse candidate parsed without automated structural blockers; reference, gameplay, and final production acceptance remain pending.",
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
-      "requiredWork": "Build, integrate and verify EXTERIOR PORCH AND STEPS against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
+      "requiredWork": "Build, integrate and verify EXTERIOR PORCH AND STEPS against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: none.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
-      "structurallyAccepted": false,
+      "structurallyAccepted": true,
       "finalProductionAccepted": false,
-      "auditFlags": [
-        "MISSING_BLENDER_SOURCE",
-        "MISSING_PLANNED_PRODUCTION_GLB",
-        "MISSING_RUNTIME_GLB"
-      ]
+      "auditFlags": []
     },
     {
       "assetNumber": 55,
@@ -915,22 +975,22 @@
         "kind": "source",
         "path": "asset_sources/blender/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.blend",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 244613
       },
       "selectedCanonicalGlb": {
         "kind": "canonicalGlb",
         "path": "Assets/assets_51_100/glb/sheet_06/asset_055_clubhouse_windows_set.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 434380
       },
       "selectedRuntimeGlb": {
         "kind": "runtimeGlb",
         "path": "vendor/models/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 434380
       },
       "selectedRuntimeIntegrationFiles": [
         {
@@ -949,9 +1009,9 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.blend",
@@ -972,49 +1032,61 @@
           "kind": "source",
           "path": "asset_sources/blender/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.blend",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 244613
         },
         {
           "kind": "canonicalGlb",
           "path": "Assets/assets_51_100/glb/sheet_06/asset_055_clubhouse_windows_set.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 434380
         },
         {
           "kind": "runtimeGlb",
           "path": "vendor/models/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 434380
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/render3d/assets51to100/asset_055_clubhouse_windows_set.js",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 2055
         }
       ],
       "plannedBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.blend",
       "plannedCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_06/asset_055_clubhouse_windows_set.glb",
       "plannedRuntimeGlbPath": "vendor/models/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.glb",
       "plannedRuntimeIntegrationFile": "src/render3d/assets51to100/asset_055_clubhouse_windows_set.js",
-      "currentDimensions": null,
+      "currentDimensions": {
+        "x": 2.19,
+        "y": 1.74,
+        "z": 0.23
+      },
       "targetDimensions": {
         "standardWidth": 2.19,
         "standardHeight": 1.74,
         "wallDepth": 0.23
       },
       "dimensionUnit": "m",
-      "currentTriangleCount": null,
-      "currentVertexCount": null,
-      "currentMeshCount": null,
-      "currentMaterialCount": null,
-      "currentTextureCount": null,
-      "currentTextureDimensions": [],
-      "currentFileSizeBytes": null,
+      "currentTriangleCount": 10188,
+      "currentVertexCount": 9112,
+      "currentMeshCount": 19,
+      "currentMaterialCount": 4,
+      "currentTextureCount": 1,
+      "currentTextureDimensions": [
+        {
+          "image": "s06_walnut",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        }
+      ],
+      "currentFileSizeBytes": 434380,
       "budgets": {
         "triangleBudget": 36000,
         "meshBudget": 36,
@@ -1029,7 +1101,11 @@
       "firstPersonBudget": null,
       "collisionExpected": true,
       "collisionRequirements": "Thin frame/sill boxes only; glass is raycastable but never a navigation blocker.",
-      "currentCollisionNodes": [],
+      "currentCollisionNodes": [
+        "COL_WindowFrameLeft",
+        "COL_WindowFrameRight",
+        "COL_WindowGlassRaycast"
+      ],
       "interactionType": "Clean dirty panes and replace broken variants",
       "animationRequirements": "Dirty-to-clean material state and aligned broken-to-repaired visibility transition.",
       "requiredAnimations": [],
@@ -1041,29 +1117,32 @@
         "SOCKET_WindowWide",
         "SOCKET_WindowArched"
       ],
-      "currentSockets": [],
-      "placementSockets": [],
-      "missingRequiredSockets": [
-        "SOCKET_WindowStandard",
+      "currentSockets": [
+        "SOCKET_PLACEMENT",
+        "SOCKET_WindowArched",
         "SOCKET_WindowNarrow",
-        "SOCKET_WindowWide",
-        "SOCKET_WindowArched"
+        "SOCKET_WindowStandard",
+        "SOCKET_WindowWide"
       ],
+      "placementSockets": [
+        "SOCKET_PLACEMENT",
+        "SOCKET_WindowArched",
+        "SOCKET_WindowNarrow",
+        "SOCKET_WindowStandard",
+        "SOCKET_WindowWide"
+      ],
+      "missingRequiredSockets": [],
       "currentVisualQuality": "MISSING_AUTHORED_PRODUCTION_ASSET",
       "currentQuality": "unverified-candidate-or-missing",
-      "currentTechnicalQuality": "No selected runtime GLB exists; production is missing.",
+      "currentTechnicalQuality": "Reuse candidate parsed without automated structural blockers; reference, gameplay, and final production acceptance remain pending.",
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
-      "requiredWork": "Build, integrate and verify CLUBHOUSE WINDOWS SET against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
+      "requiredWork": "Build, integrate and verify CLUBHOUSE WINDOWS SET against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: none.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
-      "structurallyAccepted": false,
+      "structurallyAccepted": true,
       "finalProductionAccepted": false,
-      "auditFlags": [
-        "MISSING_BLENDER_SOURCE",
-        "MISSING_PLANNED_PRODUCTION_GLB",
-        "MISSING_RUNTIME_GLB"
-      ]
+      "auditFlags": []
     },
     {
       "assetNumber": 56,
@@ -1095,22 +1174,22 @@
         "kind": "source",
         "path": "asset_sources/blender/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.blend",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 208135
       },
       "selectedCanonicalGlb": {
         "kind": "canonicalGlb",
         "path": "Assets/assets_51_100/glb/sheet_06/asset_056_interior_wall_panel_kit.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 190732
       },
       "selectedRuntimeGlb": {
         "kind": "runtimeGlb",
         "path": "vendor/models/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 190732
       },
       "selectedRuntimeIntegrationFiles": [
         {
@@ -1129,9 +1208,9 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.blend",
@@ -1152,49 +1231,61 @@
           "kind": "source",
           "path": "asset_sources/blender/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.blend",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 208135
         },
         {
           "kind": "canonicalGlb",
           "path": "Assets/assets_51_100/glb/sheet_06/asset_056_interior_wall_panel_kit.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 190732
         },
         {
           "kind": "runtimeGlb",
           "path": "vendor/models/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 190732
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/render3d/assets51to100/asset_056_interior_wall_panel_kit.js",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 1944
         }
       ],
       "plannedBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.blend",
       "plannedCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_06/asset_056_interior_wall_panel_kit.glb",
       "plannedRuntimeGlbPath": "vendor/models/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.glb",
       "plannedRuntimeIntegrationFile": "src/render3d/assets51to100/asset_056_interior_wall_panel_kit.js",
-      "currentDimensions": null,
+      "currentDimensions": {
+        "x": 1.2,
+        "y": 1.15,
+        "z": 0.075
+      },
       "targetDimensions": {
         "moduleWidth": 1.2,
         "height": 1.15,
         "depth": 0.075
       },
       "dimensionUnit": "m",
-      "currentTriangleCount": null,
-      "currentVertexCount": null,
-      "currentMeshCount": null,
-      "currentMaterialCount": null,
-      "currentTextureCount": null,
-      "currentTextureDimensions": [],
-      "currentFileSizeBytes": null,
+      "currentTriangleCount": 2820,
+      "currentVertexCount": 2520,
+      "currentMeshCount": 9,
+      "currentMaterialCount": 5,
+      "currentTextureCount": 1,
+      "currentTextureDimensions": [
+        {
+          "image": "s06_walnut",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        }
+      ],
+      "currentFileSizeBytes": 190732,
       "budgets": {
         "triangleBudget": 36000,
         "meshBudget": 36,
@@ -1209,7 +1300,9 @@
       "firstPersonBudget": null,
       "collisionExpected": true,
       "collisionRequirements": "Simple per-module wall boxes; corner and aperture modules preserve the shared walk envelope.",
-      "currentCollisionNodes": [],
+      "currentCollisionNodes": [
+        "COL_PanelSelection"
+      ],
       "interactionType": "Place/restore modular wall treatment and clean grime overlays",
       "animationRequirements": "Damaged and restored panel modules swap in place with shared trim datum.",
       "requiredAnimations": [],
@@ -1222,30 +1315,34 @@
         "SOCKET_DoorConnector",
         "SOCKET_WindowConnector"
       ],
-      "currentSockets": [],
-      "placementSockets": [],
-      "missingRequiredSockets": [
-        "SOCKET_PanelNext",
+      "currentSockets": [
+        "SOCKET_DoorConnector",
         "SOCKET_InsideCorner",
         "SOCKET_OutsideCorner",
-        "SOCKET_DoorConnector",
+        "SOCKET_PanelNext",
+        "SOCKET_PLACEMENT",
         "SOCKET_WindowConnector"
       ],
+      "placementSockets": [
+        "SOCKET_DoorConnector",
+        "SOCKET_InsideCorner",
+        "SOCKET_OutsideCorner",
+        "SOCKET_PanelNext",
+        "SOCKET_PLACEMENT",
+        "SOCKET_WindowConnector"
+      ],
+      "missingRequiredSockets": [],
       "currentVisualQuality": "MISSING_AUTHORED_PRODUCTION_ASSET",
       "currentQuality": "unverified-candidate-or-missing",
-      "currentTechnicalQuality": "No selected runtime GLB exists; production is missing.",
+      "currentTechnicalQuality": "Reuse candidate parsed without automated structural blockers; reference, gameplay, and final production acceptance remain pending.",
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
-      "requiredWork": "Build, integrate and verify INTERIOR WALL-PANEL KIT against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
+      "requiredWork": "Build, integrate and verify INTERIOR WALL-PANEL KIT against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: none.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
-      "structurallyAccepted": false,
+      "structurallyAccepted": true,
       "finalProductionAccepted": false,
-      "auditFlags": [
-        "MISSING_BLENDER_SOURCE",
-        "MISSING_PLANNED_PRODUCTION_GLB",
-        "MISSING_RUNTIME_GLB"
-      ]
+      "auditFlags": []
     },
     {
       "assetNumber": 57,
@@ -1277,22 +1374,22 @@
         "kind": "source",
         "path": "asset_sources/blender/assets_51_100/sheet_06/asset_057_interior_trim_and_baseboard_kit.blend",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 203355
       },
       "selectedCanonicalGlb": {
         "kind": "canonicalGlb",
         "path": "Assets/assets_51_100/glb/sheet_06/asset_057_interior_trim_and_baseboard_kit.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 171612
       },
       "selectedRuntimeGlb": {
         "kind": "runtimeGlb",
         "path": "vendor/models/assets_51_100/sheet_06/asset_057_interior_trim_and_baseboard_kit.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 171612
       },
       "selectedRuntimeIntegrationFiles": [
         {
@@ -1311,9 +1408,9 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_057_interior_trim_and_baseboard_kit.blend",
@@ -1334,49 +1431,61 @@
           "kind": "source",
           "path": "asset_sources/blender/assets_51_100/sheet_06/asset_057_interior_trim_and_baseboard_kit.blend",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 203355
         },
         {
           "kind": "canonicalGlb",
           "path": "Assets/assets_51_100/glb/sheet_06/asset_057_interior_trim_and_baseboard_kit.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 171612
         },
         {
           "kind": "runtimeGlb",
           "path": "vendor/models/assets_51_100/sheet_06/asset_057_interior_trim_and_baseboard_kit.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 171612
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/render3d/assets51to100/asset_057_interior_trim_and_baseboard_kit.js",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 2017
         }
       ],
       "plannedBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_057_interior_trim_and_baseboard_kit.blend",
       "plannedCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_06/asset_057_interior_trim_and_baseboard_kit.glb",
       "plannedRuntimeGlbPath": "vendor/models/assets_51_100/sheet_06/asset_057_interior_trim_and_baseboard_kit.glb",
       "plannedRuntimeIntegrationFile": "src/render3d/assets51to100/asset_057_interior_trim_and_baseboard_kit.js",
-      "currentDimensions": null,
+      "currentDimensions": {
+        "x": 2.4,
+        "y": 0.14,
+        "z": 0.025
+      },
       "targetDimensions": {
         "moduleLength": 2.4,
         "height": 0.14,
         "depth": 0.025
       },
       "dimensionUnit": "m",
-      "currentTriangleCount": null,
-      "currentVertexCount": null,
-      "currentMeshCount": null,
-      "currentMaterialCount": null,
-      "currentTextureCount": null,
-      "currentTextureDimensions": [],
-      "currentFileSizeBytes": null,
+      "currentTriangleCount": 2388,
+      "currentVertexCount": 2088,
+      "currentMeshCount": 9,
+      "currentMaterialCount": 3,
+      "currentTextureCount": 1,
+      "currentTextureDimensions": [
+        {
+          "image": "s06_walnut",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        }
+      ],
+      "currentFileSizeBytes": 171612,
       "budgets": {
         "triangleBudget": 36000,
         "meshBudget": 36,
@@ -1391,7 +1500,9 @@
       "firstPersonBudget": null,
       "collisionExpected": false,
       "collisionRequirements": "No player blocker; use small placement/raycast proxies only where selection requires them.",
-      "currentCollisionNodes": [],
+      "currentCollisionNodes": [
+        "COL_TrimRaycast"
+      ],
       "interactionType": "Placement/restoration module with shared material and snap datums",
       "animationRequirements": "Static instanced modules; damaged trim swaps to the exact restored datum.",
       "requiredAnimations": [],
@@ -1404,30 +1515,34 @@
         "SOCKET_EndCap",
         "SOCKET_Junction"
       ],
-      "currentSockets": [],
-      "placementSockets": [],
-      "missingRequiredSockets": [
-        "SOCKET_TrimNext",
-        "SOCKET_InsideCorner",
-        "SOCKET_OutsideCorner",
+      "currentSockets": [
         "SOCKET_EndCap",
-        "SOCKET_Junction"
+        "SOCKET_InsideCorner",
+        "SOCKET_Junction",
+        "SOCKET_OutsideCorner",
+        "SOCKET_PLACEMENT",
+        "SOCKET_TrimNext"
       ],
+      "placementSockets": [
+        "SOCKET_EndCap",
+        "SOCKET_InsideCorner",
+        "SOCKET_Junction",
+        "SOCKET_OutsideCorner",
+        "SOCKET_PLACEMENT",
+        "SOCKET_TrimNext"
+      ],
+      "missingRequiredSockets": [],
       "currentVisualQuality": "MISSING_AUTHORED_PRODUCTION_ASSET",
       "currentQuality": "unverified-candidate-or-missing",
-      "currentTechnicalQuality": "No selected runtime GLB exists; production is missing.",
+      "currentTechnicalQuality": "Reuse candidate parsed without automated structural blockers; reference, gameplay, and final production acceptance remain pending.",
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
-      "requiredWork": "Build, integrate and verify INTERIOR TRIM AND BASEBOARD KIT against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
+      "requiredWork": "Build, integrate and verify INTERIOR TRIM AND BASEBOARD KIT against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: none.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
-      "structurallyAccepted": false,
+      "structurallyAccepted": true,
       "finalProductionAccepted": false,
-      "auditFlags": [
-        "MISSING_BLENDER_SOURCE",
-        "MISSING_PLANNED_PRODUCTION_GLB",
-        "MISSING_RUNTIME_GLB"
-      ]
+      "auditFlags": []
     },
     {
       "assetNumber": 58,
@@ -1458,22 +1573,22 @@
         "kind": "source",
         "path": "asset_sources/blender/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.blend",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 212399
       },
       "selectedCanonicalGlb": {
         "kind": "canonicalGlb",
         "path": "Assets/assets_51_100/glb/sheet_06/asset_058_ceiling_and_beam_kit.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 162764
       },
       "selectedRuntimeGlb": {
         "kind": "runtimeGlb",
         "path": "vendor/models/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 162764
       },
       "selectedRuntimeIntegrationFiles": [
         {
@@ -1485,9 +1600,9 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.blend",
@@ -1507,49 +1622,61 @@
           "kind": "source",
           "path": "asset_sources/blender/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.blend",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 212399
         },
         {
           "kind": "canonicalGlb",
           "path": "Assets/assets_51_100/glb/sheet_06/asset_058_ceiling_and_beam_kit.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 162764
         },
         {
           "kind": "runtimeGlb",
           "path": "vendor/models/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 162764
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/render3d/assets51to100/asset_058_ceiling_and_beam_kit.js",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 1885
         }
       ],
       "plannedBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.blend",
       "plannedCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_06/asset_058_ceiling_and_beam_kit.glb",
       "plannedRuntimeGlbPath": "vendor/models/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.glb",
       "plannedRuntimeIntegrationFile": "src/render3d/assets51to100/asset_058_ceiling_and_beam_kit.js",
-      "currentDimensions": null,
+      "currentDimensions": {
+        "x": 3.6,
+        "y": 0.24,
+        "z": 0.2
+      },
       "targetDimensions": {
         "moduleLength": 3.6,
         "width": 0.2,
         "height": 0.24
       },
       "dimensionUnit": "m",
-      "currentTriangleCount": null,
-      "currentVertexCount": null,
-      "currentMeshCount": null,
-      "currentMaterialCount": null,
-      "currentTextureCount": null,
-      "currentTextureDimensions": [],
-      "currentFileSizeBytes": null,
+      "currentTriangleCount": 2000,
+      "currentVertexCount": 1682,
+      "currentMeshCount": 8,
+      "currentMaterialCount": 5,
+      "currentTextureCount": 1,
+      "currentTextureDimensions": [
+        {
+          "image": "s06_walnut",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        }
+      ],
+      "currentFileSizeBytes": 162764,
       "budgets": {
         "triangleBudget": 36000,
         "meshBudget": 36,
@@ -1564,7 +1691,9 @@
       "firstPersonBudget": null,
       "collisionExpected": true,
       "collisionRequirements": "Simple overhead beam boxes outside player head clearance; ceiling uses the shell collider.",
-      "currentCollisionNodes": [],
+      "currentCollisionNodes": [
+        "COL_BeamOverhead"
+      ],
       "interactionType": "Restoration-state ceiling dressing and fixture mounting",
       "animationRequirements": "Static modules; damaged/restored variants remain on the same structural grid.",
       "requiredAnimations": [],
@@ -1576,29 +1705,32 @@
         "SOCKET_BeamEnd",
         "SOCKET_RecessedLight"
       ],
-      "currentSockets": [],
-      "placementSockets": [],
-      "missingRequiredSockets": [
-        "SOCKET_BeamNext",
+      "currentSockets": [
         "SOCKET_BeamCross",
         "SOCKET_BeamEnd",
+        "SOCKET_BeamNext",
+        "SOCKET_PLACEMENT",
         "SOCKET_RecessedLight"
       ],
+      "placementSockets": [
+        "SOCKET_BeamCross",
+        "SOCKET_BeamEnd",
+        "SOCKET_BeamNext",
+        "SOCKET_PLACEMENT",
+        "SOCKET_RecessedLight"
+      ],
+      "missingRequiredSockets": [],
       "currentVisualQuality": "MISSING_AUTHORED_PRODUCTION_ASSET",
       "currentQuality": "unverified-candidate-or-missing",
-      "currentTechnicalQuality": "No selected runtime GLB exists; production is missing.",
+      "currentTechnicalQuality": "Reuse candidate parsed without automated structural blockers; reference, gameplay, and final production acceptance remain pending.",
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
-      "requiredWork": "Build, integrate and verify CEILING AND BEAM KIT against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
+      "requiredWork": "Build, integrate and verify CEILING AND BEAM KIT against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: none.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
-      "structurallyAccepted": false,
+      "structurallyAccepted": true,
       "finalProductionAccepted": false,
-      "auditFlags": [
-        "MISSING_BLENDER_SOURCE",
-        "MISSING_PLANNED_PRODUCTION_GLB",
-        "MISSING_RUNTIME_GLB"
-      ]
+      "auditFlags": []
     },
     {
       "assetNumber": 59,
@@ -1631,22 +1763,22 @@
         "kind": "source",
         "path": "asset_sources/blender/assets_51_100/sheet_06/asset_059_renovated_flooring_set.blend",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 776993
       },
       "selectedCanonicalGlb": {
         "kind": "canonicalGlb",
         "path": "Assets/assets_51_100/glb/sheet_06/asset_059_renovated_flooring_set.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 847376
       },
       "selectedRuntimeGlb": {
         "kind": "runtimeGlb",
         "path": "vendor/models/assets_51_100/sheet_06/asset_059_renovated_flooring_set.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 847376
       },
       "selectedRuntimeIntegrationFiles": [
         {
@@ -1672,9 +1804,9 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_059_renovated_flooring_set.blend",
@@ -1696,49 +1828,103 @@
           "kind": "source",
           "path": "asset_sources/blender/assets_51_100/sheet_06/asset_059_renovated_flooring_set.blend",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 776993
         },
         {
           "kind": "canonicalGlb",
           "path": "Assets/assets_51_100/glb/sheet_06/asset_059_renovated_flooring_set.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 847376
         },
         {
           "kind": "runtimeGlb",
           "path": "vendor/models/assets_51_100/sheet_06/asset_059_renovated_flooring_set.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 847376
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/render3d/assets51to100/asset_059_renovated_flooring_set.js",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 2062
         }
       ],
       "plannedBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_059_renovated_flooring_set.blend",
       "plannedCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_06/asset_059_renovated_flooring_set.glb",
       "plannedRuntimeGlbPath": "vendor/models/assets_51_100/sheet_06/asset_059_renovated_flooring_set.glb",
       "plannedRuntimeIntegrationFile": "src/render3d/assets51to100/asset_059_renovated_flooring_set.js",
-      "currentDimensions": null,
+      "currentDimensions": {
+        "x": 1,
+        "y": 0.018,
+        "z": 1
+      },
       "targetDimensions": {
         "tileWidth": 1,
         "tileLength": 1,
         "thickness": 0.018
       },
       "dimensionUnit": "m",
-      "currentTriangleCount": null,
-      "currentVertexCount": null,
-      "currentMeshCount": null,
-      "currentMaterialCount": null,
-      "currentTextureCount": null,
-      "currentTextureDimensions": [],
-      "currentFileSizeBytes": null,
+      "currentTriangleCount": 6276,
+      "currentVertexCount": 5320,
+      "currentMeshCount": 8,
+      "currentMaterialCount": 8,
+      "currentTextureCount": 7,
+      "currentTextureDimensions": [
+        {
+          "image": "s06_cream_tile",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        },
+        {
+          "image": "s06_dark_wood",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        },
+        {
+          "image": "s06_gray_carpet",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        },
+        {
+          "image": "s06_oak",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        },
+        {
+          "image": "s06_sage_carpet",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        },
+        {
+          "image": "s06_stone_tile",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        },
+        {
+          "image": "s06_walnut",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        }
+      ],
+      "currentFileSizeBytes": 847376,
       "budgets": {
         "triangleBudget": 12000,
         "meshBudget": 20,
@@ -1753,7 +1939,9 @@
       "firstPersonBudget": null,
       "collisionExpected": true,
       "collisionRequirements": "One continuous walkable plane/nav collider; finish meshes and decals do not add blockers.",
-      "currentCollisionNodes": [],
+      "currentCollisionNodes": [
+        "COL_FloorWalkable"
+      ],
       "interactionType": "Selectable restored finish; receives dirt, footsteps, vacuum and mop metadata",
       "animationRequirements": "Material-state selection only; no geometry animation.",
       "requiredAnimations": [],
@@ -1763,27 +1951,28 @@
         "SOCKET_FloorOrigin",
         "SOCKET_FloorTransition"
       ],
-      "currentSockets": [],
-      "placementSockets": [],
-      "missingRequiredSockets": [
+      "currentSockets": [
         "SOCKET_FloorOrigin",
-        "SOCKET_FloorTransition"
+        "SOCKET_FloorTransition",
+        "SOCKET_PLACEMENT"
       ],
+      "placementSockets": [
+        "SOCKET_FloorOrigin",
+        "SOCKET_FloorTransition",
+        "SOCKET_PLACEMENT"
+      ],
+      "missingRequiredSockets": [],
       "currentVisualQuality": "MISSING_AUTHORED_PRODUCTION_ASSET",
       "currentQuality": "unverified-candidate-or-missing",
-      "currentTechnicalQuality": "No selected runtime GLB exists; production is missing.",
+      "currentTechnicalQuality": "Reuse candidate parsed without automated structural blockers; reference, gameplay, and final production acceptance remain pending.",
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
-      "requiredWork": "Build, integrate and verify RENOVATED FLOORING SET against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
+      "requiredWork": "Build, integrate and verify RENOVATED FLOORING SET against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: none.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
-      "structurallyAccepted": false,
+      "structurallyAccepted": true,
       "finalProductionAccepted": false,
-      "auditFlags": [
-        "MISSING_BLENDER_SOURCE",
-        "MISSING_PLANNED_PRODUCTION_GLB",
-        "MISSING_RUNTIME_GLB"
-      ]
+      "auditFlags": []
     },
     {
       "assetNumber": 60,
@@ -1815,22 +2004,22 @@
         "kind": "source",
         "path": "asset_sources/blender/assets_51_100/sheet_06/asset_060_damaged_flooring_set.blend",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 422224
       },
       "selectedCanonicalGlb": {
         "kind": "canonicalGlb",
         "path": "Assets/assets_51_100/glb/sheet_06/asset_060_damaged_flooring_set.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 454724
       },
       "selectedRuntimeGlb": {
         "kind": "runtimeGlb",
         "path": "vendor/models/assets_51_100/sheet_06/asset_060_damaged_flooring_set.glb",
         "provenance": "planned-production",
-        "exists": false,
-        "fileSizeBytes": null
+        "exists": true,
+        "fileSizeBytes": 454724
       },
       "selectedRuntimeIntegrationFiles": [
         {
@@ -1849,9 +2038,9 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_060_damaged_flooring_set.blend",
@@ -1872,49 +2061,75 @@
           "kind": "source",
           "path": "asset_sources/blender/assets_51_100/sheet_06/asset_060_damaged_flooring_set.blend",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 422224
         },
         {
           "kind": "canonicalGlb",
           "path": "Assets/assets_51_100/glb/sheet_06/asset_060_damaged_flooring_set.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 454724
         },
         {
           "kind": "runtimeGlb",
           "path": "vendor/models/assets_51_100/sheet_06/asset_060_damaged_flooring_set.glb",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 454724
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/render3d/assets51to100/asset_060_damaged_flooring_set.js",
           "provenance": "planned-production",
-          "exists": false,
-          "fileSizeBytes": null
+          "exists": true,
+          "fileSizeBytes": 2193
         }
       ],
       "plannedBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_06/asset_060_damaged_flooring_set.blend",
       "plannedCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_06/asset_060_damaged_flooring_set.glb",
       "plannedRuntimeGlbPath": "vendor/models/assets_51_100/sheet_06/asset_060_damaged_flooring_set.glb",
       "plannedRuntimeIntegrationFile": "src/render3d/assets51to100/asset_060_damaged_flooring_set.js",
-      "currentDimensions": null,
+      "currentDimensions": {
+        "x": 1,
+        "y": 0.035,
+        "z": 1
+      },
       "targetDimensions": {
         "tileWidth": 1,
         "tileLength": 1,
         "maxRelief": 0.035
       },
       "dimensionUnit": "m",
-      "currentTriangleCount": null,
-      "currentVertexCount": null,
-      "currentMeshCount": null,
-      "currentMaterialCount": null,
-      "currentTextureCount": null,
-      "currentTextureDimensions": [],
-      "currentFileSizeBytes": null,
+      "currentTriangleCount": 5220,
+      "currentVertexCount": 4500,
+      "currentMeshCount": 11,
+      "currentMaterialCount": 5,
+      "currentTextureCount": 3,
+      "currentTextureDimensions": [
+        {
+          "image": "s06_damaged_carpet",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        },
+        {
+          "image": "s06_damaged_tile",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        },
+        {
+          "image": "s06_damaged_wood",
+          "mimeType": "image/png",
+          "width": 256,
+          "height": 256,
+          "embedded": true
+        }
+      ],
+      "currentFileSizeBytes": 454724,
       "budgets": {
         "triangleBudget": 12000,
         "meshBudget": 20,
@@ -1929,7 +2144,9 @@
       "firstPersonBudget": null,
       "collisionExpected": true,
       "collisionRequirements": "Reuse the restored walk plane; raised damage receives shallow non-snagging raycast proxies only.",
-      "currentCollisionNodes": [],
+      "currentCollisionNodes": [
+        "COL_FloorDamageRaycast"
+      ],
       "interactionType": "Clean, repair or replace damage without moving the walkable floor",
       "animationRequirements": "Damage masks, decals and limited modules transition continuously to Asset 59.",
       "requiredAnimations": [],
@@ -1940,28 +2157,30 @@
         "SOCKET_DamageModule",
         "SOCKET_FloorTransition"
       ],
-      "currentSockets": [],
-      "placementSockets": [],
-      "missingRequiredSockets": [
-        "SOCKET_FloorOrigin",
+      "currentSockets": [
         "SOCKET_DamageModule",
-        "SOCKET_FloorTransition"
+        "SOCKET_FloorOrigin",
+        "SOCKET_FloorTransition",
+        "SOCKET_PLACEMENT"
       ],
+      "placementSockets": [
+        "SOCKET_DamageModule",
+        "SOCKET_FloorOrigin",
+        "SOCKET_FloorTransition",
+        "SOCKET_PLACEMENT"
+      ],
+      "missingRequiredSockets": [],
       "currentVisualQuality": "MISSING_AUTHORED_PRODUCTION_ASSET",
       "currentQuality": "unverified-candidate-or-missing",
-      "currentTechnicalQuality": "No selected runtime GLB exists; production is missing.",
+      "currentTechnicalQuality": "Reuse candidate parsed without automated structural blockers; reference, gameplay, and final production acceptance remain pending.",
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
-      "requiredWork": "Build, integrate and verify DAMAGED FLOORING SET against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
+      "requiredWork": "Build, integrate and verify DAMAGED FLOORING SET against Sheet 6; current candidates are inputs, not completion evidence. Missing planned artifact kinds: none.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
-      "structurallyAccepted": false,
+      "structurallyAccepted": true,
       "finalProductionAccepted": false,
-      "auditFlags": [
-        "MISSING_BLENDER_SOURCE",
-        "MISSING_PLANNED_PRODUCTION_GLB",
-        "MISSING_RUNTIME_GLB"
-      ]
+      "auditFlags": []
     },
     {
       "assetNumber": 61,
@@ -2022,14 +2241,14 @@
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/render3d/clubhouse/simplifiedRegisterMode.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 170849
+          "fileSizeBytes": 195750
         }
       ],
       "selectedPathStatus": {
@@ -2180,7 +2399,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify FRONT DESK COUNTER SHELL against Sheet 7; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -2248,14 +2467,14 @@
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/data/shopLayout.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 17508
+          "fileSizeBytes": 18070
         }
       ],
       "selectedPathStatus": {
@@ -2411,7 +2630,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify BACK-COUNTER STORAGE CABINETS against Sheet 7; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -2475,20 +2694,20 @@
           "path": "src/data/shopLayout.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 17508
+          "fileSizeBytes": 18070
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_07/asset_063_pro_shop_fitting_room.blend",
@@ -2602,7 +2821,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify PRO-SHOP FITTING ROOM ASSEMBLY against Sheet 7; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -2678,7 +2897,7 @@
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         }
       ],
       "selectedPathStatus": {
@@ -2821,7 +3040,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify STOCKROOM SHELVING SYSTEM against Sheet 7; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -2888,7 +3107,7 @@
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         }
       ],
       "selectedPathStatus": {
@@ -3028,7 +3247,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify STOCKROOM WORKTABLE against Sheet 7; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -3097,7 +3316,7 @@
           "path": "src/render3d/clubhouse.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 283401
+          "fileSizeBytes": 285597
         },
         {
           "kind": "runtimeIntegrationFile",
@@ -3111,7 +3330,7 @@
           "path": "src/ui/laptop.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 97300
+          "fileSizeBytes": 99207
         }
       ],
       "selectedPathStatus": {
@@ -3252,7 +3471,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify OFFICE / LAPTOP DESK against Sheet 7; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -3314,20 +3533,20 @@
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/data/shopLayout.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 17508
+          "fileSizeBytes": 18070
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_07/asset_067_clubhouse_lounge_sofa.blend",
@@ -3431,7 +3650,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify CLUBHOUSE LOUNGE SOFA against Sheet 7; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -3500,7 +3719,7 @@
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         },
         {
           "kind": "runtimeIntegrationFile",
@@ -3634,7 +3853,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify LOUNGE ARMCHAIR against Sheet 7; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -3702,7 +3921,7 @@
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         },
         {
           "kind": "runtimeIntegrationFile",
@@ -3842,7 +4061,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify LOUNGE COFFEE TABLE against Sheet 7; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -3908,7 +4127,7 @@
           "path": "src/render3d/clubhouse.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 283401
+          "fileSizeBytes": 285597
         },
         {
           "kind": "runtimeIntegrationFile",
@@ -3919,7 +4138,7 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
+        "source": "planned-production",
         "canonicalGlb": "current-candidate",
         "runtimeGlb": "current-candidate",
         "runtimeIntegrationFiles": "current-candidate"
@@ -4045,7 +4264,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify TROPHY & DISPLAY CABINET against Sheet 7; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -4117,7 +4336,7 @@
           "path": "src/render3d/courseScene.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 222596
+          "fileSizeBytes": 240128
         },
         {
           "kind": "runtimeIntegrationFile",
@@ -4131,7 +4350,7 @@
           "path": "src/render3d/clubhouse.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 283401
+          "fileSizeBytes": 285597
         },
         {
           "kind": "runtimeIntegrationFile",
@@ -4149,9 +4368,9 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_08/asset_071_vacuum_cleaner.blend",
@@ -4310,7 +4529,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify VACUUM CLEANER against Sheet 8; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile, firstPersonSource, firstPersonCanonicalGlb, firstPersonRuntimeGlb. Build and validate the separate first-person source, canonical GLB, and runtime GLB.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -4376,13 +4595,13 @@
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_08/asset_072_mop.blend",
@@ -4534,7 +4753,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify MOP against Sheet 8; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile, firstPersonSource, firstPersonCanonicalGlb, firstPersonRuntimeGlb. Build and validate the separate first-person source, canonical GLB, and runtime GLB.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -4599,13 +4818,13 @@
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_08/asset_073_mop_bucket_and_wringer.blend",
@@ -4720,7 +4939,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify MOP BUCKET AND WRINGER against Sheet 8; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -4786,13 +5005,13 @@
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_08/asset_074_broom.blend",
@@ -4944,7 +5163,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify BROOM against Sheet 8; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile, firstPersonSource, firstPersonCanonicalGlb, firstPersonRuntimeGlb. Build and validate the separate first-person source, canonical GLB, and runtime GLB.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -5012,10 +5231,10 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
-        "runtimeIntegrationFiles": "planned-missing"
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
+        "runtimeIntegrationFiles": "planned-production"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_08/asset_075_dustpan.blend",
       "currentCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_08/asset_075_dustpan.glb",
@@ -5166,7 +5385,7 @@
       "currentIntegrationStatus": "Planned per-asset runtime integration is missing.",
       "requiredWork": "Build, integrate and verify DUSTPAN against Sheet 8; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile, firstPersonSource, firstPersonCanonicalGlb, firstPersonRuntimeGlb. Build and validate the separate first-person source, canonical GLB, and runtime GLB.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -5234,10 +5453,10 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
-        "runtimeIntegrationFiles": "planned-missing"
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
+        "runtimeIntegrationFiles": "planned-production"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_08/asset_076_cleaning_spray_bottle.blend",
       "currentCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_08/asset_076_cleaning_spray_bottle.glb",
@@ -5384,7 +5603,7 @@
       "currentIntegrationStatus": "Planned per-asset runtime integration is missing.",
       "requiredWork": "Build, integrate and verify CLEANING SPRAY BOTTLE against Sheet 8; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile, firstPersonSource, firstPersonCanonicalGlb, firstPersonRuntimeGlb. Build and validate the separate first-person source, canonical GLB, and runtime GLB.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -5452,10 +5671,10 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
-        "runtimeIntegrationFiles": "planned-missing"
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
+        "runtimeIntegrationFiles": "planned-production"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_08/asset_077_cleaning_cloth_and_sponge_set.blend",
       "currentCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_08/asset_077_cleaning_cloth_and_sponge_set.glb",
@@ -5608,7 +5827,7 @@
       "currentIntegrationStatus": "Planned per-asset runtime integration is missing.",
       "requiredWork": "Build, integrate and verify CLEANING CLOTH & SPONGE SET against Sheet 8; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile, firstPersonSource, firstPersonCanonicalGlb, firstPersonRuntimeGlb. Build and validate the separate first-person source, canonical GLB, and runtime GLB.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -5693,9 +5912,9 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_08/asset_078_pressure_washer.blend",
@@ -5812,7 +6031,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify PRESSURE WASHER against Sheet 8; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -5881,7 +6100,7 @@
           "path": "src/render3d/courseScene.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 222596
+          "fileSizeBytes": 240128
         },
         {
           "kind": "runtimeIntegrationFile",
@@ -5906,9 +6125,9 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_08/asset_079_pressure_washer_hose_and_wand.blend",
@@ -6065,7 +6284,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify PRESSURE WASHER HOSE & WAND against Sheet 8; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile, firstPersonSource, firstPersonCanonicalGlb, firstPersonRuntimeGlb. Build and validate the separate first-person source, canonical GLB, and runtime GLB.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -6133,10 +6352,10 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
-        "runtimeIntegrationFiles": "planned-missing"
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
+        "runtimeIntegrationFiles": "planned-production"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_08/asset_080_trash_bag.blend",
       "currentCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_08/asset_080_trash_bag.glb",
@@ -6285,7 +6504,7 @@
       "currentIntegrationStatus": "Planned per-asset runtime integration is missing.",
       "requiredWork": "Build, integrate and verify TRASH BAG against Sheet 8; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile, firstPersonSource, firstPersonCanonicalGlb, firstPersonRuntimeGlb. Build and validate the separate first-person source, canonical GLB, and runtime GLB.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -6354,7 +6573,7 @@
           "path": "src/render3d/clubhouse.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 283401
+          "fileSizeBytes": 285597
         },
         {
           "kind": "runtimeIntegrationFile",
@@ -6499,7 +6718,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify OFFICE CHAIR against Sheet 9; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -6568,7 +6787,7 @@
           "path": "src/render3d/clubhouse.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 283401
+          "fileSizeBytes": 285597
         },
         {
           "kind": "runtimeIntegrationFile",
@@ -6749,7 +6968,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify FILING CABINET against Sheet 9; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -6813,20 +7032,20 @@
           "path": "src/render3d/clubhouse.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 283401
+          "fileSizeBytes": 285597
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/data/shopLayout.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 17508
+          "fileSizeBytes": 18070
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_09/asset_083_desk_lamp.blend",
@@ -6938,7 +7157,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify DESK LAMP against Sheet 9; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -7008,7 +7227,7 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
+        "source": "planned-production",
         "canonicalGlb": "current-candidate",
         "runtimeGlb": "current-candidate",
         "runtimeIntegrationFiles": "current-candidate"
@@ -7121,7 +7340,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify PRINTER against Sheet 9; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -7187,10 +7406,10 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
-        "runtimeIntegrationFiles": "planned-missing"
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
+        "runtimeIntegrationFiles": "planned-production"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_09/asset_085_office_telephone.blend",
       "currentCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_09/asset_085_office_telephone.glb",
@@ -7300,7 +7519,7 @@
       "currentIntegrationStatus": "Planned per-asset runtime integration is missing.",
       "requiredWork": "Build, integrate and verify TELEPHONE against Sheet 9; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -7362,13 +7581,13 @@
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_09/asset_086_corkboard_noticeboard.blend",
@@ -7473,7 +7692,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify CORKBOARD / NOTICEBOARD against Sheet 9; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -7543,13 +7762,13 @@
           "path": "src/render3d/clubhouse.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 283401
+          "fileSizeBytes": 285597
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_09/asset_087_wall_clock.blend",
@@ -7652,7 +7871,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify WALL CLOCK against Sheet 9; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -7716,10 +7935,10 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
-        "runtimeIntegrationFiles": "planned-missing"
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
+        "runtimeIntegrationFiles": "planned-production"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_09/asset_088_key_rack.blend",
       "currentCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_09/asset_088_key_rack.glb",
@@ -7825,7 +8044,7 @@
       "currentIntegrationStatus": "Planned per-asset runtime integration is missing.",
       "requiredWork": "Build, integrate and verify KEY RACK against Sheet 9; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -7889,7 +8108,7 @@
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         },
         {
           "kind": "runtimeIntegrationFile",
@@ -7907,9 +8126,9 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_09/asset_089_reservation_clipboard.blend",
@@ -8014,7 +8233,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify RESERVATION CLIPBOARD against Sheet 9; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -8086,7 +8305,7 @@
       "selectedPathStatus": {
         "source": "current-candidate",
         "canonicalGlb": "current-candidate",
-        "runtimeGlb": "planned-missing",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "Assets/pro_shop/source/products/scorecards/pf_scorecard_course.blend",
@@ -8212,7 +8431,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify SCORECARD HOLDER against Sheet 9; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -8275,10 +8494,10 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
-        "runtimeIntegrationFiles": "planned-missing"
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
+        "runtimeIntegrationFiles": "planned-production"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_10/asset_091_fire_extinguisher.blend",
       "currentCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_10/asset_091_fire_extinguisher.glb",
@@ -8382,7 +8601,7 @@
       "currentIntegrationStatus": "Planned per-asset runtime integration is missing.",
       "requiredWork": "Build, integrate and verify FIRE EXTINGUISHER against Sheet 10; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -8446,10 +8665,10 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
-        "runtimeIntegrationFiles": "planned-missing"
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
+        "runtimeIntegrationFiles": "planned-production"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_10/asset_092_first_aid_kit_cabinet.blend",
       "currentCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_10/asset_092_first_aid_kit_cabinet.glb",
@@ -8559,7 +8778,7 @@
       "currentIntegrationStatus": "Planned per-asset runtime integration is missing.",
       "requiredWork": "Build, integrate and verify FIRST-AID KIT CABINET against Sheet 10; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -8623,10 +8842,10 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
-        "runtimeIntegrationFiles": "planned-missing"
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
+        "runtimeIntegrationFiles": "planned-production"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_10/asset_093_security_camera.blend",
       "currentCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_10/asset_093_security_camera.glb",
@@ -8725,7 +8944,7 @@
       "currentIntegrationStatus": "Planned per-asset runtime integration is missing.",
       "requiredWork": "Build, integrate and verify SECURITY CAMERA against Sheet 10; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -8789,10 +9008,10 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
-        "runtimeIntegrationFiles": "planned-missing"
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
+        "runtimeIntegrationFiles": "planned-production"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_10/asset_094_exit_sign.blend",
       "currentCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_10/asset_094_exit_sign.glb",
@@ -8892,7 +9111,7 @@
       "currentIntegrationStatus": "Planned per-asset runtime integration is missing.",
       "requiredWork": "Build, integrate and verify EXIT SIGN against Sheet 10; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -8956,10 +9175,10 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
-        "runtimeIntegrationFiles": "planned-missing"
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
+        "runtimeIntegrationFiles": "planned-production"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_10/asset_095_emergency_light.blend",
       "currentCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_10/asset_095_emergency_light.glb",
@@ -9061,7 +9280,7 @@
       "currentIntegrationStatus": "Planned per-asset runtime integration is missing.",
       "requiredWork": "Build, integrate and verify EMERGENCY LIGHT against Sheet 10; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -9123,13 +9342,13 @@
           "path": "src/render3d/clubhouse/fixtures.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 57901
+          "fileSizeBytes": 58275
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_10/asset_096_bulletin_board.blend",
@@ -9234,7 +9453,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify BULLETIN BOARD against Sheet 10; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -9298,10 +9517,10 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
-        "runtimeIntegrationFiles": "planned-missing"
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
+        "runtimeIntegrationFiles": "planned-production"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_10/asset_097_key_cabinet.blend",
       "currentCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_10/asset_097_key_cabinet.glb",
@@ -9413,7 +9632,7 @@
       "currentIntegrationStatus": "Planned per-asset runtime integration is missing.",
       "requiredWork": "Build, integrate and verify KEY CABINET against Sheet 10; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -9477,10 +9696,10 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
-        "runtimeIntegrationFiles": "planned-missing"
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
+        "runtimeIntegrationFiles": "planned-production"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_10/asset_098_hand_sanitizer_station.blend",
       "currentCanonicalGlbPath": "Assets/assets_51_100/glb/sheet_10/asset_098_hand_sanitizer_station.glb",
@@ -9588,7 +9807,7 @@
       "currentIntegrationStatus": "Planned per-asset runtime integration is missing.",
       "requiredWork": "Build, integrate and verify HAND SANITIZER STATION against Sheet 10; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -9780,7 +9999,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify UMBRELLA STAND against Sheet 10; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
@@ -9843,14 +10062,14 @@
           "path": "src/render3d/clubhouse.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 283401
+          "fileSizeBytes": 285597
         },
         {
           "kind": "runtimeIntegrationFile",
           "path": "src/data/shopLayout.js",
           "provenance": "current-reuse-candidate",
           "exists": true,
-          "fileSizeBytes": 17508
+          "fileSizeBytes": 18070
         },
         {
           "kind": "runtimeIntegrationFile",
@@ -9861,9 +10080,9 @@
         }
       ],
       "selectedPathStatus": {
-        "source": "planned-missing",
-        "canonicalGlb": "planned-missing",
-        "runtimeGlb": "planned-missing",
+        "source": "planned-production",
+        "canonicalGlb": "planned-production",
+        "runtimeGlb": "planned-production",
         "runtimeIntegrationFiles": "current-candidate"
       },
       "currentBlenderSourcePath": "asset_sources/blender/assets_51_100/sheet_10/asset_100_floor_mat_welcome_mat.blend",
@@ -9966,7 +10185,7 @@
       "currentIntegrationStatus": "A current runtime integration candidate exists; planned per-asset integration remains missing.",
       "requiredWork": "Build, integrate and verify FLOOR MAT / WELCOME MAT against Sheet 10; current candidates are inputs, not completion evidence. Missing planned artifact kinds: source, canonicalGlb, runtimeGlb, runtimeIntegrationFile.",
       "finalQuality": "NOT_EVALUATED_NO_PRODUCTION_ACCEPTANCE_EVIDENCE",
-      "productionStatus": "PHASE_1_DISCOVERY_NON_FINAL",
+      "productionStatus": "PRODUCTION_IN_PROGRESS_NON_FINAL",
       "finalStatus": "NOT_ACCEPTED",
       "structurallyAccepted": false,
       "finalProductionAccepted": false,
