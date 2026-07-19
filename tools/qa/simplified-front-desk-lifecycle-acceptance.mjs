@@ -728,6 +728,175 @@ async function noShowAndSaveReloadScenario(page, shot) {
   return { fixture, charged, firstLoad, secondLoad };
 }
 
+async function setupCancellation(page) {
+  return page.evaluate(async () => {
+    const app = window.__fw;
+    const clubhouse = app.scene3d.clubhouse();
+    const reservations = await import('/src/sim/reservations.js');
+    clubhouse.setOrganicWalkins(false);
+    clubhouse.clearWalkins();
+    reservations.ensureReservations(app.state);
+    app.state.reservations.booked.length = 0;
+    app.state.reservations.nextId = 1;
+    const dayAbs = Math.floor(app.state.clock.minutes / 1440);
+    const teeMinute = 10 * 60 + 30;
+    const plannedArrival = dayAbs * 1440 + 10 * 60 + 15;
+    app.state.clock.minutes = plannedArrival - 1;
+    app.speedIdx = 0;
+    app.scene3d.applyTimeWeather(app.state.clock.minutes % 1440, app.state.weather);
+    const before = {
+      cash: app.state.cash,
+      greenFees: app.state.ledger.today.revenue.greenFees || 0,
+      history: (app.state.shop.transactionHistory || []).length,
+      nextTransactionNo: app.state.shop.nextTransactionNo,
+    };
+    const made = reservations.bookReservation(app.state, {
+      dayAbs,
+      minute: teeMinute,
+      fullName: 'Avery Holloway',
+      partySize: 3,
+      paymentPreference: 'card',
+      totalFee: app.state.club.greenFee * 3,
+      plannedArrival,
+      arrivalWindow: { start: plannedArrival - 1, end: plannedArrival + 1 },
+      travelVariationMin: 0,
+      weatherDelayMin: 0,
+      parkingDelayMin: 0,
+      bankDeposit: false,
+    });
+    if (!made.ok) throw new Error(`Could not create cancellation fixture: ${made.reason}`);
+    const identity = app.state.customerDirectory.customers
+      .find((customer) => customer.customerId === made.res.customerId);
+    const walk = app.scene3d.walk.state;
+    walk.x = 8.45 + clubhouse.interior.position.x;
+    walk.z = 4.5 + clubhouse.interior.position.z;
+    walk.yaw = -Math.PI / 2;
+    walk.pitch = -0.05;
+    return {
+      reservation: structuredClone(made.res),
+      plannedArrival,
+      before,
+      bookedSlot: reservations.slotLoad(app.state, dayAbs, teeMinute),
+      identityBefore: structuredClone(identity),
+    };
+  });
+}
+
+async function cancellationSnapshot(page, reservationId) {
+  return page.evaluate(async (id) => {
+    const app = window.__fw;
+    const reservations = await import('/src/sim/reservations.js');
+    const reservation = app.state.reservations.booked
+      .find((entry) => String(entry.id) === String(id));
+    return {
+      reservation: reservation ? structuredClone(reservation) : null,
+      customer: app.scene3d.clubhouse().reservationCustomer(id),
+      slot: reservations.slotLoad(app.state, reservation.dayAbs, reservation.minute),
+      cash: app.state.cash,
+      greenFees: app.state.ledger.today.revenue.greenFees || 0,
+      history: (app.state.shop.transactionHistory || []).length,
+      nextTransactionNo: app.state.shop.nextTransactionNo,
+      reservationTickets: (app.state.shop.transactionHistory || [])
+        .filter((ticket) => String(ticket.referenceId || '').startsWith(`reservation:${String(id)}:`)),
+      customerIdentity: (app.state.customerDirectory?.customers || [])
+        .find((customer) => customer.customerId === reservation?.customerId) || null,
+    };
+  }, reservationId);
+}
+
+function persistentCancellationView(snapshot) {
+  return {
+    reservation: snapshot.reservation,
+    slot: snapshot.slot,
+    cash: snapshot.cash,
+    greenFees: snapshot.greenFees,
+    history: snapshot.history,
+    nextTransactionNo: snapshot.nextTransactionNo,
+    reservationTickets: snapshot.reservationTickets,
+    customerIdentity: snapshot.customerIdentity,
+  };
+}
+
+async function cancellationAndSaveReloadScenario(page, shot) {
+  const fixture = await setupCancellation(page);
+  const id = fixture.reservation.id;
+  await openLaptopReservations(page);
+  const row = page.locator('.lt-content tr').filter({ hasText: fixture.reservation.fullName });
+  assert(await row.count() === 1, 'The booked cancellation fixture is not visible on the tee sheet.');
+  await row.getByRole('button', { name: 'View', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel booking', exact: true }).waitFor({ state: 'visible' });
+  await shot('19-cancel-booking-detail.png');
+  await page.getByRole('button', { name: 'Cancel booking', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel the booking', exact: true }).waitFor({ state: 'visible' });
+  await shot('20-cancel-booking-confirmation.png');
+  await page.getByRole('button', { name: 'Cancel the booking', exact: true }).click();
+  await page.waitForFunction((reservationId) => {
+    const reservation = window.__fw.state.reservations.booked
+      .find((entry) => String(entry.id) === String(reservationId));
+    return reservation?.status === 'cancelled';
+  }, id, { timeout: 5000 });
+  const toastText = await page.locator('.toast').last().innerText();
+  assert(toastText.includes('spot is open again'), 'Cancellation did not visibly confirm the reopened spot.');
+  assert(await page.locator('.lt-content tr').filter({ hasText: fixture.reservation.fullName }).count() === 0,
+    'The cancelled booking still occupies the active tee sheet.');
+  await shot('21-cancelled-spot-reopened.png');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => window.__fw.laptopOpen === false, null, { timeout: 5000 });
+
+  // Cross the authored arrival boundary with the production 16x time control.
+  // A cancelled appointment must never materialize as a clubhouse customer.
+  await page.keyboard.press('3');
+  await page.waitForFunction((arrival) => window.__fw.state.clock.minutes >= arrival + 2,
+    fixture.plannedArrival, { timeout: 10000 });
+  await pauseClock(page);
+  const cancelled = await cancellationSnapshot(page, id);
+  assert(cancelled.reservation.status === 'cancelled'
+      && cancelled.reservation.reservationStatus === 'cancelled'
+      && cancelled.reservation.checkInStatus === 'cancelled'
+      && cancelled.reservation.arrivalStatus === 'cancelled'
+      && cancelled.reservation.currentDestination === 'departed',
+  'Cancellation did not close every authoritative reservation lifecycle field.');
+  assert(Number.isFinite(cancelled.reservation.cancelledAt), 'Cancellation has no durable timestamp.');
+  assert(!cancelled.customer, 'A cancelled reservation spawned a live clubhouse customer.');
+  assert(cancelled.slot.bookedPlayers
+      === fixture.bookedSlot.bookedPlayers - fixture.reservation.partySize,
+  'Cancellation did not release exactly the booked party size from slot capacity.');
+  assert(cancelled.slot.remainingCapacity
+      === fixture.bookedSlot.remainingCapacity + fixture.reservation.partySize,
+  'Cancellation did not reopen exactly the booked party size.');
+  assert(cancelled.customerIdentity.visitHistory.cancellations
+      === fixture.identityBefore.visitHistory.cancellations + 1,
+  'Customer identity history did not record exactly one cancellation.');
+  assert(cancelled.customerIdentity.visitHistory.totalVisits
+      === fixture.identityBefore.visitHistory.totalVisits + 1,
+  'Customer identity history did not record the cancelled visit exactly once.');
+  assert(cancelled.cash === fixture.before.cash
+      && cancelled.greenFees === fixture.before.greenFees
+      && cancelled.history === fixture.before.history
+      && cancelled.nextTransactionNo === fixture.before.nextTransactionNo
+      && cancelled.reservationTickets.length === 0,
+  'A no-deposit cancellation changed cash, revenue, tickets, or transaction numbering.');
+  await shot('22-cancelled-arrival-suppressed.png');
+
+  await saveSlotOne(page);
+  await shot('23-cancellation-save-slot-written.png');
+  await page.getByRole('button', { name: 'Resume', exact: true }).click();
+  await loadSlotOne(page);
+  const firstLoad = await cancellationSnapshot(page, id);
+  assert(JSON.stringify(persistentCancellationView(firstLoad))
+    === JSON.stringify(persistentCancellationView(cancelled)),
+  'First normal UI load changed cancellation, capacity, identity history, or financial state.');
+  await shot('24-cancellation-first-load.png');
+
+  await loadSlotOne(page);
+  const secondLoad = await cancellationSnapshot(page, id);
+  assert(JSON.stringify(persistentCancellationView(secondLoad))
+    === JSON.stringify(persistentCancellationView(firstLoad)),
+  'Loading the same cancellation save twice duplicated or changed lifecycle state.');
+  await shot('25-cancellation-second-load-idempotent.png');
+  return { fixture, cancelled, firstLoad, secondLoad };
+}
+
 export async function runSimplifiedFrontDeskLifecycleAcceptance(page, options = {}) {
   const viewportRun = configureViewport(options.viewport
     || process.env.LIFECYCLE_QA_VIEWPORT
@@ -779,6 +948,10 @@ export async function runSimplifiedFrontDeskLifecycleAcceptance(page, options = 
     await restoreBaseline(page, baselineAutosave);
     scenarios.noShowSaveReload = await noShowAndSaveReloadScenario(page, shot);
 
+    currentScenario = 'normal laptop cancellation, arrival suppression, save, and reload';
+    await restoreBaseline(page, baselineAutosave);
+    scenarios.cancellationSaveReload = await cancellationAndSaveReloadScenario(page, shot);
+
     const nonAborted = failedRequests.filter((request) => !/ERR_ABORTED/.test(request.error));
     assert(consoleErrors.length === 0, `Console errors: ${consoleErrors.join(' | ')}`);
     assert(pageErrors.length === 0, `Page errors: ${pageErrors.join(' | ')}`);
@@ -788,7 +961,7 @@ export async function runSimplifiedFrontDeskLifecycleAcceptance(page, options = 
       viewport: { ...VIEWPORT },
       requiredViewports: REQUIRED_VIEWPORTS,
       evidenceDirectory: root,
-      fixtureBoundary: 'Autosave reset, deterministic reservation/customer creation, time/weather normalization, and fixed player placement only; front-desk navigation, slot selection, cash handling, time acceleration, laptop navigation, Escape, Save, and Load use Playwright keyboard/mouse controls.',
+      fixtureBoundary: 'Autosave reset, deterministic reservation/customer creation, time/weather normalization, and fixed player placement only; front-desk navigation, slot selection, cash handling, time acceleration, laptop navigation, reservation cancellation/confirmation, Escape, Save, and Load use Playwright keyboard/mouse controls.',
       scenarios,
       evidence,
       console: {
