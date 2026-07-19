@@ -69,6 +69,25 @@ test('success and blocker paths retain every driver-specific screenshot referenc
   const finalScanRelease = performance.indexOf("state === 'AllProductsScanned'", scanReleaseWait);
   assert.ok(scanClick >= 0 && scanReleaseWait > scanClick && finalScanRelease > scanReleaseWait,
     'performance QA must wait for the visible scan arc to release input before clicking another product');
+  const residencyWait = performance.indexOf('await waitForRendererResidencyPlateau(page');
+  const heapControl = performance.indexOf("'heapIdleControl'", residencyWait);
+  assert.ok(residencyWait >= 0 && heapControl > residencyWait,
+    'performance QA must establish a renderer-residency plateau before its no-action heap control');
+  assert.match(performance, /sceneCameraMatch/,
+    'stored performance baselines must qualify the authored camera for every static scene');
+  assert.match(performance, /TRANSACTION_RENDERER_RESIDENCY_ATTEMPTS/);
+  assert.match(performance, /isRetryableTransactionRendererResidency\(attemptDelta\)/,
+    'performance QA must bound renderer-only convergence before judging repeated-sale residency');
+  const cardInsertion = performance.indexOf("'cardInsertion'");
+  const neutralCardPointer = performance.indexOf(
+    'await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 2)',
+    cardInsertion,
+  );
+  const stableCardCamera = performance.indexOf('await waitForCameraStable(page)', neutralCardPointer);
+  const cardEntryScene = performance.indexOf('scenes.cardEntry = await captureScene', stableCardCamera);
+  assert.ok(cardInsertion >= 0 && neutralCardPointer > cardInsertion
+      && stableCardCamera > neutralCardPointer && cardEntryScene > stableCardCamera,
+    'performance QA must neutralize pointer lean before its static card-entry camera capture');
 
   const queue = fs.readFileSync(DRIVERS[1], 'utf8');
   assert.match(queue, /evidencePngs: evidence/);
