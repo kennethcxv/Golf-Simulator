@@ -1309,13 +1309,13 @@ body.register-mode .view-toggle { display: none !important; }
 .ced-left {
   position: absolute; top: 64px; left: 12px; width: 252px;
   display: flex; flex-direction: column; gap: 10px;
-  max-height: calc(100% - 140px); overflow-y: auto; scrollbar-width: thin;
+  height: calc(100% - 140px); overflow: hidden;
 }
 .ced-rail {
   background: var(--ced-bg);
   border: 1px solid var(--ced-edge); border-radius: 12px;
   padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 7px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow); flex: none;
 }
 .ced-rail-head {
   grid-column: 1 / -1; font-size: 0.72rem; letter-spacing: 0.16em;
@@ -1335,7 +1335,12 @@ body.register-mode .view-toggle { display: none !important; }
   background: var(--ced-bg);
   border: 1px solid var(--ced-edge); border-radius: 12px;
   padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow);
+  min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-gutter: stable;
+  scrollbar-color: var(--ced-edge2) var(--ced-bg2);
 }
+.ced-tool-panel::-webkit-scrollbar { width: 8px; }
+.ced-tool-panel::-webkit-scrollbar-track { background: var(--ced-bg2); border-radius: 999px; }
+.ced-tool-panel::-webkit-scrollbar-thumb { background: var(--ced-edge2); border-radius: 999px; }
 .ced-tool-panel:empty { display: none; }
 .ced-panel-head {
   font-size: 0.74rem; letter-spacing: 0.14em; color: var(--ced-gold);
@@ -1378,7 +1383,7 @@ body.register-mode .view-toggle { display: none !important; }
 
 .ced-tip {
   background: var(--ced-bg); border: 1px solid var(--ced-edge); border-radius: 12px;
-  padding: 11px 13px; font-size: 0.88rem; color: var(--ced-sage); line-height: 1.45;
+  padding: 11px 13px; font-size: 0.88rem; color: var(--ced-sage); line-height: 1.45; flex: none;
 }
 .ced-tip b { color: var(--ced-gold); display: block; font-size: 0.72rem; letter-spacing: 0.16em; margin-bottom: 4px; }
 
@@ -1497,14 +1502,14 @@ body.register-mode .view-toggle { display: none !important; }
   .ced-title span { display: none; }
   .ced-title { margin-right: 0; }
   .ced-clock { display: none; }
-  .ced-top-left .ced-top-btn:not(.primary) span:not(.ced-ico) { display: none; }
-  .ced-holechip { max-width: 240px; }
   .ced-camera { width: 134px; flex-basis: 134px; }
 }
 @media (max-width: 1500px) {
   .ced-left { width: 232px; }
+  .ced-holechip { max-width: 240px; }
 }
 @media (max-width: 1420px) {
+  .ced-top-left .ced-top-btn:not(.primary) span:not(.ced-ico) { display: none; }
   .ced-holechip { max-width: 190px; }
   .ced-camera { width: 116px; flex-basis: 116px; }
   .ced-bill-wrap { gap: 4px; }
