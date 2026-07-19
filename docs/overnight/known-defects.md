@@ -104,3 +104,4 @@ All required source/reference/runtime artifacts exist, literal runtime paths res
 | `QA-REIMPORT-EVIDENCE-001` | Sheet-6 clean Blender report regenerated: 10/10 assets, all mandatory checks and two cross-asset checks green. |
 | `QA-BLENDER-DISCOVERY-001` | Gate runner resolves `BLENDER_BIN` or installed Blender Foundation versions instead of assuming `blender` is on PATH. |
 | `QA-FOV-MATRIX-001` | Probe now records effective FOV, separates player and authored cashier cameras, disables organic walk-ins, waits asset barriers, warms all cases, and samples cumulative renderer work. |
+| `QA-ASSET-REPORT-001` | Per-gate asset reports now expose the selected gate as top-level `ok` and preserve the combined result as `aggregateOk`, matching report semantics to the process exit code. |

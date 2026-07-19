@@ -225,16 +225,7 @@ export function auditAssetManifests({ repositoryRoot = REPOSITORY_ROOT } = {}) {
   };
 }
 
-function argument(name) {
-  const index = process.argv.indexOf(name);
-  return index >= 0 ? process.argv[index + 1] : null;
-}
-
-const isMain = process.argv[1] && import.meta.url === new URL(`file:///${posix(path.resolve(process.argv[1]))}`).href;
-if (isMain) {
-  const report = auditAssetManifests();
-  const output = argument('--out');
-  const selectedGate = argument('--gate') || 'all';
+export function selectAuditGate(report, selectedGate = 'all') {
   const gateResults = {
     all: report.ok,
     'assets-1-50': report.gates.assets01to50Manifest,
@@ -244,12 +235,31 @@ if (isMain) {
   if (!(selectedGate in gateResults)) {
     throw new Error(`Unknown --gate value: ${selectedGate}`);
   }
-  report.selectedGate = { id: selectedGate, ok: gateResults[selectedGate] };
+  const selectedOk = gateResults[selectedGate];
+  return {
+    ...report,
+    aggregateOk: report.ok,
+    selectedGate: { id: selectedGate, ok: selectedOk },
+    ok: selectedOk,
+  };
+}
+
+function argument(name) {
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] : null;
+}
+
+const isMain = process.argv[1] && import.meta.url === new URL(`file:///${posix(path.resolve(process.argv[1]))}`).href;
+if (isMain) {
+  const aggregateReport = auditAssetManifests();
+  const output = argument('--out');
+  const selectedGate = argument('--gate') || 'all';
+  const report = selectAuditGate(aggregateReport, selectedGate);
   if (output) {
     const absolute = path.resolve(output);
     fs.mkdirSync(path.dirname(absolute), { recursive: true });
     fs.writeFileSync(absolute, `${JSON.stringify(report, null, 2)}\n`);
   }
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-  if (!gateResults[selectedGate]) process.exitCode = 1;
+  if (!report.ok) process.exitCode = 1;
 }
