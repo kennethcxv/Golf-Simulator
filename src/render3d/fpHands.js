@@ -50,9 +50,10 @@ const LEGACY_GRIPS = {
   },
   // held low and forward, the way you hold a knife you are about to draw toward you down a seam
   boxcutter: {
-    grip: { pos: [0.035, 0.045, 0.118], rot: [-0.12, 0, 0.12], pose: 'pinch' },
+    grip: { pos: [0.026, -0.012, 0.110], rot: [-0.12, 0, 0.10], pose: 'pinch' },
     support: null,
     recoil: 0.06,
+    handScale: 0.78,
   },
 };
 
@@ -166,7 +167,7 @@ function makeHand(mats, mirror = 1) {
   }
 
   pose('wrap');
-  return { group: g, pose };
+  return { group: g, pose, forearm, sleeve };
 }
 
 export function makeFpHands() {
@@ -177,8 +178,15 @@ export function makeFpHands() {
   };
 
   const root = new THREE.Group();
+  root.name = 'FirstPersonHands';
   const right = makeHand(mats, 1);
   const left = makeHand(mats, -1);
+  right.group.name = 'FirstPersonRightHand';
+  left.group.name = 'FirstPersonLeftHand';
+  right.forearm.name = 'FirstPersonRightForearm';
+  right.sleeve.name = 'FirstPersonRightCuff';
+  left.forearm.name = 'FirstPersonLeftForearm';
+  left.sleeve.name = 'FirstPersonLeftCuff';
   root.add(right.group, left.group);
   root.visible = false;
 
@@ -200,6 +208,11 @@ export function makeFpHands() {
       tool = GRIPS[next] ? next : null;
       if (!tool) return;
       const g = GRIPS[tool];
+      root.scale.setScalar(g.handScale || 1);
+      // The cutter travels onto a world-space seam. Its normal camera-local
+      // forearm is replaced there by the bent arm bridge in courseScene.
+      right.forearm.visible = tool !== 'boxcutter';
+      right.sleeve.visible = tool !== 'boxcutter';
       right.group.position.set(...g.grip.pos);
       right.group.rotation.set(...g.grip.rot);
       right.pose(g.grip.pose || 'wrap');

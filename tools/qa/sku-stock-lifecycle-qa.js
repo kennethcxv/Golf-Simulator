@@ -575,6 +575,11 @@ async (page) => {
       for (let object = cutterRoot; object && cutterVisible; object = object.parent) {
         cutterVisible = object.visible !== false;
       }
+      const cutterArm = window.__fw.scene3d.scene.getObjectByName('BoxCutterPlayerArm');
+      let cutterArmVisible = !!cutterArm;
+      for (let object = cutterArm; object && cutterArmVisible; object = object.parent) {
+        cutterArmVisible = object.visible !== false;
+      }
       const stockDisplay = window.__fw.scene3d.clubhouse().stockDisplayDiagnostics()
         .displays.find((display) => display.fixtureId === fixtureId && display.stockId === skuId) || null;
       return {
@@ -589,6 +594,8 @@ async (page) => {
         })(),
         cutter: !!window.__fw.scene3d.scene.getObjectByName('DeliveryBoxCutterAuthored'),
         cutterVisible,
+        cutterArmVisible,
+        cutterArmSegments: cutterArm?.children.filter((object) => object.visible).length || 0,
         projectedBoxBounds,
         recycling: !!window.__fw.scene3d.scene.getObjectByName('DeliveryRecyclingStationAuthored'),
         fourFlaps: ['FRONT', 'BACK', 'LEFT', 'RIGHT'].every((side) => !!root?.getObjectByName(`BOX_FLAP_${side}`)),
@@ -671,6 +678,8 @@ async (page) => {
       midTapeState: midCapture.box.tapeSegments,
       midProjectedBounds: midCapture.visual.projectedBoxBounds,
       midCutterVisible: midCapture.visual.cutterVisible,
+      midCutterArmVisible: midCapture.visual.cutterArmVisible,
+      midCutterArmSegments: midCapture.visual.cutterArmSegments,
       inputBefore,
       inputAfter: await inputTrace(),
     };
@@ -910,6 +919,8 @@ async (page) => {
           && cutter.midTapeState.left === 0
           && cutter.midTapeState.right === 0
           && cutter.midCutterVisible
+          && cutter.midCutterArmVisible
+          && cutter.midCutterArmSegments === 3
           && cutter.midProjectedBounds?.width >= 180
           && cutter.midProjectedBounds?.height >= 180
           && cutter.midProjectedBounds?.area >= 35000,
