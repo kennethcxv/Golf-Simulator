@@ -151,7 +151,7 @@ export const PACKAGING_LAYOUTS = deepFreeze({
   APPAREL8: layout('APPAREL8', 'APPAREL_CARTON', 8, dimensions(0.22, 0.10, 0.19)),
   FLAT8: layout('FLAT8', 'APPAREL_CARTON', 8, dimensions(0.18, 0.08, 0.15)),
   SHOE4: layout('SHOE4', 'SHOE_CARTON', 4, dimensions(0.25, 0.14, 0.33)),
-  CLUB2: layout('CLUB2', 'LONG_CLUB_CARTON', 2, dimensions(1.19, 0.09, 0.13)),
+  CLUB2: layout('CLUB2', 'LONG_CLUB_CARTON', 2, dimensions(1.19, 0.09, 0.105)),
   BAG1: layout('BAG1', 'GOLF_BAG_CARTON', 1, dimensions(0.67, 0.98, 0.45)),
   FIXTURE1: layout('FIXTURE1', 'FIXTURE_PACKAGE', 1, dimensions(0.59, 0.50, 0.37)),
   FURNITURE1: layout('FURNITURE1', 'FURNITURE_CRATE', 1, dimensions(1.19, 0.90, 0.79)),
@@ -260,7 +260,7 @@ const PRODUCT_SPECS = [
   product({ skuId: 'polo2', status: 'retail', category: 'apparel', physical: dimensions(0.2000, 0.0925, 0.1650), packed: dimensions(0.2000, 0.0925, 0.1650), packedState: 'folded-with-tissue-and-size-tag', packedOrientation: 'collar-face-up', layoutId: 'APPAREL8', unitWeightLb: 0.5, fixtureIds: RETAIL_FIXTURES.polo }),
   product({ skuId: 'cap1', status: 'retail', category: 'apparel', physical: dimensions(0.2081, 0.1235, 0.2100), packed: dimensions(0.2081, 0.0700, 0.2100), packedState: 'nested-crowns-with-tissue-form', packedOrientation: 'bills-aligned-face-front', layoutId: 'CAP_NEST8', unitWeightLb: 0.25, fixtureIds: RETAIL_FIXTURES.cap }),
   product({ skuId: 'jacket2', status: 'retail', category: 'apparel', physical: dimensions(0.2150, 0.0947, 0.1822), packed: dimensions(0.2150, 0.0947, 0.1822), packedState: 'folded-with-tissue-and-size-tag', packedOrientation: 'zipper-face-up', layoutId: 'APPAREL8', unitWeightLb: 1.3, fixtureIds: RETAIL_FIXTURES.jacket }),
-  product({ skuId: 'shoe1', status: 'retail', category: 'apparel', physical: dimensions(0.2900, 0.0998, 0.2298), packed: dimensions(0.32, 0.13, 0.24), packedState: 'pair-in-retail-shoe-box-with-tissue', packedOrientation: 'toe-end-face-front', layoutId: 'SHOE4', unitWeightLb: 2.4, fixtureIds: RETAIL_FIXTURES.shoe }),
+  product({ skuId: 'shoe1', status: 'retail', category: 'apparel', physical: dimensions(0.3100, 0.1150, 0.1900), packed: dimensions(0.32, 0.13, 0.24), packedState: 'pair-in-retail-shoe-box-with-tissue', packedOrientation: 'toe-end-face-front', layoutId: 'SHOE4', unitWeightLb: 2.4, fixtureIds: RETAIL_FIXTURES.shoe }),
   product({ skuId: 'sock1', status: 'retail', category: 'apparel', physical: dimensions(0.1500, 0.0731, 0.1269), packed: dimensions(0.1500, 0.0731, 0.1269), packedState: 'banded-folded-pair', packedOrientation: 'label-face-up', layoutId: 'FLAT8', unitWeightLb: 0.15, fixtureIds: RETAIL_FIXTURES.socks }),
 
   product({ skuId: 'tees1', status: 'retail', category: 'accessories', physical: dimensions(0.1300, 0.1200, 0.0460), packed: dimensions(0.1300, 0.1200, 0.0460), packedState: 'sealed-retail-pouch', packedOrientation: 'label-face-up', layoutId: 'ACCESSORY_CARD12', unitWeightLb: 0.35, fixtureIds: RETAIL_FIXTURES.accessories }),

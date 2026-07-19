@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { STOCKROOM } from '../../data/shopLayout.js';
 
 // Refs 41-45 stay articulated at runtime. In particular, do not pass these
 // roots through merch.bake(): the van doors, wheels, cart casters, hand-truck
@@ -18,7 +19,7 @@ export const DELIVERY_EQUIPMENT_ASSETS = Object.freeze({
   }),
   delivery_pallet_jack: Object.freeze({
     id: 'delivery_pallet_jack', alias: 'palletJack', reference: '45', zone: 'exterior', static: true,
-    interactionNode: 'INTERACTION_TARGET',
+    interactionNode: 'HANDLE_GRIP_TARGET',
   }),
 });
 
@@ -29,7 +30,9 @@ export const DELIVERY_EQUIPMENT_ASSETS = Object.freeze({
 // clubhouse interior root at local y=0.
 export const DELIVERY_EQUIPMENT_DEFAULT_LAYOUT = Object.freeze({
   delivery_van: Object.freeze({ x: 16.5, y: 0, z: 0, ry: -Math.PI / 2 }),
-  delivery_hand_truck: Object.freeze({ x: 6.1, y: 0, z: -5.9, ry: 0.6 }),
+  delivery_hand_truck: Object.freeze({
+    x: STOCKROOM.handTruck.x, y: 0, z: STOCKROOM.handTruck.z, ry: 0.6,
+  }),
   delivery_stocking_cart: Object.freeze({ x: 6.35, y: 0, z: -3.4, ry: 0 }),
   // Safe pre-coupling fallback for Ref 45. Once both authored assets are ready,
   // couplePalletJackToPallet() replaces this pose by mapping the jack's -X fork
@@ -105,6 +108,8 @@ const VAN_DOORS = Object.freeze({
   rearRight: 'REAR_CARGO_DOOR_RIGHT_HINGE_PIVOT',
 });
 const HAND_TRUCK_WHEELS = Object.freeze(['WHEEL_LEFT_PIVOT', 'WHEEL_RIGHT_PIVOT']);
+const EMPTY_COLLIDER_DESCRIPTORS = Object.freeze([]);
+const EMPTY_COLLIDER_DESCRIPTOR_MAP = new Map();
 
 function runtimeAxis(value, fallback) {
   const normalized = String(value || fallback).toUpperCase().replace(/[^XYZ+-]/g, '');
@@ -306,6 +311,7 @@ export function createDeliveryEquipment({
   const modelRoots = new Map();
   const renderedInstances = new Map();
   const namedNodes = new Map();
+  const colliderCaches = new Map();
   const layouts = new Map();
   const readyCallbacks = new Set();
   const pendingOrderCounts = new Map();
@@ -390,9 +396,16 @@ export function createDeliveryEquipment({
   function applyWrapperPose(spec, pose) {
     const wrapper = wrappers.get(spec.id);
     const resolved = resolvedPose(spec, pose);
+    const moved = wrapper.position.x !== resolved.x
+      || wrapper.position.y !== resolved.y
+      || wrapper.position.z !== resolved.z
+      || wrapper.rotation.x !== 0
+      || wrapper.rotation.y !== resolved.ry
+      || wrapper.rotation.z !== 0;
     wrapper.position.set(resolved.x, resolved.y, resolved.z);
     wrapper.rotation.set(0, resolved.ry, 0);
     wrapper.visible = spec.id === VAN_ID ? false : resolved.visible;
+    if (moved) markColliderPoseDirty(spec.id);
     return wrapper;
   }
 
@@ -401,6 +414,77 @@ export function createDeliveryEquipment({
   function node(asset, name) {
     const id = assetIdFor(asset);
     return id ? namedNodes.get(id)?.get(name) || null : null;
+  }
+
+  function markColliderPoseDirty(asset) {
+    const id = assetIdFor(asset);
+    const cache = id ? colliderCaches.get(id) : null;
+    if (cache) cache.poseRevision += 1;
+  }
+
+  function buildColliderCache(id, root) {
+    const helpers = [];
+    const matrixNodeSet = new Set();
+    root.traverse((object) => {
+      if (!object.isMesh || !object.geometry || !authoringHelper(object)) return;
+      if (!object.geometry.boundingBox) object.geometry.computeBoundingBox?.();
+      if (!object.geometry.boundingBox) return;
+
+      const bounds = new THREE.Box3();
+      const descriptor = Object.freeze({
+        equipmentId: id,
+        name: object.name,
+        kind: 'delivery-equipment',
+        get minX() { return bounds.min.x; },
+        get maxX() { return bounds.max.x; },
+        get minY() { return bounds.min.y; },
+        get maxY() { return bounds.max.y; },
+        get minZ() { return bounds.min.z; },
+        get maxZ() { return bounds.max.z; },
+        object,
+      });
+      helpers.push({ object, localBounds: object.geometry.boundingBox, bounds, descriptor });
+
+      // Cache only the authored branches that lead to collision helpers. A
+      // refresh updates these nodes in parent-first order instead of walking
+      // every visible mesh in the GLB (121 nodes for Ref 41).
+      for (let cursor = object; cursor && cursor !== root; cursor = cursor.parent) {
+        matrixNodeSet.add(cursor);
+      }
+    });
+
+    const depthFromRoot = (object) => {
+      let depth = 0;
+      for (let cursor = object; cursor && cursor !== root; cursor = cursor.parent) depth += 1;
+      return depth;
+    };
+    const matrixNodes = [...matrixNodeSet]
+      .sort((first, second) => depthFromRoot(first) - depthFromRoot(second));
+    const descriptors = Object.freeze(helpers.map((entry) => entry.descriptor));
+    const byName = new Map(descriptors.map((descriptor) => [descriptor.name, descriptor]));
+    colliderCaches.set(id, {
+      id,
+      root,
+      helpers,
+      matrixNodes,
+      descriptors,
+      byName,
+      poseRevision: 0,
+      boundsRevision: -1,
+      refreshes: 0,
+    });
+  }
+
+  function refreshColliderCache(cache) {
+    if (!cache || cache.boundsRevision === cache.poseRevision) return cache;
+    cache.root.updateWorldMatrix(true, false);
+    for (const object of cache.matrixNodes) object.updateWorldMatrix(false, false);
+    for (const entry of cache.helpers) {
+      entry.bounds.copy(entry.localBounds).applyMatrix4(entry.object.matrixWorld);
+    }
+    cache.boundsRevision = cache.poseRevision;
+    cache.refreshes += 1;
+    return cache;
   }
 
   function captureVanRig() {
@@ -640,6 +724,7 @@ export function createDeliveryEquipment({
       : rootWorld);
     wrapper.visible = true;
     wrapper.updateWorldMatrix(true, true);
+    markColliderPoseDirty(PALLET_JACK_ID);
 
     const runtimeChannel = runtimeDirection(entry.userData?.entry_direction_runtime, '-Z');
     palletJackCoupling = {
@@ -659,18 +744,44 @@ export function createDeliveryEquipment({
   function setVanDoors(progress) {
     if (!vanRig) return;
     const t = smooth(progress);
+    let moved = false;
     if (vanRig.sliding && vanRig.slidingBase) {
-      vanRig.sliding.position.copy(vanRig.slidingBase);
-      vanRig.sliding.position.x += vanRig.slidingTravel * t;
+      const x = vanRig.slidingBase.x + vanRig.slidingTravel * t;
+      const { y, z } = vanRig.slidingBase;
+      if (vanRig.sliding.position.x !== x
+        || vanRig.sliding.position.y !== y
+        || vanRig.sliding.position.z !== z) {
+        vanRig.sliding.position.set(x, y, z);
+        moved = true;
+      }
     }
     if (vanRig.rearLeft && vanRig.rearLeftBase) {
-      vanRig.rearLeft.rotation.copy(vanRig.rearLeftBase);
-      vanRig.rearLeft.rotation.y += vanRig.rearLeftAngle * t;
+      const x = vanRig.rearLeftBase.x;
+      const y = vanRig.rearLeftBase.y + vanRig.rearLeftAngle * t;
+      const z = vanRig.rearLeftBase.z;
+      const order = vanRig.rearLeftBase.order;
+      if (vanRig.rearLeft.rotation.x !== x
+        || vanRig.rearLeft.rotation.y !== y
+        || vanRig.rearLeft.rotation.z !== z
+        || vanRig.rearLeft.rotation.order !== order) {
+        vanRig.rearLeft.rotation.set(x, y, z, order);
+        moved = true;
+      }
     }
     if (vanRig.rearRight && vanRig.rearRightBase) {
-      vanRig.rearRight.rotation.copy(vanRig.rearRightBase);
-      vanRig.rearRight.rotation.y += vanRig.rearRightAngle * t;
+      const x = vanRig.rearRightBase.x;
+      const y = vanRig.rearRightBase.y + vanRig.rearRightAngle * t;
+      const z = vanRig.rearRightBase.z;
+      const order = vanRig.rearRightBase.order;
+      if (vanRig.rearRight.rotation.x !== x
+        || vanRig.rearRight.rotation.y !== y
+        || vanRig.rearRight.rotation.z !== z
+        || vanRig.rearRight.rotation.order !== order) {
+        vanRig.rearRight.rotation.set(x, y, z, order);
+        moved = true;
+      }
     }
+    if (moved) markColliderPoseDirty(VAN_ID);
   }
 
   function setVanWheelTravel(distance, steerProgress = 0) {
@@ -705,6 +816,7 @@ export function createDeliveryEquipment({
       handTruckRig.wheels[index].rotation.copy(handTruckRig.wheelBases[index]);
       handTruckRig.wheels[index].rotation.x += wheelSpin;
     }
+    markColliderPoseDirty('delivery_hand_truck');
   }
 
   function resetHandTruckRig() {
@@ -728,6 +840,7 @@ export function createDeliveryEquipment({
     palletJackRig.lift.position.copy(palletJackRig.liftBase);
     palletJackRig.lift.position[palletJackRig.liftAxis.property]
       += palletJackRig.liftAxis.sign * palletJackRig.liftRange * liftAmount;
+    markColliderPoseDirty(PALLET_JACK_ID);
   }
 
   function resetPalletJackRig() {
@@ -776,6 +889,7 @@ export function createDeliveryEquipment({
       capturePalletJackRig();
       resetPalletJackRig();
     }
+    buildColliderCache(spec.id, instance);
     checkReady();
     return authoredRoot;
   }
@@ -866,6 +980,7 @@ export function createDeliveryEquipment({
     wrapper.rotation.set(0, entry.route.rotationY, 0);
     wrapper.visible = true;
     resetVanRig();
+    markColliderPoseDirty(VAN_ID);
     activeArrival = entry;
     emitBeat(entry, DELIVERY_VAN_BEATS.APPROACH);
   }
@@ -926,6 +1041,7 @@ export function createDeliveryEquipment({
     wrapper.visible = keepVan;
     setVanDoors(leaveDoorsOpen ? 1 : 0);
     setVanWheelTravel(0, 0);
+    markColliderPoseDirty(VAN_ID);
     arrivalsById.delete(entry.id);
     activeArrival = null;
     entry.status = 'completed';
@@ -977,6 +1093,9 @@ export function createDeliveryEquipment({
 
   function applyArrivalFrame(entry) {
     const wrapper = wrappers.get(VAN_ID);
+    const previousX = wrapper.position.x;
+    const previousY = wrapper.position.y;
+    const previousZ = wrapper.position.z;
     const duration = arrivalPhaseDuration(entry);
     const p = duration <= 0 ? 1 : clamp01(entry.elapsed / duration);
     const eased = smooth(p);
@@ -1012,6 +1131,11 @@ export function createDeliveryEquipment({
         entry.route.approachDistance + entry.route.departureDistance * eased,
         p,
       );
+    }
+    if (wrapper.position.x !== previousX
+      || wrapper.position.y !== previousY
+      || wrapper.position.z !== previousZ) {
+      markColliderPoseDirty(VAN_ID);
     }
   }
 
@@ -1240,29 +1364,33 @@ export function createDeliveryEquipment({
 
   function colliderDescriptors(asset) {
     const id = assetIdFor(asset);
-    const root = id ? renderedInstances.get(id) : null;
-    if (!root) return [];
-    root.updateWorldMatrix(true, true);
-    const descriptors = [];
-    root.traverse((object) => {
-      if (!object.isMesh || !object.geometry || !authoringHelper(object)) return;
-      if (!object.geometry.boundingBox) object.geometry.computeBoundingBox?.();
-      if (!object.geometry.boundingBox) return;
-      const bounds = object.geometry.boundingBox.clone().applyMatrix4(object.matrixWorld);
-      descriptors.push(Object.freeze({
-        equipmentId: id,
-        name: object.name,
-        kind: 'delivery-equipment',
-        minX: bounds.min.x,
-        maxX: bounds.max.x,
-        minY: bounds.min.y,
-        maxY: bounds.max.y,
-        minZ: bounds.min.z,
-        maxZ: bounds.max.z,
-        object,
-      }));
+    const cache = id ? refreshColliderCache(colliderCaches.get(id)) : null;
+    return cache?.descriptors || EMPTY_COLLIDER_DESCRIPTORS;
+  }
+
+  function colliderDescriptorMap(asset) {
+    const id = assetIdFor(asset);
+    const cache = id ? refreshColliderCache(colliderCaches.get(id)) : null;
+    return cache?.byName || EMPTY_COLLIDER_DESCRIPTOR_MAP;
+  }
+
+  function colliderRevision(asset) {
+    const id = assetIdFor(asset);
+    return id ? colliderCaches.get(id)?.poseRevision ?? -1 : -1;
+  }
+
+  function colliderCacheDiagnostics(asset) {
+    const id = assetIdFor(asset);
+    const cache = id ? colliderCaches.get(id) : null;
+    if (!cache) return null;
+    return Object.freeze({
+      equipmentId: id,
+      helpers: cache.helpers.length,
+      matrixNodes: cache.matrixNodes.length,
+      poseRevision: cache.poseRevision,
+      boundsRevision: cache.boundsRevision,
+      refreshes: cache.refreshes,
     });
-    return descriptors;
   }
 
   function staticPropRoots() {
@@ -1376,6 +1504,7 @@ export function createDeliveryEquipment({
     renderedInstances.clear();
     modelRoots.clear();
     namedNodes.clear();
+    colliderCaches.clear();
     vanRig = null;
     handTruckRig = null;
     palletJackRig = null;
@@ -1426,6 +1555,9 @@ export function createDeliveryEquipment({
     nodeWorldPose,
     socketWorldPose: nodeWorldPose,
     colliderDescriptors,
+    colliderDescriptorMap,
+    colliderRevision,
+    colliderCacheDiagnostics,
     staticPropRoots,
     metrics,
     diagnostics,
