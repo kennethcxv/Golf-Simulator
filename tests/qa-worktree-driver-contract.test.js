@@ -4,6 +4,10 @@ import fs from 'node:fs';
 
 const stockDriver = fs.readFileSync('tools/qa/sku-stock-lifecycle-qa.js', 'utf8');
 const deliveryDriver = fs.readFileSync('tools/qa/live-laptop-order-delivery-qa.js', 'utf8');
+const frontDeskLifecycleDriver = fs.readFileSync(
+  'tools/qa/simplified-front-desk-lifecycle-acceptance.mjs',
+  'utf8',
+);
 
 test('stock and delivery browser drivers resolve output and runtime URL from the assigned worktree', () => {
   for (const [name, source] of [
@@ -15,6 +19,35 @@ test('stock and delivery browser drivers resolve output and runtime URL from the
     assert.doesNotMatch(source, /C:\\\\Users\\\\Kenneth\\\\Documents\\\\GitHub\\\\Golf-Flipper/i,
       `${name} driver must not write to the original checkout`);
   }
+});
+
+test('front-desk lifecycle evidence resolves the runtime URL from the assigned worktree', () => {
+  assert.match(frontDeskLifecycleDriver,
+    /process\.env\.QA_BASE_URL \|\| 'http:\/\/localhost:8457\/'/);
+  assert.match(frontDeskLifecycleDriver, /const plannedArrival = deskReadyAt - 2;/,
+    'the fixture keeps a bounded but visible lounge window');
+  assert.ok((frontDeskLifecycleDriver.match(/page\.keyboard\.press\('3'\)/g) || []).length >= 2,
+    'arrival and no-show clocks advance through the production 16x time control');
+});
+
+test('front-desk cash evidence accepts the presented handful before opening the drawer view', () => {
+  const routeStart = frontDeskLifecycleDriver.indexOf('async function completeCashService');
+  const routeEnd = frontDeskLifecycleDriver.indexOf('async function walkInScenario', routeStart);
+  const route = frontDeskLifecycleDriver.slice(routeStart, routeEnd);
+  const monitorCamera = route.indexOf("await waitCamera(page, 'monitor')");
+  const tenderClick = route.indexOf('await page.mouse.click(handful.x, handful.y)');
+  const cashCamera = route.indexOf("await waitCamera(page, 'cash')", tenderClick);
+  assert.ok(monitorCamera >= 0 && tenderClick > monitorCamera && cashCamera > tenderClick,
+    'cash stays in the customer presentation frame until the handful is accepted');
+});
+
+test('front-desk no-show evidence uses the production Tee Times laptop label', () => {
+  assert.match(frontDeskLifecycleDriver,
+    /querySelectorAll\('\.lt-navbtn'\)[\s\S]*includes\('Tee Times'\)/);
+  assert.doesNotMatch(frontDeskLifecycleDriver,
+    /textContent\.trim\(\)\.includes\('Reservations'\)/);
+  assert.match(frontDeskLifecycleDriver, /\/no\[\\s-\]\?show\/i\.test\(laptopText\)/,
+    'the assertion accepts the player-facing No show status');
 });
 
 test('delivery visibility evidence supplies the active camera before scene-wide sprite raycasts', () => {

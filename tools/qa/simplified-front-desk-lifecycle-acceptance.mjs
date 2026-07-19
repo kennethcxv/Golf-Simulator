@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const BASE_URL = 'http://localhost:8457/';
+const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
 const DEFAULT_VIEWPORT = Object.freeze({ width: 1600, height: 900 });
 const REQUIRED_VIEWPORTS = Object.freeze(['1280x720', '1600x900', '1920x1080']);
 let VIEWPORT = { ...DEFAULT_VIEWPORT };
@@ -177,9 +177,10 @@ async function setupReservationArrival(page) {
     const teeMinute = 10 * 60 + 30;
     const teeTimeAbs = dayAbs * 1440 + teeMinute;
     const deskReadyAt = teeTimeAbs - 15;
-    // Leave enough game-time headroom for the 1.1-second arrival poll before
-    // the guest becomes desk-ready; an eight-minute window was race-prone at 1x.
-    const plannedArrival = deskReadyAt - 30;
+    // Keep a short, observable lounge window. At the production 16x speed this
+    // leaves enough time for the arrival poll while keeping the normal-control
+    // evidence route bounded instead of waiting almost a real minute.
+    const plannedArrival = deskReadyAt - 2;
     app.state.clock.minutes = plannedArrival - 1;
     app.speedIdx = 0;
     app.state.weather.today = {
@@ -219,7 +220,7 @@ async function setupReservationArrival(page) {
 async function reservationArrivalAndEscapeScenario(page, shot) {
   const fixture = await setupReservationArrival(page);
   const id = fixture.reservation.id;
-  await page.keyboard.press('1');
+  await page.keyboard.press('3');
   await page.waitForFunction((reservationId) => {
     const reservation = window.__fw.state.reservations.booked
       .find((entry) => String(entry.id) === String(reservationId));
@@ -368,7 +369,7 @@ async function completeCashService(page, shot) {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.kind === 'service' && tx.method === 'cash' && tx.stage === 'cash-tender';
   }, null, { timeout: 10000 });
-  await waitCamera(page, 'cash');
+  await waitCamera(page, 'monitor');
   await shot('09-walk-in-cash-presented.png');
   // one click on the presented handful accepts ALL the cash; the drawer opens
   // and the tender sorts itself into the wells (no per-piece deposit any more)
@@ -445,7 +446,7 @@ async function walkInScenario(page, shot) {
     window.__fw.scene3d.clubhouse().register.getTx()?.servicePayment?.reservationId
   ));
   assert(reservationId != null, 'Walk-in slot selection did not start the service payment.');
-  await waitCamera(page, 'cash');
+  await waitCamera(page, 'monitor');
   await shot('08-walk-in-slot-booked.png');
   await completeCashService(page, shot);
   await shot('13-walk-in-service-processing.png');
@@ -573,16 +574,16 @@ async function openLaptopReservations(page) {
   }, null, { timeout: 15000, polling: 100 });
   const point = await page.evaluate(() => {
     const button = [...document.querySelectorAll('.lt-navbtn')]
-      .find((entry) => entry.textContent.trim().includes('Reservations'));
+      .find((entry) => entry.textContent.trim().includes('Tee Times'));
     if (!button) return null;
     button.scrollIntoView({ block: 'nearest' });
     const rect = button.getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   });
-  assert(point, 'Reservations navigation is missing from the physical laptop.');
+  assert(point, 'Tee Times navigation is missing from the physical laptop.');
   await page.mouse.move(point.x, point.y);
   await page.mouse.click(point.x, point.y);
-  await page.waitForFunction(() => document.querySelector('.lt-h1')?.textContent.includes('Reservations'),
+  await page.waitForFunction(() => document.querySelector('.lt-h1')?.textContent.includes('Tee Times'),
     null, { timeout: 5000 });
   await page.waitForTimeout(300);
 }
@@ -673,7 +674,7 @@ function persistentNoShowView(snapshot) {
 async function noShowAndSaveReloadScenario(page, shot) {
   const fixture = await setupNoShow(page);
   const id = fixture.reservation.id;
-  await page.keyboard.press('1');
+  await page.keyboard.press('3');
   await page.waitForFunction((reservationId) => {
     const reservation = window.__fw.state.reservations.booked
       .find((entry) => String(entry.id) === String(reservationId));
@@ -701,7 +702,7 @@ async function noShowAndSaveReloadScenario(page, shot) {
   await openLaptopReservations(page);
   const laptopText = await page.locator('.lt-content').innerText();
   assert(laptopText.includes(fixture.reservation.fullName), 'Laptop tee sheet lost the no-show full name.');
-  assert(laptopText.toLowerCase().includes('no-show'), 'Laptop tee sheet does not visibly label the no-show.');
+  assert(/no[\s-]?show/i.test(laptopText), 'Laptop tee sheet does not visibly label the no-show.');
   await shot('15-no-show-visible-on-reservations-laptop.png');
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => window.__fw.laptopOpen === false, null, { timeout: 5000 });
