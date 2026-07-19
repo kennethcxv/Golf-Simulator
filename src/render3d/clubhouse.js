@@ -7202,6 +7202,8 @@ export function makeClubhouse(ctx) {
       getTx: () => register.getTx(),
       getCustomer: () => register.getCustomer(),
       getFlow: () => register.getFlow(),
+      scanPresentation: () => register.scanPresentation(),
+      scanAlignment: () => register.scanAlignment(),
       drawerPrewarmStatus: () => register.drawerPrewarmStatus(),
       cashGpuPrewarmStatus: () => register.cashGpuPrewarmStatus(),
       waitForCashGpuPrewarmRepresentatives: (timeoutMs) => (

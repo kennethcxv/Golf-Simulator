@@ -184,7 +184,7 @@ export const COUNTER = {
   // Slot 0 faces the STAGING zone across the counter — the paying customer must
   // stand inside the register's one working frame (goods left, POS right), where
   // their held-out card/cash is visible. The old head (x 1.6) predated the
-  // click-to-bag staging move and left the payer hidden at the bag end.
+  // reader-and-bag choreography and left the payer hidden at the bag end.
   queueBase: { x: 2.42, z: 3.15 },
   queueStep: { x: -0.8, z: -0.45 },               // line falls back SW, clear of the door
   staffStand: { x: 2.80, z: 5.10 },               // where you stand to work it: behind the counter
@@ -226,7 +226,7 @@ export const REGISTER = {
   // turns to face +z — the staff side — at rotation zero.
   monitor:  { x: 3.42, z: 4.42, ry: 0 },                // right block — faces YOU
   cardterm: { x: 3.00, z: 4.04, ry: 0 },                // beside the POS, player reach
-  scanner:  { x: 2.70, z: 4.22, ry: Math.PI + 0.22 },   // unused by the click-to-bag flow
+  scanner:  { x: 2.70, z: 4.22, ry: Math.PI + 0.22 },   // barcode bridge between staging and bag
   printer:  { x: 3.98, z: 4.48, ry: Math.PI - 0.18 },
   custdisplay: { x: 3.84, z: 4.10 },                    // faces the queue (customer side)
   bag: { x: 2.04, z: 4.44 },                            // open kraft bag, left of goods but fully inside the working frame
@@ -247,8 +247,8 @@ export const REGISTER = {
   // the footprint in the shared layout makes the prop, money, reach tests and
   // camera composition use one source of truth.
   changeHandoff: { x: 3.10, z: 4.60, w: 0.38, d: 0.20 },
-  // the bag handoff zone: items arc from staging INTO THE BAG at counter-left
-  // (click-to-bag) — there is no separate bagging mat any more
+  // the bag handoff zone: items leave the reader and arc INTO THE BAG at
+  // counter-left — there is no separate bagging mat any more
   bagging: { minX: 1.84, maxX: 2.24, minZ: 4.30, maxZ: 4.58 },
 
   // THE SCAN VOLUME. An item counts as scanned when its barcode passes THROUGH this

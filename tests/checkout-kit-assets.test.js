@@ -198,10 +198,21 @@ test('payment terminal exposes every key + card socket; card fits the slot', asy
 
 test('scanner + printer expose interaction points and the print clip', async () => {
   const kit = await kitPromise;
-  const scn = names((await kit.get('barcode_scanner')).scene);
-  for (const part of ['Scanner_Base', 'Scanner_Stand', 'Scanner_Head', 'Scanner_Window', 'Scanner_LED', 'SCAN_RAY_ORIGIN']) {
+  const scannerScene = (await kit.get('barcode_scanner')).scene;
+  const scn = names(scannerScene);
+  for (const part of ['Scanner_Base', 'Scanner_Stand', 'Scanner_Head', 'Scanner_Window',
+    'Scanner_LED', 'Scanner_CashierLED', 'SCAN_RAY_ORIGIN']) {
     assert.ok(scn.has(part), part);
   }
+  scannerScene.updateMatrixWorld(true);
+  const windowDirection = new THREE.Vector3(0, 0, 1).applyQuaternion(
+    scannerScene.getObjectByName('Scanner_Window').getWorldQuaternion(new THREE.Quaternion()),
+  );
+  const rayDirection = new THREE.Vector3(0, 0, 1).applyQuaternion(
+    scannerScene.getObjectByName('SCAN_RAY_ORIGIN').getWorldQuaternion(new THREE.Quaternion()),
+  );
+  assert.ok(windowDirection.dot(rayDirection) > 0.999,
+    `scanner ray must leave through its visible window, dot=${windowDirection.dot(rayDirection)}`);
   const printer = await kit.get('receipt_printer');
   assert.deepEqual(printer.animations.map((a) => a.name), ['Receipt_Print']);
   const pn = names(printer.scene);

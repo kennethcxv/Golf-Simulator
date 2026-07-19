@@ -1438,6 +1438,11 @@ export function buildCheckout(B) {
     if (reg && B.register) B.register.attachScreen(reg);
     const term = placeKit('payment_terminal', REGISTER.cardterm, { scale: 1.0 });
     if (term && B.register) B.register.attachTerm(term);
+    const scanner = placeKit('barcode_scanner', REGISTER.scanner, {
+      ry: REGISTER.scanner.ry,
+      scale: 1.0,
+    });
+    if (scanner && B.register) B.register.attachScanner(scanner);
     const printer = placeKit('receipt_printer', REGISTER.printer, { ry: -0.18, scale: 1.0 });
     if (printer && B.register) B.register.attachPrinter(printer);
     // Customer-facing total display, turned toward the queue.

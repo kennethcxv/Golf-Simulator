@@ -35,10 +35,15 @@ import { dueForCheckIn, fmtSlot } from '../../sim/reservations.js';
 import {
   createReservationCheckInTx, finalizeReservationCheckIn,
 } from '../../sim/reservationCheckIn.js';
+import { BARCODE_MSG, barcodeFor, judgeBarcodeRead } from '../../sim/barcode.js';
 import { createRegisterItemResources } from './registerItemResources.js';
 import {
   buildCatalogProductProxy, catalogCheckoutLayout,
 } from './catalogProductVisual.js';
+import {
+  barcodeBits, CHECKOUT_SCAN_TARGET,
+  scanChoreographyAt, scanDuration, scannerReadFacts,
+} from './checkoutScanPresentation.js';
 import { createFrontDeskMonitorUi } from './frontDeskMonitorUi.js';
 import {
   billFit, billLayout, clipFillRatio, coinLayout,
@@ -268,6 +273,41 @@ function textTexture(text, {
   return texture;
 }
 
+function productBarcodeTexture(code) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const bits = barcodeBits(code);
+  ctx.fillStyle = '#fffdf5';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#171916';
+  const quiet = 34;
+  const top = 18;
+  const barHeight = 176;
+  const moduleWidth = (canvas.width - quiet * 2) / Math.max(1, bits.length);
+  for (let index = 0; index < bits.length; index += 1) {
+    if (bits[index] !== '1') continue;
+    const guard = index < 3 || index >= bits.length - 3
+      || Math.abs(index - bits.length / 2) < 3;
+    ctx.fillRect(
+      quiet + index * moduleWidth,
+      top,
+      Math.max(1, Math.ceil(moduleWidth)),
+      guard ? barHeight + 13 : barHeight,
+    );
+  }
+  ctx.fillStyle = '#173f2d';
+  ctx.font = '600 27px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(code), canvas.width / 2, 226);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
+}
+
 function billTexture(denom) {
   const canvas = document.createElement('canvas');
   canvas.width = 384;
@@ -438,6 +478,15 @@ export function createRegisterMode(B) {
   const termKeys = new Map();       // label -> { mesh, base, press }
   let cardSocketNode = null;
 
+  // The authored counter scanner is the one physical read source. Products
+  // commit only while their visible barcode crosses this socket's +Z ray.
+  let scannerObject = null;
+  let scannerRayOrigin = null;
+  const scannerFeedback = [];
+  let scannerFeedbackMode = 'idle';
+  let scannerPulse = 0;
+  let lastScanEvidence = null;
+
   let printerRoll = null;
   let printerPaper = null;
   let printerOutputSocket = null;
@@ -505,8 +554,8 @@ export function createRegisterMode(B) {
     complete: true,
   };
   const loose = [];
-  // No scanner in the click-to-bag flow: the counter carries no scan glass and no
-  // laser beam. Items are bagged by a click, not swept over a scanner.
+  // A product remains a one-click target, but the owned mesh and barcode now
+  // cross the physical reader before the transaction engine receives its scan.
 
   const hoverBounds = new THREE.Box3();
   const hoverBox = new THREE.Box3Helper(hoverBounds, 0xb9974e);
@@ -881,6 +930,7 @@ export function createRegisterMode(B) {
         else layoutGoods();
       }
       scanMotion = null;
+      setScannerFeedback('idle');
       scanReturnTimer = 0;
       paymentAutoTimer = 0;
       setWorkspace(resumeState === 'WaitingForScan' ? 'scan' : 'monitor');
@@ -1815,9 +1865,90 @@ export function createRegisterMode(B) {
     INSERTED.z = cardTravel.inserted.z;
   }
 
-  function attachScanner(scannerObject) {
-    const authoredBeam = scannerObject.getObjectByName('ScannerBeam');
+  function setScannerFeedback(mode = 'idle', seconds = 0) {
+    scannerFeedbackMode = mode;
+    scannerPulse = mode === 'idle'
+      ? 0
+      : Math.max(scannerPulse, Number(seconds) || 0);
+    for (const entry of scannerFeedback) {
+      const material = entry.material;
+      if (!material) continue;
+      if (material.emissive && entry.emissive) material.emissive.copy(entry.emissive);
+      if (Number.isFinite(entry.emissiveIntensity)) {
+        material.emissiveIntensity = entry.emissiveIntensity;
+      }
+      if (mode === 'active' && material.emissive) {
+        material.emissive.setHex(0xd94b42);
+        material.emissiveIntensity = Math.max(1.8, entry.emissiveIntensity + 1.1);
+      } else if (mode === 'success' && material.emissive) {
+        material.emissive.setHex(0x65d58d);
+        material.emissiveIntensity = Math.max(2.4, entry.emissiveIntensity + 1.7);
+      } else if (mode === 'invalid' && material.emissive) {
+        material.emissive.setHex(0xe1a545);
+        material.emissiveIntensity = Math.max(2.2, entry.emissiveIntensity + 1.5);
+      }
+      material.needsUpdate = true;
+    }
+  }
+
+  function attachScanner(object) {
+    scannerObject = object;
+    scannerRayOrigin = object.getObjectByName('SCAN_RAY_ORIGIN') || null;
+    scannerFeedback.length = 0;
+    const seen = new Set();
+    for (const name of ['Scanner_Window', 'Scanner_LED', 'Scanner_CashierLED']) {
+      const node = object.getObjectByName(name);
+      const materials = Array.isArray(node?.material) ? node.material : [node?.material];
+      for (const material of materials) {
+        if (!material || seen.has(material)) continue;
+        seen.add(material);
+        scannerFeedback.push({
+          material,
+          emissive: material.emissive ? material.emissive.clone() : null,
+          emissiveIntensity: Number(material.emissiveIntensity) || 0,
+        });
+      }
+    }
+    const authoredBeam = object.getObjectByName('ScannerBeam');
     if (authoredBeam) authoredBeam.visible = false;
+    setScannerFeedback('idle');
+  }
+
+  function scannerRayPose() {
+    root.updateMatrixWorld(true);
+    if (scannerRayOrigin) {
+      scannerObject.updateWorldMatrix(true, true);
+      const worldOrigin = scannerRayOrigin.getWorldPosition(new THREE.Vector3());
+      const worldTip = scannerRayOrigin.localToWorld(new THREE.Vector3(0, 0, 0.10));
+      const origin = root.worldToLocal(worldOrigin.clone());
+      const tip = root.worldToLocal(worldTip.clone());
+      return {
+        source: 'authored-socket',
+        origin,
+        direction: tip.sub(origin).normalize(),
+        worldOrigin,
+        worldDirection: worldTip.sub(worldOrigin).normalize(),
+      };
+    }
+    // The GLB loads asynchronously. This socket-equivalent pose keeps an early
+    // transaction usable without inventing a second visible scanner.
+    const origin = new THREE.Vector3(
+      REGISTER.scanner.x,
+      COUNTER_TOP + 0.185,
+      REGISTER.scanner.z,
+    );
+    const direction = new THREE.Vector3(0, -0.18, 1)
+      .applyAxisAngle(new THREE.Vector3(0, 1, 0), REGISTER.scanner.ry)
+      .normalize();
+    const worldOrigin = root.localToWorld(origin.clone());
+    const worldTip = root.localToWorld(origin.clone().add(direction));
+    return {
+      source: 'layout-fallback',
+      origin,
+      direction,
+      worldOrigin,
+      worldDirection: worldTip.sub(worldOrigin).normalize(),
+    };
   }
 
   function attachPrinter(printerObject) {
@@ -1844,6 +1975,50 @@ export function createRegisterMode(B) {
     const sku = skuById(item.skuId);
     const built = buildCatalogProductProxy({ sku, merch, mats, resources: itemResources });
     const mesh = built.root;
+    const barcode = barcodeFor(item.skuId, item.price);
+    const barcodeTexture = itemResources.texture(productBarcodeTexture(barcode));
+    const barcodeCarrier = new THREE.Group();
+    barcodeCarrier.name = 'RuntimeProductBarcodeCarrier';
+    // A restrained 9.5 cm retail swing keeps the label outside every product
+    // silhouette at the reader. The scanner still validates the label plane's
+    // real transform; this is a physical affordance, not an overlay.
+    barcodeCarrier.position.x = 0.095;
+    const barcodeTether = new THREE.Mesh(
+      itemResources.geometry(new THREE.BoxGeometry(0.095, 0.005, 0.002)),
+      itemResources.material(new THREE.MeshBasicMaterial({
+        color: 0xb9974e,
+        toneMapped: false,
+      })),
+    );
+    barcodeTether.name = 'RuntimeProductBarcodeTether';
+    barcodeTether.position.x = 0.0475;
+    built.barcodeAnchor.add(barcodeTether);
+    const barcodeBacking = new THREE.Mesh(
+      itemResources.geometry(new THREE.PlaneGeometry(0.086, 0.052)),
+      itemResources.material(new THREE.MeshBasicMaterial({
+        color: 0x173f2d,
+        toneMapped: false,
+        side: THREE.DoubleSide,
+      })),
+    );
+    barcodeBacking.name = 'RuntimeProductBarcodeBacking';
+    barcodeBacking.position.z = -0.001;
+    barcodeCarrier.add(barcodeBacking);
+    const barcodeMesh = new THREE.Mesh(
+      itemResources.geometry(new THREE.PlaneGeometry(0.074, 0.040)),
+      itemResources.material(new THREE.MeshBasicMaterial({
+        map: barcodeTexture,
+        toneMapped: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+      })),
+    );
+    barcodeMesh.name = 'RuntimeProductBarcode';
+    barcodeMesh.position.z = 0.001;
+    barcodeMesh.userData = { barcode, itemUid: item.uid };
+    barcodeCarrier.add(barcodeMesh);
+    built.barcodeAnchor.add(barcodeCarrier);
     mesh.userData = {
       ...mesh.userData,
       pick: true,
@@ -1851,6 +2026,10 @@ export function createRegisterMode(B) {
       uid: item.uid,
       skuId: item.skuId,
       originalScale: mesh.scale.clone(),
+      barcode,
+      barcodeAnchor: built.barcodeAnchor,
+      barcodeCarrier,
+      barcodeMesh,
     };
     // A generous invisible click pad wrapping the whole product. A driver is a
     // centimetre-thin shaft — asking the player to hit that exact cylinder is
@@ -2636,6 +2815,7 @@ export function createRegisterMode(B) {
     selectedItem = null;
     scanDrag = null;
     scanMotion = null;
+    setScannerFeedback('idle');
     scanReturnTimer = 0;
     paymentAutoTimer = 0;
     finalizeTimer = 0;
@@ -2678,6 +2858,7 @@ export function createRegisterMode(B) {
   function begin(customer) {
     if (tx) return false;
     refreshAccessibilityPreferences();
+    lastScanEvidence = null;
     const items = (customer.cart || []).map((item, index) => ({
       uid: item.uid || `${customer.id || customer.name}-${index}`,
       skuId: item.skuId,
@@ -3106,12 +3287,142 @@ export function createRegisterMode(B) {
     return true;
   }
 
-  // CLICK TO BAG. A single click on a counter product rings it up on the POS and
-  // drops it into the shopping bag in one gesture — no scanner, no barcode, no
-  // drag. This is the whole item interaction the reference asks for.
+  function scanPoseFor(mesh) {
+    const barcodeAnchor = mesh?.userData?.barcodeAnchor;
+    const barcodeMesh = mesh?.userData?.barcodeMesh;
+    if (!barcodeAnchor || !barcodeMesh) return null;
+    mesh.updateWorldMatrix(true, true);
+    const barcodeLocalPosition = mesh.worldToLocal(
+      barcodeMesh.getWorldPosition(new THREE.Vector3()),
+    );
+    const meshWorldQuaternion = mesh.getWorldQuaternion(new THREE.Quaternion());
+    const barcodeLocalQuaternion = meshWorldQuaternion.clone().invert().multiply(
+      barcodeMesh.getWorldQuaternion(new THREE.Quaternion()),
+    );
+    const scanner = scannerRayPose();
+    const normal = scanner.direction.clone().multiplyScalar(-1).normalize();
+    let up = new THREE.Vector3(0, 1, 0);
+    if (Math.abs(up.dot(normal)) > 0.96) up = new THREE.Vector3(0, 0, 1);
+    const right = new THREE.Vector3().crossVectors(up, normal).normalize();
+    const correctedUp = new THREE.Vector3().crossVectors(normal, right).normalize();
+    const anchorQuaternion = new THREE.Quaternion().setFromRotationMatrix(
+      new THREE.Matrix4().makeBasis(right, correctedUp, normal),
+    );
+    const meshQuaternion = anchorQuaternion.clone().multiply(
+      barcodeLocalQuaternion.invert(),
+    );
+    const anchorOffset = barcodeLocalPosition
+      .multiply(mesh.scale)
+      .applyQuaternion(meshQuaternion);
+    const tangent = new THREE.Vector3().crossVectors(
+      new THREE.Vector3(0, 1, 0), scanner.direction,
+    ).normalize();
+    const centerTarget = scanner.origin.clone()
+      .addScaledVector(scanner.direction, CHECKOUT_SCAN_TARGET.distance)
+      .addScaledVector(tangent, CHECKOUT_SCAN_TARGET.sideOffset)
+      .addScaledVector(correctedUp, CHECKOUT_SCAN_TARGET.upOffset);
+    const entryTarget = centerTarget.clone()
+      .addScaledVector(tangent, -CHECKOUT_SCAN_TARGET.sweep);
+    const exitTarget = centerTarget.clone()
+      .addScaledVector(tangent, CHECKOUT_SCAN_TARGET.sweep);
+    return {
+      scanner,
+      quaternion: meshQuaternion,
+      entry: entryTarget.sub(anchorOffset),
+      center: centerTarget.sub(anchorOffset),
+      exit: exitTarget.sub(anchorOffset),
+    };
+  }
+
+  function scanReadFor(motion) {
+    root.updateMatrixWorld(true);
+    const barcodeMesh = motion.mesh.userData.barcodeMesh;
+    const barcodePosition = barcodeMesh.getWorldPosition(new THREE.Vector3());
+    const barcodeNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(
+      barcodeMesh.getWorldQuaternion(new THREE.Quaternion()),
+    ).normalize();
+    const scanner = scannerRayPose();
+    const facts = scannerReadFacts({
+      barcodePosition: barcodePosition.toArray(),
+      barcodeNormal: barcodeNormal.toArray(),
+      rayOrigin: scanner.worldOrigin.toArray(),
+      rayDirection: scanner.worldDirection.toArray(),
+    });
+    const judgment = judgeBarcodeRead({
+      barcode: motion.barcode,
+      scanHit: facts.scanHit,
+      facingDot: facts.facingDot,
+      itemUid: motion.uid,
+      expectedUid: motion.item.uid,
+      alreadyScanned: motion.item.scanned,
+    });
+    lastScanEvidence = {
+      uid: motion.uid,
+      skuId: motion.item.skuId,
+      barcode: motion.barcode,
+      scannerSource: scanner.source,
+      phase: motion.phase,
+      ok: judgment.ok,
+      code: judgment.code,
+      scanHit: facts.scanHit,
+      facingDot: facts.facingDot,
+      distanceAlongRay: facts.distanceAlongRay,
+      lateralDistance: facts.lateralDistance,
+      barcodePosition: barcodePosition.toArray(),
+      barcodeNormal: barcodeNormal.toArray(),
+      rayOrigin: scanner.worldOrigin.toArray(),
+      rayDirection: scanner.worldDirection.toArray(),
+      capturedAtMs: performance.now(),
+    };
+    return { judgment, facts };
+  }
+
+  function rejectScanMotion(motion, message) {
+    motion.mesh.position.copy(motion.from);
+    motion.mesh.quaternion.copy(motion.fromQuaternion);
+    motion.mesh.scale.copy(motion.fromScale);
+    scanMotion = null;
+    setScannerFeedback('invalid', 0.48);
+    toast(message, 'warn');
+    sfx('scanInvalid');
+    if (checkoutFlowState() === 'ProductScanning') {
+      flowTo('ProductHeld', `barcode-read-rejected:${motion.uid}`);
+    }
+    if (checkoutFlowState() === 'ProductHeld') {
+      flowTo('WaitingForScan', `product-restaged:${motion.uid}`);
+    }
+    return false;
+  }
+
+  function commitScanMotion(motion) {
+    if (motion.committed) return true;
+    const { judgment } = scanReadFor(motion);
+    if (!judgment.ok) {
+      return rejectScanMotion(
+        motion,
+        BARCODE_MSG[judgment.code] || 'The scanner could not read that barcode.',
+      );
+    }
+    const result = scanItem(tx, motion.uid);
+    if (!result.ok) return rejectScanMotion(motion, result.reason);
+    motion.item.staged = true;
+    motion.committed = true;
+    if (checkoutFlowState() === 'ProductScanning') {
+      flowTo('ProductScanned', `barcode-read:${motion.uid}`);
+    }
+    setScannerFeedback('success', 0.55);
+    sfx('scanSuccess');
+    sfx('posAdd');
+    drawScreen();
+    return true;
+  }
+
+  // CLICK TO SCAN AND BAG. One forgiving product click owns the entire physical
+  // gesture: pickup, visible barcode alignment, reader contact, POS commit, and
+  // bag/set-aside placement. There is no drag or hidden second click.
   function bagProduct(picked) {
     if (!picked || !tx || tx.stage !== 'scanning' || scanMotion) return false;
-    // the pick may be the invisible click pad — the ARC animates the real item
+    // The pick may be the invisible click pad; choreography animates the real item.
     const mesh = itemMeshes.get(picked.userData.uid) || picked;
     const item = tx.items.find((candidate) => candidate.uid === mesh.userData.uid);
     if (!item || item.scanned) return false;
@@ -3119,45 +3430,50 @@ export function createRegisterMode(B) {
       flowTo('ProductHeld', `picked-product:${item.uid}`);
     }
     if (checkoutFlowState() === 'ProductHeld') {
-      flowTo('ProductScanning', `ringing-product:${item.uid}`);
+      flowTo('ProductScanning', `moving-product-to-reader:${item.uid}`);
     }
-    const result = scanItem(tx, mesh.userData.uid);
-    if (!result.ok) {
-      toast(result.reason, 'warn');
-      sfx('scanInvalid');
-      return false;
-    }
-    item.staged = true;
-    if (checkoutFlowState() === 'ProductScanning') {
-      flowTo('ProductScanned', `bagged-product:${item.uid}`);
-    }
+    const scanPose = scanPoseFor(mesh);
+    if (!scanPose) return rejectScanMotion({
+      mesh,
+      uid: item.uid,
+      from: mesh.position.clone(),
+      fromQuaternion: mesh.quaternion.clone(),
+      fromScale: mesh.scale.clone(),
+    }, 'This product has no readable barcode mount.');
     hoverBox.visible = false;
     hoveredItem = null;
     selectedItem = null;
     sfx('productPickup');
     sfx('scannerActivate');
-    sfx('scanSuccess');
-    sfx('posAdd');
+    setScannerFeedback('active', 0.62);
     const separateHandoff = !!mesh.userData.catalogVisual?.separateHandoff;
     const oversizeCount = tx.items.filter((candidate) => candidate.scanned
       && itemMeshes.get(candidate.uid)?.userData?.catalogVisual?.separateHandoff).length;
     const destination = separateHandoff
-      ? new THREE.Vector3(1.88 + Math.max(0, oversizeCount - 1) * 0.07, REST_Y, 4.08)
+      ? new THREE.Vector3(1.88 + oversizeCount * 0.07, REST_Y, 4.08)
       : bagMouth.clone();
-    // Arc compact goods into the carrier; full-size goods move to the clearly
-    // separated oversize handoff zone instead of being crushed into the bag.
+    // Compact goods leave the reader for the carrier; full-size goods leave it
+    // for the clearly separated oversize handoff zone.
     scanMotion = {
-      phase: separateHandoff ? 'oversize' : 'bag',
+      phase: 'pickup',
+      destinationKind: separateHandoff ? 'oversize' : 'bag',
       mesh,
+      item,
+      uid: item.uid,
+      barcode: mesh.userData.barcode,
+      committed: false,
       elapsed: 0,
-      duration: 0.5,
-      lift: 0.26,
+      duration: scanDuration(),
       from: mesh.position.clone(),
       to: destination,
       fromQuaternion: mesh.quaternion.clone(),
+      fromScale: mesh.scale.clone(),
+      scanEntry: scanPose.entry,
+      scanCenter: scanPose.center,
+      scanExit: scanPose.exit,
+      scanQuaternion: scanPose.quaternion,
       toQuaternion: new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.9, Math.PI * 0.6, 0.4)),
     };
-    drawScreen();
     return true;
   }
 
@@ -3165,22 +3481,46 @@ export function createRegisterMode(B) {
     if (!scanMotion) return;
     const motion = scanMotion;
     motion.elapsed = Math.min(motion.duration, motion.elapsed + dt);
-    const linear = motion.duration > 0 ? motion.elapsed / motion.duration : 1;
-    const eased = linear * linear * (3 - 2 * linear);
-    motion.mesh.position.lerpVectors(motion.from, motion.to, eased);
-    // A parabolic lift so the item rises off the counter and drops into the bag.
-    if (motion.lift) motion.mesh.position.y += Math.sin(linear * Math.PI) * motion.lift;
-    motion.mesh.quaternion.slerpQuaternions(motion.fromQuaternion, motion.toQuaternion, eased);
-    // Compact goods scale down only enough to sit visibly above the bag mouth.
-    if (motion.phase === 'bag' && linear > 0.66) {
-      const s = 1 - ((linear - 0.66) / 0.34) * 0.52;
+    const choreography = scanChoreographyAt(motion.elapsed);
+    motion.phase = choreography.phase;
+    const eased = THREE.MathUtils.smoothstep(choreography.phaseT, 0, 1);
+    motion.mesh.scale.copy(motion.fromScale);
+    if (choreography.phase === 'pickup') {
+      motion.mesh.position.lerpVectors(motion.from, motion.scanEntry, eased);
+      motion.mesh.position.y += Math.sin(choreography.phaseT * Math.PI) * 0.10;
+      motion.mesh.quaternion.slerpQuaternions(
+        motion.fromQuaternion, motion.scanQuaternion, eased,
+      );
+    } else if (choreography.phase === 'scan-approach') {
+      motion.mesh.position.lerpVectors(motion.scanEntry, motion.scanCenter, eased);
+      motion.mesh.quaternion.copy(motion.scanQuaternion);
+    } else if (choreography.phase === 'scan-hold') {
+      motion.mesh.position.copy(motion.scanCenter);
+      motion.mesh.quaternion.copy(motion.scanQuaternion);
+    } else if (choreography.phase === 'scan-exit') {
+      motion.mesh.position.lerpVectors(motion.scanCenter, motion.scanExit, eased);
+      motion.mesh.quaternion.copy(motion.scanQuaternion);
+    } else {
+      motion.mesh.position.lerpVectors(motion.scanExit, motion.to, eased);
+      motion.mesh.position.y += Math.sin(choreography.phaseT * Math.PI) * 0.20;
+      motion.mesh.quaternion.slerpQuaternions(
+        motion.scanQuaternion, motion.toQuaternion, eased,
+      );
+    }
+    if (choreography.shouldCommitScan && !motion.committed) {
+      if (!commitScanMotion(motion)) return;
+    }
+    // Compact goods scale down only while descending through the bag opening.
+    if (motion.destinationKind === 'bag' && choreography.phase === 'bag'
+        && choreography.phaseT > 0.60) {
+      const s = 1 - ((choreography.phaseT - 0.60) / 0.40) * 0.52;
       const base = motion.mesh.userData.originalScale;
       if (base) motion.mesh.scale.set(base.x * s, base.y * s, base.z * s);
     }
-    if (linear < 1) return;
+    if (!choreography.complete) return;
     scanMotion = null;
     settleScannedProduct(motion.mesh);
-    if (motion.phase === 'bag') sfx('bagItem');
+    if (motion.destinationKind === 'bag') sfx('bagItem');
     selectedItem = null;
     const remaining = unscannedCount(tx);
     if (checkoutFlowState() === 'ProductScanned') {
@@ -3194,6 +3534,12 @@ export function createRegisterMode(B) {
       paymentAutoTimer = 1.35;
       drawScreen();
     }
+  }
+
+  function updateScannerFeedback(dt) {
+    if (scannerPulse <= 0) return;
+    scannerPulse = Math.max(0, scannerPulse - dt);
+    if (scannerPulse === 0) setScannerFeedback('idle');
   }
 
   function insertionProgressAt(event) {
@@ -4818,6 +5164,7 @@ export function createRegisterMode(B) {
       }
     }
     updateScanMotion(animationDt);
+    updateScannerFeedback(animationDt);
     if (scanReturnTimer > 0) {
       scanReturnTimer = Math.max(0, scanReturnTimer - animationDt);
       if (scanReturnTimer === 0) setWorkspace('monitor');
@@ -4860,7 +5207,7 @@ export function createRegisterMode(B) {
     }
     if (workspace === 'scan') {
       return {
-        text: 'Click each item to drop it in the bag',
+        text: 'Click each item to scan it and place it in the bag',
         total: false,
         drawer: false,
       };
@@ -4965,6 +5312,36 @@ export function createRegisterMode(B) {
   }
   const presentedCashScreenPoint = () => meshScreenPoint(tenderHandful);
   const presentedCardScreenPoint = () => meshScreenPoint(cardMesh);
+  const scanPresentation = () => {
+    const choreography = scanMotion ? scanChoreographyAt(scanMotion.elapsed) : null;
+    return {
+      active: !!scanMotion,
+      phase: scanMotion?.phase || null,
+      phaseT: choreography?.phaseT || 0,
+      uid: scanMotion?.uid || null,
+      elapsed: scanMotion?.elapsed || 0,
+      duration: scanMotion?.duration || scanDuration(),
+      committed: !!scanMotion?.committed,
+      scannerFeedback: scannerFeedbackMode,
+      lastRead: lastScanEvidence ? {
+        ...lastScanEvidence,
+        barcodePosition: [...lastScanEvidence.barcodePosition],
+        barcodeNormal: [...lastScanEvidence.barcodeNormal],
+        rayOrigin: [...lastScanEvidence.rayOrigin],
+        rayDirection: [...lastScanEvidence.rayDirection],
+      } : null,
+    };
+  };
+  const scanAlignment = () => {
+    const scanner = scannerRayPose();
+    return {
+      attached: !!scannerObject,
+      raySocket: !!scannerRayOrigin,
+      source: scanner.source,
+      origin: scanner.origin.toArray(),
+      direction: scanner.direction.toArray(),
+    };
+  };
 
   return {
     simplified: true,
@@ -4991,6 +5368,8 @@ export function createRegisterMode(B) {
       cashRecoveryPending: cashRecoveryTimer > 0,
     }),
     accessibilityPreferences: () => ({ ...accessibilityPrefs }),
+    scanPresentation,
+    scanAlignment,
     drawerPrewarmStatus: () => ({ ...drawerPrewarm }),
     cashGpuPrewarmStatus,
     waitForCashGpuPrewarmRepresentatives,
