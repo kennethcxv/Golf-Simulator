@@ -60,8 +60,11 @@ test('customers queue clear of the counter, not pressed against it', () => {
 
 test('the queue falls back into the room, away from the counter', () => {
   const a = queueSlot(0);
+  const next = queueSlot(1);
   const b = queueSlot(3);
   assert.ok(b.z < a.z, 'the line runs back into the shop');
+  assert.ok(Math.hypot(next.x - a.x, next.z - a.z) >= 1.15,
+    'adjacent customers keep a readable shoulder-and-carried-goods gap');
   assert.ok(Math.hypot(b.x - a.x, b.z - a.z) > 1.5, 'and it is a line, not a huddle');
 });
 

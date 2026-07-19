@@ -714,6 +714,13 @@ export function createRegisterMode(B) {
     return true;
   }
 
+  function beginCashierEntry(event) {
+    if (checkoutFlowState() !== 'WaitingForCashier') return false;
+    if (!flowTo('EnteringCashierMode', event)) return false;
+    enterTimer = 0.30;
+    return true;
+  }
+
   function poseBetween(eye, at) {
     const world = L2W(eye.x, eye.z);
     const dx = at.x - eye.x;
@@ -3036,6 +3043,12 @@ export function createRegisterMode(B) {
     buildDrawer();
     refillDrawerMoney();
     scheduleCheckoutTexturePrewarm();
+    // The player may remain at the till while the paid customer leaves and the
+    // next queued customer finishes placing their products. That new owner still
+    // has a legitimate WaitingForCashier flow, but enter() will not run again
+    // while the register is already active. Start the same adjacent camera/input
+    // transition here so domain actions cannot outrun the physical flow contract.
+    if (active) beginCashierEntry('active-cashier-accepted-next-queued-customer');
     drawScreen();
     drawTerm();
     return true;
@@ -3126,10 +3139,7 @@ export function createRegisterMode(B) {
       }
       assignWorkspace(openingWorkspace);
       activeTab = tx ? 'checkout' : 'home';
-      enterTimer = 0.30;
-      if (checkoutFlowState() === 'WaitingForCashier') {
-        flowTo('EnteringCashierMode', 'player-opened-front-desk-monitor');
-      }
+      beginCashierEntry('player-opened-front-desk-monitor');
       const opening = dynamicPose(poseKey());
       cameraPose = { ...opening.pose };
       activePoseKey = poseKey();
@@ -5000,13 +5010,16 @@ export function createRegisterMode(B) {
   function beginBagDeliveryOrRelease() {
     const wantsBag = transactionKind === 'retail' && bagGroup;
     if (checkoutFlowState() === 'Bagging') {
-      flowTo(
+      if (!flowTo(
         'BagHandoff',
         wantsBag
           ? 'physical-bag-transfer-started-after-receipt-contact'
           : 'receipt-only-handoff-ready-for-release',
-      );
+      )) return false;
     }
+    // Never let the renderer label goods released when an earlier physical
+    // transition was rejected. Banking is downstream of this exact checkpoint.
+    if (checkoutFlowState() !== 'BagHandoff') return false;
     if (wantsBag) {
       poseCustomerForCheckout('ReceiveBag');
       deliveryPhase = 'bag-deliver';
@@ -5015,13 +5028,12 @@ export function createRegisterMode(B) {
       const handle = bagHandlePoint();
       bagDeliverAnchorFrom.copy(handle || bagDeliverFrom);
     } else {
-      if (checkoutFlowState() === 'BagHandoff') {
-        flowTo('CustomerLeaving', 'receipt-only-handoff-reached-customer');
-      }
+      if (!flowTo('CustomerLeaving', 'receipt-only-handoff-reached-customer')) return false;
       deliveryPhase = 'released';
       finalizeTimer = 0.28;
     }
     drawScreen();
+    return true;
   }
 
   function holdBagAtCustomer() {
@@ -5115,9 +5127,8 @@ export function createRegisterMode(B) {
     if (deliveryPhase === 'bag-customer-hold') {
       holdBagAtCustomer();
       if (deliveryTimer === 0) {
-        if (checkoutFlowState() === 'BagHandoff') {
-          flowTo('CustomerLeaving', 'customer-held-bag-acceptance-beat-complete');
-        }
+        if (checkoutFlowState() !== 'BagHandoff'
+            || !flowTo('CustomerLeaving', 'customer-held-bag-acceptance-beat-complete')) return;
         deliveryPhase = 'released';
         finalizeTimer = 0.28;
         drawScreen();
@@ -5416,7 +5427,7 @@ export function createRegisterMode(B) {
     // failed attempt re-arms the timer: with no manual button in the automatic
     // flow, a transient refusal must never strand a paid customer.
     if (finalizeTimer > 0 && tx && tx.stage === 'done' && autoFulfilled
-        && deliveryPhase === 'released') {
+        && deliveryPhase === 'released' && checkoutFlowState() === 'CustomerLeaving') {
       finalizeTimer = Math.max(0, finalizeTimer - animationDt);
       if (finalizeTimer === 0 && !finalizeTransaction()) finalizeTimer = 0.6;
     }

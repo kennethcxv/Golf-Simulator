@@ -186,7 +186,10 @@ export const COUNTER = {
   // their held-out card/cash is visible. The old head (x 1.6) predated the
   // reader-and-bag choreography and left the payer hidden at the bag end.
   queueBase: { x: 2.42, z: 3.15 },
-  queueStep: { x: -0.8, z: -0.45 },               // line falls back SW, clear of the door
+  // A full 1.20 yd between centres keeps shoulders, carried goods, and name
+  // silhouettes distinct from the staff camera. The old 0.92 yd pitch was
+  // collision-safe but collapsed two customers into one visual huddle.
+  queueStep: { x: -1.05, z: -0.58 },              // line falls back SW, clear of the door
   staffStand: { x: 2.80, z: 5.10 },               // where you stand to work it: behind the counter
 };
 export function queueSlot(i) {

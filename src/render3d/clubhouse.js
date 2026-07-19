@@ -5591,8 +5591,16 @@ export function makeClubhouse(ctx) {
     // real variety on the floor: builds, trousers, skin tones, hats or hair
     const TROUSERS = [0xc2b190, 0x8a8577, 0x4b545c, 0x6b5a44];
     const SKINS = [0xd9a97e, 0xb9865e, 0x8a5f42, 0xe8c39a];
+    let poloIndex = rng.int(CUST_COLORS.length);
+    const previousPolo = customers.length
+      ? customers[customers.length - 1].presentationPolo
+      : null;
+    if (CUST_COLORS[poloIndex] === previousPolo) {
+      poloIndex = (poloIndex + 1) % CUST_COLORS.length;
+    }
+    const presentationPolo = CUST_COLORS[poloIndex];
     const char = makeCharacter({
-      polo: CUST_COLORS[rng.int(CUST_COLORS.length)],
+      polo: presentationPolo,
       khaki: TROUSERS[rng.int(TROUSERS.length)],
       skin: SKINS[rng.int(SKINS.length)],
       cap: rng.chance(0.55) ? (rng.chance(0.5) ? 0xf2efe4 : 0x2c3e66) : null,
@@ -5681,6 +5689,7 @@ export function makeClubhouse(ctx) {
       customerId: identity.customerId,
       fullName: identity.fullName,
       name: identity.fullName,
+      presentationPolo,
       paymentPreference: assignedPayment,
       payMethod: assignedPayment,
       paymentDialogue: paymentChoiceDialogue({
