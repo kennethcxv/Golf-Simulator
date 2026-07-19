@@ -432,10 +432,11 @@ export async function runRegisterAcceptance(page, mode) {
       app.scene3d.applyTimeWeather(14 * 60, app.state.weather);
       app.scene3d.clubhouse().rebuildStock();
       const walk = app.scene3d.walk.state;
-      walk.x = 2.80 - 8;
+      const offset = app.scene3d.clubhouse().interior.position;
+      walk.x = offset.x + 2.80;
       // Stand a little farther back than the minimum interaction distance so the
       // customer-placement evidence includes the complete physical POS bezel.
-      walk.z = 5.35 + 228;
+      walk.z = offset.z + 5.35;
       walk.yaw = 0;
       walk.pitch = -0.18;
       return books;

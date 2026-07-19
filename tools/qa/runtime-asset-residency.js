@@ -4,8 +4,10 @@
 async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
-  const outDir = path.join(repo, 'qa', 'steam-performance-master-pass', 'assets');
+  const repo = process.cwd();
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
+  const outDir = path.resolve(process.env.ASSET_RESIDENCY_QA_ROOT
+    || path.join(repo, 'qa', 'steam-performance-master-pass', 'assets'));
   const outFile = path.join(outDir, 'runtime-asset-residency.json');
   fs.mkdirSync(outDir, { recursive: true });
 
@@ -65,7 +67,7 @@ async (page) => {
   });
 
   await page.setViewportSize({ width: 1600, height: 900 });
-  await page.goto('http://localhost:8457/', { waitUntil: 'domcontentloaded' });
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   await page.getByText('Continue', { exact: true }).click();
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
   await page.waitForFunction(() => {
