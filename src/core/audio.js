@@ -17,6 +17,16 @@ export const CHECKOUT_CUE_APIS = Object.freeze([
   'checkoutComplete',
 ]);
 
+// Delivery/unboxing uses semantic one-shots for every physical transition. The
+// short legacy names remain on the returned audio object for shipped callers,
+// while this list gives routing/tests one authoritative production contract.
+export const DELIVERY_CUE_APIS = Object.freeze([
+  'truck', 'boxup', 'boxdown',
+  'cutterExtend', 'bladeContact', 'tapeCut', 'tapeRelease',
+  'flap', 'product', 'itemRemoval',
+  'stock', 'fullShelf', 'boxFlatten', 'disposal',
+]);
+
 export function makeAudio() {
   let ctx = null;
   let master = null;
@@ -820,7 +830,18 @@ export function makeAudio() {
   // --- delivery + stocking (the physical retail loop) ------------------------------------------
   // A tiny shared noise-burst helper: a band of filtered noise with an amplitude envelope. Cardboard,
   // tape and paper are all noise at heart — what tells them apart is the band and the shape.
-  function burst({ dur = 0.2, delay = 0, band = 1500, q = 1, type = 'bandpass', peak = 0.05, attack = 0.02, hp = 0 }) {
+  // Physical repetitions should feel related without becoming identical. Keep
+  // variation deliberately narrow so pitch never changes cue identity or level.
+  function varied(value, spread = 0.04) {
+    const boundedSpread = Math.max(0, Math.min(0.12, Number(spread) || 0));
+    if (boundedSpread <= 0) return value;
+    return value * (1 + (Math.random() * 2 - 1) * boundedSpread);
+  }
+
+  function burst({
+    dur = 0.2, delay = 0, band = 1500, q = 1, type = 'bandpass',
+    peak = 0.05, attack = 0.02, hp = 0, pitchVariation = 0,
+  }) {
     if (!ctx) return null;
     const t0 = ctx.currentTime + Math.max(0, Number(delay) || 0);
     const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
@@ -830,7 +851,7 @@ export function makeAudio() {
     src.buffer = buf;
     const f = ctx.createBiquadFilter();
     f.type = type;
-    f.frequency.value = band;
+    f.frequency.value = varied(band, pitchVariation);
     f.Q.value = q;
     let node = src.connect(f);
     if (hp) { const h = ctx.createBiquadFilter(); h.type = 'highpass'; h.frequency.value = hp; node = node.connect(h); }
@@ -872,17 +893,26 @@ export function makeAudio() {
   }
 
   // hoisting a carton: a short cardboard scuff
-  function boxup() { burst({ dur: 0.16, band: 900, q: 0.8, peak: 0.045, attack: 0.015, hp: 300 }); }
+  function boxup() {
+    burst({
+      dur: 0.16, band: 900, q: 0.8, peak: 0.045, attack: 0.015,
+      hp: 300, pitchVariation: 0.045,
+    });
+  }
 
   // setting a carton down: a soft, heavier cardboard thud (cardboard, not the register's coin thunk)
   function boxdown() {
     if (!ctx) return;
-    burst({ dur: 0.14, band: 700, q: 0.7, peak: 0.05, attack: 0.004 });
+    const pitch = varied(1, 0.035);
+    burst({
+      dur: 0.14, band: 700 * pitch, q: 0.7, peak: 0.05, attack: 0.004,
+      pitchVariation: 0.02,
+    });
     const t0 = ctx.currentTime;
     const osc = ctx.createOscillator();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(120, t0);
-    osc.frequency.exponentialRampToValueAtTime(70, t0 + 0.09);
+    osc.frequency.setValueAtTime(120 * pitch, t0);
+    osc.frequency.exponentialRampToValueAtTime(70 * pitch, t0 + 0.09);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.08, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
@@ -891,27 +921,138 @@ export function makeAudio() {
     osc.stop(t0 + 0.14);
   }
 
-  // the blade down the seam: a short bright zip. Called repeatedly while you hold the cut, so it is
-  // brief and quiet — a run of them reads as one continuous rip.
-  function tape() {
-    const b = burst({ dur: 0.09, band: 3600, q: 1.2, peak: 0.028, attack: 0.004, hp: 1500 });
+  // Slider/stop detent as the authored blade visibly extends from its channel.
+  function cutterExtend() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const pitch = varied(1, 0.035);
+    burst({
+      dur: 0.11, band: 2250, q: 1.1, peak: 0.016, attack: 0.008,
+      hp: 850, pitchVariation: 0.04,
+    });
+    const detent = ctx.createOscillator();
+    detent.type = 'triangle';
+    detent.frequency.setValueAtTime(980 * pitch, t0 + 0.045);
+    detent.frequency.exponentialRampToValueAtTime(620 * pitch, t0 + 0.09);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0 + 0.04);
+    g.gain.linearRampToValueAtTime(0.022, t0 + 0.052);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.105);
+    detent.connect(g).connect(sfxBus);
+    detent.start(t0 + 0.04);
+    detent.stop(t0 + 0.11);
+  }
+
+  // The first restrained metal/tape tick occurs only when the animated blade
+  // actually reaches the authored cut path; courseScene supplies the edge.
+  function bladeContact() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const pitch = varied(1, 0.05);
+    burst({
+      dur: 0.052, band: 4700, q: 1.3, peak: 0.016, attack: 0.002,
+      hp: 2400, pitchVariation: 0.055,
+    });
+    const tick = ctx.createOscillator();
+    tick.type = 'sine';
+    tick.frequency.setValueAtTime(2200 * pitch, t0);
+    tick.frequency.exponentialRampToValueAtTime(1550 * pitch, t0 + 0.035);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.011, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.042);
+    tick.connect(g).connect(sfxBus);
+    tick.start(t0);
+    tick.stop(t0 + 0.045);
+  }
+
+  // The blade down the seam: a short bright zip. The carton interaction emits
+  // it only on real progress beats, so stationary LMB produces no fake scrape.
+  function tapeCut() {
+    const b = burst({
+      dur: 0.09, band: 3600, q: 1.2, peak: 0.028, attack: 0.004,
+      hp: 1500, pitchVariation: 0.06,
+    });
     if (b) b.g.gain.exponentialRampToValueAtTime(0.0001, b.t0 + 0.09);
   }
 
-  // a cardboard flap folding open: a low crinkle with a soft pop
-  function flap() { burst({ dur: 0.18, band: 1200, q: 0.9, peak: 0.04, attack: 0.02, hp: 400 }); }
+  // Completion is a peel/release, not one more cutting zip. A descending noise
+  // colour and delayed soft snap make it readable without an arcade flourish.
+  function tapeRelease() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const dur = 0.24;
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const peel = ctx.createBufferSource();
+    peel.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 0.85;
+    f.frequency.setValueAtTime(varied(3100, 0.045), t0);
+    f.frequency.exponentialRampToValueAtTime(varied(1150, 0.045), t0 + 0.22);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.032, t0 + 0.018);
+    g.gain.linearRampToValueAtTime(0.018, t0 + 0.11);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    peel.connect(f).connect(g).connect(sfxBus);
+    peel.start(t0);
+    peel.stop(t0 + dur);
+    burst({
+      dur: 0.075, delay: 0.07, band: 760, q: 0.8, peak: 0.018,
+      attack: 0.003, pitchVariation: 0.045,
+    });
+  }
 
-  // taking product out of the box: a light paper rustle
-  function product() { burst({ dur: 0.13, band: 2600, q: 0.8, peak: 0.03, attack: 0.02, hp: 900 }); }
+  // a cardboard flap folding open: a low crinkle with a soft pop
+  function flap() {
+    burst({
+      dur: 0.18, band: 1200, q: 0.9, peak: 0.04, attack: 0.02,
+      hp: 400, pitchVariation: 0.05,
+    });
+  }
+
+  // taking or handling product: a light paper rustle
+  function product() {
+    burst({
+      dur: 0.13, band: 2600, q: 0.8, peak: 0.03, attack: 0.02,
+      hp: 900, pitchVariation: 0.045,
+    });
+  }
+
+  // Removing a unit/armful has packaging rustle plus a small supported-body
+  // release. Callers need not stack the generic product cue on top of it.
+  function itemRemoval() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const pitch = varied(1, 0.045);
+    burst({
+      dur: 0.16, band: 2350, q: 0.75, peak: 0.027, attack: 0.016,
+      hp: 780, pitchVariation: 0.05,
+    });
+    const body = ctx.createOscillator();
+    body.type = 'triangle';
+    body.frequency.setValueAtTime(230 * pitch, t0 + 0.025);
+    body.frequency.exponentialRampToValueAtTime(145 * pitch, t0 + 0.105);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0 + 0.02);
+    g.gain.linearRampToValueAtTime(0.026, t0 + 0.035);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
+    body.connect(g).connect(sfxBus);
+    body.start(t0 + 0.02);
+    body.stop(t0 + 0.13);
+  }
 
   // placing an item on a fixture: a soft, clean tap
   function stock() {
     if (!ctx) return;
     const t0 = ctx.currentTime;
+    const pitch = varied(1, 0.04);
     const osc = ctx.createOscillator();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(320, t0);
-    osc.frequency.exponentialRampToValueAtTime(200, t0 + 0.06);
+    osc.frequency.setValueAtTime(320 * pitch, t0);
+    osc.frequency.exponentialRampToValueAtTime(200 * pitch, t0 + 0.06);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.05, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
@@ -939,11 +1080,61 @@ export function makeAudio() {
     }
   }
 
-  // breaking down / binning cardboard: a longer, coarser crunch
-  function recycle() {
-    burst({ dur: 0.34, band: 800, q: 0.6, peak: 0.05, attack: 0.02 });
-    const b = burst({ dur: 0.3, band: 2000, q: 0.7, peak: 0.025, attack: 0.05, hp: 600 });
-    if (b) b.g.gain.setValueAtTime(0.0001, b.t0 + 0.08);
+  // Folding spans the visible animation: three restrained crease beats move
+  // from broad cardboard body to the tighter final fold.
+  function boxFlatten() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    burst({
+      dur: 0.24, band: 760, q: 0.62, peak: 0.042, attack: 0.018,
+      pitchVariation: 0.055,
+    });
+    burst({
+      dur: 0.23, delay: 0.18, band: 1120, q: 0.7, peak: 0.036, attack: 0.014,
+      hp: 320, pitchVariation: 0.055,
+    });
+    burst({
+      dur: 0.21, delay: 0.40, band: 1680, q: 0.78, peak: 0.027, attack: 0.012,
+      hp: 520, pitchVariation: 0.06,
+    });
+    const body = ctx.createOscillator();
+    const pitch = varied(1, 0.035);
+    body.type = 'sine';
+    body.frequency.setValueAtTime(105 * pitch, t0);
+    body.frequency.exponentialRampToValueAtTime(58 * pitch, t0 + 0.58);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.035, t0 + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.62);
+    body.connect(g).connect(sfxBus);
+    body.start(t0);
+    body.stop(t0 + 0.64);
+  }
+
+  // The actual sink/drop owns disposal: short bin/body impact followed by a
+  // separate cardboard settle. It is deliberately unlike the longer fold.
+  function disposal() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const pitch = varied(1, 0.04);
+    burst({
+      dur: 0.18, band: 610, q: 0.65, peak: 0.046, attack: 0.004,
+      pitchVariation: 0.045,
+    });
+    burst({
+      dur: 0.22, delay: 0.065, band: 1850, q: 0.72, peak: 0.024, attack: 0.025,
+      hp: 520, pitchVariation: 0.055,
+    });
+    const body = ctx.createOscillator();
+    body.type = 'sine';
+    body.frequency.setValueAtTime(118 * pitch, t0);
+    body.frequency.exponentialRampToValueAtTime(62 * pitch, t0 + 0.16);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.055, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+    body.connect(g).connect(sfxBus);
+    body.start(t0);
+    body.stop(t0 + 0.22);
   }
 
   // the laptop lid easing open: soft felt-hinge rise + a settle tick
@@ -1061,19 +1252,39 @@ export function makeAudio() {
       hum.connect(humLp).connect(gain);
       hum.start();
     } else {
-      // divot / rake: pulsed granular scrape (noise gated by an LFO)
+      // Everything worked BY HAND is the same synthesis — noise through a bandpass, gated by an
+      // LFO so it pulses at the rhythm of the stroke — and differs only in where it sits and how
+      // fast it moves. A mop is low, wet and slow; a broom is bright, dry and quick; a spray is a
+      // thin atomised hiss; a bag is loose crackle. One table beats eight near-identical branches.
+      const HAND_VOICES = {
+        divot: { hz: 520, q: 1.1, rate: 3.1, depth: 0.50 },
+        rake: { hz: 950, q: 1.1, rate: 2.3, depth: 0.50 },
+        mop: { hz: 700, q: 0.75, rate: 1.5, depth: 0.55 }, // wet swish, long strokes
+        broom: { hz: 1500, q: 1.3, rate: 2.6, depth: 0.60 }, // dry bristle on board
+        dustpan: { hz: 1150, q: 1.5, rate: 4.2, depth: 0.45 }, // short scrapes and rattle
+        spray: { hz: 4300, q: 0.5, rate: 0.0, depth: 0.00 }, // steady atomised hiss
+        cloth: { hz: 620, q: 0.7, rate: 2.0, depth: 0.50 }, // muffled, soft
+        sponge: { hz: 1850, q: 1.2, rate: 3.4, depth: 0.55 }, // squeak of a scourer
+        trashbag: { hz: 2600, q: 0.9, rate: 5.5, depth: 0.65 }, // loose polythene crackle
+      };
+      const v = HAND_VOICES[kind] || HAND_VOICES.divot;
       filter.type = 'bandpass';
-      filter.frequency.value = kind === 'rake' ? 950 : 520;
-      filter.Q.value = 1.1;
-      const pulse = ctx.createGain();
-      const lfo = ctx.createOscillator();
-      lfo.frequency.value = kind === 'rake' ? 2.3 : 3.1;
-      const lfoDepth = ctx.createGain();
-      lfoDepth.gain.value = 0.5;
-      lfo.connect(lfoDepth).connect(pulse.gain);
-      pulse.gain.value = 0.5;
-      src.connect(filter).connect(pulse).connect(gain);
-      lfo.start();
+      filter.frequency.value = v.hz;
+      filter.Q.value = v.q;
+      if (v.rate <= 0) {
+        // no pulse: a trigger held down is a continuous sound, not a rhythm
+        src.connect(filter).connect(gain);
+      } else {
+        const pulse = ctx.createGain();
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = v.rate;
+        const lfoDepth = ctx.createGain();
+        lfoDepth.gain.value = v.depth;
+        lfo.connect(lfoDepth).connect(pulse.gain);
+        pulse.gain.value = 1 - v.depth * 0.5;
+        src.connect(filter).connect(pulse).connect(gain);
+        lfo.start();
+      }
     }
     gain.connect(sfxBus);
     src.start();
@@ -1084,13 +1295,21 @@ export function makeAudio() {
   const TOOL_LOOP_LEVEL = {
     hose: 0.045, vacuum: 0.06, divot: 0.05, rake: 0.05, mower: 0.055,
     washer: 0.075, soap: 0.03, // the washer is loud; foam is not
+    // The hand tools are quiet work. A broom you are pushing yourself should not be as loud as a
+    // petrol pump, and a cloth should be barely there — this is the difference between a kit that
+    // sounds busy and one that sounds shrill after ten minutes.
+    mop: 0.034, broom: 0.040, dustpan: 0.030,
+    spray: 0.026, cloth: 0.018, sponge: 0.028, trashbag: 0.030,
   };
   function setToolLoop(kind) {
     if (!ctx) return;
-    if (kind) ensureToolLoop(kind);
+    // Box cutting is progress-driven one-shot audio. Treat it (and every
+    // unknown future tool) as silence here rather than manufacturing the
+    // divot/rake fallback loop while LMB is merely held stationary.
+    const activeKind = kind && Object.hasOwn(TOOL_LOOP_LEVEL, kind) ? kind : null;
+    if (activeKind) ensureToolLoop(activeKind);
     for (const [k, g] of Object.entries(toolLoops)) {
-      // an unknown tool must fall silent, not hand the audio graph a NaN
-      const level = k === kind ? (TOOL_LOOP_LEVEL[k] ?? 0.05) : 0;
+      const level = k === activeKind ? TOOL_LOOP_LEVEL[k] : 0;
       g.gain.setTargetAtTime(level, ctx.currentTime, 0.06);
     }
   }
@@ -1176,8 +1395,13 @@ export function makeAudio() {
     get captureActive() {
       return !!capture;
     },
-    // the delivery-to-shelf loop
-    truck, boxup, boxdown, tape, flap, product, stock, fullShelf, recycle,
+    // the delivery-to-shelf loop. `tape` and `recycle` are compatibility
+    // aliases while production call sites move to the semantic names.
+    truck, boxup, boxdown,
+    cutterExtend, bladeContact, tapeCut, tapeRelease,
+    tape: tapeCut,
+    flap, product, itemRemoval, stock, fullShelf, boxFlatten, disposal,
+    recycle: disposal,
     get ready() {
       return !!ctx;
     },
