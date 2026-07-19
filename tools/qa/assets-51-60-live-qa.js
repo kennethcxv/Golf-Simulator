@@ -7,7 +7,8 @@ async (page) => {
   // diagnostic hook so a screenshot can never race the asynchronous GLB load.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const out = process.env.SHEET06_QA_OUT
     ? path.resolve(repo, process.env.SHEET06_QA_OUT)
     : path.join(repo, 'qa', 'assets_51_100_master', 'sheet_06', 'live', 'current');
@@ -280,7 +281,7 @@ async (page) => {
   }
 
   await page.setViewportSize(viewport);
-  await page.goto('http://localhost:8457/', { waitUntil: 'domcontentloaded' });
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   // This is deterministic presentation setup, not interaction evidence. Clear
   // legacy exterior chores in the bootstrap save before the clubhouse is
   // constructed; those interactive meshes snapshot their initial visibility
