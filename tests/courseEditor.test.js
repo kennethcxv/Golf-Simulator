@@ -4,6 +4,7 @@ import { ZONE, HOLE_STATUS } from '../src/sim/constants.js';
 import { BALANCE } from '../src/sim/balance.js';
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import { getZone } from '../src/sim/course.js';
+import { deriveZones } from '../src/sim/courseVec.js';
 import {
   makeEditSession, sessionDirty,
   beginTerrainStroke, sculptAt, endTerrainStroke,
@@ -98,6 +99,36 @@ test('paint stroke converts zones, prices them, undoes, and feeds turf sod', () 
   assert.equal(s.bill, res.cost);
   undo(st, s);
   assert.notEqual(getZone(st.course, QX, QY), ZONE.FAIRWAY, 'undo restores the old surface');
+});
+
+test('vector paint commits locally, matches a canonical full derive, and keeps sparse undo data', () => {
+  const st = fresh();
+  const s = makeEditSession(st);
+  const paintBefore = Uint8Array.from(st.course.paint);
+  const stroke = beginPaintStroke();
+  for (let step = 0; step < 9; step++) {
+    paintAt(st, stroke, QX + step * 0.8, QY + Math.sin(step * 0.7), ZONE.FAIRWAY, { radius: 2.4 });
+  }
+
+  const res = endPaintStroke(st, s, stroke);
+  assert.equal(res.ok, true);
+  assert.equal(s.undo.length, 1);
+  assert.equal(s.undo[0].kind, 'vector-paint');
+  assert.ok(s.undo[0].paintChanges.length > 0);
+  assert.equal('paintBefore' in s.undo[0], false, 'history does not clone the full paint field');
+  assert.equal('paintAfter' in s.undo[0], false, 'history does not clone the full paint field');
+
+  const locallyDerived = Uint8Array.from(st.course.zones);
+  deriveZones(st.course);
+  assert.deepEqual(st.course.zones, locallyDerived, 'local cell-centre update is byte-identical to a full derive');
+
+  const paintAfter = Uint8Array.from(st.course.paint);
+  const undone = undo(st, s);
+  assert.equal(undone.kind, 'vector-paint');
+  assert.deepEqual(st.course.paint, paintBefore, 'undo restores every authored paint sample');
+  const redone = redo(st, s);
+  assert.equal(redone.kind, 'vector-paint');
+  assert.deepEqual(st.course.paint, paintAfter, 'redo restores every authored paint sample');
 });
 
 test('green stamp paints green + fringe collar and smooths a plateau', () => {

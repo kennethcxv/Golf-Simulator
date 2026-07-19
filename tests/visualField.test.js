@@ -224,3 +224,23 @@ test('regional surface-distance update equals a full derived rebuild', () => {
   computeSurfaceDistanceField(field, fresh);
   assert.deepEqual(Array.from(distance.data), Array.from(fresh.data));
 });
+
+test('paint-specific two-cell halo is byte-identical to a full rebuild', () => {
+  const { st, field } = builtField(991);
+  const c = st.course;
+  const distance = makeSurfaceDistanceField(field);
+  const paint = ensurePaint(c);
+  for (let y = 27; y <= 35; y++) {
+    for (let x = 58; x <= 72; x++) {
+      if ((x + y) % 3 !== 0) paint[y * c.w + x] = ZONE.FAIRWAY;
+    }
+  }
+
+  updateVisualFieldRegion(c, field, 58, 27, 72, 35, 2);
+  updateSurfaceDistanceFieldRegion(c, field, distance, 58, 27, 72, 35, 2);
+
+  const fullField = makeVisualField(c);
+  const fullDistance = makeSurfaceDistanceField(fullField);
+  assert.deepEqual(Array.from(field.data), Array.from(fullField.data), 'tight visual halo remains exact');
+  assert.deepEqual(Array.from(distance.data), Array.from(fullDistance.data), 'tight distance halo remains exact');
+});

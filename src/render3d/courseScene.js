@@ -545,6 +545,63 @@ export function makeCourseScene(canvas, state) {
   const worldH = H * CELL_YD;
   const SEG_PER_CELL = course.vec ? SEG_PER_CELL_VEC : SEG_PER_CELL_LEGACY;
 
+  // Bounded runtime aggregates let browser QA measure production editor work
+  // without retaining per-frame samples during long editing sessions.
+  const editorPerformanceKeys = [
+    'visualField',
+    'surfaceDistanceField',
+    'visualFieldUpload',
+    'terrainHeights',
+    'terrainNormals',
+    'terrainRefresh',
+    'turfPack',
+  ];
+  const editorPerformanceStats = Object.create(null);
+
+  function resetEditorPerformanceStats() {
+    for (const key of editorPerformanceKeys) {
+      editorPerformanceStats[key] = {
+        calls: 0,
+        totalMs: 0,
+        maxMs: 0,
+        lastMs: 0,
+        units: 0,
+        scopedCalls: 0,
+        fullCalls: 0,
+      };
+    }
+  }
+
+  function recordEditorPerformance(key, startedAt, units = 0, scoped = null) {
+    const stat = editorPerformanceStats[key];
+    const elapsed = performance.now() - startedAt;
+    stat.calls += 1;
+    stat.totalMs += elapsed;
+    stat.maxMs = Math.max(stat.maxMs, elapsed);
+    stat.lastMs = elapsed;
+    stat.units += units;
+    if (scoped === true) stat.scopedCalls += 1;
+    if (scoped === false) stat.fullCalls += 1;
+  }
+
+  function editorPerformanceSnapshot() {
+    return Object.fromEntries(editorPerformanceKeys.map((key) => {
+      const stat = editorPerformanceStats[key];
+      return [key, {
+        calls: stat.calls,
+        totalMs: +stat.totalMs.toFixed(3),
+        averageMs: +(stat.calls ? stat.totalMs / stat.calls : 0).toFixed(3),
+        maxMs: +stat.maxMs.toFixed(3),
+        lastMs: +stat.lastMs.toFixed(3),
+        units: stat.units,
+        scopedCalls: stat.scopedCalls,
+        fullCalls: stat.fullCalls,
+      }];
+    }));
+  }
+
+  resetEditorPerformanceStats();
+
   // --- renderer / scene / camera -------------------------------------------------
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   // DPR 1.5 cap: above that the post chain pays quadratically for sharpness nobody reads
@@ -745,6 +802,12 @@ export function makeCourseScene(canvas, state) {
   const zoneTex = new THREE.DataTexture(zoneData, W, H);
   const auxTex = new THREE.DataTexture(auxData, W, H);
   const planTex = new THREE.DataTexture(planData, W, H);
+  // CPU-only sources for renderer.copyTextureToTexture(). Unlike Texture's
+  // updateRanges (which issue one texSubImage2D per row and only support RGBA),
+  // this route uploads one true rectangle while retaining the destination's
+  // existing GPU allocation.
+  const zoneUploadSource = new THREE.DataTexture(zoneData, W, H);
+  const auxUploadSource = new THREE.DataTexture(auxData, W, H);
   for (const t of [zoneTex, auxTex, planTex]) {
     t.magFilter = THREE.NearestFilter;
     t.minFilter = THREE.NearestFilter;
@@ -773,27 +836,87 @@ export function makeCourseScene(canvas, state) {
   surfaceDistanceTex.magFilter = THREE.LinearFilter;
   surfaceDistanceTex.minFilter = THREE.LinearFilter;
   surfaceDistanceTex.generateMipmaps = false;
+  const zoneHiUploadSource = new THREE.DataTexture(
+    visField.data, visField.w, visField.h, THREE.RGFormat, THREE.UnsignedByteType,
+  );
+  const surfaceDistanceUploadSource = new THREE.DataTexture(
+    surfaceDistanceField.data, surfaceDistanceField.w, surfaceDistanceField.h,
+    THREE.RGBAFormat, THREE.UnsignedByteType,
+  );
+  const dataUploadBox = new THREE.Box2();
+  const dataUploadPosition = new THREE.Vector2();
+
+  function uploadDataTextureRegion(destination, source, tx0, ty0, tx1, ty1) {
+    if (!renderer.properties.has(destination)) {
+      // Construction and a pre-first-frame edit have no allocated destination
+      // yet. A normal full upload is the only valid path in that state.
+      destination.clearUpdateRanges();
+      destination.needsUpdate = true;
+      return false;
+    }
+    destination.clearUpdateRanges();
+    dataUploadBox.min.set(tx0, ty0);
+    dataUploadBox.max.set(tx1 + 1, ty1 + 1);
+    dataUploadPosition.set(tx0, ty0);
+    renderer.copyTextureToTexture(source, destination, dataUploadBox, dataUploadPosition);
+    return true;
+  }
 
   // Recompute the visual field from the sim grid — everything, or one padded
   // cell-rect while a paint stroke is in flight.
-  function updateZoneField(st, rect = null) {
+  function updateZoneField(st, rect = null, { padding } = {}) {
     if (rect) {
-      updateVisualFieldRegion(st.course, visField, rect.x0, rect.y0, rect.x1, rect.y1);
-      updateSurfaceDistanceFieldRegion(st.course, visField, surfaceDistanceField, rect.x0, rect.y0, rect.x1, rect.y1);
-      // Upload only the recomputed rows. A brush stroke should not resend the
-      // full 9.38 MiB course texture to the GPU.
+      const visualStarted = performance.now();
+      updateVisualFieldRegion(st.course, visField, rect.x0, rect.y0, rect.x1, rect.y1, padding);
+      recordEditorPerformance('visualField', visualStarted, 0, true);
+      const distanceStarted = performance.now();
+      updateSurfaceDistanceFieldRegion(
+        st.course, visField, surfaceDistanceField,
+        rect.x0, rect.y0, rect.x1, rect.y1, padding,
+      );
+      recordEditorPerformance(
+        'surfaceDistanceField', distanceStarted,
+        (surfaceDistanceField.updatedRect.tx1 - surfaceDistanceField.updatedRect.tx0 + 1)
+          * (surfaceDistanceField.updatedRect.ty1 - surfaceDistanceField.updatedRect.ty0 + 1),
+        true,
+      );
       const dirty = surfaceDistanceField.updatedRect;
-      const rowComponents = (dirty.tx1 - dirty.tx0 + 1) * 4;
-      for (let ty = dirty.ty0; ty <= dirty.ty1; ty++) {
-        surfaceDistanceTex.addUpdateRange((ty * surfaceDistanceField.w + dirty.tx0) * 4, rowComponents);
-      }
+      // One rectangular upload per field. The previous row-range loop issued
+      // thousands of WebGL calls during a normal drag, while the RG visual
+      // texture had no legal update-range path and re-uploaded in full.
+      const uploadStarted = performance.now();
+      uploadDataTextureRegion(zoneHiTex, zoneHiUploadSource, dirty.tx0, dirty.ty0, dirty.tx1, dirty.ty1);
+      uploadDataTextureRegion(
+        surfaceDistanceTex, surfaceDistanceUploadSource,
+        dirty.tx0, dirty.ty0, dirty.tx1, dirty.ty1,
+      );
+      recordEditorPerformance(
+        'visualFieldUpload', uploadStarted,
+        (dirty.tx1 - dirty.tx0 + 1) * (dirty.ty1 - dirty.ty0 + 1),
+        true,
+      );
     } else {
+      const visualStarted = performance.now();
       computeVisualField(st.course, visField);
+      recordEditorPerformance('visualField', visualStarted, visField.w * visField.h, false);
+      const distanceStarted = performance.now();
       computeSurfaceDistanceField(visField, surfaceDistanceField);
+      recordEditorPerformance(
+        'surfaceDistanceField', distanceStarted,
+        surfaceDistanceField.w * surfaceDistanceField.h,
+        false,
+      );
+      const uploadStarted = performance.now();
+      zoneHiTex.clearUpdateRanges();
+      zoneHiTex.needsUpdate = true;
       surfaceDistanceTex.clearUpdateRanges();
+      surfaceDistanceTex.needsUpdate = true;
+      recordEditorPerformance(
+        'visualFieldUpload', uploadStarted,
+        surfaceDistanceField.w * surfaceDistanceField.h,
+        false,
+      );
     }
-    zoneHiTex.needsUpdate = true;
-    surfaceDistanceTex.needsUpdate = true;
   }
 
   function zoneAtWorld(x, z) {
@@ -1436,12 +1559,18 @@ export function makeCourseScene(canvas, state) {
   // The window must be padded by the caller: a vertex's normal depends on its
   // neighbours' POSITIONS, so moving a vertex changes the normals one ring out.
   function recomputeTerrainNormals(vx0, vy0, vx1, vy1) {
+    const started = performance.now();
     const nrm = terrainGeo.attributes.normal;
     computeHeightfieldNormals(
       heights, vertsX, vertsY, worldW / segsX, worldH / segsY, nrm.array,
       { vx0, vy0, vx1, vy1 },
     );
     nrm.needsUpdate = true;
+    const touchedVertices = (vx1 - vx0 + 1) * (vy1 - vy0 + 1);
+    recordEditorPerformance(
+      'terrainNormals', started, touchedVertices,
+      touchedVertices < vertsX * vertsY,
+    );
   }
 
   // three uploads the whole buffer when updateRanges is empty, so a scoped edit
@@ -1460,6 +1589,7 @@ export function makeCourseScene(canvas, state) {
   // for a full rebuild. A terrain stroke used to pay the whole 346,801-vertex
   // loop plus a full computeVertexNormals() on every throttled tick.
   function rebuildTerrainHeights(rectCells = null) {
+    const refreshStarted = performance.now();
     if (course.vec && !relief) rebuildRelief();
     const pos = terrainGeo.attributes.position;
     const pa = pos.array;
@@ -1475,6 +1605,7 @@ export function makeCourseScene(canvas, state) {
       vy1 = clamp(Math.ceil(rectCells.y1 * SEG_PER_CELL), 0, vertsY - 1);
     }
 
+    const heightsStarted = performance.now();
     for (let vy = vy0; vy <= vy1; vy++) {
       for (let vx = vx0; vx <= vx1; vx++) {
         const h = terrainHeightAtVertex(vx, vy);
@@ -1483,6 +1614,8 @@ export function makeCourseScene(canvas, state) {
         pa[i * 3 + 1] = h;
       }
     }
+    const touchedVertices = (vx1 - vx0 + 1) * (vy1 - vy0 + 1);
+    recordEditorPerformance('terrainHeights', heightsStarted, touchedVertices, Boolean(rectCells));
     // Upload only the touched span. needsUpdate alone re-sends the whole
     // 347k-vertex buffer (~4 MB position + ~4 MB normal) to the GPU every tick,
     // which was the remaining stroke hitch once the CPU work was scoped.
@@ -1505,6 +1638,7 @@ export function makeCourseScene(canvas, state) {
     // cannot meaningfully change the bounding sphere; recomputing it is a full
     // pass over every vertex. Full rebuilds still refresh it.
     if (!rectCells) terrainGeo.computeBoundingSphere();
+    recordEditorPerformance('terrainRefresh', refreshStarted, touchedVertices, Boolean(rectCells));
   }
 
   // ground height lookup in world coords (post-carve)
@@ -5419,38 +5553,58 @@ export function makeCourseScene(canvas, state) {
   }
   rebuildFlowField();
 
-  function updateTurf(st) {
+  function updateTurf(st, rect = null) {
+    const started = performance.now();
     const t = st.turf;
     const zones = st.course.zones;
-    for (let i = 0; i < W * H; i++) {
-      const o = i * 4;
-      const zone = zones[i];
-      // clamped pack: an unknown/oversized id must degrade to a sane surface,
-      // never wrap the byte into a random one
-      zoneData[o] = Math.min(255, zone * ZONE_TEX_SCALE);
-      if (t) {
-        zoneData[o + 1] = clamp(t.health[i] * 2.55, 0, 255);
-        zoneData[o + 2] = clamp(t.wear[i] * 2.55, 0, 255);
-        const ideal = IDEAL_BY_ZONE[zone] || 10;
-        zoneData[o + 3] = clamp((t.heightMm[i] / ideal) * 64, 0, 255);
-        auxData[o] = t.disType[i] * 100;
-        auxData[o + 1] = clamp(t.disSev[i] * 2.55, 0, 255);
-        auxData[o + 2] = clamp(t.moisture[i] * 2.55, 0, 255);
-      } else {
-        zoneData[o + 1] = 180;
-        zoneData[o + 3] = 64;
+    const x0 = rect ? clamp(Math.floor(rect.x0), 0, W - 1) : 0;
+    const y0 = rect ? clamp(Math.floor(rect.y0), 0, H - 1) : 0;
+    const x1 = rect ? clamp(Math.ceil(rect.x1), 0, W - 1) : W - 1;
+    const y1 = rect ? clamp(Math.ceil(rect.y1), 0, H - 1) : H - 1;
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const i = y * W + x;
+        const o = i * 4;
+        const zone = zones[i];
+        // clamped pack: an unknown/oversized id must degrade to a sane surface,
+        // never wrap the byte into a random one
+        zoneData[o] = Math.min(255, zone * ZONE_TEX_SCALE);
+        if (t) {
+          zoneData[o + 1] = clamp(t.health[i] * 2.55, 0, 255);
+          zoneData[o + 2] = clamp(t.wear[i] * 2.55, 0, 255);
+          const ideal = IDEAL_BY_ZONE[zone] || 10;
+          zoneData[o + 3] = clamp((t.heightMm[i] / ideal) * 64, 0, 255);
+          auxData[o] = t.disType[i] * 100;
+          auxData[o + 1] = clamp(t.disSev[i] * 2.55, 0, 255);
+          auxData[o + 2] = clamp(t.moisture[i] * 2.55, 0, 255);
+        } else {
+          zoneData[o + 1] = 180;
+          zoneData[o + 3] = 64;
+        }
+        auxData[o + 3] = clamp(Math.round(flowField[i] * 255), 0, 255);
+        zoneData[o + 3] = zoneData[o + 3] || 64;
       }
-      auxData[o + 3] = clamp(Math.round(flowField[i] * 255), 0, 255);
-      zoneData[o + 3] = zoneData[o + 3] || 64;
     }
-    zoneTex.needsUpdate = true;
-    auxTex.needsUpdate = true;
+    if (rect) {
+      uploadDataTextureRegion(zoneTex, zoneUploadSource, x0, y0, x1, y1);
+      uploadDataTextureRegion(auxTex, auxUploadSource, x0, y0, x1, y1);
+    } else {
+      zoneTex.clearUpdateRanges();
+      auxTex.clearUpdateRanges();
+      zoneTex.needsUpdate = true;
+      auxTex.needsUpdate = true;
+    }
     // stripe modes from mowing pattern policies
     if (shaderRefs.uniforms && st.maintenance) {
       const modeOf = (p) => (p === 'stripes' ? 1 : p === 'cross' ? 2 : 0);
       const pol = st.maintenance.policies;
       shaderRefs.uniforms.uStripeModes.value.set(modeOf(pol.green.pattern), modeOf(pol.fairway.pattern), modeOf(pol.tee.pattern));
     }
+    recordEditorPerformance(
+      'turfPack', started,
+      (x1 - x0 + 1) * (y1 - y0 + 1),
+      Boolean(rect),
+    );
   }
 
   const planColorCache = {};
@@ -5866,7 +6020,7 @@ export function makeCourseScene(canvas, state) {
   // the editor's cheap incremental refresh after a stroke: terrain heights +
   // water + paths follow the land; trees/objects only when asked. zoneRect
   // limits the visual-field recompute to the edited cells.
-  function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false, zoneRect = null, zones = true, relief: reReliefsculpt = false, terrainRect = null } = {}) {
+  function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false, zoneRect = null, zones = true, relief: reReliefsculpt = false, terrain = true, terrainRect = null, turf = true } = {}) {
     if (reReliefsculpt) relief = null; // a vector feature (green/bunker/water/tee) moved
     // terrainRect scopes the mesh rebuild to an edited region, and it is honoured
     // even alongside a relief invalidation. Dropping and rebuilding the relief
@@ -5874,7 +6028,7 @@ export function makeCourseScene(canvas, state) {
     // CHANGES the sculpt near itself — vertices outside the rect re-evaluate to
     // the heights they already hold. Callers that move something course-wide
     // (rebuildAll) pass no rect and still get the full pass.
-    rebuildTerrainHeights(terrainRect);
+    if (terrain) rebuildTerrainHeights(terrainRect);
     if (water) rebuildWater();
     const rebuiltPaths = paths
       || ((water || reReliefsculpt) && course.paths?.some(pathBridgeEnabled));
@@ -5886,11 +6040,11 @@ export function makeCourseScene(canvas, state) {
     if (holes) updateHoles();
     if (flow) rebuildFlowField();
     if (zones) updateZoneField(st, zoneRect);
-    updateTurf(st);
+    if (turf) updateTurf(st, flow ? null : zoneRect);
     // Re-freeze only the subtrees this call rebuilt. envRing and
     // horizonLandscape are never rebuilt here, so they never need it.
     freezeStaticCourse({
-      trees: objects, objects, paths: Boolean(rebuiltPaths), env: false, water, terrain: true,
+      trees: objects, objects, paths: Boolean(rebuiltPaths), env: false, water, terrain,
     });
   }
 
@@ -6507,6 +6661,8 @@ export function makeCourseScene(canvas, state) {
     rebuildAll,
     refreshGround,
     updateZoneField,
+    editorPerformanceSnapshot,
+    resetEditorPerformanceStats,
     rebuildObjects,
     rebuildPaths,
     rebuildStructures,
