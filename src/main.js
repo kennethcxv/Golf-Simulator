@@ -27,7 +27,9 @@ import { quadTransform, uvAt } from './core/laptopProjection.js';
 import { makeAudio } from './core/audio.js';
 import { tickTutorial, tutorialFlag, skipTutorial, replayTutorial } from './sim/tutorial.js';
 import { makeMenu } from './screens/menu.js';
-import { saveData, loadData, loadDataWithStatus } from './core/storage.js';
+import {
+  saveData, loadData, loadDataWithStatus, listData,
+} from './core/storage.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
 import { shopCondition, vacuumOwned, tickDeliveries } from './sim/shop.js';
 import { ownedWasher } from './sim/washing.js';
@@ -735,7 +737,9 @@ function bootEmpire(empire) {
 async function loadEmpireSave(key, label) {
   let status;
   try {
-    status = await loadDataWithStatus(key);
+    // A syntactically valid backup may still belong to a newer build. Defer
+    // repairing the primary until empire validation accepts the candidate.
+    status = await loadDataWithStatus(key, { repair: false });
   } catch (error) {
     console.error(`${label} storage read failed`, error);
     toast(`${label} could not be read. The current game was left untouched.`, 'warn');
@@ -756,6 +760,15 @@ async function loadEmpireSave(key, label) {
     }
     if (loaded.report.recovered) {
       notices.push(`repaired ${loaded.report.repairs.length} invalid save field(s)`);
+    }
+    if (status.recovered && !status.repairedPrimary) {
+      try {
+        await saveData(key, status.value);
+        status.repairedPrimary = true;
+      } catch (error) {
+        console.warn(`${label} primary repair failed`, error);
+        notices.push('could not repair its primary copy');
+      }
     }
     if (notices.length) toast(`${label} ${notices.join(' and ')}.`, 'warn');
     return loaded.empire;
@@ -969,6 +982,10 @@ function openPauseMenu() {
       class: 'pause-hint',
       text: mode === 'save' ? 'Three slots. Saving overwrites the slot.' : 'Load returns you to the moment you saved.',
     }));
+    // Slot metadata is only presentation. Discover availability from the save
+    // keys themselves so a missing/corrupt metadata record cannot strand a
+    // valid primary or backup-only manual save.
+    const availableSaves = listData().catch(() => []);
     SLOTS.forEach((slot, i) => {
       const card = el('div', { class: 'slot-card' },
         el('div', { class: 'slot-name', text: `Slot ${i + 1}` }),
@@ -977,6 +994,7 @@ function openPauseMenu() {
       const act = el('button', {
         class: mode === 'save' ? 'slot-act primary' : 'slot-act',
         text: mode === 'save' ? 'Save here' : 'Load',
+        disabled: mode === 'load',
         onclick: async () => {
           if (mode === 'save') {
             try {
@@ -1004,17 +1022,25 @@ function openPauseMenu() {
       });
       card.append(act);
       container.append(card);
-      loadData(`${slot}-meta`).then((meta) => {
+      Promise.all([
+        availableSaves,
+        loadData(`${slot}-meta`).catch(() => null),
+      ]).then(([keys, meta]) => {
         const line = card.querySelector('.slot-meta');
-        if (!meta) {
+        const hasSave = keys.includes(slot);
+        if (mode === 'load') act.disabled = !hasSave;
+        if (!hasSave) {
           line.textContent = 'Empty';
-          if (mode === 'load') act.disabled = true;
+          return;
+        }
+        if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+          line.textContent = 'Save found — details unavailable';
           return;
         }
         const when = new Date(meta.savedAt).toLocaleString();
         line.textContent = `${meta.name} — ${meta.when} — ${formatMoney(meta.cash)}`
           + (meta.cond != null ? ` — shop ${meta.cond}` : '') + `  ·  saved ${when}`;
-      }).catch(() => { card.querySelector('.slot-meta').textContent = 'Empty'; });
+      });
     });
   }
 

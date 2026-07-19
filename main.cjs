@@ -66,7 +66,7 @@ ipcMain.handle('fw:load', async (_e, key) => {
   return saveStore().load(key);
 });
 
-ipcMain.handle('fw:load-status', async (_e, key) => saveStore().loadStatus(key));
+ipcMain.handle('fw:load-status', async (_e, key, options) => saveStore().loadStatus(key, options));
 
 ipcMain.handle('fw:delete', async (_e, key) => {
   return saveStore().del(key);

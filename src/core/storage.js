@@ -19,8 +19,18 @@ function errorInfo(error) {
 function encoded(value) {
   const text = JSON.stringify(value);
   if (text === undefined) throw new TypeError('Save data must be JSON-serializable.');
-  JSON.parse(text);
+  parsedRecord(text);
   return text;
+}
+
+function parsedRecord(text) {
+  const value = JSON.parse(text);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    const error = new TypeError('Save data root must be an object.');
+    error.code = 'SAVE_ROOT_INVALID';
+    throw error;
+  }
+  return value;
 }
 
 export async function saveData(key, obj) {
@@ -31,7 +41,7 @@ export async function saveData(key, obj) {
   const current = localStorage.getItem(primaryKey);
   if (current !== null) {
     try {
-      JSON.parse(current);
+      parsedRecord(current);
       localStorage.setItem(backupKey, current);
     } catch {
       // Never replace a known-good backup with a corrupt primary.
@@ -41,8 +51,8 @@ export async function saveData(key, obj) {
   return true;
 }
 
-export async function loadDataWithStatus(key) {
-  if (native?.loadStatus) return native.loadStatus(key);
+export async function loadDataWithStatus(key, { repair = true } = {}) {
+  if (native?.loadStatus) return native.loadStatus(key, { repair });
   if (native) {
     try {
       const value = await native.load(key);
@@ -75,7 +85,7 @@ export async function loadDataWithStatus(key) {
   if (raw !== null) {
     try {
       return {
-        value: JSON.parse(raw),
+        value: parsedRecord(raw),
         source: 'primary',
         recovered: false,
         repairedPrimary: false,
@@ -91,12 +101,14 @@ export async function loadDataWithStatus(key) {
   const backup = localStorage.getItem(backupKey);
   if (backup !== null) {
     try {
-      const value = JSON.parse(backup);
+      const value = parsedRecord(backup);
       let repairedPrimary = false;
-      try {
-        localStorage.setItem(primaryKey, backup);
-        repairedPrimary = true;
-      } catch {}
+      if (repair) {
+        try {
+          localStorage.setItem(primaryKey, backup);
+          repairedPrimary = true;
+        } catch {}
+      }
       return {
         value,
         source: 'backup',
