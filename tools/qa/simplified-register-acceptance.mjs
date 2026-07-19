@@ -726,9 +726,46 @@ async function cashRoute(page, shot) {
   });
   const selectFromSlot = async (denom, count = 1) => {
     for (let index = 0; index < count; index += 1) {
-      const slot = await projectObject(page, { kind: 'drawer-slot', denom });
+      // Aim at the denomination's visible top piece. The low hotspot is a
+      // fallback for an empty well, but its projected centre can sit behind an
+      // adjacent angled bill after a stack has been depleted.
+      const slot = await projectObject(page, { kind: 'money', from: 'drawer', denom })
+        || await projectObject(page, { kind: 'drawer-slot', denom });
       assert(slot && slot.inView, `Change slot ${denom} is not visible.`);
-      await page.mouse.click(slot.x, slot.y);
+      // A depleted bill well exposes more of the neighbouring angled stack.
+      // Resolve a point that the production raycaster currently identifies as
+      // this denomination, then still exercise it through a real mouse click.
+      const target = await page.evaluate(({ center, wanted }) => {
+        const register = window.__fw.scene3d.clubhouse().register;
+        const samples = [{ x: center.x, y: center.y }];
+        for (let radius = 4; radius <= 36; radius += 4) {
+          for (let step = 0; step < 16; step += 1) {
+            const angle = (step / 16) * Math.PI * 2;
+            samples.push({
+              x: center.x + Math.cos(angle) * radius,
+              y: center.y + Math.sin(angle) * radius,
+            });
+          }
+        }
+        for (const point of samples) {
+          const picked = register.debugPickAt(point.x, point.y).physical;
+          if (Number(picked?.denom) === Number(wanted)
+              && (picked.kind === 'drawer-slot' || picked.from === 'drawer')) {
+            return { ...point, picked };
+          }
+        }
+        return null;
+      }, { center: slot, wanted: denom });
+      assert(target, `No normal mouse target currently resolves to change slot ${denom}.`);
+      const before = await givingFacts();
+      await page.mouse.click(target.x, target.y);
+      const expectedCents = before.givingCents + Math.round(Number(denom) * 100);
+      await page.waitForFunction((expected) => {
+        const tx = window.__fw.scene3d.clubhouse().register.getTx();
+        return Math.round(Object.entries(tx?.hand || {}).reduce(
+          (sum, [value, quantity]) => sum + Number(value) * Number(quantity), 0,
+        ) * 100) === expected;
+      }, expectedCents, { timeout: 3000 });
       await page.waitForTimeout(130);
     }
   };
@@ -850,6 +887,9 @@ async function cashRoute(page, shot) {
   assert(['receipt', 'bagging', 'done'].includes(confirmed.stage)
       && !confirmed.drawerOpen && confirmed.changeGiven === 4.28 && confirmed.lost === 0,
   `Exact change did not complete cleanly: ${JSON.stringify(confirmed)}.`);
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
+  ), null, { timeout: 10000 });
   await shot('12-exact-change-confirmed.png');
   return { start: drawerTravelStart, midpoint: drawerTravelMidpoint, cashHandoff };
 }
@@ -1004,9 +1044,23 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   let deliveryHandoffEvidence = null;
   if (mode === 'card') await cardRoute(page, shot);
   else cashDrawerTravelEvidence = await cashRoute(page, shot);
-  await page.waitForFunction(() => (
-    window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
-  ), null, { timeout: 10000 });
+  if (!cashDrawerTravelEvidence?.receiptPrintObserved) {
+    await page.waitForFunction(() => (
+      window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
+    ), null, { timeout: 10000 });
+  }
+  // Receipt and bag delivery are brief animated phases. Start the browser-side
+  // observer before encoding the receipt screenshot so a large PNG cannot make
+  // the driver miss a phase that genuinely rendered.
+  const bagDeliveryObserved = page.waitForFunction(() => {
+    const phase = window.__fw.scene3d.clubhouse().register.deliveryPhase();
+    if (phase === 'receipt-deliver' || phase === 'bag-deliver') {
+      window.__registerQaReceiptDeliveryObserved = true;
+    }
+    if (phase === 'bag-deliver') window.__registerQaBagDeliveryObserved = true;
+    return window.__registerQaReceiptDeliveryObserved === true
+      && window.__registerQaBagDeliveryObserved === true;
+  }, null, { timeout: 10000, polling: 'raf' });
   await waitCamera(page, 'monitor');
   await shot('12b-receipt-printing.png');
   await page.waitForFunction(() => {

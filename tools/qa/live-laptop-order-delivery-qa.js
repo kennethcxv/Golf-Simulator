@@ -2,7 +2,7 @@ async (page) => {
   // Live supplier-order acceptance through the current diegetic laptop.
   //
   // The documented --bootstrap fixture supplies an isolated empire/property. From there the
-  // player route is real input: E opens the laptop, mouse clicks drive Shop -> Order, the basket
+  // player route is real input: E opens the laptop, mouse clicks drive Pro Shop -> Orders & Suppliers, the basket
   // and confirmation, Escape returns to walking, and keyboard 3 advances the running game across
   // the scheduled delivery minute. The only time shortcut is a deterministic fixture that parks
   // the clock 0.75 game-minute before the order's own deliveryMin; this harness never invokes
@@ -13,15 +13,16 @@ async (page) => {
   const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
   const phase = String(process.env.DELIVERY_ORDER_QA_PHASE || 'after').toLowerCase();
   const iteration = Math.max(1, Number.parseInt(process.env.DELIVERY_ORDER_QA_ITERATION || '1', 10));
-  const out = path.join(
-    repo,
-    'qa',
-    'box_system_master',
-    'delivery',
-    'live-order-flow',
-    phase,
-    `iteration-${String(iteration).padStart(2, '0')}`,
-  );
+  const out = path.resolve(process.env.MANAGEMENT_ORDER_QA_ROOT
+    || path.join(
+      repo,
+      'qa',
+      'box_system_master',
+      'delivery',
+      'live-order-flow',
+      phase,
+      `iteration-${String(iteration).padStart(2, '0')}`,
+    ));
   fs.mkdirSync(out, { recursive: true });
 
   const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
@@ -365,6 +366,41 @@ async (page) => {
     });
   }
 
+  async function deriveOrderLabelCamera(orderId) {
+    return page.evaluate((wantedOrderId) => {
+      const app = window.__fw;
+      const boxes = app.state.shop.deliveries.boxes.filter(
+        (box) => String(box.orderId) === String(wantedOrderId),
+      );
+      const points = boxes.map((box) => {
+        const root = app.scene3d.scene.getObjectByName(`DeliveryBox_${box.id}`);
+        if (!root) return null;
+        root.updateWorldMatrix(true, true);
+        const world = root.getWorldPosition(root.position.clone());
+        return { x: world.x, z: world.z };
+      }).filter(Boolean);
+      if (!points.length) throw new Error(`No staged boxes exist for order ${wantedOrderId}`);
+      const target = points.reduce((sum, point) => ({
+        x: sum.x + point.x,
+        z: sum.z + point.z,
+      }), { x: 0, z: 0 });
+      target.x /= points.length;
+      target.z /= points.length;
+      // Carton labels share the front (+Z) face. A square-on evidence pose
+      // keeps both adjacent pallets equally legible instead of putting the
+      // nearer carton below frame through perspective foreshortening.
+      const yaw = 0;
+      const distance = 2.20;
+      return {
+        x: target.x,
+        z: target.z + distance,
+        yaw,
+        pitch: -0.56,
+        target,
+      };
+    }, orderId);
+  }
+
   async function deliveryFraming() {
     return page.evaluate(() => {
       const app = window.__fw;
@@ -428,6 +464,11 @@ async (page) => {
       harness: 'tools/qa/live-laptop-order-delivery-qa.js',
     }, null, 2)}\n`);
 
+    // The runner's --bootstrap navigation only seeds this isolated context.
+    // Drain its model requests before replacing that document so deliberate
+    // cancellation cannot be mistaken for a measured delivery failure.
+    await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
+    await page.waitForTimeout(500);
     await page.setViewportSize(viewport);
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
     storageBaseline = await storageSnapshot();
@@ -557,36 +598,38 @@ async (page) => {
       heading: document.querySelector('.lt-h1')?.textContent?.trim() || null,
     }));
     const expectedCurrentNav = [
-      'Home', 'Tee Times', 'Shop', 'Course', 'Upgrades', 'Finances', 'Settings', 'Close Laptop',
+      'Home', 'Bookings', 'Pro Shop', 'Course', 'Upgrades', 'Business', 'Settings', 'Close Laptop',
     ];
     requireTruth(JSON.stringify(currentUiContract.nav) === JSON.stringify(expectedCurrentNav),
       `laptop navigation changed; refusing obsolete selectors: ${JSON.stringify(currentUiContract.nav)}`);
     requireTruth(!currentUiContract.nav.includes('Supplier')
       && !currentUiContract.nav.includes('Orders')
       && !currentUiContract.nav.includes('Deliveries'),
-    'retired laptop navigation unexpectedly returned; current Shop-tab harness is no longer authoritative');
+    'retired laptop navigation unexpectedly returned; current Pro Shop-tab harness is no longer authoritative');
 
-    const shopNav = page.locator('.lt-navbtn').filter({ hasText: /^Shop$/ });
-    await clickCenter(shopNav, 'current laptop navigation: Shop');
-    await page.waitForFunction(() => document.querySelector('.lt-h1')?.textContent?.trim() === 'Shop');
+    const shopNav = page.locator('.lt-navbtn').filter({ hasText: /^Pro Shop$/ });
+    await clickCenter(shopNav, 'current laptop navigation: Pro Shop');
+    await page.waitForFunction(() => document.querySelector('.lt-h1')?.textContent?.trim() === 'Pro Shop');
     const shopTabLabels = await page.locator('.lt-tabs-big .lt-tab').allTextContents();
     requireTruth(JSON.stringify(shopTabLabels.map((label) => label.trim()))
-      === JSON.stringify(['Stock', 'Order', 'Pricing', 'Deliveries']),
-    `current Shop tabs changed: ${JSON.stringify(shopTabLabels)}`);
-    const orderTab = page.locator('.lt-tabs-big .lt-tab').filter({ hasText: /^Order$/ });
-    await clickCenter(orderTab, 'current Shop tab: Order');
-    await page.waitForFunction(() => document.querySelector('.lt-tabs-big .lt-tab.on')?.textContent?.trim() === 'Order');
+      === JSON.stringify(['Inventory', 'Orders & Suppliers', 'Pricing', 'Deliveries']),
+    `current Pro Shop tabs changed: ${JSON.stringify(shopTabLabels)}`);
+    const orderTab = page.locator('.lt-tabs-big .lt-tab').filter({ hasText: /^Orders & Suppliers$/ });
+    await clickCenter(orderTab, 'current Pro Shop tab: Orders & Suppliers');
+    await page.waitForFunction(() => (
+      document.querySelector('.lt-tabs-big .lt-tab.on')?.textContent?.trim() === 'Orders & Suppliers'
+    ));
     evidence.currentUiContract = {
       ...currentUiContract,
       shopTabs: shopTabLabels.map((label) => label.trim()),
-      route: 'Shop -> Order -> automatic Deliveries tab',
+      route: 'Pro Shop -> Orders & Suppliers -> automatic Deliveries tab',
       retiredSelectorsUsed: [],
     };
 
     const productCard = page.locator('.lt-product').filter({
       has: page.locator('.lt-prodname').filter({ hasText: /^Club polo$/ }),
     });
-    requireTruth(await productCard.count() === 1, 'current Order grid does not expose exactly one Club polo product card');
+    requireTruth(await productCard.count() === 1, 'current Orders & Suppliers grid does not expose exactly one Club polo product card');
     const plus = productCard.locator('.lt-qbtn').filter({ hasText: /^\+$/ });
     for (let quantity = 1; quantity <= fixture.quantity; quantity += 1) {
       await clickCenter(plus, `Club polo quantity + (${quantity}/${fixture.quantity})`);
@@ -637,7 +680,7 @@ async (page) => {
     `laptop quote ${quotedTotals[0]} does not equal independent/production total ${contract.total}`);
     evidence.quote = { expected: expectedQuote, uiText: quoteText.trim(), parsedTotal: quotedTotals[0] };
     await capture('order-01-current-shop-basket.png',
-      'Current Shop -> Order basket with sixteen Club polos and the live goods-plus-freight total.');
+      'Current Pro Shop -> Orders & Suppliers basket with sixteen Club polos and the live goods-plus-freight total.');
 
     const preFirstPlaceOrder = await orderAuthoritySnapshot(fixture.skuId);
     requireTruth(preFirstPlaceOrder.stateCash === contract.startingCash
@@ -776,7 +819,7 @@ async (page) => {
       empireSyncDeferredWhilePaused: afterPurchase.empireCash !== afterPurchase.stateCash,
     };
     await capture('order-03-on-the-way.png',
-      'The accepted order appears on the current Shop -> Deliveries tab without early stock or boxes.');
+      'The accepted order appears on the current Pro Shop -> Deliveries tab without early stock or boxes.');
 
     await pressKey('Escape', 'close laptop and return to normal walking');
     await page.waitForFunction(() => window.__fw.laptopOpen === false, null, { timeout: 8000 });
@@ -930,10 +973,12 @@ async (page) => {
     const stagedFraming = await deliveryFraming();
     requireTruth(stagedFraming.every((entry) => entry.exists && entry.inFrame),
       'staged delivery shot lost one or more authored pallets');
-    await capture('03-boxes-staged-wide.png',
-      'Exact order cartons are physically staged across the authored five-pallet receiving area.',
+    await capture('03a-boxes-staged-overview.png',
+      'The complete authored receiving apron after the exact shipment is staged.',
       { orderId: afterPurchase.order.id, palletFraming: stagedFraming });
-    await setPlayerCamera(cameras.inspection);
+    const labelCamera = await deriveOrderLabelCamera(afterPurchase.order.id);
+    evidence.fixedPlayerCameras.labels = labelCamera;
+    await setPlayerCamera(labelCamera);
 
     const staged = await page.evaluate(async ({ orderId, skuId }) => {
       const { DELIVERY_PALLET_STAGING } = await import('/src/data/deliveryStaging.js');
@@ -983,6 +1028,9 @@ async (page) => {
         raycaster.near = 0.01;
         raycaster.far = distance + 0.02;
         raycaster.set(cameraWorld, delta.normalize());
+        // Raycaster.set() supplies origin/direction but not the camera that
+        // Three.js sprites require while the scene-wide occlusion ray runs.
+        raycaster.camera = camera;
         const direct = raycaster.intersectObject(labelMesh, false)[0] || null;
         const firstSceneHit = raycaster.intersectObjects(scene.children, true).find(renderableHit) || null;
         const unoccluded = !!direct && (!firstSceneHit
@@ -1437,10 +1485,10 @@ async (page) => {
       trustedKeys,
       pointerTargets,
       shopNavClicks: trustedPointerEntries.filter((entry) => (
-        entry.target === 'Shop' && /\blt-navbtn\b/.test(String(entry.targetClass || ''))
+        entry.target === 'Pro Shop' && /\blt-navbtn\b/.test(String(entry.targetClass || ''))
       )).length,
       orderTabClicks: trustedPointerEntries.filter((entry) => (
-        entry.target === 'Order' && /\blt-tab\b/.test(String(entry.targetClass || ''))
+        entry.target === 'Orders & Suppliers' && /\blt-tab\b/.test(String(entry.targetClass || ''))
       )).length,
       plusClicks: pointerTargets.filter((target) => target === '+').length,
       placeOrderClicks: pointerTargets.filter((target) => target === 'Place Order').length,
@@ -1454,7 +1502,7 @@ async (page) => {
     requireTruth(trustedKeys.includes('3'), 'trusted 3 input did not drive the scheduled delivery edge');
     requireTruth(evidence.inputProof.shopNavClicks === 1
       && evidence.inputProof.orderTabClicks === 1,
-    'current Shop navigation and Order tab were not each entered by exactly one trusted mouse click');
+    'current Pro Shop navigation and Orders & Suppliers tab were not each entered by exactly one trusted mouse click');
     requireTruth(evidence.inputProof.plusClicks === fixture.quantity,
       `basket quantity was not entered by ${fixture.quantity} trusted + clicks`);
     requireTruth(evidence.inputProof.placeOrderClicks === 2
@@ -1523,7 +1571,7 @@ async (page) => {
   evidence.diagnostics = { counts: diagnosticCounts, entries: diagnostics };
   const assertions = {
     actionRouteCompleted: !actionError,
-    currentLaptopNavigationContract: evidence.currentUiContract?.route === 'Shop -> Order -> automatic Deliveries tab'
+    currentLaptopNavigationContract: evidence.currentUiContract?.route === 'Pro Shop -> Orders & Suppliers -> automatic Deliveries tab'
       && evidence.currentUiContract?.retiredSelectorsUsed?.length === 0,
     independentContractMatchesProductionAndUi: evidence.quote?.parsedTotal === contract.total
       && evidence.quote?.expected?.goods === contract.goods

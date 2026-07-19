@@ -220,6 +220,8 @@ async function setupReservationArrival(page) {
 async function reservationArrivalAndEscapeScenario(page, shot) {
   const fixture = await setupReservationArrival(page);
   const id = fixture.reservation.id;
+  // The production 1x clock now advances at 1/30 game-minute per real second;
+  // use the normal 16x key to cross this deterministic one-minute edge.
   await page.keyboard.press('3');
   await page.waitForFunction((reservationId) => {
     const reservation = window.__fw.state.reservations.booked
@@ -266,12 +268,16 @@ async function reservationArrivalAndEscapeScenario(page, shot) {
 
   await enterFrontDesk(page);
   await monitorClick(page, 'tab-check-in');
-  await monitorClick(page, `select-reservation:${id}`);
-  await waitCamera(page, 'monitor');
+  let actions = [];
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await monitorClick(page, `select-reservation:${id}`);
+    await waitCamera(page, 'monitor');
+    actions = await page.evaluate(() => (
+      window.__fw.scene3d.clubhouse().register.monitorHotspots().map((entry) => entry.id)
+    ));
+    if (actions.includes('reservation-check-in')) break;
+  }
   await shot('02-reservation-ready-at-desk.png');
-  let actions = await page.evaluate(() => (
-    window.__fw.scene3d.clubhouse().register.monitorHotspots().map((entry) => entry.id)
-  ));
   assert(actions.includes('reservation-check-in'), 'Ready reservation has no check-in action.');
 
   await page.keyboard.press('Escape');
@@ -369,6 +375,8 @@ async function completeCashService(page, shot) {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.kind === 'service' && tx.method === 'cash' && tx.stage === 'cash-tender';
   }, null, { timeout: 10000 });
+  // Cash is first presented in the mixed monitor/customer frame; the
+  // production camera moves to the drawer only after the handful is clicked.
   await waitCamera(page, 'monitor');
   await shot('09-walk-in-cash-presented.png');
   // one click on the presented handful accepts ALL the cash; the drawer opens
@@ -395,7 +403,8 @@ async function completeCashService(page, shot) {
   for (const [rawDenom, count] of Object.entries(plan)) {
     const denom = Number(rawDenom);
     for (let index = 0; index < count; index += 1) {
-      const slot = await projectObject(page, { kind: 'drawer-slot', denom });
+      const slot = await projectObject(page, { kind: 'money', from: 'drawer', denom })
+        || await projectObject(page, { kind: 'drawer-slot', denom });
       assert(slot && slot.inView, `Walk-in change slot ${denom} is outside the cash camera.`);
       await page.mouse.click(slot.x, slot.y);
       await page.waitForTimeout(140);
@@ -421,17 +430,21 @@ async function walkInScenario(page, shot) {
   await shot('06-walk-in-arrived.png');
   await enterFrontDesk(page);
   await monitorClick(page, 'tab-check-in');
-  await monitorClick(page, `select-walkin:${fixture.customerId}`);
-  await waitCamera(page, 'monitor');
+  let selection = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await monitorClick(page, `select-walkin:${fixture.customerId}`);
+    await waitCamera(page, 'monitor');
+    selection = await page.evaluate(() => {
+      const ids = window.__fw.scene3d.clubhouse().register.monitorHotspots()
+        .map((entry) => entry.id);
+      return {
+        ids,
+        slotAction: ids.find((id) => id.startsWith('select-walkin-slot:')) || null,
+      };
+    });
+    if (selection.slotAction) break;
+  }
   await shot('07-walk-in-slot-selection.png');
-  const selection = await page.evaluate(() => {
-    const ids = window.__fw.scene3d.clubhouse().register.monitorHotspots()
-      .map((entry) => entry.id);
-    return {
-      ids,
-      slotAction: ids.find((id) => id.startsWith('select-walkin-slot:')) || null,
-    };
-  });
   assert(selection.slotAction, 'The walk-in detail has no capacity-safe same-day slot action.');
   assert(selection.ids.includes('reject-walkin'), 'The walk-in detail has no explicit rejection action.');
   const slotParts = selection.slotAction.slice('select-walkin-slot:'.length).split(':');
@@ -574,17 +587,18 @@ async function openLaptopReservations(page) {
   }, null, { timeout: 15000, polling: 100 });
   const point = await page.evaluate(() => {
     const button = [...document.querySelectorAll('.lt-navbtn')]
-      .find((entry) => entry.textContent.trim().includes('Tee Times'));
+      .find((entry) => entry.textContent.trim().includes('Bookings'));
     if (!button) return null;
     button.scrollIntoView({ block: 'nearest' });
     const rect = button.getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   });
-  assert(point, 'Tee Times navigation is missing from the physical laptop.');
+  assert(point, 'Bookings navigation is missing from the physical laptop.');
   await page.mouse.move(point.x, point.y);
   await page.mouse.click(point.x, point.y);
-  await page.waitForFunction(() => document.querySelector('.lt-h1')?.textContent.includes('Tee Times'),
-    null, { timeout: 5000 });
+  await page.waitForFunction(() => (
+    document.querySelector('.lt-navbtn.on')?.textContent.trim() === 'Bookings'
+  ), null, { timeout: 5000 });
   await page.waitForTimeout(300);
 }
 
