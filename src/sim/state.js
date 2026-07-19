@@ -18,7 +18,9 @@ import { recoverCheckout } from './checkout.js';
 import { ensureInventoryLifecycle } from './inventoryLifecycle.js';
 import { ensureWash } from './washing.js';
 import { ensureProperty, tickProperty } from './property.js';
-import { initReservations, ensureReservations, reservationsDailyTick } from './reservations.js';
+import {
+  initReservations, ensureReservations, golfOperationsTick, reservationsDailyTick,
+} from './reservations.js';
 import { initTractor, ensureTractor } from './tractor.js';
 import { bunkerDailyMess } from './bunkers.js';
 import { initCourseProps, ensureCourseProps } from './props.js';
@@ -123,6 +125,7 @@ export function hourlyTick(state, hourOfDay) {
     }
   }
   turfHourlyTick(state, hourOfDay);
+  if (state.reservations) golfOperationsTick(state, state.clock.minutes);
 }
 
 export function update(state, gameMinutes) {
@@ -143,6 +146,7 @@ export function update(state, gameMinutes) {
     hourlyTick(state, hourOfDay);
   }
   state.clock.minutes = target;
+  if (state.reservations) golfOperationsTick(state, target);
   return { daysPassed };
 }
 
@@ -220,7 +224,7 @@ export function deserialize(json) {
     structures: raw.course.structures || [],
   };
   const state = {
-    version: raw.version,
+    version: SAVE_VERSION,
     mode: raw.mode,
     seed: raw.seed,
     rngState: raw.rngState,
