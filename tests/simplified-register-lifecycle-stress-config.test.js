@@ -7,6 +7,7 @@ import {
   renderLongSessionResourceOverlayHtml,
   renderLifecycleMarkdown,
   resolveLifecycleConfig,
+  shouldSampleFrontDeskIteration,
 } from '../tools/qa/simplified-register-lifecycle-stress.mjs';
 
 const LIFECYCLE_SOURCE = readFileSync(
@@ -136,6 +137,26 @@ test('master resource evidence stays bounded without weakening exact counters', 
   assert.doesNotMatch(LIFECYCLE_SOURCE,
     /front-desk-register-retained'[\s\S]{0,300}frontDeskBags/,
     'the exact bag may leave with its customer and cannot proxy register retention');
+  assert.match(LIFECYCLE_SOURCE,
+    /fixture\.rendererResidencyWarmup = await warmPostFixtureRendererResidency\(page\);/,
+    'the measured lifecycle must prewarm resources created by fixture stock rebuild');
+  assert.match(LIFECYCLE_SOURCE,
+    /const minimumSamples = samples\.length >= 12 \? 5 : 3;/,
+    'renderer convergence must retain the five-sample master minimum');
+  assert.match(LIFECYCLE_SOURCE,
+    /rendererMemoryRange: 2/,
+    'renderer convergence must retain the exact two-resource range budget');
+});
+
+test('front-desk lifecycle retains dense measured tail samples after fixture prewarm', () => {
+  const sampled = Array.from({ length: 100 }, (_, index) => index + 1)
+    .filter((iteration) => shouldSampleFrontDeskIteration(iteration, 100));
+  assert.equal(sampled.length, 37);
+  assert.deepEqual(sampled.slice(-20), Array.from({ length: 20 }, (_, index) => index + 81));
+  assert.equal(shouldSampleFrontDeskIteration(79, 100), false);
+  assert.equal(shouldSampleFrontDeskIteration(80, 100), true);
+  assert.equal(shouldSampleFrontDeskIteration(0, 100), false);
+  assert.equal(shouldSampleFrontDeskIteration(101, 100), false);
 });
 
 test('smoke profile keeps every lifecycle branch while using low counts', () => {
