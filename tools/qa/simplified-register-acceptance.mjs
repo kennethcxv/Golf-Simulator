@@ -410,8 +410,14 @@ async function insertCardGesture(page, shot, {
   assert(cardPt && cardPt.inView, `The presented card is outside the handoff camera: ${JSON.stringify(cardPt)}`);
   await page.mouse.click(cardPt.x, cardPt.y);
   await page.waitForFunction(() => {
+    const register = window.__fw.scene3d.clubhouse().register;
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    return tx && tx.checkoutFlow?.state === 'CardInserting';
+    const insertion = register.insertAt();
+    const card = register.presentedCardScreenPoint();
+    return tx && tx.checkoutFlow?.state === 'CardInserting'
+      && insertion.pickupDelay > 0
+      && insertion.cashierHandsVisible
+      && card?.inView;
   }, null, { timeout: 2000 });
   await shot(`${insertedLabel.replace(/\.png$/i, '')}-cashier-pickup-hold.png`);
   await page.waitForFunction(() => {
@@ -821,6 +827,21 @@ async function cashRoute(page, shot) {
   `The final $4.28 count is not exact: ${JSON.stringify(exact)}.`);
   await shot('11-exact-four-twenty-eight-selected.png');
   await cashMonitorClick('confirm-change');
+  const handoffInFlight = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.cashHandoffPresentation()
+  ));
+  assert(handoffInFlight.active && handoffInFlight.phase === 'travel'
+      && handoffInFlight.cashierHandsVisible,
+  `Confirmed change did not leave as one cashier-held bundle: ${JSON.stringify(handoffInFlight)}.`);
+  await shot('11b-change-handoff-in-motion.png');
+  await page.waitForFunction(() => {
+    const handoff = window.__fw.scene3d.clubhouse().register.cashHandoffPresentation();
+    return handoff.active && handoff.phase === 'customer-hold'
+      && handoff.parentedToCustomer && handoff.distanceToPalm < 0.08;
+  }, null, { timeout: 6000 });
+  const cashHandoff = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.cashHandoffPresentation()
+  ));
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && ['receipt', 'bagging', 'done'].includes(tx.stage);
@@ -830,7 +851,7 @@ async function cashRoute(page, shot) {
       && !confirmed.drawerOpen && confirmed.changeGiven === 4.28 && confirmed.lost === 0,
   `Exact change did not complete cleanly: ${JSON.stringify(confirmed)}.`);
   await shot('12-exact-change-confirmed.png');
-  return { start: drawerTravelStart, midpoint: drawerTravelMidpoint };
+  return { start: drawerTravelStart, midpoint: drawerTravelMidpoint, cashHandoff };
 }
 
 async function finalSnapshot(page, customerName) {

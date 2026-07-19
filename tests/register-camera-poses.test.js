@@ -78,6 +78,20 @@ test('handoff and terminal poses both look south with no 180 spin between them',
   assert.ok(Math.abs(handoff.eye.x - terminal.eye.x) < 1.2, 'eyes are near each other in x');
 });
 
+test('card pickup keeps the customer-facing pose until the physical grip delay ends', () => {
+  const poseKey = functionBody(registerSource, 'poseKey');
+  assert.match(
+    poseKey,
+    /cardPickupDelay\s*>\s*0/,
+    'the pickup delay remains part of the card-take camera condition',
+  );
+  assert.match(
+    poseKey,
+    /return waiting \? 'cardTake' : 'card'/,
+    'the camera moves to the terminal only after the customer handoff clears',
+  );
+});
+
 test('declined-card cash fallback presents tender before opening the drawer camera', () => {
   const switchToCash = functionBody(registerSource, 'switchDeclinedCardToCash');
   const createTender = switchToCash.indexOf('createTender()');
