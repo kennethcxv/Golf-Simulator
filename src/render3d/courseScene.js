@@ -3854,7 +3854,7 @@ export function makeCourseScene(canvas, state) {
     const cutterGroup = heldGroups.boxcutter;
     const cutterVisual = new THREE.Group();
     cutterVisual.name = 'DeliveryBoxCutterVisual';
-    cutterVisual.scale.setScalar(1);
+    cutterVisual.scale.setScalar(1.30);
     cutterGroup.add(cutterVisual);
     const fallbackRoot = new THREE.Group();
     fallbackRoot.name = 'DeliveryBoxCutterLoadingFallback';
@@ -4161,10 +4161,10 @@ export function makeCourseScene(canvas, state) {
     }
     walkTool = tool;
     for (const [name, g] of Object.entries(heldGroups)) g.visible = name === tool;
-    // The box cutter is intentionally tool-only in first person: the previous
-    // procedural hand/cuff covered both the blade contact and highlighted tape
-    // path from the player camera. Other tools keep the shared hand rig.
-    if (tool && tool !== 'boxcutter' && heldGroups[tool] && GRIPS[tool]) {
+    // Every tool remains physically held. The cutter uses a smaller pinching
+    // hand behind its handle so the blade contact and highlighted tape path
+    // stay visible without leaving the knife floating on the carton.
+    if (tool && heldGroups[tool] && GRIPS[tool]) {
       heldGroups[tool].add(fpHands.root);
       fpHands.setTool(tool);
     } else {
@@ -4437,6 +4437,79 @@ export function makeCourseScene(canvas, state) {
   cutterGuideRibbon.frustumCulled = false;
   cutterGuideRibbon.renderOrder = 17;
   scene.add(cutterGuideRibbon);
+  // The cutter itself is pinned to the authored world-space tape path. Build a
+  // bent arm back toward the camera so the pinching hand is connected without
+  // forcing a rigid camera-local sleeve through the crosshair.
+  const cutterArmRoot = new THREE.Group();
+  cutterArmRoot.name = 'BoxCutterPlayerArm';
+  cutterArmRoot.visible = false;
+  scene.add(cutterArmRoot);
+  const cutterArmSkinMaterial = new THREE.MeshStandardMaterial({ color: 0xd9a97e, roughness: 0.82 });
+  const cutterArmSleeveMaterial = new THREE.MeshStandardMaterial({ color: 0x2f4a35, roughness: 0.90 });
+  const makeCutterArmSegment = (name, topRadius, bottomRadius, material) => {
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(topRadius, bottomRadius, 1, 10),
+      material,
+    );
+    mesh.name = name;
+    mesh.frustumCulled = false;
+    cutterArmRoot.add(mesh);
+    return mesh;
+  };
+  const cutterArmForearm = makeCutterArmSegment(
+    'BoxCutterPlayerForearm', 0.043, 0.035, cutterArmSkinMaterial,
+  );
+  const cutterArmSleeveLower = makeCutterArmSegment(
+    'BoxCutterPlayerSleeveLower', 0.040, 0.038, cutterArmSleeveMaterial,
+  );
+  const cutterArmSleeveUpper = makeCutterArmSegment(
+    'BoxCutterPlayerSleeveUpper', 0.012, 0.040, cutterArmSleeveMaterial,
+  );
+  const cutterArmUnitY = new THREE.Vector3(0, 1, 0);
+  const cutterArmDirection = new THREE.Vector3();
+  const cutterArmWristWorld = new THREE.Vector3();
+  const cutterArmSkinEndWorld = new THREE.Vector3();
+  const cutterArmElbowWorld = new THREE.Vector3();
+  const cutterArmEndWorld = new THREE.Vector3();
+  const positionCutterArmSegment = (mesh, start, end) => {
+    cutterArmDirection.subVectors(end, start);
+    const length = cutterArmDirection.length();
+    if (!(length > 1e-5)) {
+      mesh.visible = false;
+      return;
+    }
+    mesh.visible = true;
+    mesh.position.lerpVectors(start, end, 0.5);
+    mesh.scale.set(1, length, 1);
+    mesh.quaternion.setFromUnitVectors(
+      cutterArmUnitY,
+      cutterArmDirection.multiplyScalar(1 / length),
+    );
+  };
+  const updateCutterPlayerArm = (show) => {
+    const hand = fpHands.root.getObjectByName('FirstPersonRightHand');
+    if (!show || !hand) {
+      cutterArmRoot.visible = false;
+      return;
+    }
+    hand.updateWorldMatrix(true, false);
+    camera.updateWorldMatrix(true, false);
+    hand.getWorldPosition(cutterArmWristWorld);
+    cutterArmElbowWorld.set(0.34, -0.14, -0.78);
+    camera.localToWorld(cutterArmElbowWorld);
+    cutterArmEndWorld.set(0.46, -0.30, -0.22);
+    camera.localToWorld(cutterArmEndWorld);
+    const wristToElbow = cutterArmWristWorld.distanceTo(cutterArmElbowWorld);
+    cutterArmSkinEndWorld.lerpVectors(
+      cutterArmWristWorld,
+      cutterArmElbowWorld,
+      Math.min(1, 0.16 / Math.max(0.001, wristToElbow)),
+    );
+    positionCutterArmSegment(cutterArmForearm, cutterArmWristWorld, cutterArmSkinEndWorld);
+    positionCutterArmSegment(cutterArmSleeveLower, cutterArmSkinEndWorld, cutterArmElbowWorld);
+    positionCutterArmSegment(cutterArmSleeveUpper, cutterArmElbowWorld, cutterArmEndWorld);
+    cutterArmRoot.visible = true;
+  };
   const cutterGuideDirection = new THREE.Vector3();
   const cutterGuideMidpoint = new THREE.Vector3();
   const cutterGuideUnitZ = new THREE.Vector3(0, 0, 1);
@@ -4498,6 +4571,7 @@ export function makeCourseScene(canvas, state) {
     cutterGuide.visible = !!wantsContact;
     cutterGuideRibbon.visible = !!wantsContact;
     if (!path) {
+      updateCutterPlayerArm(false);
       cutter.position.lerp(cutterRestLocal, Math.min(1, dt * 12));
       cutter.rotation.x += (0.15 - cutter.rotation.x) * Math.min(1, dt * 12);
       cutter.rotation.y += (-0.2 - cutter.rotation.y) * Math.min(1, dt * 12);
@@ -4543,6 +4617,7 @@ export function makeCourseScene(canvas, state) {
       cutter.rotateZ(0.10);
       cutter.rotateY(0.42); // expose the handle side while the blade-contact origin stays pinned
     }
+    updateCutterPlayerArm(wantsContact && cutterContactBlend > 0.05);
   }
 
   function walkKeyDown(e) {

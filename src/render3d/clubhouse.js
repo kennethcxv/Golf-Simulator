@@ -176,40 +176,40 @@ function positionCarriedCatalogProduct(item, descriptor, profile, index, count) 
   }
   if (profile === 'shoe-box-stack') {
     const centered = index - (count - 1) / 2;
-    item.position.set(centered * 0.018, index * 0.105, index * 0.018);
-    item.rotation.y = centered * 0.055;
-    item.scale.multiplyScalar(0.88);
+    item.position.set(centered * 0.012, index * 0.088, index * 0.012);
+    item.rotation.y = centered * 0.045;
+    item.scale.multiplyScalar(0.72);
     return;
   }
   if (profile === 'ball-carton-stack') {
     const col = index % 3;
     const row = Math.floor(index / 3);
-    item.position.set((col - 1) * 0.145, row * 0.068, row * 0.018);
-    item.rotation.y = (col - 1) * 0.035;
-    item.scale.multiplyScalar(0.86);
+    item.position.set((col - 1) * 0.122, row * 0.058, row * 0.014);
+    item.rotation.y = (col - 1) * 0.03;
+    item.scale.multiplyScalar(0.76);
     return;
   }
   if (profile === 'small-merch-fan') {
     const centered = index - (count - 1) / 2;
-    item.position.set(centered * 0.052, Math.abs(centered) * 0.008, index * 0.009);
-    item.rotation.z = centered * -0.075;
-    item.scale.multiplyScalar(0.88);
+    item.position.set(centered * 0.043, Math.abs(centered) * 0.006, index * 0.007);
+    item.rotation.z = centered * -0.065;
+    item.scale.multiplyScalar(0.76);
     return;
   }
   if (profile === 'bottle-bundle') {
     const col = index % 3;
     const row = Math.floor(index / 3);
-    item.position.set((col - 1) * 0.078, row * 0.018, row * 0.075);
-    item.rotation.y = (col - 1) * 0.08;
-    item.scale.multiplyScalar(0.90);
+    item.position.set((col - 1) * 0.065, row * 0.015, row * 0.060);
+    item.rotation.y = (col - 1) * 0.065;
+    item.scale.multiplyScalar(0.76);
     return;
   }
   if (profile === 'bulky-stand-bag') {
     // Catalog stand bags rest along X. Rotate the single full silhouette upright
     // and lift around its midpoint so the body, pockets and legs stay in frame.
-    item.position.set(0.02, 0.31, 0);
+    item.position.set(0.02, 0.28, 0);
     item.rotation.z = -Math.PI / 2;
-    item.scale.multiplyScalar(0.84);
+    item.scale.multiplyScalar(0.70);
     return;
   }
   if (profile === 'long-accessories') {
@@ -230,6 +230,26 @@ function positionCarriedCatalogProduct(item, descriptor, profile, index, count) 
   item.position.set((col - (columns - 1) / 2) * 0.17, row * 0.11, row * 0.025);
   item.rotation.y = (col - (columns - 1) / 2) * 0.07;
   item.scale.multiplyScalar(0.86);
+}
+
+const CARRIED_GOODS_CAMERA_POSES = Object.freeze({
+  'long-clubs': Object.freeze({ position: Object.freeze([0, -0.38, -1.06]), rotation: Object.freeze([0.05, 0.06, -0.20]) }),
+  'bulky-stand-bag': Object.freeze({ position: Object.freeze([0.34, -0.58, -1.18]), rotation: Object.freeze([0.08, -0.18, 0.16]) }),
+  'bulky-single': Object.freeze({ position: Object.freeze([0.28, -0.54, -1.16]), rotation: Object.freeze([0.06, -0.14, 0.10]) }),
+  'long-accessories': Object.freeze({ position: Object.freeze([0, -0.42, -1.04]), rotation: Object.freeze([0.08, 0.04, -0.14]) }),
+  'bottle-bundle': Object.freeze({ position: Object.freeze([0.10, -0.46, -0.98]), rotation: Object.freeze([0.16, 0.02, -0.03]) }),
+  'shoe-box-stack': Object.freeze({ position: Object.freeze([0.10, -0.46, -1.02]), rotation: Object.freeze([0.16, 0.02, -0.02]) }),
+  'ball-carton-stack': Object.freeze({ position: Object.freeze([0.10, -0.42, -0.96]), rotation: Object.freeze([0.18, 0.02, -0.02]) }),
+  'small-merch-fan': Object.freeze({ position: Object.freeze([0.10, -0.39, -0.94]), rotation: Object.freeze([0.18, 0.02, -0.02]) }),
+  default: Object.freeze({ position: Object.freeze([0.10, -0.40, -0.92]), rotation: Object.freeze([0.18, 0.02, -0.02]) }),
+});
+
+export function carriedGoodsCameraPose(profile) {
+  const pose = CARRIED_GOODS_CAMERA_POSES[profile] || CARRIED_GOODS_CAMERA_POSES.default;
+  return {
+    position: [...pose.position],
+    rotation: [...pose.rotation],
+  };
 }
 
 // Camera-carried stock uses the same catalog product builder as cartons, shelves
@@ -3363,17 +3383,20 @@ export function makeClubhouse(ctx) {
         hand.position.set(side * 0.38, -0.34 - side * 0.075, -0.91);
         hand.rotation.set(-0.24, side * 0.10, side * -0.34);
       } else if (profile === 'bulky-stand-bag' || profile === 'bulky-single') {
-        hand.position.set(0.08 + side * 0.25, -0.39 - side * 0.035, -0.88);
-        hand.rotation.set(-0.20, side * 0.12, side * -0.40);
+        hand.position.set(0.34 + side * 0.12, -0.50 - side * 0.025, -1.04);
+        hand.rotation.set(-0.20, side * 0.10, side * -0.34);
       } else if (profile === 'long-accessories') {
         hand.position.set(side * 0.31, -0.34 - side * 0.04, -0.86);
         hand.rotation.set(-0.24, side * 0.10, side * -0.35);
       } else if (profile === 'bottle-bundle') {
-        hand.position.set(0.10 + side * 0.18, -0.32, -0.66);
-        hand.rotation.set(-0.30, side * 0.18, side * -0.35);
-      } else {
-        hand.position.set(0.10 + side * 0.16, -0.27, -0.66);
+        hand.position.set(0.10 + side * 0.19, -0.43, -0.89);
         hand.rotation.set(-0.28, side * 0.16, side * -0.32);
+      } else if (profile === 'shoe-box-stack') {
+        hand.position.set(0.10 + side * 0.22, -0.43, -0.91);
+        hand.rotation.set(-0.26, side * 0.14, side * -0.30);
+      } else {
+        hand.position.set(0.10 + side * 0.19, -0.39, -0.86);
+        hand.rotation.set(-0.26, side * 0.14, side * -0.30);
       }
     }
     carriedBoxHands.visible = true;
@@ -4399,22 +4422,9 @@ export function makeClubhouse(ctx) {
     if (cg) {
       carriedGoodsMesh = makeGoodsMesh(cg, { merch, mats });
       const profile = carriedGoodsMesh.userData.deliveryCarryProfile;
-      if (profile === 'long-clubs') {
-        carriedGoodsMesh.position.set(0, -0.38, -1.06);
-        carriedGoodsMesh.rotation.set(0.05, 0.06, -0.20);
-      } else if (profile === 'bulky-stand-bag' || profile === 'bulky-single') {
-        carriedGoodsMesh.position.set(0.12, -0.46, -1.02);
-        carriedGoodsMesh.rotation.set(0.06, -0.08, 0.06);
-      } else if (profile === 'long-accessories') {
-        carriedGoodsMesh.position.set(0, -0.40, -1.00);
-        carriedGoodsMesh.rotation.set(0.08, 0.04, -0.14);
-      } else if (profile === 'bottle-bundle') {
-        carriedGoodsMesh.position.set(0.10, -0.35, -0.72);
-        carriedGoodsMesh.rotation.x = 0.20;
-      } else {
-        carriedGoodsMesh.position.set(0.10, -0.28, -0.72);   // held in the arms, fully framed low in view
-        carriedGoodsMesh.rotation.x = 0.28;
-      }
+      const pose = carriedGoodsCameraPose(profile);
+      carriedGoodsMesh.position.set(...pose.position);
+      carriedGoodsMesh.rotation.set(...pose.rotation);
       carriedGoodsMesh.userData.deliveryCarryBaseY = carriedGoodsMesh.position.y;
       setDeliveryCarryOverlay(carriedGoodsMesh, true);
       camera.add(carriedGoodsMesh);
