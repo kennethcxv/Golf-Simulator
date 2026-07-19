@@ -14,8 +14,8 @@ import {
 // Deterministic Willow Creek property seed produced by the browser QA bootstrap
 // (newEmpire('relaxed', 424242) -> willow-creek).
 const WILLOW_SEED = 276398324;
-const PRODUCTION_HOLES_2_TO_9_SHA256 = '35ae75a0eb49182bf545b60a74da5c9de421f62d3cffaf1ddf33b58c8f955e9e';
-const PRODUCTION_DOWNSTREAM_SHA256 = '864891ef6c8058371c420557133a3f6607bf91a6274389d727f7a14681603c92';
+const PRODUCTION_HOLES_2_TO_9_SHA256 = 'e655e8a69abe1315f14da50f6134f8f9b2f3744ce45bf2ac3bd35898ffc2e6ee';
+const PRODUCTION_DOWNSTREAM_SHA256 = 'bdb02fc416b75ed08983a25bf604d2a3c7cb3d1556f531d327631160ebf9bb5a';
 
 function willow(opts = {}) {
   return designCourse(makeRng(WILLOW_SEED), { jitter: 0.35, ...opts });
@@ -65,7 +65,7 @@ test('Opening Drive is the deterministic 412-yard Hole 1 vertical slice', () => 
   });
   assert.deepEqual(vecHole.vegetation.exclusions, [
     { kind: 'route', t0: 0, t1: 0.18, clearHalfYd: 34 },
-    { kind: 'route', t0: 0.18, t1: 0.72, beyondFairwayYd: 6 },
+    { kind: 'route', t0: 0.18, t1: 0.72, beyondFairwayYd: 12 },
     { kind: 'route', t0: 0.72, t1: 1, clearHalfYd: 26 },
     { kind: 'green', bufferYd: 24 },
     { kind: 'bunker', bufferYd: 8 },
@@ -75,10 +75,10 @@ test('Opening Drive is the deterministic 412-yard Hole 1 vertical slice', () => 
   assert.deepEqual(vecHole.vegetation.plantings.map((planting) => (
     [planting.side, planting.t0, planting.t1, planting.beyondFairwayYd, planting.spacingYd]
   )), [
-    ['left', 0.2, 0.7, 9, 30],
-    ['right', 0.22, 0.7, 10, 33],
-    ['left', 0.72, 0.93, 17, 25],
-    ['right', 0.72, 0.93, 17, 27],
+    ['left', 0.2, 0.7, 17, 32],
+    ['right', 0.22, 0.7, 18, 35],
+    ['left', 0.72, 0.93, 20, 28],
+    ['right', 0.72, 0.93, 20, 30],
     ['left', 0.16, 0.94, 3, 18],
     ['right', 0.18, 0.92, 4, 20],
   ]);

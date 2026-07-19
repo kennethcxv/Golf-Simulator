@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeVecBunker } from '../src/sim/courseVec.js';
+import { makeVecBunker, polygonSDF, sampleClosed } from '../src/sim/courseVec.js';
 
 function properIntersection(a, b, c, d) {
   const cross = (p, q, r) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
@@ -40,5 +40,33 @@ test('lobed bunkers stay organic without pinched radii or crossing a turf island
         ), false, `seed ${seed} has no self-crossing sand boundary`);
       }
     }
+
+    const smoothed = sampleClosed(bunker.pts, 0.06);
+    for (let first = 0; first < smoothed.length; first++) {
+      for (let second = first + 1; second < smoothed.length; second++) {
+        const nextFirst = (first + 1) % smoothed.length;
+        const nextSecond = (second + 1) % smoothed.length;
+        if (second === nextFirst || first === nextSecond) continue;
+        assert.equal(properIntersection(
+          smoothed[first], smoothed[nextFirst],
+          smoothed[second], smoothed[nextSecond],
+        ), false, `seed ${seed} stays crossing-free after spline smoothing`);
+      }
+    }
   }
+});
+
+test('an authored bunker outline keeps its intentional maintainable silhouette', () => {
+  const outline = [
+    [0.96, -0.16], [0.9, 0.32], [0.62, 0.76], [0.18, 1.02],
+    [-0.3, 0.96], [-0.74, 0.66], [-1, 0.18], [-0.9, -0.34],
+    [-0.54, -0.78], [-0.06, -0.94], [0.44, -0.84], [0.82, -0.54],
+  ];
+  const bunker = makeVecBunker(14, 22, 6, 17, {
+    outline, stretch: 1.3, angle: 0.28, depth: 2.8,
+  });
+  assert.equal(bunker.pts.length, outline.length);
+  assert.equal(bunker.depth, 2.8);
+  assert.ok(polygonSDF(14, 22, sampleClosed(bunker.pts, 0.06)) < 0,
+    'the authored center remains uninterrupted sand');
 });

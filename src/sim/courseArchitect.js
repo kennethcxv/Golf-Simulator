@@ -206,8 +206,24 @@ const TEMPLATE = [
       ],
     },
     bunkers: [
-      { at: [94.8, 27.8], r: 5.8, depth: 2.8, lip: 1.25, stretch: 1.3, angle: 0.28, lobes: 3 },
-      { at: [97.6, 31.4], r: 5.2, depth: 2.5, lip: 1.15, stretch: 1.15, angle: -0.2, lobes: 3 },
+      {
+        at: [94.8, 27.8], r: 5.8, depth: 2.8, lip: 1.25, stretch: 1.3, angle: 0.28,
+        // An open, maintainable fan guards the left edge. The former seeded
+        // C-shape wrapped around a turf pocket from the normal approach view.
+        outline: [
+          [0.96, -0.16], [0.9, 0.32], [0.62, 0.76], [0.18, 1.02],
+          [-0.3, 0.96], [-0.74, 0.66], [-1, 0.18], [-0.9, -0.34],
+          [-0.54, -0.78], [-0.06, -0.94], [0.44, -0.84], [0.82, -0.54],
+        ],
+      },
+      {
+        at: [97.6, 31.4], r: 5.2, depth: 2.5, lip: 1.15, stretch: 1.15, angle: -0.2,
+        outline: [
+          [1, -0.12], [0.88, 0.4], [0.54, 0.82], [0.08, 1],
+          [-0.42, 0.88], [-0.82, 0.52], [-0.98, 0.02], [-0.82, -0.5],
+          [-0.42, -0.86], [0.08, -0.98], [0.56, -0.8], [0.9, -0.48],
+        ],
+      },
     ],
     teeKnoll: 3.5,
     terrainProfile: {
@@ -261,7 +277,12 @@ const TEMPLATE = [
       ['oak_a', 'maple_a', 'oak_b'], ['pine_a', 'oak_b', 'spruce_a'],
       { treeT0: 0.14, treeT1: 0.92, spacingYd: 38, openingClearYd: 34, approachClearYd: 28 },
     ),
-    teeAmenities: { bench: true, washer: true, trash: true },
+    teeAmenities: {
+      bench: true, washer: true, trash: true,
+      // The back tee is tight to the southwest property edge; pull its sign
+      // beside the arrival path so it cannot clip the player camera.
+      signLateralYd: 9.5, signAlongYd: -5.5,
+    },
   },
   {
     name: 'The Elbow', par: 4, hcp: 5, roughW: 25,
@@ -304,7 +325,7 @@ const TEMPLATE = [
       bench: true, washer: false, trash: false,
       // Keep the furniture beside the walk-on rather than between the player
       // camera and this sharply turning opening shot.
-      signLateralYd: 7.5, signAlongYd: 2.4,
+      signLateralYd: 11.5, signAlongYd: -6.5,
       benchLateralYd: 12, benchAlongYd: -6,
     },
   },
@@ -404,7 +425,19 @@ const TEMPLATE = [
       { treeT0: 0.26, treeT1: 0.9, spacingYd: 38, openingClearYd: 34, approachClearYd: 28 },
     ),
     teeAmenities: { bench: true, washer: false, trash: true },
-    camera: { frameYawOffset: 0.16 },
+    camera: {
+      // Stay close to the route axis in the all-hole overview. A larger orbit
+      // exposed less of this short target and let the neighboring corridor
+      // become the visual subject instead.
+      frameYawOffset: -0.18,
+      framePitch: 0.56,
+      approachYawOffset: -0.18,
+      greenYawOffset: -0.14,
+      flyoverYawOffset: -0.12,
+      approachDistYd: 44,
+      greenContextStartT: 0.9,
+      greenContextHalfWidthYd: 21,
+    },
   },
   {
     name: 'Cascades', par: 5, hcp: 3, roughW: 28,
@@ -493,7 +526,18 @@ const TEMPLATE = [
       { treeT0: 0.08, treeT1: 0.95, spacingYd: 27, openingClearYd: 34, approachClearYd: 30 },
     ),
     teeAmenities: { bench: true, washer: false, trash: true },
-    camera: { frameYawOffset: 0.22 },
+    camera: {
+      // Keep the compact par-3 strip centered in the overview; its focused
+      // approach and green presets supply the more oblique pond context.
+      frameYawOffset: 0.22,
+      framePitch: 0.56,
+      approachYawOffset: 0.24,
+      greenYawOffset: 0.18,
+      flyoverYawOffset: 0.16,
+      approachDistYd: 44,
+      greenContextStartT: 0.9,
+      greenContextHalfWidthYd: 21,
+    },
   },
   {
     name: 'Homeward', par: 4, hcp: 6, roughW: 25,
@@ -736,6 +780,7 @@ export function designCourse(rng, opts = {}) {
           lobes: spec.lobes ?? randomLobes,
           stretch: spec.stretch || 1,
           angle: spec.angle || 0,
+          outline: spec.outline,
         },
       );
       if (Number.isFinite(spec.lip)) bunk.lip = spec.lip;
@@ -756,6 +801,7 @@ export function designCourse(rng, opts = {}) {
           lobes: spec.lobes ?? 3,
           stretch: spec.stretch || 1,
           angle: spec.angle || 0,
+          outline: spec.outline,
         },
       );
       if (Number.isFinite(spec.lip)) bunker.lip = spec.lip;
