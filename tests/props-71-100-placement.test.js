@@ -8,6 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PROP_PLACEMENTS, PLACED_ASSET_NUMBERS } from '../src/render3d/assets51to100/propPlacement.js';
+import { RUNTIME_ASSET_MANIFEST_BY_NUMBER } from '../src/render3d/assets51to100/runtimeManifest.js';
 import {
   INTERIOR, DOOR_CLEARWAY, BACKDOOR_CLEARWAY, SHELL, WINDOWS, WINDOW_DIM, DOOR_MAIN,
 } from '../src/data/shopLayout.js';
@@ -16,20 +17,21 @@ const HX = INTERIOR.w / 2;
 const HZ = INTERIOR.d / 2;
 const byNumber = (n) => PROP_PLACEMENTS.find((p) => p.n === n);
 
-test('every asset from 71 to 100 has exactly one placement', () => {
-  assert.equal(PROP_PLACEMENTS.length, 30);
-  for (let n = 71; n <= 100; n++) {
+test('every interior asset from 61 to 100 has exactly one placement definition', () => {
+  assert.equal(PROP_PLACEMENTS.length, 40);
+  for (let n = 61; n <= 100; n++) {
     const hits = PROP_PLACEMENTS.filter((p) => p.n === n);
     assert.equal(hits.length, 1, `asset ${n} has ${hits.length} placements`);
   }
-  assert.equal(new Set(PLACED_ASSET_NUMBERS).size, 30);
+  assert.equal(new Set(PLACED_ASSET_NUMBERS).size, 40);
 });
 
 test('every placement names a real runtime asset', () => {
   for (const p of PROP_PLACEMENTS) {
-    assert.match(p.sheet, /^sheet_(07|08|09|10)$/, `${p.n}: bad sheet ${p.sheet}`);
-    assert.match(p.stem, new RegExp(`^asset_${String(p.n).padStart(3, '0')}_`),
-      `${p.n}: stem '${p.stem}' does not belong to asset ${p.n}`);
+    const runtime = RUNTIME_ASSET_MANIFEST_BY_NUMBER[p.n];
+    assert.ok(runtime, `${p.n}: missing runtime manifest record`);
+    assert.match(runtime.glbPath, new RegExp(`/sheet_(07|08|09|10)/asset_${String(p.n).padStart(3, '0')}_`),
+      `${p.n}: runtime path does not belong to the placement`);
   }
 });
 
@@ -63,9 +65,15 @@ test('the receiving doorway stays clear — boxes come through it in your arms',
 });
 
 test('every placement declares what it is fixed to', () => {
-  const kinds = new Set(['floor', 'surface', 'wall', 'ceiling']);
+  const kinds = new Set(['floor', 'surface', 'wall', 'ceiling', 'movable-fixture', 'socket']);
   for (const p of PROP_PLACEMENTS) {
     assert.ok(kinds.has(p.mount), `${p.n}: bad mount '${p.mount}'`);
+    if (p.mount === 'socket') {
+      assert.ok(Number.isInteger(p.parentAsset), `${p.n}: socket mount needs a parent asset`);
+      assert.match(p.parentSocket || '', /^SOCKET_/u, `${p.n}: socket mount needs an authored socket`);
+      assert.ok(PROP_PLACEMENTS.some((candidate) => candidate.n === p.parentAsset),
+        `${p.n}: parent asset ${p.parentAsset} is not placed`);
+    }
   }
 });
 

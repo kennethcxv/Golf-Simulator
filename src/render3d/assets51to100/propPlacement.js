@@ -1,263 +1,538 @@
-// ASSETS 71-100, PUT WHERE THEY BELONG.
+// RUNTIME PLACEMENT + INTERACTION ADAPTER — Assets 61 through 100.
 //
-// Thirty finished, clean-reimport-verified props were sitting in vendor/ with nothing loading them:
-// a folder of geometry that never reached the screen. That is the exact failure the brief names —
-// "assets exist but are not integrated" — and it is what this file ends.
-//
-// These are static dressing, not the modular state-driven kit Sheet 6 needed, so they do not go
-// through the production-runtime/assembly/adapter machinery. They need one thing: to be placed.
-//
-// PLACEMENT CONTRACT
-// Every asset carries a `SOCKET_PLACEMENT` empty authored at the point that should land on the
-// target — the base of a floor prop, the wall face of a bracket, the ceiling plate of a camera.
-// So nothing here guesses at bounding boxes or origin offsets: we load the asset, find its
-// placement socket, and translate the model so that socket sits exactly on the target point.
-//
-// Coordinates are INTERIOR-LOCAL YARDS, matching src/data/shopLayout.js:
-//   x  -10.25 (west wall) .. +10.25 (east wall)
-//   z   -6.5  (north wall) .. +6.5  (south wall, the porch entrance)
-//   y   0 at the floor
-// The assets themselves are authored in METRES, so they are scaled on the way in.
+// Sheet 6 owns the structural runtime. This module consumes the complete runtime manifest for the
+// remaining forty assets, aligns every SOCKET_PLACEMENT, follows persisted fixture anchors, adapts
+// authored clips to ordinary walk interactions, and exposes cleaning-tool pickups without changing
+// the cleaning simulation itself.
 
 import * as THREE from 'three';
-import { INTERIOR, DOOR_MAIN, DOOR_CLEARWAY, STOCKROOM, OFFICE, COUNTER, COUNTER_TOP } from '../../data/shopLayout.js';
+import { CLEANING_TOOLS } from '../../data/cleaningTools.js';
+import {
+  PLACED_ASSET_NUMBERS, PROP_PLACEMENTS, RUNTIME_ASSET_MANIFEST_BY_NUMBER,
+} from './runtimeManifest.js';
 
-const M_TO_YD = 1.0936133;
+export { PLACED_ASSET_NUMBERS, PROP_PLACEMENTS };
 
-// Wall faces, inset by half the wall thickness so a mounted prop sits ON the plaster.
-const S_WALL = INTERIOR.d / 2;   // +6.5, the entrance wall
-const N_WALL = -INTERIOR.d / 2;  // -6.5
-const E_WALL = INTERIOR.w / 2;   // +10.25
-const W_WALL = -INTERIOR.w / 2;  // -10.25
-
-// Facing angles. A prop on the south wall must look NORTH, into the room.
-const FACE_N = Math.PI;          // mounted on the south wall
-const FACE_S = 0;                // mounted on the north wall
-const FACE_W = Math.PI / 2;      // mounted on the east wall
-const FACE_E = -Math.PI / 2;     // mounted on the west wall
-
-const DESK_TOP = 0.78;           // office desk working surface
-
-/**
- * Where each prop goes.
- *
- * `mount` says WHAT it is fixed to — 'floor', 'surface' (a desk or counter top), 'wall' or
- * 'ceiling'. It is not decoration: the placement tests use it to decide which rules apply. A
- * clock bolted to a wall must never cross a window; a printer standing on a cabinet under one is
- * simply a printer under a window.
- *
- * `y` is the height of the PLACEMENT SOCKET above the floor: 0 for anything standing on it.
- * `ry` is the yaw. `note` records why a position is what it is, because most of these are
- * constrained by something invisible — a door swing, a window, a clearway.
- */
-export const PROP_PLACEMENTS = [
-  // --- Sheet 8: the stockroom cleaning bay -------------------------------------------------
-  // STOCKROOM.cleaning is (6.1, 1.45) — the corner the layout already reserves for this kit.
-  { n: 71, sheet: 'sheet_08', stem: 'asset_071_vacuum_cleaner', x: 6.30, z: 0.95, mount: 'floor', ry: -0.5,
-    note: 'cleaning bay, hose end toward the room' },
-  { n: 72, sheet: 'sheet_08', stem: 'asset_072_mop', x: 5.95, z: 1.78, mount: 'floor', ry: 0.35,
-    note: 'stood against the partition beside the bucket' },
-  { n: 73, sheet: 'sheet_08', stem: 'asset_073_mop_bucket_and_wringer', x: 6.28, z: 1.62, mount: 'floor', ry: -0.3,
-    note: 'the bay the layout names' },
-  { n: 74, sheet: 'sheet_08', stem: 'asset_074_broom', x: 6.62, z: 1.82, mount: 'floor', ry: -0.25,
-    note: 'leant beside the mop' },
-  { n: 75, sheet: 'sheet_08', stem: 'asset_075_dustpan', x: 6.92, z: 1.66, mount: 'floor', ry: 0.4,
-    note: 'hung with the broom' },
-  { n: 76, sheet: 'sheet_08', stem: 'asset_076_cleaning_spray_bottle', x: 7.18, z: 1.30, mount: 'floor', ry: 0.8,
-    note: 'supplies, clear of the stock door swing at x 8.9' },
-  { n: 77, sheet: 'sheet_08', stem: 'asset_077_cleaning_cloth_and_sponge_set', x: 7.44, z: 1.42, mount: 'floor', ry: -0.2,
-    note: 'beside the spray' },
-  { n: 78, sheet: 'sheet_08', stem: 'asset_078_pressure_washer', x: 9.15, z: -5.55, mount: 'floor', ry: 0.25,
-    note: 'equipment storage by the receiving door, clear of BACKDOOR_CLEARWAY' },
-  { n: 79, sheet: 'sheet_08', stem: 'asset_079_pressure_washer_hose_and_wand', x: 8.62, z: -5.62, mount: 'floor', ry: 0.6,
-    note: 'coiled beside its machine' },
-  { n: 80, sheet: 'sheet_08', stem: 'asset_080_trash_bag', x: 7.70, z: 1.20, mount: 'floor', ry: -0.15,
-    note: 'the disposal end of the bay' },
-
-  // --- Sheet 9: office and service desk ------------------------------------------------------
-  { n: 81, sheet: 'sheet_09', stem: 'asset_081_office_chair_sheet09',
-    x: OFFICE.chair.x, z: OFFICE.chair.z, mount: 'floor', ry: FACE_W,
-    note: 'the layout\'s own chair spot, turned to face the desk' },
-  { n: 82, sheet: 'sheet_09', stem: 'asset_082_filing_cabinet_sheet09', x: 9.92, z: 2.75, mount: 'floor', ry: FACE_W,
-    note: 'east office wall, north of the window at z 4.6' },
-  { n: 83, sheet: 'sheet_09', stem: 'asset_083_desk_lamp', x: 9.72, z: 5.18, y: DESK_TOP, mount: 'surface', ry: -1.1,
-    note: 'on the desk, far corner from the chair' },
-  { n: 84, sheet: 'sheet_09', stem: 'asset_084_office_printer', x: 9.88, z: 3.55, y: 0.72, mount: 'surface', ry: FACE_W,
-    note: 'on the filing cabinet run beside the desk' },
-  { n: 85, sheet: 'sheet_09', stem: 'asset_085_office_telephone', x: 9.70, z: 3.98, y: DESK_TOP, mount: 'surface', ry: -1.4,
-    note: 'desk, within reach of the chair' },
-  { n: 86, sheet: 'sheet_09', stem: 'asset_086_corkboard_noticeboard', x: 6.55, z: 2.12, y: 1.62, mount: 'wall', ry: FACE_S,
-    note: 'partition B, the office north wall. The south wall is full: the framed course map '
-      + 'sits at x 8.9 and the staff calendar at x 7.1 — a corkboard at 7.15 hung on that '
-      + 'calendar, 6 cm apart. This face is clear, and clear of the stock door at x 8.9.' },
-  { n: 87, sheet: 'sheet_09', stem: 'asset_087_wall_clock', x: E_WALL - 0.06, z: 3.05, y: 2.25, mount: 'wall', ry: FACE_W,
-    note: 'office east wall. The south wall is taken: the framed course map at x 8.9 is ~2.4 wide, '
-      + 'and a clock at 9.75 hung squarely on top of it. Here it is above the filing cabinet and '
-      + 'south of the window at z 4.6.' },
-  { n: 88, sheet: 'sheet_09', stem: 'asset_088_key_rack', x: E_WALL - 0.06, z: -1.35, y: 1.52, mount: 'wall', ry: FACE_W,
-    note: 'stockroom east wall, clear of the receiving door at z -3.6' },
-  { n: 89, sheet: 'sheet_09', stem: 'asset_089_reservation_clipboard',
-    x: COUNTER.x + 1.05, z: COUNTER.z, y: COUNTER_TOP, mount: 'surface', ry: 0.25,
-    note: 'front desk, staff side' },
-  { n: 90, sheet: 'sheet_09', stem: 'asset_090_scorecard_holder',
-    x: COUNTER.x - 1.05, z: COUNTER.z, y: COUNTER_TOP, mount: 'surface', ry: -0.15,
-    note: 'front desk, customer end' },
-
-  // --- Sheet 10: safety, signage and utilities -----------------------------------------------
-  { n: 91, sheet: 'sheet_10', stem: 'asset_091_fire_extinguisher', x: 5.52, z: -0.85, y: 1.02, mount: 'wall', ry: FACE_E,
-    note: 'partition A west face — code-visible from the shop floor' },
-  { n: 92, sheet: 'sheet_10', stem: 'asset_092_first_aid_kit_cabinet', x: 9.15, z: N_WALL + 0.06, y: 1.42, mount: 'wall', ry: FACE_S,
-    note: 'stockroom north wall at reachable height, moved east clear of the existing wall '
-      + 'dressing it was sharing a foot of wall with' },
-  { n: 93, sheet: 'sheet_10', stem: 'asset_093_security_camera', x: 1.25, z: 6.28, y: 2.92, mount: 'ceiling', ry: FACE_N,
-    note: 'high above the entrance, covering the door and the counter' },
-  { n: 94, sheet: 'sheet_10', stem: 'asset_094_exit_sign', x: DOOR_MAIN.x, z: S_WALL - 0.05, y: 2.96, mount: 'wall', ry: FACE_N,
-    note: 'over the main door. Its placement socket sits 0.235 above the sign base, so y 2.86 put '
-      + 'the base at 2.625 — under the 2.68 door head. 2.96 clears it and still fits the 3.2 ceiling.' },
-  { n: 95, sheet: 'sheet_10', stem: 'asset_095_emergency_light', x: W_WALL + 0.06, z: -1.40, y: 2.78, mount: 'wall', ry: FACE_E,
-    note: 'high west wall, covering the shop floor' },
-  { n: 96, sheet: 'sheet_10', stem: 'asset_096_bulletin_board', x: -4.10, z: N_WALL + 0.06, y: 1.58, mount: 'wall', ry: FACE_S,
-    note: 'public north wall, clear of the lounge window at x 3.0' },
-  { n: 97, sheet: 'sheet_10', stem: 'asset_097_key_cabinet', x: E_WALL - 0.06, z: 0.70, y: 1.48, mount: 'wall', ry: FACE_W,
-    note: 'secure service wall, above the key rack run' },
-  { n: 98, sheet: 'sheet_10', stem: 'asset_098_hand_sanitizer_station', x: 0.98, z: S_WALL - 0.06, y: 1.22, mount: 'wall', ry: FACE_N,
-    note: 'entrance wall at hand height, east of DOOR_CLEARWAY (maxX 0.5)' },
-  { n: 99, sheet: 'sheet_10', stem: 'asset_099_umbrella_stand', x: 1.42, z: 5.72, mount: 'floor', ry: 0.3,
-    note: 'entrance corner, outside the door swing and the clearway' },
-  { n: 100, sheet: 'sheet_10', stem: 'asset_100_floor_mat_welcome_mat', x: DOOR_MAIN.x, z: 5.48, y: 0.004, mount: 'floor', ry: 0,
-    note: 'square inside the threshold; flat, so it may sit in the clearway a solid prop could not' },
-];
-
-export const PLACED_ASSET_NUMBERS = Object.freeze(PROP_PLACEMENTS.map((p) => p.n));
-
-/**
- * Stand-ins these authored assets replace.
- *
- * The clubhouse already builds crude versions of some of this: five primitives for a mop, bucket
- * and broom in the stockroom corner, and a canvas welcome mat on the threshold. Placing the
- * authored assets without removing them gives you two mops and two mats — the "duplicate assets"
- * failure, and a visible regression rather than an improvement.
- *
- * Each entry names an object in the interior and the assets whose arrival retires it. Nothing is
- * removed until its replacements are actually on screen, so a failed load leaves the stand-in
- * standing rather than emptying the corner.
- */
-export const SUPERSEDES = [
+/** Authored replacements for temporary or older clubhouse visuals. */
+export const SUPERSEDES = Object.freeze([
+  { legacy: 'LegacyCheckoutCounter', replacedBy: [61] },
+  { legacy: 'LegacyCheckoutProductionCounter', replacedBy: [61] },
+  { legacy: 'LegacyPackingBench', replacedBy: [65] },
+  { legacy: 'LegacyOfficeDesk', replacedBy: [66] },
+  { legacy: 'LegacyOfficeDeskAuthored', replacedBy: [66] },
+  { legacy: 'LegacyLoungeChairA', replacedBy: [67] },
+  { legacy: 'LegacyLoungeChairB', replacedBy: [68] },
+  { legacy: 'LegacyLoungeCoffeeTable', replacedBy: [69] },
+  { legacy: 'LegacyLoungeTrophyDisplay', replacedBy: [70] },
   { legacy: 'LegacyCleaningCornerScenery', replacedBy: [71, 72, 73, 74, 75] },
-  { legacy: 'LegacyWelcomeMat', replacedBy: [100] },
   { legacy: 'LegacyOfficeChair', replacedBy: [81] },
-];
+  { legacy: 'LegacyOfficeFilingCabinet', replacedBy: [82] },
+  { legacy: 'LegacyWelcomeMat', replacedBy: [100] },
+]);
 
-const runtimeUrl = (p) => `vendor/models/assets_51_100/${p.sheet}/${p.stem}.glb`;
+const vectorFromTransform = (record) => new THREE.Vector3(...record.defaultTransform.position);
+
+const COLLISION_PROXY_NAME = /^(?:COL_|COLLISION_|VOLUME_)/i;
+
+function isAuthoredCollisionProxy(object, root) {
+  let current = object;
+  while (current) {
+    if (COLLISION_PROXY_NAME.test(current.name || '')
+      || current.userData?.collision_proxy === true) return true;
+    if (current === root) break;
+    current = current.parent;
+  }
+  return false;
+}
+
+function ensureAssetState(state, assetNumber) {
+  if (!state || typeof state !== 'object') return {};
+  if (!state.shop || typeof state.shop !== 'object') state.shop = {};
+  if (!state.shop.assetRuntime || typeof state.shop.assetRuntime !== 'object') {
+    state.shop.assetRuntime = {};
+  }
+  const key = `asset_${String(assetNumber).padStart(3, '0')}`;
+  if (!state.shop.assetRuntime[key] || typeof state.shop.assetRuntime[key] !== 'object') {
+    state.shop.assetRuntime[key] = {};
+  }
+  return state.shop.assetRuntime[key];
+}
+
+function placeSocketAt(root, target, socketName = 'SOCKET_PLACEMENT') {
+  const socket = root.getObjectByName(socketName);
+  if (!socket) {
+    root.position.copy(target);
+    return false;
+  }
+  root.updateMatrixWorld(true);
+  socket.updateWorldMatrix(true, false);
+  const at = new THREE.Vector3().setFromMatrixPosition(socket.matrixWorld);
+  // Targets are expressed in the mount parent's coordinate system (interior-local yards or a
+  // fixture anchor). Convert the socket out of world space before calculating the correction.
+  root.parent?.worldToLocal(at);
+  root.position.add(target.clone().sub(at));
+  root.updateMatrixWorld(true);
+  return true;
+}
+
+function animationController(root, clips) {
+  if (!clips?.length) return null;
+  const mixer = new THREE.AnimationMixer(root);
+  const byName = new Map(clips.map((clip) => [clip.name, clip]));
+  const active = new Set();
+
+  function play(names, { settle = false, loop = false } = {}) {
+    let played = 0;
+    for (const name of names || []) {
+      const clip = byName.get(name);
+      if (!clip) continue;
+      const action = mixer.clipAction(clip);
+      action.stop();
+      action.reset();
+      action.enabled = true;
+      action.clampWhenFinished = !loop;
+      action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
+      action.play();
+      if (settle) {
+        action.time = Math.max(0, clip.duration);
+        action.paused = true;
+      }
+      active.add(action);
+      played += 1;
+    }
+    mixer.update(0);
+    return played;
+  }
+
+  return {
+    play,
+    stop(names) {
+      for (const name of names || []) {
+        const clip = byName.get(name);
+        if (clip) mixer.existingAction(clip)?.stop();
+      }
+    },
+    update(dt) { mixer.update(dt); },
+    dispose() {
+      for (const action of active) action.stop();
+      mixer.stopAllAction();
+      mixer.uncacheRoot(root);
+      active.clear();
+    },
+  };
+}
+
+function localSocketWorld(root, name) {
+  const socket = root.getObjectByName(name) || root;
+  root.updateWorldMatrix(true, true);
+  return socket.getWorldPosition(new THREE.Vector3());
+}
+
+function runtimeLight(root, placement, stateRecord) {
+  if (!placement.light) return null;
+  const spec = placement.light;
+  const light = new THREE.PointLight(spec.color, spec.intensity, spec.distance, 2);
+  light.name = `AssetRuntimeLight_${placement.n}`;
+  light.castShadow = false;
+  const socketName = placement.n === 83 ? 'SOCKET_Bulb'
+    : placement.n === 94 ? 'SOCKET_LightLeft'
+      : placement.n === 95 ? 'SOCKET_Indicator' : null;
+  (socketName ? root.getObjectByName(socketName) : root)?.add(light);
+  if (placement.interaction?.state === 'on') light.visible = stateRecord.on !== false;
+  return light;
+}
+
+function interactionLabel(placement, stateRecord) {
+  const spec = placement.interaction;
+  if (!spec) return null;
+  if (spec.kind === 'toggle') {
+    const on = !!stateRecord[spec.state];
+    const verb = on ? (spec.state === 'on' ? 'switch off' : 'close')
+      : (spec.state === 'on' ? 'switch on' : 'open');
+    return `${spec.label} — [E] ${verb}`;
+  }
+  return `${spec.label} — [E] use`;
+}
 
 /**
- * Load and place every prop.
+ * Load and integrate the forty Sheet 7–10 world assets.
  *
- * Failures are reported, never thrown: one missing prop must not take the clubhouse down with it.
- * @returns {{group: THREE.Group, ready: Promise, diagnostics: function, dispose: function}}
+ * `getFixtureAnchor` is deliberately a callback because build mode destroys and recreates anchors.
+ * The returned detach/sync pair brackets that rebuild so GLB resources never get disposed with a
+ * retired anchor and the authored fixture follows the persisted pose on the next frame.
  */
-export function buildProps({ interior, loader }) {
+export function buildProps({
+  interior,
+  loader,
+  state = null,
+  addProp = null,
+  removeProp = null,
+  L2W = (x, z) => ({ x, z }),
+  getFixtureAnchor = null,
+  legacyReady = Promise.resolve(),
+  merch = null,
+  hooks = {},
+} = {}) {
   const group = new THREE.Group();
-  group.name = 'Assets71to100Props';
+  group.name = 'Assets61to100Runtime';
   interior.add(group);
 
-  const placed = [];
+  const placedByNumber = new Map();
   const failed = [];
+  const mixers = [];
+  const interactionProps = [];
+  const lights = [];
+  const superseded = [];
+  let disposed = false;
 
-  const jobs = PROP_PLACEMENTS.map((p) => new Promise((resolve) => {
-    loader.load(runtimeUrl(p), (gltf) => {
-      try {
-        const root = gltf.scene;
-        root.name = `Prop_${p.n}_${p.stem}`;
-        root.scale.setScalar(M_TO_YD);
-        root.rotation.y = p.ry || 0;
-        root.updateMatrixWorld(true);
+  function anchorFor(fixtureId) {
+    return typeof getFixtureAnchor === 'function' ? getFixtureAnchor(fixtureId) : null;
+  }
 
-        // Land SOCKET_PLACEMENT on the target point. Without this every prop would be positioned
-        // by its authoring origin, which sits mid-body on most of them — a fire extinguisher would
-        // hang 0.44 m through the wall it is bracketed to.
-        const socket = root.getObjectByName('SOCKET_PLACEMENT');
-        const target = new THREE.Vector3(p.x, p.y || 0, p.z);
-        if (socket) {
-          socket.updateWorldMatrix(true, false);
-          const at = new THREE.Vector3().setFromMatrixPosition(socket.matrixWorld);
-          root.position.set(target.x - at.x, target.y - at.y, target.z - at.z);
+  function uniqueRootName(number, fixtureId = null) {
+    const binding = RUNTIME_ASSET_MANIFEST_BY_NUMBER[number].binding;
+    return `AssetRuntime_${number}_${binding.stem}${fixtureId ? `_${fixtureId}` : ''}`;
+  }
+
+  function hideFixtureFallbacks(entry) {
+    if (!entry.fixtureId || !entry.root.parent || entry.root.parent === group) return;
+    for (const sibling of entry.root.parent.children) {
+      if (sibling !== entry.root) sibling.visible = false;
+    }
+  }
+
+  function mountFixtureEntry(entry) {
+    const anchor = anchorFor(entry.fixtureId);
+    if (!anchor) {
+      if (entry.root.parent !== group) group.attach(entry.root);
+      entry.root.visible = false;
+      entry.root.position.set(0, -256, 0);
+      return false;
+    }
+    if (entry.root.parent !== anchor) anchor.add(entry.root);
+    const manifest = RUNTIME_ASSET_MANIFEST_BY_NUMBER[entry.n];
+    entry.root.scale.setScalar(manifest.binding.runtimeScale);
+    entry.root.rotation.set(0, entry.placement.ry || 0, 0);
+    entry.root.position.set(0, 0, 0);
+    placeSocketAt(entry.root, new THREE.Vector3(0, 0, 0));
+    entry.root.visible = true;
+    hideFixtureFallbacks(entry);
+    return true;
+  }
+
+  function mountNestedEntry(entry) {
+    const parentNumber = Number(entry.placement.parentAsset);
+    if (!parentNumber) return false;
+    const parentEntry = placedByNumber.get(parentNumber)?.[0];
+    const socket = parentEntry?.root.getObjectByName(entry.placement.parentSocket);
+    if (!socket) {
+      failed.push({
+        n: entry.n,
+        reason: `parent asset ${parentNumber} socket ${entry.placement.parentSocket} unavailable`,
+      });
+      return false;
+    }
+    socket.add(entry.root);
+    const manifest = RUNTIME_ASSET_MANIFEST_BY_NUMBER[entry.n];
+    entry.root.scale.setScalar(manifest.binding.runtimeScale);
+    entry.root.rotation.set(0, entry.placement.ry || 0, 0);
+    entry.root.position.set(0, 0, 0);
+    placeSocketAt(entry.root, new THREE.Vector3(0, 0, 0));
+    entry.root.visible = true;
+    return true;
+  }
+
+  function registerWalkProp(entry, { tool = null, socket = 'SOCKET_PLACEMENT', suffix = '' } = {}) {
+    if (typeof addProp !== 'function') return null;
+    const placement = entry.placement;
+    const stateRecord = entry.stateRecord;
+    const initial = localSocketWorld(entry.root, socket);
+    const prop = {
+      x: initial.x,
+      z: initial.z,
+      r: tool ? 2.0 : 2.25,
+      aimY: initial.y,
+      tool,
+      label: () => {
+        if (tool) return `${CLEANING_TOOLS[tool]?.label || tool} — [E] equip`;
+        return interactionLabel(placement, stateRecord);
+      },
+      focusPoint: () => localSocketWorld(entry.root, socket),
+    };
+    if (placement.interaction) {
+      prop.action = () => {
+        const spec = placement.interaction;
+        if (spec.kind === 'toggle') {
+          const next = !stateRecord[spec.state];
+          stateRecord[spec.state] = next;
+          stateRecord.updatedAt = Date.now();
+          entry.controller?.stop(spec.loop);
+          entry.controller?.play(next ? spec.open : spec.close);
+          if (next) entry.controller?.play(spec.loop, { loop: true });
+          if (entry.light && spec.state === 'on') entry.light.visible = next;
+          hooks.assetStateChanged?.({
+            assetNumber: entry.n,
+            state: spec.state,
+            value: next,
+            stateRecord,
+          });
+          hooks.sfx?.(next ? 'open' : 'close');
         } else {
-          root.position.copy(target);
-          failed.push({ n: p.n, reason: 'no SOCKET_PLACEMENT; positioned by origin' });
+          stateRecord.uses = (Number(stateRecord.uses) || 0) + 1;
+          stateRecord.updatedAt = Date.now();
+          entry.controller?.play(spec.clips || []);
+          hooks.sfx?.('click');
         }
+      };
+    }
+    prop.userData = { assetNumber: entry.n, suffix };
+    addProp(prop);
+    interactionProps.push(prop);
+    entry.walkProps.push(prop);
+    return prop;
+  }
 
-        root.traverse((o) => {
-          if (!o.isMesh) return;
-          // Small dressing does not earn a shadow map slot. The interior already excludes its
-          // contents from the sun pass; this keeps these thirty consistent with that.
-          o.castShadow = false;
-          o.receiveShadow = false;
+  function prepareEntry(root, gltf, placement, fixtureId = null, instanceIndex = 0) {
+    const manifest = RUNTIME_ASSET_MANIFEST_BY_NUMBER[placement.n];
+    root.name = uniqueRootName(placement.n, fixtureId);
+    root.userData.assetRuntime = Object.freeze({
+      assetNumber: placement.n,
+      saveStateKey: manifest.saveStateKey,
+      performanceTier: manifest.performanceTier,
+      placementCategory: manifest.placementCategory,
+      instanceIndex,
+      fixtureId,
+    });
+    let hiddenCollisionMeshes = 0;
+    root.traverse((object) => {
+      if (!object.isMesh) return;
+      // The exports retain simplified COL_ meshes as auditable authoring evidence. Navigation is
+      // owned by clubhouse analytic colliders, so rendering these proxies would double silhouettes
+      // and make several tools look like black blocks.
+      if (isAuthoredCollisionProxy(object, root)) {
+        object.visible = false;
+        object.userData.runtimeCollisionProxyExcluded = true;
+        hiddenCollisionMeshes += 1;
+      }
+      object.castShadow = false;
+      object.receiveShadow = false;
+    });
+
+    const stateRecord = ensureAssetState(state, placement.n);
+    const entry = {
+      n: placement.n,
+      root,
+      placement,
+      fixtureId,
+      stateRecord,
+      walkProps: [],
+      controller: animationController(root, gltf.animations || []),
+      light: null,
+      hiddenCollisionMeshes,
+    };
+    if (entry.controller) mixers.push(entry.controller);
+    entry.light = runtimeLight(root, placement, stateRecord);
+    if (entry.light) lights.push(entry.light);
+
+    if (fixtureId) {
+      mountFixtureEntry(entry);
+    } else {
+      group.add(root);
+      root.scale.setScalar(manifest.binding.runtimeScale);
+      root.rotation.set(0, placement.ry || 0, 0);
+      root.position.set(0, 0, 0);
+      const socketAligned = placeSocketAt(root, vectorFromTransform(manifest));
+      if (!socketAligned) failed.push({ n: placement.n, reason: 'no SOCKET_PLACEMENT; positioned by origin' });
+    }
+
+    const spec = placement.interaction;
+    if (spec?.kind === 'toggle' && stateRecord[spec.state]) {
+      entry.controller?.play(spec.open, { settle: true });
+      entry.controller?.play(spec.loop, { loop: true });
+    }
+    if (entry.light && spec?.state === 'on') entry.light.visible = stateRecord.on !== false;
+
+    if (placement.tools) {
+      for (const toolSpec of placement.tools) {
+        registerWalkProp(entry, { ...toolSpec, suffix: toolSpec.tool });
+      }
+    } else if (placement.tool || placement.interaction) {
+      const focusSocket = placement.interaction?.socket || (placement.tool
+        ? (manifest.interactionSockets.find((name) => /Grip|Carry/i.test(name)) || 'SOCKET_PLACEMENT')
+        : (manifest.interactionSockets.find((name) => /Handle|Trigger|Switch|Grip/i.test(name)) || 'SOCKET_PLACEMENT'));
+      registerWalkProp(entry, { tool: placement.tool || null, socket: focusSocket });
+    }
+
+    const entries = placedByNumber.get(placement.n) || [];
+    entries.push(entry);
+    placedByNumber.set(placement.n, entries);
+    return entry;
+  }
+
+  const jobs = PROP_PLACEMENTS.map((placement) => new Promise((resolve) => {
+    const manifest = RUNTIME_ASSET_MANIFEST_BY_NUMBER[placement.n];
+    loader.load(manifest.glbPath, (gltf) => {
+      try {
+        const fixtureIds = placement.fixtureIds?.length ? placement.fixtureIds : [null];
+        fixtureIds.forEach((fixtureId, index) => {
+          const root = index === 0 ? gltf.scene : gltf.scene.clone(true);
+          prepareEntry(root, gltf, placement, fixtureId, index);
         });
-
-        group.add(root);
-        placed.push({ n: p.n, name: root.name, at: [p.x, p.y || 0, p.z] });
         resolve(true);
-      } catch (err) {
-        failed.push({ n: p.n, reason: err.message });
+      } catch (error) {
+        failed.push({ n: placement.n, reason: error.message });
         resolve(false);
       }
-    }, undefined, (err) => {
-      failed.push({ n: p.n, reason: err?.message || 'load failed' });
+    }, undefined, (error) => {
+      failed.push({ n: placement.n, reason: error?.message || 'load failed' });
       resolve(false);
     });
   }));
 
-  const superseded = [];
-  const ready = Promise.all(jobs).then(() => {
-    // Retire each stand-in, but only once everything replacing it is genuinely on screen.
-    const placedNumbers = new Set(placed.map((p) => p.n));
+  function retireNamedFallbacks() {
+    const placedNumbers = new Set(placedByNumber.keys());
     for (const rule of SUPERSEDES) {
-      if (!rule.replacedBy.every((n) => placedNumbers.has(n))) continue;
-      const legacy = interior.getObjectByName(rule.legacy);
-      if (!legacy) continue;
-      // UNPARENT ONLY — never dispose.
-      //
-      // These stand-ins are built from the clubhouse's SHARED material palette: the legacy mop and
-      // broom use mats.rawWood and mats.kraft, which half the stockroom is also drawing with.
-      // Disposing them here freed geometry and materials that were still in use, and then teardown
-      // disposed them a second time — which is precisely what
-      // tests/clubhouse-resource-lifecycle.test.js counts. Whoever created a resource owns
-      // releasing it; superseding is a scene-graph decision, not an ownership transfer.
-      legacy.removeFromParent();
-      superseded.push(rule.legacy);
+      if (!rule.replacedBy.every((number) => placedNumbers.has(number))) continue;
+      let legacy = interior.getObjectByName(rule.legacy);
+      while (legacy) {
+        legacy.removeFromParent();
+        superseded.push(rule.legacy);
+        legacy = interior.getObjectByName(rule.legacy);
+      }
     }
-    return { placed: placed.length, superseded: [...superseded] };
+  }
+
+  function populateTrophyCabinet() {
+    if (!merch) return 0;
+    const entry = placedByNumber.get(70)?.[0];
+    if (!entry) return 0;
+    let populated = 0;
+    for (const [index, socketName] of ['SOCKET_Trophy_01', 'SOCKET_Trophy_02', 'SOCKET_Collectible_01'].entries()) {
+      const socket = entry.root.getObjectByName(socketName);
+      const trophy = merch.instantiate?.('trophy');
+      if (!socket || !trophy) continue;
+      trophy.name = `Asset70SocketTrophy_${index + 1}`;
+      trophy.scale.setScalar(index === 2 ? 0.68 : 0.78 + index * 0.08);
+      trophy.position.set(0, 0, 0);
+      socket.add(trophy);
+      populated += 1;
+    }
+    entry.root.userData.populatedTrophySockets = populated;
+    return populated;
+  }
+
+  const ready = Promise.all(jobs).then(async () => {
+    await legacyReady.catch?.(() => {});
+    if (disposed) return { placed: 0, instances: 0, superseded: [] };
+    for (const entries of placedByNumber.values()) {
+      for (const entry of entries) if (entry.placement.parentAsset) mountNestedEntry(entry);
+    }
+    retireNamedFallbacks();
+    for (const entries of placedByNumber.values()) {
+      for (const entry of entries) hideFixtureFallbacks(entry);
+    }
+    const trophySockets = populateTrophyCabinet();
+    return {
+      placed: placedByNumber.size,
+      instances: [...placedByNumber.values()].reduce((sum, entries) => sum + entries.length, 0),
+      superseded: [...superseded],
+      trophySockets,
+    };
   });
+
+  function updateInteractionOrigins() {
+    for (const entries of placedByNumber.values()) {
+      for (const entry of entries) {
+        for (const prop of entry.walkProps) {
+          const point = prop.focusPoint?.();
+          if (!point) continue;
+          prop.x = point.x;
+          prop.z = point.z;
+          prop.aimY = point.y;
+        }
+      }
+    }
+  }
 
   return {
     group,
     ready,
+    update(dt) {
+      for (const controller of mixers) controller.update(dt);
+      updateInteractionOrigins();
+    },
+    detachFixturePlacements() {
+      for (const entries of placedByNumber.values()) {
+        for (const entry of entries) {
+          if (!entry.fixtureId || entry.root.parent === group) continue;
+          group.attach(entry.root);
+          entry.root.visible = false;
+        }
+      }
+    },
+    syncFixturePlacements() {
+      let mounted = 0;
+      for (const entries of placedByNumber.values()) {
+        for (const entry of entries) if (entry.fixtureId && mountFixtureEntry(entry)) mounted += 1;
+      }
+      updateInteractionOrigins();
+      return mounted;
+    },
+    roots: () => [...placedByNumber.values()].flat().map((entry) => entry.root),
+    interactionTargets: () => {
+      updateInteractionOrigins();
+      return interactionProps.map((prop) => ({
+        assetNumber: prop.userData?.assetNumber || null,
+        suffix: prop.userData?.suffix || '',
+        x: prop.x,
+        z: prop.z,
+        aimY: prop.aimY,
+        radius: prop.r,
+        tool: prop.tool || null,
+        label: typeof prop.label === 'function' ? prop.label() : prop.label,
+      }));
+    },
+    getRoot: (number, fixtureId = null) => {
+      const entries = placedByNumber.get(Number(number)) || [];
+      return (fixtureId ? entries.find((entry) => entry.fixtureId === fixtureId) : entries[0])?.root || null;
+    },
     diagnostics: () => ({
       expected: PROP_PLACEMENTS.length,
-      placed: placed.length,
+      placed: placedByNumber.size,
+      instances: [...placedByNumber.values()].reduce((sum, entries) => sum + entries.length, 0),
       failed: failed.length,
-      failures: failed,
-      assetNumbers: placed.map((p) => p.n).sort((a, b) => a - b),
+      failures: [...failed],
+      assetNumbers: [...placedByNumber.keys()].sort((a, b) => a - b),
       superseded: [...superseded],
+      interactions: interactionProps.length,
+      animated: mixers.length,
+      emittedLights: lights.length,
+      hiddenCollisionMeshes: [...placedByNumber.values()].flat()
+        .reduce((sum, entry) => sum + entry.hiddenCollisionMeshes, 0),
     }),
     dispose() {
-      // Dispose each distinct resource ONCE. Two props can legitimately share a geometry or a
-      // material — the cloth and sponge come out of one authored set, and a stubbed loader in the
-      // tests hands every prop the same fixture — so disposing per-mesh releases the same buffer
-      // thirty times. tests/clubhouse-resource-lifecycle.test.js counts exactly that.
-      const geometries = new Set();
-      const materials = new Set();
-      group.traverse((o) => {
-        if (!o.isMesh) return;
-        if (o.geometry) geometries.add(o.geometry);
-        const mats = Array.isArray(o.material) ? o.material : [o.material];
-        for (const m of mats) if (m) materials.add(m);
-      });
-      for (const g of geometries) g.dispose();
-      for (const m of materials) m.dispose();
+      if (disposed) return;
+      disposed = true;
+      for (const prop of interactionProps) removeProp?.(prop);
+      for (const controller of mixers) controller.dispose();
+      const resources = { geometries: new Set(), materials: new Set(), textures: new Set() };
+      for (const root of [...placedByNumber.values()].flat().map((entry) => entry.root)) {
+        root.traverse((object) => {
+          if (!object.isMesh) return;
+          if (object.geometry) resources.geometries.add(object.geometry);
+          for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+            if (!material) continue;
+            resources.materials.add(material);
+            for (const value of Object.values(material)) if (value?.isTexture) resources.textures.add(value);
+          }
+        });
+        root.removeFromParent();
+      }
+      for (const texture of resources.textures) texture.dispose();
+      for (const material of resources.materials) material.dispose();
+      for (const geometry of resources.geometries) geometry.dispose();
       group.removeFromParent();
-      placed.length = 0;
+      placedByNumber.clear();
     },
   };
 }

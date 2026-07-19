@@ -9,7 +9,7 @@ async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const crypto = process.getBuiltinModule('node:crypto');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
   const out = process.env.ASSET_QA_OUT
     ? path.resolve(repo, process.env.ASSET_QA_OUT)
     : path.join(repo, 'qa', 'assets_51_100_master', 'baseline', 'current');
@@ -52,6 +52,12 @@ async (page) => {
     { id: '18-lounge-furniture-context', x: 1.0, z: -2.6, tx: 4.0, tz: -5.0, pitch: -0.05 },
     { id: '19-office-desk-chair-and-props', x: 7.0, z: 3.6, tx: 9.3, tz: 4.6, pitch: -0.04 },
     { id: '20-stockroom-shelving-and-cleaning-corner', x: 7.1, z: -2.0, tx: 6.1, tz: 1.45, pitch: -0.07 },
+    { id: '23-fitting-room-three-quarter', x: -6.75, z: 4.40, tx: -9.30, tz: 4.40, pitch: -0.04 },
+    { id: '24-packing-worktable-and-mounted-tools', x: 8.75, z: 0.45, tx: 6.90, tz: -0.90, pitch: -0.24 },
+    { id: '25-cleaning-bay-player-approach', x: 8.85, z: 0.05, tx: 6.85, tz: 1.52, pitch: -0.24 },
+    { id: '26-stock-shelf-box-supports', x: 6.95, z: -3.25, tx: 8.10, tz: -5.82, pitch: -0.12 },
+    { id: '27-entry-safety-and-utilities', x: 2.70, z: 3.85, tx: -0.40, tz: 6.25, pitch: 0.10 },
+    { id: '28-pressure-washer-storage-clearance', x: 8.15, z: -4.45, tx: 6.38, tz: -5.65, pitch: -0.24 },
   ];
 
   async function pose(camera, tool = null, dirty = false) {
@@ -242,7 +248,7 @@ async (page) => {
     },
     methodology: {
       ...baseline.methodology,
-      extraFixedCameras: 'Seven architecture/furniture cameras plus current vacuum and pressure-washer viewmodel cameras.',
+      extraFixedCameras: 'Thirteen architecture/furniture cameras plus current vacuum and pressure-washer viewmodel cameras.',
       stressScenarios: 'Five-second fixed-route samples with the current vacuum and pressure washer actively running after 0.8-second warm-up.',
       uiUpdateFrequency: 'MutationObserver record count under the HUD/UI root during each five-second stress sample.',
     },
