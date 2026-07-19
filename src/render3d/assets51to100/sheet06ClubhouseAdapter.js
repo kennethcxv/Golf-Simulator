@@ -10,6 +10,7 @@ import {
   SHEET06_RUNTIME_ASSETS,
   createSheet06Architecture,
 } from './sheet06Architecture.js';
+import { METERS_TO_YARDS } from './units.js';
 
 // Current clubhouse coordinates are building-local yards. The always-visible
 // `group` root sits on grade, its finished floor is +0.3 Y, and `interior` sits
@@ -19,6 +20,11 @@ export const SHEET06_INTERIOR_FLOOR_Y = 0;
 export const SHEET06_TEMPLATE_STORAGE_Y = -256;
 
 const CANONICAL_PORCH_SOCKET_X = -1;
+// Asset 51's exact authored depth is 12.34 m, so its south facade/socket is
+// 6.17 m from the origin.  That converts to 6.747594... yd, not the legacy
+// procedural layout's rounded 6.75 yd.  Direct modules use the authored datum
+// so their registration is exact; analytic navigation remains within 2.5 mm.
+export const SHEET06_AUTHORED_FRONT_Z_YARDS = 6.17 * METERS_TO_YARDS;
 const DOOR_OPEN_RADIANS = 100 * Math.PI / 180;
 const KIT_ASSET_NUMBERS = Object.freeze([55, 56, 57, 58, 59, 60]);
 const KIT_ASSET_SET = new Set(KIT_ASSET_NUMBERS);
@@ -85,7 +91,7 @@ export function resolveSheet06Placement(binding) {
       position = [
         DOOR_MAIN.x,
         SHEET06_GROUP_FLOOR_Y,
-        SHELL.d / 2,
+        SHEET06_AUTHORED_FRONT_Z_YARDS,
       ];
       datum = 'MAIN_ENTRANCE_THRESHOLD_CENTER';
       break;
@@ -103,7 +109,7 @@ export function resolveSheet06Placement(binding) {
       position = [
         CANONICAL_PORCH_SOCKET_X,
         0,
-        SHELL.d / 2,
+        SHEET06_AUTHORED_FRONT_Z_YARDS,
       ];
       datum = 'ASSET_051_SOCKET_Porch_LAYOUT_FALLBACK';
       break;
