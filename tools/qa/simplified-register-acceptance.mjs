@@ -590,17 +590,12 @@ async function cashRoute(page, shot) {
       && drawerTravelStart.worldScaleZ > 0 && drawerTravelStart.travel > 0,
   `The authored drawer travel baseline is invalid: ${JSON.stringify(drawerTravelStart)}.`);
 
-  // one click on the handful accepts ALL of it; the drawer slides open itself
-  await page.mouse.click(handful.x, handful.y);
-  await page.waitForFunction(() => {
-    const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    return tx && tx.checkoutFlow?.state === 'DrawerOpening';
-  }, null, { timeout: 2000 });
-  // Capture #19 at the normal-input boundary, independently of drawer travel.
-  await shot('08a-cash-clicked.png');
-  // Capture #20 only while the authored tray is genuinely in flight. Polling
-  // its transform makes a PASS impossible on a fully closed or fully open till.
-  await page.waitForFunction((baseline) => {
+  // Arm the transform observer before the input. A 1600x900 PNG can take
+  // longer than the authored drawer slide, so starting this after the click
+  // boundary screenshot can miss the entire real motion even though the
+  // drawer visibly opened. The observer retains the first genuine midpoint;
+  // the screenshots and video remain independent visual evidence.
+  const drawerMidpointPromise = page.waitForFunction((baseline) => {
     const tray = window.__registerQaCashDrawerTray;
     if (!tray || tray.uuid !== baseline.uuid) return false;
     const localDelta = tray.position.z - baseline.closedLocalZ;
@@ -616,19 +611,23 @@ async function cashRoute(page, shot) {
     };
     return true;
   }, drawerTravelStart, { timeout: 2000, polling: 'raf' });
-  const drawerTravelMidpoint = await page.evaluate((baseline) => {
-    const tray = window.__registerQaCashDrawerTray;
-    if (!tray || tray.uuid !== baseline.uuid) return null;
-    const localDelta = tray.position.z - baseline.closedLocalZ;
-    const worldTravel = localDelta * baseline.worldScaleZ;
-    return {
-      uuid: tray.uuid,
-      localZ: tray.position.z,
-      localDelta,
-      worldTravel,
-      progress: worldTravel / baseline.travel,
-    };
-  }, drawerTravelStart);
+
+  // one click on the handful accepts ALL of it; the drawer slides open itself
+  await page.mouse.click(handful.x, handful.y);
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx && tx.checkoutFlow?.state === 'DrawerOpening';
+  }, null, { timeout: 2000 });
+  // Capture #19 at the normal-input boundary, independently of drawer travel.
+  await shot('08a-cash-clicked.png');
+  // Capture #20 only while the authored tray is genuinely in flight. Polling
+  // its transform makes a PASS impossible on a fully closed or fully open till.
+  await drawerMidpointPromise;
+  const drawerTravelMidpoint = await page.evaluate(() => (
+    window.__registerQaCashDrawerMidpoint
+      ? { ...window.__registerQaCashDrawerMidpoint }
+      : null
+  ));
   assert(drawerTravelMidpoint && drawerTravelMidpoint.progress >= 0.25
       && drawerTravelMidpoint.progress <= 0.75,
   `CashDrawer_Tray was not captured between 25% and 75% travel: ${JSON.stringify(drawerTravelMidpoint)}.`);
