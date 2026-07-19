@@ -40,6 +40,19 @@ function assert(value, message) {
   if (!value) throw new Error(message);
 }
 
+function shouldSampleIteration(iteration, total) {
+  if (total <= 0) return false;
+  const interval = Math.max(1, Math.ceil(total / 20));
+  return iteration === 1 || iteration === total || iteration % interval === 0;
+}
+
+export function shouldSampleFrontDeskIteration(iteration, total) {
+  if (!Number.isInteger(iteration) || !Number.isInteger(total)
+      || iteration < 1 || iteration > total) return false;
+  const denseTailStart = Math.max(1, total - 19);
+  return iteration >= denseTailStart || shouldSampleIteration(iteration, total);
+}
+
 function configureViewport(value) {
   const raw = String(value || '').trim().toLowerCase().replace('\u00d7', 'x');
   if (!raw) {
@@ -708,6 +721,67 @@ async function setupFixture(page, cycles) {
       shelf: Object.fromEntries(skuIds.map((skuId) => [skuId, shop.inventory[skuId].shelf])),
     };
   }, { skuIds: SKUS, count: cycles });
+}
+
+async function warmPostFixtureRendererResidency(page) {
+  await enterFrontDesk(page);
+  const warmup = await page.evaluate(async () => {
+    const app = window.__fw;
+    const clubhouse = app.scene3d.clubhouse();
+    const register = clubhouse.register;
+    const customerList = () => (typeof clubhouse.customers === 'function'
+      ? clubhouse.customers()
+      : clubhouse.customers || []);
+    const read = () => ({
+      rendererGeometries: app.scene3d.renderer.info.memory.geometries,
+      rendererTextures: app.scene3d.renderer.info.memory.textures,
+      registerActive: register.isActive(),
+      transactionNumber: register.getTx?.()?.number ?? null,
+      customerCount: customerList().length,
+      queueCount: clubhouse.checkoutQueue?.().length ?? 0,
+    });
+    const before = read();
+    if (typeof app.scene3d.prewarm !== 'function') {
+      throw new Error('Post-fixture renderer prewarm is unavailable.');
+    }
+    const completed = await app.scene3d.prewarm();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return {
+      kind: 'qa-only post-fixture renderer residency prewarm',
+      completed,
+      before,
+      after: read(),
+      measurementBoundary: 'One pre-measurement E/prewarm/Escape pair occurs before lifecycle baselines and is excluded from the exact measured operation counters.',
+    };
+  });
+  assert(warmup.completed !== false, 'Post-fixture renderer prewarm did not complete.');
+  assert(warmup.before.registerActive && warmup.after.registerActive,
+    'Post-fixture renderer prewarm did not preserve the active front desk.');
+  assert(warmup.before.transactionNumber == null && warmup.after.transactionNumber == null
+      && warmup.before.customerCount === 0 && warmup.after.customerCount === 0
+      && warmup.before.queueCount === 0 && warmup.after.queueCount === 0,
+  'Post-fixture renderer prewarm crossed a transaction/customer lifecycle boundary.');
+  await leaveFrontDesk(page);
+  warmup.afterExit = await page.evaluate(() => {
+    const app = window.__fw;
+    const clubhouse = app.scene3d.clubhouse();
+    const register = clubhouse.register;
+    const customers = typeof clubhouse.customers === 'function'
+      ? clubhouse.customers()
+      : clubhouse.customers || [];
+    return {
+      registerActive: register.isActive(),
+      transactionNumber: register.getTx?.()?.number ?? null,
+      customerCount: customers.length,
+      queueCount: clubhouse.checkoutQueue?.().length ?? 0,
+      rendererGeometries: app.scene3d.renderer.info.memory.geometries,
+      rendererTextures: app.scene3d.renderer.info.memory.textures,
+    };
+  });
+  assert(!warmup.afterExit.registerActive && warmup.afterExit.transactionNumber == null
+      && warmup.afterExit.customerCount === 0 && warmup.afterExit.queueCount === 0,
+  'Post-fixture renderer prewarm did not restore the empty inactive boundary.');
+  return warmup;
 }
 
 async function installListenerProbe(page) {
@@ -2424,11 +2498,6 @@ export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
   let currentScenario = 'boot';
   let currentCycle = 0;
   const runStartedAt = Date.now();
-  const shouldSampleIteration = (iteration, total) => {
-    if (total <= 0) return false;
-    const interval = Math.max(1, Math.ceil(total / 20));
-    return iteration === 1 || iteration === total || iteration % interval === 0;
-  };
   const buildTimings = () => ({
     run: {
       startedAt: new Date(runStartedAt).toISOString(),
@@ -2462,6 +2531,7 @@ export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
     schedule: 'Card and cash sales alternate while both remain; configured X cancellations and genuine decline/replacement-card recoveries are embedded in completed card sales.',
     cleanupBoundary: 'Each transaction clears and its paid customer reaches the physical exit/despawn before the post-cycle sample and next customer spawn.',
     customerCardinality: 'The customer lifecycle is an explicit minimum gate: 100 card + 100 cash sales necessarily create/remove 200 distinct one-sale customers.',
+    rendererResidencyBoundary: 'After fixture stock rebuild, one QA-only pre-measurement E/prewarm/Escape pair realizes the rebuilt scene before baselines. Exact operation counters cover only the following measured workload.',
     stabilityGate: config.profile === 'smoke'
       ? 'Smoke runs report every resource/runtime metric and observed stability outcome, but do not enforce long-session range/heap gates before the card/cash lazy warm-up can converge.'
       : 'Long-session scene/resource/DOM/listener/timer/audio/heap stability gates are enforced.',
@@ -2485,6 +2555,8 @@ export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
     await installListenerProbe(page);
     await installResourceLifecycleProbe(page);
     fixture = await setupFixture(page, cycles);
+    currentScenario = 'post-fixture-renderer-warmup';
+    fixture.rendererResidencyWarmup = await warmPostFixtureRendererResidency(page);
 
     currentScenario = 'front-desk-enter-exit';
     outsideBaseline = await snapshot(page, cdp, {
@@ -2510,7 +2582,7 @@ export async function runSimplifiedRegisterLifecycleStress(page, options = {}) {
         durationMs: Date.now() - startedAt,
         sampleIndex: null,
       };
-      if (shouldSampleIteration(iteration, requestedCounts.enterExits)) {
+      if (shouldSampleFrontDeskIteration(iteration, requestedCounts.enterExits)) {
         lastSample = await snapshot(page, cdp, {
           cycle: iteration,
           scenario: currentScenario,
