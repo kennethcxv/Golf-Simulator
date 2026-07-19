@@ -17,6 +17,15 @@ import { clamp } from '../core/utils.js';
 export const WET_DRY_SEC = 62;      // a mopped floor is dry again in about a minute
 export const SOLUTION_DRY_SEC = 28; // solution flashes off faster than water
 export const SOLUTION_MIN = 0.12;   // below this the cloth finds nothing to work with
+export const WET_CELL_YD = 0.25;
+
+export function wetGridForRoom(room) {
+  return {
+    w: Math.ceil(room.w / WET_CELL_YD),
+    h: Math.ceil(room.d / WET_CELL_YD),
+    cell: WET_CELL_YD,
+  };
+}
 
 /** Field dimensions follow the interior grime grid so the three always line up. */
 export function ensureWet(state, gridW, gridH) {

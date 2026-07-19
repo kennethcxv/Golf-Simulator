@@ -27,6 +27,11 @@ export function ensurePaymentBag(state) {
   if (!shop) return [];
   if (!Array.isArray(shop.paymentBag)) shop.paymentBag = [];
   shop.paymentBag = shop.paymentBag.filter(isMethod);
+  const cash = shop.paymentBag.filter((method) => method === 'cash').length;
+  const card = shop.paymentBag.length - cash;
+  if (shop.paymentBag.length > PAYMENT_BAG_BATCH || cash > CASH_PER_BATCH || card > CARD_PER_BATCH) {
+    shop.paymentBag = [];
+  }
   return shop.paymentBag;
 }
 
@@ -70,8 +75,9 @@ export function paymentBagStats(state) {
     shop.paymentBagStats = { assigned: { cash: 0, card: 0 }, recent: [] };
   }
   const { assigned } = shop.paymentBagStats;
-  if (!Number.isFinite(assigned.cash)) assigned.cash = 0;
-  if (!Number.isFinite(assigned.card)) assigned.card = 0;
+  if (!Number.isSafeInteger(assigned.cash) || assigned.cash < 0) assigned.cash = 0;
+  if (!Number.isSafeInteger(assigned.card) || assigned.card < 0) assigned.card = 0;
+  shop.paymentBagStats.recent = shop.paymentBagStats.recent.filter(isMethod).slice(-100);
   return shop.paymentBagStats;
 }
 

@@ -19,7 +19,7 @@
 import { ZONE, DAY_START_MIN } from './constants.js';
 import { BALANCE } from './balance.js';
 import { makeRng, rngOf, clamp, formatMoney } from '../core/utils.js';
-import { newGame, update, snapshot, deserialize } from './state.js';
+import { newGame, update, snapshot, deserializeWithReport } from './state.js';
 import { calendarOf } from './time.js';
 import { rollDailyWeather } from './weather.js';
 import { conditionRating, zonePolicyKey, DISEASE } from './turf.js';
@@ -28,8 +28,26 @@ import { memberCounts } from './club.js';
 import { deliverOrdersDue, tickDeliveries } from './shop.js';
 import { generateMarketplace, generateListing, buildPropertyCourse, appraiseStats, MARKET } from './marketplace.js';
 import { appraiseProperty } from './valuation.js';
+import {
+  SaveCompatibilityError,
+  cloneSaveValue,
+  createSaveReport,
+  dedupeRecords,
+  finishSaveReport,
+  finiteNumber,
+  isRecord,
+  noteMigration,
+  noteRepair,
+  parseSaveInput,
+  recordsOnly,
+} from './saveValidation.js';
 
-export const EMPIRE_VERSION = 2;
+export const EMPIRE_VERSION = 3;
+
+export const EMPIRE_MIGRATIONS = Object.freeze([
+  Object.freeze({ version: 2, name: 'living-market' }),
+  Object.freeze({ version: 3, name: 'validated-portfolio-authority' }),
+]);
 
 // Parked-property approximation knobs (reasoning in DEV_LOG.md):
 // a caretaker keeps the lights on — condition decays toward a floor but never
@@ -487,8 +505,7 @@ export function serializeEmpire(empire) {
 
 // A pre-empire single-club save (plain GameState JSON) loads as a one-property
 // empire so nothing anyone saved ever becomes unreadable.
-function legacyEmpireFrom(raw) {
-  const st = deserialize(raw);
+function legacyEmpireFromState(st) {
   const counts = memberCounts(st);
   const record = {
     id: 'legacy-club',
@@ -530,43 +547,175 @@ function legacyEmpireFrom(raw) {
   };
 }
 
-export function deserializeEmpire(raw) {
-  const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  if (!data.empireVersion) return legacyEmpireFrom(data);
+function appendNestedReport(report, nested, prefix) {
+  for (const repair of nested.repairs || []) {
+    const suffix = repair.path === '$' ? '' : repair.path.slice(1);
+    noteRepair(report, `${prefix}${suffix}`, repair.message);
+  }
+}
+
+function normalizedProperty(value, state, index, seed, report) {
+  const property = isRecord(value) ? cloneSaveValue(value, {}) : {};
+  if (!isRecord(value)) {
+    noteRepair(report, `$.holdings[${index}].property`, 'missing property record rebuilt from its club state');
+  }
+  property.id = typeof property.id === 'string' && property.id.trim()
+    ? property.id.slice(0, 160)
+    : `recovered-property-${index + 1}`;
+  property.name = typeof property.name === 'string' && property.name.trim()
+    ? property.name.slice(0, 200)
+    : state.clubName;
+  property.blurb = typeof property.blurb === 'string' ? property.blurb.slice(0, 2000) : '';
+  property.size = property.size === 18 ? 18 : 9;
+  property.seed = finiteNumber(property.seed, seed + index + 1, { integer: true, min: 1, max: 2147483647 });
+  property.layout = isRecord(property.layout) ? property.layout : { kind: 'willow' };
+  property.condition = finiteNumber(property.condition, conditionRating(state), { min: 0, max: 100 });
+  property.sickGreens = finiteNumber(property.sickGreens, 0, { integer: true, min: 0, max: 18 });
+  property.diseaseKind = property.diseaseKind === 'brownPatch' ? 'brownPatch' : 'dollarSpot';
+  const counts = memberCounts(state);
+  property.startingMembers = finiteNumber(
+    property.startingMembers,
+    counts.weekday + counts.full + counts.premium,
+    { integer: true, min: 0, max: 1_000_000 },
+  );
+  property.startingReputation = finiteNumber(property.startingReputation, state.club.reputation, { min: 0, max: 100 });
+  property.design = finiteNumber(property.design, courseDesignRating(state.course, state.sections), { min: 0, max: 100 });
+  property.par = finiteNumber(property.par, 0, { integer: true, min: 0, max: 200 });
+  property.yards = finiteNumber(property.yards, 0, { integer: true, min: 0, max: 20_000 });
+  property.estMonthlyNet = finiteNumber(property.estMonthlyNet, 0, { min: -1_000_000_000, max: 1_000_000_000 });
+  // Appraisal walks the full club state, so only pay that cost when an old or
+  // damaged save actually needs the derived fallback. Valid current saves are
+  // the overwhelmingly common load path and already persist trueValue.
+  const trueValueFallback = Number.isFinite(Number(property.trueValue))
+    ? 0
+    : appraiseProperty(state);
+  property.trueValue = finiteNumber(property.trueValue, trueValueFallback, { min: 0, max: 1_000_000_000_000 });
+  property.askingPrice = finiteNumber(property.askingPrice, property.trueValue, { min: 0, max: 1_000_000_000_000 });
+  return property;
+}
+
+function isEmpireEnvelope(data) {
+  return Object.hasOwn(data, 'empireVersion')
+    || Object.hasOwn(data, 'holdings')
+    || Object.hasOwn(data, 'market')
+    || Object.hasOwn(data, 'activeId');
+}
+
+export function deserializeEmpireWithReport(raw) {
+  const data = parseSaveInput(raw, { kind: 'empire save' });
+  if (!isEmpireEnvelope(data)) {
+    const report = createSaveReport('empire', 0, EMPIRE_VERSION);
+    noteMigration(report, 1, 'single-club-envelope');
+    for (const migration of EMPIRE_MIGRATIONS) noteMigration(report, migration.version, migration.name);
+    const nested = deserializeWithReport(data);
+    appendNestedReport(report, nested.report, '$.holdings[0].state');
+    return {
+      empire: legacyEmpireFromState(nested.state),
+      report: finishSaveReport(report),
+    };
+  }
+
+  const persistedVersion = Number.isSafeInteger(data.empireVersion) && data.empireVersion >= 0
+    ? data.empireVersion
+    : 0;
+  if (persistedVersion > EMPIRE_VERSION) {
+    throw new SaveCompatibilityError(
+      `This portfolio uses empire schema ${persistedVersion}, but this build supports through ${EMPIRE_VERSION}.`,
+      { path: '$.empireVersion' },
+    );
+  }
+  const report = createSaveReport('empire', persistedVersion, EMPIRE_VERSION);
+  for (const migration of EMPIRE_MIGRATIONS) {
+    if (migration.version > persistedVersion) noteMigration(report, migration.version, migration.name);
+  }
+
+  const mode = data.mode === 'realistic' ? 'realistic' : 'relaxed';
+  const seed = finiteNumber(data.seed, 1, { integer: true, min: 1, max: 2147483647 });
+  const defaults = newEmpire(mode, seed);
+  const holdings = [];
+  const holdingIds = new Set();
+  const rawHoldings = recordsOnly(data.holdings, report, '$.holdings', { max: 1000 });
+  for (let index = 0; index < rawHoldings.length; index += 1) {
+    const rawHolding = rawHoldings[index];
+    const nested = deserializeWithReport(isRecord(rawHolding.state) ? rawHolding.state : {});
+    appendNestedReport(report, nested.report, `$.holdings[${index}].state`);
+    const property = normalizedProperty(rawHolding.property, nested.state, index, seed, report);
+    if (holdingIds.has(property.id)) {
+      noteRepair(report, `$.holdings[${index}]`, `duplicate property authority ${property.id} removed`);
+      continue;
+    }
+    holdingIds.add(property.id);
+    holdings.push({
+      property,
+      passive: isRecord(rawHolding.passive) ? cloneSaveValue(rawHolding.passive, null) : null,
+      state: nested.state,
+    });
+  }
+
+  const rawMarket = Array.isArray(data.market)
+    ? recordsOnly(data.market, report, '$.market', { max: MARKET.maxListings * 4 })
+    : cloneSaveValue(defaults.market, []);
+  if (!Array.isArray(data.market)) noteRepair(report, '$.market', 'missing market regenerated deterministically');
+  const market = dedupeRecords(
+    rawMarket
+      .map((property) => cloneSaveValue(property, null))
+      .filter((property) => property && typeof property.id === 'string' && property.id.trim())
+      .filter((property) => {
+        if (!holdingIds.has(property.id)) return true;
+        noteRepair(report, '$.market', `owned property ${property.id} removed from listings`);
+        return false;
+      }),
+    (property) => property.id,
+    report,
+    '$.market',
+  );
+
+  const clockMinutes = finiteNumber(data.clockMinutes, DAY_START_MIN, { min: 0, max: Number.MAX_SAFE_INTEGER });
+  const lastMarketDay = finiteNumber(
+    data.lastMarketDay,
+    calendarOf(clockMinutes).dayAbs,
+    { integer: true, min: 0, max: Number.MAX_SAFE_INTEGER },
+  );
+  for (const property of market) {
+    if (!Number.isFinite(property.listedDay)) property.listedDay = lastMarketDay;
+  }
+  const activeId = typeof data.activeId === 'string' && holdingIds.has(data.activeId)
+    ? data.activeId
+    : null;
+  if (data.activeId != null && activeId === null) noteRepair(report, '$.activeId', 'unknown active property cleared');
   const empire = {
-    version: data.empireVersion,
-    mode: data.mode,
-    seed: data.seed,
-    cash: data.cash,
-    market: data.market,
-    holdings: data.holdings.map((h) => ({
-      property: h.property,
-      passive: h.passive ?? null,
-      state: deserialize(h.state),
-    })),
-    activeId: data.activeId,
-    clockMinutes: data.clockMinutes,
+    version: EMPIRE_VERSION,
+    mode,
+    seed,
+    cash: finiteNumber(data.cash, defaults.cash, { min: -1_000_000_000_000, max: 1_000_000_000_000 }),
+    market,
+    holdings,
+    activeId,
+    clockMinutes,
     firstPurchaseDone: !!data.firstPurchaseDone,
-    log: data.log || [],
-    marketRngState: data.marketRngState,
-    lastMarketDay: data.lastMarketDay,
-    marketCondition: data.marketCondition,
-    marketConditionTarget: data.marketConditionTarget,
+    log: recordsOnly(data.log, report, '$.log', { max: 30 }),
+    marketRngState: finiteNumber(data.marketRngState, ((seed ^ 0x9e3779b9) >>> 0) || 1, {
+      integer: true,
+      min: 0,
+      max: 0xffffffff,
+    }),
+    lastMarketDay,
+    marketCondition: finiteNumber(data.marketCondition, 1, { min: MARKET.conditionMin, max: MARKET.conditionMax }),
+    marketConditionTarget: finiteNumber(data.marketConditionTarget, 1, { min: MARKET.conditionMin, max: MARKET.conditionMax }),
   };
-  // saves written before the living market existed: grow the stream, join the
-  // market clock at the save's own world day, start the pricing cycle at par,
-  // and give the frozen listings a fresh (fair) listing date — their expiry
-  // clock starts now, not in arrears
-  if (!Number.isFinite(empire.marketRngState)) {
-    empire.marketRngState = (((empire.seed ?? 1) ^ 0x9e3779b9) >>> 0) || 1;
+
+  for (const holding of empire.holdings) {
+    if (holding.property.id === empire.activeId) {
+      holding.passive = null;
+      holding.state.cash = empire.cash;
+    } else if (!holding.passive) {
+      parkHolding(holding);
+      noteRepair(report, '$.holdings', `missing passive summary rebuilt for ${holding.property.id}`);
+    }
   }
-  if (!Number.isFinite(empire.lastMarketDay)) {
-    empire.lastMarketDay = calendarOf(empire.clockMinutes ?? 0).dayAbs;
-  }
-  if (!Number.isFinite(empire.marketCondition)) empire.marketCondition = 1;
-  if (!Number.isFinite(empire.marketConditionTarget)) empire.marketConditionTarget = 1;
-  for (const p of empire.market) {
-    if (!Number.isFinite(p.listedDay)) p.listedDay = empire.lastMarketDay;
-  }
-  return empire;
+  return { empire, report: finishSaveReport(report) };
+}
+
+export function deserializeEmpire(raw) {
+  return deserializeEmpireWithReport(raw).empire;
 }

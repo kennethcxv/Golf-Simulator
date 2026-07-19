@@ -101,6 +101,7 @@ import {
 } from '../sim/cleaningDebris.js';
 import {
   ensureWet, wetAt, solutionAt, solutionLevel, consumeSolution, dryTick, SOLUTION_MIN,
+  wetGridForRoom,
 } from '../sim/cleaningWet.js';
 import { CLEANING_TOOLS, TOOL_CLASS } from '../data/cleaningTools.js';
 import {
@@ -2970,12 +2971,7 @@ export function makeClubhouse(ctx) {
   // The wet and solution fields are authored at 0.25 yd — far finer than the 13x8 (=104 cell)
   // grime grid they sit over, because a wet stripe you can see the edge of is the whole point of
   // mopping. They are new save fields, so unlike the grime grid they carry no migration debt.
-  const WET_CELL_YD = 0.25;
-  const WET_GRID = {
-    w: Math.ceil(RENO.room.w / WET_CELL_YD),
-    h: Math.ceil(RENO.room.d / WET_CELL_YD),
-    cell: WET_CELL_YD,
-  };
+  const WET_GRID = wetGridForRoom(RENO.room);
   // cleanGrimeAt works in room-CENTRED yards; the wet field is indexed from its corner.
   const toWet = (lx, lz) => ({ x: lx + RENO.room.w / 2, z: lz + RENO.room.d / 2 });
 

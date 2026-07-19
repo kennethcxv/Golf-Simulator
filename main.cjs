@@ -6,7 +6,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const fsp = fs.promises;
+const { createNativeSaveStore } = require('./src/core/nativeSaveStore.cjs');
 
 const DEV = process.argv.includes('--dev');
 if (DEV) {
@@ -22,9 +22,11 @@ function saveDir() {
   return dir;
 }
 
-function keyToFile(key) {
-  const safe = String(key).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
-  return path.join(saveDir(), safe + '.json');
+let store = null;
+
+function saveStore() {
+  if (!store) store = createNativeSaveStore({ dir: saveDir() });
+  return store;
 }
 
 function createWindow() {
@@ -57,31 +59,20 @@ function createWindow() {
 // --- persistence IPC ---------------------------------------------------
 
 ipcMain.handle('fw:save', async (_e, key, json) => {
-  await fsp.writeFile(keyToFile(key), JSON.stringify(json), 'utf8');
-  return true;
+  return saveStore().save(key, json);
 });
 
 ipcMain.handle('fw:load', async (_e, key) => {
-  try {
-    return JSON.parse(await fsp.readFile(keyToFile(key), 'utf8'));
-  } catch {
-    return null;
-  }
+  return saveStore().load(key);
 });
+
+ipcMain.handle('fw:load-status', async (_e, key) => saveStore().loadStatus(key));
 
 ipcMain.handle('fw:delete', async (_e, key) => {
-  try { await fsp.unlink(keyToFile(key)); } catch {}
-  return true;
+  return saveStore().del(key);
 });
 
-ipcMain.handle('fw:list', async () => {
-  try {
-    const files = await fsp.readdir(saveDir());
-    return files.filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5));
-  } catch {
-    return [];
-  }
-});
+ipcMain.handle('fw:list', async () => saveStore().list());
 
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => app.quit());
