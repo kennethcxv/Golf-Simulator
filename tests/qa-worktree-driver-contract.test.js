@@ -8,6 +8,7 @@ const frontDeskLifecycleDriver = fs.readFileSync(
   'tools/qa/simplified-front-desk-lifecycle-acceptance.mjs',
   'utf8',
 );
+const patienceDriver = fs.readFileSync('tools/qa/patience-geometry-churn.js', 'utf8');
 
 test('stock and delivery browser drivers resolve output and runtime URL from the assigned worktree', () => {
   for (const [name, source] of [
@@ -48,6 +49,20 @@ test('front-desk no-show evidence uses the production Tee Times laptop label', (
     /textContent\.trim\(\)\.includes\('Reservations'\)/);
   assert.match(frontDeskLifecycleDriver, /\/no\[\\s-\]\?show\/i\.test\(laptopText\)/,
     'the assertion accepts the player-facing No show status');
+});
+
+test('patience evidence proves real abandonment and resolves URL/output from the worktree', () => {
+  assert.match(patienceDriver, /process\.env\.QA_BASE_URL \|\| 'http:\/\/localhost:8457\/'/);
+  assert.match(patienceDriver, /process\.env\.PATIENCE_QA_ROOT/);
+  for (const proof of [
+    'giveUpHandled',
+    'fixtureHeld.length === 0',
+    "cited?.includes('waitTime')",
+    'lostSales === fixture.lostSalesBefore + 1',
+    'customer-physically-departed.png',
+  ]) {
+    assert.ok(patienceDriver.includes(proof), `missing patience proof: ${proof}`);
+  }
 });
 
 test('delivery visibility evidence supplies the active camera before scene-wide sprite raycasts', () => {
