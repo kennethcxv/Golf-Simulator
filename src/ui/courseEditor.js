@@ -500,14 +500,28 @@ export function makeCourseEditor(app, hooks) {
     return { x0: x - r, y0: y - r, x1: x + r, y1: y + r };
   }
 
+  // The analytic relief sculpt behind a feature — a green's pad, a bunker's
+  // bowl and lip, a pond's bed — blends out past the surface footprint, so the
+  // terrain window has to be wider than the zone window. 4 cells is 32 yd.
+  const RELIEF_PAD_CELLS = 4;
+
   function refreshEditedFeature(kind, beforePts, afterPts) {
     const sc = scene();
+    // covers both the old and the new outline, so dragging a boundary repairs
+    // the terrain it vacated as well as the terrain it now occupies
+    const zoneRect = pointsZoneRect(beforePts, afterPts);
     sc.refreshGround(state(), {
       water: kind === 'water',
       holes: kind === 'green',
       flow: kind === 'green',
       relief: true,
-      zoneRect: pointsZoneRect(beforePts, afterPts),
+      zoneRect,
+      terrainRect: zoneRect ? {
+        x0: zoneRect.x0 - RELIEF_PAD_CELLS,
+        y0: zoneRect.y0 - RELIEF_PAD_CELLS,
+        x1: zoneRect.x1 + RELIEF_PAD_CELLS,
+        y1: zoneRect.y1 + RELIEF_PAD_CELLS,
+      } : null,
     });
     sc.updateTurf(state());
     refreshTop();
@@ -2224,7 +2238,7 @@ export function makeCourseEditor(app, hooks) {
     if (res.ok) {
       clearFeatureSelections();
       clearPathSelection();
-      fullRefresh();
+      fullRefresh(res.rect || null);
       toast(`Undid: ${res.label}`);
     }
   }
@@ -2234,7 +2248,7 @@ export function makeCourseEditor(app, hooks) {
     if (res.ok) {
       clearFeatureSelections();
       clearPathSelection();
-      fullRefresh();
+      fullRefresh(res.rect || null);
       toast(`Redid: ${res.label}`);
     }
   }
@@ -2249,14 +2263,24 @@ export function makeCourseEditor(app, hooks) {
     scene().rebuildTrees();
   }
 
-  function fullRefresh() {
+  function fullRefresh(rect = null) {
     if (selectedPathId != null && !selectedPath()) clearPathSelection();
     // relief: true is required here. Undo/redo/discard can revert a green, tee,
     // bunker or water feature, and on vector courses those live in the cached
     // analytic relief sculpt — without invalidating it the data and the surface
     // colours roll back but the old plateau or bowl stays in the terrain mesh.
+    //
+    // rect is the footprint of the single op being undone or redone, so one
+    // undo no longer rebuilds the whole course (measured 848 ms -> 19.5 ms).
+    // Discard passes none: it reverts every pending op at once, so it has to be
+    // a full refresh. Ops that carry no cells also pass none.
     scene().refreshGround(state(), {
       water: true, objects: true, paths: true, holes: true, flow: true, relief: true,
+      zoneRect: rect,
+      terrainRect: rect ? {
+        x0: rect.x0 - RELIEF_PAD_CELLS, y0: rect.y0 - RELIEF_PAD_CELLS,
+        x1: rect.x1 + RELIEF_PAD_CELLS, y1: rect.y1 + RELIEF_PAD_CELLS,
+      } : null,
     });
     scene().updateTurf(state());
     scene().setEditorFeaturePreview?.(null);
@@ -2342,15 +2366,51 @@ export function makeCourseEditor(app, hooks) {
     };
   }
 
-  // A live terrain stroke used to ask for a whole-course refresh every 80 ms.
-  // Measured at 1,454 ms per call against ~304 ms for the same call carrying a
-  // dirty rect, which is why dragging the terrain brush locked the editor up.
-  // The stroke knows exactly which cells it touched, so it says so.
-  function liveRefreshThrottled(rect = null) {
+  // Grow both dirty rects a stroke carries, in cells:
+  //   rect     — cumulative, for the commit/undo refresh at stroke end
+  //   liveRect — only what changed since the last live refresh
+  // The live refresh must use liveRect. Feeding it the cumulative rect makes
+  // every tick of a long drag re-scope over everything painted so far, so the
+  // work grows with stroke length instead of staying brush-sized.
+  function growStrokeRect(point, r) {
+    if (!stroke) return;
+    for (const key of ['rect', 'liveRect']) {
+      const box = stroke[key];
+      if (!box) {
+        stroke[key] = { x0: point.x - r, y0: point.y - r, x1: point.x + r, y1: point.y + r };
+        continue;
+      }
+      box.x0 = Math.min(box.x0, point.x - r);
+      box.y0 = Math.min(box.y0, point.y - r);
+      box.x1 = Math.max(box.x1, point.x + r);
+      box.y1 = Math.max(box.y1, point.y + r);
+    }
+  }
+
+  function takeLiveRect() {
+    if (!stroke) return null;
+    const box = stroke.liveRect || stroke.rect || null;
+    stroke.liveRect = null;
+    return box;
+  }
+
+  // Terrain only (applyTerrainAt is the sole caller).
+  function liveRefreshThrottled() {
     const now = performance.now();
     if (now - strokeClock > 80) {
       strokeClock = now;
-      scene().refreshGround(state(), rect ? { zoneRect: rect } : {});
+      // zones: false — sculpting moves land, not surfaces, exactly as the
+      // stroke-end refresh already documents. evalPacked never reads elevation,
+      // so the zone/distance field cannot change under a terrain brush.
+      //
+      // This used to pass {}, which defaults zones:true, so every tick of a
+      // drag rebuilt the entire 1920x1280 visual field. Measured: ~1452 ms per
+      // tick, against ~276 ms with the field skipped — ~81% of the cost of
+      // dragging the terrain brush was rebuilding a mask that cannot change.
+      //
+      // terrainRect then scopes the remaining mesh rebuild to the brush, so a
+      // stroke no longer walks all 346,801 vertices per tick either.
+      scene().refreshGround(state(), { zones: false, terrainRect: takeLiveRect() });
     }
   }
 
@@ -2555,7 +2615,7 @@ export function makeCourseEditor(app, hooks) {
         const res = stampTee(state(), session, hole.id, opt.tee.teeKey, point.x, point.y, aim.x, aim.y);
         if (!res.ok) toast(res.reason || 'Cannot build here.', 'warn');
         else {
-          scene().refreshGround(state(), { holes: true, flow: true, relief: true, zoneRect: zr(point.x, point.y, 6) });
+          scene().refreshGround(state(), { holes: true, flow: true, relief: true, zoneRect: zr(point.x, point.y, 6), terrainRect: zr(point.x, point.y, 6 + RELIEF_PAD_CELLS) });
           refreshTop();
           renderToolPanel();
           toast(`${opt.tee.teeKey[0].toUpperCase()}${opt.tee.teeKey.slice(1)} tee built (${formatMoney(res.cost)} pending).`);
@@ -2599,7 +2659,7 @@ export function makeCourseEditor(app, hooks) {
           holeId: hole.id,
         });
         if (res.ok) {
-          scene().refreshGround(state(), { relief: true, holes: true, zoneRect: zr(point.x, point.y, r * 1.8 + 3) });
+          scene().refreshGround(state(), { relief: true, holes: true, zoneRect: zr(point.x, point.y, r * 1.8 + 3), terrainRect: zr(point.x, point.y, r * 1.8 + 3 + RELIEF_PAD_CELLS) });
           refreshTop();
           renderToolPanel();
         } else toast(res.reason || 'The green needs open ground.', 'warn');
@@ -2625,7 +2685,7 @@ export function makeCourseEditor(app, hooks) {
           holeId: hole.id,
         });
         if (res.ok) {
-          scene().refreshGround(state(), { relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3) });
+          scene().refreshGround(state(), { relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3), terrainRect: zr(point.x, point.y, yd2cells(opt.bunker.sizeYd) * 2 + 3 + RELIEF_PAD_CELLS) });
           refreshTop();
           renderToolPanel();
         } else {
@@ -2652,7 +2712,7 @@ export function makeCourseEditor(app, hooks) {
           angle: (opt.water.rot * Math.PI) / 180,
         });
         if (res.ok) {
-          scene().refreshGround(state(), { water: true, relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3) });
+          scene().refreshGround(state(), { water: true, relief: true, zoneRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3), terrainRect: zr(point.x, point.y, yd2cells(opt.water.sizeYd) * 2.4 + 3 + RELIEF_PAD_CELLS) });
           refreshTop();
           renderToolPanel();
         } else {
@@ -2726,19 +2786,10 @@ export function makeCourseEditor(app, hooks) {
         mode: 'smooth', radius: radius * 1.15, strength: 0.24, falloff: opt.terrain.falloff,
       });
     }
-    // Grow the stroke's dirty rect the way the paint tool does. The refresh is
-    // throttled, so the rect has to cover everything sculpted since the last
-    // one — the auto-smooth pass reaches 15% further than the brush itself.
-    const r = radius * 1.15 + 2;
-    if (!stroke.rect) {
-      stroke.rect = { x0: point.x - r, y0: point.y - r, x1: point.x + r, y1: point.y + r };
-    } else {
-      stroke.rect.x0 = Math.min(stroke.rect.x0, point.x - r);
-      stroke.rect.y0 = Math.min(stroke.rect.y0, point.y - r);
-      stroke.rect.x1 = Math.max(stroke.rect.x1, point.x + r);
-      stroke.rect.y1 = Math.max(stroke.rect.y1, point.y + r);
-    }
-    liveRefreshThrottled(stroke.rect);
+    // autoSmooth reaches 1.15x the brush; +2 cells covers the ring of shared
+    // vertices whose normals move even though their own height did not.
+    growStrokeRect(point, radius * 1.15 + 2);
+    liveRefreshThrottled();
   }
 
   function applyPaintAt(g, erase) {
@@ -2746,16 +2797,15 @@ export function makeCourseEditor(app, hooks) {
     const r = yd2cells(opt.paint.radiusYd * 2);
     paintAt(state(), stroke.s, point.x, point.y, erase ? ZONE.ROUGH : opt.paint.zone, { radius: r });
     stroke.erase = erase;
-    // grow the stroke's dirty rect (cells) for visual-field updates
-    stroke.rect = stroke.rect || { x0: point.x - r, y0: point.y - r, x1: point.x + r, y1: point.y + r };
-    stroke.rect.x0 = Math.min(stroke.rect.x0, point.x - r);
-    stroke.rect.y0 = Math.min(stroke.rect.y0, point.y - r);
-    stroke.rect.x1 = Math.max(stroke.rect.x1, point.x + r);
-    stroke.rect.y1 = Math.max(stroke.rect.y1, point.y + r);
+    // grow the stroke's dirty rects (cells) for visual-field updates
+    growStrokeRect(point, r);
     const now = performance.now();
     if (now - strokeClock > 70) {
       strokeClock = now;
-      scene().updateZoneField(state(), stroke.rect);
+      // liveRect, not the cumulative rect: regions updated on an earlier tick
+      // are already correct, and updateVisualFieldRegion re-derives its own
+      // halo, so the non-local part of the distance field stays right.
+      scene().updateZoneField(state(), takeLiveRect());
       scene().updateTurf(state());
     }
   }
@@ -3024,9 +3074,12 @@ export function makeCourseEditor(app, hooks) {
     }
     if (stroke && tool === 'terrain') {
       const res = endTerrainStroke(state(), session, stroke, 'Terrain');
+      // the cumulative rect, not the live one: this single commit refresh has
+      // to cover everything the whole stroke touched
+      const terrainRect = stroke.rect || null;
       stroke = null;
       // sculpting moves land, not surfaces: skip the visual-field recompute
-      scene().refreshGround(state(), { water: true, paths: true, zones: false });
+      scene().refreshGround(state(), { water: true, paths: true, zones: false, terrainRect });
       if (res.ok) refreshTop();
     } else if (stroke && tool === 'paint') {
       const res = endPaintStroke(state(), session, stroke.s, 'Paint');
@@ -3067,10 +3120,18 @@ export function makeCourseEditor(app, hooks) {
       if (res.ok) {
         const xs = drawingPath.map((q) => q.x);
         const ys = drawingPath.map((q) => q.y);
+        const streamRect = {
+          x0: Math.min(...xs) - 3, y0: Math.min(...ys) - 3,
+          x1: Math.max(...xs) + 3, y1: Math.max(...ys) + 3,
+        };
         scene().refreshGround(state(), {
           water: true,
           relief: true,
-          zoneRect: { x0: Math.min(...xs) - 3, y0: Math.min(...ys) - 3, x1: Math.max(...xs) + 3, y1: Math.max(...ys) + 3 },
+          zoneRect: streamRect,
+          terrainRect: {
+            x0: streamRect.x0 - RELIEF_PAD_CELLS, y0: streamRect.y0 - RELIEF_PAD_CELLS,
+            x1: streamRect.x1 + RELIEF_PAD_CELLS, y1: streamRect.y1 + RELIEF_PAD_CELLS,
+          },
         });
         refreshTop();
         renderToolPanel();

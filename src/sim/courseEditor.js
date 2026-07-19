@@ -2021,24 +2021,51 @@ function replayOp(state, session, op) {
   }
 }
 
+// Bounding rect (cells) of the cells an op touched, so undo/redo can scope the
+// renderer refresh instead of rebuilding the course. Ops that carry no cells —
+// object placement, hole settings, pin/tee selection — return null, and the
+// caller falls back to a full refresh.
+export function opCellRect(state, op) {
+  const cells = op?.cells;
+  if (!cells || !cells.length) return null;
+  const w = state.course.w;
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (const cell of cells) {
+    const i = cell.i;
+    if (!Number.isInteger(i)) continue;
+    const x = i % w;
+    const y = (i - x) / w;
+    if (x < x0) x0 = x;
+    if (x > x1) x1 = x;
+    if (y < y0) y0 = y;
+    if (y > y1) y1 = y;
+  }
+  return Number.isFinite(x0) ? { x0, y0, x1, y1 } : null;
+}
+
 export function undo(state, session) {
   const op = session.undo.pop();
   if (!op) return { ok: false };
+  const rect = opCellRect(state, op);
   invertOp(state, session, op);
   session.redo.push(op);
   session.bill = Math.max(0, session.bill - op.cost);
   refreshChangedCells(state, session);
-  return { ok: true, label: op.label };
+  return { ok: true, label: op.label, rect };
 }
 
 export function redo(state, session) {
   const op = session.redo.pop();
   if (!op) return { ok: false };
+  const rect = opCellRect(state, op);
   replayOp(state, session, op);
   session.undo.push(op);
   session.bill += op.cost;
   refreshChangedCells(state, session);
-  return { ok: true, label: op.label };
+  return { ok: true, label: op.label, rect };
 }
 
 // --- apply / discard --------------------------------------------------------------------

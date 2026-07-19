@@ -56,6 +56,7 @@ import {
   collectSceneResources, disposeSceneResources, mergeSceneResources,
 } from './disposeSceneResources.js';
 import { createCourseWaterReflectionGuard } from './courseWaterReflectionGuard.js';
+import { computeHeightfieldNormals } from './terrainNormals.js';
 import { buildCourseBridgeGeometry } from './courseBridgeGeometry.js';
 import {
   buildCourseBridgeSurfaceIndex,
@@ -1409,60 +1410,96 @@ export function makeCourseScene(canvas, state) {
     relief = course.vec ? buildRelief(course, (cx, cy) => rawHeightAtCellCoords(cx, cy) / ELEV_FT_TO_YD) : null;
   }
 
-  // `rect` is in cell coordinates and restricts the height rewrite to the cells
-  // an edit actually touched. Only safe when the analytic relief sculpt has NOT
-  // been invalidated — if that changed, every vertex can move and the caller
-  // must ask for the whole field. Normals are still recomputed across the whole
-  // geometry: outside the rect the inputs are identical, so the result is too.
-  function rebuildTerrainHeights(rect = null) {
+  function terrainHeightAtVertex(vx, vy) {
+    const fx = (vx / SEG_PER_CELL);
+    const fy = (vy / SEG_PER_CELL);
+    if (relief) {
+      // base rolling land (feet) → analytic feature sculpt (feet) → yards
+      const baseFt = rawHeightAtCellCoords(fx, fy) / ELEV_FT_TO_YD;
+      return reliefAt(relief, fx, fy, baseFt) * ELEV_FT_TO_YD + microRelief(fx, fy);
+    }
+    const h = rawHeightAtCellCoords(fx, fy) + microRelief(fx, fy);
+    const wm = waterMaskAtCellCoords(fx, fy);
+    // smoothstep the carve so pond bowls curve into their banks
+    return wm > 0.01 ? h - wm * wm * (3 - 2 * wm) * 2.3 : h;
+  }
+
+  // Delegates to the pure solver in terrainNormals.js, which is unit-tested to
+  // produce bit-identical results for a windowed solve and a full one. That
+  // property is what makes scoped terrain edits seam-free.
+  //
+  // The window must be padded by the caller: a vertex's normal depends on its
+  // neighbours' POSITIONS, so moving a vertex changes the normals one ring out.
+  function recomputeTerrainNormals(vx0, vy0, vx1, vy1) {
+    const nrm = terrainGeo.attributes.normal;
+    computeHeightfieldNormals(
+      heights, vertsX, vertsY, worldW / segsX, worldH / segsY, nrm.array,
+      { vx0, vy0, vx1, vy1 },
+    );
+    nrm.needsUpdate = true;
+  }
+
+  // three uploads the whole buffer when updateRanges is empty, so a scoped edit
+  // must declare its span and a full rebuild must clear any span left behind.
+  function markTerrainAttributeRange(attr, firstVertex, lastVertex, scoped) {
+    attr.clearUpdateRanges();
+    if (scoped) {
+      const start = firstVertex * attr.itemSize;
+      const count = (lastVertex - firstVertex + 1) * attr.itemSize;
+      attr.addUpdateRange(start, count);
+    }
+    attr.needsUpdate = true;
+  }
+
+  // rectCells (course cells) scopes the rebuild to an edited region. Omit it
+  // for a full rebuild. A terrain stroke used to pay the whole 346,801-vertex
+  // loop plus a full computeVertexNormals() on every throttled tick.
+  function rebuildTerrainHeights(rectCells = null) {
     if (course.vec && !relief) rebuildRelief();
     const pos = terrainGeo.attributes.position;
+    const pa = pos.array;
+
     let vx0 = 0;
-    let vx1 = vertsX - 1;
     let vy0 = 0;
+    let vx1 = vertsX - 1;
     let vy1 = vertsY - 1;
-    if (rect) {
-      // two cells of margin: rawHeightAtCellCoords is a bicubic, so an edited
-      // cell moves its neighbours' interpolated height too
-      vx0 = Math.max(0, Math.floor((rect.x0 - 2) * SEG_PER_CELL));
-      vx1 = Math.min(vertsX - 1, Math.ceil((rect.x1 + 2) * SEG_PER_CELL));
-      vy0 = Math.max(0, Math.floor((rect.y0 - 2) * SEG_PER_CELL));
-      vy1 = Math.min(vertsY - 1, Math.ceil((rect.y1 + 2) * SEG_PER_CELL));
-      if (vx0 > vx1 || vy0 > vy1) return;
+    if (rectCells) {
+      vx0 = clamp(Math.floor(rectCells.x0 * SEG_PER_CELL), 0, vertsX - 1);
+      vy0 = clamp(Math.floor(rectCells.y0 * SEG_PER_CELL), 0, vertsY - 1);
+      vx1 = clamp(Math.ceil(rectCells.x1 * SEG_PER_CELL), 0, vertsX - 1);
+      vy1 = clamp(Math.ceil(rectCells.y1 * SEG_PER_CELL), 0, vertsY - 1);
     }
+
     for (let vy = vy0; vy <= vy1; vy++) {
       for (let vx = vx0; vx <= vx1; vx++) {
-        const vi = vy * vertsX + vx;
-        const fx = (vx / SEG_PER_CELL);
-        const fy = (vy / SEG_PER_CELL);
-        let h;
-        if (relief) {
-          // base rolling land (feet) → analytic feature sculpt (feet) → yards
-          const baseFt = rawHeightAtCellCoords(fx, fy) / ELEV_FT_TO_YD;
-          h = reliefAt(relief, fx, fy, baseFt) * ELEV_FT_TO_YD + microRelief(fx, fy);
-        } else {
-          h = rawHeightAtCellCoords(fx, fy) + microRelief(fx, fy);
-          const wm = waterMaskAtCellCoords(fx, fy);
-          // smoothstep the carve so pond bowls curve into their banks
-          if (wm > 0.01) h -= wm * wm * (3 - 2 * wm) * 2.3;
-        }
-        heights[vy * vertsX + vx] = h;
-        pos.setY(vi, h);
+        const h = terrainHeightAtVertex(vx, vy);
+        const i = vy * vertsX + vx;
+        heights[i] = h;
+        pa[i * 3 + 1] = h;
       }
     }
-    pos.needsUpdate = true;
-    terrainGeo.computeVertexNormals();
-    // exaggerate slope shading so gentle golf-course land still reads in the light
-    const nrm = terrainGeo.attributes.normal;
-    for (let i = 0; i < nrm.count; i++) {
-      const nx = nrm.getX(i);
-      const ny = nrm.getY(i) * 0.55;
-      const nz = nrm.getZ(i);
-      const len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
-      nrm.setXYZ(i, nx / len, ny / len, nz / len);
-    }
-    nrm.needsUpdate = true;
-    terrainGeo.computeBoundingSphere();
+    // Upload only the touched span. needsUpdate alone re-sends the whole
+    // 347k-vertex buffer (~4 MB position + ~4 MB normal) to the GPU every tick,
+    // which was the remaining stroke hitch once the CPU work was scoped.
+    // Rows are contiguous in the array, so one range covering first..last
+    // vertex is a few rows rather than the entire mesh.
+    markTerrainAttributeRange(pos, vy0 * vertsX + vx0, vy1 * vertsX + vx1, Boolean(rectCells));
+
+    // normals reach one vertex beyond the moved positions
+    const nvx0 = Math.max(0, vx0 - 1);
+    const nvy0 = Math.max(0, vy0 - 1);
+    const nvx1 = Math.min(vertsX - 1, vx1 + 1);
+    const nvy1 = Math.min(vertsY - 1, vy1 + 1);
+    recomputeTerrainNormals(nvx0, nvy0, nvx1, nvy1);
+    markTerrainAttributeRange(
+      terrainGeo.attributes.normal,
+      nvy0 * vertsX + nvx0, nvy1 * vertsX + nvx1, Boolean(rectCells),
+    );
+
+    // A local sculpt moves land by a few yards inside a 960x640 yd plane, so it
+    // cannot meaningfully change the bounding sphere; recomputing it is a full
+    // pass over every vertex. Full rebuilds still refresh it.
+    if (!rectCells) terrainGeo.computeBoundingSphere();
   }
 
   // ground height lookup in world coords (post-carve)
@@ -2191,14 +2228,23 @@ export function makeCourseScene(canvas, state) {
     node.updateMatrixWorld(true);
     node.traverse((o) => { o.matrixAutoUpdate = false; });
   }
-  function freezeStaticCourse() {
-    freezeStatic(treeGroup);
-    freezeStatic(objectGroup);
-    freezeStatic(pathGroup);
-    freezeStatic(envRing);
-    freezeStatic(horizonLandscape);
-    for (const m of waterMeshes) freezeStatic(m);
-    freezeStatic(terrain);
+  // freezeStatic recursively updates world matrices and walks the whole
+  // subtree, and treeGroup/objectGroup are the largest subtrees in the scene.
+  // Re-freezing them on a refresh that did not rebuild them is pure waste — a
+  // terrain stroke cannot move a tree. Callers pass what they actually rebuilt;
+  // the default stays "everything" so full rebuilds are unchanged.
+  function freezeStaticCourse({
+    trees = true, objects = true, paths = true, env = true, water = true, terrain: terrainToo = true,
+  } = {}) {
+    if (trees) freezeStatic(treeGroup);
+    if (objects) freezeStatic(objectGroup);
+    if (paths) freezeStatic(pathGroup);
+    if (env) {
+      freezeStatic(envRing);
+      freezeStatic(horizonLandscape);
+    }
+    if (water) for (const m of waterMeshes) freezeStatic(m);
+    if (terrainToo) freezeStatic(terrain);
   }
 
   // --- near-camera grass blades ------------------------------------------------
@@ -5793,13 +5839,19 @@ export function makeCourseScene(canvas, state) {
   // the editor's cheap incremental refresh after a stroke: terrain heights +
   // water + paths follow the land; trees/objects only when asked. zoneRect
   // limits the visual-field recompute to the edited cells.
-  function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false, zoneRect = null, zones = true, relief: reReliefsculpt = false } = {}) {
+  function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false, zoneRect = null, zones = true, relief: reReliefsculpt = false, terrainRect = null } = {}) {
     if (reReliefsculpt) relief = null; // a vector feature (green/bunker/water/tee) moved
-    // A dropped relief sculpt can move any vertex, so that case still rewrites
-    // the whole field; a plain terrain stroke only moved what it painted.
-    rebuildTerrainHeights(reReliefsculpt ? null : zoneRect);
+    // terrainRect scopes the mesh rebuild to an edited region, and it is honoured
+    // even alongside a relief invalidation. Dropping and rebuilding the relief
+    // cache re-buckets every analytic feature, but a stamped green or bunker only
+    // CHANGES the sculpt near itself — vertices outside the rect re-evaluate to
+    // the heights they already hold. Callers that move something course-wide
+    // (rebuildAll) pass no rect and still get the full pass.
+    rebuildTerrainHeights(terrainRect);
     if (water) rebuildWater();
-    if (paths || ((water || reReliefsculpt) && course.paths?.some(pathBridgeEnabled))) rebuildPaths();
+    const rebuiltPaths = paths
+      || ((water || reReliefsculpt) && course.paths?.some(pathBridgeEnabled));
+    if (rebuiltPaths) rebuildPaths();
     if (objects) {
       rebuildTrees();
       rebuildObjects();
@@ -5808,7 +5860,11 @@ export function makeCourseScene(canvas, state) {
     if (flow) rebuildFlowField();
     if (zones) updateZoneField(st, zoneRect);
     updateTurf(st);
-    freezeStaticCourse();
+    // Re-freeze only the subtrees this call rebuilt. envRing and
+    // horizonLandscape are never rebuilt here, so they never need it.
+    freezeStaticCourse({
+      trees: objects, objects, paths: Boolean(rebuiltPaths), env: false, water, terrain: true,
+    });
   }
 
   function dispose() {
