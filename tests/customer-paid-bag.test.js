@@ -14,12 +14,23 @@ const registerSource = fs.readFileSync(
   new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
   'utf8',
 );
+const clubhouseSource = fs.readFileSync(
+  new URL('../src/render3d/clubhouse.js', import.meta.url),
+  'utf8',
+);
 
 function registerFunction(name) {
   const start = registerSource.indexOf(`  function ${name}(`);
   assert.notEqual(start, -1, `${name} exists`);
   const end = registerSource.indexOf('\n  function ', start + 1);
   return registerSource.slice(start, end === -1 ? registerSource.length : end);
+}
+
+function clubhouseFunction(name) {
+  const start = clubhouseSource.indexOf(`  function ${name}(`);
+  assert.notEqual(start, -1, `${name} exists`);
+  const end = clubhouseSource.indexOf('\n  function ', start + 1);
+  return clubhouseSource.slice(start, end === -1 ? clubhouseSource.length : end);
 }
 
 test('the customer rig exposes a scale-independent carry grip beside each hand', () => {
@@ -120,12 +131,17 @@ test('the acceptance beat keeps the authored bag handle in the receiving palm', 
   ), 'the bag remains exactly attached to the animated walking palm');
 });
 
-test('handed-off bag cleanup hides the counter copy and retry resets it safely', () => {
+test('handed-off bag cleanup preserves the customer copy and retry resets safely', () => {
   const clearPhysicalTransaction = registerFunction('clearPhysicalTransaction');
   assert.match(
     clearPhysicalTransaction,
-    /if \(resetCounterBag\) resetBagAtCounter\(\);\s*else if \(bagGroup\) bagGroup\.visible = false;/,
-    'finalization hides the handed-off counter bag instead of respawning it',
+    /preserveCustomerBag && bagGroup\?\.userData\.checkoutOwner === 'customer'[\s\S]*bagGroup = null/,
+    'finalization releases the register pointer without hiding the customer-owned bag',
+  );
+  assert.match(
+    clearPhysicalTransaction,
+    /preserveCustomerReceipt && receiptMesh\?\.userData\.checkoutOwner === 'customer'[\s\S]*receiptMesh = null/,
+    'finalization releases the register pointer without disposing the handed receipt',
   );
 
   const retryFulfillmentPresentation = registerFunction('retryFulfillmentPresentation');
@@ -139,4 +155,28 @@ test('handed-off bag cleanup hides the counter copy and retry resets it safely',
     /\bresetCounterBag\b/,
     'retry cannot reference clearPhysicalTransaction\'s out-of-scope option',
   );
+});
+
+test('exactly the physically handed bag and receipt survive the banking boundary', () => {
+  const onCustomerPaid = clubhouseFunction('onCustomerPaid');
+  assert.match(onCustomerPaid, /const handedBag = c\.checkoutHandoffBag \|\| null/,
+    'paid ownership reuses the bag seen reaching the customer');
+  assert.match(onCustomerPaid, /const paidReceipt = !c\.handoffReceipt/,
+    'a handed receipt prevents a duplicate receipt from appearing in the bag');
+  assert.match(onCustomerPaid, /attachPaidBagToCustomer\(c, bag/,
+    'the handed bag transfers to the durable articulated carry root');
+
+  const removeCustomer = clubhouseFunction('removeCustomer');
+  assert.match(removeCustomer, /disposeCustomerHandoffReceipt\(c\)/,
+    'the customer-owned dynamic receipt is released at the single departure funnel');
+});
+
+test('late bag asset readiness cannot mutate a newer transaction carrier', () => {
+  const buildBag = registerFunction('buildBag');
+  assert.match(buildBag, /const builtBag = new THREE\.Group\(\)/,
+    'each async asset request captures its own carrier wrapper');
+  assert.match(buildBag, /if \(bagGroup !== builtBag\) return/,
+    'a superseded wrapper rejects late merchandise callbacks');
+  assert.match(buildBag, /builtBag\.add\(model\)/,
+    'the production model attaches only to its captured wrapper');
 });

@@ -1001,6 +1001,7 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
 
   const scanReadEvidence = await scanAll(page, shot, mode);
   let cashDrawerTravelEvidence = null;
+  let deliveryHandoffEvidence = null;
   if (mode === 'card') await cardRoute(page, shot);
   else cashDrawerTravelEvidence = await cashRoute(page, shot);
   await page.waitForFunction(() => (
@@ -1012,20 +1013,43 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'done';
   }, null, { timeout: 8000 });
-  await page.waitForFunction(() => {
-    const phase = window.__fw.scene3d.clubhouse().register.deliveryPhase();
-    return phase === 'receipt-deliver' || phase === 'bag-deliver';
-  }, null, { timeout: 5000 });
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-customer-hold'
+  ), null, { timeout: 5000 });
   if (mode === 'card' || mode === 'cash') {
+    const receiptHandoff = await page.evaluate(() => (
+      window.__fw.scene3d.clubhouse().register.deliveryPresentation()
+    ));
+    assert(receiptHandoff.phase === 'receipt-customer-hold',
+      `Receipt never reached its customer hold: ${JSON.stringify(receiptHandoff)}.`);
+    assert(receiptHandoff.receiptParentedToCustomer,
+      'Receipt reached the customer without transferring to the authored grip.');
+    assert(receiptHandoff.receiptDistanceToPalm < 0.03,
+      `Receipt missed the customer palm by ${receiptHandoff.receiptDistanceToPalm}.`);
+    assert(!receiptHandoff.cashierHandsVisible,
+      'Cashier hand did not release after customer receipt contact.');
+    await shot('13-receipt-handover.png');
+
     await page.waitForFunction(() => (
       window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'bag-deliver'
+      && window.__fw.scene3d.clubhouse().register.deliveryPresentation().cashierHandsVisible
     ), null, { timeout: 5000 });
-    // The bag phase begins only after Receipt_Strip is parented to the authored
-    // palm grip, giving deterministic contact evidence without freezing a
-    // context-free frame midway through the preceding arc.
-    await shot('13-receipt-handover.png');
-    await page.waitForTimeout(340);
+    await page.waitForTimeout(260);
     await shot('13b-bag-handover.png');
+    await page.waitForFunction(() => (
+      window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'bag-customer-hold'
+    ), null, { timeout: 5000 });
+    const bagHandoff = await page.evaluate(() => (
+      window.__fw.scene3d.clubhouse().register.deliveryPresentation()
+    ));
+    assert(bagHandoff.bagAcceptedByCustomer,
+      'Paid bag reached the customer without an explicit ownership checkpoint.');
+    assert(bagHandoff.bagDistanceToPalm < 0.04,
+      `Paid bag handle missed the customer palm by ${bagHandoff.bagDistanceToPalm}.`);
+    assert(!bagHandoff.cashierHandsVisible,
+      'Cashier hand did not release after bag contact.');
+    await shot('13c-bag-received.png');
+    deliveryHandoffEvidence = { receipt: receiptHandoff, bag: bagHandoff };
   } else {
     await page.waitForTimeout(320);
     await shot('13-receipt-handover.png');
@@ -1062,7 +1086,7 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     // Follow the departing customer with the register mode's normal bounded
     // mouse-look so the paid bag remains in frame instead of being cropped by
     // a camera that keeps staring at the now-empty POS.
-    await page.mouse.move(VIEWPORT.width * 0.12, VIEWPORT.height * 0.50);
+    await page.mouse.move(VIEWPORT.width * 0.02, VIEWPORT.height * 0.50);
     await page.waitForTimeout(220);
     await shot('15-customer-leaving.png');
   } else {
@@ -1089,6 +1113,7 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     evidence,
     scanReadEvidence,
     cashDrawerTravelEvidence,
+    deliveryHandoffEvidence,
     audioVideoCapture,
     console: { errors, pageErrors, failedRequests, nonAbortedFailedRequests: nonAborted },
   };

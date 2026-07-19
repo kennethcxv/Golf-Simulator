@@ -53,7 +53,9 @@ import { createFrontDeskMonitorUi } from './frontDeskMonitorUi.js';
 import {
   billFit, billLayout, clipFillRatio, coinLayout,
 } from './drawerMoneyLayout.js';
-import { cardHandoffPose, cardTerminalPose } from './registerCameraPoses.js';
+import {
+  cardHandoffPose, cardTerminalPose, fulfillmentHandoffPose,
+} from './registerCameraPoses.js';
 import { createScopedBooleanOverride } from './scopedBooleanOverride.js';
 import { suppressInteriorSunShadows } from './interiorShadowPolicy.js';
 
@@ -93,11 +95,14 @@ const REST_Y = COUNTER_TOP + 0.012;
 const SCAN_Y = COUNTER_TOP + 0.13;
 const CARD_TIME = 1.15;
 const RECEIPT_TIME = 1.1;
-const RECEIPT_READY_HOLD = 0.3;
-const RECEIPT_DELIVER_TIME = 0.55;
-const BAG_DELIVER_TIME = 0.6;
+const RECEIPT_READY_HOLD = 0.42;
+const RECEIPT_DELIVER_TIME = 0.72;
+const RECEIPT_CUSTOMER_HOLD = 0.62;
+const BAG_DELIVER_TIME = 0.78;
+const BAG_CUSTOMER_HOLD = 0.78;
 const CARD_STOW_TIME = 0.44;
 const CARD_PICKUP_DELAY = 0.30;
+const RECEIPT_CASHIER_GRIP = new THREE.Vector3(0, 0.018, 0);
 
 // The active register owns these automatic presentation/authorization states.
 // Deliberate player waits are intentionally absent; customer approach, placement,
@@ -600,12 +605,12 @@ export function createRegisterMode(B) {
   let lookTargetPitch = 0;
   let enterTimer = 0;
   // receipt/bag delivery sequencing: null | 'receipt-print' | 'receipt-ready'
-  // | 'receipt-deliver' | 'bag-deliver' | 'released'
+  // | 'receipt-deliver' | 'receipt-customer-hold' | 'bag-deliver'
+  // | 'bag-customer-hold' | 'released'
   let deliveryPhase = null;
   let deliveryTimer = 0;
   let deliveryFrom = null;
   let deliveryTo = null;
-  let bagDeliverFrom = null;
 
   let selectedItem = null;
   let scanDrag = null;
@@ -1135,6 +1140,13 @@ export function createRegisterMode(B) {
     if (grip) return grip;
     const at = customerLocalPosition();
     return new THREE.Vector3(at.x, yOffset, at.z + 0.18);
+  }
+
+  function bagHandlePoint() {
+    if (!bagGroup) return null;
+    root.updateMatrixWorld(true);
+    bagGroup.updateWorldMatrix(true, true);
+    return root.worldToLocal(bagGroup.localToWorld(bagHandoffLocal.clone()));
   }
 
   function customerHandPoint(y = COUNTER_TOP + 0.06) {
@@ -2320,38 +2332,47 @@ export function createRegisterMode(B) {
     if (!bagGroup) return;
     bagGroup.visible = true;
     bagGroup.position.copy(BAG_POS);
+    bagGroup.rotation.set(0, 0, 0);
     bagGroup.scale.setScalar(BAG_COUNTER_SCALE);
   }
 
   function buildBag() {
     if (bagGroup) return;
-    bagGroup = new THREE.Group();
-    bagGroup.name = 'FrontDeskShoppingBag';
-    bagGroup.position.copy(BAG_POS);
-    bagGroup.scale.setScalar(BAG_COUNTER_SCALE);
-    root.add(bagGroup);
+    const builtBag = new THREE.Group();
+    bagGroup = builtBag;
+    builtBag.name = 'FrontDeskShoppingBag';
+    builtBag.position.copy(BAG_POS);
+    builtBag.scale.setScalar(BAG_COUNTER_SCALE);
+    root.add(builtBag);
     const fallback = new THREE.Mesh(
       new THREE.BoxGeometry(0.26, 0.30, 0.17),
       new THREE.MeshStandardMaterial({ color: 0xbda274, roughness: 0.92, metalness: 0.0 }),
     );
     fallback.position.y = 0.15;
     fallback.name = 'BagFallback';
-    bagGroup.add(fallback);
+    fallback.userData.checkoutOwnedFallback = true;
+    builtBag.add(fallback);
     if (merch) {
       merch.onReady(() => {
+        // This callback can resolve after the previous customer has taken their
+        // bag and a new counter wrapper exists. Never graft that late model (or
+        // its anchors) onto a different transaction's carrier.
+        if (bagGroup !== builtBag) return;
         const model = (merch.instantiateKit && merch.instantiateKit('shopping_bag', { scale: 1.0 }))
           || merch.instantiate('checkout_shopping_bag');
         if (!model) return;
-        fallback.visible = false;
+        fallback.removeFromParent();
+        fallback.geometry.dispose();
+        fallback.material.dispose();
         suppressInteriorSunShadows(model);
-        bagGroup.add(model);
+        builtBag.add(model);
         bagContentsNode = model.getObjectByName('ANCHOR_BagContents');
         bagHandoffNode = model.getObjectByName('ANCHOR_BagHandoff')
           || model.getObjectByName('ANCHOR_BagHandleFront');
         if (bagHandoffNode) {
-          bagGroup.updateWorldMatrix(true, true);
+          builtBag.updateWorldMatrix(true, true);
           bagHandoffLocal.copy(
-            bagGroup.worldToLocal(bagHandoffNode.getWorldPosition(new THREE.Vector3())),
+            builtBag.worldToLocal(bagHandoffNode.getWorldPosition(new THREE.Vector3())),
           );
         }
         const drop = model.getObjectByName('ANCHOR_BagDrop');
@@ -2862,7 +2883,11 @@ export function createRegisterMode(B) {
     beginAutomaticReceipt();
   }
 
-  function clearPhysicalTransaction({ resetCounterBag = true } = {}) {
+  function clearPhysicalTransaction({
+    resetCounterBag = true,
+    preserveCustomerBag = false,
+    preserveCustomerReceipt = false,
+  } = {}) {
     drawerPrewarmToken += 1;
     drawerPrewarm = {
       kind: 'checkout-first-use-textures',
@@ -2889,16 +2914,29 @@ export function createRegisterMode(B) {
     cashMotionRefillPending = false;
     if (cardMesh) cardMesh.removeFromParent();
     cardMesh = null;
-    disposeReceiptMesh();
+    if (preserveCustomerReceipt && receiptMesh?.userData.checkoutOwner === 'customer') {
+      receiptMesh = null;
+    } else {
+      if (cust?.handoffReceipt === receiptMesh) cust.handoffReceipt = null;
+      disposeReceiptMesh();
+    }
     receiptTimer = 0;
     autoFulfilled = false;
     deliveryPhase = null;
     deliveryTimer = 0;
     deliveryFrom = null;
     deliveryTo = null;
-    bagDeliverFrom = null;
-    if (resetCounterBag) resetBagAtCounter();
-    else if (bagGroup) bagGroup.visible = false;
+    if (preserveCustomerBag && bagGroup?.userData.checkoutOwner === 'customer') {
+      bagGroup = null;
+      bagContentsNode = null;
+      bagHandoffNode = null;
+    } else if (resetCounterBag) {
+      if (!bagGroup) buildBag();
+      resetBagAtCounter();
+      if (cust) cust.checkoutHandoffBag = null;
+    } else if (bagGroup) {
+      bagGroup.visible = false;
+    }
     selectedItem = null;
     scanDrag = null;
     scanMotion = null;
@@ -4140,6 +4178,7 @@ export function createRegisterMode(B) {
       );
       receiptMesh.name = 'PrintedReceipt';
       receiptMesh.userData.authoredGeometry = !!geometry;
+      receiptMesh.userData.checkoutOwnedReceipt = true;
       root.add(receiptMesh);
       resetToPrinter = true;
     }
@@ -4310,7 +4349,11 @@ export function createRegisterMode(B) {
     // (the till already slid shut with its sound the moment the change was handed
     // over in confirmChange — see the drawerClose there; nothing to close here)
     sfx('checkoutComplete');
-    clearPhysicalTransaction({ resetCounterBag: false });
+    clearPhysicalTransaction({
+      resetCounterBag: false,
+      preserveCustomerBag: true,
+      preserveCustomerReceipt: true,
+    });
     if (finishedCustomer) finishedCustomer.tx = null;
     tx = null;
     cust = null;
@@ -4940,10 +4983,61 @@ export function createRegisterMode(B) {
     if (receiptTimer === 0) finishAutomaticFulfillment();
   }
 
+  function attachReceiptToCustomer() {
+    const grip = customerGripNode('R');
+    if (!receiptMesh || !grip) return false;
+    root.updateMatrixWorld(true);
+    grip.updateWorldMatrix(true, true);
+    grip.attach(receiptMesh);
+    // Receipt_Strip is authored from its bottom edge. Land that edge in the
+    // palm, then let the articulated customer grip own it through departure.
+    receiptMesh.position.set(0, 0, 0);
+    receiptMesh.userData.checkoutOwner = 'customer';
+    if (cust) cust.handoffReceipt = receiptMesh;
+    return true;
+  }
+
+  function beginBagDeliveryOrRelease() {
+    const wantsBag = transactionKind === 'retail' && bagGroup;
+    if (checkoutFlowState() === 'Bagging') {
+      flowTo(
+        'BagHandoff',
+        wantsBag
+          ? 'physical-bag-transfer-started-after-receipt-contact'
+          : 'receipt-only-handoff-ready-for-release',
+      );
+    }
+    if (wantsBag) {
+      poseCustomerForCheckout('ReceiveBag');
+      deliveryPhase = 'bag-deliver';
+      deliveryTimer = BAG_DELIVER_TIME;
+      bagDeliverScaleFrom = bagGroup.scale.x;
+      const handle = bagHandlePoint();
+      bagDeliverAnchorFrom.copy(handle || bagDeliverFrom);
+    } else {
+      if (checkoutFlowState() === 'BagHandoff') {
+        flowTo('CustomerLeaving', 'receipt-only-handoff-reached-customer');
+      }
+      deliveryPhase = 'released';
+      finalizeTimer = 0.28;
+    }
+    drawScreen();
+  }
+
+  function holdBagAtCustomer() {
+    if (!bagGroup) return false;
+    const to = customerAnchor(COUNTER_TOP + 0.10, 'L');
+    bagGroup.rotation.set(0.035, 0.16, -0.055);
+    bagGroup.position.copy(to);
+    bagGroup.updateWorldMatrix(true, true);
+    const anchorAt = bagHandlePoint();
+    if (anchorAt) bagGroup.position.add(to).sub(anchorAt);
+    return true;
+  }
+
   // The delivery choreography that runs after payment and printing succeed:
-  //   receipt-print → receipt-ready (short pause at the printer)
-  //   → receipt-deliver (a clean arc to the customer, who now "holds" it)
-  //   → bag-deliver (retail only: the branded bag slides across the counter)
+  //   receipt-print → cashier pickup → customer receipt hold
+  //   → cashier bag transfer → customer bag hold
   //   → released (finalizeTimer banks the sale and the customer leaves).
   function updateDelivery(dt) {
     if (!tx || !deliveryPhase || deliveryPhase === 'released') return;
@@ -4951,10 +5045,11 @@ export function createRegisterMode(B) {
     deliveryTimer = Math.max(0, deliveryTimer - dt);
     if (deliveryPhase === 'receipt-ready') {
       if (deliveryTimer === 0 && receiptMesh) {
+        poseCustomerForCheckout('Receive');
         deliveryPhase = 'receipt-deliver';
         deliveryTimer = RECEIPT_DELIVER_TIME;
         deliveryFrom = receiptMesh.position.clone();
-        deliveryTo = customerAnchor(1.18);
+        deliveryTo = customerAnchor(1.18, 'R');
       }
       return;
     }
@@ -4968,7 +5063,7 @@ export function createRegisterMode(B) {
         // a real hand-over arc: up out of the printer, OVER the register gear, down to
         // the customer — a quadratic bezier whose apex clears the tallest thing between
         // the slot and the hand (the straight lerp used to cut through the housing)
-        const apexY = Math.max(deliveryFrom.y, deliveryTo.y) + 0.34;
+        const apexY = Math.max(deliveryFrom.y, deliveryTo.y) + 0.28;
         const inv = 1 - eased;
         const midX = (deliveryFrom.x + deliveryTo.x) / 2;
         const midZ = (deliveryFrom.z + deliveryTo.z) / 2;
@@ -4982,46 +5077,15 @@ export function createRegisterMode(B) {
         receiptMesh.rotation.z = -eased * 0.28;
       }
       if (deliveryTimer === 0) {
-        // Accepted: keep the paper visibly in their hand through the bag
-        // transfer. Reparenting to the authored grip preserves its world pose
-        // while making the receipt follow the character's acceptance motion.
-        const char = cust && cust.mesh && cust.mesh.userData && cust.mesh.userData.char;
-        const grip = char && typeof char.carryGrip === 'function' ? char.carryGrip('R') : null;
-        if (receiptMesh && grip) {
-          root.updateMatrixWorld(true);
-          grip.updateWorldMatrix(true, true);
-          grip.attach(receiptMesh);
-          // Receipt_Strip is authored from its bottom edge. Land that edge in
-          // the palm instead of preserving the final arc position a hand-width
-          // away; attach() still preserves the readable world orientation.
-          receiptMesh.position.set(0, 0, 0);
-        }
-        const wantsBag = transactionKind === 'retail' && bagGroup;
-        if (checkoutFlowState() === 'Bagging') {
-          flowTo(
-            'BagHandoff',
-            wantsBag
-              ? 'physical-bag-transfer-started'
-              : 'receipt-only-handoff-ready-for-release',
-          );
-        }
-        if (wantsBag) {
-          deliveryPhase = 'bag-deliver';
-          deliveryTimer = BAG_DELIVER_TIME;
-          bagDeliverFrom = bagGroup.position.clone();
-          bagDeliverScaleFrom = bagGroup.scale.x;
-          bagDeliverAnchorFrom.copy(bagDeliverFrom)
-            .addScaledVector(bagHandoffLocal, bagGroup.scale.x);
-          sfx('bagHandoff');
-        } else {
-          if (checkoutFlowState() === 'BagHandoff') {
-            flowTo('CustomerLeaving', 'receipt-only-handoff-reached-customer');
-          }
-          deliveryPhase = 'released';
-          finalizeTimer = 0.2;
-        }
+        attachReceiptToCustomer();
+        deliveryPhase = 'receipt-customer-hold';
+        deliveryTimer = RECEIPT_CUSTOMER_HOLD;
         drawScreen();
       }
+      return;
+    }
+    if (deliveryPhase === 'receipt-customer-hold') {
+      if (deliveryTimer === 0) beginBagDeliveryOrRelease();
       return;
     }
     if (deliveryPhase === 'bag-deliver') {
@@ -5029,27 +5093,33 @@ export function createRegisterMode(B) {
         const t = 1 - deliveryTimer / BAG_DELIVER_TIME;
         const eased = THREE.MathUtils.smoothstep(t, 0, 1);
         const to = customerAnchor(COUNTER_TOP + 0.10, 'L');
-        const scale = THREE.MathUtils.lerp(
-          bagDeliverScaleFrom,
-          bagDeliverScaleFrom * 0.86,
-          eased,
-        );
         bagDeliverAnchorAt.lerpVectors(bagDeliverAnchorFrom, to, eased);
-        bagDeliverAnchorAt.y += Math.sin(t * Math.PI) * 0.16;
-        bagGroup.scale.setScalar(scale);
+        bagDeliverAnchorAt.y += Math.sin(t * Math.PI) * 0.14;
+        bagGroup.scale.setScalar(bagDeliverScaleFrom);
         // Drive the authored handle socket—not the bag's floor origin—to the
         // hand. At t=1 this is exact, so the transfer has visible contact.
         bagGroup.position.copy(bagDeliverAnchorAt)
-          .addScaledVector(bagHandoffLocal, -scale);
+          .addScaledVector(bagHandoffLocal, -bagDeliverScaleFrom);
+        bagGroup.rotation.set(0.035 * eased, 0.16 * eased, -0.055 * eased);
       }
       if (deliveryTimer === 0) {
-        // Retain the handed bag during the short exact-once finalize delay;
-        // clearPhysicalTransaction hides it only after the paid copy attaches.
+        holdBagAtCustomer();
+        if (cust) cust.checkoutHandoffBag = bagGroup;
+        deliveryPhase = 'bag-customer-hold';
+        deliveryTimer = BAG_CUSTOMER_HOLD;
+        sfx('bagHandoff');
+        drawScreen();
+      }
+      return;
+    }
+    if (deliveryPhase === 'bag-customer-hold') {
+      holdBagAtCustomer();
+      if (deliveryTimer === 0) {
         if (checkoutFlowState() === 'BagHandoff') {
-          flowTo('CustomerLeaving', 'physical-bag-reached-customer');
+          flowTo('CustomerLeaving', 'customer-held-bag-acceptance-beat-complete');
         }
         deliveryPhase = 'released';
-        finalizeTimer = 0.2;
+        finalizeTimer = 0.28;
         drawScreen();
       }
     }
@@ -5134,7 +5204,14 @@ export function createRegisterMode(B) {
     let leftTarget = null;
     let pose = 'idle';
 
-    if (active && scanMotion?.mesh) {
+    if (active && receiptMesh
+        && ['receipt-ready', 'receipt-deliver'].includes(deliveryPhase)) {
+      rightTarget = cashierTargetFor(receiptMesh, RECEIPT_CASHIER_GRIP);
+      pose = deliveryPhase === 'receipt-ready' ? 'collect-receipt' : 'add-receipt';
+    } else if (active && bagGroup && deliveryPhase === 'bag-deliver') {
+      leftTarget = bagHandlePoint();
+      pose = 'hand-bag';
+    } else if (active && scanMotion?.mesh) {
       const primary = scanMotion.mesh.userData.gripPrimary || scanMotion.mesh;
       const secondary = scanMotion.mesh.userData.gripSecondary || null;
       rightTarget = cashierTargetFor(primary);
@@ -5196,6 +5273,7 @@ export function createRegisterMode(B) {
   // Which preset the current checkout state deserves. Workspaces map directly;
   // the monitor workspace splits by what the player is actually doing there.
   function poseKey() {
+    if (deliveryPhase && deliveryPhase !== 'released') return 'fulfillment';
     if (workspace === 'scan') return 'scan';
     if (workspace === 'card') {
       // Frame the CUSTOMER while the card waits in their outstretched hand. The
@@ -5217,6 +5295,10 @@ export function createRegisterMode(B) {
   // customer and entry closes in on the reader at its fixed counter station.
   // All other states keep their static presets.
   function dynamicPose(key) {
+    if (key === 'fulfillment') {
+      const p = fulfillmentHandoffPose(customerLocalPosition(), REGISTER.printer, COUNTER_TOP);
+      return { pose: poseBetween(p.eye, p.look), fov: p.fov };
+    }
     if (key === 'cardTake') {
       const p = cardHandoffPose(customerLocalPosition(), COUNTER_TOP);
       return { pose: poseBetween(p.eye, p.look), fov: p.fov };
@@ -5515,6 +5597,28 @@ export function createRegisterMode(B) {
         && cashHandoffBundle.parent !== root),
     };
   };
+  const deliveryPresentation = () => {
+    const receiptPosition = cashierTargetFor(receiptMesh);
+    const receiptTarget = cust ? customerGripPoint('R') : null;
+    const bagPosition = bagHandlePoint();
+    const bagTarget = cust ? customerGripPoint('L') : null;
+    return {
+      active: !!deliveryPhase && deliveryPhase !== 'released',
+      phase: deliveryPhase,
+      holdRemaining: deliveryTimer,
+      receiptPosition: receiptPosition ? receiptPosition.toArray() : null,
+      receiptTarget: receiptTarget ? receiptTarget.toArray() : null,
+      receiptDistanceToPalm: receiptPosition && receiptTarget
+        ? receiptPosition.distanceTo(receiptTarget) : null,
+      receiptParentedToCustomer: !!(receiptMesh
+        && receiptMesh.parent === customerGripNode('R')),
+      bagHandlePosition: bagPosition ? bagPosition.toArray() : null,
+      bagTarget: bagTarget ? bagTarget.toArray() : null,
+      bagDistanceToPalm: bagPosition && bagTarget ? bagPosition.distanceTo(bagTarget) : null,
+      bagAcceptedByCustomer: !!(bagGroup && cust?.checkoutHandoffBag === bagGroup),
+      cashierHandsVisible: cashierHands.root.visible,
+    };
+  };
 
   return {
     simplified: true,
@@ -5544,6 +5648,7 @@ export function createRegisterMode(B) {
     scanPresentation,
     scanAlignment,
     cashHandoffPresentation,
+    deliveryPresentation,
     drawerPrewarmStatus: () => ({ ...drawerPrewarm }),
     cashGpuPrewarmStatus,
     waitForCashGpuPrewarmRepresentatives,

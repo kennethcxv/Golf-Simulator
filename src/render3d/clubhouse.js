@@ -802,6 +802,21 @@ export function makeClubhouse(ctx) {
     return carry;
   }
 
+  function disposeCustomerHandoffReceipt(c) {
+    const receipt = c?.handoffReceipt;
+    if (!receipt) return false;
+    receipt.removeFromParent();
+    if (receipt.userData?.checkoutOwnedReceipt && receipt.geometry) receipt.geometry.dispose();
+    const materials = Array.isArray(receipt.material) ? receipt.material : [receipt.material];
+    for (const material of new Set(materials)) {
+      if (!material || !receipt.userData?.checkoutOwnedReceipt) continue;
+      if (material.map) material.map.dispose();
+      material.dispose();
+    }
+    c.handoffReceipt = null;
+    return true;
+  }
+
   // The sale banked. registerMode calls this through cust.onPaid, because IT owns the
   // money and the goods, and clubhouse.js owns the person.
   function onCustomerPaid(c, transaction = null) {
@@ -825,12 +840,14 @@ export function makeClubhouse(ctx) {
     // This keeps unpaid props at the counter while ensuring paid goods remain
     // visibly theirs through the acceptance beat and walk out.
     // a branded carrier into their hand — they walk out with it
-    const kitBag = merch?.instantiateKit
+    const handedBag = c.checkoutHandoffBag || null;
+    const kitBag = !handedBag && merch?.instantiateKit
       ? merch.instantiateKit('shopping_bag', { scale: 0.86 })
       : null;
-    const legacyBag = !kitBag && merch ? merch.instantiate('checkout_shopping_bag') : null;
-    const bag = kitBag || legacyBag || new THREE.Group();
-    const productionBag = !!(kitBag || legacyBag);
+    const legacyBag = !handedBag && !kitBag && merch
+      ? merch.instantiate('checkout_shopping_bag') : null;
+    const bag = handedBag || kitBag || legacyBag || new THREE.Group();
+    const productionBag = !!(handedBag || kitBag || legacyBag);
     if (!productionBag) {
       const body = new THREE.Mesh(
         new THREE.BoxGeometry(0.2, 0.26, 0.13),
@@ -843,7 +860,7 @@ export function makeClubhouse(ctx) {
       // and readable as the object the customer owns in the departure shot.
       bag.scale.setScalar(0.78);
     }
-    const paidReceipt = merch && merch.instantiateKit
+    const paidReceipt = !c.handoffReceipt && merch && merch.instantiateKit
       ? merch.instantiateKit('loose_receipt', { scale: 0.78 })
       : null;
     if (paidReceipt) {
@@ -866,6 +883,7 @@ export function makeClubhouse(ctx) {
     c.bagAcceptanceHold = PAID_BAG_ACCEPTANCE_HOLD_SEC;
     c.bagAcceptanceYaw = acceptanceYaw;
     attachPaidBagToCustomer(c, bag, { productionBag, carryTarget });
+    c.checkoutHandoffBag = null;
     attachOversizePurchaseVisuals(c, transaction);
     // Preserve the orientation established by the physical handoff camera for the
     // short ownership beat. Turning toward the scanner here made the customer and
@@ -5720,6 +5738,8 @@ export function makeClubhouse(ctx) {
       bagMesh: null,
       bagCarryRoot: null,
       bagCarryTarget: null,
+      checkoutHandoffBag: null,
+      handoffReceipt: null,
       bagAcceptanceHold: 0,
       bagAcceptanceFace: null,
       bagAcceptanceYaw: null,
@@ -6242,6 +6262,7 @@ export function makeClubhouse(ctx) {
       c.oversizeCarryRoot.removeFromParent();
       c.oversizeCarryRoot = null;
     }
+    disposeCustomerHandoffReceipt(c);
 
     // Character resources are captured by makeCharacter before any shared item
     // proxy or paid-bag GLB is parented beneath it, so this cannot evict cached
@@ -7205,6 +7226,7 @@ export function makeClubhouse(ctx) {
       scanPresentation: () => register.scanPresentation(),
       scanAlignment: () => register.scanAlignment(),
       cashHandoffPresentation: () => register.cashHandoffPresentation(),
+      deliveryPresentation: () => register.deliveryPresentation(),
       drawerPrewarmStatus: () => register.drawerPrewarmStatus(),
       cashGpuPrewarmStatus: () => register.cashGpuPrewarmStatus(),
       waitForCashGpuPrewarmRepresentatives: (timeoutMs) => (
