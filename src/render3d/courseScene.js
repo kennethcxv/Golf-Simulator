@@ -29,7 +29,7 @@ import { makeCameraRig } from './cameraRig.js';
 import { makeCharacter } from './characterAsset.js';
 import { clubhouseInteriorGtaoExcludedAt, makeClubhouse } from './clubhouse.js';
 import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture, makeAsphaltTexture } from './proceduralTextures.js';
-import { applyMouseLook } from './mouseLook.js';
+import { applyMouseLook, setFirstPersonOrientation } from './mouseLook.js';
 import {
   makeVisualField,
   makeSurfaceDistanceField,
@@ -68,6 +68,12 @@ import {
   floraLodChoice,
   floraLodNeedsRefresh,
 } from './floraLod.js';
+import { attachSocket, socketWorld } from './toolSockets.js';
+import { buildToolViewmodels } from './toolViewmodel.js';
+import { CLEANING_TOOLS } from '../data/cleaningTools.js';
+
+// tools worked against the boards; resolved once rather than filtered every frame
+const FLOOR_ANCHORED_TOOLS = Object.values(CLEANING_TOOLS).filter((t) => t.floorAnchored).map((t) => t.id);
 
 const ELEV_FT_TO_YD = (1 / 3) * 1.5; // real feet→yards with 1.5x readability exaggeration
 const METERS_TO_YARDS = 1.0936133;
@@ -3694,10 +3700,32 @@ export function makeCourseScene(canvas, state) {
   // the grip poses in fpHands.GRIPS are in the tool's own frame and a new tool declares its grip
   // rather than needing its own pair of hands modelled.
   const fpHands = makeFpHands();
+  // reused: the nozzle is resolved every frame the trigger is down
+  const _washNozzle = new THREE.Vector3();
+  const _toolContact = new THREE.Vector3();
+  let toolHintClock = 0;
+  // The cleaning tools build themselves from src/data/cleaningTools.js — geometry, sockets and
+  // placement all come from the registry, so adding a mop is a registry entry rather than another
+  // hand-wired block down here. The groundskeeping tools and the box cutter are still authored
+  // below; the vacuum's registry build replaces the two-box wand that stood in for it.
+  const toolViewmodels = buildToolViewmodels();
+  // The asset pipeline builds authored first-person viewmodels for the cleaning kit, and nothing
+  // was loading them — finished geometry that never reached the screen. Adopt them in the
+  // background: the procedural tools above are already usable, so equipping never waits on I/O,
+  // and each authored mesh (with its own sockets) replaces its stand-in as it lands.
+  let toolViewmodelsAuthored = null;
+  toolViewmodels.adoptAuthored(new GLTFLoader()).then((r) => { toolViewmodelsAuthored = r; });
   const heldGroups = {
     hose: new THREE.Group(), divot: new THREE.Group(), rake: new THREE.Group(),
-    vacuum: new THREE.Group(), washer: new THREE.Group(), boxcutter: new THREE.Group(),
+    washer: new THREE.Group(), boxcutter: new THREE.Group(),
+    ...toolViewmodels.groups,
   };
+  // the washer's geometry is authored below, so keep the empty group rather than the registry's
+  // The washer's lance is authored below rather than from the registry, so discard the
+  // registry's stand-in group and name the real one — several tools now carry a socket called
+  // SOCKET_nozzle, so anything looking for the washer's must be able to scope its search.
+  heldGroups.washer = heldGroups.washer.name === 'Tool_washer' ? new THREE.Group() : heldGroups.washer;
+  heldGroups.washer.name = 'HeldWasher';
   for (const g of Object.values(heldGroups)) {
     g.visible = false;
     heldRoot.add(g);
@@ -3731,25 +3759,21 @@ export function makeCourseScene(canvas, state) {
       new THREE.MeshStandardMaterial({ color: 0x23262a, roughness: 0.9 }),
     );
     heldGroups.washer.add(lance, body, handle, trigger, tip, hoseMesh);
+    // The water leaves the far FACE of the fan tip, not its centre: the tip is 9 cm long, centred
+    // at (0, 0.075, -0.7), and its axis is the lance's own -0.16 rad droop. Half its length along
+    // that axis is the actual orifice. The socket is parented to the tool, so it inherits the gait
+    // bob, the sway and the equip ease for free — which is the whole point of it existing.
+    attachSocket(heldGroups.washer, 'nozzle', [0, 0.0678, -0.7444], [-0.16, 0, 0]);
     // brought in from the frame edge once it had hands on it: a two-handed tool has to be far
     // enough into shot that you can see somebody holding it
     heldGroups.washer.position.set(0.24, -0.34, -0.60);
     heldGroups.washer.rotation.set(0.06, -0.13, 0);
   }
   {
-    // the shop vacuum wand (procedural — same one the old shop scene carried)
-    const wandBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.035, 0.045, 0.6, 8),
-      new THREE.MeshStandardMaterial({ color: 0x3a3d40, roughness: 0.6 }),
-    );
-    wandBody.rotation.x = Math.PI / 2 - 0.22;
-    const wandHead = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.06, 0.12),
-      new THREE.MeshStandardMaterial({ color: 0xc23327, roughness: 0.55 }),
-    );
-    wandHead.position.set(0, -0.09, -0.32);
-    heldGroups.vacuum.add(wandBody, wandHead);
-    heldGroups.vacuum.position.set(0.34, -0.42, -0.7);
+    // The vacuum used to be two boxes on a stick built right here — a grey cylinder and a red
+    // slab, with no intake to speak of. It now comes from the registry with a proper chrome wand,
+    // a wide floor head with a bristle strip, a corrugated hose, and a SOCKET_nozzle at the
+    // intake mouth so suction starts where the head actually is.
   }
   {
     // the box cutter: a stubby retractable utility knife. Yellow body, a short angled blade — read
@@ -3968,12 +3992,16 @@ export function makeCourseScene(canvas, state) {
     // gait-synced bob: strong under way, a slow breathe at rest
     bobPhase += dt * (walkMoving ? 8.7 : 1.6); // 8.7 = the characters' stride rate
     const sway = walkMoving ? 1 : 0.25;
+    // Recoil belongs to the RIG, not to the hands: the hands are parented into the tool group so
+    // their grip stays in the tool's frame, and writing the kick to them slid them along the lance
+    // instead of shoving the lance back. fpHands reports the offset; the rig applies it.
+    const kickBack = fpHands.rigOffset;
     heldRoot.position.set(
-      Math.cos(bobPhase * 0.5) * 0.01 * sway,
+      Math.cos(bobPhase * 0.5) * 0.01 * sway + kickBack.jitterX,
       -0.42 * (1 - k) + Math.sin(bobPhase) * 0.014 * sway,
-      0,
+      kickBack.back,
     );
-    heldRoot.rotation.x = 0.45 * (1 - k);
+    heldRoot.rotation.x = 0.45 * (1 - k) + kickBack.pitch;
     heldRoot.rotation.z = Math.sin(bobPhase * 0.5) * 0.012 * sway;
   }
 
@@ -4590,12 +4618,14 @@ export function makeCourseScene(canvas, state) {
           gy + walk.eye + (p.y - gy - walk.eye) * fb,
           walk.z + (p.z - walk.z) * fb,
         );
-        camera.rotation.order = 'YXZ';
         let dy = p.yaw - walk.yaw;
         while (dy > Math.PI) dy -= Math.PI * 2;
         while (dy < -Math.PI) dy += Math.PI * 2;
-        camera.rotation.y = walk.yaw + dy * fb;
-        camera.rotation.x = walk.pitch + (p.pitch - walk.pitch) * fb;
+        setFirstPersonOrientation(
+          camera,
+          walk.yaw + dy * fb,
+          walk.pitch + (p.pitch - walk.pitch) * fb,
+        );
       }
       if (walkFocusPose) {
         walkFocus = null; // no prompts while seated at the screen
@@ -4697,9 +4727,7 @@ export function makeCourseScene(canvas, state) {
     const groundY = floorY !== null && floorY !== undefined ? floorY : walkSurfaceHeightAt(walk.x, walk.z);
     if (mb <= 0.001) {
       camera.position.set(walk.x, groundY + walk.eye, walk.z);
-      camera.rotation.order = 'YXZ';
-      camera.rotation.y = walk.yaw;
-      camera.rotation.x = walk.pitch;
+      setFirstPersonOrientation(camera, walk.yaw, walk.pitch);
     } else {
       const cosP = Math.cos(walk.pitch);
       const fpx = walk.x;
@@ -4748,9 +4776,11 @@ export function makeCourseScene(canvas, state) {
             washHintClock = 4;
             if (walkHooks.toast) walkHooks.toast('The water is running straight off it — this needs soap first (hold the right button).', 'warn');
           }
-          // The stream starts at the TIP of the lance, not at the grip — begin it at the grip and
-          // the cone is drawn straight over the hands holding it.
-          const nozzle = camera.localToWorld(new THREE.Vector3(0.24, -0.24, -1.25));
+          // The stream starts at the lance tip. This used to be a camera-local constant that
+          // approximated the tip while the player stood still — it ignored heldRoot, so during the
+          // equip ease the water appeared up to 42 cm below the nozzle it was supposedly leaving.
+          // Reading the socket makes it right by construction instead of right by tuning.
+          const nozzle = socketWorld(heldGroups.washer, 'nozzle', _washNozzle);
           clubhouseApi.washJet(nozzle, hit.point, true, dt);
         }
       }
@@ -4762,11 +4792,50 @@ export function makeCourseScene(canvas, state) {
 
     // hold-to-use: each tool writes through its hook, with the same live
     // texture + particle feedback loop the hose established
-    if (walkSpraying && walkTool === 'vacuum' && !cart.mounted) {
-      // the vacuum cleans the shop floor at a continuous world point, not a turf cell
-      const ax = walk.x - Math.sin(walk.yaw) * 1.5;
-      const az = walk.z - Math.cos(walk.yaw) * 1.5;
-      if (clubhouseApi && clubhouseApi.isInside(ax, az)) clubhouseApi.vacuumAt(ax, az, dt);
+    if (toolHintClock > 0) toolHintClock -= dt;
+
+    // FLOOR TOOLS HOLD A FIXED ANGLE TO THE WORLD, NOT TO THE CAMERA.
+    //
+    // A mop, broom, dustpan and vacuum head are parented to the camera, so left alone they pitch
+    // with it and the head swings into the air the moment you look up. The first fix cancelled the
+    // camera pitch, which was worse in a subtler way: it held the tool LEVEL, so a head 1.8 yd
+    // ahead sat at eye height instead of on the boards.
+    //
+    // What a held broom actually does is keep a constant downward angle — hands at the waist, head
+    // on the floor a stride and a half ahead — regardless of where the player is looking. So the
+    // tool declares its world pitch and we solve the local rotation that preserves it. Look at the
+    // horizon and the head correctly swings below the frame; look down to work and it is there.
+    for (const id of FLOOR_ANCHORED_TOOLS) {
+      const g = heldGroups[id];
+      if (!g || !g.visible) continue;
+      g.rotation.x = CLEANING_TOOLS[id].worldPitch - walk.pitch;
+    }
+    if (walkSpraying && CLEANING_TOOLS[walkTool] && !CLEANING_TOOLS[walkTool].external
+      && !cart.mounted && clubhouseApi && clubhouseApi.cleanWithTool) {
+      // Every cleaning tool works at the point ON THE TOOL — the contact pad under a mop head, the
+      // intake mouth of the vacuum, the orifice of the spray bottle — resolved from the socket the
+      // registry authored. The old vacuum projected a point 1.5 yd in front of the player's feet
+      // and cleaned in a circle around it, which is why it scrubbed through counters and walls.
+      const def = CLEANING_TOOLS[walkTool];
+      const group = heldGroups[walkTool];
+      const socketName = def.sockets.contact ? 'contact' : 'nozzle';
+      if (group && group.visible) {
+        socketWorld(group, socketName, _toolContact);
+        // the sweep direction is the way the player is facing, flattened onto the floor
+        const dirX = -Math.sin(walk.yaw);
+        const dirZ = -Math.cos(walk.yaw);
+        if (clubhouseApi.isInside(_toolContact.x, _toolContact.z)) {
+          const res = clubhouseApi.cleanWithTool(
+            walkTool, _toolContact.x, _toolContact.z, dirX, dirZ, dt,
+          );
+          if (res.blocked && toolHintClock <= 0) {
+            toolHintClock = 4;
+            if (walkHooks.toast) {
+              walkHooks.toast('Nothing to wipe up yet — spray the surface first.', 'warn');
+            }
+          }
+        }
+      }
     } else if (walkSpraying && walkTool && walkTool !== 'washer' && walkTool !== 'boxcutter' && !cart.mounted) {
       const useHook = { hose: walkHooks.waterAt, divot: walkHooks.repairAt, rake: walkHooks.rakeAt }[walkTool];
       const aim = walkAimCell(3.0);
