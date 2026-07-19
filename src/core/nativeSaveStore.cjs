@@ -24,6 +24,16 @@ function errorInfo(error) {
   };
 }
 
+function parseStoredRecord(raw) {
+  const value = JSON.parse(raw);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    const error = new TypeError('Save data root must be an object.');
+    error.code = 'SAVE_ROOT_INVALID';
+    throw error;
+  }
+  return value;
+}
+
 function createNativeSaveStore({ dir }) {
   if (!dir || typeof dir !== 'string') throw new TypeError('A native save directory is required.');
   let nonce = 0;
@@ -41,7 +51,7 @@ function createNativeSaveStore({ dir }) {
   async function readCandidate(file) {
     try {
       const raw = await fsp.readFile(file, 'utf8');
-      return { ok: true, missing: false, raw, value: JSON.parse(raw), error: null };
+      return { ok: true, missing: false, raw, value: parseStoredRecord(raw), error: null };
     } catch (error) {
       return {
         ok: false,
@@ -115,7 +125,7 @@ function createNativeSaveStore({ dir }) {
     const text = JSON.stringify(value);
     if (text === undefined) throw new TypeError('Save data must be JSON-serializable.');
     // Verify the exact bytes before they can displace a known-good primary.
-    JSON.parse(text);
+    parseStoredRecord(text);
     await ensureDir();
     const files = pathsFor(key);
     const current = await readCandidate(files.primary);

@@ -47,6 +47,37 @@ test('an interrupted replacement with no primary resumes from backup', async () 
   });
 });
 
+test('native recovery can inspect a backup without repairing the primary', async () => {
+  await withStore(async (store) => {
+    await store.save('autosave', { empireVersion: 999 });
+    const files = store.pathsFor('autosave');
+    await fs.rename(files.primary, files.backup);
+    await fs.writeFile(files.primary, '{broken-json', 'utf8');
+
+    const status = await store.loadStatus('autosave', { repair: false });
+    assert.deepEqual(status.value, { empireVersion: 999 });
+    assert.equal(status.recovered, true);
+    assert.equal(status.repairedPrimary, false);
+    assert.equal(await fs.readFile(files.primary, 'utf8'), '{broken-json');
+  });
+});
+
+test('a JSON-valid non-object primary cannot mask a valid native backup', async () => {
+  await withStore(async (store) => {
+    await store.save('autosave', { generation: 4 });
+    const files = store.pathsFor('autosave');
+    await fs.rename(files.primary, files.backup);
+    await fs.writeFile(files.primary, '[]', 'utf8');
+
+    const status = await store.loadStatus('autosave');
+    assert.deepEqual(status.value, { generation: 4 });
+    assert.equal(status.recovered, true);
+    assert.equal(status.primaryError.code, 'SAVE_ROOT_INVALID');
+    assert.deepEqual(JSON.parse(await fs.readFile(files.primary, 'utf8')), { generation: 4 });
+    await assert.rejects(() => store.save('primitive', null), /root must be an object/i);
+  });
+});
+
 test('fifty serialized save/reload cycles remain valid and internal files stay hidden', async () => {
   await withStore(async (store) => {
     for (let generation = 1; generation <= 50; generation += 1) {
