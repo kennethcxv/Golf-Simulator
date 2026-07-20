@@ -64,7 +64,6 @@ Resolved by the four checkout iterations:
 
 Still open for the overall Steam release gate:
 
-- `H-010`: Canvas2D warnings are fixed, but Chromium/ANGLE still emits X4000.
 - `H-012`, `H-013`, `M-008`: project-wide render, texture, and shadow budgets remain
   high, although the checkout increment introduces no measured regression.
 - `M-002`, `M-004`, `M-005`, `M-007`, `P-001`, `P-002`: presentation and
@@ -94,3 +93,12 @@ geometry and wardrobe materials keep the twelve-character stress scene within th
 accepted render budget. Four visual iterations, the final normal-control checkout,
 asset/pivot inspection, and paired performance evidence are documented in
 `character-polish/report.md`.
+
+## Shader diagnostic disposition
+
+`H-010` is resolved. An instrumented WebGL boot traced X4000 to dynamic channel
+indexing in Three r185's GTAO Poisson denoise shader. The game now patches that
+specific material instance to its behaviorally equivalent fixed channel without
+editing vendor code. Baseline/final shader logs, focused tests, a detached-control
+performance comparison, and a clean 25-transition confirmation are documented in
+`shader-diagnostics/report.md`.

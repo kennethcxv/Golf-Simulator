@@ -27,6 +27,7 @@ import { clearLitter, fixTeeSign, PROPS } from '../sim/props.js';
 import { conditionRating } from '../sim/turf.js';
 import { makeCameraRig } from './cameraRig.js';
 import { makeCharacter, preloadCharacterParts } from './characterAsset.js';
+import { patchPoissonDenoiseMaterial } from './shaderPatches.js';
 import { makeClubhouse } from './clubhouse.js';
 import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture } from './proceduralTextures.js';
 import { ZONE_COLORS } from '../render/palette.js';
@@ -207,6 +208,7 @@ export function makeCourseScene(canvas, state) {
   const composer = new EffectComposer(renderer, composerTarget);
   composer.addPass(new RenderPass(scene, camera));
   const gtao = new GTAOPass(scene, camera, 2, 2);
+  patchPoissonDenoiseMaterial(gtao.pdMaterial);
   gtao.output = GTAOPass.OUTPUT.Default;
   // STYLE GUIDE §3: tight contact darkening only — no corner grime spread
   gtao.blendIntensity = 0.4;
