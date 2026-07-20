@@ -164,6 +164,66 @@ async (page) => {
         const c = window.__qa.centre(m, ch);
         return { ...c, denom: m.userData.denom, n: out.length };
       },
+      // Find a pixel whose ray really resolves to the requested open-drawer stack.
+      // Projecting only a mesh centre is not sufficient when two foreshortened bill
+      // stacks overlap on screen: the nearer denomination can win the raycast.
+      drawerMoneyPx(denom) {
+        const ch = app.scene3d.clubhouse();
+        const canvas = document.querySelector('canvas');
+        const rect = canvas.getBoundingClientRect();
+        const roots = [];
+        const desired = [];
+        ch.interior.traverse((o) => {
+          if (!o.visible || !o.userData?.pick) return;
+          roots.push(o);
+          if (o.userData.kind === 'money' && o.userData.from === 'drawer'
+              && o.userData.denom === Number(denom)) desired.push(o);
+        });
+        if (!desired.length) return null;
+
+        const ray = new THREE.Raycaster();
+        const ndc = new THREE.Vector2();
+        const hitsWanted = (x, y) => {
+          ndc.set(((x - rect.left) / rect.width) * 2 - 1,
+            -(((y - rect.top) / rect.height) * 2 - 1));
+          ray.setFromCamera(ndc, app.scene3d.camera);
+          const hit = ray.intersectObjects(roots, true)[0];
+          if (!hit) return false;
+          let root = hit.object;
+          while (root && !root.userData?.pick && root.parent) root = root.parent;
+          return root?.userData?.kind === 'money'
+            && root.userData.from === 'drawer'
+            && root.userData.denom === Number(denom);
+        };
+
+        for (let targetIndex = desired.length - 1; targetIndex >= 0; targetIndex--) {
+          const box = new THREE.Box3().setFromObject(desired[targetIndex]);
+          const points = [];
+          for (const x of [box.min.x, (box.min.x + box.max.x) / 2, box.max.x]) {
+            for (const y of [box.min.y, (box.min.y + box.max.y) / 2, box.max.y]) {
+              for (const z of [box.min.z, (box.min.z + box.max.z) / 2, box.max.z]) {
+                const p = new THREE.Vector3(x, y, z).project(app.scene3d.camera);
+                points.push({
+                  x: rect.left + ((p.x + 1) / 2) * rect.width,
+                  y: rect.top + ((-p.y + 1) / 2) * rect.height,
+                });
+              }
+            }
+          }
+          const minX = Math.min(...points.map((p) => p.x)) - 3;
+          const maxX = Math.max(...points.map((p) => p.x)) + 3;
+          const minY = Math.min(...points.map((p) => p.y)) - 3;
+          const maxY = Math.max(...points.map((p) => p.y)) + 3;
+          for (let gy = 1; gy <= 9; gy++) {
+            for (let gx = 1; gx <= 9; gx++) {
+              const x = minX + (maxX - minX) * (gx / 10);
+              const y = minY + (maxY - minY) * (gy / 10);
+              if (hitsWanted(x, y)) return { x, y };
+            }
+          }
+        }
+        return null;
+      },
     };
     const c = app.state.clock;
     c.minutes = Math.floor(c.minutes / 1440) * 1440 + 14 * 60;
