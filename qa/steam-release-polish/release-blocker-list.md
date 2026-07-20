@@ -66,13 +66,9 @@ Still open for the overall Steam release gate:
 
 - `M-002`, `M-004`, `M-005`, `M-007`, `P-001`, `P-002`: presentation and
   secondary-behavior follow-ups remain as originally recorded.
-- `S-001` (new, High, dependency): full `npm audit` flags Electron 33; the offered
-  remediation upgrades to Electron 43 and is a breaking runtime change. Production
-  dependencies excluding dev Electron audit clean.
-
-Accordingly, checkout acceptance is not a claim that the entire repository is ready
-to ship on Steam. The Electron upgrade and broader release-budget work remain
-explicit gates.
+Accordingly, checkout acceptance was not by itself a claim that the entire
+repository was ready to ship on Steam; subsequent sections record the broader
+release-gate dispositions.
 
 ## Menu gate disposition
 
@@ -112,3 +108,12 @@ fell 92.5%, idle draw submissions fell 46.5%, and twelve-character shadow
 casters fell 29.7%. Four visual iterations, Blender re-import validation, a
 normal-control transaction video, and the final performance soak are documented
 in `texture-budget/report.md`.
+
+## Desktop runtime disposition
+
+`S-001` is resolved. Electron 33.4.11 was upgraded to 43.1.1, `npm audit` is
+clean, native persistence now validates its sender/key/payload boundary, and
+unrequested navigation/windows/webviews are denied. An isolated real-Electron
+run proves menu boot, native files, reload/Continue, WebGL, pointer lock,
+cleanup, and zero console/CSP errors. Evidence is documented in
+`electron43/report.md`.

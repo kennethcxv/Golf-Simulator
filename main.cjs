@@ -7,6 +7,12 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
+const {
+  assertTrustedIpcEvent,
+  serializeSave,
+  trustedRendererUrl,
+  validateSaveKey,
+} = require('./src/electron/security.cjs');
 
 const DEV = process.argv.includes('--dev');
 if (DEV) {
@@ -15,6 +21,7 @@ if (DEV) {
 }
 
 let win = null;
+const TRUSTED_RENDERER_URL = trustedRendererUrl(__dirname);
 
 function saveDir() {
   const dir = path.join(app.getPath('userData'), 'saves');
@@ -23,8 +30,7 @@ function saveDir() {
 }
 
 function keyToFile(key) {
-  const safe = String(key).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
-  return path.join(saveDir(), safe + '.json');
+  return path.join(saveDir(), validateSaveKey(key) + '.json');
 }
 
 function createWindow() {
@@ -35,6 +41,7 @@ function createWindow() {
     minHeight: 680,
     backgroundColor: '#141d12',
     title: 'GOLF EMPIRE',
+    show: false,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -43,8 +50,14 @@ function createWindow() {
       sandbox: true,
     },
   });
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url !== TRUSTED_RENDERER_URL) event.preventDefault();
+  });
+  win.webContents.on('will-attach-webview', (event) => event.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.setMenuBarVisibility(false);
   win.loadFile('index.html');
+  win.once('ready-to-show', () => win && win.show());
   if (DEV) {
     win.webContents.openDevTools({ mode: 'detach' });
     win.webContents.on('console-message', (_e, level, message, line, sourceId) => {
@@ -56,12 +69,14 @@ function createWindow() {
 
 // --- persistence IPC ---------------------------------------------------
 
-ipcMain.handle('fw:save', async (_e, key, json) => {
-  await fsp.writeFile(keyToFile(key), JSON.stringify(json), 'utf8');
+ipcMain.handle('fw:save', async (event, key, value) => {
+  assertTrustedIpcEvent(event, TRUSTED_RENDERER_URL);
+  await fsp.writeFile(keyToFile(key), serializeSave(value), 'utf8');
   return true;
 });
 
-ipcMain.handle('fw:load', async (_e, key) => {
+ipcMain.handle('fw:load', async (event, key) => {
+  assertTrustedIpcEvent(event, TRUSTED_RENDERER_URL);
   try {
     return JSON.parse(await fsp.readFile(keyToFile(key), 'utf8'));
   } catch {
@@ -69,12 +84,14 @@ ipcMain.handle('fw:load', async (_e, key) => {
   }
 });
 
-ipcMain.handle('fw:delete', async (_e, key) => {
+ipcMain.handle('fw:delete', async (event, key) => {
+  assertTrustedIpcEvent(event, TRUSTED_RENDERER_URL);
   try { await fsp.unlink(keyToFile(key)); } catch {}
   return true;
 });
 
-ipcMain.handle('fw:list', async () => {
+ipcMain.handle('fw:list', async (event) => {
+  assertTrustedIpcEvent(event, TRUSTED_RENDERER_URL);
   try {
     const files = await fsp.readdir(saveDir());
     return files.filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5));
