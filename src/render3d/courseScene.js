@@ -3629,6 +3629,11 @@ export function makeCourseScene(canvas, state) {
     speed: 3.4, // yd/s — the shop's tuned 3.1 reads a hair brisker outdoors
     runMult: 1.8,
     radius: 0.34, // same body circle the shop uses
+    sens: 1,
+    invertY: false,
+    cameraBob: true,
+    reducedMotion: false,
+    fov: 66,
   };
 
   const walkHeld = new Set();
@@ -4251,7 +4256,7 @@ export function makeCourseScene(canvas, state) {
     }
     fpHands.update(dt, walkSpraying || walkSoaping || holdActive);
     if (!heldRoot.visible) return;
-    heldAnim.t = Math.min(1, heldAnim.t + dt / 0.26);
+    heldAnim.t = Math.min(1, heldAnim.t + dt / (walk.reducedMotion ? 0.001 : 0.26));
     const k = heldAnim.show ? easeOutCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t);
     if (!heldAnim.show && heldAnim.t >= 1) {
       heldRoot.visible = false;
@@ -4259,7 +4264,7 @@ export function makeCourseScene(canvas, state) {
     }
     // gait-synced bob: strong under way, a slow breathe at rest
     bobPhase += dt * (walkMoving ? 8.7 : 1.6); // 8.7 = the characters' stride rate
-    const sway = walkMoving ? 1 : 0.25;
+    const sway = walk.reducedMotion || !walk.cameraBob ? 0 : (walkMoving ? 1 : 0.25);
     // Recoil belongs to the RIG, not to the hands: the hands are parented into the tool group so
     // their grip stays in the tool's frame, and writing the kick to them slid them along the lance
     // instead of shoving the lance back. fpHands reports the offset; the rig applies it.
@@ -4489,6 +4494,38 @@ export function makeCourseScene(canvas, state) {
           walkFocus = { kind: 'prop', label: retainedLabel, prop: retainedProp };
           return;
         }
+      }
+    }
+    // A tool the player deliberately equipped owns the prompt. Nearby props no
+    // longer replace "vacuum this patch" or "water this turf" with an unrelated
+    // clutter/fixture action. Contextual tools such as the box cutter still use
+    // their prop's own hold prompt below.
+    if (walkTool && walkTool !== autoTool) {
+      if (walkTool === 'vacuum' && clubhouseApi) {
+        const ax = walk.x - Math.sin(walk.yaw) * 1.5;
+        const az = walk.z - Math.cos(walk.yaw) * 1.5;
+        walkFocus = {
+          kind: 'tool',
+          label: clubhouseApi.isInside(ax, az)
+            ? clubhouseApi.vacuumLabelAt(ax, az)
+            : 'Vacuum — take it inside the shop · [F] choose another tool',
+          cell: null,
+        };
+        return;
+      }
+      if (walkTool === 'washer') {
+        walkFocus = {
+          kind: 'tool',
+          label: 'Pressure washer — hold [LMB] to wash · hold [RMB] to apply soap · [F] tools',
+          cell: null,
+        };
+        return;
+      }
+      const labelHook = { hose: walkHooks.hoseLabelAt, divot: walkHooks.divotLabelAt, rake: walkHooks.rakeLabelAt }[walkTool];
+      const aim = walkAimCell(3.0);
+      if (aim && labelHook) {
+        walkFocus = { kind: 'tool', label: labelHook(aim.x, aim.y), cell: aim };
+        return;
       }
     }
     // placed props (repair yard, tools, signs): nearest one you're facing
@@ -4946,7 +4983,8 @@ export function makeCourseScene(canvas, state) {
     const sens = walk.sens || 1; // pause-menu mouse sensitivity
     // applyMouseLook clamps the per-event delta (no 180 whip on a reacquisition
     // jump), applies sensitivity, wraps yaw and clamps pitch — see mouseLook.js.
-    const next = applyMouseLook(walk.yaw, walk.pitch, e.movementX, e.movementY, sens);
+    const movementY = walk.invertY ? -e.movementY : e.movementY;
+    const next = applyMouseLook(walk.yaw, walk.pitch, e.movementX, movementY, sens);
     walk.yaw = next.yaw;
     walk.pitch = next.pitch;
   }
@@ -4977,7 +5015,7 @@ export function makeCourseScene(canvas, state) {
       // never spawn inside a tree that grew since the spot was chosen
       for (let push = 1; push < 30 && walkBlocked(walk.x, walk.z); push++) walk.z += 1.5;
     }
-    camera.fov = 66; // the shop's human FOV; the management rig uses 46
+    camera.fov = walk.fov || 66; // the management rig uses 46
     camera.near = 0.15;
     camera.updateProjectionMatrix();
     heldRoot.visible = !!walkTool; // pick your tool back up
@@ -5016,7 +5054,9 @@ export function makeCourseScene(canvas, state) {
     const pz0 = walk.z;
 
     // focus mode (laptop): ease the camera onto the pose, park all input
-    focusBlend = clamp(focusBlend + (walkFocusPose ? 1 : -1) * (dt / 0.4), 0, 1);
+    focusBlend = walk.reducedMotion
+      ? (walkFocusPose ? 1 : 0)
+      : clamp(focusBlend + (walkFocusPose ? 1 : -1) * (dt / 0.4), 0, 1);
     if (walkFocusPose || focusBlend > 0.001) {
       const fb = focusBlend * focusBlend * (3 - 2 * focusBlend);
       const gy = (clubhouseApi && clubhouseApi.groundYAt(walk.x, walk.z)) ?? walkSurfaceHeightAt(walk.x, walk.z);
@@ -5130,13 +5170,18 @@ export function makeCourseScene(canvas, state) {
 
     // camera: first-person on foot, third-person chase in the seat — EASED
     // between the two so mounting reads as a real transition, not a cut
-    mountBlend = clamp(mountBlend + (cart.mounted ? 1 : -1) * (dt / 0.45), 0, 1);
+    mountBlend = walk.reducedMotion
+      ? (cart.mounted ? 1 : 0)
+      : clamp(mountBlend + (cart.mounted ? 1 : -1) * (dt / 0.45), 0, 1);
     const mb = mountBlend * mountBlend * (3 - 2 * mountBlend);
     // inside the clubhouse (or on its porch) you stand on the level floor slab
     const floorY = clubhouseApi ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
     const groundY = floorY !== null && floorY !== undefined ? floorY : walkSurfaceHeightAt(walk.x, walk.z);
     if (mb <= 0.001) {
-      camera.position.set(walk.x, groundY + walk.eye, walk.z);
+      const bob = walk.cameraBob && !walk.reducedMotion && walkMoving
+        ? Math.sin(bobPhase) * 0.018
+        : 0;
+      camera.position.set(walk.x, groundY + walk.eye + bob, walk.z);
       setFirstPersonOrientation(camera, walk.yaw, walk.pitch);
     } else {
       const cosP = Math.cos(walk.pitch);
@@ -7032,11 +7077,22 @@ export function makeCourseScene(canvas, state) {
         loadResults: toolViewmodelsAuthored,
         ...toolViewmodels.diagnostics(),
       }),
+      getAutoTool: () => autoTool,
+      configure(options = {}) {
+        if (Number.isFinite(options.sensitivity)) walk.sens = options.sensitivity;
+        if (Number.isFinite(options.fov)) walk.fov = options.fov;
+        if (typeof options.invertY === 'boolean') walk.invertY = options.invertY;
+        if (typeof options.cameraBob === 'boolean') walk.cameraBob = options.cameraBob;
+        if (typeof options.reducedMotion === 'boolean') walk.reducedMotion = options.reducedMotion;
+        if (walk.active && !walkFocusPose && Number.isFinite(options.fov)) {
+          camera.fov = options.fov;
+          camera.updateProjectionMatrix();
+        }
+      },
       setSpraying: walkSetSpraying,
       isSpraying: () => walkSpraying,
       setSoaping: walkSetSoaping,
       isSoaping: () => walkSoaping,
-      toolViewmodelDiagnostics: toolViewmodels.diagnostics,
       cleaningDiagnostics: () => ({
         tool: walkTool,
         using: walkSpraying,

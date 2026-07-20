@@ -1,9 +1,8 @@
-// FAIRWAY STATE — persistence facade.
-// Electron: JSON files in the OS user-data dir via the preload bridge.
-// Plain browser (dev/QA): localStorage fallback, same API.
+// Persistence facade with player-safe inspection and backup recovery.
+// Electron stores files in userData through the preload bridge; browser QA uses
+// localStorage with the same result contract.
 
 const native = typeof window !== 'undefined' ? window.fairwayNative : null;
-// distinct prefix so browser-QA localStorage never collides with FAIRWAY STATE's
 const PREFIX = 'golfempire:';
 const BACKUP_PREFIX = 'golfempire-backup:';
 
@@ -31,6 +30,13 @@ function parsedRecord(text) {
     throw error;
   }
   return value;
+}
+
+function unsupportedVersion(data, limits = {}) {
+  if (!data || typeof data !== 'object') return false;
+  if (Number.isFinite(limits.empireVersion) && Number(data.empireVersion) > limits.empireVersion) return true;
+  if (!data.empireVersion && Number.isFinite(limits.saveVersion) && Number(data.version) > limits.saveVersion) return true;
+  return false;
 }
 
 export async function saveData(key, obj) {
@@ -146,6 +152,27 @@ export async function loadData(key) {
   return (await loadDataWithStatus(key)).value;
 }
 
+export async function inspectData(key, limits = {}) {
+  const result = await loadDataWithStatus(key, { repair: false });
+  const data = result.value;
+  if (data == null) {
+    if (result.missing) return { status: 'missing', data: null };
+    return {
+      status: 'corrupt',
+      data: null,
+      error: result.primaryError?.message || result.backupError?.message || 'This save could not be read.',
+    };
+  }
+  if (unsupportedVersion(data, limits)) {
+    return { status: 'unsupported', data: null, version: data.empireVersion || data.version };
+  }
+  return {
+    status: result.recovered ? 'recovered' : 'ok',
+    data,
+    error: result.recovered ? 'The latest save was damaged; the previous backup is available.' : null,
+  };
+}
+
 export async function deleteData(key) {
   if (native) return native.del(key);
   localStorage.removeItem(PREFIX + key);
@@ -162,4 +189,27 @@ export async function listData() {
     else if (k?.startsWith(BACKUP_PREFIX)) keys.add(k.slice(BACKUP_PREFIX.length));
   }
   return [...keys].sort();
+}
+
+export function summarizeSave(data, metadata = null) {
+  if (!data || typeof data !== 'object') return null;
+  const active = data.empireVersion
+    ? (data.holdings || []).find((holding) => holding.property?.id === data.activeId) || data.holdings?.[0]
+    : null;
+  const state = active?.state || (!data.empireVersion ? data : null);
+  const minutes = Number(state?.clock?.minutes ?? data.clockMinutes ?? 0);
+  const minuteOfDay = ((Math.floor(minutes) % 1440) + 1440) % 1440;
+  const hour = Math.floor(minuteOfDay / 60);
+  const clock = `${((hour + 11) % 12) + 1}:${String(minuteOfDay % 60).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
+  const day = Math.floor(minutes / 1440) + 1;
+  return {
+    clubName: state?.clubName || active?.property?.name || 'Unclaimed property',
+    propertyName: active?.property?.name || state?.clubName || 'Property market',
+    mode: data.mode || state?.mode || 'relaxed',
+    cash: Number(data.cash ?? state?.cash ?? 0),
+    day,
+    clock,
+    savedAt: Number(metadata?.savedAt || 0) || null,
+    condition: metadata?.cond ?? state?.shop?.reno?.condition ?? null,
+  };
 }

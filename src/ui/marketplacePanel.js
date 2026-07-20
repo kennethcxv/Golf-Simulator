@@ -16,7 +16,7 @@ const MOOD_STYLE = {
 
 export function openMarketplace(app, handlers) {
   modal('Property market', (box, close) => {
-    box.classList.add('wide');
+    box.classList.add('wide', 'market-dialog');
     const body = el('div');
     box.append(body);
 
@@ -27,15 +27,13 @@ export function openMarketplace(app, handlers) {
       const today = calendarOf(worldMinutes(empire)).dayAbs;
       const mood = marketConditionLabel(empire.marketCondition);
       const rows = [
-        el('div', { class: 'row' },
+        el('section', { class: 'market-overview', 'aria-label': 'Market summary' },
+          el('div', { class: 'market-stats' },
           el('span', { class: 'status-chip', style: MOOD_STYLE[mood.key], title: mood.hint, text: `${mood.label}` }),
-          el('span', { class: 'status-chip', text: `Empire wallet ${formatMoney(wallet)}` }),
+          el('span', { class: 'status-chip', text: `Wallet ${formatMoney(wallet)}` }),
           el('span', { class: 'status-chip', text: `${empire.market.length} listings` }),
-          el('span', {
-            class: 'muted',
-            style: 'flex:1;font-size:0.85rem',
-            text: 'Every ask is the seller’s number, not necessarily the truth. Judge the golf.',
-          }),
+          ),
+          el('p', { class: 'market-advice', text: 'The asking price is the seller’s number. Judge the golf, the work, and the recovery.' }),
         ),
       ];
       if (!empire.market.length) {
@@ -43,14 +41,28 @@ export function openMarketplace(app, handlers) {
       }
       for (const p of empire.market) {
         const affordable = wallet >= p.askingPrice;
-        rows.push(el('div', { class: 'listing' },
-          el('div', { class: 'row' },
-            el('strong', { text: p.name, style: 'font-size:1.02rem' }),
-            el('span', { class: 'muted', text: `${p.size} holes · par ${p.par} · ${p.yards.toLocaleString('en-US')} yd · ${listingAgeLabel(today - (p.listedDay ?? today))}` }),
-            el('span', { style: 'flex:1' }),
-            el('span', { text: formatMoney(p.askingPrice), style: 'font-weight:600;color:var(--accent-2)' }),
+        rows.push(el('article', { class: 'listing market-listing' },
+          el('div', { class: 'listing-main' },
+            el('div', { class: 'listing-title-block' },
+              el('strong', { class: 'listing-title', text: p.name }),
+              el('span', { class: 'listing-meta muted', text: `${p.size} holes · par ${p.par} · ${p.yards.toLocaleString('en-US')} yd · ${listingAgeLabel(today - (p.listedDay ?? today))}` }),
+            ),
+            el('div', { class: 'listing-purchase' },
+              el('span', { class: 'listing-price', text: formatMoney(p.askingPrice) }),
+              el('button', {
+                class: affordable ? 'primary' : '',
+                text: affordable ? 'Buy' : 'Not enough cash',
+                disabled: affordable ? null : 'disabled',
+                title: affordable ? `Pay ${formatMoney(p.askingPrice)} and take the keys` : 'The wallet says no',
+                onclick: () => {
+                  const res = handlers.buyFromMarket(p.id);
+                  if (res && res.closeMarket) close();
+                  else render();
+                },
+              }),
+            ),
           ),
-          el('div', { class: 'row' },
+          el('div', { class: 'listing-signals' },
             el('span', { class: 'status-chip', text: `Design ${Math.round(p.design)}` }),
             el('span', { class: 'status-chip', text: `Condition ${Math.round(p.condition)}` }),
             el('span', { class: 'status-chip', text: `${p.startingMembers} members` }),
@@ -58,23 +70,11 @@ export function openMarketplace(app, handlers) {
             p.sickGreens > 0
               ? el('span', { class: 'status-chip', style: 'border-color:var(--warn)', text: `⚠ ${p.sickGreens} sick green${p.sickGreens > 1 ? 's' : ''}` })
               : null,
-            el('span', { style: 'flex:1' }),
-            el('button', {
-              class: affordable ? 'primary' : '',
-              text: affordable ? 'Buy' : 'Not enough cash',
-              disabled: affordable ? null : 'disabled',
-              title: affordable ? `Pay ${formatMoney(p.askingPrice)} and take the keys` : 'The wallet says no',
-              onclick: () => {
-                const res = handlers.buyFromMarket(p.id);
-                if (res && res.closeMarket) close();
-                else render();
-              },
-            }),
           ),
-          el('div', { class: 'row muted', style: 'font-size:0.87rem', text: p.blurb }),
+          el('p', { class: 'listing-blurb muted', text: p.blurb }),
         ));
       }
-      rows.push(el('div', { class: 'row', style: 'margin-top:10px' },
+      rows.push(el('div', { class: 'market-actions' },
         el('button', { text: app.state ? 'Back to the club' : 'Close', onclick: close }),
       ));
       body.replaceChildren(...rows);

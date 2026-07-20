@@ -28,6 +28,7 @@ import { pickFromShelf } from '../src/sim/checkout.js';
 import { ensureLayout } from '../src/sim/layout.js';
 import { notify } from '../src/sim/notifications.js';
 import { WASH_SURFACES } from '../src/sim/washing.js';
+import { addToBag, addToPan, cleaningStatus } from '../src/sim/cleaningToolState.js';
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -142,9 +143,9 @@ test('every player-owned domain survives one current-schema round trip', () => {
   state.shop.reno.grime[0] = 0.125;
   state.shop.reno.wet[10] = 0.875;
   state.shop.reno.solution[11] = 0.625;
-  state.shop.reno.debris = [{ x: 1.25, z: -2.5, a: 0.4 }];
-  state.shop.reno.pan = 0.35;
-  state.shop.reno.bag = 1.75;
+  state.shop.reno.debris = [{ x: 1.25, z: -2.5, a: 0.4, kind: 'grit' }];
+  assert.equal(addToPan(state, 0.35).accepted, 0.35);
+  assert.equal(addToBag(state, 1.75).accepted, 1.75);
   const wash = WASH_SURFACES[0];
   state.shop.reno.wash[wash.id].grime[0] = 0.2;
   state.shop.reno.wash[wash.id].soap[0] = 55;
@@ -179,7 +180,9 @@ test('every player-owned domain survives one current-schema round trip', () => {
   assert.equal(back.shop.reno.grime[0], 0.125);
   assert.equal(back.shop.reno.wet[10], 0.875);
   assert.equal(back.shop.reno.solution[11], 0.625);
-  assert.deepEqual(back.shop.reno.debris, [{ x: 1.25, z: -2.5, a: 0.4 }]);
+  assert.deepEqual(back.shop.reno.debris, [{ x: 1.25, z: -2.5, a: 0.4, kind: 'grit' }]);
+  assert.equal(cleaningStatus(back).pan.load, 0.35);
+  assert.equal(cleaningStatus(back).bag.load, 1.75);
   assert.equal(back.shop.reno.pan, 0.35);
   assert.equal(back.shop.reno.bag, 1.75);
   assert.equal(back.shop.reno.wash[wash.id].grime[0], 0.2);

@@ -362,7 +362,7 @@ export function makeLaptop(app, opts) {
   let cart = new Map();    // order basket: skuId -> qty
   let teeDay = 0;
   let teePartySize = 1;
-  let scale = 1;
+  let scale = app.preferences?.values?.display?.uiScale || 1;
   let pending = null;      // the live confirmation, if one is open
   let modal = null;        // the open detail modal, if any — () => element
 
@@ -2213,8 +2213,14 @@ export function makeLaptop(app, opts) {
           ...[0.9, 1, 1.15, 1.3].map((s) => el('button', {
             class: `lt-day ${Math.abs(scale - s) < 0.01 ? 'on' : ''}`,
             text: `${Math.round(s * 100)}%`,
-            onclick: () => { setScale(s); prefs.laptopScale = s; click(); render(); },
+            onclick: () => {
+              app.preferences?.set('display.uiScale', s);
+              setScale(s);
+              click();
+              render();
+            },
           })),
+          meta('Also scales menus, HUD, prompts, and notifications.'),
         ),
       ),
       card(
@@ -2329,8 +2335,7 @@ export function makeLaptop(app, opts) {
       cart = new Map();
       pending = null;
       modal = null;
-      const prefs = app.state && app.state.uiPrefs;
-      if (prefs && Number.isFinite(prefs.laptopScale)) scale = prefs.laptopScale;
+      scale = app.preferences?.values?.display?.uiScale || scale;
       if (startPage) {
         const alias = PAGE_ALIAS[startPage];
         if (alias) {

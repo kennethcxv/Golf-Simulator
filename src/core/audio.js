@@ -1,9 +1,7 @@
 // FAIRWAY STATE — original procedural WebAudio sound design. Pinehollow checkout
 // uses dry walnut taps, restrained paper/metal textures, and a warm D/A tonal motif
-// so physical actions remain legible without arcade volume. Master volume persists
-// in localStorage, separate from saves.
-
-const SETTINGS_KEY = 'fairwaystate:settings';
+// so physical actions remain legible without arcade volume. Shared player
+// preferences own volume, accessibility, and lifecycle policy.
 
 export const CHECKOUT_CUE_APIS = Object.freeze([
   'productPlace', 'productPickup', 'productRotate',
@@ -27,12 +25,15 @@ export const DELIVERY_CUE_APIS = Object.freeze([
   'stock', 'fullShelf', 'boxFlatten', 'disposal',
 ]);
 
-export function makeAudio() {
+export function makeAudio(preferences = null) {
   let ctx = null;
   let master = null;
   let ambientBus = null;
   let sfxBus = null;
   let capture = null;
+  let uiBus = null;
+  let paused = false;
+  let lifecycleActive = true;
 
   let rainGain = null;
   let mowerGain = null;
@@ -40,22 +41,16 @@ export function makeAudio() {
   let strikeTimer = 0;
   const checkoutCueLastAt = new Map();
 
-  const settings = (() => {
-    try {
-      return { volume: 0.8, muted: false, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') };
-    } catch {
-      return { volume: 0.8, muted: false };
-    }
-  })();
-
-  function saveSettings() {
-    try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    } catch { /* private mode etc. */ }
-  }
+  const fallback = { master: 0.8, effects: 0.9, ambience: 0.65, ui: 0.8, muted: false };
+  const settings = () => preferences?.values?.audio || fallback;
 
   function applyVolume() {
-    if (master) master.gain.value = settings.muted ? 0 : settings.volume * 0.5;
+    if (!master) return;
+    const value = settings();
+    master.gain.value = value.muted ? 0 : value.master * 0.5;
+    if (ambientBus) ambientBus.gain.value = value.ambience * (paused ? 0.18 : 1);
+    if (sfxBus) sfxBus.gain.value = value.effects * (paused ? 0.35 : 1);
+    if (uiBus) uiBus.gain.value = value.ui;
   }
 
   // must be called from a user gesture
@@ -75,11 +70,11 @@ export function makeAudio() {
     master = ctx.createGain();
     master.connect(ctx.destination);
     ambientBus = ctx.createGain();
-    ambientBus.gain.value = 0.6;
     ambientBus.connect(master);
     sfxBus = ctx.createGain();
-    sfxBus.gain.value = 0.9;
     sfxBus.connect(master);
+    uiBus = ctx.createGain();
+    uiBus.connect(master);
     applyVolume();
 
     // rain: looped noise through a low-pass, gain driven by weather
@@ -336,9 +331,41 @@ export function makeAudio() {
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.05, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
-    osc.connect(g).connect(sfxBus);
+    osc.connect(g).connect(uiBus);
     osc.start(t0);
     osc.stop(t0 + 0.06);
+  }
+
+  function uiConfirm() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    for (const [frequency, offset] of [[520, 0], [700, 0.065]]) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.035, t0 + offset);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + offset + 0.12);
+      osc.connect(gain).connect(uiBus);
+      osc.start(t0 + offset);
+      osc.stop(t0 + offset + 0.14);
+    }
+  }
+
+  function uiError() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    for (const [frequency, offset] of [[260, 0], [220, 0.08]]) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.035, t0 + offset);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + offset + 0.15);
+      osc.connect(gain).connect(uiBus);
+      osc.start(t0 + offset);
+      osc.stop(t0 + offset + 0.17);
+    }
   }
 
   // --- hand-tool audio (same procedural language as everything above) ------------
@@ -1318,7 +1345,7 @@ export function makeAudio() {
 
   // called ~once per second with live game context
   function update(dt, { minuteOfDay = 720, rainIn = 0, golfersVisible = 0, inShop = false, tempHiF = 70 } = {}) {
-    if (!ctx) return;
+    if (!ctx || paused || !lifecycleActive) return;
     const day = minuteOfDay >= 350 && minuteOfDay <= 1220;
 
     if (rainGain) rainGain.gain.setTargetAtTime(Math.min(0.35, rainIn * 0.4) * (inShop ? 0.35 : 1), ctx.currentTime, 0.6);
@@ -1375,6 +1402,8 @@ export function makeAudio() {
     checkoutComplete,
     doorbell,
     uiTick,
+    uiConfirm,
+    uiError,
     doorSwing,
     doorShut,
     scanBeep,
@@ -1402,6 +1431,22 @@ export function makeAudio() {
     get captureActive() {
       return !!capture;
     },
+    applyPreferences: applyVolume,
+    setPaused(value) {
+      paused = !!value;
+      if (paused) setToolLoop(null);
+      applyVolume();
+    },
+    async setLifecycleActive(value) {
+      lifecycleActive = !!value;
+      if (!ctx) return;
+      if (!lifecycleActive) {
+        setToolLoop(null);
+        if (ctx.state === 'running') await ctx.suspend().catch(() => {});
+      } else if (!paused && ctx.state === 'suspended') {
+        await ctx.resume().catch(() => {});
+      }
+    },
     // the delivery-to-shelf loop. `tape` and `recycle` are compatibility
     // aliases while production call sites move to the semantic names.
     truck, boxup, boxdown,
@@ -1412,17 +1457,26 @@ export function makeAudio() {
     get ready() {
       return !!ctx;
     },
-    getVolume: () => settings.volume,
-    isMuted: () => settings.muted,
+    getVolume: () => settings().master,
+    isMuted: () => settings().muted,
     setVolume(v) {
-      settings.volume = v;
+      if (preferences) preferences.set('audio.master', v);
+      else fallback.master = v;
       applyVolume();
-      saveSettings();
     },
     setMuted(m) {
-      settings.muted = m;
+      if (preferences) preferences.set('audio.muted', m);
+      else fallback.muted = m;
       applyVolume();
-      saveSettings();
     },
+    debugStats: () => ({
+      initialized: !!ctx,
+      contextState: ctx?.state || 'uninitialized',
+      paused,
+      lifecycleActive,
+      activeToolLoop,
+      createdToolLoops: Object.keys(toolLoops),
+      createdToolLoopCount: Object.keys(toolLoops).length,
+    }),
   };
 }
