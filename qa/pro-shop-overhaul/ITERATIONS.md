@@ -6,7 +6,7 @@ The earlier iteration folders remain historical design evidence, but they are no
 
 Every counted pass launches the shipped game in hardware-accelerated Chrome at 1600 x 900, starts through **New Empire -> Relaxed -> Property Market -> Buy**, closes the guide with its real keyboard control, and proves movement with a canvas click plus Arrow/W input before any fixed-camera inspection. Each pass captures the same 18 starting-state and 18 fully-stocked player-height cameras, a route video, console/network diagnostics, and fixed performance scenarios. Fully stocked tier-three state is an inspection fixture only and does not write a save. Natural checkout acceptance is tracked separately and never uses state injection or QA transaction hooks.
 
-All four counted visual passes are complete. The visual gate is closed; natural checkout, routes A-E, save/load, and the dedicated repeated performance protocol remain separate acceptance work. The sole recurring console diagnostic is a Chromium/Direct3D shader-compiler warning. Recorded `ERR_ABORTED` requests are teardown or superseded background loads; no required shop asset failed and no HTTP error was recorded.
+All four counted visual passes are complete. The visual gate is closed; natural checkout, Routes A-E, save/load, and the dedicated repeated performance protocol are now also accepted in their linked reports. The sole recurring console diagnostic is a Chromium/Direct3D shader-compiler warning. Recorded `ERR_ABORTED` requests are teardown or superseded background loads; no required shop asset failed and no HTTP error was recorded.
 
 ## Acceptance pass 1 - retail information hierarchy
 
@@ -108,7 +108,7 @@ Evidence:
 - Both runs: 36 clean fixed screenshots, two separate ten-shopper flow screenshots, route video, fresh-save boot record, normal-control and clock proof, console/network log, and exact-ten metrics in `run.json`
 - Accepted-after normal-control proof: 3.12 yards and 1.366 radians of yaw; real Space pause produced exactly zero clock drift
 - Accepted-after customer flow: ten active shoppers, 13 unique reserved browse/experience sockets, and 0.600-yard minimum actor separation
-- Empty basic: 118 FPS average / 60.61 FPS 1% low. Full-premium normal-control walk: 58.51 FPS / 15.02 FPS 1% low. Active listeners remained 92 throughout. These single visual-run timings show substantial run-to-run variance and are not substituted for the pending dedicated repeated performance gate.
+- Empty basic: 118 FPS average / 60.61 FPS 1% low. Full-premium normal-control walk: 58.51 FPS / 15.02 FPS 1% low. Active listeners remained 92 throughout. These single visual-run timings show substantial run-to-run variance and are not substituted for the accepted dedicated repeated performance gate in `PERFORMANCE_ACCEPTANCE.md`.
 
 | Visible defect found in the before sweep | Revision verified in the accepted after sweep |
 |---|---|

@@ -1,81 +1,67 @@
 # Pro-shop overhaul completion audit
 
-Audit reopened 2026-07-20 against the complete attached objective. The repository, current branch, runtime harnesses, retained evidence, and tests are authoritative. Earlier prose claims are not treated as proof.
+Final audit: 2026-07-20. This supersedes the reopened audit at `2c3a442` and judges the complete attached objective against current code, normal-control browser evidence, raw diagnostics, tests, and committed artifacts.
 
 ## Provenance
 
-- Required branch: `overnight/pro-shop-overhaul`
-- Current branch: `overnight/pro-shop-overhaul`
+- Required/current branch: `overnight/pro-shop-overhaul`
 - Starting `main`: `0c5137e5f0efac9627ce2309b9e66936f1eeb769`
-- Current audited head: `dcc62fcdae7c6f2e92efdd10c210176a21d40c41`
-- Merge base: the recorded starting `main` commit
-- Worktree at audit start: clean
-- Other worktrees: enumerated and untouched
+- Final implementation commit: `f4cb3b6`
+- Dedicated worktree: `C:/Users/Kenneth/Documents/GitHub/Golf-Flipper-pro-shop-overhaul`
+- Original worktree: preserved and untouched
 - Merge into `main`: not performed
+- External downloads: none; project-owned asset provenance is in `ASSET_SOURCES.md`
 
-## Evidence classifications
+## Phase closure
 
-- **Proved**: direct current-state evidence covers the full requirement.
-- **Partial**: some implementation exists, but one or more explicit clauses lack direct proof or are contradicted.
-- **Missing**: no current implementation/evidence covers the requirement.
-- **Invalid evidence**: an artifact exists, but its protocol does not meet the stated gate.
+| Phase | Verdict | Accepted implementation and evidence |
+|---|---|---|
+| 1. Complete shop audit | Proved | `baseline-audit.md`, `fixture-manifest.md`, the starting/full baseline cameras, exact starting commit, and original-worktree preservation establish the source state and ranked blockers. |
+| 2. Shop floor plan | Proved | Data-owned 21 x 13.5 municipal footprint with low centre fixtures, perimeter departments, separate checkout/office/stockroom, basket/service stations, tiered experience destinations, authored traffic paths, and clearance/routing tests. The normal-control A/B/E route traverses the shop and both service doors. |
+| 3. Fixture library | Proved | Sixteen repeatable fixture GLBs from `tools/blender/build_shop_fixtures.py`, named slots, applied transforms, believable game-scale dimensions, separate visual roles, and simple data-side collision. `shop-assets`, layout, build-mode, sockets, and tier tests cover the integrated library. |
+| 4. Product presentation | Proved | Forty-two physical retail lines, 289 full-store units, one home fixture per SKU, exact 4-15-unit authored sockets, SKU-specific forms/orientation, shared geometry/materials, and empty/partial/full count contracts. Four accepted player-camera passes inspect every department. |
+| 5. Clothing displays | Proved | Folded and hanging polos, jacket, pants, shorts, gloves, and socks use apparel/table modules with real thickness, rail/table contact, variants, category signs, prices, and fitting links. Visual passes 1-4 and Route C prove the player view and customer use. |
+| 6. Club and bag displays | Proved | Three continuous club-wall bays use authored cradle geometry and distinct driver/iron/wedge/putter heads; four-position bag presentation uses empty-bag bodies without sightline-blocking fans. Premium case, demo rack, putting mat, and authored browse sockets complete the department. |
+| 7. Shoe, hat, accessory areas | Proved | Blender shoe wall/try-on ledge, eight-facing hat wall, pegboard, ball wall, basket station, and category-compatible product sockets replaced the failing procedural presentations. Route A/B stocks the new shoe category; Route C records shoe, hat, and accessory browsing. |
+| 8. Putting and demo area | Proved to requested retail scope | Tier-3 putting mat, cup/backstop, aim marks, separate three-putter demo rack, and non-blocking customer test socket are physical. A linked short customer state inspects and sweeps a putter, then removes its temporary visual. Route C records the destination. It intentionally does not become full golf gameplay. |
+| 9. Checkout area | Proved | Integrated counter, employee corridor, scanner, display, empty live cash drawer, card terminal, printer, staging, basket set-down, impulse rack, bagging and handoff zones remain on the original transaction/save architecture. Natural ambient cash and card runs execute the complete physical sequence without setup hooks or state writes. |
+| 10. Snacks and drinks | Proved | Blender glass-front refrigerator and four-tier snack rack hold water, sports drink, soda, crisps, bar, and crackers with 48 authored display units and original fictional packaging. Route C records live browsing. The refrigerator is static because selection does not require an opening-door mechanic. |
+| 11. Fitting room | Proved | Tier-3 Blender enclosure includes curtain, mirror, bench/ledge, hooks, light, sign, walkable interior proxy, authored occupancy/facing socket, and a short linked customer fitting state. Socket/collision tests and Route C prove navigation and occupancy without a complex undressing system. |
+| 12. Lighting | Proved | Warm general rig, daylight, focused club/apparel/checkout/refrigerator lighting, restrained shadow casters, and basic/standard/premium scales are implemented. `shop-tiers.test.js`, three-state reload proof, four accepted camera rounds, and performance counts cover quality and reconstruction. |
+| 13. Materials | Proved | Shared stylized PBR kit covers cream, deep green, sage, walnut, oak, charcoal, brass, rubber, glass, kraft, fabric, and leather. Blender named slots remap through `merch.js`; full-store material/texture counts remain stable across repeated runs. |
+| 14. Signs and wayfinding | Proved within existing systems | Original restrained signs/price rails identify retail departments, New Arrivals, Baskets & Cards, fitting, Tour Vault, demo, cold drinks, snacks, scorecards/member service, Pro Shop hours, and Receiving. Fictional branding and shared sign materials are used. No fake dynamic sale signage was added because the game has no sale-promotion system. |
+| 15. Customer browsing | Proved | Authored approach/facing sockets cover every retail fixture plus fitting, putting, and premium experiences; reservations are exclusive. Route C records ten shoppers, club/apparel/shoe visits, 14 destinations, four basket users, queue depth five, natural shelf debit, checkout, safe held UIDs, and laptop use. |
+| 16. Stocking | Proved | Capacity, visible socket count, prompts, preview, and placement share one source of truth; invalid category/full shelf behavior preserves held goods. Route A/B physically orders, receives, carries, cuts, opens, removes, and hold-E stocks balls and a newly unlocked shoe category. |
+| 17. Shop tiers | Proved for the current 1-3 architecture | Basic, standard, and premium presentations differ in active fixtures, categories, lighting, capacity, premium destinations, and customer cap. Route B proves visible laptop order -> real lead time -> physical delivery -> placement/stock change. A luxury tier was not invented because the current progression architecture ends at tier 3. |
+| 18. Save and load | Proved | Unit migration covers layout/tier/sockets/partial stock/lighting/fitting/demo. Route E uses Esc Save/Load for untouched basic, upgraded, and partially stocked states; cash, tier, every SKU, decor, layout, boxes, orders, held units, duplicates, fresh customers, and lighting all reconstruct exactly. |
+| 19. Performance | Proved | `PERFORMANCE_ACCEPTANCE.md` supplies same-environment baseline/current data, three repeated empty/stress/walk samples, ten-customer counts, draw/triangle/material/texture/heap/listener/UI data, declared budgets, checkout/laptop coverage, and a 30-cycle soak. A discovered character GPU leak and FOV restoration defect were fixed and re-proved. |
+| 20. Testing | Proved | Final `npm test`: 533 passed, 0 failed/skipped/cancelled. Coverage includes fixture/asset/socket/category/tier/lighting/stock visual state/checkout/door/laptop/save/conservation/disposal contracts. Browser Routes A-E, natural cash/card, four visual iterations, console checks, videos, and screenshots cover normal gameplay. |
 
-## Phase-by-phase audit
+## Acceptance gate matrix
 
-| Phase | Verdict | Current evidence | Gap that must close |
-|---|---|---|---|
-| 1. Complete shop audit | Proved | `baseline-audit.md`, 16 baseline cameras in both states, `fixture-manifest.md`, branch provenance | Final report must link the manifest and retain exact launch protocol. |
-| 2. Shop floor plan | Partial | Data-owned 21 x 13.5 layout, clearance tests, 18 cameras, authored fixture sockets | Basket station is not a distinct floor-plan fixture; fitting/demo/premium destinations have no customer sockets; emergency-route coverage is implicit rather than named. |
-| 3. Fixture library | Partial | Eleven repeatable Blender GLBs plus existing register/merch GLBs; simple data collisions; named shared materials | Ball wall, shoe wall/bench, hat presentation, basket station, small spinner, freestanding/demo rack, and several physical sign/rail modules remain runtime procedural. The requested fixture contract is not tested across empty/partial/full/tier states. |
-| 4. Product presentation | Partial | Exact 4-15 product slots for 42 retail lines; final full-stock screenshots; shared material kit | No automated geometry contract proves outward facing, shelf contact, clipping bounds, or absence of placeholder cubes for every SKU. Highest-instance draw-call behavior is not budgeted. |
-| 5. Clothing displays | Partial | Folded and hanging apparel GLBs; polos, jacket, pants, shorts, gloves, socks in layout | Current player-camera evidence is visual only; no placement contract proves thickness/rail contact, and no tier/color/size presentation test exists. |
-| 6. Club and bag displays | Partial | Blender club wall, separate head GLBs, exact slots, empty bag GLB, final screenshots | No distinct freestanding/demo rack asset; no normal-control customer reach/carry proof; bag opening/strap/club-socket requirements are not recorded by an asset inspection. |
-| 7. Shoe, hat, accessory areas | Partial | Lit angled shoe wall, bench geometry, pegboard, variants, authored browse points | Shoe wall and hat tree are runtime procedural rather than production GLBs; the requirement calls for a hat wall/shelf and the accepted image still uses a freestanding tree. No player-driven try-on proof exists. |
-| 8. Putting and demo area | Missing function | Premium putting-mat GLB and static putter/balls appear at tier 3 | The mat is visual-only: no browse/test socket, no short customer test state, no one/two-putt feedback, and no return/selection proof. |
-| 9. Checkout area | Partial | Strong spatial/unit tests; recorded physical scanner/card/cash/receipt/bag/handoff interactions | `register-sale.js` calls `sendToCounter()` and directly prepares stock/camera. The checkout skill rejects programmatic state injection as end-to-end acceptance. A naturally arriving customer and normal player navigation are still required. |
-| 10. Snacks and drinks | Partial | Blender fridge/rack, original fictional atlas, 24 drinks and 24 snacks, exact stock sockets | Refrigerator door is deliberately static. That is acceptable only if gameplay does not require opening, but normal-control browsing/selection still lacks direct proof. |
-| 11. Fitting room | Missing function | Blender enclosure, curtain, bench, mirror, light/sign presentation | No authored occupancy socket, no customer fitting state, no navigation/occupancy test, no clipping proof, and no purchase-likelihood adapter. |
-| 12. Lighting | Partial | Warm shell rig, display emissive strips, refrigerator light, daylight, final screenshots | No explicit basic/standard/premium lighting contract or test. Current tier relay does not prove light-count/color/intensity changes, and no focused lighting/shadow budget was measured. |
-| 13. Materials | Proved visually | Shared Pinehollow material library, stylized procedural PBR maps, named GLB slots and remapping, accepted screenshots | Final asset inspection must record slot reuse and confirm no duplicate material explosion across repeated stock. |
-| 14. Signs and wayfinding | Partial | Category headers and price rails for major retail fixtures; fitting, Tour Vault, drinks/snacks, scorecard signs | Checkout, stockroom, new-arrivals and tier/sale presentation are not all covered by a sign contract; interaction-range readability has only screenshot evidence. |
-| 15. Customer browsing | Partial | Exclusive authored sockets for stock-bearing fixtures; ten-customer diagnostic reports unique reservations and 0.60-yard separation | Putting demo, premium case and fitting room are excluded because they have no SKUs/sockets. No retained normal-control run proves approach side, reach, basket use, return/abandon, and checkout together. |
-| 16. Stocking | Mostly proved | Exact socket capacity is the sim capacity; one home fixture per retail SKU; category rejection, conservation, empty/full logic, prompt counts and preview | Player-driven Route A must still stock starter products through normal controls and retain evidence for empty, partial and full visual states. |
-| 17. Shop tiers | Partial | Tier-3 supplier progression visibly populates Tour Vault and putting studio; `minTier` hides premium fixtures | Fresh games start at supplier tier 2, basic/standard presentation is not separately evidenced, lighting does not visibly tier, and no normal UI upgrade route proves purchase -> world change -> new stock. There is no tier-4 architecture, which must be handled honestly rather than claimed. |
-| 18. Save and load | Partial | Layout, stock, renovation, progression and interrupted checkout have unit tests; one mid-sale browser reload exists | Required browser routes for basic layout, upgraded layout and partially stocked layout are absent. Fitting/demo customer safety and exact tier visual reconstruction are unproved. |
-| 19. Performance | Missing gate | SwiftShader before/after captures record scene/resource metrics; listener count stayed 92 | Protocol omits checkout, laptop, refrigerator/glass, repeated interactions and leak samples. The exact final sample has only one frame, JS heap regressed 20.9%, and no repository budget/tolerance was set. This cannot support “acceptable” yet. |
-| 20. Testing | Partial | 519-test suite covers layout, stock conservation, build mode, checkout state, doors and save migration | Missing explicit tests for empty/partial/full visual contracts, floating/clipping bounds, fitting occupancy, demo state, lighting tier, tier visual reconstruction, product batching/performance budget, and the five required normal-control routes. |
+| Gate | Accepted evidence | Result |
+|---|---|---|
+| Four complete visual-QA iterations | `ITERATIONS.md`; matched before/after folders for passes 1-4; 18 starting + 18 full cameras per run; route videos; normal movement/clock proof; diagnostics; at least ten visible fixes each | Pass |
+| Natural card checkout | `natural-checkout-acceptance/card/result.json` and video; Alex R. naturally browsed/picked `glove1`; $19 and one unit banked | Pass |
+| Natural cash checkout | `natural-checkout-acceptance/cash/result.json` and video; Quinn B. naturally browsed/picked `tees1`; physical drawer/change/receipt/bag/handoff; $6 and one unit banked | Pass |
+| Route A - basic store | `routes-a-b-e-acceptance/result.json`; normal entry/circulation and physical starter-ball stocking; natural checkout evidence supplies customer service | Pass |
+| Route B - upgrade | Same result/video; laptop order, real lead time, cartons, placed plant, premium tier, new shoe category, visible capacity | Pass |
+| Route C - browsing | `routes-c-d-acceptance-final/cash/result.json`; ten mixed shoppers, 14 destinations, baskets, queue and natural transaction | Pass |
+| Route D - full-store stress | Same route plus `performance-acceptance/run.json`; 42 lines/289 units, ten shoppers, checkout, physical laptop, repeated frame/resource samples | Pass |
+| Route E - save/load | Three normal Esc save/load snapshots with exact basic/upgraded/partial reconstruction and all nine assertions true | Pass |
+| Performance/leaks | Three-sample hardware D3D11 protocol and 30 laptop cycles; flat customer GPU resources; listeners 85 -> 85; heap +9.42 MiB | Pass |
+| Automated regression | `npm test` after final code changes | 533/533 |
+| Branch hygiene | Dedicated branch/worktree, focused stable commits, no merge to `main` | Pass |
 
-## Invalid or insufficient retained QA
+## Diagnostics and scoped limitations
 
-### Four-pass visual gate
-
-`tools/qa/pro-shop-overhaul.mjs` runs the normal-control walk only when performance capture is enabled. The retained visual rounds were invoked with `--capture-only`, so their `metrics` arrays are empty and they contain no normal-control proof. The defect tables describe real revisions, but the browser-game visual-QA skill counts an iteration only when the same round includes launch, normal controls, console/network inspection, all fixed cameras, explicit comparison, ten defects, and subsequent fixes. Four compliant iterations still have to be run and retained.
-
-### Checkout gate
-
-The retained card/cash videos physically exercise the register after setup, but `tools/qa/register-sale.js`:
-
-1. directly fills shelf inventory,
-2. directly places the player behind the counter,
-3. calls `sendToCounter(['balls3', 'glove1'], mode)` to create the active transaction.
-
-Those are useful deterministic component tests, not full end-to-end acceptance. A compliant route must start a fresh game, navigate with normal controls, allow a customer to arrive/browse/pick/place products through the live customer system, then complete all eleven checkout steps through mouse/keyboard controls.
-
-### Performance gate
-
-The before/after files are useful scene diagnostics, but they do not satisfy the performance skill because the full scenario is not identical at a statistically useful frame count and several required stress interactions are missing. A fixed hardware/browser/quality protocol, multiple samples, interaction repetition, budgets/tolerances, and raw results are required.
-
-## Required implementation milestones
-
-1. Add data-owned experience sockets and short fitting, putting-demo, and premium-browse customer states without replacing the customer state machine.
-2. Complete the missing production fixture modules that materially affect the player camera, starting with hat wall, shoe wall/bench, basket station, ball wall and demo rack; rebuild by repeatable Blender Python and integrate the GLBs.
-3. Make tier presentation a tested world contract: standard starting fit-out, premium supplier transformation, fixture visibility, lighting state, save reconstruction and no stale placeholders.
-4. Add geometry/presentation contract tests for every SKU and fixture state, plus fitting/demo/tier/performance budgets.
-5. Replace continuation-prone QA boot with a guaranteed fresh New Empire route, and add normal-control proof to every visual iteration.
-6. Add natural-customer card and cash acceptance without `sendToCounter` or direct transaction mutation.
-7. Run browser Routes A-E, four compliant visual passes with ten defects and fixes each, and a complete performance protocol.
-8. Replace `FINAL_REPORT.md` with all 28 requested report items and only evidence-supported completion claims.
+- Chrome's D3D11 compiler emits one non-fatal Three.js X4000 warning. There are no accepted-run page errors or HTTP 4xx/5xx responses. GLB `ERR_ABORTED` entries occur during isolated-context teardown or deliberate scene replacement and remain preserved in raw JSON.
+- The current progression architecture supports tiers 1-3 only. The report does not claim a nonexistent tier-4 luxury economy.
+- The putting demo is a short customer retail beat, not a player putting minigame or ball-physics simulation, matching the instruction not to turn it into full golf gameplay.
+- The refrigerator is glass-fronted and static; existing browsing/selection does not require opening it.
+- The valid pre-overhaul D3D11 performance baseline has one sample per scenario; current acceptance has three, so baseline percentage deltas are directional. Current absolute budgets and repeated leak gates pass.
+- `package.json` has no build script. Validation is `node --check`, the served browser game, Playwright gameplay, and the complete Node test suite.
 
 ## Completion status
 
-**Not complete.** The current branch is a strong visual prototype and deterministic checkout component pass, but explicit functional, tier, end-to-end, four-iteration, save/load and performance gates remain open.
+**Complete.** Every definition-of-done item is implemented and supported by current normal-control, visual, persistence, performance, and automated evidence. Final report: `FINAL_REPORT.md`.
