@@ -55,7 +55,7 @@ export function newEmpire(mode = 'relaxed', seed = Date.now() % 2147483647) {
   for (const p of market) p.listedDay = 0; // launch roster hits the market on day one
   const marketRng = makeRng(((seed ^ 0x9e3779b9) >>> 0) || 1);
   const firstTarget = Math.round((MARKET.conditionMin + marketRng.next() * (MARKET.conditionMax - MARKET.conditionMin)) * 10000) / 10000;
-  return {
+  const empire = {
     version: EMPIRE_VERSION,
     mode,
     seed,
@@ -74,6 +74,8 @@ export function newEmpire(mode = 'relaxed', seed = Date.now() % 2147483647) {
     marketCondition: 1,
     marketConditionTarget: firstTarget,
   };
+  initEmpireProgression(empire);
+  return empire;
 }
 
 // --- plumbing -------------------------------------------------------------------
@@ -202,11 +204,12 @@ export function initPropertyState(property, mode) {
   state.cash = 0; // the empire wallet is the only money there is
   seedTurfToCondition(state, property);
   seedMembership(state, property);
-  state.club.reputation = property.startingReputation;
+  seedReputation(state, property.startingReputation);
   // what the place is worth is what the rent is sized off (sim/property.js)
   state.club.valuation = property.askingPrice;
   // the golf world has roughly heard of it to the extent the locals like it
   state.progression.prestige = clamp(8 + property.startingReputation * 0.3, 5, 30);
+  initBusiness(state);
   return state;
 }
 
@@ -269,23 +272,184 @@ export function holdingValue(empire, holding) {
   });
 }
 
+function saleBreakdown(empire, holding) {
+  const live = appraisalBreakdown(holding.state);
+  const value = holdingValue(empire, holding);
+  return { ...live, value, grossSaleValue: value };
+}
+
+export function latestPropertyAppraisal(empire, propertyId) {
+  return ensureEmpireProgression(empire).appraisals
+    .filter((item) => item.propertyId === propertyId)
+    .sort((a, b) => b.createdDay - a.createdDay || b.sequence - a.sequence)[0] || null;
+}
+
+export function requestPropertyAppraisal(empire, propertyId) {
+  syncWallet(empire);
+  const holding = empire.holdings.find((item) => item.property.id === propertyId);
+  if (!holding) return { ok: false, reason: "You don't own that property." };
+  const progression = ensureEmpireProgression(empire);
+  const sequence = progression.nextAppraisalId++;
+  const id = `appraisal-${sequence}`;
+  const day = calendarOf(worldMinutes(empire)).dayAbs;
+  const breakdown = saleBreakdown(empire, holding);
+  const readiness = propertyReadiness(holding.state, empire);
+  const marketModifier = Math.round(clamp(empire.marketCondition || 1, MARKET.conditionMin, MARKET.conditionMax) * 1000) / 1000;
+  const offer = round500(breakdown.grossSaleValue * marketModifier);
+  const closingCosts = Math.round(Math.max(750, offer * 0.035) * 100) / 100;
+  const outstanding = Math.round(Math.max(0, breakdown.outstanding || 0) * 100) / 100;
+  const netProceeds = Math.max(0, Math.round((offer - closingCosts - outstanding) * 100) / 100);
+  const appraisal = {
+    id,
+    sequence,
+    propertyId,
+    propertyName: holding.property.name,
+    tierId: holding.property.tierId || holding.state.property?.tierId || 'neglectedPublic',
+    createdDay: day,
+    expiresDay: day + 5,
+    status: readiness.saleEligible ? 'offered' : 'information',
+    eligible: readiness.saleEligible,
+    offer,
+    appraisedValue: breakdown.grossSaleValue,
+    marketModifier,
+    closingCosts,
+    outstanding,
+    netProceeds,
+    acquisitionCost: breakdown.acquisitionCost,
+    restorationInvestment: breakdown.restorationInvestment,
+    valuation: breakdown,
+    readiness,
+  };
+  // A newly requested valuation replaces every earlier open quote for this
+  // property. This prevents a player from collecting several offers and later
+  // accepting a stale high-water mark after the live property has changed.
+  for (const previous of progression.appraisals) {
+    if (previous.propertyId !== propertyId || !['offered', 'information'].includes(previous.status)) continue;
+    previous.status = 'superseded';
+    previous.closedDay = day;
+  }
+  progression.appraisals.push(appraisal);
+  if (progression.appraisals.length > 30) progression.appraisals.shift();
+  empireLog(empire, readiness.saleEligible
+    ? `Appraisal received for ${holding.property.name}: ${formatMoney(offer)} offer, ${formatMoney(netProceeds)} net.`
+    : `Appraisal completed for ${holding.property.name}; sale requirements remain.`, 'appraisal', day);
+  return { ok: true, appraisal };
+}
+
+export function rejectPropertyAppraisal(empire, appraisalId, choice = 'rejected') {
+  const appraisal = ensureEmpireProgression(empire).appraisals.find((item) => item.id === appraisalId);
+  if (!appraisal) return { ok: false, reason: 'That appraisal is no longer available.' };
+  if (!['offered', 'information'].includes(appraisal.status)) return { ok: false, reason: 'That appraisal is already closed.' };
+  appraisal.status = choice === 'keep' ? 'kept' : 'rejected';
+  appraisal.closedDay = calendarOf(worldMinutes(empire)).dayAbs;
+  return { ok: true, appraisal };
+}
+
+function performSale(empire, index, payout) {
+  const holding = empire.holdings[index];
+  const propertyId = holding.property.id;
+  const name = holding.property.name;
+  empire.holdings.splice(index, 1);
+  empire.cash = Math.round((empire.cash + payout) * 100) / 100;
+  if (empire.activeId === propertyId) {
+    empire.clockMinutes = holding.state.clock.minutes;
+    empire.activeId = null;
+  } else {
+    const state = activeState(empire);
+    if (state) state.cash = empire.cash;
+  }
+  return { holding, propertyId, name };
+}
+
+function recordCompletedSale(empire, holding, details) {
+  const progression = ensureEmpireProgression(empire);
+  const acquisitionCost = holding.state.property?.acquisitionCost || holding.property.askingPrice || 0;
+  const completed = {
+    id: details.saleId,
+    appraisalId: details.appraisalId || null,
+    propertyId: holding.property.id,
+    propertyName: holding.property.name,
+    tierId: holding.property.tierId || holding.state.property?.tierId || 'neglectedPublic',
+    day: calendarOf(worldMinutes(empire)).dayAbs,
+    acquisitionCost,
+    restorationInvestment: details.restorationInvestment || 0,
+    grossOffer: details.grossOffer,
+    closingCosts: details.closingCosts || 0,
+    outstanding: details.outstanding || 0,
+    netProceeds: details.netProceeds,
+    profit: Math.round((details.netProceeds - acquisitionCost) * 100) / 100,
+  };
+  progression.completedSales.push(completed);
+  if (progression.completedSales.length > 40) progression.completedSales.shift();
+  progression.processedSaleIds[details.saleId] = completed;
+  const unlockedTier = unlockEarnedTier(empire, holding.state);
+  return { completed, unlockedTier };
+}
+
+export function confirmPropertySale(empire, propertyId, appraisalId, confirmed = false) {
+  if (!confirmed) return { ok: false, reason: 'Explicit sale confirmation is required.' };
+  syncWallet(empire);
+  const progression = ensureEmpireProgression(empire);
+  const saleId = `sale:${appraisalId}`;
+  if (progression.processedSaleIds[saleId]) {
+    const prior = progression.processedSaleIds[saleId];
+    return { ok: false, duplicate: true, reason: 'That sale has already closed.', payout: prior.netProceeds };
+  }
+  const appraisal = progression.appraisals.find((item) => item.id === appraisalId && item.propertyId === propertyId);
+  if (!appraisal || appraisal.status !== 'offered') return { ok: false, reason: 'Request a current sale appraisal first.' };
+  const newer = progression.appraisals.some((item) => item.propertyId === propertyId && item.sequence > appraisal.sequence);
+  if (newer) {
+    appraisal.status = 'superseded';
+    return { ok: false, reason: 'That offer was superseded. Use the newest appraisal.' };
+  }
+  const day = calendarOf(worldMinutes(empire)).dayAbs;
+  if (day > appraisal.expiresDay) {
+    appraisal.status = 'expired';
+    return { ok: false, reason: 'That offer expired. Request a new appraisal.' };
+  }
+  const index = empire.holdings.findIndex((item) => item.property.id === propertyId);
+  if (index < 0) return { ok: false, reason: "You don't own that property." };
+  const holding = empire.holdings[index];
+  const readiness = propertyReadiness(holding.state, empire);
+  if (!readiness.saleEligible) return { ok: false, reason: 'The property no longer meets the sale requirements.' };
+
+  progression.saleBackups.push({
+    id: `backup:${saleId}`,
+    createdDay: day,
+    cashBefore: empire.cash,
+    activeId: empire.activeId,
+    property: holding.property,
+    passive: holding.passive,
+    state: snapshot(holding.state),
+  });
+  while (progression.saleBackups.length > 3) progression.saleBackups.shift();
+
+  const sold = performSale(empire, index, appraisal.netProceeds);
+  appraisal.status = 'accepted';
+  appraisal.closedDay = day;
+  const recorded = recordCompletedSale(empire, sold.holding, {
+    saleId,
+    appraisalId,
+    grossOffer: appraisal.offer,
+    closingCosts: appraisal.closingCosts,
+    outstanding: appraisal.outstanding,
+    netProceeds: appraisal.netProceeds,
+    restorationInvestment: appraisal.restorationInvestment,
+  });
+  empireLog(empire, `Sold ${sold.name}: ${formatMoney(appraisal.offer)} offer, ${formatMoney(appraisal.netProceeds)} net after closing.`, 'sale', day);
+  return { ok: true, payout: appraisal.netProceeds, appraisal, ...recorded };
+}
+
 export function sellProperty(empire, propertyId) {
   syncWallet(empire);
   const i = empire.holdings.findIndex((h) => h.property.id === propertyId);
   if (i === -1) return { ok: false, reason: "You don't own that property." };
   const holding = empire.holdings[i];
   const payout = holdingValue(empire, holding);
-  const name = holding.property.name;
-  empire.holdings.splice(i, 1); // the only reference — members, staff, golfers, all of it, gone
-  empire.cash += payout;
-  if (empire.activeId === propertyId) {
-    empire.clockMinutes = holding.state.clock.minutes;
-    empire.activeId = null;
-  } else {
-    const st = activeState(empire);
-    if (st) st.cash = empire.cash;
-  }
-  empireLog(empire, `Sold ${name} for ${formatMoney(payout)}. No going back now.`);
+  const saleId = `legacy-sale:${propertyId}:${ensureEmpireProgression(empire).completedSales.length + 1}`;
+  const sold = performSale(empire, i, payout);
+  recordCompletedSale(empire, sold.holding, { saleId, grossOffer: payout, netProceeds: payout });
+  empireLog(empire, `Sold ${sold.name} for ${formatMoney(payout)}. No going back now.`);
   return { ok: true, payout };
 }
 
@@ -467,6 +631,7 @@ export function empireUpdate(empire, gameMinutes) {
 export function empireSnapshot(empire) {
   syncWallet(empire);
   return {
+    ...(empire.__unknownSaveFields || {}),
     empireVersion: EMPIRE_VERSION,
     mode: empire.mode,
     seed: empire.seed,
@@ -480,7 +645,9 @@ export function empireSnapshot(empire) {
     lastMarketDay: empire.lastMarketDay,
     marketCondition: empire.marketCondition,
     marketConditionTarget: empire.marketConditionTarget,
+    progression: ensureEmpireProgression(empire),
     holdings: empire.holdings.map((h) => ({
+      ...(h.__unknownSaveFields || {}),
       property: h.property,
       passive: h.passive,
       state: snapshot(h.state),
@@ -498,6 +665,7 @@ function legacyEmpireFromState(st) {
   const counts = memberCounts(st);
   const record = {
     id: 'legacy-club',
+    tierId: st.course.holes.length >= 14 ? 'establishedLocal' : 'neglectedPublic',
     name: st.clubName,
     blurb: 'The original club, carried into the empire era.',
     size: st.course.holes.length >= 14 ? 18 : 9,
@@ -517,9 +685,12 @@ function legacyEmpireFromState(st) {
   };
   bindPropertyInventory(st, record.id);
   const joinDay = calendarOf(st.clock.minutes).dayAbs;
+  st.property.id = record.id;
+  st.property.tierId = record.tierId;
+  if (!st.property.acquisitionCost) st.property.acquisitionCost = record.askingPrice;
   const market = generateMarketplace(st.seed).filter((p) => p.id !== 'willow-creek');
   for (const p of market) p.listedDay = joinDay; // listed "today" — a fair fresh start
-  return {
+  const empire = {
     version: EMPIRE_VERSION,
     mode: st.mode,
     seed: st.seed,
@@ -535,13 +706,15 @@ function legacyEmpireFromState(st) {
     marketCondition: 1,
     marketConditionTarget: 1,
   };
+  initEmpireProgression(empire);
+  return empire;
 }
 
 export function deserializeEmpire(raw) {
   const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
   if (!data.empireVersion) return legacyEmpireFrom(data);
   const empire = {
-    version: data.empireVersion,
+    version: EMPIRE_VERSION,
     mode: data.mode,
     seed: data.seed,
     cash: data.cash,
@@ -563,7 +736,9 @@ export function deserializeEmpire(raw) {
     lastMarketDay: data.lastMarketDay,
     marketCondition: data.marketCondition,
     marketConditionTarget: data.marketConditionTarget,
+    progression: data.progression,
   };
+  ensureEmpireProgression(empire);
   // saves written before the living market existed: grow the stream, join the
   // market clock at the save's own world day, start the pricing cycle at par,
   // and give the frozen listings a fresh (fair) listing date — their expiry

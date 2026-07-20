@@ -21,12 +21,22 @@ const SEVERE_AFTER = 4; // missed cycles before the game starts using the word "
 export function ensureProperty(state) {
   if (!state.property) state.property = {};
   const p = state.property;
+  if (!p.id) p.id = `club-${state.seed ?? 'legacy'}`;
+  if (!p.tierId) p.tierId = 'neglectedPublic';
+  if (typeof p.acquisitionCost !== 'number') p.acquisitionCost = 0;
+  if (typeof p.loanBalance !== 'number') p.loanBalance = 0;
+  if (!Number.isInteger(p.nextCommandId) || p.nextCommandId < 1) p.nextCommandId = 1;
   if (typeof p.nextDueDay !== 'number') p.nextDueDay = CYCLE_DAYS;
   if (typeof p.arrears !== 'number') p.arrears = 0;
   if (typeof p.missedTotal !== 'number') p.missedTotal = 0;
   if (typeof p.warnedFor !== 'number') p.warnedFor = -1;
   if (typeof p.paidTotal !== 'number') p.paidTotal = 0;
   return p;
+}
+
+export function nextPropertyCommandId(state, kind = 'command') {
+  const property = ensureProperty(state);
+  return `${property.id}:${kind}:${property.nextCommandId++}`;
 }
 
 export const propertyState = (state) => ensureProperty(state);
@@ -73,7 +83,12 @@ export function tickProperty(state, dayAbs) {
   const owed = due + p.arrears;
 
   if (state.cash >= owed) {
-    spend(state, 'rent', owed); // addExpense already takes the cash; spend works ledger-or-not
+    spend(state, 'rent', owed, {
+      idempotencyKey: `property:${p.id}:holding-cost:${dayAbs}`,
+      relatedId: p.id,
+      description: `Property holding cost â€” day ${dayAbs}`,
+      source: 'property',
+    }); // addExpense already takes the cash; spend works ledger-or-not
     p.arrears = 0;
     p.paidTotal += owed;
     out.paid = true;

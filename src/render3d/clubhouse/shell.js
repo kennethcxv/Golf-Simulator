@@ -95,7 +95,11 @@ export function buildShell(B) {
   sidingTex.repeat.set(6, 2.2);
   const sidingMat = new THREE.MeshStandardMaterial({ map: sidingTex, normalMap: sidingNor, roughness: 0.85 });
   const roofMat = new THREE.MeshStandardMaterial({ color: 0x2e5a35, normalMap: roofNor, roughness: 0.72 });
-  const trimMat = mats.trimPaint;
+  // Shell trim is independently tintable in renovation mode. Keeping this as one
+  // shared shell material preserves batching while avoiding a room-style change
+  // recolouring every cream-painted prop in the rest of the clubhouse.
+  const trimMat = mats.trimPaint.clone();
+  let retailFloorMaterial = null;
   // eave/porch undersides fight the hemisphere's green ground bounce with a
   // faint warm self-light (they read as shadowed cream, not lime)
   const soffitMat = new THREE.MeshStandardMaterial({ color: 0xf5f2e6, roughness: 0.85, emissive: 0xfff2dc, emissiveIntensity: 0.10 });

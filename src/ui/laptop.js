@@ -29,6 +29,13 @@ import {
 import {
   boxesOf, shipmentsOf, shipmentStatus, padCount, PAD_CAPACITY,
 } from '../sim/deliveries.js';
+import {
+  ORDER_STATE,
+  inventoryPosition,
+  quotePurchaseOrders,
+  reorderSuggestion,
+  submitPurchaseOrders,
+} from '../sim/inventoryLifecycle.js';
 import { planShipment, unitsPerBox } from '../data/boxes.js';
 import {
   TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot, slotAvailability,
@@ -431,7 +438,15 @@ export function makeLaptop(app, opts) {
       el('span', { class: 'lt-navicon' }, icon('power')), el('span', { text: 'Close Laptop' })),
   );
 
-  const statusbar = el('div', { class: 'lt-status' });
+  const statusBack = el('button', { class: 'lt-crumb', title: 'Back', text: '‹', onclick: () => back() });
+  const statusHome = el('button', { class: 'lt-crumb', title: 'Home', text: '⌂', onclick: () => go('home') });
+  const statusName = el('span', { class: 'lt-statusname' });
+  const statusDate = el('span');
+  const statusTime = el('span');
+  const statusShop = el('span', { class: 'lt-chip' });
+  const statusCash = el('span', { class: 'lt-cash' });
+  const statusbar = el('div', { class: 'lt-status' },
+    statusBack, statusHome, statusName, statusDate, statusTime, statusShop, statusCash);
   const frame = el('div', { class: 'lt-frame' }, nav, el('div', { class: 'lt-main' }, statusbar, content));
   const root = el('div', { class: 'laptop-screen', style: 'display:none' }, frame);
   root.addEventListener('click', (e) => e.stopPropagation());
@@ -486,7 +501,7 @@ export function makeLaptop(app, opts) {
       el('button', {
         class: 'lt-primary lt-danger',
         text: pending.confirmLabel,
-        onclick: () => { const f = pending.onYes; pending = null; click(); f(); render(); },
+        onclick: () => { const f = pending.onYes; pending = null; click(); if (f() !== false) render(); },
       }),
     );
   }
@@ -1105,15 +1120,14 @@ export function makeLaptop(app, opts) {
     });
 
     const placeAll = () => {
-      let placed = 0;
-      let spent = 0;
-      let boxes = 0;
-      const failed = [];
-      for (const [id, qty] of [...cart]) {
-        const res = placeOrder(st, id, qty);
-        if (res.ok) {
-          placed++; spent += res.cost; boxes += res.boxes; cart.delete(id);
-        } else failed.push(`${skuById(id).name}: ${res.reason}`);
+      const result = submitPurchaseOrders(st, {
+        idempotencyKey: `laptop-order:${st.seed}:${orderIntent++}`,
+        lines: [...cart].map(([skuId, quantity]) => ({ skuId, quantity })),
+      });
+      if (!result.ok) {
+        toast(result.reason, 'warn');
+        render();
+        return;
       }
       if (placed) {
         toast(`Order accepted — ${formatMoney(spent)}. ${plural(boxes, 'box')} to the receiving pad.`);
@@ -1155,6 +1169,7 @@ export function makeLaptop(app, opts) {
       const sample = SHOP_CATALOG.find((s) => s.cat === cat && s.tier <= st.shop.unlockedTier);
       const out = el('span', { class: 'lt-muval' });
       const paintMarkup = (v) => {
+        const response = productPricingResponse(st, cat, v);
         const price = sample ? priceFor(sample, v, null) : 0;
         out.replaceChildren(
           el('span', { class: 'lt-mupct', text: sample ? `${Math.round(v * 100)}% / ${formatMoney(price)} sample` : `${Math.round(v * 100)}%` }),
@@ -1166,8 +1181,8 @@ export function makeLaptop(app, opts) {
         type: 'range', min: '70', max: '150', value: String(Math.round(val * 100)), class: 'lt-range',
         oninput: (e) => {
           const v = Number(e.target.value) / 100;
-          st.shop.markup[cat] = v;   // written straight to the sim — this IS the price
-          paintMarkup(v);
+          const result = setProductMarkup(st, cat, v);
+          if (result.ok) paintMarkup(result.response.value);
         },
       });
       return row(el('span', { class: 'lt-mulabel', text: CAT_LABEL[cat] }), slider, out);
@@ -1186,15 +1201,40 @@ export function makeLaptop(app, opts) {
     paintFee(st.club.greenFee);
     const feeRange = el('input', {
       type: 'range', min: '10', max: '150', step: '1', value: String(Math.round(st.club.greenFee)), class: 'lt-range',
-      oninput: (e) => { st.club.greenFee = Number(e.target.value); paintFee(st.club.greenFee); },
+      oninput: (e) => { const result = setGreenFee(st, e.target.value); if (result.ok) paintFee(result.response.value); },
     });
 
     const rentOut = el('span', { class: 'lt-muval' });
-    const paintRent = (v) => rentOut.replaceChildren(el('span', { class: 'lt-mupct', text: `${formatMoney(v)} / round` }));
+    const paintRent = (v) => {
+      const response = rentalPricingResponse(st, v);
+      rentOut.replaceChildren(
+        el('span', { class: 'lt-mupct', text: `${formatMoney(v)} / round` }),
+        el('span', { class: `lt-chip ${response.band.tone}`, text: response.band.label }),
+        el('span', { class: 'lt-meta', text: `Fair ${formatMoney(response.fairValue)} · demand ${response.salesLikelihoodPercent}% · revenue index ${response.revenueIndex.toFixed(2)}` }),
+      );
+    };
     paintRent(st.shop.rentalFleet.pricePerRound);
     const rentRange = el('input', {
       type: 'range', min: '5', max: '60', step: '1', value: String(Math.round(st.shop.rentalFleet.pricePerRound)), class: 'lt-range',
-      oninput: (e) => { st.shop.rentalFleet.pricePerRound = Number(e.target.value); paintRent(st.shop.rentalFleet.pricePerRound); },
+      oninput: (e) => { const result = setRentalPrice(st, e.target.value); if (result.ok) paintRent(result.response.value); },
+    });
+
+    const membershipRows = Object.keys(st.club.dues).map((tier) => {
+      const out = el('span', { class: 'lt-muval' });
+      const repaint = (value) => {
+        const response = membershipPricingResponse(st, tier, value);
+        out.replaceChildren(
+          el('span', { class: 'lt-mupct', text: `${formatMoney(value)} / season` }),
+          el('span', { class: `lt-chip ${response.band.tone}`, text: response.band.label }),
+          el('span', { class: 'lt-meta', text: `Fair ${formatMoney(response.fairValue)} · join demand ${response.salesLikelihoodPercent}% · ${response.band.satisfaction}` }),
+        );
+      };
+      repaint(st.club.dues[tier]);
+      const slider = el('input', {
+        type: 'range', min: '100', max: '1200', step: '10', value: String(Math.round(st.club.dues[tier])), class: 'lt-range',
+        oninput: (event) => { const result = setMembershipDue(st, tier, event.target.value); if (result.ok) repaint(result.response.value); },
+      });
+      return row(el('span', { class: 'lt-mulabel', text: tier[0].toUpperCase() + tier.slice(1) }), slider, out);
     });
 
     return [
@@ -1954,6 +1994,48 @@ export function makeLaptop(app, opts) {
     const revToday = sumLines(st.ledger?.today?.revenue);
     const expToday = sumLines(st.ledger?.today?.expense);
     const owed = arrearsOf(st);
+    const operationDays = financeWindow === 'today' ? 1 : financeWindow === 'week' ? 7 : 24;
+    const operationSummaries = Array.from({ length: operationDays }, (_, index) => (
+      operationFinanceSummary(st, cal.dayAbs - index)
+    ));
+    const operationWindow = operationSummaries.reduce((out, summary) => {
+      out.entries.push(...summary.entries);
+      out.cashIn += summary.cashIn;
+      out.cashOut += summary.cashOut;
+      for (const [category, amount] of Object.entries(summary.categories)) {
+        out.categories[category] = (out.categories[category] || 0) + amount;
+      }
+      return out;
+    }, { entries: [], cashIn: 0, cashOut: 0, categories: {} });
+    operationWindow.netCash = operationWindow.cashIn - operationWindow.cashOut;
+    operationWindow.stableIdsUnique = new Set(operationWindow.entries.map((entry) => entry.id)).size === operationWindow.entries.length;
+    const OPERATION_LABEL = {
+      bookingRevenue: 'Prepaid bookings',
+      bookingDeposits: 'Booking deposits',
+      bookingBalances: 'Balances collected',
+      walkInRevenue: 'Walk-in green fees',
+      cancellationFees: 'Cancellation fees retained',
+      noShowFees: 'No-show fees retained / charged',
+      bookingRefunds: 'Booking refunds',
+    };
+    const operationRows = Object.entries(OPERATION_LABEL)
+      .map(([category, label]) => [category, label, operationWindow.categories[category] || 0])
+      .filter(([, , amount]) => amount > 0.005)
+      .map(([category, label, amount]) => row(
+        el('span', { text: label }),
+        meta(category === 'cancellationFees' || category === 'noShowFees' ? 'policy classification' : ''),
+        el('span', {
+          class: `lt-num ${category === 'bookingRefunds' ? 'lt-neg' : 'lt-pos'}`,
+          text: `${category === 'bookingRefunds' ? '-' : ''}${operationMoney(amount)}`,
+        })));
+    const toDay = cal.dayAbs;
+    const fromDay = financeWindow === 'month' ? toDay - 23 : financeWindow === 'week' ? toDay - 6 : toDay;
+    const profit = financialSummary(st, fromDay, toDay);
+    const daily = latestDailySummary(st);
+    const week = weeklySummary(st);
+    const entries = (led.entries || [])
+      .filter((entry) => entry.day >= fromDay && entry.day <= toDay)
+      .slice().sort((a, b) => b.timestamp - a.timestamp).slice(0, 24);
 
     const hist = Array.isArray(st.ledger?.history) ? st.ledger.history : [];
     const windowDays = fs.win === 'season' ? 24 : 7;

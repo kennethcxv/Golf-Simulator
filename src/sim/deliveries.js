@@ -55,6 +55,7 @@ export const ORDER_FLOW = ['received', 'processing', 'packed', 'shipped', 'out',
 // How many cartons will physically stand on the receiving pad. A van cannot unload into a
 // full pad, and pretending it can is how you end up with a tower of cardboard in the yard.
 export const PAD_CAPACITY = 9;
+export const FALLBACK_CAPACITY = 12;
 
 // Packaging evolves independently from the course save, so it carries a small local schema.
 export const DELIVERIES_SCHEMA_VERSION = 5;
@@ -511,6 +512,46 @@ export function padHasRoom(state, n) {
   return padCount(state) + n <= PAD_CAPACITY;
 }
 
+export function fallbackCount(state) {
+  return boxesOf(state).filter((box) => box.loc === 'receiving-fallback').length;
+}
+
+export function fallbackHasRoom(state, n) {
+  return fallbackCount(state) + n <= FALLBACK_CAPACITY;
+}
+
+export function receivingFree(state) {
+  return Math.max(0, PAD_CAPACITY - padCount(state))
+    + Math.max(0, FALLBACK_CAPACITY - fallbackCount(state));
+}
+
+export function receivingHasRoom(state, n) {
+  return receivingFree(state) >= n;
+}
+
+function occupiedReceivingSlots(boxes, location, capacity) {
+  const used = new Set();
+  const needSlot = [];
+  for (const box of boxes.filter((candidate) => candidate.loc === location)) {
+    const slot = box.receivingSlot;
+    if (Number.isSafeInteger(slot) && slot >= 0 && slot < capacity && !used.has(slot)) {
+      used.add(slot);
+    } else {
+      needSlot.push(box);
+    }
+  }
+  // Saves from before receiving slots existed still occupy real floor space.
+  // Give those cartons stable identities before calculating space for a new van.
+  for (const box of needSlot) {
+    const slot = Array.from({ length: capacity }, (_, index) => index)
+      .find((index) => !used.has(index));
+    if (slot === undefined) break;
+    box.receivingSlot = slot;
+    used.add(slot);
+  }
+  return used;
+}
+
 // --- WHAT STATE IS THIS BOX IN --------------------------------------------------------------
 //
 // The brief lists fourteen box states. They are not fourteen flags — they are three independent
@@ -547,7 +588,8 @@ export function shipmentStatus(state, sh) {
   const left = boxes.reduce((a, b) => a + (b.qty || 0), 0);
   if (left <= 0) return 'unpacked';                       // fully unpacked
   const opened = boxes.some((b) => (b.tape || 0) > 0 || b.cut);
-  return (left < sh.units || opened) ? 'partial' : 'delivered';  // partially unpacked
+  const receivedUnits = Number.isSafeInteger(sh.receivedUnits) ? sh.receivedUnits : sh.units;
+  return (left < receivedUnits || opened) ? 'partial' : 'delivered';  // partially unpacked
 }
 
 // a shipment is done with when every box it brought has been recycled
@@ -555,6 +597,7 @@ export function retireShipments(state) {
   const d = state.shop.deliveries;
   if (!d.shipments) return;
   const live = new Set(d.boxes.map((b) => b.orderId));
+  for (const order of state.shop.orders || []) live.add(order.id);
   d.shipments = d.shipments.filter((s) => live.has(s.orderId));
 }
 
@@ -722,10 +765,24 @@ export function arriveOrder(state, order) {
   }
   const { sku, manifest } = validated;
   const made = [];
-  for (const b of manifest.boxes) {
+  for (const { box: manifestBox, index: manifestIndex } of landing) {
+    const id = deliveries.nextBoxId++;
+    const skuId = manifestBox.skuId || order.skuId;
+    const lineId = manifestBox.lineId
+      || (order.lines && order.lines.find((line) => line.skuId === skuId)?.id)
+      || `${order.id}-line-1`;
+    const loc = padSlots.length > 0 ? 'pad' : 'receiving-fallback';
+    const receivingSlot = loc === 'pad' ? padSlots.shift() : fallbackSlots.shift();
+    const received = receiveBoxInventory(state, order.id, id, [{
+      lineId,
+      skuId,
+      quantity: manifestBox.qty,
+    }]);
+    if (!received.ok) return [];
     made.push({
-      id: d.nextBoxId++,
-      skuId: order.skuId,
+      id,
+      persistentId: `box-${id}`,
+      skuId,
       orderId: order.id,
       qty: b.qty,
       initialQty: b.qty,
@@ -755,6 +812,7 @@ export function arriveOrder(state, order) {
       lifecycle: BOX_LIFECYCLE.SEALED,
       schemaVersion: BOX_SCHEMA_VERSION,
     });
+    order.receivedManifestBoxIndexes.push(manifestIndex);
   }
   assignDeliveryPallets([
     ...d.boxes.filter((box) => box.loc === 'pad'),
@@ -967,6 +1025,7 @@ export function putDownBox(state, id, spot = 'stock') {
     clearWorldFields(box);
     if (box.loc === 'pad') assignDeliveryPallets(state.shop.deliveries.boxes);
   }
+  box.currentCarrier = null;
   return { ok: true, box };
 }
 
@@ -1071,7 +1130,17 @@ export function takeFromBox(state, id, want) {
   if (taken <= 0) return { ok: false, reason: 'Choose at least one item to take.' };
   box.qty -= taken;
   const c = state.shop.carry;
-  setCarry(state, box.skuId, (c ? c.qty : 0) + taken);
+  const before = box.qty;
+  const moved = takeBoxInventory(
+    state,
+    box,
+    box.skuId,
+    taken,
+    `take-box:${box.id}:${box.cap - before}:${taken}`,
+  );
+  if (!moved.ok) return moved;
+  const allocations = [...((c && c.allocations) || []), ...moved.allocations];
+  setCarry(state, box.skuId, (c ? c.qty : 0) + taken, allocations);
   if (box.qty <= 0) {
     advanceLifecycle(box, BOX_LIFECYCLE.EMPTY);
     const d = state.shop.deliveries;
@@ -1166,10 +1235,13 @@ export function openBox(state, id) {
   advanceLifecycle(box, BOX_LIFECYCLE.DISCARDED);
   box.discarded = true;
   d.boxes.splice(d.boxes.indexOf(box), 1);
+  box.recycled = true;
+  box.disposalState = 'recycled';
   // they break it down and stack it by the bin — the cardboard does not evaporate just because
   // somebody else handled it. `trash` is what is waiting to go out; `recycled` is what has gone.
   d.trash = (d.trash || 0) + 1;
   d.openedTotal = (d.openedTotal || 0) + 1;
+  box.disposalState = 'flattened';
   retireShipments(state);
   return { ok: true, skuId: box.skuId, qty };
 }

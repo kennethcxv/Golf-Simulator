@@ -16,8 +16,14 @@ import { shopCondition, exteriorScore } from './shop.js';
 import { exteriorWashScore } from './washing.js';
 import { clubRatings, fairGreenFee, amenityScore } from './club.js';
 import { SHOP_CATALOG, RETAIL_CATS } from '../data/shopItems.js';
+import { applyReputationChange, ensureReputation } from './reputation.js';
+import { recordOutcome } from './economy.js';
 
 const MAX_REVIEWS = 60;
+const FACTOR_REPUTATION_CATEGORY = {
+  shopClean: 'cleanliness', exterior: 'cleanliness', courseCondition: 'course',
+  stock: 'retail', prices: 'retail', coursePrice: 'course', waitTime: 'service', queue: 'service',
+};
 
 // what fraction of the retail lines actually have something on the shelf
 function stockRatio(state) {
@@ -48,7 +54,7 @@ export const REVIEW_FACTORS = [
     id: 'shopClean',
     label: 'Clubhouse cleanliness',
     weight: 1.1,
-    read: (st) => clamp(shopCondition(st) / 100, 0, 1),
+    read: (st, v) => clamp(v.cleanliness ?? (shopCondition(st) / 100), 0, 1),
     praise: () => 'the pro shop was spotless',
     gripe: (st) => `the pro shop was grimy (condition ${Math.round(shopCondition(st))})`,
   },
@@ -64,7 +70,7 @@ export const REVIEW_FACTORS = [
     id: 'courseCondition',
     label: 'Course condition',
     weight: 1.3,
-    read: (st) => clamp(clubRatings(st).condition / 100, 0, 1),
+    read: (st, v) => clamp(v.courseCondition ?? (clubRatings(st).condition / 100), 0, 1),
     praise: (st) => `the greens were in great shape (${Math.round(clubRatings(st).condition)})`,
     gripe: (st) => `the course is in poor condition (${Math.round(clubRatings(st).condition)})`,
     when: (st, v) => v.played !== false,
@@ -73,15 +79,21 @@ export const REVIEW_FACTORS = [
     id: 'stock',
     label: 'Product availability',
     weight: 1.0,
-    read: (st) => clamp(stockRatio(st), 0, 1),
+    read: (st, v) => clamp(
+      v.productAvailability ?? (v.foundWhatTheyWanted === false ? 0 : stockRatio(st)),
+      0,
+      1,
+    ),
     praise: () => 'the shop was properly stocked',
-    gripe: () => 'half the shelves were bare — I could not find what I came for',
+    gripe: (st, v) => (v.productAvailability === 0 || v.foundWhatTheyWanted === false
+      ? 'the item I came for was unavailable'
+      : 'half the shelves were bare — I could not find what I came for'),
   },
   {
     id: 'prices',
     label: 'Shop prices',
     weight: 0.8,
-    read: (st) => markupPressure(st),
+    read: (st, v) => clamp(v.pricing ?? markupPressure(st), 0, 1),
     praise: () => 'the prices were fair',
     gripe: () => 'the shop prices are steep for what it is',
   },
@@ -117,6 +129,33 @@ export const REVIEW_FACTORS = [
     praise: () => 'no queue at all',
     gripe: (st, v) => `there were ${v.queueLen} people in front of me and one till`,
     when: (st, v) => (v.queueLen || 0) > 0,
+  },
+  {
+    id: 'navigationCongestion',
+    label: 'Ease of moving around',
+    weight: 0.8,
+    read: (st, v) => clamp(1 - (v.navigationCongestion || 0), 0, 1),
+    praise: () => 'the shop was easy to move around',
+    gripe: () => 'the shop floor was cramped and hard to navigate',
+    when: (st, v) => (v.navigationCongestion || 0) > 0,
+  },
+  {
+    id: 'checkoutSuccess',
+    label: 'Checkout result',
+    weight: 1.4,
+    read: (st, v) => clamp(v.checkoutSuccess, 0, 1),
+    praise: () => 'checkout went smoothly',
+    gripe: () => 'I could not complete my purchase',
+    when: (st, v) => v.checkoutSuccess != null,
+  },
+  {
+    id: 'checkInSuccess',
+    label: 'Front-desk result',
+    weight: 1.4,
+    read: (st, v) => clamp(v.checkInSuccess, 0, 1),
+    praise: () => 'the front desk handled my tee time smoothly',
+    gripe: () => 'the front desk could not sort out my tee time',
+    when: (st, v) => v.checkInSuccess != null,
   },
 ];
 
@@ -174,14 +213,17 @@ export function reviewFor(state, visit = {}, seed = 0) {
   }
 
   const day = state.clock ? calendarOf(state.clock.minutes).dayAbs : (state.day || 0);
-  return { stars, text, factors, cited, worst, best, day };
+  const id = String(visit.reviewId || `review:${day}:${String(seed).replace(/[^0-9a-z.-]+/gi, '-')}`);
+  return { id, stars, text, factors, cited, worst, best, day };
 }
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function postReview(state, review) {
   if (!state.club.reviews) state.club.reviews = [];
+  if (review.id && state.club.reviews.some((item) => item.id === review.id)) return review;
   state.club.reviews.unshift({
+    id: review.id,
     stars: review.stars,
     text: review.text,
     day: review.day,

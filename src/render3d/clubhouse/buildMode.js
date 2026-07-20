@@ -1,18 +1,21 @@
-// BUILD MODE — the shop is yours to arrange.
+// COMMERCIAL-STYLE FIRST-PERSON FURNITURE PLACEMENT.
 //
-// Look at a fixture, pick it up, and it lifts off the floor as a translucent ghost that follows
-// where you are pointing. Turn it, walk it somewhere else, and put it down. The ghost is green
-// where the game will accept it and red where it will not, and it says *why* — you never place
-// something and then discover the shop is broken.
-//
-// Every rule lives in sim/layout.js as arithmetic over the floor plan. This file is just the
-// hands: a raycast to the floor, a snapped ghost, and a colour.
+// The simulation owns validity and persistence. This controller supplies a view
+// ray, an actual-model preview, controls, and feedback. Preview never mutates
+// state; confirmation commits the exact validated transform once.
 
 import * as THREE from 'three';
 import { fixtureRect, FIXTURE_HALF } from '../../data/shopLayout.js';
 import { placeableSpec, placeableSpecBySkuId } from '../../data/placeableItems.js';
 import {
-  placedFixtures, validatePlacement, commitPlacement, storeFixture, GRID,
+  ROOM_STYLE_OPTIONS, WALL_SURFACES, placeableById,
+} from '../../data/placeableCatalog.js';
+import { SHELL } from '../../data/shopLayout.js';
+import {
+  FINE_GRID, GRID, commitObjectPlacement, ensureLayout, objectById, placedObjects,
+  placementSurfaces, recoverObject, redoPlacement, roomStyle, sellObject,
+  setObjectVariant, setRoomStyle, soldObjects, storeObject, storedObjects,
+  undoPlacement, validateObjectPlacement,
 } from '../../sim/layout.js';
 import { ownedPlaceableItems } from '../../sim/propertyInventory.js';
 import {
@@ -28,8 +31,33 @@ import {
   sellStoredDecor,
 } from '../../sim/shop.js';
 
-const GHOST_OK = 0x4ade80;
-const GHOST_BAD = 0xf87171;
+const GOLD = 0xe7ca76;
+const OK = 0x62d48c;
+const BAD = 0xf06f68;
+const MAX_REACH = 8.0;
+const MIN_REACH = 0.22;
+const TAU = Math.PI * 2;
+
+const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
+const wrap = (angle) => ((angle % TAU) + TAU) % TAU;
+const finitePoint = (point) => point && Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z);
+
+function sameTransform(a, b) {
+  if (!a || !b) return false;
+  return Math.abs(a.x - b.x) < 1e-5 && Math.abs(a.y - b.y) < 1e-5
+    && Math.abs(a.z - b.z) < 1e-5 && Math.abs(a.ry - b.ry) < 1e-5
+    && a.surface === b.surface
+    && (a.attachment?.wallId || '') === (b.attachment?.wallId || '')
+    && (a.attachment?.parentId || '') === (b.attachment?.parentId || '');
+}
+
+function localSurfacePoint(surface, point) {
+  const dx = point.x - surface.x;
+  const dz = point.z - surface.z;
+  const c = Math.cos(surface.ry || 0);
+  const s = Math.sin(surface.ry || 0);
+  return { x: dx * c - dz * s, z: dx * s + dz * c };
+}
 
 // A carried fixture's ghost is the exact local-space footprint that drives
 // fixtureRect(), not a second kind-only approximation. In particular, the shoe
@@ -78,9 +106,17 @@ export function buildBuildMode(B, deps) {
   let ry = 0;
   let lastCheck = { ok: false, reasons: [] };
 
-  const ghost = new THREE.Group();
-  ghost.visible = false;
-  interior.add(ghost);
+  const raycaster = new THREE.Raycaster();
+  raycaster.far = MAX_REACH;
+  // Existing fixture anchors remain on layer 0. Batched GLB props keep their
+  // authored selection geometry on a camera-invisible layer.
+  raycaster.layers.enable(PLACEABLE_SELECTION_LAYER);
+  const originWorld = new THREE.Vector3();
+  const directionWorld = new THREE.Vector3();
+  const endWorld = new THREE.Vector3();
+  const rayOrigin = new THREE.Vector3();
+  const rayDirection = new THREE.Vector3();
+  const overlayRoot = B.ctx?.scene || interior.parent;
 
   const ghostMat = new THREE.MeshBasicMaterial({
     color: GHOST_OK, transparent: true, opacity: 0.22, depthWrite: false,
@@ -132,10 +168,10 @@ export function buildBuildMode(B, deps) {
     new THREE.RingGeometry(0.1, 0.107, 32),
     new THREE.MeshBasicMaterial({ color: 0xffd479, transparent: true, opacity: 0.72, side: THREE.DoubleSide, depthTest: false }),
   );
-  halo.rotation.x = -Math.PI / 2;
-  halo.renderOrder = 998;
-  halo.visible = false;
-  interior.add(halo);
+  marker.name = 'FurnitureTargetMarker';
+  marker.renderOrder = 998;
+  marker.visible = false;
+  previewLayer.add(marker);
 
   function makeGhost(f) {
     clearPlaceableGhost();
@@ -220,24 +256,97 @@ export function buildBuildMode(B, deps) {
     return { x: Math.round(p.x / GRID) * GRID, z: Math.round(p.z / GRID) * GRID };
   }
 
-  // the fixture the crosshair is over (or nearest to the aim point)
-  function fixtureUnderAim() {
-    const p = aimLocal();
-    let best = null;
-    let bestD = 2.2;
-    for (const f of placedFixtures(state)) {
-      const r = fixtureRect(f);
-      const inside = p.x >= r.minX && p.x <= r.maxX && p.z >= r.minZ && p.z <= r.maxZ;
-      const d = inside ? 0 : Math.hypot(
-        Math.max(r.minX - p.x, 0, p.x - r.maxX),
-        Math.max(r.minZ - p.z, 0, p.z - r.maxZ),
-      );
-      if (d < bestD) {
-        bestD = d;
-        best = f;
+  function localViewRay() {
+    camera.getWorldPosition(originWorld);
+    camera.getWorldDirection(directionWorld).normalize();
+    endWorld.copy(originWorld).add(directionWorld);
+    rayOrigin.copy(originWorld);
+    interior.worldToLocal(rayOrigin);
+    rayDirection.copy(endWorld);
+    interior.worldToLocal(rayDirection);
+    rayDirection.sub(rayOrigin).normalize();
+    return { origin: rayOrigin, direction: rayDirection };
+  }
+
+  function planeHit(axis, at, origin, direction) {
+    const denominator = direction[axis];
+    if (Math.abs(denominator) < 1e-5) return null;
+    const distance = (at - origin[axis]) / denominator;
+    if (distance < MIN_REACH || distance > MAX_REACH) return null;
+    const point = origin.clone().addScaledVector(direction, distance);
+    return { point, distance };
+  }
+
+  function surfaceTargets(meta) {
+    const allowed = new Set(meta.surfaceRules.allowed);
+    const { origin, direction } = localViewRay();
+    const hits = [];
+
+    if (allowed.has('floor')) {
+      let hit = planeHit('y', 0, origin, direction);
+      // Looking almost level is common while carrying a sofa. Keep it visible a
+      // comfortable distance ahead instead of making the preview disappear.
+      if (!hit) {
+        const point = origin.clone().addScaledVector(direction, 3.2);
+        point.y = 0;
+        hit = { point, distance: 3.2 };
+      }
+      hits.push({
+        distance: hit.distance,
+        transform: { x: hit.point.x, y: 0, z: hit.point.z, ry: rotation, surface: 'floor', attachment: null, room: 'sales' },
+      });
+    }
+
+    if (allowed.has('counter') || allowed.has('shelf')) {
+      for (const surface of placementSurfaces(state)) {
+        if (!allowed.has(surface.kind)) continue;
+        const hit = planeHit('y', surface.y, origin, direction);
+        if (!hit) continue;
+        const local = localSurfacePoint(surface, hit.point);
+        if (Math.abs(local.x) > surface.width / 2 + 0.08 || Math.abs(local.z) > surface.depth / 2 + 0.08) continue;
+        hits.push({
+          distance: hit.distance,
+          transform: {
+            x: hit.point.x, y: surface.y, z: hit.point.z, ry: rotation,
+            surface: surface.kind,
+            attachment: { parentId: surface.id, socket: null },
+            room: surface.room || 'sales',
+          },
+        });
       }
     }
-    return best;
+
+    if (allowed.has('wall')) {
+      for (const wall of WALL_SURFACES) {
+        const hit = planeHit(wall.axis, wall.at, origin, direction);
+        if (!hit || hit.point.y < 0.12 || hit.point.y > SHELL.h - 0.03) continue;
+        const along = wall.coordinate === 'x' ? hit.point.x : hit.point.z;
+        if (along < wall.from || along > wall.to) continue;
+        hits.push({
+          distance: hit.distance,
+          transform: {
+            x: hit.point.x, y: hit.point.y, z: hit.point.z, ry: wall.yaw,
+            surface: 'wall',
+            attachment: { wallId: wall.id, normal: [...wall.normal], socket: meta.render?.mountSocket || 'SOCKET_WallMount' },
+            room: wall.room,
+          },
+        });
+      }
+    }
+
+    if (allowed.has('ceiling')) {
+      const hit = planeHit('y', SHELL.h, origin, direction);
+      if (hit) hits.push({
+        distance: hit.distance,
+        transform: {
+          x: hit.point.x, y: SHELL.h, z: hit.point.z, ry: rotation,
+          surface: 'ceiling', attachment: { socket: meta.render?.mountSocket || 'SOCKET_CeilingMount' }, room: 'sales',
+        },
+      });
+    }
+
+    hits.sort((a, b) => a.distance - b.distance);
+    return hits;
   }
 
   function placeableEntries() {
@@ -465,10 +574,10 @@ export function buildBuildMode(B, deps) {
     },
 
     enter() {
+      if (active) return;
       active = true;
       if (hooks.toast) hooks.toast('Build mode - [I] property inventory · look at placed items and [E] to move · [B] stop.');
     },
-
     exit() {
       if (carrying || decorCarry) this.cancel();
       active = false;
@@ -678,8 +787,7 @@ export function buildBuildMode(B, deps) {
         ? `${f.title || f.kind} - [E] pick it up · [I] inventory`
         : 'Build mode - [I] property inventory · look at an item to move · [Z] undo · [B] stop';
     },
-
-    update() {
+    update(dtMs = 16.7) {
       if (!active) return;
       if (inventoryOpen) {
         ghost.visible = false;
@@ -722,6 +830,50 @@ export function buildBuildMode(B, deps) {
           halo.visible = false;
         }
       }
+      if (!preview) return;
+      const raw = rawCandidate();
+      const signature = validationSignature(raw);
+      if (signature !== checkedSignature) {
+        checkedSignature = signature;
+        if (!finitePoint(raw)) {
+          lastCheck = { ok: false, reasons: ['Aim at a compatible surface.'], codes: ['no-target'], candidate: null };
+        } else {
+          lastCheck = validateObjectPlacement(state, carrying, raw, {
+            grid: gridEnabled,
+            fine: false,
+            rotationSnap: rotationSnapEnabled,
+            actorPosition: W2L(walk.x, walk.z),
+          });
+        }
+        if (lastCheck.candidate && !sameTransform(appliedCandidate, lastCheck.candidate)) {
+          applyPlaceableTransform(preview, placeableById(carrying), lastCheck.candidate);
+          appliedCandidate = clone(lastCheck.candidate);
+          previewBox?.update();
+        }
+        placeables.setPreviewValidity(preview, lastCheck.ok);
+        if (previewBox) previewBox.material.color.setHex(lastCheck.ok ? OK : BAD);
+        applyMarker(lastCheck.candidate, lastCheck.ok);
+        syncStatus();
+      }
+    },
+    diagnostics: () => ({
+      active, carrying, focusedId, gridEnabled, rotationSnapEnabled,
+      candidate: clone(lastCheck.candidate), valid: lastCheck.ok,
+      reasons: [...lastCheck.reasons], previewLoaded: !!preview,
+    }),
+    dispose() {
+      api.exit();
+      clearPreview();
+      focusBox = clearBox(focusBox);
+      grid.geometry?.dispose();
+      grid.material?.dispose();
+      marker.geometry?.dispose();
+      marker.material?.dispose();
+      previewLayer.removeFromParent();
+      panel.dispose();
     },
   };
+
+  const panel = makeBuildPanel({ getApi: () => api });
+  return api;
 }

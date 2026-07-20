@@ -110,6 +110,8 @@ test('voiding clears the packed-receipt checkpoint', () => {
 
 test('REVENUE moves only when the sale completes — not when it is scanned or paid', () => {
   const st = newGame('relaxed', 3);
+  st.shop.inventory.balls3.shelf = 4;
+  pickFromShelf(st, 'balls3', 'a');
   const before = st.shop.salesLive ? st.shop.salesLive.revenue : 0;
 
   const tx = createTx({
@@ -142,6 +144,10 @@ test('REVENUE moves only when the sale completes — not when it is scanned or p
 
 test('a sale cannot be completed twice', () => {
   const st = newGame('relaxed', 3);
+  st.shop.inventory.balls3.shelf = 4;
+  st.shop.inventory.glove1.shelf = 4;
+  pickFromShelf(st, 'balls3', 'a');
+  pickFromShelf(st, 'glove1', 'b');
   const tx = paidTx();
   holdForSale(st, tx);
   printReceipt(tx);

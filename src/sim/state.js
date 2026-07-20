@@ -232,6 +232,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initGolfers(state);
   initStaff(state);
   initClub(state);
+  initReputation(state);
   initShop(state);
   reconcileShelfCapacity(state.shop);
   // Persisted register authorities exist from the first save, not only after
@@ -264,15 +265,28 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
 // --- master tick --------------------------------------------------------------
 
 export function dailyTick(state) {
+  const todayAbs = calendarOf(state.clock.minutes).dayAbs;
+  const closingDay = todayAbs - 1;
+  // Midnight has advanced the clock already, but the newly exposed horizon and
+  // all settlement work still belong to the operating day being closed.
+  if (state.ledger) beginLedgerClose(state, closingDay);
+  // Open the newly visible far edge of the tee sheet before closing the books.
+  // Its advance card payments belong to the operating day that accepted them,
+  // keeping the main ledger and wallet exactly reconciled at midnight.
+  if (state.reservations) {
+    ensureReservationHorizon(state, { todayAbs });
+  }
   // 1) settle the day that just ended: accrue its recurring economy, close books
   if (state.ledger) {
     accrueDaily(state);
     if (state.shop) shopDailyAccrual(state);
     if (state.golfers) simulateDayRounds(state, state.club.lastRounds || 0);
-    if (state.progression) resolveTournamentIfDue(state, calendarOf(state.clock.minutes).dayAbs - 1);
+    if (state.progression) resolveTournamentIfDue(state, closingDay);
+    if (state.reservations) reservationsDailyTick(state, todayAbs);
     // the rent falls due whether or not it was a good week; it is announced two days out
-    state.lastPropertyEvent = tickProperty(state, calendarOf(state.clock.minutes).dayAbs);
-    closeBooks(state, calendarOf(state.clock.minutes).dayAbs - 1);
+    state.lastPropertyEvent = tickProperty(state, todayAbs);
+    const indicators = closeDayIndicators(state, closingDay);
+    closeBooks(state, closingDay, indicators);
   }
 
   // 2) roll into the new day
@@ -285,6 +299,7 @@ export function dailyTick(state) {
   tickRenovationsDaily(state);
   if (state.shop) tickShopProgressionDaily(state, shopExpansionLayoutSafety);
   turfDailyTick(state);
+  courseMaintenanceDailyTick(state, { coarseAdvanced: true });
   if (state.staff) {
     tickStaffDaily(state);
     refreshMarketIfDue(state, calendarOf(state.clock.minutes).dayAbs);
@@ -320,15 +335,23 @@ export function hourlyTick(state, hourOfDay) {
     const report = runMorningMaintenance(state, calendarOf(state.clock.minutes).dayAbs);
     if (report) {
       if (state.ledger) {
-        addExpense(state, 'wagesDayLabor', report.costs.wages);
-        addExpense(state, 'water', report.costs.water);
-        addExpense(state, 'fertilizer', report.costs.fertilizer);
+        if (report.costs.wages > 0) addExpense(state, 'wagesDayLabor', report.costs.wages, {
+          idempotencyKey: `maintenance:${report.dayAbs}:day-labour`, relatedId: `maintenance-${report.dayAbs}`, source: 'morning-maintenance',
+        });
+        if (report.costs.water > 0) addExpense(state, 'water', report.costs.water, {
+          idempotencyKey: `maintenance:${report.dayAbs}:water`, relatedId: `maintenance-${report.dayAbs}`, source: 'morning-maintenance',
+        });
+        if (report.costs.fertilizer > 0) addExpense(state, 'fertilizer', report.costs.fertilizer, {
+          idempotencyKey: `maintenance:${report.dayAbs}:fertilizer`, relatedId: `maintenance-${report.dayAbs}`, source: 'morning-maintenance',
+        });
       } else {
         state.cash -= Math.round(report.costs.wages + report.costs.water + report.costs.fertilizer);
       }
     }
   }
   turfHourlyTick(state, hourOfDay);
+  if (state.reservations) golfOperationsTick(state, state.clock.minutes);
+  courseMaintenanceHourlyTick(state, { coarseAdvanced: true });
 }
 
 export function update(state, gameMinutes) {
@@ -386,6 +409,7 @@ export function snapshot(state) {
     clubName: state.clubName,
     pendingMorning: state.pendingMorning,
     course: {
+      ...course,
       w: course.w,
       h: course.h,
       zones: Array.from(course.zones),
@@ -413,14 +437,18 @@ export function snapshot(state) {
       paint: course.paint && course.paint.some((v) => v !== 255) ? Array.from(course.paint) : null,
     },
     weather: {
+      ...state.weather,
       today: state.weather.today,
       droughtDays: state.weather.droughtDays,
       bias: state.weather.bias,
     },
     maintenance: state.maintenance,
+    courseMaintenance: snapshotCourseMaintenance(state.courseMaintenance),
     golfers: state.golfers,
     staff: state.staff,
     club: state.club,
+    reputation: state.reputation,
+    business: state.business,
     ledger: state.ledger,
     shop: shopForSave(state.shop),
     reservations: state.reservations,
@@ -437,6 +465,7 @@ export function snapshot(state) {
     failed: state.failed || null,
     turf: turf
       ? {
+          ...turf,
           health: Array.from(turf.health, round1),
           moisture: Array.from(turf.moisture, round1),
           nutrients: Array.from(turf.nutrients, round1),
@@ -1057,7 +1086,7 @@ function normalizeCourse(savedCourse, seed, persistedVersion, report) {
     course,
     sections: labelSections(course),
     weather: raw.weather
-      ? { today: raw.weather.today, droughtDays: raw.weather.droughtDays, bias: raw.weather.bias || { temp: 0, dry: 0 } }
+      ? { ...raw.weather, today: raw.weather.today, droughtDays: raw.weather.droughtDays, bias: raw.weather.bias || { temp: 0, dry: 0 } }
       : newWeather(),
     maintenance: raw.maintenance || null,
     property: cloneSaveValue(raw.property) || null,
@@ -1090,6 +1119,8 @@ function normalizeShopState(state, rawShop, defaults, report) {
   else initClub(state);
   if (raw.ledger) state.ledger = healLedger(raw.ledger);
   else initLedger(state);
+  ensureLedger(state);
+  const hadCustomerSimulation = !!raw.shop?.customerSimulation;
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
   ensureShopProgression(state, { legacy: persistedVersion < 12 });

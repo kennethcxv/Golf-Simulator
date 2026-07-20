@@ -213,3 +213,26 @@ export function summarizeSave(data, metadata = null) {
     condition: metadata?.cond ?? state?.shop?.reno?.condition ?? null,
   };
 }
+
+export function summarizeSave(data, metadata = null) {
+  if (!data || typeof data !== 'object') return null;
+  const active = data.empireVersion
+    ? (data.holdings || []).find((holding) => holding.property?.id === data.activeId) || data.holdings?.[0]
+    : null;
+  const state = active?.state || (!data.empireVersion ? data : null);
+  const minutes = Number(state?.clock?.minutes ?? data.clockMinutes ?? 0);
+  const minuteOfDay = ((Math.floor(minutes) % 1440) + 1440) % 1440;
+  const hour = Math.floor(minuteOfDay / 60);
+  const clock = `${((hour + 11) % 12) + 1}:${String(minuteOfDay % 60).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
+  const day = Math.floor(minutes / 1440) + 1;
+  return {
+    clubName: state?.clubName || active?.property?.name || 'Unclaimed property',
+    propertyName: active?.property?.name || state?.clubName || 'Property market',
+    mode: data.mode || state?.mode || 'relaxed',
+    cash: Number(data.cash ?? state?.cash ?? 0),
+    day,
+    clock,
+    savedAt: Number(metadata?.savedAt || 0) || null,
+    condition: metadata?.cond ?? state?.shop?.reno?.condition ?? null,
+  };
+}

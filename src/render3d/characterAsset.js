@@ -7,10 +7,23 @@
 import * as THREE from 'three';
 import { CUSTOMER_IMPATIENT_BEAT_SECONDS } from './clubhouse/customerFlow.js';
 
-const M = (color, rough = 0.85) => new THREE.MeshStandardMaterial({ color, roughness: rough });
+// Articulation stays per actor; immutable GPU resources do not. A bounded
+// palette and geometry cache prevents a busy clubhouse from allocating a new
+// material/geometry set for every arrival.
+const materials = new Map();
+const geometries = new Map();
+const M = (color, rough = 0.85) => {
+  const key = `${color}|${rough}`;
+  if (!materials.has(key)) materials.set(key, new THREE.MeshStandardMaterial({ color, roughness: rough }));
+  return materials.get(key);
+};
+const G = (key, build) => {
+  if (!geometries.has(key)) geometries.set(key, build());
+  return geometries.get(key);
+};
 
 function box(w, h, d, mat, y = 0, z = 0) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  const m = new THREE.Mesh(G(`box|${w}|${h}|${d}`, () => new THREE.BoxGeometry(w, h, d)), mat);
   m.position.set(0, y, z);
   m.castShadow = true;
   return m;
@@ -175,7 +188,10 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     head.add(bill);
   } else {
     // bare head gets hair instead of a cap
-    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.1), M(0x4a3a28, 0.95));
+    const hair = new THREE.Mesh(
+      G('hair', () => new THREE.SphereGeometry(0.16, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.1)),
+      M(0x4a3a28, 0.95),
+    );
     hair.position.y = 0.1;
     head.add(hair);
   }
@@ -372,12 +388,12 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       elb = -0.3;
       lean = 0.16;
       headTilt = 0.28;
-    } else if (char.mode === 'Browse') {
-      const r = lerpSeg(p % 3.2, [[0, 0], [0.5, -1.25], [1.9, -1.0], [2.6, 0], [3.2, 0]]);
+    } else if (['Browse', 'Inspect', 'Reach'].includes(char.mode)) {
+      const r = lerpSeg(p % 3.2, [[0, 0], [0.5, 1.25], [1.9, 1.0], [2.6, 0], [3.2, 0]]);
       shR = r;
-      elb = r < -0.5 ? -0.55 : -0.25;
+      elb = r > 0.5 ? -0.55 : -0.25;
       shL = 0.05;
-      headTilt = 0.2;
+      headTilt = char.mode === 'Inspect' ? 0.34 : 0.2;
       bob = 0.008 * Math.sin(p * 2);
     } else if (char.mode === 'Checkout') {
       // Both hands reach over the product surface with a small alternating lead.
@@ -442,8 +458,11 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       bob = 0.01 * Math.sin(p * 1.1);
     }
 
+    const sitOffset = char.mode === 'Sit' ? -0.5 : 0;
     limbs.hipL.rotation.x = hipL;
     limbs.hipR.rotation.x = hipR;
+    limbs.hipL.position.y = 0.98 + sitOffset;
+    limbs.hipR.position.y = 0.98 + sitOffset;
     limbs.kneeL.rotation.x = kneeL;
     limbs.kneeR.rotation.x = kneeR;
     limbs.shoulderL.rotation.x = shL;

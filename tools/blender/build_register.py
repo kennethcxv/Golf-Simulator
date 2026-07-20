@@ -1,6 +1,6 @@
 # THE REGISTER KIT — the things a cashier's hands actually touch.
 #
-#   "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" --background \
+#   blender --background \
 #       --factory-startup --python tools/blender/build_register.py
 #
 # Same rules as build_merch.py / build_props.py: 1 unit == 1 game yard, Z-up

@@ -1,6 +1,6 @@
 # CLUBHOUSE PROPS — the operational kit and the furniture.
 #
-#   "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" --background \
+#   blender --background \
 #       --factory-startup --python tools/blender/build_props.py
 #
 # Pass-1 review named these the ten weakest things still visible:

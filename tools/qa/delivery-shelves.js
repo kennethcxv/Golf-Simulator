@@ -8,7 +8,7 @@ async (page) => {
     process.env.QA_REPO_ROOT || process.cwd(), 'qa', 'delivery',
   );
 
-  await page.goto('http://localhost:8457/');
+  await page.goto(BASE_URL);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});

@@ -11,6 +11,8 @@ import { MINUTES_PER_DAY } from '../src/sim/constants.js';
 import {
   TEE_SHEET, slotTimes, daySheet, bookSlot, cancelReservation,
   dueForCheckIn, checkInReservation, reservationsDailyTick, ensureReservations,
+  beginReservationPayment, completeReservationPayment, confirmReservation,
+  markReservationArrived,
 } from '../src/sim/reservations.js';
 
 const today = (state) => calendarOf(state.clock.minutes).dayAbs;
@@ -28,12 +30,13 @@ test('the tee sheet is a real grid: half-hour slots through the playing day', ()
   assert.ok(sheet.every((s) => s.res === null), 'a fresh day is wide open');
 });
 
-test('booking a slot marks it unavailable; double-booking the same slot is refused', () => {
+test('a full party marks a slot unavailable; capacity prevents overbooking', () => {
   const state = newGame('relaxed', 42);
   const day = today(state) + 1;
-  const res = bookSlot(state, day, 480, 'Ray Falk');
+  const res = bookSlot(state, day, 480, { holder: 'Ray Falk', partySize: 4 });
   assert.ok(res.ok, 'an open 8:00 books cleanly');
-  assert.equal(res.res.fee, state.club.greenFee, 'fee snapshots the green fee at booking');
+  assert.equal(res.res.feePerPlayer, state.club.greenFee, 'fee snapshots the per-player green fee at booking');
+  assert.equal(res.res.fee, state.club.greenFee * 4, 'the party total reflects all four players');
 
   const sheet = daySheet(state, day);
   const slot = sheet.find((s) => s.minute === 480);
@@ -41,7 +44,7 @@ test('booking a slot marks it unavailable; double-booking the same slot is refus
 
   const again = bookSlot(state, day, 480, 'Second Golfer');
   assert.equal(again.ok, false, 'the same slot cannot be booked twice');
-  assert.match(again.reason, /taken/i);
+  assert.match(again.reason, /remain|taken/i);
 });
 
 test('bookings validate the day and the minute', () => {
@@ -63,7 +66,7 @@ test('the calendar distinguishes booked and open across a day', () => {
   assert.equal(sheet.filter((s) => !s.res).length, sheet.length - 2, 'the rest open');
 });
 
-test('a booked golfer checks in at the counter and pays the snapshotted fee once', () => {
+test('a booked golfer pays and checks in through explicit exact-once steps', () => {
   const state = newGame('relaxed', 42);
   const day = today(state) + 1;
   const { res } = bookSlot(state, day, 480, 'Ray Falk');
@@ -71,21 +74,24 @@ test('a booked golfer checks in at the counter and pays the snapshotted fee once
 
   assert.equal(dueForCheckIn(state).length, 0, 'nothing due the day before');
   update(state, MINUTES_PER_DAY); // roll into the booked day (also runs daily ticks)
-  // walk the clock to just before the slot
-  const cal = calendarOf(state.clock.minutes);
-  update(state, 480 - 45 - cal.minuteOfDay);
+  markReservationArrived(state, res.id);
   const due = dueForCheckIn(state);
   assert.equal(due.length, 1, 'the 8:00 booking is due at the counter');
 
   const cashBefore = state.cash;
-  const fees = state.ledger.today.revenue.greenFees;
+  confirmReservation(state, res.id);
+  assert.equal(checkInReservation(state, res.id).ok, false, 'required payment blocks check-in');
+  const started = beginReservationPayment(state, res.id, 'card');
+  const paid = completeReservationPayment(state, res.id, { transactionId: started.transactionId });
+  assert.ok(paid.ok, 'card payment succeeds');
   const pay = checkInReservation(state, due[0].id);
-  assert.ok(pay.ok, 'check-in succeeds');
+  assert.ok(pay.ok, 'check-in succeeds after payment');
   assert.equal(pay.fee, 32, 'the fee is the one from booking day');
   assert.equal(state.cash, cashBefore + 32, 'payment landed in the wallet');
-  assert.equal(state.ledger.today.revenue.greenFees, fees + 32, 'booked as green fees');
+  assert.equal(state.ledger.today.revenue.bookingBalances, 32, 'booked as a reservation balance');
 
-  assert.equal(checkInReservation(state, due[0].id).ok, false, 'no double-charging');
+  assert.equal(completeReservationPayment(state, res.id, { transactionId: started.transactionId }).idempotent, true, 'payment replay is harmless');
+  assert.equal(checkInReservation(state, due[0].id).ok, false, 'no repeated check-in');
   assert.equal(dueForCheckIn(state).length, 0, 'checked-in golfers leave the due list');
 });
 

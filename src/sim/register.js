@@ -115,8 +115,11 @@ function localDrawer(tx, drawer) {
 
 // `prefer` is the customer's own payment habit, decided before they reach the till —
 // some people are cash people. Left null, they make their mind up at the counter.
-export function createTx({ items = [], mode = 'relaxed', discount = 0, rng = Math.random, prefer = null } = {}) {
+let nextTransientTxId = 1;
+
+export function createTx({ id = null, items = [], mode = 'relaxed', discount = 0, rng = Math.random, prefer = null } = {}) {
   return {
+    id: id == null ? `transient-${nextTransientTxId++}` : String(id),
     items: items.map((it) => ({
       uid: it.uid,
       skuId: it.skuId,
@@ -1087,6 +1090,7 @@ export function completeSale(state, tx, who = 'A customer') {
   }
 
   tx.banked = true;
+  tx.ledgerEntryId = sale.ledgerEntryId;
   tx.stage = 'done';
   tx.drawerStart = null;
   tx.drawerPending = null;

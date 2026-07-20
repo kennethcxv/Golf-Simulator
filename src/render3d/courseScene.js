@@ -863,6 +863,7 @@ export function makeCourseScene(canvas, state) {
     t.minFilter = THREE.NearestFilter;
     t.generateMipmaps = false;
   }
+  const maintenanceTextures = makeCourseMaintenanceTextureState(state, worldW, worldH);
 
   // --- the HIGH-RESOLUTION visual surface field (visualField.js) -----------------
   // 16 texels per simulation cell (one per half yard): the renderer's surface truth.
@@ -1720,6 +1721,165 @@ export function makeCourseScene(canvas, state) {
   // empty and is rebuilt with the path meshes below.
   let bridgeSurfaceIndex = { cellYd: CELL_YD, sampleSpacingYd: 1.6, surfaces: [] };
   rig.heightAt = (x, z) => playHeightAt(x, z);
+
+  // The one-yard maintenance state intentionally lives in a separate draw.
+  // The PBR terrain already uses the hardware's full 16-sampler budget, while
+  // this transparent, terrain-conforming layer needs only the two maintenance
+  // textures. Keeping the layers separate also makes dirty texture uploads
+  // independent from the course-wide turf renderer.
+  const maintenanceOverlayGeo = new THREE.PlaneGeometry(
+    maintenanceTextures.worldSize.x,
+    maintenanceTextures.worldSize.y,
+    Math.max(1, Math.ceil(maintenanceTextures.worldSize.x / 2)),
+    Math.max(1, Math.ceil(maintenanceTextures.worldSize.y / 2)),
+  );
+  maintenanceOverlayGeo.rotateX(-Math.PI / 2);
+  const maintenanceOverlayUniforms = {
+    uCondition: { value: maintenanceTextures.conditionTexture },
+    uTreatment: { value: maintenanceTextures.treatmentTexture },
+    uWorldMin: { value: maintenanceTextures.worldMin },
+    uWorldSize: { value: maintenanceTextures.worldSize },
+    uInspect: { value: state.courseMaintenance?.inspection.active ? 1 : 0 },
+    uVisible: { value: 1 },
+  };
+  const maintenanceOverlayMat = new THREE.ShaderMaterial({
+    name: 'Course maintenance one-yard overlay',
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    side: THREE.FrontSide,
+    uniforms: maintenanceOverlayUniforms,
+    vertexShader: /* glsl */ `
+      varying vec2 vWorldXZ;
+      void main() {
+        vec4 world = modelMatrix * vec4(position, 1.0);
+        vWorldXZ = world.xz;
+        gl_Position = projectionMatrix * viewMatrix * world;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform sampler2D uCondition;
+      uniform sampler2D uTreatment;
+      uniform vec2 uWorldMin;
+      uniform vec2 uWorldSize;
+      uniform float uInspect;
+      uniform float uVisible;
+      varying vec2 vWorldXZ;
+
+      float hash21(vec2 p) {
+        p = fract(p * vec2(123.34, 456.21));
+        p += dot(p, p + 45.32);
+        return fract(p.x * p.y);
+      }
+
+      float valueNoise(vec2 p) {
+        vec2 cell = floor(p);
+        vec2 blend = fract(p);
+        blend = blend * blend * (3.0 - 2.0 * blend);
+        return mix(
+          mix(hash21(cell), hash21(cell + vec2(1.0, 0.0)), blend.x),
+          mix(hash21(cell + vec2(0.0, 1.0)), hash21(cell + vec2(1.0, 1.0)), blend.x),
+          blend.y
+        );
+      }
+
+      void main() {
+        if (uVisible < 0.5) discard;
+        vec2 uv = (vWorldXZ - uWorldMin) / uWorldSize;
+        if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) discard;
+        vec4 condition = texture2D(uCondition, uv);
+        vec4 treatment = texture2D(uTreatment, uv);
+        float surface = floor(condition.r * 255.0 / 30.0 + 0.5);
+        if (surface < 0.5) discard;
+
+        float health = condition.g;
+        float moisture = condition.b;
+        float heightMm = condition.a * 127.5;
+        float disease = treatment.r;
+        float fertilizer = treatment.g;
+        float angle = treatment.b * 6.2831853;
+        float packedWork = treatment.a * 255.0;
+        float noise = valueNoise(vWorldXZ * 1.65);
+        vec3 tint = vec3(0.55, 0.48, 0.18);
+        float alpha = 0.0;
+
+        // Honest condition reads: localized olive stress, dark wet turf, pale
+        // disease, and restrained treatment colour. Inspection strengthens the
+        // signal without turning the entire hole into a diagnostic heat map.
+        float stress = smoothstep(0.54, 0.28, health);
+        alpha = max(alpha, stress * (0.08 + uInspect * 0.22));
+        float dry = smoothstep(0.25, 0.10, moisture);
+        tint = mix(tint, vec3(0.77, 0.61, 0.24), dry);
+        alpha = max(alpha, dry * (0.10 + uInspect * 0.24));
+        float wet = smoothstep(0.83, 0.98, moisture);
+        tint = mix(tint, vec3(0.04, 0.17, 0.12), wet);
+        alpha = max(alpha, wet * (0.11 + uInspect * 0.13));
+        float blotch = smoothstep(0.32, 0.78, noise + disease * 0.62);
+        tint = mix(tint, vec3(0.83, 0.78, 0.50), disease * blotch);
+        alpha = max(alpha, disease * blotch * (0.33 + uInspect * 0.24));
+        float overFeed = smoothstep(0.74, 1.0, fertilizer);
+        tint = mix(tint, vec3(0.22, 0.42, 0.10), overFeed);
+        alpha = max(alpha, overFeed * uInspect * 0.20);
+
+        // Surface-aware overgrowth is visible at a distance as a soft darker
+        // cast. Targets are green/fringe/tee/fairway/rough/native in millimetres.
+        float targetMm = surface < 1.5 ? 4.0
+          : surface < 2.5 ? 8.0
+          : surface < 3.5 ? 10.0
+          : surface < 4.5 ? 14.0
+          : surface < 5.5 ? 45.0
+          : 90.0;
+        if (surface < 6.5) {
+          float overgrown = smoothstep(targetMm + 3.0, targetMm + 17.0, heightMm);
+          tint = mix(tint, vec3(0.07, 0.22, 0.045), overgrown * 0.7);
+          alpha = max(alpha, overgrown * uInspect * 0.14);
+        }
+
+        if (surface < 6.5 && packedWork >= 127.5) {
+          float quality = clamp((packedWork - 128.0) / 127.0, 0.0, 1.0);
+          vec2 direction = vec2(cos(angle), sin(angle));
+          float stripe = sin(dot(vWorldXZ, direction) * 3.14159265);
+          vec3 stripeTint = stripe > 0.0 ? vec3(0.055, 0.17, 0.035) : vec3(0.27, 0.42, 0.12);
+          tint = stripeTint;
+          alpha = max(alpha, 0.045 + quality * 0.055);
+        } else if (surface > 6.5) {
+          float smoothness = treatment.a;
+          float rakeLine = smoothstep(0.62, 0.98, abs(sin(vWorldXZ.x * 10.5 + vWorldXZ.y * 1.3)));
+          tint = mix(tint, vec3(0.84, 0.70, 0.42), rakeLine * smoothness);
+          alpha = max(alpha, rakeLine * smoothness * 0.06);
+        }
+
+        alpha = clamp(alpha, 0.0, 0.58);
+        if (alpha < 0.012) discard;
+        gl_FragColor = vec4(clamp(tint, 0.0, 1.0), alpha);
+      }
+    `,
+  });
+  const maintenanceOverlay = new THREE.Mesh(maintenanceOverlayGeo, maintenanceOverlayMat);
+  maintenanceOverlay.name = 'Course maintenance condition overlay';
+  maintenanceOverlay.position.set(
+    maintenanceTextures.worldMin.x + maintenanceTextures.worldSize.x / 2,
+    0,
+    maintenanceTextures.worldMin.y + maintenanceTextures.worldSize.y / 2,
+  );
+  maintenanceOverlay.renderOrder = 2;
+  maintenanceOverlay.receiveShadow = false;
+  maintenanceOverlay.castShadow = false;
+  scene.add(maintenanceOverlay);
+
+  function rebuildMaintenanceOverlayHeights() {
+    // During function initialization the terrain can be rebuilt before this
+    // const exists only in theory; every actual rebuild happens after setup.
+    if (!maintenanceOverlayGeo) return;
+    const position = maintenanceOverlayGeo.attributes.position;
+    for (let i = 0; i < position.count; i++) {
+      const x = position.getX(i) + maintenanceOverlay.position.x;
+      const z = position.getZ(i) + maintenanceOverlay.position.z;
+      position.setY(i, heightAt(x, z) + 0.028);
+    }
+    position.needsUpdate = true;
+    maintenanceOverlayGeo.computeBoundingSphere();
+  }
 
   function worldX(cx) {
     return (cx + 0.5) * CELL_YD - worldW / 2;
@@ -3853,7 +4013,66 @@ export function makeCourseScene(canvas, state) {
   // --- generic walk-up props ([E] interactables placed by scene features) --------------
   const walkProps = []; // { x, z, r, label(), action()|null }
   const propColliders = []; // circles {x,z,r} or AABBs {minX,maxX,minZ,maxZ}
+  const maintenanceIssueEntries = [];
+  const maintenanceIrrigationEntries = [];
+  let maintenanceControllerMesh = null;
+  let maintenanceVisualTime = 0;
+  let maintenanceCullClock = 0;
   let cartHidden = false; // the drivable tractor doesn't exist until repaired
+
+  const maintenancePropInRange = (x, z, rangeYd) => (
+    !walk.active || ((x - walk.x) ** 2 + (z - walk.z) ** 2) <= rangeYd ** 2
+  );
+
+  function refreshMaintenanceWorldProps(timeSeconds = maintenanceVisualTime) {
+    maintenanceVisualTime = timeSeconds;
+    const inspection = !!state.courseMaintenance?.inspection?.active;
+    for (const entry of maintenanceIssueEntries) {
+      const complete = !!(entry.issue.repaired || entry.issue.cleared);
+      entry.group.visible = !complete && maintenancePropInRange(
+        entry.issue.x,
+        entry.issue.z,
+        inspection ? 42 : 26,
+      );
+      entry.halo.visible = !complete && inspection;
+      if (entry.kind === 'divot') {
+        entry.primary.material = entry.issue.stage === 'filled' ? entry.filledMaterial : entry.openMaterial;
+        entry.primary.scale.setScalar(0.82 + (entry.issue.mixProgress || 0) * 0.18);
+      } else if (entry.kind === 'debris') {
+        entry.primary.scale.setScalar(Math.max(0.15, 1 - (entry.issue.bagProgress || 0) * 0.78));
+      }
+    }
+    for (const entry of maintenanceIrrigationEntries) {
+      const running = !!entry.head.enabled;
+      entry.group.visible = maintenancePropInRange(
+        entry.head.x,
+        entry.head.z,
+        running ? 50 : inspection ? 42 : 30,
+      );
+      entry.spray.visible = running;
+      entry.ring.material = entry.head.status === 'clogged'
+        ? entry.ringMaterials.clogged
+        : running ? entry.ringMaterials.running : entry.ringMaterials.ready;
+      if (!running) continue;
+      const positions = entry.spray.geometry.attributes.position;
+      for (let i = 0; i < positions.count; i++) {
+        const ray = i % 12;
+        const step = Math.floor(i / 12);
+        const t = ((step / 5) + timeSeconds * 0.48) % 1;
+        const angle = (ray / 12) * Math.PI * 2 + timeSeconds * 0.12;
+        const radius = entry.head.radiusYd * 0.42 * t;
+        positions.setXYZ(i, Math.cos(angle) * radius, 0.25 + Math.sin(t * Math.PI) * 2.2, Math.sin(angle) * radius);
+      }
+      positions.needsUpdate = true;
+    }
+    if (maintenanceControllerMesh) {
+      maintenanceControllerMesh.visible = maintenancePropInRange(
+        maintenanceControllerMesh.position.x,
+        maintenanceControllerMesh.position.z,
+        inspection ? 42 : 30,
+      );
+    }
+  }
 
   // one-shot scale tween so removals read as hauled away, not blinked out
   function tweenOut(obj, onDone) {
@@ -3948,6 +4167,9 @@ export function makeCourseScene(canvas, state) {
   }
 
   function mountCart() {
+    if (state.courseMaintenance?.equipment?.tractor) {
+      state.courseMaintenance.equipment.tractor.bladesEngaged = false;
+    }
     cart.mounted = true;
     walk.x = cart.x;
     walk.z = cart.z;
@@ -3956,6 +4178,9 @@ export function makeCourseScene(canvas, state) {
   }
 
   function dismountCart() {
+    if (state.courseMaintenance?.equipment?.tractor) {
+      state.courseMaintenance.equipment.tractor.bladesEngaged = false;
+    }
     cart.mounted = false;
     if (walkHooks.engine) walkHooks.engine(false);
     cart.x = walk.x;
@@ -3981,12 +4206,14 @@ export function makeCourseScene(canvas, state) {
   // visual answer is immediate: spray particles, a live moisture readout on the
   // prompt, and the wet-darkening term in the turf shader above.
 
-  let walkTool = null; // null | 'hose' | 'divot' | 'rake'
+  let walkTool = null; // hand tools plus the pushed greens mower / spreader
   let walkSpraying = false; // "holding the use button" for whichever tool is out
   let walkSoaping = false; // right button, pressure washer only: lay foam instead of water
   let washHintClock = 0; // don't nag about soap more than once every few seconds
   let walkWaterTexClock = 0;
   let mowTexClock = 0;
+  let maintenanceFeedbackClock = 0;
+  let routeArrivalNotified = state.courseMaintenance?.route?.arrivedAtMinute !== null;
 
   // held tool models (owner-supplied GLBs) ride the camera like the shop's wand
   scene.add(camera);
@@ -4280,14 +4507,76 @@ export function makeCourseScene(canvas, state) {
   });
 
   const TOOL_SPRAY = {
-    hose: { color: 0xbfe2ff, size: 0.04 },
-    divot: { color: 0x9a7c4e, size: 0.05 }, // soil from the repair mix
-    rake: { color: 0xd8c08c, size: 0.05 },  // kicked sand
+    hose: { color: 0xbfe2ff, size: 0.020 },
+    divot: { color: 0x9a7c4e, size: 0.025 }, // soil from the repair mix
+    rake: { color: 0xd8c08c, size: 0.025 },  // kicked sand
+    ballmark: { color: 0x72834c, size: 0.018 },
+    debris: { color: 0x7b5a36, size: 0.025 },
+    fungicide: { color: 0xc8d887, size: 0.020 },
+    spreader: { color: 0xd7c081, size: 0.022 },
   };
+
+  // Full-size push equipment stays in the world, not glued to the camera. The
+  // authored wheel/reel/impeller pivots animate directly and collision proxies
+  // remain available in the GLBs without ever being rendered.
+  const pushedEquipment = { greensMower: null, spreader: null };
+  const pushedParkPose = { greensMower: null, spreader: null };
+  const placePushedAtPark = (tool) => {
+    const root = pushedEquipment[tool];
+    const pose = pushedParkPose[tool];
+    if (!root || !pose) return;
+    root.position.set(pose.x, heightAt(pose.x, pose.z) + 0.015, pose.z);
+    root.rotation.y = pose.yaw;
+    root.visible = true;
+  };
+  const loadPushedEquipment = (tool, url) => {
+    new GLTFLoader().load(url, (gltf) => {
+      const root = gltf.scene;
+      optimizeCourseEquipment(root);
+      root.scale.setScalar(1.09361); // Blender metres to this scene's yards
+      root.visible = false;
+      root.traverse((object) => {
+        if (object.name.startsWith('COLLISION_')) object.visible = false;
+        if (object.isMesh) object.castShadow = true;
+      });
+      pushedEquipment[tool] = root;
+      scene.add(root);
+      placePushedAtPark(tool);
+    }, undefined, () => {});
+  };
+  loadPushedEquipment('greensMower', 'vendor/models/greens_mower.glb');
+  loadPushedEquipment('spreader', 'vendor/models/rotary_spreader.glb');
+
+  function updatePushedEquipment(dt, distanceMoved) {
+    for (const [tool, root] of Object.entries(pushedEquipment)) {
+      if (!root) continue;
+      const active = !cart.mounted && walkTool === tool;
+      if (!active) {
+        placePushedAtPark(tool);
+        continue;
+      }
+      root.visible = true;
+      const ahead = tool === 'greensMower' ? 2.15 : 1.52;
+      const x = walk.x - Math.sin(walk.yaw) * ahead;
+      const z = walk.z - Math.cos(walk.yaw) * ahead;
+      root.position.set(x, heightAt(x, z) + 0.015, z);
+      root.rotation.y = walk.yaw - Math.PI;
+      const using = walkSpraying && distanceMoved > 0.0001;
+      root.traverse((object) => {
+        if (/^Wheel_.*_Pivot/.test(object.name)) object.rotation.x -= distanceMoved / 0.18;
+        if (tool === 'greensMower' && object.name === 'CuttingReel_Pivot' && using) object.rotation.x -= dt * 22;
+        if (tool === 'spreader' && object.name === 'BroadcastImpeller_Pivot' && using) object.rotation.y += dt * 15;
+      });
+      if (tool === 'spreader' && state.courseMaintenance?.equipment?.spreader) {
+        state.courseMaintenance.equipment.spreader.gateOpen = using;
+      }
+    }
+  }
 
   // tool FEEL: equip/stow easing + a carried bob synced to the gait, so tools
   // read as held in hands rather than glued to the camera
   const heldAnim = { t: 1, show: false, pendingHide: false };
+  let cutterStroke = 0;
   let bobPhase = 0;
   let walkMoving = false;
   let mountBlend = 0; // 0 = on foot (first person) … 1 = in the seat (chase cam)
@@ -4335,7 +4624,29 @@ export function makeCourseScene(canvas, state) {
     );
     heldRoot.rotation.x = 0.45 * (1 - k) + kickBack.pitch;
     heldRoot.rotation.z = Math.sin(bobPhase * 0.5) * 0.012 * sway;
+    if (walkTool === 'boxcutter') {
+      cutterStroke = holdActive ? Math.min(1, cutterStroke + dt * 0.72) : Math.max(0, cutterStroke - dt * 4.5);
+      const cut = easeOutCubic(cutterStroke);
+      heldGroups.boxcutter.position.set(0.22 - cut * 0.24, -0.30 - Math.sin(cut * Math.PI) * 0.035, -0.50 - cut * 0.18);
+      heldGroups.boxcutter.rotation.set(0.15 + cut * 0.08, -0.20, -cut * 0.16);
+    } else {
+      cutterStroke = 0;
+      heldGroups.boxcutter.position.set(0.22, -0.30, -0.50);
+      heldGroups.boxcutter.rotation.set(0.15, -0.20, 0);
+    }
   }
+
+  const particleCanvas = document.createElement('canvas');
+  particleCanvas.width = 32;
+  particleCanvas.height = 32;
+  const particleContext = particleCanvas.getContext('2d');
+  const particleGradient = particleContext.createRadialGradient(16, 16, 2, 16, 16, 15);
+  particleGradient.addColorStop(0, 'rgba(255,255,255,1)');
+  particleGradient.addColorStop(0.72, 'rgba(255,255,255,0.92)');
+  particleGradient.addColorStop(1, 'rgba(255,255,255,0)');
+  particleContext.fillStyle = particleGradient;
+  particleContext.fillRect(0, 0, 32, 32);
+  const softParticleTexture = new THREE.CanvasTexture(particleCanvas);
 
   const sprayCount = 90;
   const sprayPositions = new Float32Array(sprayCount * 3);
@@ -4358,7 +4669,7 @@ export function makeCourseScene(canvas, state) {
   sprayPoints.frustumCulled = false;
 
   // grass clippings behind the cutting deck — the mowing loop's visible juice
-  const CLIP_N = 70;
+  const CLIP_N = 48;
   const clipPos = new Float32Array(CLIP_N * 3);
   const clipState = [];
   for (let i = 0; i < CLIP_N; i++) clipState.push({ t: 1 + Math.random(), ox: 0, oz: 0, vx: 0, vy: 0, vz: 0 });
@@ -4366,7 +4677,10 @@ export function makeCourseScene(canvas, state) {
   clipGeo.setAttribute('position', new THREE.BufferAttribute(clipPos, 3));
   const clipPoints = new THREE.Points(
     clipGeo,
-    new THREE.PointsMaterial({ color: 0x7fa04b, size: 0.14, transparent: true, opacity: 0.9, depthWrite: false }),
+    new THREE.PointsMaterial({
+      color: 0x79944f, size: 0.045, map: softParticleTexture,
+      transparent: true, opacity: 0.72, alphaTest: 0.04, depthWrite: false,
+    }),
   );
   clipPoints.visible = false;
   clipPoints.frustumCulled = false;
@@ -4451,7 +4765,8 @@ export function makeCourseScene(canvas, state) {
     } else {
       fpHands.setTool(null);
     }
-    if (tool) {
+    const pushed = tool === 'greensMower' || tool === 'spreader';
+    if (tool && !pushed) {
       heldRoot.visible = true;
       heldAnim.show = true;
       heldAnim.t = 0; // rise into the hands
@@ -4499,6 +4814,22 @@ export function makeCourseScene(canvas, state) {
     })[reason] || 'Nothing to clean at that contact point.';
   }
 
+  function toggleMowerBlades() {
+    let equipment = null;
+    let label = '';
+    if (cart.mounted) {
+      equipment = state.courseMaintenance?.equipment?.tractor;
+      label = 'Tractor mower';
+    } else if (walkTool === 'greensMower') {
+      equipment = state.courseMaintenance?.equipment?.greensMower;
+      label = 'Greens mower';
+    }
+    if (!equipment) return { handled: false };
+    equipment.engineOn = true;
+    equipment.bladesEngaged = !equipment.bladesEngaged;
+    return { handled: true, enabled: equipment.bladesEngaged, label };
+  }
+
   // --- what you're looking at (shop-style focus + [E]) -------------------------------
   let walkFocus = null; // { kind, label, cell? }
   const walkHooks = {}; // main.js provides turfLabelAt / inspectAt / waterAt / hoseLabelAt
@@ -4520,13 +4851,16 @@ export function makeCourseScene(canvas, state) {
     const cx = Math.floor((ax + worldW / 2) / CELL_YD);
     const cy = Math.floor((az + worldH / 2) / CELL_YD);
     if (cx < 0 || cy < 0 || cx >= W || cy >= H) return null;
-    return { x: cx, y: cy };
+    return { x: cx, y: cy, worldX: ax, worldZ: az };
   }
 
   function walkFindFocus() {
     if (cart.mounted) {
-      const cutting = state.tractor && state.tractor.repaired;
-      walkFocus = { kind: 'cart', label: cutting ? 'Tractor — the deck cuts as you drive · [E] park here' : 'Tractor — [E] park here' };
+      const mower = state.courseMaintenance?.equipment?.tractor;
+      const cutting = mower?.bladesEngaged;
+      walkFocus = { kind: 'cart', label: cutting
+        ? 'Tractor · mower blades ON [R] · [E] park here'
+        : 'Tractor · engine running · [R] engage mower blades · [E] park here' };
       return;
     }
     if (!cartHidden) {
@@ -4638,7 +4972,7 @@ export function makeCourseScene(canvas, state) {
       }
     }
     if (bestProp) {
-      walkFocus = { kind: 'prop', label: bestProp.label(), prop: bestProp };
+      walkFocus = { kind: 'prop', label: bestLabel, prop: bestProp };
       return;
     }
     // a cleaning tool out: the prompt becomes a live capacity / readiness readout.
@@ -4663,17 +4997,26 @@ export function makeCourseScene(canvas, state) {
         }
       }
     } else if (walkTool) {
-      const labelHook = { hose: walkHooks.hoseLabelAt, divot: walkHooks.divotLabelAt, rake: walkHooks.rakeLabelAt }[walkTool];
+      const labelHook = {
+        hose: walkHooks.hoseLabelAt,
+        divot: walkHooks.divotLabelAt,
+        ballmark: walkHooks.ballmarkLabelAt,
+        rake: walkHooks.rakeLabelAt,
+        debris: walkHooks.debrisLabelAt,
+        fungicide: walkHooks.fungicideLabelAt,
+        spreader: walkHooks.spreaderLabelAt,
+        greensMower: walkHooks.greensMowerLabelAt,
+      }[walkTool];
       const aim = walkAimCell(3.0);
       if (aim && labelHook) {
-        walkFocus = { kind: 'hose', label: labelHook(aim.x, aim.y), cell: aim };
+        walkFocus = { kind: 'hose', label: labelHook(aim.x, aim.y, aim.worldX, aim.worldZ), cell: aim };
         return;
       }
     }
     // the ground ahead: the same inspect the top-down click used to open
     const aim = walkAimCell();
     if (aim && walkHooks.turfLabelAt) {
-      const label = walkHooks.turfLabelAt(aim.x, aim.y);
+      const label = walkHooks.turfLabelAt(aim.x, aim.y, aim.worldX, aim.worldZ);
       if (label) {
         walkFocus = { kind: 'turf', label, cell: aim };
         return;
@@ -4709,7 +5052,12 @@ export function makeCourseScene(canvas, state) {
       }
       if (walkFocus.prop.action) walkFocus.prop.action();
     } else if ((walkFocus.kind === 'turf' || walkFocus.kind === 'hose') && walkFocus.cell && walkHooks.inspectAt) {
-      if (!isRepeat) walkHooks.inspectAt(walkFocus.cell.x, walkFocus.cell.y);
+      if (!isRepeat) walkHooks.inspectAt(
+        walkFocus.cell.x,
+        walkFocus.cell.y,
+        walkFocus.cell.worldX,
+        walkFocus.cell.worldZ,
+      );
     }
   }
 
@@ -4974,7 +5322,13 @@ export function makeCourseScene(canvas, state) {
   }
 
   function walkKeyDown(e) {
-    walkHeld.add(e.key.toLowerCase());
+    const key = e.key.toLowerCase();
+    if (key === 'e' && !walkHeld.has(key)) {
+      holdPressProp = walkFocus && walkFocus.kind === 'prop' && walkFocus.prop.hold
+        ? walkFocus.prop
+        : null;
+    }
+    walkHeld.add(key);
   }
   function walkKeyUp(e) {
     walkHeld.delete(e.key.toLowerCase());
@@ -5077,7 +5431,7 @@ export function makeCourseScene(canvas, state) {
     camera.fov = walk.fov || 66; // the management rig uses 46
     camera.near = 0.15;
     camera.updateProjectionMatrix();
-    heldRoot.visible = !!walkTool; // pick your tool back up
+    heldRoot.visible = !!walkTool && walkTool !== 'greensMower' && walkTool !== 'spreader';
     window.addEventListener('keydown', walkKeyDown);
     window.addEventListener('keyup', walkKeyUp);
     window.addEventListener('blur', walkBlur);
@@ -5174,7 +5528,8 @@ export function makeCourseScene(canvas, state) {
       // the hitched deck CUTS: cells under it (2.5 yd behind the seat, the
       // deck's width) mow to the zone's ideal height through the same hook
       // family the hose uses — real sim writes, stripes as the payoff
-      if (throttle && walkHooks.mowAt && state.tractor && state.tractor.repaired) {
+      const tractorMower = state.courseMaintenance?.equipment?.tractor;
+      if (throttle && walkHooks.mowAt && state.tractor && state.tractor.repaired && tractorMower?.bladesEngaged) {
         const dxT = walk.x + Math.sin(walk.yaw) * 2.5;
         const dzT = walk.z + Math.cos(walk.yaw) * 2.5;
         const rx = Math.cos(walk.yaw);
@@ -5185,13 +5540,30 @@ export function makeCourseScene(canvas, state) {
           const mz = dzT + rz * off;
           const cx = Math.floor((mx + worldW / 2) / CELL_YD);
           const cy = Math.floor((mz + worldH / 2) / CELL_YD);
-          if (cx >= 0 && cy >= 0 && cx < W && cy < H && walkHooks.mowAt(cx, cy)) cut = true;
+          if (cx >= 0 && cy >= 0 && cx < W && cy < H) {
+            const result = walkHooks.mowAt(cx, cy, {
+              x: mx,
+              z: mz,
+              radiusYd: 1.25,
+              mowerType: tractorMower.mowerType,
+              bladesEngaged: tractorMower.bladesEngaged,
+              speedYdPerSec: throttle > 0 ? cart.speed : cart.reverse,
+              directionRad: walk.yaw,
+            });
+            if (result?.changed) cut = true;
+            if (!result?.ok && result?.reason && maintenanceFeedbackClock <= 0) {
+              maintenanceFeedbackClock = 2.5;
+              if (walkHooks.toast) walkHooks.toast(result.reason, 'warn');
+            }
+          }
         }
         if (cut) {
           mowTexClock += dt;
           if (mowTexClock >= 0.25) {
             mowTexClock = 0;
             updateTurf(state);
+            updateCourseMaintenance(state);
+            refreshMaintenanceWorldProps();
           }
         } else {
           mowTexClock = 0.25; // next cut repaints immediately
@@ -5226,6 +5598,12 @@ export function makeCourseScene(canvas, state) {
     }
 
     walkRecover(dtMs, px0, pz0);
+    const distanceMoved = Math.hypot(walk.x - px0, walk.z - pz0);
+    updatePushedEquipment(dt, distanceMoved);
+    if (!routeArrivalNotified && yardHome && Math.hypot(walk.x - yardHome.x, walk.z - yardHome.z) < 12) {
+      routeArrivalNotified = true;
+      if (walkHooks.maintenanceArrive) walkHooks.maintenanceArrive();
+    }
 
     // camera: first-person on foot, third-person chase in the seat — EASED
     // between the two so mounting reads as a real transition, not a cut
@@ -5396,15 +5774,35 @@ export function makeCourseScene(canvas, state) {
       const useHook = { hose: walkHooks.waterAt, divot: walkHooks.repairAt, rake: walkHooks.rakeAt }[walkTool];
       const aim = walkAimCell(3.0);
       if (aim && useHook) {
-        useHook(aim.x, aim.y, dt);
-        const wx = (aim.x + 0.5) * CELL_YD - worldW / 2;
-        const wz = (aim.y + 0.5) * CELL_YD - worldH / 2;
-        sprayPoints.visible = true;
-        updateSpray({ x: wx, y: heightAt(wx, wz) + 0.1, z: wz });
+        const result = useHook(
+          aim.x,
+          aim.y,
+          dt,
+          aim.worldX,
+          aim.worldZ,
+          walk.yaw,
+          dt > 0 ? distanceMoved / dt : 0,
+        );
+        const particles = walkTool !== 'greensMower';
+        sprayPoints.visible = particles;
+        if (particles) updateSpray({
+          x: aim.worldX,
+          y: heightAt(aim.worldX, aim.worldZ) + 0.1,
+          z: aim.worldZ,
+        });
+        if (walkTool === 'greensMower') {
+          updateClippings(dt, aim.worldX, heightAt(aim.worldX, aim.worldZ), aim.worldZ, !!result?.changed);
+        }
+        if (!result?.ok && result?.reason && maintenanceFeedbackClock <= 0) {
+          maintenanceFeedbackClock = 2.5;
+          if (walkHooks.toast) walkHooks.toast(result.reason, 'warn');
+        }
         walkWaterTexClock += dt;
         if (walkWaterTexClock >= 0.2) {
           walkWaterTexClock = 0;
-          updateTurf(state); // moisture darkens / wear tint clears as you work
+          updateTurf(state);
+          updateCourseMaintenance(state);
+          refreshMaintenanceWorldProps();
         }
       } else {
         sprayPoints.visible = false;
@@ -6015,6 +6413,13 @@ export function makeCourseScene(canvas, state) {
     );
   }
 
+  function updateCourseMaintenance(st, force = false) {
+    const changed = maintenanceTextures.update({ force });
+    maintenanceOverlayUniforms.uInspect.value = st.courseMaintenance?.inspection.active ? 1 : 0;
+    refreshMaintenanceWorldProps();
+    return changed;
+  }
+
   const planColorCache = {};
   function planColor(zone) {
     if (!planColorCache[zone]) planColorCache[zone] = hexToVec3(ZONE_COLORS[zone]);
@@ -6355,6 +6760,9 @@ export function makeCourseScene(canvas, state) {
     }
     if (st) updateGolfers(dtMs / 1000, st);
     if (st) updateRain(dtMs / 1000, st.weather);
+    if (maintenanceIrrigationEntries.some((entry) => entry.head.enabled)) {
+      refreshMaintenanceWorldProps(time);
+    }
     if (clubhouseApi) clubhouseApi.update(dtMs); // doors, shop customers, interior life
     // flag wave
     if (holeGroup) {
@@ -6399,6 +6807,7 @@ export function makeCourseScene(canvas, state) {
     if (shaderRefs.uniforms) {
       shaderRefs.uniforms.uViewMode.value = mode === 'health' ? 1 : mode === 'moisture' ? 2 : 0;
     }
+    maintenanceOverlayUniforms.uVisible.value = mode === 'normal' ? 1 : 0;
   }
 
   function rebuildAll(st, {
@@ -6663,6 +7072,88 @@ export function makeCourseScene(canvas, state) {
     putModel('vendor/models/tool_chest.glb', 1.35, bx + 21.6, bz + 17.1, -Math.PI / 2);
     propColliders.push({ x: bx + 21.6, z: bz + 17.1, r: 0.75 });
 
+    // A physical daily board anchors the route. Its large print is baked once
+    // into a project-owned CanvasTexture; the full live list opens on the field
+    // tablet, while this remains readable as an object in the actual yard.
+    const boardCanvas = document.createElement('canvas');
+    boardCanvas.width = 512;
+    boardCanvas.height = 640;
+    const boardCtx = boardCanvas.getContext('2d');
+    boardCtx.fillStyle = '#ede4ca';
+    boardCtx.fillRect(0, 0, 512, 640);
+    boardCtx.fillStyle = '#244633';
+    boardCtx.fillRect(0, 0, 512, 112);
+    boardCtx.fillStyle = '#f4eedb';
+    boardCtx.font = '700 37px Georgia';
+    boardCtx.fillText('DAILY WORK', 36, 70);
+    boardCtx.fillStyle = '#2c4734';
+    boardCtx.font = '700 30px Arial';
+    boardCtx.fillText(`HOLE ${state.courseMaintenance?.heroHoleNumber || 4}`, 36, 158);
+    boardCtx.font = '600 23px Arial';
+    ['INSPECT', 'MOW + WATER', 'REPAIR TURF', 'RAKE + CLEAR', 'REINSPECT'].forEach((line, index) => {
+      boardCtx.fillStyle = '#b99b51';
+      boardCtx.fillRect(38, 202 + index * 75, 24, 24);
+      boardCtx.fillStyle = '#304b38';
+      boardCtx.fillText(line, 82, 224 + index * 75);
+    });
+    boardCtx.fillStyle = '#765b32';
+    boardCtx.font = 'italic 20px Georgia';
+    boardCtx.fillText('Return it better than you found it.', 36, 594);
+    const boardTexture = new THREE.CanvasTexture(boardCanvas);
+    boardTexture.colorSpace = THREE.SRGBColorSpace;
+    const board = new THREE.Group();
+    const backing = new THREE.Mesh(
+      new THREE.BoxGeometry(1.25, 1.55, 0.10),
+      new THREE.MeshStandardMaterial({ color: 0x704b2d, roughness: 0.82 }),
+    );
+    const paper = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.13, 1.42),
+      new THREE.MeshStandardMaterial({ map: boardTexture, roughness: 0.88, side: THREE.DoubleSide }),
+    );
+    paper.position.z = 0.056;
+    board.add(backing, paper);
+    const boardX = bx + 17.0;
+    const boardZ = bz + 16.45;
+    board.position.set(boardX, heightAt(boardX, boardZ) + 1.35, boardZ);
+    board.rotation.y = 0;
+    board.castShadow = true;
+    scene.add(board);
+    walkProps.push({
+      x: boardX, z: boardZ, r: 3.0,
+      label: () => 'Daily work board · [E] review Hole 4 route',
+      action: () => { if (walkHooks.reviewMaintenance) walkHooks.reviewMaintenance(); },
+    });
+
+    const selectYardEquipment = (equipmentId, tool, label) => {
+      const result = walkHooks.selectMaintenanceEquipment
+        ? walkHooks.selectMaintenanceEquipment(equipmentId)
+        : { ok: true };
+      if (!result.ok) {
+        if (walkHooks.toast) walkHooks.toast(result.reason, 'warn');
+        return;
+      }
+      walkSetTool(tool);
+      if (walkHooks.toast) walkHooks.toast(`${label} selected. Press R for blades if fitted; hold LMB to work.`);
+    };
+    const greensYard = { x: bx + 13.0, z: bz + 22.5 };
+    pushedParkPose.greensMower = { ...greensYard, yaw: 0.25 };
+    placePushedAtPark('greensMower');
+    propColliders.push({ x: greensYard.x, z: greensYard.z, r: 0.72 });
+    walkProps.push({
+      ...greensYard, r: 3.0,
+      label: () => 'Greens reel mower · [E] select for green, fringe, and tee',
+      action: () => selectYardEquipment('greensMower', 'greensMower', 'Greens mower'),
+    });
+    const spreaderYard = { x: bx + 16.0, z: bz + 23.0 };
+    pushedParkPose.spreader = { ...spreaderYard, yaw: -0.2 };
+    placePushedAtPark('spreader');
+    propColliders.push({ x: spreaderYard.x, z: spreaderYard.z, r: 0.62 });
+    walkProps.push({
+      ...spreaderYard, r: 2.8,
+      label: () => 'Rotary spreader · [E] select for weak turf',
+      action: () => selectYardEquipment('spreader', 'spreader', 'Rotary spreader'),
+    });
+
     if (!t || t.repaired) {
       attachMower();
       return yard; // the machine already runs — the yard is scenery
@@ -6765,6 +7256,199 @@ export function makeCourseScene(canvas, state) {
     };
     walkProps.push(tractorProp);
     return yard;
+  }
+
+  function buildHeroMaintenanceProps() {
+    const model = state.courseMaintenance;
+    if (!model) return;
+    const geometry = {
+      divotPit: new THREE.CylinderGeometry(0.31, 0.37, 0.055, 18),
+      divotLip: new THREE.TorusGeometry(0.34, 0.045, 5, 18),
+      ballMark: new THREE.RingGeometry(0.10, 0.29, 18),
+      footprint: new THREE.CircleGeometry(0.24, 16),
+      halo: new THREE.RingGeometry(0.36, 0.43, 24),
+      sprinklerStem: new THREE.CylinderGeometry(0.10, 0.13, 0.25, 12),
+      sprinklerRing: new THREE.TorusGeometry(0.16, 0.035, 6, 16),
+    };
+    const darkSoil = new THREE.MeshStandardMaterial({ color: 0x49321f, roughness: 1 });
+    const filledSoil = new THREE.MeshStandardMaterial({ color: 0x8b7346, roughness: 1 });
+    const divotLip = new THREE.MeshStandardMaterial({ color: 0x6c7d43, roughness: 0.95 });
+    const bruise = new THREE.MeshBasicMaterial({ color: 0x403524, transparent: true, opacity: 0.34, depthWrite: false });
+    const debrisColors = [0x6e5931, 0x86683d, 0x4d6132].map((color) => new THREE.Color(color));
+    const debrisMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96 });
+    const haloMaterial = new THREE.MeshBasicMaterial({
+      color: 0xe2c268, transparent: true, opacity: 0.56, depthWrite: false, side: THREE.DoubleSide,
+    });
+    const irrigationStemMaterial = new THREE.MeshStandardMaterial({ color: 0x26332b, roughness: 0.72, metalness: 0.18 });
+    const irrigationRingMaterials = {
+      ready: new THREE.MeshStandardMaterial({ color: 0xb49c65, roughness: 0.45, metalness: 0.35 }),
+      running: new THREE.MeshStandardMaterial({ color: 0x79bfe5, roughness: 0.45, metalness: 0.35 }),
+      clogged: new THREE.MeshStandardMaterial({ color: 0xc58345, roughness: 0.45, metalness: 0.35 }),
+    };
+    const irrigationSprayMaterial = new THREE.PointsMaterial({
+      color: 0xaedfff, size: 0.095, map: softParticleTexture,
+      transparent: true, opacity: 0.72, alphaTest: 0.04, depthWrite: false,
+    });
+    const addHalo = (group) => {
+      const halo = new THREE.Mesh(geometry.halo, haloMaterial);
+      halo.rotation.x = -Math.PI / 2;
+      halo.position.y = 0.065;
+      halo.renderOrder = 5;
+      halo.visible = false;
+      group.add(halo);
+      return halo;
+    };
+    const addIssue = (issue, kind) => {
+      const group = new THREE.Group();
+      group.name = `Maintenance_${kind}_${issue.id}`;
+      group.position.set(issue.x, heightAt(issue.x, issue.z) + 0.02, issue.z);
+      const entry = { issue, kind, group, primary: null, marks: [] };
+      if (kind === 'divot') {
+        const pit = new THREE.Mesh(geometry.divotPit, darkSoil);
+        pit.position.y = -0.012;
+        group.add(pit);
+        entry.primary = pit;
+        entry.openMaterial = darkSoil;
+        entry.filledMaterial = filledSoil;
+        const lip = new THREE.Mesh(
+          geometry.divotLip,
+          divotLip,
+        );
+        lip.rotation.x = Math.PI / 2;
+        lip.scale.z = 0.72;
+        group.add(lip);
+      } else if (kind === 'ballmark') {
+        const mark = new THREE.Mesh(geometry.ballMark, bruise);
+        mark.rotation.x = -Math.PI / 2;
+        mark.scale.y = 0.72;
+        group.add(mark);
+        entry.primary = mark;
+      } else if (kind === 'footprint') {
+        for (let foot = 0; foot < 2; foot++) {
+          const mark = new THREE.Mesh(geometry.footprint, bruise);
+          mark.rotation.x = -Math.PI / 2;
+          mark.scale.set(0.62, 1.28, 1);
+          mark.position.set((foot ? 1 : -1) * 0.17, 0.02, (foot ? 1 : -1) * 0.30);
+          group.add(mark);
+          entry.marks.push(mark);
+        }
+        entry.primary = entry.marks[0];
+      } else {
+        const pieces = [];
+        for (let piece = 0; piece < 6; piece++) {
+          let pieceGeometry;
+          const rotation = new THREE.Euler(0, piece * 1.1, 0);
+          const scale = new THREE.Vector3(1, 1, 1);
+          if (issue.type === 'branch' || issue.type === 'storm-debris') {
+            pieceGeometry = new THREE.CylinderGeometry(0.035, 0.055, 0.65 + piece * 0.04, 6);
+            rotation.z = Math.PI / 2;
+          } else {
+            pieceGeometry = new THREE.SphereGeometry(0.12 + (piece % 3) * 0.035, 7, 5);
+            scale.y = 0.28;
+          }
+          const position = new THREE.Vector3(
+            Math.sin(piece * 2.2) * 0.36,
+            0.05 + (piece % 2) * 0.025,
+            Math.cos(piece * 1.7) * 0.32,
+          );
+          const matrix = new THREE.Matrix4().compose(
+            position,
+            new THREE.Quaternion().setFromEuler(rotation),
+            scale,
+          );
+          pieceGeometry.applyMatrix4(matrix);
+          const color = debrisColors[piece % debrisColors.length];
+          const colors = new Float32Array(pieceGeometry.attributes.position.count * 3);
+          for (let vertex = 0; vertex < pieceGeometry.attributes.position.count; vertex++) {
+            colors[vertex * 3] = color.r;
+            colors[vertex * 3 + 1] = color.g;
+            colors[vertex * 3 + 2] = color.b;
+          }
+          pieceGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+          pieces.push(pieceGeometry);
+        }
+        const debrisGeometry = BufferGeometryUtils.mergeGeometries(pieces, false);
+        for (const piece of pieces) piece.dispose();
+        const debris = new THREE.Mesh(debrisGeometry, debrisMaterial);
+        debris.castShadow = true;
+        group.add(debris);
+        entry.primary = debris;
+      }
+      entry.halo = addHalo(group);
+      scene.add(group);
+      maintenanceIssueEntries.push(entry);
+      const noun = kind === 'ballmark' ? 'Ball mark' : kind === 'footprint' ? 'Bunker footprints' : kind === 'debris' ? 'Loose debris' : 'Open divot';
+      walkProps.push({
+        x: issue.x, z: issue.z, r: 2.8,
+        label: () => (issue.repaired || issue.cleared) ? null : `${noun} · [I] inspect · choose the matching tool`,
+        action: null,
+      });
+    };
+    for (const issue of model.issues.divots) addIssue(issue, 'divot');
+    for (const issue of model.issues.ballMarks) addIssue(issue, 'ballmark');
+    for (const issue of model.issues.bunkerFootprints) addIssue(issue, 'footprint');
+    for (const issue of model.issues.debris) addIssue(issue, 'debris');
+
+    // Irrigation hardware is small but readable, with a real spray pattern and
+    // persistent running/clogged state. The radial effect is capped at 72 points.
+    for (const head of model.irrigation.heads) {
+      const group = new THREE.Group();
+      const stem = new THREE.Mesh(
+        geometry.sprinklerStem,
+        irrigationStemMaterial,
+      );
+      stem.position.y = 0.11;
+      const ring = new THREE.Mesh(
+        geometry.sprinklerRing,
+        irrigationRingMaterials.ready,
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.24;
+      group.add(stem, ring);
+      group.position.set(head.x, heightAt(head.x, head.z), head.z);
+      scene.add(group);
+      const sprayGeo = new THREE.BufferGeometry();
+      sprayGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(72 * 3), 3));
+      const spray = new THREE.Points(sprayGeo, irrigationSprayMaterial);
+      spray.visible = false;
+      spray.frustumCulled = false;
+      group.add(spray);
+      maintenanceIrrigationEntries.push({
+        head, group, ring, spray, ringMaterials: irrigationRingMaterials,
+      });
+      walkProps.push({
+        x: head.x, z: head.z, r: 3.2,
+        label: () => head.status === 'clogged'
+          ? 'Clogged sprinkler head · [E] clear it'
+          : head.enabled ? 'Sprinkler running · [E] shut off' : 'Sprinkler ready · [E] run this zone',
+        action: () => { if (walkHooks.manageIrrigationHead) walkHooks.manageIrrigationHead(head.id); },
+      });
+    }
+    const controller = model.irrigation.controller;
+    const controllerBox = new THREE.Mesh(
+      new THREE.BoxGeometry(0.55, 0.82, 0.22),
+      new THREE.MeshStandardMaterial({ color: 0x415b45, roughness: 0.72, metalness: 0.15 }),
+    );
+    controllerBox.position.set(controller.x, heightAt(controller.x, controller.z) + 0.48, controller.z);
+    controllerBox.castShadow = true;
+    scene.add(controllerBox);
+    maintenanceControllerMesh = controllerBox;
+    walkProps.push({
+      x: controller.x, z: controller.z, r: 2.8,
+      label: () => `Irrigation controller · ${controller.enabled ? 'ON' : 'OFF'} · [E] toggle`,
+      action: () => {
+        controller.enabled = !controller.enabled;
+        if (!controller.enabled) {
+          for (const head of model.irrigation.heads) {
+            head.enabled = false;
+            if (head.status === 'running') head.status = 'ready';
+          }
+        }
+        if (walkHooks.toast) walkHooks.toast(`Irrigation controller ${controller.enabled ? 'on' : 'off'}.`);
+        refreshMaintenanceWorldProps();
+      },
+    });
+    refreshMaintenanceWorldProps();
   }
 
   // --- course restoration props: storm litter + the broken tee sign ------------------
@@ -6890,6 +7574,7 @@ export function makeCourseScene(canvas, state) {
     }
   }
   buildCourseProps();
+  buildHeroMaintenanceProps();
   refreshWalkColliders(); // parking needs to see the world
   if (yardHome) {
     // the tractor lives at the yard, broken or not
@@ -7071,6 +7756,7 @@ export function makeCourseScene(canvas, state) {
     raycastCell,
     raycastGround,
     updateTurf,
+    updateCourseMaintenance,
     updatePlan,
     updateHoles,
     rebuildAll,

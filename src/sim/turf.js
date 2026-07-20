@@ -19,6 +19,7 @@ import { BALANCE } from './balance.js';
 import { clamp, rngOf } from '../core/utils.js';
 import { tempAtHour, isFrostMorning } from './weather.js';
 import { spend } from './economy.js';
+import { nextPropertyCommandId } from './property.js';
 import { groundsCrewHours } from './staff.js';
 import {
   mowHoursFactor, waterCostFactor, fungicideCostFactor, aerateCostFactor, wearRecoveryBonus,
@@ -413,7 +414,11 @@ export function treatSection(state, section) {
   const t = state.turf;
   const cost = treatSectionCost(state, section);
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash for fungicide.' };
-  spend(state, 'chemicals', cost);
+  const commandId = nextPropertyCommandId(state, 'fungicide');
+  spend(state, 'chemicals', cost, {
+    idempotencyKey: commandId, relatedId: section.holeId ?? section.cells[0],
+    description: `Fungicide treatment â€” ${section.label || section.zone}`, source: 'turf-care', units: section.cells.length,
+  });
   for (const i of section.cells) {
     t.treated[i] = T().fungicideProtectionDays;
   }
@@ -425,7 +430,11 @@ export function aerateSection(state, section) {
   const t = state.turf;
   const cost = aerateSectionCost(state, section);
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash to aerate.' };
-  spend(state, 'upkeep', cost);
+  const commandId = nextPropertyCommandId(state, 'aeration');
+  spend(state, 'upkeep', cost, {
+    idempotencyKey: commandId, relatedId: section.holeId ?? section.cells[0],
+    description: `Aeration â€” ${section.label || section.zone}`, source: 'turf-care', units: section.cells.length,
+  });
   for (const i of section.cells) {
     t.wear[i] = Math.max(0, t.wear[i] - 35);
     t.health[i] = clamp(t.health[i] + 3, 0, 100);

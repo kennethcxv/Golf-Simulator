@@ -170,7 +170,12 @@ export function applyPlan(state, plan) {
     }
     if (e.dElev !== undefined) course.elevation[i] += e.dElev;
   }
-  spend(state, 'works', cost.total);
+  const workOrderId = nextPropertyCommandId(state, 'course-works');
+  spend(state, 'works', cost.total, {
+    idempotencyKey: workOrderId, relatedId: workOrderId, accountingClass: 'capital',
+    description: `Course works across ${cost.cellCount} cell${cost.cellCount === 1 ? '' : 's'}`,
+    source: 'course-works', metadata: { cells: cost.cellCount, holesAffected: affected.map((item) => item.holeId) },
+  });
   turfOnZonesChanged(state, changedCells);
 
   for (const a of affected) {
@@ -207,7 +212,11 @@ function placeMarker(state, holeId, x, y, kind) {
 
   const wasOpen = hole.status === HOLE_STATUS.OPEN;
   hole[kind === 'tee' ? 'tee' : 'pin'] = { x, y };
-  spend(state, 'works', BALANCE.holeMoveCost);
+  const workOrderId = nextPropertyCommandId(state, `move-${kind}`);
+  spend(state, 'works', BALANCE.holeMoveCost, {
+    idempotencyKey: workOrderId, relatedId: holeId, accountingClass: 'capital',
+    description: `Move hole ${holeId} ${kind}`, source: 'course-works', metadata: { x, y, kind },
+  });
 
   const valid = validateHole(course, hole).valid;
   if (wasOpen) {

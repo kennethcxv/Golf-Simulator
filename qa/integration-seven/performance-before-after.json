@@ -1,0 +1,214 @@
+{
+  "generatedAt": "2026-07-20T14:40:00.000Z",
+  "originalMain": "0c5137e5f0efac9627ce2309b9e66936f1eeb769",
+  "validatedIntegrationCodeHead": "ec88eba401e812cf131a7008f4ec868e575435f6",
+  "environment": {
+    "os": "Windows",
+    "browser": "Google Chrome 150 via Playwright",
+    "viewportClubhouse": "1440x900 DPR 1",
+    "viewportCourse": "1600x900 DPR 1",
+    "gpu": "NVIDIA GeForce RTX 5080 via ANGLE D3D11",
+    "node": "v22.14.0",
+    "serialExecution": true
+  },
+  "startup": {
+    "protocol": "Three fresh storage-isolated browser contexts; browser process launch excluded",
+    "main": {
+      "menuReadyMeanMs": 122.06163333333386,
+      "menuReadyMedianMs": 120.50460000000021,
+      "playableMeanMs": 7067.428333333333,
+      "playableMedianMs": 6207.239000000001
+    },
+    "integrated": {
+      "menuReadyMeanMs": 153.04309999999964,
+      "menuReadyMedianMs": 147.60390000000007,
+      "playableMeanMs": 7989.373466666667,
+      "playableMedianMs": 6549.9215
+    },
+    "consoleErrors": 0,
+    "pageErrors": 0
+  },
+  "clubhouseRegisterIdle": {
+    "protocol": "Fixed register camera, minute 840, clock frozen, zero explicit customers, 10 s warm-up, three runs of 600 frames",
+    "main": {
+      "averageFps": 116.26006896303176,
+      "onePercentLowFps": 53.3408053947417,
+      "p95FrameMs": 8.500000000002425,
+      "p99FrameMs": 13.56666666666691,
+      "worstFrameMs": 75,
+      "longFrameCount": 4,
+      "drawCalls": 2403,
+      "triangles": 5777321,
+      "materials": 232,
+      "textures": 158,
+      "jsHeapBytes": 158662073,
+      "uiMutationsPerFrame": 3.0050000000000003,
+      "listenerDelta": 0
+    },
+    "integrated": {
+      "averageFps": 119.53423076832985,
+      "onePercentLowFps": 98.47145270933966,
+      "p95FrameMs": 8.400000000001455,
+      "p99FrameMs": 11.166666666666666,
+      "worstFrameMs": 16.700000000000728,
+      "longFrameCount": 0,
+      "drawCalls": 2575,
+      "triangles": 5890091,
+      "materials": 255,
+      "textures": 159,
+      "jsHeapBytes": 155419558,
+      "uiMutationsPerFrame": 0,
+      "listenerDelta": 0
+    }
+  },
+  "clubhouseTenCustomers": {
+    "protocol": "Fixed register camera, minute 840, clock frozen, ten explicit customers in fixed positions, stocked-state fixture, 10 s warm-up, three runs of 600 frames",
+    "main": {
+      "averageFps": 119.9944002719862,
+      "onePercentLowFps": 117.26424127289583,
+      "p95FrameMs": 8.400000000001455,
+      "p99FrameMs": 8.466666666667152,
+      "worstFrameMs": 8.799999999999272,
+      "longFrameCount": 0,
+      "drawCalls": 2653,
+      "triangles": 5783561,
+      "materials": 277,
+      "textures": 158,
+      "jsHeapBytes": 107399577,
+      "uiMutationsPerFrame": 3.0050000000000003,
+      "listenerDelta": 0
+    },
+    "integrated": {
+      "averageFps": 118.49292933599331,
+      "onePercentLowFps": 66.49375108731694,
+      "p95FrameMs": 8.400000000001455,
+      "p99FrameMs": 8.5,
+      "worstFrameMs": 50,
+      "longFrameCount": 4,
+      "drawCalls": 2908,
+      "triangles": 5902989,
+      "materials": 272,
+      "textures": 159,
+      "jsHeapBytes": 186758629,
+      "uiMutationsPerFrame": 0,
+      "listenerDelta": 0
+    }
+  },
+  "course": {
+    "protocol": "Fixed hero-hole camera, paused clock, three 6 s samples; 60 normal mount/dismount cycles with forced-GC checkpoints",
+    "main": {
+      "idleAverageFps": 119.87015226766194,
+      "idleOnePercentLowFps": 117.47497798975733,
+      "idleDrawCalls": 560.7777777777778,
+      "idleTriangles": 4315946.055555556,
+      "mowingAverageFps": 119.89809821711957,
+      "mowingOnePercentLowFps": 117.41772732484723,
+      "mowingDrawCalls": 565.2509259259259,
+      "mowingTriangles": 4469962.606481481,
+      "longFramesOver50Ms": 0,
+      "geometries": 1044,
+      "materials": 254,
+      "rendererTextures": 199,
+      "estimatedTextureBytes": 5365559360,
+      "jsHeapBytes": 59452955,
+      "saveBytes": 329910,
+      "saveMs": 3.700000047683716,
+      "loadMs": 1.399999976158142,
+      "stressHeapGrowthBytes": 3049680,
+      "stressListenerGrowth": 0
+    },
+    "integrated": {
+      "idleAverageFps": 119.9054087832714,
+      "idleOnePercentLowFps": 117.07356047362134,
+      "idleDrawCalls": 611.8486111111112,
+      "idleTriangles": 4433793.505555555,
+      "mowingAverageFps": 119.88147504090857,
+      "mowingOnePercentLowFps": 117.82083436209308,
+      "mowingDrawCalls": 617.5189814814815,
+      "mowingTriangles": 4587531.2,
+      "longFramesOver50Ms": 0,
+      "geometries": 1007,
+      "materials": 377,
+      "rendererTextures": 204,
+      "estimatedTextureBytes": 5368361024,
+      "jsHeapBytes": 80598112,
+      "saveBytes": 628705,
+      "saveMs": 5,
+      "loadMs": 5.699999928474426,
+      "stressHeapGrowthBytes": 3373338,
+      "stressListenerGrowth": 0
+    }
+  },
+  "integrationOnlyScenarios": {
+    "golfOperatingDay": {
+      "averageFps": 113.79,
+      "onePercentLowFps": 54.89,
+      "worstFrameMs": 25,
+      "drawCalls": 2923,
+      "triangles": 5373440,
+      "jsHeapBytes": 141632645,
+      "listenerRegistrationDelta": 0,
+      "uiMutationsDuringFiveSeconds": 0
+    },
+    "economyLaptop": {
+      "idleAverageFps": 103.02,
+      "idleOnePercentLowFps": 42.4,
+      "interactiveAverageFps": 106.02,
+      "interactiveOnePercentLowFps": 39.95,
+      "listenerUpperBoundBefore": 117,
+      "listenerUpperBoundAfter": 117,
+      "pageErrors": 0
+    },
+    "placementBatching": {
+      "beforeDrawCalls": 2594,
+      "afterDrawCalls": 1960,
+      "beforeTriangles": 6309000,
+      "afterTriangles": 5264000,
+      "drawCallReductionPercent": 24.4,
+      "triangleReductionPercent": 16.6,
+      "batchMeshes": 7,
+      "authoredModels": 15
+    }
+  },
+  "package": {
+    "productionBuildScript": null,
+    "productionBuildStatus": "unsupported: package.json defines no build or preview target",
+    "proxy": "npm pack --dry-run --json",
+    "main": {
+      "packedBytes": 251995837,
+      "unpackedBytes": 296145525,
+      "entries": 339
+    },
+    "integrated": {
+      "packedBytes": 258277965,
+      "unpackedBytes": 310163125,
+      "entries": 472
+    }
+  },
+  "logicalSoak": {
+    "placements": 100,
+    "boxInteractions": 100,
+    "customerLifecycles": 100,
+    "checkIns": 100,
+    "maintenanceStrokes": 100,
+    "saveLoadCycles": 100,
+    "heapGrowthAfterGcBytes": 2210576,
+    "activeResourceDelta": {
+      "CloseReq": 0,
+      "PipeWrap": 0
+    },
+    "saveByteRangeFinalTwenty": 1,
+    "passed": true
+  },
+  "assessment": {
+    "accepted": true,
+    "improvementClaimed": false,
+    "notes": [
+      "Idle clubhouse and both course scenarios remain at or near the 120 Hz display ceiling.",
+      "The ten-customer mean is 1.25% below main and recorded four isolated long frames; this is disclosed rather than presented as an improvement.",
+      "The unified schema increases representative save size and absolute load time, but load remains 5.7 ms in the measured fixture and repeated saves stabilize.",
+      "The full integration exceeds the course branch's localized 15% material-count budget because it loads seven systems' authored content; frame rate, listeners, and soak counts remain stable.",
+      "Failed requests observed by browser routes were optional GLB loads aborted during scene replacement or teardown, not 404s or required-resource failures."
+    ]
+  }
+}

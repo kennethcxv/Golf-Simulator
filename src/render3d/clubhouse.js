@@ -10,7 +10,6 @@
 // walkProps/propColliders in WORLD coordinates.
 
 import * as THREE from 'three';
-import { clamp, rngOf } from '../core/utils.js';
 import { fitDistance } from '../core/screenFit.js';
 import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig.js';
 import { makeCharacter } from './characterAsset.js';
@@ -95,7 +94,6 @@ import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } fro
 import { shopCustomerCapacity, shopTierIndex } from '../sim/shopProgression.js';
 import { createRegisterMode } from './clubhouse/simplifiedRegisterMode.js';
 import { buildDirt } from './clubhouse/dirt.js';
-import { makeNav } from './clubhouse/nav.js';
 import { productThumb } from './clubhouse/thumbs.js';
 import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
@@ -578,12 +576,26 @@ export function makeClubhouse(ctx) {
   const halfW = SHELL.w / 2 - SHELL.wallT / 2; // wall centerlines
   const halfD = SHELL.d / 2 - SHELL.wallT / 2;
 
+  let customerView = null;
   const B = {
-    ctx, state, group, interior, custGroup, mats, merch, hooks, walk,
+    ctx, state, group, interior, custGroup, mats, merch, hooks, walk, camera,
     addCol, removeCol, addProp, removeProp, colBoxAt, L2W, W2L, FLOOR_TOP,
-    getCustomers: () => customers,
+    getCustomers: () => customerView?.actors || [],
   };
   const shell = buildShell(B);
+
+  function refreshRoomStyle() {
+    const selected = roomStyle(state);
+    for (const kind of ['floor', 'walls', 'trim']) {
+      const material = shell.styleSurfaces?.[kind];
+      const option = ROOM_STYLE_OPTIONS[kind]?.find((entry) => entry.id === selected[kind]);
+      if (!material || !option) continue;
+      material.color.setHex(option.color);
+      if (Number.isFinite(option.roughness)) material.roughness = option.roughness;
+      material.needsUpdate = true;
+    }
+  }
+  refreshRoomStyle();
 
   // --- grime + window film (clubhouse/dirt.js — art-directed, state-masked) --------------
   B.onWindowDirt = () => shell.lighting.setWindowDirt(windowDirtAvg(state));
@@ -614,6 +626,7 @@ export function makeClubhouse(ctx) {
     matMesh.renderOrder = 1;
     matMesh.name = 'LegacyWelcomeMat';
     interior.add(matMesh);
+    fallbackWelcomeMat = matMesh;
   }
 
   // --- doors + interior lighting (clubhouse/doors.js + the shell rig) --------------------
@@ -782,6 +795,8 @@ export function makeClubhouse(ctx) {
   // the player moved something: re-lay the floor and put the stock back on it. The customers'
   // paths rebake themselves — removeCol/addCol bump colVersion, and navFresh() watches it — so a
   // shelf that moved is a wall that moved, as far as they are concerned.
+  let placeableVisuals = null;
+  let builder = null;
   function rebuildLayout() {
     props61to100.detachFixturePlacements();
     relayFixtures();
@@ -1066,15 +1081,11 @@ export function makeClubhouse(ctx) {
       }
       const due = dueForCheckIn(state);
       if (due.length) {
-        const r = due[0];
-        return `Register — [E] check in ${r.name} (${fmtSlot(r.minute)} tee, ${Math.round(r.fee)} dollars)`
+        const reservation = due[0];
+        return `Tee desk — [E] serve ${reservation.reservationHolder} (${reservation.partySize} players · ${fmtSlot(reservation.minute)})`
           + (due.length > 1 ? ` · ${due.length - 1} more waiting` : '');
       }
-      const l = register.label();
-      if (l) return l;
-      const s = state.shop;
-      const live = s.salesLive && s.salesLive.units ? ` · today at the counter: ${s.salesLive.units} rung up` : '';
-      return `Register — yesterday: ${s.salesYesterday.units} sales, ${s.salesYesterday.revenue} dollars${live}`;
+      return 'Tee desk — [E] arrivals, check-in & walk-ins';
     },
     action: () => {
       // The shared monitor owns selection and never mutates a reservation merely
@@ -2739,6 +2750,41 @@ export function makeClubhouse(ctx) {
   const CARTON_BRAND = { tees1: 'CADDIE CLUB', marker1: 'CADDIE CLUB' };
   const skuMats = new Map();
   const ballBoxMats = new Map();
+  const reserveLabelGeo = new THREE.PlaneGeometry(0.48, 0.11);
+  const reserveLabelCache = new Map();
+  let reserveLabelGeneration = 0;
+
+  function reserveLabelMat(sku, quantity) {
+    const key = `${sku.id}:${quantity}`;
+    const cached = reserveLabelCache.get(key);
+    if (cached) {
+      cached.used = reserveLabelGeneration;
+      return cached.material;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = 384; canvas.height = 96;
+    const c = canvas.getContext('2d');
+    c.fillStyle = '#efe9d9'; c.fillRect(0, 0, canvas.width, canvas.height);
+    c.strokeStyle = '#b99751'; c.lineWidth = 5; c.strokeRect(3, 3, 378, 90);
+    c.fillStyle = '#1f4a26'; c.font = 'bold 25px Georgia';
+    c.fillText(sku.name.slice(0, 21), 12, 37);
+    c.fillStyle = '#292b27'; c.font = 'bold 30px Georgia';
+    c.fillText(`RESERVE ×${quantity}`, 12, 75);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const material = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.84 });
+    reserveLabelCache.set(key, { material, used: reserveLabelGeneration });
+    return material;
+  }
+
+  function pruneReserveLabels() {
+    for (const [key, entry] of reserveLabelCache) {
+      if (entry.used === reserveLabelGeneration) continue;
+      if (entry.material.map) entry.material.map.dispose();
+      entry.material.dispose();
+      reserveLabelCache.delete(key);
+    }
+  }
 
   function skuMat(sku) {
     if (!skuMats.has(sku.id)) {
@@ -3051,6 +3097,11 @@ export function makeClubhouse(ctx) {
     }
     stockMeshes.clear();
     const inv = state.shop.inventory;
+    const reserveLines = SHOP_CATALOG
+      .map((sku) => ({ sku, quantity: Math.max(0, inv[sku.id] ? inv[sku.id].back : 0) }))
+      .filter((line) => line.quantity > 0);
+    const reserveRackOrder = ['backshelf_e2', 'backshelf_e']
+      .filter((id) => placedFixtures(state).some((fixture) => fixture.id === id));
 
     for (const f of placedFixtures(state)) {
       const anchor = fixtureAnchors.get(f.id);
@@ -3812,8 +3863,56 @@ export function makeClubhouse(ctx) {
     carriedBoxHands.visible = true;
   }
 
-  // one shipping-label texture per box id (supplier, order #, weight, category, FRAGILE)
+  // Dynamic carton geometry is rebuilt while tape and flaps move. Mark only the
+  // geometry created for that rebuild; product models and kit materials stay shared.
+  const ownedGeometry = (geometry) => {
+    geometry.userData.inventoryOwned = true;
+    return geometry;
+  };
+  const ownedMesh = (geometry, material) => new THREE.Mesh(ownedGeometry(geometry), material);
+  function disposeOwnedRenderable(root) {
+    if (!root) return;
+    root.traverse((o) => {
+      if (o.geometry && o.geometry.userData.inventoryOwned) o.geometry.dispose();
+    });
+  }
+  function clearOwnedGroup(root) {
+    for (const child of [...root.children]) disposeOwnedRenderable(child);
+    root.clear();
+  }
+
+  const boxInsideFilledMat = new THREE.MeshStandardMaterial({ color: 0x4a3a28, roughness: 1 });
+  const boxInsideEmptyMat = new THREE.MeshStandardMaterial({ color: 0x241a10, roughness: 1 });
+  const deliveryShaftGeo = new THREE.CylinderGeometry(0.009, 0.011, 0.40, 8);
+  const deliveryUmbrellaGeo = new THREE.ConeGeometry(0.075, 0.18, 10);
+  const deliveryRollGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.18, 8);
+  const carryPalmGeo = new THREE.SphereGeometry(0.048, 12, 8);
+  const carryForearmGeo = new THREE.CylinderGeometry(0.045, 0.06, 0.34, 10);
+  const carrySkinMat = new THREE.MeshStandardMaterial({ color: 0xc98f68, roughness: 0.82 });
+  const carrySleeveMat = new THREE.MeshStandardMaterial({ color: 0x294f34, roughness: 0.9 });
+
+  function makeCarryHands(span, y, z) {
+    const hands = new THREE.Group();
+    for (const sign of [-1, 1]) {
+      const palm = new THREE.Mesh(carryPalmGeo, carrySkinMat);
+      palm.scale.set(1.05, 0.78, 1.18);
+      palm.position.set(sign * span, y, z);
+      const thumb = new THREE.Mesh(carryPalmGeo, carrySkinMat);
+      thumb.scale.set(0.58, 0.48, 0.82);
+      thumb.position.set(sign * (span - 0.038), y - 0.006, z - 0.036);
+      const sleeve = new THREE.Mesh(carryForearmGeo, carrySleeveMat);
+      sleeve.position.set(sign * (span + 0.055), y - 0.18, z + 0.055);
+      sleeve.rotation.z = sign * -0.24;
+      sleeve.rotation.x = 0.12;
+      hands.add(sleeve, palm, thumb);
+    }
+    return hands;
+  }
+
+  // Labels remain exact, but only labels used by the current rebuild survive.
+  // That keeps a hundred partial-unpack cycles from retaining a hundred canvases.
   const shipLabelCache = new Map();
+  let shipLabelGeneration = 0;
   function boxLabelMat(box, sku) {
     const key = String(box.id);
     let entry = shipLabelCache.get(key);
@@ -3837,24 +3936,107 @@ export function makeClubhouse(ctx) {
     c.clearRect(0, 0, 256, 160);
     c.fillStyle = '#efe7d4'; c.fillRect(0, 0, 256, 160);
     c.strokeStyle = '#b9a074'; c.lineWidth = 4; c.strokeRect(6, 6, 244, 148);
-    c.fillStyle = '#1f3a24'; c.font = 'bold 22px Georgia';
-    c.fillText((box.supplier || 'FAIRWAY SUPPLY CO.').slice(0, 18), 16, 34);
-    c.fillStyle = '#2a2a26'; c.font = '16px Georgia';
-    c.fillText(`ORDER #${String(box.orderId || 0).padStart(4, '0')}`, 16, 60);
-    c.fillText(`${(sku ? sku.name : box.skuId).slice(0, 20)}`, 16, 82);
-    c.fillText(`QTY ${box.qty}    ${box.lb != null ? box.lb + ' LB' : ''}`, 16, 104);
-    const glyph = { balls: '●', clubs: 'T', apparel: '▧', accessories: '◆', supplies: '⚙', decor: '❖' }[sku ? sku.cat : 'accessories'] || '◆';
-    c.font = 'bold 30px Georgia'; c.fillText(glyph, 214, 44);
+    c.fillStyle = '#1f3a24'; c.font = 'bold 18px Georgia';
+    c.fillText((box.supplier || 'PINEHOLLOW PARCEL').slice(0, 20), 16, 33);
+    c.fillStyle = '#2a2a26'; c.font = '15px Georgia';
+    c.fillText(`ORDER #${String(box.orderId || 0).padStart(4, '0')}`, 16, 59);
+    c.fillText(`${(sku ? sku.name : box.skuId).slice(0, 22)}`, 16, 82);
+    c.fillText(`REMAIN ${box.qty}/${box.initialQuantity || box.cap || box.qty}`, 16, 105);
+    c.fillText(`${box.lb != null ? `${box.lb} LB` : ''}  ${(box.weightClass || 'light').toUpperCase()}`, 16, 127);
+    const categoryMark = { balls: 'O', clubs: 'T', apparel: 'A', accessories: 'G', supplies: 'S', decor: 'D' }[sku ? sku.cat : 'accessories'] || 'G';
+    c.fillStyle = '#1f4a26'; c.beginPath(); c.arc(229, 28, 14, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#efe7d4'; c.font = 'bold 17px Georgia'; c.textAlign = 'center';
+    c.fillText(categoryMark, 229, 34);
+    c.textAlign = 'start';
     if (box.fragile) {
-      c.fillStyle = '#a12a1e'; c.font = 'bold 20px Georgia';
-      c.fillText('! FRAGILE', 16, 138);
+      c.fillStyle = '#a12a1e'; c.font = 'bold 17px Georgia';
+      c.fillText('FRAGILE', 158, 143);
+    }
+    const texture = new THREE.CanvasTexture(cv);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const material = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.85 });
+    shipLabelCache.set(key, { material, used: shipLabelGeneration });
+    return material;
+  }
+  function pruneShipLabels() {
+    for (const [key, entry] of shipLabelCache) {
+      if (entry.used === shipLabelGeneration) continue;
+      if (entry.material.map) entry.material.map.dispose();
+      entry.material.dispose();
+      shipLabelCache.delete(key);
     }
     entry.tex.needsUpdate = true;
     return entry.mat;
   }
 
-  // a few of the actual product, sitting in the open carton — capped so a big case is a layer, not
-  // five hundred meshes. This is what makes "see physical contents" and "partial contents" real.
+  function fitProductUnit(object, maxW, maxH, maxD) {
+    const holder = new THREE.Group();
+    holder.add(object);
+    object.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(object);
+    const size = bounds.getSize(new THREE.Vector3());
+    if (size.x > 0 && size.y > 0 && size.z > 0) {
+      const scale = Math.min(maxW / size.x, maxH / size.y, maxD / size.z);
+      object.scale.multiplyScalar(scale);
+      object.updateMatrixWorld(true);
+      const fitted = new THREE.Box3().setFromObject(object);
+      const centre = fitted.getCenter(new THREE.Vector3());
+      object.position.x -= centre.x;
+      object.position.y -= fitted.min.y;
+      object.position.z -= centre.z;
+    }
+    return holder;
+  }
+
+  // The open box and the player's arms use the same recognizable product
+  // silhouettes as the retail fixtures; nothing turns into a generic white block.
+  function makeDeliveryUnit(sku, maxW, maxH, maxD, index = 0) {
+    let object = null;
+    const id = sku && sku.id;
+    if (sku && sku.cat === 'clubs') {
+      const g = new THREE.Group();
+      const shaft = new THREE.Mesh(deliveryShaftGeo, mats.merchSteel);
+      shaft.position.y = 0.20;
+      g.add(shaft);
+      const headName = id.startsWith('driver') ? 'head_driver'
+        : id.startsWith('putter') ? 'head_putter'
+          : id.startsWith('wedge') ? 'head_wedge' : 'head_iron';
+      const head = merch.instantiate(headName);
+      if (head) g.add(head);
+      object = g;
+    } else if (sku && sku.cat === 'balls') {
+      object = new THREE.Mesh(BALL_BOX_GEO, ballBoxMat(sku));
+    } else if (id === 'cap1') {
+      object = merch.instantiateRaw('cap_pro');
+    } else if (id === 'shoe1') {
+      object = merch.instantiateRaw('shoe_pro');
+    } else if (id === 'range2') {
+      object = merch.instantiateRaw('rangefinder');
+    } else if (id === 'glove1') {
+      object = merch.instantiate('glove');
+    } else if (id === 'polo1' || id === 'polo2' || id === 'jacket2') {
+      object = merch.instantiate(id === 'jacket2' ? 'jacket_hanging' : 'polo_folded', { tint: POLO_TINTS[id] });
+      if (id === 'jacket2' && object) object.rotation.x = Math.PI / 2;
+    } else if (id === 'bag1') {
+      object = merch.instantiate('bag', { tint: BAG_TINTS[index % BAG_TINTS.length] });
+    } else if (id === 'umb1') {
+      const g = new THREE.Group();
+      const shaft = new THREE.Mesh(deliveryShaftGeo, mats.merchDark);
+      shaft.position.y = 0.20;
+      const canopy = new THREE.Mesh(deliveryUmbrellaGeo, skuMat(sku));
+      canopy.position.y = 0.43;
+      g.add(shaft, canopy);
+      object = g;
+    } else if (id === 'towel1' || id === 'sock1') {
+      object = new THREE.Mesh(deliveryRollGeo, id === 'sock1' ? mats.merchWhite : skuMat(sku));
+      object.rotation.z = Math.PI / 2;
+    }
+    if (!object) object = new THREE.Mesh(CARTON_GEO, sku ? cartonMat(sku) : mats.merchWhite);
+    return fitProductUnit(object, maxW, maxH, maxD);
+  }
+
+  // A six-cell visual layer shows full / three-quarter / half / nearly-empty
+  // states, while the label and interaction prompt retain the exact unit count.
   function contentsInBox(box, w, h, d) {
     const g = new THREE.Group();
     const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
@@ -3863,19 +4045,20 @@ export function makeClubhouse(ctx) {
     const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(CAT_COLORS[cat] || 0xb08d57), roughness: 0.7 });
     mat.userData.deliveryOwned = true;
     for (let i = 0; i < show; i++) {
-      const item = cat === 'balls'
-        ? new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), mats.merchWhite)
-        : new THREE.Mesh(new THREE.BoxGeometry(w * 0.22, h * 0.3, d * 0.22), mat);
-      const col = i % 3;
-      const row = Math.floor(i / 3);
-      item.position.set(-w * 0.28 + col * (w * 0.28), h * 0.42 + (i >= 6 ? 0.03 : 0), -d * 0.24 + row * (d * 0.24));
+      const item = makeDeliveryUnit(sku, cellW, h * 0.42, cellD, i);
+      item.updateMatrixWorld(true);
+      const unitBounds = new THREE.Box3().setFromObject(item);
+      const fillTop = h * (0.78 + ratio * 0.18);
+      const baseY = Math.max(h * 0.12, fillTop - unitBounds.max.y);
+      item.position.set((i % 3 - 1) * w * 0.27, baseY, (Math.floor(i / 3) - 0.5) * d * 0.30);
+      item.rotation.y = (i % 2 ? 0.08 : -0.06);
       g.add(item);
     }
     return g;
   }
 
-  // A driver does not arrive in a glove box: the carton is sized from what is inside it, and its
-  // seams and flaps show exactly what the sim says the box is doing right now.
+  // A driver does not arrive in a glove box. Sealed cases have a true top seam;
+  // opened cases have four walls, a bottom and correctly hinged outward flaps.
   function makeBoxMesh(box) {
     const g = new THREE.Group();
     g.userData.deliveryDisposeAllGeometries = true;
@@ -3883,53 +4066,68 @@ export function makeClubhouse(ctx) {
     const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
 
     if (box.flat) {
-      const slab = new THREE.Mesh(new THREE.BoxGeometry(w, 0.03, d * 1.6), cardboardDark);
+      const slab = ownedMesh(new THREE.BoxGeometry(w, 0.03, d * 1.6), cardboardDark);
       slab.position.y = 0.015;
       slab.castShadow = true;
       g.add(slab);
       return g;
     }
 
-    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), cardboard);
-    body.position.y = h / 2;
-    body.castShadow = true;
-    g.add(body);
+    const opened = tapeCut(box);
+    if (!opened) {
+      const body = ownedMesh(new THREE.BoxGeometry(w, h, d), cardboard);
+      body.position.y = h / 2;
+      body.castShadow = true;
+      g.add(body);
+    } else {
+      const wall = 0.024;
+      const bottom = ownedMesh(new THREE.BoxGeometry(w - wall * 2, 0.035, d - wall * 2), isEmpty(box) ? boxInsideEmptyMat : boxInsideFilledMat);
+      bottom.position.y = 0.018;
+      g.add(bottom);
+      for (const sign of [-1, 1]) {
+        const side = ownedMesh(new THREE.BoxGeometry(w, h, wall), cardboard);
+        side.position.set(0, h / 2, sign * (d / 2 - wall / 2));
+        side.castShadow = true;
+        g.add(side);
+        const end = ownedMesh(new THREE.BoxGeometry(wall, h, d - wall * 2), cardboard);
+        end.position.set(sign * (w / 2 - wall / 2), h / 2, 0);
+        end.castShadow = true;
+        g.add(end);
+      }
+    }
 
-    const label = new THREE.Mesh(
-      new THREE.PlaneGeometry(Math.min(w * 0.8, 0.5), Math.min(h * 0.7, 0.32)),
+    const label = ownedMesh(
+      new THREE.PlaneGeometry(Math.min(w * 0.82, 0.52), Math.min(h * 0.74, 0.34)),
       boxLabelMat(box, sku),
     );
-    label.position.set(0, h * 0.55, d / 2 + 0.002);
+    label.position.set(0, h * 0.54, d / 2 + 0.003);
     g.add(label);
 
-    if (!tapeCut(box)) {
-      // tape down the centre seam — recedes from the front as the cut runs (box.tape 0..1)
-      const cut = box.tape || 0;
-      const remain = 1 - Math.min(1, cut / 0.6);   // the centre seam is the first 60% of the cut
-      if (remain > 0.02) {
-        const tape = new THREE.Mesh(new THREE.BoxGeometry(w + 0.01, 0.012, d * remain), tapeMat);
-        tape.position.set(0, h + 0.006, -d / 2 + (d * remain) / 2);
-        g.add(tape);
+    if (!opened) {
+      const cut = Math.max(0, Math.min(1, box.tape || 0));
+      const remain = 1 - Math.min(1, cut / 0.72);
+      if (remain > 0.015) {
+        const seam = ownedMesh(new THREE.BoxGeometry(Math.max(0.045, w * 0.10), 0.012, d * remain), tapeMat);
+        seam.position.set(0, h + 0.006, -d / 2 + (d * remain) / 2);
+        g.add(seam);
       }
-      if (cut < 1) {
-        for (const sx of [-w * 0.32, w * 0.32]) {   // the two cross tapes, until the very end
-          const cross = new THREE.Mesh(new THREE.BoxGeometry(w * 0.16, 0.012, d + 0.01), tapeMat);
-          cross.position.set(sx, h + 0.006, 0);
+      if (cut < 0.88) {
+        for (const z of [-d * 0.33, d * 0.33]) {
+          const cross = ownedMesh(new THREE.BoxGeometry(w + 0.01, 0.012, Math.max(0.035, d * 0.09)), tapeMat);
+          cross.position.set(0, h + 0.006, z);
           g.add(cross);
         }
       }
     } else {
-      // two flaps, pivoting up-and-out on box.flaps[0..1] (0 shut .. 1 open)
-      const flapGeo = new THREE.BoxGeometry(w * 0.98, 0.012, d * 0.5);
       const fl = box.flaps || [0, 0];
       for (const [i, sign] of [[0, -1], [1, 1]]) {
-        const a = (fl[i] || 0) * (Math.PI * 0.62);
+        const amount = Math.max(0, Math.min(1, fl[i] || 0));
         const flap = new THREE.Group();
-        const panel = new THREE.Mesh(flapGeo, cardboardDark);
-        panel.position.z = sign * d * 0.25;
+        const panel = ownedMesh(new THREE.BoxGeometry(w * 0.98, 0.012, d * 0.49), cardboardDark);
+        panel.position.z = -sign * d * 0.245;
         flap.add(panel);
         flap.position.set(0, h, sign * d * 0.5);
-        flap.rotation.x = sign * -a;
+        flap.rotation.x = -sign * amount * (Math.PI * 0.58);
         g.add(flap);
       }
       if (flapsOpen(box) && box.qty > 0) g.add(contentsInBox(box, w, h, d));
@@ -4142,6 +4340,7 @@ export function makeClubhouse(ctx) {
   }
   B.stockFromHands = stockFromHands;
   B.carriedGoods = () => carriedGoods(state);
+  B.carriedBox = () => carriedBox(state);
   B.rebuildCarry = () => rebuildBoxes();
 
   // --- stock flights: the hang-it-up animation --------------------------------
@@ -4943,9 +5142,31 @@ export function makeClubhouse(ctx) {
           const at = STOCKROOM.receivingInside;
           const i = stacks.stock++;
           const dim = boxDims(box.box || 'carton');
-          lx = at.x + (i % 3 - 1) * Math.max(0.62, dim.w + 0.14);
-          lz = at.z + Math.floor(i / 3) * Math.max(0.56, dim.d + 0.14) - 0.3;
-          ry = (box.id % 5) * 0.13;
+          ry = dim.w > 0.9 ? Math.PI / 2 : 0;
+          if (box.loc === 'pad') {
+            lx = at.x + (i % 3 - 1) * 1.05;
+            lz = at.z + (Math.floor(i / 3) - 1) * 1.20;
+          } else if (box.loc === 'receiving-fallback') {
+            // Twelve fallback cartons occupy six marked footprints in two
+            // accessible tiers, wholly west of the receiving-door clearway.
+            const footprint = i % 6;
+            const layer = Math.floor(i / 6);
+            lx = at.x + (footprint % 2 - 0.5) * 0.88;
+            lz = at.z + (Math.floor(footprint / 2) - 1) * 1.0;
+            if (layer > 0) {
+              const support = d.boxes.find((candidate) => (
+                candidate.loc === 'receiving-fallback'
+                && candidate.receivingSlot === footprint
+              ));
+              ly = support ? boxDims(support.box || 'carton').h + 0.025 : 0;
+            }
+          } else {
+            const spacingX = Math.max(0.68, dim.w + 0.14);
+            const spacingZ = Math.max(0.58, dim.d + 0.14);
+            lx = at.x + (i % 3 - 1) * spacingX;
+            lz = at.z + Math.floor(i / 3) * spacingZ;
+            ry = 0;
+          }
         }
         const wp = L2W(lx, lz);
         const m = ensureBoxView(box).root;
@@ -5191,6 +5412,17 @@ export function makeClubhouse(ctx) {
     return !b.lifecycle || ['SEALED', 'CUTTING', 'CUT_COMPLETE'].includes(b.lifecycle);
   }
 
+  function fallbackBoxCovered(b) {
+    return b.loc === 'receiving-fallback'
+      && Number.isSafeInteger(b.receivingSlot)
+      && b.receivingSlot >= 0
+      && b.receivingSlot < 6
+      && boxesOf(state).some((candidate) => (
+        candidate.loc === 'receiving-fallback'
+        && candidate.receivingSlot === b.receivingSlot + 6
+      ));
+  }
+
   // the box's verbs, chosen live from its state. Reused across rebuilds (keyed by id) so a
   // hold-to-cut is never torn down mid-cut.
   function boxPropFor(id) {
@@ -5244,7 +5476,10 @@ export function makeClubhouse(ctx) {
           ? `Folding the empty ${name} carton...`
           : `Empty ${name} box — [E] flatten it`;
         if (!unpackHere(prop, b)) {
-          return `${b.loc === 'pad' ? 'Delivery: ' : ''}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''} — [E] pick up`;
+          const zone = b.loc === 'pad' ? 'Pad delivery: '
+            : b.loc === 'receiving-fallback' ? 'Safe receiving: '
+              : b.surface && b.surface.startsWith('reserve-rack:') ? 'Stored carton: ' : '';
+          return `${zone}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''} — [E] pick up`;
         }
         if (tapeUncut(b)) return `${name} case · ${b.qty} inside — [LMB] drag along tape · [E] hold alternative`;
         if (!tapeCut(b)) return `${name} — [LMB] drag along tape · [E] hold alternative`;
@@ -5258,6 +5493,7 @@ export function makeClubhouse(ctx) {
       get tool() {
         const b = box();
         if (!b || carriedBox(state)) return null;
+        if (fallbackBoxCovered(b)) return null;
         return unpackHere(prop, b) && !b.flat && !tapeCut(b) && !isEmpty(b) ? 'boxcutter' : null;
       },
       get toolProgress() {
@@ -5427,13 +5663,7 @@ export function makeClubhouse(ctx) {
       if (cg) {
         const l = W2L(walk.x, walk.z);
         if (inStockroomBounds(l.x, l.z)) {
-          const r = storeInBack(state);
-          if (r.ok) {
-            sfx('product');
-            say(`${r.moved} × ${SHOP_CATALOG.find((s) => s.id === cg.skuId).name} on the backroom shelf.`);
-            rebuildStock();
-            rebuildBoxes();
-          }
+          say('Stand beside a green receiving rack to store these units.', 'warn');
         } else {
           say('Carry these to the right fixture and hold [E], or take them to the backroom.', 'warn');
         }
@@ -7476,7 +7706,8 @@ export function makeClubhouse(ctx) {
     updateBoxLifecycleAnimations(dt);
     updateRecyclingDrop(dt);
     updateFlicker(dt);
-    builder.update();
+    updateDeliveryVehicle(dt);
+    builder.update(dtMs);
     if (office.updateLid) office.updateLid(dt);
     if (moteFade > 0) {
       moteFade -= dt;
@@ -7511,7 +7742,6 @@ export function makeClubhouse(ctx) {
     poll += dt;
     if (poll > 1.1) {
       poll = 0;
-      updateArrivals();
       if (boxSignature() !== boxSig) rebuildBoxes(); // the truck came, or staff unboxed
       if (office.paintScreen && interior.visible) office.paintScreen(); // live clock on the lid
       const ds = decorSignature();
@@ -7866,6 +8096,11 @@ export function makeClubhouse(ctx) {
     shopProgressionDiagnostics: () => shopProgressionVisuals.diagnostics(),
     // build mode: the shop is the player's to arrange
     build: builder,
+    furnitureDiagnostics: () => ({
+      placement: builder.diagnostics(),
+      visuals: placeableVisuals.diagnostics(),
+      layoutRevision: ensureLayout(state).revision,
+    }),
     // the pressure washer: aim at the building, pull the trigger, watch the wall come back
     washAim: (origin, dir) => washing.aim(origin, dir),
     washApply: (hit, mode, radius, power, dt, now) => {

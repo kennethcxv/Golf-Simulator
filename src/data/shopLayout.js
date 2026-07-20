@@ -310,7 +310,10 @@ export const FIXTURES = [
 // aisles in believable neglect spots — corners, dead zones, the stockroom) --------
 export const CLUTTER_SPOTS = [
   { x: -8.9, z: 5.3 }, { x: -6.3, z: -3.9 }, { x: 1.4, z: 0.5 }, { x: 4.7, z: 3.1 },
-  { x: -1.2, z: -4.2 }, { x: -9.2, z: -5.6 }, { x: 6.4, z: -4.6 }, { x: 7.6, z: 1.3 },
+  // The final two piles live against the office partition. The stockroom is an
+  // operational delivery workspace now; legacy piles there blocked receiving
+  // and stole focus through the recycling station.
+  { x: -1.2, z: -4.2 }, { x: -9.2, z: -5.6 }, { x: 6.3, z: 3.25 }, { x: 6.3, z: 5.85 },
 ];
 
 // --- traffic paths (the dirt system paints mud/footprint trails along these) -----

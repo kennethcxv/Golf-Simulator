@@ -4,6 +4,7 @@
 // owns the durable reservation record, tee-sheet capacity, arrival/no-show
 // timeline, and the exact-once accounting markers used by check-in systems.
 
+import { makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
 import { addRevenue } from './economy.js';
 import { genName } from '../data/names.js';
@@ -1123,13 +1124,231 @@ export function reservationsDailyTick(state, todayAbs) {
       markReservationNoShow(state, r.id, { at: todayAbs * MINUTES_PER_DAY, reason: 'day-ended' });
     }
   }
-  book.booked = book.booked.filter((r) => r.dayAbs >= todayAbs - 14);
+}
+
+function uniqueNamesForGeneration(state, dayAbs) {
+  // A golfer may reasonably play again on another day, but two simultaneous
+  // parties must never materialize as the same visible customer identity.
+  const used = new Set(bookOf(state).booked
+    .filter((reservation) => reservation.dayAbs === dayAbs && reservation.status !== 'cancelled')
+    .flatMap((reservation) => reservation.customerNames));
+  const names = [];
+  for (const golfer of state.golfers?.pool || []) {
+    if (!used.has(golfer.name) && !names.includes(golfer.name)) names.push(golfer.name);
+  }
+  return names;
+}
+
+function generatedOccupancy(state, dayAbs) {
+  const reputation = Math.max(0, Math.min(1, Number(state.club?.reputation || 50) / 100));
+  const health = state.turf?.health?.length
+    ? state.turf.health.reduce((sum, value) => sum + value, 0) / state.turf.health.length / 100
+    : 0.55;
+  const rain = dayAbs === calendarOf(nowOf(state)).dayAbs ? Number(state.weather?.today?.rainIn || 0) : 0;
+  const temperature = Number(state.weather?.today?.tempHiF || 70);
+  const weatherFactor = Math.max(0.55, 1 - Math.min(0.45, rain * 0.8)
+    - Math.min(0.18, Math.abs(temperature - 72) / 110));
+  const baseOccupancy = (0.22 + reputation * 0.31 + health * 0.27) * weatherFactor;
+  const ratings = clubRatings(state);
+  const fairFee = fairGreenFee(ratings.overall, amenityScore(state));
+  const priceDemand = demandMultiplier(Number(state.club?.greenFee || 0), fairFee);
+
+  // The tee sheet and public-round estimator must consume the same price signal.
+  // Without this factor, generated online bookings paid any configured green fee
+  // at unchanged occupancy, making the legal maximum an automatic revenue win.
+  // Keep a small prospect floor so an overpriced course is quiet, not impossible.
+  return Math.max(0.02, Math.min(0.95, baseOccupancy * priceDemand));
+}
+
+export function generateReservations(state, dayAbs, options = {}) {
+  const seed = Number(options.seed ?? (state.seed || 1) + dayAbs * 7919);
+  const rng = makeRng(seed);
+  const occupancy = Math.max(0, Math.min(1, Number(options.occupancy ?? generatedOccupancy(state, dayAbs))));
+  const names = uniqueNamesForGeneration(state, dayAbs);
+  let nameIndex = 0;
+  const created = [];
+  for (const slot of daySheet(state, dayAbs)) {
+    if (!slot.available || rng.next() > occupancy || nameIndex >= names.length) continue;
+    const sizeRoll = rng.next();
+    const partySize = sizeRoll < 0.16 ? 1 : sizeRoll < 0.68 ? 2 : sizeRoll < 0.84 ? 3 : 4;
+    const size = Math.min(partySize, slot.availableSeats, names.length - nameIndex);
+    if (size < 1) continue;
+    const customerNames = names.slice(nameIndex, nameIndex + size);
+    nameIndex += size;
+    const holder = customerNames[0];
+    const roll = rng.next();
+    const intendedOutcome = roll < 0.06 ? 'no-show' : 'arrive';
+    const arrivalRoll = rng.next();
+    const arrivalOffsetMin = intendedOutcome === 'no-show' ? 0
+      : arrivalRoll < 0.72 ? -(10 + rng.int(11))
+        : arrivalRoll < 0.86 ? 0
+          : 3 + rng.int(13);
+    const paymentRoll = rng.next();
+    const paymentPlan = paymentRoll < 0.28 ? 'prepaid' : undefined;
+    const depositAmount = paymentRoll >= 0.28 && paymentRoll < 0.5
+      ? r2((state.club?.greenFee || 0) * size * 0.35)
+      : 0;
+    const result = bookSlot(state, dayAbs, slot.minute, {
+      holder,
+      customerNames,
+      partySize: size,
+      arrivalOffsetMin,
+      intendedOutcome,
+      paymentPlan,
+      depositAmount,
+      paymentMethod: rng.next() < 0.55 ? 'card' : 'cash',
+      cardOnFile: paymentPlan === 'prepaid' || depositAmount > 0,
+      source: 'generated',
+    });
+    if (!result.ok) continue;
+    if (rng.next() < 0.06) {
+      const slotAbs = absoluteMinute(dayAbs, slot.minute);
+      const advancePlan = slotAbs - (24 + rng.int(48)) * 60;
+      result.res.cancellation.plannedAtMinute = advancePlan > nowOf(state)
+        ? advancePlan
+        : Math.min(slotAbs - 5, nowOf(state) + 15 + rng.int(46));
+    }
+    created.push(result.res);
+  }
+  const book = bookOf(state);
+  book.generator.lastSeed = seed;
+  if (!book.generator.generatedDays.includes(dayAbs)) book.generator.generatedDays.push(dayAbs);
+  return { seed, created };
+}
+
+export function ensureReservationHorizon(state, options = {}) {
+  const book = bookOf(state);
+  const todayAbs = Math.floor(options.todayAbs ?? calendarOf(nowOf(state)).dayAbs);
+  const results = [];
+  for (let offset = 0; offset < book.config.horizonDays; offset++) {
+    const dayAbs = todayAbs + offset;
+    if (book.generator.generatedDays.includes(dayAbs)) continue;
+    results.push(generateReservations(state, dayAbs, {
+      ...options,
+      seed: options.seed == null ? undefined : Number(options.seed) + offset * 7919,
+    }));
+  }
+  book.generator.generatedDays = book.generator.generatedDays
+    .filter((dayAbs) => dayAbs >= todayAbs - 30 && dayAbs < todayAbs + book.config.horizonDays);
+  return {
+    generatedDays: results.length,
+    created: results.flatMap((result) => result.created),
+  };
+}
+
+export function resetGolfOperationsQA(state, options = {}) {
+  const book = bookOf(state);
+  // A fixture reset replaces the booking ledger, so its physical customer
+  // arrivals must be retired at the same boundary. Leaving them scheduled
+  // would let orphaned production parties consume the active-customer cap and
+  // starve the deterministic (or any subsequently-created) reservation.
+  for (const reservation of book.booked) cancelReservationCustomer(state, reservation.id);
+  // The main ledger is intentionally immutable, so IDs that have already been
+  // posted there must never be recycled by a fixture reset. Reusing (for
+  // example) golf-pay-1 would make a later real-looking QA payment appear to be
+  // an idempotent replay: the reservation subledger would advance while the
+  // canonical cash ledger correctly refused the duplicate key. Keep every
+  // identity sequence monotonic across resets just as save/load does.
+  const nextSequences = {
+    nextId: book.nextId,
+    nextPartyId: book.nextPartyId,
+    nextEventSeq: book.nextEventSeq,
+    nextFinanceSeq: book.nextFinanceSeq,
+    nextPaymentSeq: book.nextPaymentSeq,
+    nextReceiptSeq: book.nextReceiptSeq,
+  };
+  // Browser evidence starts from a real production boot, whose online deposits
+  // have already moved the shared wallet. Append explicit, exact-once reversals
+  // before replacing the fixture so the immutable journal still reconciles.
+  for (const entry of book.financeEntries) {
+    if (entry.cashDelta > EPSILON) postLedgerEntry(state, {
+      idempotencyKey: `golf-qa-reset:${entry.id}`,
+      relatedId: entry.reservationId,
+      direction: 'reversal',
+      lineKey: entry.category,
+      category: entry.category,
+      accountingClass: 'revenue',
+      amount: entry.cashDelta,
+      cashImpact: -entry.cashDelta,
+      profitImpact: -entry.cashDelta,
+      aggregate: { side: 'revenue', key: entry.category, amount: -entry.cashDelta },
+      description: `QA fixture reversal — ${entry.kind}`,
+      source: 'golf-operations-qa',
+    });
+    else if (entry.cashDelta < -EPSILON) unbill(state, 'bookingRefunds', Math.abs(entry.cashDelta), {
+      idempotencyKey: `golf-qa-reset:${entry.id}`,
+      relatedId: entry.reservationId,
+      description: `QA fixture refund reversal — ${entry.kind}`,
+      source: 'golf-operations-qa',
+    });
+  }
+  const reset = initReservations(state, options);
+  for (const [key, value] of Object.entries(nextSequences)) {
+    reset[key] = Math.max(reset[key], Number.isInteger(value) ? value : 1);
+  }
+  return reset;
+}
+
+export function seedGolfOperationsQA(state, options = {}) {
+  const dayAbs = Math.floor(options.dayAbs ?? calendarOf(nowOf(state)).dayAbs);
+  const seed = Number(options.seed ?? 20260719);
+  const rng = makeRng(seed);
+  const baseNames = [
+    ['Avery Monroe', 'Talia Brooks'],
+    ['Devon Park', 'Mina Shah'],
+    ['Caleb Foster', 'Noor Ibrahim', 'Wes Chen'],
+    ['Imani Cole', 'Theo Jensen'],
+    ['Sylvie Hart'],
+    ['Jonah Wells', 'Mei Torres'],
+    ['Farah Quinn', 'Luca Bennett'],
+  ];
+  const times = slotTimes(state);
+  if (times.length < 7) return { ok: false, reason: 'QA route needs at least seven slots.' };
+  const ids = {};
+  const create = (key, index, input) => {
+    const result = bookSlot(state, dayAbs, times[index], {
+      holder: baseNames[index][0],
+      customerNames: baseNames[index],
+      partySize: baseNames[index].length,
+      source: 'qa-seed',
+      ...input,
+    });
+    if (!result.ok) throw new Error(`QA fixture ${key}: ${result.reason}`);
+    ids[key] = result.res.id;
+    return result.res;
+  };
+  create('earlyPrepaid', 0, { arrivalOffsetMin: -18, paymentPlan: 'prepaid', paymentMethod: 'card', cardOnFile: true });
+  create('onTimeCard', 1, { arrivalOffsetMin: 0 });
+  create('lateCash', 2, { arrivalOffsetMin: 8, depositAmount: r2((state.club?.greenFee || 0) * 0.4), paymentMethod: 'cash' });
+  create('noShow', 3, { intendedOutcome: 'no-show', depositAmount: 15, paymentMethod: 'card', cardOnFile: true });
+  const cancelled = create('cancellation', 4, { arrivalOffsetMin: -12, paymentPlan: 'prepaid', paymentMethod: 'card' });
+  cancelReservation(state, cancelled.id, {
+    atMinute: absoluteMinute(dayAbs, cancelled.minute) - 26 * 60,
+    reason: 'QA advance cancellation',
+  });
+  create('fullSlotA', 5, { arrivalOffsetMin: -14, paymentPlan: 'prepaid', paymentMethod: 'card' });
+  create('fullSlotB', 5, {
+    holder: baseNames[6][0],
+    customerNames: baseNames[6],
+    partySize: baseNames[6].length,
+    arrivalOffsetMin: -11,
+  });
+  const walkInMinute = times[6];
+  bookOf(state).generator.lastSeed = seed;
+  return {
+    ok: true,
+    seed,
+    dayAbs,
+    ids,
+    walkInMinute,
+    randomProof: rng.next(),
+  };
 }
 
 export function fmtSlot(minute) {
-  const h = Math.floor(minute / 60);
-  const m = minute % 60;
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const hh = ((h + 11) % 12) + 1;
-  return `${hh}:${String(m).padStart(2, '0')} ${ampm}`;
+  const hour = Math.floor(minute / 60);
+  const min = minute % 60;
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = ((hour + 11) % 12) + 1;
+  return `${hour12}:${String(min).padStart(2, '0')} ${ampm}`;
 }

@@ -312,6 +312,7 @@ export function createMerch(mats) {
       if (Array.isArray(o.material) || !o.geometry) { keep.push(o); return; }
       const m = o.material;
       const g = o.geometry.clone();
+      g.userData.merchBakeOwned = true;
       g.applyMatrix4(o.matrixWorld);
       // merging needs identical attribute sets; drop anything exotic
       for (const attr of Object.keys(g.attributes)) {

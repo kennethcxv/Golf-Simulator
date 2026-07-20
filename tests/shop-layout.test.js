@@ -99,6 +99,26 @@ test('the receiving doorway stays walkable: no fixture collider in the back-door
   }
 });
 
+test('fresh and migrated restoration clutter stays out of the operational stockroom', () => {
+  const isInStockroom = (pile) => pile.x >= STOCKROOM.bounds.minX
+    && pile.x <= STOCKROOM.bounds.maxX
+    && pile.z >= STOCKROOM.bounds.minZ
+    && pile.z <= STOCKROOM.bounds.maxZ;
+  const fresh = newGame('relaxed', 42);
+  assert.ok(fresh.shop.reno.clutter.every((pile) => !isInStockroom(pile)),
+    'fresh clutter cannot obstruct receiving, racks, worktable, or recycling');
+
+  const legacyRaw = JSON.parse(serialize(fresh));
+  delete legacyRaw.shop.reno.layoutVersion;
+  legacyRaw.shop.reno.clutter[6] = { x: 6.4, z: -4.6, ry: 0, cleared: false };
+  legacyRaw.shop.reno.clutter[7] = { x: 7.6, z: 1.3, ry: 0, cleared: true };
+  const migrated = deserialize(JSON.stringify(legacyRaw));
+  assert.ok(migrated.shop.reno.clutter.every((pile) => !isInStockroom(pile)),
+    'legacy stockroom piles relocate on load');
+  assert.equal(migrated.shop.reno.clutter[7].cleared, true,
+    'relocation preserves whether a legacy pile was already hauled away');
+});
+
 // touching runs are legal (racks butt into one wall unit); EPS forgives the
 // floating-point dust on exact-touch sums like (-0.2 + 1.5) vs (2.8 - 1.5)
 const EPS = 1e-6;

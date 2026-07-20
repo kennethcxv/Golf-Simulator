@@ -29,7 +29,7 @@ async (page) => {
   const EXT = { id: '10-exterior', atW: [-1.5, 243.5], toW: [-8.5, 231.0], pitch: 0.03 };
 
   // --- fresh boot so leftover in-memory edits can't leak between passes -------
-  await page.goto('http://localhost:8457/');
+  await page.goto(BASE_URL);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});

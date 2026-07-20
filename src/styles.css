@@ -451,6 +451,101 @@ select:focus-visible,
   font-size: 0.86rem;
 }
 
+/* --- renovation / furniture placement -------------------------------------- */
+
+.build-status {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  width: min(360px, calc(100vw - 36px));
+  display: grid;
+  gap: 2px;
+  padding: 11px 14px;
+  color: #f4f0e6;
+  background: linear-gradient(135deg, rgba(25, 49, 32, 0.96), rgba(18, 28, 21, 0.94));
+  border: 1px solid rgba(184, 157, 80, 0.62);
+  border-left: 4px solid #68ca8d;
+  border-radius: 6px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+
+.build-status.invalid { border-left-color: #ef766f; }
+.build-status.warn { border-left-color: #d4ad58; }
+.build-status small,
+.build-drawer-head small { color: #c9a95d; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.14em; }
+.build-status strong { font-size: 0.93rem; line-height: 1.25; }
+.build-status span { color: rgba(244, 240, 230, 0.62); font-size: 0.72rem; }
+
+.build-drawer {
+  position: absolute;
+  inset: 54px auto 18px 18px;
+  width: min(430px, calc(100vw - 36px));
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  color: #f2eee3;
+  background:
+    linear-gradient(180deg, rgba(42, 74, 50, 0.98), rgba(20, 29, 22, 0.985) 112px),
+    #151d17;
+  border: 1px solid rgba(195, 171, 103, 0.52);
+  border-radius: 9px;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  pointer-events: auto;
+  animation: fw-build-in 0.18s ease-out;
+}
+
+@keyframes fw-build-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.build-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 16px 12px;
+}
+
+.build-drawer-head h2 { margin: 2px 0 0; font-family: Georgia, serif; font-size: 1.25rem; font-weight: 600; }
+.build-close { min-width: 36px; padding: 3px 9px; font-size: 1.55rem; line-height: 1; }
+
+.build-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid rgba(255, 255, 255, 0.08); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.build-tabs button { border: 0; border-radius: 0; padding: 9px 5px; color: rgba(244, 240, 230, 0.68); background: rgba(0, 0, 0, 0.14); font-size: 0.78rem; }
+.build-tabs button.active { color: #fff8e9; background: rgba(193, 160, 75, 0.2); box-shadow: inset 0 -2px #c5a350; }
+
+.build-drawer-body { min-height: 0; padding: 13px 14px 20px; overflow-y: auto; scrollbar-color: #668069 #182019; }
+.build-drawer-body h3 { margin: 16px 0 7px; color: #d8c389; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.build-note,
+.build-empty { margin: 0 0 9px; color: rgba(242, 238, 227, 0.67); font-size: 0.78rem; line-height: 1.4; }
+
+.build-object-list { display: grid; gap: 5px; }
+.build-object-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 49px; padding: 7px 8px 7px 10px; background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.075); border-radius: 5px; }
+.build-object-row.sold { opacity: 0.58; }
+.build-object-copy { min-width: 0; display: grid; gap: 1px; }
+.build-object-copy strong { overflow: hidden; font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; }
+.build-object-copy small { color: rgba(242, 238, 227, 0.53); font-size: 0.67rem; text-transform: capitalize; }
+.build-object-actions { flex: none; display: flex; gap: 4px; }
+button.build-mini { min-width: 0; padding: 4px 7px; font-size: 0.68rem; border-color: rgba(255, 255, 255, 0.14); }
+button.build-mini.primary { color: #eff9ef; background: #315c3b; }
+button.build-mini.danger { color: #f1b4ae; background: rgba(114, 39, 35, 0.34); }
+
+.build-style-group { margin: 14px 0 18px; }
+.build-swatches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+button.build-swatch { min-width: 0; display: grid; gap: 5px; padding: 6px; color: rgba(242, 238, 227, 0.7); background: rgba(255, 255, 255, 0.035); border-color: rgba(255, 255, 255, 0.11); font-size: 0.68rem; }
+button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0 0 0 1px rgba(210, 184, 111, 0.26); }
+.build-swatch-color { height: 28px; border-radius: 3px; background: var(--swatch); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
+
+.build-controls { display: grid; grid-template-columns: 130px 1fr; gap: 5px 10px; margin: 0; font-size: 0.72rem; }
+.build-controls dt { color: #e0ca8a; font-weight: 700; }
+.build-controls dd { margin: 0; color: rgba(242, 238, 227, 0.66); }
+.build-drawer-foot { padding: 8px 14px; color: rgba(242, 238, 227, 0.48); background: rgba(0, 0, 0, 0.22); border-top: 1px solid rgba(255, 255, 255, 0.07); font-size: 0.68rem; }
+
+@media (max-width: 700px) {
+  .build-drawer { inset: 45px 8px 8px; width: auto; }
+  .build-status { left: 8px; bottom: 8px; }
+}
+
 /* panels and modals ease in like the toasts do — nothing pops instantly */
 @keyframes fw-pop {
   from { opacity: 0; transform: translateY(7px) scale(0.988); }

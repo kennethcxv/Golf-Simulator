@@ -7,6 +7,7 @@ import { formatMoney } from '../core/utils.js';
 import { syncWallet, worldMinutes } from '../sim/empire.js';
 import { marketConditionLabel, listingAgeLabel } from '../sim/marketplace.js';
 import { calendarOf } from '../sim/time.js';
+import { propertyTier, tierUnlocked, ensureEmpireProgression } from '../sim/propertyProgression.js';
 
 const MOOD_STYLE = {
   buyers: 'border-color:var(--accent-2)',
@@ -26,6 +27,7 @@ export function openMarketplace(app, handlers) {
       const wallet = syncWallet(empire);
       const today = calendarOf(worldMinutes(empire)).dayAbs;
       const mood = marketConditionLabel(empire.marketCondition);
+      const progression = ensureEmpireProgression(empire);
       const rows = [
         el('section', { class: 'market-overview', 'aria-label': 'Market summary' },
           el('div', { class: 'market-stats' },
@@ -40,6 +42,8 @@ export function openMarketplace(app, handlers) {
         rows.push(el('div', { class: 'row muted', text: 'Nothing listed right now — you bought the whole county.' }));
       }
       for (const p of empire.market) {
+        const tier = propertyTier(p);
+        const unlocked = tierUnlocked(empire, tier.id);
         const affordable = wallet >= p.askingPrice;
         rows.push(el('article', { class: 'listing market-listing' },
           el('div', { class: 'listing-main' },
@@ -67,6 +71,7 @@ export function openMarketplace(app, handlers) {
             el('span', { class: 'status-chip', text: `Condition ${Math.round(p.condition)}` }),
             el('span', { class: 'status-chip', text: `${p.startingMembers} members` }),
             el('span', { class: 'status-chip', text: `Rep ${p.startingReputation}` }),
+            el('span', { class: 'status-chip', text: tier.name }),
             p.sickGreens > 0
               ? el('span', { class: 'status-chip', style: 'border-color:var(--warn)', text: `⚠ ${p.sickGreens} sick green${p.sickGreens > 1 ? 's' : ''}` })
               : null,

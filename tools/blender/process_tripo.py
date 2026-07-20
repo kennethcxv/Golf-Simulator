@@ -1,7 +1,7 @@
 # Normalise the raw owner-supplied Tripo GLBs (Assets/*.glb) into game-ready props
 # in vendor/models/clubhouse/, PRESERVING their baked PBR material.
 #
-#   "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" \
+#   blender \
 #       --background --factory-startup --python tools/blender/process_tripo.py
 #
 # WHY A SEPARATE PATH FROM build_merch.py: the merch loader (merch.js) remaps every

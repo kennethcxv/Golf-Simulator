@@ -193,7 +193,31 @@ export function buildFixtures(B) {
   }
 
   function fixtureProp(f) {
-    if (!f.skus.length) return;
+    if (!f.skus.length) {
+      if (f.kind !== 'backshelf') return;
+      const wp = L2W(f.x, f.z);
+      addProp({
+        x: wp.x, z: wp.z, r: 2.15,
+        label: () => {
+          const box = B.carriedBox && B.carriedBox();
+          if (box) return f.id === 'backshelf_n'
+            ? 'Carton rack — [E] store this box in a marked slot'
+            : null;
+          const held = B.carriedGoods && B.carriedGoods();
+          if (held) {
+            const sku = skuById(held.skuId);
+            return `Receiving reserve — [E] store ${held.qty} × ${sku ? sku.name : held.skuId}`;
+          }
+          return null;
+        },
+        action: () => {
+          if (B.carriedBox && B.carriedBox()) {
+            if (B.placeBoxOnReserveRack) B.placeBoxOnReserveRack(f);
+          } else if (B.storeCarriedGoods) B.storeCarriedGoods();
+        },
+      });
+      return;
+    }
     const wp = L2W(f.x, f.z);
     addProp({
       x: wp.x, z: wp.z, r: 2.3,
@@ -1084,8 +1108,7 @@ export function buildLounge(B) {
 // ------------------------------------------------------- stockroom extras ---
 // The working room (ref 9): packing bench, cleaning corner, receiving sign.
 export function buildStockroomDressing(B) {
-  const { interior, mats, merch, addCol, colBoxAt } = B;
-  const P = STOCKROOM.packing;
+  const { interior, mats, addCol, colBoxAt } = B;
 
   // A STOCKROOM IS FULL. Ref 8: shelves of cartons, a hand truck, a packing
   // bench. The old one was three bare racks and a mop, and it was the emptiest,
