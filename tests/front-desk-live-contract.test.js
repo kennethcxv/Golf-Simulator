@@ -56,12 +56,14 @@ test('Escape unwinds physical workspace, selection, tab, and only then leaves th
 
 test('an order arriving at an already-open till arms the cashier-entry transition', () => {
   const begin = functionBody(registerSource, 'begin');
-  assert.match(begin, /if \(active && checkoutFlowState\(\) === 'WaitingForCashier'\)/);
+  const entry = functionBody(registerSource, 'beginCashierEntry');
+  assert.match(entry, /checkoutFlowState\(\) !== 'WaitingForCashier'/);
+  assert.match(entry, /flowTo\('EnteringCashierMode', event\)/);
+  assert.match(entry, /enterTimer\s*=\s*0\.30/);
   assert.match(begin,
-    /flowTo\('EnteringCashierMode', 'customer-order-arrived-at-open-front-desk'\)/);
-  assert.match(begin, /enterTimer\s*=\s*0\.30/);
+    /if \(active\) beginCashierEntry\('active-cashier-accepted-next-queued-customer'\)/);
   assert.ok(
-    begin.indexOf("flowTo('EnteringCashierMode'") < begin.indexOf('drawScreen()'),
+    begin.indexOf('beginCashierEntry(') < begin.indexOf('drawScreen()'),
     'the physical flow advances before the newly-arrived order is first redrawn',
   );
 });
