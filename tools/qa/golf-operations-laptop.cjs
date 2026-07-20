@@ -156,6 +156,7 @@ async function main() {
       const operations = await import('/src/sim/reservations.js');
       const { calendarOf } = await import('/src/sim/time.js');
       const cal = calendarOf(app.state.clock.minutes);
+      app.speedIdx = 0;
       const productionDays = [...app.state.reservations.generator.generatedDays];
       const productionBookings = app.state.reservations.booked.map((reservation) => ({
         id: reservation.id,
@@ -164,6 +165,7 @@ async function main() {
         names: [...reservation.customerNames],
       }));
       operations.resetGolfOperationsQA(app.state);
+      app.state.clock.minutes = cal.dayAbs * 1440 + 5 * 60;
       const seeded = operations.seedGolfOperationsQA(app.state, { dayAbs: cal.dayAbs, seed: 20260719 });
       const noShow = operations.reservationById(app.state, seeded.ids.noShow);
       for (const key of ['earlyPrepaid', 'onTimeCard', 'lateCash']) {
@@ -172,7 +174,6 @@ async function main() {
       }
       app.state.clock.minutes = noShow.dayAbs * 1440 + noShow.minute + app.state.reservations.config.gracePeriodMin + 1;
       operations.golfOperationsTick(app.state, app.state.clock.minutes);
-      app.speedIdx = 0;
       app.scene3d.applyTimeWeather(app.state.clock.minutes % 1440, app.state.weather);
       const origin = app.scene3d.clubhouse().interior.position;
       const walk = app.scene3d.walk.state;
