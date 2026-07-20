@@ -711,7 +711,8 @@ export function createCustomerView(B, options) {
     const always = evaluation?.outcome === CUSTOMER_OUTCOME.DISSATISFIED;
     if (!entity.entered || (!always && hash01(entity.id, 83) >= 0.42)) return;
     const seed = idNumber(entity.id) * 997 + Math.floor(state.clock.minutes / 1440);
-    postReview(state, reviewFor(state, reviewVisitForCustomer(entity), seed));
+    const propertyId = state.property?.id || `club-${state.seed}`;
+    postReview(state, reviewFor(state, reviewVisitForCustomer(entity, propertyId), seed));
   }
 
   function finishDeparture(actor, reason = 'left the property') {

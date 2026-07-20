@@ -10,6 +10,7 @@
 // needs soaping, wait, wash, watch the wall come back.
 
 import { clamp } from '../core/utils.js';
+import { spend } from './economy.js';
 
 export const SOAP_DWELL_SEC = 2.0; // how long soap needs before the jet bites
 // Water strips the loose film off a heavy stain and then stops dead on what is bonded to the
@@ -87,7 +88,11 @@ export function buyWasher(state, id) {
   const have = ownedWasher(state);
   if (WASHERS.indexOf(w) <= WASHERS.indexOf(have)) return { ok: false, reason: 'You already have better.' };
   if (state.cash < w.cost) return { ok: false, reason: `${w.name} costs $${w.cost}.` };
-  state.cash -= w.cost;
+  const charged = spend(state, 'equipment', w.cost, {
+    idempotencyKey: `washer:${state.property?.id || state.seed}:${w.id}`, relatedId: w.id,
+    accountingClass: 'capital', description: `Pressure washer: ${w.name}`, source: 'restoration-equipment',
+  });
+  if (!charged.ok) return charged;
   state.shop.reno.washer = w.id;
   return { ok: true, washer: w };
 }

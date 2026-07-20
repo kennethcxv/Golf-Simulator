@@ -875,8 +875,9 @@ export function evaluateCustomerSatisfaction(state, customerOrId) {
   return { outcome, score, factors, reasons: customer.outcomeReasons };
 }
 
-export function reviewVisitForCustomer(customer) {
+export function reviewVisitForCustomer(customer, propertyId = 'club') {
   return {
+    reviewId: `${propertyId}:${customer.id}:review`,
     waitedSec: Math.round(customer.experience?.waitTimeSec || 0),
     queueLen: customer.experience?.queueLengthOnJoin || 0,
     bought: customer.experience?.checkoutSuccess === 1,

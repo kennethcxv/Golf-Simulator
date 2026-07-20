@@ -7,7 +7,7 @@
 
 import { makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
-import { addExpense, addRevenue } from './economy.js';
+import { addExpense, addRevenue, postLedgerEntry, recordOutcome, unbill } from './economy.js';
 import { cancelReservationCustomer, scheduleReservationCustomer } from './customerSimulation.js';
 
 export const TEE_SHEET = Object.freeze({
@@ -569,14 +569,47 @@ function emitOperationEvent(state, reservation, type, atMinute, details = {}, un
   return event;
 }
 
-function mainLedgerCash(state, category, cashDelta) {
-  if (Math.abs(cashDelta) <= EPSILON) return;
+function mainLedgerCash(state, reservation, entry) {
+  const cashDelta = r2(entry.cashDelta);
   if (!state.ledger) {
     state.cash = r2((state.cash || 0) + cashDelta);
-    return;
+    return { ok: true, legacy: true, entry: null };
   }
-  if (cashDelta > 0) addRevenue(state, category, cashDelta);
-  else addExpense(state, 'bookingRefunds', Math.abs(cashDelta));
+  const common = {
+    idempotencyKey: `golf-operations:${entry.id}`,
+    relatedId: reservation.id,
+    category: entry.category,
+    description: `${entry.kind} — ${reservation.reservationHolder}`,
+    source: 'golf-operations',
+    day: entry.dayAbs,
+    timestamp: entry.postedAtMinute,
+    customerCount: reservation.partySize,
+    metadata: {
+      financeEntryId: entry.id,
+      partyId: reservation.party.id,
+      method: entry.method,
+      transactionId: entry.transactionId,
+      receiptId: entry.receiptId,
+      effectiveDayAbs: entry.effectiveDayAbs,
+      note: entry.note,
+    },
+  };
+  if (cashDelta > EPSILON) return addRevenue(state, entry.category, cashDelta, common);
+  if (cashDelta < -EPSILON) return addExpense(state, 'bookingRefunds', Math.abs(cashDelta), {
+    ...common,
+    category: 'bookingRefunds',
+  });
+  // Retained deposits and prepaid funds are already in cash and profit. Keep an
+  // immutable classification memo without manufacturing a second revenue event.
+  return postLedgerEntry(state, {
+    ...common,
+    direction: 'revenue',
+    amount: entry.amount,
+    accountingClass: 'memo',
+    cashImpact: 0,
+    profitImpact: 0,
+    aggregate: null,
+  });
 }
 
 function postFinanceEntry(state, reservation, input) {
@@ -592,7 +625,9 @@ function postFinanceEntry(state, reservation, input) {
     // The subledger day is the posting day, exactly like ledger.today. Keep
     // the effective event time separately so delayed ticks remain auditable
     // without making the two books disagree about when cash actually moved.
-    dayAbs: calendarOf(nowOf(state)).dayAbs,
+    dayAbs: Number.isInteger(state.ledger?.postingDay)
+      ? state.ledger.postingDay
+      : calendarOf(nowOf(state)).dayAbs,
     effectiveDayAbs: calendarOf(input.atMinute).dayAbs,
     atMinute: Math.floor(input.atMinute),
     postedAtMinute: nowOf(state),
@@ -606,13 +641,15 @@ function postFinanceEntry(state, reservation, input) {
     relatedEntryId: input.relatedEntryId || null,
     note: input.note || '',
   };
+  const ledgerPost = mainLedgerCash(state, reservation, entry);
+  if (!ledgerPost.ok) return ledgerPost;
+  entry.relatedEntryId = ledgerPost.entry?.id || entry.relatedEntryId;
   book.financeEntries.push(entry);
   if (book.financeEntries.length > FINANCE_LIMIT) book.financeEntries.splice(0, book.financeEntries.length - FINANCE_LIMIT);
   if (entry.transactionId && !book.processedTransactionIds.includes(entry.transactionId)) {
     book.processedTransactionIds.push(entry.transactionId);
   }
-  mainLedgerCash(state, entry.cashDelta >= 0 ? entry.category : 'bookingRefunds', entry.cashDelta);
-  return { ok: true, entry, idempotent: false };
+  return { ok: true, entry, ledgerEntry: ledgerPost.entry || null, idempotent: false };
 }
 
 export function bookSlot(state, dayAbs, minute, nameOrOptions, maybeOptions = {}) {
@@ -1025,6 +1062,18 @@ export function cancelReservation(state, id, options = {}) {
     refund: terms.refund,
   });
   cancelReservationCustomer(state, reservation.id);
+  recordOutcome(state, {
+    idempotencyKey: `golf-operations:${reservation.id}:cancelled`,
+    type: 'cancellation',
+    count: 1,
+    amount: terms.fee,
+    relatedId: reservation.id,
+    reason: terms.fee > EPSILON
+      ? `${reservation.reservationHolder} cancelled with a retained fee.`
+      : `${reservation.reservationHolder} cancelled with notice.`,
+    day: calendarOf(atMinute).dayAbs,
+    metadata: { refund: terms.refund, kind: reservation.cancellation.kind, partySize: reservation.partySize },
+  });
   return { ok: true, reservation, ...terms };
 }
 
@@ -1085,6 +1134,16 @@ export function handleNoShow(state, id, options = {}) {
     slotReopened: bookOf(state).policy.reopenNoShowSlot,
   });
   cancelReservationCustomer(state, reservation.id);
+  recordOutcome(state, {
+    idempotencyKey: `golf-operations:${reservation.id}:no-show`,
+    type: 'noShow',
+    count: 1,
+    amount: fee.feeApplied,
+    relatedId: reservation.id,
+    reason: `${reservation.reservationHolder} did not arrive before the grace period ended.`,
+    day: calendarOf(atMinute).dayAbs,
+    metadata: { partySize: reservation.partySize, slotReopened: bookOf(state).policy.reopenNoShowSlot },
+  });
   return { ok: true, reservation, feeApplied: fee.feeApplied };
 }
 
@@ -1122,6 +1181,16 @@ export function checkInReservation(state, id, options = {}) {
     assignedCourse: reservation.courseAccess.assignedCourse,
     startingHole: reservation.courseAccess.startingHole,
   });
+  recordOutcome(state, {
+    idempotencyKey: `golf-operations:${reservation.id}:checked-in`,
+    type: 'teeCheckIn',
+    count: reservation.partySize,
+    amount: reservation.payment.total,
+    relatedId: reservation.id,
+    reason: `${reservation.reservationHolder}'s party checked in for its tee time.`,
+    day: calendarOf(atMinute).dayAbs,
+    metadata: { partySize: reservation.partySize, walkIn: reservation.walkIn },
+  });
   return {
     ok: true,
     reservation,
@@ -1145,6 +1214,19 @@ export function markCourseDeparture(state, id, options = {}) {
     actualStartMinute: reservation.actualStartMinute,
     assignedCourse: reservation.courseAccess.assignedCourse,
     startingHole: reservation.courseAccess.startingHole,
+  });
+  recordOutcome(state, {
+    idempotencyKey: `golf-operations:${reservation.id}:course-access`,
+    type: 'courseAccess',
+    count: reservation.partySize,
+    relatedId: reservation.id,
+    reason: `${reservation.reservationHolder}'s party departed for the course.`,
+    day: calendarOf(atMinute).dayAbs,
+    metadata: {
+      partySize: reservation.partySize,
+      assignedCourse: reservation.courseAccess.assignedCourse,
+      startingHole: reservation.courseAccess.startingHole,
+    },
   });
   return { ok: true, reservation, actualStartMinute: reservation.actualStartMinute };
 }
@@ -1405,20 +1487,29 @@ export function ensureReservationHorizon(state, options = {}) {
 export function resetGolfOperationsQA(state, options = {}) {
   const book = bookOf(state);
   // Browser evidence starts from a real production boot, whose online deposits
-  // have already moved the shared wallet. Reverse those exact entries before
-  // replacing the fixture so the QA ledger remains a valid reconciliation.
+  // have already moved the shared wallet. Append explicit, exact-once reversals
+  // before replacing the fixture so the immutable journal still reconciles.
   for (const entry of book.financeEntries) {
-    state.cash = r2((state.cash || 0) - entry.cashDelta);
-    if (!state.ledger?.today) continue;
-    if (entry.cashDelta > 0) {
-      const revenue = state.ledger.today.revenue || (state.ledger.today.revenue = {});
-      revenue[entry.category] = r2((revenue[entry.category] || 0) - entry.cashDelta);
-      if (Math.abs(revenue[entry.category]) <= EPSILON) delete revenue[entry.category];
-    } else if (entry.cashDelta < 0) {
-      const expense = state.ledger.today.expense || (state.ledger.today.expense = {});
-      expense.bookingRefunds = r2((expense.bookingRefunds || 0) - Math.abs(entry.cashDelta));
-      if (Math.abs(expense.bookingRefunds) <= EPSILON) delete expense.bookingRefunds;
-    }
+    if (entry.cashDelta > EPSILON) postLedgerEntry(state, {
+      idempotencyKey: `golf-qa-reset:${entry.id}`,
+      relatedId: entry.reservationId,
+      direction: 'reversal',
+      lineKey: entry.category,
+      category: entry.category,
+      accountingClass: 'revenue',
+      amount: entry.cashDelta,
+      cashImpact: -entry.cashDelta,
+      profitImpact: -entry.cashDelta,
+      aggregate: { side: 'revenue', key: entry.category, amount: -entry.cashDelta },
+      description: `QA fixture reversal — ${entry.kind}`,
+      source: 'golf-operations-qa',
+    });
+    else if (entry.cashDelta < -EPSILON) unbill(state, 'bookingRefunds', Math.abs(entry.cashDelta), {
+      idempotencyKey: `golf-qa-reset:${entry.id}`,
+      relatedId: entry.reservationId,
+      description: `QA fixture refund reversal — ${entry.kind}`,
+      source: 'golf-operations-qa',
+    });
   }
   return initReservations(state, options);
 }

@@ -10,9 +10,8 @@
 // `0.1 * 300` is 30.000000000000004 in float, which would make a till that
 // balances on paper fail to balance in code. Cents in, dollars out at the edge.
 
-import { addRevenue } from './economy.js';
-import { liveSales, consumeHeld } from './checkout.js';
-import { recordSale } from './shop.js';
+import { addExpense } from './economy.js';
+import { checkoutSale } from './checkout.js';
 
 // --- currency -----------------------------------------------------------------
 // Shop prices land on arbitrary cents (a $34 polo at 1.15 markup with a 5%
@@ -87,8 +86,11 @@ export function takeFromStack(stack, denom, n = 1) {
 
 // `prefer` is the customer's own payment habit, decided before they reach the till —
 // some people are cash people. Left null, they make their mind up at the counter.
-export function createTx({ items = [], mode = 'relaxed', discount = 0, rng = Math.random, prefer = null } = {}) {
+let nextTransientTxId = 1;
+
+export function createTx({ id = null, items = [], mode = 'relaxed', discount = 0, rng = Math.random, prefer = null } = {}) {
   return {
+    id: id == null ? `transient-${nextTransientTxId++}` : String(id),
     items: items.map((it) => ({
       uid: it.uid,
       skuId: it.skuId,
@@ -471,30 +473,32 @@ export function completeSale(state, tx, who = 'A customer') {
   if (tx.banked) return { ok: false, reason: 'Already banked.' };
 
   const total = dueOf(tx);
-  addRevenue(state, 'shopSales', total);
-
+  const sale = checkoutSale(state, tx.items, who, tx.id, {
+    total,
+    metadata: {
+      method: tx.method,
+      itemIds: tx.items.map((item) => item.uid),
+    },
+  });
+  if (!sale.ok) {
+    if (sale.duplicate) tx.banked = true;
+    return sale;
+  }
   // a miscount in Realistic mode: the till is short what you over-handed (or the
   // customer was shorted, which comes back as goodwill, not cash)
-  if (tx.lost > 0) addRevenue(state, 'shopSales', -tx.lost);
-
-  const live = liveSales(state);
-  live.units += tx.items.length;
-  live.revenue = round2(live.revenue + total);
-
-  // the goods leave the building — off the held ledger for good, and onto the per-SKU tally
-  // the Inventory and Analytics pages read their velocity from. A sale rung up by hand is
-  // still a sale; leaving it out would make every velocity on the laptop quietly wrong.
-  for (const it of tx.items) {
-    consumeHeld(state, it.uid);
-    recordSale(state, it.skuId);
+  if (tx.lost > 0) {
+    addExpense(state, 'checkoutShortage', tx.lost, {
+      idempotencyKey: `checkout:${tx.id}:shortage`,
+      relatedId: tx.id,
+      category: 'checkoutShortage',
+      description: `Till shortage — ${who}`,
+      source: 'checkout',
+    });
   }
 
   tx.banked = true;
+  tx.ledgerEntryId = sale.ledgerEntryId;
   tx.stage = 'done';
-
-  const names = tx.items.map((i) => i.name);
-  state.shop.log.unshift(`${who} bought ${names.join(' + ')} at the counter (${Math.round(total)} dollars)`);
-  if (state.shop.log.length > 8) state.shop.log.pop();
 
   return { ok: true, total, lost: tx.lost };
 }

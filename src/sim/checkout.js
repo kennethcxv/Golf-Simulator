@@ -5,7 +5,7 @@
 // happen in front of you. Counters here are session-flavor; the money is
 // real (addRevenue → ledger → closeBooks like everything else).
 
-import { addRevenue } from './economy.js';
+import { addRevenue, addCostOfGoods, recordOutcome } from './economy.js';
 import { skuById, SHELF_CAP } from '../data/shopItems.js';
 import { capacityOf } from '../data/fixtureSlots.js';
 import {
@@ -194,8 +194,19 @@ export function processCard(tx) {
   return { approved: true };
 }
 
-export function checkoutSale(state, items, who = 'A customer') {
+export function checkoutSale(state, items, who = 'A customer', transactionId = null, options = {}) {
   if (!Array.isArray(items) || items.length === 0) return { ok: false, reason: 'Nothing to ring up.' };
+  if (items.some((item) => !Number.isFinite(item.price) || item.price <= 0)) {
+    return { ok: false, reason: 'Every checkout item needs a positive finite price.' };
+  }
+  let id = transactionId == null ? null : String(transactionId);
+  let saleKey = id == null ? null : `checkout:${id}:sale`;
+  // A persisted transaction ID is authoritative even after its held units have
+  // moved to sold. Detect replay before inventory validation so reload/retry is
+  // reported as an exact-once duplicate, never as missing stock.
+  if (saleKey && state.ledger?.processedIds?.[saleKey]) {
+    return { ok: false, reason: 'Already banked.', duplicate: true, transactionId: id };
+  }
   const heldMatches = [];
   const available = heldUnits(state).slice();
   for (const item of items) {
@@ -212,6 +223,20 @@ export function checkoutSale(state, items, who = 'A customer') {
   const allocated = allocations.reduce((sum, allocation) => sum + (allocation.quantity || 0), 0);
   if (allocated !== heldMatches.length) {
     return { ok: false, reason: 'Checkout inventory provenance is incomplete.' };
+  }
+  let itemTotal = 0;
+  for (const item of items) itemTotal += item.price;
+  const requestedTotal = options.total ?? itemTotal;
+  const total = Math.round(requestedTotal * 100) / 100;
+  if (!Number.isFinite(total) || total <= 0) {
+    return { ok: false, reason: 'Checkout total must be positive and finite.' };
+  }
+  if (!Number.isInteger(state.shop.nextTransactionId) || state.shop.nextTransactionId < 1) state.shop.nextTransactionId = 1;
+  const propertyId = state.property?.id || `club-${state.seed}`;
+  if (id == null) id = `${propertyId}:legacy-register-${state.shop.nextTransactionId++}`;
+  saleKey = `checkout:${id}:sale`;
+  if (state.ledger?.processedIds?.[saleKey]) {
+    return { ok: false, reason: 'Already banked.', duplicate: true, transactionId: id };
   }
   // One atomic ledger transfer covers mixed-SKU baskets. Revenue is recorded
   // only after this succeeds, so a stale or repeated checkout cannot be paid twice.
@@ -230,22 +255,49 @@ export function checkoutSale(state, items, who = 'A customer') {
     if (index >= 0) heldLedger.splice(index, 1);
     forgetHeldAllocations(state, held.uid);
   }
-  let total = 0;
-  for (const it of items) total += it.price || 0;
-  total = Math.round(total * 100) / 100;
-  addRevenue(state, 'shopSales', total);
+  const bank = addRevenue(state, 'shopSales', total, {
+    idempotencyKey: saleKey,
+    relatedId: id,
+    description: `Register sale â€” ${who}`,
+    source: 'checkout',
+    units: items.length,
+    customerCount: 1,
+    metadata: { skuIds: items.map((item) => item.skuId), ...(options.metadata || {}) },
+  });
+  if (!bank.ok || bank.duplicate) {
+    return { ok: false, reason: bank.duplicate ? 'Already banked.' : bank.reason, duplicate: !!bank.duplicate };
+  }
+  const goodsCost = items.reduce((sum, item) => sum + (skuById(item.skuId)?.cost || 0), 0);
+  if (goodsCost > 0) {
+    addCostOfGoods(state, goodsCost, {
+      idempotencyKey: `checkout:${id}:cogs`,
+      relatedId: id,
+      description: `Cost of goods â€” ${who}`,
+      source: 'checkout',
+      units: items.length,
+    });
+  }
   const live = liveSales(state);
   live.units += items.length;
   live.revenue = Math.round((live.revenue + total) * 100) / 100;
+  if (!state.shop.salesToday) state.shop.salesToday = {};
+  for (const item of items) {
+    state.shop.salesToday[item.skuId] = (state.shop.salesToday[item.skuId] || 0) + 1;
+  }
+  recordOutcome(state, {
+    idempotencyKey: `checkout:${id}:completed`,
+    type: 'checkoutCompleted',
+    count: 1,
+    amount: total,
+    relatedId: id,
+    reason: `${who} completed a register purchase with ${items.length} item${items.length === 1 ? '' : 's'}.`,
+    metadata: { units: items.length },
+  });
   const names = items.map((i) => {
     const s = skuById(i.skuId);
     return s ? s.name : i.skuId;
   });
   state.shop.log.unshift(`${who} bought ${names.join(' + ')} at the counter (${Math.round(total)} dollars)`);
   if (state.shop.log.length > 8) state.shop.log.pop();
-  for (let index = 0; index < items.length; index++) {
-    state.shop.salesToday ||= {};
-    state.shop.salesToday[items[index].skuId] = (state.shop.salesToday[items[index].skuId] || 0) + 1;
-  }
-  return { ok: true, total };
+  return { ok: true, total, transactionId: id, ledgerEntryId: bank.entry?.id || null };
 }

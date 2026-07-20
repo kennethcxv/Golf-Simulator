@@ -29,16 +29,21 @@ export function round500(v) {
   return Math.round(v / 500) * 500;
 }
 
-export function appraiseStats({ size, design, condition, members = 0, reputation = 25, monthlyNet = 0 }) {
+export function appraiseStatsBreakdown({ size, design, condition, members = 0, reputation = 25, monthlyNet = 0 }) {
   const sizeF = Math.max(size, 4) / 9; // 1 for a 9-holer, 2 for a full 18; even a razed property keeps its acreage
   const land = 12000 * sizeF; // dirt, irrigation mains, buildings — the floor
   const quality = clamp(0.45 * design + 0.55 * condition, 1, 100);
   const course = Math.pow(quality, 1.18) * 220 * Math.pow(sizeF, 0.85);
-  const business =
-    members * 450 +
-    Math.max(reputation - 20, 0) * 180 +
-    clamp(monthlyNet, -12000 * sizeF, 30000 * sizeF) * 1.6;
-  return Math.max(round500(land + course + business), round500(land * 0.5));
+  const membership = members * 450;
+  const reputationValue = Math.max(reputation - 20, 0) * 180;
+  const earnings = clamp(monthlyNet, -12000 * sizeF, 30000 * sizeF) * 1.6;
+  const business = membership + reputationValue + earnings;
+  const value = Math.max(round500(land + course + business), round500(land * 0.5));
+  return { sizeF, land, quality, course, membership, reputation: reputationValue, earnings, business, value };
+}
+
+export function appraiseStats(stats) {
+  return appraiseStatsBreakdown(stats).value;
 }
 
 // --- the archetype roster ---------------------------------------------------------
@@ -351,6 +356,14 @@ export function buildPropertyCourse(property) {
 
 const round1 = (v) => Math.round(v * 10) / 10;
 
+// The current environment roster demonstrates the first two rungs only. The
+// resort and private tiers are data-defined in propertyProgression.js, but are
+// intentionally not presented as completed environments.
+export function listingTierId(record) {
+  if (record?.tierId) return record.tierId;
+  return (record?.size || 9) >= 18 ? 'establishedLocal' : 'neglectedPublic';
+}
+
 export function generateMarketplace(seed = 1) {
   const master = makeRng((seed >>> 0) || 1);
   return ARCHETYPES.map((a) => {
@@ -384,6 +397,7 @@ export function generateMarketplace(seed = 1) {
     });
     const jitter = 1 + (master.next() - 0.5) * 0.06;
     record.askingPrice = Math.max(round500(record.trueValue * a.listingBias * jitter), 5500);
+    record.tierId = listingTierId(record);
     return record;
   });
 }
@@ -654,6 +668,7 @@ export function generateListing(seed, opts = {}) {
   const bias = floatIn(rng, t.bias);
   const jitter = 1 + (rng.next() - 0.5) * 0.06;
   record.askingPrice = Math.max(round500(record.trueValue * bias * jitter * marketCondition), 5500);
+  record.tierId = listingTierId(record);
   return record;
 }
 
