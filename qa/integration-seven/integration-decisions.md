@@ -28,13 +28,15 @@ Checkout posts revenue and cost of goods only after the canonical inventory life
 
 The player-experience branch owns one menu/pause system, one notification queue, one tutorial state path, one settings persistence path, one tool-wheel presentation and one lifecycle-safe audio service. Gameplay modes retain their actions, while `src/main.js` arbitrates mode transitions and restores controller focus/FOV/pointer ownership on exit. Feature branches call the canonical notification API rather than mounting parallel queues.
 
+The integration keeps feature ownership below that presentation layer: inventory owns stock and checkout lots, reservations owns the tee desk, course maintenance owns equipment strokes, placement owns build transforms, and economy owns marketplace eligibility and property-sale commands. `P` is routed to the single pause overlay before modal gameplay handlers. Active tools and audio are cancelled for pause, scene/menu changes, laptop/front-desk entry, backgrounding and teardown; maintenance strokes finalize once before a transition. The indoor and outdoor tool belts are contextual views of one selector rather than competing maintenance menus. Tool-wheel regression coverage asserts all ten outdoor entries, normal checkout prompt priority at the shared counter, 100 pause cycles, 100 camera cycles, notification deduplication, audio suspension and zero listener growth.
+
 ## Save state
 
 `src/sim/state.js` remains the root schema initializer/normalizer. Each domain exports deterministic normalization for its own subtree; root load runs them once and preserves unknown fields. Stable IDs and processed-event sets prevent duplicate objects, money, bookings or rewards after replay. A single migration plan will cover legacy main plus representative branch states.
 
 ## Dependencies and assets
 
-No completed branch changes dependency metadata, so integration retains main's dependency graph and regenerates nothing unless final clean install detects drift. Authored Blender/GLB files from furniture, inventory and course maintenance are accepted only with their provenance/build sources and in-game verification; generated branch QA media is not a product dependency.
+No completed branch changes dependency metadata. Integration adds `playwright@1.61.1` as an exact development-only dependency because accepted, tracked browser QA tools import Playwright and a clean checkout otherwise cannot run the required gates. npm regenerated the lockfile; the runtime dependency graph remains unchanged. Authored Blender/GLB files from furniture, inventory and course maintenance are accepted only with their provenance/build sources and in-game verification; generated branch QA media is not a product dependency.
 
 ## Conflict policy
 
