@@ -39,6 +39,7 @@ import { BALANCE } from './balance.js';
 import { SHOP_CATALOG } from '../data/shopItems.js';
 import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
 import { routesIntact, validatePlacement } from './layout.js';
+import { ensureFurnitureCatalogState } from './furnitureCatalog.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
@@ -55,7 +56,9 @@ export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 // v10: fixture poses written against older approximate envelopes are checked
 // once against the authored footprints. Only unsafe moved overrides fall back
 // to the designed plan; valid player moves and all inventory remain untouched.
-export const SAVE_VERSION = 10;
+// v11: owned furniture catalog instances and renovation progression persist in
+// the shop payload. Older saves receive an empty level-one catalog state.
+export const SAVE_VERSION = 11;
 
 const FIXTURE_FOOTPRINT_SAVE_VERSION = 10;
 const ROUTE_FAILURE = /customers could not get around/i;
@@ -205,6 +208,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initStaff(state);
   initClub(state);
   initShop(state);
+  ensureFurnitureCatalogState(state);
   reconcileShelfCapacity(state.shop);
   ensureWash(state); // a fixer-upper arrives with a filthy exterior
   ensureProperty(state); // ...and a landlord
@@ -557,6 +561,7 @@ export function deserialize(json) {
   if (state.shop.drawer) state.shop.drawer = migrateDrawer(state.shop.drawer);
   ensurePaymentBag(state); // a half-used balanced batch survives the reload intact
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
+  ensureFurnitureCatalogState(state); // pre-catalog saves gain empty, valid ownership state
   migrateLegacyRetailLayout(state.shop, persistedVersion);
   migrateFeatureCategory(state.shop, persistedVersion);
   reconcileLegacyMovedFixturePoses(state, persistedVersion);

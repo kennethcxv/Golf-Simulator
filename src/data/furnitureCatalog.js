@@ -156,6 +156,24 @@ function thumbnailDataUri(name, category, tier) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
+const WALL_FAMILIES = new Set(['picture-light', 'wall-sconce', 'wall-art', 'mirror', 'clock', 'signage']);
+const CEILING_FAMILIES = new Set(['ceiling-flush', 'recessed-light', 'track-light', 'pendant-light', 'chandelier']);
+const SURFACE_FAMILIES = new Set(['desk-lamp']);
+const INSTALLATION_FAMILIES = new Set([
+  'flooring', 'ceiling-treatment', 'interior-door', 'exterior-door',
+  'window-treatment', 'wall-paneling', 'restroom-stall',
+]);
+const VEHICLE_FAMILIES = new Set(['golf-cart', 'cart-storage']);
+
+function placementModeFor(familyId) {
+  if (WALL_FAMILIES.has(familyId)) return 'wall';
+  if (CEILING_FAMILIES.has(familyId)) return 'ceiling';
+  if (SURFACE_FAMILIES.has(familyId)) return 'surface';
+  if (INSTALLATION_FAMILIES.has(familyId)) return 'installation';
+  if (VEHICLE_FAMILIES.has(familyId)) return 'vehicle';
+  return 'floor';
+}
+
 function familyRows(definition) {
   const [familyId, category, baseName, tierNouns, basePrice, maintenance, comfort,
     prestige, modelFamily, baseDescription, explicitPrices = null, unit = 'each'] = definition;
@@ -186,6 +204,7 @@ function familyRows(definition) {
       comfortValue: Math.max(0, Math.round(comfort * valueFactor)),
       prestigeValue: Math.max(0, Math.round(prestige * valueFactor)),
       modelFamily,
+      placementMode: placementModeFor(familyId),
       isPurchasable: true,
     });
   });
@@ -244,4 +263,3 @@ export function validateFurnitureCatalog(catalog = FURNITURE_CATALOG) {
   }
   return Object.freeze({ ok: errors.length === 0, errors: Object.freeze(errors) });
 }
-

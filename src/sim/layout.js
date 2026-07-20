@@ -153,10 +153,21 @@ export function objectById(state, id) {
   return resolvedObject(meta, objectRecord(state, id));
 }
 
+function allPlaceableMetas(state) {
+  const layout = ensureLayout(state);
+  const result = [...PLACEABLES];
+  for (const id of Object.keys(layout.objects)) {
+    if (PLACEABLE_BY_ID[id]) continue;
+    const meta = placeableById(id);
+    if (meta) result.push(meta);
+  }
+  return result;
+}
+
 export function placedObjects(state) {
   ensureLayout(state);
   const result = [];
-  for (const meta of PLACEABLES) {
+  for (const meta of allPlaceableMetas(state)) {
     const object = resolvedObject(meta, objectRecord(state, meta.id));
     if (object.state === 'placed') result.push(object);
   }
@@ -165,13 +176,13 @@ export function placedObjects(state) {
 
 export function storedObjects(state) {
   ensureLayout(state);
-  return PLACEABLES.map((meta) => resolvedObject(meta, objectRecord(state, meta.id)))
+  return allPlaceableMetas(state).map((meta) => resolvedObject(meta, objectRecord(state, meta.id)))
     .filter((object) => object.state === 'stored');
 }
 
 export function soldObjects(state) {
   ensureLayout(state);
-  return PLACEABLES.map((meta) => resolvedObject(meta, objectRecord(state, meta.id)))
+  return allPlaceableMetas(state).map((meta) => resolvedObject(meta, objectRecord(state, meta.id)))
     .filter((object) => object.state === 'sold');
 }
 
