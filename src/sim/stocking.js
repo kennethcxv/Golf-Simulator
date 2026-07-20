@@ -17,6 +17,13 @@
 import { skuById, RETAIL_CATS } from '../data/shopItems.js';
 import { FIXTURES } from '../data/shopLayout.js';
 import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
+import {
+  INVENTORY_STAGE,
+  adoptExternalInventory,
+  allocationsForStage,
+  ensureInventoryLifecycle,
+  moveInventory,
+} from './inventoryLifecycle.js';
 
 // how many of a thing you can hold at once. Not a number of items — a pair of arms.
 const ARMFUL_CAT = { clubs: 2, balls: 6, apparel: 6, accessories: 8, supplies: 1, decor: 1 };
@@ -40,10 +47,45 @@ export function carriedGoods(state) {
   return (state.shop && state.shop.carry) || null;
 }
 
-export function setCarry(state, skuId, qty) {
+export function setCarry(state, skuId, qty, allocations = null) {
   if (qty <= 0) state.shop.carry = null;
-  else state.shop.carry = { skuId, qty };
+  else {
+    const prior = state.shop.carry;
+    const carriedAllocations = allocations
+      || (prior && prior.skuId === skuId && Array.isArray(prior.allocations) ? prior.allocations : []);
+    state.shop.carry = { skuId, qty, allocations: carriedAllocations };
+  }
   return state.shop.carry;
+}
+
+function splitAllocations(allocations, quantity) {
+  if (!Array.isArray(allocations) || !allocations.length) return { used: null, left: [] };
+  const used = [];
+  const left = [];
+  let wanted = quantity;
+  for (const allocation of allocations) {
+    const take = Math.min(wanted, allocation.quantity);
+    if (take > 0) used.push({ lotId: allocation.lotId, quantity: take });
+    if (allocation.quantity > take) left.push({ lotId: allocation.lotId, quantity: allocation.quantity - take });
+    wanted -= take;
+  }
+  return wanted > 0 ? { used: null, left: allocations } : { used, left };
+}
+
+function carryAllocations(state, carry) {
+  ensureInventoryLifecycle(state);
+  const allocations = Array.isArray(carry.allocations) ? carry.allocations : [];
+  const accounted = allocations.reduce((sum, allocation) => sum + (allocation.quantity || 0), 0);
+  if (accounted >= carry.qty) return allocations;
+  const adopted = adoptExternalInventory(state, {
+    skuId: carry.skuId,
+    quantity: carry.qty - accounted,
+    stage: INVENTORY_STAGE.RESERVE,
+    note: 'Legacy caller supplied an unallocated carried product',
+  });
+  if (!adopted.ok) return allocations;
+  carry.allocations = [...allocations, ...adopted.allocations];
+  return carry.allocations;
 }
 
 // room left in your arms for this line (0 if you are holding something else)
@@ -101,8 +143,18 @@ export function stockFixture(state, fixtureId, units = 1) {
   }
 
   const moved = Math.min(units, c.qty, room);
+  const allocationSplit = splitAllocations(carryAllocations(state, c), moved);
+  const ledgerMove = moveInventory(state, {
+    from: INVENTORY_STAGE.RESERVE,
+    to: INVENTORY_STAGE.SHELF,
+    quantity: moved,
+    skuId: c.skuId,
+    allocations: allocationSplit.used,
+    reason: `Stocked ${f.id}`,
+  });
+  if (!ledgerMove.ok) return ledgerMove;
   inv.shelf += moved;
-  setCarry(state, c.skuId, c.qty - moved);
+  setCarry(state, c.skuId, c.qty - moved, allocationSplit.used ? allocationSplit.left : null);
   const left = carriedGoods(state);
   return {
     ok: true,
@@ -121,8 +173,9 @@ export function storeInBack(state, units = 999) {
   const c = carriedGoods(state);
   if (!c) return { ok: false, reason: 'Your hands are empty.' };
   const moved = Math.min(units, c.qty);
+  const allocationSplit = splitAllocations(carryAllocations(state, c), moved);
   state.shop.inventory[c.skuId].back += moved;
-  setCarry(state, c.skuId, c.qty - moved);
+  setCarry(state, c.skuId, c.qty - moved, allocationSplit.used ? allocationSplit.left : null);
   const left = carriedGoods(state);
   return { ok: true, moved, left: left ? left.qty : 0 };
 }
@@ -141,9 +194,19 @@ export function takeFromBack(state, skuId, want = 999) {
     };
   }
   const taken = Math.min(want, room, inv.back);
+  const allocation = allocationsForStage(state, {
+    stage: INVENTORY_STAGE.RESERVE,
+    skuId,
+    quantity: taken,
+    excludeAllocations: (carriedGoods(state) && carriedGoods(state).allocations) || [],
+  });
+  if (!allocation.ok) return allocation;
   inv.back -= taken;
   const c = carriedGoods(state);
-  setCarry(state, skuId, (c ? c.qty : 0) + taken);
+  setCarry(state, skuId, (c ? c.qty : 0) + taken, [
+    ...((c && c.allocations) || []),
+    ...allocation.allocations,
+  ]);
   return { ok: true, taken, left: inv.back };
 }
 

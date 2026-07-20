@@ -8,17 +8,23 @@
 
 import { rngOf, clamp, makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
-import { addRevenue, addExpense, unbill } from './economy.js';
-import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
-import { planShipment } from '../data/boxes.js';
+import { addRevenue, addExpense } from './economy.js';
+import { SHOP_CATALOG, skuById, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
 import { capacityOf } from '../data/fixtureSlots.js';
 import { INTERIOR, CLUTTER_SPOTS, WINDOWS } from '../data/shopLayout.js';
 import {
-  arriveOrder, openAllBoxes, ensureDeliveries, padHasRoom, padCount, PAD_CAPACITY,
+  arriveOrder, openAllBoxes, ensureDeliveries, receivingFree,
 } from './deliveries.js';
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
 import { members } from './golfers.js';
+import {
+  INVENTORY_STAGE,
+  cancelPurchaseOrder,
+  moveInventory,
+  submitPurchaseOrders,
+  syncOrderTransitState,
+} from './inventoryLifecycle.js';
 
 // --- restoration arc ------------------------------------------------------------
 // The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
@@ -354,49 +360,27 @@ export function orderCost(sku, qty) {
 
 // each order ships into a two-hour window on its arrival day; the truck lands
 // at a specific (deterministic per order) minute inside it
-const DELIVERY_SLOTS = [[8, 10], [10, 12], [13, 15]];
-
 export function placeOrder(state, skuId, qty) {
   const sku = skuById(skuId);
   if (!sku) return { ok: false, reason: 'No such item.' };
   if (sku.tier > state.shop.unlockedTier) return { ok: false, reason: 'Supplier account not unlocked yet.' };
 
+  const purchase = submitPurchaseOrders(state, { lines: [{ skuId, quantity: qty }] });
+  if (!purchase.ok) return { ok: false, reason: purchase.reason };
+  const purchasedOrder = purchase.orders[0];
+  return {
+    ok: true,
+    cost: purchasedOrder.totalCost,
+    goods: purchasedOrder.goods,
+    fee: purchasedOrder.shippingCost,
+    order: purchasedOrder,
+    boxes: purchasedOrder.manifest.boxCount,
+    weight: purchasedOrder.manifest.weight,
+    supplier: purchasedOrder.supplier,
+  };
+
   // pack it NOW. The manifest is what the Orders screen promises and what the receiving pad
   // stands there — one object, read twice, so the two can never disagree.
-  const manifest = planShipment(sku, qty);
-  const goods = orderCost(sku, qty);
-  const fee = manifest.fee;
-  const cost = Math.round((goods + fee) * 100) / 100;   // `cost` is what you actually paid
-  if (state.cash < cost) return { ok: false, reason: 'Not enough cash.' };
-  addExpense(state, 'shopOrders', cost);
-
-  const dayAbs = calendarOf(state.clock.minutes).dayAbs;
-  const id = state.shop.nextOrderId++;
-  const arrivesDay = dayAbs + LEAD_DAYS[sku.cat];
-  const slot = DELIVERY_SLOTS[(id * 7) % DELIVERY_SLOTS.length];
-  const open = arrivesDay * 1440 + slot[0] * 60;
-  const close = arrivesDay * 1440 + slot[1] * 60;
-  const order = {
-    id,
-    skuId,
-    qty,
-    cost,        // goods + freight: the number that left your account
-    goods,
-    fee,
-    supplier: manifest.supplier,
-    manifest,
-    arrivesDay,
-    placedMin: state.clock.minutes,
-    window: { open, close },
-    deliveryMin: open + ((id * 37) % (close - open)),
-    status: 'received',
-    notif: {},
-  };
-  state.shop.orders.push(order);
-  return {
-    ok: true, cost, goods, fee, order,
-    boxes: manifest.boxCount, weight: manifest.weight, supplier: manifest.supplier,
-  };
 }
 
 // WHERE AN ORDER IS, AT A GIVEN MINUTE.
@@ -479,9 +463,7 @@ export function cancelOrder(state, id) {
   if (o.status === 'arriving' || o.status === 'delivered') {
     return { ok: false, reason: 'The van is at the door — too late to cancel.' };
   }
-  orders.splice(i, 1);
-  unbill(state, 'shopOrders', o.cost);
-  return { ok: true, refund: o.cost };
+  return cancelPurchaseOrder(state, id);
 }
 
 // minute-grained delivery tick: progresses statuses, fires each heads-up once,
@@ -490,7 +472,7 @@ export function cancelOrder(state, id) {
 export function tickDeliveries(state, nowMin) {
   const events = [];
   if (!state.shop || !state.shop.orders || !state.shop.orders.length) return events;
-  const arrived = [];
+  const arrivals = [];
   // Space taken by vans already waved through ON THIS TICK. Their boxes do not exist yet —
   // arriveOrder runs below, after the loop — so without this, four vans landing on the same
   // minute each look at the same empty pad, all unload, and the pad ends up over capacity.
@@ -500,24 +482,29 @@ export function tickDeliveries(state, nowMin) {
     if (o.window === undefined) continue; // pre-window legacy order: dailyTick path delivers it
     if (!o.notif) o.notif = {};
     o.status = orderStatusAt(o, nowMin);
+    syncOrderTransitState(state, o, o.status);
 
     if (o.status === 'delivered') {
       // THE PAD HAS TO HAVE ROOM. A driver with nowhere to put nine cartons does not stack them
       // to the roof and drive off; he tells you he could not deliver. The order stays out there —
       // it is not lost, and it is not silently teleported into the backroom either.
-      const need = (o.manifest && o.manifest.boxCount) || 1;
-      if (!padHasRoom(state, need + reserved)) {
+      const totalBoxes = (o.manifest && o.manifest.boxCount) || 1;
+      const receivedBoxes = Array.isArray(o.receivedManifestBoxIndexes) ? o.receivedManifestBoxIndexes.length : 0;
+      const need = Math.max(0, totalBoxes - receivedBoxes);
+      const free = Math.max(0, receivingFree(state) - reserved);
+      if (free <= 0) {
         o.status = 'arriving';        // still circling
+        syncOrderTransitState(state, o, 'arriving');
         if (!o.blocked) {
           o.blocked = true;
-          events.push({ kind: 'blocked', order: o, need, free: PAD_CAPACITY - padCount(state) - reserved });
+          events.push({ kind: 'blocked', order: o, need, free });
         }
         continue;
       }
       o.blocked = false;
-      reserved += need;
-      arrived.push(o);
-      events.push({ kind: 'arrived', order: o });
+      const unloading = Math.min(need, free);
+      reserved += unloading;
+      arrivals.push({ order: o, count: unloading });
       continue;
     }
 
@@ -531,9 +518,21 @@ export function tickDeliveries(state, nowMin) {
       events.push({ kind: 'soon', order: o });
     }
   }
-  if (arrived.length) {
-    state.shop.orders = state.shop.orders.filter((o) => !arrived.includes(o));
-    for (const o of arrived) arriveOrder(state, o);
+  if (arrivals.length) {
+    const completed = [];
+    for (const arrival of arrivals) {
+      const o = arrival.order;
+      const boxes = arriveOrder(state, o, { maxBoxes: arrival.count });
+      const complete = o.remainingUnreceivedQuantity <= 0;
+      if (complete) completed.push(o);
+      events.push({
+        kind: complete ? 'arrived' : 'partial-arrival',
+        order: o,
+        boxes,
+        usedFallback: boxes.some((box) => box.loc === 'receiving-fallback'),
+      });
+    }
+    state.shop.orders = state.shop.orders.filter((order) => !completed.includes(order));
   }
   return events;
 }
@@ -544,15 +543,37 @@ export function deliverOrdersDue(state, dayAbs) {
   // windowed orders due TODAY belong to their window (tickDeliveries) — only
   // strictly-past days force-land here; legacy windowless orders keep day-of
   const due = (o) => (o.window === undefined ? o.arrivesDay <= dayAbs : o.arrivesDay < dayAbs);
-  const arrived = state.shop.orders.filter(due);
-  state.shop.orders = state.shop.orders.filter((o) => !due(o));
+  const arrivals = [];
+  let reserved = 0;
+  for (const order of state.shop.orders) {
+    if (!due(order)) continue;
+    const totalBoxes = (order.manifest && order.manifest.boxCount) || 1;
+    const receivedBoxes = Array.isArray(order.receivedManifestBoxIndexes) ? order.receivedManifestBoxIndexes.length : 0;
+    const need = Math.max(0, totalBoxes - receivedBoxes);
+    const free = Math.max(0, receivingFree(state) - reserved);
+    if (free <= 0) {
+      order.status = 'arriving';
+      syncOrderTransitState(state, order, 'arriving');
+      order.blocked = true;
+      continue;
+    }
+    order.blocked = false;
+    const unloading = Math.min(need, free);
+    reserved += unloading;
+    arrivals.push({ order, count: unloading });
+  }
   // 2026-07-13 physical retail: arrivals are BOXES on the receiving pad —
   // contents reach the backroom when someone opens them (you, or the
   // morning floor staff in restockShelvesByStaff)
-  for (const o of arrived) {
-    arriveOrder(state, o);
+  const completed = [];
+  const received = [];
+  for (const arrival of arrivals) {
+    const boxes = arriveOrder(state, arrival.order, { maxBoxes: arrival.count });
+    if (boxes.length) received.push(arrival.order);
+    if (arrival.order.remainingUnreceivedQuantity <= 0) completed.push(arrival.order);
   }
-  return arrived;
+  state.shop.orders = state.shop.orders.filter((order) => !completed.includes(order));
+  return received;
 }
 
 // --- restocking ------------------------------------------------------------------------
@@ -583,6 +604,14 @@ export function restockShelfFromBackroom(state, skuId) {
   const space = shelfCapacity(sku) - inv.shelf;
   const move = Math.min(space, inv.back);
   if (move <= 0) return { ok: false, reason: inv.back <= 0 ? 'Backroom is empty.' : 'Shelf is full.' };
+  const ledgerMove = moveInventory(state, {
+    from: INVENTORY_STAGE.RESERVE,
+    to: INVENTORY_STAGE.SHELF,
+    skuId,
+    quantity: move,
+    reason: 'Restocked shelf from backroom',
+  });
+  if (!ledgerMove.ok) return ledgerMove;
   inv.back -= move;
   inv.shelf += move;
   return { ok: true, moved: move };
@@ -602,6 +631,14 @@ export function restockShelvesByStaff(state) {
     const space = shelfCapacity(sku) - inv.shelf;
     const move = Math.min(space, inv.back, capacity);
     if (move > 0) {
+      const ledgerMove = moveInventory(state, {
+        from: INVENTORY_STAGE.RESERVE,
+        to: INVENTORY_STAGE.SHELF,
+        skuId: sku.id,
+        quantity: move,
+        reason: 'Floor staff restock',
+      });
+      if (!ledgerMove.ok) continue;
       inv.back -= move;
       inv.shelf += move;
       capacity -= move;
@@ -706,6 +743,17 @@ export function shopDailyAccrual(state) {
 
     if (rng.chance(clamp(accept, 0, 0.97))) {
       const price = priceFor(sku, shop.markup[cat], member ? member.memberTier : null);
+      const soldMove = moveInventory(state, {
+        from: INVENTORY_STAGE.SHELF,
+        to: INVENTORY_STAGE.SOLD,
+        skuId: sku.id,
+        quantity: 1,
+        reason: 'Simulated daily shop sale',
+      });
+      if (!soldMove.ok) {
+        lost++;
+        continue;
+      }
       revenue += price;
       units++;
       recordSale(state, sku.id);

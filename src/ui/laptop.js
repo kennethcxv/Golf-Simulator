@@ -17,14 +17,23 @@ import {
   SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS,
 } from '../data/shopItems.js';
 import {
-  placeOrder, cancelOrder, orderCost, shopCondition, priceFor,
+  placeOrder, cancelOrder, shopCondition, priceFor,
   velocity, daysOfSupply, buyRentalSets,
 } from '../sim/shop.js';
 import {
-  boxesOf, shipmentsOf, shipmentStatus, padCount, PAD_CAPACITY, boxOpened,
+  boxesOf, shipmentsOf, shipmentStatus, padCount, fallbackCount,
+  PAD_CAPACITY, FALLBACK_CAPACITY, boxOpened,
 } from '../sim/deliveries.js';
+import {
+  ORDER_STATE,
+  inventoryPosition,
+  quotePurchaseOrders,
+  reorderSuggestion,
+  submitPurchaseOrders,
+} from '../sim/inventoryLifecycle.js';
 import { planShipment, unitsPerBox } from '../data/boxes.js';
 import { supplierFor } from '../data/suppliers.js';
+import { capacityOf } from '../data/fixtureSlots.js';
 import { TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot } from '../sim/reservations.js';
 import { reviewSummary, explainVisitors } from '../sim/reviews.js';
 import { weeklyCharge, propertyLine, arrearsOf } from '../sim/property.js';
@@ -105,6 +114,7 @@ export function makeLaptop(app, opts) {
   let page = 'home';
   let history = [];        // the Back stack — every navigation pushes, Back pops
   let cart = new Map();    // supplier basket: skuId -> qty
+  let orderIntent = 1;
   let teeDay = 0;
   let supplierCat = 'all';
   let financeWindow = 'today';
@@ -223,7 +233,10 @@ export function makeLaptop(app, opts) {
 
   const cashOf = () => (app.empire ? app.empire.cash : app.state.cash);
   const retailSkus = (st) => SHOP_CATALOG.filter((s) => RETAIL_CATS.has(s.cat) && s.tier <= st.shop.unlockedTier);
-  const incomingOf = (st, id) => st.shop.orders.filter((o) => o.skuId === id).reduce((a, o) => a + o.qty, 0);
+  const incomingOf = (st, id) => st.shop.orders.reduce((sum, order) => sum
+    + (order.lines || [{ skuId: order.skuId, quantity: order.qty }])
+      .filter((line) => line.skuId === id)
+      .reduce((lineSum, line) => lineSum + Math.max(0, line.quantity - (line.receivedQuantity || 0)), 0), 0);
   // The screen must pack the shipment the SAME WAY the receiving pad will. It does not do its own
   // arithmetic — it calls the one packer (data/boxes.js), which is also what arriveOrder reads.
   const shipOf = (sku, qty) => planShipment(sku, Math.max(1, qty));
@@ -443,22 +456,14 @@ export function makeLaptop(app, opts) {
     const st = app.state;
     // Freight is part of the price. Quoting the goods alone and then taking more at the till is
     // the oldest trick in retail and it has no business being in the player's own back office.
-    let goods = 0;
-    let freight = 0;
-    let boxCount = 0;
-    let weight = 0;
-    for (const [id, qty] of cart) {
-      const sku = skuById(id);
-      const ship = shipOf(sku, qty);
-      goods += orderCost(sku, qty);
-      freight += ship.fee;
-      boxCount += ship.boxCount;
-      weight += ship.weight;
-    }
-    goods = Math.round(goods * 100) / 100;
-    freight = Math.round(freight * 100) / 100;
-    weight = Math.round(weight * 10) / 10;
-    const total = Math.round((goods + freight) * 100) / 100;
+    const quote = cart.size
+      ? quotePurchaseOrders(st, [...cart].map(([skuId, quantity]) => ({ skuId, quantity })))
+      : { ok: true, goods: 0, freight: 0, boxes: 0, weight: 0, total: 0 };
+    const goods = quote.ok ? quote.goods : 0;
+    const freight = quote.ok ? quote.freight : 0;
+    const boxCount = quote.ok ? quote.boxes : 0;
+    const weight = quote.ok ? quote.weight : 0;
+    const total = quote.ok ? quote.total : Infinity;
     const affordable = total <= cashOf();
 
     const cats = ['balls', 'accessories', 'apparel', 'clubs', 'supplies', 'decor'];
@@ -505,25 +510,19 @@ export function makeLaptop(app, opts) {
     });
 
     const placeAll = () => {
-      let placed = 0;
-      let spent = 0;
-      let boxes = 0;
-      const failed = [];
-      for (const [id, qty] of [...cart]) {
-        const res = placeOrder(st, id, qty);
-        if (res.ok) {
-          placed++; spent += res.cost; boxes += res.boxes; cart.delete(id);
-        } else failed.push(`${skuById(id).name}: ${res.reason}`);
+      const result = submitPurchaseOrders(st, {
+        idempotencyKey: `laptop-order:${st.seed}:${orderIntent++}`,
+        lines: [...cart].map(([skuId, quantity]) => ({ skuId, quantity })),
+      });
+      if (!result.ok) {
+        toast(result.reason, 'warn');
+        render();
+        return;
       }
-      if (placed) {
-        // THE ORDER-ACCEPTED NOTIFICATION. It says what is actually coming — how many cartons will
-        // be standing on that pad — because that is the thing you have to make room for.
-        toast(`Order accepted — ${formatMoney(spent)}. ${plural(boxes, 'box')} to the receiving pad.`);
-        if (app.audio && app.audio.ready) app.audio.chime();
-      }
-      for (const f of failed) toast(f, 'warn');
-      if (placed && !failed.length) go('orders');
-      else render();
+      cart.clear();
+      toast(`Order accepted — ${formatMoney(result.cost)}. ${plural(result.boxes, 'box')} to receiving.`);
+      if (app.audio && app.audio.ready) app.audio.chime();
+      go('orders');
     };
 
     paint(
@@ -560,28 +559,36 @@ export function makeLaptop(app, opts) {
     const boxes = boxesOf(st);
 
     const orderRow = (o) => {
-      const sku = skuById(o.skuId);
-      const s = ORDER_STATUS[o.status] || { label: o.status, tone: '' };
+      const lines = o.lines || [{ skuId: o.skuId, quantity: o.qty }];
+      const sku = skuById(lines[0].skuId);
+      const stateLabel = o.state || (ORDER_STATUS[o.status] || {}).label || o.status;
+      const stateTone = [ORDER_STATE.ARRIVING, ORDER_STATE.PARTIALLY_RECEIVED, ORDER_STATE.PARTIALLY_UNPACKED].includes(stateLabel)
+        ? 'warn'
+        : [ORDER_STATE.CANCELLED, ORDER_STATE.FAILED].includes(stateLabel) ? 'bad' : '';
       const days = o.arrivesDay - cal.dayAbs;
       const when = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
-      const canCancel = o.status !== 'arriving' && o.status !== 'delivered';
+      const canCancel = ![
+        ORDER_STATE.ARRIVING, ORDER_STATE.DELIVERED, ORDER_STATE.PARTIALLY_RECEIVED,
+        ORDER_STATE.RECEIVED, ORDER_STATE.PARTIALLY_UNPACKED, ORDER_STATE.FULLY_UNPACKED,
+      ].includes(o.state);
       // read the order's OWN manifest — the one it was packed with, not a fresh guess
       const man = o.manifest || shipOf(sku, o.qty);
+      const productText = lines.map((line) => `${skuById(line.skuId)?.name || line.skuId} × ${line.quantity}`).join(' + ');
       return el('div', { class: 'lt-order' },
         el('div', { class: 'lt-ordernum', text: `#${String(o.id).padStart(4, '0')}` }),
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}` }),
+          el('div', { class: 'lt-ordername', text: productText }),
           el('div', { class: 'lt-prodmeta', text: `${o.supplier || man.supplier} · ${plural(man.boxCount, 'box')} · ${man.weight} lb` }),
           el('div', { class: 'lt-prodmeta', text: `${formatMoney(o.goods != null ? o.goods : o.cost)} stock + ${formatMoney(o.fee || man.fee)} freight = ${formatMoney(o.cost)}` }),
           el('div', { class: 'lt-prodmeta', text: `${when}, ${hour12(o.window.open)}–${hour12(o.window.close)}` })),
-        chip(s.label, s.tone),
+        chip(stateLabel, stateTone),
         canCancel
           ? el('button', {
             class: 'lt-mini lt-cancel',
             text: 'Cancel',
             onclick: () => askConfirm(
-              `Cancel order #${o.id} — ${sku.name} × ${o.qty}? You get ${formatMoney(o.cost)} back, freight included.`,
+              `Cancel order #${o.id} — ${productText}? You get ${formatMoney(o.cost)} back, freight included.`,
               'Cancel the order',
               () => {
                 const res = cancelOrder(st, o.id);
@@ -597,12 +604,19 @@ export function makeLaptop(app, opts) {
     // shipmentStatus) — delivered until someone touches it, partially unpacked while stock is
     // still in the cardboard, fully unpacked when it is all out. The screen does not get a vote.
     const shipRow = (sh) => {
-      const sku = skuById(sh.skuId);
+      const shipmentLines = sh.lines || [{ skuId: sh.skuId, quantity: sh.units }];
+      const sku = skuById(shipmentLines[0].skuId);
+      const shipmentText = shipmentLines
+        .map((line) => `${skuById(line.skuId)?.name || line.skuId} × ${line.quantity}`)
+        .join(' + ');
       const status = shipmentStatus(st, sh);
       const s = ORDER_STATUS[status];
+      const archived = st.shop.inventoryLifecycle
+        && st.shop.inventoryLifecycle.orders.find((order) => order.id === sh.orderId);
       const mine = boxes.filter((b) => b.orderId === sh.orderId);
       const left = mine.reduce((a, b) => a + b.qty, 0);
       const where = (b) => (b.loc === 'pad' ? 'on the pad'
+        : b.loc === 'receiving-fallback' ? 'in fallback receiving'
         : b.loc === 'carried' ? 'in your arms'
           : b.flat ? 'flattened' : 'inside');
       const placesText = mine.length
@@ -612,10 +626,10 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-ordernum', text: `#${String(sh.orderId).padStart(4, '0')}` }),
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: `${sku.name} × ${sh.units}` }),
+          el('div', { class: 'lt-ordername', text: shipmentText }),
           el('div', { class: 'lt-prodmeta', text: `${sh.supplier} · ${plural(sh.boxCount, 'box')} · ${sh.weight} lb` }),
           el('div', { class: 'lt-prodmeta', text: `${left} of ${sh.units} still in the cardboard · ${placesText}` })),
-        chip(s.label, s.tone));
+        chip((archived && archived.state) || s.label, s.tone));
     };
 
     const shipments = shipmentsOf(st);
@@ -651,7 +665,9 @@ export function makeLaptop(app, opts) {
     const later = st.shop.orders.filter((o) => o.arrivesDay > cal.dayAbs);
     const boxes = boxesOf(st);
     const onPad = boxes.filter((b) => b.loc === 'pad');
+    const inFallback = boxes.filter((b) => b.loc === 'receiving-fallback');
     const used = padCount(st);
+    const fallbackUsed = fallbackCount(st);
     // THE BLOCKED-DELIVERY WARNING the brief asks for. This is not a decorative threshold: the
     // same PAD_CAPACITY is what tickDeliveries checks before it lets a van unload, and a van that
     // finds no room turns around and tells you (kind: 'blocked'). The screen and the yard agree.
@@ -659,27 +675,31 @@ export function makeLaptop(app, opts) {
     const padTight = used >= PAD_CAPACITY - 2;
 
     const line = (o) => {
-      const sku = skuById(o.skuId);
+      const orderLines = o.lines || [{ skuId: o.skuId, quantity: o.qty }];
+      const sku = skuById(orderLines[0].skuId);
+      const productText = orderLines
+        .map((orderLine) => `${skuById(orderLine.skuId)?.name || orderLine.skuId} × ${orderLine.quantity}`)
+        .join(' + ');
       const s = ORDER_STATUS[o.status] || { label: o.status, tone: '' };
       const eta = Math.round((o.deliveryMin - nowMin));
       const man = o.manifest || shipOf(sku, o.qty);
       return el('div', { class: 'lt-order' },
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}` }),
-          el('div', { class: 'lt-prodmeta', text: `${o.supplier || man.supplier} · ${plural(man.boxCount, 'box')} · ${man.weight} lb · to the receiving pad` }),
+          el('div', { class: 'lt-ordername', text: productText }),
+          el('div', { class: 'lt-prodmeta', text: `${o.supplier || man.supplier} · ${plural(man.boxCount, 'box')} · ${man.weight} lb · pad or safe fallback` }),
           el('div', { class: 'lt-prodmeta', text: `window ${hour12(o.window.open)}–${hour12(o.window.close)}${eta > 0 && eta < 600 ? ` · about ${eta} min away` : ''}` })),
-        chip(s.label, s.tone));
+        chip(o.state || s.label, s.tone));
     };
 
     paint(
-      head('Deliveries', 'The van drops boxes on the receiving pad inside its window. Nobody carries them in for you.'),
+      head('Deliveries', 'The van uses the receiving pad first and the marked stockroom fallback if the pad is blocked. Nobody shelves deliveries for you.'),
       confirmBar(),
 
       blockedNow.length
-        ? errBox(`A van could not unload — the receiving pad is full (${used} of ${PAD_CAPACITY}). ${blockedNow.map((o) => `Order #${o.id}`).join(', ')} ${blockedNow.length === 1 ? 'is' : 'are'} still circling. Carry cartons inside and the driver will try again.`)
+        ? errBox(`A van could not unload — both receiving zones are full (${used + fallbackUsed} of ${PAD_CAPACITY + FALLBACK_CAPACITY}). ${blockedNow.map((o) => `Order #${o.id}`).join(', ')} ${blockedNow.length === 1 ? 'is' : 'are'} still circling. Clear cartons and the driver will try again.`)
         : padTight
-          ? errBox(`The receiving pad is nearly full — ${used} of ${PAD_CAPACITY}. Clear some before the next van, or it will have nowhere to put them.`)
+          ? errBox(`The receiving pad is nearly full — ${used} of ${PAD_CAPACITY}. New cartons will use the safe fallback zone (${fallbackUsed} of ${FALLBACK_CAPACITY}).`)
           : null,
 
       sect(`Expected today (${today.length})`),
@@ -693,12 +713,25 @@ export function makeLaptop(app, opts) {
           chip(boxOpened(b) ? 'Partially unpacked' : 'Delivered', boxOpened(b) ? 'warn' : 'ok'))))
         : empty('The pad is clear.'),
 
+      sect(`Fallback receiving (${fallbackUsed} of ${FALLBACK_CAPACITY})`),
+      inFallback.length
+        ? card(...inFallback.map((b) => row(
+          el('span', { text: `${skuById(b.skuId).name} × ${b.qty}` }),
+          meta(`box #${b.id} · ${b.lb ? `${b.lb} lb` : ''}`),
+          chip(boxOpened(b) ? 'Partially unpacked' : 'Delivered', boxOpened(b) ? 'warn' : 'ok'))))
+        : empty('The fallback receiving zone is clear.'),
+
       sect(`Later this week (${later.length})`),
       later.length
-        ? card(...later.map((o) => row(
-          el('span', { text: `${skuById(o.skuId).name} × ${o.qty}` }),
-          meta(`day ${o.arrivesDay - cal.dayAbs === 1 ? 'tomorrow' : `+${o.arrivesDay - cal.dayAbs}`} · ${hour12(o.window.open)}–${hour12(o.window.close)}`),
-          chip((ORDER_STATUS[o.status] || {}).label || o.status))))
+        ? card(...later.map((o) => {
+          const text = (o.lines || [{ skuId: o.skuId, quantity: o.qty }])
+            .map((orderLine) => `${skuById(orderLine.skuId)?.name || orderLine.skuId} × ${orderLine.quantity}`)
+            .join(' + ');
+          return row(
+            el('span', { text }),
+            meta(`day ${o.arrivesDay - cal.dayAbs === 1 ? 'tomorrow' : `+${o.arrivesDay - cal.dayAbs}`} · ${hour12(o.window.open)}–${hour12(o.window.close)}`),
+            chip(o.state || (ORDER_STATUS[o.status] || {}).label || o.status));
+        }))
         : empty('Nothing further out.'),
     );
   }
@@ -711,14 +744,15 @@ export function makeLaptop(app, opts) {
     const inv = st.shop.inventory;
     const rows = retailSkus(st).map((s) => {
       const e = inv[s.id];
-      const cap = SHELF_CAP[s.cat];
-      const incoming = incomingOf(st, s.id);
+      const cap = capacityOf(s.id) || SHELF_CAP[s.cat];
+      const position = inventoryPosition(st, s.id);
+      const suggestion = reorderSuggestion(st, s.id);
+      const incoming = position.inTransit;
       const v = velocity(st, s.id);
       const dos = daysOfSupply(st, s.id);
       const retail = priceFor(s, st.shop.markup[s.cat] || 1, null);
       const margin = retail > 0 ? (retail - s.cost) / retail : 0;
-      const reorder = Math.max(2, Math.ceil(v * LEAD_DAYS[s.cat])); // enough to survive the lead time
-      const short = e.shelf + e.back <= reorder;
+      const short = suggestion.totalLow;
       return el('tr', { class: short ? 'lt-tr-warn' : '' },
         el('td', {}, el('div', { class: 'lt-invcell' }, thumbOf(s), el('span', { text: s.name }))),
         el('td', { class: 'lt-num', text: `${e.shelf}/${cap}` }),
@@ -729,9 +763,11 @@ export function makeLaptop(app, opts) {
         el('td', { class: 'lt-num', text: formatMoney(s.cost) }),
         el('td', { class: 'lt-num', text: formatMoney(retail) }),
         el('td', { class: 'lt-num', text: pct(margin) }),
-        el('td', {}, e.shelf === 0
-          ? chip(e.back > 0 ? 'shelve it' : 'OUT', e.back > 0 ? 'warn' : 'bad')
-          : short ? chip('reorder', 'warn') : chip('ok', 'ok')),
+        el('td', {}, suggestion.outOfStock
+          ? chip(incoming > 0 ? `OUT · ${incoming} due` : 'OUT', incoming > 0 ? 'warn' : 'bad')
+          : suggestion.shelfLow && e.back > 0
+            ? chip('shelve it', 'warn')
+            : short ? chip(suggestion.suggestedQuantity > 0 ? `reorder ${suggestion.suggestedQuantity}` : 'low', 'warn') : chip('ok', 'ok')),
       );
     });
     const locked = SHOP_CATALOG.filter((s) => RETAIL_CATS.has(s.cat) && s.tier > st.shop.unlockedTier);

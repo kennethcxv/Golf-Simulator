@@ -7,6 +7,14 @@
 
 import { addRevenue } from './economy.js';
 import { skuById, SHELF_CAP } from '../data/shopItems.js';
+import { capacityOf } from '../data/fixtureSlots.js';
+import {
+  INVENTORY_STAGE,
+  allocationsForHeldUnit,
+  forgetHeldAllocations,
+  moveInventory,
+  rememberHeldAllocations,
+} from './inventoryLifecycle.js';
 
 // --- units in flight --------------------------------------------------------------
 // A unit a shopper is carrying is off the shelf but not yet sold. That in-between
@@ -28,32 +36,76 @@ export function heldUnits(state) {
 export function pickFromShelf(state, skuId, uid = null) {
   const inv = state.shop.inventory[skuId];
   if (!inv || inv.shelf <= 0) return { ok: false, reason: 'Nothing on the display.' };
+  state.shop.nextHeldId = Number.isSafeInteger(state.shop.nextHeldId) ? state.shop.nextHeldId : 1;
+  const heldUid = uid || `anonymous-${state.shop.nextHeldId++}`;
+  if (heldUnits(state).some((held) => held.uid === heldUid)) {
+    return { ok: false, reason: 'This product is already being held.' };
+  }
+  const moved = moveInventory(state, {
+    from: INVENTORY_STAGE.SHELF,
+    to: INVENTORY_STAGE.CUSTOMER_HELD,
+    skuId,
+    quantity: 1,
+    referenceId: `customer-pick:${heldUid}`,
+    reason: `Customer ${heldUid} picked up product`,
+  });
+  if (!moved.ok) return moved;
   inv.shelf -= 1;
-  if (uid) heldUnits(state).push({ uid, skuId });
-  return { ok: true };
+  heldUnits(state).push({ uid: heldUid, skuId });
+  rememberHeldAllocations(state, heldUid, moved.allocations);
+  return { ok: true, uid: heldUid };
 }
 
 export function returnToShelf(state, skuId, uid = null) {
   const inv = state.shop.inventory[skuId];
   if (!inv) return { ok: false };
+  const held = heldUnits(state);
+  const i = uid
+    ? held.findIndex((entry) => entry.uid === uid)
+    : held.findIndex((entry) => entry.skuId === skuId && String(entry.uid).startsWith('anonymous-'));
+  if (i < 0) return { ok: false, reason: 'That product is not customer-held.' };
+  const entry = held[i];
   const sku = skuById(skuId);
-  const cap = sku ? SHELF_CAP[sku.cat] : 0;
-  inv.shelf = Math.min(cap, inv.shelf + 1);
-  if (uid) {
-    const held = heldUnits(state);
-    const i = held.findIndex((h) => h.uid === uid);
-    if (i >= 0) held.splice(i, 1);
-  }
-  return { ok: true };
+  const cap = sku ? (capacityOf(skuId) || SHELF_CAP[sku.cat]) : 0;
+  const toShelf = inv.shelf < cap;
+  const moved = moveInventory(state, {
+    from: INVENTORY_STAGE.CUSTOMER_HELD,
+    to: toShelf ? INVENTORY_STAGE.SHELF : INVENTORY_STAGE.RESERVE,
+    skuId,
+    quantity: 1,
+    allocations: allocationsForHeldUnit(state, entry.uid),
+    referenceId: `customer-return:${entry.uid}`,
+    reason: `Customer ${entry.uid} abandoned purchase`,
+  });
+  if (!moved.ok) return moved;
+  if (toShelf) inv.shelf += 1;
+  else inv.back += 1;
+  held.splice(i, 1);
+  forgetHeldAllocations(state, entry.uid);
+  return { ok: true, location: toShelf ? 'shelf' : 'reserve' };
 }
 
 // the unit left the building in a paid-for bag: it is gone from the shelf and gone
 // from the held ledger, and that is the ONLY way a held unit is allowed to vanish
-export function consumeHeld(state, uid) {
+export function consumeHeld(state, uid, skuId = null) {
   const held = heldUnits(state);
-  const i = held.findIndex((h) => h.uid === uid);
+  const i = uid
+    ? held.findIndex((entry) => entry.uid === uid)
+    : held.findIndex((entry) => entry.skuId === skuId && String(entry.uid).startsWith('anonymous-'));
   if (i < 0) return false;
+  const entry = held[i];
+  const moved = moveInventory(state, {
+    from: INVENTORY_STAGE.CUSTOMER_HELD,
+    to: INVENTORY_STAGE.SOLD,
+    skuId: entry.skuId,
+    quantity: 1,
+    allocations: allocationsForHeldUnit(state, entry.uid),
+    referenceId: `checkout-sale:${entry.uid}`,
+    reason: `Paid checkout for ${entry.uid}`,
+  });
+  if (!moved.ok) return false;
   held.splice(i, 1);
+  forgetHeldAllocations(state, entry.uid);
   return true;
 }
 
@@ -144,6 +196,15 @@ export function processCard(tx) {
 
 export function checkoutSale(state, items, who = 'A customer') {
   if (!Array.isArray(items) || items.length === 0) return { ok: false, reason: 'Nothing to ring up.' };
+  const heldMatches = [];
+  const available = heldUnits(state).slice();
+  for (const item of items) {
+    const index = item.uid
+      ? available.findIndex((entry) => entry.uid === item.uid)
+      : available.findIndex((entry) => entry.skuId === item.skuId && String(entry.uid).startsWith('anonymous-'));
+    if (index >= 0) heldMatches.push(available.splice(index, 1)[0]);
+    else heldMatches.push(null);
+  }
   let total = 0;
   for (const it of items) total += it.price || 0;
   total = Math.round(total * 100) / 100;
@@ -157,5 +218,11 @@ export function checkoutSale(state, items, who = 'A customer') {
   });
   state.shop.log.unshift(`${who} bought ${names.join(' + ')} at the counter (${Math.round(total)} dollars)`);
   if (state.shop.log.length > 8) state.shop.log.pop();
+  for (let index = 0; index < items.length; index++) {
+    const held = heldMatches[index];
+    if (held) consumeHeld(state, held.uid, held.skuId);
+    state.shop.salesToday ||= {};
+    state.shop.salesToday[items[index].skuId] = (state.shop.salesToday[items[index].skuId] || 0) + 1;
+  }
   return { ok: true, total };
 }
