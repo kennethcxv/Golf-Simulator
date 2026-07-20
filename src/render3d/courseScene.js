@@ -2375,6 +2375,7 @@ export function makeCourseScene(canvas, state) {
     rainGeo,
     new THREE.LineBasicMaterial({ color: 0xcadcec, transparent: true, opacity: 0.34, toneMapped: false }),
   );
+  rain.name = 'weather-rain';
   rain.visible = false;
   rain.frustumCulled = false;
   scene.add(rain);
@@ -2383,6 +2384,14 @@ export function makeCourseScene(canvas, state) {
   function updateRain(dt, weather) {
     const target = weather ? clamp(weather.today.rainIn / 0.6, 0, 1) : 0;
     rainLevel += (target - rainLevel) * Math.min(1, dt * 1.5);
+    // The precipitation column follows the camera, so without a shelter check it
+    // also followed the player straight through the clubhouse roof. Keep the live
+    // rain level while indoors (it resumes immediately outside), but never draw
+    // outdoor streaks inside the pro shop or service rooms.
+    if (clubhouseApi?.isInside(camera.position.x, camera.position.z)) {
+      rain.visible = false;
+      return;
+    }
     if (rainLevel < 0.02) {
       rain.visible = false;
       return;
