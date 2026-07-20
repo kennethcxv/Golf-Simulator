@@ -42,7 +42,14 @@ Clean release worktree `ff00fd76c78f04747d38084094ba23a722686587` results:
 - `npm audit --json`: one inherited high Electron group; semver-major fix `43.1.1`, documented in `security-hygiene.md`.
 - Detached release worktree remained Git-clean; only ignored QA logs were written.
 
-Post-merge-main smoke and tag rows are finalized after the main merge gate.
+Post-merge main `ce1b9d98944efe1e2751d65c4357c0c75bb7d549` results:
+
+- `npm ci`: pass with the exact lockfile; the same documented Electron advisory remains.
+- Parser/diff gate: all 237 tracked JavaScript files pass.
+- Full suite: 635/635 pass, 0 failed/skipped, 121.16 seconds.
+- Static smoke: served `state.js` SHA-256 matched disk; fresh New Game reached live walk/clubhouse state; zero console/page/blocking-network errors; owned server stopped.
+- Electron smoke: `GOLF EMPIRE` file target and one renderer remained live for ten seconds; no fatal/unhandled log; all three captured child processes and unique debug port stopped.
+- Main worktree was clean before report finalization.
 
 ## Application and UX
 
