@@ -25,9 +25,31 @@ async (page) => {
   await page.screenshot({ path: `${out}/02-new-game-route.png` });
   const newGame = await page.evaluate(() => ({
     screen: window.__fw?.screen || null,
+    menuVisible: (() => {
+      const node = document.querySelector('.menu-screen');
+      return !!node && getComputedStyle(node).display !== 'none';
+    })(),
     visibleHeading: [...document.querySelectorAll('h1,h2,h3')]
       .find((node) => getComputedStyle(node).display !== 'none')?.textContent?.trim() || null,
   }));
+  if (newGame.screen !== 'market' || newGame.menuVisible) {
+    findings.push({
+      severity: 'Low',
+      issue: 'New-game market did not own a distinct screen state or left the menu visible underneath.',
+    });
+  }
 
-  return { menu, newGame, findings };
+  await page.getByText('Close', { exact: true }).click();
+  await page.waitForFunction(() => window.__fw?.screen === 'menu');
+  await page.screenshot({ path: `${out}/03-market-close-returns-menu.png` });
+  const returned = await page.evaluate(() => ({
+    screen: window.__fw?.screen || null,
+    menuVisible: getComputedStyle(document.querySelector('.menu-screen')).display !== 'none',
+    marketOpen: !!document.querySelector('.modal-backdrop'),
+  }));
+  if (returned.screen !== 'menu' || !returned.menuVisible || returned.marketOpen) {
+    findings.push({ severity: 'High', issue: 'Closing the first property market did not restore the menu cleanly.' });
+  }
+
+  return { menu, newGame, returned, findings };
 }

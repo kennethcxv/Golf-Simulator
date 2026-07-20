@@ -25,7 +25,7 @@ export function makeMenu(handlers) {
     ),
     el('div', {
       class: 'footnote',
-      text: 'Working build — placeholder art. You start in the property market: judge the listings, buy a distressed course, bring it back.',
+      text: 'Restore the clubhouse. Rebuild the course. Grow a club worth keeping — or selling.',
     }),
   );
 

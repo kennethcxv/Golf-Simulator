@@ -54,11 +54,17 @@ export function toast(msg, kind = '', options = {}) {
   }, 2600);
 }
 
-export function modal(title, buildBody) {
+export function modal(title, buildBody, { onClose = null } = {}) {
   const backdrop = el('div', { class: 'modal-backdrop' });
   const box = el('div', { class: 'modal' });
   box.append(el('h2', { text: title }));
-  const close = () => backdrop.remove();
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    backdrop.remove();
+    if (onClose) onClose();
+  };
   buildBody(box, close);
   backdrop.append(box);
   backdrop.addEventListener('pointerdown', (e) => {

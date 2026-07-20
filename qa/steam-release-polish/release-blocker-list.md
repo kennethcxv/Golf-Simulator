@@ -64,13 +64,12 @@ Resolved by the four checkout iterations:
 
 Still open for the overall Steam release gate:
 
-- `B-001`: the public menu still contains placeholder-build language.
 - `C-003`: the articulated customer remains deliberately low-detail procedural art
   and needs a separate character-quality acceptance decision.
 - `H-010`: Canvas2D warnings are fixed, but Chromium/ANGLE still emits X4000.
 - `H-012`, `H-013`, `M-008`: project-wide render, texture, and shadow budgets remain
   high, although the checkout increment introduces no measured regression.
-- `M-002`, `M-004`, `M-005`, `M-007`, `L-001`, `P-001`, `P-002`: presentation and
+- `M-002`, `M-004`, `M-005`, `M-007`, `P-001`, `P-002`: presentation and
   secondary-behavior follow-ups remain as originally recorded.
 - `S-001` (new, High, dependency): full `npm audit` flags Electron 33; the offered
   remediation upgrades to Electron 43 and is a breaking runtime change. Production
@@ -79,3 +78,11 @@ Still open for the overall Steam release gate:
 Accordingly, checkout acceptance is not a claim that the entire repository is ready
 to ship on Steam. The menu, character-art decision, Electron upgrade, and broader
 release-budget work remain explicit gates.
+
+## Menu gate disposition
+
+`B-001` and `L-001` are resolved. The release-facing build disclaimer was replaced
+with product copy, New Empire now enters an explicit `market` screen while hiding
+the menu, and closing the property market restores the menu without an orphaned
+backdrop. Normal browser controls, before/after screenshots, video, screen-state
+assertions, and diagnostics are documented in `menu-polish/report.md`.
