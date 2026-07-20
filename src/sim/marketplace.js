@@ -17,6 +17,11 @@ import {
 import {
   buildStartingCourse, paintDisk, paintCorridor, shapeElevation, flattenUnder,
 } from './startingCourse.js';
+import { designCourse } from './courseArchitect.js';
+import {
+  paintShapedCorridor, fairwayProfile, paintGreenComplex, paintTeeBox,
+  paintBunkerBlob, shapeHoleElevation, finishCourse,
+} from './courseShaping.js';
 import { makeRng, clamp } from '../core/utils.js';
 
 // --- the shared appraisal core ------------------------------------------------
@@ -258,37 +263,46 @@ function buildSerpentineCourse(property, rng) {
   }
 
   const specs = routeSerpentine(L, rng);
+  shapeHoleElevation(course, specs, rng);
 
-  // rough halo, then fairways carved through it (Willow's order)
+  // rough halo, then fairways carved through it (Willow's order) — both are
+  // shaped splines now, so listings stop reading as parallel rectangles
   for (const s of specs) {
-    paintCorridor(course, [s.tee, ...s.wp, s.pin], L.roughR, ZONE.ROUGH, rng);
+    paintShapedCorridor(course, [s.tee, ...s.wp, s.pin], (t) => L.roughR * (0.9 + 0.16 * Math.sin(t * 6.5)), ZONE.ROUGH, rng, { wobble: 0.9 });
     paintDisk(course, s.pin.x, s.pin.y, L.roughR * 0.95, ZONE.ROUGH);
     paintDisk(course, s.tee.x, s.tee.y, 3.2, ZONE.ROUGH);
   }
   for (const s of specs) {
-    paintCorridor(course, [s.tee, ...s.wp, s.pin], L.fairwayR, ZONE.FAIRWAY, rng);
+    const yd = Math.hypot(s.pin.x - s.tee.x, s.pin.y - s.tee.y) * 8;
+    if (yd <= 250) continue; // par 3s play tee → green, no fairway ribbon
+    const prof = fairwayProfile(rng, yd > 470 ? 5 : 4);
+    paintShapedCorridor(course, [s.tee, ...s.wp, s.pin], (t) => prof(t) * (L.fairwayR / 2.3), ZONE.FAIRWAY, rng, {
+      onlyOver: new Set([ZONE.ROUGH]),
+      wobble: 0.8,
+    });
   }
 
   // pads last so nothing can bury them
   for (const s of specs) {
     const hole = addHole(course);
-    paintDisk(course, s.tee.x, s.tee.y, 1.4, ZONE.TEE);
-    paintDisk(course, s.pin.x, s.pin.y, Math.max(1.2, L.greenR + (rng.next() - 0.5) * L.greenRJitter), ZONE.GREEN);
-    for (let y = s.pin.y - 3; y <= s.pin.y + 3; y++) {
-      for (let x = s.pin.x - 3; x <= s.pin.x + 3; x++) {
-        if (!inBounds(course, x, y)) continue;
-        const d = Math.hypot(x - s.pin.x, y - s.pin.y);
-        course.elevation[idx(course, x, y)] += clamp(1.5 - d * 0.4, 0, 1.5);
-      }
-    }
+    const prev = s.wp.length ? s.wp[s.wp.length - 1] : s.tee;
+    const aim = s.wp.length ? s.wp[0] : s.pin;
+    paintGreenComplex(course, s.pin.x, s.pin.y, rng, {
+      r: Math.max(1.2, L.greenR + (rng.next() - 0.5) * L.greenRJitter),
+      elong: 1.1 + rng.next() * 0.25,
+      angle: Math.atan2(s.pin.y - prev.y, s.pin.x - prev.x) + Math.PI / 2,
+      raise: 1.5,
+    });
+    paintTeeBox(course, s.tee.x, s.tee.y, aim.x, aim.y);
     hole.tee = { ...s.tee };
     hole.pin = { ...s.pin };
+    hole.wp = (s.wp || []).map((p) => ({ ...p })); // mow stripes bend through these
     hole.status = HOLE_STATUS.OPEN;
     hole.everOpen = true;
   }
 
   // greenside bunkers (only over grass, never over pads or water)
-  const sandable = new Set([ZONE.ROUGH, ZONE.FAIRWAY]);
+  const sandable = new Set([ZONE.ROUGH, ZONE.FAIRWAY, ZONE.SEMI]);
   let placed = 0;
   let guard = 0;
   while (placed < L.bunkers && guard++ < 80) {
@@ -296,7 +310,7 @@ function buildSerpentineCourse(property, rng) {
     const bx = s.pin.x + (rng.chance(0.5) ? 1 : -1) * (2 + rng.int(2));
     const by = s.pin.y + (rng.chance(0.5) ? 1 : -1) * (2 + rng.int(2));
     if (!inBounds(course, bx, by) || !sandable.has(getZone(course, bx, by))) continue;
-    paintDisk(course, bx, by, 1.2 + rng.next() * 0.5, ZONE.BUNKER, { onlyOver: sandable });
+    paintBunkerBlob(course, bx, by, rng, { r: 1.2 + rng.next() * 0.5, onlyOver: sandable });
     placed++;
   }
 
@@ -333,6 +347,9 @@ function buildSerpentineCourse(property, rng) {
   }
   course.structures.push(ch);
 
+  // transition bands, cart paths, intentional planting — the finish coat
+  finishCourse(course, specs, rng, { density: 1 });
+
   // tee pads sit level
   for (const s of specs) {
     flattenUnder(course, s.tee.x - 1, s.tee.y - 1, 3, 3);
@@ -343,7 +360,22 @@ function buildSerpentineCourse(property, rng) {
 
 export function buildPropertyCourse(property) {
   const rng = makeRng(property.seed);
-  if (property.layout.kind === 'willow') return buildStartingCourse(rng);
+  // nine-hole properties are architect-designed vector courses now — one
+  // builder, feature levers mapped from the archetype so a pristine parkland
+  // and a modest muni come out genuinely different. The big 18-hole estates
+  // still come from the serpentine painter (legacy render path).
+  if (property.size <= 9) {
+    const L = property.layout;
+    const isWillow = L.kind === 'willow';
+    return designCourse(rng, {
+      jitter: isWillow ? 0.35 : 0.7,
+      elevAmp: L.elevAmp ?? 1,
+      bunkerBudget: isWillow ? Infinity : (L.bunkers ?? 6),
+      water: isWillow ? true : (L.ponds ?? 1) > 0,
+      greenSizeMul: isWillow ? 1 : clamp((L.greenR ?? 1.9) / 1.9, 0.72, 1.35),
+      moundMul: isWillow ? 1 : clamp((L.elevAmp ?? 1) * 0.9, 0.2, 1.4),
+    });
+  }
   return buildSerpentineCourse(property, rng);
 }
 

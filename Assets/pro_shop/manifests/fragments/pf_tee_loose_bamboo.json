@@ -1,0 +1,25 @@
+{
+ "id": "pf_tee_loose_bamboo",
+ "kind": "products",
+ "category": "tees",
+ "dims_m": [
+  0.0665,
+  0.0113,
+  0.0116
+ ],
+ "min_z": -0.0,
+ "tris": 390,
+ "textures": [],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_tee_loose_bamboo.glb",
+ "blend": "assets/pro_shop/source/products/tees/pf_tee_loose_bamboo.blend",
+ "name": "Bamboo Tee",
+ "variant": "bamboo",
+ "price": 0.3,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "loose",
+ "packaging": "loose"
+}

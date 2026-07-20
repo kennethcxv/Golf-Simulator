@@ -1,0 +1,4 @@
+interface:
+  display_name: "Performance Regression"
+  short_description: "Measure game performance before and after changes"
+  default_prompt: "Use $performance-regression to measure and prevent game performance regressions."

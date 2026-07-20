@@ -11,15 +11,11 @@ import {
 } from './sim/empire.js';
 import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
 import { formatMoney } from './core/utils.js';
-import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS } from './core/heldKeys.js';
-import {
-  makePlan, planPaintZone, planAdjustElev, planSmoothElev, applyPlan,
-  worksSetTee, worksSetPin,
-} from './sim/terrainEdit.js';
+import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS, isTextEntryTarget } from './core/heldKeys.js';
 import { calendarOf } from './sim/time.js';
 import { el, toast, modal } from './ui/ui.js';
 import { makeHud } from './ui/hud.js';
-import { makeWorksPanel } from './ui/worksPanel.js';
+import { makeCourseEditor } from './ui/courseEditor.js';
 import { makeInspectPanel } from './ui/inspectPanel.js';
 import { makeGroundsPanel } from './ui/groundsPanel.js';
 import { makeClubPanel } from './ui/clubPanel.js';
@@ -35,6 +31,7 @@ import { saveData, loadData } from './core/storage.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
 import { shopCondition, vacuumOwned, tickDeliveries } from './sim/shop.js';
 import { ownedWasher } from './sim/washing.js';
+import { BELT_ORDER, CLEANING_TOOLS } from './data/cleaningTools.js';
 import { skuById } from './data/shopItems.js';
 import { makeCourseScene } from './render3d/courseScene.js';
 
@@ -44,15 +41,11 @@ const uiRoot = document.getElementById('ui');
 const app = {
   screen: 'menu', // 'menu' | 'game'
   view: 'course', // one continuous world — the shop is a building you walk into
-  courseMode: 'walk', // 'walk' (first-person, the default) | 'overview' (management rig)
+  courseMode: 'walk', // 'walk' (first-person, default) | 'overview' (management rig) | 'editor' (course editor)
   empire: null, // the whole game: wallet, market, holdings
   empireOpen: false,
   state: null, // the ACTIVE property's club state (== activeState(app.empire))
   scene3d: null,
-  plan: null,
-  worksMode: false,
-  activeTool: null,
-  brushSize: 1,
   hoverCell: null,
   selectedSection: null,
   speedIdx: 1,
@@ -65,14 +58,23 @@ const app = {
   sectionsRef: null,
 };
 
+function editorActive() {
+  return app.courseMode === 'editor';
+}
+
 let hud = null;
-let worksPanel = null;
+let editorUi = null;
+let editorPrevMode = 'walk';
+let editorPrevSpeed = 1;
 let inspectPanel = null;
 let groundsPanel = null;
 let clubPanel = null;
 let empirePanel = null;
 let walkOverlay = null;
 let regHint = null;
+let regHintText = null;
+let regHintTotal = null;
+let regHintDrawer = null;
 let laptopUi = null;
 let objectivesPanel = null;
 let menu = null;
@@ -184,6 +186,17 @@ function buildApi() {
   return ch ? ch.build : null;
 }
 
+function boxPlacementApi() {
+  const ch = app.scene3d && app.scene3d.clubhouse && app.scene3d.clubhouse();
+  return ch ? ch.boxPlacement : null;
+}
+
+function hasCarriedCarton() {
+  const placement = boxPlacementApi();
+  if (placement) return placement.hasCarriedBox();
+  return !!app.state?.shop?.deliveries?.boxes?.some((box) => box.loc === 'carried');
+}
+
 function seatPose(ch) {
   // the seat is fitted to the live camera, so the screen fills the view at any FOV or window shape
   const cam = app.scene3d && app.scene3d.camera;
@@ -290,10 +303,65 @@ for (const evt of ['pointerdown', 'keydown']) {
 }
 
 function closeLeftPanels(except) {
-  if (except !== 'works' && app.worksMode) handlers.toggleWorks();
   if (except !== 'grounds' && app.groundsOpen) groundsPanel.setVisible(false);
   if (except !== 'club' && app.clubOpen) clubPanel.setVisible(false);
   if (except !== 'empire' && app.empireOpen) empirePanel.setVisible(false);
+}
+
+// --- the course editor: a full mode, like walking or the overview ---------------
+function enterEditor() {
+  if (editorActive() || !app.scene3d || app.screen !== 'game') return;
+  if (hasCarriedCarton()) {
+    toast('Set down or recycle the carton before opening the course editor.', 'warn');
+    return;
+  }
+  closePauseMenu();
+  closeLeftPanels('none');
+  inspectPanel.hide();
+  if (app.laptopOpen) exitLaptop(true);
+  editorPrevMode = app.courseMode === 'editor' ? 'walk' : app.courseMode;
+  editorPrevSpeed = app.speedIdx || 1;
+  if (app.courseMode === 'walk') exitWalk();
+  app.courseMode = 'editor';
+  app.speedIdx = 0; // the world holds its breath while you shape it
+  // the editor is a production surface: data heat-maps (health/moisture) are
+  // grounds-desk tools and must never tint the design view
+  handlers.setViewMode('normal');
+  resetCameraInput();
+  const hint = document.querySelector('.hint-bar');
+  if (hint) hint.style.display = 'none';
+  const vt = document.querySelector('.view-toggle');
+  if (vt) vt.style.display = 'none';
+  hud.root.style.display = 'none'; // the editor bar carries money + clock itself
+  objectivesPanel.root.style.display = 'none';
+  editorUi.show();
+}
+
+function exitEditor() {
+  if (!editorActive()) return;
+  editorUi.hide();
+  hud.root.style.display = '';
+  objectivesPanel.root.style.display = '';
+  app.speedIdx = editorPrevSpeed || 1;
+  resetCameraInput();
+  // Editor tools refresh their affected course layers as they are authored,
+  // and discard performs its own targeted fullRefresh before reaching here.
+  // Rebuilding the entire scene on exit also destroyed and asynchronously
+  // reloaded the unchanged clubhouse, causing a large hitch and invalidating
+  // otherwise-live checkout/customer presentation state.
+  rebuildSectionIndex();
+  recomputeRating();
+  const vt = document.querySelector('.view-toggle');
+  if (vt) vt.style.display = '';
+  if (editorPrevMode === 'walk') {
+    app.courseMode = 'walk';
+    enterWalk('resume');
+  } else {
+    app.courseMode = 'overview';
+    const hint = document.querySelector('.hint-bar');
+    if (hint) hint.style.display = '';
+  }
+  autosave();
 }
 
 // --- section lookup --------------------------------------------------------
@@ -363,12 +431,58 @@ function announceOutbreaks() {
 
 // --- game lifecycle -----------------------------------------------------------
 
+let sceneStartGeneration = 0;
+let pendingSceneBarrier = null;
+
+function destroyCurrentScene({ hideVeil = false } = {}) {
+  if (app.laptopOpen) exitLaptop(true);
+  const scene = app.scene3d;
+  const barrier = scene?.assetBarrier ? scene.assetBarrier(12000) : null;
+  if (scene) scene.dispose();
+  if (app.scene3d === scene) app.scene3d = null;
+  app.prewarming = false;
+  if (hideVeil && loadVeil) loadVeil.hide();
+  if (barrier && !barrier.idle) {
+    const pending = Promise.resolve(barrier.promise).catch(() => {});
+    pendingSceneBarrier = pending;
+    pending.finally(() => {
+      if (pendingSceneBarrier === pending) pendingSceneBarrier = null;
+    });
+  }
+  return pendingSceneBarrier;
+}
+
 function startGame(state) {
   closePauseMenu(); // any pause overlay dies with the old world
-  if (app.scene3d) {
-    app.scene3d.dispose();
-    app.scene3d = null;
-  }
+  const generation = ++sceneStartGeneration;
+  const veil = ensureLoadVeil();
+  veil.show('Preparing the course');
+  app.prewarming = true;
+  app.speedIdx = 0;
+  resetCameraInput();
+
+  // A single animation-frame callback runs before paint. Yield through two so
+  // the opaque veil reaches the screen before teardown and course construction
+  // occupy the main thread.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (generation !== sceneStartGeneration) return;
+      const barrier = destroyCurrentScene();
+      app.prewarming = true; // destroyCurrentScene clears this while disposing
+      if (barrier) {
+        veil.set('Finishing the previous course load');
+        barrier.finally(() => {
+          if (generation !== sceneStartGeneration) return;
+          startGameNow(state);
+        });
+        return;
+      }
+      startGameNow(state);
+    });
+  });
+}
+
+function startGameNow(state) {
   app.state = state;
   app.screen = 'game';
   app.scene3d = makeCourseScene(canvas, state);
@@ -501,9 +615,7 @@ function startGame(state) {
       ? '🧹 This sand is raked smooth · [F] next tool'
       : `🧹 Bunker — footprints ${w} — hold the mouse button to rake`;
   };
-  app.plan = makePlan();
-  app.worksMode = false;
-  app.activeTool = null;
+  if (editorUi && editorUi.isActive()) editorUi.hide();
   app.speedIdx = 1;
   app.viewMode = 'normal';
   app.courseMode = 'walk'; // the course is experienced on foot; Tab for the overview
@@ -519,7 +631,6 @@ function startGame(state) {
   recomputeRating();
   lastDiseasedNames = currentDiseasedSet(); // prime silently
   if (groundsPanel) groundsPanel.setVisible(false);
-  if (worksPanel) worksPanel.setVisible(false);
   menu.setVisible(false);
   gameUi.style.display = '';
   hud.update();
@@ -539,10 +650,11 @@ function startGame(state) {
   app.prewarming = true;
   const sceneRef = app.scene3d;
   sceneRef
-    .prewarm((label) => veil.set(label))
+    .prewarm((label) => { if (app.scene3d === sceneRef) veil.set(label); })
     .catch(() => {})
     .finally(() => {
-      if (app.scene3d === sceneRef) app.prewarming = false;
+      if (app.scene3d !== sceneRef) return;
+      app.prewarming = false;
       veil.hide();
     });
 }
@@ -565,8 +677,13 @@ function ensureLoadVeil() {
   const stepEl = el.querySelector('.load-veil-step');
   const fill = el.querySelector('.load-veil-fill');
   const STEPS = ['Compiling shaders', 'Uploading textures', 'Warming the view'];
+  let revision = 0;
+  let hideTimer = null;
   loadVeil = {
     show(t) {
+      revision += 1;
+      if (hideTimer !== null) clearTimeout(hideTimer);
+      hideTimer = null;
       title.textContent = t || 'Loading';
       stepEl.textContent = 'Building the course';
       fill.style.width = '12%';
@@ -579,16 +696,23 @@ function ensureLoadVeil() {
       if (i >= 0) fill.style.width = `${25 + (i / STEPS.length) * 70}%`;
     },
     hide() {
+      const expectedRevision = revision;
       fill.style.width = '100%';
       el.style.opacity = '0';
-      setTimeout(() => { el.style.display = 'none'; }, 420);
+      if (hideTimer !== null) clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
+        hideTimer = null;
+        if (revision === expectedRevision) el.style.display = 'none';
+      }, 420);
     },
   };
   return loadVeil;
 }
 
 function exitToMenu() {
+  sceneStartGeneration += 1;
   closePauseMenu();
+  destroyCurrentScene({ hideVeil: true });
   app.screen = 'menu';
   app.state = null;
   gameUi.style.display = 'none';
@@ -623,24 +747,8 @@ const handlers = {
   setSpeed(i) {
     app.speedIdx = i;
   },
-  toggleWorks() {
-    if (!app.worksMode && walkActive()) {
-      toast('Course Works is being redesigned for the walkable course. For now, press Tab for the overview camera and edit from there.', 'warn');
-      return;
-    }
-    app.worksMode = !app.worksMode;
-    if (!app.worksMode) {
-      handlers.cancelPlan(true);
-      app.activeTool = null;
-      app.scene3d.setBrush(null, 0, null);
-    } else {
-      closeLeftPanels('works');
-    }
-    worksPanel.setVisible(app.worksMode);
-    worksPanel.updateToolHighlight();
-    inspectPanel.hide();
-    const hint = document.querySelector('.hint-bar');
-    if (hint) hint.style.display = app.worksMode ? 'none' : '';
+  openEditor() {
+    enterEditor();
   },
   toggleGrounds() {
     const next = !app.groundsOpen;
@@ -654,58 +762,24 @@ const handlers = {
     clubPanel.setVisible(next);
   },
   toggleCourseMode() {
-    if (app.view !== 'course' || !app.scene3d) return;
+    if (app.view !== 'course' || !app.scene3d || editorActive()) return;
+    if (app.courseMode === 'walk' && hasCarriedCarton()) {
+      toast('Set down or recycle the carton before changing cameras.', 'warn');
+      return;
+    }
     resetCameraInput(); // the map opens still — nothing carries over from the walk
     if (app.courseMode === 'walk') {
       app.courseMode = 'overview';
       exitWalk();
       toast('Overview camera — Tab returns you to your feet.');
     } else {
-      if (app.worksMode) handlers.toggleWorks(); // plans belong to the overview
+      app.courseMode = 'walk';
       enterWalk('resume');
     }
   },
   setViewMode(mode) {
     app.viewMode = mode;
     app.scene3d.setViewMode(mode);
-  },
-  setTool(tool) {
-    app.activeTool = tool;
-    worksPanel.updateToolHighlight();
-  },
-  setBrush(v) {
-    app.brushSize = v;
-  },
-  newHole() {
-    addHole(app.state.course);
-    worksPanel.refreshHoles();
-  },
-  confirmPlan() {
-    const res = applyPlan(app.state, app.plan);
-    if (!res.ok) {
-      toast(res.reason, 'warn');
-      return;
-    }
-    app.scene3d.rebuildAll(app.state);
-    app.scene3d.updatePlan(app.plan);
-    rebuildSectionIndex();
-    recomputeRating();
-    worksPanel.refreshPlan();
-    worksPanel.refreshHoles();
-    const closed = res.report.holesAffected.length;
-    toast(
-      `Works confirmed — ${res.report.cells} cells for ${res.report.cost.toLocaleString('en-US')} dollars` +
-        (closed ? ` · ${closed} hole${closed > 1 ? 's' : ''} closed for renovation` : ''),
-    );
-    autosave();
-  },
-  cancelPlan(silent = false) {
-    if (app.plan && app.plan.cells.size > 0) {
-      app.plan.cells.clear();
-      app.scene3d.updatePlan(app.plan);
-      worksPanel.refreshPlan();
-      if (!silent) toast('Plan scrapped.');
-    }
   },
   openMenu() {
     openPauseMenu();
@@ -797,7 +871,10 @@ function saveSettings() {
 }
 function applySettings() {
   if (!app.scene3d) return;
-  app.scene3d.renderer.setPixelRatio(Math.min(2.5, (window.devicePixelRatio || 1) * (settings.renderScale || 1)));
+  // Cap device pixel ratio at 1.5 — the perf ceiling the scene is tuned for. A
+  // 4K/retina panel at native DPR quadruples the pixel cost for no visible gain
+  // at this art style. renderScale still lets the player trade sharpness for fps.
+  app.scene3d.renderer.setPixelRatio(Math.min(1.5, (window.devicePixelRatio || 1) * (settings.renderScale || 1)));
   app.scene3d.resize();
   if (app.scene3d.post) {
     if (app.scene3d.post.gtao) app.scene3d.post.gtao.enabled = settings.ao !== false;
@@ -981,16 +1058,19 @@ function openPauseMenu() {
         el('div', { class: 'ctl-cols' },
           group('Move', [
             ['Walk', 'W', 'A', 'S', 'D'], ['Run', 'Shift'], ['Look around', 'Mouse'],
-            ['Capture the mouse', 'Click'], ['Overview camera', 'Tab'],
+            ['Capture the mouse', 'Click'], ['Overview camera (hands free)', 'Tab'],
           ]),
           group('Hands', [
-            ['Interact · doors · laptop', 'E'], ['Pick up / set down a box', 'E'],
+            ['Interact · pick up · place', 'E'], ['Reposition closed carton', 'X'],
+            ['Rotate carton placement', 'R'],
+            ['Cancel preview · keep carrying', 'Esc'],
             ['Cycle tool', 'F'], ['Use tool', 'Hold LMB'],
           ]),
           group('Time & views', [
             ['Pause', 'Space'], ['Speed', '1', '2', '3'], ['Data views', 'V'],
           ]),
           group('Desks', [
+            ['Course editor (hands free)', 'J'],
             ['Grounds desk', 'G'], ['Club office', 'C'], ['Empire', 'M'], ['This menu', 'Esc'],
           ]),
         ),
@@ -1046,54 +1126,13 @@ function openPauseMenu() {
 
 // --- input ------------------------------------------------------------------------
 
-let dragging = null; // { mode: 'pan'|'orbit'|'paint'|'pan-or-click', lastX, lastY, moved, strokeCells, cell }
-
-function applyToolAtCell(cell, strokeCells) {
-  const t = app.activeTool;
-  if (!t || !cell) return;
-  const key = cell.x + cell.y * 100000;
-  if (t.kind === 'zone') {
-    planPaintZone(app.plan, app.state.course, cell.x, cell.y, app.brushSize, t.zone);
-  } else if (t.kind === 'elev') {
-    if (strokeCells.has(key)) return;
-    strokeCells.add(key);
-    if (t.dir === 'raise') planAdjustElev(app.plan, app.state.course, cell.x, cell.y, app.brushSize, +0.5);
-    else if (t.dir === 'lower') planAdjustElev(app.plan, app.state.course, cell.x, cell.y, app.brushSize, -0.5);
-    else planSmoothElev(app.plan, app.state.course, cell.x, cell.y, Math.max(1, app.brushSize), 0.5);
-  }
-  app.scene3d.updatePlan(app.plan);
-  worksPanel.refreshPlan();
-}
-
-function placeMarkerAt(cell) {
-  const t = app.activeTool;
-  const fn = t.which === 'tee' ? worksSetTee : worksSetPin;
-  const res = fn(app.state, t.holeId, cell.x, cell.y);
-  if (!res.ok) {
-    toast(res.reason, 'warn');
-    return;
-  }
-  const n = holeNumber(app.state.course, t.holeId);
-  toast(`${t.which === 'tee' ? 'Tee' : 'Pin'} set for hole ${n}.`);
-  app.activeTool = null;
-  app.scene3d.setBrush(null, 0, null);
-  app.scene3d.updateHoles();
-  worksPanel.updateToolHighlight();
-  worksPanel.refreshHoles();
-  worksPanel.refreshPlan();
-  rebuildSectionIndex();
-  recomputeRating();
-}
+let dragging = null; // { mode: 'pan'|'orbit'|'pan-or-click', lastX, lastY, moved, cell }
+let handledPlacementPointer = false;
 
 function refreshHover(clientX, clientY) {
   if (!app.scene3d) return;
   const hit = app.scene3d.raycastCell(clientX, clientY);
   app.hoverCell = hit ? { x: hit.x, y: hit.y } : null;
-  if (app.worksMode && app.activeTool) {
-    app.scene3d.setBrush(app.hoverCell, app.brushSize, app.activeTool.kind);
-  } else {
-    app.scene3d.setBrush(null, 0, null);
-  }
 }
 
 // REGISTER MODE. While it is up the camera is frozen (walk.focusOn) and the pointer
@@ -1111,18 +1150,50 @@ function regActive() {
 }
 
 canvas.addEventListener('click', () => {
+  if (handledPlacementPointer) {
+    handledPlacementPointer = false;
+    return;
+  }
   // first-person walking: clicking (re)captures the mouse — but NOT while the player
   // is behind the till, where the cursor is the whole interface
-  if (regActive()) return;
+  if (regActive() || editorActive()) return;
   if (app.screen === 'game' && !document.pointerLockElement && walkActive()) {
     requestLook();
+    return;
+  }
+  // Pointer already captured and the crosshair is on the laptop: a click opens it, exactly
+  // like [E]. Only the laptop gets the click verb — everything else keeps its established
+  // key so a stray click can't fling boxes or swing doors.
+  if (app.screen === 'game' && document.pointerLockElement && walkActive()
+    && !app.laptopOpen && app.courseMode !== 'overview') {
+    const placement = boxPlacementApi();
+    if (placement?.hasCarriedBox()) return;
+    const bld = buildApi();
+    if (bld && bld.isActive()) return; // build placement owns the mouse
+    if (app.scene3d.walk.getTool && app.scene3d.walk.getTool()) return; // so does a held tool
+    const label = app.scene3d.walk.getFocusLabel && app.scene3d.walk.getFocusLabel();
+    if (label && /laptop/i.test(label) && app.scene3d.walk.interact) app.scene3d.walk.interact(false);
   }
 });
 
 canvas.addEventListener('pointerdown', (e) => {
   if (app.screen !== 'game') return;
+  if (editorActive()) return; // the editor owns its own pointer plumbing
   if (regActive()) { e.preventDefault(); regApi().onDown(e); return; }
   if (app.courseMode !== 'overview') {
+    const placement = boxPlacementApi();
+    if (walkActive() && placement?.hasCarriedBox()) {
+      if (e.button === 0) {
+        e.preventDefault();
+        handledPlacementPointer = true;
+        if (placement.isActive()) placement.commit();
+        else placement.activate();
+      } else if (e.button === 2 && placement.isActive()) {
+        e.preventDefault();
+        placement.cancel();
+      }
+      return;
+    }
     // walking with any tool out: the held button is the use trigger
     const bld = buildApi();
     if (bld && bld.isActive()) {
@@ -1150,15 +1221,6 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   if (e.button === 0) {
     refreshHover(e.clientX, e.clientY);
-    if (app.worksMode && app.activeTool) {
-      if (app.activeTool.kind === 'marker') {
-        if (app.hoverCell) placeMarkerAt(app.hoverCell);
-        return;
-      }
-      dragging = { mode: 'paint', lastX: e.clientX, lastY: e.clientY, moved: 0, strokeCells: new Set(), lastCell: app.hoverCell };
-      applyToolAtCell(app.hoverCell, dragging.strokeCells);
-      return;
-    }
     dragging = { mode: 'pan-or-click', lastX: e.clientX, lastY: e.clientY, moved: 0, cell: app.hoverCell };
   }
 });
@@ -1178,18 +1240,6 @@ canvas.addEventListener('pointermove', (e) => {
   } else if (dragging.mode === 'pan' || (dragging.mode === 'pan-or-click' && dragging.moved > 6)) {
     dragging.mode = 'pan';
     app.scene3d.rig.pan(dx, dy, canvas.clientHeight || window.innerHeight);
-  } else if (dragging.mode === 'paint') {
-    const from = dragging.lastCell;
-    const to = app.hoverCell;
-    if (from && to) {
-      const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y), 1);
-      for (let i = 1; i <= steps; i++) {
-        const cx = Math.round(from.x + ((to.x - from.x) * i) / steps);
-        const cy = Math.round(from.y + ((to.y - from.y) * i) / steps);
-        applyToolAtCell({ x: cx, y: cy }, dragging.strokeCells);
-      }
-    }
-    dragging.lastCell = to;
   }
   dragging.lastX = e.clientX;
   dragging.lastY = e.clientY;
@@ -1216,6 +1266,12 @@ canvas.addEventListener('pointerup', () => {
 });
 
 canvas.addEventListener('wheel', (e) => {
+  if (editorActive()) return; // the editor's own wheel handler zooms
+  if (regActive()) {
+    e.preventDefault();
+    regApi().onWheel(e.deltaY, e.shiftKey);
+    return;
+  }
   if (app.screen !== 'game' || app.view !== 'course' || app.courseMode !== 'overview') return;
   e.preventDefault();
   app.scene3d.rig.dolly(e.deltaY > 0 ? 1.13 : 1 / 1.13);
@@ -1225,11 +1281,13 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('keydown', (e) => {
   if (app.screen !== 'game') return;
+  if (editorActive()) return; // the editor's capture-phase handler owns the keys
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
 
-  // BEHIND THE TILL, THE TILL OWNS THE KEYBOARD. This sits above even the speed keys
-  // and Tab, deliberately: Tab would swap to the overview camera while the cashier
-  // pose is still latched, which strands the player looking at a counter from orbit.
+  // BEHIND THE TILL, THE TILL OWNS THE ACTION KEYS — but not the feet. WASD
+  // reaches the walk controller through its own listener (walkHeld), so the
+  // cashier can shuffle along the counter mid-transaction; Tab stays blocked
+  // (swapping to the overview from behind the till is never what you meant).
   // Escape is the way out, and registerMode handles it.
   if (regActive()) {
     e.preventDefault();
@@ -1261,6 +1319,38 @@ window.addEventListener('keydown', (e) => {
   }
 
   if (walkActive()) {
+    // A carried delivery carton owns placement before build mode or ordinary
+    // world props. This prevents one E press from both committing the exact
+    // green preview and firing the old nearest-prop interaction underneath it.
+    const placement = boxPlacementApi();
+    if (placement?.hasCarriedBox()) {
+      switch (e.key) {
+        case 'e': case 'E':
+          e.preventDefault();
+          if (e.repeat) return;
+          if (placement.isActive()) placement.commit();
+          else placement.activate();
+          return;
+        case 'r': case 'R':
+          e.preventDefault();
+          if (e.repeat) return;
+          if (!placement.isActive()) placement.activate();
+          placement.rotate();
+          return;
+        case 'Escape':
+          if (placement.isActive()) {
+            e.preventDefault();
+            placement.cancel();
+            return;
+          }
+          break;
+        case 'b': case 'B':
+          toast('Set down or recycle the carton before rearranging fixtures.', 'warn');
+          return;
+        default: break;
+      }
+    }
+
     // build mode owns the verbs while it is on: E places, R turns, X stows
     const bld = buildApi();
     if (bld && bld.isActive()) {
@@ -1284,6 +1374,12 @@ window.addEventListener('keydown', (e) => {
       case 'e': case 'E':
         if (app.scene3d.walk.interact) app.scene3d.walk.interact(e.repeat);
         break;
+      case 'x': case 'X':
+        if (app.scene3d.walk.interactSecondary) app.scene3d.walk.interactSecondary(e.repeat);
+        break;
+      case 'j': case 'J': // the drafting table: open the course editor from your feet
+        enterEditor();
+        break;
       case 'b': case 'B': {
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
         const w = app.scene3d.walk.state;
@@ -1303,17 +1399,27 @@ window.addEventListener('keydown', (e) => {
       case 'f': case 'F': {
         const walkApi = app.scene3d.walk;
         if (!walkApi.cart.mounted) {
-          // the tool belt: inside the shop it's hands ↔ vacuum; outside it
-          // cycles hose → divot kit → bunker rake → hands free
+          if (walkApi.getTool() === 'boxcutter') {
+            walkApi.setTool(null);
+            if (audio.ready) audio.equipTick();
+            toast('Box cutter put away.');
+            break;
+          }
+          // The tool belt. Indoors you cycle the cleaning kit; outdoors the groundskeeping tools
+          // plus the washer. The cleaning half is driven by the registry, so a new tool joins the
+          // belt and gets its own equip line by existing — no edit here.
           const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
           const inside = ch && ch.isInside(walkApi.state.x, walkApi.state.z);
           let belt;
           if (inside) {
             if (!(app.state && vacuumOwned(app.state))) {
-              toast('No vacuum here yet — order one at the office computer.', 'warn');
+              toast('No cleaning kit here yet — order one at the office computer.', 'warn');
               break;
             }
-            belt = [null, 'vacuum'];
+            // indoor cleaning tools, in the registry's own order
+            belt = [null, ...BELT_ORDER.filter(
+              (id) => id && !CLEANING_TOOLS[id].external && CLEANING_TOOLS[id].indoorOnly !== false,
+            )];
           } else {
             belt = [null, 'washer', 'hose', 'divot', 'rake'];
           }
@@ -1322,11 +1428,12 @@ window.addEventListener('keydown', (e) => {
           walkApi.setTool(next);
           if (audio.ready) audio.equipTick();
           const washer = app.state ? ownedWasher(app.state) : null;
+          const def = next ? CLEANING_TOOLS[next] : null;
           toast(next === 'hose' ? 'Hose out — hold the mouse button to water.'
             : next === 'divot' ? 'Divot kit out — hold the button on worn turf.'
             : next === 'rake' ? 'Bunker rake out — hold the button on footprinted sand.'
-            : next === 'vacuum' ? 'Vacuum out — hold the mouse button and work the dirty patches.'
             : next === 'washer' ? `${washer ? washer.name : 'Pressure washer'} — hold LEFT to blast, RIGHT to lay soap on the heavy stains.`
+            : def ? `${def.label} out — ${def.equipToast}`
             : 'Tools away.');
         }
         break;
@@ -1361,7 +1468,8 @@ window.addEventListener('keydown', (e) => {
 
   switch (e.key) {
     case 'e': case 'E':
-      handlers.toggleWorks();
+    case 'j': case 'J':
+      enterEditor();
       break;
     case 'g': case 'G':
       handlers.toggleGrounds();
@@ -1380,12 +1488,6 @@ window.addEventListener('keydown', (e) => {
     case 'Escape':
       if (isPauseOpen()) {
         closePauseMenu();
-      } else if (app.activeTool) {
-        app.activeTool = null;
-        app.scene3d.setBrush(null, 0, null);
-        worksPanel.updateToolHighlight();
-      } else if (app.worksMode) {
-        handlers.toggleWorks();
       } else if (app.selectedSection) {
         inspectPanel.hide();
       } else if (app.groundsOpen || app.clubOpen) {
@@ -1401,10 +1503,28 @@ window.addEventListener('keydown', (e) => {
 // held-key camera movement. The set is normalised and repeat-safe (see core/heldKeys.js) —
 // a key released mid-run used to strand its shifted spelling here and pan the map forever.
 const held = createHeldKeys(OVERVIEW_KEYS);
-window.addEventListener('keydown', (e) => held.down(e.key, e.repeat));
+window.addEventListener('keydown', (e) => {
+  // text typed into a field is not camera input (see heldKeys rule 3)
+  if (isTextEntryTarget(e.target)) return;
+  held.down(e.key, e.repeat);
+});
 window.addEventListener('keyup', (e) => held.up(e.key));
-window.addEventListener('blur', () => resetCameraInput());
-document.addEventListener('pointerlockchange', () => resetCameraInput());
+window.addEventListener('blur', () => {
+  resetCameraInput();
+  const reg = regApi();
+  if (reg && reg.isActive()) reg.recoverInput('focus loss');
+});
+document.addEventListener('pointerlockchange', () => {
+  resetCameraInput();
+  // behind the till the CURSOR is the interface — never let a stray relock
+  // swallow it while the register is active
+  if (regActive() && document.pointerLockElement) document.exitPointerLock();
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) return;
+  const reg = regApi();
+  if (reg && reg.isActive()) reg.recoverInput('tab change');
+});
 
 // every mode transition hands the camera a clean slate: nothing is "still down" from the mode
 // you just left, and a half-finished drag cannot resume into the new one.
@@ -1416,9 +1536,15 @@ function resetCameraInput() {
 }
 
 function keyboardCamera(dtMs) {
-  if (app.screen !== 'game' || app.view !== 'course' || app.courseMode !== 'overview' || !app.scene3d) return;
+  if (app.screen !== 'game' || app.view !== 'course' || !app.scene3d) return;
+  if (app.courseMode !== 'overview' && !(editorActive() && !editorUi.isPlaytesting())) return;
   const { panX, panY, orbit, moving } = overviewCameraDelta(held, dtMs);
   if (moving) {
+    // Hand-driving the camera has to retire the active preset, exactly as every
+    // editor-side camera write already does. Without this the preset survives,
+    // and the next resize() re-applies it (frameCourse / frameHole / flyover) —
+    // so the view snaps back to where it was before the player panned.
+    app.scene3d.clearCourseCameraPreset?.();
     if (panX || panY) app.scene3d.rig.pan(-panX, -panY, canvas.clientHeight || window.innerHeight);
     if (orbit) app.scene3d.rig.orbit(orbit, 0);
   }
@@ -1428,6 +1554,7 @@ function keyboardCamera(dtMs) {
 
 let lastTs = 0;
 let lastHourSeen = -1;
+let autosaveClock = 0;
 // arrival-tutorial senses (reset per game)
 let tutLookSpan = 0;
 let tutLastYaw = null;
@@ -1447,7 +1574,6 @@ function frame(ts) {
       const { daysPassed } = empireUpdate(app.empire, gameMinutes);
       if (daysPassed > 0) {
         rebuildSectionIndex();
-        worksPanel.refreshHoles();
         app.scene3d.updateHoles();
         announceReopenings();
         announceOutbreaks();
@@ -1461,6 +1587,14 @@ function frame(ts) {
         if (app.clubOpen) clubPanel.refresh();
         if (app.empireOpen) empirePanel.refresh();
         if (app.marketRefresh) app.marketRefresh(); // market left open stays live
+        autosave();
+        autosaveClock = 0;
+      }
+      // At a 2×-real clock a nightly autosave is half a wall-day apart — too much to
+      // lose to a crash. A quiet save every five real minutes bounds the damage.
+      autosaveClock += dtMs;
+      if (autosaveClock >= 300000) {
+        autosaveClock = 0;
         autosave();
       }
       const hourNow = Math.floor(app.state.clock.minutes / 60);
@@ -1496,8 +1630,22 @@ function frame(ts) {
         } else if (ev.kind === 'soon') {
           toast(`📦 The ${ev.order.supplier || name} van is close — under an hour out.`);
         } else if (ev.kind === 'arrived') {
-          toast(`📦 Delivery! ${name} ×${ev.order.qty} — ${boxes} on the receiving pad.`);
-          if (audio.ready && audio.truck) audio.truck();
+          toast(`📦 Delivery inbound! ${name} ×${ev.order.qty} — the van is turning into receiving with ${boxes}.`);
+          const clubhouse = app.scene3d && app.scene3d.clubhouse
+            ? app.scene3d.clubhouse() : null;
+          const presented = clubhouse && clubhouse.presentDeliveryArrival
+            ? clubhouse.presentDeliveryArrival({
+              orderId: ev.order.id,
+              skuId: ev.order.skuId,
+              name,
+              qty: ev.order.qty,
+              boxCount: man ? man.boxCount : 1,
+              supplier: ev.order.supplier || man?.supplier || null,
+            })
+            : false;
+          // The authored runtime owns the brake-beat sound. Keep the old cue as
+          // a reliable fallback if the model is unavailable or the scene is rebuilding.
+          if (!presented && audio.ready && audio.truck) audio.truck();
         } else if (ev.kind === 'blocked') {
           // The receiving area is blocked. The van did not dump the boxes anyway, and it did not
           // quietly delete them either — the order is still out there and will try again.
@@ -1505,9 +1653,10 @@ function frame(ts) {
         }
       }
     }
+    if (editorUi) editorUi.onFrame(dtMs); // compass, power bar, the flying ball
     if (walkActive()) {
       app.scene3d.walk.update(dtMs);
-      updateWalkOverlay();
+      updateWalkOverlay(dtMs);
       // arrival-chapter senses: real looking and real walking
       if (app.state.tutorial && !app.state.tutorial.complete) {
         const w = app.scene3d.walk.state;
@@ -1561,40 +1710,97 @@ const CONDITION_WORD = (c) =>
   c < 25 ? 'filthy' : c < 45 ? 'grimy' : c < 70 ? 'getting there' : c < 90 ? 'clean' : 'showroom';
 let lastCondWord = null;
 
-function updateWalkOverlay() {
-  if (regHint) regHint.style.display = regActive() ? 'flex' : 'none';
-  const prompt = walkOverlay.querySelector('.shop-prompt');
+// The overlay runs every frame, so it must cost nothing when nothing changed: element
+// lookups are cached once, every DOM write is guarded by a last-value check (an identical
+// textContent assignment still rebuilds the text node and dirties layout), and the shop
+// condition — a whole grime-grid scan — is polled at 4Hz instead of 90.
+const ovEl = { prompt: null, lockHint: null, cond: null };
+const ovLast = { prompt: null, opacity: null, lockDisp: null, lockText: null, condText: null, condDisp: null };
+let condClock = 0;
+function updateWalkOverlay(dtMs = 16.7) {
+  const registerActive = regActive();
+  const registerDisplay = registerActive ? 'flex' : 'none';
+  if (regHint && regHint.style.display !== registerDisplay) regHint.style.display = registerDisplay;
+  if (registerActive) {
+    const register = regApi();
+    const hint = register && register.hint ? register.hint() : null;
+    const hintText = (hint && hint.text) || 'Work the physical register';
+    const totalDisplay = hint && hint.total ? '' : 'none';
+    const drawerDisplay = hint && hint.drawer ? '' : 'none';
+    if (regHintText && regHintText.textContent !== hintText) regHintText.textContent = hintText;
+    if (regHintTotal && regHintTotal.style.display !== totalDisplay) regHintTotal.style.display = totalDisplay;
+    if (regHintDrawer && regHintDrawer.style.display !== drawerDisplay) regHintDrawer.style.display = drawerDisplay;
+  }
+  if (!ovEl.prompt) {
+    ovEl.prompt = walkOverlay.querySelector('.shop-prompt');
+    ovEl.lockHint = walkOverlay.querySelector('.shop-lockhint');
+    ovEl.cond = walkOverlay.querySelector('.shop-cond');
+  }
   // build mode speaks over the world's own prompts: while it is on, the only controls that
   // matter are its controls
+  const placement = boxPlacementApi();
   const bld = buildApi();
-  const label = (bld && bld.isActive() && bld.label())
-    || (app.scene3d.walk.getFocusLabel ? app.scene3d.walk.getFocusLabel() : null);
-  prompt.textContent = label || '';
-  prompt.style.opacity = label ? '1' : '0';
-  const lockHint = walkOverlay.querySelector('.shop-lockhint');
+  const label = (placement?.hasCarriedBox() && placement.label())
+    || (bld && bld.isActive() && bld.label())
+    || (app.scene3d.walk.getFocusLabel ? app.scene3d.walk.getFocusLabel() : null)
+    || '';
+  if (label !== ovLast.prompt) {
+    ovLast.prompt = label;
+    ovEl.prompt.textContent = label;
+  }
+  // A focus prompt only has meaning while mouse-look owns the pointer. When
+  // the pointer is free, "Click to play" is the single actionable instruction;
+  // stacking both bars made the queue/customer name unreadable.
+  const opacity = label && document.pointerLockElement ? '1' : '0';
+  if (opacity !== ovLast.opacity) {
+    ovLast.opacity = opacity;
+    ovEl.prompt.style.opacity = opacity;
+  }
   // the control bar retires once the controls are demonstrably learned
   // (opening arc past the shelving step) — after that it only returns while
   // the pointer is free, as a click-to-play reminder
   const tut = app.state && app.state.tutorial;
   const learned = tut && (tut.complete || tut.hidden || tut.step >= 5);
-  lockHint.style.display = document.pointerLockElement ? 'none' : '';
-  lockHint.textContent = learned
-    ? 'Click to play'
-    : 'Click to look around · WASD walk · Shift run · E interact · F tool · Tab: overview camera · Esc: office menu';
-  // inside the shop: the condition chip rides along (and tier-ups chime)
-  const cond = walkOverlay.querySelector('.shop-cond');
-  const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
-  const inside = ch && ch.isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z);
-  if (inside && app.state && app.state.shop) {
-    if (app.state.tutorial) tutorialFlag(app.state, 'shopWalked');
-    const c = shopCondition(app.state);
-    const word = CONDITION_WORD(c);
-    cond.textContent = `🧹 Shop condition ${c} — ${word}`;
-    cond.style.display = '';
-    if (lastCondWord && word !== lastCondWord && c >= 25 && audio.ready) audio.chime();
-    lastCondWord = word;
-  } else {
-    cond.style.display = 'none';
+  const lockDisp = document.pointerLockElement ? 'none' : '';
+  if (lockDisp !== ovLast.lockDisp) {
+    ovLast.lockDisp = lockDisp;
+    ovEl.lockHint.style.display = lockDisp;
+  }
+  const lockText = learned
+    ? (placement?.hasCarriedBox()
+      ? 'Click to play · Carrying carton: E place · R rotate · Esc keep carrying'
+      : 'Click to play')
+    : (placement?.hasCarriedBox()
+      ? 'Click to look around · WASD walk · E place · R rotate · Esc keep carrying'
+      : 'Click to look around · WASD walk · Shift run · E interact · F tool · J course editor · Tab overview · Esc menu');
+  if (lockText !== ovLast.lockText) {
+    ovLast.lockText = lockText;
+    ovEl.lockHint.textContent = lockText;
+  }
+  // inside the shop: the condition chip rides along (and tier-ups chime) — 4Hz is plenty
+  condClock += dtMs;
+  if (condClock >= 250) {
+    condClock = 0;
+    const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
+    const inside = ch && ch.isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z);
+    let condText = null;
+    if (inside && app.state && app.state.shop) {
+      if (app.state.tutorial) tutorialFlag(app.state, 'shopWalked');
+      const c = shopCondition(app.state);
+      const word = CONDITION_WORD(c);
+      condText = `🧹 Shop condition ${c} — ${word}`;
+      if (lastCondWord && word !== lastCondWord && c >= 25 && audio.ready) audio.chime();
+      lastCondWord = word;
+    }
+    if (condText !== ovLast.condText) {
+      ovLast.condText = condText;
+      if (condText) ovEl.cond.textContent = condText;
+    }
+    const condDisp = condText ? '' : 'none';
+    if (condDisp !== ovLast.condDisp) {
+      ovLast.condDisp = condDisp;
+      ovEl.cond.style.display = condDisp;
+    }
   }
 }
 
@@ -1659,8 +1865,21 @@ function announceReopenings() {
 
 // --- boot ------------------------------------------------------------------------------
 
+// Debounce resize: a window drag fires dozens of resize events per second, and
+// each one re-allocates the renderer + composer buffers (expensive, and a source
+// of judder while dragging). Coalesce them to one setSize after motion settles,
+// with a light immediate pass so the aspect never looks stretched mid-drag.
+let resizeTimer = 0;
+let resizeCoarse = 0;
 function resize() {
-  if (app.scene3d) app.scene3d.resize();
+  if (!app.scene3d) return;
+  const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+  if (now - resizeCoarse > 120) { // at most ~8 immediate passes/sec while dragging
+    resizeCoarse = now;
+    app.scene3d.resize();
+  }
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (app.scene3d) app.scene3d.resize(); }, 160);
 }
 window.addEventListener('resize', resize);
 
@@ -1681,8 +1900,23 @@ function boot() {
 
   gameUi = el('div', { style: 'display:none' });
   hud = makeHud(app, handlers);
-  laptopUi = makeLaptop(app, { close: () => exitLaptop() });
-  worksPanel = makeWorksPanel(app, handlers);
+  laptopUi = makeLaptop(app, {
+    close: () => exitLaptop(),
+    // The Course page's "Open the works desk": the laptop closes cleanly and the real
+    // course editor takes the screen — same enterEditor every other entry point uses.
+    openCourseEditor: () => enterEditor(),
+  });
+  editorUi = makeCourseEditor(app, {
+    onExit: () => exitEditor(),
+    afterApply: () => {
+      // The editor has already applied every visual mutation live. Build only
+      // settles economics/renovation metadata, so keep the scene and clubhouse.
+      rebuildSectionIndex();
+      recomputeRating();
+      autosave();
+    },
+    autosave: () => autosave(),
+  });
   inspectPanel = makeInspectPanel(app, recomputeRating);
   groundsPanel = makeGroundsPanel(app);
   clubPanel = makeClubPanel(app, recomputeRating);
@@ -1693,17 +1927,20 @@ function boot() {
     el('div', { class: 'shop-crosshair' }),
     el('div', { class: 'shop-prompt', text: '' }),
     el('div', { class: 'shop-cond', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F tool · Tab: overview camera · Esc: office menu' }),
+    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F tool · J course editor · Tab overview · Esc menu' }),
   );
 
   // BEHIND THE TILL the walk overlay is hidden — no crosshair, no prompt — so the
   // player has no way to discover [T] and [D] except by pressing every key. The
   // register screen tells them WHAT it wants ("PUT THEIR MONEY IN THE TILL"); this
   // tells them which hand to use.
+  regHintText = el('span', { text: 'Work the physical register' });
+  regHintTotal = el('span', { class: 'reg-keys' }, el('kbd', { text: 'T' }), el('span', { text: 'total up' }));
+  regHintDrawer = el('span', { class: 'reg-keys' }, el('kbd', { text: 'D' }), el('span', { text: 'drawer' }));
   regHint = el('div', { class: 'reg-hint', style: 'display:none' },
-    el('span', { text: 'Drag goods over the scanner to ring them up' }),
-    el('span', { class: 'reg-keys' }, el('kbd', { text: 'T' }), el('span', { text: 'total up' })),
-    el('span', { class: 'reg-keys' }, el('kbd', { text: 'D' }), el('span', { text: 'drawer' })),
+    regHintText,
+    regHintTotal,
+    regHintDrawer,
     el('span', { class: 'reg-keys' }, el('kbd', { text: 'Esc' }), el('span', { text: 'step back' })),
   );
 
@@ -1718,8 +1955,8 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle,
-    el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · 🗂 Manage or E/G/C/M keys for the desks · V: view · Space: pause · Tab/Esc: back on foot' }));
+  gameUi.append(hud.root, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle, editorUi.root,
+    el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · E: course editor · G/C/M: desks · V: view · Space: pause · Tab/Esc: back on foot' }));
 
   uiRoot.append(menu.root, gameUi);
   requestAnimationFrame(frame);
@@ -1735,3 +1972,4 @@ boot();
 // be testing the wrong thing.
 app.autosave = autosave;
 window.__fw = app;
+app.editorUi = () => editorUi; // QA hook: drive the editor from tooling

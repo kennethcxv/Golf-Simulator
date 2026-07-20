@@ -185,11 +185,21 @@ test('aeration relieves wear for a fee', () => {
 
 test('green speed reflects height and health, and condition affects play quality', () => {
   const st = freshState();
-  const greens = greenSections(st);
-  const healthy = greens.reduce((a, b) => (avgHealthOf(st, a) > avgHealthOf(st, b) ? a : b));
-  const sick = greens.reduce((a, b) => (avgHealthOf(st, a) < avgHealthOf(st, b) ? a : b));
-  const fast = greenSpeedOf(st, healthy);
-  const slow = greenSpeedOf(st, sick);
+  const green = greenSections(st)[0];
+  // hold height constant so the comparison isolates health + disease
+  for (const i of green.cells) {
+    st.turf.heightMm[i] = 4;
+    st.turf.health[i] = 82;
+    st.turf.disType[i] = 0;
+    st.turf.disSev[i] = 0;
+  }
+  const fast = greenSpeedOf(st, green);
+  for (const i of green.cells) {
+    st.turf.health[i] = 30;
+    st.turf.disType[i] = DISEASE.DOLLAR_SPOT;
+    st.turf.disSev[i] = 60;
+  }
+  const slow = greenSpeedOf(st, green);
   assert.ok(fast > slow, `healthy green ${fast} rolls faster than sick ${slow}`);
   assert.ok(fast >= 6 && fast <= 14, `stimp in range: ${fast}`);
 });

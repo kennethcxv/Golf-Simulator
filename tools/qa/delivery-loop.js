@@ -55,9 +55,74 @@ async (page) => {
     }
     window.__fw.scene3d.clubhouse().rebuildBoxes();
   });
-  await goTo(11.2, -3.6, -Math.PI / 2, -0.15);
+  await page.waitForFunction(() => {
+    const stage = window.__fw?.scene3d?.scene?.getObjectByName('DeliveryPalletStage');
+    return stage?.userData?.ready === true
+      && Array.from({ length: 5 }, (_, index) => (
+        stage.getObjectByName(`DeliveryPallet_${index + 1}`)
+      )).every(Boolean);
+  }, null, { timeout: 60000 });
+  const receivingOverview = await page.evaluate(async () => {
+    const S = await import('/src/data/deliveryStaging.js');
+    const app = window.__fw;
+    const origin = app.scene3d.clubhouse().interior.position;
+    const slab = app.scene3d.scene.getObjectByName('DeliveryReceivingSlab');
+    if (!slab) return null;
+    slab.updateWorldMatrix(true, true);
+    const centre = slab.getWorldPosition(slab.position.clone());
+    const apron = S.DELIVERY_PALLET_STAGING.receivingApron;
+    // This is the ref-44 validated diagonal overview, scaled from the live
+    // receiving-apron dimensions and anchored to its rendered centre.
+    const yaw = 0.83;
+    const distance = Math.max(4.60, Math.hypot(apron.length, apron.width) * 0.90);
+    return {
+      x: centre.x - origin.x + Math.sin(yaw) * distance,
+      z: centre.z - origin.z + Math.cos(yaw) * distance,
+      yaw,
+      pitch: -0.30,
+      target: {
+        x: +(centre.x - origin.x).toFixed(4),
+        z: +(centre.z - origin.z).toFixed(4),
+      },
+      apron: { ...apron },
+    };
+  });
+  if (!receivingOverview) throw new Error('Cannot derive the five-pallet receiving-apron overview.');
+  await goTo(
+    receivingOverview.x,
+    receivingOverview.z,
+    receivingOverview.yaw,
+    receivingOverview.pitch,
+  );
+  const overviewFraming = await page.evaluate(() => {
+    const scene = window.__fw.scene3d.scene;
+    const camera = window.__fw.scene3d.camera;
+    camera.updateWorldMatrix(true, false);
+    camera.updateProjectionMatrix();
+    return Array.from({ length: 5 }, (_, index) => {
+      const anchor = scene.getObjectByName(`DeliveryPallet_${index + 1}`);
+      if (!anchor) return { name: `DeliveryPallet_${index + 1}`, exists: false };
+      anchor.updateWorldMatrix(true, false);
+      const ndc = anchor.getWorldPosition(anchor.position.clone()).project(camera);
+      return {
+        name: anchor.name,
+        exists: true,
+        ndc: { x: +ndc.x.toFixed(4), y: +ndc.y.toFixed(4), z: +ndc.z.toFixed(4) },
+        inFrame: Math.abs(ndc.x) <= 0.92 && Math.abs(ndc.y) <= 0.92
+          && ndc.z >= -1 && ndc.z <= 1,
+      };
+    });
+  });
+  if (!overviewFraming.every((entry) => entry.exists && entry.inFrame)) {
+    throw new Error(`Five-pallet receiving overview is not fully framed: ${JSON.stringify(overviewFraming)}.`);
+  }
   await page.screenshot({ path: `${OUT}/loop-1-pad.png` });
-  log.push({ step: '1. delivery on the pad', focus: await focus() });
+  log.push({
+    step: '1. delivery on the five-pallet receiving apron',
+    camera: receivingOverview,
+    framing: overviewFraming,
+    focus: await focus(),
+  });
 
   // Now CLEAR the pad and leave ONE balls case, alone, exactly in front of where we will stand —
   // so focus is unambiguous and the loop is the only thing under test.
@@ -81,15 +146,15 @@ async (page) => {
 
   // 3. HOLD E to cut
   await page.keyboard.down('e');
-  await page.waitForTimeout(1800);
+  await page.waitForTimeout(2250);
   await page.keyboard.up('e');
   await page.waitForTimeout(200);
   let b = await ballBox();
   log.push({ step: '3. held E — tape', tape: b.tape, cut: b.tape >= 1 });
 
-  // 4. tap to open each flap
-  await page.keyboard.press('e'); await page.waitForTimeout(250);
-  await page.keyboard.press('e'); await page.waitForTimeout(250);
+  // 4. one normal action starts the deterministic four-flap sequence
+  await page.keyboard.press('e');
+  await page.waitForTimeout(1550);
   b = await ballBox();
   log.push({ step: '4. flaps', flaps: b.flaps, open: b.flaps[0] >= 1 && b.flaps[1] >= 1 });
   await page.screenshot({ path: `${OUT}/loop-3-open.png` });

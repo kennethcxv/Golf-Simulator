@@ -1,0 +1,28 @@
+{
+ "id": "pf_sunglasses_box",
+ "kind": "products",
+ "category": "extras",
+ "dims_m": [
+  0.165,
+  0.062,
+  0.075
+ ],
+ "min_z": 0.0,
+ "tris": 108,
+ "textures": [
+  "SGBox:512x512"
+ ],
+ "sockets": [
+  "BARCODE_AREA",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_sunglasses_box.glb",
+ "blend": "assets/pro_shop/source/products/extras/pf_sunglasses_box.blend",
+ "name": "PF Sport Shades Box",
+ "variant": "black",
+ "price": 89.99,
+ "fixture": "pf_fixture_rangefinder_display",
+ "slot_type": "shelf_box",
+ "packaging": "retail box"
+}

@@ -16,8 +16,25 @@ async (page) => {
   await page.goto('http://localhost:8457/');
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
-  await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 40000 });
+  // Continue when the profile has a save; a fresh profile founds an empire and buys the
+  // cheapest listed course — the same two clicks a new player makes.
+  const cont = page.getByText('Continue', { exact: true });
+  if (await cont.isEnabled().catch(() => false)) {
+    await cont.click();
+  } else {
+    await page.getByText('New Empire — Relaxed', { exact: true }).click();
+    await page.waitForTimeout(900);
+    const buy = await page.evaluate(() => {
+      const btns = [...document.querySelectorAll('button')]
+        .filter((b) => b.textContent.trim() === 'Buy' && !b.disabled);
+      if (!btns.length) return null;
+      const r = btns[0].getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    if (!buy) throw new Error('marketplace: no affordable Buy button');
+    await page.mouse.click(buy.x, buy.y);
+  }
+  await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 60000 });
   await page.waitForFunction(() => { const v = document.querySelector('.load-veil'); return !v || getComputedStyle(v).opacity === '0'; }, null, { timeout: 40000 });
   await page.waitForTimeout(2500);
 
@@ -98,11 +115,9 @@ async (page) => {
   }, null, { timeout: 15000, polling: 120 });
   await page.waitForTimeout(300);
 
-  // every nav destination, clicked where it really is on the glass
+  // every nav destination, clicked where it really is on the glass — the seven pages
   const PAGES = [
-    'Home', 'Pro Shop', 'Supplier', 'Orders', 'Deliveries', 'Inventory', 'Pricing',
-    'Reservations', 'Course', 'Carts & rentals', 'Employees', 'Finances', 'Reviews',
-    'Analytics', 'Renovation', 'Settings',
+    'Home', 'Tee Times', 'Shop', 'Course', 'Upgrades', 'Finances', 'Settings',
   ];
 
   for (const label of PAGES) {

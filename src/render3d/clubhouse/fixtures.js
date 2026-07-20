@@ -13,13 +13,20 @@
 
 import * as THREE from 'three';
 import {
-  FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, LOGO_RUG, REGISTER, COUNTER_TOP,
+  FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, SHELL, LOGO_RUG, REGISTER, COUNTER_TOP,
+  fixtureRect,
 } from '../../data/shopLayout.js';
 import { restockShelfFromBackroom } from '../../sim/shop.js';
 import { skuById } from '../../data/shopItems.js';
 import { placedFixtures } from '../../sim/layout.js';
 import { tutorialFlag } from '../../sim/tutorial.js';
 import { roundedBox, makeSignTexture, makeRugTexture } from './materials.js';
+import {
+  collectMaterialResources, collectRenderableResources, disposeRenderableResources,
+  mergeRenderableResources,
+} from './resourceLifecycle.js';
+import { DELIVERY_EQUIPMENT_DEFAULT_LAYOUT } from './deliveryEquipment.js';
+import { createMovableFixtureCoreBatcher } from './fixtureCoreBatching.js';
 
 // warm under-shelf light strip (pure emissive — the real lights are the rig's)
 function lightStrip(mats, w) {
@@ -42,19 +49,66 @@ function categorySign(title, { w = 1.5, h = 0.26, charcoal = false } = {}) {
   );
 }
 
+export function incompatibleStockingLabel(fixtureTitle, skuName, correctFixtureTitle = null) {
+  const destination = correctFixtureTitle || 'its assigned display';
+  return `${fixtureTitle} — ${skuName} cannot be stocked here · take it to ${destination}`;
+}
+
+function releaseReplacedFixture(root, mats, merch) {
+  if (!root) return;
+  root.removeFromParent();
+  const protectedResources = mergeRenderableResources(
+    collectMaterialResources(mats),
+    merch?.ownedResources ? merch.ownedResources() : null,
+  );
+  disposeRenderableResources(collectRenderableResources(root), protectedResources);
+}
+
+// Toggle only the colliders authored by one movable fixture. Registration is
+// stateful so repeated update/cancel calls cannot duplicate an entry in the
+// shared player/customer collider arrays.
+export function setTrackedFixtureCollidersActive(
+  colliders,
+  fixtureId,
+  active,
+  addCollider,
+  removeCollider,
+) {
+  let changed = 0;
+  for (const collider of colliders) {
+    if (collider.fixtureLayoutId !== fixtureId) continue;
+    if (active && collider.fixtureColliderActive === false) {
+      addCollider(collider);
+      collider.fixtureColliderActive = true;
+      changed++;
+    } else if (!active && collider.fixtureColliderActive !== false) {
+      removeCollider(collider);
+      collider.fixtureColliderActive = false;
+      changed++;
+    }
+  }
+  return changed;
+}
+
 export function buildFixtures(B) {
   const {
     interior, mats, merch, addCol: rawAddCol, addProp: rawAddProp, removeCol, removeProp,
     colBoxAt, L2W, state, hooks,
   } = B;
+  const fixtureCoreBatcher = createMovableFixtureCoreBatcher(merch);
 
   // Only what the fixture loop lays down is re-layable; the counter, the rug and the lounge are
   // architecture, not furniture the player pushes around.
   let tracking = false;
+  let activeFixtureId = null;
   const laidCols = [];
   const laidProps = [];
   const addCol = (c) => {
-    if (tracking) laidCols.push(c);
+    if (tracking) {
+      c.fixtureLayoutId = activeFixtureId;
+      c.fixtureColliderActive = true;
+      laidCols.push(c);
+    }
     return rawAddCol(c);
   };
   const addProp = (p) => {
@@ -63,6 +117,29 @@ export function buildFixtures(B) {
     return made;
   };
   const fixtureAnchors = new Map();
+  function disposeReplacedFixture(root) {
+    releaseReplacedFixture(root, mats, merch);
+  }
+
+  function qualifyKitSockets(root, fixtureId, moduleTag) {
+    if (!root) return root;
+    root.traverse((object) => {
+      if (!object.name || !object.name.includes('SLOT_')) return;
+      object.name = `${fixtureId}_${moduleTag}_${object.name}`;
+    });
+    return root;
+  }
+
+  function addFixtureCollider(f) {
+    const bounds = fixtureRect(f);
+    addCol(colBoxAt(
+      (bounds.minX + bounds.maxX) / 2,
+      (bounds.minZ + bounds.maxZ) / 2,
+      bounds.maxX - bounds.minX,
+      bounds.maxZ - bounds.minZ,
+    ));
+    return bounds;
+  }
 
   function shelfLabel(f) {
     const inv = state.shop.inventory;
@@ -77,7 +154,8 @@ export function buildFixtures(B) {
       if (f.skus.includes(held.skuId)) {
         return `${f.title} — hold [E] to stock the ${heldSku.name.toLowerCase()} (${held.qty} in hand)`;
       }
-      return null;   // wrong fixture: let the player carry on to the right one without a false prompt
+      const correctFixture = placedFixtures(state).find((fixture) => fixture.skus.includes(held.skuId));
+      return incompatibleStockingLabel(f.title, heldSku.name, correctFixture?.title);
     }
 
     if (back > 0) return `${f.title} — ${shelf} out · ${back} in the back — [E] restock`;
@@ -92,7 +170,7 @@ export function buildFixtures(B) {
       return;
     }
     if (hooks.sfx) hooks.sfx(res.full ? 'fullShelf' : 'stock');
-    if (res.full && hooks.toast) hooks.toast(`The ${f.title.toLowerCase()} is full.`);
+    if (res.full && hooks.toast) hooks.toast(`The ${f.title.toLowerCase()} display is full.`);
   }
 
   // the old convenience path: pull already-unpacked stock from the backroom straight to the shelf.
@@ -121,7 +199,20 @@ export function buildFixtures(B) {
       label: () => shelfLabel(f),
       action: () => {
         const held = B.carriedGoods && B.carriedGoods();
-        if (held) { if (f.skus.includes(held.skuId)) stockHere(f, 1); }   // tap: one at a time
+        if (held) {
+          if (f.skus.includes(held.skuId)) stockHere(f, 1); // tap: one at a time
+          else {
+            const heldSku = skuById(held.skuId);
+            const correctFixture = placedFixtures(state)
+              .find((fixture) => fixture.skus.includes(held.skuId));
+            if (hooks.toast) {
+              hooks.toast(
+                `${heldSku.name} belongs on ${correctFixture?.title || 'its assigned display'}.`,
+                'warn',
+              );
+            }
+          }
+        }
         else restockAll(f);
       },
       // hold: stock a flow from the hands. Only when holding something this fixture accepts.
@@ -138,194 +229,253 @@ export function buildFixtures(B) {
   let stockRate = 0;
 
   // ------------------------------------------------------------ wall unit ---
+  // Sheet-03 modules replace the millwork the moment the kit loads: the ball
+  // wall gets three ball_shelf modules (one per line), the accessory runs get
+  // three accessory_slatwall modules each. The legacy carcass stands in
+  // until then so the wall is never bare.
   function shelfUnit(f) {
     const g = new THREE.Group();
+    const legacy = new THREE.Group();
     // carcass: sides, plinth, crown, back panel
     for (const sx of [-1.5, 1.5]) {
       const side = new THREE.Mesh(roundedBox(0.08, 2.3, 0.56, 0.02), mats.walnut);
       side.position.set(sx, 1.15, -0.02);
       side.castShadow = true;
-      g.add(side);
+      legacy.add(side);
     }
     const back = new THREE.Mesh(new THREE.BoxGeometry(3.0, 2.25, 0.05), mats.walnutDark);
     back.position.set(0, 1.15, -0.24);
     back.receiveShadow = true;
-    g.add(back);
+    legacy.add(back);
     const plinth = new THREE.Mesh(new THREE.BoxGeometry(3.06, 0.16, 0.6), mats.walnutDark);
     plinth.position.set(0, 0.08, -0.01);
-    g.add(plinth);
+    legacy.add(plinth);
     const crown = new THREE.Mesh(roundedBox(3.22, 0.14, 0.66, 0.03), mats.walnut);
     crown.position.set(0, 2.34, -0.01);
     crown.castShadow = true;
-    g.add(crown);
-    // shelf boards (merch contract y) + brass gallery edge + light strips
+    legacy.add(crown);
     for (const y of [0.5, 1.05, 1.6]) {
       const board = new THREE.Mesh(roundedBox(2.94, 0.05, 0.48, 0.015), mats.walnut);
       board.position.set(0, y, 0.02);
       board.castShadow = true;
       board.receiveShadow = true;
-      g.add(board);
+      legacy.add(board);
       const edge = new THREE.Mesh(new THREE.BoxGeometry(2.94, 0.022, 0.012), mats.brass);
       edge.position.set(0, y + 0.012, 0.265);
-      g.add(edge);
+      legacy.add(edge);
       const strip = lightStrip(mats, 2.8);
       strip.position.set(0, y - 0.032, 0.2);
-      g.add(strip);
+      legacy.add(strip);
     }
-    // header sign
-    const sign = categorySign(f.title);
-    sign.position.set(0, 2.05, 0.255);
-    g.add(sign);
-    const w = Math.abs(f.ry % Math.PI) < 0.1 ? 3.0 : 0.5;
-    const d = Math.abs(f.ry % Math.PI) < 0.1 ? 0.5 : 3.0;
-    addCol(colBoxAt(f.x, f.z, w + 0.2, d + 0.2));
+    const legacySign = categorySign(f.title);
+    legacySign.position.set(0, 2.05, 0.255);
+    legacy.add(legacySign);
+    g.add(legacy);
+    if (merch) merch.onReady(() => {
+      const kitName = f.id === 'shelf_balls' ? 'ball_shelf' : 'accessory_slatwall';
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [-1.0, 0.0, 1.0].map((x) => ({ model: kitName, position: [x, 0, 0] })),
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
+      core.structure.children.forEach((module, index) => {
+        qualifyKitSockets(module, f.id, ['L', 'C', 'R'][index]);
+      });
+      disposeReplacedFixture(legacy);
+    });
+    addFixtureCollider(f);
     return g;
   }
 
   // ----------------------------------------------------------- club bay -----
+  // Sheet-03 floor racks: two club_rack modules for the driver and iron runs,
+  // two putter_rack groove modules for the putter studio. The old wall bay
+  // stands in until the kit arrives.
   function rackUnit(f) {
     const g = new THREE.Group();
+    const legacy = new THREE.Group();
     // tall framed back
     const back = new THREE.Mesh(new THREE.BoxGeometry(2.9, 2.35, 0.06), mats.walnutDark);
     back.position.set(0, 1.2, -0.42);
     back.receiveShadow = true;
-    g.add(back);
+    legacy.add(back);
     for (const sx of [-1.44, 1.44]) {
       const stile = new THREE.Mesh(roundedBox(0.1, 2.42, 0.16, 0.02), mats.walnut);
       stile.position.set(sx, 1.21, -0.38);
       stile.castShadow = true;
-      g.add(stile);
+      legacy.add(stile);
     }
     const header = new THREE.Mesh(roundedBox(2.98, 0.34, 0.2, 0.02), mats.walnut);
     header.position.set(0, 2.28, -0.36);
     header.castShadow = true;
-    g.add(header);
-    const sign = categorySign(f.title, { w: 1.9, h: 0.3, charcoal: true });
-    sign.position.set(0, 2.28, -0.25);
-    g.add(sign);
+    legacy.add(header);
+    const legacySign = categorySign(f.title, { w: 1.9, h: 0.3, charcoal: true });
+    legacySign.position.set(0, 2.28, -0.25);
+    legacy.add(legacySign);
     const strip = lightStrip(mats, 2.7);
     strip.position.set(0, 2.08, -0.3);
-    g.add(strip);
+    legacy.add(strip);
     // base cabinet: the stand the clubs lean from, drawer fronts + brass pulls
     const base = new THREE.Mesh(roundedBox(2.88, 0.15, 0.9, 0.02), mats.walnut);
     base.position.set(0, 0.075, -0.05);
     base.castShadow = true;
-    g.add(base);
+    legacy.add(base);
     for (let i = 0; i < 3; i++) {
       const drawer = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.09, 0.03), mats.walnutDark);
       drawer.position.set(-0.94 + i * 0.94, 0.075, 0.41);
-      g.add(drawer);
+      legacy.add(drawer);
       const pull = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.02, 0.02), mats.brass);
       pull.position.set(-0.94 + i * 0.94, 0.075, 0.435);
-      g.add(pull);
+      legacy.add(pull);
     }
     // shaft cradle rails with brass clips
     for (const y of [0.62, 1.32]) {
       const rail = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.05, 0.05), mats.walnut);
       rail.position.set(0, y, -0.3);
-      g.add(rail);
+      legacy.add(rail);
       for (let i = 0; i < 8; i++) {
         const clip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.05, 0.04), mats.brass);
         clip.position.set(-1.22 + i * 0.35, y, -0.27);
-        g.add(clip);
+        legacy.add(clip);
       }
     }
-    addCol(colBoxAt(f.x, f.z, Math.abs(Math.sin(f.ry)) > 0.5 ? 1.0 : 3.0, Math.abs(Math.sin(f.ry)) > 0.5 ? 3.0 : 1.0));
+    g.add(legacy);
+    if (merch) merch.onReady(() => {
+      const putters = f.id === 'rack_putters';
+      const spots = putters ? [-0.5, 0.5] : [-0.6, 0.6];
+      const core = fixtureCoreBatcher.mount(
+        g,
+        spots.map((x) => ({
+          model: putters ? 'putter_rack' : 'club_rack',
+          position: [x, 0, 0],
+        })),
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
+      core.structure.children.forEach((module, index) => {
+        qualifyKitSockets(module, f.id, index === 0 ? 'L' : 'R');
+      });
+      disposeReplacedFixture(legacy);
+    });
+    addFixtureCollider(f);
     return g;
   }
 
-  // ------------------------------------------------------- nesting tables ---
+  // ------------------------------------------------------- apparel table ----
+  // The Sheet-04 folded-apparel table (1.60 x 0.90 walnut top on a steel
+  // frame) replaces the old nesting tables + rear hang rail. Both polo lanes
+  // fold onto the SAME top — twelve stack poses per lane, see
+  // fixtureSlots.js tableApparel. The old millwork stands in until the kit
+  // loads.
   function tableUnit(f) {
     const g = new THREE.Group();
-    const top = new THREE.Mesh(roundedBox(2.2, 0.09, 1.4, 0.025), mats.walnut);
-    top.position.y = 0.96;
+    const legacy = new THREE.Group();
+    // Match the authored apparel_table contract exactly while the GLB warms:
+    // 1.60 x 0.90 m, with the usable top plane at y=0.801 m.
+    const top = new THREE.Mesh(roundedBox(1.6, 0.07, 0.9, 0.025), mats.walnut);
+    top.position.y = 0.766;
     top.castShadow = true;
     top.receiveShadow = true;
-    g.add(top);
-    const apron = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.09, 1.2), mats.walnutDark);
-    apron.position.y = 0.88;
-    g.add(apron);
-    for (const [lx, lz] of [[-0.95, -0.55], [0.95, -0.55], [-0.95, 0.55], [0.95, 0.55]]) {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.92, 8), mats.walnut);
-      leg.position.set(lx, 0.46, lz);
+    legacy.add(top);
+    const apron = new THREE.Mesh(new THREE.BoxGeometry(1.46, 0.08, 0.76), mats.walnutDark);
+    apron.position.y = 0.70;
+    legacy.add(apron);
+    for (const [lx, lz] of [[-0.68, -0.34], [0.68, -0.34], [-0.68, 0.34], [0.68, 0.34]]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.70, 8), mats.walnut);
+      leg.position.set(lx, 0.35, lz);
       leg.castShadow = true;
-      g.add(leg);
+      legacy.add(leg);
     }
-    // lower nesting table peeking out the front
-    const nestTop = new THREE.Mesh(roundedBox(1.3, 0.07, 0.8, 0.02), mats.walnut);
-    nestTop.position.set(0.35, 0.55, 0.5);
-    nestTop.castShadow = true;
-    g.add(nestTop);
-    for (const [lx, lz] of [[-0.2, 0.2], [0.9, 0.2], [-0.2, 0.8], [0.9, 0.8]]) {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.52, 8), mats.walnut);
-      leg.position.set(lx, 0.26, lz);
-      g.add(leg);
-    }
-    // hang rail behind (merch contract: posts z −0.62, bar y 1.68)
-    for (const rx of [-0.9, 0.9]) {
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 1.7, 8), mats.iron);
-      post.position.set(rx, 0.85, -0.62);
-      g.add(post);
-    }
-    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.9, 8), mats.brass);
-    rail.rotation.z = Math.PI / 2;
-    rail.position.set(0, 1.68, -0.62);
-    g.add(rail);
-    addCol(colBoxAt(f.x, f.z, 2.4, 1.6));
+    g.add(legacy);
+    if (merch) merch.onReady(() => {
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [{ model: 'apparel_table' }],
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
+      disposeReplacedFixture(legacy);
+    });
+    addFixtureCollider(f);
     return g;
   }
 
-  // -------------------------------------------------------- apparel rail ----
+  // -------------------------------------------------- apparel wall fixture ----
+  // Sheet-02 Asset 20 is one 1.20 x 0.45 m wall, not a duplicated rail run.
+  // The temporary form shares the authored socket surfaces and envelope, so
+  // async replacement cannot make stock jump or leave an oversized blocker.
   function railUnit(f) {
     const g = new THREE.Group();
-    for (const rx of [-1.0, 1.0]) {
-      const upright = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1.66, 10), mats.iron);
-      upright.position.set(rx, 0.85, 0);
+    const legacy = new THREE.Group();
+    for (const rx of [-0.572, 0.572]) {
+      const upright = new THREE.Mesh(roundedBox(0.055, 2.18, 0.055, 0.004), mats.iron);
+      upright.position.set(rx, 1.09, -0.177);
       upright.castShadow = true;
-      g.add(upright);
-      const foot = new THREE.Mesh(roundedBox(0.16, 0.05, 0.7, 0.02), mats.walnut);
-      foot.position.set(rx, 0.025, 0);
-      g.add(foot);
+      legacy.add(upright);
+      const foot = new THREE.Mesh(roundedBox(0.055, 0.045, 0.395, 0.004), mats.iron);
+      foot.position.set(rx, 0.0225, 0);
+      legacy.add(foot);
     }
-    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 2.1, 10), mats.brass);
+    const back = new THREE.Mesh(roundedBox(1.10, 1.90, 0.018, 0.004), mats.walnut);
+    back.position.set(0, 1.05, -0.12);
+    back.receiveShadow = true;
+    legacy.add(back);
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.0135, 0.0135, 1.06, 14), mats.brass);
     bar.rotation.z = Math.PI / 2;
     bar.position.set(0, 1.68, 0);
-    g.add(bar);
-    // hanging sign board: walnut backer on two brass drops off the bar
-    const signBacker = new THREE.Mesh(roundedBox(0.98, 0.26, 0.03, 0.012), mats.walnut);
-    signBacker.position.set(0, 1.92, 0);
-    g.add(signBacker);
-    const signBoard = categorySign(f.title, { w: 0.9, h: 0.2 });
-    signBoard.position.set(0, 1.92, 0.017);
-    g.add(signBoard);
-    const signBoardB = categorySign(f.title, { w: 0.9, h: 0.2 });
-    signBoardB.position.set(0, 1.92, -0.017);
-    signBoardB.rotation.y = Math.PI;
-    g.add(signBoardB);
-    for (const dx of [-0.4, 0.4]) {
-      const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.14, 6), mats.brass);
-      drop.position.set(dx, 1.75, 0);
-      g.add(drop);
+    legacy.add(bar);
+    const signBacker = new THREE.Mesh(roundedBox(1.20, 0.18, 0.16, 0.006), mats.iron);
+    signBacker.position.set(0, 2.11, -0.095);
+    legacy.add(signBacker);
+    const signBoard = categorySign('APPAREL', { w: 1.02, h: 0.155, charcoal: true });
+    signBoard.position.set(0, 2.11, -0.012);
+    legacy.add(signBoard);
+    for (const y of [0.315, 0.615]) {
+      const shelf = new THREE.Mesh(roundedBox(1.12, 0.03, 0.40, 0.006), mats.walnut);
+      shelf.position.set(0, y, 0);
+      shelf.receiveShadow = true;
+      legacy.add(shelf);
     }
-    addCol(colBoxAt(f.x, f.z, Math.abs(Math.sin(f.ry)) > 0.5 ? 0.9 : 2.2, Math.abs(Math.sin(f.ry)) > 0.5 ? 2.2 : 0.9));
+    for (const rx of [-0.55, 0.55]) {
+      const side = new THREE.Mesh(roundedBox(0.045, 0.64, 0.39, 0.003), mats.iron);
+      side.position.set(rx, 0.32, -0.005);
+      legacy.add(side);
+    }
+    g.add(legacy);
+    if (merch) merch.onReady(() => {
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [{ model: 'apparel_wall' }],
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
+      disposeReplacedFixture(legacy);
+    });
+    const bounds = fixtureRect(f);
+    addCol(colBoxAt(f.x, f.z, bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ));
     return g;
   }
 
-  // ----------------------------------------------------------- hat tree -----
+  // ----------------------------------------------------------- hat wall -----
+  // The Sheet-03 hat wall replaces the old hat tree on the same footprint:
+  // a freestanding slat panel with twelve brass pegs, finished on the back
+  // (it stands mid-floor in the apparel zone). The tree remains the stand-in.
   function hatstandUnit(f) {
     const g = new THREE.Group();
+    const legacy = new THREE.Group();
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 1.75, 10), mats.walnut);
     pole.position.y = 0.87;
     pole.castShadow = true;
-    g.add(pole);
+    legacy.add(pole);
     for (const [py, r] of [[0.42, 0.09], [1.72, 0.07]]) {
       const collar = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.15, 0.05, 10), mats.walnutDark);
       collar.position.y = py;
-      g.add(collar);
+      legacy.add(collar);
     }
     const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 0.07, 12), mats.walnutDark);
     foot.position.y = 0.035;
-    g.add(foot);
+    legacy.add(foot);
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
       const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 0.28, 6), mats.brass);
@@ -333,78 +483,131 @@ export function buildFixtures(B) {
       peg.rotation.y = a;
       const py = 1.15 + (i % 2) * 0.35;
       peg.position.set(Math.sin(a) * 0.15, py, Math.cos(a) * 0.15);
-      g.add(peg);
+      legacy.add(peg);
     }
-    addCol(colBoxAt(f.x, f.z, 0.8, 0.8));
+    g.add(legacy);
+    if (merch) merch.onReady(() => {
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [{ model: 'hat_wall' }],
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
+      disposeReplacedFixture(legacy);
+    });
+    addFixtureCollider(f);
     return g;
   }
 
-  // -------------------------------------------------------- bag platforms ---
+  // ------------------------------------------------------ apparel wall -----
+  // Asset 21 is a real stocking fixture, not architectural dressing. Eight
+  // compact face-out garments and four folded stacks land on authored sockets.
+  function apparelwallUnit(f) {
+    const g = new THREE.Group();
+    g.name = 'ApparelWallDisplayFixture';
+    if (merch) merch.onReady(() => {
+      fixtureCoreBatcher.mount(
+        g,
+        [{ model: 'apparel_wall_display' }],
+        { name: `${f.id}FixtureCore` },
+      );
+    });
+    addFixtureCollider(f);
+    return g;
+  }
+
+  // -------------------------------------------------------- bag platform ----
+  // The Sheet-03 bag display: a walnut deck on a steel frame with a rear lean
+  // rail, bags standing four across. The old two-tier platform stands in.
   function bagstandUnit(f) {
     const g = new THREE.Group();
-    // two-tier walnut display platforms (ref 7), bags stand on the low tier
+    const legacy = new THREE.Group();
     const lowTier = new THREE.Mesh(roundedBox(2.5, 0.12, 1.15, 0.025), mats.walnut);
     lowTier.position.set(0, 0.06, 0.05);
     lowTier.castShadow = true;
     lowTier.receiveShadow = true;
-    g.add(lowTier);
+    legacy.add(lowTier);
     const highTier = new THREE.Mesh(roundedBox(2.5, 0.3, 0.5, 0.025), mats.walnut);
     highTier.position.set(0, 0.15, -0.45);
     highTier.castShadow = true;
-    g.add(highTier);
-    // back rail the bags lean toward (merch contract: posts at z −0.45)
+    legacy.add(highTier);
     const backRail = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.4, 8), mats.brass);
     backRail.rotation.z = Math.PI / 2;
     backRail.position.set(0, 1.02, -0.45);
-    g.add(backRail);
+    legacy.add(backRail);
     for (const px of [-1.15, 1.15]) {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.03, 1.0, 8), mats.iron);
       post.position.set(px, 0.5, -0.45);
-      g.add(post);
+      legacy.add(post);
     }
-    const sign = categorySign(f.title, { w: 1.0, h: 0.2 });
-    sign.position.set(0, 1.16, -0.45);
-    g.add(sign);
-    addCol(colBoxAt(f.x, f.z, 2.6, 1.3));
+    const legacySign = categorySign(f.title, { w: 1.0, h: 0.2 });
+    legacySign.position.set(0, 1.16, -0.45);
+    legacy.add(legacySign);
+    g.add(legacy);
+    if (merch) merch.onReady(() => {
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [{ model: 'bag_display' }],
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
+      disposeReplacedFixture(legacy);
+    });
+    addFixtureCollider(f);
     return g;
   }
 
   // ------------------------------------------------------- lit shoe wall ----
+  // Two Sheet-03 shoe_wall modules (angled boards, box shelf, crest header)
+  // replace the lit millwork; the fitting bench and mirror stay.
   function shoerackUnit(f) {
     const g = new THREE.Group();
+    const legacy = new THREE.Group();
     const back = new THREE.Mesh(new THREE.BoxGeometry(2.7, 2.1, 0.05), mats.walnutDark);
     back.position.set(0, 1.05, -0.22);
     back.receiveShadow = true;
-    g.add(back);
+    legacy.add(back);
     for (const sx of [-1.34, 1.34]) {
       const side = new THREE.Mesh(roundedBox(0.07, 2.1, 0.5, 0.02), mats.walnut);
       side.position.set(sx, 1.05, -0.02);
       side.castShadow = true;
-      g.add(side);
+      legacy.add(side);
     }
     const crown = new THREE.Mesh(roundedBox(2.86, 0.12, 0.56, 0.025), mats.walnut);
     crown.position.set(0, 2.14, -0.02);
-    g.add(crown);
-    const sign = categorySign(f.title);
-    sign.position.set(0, 1.88, 0.2);
-    g.add(sign);
+    legacy.add(crown);
+    const legacySign = categorySign(f.title);
+    legacySign.position.set(0, 1.88, 0.2);
+    legacy.add(legacySign);
     // angled shoe boards (merch contract y) with lips + light strips
     for (const y of [0.35, 0.85, 1.35]) {
       const board = new THREE.Mesh(roundedBox(2.6, 0.04, 0.44, 0.012), mats.walnut);
       board.position.set(0, y, 0.02);
       board.rotation.x = -0.18;
       board.receiveShadow = true;
-      g.add(board);
+      legacy.add(board);
       const lip = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.03, 0.015), mats.brass);
       lip.position.set(0, y - 0.035, 0.22);
-      g.add(lip);
+      legacy.add(lip);
       const strip = lightStrip(mats, 2.45);
       strip.position.set(0, y - 0.055, 0.14);
-      g.add(strip);
+      legacy.add(strip);
     }
-    const swap = Math.abs(Math.sin(f.ry)) > 0.5;
-    addCol(colBoxAt(f.x, f.z, swap ? 0.7 : 2.9, swap ? 2.9 : 0.7));
-    // fitting bench + mirror beside the rack
+    g.add(legacy);
+    if (merch) merch.onReady(() => {
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [-0.6, 0.6].map((x) => ({ model: 'shoe_wall', position: [x, 0, 0] })),
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
+      core.structure.children.forEach((module, index) => {
+        qualifyKitSockets(module, f.id, index === 0 ? 'L' : 'R');
+      });
+      disposeReplacedFixture(legacy);
+    });
+    // The fitting bench is part of the fixture's declared composite footprint.
+    // Keeping it in local space makes it follow moves and quarter-turns exactly.
     const benchG = new THREE.Group();
     const cushion = new THREE.Mesh(roundedBox(1.1, 0.14, 0.42, 0.05), mats.sageFabric);
     cushion.position.y = 0.38;
@@ -412,47 +615,54 @@ export function buildFixtures(B) {
     benchBody.position.y = 0.16;
     benchBody.castShadow = true;
     benchG.add(benchBody, cushion);
-    const bwp = { x: f.x - (swap ? 1.2 : 0), z: f.z + (swap ? 2.1 : 1.2) };
-    benchG.position.set(bwp.x - f.x, 0, bwp.z - f.z);
+    benchG.position.set(0, 0, 0.95);
     g.add(benchG);
-    addCol(colBoxAt(bwp.x, bwp.z, 1.2, 0.5));
-    const mirror = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.55, 1.55),
-      new THREE.MeshStandardMaterial({ color: 0xdfe9ee, roughness: 0.05, metalness: 0.9 }),
-    );
-    mirror.position.set(0, 1.15, -0.19);
-    const mirrorFrame = new THREE.Mesh(roundedBox(0.68, 1.7, 0.05, 0.02), mats.walnut);
-    mirrorFrame.position.set(0, 1.15, -0.22);
-    const mirrorHolder = new THREE.Group();
-    mirrorHolder.add(mirrorFrame, mirror);
-    mirrorHolder.position.set(bwp.x - f.x - (swap ? 0 : 1.5), 0, bwp.z - f.z + (swap ? 1.4 : 0.0));
-    // lean the mirror against whatever wall the bench faces
-    g.add(mirrorHolder);
+    addFixtureCollider(f);
     return g;
   }
 
-  // ------------------------------------------------------ feature pedestal --
+  // ------------------------------------------------------ feature table -----
+  // The Sheet-04 centre merchandise table (1.40 x 0.80, two-tier walnut on
+  // steel) replaces the round pedestal as the feature spot. The featured
+  // stock is dressed onto its top grid by rebuildStock (top 0.75, lower
+  // shelf 0.29). The pedestal stands in until the kit loads.
   function featureUnit(f) {
     const g = new THREE.Group();
+    const legacy = new THREE.Group();
     const top = new THREE.Mesh(new THREE.CylinderGeometry(0.88, 0.88, 0.08, 24), mats.walnut);
     top.position.y = 0.9;
     top.castShadow = true;
     top.receiveShadow = true;
-    g.add(top);
+    legacy.add(top);
     const band = new THREE.Mesh(new THREE.CylinderGeometry(0.885, 0.885, 0.03, 24), mats.brass);
     band.position.y = 0.87;
-    g.add(band);
+    legacy.add(band);
     const column = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.86, 12), mats.walnutDark);
     column.position.y = 0.44;
-    g.add(column);
+    legacy.add(column);
     const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.06, 20), mats.walnutDark);
     foot.position.y = 0.03;
-    g.add(foot);
-    // green felt runner on top (the display cloth)
-    const felt = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.012, 24), mats.feltGreen);
-    felt.position.y = 0.945;
-    g.add(felt);
-    addCol(colBoxAt(f.x, f.z, 1.8, 1.8));
+    legacy.add(foot);
+    g.add(legacy);
+    if (merch) merch.onReady(() => {
+      const core = fixtureCoreBatcher.mount(
+        g,
+        [
+          { model: 'merch_table' },
+          // The merch-table top is 0.75 m above the floor. Leave only a
+          // millimetre of clearance so the countertop display reads as seated
+          // on the walnut instead of hovering over it.
+          { model: 'rangefinder_display', position: [0, 0.751, 0] },
+        ],
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
+      disposeReplacedFixture(legacy);
+      // The clubhouse-level merch-ready callback dresses every fixture after
+      // all kit callbacks have mounted. Rebuilding here ran the full stock bake
+      // once in the middle of relayFixtures and then again at the normal end.
+    });
+    addFixtureCollider(f);
     return g;
   }
 
@@ -492,6 +702,9 @@ export function buildFixtures(B) {
     // The hutch was two lit boards with NOTHING on them — the back counter is
     // where a pro shop keeps its branded bags and boxed stock (ref 4).
     if (merch) merch.onReady(() => {
+      // the Sheet-03 rangefinder case presents the premium optics behind the
+      // counter, where a shop keeps its $279 glass. It ships EMPTY like every
+      // fixture — its felt tiers fill when optics are stocked, not before.
       const dress = new THREE.Group();
       for (let i = 0; i < 7; i++) {
         const box = merch.instantiate('carton');
@@ -519,7 +732,7 @@ export function buildFixtures(B) {
       }
       g.add(merch.bake(dress));
     });
-    addCol(colBoxAt(f.x, f.z, 3.4, 0.7));
+    addFixtureCollider(f);
     return g;
   }
 
@@ -528,39 +741,46 @@ export function buildFixtures(B) {
   // bare boards, floating with no feet, no bracing, and nothing on them. A
   // stockroom rack is a FRAME — four uprights, diagonal bracing, feet — and the
   // whole point of a stockroom is that it is FULL (ref 8).
+  // Sheet-04 stock_shelving modules (1.20 x 0.50 x 2.00, X-braced steel with
+  // four pale boards) replace the welded frame: two modules side by side for
+  // the long runs, one for the doorway-adjacent short unit. Board tops sit at
+  // 0.1455 / 0.6455 / 1.1455 / 1.6455 — the carton dressing and the ':back'
+  // stock in rebuildStock land on those exact planes. The frame stands in
+  // until the kit loads.
   function backshelfUnit(f) {
     const g = new THREE.Group();
-    const wZ = f.short ? 1.7 : 2.6; // doorway-adjacent short unit
-    const D = 0.62;
-    const H = 2.30;
-    const boards = [0.16, 0.62, 1.10, 1.58, 2.06];
+    const legacy = new THREE.Group();
+    const wZ = f.short ? 1.20 : 2.40; // one or two exact authored modules
+    const D = 0.50;
+    const H = 2.00;
+    const boardTops = [0.1455, 0.6455, 1.1455, 1.6455];
 
     for (const sx of [-wZ / 2 + 0.04, wZ / 2 - 0.04]) {
       for (const sz of [-D / 2 + 0.04, D / 2 - 0.04]) {
         const post = new THREE.Mesh(roundedBox(0.06, H, 0.06, 0.008), mats.iron);
         post.position.set(sx, H / 2, sz);
         post.castShadow = true;
-        g.add(post);
+        legacy.add(post);
         const foot = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.02, 0.11), mats.iron);
         foot.position.set(sx, 0.01, sz);
-        g.add(foot);
+        legacy.add(foot);
       }
     }
-    for (const y of boards) {
+    for (const surfaceY of boardTops) {
       const board = new THREE.Mesh(roundedBox(wZ - 0.02, 0.05, D - 0.02, 0.008), mats.rawWood);
-      board.position.set(0, y, 0);
+      board.position.set(0, surfaceY - 0.025, 0);
       board.receiveShadow = true;
       board.castShadow = true;
-      g.add(board);
+      legacy.add(board);
       // the front lip that stops a carton walking off the shelf
       const lip = new THREE.Mesh(new THREE.BoxGeometry(wZ - 0.02, 0.05, 0.018), mats.iron);
-      lip.position.set(0, y + 0.048, D / 2 - 0.03);
-      g.add(lip);
+      lip.position.set(0, surfaceY + 0.023, D / 2 - 0.03);
+      legacy.add(lip);
     }
     // X-bracing across the back — what actually stops a rack racking
-    for (let i = 0; i < boards.length - 1; i++) {
-      const y0 = boards[i];
-      const y1 = boards[i + 1];
+    for (let i = 0; i < boardTops.length - 1; i++) {
+      const y0 = boardTops[i];
+      const y1 = boardTops[i + 1];
       const dy = y1 - y0;
       const len = Math.hypot(wZ - 0.1, dy);
       for (const dir of [1, -1]) {
@@ -568,19 +788,54 @@ export function buildFixtures(B) {
           new THREE.BoxGeometry(len, 0.02, 0.014), mats.iron);
         brace.position.set(0, (y0 + y1) / 2, -D / 2 + 0.03);
         brace.rotation.z = dir * Math.atan2(dy, wZ - 0.1);
-        g.add(brace);
+        legacy.add(brace);
       }
     }
+    g.add(legacy);
+    if (merch) merch.onReady(() => {
+      const spots = f.short ? [0] : [-0.62, 0.62];
+      const core = fixtureCoreBatcher.mount(
+        g,
+        spots.map((x) => ({ model: 'stock_shelving', position: [x, 0, 0] })),
+        { name: `${f.id}FixtureCore` },
+      );
+      if (!core) return;
+      disposeReplacedFixture(legacy);
+    });
     const swap = Math.abs(Math.sin(f.ry)) > 0.5;
-    const halfLen = wZ / 2 + 0.15;
-    addCol(colBoxAt(f.x, f.z, swap ? 0.9 : halfLen * 2, swap ? halfLen * 2 : 0.9));
+    const colliderLength = wZ + 0.10;
+    const colliderDepth = D + 0.12;
+    addCol(colBoxAt(
+      f.x, f.z,
+      swap ? colliderDepth : colliderLength,
+      swap ? colliderLength : colliderDepth,
+    ));
+    return g;
+  }
+
+  // Sheet-03 grab-and-go fixture. Its GLB owns the fourteen bottle and ten
+  // pouch sockets mirrored in data/fixtureSlots.js; this wrapper makes the
+  // authored shelf movable, collidable, stockable, and unique in the live shop.
+  function snackrackUnit(f) {
+    const g = new THREE.Group();
+    g.name = 'GrabAndGoSnackrack';
+    if (merch) merch.onReady(() => {
+      fixtureCoreBatcher.mount(
+        g,
+        [{ model: 'snack_shelf' }],
+        { name: `${f.id}FixtureCore` },
+      );
+    });
+    addFixtureCollider(f);
     return g;
   }
 
   const FIXTURE_BUILDERS = {
     shelf: shelfUnit, rack: rackUnit, table: tableUnit, rail: railUnit,
     hatstand: hatstandUnit, bagstand: bagstandUnit, shoerack: shoerackUnit,
+    apparelwall: apparelwallUnit,
     feature: featureUnit, backcounter: backcounterUnit, backshelf: backshelfUnit,
+    snackrack: snackrackUnit,
   };
   // The shop as the PLAYER has it, not as it was designed — placedFixtures() applies whatever they
   // moved, turned or put away, and falls through to the default plan for everything else.
@@ -593,6 +848,7 @@ export function buildFixtures(B) {
     for (const f of placedFixtures(state)) {
       const build = FIXTURE_BUILDERS[f.kind];
       if (!build) continue;
+      activeFixtureId = f.id;
       const g = build(f);
       g.position.set(f.x, 0, f.z);
       g.rotation.y = f.ry;
@@ -600,20 +856,64 @@ export function buildFixtures(B) {
       fixtureAnchors.set(f.id, g);
       fixtureProp(f);
     }
+    activeFixtureId = null;
     tracking = false;
   }
 
   function relayFixtures() {
-    for (const c of laidCols) removeCol(c);
+    for (const c of laidCols) {
+      if (c.fixtureColliderActive !== false) removeCol(c);
+    }
     for (const p of laidProps) removeProp(p);
     laidCols.length = 0;
     laidProps.length = 0;
-    for (const g of fixtureAnchors.values()) interior.remove(g);
+    for (const g of fixtureAnchors.values()) disposeReplacedFixture(g);
     fixtureAnchors.clear();
     layFixtures();
   }
 
+  function setFixtureCollidersActive(fixtureId, active) {
+    return setTrackedFixtureCollidersActive(
+      laidCols,
+      fixtureId,
+      active,
+      rawAddCol,
+      removeCol,
+    );
+  }
+
+  function fixtureColliderDiagnostics(fixtureId) {
+    const colliders = laidCols.filter((collider) => collider.fixtureLayoutId === fixtureId);
+    const activeCount = colliders.reduce(
+      (count, collider) => count + (collider.fixtureColliderActive !== false ? 1 : 0),
+      0,
+    );
+    return Object.freeze({
+      fixtureId,
+      total: colliders.length,
+      activeCount,
+      inactiveCount: colliders.length - activeCount,
+      active: colliders.length > 0 && activeCount === colliders.length,
+    });
+  }
+
   layFixtures();
+
+  // --- Sheet-03 standing decor (architecture, not re-layable furniture) -----
+  if (merch) merch.onReady(() => {
+    // The face-out apparel display stands EMPTY beside the shoe wall — its
+    // arms and base shelf are landing spots for garments the player hangs,
+    // not pre-dressed decor. (Every fixture ships bare; stock is earned.)
+    // The Sheet-04 double-sided gondola holds the centre floor between the
+    // feature table and the apparel zone. It ships EMPTY — its 24 shelf
+    // slots await future product lines.
+    const gondola = merch.instantiateKit && merch.instantiateKit('retail_gondola');
+    if (gondola) {
+      gondola.position.set(0.4, 0, -0.9);
+      interior.add(gondola);
+    }
+  });
+  addCol(colBoxAt(0.4, -0.9, 1.3, 0.7));
 
   // permanent club logo rug on the entry axis
   const rug = new THREE.Mesh(
@@ -626,7 +926,13 @@ export function buildFixtures(B) {
   rug.receiveShadow = true;
   interior.add(rug);
 
-  return { fixtureAnchors, relayFixtures };
+  return {
+    fixtureAnchors,
+    relayFixtures,
+    setFixtureCollidersActive,
+    fixtureColliderDiagnostics,
+    fixtureCoreBatchDiagnostics: fixtureCoreBatcher.diagnostics,
+  };
 }
 
 // ------------------------------------------------------------- lounge -------
@@ -636,15 +942,15 @@ export function buildFixtures(B) {
 export function buildLounge(B) {
   const { interior, mats, merch, addCol, colBoxAt } = B;
 
-  // Was six beveled boxes and four peg legs — it read as a blob. A club chair is
-  // defined by its ROLLED arms and rolled back rail (ref 8), which is exactly
-  // what a stack of boxes cannot say. Modelled now, with the old build kept as
-  // the fallback for the moment before the GLBs land.
+  // The Sheet-04 lounge armchair (0.85 m leather club chair: rolled arms,
+  // rolled back rail, walnut feet) — authored to the reference this fixture
+  // always chased. Kit front faces +Z at ry 0.
   function clubChair(spot) {
     addCol(colBoxAt(spot.x, spot.z, 0.95, 0.95));   // the collider does not wait
     if (!merch) return;
     merch.onReady(() => {
-      const model = merch.instantiateRaw('armchair');
+      const model = (merch.instantiateKit && merch.instantiateKit('lounge_armchair'))
+        || merch.instantiateRaw('armchair');
       if (!model) return;
       model.position.set(spot.x, 0, spot.z);
       model.rotation.y = spot.ry;
@@ -668,7 +974,25 @@ export function buildLounge(B) {
     interior.add(merch.bake(shelf));
   });
 
-  // round coffee table + magazines + mug
+  // round coffee table + magazines + mug. The magazines and the mug are
+  // dressing on whichever top is current: the procedural table (top 0.465)
+  // until the kit loads, then the Sheet-04 lounge_coffee_table (top 0.45).
+  function coffeeDressing(topY) {
+    const d = new THREE.Group();
+    for (let i = 0; i < 3; i++) {
+      const mag = new THREE.Mesh(
+        new THREE.BoxGeometry(0.24, 0.008, 0.32),
+        new THREE.MeshStandardMaterial({ color: [0x2e5a35, 0xc9d7e4, 0xd7c9a8][i], roughness: 0.7 }),
+      );
+      mag.position.set(-0.08 + i * 0.05, topY + 0.005 + i * 0.01, 0.02 + i * 0.03);
+      mag.rotation.y = i * 0.3 - 0.2;
+      d.add(mag);
+    }
+    const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.09, 10), mats.greenPaint);
+    mug.position.set(0.25, topY + 0.045, -0.12);
+    d.add(mug);
+    return d;
+  }
   const coffee = new THREE.Group();
   const cTop = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 20), mats.walnut);
   cTop.position.y = 0.44;
@@ -680,21 +1004,27 @@ export function buildLounge(B) {
   const cFoot = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.04, 16), mats.walnutDark);
   cFoot.position.y = 0.02;
   coffee.add(cFoot);
-  for (let i = 0; i < 3; i++) {
-    const mag = new THREE.Mesh(
-      new THREE.BoxGeometry(0.24, 0.008, 0.32),
-      new THREE.MeshStandardMaterial({ color: [0x2e5a35, 0xc9d7e4, 0xd7c9a8][i], roughness: 0.7 }),
-    );
-    mag.position.set(-0.08 + i * 0.05, 0.47 + i * 0.01, 0.02 + i * 0.03);
-    mag.rotation.y = i * 0.3 - 0.2;
-    coffee.add(mag);
-  }
-  const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.09, 10), mats.greenPaint);
-  mug.position.set(0.25, 0.5, -0.12);
-  coffee.add(mug);
+  coffee.add(coffeeDressing(0.465));
   coffee.position.set(LOUNGE.coffee.x, 0, LOUNGE.coffee.z);
   interior.add(coffee);
   addCol(colBoxAt(LOUNGE.coffee.x, LOUNGE.coffee.z, 1.1, 1.1));
+  if (merch) merch.onReady(() => {
+    const table = merch.instantiateKit && merch.instantiateKit('lounge_coffee_table');
+    if (!table) return;
+    const g = new THREE.Group();
+    g.add(table, coffeeDressing(0.45));
+    g.position.set(LOUNGE.coffee.x, 0, LOUNGE.coffee.z);
+    interior.add(g);
+    releaseReplacedFixture(coffee, mats, merch);
+    // the companion side table in the corner beside chair A
+    const side = merch.instantiateKit && merch.instantiateKit('lounge_side_table');
+    if (side) {
+      side.position.set(2.75, 0, -6.05);
+      side.rotation.y = 0.4;
+      interior.add(side);
+      addCol(colBoxAt(2.75, -6.05, 0.65, 0.65));
+    }
+  });
 
   // bordered lounge rug (pine motif, no lettering)
   const loungeRug = new THREE.Mesh(
@@ -743,7 +1073,8 @@ export function buildStockroomDressing(B) {
     const RACKS = [
       { x: 8.05, z: -6.1, ry: 0, len: 2.6 },
       { x: 9.9, z: -5.6, ry: -Math.PI / 2, len: 1.7 },
-      { x: 9.9, z: -0.6, ry: -Math.PI / 2, len: 2.6 },
+      // backshelf_e2 is reserved for the player's persisted physical cartons.
+      // Dressing it as well would duplicate inventory and hide placement ghosts.
     ];
     const dress = new THREE.Group();
     let seed = 7;
@@ -752,7 +1083,9 @@ export function buildStockroomDressing(B) {
       return seed / 0x7fffffff;
     };
     for (const rk of RACKS) {
-      for (const y of [0.16, 0.62, 1.10, 1.58, 2.06]) {
+      // the Sheet-04 stock_shelving board tops, less the old 0.025 board
+      // half-thickness the carton offset was calibrated against
+      for (const y of [0.1205, 0.6205, 1.1205, 1.6205]) {
         const n = 2 + Math.floor(rnd() * 3);
         for (let i = 0; i < n; i++) {
           if (rnd() < 0.18) continue;          // a working shelf has gaps in it
@@ -769,27 +1102,31 @@ export function buildStockroomDressing(B) {
         }
       }
     }
-    // a stack by the receiving door, and the hand truck parked beside it
-    for (let i = 0; i < 3; i++) {
-      const box = merch.instantiate('carton');
-      if (!box) break;
-      box.scale.setScalar(0.9 + i * 0.06);
-      box.position.set(STOCKROOM.receivingInside.x + (i % 2) * 0.12,
-        i * 0.30, STOCKROOM.receivingInside.z + 0.5 + (i % 2) * 0.08);
-      box.rotation.y = 0.2 + i * 0.5;
-      dress.add(box);
-    }
-    const truck = merch.instantiate('handtruck');
-    if (truck) {
-      truck.position.set(STOCKROOM.handTruck.x, 0, STOCKROOM.handTruck.z);
-      truck.rotation.y = 1.9;
-      dress.add(truck);
-      addCol(colBoxAt(STOCKROOM.handTruck.x, STOCKROOM.handTruck.z, 0.5, 0.5));
-    }
+    // Real delivery boxes and the authored Ref42 hand truck own the receiving
+    // door area. Decorative cartons here looked like interactable inventory and
+    // the legacy handtruck duplicated the canonical delivery-equipment prop.
     interior.add(merch.bake(dress));
+
+    // Sheet-04 storage totes, stacked where the work happens: a supply pair
+    // by the packing bench, a returns pair by receiving. Kit props keep
+    // their own baked materials — they stay out of the merged dress group.
+    const TOTES = [
+      { name: 'storage_tote_olive', x: 6.55, z: -0.35, y: 0, ry: 0.35 },
+      { name: 'storage_tote_slate', x: 6.55, z: -0.35, y: 0.288, ry: 0.15 },
+      { name: 'storage_tote_charcoal', x: 7.9, z: -5.0, y: 0, ry: -0.5 },
+      { name: 'storage_tote_stone', x: 7.9, z: -5.0, y: 0.288, ry: -0.75 },
+    ];
+    for (const t of TOTES) {
+      const tote = merch.instantiateKit && merch.instantiateKit(t.name);
+      if (!tote) continue;
+      tote.position.set(t.x, t.y, t.z);
+      tote.rotation.y = t.ry;
+      interior.add(tote);
+    }
   });
 
-  // packing bench: steel legs, worn walnut top, clipboard + tape gun
+  // Packing bench: keep the authored worktop clear for a real delivery carton.
+  // The clipboard, tape gun, and ref-50 roll live on the lower supply shelf.
   const bench = new THREE.Group();
   const top = new THREE.Mesh(roundedBox(1.7, 0.07, 0.85, 0.02), mats.rawWood);
   top.position.y = 0.92;
@@ -805,37 +1142,55 @@ export function buildStockroomDressing(B) {
     bench.add(leg);
   }
   const clipboard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.012, 0.3), mats.trimPaint);
-  clipboard.position.set(-0.4, 0.965, 0.1);
+  clipboard.position.set(-0.4, 0.458, 0.1);
   clipboard.rotation.y = 0.3;
   bench.add(clipboard);
   const tapeGun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.09, 0.06), mats.charcoal);
-  tapeGun.position.set(0.35, 0.99, -0.1);
+  tapeGun.position.set(0.35, 0.485, -0.1);
   tapeGun.rotation.y = -0.4;
   bench.add(tapeGun);
+  if (merch) merch.onReady(() => {
+    const tapeRoll = merch.instantiate('delivery_packing_tape_roll');
+    if (!tapeRoll) return;
+    tapeRoll.name = 'PackingBenchTapeRoll';
+    // The authored roll is 10 cm in diameter; its 0.50 m centre rests on the
+    // lower shelf without competing with the box-placement surface above.
+    tapeRoll.position.set(0.18, 0.50, -0.12);
+    tapeRoll.rotation.set(Math.PI / 2, -0.2, 0);
+    bench.add(tapeRoll);
+  });
   bench.position.set(P.x, 0, P.z);
   bench.rotation.y = P.ry;
   interior.add(bench);
   addCol(colBoxAt(P.x, P.z, 1.9, 1.05));
 
-  // cleaning corner: mop bucket, mop, broom against the partition
+  // Cleaning corner: mop bucket, mop, broom against the partition.
+  //
+  // These five primitives are a STAND-IN. Assets 71-75 are authored versions of exactly these
+  // objects, and when the prop placement table puts them here it disposes this group — otherwise
+  // the corner ends up with two mops and two buckets. Grouped and named precisely so that
+  // supersession can find it; see assets51to100/propPlacement.js.
   const C = STOCKROOM.cleaning;
+  const legacyCleaning = new THREE.Group();
+  legacyCleaning.name = 'LegacyCleaningCornerScenery';
   const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.3, 12), new THREE.MeshStandardMaterial({ color: 0xd9c944, roughness: 0.7 }));
   bucket.position.set(C.x, 0.15, C.z);
-  interior.add(bucket);
+  legacyCleaning.add(bucket);
   const mopPole = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 1.45, 6), mats.rawWood);
   mopPole.position.set(C.x + 0.05, 0.75, C.z + 0.03);
   mopPole.rotation.z = 0.18;
-  interior.add(mopPole);
+  legacyCleaning.add(mopPole);
   const mopHead = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.05, 0.16, 8), mats.trimPaint);
   mopHead.position.set(C.x + 0.18, 0.1, C.z + 0.03);
-  interior.add(mopHead);
+  legacyCleaning.add(mopHead);
   const broomPole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.4, 6), mats.rawWood);
   broomPole.position.set(C.x - 0.22, 0.72, C.z);
   broomPole.rotation.z = -0.14;
-  interior.add(broomPole);
+  legacyCleaning.add(broomPole);
   const broomHead = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.05), mats.kraft);
   broomHead.position.set(C.x - 0.4, 0.08, C.z);
-  interior.add(broomHead);
+  legacyCleaning.add(broomHead);
+  interior.add(legacyCleaning);
   addCol(colBoxAt(C.x, C.z, 0.7, 0.5));
 
   // RECEIVING sign over the back door (inside face)
@@ -847,6 +1202,112 @@ export function buildStockroomDressing(B) {
   rec.position.set(INTERIOR.w / 2 - 0.04, 2.62, -3.6);
   rec.rotation.y = -Math.PI / 2;
   interior.add(rec);
+
+  // Give the cart-and-dolly corner a deliberate visual anchor. This restrained
+  // operations board replaces a large blank partition in the player view and
+  // makes the equipment zone legible from the stockroom doorway.
+  // The partition is a 0.25 m solid centered on x=5.7. Mount every layer from
+  // its actual stockroom face instead of embedding the sign inside that wall.
+  const operationsWallFaceX = STOCKROOM.bounds.minX + SHELL.wallT / 2;
+  const operationsBackingX = operationsWallFaceX + 0.026;
+  const operationsSignX = operationsWallFaceX + 0.052;
+  const operationsFrameX = operationsWallFaceX + 0.058;
+  const operationsTex = makeSignTexture(['BACKROOM OPERATIONS', 'CARTS  •  RECEIVING'], {
+    w: 640, h: 240, field: '#f1ecdc', ink: '#173f29', sizes: [58, 34],
+  });
+  const operationsBoard = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.92, 0.72),
+    new THREE.MeshStandardMaterial({
+      map: operationsTex,
+      roughness: 0.84,
+      side: THREE.DoubleSide,
+    }),
+  );
+  operationsBoard.name = 'BackroomOperationsBoard';
+  // Center the board behind the cart bay instead of the far hand-truck corner;
+  // from both stockroom doors this is the large otherwise-empty partition.
+  operationsBoard.position.set(operationsSignX, 1.68, -3.28);
+  operationsBoard.rotation.y = Math.PI / 2;
+  interior.add(operationsBoard);
+  const operationsBacking = new THREE.Mesh(
+    roundedBox(0.045, 0.84, 2.06, 0.025),
+    mats.greenPaint,
+  );
+  operationsBacking.name = 'BackroomOperationsBoardBacking';
+  operationsBacking.position.set(operationsBackingX, 1.68, -3.28);
+  interior.add(operationsBacking);
+  for (const [name, y, z, h, d] of [
+    ['Top', 2.085, -3.28, 0.035, 2.04],
+    ['Bottom', 1.275, -3.28, 0.035, 2.04],
+    ['North', 1.68, -4.282, 0.78, 0.035],
+    ['South', 1.68, -2.278, 0.78, 0.035],
+  ]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.026, h, d), mats.brass);
+    rail.name = `BackroomOperationsBoardFrame${name}`;
+    rail.position.set(operationsFrameX, y, z);
+    interior.add(rail);
+  }
+
+  const handTruckSafetyTex = makeSignTexture(['LOAD SAFELY', 'SECURE  •  TILT  •  MOVE'], {
+    w: 512, h: 224, field: '#173f29', ink: '#f1ecdc', accent: '#b89a4e',
+    secondaryInk: '#e3d8b7', sizes: [62, 30],
+  });
+  const handTruckSafety = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.15, 0.50),
+    new THREE.MeshStandardMaterial({
+      map: handTruckSafetyTex,
+      roughness: 0.84,
+      side: THREE.DoubleSide,
+    }),
+  );
+  handTruckSafety.name = 'HandTruckSafetyPlacard';
+  handTruckSafety.position.set(operationsSignX, 1.55, -5.72);
+  handTruckSafety.rotation.y = Math.PI / 2;
+  interior.add(handTruckSafety);
+  const handTruckSafetyBacking = new THREE.Mesh(
+    roundedBox(0.045, 0.60, 1.25, 0.025),
+    mats.walnut,
+  );
+  handTruckSafetyBacking.name = 'HandTruckSafetyPlacardBacking';
+  handTruckSafetyBacking.position.set(operationsBackingX, 1.55, -5.72);
+  interior.add(handTruckSafetyBacking);
+
+  const addEquipmentParkingBay = (layout, width, depth, name) => {
+    const bay = new THREE.Group();
+    bay.name = name;
+    bay.position.set(layout.x, 0.011, layout.z);
+    bay.rotation.y = layout.ry;
+    const thickness = 0.025;
+    for (const z of [-depth / 2, depth / 2]) {
+      const line = new THREE.Mesh(
+        new THREE.BoxGeometry(width, 0.008, thickness),
+        mats.brass,
+      );
+      line.position.z = z;
+      bay.add(line);
+    }
+    for (const x of [-width / 2, width / 2]) {
+      const line = new THREE.Mesh(
+        new THREE.BoxGeometry(thickness, 0.008, depth),
+        mats.brass,
+      );
+      line.position.x = x;
+      bay.add(line);
+    }
+    interior.add(bay);
+  };
+  addEquipmentParkingBay(
+    DELIVERY_EQUIPMENT_DEFAULT_LAYOUT.delivery_stocking_cart,
+    1.18,
+    0.68,
+    'StockingCartParkingBay',
+  );
+  addEquipmentParkingBay(
+    DELIVERY_EQUIPMENT_DEFAULT_LAYOUT.delivery_hand_truck,
+    0.72,
+    0.62,
+    'HandTruckParkingBay',
+  );
 }
 
 // ----------------------------------------------------------- checkout -------
@@ -858,25 +1319,93 @@ export function buildCheckout(B) {
   const { interior, mats, merch, addCol, colBoxAt } = B;
 
   // paneled island: walnut body, panel insets, wood top, brass foot rail
+  // This remains a zero-network fallback while the GLB loader is warming up. Once
+  // the production Blender counter is ready it is removed as one group, avoiding a
+  // duplicate shell or z-fighting surfaces.
+  const legacyCounter = new THREE.Group();
+  interior.add(legacyCounter);
   const body = new THREE.Mesh(roundedBox(COUNTER.len, 0.96, COUNTER.depth - 0.16, 0.02), mats.walnut);
   body.position.set(COUNTER.x, 0.5, COUNTER.z);
   body.castShadow = true;
-  interior.add(body);
+  legacyCounter.add(body);
   for (let i = 0; i < 3; i++) {
     const inset = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.02), mats.walnutDark);
     inset.position.set(COUNTER.x - 1.05 + i * 1.05, 0.52, COUNTER.z - COUNTER.depth / 2 + 0.07);
-    interior.add(inset);
+    legacyCounter.add(inset);
   }
   const top = new THREE.Mesh(roundedBox(COUNTER.len + 0.2, 0.07, COUNTER.depth + 0.06, 0.025), mats.walnutDark);
   top.position.set(COUNTER.x, 1.02, COUNTER.z);
   top.castShadow = true;
   top.receiveShadow = true;
-  interior.add(top);
+  legacyCounter.add(top);
   const footRail = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, COUNTER.len, 8), mats.brass);
   footRail.rotation.z = Math.PI / 2;
   footRail.position.set(COUNTER.x, 0.16, COUNTER.z - COUNTER.depth / 2 + 0.02);
-  interior.add(footRail);
+  legacyCounter.add(footRail);
   addCol(colBoxAt(COUNTER.x, COUNTER.z, COUNTER.len + 0.3, COUNTER.depth + 0.2));
+
+  if (merch) merch.onReady(() => {
+    // Prefer the current Blender production counter, retaining the older kit as
+    // a zero-network fallback while its prototype is unavailable.
+    const productionCounter = merch.instantiate && merch.instantiate('checkout_counter');
+    const counter = productionCounter
+      || (merch.instantiateKit && merch.instantiateKit('checkout_counter'));
+    if (!counter) return;
+    if (productionCounter) {
+      // Blender-authored at 3.10 m wide, 0.992 m deep, with the worktop at
+      // 1.015 m. Preserve that near-real-world shape while fitting the layout.
+      counter.scale.set(COUNTER.len / 3.10, COUNTER_TOP / 1.015, COUNTER.depth / 0.992);
+      // The authored staging tray supersedes this old flat inlay. Keep the
+      // fallback counter untouched; only the known production node is hidden.
+      const obsoleteStagingInlay = counter.getObjectByName('StagingInlay');
+      if (obsoleteStagingInlay) obsoleteStagingInlay.visible = false;
+    } else {
+      counter.scale.set(COUNTER.len / 2.6, COUNTER_TOP / 0.95, COUNTER.depth / 0.85);
+    }
+    counter.position.set(COUNTER.x, 0, COUNTER.z);
+    // The counter and its two task trays are static after construction. Build
+    // them under an unattached, identity-space root so merch.bake() can collapse
+    // their many authored submeshes without baking the clubhouse transform into
+    // the output (which would be applied a second time when added to interior).
+    const staticCheckoutIsland = new THREE.Group();
+    staticCheckoutIsland.add(counter);
+
+    // Two authored, counter-integrated task surfaces turn the broad worktop
+    // into an intentional production line.  Their dimensions are generated in
+    // metres by build_checkout_assets.py and their centres come from the same
+    // tested REGISTER layout that owns product and change choreography.
+    const stagingTray = merch.instantiate && merch.instantiate('checkout_product_staging_tray');
+    if (stagingTray) {
+      stagingTray.position.set(
+        (REGISTER.staging.minX + REGISTER.staging.maxX) / 2,
+        COUNTER_TOP + 0.001,
+        (REGISTER.staging.minZ + REGISTER.staging.maxZ) / 2,
+      );
+      staticCheckoutIsland.add(stagingTray);
+    }
+    const changeTray = merch.instantiate && merch.instantiate('checkout_change_handoff_tray');
+    if (changeTray) {
+      changeTray.position.set(
+        REGISTER.changeHandoff.x,
+        COUNTER_TOP + 0.001,
+        REGISTER.changeHandoff.z,
+      );
+      staticCheckoutIsland.add(changeTray);
+    }
+
+    const checkoutIslandVisual = merch.bake
+      ? merch.bake(staticCheckoutIsland, { visibleOnly: true })
+      : staticCheckoutIsland;
+    checkoutIslandVisual.name = 'CheckoutIslandStaticVisual';
+    // instantiate() deliberately makes these authored surfaces cast-only. The
+    // generic stock batcher enables receiving for shelves, so restore the exact
+    // checkout render state after batching instead of changing its lighting.
+    checkoutIslandVisual.traverse((object) => {
+      if (object.isMesh) object.receiveShadow = false;
+    });
+    interior.add(checkoutIslandVisual);
+    releaseReplacedFixture(legacyCounter, mats, merch);
+  });
 
   // REGISTER KIT. The positions are no longer eyeballed offsets from registerX —
   // they come from REGISTER in shopLayout.js, which was DERIVED against the player's
@@ -888,29 +1417,36 @@ export function buildCheckout(B) {
   // is a function of the transaction, not of the furniture.
   // deferred: the models land well after the shop is built
   if (merch) merch.onReady(() => {
-    // the register monitor and the card reader are real Tripo scans now (they keep
-    // their own PBR atlas via instantiateRaw); the scanner and printer stay procedural.
-    // The kiosk's glass faces its own +x, so it is turned -PI/2 to face the staff — the
-    // layout's monitor.ry 0 was calibrated to the OLD model, whose screen faced +z.
-    const RAW_PROP = { register: 'kiosk', cardterm: 'cardterm_pro' };
-    const RAW_RY = { register: -Math.PI / 2 };
-    const placeProp = (name, spec, ry) => {
-      const o = RAW_PROP[name] ? merch.instantiateRaw(RAW_PROP[name]) : merch.instantiate(name);
+    // THE FINISHED CHECKOUT KIT (assets/checkout/glb → vendor/models/checkout).
+    // Each device authors its screen face toward -Y, which the exporter converts
+    // to the game's +Z staff side at rotation zero. Origins are bottom-centre, so
+    // every prop sits directly on COUNTER_TOP.
+    const placeKit = (name, spec, { ry = 0, scale = 1 } = {}) => {
+      const o = merch.instantiateKit && merch.instantiateKit(name, { scale });
       if (!o) return null;
       o.position.set(spec.x, COUNTER_TOP, spec.z);
-      o.rotation.y = ry !== undefined ? ry : (name in RAW_RY ? RAW_RY[name] : (spec.ry || 0));
+      o.rotation.y = ry;
       interior.add(o);
       return o;
     };
-    const reg = placeProp('register', REGISTER.monitor);
-    // NOT `slotMesh(...).material = screenMaterial`. The model's screen face carries an
-    // atlas UV from smart_project, so a 0..1 canvas lands on it as a magnified corner —
-    // the register rendered as a black slab. registerMode hangs its own clean-UV plane.
+    // The checkout kit is authored at believable real-world dimensions. Keep
+    // every device at 1:1 so the fixed camera, sockets, and countertop reach
+    // contract all describe the same physical reader and POS.
+    const reg = placeKit('pos_monitor', REGISTER.monitor, { scale: 1.0 });
+    // NOT `slotMesh(...).material = screenMaterial`: registerMode hangs its own
+    // clean-UV canvas plane onto the kit's POS_Screen face.
     if (reg && B.register) B.register.attachScreen(reg);
-    placeProp('scanner', REGISTER.scanner);
-    const term = placeProp('cardterm', REGISTER.cardterm);
+    const term = placeKit('payment_terminal', REGISTER.cardterm, { scale: 1.0 });
     if (term && B.register) B.register.attachTerm(term);
-    placeProp('printer', REGISTER.printer);
+    const scanner = placeKit('barcode_scanner', REGISTER.scanner, {
+      ry: REGISTER.scanner.ry,
+      scale: 1.0,
+    });
+    if (scanner && B.register) B.register.attachScanner(scanner);
+    const printer = placeKit('receipt_printer', REGISTER.printer, { ry: -0.18, scale: 1.0 });
+    if (printer && B.register) B.register.attachPrinter(printer);
+    // Customer-facing total display, turned toward the queue.
+    placeKit('customer_display', REGISTER.custdisplay, { ry: Math.PI, scale: 1.15 });
   });
 
   // the screen is drawn by registerMode from the live transaction — a furniture
@@ -920,15 +1456,17 @@ export function buildCheckout(B) {
   // the spare carriers, folded flat at the bagging end. The OPEN bag you actually
   // drop goods into, the divider and the impulse rack are registerMode's — they are
   // part of the transaction, not part of the room.
-  for (let i = 0; i < 3; i++) {
-    const bag = new THREE.Mesh(
-      new THREE.BoxGeometry(0.26, 0.02, 0.16),
-      new THREE.MeshStandardMaterial({ color: 0x2c4a30, roughness: 0.88 }),
-    );
-    bag.position.set(REGISTER.bagstand.x, COUNTER_TOP + 0.012 + i * 0.021, REGISTER.bagstand.z);
-    bag.rotation.y = 0.08 + i * 0.05;
-    bag.castShadow = true;
-    interior.add(bag);
+  if (!B.register || !B.register.simplified) {
+    for (let i = 0; i < 3; i++) {
+      const bag = new THREE.Mesh(
+        new THREE.BoxGeometry(0.26, 0.02, 0.16),
+        new THREE.MeshStandardMaterial({ color: 0x2c4a30, roughness: 0.88 }),
+      );
+      bag.position.set(REGISTER.bagstand.x, COUNTER_TOP + 0.012 + i * 0.021, REGISTER.bagstand.z);
+      bag.rotation.y = 0.08 + i * 0.05;
+      bag.castShadow = true;
+      interior.add(bag);
+    }
   }
 
   // a hand basket, parked at the aisle end for shoppers to take

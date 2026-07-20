@@ -1,0 +1,31 @@
+{
+ "id": "pf_divot_slim_card",
+ "kind": "products",
+ "category": "divot_tools",
+ "dims_m": [
+  0.09,
+  0.0125,
+  0.15
+ ],
+ "min_z": 0.0,
+ "tris": 696,
+ "textures": [
+  "Card_pf_divot_slim_card:512x852",
+  "NRM_crinkle_0.12_512:512x512",
+  "PSBlackSteel:512x512",
+  "PSSatinAlb:256x256"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_divot_slim_card.glb",
+ "blend": "assets/pro_shop/source/products/divot_tools/pf_divot_slim_card.blend",
+ "name": "Slim Tour Divot Tool (Card)",
+ "variant": "steel",
+ "price": 13.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "hook_card",
+ "packaging": "hang-card"
+}

@@ -43,6 +43,10 @@ export const SHOP_CATALOG = [
   { id: 'shoe1', cat: 'apparel', tier: 2, name: 'North Ridge spikes', cost: 48, msrp: 99, lb: 2.4 },
   { id: 'sock1', cat: 'apparel', tier: 1, name: 'Sunday Round crew socks', cost: 4, msrp: 11, lb: 0.15 },
 
+  // provisions — quick-turn impulse goods beside the entrance
+  { id: 'water1', cat: 'provisions', tier: 1, brand: 'FAIRWAY SPRING', name: 'Fairway Spring Water', cost: 0.85, msrp: 2.50, lb: 1.1 },
+  { id: 'snack1', cat: 'provisions', tier: 1, brand: 'BUNKER BITES', name: 'Bunker Bites Potato Chips', cost: 0.90, msrp: 2.75, lb: 0.12 },
+
   // supplies — the shop's own equipment, never sold to shoppers (restoration arc)
   { id: 'vac1', cat: 'supplies', tier: 1, name: 'Shop vacuum', cost: 140, msrp: 0, lb: 17 },
 
@@ -99,11 +103,11 @@ export function skuById(id) {
 }
 
 // supplier lead time in days by category (clubs ship slow)
-export const LEAD_DAYS = { clubs: 4, balls: 2, apparel: 3, accessories: 2, supplies: 2, decor: 3 };
+export const LEAD_DAYS = { clubs: 4, balls: 2, apparel: 3, accessories: 2, provisions: 1, supplies: 2, decor: 3 };
 
 // shelf capacity per sku by category (one facing); shop equipment/decor never
 // takes a retail facing — it lives in the back until used or placed
-export const SHELF_CAP = { clubs: 6, balls: 24, apparel: 16, accessories: 24, supplies: 0, decor: 0 };
+export const SHELF_CAP = { clubs: 6, balls: 24, apparel: 16, accessories: 24, provisions: 14, supplies: 0, decor: 0 };
 
 // the categories shoppers can actually buy off the shelves
-export const RETAIL_CATS = new Set(['clubs', 'balls', 'apparel', 'accessories']);
+export const RETAIL_CATS = new Set(['clubs', 'balls', 'apparel', 'accessories', 'provisions']);

@@ -11,7 +11,7 @@ import { calendarOf } from './time.js';
 import { addRevenue, addExpense, unbill } from './economy.js';
 import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
 import { planShipment } from '../data/boxes.js';
-import { capacityOf } from '../data/fixtureSlots.js';
+import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
 import { INTERIOR, CLUTTER_SPOTS, WINDOWS } from '../data/shopLayout.js';
 import {
   arriveOrder, openAllBoxes, ensureDeliveries, padHasRoom, padCount, PAD_CAPACITY,
@@ -19,6 +19,8 @@ import {
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
 import { members } from './golfers.js';
+import { notify } from './notifications.js';
+import { placedFixtures } from './layout.js';
 
 // --- restoration arc ------------------------------------------------------------
 // The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
@@ -116,6 +118,10 @@ export function ensureShopReno(state) {
   for (const sku of SHOP_CATALOG) {
     if (!state.shop.inventory[sku.id]) state.shop.inventory[sku.id] = { shelf: 0, back: 0 };
   }
+  // Provisions joined the sellable catalog after launch. Preserve every
+  // existing category setting while giving older saves a valid base markup.
+  if (!state.shop.markup || typeof state.shop.markup !== 'object') state.shop.markup = {};
+  if (!Number.isFinite(state.shop.markup.provisions)) state.shop.markup.provisions = 1.0;
   ensureDeliveries(state); // physical-retail block (2026-07-13)
 
   // EXTERIOR NEGLECT (2026-07-14 stabilization P2): pre-exterior saves gain the
@@ -317,8 +323,10 @@ export function initShop(state) {
     inventory,
     orders: [],
     nextOrderId: 1,
-    markup: { clubs: 1.0, balls: 1.0, apparel: 1.0, accessories: 1.0 },
-    featureCategory: 'balls', // the front table the player merchandises
+    markup: { clubs: 1.0, balls: 1.0, apparel: 1.0, accessories: 1.0, provisions: 1.0 },
+    // The entrance feature is the authored rangefinder display. Rangefinders
+    // are accessories, so its attention nudge must agree with what is visible.
+    featureCategory: 'accessories',
     rentalFleet: { sets: 3, condition: 55, pricePerRound: 18 },
     deliveries: { boxes: [], nextBoxId: 1, trash: 0, recycled: 0, shipments: [] },
     carry: null,         // WHAT IS IN YOUR HANDS: {skuId, qty} — see sim/stocking.js
@@ -327,6 +335,8 @@ export function initShop(state) {
     salesYesterday: { units: 0, revenue: 0 },
     salesToday: {},      // per-SKU units sold since the last day close (both selling paths)
     salesWindow: [],     // the last seven closed days of the same — velocity reads this
+    transactionHistory: [], // completed physical-register tickets, newest first
+    nextTransactionNo: 1,
     fittingsYesterday: 0,
     log: [], // recent notable sales for the panel/3D flavor
   };
@@ -360,10 +370,23 @@ export function placeOrder(state, skuId, qty) {
   const sku = skuById(skuId);
   if (!sku) return { ok: false, reason: 'No such item.' };
   if (sku.tier > state.shop.unlockedTier) return { ok: false, reason: 'Supplier account not unlocked yet.' };
+  if (!Number.isInteger(qty) || qty < 1) return { ok: false, reason: 'Order quantity must be a positive whole number.' };
 
   // pack it NOW. The manifest is what the Orders screen promises and what the receiving pad
   // stands there — one object, read twice, so the two can never disagree.
   const manifest = planShipment(sku, qty);
+  // One order has to fit on an EMPTY receiving pad. Several smaller orders may
+  // still queue and arrive as the player clears cartons, but a single manifest
+  // larger than the pad can never satisfy the atomic unloading contract below.
+  // Reject it before billing instead of creating paid stock that circles forever.
+  if (manifest.boxCount > PAD_CAPACITY) {
+    return {
+      ok: false,
+      reason: `This order needs ${manifest.boxCount} boxes, but the receiving pad holds ${PAD_CAPACITY}. Split it into smaller orders.`,
+      boxes: manifest.boxCount,
+      capacity: PAD_CAPACITY,
+    };
+  }
   const goods = orderCost(sku, qty);
   const fee = manifest.fee;
   const cost = Math.round((goods + fee) * 100) / 100;   // `cost` is what you actually paid
@@ -476,7 +499,9 @@ export function cancelOrder(state, id) {
   if (i < 0) return { ok: false, reason: 'No such order.' };
   const o = orders[i];
   // once it is inside its delivery window the goods are on the pad any minute — too late.
-  if (o.status === 'arriving' || o.status === 'delivered') {
+  // A blocked van has explicitly unloaded nothing, so it can still be turned
+  // away. This also rescues legacy oversized paid manifests from permanent limbo.
+  if ((o.status === 'arriving' || o.status === 'delivered') && !o.blocked) {
     return { ok: false, reason: 'The van is at the door — too late to cancel.' };
   }
   orders.splice(i, 1);
@@ -511,6 +536,10 @@ export function tickDeliveries(state, nowMin) {
         if (!o.blocked) {
           o.blocked = true;
           events.push({ kind: 'blocked', order: o, need, free: PAD_CAPACITY - padCount(state) - reserved });
+          notify(state, {
+            kind: 'delivery',
+            text: `A van could not unload — the receiving pad is full. Order #${o.id} is circling until you clear cartons.`,
+          });
         }
         continue;
       }
@@ -544,8 +573,27 @@ export function deliverOrdersDue(state, dayAbs) {
   // windowed orders due TODAY belong to their window (tickDeliveries) — only
   // strictly-past days force-land here; legacy windowless orders keep day-of
   const due = (o) => (o.window === undefined ? o.arrivesDay <= dayAbs : o.arrivesDay < dayAbs);
-  const arrived = state.shop.orders.filter(due);
-  state.shop.orders = state.shop.orders.filter((o) => !due(o));
+  const arrived = [];
+  let reserved = 0;
+  for (const order of state.shop.orders) {
+    if (!due(order)) continue;
+    const need = (order.manifest && order.manifest.boxCount) || 1;
+    if (!padHasRoom(state, need + reserved)) {
+      order.status = 'arriving';
+      if (!order.blocked) {
+        order.blocked = true;
+        notify(state, {
+          kind: 'delivery',
+          text: `A van could not unload — the receiving pad is full. Order #${order.id} is waiting until you clear cartons.`,
+        });
+      }
+      continue;
+    }
+    order.blocked = false;
+    reserved += need;
+    arrived.push(order);
+  }
+  state.shop.orders = state.shop.orders.filter((order) => !arrived.includes(order));
   // 2026-07-13 physical retail: arrivals are BOXES on the receiving pad —
   // contents reach the backroom when someone opens them (you, or the
   // morning floor staff in restockShelvesByStaff)
@@ -569,6 +617,22 @@ export function shelfCapacity(sku) {
   return slots > 0 ? slots : SHELF_CAP[sku.cat];
 }
 
+function placedFixtureIds(state) {
+  return new Set(placedFixtures(state).map((fixture) => fixture.id));
+}
+
+function skuDisplayIsInSet(skuId, fixtureIds) {
+  const fixture = homeFixture(skuId);
+  // Catalog lines without an authored fixture retain their legacy behavior.
+  // Authored lines, however, are sellable/shelfable only while that one real
+  // display is on the floor.
+  return !fixture || fixtureIds.has(fixture.id);
+}
+
+export function skuDisplayIsPlaced(state, skuId) {
+  return skuDisplayIsInSet(skuId, placedFixtureIds(state));
+}
+
 // does the shop own its vacuum yet? (equipment lives in .back, never on shelves)
 export function vacuumOwned(state) {
   const inv = state.shop.inventory.vac1;
@@ -579,6 +643,7 @@ export function vacuumOwned(state) {
 export function restockShelfFromBackroom(state, skuId) {
   const sku = skuById(skuId);
   if (!RETAIL_CATS.has(sku.cat)) return { ok: false, reason: 'Equipment stays in the back.' };
+  if (!skuDisplayIsPlaced(state, skuId)) return { ok: false, reason: 'That display is stored.' };
   const inv = state.shop.inventory[skuId];
   const space = shelfCapacity(sku) - inv.shelf;
   const move = Math.min(space, inv.back);
@@ -593,11 +658,13 @@ export function restockShelvesByStaff(state) {
   const skill = bestSkill(state, ROLE.PROSHOP);
   if (skill <= 0) return 0;
   openAllBoxes(state); // the crew unboxes the truck's drop before shelving
+  const floorFixtures = placedFixtureIds(state);
   let capacity = 30 + skill * 25; // units they can shelve in a morning
   let moved = 0;
   for (const sku of SHOP_CATALOG) {
     if (capacity <= 0) break;
     if (!RETAIL_CATS.has(sku.cat)) continue; // your vacuum is not for sale
+    if (!skuDisplayIsInSet(sku.id, floorFixtures)) continue;
     const inv = state.shop.inventory[sku.id];
     const space = shelfCapacity(sku) - inv.shelf;
     const move = Math.min(space, inv.back, capacity);
@@ -620,13 +687,17 @@ export function demandWeight(cat, seasonIndex) {
     clubs: [1.0, 1.1, 0.8, 0.4],
     apparel: [0.9, 0.8, 1.05, 1.35],
     accessories: [1.0, 1.0, 0.95, 0.6],
+    provisions: [1.05, 1.35, 0.95, 0.55],
   };
   return table[cat][seasonIndex];
 }
 
 export function shopOpenStock(state) {
+  const floorFixtures = placedFixtureIds(state);
   let units = 0;
-  for (const inv of Object.values(state.shop.inventory)) units += inv.shelf;
+  for (const [skuId, inv] of Object.entries(state.shop.inventory)) {
+    if (skuDisplayIsInSet(skuId, floorFixtures)) units += inv.shelf;
+  }
   return units;
 }
 
@@ -645,6 +716,7 @@ export function shopDailyAccrual(state) {
 
   // staff shelve stock before the doors open
   restockShelvesByStaff(state);
+  const floorFixtures = placedFixtureIds(state);
 
   // shopper flow: players on the course + member drop-ins + reputation walk-ins
   const shoppers = Math.round(
@@ -671,14 +743,16 @@ export function shopDailyAccrual(state) {
     // what did they come in wanting?
     const catRoll = rng.next();
     let cat;
-    const wBalls = 0.44 * demandWeight('balls', seasonIndex);
-    const wAcc = 0.2 * demandWeight('accessories', seasonIndex);
-    const wApp = 0.24 * demandWeight('apparel', seasonIndex);
-    const wClubs = 0.12 * demandWeight('clubs', seasonIndex);
-    const total = wBalls + wAcc + wApp + wClubs;
+    const wBalls = 0.38 * demandWeight('balls', seasonIndex);
+    const wAcc = 0.18 * demandWeight('accessories', seasonIndex);
+    const wApp = 0.20 * demandWeight('apparel', seasonIndex);
+    const wClubs = 0.11 * demandWeight('clubs', seasonIndex);
+    const wProvisions = 0.13 * demandWeight('provisions', seasonIndex);
+    const total = wBalls + wAcc + wApp + wClubs + wProvisions;
     if (catRoll < wBalls / total) cat = 'balls';
     else if (catRoll < (wBalls + wAcc) / total) cat = 'accessories';
     else if (catRoll < (wBalls + wAcc + wApp) / total) cat = 'apparel';
+    else if (catRoll < (wBalls + wAcc + wApp + wProvisions) / total) cat = 'provisions';
     else cat = 'clubs';
 
     // the feature table nudges attention toward what you merchandise
@@ -686,7 +760,7 @@ export function shopDailyAccrual(state) {
 
     const options = (catalogByCat[cat] || []).filter((s) => {
       if (s.coldSeason && (seasonIndex === 1)) return false; // no storm shells in July
-      return state.shop.inventory[s.id].shelf > 0;
+      return skuDisplayIsInSet(s.id, floorFixtures) && state.shop.inventory[s.id].shelf > 0;
     });
 
     if (!options.length) {
@@ -700,12 +774,13 @@ export function shopDailyAccrual(state) {
     const pickIdx = clamp(Math.floor((wealth - 1 + rng.next()) / 4 * options.length), 0, options.length - 1);
     const sku = options[pickIdx];
 
-    let accept = priceAcceptance(shop.markup[cat], wealth, sku.tier);
+    const markup = Number.isFinite(shop.markup[cat]) ? shop.markup[cat] : 1.0;
+    let accept = priceAcceptance(markup, wealth, sku.tier);
     if (cat === 'clubs') accept *= proOnFloor ? 0.55 + floorSkill * 0.14 : 0.3; // big tickets need help
     else if (proOnFloor) accept *= 1 + floorSkill * 0.03;
 
     if (rng.chance(clamp(accept, 0, 0.97))) {
-      const price = priceFor(sku, shop.markup[cat], member ? member.memberTier : null);
+      const price = priceFor(sku, markup, member ? member.memberTier : null);
       revenue += price;
       units++;
       recordSale(state, sku.id);
@@ -719,6 +794,19 @@ export function shopDailyAccrual(state) {
   }
 
   if (revenue > 0) addRevenue(state, 'shopSales', revenue);
+
+  // a line that sold down to nothing today is a fact worth filing — once per line per day
+  for (const sku of SHOP_CATALOG) {
+    if (!RETAIL_CATS.has(sku.cat) || sku.tier > shop.unlockedTier) continue;
+    const inv = shop.inventory[sku.id];
+    if (inv && inv.shelf === 0 && inv.back === 0 && velocity(state, sku.id) > 0) {
+      notify(state, {
+        kind: 'stock',
+        text: `Sold out: ${sku.name}. Nothing on the shelf, nothing in the back.`,
+        dedupeKey: `sellout:${sku.id}:${cal.dayAbs}`,
+      });
+    }
+  }
 
   // --- rentals: guests without clubs -------------------------------------------
   const fleet = shop.rentalFleet;

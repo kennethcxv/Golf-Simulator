@@ -73,13 +73,13 @@ test('the running total only counts what has actually been scanned', () => {
   assert.equal(subtotal(tx), 113.55);
 });
 
-test('a member discount comes off the total, and the cash total rounds to the nickel', () => {
+test('a member discount comes off the total, and cash remains cent-accurate', () => {
   const tx = createTx({ items: items(), discount: 0.1 });
   for (const it of tx.items) scanItem(tx, it.uid);
   assert.equal(subtotal(tx), 113.55);
   assert.equal(discountOf(tx), 11.36);           // 10% of 113.55, to the cent
   assert.equal(totalOf(tx), 102.19);             // what a CARD is charged, exactly
-  assert.equal(cashTotalOf(tx), 102.2);          // what CASH is charged, to the nickel
+  assert.equal(cashTotalOf(tx), 102.19);         // CASH and card share the exact cent total
 });
 
 test('with no discount the card total and the subtotal agree', () => {

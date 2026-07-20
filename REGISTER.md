@@ -58,10 +58,10 @@ The rounding is recorded on the receipt, not quietly pocketed.
 
 ```
 BILLS  50  20  10  5  1
-COINS  0.25  0.10  0.05
+COINS  0.50  0.20  0.10  0.05  0.01
 ```
 
-Five bill wells and three coin cups, matching `DENOMS` exactly. The banknotes are *drawn*,
+Five bill wells and five coin cups, matching `DENOMS` exactly. The banknotes are *drawn*,
 not modelled — a note IS its print, so they are canvas textures with guilloche linework on
 thin geometry. The currency is invented (**FAIRWAY RESERVE**) because printing a real one
 would be forgery rendered at 60 fps.

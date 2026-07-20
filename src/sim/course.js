@@ -17,7 +17,43 @@ export function makeCourse(w = GRID_W, h = GRID_H) {
     holes: [],
     nextHoleId: 1,
     structures: [], // e.g. { type: 'clubhouse', x, y, w, h }
+    // placed world objects (trees, shrubs, rocks, props) — fractional cell
+    // coords so placement is smooth; the renderer instances them by type
+    objects: [], // { id, type, x, y, rot, scale }
+    nextObjectId: 1,
+    // cart/walking paths as splines; PATH zone cells are derived from these
+    paths: [], // { id, pts: [{x, y}...], width (yd), material }
+    nextPathId: 1,
   };
+}
+
+// Older saves (and freshly deserialized courses) may lack the editor-era
+// fields; give them safe defaults in place.
+export function ensureCourseShape(course) {
+  if (!Array.isArray(course.objects)) course.objects = [];
+  if (!Number.isFinite(course.nextObjectId)) {
+    course.nextObjectId = course.objects.reduce((m, o) => Math.max(m, o.id || 0), 0) + 1;
+  }
+  if (!Array.isArray(course.paths)) course.paths = [];
+  if (!Number.isFinite(course.nextPathId)) {
+    course.nextPathId = course.paths.reduce((m, p) => Math.max(m, p.id || 0), 0) + 1;
+  }
+  course.holes.forEach((h, i) => ensureHoleShape(h, i + 1));
+  return course;
+}
+
+// Editor-era hole fields: display name, handicap, alternate tees and pins.
+// hole.tee / hole.pin remain the ACTIVE markers (written through on change)
+// so golfers, sections, validation and old saves all keep working unchanged.
+export function ensureHoleShape(hole, n) {
+  if (!hole.name) hole.name = `Hole ${n}`;
+  if (!Number.isFinite(hole.handicap)) hole.handicap = n;
+  if (!hole.tees) hole.tees = { back: hole.tee ? { ...hole.tee } : null, middle: null, forward: null };
+  if (!hole.activeTee) hole.activeTee = 'back';
+  if (!hole.pins) hole.pins = { A: hole.pin ? { ...hole.pin } : null, B: null, C: null };
+  if (!hole.activePin) hole.activePin = 'A';
+  if (hole.parOverride === undefined) hole.parOverride = null;
+  return hole;
 }
 
 export function idx(course, x, y) {
@@ -76,6 +112,9 @@ export function parForDistance(yd) {
 }
 
 export function holePar(hole) {
+  if (Number.isFinite(hole.parOverride) && hole.parOverride >= 3 && hole.parOverride <= 5) {
+    return hole.parOverride;
+  }
   return parForDistance(holeDistanceYd(hole));
 }
 

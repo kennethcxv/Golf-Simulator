@@ -11,6 +11,7 @@
 
 import { clamp } from '../core/utils.js';
 import { calendarOf } from './time.js';
+import { notify } from './notifications.js';
 import { shopCondition, exteriorScore } from './shop.js';
 import { exteriorWashScore } from './washing.js';
 import { clubRatings, fairGreenFee, amenityScore } from './club.js';
@@ -191,6 +192,12 @@ export function postReview(state, review) {
   // reputation drifts toward what people are actually saying
   const target = (review.stars - 1) / 4 * 100;
   state.club.reputation = Math.round((state.club.reputation * 0.97 + target * 0.03) * 10) / 10;
+  // one heads-up per day, however many land — the Reviews page holds the rest
+  notify(state, {
+    kind: 'review',
+    text: `New review${review.stars <= 2 ? ` — ${review.stars}★, worth reading` : `: ${review.stars}★`}. More may follow today.`,
+    dedupeKey: `review:${review.day}`,
+  });
   return review;
 }
 

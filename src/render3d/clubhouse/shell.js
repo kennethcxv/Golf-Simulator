@@ -12,10 +12,68 @@ import {
 } from '../../data/shopLayout.js';
 import { makeSignTexture, makeOakFloorTexture, makeConcreteTexture, makeSidingTexture } from './materials.js';
 
+const PRODUCTION_VISUAL_FALLBACK_KEYS = Object.freeze([
+  'exteriorShellStructure',
+  'apertureTrim',
+  'porchVisuals',
+  'windowVisuals',
+  'renovatedFloor',
+  'ceilingVisuals',
+  'wainscotPanels',
+  'interiorTrim',
+]);
+
+// These handles deliberately leave every mesh under its original scene parent.
+// A production asset can therefore hide a logical visual set atomically without
+// reparenting window holders (which later receive dirt) or changing transforms.
+// Hiding snapshots every node's current state so a later restore preserves mixed
+// visibility instead of blindly forcing the whole set on.
+// Sets are disjoint: apertureTrim owns proud exterior window casing;
+// windowVisuals owns jamb/frame, glass, and muntins; interiorTrim owns interior
+// sills/aprons, base/cap rails, and crown. Composites can safely combine those
+// handles when an authored asset owns more than one of these visual layers.
+function productionVisualHandle(name, sourceNodes) {
+  const nodes = Object.freeze([...new Set(sourceNodes)]);
+  const initialVisibility = Object.freeze(nodes.map((node) => node.visible));
+  let hiddenVisibility = null;
+
+  const getVisible = () => nodes.some((node) => node.visible !== false);
+  const setVisible = (nextVisible) => {
+    if (!nextVisible) {
+      if (hiddenVisibility === null) hiddenVisibility = nodes.map((node) => node.visible);
+      for (const node of nodes) node.visible = false;
+      return false;
+    }
+
+    if (hiddenVisibility !== null) {
+      for (let i = 0; i < nodes.length; i++) nodes[i].visible = hiddenVisibility[i];
+      hiddenVisibility = null;
+    } else if (!getVisible()) {
+      for (let i = 0; i < nodes.length; i++) nodes[i].visible = initialVisibility[i];
+    }
+    return getVisible();
+  };
+
+  const handle = { name, nodes, nodeCount: nodes.length, getVisible, setVisible };
+  Object.defineProperty(handle, 'visible', {
+    enumerable: true,
+    get: getVisible,
+    set: setVisible,
+  });
+  return Object.freeze(handle);
+}
+
 export function buildShell(B) {
   const { group, interior, mats, merch, addCol, colBoxAt, FLOOR_TOP, state } = B;
   const halfW = SHELL.w / 2 - SHELL.wallT / 2; // wall centerlines
   const halfD = SHELL.d / 2 - SHELL.wallT / 2;
+  const productionFallbackNodes = Object.fromEntries(
+    PRODUCTION_VISUAL_FALLBACK_KEYS.map((key) => [key, []]),
+  );
+  const trackProductionFallback = (key, node) => {
+    productionFallbackNodes[key].push(node);
+    return node;
+  };
 
   // --- exterior finishes (normal-mapped siding + roof, kept from the yard kit) ---
   const texLoader = new THREE.TextureLoader();
@@ -77,6 +135,7 @@ export function buildShell(B) {
       m.castShadow = true;
       m.receiveShadow = true;
       group.add(m);
+      trackProductionFallback('exteriorShellStructure', m);
     }
     const gaps = doorGaps.map((d) => [d.c - d.w / 2, d.c + d.w / 2]).sort((a, b) => a[0] - b[0]);
     let c = from;
@@ -122,6 +181,7 @@ export function buildShell(B) {
     const skirt = new THREE.Mesh(new THREE.BoxGeometry(side.w, 0.9, side.d), mats.charcoal);
     skirt.position.set(side.x, -0.14, side.z); // deep enough to meet sloped ground
     group.add(skirt);
+    trackProductionFallback('exteriorShellStructure', skirt);
   }
 
   // --- windows: jambs, sills, muntin grids, casings — real glazed openings --------
@@ -143,11 +203,13 @@ export function buildShell(B) {
     // glass
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.1, H - 0.1), mats.glass);
     holder.add(glass);
+    trackProductionFallback('windowVisuals', glass);
     // jamb lining (top/bottom/left/right boards through the wall)
     const jamb = (bw, bh, bx, by) => {
       const b = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, jambD), mats.trimPaint);
       b.position.set(bx, by, 0);
       holder.add(b);
+      trackProductionFallback('windowVisuals', b);
     };
     jamb(W + 0.12, 0.07, 0, H / 2 + 0.02);
     jamb(W + 0.12, 0.07, 0, -H / 2 - 0.02);
@@ -156,9 +218,11 @@ export function buildShell(B) {
     // muntin grid: one vertical + one horizontal bar (4 lites), both faces read it
     const muntinV = new THREE.Mesh(new THREE.BoxGeometry(0.05, H - 0.08, 0.055), mats.trimPaint);
     holder.add(muntinV);
+    trackProductionFallback('windowVisuals', muntinV);
     const muntinH = new THREE.Mesh(new THREE.BoxGeometry(W - 0.08, 0.05, 0.055), mats.trimPaint);
     muntinH.position.y = -H * 0.12;
     holder.add(muntinH);
+    trackProductionFallback('windowVisuals', muntinH);
     // interior sill board + apron (walnut, beveled feel via thin cap)
     const sill = new THREE.Mesh(new THREE.BoxGeometry(W + 0.3, 0.05, 0.24), mats.walnut);
     sill.position.set(0, -H / 2 - 0.045, (SHELL.wallT / 2 + 0.09) * -Math.sign(1)); // inside face
@@ -166,15 +230,18 @@ export function buildShell(B) {
     const insideSign = (w.wall === 'S' || w.wall === 'E') ? -1 : 1;
     sill.position.z = insideSign * (SHELL.wallT / 2 + 0.1);
     holder.add(sill);
+    trackProductionFallback('interiorTrim', sill);
     const apron = new THREE.Mesh(new THREE.BoxGeometry(W + 0.14, 0.1, 0.03), mats.walnut);
     apron.position.set(0, -H / 2 - 0.12, insideSign * (SHELL.wallT / 2 + 0.015));
     holder.add(apron);
+    trackProductionFallback('interiorTrim', apron);
     // exterior casing (proud trim frame)
     const outSign = -insideSign;
     const caseOut = (bw, bh, bx, by) => {
       const b = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 0.05), trimMat);
       b.position.set(bx, by, outSign * (SHELL.wallT / 2 + 0.03));
       holder.add(b);
+      trackProductionFallback('apertureTrim', b);
     };
     caseOut(W + 0.34, 0.12, 0, H / 2 + 0.1);
     caseOut(W + 0.34, 0.12, 0, -H / 2 - 0.1);
@@ -199,6 +266,7 @@ export function buildShell(B) {
       gable.rotation.y = xSide > 0 ? -Math.PI / 2 : Math.PI / 2;
       gable.castShadow = true;
       group.add(gable);
+      trackProductionFallback('exteriorShellStructure', gable);
     }
     const slopeLen = Math.hypot(PEAK, D2 / 2) + 1.3;
     const roofPitch = Math.atan2(PEAK, D2 / 2);
@@ -209,20 +277,24 @@ export function buildShell(B) {
       slab.castShadow = true;
       slab.receiveShadow = true;
       group.add(slab);
+      trackProductionFallback('exteriorShellStructure', slab);
       // fascia along the eave
       const fascia = new THREE.Mesh(new THREE.BoxGeometry(W2 + 2.2, 0.26, 0.07), trimMat);
       fascia.rotation.x = zSide * roofPitch;
       fascia.position.set(0, WALL_H - 0.02, zSide * (D2 / 2 + 0.78));
       group.add(fascia);
+      trackProductionFallback('exteriorShellStructure', fascia);
       // soffit under the overhang (clean cream underside, kills the striping)
       const soffit = new THREE.Mesh(new THREE.PlaneGeometry(W2 + 2.1, 0.95), soffitMat);
       soffit.rotation.x = Math.PI / 2;
       soffit.position.set(0, WALL_H - 0.1, zSide * (D2 / 2 + 0.32));
       group.add(soffit);
+      trackProductionFallback('exteriorShellStructure', soffit);
     }
     const ridge = new THREE.Mesh(new THREE.BoxGeometry(W2 + 2.0, 0.18, 0.5), new THREE.MeshStandardMaterial({ color: 0x24462a, roughness: 0.7 }));
     ridge.position.set(0, WALL_H + PEAK + 0.1, 0);
     group.add(ridge);
+    trackProductionFallback('exteriorShellStructure', ridge);
 
     // --- RAINWATER GOODS -------------------------------------------------------
     // The brief asks for gutters and downspouts and the building had neither, so
@@ -246,12 +318,14 @@ export function buildShell(B) {
       trough.position.set(0, EAVE_Y, zSide * EAVE_Z);
       trough.castShadow = true;
       group.add(trough);
+      trackProductionFallback('exteriorShellStructure', trough);
       // the bead along the outer lip
       const bead = new THREE.Mesh(
         new THREE.CylinderGeometry(0.022, 0.022, W2 + 2.2, 6), gutterMat);
       bead.rotation.z = Math.PI / 2;
       bead.position.set(0, EAVE_Y, zSide * (EAVE_Z + 0.108));
       group.add(bead);
+      trackProductionFallback('exteriorShellStructure', bead);
     }
     // downspouts at all four corners: outlet, stack, and an elbow kicking clear
     for (const xSide of [-1, 1]) {
@@ -262,26 +336,31 @@ export function buildShell(B) {
           new THREE.CylinderGeometry(0.055, 0.045, 0.16, 8), gutterMat);
         outlet.position.set(px, EAVE_Y - 0.12, pz);
         group.add(outlet);
+        trackProductionFallback('exteriorShellStructure', outlet);
         const stack = new THREE.Mesh(
           new THREE.BoxGeometry(0.085, EAVE_Y - 0.55, 0.085), gutterMat);
         stack.position.set(px, (EAVE_Y - 0.30) / 2 + 0.02, pz - zSide * 0.06);
         stack.castShadow = true;
         group.add(stack);
+        trackProductionFallback('exteriorShellStructure', stack);
         for (const by of [1.35, 3.05]) {   // the straps that hold it to the wall
           const strap = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.03, 0.03), gutterMat);
           strap.position.set(px, by, pz - zSide * 0.10);
           group.add(strap);
+          trackProductionFallback('exteriorShellStructure', strap);
         }
         const elbow = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.085, 0.34), gutterMat);
         elbow.position.set(px, 0.16, pz - zSide * 0.21);
         elbow.rotation.x = zSide * 0.5;
         group.add(elbow);
+        trackProductionFallback('exteriorShellStructure', elbow);
         const splash = new THREE.Mesh(
           new THREE.BoxGeometry(0.28, 0.03, 0.42),
           new THREE.MeshStandardMaterial({ color: 0x8d8a80, roughness: 0.95 }),
         );
         splash.position.set(px, 0.015, pz - zSide * 0.48);
         group.add(splash);
+        trackProductionFallback('exteriorShellStructure', splash);
       }
     }
 
@@ -340,26 +419,32 @@ export function buildShell(B) {
     deck.position.set(-1.0, FLOOR_TOP / 2, D2 / 2 + PORCH_D / 2);
     deck.receiveShadow = true;
     group.add(deck);
+    trackProductionFallback('porchVisuals', deck);
     const porchRoof = new THREE.Mesh(new THREE.BoxGeometry(porchW + 0.9, 0.18, PORCH_D + 0.7), roofMat);
     porchRoof.position.set(-1.0, WALL_H - 0.75, D2 / 2 + PORCH_D / 2);
     porchRoof.castShadow = true;
     group.add(porchRoof);
+    trackProductionFallback('porchVisuals', porchRoof);
     const porchSoffit = new THREE.Mesh(new THREE.PlaneGeometry(porchW + 0.8, PORCH_D + 0.5), soffitMat);
     porchSoffit.rotation.x = Math.PI / 2;
     porchSoffit.position.set(-1.0, WALL_H - 0.85, D2 / 2 + PORCH_D / 2);
     group.add(porchSoffit);
+    trackProductionFallback('porchVisuals', porchSoffit);
     const porchFascia = new THREE.Mesh(new THREE.BoxGeometry(porchW + 0.9, 0.2, 0.06), trimMat);
     porchFascia.position.set(-1.0, WALL_H - 0.72, D2 / 2 + PORCH_D + 0.32);
     group.add(porchFascia);
+    trackProductionFallback('porchVisuals', porchFascia);
     for (const px of [-1.0 - porchW / 2 + 0.35, -1.0 - porchW / 6, -1.0 + porchW / 6, -1.0 + porchW / 2 - 0.35]) {
       const post = new THREE.Mesh(new THREE.BoxGeometry(0.17, WALL_H - 1.05 - FLOOR_TOP, 0.17), trimMat);
       post.position.set(px, (WALL_H - 0.75 + FLOOR_TOP) / 2 - 0.15, D2 / 2 + PORCH_D - 0.45);
       post.castShadow = true;
       group.add(post);
+      trackProductionFallback('porchVisuals', post);
       for (const [py, s] of [[FLOOR_TOP + 0.14, 0.24], [WALL_H - 1.0, 0.22]]) {
         const capB = new THREE.Mesh(new THREE.BoxGeometry(s, 0.1, s), trimMat);
         capB.position.set(px, py, D2 / 2 + PORCH_D - 0.45);
         group.add(capB);
+        trackProductionFallback('porchVisuals', capB);
       }
       addCol(colBoxAt(px, D2 / 2 + PORCH_D - 0.45, 0.4, 0.4));
     }
@@ -374,15 +459,18 @@ export function buildShell(B) {
       tread.castShadow = true;
       tread.receiveShadow = true;
       group.add(tread);
+      trackProductionFallback('porchVisuals', tread);
       const riser = new THREE.Mesh(new THREE.BoxGeometry(stairW, 0.13, 0.04), stepMat);
       riser.position.set(DOOR_MAIN.x, FLOOR_TOP - 0.195 - i * 0.15, stairZ0 + 0.02 + i * 0.38);
       group.add(riser);
+      trackProductionFallback('porchVisuals', riser);
     }
     for (const sx of [-1, 1]) {
       // stringer cheek
       const stringer = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.34, 0.86), stepMat);
       stringer.position.set(DOOR_MAIN.x + sx * (stairW / 2 - 0.025), FLOOR_TOP - 0.19, stairZ0 + 0.4);
       group.add(stringer);
+      trackProductionFallback('porchVisuals', stringer);
       // handrail: two turned posts + rail following the run
       const hrMat = trimMat;
       for (const [pz, py] of [[stairZ0 + 0.05, FLOOR_TOP + 0.45], [stairZ0 + 0.82, FLOOR_TOP + 0.15]]) {
@@ -390,11 +478,13 @@ export function buildShell(B) {
         post.position.set(DOOR_MAIN.x + sx * (stairW / 2 + 0.06), py, pz);
         post.castShadow = true;
         group.add(post);
+        trackProductionFallback('porchVisuals', post);
       }
       const rail = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 1.0), hrMat);
       rail.position.set(DOOR_MAIN.x + sx * (stairW / 2 + 0.06), FLOOR_TOP + 0.72, stairZ0 + 0.44);
       rail.rotation.x = 0.36;
       group.add(rail);
+      trackProductionFallback('porchVisuals', rail);
     }
     // a real concrete walk out to the course, jointed slabs, full width
     const walkMat = new THREE.MeshStandardMaterial({ map: makeConcreteTexture({ seed: 41 }), color: 0xc9c2b2, roughness: 0.95 });
@@ -417,6 +507,7 @@ export function buildShell(B) {
     );
     skirt.position.set(0, -0.28, 0);
     group.add(skirt);
+    trackProductionFallback('exteriorShellStructure', skirt);
 
     // post-mounted club sign by the walk (the reference's PINEHOLLOW board)
     const words = ((state && state.clubName) || 'GOLF CLUB').toUpperCase().split(' ');
@@ -450,9 +541,11 @@ export function buildShell(B) {
     chimney.position.set(W2 * 0.3, WALL_H + PEAK - 0.5, -D2 * 0.15);
     chimney.castShadow = true;
     group.add(chimney);
+    trackProductionFallback('exteriorShellStructure', chimney);
     const chimCap = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.12, 1.16), mats.charcoal);
     chimCap.position.set(W2 * 0.3, WALL_H + PEAK + 1.0, -D2 * 0.15);
     group.add(chimCap);
+    trackProductionFallback('exteriorShellStructure', chimCap);
 
     // hours sign (sign kit) + porch sconce by the door
     const signTex = makeSignTexture(['PRO SHOP', 'OPEN DAILY', '6 AM – 8 PM'], { w: 256, h: 192 });
@@ -510,6 +603,7 @@ export function buildShell(B) {
     slab.position.set(0, FLOOR_TOP / 2, 0);
     slab.receiveShadow = true;
     group.add(slab);
+    trackProductionFallback('renovatedFloor', slab);
     // concrete sits a hair proud over the stockroom (a different pour)
     const sb = STOCKROOM.bounds;
     const concTex = makeConcreteTexture({});
@@ -543,23 +637,27 @@ export function buildShell(B) {
     ceil.rotation.x = Math.PI / 2;
     ceil.position.y = SHELL.h;
     interior.add(ceil);
+    trackProductionFallback('ceilingVisuals', ceil);
     const salesW = STOCKROOM.bounds.minX + INTERIOR.w / 2; // west edge → partition
     for (const bz of [-3.9, -1.3, 1.3, 3.9]) {
       const beam = new THREE.Mesh(new THREE.BoxGeometry(salesW, 0.26, 0.22), mats.walnut);
       beam.position.set(-INTERIOR.w / 2 + salesW / 2, SHELL.h - 0.13, bz);
       beam.castShadow = true;
       interior.add(beam);
+      trackProductionFallback('ceilingVisuals', beam);
     }
     // one crossing beam ties the coffers where the aisle turns
     const cross = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, INTERIOR.d), mats.walnut);
     cross.position.set(-2.3, SHELL.h - 0.13, 0);
     interior.add(cross);
+    trackProductionFallback('ceilingVisuals', cross);
     // crown molding around the room + along the partitions
     const crown = (len, x, z, rotY = 0) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(len, 0.14, 0.08), mats.walnut);
       m.position.set(x, SHELL.h - 0.07, z);
       m.rotation.y = rotY;
       interior.add(m);
+      trackProductionFallback('interiorTrim', m);
     };
     crown(INTERIOR.w, 0, INTERIOR.d / 2 - 0.06);
     crown(INTERIOR.w, 0, -INTERIOR.d / 2 + 0.06);
@@ -602,11 +700,14 @@ export function buildShell(B) {
         // panel field
         const field = new THREE.Mesh(new THREE.BoxGeometry(len, RAIL_Y - 0.1, 0.03), mats.walnutDark);
         place(field, RAIL_Y / 2, 0.015);
+        trackProductionFallback('wainscotPanels', field);
         // base + cap rails
         const base = new THREE.Mesh(new THREE.BoxGeometry(len, 0.13, 0.05), mats.walnut);
         place(base, 0.065, 0.03);
+        trackProductionFallback('interiorTrim', base);
         const cap = new THREE.Mesh(new THREE.BoxGeometry(len, 0.07, 0.06), mats.walnut);
         place(cap, RAIL_Y, 0.035);
+        trackProductionFallback('interiorTrim', cap);
         // stiles every ~1.15 for the frame-panel rhythm
         const n = Math.max(1, Math.round(len / 1.15));
         for (let i = 0; i <= n; i++) {
@@ -618,6 +719,7 @@ export function buildShell(B) {
             stile.rotation.y = Math.PI / 2;
           }
           interior.add(stile);
+          trackProductionFallback('wainscotPanels', stile);
         }
       }
     }
@@ -634,6 +736,7 @@ export function buildShell(B) {
     const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.05, 12, 1, true), mats.charcoal);
     ring.position.set(lx, CEIL_Y - 0.025, lz);
     interior.add(ring);
+    trackProductionFallback('ceilingVisuals', ring);
     const disc = new THREE.Mesh(
       new THREE.CircleGeometry(0.145, 12),
       new THREE.MeshStandardMaterial({ color: 0xfff4dd, emissive: 0xffe2b0, emissiveIntensity: 1.4 }),
@@ -641,6 +744,7 @@ export function buildShell(B) {
     disc.rotation.x = Math.PI / 2;
     disc.position.set(lx, CEIL_Y - 0.056, lz);
     interior.add(disc);
+    trackProductionFallback('ceilingVisuals', disc);
     let light = null;
     if (real) {
       light = new THREE.PointLight(0xffe2b0, intensity, 8.5, 1.8);
@@ -733,6 +837,9 @@ export function buildShell(B) {
   );
   sconce.position.set(DOOR_MAIN.x + DOOR_MAIN.w / 2 + 0.42, FLOOR_TOP + 2.05, halfD + SHELL.wallT / 2 + 0.06);
   group.add(sconce);
+  // Asset 54 carries the porch construction but only exposes exterior-light
+  // sockets; keep this actual fixture with the live PointLight when the authored
+  // porch replaces the procedural deck/roof/railings.
   const porchLight = new THREE.PointLight(0xffdfa4, 0, 7, 1.8);
   porchLight.position.set(DOOR_MAIN.x, FLOOR_TOP + 2.3, halfD + 1.2);
   group.add(porchLight);
@@ -788,5 +895,25 @@ export function buildShell(B) {
   };
   lighting.setTimeMood(600);
 
-  return { windowDefs, lighting, sidingMat, roofMat };
+  const productionVisualFallbacks = Object.freeze(Object.fromEntries(
+    PRODUCTION_VISUAL_FALLBACK_KEYS.map((key) => [
+      key,
+      productionVisualHandle(key, productionFallbackNodes[key]),
+    ]),
+  ));
+  const productionVisualFallbackCounts = Object.freeze(Object.fromEntries(
+    PRODUCTION_VISUAL_FALLBACK_KEYS.map((key) => [
+      key, productionVisualFallbacks[key].nodeCount,
+    ]),
+  ));
+
+  return {
+    windowDefs,
+    lighting,
+    sidingMat,
+    roofMat,
+    productionVisualFallbacks,
+    productionVisualFallbackKeys: PRODUCTION_VISUAL_FALLBACK_KEYS,
+    productionVisualFallbackCounts,
+  };
 }

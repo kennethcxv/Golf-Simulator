@@ -1,0 +1,30 @@
+{
+ "id": "pf_rangefinder_stealth",
+ "kind": "products",
+ "category": "rangefinders",
+ "dims_m": [
+  0.075,
+  0.1123,
+  0.077
+ ],
+ "min_z": 0.0,
+ "tris": 4104,
+ "textures": [
+  "NRM_knurl_1.4_512:512x512",
+  "RFArmor_stealth:256x256",
+  "RFBody_stealth:256x256",
+  "RFBrand_stealth:256x64"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_rangefinder_stealth.glb",
+ "blend": "assets/pro_shop/source/products/rangefinders/pf_rangefinder_stealth.blend",
+ "name": "PF Optics Rangefinder (Stealth)",
+ "variant": "stealth",
+ "price": 219.99,
+ "fixture": "pf_fixture_rangefinder_display",
+ "slot_type": "shelf_device",
+ "packaging": "loose display"
+}

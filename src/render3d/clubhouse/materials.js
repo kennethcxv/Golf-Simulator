@@ -48,7 +48,17 @@ function finish(canvas, { srgb = true, repeat = true } = {}) {
 
 function luminance(canvas) {
   const { width: w, height: h } = canvas;
-  const data = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+  // The albedo canvas already owns a normal 2D context by the time this derived
+  // map is requested, so adding willReadFrequently to a second getContext call is
+  // too late for Chromium to honor it. Read through a dedicated hinted canvas;
+  // this keeps texture drawing GPU-friendly and removes the repeated-readback
+  // warning from every generated clubhouse material.
+  const readback = document.createElement('canvas');
+  readback.width = w;
+  readback.height = h;
+  const readbackContext = readback.getContext('2d', { willReadFrequently: true });
+  readbackContext.drawImage(canvas, 0, 0);
+  const data = readbackContext.getImageData(0, 0, w, h).data;
   const lum = new Float32Array(w * h);
   for (let i = 0; i < w * h; i++) {
     lum[i] = (0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2]) / 255;
@@ -541,7 +551,7 @@ export function makeProductLabel({ brand = 'FAIRWAY SUPPLY', name = 'TOUR SOFT',
 // Wall wordmark / plaque generator: walnut or cream field + serif lettering.
 export function makeSignTexture(lines, {
   w = 512, h = 256, field = '#f4f0e6', ink = '#1f4a26', accent = '#c9a227',
-  frame = true, pine = false, sizes = null,
+  frame = true, pine = false, sizes = null, secondaryInk = '#3f3a30',
 } = {}) {
   const c = makeCanvas(w, h);
   const ctx = c.getContext('2d');
@@ -571,9 +581,15 @@ export function makeSignTexture(lines, {
   }
   ctx.textAlign = 'center';
   lines.forEach((line, i) => {
-    const fs = sizes ? sizes[i] : Math.round(h * (i === 0 ? 0.16 : 0.11));
-    ctx.font = `${i === 0 ? 'bold ' : ''}${fs}px Georgia`;
-    ctx.fillStyle = i === 0 ? ink : '#3f3a30';
+    let fs = sizes ? sizes[i] : Math.round(h * (i === 0 ? 0.16 : 0.11));
+    const weight = i === 0 ? 'bold ' : '';
+    ctx.font = `${weight}${fs}px Georgia`;
+    const availableWidth = w * 0.84;
+    while (fs > 12 && ctx.measureText(line).width > availableWidth) {
+      fs -= 1;
+      ctx.font = `${weight}${fs}px Georgia`;
+    }
+    ctx.fillStyle = i === 0 ? ink : secondaryInk;
     ctx.fillText(line, w / 2, y);
     y += fs * 1.45;
   });
@@ -761,6 +777,13 @@ export function makeClubhouseMaterials(clubName) {
     merchSteel: new THREE.MeshStandardMaterial({
       map: t(steelC, 2, 2), roughnessMap: r(steelC, 0.14, 0.36, 2, 2),
       roughness: 1, metalness: 0.92,
+    }),
+    // Repeated club shafts need a readable mid-value under the shop's warm,
+    // reflection-heavy lighting.  This shares one stable material across racks
+    // and bag displays instead of cloning a brighter material per club.
+    merchShaft: new THREE.MeshStandardMaterial({
+      map: t(steelC, 2, 2), color: 0xe2e5e3,
+      roughnessMap: r(steelC, 0.30, 0.48, 2, 2), roughness: 1, metalness: 0.52,
     }),
     merchDark: new THREE.MeshStandardMaterial({
       map: t(charC, 2, 2), color: 0x4a5058,

@@ -233,9 +233,13 @@ Honest deltas still open (also recorded in ASSET_SOURCES.md):
 
 ## Needs a real audio pass before release
 
-- All sound is procedurally synthesized WebAudio placeholder (mower hum, sprinkler ticks,
-  ball strike clicks, ambient birdsong, shop doorbell/register). Real recorded SFX and a
-  music bed are required for ship quality.
+- Course ambience and several legacy world sounds (mower hum, sprinkler ticks, ball
+  strikes, birdsong, and the shop doorbell) still need a ship-quality listening pass.
+- Pinehollow checkout is the exception to the old blanket "placeholder" label: it has
+  an intentional original WebAudio palette with distinct bounded cues for products,
+  scanner/POS, card and cash, drawer/change, receipt, bagging, handoff, and completion.
+  Phase-B gameplay wiring is now in place; an in-context A/V capture and human-ear mix
+  remain pending root validation.
 
 ## Deferred by design (post-launch roadmap, per spec)
 
@@ -310,8 +314,10 @@ Open / deliberate (this arc):
 - **G/C/M panels keep the dark game-panel chrome** — they're desks, not
   diegetic screens yet; the laptop is the pattern to port them onto (Club/
   Empire/Grounds as portal apps) in a later pass.
-- **Audio still owes the human ear-pass** (levels balanced by construction,
-  not by listening); the new doorSwing/doorShut/scanBeep included.
+- **Pinehollow checkout audio is authored and gameplay-integrated, but not yet
+  ear-mixed/accepted**: semantic routes are headlessly covered; root still must validate
+  synchronization and balance from the cashier camera in recorded card/cash runs. Legacy
+  door cues still need the broader world-audio listening pass.
 - **The house GLB's baked garden bed** sits on a flattened pad; on steep
   seeds its skirt can hover/clip at the edges (placement is putModel +
   heightAt at center).

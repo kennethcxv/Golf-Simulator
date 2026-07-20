@@ -141,7 +141,9 @@ test('a tournament on a trashed course backfires', () => {
 
 test('the endgame: hosting the major wins the campaign', () => {
   const st = newGame('realistic', 42);
-  boostCourse(st, 90);
+  // 93: the pass bar is condition ≥72 on the day after a week of hot-weather
+  // decay — 90 left exactly one point of headroom and failed on seed drift
+  boostCourse(st, 93);
   st.cash = 200000;
   st.progression.prestige = 90;
   purchaseUpgrade(st, 'tournamentHost');

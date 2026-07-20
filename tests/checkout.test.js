@@ -28,6 +28,14 @@ test('an abandoned pick goes back on the display', () => {
   assert.equal(st.shop.inventory.glove1.shelf, 3, 'the glove is back on the shelf');
 });
 
+test('held UIDs are unique and a duplicate pick cannot debit the shelf twice', () => {
+  const st = newGame('relaxed', 42);
+  st.shop.inventory.glove1.shelf = 3;
+  assert.equal(pickFromShelf(st, 'glove1', 'unit-1').ok, true);
+  assert.equal(pickFromShelf(st, 'glove1', 'unit-1').ok, false);
+  assert.equal(st.shop.inventory.glove1.shelf, 2);
+});
+
 test('ringing a sale pays real revenue into the books and logs it', () => {
   const st = newGame('relaxed', 42);
   st.shop.inventory.balls2.shelf = 4;

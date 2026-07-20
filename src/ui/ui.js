@@ -6,6 +6,10 @@ export function el(tag, attrs = {}, ...children) {
     if (k === 'class') node.className = v;
     else if (k === 'text') node.textContent = v;
     else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
+    // Boolean attributes (disabled, checked, ...) are present/absent, not "true"/"false":
+    // setAttribute('disabled', false) yields disabled="false", which still disables the node.
+    else if (v === true) node.setAttribute(k, '');
+    else if (v === false) node.removeAttribute(k);
     else if (v !== undefined && v !== null) node.setAttribute(k, v);
   }
   for (const child of children) {
@@ -29,6 +33,7 @@ export function toast(msg, kind = '') {
     t.style.opacity = '0';
     setTimeout(() => t.remove(), 380);
   }, 2600);
+  return t;
 }
 
 export function modal(title, buildBody) {

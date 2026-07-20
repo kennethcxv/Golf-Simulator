@@ -1,0 +1,1634 @@
+{
+  "verified": 10,
+  "ok": true,
+  "errorCount": 0,
+  "warningCount": 0,
+  "results": [
+    {
+      "asset": 81,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_081_office_chair_sheet09.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_081_OFFICE_CHAIR_SHEET09_ROOT",
+        "rootExtras": {
+          "mount": "floor",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 81,
+          "asset_slug": "office_chair_sheet09",
+          "spec_contract_dimensions_m": "[0.65, 0.65, 1.1]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 13,
+        "visibleMeshCount": 2,
+        "collisionMeshCount": 3,
+        "collisionPurposes": {
+          "COL_ChairBackHull": "blocking",
+          "COL_ChairBaseHull": "blocking",
+          "COL_ChairSeatHull": "blocking"
+        },
+        "blockingCollisionCount": 3,
+        "triangleCount": 4876,
+        "collisionTriangleCount": 68,
+        "materialCount": 5,
+        "materials": [
+          "MAT_PH_MediumWalnut",
+          "MAT_S09_BlackLeather",
+          "MAT_S09_HardBlack",
+          "MAT_S09_LeatherSeam",
+          "MAT_S09_MatteBlack"
+        ],
+        "socketCount": 3,
+        "sockets": [
+          "SOCKET_DeskAlignment",
+          "SOCKET_PLACEMENT",
+          "SOCKET_Seat"
+        ],
+        "pivotCount": 1,
+        "pivots": [
+          "PIVOT_Swivel"
+        ],
+        "animationNames": [
+          "OfficeChair_Swivel"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.313128,
+            -0.287541,
+            0.0
+          ],
+          "maximum": [
+            0.313097,
+            0.32417,
+            1.09428
+          ],
+          "size": [
+            0.626225,
+            0.611711,
+            1.09428
+          ]
+        },
+        "fileBytes": 173448,
+        "meshes": [
+          {
+            "name": "MESH_ChairBaseAssembly",
+            "triangles": 2824,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1580,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ChairSeatAssembly",
+            "triangles": 2052,
+            "uvLayers": 1,
+            "materialSlots": 4,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1144,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_ChairBackHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_ChairBaseHull",
+            "triangles": 44,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_ChairSeatHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 82,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_082_filing_cabinet_sheet09.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_082_FILING_CABINET_SHEET09_ROOT",
+        "rootExtras": {
+          "mount": "floor",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 82,
+          "asset_slug": "filing_cabinet_sheet09",
+          "spec_contract_dimensions_m": "[0.48, 0.62, 1.32]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 19,
+        "visibleMeshCount": 8,
+        "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_CabinetHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
+        "triangleCount": 1728,
+        "collisionTriangleCount": 12,
+        "materialCount": 2,
+        "materials": [
+          "MAT_S09_MatteBlack",
+          "MAT_S09_OfficeGreen"
+        ],
+        "socketCount": 6,
+        "sockets": [
+          "SOCKET_Drawer_01",
+          "SOCKET_Drawer_02",
+          "SOCKET_Drawer_03",
+          "SOCKET_Drawer_04",
+          "SOCKET_PLACEMENT",
+          "SOCKET_WallPlacement"
+        ],
+        "pivotCount": 1,
+        "pivots": [
+          "PIVOT_Drawer_01"
+        ],
+        "animationNames": [
+          "FilingDrawer_01_Close",
+          "FilingDrawer_01_Open"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.246,
+            -0.76863,
+            0.0
+          ],
+          "maximum": [
+            0.246,
+            0.316,
+            1.336
+          ],
+          "size": [
+            0.492,
+            1.08463,
+            1.336
+          ]
+        },
+        "fileBytes": 70764,
+        "meshes": [
+          {
+            "name": "MESH_CabinetCarcass",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CabinetLowerDrawers",
+            "triangles": 972,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 648,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CabinetPlinth",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CabinetTopCap",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CabinetTopBox",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CabinetTopFace",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CabinetTopLabel",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CabinetTopPull",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_CabinetHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 83,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_083_desk_lamp.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_083_DESK_LAMP_ROOT",
+        "rootExtras": {
+          "mount": "surface",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 83,
+          "asset_slug": "desk_lamp",
+          "spec_contract_dimensions_m": "[0.18, 0.65, 0.55]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 20,
+        "visibleMeshCount": 9,
+        "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_LampBaseHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
+        "triangleCount": 1476,
+        "collisionTriangleCount": 44,
+        "materialCount": 4,
+        "materials": [
+          "MAT_PH_RestrainedBrass",
+          "MAT_S09_BulbWarm",
+          "MAT_S09_LampShadeGreen",
+          "MAT_S09_MatteBlack"
+        ],
+        "socketCount": 3,
+        "sockets": [
+          "SOCKET_Bulb",
+          "SOCKET_Desk",
+          "SOCKET_PLACEMENT"
+        ],
+        "pivotCount": 4,
+        "pivots": [
+          "PIVOT_ArmLower",
+          "PIVOT_ArmUpper",
+          "PIVOT_Shade",
+          "PIVOT_Switch"
+        ],
+        "animationNames": [
+          "DeskLamp_SwitchOff",
+          "DeskLamp_SwitchOn"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.115,
+            -0.558899,
+            0.0
+          ],
+          "maximum": [
+            0.115,
+            0.09,
+            0.537741
+          ],
+          "size": [
+            0.23,
+            0.648899,
+            0.537741
+          ]
+        },
+        "fileBytes": 62720,
+        "meshes": [
+          {
+            "name": "MESH_LampBase",
+            "triangles": 284,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 120,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_LampBaseCrown",
+            "triangles": 236,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 104,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_LampArmLower",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_LampElbow",
+            "triangles": 168,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 66,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_LampArmUpper",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_LampBulb",
+            "triangles": 164,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 80,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_LampShadeJoint",
+            "triangles": 120,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 56,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_LampShadeWall",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 142,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_LampSwitchKnob",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 64,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_LampBaseHull",
+            "triangles": 44,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 84,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_084_office_printer.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_084_OFFICE_PRINTER_ROOT",
+        "rootExtras": {
+          "mount": "surface",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 84,
+          "asset_slug": "office_printer",
+          "spec_contract_dimensions_m": "[0.43, 0.38, 0.25]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 19,
+        "visibleMeshCount": 9,
+        "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_PrinterHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
+        "triangleCount": 972,
+        "collisionTriangleCount": 12,
+        "materialCount": 4,
+        "materials": [
+          "MAT_S09_HardBlack",
+          "MAT_S09_MatteBlack",
+          "MAT_S09_Paper",
+          "MAT_S09_PhoneDisplay"
+        ],
+        "socketCount": 5,
+        "sockets": [
+          "SOCKET_Cable",
+          "SOCKET_Desk",
+          "SOCKET_PLACEMENT",
+          "SOCKET_PaperInput",
+          "SOCKET_PaperOutput"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [
+          "OfficePrinter_Print"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.215,
+            -0.257546,
+            0.0005
+          ],
+          "maximum": [
+            0.215,
+            0.225569,
+            0.265299
+          ],
+          "size": [
+            0.43,
+            0.483115,
+            0.264799
+          ]
+        },
+        "fileBytes": 43036,
+        "meshes": [
+          {
+            "name": "MESH_PrinterCase",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PrinterControlPanel",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PrinterDisplay",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PrinterFeedTray",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PrinterOutputLip",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PrinterOutputRecess",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PrinterPaperDrawer",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PrinterScannerLid",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PrinterSheet",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_PrinterHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 85,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_085_office_telephone.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_085_OFFICE_TELEPHONE_ROOT",
+        "rootExtras": {
+          "mount": "surface",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 85,
+          "asset_slug": "office_telephone",
+          "spec_contract_dimensions_m": "[0.22, 0.24, 0.12]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 25,
+        "visibleMeshCount": 14,
+        "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_PhoneHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
+        "triangleCount": 3476,
+        "collisionTriangleCount": 12,
+        "materialCount": 3,
+        "materials": [
+          "MAT_S09_HardBlack",
+          "MAT_S09_MatteBlack",
+          "MAT_S09_PhoneDisplay"
+        ],
+        "socketCount": 5,
+        "sockets": [
+          "SOCKET_CordBase",
+          "SOCKET_Desk",
+          "SOCKET_Display",
+          "SOCKET_Handset",
+          "SOCKET_PLACEMENT"
+        ],
+        "pivotCount": 1,
+        "pivots": [
+          "PIVOT_Handset"
+        ],
+        "animationNames": [
+          "Telephone_ButtonPress",
+          "Telephone_HandsetLift",
+          "Telephone_HandsetReplace"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -0.118329,
+            -0.11,
+            0.001
+          ],
+          "maximum": [
+            0.11,
+            0.11,
+            0.106
+          ],
+          "size": [
+            0.228329,
+            0.22,
+            0.105
+          ]
+        },
+        "fileBytes": 129732,
+        "meshes": [
+          {
+            "name": "MESH_PhoneBase",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 132,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PhoneCord_0",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 38,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PhoneCord_1",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 38,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PhoneCord_2",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 38,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PhoneCord_3",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 38,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PhoneCradleL",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PhoneCradleR",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PhoneDisplay",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PhoneFoot",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PhoneKeypad",
+            "triangles": 1944,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1296,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PhoneSpeakerKey",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PhoneHandsetBar",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PhoneHandsetEarpiece",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PhoneHandsetMouthpiece",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_PhoneHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 86,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_086_corkboard_noticeboard.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_086_CORKBOARD_NOTICEBOARD_ROOT",
+        "rootExtras": {
+          "mount": "wall",
+          "collision_expected": false,
+          "production_sheet": "09",
+          "asset_number": 86,
+          "asset_slug": "corkboard_noticeboard",
+          "spec_contract_dimensions_m": "[0.9, 0.05, 0.65]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 14,
+        "visibleMeshCount": 6,
+        "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
+        "triangleCount": 2508,
+        "collisionTriangleCount": 0,
+        "materialCount": 4,
+        "materials": [
+          "MAT_PH_MediumWalnut",
+          "MAT_PH_RestrainedBrass",
+          "MAT_S09_Cork",
+          "MAT_S09_Paper"
+        ],
+        "socketCount": 6,
+        "sockets": [
+          "SOCKET_Calendar",
+          "SOCKET_Note_01",
+          "SOCKET_Note_02",
+          "SOCKET_PLACEMENT",
+          "SOCKET_TaskPosting",
+          "SOCKET_WallMount"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.45,
+            -0.04,
+            -0.65
+          ],
+          "maximum": [
+            0.45,
+            0.01,
+            0.0
+          ],
+          "size": [
+            0.9,
+            0.05,
+            0.65
+          ]
+        },
+        "fileBytes": 90044,
+        "meshes": [
+          {
+            "name": "MESH_CorkFrame_Bottom",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CorkFrame_Left",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CorkFrame_Right",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CorkFrame_Top",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CorkNote_Content",
+            "triangles": 1968,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1116,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CorkPanel",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 87,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_087_wall_clock.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_087_WALL_CLOCK_ROOT",
+        "rootExtras": {
+          "mount": "wall",
+          "collision_expected": false,
+          "production_sheet": "09",
+          "asset_number": 87,
+          "asset_slug": "wall_clock",
+          "spec_contract_dimensions_m": "[0.34, 0.065, 0.34]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 16,
+        "visibleMeshCount": 9,
+        "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
+        "triangleCount": 3568,
+        "collisionTriangleCount": 0,
+        "materialCount": 5,
+        "materials": [
+          "MAT_PH_MediumWalnut",
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_RestrainedGlass",
+          "MAT_S09_ClockFace",
+          "MAT_S09_MatteBlack"
+        ],
+        "socketCount": 2,
+        "sockets": [
+          "SOCKET_PLACEMENT",
+          "SOCKET_WallMount"
+        ],
+        "pivotCount": 3,
+        "pivots": [
+          "PIVOT_HourHand",
+          "PIVOT_MinuteHand",
+          "PIVOT_SecondHand"
+        ],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.172,
+            -0.065,
+            -0.342
+          ],
+          "maximum": [
+            0.172,
+            0.0,
+            0.002
+          ],
+          "size": [
+            0.344,
+            0.065,
+            0.344
+          ]
+        },
+        "fileBytes": 123048,
+        "meshes": [
+          {
+            "name": "MESH_ClockBezel",
+            "triangles": 476,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 184,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClockBoss",
+            "triangles": 140,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 68,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClockCase",
+            "triangles": 476,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 192,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClockDial",
+            "triangles": 1296,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 864,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClockFace",
+            "triangles": 428,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 172,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClockGlass",
+            "triangles": 428,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 168,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClockHourHand",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClockMinuteHand",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClockSecondHand",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 60,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 88,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_088_key_rack.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_088_KEY_RACK_ROOT",
+        "rootExtras": {
+          "mount": "wall",
+          "collision_expected": false,
+          "production_sheet": "09",
+          "asset_number": 88,
+          "asset_slug": "key_rack",
+          "spec_contract_dimensions_m": "[0.75, 0.08, 0.25]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 14,
+        "visibleMeshCount": 5,
+        "collisionMeshCount": 0,
+        "collisionPurposes": {},
+        "blockingCollisionCount": 0,
+        "triangleCount": 3104,
+        "collisionTriangleCount": 0,
+        "materialCount": 3,
+        "materials": [
+          "MAT_PH_MediumWalnut",
+          "MAT_PH_RestrainedBrass",
+          "MAT_S09_MatteBlack"
+        ],
+        "socketCount": 7,
+        "sockets": [
+          "SOCKET_Key_01",
+          "SOCKET_Key_02",
+          "SOCKET_Key_03",
+          "SOCKET_Key_04",
+          "SOCKET_Key_05",
+          "SOCKET_PLACEMENT",
+          "SOCKET_WallMount"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.375,
+            -0.0565,
+            -0.228
+          ],
+          "maximum": [
+            0.375,
+            0.0,
+            0.0
+          ],
+          "size": [
+            0.75,
+            0.0565,
+            0.228
+          ]
+        },
+        "fileBytes": 103704,
+        "meshes": [
+          {
+            "name": "MESH_KeyRackCrown",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_KeyRackHooks",
+            "triangles": 1700,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 810,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_KeyRackKeys",
+            "triangles": 1080,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 720,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_KeyRackPanel",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_KeyRackPlate",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 89,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_089_reservation_clipboard.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_089_RESERVATION_CLIPBOARD_ROOT",
+        "rootExtras": {
+          "mount": "surface",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 89,
+          "asset_slug": "reservation_clipboard",
+          "spec_contract_dimensions_m": "[0.23, 0.33, 0.018]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 15,
+        "visibleMeshCount": 6,
+        "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_ClipboardHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
+        "triangleCount": 1412,
+        "collisionTriangleCount": 12,
+        "materialCount": 4,
+        "materials": [
+          "MAT_PH_BrushedSteel",
+          "MAT_PH_MediumWalnut",
+          "MAT_S09_MatteBlack",
+          "MAT_S09_Paper"
+        ],
+        "socketCount": 5,
+        "sockets": [
+          "SOCKET_Desk",
+          "SOCKET_HandGrip",
+          "SOCKET_PLACEMENT",
+          "SOCKET_Paper",
+          "SOCKET_Pen"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.115,
+            -0.165,
+            0.0
+          ],
+          "maximum": [
+            0.115,
+            0.166,
+            0.027191
+          ],
+          "size": [
+            0.23,
+            0.331,
+            0.027191
+          ]
+        },
+        "fileBytes": 57496,
+        "meshes": [
+          {
+            "name": "MESH_ClipboardClipArm",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClipboardClipBase",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClipboardPanel",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClipboardPen",
+            "triangles": 116,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 66,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClipboardRuling",
+            "triangles": 864,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 576,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ClipboardSheet",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_ClipboardHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 90,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_090_scorecard_holder.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_090_SCORECARD_HOLDER_ROOT",
+        "rootExtras": {
+          "mount": "surface",
+          "collision_expected": true,
+          "production_sheet": "09",
+          "asset_number": 90,
+          "asset_slug": "scorecard_holder",
+          "spec_contract_dimensions_m": "[0.38, 0.25, 0.28]",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 18,
+        "visibleMeshCount": 8,
+        "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_HolderHull": "blocking"
+        },
+        "blockingCollisionCount": 1,
+        "triangleCount": 2724,
+        "collisionTriangleCount": 12,
+        "materialCount": 4,
+        "materials": [
+          "MAT_PH_MediumWalnut",
+          "MAT_PH_NaturalOak",
+          "MAT_PH_RestrainedBrass",
+          "MAT_S09_Paper"
+        ],
+        "socketCount": 6,
+        "sockets": [
+          "SOCKET_Desk",
+          "SOCKET_PLACEMENT",
+          "SOCKET_Pencils",
+          "SOCKET_Scorecards_01",
+          "SOCKET_Scorecards_02",
+          "SOCKET_Scorecards_03"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.19,
+            -0.13033,
+            -0.004832
+          ],
+          "maximum": [
+            0.19,
+            0.134556,
+            0.27
+          ],
+          "size": [
+            0.38,
+            0.264886,
+            0.274832
+          ]
+        },
+        "fileBytes": 101824,
+        "meshes": [
+          {
+            "name": "MESH_HolderBack",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_HolderBase",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_HolderCrest",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 48,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_HolderDividers",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_HolderPencils",
+            "triangles": 1320,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 720,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_HolderScorecards",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 216,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_HolderSideL",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 136,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_HolderSideR",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 136,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_HolderHull",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "audit": {
+    "started": "2026-07-18T19:38:01Z",
+    "executed": "2026-07-18T21:57:00-07:00/2026-07-18T22:35:00-07:00",
+    "startBranch": "tcg-checkout",
+    "startHead": "25fbdceee77e2904277ab4af2eb0fd661cf410df",
+    "integrationBranch": "integration/all-verified-work-2026-07-18",
+    "base": "25fbdceee77e2904277ab4af2eb0fd661cf410df",
+    "baseRationale": "Most advanced shared architecture; 127 commits past main; strict superset of 4 of 5 other branches; the uncommitted working tree sits directly on it and is byte-identical to the assets 51-100 session snapshot."
+  },
+  "sources": [
+    {
+      "id": "working-tree",
+      "kind": "uncommitted",
+      "origin": "assets 51-100 + cleaning takeover session (primary worktree)",
+      "capturedAs": "refs/integration-audit/worktree-snapshot (67d0c37)",
+      "equivalentTo": "refs/snapshots/claude-assets-51-100-takeover (94a1711) - byte-identical tree 65e362ea",
+      "paths": 295,
+      "disposition": "INTEGRATED verbatim, split into 15 workstream commits"
+    },
+    {
+      "id": "course-takeover-claude",
+      "kind": "branch",
+      "head": "3a230a0842fe1460e5c0c2485422c2b447f5e7b3",
+      "mergeBase": "a34a2c8",
+      "uniqueCommits": 8,
+      "disposition": "INTEGRATED SELECTIVELY - 6 full, 2 partial"
+    }
+  ],
+  "commits": [
+    {
+      "hash": "aa5ec1b",
+      "source": "course-takeover-claude",
+      "subject": "build(course): make this branch stand alone, and let QA target its own server",
+      "workstream": "T",
+      "disposition": "PARTIAL",
+      "integratedAs": "3009aa3",
+      "accepted": ["tools/qa/course-master-final.js"],
+      "rejected": ["src/render3d/clubhouse.js"],
+      "rejectReason": "Self-labelled BRIDGE scaffolding whose stated exit condition ('drop when clubhouse.js is merged from the concurrent checkout workstream') is already met. Function bodies byte-identical to the working tree apart from comments. Applying would emit a duplicate export of pointInsideClubhouseInterior - an ESM SyntaxError. git apply --check fails.",
+      "acceptReason": "Genuine fix: replaces two hardcoded port literals with process.env.QA_BASE_URL fallback, matching run-playwright.cjs and serve.cjs. Runner honoured the env var while the script ignored it, so non-default runs drove the wrong tree."
+    },
+    {
+      "hash": "6cd6c80",
+      "source": "course-takeover-claude",
+      "subject": "perf(course-editor): terrain strokes go from 5 FPS to 87 FPS",
+      "workstream": "C",
+      "disposition": "INTEGRATED",
+      "integratedAs": "ec56171",
+      "duplicateOf": "5cd07f4 (already on base)",
+      "resolution": "Incoming is a strict superset. Base scoped only the position write loop and left three unscoped 346,801-vertex passes per tick (computeVertexNormals, Y-scale loop, computeBoundingSphere)."
+    },
+    {
+      "hash": "2588a0a",
+      "source": "course-takeover-claude",
+      "subject": "perf(course-editor): scope the terrain rebuild for stamps and feature edits too",
+      "workstream": "C",
+      "disposition": "INTEGRATED",
+      "integratedAs": "ec56171",
+      "risk": "HIGHEST - deletes a guard the base deliberately added. Base refused to scope whenever relief was invalidated; incoming honours terrainRect always. Verified bit-exact by probe: 0 differing of 1,040,403 vertex components."
+    },
+    {
+      "hash": "f9f95a5",
+      "source": "course-takeover-claude",
+      "subject": "perf(course-editor): upload only the edited span of the terrain buffers",
+      "workstream": "C",
+      "disposition": "INTEGRATED",
+      "integratedAs": "ec56171",
+      "dependsOn": "6cd6c80",
+      "note": "Unsafe without windowed normals - partial upload would leave stale GPU normals if all normals were recomputed."
+    },
+    {
+      "hash": "4d9c215",
+      "source": "course-takeover-claude",
+      "subject": "perf(course-editor): undo and redo refresh only the op they reverted",
+      "workstream": "C",
+      "disposition": "INTEGRATED",
+      "integratedAs": "ec56171",
+      "dependsOn": "2588a0a",
+      "note": "Dead code without 2588a0a - fullRefresh passes relief:true, which the base's guard would have discarded. Measured live: undoRefresh 1145.1ms -> undoRefreshScoped 30.1ms."
+    },
+    {
+      "hash": "b67fb3f",
+      "source": "course-takeover-claude",
+      "subject": "fix(course): the property stops reading as a rectangle on the landscape",
+      "workstream": "D",
+      "disposition": "PARTIAL",
+      "integratedAs": "bcb718b",
+      "duplicateOf": "10f2971 + 3cbaf6f (already on base)",
+      "accepted": ["ring material white base", "shader OUT-branch colour assignment"],
+      "rejected": ["ring vertex geometry", "interior tuck ramp", "outside profile"],
+      "resolution": "Different root causes. Base geometry is C1-continuous and resolves the straddling quad 1.65x finer; incoming is only C0 with a slope kink of -edgeH/260 at the property line. But base only narrows the tonal step to ~1.7x and it varies with luma; incoming assigns the terrain OUT branch verbatim for a flat 1.00x. Took geometry from base, colour from incoming.",
+      "measuredRatio": {"luma0.25": {"before": 2.33, "baseOnly": 1.51, "merged": 1.00}, "luma0.50": {"before": 2.60, "baseOnly": 1.69, "merged": 1.00}, "luma0.75": {"before": 2.75, "baseOnly": 1.79, "merged": 1.00}}
+    },
+    {
+      "hash": "a4bc3d2",
+      "source": "course-takeover-claude",
+      "subject": "fix(course): every pond gets its real shoreline, not a bounding-box disc",
+      "workstream": "D",
+      "disposition": "INTEGRATED as composite",
+      "integratedAs": "813ede4",
+      "duplicateOf": "14e9d4e (already on base)",
+      "resolution": "Merged both - they fix opposite halves. Incoming ungates outlinedWaters and matches the tightest bbox; the base's cellComponentOutline raster tracer survives as the FALLBACK covering vec streams and legacy grid courses. CircleGeometry now sits behind the tracer and is unreachable.",
+      "conflictFree": true
+    },
+    {
+      "hash": "3a230a0",
+      "source": "course-takeover-claude",
+      "subject": "fix(course-editor): the camera stops fighting the player and the keyboard",
+      "workstream": "B",
+      "disposition": "INTEGRATED",
+      "integratedAs": "40e48b7",
+      "conflictFree": true,
+      "note": "Touches a different keydown listener than the working tree's rewrite. Working tree modifies the switch-hotkey listener; this modifies the held-key listener, which is unguarded inside the editor so typing a course name panned the map."
+    }
+  ],
+  "rejectedRefs": [
+    {"ref": "2914ed0", "reason": "SUPERSEDED - dated 06:19, ~6h before integrated work. PERFORMANCE_SCHEMA_VERSION 3 vs HEAD's 4; transactionStabilityReport 3-arg vs HEAD's 4-arg; file 154KB vs HEAD's 177KB.", "preservedAs": "refs/integration-audit/worktree-cashier-staged"},
+    {"ref": "68ebb7a", "reason": "Pre-rebuild checkpoint from 07-17, superseded by the box delivery rebuild.", "preservedAs": "refs/integration-audit/preexisting-codex-boxsystem"},
+    {"ref": "a718095", "reason": "Explicitly labelled pre-takeover safety snapshot; superseded by the takeover work itself.", "preservedAs": "refs/integration-audit/preexisting-takeover-safety"},
+    {"ref": "5d1e802", "reason": "Explicitly labelled pre-takeover working-tree snapshot; superseded.", "preservedAs": "refs/integration-audit/preexisting-takeover-preclaude"},
+    {"ref": "main", "reason": "0 unique commits; 127 behind. Not modified.", "preservedAs": "n/a"},
+    {"ref": "checkpoint/course-master-final-20260717", "reason": "0 unique commits - strict ancestor.", "preservedAs": "n/a"},
+    {"ref": "course-editor-pre-rebuild", "reason": "0 unique commits - strict ancestor.", "preservedAs": "n/a"},
+    {"ref": "tcg-checkout-pre-kit", "reason": "0 unique commits - strict ancestor.", "preservedAs": "n/a"}
+  ],
+  "results": {
+    "baselineTests": {"tests": 1641, "pass": 1641, "fail": 0},
+    "integrationTests": {"tests": 1658, "pass": 1658, "fail": 0},
+    "perf": {
+      "measuredOn": "integration branch",
+      "drag": {"averageFps": 136.3, "averageFrameMs": 7.337, "medianFrameMs": 2.9, "worstFrameMs": 41.6, "framesOver100ms": 0, "framesOver33ms": 18, "onePercentLowFps": 24.57, "frames": 225},
+      "undoIntegrity": {"vertexComponents": 1040403, "differingComponents": 0, "maxDeltaYd": 0},
+      "consoleErrors": 0,
+      "pageErrors": 0
+    },
+    "saveVersion": {"base": 6, "courseTakeover": 6, "integration": 10, "conflict": false}
+  }
+}

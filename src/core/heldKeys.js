@@ -17,6 +17,19 @@ const normalise = (key) => (typeof key === 'string' && key.length === 1 ? key.to
 
 export const OVERVIEW_KEYS = ['w', 'a', 's', 'd', 'q', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 
+//   3. A key typed into a form control is text, not camera input. The overview
+//      keys are plain letters, so naming a course "Wasserman" in the editor's
+//      Save dialog panned the map with every keystroke. Only key-DOWN is
+//      filtered: if a field takes focus while a key is already held, the release
+//      must still clear it, or rule 1's stranded-key bug comes back by another
+//      route.
+export function isTextEntryTarget(target) {
+  if (!target) return false;
+  if (target.isContentEditable) return true;
+  const tag = typeof target.tagName === 'string' ? target.tagName.toUpperCase() : '';
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
 export function createHeldKeys(tracked) {
   const watch = new Set(tracked.map(normalise));
   const held = new Set();

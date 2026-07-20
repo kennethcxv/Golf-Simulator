@@ -124,6 +124,9 @@ test('a played day writes real memories with thoughts onto golfers', () => {
   const st = newGame('realistic', 500);
   boostCourse(st);
   st.club.lastRounds = 30;
+  // two played days: which INDIVIDUALS tee up is seed-stream luck, but across
+  // two full days a healthy pool must accumulate plenty of diarists
+  simulateDayRounds(st, 30);
   simulateDayRounds(st, 30);
   const played = st.golfers.pool.filter((g) => g.memory && g.memory.length > 0);
   assert.ok(played.length >= 6, `${played.length} golfers have memories`);

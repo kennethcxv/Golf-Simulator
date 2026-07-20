@@ -1,0 +1,28 @@
+{
+ "id": "pf_towel_folded",
+ "kind": "products",
+ "category": "extras",
+ "dims_m": [
+  0.383,
+  0.15,
+  0.0479
+ ],
+ "min_z": 0.0,
+ "tris": 948,
+ "textures": [
+  "NRM_canvas_1.5_512:512x512",
+  "TowelGreenV2:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_towel_folded.glb",
+ "blend": "assets/pro_shop/source/products/extras/pf_towel_folded.blend",
+ "name": "PF Tour Towel Folded",
+ "variant": "green",
+ "price": 24.99,
+ "fixture": "pf_fixture_freestanding_gondola",
+ "slot_type": "shelf_soft",
+ "packaging": "none"
+}

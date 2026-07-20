@@ -1,0 +1,34 @@
+{
+ "id": "pf_wedge_lob_60",
+ "kind": "products",
+ "category": "clubs",
+ "dims_m": [
+  0.0866,
+  0.0603,
+  0.9389
+ ],
+ "min_z": -0.0,
+ "tris": 964,
+ "textures": [
+  "ClubGripTex:128x256",
+  "IronStamp_pf_wedge_lob_60:192x64",
+  "NRM_crinkle_0.12_512:512x512",
+  "NRM_knurl_1.0_512:512x512",
+  "PSSatinAlb:256x256"
+ ],
+ "sockets": [
+  "CLUB_BUTT",
+  "CLUB_HEAD_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_wedge_lob_60.glb",
+ "blend": "assets/pro_shop/source/products/clubs/pf_wedge_lob_60.blend",
+ "name": "Norvik Lob 60 Wedge",
+ "variant": "players_60",
+ "price": 139.99,
+ "fixture": "pf_fixture_club_rack",
+ "slot_type": "club_slot",
+ "packaging": "none",
+ "length_m": 0.905
+}

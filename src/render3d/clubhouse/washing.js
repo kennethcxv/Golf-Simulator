@@ -13,6 +13,7 @@ import { SHELL } from '../../data/shopLayout.js';
 import {
   ensureWash, washState, WASH_SURFACES, washAt, soapAt, surfaceClean, exteriorWashScore,
 } from '../../sim/washing.js';
+import { firstUnoccludedHit } from '../toolSockets.js';
 
 const CELL_PX = 14; // canvas resolution per mask cell (the grid is ~0.25yd, so this is plenty)
 
@@ -49,7 +50,7 @@ function grimeSheet(w, h, heavy, seed) {
   const cv = document.createElement('canvas');
   cv.width = w;
   cv.height = h;
-  const c = cv.getContext('2d');
+  const c = cv.getContext('2d', { willReadFrequently: true });
   let s = seed * 9301 + 49297;
   const rnd = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
 
@@ -196,12 +197,40 @@ export function buildWashing(B) {
   }
 
   // --- the jet: a narrow stream from the nozzle, and mist where it lands -------------------
+  //
+  // Additive, not alpha-over. Water catching the light adds brightness to whatever is behind it;
+  // a flat translucent cone over a dark wall just reads as a grey wedge, which is what the first
+  // pass looked like — somebody poking the siding with a steel spike.
   const jetMat = new THREE.MeshBasicMaterial({
-    color: 0xd8ecff, transparent: true, opacity: 0.36, depthWrite: false,
+    color: 0xbcdcff,
+    transparent: true,
+    opacity: 0.30,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
   });
-  const jet = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.055, 1, 6, 1, true), jetMat);
+  const jet = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.062, 1, 8, 1, true), jetMat);
   jet.visible = false;
   jet.frustumCulled = false;
+
+  // A round, soft droplet. An untextured THREE.Points renders as a hard SQUARE — at 0.075 world
+  // units that is a cluster of white cubes stapled to the wall, which is exactly how the shipped
+  // spatter read. One 32px radial gradient, generated once and shared, fixes it.
+  const dropletTex = (() => {
+    const cv = document.createElement('canvas');
+    cv.width = 32;
+    cv.height = 32;
+    const c = cv.getContext('2d');
+    const g = c.createRadialGradient(16, 16, 0, 16, 16, 16);
+    g.addColorStop(0.0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.35, 'rgba(226,242,255,0.85)');
+    g.addColorStop(1.0, 'rgba(200,228,255,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, 32, 32);
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })();
 
   const MIST = 60;
   const mistPos = new Float32Array(MIST * 3);
@@ -209,13 +238,57 @@ export function buildWashing(B) {
   const mistGeo = new THREE.BufferGeometry();
   mistGeo.setAttribute('position', new THREE.BufferAttribute(mistPos, 3));
   const mist = new THREE.Points(mistGeo, new THREE.PointsMaterial({
-    color: 0xeaf6ff, size: 0.075, transparent: true, opacity: 0.7, depthWrite: false,
+    color: 0xeaf6ff,
+    size: 0.085,
+    map: dropletTex,
+    alphaTest: 0.02,
+    transparent: true,
+    opacity: 0.8,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
   }));
   mist.visible = false;
   mist.frustumCulled = false;
 
-  const raycaster = new THREE.Raycaster();
-  raycaster.far = 7;
+  const REACH = 7;
+
+  // --- occluders: you cannot wash what you cannot see ---------------------------------------
+  //
+  // `aim` used to intersect the five grime planes and nothing else, so as far as the ray was
+  // concerned the building did not exist. The porch roof, the columns and the walls were not in
+  // the way of anything, and the siding under the eave could be scrubbed straight through the
+  // porch it sits behind.
+  //
+  // Only substantial architecture occludes. A live scene walk shows 459 meshes in this group, of
+  // which ~109 are big enough to stop a jet — the roof planes, the gables, the walls, the
+  // foundation. Shrubs and trim are not worth the raycast. The set is cached and rebuilt only when
+  // the architecture actually changes, because the sheet-06 runtime swaps geometry underneath us.
+  const OCCLUDER_MIN_SPAN = 1.2; // yards
+  const OCCLUDER_MIN_AREA = 1.0; // square yards of the largest face
+  let occluders = null;
+
+  function collectOccluders() {
+    const found = [];
+    const box = new THREE.Vector3();
+    group.traverse((o) => {
+      if (!o.isMesh || !o.visible) return;
+      if (o.userData && o.userData.washId) return; // a surface never occludes itself
+      const g = o.geometry;
+      if (!g) return;
+      if (!g.boundingBox) g.computeBoundingBox();
+      g.boundingBox.getSize(box);
+      const sx = box.x * o.scale.x;
+      const sy = box.y * o.scale.y;
+      const sz = box.z * o.scale.z;
+      if (Math.max(sx, sy, sz) < OCCLUDER_MIN_SPAN) return;
+      if (Math.max(sx * sy, sy * sz, sx * sz) < OCCLUDER_MIN_AREA) return;
+      found.push(o);
+    });
+    return found;
+  }
+
+  const occluderSet = () => (occluders || (occluders = collectOccluders()));
 
   let dirty = new Set();
   let repaintClock = 0;
@@ -226,11 +299,10 @@ export function buildWashing(B) {
     meshes,
 
     // what is the player pointing at? origin/dir are world-space.
+    // Geometry in front of a surface blocks it — no washing through the porch roof or a wall.
     aim(origin, dir) {
-      raycaster.set(origin, dir);
-      const hits = raycaster.intersectObjects(meshes, false);
-      if (!hits.length || !hits[0].uv) return null;
-      const h = hits[0];
+      const h = firstUnoccludedHit(origin, dir, meshes, occluderSet(), REACH);
+      if (!h || !h.uv) return null;
       return {
         id: h.object.userData.washId,
         u: h.uv.x,
@@ -238,6 +310,12 @@ export function buildWashing(B) {
         point: h.point,
         dist: h.distance,
       };
+    },
+
+    // the sheet-06 runtime swaps architecture on restoration; drop the cached occluders so the
+    // next aim rebuilds against what is actually standing there now
+    invalidateOccluders() {
+      occluders = null;
     },
 
     // pull the trigger: water, or soap. radius is in yards — a real spray pattern.

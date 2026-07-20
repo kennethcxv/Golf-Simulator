@@ -1,0 +1,479 @@
+{
+  "comment": "Course flora kit. Loader keeps authored vertex colors. Runtime heights are in yards; source dimensions are meters.",
+  "pipeline_version": 3,
+  "asset_origin": "Original procedural geometry generated in-repository; no external assets.",
+  "variants": [
+    {
+      "id": "oak_a",
+      "kind": "deciduous",
+      "height": [
+        13,
+        17
+      ],
+      "tris": 1456,
+      "triangle_budget": 1500,
+      "source_dimensions_m": [
+        12.6,
+        11.3,
+        15.2
+      ],
+      "source_blend": "asset_sources/blender/flora/oak_a.blend",
+      "glb": "vendor/models/flora/oak_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "oak_b",
+      "kind": "deciduous",
+      "height": [
+        11,
+        14
+      ],
+      "tris": 1300,
+      "triangle_budget": 1350,
+      "source_dimensions_m": [
+        10.4,
+        9.4,
+        12.8
+      ],
+      "source_blend": "asset_sources/blender/flora/oak_b.blend",
+      "glb": "vendor/models/flora/oak_b.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "maple_a",
+      "kind": "deciduous",
+      "height": [
+        11,
+        14
+      ],
+      "tris": 1188,
+      "triangle_budget": 1250,
+      "source_dimensions_m": [
+        9.2,
+        8.5,
+        12.4
+      ],
+      "source_blend": "asset_sources/blender/flora/maple_a.blend",
+      "glb": "vendor/models/flora/maple_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "birch_a",
+      "kind": "deciduous",
+      "height": [
+        10,
+        13
+      ],
+      "tris": 188,
+      "triangle_budget": 220,
+      "source_dimensions_m": [
+        9.0,
+        8.2,
+        12.8
+      ],
+      "source_blend": "asset_sources/blender/flora/birch_a.blend",
+      "glb": "vendor/models/flora/birch_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lod_proxy_for": [
+        "maple_a"
+      ]
+    },
+    {
+      "id": "shade_a",
+      "kind": "deciduous",
+      "height": [
+        12,
+        15
+      ],
+      "tris": 1456,
+      "triangle_budget": 1500,
+      "source_dimensions_m": [
+        13.8,
+        12.2,
+        14.0
+      ],
+      "source_blend": "asset_sources/blender/flora/shade_a.blend",
+      "glb": "vendor/models/flora/shade_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "flower_a",
+      "kind": "ornamental",
+      "height": [
+        5,
+        7
+      ],
+      "tris": 580
+    },
+    {
+      "id": "fill_a",
+      "kind": "deciduous",
+      "height": [
+        10,
+        15
+      ],
+      "tris": 188,
+      "triangle_budget": 220,
+      "source_dimensions_m": [
+        10.8,
+        9.8,
+        13.8
+      ],
+      "source_blend": "asset_sources/blender/flora/fill_a.blend",
+      "glb": "vendor/models/flora/fill_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lod_proxy_for": [
+        "oak_a"
+      ]
+    },
+    {
+      "id": "fill_b",
+      "kind": "deciduous",
+      "height": [
+        10,
+        15
+      ],
+      "tris": 220,
+      "triangle_budget": 240,
+      "source_dimensions_m": [
+        11.0,
+        9.8,
+        12.8
+      ],
+      "source_blend": "asset_sources/blender/flora/fill_b.blend",
+      "glb": "vendor/models/flora/fill_b.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lod_proxy_for": [
+        "oak_b",
+        "shade_a"
+      ]
+    },
+    {
+      "id": "pine_a",
+      "kind": "evergreen",
+      "height": [
+        14,
+        18
+      ],
+      "tris": 1436,
+      "triangle_budget": 1600,
+      "source_dimensions_m": [
+        6.4,
+        5.8,
+        15.4
+      ],
+      "source_blend": "asset_sources/blender/flora/pine_a.blend",
+      "glb": "vendor/models/flora/pine_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "pine_b",
+      "kind": "evergreen",
+      "height": [
+        12,
+        15
+      ],
+      "tris": 692,
+      "triangle_budget": 750,
+      "source_dimensions_m": [
+        5.8,
+        5.3,
+        14.2
+      ],
+      "source_blend": "asset_sources/blender/flora/pine_b.blend",
+      "glb": "vendor/models/flora/pine_b.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lod_proxy_for": []
+    },
+    {
+      "id": "pine_far",
+      "kind": "evergreen",
+      "height": [
+        12,
+        16
+      ],
+      "tris": 158,
+      "triangle_budget": 180,
+      "source_dimensions_m": [
+        5.8,
+        5.3,
+        14.0
+      ],
+      "source_blend": "asset_sources/blender/flora/pine_far.blend",
+      "glb": "vendor/models/flora/pine_far.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lod_proxy_for": [
+        "pine_a",
+        "spruce_a",
+        "pine_b",
+        "cedar_a"
+      ]
+    },
+    {
+      "id": "spruce_a",
+      "kind": "evergreen",
+      "height": [
+        12,
+        16
+      ],
+      "tris": 1712,
+      "triangle_budget": 1850,
+      "source_dimensions_m": [
+        5.8,
+        5.5,
+        13.8
+      ],
+      "source_blend": "asset_sources/blender/flora/spruce_a.blend",
+      "glb": "vendor/models/flora/spruce_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "cedar_a",
+      "kind": "evergreen",
+      "height": [
+        9,
+        12
+      ],
+      "tris": 624,
+      "triangle_budget": 650,
+      "source_dimensions_m": [
+        4.5,
+        4.3,
+        11.0
+      ],
+      "source_blend": "asset_sources/blender/flora/cedar_a.blend",
+      "glb": "vendor/models/flora/cedar_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lod_proxy_for": []
+    },
+    {
+      "id": "shrub_round",
+      "kind": "shrub",
+      "height": [
+        1.4,
+        2.2
+      ],
+      "tris": 392,
+      "triangle_budget": 450,
+      "source_dimensions_m": [
+        1.65,
+        1.5,
+        1.15
+      ],
+      "source_blend": "asset_sources/blender/flora/shrub_round.blend",
+      "glb": "vendor/models/flora/shrub_round.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "shrub_flower",
+      "kind": "shrub",
+      "height": [
+        1.2,
+        1.8
+      ],
+      "tris": 240
+    },
+    {
+      "id": "bush_native",
+      "kind": "shrub",
+      "height": [
+        1.5,
+        2.6
+      ],
+      "tris": 448,
+      "triangle_budget": 500,
+      "source_dimensions_m": [
+        2.0,
+        1.65,
+        1.55
+      ],
+      "source_blend": "asset_sources/blender/flora/bush_native.blend",
+      "glb": "vendor/models/flora/bush_native.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "reed_clump",
+      "kind": "reed",
+      "height": [
+        1.6,
+        2.4
+      ],
+      "tris": 90
+    },
+    {
+      "id": "grass_clump",
+      "kind": "reed",
+      "height": [
+        0.9,
+        1.4
+      ],
+      "tris": 72
+    },
+    {
+      "id": "rock_s",
+      "kind": "rock",
+      "height": [
+        0.5,
+        0.9
+      ],
+      "tris": 80,
+      "triangle_budget": 100,
+      "source_dimensions_m": [
+        0.68,
+        0.54,
+        0.4
+      ],
+      "source_blend": "asset_sources/blender/flora/rock_s.blend",
+      "glb": "vendor/models/flora/rock_s.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "rock_m",
+      "kind": "rock",
+      "height": [
+        0.9,
+        1.6
+      ],
+      "tris": 80,
+      "triangle_budget": 100,
+      "source_dimensions_m": [
+        1.12,
+        0.86,
+        0.64
+      ],
+      "source_blend": "asset_sources/blender/flora/rock_m.blend",
+      "glb": "vendor/models/flora/rock_m.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "boulder_a",
+      "kind": "rock",
+      "height": [
+        1.6,
+        2.8
+      ],
+      "tris": 80
+    },
+    {
+      "id": "shore_rock",
+      "kind": "rock",
+      "height": [
+        0.6,
+        1.2
+      ],
+      "tris": 80
+    }
+  ]
+}

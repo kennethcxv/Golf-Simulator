@@ -35,8 +35,10 @@ test('no two starting properties are identical', () => {
 
 test('the roster spans genuinely different archetypes, not one scaled template', () => {
   const props = generateMarketplace(4242);
-  assert.ok(props.some((p) => p.design >= 72 && p.condition <= 45), 'a good-bones / neglected-turf property exists');
-  assert.ok(props.some((p) => p.condition >= 65 && p.design <= 66), 'a well-kept / modest-layout property exists');
+  assert.ok(props.some((p) => p.design >= 80 && p.condition <= 45), 'a good-bones / neglected-turf property exists');
+  // architect-built 9-holes are genuinely well-designed, so "modest" now means
+  // fewer hazards + flatter land (design ~72) rather than a bad layout (~65)
+  assert.ok(props.some((p) => p.condition >= 65 && p.design <= 78), 'a well-kept / modest-layout property exists');
   assert.ok(props.some((p) => p.size === 18), 'a sprawling 18-hole property exists');
   assert.ok(props.filter((p) => p.size === 9).length >= 4, 'several 9-hole properties exist');
   const designs = props.map((p) => p.design);

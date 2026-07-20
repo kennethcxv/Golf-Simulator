@@ -31,6 +31,17 @@ test('the floor plan and the sim grime grid describe the same room', () => {
   assert.ok(INTERIOR.d === SHELL.d - 2 * SHELL.wallT, 'interior depth = shell minus two walls');
 });
 
+test('Asset 20 uses the same 1.20 by 0.45 metre footprint in layout and collision', () => {
+  assert.deepEqual(FIXTURE_HALF.rail, [0.60, 0.225]);
+  const rail = FIXTURES.find((fixture) => fixture.id === 'rail_outer');
+  const flat = fixtureRect({ ...rail, ry: 0 });
+  assert.ok(Math.abs((flat.maxX - flat.minX) - 1.20) < 1e-9);
+  assert.ok(Math.abs((flat.maxZ - flat.minZ) - 0.45) < 1e-9);
+  const turned = fixtureRect({ ...rail, ry: Math.PI / 2 });
+  assert.ok(Math.abs((turned.maxX - turned.minX) - 0.45) < 1e-9);
+  assert.ok(Math.abs((turned.maxZ - turned.minZ) - 1.20) < 1e-9);
+});
+
 test('every fixture stocks real catalog SKUs and sits inside the building', () => {
   assert.ok(FIXTURES.length >= 10, `a real store needs fixtures (${FIXTURES.length})`);
   const stockBounds = STOCKROOM.bounds;

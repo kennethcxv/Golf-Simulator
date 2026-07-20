@@ -1,5 +1,5 @@
-// Boxes are physical objects: setting one down places THAT box exactly where
-// the player stands — anywhere in the world — and it stays there through
+// Boxes are physical objects: setting one down on a registered, clear support
+// places THAT box at the exact validated transform, and it stays there through
 // pick-up/put-down cycles and save/load. A box must never vanish or teleport.
 
 import test from 'node:test';
@@ -9,7 +9,12 @@ import {
   cutTape, openFlap, takeFromBox, flattenBox, recycleBox,
   tapePartlyCut, tapeCut, flapsOpen,
 } from '../src/sim/deliveries.js';
+import { FLOOR_BOX_SURFACE_ID } from '../src/data/boxPlacementSurfaces.js';
 import { carriedGoods, storeInBack } from '../src/sim/stocking.js';
+
+const floorTarget = (x, z, ry = 0) => ({
+  kind: 'surface', surfaceId: FLOOR_BOX_SURFACE_ID, x, z, ry,
+});
 
 function freshState() {
   const state = { shop: { inventory: { balls2: { back: 0, shelf: 0 } }, carry: null } };
@@ -24,9 +29,10 @@ test('a box set down in the world keeps its identity and exact spot', () => {
   assert.equal(box.loc, 'pad');
   assert.ok(pickUpBox(state, box.id).ok);
   assert.equal(carriedBox(state).id, box.id);
-  const res = putDownBox(state, box.id, { x: 3.25, z: -1.5, ry: 0.7 });
+  const res = putDownBox(state, box.id, floorTarget(3.25, -1.5, 0.7));
   assert.ok(res.ok);
   assert.equal(box.loc, 'world');
+  assert.equal(box.surfaceId, FLOOR_BOX_SURFACE_ID);
   assert.equal(box.x, 3.25);
   assert.equal(box.z, -1.5);
   assert.equal(box.ry, 0.7);
@@ -37,10 +43,13 @@ test('pick-up/set-down cycles never lose or duplicate a box', () => {
   const box = boxesOf(state)[0];
   for (let i = 0; i < 10; i++) {
     assert.ok(pickUpBox(state, box.id).ok, `cycle ${i} pickup`);
-    const spot = { x: -8 + i * 1.7, z: 5 - i * 0.9, ry: i * 0.3 };
+    // Reuse one known-clear floor support: pickup releases its occupancy before
+    // the next placement, while rotation still exercises ten exact transforms.
+    const spot = floorTarget(3.25, -1.5, i * 0.3);
     assert.ok(putDownBox(state, box.id, spot).ok, `cycle ${i} setdown`);
     assert.equal(boxesOf(state).length, 1, `cycle ${i} count`);
     assert.equal(boxesOf(state)[0].id, box.id, `cycle ${i} identity`);
+    assert.equal(boxesOf(state)[0].surfaceId, FLOOR_BOX_SURFACE_ID, `cycle ${i} surface`);
     assert.equal(boxesOf(state)[0].x, spot.x, `cycle ${i} x`);
     assert.equal(boxesOf(state)[0].z, spot.z, `cycle ${i} z`);
   }
@@ -49,14 +58,15 @@ test('pick-up/set-down cycles never lose or duplicate a box', () => {
 test('world boxes and their positions survive a save/load round trip', () => {
   const state = freshState();
   const box = boxesOf(state)[0];
-  pickUpBox(state, box.id);
-  putDownBox(state, box.id, { x: 12.4, z: -3.6, ry: 1.1 });
+  assert.ok(pickUpBox(state, box.id).ok);
+  assert.ok(putDownBox(state, box.id, floorTarget(3.25, -1.5, 1.1)).ok);
   const loaded = JSON.parse(JSON.stringify(state));
   const again = boxesOf(loaded)[0];
   assert.equal(again.id, box.id);
   assert.equal(again.loc, 'world');
-  assert.equal(again.x, 12.4);
-  assert.equal(again.z, -3.6);
+  assert.equal(again.surfaceId, FLOOR_BOX_SURFACE_ID);
+  assert.equal(again.x, 3.25);
+  assert.equal(again.z, -1.5);
   assert.equal(again.ry, 1.1);
 });
 
@@ -75,6 +85,7 @@ test('opening is physical: cut the tape, open the flaps, take armfuls, flatten t
   assert.ok(tapeCut(box));
   assert.equal(cutTape(state, box.id, 1).ok, false, 'tape cuts once');
 
+  openFlap(state, box.id);
   openFlap(state, box.id);
   openFlap(state, box.id);
   assert.ok(flapsOpen(box));
@@ -111,9 +122,9 @@ test('opening is physical: cut the tape, open the flaps, take armfuls, flatten t
 test('a carried box cannot be cut or emptied mid-air', () => {
   const state = freshState();
   const box = boxesOf(state)[0];
-  pickUpBox(state, box.id);
+  assert.ok(pickUpBox(state, box.id).ok);
   assert.equal(cutTape(state, box.id, 1).ok, false);
-  putDownBox(state, box.id, { x: 1, z: 1, ry: 0 });
+  assert.ok(putDownBox(state, box.id, floorTarget(1, 1)).ok);
   assert.ok(cutTape(state, box.id, 1).ok);
 });
 

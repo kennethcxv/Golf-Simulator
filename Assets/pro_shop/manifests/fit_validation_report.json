@@ -1,0 +1,71 @@
+{
+ "fixtures": {
+  "pf_fixture_apparel_wall": {
+   "placements": 33,
+   "fit_fails": [],
+   "overlaps": []
+  },
+  "pf_fixture_hat_wall": {
+   "placements": 14,
+   "fit_fails": [],
+   "overlaps": []
+  },
+  "pf_fixture_accessory_slatwall": {
+   "placements": 30,
+   "fit_fails": [],
+   "overlaps": []
+  },
+  "pf_fixture_club_rack": {
+   "placements": 18,
+   "fit_fails": [],
+   "overlaps": []
+  },
+  "pf_fixture_bag_display": {
+   "placements": 8,
+   "fit_fails": [],
+   "overlaps": []
+  },
+  "pf_fixture_ball_shelf": {
+   "placements": 30,
+   "fit_fails": [],
+   "overlaps": []
+  },
+  "pf_fixture_snack_shelf": {
+   "placements": 20,
+   "fit_fails": [],
+   "overlaps": []
+  },
+  "pf_fixture_rangefinder_display": {
+   "placements": 21,
+   "fit_fails": [],
+   "overlaps": []
+  },
+  "pf_fixture_shoe_display": {
+   "placements": 14,
+   "fit_fails": [],
+   "overlaps": []
+  },
+  "pf_fixture_center_table": {
+   "placements": 32,
+   "fit_fails": [],
+   "overlaps": []
+  },
+  "pf_fixture_freestanding_gondola": {
+   "placements": 53,
+   "fit_fails": [],
+   "overlaps": []
+  },
+  "pf_fixture_checkout_counter_shop": {
+   "placements": 17,
+   "fit_fails": [],
+   "overlaps": []
+  }
+ },
+ "failures": [],
+ "summary": {
+  "placements": 290,
+  "fit_failures": 0,
+  "overlaps": 0,
+  "assembly_failures": 0
+ }
+}

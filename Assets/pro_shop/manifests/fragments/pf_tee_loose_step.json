@@ -1,0 +1,25 @@
+{
+ "id": "pf_tee_loose_step",
+ "kind": "products",
+ "category": "tees",
+ "dims_m": [
+  0.0665,
+  0.0113,
+  0.0116
+ ],
+ "min_z": -0.0,
+ "tris": 754,
+ "textures": [],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_tee_loose_step.glb",
+ "blend": "assets/pro_shop/source/products/tees/pf_tee_loose_step.blend",
+ "name": "Pro Launch Tee",
+ "variant": "step",
+ "price": 0.45,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "loose",
+ "packaging": "loose"
+}

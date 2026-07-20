@@ -18,7 +18,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/sim/state.js';
-import { placeOrder, cancelOrder, tickDeliveries } from '../src/sim/shop.js';
+import {
+  placeOrder, cancelOrder, deliverOrdersDue, tickDeliveries,
+} from '../src/sim/shop.js';
 import { skuById, SHOP_CATALOG } from '../src/data/shopItems.js';
 import { planShipment, unitsPerBox, boxKindFor, BOX_KINDS } from '../src/data/boxes.js';
 import { supplierFor, SUPPLIERS } from '../src/data/suppliers.js';
@@ -78,6 +80,24 @@ test('the manifest is a promise: what the screen says is what lands on the pad',
     o.manifest.boxes.map((b) => b.qty).sort(),
     'split the same way, too — not three boxes of ten',
   );
+});
+
+test('one order larger than the receiving pad is rejected before a cent is billed', () => {
+  const s = setup();
+  const cash0 = s.cash;
+  const spent0 = s.ledger.today.expense.shopOrders || 0;
+  const nextOrderId0 = s.shop.nextOrderId;
+
+  const res = placeOrder(s, 'bag1', PAD_CAPACITY + 1); // one golf bag per carton
+
+  assert.equal(res.ok, false);
+  assert.equal(res.boxes, PAD_CAPACITY + 1);
+  assert.equal(res.capacity, PAD_CAPACITY);
+  assert.match(res.reason, /split.*smaller|holds 9/i);
+  assert.equal(s.cash, cash0, 'cash never moved');
+  assert.equal(s.ledger.today.expense.shopOrders || 0, spent0, 'the ledger was never billed');
+  assert.equal(s.shop.orders.length, 0, 'no impossible paid order was created');
+  assert.equal(s.shop.nextOrderId, nextOrderId0, 'a rejected order does not consume an id');
 });
 
 test('the delivery fee is real money, and cancelling gives back the fee as well as the goods', () => {
@@ -172,6 +192,22 @@ test('two vans landing on the same minute cannot both take the last slot on the 
   assert.ok(padCountOf(s) <= PAD_CAPACITY, `the pad never goes over capacity (${padCountOf(s)} of ${PAD_CAPACITY})`);
   assert.equal(s.shop.orders.length, 2, 'one landed; the other two are still circling');
   assert.ok(s.shop.orders.every((o) => o.blocked), 'and both know they were turned away');
+});
+
+test('the past-day delivery safety net obeys the same receiving capacity', () => {
+  const s = setup();
+  for (let i = 0; i < PAD_CAPACITY - 1; i++) {
+    boxesOf(s).push({ id: 700 + i, skuId: 'tees1', qty: 1, cap: 1, orderId: 0, loc: 'pad', box: 'carton' });
+  }
+  placeOrder(s, 'tees1', 1);
+  placeOrder(s, 'glove1', 1);
+  const overdueDay = Math.max(...s.shop.orders.map((order) => order.arrivesDay)) + 1;
+
+  const arrived = deliverOrdersDue(s, overdueDay);
+  assert.equal(arrived.length, 1, 'only the one remaining pallet spot is admitted');
+  assert.equal(padCountOf(s), PAD_CAPACITY);
+  assert.equal(s.shop.orders.length, 1, 'the other paid order remains pending, not lost');
+  assert.equal(s.shop.orders[0].blocked, true);
 });
 
 test('planShipment is pure — the same order always packs the same way', () => {

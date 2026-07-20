@@ -1,0 +1,28 @@
+{
+ "id": "pf_marker_coin_card",
+ "kind": "products",
+ "category": "ball_markers",
+ "dims_m": [
+  0.075,
+  0.0085,
+  0.12
+ ],
+ "min_z": 0.0,
+ "tris": 744,
+ "textures": [
+  "Card_pf_marker_coin_card:512x820"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_marker_coin_card.glb",
+ "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_coin_card.blend",
+ "name": "Brass Coin Marker (Card)",
+ "variant": "brass",
+ "price": 6.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "hook_card",
+ "packaging": "hang-card"
+}

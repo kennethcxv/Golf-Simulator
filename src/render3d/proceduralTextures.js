@@ -224,3 +224,31 @@ export function makePathTexture({ seed = 21 } = {}) {
   }
   return finish(c);
 }
+
+// cool neutral-gray asphalt for cart-path ribbons — aggregate speckle over a
+// light concrete base so the pavement reads as pavement, never warm dirt
+export function makeAsphaltTexture({ seed = 33 } = {}) {
+  const size = 256;
+  const c = makeCanvas(size);
+  const ctx = c.getContext('2d');
+  const r = rng(seed);
+  ctx.fillStyle = '#bdbbb6';
+  ctx.fillRect(0, 0, size, size);
+  // broad tonal drift so long ribbons aren't a flat slab
+  for (let i = 0; i < 60; i++) {
+    const x = r() * size;
+    const y = r() * size;
+    const rad = 12 + r() * 40;
+    ctx.fillStyle = r() < 0.5 ? 'rgba(156,153,148,0.28)' : 'rgba(210,207,201,0.24)';
+    wrapped(ctx, size, () => { ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill(); });
+  }
+  // fine aggregate — neutral grey, no colour cast
+  for (let i = 0; i < 5200; i++) {
+    const x = r() * size;
+    const y = r() * size;
+    const g = 122 + Math.floor(r() * 90);
+    ctx.fillStyle = `rgba(${g + 4},${g + 2},${g},${0.35 + r() * 0.4})`;
+    wrapped(ctx, size, () => ctx.fillRect(x, y, 1.3, 1.3));
+  }
+  return finish(c);
+}

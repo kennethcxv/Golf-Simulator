@@ -1,0 +1,27 @@
+{
+ "id": "pf_marker_clip",
+ "kind": "products",
+ "category": "ball_markers",
+ "dims_m": [
+  0.033,
+  0.033,
+  0.0199
+ ],
+ "min_z": -0.0016,
+ "tris": 420,
+ "textures": [
+  "MarkerClip:256x256"
+ ],
+ "sockets": [
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_marker_clip.glb",
+ "blend": "assets/pro_shop/source/products/ball_markers/pf_marker_clip.blend",
+ "name": "Magnetic Clip Marker",
+ "variant": "copper",
+ "price": 12.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "loose",
+ "packaging": "loose"
+}

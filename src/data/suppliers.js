@@ -14,7 +14,7 @@ export const SUPPLIERS = {
   fairway: {
     id: 'fairway',
     name: 'Fairway Supply Co.',
-    cats: ['balls', 'accessories'],
+    cats: ['balls', 'accessories', 'provisions'],
     feeBase: 9,
     feePerBox: 3,
   },

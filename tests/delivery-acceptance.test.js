@@ -13,8 +13,10 @@ import { placeOrder, tickDeliveries } from '../src/sim/shop.js';
 import { skuById } from '../src/data/shopItems.js';
 import {
   boxesOf, shipmentsOf, shipmentStatus, cutTape, openFlap, takeFromBox,
-  flattenBox, recycleBox, pickUpBox, putDownBox, boxState,
+  flattenBox, recycleBox, pickUpBox, putDownBox, boxState, flapsOpen,
 } from '../src/sim/deliveries.js';
+import { exposedDeliveryPadBoxIds } from '../src/data/deliveryStaging.js';
+import { FLOOR_BOX_SURFACE_ID } from '../src/data/boxPlacementSurfaces.js';
 import {
   carriedGoods, stockFixture, storeInBack, homeOf,
 } from '../src/sim/stocking.js';
@@ -30,6 +32,13 @@ const ORDER = [
   ['bag1', 1],      // golf-bag carton — 1 box
   ['light1', 1],    // fixture package — 1 box
 ];
+
+// Seven surveyed floor lanes that stay clear of renovation clutter and preserve
+// the required customer/receiving routes for every authored carton footprint.
+const DROP_LANE_XS = [-9, -8.5, -7.75, -6.25, -5.5, -4.75, -2.75];
+const floorTarget = (x, z, ry = 0) => ({
+  kind: 'surface', surfaceId: FLOOR_BOX_SURFACE_ID, x, z, ry,
+});
 
 function totalUnits(st) {
   const acc = {};
@@ -76,14 +85,28 @@ test('drop every box a few times: identities and contents survive, nothing dupli
 
   const before = totalUnits(st);
   const ids = boxesOf(st).map((b) => b.id);
-  // pick each box up and set it down three times, in different spots
-  for (const id of ids) {
+  const staged = boxesOf(st).map((entry) => ({ ...entry }));
+  const pickupOrder = [];
+  while (staged.length) {
+    const exposed = exposedDeliveryPadBoxIds(staged);
+    const next = staged.find((entry) => exposed.has(entry.id));
+    pickupOrder.push(next.id);
+    staged.splice(staged.indexOf(next), 1);
+  }
+  // Pick each box up and set it down three times at exact rotated transforms.
+  for (const [laneIndex, id] of pickupOrder.entries()) {
     for (let k = 0; k < 3; k++) {
       const up = pickUpBox(st, id);
       assert.ok(up.ok, `box ${id} lifted (drop ${k})`);
-      putDownBox(st, id, { x: 6 + (k * 0.3), z: -5 + (id % 3) * 0.4, ry: k });
+      const down = putDownBox(
+        st,
+        id,
+        floorTarget(DROP_LANE_XS[laneIndex], -5, k * 0.1),
+      );
+      assert.ok(down.ok, `box ${id} set down safely (drop ${k}): ${down.reason || ''}`);
       const still = boxesOf(st).find((b) => b.id === id);
       assert.ok(still, `box ${id} did not vanish on drop ${k}`);
+      assert.equal(still.surfaceId, FLOOR_BOX_SURFACE_ID, `box ${id} kept its floor surface`);
     }
   }
   assert.deepEqual(totalUnits(st), before, 'dropping boxes created and destroyed nothing');
@@ -103,7 +126,7 @@ test('THE ACCEPTANCE FLOW: partially open, SAVE, reload, finish stocking — con
   for (const id of partials) {
     const box = boxesOf(st).find((b) => b.skuId === id);
     cutTape(st, box.id, 1);
-    openFlap(st, box.id); openFlap(st, box.id);
+    openFlap(st, box.id); openFlap(st, box.id); openFlap(st, box.id);
     const t = takeFromBox(st, box.id);
     assert.ok(t.ok);
     storeInBack(st);   // put the armful in the back so we can open the next box
@@ -138,8 +161,7 @@ test('THE ACCEPTANCE FLOW: partially open, SAVE, reload, finish stocking — con
     if (!box) break;
     if (!boxesOf(st).find((b) => b.id === box.id).tape) cutTape(st, box.id, 1);
     if (box.tape < 1) cutTape(st, box.id, 1);
-    if (!box.flaps || box.flaps[0] < 1) openFlap(st, box.id);
-    if (!box.flaps || box.flaps[1] < 1) openFlap(st, box.id);
+    for (let phase = 0; phase < 3 && !flapsOpen(box); phase += 1) openFlap(st, box.id);
     const t = takeFromBox(st, box.id);
     if (!t.ok) break;
     const held = carriedGoods(st);

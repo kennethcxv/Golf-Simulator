@@ -19,5 +19,8 @@
   },
   "dependencies": {
     "three": "^0.185.1"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
   }
 }

@@ -60,8 +60,11 @@ test('customers queue clear of the counter, not pressed against it', () => {
 
 test('the queue falls back into the room, away from the counter', () => {
   const a = queueSlot(0);
+  const next = queueSlot(1);
   const b = queueSlot(3);
   assert.ok(b.z < a.z, 'the line runs back into the shop');
+  assert.ok(Math.hypot(next.x - a.x, next.z - a.z) >= 1.15,
+    'adjacent customers keep a readable shoulder-and-carried-goods gap');
   assert.ok(Math.hypot(b.x - a.x, b.z - a.z) > 1.5, 'and it is a line, not a huddle');
 });
 
@@ -77,13 +80,17 @@ const topMinX = COUNTER.x - COUNTER.len / 2;
 const topMaxX = COUNTER.x + COUNTER.len / 2;
 const topMinZ = COUNTER.z - COUNTER.depth / 2;
 const topMaxZ = COUNTER.z + COUNTER.depth / 2;
-// the kit the PLAYER has to physically operate — these must fall inside their reach
+// the kit the PLAYER has to physically operate — these must fall inside their reach.
+// The scanner and open bag are both operated pieces; folded bagstand spares are
+// passive dressing.
 const OPERATED = {
-  monitor: REG.monitor, cardterm: REG.cardterm, scanner: REG.scanner,
-  printer: REG.printer, bagstand: REG.bagstand,
+  monitor: REG.monitor, cardterm: REG.cardterm,
+  scanner: REG.scanner, printer: REG.printer, bag: REG.bag,
 };
 // ...plus the passive dressing, which only has to be on the counter and out of the way
-const KIT = { ...OPERATED, divider: REG.divider, impulse: REG.impulse };
+const KIT = {
+  ...OPERATED, bagstand: REG.bagstand, divider: REG.divider, impulse: REG.impulse, custdisplay: REG.custdisplay,
+};
 
 test('you can work an open drawer and STILL get past it', () => {
   // the drawer slides out into the staff corridor. If it eats the corridor, the player
@@ -120,7 +127,11 @@ test('the player can reach every part of the workspace from where they stand', (
   }
 });
 
-test('the CUSTOMER can reach the staging tray and the card terminal from the head of the queue', () => {
+test('the CUSTOMER can reach the staging tray from the head of the queue', () => {
+  // The customer only needs to SET GOODS DOWN. In the simplified flow their card
+  // auto-presents and auto-inserts (the PLAYER operates the terminal), so the
+  // terminal lives on the staff side of the counter, inside the player's reach —
+  // which the OPERATED loop above already holds.
   const CUSTOMER_REACH = 1.6; // they lean over the counter to set things down
   const q = queueSlot(0);
   const nearest = (r) => Math.min(
@@ -128,8 +139,6 @@ test('the CUSTOMER can reach the staging tray and the card terminal from the hea
     Math.hypot(r.maxX - q.x, r.minZ - q.z),
   );
   assert.ok(nearest(REG.staging) <= CUSTOMER_REACH, 'they can put their goods down');
-  const term = Math.hypot(REG.cardterm.x - q.x, REG.cardterm.z - q.z);
-  assert.ok(term <= CUSTOMER_REACH, `the card terminal is ${term.toFixed(2)} yd from the queue head`);
 });
 
 test('the whole kit sits ON the counter, not floating off the edge of it', () => {
@@ -143,58 +152,47 @@ test('the whole kit sits ON the counter, not floating off the edge of it', () =>
   }
 });
 
-test('staging is on the CUSTOMER side and bagging is on the STAFF side, downstream', () => {
+test('staging is on the CUSTOMER side and the bag zone is on the STAFF side', () => {
   assert.ok(REG.staging.maxZ < COUNTER.z, 'staging sits on the shopper half of the top');
-  assert.ok(REG.bagging.minZ > COUNTER.z, 'bagging sits on the staff half');
-  assert.ok(REG.staging.maxX < REG.bagging.minX, 'and the line runs west to east');
+  assert.ok(REG.bagging.minZ > COUNTER.z, 'the bag zone sits on the staff half');
 });
 
-test('THE SCAN VOLUME IS IN THE WAY, ON PURPOSE', () => {
-  const s = REG.scan;
-  const mid = (r) => ({ x: (r.minX + r.maxX) / 2, z: (r.minZ + r.maxZ) / 2 });
-  const inScan = (p) => p.x >= s.minX && p.x <= s.maxX && p.z >= s.minZ && p.z <= s.maxZ;
-
-  assert.ok(s.minZ < COUNTER.z && s.maxZ > COUNTER.z, 'it straddles the middle of the counter');
-  assert.ok(s.minY >= COUNTER_TOP, 'the volume starts at the counter top');
-  assert.ok(s.maxY - s.minY > 0.15, 'and is tall enough to sweep a boxed dozen through');
-
-  // Nothing auto-scans by being PUT DOWN. Both working surfaces sit clear of the
-  // volume, so an item only ever registers by being carried through it.
-  assert.ok(!inScan(mid(REG.staging)), 'an item resting in the staging tray is not in the scan volume');
-  assert.ok(!inScan(mid(REG.bagging)), 'an item resting in the bag is not in the scan volume');
-
-  // The claim the whole design rests on: the straight line from the middle of the
-  // staging tray to the middle of the bag really does pass through the scanner. If
-  // that ever stops being true, scanning stops being a natural motion and becomes a
-  // chore, and the mechanic is dead.
-  const a = mid(REG.staging);
-  const b = mid(REG.bagging);
-  let crossed = false;
-  for (let t = 0; t <= 1; t += 0.002) {
-    if (inScan({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t })) { crossed = true; break; }
+// THE TCG ARRANGEMENT. From the cashier's viewpoint (standing at +z, facing the
+// queue): the open BAG far LEFT, the merchandise centre-left, and the register
+// block — POS, drawer, terminal, printer, customer display — on the RIGHT. A
+// clicked product crosses the reader and then arcs into the bag; nothing may
+// stand in either leg and nothing may hide the goods behind the monitor.
+test('bag left, goods centre, register block right — and the scanner route is clear', () => {
+  const stagingMid = { x: (REG.staging.minX + REG.staging.maxX) / 2, z: (REG.staging.minZ + REG.staging.maxZ) / 2 };
+  assert.ok(REG.bag.x < REG.staging.minX, 'the bag sits WEST (cashier-left) of the goods');
+  for (const [name, p] of Object.entries({ monitor: REG.monitor, cardterm: REG.cardterm, printer: REG.printer, custdisplay: REG.custdisplay })) {
+    assert.ok(p.x > REG.staging.maxX, `the ${name} sits EAST (cashier-right) of the goods`);
   }
-  assert.ok(crossed, 'dragging an item from the staging tray to the bag crosses the scanner');
-});
-
-test('the scanner glass sits inside its own scan volume', () => {
-  const s = REG.scan;
-  assert.ok(REG.scanner.x > s.minX && REG.scanner.x < s.maxX, 'the glass is under the volume');
-  assert.ok(REG.scanner.z > s.minZ && REG.scanner.z < s.maxZ);
-});
-
-test('nothing else is standing in the scan volume to foul the sweep', () => {
-  const s = REG.scan;
-  for (const [name, p] of Object.entries(KIT)) {
-    if (name === 'scanner') continue;
-    const inside = p.x > s.minX && p.x < s.maxX && p.z > s.minZ && p.z < s.maxZ;
-    assert.ok(!inside, `the ${name} is standing in the scan volume`);
+  assert.ok(REG.drawer.x > REG.staging.maxX, 'the drawer opens under the register block, not under the goods');
+  // Both physical legs stay over the counter: goods to scanner, then reader to bag.
+  for (const [from, to, label] of [
+    [stagingMid, REG.scanner, 'scan approach'],
+    [REG.scanner, REG.bag, 'bagging exit'],
+  ]) {
+    for (let t = 0; t <= 1; t += 0.05) {
+      const x = from.x + (to.x - from.x) * t;
+      const z = from.z + (to.z - from.z) * t;
+      assert.ok(x > topMinX && x < topMaxX && z > topMinZ && z < topMaxZ, `${label} stays over the counter`);
+    }
+  }
+  // and no kit device stands on the arc's landing corridor
+  for (const [name, p] of Object.entries({ monitor: REG.monitor, printer: REG.printer, custdisplay: REG.custdisplay })) {
+    assert.ok(Math.hypot(p.x - REG.bag.x, p.z - REG.bag.z) > 0.5, `the ${name} crowds the bag`);
   }
 });
 
 test('the kit does not squat on the surfaces it is meant to leave clear', () => {
+  // the bag zone exists FOR the bag; everything else stays out of both surfaces
+  assert.ok(inRect(REG.bagging, REG.bag.x, REG.bag.z), 'the open bag stands in its own zone');
   for (const [name, p] of Object.entries(KIT)) {
     assert.ok(!inRect(REG.staging, p.x, p.z), `the ${name} is sitting on the staging tray`);
-    assert.ok(!inRect(REG.bagging, p.x, p.z), `the ${name} is sitting on the bagging mat`);
+    if (name === 'bag') continue;
+    assert.ok(!inRect(REG.bagging, p.x, p.z), `the ${name} is sitting on the bag zone`);
   }
 });
 

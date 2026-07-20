@@ -1,0 +1,30 @@
+{
+ "id": "pf_pants_hanging",
+ "kind": "products",
+ "category": "apparel",
+ "dims_m": [
+  0.354,
+  0.1056,
+  0.895
+ ],
+ "min_z": -0.96,
+ "tris": 2484,
+ "textures": [
+  "M_PantsCreamV2_alb:512x512",
+  "NRM_twill_0.45_512:512x512",
+  "RGH_twill_0.62:256x256"
+ ],
+ "sockets": [
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_pants_hanging.glb",
+ "blend": "assets/pro_shop/source/products/apparel/pf_pants_hanging.blend",
+ "name": "Pf Pants Hanging",
+ "variant": "base",
+ "price": 12.99,
+ "fixture": "pf_fixture_apparel_wall",
+ "slot_type": "hanger_slot",
+ "packaging": "none"
+}

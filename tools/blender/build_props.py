@@ -337,41 +337,6 @@ def build_printer(M):
     return finish(parts, 'printer')
 
 
-def build_cash_drawer(M):
-    """An OPEN till: bill wells and coin cups, with notes and coins in them.
-    Ref panel 8 shows the drawer open with the money visible."""
-    parts = []
-    shell = cube('shell', (0.42, 0.36, 0.10), loc=(0, 0, 0.05))
-    bevel(shell, 0.008, 2)
-    assign(shell, M['charcoal'])
-    parts.append(shell)
-    tray = cube('tray', (0.40, 0.34, 0.014), loc=(0, 0, 0.098))
-    assign(tray, M['plastic'])
-    parts.append(tray)
-    # five bill wells at the back
-    for i in range(5):
-        x = -0.152 + i * 0.076
-        div = cube('welldiv', (0.006, 0.16, 0.045), loc=(x + 0.038, -0.08, 0.122))
-        assign(div, M['plastic'])
-        parts.append(div)
-        note = cube('note', (0.062, 0.135, 0.006), loc=(x, -0.08, 0.108),
-                    rot=(0, 0, 0.04))
-        assign(note, M['paper'])
-        parts.append(note)
-    # four coin cups at the front
-    for i in range(4):
-        x = -0.135 + i * 0.09
-        cupw = cyl('coincup', 0.036, 0.038, loc=(x, 0.095, 0.118), verts=10)
-        assign(cupw, M['plastic'])
-        parts.append(cupw)
-        for k in range(3):
-            coin = cyl('coin', 0.010, 0.003,
-                       loc=(x + (k - 1) * 0.008, 0.095, 0.120 + k * 0.003), verts=8)
-            assign(coin, M['brass'])
-            parts.append(coin)
-    return finish(parts, 'cash_drawer')
-
-
 # ============================================================== STOCKROOM ====
 def build_carton(M):
     """Delivery carton, CLOSED: flaps folded down with a tape seam. Was a cube."""
@@ -499,7 +464,9 @@ if __name__ == '__main__':
     builders = [
         build_lounge_chair, build_office_chair, build_trophy,
         build_register, build_scanner, build_cardterm, build_printer,
-        build_cash_drawer,
+        # The production drawer is built only by build_checkout_assets.py.  Keeping
+        # this legacy builder in the list used to overwrite the interactive empty
+        # drawer with welded notes and an incompatible fourth coin cup.
         build_carton, build_carton_open, build_handtruck, build_pendant,
     ]
     for b in builders:

@@ -16,23 +16,49 @@ export function emptyLines() {
 }
 
 export function initLedger(state) {
-  state.ledger = { today: emptyLines(), yesterday: null, history: [] };
+  state.ledger = { today: emptyLines(), yesterday: null, history: [], txLog: [] };
 }
 
 const r2 = (v) => Math.round(v * 100) / 100;
 
+// THE TRANSACTION LOG. Every movement addRevenue/addExpense/unbill lets through is also
+// filed as one event row: minute, direction, ledger line, amount, and the balance the till
+// held after the movement. Because it is written HERE — at the single chokepoint — the log
+// can never disagree with the lines above it. Bounded so the save stays small; the daily
+// history remains the long-term record.
+export const TX_LOG_CAP = 80;
+function logTx(state, kind, key, amt) {
+  const led = state.ledger;
+  if (!led) return;
+  if (!Array.isArray(led.txLog)) led.txLog = [];
+  led.txLog.unshift({
+    m: state.clock && Number.isFinite(state.clock.minutes) ? Math.floor(state.clock.minutes) : 0,
+    kind, // 'rev' | 'exp' | 'refund'
+    key,
+    amt: r2(amt),
+    bal: r2(state.cash),
+  });
+  if (led.txLog.length > TX_LOG_CAP) led.txLog.length = TX_LOG_CAP;
+}
+
+// NaN is the one amount that must never move: `NaN <= 0` is false, so a naive
+// guard lets it through, `cash += NaN` poisons the balance, and the corruption
+// then survives every close-of-books (this exact chain took a live save down —
+// a reservation with no fee posted round2(undefined) into greenFees).
 export function addRevenue(state, key, amount) {
   const amt = r2(amount);
-  if (amt <= 0) return;
+  if (!Number.isFinite(amt) || amt <= 0) return;
   state.cash += amt;
   state.ledger.today.revenue[key] = r2((state.ledger.today.revenue[key] || 0) + amt);
+  logTx(state, 'rev', key, amt);
 }
 
 export function addExpense(state, key, amount) {
   const amt = r2(amount);
-  if (amt <= 0) return;
+  if (!Number.isFinite(amt) || amt <= 0) return;
   state.cash -= amt;
   state.ledger.today.expense[key] = r2((state.ledger.today.expense[key] || 0) + amt);
+  logTx(state, 'exp', key, amt);
 }
 
 // UNWIND A BOOKING THAT NEVER HAPPENED.
@@ -46,10 +72,11 @@ export function addExpense(state, key, amount) {
 // amount that was genuinely booked to it.
 export function unbill(state, key, amount) {
   const amt = r2(amount);
-  if (amt <= 0) return;
+  if (!Number.isFinite(amt) || amt <= 0) return;
   state.cash += amt;
   if (state.ledger) {
     state.ledger.today.expense[key] = r2((state.ledger.today.expense[key] || 0) - amt);
+    logTx(state, 'refund', key, amt);
   }
 }
 
@@ -57,7 +84,7 @@ export function unbill(state, key, amount) {
 // so sim modules can bill consistently from anywhere.
 export function spend(state, key, amount) {
   if (state.ledger) addExpense(state, key, amount);
-  else state.cash -= amount;
+  else if (Number.isFinite(amount)) state.cash -= amount;
 }
 
 export function totals(lines) {

@@ -1,0 +1,31 @@
+{
+ "id": "pf_teebox_wood",
+ "kind": "products",
+ "category": "tees",
+ "dims_m": [
+  0.078,
+  0.036,
+  0.139
+ ],
+ "min_z": 0.0,
+ "tris": 1760,
+ "textures": [
+  "NRM_canvas_0.25_512:512x512",
+  "PSKraft:512x512",
+  "TeeBox_wood:1024x1024"
+ ],
+ "sockets": [
+  "BARCODE_AREA",
+  "HANG_POINT",
+  "PICKUP_SOCKET",
+  "SHELF_ANCHOR"
+ ],
+ "glb": "assets/pro_shop/glb/products/pf_teebox_wood.glb",
+ "blend": "assets/pro_shop/source/products/tees/pf_teebox_wood.blend",
+ "name": "Classic Wood Tees 20pk",
+ "variant": "kraft",
+ "price": 5.99,
+ "fixture": "pf_fixture_accessory_slatwall",
+ "slot_type": "hook_card",
+ "packaging": "window box + hang tab"
+}

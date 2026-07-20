@@ -20,7 +20,7 @@
 # which means the drawer you look at is the drawer you are holding — take three
 # ones out and there are three fewer ones in the well.
 #
-# Five bill wells for [50, 20, 10, 5, 1] and three coin cups for [0.25, 0.10, 0.05],
+# Five bill wells for [50, 20, 10, 5, 1] and three coin cups for [0.20, 0.10, 0.05],
 # matching DENOMS exactly. The old model had five and FOUR, so a cup would have sat
 # permanently empty with no denomination to hold.
 #
@@ -194,7 +194,7 @@ def build_cash_drawer(M):
         assign(clip, M['steel'])
         parts.append(clip)
 
-    # THREE coin cups behind them: [0.25, 0.10, 0.05]. The old drawer had five wells
+    # THREE coin cups behind them: [0.20, 0.10, 0.05]. The old drawer had five wells
     # and FOUR cups, so one cup sat permanently empty with no denomination to hold.
     for i in range(3):
         x = -0.11 + i * 0.11

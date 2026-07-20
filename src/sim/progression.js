@@ -8,6 +8,7 @@ import { calendarOf } from './time.js';
 import { courseDesignRating } from './course.js';
 import { conditionRating } from './turf.js';
 import { addRevenue, addExpense } from './economy.js';
+import { notify } from './notifications.js';
 
 export const UPGRADES = {
   greensMowerII: {
@@ -261,6 +262,7 @@ export function resolveTournamentIfDue(state, closingDay) {
   };
   state.progression.history.unshift(outcome);
   if (state.progression.history.length > 12) state.progression.history.pop();
+  notify(state, { kind: 'event', text: outcome.note, dedupeKey: `tourney:${closingDay}` });
 
   if (success) {
     state.progression.hosted[ev.tier] = (state.progression.hosted[ev.tier] || 0) + 1;
@@ -293,6 +295,11 @@ export function solvencyDailyTick(state) {
   }
   if (state.cash < -2000) {
     state.debtDays = (state.debtDays || 0) + 1;
+    notify(state, {
+      kind: 'money',
+      text: `Day ${state.debtDays} past the overdraft limit. The bank forecloses after 5.`,
+      dedupeKey: `overdraft:${calendarOf(state.clock.minutes).dayAbs}`,
+    });
     if (state.debtDays >= 5 && !state.failed) {
       state.failed = {
         day: calendarOf(state.clock.minutes).dayAbs,

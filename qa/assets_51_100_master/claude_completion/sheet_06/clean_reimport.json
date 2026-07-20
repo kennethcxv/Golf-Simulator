@@ -1,0 +1,2585 @@
+{
+  "verified": 10,
+  "ok": true,
+  "errorCount": 0,
+  "warningCount": 0,
+  "results": [
+    {
+      "asset": 51,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_051_finished_clubhouse_exterior.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_051_FINISHED_CLUBHOUSE_EXTERIOR_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 51,
+          "asset_slug": "finished_clubhouse_exterior",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 66,
+        "visibleMeshCount": 42,
+        "collisionMeshCount": 9,
+        "collisionPurposes": {
+          "COL_BackWall": "blocking",
+          "COL_EastDoorHeader": "blocking",
+          "COL_EastWallNorth": "blocking",
+          "COL_EastWallSouth": "blocking",
+          "COL_Foundation": "walkable",
+          "COL_FrontDoorHeader": "blocking",
+          "COL_FrontWallEast": "blocking",
+          "COL_FrontWallWest": "blocking",
+          "COL_WestWall": "blocking"
+        },
+        "blockingCollisionCount": 8,
+        "triangleCount": 10768,
+        "collisionTriangleCount": 108,
+        "materialCount": 7,
+        "materials": [
+          "MAT_PH_WarmCharcoal",
+          "MAT_PH_WarmCream",
+          "MAT_S06_ClubhouseApertureRecess",
+          "MAT_S06_InteriorMutedSagePlaster",
+          "MAT_S06_charcoal_shingle",
+          "MAT_S06_fieldstone",
+          "MAT_S06_siding_green"
+        ],
+        "socketCount": 8,
+        "sockets": [
+          "SOCKET_ClubSign",
+          "SOCKET_Damage_Roof",
+          "SOCKET_Damage_Trim",
+          "SOCKET_ExteriorLight_E",
+          "SOCKET_ExteriorLight_W",
+          "SOCKET_MainEntrance",
+          "SOCKET_PLACEMENT",
+          "SOCKET_Porch"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -9.6,
+            -6.17,
+            0.0
+          ],
+          "maximum": [
+            9.6,
+            6.17,
+            7.13
+          ],
+          "size": [
+            19.200001,
+            12.34,
+            7.13
+          ]
+        },
+        "fileBytes": 692292,
+        "meshes": [
+          {
+            "name": "MESH_DormerEntry_CreamWindowCasing",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DormerEntry_ShingleRoof",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 144,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DormerEntry_SidedStructure",
+            "triangles": 728,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 538,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DormerEntry_WindowRecess",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DormerWest_CreamWindowCasing",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DormerWest_ShingleRoof",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 144,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DormerWest_SidedStructure",
+            "triangles": 728,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 538,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DormerWest_WindowRecess",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BackFascia",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ChimneyCap",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_Downspout_E",
+            "triangles": 284,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 120,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_Downspout_W",
+            "triangles": 284,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 120,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FieldstoneWaterTable",
+            "triangles": 540,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 360,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrontFascia",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_MainDoor_CreamCasing",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 216,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_RidgeCap",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_StoneChimney",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowMid_CreamCasing",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowWest_CreamCasing",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_InteriorWarmCreamPlasterLiners",
+            "triangles": 2320,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1724,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_RoofNorthPlane",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_RoofSouthPlane",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BackWall",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_EastAbove_EastWindow",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_EastAbove_ServiceDoor",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_EastBelow_EastWindow",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_EastGable",
+            "triangles": 80,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 138,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_EastPier_0",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_EastPier_1",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_EastPier_North",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FoundationPlinth",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrontAbove_MainDoor",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrontAbove_WindowMid",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrontAbove_WindowWest",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrontBelow_WindowMid",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrontBelow_WindowWest",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrontPier_0",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrontPier_1",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrontPier_2",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FrontPier_East",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WestGable",
+            "triangles": 80,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 138,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WestWall",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_BackWall",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_EastDoorHeader",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_EastWallNorth",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_EastWallSouth",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_Foundation",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_FrontDoorHeader",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_FrontWallEast",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_FrontWallWest",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_WestWall",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 52,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_052_dilapidated_clubhouse_exterior.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_052_DILAPIDATED_CLUBHOUSE_EXTERIOR_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 52,
+          "asset_slug": "dilapidated_clubhouse_exterior",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 26,
+        "visibleMeshCount": 11,
+        "collisionMeshCount": 2,
+        "collisionPurposes": {
+          "COL_Damage_RoofRaycast": "raycast-only",
+          "COL_Damage_TrimRaycast": "raycast-only"
+        },
+        "blockingCollisionCount": 0,
+        "triangleCount": 6532,
+        "collisionTriangleCount": 24,
+        "materialCount": 8,
+        "materials": [
+          "MAT_S06_BoardFastener",
+          "MAT_S06_BoardedDamageCool",
+          "MAT_S06_BoardedDamageWarm",
+          "MAT_S06_HeavyExteriorWeathering",
+          "MAT_S06_HeavyMoss",
+          "MAT_S06_RisingDamp",
+          "MAT_S06_RoofMoldAndTar",
+          "MAT_S06_damaged_wood"
+        ],
+        "socketCount": 8,
+        "sockets": [
+          "SOCKET_ClubSign",
+          "SOCKET_Damage_Roof",
+          "SOCKET_Damage_Trim",
+          "SOCKET_ExteriorLight_E",
+          "SOCKET_ExteriorLight_W",
+          "SOCKET_MainEntrance",
+          "SOCKET_PLACEMENT",
+          "SOCKET_Porch"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -9.6,
+            -6.17,
+            0.0
+          ],
+          "maximum": [
+            9.6,
+            6.17,
+            7.13
+          ],
+          "size": [
+            19.200001,
+            12.34,
+            7.13
+          ]
+        },
+        "fileBytes": 315728,
+        "meshes": [
+          {
+            "name": "MESH_AlignedRoofMoldPatches",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 216,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_HeavyRoofMoss",
+            "triangles": 540,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 360,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BoardedApertureDamage",
+            "triangles": 1512,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1008,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BoardedApertureFasteners",
+            "triangles": 2320,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1280,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WarpedMissingTrim",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 216,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_AlignedBackWeatherSkin",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_AlignedEastWeatherSkin",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_AlignedFrontWeatherSkin",
+            "triangles": 972,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 648,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_AlignedWestWeatherSkin",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FoundationDampBandBack",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FoundationDampBandFront",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_Damage_RoofRaycast",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_Damage_TrimRaycast",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 53,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_053_main_entrance_double_door.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_053_MAIN_ENTRANCE_DOUBLE_DOOR_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 53,
+          "asset_slug": "main_entrance_double_door",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 32,
+        "visibleMeshCount": 18,
+        "collisionMeshCount": 5,
+        "collisionPurposes": {
+          "COL_FrameHeader": "blocking",
+          "COL_FrameLeft": "blocking",
+          "COL_FrameRight": "blocking",
+          "COL_DoorLeft": "animated-blocking",
+          "COL_DoorRight": "animated-blocking"
+        },
+        "blockingCollisionCount": 3,
+        "triangleCount": 6112,
+        "collisionTriangleCount": 60,
+        "materialCount": 4,
+        "materials": [
+          "MAT_PH_RestrainedBrass",
+          "MAT_PH_WarmCream",
+          "MAT_S06_ClearWindowGlass",
+          "MAT_S06_walnut"
+        ],
+        "socketCount": 4,
+        "sockets": [
+          "SOCKET_HandleLeft",
+          "SOCKET_HandleRight",
+          "SOCKET_PLACEMENT",
+          "SOCKET_Threshold"
+        ],
+        "pivotCount": 2,
+        "pivots": [
+          "PIVOT_DoorLeft",
+          "PIVOT_DoorRight"
+        ],
+        "animationNames": [
+          "DoorLeft_Close",
+          "DoorLeft_Open",
+          "DoorRight_Close",
+          "DoorRight_Open"
+        ],
+        "boundsMeters": {
+          "minimum": [
+            -1.001065,
+            -0.12,
+            0.0
+          ],
+          "maximum": [
+            0.9,
+            0.799311,
+            2.45
+          ],
+          "size": [
+            1.901065,
+            0.919311,
+            2.45
+          ]
+        },
+        "fileBytes": 292936,
+        "meshes": [
+          {
+            "name": "MESH_DeepCreamDoorCasing",
+            "triangles": 648,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 432,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_Threshold",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WalnutDoorStops",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 120,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorLeft_Astragal",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorLeft_BrassLeverSet",
+            "triangles": 404,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 220,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorLeft_DeepSashMoulding",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorLeft_Glass",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorLeft_HingeKnuckles",
+            "triangles": 492,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 240,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorLeft_RaisedLowerPanel",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorLeft_WalnutMuntins",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorLeft_WalnutStructure",
+            "triangles": 540,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 360,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorRight_BrassLeverSet",
+            "triangles": 404,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 220,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorRight_DeepSashMoulding",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorRight_Glass",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorRight_HingeKnuckles",
+            "triangles": 492,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 240,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorRight_RaisedLowerPanel",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorRight_WalnutMuntins",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DoorRight_WalnutStructure",
+            "triangles": 540,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 360,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_FrameHeader",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_FrameLeft",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_FrameRight",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_DoorLeft",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_DoorRight",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 54,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_054_exterior_porch_and_steps.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_054_EXTERIOR_PORCH_AND_STEPS_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 54,
+          "asset_slug": "exterior_porch_and_steps",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 30,
+        "visibleMeshCount": 12,
+        "collisionMeshCount": 6,
+        "collisionPurposes": {
+          "COL_Column_0": "blocking",
+          "COL_Column_1": "blocking",
+          "COL_Column_2": "blocking",
+          "COL_Column_3": "blocking",
+          "COL_Deck": "walkable",
+          "COL_StepRamp": "walkable"
+        },
+        "blockingCollisionCount": 4,
+        "triangleCount": 12960,
+        "collisionTriangleCount": 72,
+        "materialCount": 7,
+        "materials": [
+          "MAT_PH_DeepGolfGreen",
+          "MAT_PH_MediumWalnut",
+          "MAT_PH_MutedSage",
+          "MAT_PH_WarmCream",
+          "MAT_S06_damaged_wood",
+          "MAT_S06_fieldstone",
+          "MAT_S06_oak"
+        ],
+        "socketCount": 6,
+        "sockets": [
+          "SOCKET_Column_E",
+          "SOCKET_Column_W",
+          "SOCKET_MainEntrance",
+          "SOCKET_PLACEMENT",
+          "SOCKET_Railing_E",
+          "SOCKET_Railing_W"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -5.76,
+            -3.29,
+            0.0
+          ],
+          "maximum": [
+            5.76,
+            0.0,
+            4.02
+          ],
+          "size": [
+            11.52,
+            3.29,
+            4.02
+          ]
+        },
+        "fileBytes": 702772,
+        "meshes": [
+          {
+            "name": "MESH_CanopyRoof",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CreamCanopyFasciaAndSoffit",
+            "triangles": 540,
+            "uvLayers": 1,
+            "materialSlots": 4,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 360,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FieldstoneColumnBases",
+            "triangles": 864,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 528,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_ProfiledCreamColumns",
+            "triangles": 2592,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1440,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WalnutCanopyBraces",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WarpedDeckBoard",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_OakDeckBoards",
+            "triangles": 1944,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1296,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_OakStairTreadsAndNosings",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PorchUndersideBeams",
+            "triangles": 756,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 480,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WalnutStairRisers",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 144,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_AttachedCreamPorchRailings",
+            "triangles": 3024,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1728,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DiagonalStairHandrails",
+            "triangles": 1944,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 1176,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_Column_0",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_Column_1",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_Column_2",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_Column_3",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_Deck",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_StepRamp",
+            "triangles": 12,
+            "uvLayers": 0,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 55,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_055_CLUBHOUSE_WINDOWS_SET_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 55,
+          "asset_slug": "clubhouse_windows_set",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 30,
+        "visibleMeshCount": 16,
+        "collisionMeshCount": 3,
+        "collisionPurposes": {
+          "COL_WindowFrameLeft": "blocking",
+          "COL_WindowFrameRight": "blocking",
+          "COL_WindowGlassRaycast": "raycast-only"
+        },
+        "blockingCollisionCount": 2,
+        "triangleCount": 10152,
+        "collisionTriangleCount": 36,
+        "materialCount": 3,
+        "materials": [
+          "MAT_PH_WarmCream",
+          "MAT_S06_ClearWindowGlass",
+          "MAT_S06_walnut"
+        ],
+        "socketCount": 5,
+        "sockets": [
+          "SOCKET_PLACEMENT",
+          "SOCKET_WindowArched",
+          "SOCKET_WindowNarrow",
+          "SOCKET_WindowStandard",
+          "SOCKET_WindowWide"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -1.095,
+            -0.115,
+            0.0
+          ],
+          "maximum": [
+            1.095,
+            0.115,
+            1.74
+          ],
+          "size": [
+            2.19,
+            0.23,
+            1.74
+          ]
+        },
+        "fileBytes": 423688,
+        "meshes": [
+          {
+            "name": "MESH_WindowArched_LayeredCreamCasing",
+            "triangles": 1404,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 968,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowArched_UpperLowerGlass",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 144,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowArched_WalnutDoubleSashes",
+            "triangles": 972,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 648,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowArched_WalnutMuntinGrid",
+            "triangles": 648,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 432,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowNarrow_LayeredCreamCasing",
+            "triangles": 540,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 360,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowNarrow_UpperLowerGlass",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 144,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowNarrow_WalnutDoubleSashes",
+            "triangles": 972,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 648,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowNarrow_WalnutMuntinGrid",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowStandard_LayeredCreamCasing",
+            "triangles": 540,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 360,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowStandard_UpperLowerGlass",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 144,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowStandard_WalnutDoubleSashes",
+            "triangles": 972,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 648,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowStandard_WalnutMuntinGrid",
+            "triangles": 648,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 432,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowWide_LayeredCreamCasing",
+            "triangles": 540,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 360,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowWide_UpperLowerGlass",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 144,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowWide_WalnutDoubleSashes",
+            "triangles": 972,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 648,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_WindowWide_WalnutMuntinGrid",
+            "triangles": 648,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 432,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_WindowFrameLeft",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_WindowFrameRight",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_WindowGlassRaycast",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 56,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_056_INTERIOR_WALL_PANEL_KIT_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 56,
+          "asset_slug": "interior_wall_panel_kit",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 24,
+        "visibleMeshCount": 11,
+        "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_PanelSelection": "selection-blocking"
+        },
+        "blockingCollisionCount": 0,
+        "triangleCount": 3780,
+        "collisionTriangleCount": 12,
+        "materialCount": 4,
+        "materials": [
+          "MAT_PH_WarmCream",
+          "MAT_S06_InteriorWarmCreamPlaster",
+          "MAT_S06_PanelRepairWear",
+          "MAT_S06_architectural_walnut"
+        ],
+        "socketCount": 6,
+        "sockets": [
+          "SOCKET_DoorConnector",
+          "SOCKET_InsideCorner",
+          "SOCKET_OutsideCorner",
+          "SOCKET_PLACEMENT",
+          "SOCKET_PanelNext",
+          "SOCKET_WindowConnector"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.6,
+            -0.04,
+            0.0
+          ],
+          "maximum": [
+            0.6,
+            0.0375,
+            1.15
+          ],
+          "size": [
+            1.2,
+            0.0775,
+            1.15
+          ]
+        },
+        "fileBytes": 176152,
+        "meshes": [
+          {
+            "name": "MESH_PanelDoorConnectorProfile",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 216,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PanelInsideCornerProfile",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 216,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PanelOutsideCornerProfile",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 216,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PanelDamageWear",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 676,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PanelMutedSageDadoField",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PanelWarmPlasterBack",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 72,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_RaisedWalnutPanelMouldings",
+            "triangles": 864,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 576,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_RaisedWalnutRecessedPanels",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 144,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_RestrainedCreamPanelProfile",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 144,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_RestrainedWalnutWainscotFrame",
+            "triangles": 540,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 360,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_PanelWindowConnectorProfile",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 216,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_PanelSelection",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 57,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_057_interior_trim_and_baseboard_kit.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_057_INTERIOR_TRIM_AND_BASEBOARD_KIT_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 57,
+          "asset_slug": "interior_trim_and_baseboard_kit",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 24,
+        "visibleMeshCount": 8,
+        "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_TrimRaycast": "raycast-only"
+        },
+        "blockingCollisionCount": 0,
+        "triangleCount": 2376,
+        "collisionTriangleCount": 12,
+        "materialCount": 2,
+        "materials": [
+          "MAT_PH_RestrainedBrass",
+          "MAT_S06_walnut"
+        ],
+        "socketCount": 6,
+        "sockets": [
+          "SOCKET_EndCap",
+          "SOCKET_InsideCorner",
+          "SOCKET_Junction",
+          "SOCKET_OutsideCorner",
+          "SOCKET_PLACEMENT",
+          "SOCKET_TrimNext"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -1.2,
+            -0.0125,
+            0.0
+          ],
+          "maximum": [
+            1.2,
+            0.0125,
+            0.14
+          ],
+          "size": [
+            2.4,
+            0.025,
+            0.14
+          ]
+        },
+        "fileBytes": 160912,
+        "meshes": [
+          {
+            "name": "MESH_LayeredDarkWalnutBaseboard",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 288,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_TrimChairRailProfile",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 144,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_TrimCrownProfile",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 132,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_TrimDoorCasingProfile",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 132,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_TrimEndCapConnector",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 204,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_TrimInsideCornerConnector",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 204,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_TrimJunctionConnector",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 204,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_TrimOutsideCornerConnector",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 204,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_TrimRaycast",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 58,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_058_CEILING_AND_BEAM_KIT_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 58,
+          "asset_slug": "ceiling_and_beam_kit",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 19,
+        "visibleMeshCount": 6,
+        "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_BeamOverhead": "overhead-blocking"
+        },
+        "blockingCollisionCount": 0,
+        "triangleCount": 1240,
+        "collisionTriangleCount": 12,
+        "materialCount": 4,
+        "materials": [
+          "MAT_PH_RestrainedBrass",
+          "MAT_S06_QuietWarmCreamCeiling",
+          "MAT_S06_WarmLamp",
+          "MAT_S06_architectural_walnut"
+        ],
+        "socketCount": 5,
+        "sockets": [
+          "SOCKET_BeamCross",
+          "SOCKET_BeamEnd",
+          "SOCKET_BeamNext",
+          "SOCKET_PLACEMENT",
+          "SOCKET_RecessedLight"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -1.8,
+            -0.1,
+            0.0
+          ],
+          "maximum": [
+            1.8,
+            0.1,
+            0.24
+          ],
+          "size": [
+            3.6,
+            0.2,
+            0.24
+          ]
+        },
+        "fileBytes": 80332,
+        "meshes": [
+          {
+            "name": "MESH_BeamCrossConnector",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 204,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BeamEndCap",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 60,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_BeamHalf",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 60,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DarkWalnutScarfJointBeam",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 132,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_CeilingPanel",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_RecessedLightMountAssembly",
+            "triangles": 472,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 212,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_BeamOverhead",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 59,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_059_renovated_flooring_set.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_059_RENOVATED_FLOORING_SET_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 59,
+          "asset_slug": "renovated_flooring_set",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 19,
+        "visibleMeshCount": 7,
+        "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_FloorWalkable": "walkable"
+        },
+        "blockingCollisionCount": 0,
+        "triangleCount": 5376,
+        "collisionTriangleCount": 12,
+        "materialCount": 7,
+        "materials": [
+          "MAT_S06_cream_tile",
+          "MAT_S06_dark_wood",
+          "MAT_S06_floor_oak",
+          "MAT_S06_gray_carpet",
+          "MAT_S06_sage_carpet",
+          "MAT_S06_stone_tile",
+          "MAT_S06_walnut"
+        ],
+        "socketCount": 3,
+        "sockets": [
+          "SOCKET_FloorOrigin",
+          "SOCKET_FloorTransition",
+          "SOCKET_PLACEMENT"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.5,
+            -0.5,
+            -0.0
+          ],
+          "maximum": [
+            0.5,
+            0.5,
+            0.018
+          ],
+          "size": [
+            1.0,
+            1.0,
+            0.018
+          ]
+        },
+        "fileBytes": 731856,
+        "meshes": [
+          {
+            "name": "MESH_FloorCreamTileTileField",
+            "triangles": 1728,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 960,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FloorDarkWoodPlankField",
+            "triangles": 756,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 504,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FloorGrayCarpetCarpetField",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 60,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FloorOakPlankField",
+            "triangles": 192,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 344,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FloorSageCarpetCarpetField",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 60,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FloorStoneTileTileField",
+            "triangles": 1728,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 960,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_FloorWalnutPlankField",
+            "triangles": 756,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 504,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_FloorWalkable",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    },
+    {
+      "asset": 60,
+      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_060_damaged_flooring_set.glb",
+      "ok": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "issues": [],
+      "stats": {
+        "root": "A_060_DAMAGED_FLOORING_SET_ROOT",
+        "rootExtras": {
+          "production_sheet": "06",
+          "asset_number": 60,
+          "asset_slug": "damaged_flooring_set",
+          "runtime_unit_conversion": "meters_to_yards_once:1.0936133"
+        },
+        "nodeCount": 20,
+        "visibleMeshCount": 11,
+        "collisionMeshCount": 1,
+        "collisionPurposes": {
+          "COL_FloorDamageRaycast": "raycast-only"
+        },
+        "blockingCollisionCount": 0,
+        "triangleCount": 4704,
+        "collisionTriangleCount": 12,
+        "materialCount": 6,
+        "materials": [
+          "MAT_PH_SoftBlack",
+          "MAT_S06_BrokenOak",
+          "MAT_S06_ExposedSubfloorShadow",
+          "MAT_S06_RawOakBreak",
+          "MAT_S06_damaged_carpet",
+          "MAT_S06_damaged_tile"
+        ],
+        "socketCount": 4,
+        "sockets": [
+          "SOCKET_DamageModule",
+          "SOCKET_FloorOrigin",
+          "SOCKET_FloorTransition",
+          "SOCKET_PLACEMENT"
+        ],
+        "pivotCount": 0,
+        "pivots": [],
+        "animationNames": [],
+        "boundsMeters": {
+          "minimum": [
+            -0.5,
+            -0.5,
+            0.0
+          ],
+          "maximum": [
+            0.5,
+            0.5,
+            0.035
+          ],
+          "size": [
+            1.0,
+            1.0,
+            0.035
+          ]
+        },
+        "fileBytes": 366840,
+        "meshes": [
+          {
+            "name": "MESH_DamagedCarpetFrayedFibres",
+            "triangles": 540,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 360,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DamagedCarpetStainedField",
+            "triangles": 108,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 60,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DamagedCarpetTornFlap",
+            "triangles": 216,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 144,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DamagedTileBrokenAndMissingPieces",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 204,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DamagedTileCrackNetwork",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 216,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DamagedTileUnevenField",
+            "triangles": 1728,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 960,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DamagedWoodChips",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 216,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DamagedWoodCrackNetwork",
+            "triangles": 432,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 304,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DamagedWoodLiftedFragments",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 216,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DamagedWoodSubfloorPocket",
+            "triangles": 60,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 108,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "MESH_DamagedWoodUnevenPlankField",
+            "triangles": 324,
+            "uvLayers": 1,
+            "materialSlots": 2,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 216,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          },
+          {
+            "name": "COL_FloorDamageRaycast",
+            "triangles": 12,
+            "uvLayers": 1,
+            "materialSlots": 1,
+            "nonManifoldEdges": 0,
+            "boundaryEdges": 24,
+            "zeroAreaFaces": 0,
+            "appliedScale": true,
+            "appliedRotation": true
+          }
+        ]
+      }
+    }
+  ]
+}
