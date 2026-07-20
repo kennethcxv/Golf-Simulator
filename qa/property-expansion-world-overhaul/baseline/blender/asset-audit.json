@@ -1,0 +1,1121 @@
+{
+  "blenderVersion": "5.1.2",
+  "sourceProtection": "read-only imports; no exports and no source assets overwritten",
+  "assets": [
+    {
+      "id": "tractor_restored_ai",
+      "path": "vendor/models/tractor_red.glb",
+      "baselineClassification": "weak",
+      "exists": true,
+      "objectCount": 1,
+      "meshCount": 1,
+      "triangles": 59533,
+      "materialCount": 1,
+      "dimensionsMetersAssetSpace": [
+        0.5881,
+        0.9795,
+        0.744
+      ],
+      "boundsMinMeters": [
+        -0.2939,
+        -0.4891,
+        0.0
+      ],
+      "boundsMaxMeters": [
+        0.2943,
+        0.4904,
+        0.744
+      ],
+      "rootObjectNames": [
+        "tripo_node_5276fd56-6a07-4f17-8f96-b6b86e9c34a9"
+      ],
+      "objectNames": [
+        "tripo_node_5276fd56-6a07-4f17-8f96-b6b86e9c34a9"
+      ],
+      "animationActions": [],
+      "hasAnimations": false,
+      "hasNamedCollisionProxy": false,
+      "hasNamedLod": false,
+      "missingUvObjects": [],
+      "nonAppliedMeshTransforms": [],
+      "meshOrigins": [
+        {
+          "object": "tripo_node_5276fd56-6a07-4f17-8f96-b6b86e9c34a9",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.0,
+            -0.372
+          ],
+          "fromGroundMeters": 0.0
+        }
+      ],
+      "preview": "qa/property-expansion-world-overhaul/baseline/blender/tractor_restored_ai.png"
+    },
+    {
+      "id": "tractor_broken_ai",
+      "path": "vendor/models/tractor_broken.glb",
+      "baselineClassification": "weak",
+      "exists": true,
+      "objectCount": 1,
+      "meshCount": 1,
+      "triangles": 68221,
+      "materialCount": 1,
+      "dimensionsMetersAssetSpace": [
+        0.9805,
+        0.5638,
+        0.7913
+      ],
+      "boundsMinMeters": [
+        -0.4902,
+        -0.282,
+        0.0
+      ],
+      "boundsMaxMeters": [
+        0.4903,
+        0.2818,
+        0.7913
+      ],
+      "rootObjectNames": [
+        "tripo_node_a71b830e-191f-4c82-a1c4-9c5a621aebd5"
+      ],
+      "objectNames": [
+        "tripo_node_a71b830e-191f-4c82-a1c4-9c5a621aebd5"
+      ],
+      "animationActions": [],
+      "hasAnimations": false,
+      "hasNamedCollisionProxy": false,
+      "hasNamedLod": false,
+      "missingUvObjects": [],
+      "nonAppliedMeshTransforms": [],
+      "meshOrigins": [
+        {
+          "object": "tripo_node_a71b830e-191f-4c82-a1c4-9c5a621aebd5",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.0,
+            -0.3957
+          ],
+          "fromGroundMeters": 0.0
+        }
+      ],
+      "preview": "qa/property-expansion-world-overhaul/baseline/blender/tractor_broken_ai.png"
+    },
+    {
+      "id": "tractor_scripted_fallback",
+      "path": "vendor/models/tractor.glb",
+      "baselineClassification": "placeholder",
+      "exists": true,
+      "objectCount": 43,
+      "meshCount": 43,
+      "triangles": 1628,
+      "materialCount": 7,
+      "dimensionsMetersAssetSpace": [
+        1.44,
+        3.885,
+        2.4344
+      ],
+      "boundsMinMeters": [
+        -0.72,
+        -2.43,
+        0.0031
+      ],
+      "boundsMaxMeters": [
+        0.72,
+        1.455,
+        2.4375
+      ],
+      "rootObjectNames": [
+        "BladeDome-0.45",
+        "BladeDome0",
+        "BladeDome0.45",
+        "Canopy",
+        "Caster-0.62",
+        "Caster-0.62_axle",
+        "Caster-0.62_hub",
+        "Caster0.62",
+        "Caster0.62_axle",
+        "Caster0.62_hub",
+        "Chassis",
+        "Dash",
+        "Deck",
+        "DeckSkirt",
+        "Exhaust",
+        "FenderL",
+        "FenderR",
+        "Floor",
+        "Grille",
+        "Hood",
+        "HoodTop",
+        "Post_-0.34_-0.85",
+        "Post_-0.34_0.32",
+        "Post_0.34_-0.85",
+        "Post_0.34_0.32",
+        "Safety",
+        "SeatBack",
+        "SeatBase",
+        "SteerCol",
+        "SteerWheel",
+        "TowArm",
+        "WheelFL",
+        "WheelFL_axle",
+        "WheelFL_hub",
+        "WheelFR",
+        "WheelFR_axle",
+        "WheelFR_hub",
+        "WheelRL",
+        "WheelRL_axle",
+        "WheelRL_hub",
+        "WheelRR",
+        "WheelRR_axle",
+        "WheelRR_hub"
+      ],
+      "objectNames": [
+        "BladeDome-0.45",
+        "BladeDome0",
+        "BladeDome0.45",
+        "Canopy",
+        "Caster-0.62",
+        "Caster-0.62_axle",
+        "Caster-0.62_hub",
+        "Caster0.62",
+        "Caster0.62_axle",
+        "Caster0.62_hub",
+        "Chassis",
+        "Dash",
+        "Deck",
+        "DeckSkirt",
+        "Exhaust",
+        "FenderL",
+        "FenderR",
+        "Floor",
+        "Grille",
+        "Hood",
+        "HoodTop",
+        "Post_-0.34_-0.85",
+        "Post_-0.34_0.32",
+        "Post_0.34_-0.85",
+        "Post_0.34_0.32",
+        "Safety",
+        "SeatBack",
+        "SeatBase",
+        "SteerCol",
+        "SteerWheel",
+        "TowArm",
+        "WheelFL",
+        "WheelFL_axle",
+        "WheelFL_hub",
+        "WheelFR",
+        "WheelFR_axle",
+        "WheelFR_hub",
+        "WheelRL",
+        "WheelRL_axle",
+        "WheelRL_hub",
+        "WheelRR",
+        "WheelRR_axle",
+        "WheelRR_hub"
+      ],
+      "animationActions": [],
+      "hasAnimations": false,
+      "hasNamedCollisionProxy": false,
+      "hasNamedLod": false,
+      "missingUvObjects": [],
+      "nonAppliedMeshTransforms": [],
+      "meshOrigins": [
+        {
+          "object": "Chassis",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "Hood",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "HoodTop",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "Grille",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "Exhaust",
+          "fromBoundsCenterMeters": [
+            0.2,
+            1.1075,
+            0.3797
+          ],
+          "fromGroundMeters": 1.5969
+        },
+        {
+          "object": "Floor",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "SeatBase",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "SeatBack",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "Dash",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "SteerCol",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.5375,
+            0.2297
+          ],
+          "fromGroundMeters": 1.4469
+        },
+        {
+          "object": "SteerWheel",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4275,
+            0.3797
+          ],
+          "fromGroundMeters": 1.5969
+        },
+        {
+          "object": "FenderL",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "FenderR",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "Post_0.34_0.32",
+          "fromBoundsCenterMeters": [
+            0.34,
+            0.8075,
+            0.6297
+          ],
+          "fromGroundMeters": 1.8469
+        },
+        {
+          "object": "Post_-0.34_0.32",
+          "fromBoundsCenterMeters": [
+            -0.34,
+            0.8075,
+            0.6297
+          ],
+          "fromGroundMeters": 1.8469
+        },
+        {
+          "object": "Post_0.34_-0.85",
+          "fromBoundsCenterMeters": [
+            0.34,
+            -0.3625,
+            0.6297
+          ],
+          "fromGroundMeters": 1.8469
+        },
+        {
+          "object": "Post_-0.34_-0.85",
+          "fromBoundsCenterMeters": [
+            -0.34,
+            -0.3625,
+            0.6297
+          ],
+          "fromGroundMeters": 1.8469
+        },
+        {
+          "object": "Canopy",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "Safety",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "WheelRL",
+          "fromBoundsCenterMeters": [
+            0.53,
+            -0.0625,
+            -0.7203
+          ],
+          "fromGroundMeters": 0.4969
+        },
+        {
+          "object": "WheelRL_hub",
+          "fromBoundsCenterMeters": [
+            0.53,
+            -0.0625,
+            -0.7203
+          ],
+          "fromGroundMeters": 0.4969
+        },
+        {
+          "object": "WheelRL_axle",
+          "fromBoundsCenterMeters": [
+            0.53,
+            -0.0625,
+            -0.7203
+          ],
+          "fromGroundMeters": 0.4969
+        },
+        {
+          "object": "WheelRR",
+          "fromBoundsCenterMeters": [
+            -0.53,
+            -0.0625,
+            -0.7203
+          ],
+          "fromGroundMeters": 0.4969
+        },
+        {
+          "object": "WheelRR_hub",
+          "fromBoundsCenterMeters": [
+            -0.53,
+            -0.0625,
+            -0.7203
+          ],
+          "fromGroundMeters": 0.4969
+        },
+        {
+          "object": "WheelRR_axle",
+          "fromBoundsCenterMeters": [
+            -0.53,
+            -0.0625,
+            -0.7203
+          ],
+          "fromGroundMeters": 0.4969
+        },
+        {
+          "object": "WheelFL",
+          "fromBoundsCenterMeters": [
+            0.42,
+            1.4375,
+            -0.9203
+          ],
+          "fromGroundMeters": 0.2969
+        },
+        {
+          "object": "WheelFL_hub",
+          "fromBoundsCenterMeters": [
+            0.42,
+            1.4375,
+            -0.9203
+          ],
+          "fromGroundMeters": 0.2969
+        },
+        {
+          "object": "WheelFL_axle",
+          "fromBoundsCenterMeters": [
+            0.42,
+            1.4375,
+            -0.9203
+          ],
+          "fromGroundMeters": 0.2969
+        },
+        {
+          "object": "WheelFR",
+          "fromBoundsCenterMeters": [
+            -0.42,
+            1.4375,
+            -0.9203
+          ],
+          "fromGroundMeters": 0.2969
+        },
+        {
+          "object": "WheelFR_hub",
+          "fromBoundsCenterMeters": [
+            -0.42,
+            1.4375,
+            -0.9203
+          ],
+          "fromGroundMeters": 0.2969
+        },
+        {
+          "object": "WheelFR_axle",
+          "fromBoundsCenterMeters": [
+            -0.42,
+            1.4375,
+            -0.9203
+          ],
+          "fromGroundMeters": 0.2969
+        },
+        {
+          "object": "TowArm",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "Deck",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "DeckSkirt",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.4875,
+            -1.2203
+          ],
+          "fromGroundMeters": -0.0031
+        },
+        {
+          "object": "BladeDome-0.45",
+          "fromBoundsCenterMeters": [
+            -0.45,
+            -1.4625,
+            -0.7603
+          ],
+          "fromGroundMeters": 0.4569
+        },
+        {
+          "object": "BladeDome0",
+          "fromBoundsCenterMeters": [
+            0.0,
+            -1.4625,
+            -0.7603
+          ],
+          "fromGroundMeters": 0.4569
+        },
+        {
+          "object": "BladeDome0.45",
+          "fromBoundsCenterMeters": [
+            0.45,
+            -1.4625,
+            -0.7603
+          ],
+          "fromGroundMeters": 0.4569
+        },
+        {
+          "object": "Caster0.62",
+          "fromBoundsCenterMeters": [
+            0.62,
+            -1.8325,
+            -1.1003
+          ],
+          "fromGroundMeters": 0.1169
+        },
+        {
+          "object": "Caster0.62_hub",
+          "fromBoundsCenterMeters": [
+            0.62,
+            -1.8325,
+            -1.1003
+          ],
+          "fromGroundMeters": 0.1169
+        },
+        {
+          "object": "Caster0.62_axle",
+          "fromBoundsCenterMeters": [
+            0.62,
+            -1.8325,
+            -1.1003
+          ],
+          "fromGroundMeters": 0.1169
+        },
+        {
+          "object": "Caster-0.62",
+          "fromBoundsCenterMeters": [
+            -0.62,
+            -1.8325,
+            -1.1003
+          ],
+          "fromGroundMeters": 0.1169
+        },
+        {
+          "object": "Caster-0.62_hub",
+          "fromBoundsCenterMeters": [
+            -0.62,
+            -1.8325,
+            -1.1003
+          ],
+          "fromGroundMeters": 0.1169
+        },
+        {
+          "object": "Caster-0.62_axle",
+          "fromBoundsCenterMeters": [
+            -0.62,
+            -1.8325,
+            -1.1003
+          ],
+          "fromGroundMeters": 0.1169
+        }
+      ],
+      "preview": "qa/property-expansion-world-overhaul/baseline/blender/tractor_scripted_fallback.png"
+    },
+    {
+      "id": "golf_cart_ambient",
+      "path": "vendor/models/golf_cart.glb",
+      "baselineClassification": "weak",
+      "exists": true,
+      "objectCount": 1,
+      "meshCount": 1,
+      "triangles": 48073,
+      "materialCount": 1,
+      "dimensionsMetersAssetSpace": [
+        0.9814,
+        0.447,
+        0.591
+      ],
+      "boundsMinMeters": [
+        -0.4908,
+        -0.2231,
+        0.0
+      ],
+      "boundsMaxMeters": [
+        0.4907,
+        0.2238,
+        0.591
+      ],
+      "rootObjectNames": [
+        "tripo_node_2cf697dc-a48c-489a-9139-db7c520e3ca4"
+      ],
+      "objectNames": [
+        "tripo_node_2cf697dc-a48c-489a-9139-db7c520e3ca4"
+      ],
+      "animationActions": [],
+      "hasAnimations": false,
+      "hasNamedCollisionProxy": false,
+      "hasNamedLod": false,
+      "missingUvObjects": [],
+      "nonAppliedMeshTransforms": [],
+      "meshOrigins": [
+        {
+          "object": "tripo_node_2cf697dc-a48c-489a-9139-db7c520e3ca4",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.0,
+            -0.2955
+          ],
+          "fromGroundMeters": 0.0
+        }
+      ],
+      "preview": "qa/property-expansion-world-overhaul/baseline/blender/golf_cart_ambient.png"
+    },
+    {
+      "id": "maintenance_shed",
+      "path": "vendor/models/shed.glb",
+      "baselineClassification": "weak",
+      "exists": true,
+      "objectCount": 1,
+      "meshCount": 1,
+      "triangles": 54074,
+      "materialCount": 1,
+      "dimensionsMetersAssetSpace": [
+        0.9795,
+        0.9062,
+        0.8579
+      ],
+      "boundsMinMeters": [
+        -0.4898,
+        -0.4533,
+        0.0
+      ],
+      "boundsMaxMeters": [
+        0.4897,
+        0.4529,
+        0.8579
+      ],
+      "rootObjectNames": [
+        "tripo_node_fef267a7-523f-4c65-9f88-4240e00b88ed"
+      ],
+      "objectNames": [
+        "tripo_node_fef267a7-523f-4c65-9f88-4240e00b88ed"
+      ],
+      "animationActions": [],
+      "hasAnimations": false,
+      "hasNamedCollisionProxy": false,
+      "hasNamedLod": false,
+      "missingUvObjects": [],
+      "nonAppliedMeshTransforms": [],
+      "meshOrigins": [
+        {
+          "object": "tripo_node_fef267a7-523f-4c65-9f88-4240e00b88ed",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.0,
+            -0.429
+          ],
+          "fromGroundMeters": 0.0
+        }
+      ],
+      "preview": "qa/property-expansion-world-overhaul/baseline/blender/maintenance_shed.png"
+    },
+    {
+      "id": "leaf_pile",
+      "path": "vendor/models/leaves_pile.glb",
+      "baselineClassification": "weak",
+      "exists": true,
+      "objectCount": 1,
+      "meshCount": 1,
+      "triangles": 19435,
+      "materialCount": 1,
+      "dimensionsMetersAssetSpace": [
+        0.8781,
+        0.9787,
+        0.4338
+      ],
+      "boundsMinMeters": [
+        -0.4385,
+        -0.4859,
+        0.0
+      ],
+      "boundsMaxMeters": [
+        0.4396,
+        0.4928,
+        0.4338
+      ],
+      "rootObjectNames": [
+        "tripo_node_288638bd-36e2-4bad-aa84-f7f03acbe1a9"
+      ],
+      "objectNames": [
+        "tripo_node_288638bd-36e2-4bad-aa84-f7f03acbe1a9"
+      ],
+      "animationActions": [],
+      "hasAnimations": false,
+      "hasNamedCollisionProxy": false,
+      "hasNamedLod": false,
+      "missingUvObjects": [],
+      "nonAppliedMeshTransforms": [],
+      "meshOrigins": [
+        {
+          "object": "tripo_node_288638bd-36e2-4bad-aa84-f7f03acbe1a9",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.0,
+            -0.2169
+          ],
+          "fromGroundMeters": 0.0
+        }
+      ],
+      "preview": "qa/property-expansion-world-overhaul/baseline/blender/leaf_pile.png"
+    },
+    {
+      "id": "club_entrance_sign",
+      "path": "vendor/models/club_sign.glb",
+      "baselineClassification": "weak",
+      "exists": true,
+      "objectCount": 1,
+      "meshCount": 1,
+      "triangles": 15407,
+      "materialCount": 1,
+      "dimensionsMetersAssetSpace": [
+        0.5475,
+        0.9787,
+        0.7209
+      ],
+      "boundsMinMeters": [
+        -0.2737,
+        -0.4893,
+        0.0
+      ],
+      "boundsMaxMeters": [
+        0.2738,
+        0.4894,
+        0.7209
+      ],
+      "rootObjectNames": [
+        "tripo_node_4b7996eb-5085-4cd8-a20c-7e86ea3ef1f0"
+      ],
+      "objectNames": [
+        "tripo_node_4b7996eb-5085-4cd8-a20c-7e86ea3ef1f0"
+      ],
+      "animationActions": [],
+      "hasAnimations": false,
+      "hasNamedCollisionProxy": false,
+      "hasNamedLod": false,
+      "missingUvObjects": [],
+      "nonAppliedMeshTransforms": [],
+      "meshOrigins": [
+        {
+          "object": "tripo_node_4b7996eb-5085-4cd8-a20c-7e86ea3ef1f0",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.0,
+            -0.3605
+          ],
+          "fromGroundMeters": 0.0
+        }
+      ],
+      "preview": "qa/property-expansion-world-overhaul/baseline/blender/club_entrance_sign.png"
+    },
+    {
+      "id": "tee_sign_broken",
+      "path": "vendor/models/tee_sign_broken.glb",
+      "baselineClassification": "weak",
+      "exists": true,
+      "objectCount": 1,
+      "meshCount": 1,
+      "triangles": 20006,
+      "materialCount": 1,
+      "dimensionsMetersAssetSpace": [
+        0.3036,
+        0.4047,
+        0.9791
+      ],
+      "boundsMinMeters": [
+        -0.1519,
+        -0.2023,
+        0.0
+      ],
+      "boundsMaxMeters": [
+        0.1518,
+        0.2024,
+        0.9791
+      ],
+      "rootObjectNames": [
+        "tripo_node_58a7b568-c6a0-4097-9b5e-3008e18c22c5"
+      ],
+      "objectNames": [
+        "tripo_node_58a7b568-c6a0-4097-9b5e-3008e18c22c5"
+      ],
+      "animationActions": [],
+      "hasAnimations": false,
+      "hasNamedCollisionProxy": false,
+      "hasNamedLod": false,
+      "missingUvObjects": [],
+      "nonAppliedMeshTransforms": [],
+      "meshOrigins": [
+        {
+          "object": "tripo_node_58a7b568-c6a0-4097-9b5e-3008e18c22c5",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.0,
+            -0.4895
+          ],
+          "fromGroundMeters": 0.0
+        }
+      ],
+      "preview": "qa/property-expansion-world-overhaul/baseline/blender/tee_sign_broken.png"
+    },
+    {
+      "id": "tee_sign_restored",
+      "path": "vendor/models/course_sign.glb",
+      "baselineClassification": "weak",
+      "exists": true,
+      "objectCount": 1,
+      "meshCount": 1,
+      "triangles": 17692,
+      "materialCount": 1,
+      "dimensionsMetersAssetSpace": [
+        0.153,
+        0.3827,
+        0.9793
+      ],
+      "boundsMinMeters": [
+        -0.0764,
+        -0.1914,
+        0.0
+      ],
+      "boundsMaxMeters": [
+        0.0766,
+        0.1913,
+        0.9793
+      ],
+      "rootObjectNames": [
+        "tripo_node_b1755752-138b-40ad-9572-a04bbda99a54"
+      ],
+      "objectNames": [
+        "tripo_node_b1755752-138b-40ad-9572-a04bbda99a54"
+      ],
+      "animationActions": [],
+      "hasAnimations": false,
+      "hasNamedCollisionProxy": false,
+      "hasNamedLod": false,
+      "missingUvObjects": [],
+      "nonAppliedMeshTransforms": [],
+      "meshOrigins": [
+        {
+          "object": "tripo_node_b1755752-138b-40ad-9572-a04bbda99a54",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.0,
+            -0.4897
+          ],
+          "fromGroundMeters": 0.0
+        }
+      ],
+      "preview": "qa/property-expansion-world-overhaul/baseline/blender/tee_sign_restored.png"
+    },
+    {
+      "id": "groundskeeper_house",
+      "path": "vendor/models/clubhouse_ext_opt.glb",
+      "baselineClassification": "weak",
+      "exists": true,
+      "objectCount": 1,
+      "meshCount": 1,
+      "triangles": 66711,
+      "materialCount": 1,
+      "dimensionsMetersAssetSpace": [
+        0.5684,
+        0.9821,
+        0.4915
+      ],
+      "boundsMinMeters": [
+        -0.2843,
+        -0.4911,
+        0.0
+      ],
+      "boundsMaxMeters": [
+        0.2841,
+        0.4909,
+        0.4915
+      ],
+      "rootObjectNames": [
+        "tripo_node_c66626a8-394e-4e8f-b652-7bf8c5440bb5"
+      ],
+      "objectNames": [
+        "tripo_node_c66626a8-394e-4e8f-b652-7bf8c5440bb5"
+      ],
+      "animationActions": [],
+      "hasAnimations": false,
+      "hasNamedCollisionProxy": false,
+      "hasNamedLod": false,
+      "missingUvObjects": [],
+      "nonAppliedMeshTransforms": [],
+      "meshOrigins": [
+        {
+          "object": "tripo_node_c66626a8-394e-4e8f-b652-7bf8c5440bb5",
+          "fromBoundsCenterMeters": [
+            -0.0,
+            0.0,
+            -0.2458
+          ],
+          "fromGroundMeters": 0.0
+        }
+      ],
+      "preview": "qa/property-expansion-world-overhaul/baseline/blender/groundskeeper_house.png"
+    },
+    {
+      "id": "tree_default",
+      "path": "vendor/models/trees/tree_default.glb",
+      "baselineClassification": "placeholder",
+      "exists": true,
+      "objectCount": 2,
+      "meshCount": 1,
+      "triangles": 114,
+      "materialCount": 2,
+      "dimensionsMetersAssetSpace": [
+        0.755,
+        0.6538,
+        1.7079
+      ],
+      "boundsMinMeters": [
+        -0.3775,
+        -0.3269,
+        -0.05
+      ],
+      "boundsMaxMeters": [
+        0.3775,
+        0.3269,
+        1.6579
+      ],
+      "rootObjectNames": [
+        "tmpParent"
+      ],
+      "objectNames": [
+        "tmpParent",
+        "tree_default"
+      ],
+      "animationActions": [],
+      "hasAnimations": false,
+      "hasNamedCollisionProxy": false,
+      "hasNamedLod": false,
+      "missingUvObjects": [],
+      "nonAppliedMeshTransforms": [],
+      "meshOrigins": [
+        {
+          "object": "tree_default",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.0,
+            -0.8539
+          ],
+          "fromGroundMeters": 0.0
+        }
+      ],
+      "preview": "qa/property-expansion-world-overhaul/baseline/blender/tree_default.png"
+    },
+    {
+      "id": "tree_oak",
+      "path": "vendor/models/trees/tree_oak.glb",
+      "baselineClassification": "placeholder",
+      "exists": true,
+      "objectCount": 3,
+      "meshCount": 1,
+      "triangles": 196,
+      "materialCount": 2,
+      "dimensionsMetersAssetSpace": [
+        0.6406,
+        0.7396,
+        1.2262
+      ],
+      "boundsMinMeters": [
+        -0.3203,
+        -0.3698,
+        -0.05
+      ],
+      "boundsMaxMeters": [
+        0.3203,
+        0.3698,
+        1.1762
+      ],
+      "rootObjectNames": [
+        "tmpParent",
+        "tmpParent.001"
+      ],
+      "objectNames": [
+        "tmpParent",
+        "tmpParent.001",
+        "tree_oak"
+      ],
+      "animationActions": [],
+      "hasAnimations": false,
+      "hasNamedCollisionProxy": false,
+      "hasNamedLod": false,
+      "missingUvObjects": [],
+      "nonAppliedMeshTransforms": [],
+      "meshOrigins": [
+        {
+          "object": "tree_oak",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.0,
+            -0.6131
+          ],
+          "fromGroundMeters": 0.0
+        }
+      ],
+      "preview": "qa/property-expansion-world-overhaul/baseline/blender/tree_oak.png"
+    },
+    {
+      "id": "tree_pine",
+      "path": "vendor/models/trees/tree_pineDefaultA.glb",
+      "baselineClassification": "placeholder",
+      "exists": true,
+      "objectCount": 4,
+      "meshCount": 1,
+      "triangles": 230,
+      "materialCount": 2,
+      "dimensionsMetersAssetSpace": [
+        0.532,
+        0.532,
+        1.5458
+      ],
+      "boundsMinMeters": [
+        -0.266,
+        -0.266,
+        -0.05
+      ],
+      "boundsMaxMeters": [
+        0.266,
+        0.266,
+        1.4958
+      ],
+      "rootObjectNames": [
+        "tmpParent",
+        "tmpParent.001",
+        "tmpParent.002"
+      ],
+      "objectNames": [
+        "tmpParent",
+        "tmpParent.001",
+        "tmpParent.002",
+        "tree_pineDefaultA"
+      ],
+      "animationActions": [],
+      "hasAnimations": false,
+      "hasNamedCollisionProxy": false,
+      "hasNamedLod": false,
+      "missingUvObjects": [],
+      "nonAppliedMeshTransforms": [],
+      "meshOrigins": [
+        {
+          "object": "tree_pineDefaultA",
+          "fromBoundsCenterMeters": [
+            0.0,
+            0.0,
+            -0.7729
+          ],
+          "fromGroundMeters": 0.0
+        }
+      ],
+      "preview": "qa/property-expansion-world-overhaul/baseline/blender/tree_pine.png"
+    }
+  ],
+  "missingRuntimeModelCategories": [
+    "vacuum world model",
+    "vacuum first-person rigged model",
+    "pressure washer machine model",
+    "pressure washer first-person rigged model",
+    "rigged production character model"
+  ]
+}
