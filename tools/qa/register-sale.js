@@ -57,6 +57,8 @@ async (page) => {
     revenue: (window.__fw.state.shop.salesLive || {}).revenue || 0,
     units: (window.__fw.state.shop.salesLive || {}).units || 0,
     held: (window.__fw.state.shop.held || []).length,
+    saleHeld: (window.__fw.state.shop.held || [])
+      .filter((unit) => unit.uid === 'customer-unit-1' || unit.uid === 'customer-unit-2').length,
     shelfBalls: window.__fw.state.shop.inventory.balls3.shelf,
     shelfGlove: window.__fw.state.shop.inventory.glove1.shelf,
   }));
@@ -395,20 +397,28 @@ async (page) => {
     log.push({ step: '13. change owed', want });
     for (const [denom, n] of Object.entries(want)) {
       for (let k = 0; k < n; k++) {
-        const src = await page.evaluate((d) => window.__qa.findMoney('drawer', Number(d)), denom);
-        if (!src) { log.push({ warn: 'drawer is out of ' + denom }); break; }
-        const px = await moneyClickPoint('drawer', Number(denom));
-        if (!px) throw new Error(`No visible pick ray reaches the drawer's $${denom} piece.`);
-        const heldBefore = await page.evaluate(() => {
+        const heldBefore = await page.evaluate((d) => {
           const tx = window.__fw.scene3d.clubhouse().register.getTx();
-          return Object.values(tx.hand || {}).reduce((sum, count) => sum + count, 0);
-        });
-        await page.mouse.click(px.x, px.y);
-        await page.waitForFunction((before) => {
-          const tx = window.__fw.scene3d.clubhouse().register.getTx();
-          return Object.values(tx.hand || {}).reduce((sum, count) => sum + count, 0) > before;
-        }, heldBefore, { timeout: 3000 });
-        log.push({ action: 'selected physical change', denom: Number(denom), pixel: px });
+          return tx.hand[Number(d)] || 0;
+        }, denom);
+        let picked = false;
+        let pickedAt = null;
+        // Under a heavily throttled headless frame the drawer can finish its last
+        // transform between projection and click. Re-project and click the visible
+        // note again until the real transaction confirms that the player's hand
+        // gained it; this is still the exact mouse interaction a player performs.
+        for (let attempt = 0; attempt < 3 && !picked; attempt++) {
+          const px = await moneyClickPoint('drawer', Number(denom));
+          if (!px) break;
+          await page.mouse.click(px.x, px.y);
+          picked = await page.waitForFunction(([d, before]) => {
+            const tx = window.__fw.scene3d.clubhouse().register.getTx();
+            return (tx.hand[Number(d)] || 0) > before;
+          }, [denom, heldBefore], { timeout: 1500 }).then(() => true).catch(() => false);
+          if (picked) pickedAt = px;
+        }
+        if (!picked) throw new Error(`No visible pick ray could take the drawer's $${denom} piece.`);
+        log.push({ action: 'selected physical change', denom: Number(denom), pixel: pickedAt });
       }
     }
     await shot('09-change-counted');

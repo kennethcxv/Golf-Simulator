@@ -38,6 +38,7 @@ import {
   recoverCustomerSimulation,
   requestCustomerRecovery,
   reserveCustomerProduct,
+  reviewVisitForCustomer,
   resumeCustomerAfterRecovery,
   serviceQueuePosition,
   tickCustomerQueueWait,
@@ -287,6 +288,38 @@ test('a real final shelf unit can be reserved once, keeps its SKU identity, and 
   assert.equal(heldUnits(state).length, 0);
 });
 
+test('empty, low, and full-stock shopper fixtures preserve real inventory accounting', () => {
+  const state = newGame('relaxed', 918);
+  const specific = createFixtureCustomer(state, CUSTOMER_INTENT.SPECIFIC_ITEM, {
+    name: 'Empty Shelf', desiredSkuId: 'balls1',
+  });
+  state.shop.inventory.balls1.shelf = 0;
+  assert.equal(reserveCustomerProduct(state, specific, 'balls1').ok, false);
+  assert.equal(specific.experience.productAvailability, 0);
+  assert.equal(specific.experience.desiredProductFound, false);
+  assert.equal(specific.cart.length, 0);
+  assert.equal(heldUnits(state).length, 0);
+
+  state.shop.inventory.balls1.shelf = 1;
+  const lowStock = createFixtureCustomer(state, CUSTOMER_INTENT.PRO_SHOP_SHOPPER, { name: 'Last Unit' });
+  const competing = createFixtureCustomer(state, CUSTOMER_INTENT.BROWSER, { name: 'Too Late' });
+  assert.equal(reserveCustomerProduct(state, lowStock, 'balls1').ok, true);
+  assert.equal(reserveCustomerProduct(state, competing, 'balls1').ok, false);
+  assert.equal(state.shop.inventory.balls1.shelf, 0);
+  assert.equal(heldUnits(state).length, 1);
+  assert.equal(releaseCustomerProducts(state, lowStock), 1);
+  assert.equal(state.shop.inventory.balls1.shelf, 1);
+
+  state.shop.inventory.balls1.shelf = 12;
+  assert.equal(reserveCustomerProduct(state, competing, 'balls1').ok, true);
+  assert.equal(reserveCustomerProduct(state, competing, 'balls1').ok, true);
+  assert.equal(competing.cart.length, 2);
+  assert.equal(state.shop.inventory.balls1.shelf, 10);
+  assert.equal(heldUnits(state).filter((unit) => unit.skuId === 'balls1').length, 2);
+  assert.equal(releaseCustomerProducts(state, competing), 2);
+  assert.equal(state.shop.inventory.balls1.shelf, 12);
+});
+
 test('navigation recovery escalates in the required order and only teleports last', () => {
   const state = newGame('relaxed', 908);
   const customer = createFixtureCustomer(state, CUSTOMER_INTENT.BROWSER, { name: 'Recovery Case' });
@@ -317,6 +350,11 @@ test('satisfaction is derived from real visit factors and exposes reasons', () =
   assert.equal(result.outcome, CUSTOMER_OUTCOME.DISSATISFIED);
   assert.ok(result.factors.some((factor) => factor.id === 'productAvailability' && factor.score === 0));
   assert.ok(result.reasons.some((reason) => /stock|availability/i.test(reason)));
+  const reviewVisit = reviewVisitForCustomer(customer);
+  assert.equal(reviewVisit.customerOutcome, CUSTOMER_OUTCOME.DISSATISFIED);
+  assert.equal(reviewVisit.foundWhatTheyWanted, false);
+  assert.equal(reviewVisit.bought, false);
+  assert.ok(reviewVisit.outcomeReasons.some((reason) => /stock|availability/i.test(reason)));
 });
 
 test('save during checkout restores one customer, one held unit, and a valid queue checkpoint without repeated payment', () => {
