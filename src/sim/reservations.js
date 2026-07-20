@@ -8,6 +8,7 @@
 import { makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
 import { addExpense, addRevenue } from './economy.js';
+import { cancelReservationCustomer, scheduleReservationCustomer } from './customerSimulation.js';
 
 export const TEE_SHEET = Object.freeze({
   openMin: 7 * 60,
@@ -722,6 +723,8 @@ export function bookSlot(state, dayAbs, minute, nameOrOptions, maybeOptions = {}
     });
   }
 
+  scheduleReservationCustomer(state, reservation);
+
   return { ok: true, res: reservation, reservation, slot: validation.slot };
 }
 
@@ -956,6 +959,7 @@ export function moveReservation(state, id, dayAbs, minute, options = {}) {
   if (oldSlot) oldSlot.reservationIds = oldSlot.reservationIds.filter((entry) => String(entry) !== String(reservation.id));
   if (!validation.slot.reservationIds.includes(reservation.id)) validation.slot.reservationIds.push(reservation.id);
   emitOperationEvent(state, reservation, 'reservation-moved', nowOf(state), { from, to: { dayAbs: reservation.dayAbs, minute: reservation.minute } }, `${from.dayAbs}:${from.minute}`);
+  scheduleReservationCustomer(state, reservation);
   return { ok: true, reservation, from, slot: validation.slot };
 }
 
@@ -1020,6 +1024,7 @@ export function cancelReservation(state, id, options = {}) {
     fee: terms.fee,
     refund: terms.refund,
   });
+  cancelReservationCustomer(state, reservation.id);
   return { ok: true, reservation, ...terms };
 }
 
@@ -1079,6 +1084,7 @@ export function handleNoShow(state, id, options = {}) {
     feeApplied: fee.feeApplied,
     slotReopened: bookOf(state).policy.reopenNoShowSlot,
   });
+  cancelReservationCustomer(state, reservation.id);
   return { ok: true, reservation, feeApplied: fee.feeApplied };
 }
 

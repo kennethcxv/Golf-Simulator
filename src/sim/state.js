@@ -22,6 +22,10 @@ import {
   initReservations, ensureReservations, golfOperationsTick, reservationsDailyTick,
   ensureReservationHorizon,
 } from './reservations.js';
+import {
+  initCustomerSimulation, ensureCustomerSimulation, planCustomerArrivals,
+  recoverCustomerSimulation,
+} from './customerSimulation.js';
 import { initTractor, ensureTractor } from './tractor.js';
 import { bunkerDailyMess } from './bunkers.js';
 import { initCourseProps, ensureCourseProps } from './props.js';
@@ -63,6 +67,8 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   ensureWash(state); // a fixer-upper arrives with a filthy exterior
   ensureProperty(state); // ...and a landlord
   initReservations(state);
+  initCustomerSimulation(state);
+  planCustomerArrivals(state, calendarOf(state.clock.minutes).dayAbs);
   initTractor(state);
   initCourseProps(state);
   initLedger(state);
@@ -110,6 +116,7 @@ export function dailyTick(state) {
     const todayAbs = calendarOf(state.clock.minutes).dayAbs;
     reservationsDailyTick(state, todayAbs);
   }
+  if (state.shop) planCustomerArrivals(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.turf) bunkerDailyMess(state); // yesterday's traffic footprints the sand
   if (state.progression) {
     prestigeDailyTick(state);
@@ -282,15 +289,23 @@ export function deserialize(json) {
   else initClub(state);
   if (raw.ledger) state.ledger = raw.ledger;
   else initLedger(state);
+  const hadCustomerSimulation = !!raw.shop?.customerSimulation;
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
   ensureInventoryLifecycle(state); // v4: capture/migrate physical lots before checkout recovery moves them
-  recoverCheckout(state); // a save taken mid-sale: the shoppers are gone, so put their goods back
+  if (hadCustomerSimulation) {
+    ensureCustomerSimulation(state);
+    recoverCustomerSimulation(state);
+  } else {
+    recoverCheckout(state); // legacy saves had no persistent customers, so every held unit returns
+    initCustomerSimulation(state);
+  }
   ensureWash(state); // ...and a filthy exterior waiting for the pressure washer
   ensureProperty(state); // pre-rent saves gain a schedule rather than a free ride
   if (raw.reservations) state.reservations = raw.reservations;
   ensureReservations(state); // pre-booking saves gain an empty tee sheet
+  planCustomerArrivals(state, calendarOf(state.clock.minutes).dayAbs);
   if (raw.tractor) state.tractor = raw.tractor;
   ensureTractor(state, { legacyRepaired: true }); // old saves keep their working tractor
   if (raw.props) state.props = raw.props;
