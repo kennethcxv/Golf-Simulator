@@ -198,6 +198,8 @@ test('a bad held UID rejects the whole sale before stock or money can partially 
 
 test('reload recovery respects per-SKU fixture capacity and sends overflow to back stock', () => {
   const state = newGame('relaxed', 106);
+  state.shop.progression.tier = 'premium';
+  state.shop.unlockedTier = 3;
   const inv = state.shop.inventory.bag1;
   inv.shelf = 5; // bag1 has five physical platform slots; its category fallback is 24
   inv.back = 1;

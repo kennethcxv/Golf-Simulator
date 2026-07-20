@@ -7,7 +7,8 @@
 
 import { clubRatings, memberCounts } from './club.js';
 import { validateHole } from './course.js';
-import { appraiseStats } from './marketplace.js';
+import { appraiseStats, round500 } from './marketplace.js';
+import { shopPropertyImprovementValue } from './shopProgression.js';
 
 // Trailing per-season net: the game's "monthly income". Sums the last 24 closed
 // days over the FULL 24-day window — a young club with five days of books gets
@@ -36,8 +37,9 @@ export function appraisalBreakdown(state) {
     members: counts.weekday + counts.full + counts.premium,
     reputation: Math.round(state.club.reputation * 10) / 10,
     monthlyNet: trailingMonthlyNet(state),
+    shopImprovements: shopPropertyImprovementValue(state),
   };
-  parts.value = appraiseStats(parts);
+  parts.value = round500(appraiseStats(parts) + parts.shopImprovements);
   return parts;
 }
 

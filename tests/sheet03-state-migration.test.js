@@ -50,6 +50,7 @@ test('fresh Sheet-03 inventory obeys authored capacities without losing starter 
 
 test('deserialize moves every authored-capacity overflow to back stock and conserves held units', () => {
   const raw = JSON.parse(serialize(newGame('relaxed', 30302)));
+  raw.shop.progression.tier = 'luxury';
   const overfull = Object.fromEntries(SHOP_CATALOG.map((sku, index) => [sku.id, {
     shelf: capacityOf(sku.id) + 1 + (index % 4),
     back: index % 3,
@@ -80,6 +81,7 @@ test('deserialize moves every authored-capacity overflow to back stock and conse
 test('v7 stored feature migrates back to range2 visibility while v8 intentional stow persists', () => {
   const legacyRaw = JSON.parse(serialize(newGame('relaxed', 30303)));
   legacyRaw.version = 7;
+  delete legacyRaw.shop.progression;
   legacyRaw.shop.layout = {
     moved: {},
     stored: ['feature', 'table_polos'],

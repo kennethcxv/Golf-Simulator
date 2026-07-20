@@ -86,10 +86,12 @@ import {
 import { deliveryBoxCarryProfile } from './clubhouse/deliveryCarryProfile.js';
 import { slotsFor, homeFixture } from '../data/fixtureSlots.js';
 import { buildShell } from './clubhouse/shell.js';
+import { buildShopProgressionVisuals } from './clubhouse/shopProgressionVisuals.js';
 import { buildDoors } from './clubhouse/doors.js';
 import { createSheet06ProductionRuntime } from './assets51to100/sheet06ProductionRuntime.js';
 import { createSheet06NavigationContract } from './assets51to100/sheet06Navigation.js';
 import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } from './clubhouse/fixtures.js';
+import { shopCustomerCapacity, shopTierIndex } from '../sim/shopProgression.js';
 import { createRegisterMode } from './clubhouse/simplifiedRegisterMode.js';
 import { buildDirt } from './clubhouse/dirt.js';
 import { makeNav } from './clubhouse/nav.js';
@@ -644,6 +646,7 @@ export function makeClubhouse(ctx) {
     relayFixtures,
     setFixtureCollidersActive,
     fixtureColliderDiagnostics,
+    refreshTierDressing,
   } = buildFixtures(B);
 
   function fixtureBrowsePose(fixture, localX = 0, localZ = null) {
@@ -739,8 +742,45 @@ export function makeClubhouse(ctx) {
     createPlaceablePreview: (skuId) => createPlaceablePreview(skuId),
     setDecorPlacementVisible: (placementId, visible) => setDecorPlacementVisible(placementId, visible),
   });
-  buildLounge(B);
+  const shopProgressionVisuals = buildShopProgressionVisuals(B);
+  const loungeInterior = new THREE.Group();
+  loungeInterior.name = 'TieredMemberLounge';
+  interior.add(loungeInterior);
+  const loungeColliders = [];
+  let loungeActive = false;
+  buildLounge({
+    ...B,
+    interior: loungeInterior,
+    addCol: (collider) => {
+      loungeColliders.push(collider);
+      if (loungeActive) addCol(collider);
+      return collider;
+    },
+  });
+  function syncTieredLounge() {
+    const active = shopTierIndex(state) >= 2;
+    loungeInterior.visible = active;
+    if (active === loungeActive) return;
+    loungeActive = active;
+    for (const collider of loungeColliders) {
+      if (active) addCol(collider);
+      else removeCol(collider);
+    }
+  }
+  syncTieredLounge();
   buildStockroomDressing(B);
+
+  function refreshShopProgression() {
+    shell.lighting.setShopTier();
+    shopProgressionVisuals.refresh();
+    syncTieredLounge();
+    refreshTierDressing();
+    relayFixtures();
+    retargetCustomerFixtureStops();
+    rebuildStock();
+    rebuildBoxes();
+    return shopProgressionVisuals.diagnostics();
+  }
 
   // --- THE REGISTER ---------------------------------------------------------------------
   // The old checkout lived here: one addProp with a context-sensitive [E] that scanned
@@ -5767,7 +5807,8 @@ export function makeClubhouse(ctx) {
       : null;
     const loungeEarly = reservationId != null
       && Number.isFinite(deskReadyAt)
-      && state.clock.minutes < deskReadyAt;
+      && state.clock.minutes < deskReadyAt
+      && shopTierIndex(state) >= 2;
     if (loungeEarly) {
       // Keep the early-arrival hold on the open entrance side of the lounge.
       // The old back-corner point routed directly through chair B whenever the
@@ -6689,7 +6730,9 @@ export function makeClubhouse(ctx) {
   function updateCustomers(dt) {
     const minute = ((state.clock.minutes % 1440) + 1440) % 1440;
     const open = minute >= 360 && minute <= 1200;
-    const targetCount = open ? clamp(Math.round(((state.shop.salesYesterday.units || 2) / 8) * 3), 1, 6) : 0;
+    const targetCount = open
+      ? clamp(Math.round(((state.shop.salesYesterday.units || 2) / 8) * 3), 1, shopCustomerCapacity(state))
+      : 0;
     if (organicWalkins && open && customers.length < targetCount && Math.random() < dt * 0.15) {
       spawnCustomer(false, null, { allowWalkInRequest: true });
     }
@@ -7437,6 +7480,8 @@ export function makeClubhouse(ctx) {
     productThumb: (sku) => productThumb(sku), // rendered supplier-card imagery
     condition: () => conditionNow,
     setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),
+    refreshShopProgression,
+    shopProgressionDiagnostics: () => shopProgressionVisuals.diagnostics(),
     // build mode: the shop is the player's to arrange
     build: builder,
     // the pressure washer: aim at the building, pull the trigger, watch the wall come back

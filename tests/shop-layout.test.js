@@ -169,6 +169,8 @@ test('the required retail zones all exist in the plan', () => {
 
 test('the new catalog lines (bag, shoes, socks, umbrella) are orderable retail goods', () => {
   const state = newGame('relaxed', 42);
+  state.shop.progression.tier = 'standard';
+  state.shop.unlockedTier = 2;
   for (const id of ['bag1', 'shoe1', 'sock1', 'umb1']) {
     const sku = skuById(id);
     assert.ok(sku, `${id} exists`);

@@ -15,6 +15,7 @@ import {
   STOCKROOM, OFFICE, PLAYER_DIAM, STAFF_CORRIDOR_MIN, fixtureRect, fixtureBrowsePoint, queueSlot,
 } from '../data/shopLayout.js';
 import { boxDims } from '../data/boxes.js';
+import { fixtureIsInstalled } from './shopProgression.js';
 
 export const GRID = 0.25; // placement snaps to this, in yards
 const R = PLAYER_DIAM / 2; // the body that has to get through the gaps
@@ -41,10 +42,11 @@ export function ensureLayout(state) {
 }
 
 // the shop as it actually stands
-export function placedFixtures(state) {
+export function placedFixtures(state, { tierId = null } = {}) {
   const L = ensureLayout(state);
   const out = [];
   for (const f of FIXTURES) {
+    if (!fixtureIsInstalled(state, f.id, tierId)) continue;
     if (L.stored.includes(f.id)) continue;
     const mv = L.moved[f.id];
     out.push(mv ? { ...f, x: mv.x, z: mv.z, ry: mv.ry } : f);
@@ -219,6 +221,31 @@ export function restoreFixture(state, id) {
   const L = ensureLayout(state);
   L.stored = L.stored.filter((s) => s !== id);
   return fixtureById(state, id);
+}
+
+// Construction can reveal several authored fixtures at once. Validate the
+// complete future floor as one candidate before activation, including whatever
+// the player moved while the contractors were working. This is the same rule
+// set build mode uses, so expansion can never trap the player or create an
+// unreachable display behind their back.
+export function shopExpansionLayoutSafety(state, tierId) {
+  const candidate = {
+    ...state,
+    shop: {
+      ...state.shop,
+      progression: {
+        ...(state.shop?.progression || {}),
+        tier: tierId,
+        legacyFullLayout: false,
+      },
+    },
+  };
+  const reasons = [];
+  for (const fixture of placedFixtures(candidate)) {
+    const result = validatePlacement(candidate, fixture.id, fixture.x, fixture.z, fixture.ry || 0);
+    if (!result.ok) reasons.push(...result.reasons.map((reason) => `${fixture.title}: ${reason}`));
+  }
+  return { ok: reasons.length === 0, reasons: [...new Set(reasons)] };
 }
 
 // --- boxes as real objects ---------------------------------------------------------------

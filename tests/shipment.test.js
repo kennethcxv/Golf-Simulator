@@ -32,6 +32,7 @@ const setup = () => {
   const s = newGame('relaxed', 7);
   s.cash = 90000;
   s.shop.unlockedTier = 3;
+  s.shop.progression.tier = 'luxury';
   return s;
 };
 

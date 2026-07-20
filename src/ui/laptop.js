@@ -58,6 +58,11 @@ import {
 } from '../sim/checkoutPreferences.js';
 import { holePar, holeDistanceYd } from '../sim/course.js';
 import { capacityOf } from '../data/fixtureSlots.js';
+import {
+  SHOP_TIER_ORDER, SHOP_TIERS, beginShopExpansion, shopCategoryUnlocked,
+  shopProgressionSummary, tryCompleteShopExpansion,
+} from '../sim/shopProgression.js';
+import { shopExpansionLayoutSafety } from '../sim/layout.js';
 import { ZONE, HOLE_STATUS } from '../sim/constants.js';
 import {
   SERIES, svgEl, lineChart, applyTableQuery, searchBox, filterTabs,
@@ -497,8 +502,16 @@ export function makeLaptop(app, opts) {
       : el('div', { class: 'lt-prodicon', text: CAT_ICON[sku.cat] || '📦' });
   };
 
-  const cashOf = () => (app.empire ? app.empire.cash : app.state.cash);
-  const retailSkus = (st) => SHOP_CATALOG.filter((s) => RETAIL_CATS.has(s.cat) && s.tier <= st.shop.unlockedTier);
+  // The active property's state.cash is the empire wallet authority. empire.cash
+  // is reconciled on the next simulation tick, which may be minutes away while
+  // the player is paused at this laptop; reading that cache made purchases look
+  // free until time resumed.
+  const cashOf = () => (Number.isFinite(app.state?.cash) ? app.state.cash : app.empire?.cash || 0);
+  const retailSkus = (st) => SHOP_CATALOG.filter((s) => (
+    RETAIL_CATS.has(s.cat)
+    && s.tier <= st.shop.unlockedTier
+    && shopCategoryUnlocked(st, s.cat)
+  ));
   const incomingOf = (st, id) => st.shop.orders.filter((o) => o.skuId === id).reduce((a, o) => a + o.qty, 0);
   // The screen packs a shipment the SAME WAY the receiving pad will — one packer, data/boxes.js.
   const shipOf = (sku, qty) => planShipment(sku, Math.max(1, qty));
@@ -1565,6 +1578,59 @@ export function makeLaptop(app, opts) {
     };
     const decorSkus = SHOP_CATALOG.filter((s) => s.cat === 'decor');
     const reno = st.shop.reno;
+    const shopProgress = shopProgressionSummary(st);
+    const shopTierCard = (tierId) => {
+      const spec = SHOP_TIERS[tierId];
+      const currentIndex = SHOP_TIER_ORDER.indexOf(shopProgress.current.id);
+      const cardIndex = SHOP_TIER_ORDER.indexOf(tierId);
+      const isCurrent = tierId === shopProgress.current.id;
+      const isBuilt = cardIndex < currentIndex;
+      const pending = shopProgress.pending?.target === tierId ? shopProgress.pending : null;
+      const isNext = shopProgress.next?.id === tierId;
+      const status = isCurrent ? 'OPERATING' : isBuilt ? 'BUILT' : pending ? 'UNDER CONSTRUCTION' : isNext ? 'AVAILABLE' : 'LOCKED';
+      let action = chip(status, isCurrent || isBuilt ? 'ok' : pending ? 'warn' : '');
+      if (pending) {
+        action = pending.daysLeft > 0
+          ? chip(`${pending.daysLeft} day${pending.daysLeft === 1 ? '' : 's'} left`, 'warn')
+          : el('button', {
+            class: 'lt-primary', text: 'Recheck site',
+            onclick: () => {
+              const result = tryCompleteShopExpansion(st, shopExpansionLayoutSafety);
+              toast(result.ok ? `${spec.label} fit-out complete.` : result.reason, result.ok ? '' : 'warn');
+              if (result.ok) opts.refreshShopProgression?.();
+              render();
+            },
+          });
+      } else if (isNext) {
+        action = el('button', {
+          class: 'lt-primary', text: `Build — ${formatMoney(spec.cost)}`,
+          disabled: cashOf() < spec.cost ? 'disabled' : undefined,
+          onclick: () => askConfirm(
+            `Start the ${spec.label} shop fit-out for ${formatMoney(spec.cost)}? Construction takes ${spec.days} days.`,
+            'Start construction',
+            () => {
+              const result = beginShopExpansion(st, spec.id);
+              toast(result.ok ? `${spec.label} construction started — ${spec.days} days.` : result.reason, result.ok ? '' : 'warn');
+              if (result.ok) opts.refreshShopProgression?.();
+              render();
+            },
+          ),
+        });
+      }
+      return el('div', { class: `lt-shop-tier ${isCurrent ? 'is-current' : ''} ${pending ? 'is-building' : ''}` },
+        el('div', { class: 'lt-shop-tier-head' },
+          el('div', {},
+            el('div', { class: 'lt-shop-tier-label', text: spec.label }),
+            el('div', { class: 'lt-ordername', text: spec.name })),
+          action),
+        el('div', { class: 'lt-prodmeta', text: spec.summary }),
+        el('div', { class: 'lt-shop-tier-finish', text: spec.finish }),
+        el('div', { class: 'lt-shop-tier-unlocks' }, ...spec.unlocks.map((unlock) => chip(unlock))),
+        el('div', {
+          class: 'lt-shop-tier-foot',
+          text: `${spec.cost ? `${formatMoney(spec.cost)} fit-out · ` : ''}${spec.customerCapacity} customer capacity · +${formatMoney(spec.propertyValue)} property value${spec.days ? ` · ${spec.days} construction days` : ''}`,
+        }));
+    };
     const decorRow = (s) => {
       const placed = reno ? reno.decor.filter((d) => d.skuId === s.id).length : 0;
       const back = st.shop.inventory[s.id].back;
@@ -1586,6 +1652,13 @@ export function makeLaptop(app, opts) {
         }));
     };
     return [
+      sect('Pro shop fit-out'),
+      card(
+        el('div', { class: 'lt-minihead', text: `${shopProgress.current.label} operation` }),
+        row(meta(`${shopProgress.productCapacity} physical product positions · ${shopProgress.customerCapacity} customers · ${formatMoney(shopProgress.propertyValue)} added property value`)),
+        shopProgress.pending?.blocked ? errBox(`Construction waiting: ${shopProgress.pending.blocker}`) : null,
+      ),
+      el('div', { class: 'lt-shop-tier-grid' }, ...SHOP_TIER_ORDER.map(shopTierCard)),
       sect('Amenities'),
       el('div', { class: 'lt-orderlist' }, ...Object.keys(AMENITIES).map(amenityRow)),
       sect('Decor & fixtures — order here, place them in the room'),

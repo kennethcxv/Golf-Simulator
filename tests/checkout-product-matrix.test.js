@@ -74,6 +74,8 @@ test('1/2/3/5-item checkout staging is deterministic, finite, and size-aware', (
 test('every product-matrix sale scans, inventories, tickets, and banks exactly once', () => {
   for (const [caseIndex, entry] of PRODUCT_MATRIX.entries()) {
     const state = newGame('relaxed', 7000 + caseIndex);
+    state.shop.progression.tier = 'premium';
+    state.shop.unlockedTier = 3;
     const items = entry.skuIds.map((skuId, itemIndex) => {
       state.shop.inventory[skuId].shelf = capacityOf(skuId);
       const uid = `${entry.id}-${itemIndex}`;

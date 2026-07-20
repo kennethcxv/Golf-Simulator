@@ -53,6 +53,8 @@ test('the lounge uses its asymmetric sofa-and-table footprint through rotation',
 
 test('placement rejects fixtures, doors, partitions, and other blocking property items', () => {
   const state = newGame('relaxed', 702);
+  state.shop.progression.tier = 'premium';
+  state.shop.unlockedTier = 3;
   assert.match(
     validatePlaceablePlacement(state, 'plant1', snapPlaceablePose('plant1', { x: -5.9, z: 1.25 })).reasons[0],
     /overlaps/i,

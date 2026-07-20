@@ -21,6 +21,7 @@ import { TIERS } from './club.js';
 import { members } from './golfers.js';
 import { notify } from './notifications.js';
 import { placedFixtures } from './layout.js';
+import { initShopProgression, shopCategoryUnlocked } from './shopProgression.js';
 import { placeableSpecBySkuId } from '../data/placeableItems.js';
 import {
   cancelPlaceablePurchase,
@@ -402,7 +403,7 @@ export function initShop(state) {
   inventory.glove1.shelf = 4;
   inventory.cap1.shelf = 5;
   state.shop = {
-    unlockedTier: 2, // premium (tier 3) lines arrive with progression
+    unlockedTier: 1,
     inventory,
     orders: [],
     nextOrderId: 1,
@@ -423,6 +424,7 @@ export function initShop(state) {
     fittingsYesterday: 0,
     log: [], // recent notable sales for the panel/3D flavor
   };
+  initShopProgression(state);
   initShopReno(state);
 }
 
@@ -452,6 +454,9 @@ const DELIVERY_SLOTS = [[8, 10], [10, 12], [13, 15]];
 export function placeOrder(state, skuId, qty) {
   const sku = skuById(skuId);
   if (!sku) return { ok: false, reason: 'No such item.' };
+  if (RETAIL_CATS.has(sku.cat) && !shopCategoryUnlocked(state, sku.cat)) {
+    return { ok: false, reason: `${sku.cat === 'clubs' ? 'Club' : 'Provisions'} ordering opens with the STANDARD shop.` };
+  }
   if (sku.tier > state.shop.unlockedTier) return { ok: false, reason: 'Supplier account not unlocked yet.' };
   if (!Number.isInteger(qty) || qty < 1) return { ok: false, reason: 'Order quantity must be a positive whole number.' };
 
@@ -829,6 +834,7 @@ export function shopDailyAccrual(state) {
   for (const sku of SHOP_CATALOG) {
     if (sku.tier > shop.unlockedTier) continue;
     if (!RETAIL_CATS.has(sku.cat)) continue; // supplies/decor never reach shoppers
+    if (!shopCategoryUnlocked(state, sku.cat)) continue;
     (catalogByCat[sku.cat] ||= []).push(sku);
   }
 

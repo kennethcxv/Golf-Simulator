@@ -65,6 +65,7 @@ function materials() {
     glass: material(),
     iron: material(),
     plaster: material(),
+    oakFloor: material(),
     trimPaint: material(),
     walnut: material(),
     walnutDark: material(),

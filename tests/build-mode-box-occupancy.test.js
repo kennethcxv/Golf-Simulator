@@ -9,6 +9,7 @@ import { newGame } from '../src/sim/state.js';
 
 function modeHarness(fixtureMoveBlocker, options = {}) {
   const state = newGame('relaxed', 6);
+  state.shop.progression.tier = 'luxury';
   const fixture = FIXTURES.find((entry) => entry.id === (options.fixtureId || 'table_polos'));
   const toasts = [];
   const anchor = new THREE.Group();

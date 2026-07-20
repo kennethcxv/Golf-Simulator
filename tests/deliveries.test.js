@@ -29,6 +29,8 @@ function orderAndArrive(st, skuId, qty) {
 
 test('an arriving order becomes labeled boxes on the pad, not backroom numbers', () => {
   const st = newGame('relaxed', 42);
+  st.shop.progression.tier = 'standard';
+  st.shop.unlockedTier = 2;
   const backBefore = st.shop.inventory.balls2.back;
   orderAndArrive(st, 'balls2', 30); // case of 12 → 3 boxes
   assert.equal(st.shop.inventory.balls2.back, backBefore, 'nothing enters the backroom on arrival');

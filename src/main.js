@@ -1612,6 +1612,12 @@ function frame(ts) {
         announceReopenings();
         announceOutbreaks();
         checkBigMoments();
+        const shopEvent = app.state.lastShopProgressionEvent;
+        if (shopEvent) {
+          if (shopEvent.kind === 'complete') app.scene3d.clubhouse()?.refreshShopProgression?.();
+          toast(shopEvent.message, shopEvent.kind === 'blocked' ? 'warn' : 'good');
+          app.state.lastShopProgressionEvent = null;
+        }
         // the rent: announced two days out, then said out loud when it lands
         const pe = app.state && app.state.lastPropertyEvent;
         if (pe && pe.message) {
@@ -1953,6 +1959,11 @@ function boot() {
     // The Course page's "Open the works desk": the laptop closes cleanly and the real
     // course editor takes the screen — same enterEditor every other entry point uses.
     openCourseEditor: () => enterEditor(),
+    refreshShopProgression: () => {
+      const result = app.scene3d?.clubhouse?.()?.refreshShopProgression?.();
+      autosave();
+      return result;
+    },
   });
   editorUi = makeCourseEditor(app, {
     onExit: () => exitEditor(),

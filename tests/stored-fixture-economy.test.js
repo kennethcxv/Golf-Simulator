@@ -16,6 +16,9 @@ import { ROLE } from '../src/sim/staff.js';
 import { SAVE_VERSION, deserialize, newGame, serialize } from '../src/sim/state.js';
 
 function stowFeatureThroughBuildMode(state) {
+  // This suite exercises the installed premium rangefinder display. BASIC
+  // progression coverage lives in shop-progression.test.js.
+  state.shop.progression.tier = 'premium';
   const fixture = FIXTURES.find((entry) => entry.id === 'feature');
   const mode = buildBuildMode({
     interior: new THREE.Group(),

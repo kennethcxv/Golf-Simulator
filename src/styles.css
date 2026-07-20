@@ -951,6 +951,26 @@ input[type="range"] { accent-color: var(--accent); }
 .lt-upprice { font-weight: 700; font-size: 0.9em; color: var(--lt-ink); flex: 1;
   font-variant-numeric: tabular-nums; }
 
+/* Pro-shop construction tiers: deliberately read like an architectural bid,
+   not four abstract stat buttons. The current built finish gets the green edge;
+   active work gets the warm construction edge. */
+.lt-shop-tier-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px; }
+.lt-shop-tier { background: var(--lt-panel); border: 1px solid var(--lt-edge);
+  border-radius: 12px; padding: 11px 12px; box-shadow: var(--lt-shadow);
+  display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.lt-shop-tier.is-current { border-color: #69a47b; box-shadow: inset 3px 0 #2f7048, var(--lt-shadow); }
+.lt-shop-tier.is-building { border-color: #d5a94d; box-shadow: inset 3px 0 #b7811b, var(--lt-shadow); }
+.lt-shop-tier-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.lt-shop-tier-label { color: #2f7048; font-size: 0.68em; font-weight: 800;
+  letter-spacing: 0.12em; line-height: 1.2; }
+.lt-shop-tier-finish { background: #f4f0e7; border-left: 3px solid #9f7a47;
+  border-radius: 4px; color: #5b4b35; font-size: 0.7em; line-height: 1.35; padding: 5px 7px; }
+.lt-shop-tier-unlocks { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.lt-shop-tier-unlocks .lt-chip { font-size: 0.63em; }
+.lt-shop-tier-foot { color: var(--lt-dim); font-size: 0.66em; border-top: 1px solid var(--lt-edge);
+  padding-top: 6px; font-variant-numeric: tabular-nums; }
+
 /* form controls */
 .lt-mulabel { width: 112px; font-weight: 600; font-size: 0.8em; flex-shrink: 0;
   color: var(--lt-ink); }

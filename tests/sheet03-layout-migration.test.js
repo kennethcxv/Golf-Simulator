@@ -56,6 +56,7 @@ test('pre-current saves restore only invalid moved poses under repaired footprin
   );
 
   const raw = JSON.parse(serialize(state));
+  delete raw.shop.progression;
   raw.version = FIXTURE_FOOTPRINT_SAVE_VERSION - 1;
   raw.shop.layout.moved.table_polos = validTablePose;
   // The old symmetric shoerack half-box fit here. Its repaired asymmetric
