@@ -54,6 +54,14 @@ import {
 } from '../sim/notifications.js';
 import { currentStep } from '../sim/tutorial.js';
 import {
+  CAMPAIGN_SKUS,
+  campaignRecoveryStatus,
+  campaignView,
+  openClubhouse,
+  recoverAllCampaignItems,
+  recoverOpeningLayout,
+} from '../sim/campaign.js';
+import {
   checkoutPreferences, setCheckoutPreference,
 } from '../sim/checkoutPreferences.js';
 import { holePar, holeDistanceYd } from '../sim/course.js';
@@ -505,7 +513,8 @@ export function makeLaptop(app, opts) {
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 'es'}`;
   const shopIsOpen = (st) => {
     const m = calendarOf(st.clock.minutes).minuteOfDay;
-    return m >= SHOP_OPEN_MIN && m < SHOP_CLOSE_MIN;
+    const campaignOpen = !st.campaign?.enabled || st.campaign.businessOpen;
+    return campaignOpen && m >= SHOP_OPEN_MIN && m < SHOP_CLOSE_MIN;
   };
   const sumLines = (lines) => Object.values(lines || {}).reduce((a, v) => a + (Number.isFinite(v) ? v : 0), 0);
 
@@ -598,6 +607,120 @@ export function makeLaptop(app, opts) {
     );
   }
 
+  function campaignOpeningCard(st) {
+    const view = campaignView(st);
+    if (!view) return null;
+    const opening = view.opening;
+    const done = opening.requirements.filter((item) => item.ok).length;
+    const first = view.firstDay;
+    const firstChecks = [
+      ['Guest checked in', first.checkIn],
+      ['Merchandise sold', first.merchandiseSale],
+      ['Shelf gap observed', first.shelfGap],
+      ['Revenue earned', first.revenue > 0],
+      ['Review received', first.review],
+      ['Books closed', first.booksClosed],
+    ];
+
+    const showOpening = () => openModal(() => {
+      const latest = campaignView(st);
+      const requirements = latest.opening.requirements;
+      const recovery = campaignRecoveryStatus(st);
+      const day = latest.firstDay;
+      const dayChecks = [
+        { label: 'Guest checked in', ok: day.checkIn, reason: 'Serve the scheduled guest on the front-desk monitor.' },
+        { label: 'Merchandise sale complete', ok: day.merchandiseSale, reason: 'Complete a full physical checkout.' },
+        { label: 'Shelf gap observed', ok: day.shelfGap, reason: 'A real sale must remove visible stock.' },
+        { label: 'Revenue earned', ok: day.revenue > 0, reason: 'Bank a check-in or retail transaction.' },
+        { label: 'Customer review received', ok: day.review, reason: 'Finish serving a real visitor.' },
+        { label: 'End-of-day books closed', ok: day.booksClosed, reason: 'The ledger closes at midnight.' },
+      ];
+      const displayRows = st.campaign.businessOpen ? dayChecks : requirements;
+      return el('div', {},
+        el('div', { class: 'lt-minihead' }, icon('target'), el('span', { text: latest.mainObjective })),
+        el('div', { class: 'lt-orderlist' }, ...displayRows.map((item) => el('div', { class: 'lt-order' },
+          el('span', { class: `lt-word ${item.ok ? 'ok' : 'warn'}`, text: item.ok ? '✓' : '○' }),
+          el('div', { class: 'lt-orderbody' },
+            el('div', { class: 'lt-ordername', text: item.label }),
+            !item.ok ? el('div', { class: 'lt-prodmeta', text: item.reason }) : null),
+        ))),
+        st.campaign.businessOpen ? row(
+          meta(`First-day revenue ${formatMoney(day.revenue)}`),
+          day.result ? word(`Net ${formatMoney(day.result.net || 0)}`, (day.result.net || 0) >= 0 ? 'ok' : 'bad') : meta('books still open'),
+        ) : null,
+        recovery.needed ? errBox('Recovery is available for an owned missing item or disrupted safe fixture layout.') : null,
+        el('div', { class: 'lt-modalbtns' },
+          recovery.items.length ? el('button', {
+            class: 'lt-mini',
+            text: 'Recover owned items',
+            onclick: () => {
+              const result = recoverAllCampaignItems(st);
+              toast(result.ok ? 'Replacement delivery scheduled.' : 'Nothing owned is missing.', result.ok ? '' : 'warn');
+              opts.onCampaignChanged?.('recovery', result);
+              closeModal();
+              render();
+            },
+          }) : null,
+          recovery.layoutBlocked ? el('button', {
+            class: 'lt-mini',
+            text: 'Restore safe layout',
+            onclick: () => {
+              const result = recoverOpeningLayout(st);
+              toast(result.ok ? 'Required fixtures returned to the safe authored layout.' : result.reason, result.ok ? '' : 'warn');
+              opts.onCampaignChanged?.('recovery', result);
+              closeModal();
+              render();
+            },
+          }) : null,
+          el('button', { class: 'lt-mini', text: 'Close', onclick: () => closeModal() }),
+          !st.campaign.businessOpen ? el('button', {
+            class: 'lt-primary',
+            text: latest.opening.ready ? 'Open Clubhouse' : `${requirements.filter((item) => item.ok).length}/${requirements.length} ready`,
+            disabled: latest.opening.ready ? undefined : 'disabled',
+            onclick: () => {
+              const result = openClubhouse(st);
+              if (!result.ok) {
+                toast(result.reason, 'warn');
+                return;
+              }
+              toast('The clubhouse is open. Your first guests are on the way.');
+              opts.onCampaignChanged?.('opening', result);
+              closeModal();
+              render();
+            },
+          }) : null,
+        ),
+      );
+    });
+
+    if (!st.campaign.businessOpen) {
+      return el('div', { class: 'lt-objbar lt-openingbar' },
+        el('div', { class: 'lt-objicon' }, icon('target')),
+        el('div', { class: 'lt-objbody' },
+          el('div', { class: 'lt-objlabel', text: 'Opening readiness' }),
+          el('div', { class: 'lt-tasktitle', text: opening.ready ? 'Ready to open' : `${done} of ${opening.requirements.length} requirements` }),
+          el('div', { class: 'lt-listsub', text: opening.ready
+            ? 'Everything is physically in place. Change the porch sign when you are ready.'
+            : opening.requirements.find((item) => !item.ok)?.reason || '' })),
+        el('button', { class: opening.ready ? 'lt-primary' : 'lt-mini', text: opening.ready ? 'Open' : 'Review', onclick: showOpening }),
+      );
+    }
+
+    const completeCount = firstChecks.filter(([, ok]) => ok).length;
+    return el('div', { class: 'lt-objbar lt-openingbar' },
+      el('div', { class: 'lt-objicon' }, icon(first.complete ? 'up' : 'users')),
+      el('div', { class: 'lt-objbody' },
+        el('div', { class: 'lt-objlabel', text: first.complete ? 'First day complete' : 'Opening day live' }),
+        el('div', { class: 'lt-tasktitle', text: first.complete
+          ? `${formatMoney(first.revenue)} earned · books reconciled`
+          : `${completeCount}/6 first-day outcomes` }),
+        el('div', { class: 'lt-listsub', text: first.complete
+          ? 'Next goal: keep two core product lines stocked and build a week of strong reviews.'
+          : (firstChecks.find(([, ok]) => !ok)?.[0] || 'Serve the club.') })),
+      el('button', { class: 'lt-mini', text: 'Details', onclick: showOpening }),
+    );
+  }
+
   // ==========================================================================================
   // HOME — one screen: four numbers, today's objective, and the three lists that matter
   // ==========================================================================================
@@ -644,6 +767,8 @@ export function makeLaptop(app, opts) {
       el('div', { class: 'lt-greet' },
         el('h1', { text: `${greetWord}, Manager` }),
         el('div', { class: 'lt-greetsub', text: `Here's what's happening at ${st.clubName || 'your club'}.` })),
+
+      campaignOpeningCard(st),
 
       el('div', { class: 'lt-stats lt-stats4' },
         stat('Cash', formatMoney(cashOf())),
@@ -955,6 +1080,43 @@ export function makeLaptop(app, opts) {
   }
 
   function shopOrderTab(st, ss) {
+    const campaignActive = !!st.campaign?.enabled && !st.campaign.businessOpen;
+    const purchased = st.campaign?.purchased || {};
+    const physicalQuantity = (skuId) => {
+      const inv = st.shop.inventory[skuId] || {};
+      const ordered = st.shop.orders
+        .filter((order) => order.skuId === skuId)
+        .reduce((sum, order) => sum + order.qty, 0);
+      const boxed = boxesOf(st)
+        .filter((box) => box.skuId === skuId)
+        .reduce((sum, box) => sum + box.qty, 0);
+      const carried = st.shop.carry?.skuId === skuId ? st.shop.carry.qty : 0;
+      return (inv.shelf || 0) + (inv.back || 0) + ordered + boxed + carried;
+    };
+    const bundleTargets = [
+      { id: CAMPAIGN_SKUS.repair, qty: 7, purchased: true },
+      { id: CAMPAIGN_SKUS.counter, qty: 1, purchased: true },
+      { id: CAMPAIGN_SKUS.shelves, qty: 2, purchased: true },
+      { id: CAMPAIGN_SKUS.safety, qty: 1, purchased: true },
+      { id: 'balls1', qty: 4, purchased: false },
+      { id: 'tees1', qty: 4, purchased: false },
+    ];
+    const bundleMissing = bundleTargets.map((target) => {
+      const have = target.purchased ? (purchased[target.id] || 0) : physicalQuantity(target.id);
+      return { ...target, missing: Math.max(0, target.qty - have) };
+    }).filter((target) => target.missing > 0);
+    const addOpeningBundle = () => {
+      for (const target of bundleMissing) {
+        const already = cart.get(target.id) || 0;
+        cart.set(target.id, Math.max(already, target.missing));
+      }
+      toast(bundleMissing.length
+        ? 'Missing opening supplies and two starter product lines added to the basket.'
+        : 'The opening bundle is already accounted for.');
+      click();
+      render();
+    };
+
     let goods = 0;
     let freight = 0;
     let boxCount = 0;
@@ -999,7 +1161,7 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-prodprice' },
           el('span', { class: 'lt-wholesale', text: formatMoney(s.cost) }),
           el('span', { class: 'lt-meta', text: ` → sells ${formatMoney(suggested)}` })),
-        el('div', { class: 'lt-prodmeta', text: `${unitsPerBox(s)} per box · arrives in ${LEAD_DAYS[s.cat]}d · have ${owned.shelf + owned.back}` }),
+        el('div', { class: 'lt-prodmeta', text: `${unitsPerBox(s)} per box · ${s.campaign && campaignActive ? 'priority same-day delivery' : `arrives in ${LEAD_DAYS[s.cat]}d`} · have ${owned.shelf + owned.back}` }),
         locked
           ? el('div', { class: 'lt-lock', text: `🔒 Needs supplier tier ${s.tier}` })
           : el('div', { class: 'lt-qtyrow' },
@@ -1038,6 +1200,20 @@ export function makeLaptop(app, opts) {
     };
 
     return [
+      campaignActive ? el('div', { class: 'lt-card lt-opening-order' },
+        el('div', { class: 'lt-minihead' }, icon('target'), el('span', { text: 'Reopening order' })),
+        el('div', { class: 'lt-listsub', text: bundleMissing.length
+          ? 'One click adds only what is still missing: repair components, counter, shelving, safety kit, balls, and tees.'
+          : 'Required supply quantities and two starter product lines are already accounted for.' }),
+        el('div', { class: 'lt-cardfoot' },
+          el('span', { class: 'lt-word ok', text: bundleMissing.length ? `${bundleMissing.reduce((sum, item) => sum + item.missing, 0)} units missing` : 'Ready' }),
+          el('button', {
+            class: 'lt-mini',
+            text: bundleMissing.length ? 'Add missing bundle' : 'Bundle accounted for',
+            disabled: bundleMissing.length ? undefined : 'disabled',
+            onclick: addOpeningBundle,
+          })),
+      ) : null,
       el('div', { class: 'lt-ordersummary' },
         el('span', { style: 'font-weight:600', text: `${cart.size} item${cart.size === 1 ? '' : 's'}` }),
         meta(`delivery ${formatMoney(freight)}`),

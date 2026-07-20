@@ -269,7 +269,7 @@ export const inRect = (r, x, z) => x >= r.minX && x <= r.maxX && z >= r.minZ && 
 // permanent entrance dressing
 export const MAT = { x: -0.8, z: 5.55 };               // welcome mat inside the door
 export const LOGO_RUG = { x: -0.8, z: 3.1, w: 3.6, d: 2.4 }; // club logo rug on the entry axis
-export const HOURS_SIGN = { x: 1.1, z: 6.77 };         // beside the door, on the porch face
+export const HOURS_SIGN = { x: 0.58, z: 6.77 };        // readable between the door trim and porch column
 
 // --- retail fixtures ----------------------------------------------------------------
 // kind: shelf | rack | table | rail | hatstand | bagstand | shoerack | apparelwall | feature

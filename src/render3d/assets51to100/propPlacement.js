@@ -156,13 +156,18 @@ const runtimeUrl = (p) => `vendor/models/assets_51_100/${p.sheet}/${p.stem}.glb`
  * Failures are reported, never thrown: one missing prop must not take the clubhouse down with it.
  * @returns {{group: THREE.Group, ready: Promise, diagnostics: function, dispose: function}}
  */
-export function buildProps({ interior, loader }) {
+export function buildProps({ interior, loader, visibilityForAsset = () => true }) {
   const group = new THREE.Group();
   group.name = 'Assets71to100Props';
   interior.add(group);
 
   const placed = [];
   const failed = [];
+  const roots = new Map();
+
+  const refreshVisibility = () => {
+    for (const [number, root] of roots) root.visible = visibilityForAsset(number) !== false;
+  };
 
   const jobs = PROP_PLACEMENTS.map((p) => new Promise((resolve) => {
     loader.load(runtimeUrl(p), (gltf) => {
@@ -196,6 +201,8 @@ export function buildProps({ interior, loader }) {
         });
 
         group.add(root);
+        roots.set(p.n, root);
+        root.visible = visibilityForAsset(p.n) !== false;
         placed.push({ n: p.n, name: root.name, at: [p.x, p.y || 0, p.z] });
         resolve(true);
       } catch (err) {
@@ -233,6 +240,8 @@ export function buildProps({ interior, loader }) {
   return {
     group,
     ready,
+    refreshVisibility,
+    getRoot: (number) => roots.get(number) || null,
     diagnostics: () => ({
       expected: PROP_PLACEMENTS.length,
       placed: placed.length,
@@ -258,6 +267,7 @@ export function buildProps({ interior, loader }) {
       for (const m of materials) m.dispose();
       group.removeFromParent();
       placed.length = 0;
+      roots.clear();
     },
   };
 }

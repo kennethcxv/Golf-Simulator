@@ -74,6 +74,8 @@ export function buildShell(B) {
     productionFallbackNodes[key].push(node);
     return node;
   };
+  let businessSignOpen = true;
+  let repaintBusinessSign = () => {};
 
   // --- exterior finishes (normal-mapped siding + roof, kept from the yard kit) ---
   const texLoader = new THREE.TextureLoader();
@@ -548,7 +550,30 @@ export function buildShell(B) {
     trackProductionFallback('exteriorShellStructure', chimCap);
 
     // hours sign (sign kit) + porch sconce by the door
-    const signTex = makeSignTexture(['PRO SHOP', 'OPEN DAILY', '6 AM – 8 PM'], { w: 256, h: 192 });
+    const signTex = makeSignTexture(['PRO SHOP', 'OPEN TODAY', '6 AM – 8 PM'], { w: 256, h: 192 });
+    repaintBusinessSign = (open) => {
+      const nextOpen = !!open;
+      if (nextOpen === businessSignOpen) return;
+      businessSignOpen = nextOpen;
+      const painted = makeSignTexture(
+        nextOpen
+          ? ['PRO SHOP', 'OPEN TODAY', '6 AM – 8 PM']
+          : ['PRO SHOP', 'CLOSED', 'RESTORATION'],
+        {
+          w: 256,
+          h: 192,
+          field: nextOpen ? '#f4f0e6' : '#e8dfcb',
+          ink: nextOpen ? '#1f4a26' : '#473c31',
+          secondaryInk: nextOpen ? '#3f3a30' : '#8a4d3a',
+        },
+      );
+      const canvas = signTex.image;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(painted.image, 0, 0);
+      painted.dispose();
+      signTex.needsUpdate = true;
+    };
     const sign = new THREE.Mesh(
       new THREE.PlaneGeometry(0.72, 0.54),
       new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.85 }),
@@ -915,5 +940,6 @@ export function buildShell(B) {
     productionVisualFallbacks,
     productionVisualFallbackKeys: PRODUCTION_VISUAL_FALLBACK_KEYS,
     productionVisualFallbackCounts,
+    setBusinessOpen: (open) => repaintBusinessSign(open),
   };
 }

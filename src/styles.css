@@ -377,10 +377,175 @@ input[type="range"] { accent-color: var(--accent); }
 .objectives-card {
   left: 12px;
   bottom: 52px;
-  width: 248px;
-  padding: 8px 10px;
-  font-size: 0.88rem;
-  opacity: 0.94;
+  width: 286px;
+  padding: 11px 12px;
+  font-size: 0.84rem;
+  opacity: 0.96;
+  max-height: min(70vh, 650px);
+  overflow-y: auto;
+  border-color: rgba(201, 162, 76, 0.28);
+  background: linear-gradient(155deg, rgba(19, 31, 22, 0.97), rgba(12, 20, 15, 0.95));
+}
+
+.objective-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.objective-kicker,
+.objective-label,
+.objective-section-title {
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.objective-count,
+.objective-zone {
+  color: var(--text-dim);
+  font-size: 0.69rem;
+  margin-top: 2px;
+}
+
+.objective-zone {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.objective-icon-btn {
+  min-width: 26px;
+  padding: 1px 7px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-dim);
+}
+
+.objective-progress {
+  height: 3px;
+  margin: 9px 0 11px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.objective-progress.task {
+  margin: 7px 0 8px;
+  height: 2px;
+}
+
+.objective-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #719167, var(--accent));
+  transition: width 0.25s ease;
+}
+
+.objective-current {
+  position: relative;
+}
+
+.objective-title {
+  margin-top: 3px;
+  color: #f3f1e7;
+  font-size: 0.96rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.objective-hint,
+.objective-tool,
+.objective-blocked {
+  margin-top: 6px;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.objective-tool {
+  color: #a9bea6;
+}
+
+.objective-blocked {
+  padding: 6px 7px;
+  border-left: 2px solid #ba7353;
+  background: rgba(142, 67, 43, 0.13);
+  color: #e6b6a1;
+}
+
+.objective-detail-toggle,
+.objective-reset {
+  width: 100%;
+  margin-top: 9px;
+  padding: 5px 8px;
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.objective-details {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+}
+
+.objective-section-title {
+  margin: 10px 0 5px;
+}
+
+.objective-mini-list,
+.objective-history {
+  display: grid;
+  gap: 4px;
+}
+
+.objective-mini-item,
+.objective-zones > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #d7ddd3;
+  font-size: 0.74rem;
+}
+
+.objective-mini-item > span:last-child,
+.objective-zones b {
+  color: #9fb29c;
+  font-weight: 600;
+}
+
+.objective-zones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 13px;
+}
+
+.objective-zones span {
+  text-transform: capitalize;
+}
+
+.objective-history {
+  color: #9fb29c;
+  font-size: 0.72rem;
+}
+
+.objective-recovery {
+  margin-top: 10px;
+  padding: 0 8px 8px;
+  border: 1px solid rgba(201, 162, 76, 0.24);
+  border-radius: 7px;
+  background: rgba(201, 162, 76, 0.055);
+}
+
+.objective-recovery button {
+  width: 100%;
+  margin-top: 6px;
+  padding: 5px 7px;
+  font-size: 0.72rem;
 }
 
 /* --- responsive HUD ----------------------------------------------------------- */
@@ -437,6 +602,81 @@ input[type="range"] { accent-color: var(--accent); }
 .menu-screen .footnote { position: absolute; bottom: 16px; color: var(--text-dim); font-size: 0.8rem; }
 
 /* --- overlays ------------------------------------------------------------- */
+
+.arrival-intro {
+  position: absolute;
+  top: 88px;
+  left: 50%;
+  width: min(430px, calc(100vw - 40px));
+  transform: translateX(-50%);
+  padding: 16px 18px;
+  border: 1px solid rgba(201, 162, 76, 0.38);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(20, 35, 24, 0.96), rgba(11, 20, 14, 0.95));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+  text-align: center;
+  pointer-events: none;
+  animation: fw-pop 0.28s ease-out;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.arrival-intro.leaving {
+  opacity: 0;
+  transform: translate(-50%, -8px);
+}
+
+.arrival-eyebrow {
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.15em;
+}
+
+.arrival-title {
+  margin-top: 3px;
+  color: #f4f1e7;
+  font: 700 1.38rem Georgia, serif;
+}
+
+.arrival-copy {
+  margin-top: 7px;
+  color: #c5cec2;
+  font-size: 0.86rem;
+  line-height: 1.42;
+}
+
+.arrival-task {
+  margin: 9px 0;
+  color: #91aa91;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+
+.arrival-intro button {
+  padding: 6px 13px;
+  pointer-events: auto;
+}
+
+.campaign-day-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.campaign-day-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.campaign-day-summary span {
+  color: var(--text-dim);
+  font-size: 0.74rem;
+}
 
 .modal-backdrop {
   position: absolute;

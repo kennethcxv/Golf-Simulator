@@ -1316,14 +1316,24 @@ export function buildStockroomDressing(B) {
 // live sales, reservations); this builds only the physical kit and returns
 // the screen-drawing hook.
 export function buildCheckout(B) {
-  const { interior, mats, merch, addCol, colBoxAt } = B;
+  const { interior, mats, merch, addCol, removeCol, colBoxAt } = B;
+
+  // Campaign availability is presentation-only here. The checkout transaction
+  // authority remains in registerMode; these roots let the reopening campaign
+  // reveal the physical counter and its hardware without duplicating either.
+  const counterVisualRoot = new THREE.Group();
+  counterVisualRoot.name = 'CheckoutCounterVisualRoot';
+  const hardwareVisualRoot = new THREE.Group();
+  hardwareVisualRoot.name = 'CheckoutHardwareVisualRoot';
+  interior.add(counterVisualRoot, hardwareVisualRoot);
 
   // paneled island: walnut body, panel insets, wood top, brass foot rail
   // This remains a zero-network fallback while the GLB loader is warming up. Once
   // the production Blender counter is ready it is removed as one group, avoiding a
   // duplicate shell or z-fighting surfaces.
   const legacyCounter = new THREE.Group();
-  interior.add(legacyCounter);
+  legacyCounter.name = 'CheckoutCounterFallback';
+  counterVisualRoot.add(legacyCounter);
   const body = new THREE.Mesh(roundedBox(COUNTER.len, 0.96, COUNTER.depth - 0.16, 0.02), mats.walnut);
   body.position.set(COUNTER.x, 0.5, COUNTER.z);
   body.castShadow = true;
@@ -1342,7 +1352,18 @@ export function buildCheckout(B) {
   footRail.rotation.z = Math.PI / 2;
   footRail.position.set(COUNTER.x, 0.16, COUNTER.z - COUNTER.depth / 2 + 0.02);
   legacyCounter.add(footRail);
-  addCol(colBoxAt(COUNTER.x, COUNTER.z, COUNTER.len + 0.3, COUNTER.depth + 0.2));
+  const counterCollider = colBoxAt(COUNTER.x, COUNTER.z, COUNTER.len + 0.3, COUNTER.depth + 0.2);
+  let counterColliderActive = false;
+  const setCounterColliderActive = (active) => {
+    if (active && !counterColliderActive) {
+      addCol(counterCollider);
+      counterColliderActive = true;
+    } else if (!active && counterColliderActive) {
+      removeCol(counterCollider);
+      counterColliderActive = false;
+    }
+  };
+  setCounterColliderActive(true);
 
   if (merch) merch.onReady(() => {
     // Prefer the current Blender production counter, retaining the older kit as
@@ -1403,7 +1424,7 @@ export function buildCheckout(B) {
     checkoutIslandVisual.traverse((object) => {
       if (object.isMesh) object.receiveShadow = false;
     });
-    interior.add(checkoutIslandVisual);
+    counterVisualRoot.add(checkoutIslandVisual);
     releaseReplacedFixture(legacyCounter, mats, merch);
   });
 
@@ -1426,7 +1447,7 @@ export function buildCheckout(B) {
       if (!o) return null;
       o.position.set(spec.x, COUNTER_TOP, spec.z);
       o.rotation.y = ry;
-      interior.add(o);
+      hardwareVisualRoot.add(o);
       return o;
     };
     // The checkout kit is authored at believable real-world dimensions. Keep
@@ -1465,7 +1486,7 @@ export function buildCheckout(B) {
       bag.position.set(REGISTER.bagstand.x, COUNTER_TOP + 0.012 + i * 0.021, REGISTER.bagstand.z);
       bag.rotation.y = 0.08 + i * 0.05;
       bag.castShadow = true;
-      interior.add(bag);
+      hardwareVisualRoot.add(bag);
     }
   }
 
@@ -1475,14 +1496,23 @@ export function buildCheckout(B) {
     if (!bk) return;
     bk.position.set(COUNTER.x - COUNTER.len / 2 - 0.34, 0.30, COUNTER.z - 0.30);
     bk.rotation.y = -0.35;
-    interior.add(bk);
+    counterVisualRoot.add(bk);
     const bk2 = merch.instantiate('basket');
     if (bk2) {
       bk2.position.set(COUNTER.x - COUNTER.len / 2 - 0.34, 0.44, COUNTER.z - 0.30);
       bk2.rotation.y = -0.28;
-      interior.add(bk2);
+      counterVisualRoot.add(bk2);
     }
   });
 
-  return { drawRegister };
+  return {
+    drawRegister,
+    counterVisualRoot,
+    hardwareVisualRoot,
+    setAvailability({ counter = true, hardware = true } = {}) {
+      counterVisualRoot.visible = !!counter;
+      hardwareVisualRoot.visible = !!hardware;
+      setCounterColliderActive(!!counter);
+    },
+  };
 }
