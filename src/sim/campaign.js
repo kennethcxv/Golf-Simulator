@@ -9,7 +9,7 @@
 import { calendarOf } from './time.js';
 import { SHOP_CATALOG, RETAIL_CATS, skuById } from '../data/shopItems.js';
 import { planShipment, boxDims } from '../data/boxes.js';
-import { ensureDebris, seedDebris, totalDebris } from './cleaningDebris.js';
+import { ensureDebris, totalDebris } from './cleaningDebris.js';
 import { ensureWash, exteriorWashScore, surfaceClean } from './washing.js';
 import {
   ARCHITECTURE_COMPONENTS,
@@ -89,6 +89,32 @@ const STARTER_DELIVERY = Object.freeze([
   CAMPAIGN_SKUS.chair,
   CAMPAIGN_SKUS.laptop,
   CAMPAIGN_SKUS.repair,
+]);
+
+// The generic debris scatterer is useful for unrestricted rooms, but the
+// clubhouse has a service-wing partition and permanent lounge/packing props.
+// Random points can consequently land inside a wall or under a collider. These
+// authored campaign spots keep the neglected-floor read across all three rooms
+// while leaving a valid player stance for the broom, pan, bag, and vacuum.
+const CAMPAIGN_DEBRIS_SPOTS = Object.freeze([
+  Object.freeze({ x: -7.6, z: 4.6, a: 0.26 }),
+  Object.freeze({ x: -5.2, z: 4.4, a: 0.18 }),
+  Object.freeze({ x: -4.5, z: 2.8, a: 0.22 }),
+  Object.freeze({ x: -1.2, z: 2.8, a: 0.31 }),
+  Object.freeze({ x: 1.3, z: 2.7, a: 0.17 }),
+  Object.freeze({ x: 3.6, z: 2.8, a: 0.24 }),
+  Object.freeze({ x: -8.1, z: 1.3, a: 0.21 }),
+  Object.freeze({ x: -4.8, z: 1.8, a: 0.16 }),
+  Object.freeze({ x: -3.7, z: 0.0, a: 0.27 }),
+  Object.freeze({ x: -0.4, z: 0.7, a: 0.19 }),
+  Object.freeze({ x: 1.8, z: -0.2, a: 0.25 }),
+  Object.freeze({ x: 3.2, z: -1.1, a: 0.14 }),
+  Object.freeze({ x: -7.4, z: -3.8, a: 0.23 }),
+  Object.freeze({ x: -4.4, z: -4.3, a: 0.20 }),
+  Object.freeze({ x: 6.65, z: 5.15, a: 0.18 }),
+  Object.freeze({ x: 7.15, z: 3.3, a: 0.24 }),
+  Object.freeze({ x: 8.2, z: -1.5, a: 0.28 }),
+  Object.freeze({ x: 6.8, z: -5.1, a: 0.20 }),
 ]);
 
 const clamp01 = (value) => Math.max(0, Math.min(1, Number(value) || 0));
@@ -222,7 +248,10 @@ function seedFreshCampaignWorld(state) {
 
   ensureDebris(state);
   if (state.shop.reno.debris.length === 0 && !state.shop.reno.debrisSeeded) {
-    seedDebris(state, 30, 18, 10.5, 20260718);
+    // Eighteen readable clumps sell long neglect without turning the first
+    // clubhouse visit into a room-by-room pixel hunt. The player still has to
+    // sweep, collect, and dispose of conserved debris; this only bounds toil.
+    state.shop.reno.debris.push(...CAMPAIGN_DEBRIS_SPOTS.map((spot) => ({ ...spot })));
     state.shop.reno.debrisSeeded = true;
   }
   ensureWash(state);
@@ -801,6 +830,18 @@ function objectiveList(state) {
     && finite(state.shop.reno.bag) <= 0.001;
   const repairDone = CAMPAIGN_REPAIR_JOBS.filter((job) => repairComplete(state, job.id)).length;
   const stock = readiness.stock;
+  const tools = campaign.cleaningToolsUsed || {};
+  const debrisTool = !tools.broom ? 'Push broom'
+    : !tools.dustpan ? 'Dustpan'
+      : !tools.trashbag ? 'Trash bag'
+        : finite(state.shop.reno.pan) > 0 ? 'Empty the dustpan at the disposal bin'
+          : finite(state.shop.reno.bag) > 0 ? 'Dispose of the filled trash bag'
+            : 'Vacuum for the last fine debris';
+  const floorTool = !tools.vacuum ? 'Shop vacuum'
+    : !tools.spray ? 'Cleaning spray'
+      : !tools.cloth ? 'Microfibre cloth over sprayed patches'
+        : !tools.mop ? 'Mop for the final hard-floor pass'
+          : 'Use the tool that matches the remaining patch';
   const entered = !!campaign.events.enteredClubhouse;
   const looked = !!campaign.events.lookedAround;
   const walked = !!campaign.events.walkedToClubhouse;
@@ -832,16 +873,16 @@ function objectiveList(state) {
       complete: debrisDone,
       progress: zones.looseDebris,
       blocked: entered ? null : 'The cleaning kit is staged inside.',
-      tool: 'Broom → dustpan or trash bag → disposal bin',
-      hint: 'The broom moves debris; the dustpan or vacuum collects it. Empty the pan and dispose of the bag.',
+      tool: debrisTool,
+      hint: 'The broom gathers loose debris. Collect some with the dustpan, bag the rest, then empty both at the stockroom disposal bin.',
       zone: 'sales floor',
     }),
     objective('lobby-clean', 'Deep-clean the lobby and entrance mat', {
       complete: zones.lobby >= 0.72,
       progress: zones.lobby / 0.72,
       blocked: entered ? null : 'Enter the clubhouse first.',
-      tool: zones.lobby < 0.35 ? 'Shop vacuum' : 'Spray + cloth, then mop',
-      hint: 'Use F to cycle the inherited cleaning kit. Different tools leave different feedback.',
+      tool: floorTool,
+      hint: 'Use F to cycle the inherited cleaning kit: vacuum dust, spray and wipe smears, then mop the hard floor and mat area.',
       zone: 'lobby',
     }),
     objective('windows-clean', 'Wipe the key clubhouse windows', {

@@ -3363,6 +3363,55 @@ export function makeClubhouse(ctx) {
     return d > 0.05 ? `Vacuum — this patch: ${Math.round(d * 100)}% dirty · hold LMB` : 'Vacuum — this patch is clean';
   }
 
+  function emptyDustpanIntoBag() {
+    const had = state.shop.reno.pan || 0;
+    state.shop.reno.pan = 0;
+    state.shop.reno.bag = Math.round(((state.shop.reno.bag || 0) + had) * 1000) / 1000;
+    if (had > 0) tutorialFlag(state, 'panEmptied');
+    return had;
+  }
+
+  function disposeCleaningBag() {
+    const had = state.shop.reno.bag || 0;
+    state.shop.reno.bag = 0;
+    if (had > 0) tutorialFlag(state, 'trashBagDisposed');
+    return had;
+  }
+
+  // Asset 80 marks the cleaning-bay disposal point. Debris loads have always
+  // been conserved, but they previously had no normal-control world verb for
+  // returning to zero. Two explicit E presses preserve the physical sequence:
+  // empty the pan into the bag, then tie and discard the bag.
+  {
+    const disposalWorld = L2W(7.70, 1.20);
+    addProp({
+      x: disposalWorld.x,
+      z: disposalWorld.z,
+      r: 1.55,
+      focusBias: 0.12,
+      label: () => {
+        const pan = state.shop.reno.pan || 0;
+        const bag = state.shop.reno.bag || 0;
+        if (pan > 0) return 'Cleaning disposal — [E] empty the dustpan into the trash bag';
+        if (bag > 0) return 'Cleaning disposal — [E] tie and discard the filled trash bag';
+        return null;
+      },
+      action: () => {
+        const pan = emptyDustpanIntoBag();
+        if (pan > 0) {
+          if (hooks.sfx) hooks.sfx('disposal');
+          if (hooks.toast) hooks.toast('Dustpan emptied into the trash bag. Tie it off here when the floor is clear.');
+          return;
+        }
+        const bag = disposeCleaningBag();
+        if (bag > 0) {
+          if (hooks.sfx) hooks.sfx('disposal');
+          if (hooks.toast) hooks.toast('Filled trash bag disposed — the cleaning bay is clear.');
+        }
+      },
+    });
+  }
+
   // --- physical deliveries: boxes on the pad, in your arms, in the stockroom ------------
   //
   // The whole retail loop is physical here: a labelled carton with tape you run a cutter down, two
@@ -7508,17 +7557,8 @@ export function makeClubhouse(ctx) {
     debrisCount: () => debrisState(state).length,
     panLoad: () => state.shop.reno.pan || 0,
     bagLoad: () => state.shop.reno.bag || 0,
-    emptyPan: () => {
-      const had = state.shop.reno.pan || 0;
-      state.shop.reno.pan = 0;
-      state.shop.reno.bag = Math.round(((state.shop.reno.bag || 0) + had) * 1000) / 1000;
-      return had;
-    },
-    disposeBag: () => {
-      const had = state.shop.reno.bag || 0;
-      state.shop.reno.bag = 0;
-      return had;
-    },
+    emptyPan: emptyDustpanIntoBag,
+    disposeBag: disposeCleaningBag,
     customers, doors, // QA access
     debugSpawn: spawnCustomer, // QA: force a walk-in
     setOrganicWalkins: (on) => { organicWalkins = !!on; }, // QA: silence random walk-ins for a scripted run

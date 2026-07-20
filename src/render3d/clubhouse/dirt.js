@@ -325,6 +325,11 @@ export function buildDirt(B, windowDefs) {
     const wp = L2W(local.x, local.z);
     addProp({
       x: wp.x, z: wp.z, r: 1.7,
+      // The north pane shares its footprint with the campaign's window-frame
+      // repair marker. Cleaning the glass is that repair's prerequisite, so
+      // dirty glass must win a straight-on crosshair tie or progression
+      // deadlocks behind the blocked marker.
+      focusBias: 2.0,
       label: () => {
         const v = state.shop?.reno?.windows?.[i] || 0;
         if (v <= 0) return null; // clean glass: no prompt

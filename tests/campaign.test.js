@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { newGame, serialize, deserialize, dailyTick } from '../src/sim/state.js';
 import { placeOrder, cancelOrder } from '../src/sim/shop.js';
 import { setArchitectureComponent } from '../src/sim/clubhouseRestoration.js';
-import { restoreFixture } from '../src/sim/layout.js';
+import { placedFixtures, restoreFixture } from '../src/sim/layout.js';
+import { fixtureRect } from '../src/data/shopLayout.js';
 import {
   CAMPAIGN_FACILITIES,
   CAMPAIGN_REPAIR_JOBS,
@@ -71,7 +72,24 @@ test('fresh campaign starts closed, empty, neglected, and with physical inherite
   assert.deepEqual(state.shop.orders.map((order) => order.skuId).sort(),
     ['chair1', 'desk1', 'laptop1', 'repairkit1']);
   assert.ok(state.shop.orders.every((order) => order.inherited && order.cost === 0));
-  assert.ok(state.shop.reno.debris.length > 0, 'loose debris is real save state before the renderer exists');
+  assert.equal(state.shop.reno.debris.length, 18,
+    'loose debris is real but bounded first-session work before the renderer exists');
+  assert.ok(state.shop.reno.debris.every((pile) => (
+    pile.x <= 4.8
+      || (pile.x >= 6.4 && (pile.z >= 2.7 || pile.z <= 1.2))
+  )), 'campaign debris always leaves a tool stance clear of the service-wing partitions');
+  assert.ok(state.shop.reno.debris.some((pile) => pile.x >= 6.4 && pile.z >= 2.7),
+    'the office has physical cleanup work');
+  assert.ok(state.shop.reno.debris.some((pile) => pile.x >= 6.4 && pile.z <= 1.2),
+    'the stockroom has physical cleanup work');
+  for (const pile of state.shop.reno.debris) {
+    for (const fixture of placedFixtures(state)) {
+      const rect = fixtureRect(fixture);
+      const clear = pile.x < rect.minX - 0.15 || pile.x > rect.maxX + 0.15
+        || pile.z < rect.minZ - 0.15 || pile.z > rect.maxZ + 0.15;
+      assert.ok(clear, `debris at ${pile.x},${pile.z} clears the ${fixture.id} footprint`);
+    }
+  }
   assert.equal(campaignView(state).currentTask.id, 'survey');
   assert.equal(openingReadiness(state).ready, false);
 });
@@ -242,4 +260,3 @@ test('a closed campaign cannot earn abstract shop revenue at midnight', () => {
   assert.equal(state.ledger.yesterday.revenue.shopSales, 0);
   assert.equal(state.ledger.yesterday.revenue.greenFees, 0);
 });
-

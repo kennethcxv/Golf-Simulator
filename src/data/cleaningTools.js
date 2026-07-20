@@ -99,7 +99,7 @@ export const CLEANING_TOOLS = {
     belt: true,
     equipToast: 'hold the mouse button and work the dirty patches.',
     reach: 1.9,
-    radius: 0.34,
+    radius: 0.56,
     strength: 1.0,
     dirt: [DIRT.DUST, DIRT.DEBRIS],
     indoorOnly: true,
@@ -187,7 +187,7 @@ export const CLEANING_TOOLS = {
     belt: true,
     equipToast: 'sweep dirt and leaves into a pile, then collect it with the dustpan.',
     reach: 2.4,
-    radius: 0.46,
+    radius: 0.66,
     strength: 1.0,
     dirt: [DIRT.DEBRIS],
     place: [0.28, -0.30, -0.34],
@@ -230,7 +230,7 @@ export const CLEANING_TOOLS = {
     // just spent ten seconds sweeping a pile together; being made to hunt for it by the yard with
     // the pan is the least satisfying thing this loop could possibly do. At 0.42 the pan missed a
     // pile the broom had pushed one stroke downrange, which is exactly that failure.
-    radius: 0.62,
+    radius: 0.76,
     strength: 1.0,
     dirt: [DIRT.DEBRIS],
     place: [0.30, -0.30, -0.34],
@@ -381,7 +381,7 @@ export const CLEANING_TOOLS = {
     belt: true,
     equipToast: 'collect the litter, then take it to the dumpster.',
     reach: 1.8,
-    radius: 0.55,
+    radius: 0.78,
     strength: 1.0,
     dirt: [DIRT.DEBRIS],
     fills: true,

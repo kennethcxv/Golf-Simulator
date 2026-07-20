@@ -207,6 +207,8 @@ export function tutorialFlag(state, flag) {
       laptopOpened: 'laptopOpened',
       savedGame: 'savedGame',
       windowWiped: 'windowWiped',
+      panEmptied: 'panEmptied',
+      trashBagDisposed: 'trashBagDisposed',
     }[flag];
     if (campaignEvent) recordCampaignEvent(state, campaignEvent);
   }
