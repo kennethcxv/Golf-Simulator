@@ -18,6 +18,10 @@ import { recoverCheckout } from './checkout.js';
 import { ensureWash } from './washing.js';
 import { ensureProperty, tickProperty } from './property.js';
 import { initReservations, ensureReservations, reservationsDailyTick } from './reservations.js';
+import {
+  initCustomerSimulation, ensureCustomerSimulation, planCustomerArrivals,
+  recoverCustomerSimulation,
+} from './customerSimulation.js';
 import { initTractor, ensureTractor } from './tractor.js';
 import { bunkerDailyMess } from './bunkers.js';
 import { initCourseProps, ensureCourseProps } from './props.js';
@@ -29,7 +33,7 @@ import { BALANCE } from './balance.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 // opts lets the GOLF EMPIRE layer boot this same fresh-club wiring onto a
 // marketplace property: an injected course grid and club name, nothing else.
@@ -59,6 +63,8 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   ensureWash(state); // a fixer-upper arrives with a filthy exterior
   ensureProperty(state); // ...and a landlord
   initReservations(state);
+  initCustomerSimulation(state);
+  planCustomerArrivals(state, calendarOf(state.clock.minutes).dayAbs);
   initTractor(state);
   initCourseProps(state);
   initLedger(state);
@@ -97,6 +103,7 @@ export function dailyTick(state) {
   if (state.club) dailyMembershipTick(state);
   if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.reservations) reservationsDailyTick(state, calendarOf(state.clock.minutes).dayAbs);
+  if (state.shop) planCustomerArrivals(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.turf) bunkerDailyMess(state); // yesterday's traffic footprints the sand
   if (state.progression) {
     prestigeDailyTick(state);
@@ -219,7 +226,7 @@ export function deserialize(json) {
     structures: raw.course.structures || [],
   };
   const state = {
-    version: raw.version,
+    version: SAVE_VERSION,
     mode: raw.mode,
     seed: raw.seed,
     rngState: raw.rngState,
@@ -267,14 +274,22 @@ export function deserialize(json) {
   else initClub(state);
   if (raw.ledger) state.ledger = raw.ledger;
   else initLedger(state);
+  const hadCustomerSimulation = !!raw.shop?.customerSimulation;
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
-  recoverCheckout(state); // a save taken mid-sale: the shoppers are gone, so put their goods back
+  if (hadCustomerSimulation) {
+    ensureCustomerSimulation(state);
+    recoverCustomerSimulation(state);
+  } else {
+    recoverCheckout(state); // legacy saves had no persistent customers, so every held unit returns
+    initCustomerSimulation(state);
+  }
   ensureWash(state); // ...and a filthy exterior waiting for the pressure washer
   ensureProperty(state); // pre-rent saves gain a schedule rather than a free ride
   if (raw.reservations) state.reservations = raw.reservations;
   ensureReservations(state); // pre-booking saves gain an empty tee sheet
+  planCustomerArrivals(state, calendarOf(state.clock.minutes).dayAbs);
   if (raw.tractor) state.tractor = raw.tractor;
   ensureTractor(state, { legacyRepaired: true }); // old saves keep their working tractor
   if (raw.props) state.props = raw.props;

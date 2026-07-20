@@ -9,6 +9,7 @@
 
 import { calendarOf } from './time.js';
 import { addRevenue } from './economy.js';
+import { cancelReservationCustomer, scheduleReservationCustomer } from './customerSimulation.js';
 
 export const TEE_SHEET = {
   openMin: 7 * 60,      // first tee time 7:00
@@ -68,6 +69,7 @@ export function bookSlot(state, dayAbs, minute, name) {
     status: 'booked', // booked → played | noShow | cancelled
   };
   book.booked.push(res);
+  scheduleReservationCustomer(state, res);
   return { ok: true, res };
 }
 
@@ -75,6 +77,7 @@ export function cancelReservation(state, id) {
   const res = reservationById(state, id);
   if (!res || res.status !== 'booked') return { ok: false };
   res.status = 'cancelled';
+  cancelReservationCustomer(state, id);
   return { ok: true };
 }
 
