@@ -1528,7 +1528,12 @@ function frame(ts) {
     if (app.state.shop) {
       for (const ev of tickDeliveries(app.state, app.state.clock.minutes)) {
         const sku = skuById(ev.order.skuId);
-        const name = sku ? sku.name : ev.order.skuId;
+        const lineNames = (ev.order.lines || [])
+          .map((line) => skuById(line.skuId)?.name || line.skuId)
+          .filter(Boolean);
+        const name = lineNames.length
+          ? lineNames.slice(0, 2).join(' + ')
+          : (sku ? sku.name : ev.order.skuId);
         const clock12 = (m) => {
           const mm = ((m % 1440) + 1440) % 1440;
           const h = Math.floor(mm / 60);
@@ -1540,8 +1545,13 @@ function frame(ts) {
           toast(`📦 ${name} ships today — window ${clock12(ev.order.window.open)}–${clock12(ev.order.window.close)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`);
         } else if (ev.kind === 'soon') {
           toast(`📦 The ${ev.order.supplier || name} van is close — under an hour out.`);
-        } else if (ev.kind === 'arrived') {
-          toast(`📦 Delivery! ${name} ×${ev.order.qty} — ${boxes} on the receiving pad.`);
+        } else if (ev.kind === 'arrived' || ev.kind === 'partial-arrival') {
+          const zone = ev.usedFallback ? 'in the safe stockroom receiving zone' : 'on the receiving pad';
+          const prefix = ev.kind === 'partial-arrival' ? 'Partial delivery' : 'Delivery';
+          const remaining = ev.kind === 'partial-arrival'
+            ? ` ${ev.order.remainingUnreceivedQuantity} units remain on the vehicle.`
+            : '';
+          toast(`📦 ${prefix}! ${name} ×${ev.order.qty} — ${ev.boxes.length} new ${ev.boxes.length === 1 ? 'box' : 'boxes'} ${zone}.${remaining}`);
           if (audio.ready && audio.truck) audio.truck();
         } else if (ev.kind === 'blocked') {
           // The receiving area is blocked. The van did not dump the boxes anyway, and it did not

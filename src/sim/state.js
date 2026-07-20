@@ -15,6 +15,7 @@ import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
 import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue, tickDeliveries, ensureShopReno } from './shop.js';
 import { recoverCheckout } from './checkout.js';
+import { ensureInventoryLifecycle } from './inventoryLifecycle.js';
 import { ensureWash } from './washing.js';
 import { ensureProperty, tickProperty } from './property.js';
 import { initReservations, ensureReservations, reservationsDailyTick } from './reservations.js';
@@ -29,7 +30,7 @@ import { BALANCE } from './balance.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 // opts lets the GOLF EMPIRE layer boot this same fresh-club wiring onto a
 // marketplace property: an injected course grid and club name, nothing else.
@@ -270,6 +271,7 @@ export function deserialize(json) {
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
+  ensureInventoryLifecycle(state); // v4: capture/migrate physical lots before checkout recovery moves them
   recoverCheckout(state); // a save taken mid-sale: the shoppers are gone, so put their goods back
   ensureWash(state); // ...and a filthy exterior waiting for the pressure washer
   ensureProperty(state); // pre-rent saves gain a schedule rather than a free ride
@@ -286,5 +288,6 @@ export function deserialize(json) {
   ensureTutorial(state); // older saves re-derive their spot in the chaptered arc
   state.debtDays = raw.debtDays || 0;
   state.failed = raw.failed || null;
+  state.version = SAVE_VERSION;
   return state;
 }

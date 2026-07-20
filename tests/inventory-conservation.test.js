@@ -34,7 +34,9 @@ function unitsOf(state, skuId, inHand = {}) {
     .reduce((n, b) => n + (b.qty || 0), 0);
   const onOrder = (state.shop.orders || [])
     .filter((o) => o.skuId === skuId)
-    .reduce((n, o) => n + (o.qty || 0), 0);
+    .reduce((n, o) => n + (Number.isSafeInteger(o.remainingUnreceivedQuantity)
+      ? o.remainingUnreceivedQuantity
+      : (o.qty || 0)), 0);
   const mine = carriedGoods(state);
   const inMyArms = mine && mine.skuId === skuId ? mine.qty : 0;
   return inv.shelf + inv.back + inBoxes + onOrder + inMyArms + (inHand[skuId] || 0);
