@@ -200,7 +200,10 @@ test('the drawer is under the counter and opens toward the staff, not the custom
   const d = REG.drawer;
   assert.ok(d.y < COUNTER_TOP, 'it is under the top, not on it');
   assert.ok(d.x > topMinX && d.x < topMaxX, 'and within the carcass');
-  assert.ok(d.travel > 0.25, 'it actually opens far enough to reach into');
+  assert.ok(
+    d.travel >= d.d + 0.04,
+    'it opens a drawer-depth plus enough clearance to expose the rear coin cups',
+  );
   const openFace = counterBack + d.travel;
   assert.ok(openFace > counterBack, 'it slides out to the staff side');
   assert.ok(openFace < backcounterFront, 'and does not ram the back counter');

@@ -78,7 +78,7 @@ const preferences = makePreferences();
 applyDocumentPreferences(preferences.values);
 
 const app = {
-  screen: 'menu', // 'menu' | 'game'
+  screen: 'menu', // 'menu' | 'market' | 'game'
   view: 'course', // one continuous world — the shop is a building you walk into
   courseMode: 'walk', // 'walk' (first-person, default) | 'overview' (management rig) | 'editor' (course editor)
   empire: null, // the whole game: wallet, market, holdings
@@ -172,6 +172,8 @@ function enterWalk(spawn) {
   if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body
     && document.activeElement.closest('#ui')) document.activeElement.blur();
   walkOverlay.style.display = '';
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = 'none';
   const hint = document.querySelector('.hint-bar');
   if (hint) hint.style.display = 'none';
   inspectPanel.hide();
@@ -187,6 +189,8 @@ function exitWalk() {
   if (app.scene3d && app.scene3d.post && app.scene3d.post.gtao) app.scene3d.post.gtao.radius = 1.5; // management-camera tuning
   if (app.scene3d) app.scene3d.walk.exit();
   walkOverlay.style.display = 'none';
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = '';
   if (app.view === 'course') {
     const hint = document.querySelector('.hint-bar');
     if (hint) hint.style.display = '';
@@ -376,7 +380,7 @@ function exitLaptop(silent) {
   app.scene3d.walk.clearFocus();
   setCameraLens(walkFov(), WALK_NEAR); // hand the player's lens back before standing up
   const vt = document.querySelector('.view-toggle');
-  if (vt) vt.style.display = '';
+  if (vt) vt.style.display = 'none'; // returning to first-person, not the overview map
   if (!silent) {
     walkOverlay.style.display = '';
     if (audio.ready) audio.uiTick();
@@ -1160,7 +1164,19 @@ const handlers = {
     empirePanel.setVisible(next);
   },
   openMarket() {
+    if (app.screen === 'menu') {
+      app.screen = 'market';
+      menu.setVisible(false);
+    }
     openMarketplace(app, handlers);
+  },
+  marketClosed() {
+    // A fresh empire has no game scene underneath the market. Return to the
+    // deliberate menu surface instead of exposing a dimmed menu through it.
+    if (app.screen === 'market') {
+      app.screen = 'menu';
+      menu.setVisible(true);
+    }
   },
   // Returns { closeMarket: true } when the purchase boots a club (first buy).
   buyFromMarket(propertyId) {
@@ -1212,7 +1228,7 @@ const handlers = {
         // sold the whole portfolio — back to the market with a full wallet
         autosave();
         exitToMenu();
-        openMarketplace(app, handlers);
+        handlers.openMarket();
         return;
       }
     } else {
@@ -1259,6 +1275,7 @@ function applySettings() {
     reducedMotion: values.accessibility.reducedMotion,
   });
 }
+applySettings();
 
 preferences.subscribe(() => applySettings());
 

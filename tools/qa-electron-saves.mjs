@@ -1,62 +1,69 @@
-// FAIRWAY STATE — Electron native-save-bridge QA via CDP attach.
-// Zero-dep (Node >= 22: built-in fetch + WebSocket). Drives the real app:
-// new game -> native save round-trip -> on-disk file proof -> reload ->
-// Continue -> office-menu slot save -> delete/cleanup (leaves no saves behind).
-// Collects console errors and CSP violations for the whole run.
+// GOLF EMPIRE — Electron 43 native-runtime and persistence QA via CDP.
 //
-// Usage:
-//   npx electron . --remote-debugging-port=9224     (or npm start -- --dev for 9223*)
-//   node tools/qa-electron-saves.mjs [port]
-// *npm eats "--dev" on some npm versions ("config dev" warning) — the explicit
-//  Chromium switch is the reliable route; pass the port you chose as argv[2].
+// Launch the app with an isolated QA profile, then attach this script:
+//   electron . --remote-debugging-port=9226 --user-data-dir=<isolated-dir>
+//   node tools/qa-electron-saves.mjs 9226 <isolated-dir> <screenshot.png>
+
+// The route proves the sandboxed preload bridge, allowlisted/size-limited native
+// persistence, on-disk files, reload/Continue, WebGL, pointer lock, navigation
+// policy, and cleanup without reading or changing the player's real profile.
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 
-const PORT = process.argv[2] || '9224';
-// Electron derives userData from productName ("FAIRWAY STATE"), not package name.
-const saveDir = path.join(os.homedir(), 'AppData', 'Roaming', 'FAIRWAY STATE', 'saves');
+const PORT = process.argv[2] || '9226';
+const userDataDir = path.resolve(process.argv[3] || 'qa/electron-release/user-data');
+const screenshotPath = path.resolve(process.argv[4] || 'qa/electron-release/after.png');
+const saveDir = path.join(userDataDir, 'saves');
 
-const list = await (await fetch(`http://localhost:${PORT}/json/list`)).json();
-const target = list.find((p) => p.type === 'page' && /Golf\/index\.html/.test(p.url));
-if (!target) throw new Error(`FAIRWAY STATE page target not found on ${PORT}`);
+const targets = await (await fetch(`http://localhost:${PORT}/json/list`)).json();
+const target = targets.find((item) => item.type === 'page' && /^file:.*\/index\.html$/i.test(item.url));
+if (!target) throw new Error(`GOLF EMPIRE page target not found on ${PORT}`);
 
 const ws = new WebSocket(target.webSocketDebuggerUrl);
 let seq = 0;
 const pending = new Map();
 const errors = [];
 
-ws.onmessage = (ev) => {
-  const m = JSON.parse(ev.data);
-  if (m.id && pending.has(m.id)) {
-    const p = pending.get(m.id);
-    pending.delete(m.id);
-    if (m.error) p.reject(new Error(m.error.message));
-    else p.resolve(m.result);
-  } else if (m.method === 'Log.entryAdded') {
-    const e = m.params.entry;
-    if (e.level === 'error' || /Content Security Policy/i.test(e.text)) {
-      errors.push(`[log:${e.level}] ${e.text}`);
+ws.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  if (message.id && pending.has(message.id)) {
+    const request = pending.get(message.id);
+    pending.delete(message.id);
+    if (message.error) request.reject(new Error(message.error.message));
+    else request.resolve(message.result);
+  } else if (message.method === 'Log.entryAdded') {
+    const entry = message.params.entry;
+    if (entry.level === 'error' || /Content Security Policy/i.test(entry.text)) {
+      errors.push(`[log:${entry.level}] ${entry.text}`);
     }
-  } else if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') {
-    errors.push('[console.error] ' + m.params.args.map((a) => a.value ?? a.description ?? '').join(' '));
-  } else if (m.method === 'Runtime.exceptionThrown') {
-    errors.push('[exception] ' + (m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text));
+  } else if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') {
+    errors.push('[console.error] ' + message.params.args.map((arg) => arg.value ?? arg.description ?? '').join(' '));
+  } else if (message.method === 'Runtime.exceptionThrown') {
+    errors.push('[exception] ' + (message.params.exceptionDetails.exception?.description || message.params.exceptionDetails.text));
   }
 };
-await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
 
-const send = (method, params = {}) =>
-  new Promise((resolve, reject) => {
-    const id = ++seq;
-    pending.set(id, { resolve, reject });
-    ws.send(JSON.stringify({ id, method, params }));
-  });
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const send = (method, params = {}) => new Promise((resolve, reject) => {
+  const id = ++seq;
+  pending.set(id, { resolve, reject });
+  ws.send(JSON.stringify({ id, method, params }));
+});
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function evalJS(expression) {
-  const r = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
-  if (r.exceptionDetails) throw new Error('page eval failed: ' + JSON.stringify(r.exceptionDetails).slice(0, 500));
-  return r.result.value;
+  const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+  if (result.exceptionDetails) {
+    throw new Error('page eval failed: ' + JSON.stringify(result.exceptionDetails).slice(0, 800));
+  }
+  return result.result.value;
+}
+async function waitFor(expression, timeoutMs = 40_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await evalJS(`!!(${expression})`)) return;
+    await sleep(200);
+  }
+  throw new Error(`Timed out waiting for: ${expression}`);
 }
 
 await send('Runtime.enable');
@@ -64,92 +71,122 @@ await send('Log.enable');
 await send('Page.enable');
 
 const result = {};
-const check = (name, ok) => {
-  result[name] = ok;
+const check = (name, ok, detail = null) => {
+  result[name] = { ok: !!ok, detail };
   if (!ok) process.exitCode = 1;
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail == null ? '' : ` — ${detail}`}`);
 };
 
-// 1. bridge + menu
 const bridge = await evalJS(`({
   hasNative: !!window.fairwayNative,
   api: Object.keys(window.fairwayNative || {}).sort().join(','),
-  menuVisible: !!document.querySelector('.menu-screen') && document.querySelector('.menu-screen').style.display !== 'none',
+  menuVisible: !!document.querySelector('.menu-screen') && getComputedStyle(document.querySelector('.menu-screen')).display !== 'none',
+  userAgent: navigator.userAgent,
+  nodeLeaked: typeof process !== 'undefined' || typeof require !== 'undefined',
 })`);
-check('preload bridge exposed (del,list,load,save)', bridge.hasNative && bridge.api === 'del,list,load,save');
+check('Electron 43 runtime', /Electron\/43\.1\.1/.test(bridge.userAgent), bridge.userAgent);
+check('sandboxed preload bridge exposed', bridge.hasNative && bridge.api === 'del,list,load,save');
+check('Node globals absent from renderer', !bridge.nodeLeaked);
 check('menu visible at boot', bridge.menuVisible);
 
-// 2. new game boots into the walkable shop (v5 home base)
-await evalJS(`[...document.querySelectorAll('button')].find(b => b.textContent.includes('New Club — Realistic')).click()`);
-await sleep(3500);
-const boot = await evalJS(`({ view: window.__fw.view, shopActive: !!window.__fw.shopScene })`);
-check('new game boots into shop3d', boot.view === 'shop3d' && boot.shopActive);
-
-// 3. native save round-trip via the app's own persistence facade
-const rt = await evalJS(`(async () => {
-  const { saveData, loadData } = await import('./src/core/storage.js');
-  const { snapshot } = await import('./src/sim/state.js');
-  const snap = snapshot(window.__fw.state);
-  const localBefore = localStorage.getItem('fairwaystate:slot1');
-  await saveData('slot1', snap);
-  await saveData('autosave', snap);
-  const back = await loadData('slot1');
+const roundTrip = await evalJS(`(async () => {
+  const E = await import('./src/sim/empire.js');
+  const S = await import('./src/core/storage.js');
+  const empire = E.newEmpire('relaxed', 424242);
+  empire.cash = 10000000;
+  const first = empire.market.find((listing) => listing.id === 'willow-creek') || empire.market[0];
+  const bought = E.buyProperty(empire, first.id);
+  if (!bought.ok) throw new Error(bought.reason);
+  bought.state.tutorial.complete = true;
+  bought.state.tutorial.hidden = true;
+  const snap = E.empireSnapshot(empire);
+  const localBefore = localStorage.getItem('golfempire:slot1');
+  await S.saveData('slot1', snap);
+  await S.saveData('slot1-meta', {
+    name: bought.state.clubName,
+    when: 'Y1 · Spring · Day 1 · 6:00 AM',
+    cash: empire.cash,
+    cond: Math.round(bought.state.shop.reno.condition),
+    savedAt: Date.now(),
+  });
+  await S.saveData('autosave', snap);
+  const back = await S.loadData('slot1');
+  let invalidRejected = false;
+  try { await window.fairwayNative.save('../outside', {}); } catch (_) { invalidRejected = true; }
   return {
     match: JSON.stringify(back) === JSON.stringify(snap),
-    clockMinutes: snap.clock.minutes,
-    usedLocalStorage: localStorage.getItem('fairwaystate:slot1') !== localBefore,
-    list: (await window.fairwayNative.list()).sort().join(','),
+    usedLocalStorage: localStorage.getItem('golfempire:slot1') !== localBefore,
+    list: (await S.listData()).sort().join(','),
+    invalidRejected,
   };
 })()`);
-check('save/load round-trip byte-identical', rt.match);
-check('native path used (not localStorage)', !rt.usedLocalStorage);
-check('native list() sees both keys', rt.list === 'autosave,slot1');
+check('native save/load round-trip byte-identical', roundTrip.match);
+check('native path used instead of localStorage', !roundTrip.usedLocalStorage);
+check('native list sees allowlisted files', roundTrip.list === 'autosave,slot1,slot1-meta', roundTrip.list);
+check('invalid native save key rejected', roundTrip.invalidRejected);
 
-// 4. saves are REAL FILES in userData
 const slotFile = path.join(saveDir, 'slot1.json');
-const onDisk = fs.existsSync(slotFile) ? JSON.parse(fs.readFileSync(slotFile, 'utf8')) : null;
-check('slot1.json exists on disk in userData', !!onDisk);
-check('on-disk clock matches saved state', !!onDisk && onDisk.clock.minutes === rt.clockMinutes);
+check('slot1 exists in isolated userData', fs.existsSync(slotFile), slotFile);
+check('native slot is valid JSON', !!JSON.parse(fs.readFileSync(slotFile, 'utf8')));
 
-// 5. reload -> Continue restores from native autosave into the shop
-await send('Page.reload', {});
-await sleep(3500);
-const cont = await evalJS(`(() => {
-  const b = [...document.querySelectorAll('button')].find(x => x.textContent === 'Continue');
-  return { found: !!b, disabled: b ? b.disabled : null };
-})()`);
-check('Continue enabled after reload', cont.found && cont.disabled === false);
-await evalJS(`[...document.querySelectorAll('button')].find(x => x.textContent === 'Continue').click()`);
-await sleep(3500);
-const cboot = await evalJS(`({ view: window.__fw.view, shopActive: !!window.__fw.shopScene })`);
-check('Continue boots into shop3d', cboot.view === 'shop3d' && cboot.shopActive);
+await send('Page.reload');
+await waitFor(`[...document.querySelectorAll('button')].some((button) => button.textContent === 'Continue' && !button.disabled)`);
+await evalJS(`[...document.querySelectorAll('button')].find((button) => button.textContent === 'Continue').click()`);
+await waitFor(`window.__fw?.scene3d?.clubhouse?.()`);
+await waitFor(`!document.querySelector('.load-veil') || getComputedStyle(document.querySelector('.load-veil')).opacity === '0'`);
+await waitFor(`window.__fw?.scene3d?.walk?.isActive()`);
 
-// 6. office menu save (real UI path), then cleanup — leave no QA saves behind
-await evalJS(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
-await sleep(400);
-const office = await evalJS(`(() => {
-  const btns = [...document.querySelectorAll('button')];
-  const primary = btns.find(b => /Back to the (shop|course)/.test(b.textContent));
-  const save2 = btns.find(b => b.textContent === 'Save slot 2');
-  if (save2) save2.click();
-  return { primaryLabel: primary ? primary.textContent : null, clickedSave2: !!save2 };
+const live = await evalJS(`({
+  view: window.__fw.view,
+  contextLost: window.__fw.scene3d.renderer.getContext().isContextLost(),
+  nativeStillPresent: !!window.fairwayNative,
+  opened: window.open('https://example.com/') !== null,
+})`);
+check('Continue restores the playable unified 3D scene', live.view === 'course', live.view);
+check('WebGL context is healthy', !live.contextLost);
+check('preload bridge survives reload', live.nativeStillPresent);
+check('new windows are denied', !live.opened);
+
+await send('Page.bringToFront');
+await evalJS(`window.focus()`);
+const canvasPoint = await evalJS(`(() => {
+  const rect = document.querySelector('#game').getBoundingClientRect();
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 })()`);
-check('office menu opens in shop with context label', office.primaryLabel === 'Back to the shop');
-await sleep(800);
-check('office-menu Save slot 2 lands on disk', fs.existsSync(path.join(saveDir, 'slot2.json')));
+let pointerLocked = false;
+for (let attempt = 0; attempt < 3 && !pointerLocked; attempt++) {
+  await send('Input.dispatchMouseEvent', {
+    type: 'mousePressed', x: canvasPoint.x, y: canvasPoint.y,
+    button: 'left', clickCount: 1,
+  });
+  await send('Input.dispatchMouseEvent', {
+    type: 'mouseReleased', x: canvasPoint.x, y: canvasPoint.y,
+    button: 'left', clickCount: 1,
+  });
+  await sleep(500);
+  pointerLocked = await evalJS(`document.pointerLockElement === document.querySelector('#game')`);
+}
+check('first-person pointer lock works in Electron', pointerLocked);
+await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
+await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' });
+
+fs.mkdirSync(path.dirname(screenshotPath), { recursive: true });
+const screenshot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, 'base64'));
+check('Electron gameplay screenshot captured', fs.statSync(screenshotPath).size > 100_000, screenshotPath);
 
 const clean = await evalJS(`(async () => {
-  const { deleteData, listData, loadData } = await import('./src/core/storage.js');
-  await deleteData('slot1'); await deleteData('slot2'); await deleteData('autosave');
-  return { loadsNull: (await loadData('slot1')) === null, remaining: (await listData()).join(',') };
+  const S = await import('./src/core/storage.js');
+  for (const key of ['slot1', 'slot1-meta', 'autosave']) await S.deleteData(key);
+  return { slot: await S.loadData('slot1'), remaining: (await S.listData()).join(',') };
 })()`);
-const diskAfter = fs.existsSync(saveDir) ? fs.readdirSync(saveDir) : [];
-check('delete round-trip (load -> null, list empty)', clean.loadsNull && clean.remaining === '');
-check('no QA save files left on disk', diskAfter.length === 0);
+check('native delete round-trip', clean.slot === null && clean.remaining === '');
+check('isolated QA save directory is empty', fs.readdirSync(saveDir).length === 0);
+check('zero console errors or CSP violations', errors.length === 0, errors.join('\n'));
 
-check('zero console errors / CSP violations', errors.length === 0);
-if (errors.length) console.log(errors.join('\n'));
-
+const output = { ok: !process.exitCode, port: PORT, userDataDir, screenshotPath, checks: result, errors };
+const outputPath = path.join(path.dirname(screenshotPath), 'result.json');
+fs.writeFileSync(outputPath, JSON.stringify(output, null, 2) + '\n');
 console.log(process.exitCode ? '\nRESULT: FAIL' : '\nRESULT: ALL PASS');
 ws.close();
 process.exit(process.exitCode || 0);

@@ -116,6 +116,15 @@
 
 * { box-sizing: border-box; }
 
+html[data-reduced-motion="true"] *,
+html[data-reduced-motion="true"] *::before,
+html[data-reduced-motion="true"] *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
 html, body {
   margin: 0;
   padding: 0;
@@ -124,7 +133,7 @@ html, body {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   user-select: none;
 }
 
@@ -176,7 +185,7 @@ canvas#game {
 .load-veil-card { text-align: center; width: min(420px, 80vw); }
 
 .load-veil-logo {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-brand);
   letter-spacing: 0.35em;
   font-size: 22px;
   color: #d8e2ce;
@@ -340,7 +349,7 @@ select:focus-visible,
 .dock-icon { width: 22px; text-align: center; }
 .dock-label { flex: 1; font-weight: 600; }
 .dock-key {
-  font: 600 0.72rem ui-monospace, monospace;
+  font: 600 0.72rem var(--font-data);
   color: var(--text-dim);
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -1708,7 +1717,7 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
 }
 
 .pause-club {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-brand);
   font-size: 1.25rem;
   color: #ede7d6;
 }
@@ -1854,7 +1863,7 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
   border-radius: 6px;
   background: #232a26;
   color: #e8ebdd;
-  font: 600 0.76rem/1.5 Consolas, "Segoe UI Mono", monospace;
+  font: 600 0.76rem/1.5 var(--font-data);
 }
 
 .pause-wide {
@@ -1927,8 +1936,8 @@ body.register-mode .hud-min { display: none !important; }
    Hide it while the register is live so the checkout composition reads clean. */
 body.register-mode .view-toggle { display: none !important; }
 
-/* the till's control hint — the walk prompt is hidden behind the counter, so this is
-   the only thing telling the player which keys the register answers to */
+/* A compact transaction director. It stays above the scene, never across the drawer,
+   card, receipt, or carrier, and only shows controls legal in the current stage. */
 .reg-hint {
   position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
   max-width: min(760px, calc(100vw - 36px));

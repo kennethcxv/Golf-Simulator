@@ -1,0 +1,1515 @@
+{
+  "configuration": {
+    "browser": "Google Chrome via Playwright",
+    "viewport": "1600x900",
+    "deviceScaleFactor": 1,
+    "quality": "runtime default",
+    "fixedTime": "14:00",
+    "fixture": "relaxed seed 424242, two-item card customer, fully stocked sale inventory",
+    "warmupMs": 3300,
+    "characterInstances": 12,
+    "rendererStability": {
+      "idle": {
+        "label": "idle",
+        "stable": true,
+        "waitedMs": 3582,
+        "samples": [
+          {
+            "geometries": 1053,
+            "textures": 218
+          },
+          {
+            "geometries": 1053,
+            "textures": 218
+          },
+          {
+            "geometries": 1064,
+            "textures": 218
+          },
+          {
+            "geometries": 1064,
+            "textures": 218
+          },
+          {
+            "geometries": 1064,
+            "textures": 218
+          },
+          {
+            "geometries": 1064,
+            "textures": 218
+          },
+          {
+            "geometries": 1064,
+            "textures": 218
+          }
+        ]
+      },
+      "crowd": {
+        "label": "character-crowd",
+        "stable": true,
+        "waitedMs": 2135,
+        "samples": [
+          {
+            "geometries": 1065,
+            "textures": 218
+          },
+          {
+            "geometries": 1065,
+            "textures": 218
+          },
+          {
+            "geometries": 1065,
+            "textures": 218
+          },
+          {
+            "geometries": 1065,
+            "textures": 218
+          },
+          {
+            "geometries": 1065,
+            "textures": 218
+          }
+        ]
+      },
+      "active": {
+        "label": "register-active",
+        "stable": true,
+        "waitedMs": 2646,
+        "samples": [
+          {
+            "geometries": 1077,
+            "textures": 227
+          },
+          {
+            "geometries": 1068,
+            "textures": 227
+          },
+          {
+            "geometries": 1068,
+            "textures": 227
+          },
+          {
+            "geometries": 1068,
+            "textures": 227
+          },
+          {
+            "geometries": 1068,
+            "textures": 227
+          },
+          {
+            "geometries": 1068,
+            "textures": 227
+          }
+        ]
+      },
+      "postStress": {
+        "label": "post-stress",
+        "stable": true,
+        "waitedMs": 2087,
+        "samples": [
+          {
+            "geometries": 1077,
+            "textures": 227
+          },
+          {
+            "geometries": 1077,
+            "textures": 227
+          },
+          {
+            "geometries": 1077,
+            "textures": 227
+          },
+          {
+            "geometries": 1077,
+            "textures": 227
+          },
+          {
+            "geometries": 1077,
+            "textures": 227
+          }
+        ]
+      }
+    }
+  },
+  "customer": "Sam T.",
+  "idle": {
+    "label": "idle-fixed-camera",
+    "durationMs": 5026.899999976158,
+    "frameSamples": 100,
+    "averageFps": 19.74060840582979,
+    "onePercentLowFps": 4.464285714285714,
+    "worstFrameMs": 354.59999990463257,
+    "p95FrameMs": 164.39999997615814,
+    "p99FrameMs": 224,
+    "longFramesOver50Ms": 21,
+    "averageDrawCalls": 4950.76,
+    "peakDrawCalls": 4975,
+    "averageTriangles": 5686530.24,
+    "peakTriangles": 5693804,
+    "averageCpuRenderMs": 37.97199999809265,
+    "worstCpuRenderMs": 162.09999990463257,
+    "scene": {
+      "nodes": 1478,
+      "meshes": 1206,
+      "geometries": 1093,
+      "materials": 254,
+      "textures": 173,
+      "shadowCasters": 431,
+      "estimatedTextureBytes": 6352116458.6666565,
+      "uniqueImages": 169,
+      "estimatedUniqueImageBytes": 6348621205.3333235,
+      "largestImages": [
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        }
+      ],
+      "texturesWithoutDimensions": 0,
+      "rendererMemory": {
+        "geometries": 1064,
+        "textures": 218
+      }
+    },
+    "jsHeap": {
+      "usedBytes": 146031439,
+      "totalBytes": 190367831,
+      "limitBytes": 4395630592
+    },
+    "listeners": {
+      "before": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "after": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "netGrowth": 0
+    },
+    "canvas2d": {
+      "fillTextCalls": 0,
+      "fillRectCalls": 3,
+      "getImageDataCalls": 0,
+      "bySize": {
+        "512x512": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x256": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x384": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "384x160": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x192": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x96": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "462x70": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "504x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "952x56": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x182": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x224": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x288": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "600x400": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "280x104": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x320": {
+          "fillText": 0,
+          "fillRect": 3,
+          "getImageData": 0
+        },
+        "480x304": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        }
+      }
+    }
+  },
+  "crowd": {
+    "label": "12-character-crowd",
+    "durationMs": 8051.899999976158,
+    "frameSamples": 177,
+    "averageFps": 22.004251668705667,
+    "onePercentLowFps": 8.0192461877916,
+    "worstFrameMs": 354.2000000476837,
+    "p95FrameMs": 64.60000002384186,
+    "p99FrameMs": 124.70000004768372,
+    "longFramesOver50Ms": 21,
+    "averageDrawCalls": 5647,
+    "peakDrawCalls": 5647,
+    "averageTriangles": 5890044,
+    "peakTriangles": 5890044,
+    "averageCpuRenderMs": 41.5000000033675,
+    "worstCpuRenderMs": 96.69999992847443,
+    "scene": {
+      "nodes": 1808,
+      "meshes": 1382,
+      "geometries": 1094,
+      "materials": 269,
+      "textures": 173,
+      "shadowCasters": 607,
+      "estimatedTextureBytes": 6352116458.6666565,
+      "uniqueImages": 169,
+      "estimatedUniqueImageBytes": 6348621205.3333235,
+      "largestImages": [
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        }
+      ],
+      "texturesWithoutDimensions": 0,
+      "rendererMemory": {
+        "geometries": 1065,
+        "textures": 218
+      }
+    },
+    "jsHeap": {
+      "usedBytes": 85166008,
+      "totalBytes": 149063512,
+      "limitBytes": 4395630592
+    },
+    "listeners": {
+      "before": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "after": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "netGrowth": 0
+    },
+    "canvas2d": {
+      "fillTextCalls": 0,
+      "fillRectCalls": 6,
+      "getImageDataCalls": 0,
+      "bySize": {
+        "512x512": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x256": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x384": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "384x160": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x192": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x96": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "462x70": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "504x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "952x56": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x182": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x224": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x288": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "600x400": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "280x104": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x320": {
+          "fillText": 0,
+          "fillRect": 6,
+          "getImageData": 0
+        },
+        "480x304": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        }
+      }
+    }
+  },
+  "crowdStability": {
+    "label": "character-crowd",
+    "stable": true,
+    "waitedMs": 2135,
+    "samples": [
+      {
+        "geometries": 1065,
+        "textures": 218
+      },
+      {
+        "geometries": 1065,
+        "textures": 218
+      },
+      {
+        "geometries": 1065,
+        "textures": 218
+      },
+      {
+        "geometries": 1065,
+        "textures": 218
+      },
+      {
+        "geometries": 1065,
+        "textures": 218
+      }
+    ]
+  },
+  "active": {
+    "label": "register-active",
+    "durationMs": 8010.200000047684,
+    "frameSamples": 537,
+    "averageFps": 68.62444410324692,
+    "onePercentLowFps": 34.96503493588701,
+    "worstFrameMs": 32.5,
+    "p95FrameMs": 21.700000047683716,
+    "p99FrameMs": 28.600000023841858,
+    "longFramesOver50Ms": 0,
+    "averageDrawCalls": 4608,
+    "peakDrawCalls": 4608,
+    "averageTriangles": 6099754,
+    "peakTriangles": 6099754,
+    "averageCpuRenderMs": 13.788640598345069,
+    "worstCpuRenderMs": 31.800000071525574,
+    "scene": {
+      "nodes": 1899,
+      "meshes": 1455,
+      "geometries": 1100,
+      "materials": 281,
+      "textures": 182,
+      "shadowCasters": 678,
+      "estimatedTextureBytes": 6353383487.999989,
+      "uniqueImages": 178,
+      "estimatedUniqueImageBytes": 6349888234.666656,
+      "largestImages": [
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        }
+      ],
+      "texturesWithoutDimensions": 0,
+      "rendererMemory": {
+        "geometries": 1068,
+        "textures": 227
+      }
+    },
+    "jsHeap": {
+      "usedBytes": 128031300,
+      "totalBytes": 177076432,
+      "limitBytes": 4395630592
+    },
+    "listeners": {
+      "before": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "after": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "netGrowth": 0
+    },
+    "canvas2d": {
+      "fillTextCalls": 0,
+      "fillRectCalls": 7,
+      "getImageDataCalls": 0,
+      "bySize": {
+        "512x512": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x256": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x384": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "384x160": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x192": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x96": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "462x70": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "504x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "952x56": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x182": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x224": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x288": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "600x400": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "280x104": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x320": {
+          "fillText": 0,
+          "fillRect": 7,
+          "getImageData": 0
+        },
+        "480x304": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "384x240": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "192x144": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        }
+      }
+    }
+  },
+  "stress": {
+    "cycles": 25,
+    "normalReentryFailures": 0,
+    "before": {
+      "listeners": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "heap": 128031300
+    },
+    "after": {
+      "listeners": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "heap": 81082164
+    },
+    "listenerNetGrowth": 0,
+    "heapGrowthBytes": -46949136
+  },
+  "postStress": {
+    "label": "register-post-25-transitions",
+    "durationMs": 5082.299999952316,
+    "frameSamples": 292,
+    "averageFps": 58.13837730214036,
+    "onePercentLowFps": 35.84229393743895,
+    "worstFrameMs": 31.200000047683716,
+    "p95FrameMs": 23.800000071525574,
+    "p99FrameMs": 27.899999976158142,
+    "longFramesOver50Ms": 0,
+    "averageDrawCalls": 4608,
+    "peakDrawCalls": 4608,
+    "averageTriangles": 6099754,
+    "peakTriangles": 6099754,
+    "averageCpuRenderMs": 16.426712325174513,
+    "worstCpuRenderMs": 76.80000007152557,
+    "scene": {
+      "nodes": 1899,
+      "meshes": 1455,
+      "geometries": 1100,
+      "materials": 281,
+      "textures": 182,
+      "shadowCasters": 678,
+      "estimatedTextureBytes": 6353383487.999989,
+      "uniqueImages": 178,
+      "estimatedUniqueImageBytes": 6349888234.666656,
+      "largestImages": [
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        },
+        {
+          "source": "ImageBitmap:4096x4096",
+          "width": 4096,
+          "height": 4096,
+          "estimatedBytes": 89478485.33333333
+        }
+      ],
+      "texturesWithoutDimensions": 0,
+      "rendererMemory": {
+        "geometries": 1077,
+        "textures": 227
+      }
+    },
+    "jsHeap": {
+      "usedBytes": 99927733,
+      "totalBytes": 148446917,
+      "limitBytes": 4395630592
+    },
+    "listeners": {
+      "before": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "after": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "netGrowth": 0
+    },
+    "canvas2d": {
+      "fillTextCalls": 0,
+      "fillRectCalls": 4,
+      "getImageDataCalls": 0,
+      "bySize": {
+        "512x512": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x256": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x384": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "384x160": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x192": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x96": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "462x70": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "504x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "952x56": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x182": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x224": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x288": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "600x400": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "280x104": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x320": {
+          "fillText": 0,
+          "fillRect": 4,
+          "getImageData": 0
+        },
+        "480x304": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "384x240": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "192x144": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        }
+      }
+    }
+  },
+  "runnerDiagnostics": [
+    "console:warning: THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+  ]
+}

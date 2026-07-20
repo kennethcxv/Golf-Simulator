@@ -33,6 +33,7 @@ import {
   deliveryEquipmentPlacementForCarriedBox,
   handTruckPlacementForCarriedBox, stockingCartPlacementForCarriedBox, PAD_CAPACITY,
 } from '../sim/deliveries.js';
+import { allocateBackroomCases, backroomCaseSlots } from './backroomStock.js';
 import {
   carriedGoods, stockFixture, storeInBack, carrySpeedFactor,
 } from '../sim/stocking.js';
@@ -973,6 +974,89 @@ export function makeClubhouse(ctx) {
     return r;
   };
 
+  // Shopper-held products and patience indicators are made uniquely for that
+  // shopper. Merchandise models, by contrast, are clones from the shared asset
+  // cache and must never be disposed here.
+  function disposeOwnedMesh(mesh) {
+    if (!mesh) return;
+    if (mesh.geometry) mesh.geometry.dispose();
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const material of materials) if (material && material.dispose) material.dispose();
+  }
+
+  function removeCustomerItem(c) {
+    if (!c.itemMesh) return;
+    if (c.itemMesh.parent) c.itemMesh.parent.remove(c.itemMesh);
+    c.itemMesh.traverse((node) => disposeOwnedMesh(node));
+    c.itemMesh = null;
+  }
+
+  function ensureCustomerBasket(c) {
+    if (c.basket) return c.basket;
+    const basket = merch && merch.instantiate('basket');
+    if (!basket) return null;
+    basket.name = 'customer-basket';
+    basket.scale.setScalar(0.66);
+    basket.rotation.y = 0.08;
+    basket.userData.checkout = false;
+    const char = c.mesh.userData.char;
+    if (char && char.carryAnchor) {
+      char.carryAnchor.add(basket);
+      // The authored pivot is the tub floor; lower it so the raised handle, not
+      // the base, lands in the shopper's carrying hand.
+      basket.position.set(-0.02, -0.24, 0.01);
+      if (char.setCarrying) char.setCarrying(true);
+    } else {
+      c.mesh.add(basket);
+      basket.position.set(0.28, 0.30, 0.10);
+    }
+    c.basket = basket;
+    return basket;
+  }
+
+  function syncCustomerBasket(c) {
+    removeCustomerItem(c);
+    if (!c.cart.length) return;
+    const basket = ensureCustomerBasket(c);
+    if (!basket) return;
+    const contents = new THREE.Group();
+    contents.name = 'basket-contents';
+    c.cart.slice(0, 3).forEach((entry, i) => {
+      const sku = SHOP_CATALOG.find((s) => s.id === entry.skuId);
+      const item = new THREE.Mesh(
+        new THREE.BoxGeometry(0.15, 0.09, 0.11),
+        new THREE.MeshStandardMaterial({
+          color: CAT_COLORS[sku ? sku.cat : 'accessories'] || 0x999999,
+          roughness: 0.72,
+        }),
+      );
+      item.position.set((i % 2 ? 1 : -1) * 0.075, 0.175 + Math.floor(i / 2) * 0.055, (i % 3 - 1) * 0.035);
+      item.rotation.y = i % 2 ? 0.18 : -0.14;
+      item.castShadow = true;
+      contents.add(item);
+    });
+    basket.add(contents);
+    c.itemMesh = contents;
+  }
+
+  function placeCustomerBasket(c) {
+    if (!c.basket) return;
+    removeCustomerItem(c); // the transaction goods now travel onto the staging mat
+    interior.attach(c.basket);
+    c.basket.position.set(COUNTER.x - COUNTER.len / 2 + 0.14, COUNTER_TOP + 0.012, COUNTER.z - 0.40);
+    c.basket.rotation.set(0, -0.10, 0);
+    c.basket.userData.checkout = true;
+  }
+
+  function removeCustomerBasket(c) {
+    removeCustomerItem(c);
+    if (!c.basket) return;
+    if (c.basket.parent) c.basket.parent.remove(c.basket);
+    c.basket = null;
+    const char = c.mesh && c.mesh.userData.char;
+    if (char && char.setCarrying && !c.carryBag) char.setCarrying(false);
+  }
+
   // the head of the queue, with goods, waiting on YOU
   const headForCheckout = () => {
     const c = counterQueue[0];
@@ -1405,7 +1489,14 @@ export function makeClubhouse(ctx) {
       c2.fillStyle = '#efe7d2'; c2.fillRect(0, 0, W, H);          // parchment mount
       c2.fillStyle = '#1f4a2e'; c2.fillRect(0, 0, W, TOP);        // title band
       c2.fillStyle = '#efe7d2'; c2.textBaseline = 'middle';
-      c2.font = 'bold 23px Georgia, serif'; c2.fillText('PINEHOLLOW GOLF CLUB', 20, TOP / 2 - 1);
+      const mapName = (state.clubName || 'THE CLUB').toUpperCase();
+      let mapNameSize = 23;
+      c2.font = `bold ${mapNameSize}px Georgia, serif`;
+      while (c2.measureText(mapName).width > W - 190 && mapNameSize > 14) {
+        mapNameSize--;
+        c2.font = `bold ${mapNameSize}px Georgia, serif`;
+      }
+      c2.fillText(mapName, 20, TOP / 2 - 1);
       c2.font = 'italic 13px Georgia, serif'; c2.textAlign = 'right'; c2.fillText('COURSE MAP', W - 20, TOP / 2);
       c2.textAlign = 'left';
       const x0 = M, y0 = TOP + 12, iw = W - M * 2, ih = H - y0 - M;

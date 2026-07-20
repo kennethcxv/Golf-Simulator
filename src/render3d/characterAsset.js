@@ -22,6 +22,18 @@ const G = (key, build) => {
   return geometries.get(key);
 };
 
+function sharedM(color, rough = 0.85) {
+  const resolved = color?.isColor ? color : new THREE.Color(color);
+  const key = `${resolved.getHexString()}|${rough}`;
+  let material = sharedCharacterMaterials.get(key);
+  if (!material) {
+    material = M(resolved, rough);
+    material.userData.sharedCharacterMaterial = true;
+    sharedCharacterMaterials.set(key, material);
+  }
+  return material;
+}
+
 function box(w, h, d, mat, y = 0, z = 0) {
   const m = new THREE.Mesh(G(`box|${w}|${h}|${d}`, () => new THREE.BoxGeometry(w, h, d)), mat);
   m.position.set(0, y, z);
@@ -64,6 +76,7 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   const mBelt = M(0x40382f, 0.78);
 
   const root = new THREE.Group();
+  root.name = 'characterRoot';
 
   // pelvis + legs hang off the root; chest carries torso/head/arms for lean+twist.
   // The whole figure is built so the SHOE SOLES sit at model y≈0: the game places a
@@ -133,6 +146,7 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   }
 
   const head = new THREE.Group();
+  head.name = 'headJoint';
   head.position.y = 0.62;
   chest.add(head);
   const skull = new THREE.Mesh(new THREE.SphereGeometry(0.155, 20, 14), mSkin);
@@ -215,6 +229,7 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     sleeveCuff.castShadow = true;
     shoulder.add(sleeveCuff);
     const elbow = new THREE.Group();
+    elbow.name = `elbow${side}`;
     elbow.position.y = -0.32;
     shoulder.add(elbow);
     // elbow cap: a skin ball at the pivot closing the sleeve→forearm gap at every arm angle
@@ -275,6 +290,7 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     thigh.scale.z = 0.92;
     hip.add(thigh);
     const knee = new THREE.Group();
+    knee.name = `knee${side}`;
     knee.position.y = -0.46;
     hip.add(knee);
     // knee cap: a khaki ball at the pivot closing the thigh→shin gap

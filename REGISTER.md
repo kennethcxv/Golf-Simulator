@@ -221,23 +221,16 @@ stranded at a till serving someone who was not there.
 
 ---
 
-## What is NOT done
+## Current production boundary
 
-Stated plainly, because the brief asked for all of it.
+The checkout path now includes animated first-person hands for scanning, card, cash,
+receipt, bagging, and handoff; animated authored characters; a customer basket that fills,
+moves to the counter, and leaves through a defined lifecycle; physical card swipe and cash
+handling; a visible live payment timeout with retry; receipt feed/tear motion; bag fill and
+customer handoff. Card and cash routes, recovery, interruption/re-entry, and videos are
+recorded under `qa/steam-release-polish/`.
 
-- **The animations.** This is the big one. The brief lists ~22 named animations — player
-  picks up, scans, bags, accepts cash, hands change; customer places goods, presents a
-  card, receives change, reacts. **None of them exist as animations.** Goods appear on the
-  counter rather than being set down one by one. The card and the notes appear rather than
-  being drawn from a pocket. The player has no visible hands at the till at all. Everything
-  is *physical* — real objects, real positions, real motion under the cursor — but the
-  **actors are not animated**, and a polished retail sim animates them.
-- **The basket.** Modelled and on the shop floor. Customers still carry goods in their
-  hands; they do not pick one up and fill it.
-- **Customers are still procedural primitives.** They were the loudest placeholder before
-  this session and they still are — now standing at a counter that is modelled around them.
-- **No video.** Screenshots only, under `qa/register/{card,cash,recover}/`.
-- **The impulse rack is scenery.** You cannot buy from it.
-- **Payment timeout is in the sim and untriggered in the game.** `runCard(tx, {timeout:true})`
-  works and is tested; nothing in registerMode fires it, because a terminal that times out
-  on its own needs a timer the player can watch, and I did not build one.
+Pocket retrieval and individual shelf-pick gestures remain stylized state transitions rather
+than bespoke skeletal clips. The small impulse rack remains scenery and is intentionally not
+part of the checkout inventory. Neither limitation changes transaction correctness or blocks
+the current checkout-first production gate.

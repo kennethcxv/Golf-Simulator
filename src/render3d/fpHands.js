@@ -55,6 +55,19 @@ const LEGACY_GRIPS = {
     recoil: 0.06,
     handScale: 0.78,
   },
+  // Checkout reuses the same hands as every other first-person verb. The mount
+  // follows the pointer; these poses only describe whether one hand pinches a
+  // card/note or both hands cradle a product/carrier.
+  checkoutPinch: {
+    grip: { pos: [0.012, -0.008, 0.0], rot: [0.72, -0.08, 0.08] },
+    support: null,
+    recoil: 0.026,
+  },
+  checkoutCarry: {
+    grip: { pos: [0.055, -0.012, 0.015], rot: [0.72, -0.10, 0.16] },
+    support: { pos: [-0.055, -0.012, 0.015], rot: [0.72, 0.10, -0.16] },
+    recoil: 0.035,
+  },
 };
 
 // Cleaning tools declare their grips in the registry; fold them in under the same shape.
@@ -196,6 +209,7 @@ export function makeFpHands() {
   root.visible = false;
 
   let tool = null;
+  let pose = null;
   let show = 0; // 0..1, hands rising into frame
   let recoil = 0; // 0..1, decays
   let breathe = 0;
@@ -286,6 +300,20 @@ export function makeFpHands() {
     dispose() {
       for (const m of Object.values(mats)) m.dispose();
       root.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+    },
+
+    getState() {
+      return { visible: root.visible, tool, show, recoil };
+    },
+
+    dispose() {
+      root.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) {
+          const materials = Array.isArray(o.material) ? o.material : [o.material];
+          for (const material of materials) material.dispose();
+        }
+      });
     },
   };
 }

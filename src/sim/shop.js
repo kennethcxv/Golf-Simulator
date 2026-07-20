@@ -41,6 +41,7 @@ import {
 // player orders and places. Condition 0-100 is DERIVED from that state, never
 // stored, so it can't drift: cleanliness carries 70 points, decor finish 30.
 export const RENO = {
+  clutterLayout: 2,           // v2 clears the register/queue sightline
   room: { w: INTERIOR.w, d: INTERIOR.d }, // the clubhouse plan's interior (shopLayout.js)
   grid: { w: 13, h: 8 },       // ~2-yd grime cells over the whole floor (stockroom included)
   startDirt: [0.58, 0.95],     // fresh-game dirt range per cell

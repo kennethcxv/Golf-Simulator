@@ -1,0 +1,36 @@
+{
+  "cycles": 30,
+  "before": {
+    "roots": 1,
+    "frames": 1,
+    "resizeListeners": 0,
+    "fov": 60,
+    "near": 0.15
+  },
+  "after": {
+    "roots": 1,
+    "visible": 0,
+    "resizeListeners": 0,
+    "laptopOpen": false,
+    "fov": 66,
+    "near": 0.15,
+    "walkActive": true,
+    "focused": false,
+    "walkOverlayVisible": null,
+    "viewToggleVisible": false,
+    "pointerLocked": false
+  },
+  "checks": {
+    "oneRootOnly": "OK",
+    "noVisibleLeftovers": "OK",
+    "noAccumulatedListeners": "OK — resize listeners back to 0",
+    "lensHandedBack": "OK — walk lens restored",
+    "notTrappedInFocus": "OK",
+    "canWalkAway": "OK — moved 1.955 yd",
+    "overlayBack": "OK"
+  },
+  "failures": [],
+  "errs": [],
+  "errCount": 0,
+  "runnerDiagnostics": []
+}

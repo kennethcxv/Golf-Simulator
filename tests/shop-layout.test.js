@@ -11,7 +11,7 @@ import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import { RENO, ensureShopReno } from '../src/sim/shop.js';
 import {
   SHELL, INTERIOR, FIXTURES, COUNTER, OFFICE, STOCKROOM, DOOR_MAIN,
-  DOOR_CLEARWAY, BACKDOOR_CLEARWAY, queueSlot, fixtureRect, FIXTURE_HALF,
+  DOOR_CLEARWAY, BACKDOOR_CLEARWAY, CLUTTER_SPOTS, queueSlot, fixtureRect, FIXTURE_HALF,
 } from '../src/data/shopLayout.js';
 import { SHOP_CATALOG, DECOR_SPOTS, skuById, RETAIL_CATS, SHELF_CAP } from '../src/data/shopItems.js';
 import { placeOrder } from '../src/sim/shop.js';
@@ -227,6 +227,7 @@ test('legacy 7×5 saves migrate: grime resamples to the new grid, dirt level pre
   assert.ok(Math.abs(newMean - oldMean) < 0.05,
     `cleaning progress carries over (old ${oldMean.toFixed(3)}, new ${newMean.toFixed(3)})`);
   assert.equal(reno.clutter.filter((c) => c.cleared).length, 2, 'hauled piles stay hauled by index');
+  assert.equal(reno.clutterLayout, RENO.clutterLayout, 'the checkout-safe clutter layout is stamped on migrated saves');
   for (const c of reno.clutter) {
     assert.ok(inInterior(c), 'every migrated pile sits inside the NEW room');
   }

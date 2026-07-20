@@ -12,6 +12,10 @@ function makeCanvas(w, h = w) {
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
+  // Every material canvas is later read back to derive roughness/normal maps.
+  // Context attributes only count on the FIRST getContext call, so establish the
+  // CPU-backed context here before any painter asks for the default one.
+  c.getContext('2d', { willReadFrequently: true });
   return c;
 }
 

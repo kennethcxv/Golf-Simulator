@@ -97,5 +97,5 @@ export function openMarketplace(app, handlers) {
     };
     app.marketRefresh = liveRefresh;
     render();
-  });
+  }, { onClose: () => handlers.marketClosed?.() });
 }

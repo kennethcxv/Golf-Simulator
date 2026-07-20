@@ -15,6 +15,7 @@ if (DEV) {
 }
 
 let win = null;
+const TRUSTED_RENDERER_URL = trustedRendererUrl(__dirname);
 
 function saveDir() {
   const dir = path.join(app.getPath('userData'), 'saves');
@@ -45,6 +46,7 @@ function createWindow() {
     minHeight: 680,
     backgroundColor: '#141d12',
     title: 'GOLF EMPIRE',
+    show: false,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -53,8 +55,14 @@ function createWindow() {
       sandbox: true,
     },
   });
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url !== TRUSTED_RENDERER_URL) event.preventDefault();
+  });
+  win.webContents.on('will-attach-webview', (event) => event.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.setMenuBarVisibility(false);
   win.loadFile('index.html');
+  win.once('ready-to-show', () => win && win.show());
   if (DEV) {
     win.webContents.openDevTools({ mode: 'detach' });
     win.webContents.on('console-message', (_e, level, message, line, sourceId) => {

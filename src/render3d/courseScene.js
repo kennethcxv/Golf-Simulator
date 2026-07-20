@@ -690,6 +690,7 @@ export function makeCourseScene(canvas, state) {
   const composer = new EffectComposer(renderer, composerTarget);
   composer.addPass(new RenderPass(scene, camera));
   const gtao = new GTAOPass(scene, camera, 2, 2);
+  patchPoissonDenoiseMaterial(gtao.pdMaterial);
   gtao.output = GTAOPass.OUTPUT.Default;
   // STYLE GUIDE §3: tight contact darkening only — no corner grime spread
   gtao.blendIntensity = 0.4;
@@ -2306,6 +2307,29 @@ export function makeCourseScene(canvas, state) {
         );
       };
       water.position.set(cx, level, cz);
+      const renderReflection = water.onBeforeRender;
+      const reflectionState = {
+        lastAt: -Infinity,
+        position: new THREE.Vector3(Infinity, Infinity, Infinity),
+        quaternion: new THREE.Quaternion(),
+      };
+      water.onBeforeRender = function budgetedWaterReflection(renderContext, renderScene, renderCamera, ...args) {
+        const inside = !!clubhouseApi?.isInside(renderCamera.position.x, renderCamera.position.z);
+        const positionDeltaSq = reflectionState.position.distanceToSquared(renderCamera.position);
+        const quaternionDot = reflectionState.quaternion.dot(renderCamera.quaternion);
+        if (!shouldRefreshPlanarReflection({
+          overrideMaterial: !!renderScene.overrideMaterial,
+          inside,
+          now: time,
+          lastAt: reflectionState.lastAt,
+          positionDeltaSq,
+          quaternionDot,
+        })) return;
+        reflectionState.lastAt = time;
+        reflectionState.position.copy(renderCamera.position);
+        reflectionState.quaternion.copy(renderCamera.quaternion);
+        renderReflection.call(this, renderContext, renderScene, renderCamera, ...args);
+      };
       scene.add(water);
       waterMeshes.push(water);
     }
@@ -7733,6 +7757,7 @@ export function makeCourseScene(canvas, state) {
       refreshMaintenanceWorldProps(time);
     }
     if (clubhouseApi) clubhouseApi.update(dtMs); // doors, shop customers, interior life
+    prepareFrameShadows(renderer.shadowMap);
     // flag wave
     if (holeGroup) {
       for (const o of holeGroup.children) {
@@ -8563,6 +8588,67 @@ export function makeCourseScene(canvas, state) {
   // entrance decor: the stone club sign on the approach, weathered to match the
   // course's actual condition at load. (The old small sign is now the tee sign;
   // the "pennant poles" were really flagsticks and moved to the holes.)
+  function addLiveClubNamePanel(model) {
+    const clubName = (state.clubName || 'The Club').trim().toUpperCase();
+    const cnv = document.createElement('canvas');
+    cnv.width = 1024;
+    cnv.height = 416;
+    const c2 = cnv.getContext('2d');
+
+    c2.fillStyle = '#f2edda';
+    c2.fillRect(0, 0, cnv.width, cnv.height);
+    c2.strokeStyle = '#1d4b32';
+    c2.lineWidth = 24;
+    c2.strokeRect(16, 16, cnv.width - 32, cnv.height - 32);
+    c2.strokeStyle = '#b7943f';
+    c2.lineWidth = 8;
+    c2.strokeRect(43, 43, cnv.width - 86, cnv.height - 86);
+
+    const fitText = (text, maxWidth, startPx, weight, family) => {
+      let size = startPx;
+      do {
+        c2.font = `${weight} ${size}px ${family}`;
+        if (c2.measureText(text).width <= maxWidth) return;
+        size -= 2;
+      } while (size > 30);
+    };
+    c2.textAlign = 'center';
+    c2.textBaseline = 'middle';
+    c2.fillStyle = '#173f2c';
+    fitText(clubName, 850, 112, 700, 'Georgia, serif');
+    c2.fillText(clubName, cnv.width / 2, 184);
+    c2.fillStyle = '#6f5a2a';
+    c2.font = '700 54px "Segoe UI", sans-serif';
+    c2.letterSpacing = '12px';
+    c2.fillText('GOLF CLUB', cnv.width / 2, 305);
+
+    const tex = new THREE.CanvasTexture(cnv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+    const panel = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.78, 0.36),
+      new THREE.MeshStandardMaterial({
+        map: tex,
+        color: 0xffffff,
+        roughness: 0.82,
+        metalness: 0,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+      }),
+    );
+    // The source GLB is one baked mesh. Its sign face is the local +X plane;
+    // this preserves the authored stone/foliage while replacing only its name.
+    // Vertex inspection places the irregular cream face at local X ~= 0.007;
+    // seat the art against it instead of using the foliage/stone bounding box.
+    panel.position.set(0.012, 0.39, 0);
+    panel.rotation.y = Math.PI / 2;
+    panel.name = `Live club name: ${clubName}`;
+    panel.userData.releaseRole = 'live-club-name';
+    panel.userData.clubName = clubName;
+    model.add(panel);
+  }
+
   let yardHome = null;
   {
     const s0 = course.structures[0];
@@ -8587,6 +8673,7 @@ export function makeCourseScene(canvas, state) {
             }
           });
         }
+        addLiveClubNamePanel(m);
       });
       propColliders.push({ x: bx - 15, z: bz + 16, r: 1.6 });
       yardHome = buildMaintenanceYard(bx, bz);

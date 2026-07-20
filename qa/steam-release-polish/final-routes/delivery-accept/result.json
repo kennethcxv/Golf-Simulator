@@ -1,0 +1,81 @@
+{
+  "log": [
+    {
+      "step": "1. ordered six kinds",
+      "ordered": [
+        {
+          "id": "tees1",
+          "ok": true,
+          "boxes": 2,
+          "fee": 15,
+          "supplier": "Fairway Supply Co."
+        },
+        {
+          "id": "balls1",
+          "ok": true,
+          "boxes": 1,
+          "fee": 12,
+          "supplier": "Fairway Supply Co."
+        },
+        {
+          "id": "polo1",
+          "ok": true,
+          "boxes": 1,
+          "fee": 16,
+          "supplier": "Sunday Round Apparel"
+        },
+        {
+          "id": "driver1",
+          "ok": true,
+          "boxes": 1,
+          "fee": 25,
+          "supplier": "Ironwood Golf"
+        },
+        {
+          "id": "bag1",
+          "ok": true,
+          "boxes": 1,
+          "fee": 12,
+          "supplier": "Fairway Supply Co."
+        },
+        {
+          "id": "light1",
+          "ok": true,
+          "boxes": 1,
+          "fee": 40,
+          "supplier": "Greenkeeper Depot"
+        }
+      ]
+    },
+    {
+      "step": "2. landed, partially opened two, autosaved",
+      "boxes": 7,
+      "shipments": 6,
+      "partials": 2,
+      "cash": 199042.78,
+      "ballUnits": 22,
+      "poloUnits": 8,
+      "driverUnits": 2
+    },
+    {
+      "step": "3. RELOADED",
+      "boxes": 7,
+      "shipments": 6,
+      "partials": 2,
+      "cash": 199042.78,
+      "ballUnits": 22,
+      "poloUnits": 8,
+      "driverUnits": 2,
+      "checks": {
+        "boxesKept": "OK — 7 boxes",
+        "partialsKept": "OK — 2 half-open boxes survived",
+        "shipmentsKept": "OK — 6 shipments",
+        "cashKept": "OK — cash identical",
+        "unitsKept": "OK — balls 22, polos 8, drivers 2 all identical"
+      }
+    }
+  ],
+  "errs": [],
+  "errCount": 0,
+  "runnerDiagnostics": []
+}

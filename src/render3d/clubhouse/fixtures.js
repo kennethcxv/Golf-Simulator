@@ -1668,6 +1668,7 @@ export function buildCheckout(B) {
     const placeKit = (name, spec, { ry = 0, scale = 1 } = {}) => {
       const o = merch.instantiateKit && merch.instantiateKit(name, { scale });
       if (!o) return null;
+      o.name = `checkout-${name}`;
       o.position.set(spec.x, COUNTER_TOP, spec.z);
       o.rotation.y = ry;
       hardwareVisualRoot.add(o);

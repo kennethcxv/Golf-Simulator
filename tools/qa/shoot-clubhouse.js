@@ -32,6 +32,43 @@ async (page) => {
   await page.goto(BASE_URL);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
+  const restored = process.env.QA_RESTORED === '1';
+  if (restored) {
+    await page.evaluate(async () => {
+      const raw = JSON.parse(localStorage.getItem('golfempire:autosave'));
+      const holding = raw.holdings.find((item) => item.property.id === raw.activeId) || raw.holdings[0];
+      const state = holding.state;
+      const reno = state.shop.reno;
+      reno.grime.fill(0);
+      reno.windows.fill(0);
+      reno.clutter.forEach((pile) => { pile.cleared = true; });
+      reno.decor = [
+        { skuId: 'rug1', spot: 0 },
+        { skuId: 'plant1', spot: 0 },
+        { skuId: 'plant1', spot: 1 },
+        { skuId: 'poster1', spot: 0 },
+        { skuId: 'plant1', spot: 2 },
+        { skuId: 'light1', spot: 0 },
+      ];
+      reno.exterior ||= {
+        weeds: [0, 0, 0, 0, 0], gutter: 0, cobwebs: 0, light: 0, siding: [0, 0, 0],
+      };
+      reno.exterior.weeds.fill(0);
+      reno.exterior.gutter = 0;
+      reno.exterior.cobwebs = 0;
+      reno.exterior.light = 0;
+      reno.exterior.siding.fill(0);
+      const { WASH_SURFACES } = await import('/src/sim/washing.js');
+      reno.wash = Object.fromEntries(WASH_SURFACES.map((surface) => {
+        const cells = surface.grid.w * surface.grid.h;
+        return [surface.id, { grime: new Array(cells).fill(0), soap: new Array(cells).fill(0) }];
+      }));
+      state.shop.deliveries.boxes = [];
+      state.shop.deliveries.trash = 0;
+      state.shop.held = [];
+      localStorage.setItem('golfempire:autosave', JSON.stringify(raw));
+    });
+  }
   await page.getByText('Continue', { exact: true }).click().catch(() => {});
   await page.waitForFunction(() => window.__fw && window.__fw.scene3d
     && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null, { timeout: 40000 });
@@ -147,5 +184,5 @@ async (page) => {
     });
   }));
 
-  return { pass: PASS, out: OUT, stock, shots: done, stats };
+  return { pass: PASS, restored, out: OUT, stock, shots: done, stats };
 }
