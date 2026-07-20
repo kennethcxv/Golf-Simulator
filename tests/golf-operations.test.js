@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { totals } from '../src/sim/economy.js';
-import { newGame, serialize, deserialize } from '../src/sim/state.js';
+import { SAVE_VERSION, newGame, serialize, deserialize } from '../src/sim/state.js';
 import { calendarOf } from '../src/sim/time.js';
 import {
   addGuestToReservation,
@@ -510,7 +510,7 @@ test('save/load preserves every operational stage and migrates old booking saves
   legacyRaw.reservations = { nextId: 2, booked: [{ id: 1, dayAbs: day + 1, minute: 480, name: 'Legacy Golfer', fee: 32, status: 'booked' }] };
   const migrated = deserialize(JSON.stringify(legacyRaw));
   const legacy = reservationById(migrated, 1);
-  assert.equal(migrated.version, 4);
+  assert.equal(migrated.version, SAVE_VERSION);
   assert.equal(legacy.reservationHolder, 'Legacy Golfer');
   assert.equal(legacy.partySize, 1);
   assert.equal(legacy.payment.amountDue, 32);
