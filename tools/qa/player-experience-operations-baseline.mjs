@@ -5,7 +5,8 @@ import process from 'node:process';
 
 const ROOT = process.cwd();
 const BASE_URL = process.env.GOLF_FLIPPER_URL || 'http://127.0.0.1:8463/';
-const OUT = path.join(ROOT, 'qa', 'player-experience-polish', 'baseline', 'operations');
+const EVIDENCE_LABEL = process.env.QA_EVIDENCE_LABEL || 'baseline';
+const OUT = path.join(ROOT, 'qa', 'player-experience-polish', EVIDENCE_LABEL, 'operations');
 const LOGS = path.join(ROOT, 'qa', 'player-experience-polish', 'logs');
 await Promise.all([fs.mkdir(OUT, { recursive: true }), fs.mkdir(LOGS, { recursive: true })]);
 
@@ -50,7 +51,9 @@ async function shot(name) {
 await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
-await page.getByRole('button', { name: 'New Empire — Relaxed' }).click();
+await page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ }).click();
+await page.getByRole('dialog', { name: 'New game' }).waitFor();
+await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
 await page.getByRole('heading', { name: 'Property market' }).waitFor();
 await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
 await waitForWorld();
@@ -73,21 +76,52 @@ try {
 }
 
 // Haul one real clutter pile with E.
-result.cleaning.clutterBefore = await page.evaluate(() => {
+const clutterCandidates = await page.evaluate(() => {
   const app = window.__fw;
-  const origin = app.scene3d.clubhouse().interior.position;
-  const pile = app.state.shop.reno.clutter.find((entry) => !entry.cleared);
-  if (!pile) return null;
-  const walk = app.scene3d.walk;
-  walk.clearKeys();
-  walk.setTool(null);
-  walk.state.x = origin.x + pile.x;
-  walk.state.z = origin.z + pile.z + 1.3;
-  walk.state.yaw = 0;
-  walk.state.pitch = -0.08;
-  return { x: pile.x, z: pile.z, uncleared: app.state.shop.reno.clutter.filter((entry) => !entry.cleared).length };
+  return app.state.shop.reno.clutter
+    .filter((entry) => !entry.cleared)
+    .map(({ x, z }) => ({ x, z }));
 });
-await page.waitForTimeout(500);
+let selectedClutter = null;
+const clutterPoses = [
+  { dx: 0, dz: 1.3, yaw: 0 },
+  { dx: 0, dz: -1.3, yaw: Math.PI },
+  { dx: 1.3, dz: 0, yaw: Math.PI / 2 },
+  { dx: -1.3, dz: 0, yaw: -Math.PI / 2 },
+];
+for (const pile of clutterCandidates) {
+  for (const pose of clutterPoses) {
+    await page.evaluate(({ target, camera }) => {
+      const app = window.__fw;
+      const origin = app.scene3d.clubhouse().interior.position;
+      const walk = app.scene3d.walk;
+      walk.clearKeys();
+      walk.setTool(null);
+      walk.state.x = origin.x + target.x + camera.dx;
+      walk.state.z = origin.z + target.z + camera.dz;
+      walk.state.yaw = camera.yaw;
+      walk.state.pitch = -0.08;
+    }, { target: pile, camera: pose });
+    await page.waitForTimeout(160);
+    const label = await page.evaluate(() => window.__fw.scene3d.walk.getFocusLabel?.() || null);
+    if (label?.includes('Old clutter')) {
+      selectedClutter = { ...pile, pose, label };
+      break;
+    }
+  }
+  if (selectedClutter) break;
+}
+result.cleaning.clutterBefore = await page.evaluate((selection) => {
+  const app = window.__fw;
+  const walk = app.scene3d.walk;
+  return {
+    x: selection?.x ?? null,
+    z: selection?.z ?? null,
+    pose: selection?.pose ?? null,
+    uncleared: app.state.shop.reno.clutter.filter((entry) => !entry.cleared).length,
+    walkActive: walk.isActive(),
+  };
+}, selectedClutter);
 result.cleaning.clutterPrompt = await page.evaluate(() => window.__fw.scene3d.walk.getFocusLabel?.() || null);
 await shot('10-cleaning-clutter-before');
 await page.keyboard.press('e');
@@ -179,8 +213,9 @@ if (placementFixture?.destination) {
     const moved = window.__fw.state.shop.layout.moved[id];
     return moved ? { x: moved.x, z: moved.z, ry: moved.ry } : null;
   }, placementFixture.id);
+  result.placement.autoExited = await page.evaluate(() => !window.__fw.scene3d.clubhouse().build.isActive());
   await shot('16-placement-complete');
-  await page.keyboard.press('b');
+  if (!result.placement.autoExited) await page.keyboard.press('b');
 }
 
 // Book a due tee time through the reservation simulation, then perform the
@@ -212,8 +247,12 @@ result.frontDesk.after = await page.evaluate(() => ({
 }));
 await shot('18-front-desk-checkin-after');
 
-// Course maintenance: choose a real fairway cell, cycle to the hose with F,
-// and hold the mouse trigger. Compare total moisture before/after.
+// Course maintenance: pause the simulation with the normal Space control so
+// whole-course evaporation cannot hide the local gain, then choose a real
+// fairway cell, cycle to the hose with F, and hold the mouse trigger.
+const maintenanceSpeedBefore = await page.evaluate(() => window.__fw.speedIdx);
+if (maintenanceSpeedBefore !== 0) await page.keyboard.press('Space');
+result.maintenance.clockPaused = await page.evaluate(() => window.__fw.speedIdx === 0);
 result.maintenance.before = await page.evaluate(async () => {
   const app = window.__fw;
   const constants = await import('/src/sim/constants.js');
@@ -233,7 +272,7 @@ result.maintenance.before = await page.evaluate(async () => {
   walk.state.yaw = 0;
   walk.state.pitch = -0.45;
   const moisture = Array.from(app.state.turf.moisture).reduce((sum, value) => sum + value, 0);
-  return { cell: { x, y, index }, moisture };
+  return { cell: { x, y, index }, moisture, cellMoisture: app.state.turf.moisture[index] };
 });
 for (let guard = 0; guard < 6; guard++) {
   if (await page.evaluate(() => window.__fw.scene3d.walk.getTool() === 'hose')) break;
@@ -248,11 +287,13 @@ await page.mouse.down();
 await page.waitForTimeout(1_200);
 await page.mouse.up();
 await page.waitForTimeout(250);
-result.maintenance.after = await page.evaluate(() => ({
+result.maintenance.after = await page.evaluate((index) => ({
   moisture: Array.from(window.__fw.state.turf.moisture).reduce((sum, value) => sum + value, 0),
+  cellMoisture: window.__fw.state.turf.moisture[index],
   tool: window.__fw.scene3d.walk.getTool(),
-}));
+}), result.maintenance.before.cell.index);
 await shot('20-course-maintenance-after');
+if (maintenanceSpeedBefore !== 0) await page.keyboard.press('Space');
 
 result.runtime = {
   consoleErrors: messages.filter((entry) => entry.type === 'error'),
@@ -260,7 +301,7 @@ result.runtime = {
   warnings: messages.filter((entry) => entry.type === 'warning'),
 };
 await fs.writeFile(path.join(OUT, 'result.json'), `${JSON.stringify(result, null, 2)}\n`);
-await fs.writeFile(path.join(LOGS, 'baseline-operations-browser.json'), `${JSON.stringify(messages, null, 2)}\n`);
+await fs.writeFile(path.join(LOGS, `${EVIDENCE_LABEL}-operations-browser.json`), `${JSON.stringify(messages, null, 2)}\n`);
 await browser.close();
 
 console.log(JSON.stringify({
@@ -269,7 +310,7 @@ console.log(JSON.stringify({
   vacuumCleaned: result.cleaning.vacuum?.cleaned,
   placement: result.placement.placed,
   frontDeskStatus: result.frontDesk.after?.reservation?.status,
-  maintenanceMoistureDelta: result.maintenance.after?.moisture - result.maintenance.before?.moisture,
+  maintenanceMoistureDelta: result.maintenance.after?.cellMoisture - result.maintenance.before?.cellMoisture,
   consoleErrors: result.runtime.consoleErrors.length,
   pageErrors: result.runtime.pageErrors.length,
 }, null, 2));

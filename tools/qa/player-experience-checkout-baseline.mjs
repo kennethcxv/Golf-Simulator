@@ -5,7 +5,8 @@ import process from 'node:process';
 
 const ROOT = process.cwd();
 const BASE_URL = process.env.GOLF_FLIPPER_URL || 'http://127.0.0.1:8463/';
-const OUT = path.join(ROOT, 'qa', 'player-experience-polish', 'baseline', 'checkout');
+const EVIDENCE_LABEL = process.env.QA_EVIDENCE_LABEL || 'baseline';
+const OUT = path.join(ROOT, 'qa', 'player-experience-polish', EVIDENCE_LABEL, 'checkout');
 const LOGS = path.join(ROOT, 'qa', 'player-experience-polish', 'logs');
 const SOURCE_PATH = path.join(ROOT, 'tools', 'qa', 'register-sale.js');
 
@@ -57,7 +58,9 @@ async function waitForWorld() {
 await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
-await page.getByRole('button', { name: 'New Empire — Relaxed' }).click();
+await page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ }).click();
+await page.getByRole('dialog', { name: 'New game' }).waitFor();
+await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
 await page.getByRole('heading', { name: 'Property market' }).waitFor();
 await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
 await waitForWorld();
@@ -109,7 +112,7 @@ for (const mode of ['cash', 'card']) {
   await fs.writeFile(path.join(OUT, mode, 'result.json'), `${JSON.stringify(results[mode], null, 2)}\n`);
 }
 
-await fs.writeFile(path.join(LOGS, 'baseline-checkout-browser.json'), `${JSON.stringify(harnessMessages, null, 2)}\n`);
+await fs.writeFile(path.join(LOGS, `${EVIDENCE_LABEL}-checkout-browser.json`), `${JSON.stringify(harnessMessages, null, 2)}\n`);
 await fs.writeFile(path.join(OUT, 'summary.json'), `${JSON.stringify(results, null, 2)}\n`);
 await browser.close();
 
