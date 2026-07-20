@@ -425,12 +425,15 @@ const customerDiagnostics = await page.evaluate(() => {
   };
 });
 if (CAPTURE && REQUESTED_CUSTOMERS > 0) {
-  await setCamera(ALL_SHOTS[3]);
+  // Live-flow evidence is separate from the matched fixture cameras. Frame it
+  // from the aisle edge so a shopper cannot fill the lens while the rest of
+  // the browsing route disappears behind them.
+  await setCamera({ at: [-2.65, 2.75], to: [-0.7, -4.6], pitch: -0.035 });
   await page.screenshot({
     path: path.join(OUT, 'customer-flow', '01-browsing.jpg'),
     type: 'jpeg', quality: 86,
   });
-  await setCamera(ALL_SHOTS[1]);
+  await setCamera({ at: [0.05, 1.55], to: [2.9, 4.5], pitch: -0.08 });
   await page.screenshot({
     path: path.join(OUT, 'customer-flow', '02-checkout-approach.jpg'),
     type: 'jpeg', quality: 86,

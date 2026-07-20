@@ -42,7 +42,10 @@ function categorySign(title, { w = 1.5, h = 0.26, charcoal = false } = {}) {
   });
   return new THREE.Mesh(
     new THREE.PlaneGeometry(w, h),
-    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }),
+    // Printed department boards need one stable charcoal field across the
+    // three adjacent bays. A basic material keeps point-light angle from
+    // turning identical signs into three visibly different greys.
+    new THREE.MeshBasicMaterial({ map: tex, color: 0xe8e2d7, toneMapped: true }),
   );
 }
 
@@ -63,7 +66,7 @@ function priceRail(f, { w = 2.6, h = 0.20 } = {}) {
   });
   return new THREE.Mesh(
     new THREE.PlaneGeometry(w, h),
-    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.84 }),
+    new THREE.MeshBasicMaterial({ map: tex, color: 0xe8e2d7, toneMapped: true }),
   );
 }
 

@@ -6,7 +6,7 @@ The earlier iteration folders remain historical design evidence, but they are no
 
 Every counted pass launches the shipped game in hardware-accelerated Chrome at 1600 x 900, starts through **New Empire -> Relaxed -> Property Market -> Buy**, closes the guide with its real keyboard control, and proves movement with a canvas click plus Arrow/W input before any fixed-camera inspection. Each pass captures the same 18 starting-state and 18 fully-stocked player-height cameras, a route video, console/network diagnostics, and fixed performance scenarios. Fully stocked tier-three state is an inspection fixture only and does not write a save. Natural checkout acceptance is tracked separately and never uses state injection or QA transaction hooks.
 
-The four-pass acceptance gate is still in progress. The sole console diagnostic in pass one is a Chromium/Direct3D shader-compiler warning. Recorded `ERR_ABORTED` requests are teardown or superseded background loads; no required shop asset failed and no HTTP error was recorded.
+All four counted visual passes are complete. The visual gate is closed; natural checkout, routes A-E, save/load, and the dedicated repeated performance protocol remain separate acceptance work. The sole recurring console diagnostic is a Chromium/Direct3D shader-compiler warning. Recorded `ERR_ABORTED` requests are teardown or superseded background loads; no required shop asset failed and no HTTP error was recorded.
 
 ## Acceptance pass 1 - retail information hierarchy
 
@@ -101,4 +101,30 @@ Evidence:
 
 ## Acceptance pass 4
 
-Pending. It must independently document at least ten visible defects, implement revisions, rerun the complete 36-camera protocol, and retain before/after evidence before the visual gate can close.
+Evidence:
+
+- Before: `acceptance-visual-4-before/`
+- Accepted after: `acceptance-visual-4-after-accepted/`
+- Both runs: 36 clean fixed screenshots, two separate ten-shopper flow screenshots, route video, fresh-save boot record, normal-control and clock proof, console/network log, and exact-ten metrics in `run.json`
+- Accepted-after normal-control proof: 3.12 yards and 1.366 radians of yaw; real Space pause produced exactly zero clock drift
+- Accepted-after customer flow: ten active shoppers, 13 unique reserved browse/experience sockets, and 0.600-yard minimum actor separation
+- Empty basic: 118 FPS average / 60.61 FPS 1% low. Full-premium normal-control walk: 58.51 FPS / 15.02 FPS 1% low. Active listeners remained 92 throughout. These single visual-run timings show substantial run-to-run variance and are not substituted for the pending dedicated repeated performance gate.
+
+| Visible defect found in the before sweep | Revision verified in the accepted after sweep |
+|---|---|
+| Bare-head hair exposed only a thin equatorial strip and read as a floating headband. | Enlarged the shell beyond the skull and retained enough crown height to show a complete fitted hair cap. |
+| The rectangular belt projected sharp corners through the tapered shirt during chest twist. | Rebuilt it as a shallow eight-sided elliptical waist band that follows the torso silhouette. |
+| Rounded hands were still oversized and read as mitts at checkout distance. | Reduced hand radius by 20% and tightened the vertical proportion. |
+| Feet ended in rectangular blocks despite the rounded limb revision. | Rebuilt each shoe as a capsule upper over a separate thin sole without changing the walk pivot or footprint. |
+| Cap crowns spread wider than the skull and read as flat helmets. | Tightened and lowered the fitted dome. |
+| Cap brims remained broad rectangular shelves across the face. | Shortened, narrowed, thinned, and pitched the brim. |
+| Identical Putter, Irons, and Driver header textures rendered as visibly different greys under adjacent point lights. | Moved printed department boards to a stable tone-mapped print material; all three now share one charcoal field. |
+| Price rails changed brightness with viewing angle and became muddy on oblique departments. | Applied the same stable printed-material treatment to price rails while retaining the deep-green field. |
+| The entrance floor and walnut were strongly orange under three high-output pendants. | Neutralized can and pendant color temperatures, reduced daytime practical scale, and lowered pendant output. |
+| The back-counter crest lost its green name and subline in its emissive field. | Reduced panel emission and picture-light output; the club name, pine, rule, and Pro Shop line remain readable. |
+| Tour Vault's glove floated as a flat white silhouette against green-tinted glass. | Tilted and reduced the glove, then mounted it to a green presentation card. |
+| The small rangefinder lacked a deliberate visual anchor in the lower case. | Reduced its hero scale and added a shared-material presentation card without adding a new texture. |
+| The dark driver head disappeared against the walnut lower shelf. | Increased its hero scale and rotated it off-axis to expose the silhouette. |
+| All five premium heroes faced forward like unstaged stock. | Added restrained, product-specific rotations and differentiated scales across the two shelves. |
+| The browsing evidence camera could be filled by one foreground customer's face and torso. | Moved the separate live-flow camera to the aisle edge; the accepted frame shows multiple complete shoppers and departments. |
+| The checkout-approach evidence camera could be blocked by a customer crossing its right edge. | Shifted the separate checkout-flow view laterally while preserving a clear customer-to-register sightline. |

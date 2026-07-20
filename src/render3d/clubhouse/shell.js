@@ -636,14 +636,14 @@ export function buildShell(B) {
     interior.add(ring);
     const disc = new THREE.Mesh(
       new THREE.CircleGeometry(0.145, 12),
-      new THREE.MeshStandardMaterial({ color: 0xfff4dd, emissive: 0xffe2b0, emissiveIntensity: 1.4 }),
+      new THREE.MeshStandardMaterial({ color: 0xfff5e6, emissive: 0xffecd1, emissiveIntensity: 1.25 }),
     );
     disc.rotation.x = Math.PI / 2;
     disc.position.set(lx, CEIL_Y - 0.056, lz);
     interior.add(disc);
     let light = null;
     if (real) {
-      light = new THREE.PointLight(0xffe2b0, intensity, 8.5, 1.8);
+      light = new THREE.PointLight(0xffecd1, intensity, 8.5, 1.8);
       light.position.set(lx, CEIL_Y - 0.35, lz);
       interior.add(light);
     }
@@ -657,14 +657,14 @@ export function buildShell(B) {
     // cap, four tapered posts, glass — with the glow driven from its glass slot.
     // The old build stays as the fallback until the GLB lands (the light itself
     // must not wait, or the shop opens dark).
-    const light = new THREE.PointLight(0xffdfa4, 13, 9.5, 1.7);
+    const light = new THREE.PointLight(0xffe8c8, 11.5, 9.5, 1.7);
     light.position.set(lx, CEIL_Y - 0.85, lz);
     interior.add(light);
 
     const glassMat = new THREE.MeshStandardMaterial({
-      color: 0xfff2d8, emissive: 0xffdfa4, emissiveIntensity: 1.5,
+      color: 0xfff4e4, emissive: 0xffe8c8, emissiveIntensity: 1.35,
     });
-    const entry = { light, glow: { material: glassMat }, base: 13 };
+    const entry = { light, glow: { material: glassMat }, base: 11.5 };
     practicals.push(entry);
 
     if (merch) {
@@ -768,7 +768,7 @@ export function buildShell(B) {
 
   function applyPracticalLevels() {
     // practicals stay on all day (retail) but carry the room after dark
-    const scale = (0.72 + 0.55 * (1 - moodDayF)) * tierProfile.practicalScale;
+    const scale = (0.64 + 0.55 * (1 - moodDayF)) * tierProfile.practicalScale;
     practicals.forEach((p, i) => {
       let on = 1;
       if (conditionNow < 45 && i === 4) on = 0;              // a dead can in the neglect years

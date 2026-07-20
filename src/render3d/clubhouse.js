@@ -354,7 +354,7 @@ export function makeClubhouse(ctx) {
       new THREE.PlaneGeometry(PW, PH),
       new THREE.MeshStandardMaterial({
         map: logoTex, roughness: 0.88,
-        emissive: 0xfff0d6, emissiveMap: logoTex, emissiveIntensity: 0.28,
+        emissive: 0xfff0d6, emissiveMap: logoTex, emissiveIntensity: 0.08,
       }),
     );
     field.position.z = 0.005;
@@ -371,7 +371,7 @@ export function makeClubhouse(ctx) {
     hood.position.set(COUNTER.x, 3.22, INTERIOR.d / 2 - 0.27);
     hood.material.side = THREE.DoubleSide;
     interior.add(hood);
-    const wash = new THREE.SpotLight(0xffe9c2, 6, 3.2, 0.8, 0.7, 1.6);
+    const wash = new THREE.SpotLight(0xffeed4, 3.5, 3.2, 0.8, 0.7, 1.6);
     wash.position.set(COUNTER.x, 3.18, INTERIOR.d / 2 - 0.30);
     wash.target.position.set(COUNTER.x, 2.72, INTERIOR.d / 2 - 0.05);
     interior.add(wash, wash.target);
@@ -1865,19 +1865,34 @@ export function makeClubhouse(ctx) {
       if (f.kind === 'premiumcase' && state.shop.unlockedTier >= 3) {
         const g = new THREE.Group();
         const hero = [
-          ['head_driver', -0.72, 0.83, 0],
-          ['rangefinder', 0, 0.83, 0],
-          ['shoe_pro', 0.68, 0.83, 0.15],
-          ['cap_pro', -0.52, 1.48, 0],
-          ['glove', 0.48, 1.45, 0],
+          ['head_driver', -0.70, 0.80, -0.22],
+          ['rangefinder', 0.02, 0.84, -0.10],
+          ['shoe_pro', 0.68, 0.82, 0.22],
+          ['cap_pro', -0.53, 1.47, -0.12],
+          ['glove', 0.48, 1.46, 0.18],
         ];
         for (const [name, x, y, ry] of hero) {
           const obj = ['rangefinder', 'shoe_pro', 'cap_pro'].includes(name)
             ? merch.instantiateRaw(name) : merch.instantiate(name, { tint: 0x1f4a26 });
           if (!obj) continue;
-          obj.position.set(x, y, 0);
+          // The small electronics and glove now sit on deliberate green
+          // presentation cards instead of floating as a blue box and white
+          // silhouette against glass.
+          if (name === 'rangefinder' || name === 'glove') {
+            const card = new THREE.Mesh(
+              new THREE.BoxGeometry(name === 'rangefinder' ? 0.40 : 0.34, name === 'rangefinder' ? 0.24 : 0.36, 0.025),
+              mats.feltGreen,
+            );
+            card.position.set(x, y + (name === 'glove' ? 0.01 : 0.07), -0.07);
+            g.add(card);
+          }
+          obj.position.set(x, y, 0.015);
           obj.rotation.y = ry;
-          obj.scale.multiplyScalar(name === 'head_driver' ? 1.75 : 1.35);
+          if (name === 'glove') obj.rotation.z = -0.10;
+          const scale = name === 'head_driver' ? 2.05
+            : name === 'rangefinder' ? 1.35
+              : name === 'glove' ? 1.18 : 1.38;
+          obj.scale.multiplyScalar(scale);
           g.add(obj);
         }
         const baked = merch.bake(g);

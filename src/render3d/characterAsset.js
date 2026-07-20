@@ -45,7 +45,13 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   shirt.scale.z = 0.64;
   shirt.castShadow = true;
   chest.add(shirt);
-  const belt = box(0.37, 0.055, 0.23, mShoe, 0.025);
+  // A belt is a band around the waist, not a rectangular plate through it.
+  // The shallow eight-sided ring follows the same stylised language as the
+  // torso and cannot poke out as triangular corners when the chest twists.
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.202, 0.212, 0.045, 8), mShoe);
+  belt.position.y = 0.025;
+  belt.scale.z = 0.64;
+  belt.castShadow = true;
   chest.add(belt);
   const collarL = box(0.11, 0.025, 0.018, mKhaki, 0.50, -0.132);
   collarL.rotation.z = 0.28;
@@ -79,17 +85,20 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     head.add(ear);
   }
   if (mCap) {
-    const capTop = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 7, 0, Math.PI * 2, 0, Math.PI / 2), mCap);
-    capTop.scale.y = 0.55;
-    capTop.position.y = 0.13;
+    const capTop = new THREE.Mesh(new THREE.SphereGeometry(0.162, 12, 7, 0, Math.PI * 2, 0, Math.PI / 2), mCap);
+    capTop.scale.y = 0.43;
+    capTop.position.y = 0.145;
     head.add(capTop);
-    const brim = box(0.18, 0.025, 0.13, mCap, 0.13, -0.15);
+    const brim = box(0.155, 0.018, 0.105, mCap, 0.125, -0.145);
+    brim.rotation.x = -0.08;
     head.add(brim);
   } else {
     // bare head gets hair instead of a cap
-    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.1), M(0x4a3a28, 0.95));
-    hair.position.y = 0.075;
-    hair.scale.y = 0.72;
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.168, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.62), M(0x4a3a28, 0.95));
+    hair.position.y = 0.062;
+    // Keep the crown outside the skull as well as the sides; a vertically
+    // squashed shell only exposed its equator and read as a dark headband.
+    hair.scale.y = 0.98;
     head.add(hair);
   }
 
@@ -103,9 +112,9 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     elbow.position.y = -0.32;
     shoulder.add(elbow);
     elbow.add(capsule(0.055, 0.18, mSkin, -0.13));
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.065, 7, 5), mSkin);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.052, 7, 5), mSkin);
     hand.position.y = -0.30;
-    hand.scale.y = 1.18;
+    hand.scale.y = 1.12;
     hand.castShadow = true;
     elbow.add(hand);
     limbs[`shoulder${side}`] = shoulder;
@@ -119,8 +128,13 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     knee.position.y = -0.46;
     hip.add(knee);
     knee.add(capsule(0.072, 0.28, mKhaki, -0.20));
-    const shoe = box(0.13, 0.09, 0.26, mShoe, -0.42, -0.04);
-    knee.add(shoe);
+    // Rounded upper and a separate thin sole read as a shoe at player height,
+    // while retaining the same footprint and animation pivot as the old block.
+    const shoe = capsule(0.055, 0.13, mShoe, -0.42, -0.06);
+    shoe.rotation.x = Math.PI / 2;
+    shoe.scale.x = 1.08;
+    const sole = box(0.12, 0.025, 0.23, mShoe, -0.47, -0.06);
+    knee.add(shoe, sole);
     limbs[`hip${side}`] = hip;
     limbs[`knee${side}`] = knee;
   }
