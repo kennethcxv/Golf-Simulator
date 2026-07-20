@@ -46,19 +46,20 @@ The four review rounds and at least ten corrected weaknesses per round are itemi
 
 ## Performance comparison
 
-Chrome was forced through SwiftShader on this host, so absolute frame rate is not representative of production hardware. The same route and viewport make the before/after scene counters useful. Because the six-second final full-shop sample was frame-starved, a 14-second full-shop sample was also recorded.
+Chrome was forced through SwiftShader on this host, so absolute frame rate is not representative of production hardware. The same route and viewport make the before/after scene counters useful. The exact six-second profile was rerun after the indoor-rain correction; a separate 14-second diagnostic is retained as a supplemental starvation check.
 
-| Full tier-three shop + 10 shoppers | Baseline 6 s | Final extended 14 s | Change |
+| Full tier-three shop + 10 shoppers | Baseline 6 s | Final post-shelter 6 s | Change |
 |---|---:|---:|---:|
-| Average sampled FPS | 0.22 | 0.28 | +27.3% |
-| Worst sampled frame | 4599.8 ms | 3708.2 ms | -19.4% |
-| Visible meshes | 1,348 | 1,323 | -1.9% |
-| Scene triangles | 2,125,241 | 2,064,350 | -2.9% |
+| Average sampled FPS | 0.22 | 0.29 | +31.8% |
+| Worst sampled frame | 4599.8 ms | 3458.9 ms | -24.8% |
+| Visible meshes | 1,348 | 1,321 | -2.0% |
+| Scene triangles | 2,125,241 | 2,066,242 | -2.8% |
 | Unique materials | 296 | 316 | +6.8% |
 | Unique textures | 173 | 194 | +12.1% |
+| JavaScript heap | 72.14 MiB | 87.23 MiB | +20.9% |
 | Active event listeners | 92 | 92 | no regression |
 
-The exact six-second final scene snapshot was lighter still at 1,278 visible meshes and 2,043,601 scene triangles, but yielded no full-shop frame intervals under SwiftShader and is not used for the FPS comparison. The longer sample loaded more late assets and reached 104.96 MiB heap; the exact-duration comparison was 72.14 MiB baseline versus 71.51 MiB final. Normal `W` control moved 0.85 yards in the exact-duration route and 2.0 yards over the extended ten-second walk.
+The final exact-duration profile returned one full-shop interval, so the FPS number remains a coarse software-renderer signal rather than a production estimate. Its heap measurement is 15.09 MiB above baseline after loading the richer product and fixture set; listener count remains flat and geometry, sampled FPS, and worst-frame time all improved. The supplemental 14-second profile sampled three full-shop intervals at 0.28 average FPS and 3708.2 ms worst frame. Normal `W` control moved 0.85 yards in the exact-duration route and 2.0 yards over the extended ten-second walk.
 
 ## Evidence index
 
@@ -70,7 +71,8 @@ The exact six-second final scene snapshot was lighter still at 1,278 visible mes
 - `iteration-5-accepted/`: final after screenshots, run diagnostics, and video
 - `checkout-final/`: card, cash, and save/reload screenshots, results, summary, and videos
 - `final-performance/run.json`: exact six-second after comparison
-- `final-performance-extended/run.json`: extended sampler used for final full-shop FPS
+- `final-performance-extended/run.json`: supplemental 14-second starvation check
+- `final-performance-post-rain/run.json`: exact six-second final profile after every visual correction
 
 ## Known environment diagnostics
 
