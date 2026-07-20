@@ -22,6 +22,7 @@ import * as THREE from 'three';
 import { REGISTER, COUNTER, COUNTER_TOP, inRect, queueSlot } from '../../data/shopLayout.js';
 import { skuById } from '../../data/shopItems.js';
 import { judgeSwipe, SWIPE_MSG } from '../../sim/cardSwipe.js';
+import { registerGuidance } from '../../ui/registerGuidance.js';
 import {
   DENOMS, BILLS, createTx, scanItem, unscannedCount, requestPayment,
   subtotal, discountOf, totalOf, dueOf, cashTotalOf,
@@ -969,6 +970,7 @@ export function createRegisterMode(B) {
     drawerWant = 0;
     clearFocus();
     document.body.classList.remove('register-mode');
+    canvas.style.cursor = '';
   }
 
   // ============================================================ VERBS ==========
@@ -1197,13 +1199,19 @@ export function createRegisterMode(B) {
     if (!active) return false;
     setNdc(e);
     if (cardSwipe) sampleCardSwipe(e);
+    canvas.style.cursor = cardSwipe || grabbed ? 'grabbing' : (pickUnder() ? 'grab' : 'default');
     return true;
   }
 
   function onUp(e) {
     if (!active) return false;
-    if (cardSwipe) return finishCardSwipe(e);
+    if (cardSwipe) {
+      const handled = finishCardSwipe(e);
+      canvas.style.cursor = 'grab';
+      return handled;
+    }
     release();
+    canvas.style.cursor = 'default';
     return true;
   }
 
@@ -1445,6 +1453,10 @@ export function createRegisterMode(B) {
     getTx: () => tx,
     getCustomer: () => cust,
     getSwipeFeedback: () => swipeFeedback,
+    getUiStatus: () => registerGuidance(tx, {
+      customerName: cust ? cust.name : 'Customer',
+      swipeFeedback,
+    }),
     scanFlash: () => scanFlash,
     begin,
     abandon,

@@ -1011,26 +1011,88 @@ input[type="range"] { accent-color: var(--accent); }
 .lt-revtext { font-size: 13.5px; color: #2c332e; margin: 2px 0 3px; }
 .lt-revday { font-size: 11px; color: #8b938c; }
 
-/* REGISTER MODE — the camera is frozen at the till and the pointer is a cursor, so
-   it has to LOOK like a cursor. The crosshair is meaningless here (you are not
-   aiming, you are picking things up) and the walk prompt would sit over the counter. */
-body.register-mode { cursor: crosshair; }
+/* REGISTER MODE — the camera is frozen at the till and the pointer works physical
+   objects. Course-layer controls have no meaning here and must not compete with the
+   active transaction. */
+body.register-mode { cursor: default; }
 body.register-mode .shop-overlay { display: none !important; }
-
-/* the till's control hint — the walk prompt is hidden behind the counter, so this is
-   the only thing telling the player which keys the register answers to */
-.reg-hint {
-  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
-  display: flex; gap: 18px; align-items: center;
-  padding: 8px 16px; border-radius: 999px;
-  background: rgba(14, 18, 16, 0.82); border: 1px solid rgba(143, 214, 176, 0.22);
-  color: #cfe6d8; font-size: 12.5px; letter-spacing: 0.2px;
-  pointer-events: none; z-index: 40;
+body.register-mode .view-toggle { display: none !important; }
+body.register-mode .toast-wrap {
+  top: 166px;
+  bottom: auto;
+  width: min(440px, calc(100vw - 32px));
+  z-index: 39;
 }
-.reg-hint .reg-keys { display: inline-flex; gap: 6px; align-items: center; opacity: 0.92; }
-.reg-hint kbd {
-  display: inline-block; min-width: 18px; text-align: center;
-  padding: 2px 6px; border-radius: 5px;
-  background: rgba(143, 214, 176, 0.16); border: 1px solid rgba(143, 214, 176, 0.35);
-  color: #eaf6ee; font: 600 11px/1.2 ui-monospace, monospace;
+body.register-mode .toast {
+  width: 100%;
+  padding: 7px 12px;
+  text-align: center;
+  font-size: 0.86rem;
+  background: rgba(18, 25, 21, 0.92);
+}
+
+/* A compact transaction director. It stays above the scene, never across the drawer,
+   card, receipt, or carrier, and only shows controls legal in the current stage. */
+.reg-hint {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, calc(100vw - 32px));
+  padding: 11px 15px 12px;
+  gap: 5px;
+  color: #ecf2e9;
+  background: linear-gradient(180deg, rgba(24, 35, 29, 0.96), rgba(14, 21, 18, 0.94));
+  border: 1px solid rgba(143, 214, 176, 0.34);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38), inset 0 1px rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+  z-index: 40;
+  backdrop-filter: blur(8px);
+}
+.reg-hint[data-tone="warn"] { border-color: rgba(224, 163, 60, 0.78); }
+.reg-hint[data-tone="busy"] { border-color: rgba(112, 176, 211, 0.58); }
+.reg-hint[data-tone="ready"] { border-color: rgba(119, 211, 147, 0.74); }
+.reg-meta { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.reg-eyebrow {
+  color: #8fd6b0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+.reg-total { color: #f0d889; font: 800 0.88rem/1 ui-monospace, monospace; }
+.reg-title { font-size: 1.08rem; line-height: 1.2; letter-spacing: 0.01em; }
+.reg-hint[data-tone="warn"] .reg-title { color: #ffd28b; }
+.reg-detail { color: #b7c5bb; font-size: 0.82rem; line-height: 1.3; }
+.reg-progress {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+  margin-top: 3px;
+}
+.reg-step {
+  position: relative;
+  padding-top: 5px;
+  border-top: 2px solid #39453e;
+  color: #748077;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.reg-step.done { border-color: #508f67; color: #7fac8d; }
+.reg-step.current { border-color: #8fd6b0; color: #d9f3e2; }
+.reg-controls { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; min-height: 22px; }
+.reg-control { display: inline-flex; gap: 6px; align-items: center; color: #cfe0d4; font-size: 0.76rem; }
+.reg-control kbd {
+  display: inline-block;
+  min-width: 21px;
+  padding: 2px 6px;
+  border: 1px solid rgba(143, 214, 176, 0.35);
+  border-radius: 5px;
+  color: #eff9f2;
+  background: rgba(143, 214, 176, 0.13);
+  font: 700 0.68rem/1.2 ui-monospace, monospace;
+  text-align: center;
 }

@@ -2799,6 +2799,7 @@ export function makeClubhouse(ctx) {
       getTx: () => register.getTx(),
       getCustomer: () => register.getCustomer(),
       getSwipeFeedback: () => register.getSwipeFeedback(),
+      getUiStatus: () => register.getUiStatus(),
     },
     // DIAGNOSTICS. Not a cheat: sendToCounter() puts a shopper at the head of the
     // queue holding goods it took off the shelf through pickFromShelf, exactly as if

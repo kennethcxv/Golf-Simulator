@@ -1562,7 +1562,34 @@ const CONDITION_WORD = (c) =>
 let lastCondWord = null;
 
 function updateWalkOverlay() {
-  if (regHint) regHint.style.display = regActive() ? 'flex' : 'none';
+  if (regHint) {
+    const register = regApi();
+    const status = register && register.isActive() && register.getUiStatus
+      ? register.getUiStatus()
+      : null;
+    regHint.style.display = status ? 'grid' : 'none';
+    if (status) {
+      const ui = regHint._ui;
+      ui.eyebrow.textContent = `CHECKOUT · ${status.customer}`;
+      ui.total.textContent = status.total;
+      ui.title.textContent = status.title;
+      ui.detail.textContent = status.detail;
+      regHint.dataset.tone = status.tone;
+      ui.steps.forEach((step, i) => {
+        step.classList.toggle('done', i < status.progress);
+        step.classList.toggle('current', i === status.progress);
+      });
+      const signature = JSON.stringify(status.controls);
+      if (ui.controls.dataset.signature !== signature) {
+        ui.controls.dataset.signature = signature;
+        ui.controls.replaceChildren(...status.controls.map((control) =>
+          el('span', { class: 'reg-control' },
+            el('kbd', { text: control.key }),
+            el('span', { text: control.label }),
+          )));
+      }
+    }
+  }
   const prompt = walkOverlay.querySelector('.shop-prompt');
   // build mode speaks over the world's own prompts: while it is on, the only controls that
   // matter are its controls
@@ -1696,16 +1723,28 @@ function boot() {
     el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F tool · Tab: overview camera · Esc: office menu' }),
   );
 
-  // BEHIND THE TILL the walk overlay is hidden — no crosshair, no prompt — so the
-  // player has no way to discover [T] and [D] except by pressing every key. The
-  // register screen tells them WHAT it wants ("PUT THEIR MONEY IN THE TILL"); this
-  // tells them which hand to use.
-  regHint = el('div', { class: 'reg-hint', style: 'display:none' },
-    el('span', { text: 'Drag goods over the scanner to ring them up' }),
-    el('span', { class: 'reg-keys' }, el('kbd', { text: 'T' }), el('span', { text: 'total up' })),
-    el('span', { class: 'reg-keys' }, el('kbd', { text: 'D' }), el('span', { text: 'drawer' })),
-    el('span', { class: 'reg-keys' }, el('kbd', { text: 'Esc' }), el('span', { text: 'step back' })),
-  );
+  // One live instruction, derived from the transaction stage. The old bar repeated
+  // "drag goods" through payment, receipt, bagging, and handoff while showing T and D
+  // even when neither key was legal.
+  const regEyebrow = el('span', { class: 'reg-eyebrow', text: 'CHECKOUT' });
+  const regTotal = el('span', { class: 'reg-total', text: '$0.00' });
+  const regTitle = el('strong', { class: 'reg-title', text: 'Scan the order' });
+  const regDetail = el('span', { class: 'reg-detail', text: '' });
+  const regSteps = ['Scan', 'Pay', 'Receipt', 'Bag', 'Handoff'].map((label) =>
+    el('span', { class: 'reg-step', text: label }));
+  const regControls = el('div', { class: 'reg-controls' });
+  regHint = el('section', {
+    class: 'reg-hint', style: 'display:none', role: 'status', 'aria-live': 'polite',
+  },
+  el('div', { class: 'reg-meta' }, regEyebrow, regTotal),
+  regTitle,
+  regDetail,
+  el('div', { class: 'reg-progress' }, ...regSteps),
+  regControls);
+  regHint._ui = {
+    eyebrow: regEyebrow, total: regTotal, title: regTitle, detail: regDetail,
+    steps: regSteps, controls: regControls,
+  };
 
   const viewButtons = ['normal', 'health', 'moisture'].map((mode) =>
     el('button', {

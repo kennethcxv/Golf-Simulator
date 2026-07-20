@@ -19,10 +19,18 @@ let toastWrap = null;
 
 export function toast(msg, kind = '') {
   if (!toastWrap) {
-    toastWrap = el('div', { class: 'toast-wrap' });
+    toastWrap = el('div', { class: 'toast-wrap', 'aria-live': 'polite' });
     document.getElementById('ui').append(toastWrap);
   }
-  const t = el('div', { class: `toast ${kind}`, text: msg });
+  // Repeated simulation notices used to stack over the active work until the
+  // register was hidden behind a wall of identical cards. Keep a short, recent
+  // queue and collapse duplicates; checkout's live stage HUD carries the durable
+  // instruction.
+  const duplicate = [...toastWrap.children].find((node) => node.dataset.message === msg);
+  if (duplicate) return;
+  const limit = document.body.classList.contains('register-mode') ? 2 : 4;
+  while (toastWrap.children.length >= limit) toastWrap.firstElementChild.remove();
+  const t = el('div', { class: `toast ${kind}`, text: msg, role: 'status', 'data-message': msg });
   toastWrap.append(t);
   setTimeout(() => {
     t.style.transition = 'opacity 0.35s';
