@@ -522,9 +522,21 @@ export function buildBuildMode(B, deps) {
     return true;
   }
 
-  function setGhostColour(ok) {
-    ghostMat.color.setHex(ok ? GHOST_OK : GHOST_BAD);
-    edgeMat.color.setHex(ok ? GHOST_OK : GHOST_BAD);
+  function rawCandidate() {
+    if (!carrying) return null;
+    const meta = placeableById(carrying);
+    if (!meta) return null;
+    if (originalMode && original) return clone(original);
+    const target = surfaceTargets(meta)[0]?.transform;
+    if (!target) return null;
+    const candidate = {
+      ...target,
+      x: target.x + manualOffset.x,
+      y: target.y + manualOffset.y,
+      z: target.z + manualOffset.z,
+    };
+    if (target.surface !== 'wall') candidate.ry = rotation;
+    return candidate;
   }
 
   function shelfUnitsOnFixture(id) {

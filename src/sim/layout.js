@@ -848,11 +848,114 @@ export function shopExpansionLayoutSafety(state, tierId) {
   return { ok: reasons.length === 0, reasons: [...new Set(reasons)] };
 }
 
-// --- boxes as real objects ---------------------------------------------------------------
-// A carried carton, once set down, occupies floor like anything else — the same walls,
-// fixtures and doorways a shelf answers to, plus the boxes already on the floor. The size
-// comes from data/boxes.js (boxDims), so the collider the scene draws, the rules here and
-// the mesh all read one number.
+export function sellObject(state, id, options = {}) {
+  const meta = placeableById(id) || extraMeta(state, id);
+  if (!meta) return { ok: false, reason: 'No such placeable object.' };
+  const layout = ensureLayout(state);
+  const current = objectRecord(state, id);
+  if (current.state === 'sold' || layout.soldCredits[id]) {
+    return { ok: false, repeated: true, reason: `${meta.label} has already been sold.` };
+  }
+  if (meta.requiredObject) {
+    return {
+      ok: false, required: true,
+      reason: `${meta.label} is required (${meta.requiredObject}). It cannot be sold; recover it instead.`,
+    };
+  }
+  if (!Number.isFinite(meta.sellValue) || meta.sellValue <= 0) return { ok: false, reason: `${meta.label} has no resale value.` };
+  const value = Math.round(meta.sellValue * 100) / 100;
+  state.cash = Math.round((state.cash + value) * 100) / 100;
+  layout.revision += 1;
+  layout.soldCredits[id] = { value, revision: layout.revision };
+  setRawRecord(state, id, { ...current, state: 'sold', soldAtRevision: layout.revision });
+  // Sales deliberately do not enter placement undo history: otherwise undo/redo
+  // becomes a money printer. A sold object can only return through a future buy flow.
+  layout.history.redo.length = 0;
+  return { ok: true, id, value, cash: state.cash, revision: layout.revision };
+}
+
+function applyHistoryEntry(state, entry, direction) {
+  const layout = ensureLayout(state);
+  if (entry.type === 'object') {
+    setRawRecord(state, entry.id, direction === 'undo' ? entry.before : entry.after);
+  } else if (entry.type === 'style') {
+    layout.roomStyle = clone(direction === 'undo' ? entry.before : entry.after);
+  }
+  layout.revision += 1;
+}
+
+export function undoPlacement(state) {
+  const layout = ensureLayout(state);
+  const entry = layout.history.undo.pop();
+  if (!entry) return { ok: false, reason: 'Nothing to undo.' };
+  applyHistoryEntry(state, entry, 'undo');
+  layout.history.redo.push(clone(entry));
+  return { ok: true, entry: clone(entry), revision: layout.revision };
+}
+
+export function redoPlacement(state) {
+  const layout = ensureLayout(state);
+  const entry = layout.history.redo.pop();
+  if (!entry) return { ok: false, reason: 'Nothing to redo.' };
+  applyHistoryEntry(state, entry, 'redo');
+  layout.history.undo.push(clone(entry));
+  if (layout.history.undo.length > HISTORY_LIMIT) layout.history.undo.shift();
+  return { ok: true, entry: clone(entry), revision: layout.revision };
+}
+
+export function setRoomStyle(state, patch, options = {}) {
+  const layout = ensureLayout(state);
+  const before = clone(layout.roomStyle);
+  const after = { ...before, ...patch };
+  if (JSON.stringify(before) === JSON.stringify(after)) return { ok: true, unchanged: true, style: after };
+  layout.roomStyle = after;
+  layout.revision += 1;
+  if (options.history !== false) pushHistory(layout, { type: 'style', kind: 'style', before, after: clone(after) });
+  return { ok: true, style: clone(after), revision: layout.revision };
+}
+
+export function setObjectVariant(state, id, variant, options = {}) {
+  const meta = placeableById(id) || extraMeta(state, id);
+  if (!meta) return { ok: false, reason: 'No such placeable object.' };
+  if (!meta.variants?.includes(variant)) return { ok: false, reason: `${meta.label} does not support that finish.` };
+  const current = objectRecord(state, id);
+  if (current.variant === variant) return { ok: true, unchanged: true, object: objectById(state, id) };
+  const object = commitRecord(state, id, { ...current, variant }, {
+    history: options.history !== false,
+    kind: 'variant',
+  });
+  return { ok: true, object, revision: ensureLayout(state).revision };
+}
+
+export function roomStyle(state) {
+  return clone(ensureLayout(state).roomStyle);
+}
+
+export function recoverInvalidObjects(state) {
+  const recovered = [];
+  const failed = [];
+  for (const object of [...placedObjects(state)]) {
+    const validation = validateObjectPlacement(state, object.id, object.transform, { grid: false, rotationSnap: false });
+    if (validation.ok) continue;
+    const result = recoverObject(state, object.id, { history: false });
+    if (result.ok) recovered.push({ id: object.id, reasons: validation.reasons });
+    else failed.push({ id: object.id, reasons: validation.reasons, recovery: result.reason });
+  }
+  return { ok: failed.length === 0, recovered, failed };
+}
+
+export function layoutSnapshot(state) {
+  const layout = ensureLayout(state);
+  return clone({
+    version: layout.version,
+    revision: layout.revision,
+    objects: layout.objects,
+    soldCredits: layout.soldCredits,
+    roomStyle: layout.roomStyle,
+  });
+}
+
+// --- Boxes remain real floor objects ----------------------------------------------------
 
 export function boxFootprint(box, x, z, ry = 0) {
   const dim = boxDims(box && box.box);
