@@ -553,10 +553,13 @@ export function createRegisterMode(B) {
   // is a real target on their side of the counter that lights up when it is waiting
   // for something.
   const palm = new THREE.Mesh(
-    new THREE.SphereGeometry(0.075, 12, 8),
+    new THREE.SphereGeometry(0.095, 12, 8),
     new THREE.MeshStandardMaterial({ color: 0xf0d8b4, roughness: 0.85, transparent: true, opacity: 0.0 }),
   );
-  palm.position.set(queueSlot(0).x + 0.18, COUNTER_TOP + 0.07, COUNTER.z - COUNTER.depth / 2 - 0.06);
+  // Use the customer's left hand. Their right hand projects directly behind the
+  // monitor and its invisible TOTAL hotspot from the cashier camera, making a
+  // correctly-counted cash sale appear stuck even though the palm was active.
+  palm.position.set(queueSlot(0).x - 0.20, COUNTER_TOP + 0.10, COUNTER.z - COUNTER.depth / 2 - 0.06);
   palm.userData = { pick: true, kind: 'palm' };
   palm.visible = false;
   root.add(palm);
@@ -629,6 +632,34 @@ export function createRegisterMode(B) {
 
   function pickUnder() {
     ray.setFromCamera(ndc, camera);
+    // Handoff is the only legal action when the open palm is showing. Use a stable
+    // screen-space target around what the player sees: a small low-poly sphere's
+    // triangle hit can fall between cursor rays at steep perspective, and equipment
+    // hotspots can overlap it on narrower views.
+    if (palm.visible) {
+      const projected = palm.getWorldPosition(tmp).project(camera);
+      const rect = canvas.getBoundingClientRect();
+      const dx = (ndc.x - projected.x) * rect.width * 0.5;
+      const dy = (ndc.y - projected.y) * rect.height * 0.5;
+      if (Math.hypot(dx, dy) <= 48) return palm;
+    }
+    // The five real bill stacks overlap like a compact till fan. Triangle depth
+    // alone can therefore choose the adjacent denomination even when the cursor is
+    // centered on the intended well. Resolve an open drawer by the nearest visible
+    // stack center first, matching the labelled physical wells the player sees.
+    if (tx?.drawerOpen) {
+      const rect = canvas.getBoundingClientRect();
+      let best = null;
+      for (const piece of drawerMoney.children) {
+        if (!piece.visible) continue;
+        const projected = piece.getWorldPosition(tmp).project(camera);
+        const dx = (ndc.x - projected.x) * rect.width * 0.5;
+        const dy = (ndc.y - projected.y) * rect.height * 0.5;
+        const distance = Math.hypot(dx, dy);
+        if (distance <= 30 && (!best || distance < best.distance)) best = { piece, distance };
+      }
+      if (best) return best.piece;
+    }
     const hits = ray.intersectObjects(pickables(), true);
     if (!hits.length) return null;
     let o = hits[0].object;

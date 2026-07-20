@@ -2397,6 +2397,7 @@ export function makeClubhouse(ctx) {
   // --- customers: they walk in from the course, through the real door -------------------
   let unitSeq = 0;   // every unit a shopper lifts gets its own identity
   const customers = [];
+  let ambientCustomerSpawning = true;
   // golfer-wardrobe palette, muted to the club color language
   const CUST_COLORS = [0x4a6d94, 0x2c3e66, 0xb0788f, 0xb3714a, 0x4a7050, 0x8a8577, 0x6b4f37];
   const counterQueue = [];
@@ -2682,7 +2683,7 @@ export function makeClubhouse(ctx) {
 
   const arrivedResIds = new Set();
   function updateArrivals() {
-    if (!state || !state.reservations) return;
+    if (!ambientCustomerSpawning || !state || !state.reservations) return;
     for (const r of dueForCheckIn(state)) {
       if (arrivedResIds.has(r.id)) continue;
       arrivedResIds.add(r.id);
@@ -2752,7 +2753,7 @@ export function makeClubhouse(ctx) {
     const minute = ((state.clock.minutes % 1440) + 1440) % 1440;
     const open = minute >= 360 && minute <= 1200;
     const targetCount = open ? clamp(Math.round(((state.shop.salesYesterday.units || 2) / 8) * 3), 1, 6) : 0;
-    if (open && customers.length < targetCount && Math.random() < dt * 0.15) spawnCustomer();
+    if (ambientCustomerSpawning && open && customers.length < targetCount && Math.random() < dt * 0.15) spawnCustomer();
     if (!open) {
       for (const c of customers) {
         if (c.stops[c.stopIdx] && c.stops[c.stopIdx].kind !== 'exit' && c.stops[c.stopIdx].kind !== 'gone') {
@@ -3003,6 +3004,15 @@ export function makeClubhouse(ctx) {
     // through it, because waiting on the RNG to produce a two-item cash customer is
     // not a test, it is a lottery.
     customers: () => customers,
+    prepareCheckoutQa() {
+      // Deterministic register acceptance: stop random/reservation arrivals and
+      // remove anyone already in the building through the same funnel used by
+      // normal departures, so held units return safely and a live till is voided.
+      ambientCustomerSpawning = false;
+      const removed = customers.length;
+      for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
+      return { removed };
+    },
     sendToCounter(skuIds, payMethod = null) {
       const c = spawnCustomer(false);
       if (!c) return null;
