@@ -41,6 +41,8 @@ async (page) => {
       of: tx.items.length,
       cardAttempts: tx.cardAttempts, cardsTried: tx.cardsTried,
       receiptPrinted: !!tx.receiptPrinted, banked: !!tx.banked,
+      drawerOpen: !!tx.drawerOpen, deposited: !!tx.deposited,
+      tendered: { ...(tx.tendered || {}) }, hand: { ...(tx.hand || {}) },
     };
   });
   const money = () => page.evaluate(() => ({
@@ -311,6 +313,7 @@ async (page) => {
         const px = await page.evaluate((a) => window.__qa.px(a.x, a.y, a.z), src);
         await page.mouse.click(px.x, px.y);
         await page.waitForTimeout(140);
+        log.push({ step: `13${denom}. picked change`, source: src, pixel: px, tx: await txNow() });
       }
     }
     await shot('09-change-counted');
@@ -319,7 +322,20 @@ async (page) => {
     // hand it over: click their open palm
     const palm = await page.evaluate(() => window.__qa.px(1.78, 1.13, 3.64));
     await page.mouse.click(palm.x, palm.y);
-    await untilStage('receipt');
+    try {
+      await untilStage('receipt');
+    } catch (error) {
+      const tx = await txNow();
+      log.push({ step: '15. change handoff blocked', palm, tx });
+      return {
+        ok: false,
+        mode: MODE,
+        blocker: { message: `cash handoff stayed at ${tx ? tx.stage : 'no transaction'}` },
+        log,
+        errors: errors.slice(0, 10),
+        errorCount: errors.length,
+      };
+    }
     log.push({ step: '15. handed the change back', tx: await txNow(), ...(await money()), expect: 'revenue STILL 0' });
   }
 

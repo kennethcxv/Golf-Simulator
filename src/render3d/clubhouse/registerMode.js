@@ -576,9 +576,13 @@ export function createRegisterMode(B) {
   }
   const hotTerm = hotspot('terminal', REGISTER.cardterm.x, COUNTER_TOP + 0.06, REGISTER.cardterm.z, 0.16, 0.14, 0.16);
   const hotTotal = hotspot('total', REGISTER.monitor.x, COUNTER_TOP + 0.07, REGISTER.monitor.z - 0.08, 0.22, 0.15, 0.12);
-  // the drawer's pull moves WITH the drawer, so it is parented to it
-  const hotPull = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.10, 0.08), HOT);
-  hotPull.position.set(0, 0.07, -0.20);
+  // The drawer's pull moves WITH the drawer, so it is parented to it. The exported
+  // Blender face is on local +z in game space. This target used to sit at -z and was
+  // 10 cm tall: from the cashier camera it invisibly covered the banknote row and
+  // every click intended for change toggled the drawer instead. Match the physical
+  // 16 x 2 x 2 cm pull closely so visible money remains the thing the ray touches.
+  const hotPull = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.035, 0.035), HOT);
+  hotPull.position.set(0, 0.086, 0.202);
   hotPull.userData = { pick: true, kind: 'pull' };
   drawerGroup.add(hotPull);
 
@@ -597,6 +601,7 @@ export function createRegisterMode(B) {
   let cardT = 0;
   let printT = 0;
   let scanFlash = 0;
+  let viewBlend = 0;
 
   // --- cursor raycasting ---------------------------------------------------------------
   const ray = new THREE.Raycaster();
@@ -629,6 +634,18 @@ export function createRegisterMode(B) {
 
   function pickUnder() {
     ray.setFromCamera(ndc, camera);
+    // Money is a thin visible surface inside a deep tray. When the drawer is open,
+    // resolve that authored target first instead of letting an overlapping child of
+    // the drawer carcass steal the click. The transaction layer still decides
+    // whether taking the denomination is legal.
+    if (tx && tx.drawerOpen) {
+      const moneyHits = ray.intersectObjects(drawerMoney.children, true);
+      if (moneyHits.length) {
+        let money = moneyHits[0].object;
+        while (money && !money.userData.pick && money.parent) money = money.parent;
+        if (money && money.userData.pick) return money;
+      }
+    }
     const hits = ray.intersectObjects(pickables(), true);
     if (!hits.length) return null;
     let o = hits[0].object;
@@ -716,7 +733,11 @@ export function createRegisterMode(B) {
         const p = makePiece(d);
         p.userData.from = 'drawer';
         p.position.set(s.x, s.y + i * (BILLS.includes(d) ? 0.0022 : 0.0028), s.z);
-        if (BILLS.includes(d)) p.rotation.y = (i % 2) * 0.03;
+        // Five 7.6 cm-wide bill wells share a 40 cm tray. Notes are 15.2 cm long
+        // and 6.6 cm wide, so they belong front-to-back in each well. Laying their
+        // long edge across x made every denomination overlap its neighbours: aiming
+        // at the $10 stack could physically hit $5 first.
+        if (BILLS.includes(d)) p.rotation.y = Math.PI / 2 + (i % 2) * 0.025;
         drawerMoney.add(p);
       }
     }
@@ -798,9 +819,18 @@ export function createRegisterMode(B) {
   //   terminal  21 deg   monitor  25 deg    bag  37 deg      open drawer -56 deg
   // The camera sits behind the stand, not on it, because a cashier leans back to see
   // the whole counter and forward to work it.
-  function cashierPose() {
-    const eye = { x: 2.78, y: 1.92, z: 5.52 };
-    const at = { x: 2.70, y: 1.05, z: 4.05 };
+  function cashierPose(drawerFocus = 0) {
+    const mix = (a, b) => a + (b - a) * drawerFocus;
+    const eye = {
+      x: mix(2.78, 2.75),
+      y: mix(1.92, 2.20),
+      z: mix(5.52, 5.62),
+    };
+    const at = {
+      x: mix(2.70, 2.55),
+      y: mix(1.05, 1.20),
+      z: mix(4.05, 4.25),
+    };
     const w = L2W(eye.x, eye.z);
     const dx = at.x - eye.x;
     const dy = at.y - eye.y;
@@ -818,7 +848,8 @@ export function createRegisterMode(B) {
   function enter() {
     if (active) return false;
     active = true;
-    focusOn(cashierPose());
+    viewBlend = tx && tx.drawerOpen ? 1 : 0;
+    focusOn(cashierPose(viewBlend));
     if (document.pointerLockElement) document.exitPointerLock();
     document.body.classList.add('register-mode');
     drawScreen();
@@ -1187,6 +1218,14 @@ export function createRegisterMode(B) {
     if (Math.abs(drawerAmt - target) > 0.001) {
       drawerAmt += Math.sign(target - drawerAmt) * Math.min(Math.abs(target - drawerAmt), dt * 3.2);
       drawerGroup.position.z = DZ + drawerAmt * REGISTER.drawer.travel;
+    }
+    // Rise and tip down only while the till is open. This keeps the drawer and the
+    // customer's waiting hand inside opposite edges of the same frame; an earlier
+    // close-up made the money readable by pushing the hand completely off-screen.
+    if (active) {
+      const viewTarget = tx && tx.drawerOpen ? 1 : 0;
+      viewBlend += (viewTarget - viewBlend) * Math.min(1, dt * 7);
+      focusOn(cashierPose(viewBlend));
     }
     if (scanFlash > 0) scanFlash = Math.max(0, scanFlash - dt);
 

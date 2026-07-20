@@ -1,0 +1,541 @@
+{
+  "mode": "cash",
+  "log": [
+    {
+      "step": "0. before",
+      "revenue": 0,
+      "units": 0,
+      "held": 0,
+      "shelfBalls": 10,
+      "shelfGlove": 10
+    },
+    {
+      "step": "1. customer at the counter",
+      "who": "Morgan W.",
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 0,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      }
+    },
+    {
+      "step": "2. [E] register mode",
+      "active": true
+    },
+    {
+      "step": "3. dragged item 1 over the glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 1,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      }
+    },
+    {
+      "step": "4. dragged the SAME item back over the glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 1,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      },
+      "expect": "scanned still 1"
+    },
+    {
+      "step": "5. [T] with 1 unscanned",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 1,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      },
+      "expect": "stage scanning, method null"
+    },
+    {
+      "step": "6. dragged item 2 over the glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      }
+    },
+    {
+      "step": "7. [T] total",
+      "tx": {
+        "stage": "cash-tender",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {
+          "10": 1,
+          "20": 1,
+          "50": 1
+        },
+        "hand": {}
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue still 0"
+    },
+    {
+      "step": "8. they counted out notes",
+      "notes": 3
+    },
+    {
+      "step": "9. [D] drawer before taking the cash",
+      "tx": {
+        "stage": "cash-tender",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {
+          "10": 1,
+          "20": 1,
+          "50": 1
+        },
+        "hand": {}
+      },
+      "expect": "still cash-tender"
+    },
+    {
+      "step": "10. took their cash",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {
+          "10": 1,
+          "20": 1,
+          "50": 1
+        },
+        "hand": {}
+      }
+    },
+    {
+      "step": "11. [D] drawer open",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": true,
+        "deposited": false,
+        "tendered": {
+          "10": 1,
+          "20": 1,
+          "50": 1
+        },
+        "hand": {}
+      }
+    },
+    {
+      "step": "12. put their notes away",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": true,
+        "deposited": true,
+        "tendered": {},
+        "hand": {}
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9
+    },
+    {
+      "step": "13. change owed",
+      "want": {
+        "1": 4,
+        "10": 1
+      }
+    },
+    {
+      "step": "131. picked change",
+      "source": {
+        "x": 2.5520000000000005,
+        "y": 0.9933999999999998,
+        "z": 5.014999999999986,
+        "denom": 1,
+        "n": 8
+      },
+      "pixel": {
+        "x": 730.3775981927495,
+        "y": 841.8833777251265
+      },
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": true,
+        "deposited": true,
+        "tendered": {},
+        "hand": {
+          "1": 1
+        }
+      }
+    },
+    {
+      "step": "131. picked change",
+      "source": {
+        "x": 2.5520000000000005,
+        "y": 0.9933999999999998,
+        "z": 5.014999999999986,
+        "denom": 1,
+        "n": 8
+      },
+      "pixel": {
+        "x": 730.3775981927805,
+        "y": 841.883377725117
+      },
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": true,
+        "deposited": true,
+        "tendered": {},
+        "hand": {
+          "1": 2
+        }
+      }
+    },
+    {
+      "step": "131. picked change",
+      "source": {
+        "x": 2.5520000000000005,
+        "y": 0.9933999999999998,
+        "z": 5.014999999999986,
+        "denom": 1,
+        "n": 8
+      },
+      "pixel": {
+        "x": 730.3775981927821,
+        "y": 841.8833777250898
+      },
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": true,
+        "deposited": true,
+        "tendered": {},
+        "hand": {
+          "1": 3
+        }
+      }
+    },
+    {
+      "step": "131. picked change",
+      "source": {
+        "x": 2.5520000000000005,
+        "y": 0.9933999999999998,
+        "z": 5.014999999999986,
+        "denom": 1,
+        "n": 8
+      },
+      "pixel": {
+        "x": 730.3775981927805,
+        "y": 841.8833777250989
+      },
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": true,
+        "deposited": true,
+        "tendered": {},
+        "hand": {
+          "1": 4
+        }
+      }
+    },
+    {
+      "step": "1310. picked change",
+      "source": {
+        "x": 2.4000000000000004,
+        "y": 0.9933999999999998,
+        "z": 5.014999999999986,
+        "denom": 10,
+        "n": 8
+      },
+      "pixel": {
+        "x": 636.2887930271949,
+        "y": 828.0967401371959
+      },
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": true,
+        "deposited": true,
+        "tendered": {},
+        "hand": {
+          "1": 4,
+          "10": 1
+        }
+      }
+    },
+    {
+      "step": "14. counted the change",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": true,
+        "deposited": true,
+        "tendered": {},
+        "hand": {
+          "1": 4,
+          "10": 1
+        }
+      }
+    },
+    {
+      "step": "15. handed the change back",
+      "tx": {
+        "stage": "receipt",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": true,
+        "tendered": {},
+        "hand": {}
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue STILL 0"
+    },
+    {
+      "step": "16. receipt printed",
+      "at": {
+        "x": 3.18,
+        "z": 4.44
+      }
+    },
+    {
+      "step": "17. took the receipt",
+      "tx": {
+        "stage": "bagging",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": true,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": true,
+        "tendered": {},
+        "hand": {}
+      }
+    },
+    {
+      "step": "18. bagged",
+      "tx": {
+        "stage": "bagging",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 2,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": true,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": true,
+        "tendered": {},
+        "hand": {}
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue STILL 0"
+    },
+    {
+      "step": "19. HANDED IT OVER",
+      "revenue": 66,
+      "units": 2,
+      "held": 0,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue banked NOW, held back to 0"
+    },
+    {
+      "step": "20. final",
+      "revenue": 66,
+      "units": 2,
+      "held": 0,
+      "shelfBalls": 9,
+      "shelfGlove": 9
+    }
+  ],
+  "errors": [],
+  "errorCount": 0,
+  "runnerDiagnostics": [
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "console:warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+    "requestfailed: http://localhost:8464/vendor/models/bucket_soil.glb (net::ERR_ABORTED)",
+    "requestfailed: http://localhost:8464/vendor/models/hose_nozzle.glb (net::ERR_ABORTED)",
+    "requestfailed: http://localhost:8464/vendor/models/hand_fork.glb (net::ERR_ABORTED)",
+    "requestfailed: http://localhost:8464/vendor/models/workbench.glb (net::ERR_ABORTED)",
+    "requestfailed: http://localhost:8464/vendor/models/shed.glb (net::ERR_ABORTED)",
+    "requestfailed: http://localhost:8464/vendor/models/clubhouse_ext_opt.glb (net::ERR_ABORTED)",
+    "console:warning: THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+  ]
+}

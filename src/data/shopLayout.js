@@ -177,7 +177,11 @@ export const REGISTER = {
   impulse:  { x: 3.85, z: 3.85 },                       // markers and tees, facing the queue
 
   // the drawer lives UNDER the counter and slides out toward the staff side
-  drawer: { x: 2.40, y: 0.86, w: 0.46, d: 0.40, travel: 0.34 },
+  // The 0.44 travel is deliberate: the coin cups sit behind the bill wells, so a
+  // drawer-depth of travel only just clears the counter slab. The extra 4 cm puts
+  // the whole rear row under the cursor while still preserving a person-width
+  // corridor behind the open till (held by checkout-space.test.js).
+  drawer: { x: 2.40, y: 0.86, w: 0.46, d: 0.40, travel: 0.44 },
 
   // surfaces
   staging: { minX: 2.30, maxX: 3.10, minZ: 3.78, maxZ: 4.12 },  // customer lays goods out here
