@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { newGame, update, serialize, deserialize } from '../src/sim/state.js';
 import { addRevenue, financialSummary } from '../src/sim/economy.js';
 import { checkoutSale } from '../src/sim/checkout.js';
-import { bookSlot, reservationsDailyTick } from '../src/sim/reservations.js';
+import { bookSlot, checkInReservation, reservationsDailyTick } from '../src/sim/reservations.js';
 import { purchaseUpgrade } from '../src/sim/progression.js';
 import {
   setGreenFee, setMembershipDue, setProductMarkup, setRentalPrice,
@@ -14,6 +14,7 @@ import { reviewFor, postReview } from '../src/sim/reviews.js';
 import { propertyConditionBreakdown, CONDITION_CATEGORIES } from '../src/sim/propertyCondition.js';
 import { appraisalBreakdown, appraiseProperty } from '../src/sim/valuation.js';
 import { SHOP_CATALOG } from '../src/data/shopItems.js';
+import { placeOrder, cancelOrder } from '../src/sim/shop.js';
 
 const r2 = (value) => Math.round(value * 100) / 100;
 
@@ -66,6 +67,27 @@ test('no-show fees post once even when housekeeping and save/load repeat', () =>
   assert.equal(loaded.ledger.entries.filter((entry) => entry.category === 'noShowFees').length, 1);
 });
 
+test('tee-time revenue cannot replay after save/load even if booking status is stale', () => {
+  const state = newGame('relaxed', 911);
+  const booking = bookSlot(state, 0, 7 * 60, 'Saved Booker').res;
+  assert.equal(checkInReservation(state, booking.id).ok, true);
+  const cash = state.cash;
+  const loaded = deserialize(serialize(state));
+  loaded.reservations.booked.find((item) => item.id === booking.id).status = 'booked';
+  const replay = checkInReservation(loaded, booking.id);
+  assert.equal(replay.ok, true);
+  assert.equal(loaded.cash, cash);
+  assert.equal(loaded.ledger.entries.filter((entry) => entry.idempotencyKey === `reservation:${booking.id}:check-in`).length, 1);
+});
+
+test('supplier orders reject zero, negative, fractional, and non-numeric quantities', () => {
+  const state = newGame('relaxed', 912);
+  const cash = state.cash;
+  for (const quantity of [0, -1, 1.5, '4']) assert.equal(placeOrder(state, 'balls1', quantity).ok, false);
+  assert.equal(state.cash, cash);
+  assert.equal(state.shop.orders.length, 0);
+});
+
 test('daily summaries reconcile profit and cash while explaining operations', () => {
   const state = newGame('relaxed', 904);
   update(state, 2 * 1440);
@@ -93,6 +115,17 @@ test('pricing refuses invalid values and maximum price is not the revenue optimu
   const fairTee = teePricingResponse(state, teePricingResponse(state).fairValue);
   const maxTee = teePricingResponse(state, 150);
   assert.ok(maxTee.revenueIndex < fairTee.revenueIndex);
+});
+
+test('maximum membership dues do not create a one-day captive-member windfall', () => {
+  const fair = newGame('relaxed', 913);
+  const extreme = newGame('relaxed', 913);
+  for (const tier of Object.keys(extreme.club.dues)) setMembershipDue(extreme, tier, 2000);
+  update(fair, 1440);
+  update(extreme, 1440);
+  const dues = (state) => state.ledger.entries.filter((entry) => entry.category === 'dues').reduce((sum, entry) => sum + entry.amount, 0);
+  assert.ok(dues(extreme) < dues(fair), `extreme ${dues(extreme)} must remain below fair ${dues(fair)}`);
+  assert.ok(extreme.ledger.outcomes.some((outcome) => outcome.type === 'membershipPriceResistance'));
 });
 
 test('reviews move only reasoned reputation categories and persist the reason', () => {
@@ -155,6 +188,17 @@ test('upgrade purchase persists and cannot charge or credit twice', () => {
   assert.equal(loaded.cash, cash);
   assert.equal(appraiseProperty(loaded), value);
   assert.equal(loaded.ledger.entries.filter((entry) => entry.idempotencyKey.includes('greensMowerII')).length, 1);
+});
+
+test('furniture and equipment orders count as restoration investment only while paid', () => {
+  const state = newGame('relaxed', 914);
+  state.cash = 100000;
+  const decor = SHOP_CATALOG.find((sku) => sku.cat === 'decor');
+  const order = placeOrder(state, decor.id, 1);
+  assert.equal(order.ok, true);
+  assert.equal(appraisalBreakdown(state).restorationInvestment, order.order.cost);
+  assert.equal(cancelOrder(state, order.order.id).ok, true);
+  assert.equal(appraisalBreakdown(state).restorationInvestment, 0);
 });
 
 test('valuation contributions reconcile exactly to displayed value', () => {

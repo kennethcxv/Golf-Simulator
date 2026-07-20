@@ -6,7 +6,7 @@
 import { BALANCE } from './sim/balance.js';
 import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
 import {
-  newEmpire, buyProperty, sellProperty, switchProperty, activeState,
+  newEmpire, buyProperty, confirmPropertySale, switchProperty, activeState,
   empireUpdate, empireSnapshot, deserializeEmpire,
 } from './sim/empire.js';
 import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
@@ -177,6 +177,19 @@ function alignLaptopUi() {
 
 let laptopResizeHandler = null;
 let laptopTimers = [];
+let laptopHiddenUi = null;
+
+function setLaptopBackdropHidden(hidden) {
+  gameUi?.classList.toggle('laptop-mode', hidden);
+  const roots = [hud?.root, objectivesPanel?.root].filter(Boolean);
+  if (hidden) {
+    laptopHiddenUi = roots.map((root) => ({ root, display: root.style.display }));
+    for (const { root } of laptopHiddenUi) root.style.display = 'none';
+    return;
+  }
+  for (const item of laptopHiddenUi || []) item.root.style.display = item.display;
+  laptopHiddenUi = null;
+}
 
 // build mode, if the clubhouse is up
 function buildApi() {
@@ -229,6 +242,7 @@ function enterLaptop() {
   if (document.pointerLockElement) document.exitPointerLock();
   closeLeftPanels('none');
   walkOverlay.style.display = 'none';
+  setLaptopBackdropHidden(true);
   // the physical sequence: lid swings → power light → boot → interface lands on the glass
   if (ch.laptopLid) ch.laptopLid(true);
   if (audio.ready) audio.laptopOpen();
@@ -268,6 +282,7 @@ function exitLaptop(silent) {
     laptopResizeHandler = null;
   }
   laptopUi.close();
+  setLaptopBackdropHidden(false);
   laptopQuad = null;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
   if (ch && ch.laptopScreen) ch.laptopScreen('desk'); // lid stays open, showing the lock screen
@@ -750,10 +765,10 @@ const handlers = {
     startGame(activeState(app.empire));
     autosave();
   },
-  sellHolding(propertyId, prevSpeed = 1) {
+  sellHolding(propertyId, prevSpeed = 1, appraisalId = null) {
     const empire = app.empire;
     const wasActive = empire.activeId === propertyId;
-    const res = sellProperty(empire, propertyId);
+    const res = confirmPropertySale(empire, propertyId, appraisalId, true);
     if (!res.ok) {
       toast(res.reason, 'warn');
       app.speedIdx = prevSpeed || 1;
@@ -1681,7 +1696,14 @@ function boot() {
 
   gameUi = el('div', { style: 'display:none' });
   hud = makeHud(app, handlers);
-  laptopUi = makeLaptop(app, { close: () => exitLaptop() });
+  laptopUi = makeLaptop(app, {
+    close: () => exitLaptop(),
+    sellHolding: handlers.sellHolding,
+    openMarket: () => {
+      exitLaptop(true);
+      handlers.openMarket();
+    },
+  });
   worksPanel = makeWorksPanel(app, handlers);
   inspectPanel = makeInspectPanel(app, recomputeRating);
   groundsPanel = makeGroundsPanel(app);

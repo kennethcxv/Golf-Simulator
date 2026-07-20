@@ -383,6 +383,7 @@ export function placeOrder(state, skuId, qty) {
   const manifest = planShipment(sku, qty);
   const goods = orderCost(sku, qty);
   const fee = manifest.fee;
+  const purchaseClass = ['decor', 'equipment'].includes(sku.cat) ? 'capital' : 'inventory';
   const cost = Math.round((goods + fee) * 100) / 100;   // `cost` is what you actually paid
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash.' };
 
@@ -396,6 +397,7 @@ export function placeOrder(state, skuId, qty) {
       relatedId: id,
       description: `${sku.name} supplier order`,
       source: 'supplier-order',
+      accountingClass: purchaseClass,
       units: qty,
       metadata: { skuId, supplier: manifest.supplier },
     });
@@ -407,6 +409,7 @@ export function placeOrder(state, skuId, qty) {
       relatedId: id,
       description: `${manifest.supplier} delivery charge`,
       source: 'supplier-order',
+      accountingClass: purchaseClass,
       metadata: { skuId, supplier: manifest.supplier, boxes: manifest.boxCount },
     });
     ledgerKeys.delivery = booked.entry?.idempotencyKey;
@@ -423,6 +426,7 @@ export function placeOrder(state, skuId, qty) {
     goods,
     fee,
     supplier: manifest.supplier,
+    accountingClass: purchaseClass,
     ledgerKeys,
     manifest,
     arrivesDay,
@@ -527,6 +531,7 @@ export function cancelOrder(state, id) {
         relatedId: o.id,
         description: `Cancelled supplier order â€” goods refund`,
         source: 'supplier-order',
+        accountingClass: o.accountingClass || 'inventory',
       });
     }
     if (o.fee > 0) {
@@ -535,6 +540,7 @@ export function cancelOrder(state, id) {
         relatedId: o.id,
         description: `Cancelled supplier order â€” delivery refund`,
         source: 'supplier-order',
+        accountingClass: o.accountingClass || 'inventory',
       });
     }
   } else {

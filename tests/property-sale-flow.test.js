@@ -35,6 +35,19 @@ test('the four property tiers are data-driven and ordered', () => {
   }
 });
 
+test('a fresh purchase cannot be flipped immediately for guaranteed profit', () => {
+  const empire = newEmpire('relaxed', 1204);
+  buyProperty(empire, 'willow-creek');
+  const appraisal = requestPropertyAppraisal(empire, 'willow-creek').appraisal;
+  assert.equal(appraisal.eligible, false);
+  assert.equal(appraisal.status, 'information');
+  const cash = empire.cash;
+  const attempted = confirmPropertySale(empire, 'willow-creek', appraisal.id, true);
+  assert.equal(attempted.ok, false);
+  assert.equal(empire.cash, cash);
+  assert.equal(empire.holdings.length, 1);
+});
+
 test('appraisal is persisted but cannot destroy a property without explicit confirmation', () => {
   const empire = newEmpire('relaxed', 1201);
   assert.equal(buyProperty(empire, 'willow-creek').ok, true);
