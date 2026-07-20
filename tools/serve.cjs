@@ -46,6 +46,10 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, {
         'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
         'Cache-Control': 'no-store',
+        // Playwright may run beside another worktree. A bare HTTP 200 is not proof
+        // that the requested port belongs to this checkout, so expose the canonical
+        // root for tools/qa/run-playwright.cjs to verify before it records evidence.
+        'X-Golf-Root': encodeURIComponent(ROOT),
       });
       res.end(data);
     });

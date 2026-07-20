@@ -21,6 +21,7 @@
 import * as THREE from 'three';
 import { REGISTER, COUNTER, COUNTER_TOP, inRect, queueSlot } from '../../data/shopLayout.js';
 import { skuById } from '../../data/shopItems.js';
+import { judgeSwipe, SWIPE_MSG } from '../../sim/cardSwipe.js';
 import {
   DENOMS, BILLS, createTx, scanItem, unscannedCount, requestPayment,
   subtotal, discountOf, totalOf, dueOf, cashTotalOf,
@@ -34,6 +35,16 @@ import {
 const CARRY_Y = COUNTER_TOP + 0.115;  // how high a grabbed item rides — inside the scan volume
 const REST_Y = COUNTER_TOP + 0.012;
 const CARD_TIME = 1.5;                // seconds the terminal spends authorising
+const CARD_SWIPE_TOP = {
+  x: REGISTER.cardterm.x + 0.09,
+  y: COUNTER_TOP + 0.21,
+  z: REGISTER.cardterm.z + 0.04,
+};
+const CARD_SWIPE_BOTTOM = {
+  x: REGISTER.cardterm.x + 0.09,
+  y: COUNTER_TOP + 0.06,
+  z: REGISTER.cardterm.z + 0.04,
+};
 // how close to the bag counts as IN the bag. The carrier is 0.27 yd across, so this is
 // the bag plus a hand's width — generous on purpose, because the alternative is a
 // player who drops a box against the side of the bag and watches nothing happen.
@@ -222,7 +233,7 @@ export function createRegisterMode(B) {
   }
   const barcodeMat = new THREE.MeshStandardMaterial({ map: barcodeTexture(), roughness: 0.8 });
   const boxMats = new Map();
-  const cardMat = new THREE.MeshStandardMaterial({ color: 0x2c4c66, roughness: 0.25, metalness: 0.25 });
+  const cardMat = new THREE.MeshStandardMaterial({ color: 0x285744, roughness: 0.32, metalness: 0.12 });
   const stripeMat = new THREE.MeshStandardMaterial({ color: 0x15171b, roughness: 0.5 });
 
   const BILL_GEO = new THREE.BoxGeometry(0.152, 0.0018, 0.066);
@@ -374,7 +385,7 @@ export function createRegisterMode(B) {
     else if (tx.stage === 'scanning') msg = 'ALL SCANNED — TOTAL IT UP';
     else if (tx.stage === 'payment') msg = 'CHOOSE A PAYMENT METHOD';
     else if (tx.stage === 'card-present') msg = 'CARD — ASK THEM TO PRESENT';
-    else if (tx.stage === 'card-ready') msg = 'CARD READY — RUN THE TERMINAL';
+    else if (tx.stage === 'card-ready') msg = 'CARD READY — SWIPE TOP TO BOTTOM';
     else if (tx.stage === 'card-busy') msg = 'AUTHORISING…';
     else if (tx.stage === 'card-declined') { msg = tx.cardResult === 'timeout' ? 'TIMED OUT — TRY AGAIN' : 'DECLINED — ANOTHER CARD'; col = '#ff9a8a'; }
     else if (tx.stage === 'cash-tender') msg = `CASH $${stackTotal(tx.tendered || {}).toFixed(2)} — TAKE IT`;
@@ -420,7 +431,13 @@ export function createRegisterMode(B) {
     c.fillText('$' + totalOf(tx).toFixed(2), 96, 44);
     c.font = 'bold 14px monospace';
     if (tx.stage === 'card-present') { c.fillStyle = '#8fd6ff'; c.fillText('PRESENT CARD', 96, 92); }
-    else if (tx.stage === 'card-ready') { c.fillStyle = '#8fd6ff'; c.fillText('TAP TO PAY', 96, 92); c.font = '10px monospace'; c.fillText('click to run', 96, 116); }
+    else if (tx.stage === 'card-ready') {
+      c.fillStyle = swipeFeedback ? '#ffb08f' : '#8fd6ff';
+      c.fillText((swipeFeedback || 'SWIPE CARD').toUpperCase(), 96, 92);
+      c.fillStyle = '#a9bac5';
+      c.font = '10px monospace';
+      c.fillText('drag top to bottom', 96, 116);
+    }
     else if (tx.stage === 'card-busy') { c.fillStyle = '#ffd98a'; c.fillText('AUTHORISING', 96, 92); }
     else if (tx.stage === 'card-declined') {
       c.fillStyle = '#ff8a7a';
@@ -596,12 +613,16 @@ export function createRegisterMode(B) {
   let tenderMeshes = [];          // the notes the customer put down
   let handMeshes = [];            // pieces the player has picked out to give back
   let cardMesh = null;
+  let cardSwipe = null;            // { samples: [{ y, t }] } while the mouse owns the card
+  let swipeFeedback = '';
+  let swipeFeedbackT = 0;
   let grabbed = null;
   const grabPrev = new THREE.Vector3();
   let cardT = 0;
   let printT = 0;
   let scanFlash = 0;
   let viewBlend = 0;
+  let cardViewBlend = 0;
 
   // --- cursor raycasting ---------------------------------------------------------------
   const ray = new THREE.Raycaster();
@@ -609,6 +630,7 @@ export function createRegisterMode(B) {
   const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const hit = new THREE.Vector3();
   const tmp = new THREE.Vector3();
+  const swipeProject = new THREE.Vector3();
 
   function setNdc(e) {
     const r = canvas.getBoundingClientRect();
@@ -624,9 +646,80 @@ export function createRegisterMode(B) {
     return { x: hit.x - interior.position.x, z: hit.z - interior.position.z };
   }
 
+  function setCardSwipePosition(y) {
+    if (!cardMesh) return;
+    const k = Math.max(0, Math.min(1, y));
+    cardMesh.position.set(
+      CARD_SWIPE_TOP.x + (CARD_SWIPE_BOTTOM.x - CARD_SWIPE_TOP.x) * k,
+      CARD_SWIPE_TOP.y + (CARD_SWIPE_BOTTOM.y - CARD_SWIPE_TOP.y) * k,
+      CARD_SWIPE_TOP.z + (CARD_SWIPE_BOTTOM.z - CARD_SWIPE_TOP.z) * k,
+    );
+  }
+
+  // Convert the real pointer path into 0..1 along the projected physical slot.
+  // Re-project every sample because the camera is still finishing its gentle focus
+  // when the card first appears; screen pixels must never become gameplay truth.
+  function swipeY(e) {
+    const rect = canvas.getBoundingClientRect();
+    const projectY = (p) => {
+      swipeProject.set(
+        p.x + interior.position.x,
+        p.y + interior.position.y,
+        p.z + interior.position.z,
+      ).project(camera);
+      return rect.top + ((-swipeProject.y + 1) / 2) * rect.height;
+    };
+    const top = projectY(CARD_SWIPE_TOP);
+    const bottom = projectY(CARD_SWIPE_BOTTOM);
+    if (Math.abs(bottom - top) < 8) return 0;
+    return (e.clientY - top) / (bottom - top);
+  }
+
+  function sampleCardSwipe(e) {
+    if (!cardSwipe) return;
+    const y = swipeY(e);
+    const t = performance.now() / 1000;
+    const last = cardSwipe.samples[cardSwipe.samples.length - 1];
+    if (!last || Math.abs(last.y - y) > 0.002 || t - last.t > 0.025) {
+      cardSwipe.samples.push({ y, t });
+    }
+    setCardSwipePosition(y);
+  }
+
+  function beginCardSwipe(e) {
+    if (!tx || tx.stage !== 'card-ready' || !cardMesh) return false;
+    cardSwipe = { samples: [] };
+    sampleCardSwipe(e);
+    sfx('equipTick');
+    return true;
+  }
+
+  function finishCardSwipe(e) {
+    if (!cardSwipe) return false;
+    sampleCardSwipe(e);
+    const result = judgeSwipe(cardSwipe.samples);
+    cardSwipe = null;
+    if (result.ok) {
+      swipeFeedback = '';
+      swipeFeedbackT = 0;
+      tx.stage = 'card-busy';
+      cardT = CARD_TIME;
+      sfx('cardTap');
+    } else {
+      swipeFeedback = SWIPE_MSG[result.code] || 'Swipe again';
+      swipeFeedbackT = 1.8;
+      setCardSwipePosition(0);
+      sfx('thunk');
+    }
+    drawScreen();
+    drawTerm();
+    return true;
+  }
+
   function pickables() {
     const t = [...loose, ...tenderMeshes, ...handMeshes, ...drawerMoney.children,
       hotTerm, hotTotal, hotPull];
+    if (cardMesh && tx && tx.stage === 'card-ready') t.push(cardMesh);
     if (receiptMesh) t.push(receiptMesh);
     if (palm.visible) t.push(palm);
     return t;
@@ -796,6 +889,9 @@ export function createRegisterMode(B) {
     handMeshes = [];
     if (receiptMesh) { root.remove(receiptMesh); receiptMesh = null; }
     if (cardMesh) { root.remove(cardMesh); cardMesh = null; }
+    cardSwipe = null;
+    swipeFeedback = '';
+    swipeFeedbackT = 0;
     grabbed = null;
     drawerWant = 0;
     printT = 0;
@@ -819,18 +915,26 @@ export function createRegisterMode(B) {
   //   terminal  21 deg   monitor  25 deg    bag  37 deg      open drawer -56 deg
   // The camera sits behind the stand, not on it, because a cashier leans back to see
   // the whole counter and forward to work it.
-  function cashierPose(drawerFocus = 0) {
-    const mix = (a, b) => a + (b - a) * drawerFocus;
+  function cashierPose(drawerFocus = 0, cardFocus = 0) {
+    const blend = (a, b, t) => a + (b - a) * t;
     const eye = {
-      x: mix(2.78, 2.75),
-      y: mix(1.92, 2.20),
-      z: mix(5.52, 5.62),
+      x: blend(2.78, 2.75, drawerFocus),
+      y: blend(1.92, 2.20, drawerFocus),
+      z: blend(5.52, 5.62, drawerFocus),
     };
     const at = {
-      x: mix(2.70, 2.55),
-      y: mix(1.05, 1.20),
-      z: mix(4.05, 4.25),
+      x: blend(2.70, 2.55, drawerFocus),
+      y: blend(1.05, 1.20, drawerFocus),
+      z: blend(4.05, 4.25, drawerFocus),
     };
+    // Look past the POS from its left edge. A straight push-in from the cashier
+    // stand put the large monitor exactly between the lens and the reader.
+    eye.x = blend(eye.x, 1.62, cardFocus);
+    eye.y = blend(eye.y, 1.58, cardFocus);
+    eye.z = blend(eye.z, 4.70, cardFocus);
+    at.x = blend(at.x, REGISTER.cardterm.x + 0.02, cardFocus);
+    at.y = blend(at.y, COUNTER_TOP + 0.09, cardFocus);
+    at.z = blend(at.z, REGISTER.cardterm.z + 0.02, cardFocus);
     const w = L2W(eye.x, eye.z);
     const dx = at.x - eye.x;
     const dy = at.y - eye.y;
@@ -849,7 +953,8 @@ export function createRegisterMode(B) {
     if (active) return false;
     active = true;
     viewBlend = tx && tx.drawerOpen ? 1 : 0;
-    focusOn(cashierPose(viewBlend));
+    cardViewBlend = 0;
+    focusOn(cashierPose(viewBlend, cardViewBlend));
     if (document.pointerLockElement) document.exitPointerLock();
     document.body.classList.add('register-mode');
     drawScreen();
@@ -1081,6 +1186,7 @@ export function createRegisterMode(B) {
     if (o.userData.kind === 'money' && o.userData.from === 'tender'
         && tx && tx.stage === 'cash-tender') takeTender();
 
+    if (o.userData.kind === 'card' && beginCardSwipe(e)) return true;
     if (clickAt(o)) return true;
     // not a switch → it is an object you can move
     if (o.userData.kind === 'item' || (o.userData.kind === 'money' && o.userData.from !== 'drawer')) grab(o);
@@ -1090,11 +1196,13 @@ export function createRegisterMode(B) {
   function onMove(e) {
     if (!active) return false;
     setNdc(e);
+    if (cardSwipe) sampleCardSwipe(e);
     return true;
   }
 
-  function onUp() {
+  function onUp(e) {
     if (!active) return false;
+    if (cardSwipe) return finishCardSwipe(e);
     release();
     return true;
   }
@@ -1130,11 +1238,15 @@ export function createRegisterMode(B) {
       sfx('paper');
       toast(`${cust.name} counts out $${stackTotal(tx.tendered).toFixed(2)} — take it and open the drawer.`);
     } else {
-      cardMesh = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.002, 0.054), cardMat);
-      const st = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.0012, 0.014), stripeMat);
-      st.position.set(0, 0.0016, -0.016);
+      // Upright, real-proportion card. Its magnetic stripe faces the cashier and the
+      // whole mesh becomes the mouse-owned object only after the customer presents it.
+      cardMesh = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.054, 0.002), cardMat);
+      const st = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.014, 0.0012), stripeMat);
+      st.position.set(0, 0.012, 0.0016);
       cardMesh.add(st);
-      cardMesh.position.set(REGISTER.cardterm.x - 0.03, COUNTER_TOP + 0.15, REGISTER.cardterm.z - 0.15);
+      cardMesh.position.set(queueSlot(0).x + 0.18, COUNTER_TOP + 0.13, COUNTER.z - COUNTER.depth / 2 - 0.06);
+      cardMesh.userData = { pick: true, kind: 'card' };
+      cardMesh.castShadow = true;
       root.add(cardMesh);
       toast(`${cust.name} takes out a card — activate the terminal.`);
     }
@@ -1192,17 +1304,20 @@ export function createRegisterMode(B) {
     if (!tx || tx.method !== 'card') return;
     if (tx.stage === 'card-present') {
       presentCard(tx);
-      if (cardMesh) {
-        cardMesh.position.set(REGISTER.cardterm.x, COUNTER_TOP + 0.09, REGISTER.cardterm.z - 0.01);
-      }
+      setCardSwipePosition(0);
+      swipeFeedback = '';
+      swipeFeedbackT = 0;
       sfx('cardTap');
-      toast(`${cust.name} holds the card to the terminal.`);
+      toast(`${cust.name} presents the card — drag it down through the reader.`);
     } else if (tx.stage === 'card-ready') {
-      tx.stage = 'card-busy';
-      cardT = CARD_TIME;
-      sfx('uiTick');
+      swipeFeedback = 'Swipe the card';
+      swipeFeedbackT = 1.2;
+      sfx('thunk');
     } else if (tx.stage === 'card-declined') {
       retryCard(tx);
+      setCardSwipePosition(0);
+      swipeFeedback = '';
+      swipeFeedbackT = 0;
       toast(`${cust.name} digs out another card.`);
       sfx('uiTick');
     }
@@ -1225,9 +1340,18 @@ export function createRegisterMode(B) {
     if (active) {
       const viewTarget = tx && tx.drawerOpen ? 1 : 0;
       viewBlend += (viewTarget - viewBlend) * Math.min(1, dt * 7);
-      focusOn(cashierPose(viewBlend));
+      const cardViewTarget = tx && tx.method === 'card' && tx.stage.startsWith('card') ? 1 : 0;
+      cardViewBlend += (cardViewTarget - cardViewBlend) * Math.min(1, dt * 7);
+      focusOn(cashierPose(viewBlend, cardViewBlend));
     }
     if (scanFlash > 0) scanFlash = Math.max(0, scanFlash - dt);
+    if (swipeFeedbackT > 0) {
+      swipeFeedbackT = Math.max(0, swipeFeedbackT - dt);
+      if (swipeFeedbackT === 0 && swipeFeedback) {
+        swipeFeedback = '';
+        drawTerm();
+      }
+    }
 
     // the terminal thinks about it
     if (tx && tx.stage === 'card-busy') {
@@ -1238,10 +1362,14 @@ export function createRegisterMode(B) {
         if (res.result === 'approved') {
           sfx('approve');
           toast('Approved.');
+          if (cardMesh) cardMesh.visible = false;
         } else {
           sfx('decline');
           toast(`${cust ? cust.name : 'Their'} card was declined — ask for another.`, 'warn');
-          if (cardMesh) cardMesh.position.set(REGISTER.cardterm.x - 0.02, COUNTER_TOP + 0.14, REGISTER.cardterm.z - 0.14);
+          if (cardMesh) {
+            cardMesh.visible = true;
+            setCardSwipePosition(0);
+          }
         }
         drawScreen();
         drawTerm();
@@ -1316,6 +1444,7 @@ export function createRegisterMode(B) {
     hasTx: () => !!tx,
     getTx: () => tx,
     getCustomer: () => cust,
+    getSwipeFeedback: () => swipeFeedback,
     scanFlash: () => scanFlash,
     begin,
     abandon,

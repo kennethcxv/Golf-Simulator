@@ -72,11 +72,16 @@ async (page) => {
   // mid-flight and you get a pixel ~90px off; the click lands on bare counter, nothing
   // is grabbed, and the run reports "scanned: 0" as though the scanner were broken.
   // It is the same trap as sleeping for the receipt. Never sleep for state.
-  const CASHIER_EYE = { x: 2.78 - 8, z: 5.52 + 228 };   // REGISTER cashier pose, in world
-  const untilCameraSettled = (ms = 10000) => page.waitForFunction((eye) => {
-    const c = window.__fw.scene3d.camera;
-    return Math.hypot(c.position.x - eye.x, c.position.z - eye.z) < 0.03;
-  }, CASHIER_EYE, { timeout: ms });
+  const untilCameraSettled = async (ms = 10000) => {
+    const eye = await page.evaluate(() => {
+      const p = window.__fw.scene3d.clubhouse().interior.position;
+      return { x: p.x + 2.78, z: p.z + 5.52 };
+    });
+    return page.waitForFunction((want) => {
+      const c = window.__fw.scene3d.camera;
+      return Math.hypot(c.position.x - want.x, c.position.z - want.z) < 0.03;
+    }, eye, { timeout: ms });
+  };
 
 
   // --- boot ------------------------------------------------------------------------
@@ -155,8 +160,9 @@ async (page) => {
 
     // behind the till, FACING IT: yaw 0 is -z, which is where the counter is
     const st = app.scene3d.walk.state;
-    st.x = 2.80 - 8;
-    st.z = 5.10 + 228;
+    const interior = app.scene3d.clubhouse().interior.position;
+    st.x = interior.x + 2.80;
+    st.z = interior.z + 5.10;
     st.yaw = 0;
     st.pitch = -0.18;
   });
@@ -208,6 +214,24 @@ async (page) => {
     await dragTo(at, [3.68, 1.17, 4.44], { via: [2.70, 1.17, 4.22] });   // over the glass
     return true;
   };
+  const swipeCard = async (end = 1) => {
+    const card = await page.evaluate(() => window.__qa.find('card'));
+    if (!card) throw new Error('No visible card to swipe.');
+    const from = await page.evaluate((a) => window.__qa.px(a.x, a.y, a.z), card);
+    const bottomY = 1.055 + 0.06;
+    const topY = 1.055 + 0.21;
+    const to = await page.evaluate(([x, y, z]) => window.__qa.px(x, y, z), [
+      2.14, topY + (bottomY - topY) * end, 3.92,
+    ]);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    for (let i = 1; i <= 10; i++) {
+      const k = i / 10;
+      await page.mouse.move(from.x + (to.x - from.x) * k, from.y + (to.y - from.y) * k);
+      await page.waitForTimeout(30);
+    }
+    await page.mouse.up();
+  };
 
   await scan(0);
   await shot('03-scanned-one');
@@ -240,24 +264,36 @@ async (page) => {
     await shot('06-card-presented');
     log.push({ step: '8. clicked terminal — they present', tx: await txNow() });
 
-    await page.mouse.click(term.x, term.y);
-    await page.waitForTimeout(350);
-    await shot('07-card-authorising');
-    log.push({ step: '9. clicked terminal — running', tx: await txNow(), ...(await money()) });
+    // A partial physical stroke must remain card-ready and explain itself.
+    await swipeCard(0.48);
+    await page.waitForTimeout(180);
+    await shot('07-card-swipe-incomplete');
+    log.push({
+      step: '9. incomplete physical swipe refused',
+      tx: await txNow(),
+      feedback: await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getSwipeFeedback()),
+    });
+
+    // Now make the top-to-bottom gesture a player performs with the mouse.
+    await swipeCard(1);
+    await untilStage('card-busy');
+    await page.waitForTimeout(250);
+    await shot('08-card-authorising');
+    log.push({ step: '10. physical swipe accepted — running', tx: await txNow(), ...(await money()) });
 
     await untilStage(['receipt', 'card-declined']);
     let t = await txNow();
-    log.push({ step: '10. terminal answered', tx: t, ...(await money()), expect: 'revenue STILL 0 — an approval banks nothing' });
-    await shot('08-card-result');
+    log.push({ step: '11. terminal answered', tx: t, ...(await money()), expect: 'revenue STILL 0 — an approval banks nothing' });
+    await shot('09-card-result');
 
     // declined? they dig out a second card.
     while (t.stage === 'card-declined') {
       await page.mouse.click(term.x, term.y);          // retry -> another card
       await untilStage('card-ready');
-      await page.mouse.click(term.x, term.y);          // run it
+      await swipeCard(1);                              // swipe the replacement
       await untilStage(['receipt', 'card-declined']);
       t = await txNow();
-      log.push({ step: '10b. second card', tx: t });
+      log.push({ step: '11b. replacement card swiped', tx: t });
     }
   } else {
     // --- CASH ---------------------------------------------------------------------------

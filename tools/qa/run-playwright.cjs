@@ -34,7 +34,8 @@ async function startLocalServer() {
     }
     try {
       const response = await fetch(QA_BASE_URL);
-      if (response.ok) return child;
+      const servedRoot = response.headers.get('x-golf-root');
+      if (response.ok && servedRoot && decodeURIComponent(servedRoot) === path.resolve('.')) return child;
     } catch (_) { /* server is still starting */ }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
