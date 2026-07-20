@@ -58,6 +58,10 @@ const TARGET_HEIGHT_MM = Object.freeze({
   [SURFACE.BUNKER]: 0,
 });
 
+const TARGET_HEIGHT_Q = Uint8Array.from(
+  SURFACE_NAMES.map((_, surface) => Math.round((TARGET_HEIGHT_MM[surface] || 0) * 2)),
+);
+
 const IDEAL_MOISTURE = Object.freeze({
   [SURFACE.GREEN]: [42, 68],
   [SURFACE.FRINGE]: [38, 68],
@@ -142,7 +146,7 @@ function surfaceFromZone(zone) {
 }
 
 function targetHeightQ(surface) {
-  return Math.round((TARGET_HEIGHT_MM[surface] || 0) * 2);
+  return TARGET_HEIGHT_Q[surface] || 0;
 }
 
 export function targetHeightMm(surface) {
@@ -351,14 +355,78 @@ function makeRuntime(model, state) {
   const activeIndices = [];
   const surfaceIndices = Array.from({ length: SURFACE_NAMES.length }, () => []);
   const fineByCoarse = new Map();
-  for (let index = 0; index < model.surface.length; index++) {
-    const surface = model.surface[index];
-    if (surface === SURFACE.NONE) continue;
+
+  // Maintenance bounds and the one-yard grid are coarse-cell aligned. Build
+  // topology a tile at a time so each 8x8 block performs one Map insertion
+  // instead of doing coordinate division and a Map lookup for every fine cell.
+  // Keep a generic row-major path for migrated or hand-authored layouts.
+  const finePerCoarse = CELL_YD / model.resolutionYd;
+  const originCellX = model.bounds.minCourseYdX / CELL_YD;
+  const originCellY = model.bounds.minCourseYdY / CELL_YD;
+  const aligned = Number.isInteger(finePerCoarse)
+    && Number.isInteger(originCellX)
+    && Number.isInteger(originCellY)
+    && model.width % finePerCoarse === 0
+    && model.height % finePerCoarse === 0;
+  const addIndex = (index, surface, bucket) => {
     activeIndices.push(index);
     surfaceIndices[surface].push(index);
-    const coarse = coarseIndexForFine(model, state, index);
-    if (!fineByCoarse.has(coarse)) fineByCoarse.set(coarse, []);
-    fineByCoarse.get(coarse).push(index);
+    model.targetHeightQ[index] = TARGET_HEIGHT_Q[surface] || 0;
+    bucket.push(index);
+  };
+
+  if (aligned) {
+    const tileRows = model.height / finePerCoarse;
+    const tileColumns = model.width / finePerCoarse;
+    for (let tileY = 0; tileY < tileRows; tileY++) {
+      const coarseY = originCellY + tileY;
+      for (let tileX = 0; tileX < tileColumns; tileX++) {
+        const coarseX = originCellX + tileX;
+        const coarse = coarseY >= 0 && coarseY < state.course.h
+          && coarseX >= 0 && coarseX < state.course.w
+          ? coarseY * state.course.w + coarseX
+          : -1;
+        const bucket = [];
+        const x0 = tileX * finePerCoarse;
+        const y0 = tileY * finePerCoarse;
+        for (let y = y0; y < y0 + finePerCoarse; y++) {
+          const row = y * model.width;
+          for (let x = x0; x < x0 + finePerCoarse; x++) {
+            const index = row + x;
+            const surface = model.surface[index];
+            if (surface !== SURFACE.NONE) addIndex(index, surface, bucket);
+          }
+        }
+        if (coarse >= 0 && bucket.length) fineByCoarse.set(coarse, bucket);
+      }
+    }
+  } else {
+    const coarseXByFineX = new Int32Array(model.width);
+    for (let x = 0; x < model.width; x++) {
+      const courseYdX = model.bounds.minCourseYdX + (x + 0.5) * model.resolutionYd;
+      coarseXByFineX[x] = Math.floor(courseYdX / CELL_YD);
+    }
+    for (let y = 0; y < model.height; y++) {
+      const courseYdY = model.bounds.minCourseYdY + (y + 0.5) * model.resolutionYd;
+      const coarseY = Math.floor(courseYdY / CELL_YD);
+      const row = y * model.width;
+      for (let x = 0; x < model.width; x++) {
+        const index = row + x;
+        const surface = model.surface[index];
+        if (surface === SURFACE.NONE) continue;
+        const coarseX = coarseXByFineX[x];
+        const coarse = coarseX >= 0 && coarseX < state.course.w
+          && coarseY >= 0 && coarseY < state.course.h
+          ? coarseY * state.course.w + coarseX
+          : -1;
+        let bucket = coarse >= 0 ? fineByCoarse.get(coarse) : null;
+        if (coarse >= 0 && !bucket) {
+          bucket = [];
+          fineByCoarse.set(coarse, bucket);
+        }
+        addIndex(index, surface, bucket || []);
+      }
+    }
   }
   Object.defineProperty(model, 'runtime', {
     configurable: true,
@@ -371,6 +439,15 @@ function makeRuntime(model, state) {
       surfaceIndices,
       fineByCoarse,
       coarseShadow: new Map(),
+      doseRemainders: {
+        moisture: new Float32Array(model.surface.length),
+        fertilizer: new Float32Array(model.surface.length),
+        disease: new Float32Array(model.surface.length),
+        rake: new Float32Array(model.surface.length),
+      },
+      saveRevision: 0,
+      encodedRevision: -1,
+      encodedFields: null,
     },
   });
 }
@@ -386,6 +463,7 @@ function markDirty(model, index) {
     model.runtime.dirtyRows.set(y, { y, minX: x, maxX: x });
   }
   model.runtime.scoreDirty = true;
+  model.runtime.saveRevision++;
 }
 
 function markCoarseDirty(model, state, index) {
@@ -425,6 +503,29 @@ function hashSurface(surface) {
   for (let i = 0; i < surface.length; i++) {
     hash ^= surface[i];
     hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function hashCourseLayout(state) {
+  let hash = 2166136261;
+  const mix = (value) => {
+    let next = Number(value) >>> 0;
+    for (let byte = 0; byte < 4; byte++) {
+      hash ^= next & 0xff;
+      hash = Math.imul(hash, 16777619);
+      next >>>= 8;
+    }
+  };
+  mix(state.course.w);
+  mix(state.course.h);
+  for (let index = 0; index < state.course.zones.length; index++) mix(state.course.zones[index]);
+  for (const hole of state.course.holes) {
+    mix(hole.id);
+    mix(hole.tee?.x ?? -1);
+    mix(hole.tee?.y ?? -1);
+    mix(hole.pin?.x ?? -1);
+    mix(hole.pin?.y ?? -1);
   }
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
@@ -483,7 +584,6 @@ function initialCoarseTurf(state, coarseIndex, surface) {
 function putInitialFields(model, state) {
   for (const index of model.runtime.activeIndices) {
     const surface = model.surface[index];
-    model.targetHeightQ[index] = targetHeightQ(surface);
     const coarse = coarseIndexForFine(model, state, index);
     const initial = initialCoarseTurf(state, coarse, surface);
     model.heightQ[index] = clamp(Math.round(initial.heightMm * 2), 0, 255);
@@ -595,6 +695,10 @@ function damagePatch(model, centerIndex, radiusYd, mutator) {
       if (distance > radiusYd) continue;
       mutator(index, 1 - distance / radiusYd);
       refreshVisual(model, index);
+      // Not every meaningful numeric change crosses a visual bit threshold.
+      // Persistence invalidation therefore follows the physical mutation, not
+      // only the derived appearance.
+      markDirty(model, index);
     }
   }
 }
@@ -723,7 +827,7 @@ function makeWorkOrder(model) {
       { id: 'debris', label: 'Remove course debris', complete: false },
       { id: 'disease', label: 'Treat or flag disease', complete: false },
       { id: 'reinspect', label: 'Reinspect the completed work', complete: false },
-      { id: 'condition', label: 'Raise the hole condition', complete: false },
+      { id: 'condition', label: 'Raise hole condition to 75', complete: false },
       { id: 'save-load', label: 'Save, reload, and confirm persistence', complete: false },
     ],
   };
@@ -819,6 +923,7 @@ function buildCourseMaintenance(state, heroSelection = null, { syncInitial = tru
     bounds: mask.bounds,
     courseWorldWidthYd: state.course.w * CELL_YD,
     courseWorldHeightYd: state.course.h * CELL_YD,
+    courseLayoutHash: hashCourseLayout(state),
     saveIdPrefix: 'course-maintenance:hole-' + heroHole.id,
     surface: mask.surface,
     targetHeightQ: new Uint8Array(mask.surface.length),
@@ -835,6 +940,7 @@ function buildCourseMaintenance(state, heroSelection = null, { syncInitial = tru
     route: {
       arrivedAtMinute: null,
       reviewedAtMinute: null,
+      reloadCountAtArrival: null,
     },
     inventory: makeInventory(),
     equipment: makeEquipmentState(),
@@ -863,6 +969,14 @@ function buildCourseMaintenance(state, heroSelection = null, { syncInitial = tru
   }
   captureCourseMaintenanceCoarseShadow(state, model);
   model.surfaceHash = hashSurface(model.surface);
+  model.runtime.encodedSurface = encodeTypedArray(
+    model.surface,
+    model.width,
+    model.height,
+    'surface',
+  );
+  model.runtime.encodedFields = encodeCourseMaintenanceFields(model);
+  model.runtime.encodedRevision = model.runtime.saveRevision;
   model.workOrder = makeWorkOrder(model);
   model.score = calculateHoleCondition(state, model, { record: false });
   consumeCourseMaintenanceDirtyRows(model);
@@ -908,8 +1022,7 @@ function base64ToBytes(text) {
   return bytes;
 }
 
-function rleEncode(bytes) {
-  const output = [];
+function rleEncodeInto(bytes, output, outputIndex = 0) {
   let index = 0;
   while (index < bytes.length) {
     let run = 1;
@@ -919,7 +1032,8 @@ function rleEncode(bytes) {
       && run < 128
     ) run++;
     if (run >= 4) {
-      output.push(0x80 | (run - 1), bytes[index]);
+      output[outputIndex++] = 0x80 | (run - 1);
+      output[outputIndex++] = bytes[index];
       index += run;
       continue;
     }
@@ -936,22 +1050,36 @@ function rleEncode(bytes) {
       index += nextRun;
     }
     const length = index - start;
-    output.push(length - 1);
-    for (let i = start; i < index; i++) output.push(bytes[i]);
+    output[outputIndex++] = length - 1;
+    output.set(bytes.subarray(start, index), outputIndex);
+    outputIndex += length;
   }
-  return Uint8Array.from(output);
+  return outputIndex;
 }
 
-function rleDecode(bytes, expectedLength) {
-  const output = new Uint8Array(expectedLength);
-  let source = 0;
-  let target = 0;
-  while (source < bytes.length && target < expectedLength) {
+function rleEncode(bytes) {
+  const output = new Uint8Array(bytes.length + Math.ceil(bytes.length / 128) + 2);
+  const outputIndex = rleEncodeInto(bytes, output);
+  return output.subarray(0, outputIndex);
+}
+
+function rleDecodeInto(
+  bytes,
+  sourceStart,
+  sourceEnd,
+  output,
+  targetStart,
+  expectedLength,
+) {
+  let source = sourceStart;
+  let target = targetStart;
+  const targetEnd = targetStart + expectedLength;
+  while (source < sourceEnd && target < targetEnd) {
     const control = bytes[source++];
     const length = (control & 0x7f) + 1;
     if (control & 0x80) {
       const value = bytes[source++];
-      output.fill(value, target, target + length);
+      if (value !== 0) output.fill(value, target, target + length);
       target += length;
     } else {
       output.set(bytes.subarray(source, source + length), target);
@@ -959,9 +1087,14 @@ function rleDecode(bytes, expectedLength) {
       target += length;
     }
   }
-  if (target !== expectedLength) {
+  if (target !== targetEnd || source !== sourceEnd) {
     throw new Error('Course maintenance field length mismatch.');
   }
+}
+
+function rleDecode(bytes, expectedLength) {
+  const output = new Uint8Array(expectedLength);
+  rleDecodeInto(bytes, 0, bytes.length, output, 0, expectedLength);
   return output;
 }
 
@@ -972,9 +1105,10 @@ function tileOrderedArray(array, width, height) {
   for (let tileY = 0; tileY < height; tileY += tileSize) {
     for (let tileX = 0; tileX < width; tileX += tileSize) {
       for (let y = tileY; y < Math.min(height, tileY + tileSize); y++) {
-        for (let x = tileX; x < Math.min(width, tileX + tileSize); x++) {
-          ordered[target++] = array[y * width + x];
-        }
+        const length = Math.min(width, tileX + tileSize) - tileX;
+        const source = y * width + tileX;
+        ordered.set(array.subarray(source, source + length), target);
+        target += length;
       }
     }
   }
@@ -988,23 +1122,13 @@ function restoreTileOrder(ordered, width, height) {
   for (let tileY = 0; tileY < height; tileY += tileSize) {
     for (let tileX = 0; tileX < width; tileX += tileSize) {
       for (let y = tileY; y < Math.min(height, tileY + tileSize); y++) {
-        for (let x = tileX; x < Math.min(width, tileX + tileSize); x++) {
-          result[y * width + x] = ordered[source++];
-        }
+        const length = Math.min(width, tileX + tileSize) - tileX;
+        result.set(ordered.subarray(source, source + length), y * width + tileX);
+        source += length;
       }
     }
   }
   return result;
-}
-
-function deltaArray(array) {
-  const delta = new array.constructor(array.length);
-  let previous = 0;
-  for (let i = 0; i < array.length; i++) {
-    delta[i] = array[i] - previous;
-    previous = array[i];
-  }
-  return delta;
 }
 
 function encodedRle(array) {
@@ -1012,7 +1136,106 @@ function encodedRle(array) {
   return bytesToBase64(rleEncode(bytes));
 }
 
-function encodeTypedArray(array, width, height) {
+function equalByteRanges(bytes, first, second, length) {
+  for (let offset = 0; offset < length; offset++) {
+    if (bytes[first + offset] !== bytes[second + offset]) return false;
+  }
+  return true;
+}
+
+function encodeRowBands(array, width, height) {
+  const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
+  const rowBytes = width * array.BYTES_PER_ELEMENT;
+  const output = new Uint8Array(
+    bytes.length + Math.ceil(bytes.length / 128) + height * 4 + 16,
+  );
+  let outputIndex = 0;
+  let y = 0;
+  while (y < height) {
+    const rowStart = y * rowBytes;
+    if (y > 0 && equalByteRanges(bytes, rowStart, rowStart - rowBytes, rowBytes)) {
+      let repeat = 1;
+      while (
+        repeat < 255
+        && y + repeat < height
+        && equalByteRanges(
+          bytes,
+          (y + repeat) * rowBytes,
+          rowStart - rowBytes,
+          rowBytes,
+        )
+      ) repeat++;
+      output[outputIndex++] = repeat;
+      y += repeat;
+      continue;
+    }
+    const header = outputIndex;
+    outputIndex += 3;
+    const payloadStart = outputIndex;
+    outputIndex = rleEncodeInto(
+      bytes.subarray(rowStart, rowStart + rowBytes),
+      output,
+      outputIndex,
+    );
+    const payloadLength = outputIndex - payloadStart;
+    output[header] = 0;
+    output[header + 1] = payloadLength & 0xff;
+    output[header + 2] = payloadLength >>> 8;
+    y++;
+  }
+  return bytesToBase64(output.subarray(0, outputIndex));
+}
+
+function decodeRowBands(payload, Type, length, width, height) {
+  const encoded = base64ToBytes(payload);
+  const result = new Type(length);
+  const output = new Uint8Array(result.buffer, result.byteOffset, result.byteLength);
+  const rowBytes = width * Type.BYTES_PER_ELEMENT;
+  let source = 0;
+  let y = 0;
+  while (source < encoded.length && y < height) {
+    const repeat = encoded[source++];
+    if (repeat) {
+      if (y === 0 || y + repeat > height) {
+        throw new Error('Invalid course maintenance row repeat.');
+      }
+      for (let count = 0; count < repeat; count++, y++) {
+        output.set(
+          output.subarray((y - 1) * rowBytes, y * rowBytes),
+          y * rowBytes,
+        );
+      }
+      continue;
+    }
+    if (source + 2 > encoded.length) {
+      throw new Error('Invalid course maintenance row header.');
+    }
+    const payloadLength = encoded[source] | (encoded[source + 1] << 8);
+    source += 2;
+    const payloadEnd = source + payloadLength;
+    if (payloadEnd > encoded.length) {
+      throw new Error('Invalid course maintenance row payload.');
+    }
+    rleDecodeInto(encoded, source, payloadEnd, output, y * rowBytes, rowBytes);
+    source = payloadEnd;
+    y++;
+  }
+  if (source !== encoded.length || y !== height) {
+    throw new Error('Course maintenance row count mismatch.');
+  }
+  return result;
+}
+
+const BANDED_SAVE_FIELDS = new Set([
+  'heightQ',
+  'moisture',
+  'health',
+  'wear',
+  'fertilizer',
+  'compaction',
+]);
+
+function encodeTypedArray(array, width, height, fieldName = '') {
   if (array.length === 0) return 'u:0';
   let uniform = true;
   for (let i = 1; i < array.length; i++) {
@@ -1023,37 +1246,42 @@ function encodeTypedArray(array, width, height) {
   }
   if (uniform) return 'u:' + array[0].toString(36);
 
-  const raw = encodedRle(array);
-  // Spatial fields are mostly broad, flat patches. Delta prediction turns the
-  // interior of each patch into zeroes and keeps saves compact without relying
-  // on browser-specific compression APIs.
-  const predicted = encodedRle(deltaArray(array));
-  const tiledArray = tileOrderedArray(array, width, height);
-  const tiled = encodedRle(tiledArray);
-  const tiledPredicted = encodedRle(deltaArray(tiledArray));
-  const candidates = [
-    ['r:', raw],
-    ['d:', predicted],
-    ['t:', tiled],
-    ['q:', tiledPredicted],
-  ].sort((a, b) => a[1].length - b[1].length);
-  return candidates[0][0] + candidates[0][1];
+  // Broad agronomic fields repeat heavily between adjacent one-yard rows.
+  // A row-band stream retains that compression while decoding directly into
+  // the simulation's row-major arrays; sparse action/history fields use RLE.
+  if (BANDED_SAVE_FIELDS.has(fieldName)) {
+    return 'b:' + encodeRowBands(array, width, height);
+  }
+  return 'r:' + encodedRle(array);
+}
+
+function encodeCourseMaintenanceFields(model) {
+  const fields = {};
+  for (const name of Object.keys(SERIAL_FIELDS)) {
+    fields[name] = encodeTypedArray(model[name], model.width, model.height, name);
+  }
+  return fields;
 }
 
 function decodeTypedArray(text, Type, length, width, height) {
   if (text.startsWith('u:')) {
     const result = new Type(length);
-    result.fill(Number.parseInt(text.slice(2), 36));
+    const value = Number.parseInt(text.slice(2), 36);
+    // Typed arrays are already zero-initialized. Most sparse maintenance
+    // fields use u:0, so avoiding a second full-buffer write matters on load.
+    if (value !== 0) result.fill(value);
     return result;
   }
   const mode = text.length > 2 && text[1] === ':' ? text[0] : 'r';
   const predicted = mode === 'd' || mode === 'q';
   const tiled = mode === 't' || mode === 'q';
   const payload = text.length > 2 && text[1] === ':' ? text.slice(2) : text;
+  if (mode === 'b') return decodeRowBands(payload, Type, length, width, height);
   const byteLength = length * Type.BYTES_PER_ELEMENT;
   const bytes = rleDecode(base64ToBytes(payload), byteLength);
-  const copy = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-  const result = new Type(copy);
+  // rleDecode owns an exact, aligned buffer, so the decoded bytes can be
+  // viewed directly instead of copying every field once more.
+  const result = new Type(bytes.buffer, bytes.byteOffset, length);
   if (predicted) {
     let previous = 0;
     for (let i = 0; i < result.length; i++) {
@@ -1066,9 +1294,14 @@ function decodeTypedArray(text, Type, length, width, height) {
 
 export function snapshotCourseMaintenance(model) {
   if (!model) return null;
-  const fields = {};
-  for (const name of Object.keys(SERIAL_FIELDS)) {
-    fields[name] = encodeTypedArray(model[name], model.width, model.height);
+  const cacheValid = model.runtime?.encodedFields
+    && model.runtime.encodedRevision === model.runtime.saveRevision;
+  const fields = cacheValid
+    ? model.runtime.encodedFields
+    : encodeCourseMaintenanceFields(model);
+  if (model.runtime && !cacheValid) {
+    model.runtime.encodedFields = fields;
+    model.runtime.encodedRevision = model.runtime.saveRevision;
   }
   return {
     version: model.version,
@@ -1079,7 +1312,14 @@ export function snapshotCourseMaintenance(model) {
     width: model.width,
     height: model.height,
     bounds: model.bounds,
+    courseLayoutHash: model.courseLayoutHash,
     surfaceHash: model.surfaceHash,
+    surfaceField: model.runtime?.encodedSurface || encodeTypedArray(
+      model.surface,
+      model.width,
+      model.height,
+      'surface',
+    ),
     saveIdPrefix: model.saveIdPrefix,
     fields,
     issues: model.issues,
@@ -1097,25 +1337,153 @@ export function snapshotCourseMaintenance(model) {
   };
 }
 
+function modelFromSavedLayout(state, raw) {
+  if (
+    !raw.surfaceField
+    || !raw.courseLayoutHash
+    || raw.version !== COURSE_MAINTENANCE_VERSION
+    || raw.resolutionYd !== MAINTENANCE_RESOLUTION_YD
+    || raw.courseLayoutHash !== hashCourseLayout(state)
+    || !Number.isInteger(raw.width)
+    || !Number.isInteger(raw.height)
+    || raw.width <= 0
+    || raw.height <= 0
+  ) return null;
+  const heroHole = state.course.holes.find((hole) => hole.id === raw.heroHoleId);
+  if (!heroHole) return null;
+  const length = raw.width * raw.height;
+  const surface = decodeTypedArray(
+    raw.surfaceField,
+    Uint8Array,
+    length,
+    raw.width,
+    raw.height,
+  );
+  if (hashSurface(surface) !== raw.surfaceHash) return null;
+  const model = {
+    version: COURSE_MAINTENANCE_VERSION,
+    heroHoleId: heroHole.id,
+    heroHoleNumber: raw.heroHoleNumber
+      || state.course.holes.findIndex((hole) => hole.id === heroHole.id) + 1,
+    heroSelectionScore: raw.heroSelectionScore || null,
+    resolutionYd: raw.resolutionYd,
+    width: raw.width,
+    height: raw.height,
+    bounds: raw.bounds,
+    courseWorldWidthYd: state.course.w * CELL_YD,
+    courseWorldHeightYd: state.course.h * CELL_YD,
+    courseLayoutHash: raw.courseLayoutHash,
+    surfaceHash: raw.surfaceHash,
+    saveIdPrefix: raw.saveIdPrefix || 'course-maintenance:hole-' + heroHole.id,
+    surface,
+    targetHeightQ: new Uint8Array(length),
+    issues: null,
+    inspection: {
+      active: false,
+      selectedMetric: 'priorities',
+      firstCompletedAtMinute: null,
+      lastCompletedAtMinute: null,
+      inspectedIssueIds: [],
+      diseaseFlagged: false,
+    },
+    route: {
+      arrivedAtMinute: null,
+      reviewedAtMinute: null,
+      reloadCountAtArrival: null,
+    },
+    inventory: makeInventory(),
+    equipment: makeEquipmentState(),
+    irrigation: worldIrrigationContext(state, heroHole),
+    workOrder: null,
+    score: null,
+    scoreHistory: [],
+    history: [],
+    lastTickMinute: state.clock?.minutes || 0,
+    persistence: {
+      reloadCount: 0,
+      lastReloadAtMinute: null,
+      migrationReason: null,
+    },
+  };
+  makeRuntime(model, state);
+  model.runtime.encodedSurface = raw.surfaceField;
+  return model;
+}
+
+function hydrateSavedCourseMaintenance(state, raw, model) {
+  for (const [name, Type] of Object.entries(SERIAL_FIELDS)) {
+    if (!raw.fields?.[name]) throw new Error('Missing field ' + name);
+    model[name] = decodeTypedArray(
+      raw.fields[name],
+      Type,
+      model.surface.length,
+      model.width,
+      model.height,
+    );
+  }
+  if (!raw.issues || !raw.workOrder) throw new Error('Missing maintenance objects.');
+  model.issues = raw.issues;
+  model.inspection = { ...model.inspection, ...(raw.inspection || {}) };
+  model.route = { ...model.route, ...(raw.route || {}) };
+  model.inventory = { ...model.inventory, ...(raw.inventory || {}) };
+  model.equipment = { ...model.equipment, ...(raw.equipment || {}) };
+  model.irrigation = raw.irrigation || model.irrigation;
+  model.workOrder = raw.workOrder;
+  model.score = raw.score || calculateHoleCondition(state, model, { record: false });
+  model.scoreHistory = raw.scoreHistory || [];
+  model.history = raw.history || [];
+  model.lastTickMinute = raw.lastTickMinute ?? state.clock.minutes;
+  model.persistence = {
+    ...model.persistence,
+    ...(raw.persistence || {}),
+    reloadCount: (raw.persistence?.reloadCount || 0) + 1,
+    lastReloadAtMinute: state.clock.minutes,
+  };
+  captureCourseMaintenanceCoarseShadow(state, model);
+  consumeCourseMaintenanceDirtyRows(model);
+  model.runtime.scoreDirty = false;
+  model.runtime.encodedFields = raw.fields;
+  model.runtime.encodedRevision = model.runtime.saveRevision;
+  const saveLoad = workOrderStep(model, 'save-load');
+  if (saveLoad) {
+    saveLoad.complete = model.route.reloadCountAtArrival !== null
+      && model.persistence.reloadCount > model.route.reloadCountAtArrival;
+  }
+  if (
+    model.workOrder.steps.every((step) => step.complete)
+    && model.workOrder.completedAtMinute === null
+  ) model.workOrder.completedAtMinute = state.clock.minutes;
+  state.courseMaintenance = model;
+  return model;
+}
+
 export function restoreCourseMaintenance(state, raw) {
-  const selection = raw
-    ? {
-        hole: state.course.holes.find((hole) => hole.id === raw.heroHoleId),
-        score: raw.heroSelectionScore || null,
-      }
-    : null;
+  if (!raw) {
+    const model = buildCourseMaintenance(state);
+    state.courseMaintenance = model;
+    return model;
+  }
+
+  try {
+    const fastModel = modelFromSavedLayout(state, raw);
+    if (fastModel) return hydrateSavedCourseMaintenance(state, raw, fastModel);
+  } catch {
+    // Fall through to the geometry-derived compatibility path. A damaged or
+    // older layout cache must never make the whole save unreadable.
+  }
+
+  const selection = {
+    hole: state.course.holes.find((hole) => hole.id === raw.heroHoleId),
+    score: raw.heroSelectionScore || null,
+  };
   const model = buildCourseMaintenance(
     state,
-    selection?.hole ? selection : null,
-    { syncInitial: !raw },
+    selection.hole ? selection : null,
+    { syncInitial: false },
   );
   if (!model) {
     state.courseMaintenance = null;
     return null;
-  }
-  if (!raw) {
-    state.courseMaintenance = model;
-    return model;
   }
   const compatible = raw.version === COURSE_MAINTENANCE_VERSION
     && raw.width === model.width
@@ -1128,47 +1496,13 @@ export function restoreCourseMaintenance(state, raw) {
     return model;
   }
   try {
-    for (const [name, Type] of Object.entries(SERIAL_FIELDS)) {
-      if (!raw.fields?.[name]) throw new Error('Missing field ' + name);
-      model[name] = decodeTypedArray(
-        raw.fields[name],
-        Type,
-        model.surface.length,
-        model.width,
-        model.height,
-      );
-    }
+    return hydrateSavedCourseMaintenance(state, raw, model);
   } catch {
-    model.persistence.migrationReason = 'Maintenance data was incomplete; rebuilt the hero region safely.';
-    state.courseMaintenance = model;
-    return model;
+    const rebuilt = buildCourseMaintenance(state, null, { syncInitial: false });
+    rebuilt.persistence.migrationReason = 'Maintenance data was incomplete; rebuilt the hero region safely.';
+    state.courseMaintenance = rebuilt;
+    return rebuilt;
   }
-  model.issues = raw.issues || model.issues;
-  model.inspection = { ...model.inspection, ...(raw.inspection || {}) };
-  model.route = { ...model.route, ...(raw.route || {}) };
-  model.inventory = { ...model.inventory, ...(raw.inventory || {}) };
-  model.equipment = {
-    ...model.equipment,
-    ...(raw.equipment || {}),
-  };
-  model.irrigation = raw.irrigation || model.irrigation;
-  model.workOrder = raw.workOrder || model.workOrder;
-  model.score = raw.score || model.score;
-  model.scoreHistory = raw.scoreHistory || [];
-  model.history = raw.history || [];
-  model.lastTickMinute = raw.lastTickMinute ?? state.clock.minutes;
-  model.persistence = {
-    ...model.persistence,
-    ...(raw.persistence || {}),
-    reloadCount: (raw.persistence?.reloadCount || 0) + 1,
-    lastReloadAtMinute: state.clock.minutes,
-  };
-  for (const index of model.runtime.activeIndices) refreshVisual(model, index);
-  consumeCourseMaintenanceDirtyRows(model);
-  model.runtime.scoreDirty = true;
-  state.courseMaintenance = model;
-  updateWorkOrder(state, model);
-  return model;
 }
 
 function issueAt(model, collection, id) {
@@ -1229,6 +1563,14 @@ function angleByte(angleRad) {
   let angle = angleRad % (Math.PI * 2);
   if (angle < 0) angle += Math.PI * 2;
   return Math.round((angle / (Math.PI * 2)) * 255) & 255;
+}
+
+function consumeDoseRemainder(model, kind, index, amount) {
+  const remainders = model.runtime.doseRemainders[kind];
+  const total = remainders[index] + Math.max(0, amount);
+  const units = Math.floor(total + 1e-7);
+  remainders[index] = total - units;
+  return units;
 }
 
 function allowedMower(surface, mowerType) {
@@ -1298,11 +1640,20 @@ export function irrigateCourseMaintenancePath(state, options) {
   const model = ensureCourseMaintenance(state);
   const day = calendarOf(state.clock.minutes).dayAbs;
   const dose = Math.max(0, (options.pointsPerSecond || 18) * (options.dtSec || 0));
+  let reachedTurf = 0;
   const result = applyBrush(state, model, options, (index, falloff) => {
     if (!ALL_TURF.has(model.surface[index])) return false;
-    const before = model.moisture[index];
-    model.moisture[index] = clamp(Math.round(before + dose * (0.35 + falloff * 0.65)), 0, 100);
+    reachedTurf++;
+    const units = consumeDoseRemainder(
+      model,
+      'moisture',
+      index,
+      dose * (0.35 + falloff * 0.65),
+    );
     model.lastIrrigationDay[index] = clamp(day, 0, NEVER_DAY - 1);
+    if (!units) return false;
+    const before = model.moisture[index];
+    model.moisture[index] = clamp(before + units, 0, 100);
     return model.moisture[index] !== before;
   });
   if (result.changed) {
@@ -1312,9 +1663,9 @@ export function irrigateCourseMaintenancePath(state, options) {
     });
   }
   return {
-    ok: result.changed > 0,
+    ok: reachedTurf > 0,
     ...result,
-    reason: result.changed ? null : 'Water is not reaching turf.',
+    reason: reachedTurf ? null : 'Water is not reaching turf.',
   };
 }
 
@@ -1325,29 +1676,37 @@ export function fertilizeCourseMaintenancePath(state, options) {
   }
   const day = calendarOf(state.clock.minutes).dayAbs;
   const seconds = Math.max(0, options.dtSec || 0);
-  const desiredKg = Math.max(0.002, (options.kgPerSecond || 0.18) * seconds);
+  const desiredKg = (options.kgPerSecond || 0.18) * seconds;
+  if (desiredKg <= 0) return { ok: false, changed: 0, reason: 'Move the spreader over managed turf.' };
   const availableRatio = Math.min(1, model.inventory.fertilizerKg / desiredKg);
   const dose = (options.applicationPointsPerSecond || 20) * seconds * availableRatio;
+  let reachedManagedTurf = 0;
   const result = applyBrush(state, model, options, (index, falloff) => {
     if (!MANAGED_TURF.has(model.surface[index])) return false;
-    const before = model.fertilizerPending[index];
-    model.fertilizerPending[index] = clamp(
-      Math.round(before + dose * (0.45 + falloff * 0.55)),
-      0,
-      100,
+    reachedManagedTurf++;
+    const units = consumeDoseRemainder(
+      model,
+      'fertilizer',
+      index,
+      dose * (0.45 + falloff * 0.55),
     );
     model.lastFertilizerDay[index] = clamp(day, 0, NEVER_DAY - 1);
+    if (!units) return false;
+    const before = model.fertilizerPending[index];
+    model.fertilizerPending[index] = clamp(before + units, 0, 100);
     return model.fertilizerPending[index] !== before;
   });
-  if (result.changed) {
+  if (reachedManagedTurf) {
     const usedKg = Math.min(model.inventory.fertilizerKg, desiredKg);
     model.inventory.fertilizerKg = Number(
-      Math.max(0, model.inventory.fertilizerKg - usedKg).toFixed(3),
+      Math.max(0, model.inventory.fertilizerKg - usedKg).toFixed(6),
     );
-    addMaintenanceHistory(state, model, 'fertilizer', {
-      cells: result.changed,
-      usedKg,
-    });
+    if (result.changed) {
+      addMaintenanceHistory(state, model, 'fertilizer', {
+        cells: result.changed,
+        usedKg,
+      });
+    }
     return { ok: true, ...result, usedKg };
   }
   return { ok: false, ...result, usedKg: 0, reason: 'The spreader is not over managed turf.' };
@@ -1359,30 +1718,40 @@ export function applyFungicideCourseMaintenancePath(state, options) {
     return { ok: false, changed: 0, reason: 'The treatment tank is empty.' };
   }
   const seconds = Math.max(0, options.dtSec || 0);
-  const desiredLiters = Math.max(0.002, (options.litersPerSecond || 0.08) * seconds);
+  const desiredLiters = (options.litersPerSecond || 0.08) * seconds;
+  if (desiredLiters <= 0) return { ok: false, changed: 0, reason: 'Hold the sprayer over a flagged patch.' };
   const ratio = Math.min(1, model.inventory.fungicideLiters / desiredLiters);
+  const treatmentDose = (options.treatmentPointsPerSecond || 18) * seconds * ratio;
+  let reachedDisease = 0;
   const result = applyBrush(state, model, options, (index, falloff) => {
     if (!ALL_TURF.has(model.surface[index])) return false;
     if (model.diseaseType[index] === DISEASE.NONE && model.diseasePressure[index] < 45) {
       return false;
     }
+    reachedDisease++;
+    const units = consumeDoseRemainder(model, 'disease', index, treatmentDose * falloff);
+    const treatedBefore = model.treatedDays[index];
     model.treatedDays[index] = Math.max(model.treatedDays[index], Math.round(12 * ratio));
+    if (!units) return model.treatedDays[index] !== treatedBefore;
+    const before = model.diseaseSeverity[index];
     model.diseaseSeverity[index] = clamp(
-      model.diseaseSeverity[index] - Math.round(12 * falloff * ratio),
+      model.diseaseSeverity[index] - units,
       0,
       100,
     );
-    return true;
+    return model.diseaseSeverity[index] !== before || model.treatedDays[index] !== treatedBefore;
   });
-  if (result.changed) {
+  if (reachedDisease) {
     const usedLiters = Math.min(model.inventory.fungicideLiters, desiredLiters);
     model.inventory.fungicideLiters = Number(
-      Math.max(0, model.inventory.fungicideLiters - usedLiters).toFixed(3),
+      Math.max(0, model.inventory.fungicideLiters - usedLiters).toFixed(6),
     );
-    addMaintenanceHistory(state, model, 'disease-treatment', {
-      cells: result.changed,
-      usedLiters,
-    });
+    if (result.changed) {
+      addMaintenanceHistory(state, model, 'disease-treatment', {
+        cells: result.changed,
+        usedLiters,
+      });
+    }
     return { ok: true, ...result, usedLiters };
   }
   return { ok: false, ...result, usedLiters: 0, reason: 'No disease pressure is under the nozzle.' };
@@ -1392,13 +1761,19 @@ export function rakeCourseMaintenancePath(state, options) {
   const model = ensureCourseMaintenance(state);
   const day = calendarOf(state.clock.minutes).dayAbs;
   const strength = clamp((options.dtSec || 0) * 55, 0, 100);
+  let reachedBunker = 0;
   const result = applyBrush(state, model, options, (index, falloff) => {
     if (model.surface[index] !== SURFACE.BUNKER) return false;
-    model.wear[index] = clamp(model.wear[index] - strength * falloff, 0, 100);
-    model.bunkerSmooth[index] = clamp(model.bunkerSmooth[index] + strength * falloff, 0, 100);
+    reachedBunker++;
     model.rakeAngle[index] = angleByte(options.directionRad || 0);
     model.lastRakeDay[index] = clamp(day, 0, NEVER_DAY - 1);
-    return true;
+    const units = consumeDoseRemainder(model, 'rake', index, strength * falloff);
+    if (!units) return false;
+    const wearBefore = model.wear[index];
+    const smoothBefore = model.bunkerSmooth[index];
+    model.wear[index] = clamp(wearBefore - units, 0, 100);
+    model.bunkerSmooth[index] = clamp(smoothBefore + units, 0, 100);
+    return model.wear[index] !== wearBefore || model.bunkerSmooth[index] !== smoothBefore;
   });
   let repaired = 0;
   for (const footprint of model.issues.bunkerFootprints) {
@@ -1419,10 +1794,10 @@ export function rakeCourseMaintenancePath(state, options) {
     });
   }
   return {
-    ok: result.changed > 0,
+    ok: reachedBunker > 0,
     ...result,
     footprintsRepaired: repaired,
-    reason: result.changed ? null : 'The rake is not touching bunker sand.',
+    reason: reachedBunker ? null : 'The rake is not touching bunker sand.',
   };
 }
 
@@ -1437,8 +1812,8 @@ export function applyDivotMix(state, id, dtSec) {
     issue.stage = 'filled';
     model.inventory.turfMixUses--;
     addMaintenanceHistory(state, model, 'divot-filled', { id: issue.id });
+    updateWorkOrder(state, model);
   }
-  updateWorkOrder(state, model);
   return { ok: true, issue, complete: issue.stage === 'filled' };
 }
 
@@ -1462,8 +1837,8 @@ export function levelDivot(state, id, dtSec) {
       syncCourseMaintenanceCoarseCells(state, model);
     }
     addMaintenanceHistory(state, model, 'divot-repaired', { id: issue.id });
+    updateWorkOrder(state, model);
   }
-  updateWorkOrder(state, model);
   return { ok: true, issue, complete: issue.repaired };
 }
 
@@ -1484,8 +1859,8 @@ export function repairBallMark(state, id, dtSec) {
       syncCourseMaintenanceCoarseCells(state, model);
     }
     addMaintenanceHistory(state, model, 'ball-mark-repaired', { id: issue.id });
+    updateWorkOrder(state, model);
   }
-  updateWorkOrder(state, model);
   return { ok: true, issue, complete: issue.repaired };
 }
 
@@ -1504,8 +1879,8 @@ export function clearCourseMaintenanceDebris(state, id, dtSec) {
       model.equipment.debrisBag.fill = 0;
     }
     addMaintenanceHistory(state, model, 'debris-cleared', { id: issue.id, type: issue.type });
+    updateWorkOrder(state, model);
   }
-  updateWorkOrder(state, model);
   return { ok: true, issue, complete: issue.cleared };
 }
 
@@ -1534,6 +1909,9 @@ export function markCourseMaintenanceRouteStep(state, step) {
   const model = ensureCourseMaintenance(state);
   if (step === 'arrive') {
     if (model.route.arrivedAtMinute === null) model.route.arrivedAtMinute = state.clock.minutes;
+    if (model.route.reloadCountAtArrival === null) {
+      model.route.reloadCountAtArrival = model.persistence.reloadCount;
+    }
     if (model.workOrder.startedAtMinute === null) {
       model.workOrder.startedAtMinute = state.clock.minutes;
     }
@@ -1547,6 +1925,27 @@ export function markCourseMaintenanceRouteStep(state, step) {
   }
   updateWorkOrder(state, model);
   return { ok: true, route: model.route, workOrder: model.workOrder };
+}
+
+export function manageCourseMaintenanceIrrigationHead(state, headId, enabled = null) {
+  const model = ensureCourseMaintenance(state);
+  const head = model.irrigation.heads.find((entry) => entry.id === headId);
+  if (!head) return { ok: false, reason: 'That sprinkler head is not part of this hole.' };
+  if (!model.irrigation.controller.enabled) {
+    return { ok: false, reason: 'The irrigation controller is switched off.' };
+  }
+  if (head.status === 'clogged') {
+    head.status = 'ready';
+    head.enabled = false;
+    addMaintenanceHistory(state, model, 'irrigation-head-cleared', { headId });
+    updateWorkOrder(state, model);
+    return { ok: true, repaired: true, head };
+  }
+  head.enabled = enabled === null ? !head.enabled : !!enabled;
+  head.status = head.enabled ? 'running' : 'ready';
+  addMaintenanceHistory(state, model, head.enabled ? 'irrigation-head-on' : 'irrigation-head-off', { headId });
+  updateWorkOrder(state, model);
+  return { ok: true, repaired: false, head };
 }
 
 export function inspectCourseMaintenanceAt(state, worldX, worldZ) {
@@ -1647,6 +2046,23 @@ function categoryAverage(model, surfaces, scoreOf) {
   return count ? total / count : 100;
 }
 
+function riskAwareCategory(model, surfaces, scoreOf, riskCells = 64, riskWeight = 0.45) {
+  const scores = [];
+  for (const surface of surfaces) {
+    for (const index of model.runtime.surfaceIndices[surface] || []) {
+      scores.push(scoreOf(index, surface));
+    }
+  }
+  if (!scores.length) return 100;
+  scores.sort((a, b) => a - b);
+  const mean = scores.reduce((sum, value) => sum + value, 0) / scores.length;
+  const count = Math.min(scores.length, riskCells);
+  let riskTotal = 0;
+  for (let index = 0; index < count; index++) riskTotal += scores[index];
+  const localRisk = riskTotal / count;
+  return mean * (1 - riskWeight) + localRisk * riskWeight;
+}
+
 function rangeScore(value, range, outsideScale = 2.2) {
   if (value >= range[0] && value <= range[1]) return 100;
   const distance = value < range[0] ? range[0] - value : value - range[1];
@@ -1686,7 +2102,7 @@ export function calculateHoleCondition(state, model = null, { record = true } = 
       const quality = region.mowPasses[index] ? region.mowQuality[index] : 55;
       return base * 0.82 + quality * 0.18;
     }),
-    moisture: categoryAverage(region, [...ALL_TURF], (index, surface) => (
+    moisture: riskAwareCategory(region, [...ALL_TURF], (index, surface) => (
       rangeScore(region.moisture[index], IDEAL_MOISTURE[surface])
     )),
     turfHealth: categoryAverage(region, [...ALL_TURF], (index) => region.health[index]),
@@ -1710,7 +2126,7 @@ export function calculateHoleCondition(state, model = null, { record = true } = 
       + issueCompletion(region.issues.ballMarks, (issue) => issue.repaired) * 0.4
     ),
     debris: issueCompletion(region.issues.debris, (issue) => issue.cleared),
-    disease: categoryAverage(region, [...ALL_TURF], (index) => (
+    disease: riskAwareCategory(region, [...ALL_TURF], (index) => (
       clamp(
         100
           - region.diseaseSeverity[index] * 1.25
@@ -1774,6 +2190,9 @@ function workOrderStep(model, id) {
 export function updateWorkOrder(state, model = null) {
   const region = model || ensureCourseMaintenance(state);
   const score = calculateHoleCondition(state, region);
+  const historyCells = (type, predicate = null) => region.history
+    .filter((entry) => entry.type === type && (!predicate || predicate(entry)))
+    .reduce((sum, entry) => sum + (entry.details?.cells || 0) * (entry.count || 1), 0);
   const set = (id, complete) => {
     const step = workOrderStep(region, id);
     if (step) step.complete = !!complete;
@@ -1782,8 +2201,10 @@ export function updateWorkOrder(state, model = null) {
   set('review', region.route.reviewedAtMinute !== null);
   set('inspect', region.inspection.firstCompletedAtMinute !== null);
   set('equipment', region.history.some((entry) => entry.type === 'equipment-selected'));
-  set('mow', score.categories.mowing >= 82);
-  set('irrigate', score.categories.moisture >= 80);
+  const greensMowed = historyCells('mowing', (entry) => entry.details?.mowerType === 'greens-reel');
+  const fairwayMowed = historyCells('mowing', (entry) => entry.details?.mowerType === 'fairway-reel');
+  set('mow', greensMowed >= 24 && fairwayMowed >= 80);
+  set('irrigate', score.categories.moisture >= 80 && region.history.some((entry) => entry.type === 'irrigation'));
   set('fertilize', score.categories.turfHealth >= 58 && region.history.some((entry) => entry.type === 'fertilizer'));
   set('divots', region.issues.divots.every((issue) => issue.repaired));
   set('ball-marks', region.issues.ballMarks.every((issue) => issue.repaired));
@@ -1791,11 +2212,17 @@ export function updateWorkOrder(state, model = null) {
   set('debris', region.issues.debris.every((issue) => issue.cleared));
   set(
     'disease',
-    score.categories.disease >= 92 || region.inspection.diseaseFlagged,
+    historyCells('disease-treatment') >= 5 || region.inspection.diseaseFlagged,
   );
-  set('reinspect', region.inspection.lastCompletedAtMinute !== null);
-  set('condition', score.total >= 78);
-  set('save-load', region.persistence.reloadCount > 0);
+  const fieldSteps = ['mow', 'irrigate', 'fertilize', 'divots', 'ball-marks', 'bunker', 'debris', 'disease'];
+  set('reinspect', region.inspection.lastCompletedAtMinute !== null
+    && fieldSteps.every((id) => workOrderStep(region, id)?.complete));
+  set('condition', score.total >= 75);
+  set(
+    'save-load',
+    region.route.reloadCountAtArrival !== null
+      && region.persistence.reloadCount > region.route.reloadCountAtArrival,
+  );
   if (
     region.workOrder.steps.every((step) => step.complete)
     && region.workOrder.completedAtMinute === null
@@ -2122,6 +2549,19 @@ export function courseMaintenanceHourlyTick(state, { coarseAdvanced = false } = 
   }
   for (const divot of model.issues.divots) {
     if (divot.repaired && divot.recoveryHours > 0) divot.recoveryHours--;
+  }
+  // Enabled heads are actual irrigation, not a decorative switch. One hourly
+  // pulse keeps simulation cost bounded and makes leaving a head running a
+  // meaningful overwatering risk after the dry patch has recovered.
+  for (const head of model.irrigation.heads) {
+    if (!head.enabled || head.status === 'clogged') continue;
+    irrigateCourseMaintenancePath(state, {
+      x: head.x,
+      z: head.z,
+      radiusYd: head.radiusYd,
+      pointsPerSecond: 10,
+      dtSec: 1,
+    });
   }
   model.lastTickMinute = state.clock.minutes;
   syncCourseMaintenanceCoarseCells(state, model);

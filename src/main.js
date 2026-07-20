@@ -27,6 +27,7 @@ import { makeClubPanel } from './ui/clubPanel.js';
 import { makeEmpirePanel } from './ui/empirePanel.js';
 import { openMarketplace } from './ui/marketplacePanel.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
+import { makeCourseMaintenancePanel } from './ui/courseMaintenancePanel.js';
 import { makeLaptop } from './ui/laptop.js';
 import { makeFrontDesk } from './ui/frontDesk.js';
 import { quadTransform, uvAt } from './core/laptopProjection.js';
@@ -39,6 +40,27 @@ import { shopCondition, vacuumOwned, tickDeliveries } from './sim/shop.js';
 import { ownedWasher } from './sim/washing.js';
 import { skuById } from './data/shopItems.js';
 import { makeCourseScene } from './render3d/courseScene.js';
+import {
+  applyDivotMix,
+  applyFungicideCourseMaintenancePath,
+  clearCourseMaintenanceDebris,
+  fertilizeCourseMaintenancePath,
+  finalizeCourseMaintenanceAction,
+  flagCourseMaintenanceDisease,
+  inspectCourseMaintenanceAt,
+  irrigateCourseMaintenancePath,
+  maintenanceCellReport,
+  maintenanceIndexAtWorld,
+  manageCourseMaintenanceIrrigationHead,
+  markCourseMaintenanceRouteStep,
+  mowCourseMaintenancePath,
+  nearestCourseMaintenanceIssue,
+  rakeCourseMaintenancePath,
+  repairBallMark,
+  selectCourseMaintenanceEquipment,
+  toggleCourseInspection,
+  levelDivot,
+} from './sim/courseMaintenance.js';
 
 const canvas = document.getElementById('game');
 const uiRoot = document.getElementById('ui');
@@ -82,6 +104,7 @@ let regHint = null;
 let laptopUi = null;
 let frontDeskUi = null;
 let objectivesPanel = null;
+let maintenancePanel = null;
 let menu = null;
 let gameUi = null;
 
@@ -332,6 +355,13 @@ function exitFrontDesk(silent = false) {
 
 const audio = makeAudio();
 app.audio = audio;
+const TOOL_AUDIO_LOOP = {
+  fungicide: 'hose',
+  spreader: 'divot',
+  ballmark: 'divot',
+  debris: 'rake',
+  greensMower: 'mower',
+};
 // WebAudio needs a user gesture; arm it on the first interaction
 for (const evt of ['pointerdown', 'keydown']) {
   window.addEventListener(evt, () => audio.init(), { once: true, capture: true });
@@ -342,6 +372,37 @@ function closeLeftPanels(except) {
   if (except !== 'grounds' && app.groundsOpen) groundsPanel.setVisible(false);
   if (except !== 'club' && app.clubOpen) clubPanel.setVisible(false);
   if (except !== 'empire' && app.empireOpen) empirePanel.setVisible(false);
+}
+
+const MAINTENANCE_EQUIPMENT_FOR_TOOL = {
+  hose: 'hose',
+  divot: 'divotKit',
+  ballmark: 'ballMarkFork',
+  rake: 'bunkerRake',
+  debris: 'debrisBag',
+  fungicide: 'hose',
+  spreader: 'spreader',
+  greensMower: 'greensMower',
+};
+
+function setMaintenanceVisible(next) {
+  if (!maintenancePanel || !app.state?.courseMaintenance) return;
+  toggleCourseInspection(app.state, !!next);
+  maintenancePanel.setVisible(!!next);
+  if (app.scene3d) app.scene3d.updateCourseMaintenance(app.state, true);
+  if (next && document.pointerLockElement) document.exitPointerLock();
+}
+
+function selectMaintenanceTool(tool) {
+  const walk = app.scene3d?.walk;
+  if (!walk || walk.cart.mounted) return;
+  walk.setTool(tool);
+  const equipmentId = MAINTENANCE_EQUIPMENT_FOR_TOOL[tool];
+  if (equipmentId && walk.hooks.selectMaintenanceEquipment) {
+    walk.hooks.selectMaintenanceEquipment(equipmentId);
+  }
+  if (audio.ready) audio.equipTick();
+  if (maintenancePanel) maintenancePanel.refresh(true);
 }
 
 // --- section lookup --------------------------------------------------------
@@ -554,6 +615,249 @@ function startGame(state) {
       ? '🧹 This sand is raked smooth · [F] next tool'
       : `🧹 Bunker — footprints ${w} — hold the mouse button to rake`;
   };
+
+  // Hole 4's one-yard model takes over whenever the exact aim point falls in
+  // its data-selected region. The established eight-yard hooks above remain a
+  // safe fallback everywhere else on the course.
+  const heroPoint = (cx, cy, wx, wz) => ({
+    x: Number.isFinite(wx) ? wx : (cx + 0.5) * 8 - state.course.w * 4,
+    z: Number.isFinite(wz) ? wz : (cy + 0.5) * 8 - state.course.h * 4,
+  });
+  const heroReportAt = (cx, cy, wx, wz) => {
+    const point = heroPoint(cx, cy, wx, wz);
+    const model = app.state.courseMaintenance;
+    const index = model ? maintenanceIndexAtWorld(model, point.x, point.z) : -1;
+    return index >= 0 ? { point, index, report: maintenanceCellReport(model, index) } : null;
+  };
+  const nearestOpen = (collection, point, radius = 2.6) => (
+    nearestCourseMaintenanceIssue(app.state, collection, point.x, point.z, radius)
+  );
+  const completedNear = (collection, point, radius = 2.6) => (
+    app.state.courseMaintenance.issues[collection].some((issue) => (
+      (issue.repaired || issue.cleared)
+      && Math.hypot(issue.x - point.x, issue.z - point.z) <= radius
+    ))
+  );
+  const refreshMaintenance = (report = undefined) => {
+    finalizeCourseMaintenanceAction(app.state);
+    app.scene3d.updateCourseMaintenance(app.state);
+    app.scene3d.updateTurf(app.state);
+    if (report !== undefined && maintenancePanel) maintenancePanel.setReport(report);
+    if (maintenancePanel) maintenancePanel.refresh(true);
+  };
+
+  const coarseTurfLabelAt = app.scene3d.walk.hooks.turfLabelAt;
+  const coarseInspectAt = app.scene3d.walk.hooks.inspectAt;
+  const coarseWaterAt = app.scene3d.walk.hooks.waterAt;
+  const coarseHoseLabelAt = app.scene3d.walk.hooks.hoseLabelAt;
+  const coarseRepairAt = app.scene3d.walk.hooks.repairAt;
+  const coarseDivotLabelAt = app.scene3d.walk.hooks.divotLabelAt;
+  const coarseRakeAt = app.scene3d.walk.hooks.rakeAt;
+  const coarseRakeLabelAt = app.scene3d.walk.hooks.rakeLabelAt;
+  const coarseMowAt = app.scene3d.walk.hooks.mowAt;
+  app.scene3d.walk.hooks.turfLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return coarseTurfLabelAt(cx, cy);
+    const problem = hero.report.problems[0] || 'within target';
+    return `Hole ${state.courseMaintenance.heroHoleNumber} · ${hero.report.surfaceName} · ${problem} · [E] inspect · [I] tablet`;
+  };
+  app.scene3d.walk.hooks.inspectAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return coarseInspectAt(cx, cy);
+    const report = inspectCourseMaintenanceAt(app.state, hero.point.x, hero.point.z);
+    toggleCourseInspection(app.state, true);
+    app.scene3d.updateCourseMaintenance(app.state, true);
+    if (maintenancePanel) {
+      maintenancePanel.setReport(report);
+      maintenancePanel.setVisible(true);
+    }
+    const diseaseHeadline = report.disease?.severity >= 5
+      ? `${report.disease.name || 'Disease'} severity ${report.disease.severity}`
+      : null;
+    toast(`Inspection refreshed · ${report.surfaceName} · ${diseaseHeadline || report.problems[0] || 'no priority issue'}.`);
+    if (document.pointerLockElement) document.exitPointerLock();
+  };
+  app.scene3d.walk.hooks.waterAt = (cx, cy, dtSec, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return coarseWaterAt(cx, cy, dtSec);
+    return irrigateCourseMaintenancePath(app.state, {
+      ...hero.point, radiusYd: 2.4, pointsPerSecond: 18, dtSec,
+    });
+  };
+  app.scene3d.walk.hooks.hoseLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return coarseHoseLabelAt(cx, cy);
+    return `Hose · ${hero.report.surfaceName} moisture ${hero.report.moisture} · hold LMB to irrigate`;
+  };
+
+  app.scene3d.walk.hooks.repairAt = (cx, cy, dtSec, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) {
+      coarseRepairAt(cx, cy, dtSec);
+      return { ok: true };
+    }
+    const found = nearestOpen('divots', hero.point, 2.8);
+    if (!found) return completedNear('divots', hero.point, 2.8)
+      ? { ok: true, complete: true }
+      : { ok: false, reason: 'No open divot is under the tool.' };
+    const result = found.issue.stage === 'open'
+      ? applyDivotMix(app.state, found.issue.id, dtSec)
+      : levelDivot(app.state, found.issue.id, dtSec);
+    if (result.complete && audio.ready) audio.chime();
+    return result;
+  };
+  app.scene3d.walk.hooks.divotLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return coarseDivotLabelAt(cx, cy);
+    const found = nearestOpen('divots', hero.point, 3.2);
+    if (!found) return 'Divot kit · no open divot under the tool · [F] next';
+    return found.issue.stage === 'open'
+      ? `Divot ${found.issue.id.split('-').at(-1)} · hold LMB to add turf mix`
+      : `Divot ${found.issue.id.split('-').at(-1)} · hold LMB to level the repair`;
+  };
+  app.scene3d.walk.hooks.rakeAt = (cx, cy, dtSec, wx, wz, directionRad = 0) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) {
+      coarseRakeAt(cx, cy, dtSec);
+      return { ok: true };
+    }
+    return rakeCourseMaintenancePath(app.state, {
+      ...hero.point, radiusYd: 1.9, directionRad, dtSec,
+    });
+  };
+  app.scene3d.walk.hooks.rakeLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return coarseRakeLabelAt(cx, cy);
+    return nearestOpen('bunkerFootprints', hero.point, 3.2)
+      ? 'Bunker rake · hold LMB and sweep the footprints'
+      : `${hero.report.surfaceName} · no footprint in reach`;
+  };
+  app.scene3d.walk.hooks.ballmarkLabelAt = (cx, cy, wx, wz) => {
+    const point = heroPoint(cx, cy, wx, wz);
+    return nearestOpen('ballMarks', point, 2.8)
+      ? 'Ball-mark fork · hold LMB to lift the green'
+      : 'Ball-mark fork · no mark under the tool · [F] next';
+  };
+  app.scene3d.walk.hooks.ballmarkAt = (cx, cy, dtSec, wx, wz) => {
+    const point = heroPoint(cx, cy, wx, wz);
+    const found = nearestOpen('ballMarks', point, 2.5);
+    if (!found) return completedNear('ballMarks', point, 2.5)
+      ? { ok: true, complete: true }
+      : { ok: false, reason: 'No ball mark is under the fork.' };
+    const result = repairBallMark(app.state, found.issue.id, dtSec);
+    if (result.complete && audio.ready) audio.chime();
+    return result;
+  };
+  app.scene3d.walk.hooks.debrisLabelAt = (cx, cy, wx, wz) => {
+    const point = heroPoint(cx, cy, wx, wz);
+    const found = nearestOpen('debris', point, 3.2);
+    return found ? `Debris bag · ${found.issue.type} · hold LMB to collect` : 'Debris bag · no loose debris here · [F] next';
+  };
+  app.scene3d.walk.hooks.debrisAt = (cx, cy, dtSec, wx, wz) => {
+    const point = heroPoint(cx, cy, wx, wz);
+    const found = nearestOpen('debris', point, 3.0);
+    if (!found) return completedNear('debris', point, 3.0)
+      ? { ok: true, complete: true }
+      : { ok: false, reason: 'No loose debris is in reach.' };
+    const result = clearCourseMaintenanceDebris(app.state, found.issue.id, dtSec);
+    if (result.complete && audio.ready) audio.thunk();
+    return result;
+  };
+  app.scene3d.walk.hooks.fungicideLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    return hero
+      ? `Treatment sprayer · disease ${hero.report.disease.severity} · ${app.state.courseMaintenance.inventory.fungicideLiters.toFixed(1)} L`
+      : 'Treatment sprayer · assigned to Hole 4 · [F] next';
+  };
+  app.scene3d.walk.hooks.fungicideAt = (cx, cy, dtSec, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return { ok: false, reason: 'The treatment sprayer is assigned to Hole 4.' };
+    return applyFungicideCourseMaintenancePath(app.state, { ...hero.point, radiusYd: 2.5, dtSec });
+  };
+  app.scene3d.walk.hooks.spreaderLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    return hero
+      ? `Rotary spreader · feed ${hero.report.fertilizer} · ${app.state.courseMaintenance.inventory.fertilizerKg.toFixed(1)} kg`
+      : 'Rotary spreader · assigned to Hole 4 · [F] next';
+  };
+  app.scene3d.walk.hooks.spreaderAt = (cx, cy, dtSec, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return { ok: false, reason: 'The spreader is assigned to Hole 4.' };
+    return fertilizeCourseMaintenancePath(app.state, { ...hero.point, radiusYd: 2.2, dtSec });
+  };
+  app.scene3d.walk.hooks.mowAt = (cx, cy, options = {}) => {
+    const point = heroPoint(cx, cy, options.x, options.z);
+    if (maintenanceIndexAtWorld(app.state.courseMaintenance, point.x, point.z) < 0) {
+      if (options.bladesEngaged === false) {
+        return { ok: false, changed: 0, reason: 'Engage the mower blades with [R] before cutting.' };
+      }
+      return { ok: true, changed: coarseMowAt(cx, cy) ? 1 : 0 };
+    }
+    return mowCourseMaintenancePath(app.state, {
+      ...point,
+      radiusYd: options.radiusYd || 1.65,
+      mowerType: options.mowerType,
+      bladesEngaged: options.bladesEngaged,
+      speedYdPerSec: options.speedYdPerSec || 0,
+      directionRad: options.directionRad || 0,
+    });
+  };
+  app.scene3d.walk.hooks.greensMowerLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    const equipment = app.state.courseMaintenance.equipment.greensMower;
+    return hero
+      ? `Greens mower · ${hero.report.surfaceName} · ${hero.report.heightMm.toFixed(1)} mm · ${Math.abs(hero.report.heightMm - hero.report.targetHeightMm) < 0.1 ? 'at target' : `target ${hero.report.targetHeightMm.toFixed(1)}`} · blades ${equipment.bladesEngaged ? 'ON' : 'OFF [R]'}`
+      : 'Greens mower · assigned to Hole 4 · [F] next';
+  };
+  app.scene3d.walk.hooks.greensMowerAt = (cx, cy, dtSec, wx, wz, directionRad, speedYdPerSec) => {
+    const equipment = app.state.courseMaintenance.equipment.greensMower;
+    return app.scene3d.walk.hooks.mowAt(cx, cy, {
+      x: wx, z: wz, radiusYd: 0.78, mowerType: equipment.mowerType,
+      bladesEngaged: equipment.bladesEngaged, directionRad, speedYdPerSec,
+    });
+  };
+  app.scene3d.walk.hooks.engine = (on) => {
+    app.state.courseMaintenance.equipment.tractor.engineOn = !!on;
+    if (audio.ready) audio.setToolLoop(on ? 'mower' : null);
+  };
+  app.scene3d.walk.hooks.selectMaintenanceEquipment = (equipmentId) => {
+    const result = selectCourseMaintenanceEquipment(app.state, equipmentId);
+    if (result.ok && maintenancePanel) maintenancePanel.refresh(true);
+    return result;
+  };
+  app.scene3d.walk.hooks.maintenanceArrive = () => {
+    const first = app.state.courseMaintenance.route.arrivedAtMinute === null;
+    const result = markCourseMaintenanceRouteStep(app.state, 'arrive');
+    if (first && result.ok) toast('Maintenance yard reached. Review today’s board, then inspect Hole 4.');
+    if (maintenancePanel) maintenancePanel.refresh(true);
+    return result;
+  };
+  app.scene3d.walk.hooks.reviewMaintenance = () => {
+    const result = markCourseMaintenanceRouteStep(app.state, 'review');
+    if (!result.ok) toast(result.reason, 'warn');
+    else {
+      if (maintenancePanel) maintenancePanel.setVisible(true);
+      if (document.pointerLockElement) document.exitPointerLock();
+      toast('Work order reviewed. Start with inspection, then choose equipment.');
+    }
+    return result;
+  };
+  app.scene3d.walk.hooks.manageIrrigationHead = (headId) => {
+    const result = manageCourseMaintenanceIrrigationHead(app.state, headId);
+    if (!result.ok) toast(result.reason, 'warn');
+    else if (result.repaired) toast('Sprinkler head cleared. Interact again to run it.');
+    else toast(result.head.enabled ? 'Sprinkler running — monitor the moisture reading.' : 'Sprinkler shut off.');
+    refreshMaintenance();
+    return result;
+  };
+  app.scene3d.walk.hooks.flagDisease = () => {
+    flagCourseMaintenanceDisease(app.state);
+    refreshMaintenance();
+  };
+  app.scene3d.walk.hooks.finalizeMaintenance = () => {
+    refreshMaintenance();
+    autosave();
+  };
   app.plan = makePlan();
   app.worksMode = false;
   app.activeTool = null;
@@ -573,6 +877,10 @@ function startGame(state) {
   lastDiseasedNames = currentDiseasedSet(); // prime silently
   if (groundsPanel) groundsPanel.setVisible(false);
   if (worksPanel) worksPanel.setVisible(false);
+  if (maintenancePanel) {
+    maintenancePanel.setReport(null);
+    maintenancePanel.setVisible(!!state.courseMaintenance?.inspection.active);
+  }
   menu.setVisible(false);
   gameUi.style.display = '';
   hud.update();
@@ -1195,7 +1503,7 @@ canvas.addEventListener('pointerdown', (e) => {
     const tool = walkActive() && app.scene3d.walk.getTool();
     if (e.button === 0 && tool) {
       app.scene3d.walk.setSpraying(true);
-      if (audio.ready) audio.setToolLoop(tool);
+      if (audio.ready) audio.setToolLoop(TOOL_AUDIO_LOOP[tool] || tool);
     } else if (e.button === 2 && tool === 'washer') {
       // right button on the washer lays soap, for the stains water alone won't touch
       e.preventDefault();
@@ -1259,9 +1567,13 @@ canvas.addEventListener('pointermove', (e) => {
 
 window.addEventListener('pointerup', (e) => {
   if (regActive()) { regApi().onUp(e); return; }
-  if (walkActive() && app.scene3d.walk.isSpraying()) app.scene3d.walk.setSpraying(false);
+  const walk = walkActive() ? app.scene3d.walk : null;
+  const completedMaintenanceStroke = !!(walk && walk.isSpraying()
+    && ['hose', 'divot', 'ballmark', 'rake', 'debris', 'fungicide', 'spreader', 'greensMower'].includes(walk.getTool()));
+  if (walk && walk.isSpraying()) walk.setSpraying(false);
   if (walkActive() && app.scene3d.walk.isSoaping && app.scene3d.walk.isSoaping()) app.scene3d.walk.setSoaping(false);
   if (audio.ready) audio.setToolLoop(null);
+  if (completedMaintenanceStroke && walk.hooks.finalizeMaintenance) walk.hooks.finalizeMaintenance();
 });
 
 canvas.addEventListener('pointerup', () => {
@@ -1399,6 +1711,13 @@ window.addEventListener('keydown', (e) => {
         break;
       }
       case 'r': case 'R': {
+        const bladeResult = app.scene3d.walk.toggleBlades?.();
+        if (bladeResult?.handled) {
+          toast(bladeResult.enabled ? `${bladeResult.label} blades engaged.` : `${bladeResult.label} blades disengaged.`);
+          if (audio.ready) audio.setToolLoop(bladeResult.enabled ? 'mower' : null);
+          if (maintenancePanel) maintenancePanel.refresh(true);
+          break;
+        }
         // at the register in Realistic mode, R hands over the counted change
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
         if (ch && ch.confirmChange) ch.confirmChange();
@@ -1419,22 +1738,29 @@ window.addEventListener('keydown', (e) => {
             }
             belt = [null, 'vacuum'];
           } else {
-            belt = [null, 'washer', 'hose', 'divot', 'rake'];
+            belt = [null, 'washer', 'hose', 'divot', 'ballmark', 'rake', 'debris', 'fungicide', 'spreader', 'greensMower'];
           }
           const cur = belt.indexOf(walkApi.getTool());
           const next = belt[(cur + 1) % belt.length];
-          walkApi.setTool(next);
-          if (audio.ready) audio.equipTick();
+          selectMaintenanceTool(next);
           const washer = app.state ? ownedWasher(app.state) : null;
           toast(next === 'hose' ? 'Hose out — hold the mouse button to water.'
             : next === 'divot' ? 'Divot kit out — hold the button on worn turf.'
+            : next === 'ballmark' ? 'Ball-mark fork out — hold the button over a mark on the green.'
             : next === 'rake' ? 'Bunker rake out — hold the button on footprinted sand.'
+            : next === 'debris' ? 'Debris bag open — hold the button over loose debris.'
+            : next === 'fungicide' ? 'Treatment sprayer out — inspect, then treat active disease.'
+            : next === 'spreader' ? 'Rotary spreader out — walk the weak turf while holding the button.'
+            : next === 'greensMower' ? 'Greens mower selected — press R for blades, then hold the button and walk.'
             : next === 'vacuum' ? 'Vacuum out — hold the mouse button and work the dirty patches.'
             : next === 'washer' ? `${washer ? washer.name : 'Pressure washer'} — hold LEFT to blast, RIGHT to lay soap on the heavy stains.`
             : 'Tools away.');
         }
         break;
       }
+      case 'i': case 'I':
+        setMaintenanceVisible(!maintenancePanel?.isVisible());
+        break;
       case 'g': case 'G':
         if (document.pointerLockElement) document.exitPointerLock(); // free the cursor for the panel
         handlers.toggleGrounds();
@@ -1573,6 +1899,7 @@ function frame(ts) {
       if (hourNow !== lastHourSeen) {
         lastHourSeen = hourNow;
         app.scene3d.updateTurf(app.state);
+        app.scene3d.updateCourseMaintenance(app.state);
         recomputeRating();
         inspectPanel.refreshIfOpen();
         if (app.groundsOpen) groundsPanel.refresh();
@@ -1649,9 +1976,13 @@ function frame(ts) {
       // the guide answers real actions within a second, not at the hour
       if (app.state.tutorial && !app.state.tutorial.complete) {
         const tut = tickTutorial(app.state);
-        for (const step of tut.advanced) toast(`🎯 ${step.title} — done.`);
+        if (!app.state.tutorial.hidden) {
+          for (const step of tut.advanced) toast(`🎯 ${step.title} — done.`);
+        }
         if (tut.advanced.length) {
-          if (app.state.tutorial.complete) toast('The guide retires — the club is yours now. The Open awaits.', '');
+          if (app.state.tutorial.complete && !app.state.tutorial.hidden) {
+            toast('The guide retires — the club is yours now. The Open awaits.', '');
+          }
           objectivesPanel.refresh();
         }
       }
@@ -1665,6 +1996,7 @@ function frame(ts) {
         tempHiF: app.state.weather.today.tempHiF,
       });
       if (app.frontDeskOpen) frontDeskUi?.refresh();
+      if (maintenancePanel?.isVisible()) maintenancePanel.refresh();
       audioClock = 0;
     }
     hud.update();
@@ -1700,7 +2032,9 @@ function updateWalkOverlay() {
   // the pointer is free, as a click-to-play reminder
   const tut = app.state && app.state.tutorial;
   const learned = tut && (tut.complete || tut.hidden || tut.step >= 5);
-  const lockDisplay = document.pointerLockElement ? 'none' : '';
+  const cursorPanelOpen = !!maintenancePanel?.isVisible?.();
+  const workingMaintenanceRoute = learned && app.state?.courseMaintenance?.route?.arrivedAtMinute != null;
+  const lockDisplay = document.pointerLockElement || cursorPanelOpen || workingMaintenanceRoute ? 'none' : '';
   if (walkLockHint.style.display !== lockDisplay) walkLockHint.style.display = lockDisplay;
   const lockText = learned
     ? 'Click to play'
@@ -1826,6 +2160,11 @@ function boot() {
   clubPanel = makeClubPanel(app, recomputeRating);
   empirePanel = makeEmpirePanel(app, handlers);
   objectivesPanel = makeObjectivesPanel(app);
+  maintenancePanel = makeCourseMaintenancePanel(app, {
+    setVisible: setMaintenanceVisible,
+    toggleInspection: () => setMaintenanceVisible(!app.state?.courseMaintenance?.inspection.active),
+    selectTool: selectMaintenanceTool,
+  });
 
   walkPrompt = el('div', { class: 'shop-prompt', text: '' });
   walkCondition = el('div', { class: 'shop-cond', text: '', style: 'display:none' });
@@ -1859,7 +2198,7 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, frontDeskUi.root, objectivesPanel.root, viewToggle,
+  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, maintenancePanel.root, walkOverlay, regHint, laptopUi.root, frontDeskUi.root, objectivesPanel.root, viewToggle,
     el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · 🗂 Manage or E/G/C/M keys for the desks · V: view · Space: pause · Tab/Esc: back on foot' }));
 
   uiRoot.append(menu.root, gameUi);

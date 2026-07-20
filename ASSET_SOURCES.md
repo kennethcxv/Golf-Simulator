@@ -211,3 +211,21 @@ workstream; this branch carries only the unchanged runtime GLBs needed by the ga
 1 unit = 1 game yard · Z-up in Blender, Y-up on export · materials are NAMED SLOTS
 (`M_charcoal`, `M_kraft`, …) remapped onto the shared clubhouse kit at load, so a new prop
 costs a draw call and not a material.
+
+## Course-maintenance equipment (2026-07-19)
+
+`tools/blender/build_course_maintenance.py` authors the walk-behind greens reel
+mower, rotary broadcast spreader, and handheld treatment sprayer from scratch. All are project-owned; no
+external geometry, textures, or generation service was used. Editable source is
+saved to `Assets/Source/course_maintenance_equipment.blend`, with game exports at
+`vendor/models/greens_mower.glb`, `vendor/models/rotary_spreader.glb`, and
+`vendor/models/treatment_sprayer.glb`.
+
+The shipped bounds measure 1.092 m W x 1.230 m L x 1.044 m H for the mower,
+0.790 m W x 1.070 m L x 0.993 m H for the spreader, and 0.560 m overall W
+x 0.220 m D x 0.658 m H for the sprayer. Wheels,
+reel/impeller, handles, and control
+levers are separate with physical pivots. Each GLB includes a simple named
+`COLLISION_*` proxy that the runtime hides. Materials use the Pinehollow deep
+green, muted sage, warm cream, warm charcoal, steel, rubber, and restrained
+brass palette.
