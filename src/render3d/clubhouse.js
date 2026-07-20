@@ -111,7 +111,7 @@ import {
 import {
   PAID_BAG_ACCEPTANCE_HOLD_SEC, attachPaidBagToCustomer, syncPaidBagCarry,
 } from './clubhouse/customerPaidBag.js';
-import { placedFixtures, ensureLayout } from '../sim/layout.js';
+import { placedFixtures, ensureLayout, roomStyle } from '../sim/layout.js';
 import {
   boxPlacementCapabilities,
   boxPlacementDimensions,
@@ -128,6 +128,8 @@ import {
   raycastBoxPlacementSurface,
   surfaceWorldPlane,
 } from './clubhouse/boxPlacementCoordinates.js';
+import { buildPlaceables } from './clubhouse/placeables.js';
+import { ROOM_STYLE_OPTIONS } from '../data/placeableCatalog.js';
 import { reviewFor, postReview } from '../sim/reviews.js';
 import {
   createCheckoutFlow, transitionCheckout, enterCheckoutRecovery, checkoutStateTimedOut,
@@ -544,11 +546,24 @@ export function makeClubhouse(ctx) {
   const halfD = SHELL.d / 2 - SHELL.wallT / 2;
 
   const B = {
-    ctx, state, group, interior, custGroup, mats, merch, hooks, walk,
+    ctx, state, group, interior, custGroup, mats, merch, hooks, walk, camera,
     addCol, removeCol, addProp, removeProp, colBoxAt, L2W, W2L, FLOOR_TOP,
     getCustomers: () => customers,
   };
   const shell = buildShell(B);
+
+  function refreshRoomStyle() {
+    const selected = roomStyle(state);
+    for (const kind of ['floor', 'walls', 'trim']) {
+      const material = shell.styleSurfaces?.[kind];
+      const option = ROOM_STYLE_OPTIONS[kind]?.find((entry) => entry.id === selected[kind]);
+      if (!material || !option) continue;
+      material.color.setHex(option.color);
+      if (Number.isFinite(option.roughness)) material.roughness = option.roughness;
+      material.needsUpdate = true;
+    }
+  }
+  refreshRoomStyle();
 
   // --- grime + window film (clubhouse/dirt.js — art-directed, state-masked) --------------
   B.onWindowDirt = () => shell.lighting.setWindowDirt(windowDirtAvg(state));
@@ -556,10 +571,8 @@ export function makeClubhouse(ctx) {
   const repaintGrime = dirt.repaintGrime;
   B.onWindowDirt();
 
-  // Welcome mat inside the door.
-  //
-  // A canvas stand-in. Asset 100 is the authored version of this exact object, so the prop
-  // placement table disposes this once it lands — two mats on one threshold z-fight.
+  // welcome mat inside the door (kept as a load-failure fallback for Asset 100)
+  let fallbackWelcomeMat = null;
   {
     const matCv = document.createElement('canvas');
     matCv.width = 128; matCv.height = 64;
@@ -577,8 +590,9 @@ export function makeClubhouse(ctx) {
     matMesh.rotation.x = -Math.PI / 2;
     matMesh.position.set(MAT.x, 0.016, MAT.z);
     matMesh.renderOrder = 1;
-    matMesh.name = 'LegacyWelcomeMat';
+    matMesh.name = 'LegacyWelcomeMatFallback';
     interior.add(matMesh);
+    fallbackWelcomeMat = matMesh;
   }
 
   // --- doors + interior lighting (clubhouse/doors.js + the shell rig) --------------------
@@ -674,11 +688,14 @@ export function makeClubhouse(ctx) {
   // the player moved something: re-lay the floor and put the stock back on it. The customers'
   // paths rebake themselves — removeCol/addCol bump colVersion, and navFresh() watches it — so a
   // shelf that moved is a wall that moved, as far as they are concerned.
+  let placeableVisuals = null;
+  let builder = null;
   function rebuildLayout() {
     relayFixtures();
     retargetCustomerFixtureStops();
     rebuildStock();
     rebuildBoxes();
+    placeableVisuals?.rebuild();
   }
 
   function fixtureMoveBlocker(fixtureId) {
@@ -706,9 +723,12 @@ export function makeClubhouse(ctx) {
       if (flight.fixtureId === fixtureId) flight.ghost.visible = visible;
     }
   };
-  const builder = buildBuildMode(B, {
+  placeableVisuals = buildPlaceables(B, { fixtureAnchors, fallbackWelcomeMat });
+  builder = buildBuildMode(B, {
     rebuildLayout,
     fixtureAnchors,
+    placeables: placeableVisuals,
+    refreshRoomStyle,
     fixtureMoveBlocker,
     setFixtureStockVisible,
     setFixtureCollidersActive,
@@ -6917,7 +6937,7 @@ export function makeClubhouse(ctx) {
     updateBoxLifecycleAnimations(dt);
     updateRecyclingDrop(dt);
     updateFlicker(dt);
-    builder.update();
+    builder.update(dtMs);
     if (office.updateLid) office.updateLid(dt);
     if (moteFade > 0) {
       moteFade -= dt;
@@ -7012,6 +7032,8 @@ export function makeClubhouse(ctx) {
   function dispose() {
     if (disposing) return disposalSummary;
     disposing = true;
+    builder.dispose();
+    placeableVisuals.dispose();
     register.leave({ restorePointer: false });
     const sheet06ProductionDisposal = sheet06Production.dispose();
     // The 71-100 dressing is NOT released here. Its meshes are GLB clones, and this teardown's
@@ -7300,6 +7322,11 @@ export function makeClubhouse(ctx) {
     setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),
     // build mode: the shop is the player's to arrange
     build: builder,
+    furnitureDiagnostics: () => ({
+      placement: builder.diagnostics(),
+      visuals: placeableVisuals.diagnostics(),
+      layoutRevision: ensureLayout(state).revision,
+    }),
     // the pressure washer: aim at the building, pull the trigger, watch the wall come back
     washAim: (origin, dir) => washing.aim(origin, dir),
     washApply: (hit, mode, radius, power, dt, now) => {

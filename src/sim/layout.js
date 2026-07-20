@@ -718,10 +718,10 @@ export function validateObjectPlacement(state, id, candidateValue, options = {})
       || rect.minZ < -INTERIOR.d / 2 || rect.maxZ > INTERIOR.d / 2) addReason(result, 'ceiling-bounds', 'That does not fit on the ceiling.');
   }
   validateObjectOverlap(state, meta, candidate, result);
-  if (!result.reasons.length && candidate.surface === 'floor' && meta.collision?.blocksCustomers
+  if (candidate.surface === 'floor' && meta.collision?.blocksCustomers
     && meta.render?.kind !== 'existing'
     && !routesIntact(state, { id: meta.id, place: candidate })) {
-    addReason(result, 'navigation-blocked', 'That would cut the shop off — customers could not reach a required area.');
+    addReason(result, 'navigation-blocked', 'You cannot leave it there — customers could not get around to a required area.');
   }
   result.ok = result.reasons.length === 0;
   return result;

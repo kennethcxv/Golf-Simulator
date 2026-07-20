@@ -91,7 +91,11 @@ export function buildShell(B) {
   sidingTex.repeat.set(6, 2.2);
   const sidingMat = new THREE.MeshStandardMaterial({ map: sidingTex, normalMap: sidingNor, roughness: 0.85 });
   const roofMat = new THREE.MeshStandardMaterial({ color: 0x2e5a35, normalMap: roofNor, roughness: 0.72 });
-  const trimMat = mats.trimPaint;
+  // Shell trim is independently tintable in renovation mode. Keeping this as one
+  // shared shell material preserves batching while avoiding a room-style change
+  // recolouring every cream-painted prop in the rest of the clubhouse.
+  const trimMat = mats.trimPaint.clone();
+  let retailFloorMaterial = null;
   // eave/porch undersides fight the hemisphere's green ground bounce with a
   // faint warm self-light (they read as shadowed cream, not lime)
   const soffitMat = new THREE.MeshStandardMaterial({ color: 0xf5f2e6, roughness: 0.85, emissive: 0xfff2dc, emissiveIntensity: 0.10 });
@@ -599,6 +603,7 @@ export function buildShell(B) {
     const oakTex = makeOakFloorTexture({});
     oakTex.repeat.set(INTERIOR.w / 5.2, INTERIOR.d / 5.2);
     const oak = new THREE.MeshStandardMaterial({ map: oakTex, roughness: 0.5 });
+    retailFloorMaterial = oak;
     const slab = new THREE.Mesh(new THREE.BoxGeometry(INTERIOR.w, FLOOR_TOP, INTERIOR.d), oak);
     slab.position.set(0, FLOOR_TOP / 2, 0);
     slab.receiveShadow = true;
@@ -912,6 +917,7 @@ export function buildShell(B) {
     lighting,
     sidingMat,
     roofMat,
+    styleSurfaces: { walls: mats.plaster, trim: trimMat, floor: retailFloorMaterial },
     productionVisualFallbacks,
     productionVisualFallbackKeys: PRODUCTION_VISUAL_FALLBACK_KEYS,
     productionVisualFallbackCounts,

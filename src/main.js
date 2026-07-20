@@ -71,6 +71,9 @@ let groundsPanel = null;
 let clubPanel = null;
 let empirePanel = null;
 let walkOverlay = null;
+let walkPrompt = null;
+let walkLockHint = null;
+let walkCondition = null;
 let regHint = null;
 let regHintText = null;
 let regHintTotal = null;
@@ -1197,6 +1200,13 @@ canvas.addEventListener('pointerdown', (e) => {
     // walking with any tool out: the held button is the use trigger
     const bld = buildApi();
     if (bld && bld.isActive()) {
+      // The first click after closing the catalog is only allowed to recapture
+      // look control. Treating that same gesture as placement could commit a sofa
+      // while the player was merely dismissing "Click to play".
+      if (!document.pointerLockElement) {
+        requestLook();
+        return;
+      }
       if (e.button === 0) bld.interact(); // put it down where you're pointing
       else if (e.button === 2) bld.cancel(); // changed your mind
       return;
@@ -1351,14 +1361,45 @@ window.addEventListener('keydown', (e) => {
       }
     }
 
-    // build mode owns the verbs while it is on: E places, R turns, X stows
+    // Renovation mode owns customization keys while leaving WASD as the familiar
+    // first-person movement scheme. A preview is state-free until E/LMB confirms.
     const bld = buildApi();
     if (bld && bld.isActive()) {
+      if (e.ctrlKey && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) bld.redo(); else bld.undo();
+        return;
+      }
+      if (e.ctrlKey && !e.altKey && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        bld.redo();
+        return;
+      }
+      if (bld.isCatalogOpen()) {
+        if (e.key === 'i' || e.key === 'I' || e.key === 'Escape') {
+          e.preventDefault();
+          bld.toggleCatalog();
+        } else if (e.key === 'b' || e.key === 'B') {
+          e.preventDefault();
+          bld.exit();
+          toast('Renovation mode finished.');
+        }
+        return;
+      }
       switch (e.key) {
-        case 'e': case 'E': bld.interact(); return;
-        case 'r': case 'R': bld.rotate(); return;
-        case 'x': case 'X': bld.stow(); return;
-        case 'b': case 'B': bld.exit(); toast('Back to work.'); return;
+        case 'e': case 'E': e.preventDefault(); bld.interact(); return;
+        case 'r': case 'R': e.preventDefault(); bld.rotate(e.shiftKey ? -1 : 1); return;
+        case 'x': case 'X': e.preventDefault(); bld.stow(); return;
+        case 'Delete': e.preventDefault(); bld.sellById(); return;
+        case 'g': case 'G': e.preventDefault(); bld.toggleGrid(); return;
+        case 't': case 'T': e.preventDefault(); bld.toggleRotationSnap(); return;
+        case 'i': case 'I': e.preventDefault(); bld.toggleCatalog(); return;
+        case 'o': case 'O': e.preventDefault(); bld.returnOriginal(); return;
+        case 'ArrowUp': e.preventDefault(); bld.nudge('up', e.shiftKey); return;
+        case 'ArrowDown': e.preventDefault(); bld.nudge('down', e.shiftKey); return;
+        case 'ArrowLeft': e.preventDefault(); bld.nudge('left', e.shiftKey); return;
+        case 'ArrowRight': e.preventDefault(); bld.nudge('right', e.shiftKey); return;
+        case 'b': case 'B': e.preventDefault(); bld.exit(); toast('Renovation mode finished.'); return;
         case 'Escape':
           if (bld.isCarrying()) bld.cancel();
           else bld.exit();
@@ -1920,11 +1961,14 @@ function boot() {
   empirePanel = makeEmpirePanel(app, handlers);
   objectivesPanel = makeObjectivesPanel(app);
 
+  walkPrompt = el('div', { class: 'shop-prompt', text: '' });
+  walkCondition = el('div', { class: 'shop-cond', text: '', style: 'display:none' });
+  walkLockHint = el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F tool · Tab: overview camera · Esc: office menu' });
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
-    el('div', { class: 'shop-prompt', text: '' }),
-    el('div', { class: 'shop-cond', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F tool · J course editor · Tab overview · Esc menu' }),
+    walkPrompt,
+    walkCondition,
+    walkLockHint,
   );
 
   // BEHIND THE TILL the walk overlay is hidden — no crosshair, no prompt — so the
