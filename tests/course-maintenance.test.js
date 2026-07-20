@@ -23,6 +23,7 @@ import {
   inspectCourseMaintenanceAt,
   irrigateCourseMaintenancePath,
   levelDivot,
+  maintenanceIndexAtWorld,
   maintenanceCellReport,
   maintenanceCellSaveId,
   markCourseMaintenanceRouteStep,
@@ -137,6 +138,30 @@ test('inspection reports real state and can be toggled without permanently color
   assert.equal(toggleCourseInspection(state, false), false);
 });
 
+test('condition categories expose meaningful localized moisture and disease risk', () => {
+  const state = stateOf();
+  const model = state.courseMaintenance;
+  const initial = calculateHoleCondition(state, model, { record: false });
+  assert.ok(initial.categories.moisture < 100, 'a dry localized patch must affect the hole moisture score');
+  assert.ok(initial.categories.disease < 100, 'active localized disease must affect the hole disease score');
+
+  const dry = model.runtime.activeIndices.reduce((best, index) => (
+    model.moisture[index] < model.moisture[best] ? index : best
+  ));
+  const diseased = model.runtime.activeIndices.reduce((best, index) => (
+    model.diseaseSeverity[index] > model.diseaseSeverity[best] ? index : best
+  ));
+  irrigateCourseMaintenancePath(state, {
+    ...worldPointForMaintenanceCell(model, dry), radiusYd: 5, pointsPerSecond: 18, dtSec: 4,
+  });
+  applyFungicideCourseMaintenancePath(state, {
+    ...worldPointForMaintenanceCell(model, diseased), radiusYd: 5, treatmentPointsPerSecond: 18, dtSec: 3,
+  });
+  const improved = calculateHoleCondition(state, model, { record: false });
+  assert.ok(improved.categories.moisture > initial.categories.moisture);
+  assert.ok(improved.categories.disease > initial.categories.disease);
+});
+
 test('mowing follows a local path, leaves a stripe, syncs coarse turf, and rejects the wrong reel', () => {
   const state = stateOf();
   const model = state.courseMaintenance;
@@ -237,6 +262,53 @@ test('irrigation and fertilizer use local coverage, wetness, inventory, and dela
   assert.ok(model.fertilizer[weak] > fertilizerBefore);
 });
 
+test('continuous maintenance dosing is stable across fast and slow render frames', () => {
+  const slow = stateOf();
+  const fast = stateOf();
+  const slowModel = slow.courseMaintenance;
+  const fastModel = fast.courseMaintenance;
+  const fairway = indicesOf(slowModel, SURFACE.FAIRWAY)[0];
+  const disease = slowModel.runtime.activeIndices.find((index) => slowModel.diseaseSeverity[index] > 0);
+  const bunker = slowModel.issues.bunkerFootprints[0];
+  const fairwayPoint = worldPointForMaintenanceCell(slowModel, fairway);
+  const diseasePoint = worldPointForMaintenanceCell(slowModel, disease);
+  const operations = (state, dtSec) => ({
+    water: irrigateCourseMaintenancePath(state, { ...fairwayPoint, radiusYd: 2, pointsPerSecond: 18, dtSec }),
+    feed: fertilizeCourseMaintenancePath(state, { ...fairwayPoint, radiusYd: 2, dtSec }),
+    treat: applyFungicideCourseMaintenancePath(state, { ...diseasePoint, radiusYd: 2, dtSec }),
+    rake: rakeCourseMaintenancePath(state, { x: bunker.x, z: bunker.z, radiusYd: 1.8, dtSec }),
+  });
+
+  operations(slow, 1);
+  let firstFast;
+  for (let frame = 0; frame < 100; frame++) {
+    const result = operations(fast, 0.01);
+    if (frame === 0) firstFast = result;
+  }
+
+  assert.equal(firstFast.water.ok, true, 'sub-integer water contact is still valid turf contact');
+  assert.equal(firstFast.feed.ok, true, 'sub-integer fertilizer contact is still valid turf contact');
+  assert.equal(firstFast.treat.ok, true, 'sub-integer treatment contact is still valid disease contact');
+  assert.equal(firstFast.rake.ok, true, 'sub-integer rake movement is still valid bunker contact');
+  for (const [field, index] of [
+    ['moisture', fairway],
+    ['fertilizerPending', fairway],
+    ['diseaseSeverity', disease],
+  ]) {
+    assert.ok(
+      Math.abs(slowModel[field][index] - fastModel[field][index]) <= 1,
+      `${field} should be independent of render-frame subdivision`,
+    );
+  }
+  assert.ok(Math.abs(slowModel.inventory.fertilizerKg - fastModel.inventory.fertilizerKg) < 0.001);
+  assert.ok(Math.abs(slowModel.inventory.fungicideLiters - fastModel.inventory.fungicideLiters) < 0.001);
+  const slowBunkerIndex = Math.max(0, maintenanceIndexAtWorld(slowModel, bunker.x, bunker.z));
+  assert.ok(
+    Math.abs(slowModel.bunkerSmooth[slowBunkerIndex] - fastModel.bunkerSmooth[slowBunkerIndex]) <= 1,
+    'bunker smoothing should be independent of render-frame subdivision',
+  );
+});
+
 test('the physical repair loop fixes divots, ball marks, footprints, debris, and disease', () => {
   const state = stateOf();
   const model = state.courseMaintenance;
@@ -302,6 +374,11 @@ test('compressed save/load preserves every maintenance field, issue, route, scor
   const model = state.courseMaintenance;
   markCourseMaintenanceRouteStep(state, 'arrive');
   markCourseMaintenanceRouteStep(state, 'review');
+  assert.equal(
+    model.workOrder.steps.find((step) => step.id === 'save-load').complete,
+    false,
+    'arriving on a previously loaded session must establish a reload baseline',
+  );
   selectCourseMaintenanceEquipment(state, 'hose');
   model.equipment.hose.connected = true;
   const mark = model.issues.ballMarks[0];
@@ -320,6 +397,11 @@ test('compressed save/load preserves every maintenance field, issue, route, scor
   const loaded = deserialize(json);
   assert.equal(loaded.version, SAVE_VERSION);
   assert.equal(loaded.courseMaintenance.persistence.reloadCount, 1);
+  assert.equal(
+    loaded.courseMaintenance.workOrder.steps.find((step) => step.id === 'save-load').complete,
+    true,
+    'the save/load step completes only after a reload following yard arrival',
+  );
   assert.deepEqual(loaded.courseMaintenance.route, model.route);
   assert.deepEqual(loaded.courseMaintenance.issues, model.issues);
   assert.deepEqual(loaded.courseMaintenance.equipment, model.equipment);
@@ -327,6 +409,53 @@ test('compressed save/load preserves every maintenance field, issue, route, scor
   for (const name of FIELD_NAMES) {
     assert.deepEqual(loaded.courseMaintenance[name], model[name], 'field mismatch: ' + name);
   }
+});
+
+test('field encoding cache invalidates when agronomy changes without crossing a visual threshold', () => {
+  const state = stateOf();
+  const model = state.courseMaintenance;
+  const index = model.runtime.activeIndices.find((candidate) => (
+    model.surface[candidate] === SURFACE.FAIRWAY
+    && model.moisture[candidate] >= 40
+    && model.moisture[candidate] <= 55
+  ));
+  assert.notEqual(index, undefined);
+  const point = worldPointForMaintenanceCell(model, index);
+  const visualBefore = model.visual[index];
+  const moistureBefore = model.moisture[index];
+  const encodedBefore = snapshot(state).courseMaintenance.fields.moisture;
+
+  const result = irrigateCourseMaintenancePath(state, {
+    ...point,
+    radiusYd: 0.5,
+    pointsPerSecond: 18,
+    dtSec: 0.06,
+  });
+  assert.equal(result.changed, 1);
+  assert.equal(model.moisture[index], moistureBefore + 1);
+  assert.equal(model.visual[index], visualBefore, 'the visual bitset should remain unchanged');
+
+  const after = snapshot(state);
+  assert.notEqual(after.courseMaintenance.fields.moisture, encodedBefore);
+  const loaded = deserialize(after);
+  assert.equal(loaded.courseMaintenance.moisture[index], moistureBefore + 1);
+});
+
+test('saved layout cache falls back to a safe rebuild when the authored course changes', () => {
+  const state = stateOf();
+  const raw = snapshot(state);
+  const originalSurfaceHash = raw.courseMaintenance.surfaceHash;
+  const hero = raw.course.holes.find((hole) => hole.id === raw.courseMaintenance.heroHoleId);
+  raw.course.zones[hero.pin.y * raw.course.w + hero.pin.x] = 1;
+
+  const migrated = deserialize(raw);
+  assert.match(
+    migrated.courseMaintenance.persistence.migrationReason,
+    /Course surface changed/,
+  );
+  assert.notEqual(migrated.courseMaintenance.surfaceHash, originalSurfaceHash);
+  assert.equal(migrated.courseMaintenance.heroHoleId, hero.id);
+  assert.ok(migrated.courseMaintenance.runtime.activeIndices.length > 0);
 });
 
 test('pre-maintenance saves migrate safely and a long absence cannot destroy the hero turf', () => {
