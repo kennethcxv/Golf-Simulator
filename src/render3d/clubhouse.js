@@ -10,15 +10,14 @@
 // walkProps/propColliders in WORLD coordinates.
 
 import * as THREE from 'three';
-import { clamp, rngOf } from '../core/utils.js';
+import { clamp } from '../core/utils.js';
 import { fitDistance } from '../core/screenFit.js';
 import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig.js';
-import { makeCharacter } from './characterAsset.js';
 import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
   SHELL, INTERIOR, FIXTURES, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
-  MAT, HOURS_SIGN, queueSlot, REGISTER, COUNTER_TOP,
+  MAT, HOURS_SIGN, REGISTER, COUNTER_TOP,
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
@@ -33,10 +32,8 @@ import {
   carriedGoods, stockFixture, storeInBack, homeOf, carrySpeedFactor,
 } from '../sim/stocking.js';
 import { boxDims, boxKindFor } from '../data/boxes.js';
-import { pickFromShelf, returnToShelf } from '../sim/checkout.js';
 import { addRevenue } from '../sim/economy.js';
 import { tutorialFlag } from '../sim/tutorial.js';
-import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
 import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel } from './clubhouse/materials.js';
 import { createMerch } from './clubhouse/merch.js';
 import { slotsFor } from '../data/fixtureSlots.js';
@@ -45,13 +42,12 @@ import { buildDoors } from './clubhouse/doors.js';
 import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } from './clubhouse/fixtures.js';
 import { createRegisterMode } from './clubhouse/registerMode.js';
 import { buildDirt } from './clubhouse/dirt.js';
-import { makeNav } from './clubhouse/nav.js';
 import { productThumb } from './clubhouse/thumbs.js';
 import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
 import { placedFixtures, ensureLayout, legalBoxDrop } from '../sim/layout.js';
 import { buildBuildMode } from './clubhouse/buildMode.js';
-import { reviewFor, postReview } from '../sim/reviews.js';
+import { createCustomerView } from './clubhouse/customers.js';
 
 const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
@@ -135,10 +131,11 @@ export function makeClubhouse(ctx) {
   const halfW = SHELL.w / 2 - SHELL.wallT / 2; // wall centerlines
   const halfD = SHELL.d / 2 - SHELL.wallT / 2;
 
+  let customerView = null;
   const B = {
     ctx, state, group, interior, custGroup, mats, merch, hooks, walk,
     addCol, removeCol, addProp, removeProp, colBoxAt, L2W, W2L, FLOOR_TOP,
-    getCustomers: () => customers,
+    getCustomers: () => customerView?.actors || [],
   };
   const shell = buildShell(B);
 
@@ -220,71 +217,12 @@ export function makeClubhouse(ctx) {
 
   const regWp = L2W(REGISTER.scanner.x, COUNTER.z);
 
-  // what this customer's day was actually like — the only thing a review is allowed to read
-  const visitOf = (c, bought) => ({
-    waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
-    queueLen: c.queueLenOnArrival || 0,
-    bought,
-    played: !!c.isGolfer,
-    foundWhatTheyWanted: bought,
-  });
-  const leaveReview = (c, bought) => {
-    if (c.reviewed) return null;
-    c.reviewed = true;
-    const r = reviewFor(state, visitOf(c, bought), Math.round((c.seed || 0) * 1000 + (state.dayAbs || 0)));
-    postReview(state, r);
-    return r;
-  };
-
-  // the head of the queue, with goods, waiting on YOU
-  const headForCheckout = () => {
-    const c = counterQueue[0];
-    return c && c.cart && c.cart.length && c.awaitingCheckout ? c : null;
-  };
-
-  // The sale banked. registerMode calls this through cust.onPaid, because IT owns the
-  // money and the goods, and clubhouse.js owns the person.
-  function onCustomerPaid(c) {
-    c.bought = true;
-    leaveReview(c, true);
-    if (c.itemMesh) { c.mesh.remove(c.itemMesh); c.itemMesh = null; }
-    // a branded carrier into their hand — they walk out with it
-    const bag = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.26, 0.13),
-      new THREE.MeshStandardMaterial({ color: 0x2e5a3a, roughness: 0.85 }),
-    );
-    body.position.y = 0.13;
-    bag.add(body);
-    for (const off of [-0.05, 0.05]) {
-      const h = new THREE.Mesh(
-        new THREE.BoxGeometry(0.015, 0.09, 0.015),
-        new THREE.MeshStandardMaterial({ color: 0x1d3a26, roughness: 0.8 }),
-      );
-      h.position.set(off, 0.3, 0);
-      bag.add(h);
-    }
-    bag.position.set(0.3, 0.62, 0.05);
-    bag.rotation.y = 0.2;
-    c.mesh.add(bag);
-
-    c.cart = [];
-    c.awaitingCheckout = false;
-    leaveQueue(c);
-    c.stopIdx += 1;
-    c.linger = 0;
-    rebuildStock(); // the shelf gap where their pick came from stays real
-  }
-
+  // One physical service point handles retail checkout and front-desk visitors.
   addProp({
     x: regWp.x, z: regWp.z, r: 2.2,
     label: () => {
-      const due = dueForCheckIn(state);
-      if (due.length) {
-        const r = due[0];
-        return `Register — [E] check in ${r.name} (${fmtSlot(r.minute)} tee, ${Math.round(r.fee)} dollars)`
-          + (due.length > 1 ? ` · ${due.length - 1} more waiting` : '');
-      }
+      const desk = customerView?.frontDeskLabel();
+      if (desk) return desk;
       const l = register.label();
       if (l) return l;
       const s = state.shop;
@@ -292,15 +230,7 @@ export function makeClubhouse(ctx) {
       return `Register — yesterday: ${s.salesYesterday.units} sales, ${s.salesYesterday.revenue} dollars${live}`;
     },
     action: () => {
-      const due = dueForCheckIn(state);
-      if (due.length) {
-        const res = checkInReservation(state, due[0].id);
-        if (res.ok) {
-          if (hooks.toast) hooks.toast(`${due[0].name} checked in — ${Math.round(res.fee)} dollar green fee collected.`);
-          if (hooks.sfx) hooks.sfx('doorbell');
-        }
-        return;
-      }
+      if (customerView?.handleFrontDesk()) return;
       if (register.hasTx()) register.enter();
       else if (hooks.toast) hooks.toast('Nobody to serve.', 'warn');
     },
@@ -2214,482 +2144,19 @@ export function makeClubhouse(ctx) {
   }
 
   // --- customers: they walk in from the course, through the real door -------------------
-  let unitSeq = 0;   // every unit a shopper lifts gets its own identity
-  const customers = [];
-  // golfer-wardrobe palette, muted to the club color language
-  const CUST_COLORS = [0x4a6d94, 0x2c3e66, 0xb0788f, 0xb3714a, 0x4a7050, 0x8a8577, 0x6b4f37];
-  const counterQueue = [];
   const doorW = L2W(DOOR_MAIN.x, halfD);
-  const spawnW = { x: doorW.x + 1.5, z: doorW.z + SHELL.porchD + 9 };
-
-  function queueSlotW(i) {
-    const s = queueSlot(i);
-    return L2W(s.x, s.z);
-  }
-
-  const CUST_NAMES = ['Alex R.', 'Sam T.', 'Jordan M.', 'Casey L.', 'Riley P.', 'Drew H.', 'Morgan W.', 'Quinn B.', 'Jamie F.', 'Robin K.'];
-
-  function spawnCustomer(toCounter = false) {
-    const rng = rngOf(state);
-    // real variety on the floor: builds, trousers, skin tones, hats or hair
-    const TROUSERS = [0xc2b190, 0x8a8577, 0x4b545c, 0x6b5a44];
-    const SKINS = [0xd9a97e, 0xb9865e, 0x8a5f42, 0xe8c39a];
-    const char = makeCharacter({
-      polo: CUST_COLORS[rng.int(CUST_COLORS.length)],
-      khaki: TROUSERS[rng.int(TROUSERS.length)],
-      skin: SKINS[rng.int(SKINS.length)],
-      cap: rng.chance(0.55) ? (rng.chance(0.5) ? 0xf2efe4 : 0x2c3e66) : null,
-    });
-    char.root.scale.setScalar(0.87 + rng.next() * 0.12);
-    char.setMode('Walk');
-    char.root.userData.char = char;
-    const g = char.root;
-    g.position.set(spawnW.x + (rng.next() - 0.5) * 3, heightAt(spawnW.x, spawnW.z), spawnW.z + rng.next() * 2);
-    custGroup.add(g);
-
-    const stops = [];
-    // the approach: porch step, then just inside the door (the doorbell moment)
-    stops.push({ kind: 'walk', x: doorW.x, z: doorW.z + 2.6 });
-    stops.push({ kind: 'enter', x: doorW.x, z: doorW.z - 1.4 });
-    if (!toCounter) {
-      const nStops = 1 + rng.int(2);
-      const browsable = placedFixtures(state).filter((f) => f.skus && f.skus.length > 0);
-      // shoppers gravitate to displays with something ON them — a stocked
-      // fixture is four times as likely to make their route as a bare one
-      const pool = [];
-      for (const f of browsable) {
-        pool.push(f);
-        const hasStock = f.skus.some((id) => state.shop.inventory[id] && state.shop.inventory[id].shelf > 0);
-        if (hasStock) pool.push(f, f, f);
-      }
-      for (let i = 0; i < nStops; i++) {
-        const f = pool[rng.int(pool.length)];
-        const wp = L2W(f.x, f.z);
-        // stand a step off the fixture, on its open side
-        const l = f;
-        const offZ = l.z < -5 ? 1.2 : l.z > 5 ? -1.2 : (l.ry !== 0 ? 0 : 1.2);
-        const offX = Math.abs(l.ry) > 0.5 ? (l.x < 0 ? 1.2 : -1.2) : 0;
-        stops.push({
-          kind: 'fixture',
-          skus: f.skus,
-          title: f.title,
-          x: wp.x + offX + (rng.next() - 0.5) * 0.8,
-          z: wp.z + offZ + (rng.next() - 0.5) * 0.4,
-          faceX: wp.x,
-          faceZ: wp.z,
-        });
-      }
-    }
-    if (toCounter || rng.chance(0.55)) {
-      const regW = L2W(COUNTER.registerX, COUNTER.z);
-      stops.push({ kind: 'counter', x: queueSlotW(0).x, z: queueSlotW(0).z, faceX: regW.x, faceZ: regW.z });
-    }
-    stops.push({ kind: 'exit', x: doorW.x, z: doorW.z + 2.6 });
-    stops.push({ kind: 'gone', x: spawnW.x, z: spawnW.z });
-
-    customers.push({
-      mesh: g,
-      name: CUST_NAMES[rng.int(CUST_NAMES.length)],
-      stops,
-      stopIdx: 0,
-      linger: toCounter ? 26 + rng.next() * 10 : 2 + rng.next() * 4,
-      speed: toCounter ? 1.15 : 1.1 + rng.next() * 0.5,
-      queued: false,
-      rangBell: false,
-      cart: [],
-      scanned: 0,
-      patience: 45, // seconds they'll wait at the head of the line for service
-      awaitingCheckout: false,
-      itemMesh: null,
-      // what a review will be written from: did they get in, did they buy, did they wait
-      seed: rng.next(),
-      entered: false,
-      bought: false,
-      reviewed: false,
-      queuedAt: 0,
-      queueLenOnArrival: 0,
-      isGolfer: toCounter, // the ones with a tee time actually played the course
-    });
-    return customers[customers.length - 1];
-  }
-
-  // HOW LONG THEY HAVE BEEN WAITING, shown RESTRAINEDLY — the brief's word. A red bar
-  // over a shopper's head in a stylised pro shop is a mobile-game tell. This is a thin
-  // ring that fills as their patience burns down, and it only appears once they have
-  // actually been kept waiting: 45 seconds of goodwill costs them nothing, so nothing
-  // is drawn. It goes amber at half and red at a quarter, which is the point at which
-  // a player who is paying attention still has time to save the sale.
-  const PATIENCE_FULL = 45;
-  const patRing = new THREE.RingGeometry(0.10, 0.125, 20, 1, Math.PI / 2, Math.PI * 2);
-  function setPatience(c) {
-    const frac = clamp(c.patience / PATIENCE_FULL, 0, 1);
-    if (frac > 0.72) {                       // still fresh — do not nag
-      if (c.patienceMesh) c.patienceMesh.visible = false;
-      return;
-    }
-    if (!c.patienceMesh) {
-      const m = new THREE.Mesh(patRing.clone(), new THREE.MeshBasicMaterial({
-        color: 0xf2c14e, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false,
-      }));
-      m.position.set(0, 1.62, 0);
-      m.renderOrder = 3;
-      c.mesh.add(m);
-      c.patienceMesh = m;
-    }
-    const m = c.patienceMesh;
-    m.visible = true;
-    // the ring EMPTIES clockwise as the patience runs out
-    m.geometry.dispose();
-    m.geometry = new THREE.RingGeometry(0.10, 0.125, 24, 1, Math.PI / 2, -Math.PI * 2 * frac);
-    m.material.color.setHex(frac < 0.25 ? 0xe8635a : frac < 0.5 ? 0xf2a03d : 0xf2c14e);
-    m.material.opacity = 0.55 + (1 - frac) * 0.35;
-    // it always faces the player, so it reads from anywhere on the floor
-    if (walk.active) m.rotation.y = Math.atan2(walk.x - c.mesh.position.x, walk.z - c.mesh.position.z) - c.mesh.rotation.y;
-  }
-
-  // a shopper reaches for the display: the unit leaves the shelf THERE and
-  // rides in their hands to the register
-  function customerPick(c, stop) {
-    if (!stop.skus || c.cart.length) return;
-    const rng = rngOf(state);
-    const stocked = stop.skus.filter((id) => state.shop.inventory[id] && state.shop.inventory[id].shelf > 0);
-    if (!stocked.length) {
-      // bare display: they glance and move on — and someone occasionally says so
-      c.emptyStops = (c.emptyStops || 0) + 1;
-      if (rng.chance(0.18) && hooks.toast && walk.active && isInside(walk.x, walk.z)) {
-        hooks.toast(`${c.name} looked over the empty ${stop.title || 'display'} and moved on.`, 'warn');
-      }
-      return;
-    }
-    if (!rng.chance(0.55)) return;
-    // a third of interested shoppers inspect the item and put it back — real
-    // browsing, visible on the shelf count, no sale
-    if (rng.chance(0.3)) {
-      const skuId = stocked[rng.int(stocked.length)];
-      if (pickFromShelf(state, skuId).ok) {
-        rebuildStock(); // the unit leaves the display while they look it over
-        returnToShelf(state, skuId);
-        c.linger = Math.max(c.linger, 2.2); // the look-it-over beat
-        setTimeout(() => { if (interior.parent) rebuildStock(); }, 1600); // and back it goes
-      }
-      return;
-    }
-    const skuId = stocked[rng.int(stocked.length)];
-    // Each unit gets its own uid. That is what makes two identical Pro-V dozens two
-    // PIECES rather than a tally of two — so one can be scanned and the other not,
-    // and so a save taken while they are in a shopper's hands can put THEM back.
-    const uid = `u${++unitSeq}`;
-    if (!pickFromShelf(state, skuId, uid).ok) return;
-    const sku = SHOP_CATALOG.find((s) => s.id === skuId);
-    c.cart.push({ uid, skuId, price: priceFor(sku, state.shop.markup[sku.cat] || 1, null) });
-    rebuildStock(); // the display visibly loses the unit
-    const item = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.16, 0.16),
-      new THREE.MeshStandardMaterial({ color: CAT_COLORS[sku.cat] || 0x999999, roughness: 0.7 }),
-    );
-    item.position.set(0.16, 0.68, 0.16);
-    c.mesh.add(item);
-    c.itemMesh = item;
-    // a pick means they're heading to the counter — make sure a stop exists
-    if (!c.stops.some((s, i) => i > c.stopIdx && s.kind === 'counter')) {
-      const regW = L2W(COUNTER.registerX, COUNTER.z);
-      c.stops.splice(c.stops.length - 2, 0, { kind: 'counter', x: queueSlotW(0).x, z: queueSlotW(0).z, faceX: regW.x, faceZ: regW.z });
-    }
-  }
-
-  // the line gave up on us: put the pick back, remember the walk-out
-  function customerGiveUp(c) {
-    // they stood there, nobody came, and they put it back. That is a review, and a deserved one —
-    // every single time.
-    if (!c.reviewed) {
-      c.reviewed = true;
-      postReview(state, reviewFor(state, {
-        waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
-        queueLen: c.queueLenOnArrival || 0,
-        bought: false,
-        played: !!c.isGolfer,
-        foundWhatTheyWanted: false,
-      }, Math.round((c.seed || 0) * 1000 + (state.dayAbs || 0))));
-    }
-
-    for (const it of c.cart) returnToShelf(state, it.skuId, it.uid);
-    if (c.cart.length) {
-      state.shop.lostSalesTotal = (state.shop.lostSalesTotal || 0) + 1;
-      if (hooks.toast && walk.active && isInside(walk.x, walk.z)) {
-        hooks.toast(`${c.name} gave up waiting at the register and put it back.`, 'warn');
-      }
-      rebuildStock();
-    }
-    c.cart = [];
-    c.tx = null;
-    c.awaitingCheckout = false;
-    // they walked out mid-sale: void it, clear the counter, and put the goods back.
-    // registerMode holds no authority over stock — the shelf is credited right here.
-    if (register.getCustomer() === c) { register.abandon(); register.leave(); }
-    if (c.itemMesh) {
-      c.mesh.remove(c.itemMesh);
-      c.itemMesh = null;
-    }
-    leaveQueue(c);
-    c.stopIdx += 1;
-    c.linger = 0;
-  }
-
-  // The ONLY way a shopper leaves the floor. pickFromShelf takes a unit off the shelf the instant
-  // they lift it, so a shopper deleted while still holding one destroys it — the player's stock
-  // drains for no reason they can see. Three separate removal sites used to do exactly that; they
-  // all come through here now, and anything still in their hands goes back on the display.
-  function removeCustomer(i) {
-    const c = customers[i];
-    if (!c) return;
-
-    // They came in, they saw the place, they left. That is a visit, and a visit is reviewable —
-    // not just the ones that ended in a sale or a tantrum at the till, which is how most of them
-    // used to leave without anyone hearing a word about it. About two in five bother to write.
-    if (!c.reviewed && c.entered) {
-      c.reviewed = true;
-      const seed = Math.round((c.seed || 0) * 1000 + (state.dayAbs || 0));
-      if (Math.abs(Math.sin(seed * 7.13)) < 0.42) {
-        postReview(state, reviewFor(state, {
-          waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
-          queueLen: c.queueLenOnArrival || 0,
-          bought: !!c.bought,
-          played: !!c.isGolfer,
-          foundWhatTheyWanted: !!c.bought,
-        }, seed));
-      }
-    }
-
-    // THE REGISTER HAS TO LET GO OF THEM, and this is the place it must happen.
-    //
-    // removeCustomer is the single funnel every shopper leaves through — giving up at
-    // the till, reaching the exit, the shop closing at eight, the scene being torn
-    // down. abandon() lived only in customerGiveUp, so a shopper removed by any OTHER
-    // route left register mode holding a live transaction over goods that had already
-    // gone back on the shelf (the line below returns them). Finish that sale and it
-    // banks revenue for stock you no longer sold: money out of nothing, and the player
-    // stranded at a till serving a person who is not there.
-    //
-    // voidTx() makes the transaction terminal, so completeSale() can never touch it.
-    if (register.getCustomer() === c) { register.abandon(); register.leave(); }
-
-    if (c.cart && c.cart.length) {
-      for (const it of c.cart) returnToShelf(state, it.skuId, it.uid);
-      c.cart = [];
-      rebuildStock();
-    }
-    if (c.tx) c.tx = null;
-    c.awaitingCheckout = false;
-    leaveQueue(c);
-    if (c.itemMesh) {
-      c.mesh.remove(c.itemMesh);
-      c.itemMesh = null;
-    }
-    custGroup.remove(c.mesh);
-    customers.splice(i, 1);
-  }
-
-  const arrivedResIds = new Set();
-  function updateArrivals() {
-    if (!state || !state.reservations) return;
-    for (const r of dueForCheckIn(state)) {
-      if (arrivedResIds.has(r.id)) continue;
-      arrivedResIds.add(r.id);
-      spawnCustomer(true);
-    }
-  }
-
-  function leaveQueue(c) {
-    const qi = counterQueue.indexOf(c);
-    if (qi >= 0) {
-      counterQueue.splice(qi, 1);
-      c.queued = false;
-    }
-  }
-
-  function resolveCustomer(c, nx, nz) {
-    const r = 0.3;
-    for (const col of custCols) {
-      if (nx + r > col.minX && nx - r < col.maxX && nz + r > col.minZ && nz - r < col.maxZ) {
-        const pushLeft = nx + r - col.minX;
-        const pushRight = col.maxX - (nx - r);
-        const pushUp = nz + r - col.minZ;
-        const pushDown = col.maxZ - (nz - r);
-        const min = Math.min(pushLeft, pushRight, pushUp, pushDown);
-        if (min === pushLeft) nx = col.minX - r;
-        else if (min === pushRight) nx = col.maxX + r;
-        else if (min === pushUp) nz = col.minZ - r;
-        else nz = col.maxZ + r;
-      }
-    }
-    if (walk.active) {
-      const pd = Math.hypot(nx - walk.x, nz - walk.z);
-      if (pd > 0.01 && pd < 0.72) {
-        nx = walk.x + ((nx - walk.x) / pd) * 0.72;
-        nz = walk.z + ((nz - walk.z) / pd) * 0.72;
-      }
-    }
-    for (const o of customers) {
-      if (o === c) continue;
-      const dx = nx - o.mesh.position.x;
-      const dz = nz - o.mesh.position.z;
-      const d = Math.hypot(dx, dz);
-      if (d > 0.01 && d < 0.6) {
-        nx = o.mesh.position.x + (dx / d) * 0.6;
-        nz = o.mesh.position.z + (dz / d) * 0.6;
-      }
-    }
-    return { nx, nz };
-  }
-
-  // walkable grid around the building; doors are excluded (they open for walkers)
-  const nav = makeNav({
-    minX: center.x - 16, maxX: center.x + 16,
-    minZ: center.z - 13, maxZ: center.z + 15,
-    cell: 0.3, radius: 0.32,
+  customerView = createCustomerView(B, {
+    camera,
+    center,
+    custCols,
+    getColVersion: () => colVersion,
+    groundYAt,
+    heightAt,
+    isInside,
+    mainDoor: doorsApi.mainDoor,
+    rebuildStock,
+    register,
   });
-  let navVersion = -1;
-  function navFresh() {
-    if (navVersion !== colVersion) {
-      nav.rebuild(custCols.filter((c) => !c.door));
-      navVersion = colVersion;
-    }
-    return nav;
-  }
-
-  function updateCustomers(dt) {
-    const minute = ((state.clock.minutes % 1440) + 1440) % 1440;
-    const open = minute >= 360 && minute <= 1200;
-    const targetCount = open ? clamp(Math.round(((state.shop.salesYesterday.units || 2) / 8) * 3), 1, 6) : 0;
-    if (open && customers.length < targetCount && Math.random() < dt * 0.15) spawnCustomer();
-    if (!open) {
-      for (const c of customers) {
-        if (c.stops[c.stopIdx] && c.stops[c.stopIdx].kind !== 'exit' && c.stops[c.stopIdx].kind !== 'gone') {
-          leaveQueue(c);
-          c.stopIdx = c.stops.length - 2; // head for the exit
-          c.linger = 0;
-        }
-      }
-    }
-
-    for (let i = customers.length - 1; i >= 0; i--) {
-      const c = customers[i];
-      const char = c.mesh.userData.char;
-      if (char) char.update(dt);
-      const stop = c.stops[c.stopIdx];
-      if (!stop) { removeCustomer(i); continue; }
-
-      let tx = stop.x;
-      let tz = stop.z;
-      if (stop.kind === 'counter') {
-        if (!c.queued) {
-          counterQueue.push(c);
-          c.queued = true;
-          c.queuedAt = now; // the clock a review will quote back at you
-          c.queueLenOnArrival = counterQueue.length - 1;
-        }
-        const slot = queueSlotW(counterQueue.indexOf(c));
-        tx = slot.x;
-        tz = slot.z;
-      }
-
-      const dx = tx - c.mesh.position.x;
-      const dz = tz - c.mesh.position.z;
-      const dist = Math.hypot(dx, dz);
-      if (dist < 0.18) {
-        if (stop.kind === 'enter' && !c.rangBell) {
-          c.rangBell = true;
-          c.entered = true; // they got through the door, so they have an opinion
-          if (hooks.sfx) hooks.sfx('doorbell');
-        }
-        const isPass = stop.kind === 'walk' || stop.kind === 'enter' || stop.kind === 'exit' || stop.kind === 'gone';
-        const served = stop.kind !== 'counter' || counterQueue.indexOf(c) === 0;
-        if (stop.kind === 'gone') {
-          removeCustomer(i);
-          continue;
-        }
-        // the head of the line with a basket waits for the PLAYER to ring
-        // them up — patience runs out eventually and the pick goes back
-        if (stop.kind === 'counter' && c.cart.length && counterQueue.indexOf(c) === 0) {
-          if (!c.awaitingCheckout) {
-            // they reach the counter and LAY THEIR GOODS OUT on it, one by one
-            c.onPaid = () => onCustomerPaid(c);
-            register.begin(c);
-          }
-          c.awaitingCheckout = true;
-          c.patience -= dt;
-          setPatience(c);
-          if (char) char.setMode('Idle');
-          if (c.patience <= 0) customerGiveUp(c);
-        } else if (!served) {
-          if (char) char.setMode('Idle');
-        } else if (!isPass && c.linger > 0) {
-          if (char) char.setMode(stop.kind === 'fixture' ? 'Browse' : 'Idle');
-          c.linger -= dt;
-        } else {
-          if (stop.kind === 'fixture') customerPick(c, stop);
-          if (stop.kind === 'counter') leaveQueue(c);
-          c.stopIdx++;
-          c.linger = 1.5 + Math.random() * 3.5;
-          if (c.stopIdx >= c.stops.length) {
-            removeCustomer(i);
-            continue;
-          }
-        }
-        if (stop.faceX !== undefined) {
-          const want = Math.atan2(stop.faceX - c.mesh.position.x, stop.faceZ - c.mesh.position.z);
-          let dy = want - c.mesh.rotation.y;
-          while (dy > Math.PI) dy -= Math.PI * 2;
-          while (dy < -Math.PI) dy += Math.PI * 2;
-          c.mesh.rotation.y += dy * Math.min(1, dt * 6);
-        }
-      } else {
-        if (char) char.setMode('Walk');
-        // path on destination change only; string-pulled waypoints thereafter
-        if (!c.pathGoal || Math.hypot(c.pathGoal.x - tx, c.pathGoal.z - tz) > 0.22) {
-          c.path = navFresh().path(c.mesh.position.x, c.mesh.position.z, tx, tz) || [{ x: tx, z: tz }];
-          c.pathGoal = { x: tx, z: tz };
-          c.stuckT = 0;
-        }
-        while (c.path.length > 1
-          && Math.hypot(c.path[0].x - c.mesh.position.x, c.path[0].z - c.mesh.position.z) < 0.3) {
-          c.path.shift();
-        }
-        const wp = c.path[0] || { x: tx, z: tz };
-        const wdx = wp.x - c.mesh.position.x;
-        const wdz = wp.z - c.mesh.position.z;
-        const wdist = Math.hypot(wdx, wdz) || 1;
-        const step = Math.min(wdist, c.speed * dt);
-        const res = resolveCustomer(c, c.mesh.position.x + (wdx / wdist) * step, c.mesh.position.z + (wdz / wdist) * step);
-        const moved = Math.hypot(res.nx - c.mesh.position.x, res.nz - c.mesh.position.z);
-        c.mesh.position.x = res.nx;
-        c.mesh.position.z = res.nz;
-        c.mesh.rotation.y = Math.atan2(wdx, wdz);
-        // stuck detection: 1.2s pinned → one repath against the fresh world;
-        // 3s pinned → sidestep off whatever is holding them and start over
-        if (step > 0.001 && moved < step * 0.25) {
-          c.stuckT = (c.stuckT || 0) + dt;
-          if (c.stuckT > 3.0) {
-            const side = Math.random() < 0.5 ? 1 : -1;
-            const sres = resolveCustomer(c, c.mesh.position.x + (wdz / wdist) * 0.6 * side, c.mesh.position.z - (wdx / wdist) * 0.6 * side);
-            c.mesh.position.x = sres.nx;
-            c.mesh.position.z = sres.nz;
-            c.pathGoal = null;
-            c.stuckT = 0;
-            c.repathed = false;
-          } else if (c.stuckT > 1.2 && !c.repathed) {
-            c.pathGoal = null;
-            navVersion = -1; // rebake — a door or hauled pile may have changed the world
-            c.repathed = true;
-          }
-        } else if (moved > step * 0.6) {
-          c.stuckT = 0;
-          c.repathed = false;
-        }
-      }
-      c.mesh.position.y = groundYAt(c.mesh.position.x, c.mesh.position.z) ?? heightAt(c.mesh.position.x, c.mesh.position.z);
-    }
-  }
 
   // --- per-frame update -------------------------------------------------------------------
   let now = 0;
@@ -2700,7 +2167,7 @@ export function makeClubhouse(ctx) {
     const dt = Math.min(0.1, dtMs / 1000);
     now += dt;
     updateDoors(dt, now);
-    updateCustomers(dt);
+    customerView.update(dt);
     register.update(dt);
     updateFlicker(dt);
     builder.update();
@@ -2721,7 +2188,6 @@ export function makeClubhouse(ctx) {
     poll += dt;
     if (poll > 1.1) {
       poll = 0;
-      updateArrivals();
       if (boxSignature() !== boxSig) rebuildBoxes(); // the truck came, or staff unboxed
       if (office.paintScreen && interior.visible) office.paintScreen(); // live clock on the lid
       const ds = decorSignature();
@@ -2755,15 +2221,13 @@ export function makeClubhouse(ctx) {
   merch.onReady(() => { if (interior && interior.parent) rebuildStock(); });
 
   function dispose() {
+    customerView.dispose();
     scene.remove(group, interior, custGroup, motes, boxGroup);
     if (carriedBoxMesh) camera.remove(carriedBoxMesh);
     if (carriedGoodsMesh) camera.remove(carriedGoodsMesh);
     for (const p of [...registeredProps]) removeProp(p);
     for (const c of [...registeredCols]) removeCol(c);
     for (const m of ctx.extraMeshes || []) scene.remove(m);
-    // tearing the scene down must not pocket whatever shoppers were holding: the save is written
-    // from `state`, and stock in a deleted shopper's hands would simply cease to exist.
-    for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
   }
 
   return {
@@ -2799,38 +2263,11 @@ export function makeClubhouse(ctx) {
       getTx: () => register.getTx(),
       getCustomer: () => register.getCustomer(),
     },
-    // DIAGNOSTICS. Not a cheat: sendToCounter() puts a shopper at the head of the
-    // queue holding goods it took off the shelf through pickFromShelf, exactly as if
-    // it had walked the floor and chosen them — real shelf debits, real held-unit
-    // uids. It skips the browsing, not the accounting. tools/qa/ drives the checkout
-    // through it, because waiting on the RNG to produce a two-item cash customer is
-    // not a test, it is a lottery.
-    customers: () => customers,
-    sendToCounter(skuIds, payMethod = null) {
-      const c = spawnCustomer(false);
-      if (!c) return null;
-      c.payMethod = payMethod;   // a cash person or a card person, decided in advance
-      for (const skuId of skuIds) {
-        const uid = `u${++unitSeq}`;
-        if (!pickFromShelf(state, skuId, uid).ok) continue;
-        const sku = SHOP_CATALOG.find((k) => k.id === skuId);
-        c.cart.push({ uid, skuId, price: priceFor(sku, state.shop.markup[sku.cat] || 1, null) });
-      }
-      if (!c.cart.length) return null;
-      rebuildStock();
-      const q = queueSlotW(0);
-      c.mesh.position.set(q.x, c.mesh.position.y, q.z);
-      const regW = L2W(REGISTER.scanner.x, COUNTER.z);
-      c.stops = [
-        { kind: 'counter', x: q.x, z: q.z, faceX: regW.x, faceZ: regW.z },
-        { kind: 'exit', x: doorW.x, z: doorW.z },
-        { kind: 'gone', x: doorW.x, z: doorW.z + 6 },
-      ];
-      c.stopIdx = 0;
-      c.linger = 0;
-      c.entered = true;
-      return c.name;
-    },
+    // QA fixture: it skips browsing, but still reserves real shelf units through
+    // the same domain interface before joining the normal FIFO service line.
+    customers: () => customerView.actors,
+    customerDiagnostics: () => customerView.diagnostics(),
+    sendToCounter: (skuIds, payMethod = null) => customerView.sendToCounter(skuIds, payMethod),
     productThumb: (sku) => productThumb(sku), // rendered supplier-card imagery
     condition: () => conditionNow,
     setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),
@@ -2845,8 +2282,8 @@ export function makeClubhouse(ctx) {
     },
     washJet: (from, to, on, dt) => washing.setJet(from, to, on, dt),
     washTick: (dt) => washing.tick(dt),
-    customers, doors, // QA access
-    debugSpawn: spawnCustomer, // QA: force a walk-in
+    doors,
+    debugSpawn: (toCounter = false, intent = undefined, options = undefined) => customerView.debugSpawn(toCounter, intent, options),
     dispose,
   };
 }

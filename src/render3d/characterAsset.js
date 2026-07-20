@@ -6,10 +6,23 @@
 
 import * as THREE from 'three';
 
-const M = (color, rough = 0.85) => new THREE.MeshStandardMaterial({ color, roughness: rough });
+// Articulation stays per actor; immutable GPU resources do not. A bounded
+// palette and geometry cache prevents a busy clubhouse from allocating a new
+// material/geometry set for every arrival.
+const materials = new Map();
+const geometries = new Map();
+const M = (color, rough = 0.85) => {
+  const key = `${color}|${rough}`;
+  if (!materials.has(key)) materials.set(key, new THREE.MeshStandardMaterial({ color, roughness: rough }));
+  return materials.get(key);
+};
+const G = (key, build) => {
+  if (!geometries.has(key)) geometries.set(key, build());
+  return geometries.get(key);
+};
 
 function box(w, h, d, mat, y = 0, z = 0) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  const m = new THREE.Mesh(G(`box|${w}|${h}|${d}`, () => new THREE.BoxGeometry(w, h, d)), mat);
   m.position.set(0, y, z);
   m.castShadow = true;
   return m;
@@ -35,19 +48,22 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   const head = new THREE.Group();
   head.position.y = 0.62;
   chest.add(head);
-  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.155, 12, 9), mSkin);
+  const skull = new THREE.Mesh(G('skull', () => new THREE.SphereGeometry(0.155, 12, 9)), mSkin);
   skull.position.y = 0.06;
   skull.castShadow = true;
   head.add(skull);
   if (mCap) {
-    const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 12), mCap);
+    const capTop = new THREE.Mesh(G('cap-top', () => new THREE.CylinderGeometry(0.17, 0.17, 0.08, 12)), mCap);
     capTop.position.y = 0.19;
     head.add(capTop);
     const brim = box(0.2, 0.03, 0.16, mCap, 0.16, -0.16);
     head.add(brim);
   } else {
     // bare head gets hair instead of a cap
-    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.1), M(0x4a3a28, 0.95));
+    const hair = new THREE.Mesh(
+      G('hair', () => new THREE.SphereGeometry(0.16, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.1)),
+      M(0x4a3a28, 0.95),
+    );
     hair.position.y = 0.1;
     head.add(hair);
   }
@@ -125,13 +141,46 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       elb = -0.3;
       lean = 0.16;
       headTilt = 0.28;
-    } else if (char.mode === 'Browse') {
+    } else if (['Browse', 'Inspect', 'Reach'].includes(char.mode)) {
       const r = lerpSeg(p % 3.2, [[0, 0], [0.5, -1.25], [1.9, -1.0], [2.6, 0], [3.2, 0]]);
       shR = r;
       elb = r < -0.5 ? -0.55 : -0.25;
       shL = 0.05;
-      headTilt = 0.2;
+      headTilt = char.mode === 'Inspect' ? 0.34 : 0.2;
       bob = 0.008 * Math.sin(p * 2);
+    } else if (['Carry', 'Stage', 'Receive'].includes(char.mode)) {
+      shL = -0.72 + 0.04 * Math.sin(p * 2);
+      shR = -0.78 + 0.04 * Math.sin(p * 2 + 0.4);
+      elb = -0.9;
+      lean = char.mode === 'Stage' ? 0.16 : 0.05;
+      headTilt = char.mode === 'Stage' ? 0.18 : 0.05;
+    } else if (char.mode === 'PayCash' || char.mode === 'PayCard') {
+      shR = char.mode === 'PayCard' ? -1.1 : -0.9;
+      shL = -0.15;
+      elb = -0.72;
+      lean = 0.1;
+      headTilt = 0.12;
+    } else if (char.mode === 'Talk') {
+      shL = -0.28 + 0.18 * Math.sin(p * 1.8);
+      shR = -0.38 + 0.22 * Math.sin(p * 1.8 + 1.1);
+      elb = -0.62;
+      twist = 0.06 * Math.sin(p * 1.1);
+      headTilt = 0.04 * Math.sin(p * 1.4);
+    } else if (char.mode === 'Sit') {
+      hipL = -1.28; hipR = -1.28;
+      kneeL = 1.3; kneeR = 1.3;
+      shL = 0.05; shR = 0.05;
+      lean = -0.04;
+    } else if (char.mode === 'Door' || char.mode === 'Turn' || char.mode === 'Leave') {
+      const w = p * 6.8;
+      hipL = 0.32 * Math.sin(w);
+      hipR = -hipL;
+      kneeL = 0.24 * Math.max(0, Math.sin(w - 1.1));
+      kneeR = 0.24 * Math.max(0, Math.sin(w + Math.PI - 1.1));
+      shL = -0.25 * Math.sin(w);
+      shR = 0.25 * Math.sin(w);
+      elb = -0.32;
+      lean = 0.06;
     } else { // Idle
       lean = 0.03 + 0.015 * Math.sin(p * 1.1);
       shL = 0.06 + 0.03 * Math.sin(p * 1.1);
