@@ -1,0 +1,111 @@
+{
+  "ok": true,
+  "states": [
+    {
+      "step": "sealed",
+      "focus": "Range-rock dozen case · 12 inside — hold [E] to cut the tape",
+      "tool": "boxcutter",
+      "box": {
+        "id": 1,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "qty": 12,
+        "state": "placed",
+        "loc": "world",
+        "surface": null
+      },
+      "carry": null,
+      "shelf": 0
+    },
+    {
+      "step": "after-cut",
+      "focus": "Range-rock dozen — [E] open a flap",
+      "tool": null,
+      "box": {
+        "id": 1,
+        "tape": 1,
+        "flaps": [
+          0,
+          0
+        ],
+        "qty": 12,
+        "state": "flaps closed",
+        "loc": "world",
+        "surface": null
+      },
+      "carry": null,
+      "shelf": 0
+    },
+    {
+      "step": "tap-1",
+      "focus": "Range-rock dozen — [E] open a flap",
+      "tool": null,
+      "box": {
+        "id": 1,
+        "tape": 1,
+        "flaps": [
+          1,
+          0
+        ],
+        "qty": 12,
+        "state": "flaps open",
+        "loc": "world",
+        "surface": null
+      },
+      "carry": null,
+      "shelf": 0
+    },
+    {
+      "step": "tap-2",
+      "focus": "Range-rock dozen ×12 in the case — [E] take an armful",
+      "tool": null,
+      "box": {
+        "id": 1,
+        "tape": 1,
+        "flaps": [
+          1,
+          1
+        ],
+        "qty": 12,
+        "state": "full contents",
+        "loc": "world",
+        "surface": null
+      },
+      "carry": null,
+      "shelf": 0
+    },
+    {
+      "step": "tap-3",
+      "focus": "Holding Range-rock dozen ×6 — carry them to a green receiving rack",
+      "tool": null,
+      "box": {
+        "id": 1,
+        "tape": 1,
+        "flaps": [
+          1,
+          1
+        ],
+        "qty": 6,
+        "state": "partial contents",
+        "loc": "world",
+        "surface": null
+      },
+      "carry": {
+        "skuId": "balls1",
+        "qty": 6,
+        "allocations": [
+          {
+            "lotId": "lot-5",
+            "quantity": 6
+          }
+        ]
+      },
+      "shelf": 0
+    }
+  ],
+  "diagnostics": [],
+  "pointerLocked": false
+}

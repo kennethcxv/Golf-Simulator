@@ -1,0 +1,801 @@
+{
+  "schemaVersion": 1,
+  "kind": "inventory-delivery-baseline",
+  "startedAt": "2026-07-20T02:57:35.327Z",
+  "baseUrl": "http://127.0.0.1:8467/",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "deviceScaleFactor": 1,
+  "cameras": {
+    "laptop": {
+      "lx": 8.45,
+      "lz": 4.5,
+      "yaw": -1.5707963267948966,
+      "pitch": -0.05
+    },
+    "receiving": {
+      "lx": 11.2,
+      "lz": -3.6,
+      "yaw": -1.5707963267948966,
+      "pitch": -0.15
+    },
+    "sealedBox": {
+      "lx": 7.4,
+      "lz": -4.1,
+      "yaw": 0,
+      "pitch": -0.28
+    },
+    "openBox": {
+      "lx": 7.4,
+      "lz": -4.1,
+      "yaw": 0,
+      "pitch": -0.48
+    },
+    "shelf": {
+      "lx": -6.9,
+      "lz": -5.4,
+      "yaw": 0,
+      "pitch": -0.05
+    }
+  },
+  "fixtureBoundary": [
+    "The runner bootstrap creates an isolated owned property.",
+    "Direct state setup is used only to establish repeatable full-shelf and nine-box visual/performance fixtures.",
+    "Laptop entry, box cutting, flap opening, product removal, carrying, and shelf stocking use trusted mouse/keyboard input."
+  ],
+  "screenshots": [
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\performance\\final-run-3\\01-laptop-orders.png",
+      "description": "Existing laptop Orders view reached with normal player input."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\performance\\final-run-3\\02-receiving-nine-boxes.png",
+      "description": "Nine simultaneous delivery boxes at the fixed receiving camera."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\performance\\final-run-3\\03-sealed-box-cutter.png",
+      "description": "Sealed hero case and automatically equipped cutter from player camera."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\performance\\final-run-3\\04-open-box-visible-contents.png",
+      "description": "Opened carton with current visible product contents."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\performance\\final-run-3\\05-product-carry.png",
+      "description": "Product armful carried from the opened carton."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\performance\\final-run-3\\06-stocked-shelf.png",
+      "description": "Compatible shelf after normal-control partial stocking."
+    }
+  ],
+  "inputActions": [
+    {
+      "kind": "trusted-mouse-click",
+      "description": "continue isolated fixture",
+      "point": {
+        "x": 800,
+        "y": 459
+      }
+    },
+    {
+      "kind": "trusted-mouse-click",
+      "description": "acquire first-person look control",
+      "point": {
+        "x": 800,
+        "y": 450
+      }
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "open the physical laptop"
+    },
+    {
+      "kind": "trusted-mouse-click",
+      "description": "open Orders on the physical laptop",
+      "point": {
+        "x": 333.0428924560547,
+        "y": 214.07699584960938
+      }
+    },
+    {
+      "kind": "trusted-key",
+      "key": "Escape",
+      "description": "leave the physical laptop"
+    },
+    {
+      "kind": "trusted-mouse-click",
+      "description": "acquire first-person look control",
+      "point": {
+        "x": 800,
+        "y": 450
+      }
+    },
+    {
+      "kind": "trusted-key-hold",
+      "key": "e",
+      "durationMs": 1800,
+      "description": "cut the carton tape along the interaction seam"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "open carton flap 1"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "open carton flap 2"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "take a product armful from the opened box"
+    },
+    {
+      "kind": "trusted-key-hold",
+      "key": "e",
+      "durationMs": 1100,
+      "description": "stock the compatible ball display one unit at a time"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "repeated laptop entry 1"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "Escape",
+      "description": "repeated laptop exit 1"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "repeated laptop entry 2"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "Escape",
+      "description": "repeated laptop exit 2"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "repeated laptop entry 3"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "Escape",
+      "description": "repeated laptop exit 3"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "repeated laptop entry 4"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "Escape",
+      "description": "repeated laptop exit 4"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "repeated laptop entry 5"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "Escape",
+      "description": "repeated laptop exit 5"
+    }
+  ],
+  "performance": {
+    "stress": {
+      "label": "nine-boxes-and-fully-stocked-shelves",
+      "durationMs": 3210.2,
+      "frameSamples": 553,
+      "rendererFrameSamples": 554,
+      "averageFps": 172.5,
+      "onePercentLowFps": 111.94,
+      "worstFrameMs": 11.1,
+      "drawCalls": 2219,
+      "renderedTriangles": 6897570,
+      "sceneTriangles": 2189575,
+      "materialCount": 283,
+      "textureCount": 183,
+      "textureMemoryEstimateMiB": 6060.73,
+      "javascriptHeapMiB": 76.15,
+      "activeEventListeners": {
+        "total": 93,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 58,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "__playwright_global_listeners_check__": 1,
+          "mousemove": 2,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0
+        }
+      },
+      "uiUpdatesPerSecond": {
+        "prompt": 173.13,
+        "laptop": 0
+      },
+      "rendererResources": {
+        "geometries": 1082,
+        "textures": 213,
+        "programs": 67
+      },
+      "sceneResources": {
+        "objects": 1703,
+        "visibleMeshes": 1357,
+        "geometries": 1234
+      },
+      "sources": {
+        "frame": "requestAnimationFrame deltas in Chromium at the fixed player camera",
+        "renderer": "THREE.WebGLRenderer.info sampled once per animation frame",
+        "scene": "visible Three.js scene traversal; instanced geometry multiplied by instance count",
+        "textureMemory": "estimated RGBA8 bytes from unique material texture dimensions with 4/3 mip allowance",
+        "heap": "performance.memory.usedJSHeapSize",
+        "listeners": "EventTarget add/remove listener accounting installed before application boot",
+        "uiFrequency": "MutationObserver records per second for shop prompt and laptop screen"
+      }
+    },
+    "idleAfterInteractions": {
+      "label": "fixed-camera-after-five-laptop-cycles",
+      "durationMs": 3206.1,
+      "frameSamples": 582,
+      "rendererFrameSamples": 583,
+      "averageFps": 181.7,
+      "onePercentLowFps": 119.05,
+      "worstFrameMs": 8.4,
+      "drawCalls": 2071,
+      "renderedTriangles": 6896934,
+      "sceneTriangles": 2190025,
+      "materialCount": 289,
+      "textureCount": 184,
+      "textureMemoryEstimateMiB": 6060.91,
+      "javascriptHeapMiB": 76.89,
+      "activeEventListeners": {
+        "total": 93,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 58,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "__playwright_global_listeners_check__": 1,
+          "mousemove": 2,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0
+        }
+      },
+      "uiUpdatesPerSecond": {
+        "prompt": 0,
+        "laptop": 0
+      },
+      "rendererResources": {
+        "geometries": 1153,
+        "textures": 229,
+        "programs": 67
+      },
+      "sceneResources": {
+        "objects": 1732,
+        "visibleMeshes": 1374,
+        "geometries": 1248
+      },
+      "sources": {
+        "frame": "requestAnimationFrame deltas in Chromium at the fixed player camera",
+        "renderer": "THREE.WebGLRenderer.info sampled once per animation frame",
+        "scene": "visible Three.js scene traversal; instanced geometry multiplied by instance count",
+        "textureMemory": "estimated RGBA8 bytes from unique material texture dimensions with 4/3 mip allowance",
+        "heap": "performance.memory.usedJSHeapSize",
+        "listeners": "EventTarget add/remove listener accounting installed before application boot",
+        "uiFrequency": "MutationObserver records per second for shop prompt and laptop screen"
+      }
+    }
+  },
+  "pointerLockAttempts": [
+    {
+      "locked": false
+    },
+    {
+      "locked": false
+    }
+  ],
+  "stressFixture": {
+    "boxes": 9,
+    "boxIds": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "orderIds": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "arrivalAndRebuildMs": 60.6,
+    "skus": [
+      {
+        "skuId": "balls1",
+        "qty": 12
+      },
+      {
+        "skuId": "polo1",
+        "qty": 8
+      },
+      {
+        "skuId": "driver1",
+        "qty": 2
+      },
+      {
+        "skuId": "bag1",
+        "qty": 1
+      },
+      {
+        "skuId": "range2",
+        "qty": 4
+      },
+      {
+        "skuId": "tees1",
+        "qty": 12
+      },
+      {
+        "skuId": "shoe1",
+        "qty": 4
+      },
+      {
+        "skuId": "vac1",
+        "qty": 1
+      },
+      {
+        "skuId": "light1",
+        "qty": 1
+      }
+    ],
+    "fullRetailLines": 25,
+    "customerHeldUnits": 1
+  },
+  "heapBeforeRepeatedInteractions": {
+    "label": "nine-box stress state before repeated interactions",
+    "usedMiB": 72.34,
+    "totalMiB": 75.36
+  },
+  "listenersBeforeRepeatedInteractions": {
+    "total": 93,
+    "byType": {
+      "pointerdown": 3,
+      "keydown": 4,
+      "click": 58,
+      "pointermove": 1,
+      "pointerup": 3,
+      "wheel": 1,
+      "contextmenu": 2,
+      "keyup": 2,
+      "blur": 2,
+      "pointerlockchange": 1,
+      "resize": 1,
+      "input": 1,
+      "change": 1,
+      "__playwright_global_listeners_check__": 1,
+      "mousemove": 2,
+      "touchstart": 1,
+      "touchend": 1,
+      "touchcancel": 1,
+      "mousedown": 1,
+      "mouseup": 1,
+      "auxclick": 1,
+      "dblclick": 1,
+      "webglcontextlost": 1,
+      "webglcontextrestored": 1,
+      "webglcontextcreationerror": 1,
+      "load": 0,
+      "error": 0
+    }
+  },
+  "heroFixture": {
+    "boxId": 1,
+    "skuId": "balls1",
+    "qty": 12,
+    "loc": "world",
+    "shelfUnitsMovedToReserve": 15
+  },
+  "sealedFocus": {
+    "label": "Range-rock dozen case · 12 inside — hold [E] to cut the tape",
+    "tool": "boxcutter"
+  },
+  "openState": {
+    "tape": 1,
+    "flaps": [
+      1,
+      1
+    ],
+    "qty": 12,
+    "state": "full contents"
+  },
+  "carryState": {
+    "skuId": "balls1",
+    "qty": 6,
+    "allocations": [
+      {
+        "lotId": "lot-29",
+        "quantity": 6
+      }
+    ]
+  },
+  "stocking": {
+    "shelfBefore": 0,
+    "shelfAfter": 6,
+    "moved": 6
+  },
+  "listenersAfterRepeatedInteractions": {
+    "total": 93,
+    "byType": {
+      "pointerdown": 3,
+      "keydown": 4,
+      "click": 58,
+      "pointermove": 1,
+      "pointerup": 3,
+      "wheel": 1,
+      "contextmenu": 2,
+      "keyup": 2,
+      "blur": 2,
+      "pointerlockchange": 1,
+      "resize": 1,
+      "input": 1,
+      "change": 1,
+      "__playwright_global_listeners_check__": 1,
+      "mousemove": 2,
+      "touchstart": 1,
+      "touchend": 1,
+      "touchcancel": 1,
+      "mousedown": 1,
+      "mouseup": 1,
+      "auxclick": 1,
+      "dblclick": 1,
+      "webglcontextlost": 1,
+      "webglcontextrestored": 1,
+      "webglcontextcreationerror": 1,
+      "load": 0,
+      "error": 0
+    }
+  },
+  "listenerGrowth": 0,
+  "heapAfterRepeatedInteractions": {
+    "label": "after five laptop cycles and one physical box lifecycle",
+    "usedMiB": 73.32,
+    "totalMiB": 76.65
+  },
+  "postGcHeapGrowthMiB": 0.98,
+  "idleFixture": {
+    "parkedBoxIds": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "retainedHeroId": 1
+  },
+  "serialization": {
+    "iterations": 100,
+    "bytes": 384797,
+    "averageMs": 3.614,
+    "p95Ms": 4.6,
+    "worstMs": 6.8,
+    "source": "100 calls to src/sim/state.js serialize() on the full stress fixture"
+  },
+  "worldState": {
+    "orders": 9,
+    "shipments": 9,
+    "boxes": [
+      {
+        "id": 1,
+        "orderId": 1,
+        "skuId": "balls1",
+        "qty": 6,
+        "cap": 12,
+        "loc": "world",
+        "tape": 1,
+        "flaps": [
+          1,
+          1
+        ],
+        "flat": false
+      },
+      {
+        "id": 2,
+        "orderId": 2,
+        "skuId": "polo1",
+        "qty": 8,
+        "cap": 8,
+        "loc": "receiving-fallback",
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 3,
+        "orderId": 3,
+        "skuId": "driver1",
+        "qty": 2,
+        "cap": 2,
+        "loc": "receiving-fallback",
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 4,
+        "orderId": 4,
+        "skuId": "bag1",
+        "qty": 1,
+        "cap": 1,
+        "loc": "receiving-fallback",
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 5,
+        "orderId": 5,
+        "skuId": "range2",
+        "qty": 4,
+        "cap": 4,
+        "loc": "receiving-fallback",
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 6,
+        "orderId": 6,
+        "skuId": "tees1",
+        "qty": 12,
+        "cap": 12,
+        "loc": "receiving-fallback",
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 7,
+        "orderId": 7,
+        "skuId": "shoe1",
+        "qty": 4,
+        "cap": 4,
+        "loc": "receiving-fallback",
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 8,
+        "orderId": 8,
+        "skuId": "vac1",
+        "qty": 1,
+        "cap": 1,
+        "loc": "receiving-fallback",
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 9,
+        "orderId": 9,
+        "skuId": "light1",
+        "qty": 1,
+        "cap": 1,
+        "loc": "receiving-fallback",
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      }
+    ],
+    "carry": null,
+    "ballInventory": {
+      "shelf": 6,
+      "back": 15
+    },
+    "held": [
+      {
+        "uid": "performance-held-glove",
+        "skuId": "glove1"
+      }
+    ],
+    "cash": 248251,
+    "reconciled": true,
+    "discrepancies": []
+  },
+  "diagnostics": [
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "kind": "consoleWarning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ],
+  "diagnosticsByKind": {
+    "consoleError": 0,
+    "consoleWarning": 20,
+    "pageError": 0,
+    "requestFailed": 0
+  },
+  "functionalChecks": {
+    "exactViewport": true,
+    "normalLaptopEntry": true,
+    "sealedBoxFocused": true,
+    "cutterVisiblePath": true,
+    "tapeCut": true,
+    "bothFlapsOpen": true,
+    "visibleContentsRemain": true,
+    "productCarried": true,
+    "productStocked": true,
+    "customerHeldProfiled": true,
+    "inventoryReconciled": true
+  },
+  "diagnosticChecks": {
+    "listenerGrowthBounded": true,
+    "noConsoleErrors": true,
+    "noPageErrors": true,
+    "noFailedRequests": true
+  },
+  "ok": true,
+  "acceptanceReady": true,
+  "completedAt": "2026-07-20T02:58:14.235Z"
+}

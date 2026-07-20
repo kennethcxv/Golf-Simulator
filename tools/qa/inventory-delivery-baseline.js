@@ -366,6 +366,7 @@ async (page) => {
     const lifecycle = await import('/src/sim/inventoryLifecycle.js');
     const items = await import('/src/data/shopItems.js');
     const shop = await import('/src/sim/shop.js');
+    const checkout = await import('/src/sim/checkout.js');
     const app = window.__fw;
     const state = app.state;
     delivery.ensureDeliveries(state);
@@ -388,6 +389,8 @@ async (page) => {
         }
       }
     }
+    const held = checkout.pickFromShelf(state, 'glove1', 'performance-held-glove');
+    if (!held.ok) throw new Error(`Could not stage customer-held product: ${held.reason}`);
     const orders = [
       ['balls1', 12], ['polo1', 8], ['driver1', 2], ['bag1', 1], ['range2', 4],
       ['tees1', 12], ['shoe1', 4], ['vac1', 1], ['light1', 1],
@@ -415,9 +418,11 @@ async (page) => {
       arrivalAndRebuildMs: +(performance.now() - arrivalStart).toFixed(2),
       skus: orders.map(([skuId, qty]) => ({ skuId, qty })),
       fullRetailLines: items.SHOP_CATALOG.filter((sku) => !['supplies', 'decor'].includes(sku.cat)).length,
+      customerHeldUnits: checkout.heldUnits(state).length,
     };
   });
   requireTruth(result.stressFixture.boxes === 9, `expected nine visible boxes, found ${result.stressFixture.boxes}`);
+  requireTruth(result.stressFixture.customerHeldUnits === 1, 'expected one customer-held stress unit');
   await setCamera(cameras.receiving);
   await capture('02-receiving-nine-boxes.png', 'Nine simultaneous delivery boxes at the fixed receiving camera.');
   await page.waitForTimeout(1800);
@@ -610,6 +615,7 @@ async (page) => {
     visibleContentsRemain: result.openState?.qty > 0,
     productCarried: result.carryState?.skuId === 'balls1' && result.carryState?.qty > 0,
     productStocked: result.stocking.moved > 0,
+    customerHeldProfiled: result.stressFixture.customerHeldUnits === 1,
     inventoryReconciled: result.worldState.reconciled,
   };
   result.diagnosticChecks = {
