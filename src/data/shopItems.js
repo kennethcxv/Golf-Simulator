@@ -49,6 +49,15 @@ export const SHOP_CATALOG = [
 
   // supplies — the shop's own equipment, never sold to shoppers (restoration arc)
   { id: 'vac1', cat: 'supplies', tier: 1, name: 'Shop vacuum', cost: 140, msrp: 0, lb: 17 },
+  // Reopening supplies are ordinary physical supplier SKUs. Their cartons,
+  // carrying, back-stock, and installation all use inventory conservation.
+  { id: 'repairkit1', cat: 'supplies', tier: 1, name: 'Clubhouse repair components', cost: 38, msrp: 0, lb: 18, campaign: true },
+  { id: 'desk1', cat: 'supplies', tier: 1, name: 'Office desk flat-pack', cost: 260, msrp: 0, lb: 74, campaign: true },
+  { id: 'chair1', cat: 'supplies', tier: 1, name: 'Office task chair', cost: 85, msrp: 0, lb: 24, campaign: true },
+  { id: 'laptop1', cat: 'supplies', tier: 1, name: 'Club office laptop', cost: 480, msrp: 0, lb: 8, fragile: true, campaign: true },
+  { id: 'counter1', cat: 'supplies', tier: 1, name: 'Front desk counter kit', cost: 620, msrp: 0, lb: 150, campaign: true },
+  { id: 'shelfkit1', cat: 'supplies', tier: 1, name: 'Commercial shelving kit', cost: 240, msrp: 0, lb: 72, campaign: true },
+  { id: 'safetykit1', cat: 'supplies', tier: 1, name: 'Clubhouse safety station', cost: 95, msrp: 0, lb: 14, campaign: true },
 
   // decor — furnishing the shop up to the ClubHouseInterior reference; finish
   // feeds shopCondition (capped), placement via DECOR_SPOTS below

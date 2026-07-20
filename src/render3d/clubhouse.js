@@ -57,6 +57,12 @@ import { totalOf } from '../sim/register.js';
 import { addRevenue } from '../sim/economy.js';
 import { tutorialFlag } from '../sim/tutorial.js';
 import {
+  campaignAllowsBusiness,
+  campaignZoneProgress,
+  facilityInstalled,
+  recordCampaignCleaning,
+} from '../sim/campaign.js';
+import {
   dueForCheckIn, dueForArrivals, markReservationEnRoute, markReservationArrived,
   walkInAvailability, selectWalkInSlot, fmtSlot, deskReservationList,
 } from '../sim/reservations.js';
@@ -83,7 +89,10 @@ import {
 import {
   canBuildDeliveryBoxVisual, createDeliveryBoxVisual,
 } from './clubhouse/deliveryBoxVisual.js';
-import { deliveryBoxCarryProfile } from './clubhouse/deliveryCarryProfile.js';
+import {
+  deliveryBoxCarryCollisionRadius,
+  deliveryBoxCarryProfile,
+} from './clubhouse/deliveryCarryProfile.js';
 import { slotsFor, homeFixture } from '../data/fixtureSlots.js';
 import { buildShell } from './clubhouse/shell.js';
 import { buildShopProgressionVisuals } from './clubhouse/shopProgressionVisuals.js';
@@ -655,10 +664,32 @@ export function makeClubhouse(ctx) {
   scene.add(washing.jet, washing.mist);
 
   let conditionNow = 100;
+  function refreshEntranceMatAppearance() {
+    const matRoot = props71to100.getRoot(100);
+    if (!matRoot) return;
+    const cleanliness = state.campaign?.enabled ? campaignZoneProgress(state).entrance : conditionNow / 100;
+    const soil = 1 - Math.max(0, Math.min(1, cleanliness));
+    matRoot.traverse((object) => {
+      if (!object.isMesh) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        if (!material?.color) continue;
+        if (!material.userData.campaignMatBase) {
+          material.userData.campaignMatBase = `#${material.color.getHexString()}`;
+        }
+        material.color.set(material.userData.campaignMatBase).lerp(new THREE.Color(0x2d261d), soil * 0.72);
+        material.needsUpdate = true;
+      }
+    });
+  }
   function refreshCondition() {
     conditionNow = state && state.shop ? shopCondition(state) : 100;
     shell.lighting.refreshCondition(conditionNow);
+    refreshEntranceMatAppearance();
   }
+  props71to100.ready.then(() => {
+    if (interior.parent) refreshEntranceMatAppearance();
+  });
   const updateFlicker = (dt) => shell.lighting.updateFlicker(dt);
 
   // --- fixtures, lounge, stockroom dressing (clubhouse/fixtures.js) ----------------------
@@ -915,6 +946,14 @@ export function makeClubhouse(ctx) {
   const checkout = buildCheckout(B);
   const drawRegister = checkout.drawRegister;
 
+  function refreshCheckoutAvailability() {
+    const counterReady = facilityInstalled(state, 'frontCounter');
+    const hardwareReady = facilityInstalled(state, 'registerHardware');
+    checkout.setAvailability({ counter: counterReady, hardware: hardwareReady });
+    register.root.visible = hardwareReady;
+  }
+  refreshCheckoutAvailability();
+
   const regWp = L2W(REGISTER.scanner.x, COUNTER.z);
 
   // what this customer's day was actually like — the only thing a review is allowed to read
@@ -1069,6 +1108,10 @@ export function makeClubhouse(ctx) {
   addProp({
     x: regWp.x, z: regWp.z, r: 2.2,
     label: () => {
+      if (!facilityInstalled(state, 'frontCounter')) return null;
+      if (!facilityInstalled(state, 'registerHardware')) {
+        return 'Front desk - install and confirm the register hardware first';
+      }
       const deskCustomer = counterQueue[0];
       if (deskCustomer && deskCustomer.checkoutPhase === 'walk-in-waiting') {
         return `Front desk - [E] help ${deskCustomer.fullName} choose a walk-in tee time`;
@@ -1089,6 +1132,10 @@ export function makeClubhouse(ctx) {
       return 'Tee desk — [E] arrivals, check-in & walk-ins';
     },
     action: () => {
+      if (!facilityInstalled(state, 'frontCounter') || !facilityInstalled(state, 'registerHardware')) {
+        if (hooks.toast) hooks.toast('Install the counter and register hardware before serving guests.', 'warn');
+        return;
+      }
       // The shared monitor owns selection and never mutates a reservation merely
       // because the player pressed E near the counter.
       if (register.enter() || register.isActive()) return;
@@ -1240,6 +1287,23 @@ export function makeClubhouse(ctx) {
   // office: desk, chair, filing, wall course map, calendar, and (for now) the
   // computer that opens the management desk — the real laptop lands next
   const office = { computerProp: null };
+  const officeDeskFallbackRoot = new THREE.Group();
+  officeDeskFallbackRoot.name = 'OfficeDeskFallbackRoot';
+  interior.add(officeDeskFallbackRoot);
+  const officeChairFallbackRoot = new THREE.Group();
+  officeChairFallbackRoot.name = 'OfficeChairFallbackRoot';
+  interior.add(officeChairFallbackRoot);
+  const officeDeskCollider = colBoxAt(OFFICE.desk.x, OFFICE.desk.z, 1.1, 2.0);
+  let officeDeskColliderActive = false;
+  const setOfficeDeskColliderActive = (active) => {
+    if (active && !officeDeskColliderActive) {
+      addCol(officeDeskCollider);
+      officeDeskColliderActive = true;
+    } else if (!active && officeDeskColliderActive) {
+      removeCol(officeDeskCollider);
+      officeDeskColliderActive = false;
+    }
+  };
   {
     // The Sheet-04 executive desk (walnut top, two drawer pedestals, brass
     // pulls) replaces the plank desk. Its top is a real 0.75 desk height —
@@ -1262,15 +1326,15 @@ export function makeClubhouse(ctx) {
     desk.add(drawers);
     desk.position.set(OFFICE.desk.x, 0, OFFICE.desk.z);
     desk.rotation.y = OFFICE.desk.ry;
-    interior.add(desk);
-    addCol(colBoxAt(OFFICE.desk.x, OFFICE.desk.z, 1.1, 2.0));
+    officeDeskFallbackRoot.add(desk);
+    setOfficeDeskColliderActive(facilityInstalled(state, 'officeDesk'));
     merch.onReady(() => {
       const kitDesk = merch.instantiateKit && merch.instantiateKit('office_desk');
       if (!kitDesk) return;
       kitDesk.name = 'LegacyOfficeDeskAuthored';
       kitDesk.position.set(OFFICE.desk.x, 0, OFFICE.desk.z);
       kitDesk.rotation.y = -Math.PI / 2;
-      interior.add(kitDesk);
+      officeDeskFallbackRoot.add(kitDesk);
       disposeClubhouseFallback(desk);
     });
 
@@ -1286,7 +1350,7 @@ export function makeClubhouse(ctx) {
       // placement table can retire this one when that lands — otherwise the office has two
       // chairs a centimetre apart, which is worse than either alone.
       chair.name = 'LegacyOfficeChair';
-      interior.add(chair);
+      officeChairFallbackRoot.add(chair);
     });
 
     // the Sheet-04 filing cabinet against the east wall, north of the desk —
@@ -1626,7 +1690,9 @@ export function makeClubhouse(ctx) {
     const compWp = L2W(OFFICE.laptop.x, OFFICE.laptop.z);
     office.computerProp = addProp({
       x: compWp.x, z: compWp.z, r: 2.3,
-      label: () => 'Laptop — [E] open GOLF SIMULATOR',
+      label: () => facilityInstalled(state, 'laptop')
+        ? 'Laptop — [E] open GOLF SIMULATOR'
+        : null,
       action: () => { if (hooks.openLaptop) hooks.openLaptop(); },
     });
     office.laptop = laptop;
@@ -1671,6 +1737,39 @@ export function makeClubhouse(ctx) {
     // tests/laptop-rig.test.js proves it on every run — which is the version worth keeping.
     // Evidence: qa/laptop/debug/.
   }
+
+  let sheet07Production = null;
+  function refreshCampaignVisualAvailability() {
+    const deskReady = facilityInstalled(state, 'officeDesk');
+    officeDeskFallbackRoot.visible = deskReady;
+    officeChairFallbackRoot.visible = facilityInstalled(state, 'officeChair');
+    office.laptop.visible = facilityInstalled(state, 'laptop');
+    setOfficeDeskColliderActive(deskReady);
+    refreshCheckoutAvailability();
+    props71to100.refreshVisibility();
+    if (sheet07Production) sheet07Production.refresh();
+    if (shell.setBusinessOpen) shell.setBusinessOpen(campaignAllowsBusiness(state));
+  }
+
+  sheet07Production = createSheet07CampaignRuntime({
+    interior,
+    loader: new GLTFLoader(),
+    state,
+    fallbacks: {
+      61: checkout.counterVisualRoot,
+      66: officeDeskFallbackRoot,
+    },
+  });
+  refreshCampaignVisualAvailability();
+
+  const campaignWorld = buildCampaignWorld(B, {
+    refreshWorld(kind) {
+      refreshCampaignVisualAvailability();
+      if (kind === 'repair') rebuildReno();
+      if (kind === 'facility') rebuildLayout();
+      refreshCondition();
+    },
+  });
 
   // lounge dressing: trophy shelf + course photo (sofa arrives as decor)
   {
@@ -3574,6 +3673,18 @@ export function makeClubhouse(ctx) {
     if (!gate.ok) return { did: 0, kind: def.toolClass, blocked: true, reason: gate.reason };
     const l = gate.local;
     let did = 0;
+    const finish = (result) => {
+      if ((result.did || 0) <= 0) return result;
+      recordCampaignCleaning(state, toolId, result.did);
+      if (def.toolClass === TOOL_CLASS.SUCTION && state.tutorial) tutorialFlag(state, 'vacuumed');
+      cleanClock += dt;
+      if (cleanClock > 0.12) {
+        cleanClock = 0;
+        repaintGrime();
+        refreshCondition();
+      }
+      return result;
+    };
 
     switch (def.toolClass) {
       case TOOL_CLASS.SWEEP: {
@@ -3631,13 +3742,13 @@ export function makeClubhouse(ctx) {
           showCleaningMotes(def.id, wx, wz, dirX, dirZ, dt);
           recordFloorCleaning(res.cleaned, dt);
         }
-        return { did: res.cleaned, kind: def.id };
+        return finish({ did: res.cleaned, kind: def.id });
       }
       case TOOL_CLASS.SPRAY: {
         const sp = toWet(l.x, l.z);
         did = solutionAt(state, WET_GRID, sp.x, sp.z, def.radius, dt * 2.2);
         wetVisualDirty = true;
-        return { did, kind: 'spray' };
+        return finish({ did, kind: 'spray' });
       }
       case TOOL_CLASS.CARRY: {
         const status = cleaningStatus(state);
@@ -3698,6 +3809,55 @@ export function makeClubhouse(ctx) {
     if (cx < 0 || cx >= RENO.grid.w || cy < 0 || cy >= RENO.grid.h) return 'Vacuum — aim at the floor';
     const d = reno.grime[cy * RENO.grid.w + cx];
     return d > 0.05 ? `Vacuum — this patch: ${Math.round(d * 100)}% dirty · hold LMB` : 'Vacuum — this patch is clean';
+  }
+
+  function emptyDustpanIntoBag() {
+    const had = state.shop.reno.pan || 0;
+    state.shop.reno.pan = 0;
+    state.shop.reno.bag = Math.round(((state.shop.reno.bag || 0) + had) * 1000) / 1000;
+    if (had > 0) tutorialFlag(state, 'panEmptied');
+    return had;
+  }
+
+  function disposeCleaningBag() {
+    const had = state.shop.reno.bag || 0;
+    state.shop.reno.bag = 0;
+    if (had > 0) tutorialFlag(state, 'trashBagDisposed');
+    return had;
+  }
+
+  // Asset 80 marks the cleaning-bay disposal point. Debris loads have always
+  // been conserved, but they previously had no normal-control world verb for
+  // returning to zero. Two explicit E presses preserve the physical sequence:
+  // empty the pan into the bag, then tie and discard the bag.
+  {
+    const disposalWorld = L2W(7.70, 1.20);
+    addProp({
+      x: disposalWorld.x,
+      z: disposalWorld.z,
+      r: 1.55,
+      focusBias: 0.12,
+      label: () => {
+        const pan = state.shop.reno.pan || 0;
+        const bag = state.shop.reno.bag || 0;
+        if (pan > 0) return 'Cleaning disposal — [E] empty the dustpan into the trash bag';
+        if (bag > 0) return 'Cleaning disposal — [E] tie and discard the filled trash bag';
+        return null;
+      },
+      action: () => {
+        const pan = emptyDustpanIntoBag();
+        if (pan > 0) {
+          if (hooks.sfx) hooks.sfx('disposal');
+          if (hooks.toast) hooks.toast('Dustpan emptied into the trash bag. Tie it off here when the floor is clear.');
+          return;
+        }
+        const bag = disposeCleaningBag();
+        if (bag > 0) {
+          if (hooks.sfx) hooks.sfx('disposal');
+          if (hooks.toast) hooks.toast('Filled trash bag disposed — the cleaning bay is clear.');
+        }
+      },
+    });
   }
 
   // --- physical deliveries: boxes on the pad, in your arms, in the stockroom ------------
@@ -7409,6 +7569,7 @@ export function makeClubhouse(ctx) {
 
   function updateArrivals() {
     if (!state || !state.reservations) return;
+    if (!campaignAllowsBusiness(state)) return;
     const at = state.clock.minutes;
     for (const reservation of dueForArrivals(state, { at })) {
       markReservationEnRoute(state, reservation.id, at);
@@ -8069,6 +8230,23 @@ export function makeClubhouse(ctx) {
     rebuildBoxes, presentDeliveryArrival, renderDeliveryCarryOverlay,
     sheet06Production: sheet06ProductionPublic,
     sheet06ProductionReady: () => sheet06Production.ready,
+    sheet07Production: {
+      ready: sheet07Production.ready,
+      diagnostics: () => sheet07Production.diagnostics(),
+      getRoot: (number) => sheet07Production.getRoot(number),
+    },
+    refreshCampaign: () => {
+      refreshCampaignVisualAvailability();
+      campaignWorld.refresh();
+      rebuildReno();
+      rebuildLayout();
+      refreshCondition();
+    },
+    campaignDiagnostics: () => ({
+      world: campaignWorld.diagnostics(),
+      sheet07: sheet07Production.diagnostics(),
+      businessOpen: campaignAllowsBusiness(state),
+    }),
     boxPlacement: Object.freeze({
       isActive: () => !!boxPlacementMode?.isActive(),
       hasCarriedBox: () => !!carriedBox(state),
@@ -8123,14 +8301,7 @@ export function makeClubhouse(ctx) {
     carryCollisionRadius: () => {
       const box = carriedBox(state);
       if (!box || box.flat) return 0;
-      const dim = boxDims(box.box || 'carton');
-      // The long case is carried lengthwise on a 0.78 rad ground-plane
-      // diagonal. Its half-span across a doorway is about 0.51 m, so the 0.53 m
-      // profile protects its physical corners and clears the open hinge leaf.
-      // Treating its full length as a circle makes the receiving route
-      // impossible even though the authored case visibly fits lengthwise.
-      if (box.box === 'clubbox') return 0.53;
-      return Math.max(dim.w, dim.d) * 0.5 + 0.16;
+      return deliveryBoxCarryCollisionRadius(box);
     },
     isInside, groundYAt, vacuumAt, vacuumLabelAt,
     doorWorld: doorW,

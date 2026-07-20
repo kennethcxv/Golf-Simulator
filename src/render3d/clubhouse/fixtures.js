@@ -1156,14 +1156,12 @@ export function buildStockroomDressing(B) {
     // the legacy handtruck duplicated the canonical delivery-equipment prop.
     interior.add(merch.bake(dress));
 
-    // Sheet-04 storage totes, stacked where the work happens: a supply pair
-    // by the packing bench, a returns pair by receiving. Kit props keep
-    // their own baked materials — they stay out of the merged dress group.
+    // Sheet-04 supply totes stay by the packing bench. Decorative returns
+    // formerly occupied the real receiving set-down zone at (7.9, -5.0).
+    // Kit props keep their own baked materials and stay out of the merged group.
     const TOTES = [
       { name: 'storage_tote_olive', x: 6.55, z: -0.35, y: 0, ry: 0.35 },
       { name: 'storage_tote_slate', x: 6.55, z: -0.35, y: 0.288, ry: 0.15 },
-      { name: 'storage_tote_charcoal', x: 7.9, z: -5.0, y: 0, ry: -0.5 },
-      { name: 'storage_tote_stone', x: 7.9, z: -5.0, y: 0.288, ry: -0.75 },
     ];
     for (const t of TOTES) {
       const tote = merch.instantiateKit && merch.instantiateKit(t.name);
@@ -1366,7 +1364,16 @@ export function buildStockroomDressing(B) {
 // live sales, reservations); this builds only the physical kit and returns
 // the screen-drawing hook.
 export function buildCheckout(B) {
-  const { interior, mats, merch, addCol, colBoxAt } = B;
+  const { interior, mats, merch, addCol, removeCol, colBoxAt } = B;
+
+  // Campaign availability is presentation-only here. The checkout transaction
+  // authority remains in registerMode; these roots let the reopening campaign
+  // reveal the physical counter and its hardware without duplicating either.
+  const counterVisualRoot = new THREE.Group();
+  counterVisualRoot.name = 'CheckoutCounterVisualRoot';
+  const hardwareVisualRoot = new THREE.Group();
+  hardwareVisualRoot.name = 'CheckoutHardwareVisualRoot';
+  interior.add(counterVisualRoot, hardwareVisualRoot);
 
   // paneled island: walnut body, panel insets, wood top, brass foot rail
   // This remains a zero-network fallback while the GLB loader is warming up. Once
@@ -1393,7 +1400,18 @@ export function buildCheckout(B) {
   footRail.rotation.z = Math.PI / 2;
   footRail.position.set(COUNTER.x, 0.16, COUNTER.z - COUNTER.depth / 2 + 0.02);
   legacyCounter.add(footRail);
-  addCol(colBoxAt(COUNTER.x, COUNTER.z, COUNTER.len + 0.3, COUNTER.depth + 0.2));
+  const counterCollider = colBoxAt(COUNTER.x, COUNTER.z, COUNTER.len + 0.3, COUNTER.depth + 0.2);
+  let counterColliderActive = false;
+  const setCounterColliderActive = (active) => {
+    if (active && !counterColliderActive) {
+      addCol(counterCollider);
+      counterColliderActive = true;
+    } else if (!active && counterColliderActive) {
+      removeCol(counterCollider);
+      counterColliderActive = false;
+    }
+  };
+  setCounterColliderActive(true);
 
   if (merch) merch.onReady(() => {
     // Prefer the current Blender production counter, retaining the older kit as
@@ -1487,7 +1505,7 @@ export function buildCheckout(B) {
       if (!o) return null;
       o.position.set(spec.x, COUNTER_TOP, spec.z);
       o.rotation.y = ry;
-      interior.add(o);
+      hardwareVisualRoot.add(o);
       return o;
     };
     // The checkout kit is authored at believable real-world dimensions. Keep
@@ -1526,7 +1544,7 @@ export function buildCheckout(B) {
       bag.position.set(REGISTER.bagstand.x, COUNTER_TOP + 0.012 + i * 0.021, REGISTER.bagstand.z);
       bag.rotation.y = 0.08 + i * 0.05;
       bag.castShadow = true;
-      interior.add(bag);
+      hardwareVisualRoot.add(bag);
     }
   }
 

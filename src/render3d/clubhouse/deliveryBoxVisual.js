@@ -461,6 +461,20 @@ const AUTHORED_PACKING_STATE_BY_LAYOUT = Object.freeze({
   IRONSET1: 'bundled_set_with_head_and_shaft_supports',
 });
 
+// The reopening campaign reuses the already-authored generic FIXTURE1 and
+// FURNITURE1 freight interiors. Those GLBs predate the campaign SKU names, so
+// their embedded allowlists cannot name them; this explicit compatibility map
+// is the integration contract. Dimensions and 1:1 socket validation below stay
+// fully enforced.
+const CAMPAIGN_LAYOUT_SKUS = Object.freeze({
+  FIXTURE1: Object.freeze(['repairkit1', 'chair1', 'laptop1', 'safetykit1']),
+  FURNITURE1: Object.freeze(['desk1', 'counter1', 'shelfkit1']),
+});
+
+const layoutAllowsCampaignSku = (layoutId, skuId) => (
+  (CAMPAIGN_LAYOUT_SKUS[layoutId] || []).includes(skuId)
+);
+
 export function selectDeliveryContentLayout(root, layoutId, capacity, contract = null) {
   const id = String(layoutId || '').toUpperCase();
   const layoutRoots = namedDescendants(root, (name) => name.startsWith('CONTENT_LAYOUT_'));
@@ -488,7 +502,8 @@ export function selectDeliveryContentLayout(root, layoutId, capacity, contract =
       throw new Error(`CONTENT_LAYOUT_${id} selection_rule is not strict`);
     }
     const allowedSkus = metadataStringArray(layoutData.allowed_skus, `CONTENT_LAYOUT_${id}.allowed_skus`);
-    if (!allowedSkus.includes(contract.skuId)) {
+    if (!allowedSkus.includes(contract.skuId)
+        && !layoutAllowsCampaignSku(id, contract.skuId)) {
       throw new Error(`CONTENT_LAYOUT_${id} does not allow SKU ${contract.skuId}`);
     }
     const authoredState = String(layoutData.packaging_state || '').trim();
@@ -524,7 +539,10 @@ export function selectDeliveryContentLayout(root, layoutId, capacity, contract =
         throw new Error(`${expectedName} must be an authored box_content socket`);
       }
       const socketSkus = metadataStringArray(data.allowed_skus, `${expectedName}.allowed_skus`);
-      if (!socketSkus.includes(contract.skuId)) throw new Error(`${expectedName} does not allow SKU ${contract.skuId}`);
+      if (!socketSkus.includes(contract.skuId)
+          && !layoutAllowsCampaignSku(id, contract.skuId)) {
+        throw new Error(`${expectedName} does not allow SKU ${contract.skuId}`);
+      }
       if (String(data.packaging_state || '').trim() !== authoredState) {
         throw new Error(`${expectedName} packaging_state does not match CONTENT_LAYOUT_${id}`);
       }

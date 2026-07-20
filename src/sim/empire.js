@@ -240,6 +240,7 @@ export function buyProperty(empire, propertyId) {
     state.tutorial.complete = true;
     state.tutorial.hidden = true;
   } else {
+    initCampaign(state, { fresh: true });
     empire.firstPurchaseDone = true;
   }
 

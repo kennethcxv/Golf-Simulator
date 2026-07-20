@@ -885,6 +885,81 @@ button.build-swatch.selected { color: #fff; border-color: #d2b86f; box-shadow: 0
 
 /* --- overlays ------------------------------------------------------------- */
 
+.arrival-intro {
+  position: absolute;
+  top: 88px;
+  left: 50%;
+  width: min(430px, calc(100vw - 40px));
+  transform: translateX(-50%);
+  padding: 16px 18px;
+  border: 1px solid rgba(201, 162, 76, 0.38);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(20, 35, 24, 0.96), rgba(11, 20, 14, 0.95));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+  text-align: center;
+  pointer-events: none;
+  animation: fw-pop 0.28s ease-out;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.arrival-intro.leaving {
+  opacity: 0;
+  transform: translate(-50%, -8px);
+}
+
+.arrival-eyebrow {
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.15em;
+}
+
+.arrival-title {
+  margin-top: 3px;
+  color: #f4f1e7;
+  font: 700 1.38rem Georgia, serif;
+}
+
+.arrival-copy {
+  margin-top: 7px;
+  color: #c5cec2;
+  font-size: 0.86rem;
+  line-height: 1.42;
+}
+
+.arrival-task {
+  margin: 9px 0;
+  color: #91aa91;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+
+.arrival-intro button {
+  padding: 6px 13px;
+  pointer-events: auto;
+}
+
+.campaign-day-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.campaign-day-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.campaign-day-summary span {
+  color: var(--text-dim);
+  font-size: 0.74rem;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

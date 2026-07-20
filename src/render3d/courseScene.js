@@ -78,6 +78,7 @@ import { floraWindEligible, floraWindStrength } from './floraWind.js';
 import { attachSocket, socketWorld } from './toolSockets.js';
 import { buildToolViewmodels } from './toolViewmodel.js';
 import { CLEANING_TOOLS } from '../data/cleaningTools.js';
+import { DOOR_MAIN } from '../data/shopLayout.js';
 
 // tools worked against the boards; resolved once rather than filtered every frame
 const FLOOR_ANCHORED_TOOLS = Object.values(CLEANING_TOOLS).filter((t) => t.floorAnchored).map((t) => t.id);
@@ -5665,7 +5666,7 @@ export function makeCourseScene(canvas, state) {
     if (!s) return { x: 0, z: 0, yaw: Math.PI };
     const wx = (s.x + s.w / 2) * CELL_YD - worldW / 2;
     const wz = (s.y + s.h / 2) * CELL_YD - worldH / 2;
-    return { x: wx, z: wz + 8.2 + 5.5, yaw: Math.PI }; // beyond the body + porch, facing the course
+    return { x: wx + DOOR_MAIN.x, z: wz + 8.2 + 5.5, yaw: 0 }; // aligned to the authored entry doors
   }
 
   function walkEnter(spawn) {

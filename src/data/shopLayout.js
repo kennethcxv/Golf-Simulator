@@ -138,11 +138,11 @@ export const STOCKROOM = {
   // exterior aperture and the raised service road beside the east wall.
   padOutside: { x: 13.0, z: 0.0 },
   packing: { x: 6.9, z: -0.9, ry: 0 },     // the packing bench (tape gun, clipboard)
-  // Ref 42 lives in the open receiving lane: reachable from both sides, clear
-  // of the start-state clutter at (6.4, -4.6), and outside the east-shelf and
-  // stock-cart footprints. Keeping it here makes the toe plate and handle
-  // independently usable even before the player restores the room.
-  handTruck: { x: 8.35, z: -3.95 },
+  // Ref 42 parks immediately west of the receiving clearway. The former
+  // (8.35, -3.95) pose sat inside that route and left less than a freight-
+  // crate width between the truck and east wall. This bay stays reachable
+  // beside the stocking cart while preserving a real pad-to-stockroom lane.
+  handTruck: { x: 7.35, z: -4.15 },
   bin: { x: 9.85, z: 1.3 },                // recycling by the stock door, east of the swing
   cleaning: { x: 6.1, z: 1.45 },           // mop bucket / brooms corner
 };
@@ -279,7 +279,7 @@ export const BASKET_STATION = {
   w: 0.72, d: 0.52,
 };
 export const LOGO_RUG = { x: -0.8, z: 3.1, w: 3.6, d: 2.4 }; // club logo rug on the entry axis
-export const HOURS_SIGN = { x: 1.1, z: 6.77 };         // beside the door, on the porch face
+export const HOURS_SIGN = { x: 0.58, z: 6.77 };        // readable between the door trim and porch column
 
 // --- retail fixtures ----------------------------------------------------------------
 // kind: shelf | rack | table | rail | hatstand | bagstand | shoerack | apparelwall | feature

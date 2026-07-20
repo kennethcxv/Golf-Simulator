@@ -249,7 +249,7 @@ test('delivery equipment mounts all authored hierarchies without baking and hide
   assert.equal(equipment.exteriorRoot.parent, exterior);
 
   const handTruck = equipment.rootFor('handTruck');
-  assert.deepEqual(handTruck.position.toArray(), [8.35, 0, -3.95]);
+  assert.deepEqual(handTruck.position.toArray(), [7.35, 0, -4.15]);
   assert.equal(handTruck.rotation.y, 0.6);
   const van = equipment.rootFor('delivery_van');
   assert.deepEqual(van.position.toArray(), [116.5, 7, -50]);

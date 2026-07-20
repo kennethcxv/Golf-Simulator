@@ -404,6 +404,79 @@ function closeLeftPanels(except) {
   if (except !== 'empire' && app.empireOpen) empirePanel.setVisible(false);
 }
 
+function showFirstDaySummary() {
+  const view = app.state ? campaignView(app.state) : null;
+  const first = view?.firstDay;
+  if (!first?.complete) return;
+  if (document.pointerLockElement) document.exitPointerLock();
+  const result = first.result || {};
+  modal('Opening day complete', (box, close) => {
+    box.append(
+      el('div', { class: 'campaign-day-summary' },
+        el('div', {}, el('span', { text: 'Revenue' }), el('b', { text: formatMoney(first.revenue) })),
+        el('div', {}, el('span', { text: 'Operating result' }), el('b', { text: formatMoney(result.net || 0) })),
+        el('div', {}, el('span', { text: 'Customer feedback' }), el('b', { text: first.review ? 'First review received' : 'Pending' })),
+        el('div', {}, el('span', { text: 'Stock signal' }), el('b', { text: first.shelfGap ? 'First shelf gap recorded' : 'Shelves holding' })),
+      ),
+      el('p', { class: 'muted', text: 'Next goal: keep two core product lines stocked and build a full week of reliable service and strong reviews.' }),
+      el('div', { class: 'row' }, el('button', { text: 'Continue operating', onclick: close })),
+    );
+  });
+}
+
+function handleGuideTick(result) {
+  if (!result) return;
+  const advanced = result.advanced || [];
+  if (advanced.length > 3) {
+    toast(`${advanced.length} completed objectives were recovered from the real world state.`, 'good');
+  } else {
+    for (const step of advanced) toast(`✓ ${step.title}`, 'good');
+  }
+  if (result.phaseChanged) toast(`Milestone — ${result.phaseChanged.title}`, 'good');
+  if (result.firstDayCompleted) showFirstDaySummary();
+  if (advanced.length || result.phaseChanged || result.firstDayCompleted) {
+    if (objectivesPanel) objectivesPanel.refresh();
+    if (laptopUi?.isOpen()) laptopUi.render();
+  }
+}
+
+function campaignPresentationChanged(kind, result) {
+  const clubhouse = app.scene3d?.clubhouse?.();
+  clubhouse?.refreshCampaign?.();
+  handleGuideTick(tickTutorial(app.state));
+  objectivesPanel?.refresh();
+  if (laptopUi?.isOpen()) laptopUi.render();
+  autosave();
+  if (kind === 'opening' && result?.ok && audio.ready) audio.chime();
+}
+
+function showCampaignArrival() {
+  const campaign = app.state?.campaign;
+  if (!campaign?.enabled || campaign.arrivalShown || !gameUi) return;
+  campaign.arrivalShown = true;
+  arrivalIntro?.remove();
+  const dismiss = () => {
+    if (!arrivalIntro) return;
+    arrivalIntro.classList.add('leaving');
+    const retiring = arrivalIntro;
+    arrivalIntro = null;
+    setTimeout(() => retiring.remove(), 280);
+    requestLook();
+  };
+  arrivalIntro = el('div', { class: 'arrival-intro', role: 'status' },
+    el('div', { class: 'arrival-eyebrow', text: 'YOUR FIRST PROPERTY' }),
+    el('div', { class: 'arrival-title', text: app.state.clubName || 'The Club' }),
+    el('div', { class: 'arrival-copy', text: 'Years of neglect left the clubhouse closed. Survey it, restore the office, then reopen on your terms.' }),
+    el('div', { class: 'arrival-task', text: 'Look around · Walk toward the clubhouse' }),
+    el('button', { text: 'Begin restoration', onclick: dismiss }),
+  );
+  gameUi.append(arrivalIntro);
+  autosave();
+  setTimeout(() => {
+    if (arrivalIntro) dismiss();
+  }, 9000);
+}
+
 // --- the course editor: a full mode, like walking or the overview ---------------
 function enterEditor() {
   if (editorActive() || !app.scene3d || app.screen !== 'game') return;
@@ -2130,11 +2203,7 @@ function frame(ts) {
         recomputeRating();
         inspectPanel.refreshIfOpen();
         if (app.groundsOpen) groundsPanel.refresh();
-        const tut = tickTutorial(app.state);
-        for (const step of tut.advanced) toast(`🎯 ${step.title} — done.`);
-        if (app.state.tutorial && app.state.tutorial.complete && tut.advanced.length) {
-          toast('The guide retires — the club is yours now. The Open awaits.', '');
-        }
+        handleGuideTick(tickTutorial(app.state));
         objectivesPanel.refresh();
       }
     }
@@ -2531,6 +2600,7 @@ function boot() {
   hud = makeHud(app, handlers);
   laptopUi = makeLaptop(app, {
     close: () => exitLaptop(),
+    onCampaignChanged: (kind, result) => campaignPresentationChanged(kind, result),
     // The Course page's "Open the works desk": the laptop closes cleanly and the real
     // course editor takes the screen — same enterEditor every other entry point uses.
     openCourseEditor: () => enterEditor(),

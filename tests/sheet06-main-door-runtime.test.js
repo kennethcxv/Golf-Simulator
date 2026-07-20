@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 
 import { DOOR_MAIN, SHELL } from '../src/data/shopLayout.js';
-import { sweptBy } from '../src/data/doorMath.js';
+import { sweptBy, SWING } from '../src/data/doorMath.js';
 import { buildDoors } from '../src/render3d/clubhouse/doors.js';
 
 function fixture({ left = 'closed', right = 'closed' } = {}) {
@@ -62,6 +62,7 @@ function fixture({ left = 'closed', right = 'closed' } = {}) {
 test('the live entrance uses two mirrored leaf colliders at the exact authored opening', () => {
   const { api, colliders, mainProp, props } = fixture();
   const [left, right] = api.mainDoor.leaves;
+  const serviceDoors = api.doors.filter((door) => !door.isMain);
   assert.equal(api.doors.length, 4, 'two entrance leaves plus two service doors');
   assert.equal(colliders.length, 4);
   assert.equal(props.length, 3, 'one entrance interaction plus two service interactions');
@@ -70,6 +71,9 @@ test('the live entrance uses two mirrored leaf colliders at the exact authored o
   assert.equal(right.closedSign, -1);
   assert.equal(left.mainLeaf, 'left');
   assert.equal(right.mainLeaf, 'right');
+  assert.equal(left.collisionPad, 0.12);
+  assert.ok(serviceDoors.every((door) => door.collisionPad === 0.055),
+    'service leaf collision follows the authored six-centimetre slab');
   assert.ok(Math.abs(left.lx - (DOOR_MAIN.x - DOOR_MAIN.w / 2 + 0.09)) < 1e-12);
   assert.ok(Math.abs(right.lx - (DOOR_MAIN.x + DOOR_MAIN.w / 2 - 0.09)) < 1e-12);
   assert.ok(Math.abs(left.slabW - right.slabW) < 1e-12);
@@ -104,6 +108,45 @@ test('normal controls animate both leaves inward, update both colliders, and per
   api.updateDoors(1, 2);
   assert.ok(Math.abs(left.angle) < 1e-12);
   assert.ok(Math.abs(right.angle) < 1e-12);
+});
+
+test('service doors open automatically for unpacked delivery goods in the player\'s hands', () => {
+  const { api, state, walk } = fixture();
+  const stockroomDoor = api.doors.find((door) => door.name === 'Stockroom door');
+  assert.ok(stockroomDoor);
+
+  state.shop.carry = { skuId: 'desk1', qty: 1 };
+  walk.active = true;
+  walk.x = stockroomDoor.world.x;
+  walk.z = stockroomDoor.world.z;
+  api.updateDoors(0.2, 1);
+
+  assert.equal(stockroomDoor.open, true);
+  assert.equal(stockroomDoor.swingTarget, SWING,
+    'the leaf parks in the stockroom instead of pinching the furnished office aisle');
+  assert.equal(stockroomDoor.angle, SWING);
+});
+
+test('the receiving door always swings outward so a carried freight crate cannot seal the backroom lane', () => {
+  const { api, state, walk } = fixture();
+  const receivingDoor = api.doors.find((door) => door.name === 'Receiving door');
+  assert.ok(receivingDoor);
+  assert.equal(receivingDoor.fixedSwing, SWING);
+
+  state.shop.deliveries.boxes.push({ id: 1, skuId: 'desk1', qty: 1, loc: 'carried' });
+  walk.active = true;
+  // Approach from the exterior. The generic away-from-opener rule would use
+  // -SWING here and put the leaf across the interior freight lane.
+  walk.x = receivingDoor.world.x + 1.2;
+  walk.z = receivingDoor.world.z;
+  api.updateDoors(0.2, 1);
+
+  assert.equal(receivingDoor.open, true);
+  assert.equal(receivingDoor.swingTarget, SWING);
+  api.updateDoors(1, 2);
+  assert.equal(receivingDoor.angle, SWING);
+  assert.ok(receivingDoor.collider.minX >= receivingDoor.lx - receivingDoor.collisionPad,
+    'the open leaf stays on the exterior side of the east-wall hinge');
 });
 
 test('Asset 53 pivots bind to the controller without replacing analytic collision or save authority', () => {

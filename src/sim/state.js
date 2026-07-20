@@ -40,6 +40,7 @@ import { initCourseProps, ensureCourseProps } from './props.js';
 import { simulateDayRounds } from './rounds.js';
 import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
 import { initTutorial, ensureTutorial } from './tutorial.js';
+import { initCampaign, ensureCampaign } from './campaign.js';
 import { initLedger, addExpense, closeBooks } from './economy.js';
 import { initNotifications, ensureNotifications } from './notifications.js';
 import { BALANCE } from './balance.js';
@@ -313,7 +314,7 @@ export function dailyTick(state) {
   if (state.club) dailyMembershipTick(state);
   if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.reservations) reservationsDailyTick(state, calendarOf(state.clock.minutes).dayAbs);
-  if (state.reservations) {
+  if (state.reservations && (!state.campaign?.enabled || state.campaign.businessOpen)) {
     const todayAbs = calendarOf(state.clock.minutes).dayAbs;
     if (state.reservations.lastOnlineGenerationDayAbs !== todayAbs) {
       state.reservations.lastOnlineGenerationDayAbs = todayAbs;
@@ -465,6 +466,7 @@ export function snapshot(state) {
     props: state.props,
     progression: state.progression,
     tutorial: state.tutorial,
+    campaign: state.campaign || null,
     notifications: state.notifications, // unread warnings survive the reload
     uiPrefs: state.uiPrefs || null, // the office machine's own settings (scale, default views)
     property: state.property, // the rent schedule, or reloading is a rent holiday

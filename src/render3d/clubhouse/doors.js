@@ -1,16 +1,18 @@
 // CLUBHOUSE DOORS — real hinged slabs in real frames. Every doorway gets a jamb
 // lining that fills the wall depth, a header, a threshold sill, and (where the
 // swing is one-way) door stops — so a closed door is visually sealed: no slits,
-// no light leak. Swing direction is chosen when the door opens: service doors
-// swing AWAY from whoever opens them; the entry door is architecturally inward
-// (into the shop) and gently pushes a body out of its sweep instead of passing
-// through it. The player operates doors with E — the only automatic opens are
-// for customers (with the entrance bell) and for a player whose arms are full.
+// no light leak. The two service leaves park on their operational side: the
+// stock door in the stockroom, the receiving door outside. This keeps freight
+// and furnished-office aisles clear. The entry is architecturally inward (into
+// the shop) and gently pushes a body out of its sweep instead of passing through
+// it. The player operates doors with E — the only automatic opens are for
+// customers (with the entrance bell) and for a player whose arms are full.
 
 import * as THREE from 'three';
 import { SHELL, DOOR_MAIN, DOOR_STOCK, DOOR_BACK } from '../../data/shopLayout.js';
-import { chooseSwingAngle, hingeBearing, sweptBy } from '../../data/doorMath.js';
+import { chooseSwingAngle, hingeBearing, sweptBy, SWING } from '../../data/doorMath.js';
 import { carriedBox } from '../../sim/deliveries.js';
+import { carriedGoods } from '../../sim/stocking.js';
 import { tutorialFlag } from '../../sim/tutorial.js';
 import {
   ensureClubhouseArchitecture,
@@ -215,7 +217,7 @@ export function buildDoors(B) {
     const tipZ = d.lz + dir.z * d.slabW;
     const p1 = L2W(d.lx, d.lz);
     const p2 = L2W(tipX, tipZ);
-    const pad = 0.12;
+    const pad = d.collisionPad;
     d.collider.minX = Math.min(p1.x, p2.x) - pad;
     d.collider.maxX = Math.max(p1.x, p2.x) + pad;
     d.collider.minZ = Math.min(p1.z, p2.z) - pad;
@@ -231,6 +233,12 @@ export function buildDoors(B) {
     const clear = w - JAMB * 2;
     const slabW = Number.isFinite(slabWOverride) ? slabWOverride : clear - 0.015;
     const slabH = h - 0.16; // clears the header (top reveal hides behind the stops)
+    // Service slabs are 6 cm thick. The former 12 cm radial pad produced a
+    // 24 cm collision leaf even at ninety degrees and consumed the last usable
+    // centimetres of the receiving opening for the visible freight crate.
+    // Preserve the broader entrance buffer, but keep service collision close
+    // to its authored geometry with a small safety allowance.
+    const collisionPad = style === 'service' ? 0.055 : 0.12;
     // hinge at the low-coordinate jamb's inner face
     const lx = Number.isFinite(hingeLx)
       ? hingeLx
@@ -251,14 +259,14 @@ export function buildDoors(B) {
       ? { x: lx + closedSign * slabW / 2, z: lz }
       : { x: lx, z: lz + closedSign * slabW / 2 };
     const collider = along === 'x'
-      ? colBoxAt(slabCenter.x, slabCenter.z, slabW + 0.24, 0.24)
-      : colBoxAt(slabCenter.x, slabCenter.z, 0.24, slabW + 0.24);
+      ? colBoxAt(slabCenter.x, slabCenter.z, slabW + collisionPad * 2, collisionPad * 2)
+      : colBoxAt(slabCenter.x, slabCenter.z, collisionPad * 2, slabW + collisionPad * 2);
     collider.door = true; // nav grid ignores doors — they open for walkers
     addCol(collider);
 
     const door = {
       name, hinge, angle: 0, open: false, collider, isMain,
-      along, lx, lz, slabW, fixedSwing, closedSign, mainLeaf,
+      along, lx, lz, slabW, fixedSwing, closedSign, mainLeaf, collisionPad,
       swingTarget: 0, lastNear: 0,
       world: L2W(slabCenter.x, slabCenter.z),
     };
@@ -388,11 +396,11 @@ export function buildDoors(B) {
   });
   makeDoor({
     cx: DOOR_STOCK.x, cz: DOOR_STOCK.z, along: 'x', w: DOOR_STOCK.w, h: DOOR_STOCK.h,
-    name: 'Stockroom door', style: 'service',
+    name: 'Stockroom door', style: 'service', fixedSwing: SWING,
   });
   makeDoor({
     cx: halfW, cz: DOOR_BACK.z, along: 'z', w: DOOR_BACK.w, h: DOOR_BACK.h,
-    name: 'Receiving door', style: 'service',
+    name: 'Receiving door', style: 'service', fixedSwing: SWING,
   });
 
   // frames (jambs/header/sill/stops) + surface casings
@@ -457,7 +465,13 @@ export function buildDoors(B) {
 
   function updateDoors(dt, now) {
     const customers = getCustomers();
-    const playerDeliveryBox = walk.active ? carriedBox(state) : null;
+    // A carton and its unpacked contents both occupy the player's hands. The
+    // stockroom put-away helper deliberately owns E while goods are carried,
+    // so service doors must recognise either load or the player can become
+    // trapped between receiving and the sales floor after unboxing.
+    const playerDeliveryLoad = walk.active
+      ? (carriedBox(state) || carriedGoods(state))
+      : null;
     const snaps = [];
     for (const c of customers) {
       const p = c.mesh.position;
@@ -490,8 +504,8 @@ export function buildDoors(B) {
             break;
           }
         }
-        // arms full of delivery box: the door swings for you when you reach it
-        if (walk.active && playerDist < 1.6 && !d.open && playerDeliveryBox) {
+        // Arms full: the service door swings for a carton or unpacked goods.
+        if (walk.active && playerDist < 1.6 && !d.open && playerDeliveryLoad) {
           d.openFor(walk.x, walk.z);
           if (audible && hooks.sfx) hooks.sfx('doorSwing');
         }
@@ -521,7 +535,7 @@ export function buildDoors(B) {
         // A full delivery box already triggers this door before contact and uses
         // the live slab collider. The body-only radial correction would otherwise
         // shove a long carried profile sideways into the opposite jamb.
-        if (walk.active && !playerDeliveryBox && Math.abs(d.angle) > 0.05) {
+        if (walk.active && !playerDeliveryLoad && Math.abs(d.angle) > 0.05) {
           const lp = W2L(walk.x, walk.z);
           const dx = lp.x - d.lx;
           const dz = lp.z - d.lz;
