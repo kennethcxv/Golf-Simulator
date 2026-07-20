@@ -258,13 +258,16 @@ export function makeLaptop(app, opts) {
     const st = app.state;
     if (!st) return;
     const cal = calendarOf(st.clock.minutes);
-    statusBack.disabled = history.length === 0;
-    statusName.textContent = st.clubName || 'The Club';
-    statusDate.textContent = `Y${cal.year} · ${cal.seasonName} · Day ${cal.dayOfSeason}`;
-    statusTime.textContent = clock12(cal.minuteOfDay);
-    statusShop.className = `lt-chip ${shopIsOpen(st) ? 'ok' : ''}`;
-    statusShop.textContent = shopIsOpen(st) ? 'Shop open' : 'Shop closed';
-    statusCash.textContent = formatMoney(cashOf());
+    const setText = (node, value) => { if (node.textContent !== value) node.textContent = value; };
+    const backDisabled = history.length === 0;
+    if (statusBack.disabled !== backDisabled) statusBack.disabled = backDisabled;
+    setText(statusName, st.clubName || 'The Club');
+    setText(statusDate, `Y${cal.year} · ${cal.seasonName} · Day ${cal.dayOfSeason}`);
+    setText(statusTime, clock12(cal.minuteOfDay));
+    const shopClass = `lt-chip ${shopIsOpen(st) ? 'ok' : ''}`;
+    if (statusShop.className !== shopClass) statusShop.className = shopClass;
+    setText(statusShop, shopIsOpen(st) ? 'Shop open' : 'Shop closed');
+    setText(statusCash, formatMoney(cashOf()));
   }
 
   // =========================================================================================
