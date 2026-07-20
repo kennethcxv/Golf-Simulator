@@ -25,7 +25,10 @@ import {
 } from '../sim/deliveries.js';
 import { planShipment, unitsPerBox } from '../data/boxes.js';
 import { supplierFor } from '../data/suppliers.js';
-import { TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot } from '../sim/reservations.js';
+import {
+  daySheet, bookSlot, cancelReservation, fmtSlot,
+  operationsSummary, operationFinanceSummary, operationsPolicySummary,
+} from '../sim/reservations.js';
 import { reviewSummary, explainVisitors } from '../sim/reviews.js';
 import { weeklyCharge, propertyLine, arrearsOf } from '../sim/property.js';
 import { members } from '../sim/golfers.js';
@@ -100,6 +103,13 @@ const hour12 = (m) => {
   return `${((h + 11) % 12) + 1} ${h >= 12 ? 'PM' : 'AM'}`;
 };
 const pct = (v) => `${Math.round(v * 100)}%`;
+const operationMoney = (value) => {
+  const amount = Number(value || 0);
+  return `${amount < -0.005 ? '-' : ''}$${Math.abs(amount).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
 
 export function makeLaptop(app, opts) {
   let page = 'home';
@@ -108,6 +118,7 @@ export function makeLaptop(app, opts) {
   let teeDay = 0;
   let supplierCat = 'all';
   let financeWindow = 'today';
+  let bookingDraft = { holder: '', partySize: 1, guestNames: '', paymentPlan: 'desk' };
   let scale = 1;           // interface scale, for anyone who finds 15px small on a 4K panel
   let pending = null;      // the live confirmation, if one is open
 
@@ -257,8 +268,11 @@ export function makeLaptop(app, opts) {
     const st = app.state;
     const cal = calendarOf(st.clock.minutes);
     const w = st.weather.today;
-    const sheet = daySheet(st, cal.dayAbs);
-    const booked = sheet.filter((s) => s.res);
+    const ops = operationsSummary(st, cal.dayAbs);
+    const todayBookings = st.reservations.booked
+      .filter((reservation) => reservation.dayAbs === cal.dayAbs
+        && !['cancelled', 'noShow'].includes(reservation.status))
+      .sort((a, b) => a.minute - b.minute);
     const lowLines = retailSkus(st).filter((s) => st.shop.inventory[s.id].shelf === 0);
     const thinLines = retailSkus(st).filter((s) => {
       const e = st.shop.inventory[s.id];
@@ -296,7 +310,19 @@ export function makeLaptop(app, opts) {
         stat('Reviews', rs.count ? `${rs.average} ★` : '—', rs.count ? `${rs.count} in` : 'nobody yet'),
         stat('Shop floor', `${Math.round((1 - grimeAvgOf(st)) * 100)}% clean`, `condition ${cond}`, cond < 45 ? 'bad' : ''),
         stat('Course', `${Math.round(ratings.overall)}`, `condition ${Math.round(ratings.condition)}`),
+        stat('Tee sheet', pct(ops.utilization), `${ops.reserved} of ${ops.capacity} places`),
+        stat('Waiting', String(ops.waiting.length), ops.nextArrival
+          ? `next ${ops.nextArrival.reservationHolder} at ${fmtSlot(ops.nextArrival.minute)}`
+          : 'no expected arrival', ops.waiting.length ? 'warn' : ''),
+        stat('Golf cash', operationMoney(ops.finance.netCash), 'today, already in the ledger', ops.finance.netCash < 0 ? 'bad' : ''),
       ),
+
+      ops.late.length || ops.noShows.length
+        ? errBox(`Front-desk review: ${[
+          ops.late.length ? `${ops.late.length} late ${ops.late.length === 1 ? 'party' : 'parties'} waiting` : '',
+          ops.noShows.length ? `${ops.noShows.length} no-show${ops.noShows.length === 1 ? '' : 's'}` : '',
+        ].filter(Boolean).join(' and ')}.`)
+        : null,
 
       step ? el('div', { class: 'lt-card lt-objective' },
         el('div', { class: 'lt-objlabel', text: 'Current objective' }),
@@ -308,12 +334,18 @@ export function makeLaptop(app, opts) {
       el('div', { class: 'lt-cols' },
         card(
           el('div', { class: 'lt-minihead', text: '📅  Reservations' }),
-          booked.length
-            ? el('div', {}, ...booked.slice(0, 4).map((s) => row(
-              el('span', { class: 'lt-slottime', text: fmtSlot(s.minute) }),
-              el('span', { text: s.res.name }),
-              meta(formatMoney(s.res.fee)))),
-            booked.length > 4 ? meta(`+${booked.length - 4} more`) : null)
+          ops.waiting.length
+            ? el('div', {}, ...ops.waiting.slice(0, 3).map((reservation) => row(
+              el('span', { class: 'lt-slottime', text: fmtSlot(reservation.minute) }),
+              el('span', { text: reservation.reservationHolder }),
+              chip('waiting', reservation.arrival.status === 'late' ? 'bad' : 'warn'))))
+            : todayBookings.length
+              ? el('div', {}, ...todayBookings.slice(0, 4).map((reservation) => row(
+                el('span', { class: 'lt-slottime', text: fmtSlot(reservation.minute) }),
+                el('span', { text: reservation.reservationHolder }),
+                chip(`${reservation.partySize} player${reservation.partySize === 1 ? '' : 's'}`),
+                meta(`${operationMoney(reservation.payment.amountDue)} due`))),
+              todayBookings.length > 4 ? meta(`+${todayBookings.length - 4} more`) : null)
             : empty('Nothing booked today.'),
           el('button', { class: 'lt-mini', text: 'Open the tee sheet', onclick: () => go('reservations') }),
         ),
@@ -842,8 +874,9 @@ export function makeLaptop(app, opts) {
       paint(head('Reservations'), empty('Reservations are not available on this property.'));
       return;
     }
+    const config = st.reservations.config;
     const dayBtns = [];
-    for (let d = 0; d < TEE_SHEET.horizonDays; d++) {
+    for (let d = 0; d < config.horizonDays; d++) {
       dayBtns.push(el('button', {
         class: `lt-day ${d === teeDay ? 'on' : ''}`,
         text: d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : `+${d}d`,
@@ -851,63 +884,182 @@ export function makeLaptop(app, opts) {
       }));
     }
     const ms = members(st);
-    const nameSel = el('select', { class: 'lt-select' },
-      el('option', { value: '', text: 'Walk-in guest' }),
-      ...ms.slice(0, 40).map((m) => el('option', { value: m.name, text: m.name })));
+    const memberSel = el('select', {
+      class: 'lt-select',
+      onchange: (event) => {
+        if (!event.target.value) return;
+        bookingDraft.holder = event.target.value;
+        click();
+        render();
+      },
+    },
+    el('option', { value: '', text: 'Choose an active member…' }),
+    ...ms.slice(0, 60).map((member) => el('option', { value: member.name, text: member.name })));
+
+    const holderInput = el('input', {
+      class: 'lt-input', type: 'text', value: bookingDraft.holder,
+      placeholder: 'Reservation holder',
+      oninput: (event) => { bookingDraft.holder = event.target.value; },
+    });
+    const guestsInput = el('input', {
+      class: 'lt-input lt-input-wide', type: 'text', value: bookingDraft.guestNames,
+      placeholder: 'Other player names, comma separated',
+      oninput: (event) => { bookingDraft.guestNames = event.target.value; },
+    });
+    const sizeSel = el('select', {
+      class: 'lt-select',
+      onchange: (event) => { bookingDraft.partySize = Number(event.target.value); render(); },
+    }, ...Array.from({ length: config.maxPartySize }, (_, index) => el('option', {
+      value: String(index + 1),
+      text: `${index + 1} player${index ? 's' : ''}`,
+      selected: bookingDraft.partySize === index + 1 ? 'selected' : undefined,
+    })));
+    const paymentSel = el('select', {
+      class: 'lt-select',
+      onchange: (event) => { bookingDraft.paymentPlan = event.target.value; render(); },
+    }, ...[
+      ['desk', 'Pay at the tee desk'],
+      ['deposit', '35% card deposit'],
+      ['prepaid', 'Prepaid by card'],
+      ['member-pass', 'Member pass'],
+    ].map(([value, text]) => el('option', {
+      value, text,
+      selected: bookingDraft.paymentPlan === value ? 'selected' : undefined,
+    })));
 
     const dayAbs = calendarOf(st.clock.minutes).dayAbs + teeDay;
     const sheet = daySheet(st, dayAbs);
-    const booked = sheet.filter((s) => s.res);
-    const free = sheet.length - booked.length;
-    const takings = booked.reduce((a, s) => a + (s.res.fee || 0), 0);
+    const activeBookings = st.reservations.booked.filter((reservation) => (
+      reservation.dayAbs === dayAbs && !['cancelled', 'noShow'].includes(reservation.status)
+    ));
+    const reserved = sheet.reduce((sum, slot) => sum + slot.reservedSeats, 0);
+    const capacity = sheet.reduce((sum, slot) => sum + slot.capacity, 0);
+    const expected = activeBookings.reduce((sum, reservation) => sum + reservation.payment.total, 0);
+    const dayOps = operationsSummary(st, dayAbs);
+    const nowCal = calendarOf(st.clock.minutes);
+    const slotIsFuture = (slot) => dayAbs > nowCal.dayAbs || slot.minute >= nowCal.minuteOfDay;
 
-    const slots = sheet.map((s) => {
-      const r = s.res;
-      return el('div', { class: `lt-slot ${r ? 'booked' : ''}` },
-        el('span', { class: 'lt-slottime', text: fmtSlot(s.minute) }),
-        r
-          ? el('span', { class: 'lt-slotwho' },
-            el('span', { text: r.name }),
-            chip(r.status === 'played' ? 'checked in' : r.status === 'noShow' ? 'no-show' : 'booked',
-              r.status === 'played' ? 'ok' : r.status === 'noShow' ? 'bad' : ''),
-            meta(formatMoney(r.fee)),
-            r.status === 'booked'
-              ? el('button', {
-                class: 'lt-mini lt-cancel',
-                text: 'Cancel',
-                onclick: () => askConfirm(`Cancel ${r.name}'s ${fmtSlot(s.minute)} tee time?`, 'Cancel the booking', () => {
-                  cancelReservation(st, r.id);
-                  toast(`${r.name}'s ${fmtSlot(s.minute)} is free again.`);
-                }),
-              })
-              : null)
-          : el('button', {
-            class: 'lt-mini lt-book',
-            text: 'Book',
-            onclick: () => {
-              const name = nameSel.value || `Guest ${Math.floor(Math.random() * 900) + 100}`;
-              const res = bookSlot(st, dayAbs, s.minute, name);
-              if (!res.ok) toast(res.reason, 'warn');
-              else { toast(`${name} booked for ${fmtSlot(s.minute)}.`); click(); }
-              render();
-            },
-          }),
-      );
-    });
+    const arrivalLabel = (reservation) => {
+      if (reservation.status === 'cancelled') return ['cancelled', 'bad'];
+      if (reservation.status === 'noShow') return ['no-show', 'bad'];
+      if (reservation.checkIn.status === 'checked-in') return ['checked in', 'ok'];
+      if (reservation.arrival.status === 'late') return ['late / waiting', 'bad'];
+      if (reservation.arrival.status === 'arrived') return ['waiting', 'warn'];
+      return ['expected', ''];
+    };
+    const paymentLabel = (reservation) => {
+      const payment = reservation.payment;
+      if (reservation.status === 'cancelled') {
+        if (reservation.cancellation.refund > 0.005) return [`${operationMoney(reservation.cancellation.refund)} refunded`, 'warn'];
+        return [reservation.cancellation.fee > 0.005 ? `${operationMoney(reservation.cancellation.fee)} retained` : 'no charge', ''];
+      }
+      if (reservation.status === 'noShow') {
+        return [reservation.noShow.feeApplied > 0.005 ? `${operationMoney(reservation.noShow.feeApplied)} fee` : 'no charge', reservation.noShow.feeApplied > 0.005 ? 'warn' : ''];
+      }
+      if (payment.status === 'member-pass') return ['member pass', 'ok'];
+      if (payment.amountDue <= 0.005) return ['paid', 'ok'];
+      if (payment.depositPaid > 0.005) return [`${operationMoney(payment.amountDue)} due`, 'warn'];
+      return [`${operationMoney(payment.amountDue)} due`, ''];
+    };
+
+    const makeBooking = (slot) => {
+      const holder = bookingDraft.holder.trim();
+      if (!holder) {
+        toast('Enter a reservation holder first.', 'warn');
+        return;
+      }
+      if (bookingDraft.paymentPlan === 'member-pass' && !ms.some((member) => member.name === holder)) {
+        toast('A member pass needs an active member as the reservation holder.', 'warn');
+        return;
+      }
+      const customerNames = [holder];
+      for (const raw of bookingDraft.guestNames.split(',')) {
+        const name = raw.trim();
+        if (name && !customerNames.includes(name) && customerNames.length < bookingDraft.partySize) customerNames.push(name);
+      }
+      while (customerNames.length < bookingDraft.partySize) {
+        customerNames.push(`Guest ${customerNames.length + 1} of ${holder}`);
+      }
+      const total = st.club.greenFee * bookingDraft.partySize;
+      const options = {
+        holder, customerNames, partySize: bookingDraft.partySize, source: 'laptop',
+      };
+      if (bookingDraft.paymentPlan === 'prepaid') Object.assign(options, {
+        paymentPlan: 'prepaid', paymentMethod: 'card', cardOnFile: true,
+      });
+      if (bookingDraft.paymentPlan === 'deposit') Object.assign(options, {
+        depositAmount: Math.round(total * 35) / 100, paymentMethod: 'card', cardOnFile: true,
+      });
+      if (bookingDraft.paymentPlan === 'member-pass') options.paymentPlan = 'member-pass';
+      const result = bookSlot(st, dayAbs, slot.minute, options);
+      if (!result.ok) toast(result.reason, 'warn');
+      else {
+        toast(`${holder}'s party is booked for ${fmtSlot(slot.minute)}.`);
+        bookingDraft = { holder: '', partySize: 1, guestNames: '', paymentPlan: 'desk' };
+        click();
+      }
+      render();
+    };
+
+    const slots = sheet.map((slot) => el('div', {
+      class: `lt-slot lt-slot-rich ${slot.reservations.length ? 'booked' : ''}`,
+    },
+    el('div', { class: 'lt-slothead' },
+      el('span', { class: 'lt-slottime', text: fmtSlot(slot.minute) }),
+      chip(slot.closed ? (slot.closureReason || 'closed') : `${slot.availableSeats} of ${slot.capacity} open`, slot.closed ? 'bad' : slot.availableSeats ? 'ok' : 'warn')),
+    slot.history.length
+      ? el('div', { class: 'lt-slotparties' }, ...slot.history.map((reservation) => {
+        const [arrival, arrivalTone] = arrivalLabel(reservation);
+        const [payment, paymentTone] = paymentLabel(reservation);
+        return el('div', { class: `lt-partyline ${reservation.status === 'cancelled' ? 'cancelled' : ''}` },
+          el('div', { class: 'lt-partyname', text: reservation.reservationHolder }),
+          meta(`${reservation.partySize} player${reservation.partySize === 1 ? '' : 's'}`),
+          chip(arrival, arrivalTone),
+          chip(payment, paymentTone),
+          reservation.status === 'booked' && reservation.checkIn.status !== 'checked-in'
+            ? el('button', {
+              class: 'lt-mini lt-cancel', text: 'Cancel',
+              onclick: () => askConfirm(
+                `Cancel ${reservation.reservationHolder}'s ${fmtSlot(slot.minute)} tee time? The published fee and refund policy will be applied once.`,
+                'Apply policy and cancel',
+                () => {
+                  const result = cancelReservation(st, reservation.id, { reason: 'Cancelled in Fairway Office' });
+                  if (!result.ok) toast(result.reason, 'warn');
+                  else toast(`Cancelled. ${operationMoney(result.refund)} refunded; ${operationMoney(result.fee)} retained.`);
+                },
+              ),
+            })
+            : null);
+      }))
+      : meta('No parties yet.'),
+    el('button', {
+      class: 'lt-mini lt-book lt-slotbook',
+      text: slot.closed ? 'Closed' : !slotIsFuture(slot) ? 'Time passed' : slot.availableSeats >= bookingDraft.partySize
+        ? `Book party of ${bookingDraft.partySize}` : `Only ${slot.availableSeats} open`,
+      disabled: slot.closed || !slotIsFuture(slot) || slot.availableSeats < bookingDraft.partySize ? 'disabled' : undefined,
+      onclick: () => makeBooking(slot),
+    })));
 
     paint(
-      head('Reservations', 'Booked golfers walk into the shop around their time. The green fee is collected at the counter when you check them in — not when they book.'),
+      head('Reservations', 'Manage named parties against real slot capacity. Pay-at-desk, deposits, prepaid cards, member passes, cancellations, and arrivals all use the same front-desk record.'),
       confirmBar(),
       el('div', { class: 'lt-stats' },
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Booked' }), el('div', { class: 'lt-statvalue', text: String(booked.length) }), el('div', { class: 'lt-statsub', text: `of ${sheet.length} slots` })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Open' }), el('div', { class: 'lt-statvalue', text: String(free) }), el('div', { class: 'lt-statsub', text: 'still available' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Expected' }), el('div', { class: 'lt-statvalue', text: formatMoney(takings) }), el('div', { class: 'lt-statsub', text: 'in green fees' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Parties' }), el('div', { class: 'lt-statvalue', text: String(activeBookings.length) }), el('div', { class: 'lt-statsub', text: `${reserved} players booked` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Utilization' }), el('div', { class: 'lt-statvalue', text: pct(capacity ? reserved / capacity : 0) }), el('div', { class: 'lt-statsub', text: `${capacity - reserved} of ${capacity} places open` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Expected' }), el('div', { class: 'lt-statvalue', text: operationMoney(expected) }), el('div', { class: 'lt-statsub', text: 'green fees for this day' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Waiting' }), el('div', { class: `lt-statvalue ${dayOps.waiting.length ? 'warn' : ''}`, text: String(dayOps.waiting.length) }), el('div', { class: 'lt-statsub', text: `${dayOps.late.length} late` })),
       ),
-      card(row(el('span', { class: 'lt-mulabel', text: 'Day' }), ...dayBtns),
-        row(el('span', { class: 'lt-mulabel', text: 'Golfer' }), nameSel, meta('members book by name; walk-ins get a guest slip'))),
-      booked.length || free
-        ? el('div', { class: 'lt-card lt-slots' }, ...slots)
-        : empty('The sheet is closed for this day.'),
+      card(
+        row(el('span', { class: 'lt-mulabel', text: 'Day' }), ...dayBtns),
+        row(el('span', { class: 'lt-mulabel', text: 'Holder' }), holderInput, memberSel),
+        row(el('span', { class: 'lt-mulabel', text: 'Party' }), sizeSel, guestsInput),
+        row(el('span', { class: 'lt-mulabel', text: 'Payment' }), paymentSel,
+          meta(bookingDraft.paymentPlan === 'deposit' ? `${operationMoney(st.club.greenFee * bookingDraft.partySize * 0.35)} charged now`
+            : bookingDraft.paymentPlan === 'prepaid' ? `${operationMoney(st.club.greenFee * bookingDraft.partySize)} charged now`
+              : bookingDraft.paymentPlan === 'member-pass' ? 'active members only' : 'balance collected in person')),
+      ),
+      el('div', { class: 'lt-card lt-slots' }, ...slots),
+      note(operationsPolicySummary(st).join(' ')),
     );
   }
 
@@ -1133,12 +1285,16 @@ export function makeLaptop(app, opts) {
       greenFees: 'Green fees', dues: 'Membership dues', outings: 'Outings', range: 'Practice range',
       restaurant: 'Grill room', lessons: 'Lessons', shopSales: 'Shop sales', rentals: 'Rentals',
       fittings: 'Club fittings', reciprocal: 'Reciprocal', events: 'Events',
+      bookingRevenue: 'Prepaid green fees', bookingDeposits: 'Green-fee deposits',
+      bookingBalances: 'Green-fee balances', cancellationFees: 'Cancellation fees',
+      noShowFees: 'No-show fees', walkInRevenue: 'Walk-in green fees',
     };
     const EXP_LABEL = {
       wagesStaff: 'Wages', wagesDayLabor: 'Day labour', water: 'Water', fertilizer: 'Fertiliser',
       chemicals: 'Chemicals', upkeep: 'Upkeep', utilities: 'Utilities', works: 'Course works',
       severance: 'Severance', training: 'Training', shopOrders: 'Stock purchases',
       rentalFleet: 'Rental fleet', events: 'Events', rent: 'Rent / mortgage',
+      bookingRefunds: 'Booking refunds',
     };
 
     // aggregate any window of the history
@@ -1180,6 +1336,40 @@ export function makeLaptop(app, opts) {
     const exp = Object.values(w.data.expense || {}).reduce((a, v) => a + v, 0);
     const net = rev - exp;
     const owed = arrearsOf(st);
+    const operationDays = financeWindow === 'today' ? 1 : financeWindow === 'week' ? 7 : 24;
+    const operationSummaries = Array.from({ length: operationDays }, (_, index) => (
+      operationFinanceSummary(st, cal.dayAbs - index)
+    ));
+    const operationWindow = operationSummaries.reduce((out, summary) => {
+      out.entries.push(...summary.entries);
+      out.cashIn += summary.cashIn;
+      out.cashOut += summary.cashOut;
+      for (const [category, amount] of Object.entries(summary.categories)) {
+        out.categories[category] = (out.categories[category] || 0) + amount;
+      }
+      return out;
+    }, { entries: [], cashIn: 0, cashOut: 0, categories: {} });
+    operationWindow.netCash = operationWindow.cashIn - operationWindow.cashOut;
+    operationWindow.stableIdsUnique = new Set(operationWindow.entries.map((entry) => entry.id)).size === operationWindow.entries.length;
+    const OPERATION_LABEL = {
+      bookingRevenue: 'Prepaid bookings',
+      bookingDeposits: 'Booking deposits',
+      bookingBalances: 'Balances collected',
+      walkInRevenue: 'Walk-in green fees',
+      cancellationFees: 'Cancellation fees retained',
+      noShowFees: 'No-show fees retained / charged',
+      bookingRefunds: 'Booking refunds',
+    };
+    const operationRows = Object.entries(OPERATION_LABEL)
+      .map(([category, label]) => [category, label, operationWindow.categories[category] || 0])
+      .filter(([, , amount]) => amount > 0.005)
+      .map(([category, label, amount]) => row(
+        el('span', { text: label }),
+        meta(category === 'cancellationFees' || category === 'noShowFees' ? 'policy classification' : ''),
+        el('span', {
+          class: `lt-num ${category === 'bookingRefunds' ? 'lt-neg' : 'lt-pos'}`,
+          text: `${category === 'bookingRefunds' ? '-' : ''}${operationMoney(amount)}`,
+        })));
 
     const tabs = el('div', { class: 'lt-tabs' }, ...Object.entries(windows).map(([k, v]) => el('button', {
       class: `lt-tab ${financeWindow === k ? 'on' : ''}`, text: v.label,
@@ -1203,10 +1393,19 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: `Net · ${w.label.toLowerCase()}` }), el('div', { class: `lt-statvalue ${net >= 0 ? 'ok' : 'bad'}`, text: `${net >= 0 ? '+' : ''}${formatMoney(net)}` }), el('div', { class: 'lt-statsub', text: `${formatMoney(rev)} in, ${formatMoney(exp)} out` })),
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Property' }), el('div', { class: 'lt-statvalue', text: formatMoney(weeklyCharge(st)) }), el('div', { class: 'lt-statsub', text: 'per week' })),
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Wages' }), el('div', { class: 'lt-statvalue', text: formatMoney(staffDailyWages(st)) }), el('div', { class: 'lt-statsub', text: 'per day' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Golf operations' }), el('div', { class: `lt-statvalue ${operationWindow.netCash < 0 ? 'bad' : 'ok'}`, text: operationMoney(operationWindow.netCash) }), el('div', { class: 'lt-statsub', text: `${operationWindow.entries.length} exact-once entries` })),
       ),
       owed > 0 ? errBox(`${formatMoney(owed)} in arrears on the property, and it is accruing interest. It comes out of the next bill you can cover.`) : null,
       tabs,
       table(w.data),
+      sect('Golf operations subledger'),
+      card(
+        ...(operationRows.length ? operationRows : [empty('No booking cash moved in this window.')]),
+        el('div', { class: 'lt-total' },
+          el('span', { text: 'Net cash movement' }),
+          el('span', { class: operationWindow.netCash >= 0 ? 'lt-pos' : 'lt-neg', text: operationMoney(operationWindow.netCash) })),
+        meta(`${operationWindow.stableIdsUnique ? 'All entry IDs are unique.' : 'Duplicate entry IDs detected.'} These categories explain the Green fees and Booking refunds already included above; they are not added a second time.`),
+      ),
       sect('Upcoming'),
       card(row(el('span', { text: 'Property' }), meta(propertyLine(st, cal.dayAbs)), chip(formatMoney(weeklyCharge(st)))),
         row(el('span', { text: 'Stock already paid for' }), meta(`${st.shop.orders.length} order${st.shop.orders.length === 1 ? '' : 's'} on the truck`), chip(formatMoney(st.shop.orders.reduce((a, o) => a + o.cost, 0))))),
@@ -1400,6 +1599,7 @@ export function makeLaptop(app, opts) {
   function pageSettings() {
     const st = app.state;
     const ui = app.ui || (app.ui = {});
+    const teeConfig = st.reservations.config;
 
     const scaleRow = row(
       el('span', { class: 'lt-mulabel', text: 'Interface scale' }),
@@ -1440,8 +1640,12 @@ export function makeLaptop(app, opts) {
       card(
         row(el('span', { class: 'lt-mulabel', text: 'Club name' }), nameInput),
         row(el('span', { class: 'lt-mulabel', text: 'Shop hours' }), el('span', { text: `${hour12(SHOP_OPEN_MIN)} – ${hour12(SHOP_CLOSE_MIN)}` }), meta('fixed to the course\'s playing day')),
-        row(el('span', { class: 'lt-mulabel', text: 'Course hours' }), el('span', { text: `${hour12(TEE_SHEET.openMin)} – ${hour12(TEE_SHEET.closeMin)}` }), meta('first and last tee time')),
+        row(el('span', { class: 'lt-mulabel', text: 'Course hours' }), el('span', { text: `${hour12(teeConfig.openMin)} – ${hour12(teeConfig.closeMin)}` }), meta('first and last tee time')),
+        row(el('span', { class: 'lt-mulabel', text: 'Tee interval' }), el('span', { text: `${teeConfig.stepMin} minutes` }), meta(`${teeConfig.slotCapacity} players per slot · parties up to ${teeConfig.maxPartySize}`)),
+        row(el('span', { class: 'lt-mulabel', text: 'Booking window' }), el('span', { text: `${teeConfig.horizonDays} days` }), meta(`${teeConfig.dueLeadMin} minute arrival lead · ${teeConfig.gracePeriodMin} minute grace period`)),
       ),
+      sect('Booking policy'),
+      card(...operationsPolicySummary(st).map((line) => row(el('span', { text: line })))),
       sect('Display'),
       card(scaleRow),
       sect('Difficulty'),
