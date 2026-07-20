@@ -1,6 +1,6 @@
 # Seven completed overnight branches — final integration report
 
-Status at report creation: integration candidate and clean detached release worktree validated; normal merge to main and post-merge smoke remain. Fields marked `PENDING_FINAL_MERGE` are updated after that gate.
+Status: integration candidate and clean detached release worktree validated, normally merged to main, and post-merge main smoke passed.
 
 1. **Original main commit:** `0c5137e5f0efac9627ce2309b9e66936f1eeb769`.
 2. **Backup branch:** `backup/pre-seven-branch-integration-20260719` at original main.
@@ -26,7 +26,7 @@ Status at report creation: integration candidate and clean detached release work
 22. **Dependency decisions:** runtime dependency graph unchanged. Added exact dev dependency Playwright `1.61.1`; npm regenerated lockfile. Electron resolves `33.4.11`, Three.js `0.185.1`. No unrelated upgrades. Audit retains one pre-existing high Electron group whose fix requires semver-major Electron 43.
 23. **Security/hygiene:** no credential signature, tracked `.env`, production personal path, tracked generated profile/log/backup, >50 MiB file, added production console spam/debug global, suspicious merge TODO, unresolved marker, required-resource 404, or accepted-route console/page error. Asset provenance is documented. See `security-hygiene.md`.
 24. **Performance before/after:** idle register 116.26 → 119.53 FPS; ten customers 119.99 → 118.49 FPS; course idle 119.87 → 119.91 FPS; active mowing 119.90 → 119.88 FPS; startup mean 7.07 → 7.99 s; packed artifact 252.0 → 258.3 MB; representative save 330 → 629 KB and load 1.4 → 5.7 ms. No listener growth; limitations disclosed in `performance-before-after.md`.
-25. **Full regression:** final pre-report full suite 635/635; card/cash checkout, placement, inventory, customers, complete golf day, course maintenance, economy/property sale, UX/settings/accessibility, cleaning, save matrix, browser console/network and visual routes pass. Clean release/main smoke results are appended after merge. See `final-test-report.md`.
+25. **Full regression:** final pre-report, clean-release, and post-merge-main suites each passed 635/635. Card/cash checkout, placement, inventory, customers, complete golf day, course maintenance, economy/property sale, UX/settings/accessibility, cleaning, save matrix, browser console/network and visual routes pass. Main's hash-verified fresh-world smoke and native Electron launch also pass. See `final-test-report.md`.
 26. **Soak:** 100 placements, box interactions, customer lifecycles, check-ins, save/loads, maintenance strokes, pause/resume cycles and camera/mode transitions; repeated scene/UI transitions; 2.21 MB retained heap after GC; zero tracked Node resource growth, zero listener drift, bounded histories/pools and stable save size. Pass.
 27. **Final visual review path:** local ignored evidence at `qa/integration-seven/final-visual-review/`; accepted subdirectories are placement, inventory, customers, golf-operations, course-maintenance, economy, economy-sale-final and player-experience. Superseded attempts are separated under `qa/integration-seven/debug-attempts/`.
 28. **Integration commits:**
@@ -40,15 +40,15 @@ Status at report creation: integration candidate and clean detached release work
     - economy: `c845f09f`, `74ecc4ff`, `497ab67a`, `d6e993dc`, repair `862f9909`, checkpoint `00233a15`;
     - UX: `0290b346`, `6f416fb0`, `aaec9085`, repair `dc98f0b4`, checkpoint `513170c9`;
     - cross-system hardening: `1a45c277`, `a9a1b970`, `51e4334e`, `b2beb48b`, `729fcb87`, `a019d8ac`, `ec88eba4`;
-    - required-report commit: `ff00fd76c78f04747d38084094ba23a722686587` plus the clean-release result update containing this report.
+    - required-report commit: `ff00fd76c78f04747d38084094ba23a722686587`; clean-release result update/integration head `58805ba0eca9971be769ce98fdbeebef2e0eca24`.
 
-29. **Main merge commit:** `PENDING_FINAL_MERGE`.
-30. **Final main commit:** `PENDING_FINAL_MERGE`.
-31. **Tag:** `seven-overnight-branches-integrated-20260719` at `PENDING_FINAL_MERGE`.
+29. **Main merge commit:** `ce1b9d98944efe1e2751d65c4357c0c75bb7d549` with parents original main and integration head.
+30. **Final main commit:** the report-finalization commit containing this document; `seven-overnight-branches-integrated-20260719^{commit}` resolves its exact ID. The final handoff also records it explicitly.
+31. **Tag:** annotated tag `seven-overnight-branches-integrated-20260719` points to the report-finalization commit containing this document.
 32. **Rollback:** backup branch plus non-destructive `git revert -m 1` procedure in `rollback-instructions.md`; no reset/force-push/delete command was used.
 33. **Source branches retained:** all seven source branches, integration branch, backup branch and excluded gameplay-progression branch are retained. No source branch is deleted.
 34. **Honest remaining limitations:** no format/type/build/preview script; pre-existing Electron audit group; optional GLB teardown aborts and Canvas/shader warnings; material/save/startup costs increased; ten-customer tail sample had four isolated long frames; generated visual media remains local/ignored by policy; gameplay-progression remains active and excluded.
 
 ## Final disposition
 
-The integrated architecture has one placement framework, inventory lifecycle, physical customer lifecycle, golf reservation model, economy journal, notification/tutorial/settings/audio stack, and ordered save migration. Checkout and cleaning regressions are explicitly covered. The clean release worktree passed install, 237-file parser, 635-test, package, static-server and Electron gates. Main is merged only after refs are rechecked.
+The integrated architecture has one placement framework, inventory lifecycle, physical customer lifecycle, golf reservation model, economy journal, notification/tutorial/settings/audio stack, and ordered save migration. Checkout and cleaning regressions are explicitly covered. The clean release worktree passed install, 237-file parser, 635-test, package, static-server and Electron gates. Refs were rechecked, main was normally merged, and main passed the same install/parser/635-test plus browser/Electron smoke gates.

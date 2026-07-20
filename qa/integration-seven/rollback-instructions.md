@@ -16,12 +16,12 @@ Do not execute these steps automatically. They are reviewable, non-destructive r
 - Economy source: `16b757055e8887c6dd4e16cc36f693da8138bcb2`
 - Player-experience source: `bf072a1e1d26cce631daa19d351525b4d5acf941`
 - Excluded active gameplay-progression source: `3ddb082f90cdb78325e633ec722fd04a3bf98fdf`
-- Main integration merge commit: `PENDING_FINAL_MERGE`
-- Post-merge report finalization commit, if any: `PENDING_FINAL_MERGE`
-- Final main/tag target: `PENDING_FINAL_MERGE`
+- Main integration merge commit: `ce1b9d98944efe1e2751d65c4357c0c75bb7d549`
+- Post-merge report finalization commit: the commit containing this document; resolve with `git rev-parse seven-overnight-branches-integrated-20260719^{commit}`
+- Final main/tag target: `seven-overnight-branches-integrated-20260719^{commit}`
 - Integration tag: `seven-overnight-branches-integrated-20260719`
 
-The pending values are filled after the normal merge and post-merge smoke. The excluded gameplay-progression worktree must not be used for rollback operations.
+The excluded gameplay-progression worktree must not be used for rollback operations.
 
 ## Preferred rollback: revert on main
 
