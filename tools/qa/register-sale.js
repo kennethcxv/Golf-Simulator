@@ -31,6 +31,7 @@ async (page) => {
   const shot = async (n) => { await page.screenshot({ path: `${OUT}/${n}.png` }); };
   const log = [];
   const handChecks = [];
+  const reentryChecks = [];
   const hands = async (step) => {
     const state = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getHandFeedback());
     handChecks.push({ step, ...state });
@@ -90,11 +91,44 @@ async (page) => {
       return Math.hypot(c.position.x - want.x, c.position.z - want.z) < 0.03;
     }, eye, { timeout: ms });
   };
+  const untilRegisterCameraSettled = async (ms = 10000) => {
+    const started = Date.now();
+    let previous = null;
+    let stable = 0;
+    while (Date.now() - started < ms) {
+      const current = await page.evaluate(() => window.__fw.scene3d.camera.position.toArray());
+      if (previous && Math.hypot(
+        current[0] - previous[0], current[1] - previous[1], current[2] - previous[2],
+      ) < 0.002) {
+        stable++;
+        if (stable >= 5) return;
+      } else {
+        stable = 0;
+      }
+      previous = current;
+      await page.waitForTimeout(80);
+    }
+    throw new Error('Register focus camera did not settle after re-entry.');
+  };
+  const reenter = async () => {
+    if (!(await page.evaluate(() => document.pointerLockElement === document.querySelector('canvas')))) {
+      await page.locator('canvas').click();
+      await page.waitForTimeout(120);
+    }
+    await page.keyboard.press('e');
+    await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isActive(), null, { timeout: 10000 });
+    await untilRegisterCameraSettled();
+    await page.waitForTimeout(120);
+  };
 
 
   // --- boot ------------------------------------------------------------------------
   await page.goto(process.env.QA_BASE_URL || 'http://localhost:8457/');
-  await page.setViewportSize({ width: 1600, height: 900 });
+  const viewport = {
+    width: Number(process.env.QA_VIEWPORT_WIDTH || 1600),
+    height: Number(process.env.QA_VIEWPORT_HEIGHT || 900),
+  };
+  await page.setViewportSize(viewport);
   await page.waitForTimeout(1200);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});
   await page.waitForFunction(() => window.__fw && window.__fw.scene3d
@@ -109,6 +143,7 @@ async (page) => {
   await page.evaluate(async () => {
     const THREE = await import('/vendor/three.module.js');
     const app = window.__fw;
+    app.speedIdx = 0;
     window.__qa = {
       // interior-local -> screen pixels, so a click lands on the pixel the thing is
       // actually drawn at, not where I hope it is
@@ -194,7 +229,29 @@ async (page) => {
   await untilCameraSettled();
   await page.waitForTimeout(250);
   await shot('02-register-mode');
-  log.push({ step: '2. [E] register mode', active: await page.evaluate(() => window.__fw.scene3d.clubhouse().register.isActive()) });
+  const uiFit = await page.evaluate(() => {
+    const boxes = ['.reg-hint', '.toast-wrap'].map((selector) => {
+      const node = document.querySelector(selector);
+      if (!node || getComputedStyle(node).display === 'none') return { selector, visible: false };
+      const r = node.getBoundingClientRect();
+      return {
+        selector,
+        visible: true,
+        left: r.left, top: r.top, right: r.right, bottom: r.bottom,
+        inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
+      };
+    });
+    const [hud, notices] = boxes;
+    const overlap = hud.visible && notices.visible
+      && !(hud.right <= notices.left || notices.right <= hud.left
+        || hud.bottom <= notices.top || notices.bottom <= hud.top);
+    return { viewport: { width: innerWidth, height: innerHeight }, boxes, overlap };
+  });
+  log.push({
+    step: '2. [E] register mode',
+    active: await page.evaluate(() => window.__fw.scene3d.clubhouse().register.isActive()),
+    uiFit,
+  });
 
   // --- SCAN: drag each item across the glass ---------------------------------------------
   // Nothing calls scanItem(). The CROSSING calls it.
@@ -245,6 +302,32 @@ async (page) => {
     await page.mouse.up();
   };
 
+  // Interrupt a real held object before the first scan. Escape must cancel the
+  // gesture, restore its origin, clear hand/cursor state, and allow normal re-entry.
+  const interruptedAt = await page.evaluate(() => window.__qa.find('item'));
+  const interruptedPx = await page.evaluate((a) => window.__qa.px(a.x, a.y, a.z), interruptedAt);
+  await page.mouse.move(interruptedPx.x, interruptedPx.y);
+  await page.mouse.down();
+  await page.waitForTimeout(80);
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.isActive());
+  const interruptedAfter = await page.evaluate(() => ({
+    item: window.__qa.find('item'),
+    interaction: window.__fw.scene3d.clubhouse().register.getInteractionState(),
+    tx: window.__fw.scene3d.clubhouse().register.getTx(),
+    checkoutToasts: document.querySelectorAll('.toast[data-channel="checkout"]').length,
+  }));
+  const interruptedOk = interruptedAfter.interaction.grabbed == null
+    && !interruptedAfter.interaction.cardSwipeActive
+    && interruptedAfter.tx.items.every((item) => !item.scanned)
+    && interruptedAfter.checkoutToasts === 0
+    && Math.hypot(interruptedAfter.item.x - interruptedAt.x, interruptedAfter.item.z - interruptedAt.z) < 0.02;
+  reentryChecks.push({ step: 'held-object cancel', ok: interruptedOk, before: interruptedAt, after: interruptedAfter });
+  await shot('02a-interrupted-drag-restored');
+  await reenter();
+  await shot('02b-register-reentered');
+
   await scan(0);
   await shot('03-scanned-one');
   log.push({ step: '3. dragged item 1 over the glass', tx: await txNow(), hands: await hands('scan') });
@@ -275,6 +358,29 @@ async (page) => {
     await untilStage('card-ready');
     await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isCardReadyForSwipe());
     await shot('06-card-presented');
+
+    // Leave while the mouse still owns the card. Re-entry must expose a clean
+    // card-ready state, not a hidden swipe waiting to consume the next move.
+    const interruptedCard = await page.evaluate(() => window.__qa.find('card'));
+    const interruptedCardPx = await page.evaluate((a) => window.__qa.px(a.x, a.y, a.z), interruptedCard);
+    await page.mouse.move(interruptedCardPx.x, interruptedCardPx.y);
+    await page.mouse.down();
+    await page.mouse.move(interruptedCardPx.x, interruptedCardPx.y + 18, { steps: 3 });
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+    await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.isActive());
+    const cardAway = await page.evaluate(() => ({
+      interaction: window.__fw.scene3d.clubhouse().register.getInteractionState(),
+      stage: window.__fw.scene3d.clubhouse().register.getTx().stage,
+    }));
+    await reenter();
+    await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isCardReadyForSwipe());
+    const cardBack = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getInteractionState());
+    const cardReentryOk = !cardAway.interaction.cardSwipeActive
+      && cardAway.stage === 'card-ready'
+      && !cardBack.cardSwipeActive;
+    reentryChecks.push({ step: 'card-swipe cancel', ok: cardReentryOk, away: cardAway, back: cardBack });
+    await shot('06a-card-reentered-clean');
     log.push({ step: '8. clicked terminal — they present', tx: await txNow() });
 
     // A partial physical stroke must remain card-ready and explain itself.
@@ -334,6 +440,22 @@ async (page) => {
     await page.waitForTimeout(700);   // it slides
     await shot('07-drawer-open');
     log.push({ step: '11. [D] drawer open', tx: await txNow(), hands: await hands('drawer') });
+
+    // The transaction keeps the drawer open across a short step-away. The
+    // physical drawer may tuck away outside register mode, then must restore.
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.isActive());
+    const drawerAway = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getInteractionState());
+    await reenter();
+    await page.waitForFunction(() => {
+      const s = window.__fw.scene3d.clubhouse().register.getInteractionState();
+      return s.drawerOpen && s.drawerTarget === 1 && s.drawerAmount > 0.95;
+    });
+    const drawerBack = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getInteractionState());
+    const drawerReentryOk = drawerAway.drawerOpen && drawerBack.drawerOpen
+      && drawerBack.drawerTarget === 1 && drawerBack.drawerAmount > 0.95;
+    reentryChecks.push({ step: 'open-drawer resume', ok: drawerReentryOk, away: drawerAway, back: drawerBack });
+    await shot('07a-drawer-reentered-open');
 
     // put every tendered note into the till, one at a time
     for (let guard = 0; guard < 8; guard++) {
@@ -461,6 +583,9 @@ async (page) => {
     && finalMoney.orderHeld === 0
     && !orderTxActive
     && handChecks.every((check) => check.visible)
+    && reentryChecks.every((check) => check.ok)
+    && uiFit.boxes.every((box) => !box.visible || box.inside)
+    && !uiFit.overlap
     && errors.length === 0;
   return {
     ok,
@@ -470,5 +595,6 @@ async (page) => {
     errors: errors.slice(0, 10),
     errorCount: errors.length,
     handChecks,
+    reentryChecks,
   };
 }

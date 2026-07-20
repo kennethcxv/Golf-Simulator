@@ -17,6 +17,13 @@ export function el(tag, attrs = {}, ...children) {
 
 let toastWrap = null;
 
+export function clearToastChannel(channel) {
+  if (!toastWrap || !channel) return;
+  [...toastWrap.children]
+    .filter((node) => node.dataset.channel === channel)
+    .forEach((node) => node.remove());
+}
+
 export function toast(msg, kind = '', options = {}) {
   if (!toastWrap) {
     toastWrap = el('div', { class: 'toast-wrap', 'aria-live': 'polite' });
@@ -31,9 +38,7 @@ export function toast(msg, kind = '', options = {}) {
     // The checkout HUD owns the durable instruction; its toast is only the most
     // recent physical response. Replacing that response prevents an old failure
     // (or "all bagged") from sitting under a later success.
-    [...toastWrap.children]
-      .filter((node) => node.dataset.channel === channel)
-      .forEach((node) => node.remove());
+    clearToastChannel(channel);
   }
   const duplicate = [...toastWrap.children].find((node) => node.dataset.message === msg);
   if (duplicate) return;

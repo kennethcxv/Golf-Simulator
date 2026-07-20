@@ -22,6 +22,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { ownGeometry } from '../resourceLifecycle.js';
 
 const FILES = [
   // goods
@@ -175,10 +176,10 @@ export function createMerch(mats) {
         merged = null;
       }
       if (!merged) { // a mismatched set: keep them loose rather than lose them
-        for (const g of geos) out.add(new THREE.Mesh(g, m));
+        for (const g of geos) out.add(new THREE.Mesh(ownGeometry(g), m));
         continue;
       }
-      const mesh = new THREE.Mesh(merged, m);
+      const mesh = new THREE.Mesh(ownGeometry(merged), m);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       out.add(mesh);

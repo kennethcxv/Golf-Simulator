@@ -1,0 +1,16 @@
+{
+  "errors": [],
+  "errorCount": 0,
+  "probe": {
+    "hasClubhouse": true,
+    "hasRegisterApi": true,
+    "registerActive": false,
+    "hasTx": false,
+    "drawerInState": false,
+    "heldLedger": 0,
+    "customers": -1
+  },
+  "runnerDiagnostics": [
+    "console:warning: THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+  ]
+}

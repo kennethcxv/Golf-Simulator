@@ -884,6 +884,14 @@ export function createRegisterMode(B) {
 
   function pickUnder() {
     ray.setFromCamera(ndc, camera);
+    // The presented card sits directly over part of the terminal's generous
+    // invisible click target. While a swipe is legal, the visible object under
+    // the cursor owns that overlap; otherwise the terminal can steal a retry and
+    // leave the card apparently refusing to move.
+    if (cardMesh && tx && tx.stage === 'card-ready' && !cardMesh.userData.motionLocked) {
+      const cardHits = ray.intersectObject(cardMesh, true);
+      if (cardHits.length) return cardMesh;
+    }
     // Money is a thin visible surface inside a deep tray. When the drawer is open,
     // resolve that authored target first instead of letting an overlapping child of
     // the drawer carcass steal the click. The transaction layer still decides
@@ -1162,6 +1170,10 @@ export function createRegisterMode(B) {
     if (active) return false;
     active = true;
     viewBlend = tx && tx.drawerOpen ? 1 : 0;
+    // Stepping away tucks the physical drawer under the counter, while the pure
+    // transaction correctly remembers that it was open. Re-entry restores the
+    // physical target so renderer and transaction cannot disagree.
+    drawerWant = tx && tx.drawerOpen ? 1 : 0;
     cardViewBlend = 0;
     focusOn(cashierPose(viewBlend, cardViewBlend));
     if (document.pointerLockElement) document.exitPointerLock();
@@ -1174,12 +1186,26 @@ export function createRegisterMode(B) {
   function leave() {
     if (!active) return;
     active = false;
-    grabbed = null;
+    if (grabbed) {
+      // Escape/right-click cancels a gesture. It must not leave a product or note
+      // floating at carry height when the player returns.
+      if (grabbed.userData.grabOrigin) grabbed.position.copy(grabbed.userData.grabOrigin);
+      delete grabbed.userData.grabOrigin;
+      grabbed = null;
+    }
+    if (cardSwipe) {
+      cardSwipe = null;
+      setCardSwipePosition(0);
+      swipeFeedback = '';
+      swipeFeedbackT = 0;
+      drawTerm();
+    }
     drawerWant = 0;
     saleExitT = 0;
     handActionT = 0;
     handPose = null;
     checkoutHands.setTool(null);
+    if (hooks.clearToasts) hooks.clearToasts('checkout');
     clearFocus();
     document.body.classList.remove('register-mode');
     canvas.style.cursor = '';
@@ -1201,6 +1227,7 @@ export function createRegisterMode(B) {
   function grab(m) {
     cancelMotion(m);
     grabbed = m;
+    m.userData.grabOrigin = m.position.clone();
     m.userData.grabY = m.position.y;
     grabPrev.set(0, 0, 0);
     const b = barcodeAt(m);
@@ -1214,6 +1241,7 @@ export function createRegisterMode(B) {
     if (!grabbed) return;
     const m = grabbed;
     grabbed = null;
+    delete m.userData.grabOrigin;
     const k = m.userData.kind;
 
     if (k === 'item') {
@@ -1768,6 +1796,14 @@ export function createRegisterMode(B) {
     getTx: () => tx,
     getCustomer: () => cust,
     getSwipeFeedback: () => swipeFeedback,
+    getInteractionState: () => ({
+      active,
+      grabbed: grabbed ? grabbed.userData.kind : null,
+      cardSwipeActive: !!cardSwipe,
+      drawerAmount: drawerAmt,
+      drawerTarget: drawerWant,
+      drawerOpen: !!(tx && tx.drawerOpen),
+    }),
     getHandFeedback: () => ({
       ...checkoutHands.getState(),
       pose: handPose,

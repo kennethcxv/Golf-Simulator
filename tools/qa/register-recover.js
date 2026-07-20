@@ -186,7 +186,7 @@ async (page) => {
       // ACROSS THE SAVE, not across the whole test. The game's economy keeps ticking
       // while the harness runs — the first cut compared cash at step 1 with cash after
       // the reload, saw a legitimate $90 of running costs, and called it a failure.
-      noMoneyInvented: after.cash === preSave.cash
+      noMoneyInvented: Math.abs(after.cash - preSave.cash) < 0.005
         ? 'OK — cash identical across the save/reload'
         : `FAIL — ${preSave.cash} -> ${after.cash} across the reload`,
     },

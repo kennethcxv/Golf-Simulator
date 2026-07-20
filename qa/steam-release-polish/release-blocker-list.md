@@ -49,3 +49,33 @@ Baseline inventory for the checkout-first release gate. Status is `Open` unless 
 | Total | 31 |
 
 Fix order: B-002, B-003, C-001, C-002/C-003, checkout readability/feedback, then measured rendering and texture bottlenecks. B-001 is the first menu cleanup after checkout accepts both payment branches.
+
+## Checkout gate disposition after iteration 4
+
+The physical transaction gate is accepted. Normal-control card and cash routes,
+interruption/re-entry, responsive 1280×720 framing, save/load recovery, and the
+100-cycle lifecycle soak are documented in `iteration-4-hardening/report.md`.
+
+Resolved by the four checkout iterations:
+
+- `B-002`, `B-003`, `C-001`, `C-002`
+- `H-001` through `H-009`, `H-011`, and `H-014`
+- `M-001`, `M-003`, and `M-006`
+
+Still open for the overall Steam release gate:
+
+- `B-001`: the public menu still contains placeholder-build language.
+- `C-003`: the articulated customer remains deliberately low-detail procedural art
+  and needs a separate character-quality acceptance decision.
+- `H-010`: Canvas2D warnings are fixed, but Chromium/ANGLE still emits X4000.
+- `H-012`, `H-013`, `M-008`: project-wide render, texture, and shadow budgets remain
+  high, although the checkout increment introduces no measured regression.
+- `M-002`, `M-004`, `M-005`, `M-007`, `L-001`, `P-001`, `P-002`: presentation and
+  secondary-behavior follow-ups remain as originally recorded.
+- `S-001` (new, High, dependency): full `npm audit` flags Electron 33; the offered
+  remediation upgrades to Electron 43 and is a breaking runtime change. Production
+  dependencies excluding dev Electron audit clean.
+
+Accordingly, checkout acceptance is not a claim that the entire repository is ready
+to ship on Steam. The menu, character-art decision, Electron upgrade, and broader
+release-budget work remain explicit gates.

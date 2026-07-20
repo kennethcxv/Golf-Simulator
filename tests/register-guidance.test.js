@@ -19,6 +19,7 @@ test('scanning guidance shows one relevant gesture, not future-stage keys', () =
   assert.deepEqual(keys(guidance), ['Mouse', 'Esc']);
   assert.equal(guidance.customer, 'Morgan W.');
   assert.equal(guidance.total, '$0.00', 'the header reflects the scanned subtotal, not unscanned goods');
+  assert.equal(guidance.controls.at(-1).label, 'Leave register');
 });
 
 test('the total key appears only after every item has scanned', () => {

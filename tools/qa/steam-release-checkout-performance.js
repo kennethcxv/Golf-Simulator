@@ -271,10 +271,23 @@ async (page) => {
   }, { label, durationMs });
 
   const idle = await sample('idle-fixed-camera', 5000);
-  const customer = await page.evaluate(() => window.__fw.scene3d.clubhouse().sendToCounter(['balls3', 'glove1'], 'card'));
+  const customer = await page.evaluate(() => {
+    const clubhouse = window.__fw.scene3d.clubhouse();
+    const name = clubhouse.sendToCounter(['balls3', 'glove1'], 'card');
+    // A 100-cycle soak intentionally takes longer than normal checkout patience.
+    // Keep this fixture at the till so failures measure register re-entry, not a
+    // shopper correctly abandoning an hour-long transaction.
+    const fixture = clubhouse.customers.find((candidate) => candidate.name === name);
+    if (fixture) fixture.patience = 3600;
+    return name;
+  });
   await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.hasTx());
   await page.keyboard.press('e');
   await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isActive());
+  // Upload the camera-mounted checkout hand before the active baseline. Without
+  // one normal action, its first render during later stress can masquerade as
+  // transition-driven renderer growth.
+  await page.keyboard.press('t');
   await page.waitForTimeout(800);
   const activeStability = await waitForRendererStability('register-active');
   await page.screenshot({ path: `${out}/02-register-active-fixed-camera.png` });
@@ -285,10 +298,12 @@ async (page) => {
     heap: performance.memory?.usedJSHeapSize || null,
   }));
   let normalReentryFailures = 0;
-  for (let i = 0; i < 25; i++) {
+  const transitionCycles = Number(process.env.QA_TRANSITION_CYCLES || 25);
+  const transitionSettleMs = Number(process.env.QA_TRANSITION_SETTLE_MS || 600);
+  for (let i = 0; i < transitionCycles; i++) {
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.isActive());
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(transitionSettleMs);
     await page.keyboard.press('e');
     try {
       await page.waitForFunction(
@@ -306,7 +321,8 @@ async (page) => {
     listeners: structuredClone(window.__steamReleasePerf.listeners),
     heap: performance.memory?.usedJSHeapSize || null,
   }));
-  const postStress = await sample('register-post-25-transitions', 5000);
+  const postStressStability = await waitForRendererStability('post-stress');
+  const postStress = await sample(`register-post-${transitionCycles}-transitions`, 5000);
 
   return {
     configuration: {
@@ -317,13 +333,13 @@ async (page) => {
       fixedTime: '14:00',
       fixture: 'relaxed seed 424242, two-item card customer, fully stocked sale inventory',
       warmupMs: 3300,
-      rendererStability: { idle: idleStability, active: activeStability },
+      rendererStability: { idle: idleStability, active: activeStability, postStress: postStressStability },
     },
     customer,
     idle,
     active,
     stress: {
-      cycles: 25,
+      cycles: transitionCycles,
       normalReentryFailures,
       before: stressBefore,
       after: stressAfter,

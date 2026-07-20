@@ -127,6 +127,6 @@ export function registerGuidance(tx, {
     base.controls = [];
   }
 
-  base.controls.push(key('Esc', 'Step back'));
+  base.controls.push(key('Esc', 'Leave register'));
   return base;
 }

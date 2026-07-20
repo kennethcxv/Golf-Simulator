@@ -14,6 +14,7 @@ import { clamp, rngOf } from '../core/utils.js';
 import { fitDistance } from '../core/screenFit.js';
 import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig.js';
 import { makeCharacter } from './characterAsset.js';
+import { disposeOwnedTree, ownGeometry, ownMaterial } from './resourceLifecycle.js';
 import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
   SHELL, INTERIOR, FIXTURES, COUNTER, OFFICE, STOCKROOM, LOUNGE,
@@ -236,6 +237,23 @@ export function makeClubhouse(ctx) {
     return r;
   };
 
+  // Shopper-held products and patience indicators are made uniquely for that
+  // shopper. Merchandise models, by contrast, are clones from the shared asset
+  // cache and must never be disposed here.
+  function disposeOwnedMesh(mesh) {
+    if (!mesh) return;
+    if (mesh.geometry) mesh.geometry.dispose();
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const material of materials) if (material && material.dispose) material.dispose();
+  }
+
+  function removeCustomerItem(c) {
+    if (!c.itemMesh) return;
+    c.mesh.remove(c.itemMesh);
+    disposeOwnedMesh(c.itemMesh);
+    c.itemMesh = null;
+  }
+
   // the head of the queue, with goods, waiting on YOU
   const headForCheckout = () => {
     const c = counterQueue[0];
@@ -247,7 +265,7 @@ export function makeClubhouse(ctx) {
   function onCustomerPaid(c) {
     c.bought = true;
     leaveReview(c, true);
-    if (c.itemMesh) { c.mesh.remove(c.itemMesh); c.itemMesh = null; }
+    removeCustomerItem(c);
     // a branded carrier into their hand — they walk out with it
     const char = c.mesh.userData.char;
     const bag = merch && merch.instantiate('bag_closed');
@@ -1618,7 +1636,10 @@ export function makeClubhouse(ctx) {
   }
 
   function rebuildStock() {
-    for (const g of stockMeshes.values()) stockGroup.remove(g);
+    for (const g of stockMeshes.values()) {
+      stockGroup.remove(g);
+      disposeOwnedTree(g);
+    }
     stockMeshes.clear();
     const inv = state.shop.inventory;
 
@@ -1659,15 +1680,18 @@ export function makeClubhouse(ctx) {
         const catSkus = SHOP_CATALOG.filter((s) => s.cat === cat);
         const total = catSkus.reduce((a, s) => a + (inv[s.id] ? inv[s.id].shelf : 0), 0);
         const show = Math.min(total, 8);
-        const fm = new THREE.MeshStandardMaterial({ color: CAT_COLORS[cat] || 0x999999, roughness: 0.6 });
+        const fm = ownMaterial(new THREE.MeshStandardMaterial({ color: CAT_COLORS[cat] || 0x999999, roughness: 0.6 }));
         for (let i = 0; i < show; i++) {
           const a = (i / 8) * Math.PI * 2;
-          const item = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.14), fm);
+          const item = new THREE.Mesh(ownGeometry(new THREE.BoxGeometry(0.16, 0.12, 0.14)), fm);
           item.position.set(Math.sin(a) * 0.5, 1.02 + (i % 2) * 0.13, Math.cos(a) * 0.5);
           item.rotation.y = a;
           g.add(item);
         }
-        const tent = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.16, 0.02), new THREE.MeshStandardMaterial({ color: 0x1f8a34, roughness: 0.8 }));
+        const tent = new THREE.Mesh(
+          ownGeometry(new THREE.BoxGeometry(0.3, 0.16, 0.02)),
+          ownMaterial(new THREE.MeshStandardMaterial({ color: 0x1f8a34, roughness: 0.8 })),
+        );
         tent.position.set(0, 1.06, 0);
         tent.rotation.x = -0.2;
         g.add(tent);
@@ -1687,7 +1711,10 @@ export function makeClubhouse(ctx) {
         for (let i = 0; i < show; i++) {
           const bx = -0.95 + (i % 4) * 0.62;
           const by = [0.46, 1.11, 1.76][Math.floor(i / 4) % 3];
-          const caseB = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.36, 0.44), i % 2 ? cardboard : cardboardDark);
+          const caseB = new THREE.Mesh(
+            ownGeometry(new THREE.BoxGeometry(0.5, 0.36, 0.44)),
+            i % 2 ? cardboard : cardboardDark,
+          );
           caseB.position.set(bx, by + 0.18, 0);
           caseB.rotation.y = (i % 3) * 0.1 - 0.1;
           caseB.castShadow = true;
@@ -2421,10 +2448,7 @@ export function makeClubhouse(ctx) {
     // they walked out mid-sale: void it, clear the counter, and put the goods back.
     // registerMode holds no authority over stock — the shelf is credited right here.
     if (register.getCustomer() === c) { register.abandon(); register.leave(); }
-    if (c.itemMesh) {
-      c.mesh.remove(c.itemMesh);
-      c.itemMesh = null;
-    }
+    removeCustomerItem(c);
     leaveQueue(c);
     c.stopIdx += 1;
     c.linger = 0;
@@ -2476,11 +2500,15 @@ export function makeClubhouse(ctx) {
     if (c.tx) c.tx = null;
     c.awaitingCheckout = false;
     leaveQueue(c);
-    if (c.itemMesh) {
-      c.mesh.remove(c.itemMesh);
-      c.itemMesh = null;
+    removeCustomerItem(c);
+    if (c.patienceMesh) {
+      c.mesh.remove(c.patienceMesh);
+      disposeOwnedMesh(c.patienceMesh);
+      c.patienceMesh = null;
     }
     custGroup.remove(c.mesh);
+    const char = c.mesh.userData.char;
+    if (char && char.dispose) char.dispose();
     customers.splice(i, 1);
   }
 
@@ -2619,7 +2647,10 @@ export function makeClubhouse(ctx) {
             c.awaitingCheckout = register.begin(c);
           }
           if (!c.awaitingCheckout) continue;
-          c.patience -= dt;
+          // Patience measures time waiting for service. Once the cashier is
+          // physically working this transaction the customer is being served;
+          // resume the countdown only if the player walks away mid-sale.
+          if (!register.isActive()) c.patience -= dt;
           setPatience(c);
           if (char) char.setMode(c.tx ? 'Checkout' : 'Idle');
           if (c.patience <= 0) customerGiveUp(c);
@@ -2766,6 +2797,9 @@ export function makeClubhouse(ctx) {
     // tearing the scene down must not pocket whatever shoppers were holding: the save is written
     // from `state`, and stock in a deleted shopper's hands would simply cease to exist.
     for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
+    for (const stock of stockMeshes.values()) disposeOwnedTree(stock);
+    stockMeshes.clear();
+    patRing.dispose();
     register.dispose();
   }
 
@@ -2803,6 +2837,7 @@ export function makeClubhouse(ctx) {
       getCustomer: () => register.getCustomer(),
       getSwipeFeedback: () => register.getSwipeFeedback(),
       getHandFeedback: () => register.getHandFeedback(),
+      getInteractionState: () => register.getInteractionState(),
       isCardReadyForSwipe: () => register.isCardReadyForSwipe(),
       isReceiptReady: () => register.isReceiptReady(),
       getCompletedCarrier: () => {

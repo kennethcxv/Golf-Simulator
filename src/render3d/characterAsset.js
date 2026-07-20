@@ -95,6 +95,19 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   carryAnchor.position.set(0.285, 0.373, 0.524);
   chest.add(carryAnchor);
 
+  // Every primitive and material above belongs to this one character. Capture
+  // that ownership now, before callers attach shared merchandise or temporary
+  // checkout feedback beneath the root. A root traversal during teardown would
+  // also dispose those cached assets and break the next customer that uses them.
+  const ownedGeometries = new Set();
+  const ownedMaterials = new Set();
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+    if (node.geometry) ownedGeometries.add(node.geometry);
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    for (const material of materials) if (material) ownedMaterials.add(material);
+  });
+
   const char = {
     root,
     handL: limbs.handL,
@@ -113,6 +126,12 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     }
   };
   char.setCarrying = (carrying) => { char.carrying = !!carrying; };
+  char.dispose = () => {
+    for (const geometry of ownedGeometries) geometry.dispose();
+    for (const material of ownedMaterials) material.dispose();
+    ownedGeometries.clear();
+    ownedMaterials.clear();
+  };
 
   const lerpSeg = (t, segs) => {
     // segs: [ [t0, v0], [t1, v1], ... ] piecewise-linear, clamped

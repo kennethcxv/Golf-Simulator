@@ -1220,6 +1220,7 @@ export function makeCourseScene(canvas, state) {
       const stillOpen = w.hole.status === HOLE_STATUS.OPEN && w.hole.tee && w.hole.pin;
       if (!stillOpen || (!openHours && w.pause <= 0) || (golfers.length > target && w.t >= 1)) {
         golferGroup.remove(w.mesh);
+        w.mesh.userData.char?.dispose?.();
         golfers.splice(i, 1);
         continue;
       }
@@ -1241,6 +1242,7 @@ export function makeCourseScene(canvas, state) {
             w.lateral = (Math.random() - 0.5) * 10;
           } else {
             golferGroup.remove(w.mesh);
+            w.mesh.userData.char?.dispose?.();
             golfers.splice(i, 1);
             continue;
           }

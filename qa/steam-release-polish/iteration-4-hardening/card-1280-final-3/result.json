@@ -1,0 +1,575 @@
+{
+  "ok": true,
+  "mode": "card",
+  "blocker": null,
+  "log": [
+    {
+      "step": "0. before",
+      "revenue": 0,
+      "units": 0,
+      "held": 0,
+      "orderHeld": 0,
+      "shelfBalls": 10,
+      "shelfGlove": 10
+    },
+    {
+      "step": "1. customer at the counter",
+      "who": "Morgan W.",
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "orderHeld": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 0,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      }
+    },
+    {
+      "step": "2. [E] register mode",
+      "active": true,
+      "uiFit": {
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "boxes": [
+          {
+            "selector": ".reg-hint",
+            "visible": true,
+            "left": 320,
+            "top": 16,
+            "right": 960,
+            "bottom": 154.421875,
+            "inside": true
+          },
+          {
+            "selector": ".toast-wrap",
+            "visible": true,
+            "left": 420,
+            "top": 166,
+            "right": 860,
+            "bottom": 166,
+            "inside": true
+          }
+        ],
+        "overlap": false
+      }
+    },
+    {
+      "step": "3. dragged item 1 over the glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 1,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      },
+      "hands": {
+        "visible": true,
+        "tool": "checkoutCarry",
+        "show": 0.9999999519532607,
+        "recoil": 0,
+        "pose": "checkoutCarry",
+        "actionRemaining": 0.21670000000000086,
+        "mount": [
+          0.33837036443761603,
+          -0.08494773497004919,
+          -0.65
+        ]
+      }
+    },
+    {
+      "step": "4. dragged the SAME item back over the glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 1,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      },
+      "expect": "scanned still 1"
+    },
+    {
+      "step": "5. [T] with 1 unscanned",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 1,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      },
+      "expect": "stage scanning, method null"
+    },
+    {
+      "step": "6. dragged item 2 over the glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      }
+    },
+    {
+      "step": "7. [T] total",
+      "tx": {
+        "stage": "card-present",
+        "method": "card",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "orderHeld": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue still 0"
+    },
+    {
+      "step": "8. clicked terminal — they present",
+      "tx": {
+        "stage": "card-ready",
+        "method": "card",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 1,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      }
+    },
+    {
+      "step": "9. incomplete physical swipe refused",
+      "tx": {
+        "stage": "card-ready",
+        "method": "card",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 1,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      },
+      "feedback": "Complete the swipe",
+      "hands": {
+        "visible": true,
+        "tool": "checkoutPinch",
+        "show": 0.9999995996801236,
+        "recoil": 0,
+        "pose": "checkoutPinch",
+        "actionRemaining": 0.12490000000000134,
+        "mount": [
+          0.019409084306934592,
+          0.006229835956199597,
+          -0.65
+        ]
+      }
+    },
+    {
+      "step": "10. physical swipe accepted — running",
+      "tx": {
+        "stage": "card-busy",
+        "method": "card",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 1,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "orderHeld": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9
+    },
+    {
+      "step": "11. terminal answered",
+      "tx": {
+        "stage": "receipt",
+        "method": "card",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 1,
+        "cardsTried": 1,
+        "receiptPrinted": false,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "orderHeld": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue STILL 0 — an approval banks nothing"
+    },
+    {
+      "step": "16. receipt printed",
+      "at": {
+        "x": 3.18,
+        "z": 4.42
+      }
+    },
+    {
+      "step": "17. took the receipt",
+      "tx": {
+        "stage": "bagging",
+        "method": "card",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 1,
+        "cardsTried": 1,
+        "receiptPrinted": true,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      },
+      "hands": {
+        "visible": true,
+        "tool": "checkoutPinch",
+        "show": 0.971797871204936,
+        "recoil": 0,
+        "pose": "checkoutPinch",
+        "actionRemaining": 0.24490000000000145,
+        "mount": [
+          0.144200247158511,
+          -0.0763212892410907,
+          -0.65
+        ]
+      }
+    },
+    {
+      "step": "18. bagged",
+      "tx": {
+        "stage": "bagging",
+        "method": "card",
+        "scanned": 2,
+        "bagged": 2,
+        "of": 2,
+        "cardAttempts": 1,
+        "cardsTried": 1,
+        "receiptPrinted": true,
+        "banked": false,
+        "drawerOpen": false,
+        "deposited": false,
+        "tendered": {},
+        "hand": {}
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "orderHeld": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "hands": {
+        "visible": true,
+        "tool": "checkoutCarry",
+        "show": 0.9999999989997488,
+        "recoil": 0,
+        "pose": "checkoutCarry",
+        "actionRemaining": 0.1584000000000016,
+        "mount": [
+          0.2763701263411106,
+          -0.07005240403089506,
+          -0.65
+        ]
+      },
+      "expect": "revenue STILL 0"
+    },
+    {
+      "step": "19. HANDED IT OVER",
+      "revenue": 66,
+      "units": 2,
+      "held": 0,
+      "orderHeld": 0,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "carrier": {
+        "visible": true,
+        "size": [
+          0.22436094596362732,
+          0.3483578510598673,
+          0.20438946278670755
+        ],
+        "centre": [
+          -7.077611152105817,
+          1.5163151413313503,
+          231.68286259226105
+        ]
+      },
+      "hands": {
+        "visible": true,
+        "tool": "checkoutCarry",
+        "show": 0.9999999999880292,
+        "recoil": 0,
+        "pose": "checkoutCarry",
+        "actionRemaining": 0.5166999999999982,
+        "mount": [
+          -0.1000275571672005,
+          0.09432351560383244,
+          -0.65
+        ]
+      },
+      "expect": "revenue banked NOW, held back to 0"
+    },
+    {
+      "step": "20. final",
+      "revenue": 66,
+      "units": 2,
+      "held": 0,
+      "orderHeld": 0,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "tx": null,
+      "orderTxActive": false
+    }
+  ],
+  "errors": [],
+  "errorCount": 0,
+  "handChecks": [
+    {
+      "step": "scan",
+      "visible": true,
+      "tool": "checkoutCarry",
+      "show": 0.9999999519532607,
+      "recoil": 0,
+      "pose": "checkoutCarry",
+      "actionRemaining": 0.21670000000000086,
+      "mount": [
+        0.33837036443761603,
+        -0.08494773497004919,
+        -0.65
+      ]
+    },
+    {
+      "step": "card swipe",
+      "visible": true,
+      "tool": "checkoutPinch",
+      "show": 0.9999995996801236,
+      "recoil": 0,
+      "pose": "checkoutPinch",
+      "actionRemaining": 0.12490000000000134,
+      "mount": [
+        0.019409084306934592,
+        0.006229835956199597,
+        -0.65
+      ]
+    },
+    {
+      "step": "receipt",
+      "visible": true,
+      "tool": "checkoutPinch",
+      "show": 0.971797871204936,
+      "recoil": 0,
+      "pose": "checkoutPinch",
+      "actionRemaining": 0.24490000000000145,
+      "mount": [
+        0.144200247158511,
+        -0.0763212892410907,
+        -0.65
+      ]
+    },
+    {
+      "step": "bagging",
+      "visible": true,
+      "tool": "checkoutCarry",
+      "show": 0.9999999989997488,
+      "recoil": 0,
+      "pose": "checkoutCarry",
+      "actionRemaining": 0.1584000000000016,
+      "mount": [
+        0.2763701263411106,
+        -0.07005240403089506,
+        -0.65
+      ]
+    },
+    {
+      "step": "handoff",
+      "visible": true,
+      "tool": "checkoutCarry",
+      "show": 0.9999999999880292,
+      "recoil": 0,
+      "pose": "checkoutCarry",
+      "actionRemaining": 0.5166999999999982,
+      "mount": [
+        -0.1000275571672005,
+        0.09432351560383244,
+        -0.65
+      ]
+    }
+  ],
+  "reentryChecks": [
+    {
+      "step": "held-object cancel",
+      "ok": true,
+      "before": {
+        "x": 2.46,
+        "y": 1.106,
+        "z": 3.8799999999999955,
+        "uid": "u1",
+        "denom": null,
+        "n": 2
+      },
+      "after": {
+        "item": {
+          "x": 2.46,
+          "y": 1.106,
+          "z": 3.8799999999999955,
+          "uid": "u1",
+          "denom": null,
+          "n": 2
+        },
+        "interaction": {
+          "active": false,
+          "grabbed": null,
+          "cardSwipeActive": false,
+          "drawerAmount": 0,
+          "drawerTarget": 0,
+          "drawerOpen": false
+        },
+        "tx": {
+          "items": [
+            {
+              "uid": "u1",
+              "skuId": "balls3",
+              "name": "Pro-V dozen",
+              "price": 47,
+              "scanned": false,
+              "bagged": false
+            },
+            {
+              "uid": "u2",
+              "skuId": "glove1",
+              "name": "Cabretta glove",
+              "price": 19,
+              "scanned": false,
+              "bagged": false
+            }
+          ],
+          "mode": "relaxed",
+          "discount": 0,
+          "prefer": "card",
+          "stage": "scanning",
+          "method": null,
+          "cardAttempts": 0,
+          "cardsTried": 0,
+          "cardResult": null,
+          "tendered": null,
+          "tenderedTotal": null,
+          "drawerOpen": false,
+          "deposited": false,
+          "hand": {},
+          "lost": 0,
+          "rounding": 0,
+          "receiptPrinted": false
+        },
+        "checkoutToasts": 0
+      }
+    },
+    {
+      "step": "card-swipe cancel",
+      "ok": true,
+      "away": {
+        "interaction": {
+          "active": false,
+          "grabbed": null,
+          "cardSwipeActive": false,
+          "drawerAmount": 0,
+          "drawerTarget": 0,
+          "drawerOpen": false
+        },
+        "stage": "card-ready"
+      },
+      "back": {
+        "active": true,
+        "grabbed": null,
+        "cardSwipeActive": false,
+        "drawerAmount": 0,
+        "drawerTarget": 0,
+        "drawerOpen": false
+      }
+    }
+  ],
+  "runnerDiagnostics": [
+    "console:warning: THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+  ]
+}

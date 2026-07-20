@@ -17,7 +17,7 @@ import {
   worksSetTee, worksSetPin,
 } from './sim/terrainEdit.js';
 import { calendarOf } from './sim/time.js';
-import { el, toast, modal } from './ui/ui.js';
+import { el, toast, modal, clearToastChannel } from './ui/ui.js';
 import { makeHud } from './ui/hud.js';
 import { makeWorksPanel } from './ui/worksPanel.js';
 import { makeInspectPanel } from './ui/inspectPanel.js';
@@ -375,6 +375,7 @@ function startGame(state) {
   // walk-up inspection: the walking controller asks, the app answers with the
   // same sections and status words the top-down click-to-inspect always used
   app.scene3d.walk.hooks.toast = (msg, kind, options) => toast(msg, kind, options);
+  app.scene3d.walk.hooks.clearToasts = (channel) => clearToastChannel(channel);
   // a restrained note when the game had to dig the player out of geometry
   app.scene3d.walk.hooks.recovered = (how) => toast(
     how === 'lastSafe' ? 'Stepped you back to where you last had room.' : 'Moved you clear of the furniture.',
