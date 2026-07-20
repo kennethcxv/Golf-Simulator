@@ -6,7 +6,7 @@ Do not execute these steps automatically. They are reviewable, non-destructive r
 
 - Original main: `0c5137e5f0efac9627ce2309b9e66936f1eeb769`
 - Backup branch: `backup/pre-seven-branch-integration-20260719`
-- Integration branch: `integration/seven-completed-branches-20260719`
+- Integration branch: `integration/seven-completed-branches-20260719`; required-report commit `ff00fd76c78f04747d38084094ba23a722686587` followed by a clean-release result update
 - Validated integration code head before report-only commits: `ec88eba401e812cf131a7008f4ec868e575435f6`
 - Furniture source: `b271903ce5d99478f026b0000b344dc957fe1255`
 - Inventory source: `12600d497cb94a8c3dd4983c6b311f2687c8e7e5`

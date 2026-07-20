@@ -1,6 +1,6 @@
 # Seven completed overnight branches — final integration report
 
-Status at report creation: integration candidate validated; normal merge to main and post-merge smoke pending the clean-release gate. Fields marked `PENDING_FINAL_MERGE` are updated after that gate.
+Status at report creation: integration candidate and clean detached release worktree validated; normal merge to main and post-merge smoke remain. Fields marked `PENDING_FINAL_MERGE` are updated after that gate.
 
 1. **Original main commit:** `0c5137e5f0efac9627ce2309b9e66936f1eeb769`.
 2. **Backup branch:** `backup/pre-seven-branch-integration-20260719` at original main.
@@ -40,7 +40,7 @@ Status at report creation: integration candidate validated; normal merge to main
     - economy: `c845f09f`, `74ecc4ff`, `497ab67a`, `d6e993dc`, repair `862f9909`, checkpoint `00233a15`;
     - UX: `0290b346`, `6f416fb0`, `aaec9085`, repair `dc98f0b4`, checkpoint `513170c9`;
     - cross-system hardening: `1a45c277`, `a9a1b970`, `51e4334e`, `b2beb48b`, `729fcb87`, `a019d8ac`, `ec88eba4`;
-    - required-report commit: `PENDING_REPORT_COMMIT`.
+    - required-report commit: `ff00fd76c78f04747d38084094ba23a722686587` plus the clean-release result update containing this report.
 
 29. **Main merge commit:** `PENDING_FINAL_MERGE`.
 30. **Final main commit:** `PENDING_FINAL_MERGE`.
@@ -51,4 +51,4 @@ Status at report creation: integration candidate validated; normal merge to main
 
 ## Final disposition
 
-The integrated architecture has one placement framework, inventory lifecycle, physical customer lifecycle, golf reservation model, economy journal, notification/tutorial/settings/audio stack, and ordered save migration. Checkout and cleaning regressions are explicitly covered. Main is merged only after the clean release worktree passes install/test/package/Electron gates and refs are rechecked.
+The integrated architecture has one placement framework, inventory lifecycle, physical customer lifecycle, golf reservation model, economy journal, notification/tutorial/settings/audio stack, and ordered save migration. Checkout and cleaning regressions are explicitly covered. The clean release worktree passed install, 237-file parser, 635-test, package, static-server and Electron gates. Main is merged only after refs are rechecked.

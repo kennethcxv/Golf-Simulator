@@ -31,7 +31,18 @@ Exact source heads and per-branch evidence are in `branch-inventory.md` and `bra
 - Type-check script: unsupported/not defined; JavaScript project.
 - Production build/preview scripts: unsupported/not defined. Static repository server, package dry-run, and Electron smoke are the supported equivalents.
 
-The clean-install, clean-worktree full-suite, Electron-launch, post-merge-main smoke, and tag rows are finalized only after the release worktree and main merge gates complete.
+Clean release worktree `ff00fd76c78f04747d38084094ba23a722686587` results:
+
+- `npm ci`: pass; 73 packages installed from the lockfile, 74 audited.
+- Parser check: 237 tracked JavaScript/CommonJS/ESM files pass.
+- Full suite: 635/635 pass, 0 failed/skipped, 115.82 seconds.
+- Static server: served `state.js` SHA-256 matched the release worktree; fresh New Game reached live walk/clubhouse state with zero console/page/blocking-network errors.
+- Electron: exact local binary stayed live for ten seconds, exposed the `GOLF EMPIRE` `index.html` target, owned one renderer/three child processes, and logged no fatal/unhandled exception. The captured process tree was stopped and its unique debug port closed.
+- `npm pack --dry-run --json`: pass; 472 entries, 258,277,965 packed bytes, 310,163,125 unpacked bytes.
+- `npm audit --json`: one inherited high Electron group; semver-major fix `43.1.1`, documented in `security-hygiene.md`.
+- Detached release worktree remained Git-clean; only ignored QA logs were written.
+
+Post-merge-main smoke and tag rows are finalized after the main merge gate.
 
 ## Application and UX
 
