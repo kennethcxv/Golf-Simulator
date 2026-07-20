@@ -1,0 +1,474 @@
+{
+  "closedDays": 8,
+  "latestSeven": [
+    {
+      "fromDay": 1,
+      "toDay": 1,
+      "grossRevenue": 589,
+      "costOfGoodsSold": 26.5,
+      "operatingExpenses": 135,
+      "netProfit": 427.5,
+      "cashChange": 454,
+      "inventoryPurchases": 0,
+      "restorationInvestment": 0,
+      "revenueByCategory": {
+        "walkIns": 192,
+        "dues": 335,
+        "shopSales": 62
+      },
+      "expenseByCategory": {
+        "wagesDayLabor": 90,
+        "utilities": 45,
+        "costOfGoods": 26.5
+      },
+      "entryCount": 6,
+      "day": 1,
+      "customersServed": 10,
+      "teeTimeUtilization": 0,
+      "teeTimeBookedUtilization": 0,
+      "averageTransaction": 15.5,
+      "missedSales": 5,
+      "noShowImpact": {
+        "count": 0,
+        "feesRecovered": 0
+      },
+      "cleaningCondition": 14.5,
+      "courseCondition": 47,
+      "propertyCondition": 36.5,
+      "reputation": 31,
+      "reputationCategories": {
+        "cleanliness": 29,
+        "retail": 30.2,
+        "course": 32.2,
+        "service": 32
+      },
+      "reputationChange": 0.9,
+      "propertyValue": 55000,
+      "propertyValueChange": 1000,
+      "reasons": [
+        "Largest revenue source: Membership dues (335).",
+        "Largest operating cost: Day labour (90).",
+        "5 intended purchases were missed through stock or price pressure.",
+        "Clubhouse furnishing remains weak at 0.",
+        "Safety & utility readiness remains weak at 4.",
+        "Landscaping remains weak at 4.",
+        "Course quality and member satisfaction supported the club's standing. (+1 reputation).",
+        "Moe Tanaka joined as a Fairway Card. (+0 reputation).",
+        "18 shoppers experienced clubhouse cleanliness at 16. (-0.1 reputation)."
+      ]
+    },
+    {
+      "fromDay": 2,
+      "toDay": 2,
+      "grossRevenue": 1462,
+      "costOfGoodsSold": 37.5,
+      "operatingExpenses": 135,
+      "netProfit": 1289.5,
+      "cashChange": 1327,
+      "inventoryPurchases": 0,
+      "restorationInvestment": 0,
+      "revenueByCategory": {
+        "walkIns": 960,
+        "dues": 345,
+        "shopSales": 85,
+        "rentals": 72
+      },
+      "expenseByCategory": {
+        "wagesDayLabor": 90,
+        "utilities": 45,
+        "costOfGoods": 37.5
+      },
+      "entryCount": 7,
+      "day": 2,
+      "customersServed": 35,
+      "teeTimeUtilization": 0,
+      "teeTimeBookedUtilization": 0,
+      "averageTransaction": 17,
+      "missedSales": 15,
+      "noShowImpact": {
+        "count": 0,
+        "feesRecovered": 0
+      },
+      "cleaningCondition": 14.5,
+      "courseCondition": 46,
+      "propertyCondition": 36.1,
+      "reputation": 31.8,
+      "reputationCategories": {
+        "cleanliness": 28.5,
+        "retail": 29.5,
+        "course": 34.1,
+        "service": 34
+      },
+      "reputationChange": 0.8,
+      "propertyValue": 57500,
+      "propertyValueChange": 2500,
+      "reasons": [
+        "Largest revenue source: Walk-in green fees (960).",
+        "Largest operating cost: Day labour (90).",
+        "15 intended purchases were missed through stock or price pressure.",
+        "Clubhouse furnishing remains weak at 0.",
+        "Safety & utility readiness remains weak at 4.",
+        "Landscaping remains weak at 4.",
+        "Course quality and member satisfaction supported the club's standing. (+1 reputation).",
+        "Sadie Vance joined as a Fairway Card. (+0.1 reputation).",
+        "9 shoppers experienced clubhouse cleanliness at 16. (-0.1 reputation)."
+      ]
+    },
+    {
+      "fromDay": 3,
+      "toDay": 3,
+      "grossRevenue": 1422.4,
+      "costOfGoodsSold": 18,
+      "operatingExpenses": 135,
+      "netProfit": 1269.4,
+      "cashChange": 1287.4,
+      "inventoryPurchases": 0,
+      "restorationInvestment": 0,
+      "revenueByCategory": {
+        "walkIns": 960,
+        "dues": 345,
+        "shopSales": 45.4,
+        "rentals": 72
+      },
+      "expenseByCategory": {
+        "wagesDayLabor": 90,
+        "utilities": 45,
+        "costOfGoods": 18
+      },
+      "entryCount": 7,
+      "day": 3,
+      "customersServed": 35,
+      "teeTimeUtilization": 0,
+      "teeTimeBookedUtilization": 0,
+      "averageTransaction": 9.08,
+      "missedSales": 15,
+      "noShowImpact": {
+        "count": 0,
+        "feesRecovered": 0
+      },
+      "cleaningCondition": 14.5,
+      "courseCondition": 45,
+      "propertyCondition": 35.5,
+      "reputation": 32.6,
+      "reputationCategories": {
+        "cleanliness": 28,
+        "retail": 28.8,
+        "course": 36,
+        "service": 35.8
+      },
+      "reputationChange": 0.8,
+      "propertyValue": 59500,
+      "propertyValueChange": 2000,
+      "reasons": [
+        "Largest revenue source: Walk-in green fees (960).",
+        "Largest operating cost: Day labour (90).",
+        "15 intended purchases were missed through stock or price pressure.",
+        "Clubhouse furnishing remains weak at 0.",
+        "Safety & utility readiness remains weak at 4.",
+        "Landscaping remains weak at 4.",
+        "Course quality and member satisfaction supported the club's standing. (+1 reputation).",
+        "20 shoppers experienced clubhouse cleanliness at 16. (-0.1 reputation).",
+        "5 purchases completed; 15 stockout and 0 price rejections hurt conversion. (-0.2 reputation)."
+      ]
+    },
+    {
+      "fromDay": 4,
+      "toDay": 4,
+      "grossRevenue": 1437,
+      "costOfGoodsSold": 7.5,
+      "operatingExpenses": 135,
+      "netProfit": 1294.5,
+      "cashChange": 1302,
+      "inventoryPurchases": 0,
+      "restorationInvestment": 0,
+      "revenueByCategory": {
+        "walkIns": 992,
+        "dues": 355,
+        "shopSales": 18,
+        "rentals": 72
+      },
+      "expenseByCategory": {
+        "wagesDayLabor": 90,
+        "utilities": 45,
+        "costOfGoods": 7.5
+      },
+      "entryCount": 7,
+      "day": 4,
+      "customersServed": 34,
+      "teeTimeUtilization": 0,
+      "teeTimeBookedUtilization": 0,
+      "averageTransaction": 6,
+      "missedSales": 16,
+      "noShowImpact": {
+        "count": 0,
+        "feesRecovered": 0
+      },
+      "cleaningCondition": 14.5,
+      "courseCondition": 46,
+      "propertyCondition": 35.3,
+      "reputation": 33.3,
+      "reputationCategories": {
+        "cleanliness": 27.5,
+        "retail": 28,
+        "course": 37.9,
+        "service": 37.8
+      },
+      "reputationChange": 0.7,
+      "propertyValue": 62000,
+      "propertyValueChange": 2500,
+      "reasons": [
+        "Largest revenue source: Walk-in green fees (992).",
+        "Largest operating cost: Day labour (90).",
+        "16 intended purchases were missed through stock or price pressure.",
+        "Clubhouse furnishing remains weak at 0.",
+        "Safety & utility readiness remains weak at 4.",
+        "Landscaping remains weak at 4.",
+        "Course quality and member satisfaction supported the club's standing. (+1 reputation).",
+        "June Dunlap joined as a Fairway Card. (+0 reputation).",
+        "20 shoppers experienced clubhouse cleanliness at 16. (-0.1 reputation)."
+      ]
+    },
+    {
+      "fromDay": 5,
+      "toDay": 5,
+      "grossRevenue": 564.5,
+      "costOfGoodsSold": 0,
+      "operatingExpenses": 135,
+      "netProfit": 429.5,
+      "cashChange": 429.5,
+      "inventoryPurchases": 0,
+      "restorationInvestment": 0,
+      "revenueByCategory": {
+        "walkIns": 192,
+        "dues": 372.5
+      },
+      "expenseByCategory": {
+        "wagesDayLabor": 90,
+        "utilities": 45
+      },
+      "entryCount": 4,
+      "day": 5,
+      "customersServed": 6,
+      "teeTimeUtilization": 0,
+      "teeTimeBookedUtilization": 0,
+      "averageTransaction": 0,
+      "missedSales": 9,
+      "noShowImpact": {
+        "count": 0,
+        "feesRecovered": 0
+      },
+      "cleaningCondition": 14.5,
+      "courseCondition": 43,
+      "propertyCondition": 34.5,
+      "reputation": 34,
+      "reputationCategories": {
+        "cleanliness": 27,
+        "retail": 26.9,
+        "course": 39.8,
+        "service": 39.8
+      },
+      "reputationChange": 0.7,
+      "propertyValue": 62500,
+      "propertyValueChange": 500,
+      "reasons": [
+        "Largest revenue source: Membership dues (372.5).",
+        "Largest operating cost: Day labour (90).",
+        "9 intended purchases were missed through stock or price pressure.",
+        "Clubhouse furnishing remains weak at 0.",
+        "Safety & utility readiness remains weak at 4.",
+        "Landscaping remains weak at 4.",
+        "Course quality and member satisfaction supported the club's standing. (+1 reputation).",
+        "Reggie Grady joined as a Club Member. (+0.1 reputation).",
+        "19 shoppers experienced clubhouse cleanliness at 16. (-0.1 reputation)."
+      ]
+    },
+    {
+      "fromDay": 6,
+      "toDay": 6,
+      "grossRevenue": 1399.5,
+      "costOfGoodsSold": 0,
+      "operatingExpenses": 641,
+      "netProfit": 758.5,
+      "cashChange": 758.5,
+      "inventoryPurchases": 0,
+      "restorationInvestment": 0,
+      "revenueByCategory": {
+        "walkIns": 928,
+        "dues": 417.5,
+        "rentals": 54
+      },
+      "expenseByCategory": {
+        "wagesDayLabor": 90,
+        "utilities": 45,
+        "rent": 506
+      },
+      "entryCount": 6,
+      "day": 6,
+      "customersServed": 29,
+      "teeTimeUtilization": 0,
+      "teeTimeBookedUtilization": 0,
+      "averageTransaction": 0,
+      "missedSales": 18,
+      "noShowImpact": {
+        "count": 0,
+        "feesRecovered": 0
+      },
+      "cleaningCondition": 14.5,
+      "courseCondition": 41,
+      "propertyCondition": 34,
+      "reputation": 34.8,
+      "reputationCategories": {
+        "cleanliness": 26.5,
+        "retail": 25.8,
+        "course": 41.7,
+        "service": 42.2
+      },
+      "reputationChange": 0.8,
+      "propertyValue": 64500,
+      "propertyValueChange": 2000,
+      "reasons": [
+        "Largest revenue source: Walk-in green fees (928).",
+        "Largest operating cost: Property holding cost (506).",
+        "18 intended purchases were missed through stock or price pressure.",
+        "Clubhouse furnishing remains weak at 0.",
+        "Safety & utility readiness remains weak at 4.",
+        "Landscaping remains weak at 4.",
+        "Course quality and member satisfaction supported the club's standing. (+1 reputation).",
+        "Sadie Pratt joined as a Club Member. (+0.1 reputation).",
+        "Yolanda Vance joined as a Fairway Card. (+0 reputation)."
+      ]
+    },
+    {
+      "fromDay": 7,
+      "toDay": 7,
+      "grossRevenue": 1367.5,
+      "costOfGoodsSold": 0,
+      "operatingExpenses": 179.1,
+      "netProfit": 1188.4,
+      "cashChange": 1188.4,
+      "inventoryPurchases": 0,
+      "restorationInvestment": 0,
+      "revenueByCategory": {
+        "walkIns": 896,
+        "dues": 417.5,
+        "rentals": 54
+      },
+      "expenseByCategory": {
+        "wagesDayLabor": 90,
+        "fertilizer": 44.1,
+        "utilities": 45
+      },
+      "entryCount": 6,
+      "day": 7,
+      "customersServed": 28,
+      "teeTimeUtilization": 0,
+      "teeTimeBookedUtilization": 0,
+      "averageTransaction": 0,
+      "missedSales": 20,
+      "noShowImpact": {
+        "count": 0,
+        "feesRecovered": 0
+      },
+      "cleaningCondition": 14.5,
+      "courseCondition": 38,
+      "propertyCondition": 33.3,
+      "reputation": 35.5,
+      "reputationCategories": {
+        "cleanliness": 26,
+        "retail": 24.7,
+        "course": 43.6,
+        "service": 44
+      },
+      "reputationChange": 0.7,
+      "propertyValue": 66000,
+      "propertyValueChange": 1500,
+      "reasons": [
+        "Largest revenue source: Walk-in green fees (896).",
+        "Largest operating cost: Day labour (90).",
+        "20 intended purchases were missed through stock or price pressure.",
+        "Clubhouse furnishing remains weak at 0.",
+        "Safety & utility readiness remains weak at 4.",
+        "Landscaping remains weak at 4.",
+        "Course quality and member satisfaction supported the club's standing. (+1 reputation).",
+        "18 shoppers experienced clubhouse cleanliness at 16. (-0.1 reputation).",
+        "0 purchases completed; 18 stockout and 0 price rejections hurt conversion. (-0.3 reputation)."
+      ]
+    }
+  ],
+  "reconciliation": [
+    {
+      "day": 1,
+      "profitFormula": 427.5,
+      "reportedNetProfit": 427.5,
+      "cashChange": 454,
+      "formulaMatches": true
+    },
+    {
+      "day": 2,
+      "profitFormula": 1289.5,
+      "reportedNetProfit": 1289.5,
+      "cashChange": 1327,
+      "formulaMatches": true
+    },
+    {
+      "day": 3,
+      "profitFormula": 1269.4,
+      "reportedNetProfit": 1269.4,
+      "cashChange": 1287.4,
+      "formulaMatches": true
+    },
+    {
+      "day": 4,
+      "profitFormula": 1294.5,
+      "reportedNetProfit": 1294.5,
+      "cashChange": 1302,
+      "formulaMatches": true
+    },
+    {
+      "day": 5,
+      "profitFormula": 429.5,
+      "reportedNetProfit": 429.5,
+      "cashChange": 429.5,
+      "formulaMatches": true
+    },
+    {
+      "day": 6,
+      "profitFormula": 758.5,
+      "reportedNetProfit": 758.5,
+      "cashChange": 758.5,
+      "formulaMatches": true
+    },
+    {
+      "day": 7,
+      "profitFormula": 1188.4,
+      "reportedNetProfit": 1188.4,
+      "cashChange": 1188.4,
+      "formulaMatches": true
+    }
+  ],
+  "period": {
+    "fromDay": 1,
+    "toDay": 7,
+    "grossRevenue": 8241.9,
+    "costOfGoodsSold": 89.5,
+    "operatingExpenses": 1495.1,
+    "netProfit": 6657.3,
+    "cashChange": 6746.8,
+    "inventoryPurchases": 0,
+    "restorationInvestment": 0,
+    "revenueByCategory": {
+      "walkIns": 5120,
+      "dues": 2587.5,
+      "shopSales": 210.4,
+      "rentals": 324
+    },
+    "expenseByCategory": {
+      "wagesDayLabor": 630,
+      "utilities": 315,
+      "costOfGoods": 89.5,
+      "rent": 506,
+      "fertilizer": 44.1
+    },
+    "entryCount": 43
+  }
+}

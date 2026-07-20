@@ -1,0 +1,148 @@
+{
+  "definitions": [
+    {
+      "id": "greensMowerII",
+      "name": "Triplex greens mowers",
+      "blurb": "Cuts greens crew time by 40%.",
+      "visibleResult": "Triplex mowing equipment is added to the maintenance operation and named in the morning crew report.",
+      "gameplayEffect": "Greens mowing uses 40% fewer crew hours.",
+      "valueEffect": 3500,
+      "cost": 7000,
+      "prestige": 15,
+      "cat": "turf",
+      "requirement": "Prestige 15"
+    },
+    {
+      "id": "fairwayMowerII",
+      "name": "Lightweight fairway units",
+      "blurb": "Cuts fairway crew time by 40%.",
+      "visibleResult": "Lightweight fairway units join the maintenance fleet.",
+      "gameplayEffect": "Fairway mowing uses 40% fewer crew hours.",
+      "valueEffect": 4500,
+      "cost": 9000,
+      "prestige": 20,
+      "cat": "turf",
+      "requirement": "Prestige 20"
+    },
+    {
+      "id": "aerator",
+      "name": "Deep-tine aerator",
+      "blurb": "Halves aeration cost; turf sheds wear faster.",
+      "visibleResult": "A deep-tine aerator becomes part of the course-equipment condition score.",
+      "gameplayEffect": "Aeration costs 50% less and daily wear recovery improves.",
+      "valueEffect": 3000,
+      "cost": 6000,
+      "prestige": 15,
+      "cat": "turf",
+      "requirement": "Prestige 15"
+    },
+    {
+      "id": "sprayRig",
+      "name": "Precision spray rig",
+      "blurb": "Fungicide applications cost 40% less.",
+      "visibleResult": "The precision rig is listed with owned maintenance equipment.",
+      "gameplayEffect": "Fungicide applications cost 40% less.",
+      "valueEffect": 4000,
+      "cost": 8000,
+      "prestige": 25,
+      "cat": "turf",
+      "requirement": "Prestige 25"
+    },
+    {
+      "id": "smartIrrigation",
+      "name": "Smart irrigation controllers",
+      "blurb": "Water bills drop 30%.",
+      "visibleResult": "Irrigation condition shows smart controllers installed.",
+      "gameplayEffect": "Applied irrigation water costs 30% less.",
+      "valueEffect": 6500,
+      "cost": 12000,
+      "prestige": 30,
+      "cat": "turf",
+      "requirement": "Prestige 30"
+    },
+    {
+      "id": "premiumSupplier",
+      "name": "Premium supplier account",
+      "blurb": "Unlocks tier-3 lines in the pro shop.",
+      "visibleResult": "Premium merchandise appears in the supplier catalog and can be stocked on real shelves.",
+      "gameplayEffect": "Unlocks tier-3 pro-shop merchandise.",
+      "valueEffect": 2500,
+      "cost": 5000,
+      "prestige": 35,
+      "cat": "shop",
+      "requirement": "Prestige 35"
+    },
+    {
+      "id": "reciprocalClubs",
+      "name": "Reciprocal club network",
+      "blurb": "Partner clubs send visitors; premium members love it.",
+      "visibleResult": "Reciprocal guest revenue and visits appear in the ledger and summaries.",
+      "gameplayEffect": "Adds partner-club visitor revenue tied to the membership book.",
+      "valueEffect": 3000,
+      "cost": 6000,
+      "prestige": 40,
+      "cat": "membership",
+      "requirement": "Prestige 40"
+    },
+    {
+      "id": "corporatePartners",
+      "name": "Corporate partnership desk",
+      "blurb": "Outing offers pay 35% more.",
+      "visibleResult": "Corporate outing offers identify the partnership premium.",
+      "gameplayEffect": "Accepted corporate outings pay 35% more.",
+      "valueEffect": 5000,
+      "cost": 10000,
+      "prestige": 45,
+      "cat": "membership",
+      "requirement": "Prestige 45"
+    },
+    {
+      "id": "tournamentHost",
+      "name": "Tournament operations",
+      "blurb": "Scoreboards, ropes, a starter who means it. Enables hosting events.",
+      "visibleResult": "Tournament operations and event scheduling become available.",
+      "gameplayEffect": "Unlocks staged tournaments with real condition requirements and ledger outcomes.",
+      "valueEffect": 9000,
+      "cost": 15000,
+      "prestige": 50,
+      "cat": "events",
+      "requirement": "Prestige 50"
+    }
+  ],
+  "purchasedEvidence": {
+    "id": "greensMowerII",
+    "persisted": true,
+    "ledgerEntries": [
+      {
+        "id": "le:willow-creek:upgrade:willow-creek:greensMowerII",
+        "idempotencyKey": "upgrade:willow-creek:greensMowerII",
+        "timestamp": 11880,
+        "day": 8,
+        "direction": "expense",
+        "category": "equipment",
+        "lineKey": "works",
+        "accountingClass": "capital",
+        "description": "Upgrade purchase: Triplex greens mowers",
+        "amount": 7000,
+        "cashImpact": -7000,
+        "profitImpact": 0,
+        "relatedId": "greensMowerII",
+        "propertyId": "willow-creek",
+        "source": "upgrade",
+        "units": null,
+        "customerCount": null,
+        "metadata": {}
+      }
+    ],
+    "duplicatePurchase": {
+      "ok": false,
+      "reason": "Already owned."
+    }
+  },
+  "physicalExistingUpgradeExamples": [
+    "Pressure washer models are separate in-world equipment with different power and spray radius.",
+    "Vacuum ownership begins when its physical delivery box is opened.",
+    "Premium supplier merchandise appears as real products on the existing shop shelves.",
+    "Furniture and lighting are delivered and placed into existing physical spots."
+  ]
+}

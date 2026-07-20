@@ -371,7 +371,6 @@ const lines = [
   '## Assumptions',
   '',
   ...artifact.assumptions.map((assumption) => `- ${assumption}`),
-  '',
 ];
 
 fs.mkdirSync(outDir, { recursive: true });
