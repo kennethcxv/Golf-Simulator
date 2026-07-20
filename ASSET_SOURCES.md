@@ -81,9 +81,9 @@ three r185 (qa/assets-inventory-sheet.png); single mesh + baked material each,
 unit-normalized (scene-side scaling applied per use).
 
 In use (vendor/models/ name ← Assets source):
-- tractor_red.glb ← red+tractor — the restored drivable tractor
-- tractor_broken.glb ← tractor — the broken starter (dressed down in code)
-- mower_deck.glb ← red+agricultural+machine — hitched behind the tractor
+- tractor_red.glb ← red+tractor — legacy fallback for the restored tractor
+- tractor_broken.glb ← tractor — retained legacy reference; superseded in-game
+- mower_deck.glb ← red+agricultural+machine — legacy mower fallback
 - shed.glb / workbench.glb / tool_chest.glb / gas_can.glb / belt.glb — the
   maintenance-yard repair sequence
 - leaves_pile.glb ← fallen+leaves+pile — yard junk chore + course litter piles
@@ -106,6 +106,27 @@ vendor/models/tractor.glb is an original bpy-scripted fallback (project-owned).
 The rigged-character GLB attempt failed at the Blender 5.1 → three r185 skin
 boundary and was deleted; characters are procedural three.js figures
 (src/render3d/characterAsset.js), no external assets.
+
+## Production grounds tractor (2026-07-19)
+
+The active tractor and rear finish mower are **original project-authored geometry**.
+No downloaded, third-party, Tripo, Meshy, or Imagegen geometry or textures are used.
+They are project-owned and reproducible with Blender 5.1 from:
+
+    "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" --background \
+        --factory-startup --python tools/blender/build_tractor.py
+
+| File | Purpose | Runtime geometry |
+|---|---|---:|
+| `vendor/models/tractor_production.glb` | Compact open-station grounds tractor with named steering, wheel, hood, and hitch pivots | 12,068 tris / 59 meshes |
+| `vendor/models/mower_deck_production.glb` | Separate rear finish mower with deck and blade pivots | 1,268 tris / 15 meshes |
+| `Assets/Blender/tractor_production.blend` | Editable source scene with the implement mounted at its real hitch | source only |
+
+The tractor uses believable 2.02 × 3.47 × 2.22 m dimensions, a 1.85 m
+wheelbase, applied mesh transforms, explicit `COL_` simplified collision meshes,
+and the project's cream/green/sage/charcoal/walnut/brass material language. The
+Blender MCP bridge was used to inspect the generated source hierarchy and pivots;
+the repeatable script remains the authoritative build path.
 
 ## Audio (2026-07-13 production pass)
 

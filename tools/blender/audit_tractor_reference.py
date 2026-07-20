@@ -15,6 +15,8 @@ from mathutils import Vector
 
 ROOT = Path(__file__).resolve().parents[2]
 ASSETS = (
+    ROOT / "vendor" / "models" / "tractor_production.glb",
+    ROOT / "vendor" / "models" / "mower_deck_production.glb",
     ROOT / "vendor" / "models" / "tractor_red.glb",
     ROOT / "vendor" / "models" / "tractor.glb",
     ROOT / "vendor" / "models" / "tractor_broken.glb",

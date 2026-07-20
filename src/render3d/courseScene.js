@@ -22,7 +22,9 @@ import { clamp } from '../core/utils.js';
 import { resolveOverlaps, createStuckMonitor, createSafeTrail, nearestFree } from '../core/unstick.js';
 import { ownedWasher } from '../sim/washing.js';
 import { makeFpHands, GRIPS } from './fpHands.js';
-import { tractorStep, repairTractor, tractorRemaining, STEP_LABEL } from '../sim/tractor.js';
+import {
+  tractorStep, repairTractor, tractorRemaining, recordTractorUse, STEP_LABEL,
+} from '../sim/tractor.js';
 import { clearLitter, fixTeeSign, PROPS } from '../sim/props.js';
 import { conditionRating } from '../sim/turf.js';
 import { makeCameraRig } from './cameraRig.js';
@@ -1492,6 +1494,12 @@ export function makeCourseScene(canvas, state) {
     radius: 1.15, // real tractor footprint (deck included, forgivingly)
   };
   let cartMesh = null;
+  let tractorModel = null;
+  let wheelRoll = 0;
+  const tractorRig = {
+    wheels: [], steer: [], steeringWheel: null, steeringBaseZ: 0,
+    hitch: null, mowerPivot: null, mowerBlades: [], modelBaseY: 0,
+  };
 
   function buildCartMesh() {
     // STYLE GUIDE §1/§5 equipment: grounds-crew utility language — green body,
@@ -1535,6 +1543,26 @@ export function makeCourseScene(canvas, state) {
     cartMesh.visible = !cartHidden;
     cartMesh.position.set(cart.x, heightAt(cart.x, cart.z), cart.z);
     cartMesh.rotation.y = cart.yaw;
+  }
+
+  function animateTractor(dt, travel, throttle, steer, cutting) {
+    if (travel > 0.0001) wheelRoll -= Math.sign(throttle || 1) * travel / 0.47;
+    for (const part of tractorRig.wheels) part.node.rotation.x = part.baseX + wheelRoll;
+    const steerAngle = steer * 0.38;
+    for (const part of tractorRig.steer) part.node.rotation.y = part.baseY + steerAngle;
+    if (tractorRig.steeringWheel) {
+      tractorRig.steeringWheel.rotation.z = tractorRig.steeringBaseZ - steer * 0.62;
+    }
+    if (tractorModel) {
+      tractorModel.position.y = tractorRig.modelBaseY
+        + (cart.mounted ? Math.sin(time * 18) * 0.006 : 0);
+    }
+    if (tractorRig.mowerPivot) {
+      tractorRig.mowerPivot.rotation.x = cutting ? Math.sin(time * 24) * 0.018 : 0;
+    }
+    for (const blade of tractorRig.mowerBlades) {
+      if (cutting) blade.rotation.y += dt * 28;
+    }
   }
 
   function parkCartAtClubhouse() {
@@ -1864,7 +1892,7 @@ export function makeCourseScene(canvas, state) {
 
   function walkFindFocus() {
     if (cart.mounted) {
-      const cutting = state.tractor && state.tractor.repaired;
+      const cutting = state.tractor?.repaired && state.tractor?.attachment === 'mower';
       walkFocus = { kind: 'cart', label: cutting ? 'Tractor — the deck cuts as you drive · [E] park here' : 'Tractor — [E] park here' };
       return;
     }
@@ -2125,24 +2153,24 @@ export function makeCourseScene(canvas, state) {
       cart.z = walk.z;
       cart.yaw = walk.yaw;
       placeCartMesh();
+      let tractorCutting = false;
 
       // the hitched deck CUTS: cells under it (2.5 yd behind the seat, the
       // deck's width) mow to the zone's ideal height through the same hook
       // family the hose uses — real sim writes, stripes as the payoff
-      if (throttle && walkHooks.mowAt && state.tractor && state.tractor.repaired) {
+      if (throttle && walkHooks.mowAt && state.tractor?.repaired && state.tractor?.attachment === 'mower') {
         const dxT = walk.x + Math.sin(walk.yaw) * 2.5;
         const dzT = walk.z + Math.cos(walk.yaw) * 2.5;
         const rx = Math.cos(walk.yaw);
         const rz = -Math.sin(walk.yaw);
-        let cut = false;
         for (const off of [-1.1, 0, 1.1]) {
           const mx = dxT + rx * off;
           const mz = dzT + rz * off;
           const cx = Math.floor((mx + worldW / 2) / CELL_YD);
           const cy = Math.floor((mz + worldH / 2) / CELL_YD);
-          if (cx >= 0 && cy >= 0 && cx < W && cy < H && walkHooks.mowAt(cx, cy)) cut = true;
+          if (cx >= 0 && cy >= 0 && cx < W && cy < H && walkHooks.mowAt(cx, cy)) tractorCutting = true;
         }
-        if (cut) {
+        if (tractorCutting) {
           mowTexClock += dt;
           if (mowTexClock >= 0.25) {
             mowTexClock = 0;
@@ -2151,12 +2179,17 @@ export function makeCourseScene(canvas, state) {
         } else {
           mowTexClock = 0.25; // next cut repaints immediately
         }
-        updateClippings(dt, dxT, heightAt(dxT, dzT), dzT, cut);
-        if (mowerMesh) mowerMesh.position.y = 0.02 + (cut ? Math.sin(time * 42) * 0.02 : 0);
+        updateClippings(dt, dxT, heightAt(dxT, dzT), dzT, tractorCutting);
       } else {
         updateClippings(dt, walk.x, heightAt(walk.x, walk.z), walk.z, false);
       }
+      const travel = Math.hypot(walk.x - px0, walk.z - pz0);
+      animateTractor(dt, travel, throttle, steer, tractorCutting);
+      recordTractorUse(state, {
+        x: cart.x, z: cart.z, yaw: cart.yaw, seconds: dt, mowing: tractorCutting,
+      });
     } else {
+      animateTractor(dt, 0, 0, 0, false);
       updateClippings(dt, walk.x, 0, walk.z, false); // clippings settle after you hop off
       const run = walkHeld.has('shift') ? walk.runMult : 1;
       // a full armful or a heavy carton slows you down — sim/stocking says by how much
@@ -2574,44 +2607,106 @@ export function makeCourseScene(canvas, state) {
   scene.add(cartMesh);
   cartHidden = !!(state.tractor && !state.tractor.repaired); // earn it first
 
-  // the mower deck rides behind the restored tractor (owner-supplied implement)
+  // The production mower is a separate authored implement mounted to the tractor's
+  // named hitch. Keeping the roots separate lets the deck and blades animate without
+  // making the tractor asset itself disposable or save-state aware.
   let mowerMesh = null;
-  function attachMower() {
-    if (!cartMesh) return;
-    if (mowerMesh) {
-      if (mowerMesh.parent !== cartMesh) cartMesh.add(mowerMesh);
-      return;
+  let mowerProduction = false;
+
+  function mountMower() {
+    if (!cartMesh || !mowerMesh) return;
+    const parent = tractorRig.hitch || cartMesh;
+    parent.add(mowerMesh);
+    if (mowerProduction) {
+      mowerMesh.scale.setScalar(1);
+      mowerMesh.position.set(0, tractorRig.hitch ? 0 : 0.49, tractorRig.hitch ? 0 : 1.72);
+      mowerMesh.rotation.set(0, 0, 0);
+    } else {
+      mowerMesh.scale.setScalar(2.6);
+      mowerMesh.rotation.set(0, Math.PI / 2, 0);
+      mowerMesh.position.set(0, 0.02, 2.45);
     }
-    new GLTFLoader().load('vendor/models/mower_deck.glb', (g) => {
-      const m = g.scene;
-      m.scale.setScalar(2.6);
-      m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-      m.rotation.y = Math.PI / 2; // deck width across the tractor's tail
-      m.position.set(0, 0.02, 2.45);
-      mowerMesh = m;
-      cartMesh.add(mowerMesh);
-    }, undefined, () => {});
   }
 
-  // the real tractor: owner-supplied model first (Assets/, matches the Designs
-  // references), the bpy-scripted one as fallback, primitives if offline
-  function adoptTractor(m, scale, flip = false) {
+  function configureMower(m, production) {
+    mowerProduction = production;
+    tractorRig.mowerPivot = production ? m.getObjectByName('MowerDeck_Pivot') : null;
+    tractorRig.mowerBlades = [];
+    m.traverse((o) => {
+      if (o.name.startsWith('COL_')) o.visible = false;
+      if (o.isMesh) o.castShadow = true;
+      if (production && o.name.startsWith('BladeDisc_')) tractorRig.mowerBlades.push(o);
+    });
+    mowerMesh = m;
+    mountMower();
+  }
+
+  function attachMower() {
+    if (!cartMesh || state.tractor?.attachment !== 'mower') return;
+    if (mowerMesh) {
+      mountMower();
+      return;
+    }
+    new GLTFLoader().load('vendor/models/mower_deck_production.glb',
+      (g) => configureMower(g.scene, true),
+      undefined,
+      () => new GLTFLoader().load('vendor/models/mower_deck.glb',
+        (g) => configureMower(g.scene, false), undefined, () => {}));
+  }
+
+  function captureTractorRig(m) {
+    tractorModel = m;
+    tractorRig.wheels = [];
+    tractorRig.steer = [];
+    tractorRig.steeringWheel = null;
+    tractorRig.hitch = null;
+    m.traverse((o) => {
+      if (o.name.startsWith('COL_')) o.visible = false;
+      if (/^Wheel_[FR][LR]$/.test(o.name)) tractorRig.wheels.push({ node: o, baseX: o.rotation.x });
+      if (/^Steer_F[LR]$/.test(o.name)) tractorRig.steer.push({ node: o, baseY: o.rotation.y });
+      if (o.name === 'SteeringWheel') tractorRig.steeringWheel = o;
+      if (o.name === 'Mower_Hitch') tractorRig.hitch = o;
+    });
+    tractorRig.steeringBaseZ = tractorRig.steeringWheel?.rotation.z || 0;
+    tractorRig.modelBaseY = m.position.y;
+    if (mowerMesh) mountMower();
+  }
+
+  // Original project-authored production machine first, legacy supplied assets as
+  // fallbacks, and the primitive placeholder only if all network loads fail.
+  function adoptTractor(m, scale, { flip = false, production = false } = {}) {
     m.scale.setScalar(scale);
-    m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    m.traverse((o) => {
+      if (o.name.startsWith('COL_')) o.visible = false;
+      if (o.isMesh) o.castShadow = true;
+    });
     const wrap = new THREE.Group();
-    m.position.y = -0.1; // settle the tires into the turf on slopes
+    m.position.y = production ? -0.02 : -0.1; // settle the tires into the turf on slopes
     if (flip) m.rotation.y = Math.PI; // model authored front-toward-viewer (+Z)
     wrap.add(m);
     scene.remove(cartMesh);
     cartMesh = wrap;
     scene.add(cartMesh);
-    if (mowerMesh) cartMesh.add(mowerMesh); // survive the mesh swap
+    if (production) captureTractorRig(m);
+    else {
+      tractorModel = null;
+      tractorRig.wheels = [];
+      tractorRig.steer = [];
+      tractorRig.steeringWheel = null;
+      tractorRig.hitch = null;
+      if (mowerMesh) mountMower();
+    }
     placeCartMesh();
+    recordTractorUse(state, { x: cart.x, z: cart.z, yaw: cart.yaw });
   }
-  new GLTFLoader().load('vendor/models/tractor_red.glb',
-    (g) => adoptTractor(g.scene, 3.6, true),
+  new GLTFLoader().load('vendor/models/tractor_production.glb',
+    (g) => adoptTractor(g.scene, 1, { production: true }),
     undefined,
-    () => new GLTFLoader().load('vendor/models/tractor.glb', (g) => adoptTractor(g.scene, 1), undefined, () => {}));
+    () => new GLTFLoader().load('vendor/models/tractor_red.glb',
+      (g) => adoptTractor(g.scene, 3.6, { flip: true }),
+      undefined,
+      () => new GLTFLoader().load('vendor/models/tractor.glb',
+        (g) => adoptTractor(g.scene, 1), undefined, () => {})));
 
   // shared prop loader for the yard/entrance dressing
   const putModel = (url, scale, x, z, ry, onLoaded) => {
@@ -2650,13 +2745,14 @@ export function makeCourseScene(canvas, state) {
 
     // the broken tractor: same silhouette, visibly let go — dulled, rusted, sagging
     let brokenGroup = null;
-    const brokenCollider = { x: yard.x, z: yard.z, r: 1.5 };
+    const brokenCollider = { x: yard.x, z: yard.z, r: 1.25 };
     propColliders.push(brokenCollider);
-    putModel('vendor/models/tractor_broken.glb', 3.55, yard.x, yard.z, yard.yaw + Math.PI / 2, (m) => {
+    putModel('vendor/models/tractor_production.glb', 1, yard.x, yard.z, yard.yaw, (m) => {
       brokenGroup = m;
       m.rotation.z = 0.045; // flat rear tire sag
       m.position.y -= 0.14;
       m.traverse((o) => {
+        if (o.name.startsWith('COL_')) o.visible = false;
         if (o.isMesh && o.material) {
           o.material = o.material.clone();
           if (o.material.color) {
@@ -2861,12 +2957,21 @@ export function makeCourseScene(canvas, state) {
   }
   buildCourseProps();
   refreshWalkColliders(); // parking needs to see the world
-  if (yardHome) {
+  const savedTractor = state.tractor?.repaired ? state.tractor.location : null;
+  if (savedTractor && [savedTractor.x, savedTractor.z, savedTractor.yaw].every(Number.isFinite)) {
+    cart.x = savedTractor.x;
+    cart.z = savedTractor.z;
+    cart.yaw = savedTractor.yaw;
+    placeCartMesh();
+  } else if (yardHome) {
     // the tractor lives at the yard, broken or not
     cart.x = yardHome.x;
     cart.z = yardHome.z;
     cart.yaw = yardHome.yaw;
     placeCartMesh();
+    if (state.tractor?.repaired) {
+      recordTractorUse(state, { x: cart.x, z: cart.z, yaw: cart.yaw });
+    }
   } else {
     parkCartAtClubhouse();
   }
