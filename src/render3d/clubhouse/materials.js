@@ -734,6 +734,11 @@ export function makeClubhouseMaterials(clubName) {
       color: 0xdcebf2, roughness: 0.04, metalness: 0.0,
       transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false,
     }),
+    displayGlass: new THREE.MeshPhysicalMaterial({
+      color: 0xeaf5f1, roughness: 0.08, metalness: 0.0,
+      transparent: true, opacity: 0.075, transmission: 0.12,
+      side: THREE.DoubleSide, depthWrite: false,
+    }),
 
     // --- merchandise slots (merch.js remaps the GLB material names onto these,
     //     so every polo in the shop shares ONE material per colour) ---

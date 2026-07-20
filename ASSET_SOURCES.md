@@ -159,7 +159,7 @@ binaries being unexplainable artefacts.
 
 ## Pro-shop fixture pack (2026-07-19)
 
-Eleven GLBs are authored from scratch in this repository by
+Sixteen GLBs are authored from scratch in this repository by
 `tools/blender/build_shop_fixtures.py`. They are project-owned: no third-party
 downloads, external textures, generated assets, or generation credits were used.
 
@@ -168,6 +168,11 @@ downloads, external textures, generated assets, or generation credits were used.
 | `club_wall_bay.glb` | Two-row club bay with sole troughs and shaft/grip clips |
 | `pegboard_wall.glb` | Carded-accessory wall with an authored hook grid |
 | `apparel_wall.glb` | Folded-goods boards and a short outerwear rail |
+| `ball_wall.glb` | Three-board ball wall with authored product-lane dividers |
+| `hat_wall.glb` | Eight-facing wall bay that keeps headwear and shoppers off the same floor footprint |
+| `shoe_wall.glb` | Three-board shoe wall with an integrated shallow try-on ledge |
+| `basket_station.glb` | Open scorecard stand with two visible nested basket positions |
+| `demo_club_rack.glb` | Three-putter trial rack parked beside the walkable demo mat |
 | `feature_table.glb` | Low nested oak new-arrivals/apparel island |
 | `fitting_room.glb` | Three-sided fitting room, curtain, mirror, and bench |
 | `drinks_fridge.glb` | Glass-front compact cold case |
@@ -177,7 +182,7 @@ downloads, external textures, generated assets, or generation credits were used.
 | `putting_demo.glb` | Low felt demo mat, cup, aim marks, and backstop |
 | `bag_empty.glb` | Premium stand-bag body without a sightline-blocking club fan |
 
-Rebuild all eleven with:
+Rebuild all sixteen with:
 
     "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" --background \
         --factory-startup --python tools/blender/build_shop_fixtures.py

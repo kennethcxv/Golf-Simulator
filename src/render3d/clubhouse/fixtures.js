@@ -669,6 +669,27 @@ export function buildFixtures(B) {
     });
   }
 
+  function ballwallUnit(f) {
+    return assetUnit(f, 'ball_wall', {
+      w: 3.2, d: 0.7, sign: f.sign || f.title, signY: 2.18, signZ: 0.36,
+      signW: 1.35,
+    });
+  }
+
+  function hatwallUnit(f) {
+    return assetUnit(f, 'hat_wall', {
+      w: 1.16, d: 0.60, sign: f.title, signY: 1.98, signZ: 0.31,
+      signW: 0.76, signH: 0.14,
+    });
+  }
+
+  function shoewallUnit(f) {
+    return assetUnit(f, 'shoe_wall', {
+      w: 2.7, d: 0.8, sign: f.title, signY: 2.04, signZ: 0.41,
+      signW: 1.10, signH: 0.17,
+    });
+  }
+
   function apparelwallUnit(f) {
     return assetUnit(f, 'apparel_wall', {
       w: 3.2, d: 0.7, sign: f.sign || f.title, signY: 2.18, signZ: 0.29,
@@ -679,7 +700,7 @@ export function buildFixtures(B) {
   function fittingroomUnit(f) {
     return assetUnit(f, 'fitting_room', {
       w: 2.2, d: 1.7, sign: f.title, signY: 2.30, signZ: 0.86,
-      signW: 1.1, signH: 0.20,
+      signW: 0.88, signH: 0.16,
     });
   }
 
@@ -692,14 +713,14 @@ export function buildFixtures(B) {
 
   function snackrackUnit(f) {
     return assetUnit(f, 'snack_rack', {
-      w: 1.5, d: 0.76, sign: f.title, signY: 1.40, signZ: 0.39,
-      signW: 0.94, signH: 0.18,
+      w: 1.5, d: 0.76, sign: f.title, signY: 1.37, signZ: 0.39,
+      signW: 0.72, signH: 0.14,
     });
   }
 
   function serviceUnit(f) {
-    return assetUnit(f, 'service_station', {
-      w: 0.96, d: 0.76, sign: 'Scorecards / Membership', signY: 1.17, signZ: 0.31,
+    return assetUnit(f, 'basket_station', {
+      w: 0.96, d: 0.76, sign: 'Scorecards / Baskets', signY: 1.30, signZ: 0.39,
       signW: 0.78, signH: 0.20,
     });
   }
@@ -715,12 +736,19 @@ export function buildFixtures(B) {
     return assetUnit(f, 'putting_demo', { w: 4.0, d: 1.24 });
   }
 
+  function demoRackUnit(f) {
+    return assetUnit(f, 'demo_club_rack', {
+      w: 0.60, d: 0.48, sign: 'Try a putter', signY: 1.18, signZ: 0.25,
+      signW: 0.58, signH: 0.16, charcoal: true, priceY: 0,
+    });
+  }
+
   const FIXTURE_BUILDERS = {
-    shelf: shelfUnit, pegboard: pegboardUnit, apparelwall: apparelwallUnit,
+    shelf: ballwallUnit, pegboard: pegboardUnit, apparelwall: apparelwallUnit,
     rack: rackUnit, table: tableUnit, rail: railUnit,
-    hatstand: hatstandUnit, bagstand: bagstandUnit, shoerack: shoerackUnit,
+    hatstand: hatstandUnit, hatwall: hatwallUnit, bagstand: bagstandUnit, shoerack: shoewallUnit,
     fittingroom: fittingroomUnit, fridge: fridgeUnit, snackrack: snackrackUnit,
-    service: serviceUnit, premiumcase: premiumcaseUnit, demo: demoUnit,
+    service: serviceUnit, premiumcase: premiumcaseUnit, demo: demoUnit, demorack: demoRackUnit,
     feature: featureUnit, backcounter: backcounterUnit, backshelf: backshelfUnit,
   };
   // The shop as the PLAYER has it, not as it was designed — placedFixtures() applies whatever they

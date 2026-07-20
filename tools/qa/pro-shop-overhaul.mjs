@@ -38,7 +38,7 @@ const ALL_SHOTS = [
   { id: '14-fitting-area', at: [1.6, -0.5], to: [4.6, -2.1], pitch: -0.03 },
   { id: '15-lounge', at: [1.0, -3.8], to: [4.9, -5.2], pitch: -0.03 },
   { id: '16-exterior-window', world: true, at: [-1.5, 243.5], to: [-8.5, 231.0], pitch: 0.03 },
-  { id: '17-putting-studio', at: [-3.8, 4.2], to: [-7.0, 4.95], pitch: -0.12 },
+  { id: '17-putting-studio', at: [-3.0, 3.15], to: [-6.5, 4.95], pitch: -0.13 },
   { id: '18-tour-vault', at: [2.3, -4.0], to: [5.25, -5.2], pitch: -0.04 },
 ];
 const shotArg = process.argv.find((arg) => arg.startsWith('--shots='))?.slice(8);
@@ -116,7 +116,12 @@ async function bootThroughNormalUi() {
     const veil = document.querySelector('.load-veil');
     return !veil || veil.style.display === 'none' || getComputedStyle(veil).opacity === '0';
   }, null, { timeout: 60_000 });
-  await page.getByRole('button', { name: 'Hide the guide' }).click().catch(() => {});
+  // This is the same visible close control a keyboard player uses. The game
+  // canvas continually reacquires the mouse while walking, so focus the real
+  // button and activate it with Enter instead of mutating tutorial state.
+  const guideClose = page.locator('button[title="Hide the guide"]');
+  await guideClose.press('Enter');
+  await page.locator('.objectives-card').waitFor({ state: 'hidden', timeout: 5_000 });
   await page.waitForTimeout(2_500);
 }
 

@@ -736,7 +736,7 @@ export function buildShell(B) {
   addDisplaySpot(-0.4, -4.6, -0.5, -6.0, { base: 12 });
   addDisplaySpot(4.6, 2.7, 5.15, 1.55, { base: 11 });
   addDisplaySpot(2.2, 4.2, 2.8, 5.45, { base: 13 });
-  addDisplaySpot(4.2, -4.3, 5.25, -5.2, { base: 14, minTier: 3, color: 0xffd79a });
+  addDisplaySpot(4.2, -4.3, 5.25, -5.2, { base: 8, minTier: 3, color: 0xffdfb3 });
 
   // daylight fills (cool bounce at the glazed walls; scaled by time of day).
   // pulled a body-length into the room with short throw — point lights don't

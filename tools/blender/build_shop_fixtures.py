@@ -32,6 +32,11 @@ def fixture_materials():
         'steel': mat('M_steel', (0.44, 0.47, 0.48), rough=0.32, metal=0.90),
         'brass': mat('M_brass', (0.63, 0.47, 0.12), rough=0.34, metal=0.82),
         'glass': mat('M_glass', (0.72, 0.85, 0.82), rough=0.08, metal=0.05),
+        # A separately named slot lets the game give display-case glazing a
+        # much lighter treatment than windows and refrigerator doors.  The
+        # authored preview stays legible while the runtime products remain the
+        # visual priority.
+        'displayglass': mat('M_displayglass', (0.82, 0.92, 0.90), rough=0.04),
         'rubber': mat('M_rubber', (0.035, 0.045, 0.038), rough=0.95),
         'white': mat('M_white', (0.94, 0.92, 0.85), rough=0.62),
     }
@@ -98,6 +103,101 @@ def build_apparel_wall(M):
     assign(rail, M['brass'])
     p.append(rail)
     return finish(p, 'apparel_wall')
+
+
+def build_ball_wall(M):
+    """Three-board golf-ball wall. Slot heights and lane dividers match
+    fixtureSlots exactly, so cartons sit on millwork instead of floating."""
+    p = []
+    part(p, 'back', (3.0, 0.08, 2.22), (0, 0.25, 1.11), M['cream'])
+    part(p, 'plinth', (3.06, 0.60, 0.16), (0, 0.0, 0.08), M['darkwood'], bevel_w=0.018)
+    part(p, 'header', (3.10, 0.22, 0.30), (0, 0.17, 2.18), M['wood'], bevel_w=0.018)
+    for x in (-1.50, 1.50):
+        part(p, 'side', (0.08, 0.56, 2.25), (x, 0.02, 1.12), M['wood'], bevel_w=0.014)
+    for z in (0.50, 1.05, 1.60):
+        part(p, 'shelf', (2.94, 0.50, 0.05), (0, -0.01, z), M['oak'], bevel_w=0.012)
+        part(p, 'gallery', (2.94, 0.025, 0.032), (0, -0.255, z + 0.02), M['brass'])
+    # Three product lanes remain readable even when the wall is only partly stocked.
+    for x in (-0.50, 0.50):
+        part(p, 'lane_divider', (0.025, 0.42, 1.48), (x, 0.01, 1.05), M['brass'], bevel_w=0.006)
+    return finish(p, 'ball_wall')
+
+
+def build_hat_wall(M):
+    """Compact eight-facing headwear bay, replacing the customer-clipping tree."""
+    p = []
+    part(p, 'back', (1.10, 0.08, 2.05), (0, 0.24, 1.025), M['green'], bevel_w=0.014)
+    part(p, 'base', (1.14, 0.56, 0.14), (0, 0, 0.07), M['darkwood'], bevel_w=0.016)
+    part(p, 'header', (1.16, 0.20, 0.24), (0, 0.16, 1.98), M['wood'], bevel_w=0.016)
+    for x in (-0.54, 0.54):
+        part(p, 'side', (0.07, 0.52, 2.08), (x, 0.02, 1.04), M['wood'], bevel_w=0.012)
+    for x in (-0.27, 0.27):
+        for z in (0.62, 1.03, 1.44, 1.85):
+            hook = cyl('hat_hook', 0.012, 0.20, loc=(x, 0.02, z),
+                       rot=(math.pi / 2, 0, 0), verts=8)
+            assign(hook, M['brass'])
+            p.append(hook)
+            part(p, 'hook_stop', (0.06, 0.025, 0.06), (x, -0.09, z), M['rubber'], bevel_w=0.008)
+    return finish(p, 'hat_wall')
+
+
+def build_shoe_wall(M):
+    """Lit shoe wall with a shallow integrated try-on ledge."""
+    p = []
+    part(p, 'back', (2.50, 0.08, 2.12), (0, 0.24, 1.06), M['darkwood'])
+    part(p, 'header', (2.58, 0.20, 0.24), (0, 0.16, 2.04), M['wood'], bevel_w=0.018)
+    for x in (-1.24, 1.24):
+        part(p, 'side', (0.08, 0.54, 2.14), (x, 0.02, 1.07), M['wood'], bevel_w=0.014)
+    for z in (0.35, 0.85, 1.35):
+        part(p, 'shoe_board', (2.42, 0.46, 0.05), (0, -0.01, z),
+             M['oak'], rot=(-0.18, 0, 0), bevel_w=0.012)
+        part(p, 'shoe_lip', (2.42, 0.025, 0.04), (0, -0.245, z - 0.035), M['brass'])
+        part(p, 'light_valance', (2.28, 0.025, 0.022), (0, -0.22, z - 0.07), M['cream'])
+    # The ledge is deliberately shallow enough to remain inside the fixture proxy.
+    part(p, 'try_on_ledge', (0.82, 0.58, 0.30), (0.70, -0.04, 0.15), M['sage'], bevel_w=0.045)
+    part(p, 'ledge_plinth', (0.74, 0.48, 0.15), (0.70, 0.01, 0.075), M['wood'], bevel_w=0.025)
+    return finish(p, 'shoe_wall')
+
+
+def build_basket_station(M):
+    """Eye-level scorecard counter with two visible nested-basket shelves."""
+    p = []
+    # Open millwork keeps the nested carriers legible instead of embedding them
+    # in a solid cabinet face.
+    part(p, 'back', (0.82, 0.06, 0.82), (0, 0.32, 0.41), M['darkwood'], bevel_w=0.012)
+    for x in (-0.44, 0.44):
+        part(p, 'side', (0.08, 0.66, 0.82), (x, 0.02, 0.41), M['wood'], bevel_w=0.016)
+    part(p, 'base', (0.88, 0.66, 0.08), (0, 0.02, 0.04), M['wood'], bevel_w=0.014)
+    part(p, 'basket_shelf', (0.84, 0.60, 0.05), (0, 0.0, 0.49), M['oak'], bevel_w=0.012)
+    part(p, 'top', (1.02, 0.76, 0.06), (0, 0, 0.84), M['oak'], bevel_w=0.016)
+    part(p, 'scorecard_lip', (0.72, 0.18, 0.12), (0, -0.25, 0.90), M['brass'], bevel_w=0.010)
+    part(p, 'sign_back', (0.84, 0.08, 0.30), (0, 0.28, 1.30), M['green'], bevel_w=0.018)
+    # Nested carriers are represented as open slatted tubs, not solid crates.
+    for level, z in enumerate((0.18, 0.30)):
+        y = -0.12 - level * 0.015
+        for sy in (-1, 1):
+            part(p, 'basket_rail', (0.62, 0.025, 0.06), (0, y + sy * 0.15, z), M['green'], bevel_w=0.008)
+        for sx in (-1, 1):
+            part(p, 'basket_rail', (0.025, 0.32, 0.06), (sx * 0.30, y, z), M['green'], bevel_w=0.008)
+        handle = cyl('basket_handle', 0.015, 0.46, loc=(0, y, z + 0.18),
+                     rot=(0, math.pi / 2, 0), verts=10)
+        assign(handle, M['charcoal'])
+        p.append(handle)
+    return finish(p, 'basket_station')
+
+
+def build_demo_club_rack(M):
+    """Three-club trial rack parked beside, never on, the putting lane."""
+    p = []
+    part(p, 'base', (0.58, 0.46, 0.12), (0, 0, 0.06), M['oak'], bevel_w=0.022)
+    for x in (-0.24, 0.24):
+        part(p, 'upright', (0.055, 0.10, 1.05), (x, 0.12, 0.525), M['wood'], bevel_w=0.010)
+    part(p, 'grip_rail', (0.56, 0.10, 0.08), (0, 0.10, 0.96), M['brass'], bevel_w=0.010)
+    part(p, 'sole_tray', (0.52, 0.30, 0.06), (0, -0.03, 0.16), M['charcoal'], rot=(0.08, 0, 0), bevel_w=0.010)
+    for x in (-0.17, 0, 0.17):
+        for dx in (-0.026, 0.026):
+            part(p, 'grip_clip', (0.014, 0.09, 0.08), (x + dx, 0.04, 0.96), M['rubber'], bevel_w=0.003)
+    return finish(p, 'demo_club_rack')
 
 
 def build_feature_table(M):
@@ -193,15 +293,15 @@ def build_premium_case(M):
     # Glass envelope and restrained brass mullions.
     # An opaque cream back isolates the products from the lounge trophy wall;
     # without it, wall trophies visually appeared to sit inside this case.
-    part(p, 'case_back', (2.18, 0.025, 1.28), (0, 0.31, 1.31), M['cream'])
-    part(p, 'glass_front', (2.18, 0.025, 1.28), (0, -0.31, 1.31), M['glass'])
+    part(p, 'case_back', (2.18, 0.025, 1.28), (0, 0.31, 1.31), M['green'])
+    part(p, 'glass_front', (2.18, 0.025, 1.28), (0, -0.31, 1.31), M['displayglass'])
     for x in (-1.08, 1.08):
-        part(p, 'glass_side', (0.025, 0.62, 1.28), (x, 0, 1.31), M['glass'])
+        part(p, 'glass_side', (0.025, 0.62, 1.28), (x, 0, 1.31), M['displayglass'])
     for x in (-1.10, 0, 1.10):
         part(p, 'mullion', (0.025, 0.67, 1.35), (x, 0, 1.31), M['brass'])
     for y in (0.68, 1.98):
         part(p, 'frame', (2.28, 0.68, 0.025), (0, 0, y), M['brass'])
-    part(p, 'shelf', (2.12, 0.56, 0.025), (0, 0, 1.33), M['glass'])
+    part(p, 'shelf', (2.12, 0.56, 0.025), (0, 0, 1.33), M['displayglass'])
     return finish(p, 'premium_case')
 
 
@@ -228,6 +328,11 @@ if __name__ == '__main__':
         build_club_wall_bay,
         build_pegboard_wall,
         build_apparel_wall,
+        build_ball_wall,
+        build_hat_wall,
+        build_shoe_wall,
+        build_basket_station,
+        build_demo_club_rack,
         build_feature_table,
         build_fitting_room,
         build_drinks_fridge,

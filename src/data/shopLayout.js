@@ -67,10 +67,10 @@ export const WINDOW_DIM = { w: 2.4, h: 1.9, sill: 0.85 };
 // be one size to the physics and another to the rules.
 export const FIXTURE_HALF = {
   shelf: [1.6, 0.35], pegboard: [1.6, 0.35], apparelwall: [1.6, 0.35],
-  rack: [1.5, 0.45], table: [1.2, 0.72], hatstand: [0.4, 0.4],
+  rack: [1.5, 0.45], table: [1.2, 0.72], hatstand: [0.4, 0.4], hatwall: [0.58, 0.30],
   bagstand: [1.3, 0.65], shoerack: [1.3, 0.4], fittingroom: [1.1, 0.85],
   feature: [1.05, 0.65], fridge: [0.48, 0.48], snackrack: [0.75, 0.38],
-  service: [0.48, 0.38], premiumcase: [1.2, 0.4], demo: [2.0, 0.62],
+  service: [0.52, 0.38], premiumcase: [1.2, 0.4], demo: [2.0, 0.62], demorack: [0.30, 0.24],
   backshelf: [1.4, 0.45], rail: [1.1, 0.45], backcounter: [1.6, 0.3],
 };
 
@@ -275,7 +275,7 @@ export const FIXTURES = [
   { id: 'shelf_balls', kind: 'shelf', x: -6.9, z: -6.15, ry: 0, skus: ['balls1', 'balls2', 'balls3'], title: 'Golf balls', zone: 'balls', browse: [{ x: -0.8, z: 1.0 }, { x: 0.8, z: 1.0 }], stock: [{ x: 0, z: 0.92 }] },
   { id: 'shelf_acc', kind: 'pegboard', x: -3.7, z: -6.15, ry: 0, skus: ['tees1', 'towel1', 'marker1', 'divot1', 'range2', 'sunglasses2', 'bottle1', 'umb1'], title: 'Golf essentials', zone: 'accessories', browse: [{ x: -0.8, z: 1.0 }, { x: 0.8, z: 1.0 }], stock: [{ x: 0, z: 0.92 }] },
   { id: 'shelf_small', kind: 'apparelwall', x: -0.5, z: -6.15, ry: 0, skus: ['glove1', 'glove2', 'sock1', 'jacket2'], title: 'Apparel & gloves', zone: 'apparel', browse: [{ x: -0.8, z: 1.0 }, { x: 0.8, z: 1.0 }], stock: [{ x: 0, z: 0.92 }], experienceAfter: ['fittingroom'] },
-  { id: 'hatstand', kind: 'hatstand', x: 1.55, z: -5.9, ry: 0, skus: ['cap1', 'cap2'], title: 'Hat tree', sign: 'Club headwear', zone: 'apparel', browse: [{ x: 0, z: 0.9 }], stock: [{ x: 0, z: 0.82 }] },
+  { id: 'hatstand', kind: 'hatwall', x: 1.72, z: -6.15, ry: 0, skus: ['cap1', 'cap2'], title: 'Club headwear', zone: 'apparel', browse: [{ x: 0, z: 0.86 }], stock: [{ x: 0, z: 0.82 }] },
 
   // One low apparel island replaces the old sightline-blocking table/rail block.
   { id: 'table_polos', kind: 'table', x: -6.0, z: 0.65, ry: 0, skus: ['polo1', 'polo2', 'pants2', 'shorts1'], title: 'Course apparel', zone: 'apparel', browse: [{ x: -0.72, z: 1.18 }, { x: 0.72, z: 1.18 }, { x: 0, z: -1.18 }], stock: [{ x: 0, z: 1.12 }], experienceAfter: ['fittingroom'] },
@@ -294,6 +294,7 @@ export const FIXTURES = [
   { id: 'feature', kind: 'feature', x: -3.35, z: 3.10, ry: 0, skus: [], title: 'New arrivals', zone: 'entrance', minTier: 2 },
   { id: 'tour_vault', kind: 'premiumcase', x: 5.25, z: -5.20, ry: -Math.PI / 2, skus: [], title: 'Tour Vault', zone: 'premium', minTier: 3, experience: 'premium', browse: [{ x: 0, z: 0.82 }], experienceTarget: { x: 0, z: 0 } },
   { id: 'putting_demo', kind: 'demo', x: -7.0, z: 4.95, ry: 0, skus: [], title: 'Putting studio', zone: 'premium', minTier: 3, experience: 'putting', browse: [{ x: 1.22, z: 0 }], experienceTarget: { x: -1.48, z: 0 } },
+  { id: 'putting_demo_rack', kind: 'demorack', x: -4.70, z: 4.95, ry: 0, skus: [], title: 'Demo putters', zone: 'premium', minTier: 3 },
   // checkout back-counter: wordmark wall, cabinets, bag stack (ref 4)
   { id: 'backcounter', kind: 'backcounter', x: 3.2, z: 6.15, ry: 0, skus: [], title: 'Back counter', zone: 'checkout' },
   // stockroom (non-retail; visualizes backroom stock + receives boxes)

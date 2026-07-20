@@ -94,7 +94,7 @@ test('a fixture may not be dropped in the till workspace', () => {
 
 test('a legal move sticks, and moves the fixture', () => {
   const st = fresh();
-  const f = FIXTURES.find((x) => x.kind === 'hatstand');
+  const f = FIXTURES.find((x) => x.kind === 'hatwall' || x.kind === 'hatstand');
 
   // find somewhere the game itself says is legal, rather than guessing at a gap in the plan
   let spot = null;

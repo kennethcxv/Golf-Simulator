@@ -52,7 +52,8 @@ export function buildBuildMode(B, deps) {
     const [a, b] = FIXTURE_HALF[f.kind] || [1, 1];
     const w = (f.short ? 0.85 : a) * 2;
     const d = b * 2;
-    const h = f.kind === 'table' || f.kind === 'feature' ? 0.9 : f.kind === 'hatstand' ? 1.8 : 2.2;
+    const h = f.kind === 'table' || f.kind === 'feature' ? 0.9
+      : f.kind === 'hatstand' || f.kind === 'hatwall' || f.kind === 'demorack' ? 1.8 : 2.2;
     const geo = new THREE.BoxGeometry(w, h, d);
     ghostBox = new THREE.Mesh(geo, ghostMat);
     ghostBox.position.y = h / 2;

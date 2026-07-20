@@ -22,6 +22,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { SHOP_FIXTURE_MODELS } from '../../data/shopAssets.js';
 
 const FILES = [
   // goods
@@ -34,9 +35,7 @@ const FILES = [
   // the register kit a cashier's hands touch (tools/blender/build_register.py)
   'basket', 'bag_open', 'impulse_rack', 'divider',
   // project-owned pro-shop fixture pack (tools/blender/build_shop_fixtures.py)
-  'club_wall_bay', 'pegboard_wall', 'apparel_wall', 'feature_table',
-  'fitting_room', 'drinks_fridge', 'snack_rack', 'service_station',
-  'premium_case', 'putting_demo',
+  ...SHOP_FIXTURE_MODELS,
 ];
 
 // Textured HERO props (Tripo scans, normalised by tools/blender/process_tripo.py).
@@ -69,6 +68,7 @@ const SLOT = {
   M_tape: 'merchWhite',
   M_paper: 'trimPaint',
   M_glass: 'glass',
+  M_displayglass: 'displayGlass',
   M_screen: 'charcoal',   // the live screens get their own canvas material
   // shop fixture pack
   M_oak: 'rawWood',

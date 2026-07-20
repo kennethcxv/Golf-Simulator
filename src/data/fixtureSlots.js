@@ -123,21 +123,13 @@ function hatTree(n = 12, per = 6) {
   return out;
 }
 
-// Two hat lines share one tree by alternating pegs around it. No duplicate
-// poses, and six hats per colour read curated rather than crowded.
+// Two hat lines share a compact wall bay. Four vertical facings per line keep
+// every bill aimed into the aisle and leave the floor clear for customers.
 function hatLane(skuId) {
   const h = HOME.get(skuId);
-  const lanes = Math.max(1, h ? h.lanes : 1);
   const lane = h ? h.lane : 0;
-  const total = lanes * 4;
-  const out = [];
-  for (let i = 0; i < 4; i++) {
-    const p = lane + i * lanes;
-    const tier = Math.floor(p / 4);
-    const a = (p / total) * Math.PI * 2;
-    out.push({ x: Math.sin(a) * 0.30, y: 1.02 + tier * 0.36, z: Math.cos(a) * 0.30, ry: a });
-  }
-  return out;
+  const x = lane === 0 ? -0.27 : 0.27;
+  return [0.62, 1.03, 1.44, 1.85].map((y) => ({ x, y, z: 0.12, ry: 0 }));
 }
 
 // Honest pegboard: one four-hook vertical column per line. Eight small-goods

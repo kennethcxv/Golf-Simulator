@@ -1890,12 +1890,6 @@ export function makeClubhouse(ctx) {
 
       if (f.kind === 'demo' && state.shop.unlockedTier >= 3) {
         const g = new THREE.Group();
-        const club = makeStockItem(
-          SHOP_CATALOG.find((s) => s.id === 'putter3'),
-          { x: 1.55, y: 0.12, z: -0.40, len: 0.92, lean: 0.08, ry: 0 },
-          0,
-        );
-        if (club) g.add(club);
         for (let i = 0; i < 3; i++) {
           const ball = new THREE.Mesh(new THREE.SphereGeometry(0.025, 10, 7), mats.merchWhite);
           ball.position.set(0.95 + i * 0.18, 0.065, 0.18 - i * 0.08);
@@ -1906,6 +1900,24 @@ export function makeClubhouse(ctx) {
         baked.rotation.copy(anchor.rotation);
         stockGroup.add(baked);
         stockMeshes.set(f.id + ':demo', baked);
+      }
+
+      if (f.kind === 'demorack' && state.shop.unlockedTier >= 3) {
+        const g = new THREE.Group();
+        for (let i = 0; i < 3; i++) {
+          const club = makeStockItem(
+            SHOP_CATALOG.find((s) => s.id === ['putter1', 'putter2', 'putter3'][i]),
+            { x: -0.17 + i * 0.17, y: 0.16, z: 0.02, len: 0.82, lean: 0.04, ry: 0 },
+            i,
+          );
+          if (club) g.add(club);
+        }
+        const baked = merch.bake(g);
+        baked.name = `${f.id}:demo-clubs`;
+        baked.position.copy(anchor.position);
+        baked.rotation.copy(anchor.rotation);
+        stockGroup.add(baked);
+        stockMeshes.set(f.id + ':demo-clubs', baked);
       }
 
       // The backroom shelving is STORAGE, not a sales fixture: it shows the volume of stock behind
