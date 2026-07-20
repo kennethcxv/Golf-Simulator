@@ -249,24 +249,19 @@ export function makeClubhouse(ctx) {
     leaveReview(c, true);
     if (c.itemMesh) { c.mesh.remove(c.itemMesh); c.itemMesh = null; }
     // a branded carrier into their hand — they walk out with it
-    const bag = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.26, 0.13),
-      new THREE.MeshStandardMaterial({ color: 0x2e5a3a, roughness: 0.85 }),
-    );
-    body.position.y = 0.13;
-    bag.add(body);
-    for (const off of [-0.05, 0.05]) {
-      const h = new THREE.Mesh(
-        new THREE.BoxGeometry(0.015, 0.09, 0.015),
-        new THREE.MeshStandardMaterial({ color: 0x1d3a26, roughness: 0.8 }),
-      );
-      h.position.set(off, 0.3, 0);
-      bag.add(h);
+    const char = c.mesh.userData.char;
+    const bag = merch && merch.instantiate('bag_closed');
+    if (bag) {
+      bag.scale.setScalar(0.82);
+      bag.rotation.set(0.04, 0.10, -0.04);
+      if (char && char.carryAnchor) char.carryAnchor.add(bag);
+      else {
+        bag.position.set(0.28, 0.62, 0.04);
+        c.mesh.add(bag);
+      }
+      c.carryBag = bag;
     }
-    bag.position.set(0.3, 0.62, 0.05);
-    bag.rotation.y = 0.2;
-    c.mesh.add(bag);
+    if (char && char.setCarrying) char.setCarrying(true);
 
     c.cart = [];
     c.awaitingCheckout = false;
@@ -2619,7 +2614,7 @@ export function makeClubhouse(ctx) {
           c.awaitingCheckout = true;
           c.patience -= dt;
           setPatience(c);
-          if (char) char.setMode('Idle');
+          if (char) char.setMode(c.tx ? 'Checkout' : 'Idle');
           if (c.patience <= 0) customerGiveUp(c);
         } else if (!served) {
           if (char) char.setMode('Idle');
@@ -2799,6 +2794,12 @@ export function makeClubhouse(ctx) {
       getTx: () => register.getTx(),
       getCustomer: () => register.getCustomer(),
       getSwipeFeedback: () => register.getSwipeFeedback(),
+      isCardReadyForSwipe: () => register.isCardReadyForSwipe(),
+      isReceiptReady: () => register.isReceiptReady(),
+      getCompletedCarrier: () => {
+        const customer = customers.find((c) => c.bought && c.carryBag);
+        return customer ? customer.carryBag : null;
+      },
       getUiStatus: () => register.getUiStatus(),
     },
     // DIAGNOSTICS. Not a cheat: sendToCounter() puts a shopper at the head of the

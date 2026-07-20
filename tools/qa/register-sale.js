@@ -49,6 +49,8 @@ async (page) => {
     revenue: (window.__fw.state.shop.salesLive || {}).revenue || 0,
     units: (window.__fw.state.shop.salesLive || {}).units || 0,
     held: (window.__fw.state.shop.held || []).length,
+    orderHeld: (window.__fw.state.shop.held || []).filter((h) =>
+      (window.__qa.orderUids || []).includes(h.uid)).length,
     shelfBalls: window.__fw.state.shop.inventory.balls3.shelf,
     shelfGlove: window.__fw.state.shop.inventory.glove1.shelf,
   }));
@@ -127,7 +129,7 @@ async (page) => {
         const ch = app.scene3d.clubhouse();
         const out = [];
         ch.interior.traverse((o) => {
-          if (o.userData && o.userData.kind === kind && o.visible) out.push(o);
+          if (o.userData && o.userData.kind === kind && o.userData.pick && o.visible) out.push(o);
         });
         const m = out[i];
         if (!m) return null;
@@ -173,6 +175,10 @@ async (page) => {
   // --- a customer arrives -------------------------------------------------------------
   const who = await page.evaluate((m) => window.__fw.scene3d.clubhouse().sendToCounter(['balls3', 'glove1'], m), MODE);
   await untilTx();
+  await page.evaluate(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    window.__qa.orderUids = tx.items.map((item) => item.uid);
+  });
   await page.waitForTimeout(900);
   await shot('01-customer-at-counter');
   log.push({ step: '1. customer at the counter', who, ...(await money()), tx: await txNow() });
@@ -261,6 +267,7 @@ async (page) => {
     // --- CARD ---------------------------------------------------------------------------
     await page.mouse.click(term.x, term.y);
     await untilStage('card-ready');
+    await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isCardReadyForSwipe());
     await shot('06-card-presented');
     log.push({ step: '8. clicked terminal — they present', tx: await txNow() });
 
@@ -290,6 +297,7 @@ async (page) => {
     while (t.stage === 'card-declined') {
       await page.mouse.click(term.x, term.y);          // retry -> another card
       await untilStage('card-ready');
+      await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isCardReadyForSwipe());
       await swipeCard(1);                              // swipe the replacement
       await untilStage(['receipt', 'card-declined']);
       t = await txNow();
@@ -356,7 +364,8 @@ async (page) => {
     log.push({ step: '14. counted the change', tx: await txNow() });
 
     // hand it over: click their open palm
-    const palm = await page.evaluate(() => window.__qa.px(1.78, 1.13, 3.64));
+    const palmAt = await page.evaluate(() => window.__qa.find('palm'));
+    const palm = await page.evaluate((a) => window.__qa.px(a.x, a.y, a.z), palmAt);
     await page.mouse.click(palm.x, palm.y);
     try {
       await untilStage('receipt');
@@ -377,7 +386,9 @@ async (page) => {
 
   // --- RECEIPT -----------------------------------------------------------------------
   await untilFlag('receiptPrinted', true);
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(120);
+  await shot('10a-receipt-feeding');
+  await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isReceiptReady());
   await shot('10-receipt-printed');
   const rp = await page.evaluate(() => window.__qa.find('receipt'));
   log.push({ step: '16. receipt printed', at: rp && { x: +rp.x.toFixed(2), z: +rp.z.toFixed(2) } });
@@ -407,15 +418,45 @@ async (page) => {
   log.push({ step: '18. bagged', tx: await txNow(), ...(await money()), expect: 'revenue STILL 0' });
 
   // --- HAND IT OVER — the only thing that banks the money ---------------------------------
-  const palmPx = await page.evaluate(() => window.__qa.px(1.78, 1.13, 3.64));
+  const handAt = await page.evaluate(() => window.__qa.find('palm'));
+  const palmPx = await page.evaluate((a) => window.__qa.px(a.x, a.y, a.z), handAt);
   await page.mouse.click(palmPx.x, palmPx.y);
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(220);
+  await shot('12a-handoff-motion');
+  await page.waitForTimeout(430);
   await shot('12-handed-over');
-  log.push({ step: '19. HANDED IT OVER', ...(await money()), expect: 'revenue banked NOW, held back to 0' });
+  const carrier = await page.evaluate(async () => {
+    const THREE = await import('/vendor/three.module.js');
+    const bag = window.__fw.scene3d.clubhouse().register.getCompletedCarrier();
+    if (!bag) return null;
+    const box = new THREE.Box3().setFromObject(bag);
+    const size = box.getSize(new THREE.Vector3());
+    const centre = box.getCenter(new THREE.Vector3());
+    return { visible: bag.visible, size: size.toArray(), centre: centre.toArray() };
+  });
+  log.push({ step: '19. HANDED IT OVER', ...(await money()), carrier, expect: 'revenue banked NOW, held back to 0' });
 
   await page.waitForTimeout(1500);
   await shot('13-done');
-  log.push({ step: '20. final', ...(await money()) });
+  const finalMoney = await money();
+  const finalTx = await txNow();
+  const orderTxActive = await page.evaluate(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return !!tx && tx.items.some((item) => (window.__qa.orderUids || []).includes(item.uid));
+  });
+  log.push({ step: '20. final', ...finalMoney, tx: finalTx, orderTxActive });
 
-  return { mode: MODE, log, errors: errors.slice(0, 10), errorCount: errors.length };
+  const ok = finalMoney.revenue === 66
+    && finalMoney.units === 2
+    && finalMoney.orderHeld === 0
+    && !orderTxActive
+    && errors.length === 0;
+  return {
+    ok,
+    mode: MODE,
+    blocker: ok ? null : { message: 'sale did not bank exactly two units and clear its held UIDs' },
+    log,
+    errors: errors.slice(0, 10),
+    errorCount: errors.length,
+  };
 }

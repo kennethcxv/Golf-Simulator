@@ -62,8 +62,16 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     elbow.position.y = -0.32;
     shoulder.add(elbow);
     elbow.add(box(0.09, 0.28, 0.11, mSkin, -0.13));
+    // An authored attachment at the end of the forearm. Checkout uses this for
+    // its real hand target and for the carrier, so neither can float beside a
+    // differently scaled customer.
+    const hand = new THREE.Object3D();
+    hand.name = `hand${side}`;
+    hand.position.y = -0.28;
+    elbow.add(hand);
     limbs[`shoulder${side}`] = shoulder;
     limbs[`elbow${side}`] = elbow;
+    limbs[`hand${side}`] = hand;
 
     const hip = new THREE.Group();
     hip.position.set(sx * 0.11, 0.98, 0);
@@ -79,7 +87,24 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     limbs[`knee${side}`] = knee;
   }
 
-  const char = { root, mode: 'Idle', phase: Math.random() * 6.28 };
+  // Gravity-upright carrier anchor at the hand position of the raised carry pose.
+  // It follows chest bob/turn but not the shoulder and elbow rotations, so a bag
+  // does not pitch sideways merely because the forearm bends around its handle.
+  const carryAnchor = new THREE.Group();
+  carryAnchor.name = 'carryAnchor';
+  carryAnchor.position.set(0.285, 0.373, 0.524);
+  chest.add(carryAnchor);
+
+  const char = {
+    root,
+    handL: limbs.handL,
+    handR: limbs.handR,
+    carryAnchor,
+    mode: 'Idle',
+    phase: Math.random() * 6.28,
+    carrying: false,
+    skinColor: skin,
+  };
 
   char.setMode = (mode) => {
     if (char.mode !== mode) {
@@ -87,6 +112,7 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       char.phase = 0;
     }
   };
+  char.setCarrying = (carrying) => { char.carrying = !!carrying; };
 
   const lerpSeg = (t, segs) => {
     // segs: [ [t0, v0], [t1, v1], ... ] piecewise-linear, clamped
@@ -103,7 +129,8 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   char.update = (dt) => {
     char.phase += dt;
     const p = char.phase;
-    let hipL = 0, hipR = 0, kneeL = 0, kneeR = 0, shL = 0, shR = 0, elb = -0.25;
+    let hipL = 0, hipR = 0, kneeL = 0, kneeR = 0, shL = 0, shR = 0;
+    let elbL = -0.25, elbR = -0.25;
     let lean = 0.04, twist = 0, headTilt = 0, bob = 0, shRz = 0;
 
     if (char.mode === 'Walk') {
@@ -114,7 +141,8 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       kneeR = 0.4 * Math.max(0, Math.sin(w + Math.PI - 1.1));
       shL = -0.45 * Math.sin(w);
       shR = 0.45 * Math.sin(w);
-      elb = -0.35;
+      elbL = -0.35;
+      elbR = -0.35;
       lean = 0.07;
       bob = 0.02 * Math.sin(2 * w);
     } else if (char.mode === 'Swing') {
@@ -122,22 +150,40 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       twist = lerpSeg(t, [[0, 0], [0.7, 0], [1.2, 0.55], [1.45, -0.6], [2.1, 0], [2.6, 0]]);
       const arm = lerpSeg(t, [[0, -0.5], [0.7, -0.5], [1.2, -1.5], [1.45, 0.7], [2.1, -0.5], [2.6, -0.5]]);
       shL = arm; shR = arm * 0.85;
-      elb = -0.3;
+      elbL = -0.3;
+      elbR = -0.3;
       lean = 0.16;
       headTilt = 0.28;
     } else if (char.mode === 'Browse') {
       const r = lerpSeg(p % 3.2, [[0, 0], [0.5, -1.25], [1.9, -1.0], [2.6, 0], [3.2, 0]]);
       shR = r;
-      elb = r < -0.5 ? -0.55 : -0.25;
+      elbL = r < -0.5 ? -0.55 : -0.25;
+      elbR = elbL;
       shL = 0.05;
       headTilt = 0.2;
       bob = 0.008 * Math.sin(p * 2);
+    } else if (char.mode === 'Checkout') {
+      // Left arm crosses the short customer-side gap and ends at the physical
+      // tender/handoff target. A small breathing motion keeps the pose alive.
+      lean = -0.01 + 0.012 * Math.sin(p * 1.4);
+      shL = -0.72 + 0.025 * Math.sin(p * 1.4);
+      elbL = -0.38;
+      shR = 0.04;
+      elbR = -0.22;
+      headTilt = 0.10;
     } else { // Idle
       lean = 0.03 + 0.015 * Math.sin(p * 1.1);
       shL = 0.06 + 0.03 * Math.sin(p * 1.1);
       shR = 0.06 + 0.03 * Math.sin(p * 1.1 + 0.4);
       shRz = -0.06;
       bob = 0.01 * Math.sin(p * 1.1);
+    }
+
+    // Once served, the same arm becomes a stable carry arm while the walk cycle
+    // continues underneath it. The Blender carrier pivots at its handle.
+    if (char.carrying) {
+      shL = -1.0;
+      elbL = -1.0;
     }
 
     limbs.hipL.rotation.x = hipL;
@@ -148,8 +194,8 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     limbs.shoulderR.rotation.x = shR;
     limbs.shoulderL.rotation.z = 0.06;
     limbs.shoulderR.rotation.z = shRz || -0.06;
-    limbs.elbowL.rotation.x = elb;
-    limbs.elbowR.rotation.x = elb;
+    limbs.elbowL.rotation.x = elbL;
+    limbs.elbowR.rotation.x = elbR;
     chest.rotation.x = lean;
     chest.rotation.y = twist;
     head.rotation.x = headTilt;

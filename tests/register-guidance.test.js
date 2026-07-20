@@ -73,6 +73,8 @@ test('receipt, bagging, and handoff advance the five-step progress strip', () =>
   assert.equal(registerGuidance(tx).tone, 'busy');
   tx.receiptPrinted = true;
   assert.deepEqual(keys(registerGuidance(tx)), ['Mouse', 'Esc']);
+  assert.equal(registerGuidance(tx, { receiptReady: false }).title, 'Printing receipt');
+  assert.deepEqual(keys(registerGuidance(tx, { receiptReady: false })), ['Esc']);
 
   tx.stage = 'bagging';
   assert.equal(registerGuidance(tx).progress, 3);
@@ -81,4 +83,13 @@ test('receipt, bagging, and handoff advance the five-step progress strip', () =>
   assert.equal(handoff.progress, 4);
   assert.equal(handoff.title, 'Hand over the order');
   assert.deepEqual(keys(handoff), ['Mouse', 'Esc']);
+});
+
+test('visual handoff stays busy until the carrier reaches the customer', () => {
+  const tx = txFor();
+  tx.stage = 'done';
+  const moving = registerGuidance(tx, { handoffPending: true });
+  assert.equal(moving.title, 'Handing over the order');
+  assert.equal(moving.tone, 'busy');
+  assert.deepEqual(keys(moving), ['Esc']);
 });

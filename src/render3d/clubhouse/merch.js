@@ -32,7 +32,7 @@ const FILES = [
   'register', 'scanner', 'cardterm', 'printer', 'cash_drawer',
   'carton', 'carton_open', 'handtruck', 'pendant',
   // the register kit a cashier's hands touch (tools/blender/build_register.py)
-  'basket', 'bag_open', 'impulse_rack', 'divider',
+  'basket', 'bag_open', 'bag_closed', 'impulse_rack', 'divider',
 ];
 
 // Textured HERO props (Tripo scans, normalised by tools/blender/process_tripo.py).

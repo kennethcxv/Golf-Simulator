@@ -11,7 +11,12 @@ export const REGISTER_PROGRESS = ['Scan', 'Pay', 'Receipt', 'Bag', 'Handoff'];
 const mouse = (label) => ({ key: 'Mouse', label });
 const key = (keyName, label) => ({ key: keyName, label });
 
-export function registerGuidance(tx, { customerName = 'Customer', swipeFeedback = '' } = {}) {
+export function registerGuidance(tx, {
+  customerName = 'Customer',
+  swipeFeedback = '',
+  receiptReady = null,
+  handoffPending = false,
+} = {}) {
   if (!tx) return null;
   const scanned = tx.items.length - unscannedCount(tx);
   const total = `$${totalOf(tx).toFixed(2)}`;
@@ -95,13 +100,14 @@ export function registerGuidance(tx, { customerName = 'Customer', swipeFeedback 
       base.controls = [mouse('Hand over change')];
     }
   } else if (tx.stage === 'receipt') {
+    const paperReady = receiptReady == null ? tx.receiptPrinted : receiptReady;
     base.progress = 2;
-    base.title = tx.receiptPrinted ? 'Take the receipt' : 'Printing receipt';
-    base.detail = tx.receiptPrinted
+    base.title = paperReady ? 'Take the receipt' : 'Printing receipt';
+    base.detail = paperReady
       ? 'Select the paper at the printer before bagging.'
       : 'The sale is paid. Wait for the printer to finish.';
-    base.tone = tx.receiptPrinted ? 'ready' : 'busy';
-    base.controls = tx.receiptPrinted ? [mouse('Take receipt')] : [];
+    base.tone = paperReady ? 'ready' : 'busy';
+    base.controls = paperReady ? [mouse('Take receipt')] : [];
   } else if (tx.stage === 'bagging') {
     const bagged = tx.items.filter((item) => item.bagged).length;
     base.progress = allBagged(tx) ? 4 : 3;
@@ -113,9 +119,11 @@ export function registerGuidance(tx, { customerName = 'Customer', swipeFeedback 
     base.controls = [mouse(allBagged(tx) ? 'Hand over bag' : 'Bag items')];
   } else if (tx.stage === 'done') {
     base.progress = 4;
-    base.title = 'Order complete';
-    base.detail = 'The customer has their purchase.';
-    base.tone = 'ready';
+    base.title = handoffPending ? 'Handing over the order' : 'Order complete';
+    base.detail = handoffPending
+      ? 'The packed carrier is moving into the customer’s hand.'
+      : 'The customer has their purchase.';
+    base.tone = handoffPending ? 'busy' : 'ready';
     base.controls = [];
   }
 

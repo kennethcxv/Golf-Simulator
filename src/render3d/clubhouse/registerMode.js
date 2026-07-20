@@ -395,7 +395,7 @@ export function createRegisterMode(B) {
       if (!tx.deposited) msg = 'PUT THEIR MONEY IN THE TILL';
       else if (due <= 0) msg = 'EXACT — CLOSE THE DRAWER';
       else msg = `CHANGE $${due.toFixed(2)} · HOLDING $${handTotal(tx).toFixed(2)}`;
-    } else if (tx.stage === 'receipt') msg = tx.receiptPrinted ? 'TAKE THE RECEIPT' : 'PRINTING…';
+    } else if (tx.stage === 'receipt') msg = receiptReady ? 'TAKE THE RECEIPT' : 'PRINTING…';
     else if (tx.stage === 'bagging') msg = `BAG THE GOODS (${tx.items.filter((i) => i.bagged).length}/${tx.items.length})`;
     else if (tx.stage === 'done') { msg = 'HAND IT OVER'; col = '#9fe8b4'; }
     c.fillStyle = col;
@@ -487,7 +487,12 @@ export function createRegisterMode(B) {
   matOf(REGISTER.bagging, 0x342f28);
 
   const bagGroup = new THREE.Group();
-  bagGroup.position.set(REGISTER.bagging.minX + 0.20, COUNTER_TOP, (REGISTER.bagging.minZ + REGISTER.bagging.maxZ) / 2);
+  const BAG_HOME = new THREE.Vector3(
+    REGISTER.bagging.minX + 0.20,
+    COUNTER_TOP,
+    (REGISTER.bagging.minZ + REGISTER.bagging.maxZ) / 2,
+  );
+  bagGroup.position.copy(BAG_HOME);
   root.add(bagGroup);
 
   // the ring that says "put it HERE" — exactly BAG_REACH across, so what the player
@@ -520,8 +525,21 @@ export function createRegisterMode(B) {
   const rtex = new THREE.CanvasTexture(rcv);
   rtex.colorSpace = THREE.SRGBColorSpace;
   const receiptMat = new THREE.MeshStandardMaterial({ map: rtex, roughness: 0.93, side: THREE.DoubleSide });
-  const RECEIPT_GEO = new THREE.PlaneGeometry(0.075, 0.17);
+  const RECEIPT_GEO = new THREE.PlaneGeometry(0.082, 0.19, 1, 12);
+  // A receipt should look like paper, not a rigid white card. The printer still
+  // owns one cheap mesh; extra segments only give the strip a gentle longitudinal
+  // curl that catches light during feed and take animations.
+  {
+    const p = RECEIPT_GEO.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const along = p.getY(i) / 0.095;
+      p.setZ(i, 0.008 * along * along + 0.003 * Math.sin(along * Math.PI));
+    }
+    p.needsUpdate = true;
+    RECEIPT_GEO.computeVertexNormals();
+  }
   let receiptMesh = null;
+  let receiptReady = false;
 
   function drawReceipt(r) {
     const c = rcv.getContext('2d');
@@ -571,7 +589,7 @@ export function createRegisterMode(B) {
   // is a real target on their side of the counter that lights up when it is waiting
   // for something.
   const palm = new THREE.Mesh(
-    new THREE.SphereGeometry(0.075, 12, 8),
+    new THREE.SphereGeometry(0.055, 12, 8),
     new THREE.MeshStandardMaterial({ color: 0xf0d8b4, roughness: 0.85, transparent: true, opacity: 0.0 }),
   );
   palm.position.set(queueSlot(0).x + 0.18, COUNTER_TOP + 0.07, COUNTER.z - COUNTER.depth / 2 - 0.06);
@@ -611,6 +629,7 @@ export function createRegisterMode(B) {
   let drawer = null;
   const itemMeshes = new Map();   // uid -> mesh
   const loose = [];               // grabbable product meshes on the counter
+  const packedMeshes = [];        // products visibly settled inside the carrier
   let tenderMeshes = [];          // the notes the customer put down
   let handMeshes = [];            // pieces the player has picked out to give back
   let cardMesh = null;
@@ -624,6 +643,87 @@ export function createRegisterMode(B) {
   let scanFlash = 0;
   let viewBlend = 0;
   let cardViewBlend = 0;
+  let handoffPending = false;
+  let bagRespawnT = 0;
+  let saleExitT = 0;
+
+  // Short, object-owned motion beats. They never decide whether a transaction is
+  // legal; the pure register state has already accepted the action before a tween
+  // begins. This keeps presentation interruptible without risking money or stock.
+  const motions = new Set();
+  function cancelMotion(mesh) {
+    for (const m of [...motions]) {
+      if (m.mesh === mesh) motions.delete(m);
+    }
+    if (mesh && mesh.userData) mesh.userData.motionLocked = false;
+  }
+
+  function moveMesh(mesh, to, duration = 0.4, {
+    arc = 0,
+    delay = 0,
+    toScale = null,
+    toOpacity = null,
+    onDone = null,
+  } = {}) {
+    if (!mesh) return;
+    cancelMotion(mesh);
+    const mats = [];
+    mesh.traverse((o) => {
+      if (o.isMesh && o.material && !Array.isArray(o.material)) mats.push(o.material);
+    });
+    const motion = {
+      mesh,
+      from: mesh.position.clone(),
+      to: to.clone(),
+      fromScale: mesh.scale.clone(),
+      toScale: toScale ? toScale.clone() : mesh.scale.clone(),
+      materials: mats,
+      fromOpacity: mats.length ? mats[0].opacity : 1,
+      toOpacity,
+      duration: Math.max(0.01, duration),
+      delay,
+      elapsed: 0,
+      arc,
+      onDone,
+    };
+    mesh.userData.motionLocked = true;
+    motions.add(motion);
+  }
+
+  function updateMotions(dt) {
+    for (const m of [...motions]) {
+      m.elapsed += dt;
+      if (m.elapsed < m.delay) continue;
+      const raw = Math.min(1, (m.elapsed - m.delay) / m.duration);
+      const t = raw * raw * (3 - 2 * raw);
+      m.mesh.position.lerpVectors(m.from, m.to, t);
+      m.mesh.position.y += Math.sin(t * Math.PI) * m.arc;
+      m.mesh.scale.lerpVectors(m.fromScale, m.toScale, t);
+      if (m.toOpacity != null) {
+        const opacity = m.fromOpacity + (m.toOpacity - m.fromOpacity) * t;
+        for (const mat of m.materials) {
+          mat.transparent = opacity < 0.999;
+          mat.opacity = opacity;
+        }
+      }
+      if (raw >= 1) {
+        motions.delete(m);
+        m.mesh.userData.motionLocked = false;
+        if (m.onDone) m.onDone();
+      }
+    }
+  }
+
+  const palmWorld = new THREE.Vector3();
+  function syncCustomerPalm() {
+    const char = cust && cust.mesh && cust.mesh.userData.char;
+    if (!char || !char.handL) return false;
+    char.handL.getWorldPosition(palmWorld);
+    root.worldToLocal(palmWorld);
+    palm.position.copy(palmWorld);
+    if (char.skinColor != null) palm.material.color.setHex(char.skinColor);
+    return true;
+  }
 
   // --- cursor raycasting ---------------------------------------------------------------
   const ray = new THREE.Raycaster();
@@ -719,10 +819,10 @@ export function createRegisterMode(B) {
 
   function pickables() {
     const t = [...loose, ...tenderMeshes, ...handMeshes, ...drawerMoney.children,
-      hotTerm, hotTotal, hotPull];
-    if (cardMesh && tx && tx.stage === 'card-ready') t.push(cardMesh);
-    if (receiptMesh) t.push(receiptMesh);
-    if (palm.visible) t.push(palm);
+      hotTerm, hotTotal, hotPull].filter((o) => !o.userData.motionLocked);
+    if (cardMesh && tx && tx.stage === 'card-ready' && !cardMesh.userData.motionLocked) t.push(cardMesh);
+    if (receiptMesh && receiptReady && !receiptMesh.userData.motionLocked) t.push(receiptMesh);
+    if (palm.visible && palm.userData.pick) t.push(palm);
     return t;
   }
 
@@ -811,8 +911,19 @@ export function createRegisterMode(B) {
       const cz = Math.floor(i / cols);
       const px = r.minX + 0.16 + cx * ((r.maxX - r.minX - 0.28) / Math.max(1, cols - 1) || 0);
       const pz = r.minZ + 0.10 + cz * 0.14;
-      m.position.set(px, REST_Y, Math.min(pz, r.maxZ - 0.06));
+      const target = new THREE.Vector3(px, REST_Y, Math.min(pz, r.maxZ - 0.06));
+      m.position.set(
+        palm.position.x + (i % 2) * 0.035,
+        palm.position.y + 0.02 + i * 0.012,
+        palm.position.z,
+      );
       m.rotation.y = (i * 0.7) % 1.2 - 0.6;
+      m.scale.setScalar(0.72);
+      moveMesh(m, target, 0.44, {
+        arc: 0.09,
+        delay: i * 0.10,
+        toScale: new THREE.Vector3(1, 1, 1),
+      });
     });
   }
 
@@ -844,6 +955,27 @@ export function createRegisterMode(B) {
     });
   }
 
+  function settleInCarrier(mesh) {
+    const index = packedMeshes.length;
+    const worldBox = new THREE.Box3().setFromObject(mesh);
+    const size = worldBox.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+    const fit = Math.min(0.58, 0.13 / maxDim);
+    bagGroup.attach(mesh);
+    mesh.userData.pick = false;
+    packedMeshes.push(mesh);
+    const target = new THREE.Vector3(
+      (index % 2 ? 1 : -1) * 0.042,
+      0.235 + Math.floor(index / 2) * 0.038,
+      (index % 3 - 1) * 0.020,
+    );
+    moveMesh(mesh, target, 0.38, {
+      arc: 0.055,
+      toScale: mesh.scale.clone().multiplyScalar(fit),
+      onDone: () => { mesh.rotation.set(0.05 * (index % 2), index * 0.35, -0.08); },
+    });
+  }
+
   // ============================================================ FLOW ===========
 
   function begin(customer) {
@@ -860,6 +992,14 @@ export function createRegisterMode(B) {
     tx = createTx({ items, mode: state.mode, discount: customer.discount || 0, prefer: customer.payMethod || null });
     cust = customer;
     customer.tx = tx;
+    const char = customer.mesh && customer.mesh.userData.char;
+    if (char) {
+      if (char.setCarrying) char.setCarrying(false);
+      char.setMode('Checkout');
+      char.update(0.001);
+    }
+    syncCustomerPalm();
+    palm.visible = true;
 
     for (const it of tx.items) {
       const m = buildItemMesh(it);
@@ -879,16 +1019,21 @@ export function createRegisterMode(B) {
   // The customer walks out, or the shop shuts, or the scene tears down. Nothing is
   // banked and the goods go back where they came from — clubhouse.js owns returning
   // them to the shelf; this just clears the counter.
-  function abandon() {
+  function abandon(sold = false) {
     if (tx) voidTx(tx);
-    for (const m of loose) root.remove(m);
+    for (const motion of [...motions]) cancelMotion(motion.mesh);
+    for (const m of itemMeshes.values()) {
+      if (m.parent) m.parent.remove(m);
+    }
     loose.length = 0;
+    packedMeshes.length = 0;
     itemMeshes.clear();
     for (const m of tenderMeshes) root.remove(m);
     tenderMeshes = [];
     for (const m of handMeshes) root.remove(m);
     handMeshes = [];
     if (receiptMesh) { root.remove(receiptMesh); receiptMesh = null; }
+    receiptReady = false;
     if (cardMesh) { root.remove(cardMesh); cardMesh = null; }
     cardSwipe = null;
     swipeFeedback = '';
@@ -897,6 +1042,13 @@ export function createRegisterMode(B) {
     drawerWant = 0;
     printT = 0;
     palm.visible = false;
+    palm.userData.pick = false;
+    handoffPending = false;
+    bagGroup.position.copy(BAG_HOME);
+    bagGroup.rotation.set(0, 0, 0);
+    bagGroup.scale.set(1, 1, 1);
+    bagGroup.visible = !sold;
+    bagRespawnT = sold ? 0.7 : 0;
     if (cust) cust.tx = null;
     tx = null;
     cust = null;
@@ -968,6 +1120,7 @@ export function createRegisterMode(B) {
     active = false;
     grabbed = null;
     drawerWant = 0;
+    saleExitT = 0;
     clearFocus();
     document.body.classList.remove('register-mode');
     canvas.style.cursor = '';
@@ -987,6 +1140,7 @@ export function createRegisterMode(B) {
   }
 
   function grab(m) {
+    cancelMotion(m);
     grabbed = m;
     m.userData.grabY = m.position.y;
     grabPrev.set(0, 0, 0);
@@ -1018,9 +1172,9 @@ export function createRegisterMode(B) {
           const res = bagItem(tx, m.userData.uid);
           if (res.ok) {
             sfx('paper');
-            m.visible = false;                       // it is IN the bag now
             const i = loose.indexOf(m);
             if (i >= 0) loose.splice(i, 1);
+            settleInCarrier(m);
             drawScreen();
             if (allBagged(tx)) { palm.visible = true; toast('All bagged — hand it over.'); }
             return;
@@ -1095,10 +1249,19 @@ export function createRegisterMode(B) {
       if (tx.stage === 'cash-drawer' && tx.deposited) {
         const res = handOverChange(tx, drawer);
         if (!res.ok) { toast(res.reason, 'warn'); sfx('thunk'); return true; }
-        for (const m of handMeshes) root.remove(m);
+        const changeMeshes = [...handMeshes];
         handMeshes = [];
         drawerWant = 0;
         sfx('drawer');
+        changeMeshes.forEach((m, i) => {
+          m.userData.pick = false;
+          moveMesh(m, palm.position, 0.34, {
+            arc: 0.08,
+            delay: i * 0.035,
+            toScale: new THREE.Vector3(0.72, 0.72, 0.72),
+            onDone: () => root.remove(m),
+          });
+        });
         if (res.lost > 0) toast(`You handed over $${res.lost.toFixed(2)} too much.`, 'warn');
         else if (res.lost < 0) toast(`You shorted them $${Math.abs(res.lost).toFixed(2)}.`, 'warn');
         palm.visible = false;
@@ -1109,7 +1272,18 @@ export function createRegisterMode(B) {
       if (tx.stage === 'bagging' && allBagged(tx) && !receiptMesh) {
         const done = handOverGoods(tx);
         if (!done.ok) { toast(done.reason, 'warn'); return true; }
-        finish();
+        handoffPending = true;
+        palm.userData.pick = false;
+        bagRing.visible = false;
+        sfx('paper');
+        const carryTarget = palm.position.clone();
+        carryTarget.y -= 0.34; // open carrier origin is its base; align its handles to the hand
+        moveMesh(bagGroup, carryTarget, 0.62, {
+          arc: 0.16,
+          toScale: new THREE.Vector3(0.88, 0.88, 0.88),
+          onDone: finish,
+        });
+        drawScreen();
         return true;
       }
       if (tx.stage === 'bagging' && receiptMesh) { toast('Take the receipt first.', 'warn'); return true; }
@@ -1149,8 +1323,18 @@ export function createRegisterMode(B) {
     if (o.userData.kind === 'receipt') {
       const res = takeReceipt(tx);
       if (!res.ok) { toast(res.reason, 'warn'); return true; }
-      root.remove(receiptMesh);
-      receiptMesh = null;
+      const paper = receiptMesh;
+      receiptReady = false;
+      paper.userData.pick = false;
+      moveMesh(paper, new THREE.Vector3(2.74, 1.54, 5.02), 0.34, {
+        arc: 0.12,
+        toScale: new THREE.Vector3(0.76, 0.76, 0.76),
+        toOpacity: 0,
+        onDone: () => {
+          if (paper.parent) paper.parent.remove(paper);
+          if (receiptMesh === paper) receiptMesh = null;
+        },
+      });
       sfx('paper');
       toast('Receipt taken — now bag the goods.');
       drawScreen();
@@ -1169,9 +1353,12 @@ export function createRegisterMode(B) {
     toast(`${cust ? cust.name : 'They'} paid — ${bits.join(' · ')}.`);
     if (cust && cust.onPaid) cust.onPaid(tx);
     const done = cust;
-    abandon();
+    abandon(true);
     if (done) done.paid = true;
-    leave();
+    // Hold the cashier framing for one restrained completion beat. This is long
+    // enough to see the closed carrier in the articulated hand and the paid toast,
+    // then normal first-person control returns automatically.
+    saleExitT = 0.9;
   }
 
   // ============================================================ INPUT ==========
@@ -1232,14 +1419,16 @@ export function createRegisterMode(B) {
         for (let k = 0; k < n; k++) {
           const m = makePiece(Number(d));
           m.userData.from = 'tender';
-          m.position.set(
+          const target = new THREE.Vector3(
             REGISTER.staging.minX + 0.12 + (i % 4) * 0.085,
             COUNTER_TOP + 0.008 + Math.floor(i / 4) * 0.004,
             REGISTER.staging.maxZ - 0.07,
           );
+          m.position.set(palm.position.x, palm.position.y + i * 0.008, palm.position.z);
           m.rotation.y = (i * 0.31) % 0.4 - 0.2;
           root.add(m);
           tenderMeshes.push(m);
+          moveMesh(m, target, 0.38, { arc: 0.07, delay: i * 0.045 });
           i++;
         }
       }
@@ -1252,7 +1441,8 @@ export function createRegisterMode(B) {
       const st = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.014, 0.0012), stripeMat);
       st.position.set(0, 0.012, 0.0016);
       cardMesh.add(st);
-      cardMesh.position.set(queueSlot(0).x + 0.18, COUNTER_TOP + 0.13, COUNTER.z - COUNTER.depth / 2 - 0.06);
+      cardMesh.position.copy(palm.position);
+      cardMesh.position.y += 0.015;
       cardMesh.userData = { pick: true, kind: 'card' };
       cardMesh.castShadow = true;
       root.add(cardMesh);
@@ -1312,7 +1502,11 @@ export function createRegisterMode(B) {
     if (!tx || tx.method !== 'card') return;
     if (tx.stage === 'card-present') {
       presentCard(tx);
-      setCardSwipePosition(0);
+      moveMesh(cardMesh, new THREE.Vector3(
+        CARD_SWIPE_TOP.x,
+        CARD_SWIPE_TOP.y,
+        CARD_SWIPE_TOP.z,
+      ), 0.42, { arc: 0.08 });
       swipeFeedback = '';
       swipeFeedbackT = 0;
       sfx('cardTap');
@@ -1323,7 +1517,11 @@ export function createRegisterMode(B) {
       sfx('thunk');
     } else if (tx.stage === 'card-declined') {
       retryCard(tx);
-      setCardSwipePosition(0);
+      moveMesh(cardMesh, new THREE.Vector3(
+        CARD_SWIPE_TOP.x,
+        CARD_SWIPE_TOP.y,
+        CARD_SWIPE_TOP.z,
+      ), 0.42, { arc: 0.08 });
       swipeFeedback = '';
       swipeFeedbackT = 0;
       toast(`${cust.name} digs out another card.`);
@@ -1336,6 +1534,21 @@ export function createRegisterMode(B) {
   // ============================================================ FRAME ==========
 
   function update(dt) {
+    if (tx) syncCustomerPalm();
+    updateMotions(dt);
+    if (saleExitT > 0) {
+      saleExitT = Math.max(0, saleExitT - dt);
+      if (saleExitT === 0) leave();
+    }
+    if (bagRespawnT > 0) {
+      bagRespawnT = Math.max(0, bagRespawnT - dt);
+      if (bagRespawnT === 0) {
+        bagGroup.visible = true;
+        bagGroup.position.copy(BAG_HOME);
+        bagGroup.scale.set(0.76, 0.76, 0.76);
+        moveMesh(bagGroup, BAG_HOME, 0.28, { toScale: new THREE.Vector3(1, 1, 1) });
+      }
+    }
     // the drawer slides
     const target = drawerWant;
     if (Math.abs(drawerAmt - target) > 0.001) {
@@ -1370,13 +1583,20 @@ export function createRegisterMode(B) {
         if (res.result === 'approved') {
           sfx('approve');
           toast('Approved.');
-          if (cardMesh) cardMesh.visible = false;
+          if (cardMesh) {
+            cardMesh.userData.pick = false;
+            moveMesh(cardMesh, palm.position, 0.36, {
+              arc: 0.07,
+              toScale: new THREE.Vector3(0.82, 0.82, 0.82),
+              onDone: () => { if (cardMesh) cardMesh.visible = false; },
+            });
+          }
         } else {
           sfx('decline');
           toast(`${cust ? cust.name : 'Their'} card was declined — ask for another.`, 'warn');
           if (cardMesh) {
             cardMesh.visible = true;
-            setCardSwipePosition(0);
+            moveMesh(cardMesh, palm.position, 0.34, { arc: 0.07 });
           }
         }
         drawScreen();
@@ -1394,13 +1614,32 @@ export function createRegisterMode(B) {
         const r = printReceipt(tx);
         if (r.ok) {
           drawReceipt(r.receipt);
+          receiptMat.opacity = 1;
+          receiptMat.transparent = false;
           receiptMesh = new THREE.Mesh(RECEIPT_GEO, receiptMat);
           receiptMesh.rotation.x = -Math.PI / 2 + 0.16;
-          receiptMesh.position.set(REGISTER.printer.x - 0.02, COUNTER_TOP + 0.10, REGISTER.printer.z - 0.12);
-          receiptMesh.userData = { pick: true, kind: 'receipt' };
+          const receiptOut = new THREE.Vector3(
+            REGISTER.printer.x - 0.02,
+            COUNTER_TOP + 0.10,
+            REGISTER.printer.z - 0.14,
+          );
+          receiptMesh.position.set(REGISTER.printer.x - 0.02, COUNTER_TOP + 0.075, REGISTER.printer.z - 0.035);
+          receiptMesh.scale.set(1, 0.06, 1);
+          receiptMesh.userData = { pick: false, kind: 'receipt' };
           root.add(receiptMesh);
           sfx('receipt');
-          toast('Receipt printed — take it.');
+          receiptReady = false;
+          moveMesh(receiptMesh, receiptOut, 0.48, {
+            arc: 0.018,
+            toScale: new THREE.Vector3(1, 1, 1),
+            onDone: () => {
+              if (!receiptMesh) return;
+              receiptReady = true;
+              receiptMesh.userData.pick = true;
+              toast('Receipt printed — take it.');
+              drawScreen();
+            },
+          });
           drawScreen();
         }
       }
@@ -1435,10 +1674,12 @@ export function createRegisterMode(B) {
       const wantsChange = tx.stage === 'cash-drawer' && tx.deposited && changeDue(tx) > 0 && handTotal(tx) > 0;
       const wantsGoods = tx.stage === 'bagging' && allBagged(tx) && !receiptMesh;
       const wantsExact = tx.stage === 'cash-drawer' && tx.deposited && changeDue(tx) <= 0;
-      palm.visible = !!(wantsChange || wantsGoods || wantsExact);
-      if (palm.visible) {
-        palm.material.opacity = 0.35 + Math.sin(performance.now() * 0.005) * 0.12;
-      }
+      const wants = !!(wantsChange || wantsGoods || wantsExact);
+      palm.visible = !handoffPending;
+      palm.userData.pick = wants;
+      palm.material.opacity = wants
+        ? 0.90 + Math.sin(performance.now() * 0.005) * 0.08
+        : 0.72;
     }
   }
 
@@ -1453,9 +1694,13 @@ export function createRegisterMode(B) {
     getTx: () => tx,
     getCustomer: () => cust,
     getSwipeFeedback: () => swipeFeedback,
+    isCardReadyForSwipe: () => !!(cardMesh && tx && tx.stage === 'card-ready' && !cardMesh.userData.motionLocked),
+    isReceiptReady: () => !!(receiptMesh && receiptReady),
     getUiStatus: () => registerGuidance(tx, {
       customerName: cust ? cust.name : 'Customer',
       swipeFeedback,
+      receiptReady,
+      handoffPending,
     }),
     scanFlash: () => scanFlash,
     begin,
