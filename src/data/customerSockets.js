@@ -55,10 +55,12 @@ export const CUSTOMER_SAFE_ANCHORS = Object.freeze({
 export const CUSTOMER_AMBIENT_SOCKETS = Object.freeze([
   {
     id: 'lounge-chair-a', kind: 'sit', x: LOUNGE.chairA.x, z: LOUNGE.chairA.z,
+    approachX: 2.25, approachZ: LOUNGE.chairA.z,
     faceX: LOUNGE.coffee.x, faceZ: LOUNGE.coffee.z,
   },
   {
     id: 'lounge-chair-b', kind: 'sit', x: LOUNGE.chairB.x, z: LOUNGE.chairB.z,
+    approachX: LOUNGE.chairB.x, approachZ: -3.25,
     faceX: LOUNGE.coffee.x, faceZ: LOUNGE.coffee.z,
   },
   {

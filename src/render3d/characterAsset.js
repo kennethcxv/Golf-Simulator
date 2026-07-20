@@ -142,34 +142,38 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       lean = 0.16;
       headTilt = 0.28;
     } else if (['Browse', 'Inspect', 'Reach'].includes(char.mode)) {
-      const r = lerpSeg(p % 3.2, [[0, 0], [0.5, -1.25], [1.9, -1.0], [2.6, 0], [3.2, 0]]);
+      const r = lerpSeg(p % 3.2, [[0, 0], [0.5, 1.25], [1.9, 1.0], [2.6, 0], [3.2, 0]]);
       shR = r;
-      elb = r < -0.5 ? -0.55 : -0.25;
+      elb = r > 0.5 ? -0.55 : -0.25;
       shL = 0.05;
       headTilt = char.mode === 'Inspect' ? 0.34 : 0.2;
       bob = 0.008 * Math.sin(p * 2);
     } else if (['Carry', 'Stage', 'Receive'].includes(char.mode)) {
-      shL = -0.72 + 0.04 * Math.sin(p * 2);
-      shR = -0.78 + 0.04 * Math.sin(p * 2 + 0.4);
+      shL = 0.72 + 0.04 * Math.sin(p * 2);
+      shR = 0.78 + 0.04 * Math.sin(p * 2 + 0.4);
       elb = -0.9;
       lean = char.mode === 'Stage' ? 0.16 : 0.05;
       headTilt = char.mode === 'Stage' ? 0.18 : 0.05;
     } else if (char.mode === 'PayCash' || char.mode === 'PayCard') {
-      shR = char.mode === 'PayCard' ? -1.1 : -0.9;
-      shL = -0.15;
+      shR = char.mode === 'PayCard' ? 1.1 : 0.9;
+      shL = 0.15;
       elb = -0.72;
       lean = 0.1;
       headTilt = 0.12;
     } else if (char.mode === 'Talk') {
-      shL = -0.28 + 0.18 * Math.sin(p * 1.8);
-      shR = -0.38 + 0.22 * Math.sin(p * 1.8 + 1.1);
+      shL = 0.28 + 0.18 * Math.sin(p * 1.8);
+      shR = 0.38 + 0.22 * Math.sin(p * 1.8 + 1.1);
       elb = -0.62;
       twist = 0.06 * Math.sin(p * 1.1);
       headTilt = 0.04 * Math.sin(p * 1.4);
     } else if (char.mode === 'Sit') {
-      hipL = -1.28; hipR = -1.28;
-      kneeL = 1.3; kneeR = 1.3;
-      shL = 0.05; shR = 0.05;
+      // Face direction is local -Z (the cap brim points that way), so positive
+      // hip rotation brings the thighs forward and negative knee rotation drops
+      // the shins. The inverse signs folded both legs through the chair back.
+      hipL = 1.28; hipR = 1.28;
+      kneeL = -1.3; kneeR = -1.3;
+      shL = 0.32; shR = 0.32;
+      elb = -0.62;
       lean = -0.04;
     } else if (char.mode === 'Door' || char.mode === 'Turn' || char.mode === 'Leave') {
       const w = p * 6.8;
@@ -189,8 +193,11 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       bob = 0.01 * Math.sin(p * 1.1);
     }
 
+    const sitOffset = char.mode === 'Sit' ? -0.5 : 0;
     limbs.hipL.rotation.x = hipL;
     limbs.hipR.rotation.x = hipR;
+    limbs.hipL.position.y = 0.98 + sitOffset;
+    limbs.hipR.position.y = 0.98 + sitOffset;
     limbs.kneeL.rotation.x = kneeL;
     limbs.kneeR.rotation.x = kneeR;
     limbs.shoulderL.rotation.x = shL;
@@ -202,8 +209,8 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     chest.rotation.x = lean;
     chest.rotation.y = twist;
     head.rotation.x = headTilt;
-    chest.position.y = 1.12 + bob; // bob lives on the body — root stays placeable
-    pelvis.position.y = 1.03 + bob * 0.7;
+    chest.position.y = 1.12 + bob + sitOffset; // bob lives on the body — root stays placeable
+    pelvis.position.y = 1.03 + bob * 0.7 + sitOffset;
   };
 
   char.update(0.001); // land in a valid pose immediately
