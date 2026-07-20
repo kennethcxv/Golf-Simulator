@@ -20,7 +20,7 @@ This document records architectural ownership before conflict resolution. Exact 
 
 ## Course maintenance
 
-`src/sim/courseMaintenance.js` owns the hero-hole turf grid, masks, treatment history, work orders, disease state and maintenance score. Course rendering consumes that state; economy consumes summarized condition outputs. Neither system owns a duplicate turf ledger.
+`src/sim/turf.js` and the root turf arrays remain authoritative course-wide. `src/sim/courseMaintenance.js` owns the one-yard hero-hole detail grid, masks, treatment history, work orders, localized disease state and maintenance score, and synchronizes detail actions back to coarse turf. Outside the hero bounds, existing coarse mowing, irrigation, divot and bunker behavior remains active. Course rendering consumes both layers; economy consumes summarized condition outputs. There is no second course-wide turf ledger.
 
 ## UX, input, notifications and audio
 
