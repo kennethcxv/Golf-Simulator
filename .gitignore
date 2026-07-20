@@ -6,6 +6,9 @@ out/
 Thumbs.db
 .playwright-mcp/
 /qa/
+__pycache__/
+*.py[cod]
+*.blend1
 # Claude Code session state; /.claude/worktrees holds live git worktrees whose
 # .git files would corrupt this repository if committed.
 /.claude/

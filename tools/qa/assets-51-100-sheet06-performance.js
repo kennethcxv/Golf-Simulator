@@ -33,9 +33,9 @@ async (page) => {
   // a benchmark cannot silently sample another worktree's server or write its
   // evidence outside this checkout.
   const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
-  const frozenRepoBinding = "const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';";
+  const frozenRepoBinding = /const repo = '[^'\r\n]+';/u;
   const frozenUrlBinding = "await page.goto('http://localhost:8457/',";
-  if (!inheritedSource.includes(frozenRepoBinding) || !inheritedSource.includes(frozenUrlBinding)) {
+  if (!frozenRepoBinding.test(inheritedSource) || !inheritedSource.includes(frozenUrlBinding)) {
     throw new Error('Frozen Sheet 6 performance fixture environment bindings changed unexpectedly.');
   }
   const executableInheritedSource = inheritedSource

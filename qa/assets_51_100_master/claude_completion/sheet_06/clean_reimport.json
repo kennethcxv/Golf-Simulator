@@ -6,7 +6,7 @@
   "results": [
     {
       "asset": 51,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_051_finished_clubhouse_exterior.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_051_finished_clubhouse_exterior.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -645,7 +645,7 @@
     },
     {
       "asset": 52,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_052_dilapidated_clubhouse_exterior.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_052_dilapidated_clubhouse_exterior.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -860,7 +860,7 @@
     },
     {
       "asset": 53,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_053_main_entrance_double_door.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_053_main_entrance_double_door.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1188,7 +1188,7 @@
     },
     {
       "asset": 54,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_054_exterior_porch_and_steps.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_054_exterior_porch_and_steps.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1459,7 +1459,7 @@
     },
     {
       "asset": 55,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1733,7 +1733,7 @@
     },
     {
       "asset": 56,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1930,7 +1930,7 @@
     },
     {
       "asset": 57,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_057_interior_trim_and_baseboard_kit.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_057_interior_trim_and_baseboard_kit.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -2092,7 +2092,7 @@
     },
     {
       "asset": 58,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -2233,7 +2233,7 @@
     },
     {
       "asset": 59,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_059_renovated_flooring_set.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_059_renovated_flooring_set.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -2386,7 +2386,7 @@
     },
     {
       "asset": 60,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_060_damaged_flooring_set.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_060_damaged_flooring_set.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,

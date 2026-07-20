@@ -16,6 +16,16 @@ const WORKTREE_SAFE_BROWSER_DRIVERS = Object.freeze([
 
 const sourceOf = (file) => fs.readFileSync(file, 'utf8');
 
+function filesUnder(directory) {
+  const files = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const file = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) files.push(...filesUnder(file));
+    else files.push(file);
+  }
+  return files;
+}
+
 test('integration-critical browser drivers honor the isolated server URL', () => {
   for (const file of WORKTREE_SAFE_BROWSER_DRIVERS) {
     const source = sourceOf(file);
@@ -35,6 +45,18 @@ test('integration-critical evidence drivers never write to the original reposito
       /C:\/Users\/Kenneth\/Documents\/GitHub\/Golf-Flipper(?:\/|['"])/u,
       `${file} writes outside the active worktree`,
     );
+  }
+});
+
+test('all tracked QA source is free of personal absolute paths', () => {
+  const qaSource = filesUnder('tools/qa')
+    .filter((file) => /\.(?:cjs|js|mjs)$/u.test(file));
+  for (const file of qaSource) {
+    const source = sourceOf(file);
+    assert.doesNotMatch(source, /(?:file:\/\/\/)?[A-Za-z]:[\\/]Users[\\/][^\\/'"\s]+/iu,
+      `${file} contains a personal Windows path`);
+    assert.doesNotMatch(source, /\/Users\/[^/'"\s]+/u,
+      `${file} contains a personal macOS path`);
   }
 });
 

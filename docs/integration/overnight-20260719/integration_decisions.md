@@ -50,5 +50,5 @@ This is a living decision log. Decisions are recorded before or at the integrati
 ## Repository hygiene decisions
 
 - Tracked Python bytecode under `tools/blender/__pycache__` is generated cache and will be removed from the integrated branch; standard Python cache ignore rules will be added.
-- Hard-coded `C:\Users\Kenneth\...` paths in reusable QA drivers are machine-specific. Drivers selected for integration will resolve from their worktree/repository root and accept explicit output/URL configuration.
+- Hard-coded personal home-directory paths in reusable QA drivers are machine-specific. Integrated drivers resolve from their worktree/repository root and accept explicit output/URL configuration.
 - The existing Electron dependency audit reports one high-severity advisory whose available remediation is a major-version change. Dependency versions are unchanged by the overnight branches; the final report will document the result instead of making an unrelated major upgrade without compatibility validation.

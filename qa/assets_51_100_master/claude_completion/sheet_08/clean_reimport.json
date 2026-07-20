@@ -6,7 +6,7 @@
   "results": [
     {
       "asset": 71,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_071_vacuum_cleaner.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_071_vacuum_cleaner.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -198,7 +198,7 @@
     },
     {
       "asset": 71,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_071_vacuum_cleaner_fp.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_071_vacuum_cleaner_fp.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -355,7 +355,7 @@
     },
     {
       "asset": 72,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_072_mop.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_072_mop.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -499,7 +499,7 @@
     },
     {
       "asset": 72,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_072_mop_fp.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_072_mop_fp.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -622,7 +622,7 @@
     },
     {
       "asset": 73,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_073_mop_bucket_and_wringer.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_073_mop_bucket_and_wringer.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -797,7 +797,7 @@
     },
     {
       "asset": 74,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_074_broom.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_074_broom.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -941,7 +941,7 @@
     },
     {
       "asset": 74,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_074_broom_fp.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_074_broom_fp.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1064,7 +1064,7 @@
     },
     {
       "asset": 75,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_075_dustpan.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_075_dustpan.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1240,7 +1240,7 @@
     },
     {
       "asset": 75,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_075_dustpan_fp.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_075_dustpan_fp.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1394,7 +1394,7 @@
     },
     {
       "asset": 76,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_076_cleaning_spray_bottle.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_076_cleaning_spray_bottle.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1575,7 +1575,7 @@
     },
     {
       "asset": 76,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_076_cleaning_spray_bottle_fp.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_076_cleaning_spray_bottle_fp.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1742,7 +1742,7 @@
     },
     {
       "asset": 77,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_077_cleaning_cloth_and_sponge_set.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_077_cleaning_cloth_and_sponge_set.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1885,7 +1885,7 @@
     },
     {
       "asset": 77,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_077_cleaning_cloth_and_sponge_set_fp.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_077_cleaning_cloth_and_sponge_set_fp.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -2009,7 +2009,7 @@
     },
     {
       "asset": 78,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_078_pressure_washer.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_078_pressure_washer.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -2197,7 +2197,7 @@
     },
     {
       "asset": 79,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_079_pressure_washer_hose_and_wand.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_079_pressure_washer_hose_and_wand.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -2437,7 +2437,7 @@
     },
     {
       "asset": 79,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_079_pressure_washer_hose_and_wand_fp.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_079_pressure_washer_hose_and_wand_fp.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -2640,7 +2640,7 @@
     },
     {
       "asset": 80,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_080_trash_bag.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_080_trash_bag.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -2792,7 +2792,7 @@
     },
     {
       "asset": 80,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_080_trash_bag_fp.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_080_trash_bag_fp.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,

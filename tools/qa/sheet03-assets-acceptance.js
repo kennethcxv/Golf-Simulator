@@ -17,7 +17,7 @@ async (page) => {
 
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
   const out = path.resolve(repo, process.env.SHEET03_QA_OUT
     || 'qa/assets_01_50_master/after/sheet03/sheet03-assets-acceptance');
   fs.mkdirSync(out, { recursive: true });

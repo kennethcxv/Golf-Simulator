@@ -21,7 +21,7 @@ async (page) => {
     throw new Error(`BOX_QA_ITERATION must be an integer from 1 through 4; got ${iteration}.`);
   }
 
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
   const iterationName = `iteration-${String(iteration).padStart(2, '0')}`;
   const out = path.join(repo, 'qa', 'box_system_master', 'hero_apparel', phase, iterationName);
   fs.mkdirSync(out, { recursive: true });

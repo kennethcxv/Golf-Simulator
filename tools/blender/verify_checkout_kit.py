@@ -91,8 +91,10 @@ REQUIRED_NODES = {
     "putter_rack": ["Base", "Base_Felt", "Grip_Rail", "Cheek_L", "Cheek_R",
                     "Groove_Divider_01", "Groove_Divider_09", "COL_PutterRack"]
                    + [f"PUTTER_SLOT_{i:02d}" for i in range(1, 11)],
-    "bag_display": ["Deck", "Lean_Rail", "Rail_Post_L", "Rail_Post_R", "Crest_Badge",
-                   "COL_BagDisplay"]
+    "bag_display": ["Deck_Plank_01", "Deck_Plank_06", "Frame_Rail_Front",
+                   "Frame_Rail_Back", "Leg_LF", "Leg_RB", "Foot_LF",
+                   "Lean_Rail", "Mid_Rail", "Rail_Post_L", "Cradle_Arm_01_L",
+                   "Cradle_Saddle_05", "Crest_Badge", "COL_BagDisplay"]
                    + [f"BAG_SLOT_{i:02d}" for i in range(1, 6)],
     "shoe_wall": ["Slatwall", "Back_Panel", "Header", "Header_Sign", "Box_Shelf",
                   "Display_Board_01", "Display_Board_03",

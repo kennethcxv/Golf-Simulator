@@ -5,7 +5,7 @@ Status: **PASS locally**. The final isolated branch is functionally green, the f
 ## Isolation and scope
 
 - Branch: `overnight/course-editor-performance`
-- Worktree: `C:\Users\Kenneth\Documents\GitHub\Golf-Flipper-course-editor-performance`
+- Worktree: `<REPOSITORY_ROOT>-course-editor-performance`
 - Base commit: `1dfb9de` (`integration/all-verified-work-2026-07-18`)
 - Original checkout: not modified by this work
 - Remote status: no Git remotes are configured, so the branch cannot be pushed from this checkout

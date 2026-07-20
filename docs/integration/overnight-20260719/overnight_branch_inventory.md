@@ -8,7 +8,7 @@ Inventory captured on 2026-07-19 before integration. The repository has no confi
 - Latest previously verified line: `integration/all-verified-work-2026-07-18` at `1dfb9de646c6785b027ddb023dda1e3a6af9a5c6`
 - Safety branch: `backup/pre-overnight-integration-20260719` at the recorded `main`
 - Integration branch: `integration/codex-overnight-review-20260719`, created from `1dfb9de`
-- External byte-for-byte working-copy backup: `C:\Users\Kenneth\Documents\GitHub\Golf-Flipper-integration-safety-20260719`
+- External byte-for-byte working-copy backup: `<REPOSITORY_ROOT>-integration-safety-20260719`
 - Existing stashes: none
 - Remote branches: none
 

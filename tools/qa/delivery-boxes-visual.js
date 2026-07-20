@@ -1,7 +1,9 @@
 async (page) => {
   const errs = [];
   page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/delivery';
+  const OUT = process.getBuiltinModule('node:path').join(
+    process.env.QA_REPO_ROOT || process.cwd(), 'qa', 'delivery',
+  );
 
   await page.goto('http://localhost:8457/');
   await page.setViewportSize({ width: 1600, height: 900 });

@@ -4,7 +4,7 @@ async (page) => {
   // normal keyboard/UI paths or the documented real-debit customer fixture.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
   const out = path.resolve(repo, process.env.ASSET20_QA_OUT
     || 'qa/assets_01_50_master/after/sheet02/asset20-acceptance');
   fs.mkdirSync(out, { recursive: true });

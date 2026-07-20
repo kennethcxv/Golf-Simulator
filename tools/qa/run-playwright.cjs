@@ -11,6 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const {
   acquirePlaywrightRunLock,
   releasePlaywrightRunLock,
@@ -18,16 +19,40 @@ const {
 
 const QA_BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
 
+function npmCacheRoot() {
+  if (process.env.npm_config_cache) return process.env.npm_config_cache;
+  try {
+    return execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['config', 'get', 'cache'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch (_) {
+    return null;
+  }
+}
+
+function cachedPlaywrightCandidates() {
+  const cache = npmCacheRoot();
+  const npxRoot = cache && path.join(cache, '_npx');
+  if (!npxRoot || !fs.existsSync(npxRoot)) return [];
+  return fs.readdirSync(npxRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(npxRoot, entry.name, 'node_modules', 'playwright'))
+    .filter((candidate) => fs.existsSync(candidate));
+}
+
 function loadPlaywright() {
-  const candidates = [
+  const candidates = [...new Set([
+    process.env.PLAYWRIGHT_MODULE,
     'playwright',
-    'C:/Users/Kenneth/AppData/Local/npm-cache/_npx/9833c18b2d85bc59/node_modules/playwright',
-    'C:/Users/Kenneth/AppData/Local/npm-cache/_npx/e41f203b7505f1fb/node_modules/playwright',
-  ];
+    ...cachedPlaywrightCandidates(),
+  ].filter(Boolean))];
   for (const candidate of candidates) {
     try { return require(candidate); } catch (_) { /* try the next local install */ }
   }
-  throw new Error('Playwright is not available from the project or the known local npm cache.');
+  throw new Error(
+    'Playwright is unavailable. Install it locally or set PLAYWRIGHT_MODULE to its module directory.',
+  );
 }
 
 async function runUnlocked() {

@@ -8,7 +8,7 @@ async (page) => {
 
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
   const iteration = process.env.DELIVERY_EQUIPMENT_ITERATION || 'iteration-01';
   if (!/^iteration-[0-9]{2}$/.test(iteration)) {
     throw new Error(`Invalid DELIVERY_EQUIPMENT_ITERATION: ${iteration}`);

@@ -16,7 +16,7 @@ async (page) => {
   const phase = process.env.CLUB_BOX_QA_CANDIDATE === '1' ? 'candidate' : 'after';
   const iteration = 1;
 
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
   const iterationName = `iteration-${String(iteration).padStart(2, '0')}`;
   const out = path.join(repo, 'qa', 'box_system_master', 'club_box_lifecycle', phase, iterationName);
   fs.mkdirSync(out, { recursive: true });

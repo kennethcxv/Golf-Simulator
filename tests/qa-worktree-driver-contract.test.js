@@ -42,9 +42,9 @@ test('front-desk cash evidence accepts the presented handful before opening the 
     'cash stays in the customer presentation frame until the handful is accepted');
 });
 
-test('front-desk no-show evidence uses the production Tee Times laptop label', () => {
+test('front-desk no-show evidence uses the production Bookings navigation and Tee Times page', () => {
   assert.match(frontDeskLifecycleDriver,
-    /querySelectorAll\('\.lt-navbtn'\)[\s\S]*includes\('Tee Times'\)/);
+    /querySelectorAll\('\.lt-navbtn'\)[\s\S]*includes\('Bookings'\)/);
   assert.doesNotMatch(frontDeskLifecycleDriver,
     /textContent\.trim\(\)\.includes\('Reservations'\)/);
   assert.match(frontDeskLifecycleDriver, /\/no\[\\s-\]\?show\/i\.test\(laptopText\)/,
@@ -98,10 +98,11 @@ test('delivery and stock evidence retain separate phase and iteration directorie
 
 test('delivery evidence separates the wide pallet proof from close label inspection', () => {
   assert.match(deliveryDriver, /const inspection = \{/);
-  assert.match(deliveryDriver, /capture\('03-boxes-staged-wide\.png'/);
-  const inspectionCamera = deliveryDriver.indexOf('await setPlayerCamera(cameras.inspection);');
-  const stagedReadback = deliveryDriver.indexOf('const staged = await page.evaluate', inspectionCamera);
-  assert.ok(inspectionCamera >= 0 && stagedReadback > inspectionCamera,
-    'readability diagnostics run from the close normal-player inspection camera');
+  assert.match(deliveryDriver, /capture\('03a-boxes-staged-overview\.png'/);
+  const labelCamera = deliveryDriver.indexOf('const labelCamera = await deriveOrderLabelCamera');
+  const cameraApplied = deliveryDriver.indexOf('await setPlayerCamera(labelCamera);', labelCamera);
+  const stagedReadback = deliveryDriver.indexOf('const staged = await page.evaluate', cameraApplied);
+  assert.ok(labelCamera >= 0 && cameraApplied > labelCamera && stagedReadback > cameraApplied,
+    'readability diagnostics run from the derived close normal-player label camera');
   assert.match(deliveryDriver, /capture\('04-box-labels-inspected\.png'/);
 });

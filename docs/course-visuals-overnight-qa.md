@@ -338,7 +338,7 @@ Final performance evidence:
 ### Isolation and source record
 
 - Branch: `overnight/course-visuals`
-- Isolated worktree: `C:\Users\Kenneth\Documents\GitHub\Golf-Flipper-course-visuals`
+- Isolated worktree: `<REPOSITORY_ROOT>-course-visuals`
 - Requested base name: `overnight/base-2026-07-18` (not present in the local
   repository and no remote is configured from which to fetch it)
 - Exact local integration base used: `1dfb9de646c6785b027ddb023dda1e3a6af9a5c6`

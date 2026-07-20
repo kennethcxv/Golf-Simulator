@@ -20,7 +20,7 @@ No production source was changed during this audit. The only runtime-adjacent ed
 | Immutable fallback base | `1dfb9de646c6785b027ddb023dda1e3a6af9a5c6` |
 | Fallback justification | Common starting commit of every available overnight branch and reflog |
 | QA branch | `overnight/qa-audit` |
-| QA worktree | `C:/Users/Kenneth/Documents/GitHub/Golf-Flipper-qa-audit` |
+| QA worktree | `<REPOSITORY_ROOT>-qa-audit` |
 | Original worktree | Not modified; it was already dirty and was treated as out of scope |
 | Isolated server | `http://127.0.0.1:8469/` from the QA worktree |
 | Browser | Chrome 150, Playwright isolated context, DPR 1 |

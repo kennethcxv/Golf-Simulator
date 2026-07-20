@@ -3,7 +3,7 @@
 ## Build identity
 
 - Branch: `overnight/management-systems`
-- Isolated worktree: `C:\Users\Kenneth\Documents\GitHub\Golf-Flipper-management-systems`
+- Isolated worktree: `<REPOSITORY_ROOT>-management-systems`
 - Base commit: `1dfb9de646c6785b027ddb023dda1e3a6af9a5c6`
 - Original worktree: inspected only; its unrelated dirty files were not changed
 
