@@ -1,0 +1,841 @@
+{
+  "pass": "checkout-final",
+  "scenario": "all",
+  "timestamp": "2026-07-20T08:52:53.751Z",
+  "baseUrl": "http://localhost:8468/",
+  "browser": "Google Chrome via Playwright",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "normalUiBoot": true,
+  "videosRecorded": true,
+  "acceptance": {
+    "card": {
+      "skipped": false,
+      "passed": true,
+      "final": {
+        "step": "20. final",
+        "revenue": 66,
+        "units": 2,
+        "held": 0,
+        "saleHeld": 0,
+        "transactionActive": false,
+        "customerPresent": false,
+        "shelfBalls": 9,
+        "shelfGlove": 9
+      }
+    },
+    "cash": {
+      "skipped": false,
+      "passed": true,
+      "final": {
+        "step": "20. final",
+        "revenue": 66,
+        "units": 2,
+        "held": 0,
+        "saleHeld": 0,
+        "transactionActive": false,
+        "customerPresent": false,
+        "shelfBalls": 9,
+        "shelfGlove": 9
+      }
+    },
+    "saveReload": {
+      "skipped": false,
+      "passed": true,
+      "checks": {
+        "stockReturned": "OK — both units back on the shelf",
+        "nothingHeld": "OK — nothing left in limbo",
+        "noPhantomRevenue": "OK — the half-sale banked nothing",
+        "noMoneyInvented": "OK — cash identical across the save/reload"
+      },
+      "registerRecovery": "OK — register mode is not locked and no ghost sale survives"
+    }
+  },
+  "reports": [
+    {
+      "name": "card",
+      "mode": "card",
+      "result": {
+        "mode": "card",
+        "log": [
+          {
+            "step": "0. before",
+            "revenue": 0,
+            "units": 0,
+            "held": 0,
+            "saleHeld": 0,
+            "transactionActive": false,
+            "customerPresent": false,
+            "shelfBalls": 10,
+            "shelfGlove": 10
+          },
+          {
+            "step": "1. customer at the counter",
+            "who": "Alex R.",
+            "revenue": 0,
+            "units": 0,
+            "held": 2,
+            "saleHeld": 2,
+            "transactionActive": true,
+            "customerPresent": true,
+            "shelfBalls": 9,
+            "shelfGlove": 9,
+            "tx": {
+              "stage": "scanning",
+              "method": null,
+              "scanned": 0,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            }
+          },
+          {
+            "step": "2. [E] register mode",
+            "active": true
+          },
+          {
+            "step": "3. dragged item 1 over the glass",
+            "tx": {
+              "stage": "scanning",
+              "method": null,
+              "scanned": 1,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            }
+          },
+          {
+            "step": "4. dragged the SAME item back over the glass",
+            "tx": {
+              "stage": "scanning",
+              "method": null,
+              "scanned": 1,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            },
+            "expect": "scanned still 1"
+          },
+          {
+            "step": "5. [T] with 1 unscanned",
+            "tx": {
+              "stage": "scanning",
+              "method": null,
+              "scanned": 1,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            },
+            "expect": "stage scanning, method null"
+          },
+          {
+            "step": "6. dragged item 2 over the glass",
+            "tx": {
+              "stage": "scanning",
+              "method": null,
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            }
+          },
+          {
+            "step": "7. [T] total",
+            "tx": {
+              "stage": "card-present",
+              "method": "card",
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            },
+            "revenue": 0,
+            "units": 0,
+            "held": 2,
+            "saleHeld": 2,
+            "transactionActive": true,
+            "customerPresent": true,
+            "shelfBalls": 9,
+            "shelfGlove": 9,
+            "expect": "revenue still 0"
+          },
+          {
+            "step": "8. clicked terminal — they present",
+            "tx": {
+              "stage": "card-ready",
+              "method": "card",
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 1,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            }
+          },
+          {
+            "step": "9. clicked terminal — running",
+            "tx": {
+              "stage": "card-busy",
+              "method": "card",
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 1,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            },
+            "revenue": 0,
+            "units": 0,
+            "held": 2,
+            "saleHeld": 2,
+            "transactionActive": true,
+            "customerPresent": true,
+            "shelfBalls": 9,
+            "shelfGlove": 9
+          },
+          {
+            "step": "10. terminal answered",
+            "tx": {
+              "stage": "receipt",
+              "method": "card",
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 1,
+              "cardsTried": 1,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            },
+            "revenue": 0,
+            "units": 0,
+            "held": 2,
+            "saleHeld": 2,
+            "transactionActive": true,
+            "customerPresent": true,
+            "shelfBalls": 9,
+            "shelfGlove": 9,
+            "expect": "revenue STILL 0 — an approval banks nothing"
+          },
+          {
+            "step": "16. receipt printed",
+            "at": {
+              "x": 3.18,
+              "z": 4.44
+            }
+          },
+          {
+            "step": "17. took the receipt",
+            "tx": {
+              "stage": "bagging",
+              "method": "card",
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 1,
+              "cardsTried": 1,
+              "receiptPrinted": true,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            }
+          },
+          {
+            "step": "18. bagged",
+            "tx": {
+              "stage": "bagging",
+              "method": "card",
+              "scanned": 2,
+              "bagged": 2,
+              "of": 2,
+              "cardAttempts": 1,
+              "cardsTried": 1,
+              "receiptPrinted": true,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            },
+            "revenue": 0,
+            "units": 0,
+            "held": 2,
+            "saleHeld": 2,
+            "transactionActive": true,
+            "customerPresent": true,
+            "shelfBalls": 9,
+            "shelfGlove": 9,
+            "expect": "revenue STILL 0"
+          },
+          {
+            "step": "19. HANDED IT OVER",
+            "palm": {
+              "at": {
+                "x": 1.4000000000000004,
+                "y": 1.155,
+                "z": 3.6399999999999864,
+                "uid": null,
+                "denom": null,
+                "n": 1
+              },
+              "px": {
+                "x": 319.59120823728506,
+                "y": 323.99678909320477
+              }
+            },
+            "revenue": 66,
+            "units": 2,
+            "held": 0,
+            "saleHeld": 0,
+            "transactionActive": false,
+            "customerPresent": true,
+            "shelfBalls": 9,
+            "shelfGlove": 9,
+            "expect": "revenue banked NOW, held back to 0"
+          },
+          {
+            "step": "20. final",
+            "revenue": 66,
+            "units": 2,
+            "held": 0,
+            "saleHeld": 0,
+            "transactionActive": false,
+            "customerPresent": false,
+            "shelfBalls": 9,
+            "shelfGlove": 9
+          }
+        ],
+        "errors": [],
+        "errorCount": 0
+      },
+      "thrown": null
+    },
+    {
+      "name": "cash",
+      "mode": "cash",
+      "result": {
+        "mode": "cash",
+        "log": [
+          {
+            "step": "0. before",
+            "revenue": 0,
+            "units": 0,
+            "held": 0,
+            "saleHeld": 0,
+            "transactionActive": false,
+            "customerPresent": false,
+            "shelfBalls": 10,
+            "shelfGlove": 10
+          },
+          {
+            "step": "1. customer at the counter",
+            "who": "Sam T.",
+            "revenue": 0,
+            "units": 0,
+            "held": 2,
+            "saleHeld": 2,
+            "transactionActive": true,
+            "customerPresent": true,
+            "shelfBalls": 9,
+            "shelfGlove": 9,
+            "tx": {
+              "stage": "scanning",
+              "method": null,
+              "scanned": 0,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            }
+          },
+          {
+            "step": "2. [E] register mode",
+            "active": true
+          },
+          {
+            "step": "3. dragged item 1 over the glass",
+            "tx": {
+              "stage": "scanning",
+              "method": null,
+              "scanned": 1,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            }
+          },
+          {
+            "step": "4. dragged the SAME item back over the glass",
+            "tx": {
+              "stage": "scanning",
+              "method": null,
+              "scanned": 1,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            },
+            "expect": "scanned still 1"
+          },
+          {
+            "step": "5. [T] with 1 unscanned",
+            "tx": {
+              "stage": "scanning",
+              "method": null,
+              "scanned": 1,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            },
+            "expect": "stage scanning, method null"
+          },
+          {
+            "step": "6. dragged item 2 over the glass",
+            "tx": {
+              "stage": "scanning",
+              "method": null,
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 0,
+              "holding": 0
+            }
+          },
+          {
+            "step": "7. [T] total",
+            "tx": {
+              "stage": "cash-tender",
+              "method": "cash",
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 14,
+              "holding": 0
+            },
+            "revenue": 0,
+            "units": 0,
+            "held": 2,
+            "saleHeld": 2,
+            "transactionActive": true,
+            "customerPresent": true,
+            "shelfBalls": 9,
+            "shelfGlove": 9,
+            "expect": "revenue still 0"
+          },
+          {
+            "step": "8. they counted out notes",
+            "notes": 3
+          },
+          {
+            "step": "9. [D] drawer before taking the cash",
+            "tx": {
+              "stage": "cash-tender",
+              "method": "cash",
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 14,
+              "holding": 0
+            },
+            "expect": "still cash-tender"
+          },
+          {
+            "step": "10. took their cash",
+            "tx": {
+              "stage": "cash-drawer",
+              "method": "cash",
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": false,
+              "changeDue": 14,
+              "holding": 0
+            }
+          },
+          {
+            "step": "11. [D] drawer open",
+            "tx": {
+              "stage": "cash-drawer",
+              "method": "cash",
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": true,
+              "deposited": false,
+              "changeDue": 14,
+              "holding": 0
+            }
+          },
+          {
+            "step": "12. put their notes away",
+            "tx": {
+              "stage": "cash-drawer",
+              "method": "cash",
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": true,
+              "deposited": true,
+              "changeDue": 14,
+              "holding": 0
+            },
+            "revenue": 0,
+            "units": 0,
+            "held": 2,
+            "saleHeld": 2,
+            "transactionActive": true,
+            "customerPresent": true,
+            "shelfBalls": 9,
+            "shelfGlove": 9
+          },
+          {
+            "step": "13. change owed",
+            "want": {
+              "1": 4,
+              "10": 1
+            }
+          },
+          {
+            "step": "14. counted the change",
+            "tx": {
+              "stage": "cash-drawer",
+              "method": "cash",
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": true,
+              "deposited": true,
+              "changeDue": 14,
+              "holding": 14
+            }
+          },
+          {
+            "step": "15. handed the change back",
+            "palm": {
+              "at": {
+                "x": 1.4000000000000004,
+                "y": 1.1550000000000002,
+                "z": 3.6399999999999864,
+                "uid": null,
+                "denom": null,
+                "n": 1
+              },
+              "px": {
+                "x": 319.59120823728506,
+                "y": 323.99678909321005
+              }
+            },
+            "tx": {
+              "stage": "receipt",
+              "method": "cash",
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": false,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": true,
+              "changeDue": 14,
+              "holding": 0
+            },
+            "revenue": 0,
+            "units": 0,
+            "held": 2,
+            "saleHeld": 2,
+            "transactionActive": true,
+            "customerPresent": true,
+            "shelfBalls": 9,
+            "shelfGlove": 9,
+            "expect": "revenue STILL 0"
+          },
+          {
+            "step": "16. receipt printed",
+            "at": {
+              "x": 3.18,
+              "z": 4.44
+            }
+          },
+          {
+            "step": "17. took the receipt",
+            "tx": {
+              "stage": "bagging",
+              "method": "cash",
+              "scanned": 2,
+              "bagged": 0,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": true,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": true,
+              "changeDue": 14,
+              "holding": 0
+            }
+          },
+          {
+            "step": "18. bagged",
+            "tx": {
+              "stage": "bagging",
+              "method": "cash",
+              "scanned": 2,
+              "bagged": 2,
+              "of": 2,
+              "cardAttempts": 0,
+              "cardsTried": 0,
+              "receiptPrinted": true,
+              "banked": false,
+              "drawerOpen": false,
+              "deposited": true,
+              "changeDue": 14,
+              "holding": 0
+            },
+            "revenue": 0,
+            "units": 0,
+            "held": 2,
+            "saleHeld": 2,
+            "transactionActive": true,
+            "customerPresent": true,
+            "shelfBalls": 9,
+            "shelfGlove": 9,
+            "expect": "revenue STILL 0"
+          },
+          {
+            "step": "19. HANDED IT OVER",
+            "palm": {
+              "at": {
+                "x": 1.4000000000000004,
+                "y": 1.1550000000000002,
+                "z": 3.6399999999999864,
+                "uid": null,
+                "denom": null,
+                "n": 1
+              },
+              "px": {
+                "x": 319.59120823728506,
+                "y": 323.99678909321005
+              }
+            },
+            "revenue": 66,
+            "units": 2,
+            "held": 0,
+            "saleHeld": 0,
+            "transactionActive": false,
+            "customerPresent": true,
+            "shelfBalls": 9,
+            "shelfGlove": 9,
+            "expect": "revenue banked NOW, held back to 0"
+          },
+          {
+            "step": "20. final",
+            "revenue": 66,
+            "units": 2,
+            "held": 0,
+            "saleHeld": 0,
+            "transactionActive": false,
+            "customerPresent": false,
+            "shelfBalls": 9,
+            "shelfGlove": 9
+          }
+        ],
+        "errors": [],
+        "errorCount": 0
+      },
+      "thrown": null
+    },
+    {
+      "name": "save-reload",
+      "mode": null,
+      "result": {
+        "log": [
+          {
+            "step": "1. clean start",
+            "shelfBalls": 8,
+            "shelfGlove": 8,
+            "backBalls": 0,
+            "held": 0,
+            "revenue": 0,
+            "units": 0,
+            "cash": 54853.91
+          },
+          {
+            "step": "2. shopper at the counter, holding two units",
+            "shelfBalls": 7,
+            "shelfGlove": 7,
+            "backBalls": 0,
+            "held": 2,
+            "revenue": 0,
+            "units": 0,
+            "cash": 54853.91,
+            "check": "OK — off the shelf, ON the held ledger"
+          },
+          {
+            "step": "3. one of two scanned, mid-sale",
+            "scanned": 1,
+            "shelfBalls": 7,
+            "shelfGlove": 7,
+            "backBalls": 0,
+            "held": 2,
+            "revenue": 0,
+            "units": 0,
+            "cash": 54853.91,
+            "check": "OK — half-rung-up"
+          },
+          {
+            "step": "4. AUTOSAVE taken mid-sale",
+            "bytes": 332706,
+            "heldInSave": 2,
+            "shelfInSave": 7,
+            "check": "OK — the save KNOWS two units are in flight"
+          },
+          {
+            "step": "5. RELOADED",
+            "shelfBalls": 8,
+            "shelfGlove": 8,
+            "backBalls": 0,
+            "held": 0,
+            "revenue": 0,
+            "units": 0,
+            "cash": 54853.91,
+            "checks": {
+              "stockReturned": "OK — both units back on the shelf",
+              "nothingHeld": "OK — nothing left in limbo",
+              "noPhantomRevenue": "OK — the half-sale banked nothing",
+              "noMoneyInvented": "OK — cash identical across the save/reload"
+            }
+          },
+          {
+            "step": "6. and the player is not stranded",
+            "registerLocked": false,
+            "ghostTx": false,
+            "check": "OK — register mode is not locked and no ghost sale survives"
+          }
+        ],
+        "errors": [],
+        "errorCount": 0
+      },
+      "thrown": null
+    }
+  ]
+}

@@ -1,0 +1,709 @@
+{
+  "pass": "final-performance",
+  "timestamp": "2026-07-20T08:55:37.655Z",
+  "baseUrl": "http://localhost:8468/",
+  "browser": "150.0.7871.127",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "deviceScaleFactor": 1,
+  "clock": "2:00 PM pinned before every fixed-camera capture",
+  "warmupSeconds": 3,
+  "frameSampleSeconds": {
+    "idle": 6,
+    "walk": 4
+  },
+  "captureEnabled": false,
+  "captureStartEnabled": false,
+  "captureFullEnabled": false,
+  "performanceEnabled": true,
+  "renovated": false,
+  "hardwareAcceleration": false,
+  "startingState": {
+    "branch": "overnight/pro-shop-overhaul",
+    "course": "Willow Creek Municipal",
+    "tier": 2,
+    "fixtureLayout": {
+      "moved": {},
+      "stored": [],
+      "extra": []
+    }
+  },
+  "stock": {
+    "tier": 3,
+    "lines": 42,
+    "units": 289
+  },
+  "stockDiagnostics": [
+    {
+      "name": "rack_drivers:driver1",
+      "meshes": 3,
+      "vertices": 9258,
+      "visible": true
+    },
+    {
+      "name": "rack_drivers:driver2",
+      "meshes": 3,
+      "vertices": 9258,
+      "visible": true
+    },
+    {
+      "name": "rack_drivers:driver3",
+      "meshes": 3,
+      "vertices": 9258,
+      "visible": true
+    },
+    {
+      "name": "rack_irons:irons1",
+      "meshes": 2,
+      "vertices": 2976,
+      "visible": true
+    },
+    {
+      "name": "rack_irons:irons2",
+      "meshes": 2,
+      "vertices": 2976,
+      "visible": true
+    },
+    {
+      "name": "rack_irons:wedge1",
+      "meshes": 2,
+      "vertices": 2976,
+      "visible": true
+    },
+    {
+      "name": "rack_irons:wedge2",
+      "meshes": 2,
+      "vertices": 2976,
+      "visible": true
+    },
+    {
+      "name": "rack_putters:putter1",
+      "meshes": 3,
+      "vertices": 3288,
+      "visible": true
+    },
+    {
+      "name": "rack_putters:putter2",
+      "meshes": 3,
+      "vertices": 3288,
+      "visible": true
+    },
+    {
+      "name": "rack_putters:putter3",
+      "meshes": 3,
+      "vertices": 3288,
+      "visible": true
+    },
+    {
+      "name": "shelf_balls:balls1",
+      "meshes": 15,
+      "vertices": 360,
+      "visible": true
+    },
+    {
+      "name": "shelf_balls:balls2",
+      "meshes": 15,
+      "vertices": 360,
+      "visible": true
+    },
+    {
+      "name": "shelf_balls:balls3",
+      "meshes": 15,
+      "vertices": 360,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:tees1",
+      "meshes": 6,
+      "vertices": 144,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:towel1",
+      "meshes": 1,
+      "vertices": 312,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:marker1",
+      "meshes": 6,
+      "vertices": 144,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:divot1",
+      "meshes": 2,
+      "vertices": 480,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:range2",
+      "meshes": 1,
+      "vertices": 36924,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:sunglasses2",
+      "meshes": 2,
+      "vertices": 1236,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:bottle1",
+      "meshes": 3,
+      "vertices": 1080,
+      "visible": true
+    },
+    {
+      "name": "shelf_acc:umb1",
+      "meshes": 2,
+      "vertices": 552,
+      "visible": true
+    },
+    {
+      "name": "shelf_small:glove1",
+      "meshes": 1,
+      "vertices": 14442,
+      "visible": true
+    },
+    {
+      "name": "shelf_small:glove2",
+      "meshes": 1,
+      "vertices": 14442,
+      "visible": true
+    },
+    {
+      "name": "shelf_small:sock1",
+      "meshes": 1,
+      "vertices": 240,
+      "visible": true
+    },
+    {
+      "name": "shelf_small:jacket2",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "hatstand:cap1",
+      "meshes": 1,
+      "vertices": 24872,
+      "visible": true
+    },
+    {
+      "name": "hatstand:cap2",
+      "meshes": 1,
+      "vertices": 24872,
+      "visible": true
+    },
+    {
+      "name": "table_polos:polo1",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "table_polos:polo2",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "table_polos:pants2",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "table_polos:shorts1",
+      "meshes": 2,
+      "vertices": 9162,
+      "visible": true
+    },
+    {
+      "name": "bagstand:bag1",
+      "meshes": 7,
+      "vertices": 4832,
+      "visible": true
+    },
+    {
+      "name": "bagstand:bag3",
+      "meshes": 7,
+      "vertices": 4832,
+      "visible": true
+    },
+    {
+      "name": "shoerack:shoe1",
+      "meshes": 1,
+      "vertices": 74160,
+      "visible": true
+    },
+    {
+      "name": "shoerack:shoe3",
+      "meshes": 1,
+      "vertices": 74160,
+      "visible": true
+    },
+    {
+      "name": "cold_drinks:water1",
+      "meshes": 3,
+      "vertices": 1440,
+      "visible": true
+    },
+    {
+      "name": "cold_drinks:sportdrink2",
+      "meshes": 3,
+      "vertices": 1440,
+      "visible": true
+    },
+    {
+      "name": "cold_drinks:soda1",
+      "meshes": 2,
+      "vertices": 1024,
+      "visible": true
+    },
+    {
+      "name": "snack_rack:chips1",
+      "meshes": 9,
+      "vertices": 384,
+      "visible": true
+    },
+    {
+      "name": "snack_rack:bar2",
+      "meshes": 9,
+      "vertices": 384,
+      "visible": true
+    },
+    {
+      "name": "snack_rack:crackers1",
+      "meshes": 9,
+      "vertices": 384,
+      "visible": true
+    },
+    {
+      "name": "member_station:scorecard1",
+      "meshes": 1,
+      "vertices": 288,
+      "visible": true
+    }
+  ],
+  "customerDiagnostics": {
+    "active": 0,
+    "minSeparationYards": null,
+    "reservedSockets": [],
+    "uniqueReservedSockets": 0
+  },
+  "customersSpawned": 10,
+  "cameras": [
+    {
+      "id": "01-entrance",
+      "at": [
+        -0.8,
+        5.2
+      ],
+      "to": [
+        -1.2,
+        -2
+      ],
+      "pitch": -0.05
+    },
+    {
+      "id": "02-checkout-customer",
+      "at": [
+        0.5,
+        2.3
+      ],
+      "to": [
+        2.9,
+        4.5
+      ],
+      "pitch": -0.1
+    },
+    {
+      "id": "03-checkout-employee",
+      "at": [
+        2.8,
+        5.1
+      ],
+      "to": [
+        2.7,
+        4
+      ],
+      "pitch": -0.18
+    },
+    {
+      "id": "04-center-aisle",
+      "at": [
+        -0.8,
+        2.4
+      ],
+      "to": [
+        -0.8,
+        -5.4
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "05-club-displays",
+      "at": [
+        -6.3,
+        -0.2
+      ],
+      "to": [
+        -9.9,
+        -0.4
+      ],
+      "pitch": 0.02
+    },
+    {
+      "id": "06-clothing",
+      "at": [
+        -4,
+        3.4
+      ],
+      "to": [
+        -5,
+        0.2
+      ],
+      "pitch": -0.02
+    },
+    {
+      "id": "07-shoes",
+      "at": [
+        2.4,
+        0.3
+      ],
+      "to": [
+        5.1,
+        -0.6
+      ],
+      "pitch": -0.02
+    },
+    {
+      "id": "08-hats",
+      "at": [
+        -0.2,
+        -3.8
+      ],
+      "to": [
+        1.55,
+        -5.9
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "09-bags",
+      "at": [
+        0.2,
+        -0.8
+      ],
+      "to": [
+        2.2,
+        -2.65
+      ],
+      "pitch": -0.04
+    },
+    {
+      "id": "10-accessories",
+      "at": [
+        -3.7,
+        -3.7
+      ],
+      "to": [
+        -3.7,
+        -6.15
+      ],
+      "pitch": 0.01
+    },
+    {
+      "id": "11-snacks-drinks",
+      "at": [
+        4.25,
+        3.35
+      ],
+      "to": [
+        4.55,
+        1.5
+      ],
+      "pitch": -0.04
+    },
+    {
+      "id": "12-office",
+      "at": [
+        7.2,
+        4.3
+      ],
+      "to": [
+        9.55,
+        4.5
+      ],
+      "pitch": -0.06
+    },
+    {
+      "id": "13-stockroom",
+      "at": [
+        7.4,
+        -2.3
+      ],
+      "to": [
+        8.1,
+        -5.9
+      ],
+      "pitch": -0.04
+    },
+    {
+      "id": "14-fitting-area",
+      "at": [
+        1.6,
+        -0.5
+      ],
+      "to": [
+        4.6,
+        -2.1
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "15-lounge",
+      "at": [
+        1,
+        -3.8
+      ],
+      "to": [
+        4.9,
+        -5.2
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "16-exterior-window",
+      "world": true,
+      "at": [
+        -1.5,
+        243.5
+      ],
+      "to": [
+        -8.5,
+        231
+      ],
+      "pitch": 0.03
+    },
+    {
+      "id": "17-putting-studio",
+      "at": [
+        -3.8,
+        4.2
+      ],
+      "to": [
+        -7,
+        4.95
+      ],
+      "pitch": -0.12
+    },
+    {
+      "id": "18-tour-vault",
+      "at": [
+        2.3,
+        -4
+      ],
+      "to": [
+        5.25,
+        -5.2
+      ],
+      "pitch": -0.04
+    }
+  ],
+  "metrics": [
+    {
+      "label": "empty-basic-idle",
+      "durationSeconds": 6,
+      "sampledFrames": 1,
+      "averageFps": 0.31,
+      "onePercentLowFps": 0.31,
+      "worstFrameMs": 3216.8,
+      "drawCallsPerFrame": 1874,
+      "trianglesDrawnPerFrame": 5044716,
+      "visibleMeshes": 963,
+      "sceneTriangles": 1756359,
+      "uniqueMaterials": 220,
+      "uniqueTextures": 179,
+      "estimatedTextureMemoryMiB": 5810.5,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 913,
+      "texturesInMemory": 227,
+      "javascriptHeapMiB": 52.48,
+      "activeEventListeners": 92,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 56,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "error": 0,
+        "input": 1,
+        "keydown": 4,
+        "keyup": 2,
+        "load": 0,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 4,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 4,
+      "uiMutationFrequencyHz": 0.67
+    },
+    {
+      "label": "full-premium-ten-customers-idle",
+      "durationSeconds": 6,
+      "sampledFrames": 0,
+      "averageFps": 0,
+      "onePercentLowFps": 0,
+      "worstFrameMs": 0,
+      "drawCallsPerFrame": 0,
+      "trianglesDrawnPerFrame": 0,
+      "visibleMeshes": 1278,
+      "sceneTriangles": 2043601,
+      "uniqueMaterials": 305,
+      "uniqueTextures": 193,
+      "estimatedTextureMemoryMiB": 6091.05,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 1167,
+      "texturesInMemory": 239,
+      "javascriptHeapMiB": 71.51,
+      "activeEventListeners": 92,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 56,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "error": 0,
+        "input": 1,
+        "keydown": 4,
+        "keyup": 2,
+        "load": 0,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 4,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 2,
+      "uiMutationFrequencyHz": 0.33
+    },
+    {
+      "label": "full-premium-normal-control-walk",
+      "durationSeconds": 4,
+      "sampledFrames": 0,
+      "averageFps": 0,
+      "onePercentLowFps": 0,
+      "worstFrameMs": 0,
+      "drawCallsPerFrame": 0,
+      "trianglesDrawnPerFrame": 0,
+      "visibleMeshes": 1297,
+      "sceneTriangles": 2061876,
+      "uniqueMaterials": 306,
+      "uniqueTextures": 194,
+      "estimatedTextureMemoryMiB": 6091.39,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 1420,
+      "texturesInMemory": 263,
+      "javascriptHeapMiB": 88.04,
+      "activeEventListeners": 92,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 56,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "error": 0,
+        "input": 1,
+        "keydown": 4,
+        "keyup": 2,
+        "load": 0,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 4,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 2,
+      "uiMutationFrequencyHz": 0.5,
+      "playerTravelYards": 0.85
+    }
+  ],
+  "consoleMessages": [],
+  "failedRequests": [
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/hose_nozzle.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/bucket_soil.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/clubhouse/cap_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/clubhouse/rangefinder.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/leaves_pile.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/belt.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/clubhouse_ext_opt.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/golf_cart.glb"
+    }
+  ]
+}

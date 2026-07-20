@@ -10,6 +10,8 @@ const VIDEO = process.argv.includes('--video');
 const RENOVATED = process.argv.includes('--renovated');
 const HARDWARE = process.argv.includes('--hardware');
 const REQUESTED_CUSTOMERS = Number(process.argv.find((arg) => arg.startsWith('--customers='))?.slice(12) || 0);
+const PERF_IDLE_SECONDS = Number(process.argv.find((arg) => arg.startsWith('--perf-idle='))?.slice(12) || 6);
+const PERF_WALK_SECONDS = Number(process.argv.find((arg) => arg.startsWith('--perf-walk='))?.slice(12) || 4);
 const CAPTURE = !process.argv.includes('--perf-only');
 const PERFORMANCE = !process.argv.includes('--capture-only');
 const CAPTURE_START = CAPTURE && !process.argv.includes('--full-only');
@@ -304,7 +306,7 @@ if (PERFORMANCE) {
   await setStock('empty', 1);
   await setCamera(SHOTS[0]);
   await page.waitForTimeout(3_000);
-  metrics.push(await measureFrames('empty-basic-idle'));
+  metrics.push(await measureFrames('empty-basic-idle', PERF_IDLE_SECONDS));
 }
 
 const stock = await setStock('full', 3);
@@ -369,14 +371,14 @@ if (PERFORMANCE) {
     return count;
   });
   await page.waitForTimeout(3_000);
-  metrics.push(await measureFrames('full-premium-ten-customers-idle'));
+  metrics.push(await measureFrames('full-premium-ten-customers-idle', PERF_IDLE_SECONDS));
 
   console.log(`[${PASS}] measure normal-control walk`);
   await setCamera(SHOTS[0]);
   await page.locator('canvas').click({ position: { x: 800, y: 450 } }).catch(() => {});
   const beforeWalk = await page.evaluate(() => ({ x: window.__fw.scene3d.walk.state.x, z: window.__fw.scene3d.walk.state.z }));
   await page.keyboard.down('w');
-  const walkingMetrics = await measureFrames('full-premium-normal-control-walk', 4);
+  const walkingMetrics = await measureFrames('full-premium-normal-control-walk', PERF_WALK_SECONDS);
   await page.keyboard.up('w');
   const afterWalk = await page.evaluate(() => ({ x: window.__fw.scene3d.walk.state.x, z: window.__fw.scene3d.walk.state.z }));
   metrics.push({ ...walkingMetrics, playerTravelYards: +Math.hypot(afterWalk.x - beforeWalk.x, afterWalk.z - beforeWalk.z).toFixed(2) });
@@ -391,7 +393,7 @@ const report = {
   deviceScaleFactor: 1,
   clock: '2:00 PM pinned before every fixed-camera capture',
   warmupSeconds: 3,
-  frameSampleSeconds: { idle: 6, walk: 4 },
+  frameSampleSeconds: { idle: PERF_IDLE_SECONDS, walk: PERF_WALK_SECONDS },
   captureEnabled: CAPTURE,
   captureStartEnabled: CAPTURE_START,
   captureFullEnabled: CAPTURE_FULL,
