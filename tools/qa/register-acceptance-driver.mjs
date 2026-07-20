@@ -452,11 +452,11 @@ export async function runRegisterAcceptance(page, mode, { baseUrl = BASE_URL } =
       const clubhouse = app.scene3d.clubhouse();
       clubhouse.rebuildStock();
       const walk = app.scene3d.walk.state;
-      const clubhouseOrigin = chFixture.interior.position;
-      walk.x = clubhouseOrigin.x + 2.80;
+      const offset = app.scene3d.clubhouse().interior.position;
+      walk.x = offset.x + 2.80;
       // Stand a little farther back than the minimum interaction distance so the
       // customer-placement evidence includes the complete physical POS bezel.
-      walk.z = clubhouseOrigin.z + 5.35;
+      walk.z = offset.z + 5.35;
       walk.yaw = 0;
       walk.pitch = -0.18;
       return books;
