@@ -1,0 +1,35 @@
+# Pro-shop fixture and asset manifest - starting state
+
+Dimensions use game/Blender units (1 unit is approximately 1 metre). Capacities are the actual authored socket counts in `src/data/fixtureSlots.js`, not category estimates.
+
+| Asset ID | Blender/source | Runtime asset or builder | Approx. dimensions W x D x H | Shared materials | Category | Capacity | Browse sockets | Stocking sockets | Collision | Baseline status | Required action |
+|---|---|---|---|---|---|---:|---|---|---|---|---|
+| `rack_drivers` | Procedural runtime; club heads from `tools/blender/build_merch.py` | `rackUnit`; `head_driver.glb` | 3.0 x 0.9 x 2.45 | Walnut, walnut dark, brass, iron | Drivers/woods | 18 | Heuristic open-side point | 18 poses | 3.0 x 1.0 box | Fail | Rebuild cradle geometry, shorten/space sockets, add authored browse/stock points and readable sign |
+| `rack_irons` | Same as above | `rackUnit`; `head_iron.glb`, `head_wedge.glb` | 3.0 x 0.9 x 2.45 | Same | Irons/wedges | 24 | Heuristic | 24 poses | 3.0 x 1.0 box | Fail | Separate iron-set and wedge presentation, correct support/scale, improve sign |
+| `rack_putters` | Same as above | `rackUnit`; `head_putter.glb` | 3.0 x 0.9 x 2.45 | Same | Putters | 12 | Heuristic | 12 poses | 3.0 x 1.0 box | Fail | Add putter-specific rack and demo adjacency |
+| `shelf_balls` | Procedural runtime | `shelfUnit`; canvas-labelled boxes | 3.22 x 0.66 x 2.41 | Walnut, brass, cream emissive | Balls | 45 | Heuristic | 45 poses | 3.2 x 0.7 box | Needs work | Add price rails, tier hierarchy, partial/full presentation cues |
+| `shelf_acc` | Procedural runtime; rangefinder GLB | `shelfUnit`; `rangefinder.glb` | 3.22 x 0.66 x 2.41 | Walnut, brass, shared product mats | Tees/towels/markers/rangefinders/umbrellas | 50 | Heuristic | 50 mixed poses | 3.2 x 0.7 box | Fail | Replace shelf-only layout with pegboard, hooks, premium risers, price labels |
+| `shelf_small` | Procedural runtime; glove GLB | `shelfUnit`; `glove.glb` | 3.22 x 0.66 x 2.41 | Walnut, brass, fabric | Gloves/socks | 48 | Heuristic | 48 poses | 3.2 x 0.7 box | Needs work | Reduce dense repetition, add packages/baskets and price rails |
+| `table_polos` | Procedural runtime; apparel GLBs | `tableUnit`; `polo_folded.glb`, `polo_hanging.glb` | 2.4 x 1.6 x 1.70 | Walnut, brass, fabric | Polos | 24 | Heuristic | 24 poses | 2.4 x 1.6 box | Fail | Lower visual wall, improve garment thickness/stack spacing, preserve aisle sightline |
+| `rail_outer` | Procedural runtime; jacket GLB | `railUnit`; `jacket_hanging.glb` | 2.2 x 0.9 x 2.05 | Iron, brass, walnut, fabric | Jackets | 8 | Heuristic | 8 poses | 2.2 x 0.9 box | Needs work | Add variants, price/size presentation, move out of entrance composition |
+| `hatstand` | Procedural runtime; cap GLBs | `hatstandUnit`; `cap.glb`, `cap_pro.glb` | 0.8 x 0.8 x 1.75 | Walnut, brass, fabric | Hats | 12 | Heuristic | 12 radial poses | 0.8 x 0.8 box | Fail | Replace or augment with authored hat wall; align every crown to a visible peg |
+| `bagstand` | Procedural runtime; bag GLB | `bagstandUnit`; `bag.glb` | 2.6 x 1.3 x 1.25 | Walnut, brass, iron, leather | Golf bags | 4 | Heuristic | 4 poses | 2.6 x 1.3 box | Needs work | Remove sign overlap, vary bags/clubs, add explicit browse point |
+| `shoerack` | Procedural runtime; shoe GLBs | `shoerackUnit`; `shoe.glb`, `shoe_pro.glb` | Rack 2.9 x 0.7 x 2.2 plus bench | Walnut, brass, glass, fabric | Shoes | 12 pairs | Heuristic | 12 pair poses | Rack and bench boxes | Good base | Add size boxes, price labels, browse/try-on sockets; integrate fitting room |
+| `feature` | Procedural runtime | `featureUnit`; placeholder cubes | 1.8 x 1.8 x 0.95 | Walnut, brass, felt | Featured category | 8 visual placeholders | None | No SKU sockets | 1.8 x 1.8 box | Fail | Replace with low new-arrivals/putting display using real product visuals |
+| `backcounter` | Procedural runtime; bags are procedural | `backcounterUnit` | 3.4 x 0.7 x approx. 2.4 | Walnut, brass, kraft, cream sign | Checkout support | N/A | N/A | N/A | 3.4 x 0.7 box | Needs work | Reduce sign glare, integrate scorecards/membership and cable/spatial logic |
+| `backshelf_n` | Procedural runtime; carton GLBs | `backshelfUnit`; `carton.glb`, `carton_open.glb` | 2.6 x 0.62 x 2.30 | Iron, raw wood, kraft | Backroom stock | Aggregated cases | N/A | Backroom interaction is room-level | 2.9 x 0.9 box | Good structure | Distinguish dressing from live inventory and label zones |
+| `backshelf_e` | Same as above | Short `backshelfUnit` | 1.7 x 0.62 x 2.30 | Same | Backroom stock | Aggregated cases | N/A | Room-level | 1.7 x 0.9 box | Good structure | Preserve receiving-door clearance and reduce carton overlap |
+| `backshelf_e2` | Same as above | `backshelfUnit` | 2.6 x 0.62 x 2.30 | Same | Backroom stock | Aggregated cases | N/A | Room-level | 2.9 x 0.9 box | Good structure | Add category labels and accurate state visualization |
+| `checkout_counter` | `tools/blender/build_props.py`, `build_register.py`, plus procedural millwork | `buildCheckout`; kiosk/card terminal/scanner/printer/basket GLBs | 3.4 x 1.2 x 1.055 counter | Walnut, charcoal, glass, brass, kraft | Checkout | Transaction-defined | Queue and cashier stands in layout | Physical staging/scan/bagging volumes | Counter box plus tested workspaces | Strong base | Preserve state machine; improve staging cues, basket station, impulse/membership integration |
+| `lounge` | `build_props.py` plus procedural table/rug/sign | `buildLounge`; `armchair.glb`, `trophy.glb` | 3.3 x 3.5 zone | Leather, walnut, green, brass | Lounge transition | N/A | None | None | Two chair and table boxes | Good base | Improve transition, trophy/member hierarchy, focused light |
+| `office` | Procedural shell/desk plus owner/Blender chair | `clubhouse.js`; `office_chair.glb` | 4.5 x 4.5 room | Walnut, cream, green, glass | Office | N/A | Laptop seat | N/A | Desk/chair/walls | Needs work | Improve laptop presentation and preserve access |
+| `stockroom_dressing` | Procedural plus `build_props.py` | `buildStockroomDressing`; cartons/handtruck | Service room | Iron, raw wood, kraft | Receiving/storage | Aggregated | N/A | Packing and room-level stock interactions | Rack/bench/cleaning boxes | Needs work | Separate ambient cartons from real stock, label zones, preserve door path |
+
+## Current material and asset rules
+
+- All new authored assets must be project-owned and built by repeatable Blender Python. No external downloads are approved for this branch.
+- Blender slot names are remapped through `src/render3d/clubhouse/merch.js` to the shared Pinehollow material kit.
+- Existing raw Tripo assets remain immutable.
+- Product capacity continues to equal the number of authored sockets.
+- Moving components require separate objects and pivots; static collision remains simplified game-side AABBs unless a simpler convex proxy is authored.
+

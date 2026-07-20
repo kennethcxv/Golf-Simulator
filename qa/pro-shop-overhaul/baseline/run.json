@@ -1,0 +1,357 @@
+{
+  "pass": "baseline",
+  "timestamp": "2026-07-20T06:23:01.955Z",
+  "baseUrl": "http://localhost:8468/",
+  "browser": "150.0.7871.127",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "deviceScaleFactor": 1,
+  "clock": "2:00 PM pinned before every fixed-camera capture",
+  "warmupSeconds": 3,
+  "frameSampleSeconds": {
+    "idle": 6,
+    "walk": 4
+  },
+  "captureEnabled": true,
+  "captureStartEnabled": false,
+  "captureFullEnabled": true,
+  "performanceEnabled": false,
+  "startingState": {
+    "branch": "overnight/pro-shop-overhaul",
+    "course": "Willow Creek Municipal",
+    "tier": 2,
+    "fixtureLayout": {
+      "moved": {},
+      "stored": [],
+      "extra": []
+    }
+  },
+  "stock": {
+    "tier": 3,
+    "lines": 25,
+    "units": 257
+  },
+  "customersSpawned": 0,
+  "cameras": [
+    {
+      "id": "01-entrance",
+      "at": [
+        -0.8,
+        5.2
+      ],
+      "to": [
+        -1.2,
+        -2
+      ],
+      "pitch": -0.05
+    },
+    {
+      "id": "02-checkout-customer",
+      "at": [
+        0.5,
+        2.3
+      ],
+      "to": [
+        2.9,
+        4.5
+      ],
+      "pitch": -0.1
+    },
+    {
+      "id": "03-checkout-employee",
+      "at": [
+        2.8,
+        5.1
+      ],
+      "to": [
+        2.7,
+        4
+      ],
+      "pitch": -0.18
+    },
+    {
+      "id": "04-center-aisle",
+      "at": [
+        -0.8,
+        2.4
+      ],
+      "to": [
+        -0.8,
+        -5.4
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "05-club-displays",
+      "at": [
+        -6.3,
+        -0.2
+      ],
+      "to": [
+        -9.9,
+        -0.4
+      ],
+      "pitch": 0.02
+    },
+    {
+      "id": "06-clothing",
+      "at": [
+        -4,
+        3.4
+      ],
+      "to": [
+        -5,
+        0.2
+      ],
+      "pitch": -0.02
+    },
+    {
+      "id": "07-shoes",
+      "at": [
+        2.3,
+        1.7
+      ],
+      "to": [
+        5.1,
+        -0.6
+      ],
+      "pitch": -0.02
+    },
+    {
+      "id": "08-hats",
+      "at": [
+        -1.8,
+        -0.8
+      ],
+      "to": [
+        -3.4,
+        -1.6
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "09-bags",
+      "at": [
+        0.4,
+        -0.5
+      ],
+      "to": [
+        2.2,
+        -2.6
+      ],
+      "pitch": -0.04
+    },
+    {
+      "id": "10-accessories",
+      "at": [
+        -3.7,
+        -3.7
+      ],
+      "to": [
+        -3.7,
+        -6.15
+      ],
+      "pitch": 0.01
+    },
+    {
+      "id": "11-snacks-drinks",
+      "at": [
+        0.2,
+        1.3
+      ],
+      "to": [
+        3.9,
+        3.9
+      ],
+      "pitch": -0.02
+    },
+    {
+      "id": "12-office",
+      "at": [
+        7.2,
+        4.3
+      ],
+      "to": [
+        9.55,
+        4.5
+      ],
+      "pitch": -0.06
+    },
+    {
+      "id": "13-stockroom",
+      "at": [
+        7.4,
+        -2.3
+      ],
+      "to": [
+        8.1,
+        -5.9
+      ],
+      "pitch": -0.04
+    },
+    {
+      "id": "14-fitting-area",
+      "at": [
+        3.6,
+        1.4
+      ],
+      "to": [
+        5.5,
+        0.3
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "15-lounge",
+      "at": [
+        1.3,
+        -3.3
+      ],
+      "to": [
+        4.3,
+        -5.3
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "16-exterior-window",
+      "world": true,
+      "at": [
+        -1.5,
+        243.5
+      ],
+      "to": [
+        -8.5,
+        231
+      ],
+      "pitch": 0.03
+    }
+  ],
+  "metrics": [],
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    }
+  ],
+  "failedRequests": [
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/hose_nozzle.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/clubhouse/cardterm_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/clubhouse/shoe_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/clubhouse/cap_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/club_sign.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/clubhouse/rangefinder.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/shed.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/belt.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/clubhouse_ext_opt.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/tractor_broken.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/tee_sign_broken.glb"
+    }
+  ]
+}
