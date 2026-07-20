@@ -395,26 +395,46 @@ async function resourceSnapshot(page) {
   });
 }
 
-async function interactionStress(page, count) {
-  const before = await page.evaluate(() => ({
+async function forceBrowserGc(page) {
+  return page.evaluate(() => {
+    if (typeof globalThis.gc !== 'function') return false;
+    globalThis.gc();
+    globalThis.gc();
+    return true;
+  });
+}
+
+async function memoryAndListenerSnapshot(page) {
+  return page.evaluate(() => ({
     listeners: JSON.parse(JSON.stringify(window.__qaListenerStats)),
     heapBytes: performance.memory?.usedJSHeapSize ?? null,
   }));
-  for (let i = 0; i < count; i++) {
-    await prepareHeroRoute(page, 0.03);
-    await mountNormally(page);
-    await page.waitForTimeout(60);
-    await unmountNormally(page);
+}
+
+async function interactionStress(page, count, rounds = 3) {
+  const gcAvailable = await forceBrowserGc(page);
+  await page.waitForTimeout(350);
+  const before = await memoryAndListenerSnapshot(page);
+  const checkpoints = [];
+  for (let round = 0; round < rounds; round++) {
+    for (let i = 0; i < count; i++) {
+      await prepareHeroRoute(page, 0.03);
+      await mountNormally(page);
+      await page.waitForTimeout(60);
+      await unmountNormally(page);
+    }
+    await forceBrowserGc(page);
+    await page.waitForTimeout(600);
+    checkpoints.push(await memoryAndListenerSnapshot(page));
   }
-  if (global.gc) global.gc();
-  await page.waitForTimeout(600);
-  const after = await page.evaluate(() => ({
-    listeners: JSON.parse(JSON.stringify(window.__qaListenerStats)),
-    heapBytes: performance.memory?.usedJSHeapSize ?? null,
-  }));
+  const after = checkpoints.at(-1);
   return {
-    cycles: count,
+    cyclesPerRound: count,
+    rounds,
+    totalCycles: count * rounds,
+    browserGcAvailable: gcAvailable,
     before,
+    checkpoints,
     after,
     activeListenerGrowth: after.listeners.active - before.listeners.active,
     jsHeapGrowthBytes: before.heapBytes !== null && after.heapBytes !== null
@@ -513,7 +533,7 @@ async function main() {
       samplesPerScenario: SAMPLE_COUNT,
       idle: 'Hole 4 fairway, fixed first-person camera, paused clock',
       active: 'Repaired tractor fixture at Hole 4, normal E mount, W drive and path mowing',
-      interactionStress: '20 normal E mount/dismount cycles',
+      interactionStress: 'Three forced-GC checkpoints across 60 normal E mount/dismount cycles',
       textureMemory: 'Estimated RGBA8 bytes including 4/3 mip overhead for sized referenced textures; not driver allocation',
       uiFrequency: 'MutationObserver records per second under #ui',
       listenerCount: 'Instrumented EventTarget add/remove active count from document start',

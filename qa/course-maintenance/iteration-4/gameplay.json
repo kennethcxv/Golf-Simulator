@@ -1,0 +1,784 @@
+{
+  "capturedAt": "2026-07-20T02:27:49.652Z",
+  "phase": "iteration-4",
+  "fixtureSeed": 20260719,
+  "assertions": {
+    "routeReviewed": true,
+    "tractorRepaired": true,
+    "allDivots": true,
+    "allBallMarks": true,
+    "allFootprints": true,
+    "allDebris": true,
+    "actionsPersisted": true,
+    "reloadRecorded": true,
+    "saveLoadWasPending": true,
+    "workOrderCompletedAfterReload": true,
+    "conditionImproved": true,
+    "scoreDidNotRegress": true
+  },
+  "baseline": {
+    "score": {
+      "total": 62,
+      "categories": {
+        "mowing": 58,
+        "moisture": 90,
+        "turfHealth": 58,
+        "greenQuality": 70,
+        "teeQuality": 74,
+        "fairwayQuality": 71,
+        "roughManagement": 72,
+        "bunkerCondition": 81,
+        "divotsAndBallMarks": 0,
+        "debris": 0,
+        "disease": 80
+      },
+      "reasons": [],
+      "calculatedAtMinute": 360
+    },
+    "route": {
+      "arrivedAtMinute": null,
+      "reviewedAtMinute": null,
+      "reloadCountAtArrival": null
+    },
+    "inspection": {
+      "active": false,
+      "selectedMetric": "priorities",
+      "firstCompletedAtMinute": null,
+      "lastCompletedAtMinute": null,
+      "inspectedIssueIds": [],
+      "diseaseFlagged": false
+    },
+    "inventory": {
+      "fertilizerKg": 28,
+      "fungicideLiters": 8,
+      "turfMixUses": 8,
+      "debrisBags": 4
+    },
+    "equipment": {
+      "tractor": {
+        "engineOn": false,
+        "bladesEngaged": false,
+        "mowerType": "fairway-reel",
+        "fuel": 100,
+        "condition": 82
+      },
+      "greensMower": {
+        "engineOn": false,
+        "bladesEngaged": false,
+        "mowerType": "greens-reel",
+        "fuel": 100,
+        "condition": 88
+      },
+      "hose": {
+        "nozzle": "fan",
+        "connected": false,
+        "flow": 0
+      },
+      "spreader": {
+        "gateOpen": false,
+        "rate": 1
+      },
+      "divotKit": {
+        "loaded": true
+      },
+      "ballMarkFork": {
+        "clean": true
+      },
+      "bunkerRake": {
+        "condition": 92
+      },
+      "debrisBag": {
+        "open": false,
+        "fill": 0
+      }
+    },
+    "issues": {
+      "divots": [
+        0,
+        6
+      ],
+      "ballMarks": [
+        0,
+        3
+      ],
+      "footprints": [
+        0,
+        7
+      ],
+      "debris": [
+        0,
+        4
+      ]
+    },
+    "workOrder": {
+      "id": "maintenance-day-hole-4",
+      "title": "Restore Hole 4",
+      "startedAtMinute": null,
+      "completedAtMinute": null,
+      "steps": [
+        {
+          "id": "arrive",
+          "label": "Arrive at the maintenance yard",
+          "complete": false
+        },
+        {
+          "id": "review",
+          "label": "Review the work order",
+          "complete": false
+        },
+        {
+          "id": "inspect",
+          "label": "Inspect Hole 4",
+          "complete": false
+        },
+        {
+          "id": "equipment",
+          "label": "Select the required equipment",
+          "complete": false
+        },
+        {
+          "id": "mow",
+          "label": "Mow the required surfaces",
+          "complete": false
+        },
+        {
+          "id": "irrigate",
+          "label": "Irrigate dry turf",
+          "complete": false
+        },
+        {
+          "id": "fertilize",
+          "label": "Fertilize weak turf",
+          "complete": false
+        },
+        {
+          "id": "divots",
+          "label": "Repair the divots",
+          "complete": false
+        },
+        {
+          "id": "ball-marks",
+          "label": "Repair the ball marks",
+          "complete": false
+        },
+        {
+          "id": "bunker",
+          "label": "Rake the bunker",
+          "complete": false
+        },
+        {
+          "id": "debris",
+          "label": "Remove course debris",
+          "complete": false
+        },
+        {
+          "id": "disease",
+          "label": "Treat or flag disease",
+          "complete": false
+        },
+        {
+          "id": "reinspect",
+          "label": "Reinspect the completed work",
+          "complete": false
+        },
+        {
+          "id": "condition",
+          "label": "Raise hole condition to 75",
+          "complete": false
+        },
+        {
+          "id": "save-load",
+          "label": "Save, reload, and confirm persistence",
+          "complete": false
+        }
+      ]
+    },
+    "reloadCount": 1,
+    "historyTypes": [],
+    "tractorRepaired": false
+  },
+  "beforeReload": {
+    "score": {
+      "total": 75,
+      "categories": {
+        "mowing": 58,
+        "moisture": 92,
+        "turfHealth": 58,
+        "greenQuality": 70,
+        "teeQuality": 74,
+        "fairwayQuality": 71,
+        "roughManagement": 72,
+        "bunkerCondition": 85,
+        "divotsAndBallMarks": 100,
+        "debris": 100,
+        "disease": 82
+      },
+      "reasons": [],
+      "calculatedAtMinute": 403.8340000000005
+    },
+    "route": {
+      "arrivedAtMinute": 403.8340000000005,
+      "reviewedAtMinute": 403.8340000000005,
+      "reloadCountAtArrival": 1
+    },
+    "inspection": {
+      "active": true,
+      "selectedMetric": "priorities",
+      "firstCompletedAtMinute": 403.8340000000005,
+      "lastCompletedAtMinute": 403.8340000000005,
+      "inspectedIssueIds": [],
+      "diseaseFlagged": false
+    },
+    "inventory": {
+      "fertilizerKg": 27.697978,
+      "fungicideLiters": 7.882432,
+      "turfMixUses": 2,
+      "debrisBags": 3
+    },
+    "equipment": {
+      "tractor": {
+        "engineOn": false,
+        "bladesEngaged": false,
+        "mowerType": "fairway-reel",
+        "fuel": 100,
+        "condition": 82
+      },
+      "greensMower": {
+        "engineOn": false,
+        "bladesEngaged": false,
+        "mowerType": "greens-reel",
+        "fuel": 100,
+        "condition": 88
+      },
+      "hose": {
+        "nozzle": "fan",
+        "connected": false,
+        "flow": 0
+      },
+      "spreader": {
+        "gateOpen": false,
+        "rate": 1
+      },
+      "divotKit": {
+        "loaded": true
+      },
+      "ballMarkFork": {
+        "clean": true
+      },
+      "bunkerRake": {
+        "condition": 92
+      },
+      "debrisBag": {
+        "open": false,
+        "fill": 0
+      }
+    },
+    "issues": {
+      "divots": [
+        6,
+        6
+      ],
+      "ballMarks": [
+        3,
+        3
+      ],
+      "footprints": [
+        7,
+        7
+      ],
+      "debris": [
+        4,
+        4
+      ]
+    },
+    "workOrder": {
+      "id": "maintenance-day-hole-4",
+      "title": "Restore Hole 4",
+      "startedAtMinute": 403.8340000000005,
+      "completedAtMinute": null,
+      "steps": [
+        {
+          "id": "arrive",
+          "label": "Arrive at the maintenance yard",
+          "complete": true
+        },
+        {
+          "id": "review",
+          "label": "Review the work order",
+          "complete": true
+        },
+        {
+          "id": "inspect",
+          "label": "Inspect Hole 4",
+          "complete": true
+        },
+        {
+          "id": "equipment",
+          "label": "Select the required equipment",
+          "complete": true
+        },
+        {
+          "id": "mow",
+          "label": "Mow the required surfaces",
+          "complete": true
+        },
+        {
+          "id": "irrigate",
+          "label": "Irrigate dry turf",
+          "complete": true
+        },
+        {
+          "id": "fertilize",
+          "label": "Fertilize weak turf",
+          "complete": true
+        },
+        {
+          "id": "divots",
+          "label": "Repair the divots",
+          "complete": true
+        },
+        {
+          "id": "ball-marks",
+          "label": "Repair the ball marks",
+          "complete": true
+        },
+        {
+          "id": "bunker",
+          "label": "Rake the bunker",
+          "complete": true
+        },
+        {
+          "id": "debris",
+          "label": "Remove course debris",
+          "complete": true
+        },
+        {
+          "id": "disease",
+          "label": "Treat or flag disease",
+          "complete": true
+        },
+        {
+          "id": "reinspect",
+          "label": "Reinspect the completed work",
+          "complete": true
+        },
+        {
+          "id": "condition",
+          "label": "Raise hole condition to 75",
+          "complete": true
+        },
+        {
+          "id": "save-load",
+          "label": "Save, reload, and confirm persistence",
+          "complete": false
+        }
+      ]
+    },
+    "reloadCount": 1,
+    "historyTypes": [
+      "equipment-selected",
+      "mowing",
+      "irrigation",
+      "fertilizer",
+      "disease-treatment",
+      "divot-filled",
+      "divot-repaired",
+      "ball-mark-repaired",
+      "bunker-raking",
+      "debris-cleared"
+    ],
+    "tractorRepaired": true
+  },
+  "afterReload": {
+    "score": {
+      "total": 75,
+      "categories": {
+        "mowing": 58,
+        "moisture": 92,
+        "turfHealth": 58,
+        "greenQuality": 70,
+        "teeQuality": 74,
+        "fairwayQuality": 71,
+        "roughManagement": 72,
+        "bunkerCondition": 85,
+        "divotsAndBallMarks": 100,
+        "debris": 100,
+        "disease": 82
+      },
+      "reasons": [],
+      "calculatedAtMinute": 403.8340000000005
+    },
+    "route": {
+      "arrivedAtMinute": 403.8340000000005,
+      "reviewedAtMinute": 403.8340000000005,
+      "reloadCountAtArrival": 1
+    },
+    "inspection": {
+      "active": true,
+      "selectedMetric": "priorities",
+      "firstCompletedAtMinute": 403.8340000000005,
+      "lastCompletedAtMinute": 403.8340000000005,
+      "inspectedIssueIds": [],
+      "diseaseFlagged": false
+    },
+    "inventory": {
+      "fertilizerKg": 27.697978,
+      "fungicideLiters": 7.882432,
+      "turfMixUses": 2,
+      "debrisBags": 3
+    },
+    "equipment": {
+      "tractor": {
+        "engineOn": false,
+        "bladesEngaged": false,
+        "mowerType": "fairway-reel",
+        "fuel": 100,
+        "condition": 82
+      },
+      "greensMower": {
+        "engineOn": false,
+        "bladesEngaged": false,
+        "mowerType": "greens-reel",
+        "fuel": 100,
+        "condition": 88
+      },
+      "hose": {
+        "nozzle": "fan",
+        "connected": false,
+        "flow": 0
+      },
+      "spreader": {
+        "gateOpen": false,
+        "rate": 1
+      },
+      "divotKit": {
+        "loaded": true
+      },
+      "ballMarkFork": {
+        "clean": true
+      },
+      "bunkerRake": {
+        "condition": 92
+      },
+      "debrisBag": {
+        "open": false,
+        "fill": 0
+      }
+    },
+    "issues": {
+      "divots": [
+        6,
+        6
+      ],
+      "ballMarks": [
+        3,
+        3
+      ],
+      "footprints": [
+        7,
+        7
+      ],
+      "debris": [
+        4,
+        4
+      ]
+    },
+    "workOrder": {
+      "id": "maintenance-day-hole-4",
+      "title": "Restore Hole 4",
+      "startedAtMinute": 403.8340000000005,
+      "completedAtMinute": 403.8340000000005,
+      "steps": [
+        {
+          "id": "arrive",
+          "label": "Arrive at the maintenance yard",
+          "complete": true
+        },
+        {
+          "id": "review",
+          "label": "Review the work order",
+          "complete": true
+        },
+        {
+          "id": "inspect",
+          "label": "Inspect Hole 4",
+          "complete": true
+        },
+        {
+          "id": "equipment",
+          "label": "Select the required equipment",
+          "complete": true
+        },
+        {
+          "id": "mow",
+          "label": "Mow the required surfaces",
+          "complete": true
+        },
+        {
+          "id": "irrigate",
+          "label": "Irrigate dry turf",
+          "complete": true
+        },
+        {
+          "id": "fertilize",
+          "label": "Fertilize weak turf",
+          "complete": true
+        },
+        {
+          "id": "divots",
+          "label": "Repair the divots",
+          "complete": true
+        },
+        {
+          "id": "ball-marks",
+          "label": "Repair the ball marks",
+          "complete": true
+        },
+        {
+          "id": "bunker",
+          "label": "Rake the bunker",
+          "complete": true
+        },
+        {
+          "id": "debris",
+          "label": "Remove course debris",
+          "complete": true
+        },
+        {
+          "id": "disease",
+          "label": "Treat or flag disease",
+          "complete": true
+        },
+        {
+          "id": "reinspect",
+          "label": "Reinspect the completed work",
+          "complete": true
+        },
+        {
+          "id": "condition",
+          "label": "Raise hole condition to 75",
+          "complete": true
+        },
+        {
+          "id": "save-load",
+          "label": "Save, reload, and confirm persistence",
+          "complete": true
+        }
+      ]
+    },
+    "reloadCount": 2,
+    "historyTypes": [
+      "equipment-selected",
+      "mowing",
+      "irrigation",
+      "fertilizer",
+      "disease-treatment",
+      "divot-filled",
+      "divot-repaired",
+      "ball-mark-repaired",
+      "bunker-raking",
+      "debris-cleared"
+    ],
+    "tractorRepaired": true
+  },
+  "console": {
+    "warningsAndErrors": [
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      }
+    ],
+    "pageErrors": [],
+    "failedRequests": [
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/hand_fork.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/bucket_soil.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/clubhouse/kiosk.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/clubhouse/cap_pro.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/club_sign.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/shed.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/bucket_soil.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/hose_nozzle.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/mower_deck.glb",
+        "failure": "net::ERR_ABORTED"
+      }
+    ]
+  },
+  "videoPath": "qa\\course-maintenance\\iteration-4\\maintenance-route.webm"
+}
