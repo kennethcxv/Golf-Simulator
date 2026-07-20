@@ -4,6 +4,13 @@
 // shop) set flags. The guide retires itself when the club comes of age.
 
 import { ZONE } from './constants.js';
+import {
+  campaignView,
+  dismissCampaignGuide,
+  recordCampaignEvent,
+  resetCampaignGuide,
+  tickCampaign,
+} from './campaign.js';
 
 // 2026-07-14 stabilization pass: a chaptered arc a first-time player can follow
 // end to end — arrive, learn the verbs, clean, order, receive, stock, sell,
@@ -168,27 +175,64 @@ export function ensureTutorial(state) {
 }
 
 export function skipTutorial(state) {
+  if (state.campaign?.enabled) {
+    dismissCampaignGuide(state);
+    if (state.tutorial) state.tutorial.hidden = true;
+    return;
+  }
   if (!state.tutorial) initTutorial(state);
   state.tutorial.complete = true;
   state.tutorial.hidden = true;
 }
 
 export function replayTutorial(state) {
+  if (state.campaign?.enabled) {
+    resetCampaignGuide(state);
+    if (!state.tutorial) initTutorial(state);
+    state.tutorial.hidden = false;
+    return;
+  }
   initTutorial(state);
   tickTutorial(state); // anything already true banks instantly
 }
 
 export function tutorialFlag(state, flag) {
   if (state.tutorial) state.tutorial.flags[flag] = true;
+  if (state.campaign?.enabled) {
+    const campaignEvent = {
+      lookedAround: 'lookedAround',
+      walkedABit: 'walkedToClubhouse',
+      doorOpened: 'entranceDoorOpened',
+      shopWalked: 'enteredClubhouse',
+      laptopOpened: 'laptopOpened',
+      savedGame: 'savedGame',
+      windowWiped: 'windowWiped',
+    }[flag];
+    if (campaignEvent) recordCampaignEvent(state, campaignEvent);
+  }
 }
 
 export function currentStep(state) {
+  if (state.campaign?.enabled) {
+    const task = campaignView(state)?.currentTask;
+    return task ? { ...task, chapter: campaignView(state).mainObjective } : null;
+  }
   if (!state.tutorial || state.tutorial.complete) return null;
   return TUTORIAL_STEPS[state.tutorial.step] || null;
 }
 
 // Advances through every currently-satisfied step; returns those just cleared.
 export function tickTutorial(state) {
+  if (state.campaign?.enabled) {
+    const result = tickCampaign(state);
+    const view = campaignView(state);
+    if (state.tutorial && view) {
+      state.tutorial.step = view.completedCount;
+      state.tutorial.complete = !!state.campaign.firstDayComplete;
+      state.tutorial.hidden = !!state.campaign.hidden;
+    }
+    return result;
+  }
   const advanced = [];
   if (!state.tutorial || state.tutorial.complete) return { advanced };
   let guard = 0;

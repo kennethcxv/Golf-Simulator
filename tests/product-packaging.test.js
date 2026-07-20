@@ -29,7 +29,7 @@ test('the contract covers every current catalog SKU with no planned-only provisi
   const current = SHOP_CATALOG.map((sku) => sku.id).sort();
   const expected = [...current, ...PLANNED_PACKAGING_SKU_IDS].sort();
 
-  assert.equal(SHOP_CATALOG.length, 34, 'catalog audit count did not silently change');
+  assert.equal(SHOP_CATALOG.length, 41, 'catalog audit count did not silently change');
   assert.deepEqual(PLANNED_PACKAGING_SKU_IDS, []);
   assert.deepEqual(PRODUCT_PACKAGING_SKU_IDS, expected);
   assert.equal(new Set(PRODUCT_PACKAGING_SKU_IDS).size, PRODUCT_PACKAGING_SKU_IDS.length);
@@ -95,6 +95,7 @@ test('SKU quantities equal exact socket capacities rather than a representative 
     glove1: 8, polo1: 8, polo2: 8, cap1: 8, jacket2: 8, shoe1: 4, sock1: 8,
     tees1: 12, towel1: 12, marker1: 12, range2: 4, umb1: 6, bag1: 1,
     vac1: 1, rug1: 1, plant1: 1, poster1: 1, board1: 1, light1: 1, lounge1: 1,
+    repairkit1: 1, desk1: 1, chair1: 1, laptop1: 1, counter1: 1, shelfkit1: 1, safetykit1: 1,
     water1: 12, snack1: 12,
   };
   assert.deepEqual(Object.keys(expectedCapacity).sort(), PRODUCT_PACKAGING_SKU_IDS);
@@ -136,8 +137,11 @@ test('umbrella and iron sets use honest exception shells and no other SKU claims
   }
 });
 
-test('shop equipment and decor are explicit nonretail physical deliveries', () => {
-  const expected = ['board1', 'light1', 'lounge1', 'plant1', 'poster1', 'rug1', 'vac1'];
+test('shop equipment, campaign fixtures, and decor are explicit nonretail physical deliveries', () => {
+  const expected = [
+    'board1', 'chair1', 'counter1', 'desk1', 'laptop1', 'light1', 'lounge1',
+    'plant1', 'poster1', 'repairkit1', 'rug1', 'safetykit1', 'shelfkit1', 'vac1',
+  ];
   const actual = Object.values(PRODUCT_PACKAGING)
     .filter((contract) => contract.status === 'nonretail')
     .map((contract) => contract.skuId)

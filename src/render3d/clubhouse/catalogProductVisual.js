@@ -48,6 +48,13 @@ const VISUALS = {
   // customer basket. Their descriptors make the opened freight truthful instead
   // of falling through to the old category-coloured cube.
   vac1: visual('packed-fixture', { model: 'delivery_fixture_product_vacuum', raw: true, barcode: 'package-back', size: [0.58, 0.36, 0.37], grip: 'two-hand', oversize: true }),
+  repairkit1: visual('packed-fixture', { raw: true, barcode: 'package-back', size: [0.55, 0.30, 0.35], grip: 'two-hand', oversize: true }),
+  desk1: visual('packed-furniture', { raw: true, barcode: 'package-back', size: [1.18, 0.78, 0.76], grip: 'two-hand', oversize: true }),
+  chair1: visual('packed-fixture', { raw: true, barcode: 'package-back', size: [0.58, 0.40, 0.36], grip: 'two-hand', oversize: true }),
+  laptop1: visual('packed-fixture', { raw: true, barcode: 'package-back', size: [0.40, 0.08, 0.30], grip: 'medium' }),
+  counter1: visual('packed-furniture', { raw: true, barcode: 'package-back', size: [1.18, 0.80, 0.78], grip: 'two-hand', oversize: true }),
+  shelfkit1: visual('packed-furniture', { raw: true, barcode: 'package-back', size: [1.18, 0.72, 0.52], grip: 'two-hand', oversize: true }),
+  safetykit1: visual('packed-fixture', { raw: true, barcode: 'package-back', size: [0.55, 0.45, 0.25], grip: 'two-hand', oversize: true }),
   plant1: visual('packed-fixture', { model: 'delivery_fixture_product_plant', raw: true, barcode: 'package-back', size: [0.34, 0.28, 0.34], grip: 'medium' }),
   poster1: visual('packed-fixture', { model: 'delivery_fixture_product_poster', raw: true, barcode: 'package-back', size: [0.56, 0.07, 0.37], grip: 'medium' }),
   board1: visual('packed-fixture', { model: 'delivery_fixture_product_events_board', raw: true, barcode: 'package-back', size: [0.58, 0.10, 0.36], grip: 'two-hand', oversize: true }),

@@ -28,6 +28,7 @@ import { memberCounts } from './club.js';
 import { deliverOrdersDue, tickDeliveries } from './shop.js';
 import { generateMarketplace, generateListing, buildPropertyCourse, appraiseStats, MARKET } from './marketplace.js';
 import { appraiseProperty } from './valuation.js';
+import { initCampaign } from './campaign.js';
 
 export const EMPIRE_VERSION = 2;
 
@@ -230,6 +231,7 @@ export function buyProperty(empire, propertyId) {
     state.tutorial.complete = true;
     state.tutorial.hidden = true;
   } else {
+    initCampaign(state, { fresh: true });
     empire.firstPurchaseDone = true;
   }
 

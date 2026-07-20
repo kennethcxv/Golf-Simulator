@@ -123,9 +123,9 @@ test('every sellable catalog SKU has an explicit physical family, barcode surfac
   assert.equal(catalogProductVisual({ id: 'future-headcover', name: 'Driver head cover' }).kind, 'headcover');
 });
 
-test('all 34 catalog SKUs resolve explicit physical descriptors aligned to exact delivery contracts', () => {
+test('all 41 catalog SKUs resolve explicit physical descriptors aligned to exact delivery contracts', () => {
   const catalogIds = SHOP_CATALOG.map((sku) => sku.id).sort();
-  assert.equal(SHOP_CATALOG.length, 34, 'the audited catalog count changed');
+  assert.equal(SHOP_CATALOG.length, 41, 'the audited catalog count changed');
   assert.deepEqual(explicitCatalogVisualIds().sort(), catalogIds,
     'explicit visuals neither omit a catalog SKU nor retain a stale generic entry');
 
@@ -137,7 +137,8 @@ test('all 34 catalog SKUs resolve explicit physical descriptors aligned to exact
     const delivery = deliveryContentContract({ id: `coverage-${sku.id}`, skuId: sku.id, box: kind.id });
 
     assert.notEqual(visual.kind, 'unknown-product', `${sku.id} cannot use the unknown cube fallback`);
-    assert.ok(String(visual.model).length > 5, `${sku.id} names a physical GLB`);
+    assert.ok(String(visual.model).length > 5 || (sku.campaign && visual.kind.startsWith('packed-')),
+      `${sku.id} names a physical GLB or an explicit campaign flat-pack proxy`);
     assert.equal(visual.size.length, 3, `${sku.id} declares three runtime dimensions`);
     assert.ok(visual.size.every((value) => Number.isFinite(value) && value > 0),
       `${sku.id} dimensions are finite and positive`);
@@ -169,7 +170,7 @@ test('all 34 catalog SKUs resolve explicit physical descriptors aligned to exact
     'unknown products remain visibly exceptional instead of masquerading as an authored SKU');
 });
 
-test('all 34 SKU selections satisfy their shipped carton layout metadata at runtime', async () => {
+test('all 41 SKU selections satisfy their shipped carton layout metadata at runtime', async () => {
   const models = [...new Set(SHOP_CATALOG.map((sku) => productPackagingFor(sku.id).box.modelId))];
   const cartonScenes = await loadScenes(models);
   for (const sku of SHOP_CATALOG) {
@@ -188,7 +189,10 @@ test('all 34 SKU selections satisfy their shipped carton layout metadata at runt
 });
 
 test('every raw catalog model ships its authored pickup target and barcode anchor where applicable', async () => {
-  const rawSkus = SHOP_CATALOG.filter((sku) => catalogProductVisual(sku).raw);
+  const rawSkus = SHOP_CATALOG.filter((sku) => {
+    const visual = catalogProductVisual(sku);
+    return visual.raw && visual.model;
+  });
   assert.deepEqual(rawSkus.map((sku) => sku.id).sort(),
     ['board1', 'light1', 'lounge1', 'plant1', 'poster1', 'rug1', 'snack1', 'vac1', 'water1']);
 

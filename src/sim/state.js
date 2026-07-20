@@ -33,6 +33,7 @@ import { initCourseProps, ensureCourseProps } from './props.js';
 import { simulateDayRounds } from './rounds.js';
 import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
 import { initTutorial, ensureTutorial } from './tutorial.js';
+import { initCampaign, ensureCampaign } from './campaign.js';
 import { initLedger, addExpense, closeBooks } from './economy.js';
 import { initNotifications, ensureNotifications } from './notifications.js';
 import { BALANCE } from './balance.js';
@@ -55,7 +56,7 @@ export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 // v10: fixture poses written against older approximate envelopes are checked
 // once against the authored footprints. Only unsafe moved overrides fall back
 // to the designed plan; valid player moves and all inventory remain untouched.
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 
 const FIXTURE_FOOTPRINT_SAVE_VERSION = 10;
 const ROUTE_FAILURE = /customers could not get around/i;
@@ -217,6 +218,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initTutorial(state);
   initNotifications(state);
   state.uiPrefs = {};
+  if (opts.campaign) initCampaign(state, { fresh: true });
   return state;
 }
 
@@ -225,9 +227,10 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
 export function dailyTick(state) {
   // 1) settle the day that just ended: accrue its recurring economy, close books
   if (state.ledger) {
-    accrueDaily(state);
-    if (state.shop) shopDailyAccrual(state);
-    if (state.golfers) simulateDayRounds(state, state.club.lastRounds || 0);
+    const businessAllowed = !state.campaign?.enabled || !!state.campaign.businessOpen;
+    if (businessAllowed) accrueDaily(state);
+    if (state.shop && businessAllowed) shopDailyAccrual(state);
+    if (state.golfers && businessAllowed) simulateDayRounds(state, state.club.lastRounds || 0);
     if (state.progression) resolveTournamentIfDue(state, calendarOf(state.clock.minutes).dayAbs - 1);
     // the rent falls due whether or not it was a good week; it is announced two days out
     state.lastPropertyEvent = tickProperty(state, calendarOf(state.clock.minutes).dayAbs);
@@ -250,7 +253,7 @@ export function dailyTick(state) {
   if (state.club) dailyMembershipTick(state);
   if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.reservations) reservationsDailyTick(state, calendarOf(state.clock.minutes).dayAbs);
-  if (state.reservations) {
+  if (state.reservations && (!state.campaign?.enabled || state.campaign.businessOpen)) {
     const todayAbs = calendarOf(state.clock.minutes).dayAbs;
     if (state.reservations.lastOnlineGenerationDayAbs !== todayAbs) {
       state.reservations.lastOnlineGenerationDayAbs = todayAbs;
@@ -388,6 +391,7 @@ export function snapshot(state) {
     props: state.props,
     progression: state.progression,
     tutorial: state.tutorial,
+    campaign: state.campaign || null,
     notifications: state.notifications, // unread warnings survive the reload
     uiPrefs: state.uiPrefs || null, // the office machine's own settings (scale, default views)
     property: state.property, // the rent schedule, or reloading is a rent holiday
@@ -587,6 +591,14 @@ export function deserialize(json) {
   if (raw.tutorial) state.tutorial = raw.tutorial;
   else initTutorial(state);
   ensureTutorial(state); // older saves re-derive their spot in the chaptered arc
+  if (raw.campaign) {
+    state.campaign = raw.campaign;
+    ensureCampaign(state);
+  } else if (raw.tutorial && !raw.tutorial.complete && persistedVersion < 11) {
+    // Preserve every lived-in world change while upgrading an unfinished
+    // legacy guide. Existing furniture is treated as already installed.
+    initCampaign(state, { fresh: false });
+  }
   if (raw.notifications) state.notifications = raw.notifications;
   ensureNotifications(state); // pre-feed saves gain an empty, well-formed inbox
   state.uiPrefs = raw.uiPrefs && typeof raw.uiPrefs === 'object' ? raw.uiPrefs : {};

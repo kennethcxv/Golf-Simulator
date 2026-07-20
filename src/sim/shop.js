@@ -395,10 +395,20 @@ export function placeOrder(state, skuId, qty) {
 
   const dayAbs = calendarOf(state.clock.minutes).dayAbs;
   const id = state.shop.nextOrderId++;
-  const arrivesDay = dayAbs + LEAD_DAYS[sku.cat];
+  const campaignExpedite = !!state.campaign?.enabled && !state.campaign.businessOpen;
+  const normalArrivesDay = dayAbs + LEAD_DAYS[sku.cat];
   const slot = DELIVERY_SLOTS[(id * 7) % DELIVERY_SLOTS.length];
-  const open = arrivesDay * 1440 + slot[0] * 60;
-  const close = arrivesDay * 1440 + slot[1] * 60;
+  const normalOpen = normalArrivesDay * 1440 + slot[0] * 60;
+  const normalClose = normalArrivesDay * 1440 + slot[1] * 60;
+  // Reopening suppliers offer a same-day will-call window so the physical
+  // campaign remains playable at human speed. Once the doors open, ordinary
+  // category lead times resume unchanged.
+  const deliveryMin = campaignExpedite
+    ? Math.ceil(state.clock.minutes + 10 + ((id * 7) % 13))
+    : normalOpen + ((id * 37) % (normalClose - normalOpen));
+  const arrivesDay = campaignExpedite ? Math.floor(deliveryMin / 1440) : normalArrivesDay;
+  const open = campaignExpedite ? Math.max(state.clock.minutes + 3, deliveryMin - 6) : normalOpen;
+  const close = campaignExpedite ? deliveryMin + 24 : normalClose;
   const order = {
     id,
     skuId,
@@ -411,10 +421,15 @@ export function placeOrder(state, skuId, qty) {
     arrivesDay,
     placedMin: state.clock.minutes,
     window: { open, close },
-    deliveryMin: open + ((id * 37) % (close - open)),
+    deliveryMin,
     status: 'received',
     notif: {},
   };
+  if (campaignExpedite && sku.campaign && state.campaign) {
+    state.campaign.purchased ||= {};
+    state.campaign.purchased[skuId] = Math.max(0, Math.floor(Number(state.campaign.purchased[skuId]) || 0)) + qty;
+    order.campaignTrackedQty = qty;
+  }
   state.shop.orders.push(order);
   return {
     ok: true, cost, goods, fee, order,
@@ -505,6 +520,12 @@ export function cancelOrder(state, id) {
     return { ok: false, reason: 'The van is at the door — too late to cancel.' };
   }
   orders.splice(i, 1);
+  if (o.campaignTrackedQty && state.campaign?.purchased) {
+    state.campaign.purchased[o.skuId] = Math.max(
+      0,
+      Math.floor(Number(state.campaign.purchased[o.skuId]) || 0) - Math.floor(o.campaignTrackedQty),
+    );
+  }
   unbill(state, 'shopOrders', o.cost);
   return { ok: true, refund: o.cost };
 }
@@ -705,6 +726,14 @@ export function shopOpenStock(state) {
 
 export function shopDailyAccrual(state) {
   const shop = state.shop;
+  if (state.campaign?.enabled && !state.campaign.businessOpen) {
+    shop.log = [];
+    shop.salesYesterday = { units: 0, revenue: 0 };
+    shop.lostSalesYesterday = 0;
+    shop.fittingsYesterday = 0;
+    rollSalesWindow(state);
+    return;
+  }
   const rng = rngOf(state);
   const cal = calendarOf(state.clock.minutes);
   const seasonIndex = cal.seasonIndex;
