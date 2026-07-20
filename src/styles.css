@@ -756,6 +756,18 @@ input[type="range"] { accent-color: var(--accent); }
 .lt-slottime { width: 72px; font-weight: 600; color: #1f4a26; font-variant-numeric: tabular-nums;
   font-size: 0.84em; }
 .lt-slotwho { display: flex; gap: 8px; align-items: center; font-size: 0.82em; flex: 1; }
+.lt-slots:has(.lt-slot-rich) { gap: 7px; max-height: 345px; padding: 8px; }
+.lt-slot.lt-slot-rich { align-items: stretch; flex-direction: column; gap: 5px; padding: 8px 9px;
+  border: 1px solid #ded7c2; border-radius: 7px; background: #fdfbf4; }
+.lt-slot.lt-slot-rich.booked { background: #f6f1e4; border-color: #cfc5a9; }
+.lt-slothead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.lt-slotparties { display: flex; flex-direction: column; gap: 4px; }
+.lt-partyline { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; border-top: 1px solid #e5deca;
+  padding-top: 4px; font-size: 0.88em; }
+.lt-partyline.cancelled { opacity: 0.58; }
+.lt-partyname { color: #283426; font-weight: 700; flex: 1; min-width: 110px; }
+.lt-slotbook { align-self: flex-start; margin-top: auto; }
+.lt-input.lt-input-wide { flex: 1; min-width: 260px; }
 
 /* review factors */
 .lt-facrow { display: flex; gap: 9px; align-items: center; padding: 2px 0; }
@@ -783,7 +795,7 @@ input[type="range"] { accent-color: var(--accent); }
   flex-wrap: wrap; }
 .lt-mupct { font-weight: 700; color: #1f4a26; font-variant-numeric: tabular-nums; }
 .lt-range { accent-color: #1f4a26; flex: 1; max-width: 220px; }
-.lt-select, .lt-input { background: #fdfbf4; border: 1px solid #ded7c2; border-radius: 6px;
+.lt-select, .laptop-screen .lt-input { background: #fdfbf4; border: 1px solid #ded7c2; border-radius: 6px;
   padding: 3px 8px; font-family: inherit; font-size: 0.84em; color: #23262b; }
 .lt-input { min-width: 200px; }
 .lt-check { accent-color: #1f4a26; width: 15px; height: 15px; }
@@ -1044,6 +1056,11 @@ body.front-desk-mode .reg-hint,
 body.front-desk-mode .objectives-card,
 body.front-desk-mode .hud,
 body.front-desk-mode .hud-min { display: none !important; }
+body.laptop-mode .shop-overlay,
+body.laptop-mode .reg-hint,
+body.laptop-mode .objectives-card,
+body.laptop-mode .hud,
+body.laptop-mode .hud-min { display: none !important; }
 
 .front-desk {
   position: fixed;
