@@ -1,0 +1,470 @@
+{
+  "loop": "iteration-4",
+  "url": "http://127.0.0.1:8463/",
+  "viewport": {
+    "width": 2560,
+    "height": 1440
+  },
+  "controls": {
+    "afterWheelClose": {
+      "wheelDisplay": "none",
+      "mode": "walk",
+      "courseMode": "walk",
+      "active": "BODY"
+    },
+    "afterOverviewKey": {
+      "mode": "overview",
+      "courseMode": "overview",
+      "active": "BODY",
+      "trace": [
+        {
+          "key": "Escape",
+          "target": "tool-wheel-item is-disabled is-selected",
+          "defaultPrevented": false,
+          "mode": "tool-wheel"
+        },
+        {
+          "key": "Tab",
+          "target": "BODY",
+          "defaultPrevented": false,
+          "mode": "walk"
+        }
+      ]
+    },
+    "presentationMode": "walk",
+    "audio": {
+      "initialized": true,
+      "contextState": "running",
+      "paused": false,
+      "lifecycleActive": true,
+      "activeToolLoop": null,
+      "createdToolLoops": [],
+      "createdToolLoopCount": 0
+    },
+    "preferences": {
+      "audio": {
+        "master": 0.8,
+        "effects": 0.9,
+        "ambience": 0.65,
+        "ui": 0.8,
+        "muted": false
+      },
+      "camera": {
+        "sensitivity": 1,
+        "invertY": false,
+        "fov": 66,
+        "bob": true
+      },
+      "display": {
+        "quality": "custom",
+        "renderScale": 1,
+        "ambientOcclusion": true,
+        "bloom": true,
+        "shadows": true,
+        "uiScale": 1.25
+      },
+      "accessibility": {
+        "reducedMotion": true,
+        "highContrast": true,
+        "toolActivation": "toggle"
+      }
+    }
+  },
+  "focus": {
+    "mainMenu": [
+      {
+        "tag": "BUTTON",
+        "text": "New gameChoose Relaxed or Realistic mode",
+        "className": "menu-action"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "SettingsAudio, camera, display, and accessibility",
+        "className": "menu-action"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Credits",
+        "className": "menu-action"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "New gameChoose Relaxed or Realistic mode",
+        "className": "menu-action"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "SettingsAudio, camera, display, and accessibility",
+        "className": "menu-action"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Credits",
+        "className": "menu-action"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "New gameChoose Relaxed or Realistic mode",
+        "className": "menu-action"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "SettingsAudio, camera, display, and accessibility",
+        "className": "menu-action"
+      }
+    ],
+    "menuSettings": [
+      {
+        "tag": "BUTTON",
+        "text": "On",
+        "className": "setting-toggle is-on"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "On",
+        "className": "setting-toggle is-on"
+      },
+      {
+        "tag": "SELECT",
+        "text": "Hold buttonPress to toggle",
+        "className": ""
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Done",
+        "className": "primary"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Audio",
+        "className": "settings-tab"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Accessibility",
+        "className": "settings-tab is-active"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "On",
+        "className": "setting-toggle is-on"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "On",
+        "className": "setting-toggle is-on"
+      },
+      {
+        "tag": "SELECT",
+        "text": "Hold buttonPress to toggle",
+        "className": ""
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Done",
+        "className": "primary"
+      }
+    ],
+    "market": [
+      {
+        "tag": "BUTTON",
+        "text": "Buy",
+        "className": "primary"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Buy",
+        "className": "primary"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Buy",
+        "className": "primary"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Buy",
+        "className": "primary"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Buy",
+        "className": "primary"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Buy",
+        "className": "primary"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Buy",
+        "className": "primary"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Close",
+        "className": ""
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Buy",
+        "className": "primary"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Buy",
+        "className": "primary"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Buy",
+        "className": "primary"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Buy",
+        "className": "primary"
+      }
+    ],
+    "pause": [
+      {
+        "tag": "BUTTON",
+        "text": "Save game",
+        "className": "pause-nav-btn"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Load game",
+        "className": "pause-nav-btn"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Settings",
+        "className": "pause-nav-btn"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Controls",
+        "className": "pause-nav-btn"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Session",
+        "className": "pause-nav-btn"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Resume game",
+        "className": "pause-resume-primary"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Resume",
+        "className": "pause-nav-btn"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Overview",
+        "className": "pause-nav-btn active"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Save game",
+        "className": "pause-nav-btn"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Load game",
+        "className": "pause-nav-btn"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Settings",
+        "className": "pause-nav-btn"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "Controls",
+        "className": "pause-nav-btn"
+      }
+    ],
+    "toolWheel": [
+      {
+        "tag": "BUTTON",
+        "text": "2VShop vacuum×",
+        "className": "tool-wheel-item is-disabled is-selected"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "3WRented washer×",
+        "className": "tool-wheel-item is-disabled is-selected"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "4HWatering hose×",
+        "className": "tool-wheel-item is-disabled is-selected"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "5DDivot kit×",
+        "className": "tool-wheel-item is-disabled is-selected"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "6RBunker rake×",
+        "className": "tool-wheel-item is-disabled is-selected"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "1○Hands free",
+        "className": "tool-wheel-item is-selected"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "2VShop vacuum×",
+        "className": "tool-wheel-item is-disabled is-selected"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "3WRented washer×",
+        "className": "tool-wheel-item is-disabled is-selected"
+      }
+    ]
+  },
+  "captures": [
+    "qa/player-experience-polish/iterations/iteration-4/00-main-menu.png",
+    "qa/player-experience-polish/iterations/iteration-4/01-main-menu-settings.png",
+    "qa/player-experience-polish/iterations/iteration-4/02-new-game-dialog.png",
+    "qa/player-experience-polish/iterations/iteration-4/03-property-market.png",
+    "qa/player-experience-polish/iterations/iteration-4/04-loading.png",
+    "qa/player-experience-polish/iterations/iteration-4/05-exterior-hud.png",
+    "qa/player-experience-polish/iterations/iteration-4/06-entrance-prompt.png",
+    "qa/player-experience-polish/iterations/iteration-4/07-checkout-environment.png",
+    "qa/player-experience-polish/iterations/iteration-4/08-pause-overview.png",
+    "qa/player-experience-polish/iterations/iteration-4/09-pause-settings.png",
+    "qa/player-experience-polish/iterations/iteration-4/10-accessibility.png",
+    "qa/player-experience-polish/iterations/iteration-4/11-controls.png",
+    "qa/player-experience-polish/iterations/iteration-4/12-tool-wheel.png",
+    "qa/player-experience-polish/iterations/iteration-4/13-course-overview.png",
+    "qa/player-experience-polish/iterations/iteration-4/14-pause-from-overview.png"
+  ],
+  "consoleErrors": 0,
+  "pageErrors": [],
+  "requestFailures": [
+    {
+      "url": "http://127.0.0.1:8463/vendor/models/tee_markers.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8463/vendor/models/flagpole.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8463/vendor/models/hand_fork.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8463/vendor/models/clubhouse/cardterm_pro.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8463/vendor/models/club_sign.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8463/vendor/models/tractor_red.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8463/vendor/models/workbench.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8463/vendor/models/clubhouse_ext_opt.glb",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ]
+}

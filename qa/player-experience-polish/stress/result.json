@@ -1,0 +1,784 @@
+{
+  "url": "http://127.0.0.1:8463/",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "firstTime": {
+    "continueDisabled": true,
+    "saveStatus": "empty"
+  },
+  "settings": {
+    "beforeGame": {
+      "audio": {
+        "master": 0.6,
+        "effects": 0.9,
+        "ambience": 0.65,
+        "ui": 0.8,
+        "muted": false
+      },
+      "camera": {
+        "sensitivity": 1.35,
+        "invertY": true,
+        "fov": 74,
+        "bob": false
+      },
+      "display": {
+        "quality": "custom",
+        "renderScale": 1,
+        "ambientOcclusion": true,
+        "bloom": true,
+        "shadows": true,
+        "uiScale": 1.1
+      },
+      "accessibility": {
+        "reducedMotion": false,
+        "highContrast": false,
+        "toolActivation": "hold"
+      }
+    },
+    "inGame": {
+      "audio": {
+        "master": 0.6,
+        "effects": 0.9,
+        "ambience": 0.65,
+        "ui": 0.8,
+        "muted": false
+      },
+      "camera": {
+        "sensitivity": 1.35,
+        "invertY": true,
+        "fov": 74,
+        "bob": false
+      },
+      "display": {
+        "quality": "custom",
+        "renderScale": 1,
+        "ambientOcclusion": true,
+        "bloom": true,
+        "shadows": true,
+        "uiScale": 1.1
+      },
+      "accessibility": {
+        "reducedMotion": false,
+        "highContrast": false,
+        "toolActivation": "hold"
+      }
+    }
+  },
+  "tutorials": {
+    "initial": {
+      "step": 0,
+      "complete": false,
+      "flags": {},
+      "hidden": false,
+      "version": 3,
+      "contextual": {
+        "activeId": null,
+        "lessons": {
+          "tool-wheel": {
+            "triggered": false,
+            "complete": false,
+            "dismissed": false,
+            "remindAfter": 0
+          },
+          "cleaning-tools": {
+            "triggered": false,
+            "complete": false,
+            "dismissed": false,
+            "remindAfter": 0
+          },
+          "placement": {
+            "triggered": false,
+            "complete": false,
+            "dismissed": false,
+            "remindAfter": 0
+          },
+          "checkout": {
+            "triggered": false,
+            "complete": false,
+            "dismissed": false,
+            "remindAfter": 0
+          },
+          "front-desk": {
+            "triggered": false,
+            "complete": false,
+            "dismissed": false,
+            "remindAfter": 0
+          },
+          "maintenance-tools": {
+            "triggered": false,
+            "complete": false,
+            "dismissed": false,
+            "remindAfter": 0
+          }
+        },
+        "disabled": false
+      }
+    },
+    "disabled": {
+      "state": {
+        "step": 0,
+        "complete": true,
+        "flags": {},
+        "hidden": true,
+        "version": 3,
+        "contextual": {
+          "activeId": null,
+          "lessons": {
+            "tool-wheel": {
+              "triggered": false,
+              "complete": false,
+              "dismissed": false,
+              "remindAfter": 0
+            },
+            "cleaning-tools": {
+              "triggered": false,
+              "complete": false,
+              "dismissed": false,
+              "remindAfter": 0
+            },
+            "placement": {
+              "triggered": false,
+              "complete": false,
+              "dismissed": false,
+              "remindAfter": 0
+            },
+            "checkout": {
+              "triggered": false,
+              "complete": false,
+              "dismissed": false,
+              "remindAfter": 0
+            },
+            "front-desk": {
+              "triggered": false,
+              "complete": false,
+              "dismissed": false,
+              "remindAfter": 0
+            },
+            "maintenance-tools": {
+              "triggered": false,
+              "complete": false,
+              "dismissed": false,
+              "remindAfter": 0
+            }
+          },
+          "disabled": true
+        }
+      },
+      "cardVisible": false
+    },
+    "reset": {
+      "state": {
+        "step": 0,
+        "complete": false,
+        "flags": {},
+        "hidden": false,
+        "version": 3,
+        "contextual": {
+          "activeId": null,
+          "lessons": {
+            "tool-wheel": {
+              "triggered": false,
+              "complete": false,
+              "dismissed": false,
+              "remindAfter": 0
+            },
+            "cleaning-tools": {
+              "triggered": false,
+              "complete": false,
+              "dismissed": false,
+              "remindAfter": 0
+            },
+            "placement": {
+              "triggered": false,
+              "complete": false,
+              "dismissed": false,
+              "remindAfter": 0
+            },
+            "checkout": {
+              "triggered": false,
+              "complete": false,
+              "dismissed": false,
+              "remindAfter": 0
+            },
+            "front-desk": {
+              "triggered": false,
+              "complete": false,
+              "dismissed": false,
+              "remindAfter": 0
+            },
+            "maintenance-tools": {
+              "triggered": false,
+              "complete": false,
+              "dismissed": false,
+              "remindAfter": 0
+            }
+          },
+          "disabled": false
+        }
+      },
+      "cardVisible": true
+    }
+  },
+  "saves": {
+    "success": {
+      "slot": true,
+      "metadata": true,
+      "status": "Saved to slot 1"
+    },
+    "failure": "Slot 2\nSave failed — your previous slot is still preserved. Check storage access and try another slot.\nSave here",
+    "inspection": [
+      "Slot 1\nWillow Creek Municipal · Day 1 at 2:00 PM · $55,000 · 7/19/2026, 6:21:49 PM · previous backup recovered\nLoad",
+      "Slot 2\nEmpty — ready for a new save\nLoad",
+      "Slot 3\nCreated by newer version 999\nLoad"
+    ]
+  },
+  "pauseModes": {
+    "walk": {
+      "before": {
+        "mode": "walk",
+        "speed": 2,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": false,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        }
+      },
+      "during": {
+        "mode": "pause",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": true,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        },
+        "focusInside": true
+      },
+      "after": {
+        "mode": "walk",
+        "speed": 2,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": false,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        }
+      }
+    },
+    "toolWheel": {
+      "pauseOpen": true,
+      "wheelDisplay": "none",
+      "audio": {
+        "initialized": true,
+        "contextState": "running",
+        "paused": true,
+        "lifecycleActive": true,
+        "activeToolLoop": null,
+        "createdToolLoops": [],
+        "createdToolLoopCount": 0
+      }
+    },
+    "placement": {
+      "before": {
+        "mode": "placement",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": false,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        }
+      },
+      "during": {
+        "mode": "pause",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": true,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        },
+        "focusInside": true
+      },
+      "after": {
+        "mode": "placement",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": false,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        }
+      }
+    },
+    "laptop": {
+      "before": {
+        "mode": "laptop",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": false,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        }
+      },
+      "during": {
+        "mode": "pause",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": true,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        },
+        "focusInside": true
+      },
+      "after": {
+        "mode": "laptop",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": false,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        }
+      }
+    },
+    "register": {
+      "before": {
+        "mode": "register",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": false,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        }
+      },
+      "during": {
+        "mode": "pause",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": true,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        },
+        "focusInside": true
+      },
+      "after": {
+        "mode": "register",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": false,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        }
+      }
+    },
+    "overview": {
+      "before": {
+        "mode": "overview",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": false,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        }
+      },
+      "during": {
+        "mode": "pause",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": true,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        },
+        "focusInside": true
+      },
+      "after": {
+        "mode": "overview",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": false,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        }
+      }
+    },
+    "course-editor": {
+      "before": {
+        "mode": "course-editor",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": false,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        }
+      },
+      "during": {
+        "mode": "pause",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": true,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        },
+        "focusInside": true
+      },
+      "after": {
+        "mode": "course-editor",
+        "speed": 0,
+        "audio": {
+          "initialized": true,
+          "contextState": "running",
+          "paused": false,
+          "lifecycleActive": true,
+          "activeToolLoop": null,
+          "createdToolLoops": [],
+          "createdToolLoopCount": 0
+        }
+      }
+    }
+  },
+  "stress": {
+    "listenersBefore": {
+      "adds": 28,
+      "removes": 0,
+      "byType": {
+        "pointerdown": 2,
+        "keydown": 4,
+        "visibilitychange": 1,
+        "pagehide": 1,
+        "pointerup": 2,
+        "keyup": 2,
+        "blur": 2,
+        "pointerlockchange": 1,
+        "resize": 1,
+        "__playwright_global_listeners_check__": 1,
+        "mousemove": 2,
+        "touchstart": 1,
+        "touchend": 1,
+        "touchcancel": 1,
+        "mousedown": 1,
+        "mouseup": 1,
+        "click": 1,
+        "auxclick": 1,
+        "dblclick": 1,
+        "contextmenu": 1
+      }
+    },
+    "pauseCycles": {
+      "completed": 100,
+      "speed": 2,
+      "pauseNodes": 0,
+      "audio": {
+        "initialized": true,
+        "contextState": "running",
+        "paused": false,
+        "lifecycleActive": true,
+        "activeToolLoop": null,
+        "createdToolLoops": [],
+        "createdToolLoopCount": 0
+      }
+    },
+    "modeTransitions": {
+      "completed": 100,
+      "courseMode": "walk",
+      "presentationMode": "walk",
+      "pauseNodes": 0
+    },
+    "notifications": {
+      "initial": {
+        "visible": 3,
+        "repeatText": "!Low stock ×70Repeated stock update×"
+      },
+      "after": 3
+    },
+    "listenersAfter": {
+      "adds": 233,
+      "removes": 205,
+      "byType": {
+        "pointerdown": 2,
+        "keydown": 55,
+        "visibilitychange": 1,
+        "pagehide": 1,
+        "pointerup": 2,
+        "keyup": 53,
+        "blur": 53,
+        "pointerlockchange": 1,
+        "resize": 2,
+        "__playwright_global_listeners_check__": 1,
+        "mousemove": 53,
+        "touchstart": 1,
+        "touchend": 1,
+        "touchcancel": 1,
+        "mousedown": 1,
+        "mouseup": 1,
+        "click": 1,
+        "auxclick": 1,
+        "dblclick": 1,
+        "contextmenu": 1
+      }
+    },
+    "listenerBalanceDelta": 0
+  },
+  "audio": {
+    "held": {
+      "initialized": true,
+      "contextState": "running",
+      "paused": false,
+      "lifecycleActive": true,
+      "activeToolLoop": "washer",
+      "createdToolLoops": [
+        "washer"
+      ],
+      "createdToolLoopCount": 1
+    },
+    "background": {
+      "initialized": true,
+      "contextState": "suspended",
+      "paused": false,
+      "lifecycleActive": false,
+      "activeToolLoop": null,
+      "createdToolLoops": [
+        "washer"
+      ],
+      "createdToolLoopCount": 1
+    },
+    "restored": {
+      "initialized": true,
+      "contextState": "running",
+      "paused": false,
+      "lifecycleActive": true,
+      "activeToolLoop": null,
+      "createdToolLoops": [
+        "washer"
+      ],
+      "createdToolLoopCount": 1
+    }
+  },
+  "returning": {
+    "continueDisabled": false,
+    "continueText": "ContinueWillow Creek Municipal · Day 2",
+    "preferenceScale": 1.1,
+    "sensitivity": 1.35
+  },
+  "screenshots": [
+    "qa/player-experience-polish/stress/01-save-failure.png",
+    "qa/player-experience-polish/stress/02-save-recovery-and-version-guard.png",
+    "qa/player-experience-polish/stress/03-returning-player.png"
+  ],
+  "final": {
+    "courseMode": "walk",
+    "presentationMode": "walk",
+    "pauseNodes": 0,
+    "modalNodes": 0,
+    "notificationNodes": 0,
+    "audio": {
+      "initialized": true,
+      "contextState": "running",
+      "paused": false,
+      "lifecycleActive": true,
+      "activeToolLoop": null,
+      "createdToolLoops": [
+        "washer"
+      ],
+      "createdToolLoopCount": 1
+    },
+    "preferences": {
+      "audio": {
+        "master": 0.6,
+        "effects": 0.9,
+        "ambience": 0.65,
+        "ui": 0.8,
+        "muted": false
+      },
+      "camera": {
+        "sensitivity": 1.35,
+        "invertY": true,
+        "fov": 74,
+        "bob": false
+      },
+      "display": {
+        "quality": "custom",
+        "renderScale": 1,
+        "ambientOcclusion": true,
+        "bloom": true,
+        "shadows": true,
+        "uiScale": 1.1
+      },
+      "accessibility": {
+        "reducedMotion": false,
+        "highContrast": false,
+        "toolActivation": "hold"
+      }
+    }
+  },
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    },
+    {
+      "type": "error",
+      "text": "save slot2 failed QuotaExceededError: QA write denied"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [
+    {
+      "url": "http://127.0.0.1:8463/vendor/models/hand_fork.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8463/vendor/models/bucket_soil.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8463/vendor/models/clubhouse/rangefinder.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8463/vendor/models/clubhouse_ext_opt.glb",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "unexpectedConsoleErrors": []
+}
