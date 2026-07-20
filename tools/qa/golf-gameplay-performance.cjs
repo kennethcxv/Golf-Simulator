@@ -155,7 +155,14 @@ function summarize(samples) {
     medianWorstFrameMs: median('worstFrameMs'),
     medianDrawCalls: median('drawCalls'),
     medianRenderedTriangles: median('renderedTriangles'),
+    medianSceneTriangles: median('sceneTriangles'),
+    medianMaterials: median('materials'),
+    medianTextures: median('textures'),
+    medianEstimatedTextureMemoryBytes: median('estimatedTextureMemoryBytes'),
+    medianRendererGeometries: median('rendererGeometries'),
     medianHeapBytes: median('jsHeapBytes'),
+    medianUiMutationCallbacksPerSecond: median('uiMutationCallbacksPerSecond'),
+    medianCourseCharacters: median('courseCharacters'),
   };
 }
 
@@ -173,6 +180,11 @@ async function main() {
   const browser = await chromium.launch(launch);
   const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1 });
   await context.addInitScript(() => {
+    let qaSeed = 20260719;
+    Math.random = () => {
+      qaSeed = (Math.imul(qaSeed, 1664525) + 1013904223) >>> 0;
+      return qaSeed / 4294967296;
+    };
     let active = 0;
     let registrations = 0;
     const registry = new WeakMap();
@@ -237,17 +249,50 @@ async function main() {
     for (let i = 0; i < SAMPLE_COUNT; i++) idle.push(await sample(page, `idle-${i + 1}`));
     await page.screenshot({ path: path.join(OUT, `${LABEL}-idle.png`) });
 
-    await page.evaluate(() => {
+    const activeSetup = await page.evaluate(async () => {
       const app = window.__fw;
-      app.state.club.lastRounds = 50;
+      const reservations = await import('/src/sim/reservations.js');
+      const golf = await import('/src/sim/golfDay.js');
+      reservations.resetGolfOperationsQA(app.state, { horizonDays: 7 });
+      const create = (holder, minute, arrival, transport, size) => {
+        app.state.clock.minutes = arrival;
+        const booked = reservations.bookSlot(app.state, 0, minute, {
+          holder,
+          customerNames: Array.from({ length: size }, (_, index) => index ? `${holder} Guest ${index + 1}` : holder),
+          partySize: size,
+          transport,
+        });
+        if (!booked.ok) throw new Error(booked.reason);
+        const entry = booked.res;
+        reservations.markReservationArrived(app.state, entry.id, arrival);
+        reservations.confirmReservation(app.state, entry.id, arrival);
+        const payment = reservations.beginReservationPayment(app.state, entry.id, 'card');
+        reservations.completeReservationPayment(app.state, entry.id, { transactionId: payment.transactionId });
+        reservations.checkInReservation(app.state, entry.id, { atMinute: arrival });
+      };
+      create('Avery Monroe', 600, 560, 'walk', 2);
+      create('Devon Park', 600, 561, 'ride', 2);
+      create('Caleb Foster', 630, 562, 'walk', 3);
+      create('Imani Cole', 660, 563, 'ride', 2);
+      app.state.clock.minutes = 700;
+      golf.golfDayTick(app.state, 700);
+      // Keep the exact idle/baseline lighting while advancing canonical play.
+      app.scene3d.applyTimeWeather(560, app.state.weather);
       app.scene3d.setGolfersFrozen(false);
+      return {
+        minuteOfDay: 700,
+        visualMinuteOfDay: 560,
+        parties: app.state.golfDay.parties.length,
+        golfers: app.state.golfDay.parties.reduce((sum, party) => sum + party.golfers.length, 0),
+        carts: app.state.golfDay.carts.filter((cart) => cart.status === 'assigned').length,
+      };
     });
     await page.waitForFunction(() => {
       let count = 0;
       window.__fw.scene3d.scene.traverse((object) => {
-        if (object.userData?.char && object.position.z < 210) count++;
+        if (object.userData?.golferId) count++;
       });
-      return count >= 8;
+      return count >= 9;
     }, null, { timeout: 60000 });
     await page.waitForTimeout(3000);
     const ambient = [];
@@ -269,7 +314,7 @@ async function main() {
         minuteOfDay: 560,
         camera,
         idle: { lastRounds: 0, golfersFrozen: true },
-        ambient: { lastRounds: 50, minimumCourseCharacters: 8 },
+        ambient: { canonicalLivePlay: activeSetup, minimumLiveGolferVisuals: 9 },
         warmupMs: 8000,
         sampleCount: SAMPLE_COUNT,
         sampleDurationMs: SAMPLE_MS,

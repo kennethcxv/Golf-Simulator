@@ -382,7 +382,7 @@ async function main() {
     evidence = {
       capturedAt: new Date().toISOString(),
       iteration: ITERATION,
-      branch: 'overnight/golf-operations',
+      branch: process.env.QA_BRANCH || 'overnight/golf-operations',
       commit: process.env.QA_COMMIT || 'working-tree',
       url: URL,
       browser: await browser.version(),
