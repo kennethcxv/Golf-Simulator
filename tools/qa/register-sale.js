@@ -118,6 +118,7 @@ async (page) => {
     const THREE = await import('/vendor/three.module.js');
     const lifecycle = await import('/src/sim/inventoryLifecycle.js');
     const app = window.__fw;
+    app.speedIdx = 0; // a QA camera fixture must not roll past closing time mid-sale
     window.__qa = {
       // interior-local -> screen pixels, so a click lands on the pixel the thing is
       // actually drawn at, not where I hope it is
@@ -465,6 +466,7 @@ async (page) => {
   const rpx = await page.evaluate((a) => window.__qa.px(a.x, a.y, a.z), rp);
   await page.mouse.click(rpx.x, rpx.y);
   await untilStage('bagging');
+  await page.waitForTimeout(250); // the bagging anchor has settled and input is live
   log.push({ step: '17. took the receipt', tx: await txNow() });
 
   // --- BAG ---------------------------------------------------------------------------

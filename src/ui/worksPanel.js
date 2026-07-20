@@ -63,6 +63,15 @@ export function makeWorksPanel(app, handlers) {
     ),
   );
 
+  const irrigationGrid = el('div', { class: 'tool-grid' },
+    toolBtn('irrigation:place', 'Place sprinkler', null,
+      () => ({ kind: 'irrigation', place: true }),
+      `${formatMoney(BALANCE.irrigationHeadCost)} - covers turf within five cells after Smart irrigation is earned`),
+    toolBtn('irrigation:remove', 'Remove sprinkler', null,
+      () => ({ kind: 'irrigation', place: false }),
+      `${formatMoney(BALANCE.irrigationHeadRemoveCost)} removal cost`),
+  );
+
   const brushLabel = el('span', { class: 'muted', text: `Brush ${app.brushSize + 1}` });
   const brush = el('input', {
     type: 'range', min: '0', max: '3', step: '1', value: String(app.brushSize),
@@ -92,10 +101,14 @@ export function makeWorksPanel(app, handlers) {
   const palette = el(
     'div',
     { class: 'panel works-palette' },
-    el('h3', { text: 'Surfaces' }),
+    el('h3', { text: 'DESIGN - Construction' }),
+    el('div', { class: 'muted', text: 'These tools stage paid construction only. Turf maintenance belongs on the Grounds work board.' }),
+    el('h3', { text: 'Surfaces', style: 'margin-top:10px' }),
     zoneGrid,
     el('h3', { text: 'Land', style: 'margin-top:12px' }),
     elevGrid,
+    el('h3', { text: 'Irrigation layout', style: 'margin-top:12px' }),
+    irrigationGrid,
     el('div', { class: 'row' }, brushLabel, brush),
     el('h3', { text: 'Holes', style: 'margin-top:12px' }),
     el('div', { class: 'row' }, holeSelect),
@@ -118,7 +131,7 @@ export function makeWorksPanel(app, handlers) {
         },
       }),
     ),
-    el('div', { class: 'muted', text: 'Confirmed works near an open hole close it for renovation. No undo after confirm.' }),
+    el('div', { class: 'muted', text: 'Confirmed construction near an open hole closes it for renovation. No undo after confirm.' }),
   );
 
   // --- plan bar -----------------------------------------------------------
@@ -146,6 +159,8 @@ export function makeWorksPanel(app, handlers) {
     const bits = [];
     if (cost.cellCount) bits.push(`${cost.cellCount} cells`);
     if (cost.elevFeet > 0.01) bits.push(`${cost.elevFeet.toFixed(1)} ft of earthworks`);
+    if (cost.irrigationPlaced) bits.push(`${cost.irrigationPlaced} sprinkler${cost.irrigationPlaced === 1 ? '' : 's'} placed`);
+    if (cost.irrigationRemoved) bits.push(`${cost.irrigationRemoved} sprinkler${cost.irrigationRemoved === 1 ? '' : 's'} removed`);
     detailLabel.textContent = bits.join(' · ');
     const affected = planAffectedHoles(plan, st.course, st.mode);
     warnLabel.textContent = affected.length
@@ -163,6 +178,7 @@ export function makeWorksPanel(app, handlers) {
         if (t.kind === 'zone') on = key === `zone:${t.zone}`;
         else if (t.kind === 'elev') on = key === `elev:${t.dir}`;
         else if (t.kind === 'marker') on = key === `marker:${t.which}`;
+        else if (t.kind === 'irrigation') on = key === `irrigation:${t.place ? 'place' : 'remove'}`;
       }
       btn.classList.toggle('active-tool', on);
     }

@@ -1066,8 +1066,16 @@ export function makeLaptop(app, opts) {
     for (const [id, qty] of cart) {
       const sku = skuById(id);
       const ship = shipOf(sku, qty);
-      goods += orderCost(sku, qty);
+      const lineGoods = orderCost(sku, qty);
+      const q = quoteDelivery(st, sku, qty, {
+        service: deliveryService,
+        orderId: st.shop.nextOrderId + quoteOffset++,
+        goods: lineGoods,
+        freight: ship.fee,
+      });
+      goods += lineGoods;
       freight += ship.fee;
+      express += q.expressFee;
       boxCount += ship.boxCount;
     }
     goods = Math.round(goods * 100) / 100;
@@ -2482,6 +2490,20 @@ export function makeLaptop(app, opts) {
 
   let liveTimer = null;
 
+  function refreshLive() {
+    if (root.style.display === 'none') return;
+    // Tracking is live software, not a snapshot captured when the page opened.
+    // Redraw only the three clock-sensitive pages, preserve scroll, and never
+    // replace a confirmation while the player is deciding.
+    if (['home', 'orders', 'deliveries'].includes(page) && !pending) {
+      const y = content.scrollTop;
+      render();
+      content.scrollTop = y;
+    } else {
+      refreshStatus();
+    }
+  }
+
   return {
     root,
     open(startPage) {
@@ -2502,7 +2524,7 @@ export function makeLaptop(app, opts) {
       root.style.display = '';
       render();
       clearInterval(liveTimer);
-      liveTimer = setInterval(refreshStatus, 1000); // the clock keeps ticking on the screen
+      liveTimer = setInterval(refreshLive, 1000); // clock, ETA and blocked state stay live
     },
     close() {
       root.style.display = 'none';

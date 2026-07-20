@@ -26,6 +26,18 @@ function avgHealthOf(state, section) {
   return sectionTurfSummary(state, section).health;
 }
 
+function unlock(state, id) {
+  state.progression.unlocks[id] = 0;
+}
+
+function coverZone(state, zone) {
+  for (let i = 0; i < state.course.zones.length; i++) {
+    if (state.course.zones[i] === zone) {
+      state.course.irrigationHeads.push({ x: i % state.course.w, y: Math.floor(i / state.course.w) });
+    }
+  }
+}
+
 const HOT_DRY = { tempHiF: 93, tempLoF: 70, rainIn: 0, humidity: 0.35 };
 const MILD_HUMID = { tempHiF: 78, tempLoF: 66, rainIn: 0, humidity: 0.85 };
 
@@ -70,6 +82,8 @@ test('BRIEF CASE: unwatered turf in drought conditions degrades', () => {
 test('standard irrigation holds moisture and health through the same drought', () => {
   const st = freshState();
   lockWeather(st, HOT_DRY, 6);
+  unlock(st, 'smartIrrigation');
+  coverZone(st, ZONE.GREEN);
   st.maintenance.policies.green.irrigation = 'standard';
   const green = greenSections(st).find((g) => !sectionTurfSummary(st, g).disease);
   const before = sectionTurfSummary(st, green);
@@ -95,6 +109,8 @@ test('chronic overwatering in cool wet weather hurts turf', () => {
 test('BRIEF CASE: correct fertilization within tolerance improves health', () => {
   const st = freshState();
   lockWeather(st, { tempHiF: 72, tempLoF: 55, rainIn: 0.15, humidity: 0.55 });
+  unlock(st, 'sprayRig');
+  st.maintenance.crewUnits = 1;
   const green = greenSections(st).find((g) => !sectionTurfSummary(st, g).disease);
   // run it lean first so nutrients are depleted
   st.maintenance.policies.green.fertilizer = 'none';
@@ -240,6 +256,9 @@ test('overall condition rating moves with care vs neglect', () => {
   }
   neglect.maintenance.crewUnits = 0;
   care.maintenance.crewUnits = 3;
+  unlock(care, 'smartIrrigation');
+  coverZone(care, ZONE.GREEN);
+  coverZone(care, ZONE.FAIRWAY);
   care.maintenance.policies.green.irrigation = 'standard';
   care.maintenance.policies.fairway.irrigation = 'light';
   const r0n = conditionRating(neglect);
@@ -272,6 +291,10 @@ test('status legibility: one word per section, sensible bands', () => {
 test('daily maintenance costs money (wages, water, fertilizer) through the books', () => {
   const st = freshState();
   lockWeather(st, { tempHiF: 75, tempLoF: 58, rainIn: 0, humidity: 0.5 });
+  st.maintenance.crewUnits = 1;
+  unlock(st, 'smartIrrigation');
+  coverZone(st, ZONE.GREEN);
+  st.maintenance.policies.green.irrigation = 'standard';
   update(st, MINUTES_PER_DAY + 6 * 60);
   const report = st.maintenance.lastReport;
   assert.ok(report.costs.wages > 0);

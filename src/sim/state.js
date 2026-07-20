@@ -34,6 +34,8 @@ import {
 } from './customerIdentity.js';
 import { initTractor, ensureTractor } from './tractor.js';
 import { bunkerDailyMess } from './bunkers.js';
+import { ensureSurfaceDamage, surfaceDamageDaily } from './surfaceDamage.js';
+import { ensureMaintenanceOrders, tickMaintenanceOrders } from './maintenanceOrders.js';
 import { initCourseProps, ensureCourseProps } from './props.js';
 import { simulateDayRounds } from './rounds.js';
 import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
@@ -229,6 +231,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   // day-1 weather + turf initial condition draw from the same seeded stream
   rollDailyWeather(state.weather, rngOf(state), calendarOf(state.clock.minutes).dayOfYear);
   initTurf(state);
+  ensureMaintenanceOrders(state);
   initGolfers(state);
   initStaff(state);
   initClub(state);
@@ -320,6 +323,7 @@ export function dailyTick(state) {
     }
   }
   if (state.turf) bunkerDailyMess(state); // yesterday's traffic footprints the sand
+  if (state.turf) surfaceDamageDaily(state); // bounded divots + ball marks from actual play
   if (state.progression) {
     prestigeDailyTick(state);
     solvencyDailyTick(state);
@@ -329,6 +333,7 @@ export function dailyTick(state) {
 
 export function hourlyTick(state, hourOfDay) {
   if (state.shop) tickDeliveries(state, state.clock.minutes); // windowed trucks land on time headless too
+  if (state.maintenance) tickMaintenanceOrders(state, 60);
   // the crew starts at 5 AM; catch up later in the morning if time skipped past it
   if (state.pendingMorning && hourOfDay >= 5) {
     state.pendingMorning = false;
@@ -474,6 +479,8 @@ export function snapshot(state) {
           disType: Array.from(turf.disType),
           disSev: Array.from(turf.disSev, round1),
           treated: Array.from(turf.treated),
+          divots: Array.from(turf.divots || [] , round1),
+          ballMarks: Array.from(turf.ballMarks || [], round1),
         }
       : null,
   });
@@ -1110,6 +1117,7 @@ function normalizeShopState(state, rawShop, defaults, report) {
       }, report, `$.shop.inventory.${sku.id}.back`),
     };
   }
+  ensureMaintenanceOrders(state);
   // pre-v3 saves: bootstrap the club layer fresh
   if (raw.golfers) state.golfers = raw.golfers;
   else initGolfers(state);

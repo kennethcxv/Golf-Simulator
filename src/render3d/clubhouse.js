@@ -6290,6 +6290,152 @@ export function makeClubhouse(ctx) {
   const doorW = L2W(DOOR_MAIN.x, halfD);
   const spawnW = { x: doorW.x + 1.5, z: doorW.z + SHELL.porchD + 9 };
 
+  // --- reusable customer baskets --------------------------------------------------
+  // Eight authored baskets are instantiated once and reparented between this rack,
+  // customers, and the checkout. Four are shown in the stack; the rest are a pool,
+  // not new per-customer drawables or free-physics containers.
+  const basketPool = [];
+  const basketPlasticMat = mats.merchPlastic.clone();
+  basketPlasticMat.color.setHex(0x4f8a62);
+  const basketStation = new THREE.Group();
+  basketStation.name = 'customerBasketStation';
+  basketStation.position.set(BASKET_STATION.x, 0, BASKET_STATION.z);
+  interior.add(basketStation);
+  const basketBase = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.07, 0.48), mats.walnutDark);
+  basketBase.position.y = 0.035;
+  basketBase.castShadow = true;
+  basketStation.add(basketBase);
+  for (const sx of [-1, 1]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.58, 0.42), mats.brass);
+    rail.position.set(sx * 0.31, 0.30, 0);
+    basketStation.add(rail);
+  }
+  addCol(colBoxAt(BASKET_STATION.x, BASKET_STATION.z, BASKET_STATION.w, BASKET_STATION.d));
+
+  const carryGeo = {
+    box: new THREE.BoxGeometry(0.15, 0.08, 0.11),
+    slim: new THREE.BoxGeometry(0.12, 0.045, 0.08),
+  };
+  const carryMats = new Map();
+  const carryMat = (sku) => {
+    const key = sku?.cat || 'other';
+    if (!carryMats.has(key)) carryMats.set(key, new THREE.MeshStandardMaterial({
+      color: CAT_COLORS[key] || 0x8b927f, roughness: 0.74,
+    }));
+    return carryMats.get(key);
+  };
+  const carryModel = { polo1: 'polo_folded', polo2: 'polo_folded', jacket2: 'polo_folded', cap1: 'cap', glove1: 'glove', bag1: 'bag' };
+
+  function customerProductVisual(sku, compact = false) {
+    const group = new THREE.Group();
+    const modelName = sku && carryModel[sku.id];
+    let model = modelName && merch?.has(modelName) ? merch.instantiate(modelName, { tint: CAT_COLORS[sku.cat] }) : null;
+    if (model) {
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const target = compact ? 0.15 : (sku.id === 'bag1' ? 0.52 : 0.24);
+      model.scale.setScalar(target / Math.max(size.x, size.y, size.z, 0.001));
+      model.position.y = compact ? 0.03 : 0;
+      group.add(model);
+      return group;
+    }
+    if (sku?.cat === 'clubs') {
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, compact ? 0.18 : 0.92, 8), mats.merchSteel);
+      const head = new THREE.Mesh(new THREE.BoxGeometry(compact ? 0.06 : 0.13, compact ? 0.035 : 0.07, compact ? 0.035 : 0.08), mats.charcoal);
+      head.position.set(compact ? 0.02 : 0.05, compact ? -0.08 : -0.44, 0);
+      group.add(shaft, head);
+      return group;
+    }
+    const box = new THREE.Mesh(compact ? carryGeo.slim : carryGeo.box, carryMat(sku));
+    box.castShadow = true;
+    group.add(box);
+    return group;
+  }
+
+  function refreshBasketStation() {
+    const available = basketPool.filter((entry) => !entry.owner);
+    available.forEach((entry, i) => {
+      interior.add(entry.root);
+      entry.root.visible = i < 4;
+      entry.root.position.set(BASKET_STATION.x, 0.10 + i * 0.085, BASKET_STATION.z);
+      entry.root.rotation.set(0, -0.12 + i * 0.035, 0);
+      entry.root.scale.setScalar(1);
+    });
+  }
+
+  function syncBasketContents(c) {
+    if (!c.basket) return;
+    c.basket.contents.clear();
+    const sockets = [
+      [-0.10, 0.13, -0.045], [0.08, 0.14, 0.035], [0.00, 0.19, -0.01],
+    ];
+    visibleBasketSlots(c.cart).forEach((unit, i) => {
+      const sku = SHOP_CATALOG.find((item) => item.id === unit.skuId);
+      const visual = customerProductVisual(sku, true);
+      visual.position.fromArray(sockets[i]);
+      visual.rotation.y = (i - 1) * 0.45;
+      c.basket.contents.add(visual);
+    });
+  }
+
+  function takeBasket(c) {
+    if (c.basket) return true;
+    const entry = basketPool.find((candidate) => !candidate.owner);
+    if (!entry) return false;
+    entry.owner = c;
+    entry.root.visible = true;
+    c.mesh.add(entry.root);
+    entry.root.position.set(0.40, 0.60, -0.06);
+    entry.root.rotation.set(0, -0.10, -0.06);
+    entry.root.scale.setScalar(0.92);
+    c.basket = entry;
+    c.hasBasket = true;
+    refreshBasketStation();
+    return true;
+  }
+
+  function stageBasket(c) {
+    for (const unit of c.cart) stageUnit(unit);
+    if (c.itemMesh) {
+      c.mesh.remove(c.itemMesh);
+      c.itemMesh = null;
+    }
+    if (!c.basket) return;
+    c.basket.contents.clear();
+    interior.add(c.basket.root);
+    c.basket.root.visible = true;
+    c.basket.root.position.set(1.76, COUNTER_TOP + 0.025, 3.82);
+    c.basket.root.rotation.set(0, 0.08, 0);
+    c.basket.root.scale.setScalar(0.86);
+    c.basketAtCheckout = true;
+  }
+
+  function returnBasket(c) {
+    if (!c?.basket) return;
+    c.basket.contents.clear();
+    c.basket.owner = null;
+    c.basket = null;
+    c.hasBasket = false;
+    c.basketAtCheckout = false;
+    refreshBasketStation();
+  }
+
+  if (merch) merch.onReady(() => {
+    for (let i = 0; i < 8; i++) {
+      const root = merch.instantiate('basket');
+      if (!root) break;
+      root.traverse((part) => {
+        if (part.isMesh && part.userData.slot === 'M_plastic') part.material = basketPlasticMat;
+      });
+      root.name = `pooledCustomerBasket${i + 1}`;
+      const contents = new THREE.Group();
+      contents.name = 'authoredItemSockets';
+      root.add(contents);
+      basketPool.push({ root, contents, owner: null });
+    }
+    refreshBasketStation();
+  });
+
   function queueSlotW(i) {
     const s = queueSlot(i);
     return L2W(s.x, s.z);
@@ -6363,6 +6509,8 @@ export function makeClubhouse(ctx) {
     g.position.set(spawnW.x + (rng.next() - 0.5) * 3, heightAt(spawnW.x, spawnW.z), spawnW.z + rng.next() * 2);
     custGroup.add(g);
 
+    const plansBasket = !toCounter && rng.chance(0.62);
+    const plannedCount = plansBasket ? 2 + rng.int(2) : 1;
     const stops = [];
     let organicPlan = { target: 0, picks: [] };
     // the approach: porch step, then just inside the door (the doorbell moment)
@@ -6435,7 +6583,7 @@ export function makeClubhouse(ctx) {
     stops.push({ kind: 'exit', x: doorW.x, z: doorW.z + 2.6 });
     stops.push({ kind: 'gone', x: spawnW.x, z: spawnW.z });
 
-    customers.push({
+    const customer = {
       mesh: g,
       identity,
       customerId: identity.customerId,
@@ -6838,7 +6986,11 @@ export function makeClubhouse(ctx) {
   function customerPick(c, stop) {
     if (!stop.skus || (c.targetCartSize && c.cart.length >= c.targetCartSize)) return;
     const rng = rngOf(state);
-    const stocked = stop.skus.filter((id) => state.shop.inventory[id] && state.shop.inventory[id].shelf > 0);
+    const stocked = stop.skus.filter((id) => {
+      if (!state.shop.inventory[id] || state.shop.inventory[id].shelf <= 0) return false;
+      const sku = SHOP_CATALOG.find((item) => item.id === id);
+      return !c.hasBasket || basketCompatible(sku);
+    });
     if (!stocked.length) {
       // bare display: they glance and move on — and someone occasionally says so
       c.emptyStops = (c.emptyStops || 0) + 1;
@@ -7009,10 +7161,14 @@ export function makeClubhouse(ctx) {
     }
 
     if (c.cart && c.cart.length) {
-      for (const it of c.cart) returnToShelf(state, it.skuId, it.uid);
+      for (const it of c.cart) {
+        abandonUnit(it);
+        returnToShelf(state, it.skuId, it.uid);
+      }
       c.cart = [];
       if (!disposing) rebuildStock();
     }
+    returnBasket(c);
     if (c.tx) c.tx = null;
     c.awaitingCheckout = false;
     c.checkoutPhase = 'leaving';
@@ -7572,9 +7728,19 @@ export function makeClubhouse(ctx) {
         } else if (!served) {
           if (char) char.setMode('Idle');
         } else if (!isPass && c.linger > 0) {
-          if (char) char.setMode(stop.kind === 'fixture' ? 'Browse' : 'Idle');
+          if (char) {
+            if (stop.kind === 'basket') char.setMode('BasketPickup');
+            else if (stop.kind === 'fixture') char.setMode(c.hasBasket ? 'BasketBrowse' : 'Browse');
+            else char.setMode(c.hasBasket ? 'BasketIdle' : 'Idle');
+          }
           c.linger -= dt;
         } else {
+          if (stop.kind === 'basket') {
+            if (!takeBasket(c)) {
+              c.plansBasket = false;
+              c.plannedCount = 1;
+            }
+          }
           if (stop.kind === 'fixture') customerPick(c, stop);
           if (stop.kind === 'lounge' && c.reservationId != null) {
             c.checkoutPhase = 'reservation-arriving';

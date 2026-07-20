@@ -271,6 +271,13 @@ export const inRect = (r, x, z) => x >= r.minX && x <= r.maxX && z >= r.minZ && 
 
 // permanent entrance dressing
 export const MAT = { x: -0.8, z: 5.55 };               // welcome mat inside the door
+// Reusable hand baskets live just west of the entrance mat. The pickup slot is
+// offset into the aisle so neither customer routing nor the door swing touches it.
+export const BASKET_STATION = {
+  x: -2.35, z: 5.82,
+  pickup: { x: -2.05, z: 5.05 },
+  w: 0.72, d: 0.52,
+};
 export const LOGO_RUG = { x: -0.8, z: 3.1, w: 3.6, d: 2.4 }; // club logo rug on the entry axis
 export const HOURS_SIGN = { x: 1.1, z: 6.77 };         // beside the door, on the porch face
 

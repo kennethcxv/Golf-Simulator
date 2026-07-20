@@ -45,6 +45,11 @@ export function makeInspectPanel(app, onStateChanged) {
     title.textContent = section.name;
     const areaSqYd = section.size * CELL_YD * CELL_YD;
     const rows = [];
+    rows.push(el('div', {
+      class: 'muted',
+      style: 'font-size:0.76rem;letter-spacing:0.08em;text-transform:uppercase',
+      text: 'Maintenance map · planning only',
+    }));
 
     const isTurf = TURF_ZONES.has(section.zone) && st.turf;
     let summary = null;
@@ -86,6 +91,16 @@ export function makeInspectPanel(app, onStateChanged) {
         } else {
           rows.push(el('div', { class: 'row muted', text: 'Sand raked smooth.' }));
         }
+        const estimate = estimateWorkOrder('rakeBunker', section);
+        rows.push(el('div', { class: 'row' }, el('button', {
+          text: `Create rake order · ~${estimate.durationMinutes} min`,
+          onclick: () => {
+            const res = createWorkOrder(st, 'rakeBunker', section);
+            toast(res.ok ? `Rake order added for ${section.name}. No sand changes until the work is performed.` : res.reason,
+              res.ok ? '' : 'warn');
+            show(section);
+          },
+        })));
       }
     }
 
@@ -112,6 +127,8 @@ export function makeInspectPanel(app, onStateChanged) {
           bar('Nutrients', summary.nutrients),
           bar('Height', summary.heightMm, 90, 'mm'),
           bar('Wear', summary.wear),
+          bar('Divots', summary.divots, Math.max(6, section.size * 0.2)),
+          bar('Ball marks', summary.ballMarks, Math.max(6, section.size * 0.2)),
         );
       }
 
@@ -119,15 +136,19 @@ export function makeInspectPanel(app, onStateChanged) {
       if (summary.disease) {
         const cost = treatSectionCost(st, section);
         actions.push(el('button', {
-          class: 'primary',
-          text: `💊 Fungicide ${formatMoney(cost)}`,
+          class: primary ? 'primary' : '',
+          text: `${label} · ~${estimate.durationMinutes} min`,
           onclick: () => {
-            const res = treatSection(st, section);
-            toast(res.ok ? `Fungicide applied to ${section.name}.` : res.reason, res.ok ? '' : 'warn');
-            if (res.ok && onStateChanged) onStateChanged();
+            const res = createWorkOrder(st, type, section);
+            toast(res.ok
+              ? `${label} order added for ${section.name}. Turf is unchanged until player, staff, or equipment does the work.`
+              : res.reason, res.ok ? '' : 'warn');
             show(section);
           },
         }));
+      };
+      if (summary.disease) {
+        addOrder('treatDisease', '💊 Treat disease', true);
       }
       const aerateCost = aerateSectionCost(st, section);
       actions.push(el('button', {

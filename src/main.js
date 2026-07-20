@@ -676,9 +676,11 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
       return '⛏ Divot kit out — aim at worn turf · [F] next tool';
     }
     const w = Math.round(st.turf.wear[i]);
-    return w <= 1
-      ? `⛏ ${section.name} — smooth, no divots here · [F] next tool`
-      : `⛏ ${section.name} — divot wear ${w} — hold the mouse button to patch`;
+    const localized = section.zone === ZONE.GREEN ? st.turf.ballMarks?.[i] || 0 : st.turf.divots?.[i] || 0;
+    const damageLabel = section.zone === ZONE.GREEN ? 'ball marks' : 'divots';
+    return w <= 1 && localized <= 0.1
+      ? `⛏ ${section.name} — smooth, no ${damageLabel} here · [F] next tool`
+      : `⛏ ${section.name} — ${damageLabel} ${localized.toFixed(1)} · wear ${w} — hold to repair`;
   };
   // the bunker rake smooths footprinted sand (wear on BUNKER cells, fed by
   // daily play traffic via sim/bunkers.js)
@@ -694,6 +696,7 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
       st.turf.wear[i] = Math.max(0, before - 55 * dtSec * frac);
       if (frac === 1 && st.turf.wear[i] < before) tutorialFlag(st, 'maintenanceUsed');
       if (frac === 1 && before > 1 && st.turf.wear[i] <= 0.01 && audio.ready) audio.chime();
+      if (frac === 1) recordManualWork(st, 'rakeBunker', i);
     };
     sweep(cx, cy, 1);
     sweep(cx + 1, cy, 0.5);
@@ -718,6 +721,7 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
     const target = MOW_TARGET[st.course.zones[i]];
     if (target === undefined || st.turf.heightMm[i] <= target + 0.5) return false;
     st.turf.heightMm[i] = target;
+    recordManualWork(st, 'mow', i);
     return true;
   };
   app.scene3d.walk.hooks.engine = (on) => { if (audio.ready) audio.setToolLoop(on ? 'mower' : null); };
@@ -999,7 +1003,10 @@ const handlers = {
     const next = !app.groundsOpen;
     if (next) closeLeftPanels('grounds');
     groundsPanel.setVisible(next);
-    if (next && app.state) tutorialFlag(app.state, 'groundsOpened');
+    if (next) {
+      inspectPanel.hide();
+      if (app.state) tutorialFlag(app.state, 'groundsOpened');
+    }
   },
   toggleClub() {
     const next = !app.clubOpen;
@@ -2131,8 +2138,8 @@ function frame(ts) {
         objectivesPanel.refresh();
       }
     }
-    // delivery windows tick at minute grain: statuses progress and the truck
-    // announces itself — morning heads-up, one-hour warning, arrival
+    // Delivery promises tick at minute grain: statuses progress and the truck
+    // announces dispatch, the final approach, arrival or a blocked pad.
     if (app.state.shop) {
       for (const ev of tickDeliveries(app.state, app.state.clock.minutes)) {
         const sku = skuById(ev.order.skuId);
@@ -2149,10 +2156,10 @@ function frame(ts) {
         };
         const man = ev.order.manifest;
         const boxes = man ? `${man.boxCount} box${man.boxCount === 1 ? '' : 'es'}` : 'boxes';
-        if (ev.kind === 'morning') {
-          toast(`📦 ${name} ships today — window ${clock12(ev.order.window.open)}–${clock12(ev.order.window.close)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`);
+        if (ev.kind === 'dispatched') {
+          toast(`📦 ${name} has dispatched — ${deliveryEtaText(ev.order, app.state.clock.minutes)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`);
         } else if (ev.kind === 'soon') {
-          toast(`📦 The ${ev.order.supplier || name} van is close — under an hour out.`);
+          toast(`📦 The ${ev.order.supplier || name} van is close — ${deliveryEtaText(ev.order, app.state.clock.minutes)}.`);
         } else if (ev.kind === 'arrived') {
           toast(`📦 Delivery inbound! ${name} ×${ev.order.qty} — the van is turning into receiving with ${boxes}.`);
           const clubhouse = app.scene3d && app.scene3d.clubhouse
