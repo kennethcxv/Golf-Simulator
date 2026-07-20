@@ -506,7 +506,10 @@ function validateBooking(state, dayAbs, minute, partySize, options = {}, exceptI
   const config = configOf(state);
   const todayAbs = calendarOf(nowOf(state)).dayAbs;
   if (dayAbs < todayAbs) return { ok: false, reason: 'That day is already gone.' };
-  if (dayAbs > todayAbs + config.horizonDays) {
+  if (dayAbs === todayAbs && minute < calendarOf(nowOf(state)).minuteOfDay) {
+    return { ok: false, reason: 'That tee time has already passed.' };
+  }
+  if (dayAbs >= todayAbs + config.horizonDays) {
     return { ok: false, reason: `The sheet only opens ${config.horizonDays} days out.` };
   }
   if (!slotTimes(config).includes(minute)) return { ok: false, reason: 'Not a tee time on the sheet.' };
@@ -585,8 +588,13 @@ function postFinanceEntry(state, reservation, input) {
     sequence: book.nextFinanceSeq++,
     reservationId: reservation.id,
     partyId: reservation.party.id,
-    dayAbs: calendarOf(input.atMinute).dayAbs,
+    // The subledger day is the posting day, exactly like ledger.today. Keep
+    // the effective event time separately so delayed ticks remain auditable
+    // without making the two books disagree about when cash actually moved.
+    dayAbs: calendarOf(nowOf(state)).dayAbs,
+    effectiveDayAbs: calendarOf(input.atMinute).dayAbs,
     atMinute: Math.floor(input.atMinute),
+    postedAtMinute: nowOf(state),
     category: input.category,
     kind: input.kind,
     amount: r2(input.amount),
@@ -1287,8 +1295,12 @@ export function reservationsDailyTick(state, todayAbs) {
   }
 }
 
-function uniqueNamesForGeneration(state) {
-  const used = new Set(bookOf(state).booked.flatMap((reservation) => reservation.customerNames));
+function uniqueNamesForGeneration(state, dayAbs) {
+  // A golfer may reasonably play again on another day, but two simultaneous
+  // parties must never materialize as the same visible customer identity.
+  const used = new Set(bookOf(state).booked
+    .filter((reservation) => reservation.dayAbs === dayAbs && reservation.status !== 'cancelled')
+    .flatMap((reservation) => reservation.customerNames));
   const names = [];
   for (const golfer of state.golfers?.pool || []) {
     if (!used.has(golfer.name) && !names.includes(golfer.name)) names.push(golfer.name);
@@ -1296,16 +1308,29 @@ function uniqueNamesForGeneration(state) {
   return names;
 }
 
+function generatedOccupancy(state, dayAbs) {
+  const reputation = Math.max(0, Math.min(1, Number(state.club?.reputation || 50) / 100));
+  const health = state.turf?.health?.length
+    ? state.turf.health.reduce((sum, value) => sum + value, 0) / state.turf.health.length / 100
+    : 0.55;
+  const rain = dayAbs === calendarOf(nowOf(state)).dayAbs ? Number(state.weather?.today?.rainIn || 0) : 0;
+  const temperature = Number(state.weather?.today?.tempHiF || 70);
+  const weatherFactor = Math.max(0.55, 1 - Math.min(0.45, rain * 0.8)
+    - Math.min(0.18, Math.abs(temperature - 72) / 110));
+  return Math.max(0.18, Math.min(0.88, (0.22 + reputation * 0.31 + health * 0.27) * weatherFactor));
+}
+
 export function generateReservations(state, dayAbs, options = {}) {
   const seed = Number(options.seed ?? (state.seed || 1) + dayAbs * 7919);
   const rng = makeRng(seed);
-  const occupancy = Math.max(0, Math.min(1, Number(options.occupancy ?? 0.62)));
-  const names = uniqueNamesForGeneration(state);
+  const occupancy = Math.max(0, Math.min(1, Number(options.occupancy ?? generatedOccupancy(state, dayAbs))));
+  const names = uniqueNamesForGeneration(state, dayAbs);
   let nameIndex = 0;
   const created = [];
   for (const slot of daySheet(state, dayAbs)) {
     if (!slot.available || rng.next() > occupancy || nameIndex >= names.length) continue;
-    const partySize = 1 + rng.int(configOf(state).maxPartySize);
+    const sizeRoll = rng.next();
+    const partySize = sizeRoll < 0.16 ? 1 : sizeRoll < 0.68 ? 2 : sizeRoll < 0.84 ? 3 : 4;
     const size = Math.min(partySize, slot.availableSeats, names.length - nameIndex);
     if (size < 1) continue;
     const customerNames = names.slice(nameIndex, nameIndex + size);
@@ -1337,7 +1362,11 @@ export function generateReservations(state, dayAbs, options = {}) {
     });
     if (!result.ok) continue;
     if (rng.next() < 0.06) {
-      result.res.cancellation.plannedAtMinute = absoluteMinute(dayAbs, slot.minute) - (24 + rng.int(48)) * 60;
+      const slotAbs = absoluteMinute(dayAbs, slot.minute);
+      const advancePlan = slotAbs - (24 + rng.int(48)) * 60;
+      result.res.cancellation.plannedAtMinute = advancePlan > nowOf(state)
+        ? advancePlan
+        : Math.min(slotAbs - 5, nowOf(state) + 15 + rng.int(46));
     }
     created.push(result.res);
   }
@@ -1345,6 +1374,47 @@ export function generateReservations(state, dayAbs, options = {}) {
   book.generator.lastSeed = seed;
   if (!book.generator.generatedDays.includes(dayAbs)) book.generator.generatedDays.push(dayAbs);
   return { seed, created };
+}
+
+export function ensureReservationHorizon(state, options = {}) {
+  const book = bookOf(state);
+  const todayAbs = Math.floor(options.todayAbs ?? calendarOf(nowOf(state)).dayAbs);
+  const results = [];
+  for (let offset = 0; offset < book.config.horizonDays; offset++) {
+    const dayAbs = todayAbs + offset;
+    if (book.generator.generatedDays.includes(dayAbs)) continue;
+    results.push(generateReservations(state, dayAbs, {
+      ...options,
+      seed: options.seed == null ? undefined : Number(options.seed) + offset * 7919,
+    }));
+  }
+  book.generator.generatedDays = book.generator.generatedDays
+    .filter((dayAbs) => dayAbs >= todayAbs - 30 && dayAbs < todayAbs + book.config.horizonDays);
+  return {
+    generatedDays: results.length,
+    created: results.flatMap((result) => result.created),
+  };
+}
+
+export function resetGolfOperationsQA(state, options = {}) {
+  const book = bookOf(state);
+  // Browser evidence starts from a real production boot, whose online deposits
+  // have already moved the shared wallet. Reverse those exact entries before
+  // replacing the fixture so the QA ledger remains a valid reconciliation.
+  for (const entry of book.financeEntries) {
+    state.cash = r2((state.cash || 0) - entry.cashDelta);
+    if (!state.ledger?.today) continue;
+    if (entry.cashDelta > 0) {
+      const revenue = state.ledger.today.revenue || (state.ledger.today.revenue = {});
+      revenue[entry.category] = r2((revenue[entry.category] || 0) - entry.cashDelta);
+      if (Math.abs(revenue[entry.category]) <= EPSILON) delete revenue[entry.category];
+    } else if (entry.cashDelta < 0) {
+      const expense = state.ledger.today.expense || (state.ledger.today.expense = {});
+      expense.bookingRefunds = r2((expense.bookingRefunds || 0) - Math.abs(entry.cashDelta));
+      if (Math.abs(expense.bookingRefunds) <= EPSILON) delete expense.bookingRefunds;
+    }
+  }
+  return initReservations(state, options);
 }
 
 export function seedGolfOperationsQA(state, options = {}) {

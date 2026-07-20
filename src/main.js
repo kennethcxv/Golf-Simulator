@@ -17,6 +17,7 @@ import {
   worksSetTee, worksSetPin,
 } from './sim/terrainEdit.js';
 import { calendarOf } from './sim/time.js';
+import { ensureReservationHorizon } from './sim/reservations.js';
 import { el, toast, modal } from './ui/ui.js';
 import { makeHud } from './ui/hud.js';
 import { makeWorksPanel } from './ui/worksPanel.js';
@@ -227,6 +228,7 @@ function enterLaptop() {
   const pose = seatPose(ch);
   if (!pose) { setCameraLens(WALK_FOV, WALK_NEAR); return; }
   app.laptopOpen = true;
+  document.body.classList.add('laptop-mode');
   resetCameraInput(); // sitting down is a mode change too
   if (app.state) tutorialFlag(app.state, 'laptopOpened');
   app.scene3d.walk.focusOn(pose);
@@ -265,6 +267,7 @@ function enterLaptop() {
 function exitLaptop(silent) {
   if (!app.laptopOpen) return;
   app.laptopOpen = false;
+  document.body.classList.remove('laptop-mode');
   for (const t of laptopTimers) clearTimeout(t);
   laptopTimers = [];
   if (laptopResizeHandler) {
@@ -413,6 +416,9 @@ function startGame(state) {
     app.scene3d = null;
   }
   app.state = state;
+  // Starting, loading, or switching into a club must always expose the same
+  // deterministic forward booking window. Existing days are idempotently left alone.
+  ensureReservationHorizon(app.state);
   app.screen = 'game';
   app.scene3d = makeCourseScene(canvas, state);
   // walk-up inspection: the walking controller asks, the app answers with the

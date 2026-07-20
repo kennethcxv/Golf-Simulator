@@ -235,6 +235,9 @@ async function main() {
       const operations = await import('/src/sim/reservations.js');
       const time = await import('/src/sim/time.js');
       const cal = time.calendarOf(app.state.clock.minutes);
+      // Production boot fills the forward horizon. The evidence route owns a
+      // smaller deterministic manifest, so reset only this subsystem first.
+      operations.resetGolfOperationsQA(app.state);
       const seeded = operations.seedGolfOperationsQA(app.state, { dayAbs: cal.dayAbs, seed: 20260719 });
       const first = operations.reservationById(app.state, seeded.ids.earlyPrepaid);
       app.speedIdx = 0;
