@@ -325,8 +325,26 @@ async function main() {
       || workflow.reservation.cancellation.refund !== 84) {
       throw new Error(`Cancellation policy mismatch: ${JSON.stringify(workflow.reservation.cancellation)}`);
     }
+    if (evidence.listeners.activeDelta !== 0 || evidence.listeners.registrationDelta !== 0
+      || evidence.idleUiMutationCallbacks !== 0) {
+      throw new Error(`Laptop idle churn detected: ${JSON.stringify({
+        listeners: evidence.listeners,
+        mutations: evidence.idleUiMutationCallbacks,
+      })}`);
+    }
     if (pageErrors.length) throw new Error(`Page errors: ${pageErrors.join(' | ')}`);
-    process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({
+      capturedAt: evidence.capturedAt,
+      commit: evidence.commit,
+      production: evidence.fixture.production,
+      reservation: evidence.workflow.reservation,
+      operationNetCash: evidence.workflow.finance.reduce((sum, entry) => sum + entry.cashDelta, 0),
+      runtime: evidence.runtime,
+      listeners: evidence.listeners,
+      idleUiMutationCallbacks: evidence.idleUiMutationCallbacks,
+      pageErrors: evidence.pageErrors,
+      failedRequestCount: evidence.failedRequests.length,
+    }, null, 2)}\n`);
   } finally {
     await context.close();
     const videoPath = await video.path();
