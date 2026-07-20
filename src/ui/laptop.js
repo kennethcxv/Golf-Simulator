@@ -161,7 +161,15 @@ export function makeLaptop(app, opts) {
     el('button', { class: 'lt-navbtn lt-close', text: '⏻  Close the lid', onclick: () => opts.close() }),
   );
 
-  const statusbar = el('div', { class: 'lt-status' });
+  const statusBack = el('button', { class: 'lt-crumb', title: 'Back', text: '‹', onclick: () => back() });
+  const statusHome = el('button', { class: 'lt-crumb', title: 'Home', text: '⌂', onclick: () => go('home') });
+  const statusName = el('span', { class: 'lt-statusname' });
+  const statusDate = el('span');
+  const statusTime = el('span');
+  const statusShop = el('span', { class: 'lt-chip' });
+  const statusCash = el('span', { class: 'lt-cash' });
+  const statusbar = el('div', { class: 'lt-status' },
+    statusBack, statusHome, statusName, statusDate, statusTime, statusShop, statusCash);
   const frame = el('div', { class: 'lt-frame' }, nav, el('div', { class: 'lt-main' }, statusbar, content));
   const root = el('div', { class: 'laptop-screen', style: 'display:none' }, frame);
   root.addEventListener('click', (e) => e.stopPropagation());
@@ -250,15 +258,13 @@ export function makeLaptop(app, opts) {
     const st = app.state;
     if (!st) return;
     const cal = calendarOf(st.clock.minutes);
-    statusbar.replaceChildren(
-      el('button', { class: 'lt-crumb', title: 'Back', text: '‹', disabled: history.length ? undefined : 'disabled', onclick: () => back() }),
-      el('button', { class: 'lt-crumb', title: 'Home', text: '⌂', onclick: () => go('home') }),
-      el('span', { class: 'lt-statusname', text: st.clubName || 'The Club' }),
-      el('span', { text: `Y${cal.year} · ${cal.seasonName} · Day ${cal.dayOfSeason}` }),
-      el('span', { text: clock12(cal.minuteOfDay) }),
-      el('span', { class: `lt-chip ${shopIsOpen(st) ? 'ok' : ''}`, text: shopIsOpen(st) ? 'Shop open' : 'Shop closed' }),
-      el('span', { class: 'lt-cash', text: formatMoney(cashOf()) }),
-    );
+    statusBack.disabled = history.length === 0;
+    statusName.textContent = st.clubName || 'The Club';
+    statusDate.textContent = `Y${cal.year} · ${cal.seasonName} · Day ${cal.dayOfSeason}`;
+    statusTime.textContent = clock12(cal.minuteOfDay);
+    statusShop.className = `lt-chip ${shopIsOpen(st) ? 'ok' : ''}`;
+    statusShop.textContent = shopIsOpen(st) ? 'Shop open' : 'Shop closed';
+    statusCash.textContent = formatMoney(cashOf());
   }
 
   // =========================================================================================
