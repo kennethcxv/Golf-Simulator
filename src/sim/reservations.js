@@ -7,6 +7,7 @@
 
 import { makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
+import { amenityScore, clubRatings, demandMultiplier, fairGreenFee } from './club.js';
 import { addExpense, addRevenue, postLedgerEntry, recordOutcome, unbill } from './economy.js';
 import { cancelReservationCustomer, scheduleReservationCustomer } from './customerSimulation.js';
 
@@ -1405,7 +1406,16 @@ function generatedOccupancy(state, dayAbs) {
   const temperature = Number(state.weather?.today?.tempHiF || 70);
   const weatherFactor = Math.max(0.55, 1 - Math.min(0.45, rain * 0.8)
     - Math.min(0.18, Math.abs(temperature - 72) / 110));
-  return Math.max(0.18, Math.min(0.88, (0.22 + reputation * 0.31 + health * 0.27) * weatherFactor));
+  const baseOccupancy = (0.22 + reputation * 0.31 + health * 0.27) * weatherFactor;
+  const ratings = clubRatings(state);
+  const fairFee = fairGreenFee(ratings.overall, amenityScore(state));
+  const priceDemand = demandMultiplier(Number(state.club?.greenFee || 0), fairFee);
+
+  // The tee sheet and public-round estimator must consume the same price signal.
+  // Without this factor, generated online bookings paid any configured green fee
+  // at unchanged occupancy, making the legal maximum an automatic revenue win.
+  // Keep a small prospect floor so an overpriced course is quiet, not impossible.
+  return Math.max(0.02, Math.min(0.95, baseOccupancy * priceDemand));
 }
 
 export function generateReservations(state, dayAbs, options = {}) {

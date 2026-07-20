@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { totals } from '../src/sim/economy.js';
+import { setGreenFee, teePricingResponse } from '../src/sim/pricing.js';
 import { SAVE_VERSION, newGame, serialize, deserialize } from '../src/sim/state.js';
 import { calendarOf } from '../src/sim/time.js';
 import {
@@ -141,6 +142,24 @@ test('generated reservations are seeded, believable, staggered, and name-unique'
   assert.ok(ga.created.some((reservation) => reservation.arrival.plannedMinute < at(day, reservation.minute)));
   assert.ok(ga.created.some((reservation) => reservation.arrival.plannedMinute >= at(day, reservation.minute)));
   for (const slot of daySheet(a, day)) assert.ok(slot.reservedSeats <= slot.capacity);
+});
+
+test('generated tee-sheet demand rejects an extreme green-fee revenue shortcut', () => {
+  const fair = newGame('relaxed', 90501);
+  const extreme = newGame('relaxed', 90501);
+  setGreenFee(fair, teePricingResponse(fair).fairValue);
+  setGreenFee(extreme, 150);
+
+  const fairResult = ensureReservationHorizon(fair, { seed: 66001 });
+  const extremeResult = ensureReservationHorizon(extreme, { seed: 66001 });
+  const bookingRevenue = (state) => state.ledger.entries
+    .filter((entry) => ['bookingRevenue', 'bookingDeposits'].includes(entry.category))
+    .reduce((sum, entry) => sum + entry.amount, 0);
+
+  assert.ok(extremeResult.created.length < fairResult.created.length,
+    `extreme fee generated ${extremeResult.created.length} bookings versus fair ${fairResult.created.length}`);
+  assert.ok(bookingRevenue(extreme) < bookingRevenue(fair),
+    `extreme fee generated $${bookingRevenue(extreme)} online cash versus fair $${bookingRevenue(fair)}`);
 });
 
 test('the production booking horizon fills deterministically, rolls forward, and is idempotent', () => {

@@ -138,6 +138,7 @@ const scenarios = [
   { id: 'poor-operation', label: 'Poor operation', seed: 7101, price: 'high', stock: 'none', quality: 'neglected' },
   { id: 'average-operation', label: 'Average operation', seed: 7101, price: 'fair', stock: 'basic', quality: 'default' },
   { id: 'skilled-operation', label: 'Skilled operation', seed: 7101, price: 'fair', stock: 'full', quality: 'restored', upgrades: ['greensMowerII', 'aerator'] },
+  { id: 'fair-price-control', label: 'Fair-price control', seed: 7101, price: 'fair', stock: 'full', quality: 'default' },
   { id: 'high-price', label: 'High-price strategy', seed: 7101, price: 'high', stock: 'full', quality: 'default' },
   { id: 'low-price', label: 'Low-price strategy', seed: 7101, price: 'low', stock: 'full', quality: 'default' },
   { id: 'understocked', label: 'Understocked store', seed: 7101, price: 'fair', stock: 'none', quality: 'default' },
@@ -223,6 +224,8 @@ function runScenario(scenario) {
       retailRevenue,
       retailCostOfGoods,
       retailGrossMargin: r2(retailRevenue - retailCostOfGoods),
+      revenueByCategory: finance.revenueByCategory,
+      expenseByCategory: finance.expenseByCategory,
     },
     operations: {
       customersServed: summaries.reduce((sum, summary) => sum + summary.customersServed, 0),
@@ -254,6 +257,10 @@ function runScenario(scenario) {
 const BALANCE_SEEDS = [7101, 7102, 7103, 7104, 7105];
 const mean = (runs, read) => r2(runs.reduce((sum, run) => sum + (Number(read(run)) || 0), 0) / runs.length);
 const rate = (runs, read) => r2(runs.filter(read).length / runs.length);
+const averageBuckets = (runs, read) => {
+  const keys = new Set(runs.flatMap((run) => Object.keys(read(run) || {})));
+  return Object.fromEntries([...keys].sort().map((key) => [key, mean(runs, (run) => read(run)?.[key] || 0)]));
+};
 
 function averageRuns(scenario, runs) {
   return {
@@ -275,6 +282,8 @@ function averageRuns(scenario, runs) {
       retailRevenue: mean(runs, (run) => run.profit.retailRevenue),
       retailCostOfGoods: mean(runs, (run) => run.profit.retailCostOfGoods),
       retailGrossMargin: mean(runs, (run) => run.profit.retailGrossMargin),
+      revenueByCategory: averageBuckets(runs, (run) => run.profit.revenueByCategory),
+      expenseByCategory: averageBuckets(runs, (run) => run.profit.expenseByCategory),
     },
     operations: {
       customersServed: mean(runs, (run) => run.operations.customersServed),
@@ -312,8 +321,8 @@ const scenarioRuns = scenarios.map((scenario) => ({
 const results = scenarios.map((scenario) => averageRuns(scenario, scenarioRuns.find((batch) => batch.id === scenario.id).runs));
 const byId = Object.fromEntries(results.map((result) => [result.id, result]));
 const findings = {
-  maxPriceAlwaysWins: byId['high-price'].profit.net >= byId['average-operation'].profit.net,
-  lowPriceAlwaysWins: byId['low-price'].profit.net >= byId['average-operation'].profit.net,
+  maxPriceAlwaysWins: byId['high-price'].profit.net >= byId['fair-price-control'].profit.net,
+  lowPriceAlwaysWins: byId['low-price'].profit.net >= byId['fair-price-control'].profit.net,
   skilledBeatsAverage: byId['skilled-operation'].profit.net > byId['average-operation'].profit.net,
   understockingHurts: byId.understocked.profit.retailGrossMargin < byId['average-operation'].profit.retailGrossMargin
     && byId.understocked.operations.missedSales > byId['average-operation'].operations.missedSales,
@@ -335,7 +344,7 @@ const artifact = {
     'Every scenario buys the same Willow Creek property in Relaxed mode and runs the real daily empire update for 24 closed days across five deterministic seed replicates.',
     'Each strategy uses the same five-seed set, plus the real weather, customers, membership, turf, pricing, ledger, reputation, and valuation systems; tables report replicate means.',
     'Accelerated stocked scenarios collapse unpacking lead time: replenishment enters the real inventory and posts merchandise plus 4% delivery cash entries before shelves are refilled.',
-    'Poor and understocked scenarios receive no replenishment. High/low strategies change every supported price control to its legal bound.',
+    'Poor and understocked scenarios receive no replenishment. High/low strategies change every supported price control to its legal bound and are compared with a matched fair-price control using the same full stock and default condition.',
     'Restored fixtures mutate the same grime, clutter, wash masks, turf arrays, equipment, decor placements, and maintenance policies that normal gameplay changes; they do not write condition or value directly.',
     'Upgrade attainability divides the cheapest $5,000 progression upgrade by observed accounting profit and excludes restoration capital from operating profit.',
   ],

@@ -9,10 +9,11 @@ import {
   confirmPropertySale, serializeEmpire, deserializeEmpire,
 } from '../../src/sim/empire.js';
 import { addRevenue, financialSummary } from '../../src/sim/economy.js';
-import { checkoutSale } from '../../src/sim/checkout.js';
+import { checkoutSale, pickFromShelf } from '../../src/sim/checkout.js';
 import {
-  bookSlot, checkInReservation, reservationsDailyTick,
+  availableSlots, bookSlot, checkInReservation, confirmReservation, reservationsDailyTick,
 } from '../../src/sim/reservations.js';
+import { adoptExternalInventory, INVENTORY_STAGE } from '../../src/sim/inventoryLifecycle.js';
 import { placeOrder } from '../../src/sim/shop.js';
 import {
   productPricingResponse, teePricingResponse, membershipPricingResponse, rentalPricingResponse,
@@ -65,6 +66,35 @@ function sumEntries(state, predicate) {
   return r2(state.ledger.entries.filter(predicate).reduce((sum, entry) => sum + entry.amount, 0));
 }
 
+function holdEvidenceUnit(state, skuId, uid) {
+  const intake = adoptExternalInventory(state, {
+    skuId,
+    quantity: 1,
+    stage: INVENTORY_STAGE.SHELF,
+    note: `Economy evidence fixture for ${uid}`,
+  });
+  assert.equal(intake.ok, true, intake.reason);
+  state.shop.inventory[skuId].shelf += 1;
+  const picked = pickFromShelf(state, skuId, uid);
+  assert.equal(picked.ok, true, picked.reason);
+}
+
+function completePrepaidCheckIn(state, dayAbs, holder) {
+  const minute = availableSlots(state, dayAbs, { partySize: 1 })[0]?.minute;
+  assert.ok(Number.isFinite(minute), `No open tee time for ${holder}`);
+  const booked = bookSlot(state, dayAbs, minute, {
+    holder,
+    arrived: true,
+    paymentPlan: 'prepaid',
+    paymentMethod: 'card',
+    cardOnFile: true,
+  });
+  assert.equal(booked.ok, true, booked.reason);
+  assert.equal(confirmReservation(state, booked.res.id).ok, true);
+  assert.equal(checkInReservation(state, booked.res.id).ok, true);
+  return booked.res;
+}
+
 // A lived-in property supplies ledger, summary, reputation, pricing, condition,
 // valuation, and appraisal evidence from the same authoritative state.
 const empire = newEmpire('relaxed', 8801);
@@ -76,11 +106,16 @@ empire.cash = state.cash;
 
 const currentDay = Math.floor(state.clock.minutes / 1440);
 placeOrder(state, 'balls1', 6);
-const checkIn = bookSlot(state, currentDay, 7 * 60, 'Evidence Golfer').res;
-checkInReservation(state, checkIn.id);
-const noShow = bookSlot(state, currentDay, 7 * 60 + 12, 'Evidence No Show').res;
+const checkIn = completePrepaidCheckIn(state, currentDay, 'Evidence Golfer');
+const noShowMinute = availableSlots(state, currentDay, { partySize: 1 })[0]?.minute;
+assert.ok(Number.isFinite(noShowMinute));
+const noShow = bookSlot(state, currentDay, noShowMinute, {
+  holder: 'Evidence No Show', intendedOutcome: 'no-show', cardOnFile: true,
+}).res;
 reservationsDailyTick(state, currentDay + 1);
-checkoutSale(state, [{ uid: 'evidence-unit', skuId: 'balls1', price: 18 }], 'Evidence Shopper', 'evidence-checkout');
+assert.equal(noShow.status, 'noShow');
+holdEvidenceUnit(state, 'balls1', 'evidence-unit');
+assert.equal(checkoutSale(state, [{ uid: 'evidence-unit', skuId: 'balls1', price: 18 }], 'Evidence Shopper', 'evidence-checkout').ok, true);
 state.progression.prestige = 100;
 purchaseUpgrade(state, 'greensMowerII');
 
@@ -223,13 +258,16 @@ write('sale-flow.json', {
 // Compact adversarial checks mirror the invariant suite and preserve the
 // observed before/after values as evidence, rather than only saying "pass".
 const checkoutState = newGame('relaxed', 8811);
+holdEvidenceUnit(checkoutState, 'balls1', 'anti-unit');
 const checkoutFirst = checkoutSale(checkoutState, [{ uid: 'anti-unit', skuId: 'balls1', price: 18 }], 'Replay', 'anti-checkout');
 const checkoutCash = checkoutState.cash;
 const checkoutReplayState = deserialize(serialize(checkoutState));
 const checkoutReplay = checkoutSale(checkoutReplayState, [{ uid: 'anti-unit', skuId: 'balls1', price: 18 }], 'Replay', 'anti-checkout');
 
 const noShowState = newGame('relaxed', 8812);
-bookSlot(noShowState, 0, 7 * 60, 'Anti No Show');
+bookSlot(noShowState, 0, 7 * 60, {
+  holder: 'Anti No Show', intendedOutcome: 'no-show', cardOnFile: true,
+});
 reservationsDailyTick(noShowState, 1);
 const noShowCash = noShowState.cash;
 const noShowLoaded = deserialize(serialize(noShowState));
@@ -274,16 +312,19 @@ const antiExploit = {
   immediateGuaranteedFlip: { pass: !instantAppraisal.eligible && !instantSale.ok && instantEmpire.cash === instantCash, appraisal: instantAppraisal, attempt: instantSale },
   ledgerIdCollision: { pass: collisionA.entry.id !== collisionB.entry.id, first: collisionA.entry.id, second: collisionB.entry.id },
 };
-assert.ok(Object.values(antiExploit).every((check) => check.pass));
+const failedAntiExploit = Object.entries(antiExploit).filter(([, check]) => !check.pass).map(([name]) => name);
+assert.deepEqual(failedAntiExploit, [], `Failed anti-exploit checks: ${failedAntiExploit.join(', ')}`);
 write('anti-exploit.json', { allPass: true, checks: antiExploit });
 
 const bookingState = newGame('relaxed', 8817);
-const booking = bookSlot(bookingState, 0, 7 * 60, 'Saved Booking').res;
-checkInReservation(bookingState, booking.id);
+const booking = completePrepaidCheckIn(bookingState, 0, 'Saved Booking');
 const bookingCash = bookingState.cash;
 const bookingLoaded = deserialize(serialize(bookingState));
-bookingLoaded.reservations.booked.find((item) => item.id === booking.id).status = 'booked';
-checkInReservation(bookingLoaded, booking.id);
+const staleBooking = bookingLoaded.reservations.booked.find((item) => item.id === booking.id);
+staleBooking.status = 'booked';
+staleBooking.checkIn.status = 'confirmed';
+staleBooking.party.members.forEach((member) => { member.checkedIn = false; });
+assert.equal(checkInReservation(bookingLoaded, booking.id).ok, true);
 write('save-load.json', {
   checkout: {
     cashBeforeSave: checkoutCash, cashAfterReplay: checkoutReplayState.cash,
@@ -291,7 +332,7 @@ write('save-load.json', {
   },
   booking: {
     cashBeforeSave: bookingCash, cashAfterStaleStatusReplay: bookingLoaded.cash,
-    exactOnceEntryCount: bookingLoaded.ledger.entries.filter((entry) => entry.idempotencyKey === `reservation:${booking.id}:check-in`).length,
+    exactOnceOutcomeCount: bookingLoaded.ledger.outcomes.filter((outcome) => outcome.idempotencyKey === `golf-operations:${booking.id}:checked-in`).length,
   },
   upgrade: {
     cashBeforeSave: upgradeCash,
