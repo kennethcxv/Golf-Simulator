@@ -94,7 +94,13 @@ async (page) => {
   await page.goto(BASE_URL);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  const continueButton = page.getByText('Continue', { exact: true });
+  if (await continueButton.count() && await continueButton.isEnabled()) {
+    await continueButton.click();
+  } else {
+    await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
+    await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
+  }
   await page.waitForFunction(() => window.__fw && window.__fw.scene3d
     && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null, { timeout: 40000 });
   await page.waitForFunction(() => {

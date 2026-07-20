@@ -169,6 +169,7 @@ export function createCustomerView(B, options) {
   let navVersion = -1;
   let runtimeSeconds = 0;
   let arrivalPoll = 0;
+  let organicArrivalsEnabled = true;
   let disposed = false;
 
   const worldPoint = (point) => {
@@ -1090,6 +1091,7 @@ export function createCustomerView(B, options) {
   }
 
   function releaseArrivals() {
+    if (!organicArrivalsEnabled) return;
     const sim = customerSimulationOf(state);
     const due = releaseDueArrivals(state, state.clock.minutes, {
       activeCount: sim.active.length,
@@ -1263,6 +1265,23 @@ export function createCustomerView(B, options) {
     };
   }
 
+  function setOrganicWalkins(enabled) {
+    organicArrivalsEnabled = !!enabled;
+  }
+
+  function clearWalkins() {
+    const sim = customerSimulationOf(state);
+    const count = sim.active.length;
+    if (register.getCustomer()) register.abandon();
+    register.leave();
+    for (const customer of [...sim.active]) {
+      despawnCustomer(state, customer, { reason: 'deterministic QA floor reset' });
+    }
+    syncActors();
+    rebuildStock();
+    return count;
+  }
+
   function dispose() {
     if (disposed) return;
     disposed = true;
@@ -1283,6 +1302,8 @@ export function createCustomerView(B, options) {
     releaseReservationParty,
     debugSpawn,
     sendToCounter,
+    setOrganicWalkins,
+    clearWalkins,
     diagnostics,
     dispose,
   };

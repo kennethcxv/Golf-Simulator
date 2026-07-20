@@ -2901,6 +2901,8 @@ export function makeClubhouse(ctx) {
     customers: () => customerView.actors,
     customerDiagnostics: () => customerView.diagnostics(),
     sendToCounter: (skuIds, payMethod = null) => customerView.sendToCounter(skuIds, payMethod),
+    setOrganicWalkins: (enabled) => customerView.setOrganicWalkins(enabled),
+    clearWalkins: () => customerView.clearWalkins(),
     spawnReservationParty: (reservationId, options = {}) => customerView.spawnReservationParty(reservationId, options),
     releaseReservationParty: (reservationId) => customerView.releaseReservationParty(reservationId),
     productThumb: (sku) => productThumb(sku), // rendered supplier-card imagery

@@ -526,10 +526,14 @@ export function makeFrontDesk(app, options = {}) {
       }
     }
     if (!slots.some((slot) => slot.value === walkInDraft.slotValue)) walkInDraft.slotValue = slots[0]?.value || '';
+    let createButton = null;
     const holder = el('input', {
       class: 'fd-input', type: 'text', placeholder: 'Reservation holder', value: walkInDraft.holder,
       'aria-label': 'Walk-in reservation holder',
-      oninput: (event) => { walkInDraft.holder = event.target.value; },
+      oninput: (event) => {
+        walkInDraft.holder = event.target.value;
+        if (createButton) createButton.disabled = !slots.length || !walkInDraft.holder.trim();
+      },
     });
     const size = el('select', {
       class: 'fd-select', 'aria-label': 'Walk-in party size',
@@ -552,6 +556,35 @@ export function makeFrontDesk(app, options = {}) {
       onchange: (event) => { walkInDraft.checkInImmediately = !!event.target.checked; },
     });
 
+    createButton = button('Create booking', () => {
+      if (!walkInDraft.slotValue) {
+        setNotice('No real slot has enough capacity.', 'bad');
+        render();
+        return;
+      }
+      const [dayAbs, minute] = walkInDraft.slotValue.split(':').map(Number);
+      const result = createWalkInBooking(app.state, {
+        holder: walkInDraft.holder,
+        partySize,
+        dayAbs,
+        minute,
+        checkInImmediately: walkInDraft.checkInImmediately,
+      });
+      if (!result.ok) {
+        setNotice(result.reason, 'bad');
+        render();
+        return;
+      }
+      selectedId = result.res.id;
+      tab = 'arrivals';
+      notice = { text: `Walk-in assigned to ${fmtSlot(result.res.minute)}.`, tone: 'ok' };
+      options.onWalkInCreated?.(result.res.id, walkInDraft.checkInImmediately);
+      walkInDraft.holder = '';
+      walkInDraft.partySize = 1;
+      walkInDraft.slotValue = '';
+      render();
+    }, 'primary', !slots.length || !walkInDraft.holder.trim());
+
     return el('div', { class: 'fd-walkin-panel' },
       el('div', { class: 'fd-walkin-head' },
         el('span', { class: 'fd-kicker', text: 'REAL-TIME AVAILABILITY' }),
@@ -568,34 +601,7 @@ export function makeFrontDesk(app, options = {}) {
       ),
       el('div', { class: 'fd-walkin-actions' },
         button('Back to arrivals', () => { tab = 'arrivals'; notice = null; render(); }),
-        button('Create booking', () => {
-          if (!walkInDraft.slotValue) {
-            setNotice('No real slot has enough capacity.', 'bad');
-            render();
-            return;
-          }
-          const [dayAbs, minute] = walkInDraft.slotValue.split(':').map(Number);
-          const result = createWalkInBooking(app.state, {
-            holder: walkInDraft.holder,
-            partySize,
-            dayAbs,
-            minute,
-            checkInImmediately: walkInDraft.checkInImmediately,
-          });
-          if (!result.ok) {
-            setNotice(result.reason, 'bad');
-            render();
-            return;
-          }
-          selectedId = result.res.id;
-          tab = 'arrivals';
-          notice = { text: `Walk-in assigned to ${fmtSlot(result.res.minute)}.`, tone: 'ok' };
-          options.onWalkInCreated?.(result.res.id, walkInDraft.checkInImmediately);
-          walkInDraft.holder = '';
-          walkInDraft.partySize = 1;
-          walkInDraft.slotValue = '';
-          render();
-        }, 'primary', !slots.length || !walkInDraft.holder.trim()),
+        createButton,
       ),
     );
   }

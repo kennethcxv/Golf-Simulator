@@ -16,6 +16,11 @@ const modes = (process.env.CHECKOUT_MODES || 'card,cash')
   .map((mode) => mode.trim())
   .filter(Boolean);
 const reports = [];
+const priorEnvironment = {
+  mode: process.env.REGISTER_QA_MODE,
+  output: process.env.REGISTER_QA_OUTPUT,
+  baseUrl: process.env.QA_BASE_URL,
+};
 
 for (const mode of modes) {
   // A recorded Three.js run owns a substantial WebGL context. Give each payment
@@ -40,35 +45,24 @@ for (const mode of modes) {
   });
   page.on('pageerror', (error) => runnerErrors.push(`PAGEERROR: ${error.message}`));
 
-  const boot = `
-  const continueButton = page.getByText('Continue', { exact: true });
-  if (await continueButton.count() && await continueButton.isEnabled()) {
-    await continueButton.click();
-  } else {
-    await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
-    await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
-  }`;
-
-  const source = original
-    .replace("const MODE = 'cash';", `const MODE = ${JSON.stringify(mode)};`)
-    .replace(
-      "const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/register/' + MODE;",
-      `const OUT = ${JSON.stringify(out.replaceAll('\\', '/'))};`,
-    )
-    .replace("await page.goto('http://localhost:8457/');", `await page.goto(${JSON.stringify(url)});`)
-    .replace("  await page.getByText('Continue', { exact: true }).click().catch(() => {});", boot);
+  process.env.REGISTER_QA_MODE = mode;
+  process.env.REGISTER_QA_OUTPUT = out;
+  process.env.QA_BASE_URL = url;
 
   // This evaluates a trusted, versioned local QA function. Keeping the established
   // physical checkout driver intact prevents this integration gate from drifting
   // away from the register's existing scan/payment/receipt/bagging acceptance path.
-  const runSale = eval(source); // eslint-disable-line no-eval
+  const runSale = eval(original); // eslint-disable-line no-eval
   let result;
   const failures = [];
   try {
     result = await runSale(page);
     const final = result.log.find((entry) => entry.step === '20. final');
+    if (!result.ok) failures.push('the register acceptance result was not reconciled');
+    if (result.mode !== mode) failures.push(`requested ${mode}, but the harness ran ${result.mode}`);
     if (result.errorCount) failures.push(`${result.errorCount} console/page errors`);
     if (!final || final.saleHeld !== 0) failures.push('the sale\'s held stock was not fully consumed');
+    if (result.inventoryAudit?.held !== 0) failures.push('unrelated customer-held stock remained after the sale');
     if (!final || final.units < 2) failures.push('both physical items were not banked');
     if (!final || final.revenue <= 0) failures.push('sale revenue was not banked');
   } catch (error) {
@@ -109,6 +103,15 @@ for (const mode of modes) {
   await context.close();
   await browser.close();
   reports.push({ ...result, videoPath, failures });
+}
+
+for (const [key, value] of Object.entries({
+  REGISTER_QA_MODE: priorEnvironment.mode,
+  REGISTER_QA_OUTPUT: priorEnvironment.output,
+  QA_BASE_URL: priorEnvironment.baseUrl,
+})) {
+  if (value == null) delete process.env[key];
+  else process.env[key] = value;
 }
 
 const report = {

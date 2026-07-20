@@ -63,6 +63,7 @@ async function resetCustomerFloor(minuteOfDay = 600) {
   await page.evaluate(async (minute) => {
     const app = window.__fw;
     const domain = await import('/src/sim/customerSimulation.js');
+    const reservations = await import('/src/sim/reservations.js');
     const sim = domain.customerSimulationOf(app.state);
     for (const customer of [...sim.active]) {
       domain.despawnCustomer(app.state, customer, { reason: 'functional QA reset' });
@@ -70,8 +71,8 @@ async function resetCustomerFloor(minuteOfDay = 600) {
     sim.scheduled = [];
     sim.serviceQueue = [];
     sim.socketClaims = {};
-    app.state.reservations.booked = [];
     app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + minute;
+    reservations.resetGolfOperationsQA(app.state);
     app.scene3d.applyTimeWeather(minute, app.state.weather);
     app.speedIdx = 0;
     const walk = app.scene3d.walk.state;
@@ -84,21 +85,39 @@ async function resetCustomerFloor(minuteOfDay = 600) {
   await page.waitForTimeout(300);
 }
 
-async function runFrontDeskCase({ id, kind, nowMinute, slotMinute = null, expectSuccess }) {
+async function finishFrontDeskCheckIn() {
+  await page.getByRole('button', { name: 'Confirm reservation', exact: true }).click();
+  await page.getByRole('button', { name: 'Pay cash', exact: true }).click();
+  await page.getByRole('button', { name: 'Open drawer', exact: true }).click();
+  await page.getByRole('button', { name: /^Accept \$.* & print$/ }).click();
+  await page.getByRole('button', { name: 'Take receipt', exact: true }).click();
+  await page.getByRole('button', { name: 'Check in party', exact: true }).click();
+}
+
+async function runFrontDeskCase({ id, kind, nowMinute, slotMinute = null }) {
   await resetCustomerFloor(nowMinute);
-  const setup = await page.evaluate(async (scenario) => {
+  let setup = await page.evaluate(async (scenario) => {
     const app = window.__fw;
     const domain = await import('/src/sim/customerSimulation.js');
     const reservations = await import('/src/sim/reservations.js');
     const day = Math.floor(app.state.clock.minutes / 1440);
     const ch = app.scene3d.clubhouse();
-    const cashBefore = app.state.cash;
+    const targetMinute = app.state.clock.minutes;
     let reservation = null;
     let intent = domain.CUSTOMER_INTENT.WALK_IN_TEE_TIME;
     if (scenario.kind === 'reservation') {
+      // Create the booking before its tee time, then restore the scenario clock
+      // and declare the deterministic physical fixture present. The player still
+      // performs confirmation, payment and course-access controls in the UI.
+      app.state.clock.minutes = day * 1440 + Math.max(
+        reservations.TEE_SHEET.openMin,
+        Math.min(scenario.nowMinute, scenario.slotMinute) - 60,
+      );
       const booked = reservations.bookSlot(app.state, day, scenario.slotMinute, `QA ${scenario.id}`);
       if (!booked.ok) throw new Error(booked.reason);
       reservation = booked.res;
+      app.state.clock.minutes = targetMinute;
+      reservations.markReservationArrived(app.state, reservation.id, targetMinute);
       intent = domain.CUSTOMER_INTENT.RESERVATION_CHECK_IN;
       domain.customerSimulationOf(app.state).scheduled = [];
     }
@@ -110,9 +129,10 @@ async function runFrontDeskCase({ id, kind, nowMinute, slotMinute = null, expect
     actor.entity.patienceSec = 120;
     return {
       actorId: actor.id,
+      actorName: actor.name,
       reservationId: reservation?.id || null,
       fee: reservation?.fee ?? app.state.club.greenFee,
-      cashBefore,
+      cashBefore: app.state.cash,
     };
   }, { id, kind, nowMinute, slotMinute });
 
@@ -126,14 +146,44 @@ async function runFrontDeskCase({ id, kind, nowMinute, slotMinute = null, expect
   // This is the player's interaction. The setup above only creates a deterministic
   // visitor and tee-sheet record; it never invokes the front-desk action directly.
   await page.keyboard.press('e');
-  await page.waitForFunction(([actorId, shouldSucceed]) => {
+  await page.waitForFunction(() => window.__fw.frontDeskOpen === true, null, { timeout: 10_000 });
+  if (kind === 'walk-in') {
+    await page.getByRole('button', { name: 'Walk-in booking', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Walk-in reservation holder' }).fill(setup.actorName);
+    const createButton = page.getByRole('button', { name: 'Create booking', exact: true });
+    if (!(await createButton.isEnabled())) {
+      const diagnostics = await page.evaluate(async () => {
+        const operations = await import('/src/sim/reservations.js');
+        const state = window.__fw.state;
+        const dayAbs = Math.floor(state.clock.minutes / 1440);
+        return {
+          clock: state.clock.minutes,
+          dayAbs,
+          config: state.reservations.config,
+          booked: state.reservations.booked.map((entry) => ({ id: entry.id, minute: entry.minute, status: entry.status })),
+          slots: operations.availableSlots(state, dayAbs, { partySize: 1, walkIn: true })
+            .map((slot) => ({ minute: slot.minute, availableSeats: slot.availableSeats })),
+          holder: document.querySelector('[aria-label="Walk-in reservation holder"]')?.value || '',
+        };
+      });
+      throw new Error(`Walk-in form unexpectedly disabled: ${JSON.stringify(diagnostics)}`);
+    }
+    await createButton.click();
+    const created = await page.evaluate((actorId) => {
+      const state = window.__fw.state;
+      const actor = state.shop.customerSimulation.active.find((entry) => entry.id === actorId);
+      const reservation = state.reservations.booked.find((entry) => entry.id === actor?.reservationId);
+      return { reservationId: reservation?.id || null, fee: reservation?.fee || 0 };
+    }, setup.actorId);
+    if (!created.reservationId) throw new Error('The physical walk-in did not claim the canonical booking.');
+    setup = { ...setup, ...created };
+  }
+  await finishFrontDeskCheckIn();
+  await page.waitForFunction((actorId) => {
     const sim = window.__fw.state.shop.customerSimulation;
     const actor = sim.active.find((entry) => entry.id === actorId);
-    if (!actor) return false;
-    return shouldSucceed
-      ? actor.experience.checkInSuccess === 1
-      : actor.experience.checkInSuccess === 0;
-  }, [setup.actorId, expectSuccess], { timeout: 10_000 });
+    return actor?.experience.checkInSuccess === 1;
+  }, setup.actorId, { timeout: 10_000 });
   await page.waitForTimeout(250);
   const afterShot = await shot(`${id}-after-service`);
   const result = await page.evaluate(({ actorId, reservationId, cashBefore }) => {
@@ -151,23 +201,79 @@ async function runFrontDeskCase({ id, kind, nowMinute, slotMinute = null, expect
       serviceQueue: [...state.shop.customerSimulation.serviceQueue],
     };
   }, { ...setup });
-  const passed = expectSuccess
-    ? result.checkInSuccess === 1
-      && result.cashDelta === setup.fee
-      && (kind !== 'reservation' || result.reservationStatus === 'played')
-    : result.checkInSuccess === 0
-      && result.cashDelta === 0
-      && result.reservationStatus === 'booked';
-  return { id, kind, nowMinute, slotMinute, expectSuccess, setup, result, screenshots: [beforeShot, afterShot], passed };
+  await page.keyboard.press('Escape');
+  const passed = result.checkInSuccess === 1
+    && Math.abs(result.cashDelta - setup.fee) < 0.001
+    && result.reservationStatus === 'played';
+  return { id, kind, nowMinute, slotMinute, setup, result, screenshots: [beforeShot, afterShot], passed };
+}
+
+async function runCancellationCase() {
+  const id = 'cancelled-arrival';
+  const nowMinute = 600;
+  const slotMinute = 630;
+  await resetCustomerFloor(nowMinute);
+  const setup = await page.evaluate(async ({ id: caseId, now, slot }) => {
+    const app = window.__fw;
+    const domain = await import('/src/sim/customerSimulation.js');
+    const reservations = await import('/src/sim/reservations.js');
+    const day = Math.floor(app.state.clock.minutes / 1440);
+    app.state.clock.minutes = day * 1440 + 540;
+    const booked = reservations.bookSlot(app.state, day, slot, `QA ${caseId}`);
+    if (!booked.ok) throw new Error(booked.reason);
+    app.state.clock.minutes = day * 1440 + now;
+    reservations.markReservationArrived(app.state, booked.res.id, app.state.clock.minutes);
+    domain.customerSimulationOf(app.state).scheduled = [];
+    const actor = app.scene3d.clubhouse().debugSpawn(true, domain.CUSTOMER_INTENT.RESERVATION_CHECK_IN, {
+      name: `QA ${caseId}`,
+      reservationId: booked.res.id,
+    });
+    return { actorId: actor.id, reservationId: booked.res.id, cashBefore: app.state.cash };
+  }, { id, now: nowMinute, slot: slotMinute });
+  await page.waitForFunction((actorId) => {
+    const actor = window.__fw.scene3d.clubhouse().customerDiagnostics().actors.find((entry) => entry.id === actorId);
+    return actor?.state === 'Front-desk inquiry';
+  }, setup.actorId, { timeout: 15_000 });
+  const beforeShot = await shot(`${id}-before-service`);
+  await page.keyboard.press('e');
+  await page.waitForFunction(() => window.__fw.frontDeskOpen === true, null, { timeout: 10_000 });
+  await page.getByRole('button', { name: 'Cancel booking', exact: true }).first().click();
+  await page.locator('.fd-confirm').getByRole('button', { name: 'Cancel booking', exact: true }).click();
+  await page.waitForFunction((actorId) => {
+    const actor = window.__fw.state.shop.customerSimulation.active.find((entry) => entry.id === actorId);
+    return actor?.state === 'Leaving';
+  }, setup.actorId, { timeout: 10_000 });
+  const afterShot = await shot(`${id}-after-service`);
+  const result = await page.evaluate(({ actorId, reservationId, cashBefore }) => {
+    const state = window.__fw.state;
+    const actor = state.shop.customerSimulation.active.find((entry) => entry.id === actorId);
+    const reservation = state.reservations.booked.find((entry) => entry.id === reservationId);
+    return {
+      state: actor?.state || null,
+      reservationStatus: reservation?.status || null,
+      cashDelta: state.cash - cashBefore,
+    };
+  }, setup);
+  await page.keyboard.press('Escape');
+  return {
+    id,
+    kind: 'reservation-cancellation',
+    nowMinute,
+    slotMinute,
+    setup,
+    result,
+    screenshots: [beforeShot, afterShot],
+    passed: result.state === 'Leaving' && result.reservationStatus === 'cancelled' && result.cashDelta === 0,
+  };
 }
 
 await boot();
 const frontDesk = [];
-frontDesk.push(await runFrontDeskCase({ id: 'early-reservation', kind: 'reservation', nowMinute: 600, slotMinute: 630, expectSuccess: true }));
-frontDesk.push(await runFrontDeskCase({ id: 'on-time-reservation', kind: 'reservation', nowMinute: 600, slotMinute: 600, expectSuccess: true }));
-frontDesk.push(await runFrontDeskCase({ id: 'late-reservation', kind: 'reservation', nowMinute: 630, slotMinute: 600, expectSuccess: true }));
-frontDesk.push(await runFrontDeskCase({ id: 'missed-window', kind: 'reservation', nowMinute: 660, slotMinute: 600, expectSuccess: false }));
-frontDesk.push(await runFrontDeskCase({ id: 'walk-in', kind: 'walk-in', nowMinute: 660, expectSuccess: true }));
+frontDesk.push(await runFrontDeskCase({ id: 'early-reservation', kind: 'reservation', nowMinute: 600, slotMinute: 630 }));
+frontDesk.push(await runFrontDeskCase({ id: 'on-time-reservation', kind: 'reservation', nowMinute: 600, slotMinute: 600 }));
+frontDesk.push(await runFrontDeskCase({ id: 'late-reservation', kind: 'reservation', nowMinute: 630, slotMinute: 600 }));
+frontDesk.push(await runCancellationCase());
+frontDesk.push(await runFrontDeskCase({ id: 'walk-in', kind: 'walk-in', nowMinute: 660 }));
 
 // Keep a busy checkout at the head and let the second customer's own patience
 // expire. Their real reserved unit must return to the shelf and held ledger.
@@ -230,8 +336,22 @@ const saveSetup = await page.evaluate(async () => {
   const app = window.__fw;
   const ch = app.scene3d.clubhouse();
   const domain = await import('/src/sim/customerSimulation.js');
-  for (const id of Object.keys(app.state.shop.inventory)) {
-    app.state.shop.inventory[id].shelf = Math.max(app.state.shop.inventory[id].shelf || 0, 5);
+  const lifecycle = await import('/src/sim/inventoryLifecycle.js');
+  lifecycle.ensureInventoryLifecycle(app.state);
+  for (const id of ['balls3', 'glove1']) {
+    const inv = app.state.shop.inventory[id];
+    const wanted = Math.max(inv.shelf, 5);
+    const added = wanted - inv.shelf;
+    if (added > 0) {
+      const adopted = lifecycle.adoptExternalInventory(app.state, {
+        skuId: id,
+        quantity: added,
+        stage: lifecycle.INVENTORY_STAGE.SHELF,
+        note: 'Customer save/reload browser fixture',
+      });
+      if (!adopted.ok) throw new Error(adopted.reason);
+      inv.shelf = wanted;
+    }
   }
   app.state.shop.held = [];
   app.state.shop.salesLive = { units: 0, revenue: 0 };
@@ -386,7 +506,7 @@ await browser.close();
 const report = {
   stamp,
   url,
-  protocol: 'normal E front-desk controls, real patience timing, physical half-scan, game autosave, real reload',
+  protocol: 'canonical front-desk UI through normal E/mouse controls, real patience timing, physical half-scan, game autosave, real reload',
   frontDesk,
   abandonment,
   saveReload,
