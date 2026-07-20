@@ -325,7 +325,7 @@ export function makeCourseEditor(app, hooks) {
     bunker: { mode: 'draw', shape: 'kidney', sizeYd: 14, depth: 2.4, rot: 0 },
     water: { mode: 'draw', shape: 'pond', sizeYd: 36, streamWidthYd: 6, depth: 4.4, rot: 0 },
     objects: {
-      cat: 'tree', type: 'tree_oak', scale: 1, randomRot: true,
+      cat: 'tree', type: 'oak_a', scale: 1, randomRot: true,
       assist: false, assistCount: 8, snapYd: 1, search: '',
     },
     paths: {
@@ -1507,7 +1507,7 @@ export function makeCourseEditor(app, hooks) {
             title: `${o.name} — exact final preview`,
             onclick: (e) => {
               opt.objects.type = o.type;
-              for (const sib of grid.children) sib.classList.toggle('on', sib === e.currentTarget);
+              renderToolPanel();
               refreshHoverPreview();
             },
           }, svgIcon(OBJ_ICON[o.cat] || 'decor'), el('span', {},
@@ -1525,7 +1525,8 @@ export function makeCourseEditor(app, hooks) {
         if (selectedEntry) {
           const clearance = objectCollisionRadiusYd(selectedEntry.type, opt.objects.scale);
           const details = [
-            `Root / use clearance ${clearance.toFixed(1)} yd`,
+            selectedEntry.rootRadiusYd ? `roots ${selectedEntry.rootRadiusYd.toFixed(1)} yd` : null,
+            selectedEntry.canopyRadiusYd ? `canopy ${selectedEntry.canopyRadiusYd.toFixed(1)} yd` : `use clearance ${clearance.toFixed(1)} yd`,
             selectedEntry.matureHeightYd ? `mature height about ${selectedEntry.matureHeightYd} yd` : null,
             selectedEntry.climate ? `${selectedEntry.climate} climate` : 'all climates',
           ].filter(Boolean).join(' · ');

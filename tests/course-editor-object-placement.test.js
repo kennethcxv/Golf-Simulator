@@ -23,6 +23,10 @@ test('course object snapping uses real-yard increments and supports an explicit 
 
 test('stable collision radii distinguish trees, shrubs, rocks, and props', () => {
   assert.equal(objectCollisionRadiusYd('tree_oak'), 2.4);
+  assert.equal(objectCollisionRadiusYd('oak_a'), 6.3);
+  assert.equal(objectCollisionRadiusYd('acacia_a'), 7.4);
+  assert.equal(objectCollisionRadiusYd('cypress_a'), 1.8);
+  assert.equal(objectCollisionRadiusYd('flower_bed_a'), 1);
   assert.equal(objectCollisionRadiusYd('tree_pineDefaultA'), 2.4);
   assert.equal(objectCollisionRadiusYd('bush_round'), 1.6);
   assert.equal(objectCollisionRadiusYd('rock_s'), 1);

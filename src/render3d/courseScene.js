@@ -69,6 +69,7 @@ import {
   floraLodChoice,
   floraLodNeedsRefresh,
 } from './floraLod.js';
+import { floraWindEligible, floraWindStrength } from './floraWind.js';
 import { attachSocket, socketWorld } from './toolSockets.js';
 import { buildToolViewmodels } from './toolViewmodel.js';
 import { CLEANING_TOOLS } from '../data/cleaningTools.js';
@@ -284,6 +285,44 @@ let floraAssetsPromise = null;
 const floraSharedResources = {
   geometries: new Set(), materials: new Set(), textures: new Set(),
 };
+const floraWindUniforms = new Set();
+
+function installFloraWind(material, id, kind) {
+  if (!material || !floraWindEligible(id, kind)) return material;
+  const record = {
+    kind,
+    time: { value: 0 },
+    strength: { value: floraWindStrength(kind, 6) },
+  };
+  floraWindUniforms.add(record);
+  material.userData.floraWind = { kind };
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uFloraTime = record.time;
+    shader.uniforms.uFloraWindStrength = record.strength;
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+        uniform float uFloraTime;
+        uniform float uFloraWindStrength;`,
+      )
+      .replace(
+        '#include <begin_vertex>',
+        `vec3 transformed = vec3(position);
+        float fwFloraMask = smoothstep(0.12, 0.98, position.y);
+        float fwFloraPhase = position.x * 4.1 + position.z * 3.7;
+        #ifdef USE_INSTANCING
+          fwFloraPhase += instanceMatrix[3].x * 0.043 + instanceMatrix[3].z * 0.037;
+        #endif
+        float fwFloraWave = sin(uFloraTime * 1.05 + fwFloraPhase + position.y * 2.4);
+        float fwFloraCross = cos(uFloraTime * 0.73 + fwFloraPhase * 1.37);
+        transformed.x += fwFloraWave * uFloraWindStrength * fwFloraMask;
+        transformed.z += fwFloraCross * uFloraWindStrength * 0.58 * fwFloraMask;`,
+      );
+  };
+  material.customProgramCacheKey = () => 'golf-flipper-flora-wind-v1';
+  return material;
+}
 
 // The species pools the boundary forest and any untyped spot draw from.
 const FLORA_FOREST = ['fill_a', 'fill_b', 'oak_b', 'oak_a', 'maple_a', 'pine_a', 'pine_b', 'spruce_a', 'birch_a', 'shade_a'];
@@ -291,21 +330,25 @@ const FLORA_PINE = ['pine_a', 'pine_b', 'spruce_a', 'cedar_a'];
 // every object type the flora pipeline owns (so rebuildObjects skips them)
 const FLORA_IDS = new Set([
   'oak_a', 'oak_b', 'maple_a', 'birch_a', 'shade_a', 'flower_a', 'fill_a', 'fill_b',
-  'pine_a', 'pine_b', 'spruce_a', 'cedar_a', 'shrub_round', 'shrub_flower', 'bush_native',
-  'reed_clump', 'grass_clump', 'rock_s', 'rock_m', 'boulder_a', 'shore_rock',
-  'tree_default', 'tree_oak', 'tree_detailed', 'tree_fat', 'tree_pineDefaultA', 'tree_pineRoundB', 'reeds',
+  'pine_a', 'pine_b', 'spruce_a', 'cedar_a', 'cypress_a', 'palm_a', 'acacia_a', 'eucalyptus_a',
+  'ornamental_small_a', 'shrub_round', 'shrub_flower', 'bush_native', 'hedge_a',
+  'reed_clump', 'grass_clump', 'groundcover_a', 'flower_bed_a',
+  'rock_s', 'rock_m', 'boulder_a', 'shore_rock',
+  'tree_default', 'tree_oak', 'tree_detailed', 'tree_fat', 'tree_pineDefaultA', 'tree_pineRoundB',
+  'reeds', 'bush_round', 'bush_flower', 'hedge', 'flowers',
 ]);
 // the tall canopy species (block the walker; the rest are stepped past)
 const TREE_SPECIES = new Set([
   'oak_a', 'oak_b', 'maple_a', 'birch_a', 'shade_a', 'flower_a', 'fill_a', 'fill_b',
-  'pine_a', 'pine_b', 'spruce_a', 'cedar_a',
+  'pine_a', 'pine_b', 'spruce_a', 'cedar_a', 'cypress_a', 'palm_a', 'acacia_a', 'eucalyptus_a',
+  'ornamental_small_a',
   'tree_default', 'tree_oak', 'tree_detailed', 'tree_fat', 'tree_pineDefaultA', 'tree_pineRoundB',
 ]);
 
 function loadFloraAssets() {
   if (floraAssetsPromise) return floraAssetsPromise;
   const loader = new GLTFLoader();
-  const loadOne = (id) => new Promise((resolve) => {
+  const loadOne = (id, kind) => new Promise((resolve) => {
     loader.load(
       `vendor/models/flora/${id}.glb`,
       (gltf) => {
@@ -332,6 +375,7 @@ function loadFloraAssets() {
               roughness: 0.9,
               metalness: 0,
             });
+            installFloraWind(material, id, kind);
             parts.push({ geometry: merged, material });
           }
           // normalize: feet on y=0, centered on xz, unit height
@@ -366,7 +410,7 @@ function loadFloraAssets() {
     .then((manifest) => {
       if (!manifest || !manifest.variants) return null;
       const meta = new Map(manifest.variants.map((v) => [v.id, v]));
-      return Promise.all(manifest.variants.map((v) => loadOne(v.id))).then((loaded) => {
+      return Promise.all(manifest.variants.map((v) => loadOne(v.id, v.kind))).then((loaded) => {
         const byId = new Map();
         for (const a of loaded) {
           if (!a) continue;
@@ -1831,6 +1875,7 @@ export function makeCourseScene(canvas, state) {
   const FLORA_ALIAS = {
     tree_default: 'fill_a', tree_oak: 'oak_a', tree_detailed: 'shade_a', tree_fat: 'oak_b',
     tree_pineDefaultA: 'pine_a', tree_pineRoundB: 'pine_b', reeds: 'reed_clump',
+    bush_round: 'shrub_round', bush_flower: 'shrub_flower', hedge: 'hedge_a', flowers: 'flower_bed_a',
   };
   function floraIdFor(type, assets) {
     if (assets.has(type)) return type;
@@ -2030,7 +2075,7 @@ export function makeCourseScene(canvas, state) {
         position: p,
         matrix: m.clone(),
         color: col.clone(),
-        hero: null,
+        lodTier: null,
       });
       sourceById[sourceId] = (sourceById[sourceId] || 0) + 1;
     }
@@ -2053,8 +2098,14 @@ export function makeCourseScene(canvas, state) {
         tree: record.tree,
       });
       reserve(far);
-      if (!record.boundary && FLORA_LOD_PROXY_BY_ID[record.sourceId]) {
-        reserve(floraLodChoice(record.sourceId, 0, false));
+      if (FLORA_LOD_PROXY_BY_ID[record.sourceId]) {
+        reserve(floraLodChoice(record.sourceId, 0, null, {
+          boundary: record.boundary,
+          tree: record.tree,
+        }));
+        if (!record.boundary) {
+          reserve(floraLodChoice(record.sourceId, FLORA_LOD_DEFAULTS.heroExitYd + 1, 'medium'));
+        }
       }
     }
 
@@ -2062,7 +2113,7 @@ export function makeCourseScene(canvas, state) {
     for (const spec of bucketSpecs.values()) {
       const variant = assets.get(spec.choice.renderId);
       if (!variant) continue;
-      const isReed = variant.kind === 'reed';
+      const isReed = ['reed', 'groundcover', 'palm', 'flowerbed'].includes(variant.kind);
       const meshes = variant.parts.map(({ geometry, material }, partIndex) => {
         if (isReed) material.side = THREE.DoubleSide; // thin blades read from both faces
         const im = new THREE.InstancedMesh(geometry, material, spec.capacity);
@@ -2104,11 +2155,11 @@ export function makeCourseScene(canvas, state) {
           record.position.x - nextCamera.x,
           record.position.z - nextCamera.z,
         );
-        const choice = floraLodChoice(record.sourceId, distance, record.hero, {
+        const choice = floraLodChoice(record.sourceId, distance, record.lodTier, {
           boundary: record.boundary,
           tree: record.tree,
         });
-        record.hero = choice.hero;
+        record.lodTier = choice.tier;
         const key = bucketKey(choice);
         const bucket = renderBuckets.get(key);
         if (!bucket) continue;
@@ -2138,7 +2189,7 @@ export function makeCourseScene(canvas, state) {
 
       floraLodSnapshot = {
         ready: true,
-        mode: 'dynamic-hero-proxy',
+        mode: 'dynamic-near-medium-far',
         thresholds: { ...FLORA_LOD_DEFAULTS },
         lastCamera: { x: +nextCamera.x.toFixed(2), z: +nextCamera.z.toFixed(2) },
         updates: updateCount,
@@ -2150,6 +2201,7 @@ export function makeCourseScene(canvas, state) {
         authoredInstances: records.reduce((total, record) => total + (record.boundary ? 0 : 1), 0),
         meshBuckets: renderBuckets.size,
         renderedBaseTriangles,
+        windMaterials: floraWindUniforms.size,
         tiers,
         sourceById,
         renderedById,
@@ -5864,6 +5916,11 @@ export function makeCourseScene(canvas, state) {
       shadowBakes++;
     }
     if (shaderRefs.uniforms) shaderRefs.uniforms.uTime.value = time;
+    const floraWindMph = Number(state.weather?.today?.windMph) || 0;
+    for (const record of floraWindUniforms) {
+      record.time.value = time;
+      record.strength.value = floraWindStrength(record.kind, floraWindMph);
+    }
     for (const w of waterMeshes) {
       w.material.uniforms.time.value = time * 0.55;
     }

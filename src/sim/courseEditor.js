@@ -35,6 +35,7 @@ import { appraiseProperty } from './valuation.js';
 const TREE_OBJECT_TYPES = new Set([
   'oak_a', 'oak_b', 'maple_a', 'birch_a', 'shade_a', 'flower_a', 'fill_a', 'fill_b',
   'pine_a', 'pine_b', 'spruce_a', 'cedar_a',
+  'cypress_a', 'palm_a', 'acacia_a', 'eucalyptus_a', 'ornamental_small_a',
   'tree_default', 'tree_oak', 'tree_detailed', 'tree_fat', 'tree_pineDefaultA', 'tree_pineRoundB',
 ]);
 
@@ -1559,20 +1560,29 @@ export function deleteVectorStream(state, session, ref) {
 // --- objects --------------------------------------------------------------------------
 
 export const OBJECT_CATALOG = [
-  // trees (Kenney set already in vendor/models/trees)
-  { type: 'tree_default', cat: 'tree', name: 'Shade tree', cost: 'tree', climate: 'Temperate', matureHeightYd: 13 },
-  { type: 'tree_oak', cat: 'tree', name: 'Oak', cost: 'tree', climate: 'Temperate', matureHeightYd: 15 },
-  { type: 'tree_detailed', cat: 'tree', name: 'Elm', cost: 'tree', climate: 'Temperate', matureHeightYd: 14 },
-  { type: 'tree_fat', cat: 'tree', name: 'Maple', cost: 'tree', climate: 'Cool / temperate', matureHeightYd: 13 },
-  { type: 'tree_pineDefaultA', cat: 'tree', name: 'Pine', cost: 'tree', climate: 'Cool / temperate', matureHeightYd: 16 },
-  { type: 'tree_pineRoundB', cat: 'tree', name: 'Spruce', cost: 'tree', climate: 'Cool', matureHeightYd: 14 },
-  // shrubs & ground cover (procedural or GLB, renderer decides)
-  { type: 'bush_round', cat: 'shrub', name: 'Boxwood', cost: 'shrub' },
-  { type: 'bush_flower', cat: 'shrub', name: 'Flowering shrub', cost: 'shrub' },
-  { type: 'hedge', cat: 'shrub', name: 'Hedge section', cost: 'shrub' },
-  { type: 'grass_clump', cat: 'shrub', name: 'Native grasses', cost: 'shrub' },
-  { type: 'reeds', cat: 'shrub', name: 'Reeds', cost: 'shrub' },
-  { type: 'flowers', cat: 'decor', name: 'Flower patch', cost: 'decor' },
+  // Production flora assets. Legacy Kenney/procedural IDs remain load-compatible
+  // in courseScene but are intentionally absent from new authoring choices.
+  { type: 'oak_a', cat: 'tree', name: 'Oak', cost: 'tree', climate: 'Temperate', matureHeightYd: 15, rootRadiusYd: 2.2, canopyRadiusYd: 6.3 },
+  { type: 'maple_a', cat: 'tree', name: 'Maple', cost: 'tree', climate: 'Cool / temperate', matureHeightYd: 13, rootRadiusYd: 1.8, canopyRadiusYd: 4.8 },
+  { type: 'pine_a', cat: 'tree', name: 'Pine', cost: 'tree', climate: 'Cool / temperate', matureHeightYd: 16, rootRadiusYd: 1.8, canopyRadiusYd: 3.3 },
+  { type: 'cedar_a', cat: 'tree', name: 'Cedar', cost: 'tree', climate: 'Cool / temperate', matureHeightYd: 11, rootRadiusYd: 1.5, canopyRadiusYd: 2.3 },
+  { type: 'birch_a', cat: 'tree', name: 'Birch', cost: 'tree', climate: 'Cool / temperate', matureHeightYd: 12, rootRadiusYd: 1.5, canopyRadiusYd: 4.3 },
+  { type: 'cypress_a', cat: 'tree', name: 'Cypress', cost: 'tree', climate: 'Warm / temperate', matureHeightYd: 14, rootRadiusYd: 1.2, canopyRadiusYd: 1.8 },
+  { type: 'palm_a', cat: 'tree', name: 'Palm', cost: 'tree', climate: 'Warm / coastal', matureHeightYd: 12, rootRadiusYd: 1.6, canopyRadiusYd: 4.2 },
+  { type: 'acacia_a', cat: 'tree', name: 'Acacia', cost: 'tree', climate: 'Warm / dry', matureHeightYd: 12, rootRadiusYd: 2.1, canopyRadiusYd: 7.4 },
+  { type: 'eucalyptus_a', cat: 'tree', name: 'Eucalyptus', cost: 'tree', climate: 'Warm / temperate', matureHeightYd: 16, rootRadiusYd: 2.2, canopyRadiusYd: 3.6 },
+  { type: 'flower_a', cat: 'tree', name: 'Flowering ornamental', cost: 'tree', climate: 'Temperate', matureHeightYd: 6, rootRadiusYd: 1.1, canopyRadiusYd: 3.2 },
+  { type: 'ornamental_small_a', cat: 'tree', name: 'Small ornamental', cost: 'tree', climate: 'All climates', matureHeightYd: 5, rootRadiusYd: 1.0, canopyRadiusYd: 2.6 },
+  { type: 'shade_a', cat: 'tree', name: 'Parkland shade tree', cost: 'tree', climate: 'Temperate', matureHeightYd: 14, rootRadiusYd: 2.3, canopyRadiusYd: 6.9 },
+  // Shrubs and ground layers use the same authored GLB/instancing pipeline.
+  { type: 'bush_native', cat: 'shrub', name: 'Dense native shrub', cost: 'shrub', climate: 'Temperate', matureHeightYd: 2, rootRadiusYd: 1.0, canopyRadiusYd: 1.8 },
+  { type: 'shrub_round', cat: 'shrub', name: 'Rounded shrub', cost: 'shrub', climate: 'All climates', matureHeightYd: 2, rootRadiusYd: 0.9, canopyRadiusYd: 1.6 },
+  { type: 'shrub_flower', cat: 'shrub', name: 'Flowering shrub', cost: 'shrub', climate: 'Temperate', matureHeightYd: 2, rootRadiusYd: 0.9, canopyRadiusYd: 1.6 },
+  { type: 'hedge_a', cat: 'shrub', name: 'Hedge section', cost: 'shrub', climate: 'All climates', matureHeightYd: 1.3, rootRadiusYd: 0.7, canopyRadiusYd: 1.6 },
+  { type: 'grass_clump', cat: 'shrub', name: 'Native grass', cost: 'shrub', climate: 'All climates', matureHeightYd: 1, rootRadiusYd: 0.4, canopyRadiusYd: 0.7 },
+  { type: 'reed_clump', cat: 'shrub', name: 'Reed clump', cost: 'shrub', climate: 'Wetland', matureHeightYd: 2, rootRadiusYd: 0.4, canopyRadiusYd: 0.8 },
+  { type: 'groundcover_a', cat: 'shrub', name: 'Groundcover', cost: 'shrub', climate: 'All climates', matureHeightYd: 0.4, rootRadiusYd: 0.5, canopyRadiusYd: 0.8 },
+  { type: 'flower_bed_a', cat: 'decor', name: 'Flower bed', cost: 'decor', climate: 'All climates', matureHeightYd: 0.6, rootRadiusYd: 0.7, canopyRadiusYd: 1.0 },
   // rocks
   { type: 'rock_s', cat: 'rock', name: 'Stone', cost: 'rock' },
   { type: 'rock_m', cat: 'rock', name: 'Boulder', cost: 'rock' },
@@ -1587,7 +1597,25 @@ export const OBJECT_CATALOG = [
   { type: 'planter', cat: 'decor', name: 'Planter', cost: 'decor' },
 ];
 
-const CATALOG_BY_TYPE = new Map(OBJECT_CATALOG.map((o) => [o.type, o]));
+// Hidden migration entries retain category/cost semantics for old saves and
+// external course JSON without putting placeholder-era choices back in the UI.
+const LEGACY_OBJECT_CATALOG = [
+  { type: 'tree_default', cat: 'tree', cost: 'tree' },
+  { type: 'tree_oak', cat: 'tree', cost: 'tree' },
+  { type: 'tree_detailed', cat: 'tree', cost: 'tree' },
+  { type: 'tree_fat', cat: 'tree', cost: 'tree' },
+  { type: 'tree_pineDefaultA', cat: 'tree', cost: 'tree' },
+  { type: 'tree_pineRoundB', cat: 'tree', cost: 'tree' },
+  { type: 'bush_round', cat: 'shrub', cost: 'shrub' },
+  { type: 'bush_flower', cat: 'shrub', cost: 'shrub' },
+  { type: 'hedge', cat: 'shrub', cost: 'shrub' },
+  { type: 'reeds', cat: 'shrub', cost: 'shrub' },
+  { type: 'flowers', cat: 'decor', cost: 'decor' },
+];
+
+const CATALOG_BY_TYPE = new Map(
+  [...LEGACY_OBJECT_CATALOG, ...OBJECT_CATALOG].map((object) => [object.type, object]),
+);
 
 export function objectCostOf(type) {
   const entry = CATALOG_BY_TYPE.get(type);
@@ -1649,7 +1677,7 @@ export function objectPlacementOk(course, type, x, y, {
     return { ok: false, reason: 'That canopy would obstruct active play.' };
   }
   if ((centerZone === ZONE.WATER || (protectPlay && footprintZones.includes(ZONE.WATER)))
-      && type !== 'reeds' && entry.cat !== 'rock') {
+      && type !== 'reeds' && type !== 'reed_clump' && entry.cat !== 'rock') {
     return { ok: false, reason: 'That would drown.' };
   }
   for (const s of course.structures) {

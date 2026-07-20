@@ -136,7 +136,7 @@ async (page) => {
   const search = page.getByRole('searchbox', { name: 'Search landscaping' });
   await search.fill('oak');
   await page.getByRole('button', { name: /^Oak/ }).click();
-  const objectPoint = await findObjectPoint('tree_oak');
+  const objectPoint = await findObjectPoint('oak_a');
   if (!objectPoint) throw new Error('No visible legal Oak placement was found.');
   const objectsBefore = await page.evaluate(() => window.__fw.state.course.objects.length);
   await page.mouse.move(objectPoint.x, objectPoint.y);
@@ -178,11 +178,11 @@ async (page) => {
     closureImpactEstimated: terrainImpact.impact.holesAffected > 0
       && terrainImpact.impact.maxConstructionDays > 0,
     searchFilteredOak: /Oak/.test(preview.panel) && !/Shade tree/.test(preview.panel),
-    priceAndClearanceVisible: /Root \/ use clearance/.test(preview.panel) && /\$/.test(preview.panel),
+    priceAndClearanceVisible: /roots 2\.2 yd/.test(preview.panel) && /canopy 6\.3 yd/.test(preview.panel) && /\$/.test(preview.panel),
     authoredPreviewPresent: preview.meshes.length > 0
       && preview.meshes.every((mesh) => mesh.unitScale > 10),
     exactPreviewRotationCommitted: Math.abs(preview.meshes[0].parentRotation - placed.rot) < 1e-6,
-    placedAndUndoRestored: placed.type === 'tree_oak',
+    placedAndUndoRestored: placed.type === 'oak_a',
     consoleErrorsClean: diagnostics.length === 0,
     performanceAcceptable: finalPerformance.averageFps >= 30
       && finalPerformance.averageFps >= baseline.averageFps * 0.65

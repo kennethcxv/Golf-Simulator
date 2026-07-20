@@ -2,22 +2,32 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FLORA_LOD_PROXY_BY_ID,
+  FLORA_LOD_FAR_BY_ID,
   FLORA_LOD_DEFAULTS,
   floraLodChoice,
   floraLodNeedsRefresh,
 } from '../src/render3d/floraLod.js';
 
-test('every expensive or conifer filler tree has a lightweight far proxy', () => {
+test('production trees declare authored medium and far silhouettes', () => {
   assert.deepEqual(FLORA_LOD_PROXY_BY_ID, {
     oak_a: 'fill_a',
     oak_b: 'fill_b',
     maple_a: 'birch_a',
     shade_a: 'fill_b',
-    pine_a: 'pine_far',
-    spruce_a: 'pine_far',
+    flower_a: 'birch_a',
+    ornamental_small_a: 'birch_a',
+    pine_a: 'pine_b',
+    spruce_a: 'cedar_a',
     pine_b: 'pine_far',
     cedar_a: 'pine_far',
+    cypress_a: 'cypress_far',
+    palm_a: 'palm_far',
+    acacia_a: 'acacia_far',
+    eucalyptus_a: 'eucalyptus_far',
   });
+  assert.equal(FLORA_LOD_FAR_BY_ID.oak_a, 'deciduous_far');
+  assert.equal(FLORA_LOD_FAR_BY_ID.pine_a, 'pine_far');
+  assert.equal(FLORA_LOD_FAR_BY_ID.palm_a, 'palm_far');
 });
 
 test('intentional hero trees retain full geometry throughout the near-player band', () => {
@@ -30,16 +40,24 @@ test('intentional hero trees retain full geometry throughout the near-player ban
   }
 });
 
-test('hysteresis prevents hero/proxy popping while the camera hovers at the threshold', () => {
-  const entering = floraLodChoice('oak_a', 124, false);
-  const retained = floraLodChoice('oak_a', 140, entering.hero);
-  const exited = floraLodChoice('oak_a', 151, retained.hero);
-  const remainsProxy = floraLodChoice('oak_a', 140, exited.hero);
+test('near/medium/far hysteresis prevents popping at both thresholds', () => {
+  const entering = floraLodChoice('oak_a', 124, 'medium');
+  const retained = floraLodChoice('oak_a', 140, entering.tier);
+  const exited = floraLodChoice('oak_a', 151, retained.tier);
+  const remainsMedium = floraLodChoice('oak_a', 140, exited.tier);
+  const far = floraLodChoice('oak_a', 246, remainsMedium.tier);
+  const retainsFar = floraLodChoice('oak_a', 220, far.tier);
+  const returnsMedium = floraLodChoice('oak_a', 209, retainsFar.tier);
 
   assert.equal(entering.tier, 'hero');
   assert.equal(retained.tier, 'hero');
-  assert.equal(exited.tier, 'proxy');
-  assert.equal(remainsProxy.tier, 'proxy');
+  assert.equal(exited.tier, 'medium');
+  assert.equal(remainsMedium.tier, 'medium');
+  assert.equal(far.tier, 'far');
+  assert.equal(far.renderId, 'deciduous_far');
+  assert.equal(retainsFar.tier, 'far');
+  assert.equal(returnsMedium.tier, 'medium');
+  assert.equal(returnsMedium.renderId, 'fill_a');
 });
 
 test('distant boundary planting stays on the cheap proxy silhouette', () => {

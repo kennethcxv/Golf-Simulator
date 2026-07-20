@@ -6,7 +6,8 @@
 //   node tools/qa/run-playwright.cjs tools/qa/course-flora-lod-qa.js --bootstrap
 async (page) => {
   const phase = process.env.FLORA_QA_PHASE || 'baseline';
-  const outDir = `qa/flora_lod/${phase}`;
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
+  const outDir = process.env.FLORA_QA_OUT_DIR || `qa/flora_lod/${phase}`;
   const diagnostics = {
     console: [], pageErrors: [], failedRequests: [], ignoredPreProbeRequestFailures: [],
   };
@@ -27,7 +28,7 @@ async (page) => {
     else diagnostics.ignoredPreProbeRequestFailures.push(record);
   });
   page.on('framenavigated', (frame) => {
-    if (frame === page.mainFrame() && frame.url().startsWith('http://localhost:8457/')) {
+    if (frame === page.mainFrame() && frame.url().startsWith(baseUrl)) {
       qaDocumentCommitted = true;
     }
   });
@@ -152,7 +153,7 @@ async (page) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   qaDocumentCommitted = false;
   qaDocumentRequests = new WeakSet();
-  await page.goto('http://localhost:8457/');
+  await page.goto(baseUrl);
   await page.waitForFunction(() => document.readyState === 'complete');
   const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
   await continueButton.waitFor({ state: 'visible' });
