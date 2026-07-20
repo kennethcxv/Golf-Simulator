@@ -1,0 +1,148 @@
+{
+  "comparedWith": "qa/player-experience-polish/performance/paired-baseline/idle-exterior.json",
+  "scenarioMatch": true,
+  "browserMatch": true,
+  "baseline": {
+    "averageFpsMean": 96.42342239796824,
+    "onePercentLowFpsMean": 31.87547062744621,
+    "worstFrameTimeMs": 94.40000000000146,
+    "javascriptHeapUsedBytesFinal": 81094046,
+    "uiMutationRecordsPerFrameMean": 2.1122222222222224,
+    "drawCallsPerFrameMedian": 3769,
+    "renderedTrianglesPerFrameMedian": 5283328,
+    "materialCountMedian": 229,
+    "textureCountMedian": 163,
+    "rendererTextureObjectsMedian": 208,
+    "textureMemoryEstimatedBytesMedian": 6169904488,
+    "activeEventListenerDelta": 0
+  },
+  "final": {
+    "averageFpsMean": 116.45407617596777,
+    "onePercentLowFpsMean": 80.20990133326633,
+    "worstFrameTimeMs": 16.69999999999709,
+    "javascriptHeapUsedBytesFinal": 91701912,
+    "uiMutationRecordsPerFrameMean": 0.09166666666666667,
+    "drawCallsPerFrameMedian": 3781,
+    "renderedTrianglesPerFrameMedian": 5279896,
+    "materialCountMedian": 229,
+    "textureCountMedian": 163,
+    "rendererTextureObjectsMedian": 208,
+    "textureMemoryEstimatedBytesMedian": 6169904488,
+    "activeEventListenerDelta": 0
+  },
+  "metrics": [
+    {
+      "label": "Average FPS",
+      "key": "averageFpsMean",
+      "direction": "higher",
+      "baseline": 96.42342239796824,
+      "final": 116.45407617596777,
+      "deltaPercent": 20.773639101220702,
+      "tolerancePercent": 5,
+      "pass": true
+    },
+    {
+      "label": "1% low FPS",
+      "key": "onePercentLowFpsMean",
+      "direction": "higher",
+      "baseline": 31.87547062744621,
+      "final": 80.20990133326633,
+      "deltaPercent": 151.6351908046873,
+      "tolerancePercent": 10,
+      "pass": true
+    },
+    {
+      "label": "Worst frame (ms)",
+      "key": "worstFrameTimeMs",
+      "direction": "lower",
+      "baseline": 94.40000000000146,
+      "final": 16.69999999999709,
+      "deltaPercent": -82.30932203390167,
+      "tolerancePercent": 20,
+      "pass": true
+    },
+    {
+      "label": "JS heap final (bytes)",
+      "key": "javascriptHeapUsedBytesFinal",
+      "direction": "lower",
+      "baseline": 81094046,
+      "final": 91701912,
+      "deltaPercent": 13.080943081813922,
+      "tolerancePercent": 25,
+      "pass": true
+    },
+    {
+      "label": "UI mutations / frame",
+      "key": "uiMutationRecordsPerFrameMean",
+      "direction": "lower",
+      "baseline": 2.1122222222222224,
+      "final": 0.09166666666666667,
+      "deltaPercent": -95.66017885323514,
+      "tolerancePercent": 10,
+      "pass": true
+    },
+    {
+      "label": "Draw calls / frame",
+      "key": "drawCallsPerFrameMedian",
+      "direction": "lower",
+      "baseline": 3769,
+      "final": 3781,
+      "deltaPercent": 0.3183868400106129,
+      "tolerancePercent": 5,
+      "pass": true
+    },
+    {
+      "label": "Rendered triangles / frame",
+      "key": "renderedTrianglesPerFrameMedian",
+      "direction": "lower",
+      "baseline": 5283328,
+      "final": 5279896,
+      "deltaPercent": -0.06495905611008818,
+      "tolerancePercent": 5,
+      "pass": true
+    },
+    {
+      "label": "Materials",
+      "key": "materialCountMedian",
+      "direction": "lower",
+      "baseline": 229,
+      "final": 229,
+      "deltaPercent": 0,
+      "tolerancePercent": 5,
+      "pass": true
+    },
+    {
+      "label": "Visible textures",
+      "key": "textureCountMedian",
+      "direction": "lower",
+      "baseline": 163,
+      "final": 163,
+      "deltaPercent": 0,
+      "tolerancePercent": 5,
+      "pass": true
+    },
+    {
+      "label": "Resident textures",
+      "key": "rendererTextureObjectsMedian",
+      "direction": "lower",
+      "baseline": 208,
+      "final": 208,
+      "deltaPercent": 0,
+      "tolerancePercent": 5,
+      "pass": true
+    },
+    {
+      "label": "Texture estimate (bytes)",
+      "key": "textureMemoryEstimatedBytesMedian",
+      "direction": "lower",
+      "baseline": 6169904488,
+      "final": 6169904488,
+      "deltaPercent": 0,
+      "tolerancePercent": 5,
+      "pass": true
+    }
+  ],
+  "listenerLeakPass": true,
+  "pass": true,
+  "toleranceNote": "Noise guardrails: 5% for steady render counts/FPS, 10% for 1% lows and UI mutations, 20% worst-frame, 25% final heap. Listener growth must be exactly zero within the final sample."
+}

@@ -33,6 +33,10 @@ function keyToBackupFile(key) {
   return keyToFile(key) + '.bak';
 }
 
+function keyToBackupFile(key) {
+  return keyToFile(key) + '.bak';
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1600,
@@ -113,6 +117,50 @@ ipcMain.handle('fw:delete', async (_e, key) => {
 });
 
 ipcMain.handle('fw:list', async () => saveStore().list());
+
+// Native-only presentation controls. Browser QA intentionally omits these
+// rather than displaying toggles that cannot work there.
+ipcMain.handle('fw:display-info', () => {
+  if (!win) throw new Error('The game window is not ready.');
+  const display = screen.getDisplayMatching(win.getBounds());
+  const current = win.getContentBounds();
+  const candidates = [
+    [1100, 680], [1280, 720], [1366, 768], [1600, 900], [1920, 1080], [2560, 1440],
+  ].filter(([width, height]) => width <= display.workAreaSize.width && height <= display.workAreaSize.height);
+  if (!candidates.some(([width, height]) => width === current.width && height === current.height)) {
+    candidates.push([current.width, current.height]);
+  }
+  candidates.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  return {
+    mode: win.isFullScreen() ? 'fullscreen' : 'windowed',
+    width: current.width,
+    height: current.height,
+    resolutions: candidates.map(([width, height]) => ({ width, height })),
+  };
+});
+
+ipcMain.handle('fw:set-window-mode', (_e, mode) => {
+  if (!win) throw new Error('The game window is not ready.');
+  if (!['windowed', 'fullscreen'].includes(mode)) throw new Error('Unsupported window mode.');
+  win.setFullScreen(mode === 'fullscreen');
+  return true;
+});
+
+ipcMain.handle('fw:set-resolution', (_e, width, height) => {
+  if (!win || win.isFullScreen()) throw new Error('Window size can only change in windowed mode.');
+  const w = Math.max(1100, Math.round(Number(width) || 0));
+  const h = Math.max(680, Math.round(Number(height) || 0));
+  const display = screen.getDisplayMatching(win.getBounds());
+  if (w > display.workAreaSize.width || h > display.workAreaSize.height) throw new Error('Resolution does not fit the active display.');
+  win.setContentSize(w, h, true);
+  win.center();
+  return true;
+});
+
+ipcMain.handle('fw:quit', () => {
+  app.quit();
+  return true;
+});
 
 // Native-only presentation controls. Browser QA intentionally omits these
 // rather than displaying toggles that cannot work there.
