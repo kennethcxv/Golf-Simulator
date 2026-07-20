@@ -1206,6 +1206,17 @@ body.register-mode .hud-min { display: none !important; }
    Hide it while the register is live so the checkout composition reads clean. */
 body.register-mode .view-toggle { display: none !important; }
 
+/* The asset showroom is still the real first-person game, but course-context
+   prompts describe invisible layer-zero turf rather than the layer-30 display
+   stage. Keep the normal HUD and crosshair while removing those false labels. */
+body.store-display-showroom-active .shop-prompt,
+body.store-display-showroom-active .shop-lockhint,
+body.store-display-showroom-active .view-toggle,
+body.store-display-showroom-active .hud-min,
+body.store-display-showroom-active .toast-wrap {
+  display: none !important;
+}
+
 /* the till's control hint — the walk prompt is hidden behind the counter, so this is
    the only thing telling the player which keys the register answers to */
 .reg-hint {

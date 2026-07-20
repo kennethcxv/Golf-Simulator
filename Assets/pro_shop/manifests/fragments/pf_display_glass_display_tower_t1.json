@@ -1,0 +1,62 @@
+{
+ "id": "pf_display_glass_display_tower_t1",
+ "kind": "fixtures",
+ "category": "store_displays/glass_display_tower",
+ "dims_m": [
+  0.52,
+  0.577,
+  1.35
+ ],
+ "min_z": 0.0,
+ "tris": 2024,
+ "textures": [
+  "PSBlackSteel:512x512",
+  "PSBoard:512x512"
+ ],
+ "sockets": [
+  "TOWER_SLOT_01",
+  "TOWER_SLOT_02",
+  "TOWER_SLOT_03"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_display_glass_display_tower_t1.glb",
+ "blend": "assets/pro_shop/source/fixtures/store_displays/glass_display_tower/pf_display_glass_display_tower_t1.blend",
+ "name": "Glass Display Tower - Tier 1 Basic",
+ "variant": "municipal_value",
+ "tier": 1,
+ "quality": "Basic",
+ "price_band": 1,
+ "material_story": "utility steel",
+ "size_grade": 1,
+ "material_grade": 1,
+ "custom_woodwork_level": 0,
+ "fixture_complexity_grade": 1,
+ "integrated_light_count": 0,
+ "target_dimensions_m": [
+  0.52,
+  0.48,
+  1.35
+ ],
+ "references": [
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_51_59 PM.png",
+   "sha256": "71837A0D4FBA7FB51F41EB315AC45191265595CF4075EFBD4FAD1D5674834D58",
+   "role": "five-tier fixtures, materials, lighting, and custom-millwork progression"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_25 PM.png",
+   "sha256": "AC8734A60E3DACE03466A4C04255FE9A13F89B7452390DB5FC8075D64E453692",
+   "role": "municipal-to-private-club market levels and increasing room scale"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_34 PM.png",
+   "sha256": "0C0780A1B1162A045D42AC1E77C7514759FED9D9D641903DC8A984C62CEB1A3D",
+   "role": "worn municipal Tier-1 utility baseline"
+  }
+ ],
+ "license": "Project-owned / UNLICENSED",
+ "source_note": "Original in-repository Blender geometry; no external assets downloaded",
+ "price": null,
+ "fixture": "store_display_upgrade",
+ "slot_type": "authored_in_glb",
+ "packaging": "fixture_freight"
+}

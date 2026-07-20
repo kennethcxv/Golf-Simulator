@@ -1,0 +1,73 @@
+{
+ "id": "pf_display_corner_shelving_t4",
+ "kind": "fixtures",
+ "category": "store_displays/corner_shelving",
+ "dims_m": [
+  1.8,
+  1.8,
+  2.3
+ ],
+ "min_z": 0.0,
+ "tris": 3216,
+ "textures": [
+  "NRM_wood_0.7_512:512x512",
+  "PSWalnut:1024x512"
+ ],
+ "sockets": [
+  "CORNER_SLOT_X_01",
+  "CORNER_SLOT_X_02",
+  "CORNER_SLOT_X_03",
+  "CORNER_SLOT_X_04",
+  "CORNER_SLOT_X_05",
+  "CORNER_SLOT_X_06",
+  "CORNER_SLOT_X_07",
+  "CORNER_SLOT_Y_01",
+  "CORNER_SLOT_Y_02",
+  "CORNER_SLOT_Y_03",
+  "CORNER_SLOT_Y_04",
+  "CORNER_SLOT_Y_05",
+  "CORNER_SLOT_Y_06",
+  "CORNER_SLOT_Y_07"
+ ],
+ "glb": "assets/pro_shop/glb/fixtures/pf_display_corner_shelving_t4.glb",
+ "blend": "assets/pro_shop/source/fixtures/store_displays/corner_shelving/pf_display_corner_shelving_t4.blend",
+ "name": "Corner Shelving - Tier 4 High-end",
+ "variant": "resort_boutique",
+ "tier": 4,
+ "quality": "High-end",
+ "price_band": 4,
+ "material_story": "fitted walnut casework, cream panels, brass",
+ "size_grade": 4,
+ "material_grade": 4,
+ "custom_woodwork_level": 3,
+ "fixture_complexity_grade": 4,
+ "integrated_light_count": 3,
+ "target_dimensions_m": [
+  1.8,
+  1.8,
+  2.3
+ ],
+ "references": [
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_51_59 PM.png",
+   "sha256": "71837A0D4FBA7FB51F41EB315AC45191265595CF4075EFBD4FAD1D5674834D58",
+   "role": "five-tier fixtures, materials, lighting, and custom-millwork progression"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_25 PM.png",
+   "sha256": "AC8734A60E3DACE03466A4C04255FE9A13F89B7452390DB5FC8075D64E453692",
+   "role": "municipal-to-private-club market levels and increasing room scale"
+  },
+  {
+   "file": "Designs/ClubHouse/ChatGPT Image Jul 20, 2026, 02_52_34 PM.png",
+   "sha256": "0C0780A1B1162A045D42AC1E77C7514759FED9D9D641903DC8A984C62CEB1A3D",
+   "role": "worn municipal Tier-1 utility baseline"
+  }
+ ],
+ "license": "Project-owned / UNLICENSED",
+ "source_note": "Original in-repository Blender geometry; no external assets downloaded",
+ "price": null,
+ "fixture": "store_display_upgrade",
+ "slot_type": "authored_in_glb",
+ "packaging": "fixture_freight"
+}
