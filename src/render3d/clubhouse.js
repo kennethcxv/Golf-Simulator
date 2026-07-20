@@ -49,7 +49,9 @@ import { makeNav } from './clubhouse/nav.js';
 import { productThumb } from './clubhouse/thumbs.js';
 import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
-import { placedFixtures, ensureLayout, legalBoxDrop, roomStyle } from '../sim/layout.js';
+import {
+  placedFixtures, ensureLayout, legalBoxDrop, recoverInvalidObjects, roomStyle,
+} from '../sim/layout.js';
 import { buildBuildMode } from './clubhouse/buildMode.js';
 import { buildPlaceables } from './clubhouse/placeables.js';
 import { ROOM_STYLE_OPTIONS } from '../data/placeableCatalog.js';
@@ -61,6 +63,13 @@ const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrai
 export function makeClubhouse(ctx) {
   // ctx: { scene, camera, state, center:{x,z}, heightAt, walkProps, propColliders, walk, hooks }
   const { scene, camera, state, center, heightAt, walkProps, propColliders, walk, hooks } = ctx;
+  const layoutRecovery = recoverInvalidObjects(state);
+  if (layoutRecovery.recovered.length) {
+    queueMicrotask(() => hooks.toast?.(
+      `${layoutRecovery.recovered.length} invalid clubhouse object${layoutRecovery.recovered.length === 1 ? '' : 's'} recovered to safe placement.`,
+      'warn',
+    ));
+  }
   const baseY = heightAt(center.x, center.z);
   const floorY = baseY + FLOOR_TOP;
 
