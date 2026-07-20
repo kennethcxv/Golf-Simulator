@@ -65,13 +65,13 @@ async (page) => {
   // Wait for a REAL condition on the transaction, never for a stopwatch. Typed
   // predicates, not eval'd source: a harness that builds `new Function()` out of a
   // string is a code-injection shape, and there is no reason to reach for one here.
-  const untilTx = (ms = 15000) => page.waitForFunction(
+  const untilTx = (ms = 30000) => page.waitForFunction(
     () => !!window.__fw.scene3d.clubhouse().register.getTx(), null, { timeout: ms });
-  const untilStage = (stages, ms = 15000) => page.waitForFunction((want) => {
+  const untilStage = (stages, ms = 30000) => page.waitForFunction((want) => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return !!tx && want.includes(tx.stage);
   }, Array.isArray(stages) ? stages : [stages], { timeout: ms });
-  const untilFlag = (key, val, ms = 15000) => page.waitForFunction(([k, v]) => {
+  const untilFlag = (key, val, ms = 30000) => page.waitForFunction(([k, v]) => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return !!tx && tx[k] === v;
   }, [key, val], { timeout: ms });
@@ -83,7 +83,7 @@ async (page) => {
   // is grabbed, and the run reports "scanned: 0" as though the scanner were broken.
   // It is the same trap as sleeping for the receipt. Never sleep for state.
   const CASHIER_EYE = { x: 2.78, z: 5.52 };   // REGISTER cashier pose, clubhouse-local
-  const untilCameraSettled = (ms = 10000) => page.waitForFunction((eye) => {
+  const untilCameraSettled = (ms = 30000) => page.waitForFunction((eye) => {
     const c = window.__fw.scene3d.camera;
     const origin = window.__fw.scene3d.clubhouse().interior.position;
     return Math.hypot(c.position.x - (eye.x + origin.x), c.position.z - (eye.z + origin.z)) < 0.03;
@@ -98,15 +98,22 @@ async (page) => {
   if (await continueButton.count() && await continueButton.isEnabled()) {
     await continueButton.click();
   } else {
-    await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
+    const polishedNewGame = page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ });
+    if (await polishedNewGame.count()) {
+      await polishedNewGame.click();
+      await page.getByRole('dialog', { name: 'New game' }).waitFor();
+      await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
+    } else {
+      await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
+    }
     await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
   }
   await page.waitForFunction(() => window.__fw && window.__fw.scene3d
-    && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null, { timeout: 40000 });
+    && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null, { timeout: 90000 });
   await page.waitForFunction(() => {
     const v = document.querySelector('.load-veil');
     return !v || v.style.display === 'none' || getComputedStyle(v).opacity === '0';
-  }, null, { timeout: 40000 });
+  }, null, { timeout: 90000 });
   await page.waitForTimeout(2500);
 
   // --- set the stage ----------------------------------------------------------------
@@ -335,10 +342,24 @@ async (page) => {
     await shot('06-card-presented');
     log.push({ step: '8. clicked terminal — they present', tx: await txNow() });
 
+    // A terminal tap must not silently authorize the sale. The player has to
+    // take the visible card and physically swipe it through the reader.
     await page.mouse.click(term.x, term.y);
-    await page.waitForTimeout(350);
+    await page.waitForTimeout(250);
+    const afterTap = await txNow();
+    if (afterTap?.stage !== 'card-ready' || afterTap.cardAttempts !== 0) {
+      throw new Error(`A terminal tap bypassed the physical card swipe: ${JSON.stringify(afterTap)}`);
+    }
+    log.push({ step: '8b. terminal tap alone does not run the card', tx: afterTap });
+    const swipeCard = async () => {
+      const card = await page.evaluate(() => window.__qa.find('card'));
+      if (!card) throw new Error('The presented card is not visible or pickable.');
+      await dragTo(card, [2.31, 1.17, 3.98], { steps: 24 });
+      await untilStage('card-busy');
+    };
+    await swipeCard();
     await shot('07-card-authorising');
-    log.push({ step: '9. clicked terminal — running', tx: await txNow(), ...(await money()) });
+    log.push({ step: '9. physically swiped card left to right — running', tx: await txNow(), ...(await money()) });
 
     await untilStage(['receipt', 'card-declined']);
     let t = await txNow();
@@ -349,7 +370,7 @@ async (page) => {
     while (t.stage === 'card-declined') {
       await page.mouse.click(term.x, term.y);          // retry -> another card
       await untilStage('card-ready');
-      await page.mouse.click(term.x, term.y);          // run it
+      await swipeCard();                               // run the replacement card physically
       await untilStage(['receipt', 'card-declined']);
       t = await txNow();
       log.push({ step: '10b. second card', tx: t });

@@ -201,6 +201,47 @@ export function presentCard(tx) {
   return { ok: true };
 }
 
+// Validate the physical reader gesture independently from rendering. The 3D
+// register supplies counter-local samples; this function decides only whether
+// they describe one deliberate left-to-right pass through the configured lane.
+// A click, short nudge, large sideways miss, or back-and-forth scrub is not a
+// card swipe and may never advance payment.
+export function evaluateCardSwipe(samples, {
+  startMaxX = 0,
+  endMinX = 1,
+  centerZ = 0,
+  maxCrossTrack = 0.14,
+  minTravel = 0.28,
+  maxBacktrack = 0.07,
+  minDurationMs = 80,
+  maxDurationMs = 2200,
+} = {}) {
+  const points = (Array.isArray(samples) ? samples : []).filter((sample) => (
+    Number.isFinite(sample?.x) && Number.isFinite(sample?.z) && Number.isFinite(sample?.atMs)
+  ));
+  if (points.length < 2) return { ok: false, reason: 'Drag the card through the reader.' };
+
+  const first = points[0];
+  const last = points.at(-1);
+  const durationMs = last.atMs - first.atMs;
+  const travel = last.x - first.x;
+  const crossTrack = Math.max(...points.map((point) => Math.abs(point.z - centerZ)));
+  let backtrack = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    const dx = points[index].x - points[index - 1].x;
+    if (dx < 0) backtrack += -dx;
+  }
+
+  const result = { ok: false, durationMs, travel, crossTrack, backtrack };
+  if (first.x > startMaxX) return { ...result, reason: 'Start at the left end of the reader.' };
+  if (last.x < endMinX || travel < minTravel) return { ...result, reason: 'Swipe all the way through the reader.' };
+  if (crossTrack > maxCrossTrack) return { ...result, reason: 'Keep the card inside the reader track.' };
+  if (backtrack > maxBacktrack) return { ...result, reason: 'Swipe once from left to right.' };
+  if (durationMs < minDurationMs) return { ...result, reason: 'Swipe a little slower.' };
+  if (durationMs > maxDurationMs) return { ...result, reason: 'Swipe again in one smooth motion.' };
+  return { ...result, ok: true, reason: null };
+}
+
 export function runCard(tx, { timeout = false } = {}) {
   if (tx.stage !== 'card-ready') {
     return { ok: false, reason: tx.stage === 'card-declined' ? 'Declined — they need another card.' : 'No card presented.' };

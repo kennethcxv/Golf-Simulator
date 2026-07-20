@@ -2387,8 +2387,8 @@ function registerPrompt() {
         : `All items scanned · [T] total the sale${exit}`;
     }
     case 'payment': return `Choose card or cash on the register screen${exit}`;
-    case 'card-present': return `Take the customer's card, then use the terminal${exit}`;
-    case 'card-ready': return `Run the card through the terminal${exit}`;
+    case 'card-present': return `Ask for the customer's card at the terminal${exit}`;
+    case 'card-ready': return `Drag the card left to right through the reader${exit}`;
     case 'card-busy': return 'Authorising card — please wait';
     case 'card-declined': return `Card declined · try another card or choose cash${exit}`;
     case 'cash-tender': return `Take the customer's cash · [D] open the drawer${exit}`;

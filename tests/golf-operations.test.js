@@ -200,6 +200,7 @@ test('the deterministic browser fixture reset reverses production booking cash a
   const state = newGame('relaxed', 9052);
   const cashBefore = state.cash;
   ensureReservationHorizon(state, { occupancy: 1, seed: 9911 });
+  const paymentSequenceBeforeReset = state.reservations.nextPaymentSeq;
   assert.notEqual(state.cash, cashBefore);
   assert.ok(state.reservations.financeEntries.length > 0);
   resetGolfOperationsQA(state);
@@ -207,6 +208,23 @@ test('the deterministic browser fixture reset reverses production booking cash a
   assert.deepEqual(totals(state.ledger.today), { revenue: 0, expense: 0, net: 0 });
   assert.equal(state.reservations.booked.length, 0);
   assert.equal(state.reservations.financeEntries.length, 0);
+  assert.equal(state.reservations.nextPaymentSeq, paymentSequenceBeforeReset,
+    'fixture reset cannot recycle an immutable-ledger payment identity');
+
+  const first = bookSlot(state, today(state) + 1, 480, 'After Reset One').res;
+  const firstPayment = pay(state, first, 'cash', { tendered: first.fee });
+  assert.ok(firstPayment.completed.ok);
+  assert.equal(state.cash, cashBefore + first.fee,
+    'the first payment after a fixture reset reaches canonical cash exactly once');
+
+  resetGolfOperationsQA(state);
+  assert.equal(state.cash, cashBefore);
+  const second = bookSlot(state, today(state) + 1, 480, 'After Reset Two').res;
+  const secondPayment = pay(state, second, 'cash', { tendered: second.fee });
+  assert.ok(secondPayment.completed.ok);
+  assert.notEqual(secondPayment.started.transactionId, firstPayment.started.transactionId);
+  assert.equal(state.cash, cashBefore + second.fee,
+    'a repeated fixture reset cannot suppress a later payment as a duplicate');
 });
 
 test('arrival events distinguish due, early, on-time, late, and absent parties', () => {

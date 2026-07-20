@@ -28,7 +28,9 @@ for (const mode of modes) {
   // page while it is booting (a Chromium/SwiftShader failure, not a game result).
   const browser = await chromium.launch({
     headless: true,
-    executablePath: process.env.CHROME_PATH || undefined,
+    ...(process.env.CHROME_PATH
+      ? { executablePath: process.env.CHROME_PATH }
+      : { channel: 'chrome' }),
   });
   const out = path.join(root, mode);
   const videoDir = path.join(out, 'video');
@@ -70,6 +72,16 @@ for (const mode of modes) {
       const app = window.__fw;
       const tx = app?.scene3d?.clubhouse?.()?.register?.getTx?.();
       return {
+        runtime: app ? {
+          speedIdx: app.speedIdx,
+          clockMinutes: app.state?.clock?.minutes ?? null,
+          prewarming: !!app.prewarming,
+          clubhouseReady: !!app.scene3d?.clubhouse?.(),
+          loadVeil: (() => {
+            const veil = document.querySelector('.load-veil');
+            return veil ? { display: veil.style.display, opacity: veil.style.opacity } : null;
+          })(),
+        } : null,
         tx: tx ? {
           stage: tx.stage,
           method: tx.method,
@@ -85,6 +97,7 @@ for (const mode of modes) {
           units: app.state.shop.salesLive?.units || 0,
           held: app.state.shop.held?.length || 0,
         } : null,
+        customers: app?.scene3d?.clubhouse?.()?.customerDiagnostics?.() || null,
       };
     }).catch(() => ({ tx: null, money: null }));
     await page.screenshot({ path: path.join(out, 'failure.png') }).catch(() => {});

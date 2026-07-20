@@ -24,7 +24,7 @@ import { skuById } from '../../data/shopItems.js';
 import {
   DENOMS, BILLS, createTx, scanItem, unscannedCount, requestPayment,
   subtotal, discountOf, totalOf, dueOf, cashTotalOf,
-  presentCard, runCard, retryCard, cancelCard, payCashInstead,
+  presentCard, evaluateCardSwipe, runCard, retryCard, cancelCard, payCashInstead,
   customerCash, acceptCash, openDrawer, closeDrawer, depositPiece,
   takeFromDrawer, returnToDrawer, changeDue, handTotal, handOverChange,
   makeChangeFrom, printReceipt, takeReceipt, bagItem, allBagged, handOverGoods,
@@ -374,7 +374,7 @@ export function createRegisterMode(B) {
     else if (tx.stage === 'scanning') msg = 'ALL SCANNED — TOTAL IT UP';
     else if (tx.stage === 'payment') msg = 'CHOOSE A PAYMENT METHOD';
     else if (tx.stage === 'card-present') msg = 'CARD — ASK THEM TO PRESENT';
-    else if (tx.stage === 'card-ready') msg = 'CARD READY — RUN THE TERMINAL';
+    else if (tx.stage === 'card-ready') msg = 'CARD READY — SWIPE LEFT TO RIGHT';
     else if (tx.stage === 'card-busy') msg = 'AUTHORISING…';
     else if (tx.stage === 'card-declined') { msg = tx.cardResult === 'timeout' ? 'TIMED OUT — TRY AGAIN' : 'DECLINED — ANOTHER CARD'; col = '#ff9a8a'; }
     else if (tx.stage === 'cash-tender') msg = `CASH $${stackTotal(tx.tendered || {}).toFixed(2)} — TAKE IT`;
@@ -420,7 +420,7 @@ export function createRegisterMode(B) {
     c.fillText('$' + totalOf(tx).toFixed(2), 96, 44);
     c.font = 'bold 14px monospace';
     if (tx.stage === 'card-present') { c.fillStyle = '#8fd6ff'; c.fillText('PRESENT CARD', 96, 92); }
-    else if (tx.stage === 'card-ready') { c.fillStyle = '#8fd6ff'; c.fillText('TAP TO PAY', 96, 92); c.font = '10px monospace'; c.fillText('click to run', 96, 116); }
+    else if (tx.stage === 'card-ready') { c.fillStyle = '#8fd6ff'; c.fillText('SWIPE CARD', 96, 92); c.font = '10px monospace'; c.fillText('drag left to right', 96, 116); }
     else if (tx.stage === 'card-busy') { c.fillStyle = '#ffd98a'; c.fillText('AUTHORISING', 96, 92); }
     else if (tx.stage === 'card-declined') {
       c.fillStyle = '#ff8a7a';
@@ -582,6 +582,25 @@ export function createRegisterMode(B) {
   hotPull.userData = { pick: true, kind: 'pull' };
   drawerGroup.add(hotPull);
 
+  const CARD_SWIPE = {
+    startX: REGISTER.cardterm.x - 0.24,
+    endX: REGISTER.cardterm.x + 0.24,
+    z: REGISTER.cardterm.z + 0.10,
+  };
+  const cardSwipeGuide = new THREE.Mesh(
+    new THREE.BoxGeometry(CARD_SWIPE.endX - CARD_SWIPE.startX + 0.08, 0.006, 0.075),
+    new THREE.MeshStandardMaterial({
+      color: 0x254b3a,
+      emissive: 0x4fa875,
+      emissiveIntensity: 0.45,
+      roughness: 0.55,
+      metalness: 0.2,
+    }),
+  );
+  cardSwipeGuide.position.set(REGISTER.cardterm.x, COUNTER_TOP + 0.012, CARD_SWIPE.z);
+  cardSwipeGuide.visible = false;
+  root.add(cardSwipeGuide);
+
   // ============================================================ STATE ==========
   let active = false;
   let tx = null;
@@ -594,6 +613,7 @@ export function createRegisterMode(B) {
   let cardMesh = null;
   let grabbed = null;
   const grabPrev = new THREE.Vector3();
+  let cardSwipeSamples = [];
   let cardT = 0;
   let printT = 0;
   let scanFlash = 0;
@@ -621,7 +641,9 @@ export function createRegisterMode(B) {
 
   function pickables() {
     const t = [...loose, ...tenderMeshes, ...handMeshes, ...drawerMoney.children,
-      hotTerm, hotTotal, hotPull];
+      hotTotal, hotPull];
+    if (tx?.stage !== 'card-ready') t.push(hotTerm);
+    if (cardMesh?.visible && tx?.stage === 'card-ready') t.push(cardMesh);
     if (receiptMesh) t.push(receiptMesh);
     if (palm.visible) t.push(palm);
     return t;
@@ -787,6 +809,8 @@ export function createRegisterMode(B) {
     if (receiptMesh) { root.remove(receiptMesh); receiptMesh = null; }
     if (cardMesh) { root.remove(cardMesh); cardMesh = null; }
     grabbed = null;
+    cardSwipeSamples = [];
+    cardSwipeGuide.visible = false;
     drawerWant = 0;
     printT = 0;
     palm.visible = false;
@@ -840,6 +864,7 @@ export function createRegisterMode(B) {
   function leave() {
     if (!active) return;
     active = false;
+    if (grabbed?.userData.kind === 'card' && tx?.stage === 'card-ready') setCardAtSwipeStart();
     grabbed = null;
     drawerWant = 0;
     clearFocus();
@@ -863,6 +888,11 @@ export function createRegisterMode(B) {
     grabbed = m;
     m.userData.grabY = m.position.y;
     grabPrev.set(0, 0, 0);
+    if (m.userData.kind === 'card') {
+      cardSwipeSamples = [{ x: m.position.x, z: m.position.z, atMs: performance.now() }];
+      sfx('paper');
+      return;
+    }
     const b = barcodeAt(m);
     grabPrev.set(b.x, b.y, b.z);
     if (m.userData.kind === 'item') sfx('equipTick');
@@ -873,6 +903,24 @@ export function createRegisterMode(B) {
     const m = grabbed;
     grabbed = null;
     const k = m.userData.kind;
+
+    if (k === 'card') {
+      const swipe = evaluateCardSwipe(cardSwipeSamples, {
+        startMaxX: CARD_SWIPE.startX + 0.06,
+        endMinX: CARD_SWIPE.endX - 0.04,
+        centerZ: CARD_SWIPE.z,
+        maxCrossTrack: 0.13,
+        minTravel: 0.36,
+      });
+      cardSwipeSamples = [];
+      if (tx?.stage === 'card-ready' && swipe.ok) beginCardAuthorization();
+      else if (tx?.stage === 'card-ready') {
+        setCardAtSwipeStart();
+        sfx('thunk');
+        toast(swipe.reason, 'warn');
+      }
+      return;
+    }
 
     if (k === 'item') {
       // DID IT GO IN THE BAG?
@@ -1063,7 +1111,8 @@ export function createRegisterMode(B) {
 
     if (clickAt(o)) return true;
     // not a switch → it is an object you can move
-    if (o.userData.kind === 'item' || (o.userData.kind === 'money' && o.userData.from !== 'drawer')) grab(o);
+    if (o.userData.kind === 'item' || o.userData.kind === 'card'
+        || (o.userData.kind === 'money' && o.userData.from !== 'drawer')) grab(o);
     return true;
   }
 
@@ -1114,6 +1163,7 @@ export function createRegisterMode(B) {
       const st = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.0012, 0.014), stripeMat);
       st.position.set(0, 0.0016, -0.016);
       cardMesh.add(st);
+      cardMesh.userData = { pick: true, kind: 'card' };
       cardMesh.position.set(REGISTER.cardterm.x - 0.03, COUNTER_TOP + 0.15, REGISTER.cardterm.z - 0.15);
       root.add(cardMesh);
       toast(`${cust.name} takes out a card — activate the terminal.`);
@@ -1168,21 +1218,45 @@ export function createRegisterMode(B) {
   }
 
   // clicking the card terminal — routed in from the clubhouse prop
+  function setCardAtSwipeStart() {
+    if (!cardMesh) return;
+    cardMesh.position.set(CARD_SWIPE.startX, CARRY_Y, CARD_SWIPE.z);
+    cardMesh.rotation.set(0, 0, 0);
+    cardSwipeSamples = [];
+    cardSwipeGuide.visible = tx?.stage === 'card-ready';
+  }
+
+  function beginCardAuthorization() {
+    if (!tx || tx.stage !== 'card-ready') return false;
+    tx.stage = 'card-busy';
+    cardT = CARD_TIME;
+    grabbed = null;
+    cardSwipeGuide.visible = false;
+    if (cardMesh) cardMesh.position.set(CARD_SWIPE.endX, COUNTER_TOP + 0.04, CARD_SWIPE.z);
+    sfx('cardTap');
+    toast('Card read — authorising.');
+    drawScreen();
+    drawTerm();
+    return true;
+  }
+
+  // The terminal click asks the customer to present or replace a card. It never
+  // authorises payment: only a physical swipe through the reader can do that.
   function tapTerminal() {
     if (!tx || tx.method !== 'card') return;
     if (tx.stage === 'card-present') {
       presentCard(tx);
       if (cardMesh) {
-        cardMesh.position.set(REGISTER.cardterm.x, COUNTER_TOP + 0.09, REGISTER.cardterm.z - 0.01);
+        setCardAtSwipeStart();
       }
       sfx('cardTap');
-      toast(`${cust.name} holds the card to the terminal.`);
+      toast(`${cust.name} presents the card — drag it left to right through the reader.`);
     } else if (tx.stage === 'card-ready') {
-      tx.stage = 'card-busy';
-      cardT = CARD_TIME;
-      sfx('uiTick');
+      sfx('thunk');
+      toast('Drag the card left to right through the reader.', 'warn');
     } else if (tx.stage === 'card-declined') {
       retryCard(tx);
+      setCardAtSwipeStart();
       toast(`${cust.name} digs out another card.`);
       sfx('uiTick');
     }
@@ -1208,6 +1282,8 @@ export function createRegisterMode(B) {
         tx.stage = 'card-ready';
         const res = runCard(tx);
         if (res.result === 'approved') {
+          if (cardMesh) { root.remove(cardMesh); cardMesh = null; }
+          cardSwipeGuide.visible = false;
           sfx('approve');
           toast('Approved.');
         } else {
@@ -1250,7 +1326,13 @@ export function createRegisterMode(B) {
         grabbed.position.z = Math.max(COUNTER.z - COUNTER.depth / 2 - 0.15, Math.min(COUNTER.z + COUNTER.depth / 2 + 0.35, p.z));
         grabbed.position.y = CARRY_Y;
       }
-      if (grabbed.userData.kind === 'item' && tx && tx.stage === 'scanning') {
+      if (grabbed.userData.kind === 'card' && tx?.stage === 'card-ready') {
+        const last = cardSwipeSamples.at(-1);
+        if (!last || Math.hypot(grabbed.position.x - last.x, grabbed.position.z - last.z) > 0.002) {
+          cardSwipeSamples.push({ x: grabbed.position.x, z: grabbed.position.z, atMs: performance.now() });
+          if (cardSwipeSamples.length > 160) cardSwipeSamples.shift();
+        }
+      } else if (grabbed.userData.kind === 'item' && tx && tx.stage === 'scanning') {
         const b = barcodeAt(grabbed);
         // SWEPT, not sampled: a fast flick must not tunnel through the glass
         if (segmentHitsBox(grabPrev, b, REGISTER.scan)) tryScan(grabbed);
@@ -1264,6 +1346,9 @@ export function createRegisterMode(B) {
       const want = !!(tx && tx.stage === 'bagging' && !allBagged(tx));
       bagRing.visible = want;
       if (want) bagRing.material.opacity = 0.22 + Math.sin(performance.now() * 0.004) * 0.10;
+    }
+    if (cardSwipeGuide.visible) {
+      cardSwipeGuide.material.emissiveIntensity = 0.38 + Math.sin(performance.now() * 0.006) * 0.14;
     }
 
     // the palm opens when it is waiting for something

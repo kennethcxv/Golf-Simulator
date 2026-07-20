@@ -15,7 +15,9 @@ await mkdir(videoDir, { recursive: true });
 
 const browser = await chromium.launch({
   headless: true,
-  executablePath: process.env.CHROME_PATH || undefined,
+  ...(process.env.CHROME_PATH
+    ? { executablePath: process.env.CHROME_PATH }
+    : { channel: 'chrome' }),
 });
 const context = await browser.newContext({
   viewport: { width: 1600, height: 900 },
@@ -36,16 +38,23 @@ async function boot({ navigate = true } = {}) {
   if (await continueButton.count() && await continueButton.isEnabled()) {
     await continueButton.click();
   } else {
-    await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
+    const polishedNewGame = page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ });
+    if (await polishedNewGame.count()) {
+      await polishedNewGame.click();
+      await page.getByRole('dialog', { name: 'New game' }).waitFor();
+      await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
+    } else {
+      await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
+    }
     await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
   }
   await page.waitForFunction(() => (
     window.__fw?.scene3d?.clubhouse && window.__fw.scene3d.clubhouse()
-  ), null, { timeout: 40_000 });
+  ), null, { timeout: 90_000 });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');
     return !veil || veil.style.display === 'none' || getComputedStyle(veil).opacity === '0';
-  }, null, { timeout: 40_000 });
+  }, null, { timeout: 90_000 });
   await page.evaluate(() => {
     window.__fw.speedIdx = 0;
     window.__fw.state.tutorial.hidden = true;

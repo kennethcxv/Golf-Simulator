@@ -1496,6 +1496,20 @@ export function ensureReservationHorizon(state, options = {}) {
 
 export function resetGolfOperationsQA(state, options = {}) {
   const book = bookOf(state);
+  // The main ledger is intentionally immutable, so IDs that have already been
+  // posted there must never be recycled by a fixture reset. Reusing (for
+  // example) golf-pay-1 would make a later real-looking QA payment appear to be
+  // an idempotent replay: the reservation subledger would advance while the
+  // canonical cash ledger correctly refused the duplicate key. Keep every
+  // identity sequence monotonic across resets just as save/load does.
+  const nextSequences = {
+    nextId: book.nextId,
+    nextPartyId: book.nextPartyId,
+    nextEventSeq: book.nextEventSeq,
+    nextFinanceSeq: book.nextFinanceSeq,
+    nextPaymentSeq: book.nextPaymentSeq,
+    nextReceiptSeq: book.nextReceiptSeq,
+  };
   // Browser evidence starts from a real production boot, whose online deposits
   // have already moved the shared wallet. Append explicit, exact-once reversals
   // before replacing the fixture so the immutable journal still reconciles.
@@ -1521,7 +1535,11 @@ export function resetGolfOperationsQA(state, options = {}) {
       source: 'golf-operations-qa',
     });
   }
-  return initReservations(state, options);
+  const reset = initReservations(state, options);
+  for (const [key, value] of Object.entries(nextSequences)) {
+    reset[key] = Math.max(reset[key], Number.isInteger(value) ? value : 1);
+  }
+  return reset;
 }
 
 export function seedGolfOperationsQA(state, options = {}) {
