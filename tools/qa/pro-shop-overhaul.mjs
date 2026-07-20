@@ -26,12 +26,12 @@ const ALL_SHOTS = [
   { id: '02-checkout-customer', at: [0.5, 2.3], to: [2.9, 4.5], pitch: -0.10 },
   { id: '03-checkout-employee', at: [2.8, 5.1], to: [2.7, 4.0], pitch: -0.18 },
   { id: '04-center-aisle', at: [-0.8, 2.4], to: [-0.8, -5.4], pitch: -0.03 },
-  { id: '05-club-displays', at: [-6.3, -0.2], to: [-9.9, -0.4], pitch: 0.02 },
+  { id: '05-club-displays', at: [-4.9, -0.2], to: [-9.9, -0.4], pitch: 0.02 },
   { id: '06-clothing', at: [-4.0, 3.4], to: [-5.0, 0.2], pitch: -0.02 },
   { id: '07-shoes', at: [2.4, 0.3], to: [5.1, -0.6], pitch: -0.02 },
   { id: '08-hats', at: [-0.2, -3.8], to: [1.55, -5.9], pitch: -0.03 },
   { id: '09-bags', at: [0.2, -0.8], to: [2.2, -2.65], pitch: -0.04 },
-  { id: '10-accessories', at: [-3.7, -3.7], to: [-3.7, -6.15], pitch: 0.01 },
+  { id: '10-accessories', at: [-3.7, -2.9], to: [-3.7, -6.15], pitch: 0.01 },
   { id: '11-snacks-drinks', at: [4.25, 3.35], to: [4.55, 1.50], pitch: -0.04 },
   { id: '12-office', at: [7.2, 4.3], to: [9.55, 4.5], pitch: -0.06 },
   { id: '13-stockroom', at: [7.4, -2.3], to: [8.1, -5.9], pitch: -0.04 },
@@ -105,12 +105,11 @@ async function bootThroughNormalUi() {
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
   const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
   if (await continueButton.isEnabled().catch(() => false)) {
-    await continueButton.click();
-  } else {
-    await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
-    await page.getByRole('heading', { name: 'PROPERTY MARKET' }).waitFor();
-    await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
+    throw new Error('Acceptance capture requires an isolated fresh browser context; Continue was unexpectedly enabled');
   }
+  await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
+  await page.getByRole('heading', { name: 'PROPERTY MARKET' }).waitFor();
+  await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 60_000 });
   await page.waitForFunction(() => {
     const veil = document.querySelector('.load-veil');
@@ -123,6 +122,33 @@ async function bootThroughNormalUi() {
   await guideClose.press('Enter');
   await page.locator('.objectives-card').waitFor({ state: 'hidden', timeout: 5_000 });
   await page.waitForTimeout(2_500);
+}
+
+async function proveNormalControls() {
+  const before = await page.evaluate(() => {
+    const walk = window.__fw.scene3d.walk.state;
+    return { x: walk.x, z: walk.z, yaw: walk.yaw };
+  });
+  await page.locator('canvas').click({ position: { x: 800, y: 450 } });
+  await page.keyboard.down('ArrowLeft');
+  await page.waitForTimeout(240);
+  await page.keyboard.up('ArrowLeft');
+  await page.keyboard.down('w');
+  await page.waitForTimeout(850);
+  await page.keyboard.up('w');
+  const after = await page.evaluate(() => {
+    const walk = window.__fw.scene3d.walk.state;
+    return { x: walk.x, z: walk.z, yaw: walk.yaw };
+  });
+  const distance = Math.hypot(after.x - before.x, after.z - before.z);
+  if (distance < 0.25) throw new Error(`Normal-control proof moved only ${distance.toFixed(2)} yards`);
+  return {
+    input: ['canvas click', 'ArrowLeft', 'W'],
+    before,
+    after,
+    playerTravelYards: +distance.toFixed(2),
+    yawDeltaRadians: +(after.yaw - before.yaw).toFixed(3),
+  };
 }
 
 async function setCamera(shot) {
@@ -151,7 +177,11 @@ async function setCamera(shot) {
 async function captureSet(folder) {
   for (const shot of SHOTS) {
     await setCamera(shot);
-    await page.screenshot({ path: path.join(OUT, folder, `${shot.id}.png`) });
+    await page.screenshot({
+      path: path.join(OUT, folder, `${shot.id}.jpg`),
+      type: 'jpeg',
+      quality: 86,
+    });
   }
 }
 
@@ -292,6 +322,7 @@ async function measureFrames(label, seconds = 6) {
 
 console.log(`[${PASS}] boot`);
 await bootThroughNormalUi();
+const normalControlProof = await proveNormalControls();
 
 const startingState = await page.evaluate(() => ({
   branch: 'overnight/pro-shop-overhaul',
@@ -406,6 +437,8 @@ const report = {
   renovated: RENOVATED,
   hardwareAcceleration: HARDWARE,
   startingState,
+  bootRoute: ['New Empire — Relaxed', 'Property Market', 'Buy Willow Creek Municipal'],
+  normalControlProof,
   stock,
   stockDiagnostics,
   customerDiagnostics,
