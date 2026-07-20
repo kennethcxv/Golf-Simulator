@@ -1883,6 +1883,165 @@ export function makeCourseScene(canvas, state) {
     maintenanceOverlayGeo.computeBoundingSphere();
   }
 
+  // The one-yard maintenance state intentionally lives in a separate draw.
+  // The PBR terrain already uses the hardware's full 16-sampler budget, while
+  // this transparent, terrain-conforming layer needs only the two maintenance
+  // textures. Keeping the layers separate also makes dirty texture uploads
+  // independent from the course-wide turf renderer.
+  const maintenanceOverlayGeo = new THREE.PlaneGeometry(
+    maintenanceTextures.worldSize.x,
+    maintenanceTextures.worldSize.y,
+    Math.max(1, Math.ceil(maintenanceTextures.worldSize.x / 2)),
+    Math.max(1, Math.ceil(maintenanceTextures.worldSize.y / 2)),
+  );
+  maintenanceOverlayGeo.rotateX(-Math.PI / 2);
+  const maintenanceOverlayUniforms = {
+    uCondition: { value: maintenanceTextures.conditionTexture },
+    uTreatment: { value: maintenanceTextures.treatmentTexture },
+    uWorldMin: { value: maintenanceTextures.worldMin },
+    uWorldSize: { value: maintenanceTextures.worldSize },
+    uInspect: { value: state.courseMaintenance?.inspection.active ? 1 : 0 },
+    uVisible: { value: 1 },
+  };
+  const maintenanceOverlayMat = new THREE.ShaderMaterial({
+    name: 'Course maintenance one-yard overlay',
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    side: THREE.FrontSide,
+    uniforms: maintenanceOverlayUniforms,
+    vertexShader: /* glsl */ `
+      varying vec2 vWorldXZ;
+      void main() {
+        vec4 world = modelMatrix * vec4(position, 1.0);
+        vWorldXZ = world.xz;
+        gl_Position = projectionMatrix * viewMatrix * world;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform sampler2D uCondition;
+      uniform sampler2D uTreatment;
+      uniform vec2 uWorldMin;
+      uniform vec2 uWorldSize;
+      uniform float uInspect;
+      uniform float uVisible;
+      varying vec2 vWorldXZ;
+
+      float hash21(vec2 p) {
+        p = fract(p * vec2(123.34, 456.21));
+        p += dot(p, p + 45.32);
+        return fract(p.x * p.y);
+      }
+
+      float valueNoise(vec2 p) {
+        vec2 cell = floor(p);
+        vec2 blend = fract(p);
+        blend = blend * blend * (3.0 - 2.0 * blend);
+        return mix(
+          mix(hash21(cell), hash21(cell + vec2(1.0, 0.0)), blend.x),
+          mix(hash21(cell + vec2(0.0, 1.0)), hash21(cell + vec2(1.0, 1.0)), blend.x),
+          blend.y
+        );
+      }
+
+      void main() {
+        if (uVisible < 0.5) discard;
+        vec2 uv = (vWorldXZ - uWorldMin) / uWorldSize;
+        if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) discard;
+        vec4 condition = texture2D(uCondition, uv);
+        vec4 treatment = texture2D(uTreatment, uv);
+        float surface = floor(condition.r * 255.0 / 30.0 + 0.5);
+        if (surface < 0.5) discard;
+
+        float health = condition.g;
+        float moisture = condition.b;
+        float heightMm = condition.a * 127.5;
+        float disease = treatment.r;
+        float fertilizer = treatment.g;
+        float angle = treatment.b * 6.2831853;
+        float packedWork = treatment.a * 255.0;
+        float noise = valueNoise(vWorldXZ * 1.65);
+        vec3 tint = vec3(0.55, 0.48, 0.18);
+        float alpha = 0.0;
+
+        // Honest condition reads: localized olive stress, dark wet turf, pale
+        // disease, and restrained treatment colour. Inspection strengthens the
+        // signal without turning the entire hole into a diagnostic heat map.
+        float stress = smoothstep(0.54, 0.28, health);
+        alpha = max(alpha, stress * (0.08 + uInspect * 0.22));
+        float dry = smoothstep(0.25, 0.10, moisture);
+        tint = mix(tint, vec3(0.77, 0.61, 0.24), dry);
+        alpha = max(alpha, dry * (0.10 + uInspect * 0.24));
+        float wet = smoothstep(0.83, 0.98, moisture);
+        tint = mix(tint, vec3(0.04, 0.17, 0.12), wet);
+        alpha = max(alpha, wet * (0.11 + uInspect * 0.13));
+        float blotch = smoothstep(0.32, 0.78, noise + disease * 0.62);
+        tint = mix(tint, vec3(0.83, 0.78, 0.50), disease * blotch);
+        alpha = max(alpha, disease * blotch * (0.33 + uInspect * 0.24));
+        float overFeed = smoothstep(0.74, 1.0, fertilizer);
+        tint = mix(tint, vec3(0.22, 0.42, 0.10), overFeed);
+        alpha = max(alpha, overFeed * uInspect * 0.20);
+
+        // Surface-aware overgrowth is visible at a distance as a soft darker
+        // cast. Targets are green/fringe/tee/fairway/rough/native in millimetres.
+        float targetMm = surface < 1.5 ? 4.0
+          : surface < 2.5 ? 8.0
+          : surface < 3.5 ? 10.0
+          : surface < 4.5 ? 14.0
+          : surface < 5.5 ? 45.0
+          : 90.0;
+        if (surface < 6.5) {
+          float overgrown = smoothstep(targetMm + 3.0, targetMm + 17.0, heightMm);
+          tint = mix(tint, vec3(0.07, 0.22, 0.045), overgrown * 0.7);
+          alpha = max(alpha, overgrown * uInspect * 0.14);
+        }
+
+        if (surface < 6.5 && packedWork >= 127.5) {
+          float quality = clamp((packedWork - 128.0) / 127.0, 0.0, 1.0);
+          vec2 direction = vec2(cos(angle), sin(angle));
+          float stripe = sin(dot(vWorldXZ, direction) * 3.14159265);
+          vec3 stripeTint = stripe > 0.0 ? vec3(0.055, 0.17, 0.035) : vec3(0.27, 0.42, 0.12);
+          tint = stripeTint;
+          alpha = max(alpha, 0.045 + quality * 0.055);
+        } else if (surface > 6.5) {
+          float smoothness = treatment.a;
+          float rakeLine = smoothstep(0.62, 0.98, abs(sin(vWorldXZ.x * 10.5 + vWorldXZ.y * 1.3)));
+          tint = mix(tint, vec3(0.84, 0.70, 0.42), rakeLine * smoothness);
+          alpha = max(alpha, rakeLine * smoothness * 0.06);
+        }
+
+        alpha = clamp(alpha, 0.0, 0.58);
+        if (alpha < 0.012) discard;
+        gl_FragColor = vec4(clamp(tint, 0.0, 1.0), alpha);
+      }
+    `,
+  });
+  const maintenanceOverlay = new THREE.Mesh(maintenanceOverlayGeo, maintenanceOverlayMat);
+  maintenanceOverlay.name = 'Course maintenance condition overlay';
+  maintenanceOverlay.position.set(
+    maintenanceTextures.worldMin.x + maintenanceTextures.worldSize.x / 2,
+    0,
+    maintenanceTextures.worldMin.y + maintenanceTextures.worldSize.y / 2,
+  );
+  maintenanceOverlay.renderOrder = 2;
+  maintenanceOverlay.receiveShadow = false;
+  maintenanceOverlay.castShadow = false;
+  scene.add(maintenanceOverlay);
+
+  function rebuildMaintenanceOverlayHeights() {
+    // During function initialization the terrain can be rebuilt before this
+    // const exists only in theory; every actual rebuild happens after setup.
+    if (!maintenanceOverlayGeo) return;
+    const position = maintenanceOverlayGeo.attributes.position;
+    for (let i = 0; i < position.count; i++) {
+      const x = position.getX(i) + maintenanceOverlay.position.x;
+      const z = position.getZ(i) + maintenanceOverlay.position.z;
+      position.setY(i, heightAt(x, z) + 0.028);
+    }
+    position.needsUpdate = true;
+    maintenanceOverlayGeo.computeBoundingSphere();
+  }
+
   function worldX(cx) {
     return (cx + 0.5) * CELL_YD - worldW / 2;
   }
@@ -4912,6 +5071,22 @@ export function makeCourseScene(canvas, state) {
     return { handled: true, enabled: equipment.bladesEngaged, label };
   }
 
+  function toggleMowerBlades() {
+    let equipment = null;
+    let label = '';
+    if (cart.mounted) {
+      equipment = state.courseMaintenance?.equipment?.tractor;
+      label = 'Tractor mower';
+    } else if (walkTool === 'greensMower') {
+      equipment = state.courseMaintenance?.equipment?.greensMower;
+      label = 'Greens mower';
+    }
+    if (!equipment) return { handled: false };
+    equipment.engineOn = true;
+    equipment.bladesEngaged = !equipment.bladesEngaged;
+    return { handled: true, enabled: equipment.bladesEngaged, label };
+  }
+
   // --- what you're looking at (shop-style focus + [E]) -------------------------------
   let walkFocus = null; // { kind, label, cell? }
   const walkHooks = {}; // main.js provides turfLabelAt / inspectAt / waterAt / hoseLabelAt
@@ -6505,6 +6680,13 @@ export function makeCourseScene(canvas, state) {
       (x1 - x0 + 1) * (y1 - y0 + 1),
       Boolean(rect),
     );
+  }
+
+  function updateCourseMaintenance(st, force = false) {
+    const changed = maintenanceTextures.update({ force });
+    maintenanceOverlayUniforms.uInspect.value = st.courseMaintenance?.inspection.active ? 1 : 0;
+    refreshMaintenanceWorldProps();
+    return changed;
   }
 
   function updateCourseMaintenance(st, force = false) {

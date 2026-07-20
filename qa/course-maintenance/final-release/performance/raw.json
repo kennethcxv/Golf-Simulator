@@ -1,0 +1,485 @@
+{
+  "capturedAt": "2026-07-20T03:31:01.126Z",
+  "phase": "final-release",
+  "launch": "node tools/serve.cjs; Playwright Chrome headless",
+  "fixture": {
+    "empireSeed": 20260719,
+    "property": "Willow Creek Municipal",
+    "propertySeed": 872962804,
+    "heroHole": 4,
+    "clockMinutes": 419.83700000000704,
+    "weather": {
+      "tempHiF": 69,
+      "tempLoF": 42,
+      "rainIn": 0,
+      "humidity": 0.58,
+      "windMph": 9
+    },
+    "viewport": {
+      "width": 1600,
+      "height": 900,
+      "dpr": 1
+    }
+  },
+  "protocol": {
+    "warmupMs": 5000,
+    "sampleMs": 6000,
+    "samplesPerScenario": 3,
+    "idle": "Hole 4 fairway, fixed first-person camera, paused clock",
+    "active": "Repaired tractor fixture at Hole 4, normal E mount, W drive and path mowing",
+    "interactionStress": "Three forced-GC checkpoints across 60 normal E mount/dismount cycles",
+    "textureMemory": "Estimated RGBA8 bytes including 4/3 mip overhead for sized referenced textures; not driver allocation",
+    "uiFrequency": "MutationObserver records per second under #ui",
+    "listenerCount": "Instrumented EventTarget add/remove active count from document start"
+  },
+  "proposedRegressionGate": {
+    "averageFpsPercent": -10,
+    "onePercentLowFpsPercent": -15,
+    "worstFrameMsPercent": 20,
+    "drawCallsPercent": 15,
+    "trianglesPercent": 15,
+    "materialCountPercent": 15,
+    "estimatedTextureBytesPercent": 15,
+    "saveBytesPercent": 20,
+    "saveOrLoadTimePercent": 25,
+    "activeListenerGrowthAllowed": 0,
+    "rationale": "A localized hero-hole mask may add one material/texture path, but it must not materially degrade the full course."
+  },
+  "idle": {
+    "samples": [
+      {
+        "durationMs": 6002.300000011921,
+        "frameCount": 1981,
+        "averageFps": 330.040151274689,
+        "onePercentLowFps": 37.2786579683134,
+        "worstFrameMs": 138.89999999999782,
+        "p99FrameMs": 5.5,
+        "longFramesOver50Ms": 2,
+        "longFramesOver100Ms": 2,
+        "drawCallsPerFrame": 584.2948006057546,
+        "trianglesPerFrame": 4429186.70570419,
+        "linesPerFrame": 0,
+        "pointsPerFrame": 0,
+        "uiMutationsPerSecond": 990.6202622308433,
+        "uiMutationCount": 5946,
+        "jsHeapBeforeBytes": 115848144,
+        "jsHeapAfterBytes": 98381040,
+        "jsHeapDeltaBytes": -17467104
+      },
+      {
+        "durationMs": 6002.899999976158,
+        "frameCount": 2160,
+        "averageFps": 359.82608406080044,
+        "onePercentLowFps": 336.9065849922717,
+        "worstFrameMs": 3.2999999999992724,
+        "p99FrameMs": 2.900000000001455,
+        "longFramesOver50Ms": 0,
+        "longFramesOver100Ms": 0,
+        "drawCallsPerFrame": 584.2703703703704,
+        "trianglesPerFrame": 4429001.514814815,
+        "linesPerFrame": 0,
+        "pointsPerFrame": 0,
+        "uiMutationsPerSecond": 1079.9780106324858,
+        "uiMutationCount": 6483,
+        "jsHeapBeforeBytes": 116500604,
+        "jsHeapAfterBytes": 119483996,
+        "jsHeapDeltaBytes": 2983392
+      },
+      {
+        "durationMs": 6002.400000035763,
+        "frameCount": 2160,
+        "averageFps": 359.8560575748251,
+        "onePercentLowFps": 333.8391502275549,
+        "worstFrameMs": 3.2000000000007276,
+        "p99FrameMs": 2.900000000001455,
+        "longFramesOver50Ms": 0,
+        "longFramesOver100Ms": 0,
+        "drawCallsPerFrame": 584.2703703703704,
+        "trianglesPerFrame": 4429001.514814815,
+        "linesPerFrame": 0,
+        "pointsPerFrame": 0,
+        "uiMutationsPerSecond": 1080.0679728044404,
+        "uiMutationCount": 6483,
+        "jsHeapBeforeBytes": 107316128,
+        "jsHeapAfterBytes": 103660400,
+        "jsHeapDeltaBytes": -3655728
+      }
+    ],
+    "mean": {
+      "averageFps": 349.9074309701048,
+      "onePercentLowFps": 236.00813106271335,
+      "worstFrameMs": 48.46666666666594,
+      "longFramesOver50Ms": 0.6666666666666666,
+      "longFramesOver100Ms": 0.6666666666666666,
+      "drawCallsPerFrame": 584.2785137821652,
+      "trianglesPerFrame": 4429063.245111273,
+      "uiMutationsPerSecond": 1050.2220818892565,
+      "jsHeapDeltaBytes": -6046480
+    }
+  },
+  "activeMowing": {
+    "samples": [
+      {
+        "durationMs": 6002.600000023842,
+        "frameCount": 2160,
+        "averageFps": 359.8440675692901,
+        "onePercentLowFps": 337.42331288337533,
+        "worstFrameMs": 3.099999999998545,
+        "p99FrameMs": 2.900000000001455,
+        "longFramesOver50Ms": 0,
+        "longFramesOver100Ms": 0,
+        "drawCallsPerFrame": 589.8277777777778,
+        "trianglesPerFrame": 4582578.768518519,
+        "linesPerFrame": 0,
+        "pointsPerFrame": 0,
+        "uiMutationsPerSecond": 1080.03198613505,
+        "uiMutationCount": 6483,
+        "jsHeapBeforeBytes": 112302977,
+        "jsHeapAfterBytes": 121900253,
+        "jsHeapDeltaBytes": 9597276
+      },
+      {
+        "durationMs": 6002.899999976158,
+        "frameCount": 2151,
+        "averageFps": 358.3268087105471,
+        "onePercentLowFps": 246.9135802468773,
+        "worstFrameMs": 8.30000000000291,
+        "p99FrameMs": 2.900000000001455,
+        "longFramesOver50Ms": 0,
+        "longFramesOver100Ms": 0,
+        "drawCallsPerFrame": 589.8033472803347,
+        "trianglesPerFrame": 4582564.953974895,
+        "linesPerFrame": 0,
+        "pointsPerFrame": 0,
+        "uiMutationsPerSecond": 1075.4801845817258,
+        "uiMutationCount": 6456,
+        "jsHeapBeforeBytes": 105964021,
+        "jsHeapAfterBytes": 67258900,
+        "jsHeapDeltaBytes": -38705121
+      },
+      {
+        "durationMs": 6003,
+        "frameCount": 2160,
+        "averageFps": 359.82008995502247,
+        "onePercentLowFps": 340.5572755416883,
+        "worstFrameMs": 3.099999999998545,
+        "p99FrameMs": 2.900000000001455,
+        "longFramesOver50Ms": 0,
+        "longFramesOver100Ms": 0,
+        "drawCallsPerFrame": 589.8203703703704,
+        "trianglesPerFrame": 4582544.375925926,
+        "linesPerFrame": 0,
+        "pointsPerFrame": 0,
+        "uiMutationsPerSecond": 1079.9600199900049,
+        "uiMutationCount": 6483,
+        "jsHeapBeforeBytes": 71411606,
+        "jsHeapAfterBytes": 76247498,
+        "jsHeapDeltaBytes": 4835892
+      }
+    ],
+    "mean": {
+      "averageFps": 359.33032207828654,
+      "onePercentLowFps": 308.29805622398027,
+      "worstFrameMs": 4.833333333333333,
+      "longFramesOver50Ms": 0,
+      "longFramesOver100Ms": 0,
+      "drawCallsPerFrame": 589.8171651428275,
+      "trianglesPerFrame": 4582562.699473113,
+      "uiMutationsPerSecond": 1078.4907302355934,
+      "jsHeapDeltaBytes": -8090651
+    }
+  },
+  "interactionStress": {
+    "cyclesPerRound": 20,
+    "rounds": 3,
+    "totalCycles": 60,
+    "browserGcAvailable": true,
+    "before": {
+      "listeners": {
+        "active": 92,
+        "added": 126,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 57,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "heapBytes": 74388888
+    },
+    "checkpoints": [
+      {
+        "listeners": {
+          "active": 92,
+          "added": 126,
+          "removed": 34,
+          "byType": {
+            "pointerdown": 3,
+            "keydown": 4,
+            "click": 57,
+            "pointermove": 1,
+            "pointerup": 3,
+            "wheel": 1,
+            "contextmenu": 2,
+            "keyup": 2,
+            "blur": 2,
+            "pointerlockchange": 1,
+            "resize": 1,
+            "input": 1,
+            "change": 1,
+            "webglcontextlost": 1,
+            "webglcontextrestored": 1,
+            "webglcontextcreationerror": 1,
+            "load": 0,
+            "error": 0,
+            "mousemove": 2,
+            "__playwright_global_listeners_check__": 1,
+            "touchstart": 1,
+            "touchend": 1,
+            "touchcancel": 1,
+            "mousedown": 1,
+            "mouseup": 1,
+            "auxclick": 1,
+            "dblclick": 1
+          }
+        },
+        "heapBytes": 83824676
+      },
+      {
+        "listeners": {
+          "active": 92,
+          "added": 126,
+          "removed": 34,
+          "byType": {
+            "pointerdown": 3,
+            "keydown": 4,
+            "click": 57,
+            "pointermove": 1,
+            "pointerup": 3,
+            "wheel": 1,
+            "contextmenu": 2,
+            "keyup": 2,
+            "blur": 2,
+            "pointerlockchange": 1,
+            "resize": 1,
+            "input": 1,
+            "change": 1,
+            "webglcontextlost": 1,
+            "webglcontextrestored": 1,
+            "webglcontextcreationerror": 1,
+            "load": 0,
+            "error": 0,
+            "mousemove": 2,
+            "__playwright_global_listeners_check__": 1,
+            "touchstart": 1,
+            "touchend": 1,
+            "touchcancel": 1,
+            "mousedown": 1,
+            "mouseup": 1,
+            "auxclick": 1,
+            "dblclick": 1
+          }
+        },
+        "heapBytes": 82555772
+      },
+      {
+        "listeners": {
+          "active": 92,
+          "added": 126,
+          "removed": 34,
+          "byType": {
+            "pointerdown": 3,
+            "keydown": 4,
+            "click": 57,
+            "pointermove": 1,
+            "pointerup": 3,
+            "wheel": 1,
+            "contextmenu": 2,
+            "keyup": 2,
+            "blur": 2,
+            "pointerlockchange": 1,
+            "resize": 1,
+            "input": 1,
+            "change": 1,
+            "webglcontextlost": 1,
+            "webglcontextrestored": 1,
+            "webglcontextcreationerror": 1,
+            "load": 0,
+            "error": 0,
+            "mousemove": 2,
+            "__playwright_global_listeners_check__": 1,
+            "touchstart": 1,
+            "touchend": 1,
+            "touchcancel": 1,
+            "mousedown": 1,
+            "mouseup": 1,
+            "auxclick": 1,
+            "dblclick": 1
+          }
+        },
+        "heapBytes": 83150908
+      }
+    ],
+    "after": {
+      "listeners": {
+        "active": 92,
+        "added": 126,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 57,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "heapBytes": 83150908
+    },
+    "activeListenerGrowth": 0,
+    "jsHeapGrowthBytes": 8762020
+  },
+  "resources": {
+    "renderer": {
+      "drawingBufferWidth": 1600,
+      "drawingBufferHeight": 900,
+      "pixelRatio": 1,
+      "geometries": 1060,
+      "textures": 203,
+      "programs": 81,
+      "gpuVendor": "Google Inc. (NVIDIA)",
+      "gpuRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5080 (0x00002C02) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    },
+    "materialCount": 270,
+    "referencedTextureCount": 166,
+    "sizedTextureCount": 166,
+    "estimatedRgbaMipBytes": 5367312448,
+    "jsHeapBytes": 83150908,
+    "listeners": {
+      "active": 92,
+      "added": 126,
+      "removed": 34,
+      "byType": {
+        "pointerdown": 3,
+        "keydown": 4,
+        "click": 57,
+        "pointermove": 1,
+        "pointerup": 3,
+        "wheel": 1,
+        "contextmenu": 2,
+        "keyup": 2,
+        "blur": 2,
+        "pointerlockchange": 1,
+        "resize": 1,
+        "input": 1,
+        "change": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "webglcontextcreationerror": 1,
+        "load": 0,
+        "error": 0,
+        "mousemove": 2,
+        "__playwright_global_listeners_check__": 1,
+        "touchstart": 1,
+        "touchend": 1,
+        "touchcancel": 1,
+        "mousedown": 1,
+        "mouseup": 1,
+        "auxclick": 1,
+        "dblclick": 1
+      }
+    },
+    "save": {
+      "bytes": 384497,
+      "stringifyAndLocalStorageMs": 4.300000011920929,
+      "parseAndDeserializeMs": 7.399999976158142
+    },
+    "browser": {
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/150.0.0.0 Safari/537.36",
+      "hardwareConcurrency": 16,
+      "deviceMemoryGiB": 32
+    }
+  },
+  "console": {
+    "warningsAndErrors": [
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+        "count": 19
+      },
+      {
+        "type": "warning",
+        "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000",
+        "count": 1
+      }
+    ],
+    "pageErrors": [],
+    "failedRequests": [
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/hose_nozzle.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/bucket_soil.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/clubhouse/kiosk.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/clubhouse/rangefinder.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/shed.glb",
+        "failure": "net::ERR_ABORTED"
+      }
+    ]
+  }
+}

@@ -1,0 +1,397 @@
+{
+  "capturedAt": "2026-07-19T23:24:14.744Z",
+  "launch": "node tools/serve.cjs; Playwright Chrome headless",
+  "url": "http://127.0.0.1:8462/",
+  "phase": "baseline",
+  "fixture": {
+    "seed": 20260719,
+    "property": "Willow Creek Municipal",
+    "propertySeed": 872962804,
+    "clockMinutes": 420.47500000000446,
+    "weather": {
+      "tempHiF": 69,
+      "tempLoF": 42,
+      "rainIn": 0,
+      "humidity": 0.58,
+      "windMph": 9
+    },
+    "viewport": {
+      "width": 1600,
+      "height": 900,
+      "dpr": 1
+    }
+  },
+  "fixedCameras": [
+    {
+      "hole": 1,
+      "tee": {
+        "x": 52,
+        "y": 60
+      },
+      "pin": {
+        "x": 18,
+        "y": 54
+      },
+      "camera": {
+        "target": {
+          "x": -196,
+          "z": 140
+        },
+        "yaw": 1.396124127786657,
+        "pitch": 0.86,
+        "dist": 287.2509369871576
+      },
+      "file": "hole-01-overview.png"
+    },
+    {
+      "hole": 2,
+      "tee": {
+        "x": 14,
+        "y": 50
+      },
+      "pin": {
+        "x": 12,
+        "y": 34
+      },
+      "camera": {
+        "target": {
+          "x": -372,
+          "z": 20
+        },
+        "yaw": 0.12435499454676144,
+        "pitch": 0.86,
+        "dist": 145
+      },
+      "file": "hole-02-overview.png"
+    },
+    {
+      "hole": 3,
+      "tee": {
+        "x": 10,
+        "y": 28
+      },
+      "pin": {
+        "x": 38,
+        "y": 10
+      },
+      "camera": {
+        "target": {
+          "x": -284,
+          "z": -164
+        },
+        "yaw": -0.9994588469612699,
+        "pitch": 0.86,
+        "dist": 276.9447944988315
+      },
+      "file": "hole-03-overview.png"
+    },
+    {
+      "hole": 4,
+      "tee": {
+        "x": 44,
+        "y": 8
+      },
+      "pin": {
+        "x": 104,
+        "y": 14
+      },
+      "camera": {
+        "target": {
+          "x": 116,
+          "z": -228
+        },
+        "yaw": -1.6704649792860586,
+        "pitch": 0.86,
+        "dist": 501.6897910063548
+      },
+      "file": "hole-04-overview.png"
+    },
+    {
+      "hole": 5,
+      "tee": {
+        "x": 108,
+        "y": 20
+      },
+      "pin": {
+        "x": 106,
+        "y": 36
+      },
+      "camera": {
+        "target": {
+          "x": 380,
+          "z": -92
+        },
+        "yaw": 3.017237659043032,
+        "pitch": 0.86,
+        "dist": 145
+      },
+      "file": "hole-05-overview.png"
+    },
+    {
+      "hole": 6,
+      "tee": {
+        "x": 102,
+        "y": 42
+      },
+      "pin": {
+        "x": 70,
+        "y": 54
+      },
+      "camera": {
+        "target": {
+          "x": 212,
+          "z": 68
+        },
+        "yaw": 1.9295669970654687,
+        "pitch": 0.86,
+        "dist": 284.3444446441674
+      },
+      "file": "hole-06-overview.png"
+    },
+    {
+      "hole": 7,
+      "tee": {
+        "x": 64,
+        "y": 60
+      },
+      "pin": {
+        "x": 10,
+        "y": 66
+      },
+      "camera": {
+        "target": {
+          "x": -180,
+          "z": 188
+        },
+        "yaw": 1.6814535479687922,
+        "pitch": 0.86,
+        "dist": 452.0448260958198
+      },
+      "file": "hole-07-overview.png"
+    },
+    {
+      "hole": 8,
+      "tee": {
+        "x": 8,
+        "y": 72
+      },
+      "pin": {
+        "x": 22,
+        "y": 76
+      },
+      "camera": {
+        "target": {
+          "x": -356,
+          "z": 276
+        },
+        "yaw": -1.849095985800008,
+        "pitch": 0.86,
+        "dist": 145
+      },
+      "file": "hole-08-overview.png"
+    },
+    {
+      "hole": 9,
+      "tee": {
+        "x": 26,
+        "y": 77
+      },
+      "pin": {
+        "x": 60,
+        "y": 72
+      },
+      "camera": {
+        "target": {
+          "x": -132,
+          "z": 280
+        },
+        "yaw": -1.4247840690836213,
+        "pitch": 0.86,
+        "dist": 285.9224622165947
+      },
+      "file": "hole-09-overview.png"
+    }
+  ],
+  "playerCameras": [
+    {
+      "hole": 4,
+      "position": {
+        "x": -131.9602975216799,
+        "z": -252.79602975216798
+      },
+      "yaw": -1.6704649792860586,
+      "pitch": -0.08,
+      "file": "hole-04-tee-player.png"
+    },
+    {
+      "hole": 6,
+      "position": {
+        "x": 347.49063342055234,
+        "z": 17.191012467292865
+      },
+      "yaw": 1.9295669970654687,
+      "pitch": -0.08,
+      "file": "hole-06-tee-player.png"
+    }
+  ],
+  "console": {
+    "warningsAndErrors": [
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+      },
+      {
+        "type": "warning",
+        "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+      }
+    ],
+    "pageErrors": [],
+    "failedRequests": [
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/hand_fork.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/bucket_soil.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/tool_chest.glb",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "url": "http://127.0.0.1:8462/vendor/models/belt.glb",
+        "failure": "net::ERR_ABORTED"
+      }
+    ]
+  },
+  "snapshot": {
+    "renderer": {
+      "calls": 1,
+      "triangles": 1,
+      "points": 0,
+      "lines": 0,
+      "geometries": 1033,
+      "textures": 208,
+      "programs": 89
+    },
+    "materialCount": 257,
+    "referencedTextureCount": 173,
+    "estimatedRgbaMipBytes": 6170865728,
+    "sizedTextures": 173,
+    "jsHeapBytes": 88534232,
+    "listeners": {
+      "active": 80,
+      "added": 120,
+      "removed": 40,
+      "byType": {
+        "pointerdown": 2,
+        "keydown": 3,
+        "click": 47,
+        "pointermove": 1,
+        "pointerup": 3,
+        "wheel": 1,
+        "contextmenu": 2,
+        "keyup": 2,
+        "blur": 2,
+        "pointerlockchange": 1,
+        "resize": 1,
+        "input": 1,
+        "change": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "webglcontextcreationerror": 1,
+        "load": 0,
+        "error": 0,
+        "mousemove": 2,
+        "__playwright_global_listeners_check__": 1,
+        "touchstart": 1,
+        "touchend": 1,
+        "touchcancel": 1,
+        "mousedown": 1,
+        "mouseup": 1,
+        "auxclick": 1,
+        "dblclick": 1
+      }
+    },
+    "state": {
+      "conditionRating": 47,
+      "overallRating": 62.99291638714929,
+      "tractorRepaired": false,
+      "saveJsonBytes": 330420
+    }
+  },
+  "videoPath": "qa\\course-maintenance\\baseline\\walkthrough.webm"
+}
