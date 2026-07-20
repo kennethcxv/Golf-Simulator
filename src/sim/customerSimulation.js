@@ -357,6 +357,9 @@ export function releaseDueArrivals(state, nowMinute = state.clock.minutes, envir
   const maxActive = environment.maxActive ?? MAX_ACTIVE_CUSTOMERS;
   const activeCount = environment.activeCount ?? sim.active.length;
   const queueLength = environment.queueLength ?? sim.serviceQueue.length;
+  const releaseLimit = Number.isFinite(environment.releaseLimit)
+    ? Math.max(0, Math.floor(environment.releaseLimit))
+    : Infinity;
   let room = Math.max(0, maxActive - activeCount);
   const released = [];
 
@@ -375,6 +378,7 @@ export function releaseDueArrivals(state, nowMinute = state.clock.minutes, envir
       continue;
     }
     const party = Math.max(1, arrival.partySize || 1);
+    if (released.length >= releaseLimit) continue;
     if (party > room) continue;
     if (!isScheduled && queueLength >= 4) continue;
     arrival.status = 'Released';

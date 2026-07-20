@@ -16,7 +16,7 @@ import {
   undoPlacement, validateObjectPlacement,
 } from '../../sim/layout.js';
 import { makeBuildPanel } from '../../ui/buildPanel.js';
-import { applyPlaceableTransform } from './placeables.js';
+import { applyPlaceableTransform, PLACEABLE_SELECTION_LAYER } from './placeables.js';
 
 const GOLD = 0xe7ca76;
 const OK = 0x62d48c;
@@ -70,6 +70,9 @@ export function buildBuildMode(B, deps) {
 
   const raycaster = new THREE.Raycaster();
   raycaster.far = MAX_REACH;
+  // Existing fixture anchors remain on layer 0. Batched GLB props keep their
+  // authored selection geometry on a camera-invisible layer.
+  raycaster.layers.enable(PLACEABLE_SELECTION_LAYER);
   const originWorld = new THREE.Vector3();
   const directionWorld = new THREE.Vector3();
   const endWorld = new THREE.Vector3();

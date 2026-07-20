@@ -220,6 +220,36 @@ export function makeCourseScene(canvas, state) {
     screenSpaceRadius: false,
   });
   gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 8 });
+
+  // GTAO re-renders scene geometry several times. Small operational props are
+  // already shaded by PBR lighting (and, where useful, the sun shadow), so
+  // feeding dozens of their tiny submeshes into the course-scale AO buffers is
+  // expensive without producing a visible contact-shadow benefit. Systems may
+  // register only those roots; terrain, architecture, furniture, and stock stay
+  // in AO exactly as before.
+  const gtaoExclusions = new Set();
+  const gtaoRender = gtao.render.bind(gtao);
+  gtao.render = (...args) => {
+    const visibility = [];
+    for (const root of gtaoExclusions) {
+      if (!root?.parent) {
+        gtaoExclusions.delete(root);
+        continue;
+      }
+      visibility.push([root, root.visible]);
+      root.visible = false;
+    }
+    try {
+      return gtaoRender(...args);
+    } finally {
+      for (const [root, visible] of visibility) root.visible = visible;
+    }
+  };
+  const excludeFromAmbientOcclusion = (root) => {
+    if (!root) return () => {};
+    gtaoExclusions.add(root);
+    return () => gtaoExclusions.delete(root);
+  };
   composer.addPass(gtao);
   // STYLE GUIDE §3: bloom effectively OFF for the scene — only the sun disc
   // (radiance in the thousands) may glint; turf and trim never halo
@@ -1166,6 +1196,7 @@ export function makeCourseScene(canvas, state) {
         // exactly like the laptop seat. (Both are function declarations, so hoisted.)
         focusOn: walkFocusOn,
         clearFocus: walkClearFocus,
+        excludeFromAmbientOcclusion,
       });
     }
     scene.add(structGroup);
@@ -3129,6 +3160,7 @@ export function makeCourseScene(canvas, state) {
     maintenanceOverlayGeo.dispose();
     maintenanceOverlayMat.dispose();
     maintenanceTextures.dispose();
+    gtaoExclusions.clear();
     softParticleTexture.dispose();
   }
 

@@ -127,6 +127,34 @@ test('no-shows never spawn, active caps hold arrivals, and queue pressure thrott
   assert.equal(sim.active.some((customer) => customer.name === 'Absent Golfer'), false);
 });
 
+test('overdue arrivals can be released one party at a time after a clock jump', () => {
+  const state = newGame('relaxed', 919);
+  const sim = initCustomerSimulation(state);
+  sim.plannedDays = [0];
+  for (let index = 0; index < 3; index += 1) {
+    sim.scheduled.push({
+      id: `stagger-${index}`,
+      status: CUSTOMER_STATE.SCHEDULED,
+      dayAbs: 0,
+      scheduledMinute: 300 + index,
+      intendedMinute: 300 + index,
+      intent: CUSTOMER_INTENT.PRO_SHOP_SHOPPER,
+      partySize: 1,
+      noShow: false,
+      name: `Staggered ${index}`,
+    });
+  }
+  assert.deepEqual(
+    releaseDueArrivals(state, 360, { activeCount: 0, releaseLimit: 1 }).map((arrival) => arrival.id),
+    ['stagger-0'],
+  );
+  assert.deepEqual(
+    releaseDueArrivals(state, 360, { activeCount: 0, releaseLimit: 1 }).map((arrival) => arrival.id),
+    ['stagger-1'],
+  );
+  assert.equal(sim.scheduled.find((arrival) => arrival.id === 'stagger-2').status, CUSTOMER_STATE.SCHEDULED);
+});
+
 test('booking and cancellation use the customer-arrival extension point', () => {
   const state = newGame('relaxed', 904);
   const booked = bookSlot(state, 0, 9 * 60, 'Tee Sheet Guest');

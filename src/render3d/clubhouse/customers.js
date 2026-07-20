@@ -169,6 +169,8 @@ export function createCustomerView(B, options) {
   let navVersion = -1;
   let runtimeSeconds = 0;
   let arrivalPoll = 0;
+  let nextArrivalRuntimeSeconds = 0;
+  let lastArrivalGameMinute = -Infinity;
   let organicArrivalsEnabled = true;
   let disposed = false;
 
@@ -1093,16 +1095,27 @@ export function createCustomerView(B, options) {
 
   function releaseArrivals() {
     if (!organicArrivalsEnabled) return;
+    // A load or QA clock jump can make a whole morning's schedule due at once.
+    // Release one party at a time and require both real-time and game-clock
+    // progress so visitors remain visibly staggered and pausing cannot fill the
+    // clubhouse behind the menu.
+    if (runtimeSeconds < nextArrivalRuntimeSeconds
+      || state.clock.minutes <= lastArrivalGameMinute + 0.01) return;
     const sim = customerSimulationOf(state);
     const due = releaseDueArrivals(state, state.clock.minutes, {
       activeCount: sim.active.length,
       queueLength: sim.serviceQueue.length,
+      releaseLimit: 1,
     });
     for (const arrival of due) {
       const party = activateArrival(state, arrival, state.clock.minutes);
       if (party.length && arrival.reservationId != null) {
         markReservationArrived(state, arrival.reservationId, state.clock.minutes);
       }
+    }
+    if (due.length) {
+      lastArrivalGameMinute = state.clock.minutes;
+      nextArrivalRuntimeSeconds = runtimeSeconds + 1.25;
     }
   }
 

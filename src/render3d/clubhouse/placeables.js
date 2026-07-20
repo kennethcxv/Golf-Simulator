@@ -8,9 +8,12 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { PLACEABLES, placeableById } from '../../data/placeableCatalog.js';
 import { placedObjects, placementBounds } from '../../sim/layout.js';
+
+export const PLACEABLE_SELECTION_LAYER = 31;
 
 const VALID = new THREE.Color(0x62d48c);
 const INVALID = new THREE.Color(0xf06f68);
@@ -99,6 +102,62 @@ function markRenderable(root, id) {
       if (isCollisionProxy(object, root)) object.visible = false;
     }
   });
+}
+
+function moveToSelectionLayer(root) {
+  root.traverse((object) => object.layers.set(PLACEABLE_SELECTION_LAYER));
+}
+
+const MATERIAL_TEXTURE_KEYS = [
+  'map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap',
+  'alphaMap', 'bumpMap', 'displacementMap', 'lightMap', 'envMap',
+];
+
+function materialHasTexture(material) {
+  return MATERIAL_TEXTURE_KEYS.some((key) => material?.[key]);
+}
+
+function materialPaletteKind(material) {
+  const emissive = material?.emissive;
+  if (emissive && emissive.getHex() !== 0) {
+    if (emissive.r > emissive.g * 1.35) return 'emissive-red';
+    if (emissive.g > emissive.r * 1.12) return 'emissive-green';
+    return 'emissive-warm';
+  }
+  if (material?.transparent || (material?.opacity ?? 1) < 0.98) return 'glass';
+  if ((material?.metalness || 0) >= 0.45) return 'metal';
+  const color = material?.color;
+  const luminance = color ? color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722 : 1;
+  if ((material?.roughness || 0) >= 0.82 && luminance < 0.12) return 'rubber';
+  return 'matte';
+}
+
+function addMaterialColor(geometry, material) {
+  const position = geometry.attributes.position;
+  if (!position || !material?.color) return;
+  const data = new Float32Array(position.count * 3);
+  for (let index = 0; index < position.count; index += 1) {
+    data[index * 3] = material.color.r;
+    data[index * 3 + 1] = material.color.g;
+    data[index * 3 + 2] = material.color.b;
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(data, 3));
+}
+
+function geometryBatchKey(geometry) {
+  const attributes = Object.entries(geometry.attributes || {})
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, attribute]) => [name, attribute.itemSize, attribute.normalized, attribute.gpuType || null]);
+  return JSON.stringify({ indexed: !!geometry.index, attributes });
+}
+
+function authoredVisible(object, root) {
+  let current = object;
+  while (current && current !== root) {
+    if (!current.visible) return false;
+    current = current.parent;
+  }
+  return true;
 }
 
 function socketName(meta) {
@@ -197,11 +256,144 @@ export function buildPlaceables(B, { fixtureAnchors, fallbackWelcomeMat = null }
   group.name = 'ClubhousePlaceables';
   interior.add(group);
 
+  // Final placed props are static until a placement command succeeds. Keep
+  // their authored clones as non-rendering selection/pivot sources and rebuild
+  // this compact render layer after each committed layout change. That avoids
+  // replaying 100+ tiny meshes through every AO/post pass while preserving the
+  // exact geometry, materials, sockets, and preview path.
+  const renderBatch = new THREE.Group();
+  renderBatch.name = 'ClubhousePlaceableRenderBatches';
+  group.add(renderBatch);
+
+  const paletteMaterials = new Map();
+  function paletteMaterial(kind, source) {
+    const key = `${kind}:${source.side}:${source.depthTest}:${source.depthWrite}`;
+    if (paletteMaterials.has(key)) return paletteMaterials.get(key);
+    const common = {
+      name: `Placeable palette ${kind}`,
+      color: 0xffffff,
+      vertexColors: true,
+      side: source.side,
+      depthTest: source.depthTest,
+      depthWrite: source.depthWrite,
+    };
+    let material;
+    if (kind === 'metal') {
+      material = new THREE.MeshStandardMaterial({ ...common, roughness: 0.36, metalness: 0.84 });
+    } else if (kind === 'rubber') {
+      material = new THREE.MeshStandardMaterial({ ...common, roughness: 0.92, metalness: 0 });
+    } else if (kind === 'glass') {
+      material = new THREE.MeshPhysicalMaterial({
+        ...common,
+        roughness: 0.12,
+        metalness: 0,
+        transparent: true,
+        opacity: Math.min(0.32, source.opacity ?? 0.22),
+      });
+    } else if (kind.startsWith('emissive-')) {
+      const emissive = kind === 'emissive-red' ? 0xff5945
+        : kind === 'emissive-green' ? 0x76f398 : 0xffeabc;
+      material = new THREE.MeshStandardMaterial({
+        ...common, roughness: 0.28, metalness: 0, emissive, emissiveIntensity: 1,
+      });
+    } else {
+      material = new THREE.MeshStandardMaterial({ ...common, roughness: 0.64, metalness: 0 });
+    }
+    paletteMaterials.set(key, material);
+    return material;
+  }
+
   const roots = new Map();
   const colliders = new Map();
   const failures = new Map();
   let rebuildToken = 0;
   let disposed = false;
+
+  function clearRenderBatch() {
+    for (const child of [...renderBatch.children]) {
+      if (child.geometry?.userData?.placeableBatchOwned) child.geometry.dispose();
+      child.removeFromParent();
+    }
+  }
+
+  function rebuildRenderBatch() {
+    clearRenderBatch();
+    if (disposed || !roots.size) return;
+    group.updateMatrixWorld(true);
+    const toGroup = group.matrixWorld.clone().invert();
+    const buckets = new Map();
+    const loose = [];
+
+    for (const [id, root] of roots) {
+      if (root.userData.batchVisible === false) continue;
+      root.updateMatrixWorld(true);
+      root.traverse((object) => {
+        if (!object.isMesh || object.isSkinnedMesh || !object.geometry
+          || isCollisionProxy(object, root) || !authoredVisible(object, root)) return;
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        const geometry = object.geometry.clone();
+        geometry.applyMatrix4(toGroup.clone().multiply(object.matrixWorld));
+        geometry.userData.placeableBatchOwned = true;
+        if (materials.length !== 1 || !materials[0] || geometry.groups.length > 1) {
+          loose.push({ geometry, material: object.material, ids: [id] });
+          return;
+        }
+        const sourceMaterial = materials[0];
+        const usePalette = !root.userData.loadError && !materialHasTexture(sourceMaterial);
+        const kind = usePalette ? materialPaletteKind(sourceMaterial) : null;
+        const batchMaterial = usePalette ? paletteMaterial(kind, sourceMaterial) : sourceMaterial;
+        if (usePalette) addMaterialColor(geometry, sourceMaterial);
+        const materialKey = usePalette
+          ? `palette:${kind}:${sourceMaterial.side}:${sourceMaterial.depthTest}:${sourceMaterial.depthWrite}`
+          : `material:${sourceMaterial.uuid}`;
+        const key = `${materialKey}|${geometryBatchKey(geometry)}`;
+        if (!buckets.has(key)) buckets.set(key, { material: batchMaterial, geometries: [], ids: [] });
+        const bucket = buckets.get(key);
+        bucket.geometries.push(geometry);
+        bucket.ids.push(id);
+      });
+    }
+
+    for (const bucket of [...buckets.values(), ...loose]) {
+      let geometry = bucket.geometries?.length === 1 ? bucket.geometries[0] : null;
+      if (!geometry && bucket.geometries?.length) {
+        try {
+          geometry = mergeGeometries(bucket.geometries, false);
+        } catch {
+          geometry = null;
+        }
+        if (geometry) {
+          geometry.userData.placeableBatchOwned = true;
+          for (const source of bucket.geometries) source.dispose();
+        }
+      }
+      if (!geometry) {
+        for (const source of bucket.geometries || []) {
+          const mesh = new THREE.Mesh(source, bucket.material);
+          mesh.name = 'PlaceableBatchFallback';
+          mesh.userData.placeableIds = [...new Set(bucket.ids || [])];
+          mesh.castShadow = false;
+          mesh.receiveShadow = false;
+          renderBatch.add(mesh);
+        }
+        if (bucket.geometry) {
+          const mesh = new THREE.Mesh(bucket.geometry, bucket.material);
+          mesh.name = 'PlaceableBatchLoose';
+          mesh.userData.placeableIds = bucket.ids;
+          mesh.castShadow = false;
+          mesh.receiveShadow = false;
+          renderBatch.add(mesh);
+        }
+        continue;
+      }
+      const mesh = new THREE.Mesh(geometry, bucket.material);
+      mesh.name = 'PlaceableMaterialBatch';
+      mesh.userData.placeableIds = [...new Set(bucket.ids)];
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      renderBatch.add(mesh);
+    }
+  }
 
   function tagFixtureAnchors() {
     for (const [id, anchor] of fixtureAnchors) markRenderable(anchor, id);
@@ -241,9 +433,16 @@ export function buildPlaceables(B, { fixtureAnchors, fallbackWelcomeMat = null }
     group.add(root);
     applyPlaceableTransform(root, meta, object.transform);
     root.userData.placeableVariant = object.variant;
+    root.userData.batchVisible = true;
+    // Preserve the exact authored hierarchy for picking and BoxHelper bounds,
+    // while keeping it outside every gameplay camera and post-processing pass.
+    // The compact meshes on layer 0 are the sole rendered copies.
+    moveToSelectionLayer(root);
+    root.visible = true;
     roots.set(object.id, root);
     if (root.userData.loadError) failures.set(object.id, root.userData.loadError);
     if (object.id === 'asset-100' && fallbackWelcomeMat) fallbackWelcomeMat.visible = false;
+    rebuildRenderBatch();
     return root;
   }
 
@@ -262,9 +461,12 @@ export function buildPlaceables(B, { fixtureAnchors, fallbackWelcomeMat = null }
       }
       if (root) {
         applyPlaceableTransform(root, object, object.transform);
+        root.userData.batchVisible = true;
+        moveToSelectionLayer(root);
         root.visible = true;
       } else addRoot(object, token);
     }
+    rebuildRenderBatch();
     if (fallbackWelcomeMat && !wanted.has('asset-100')) fallbackWelcomeMat.visible = true;
     tagFixtureAnchors();
   }
@@ -304,8 +506,14 @@ export function buildPlaceables(B, { fixtureAnchors, fallbackWelcomeMat = null }
   }
 
   function setObjectVisible(id, visible) {
-    const root = roots.get(id) || fixtureAnchors.get(id);
-    if (root) root.visible = visible;
+    const root = roots.get(id);
+    if (root) {
+      root.userData.batchVisible = visible;
+      rebuildRenderBatch();
+      return;
+    }
+    const fixture = fixtureAnchors.get(id);
+    if (fixture) fixture.visible = visible;
   }
 
   function rootForObject(id) {
@@ -313,7 +521,10 @@ export function buildPlaceables(B, { fixtureAnchors, fallbackWelcomeMat = null }
   }
 
   function selectableRoots() {
-    return [...fixtureAnchors.values(), ...roots.values()].filter((root) => root.visible);
+    return [
+      ...fixtureAnchors.values().filter((root) => root.visible),
+      ...roots.values().filter((root) => root.userData.batchVisible !== false),
+    ];
   }
 
   function releasePreview(root) {
@@ -326,6 +537,7 @@ export function buildPlaceables(B, { fixtureAnchors, fallbackWelcomeMat = null }
 
   return {
     group,
+    renderBatch,
     rebuild,
     previewFor,
     setPreviewValidity,
@@ -347,6 +559,9 @@ export function buildPlaceables(B, { fixtureAnchors, fallbackWelcomeMat = null }
       rebuildToken += 1;
       for (const id of [...colliders.keys()]) clearCollider(id);
       for (const id of [...roots.keys()]) removeRoot(id);
+      clearRenderBatch();
+      for (const material of paletteMaterials.values()) material.dispose();
+      paletteMaterials.clear();
       group.removeFromParent();
     },
   };

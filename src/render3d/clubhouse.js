@@ -58,6 +58,11 @@ const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrai
 export function makeClubhouse(ctx) {
   // ctx: { scene, camera, state, center:{x,z}, heightAt, walkProps, propColliders, walk, hooks }
   const { scene, camera, state, center, heightAt, walkProps, propColliders, walk, hooks } = ctx;
+  const aoExclusionReleases = [];
+  const excludeFromAmbientOcclusion = (root) => {
+    const release = ctx.excludeFromAmbientOcclusion?.(root);
+    if (typeof release === 'function') aoExclusionReleases.push(release);
+  };
   const layoutRecovery = recoverInvalidObjects(state);
   if (layoutRecovery.recovered.length) {
     queueMicrotask(() => hooks.toast?.(
@@ -225,6 +230,7 @@ export function makeClubhouse(ctx) {
   // build mode needs the anchors it is going to hide and the re-lay it is going to trigger, so it
   // is built here rather than up with the rest of the scene
   placeableVisuals = buildPlaceables(B, { fixtureAnchors, fallbackWelcomeMat });
+  excludeFromAmbientOcclusion(placeableVisuals.renderBatch);
   builder = buildBuildMode(B, {
     rebuildLayout, fixtureAnchors, placeables: placeableVisuals, refreshRoomStyle,
   });
@@ -895,6 +901,7 @@ export function makeClubhouse(ctx) {
   const deliveryFixtureGroup = new THREE.Group();
   const deliveryVehicleGroup = new THREE.Group();
   interior.add(deliveryFixtureGroup);
+  excludeFromAmbientOcclusion(deliveryFixtureGroup);
   scene.add(deliveryVehicleGroup);
   let deliveryVanMesh = null;
   let deliveryVanAnim = null;
@@ -2830,6 +2837,7 @@ export function makeClubhouse(ctx) {
     customerView.dispose();
     builder.dispose();
     placeableVisuals.dispose();
+    for (const release of aoExclusionReleases.splice(0)) release();
     scene.remove(group, interior, custGroup, motes, boxGroup, deliveryVehicleGroup);
     clearOwnedGroup(boxGroup);
     if (carriedBoxMesh) { camera.remove(carriedBoxMesh); disposeOwnedRenderable(carriedBoxMesh); }

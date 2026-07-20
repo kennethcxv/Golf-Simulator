@@ -13,8 +13,18 @@ const COMPARE_PATH = process.env.QA_COMPARE_WITH
   : (EVIDENCE_LABEL === 'final' ? path.join(QA_ROOT, 'performance', 'baseline', 'idle-exterior.json') : null);
 const LOGS = path.join(QA_ROOT, 'logs');
 const VIEWPORT = { width: 1440, height: 900 };
-const FIXED_TIME_MINUTE = 14 * 60;
-const CAMERA = { at: [-1.5, 243.5], to: [-8.5, 231.0], pitch: 0.03 };
+const FIXED_TIME_MINUTE = Number(process.env.QA_PERF_MINUTE || 14 * 60);
+const CAMERA_MODE = process.env.QA_PERF_CAMERA || 'exterior';
+const CAMERAS = {
+  exterior: { at: [-1.5, 243.5], to: [-8.5, 231.0], pitch: 0.03 },
+  register: { at: [-7.8, 229.7], to: [-5.2, 232.6], pitch: -0.07 },
+};
+const CAMERA = CAMERAS[CAMERA_MODE] || CAMERAS.exterior;
+const SAMPLE_FRAMES = Number(process.env.QA_PERF_FRAMES || 600);
+const RUN_COUNT = Number(process.env.QA_PERF_RUNS || 3);
+const WARMUP_MS = Number(process.env.QA_PERF_WARMUP_MS || 5_000);
+const controlledCustomers = process.env.QA_PERF_CUSTOMERS == null
+  ? null : Number(process.env.QA_PERF_CUSTOMERS);
 
 await Promise.all([fs.mkdir(OUT, { recursive: true }), fs.mkdir(LOGS, { recursive: true })]);
 
@@ -85,6 +95,39 @@ async function setCamera() {
   await page.waitForTimeout(500);
 }
 
+async function configureControlledCustomers(count) {
+  return page.evaluate((wanted) => {
+    const app = window.__fw;
+    const clubhouse = app.scene3d.clubhouse();
+    app.speedIdx = 0;
+    clubhouse.setOrganicWalkins?.(false);
+    clubhouse.clearWalkins?.();
+    // Latest main has a legacy reservation shopper that can appear during world
+    // boot before the clock is frozen and has no public clear helper. Remove any
+    // remaining fixture actor so both revisions start from the requested count.
+    const preexisting = typeof clubhouse.customers === 'function' ? clubhouse.customers() : clubhouse.customers || [];
+    for (const customer of preexisting) customer.mesh?.removeFromParent();
+    preexisting.splice(0, preexisting.length);
+    const inventory = app.state.shop.inventory;
+    for (const entry of Object.values(inventory)) entry.shelf = Math.max(entry.shelf || 0, 12);
+    clubhouse.rebuildStock?.();
+    for (let index = 0; index < wanted; index += 1) clubhouse.debugSpawn?.(false);
+    const customers = typeof clubhouse.customers === 'function' ? clubhouse.customers() : clubhouse.customers || [];
+    const positions = [
+      [-5.8, -4.2], [-4.7, -4.2], [-3.6, -4.2], [-2.5, -4.2],
+      [-5.8, -1.8], [-4.7, -1.8], [-3.6, -1.8], [-2.5, -1.8],
+      [-0.2, 3.0], [0.7, 3.6], [1.6, 4.2], [2.5, 4.8],
+    ];
+    customers.slice(0, wanted).forEach((customer, index) => {
+      if (!customer.mesh) return;
+      customer.mesh.position.x = positions[index][0] - 8;
+      customer.mesh.position.z = positions[index][1] + 228;
+      customer.pathGoal = null;
+    });
+    return { requested: wanted, active: customers.length, positioned: Math.min(customers.length, wanted) };
+  }, count);
+}
+
 async function connectedListenerCount() {
   const objectGroup = `qa-listeners-${Date.now()}`;
   const evaluated = await cdp.send('Runtime.evaluate', {
@@ -135,8 +178,17 @@ async function rendererMetrics() {
       const textures = new Map();
       let visibleMeshes = 0;
       let sceneTriangles = 0;
+      const camera = scene3d.camera;
+      const effectivelyVisible = (object) => {
+        let current = object;
+        while (current) {
+          if (!current.visible) return false;
+          current = current.parent;
+        }
+        return object.layers.test(camera.layers);
+      };
       scene3d.scene.traverse((object) => {
-        if (!object.isMesh || !object.visible) return;
+        if (!object.isMesh || !effectivelyVisible(object)) return;
         visibleMeshes += 1;
         const geometry = object.geometry;
         const triangles = geometry?.index
@@ -209,6 +261,7 @@ async function frameAndUiMetrics(sampleFrames = 600) {
       }
       observers.forEach((observer) => observer.disconnect());
       const sorted = [...deltas].sort((a, b) => b - a);
+      const ascending = [...deltas].sort((a, b) => a - b);
       const worstOnePercent = sorted.slice(0, Math.max(1, Math.ceil(sorted.length * 0.01)));
       const averageDelta = deltas.reduce((sum, value) => sum + value, 0) / deltas.length;
       const onePercentDelta = worstOnePercent.reduce((sum, value) => sum + value, 0) / worstOnePercent.length;
@@ -219,6 +272,9 @@ async function frameAndUiMetrics(sampleFrames = 600) {
         averageFps: 1000 / averageDelta,
         onePercentLowFps: 1000 / onePercentDelta,
         worstFrameTimeMs: Math.max(...deltas),
+        p95FrameTimeMs: ascending[Math.min(ascending.length - 1, Math.ceil(ascending.length * 0.95) - 1)],
+        p99FrameTimeMs: ascending[Math.min(ascending.length - 1, Math.ceil(ascending.length * 0.99) - 1)],
+        longFrameCount: deltas.filter((value) => value > 33.34).length,
         averageFrameTimeMs: averageDelta,
         javascriptHeapUsedBytes: performance.memory?.usedJSHeapSize ?? null,
         javascriptHeapLimitBytes: performance.memory?.jsHeapSizeLimit ?? null,
@@ -278,31 +334,37 @@ try {
   phase = 'fixed-camera';
   await setCamera();
   await page.screenshot({ path: path.join(OUT, 'idle-exterior.png'), animations: 'disabled' });
-  await page.evaluate(() => { window.__fw.speedIdx = 1; });
-  await page.waitForTimeout(5_000);
+  const customerFixture = controlledCustomers == null
+    ? null : await configureControlledCustomers(controlledCustomers);
+  if (controlledCustomers == null) await page.evaluate(() => { window.__fw.speedIdx = 1; });
+  await page.waitForTimeout(WARMUP_MS);
 
   phase = 'performance-sample';
   const listenersBefore = await connectedListenerCount();
   const runs = [];
-  for (let run = 1; run <= 3; run += 1) {
+  for (let run = 1; run <= RUN_COUNT; run += 1) {
     runs.push({
       run,
-      frameMetrics: await frameAndUiMetrics(600),
+      frameMetrics: await frameAndUiMetrics(SAMPLE_FRAMES),
       renderMetrics: await rendererMetrics(),
     });
-    if (run < 3) await page.waitForTimeout(1_500);
+    if (run < RUN_COUNT) await page.waitForTimeout(1_500);
   }
   const listenersAfter = await connectedListenerCount();
   const values = (selector) => runs.map(selector);
   performanceReport = {
-    scenario: 'Fixed exterior player camera at 2:00 PM after a 5 s warm-up; three runs of 600 consecutive requestAnimationFrame intervals with 1.5 s between runs.',
+    scenario: `Fixed ${CAMERA_MODE} player camera at minute ${FIXED_TIME_MINUTE} after a ${WARMUP_MS} ms warm-up; ${RUN_COUNT} runs of ${SAMPLE_FRAMES} consecutive requestAnimationFrame intervals${controlledCustomers == null ? ' with normal simulation time' : ` with the clock frozen and ${controlledCustomers} explicit customers`}.`,
     browser: 'Google Chrome headless, Playwright, 1440x900 CSS px, DPR 1',
+    customerFixture,
     summary: {
       averageFpsMean: average(values((run) => run.frameMetrics.averageFps)),
       averageFpsMedian: median(values((run) => run.frameMetrics.averageFps)),
       onePercentLowFpsMean: average(values((run) => run.frameMetrics.onePercentLowFps)),
       onePercentLowFpsMedian: median(values((run) => run.frameMetrics.onePercentLowFps)),
       worstFrameTimeMs: Math.max(...values((run) => run.frameMetrics.worstFrameTimeMs)),
+      p95FrameTimeMsMean: average(values((run) => run.frameMetrics.p95FrameTimeMs)),
+      p99FrameTimeMsMean: average(values((run) => run.frameMetrics.p99FrameTimeMs)),
+      longFrameCountTotal: values((run) => run.frameMetrics.longFrameCount).reduce((sum, value) => sum + value, 0),
       javascriptHeapUsedBytesFinal: runs.at(-1).frameMetrics.javascriptHeapUsedBytes,
       uiMutationRecordsPerFrameMean: average(values((run) => run.frameMetrics.uiMutationRecordsPerFrame)),
       drawCallsPerFrameMedian: median(values((run) => run.renderMetrics.drawCallsPerFrame)),

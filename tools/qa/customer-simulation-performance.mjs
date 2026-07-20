@@ -83,16 +83,25 @@ page.on('requestfailed', (request) => {
 });
 
 await page.goto(url, { waitUntil: 'domcontentloaded' });
+await page.evaluate(() => localStorage.clear());
+await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(900);
 const continueButton = page.getByText('Continue', { exact: true });
 if (await continueButton.count() && await continueButton.isEnabled()) {
   await continueButton.click();
 } else {
-  const relaxedEmpire = page.getByRole('button', { name: /New Empire.*Relaxed/ });
-  if (!(await relaxedEmpire.count()) || !(await relaxedEmpire.first().isVisible())) {
-    await page.getByText('New game', { exact: true }).click();
+  const polishedNewGame = page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ });
+  if (await polishedNewGame.count()) {
+    await polishedNewGame.click();
+    await page.getByRole('dialog', { name: 'New game' }).waitFor();
+    await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
+  } else {
+    const relaxedEmpire = page.getByRole('button', { name: /New Empire.*Relaxed/ });
+    if (!(await relaxedEmpire.count()) || !(await relaxedEmpire.first().isVisible())) {
+      await page.getByText('New game', { exact: true }).click();
+    }
+    await relaxedEmpire.first().click();
   }
-  await relaxedEmpire.first().click();
   await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
 }
 await page.waitForFunction(() => (
@@ -122,6 +131,7 @@ await page.evaluate(() => {
 async function positionCamera(clockMinute = 330) {
   await page.evaluate((minute) => {
     const app = window.__fw;
+    app.speedIdx = 0;
     const day = Math.floor(app.state.clock.minutes / 1440);
     app.state.clock.minutes = day * 1440 + minute;
     app.scene3d.applyTimeWeather(minute, app.state.weather);
@@ -151,8 +161,17 @@ async function resourceSnapshot() {
         const textures = new Map();
         let visibleMeshes = 0;
         let sceneTriangles = 0;
+        const camera = app.scene3d.camera;
+        const effectivelyVisible = (object) => {
+          let current = object;
+          while (current) {
+            if (!current.visible) return false;
+            current = current.parent;
+          }
+          return object.layers.test(camera.layers);
+        };
         app.scene3d.scene.traverse((object) => {
-          if (!object.isMesh || !object.visible) return;
+          if (!object.isMesh || !effectivelyVisible(object)) return;
           visibleMeshes += 1;
           const geometry = object.geometry;
           const triangles = geometry?.index
