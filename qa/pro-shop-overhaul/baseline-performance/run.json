@@ -1,0 +1,492 @@
+{
+  "pass": "baseline-performance",
+  "timestamp": "2026-07-20T06:25:01.936Z",
+  "baseUrl": "http://localhost:8468/",
+  "browser": "150.0.7871.127",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "deviceScaleFactor": 1,
+  "clock": "2:00 PM pinned before every fixed-camera capture",
+  "warmupSeconds": 3,
+  "frameSampleSeconds": {
+    "idle": 6,
+    "walk": 4
+  },
+  "captureEnabled": false,
+  "captureStartEnabled": false,
+  "captureFullEnabled": false,
+  "performanceEnabled": true,
+  "startingState": {
+    "branch": "overnight/pro-shop-overhaul",
+    "course": "Willow Creek Municipal",
+    "tier": 2,
+    "fixtureLayout": {
+      "moved": {},
+      "stored": [],
+      "extra": []
+    }
+  },
+  "stock": {
+    "tier": 3,
+    "lines": 25,
+    "units": 257
+  },
+  "customersSpawned": 10,
+  "cameras": [
+    {
+      "id": "01-entrance",
+      "at": [
+        -0.8,
+        5.2
+      ],
+      "to": [
+        -1.2,
+        -2
+      ],
+      "pitch": -0.05
+    },
+    {
+      "id": "02-checkout-customer",
+      "at": [
+        0.5,
+        2.3
+      ],
+      "to": [
+        2.9,
+        4.5
+      ],
+      "pitch": -0.1
+    },
+    {
+      "id": "03-checkout-employee",
+      "at": [
+        2.8,
+        5.1
+      ],
+      "to": [
+        2.7,
+        4
+      ],
+      "pitch": -0.18
+    },
+    {
+      "id": "04-center-aisle",
+      "at": [
+        -0.8,
+        2.4
+      ],
+      "to": [
+        -0.8,
+        -5.4
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "05-club-displays",
+      "at": [
+        -6.3,
+        -0.2
+      ],
+      "to": [
+        -9.9,
+        -0.4
+      ],
+      "pitch": 0.02
+    },
+    {
+      "id": "06-clothing",
+      "at": [
+        -4,
+        3.4
+      ],
+      "to": [
+        -5,
+        0.2
+      ],
+      "pitch": -0.02
+    },
+    {
+      "id": "07-shoes",
+      "at": [
+        2.3,
+        1.7
+      ],
+      "to": [
+        5.1,
+        -0.6
+      ],
+      "pitch": -0.02
+    },
+    {
+      "id": "08-hats",
+      "at": [
+        -1.8,
+        -0.8
+      ],
+      "to": [
+        -3.4,
+        -1.6
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "09-bags",
+      "at": [
+        0.4,
+        -0.5
+      ],
+      "to": [
+        2.2,
+        -2.6
+      ],
+      "pitch": -0.04
+    },
+    {
+      "id": "10-accessories",
+      "at": [
+        -3.7,
+        -3.7
+      ],
+      "to": [
+        -3.7,
+        -6.15
+      ],
+      "pitch": 0.01
+    },
+    {
+      "id": "11-snacks-drinks",
+      "at": [
+        0.2,
+        1.3
+      ],
+      "to": [
+        3.9,
+        3.9
+      ],
+      "pitch": -0.02
+    },
+    {
+      "id": "12-office",
+      "at": [
+        7.2,
+        4.3
+      ],
+      "to": [
+        9.55,
+        4.5
+      ],
+      "pitch": -0.06
+    },
+    {
+      "id": "13-stockroom",
+      "at": [
+        7.4,
+        -2.3
+      ],
+      "to": [
+        8.1,
+        -5.9
+      ],
+      "pitch": -0.04
+    },
+    {
+      "id": "14-fitting-area",
+      "at": [
+        3.6,
+        1.4
+      ],
+      "to": [
+        5.5,
+        0.3
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "15-lounge",
+      "at": [
+        1.3,
+        -3.3
+      ],
+      "to": [
+        4.3,
+        -5.3
+      ],
+      "pitch": -0.03
+    },
+    {
+      "id": "16-exterior-window",
+      "world": true,
+      "at": [
+        -1.5,
+        243.5
+      ],
+      "to": [
+        -8.5,
+        231
+      ],
+      "pitch": 0.03
+    }
+  ],
+  "metrics": [
+    {
+      "label": "empty-basic-idle",
+      "durationSeconds": 6,
+      "sampledFrames": 1,
+      "averageFps": 0.33,
+      "onePercentLowFps": 0.33,
+      "worstFrameMs": 2991.8,
+      "drawCallsPerFrame": 2035,
+      "trianglesDrawnPerFrame": 5049026,
+      "visibleMeshes": 1075,
+      "sceneTriangles": 1748207,
+      "uniqueMaterials": 223,
+      "uniqueTextures": 160,
+      "estimatedTextureMemoryMiB": 5798.62,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 1047,
+      "texturesInMemory": 208,
+      "javascriptHeapMiB": 53.44,
+      "activeEventListeners": 92,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 56,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "error": 0,
+        "input": 1,
+        "keydown": 4,
+        "keyup": 2,
+        "load": 0,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 4,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 4,
+      "uiMutationFrequencyHz": 0.67
+    },
+    {
+      "label": "full-premium-ten-customers-idle",
+      "durationSeconds": 6,
+      "sampledFrames": 1,
+      "averageFps": 0.22,
+      "onePercentLowFps": 0.22,
+      "worstFrameMs": 4599.8,
+      "drawCallsPerFrame": 7417,
+      "trianglesDrawnPerFrame": 9874386,
+      "visibleMeshes": 1348,
+      "sceneTriangles": 2125241,
+      "uniqueMaterials": 296,
+      "uniqueTextures": 173,
+      "estimatedTextureMemoryMiB": 6057.85,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 1252,
+      "texturesInMemory": 218,
+      "javascriptHeapMiB": 72.14,
+      "activeEventListeners": 92,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 56,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "error": 0,
+        "input": 1,
+        "keydown": 4,
+        "keyup": 2,
+        "load": 0,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 4,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 6,
+      "uiMutationFrequencyHz": 1
+    },
+    {
+      "label": "full-premium-normal-control-walk",
+      "durationSeconds": 4,
+      "sampledFrames": 0,
+      "averageFps": 0,
+      "onePercentLowFps": 0,
+      "worstFrameMs": 0,
+      "drawCallsPerFrame": 0,
+      "trianglesDrawnPerFrame": 0,
+      "visibleMeshes": 1348,
+      "sceneTriangles": 2125241,
+      "uniqueMaterials": 296,
+      "uniqueTextures": 173,
+      "estimatedTextureMemoryMiB": 6057.85,
+      "textureMemoryMethod": "RGBA8 dimensions plus 4/3 mip estimate; compressed/GPU overhead unavailable",
+      "geometriesInMemory": 1313,
+      "texturesInMemory": 218,
+      "javascriptHeapMiB": 99.64,
+      "activeEventListeners": 92,
+      "listenersByType": {
+        "__playwright_global_listeners_check__": 1,
+        "auxclick": 1,
+        "blur": 2,
+        "change": 1,
+        "click": 56,
+        "contextmenu": 2,
+        "dblclick": 1,
+        "error": 0,
+        "input": 1,
+        "keydown": 4,
+        "keyup": 2,
+        "load": 0,
+        "mousedown": 1,
+        "mousemove": 2,
+        "mouseup": 1,
+        "pointerdown": 4,
+        "pointerlockchange": 1,
+        "pointermove": 1,
+        "pointerup": 3,
+        "resize": 1,
+        "touchcancel": 1,
+        "touchend": 1,
+        "touchstart": 1,
+        "webglcontextcreationerror": 1,
+        "webglcontextlost": 1,
+        "webglcontextrestored": 1,
+        "wheel": 1
+      },
+      "uiMutations": 2,
+      "uiMutationFrequencyHz": 0.5,
+      "playerTravelYards": 0.85
+    }
+  ],
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    }
+  ],
+  "failedRequests": [
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/bucket_soil.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/clubhouse/kiosk.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/clubhouse/cardterm_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/clubhouse/cap_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/workbench.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8468/vendor/models/golf_cart.glb"
+    }
+  ]
+}

@@ -16,7 +16,7 @@ import {
   FIXTURES, INTERIOR, COUNTER, DOOR_CLEARWAY, fixtureRect, fixtureBrowsePoint,
 } from '../src/data/shopLayout.js';
 import {
-  ensureLayout, placedFixtures, fixtureById, validatePlacement, commitPlacement,
+  ensureLayout, placedFixtures, activeFixtures, fixtureById, validatePlacement, commitPlacement,
   storeFixture, storedFixtures, restoreFixture, routesIntact, GRID,
 } from '../src/sim/layout.js';
 
@@ -37,6 +37,19 @@ test('an untouched shop is exactly the designed floor plan', () => {
     assert.equal(f.z, orig.z);
   }
   assert.equal(routesIntact(st), true, 'and it is, of course, a shop you can walk around');
+});
+
+test('supplier tiers change the physical fixture set without phantom colliders', () => {
+  const st = fresh();
+  st.shop.unlockedTier = 2;
+  assert.equal(activeFixtures(st).some((f) => f.id === 'tour_vault'), false);
+  assert.equal(activeFixtures(st).some((f) => f.id === 'putting_demo'), false);
+  assert.equal(routesIntact(st), true, 'the basic floor routes without hidden premium solids');
+
+  st.shop.unlockedTier = 3;
+  assert.equal(activeFixtures(st).some((f) => f.id === 'tour_vault'), true);
+  assert.equal(activeFixtures(st).some((f) => f.id === 'putting_demo'), true);
+  assert.equal(routesIntact(st), true, 'premium fixtures and their experience sockets remain reachable');
 });
 
 test('the default plan validates: every fixture is legal where it already is', () => {
@@ -99,7 +112,7 @@ test('a moved fixture is rejected when its authored local-front browse target le
 
 test('a legal move sticks, and moves the fixture', () => {
   const st = fresh();
-  const f = FIXTURES.find((x) => x.kind === 'hatstand');
+  const f = FIXTURES.find((x) => x.kind === 'hatwall' || x.kind === 'hatstand');
 
   // find somewhere the game itself says is legal, rather than guessing at a gap in the plan
   let spot = null;

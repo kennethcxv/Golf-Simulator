@@ -21,6 +21,10 @@ import {
 
 const MAIN_DOOR_OPEN_RADIANS = 100 * Math.PI / 180;
 
+export function armsFullForDoor(state) {
+  return !!(carriedBox(state) || carriedGoods(state));
+}
+
 export function buildDoors(B) {
   const { group, mats, addCol, addProp, colBoxAt, L2W, W2L, FLOOR_TOP, state, hooks, walk, getCustomers } = B;
   const halfW = SHELL.w / 2 - SHELL.wallT / 2;

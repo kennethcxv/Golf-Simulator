@@ -9,6 +9,7 @@ import { newGame } from '../src/sim/state.js';
 import { pickFromShelf, returnToShelf, checkoutSale, liveSales } from '../src/sim/checkout.js';
 import { priceFor } from '../src/sim/shop.js';
 import { skuById } from '../src/data/shopItems.js';
+import { capacityOf } from '../src/data/fixtureSlots.js';
 
 test('a live pick physically leaves the shelf; an empty shelf refuses the pick', () => {
   const st = newGame('relaxed', 42);

@@ -65,7 +65,11 @@ def frame_object(o):
 
 
 rows = []
-for path in sorted(glob.glob(os.path.join(SRC, '*.glb'))):
+only = {name.strip() for name in os.environ.get('GLB_FILTER', '').split(',') if name.strip()}
+paths = sorted(glob.glob(os.path.join(SRC, '*.glb')))
+if only:
+    paths = [path for path in paths if os.path.splitext(os.path.basename(path))[0] in only]
+for path in paths:
     name = os.path.splitext(os.path.basename(path))[0]
     wipe()
     setup_studio()

@@ -16,6 +16,7 @@ export const SHOP_CATALOG = [
   { id: 'irons2', cat: 'clubs', tier: 2, name: 'Apex forged irons', cost: 480, msrp: 899, lb: 8.5 },
   { id: 'putter1', cat: 'clubs', tier: 1, name: 'Roll-true putter', cost: 55, msrp: 109, lb: 1.2 },
   { id: 'putter2', cat: 'clubs', tier: 2, name: 'Milled blade putter', cost: 130, msrp: 249, lb: 1.2 },
+  { id: 'putter3', cat: 'clubs', tier: 3, name: 'Meridian tour putter', cost: 235, msrp: 449, lb: 1.2 },
   { id: 'wedge1', cat: 'clubs', tier: 1, name: 'Scoop 56° wedge', cost: 48, msrp: 89, lb: 0.95 },
   { id: 'wedge2', cat: 'clubs', tier: 2, name: 'Spin-mill wedge', cost: 78, msrp: 149, lb: 0.95 },
 
@@ -26,21 +27,40 @@ export const SHOP_CATALOG = [
 
   // apparel — seasonal swing
   { id: 'glove1', cat: 'apparel', tier: 1, name: 'Cabretta glove', cost: 9, msrp: 19, lb: 0.1 },
+  { id: 'glove2', cat: 'apparel', tier: 3, name: 'Tour-fit glove', cost: 17, msrp: 36, lb: 0.1 },
   { id: 'polo1', cat: 'apparel', tier: 1, name: 'Club polo', cost: 16, msrp: 34, lb: 0.5 },
   { id: 'polo2', cat: 'apparel', tier: 2, name: 'Tour polo', cost: 26, msrp: 55, lb: 0.5 },
+  { id: 'pants2', cat: 'apparel', tier: 2, name: 'Five-pocket golf pants', cost: 31, msrp: 68, lb: 1.0 },
+  { id: 'shorts1', cat: 'apparel', tier: 1, name: 'Fairway shorts', cost: 19, msrp: 42, lb: 0.7 },
   { id: 'cap1', cat: 'apparel', tier: 1, name: 'Willow Creek cap', cost: 8, msrp: 22, lb: 0.25 },
+  { id: 'cap2', cat: 'apparel', tier: 2, name: 'Heritage rope cap', cost: 13, msrp: 30, lb: 0.25 },
   { id: 'jacket2', cat: 'apparel', tier: 2, name: 'Storm shell', cost: 45, msrp: 95, lb: 1.3, coldSeason: true },
 
   // accessories — impulse rack
   { id: 'tees1', cat: 'accessories', tier: 1, name: 'Tee bag (50)', cost: 2.5, msrp: 6, lb: 0.35 },
   { id: 'towel1', cat: 'accessories', tier: 1, name: 'Bag towel', cost: 6, msrp: 14, lb: 0.4 },
   { id: 'marker1', cat: 'accessories', tier: 1, name: 'Ball marker set', cost: 3, msrp: 8, lb: 0.2 },
+  { id: 'divot1', cat: 'accessories', tier: 1, name: 'Brass divot tool', cost: 4, msrp: 11, lb: 0.15, form: 'carded' },
   { id: 'range2', cat: 'accessories', tier: 3, name: 'Laser rangefinder', cost: 140, msrp: 279, lb: 0.75, fragile: true },
+  { id: 'sunglasses2', cat: 'accessories', tier: 2, name: 'Course polarized glasses', cost: 31, msrp: 69, lb: 0.15, fragile: true, form: 'eyewear' },
+  { id: 'bottle1', cat: 'accessories', tier: 2, name: 'Club insulated bottle', cost: 11, msrp: 28, lb: 0.7, form: 'bottle' },
   { id: 'umb1', cat: 'accessories', tier: 1, name: 'Fairway Supply umbrella', cost: 12, msrp: 26, lb: 1.2 },
+
+  // clubhouse impulse goods - these use the existing accessories economy while
+  // `form` gives the physical display an honest package silhouette.
+  { id: 'scorecard1', cat: 'accessories', tier: 1, name: 'Willow Creek scorecard', cost: 0.5, msrp: 2, lb: 0.05, form: 'scorecard' },
+  { id: 'water1', cat: 'accessories', tier: 1, name: 'Still water', cost: 0.65, msrp: 2.5, lb: 1.1, form: 'drink' },
+  { id: 'sportdrink2', cat: 'accessories', tier: 2, name: 'Caddie citrus drink', cost: 1.1, msrp: 3.75, lb: 1.2, form: 'drink' },
+  { id: 'soda1', cat: 'accessories', tier: 1, name: 'Clubhouse cola', cost: 0.7, msrp: 2.75, lb: 0.8, form: 'can' },
+  { id: 'chips1', cat: 'accessories', tier: 1, name: 'Sea-salt kettle chips', cost: 0.8, msrp: 2.75, lb: 0.15, form: 'snack' },
+  { id: 'bar2', cat: 'accessories', tier: 2, name: 'Back-nine oat bar', cost: 0.7, msrp: 2.5, lb: 0.12, form: 'bar' },
+  { id: 'crackers1', cat: 'accessories', tier: 1, name: 'Cheddar club crackers', cost: 0.85, msrp: 2.95, lb: 0.18, form: 'snack' },
 
   // bags & shoes — the floor-plan zones the 2026-07-13 overhaul added
   { id: 'bag1', cat: 'accessories', tier: 2, name: 'Ironwood stand bag', cost: 90, msrp: 189, lb: 5.5 },
+  { id: 'bag3', cat: 'accessories', tier: 3, name: 'Meridian tour bag', cost: 190, msrp: 389, lb: 7.5 },
   { id: 'shoe1', cat: 'apparel', tier: 2, name: 'North Ridge spikes', cost: 48, msrp: 99, lb: 2.4 },
+  { id: 'shoe3', cat: 'apparel', tier: 3, name: 'Meridian knit spikes', cost: 82, msrp: 169, lb: 2.1 },
   { id: 'sock1', cat: 'apparel', tier: 1, name: 'Sunday Round crew socks', cost: 4, msrp: 11, lb: 0.15 },
 
   // provisions — quick-turn impulse goods beside the entrance

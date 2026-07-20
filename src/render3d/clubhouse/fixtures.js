@@ -18,7 +18,8 @@ import {
 } from '../../data/shopLayout.js';
 import { restockShelfFromBackroom } from '../../sim/shop.js';
 import { skuById } from '../../data/shopItems.js';
-import { placedFixtures } from '../../sim/layout.js';
+import { capacityOf } from '../../data/fixtureSlots.js';
+import { activeFixtures } from '../../sim/layout.js';
 import { tutorialFlag } from '../../sim/tutorial.js';
 import { roundedBox, makeSignTexture, makeRugTexture } from './materials.js';
 import {
@@ -38,15 +39,41 @@ function lightStrip(mats, w) {
 }
 
 function categorySign(title, { w = 1.5, h = 0.26, charcoal = false } = {}) {
+  const text = title.toUpperCase();
+  const fontSize = text.length > 18 ? 30 : text.length > 13 ? 36 : 44;
   const tex = makeSignTexture([title.toUpperCase()], {
     w: 512, h: 128, frame: false,
-    field: charcoal ? '#23262b' : '#f4f0e6',
+    field: charcoal ? '#23262b' : '#e6dfcf',
     ink: charcoal ? '#c9a227' : '#1f4a26',
-    sizes: [54],
+    sizes: [fontSize],
   });
   return new THREE.Mesh(
     new THREE.PlaneGeometry(w, h),
-    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }),
+    // Printed department boards need one stable charcoal field across the
+    // three adjacent bays. A basic material keeps point-light angle from
+    // turning identical signs into three visibly different greys.
+    new THREE.MeshBasicMaterial({ map: tex, color: 0xe8e2d7, toneMapped: true }),
+  );
+}
+
+function priceRail(f, { w = 2.6, h = 0.20 } = {}) {
+  const entries = (f.skus || []).map((id) => {
+    const sku = skuById(id);
+    if (!sku) return null;
+    const words = sku.name.split(/\s+/)[0];
+    return `${words.toUpperCase()}  $${sku.msrp}`;
+  }).filter(Boolean);
+  if (!entries.length) return null;
+  const rows = entries.length <= 3
+    ? [entries.join('  ·  ')]
+    : [entries.slice(0, Math.ceil(entries.length / 2)).join('  ·  '), entries.slice(Math.ceil(entries.length / 2)).join('  ·  ')];
+  const tex = makeSignTexture(rows, {
+    w: 1024, h: rows.length > 1 ? 160 : 96, frame: false,
+    field: '#28382e', ink: '#eee6d7', sizes: rows.map(() => entries.length > 6 ? 23 : 28),
+  });
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshBasicMaterial({ map: tex, color: 0xe8e2d7, toneMapped: true }),
   );
 }
 
@@ -144,7 +171,6 @@ export function buildFixtures(B) {
 
   function shelfLabel(f) {
     const inv = state.shop.inventory;
-    const shelf = f.skus.reduce((a, id) => a + inv[id].shelf, 0);
     const back = f.skus.reduce((a, id) => a + inv[id].back, 0);
 
     // if you are holding product, this fixture is either where it goes or somewhere it does not —
@@ -153,14 +179,20 @@ export function buildFixtures(B) {
     if (held) {
       const heldSku = skuById(held.skuId);
       if (f.skus.includes(held.skuId)) {
-        return `${f.title} — hold [E] to stock the ${heldSku.name.toLowerCase()} (${held.qty} in hand)`;
+        const line = inv[held.skuId] || { shelf: 0 };
+        return `${f.title} — ${heldSku.name} ${line.shelf}/${capacityOf(held.skuId)} — hold [E] to stock (${held.qty} in hand)`;
       }
       const correctFixture = placedFixtures(state).find((fixture) => fixture.skus.includes(held.skuId));
       return incompatibleStockingLabel(f.title, heldSku.name, correctFixture?.title);
     }
 
-    if (back > 0) return `${f.title} — ${shelf} out · ${back} in the back — [E] restock`;
-    return `${f.title} — ${shelf} out · backroom empty (order at the office)`;
+    const facing = f.skus.map((id) => {
+      const sku = skuById(id);
+      const line = inv[id] || { shelf: 0 };
+      return `${sku.name} ${line.shelf}/${capacityOf(id)}`;
+    }).join(' · ');
+    if (back > 0) return `${f.title} — ${facing} — ${back} in back — [E] restock`;
+    return `${f.title} — ${facing} — backroom empty`;
   }
 
   // stock this fixture from what is in the player's hands: tap = one, hold = a flow
@@ -220,7 +252,7 @@ export function buildFixtures(B) {
     }
     const wp = L2W(f.x, f.z);
     addProp({
-      x: wp.x, z: wp.z, r: 2.3,
+      x: wp.x, z: wp.z, r: 1.15,
       label: () => shelfLabel(f),
       action: () => {
         const held = B.carriedGoods && B.carriedGoods();
@@ -252,6 +284,42 @@ export function buildFixtures(B) {
     });
   }
   let stockRate = 0;
+
+  // Blender-authored fixture shell. The collider remains data-owned, while the
+  // visible object comes from the repeatable fixture pack. Loading is async, so
+  // the anchor exists immediately and the model drops into the same transform.
+  function assetUnit(f, model, {
+    w, d, sign = null, signY = 2.05, signZ = null, signW = 1.5, signH = 0.24,
+    charcoal = false, priceY = 0.23, priceZ = null, priceW = null, priceH = null,
+  }) {
+    const g = new THREE.Group();
+    if (merch) merch.onReady(() => {
+      const obj = merch.instantiate(model);
+      if (obj) g.add(obj);
+    });
+    if (sign) {
+      const board = categorySign(sign, { w: signW, h: signH, charcoal });
+      board.position.set(0, signY, signZ == null ? d / 2 + 0.015 : signZ);
+      g.add(board);
+    }
+    const prices = priceRail(f, {
+      w: priceW || Math.max(0.68, w * 0.82),
+      h: priceH || (f.skus.length > 3 ? 0.16 : 0.13),
+    });
+    if (prices) {
+      prices.position.set(0, priceY, priceZ == null ? d / 2 + 0.02 : priceZ);
+      g.add(prices);
+    }
+    for (const rect of fixtureCollisionRects(f)) {
+      addCol(colBoxAt(
+        (rect.minX + rect.maxX) / 2,
+        (rect.minZ + rect.maxZ) / 2,
+        rect.maxX - rect.minX,
+        rect.maxZ - rect.minZ,
+      ));
+    }
+    return g;
+  }
 
   // ------------------------------------------------------------ wall unit ---
   // Sheet-03 modules replace the millwork the moment the kit loads: the ball
@@ -318,6 +386,11 @@ export function buildFixtures(B) {
   // two putter_rack groove modules for the putter studio. The old wall bay
   // stands in until the kit arrives.
   function rackUnit(f) {
+    return assetUnit(f, 'club_wall_bay', {
+      w: 3.0, d: 0.9, sign: f.title, signY: 2.27, signZ: 0.36,
+      signW: 1.55, signH: 0.20, charcoal: true, priceW: 2.30, priceH: 0.14,
+    });
+    /* istanbul ignore next -- procedural predecessor retained as a load-bearing design reference */
     const g = new THREE.Group();
     const legacy = new THREE.Group();
     // tall framed back
@@ -394,6 +467,10 @@ export function buildFixtures(B) {
   // fixtureSlots.js tableApparel. The old millwork stands in until the kit
   // loads.
   function tableUnit(f) {
+    return assetUnit(f, 'feature_table', {
+      w: 2.4, d: 1.44, priceY: 0.65, priceZ: 0.57, priceW: 1.55, priceH: 0.14,
+    });
+    /* istanbul ignore next -- procedural predecessor retained as a surface-height reference */
     const g = new THREE.Group();
     const legacy = new THREE.Group();
     // Match the authored apparel_table contract exactly while the GLB warms:
@@ -652,6 +729,8 @@ export function buildFixtures(B) {
   // stock is dressed onto its top grid by rebuildStock (top 0.75, lower
   // shelf 0.29). The pedestal stands in until the kit loads.
   function featureUnit(f) {
+    return assetUnit(f, 'feature_table', { w: 2.1, d: 1.3 });
+    /* istanbul ignore next -- procedural predecessor retained as a height reference */
     const g = new THREE.Group();
     const legacy = new THREE.Group();
     const top = new THREE.Mesh(new THREE.CylinderGeometry(0.88, 0.88, 0.08, 24), mats.walnut);
@@ -855,6 +934,87 @@ export function buildFixtures(B) {
     return g;
   }
 
+  function pegboardUnit(f) {
+    return assetUnit(f, 'pegboard_wall', {
+      w: 3.2, d: 0.7, sign: f.sign || f.title, signY: 2.18, signZ: 0.29,
+      signW: 1.28, signH: 0.15, priceW: 2.35, priceH: 0.14, charcoal: true,
+    });
+  }
+
+  function ballwallUnit(f) {
+    return assetUnit(f, 'ball_wall', {
+      w: 3.2, d: 0.7, sign: f.sign || f.title, signY: 2.18, signZ: 0.36,
+      signW: 1.05, signH: 0.15, priceW: 2.30, priceH: 0.14, charcoal: true,
+    });
+  }
+
+  function hatwallUnit(f) {
+    return assetUnit(f, 'hat_wall', {
+      w: 1.16, d: 0.60, sign: f.title, signY: 1.98, signZ: 0.31,
+      signW: 0.66, signH: 0.12, priceW: 0.58, priceH: 0.12, charcoal: true,
+    });
+  }
+
+  function shoewallUnit(f) {
+    return assetUnit(f, 'shoe_wall', {
+      w: 2.7, d: 0.8, sign: f.title, signY: 2.04, signZ: 0.41,
+      signW: 0.86, signH: 0.13, priceW: 2.10, priceH: 0.14, charcoal: true,
+    });
+  }
+
+  function apparelwallUnit(f) {
+    return assetUnit(f, 'apparel_wall', {
+      w: 3.2, d: 0.7, sign: f.sign || f.title, signY: 2.18, signZ: 0.29,
+      signW: 1.28, signH: 0.15, priceW: 2.35, priceH: 0.14, charcoal: true,
+    });
+  }
+
+  function fittingroomUnit(f) {
+    return assetUnit(f, 'fitting_room', {
+      w: 2.2, d: 1.7, sign: f.title, signY: 2.30, signZ: 0.86,
+      signW: 0.68, signH: 0.12, charcoal: true,
+    });
+  }
+
+  function fridgeUnit(f) {
+    return assetUnit(f, 'drinks_fridge', {
+      w: 0.96, d: 0.96, sign: f.title, signY: 1.72, signZ: 0.49,
+      signW: 0.54, signH: 0.12, charcoal: true,
+    });
+  }
+
+  function snackrackUnit(f) {
+    return assetUnit(f, 'snack_rack', {
+      w: 1.5, d: 0.76, sign: f.title, signY: 1.37, signZ: 0.39,
+      signW: 0.50, signH: 0.10, priceW: 1.10, priceH: 0.10, charcoal: true,
+    });
+  }
+
+  function serviceUnit(f) {
+    return assetUnit(f, 'basket_station', {
+      w: 0.96, d: 0.76, sign: 'Baskets & cards', signY: 1.30, signZ: 0.39,
+      signW: 0.66, signH: 0.13, priceW: 0.70, priceH: 0.11,
+    });
+  }
+
+  function premiumcaseUnit(f) {
+    return assetUnit(f, 'premium_case', {
+      w: 2.4, d: 0.8, sign: 'Tour Vault', signY: 2.05, signZ: 0.42,
+      signW: 0.95, signH: 0.16, charcoal: true,
+    });
+  }
+
+  function demoUnit(f) {
+    return assetUnit(f, 'putting_demo', { w: 4.0, d: 1.24 });
+  }
+
+  function demoRackUnit(f) {
+    return assetUnit(f, 'demo_club_rack', {
+      w: 0.60, d: 0.48, sign: 'Try a putter', signY: 1.18, signZ: 0.25,
+      signW: 0.50, signH: 0.12, charcoal: true, priceY: 0,
+    });
+  }
+
   const FIXTURE_BUILDERS = {
     shelf: shelfUnit, rack: rackUnit, table: tableUnit, rail: railUnit,
     hatstand: hatstandUnit, bagstand: bagstandUnit, shoerack: shoerackUnit,
@@ -870,7 +1030,7 @@ export function buildFixtures(B) {
   // take them all back without disturbing the counter, the rug or the lounge.
   function layFixtures() {
     tracking = true;
-    for (const f of placedFixtures(state)) {
+    for (const f of activeFixtures(state)) {
       const build = FIXTURE_BUILDERS[f.kind];
       if (!build) continue;
       activeFixtureId = f.id;
@@ -984,7 +1144,12 @@ export function buildFixtures(B) {
 // coffee table, a bordered rug, and the club-events board. The lounge1 decor
 // upgrade still layers the premium suite on top.
 export function buildLounge(B) {
-  const { interior, mats, merch, addCol, colBoxAt } = B;
+  const { interior, mats, merch, addCol, colBoxAt, state } = B;
+  const trophyDisplay = new THREE.Group();
+  trophyDisplay.name = 'lounge-trophies';
+  interior.add(trophyDisplay);
+  const syncTier = () => { trophyDisplay.visible = state.shop.unlockedTier < 3; };
+  syncTier();
 
   // The Sheet-04 lounge armchair (0.85 m leather club chair: rolled arms,
   // rolled back rail, walnut feet) — authored to the reference this fixture

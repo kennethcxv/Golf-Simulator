@@ -182,6 +182,53 @@ in this environment (recorded as a blocker); the headless CLI is the better
 pipeline regardless, because the authoring scripts are committed rather than the
 binaries being unexplainable artefacts.
 
+## Pro-shop fixture pack (2026-07-19)
+
+Sixteen GLBs are authored from scratch in this repository by
+`tools/blender/build_shop_fixtures.py`. They are project-owned: no third-party
+downloads, external textures, generated assets, or generation credits were used.
+
+| Model | Role |
+|---|---|
+| `club_wall_bay.glb` | Two-row club bay with sole troughs and shaft/grip clips |
+| `pegboard_wall.glb` | Carded-accessory wall with an authored hook grid |
+| `apparel_wall.glb` | Folded-goods boards and a short outerwear rail |
+| `ball_wall.glb` | Three-board ball wall with authored product-lane dividers |
+| `hat_wall.glb` | Eight-facing wall bay that keeps headwear and shoppers off the same floor footprint |
+| `shoe_wall.glb` | Three-board shoe wall with an integrated shallow try-on ledge |
+| `basket_station.glb` | Open scorecard stand with two visible nested basket positions |
+| `demo_club_rack.glb` | Three-putter trial rack parked beside the walkable demo mat |
+| `feature_table.glb` | Low nested oak new-arrivals/apparel island |
+| `fitting_room.glb` | Three-sided fitting room, curtain, mirror, bench, and interior garment hooks |
+| `drinks_fridge.glb` | Glass-front compact cold case |
+| `snack_rack.glb` | Four-tier turn-snack rack |
+| `service_station.glb` | Scorecard and membership-information stand |
+| `premium_case.glb` | Brass-framed glass Tour Vault cabinet |
+| `putting_demo.glb` | Low felt demo mat, cup, aim marks, and backstop |
+| `bag_empty.glb` | Premium stand-bag body without a sightline-blocking club fan |
+
+Rebuild all sixteen with:
+
+    "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" --background \
+        --factory-startup --python tools/blender/build_shop_fixtures.py
+
+Origins are floor-centre, transforms are applied on export, dimensions use the
+game's yard-scale convention, and named material slots are remapped onto the
+shared clubhouse palette by `src/render3d/clubhouse/merch.js`. Simplified
+collision remains in `src/data/shopLayout.js`, so visual detail never becomes a
+high-poly physics mesh.
+
+### Original refreshment label atlas
+
+`public/assets/textures/shop/turn-snacks-label-atlas.png` is original fictional
+packaging artwork generated for this project with the preinstalled OpenAI
+Imagegen tool on 2026-07-19. It contains the invented TURN CRISPS, NINTH HOLE
+BAR, and CADDIE CRACKERS fronts. Prompt constraints required a flat three-column
+atlas in the clubhouse cream/green/sage/walnut/charcoal/brass palette, verbatim
+fictional names, no real trademarks, and no watermark. It is used only as a
+front-label texture; package geometry is rendered in Three.js and the physical
+rack/fridge remain Blender-authored. No third-party source images were used.
+
 
 ## Register kit (2026-07-14)
 

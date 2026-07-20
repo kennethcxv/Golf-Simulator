@@ -94,6 +94,7 @@ const SLOT = {
   M_tape: 'merchWhite',
   M_paper: 'trimPaint',
   M_glass: 'glass',
+  M_displayglass: 'displayGlass',
   M_screen: 'charcoal',   // the live screens get their own canvas material
   // production checkout palette
   M_Cream: 'trimPaint',
@@ -346,6 +347,8 @@ export function createMerch(mats) {
       for (const g of geos) if (g !== merged) g.dispose();
       rememberBakedGeometry(merged);
       const mesh = new THREE.Mesh(merged, m);
+      mesh.geometry.userData.sharedGeometry = false;
+      mesh.userData.disposeGeometry = true;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       out.add(mesh);

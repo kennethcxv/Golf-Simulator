@@ -45,7 +45,7 @@ function unitsOf(state, skuId, inHand = {}) {
 
 const RETAIL = SHOP_CATALOG.filter((s) => s.cat !== 'equipment').map((s) => s.id);
 
-test('a unit that exists is never duplicated or lost, over 500 random actions', () => {
+test('a unit that exists is never duplicated or lost, over 750 random actions', () => {
   const st = newGame('relaxed', 7);
   st.shop.progression.tier = 'premium';
   st.shop.unlockedTier = 3;
@@ -67,7 +67,10 @@ test('a unit that exists is never duplicated or lost, over 500 random actions', 
   }
 
   let day = st.day || 1;
-  for (let step = 0; step < 500; step++) {
+  // The pro-shop assortment is deliberately broad. Keep enough deterministic
+  // actions that the same conservation run still exercises at least five sales
+  // rather than being diluted by the larger set of valid SKU choices.
+  for (let step = 0; step < 750; step++) {
     const act = Math.floor(rand() * 12);
     const skuId = pick(RETAIL);
 

@@ -38,7 +38,8 @@ async (page) => {
   const shot = async (n) => { await page.screenshot({ path: `${OUT}/${n}.png` }); };
   const log = [];
 
-  const txNow = () => page.evaluate(() => {
+  const txNow = () => page.evaluate(async () => {
+    const R = await import('/src/sim/register.js');
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     if (!tx) return null;
     return {
@@ -48,6 +49,24 @@ async (page) => {
       of: tx.items.length,
       cardAttempts: tx.cardAttempts, cardsTried: tx.cardsTried,
       receiptPrinted: !!tx.receiptPrinted, banked: !!tx.banked,
+      drawerOpen: !!tx.drawerOpen, deposited: !!tx.deposited,
+      changeDue: R.changeDue(tx), holding: R.handTotal(tx),
+    };
+  });
+  const money = () => page.evaluate(() => {
+    const held = window.__fw.state.shop.held || [];
+    const saleUids = window.__qa?.saleUids || [];
+    const clubhouse = window.__fw.scene3d.clubhouse();
+    const customers = typeof clubhouse.customers === 'function' ? clubhouse.customers() : clubhouse.customers;
+    return {
+      revenue: (window.__fw.state.shop.salesLive || {}).revenue || 0,
+      units: (window.__fw.state.shop.salesLive || {}).units || 0,
+      held: held.length,
+      saleHeld: held.filter((entry) => saleUids.includes(entry.uid)).length,
+      transactionActive: !!clubhouse.register.getTx(),
+      customerPresent: customers.some((customer) => customer.__qaSale === true),
+      shelfBalls: window.__fw.state.shop.inventory.balls3.shelf,
+      shelfGlove: window.__fw.state.shop.inventory.glove1.shelf,
     };
   });
   const money = () => page.evaluate(() => ({
@@ -112,6 +131,7 @@ async (page) => {
     return !v || v.style.display === 'none' || getComputedStyle(v).opacity === '0';
   }, null, { timeout: 90000 });
   await page.waitForTimeout(2500);
+  await page.getByRole('button', { name: 'Hide the guide' }).click().catch(() => {});
 
   // --- set the stage ----------------------------------------------------------------
   await page.evaluate(async () => {
@@ -260,11 +280,24 @@ async (page) => {
   });
   await page.waitForTimeout(800);
 
+  // The normal Space control pauses only the simulation clock; register animation,
+  // input, card authorisation, and receipt printing continue. Headless WebGL can
+  // otherwise turn a 90-second acceptance run into seven in-game hours and close
+  // the shop while the cashier is still counting change.
+  await page.keyboard.press('Space');
+  await page.waitForFunction(() => window.__fw.speedIdx === 0);
+
   log.push({ step: '0. before', ...(await money()) });
 
   // --- a customer arrives -------------------------------------------------------------
   const who = await page.evaluate((m) => window.__fw.scene3d.clubhouse().sendToCounter(['balls3', 'glove1'], m), MODE);
   await untilTx();
+  await page.evaluate(() => {
+    const register = window.__fw.scene3d.clubhouse().register;
+    const tx = register.getTx();
+    window.__qa.saleUids = tx.items.map((item) => item.uid);
+    register.getCustomer().__qaSale = true;
+  });
   await page.waitForTimeout(900);
   await shot('01-customer-at-counter');
   log.push({ step: '1. customer at the counter', who, ...(await money()), tx: await txNow() });
@@ -367,6 +400,14 @@ async (page) => {
     if (!at) return false;
     await dragTo(at, [3.68, 1.17, 4.44], { via: [2.70, 1.17, 4.22] });   // over the glass
     return true;
+  };
+  const clickPalm = async () => {
+    const at = await page.evaluate(() => window.__qa.find('palm'));
+    if (!at) throw new Error('Visible customer palm was not available for handoff');
+    const px = await page.evaluate((a) => window.__qa.px(a.x, a.y, a.z), at);
+    await page.mouse.move(px.x, px.y);
+    await page.mouse.click(px.x, px.y);
+    return { at, px };
   };
 
   await scan(0);
@@ -507,13 +548,16 @@ async (page) => {
       }
     }
     await shot('09-change-counted');
-    log.push({ step: '14. counted the change', tx: await txNow() });
+    const counted = await txNow();
+    log.push({ step: '14. counted the change', tx: counted });
+    if (Math.abs(counted.holding - counted.changeDue) > 0.001) {
+      throw new Error(`Wrong change selected: due $${counted.changeDue}, holding $${counted.holding}`);
+    }
 
     // hand it over: click their open palm
-    const palm = await page.evaluate(() => window.__qa.px(1.78, 1.13, 3.64));
-    await page.mouse.click(palm.x, palm.y);
+    const palm = await clickPalm();
     await untilStage('receipt');
-    log.push({ step: '15. handed the change back', tx: await txNow(), ...(await money()), expect: 'revenue STILL 0' });
+    log.push({ step: '15. handed the change back', palm, tx: await txNow(), ...(await money()), expect: 'revenue STILL 0' });
   }
 
   // --- RECEIPT -----------------------------------------------------------------------
@@ -549,13 +593,17 @@ async (page) => {
   log.push({ step: '18. bagged', tx: await txNow(), ...(await money()), expect: 'revenue STILL 0' });
 
   // --- HAND IT OVER — the only thing that banks the money ---------------------------------
-  const palmPx = await page.evaluate(() => window.__qa.px(1.78, 1.13, 3.64));
-  await page.mouse.click(palmPx.x, palmPx.y);
+  const finalPalm = await clickPalm();
   await page.waitForTimeout(900);
   await shot('12-handed-over');
-  log.push({ step: '19. HANDED IT OVER', ...(await money()), expect: 'revenue banked NOW, held back to 0' });
+  log.push({ step: '19. HANDED IT OVER', palm: finalPalm, ...(await money()), expect: 'revenue banked NOW, held back to 0' });
 
   await page.waitForTimeout(1500);
+  await page.waitForFunction(() => {
+    const clubhouse = window.__fw.scene3d.clubhouse();
+    const customers = typeof clubhouse.customers === 'function' ? clubhouse.customers() : clubhouse.customers;
+    return !customers.some((customer) => customer.__qaSale === true);
+  }, null, { timeout: 15000 });
   await shot('13-done');
   log.push({ step: '20. final', ...(await money()) });
 

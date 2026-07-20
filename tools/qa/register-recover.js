@@ -22,7 +22,14 @@ async (page) => {
     await page.goto(BASE_URL);
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.waitForTimeout(1200);
-    await page.getByText('Continue', { exact: true }).click().catch(() => {});
+    const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
+    if (await continueButton.isEnabled().catch(() => false)) {
+      await continueButton.click();
+    } else {
+      await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
+      await page.getByRole('heading', { name: 'PROPERTY MARKET' }).waitFor();
+      await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
+    }
     await page.waitForFunction(() => window.__fw && window.__fw.scene3d
       && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null, { timeout: 40000 });
     await page.waitForFunction(() => {
@@ -30,6 +37,8 @@ async (page) => {
       return !v || v.style.display === 'none' || getComputedStyle(v).opacity === '0';
     }, null, { timeout: 40000 });
     await page.waitForTimeout(2200);
+    await page.getByRole('button', { name: 'Hide the guide' }).click().catch(() => {});
+    await page.evaluate(() => window.__fw.scene3d.clubhouse().prepareCheckoutQa());
   };
   // WAIT FOR THE CAMERA TO ACTUALLY ARRIVE. isActive() flips true the instant [E] is
   // pressed, but the cashier pose BLENDS in over 0.4s — and headless rAF is throttled,

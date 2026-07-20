@@ -178,7 +178,7 @@ export function buildWashing(B) {
     const maskCv = document.createElement('canvas'); // the mask, at cell resolution
     maskCv.width = gw;
     maskCv.height = gh;
-    const maskCtx = maskCv.getContext('2d');
+    const maskCtx = maskCv.getContext('2d', { willReadFrequently: true });
 
     const outCv = document.createElement('canvas');
     outCv.width = W;

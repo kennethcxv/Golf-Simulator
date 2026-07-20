@@ -38,8 +38,10 @@ const ARMFUL_CAT = {
 };
 const ARMFUL_ID = {
   bag1: 1,       // a stand bag IS the carry
+  bag3: 1,
   irons1: 1, irons2: 1,
   shoe1: 3,
+  shoe3: 3,
   range2: 4,
   umb1: 4,
   jacket2: 4,
