@@ -59,10 +59,10 @@ import {
 } from '../../data/customerSockets.js';
 
 const PROFILES = [
-  { polo: 0x3f674b, khaki: 0xc2b190, skin: 0xd9a97e, cap: 0xf2efe4 },
+  { polo: 0x3f674b, khaki: 0xc2b190, skin: 0xd9a97e, cap: 0xcac1aa },
   { polo: 0x334e71, khaki: 0x8a8577, skin: 0xb9865e, cap: 0x2c3e66 },
   { polo: 0x8b5e68, khaki: 0x4b545c, skin: 0x8a5f42, cap: null },
-  { polo: 0xa26345, khaki: 0x6b5a44, skin: 0xe8c39a, cap: 0xf2efe4 },
+  { polo: 0xa26345, khaki: 0x6b5a44, skin: 0xe8c39a, cap: 0xcac1aa },
   { polo: 0x58735d, khaki: 0xc2b190, skin: 0xb9865e, cap: null },
   { polo: 0x5a6370, khaki: 0x8a8577, skin: 0xd9a97e, cap: 0x3f674b },
 ];
@@ -91,7 +91,7 @@ const shared = {
   clubHead: new THREE.BoxGeometry(0.16, 0.08, 0.1),
   bagBody: new THREE.BoxGeometry(0.22, 0.28, 0.13),
   bagHandle: new THREE.TorusGeometry(0.07, 0.012, 5, 10, Math.PI),
-  patienceRing: new THREE.RingGeometry(0.105, 0.126, 24),
+  patienceRing: new THREE.RingGeometry(0.125, 0.154, 24),
   productMaterials: new Map(),
   patienceMaterials: new Map(),
 };
@@ -112,7 +112,9 @@ function hash01(value, salt = 0) {
 
 function angleToward(root, target, dt) {
   if (target?.faceX == null || target?.faceZ == null) return;
-  const want = Math.atan2(target.faceX - root.position.x, target.faceZ - root.position.z);
+  // The character's face and cap brim point down local -Z. Add PI so that
+  // visual front—not the object's conventional +Z—turns toward the subject.
+  const want = Math.atan2(target.faceX - root.position.x, target.faceZ - root.position.z) + Math.PI;
   let delta = want - root.rotation.y;
   while (delta > Math.PI) delta -= Math.PI * 2;
   while (delta < -Math.PI) delta += Math.PI * 2;
@@ -200,7 +202,7 @@ export function createCustomerView(B, options) {
       depthWrite: false,
     }));
     const mesh = new THREE.Mesh(shared.patienceRing, material);
-    mesh.position.y = 1.74;
+    mesh.position.y = 2.08;
     mesh.renderOrder = 3;
     mesh.visible = false;
     return mesh;
@@ -470,7 +472,7 @@ export function createCustomerView(B, options) {
     root.position.x = resolved.x;
     root.position.z = resolved.z;
     root.position.y = floorAt(resolved.x, resolved.z);
-    const want = Math.atan2(dx, dz);
+    const want = Math.atan2(dx, dz) + Math.PI;
     let turn = want - root.rotation.y;
     while (turn > Math.PI) turn -= Math.PI * 2;
     while (turn < -Math.PI) turn += Math.PI * 2;
@@ -506,7 +508,7 @@ export function createCustomerView(B, options) {
       const material = cachedMaterial(shared.productMaterials, color, () => new THREE.MeshStandardMaterial({ color, roughness: 0.75 }));
       group.add(new THREE.Mesh(shared.productBox, material));
     }
-    group.position.set(0.17, 0.72, 0.15);
+    group.position.set(0, 0.78, -0.3);
     group.rotation.set(-0.1, 0.2, -0.08);
     return group;
   }
@@ -531,14 +533,28 @@ export function createCustomerView(B, options) {
     return group;
   }
 
-  function basketVisual() {
+  function basketVisual(skuIds = []) {
     const model = merch.instantiate('basket', { scale: 0.52 });
     if (model) {
-      model.position.set(0.16, 0.6, 0.16);
+      const group = new THREE.Group();
       model.rotation.y = 0.2;
-      return model;
+      group.add(model);
+      for (const [index, skuId] of skuIds.slice(0, 2).entries()) {
+        const sku = skuById(skuId);
+        const color = PRODUCT_COLORS[sku?.cat] || 0x999999;
+        const material = cachedMaterial(shared.productMaterials, `basket-${color}`, () => (
+          new THREE.MeshStandardMaterial({ color, roughness: 0.75 })
+        ));
+        const item = new THREE.Mesh(shared.productBox, material);
+        item.scale.setScalar(0.36);
+        item.position.set(index ? 0.06 : -0.06, 0.19 + index * 0.025, 0);
+        item.rotation.y = index ? -0.22 : 0.18;
+        group.add(item);
+      }
+      group.position.set(0, 1.02, -0.34);
+      return group;
     }
-    return productVisual('balls1');
+    return productVisual(skuIds[0] || 'balls1');
   }
 
   function updateHeldVisual(actor) {
@@ -553,7 +569,9 @@ export function createCustomerView(B, options) {
       actor.itemVisualKey = null;
     }
     if (shouldCarry && !actor.itemMesh) {
-      actor.itemMesh = visualKey === 'basket' ? basketVisual() : productVisual(visualKey);
+      actor.itemMesh = visualKey === 'basket'
+        ? basketVisual(actor.entity.cart.map((item) => item.skuId))
+        : productVisual(visualKey);
       actor.itemVisualKey = visualKey;
       actor.mesh.add(actor.itemMesh);
     } else if (!shouldCarry && actor.itemMesh) {
@@ -942,20 +960,70 @@ export function createCustomerView(B, options) {
       }
       if (!target) {
         if (actor.stateTimer > 4) setState(actor, CUSTOMER_STATE.CHOOSING_ACTIVITY, 'lounge was occupied');
-      } else if (!actor.flags.loungeArrived) {
-        if (moveTo(actor, target, dt)) {
+      } else if (actor.flags.loungeLeaving) {
+        actor.flags.seatProgress = Math.min(1, (actor.flags.seatProgress || 0) + dt / 0.7);
+        const t = actor.flags.seatProgress;
+        const eased = t * t * (3 - 2 * t);
+        actor.mesh.position.x = actor.flags.seatFrom.x + (actor.flags.seatTo.x - actor.flags.seatFrom.x) * eased;
+        actor.mesh.position.z = actor.flags.seatFrom.z + (actor.flags.seatTo.z - actor.flags.seatFrom.z) * eased;
+        setFaceAnimation(actor, 'Sit', target, dt);
+        noteCustomerProgress(entity, state.clock.minutes, actor.mesh.position);
+        if (t >= 1) {
+          entity.activityCount += 1;
+          releaseSocket(state, entity, 'ambient');
+          entity.occupancyAssignment = null;
+          setState(actor, CUSTOMER_STATE.CHOOSING_ACTIVITY, 'finished the lounge activity');
+        }
+      } else if (actor.flags.seatEntering) {
+        actor.flags.seatProgress = Math.min(1, (actor.flags.seatProgress || 0) + dt / 0.7);
+        const t = actor.flags.seatProgress;
+        const eased = t * t * (3 - 2 * t);
+        actor.mesh.position.x = actor.flags.seatFrom.x + (target.x - actor.flags.seatFrom.x) * eased;
+        actor.mesh.position.z = actor.flags.seatFrom.z + (target.z - actor.flags.seatFrom.z) * eased;
+        setFaceAnimation(actor, 'Sit', target, dt);
+        noteCustomerProgress(entity, state.clock.minutes, actor.mesh.position);
+        if (t >= 1) {
+          actor.flags.seatEntering = false;
           actor.flags.loungeArrived = true;
           actor.flags.loungeTimer = 0;
+        }
+      } else if (!actor.flags.loungeArrived) {
+        const approach = target.kind === 'sit'
+          ? worldPoint({
+            id: `${target.id}-approach`,
+            x: target.approachX,
+            z: target.approachZ,
+            faceX: target.faceX,
+            faceZ: target.faceZ,
+          })
+          : target;
+        if (moveTo(actor, approach, dt)) {
+          if (target.kind === 'sit') {
+            actor.flags.seatEntering = true;
+            actor.flags.seatProgress = 0;
+            actor.flags.seatFrom = { x: actor.mesh.position.x, z: actor.mesh.position.z };
+          } else {
+            actor.flags.loungeArrived = true;
+            actor.flags.loungeTimer = 0;
+          }
         }
       } else {
         actor.flags.loungeTimer += dt;
         const mode = target.kind === 'sit' ? 'Sit' : target.kind === 'talk' ? 'Talk' : 'Browse';
         setFaceAnimation(actor, mode, target, dt);
         if (actor.flags.loungeTimer > 5 + hash01(entity.id, 71) * 5) {
-          entity.activityCount += 1;
-          releaseSocket(state, entity, 'ambient');
-          entity.occupancyAssignment = null;
-          setState(actor, CUSTOMER_STATE.CHOOSING_ACTIVITY, 'finished the lounge activity');
+          if (target.kind === 'sit') {
+            const approach = worldPoint({ x: target.approachX, z: target.approachZ });
+            actor.flags.loungeLeaving = true;
+            actor.flags.seatProgress = 0;
+            actor.flags.seatFrom = { x: actor.mesh.position.x, z: actor.mesh.position.z };
+            actor.flags.seatTo = { x: approach.x, z: approach.z };
+          } else {
+            entity.activityCount += 1;
+            releaseSocket(state, entity, 'ambient');
+            entity.occupancyAssignment = null;
+            setState(actor, CUSTOMER_STATE.CHOOSING_ACTIVITY, 'finished the lounge activity');
+          }
         }
       }
     } else if (stateName === CUSTOMER_STATE.LEAVING) {
@@ -1184,6 +1252,10 @@ export function createCustomerView(B, options) {
         cart: actor.entity.cart.map((item) => ({ uid: item.uid, skuId: item.skuId })),
         blockedDuration: actor.entity.blockedDuration,
         recoveryAttempts: actor.entity.recoveryAttempts,
+        waitTimeSec: actor.entity.experience?.waitTimeSec || 0,
+        patienceSec: actor.entity.patienceSec,
+        animation: actor.character.mode,
+        occupancy: actor.entity.occupancyAssignment?.socketId || null,
         position: { x: actor.mesh.position.x, z: actor.mesh.position.z },
       })),
       runtimeSeconds,
