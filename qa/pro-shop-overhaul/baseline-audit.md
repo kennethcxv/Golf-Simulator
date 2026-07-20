@@ -133,4 +133,3 @@ Texture memory is an RGBA8 dimension-plus-mipmap estimate and not an exact GPU a
 - Add a compact refrigerator/snack bay near checkout without entering the queue or cashier corridor.
 - Add a visible basket station and scorecard/membership stand at the entrance/checkout transition.
 - Author explicit browse and stocking sockets for every retail fixture.
-

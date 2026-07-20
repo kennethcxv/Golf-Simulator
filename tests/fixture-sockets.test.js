@@ -38,4 +38,3 @@ test('moving and rotating a fixture carries its sockets with it', () => {
   assert.ok(Math.abs(world.x - (moved.x + local.z)) < 1e-9);
   assert.ok(Math.abs(world.z - (moved.z - local.x)) < 1e-9);
 });
-

@@ -32,4 +32,3 @@ Dimensions use game/Blender units (1 unit is approximately 1 metre). Capacities 
 - Existing raw Tripo assets remain immutable.
 - Product capacity continues to equal the number of authored sockets.
 - Moving components require separate objects and pivots; static collision remains simplified game-side AABBs unless a simpler convex proxy is authored.
-
