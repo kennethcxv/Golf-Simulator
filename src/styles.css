@@ -691,6 +691,7 @@ input[type="range"] { accent-color: var(--accent); }
 
 /* product cards — real rendered thumbnails, never a coloured rectangle */
 .lt-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 9px; }
+.lt-service-tabs { margin: 0; justify-content: flex-end; }
 .lt-tab { border: 1px solid #ded7c2; background: #fdfbf4; border-radius: 999px; padding: 3px 12px;
   cursor: pointer; font-size: 0.8em; font-family: inherit; color: #6b6a5e; }
 .lt-tab:hover { border-color: #57795c; }
@@ -707,6 +708,7 @@ input[type="range"] { accent-color: var(--accent); }
 .lt-prodprice { margin-top: 3px; font-size: 0.82em; }
 .lt-wholesale { font-weight: 700; color: #1f4a26; }
 .lt-prodmeta { font-size: 0.72em; color: #8a8577; margin-top: 1px; }
+.lt-prodmeta.lt-eta { color: #1f4a26; font-weight: 650; }
 .lt-lock { font-size: 0.72em; color: #8a6414; margin-top: 6px; }
 .lt-qtyrow { display: flex; gap: 7px; justify-content: center; align-items: center; margin-top: auto;
   padding-top: 7px; }

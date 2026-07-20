@@ -9,7 +9,7 @@
 import { rngOf, clamp, makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
 import { addRevenue, addExpense, unbill } from './economy.js';
-import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
+import { SHOP_CATALOG, skuById, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
 import { planShipment } from '../data/boxes.js';
 import { capacityOf } from '../data/fixtureSlots.js';
 import { INTERIOR, CLUTTER_SPOTS, WINDOWS } from '../data/shopLayout.js';
@@ -19,6 +19,7 @@ import {
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
 import { members } from './golfers.js';
+import { isStarterDelivery, quoteDelivery, deliveryTimingOf } from './deliveryEta.js';
 
 // --- restoration arc ------------------------------------------------------------
 // The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
@@ -352,11 +353,7 @@ export function orderCost(sku, qty) {
   return Math.round(sku.cost * qty * 100) / 100;
 }
 
-// each order ships into a two-hour window on its arrival day; the truck lands
-// at a specific (deterministic per order) minute inside it
-const DELIVERY_SLOTS = [[8, 10], [10, 12], [13, 15]];
-
-export function placeOrder(state, skuId, qty) {
+export function placeOrder(state, skuId, qty, { service = 'standard' } = {}) {
   const sku = skuById(skuId);
   if (!sku) return { ok: false, reason: 'No such item.' };
   if (sku.tier > state.shop.unlockedTier) return { ok: false, reason: 'Supplier account not unlocked yet.' };
@@ -366,16 +363,16 @@ export function placeOrder(state, skuId, qty) {
   const manifest = planShipment(sku, qty);
   const goods = orderCost(sku, qty);
   const fee = manifest.fee;
-  const cost = Math.round((goods + fee) * 100) / 100;   // `cost` is what you actually paid
+  const starter = isStarterDelivery(state);
+  const id = state.shop.nextOrderId;
+  const eta = quoteDelivery(state, sku, qty, { service, orderId: id, starter, goods, freight: fee });
+  const expressFee = eta.expressFee;
+  const cost = Math.round((goods + fee + expressFee) * 100) / 100;
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash.' };
   addExpense(state, 'shopOrders', cost);
 
-  const dayAbs = calendarOf(state.clock.minutes).dayAbs;
-  const id = state.shop.nextOrderId++;
-  const arrivesDay = dayAbs + LEAD_DAYS[sku.cat];
-  const slot = DELIVERY_SLOTS[(id * 7) % DELIVERY_SLOTS.length];
-  const open = arrivesDay * 1440 + slot[0] * 60;
-  const close = arrivesDay * 1440 + slot[1] * 60;
+  state.shop.nextOrderId++;
+  if (starter && state.shop.starterOrderMin == null) state.shop.starterOrderMin = state.clock.minutes;
   const order = {
     id,
     skuId,
@@ -383,18 +380,28 @@ export function placeOrder(state, skuId, qty) {
     cost,        // goods + freight: the number that left your account
     goods,
     fee,
+    expressFee,
+    service: eta.service,
+    pace: eta.pace,
     supplier: manifest.supplier,
     manifest,
-    arrivesDay,
+    arrivesDay: eta.arrivesDay,
     placedMin: state.clock.minutes,
-    window: { open, close },
-    deliveryMin: open + ((id * 37) % (close - open)),
+    window: eta.window,
+    deliveryMin: eta.deliveryMin,
+    timing: {
+      processingMinutes: eta.processingMinutes,
+      transitMinutes: eta.transitMinutes,
+      dispatchMin: eta.dispatchMin,
+      supplierSpeedModifier: eta.supplierSpeedModifier,
+      expressModifier: eta.expressModifier,
+    },
     status: 'received',
     notif: {},
   };
   state.shop.orders.push(order);
   return {
-    ok: true, cost, goods, fee, order,
+    ok: true, cost, goods, fee, expressFee, order,
     boxes: manifest.boxCount, weight: manifest.weight, supplier: manifest.supplier,
   };
 }
@@ -409,10 +416,15 @@ export function placeOrder(state, skuId, qty) {
 export function orderStatusAt(o, nowMin) {
   if (nowMin >= o.deliveryMin) return 'delivered';
   if (nowMin >= o.deliveryMin - 30) return 'arriving';
-  if (nowMin >= o.deliveryMin - 120) return 'out';
+  const timing = deliveryTimingOf(o);
   const lead = Math.max(1, o.deliveryMin - o.placedMin);
+  // Even the short opening promise wears every truthful stage. Reserve at
+  // least fifteen game minutes for "shipped" before the local van is "out".
+  const outLead = Math.min(60, Math.max(45, lead * 0.2));
+  const outMin = Math.max(timing.dispatchMin + 1, Math.min(o.deliveryMin - 31, o.deliveryMin - outLead));
+  if (nowMin >= outMin) return 'out';
   const t = nowMin - o.placedMin;
-  if (t >= lead * 0.55) return 'shipped';
+  if (nowMin >= timing.dispatchMin) return 'shipped';
   if (t >= lead * 0.30) return 'packed';
   if (t >= lead * 0.08) return 'processing';
   return 'received';
@@ -521,12 +533,12 @@ export function tickDeliveries(state, nowMin) {
       continue;
     }
 
-    const morningMin = o.arrivesDay * 1440 + 6 * 60;
-    if (!o.notif.morning && nowMin >= morningMin && nowMin < o.window.open) {
-      o.notif.morning = true;
-      events.push({ kind: 'morning', order: o });
+    const timing = deliveryTimingOf(o);
+    if (!o.notif.dispatched && nowMin >= timing.dispatchMin && nowMin < o.deliveryMin) {
+      o.notif.dispatched = true;
+      events.push({ kind: 'dispatched', order: o });
     }
-    if (!o.notif.soon && nowMin >= o.window.open - 60 && nowMin < o.deliveryMin) {
+    if (!o.notif.soon && nowMin >= o.deliveryMin - 30 && nowMin < o.deliveryMin) {
       o.notif.soon = true;
       events.push({ kind: 'soon', order: o });
     }

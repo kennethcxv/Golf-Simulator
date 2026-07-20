@@ -37,6 +37,7 @@ import { shopCondition, vacuumOwned, tickDeliveries } from './sim/shop.js';
 import { ownedWasher } from './sim/washing.js';
 import { skuById } from './data/shopItems.js';
 import { makeCourseScene } from './render3d/courseScene.js';
+import { deliveryEtaText } from './sim/deliveryEta.js';
 
 const canvas = document.getElementById('game');
 const uiRoot = document.getElementById('ui');
@@ -1479,23 +1480,18 @@ function frame(ts) {
         objectivesPanel.refresh();
       }
     }
-    // delivery windows tick at minute grain: statuses progress and the truck
-    // announces itself — morning heads-up, one-hour warning, arrival
+    // Delivery promises tick at minute grain: statuses progress and the truck
+    // announces dispatch, the final approach, arrival or a blocked pad.
     if (app.state.shop) {
       for (const ev of tickDeliveries(app.state, app.state.clock.minutes)) {
         const sku = skuById(ev.order.skuId);
         const name = sku ? sku.name : ev.order.skuId;
-        const clock12 = (m) => {
-          const mm = ((m % 1440) + 1440) % 1440;
-          const h = Math.floor(mm / 60);
-          return `${((h + 11) % 12) + 1} ${h >= 12 ? 'PM' : 'AM'}`;
-        };
         const man = ev.order.manifest;
         const boxes = man ? `${man.boxCount} box${man.boxCount === 1 ? '' : 'es'}` : 'boxes';
-        if (ev.kind === 'morning') {
-          toast(`📦 ${name} ships today — window ${clock12(ev.order.window.open)}–${clock12(ev.order.window.close)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`);
+        if (ev.kind === 'dispatched') {
+          toast(`📦 ${name} has dispatched — ${deliveryEtaText(ev.order, app.state.clock.minutes)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`);
         } else if (ev.kind === 'soon') {
-          toast(`📦 The ${ev.order.supplier || name} van is close — under an hour out.`);
+          toast(`📦 The ${ev.order.supplier || name} van is close — ${deliveryEtaText(ev.order, app.state.clock.minutes)}.`);
         } else if (ev.kind === 'arrived') {
           toast(`📦 Delivery! ${name} ×${ev.order.qty} — ${boxes} on the receiving pad.`);
           if (audio.ready && audio.truck) audio.truck();

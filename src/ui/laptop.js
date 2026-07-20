@@ -13,9 +13,7 @@
 import { el, toast } from './ui.js';
 import { formatMoney } from '../core/utils.js';
 import { calendarOf } from '../sim/time.js';
-import {
-  SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS,
-} from '../data/shopItems.js';
+import { SHOP_CATALOG, skuById, SHELF_CAP, RETAIL_CATS } from '../data/shopItems.js';
 import {
   placeOrder, cancelOrder, orderCost, shopCondition, priceFor,
   velocity, daysOfSupply, buyRentalSets,
@@ -35,6 +33,9 @@ import {
 import { clubRatings, fairGreenFee } from '../sim/club.js';
 import { currentStep } from '../sim/tutorial.js';
 import { ZONE } from '../sim/constants.js';
+import {
+  quoteDelivery, deliveryQuoteText, deliveryEtaText, gameDurationText,
+} from '../sim/deliveryEta.js';
 
 const CAT_LABEL = {
   clubs: 'Clubs', balls: 'Golf balls', apparel: 'Apparel', accessories: 'Accessories',
@@ -105,6 +106,7 @@ export function makeLaptop(app, opts) {
   let page = 'home';
   let history = [];        // the Back stack — every navigation pushes, Back pops
   let cart = new Map();    // supplier basket: skuId -> qty
+  let deliveryService = 'standard';
   let teeDay = 0;
   let supplierCat = 'all';
   let financeWindow = 'today';
@@ -322,7 +324,7 @@ export function makeLaptop(app, opts) {
           inbound.length || boxes.length
             ? el('div', {},
               nextIn ? row(el('span', { text: skuById(nextIn.skuId).name }),
-                meta(`${ORDER_STATUS[nextIn.status] ? ORDER_STATUS[nextIn.status].label : nextIn.status} · ${hour12(nextIn.window.open)}–${hour12(nextIn.window.close)}`)) : null,
+                meta(`${ORDER_STATUS[nextIn.status] ? ORDER_STATUS[nextIn.status].label : nextIn.status} · ${deliveryEtaText(nextIn, st.clock.minutes)}`)) : null,
               inbound.length > 1 ? meta(`${inbound.length - 1} more on the way`) : null,
               boxes.length ? row(chip(`${boxes.length} box${boxes.length === 1 ? '' : 'es'} to unpack`, 'warn')) : null)
             : empty('Nothing on the truck.'),
@@ -447,19 +449,37 @@ export function makeLaptop(app, opts) {
     let freight = 0;
     let boxCount = 0;
     let weight = 0;
+    let express = 0;
+    const quotes = [];
+    let quoteOffset = 0;
     for (const [id, qty] of cart) {
       const sku = skuById(id);
       const ship = shipOf(sku, qty);
-      goods += orderCost(sku, qty);
+      const lineGoods = orderCost(sku, qty);
+      const q = quoteDelivery(st, sku, qty, {
+        service: deliveryService,
+        orderId: st.shop.nextOrderId + quoteOffset++,
+        goods: lineGoods,
+        freight: ship.fee,
+      });
+      goods += lineGoods;
       freight += ship.fee;
+      express += q.expressFee;
       boxCount += ship.boxCount;
       weight += ship.weight;
+      quotes.push(q);
     }
     goods = Math.round(goods * 100) / 100;
     freight = Math.round(freight * 100) / 100;
+    express = Math.round(express * 100) / 100;
     weight = Math.round(weight * 10) / 10;
-    const total = Math.round((goods + freight) * 100) / 100;
+    const total = Math.round((goods + freight + express) * 100) / 100;
     const affordable = total <= cashOf();
+    const etaSummary = quotes.length
+      ? quotes.length === 1
+        ? deliveryQuoteText(quotes[0])
+        : `Arrivals in approximately ${gameDurationText(Math.min(...quotes.map((q) => q.deliveryMin - q.placedMin)))}–${gameDurationText(Math.max(...quotes.map((q) => q.deliveryMin - q.placedMin)))}`
+      : 'Add an item to see its delivery promise';
 
     const cats = ['balls', 'accessories', 'apparel', 'clubs', 'supplies', 'decor'];
     const tabs = el('div', { class: 'lt-tabs' },
@@ -480,6 +500,11 @@ export function makeLaptop(app, opts) {
       const suggested = priceFor(s, st.shop.markup[s.cat] || 1, null);
       const per = unitsPerBox(s);
       const ship = shipOf(s, inCart);
+      const quote = quoteDelivery(st, s, Math.max(1, inCart), {
+        service: deliveryService,
+        goods: orderCost(s, Math.max(1, inCart)),
+        freight: ship.fee,
+      });
       const setQty = (q) => {
         q = Math.max(0, Math.min(99, q));
         if (q === 0) cart.delete(s.id); else cart.set(s.id, q);
@@ -492,7 +517,7 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-prodprice' },
           el('span', { class: 'lt-wholesale', text: formatMoney(s.cost) }),
           el('span', { class: 'lt-meta', text: ` → ${formatMoney(suggested)}` })),
-        el('div', { class: 'lt-prodmeta', text: `${supplierFor(s).name} · ships in ${LEAD_DAYS[s.cat]}d` }),
+        el('div', { class: 'lt-prodmeta', text: `${supplierFor(s).name} · ${deliveryQuoteText(quote)}` }),
         el('div', { class: 'lt-prodmeta', text: `${per} per box · ${plural(ship.boxCount, 'box')} · ${ship.weight} lb${s.fragile ? ' · fragile' : ''}` }),
         el('div', { class: 'lt-prodmeta', text: `on hand: ${owned.shelf + owned.back}` }),
         locked
@@ -508,17 +533,19 @@ export function makeLaptop(app, opts) {
       let placed = 0;
       let spent = 0;
       let boxes = 0;
+      const accepted = [];
       const failed = [];
       for (const [id, qty] of [...cart]) {
-        const res = placeOrder(st, id, qty);
+        const res = placeOrder(st, id, qty, { service: deliveryService });
         if (res.ok) {
-          placed++; spent += res.cost; boxes += res.boxes; cart.delete(id);
+          placed++; spent += res.cost; boxes += res.boxes; accepted.push(res.order); cart.delete(id);
         } else failed.push(`${skuById(id).name}: ${res.reason}`);
       }
       if (placed) {
         // THE ORDER-ACCEPTED NOTIFICATION. It says what is actually coming — how many cartons will
         // be standing on that pad — because that is the thing you have to make room for.
-        toast(`Order accepted — ${formatMoney(spent)}. ${plural(boxes, 'box')} to the receiving pad.`);
+        const next = accepted.slice().sort((a, b) => a.deliveryMin - b.deliveryMin)[0];
+        toast(`Order accepted — ${formatMoney(spent)}. ${plural(boxes, 'box')} to the receiving pad. ${deliveryEtaText(next, st.clock.minutes)}`);
         if (app.audio && app.audio.ready) app.audio.chime();
       }
       for (const f of failed) toast(f, 'warn');
@@ -531,7 +558,7 @@ export function makeLaptop(app, opts) {
         primaryBtn(
           cart.size ? `Place order — ${formatMoney(total)}` : 'Basket is empty',
           () => askConfirm(
-            `Order ${cart.size} line${cart.size === 1 ? '' : 's'} for ${formatMoney(total)} — ${formatMoney(goods)} of stock plus ${formatMoney(freight)} freight. ${plural(boxCount, 'box')}, ${weight} lb, to the receiving pad.`,
+            `Order ${cart.size} line${cart.size === 1 ? '' : 's'} for ${formatMoney(total)} — ${formatMoney(goods)} stock, ${formatMoney(freight)} freight${express ? ` and ${formatMoney(express)} express` : ''}. ${plural(boxCount, 'box')}, ${weight} lb. ${etaSummary}.`,
             'Place the order', placeAll,
           ),
           !cart.size || !affordable,
@@ -540,8 +567,22 @@ export function makeLaptop(app, opts) {
       !affordable && cart.size ? errBox(`That basket is ${formatMoney(total - cashOf())} more than you have.`) : null,
       cart.size
         ? card(
+          row(el('span', { class: 'lt-mulabel', text: 'Delivery promise' }), chip(etaSummary, 'ok')),
+          row(
+            el('span', { text: 'Service' }),
+            el('div', { class: 'lt-tabs lt-service-tabs' },
+              el('button', {
+                class: `lt-tab ${deliveryService === 'standard' ? 'on' : ''}`,
+                text: 'Standard', onclick: () => { deliveryService = 'standard'; click(); render(); },
+              }),
+              el('button', {
+                class: `lt-tab ${deliveryService === 'express' ? 'on' : ''}`,
+                text: 'Express · half the wait', onclick: () => { deliveryService = 'express'; click(); render(); },
+              })),
+          ),
           row(el('span', { text: 'Stock' }), chip(formatMoney(goods))),
           row(el('span', { text: 'Freight' }), meta(`${plural(boxCount, 'box')} · ${weight} lb`), chip(formatMoney(freight))),
+          express ? row(el('span', { text: 'Express handling' }), meta('50% delivery-time modifier'), chip(formatMoney(express))) : null,
           row(el('span', { class: 'lt-mulabel', text: 'Total' }), chip(formatMoney(total), affordable ? 'ok' : 'bad')),
         )
         : null,
@@ -562,8 +603,6 @@ export function makeLaptop(app, opts) {
     const orderRow = (o) => {
       const sku = skuById(o.skuId);
       const s = ORDER_STATUS[o.status] || { label: o.status, tone: '' };
-      const days = o.arrivesDay - cal.dayAbs;
-      const when = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
       const canCancel = o.status !== 'arriving' && o.status !== 'delivered';
       // read the order's OWN manifest — the one it was packed with, not a fresh guess
       const man = o.manifest || shipOf(sku, o.qty);
@@ -573,8 +612,9 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-orderbody' },
           el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}` }),
           el('div', { class: 'lt-prodmeta', text: `${o.supplier || man.supplier} · ${plural(man.boxCount, 'box')} · ${man.weight} lb` }),
-          el('div', { class: 'lt-prodmeta', text: `${formatMoney(o.goods != null ? o.goods : o.cost)} stock + ${formatMoney(o.fee || man.fee)} freight = ${formatMoney(o.cost)}` }),
-          el('div', { class: 'lt-prodmeta', text: `${when}, ${hour12(o.window.open)}–${hour12(o.window.close)}` })),
+          el('div', { class: 'lt-prodmeta', text: `${formatMoney(o.goods != null ? o.goods : o.cost)} stock + ${formatMoney(o.fee || man.fee)} freight${o.expressFee ? ` + ${formatMoney(o.expressFee)} express` : ''} = ${formatMoney(o.cost)}` }),
+          el('div', { class: 'lt-prodmeta lt-eta', text: `${o.service === 'express' ? 'Express · ' : ''}${deliveryEtaText(o, st.clock.minutes, { expected: true })}` }),
+          el('div', { class: 'lt-prodmeta', text: `arrival window ${clock12(o.window.open)}–${clock12(o.window.close)}` })),
         chip(s.label, s.tone),
         canCancel
           ? el('button', {
@@ -661,14 +701,14 @@ export function makeLaptop(app, opts) {
     const line = (o) => {
       const sku = skuById(o.skuId);
       const s = ORDER_STATUS[o.status] || { label: o.status, tone: '' };
-      const eta = Math.round((o.deliveryMin - nowMin));
       const man = o.manifest || shipOf(sku, o.qty);
       return el('div', { class: 'lt-order' },
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
           el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}` }),
           el('div', { class: 'lt-prodmeta', text: `${o.supplier || man.supplier} · ${plural(man.boxCount, 'box')} · ${man.weight} lb · to the receiving pad` }),
-          el('div', { class: 'lt-prodmeta', text: `window ${hour12(o.window.open)}–${hour12(o.window.close)}${eta > 0 && eta < 600 ? ` · about ${eta} min away` : ''}` })),
+          el('div', { class: 'lt-prodmeta lt-eta', text: deliveryEtaText(o, nowMin) }),
+          el('div', { class: 'lt-prodmeta', text: `${o.service === 'express' ? 'Express · ' : ''}window ${clock12(o.window.open)}–${clock12(o.window.close)}` })),
         chip(s.label, s.tone));
     };
 
@@ -693,11 +733,11 @@ export function makeLaptop(app, opts) {
           chip(boxOpened(b) ? 'Partially unpacked' : 'Delivered', boxOpened(b) ? 'warn' : 'ok'))))
         : empty('The pad is clear.'),
 
-      sect(`Later this week (${later.length})`),
+      sect(`Later (${later.length})`),
       later.length
         ? card(...later.map((o) => row(
           el('span', { text: `${skuById(o.skuId).name} × ${o.qty}` }),
-          meta(`day ${o.arrivesDay - cal.dayAbs === 1 ? 'tomorrow' : `+${o.arrivesDay - cal.dayAbs}`} · ${hour12(o.window.open)}–${hour12(o.window.close)}`),
+          meta(deliveryEtaText(o, nowMin, { expected: true })),
           chip((ORDER_STATUS[o.status] || {}).label || o.status))))
         : empty('Nothing further out.'),
     );
@@ -717,7 +757,8 @@ export function makeLaptop(app, opts) {
       const dos = daysOfSupply(st, s.id);
       const retail = priceFor(s, st.shop.markup[s.cat] || 1, null);
       const margin = retail > 0 ? (retail - s.cost) / retail : 0;
-      const reorder = Math.max(2, Math.ceil(v * LEAD_DAYS[s.cat])); // enough to survive the lead time
+      const lead = quoteDelivery(st, s, 1).deliveryMin - st.clock.minutes;
+      const reorder = Math.max(2, Math.ceil(v * Math.max(1, lead / 1440)));
       const short = e.shelf + e.back <= reorder;
       return el('tr', { class: short ? 'lt-tr-warn' : '' },
         el('td', {}, el('div', { class: 'lt-invcell' }, thumbOf(s), el('span', { text: s.name }))),
@@ -1505,6 +1546,20 @@ export function makeLaptop(app, opts) {
 
   let liveTimer = null;
 
+  function refreshLive() {
+    if (root.style.display === 'none') return;
+    // Tracking is live software, not a snapshot captured when the page opened.
+    // Redraw only the three clock-sensitive pages, preserve scroll, and never
+    // replace a confirmation while the player is deciding.
+    if (['home', 'orders', 'deliveries'].includes(page) && !pending) {
+      const y = content.scrollTop;
+      render();
+      content.scrollTop = y;
+    } else {
+      refreshStatus();
+    }
+  }
+
   return {
     root,
     open(startPage) {
@@ -1516,7 +1571,7 @@ export function makeLaptop(app, opts) {
       root.style.display = '';
       render();
       clearInterval(liveTimer);
-      liveTimer = setInterval(refreshStatus, 1000); // the clock keeps ticking on the screen
+      liveTimer = setInterval(refreshLive, 1000); // clock, ETA and blocked state stay live
     },
     close() {
       root.style.display = 'none';
