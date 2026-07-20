@@ -736,7 +736,7 @@ export function makeClubhouseMaterials(clubName) {
     }),
     displayGlass: new THREE.MeshPhysicalMaterial({
       color: 0xeaf5f1, roughness: 0.08, metalness: 0.0,
-      transparent: true, opacity: 0.075, transmission: 0.12,
+      transparent: true, opacity: 0.045, transmission: 0.20,
       side: THREE.DoubleSide, depthWrite: false,
     }),
 

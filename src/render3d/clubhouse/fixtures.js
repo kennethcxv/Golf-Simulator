@@ -36,7 +36,7 @@ function categorySign(title, { w = 1.5, h = 0.26, charcoal = false } = {}) {
   const fontSize = text.length > 18 ? 30 : text.length > 13 ? 36 : 44;
   const tex = makeSignTexture([title.toUpperCase()], {
     w: 512, h: 128, frame: false,
-    field: charcoal ? '#23262b' : '#f4f0e6',
+    field: charcoal ? '#23262b' : '#e6dfcf',
     ink: charcoal ? '#c9a227' : '#1f4a26',
     sizes: [fontSize],
   });
@@ -59,7 +59,7 @@ function priceRail(f, { w = 2.6, h = 0.20 } = {}) {
     : [entries.slice(0, Math.ceil(entries.length / 2)).join('  ·  '), entries.slice(Math.ceil(entries.length / 2)).join('  ·  ')];
   const tex = makeSignTexture(rows, {
     w: 1024, h: rows.length > 1 ? 160 : 96, frame: false,
-    field: '#f4f0e6', ink: '#28362b', sizes: rows.map(() => entries.length > 6 ? 23 : 28),
+    field: '#ded6c5', ink: '#28362b', sizes: rows.map(() => entries.length > 6 ? 23 : 28),
   });
   return new THREE.Mesh(
     new THREE.PlaneGeometry(w, h),
@@ -675,49 +675,49 @@ export function buildFixtures(B) {
   function ballwallUnit(f) {
     return assetUnit(f, 'ball_wall', {
       w: 3.2, d: 0.7, sign: f.sign || f.title, signY: 2.18, signZ: 0.36,
-      signW: 1.05, signH: 0.15, priceW: 2.30, priceH: 0.14,
+      signW: 1.05, signH: 0.15, priceW: 2.30, priceH: 0.14, charcoal: true,
     });
   }
 
   function hatwallUnit(f) {
     return assetUnit(f, 'hat_wall', {
       w: 1.16, d: 0.60, sign: f.title, signY: 1.98, signZ: 0.31,
-      signW: 0.66, signH: 0.12, priceW: 0.58, priceH: 0.12,
+      signW: 0.66, signH: 0.12, priceW: 0.58, priceH: 0.12, charcoal: true,
     });
   }
 
   function shoewallUnit(f) {
     return assetUnit(f, 'shoe_wall', {
       w: 2.7, d: 0.8, sign: f.title, signY: 2.04, signZ: 0.41,
-      signW: 0.94, signH: 0.14, priceW: 2.10, priceH: 0.14,
+      signW: 0.86, signH: 0.13, priceW: 2.10, priceH: 0.14, charcoal: true,
     });
   }
 
   function apparelwallUnit(f) {
     return assetUnit(f, 'apparel_wall', {
       w: 3.2, d: 0.7, sign: f.sign || f.title, signY: 2.18, signZ: 0.29,
-      signW: 1.35, signH: 0.16, priceW: 2.35, priceH: 0.14,
+      signW: 1.28, signH: 0.15, priceW: 2.35, priceH: 0.14, charcoal: true,
     });
   }
 
   function fittingroomUnit(f) {
     return assetUnit(f, 'fitting_room', {
       w: 2.2, d: 1.7, sign: f.title, signY: 2.30, signZ: 0.86,
-      signW: 0.76, signH: 0.14,
+      signW: 0.68, signH: 0.12, charcoal: true,
     });
   }
 
   function fridgeUnit(f) {
     return assetUnit(f, 'drinks_fridge', {
       w: 0.96, d: 0.96, sign: f.title, signY: 1.72, signZ: 0.49,
-      signW: 0.70, signH: 0.18, charcoal: true,
+      signW: 0.54, signH: 0.12, charcoal: true,
     });
   }
 
   function snackrackUnit(f) {
     return assetUnit(f, 'snack_rack', {
       w: 1.5, d: 0.76, sign: f.title, signY: 1.37, signZ: 0.39,
-      signW: 0.62, signH: 0.12, priceW: 1.20, priceH: 0.12,
+      signW: 0.50, signH: 0.10, priceW: 1.10, priceH: 0.10, charcoal: true,
     });
   }
 

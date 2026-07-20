@@ -28,18 +28,18 @@ const ALL_SHOTS = [
   { id: '04-center-aisle', at: [-0.8, 2.4], to: [-0.8, -5.4], pitch: -0.03 },
   { id: '05-club-displays', at: [-4.9, -0.2], to: [-9.9, -0.4], pitch: 0.02 },
   { id: '06-clothing', at: [-4.0, 3.4], to: [-5.0, 0.2], pitch: -0.02 },
-  { id: '07-shoes', at: [2.4, 0.3], to: [5.1, -0.6], pitch: -0.02 },
+  { id: '07-shoes', at: [1.65, 0.55], to: [5.0, -0.65], pitch: -0.05 },
   { id: '08-hats', at: [-0.2, -3.8], to: [1.55, -5.9], pitch: -0.03 },
   { id: '09-bags', at: [0.2, -0.8], to: [2.2, -2.65], pitch: -0.04 },
   { id: '10-accessories', at: [-3.7, -2.9], to: [-3.7, -6.15], pitch: 0.01 },
-  { id: '11-snacks-drinks', at: [4.25, 3.35], to: [4.55, 1.50], pitch: -0.04 },
+  { id: '11-snacks-drinks', at: [3.55, 3.72], to: [4.60, 1.35], pitch: -0.07 },
   { id: '12-office', at: [7.2, 4.3], to: [9.55, 4.5], pitch: -0.06 },
   { id: '13-stockroom', at: [7.4, -2.3], to: [8.1, -5.9], pitch: -0.04 },
-  { id: '14-fitting-area', at: [1.6, -0.5], to: [4.6, -2.1], pitch: -0.03 },
+  { id: '14-fitting-area', at: [0.75, -0.1], to: [4.45, -2.05], pitch: -0.04 },
   { id: '15-lounge', at: [1.0, -3.8], to: [4.9, -5.2], pitch: -0.03 },
   { id: '16-exterior-window', world: true, at: [-1.5, 243.5], to: [-8.5, 231.0], pitch: 0.03 },
   { id: '17-putting-studio', at: [-3.0, 3.15], to: [-6.5, 4.95], pitch: -0.13 },
-  { id: '18-tour-vault', at: [2.3, -4.0], to: [5.25, -5.2], pitch: -0.04 },
+  { id: '18-tour-vault', at: [1.75, -3.6], to: [5.15, -5.15], pitch: -0.05 },
 ];
 const shotArg = process.argv.find((arg) => arg.startsWith('--shots='))?.slice(8);
 const shotIds = shotArg ? new Set(shotArg.split(',').map((id) => id.trim())) : null;
@@ -49,6 +49,7 @@ if (!SHOTS.length) throw new Error(`No fixed cameras matched --shots=${shotArg}`
 await mkdir(OUT, { recursive: true });
 await mkdir(path.join(OUT, 'starting-state'), { recursive: true });
 await mkdir(path.join(OUT, 'fully-stocked'), { recursive: true });
+await mkdir(path.join(OUT, 'customer-flow'), { recursive: true });
 await mkdir(path.join(OUT, 'video'), { recursive: true });
 
 const browser = await chromium.launch({
@@ -148,6 +149,26 @@ async function proveNormalControls() {
     after,
     playerTravelYards: +distance.toFixed(2),
     yawDeltaRadians: +(after.yaw - before.yaw).toFixed(3),
+  };
+}
+
+async function pauseClockThroughNormalControl() {
+  const before = await page.evaluate(() => ({
+    speedIdx: window.__fw.speedIdx,
+    minutes: window.__fw.state.clock.minutes,
+  }));
+  if (before.speedIdx !== 0) await page.keyboard.press('Space');
+  await page.waitForTimeout(900);
+  const after = await page.evaluate(() => ({
+    speedIdx: window.__fw.speedIdx,
+    minutes: window.__fw.state.clock.minutes,
+  }));
+  if (after.speedIdx !== 0) throw new Error('Space did not pause the simulation clock');
+  return {
+    input: before.speedIdx === 0 ? [] : ['Space'],
+    before,
+    after,
+    driftMinutes: +(after.minutes - before.minutes).toFixed(3),
   };
 }
 
@@ -323,6 +344,11 @@ async function measureFrames(label, seconds = 6) {
 console.log(`[${PASS}] boot`);
 await bootThroughNormalUi();
 const normalControlProof = await proveNormalControls();
+const clockControlProof = await pauseClockThroughNormalControl();
+// Fixed comparison cameras are deliberately actor-free. Customer flow is
+// captured separately below, after the clean starting/full sweeps, so a random
+// head or basket cannot invalidate the same-camera comparison.
+const visualIsolation = await page.evaluate(() => window.__fw.scene3d.clubhouse().prepareCheckoutQa());
 
 const startingState = await page.evaluate(() => ({
   branch: 'overnight/pro-shop-overhaul',
@@ -348,6 +374,10 @@ if (PERFORMANCE) {
 const stock = await setStock('full', 3);
 await page.waitForTimeout(1_800); // tier change relays premium fixtures on the scene poll
 let spawned = 0;
+if (CAPTURE_FULL) {
+  console.log(`[${PASS}] capture fully stocked`);
+  await captureSet('fully-stocked');
+}
 if (REQUESTED_CUSTOMERS > 0) {
   spawned = await page.evaluate((count) => {
     const clubhouse = window.__fw.scene3d.clubhouse();
@@ -357,7 +387,9 @@ if (REQUESTED_CUSTOMERS > 0) {
   }, REQUESTED_CUSTOMERS);
   // Let shoppers traverse the real nav routes and settle into authored browse
   // sockets before the fixed-camera sweep begins.
-  await page.waitForTimeout(10_000);
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(16_000);
+  await page.keyboard.press('Space');
 }
 const stockDiagnostics = await page.evaluate(() => {
   const root = window.__fw.scene3d.scene.getObjectByName('shop-stock');
@@ -392,9 +424,17 @@ const customerDiagnostics = await page.evaluate(() => {
     uniqueReservedSockets: new Set(reservedSockets).size,
   };
 });
-if (CAPTURE_FULL) {
-  console.log(`[${PASS}] capture fully stocked`);
-  await captureSet('fully-stocked');
+if (CAPTURE && REQUESTED_CUSTOMERS > 0) {
+  await setCamera(ALL_SHOTS[3]);
+  await page.screenshot({
+    path: path.join(OUT, 'customer-flow', '01-browsing.jpg'),
+    type: 'jpeg', quality: 86,
+  });
+  await setCamera(ALL_SHOTS[1]);
+  await page.screenshot({
+    path: path.join(OUT, 'customer-flow', '02-checkout-approach.jpg'),
+    type: 'jpeg', quality: 86,
+  });
 }
 
 if (PERFORMANCE) {
@@ -402,10 +442,14 @@ if (PERFORMANCE) {
   await setCamera(SHOTS[3]);
   spawned += await page.evaluate(() => {
     const clubhouse = window.__fw.scene3d.clubhouse();
+    const active = Array.isArray(clubhouse.customers)
+      ? clubhouse.customers.length
+      : clubhouse.customers().length;
     let count = 0;
-    for (let i = 0; i < 10; i++) count += clubhouse.debugSpawn() ? 1 : 0;
+    for (let i = active; i < 10; i++) count += clubhouse.debugSpawn() ? 1 : 0;
     return count;
   });
+  if (await page.evaluate(() => window.__fw.speedIdx === 0)) await page.keyboard.press('Space');
   await page.waitForTimeout(3_000);
   metrics.push(await measureFrames('full-premium-ten-customers-idle', PERF_IDLE_SECONDS));
 
@@ -439,6 +483,11 @@ const report = {
   startingState,
   bootRoute: ['New Empire — Relaxed', 'Property Market', 'Buy Willow Creek Municipal'],
   normalControlProof,
+  clockControlProof,
+  visualIsolation: {
+    method: 'prepareCheckoutQa before fixed cameras; customer flow captured separately',
+    ...visualIsolation,
+  },
   stock,
   stockDiagnostics,
   customerDiagnostics,
