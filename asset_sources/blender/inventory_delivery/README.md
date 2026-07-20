@@ -4,10 +4,10 @@ These five `.blend` files and their exported GLBs are original, project-owned
 Golf Flipper assets. They use no downloaded meshes, textures, fonts, generated
 images, Tripo sources, or other third-party inputs.
 
-Rebuild from the repository root with Blender 5.1:
+Rebuild from the repository root with Blender 5.1 available on `PATH`:
 
 ```powershell
-& 'C:\Program Files\Blender Foundation\Blender 5.1\blender.exe' `
+blender `
   --background --factory-startup `
   --python tools/blender/build_inventory_delivery_assets.py
 ```

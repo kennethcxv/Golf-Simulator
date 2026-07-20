@@ -1,6 +1,6 @@
 # CLUBHOUSE MERCHANDISE — Blender authoring
 #
-#   "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" --background \
+#   blender --background \
 #       --factory-startup --python tools/blender/build_merch.py
 #
 # Writes GLBs to vendor/models/clubhouse/.

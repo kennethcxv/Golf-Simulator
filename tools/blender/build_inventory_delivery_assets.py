@@ -2,7 +2,7 @@
 
 Run from the repository root with Blender 5.1:
 
-    "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" \
+    blender \
       --background --factory-startup \
       --python tools/blender/build_inventory_delivery_assets.py
 
