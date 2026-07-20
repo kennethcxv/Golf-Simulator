@@ -22,8 +22,8 @@ async (page) => {
   //    printed" when the receipt printed fine two seconds later. Every wait below is
   //    a condition on the real transaction.
 
-  const MODE = 'cash';
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/register/' + MODE;
+  const MODE = process.env.QA_REGISTER_MODE || 'cash';
+  const OUT = process.env.QA_OUTPUT_DIR || `qa/register/${MODE}`;
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
@@ -78,7 +78,7 @@ async (page) => {
 
 
   // --- boot ------------------------------------------------------------------------
-  await page.goto('http://localhost:8457/');
+  await page.goto(process.env.QA_BASE_URL || 'http://localhost:8457/');
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});
