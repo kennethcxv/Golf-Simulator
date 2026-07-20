@@ -107,6 +107,13 @@ The rigged-character GLB attempt failed at the Blender 5.1 → three r185 skin
 boundary and was deleted; characters are procedural three.js figures
 (src/render3d/characterAsset.js), no external assets.
 
+Release texture budget (2026-07-19): the owner-supplied sources above remain
+unchanged in `Assets/`. `tools/blender/optimize_runtime_textures.py` caps embedded
+images only in the derived runtime GLBs at 1024px and validates geometry,
+materials, transforms, and bounds by re-import before promotion. The same cap is
+part of `process_tripo.py` for reproducible future exports. No source or license
+changed.
+
 ## Audio (2026-07-13 production pass)
 
 Every sound in the game is synthesized at runtime with WebAudio oscillators

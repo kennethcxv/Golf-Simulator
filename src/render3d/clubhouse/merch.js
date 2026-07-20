@@ -23,6 +23,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ownGeometry } from '../resourceLifecycle.js';
+import { configureAmbientStockShadow } from '../renderBudget.js';
 
 const FILES = [
   // goods
@@ -179,9 +180,7 @@ export function createMerch(mats) {
         for (const g of geos) out.add(new THREE.Mesh(ownGeometry(g), m));
         continue;
       }
-      const mesh = new THREE.Mesh(ownGeometry(merged), m);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
+      const mesh = configureAmbientStockShadow(new THREE.Mesh(ownGeometry(merged), m));
       out.add(mesh);
     }
     for (const k of keep) out.add(k);

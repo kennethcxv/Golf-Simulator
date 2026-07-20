@@ -52,6 +52,10 @@ test('Blender character parts are shared across figures and survive figure dispo
   char.root.traverse((node) => { if (node.isMesh) meshes.push(node); });
   assert.ok(meshes.length > 0);
   assert.ok(meshes.every((mesh) => mesh.userData.sharedCharacterGeometry));
+  assert.deepEqual(
+    [...new Set(meshes.filter((mesh) => mesh.castShadow).map((mesh) => mesh.name))].sort(),
+    ['calf', 'head', 'pelvis', 'thigh', 'torso'],
+  );
   const materials = new Set(meshes.map((mesh) => mesh.material));
   for (const material of materials) {
     material.addEventListener('dispose', () => { materialDisposals++; });

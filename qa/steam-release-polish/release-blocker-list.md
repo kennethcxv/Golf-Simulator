@@ -64,8 +64,6 @@ Resolved by the four checkout iterations:
 
 Still open for the overall Steam release gate:
 
-- `H-012`, `H-013`, `M-008`: project-wide render, texture, and shadow budgets remain
-  high, although the checkout increment introduces no measured regression.
 - `M-002`, `M-004`, `M-005`, `M-007`, `P-001`, `P-002`: presentation and
   secondary-behavior follow-ups remain as originally recorded.
 - `S-001` (new, High, dependency): full `npm audit` flags Electron 33; the offered
@@ -102,3 +100,15 @@ specific material instance to its behaviorally equivalent fixed channel without
 editing vendor code. Baseline/final shader logs, focused tests, a detached-control
 performance comparison, and a clean 25-transition confirmation are documented in
 `shader-diagnostics/report.md`.
+
+## Rendering budget disposition
+
+`H-012`, `H-013`, and `M-008` are resolved. Twenty-eight derived runtime GLBs
+now enforce a reproducible 1024px atlas cap while the raw owner assets remain
+untouched. Directional shadows update once per composed frame, minor character
+and stock details no longer submit low-value sun shadows, and planar water no
+longer recursively renders color during GTAO's normal pass. Decoded image memory
+fell 92.5%, idle draw submissions fell 46.5%, and twelve-character shadow
+casters fell 29.7%. Four visual iterations, Blender re-import validation, a
+normal-control transaction video, and the final performance soak are documented
+in `texture-budget/report.md`.

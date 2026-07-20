@@ -28,6 +28,7 @@ import { conditionRating } from '../sim/turf.js';
 import { makeCameraRig } from './cameraRig.js';
 import { makeCharacter, preloadCharacterParts } from './characterAsset.js';
 import { patchPoissonDenoiseMaterial } from './shaderPatches.js';
+import { prepareFrameShadows, shouldRefreshPlanarReflection } from './renderBudget.js';
 import { makeClubhouse } from './clubhouse.js';
 import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture } from './proceduralTextures.js';
 import { ZONE_COLORS } from '../render/palette.js';
@@ -186,6 +187,7 @@ export function makeCourseScene(canvas, state) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
+  prepareFrameShadows(renderer.shadowMap);
   // STYLE GUIDE §3: neutral, bright, no filmic grade — saturation lives in albedo
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1.12;
@@ -777,6 +779,29 @@ export function makeCourseScene(canvas, state) {
       });
       water.material.uniforms.size.value = 3.5; // ripple scale
       water.position.set(cx, level, cz);
+      const renderReflection = water.onBeforeRender;
+      const reflectionState = {
+        lastAt: -Infinity,
+        position: new THREE.Vector3(Infinity, Infinity, Infinity),
+        quaternion: new THREE.Quaternion(),
+      };
+      water.onBeforeRender = function budgetedWaterReflection(renderContext, renderScene, renderCamera, ...args) {
+        const inside = !!clubhouseApi?.isInside(renderCamera.position.x, renderCamera.position.z);
+        const positionDeltaSq = reflectionState.position.distanceToSquared(renderCamera.position);
+        const quaternionDot = reflectionState.quaternion.dot(renderCamera.quaternion);
+        if (!shouldRefreshPlanarReflection({
+          overrideMaterial: !!renderScene.overrideMaterial,
+          inside,
+          now: time,
+          lastAt: reflectionState.lastAt,
+          positionDeltaSq,
+          quaternionDot,
+        })) return;
+        reflectionState.lastAt = time;
+        reflectionState.position.copy(renderCamera.position);
+        reflectionState.quaternion.copy(renderCamera.quaternion);
+        renderReflection.call(this, renderContext, renderScene, renderCamera, ...args);
+      };
       scene.add(water);
       waterMeshes.push(water);
     }
@@ -2491,6 +2516,7 @@ export function makeCourseScene(canvas, state) {
     if (st) updateGolfers(dtMs / 1000, st);
     if (st) updateRain(dtMs / 1000, st.weather);
     if (clubhouseApi) clubhouseApi.update(dtMs); // doors, shop customers, interior life
+    prepareFrameShadows(renderer.shadowMap);
     // flag wave
     if (holeGroup) {
       for (const o of holeGroup.children) {

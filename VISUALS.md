@@ -21,6 +21,11 @@ the job is small and deterministic: **uniform-scale to a real-world size**, opti
 optional decimate, export Y-up **with the baked PBR atlas kept**. The authoring script is
 committed, so every prop is reproducible from the raw in `Assets/`.
 
+The Steam release budget keeps that authored atlas but caps the derived runtime
+copy at 1024px. `optimize_runtime_textures.py` performs the same cap across the
+older course-prop exports and re-imports every candidate before replacement;
+raw `Assets/` files are never overwritten.
+
 Keeping the atlas is the load-bearing decision, and it forks the loader:
 
 | | |

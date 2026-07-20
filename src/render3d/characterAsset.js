@@ -6,6 +6,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { characterPartCastsShadow } from './renderBudget.js';
 
 const CHARACTER_PART_NAMES = [
   'torso', 'pelvis', 'upper_arm', 'forearm_hand', 'thigh', 'calf', 'shoe',
@@ -120,7 +121,7 @@ export function makeCharacter({
     // rig's established forward is -Z (cap brim, feet, checkout reach), so align
     // the visual kit once at its shared attachment boundary.
     mesh.rotation.y = Math.PI;
-    mesh.castShadow = true;
+    mesh.castShadow = characterPartCastsShadow(name);
     mesh.userData.sharedCharacterGeometry = true;
     return mesh;
   }

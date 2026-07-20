@@ -1,0 +1,611 @@
+{
+  "idle": {
+    "calls": [
+      {
+        "kind": "scene:beauty",
+        "before": {
+          "calls": 561,
+          "triangles": 1641494,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1351,
+          "triangles": 1516965,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "scene:beauty",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": true
+        },
+        "after": {
+          "calls": 2080,
+          "triangles": 2417227,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "scene:beauty",
+        "before": {
+          "calls": 2,
+          "triangles": 76812,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1330,
+          "triangles": 1516739,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "scene:beauty",
+        "before": {
+          "calls": 2080,
+          "triangles": 2417227,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 2043,
+          "triangles": 2416783,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 2043,
+          "triangles": 2416783,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      }
+    ],
+    "sumCalls": 6822,
+    "sumTriangles": 7867732,
+    "scene": {
+      "meshes": 40,
+      "registerActive": false
+    }
+  },
+  "active": {
+    "calls": [
+      {
+        "kind": "scene:beauty",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": true
+        },
+        "after": {
+          "calls": 1489,
+          "triangles": 2507076,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "scene:beauty",
+        "before": {
+          "calls": 1489,
+          "triangles": 2507076,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 813,
+          "triangles": 935978,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 813,
+          "triangles": 935978,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      },
+      {
+        "kind": "fullscreen",
+        "before": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "after": {
+          "calls": 1,
+          "triangles": 1,
+          "shadowNeedsUpdate": false
+        },
+        "shadowAutoUpdate": false
+      }
+    ],
+    "sumCalls": 2320,
+    "sumTriangles": 3443072,
+    "scene": {
+      "meshes": 40,
+      "registerActive": true
+    }
+  },
+  "runnerDiagnostics": []
+}
