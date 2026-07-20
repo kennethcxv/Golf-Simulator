@@ -13,6 +13,7 @@
 import { addRevenue, addExpense } from './economy.js';
 import { liveSales, consumeHeldBatch } from './checkout.js';
 import { recordSale } from './shop.js';
+import { skuById } from '../data/shopItems.js';
 
 // --- currency -----------------------------------------------------------------
 // Shop prices land on arbitrary cents. The drawer carries five coin
@@ -1072,7 +1073,38 @@ export function completeSale(state, tx, who = 'A customer') {
   commitDrawer(state, drawerCommit.contents);
 
   const total = dueOf(tx);
-  addRevenue(state, 'shopSales', total);
+  const saleKey = `checkout:${tx.id}:sale`;
+  const bank = addRevenue(state, 'shopSales', total, {
+    idempotencyKey: saleKey,
+    relatedId: tx.id,
+    category: 'shopSales',
+    description: `Register sale — ${who}`,
+    source: 'checkout',
+    units: tx.items.length,
+    customerCount: 1,
+    metadata: {
+      method: tx.method,
+      itemIds: tx.items.map((item) => item.uid),
+      skuIds: tx.items.map((item) => item.skuId),
+    },
+  });
+  if (!bank.ok) return bank;
+  if (bank.duplicate) {
+    tx.banked = true;
+    return { ok: false, reason: 'Already banked.', duplicate: true };
+  }
+
+  const goodsCost = tx.items.reduce((sum, item) => sum + (skuById(item.skuId)?.cost || 0), 0);
+  if (goodsCost > 0) {
+    addCostOfGoods(state, goodsCost, {
+      idempotencyKey: `checkout:${tx.id}:cogs`,
+      relatedId: tx.id,
+      description: `Cost of goods — ${who}`,
+      source: 'checkout',
+      units: tx.items.length,
+      metadata: { skuIds: tx.items.map((item) => item.skuId) },
+    });
+  }
 
   // Keep the merchandise ticket intact, then book the drawer variance so the
   // ledger cash reconciles with the physical till in both directions.

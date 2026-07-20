@@ -507,7 +507,6 @@ export function placeOrder(state, skuId, qty) {
   const expressFee = eta.expressFee;
   const cost = Math.round((goods + fee + expressFee) * 100) / 100;
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash.' };
-  addExpense(state, 'shopOrders', cost);
 
   state.shop.nextOrderId++;
   if (starter && state.shop.starterOrderMin == null) state.shop.starterOrderMin = state.clock.minutes;
@@ -522,6 +521,8 @@ export function placeOrder(state, skuId, qty) {
     service: eta.service,
     pace: eta.pace,
     supplier: manifest.supplier,
+    accountingClass: purchaseClass,
+    ledgerKeys,
     manifest,
     arrivesDay: eta.arrivesDay,
     placedMin: state.clock.minutes,
@@ -653,7 +654,33 @@ export function cancelOrder(state, id) {
     if (!ownership.ok) return ownership;
   }
   orders.splice(i, 1);
-  unbill(state, 'shopOrders', o.cost);
+  if (o.ledgerKeys) {
+    if (o.goods > 0) {
+      unbill(state, 'shopOrders', o.goods, {
+        idempotencyKey: `cancel:${o.ledgerKeys.goods}`,
+        relatedId: o.id,
+        description: `Cancelled supplier order â€” goods refund`,
+        source: 'supplier-order',
+        accountingClass: o.accountingClass || 'inventory',
+      });
+    }
+    if (o.fee > 0) {
+      unbill(state, 'deliveryCosts', o.fee, {
+        idempotencyKey: `cancel:${o.ledgerKeys.delivery}`,
+        relatedId: o.id,
+        description: `Cancelled supplier order â€” delivery refund`,
+        source: 'supplier-order',
+        accountingClass: o.accountingClass || 'inventory',
+      });
+    }
+  } else {
+    // Pre-ledger-v2 orders were booked as a single merchandise expense.
+    unbill(state, 'shopOrders', o.cost, {
+      idempotencyKey: `legacy-order:${o.id}:cancel`,
+      relatedId: o.id,
+      source: 'supplier-order',
+    });
+  }
   return { ok: true, refund: o.cost };
 }
 

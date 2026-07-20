@@ -281,6 +281,9 @@ export function dailyTick(state) {
   }
   // 1) settle the day that just ended: accrue its recurring economy, close books
   if (state.ledger) {
+    const todayAbs = calendarOf(state.clock.minutes).dayAbs;
+    const closingDay = todayAbs - 1;
+    beginLedgerClose(state, closingDay);
     accrueDaily(state);
     if (state.shop) shopDailyAccrual(state);
     if (state.golfers) simulateDayRounds(state, state.club.lastRounds || 0);

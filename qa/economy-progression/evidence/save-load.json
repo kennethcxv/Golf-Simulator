@@ -1,0 +1,30 @@
+{
+  "checkout": {
+    "cashBeforeSave": 100018,
+    "cashAfterReplay": 100018,
+    "exactOnceEntryCount": 1
+  },
+  "booking": {
+    "cashBeforeSave": 100032,
+    "cashAfterStaleStatusReplay": 100032,
+    "exactOnceEntryCount": 1
+  },
+  "upgrade": {
+    "cashBeforeSave": 93000,
+    "persisted": true,
+    "duplicateRefused": true
+  },
+  "appraisal": {
+    "offerBeforeSave": 79000,
+    "offerAfterLoad": 79000,
+    "netBeforeSave": 76235,
+    "netAfterLoad": 76235
+  },
+  "sale": {
+    "cashAfterSale": 169231,
+    "cashAfterReload": 169231,
+    "propertyAbsentAfterReload": true
+  },
+  "exploitProtectionIdsPersisted": 2,
+  "existingPortfolioCoverage": "tests/portfolio.test.js covers active-property switching and its serialize/deserialize transition."
+}

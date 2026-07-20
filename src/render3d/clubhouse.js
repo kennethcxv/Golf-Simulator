@@ -919,6 +919,7 @@ export function makeClubhouse(ctx) {
 
   // what this customer's day was actually like — the only thing a review is allowed to read
   const visitOf = (c, bought) => ({
+    reviewId: `${state.property?.id || `club-${state.seed}`}:${c.id}:review`,
     waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
     queueLen: c.queueLenOnArrival || 0,
     bought,
@@ -6485,6 +6486,7 @@ export function makeClubhouse(ctx) {
       ? (reservation.customerType || 'reservation')
       : walkInRequest ? 'walk-in-tee' : 'retail';
     const rng = rngOf(state);
+    const visitorId = `visitor-${state.shop.nextVisitorId++}`;
     // real variety on the floor: builds, trousers, skin tones, hats or hair
     const TROUSERS = [0xc2b190, 0x8a8577, 0x4b545c, 0x6b5a44];
     const SKINS = [0xd9a97e, 0xb9865e, 0x8a5f42, 0xe8c39a];
@@ -7072,6 +7074,7 @@ export function makeClubhouse(ctx) {
     if (!c.reviewed) {
       c.reviewed = true;
       postReview(state, reviewFor(state, {
+        reviewId: `${state.property?.id || `club-${state.seed}`}:${c.id}:review`,
         waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
         queueLen: c.queueLenOnArrival || 0,
         bought: false,
@@ -7134,6 +7137,7 @@ export function makeClubhouse(ctx) {
       const seed = Math.round((c.seed || 0) * 1000 + (state.dayAbs || 0));
       if (Math.abs(Math.sin(seed * 7.13)) < 0.42) {
         postReview(state, reviewFor(state, {
+          reviewId: `${state.property?.id || `club-${state.seed}`}:${c.id}:review`,
           waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
           queueLen: c.queueLenOnArrival || 0,
           bought: !!c.bought,

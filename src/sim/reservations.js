@@ -646,6 +646,19 @@ export function bankReservationDeposit(state, id, {
 export function cancelReservation(state, id) {
   const res = reservationById(state, id);
   if (!res || res.status !== 'booked') return { ok: false };
+  const today = calendarOf(state.clock.minutes).dayAbs;
+  const daysUntil = res.dayAbs - today;
+  const fee = daysUntil <= 1 ? Math.max(5, Math.round(res.fee * 0.1 * 100) / 100) : 0;
+  if (fee > 0) {
+    addRevenue(state, 'cancellationFees', fee, {
+      idempotencyKey: `reservation:${res.id}:cancellation-fee`,
+      relatedId: res.id,
+      category: 'cancellationFees',
+      description: `Late cancellation fee — ${res.name}, ${fmtSlot(res.minute)}`,
+      source: 'reservation',
+      day: today,
+    });
+  }
   res.status = 'cancelled';
   res.reservationStatus = 'cancelled';
   res.checkInStatus = 'cancelled';
@@ -923,6 +936,16 @@ export function deskReservationList(state, presentReservationIds = []) {
 export function checkInReservation(state, id) {
   const res = reservationById(state, id);
   if (!res || res.status !== 'booked') return { ok: false, reason: 'No open booking under that name.' };
+  const booked = addRevenue(state, 'greenFees', res.fee, {
+    idempotencyKey: `reservation:${res.id}:check-in`,
+    relatedId: res.id,
+    category: 'teeTimeBookings',
+    description: `Tee-time check-in — ${res.name}, ${fmtSlot(res.minute)}`,
+    source: 'reservation',
+    units: 1,
+    customerCount: 1,
+  });
+  if (!booked.ok) return booked;
   res.status = 'played';
   res.reservationStatus = 'played';
   res.checkInStatus = 'checked-in';
