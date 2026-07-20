@@ -41,6 +41,8 @@ const phase = arg('phase', 'baseline');
 const outDir = path.resolve(root, arg('out', `qa/economy-progression/${phase}`));
 const headless = arg('headless', 'true') !== 'false';
 const durationMs = Number(arg('duration-ms', '8000'));
+const performanceOnly = process.argv.includes('--performance-only');
+const targetRevision = arg('target-revision', null);
 fs.mkdirSync(outDir, { recursive: true });
 fs.mkdirSync(path.join(outDir, 'screenshots'), { recursive: true });
 fs.mkdirSync(path.join(outDir, 'video'), { recursive: true });
@@ -284,29 +286,31 @@ const pages = [
 ];
 const pageAudit = [];
 const longPageScreens = new Set(['Finances', 'Renovation', 'Property']);
-for (const label of pages) {
-  await clickLaptopNav(label);
-  const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-  await page.screenshot({ path: path.join(outDir, 'screenshots', `${slug}.png`) });
-  pageAudit.push(await page.evaluate((expected) => ({
-    expected,
-    title: document.querySelector('.lt-h1')?.textContent?.trim() || null,
-    active: document.querySelector('.lt-navbtn.on')?.textContent?.trim() || null,
-    crash: /could not be drawn/i.test(document.querySelector('.lt-err')?.textContent || ''),
-    nodeCount: document.querySelector('.lt-content')?.querySelectorAll('*').length || 0,
-    scrollHeight: document.querySelector('.lt-content')?.scrollHeight || 0,
-    clientHeight: document.querySelector('.lt-content')?.clientHeight || 0,
-  }), label));
-  if (longPageScreens.has(label)) {
-    const contentPoint = await page.evaluate(() => {
-      const rect = document.querySelector('.lt-content')?.getBoundingClientRect();
-      return rect ? { x: rect.left + rect.width * 0.72, y: rect.top + rect.height * 0.72 } : null;
-    });
-    if (contentPoint) {
-      await page.mouse.move(contentPoint.x, contentPoint.y);
-      await page.mouse.wheel(0, 5000);
-      await page.waitForTimeout(250);
-      await page.screenshot({ path: path.join(outDir, 'screenshots', `${slug}-bottom.png`) });
+if (!performanceOnly) {
+  for (const label of pages) {
+    await clickLaptopNav(label);
+    const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    await page.screenshot({ path: path.join(outDir, 'screenshots', `${slug}.png`) });
+    pageAudit.push(await page.evaluate((expected) => ({
+      expected,
+      title: document.querySelector('.lt-h1')?.textContent?.trim() || null,
+      active: document.querySelector('.lt-navbtn.on')?.textContent?.trim() || null,
+      crash: /could not be drawn/i.test(document.querySelector('.lt-err')?.textContent || ''),
+      nodeCount: document.querySelector('.lt-content')?.querySelectorAll('*').length || 0,
+      scrollHeight: document.querySelector('.lt-content')?.scrollHeight || 0,
+      clientHeight: document.querySelector('.lt-content')?.clientHeight || 0,
+    }), label));
+    if (longPageScreens.has(label)) {
+      const contentPoint = await page.evaluate(() => {
+        const rect = document.querySelector('.lt-content')?.getBoundingClientRect();
+        return rect ? { x: rect.left + rect.width * 0.72, y: rect.top + rect.height * 0.72 } : null;
+      });
+      if (contentPoint) {
+        await page.mouse.move(contentPoint.x, contentPoint.y);
+        await page.mouse.wheel(0, 5000);
+        await page.waitForTimeout(250);
+        await page.screenshot({ path: path.join(outDir, 'screenshots', `${slug}-bottom.png`) });
+      }
     }
   }
 }
@@ -341,9 +345,11 @@ const overlayAudit = await page.evaluate(() => {
 
 const report = {
   phase,
+  targetRevision,
+  performanceOnly,
   createdAt: new Date().toISOString(),
   launch: {
-    command: `node tools/qa/economy-browser-qa.mjs --url=${baseUrl} --phase=${phase} --out=${path.relative(root, outDir).replaceAll('\\', '/')}`,
+    command: `node tools/qa/economy-browser-qa.mjs --url=${baseUrl} --phase=${phase} --out=${path.relative(root, outDir).replaceAll('\\', '/')} --duration-ms=${durationMs}${performanceOnly ? ' --performance-only' : ''}${targetRevision ? ` --target-revision=${targetRevision}` : ''}`,
     baseUrl,
     browser: await browser.version(),
     playwrightModule: modulePath,
