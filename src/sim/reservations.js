@@ -1139,20 +1139,31 @@ export function createWalkInBooking(state, input = {}) {
   const cal = calendarOf(nowOf(state));
   const dayAbs = Math.floor(input.dayAbs ?? cal.dayAbs);
   const partySize = Math.floor(Number(input.partySize || input.customerNames?.length || 1));
+  const holder = String(input.holder || input.name || '').trim();
+  // A holder + headcount must not silently recruit unrelated people from the
+  // club's golfer pool. Stable placeholders identify every unfilled seat until
+  // the player replaces it with an explicit guest name.
+  const customerNames = Array.isArray(input.customerNames) && input.customerNames.length
+    ? input.customerNames
+    : Array.from({ length: Math.max(1, partySize) }, (_, index) => (
+      index === 0 ? holder : `Guest ${index + 1} of ${holder}`
+    ));
+  const arrivingNow = input.arrived !== false && input.checkInImmediately !== false;
   let minute = input.minute;
   if (minute == null) minute = availableSlots(state, dayAbs, { partySize, walkIn: true })[0]?.minute;
   if (minute == null) return { ok: false, reason: 'No real slot has enough capacity.' };
   const result = bookSlot(state, dayAbs, Math.floor(minute), {
     ...input,
-    holder: input.holder || input.name,
+    holder,
+    customerNames,
     partySize,
     walkIn: true,
     source: 'walk-in',
-    arrived: input.arrived !== false,
+    arrived: arrivingNow,
     arrivalOffsetMin: Math.floor(nowOf(state) - absoluteMinute(dayAbs, Math.floor(minute))),
   });
   if (!result.ok) return result;
-  if (result.res.arrival.status === 'scheduled') markReservationArrived(state, result.res.id);
+  if (arrivingNow && result.res.arrival.status === 'scheduled') markReservationArrived(state, result.res.id);
   return result;
 }
 

@@ -27,6 +27,7 @@ import { makeEmpirePanel } from './ui/empirePanel.js';
 import { openMarketplace } from './ui/marketplacePanel.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
 import { makeLaptop } from './ui/laptop.js';
+import { makeFrontDesk } from './ui/frontDesk.js';
 import { quadTransform, uvAt } from './core/laptopProjection.js';
 import { makeAudio } from './core/audio.js';
 import { tickTutorial, tutorialFlag, skipTutorial, replayTutorial } from './sim/tutorial.js';
@@ -61,6 +62,7 @@ const app = {
   overallRating: 0,
   viewMode: 'normal', // 'normal' | 'health' | 'moisture'
   groundsOpen: false,
+  frontDeskOpen: false,
   sectionIndex: null,
   sectionsRef: null,
 };
@@ -74,6 +76,7 @@ let empirePanel = null;
 let walkOverlay = null;
 let regHint = null;
 let laptopUi = null;
+let frontDeskUi = null;
 let objectivesPanel = null;
 let menu = null;
 let gameUi = null;
@@ -110,6 +113,7 @@ function enterWalk(spawn) {
 }
 
 function exitWalk() {
+  if (app.frontDeskOpen) exitFrontDesk(true);
   if (app.laptopOpen) exitLaptop(true);
   if (app.scene3d && app.scene3d.post && app.scene3d.post.gtao) app.scene3d.post.gtao.radius = 1.5; // management-camera tuning
   if (app.scene3d) app.scene3d.walk.exit();
@@ -214,7 +218,7 @@ function setCameraLens(fov, near) {
 }
 
 function enterLaptop() {
-  if (!walkActive() || app.laptopOpen) return;
+  if (!walkActive() || app.laptopOpen || app.frontDeskOpen) return;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
   if (!ch) return;
   // The lens FIRST: the seat distance is derived from the field of view, so asking for the pose
@@ -276,6 +280,44 @@ function exitLaptop(silent) {
   const vt = document.querySelector('.view-toggle');
   if (vt) vt.style.display = '';
   if (!silent) {
+    walkOverlay.style.display = '';
+    requestLook();
+    if (audio.ready) audio.uiTick();
+  }
+}
+
+// --- tee desk mode ------------------------------------------------------------
+// The same physical counter serves golf operations and merchandise, but the
+// workflows remain independent. This mode borrows only the proven cashier pose;
+// it never enters registerMode or touches its live sale.
+function enterFrontDesk(reservationId = null) {
+  if (!walkActive() || app.frontDeskOpen || app.laptopOpen || regActive()) return;
+  const ch = app.scene3d?.clubhouse?.();
+  const pose = ch?.register?.cashierPose?.();
+  if (!pose || !frontDeskUi) return;
+  app.frontDeskOpen = true;
+  resetCameraInput();
+  app.scene3d.walk.focusOn(pose);
+  if (document.pointerLockElement) document.exitPointerLock();
+  closeLeftPanels('none');
+  walkOverlay.style.display = 'none';
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = 'none';
+  document.body.classList.add('front-desk-mode');
+  frontDeskUi.open(reservationId);
+  if (audio.ready) audio.uiTick();
+}
+
+function exitFrontDesk(silent = false) {
+  if (!app.frontDeskOpen) return;
+  app.frontDeskOpen = false;
+  frontDeskUi?.close();
+  document.body.classList.remove('front-desk-mode');
+  app.scene3d?.walk?.clearFocus?.();
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = '';
+  resetCameraInput();
+  if (!silent && walkActive()) {
     walkOverlay.style.display = '';
     requestLook();
     if (audio.ready) audio.uiTick();
@@ -365,6 +407,7 @@ function announceOutbreaks() {
 
 function startGame(state) {
   closePauseMenu(); // any pause overlay dies with the old world
+  if (app.frontDeskOpen) exitFrontDesk(true);
   if (app.scene3d) {
     app.scene3d.dispose();
     app.scene3d = null;
@@ -382,6 +425,7 @@ function startGame(state) {
   app.scene3d.walk.hooks.sfx = (name) => { if (audio.ready && audio[name]) audio[name](); };
   // the clubhouse's in-world management surfaces route through these
   app.scene3d.walk.hooks.openLaptop = () => enterLaptop();
+  app.scene3d.walk.hooks.openFrontDesk = (reservationId) => enterFrontDesk(reservationId);
   app.scene3d.walk.hooks.toggleOverview = () => handlers.toggleCourseMode();
   app.scene3d.walk.hooks.turfLabelAt = (cx, cy) => {
     const section = sectionAtCell(cx, cy);
@@ -589,6 +633,7 @@ function ensureLoadVeil() {
 
 function exitToMenu() {
   closePauseMenu();
+  if (app.frontDeskOpen) exitFrontDesk(true);
   app.screen = 'menu';
   app.state = null;
   gameUi.style.display = 'none';
@@ -1113,7 +1158,7 @@ function regActive() {
 canvas.addEventListener('click', () => {
   // first-person walking: clicking (re)captures the mouse — but NOT while the player
   // is behind the till, where the cursor is the whole interface
-  if (regActive()) return;
+  if (regActive() || app.frontDeskOpen) return;
   if (app.screen === 'game' && !document.pointerLockElement && walkActive()) {
     requestLook();
   }
@@ -1121,6 +1166,7 @@ canvas.addEventListener('click', () => {
 
 canvas.addEventListener('pointerdown', (e) => {
   if (app.screen !== 'game') return;
+  if (app.frontDeskOpen) { e.preventDefault(); return; }
   if (regActive()) { e.preventDefault(); regApi().onDown(e); return; }
   if (app.courseMode !== 'overview') {
     // walking with any tool out: the held button is the use trigger
@@ -1225,6 +1271,13 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('keydown', (e) => {
   if (app.screen !== 'game') return;
+  if (app.frontDeskOpen) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      exitFrontDesk();
+    }
+    return;
+  }
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
 
   // BEHIND THE TILL, THE TILL OWNS THE KEYBOARD. This sits above even the speed keys
@@ -1401,7 +1454,9 @@ window.addEventListener('keydown', (e) => {
 // held-key camera movement. The set is normalised and repeat-safe (see core/heldKeys.js) —
 // a key released mid-run used to strand its shifted spelling here and pan the map forever.
 const held = createHeldKeys(OVERVIEW_KEYS);
-window.addEventListener('keydown', (e) => held.down(e.key, e.repeat));
+window.addEventListener('keydown', (e) => {
+  if (!app.frontDeskOpen) held.down(e.key, e.repeat);
+});
 window.addEventListener('keyup', (e) => held.up(e.key));
 window.addEventListener('blur', () => resetCameraInput());
 document.addEventListener('pointerlockchange', () => resetCameraInput());
@@ -1546,6 +1601,7 @@ function frame(ts) {
           && app.scene3d.clubhouse().isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z)),
         tempHiF: app.state.weather.today.tempHiF,
       });
+      if (app.frontDeskOpen) frontDeskUi?.refresh();
       audioClock = 0;
     }
     hud.update();
@@ -1682,6 +1738,19 @@ function boot() {
   gameUi = el('div', { style: 'display:none' });
   hud = makeHud(app, handlers);
   laptopUi = makeLaptop(app, { close: () => exitLaptop() });
+  frontDeskUi = makeFrontDesk(app, {
+    close: () => exitFrontDesk(),
+    onCheckedIn(reservationId) {
+      const ch = app.scene3d?.clubhouse?.();
+      ch?.releaseReservationParty?.(reservationId);
+    },
+    onWalkInCreated(reservationId, arrivingNow) {
+      if (!arrivingNow) return;
+      const ch = app.scene3d?.clubhouse?.();
+      ch?.spawnReservationParty?.(reservationId, { atCounter: true });
+    },
+  });
+  app.frontDeskUi = frontDeskUi;
   worksPanel = makeWorksPanel(app, handlers);
   inspectPanel = makeInspectPanel(app, recomputeRating);
   groundsPanel = makeGroundsPanel(app);
@@ -1718,7 +1787,7 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle,
+  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, frontDeskUi.root, objectivesPanel.root, viewToggle,
     el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · 🗂 Manage or E/G/C/M keys for the desks · V: view · Space: pause · Tab/Esc: back on foot' }));
 
   uiRoot.append(menu.root, gameUi);

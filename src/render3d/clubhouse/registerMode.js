@@ -1277,6 +1277,10 @@ export function createRegisterMode(B) {
     hasTx: () => !!tx,
     getTx: () => tx,
     getCustomer: () => cust,
+    // Shared by the tee desk so both services feel grounded at the same physical
+    // counter. Returning a fresh value keeps the register's camera math private;
+    // the operations UI never enters or mutates merchandise checkout state.
+    cashierPose,
     scanFlash: () => scanFlash,
     begin,
     abandon,
