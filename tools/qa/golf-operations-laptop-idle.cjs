@@ -71,9 +71,10 @@ async function main() {
       walk.yaw = -Math.PI / 2;
       walk.pitch = -0.05;
     });
-    await page.waitForTimeout(500);
+    await page.waitForFunction(() => /laptop/i.test(document.querySelector('.shop-prompt')?.textContent || ''),
+      null, { timeout: 30000 });
     await page.keyboard.press('e');
-    await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 10000 });
+    await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 30000 });
     await page.waitForFunction(() => document.querySelector('.lt-frame')?.getBoundingClientRect().width > 100,
       null, { timeout: 20000 });
     await page.waitForTimeout(1500);
