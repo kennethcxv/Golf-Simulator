@@ -7,6 +7,9 @@
 
 import { BOX_KINDS, boxDims } from '../data/boxes.js';
 import { DECOR_SPOTS } from '../data/shopItems.js';
+import { placeableSpecBySkuId } from '../data/placeableItems.js';
+import { placedPropertyItems } from './propertyInventory.js';
+import { placeableFootprint } from './propertyPlacement.js';
 import {
   BACKDOOR_CLEARWAY,
   COUNTER,
@@ -809,38 +812,19 @@ function activeRenovationBlockers(state) {
     ));
   }
 
+  const placements = new Map(placedPropertyItems(state).map((entry) => [entry.id, entry]));
   for (const entry of Array.isArray(reno?.decor) ? reno.decor : []) {
-    const spot = DECOR_SPOTS[entry?.skuId]?.[entry?.spot];
-    if (!spot || spot.mount !== 'floor') continue;
-    if (entry.skuId === 'plant1') {
-      blockers.push(fixedBlocker(
-        `decor:plant1:${entry.spot}`,
-        'placed plant',
-        spot.x,
-        spot.z,
-        0.50,
-        0.50,
-        spot.ry,
-      ));
-    } else if (entry.skuId === 'lounge1') {
-      // Mirror makeLoungeMesh(): a sofa block plus its companion table, both
-      // composed through the save-authoritative DECOR_SPOTS transform.
-      for (const [part, localX, localZ, width, depth] of [
-        ['seating', 0, 0, 2.20, 0.95],
-        ['table', 0, 1.05, 1.15, 0.60],
-      ]) {
-        const offset = rotateXZ(localX, localZ, spot.ry || 0);
-        blockers.push(fixedBlocker(
-          `decor:lounge1:${entry.spot}:${part}`,
-          `placed lounge ${part}`,
-          spot.x + offset.x,
-          spot.z + offset.z,
-          width,
-          depth,
-          spot.ry,
-        ));
-      }
-    }
+    const placement = placements.get(entry?.placementId);
+    const pose = placement?.pose || DECOR_SPOTS[entry?.skuId]?.[entry?.spot];
+    const spec = placeableSpecBySkuId(entry?.skuId);
+    if (!pose || pose.mount !== 'floor' || !spec?.placementProfile?.blocksMovement) continue;
+    const rect = placeableFootprint(spec, pose);
+    if (!rect) continue;
+    blockers.push({
+      id: `decor:${entry.skuId}:${entry.placementId || entry.spot}`,
+      label: `placed ${spec.displayName.toLowerCase()}`,
+      rect,
+    });
   }
   return blockers;
 }

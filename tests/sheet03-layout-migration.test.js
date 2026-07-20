@@ -4,7 +4,13 @@ import { readFileSync } from 'node:fs';
 
 import { FIXTURES, FIXTURE_HALF, fixtureRect } from '../src/data/shopLayout.js';
 import { placedFixtures, validatePlacement } from '../src/sim/layout.js';
-import { SAVE_VERSION, deserialize, newGame, serialize } from '../src/sim/state.js';
+import {
+  FIXTURE_FOOTPRINT_SAVE_VERSION,
+  SAVE_VERSION,
+  deserialize,
+  newGame,
+  serialize,
+} from '../src/sim/state.js';
 
 const fixtureById = (id) => FIXTURES.find((fixture) => fixture.id === id);
 
@@ -50,7 +56,7 @@ test('pre-current saves restore only invalid moved poses under repaired footprin
   );
 
   const raw = JSON.parse(serialize(state));
-  raw.version = SAVE_VERSION - 1;
+  raw.version = FIXTURE_FOOTPRINT_SAVE_VERSION - 1;
   raw.shop.layout.moved.table_polos = validTablePose;
   // The old symmetric shoerack half-box fit here. Its repaired asymmetric
   // footprint extends through the west wall, so v10 must fall back to default.

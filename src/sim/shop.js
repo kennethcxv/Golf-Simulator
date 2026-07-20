@@ -26,9 +26,11 @@ import {
   cancelPlaceablePurchase,
   ensurePropertyInventory,
   importLegacyStoredPlaceables,
+  moveOwnedPlacement,
   placeOwnedItem,
   placedPropertyItems,
   registerPlaceablePurchase,
+  sellOwnedItem,
   storeOwnedPlacement,
 } from './propertyInventory.js';
 
@@ -318,6 +320,54 @@ export function placeDecor(state, skuId, spot) {
   inv.back -= 1;
   reno.decor.push({ skuId, spot, placementId: placed.placement.id });
   return { ok: true, placement: placed.placement };
+}
+
+// Free-placement counterpart to the authored renovation anchors. Ownership is
+// consumed only after the caller has validated the exact preview pose.
+export function placeDecorFree(state, skuId, pose) {
+  const reno = state.shop && state.shop.reno;
+  const sku = skuById(skuId);
+  const inv = state.shop?.inventory?.[skuId];
+  if (!reno || !sku || sku.cat !== 'decor') return { ok: false, reason: 'Not a decor item.' };
+  if (!inv || inv.back <= 0) return { ok: false, reason: 'None in property storage.' };
+  importLegacyStoredPlaceables(state, skuId, inv.back);
+  const placed = placeOwnedItem(state, skuId, pose);
+  if (!placed.ok) return placed;
+  inv.back -= 1;
+  reno.decor.push({ skuId, spot: null, placementId: placed.placement.id });
+  return { ok: true, placement: placed.placement };
+}
+
+export function moveDecorPlacement(state, placementId, pose) {
+  const reno = state.shop?.reno;
+  if (!reno?.decor?.some((entry) => entry.placementId === placementId)) {
+    return { ok: false, reason: 'That decor placement is not in this clubhouse.' };
+  }
+  return moveOwnedPlacement(state, placementId, pose);
+}
+
+export function removeDecorPlacement(state, placementId) {
+  const reno = state.shop?.reno;
+  if (!reno) return { ok: false, reason: 'No clubhouse renovation state.' };
+  const index = reno.decor.findIndex((entry) => entry.placementId === placementId);
+  if (index < 0) return { ok: false, reason: 'That decor placement is not in this clubhouse.' };
+  const decor = reno.decor[index];
+  const stored = storeOwnedPlacement(state, placementId);
+  if (!stored.ok) return stored;
+  reno.decor.splice(index, 1);
+  const inv = state.shop.inventory[decor.skuId];
+  if (inv) inv.back += 1;
+  return { ok: true, placement: stored.placement, skuId: decor.skuId };
+}
+
+export function sellStoredDecor(state, skuId, operationId = null) {
+  const inv = state.shop?.inventory?.[skuId];
+  if (!inv || inv.back < 1) return { ok: false, reason: 'None of that item is in storage.' };
+  importLegacyStoredPlaceables(state, skuId, inv.back);
+  const sold = sellOwnedItem(state, skuId, { quantity: 1, operationId });
+  if (!sold.ok || sold.replay) return sold;
+  inv.back -= 1;
+  return sold;
 }
 
 // pack a placed piece back up: the spot frees, the item returns to the backroom

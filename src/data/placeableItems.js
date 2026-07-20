@@ -29,6 +29,36 @@ const DELIVERY_CLASS_BY_SKU = Object.freeze({
   lounge1: 'large-furniture',
 });
 
+// Local-space bounds are shared by the placement validator, build-mode ghost,
+// and floor-box blocker. Offsets matter for asymmetric sets such as the lounge,
+// whose coffee table extends forward from the sofa origin.
+const PLACEMENT_PROFILE_BY_SKU = Object.freeze({
+  rug1: Object.freeze({
+    mount: 'floor', width: 3, depth: 2, height: 0.04,
+    offsetX: 0, offsetZ: 0, blocksMovement: false, rotationStep: Math.PI / 12,
+  }),
+  plant1: Object.freeze({
+    mount: 'floor', width: 0.5, depth: 0.5, height: 0.75,
+    offsetX: 0, offsetZ: 0, blocksMovement: true, rotationStep: Math.PI / 12,
+  }),
+  poster1: Object.freeze({
+    mount: 'wall', width: 0.92, depth: 0.08, height: 1.22,
+    offsetX: 0, offsetZ: 0, blocksMovement: false, rotationStep: 0,
+  }),
+  board1: Object.freeze({
+    mount: 'wall', width: 1.5, depth: 0.1, height: 1.1,
+    offsetX: 0, offsetZ: 0, blocksMovement: false, rotationStep: 0,
+  }),
+  light1: Object.freeze({
+    mount: 'ceiling', width: 0.64, depth: 0.64, height: 0.9,
+    offsetX: 0, offsetZ: 0, blocksMovement: false, rotationStep: Math.PI / 12,
+  }),
+  lounge1: Object.freeze({
+    mount: 'floor', width: 2.2, depth: 1.825, height: 0.95,
+    offsetX: 0, offsetZ: 0.4375, blocksMovement: true, rotationStep: Math.PI / 12,
+  }),
+});
+
 function authoredMounts(skuId) {
   return [...new Set((DECOR_SPOTS[skuId] || []).map((spot) => spot.mount))];
 }
@@ -43,6 +73,7 @@ export const PLACEABLE_ITEM_CATALOG = Object.freeze(decor.map((sku) => Object.fr
   defaultCondition: 100,
   purchasePrice: sku.cost,
   sellValue: Math.round(sku.cost * 0.6 * 100) / 100,
+  placementProfile: PLACEMENT_PROFILE_BY_SKU[sku.id],
   placementRestrictions: Object.freeze({
     propertyAreas: Object.freeze(['clubhouse']),
     mounts: Object.freeze(authoredMounts(sku.id)),
@@ -75,3 +106,6 @@ export function placeableSpec(id) {
   return placeableSpecByAssetId(id) || placeableSpecBySkuId(id);
 }
 
+export function placeablePlacementProfile(id) {
+  return placeableSpec(id)?.placementProfile || null;
+}

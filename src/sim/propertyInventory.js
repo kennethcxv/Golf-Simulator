@@ -20,6 +20,7 @@ import { DECOR_SPOTS } from '../data/shopItems.js';
 
 export const PROPERTY_INVENTORY_SCHEMA_VERSION = 1;
 export const PROPERTY_INVENTORY_OPERATION_CAP = 80;
+const HEALED_INVENTORIES = new WeakSet();
 
 const nonNegativeInteger = (value) => (
   Number.isSafeInteger(value) && value >= 0 ? value : 0
@@ -267,7 +268,11 @@ export function ensurePropertyInventory(state, explicitPropertyId = null) {
     state.propertyInventory = inventoryShell(propertyId);
     migrateLegacyDecor(state, state.propertyInventory);
   }
-  return healInventory(state, state.propertyInventory, propertyId);
+  if (HEALED_INVENTORIES.has(state.propertyInventory)
+      && state.propertyInventory.propertyId === propertyId) return state.propertyInventory;
+  const healed = healInventory(state, state.propertyInventory, propertyId);
+  HEALED_INVENTORIES.add(healed);
+  return healed;
 }
 
 export function bindPropertyInventory(state, propertyId) {

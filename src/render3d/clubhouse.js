@@ -22,8 +22,10 @@ import {
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
+  removeDecorPlacement,
   restockShelfFromBackroom, priceFor, windowDirtAvg,
 } from '../sim/shop.js';
+import { placedPropertyItems } from '../sim/propertyInventory.js';
 import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
   cutTape, openFlap, takeFromBox, flattenBox, recycleCarriedBox,
@@ -728,11 +730,14 @@ export function makeClubhouse(ctx) {
   };
   const builder = buildBuildMode(B, {
     rebuildLayout,
+    rebuildDecor: () => rebuildDecor(),
     fixtureAnchors,
     fixtureMoveBlocker,
     setFixtureStockVisible,
     setFixtureCollidersActive,
     fixtureColliderDiagnostics,
+    createPlaceablePreview: (skuId) => createPlaceablePreview(skuId),
+    setDecorPlacementVisible: (placementId, visible) => setDecorPlacementVisible(placementId, visible),
   });
   buildLounge(B);
   buildStockroomDressing(B);
@@ -2319,8 +2324,9 @@ export function makeClubhouse(ctx) {
       const cos = Math.cos(spot.ry);
       const bx = spot.x + lx * cos + lz * sin;
       const bz = spot.z - lx * sin + lz * cos;
-      const swap = Math.abs(sin) > 0.5;
-      return colBoxAt(bx, bz, swap ? 0.95 : w, swap ? w : d);
+      const colliderWidth = Math.abs(cos) * w + Math.abs(sin) * d;
+      const colliderDepth = Math.abs(sin) * w + Math.abs(cos) * d;
+      return colBoxAt(bx, bz, colliderWidth, colliderDepth);
     };
     return { group: g, colliders: [worldBox(0, 0, 2.2, 0.95), worldBox(0, 1.05, 1.15, 0.6)] };
   }
@@ -2330,44 +2336,90 @@ export function makeClubhouse(ctx) {
     board1: makeBoardMesh, light1: makePendantMesh, lounge1: makeLoungeMesh,
   };
 
+  function createPlaceablePreview(skuId) {
+    const build = DECOR_BUILDERS[skuId];
+    if (!build) return null;
+    return build({ x: 0, z: 0, ry: 0 }, true).group;
+  }
+
   function ghostify(g) {
+    const materials = new Set();
+    const textures = new Set();
     g.traverse((o) => {
       if (o.isMesh) {
+        for (const material of (Array.isArray(o.material) ? o.material : [o.material])) {
+          if (!material || material === ghostMat) continue;
+          materials.add(material);
+          for (const value of Object.values(material)) if (value?.isTexture) textures.add(value);
+        }
         o.material = ghostMat;
         o.castShadow = false;
       }
       if (o.isPointLight) o.intensity = 0;
     });
+    for (const texture of textures) texture.dispose();
+    for (const material of materials) material.dispose();
     return g;
   }
 
-  function buildDecorAt(skuId, spotIdx, ghost) {
-    const spot = DECOR_SPOTS[skuId][spotIdx];
-    const built = DECOR_BUILDERS[skuId](spot, ghost);
-    built.group.position.set(spot.x, 0, spot.z);
-    built.group.rotation.y = spot.ry;
+  function disposeDecorRenderable(root) {
+    const geometries = new Set();
+    const materials = new Set();
+    const textures = new Set();
+    root.traverse((object) => {
+      if (object.geometry) geometries.add(object.geometry);
+      for (const material of (Array.isArray(object.material) ? object.material : [object.material])) {
+        if (!material || material === ghostMat) continue;
+        materials.add(material);
+        for (const value of Object.values(material)) if (value?.isTexture) textures.add(value);
+      }
+    });
+    for (const geometry of geometries) geometry.dispose();
+    for (const texture of textures) texture.dispose();
+    for (const material of materials) material.dispose();
+  }
+
+  function buildDecorPose(skuId, pose, options = {}) {
+    const { ghost = false, spotIdx = null, placementId = null } = options;
+    const built = DECOR_BUILDERS[skuId](pose, ghost);
+    built.group.position.set(pose.x, 0, pose.z);
+    built.group.rotation.y = pose.ry;
     if (ghost) ghostify(built.group);
     interior.add(built.group);
-    if (!ghost && popNextDecor && popNextDecor.skuId === skuId && popNextDecor.spot === spotIdx) {
+    if (!ghost && popNextDecor && popNextDecor.skuId === skuId
+        && (popNextDecor.placementId === placementId || popNextDecor.spot === spotIdx)) {
       popNextDecor = null;
       tweenScale(built.group, 0.55, 1, 0.28);
     }
-    const entry = { group: built.group, colliders: ghost ? [] : built.colliders, prop: null };
+    const entry = {
+      group: built.group,
+      colliders: ghost ? [] : built.colliders,
+      prop: null,
+      propActive: false,
+      collidersActive: !ghost,
+      placementId,
+      skuId,
+      spotIdx,
+    };
     for (const c of entry.colliders) addCol(c);
     const sku = SHOP_CATALOG.find((sk) => sk.id === skuId);
-    const wp = L2W(spot.x, spot.z);
+    const wp = L2W(pose.x, pose.z);
     if (!ghost) {
       entry.prop = addProp({
         x: wp.x, z: wp.z, r: 1.9,
         label: () => `${sku.name} — [E] pack it back up`,
         action: () => {
-          if (!removeDecor(state, skuId, spotIdx).ok) return;
+          const removed = placementId
+            ? removeDecorPlacement(state, placementId)
+            : removeDecor(state, skuId, spotIdx);
+          if (!removed.ok) return;
           rebuildDecor();
           refreshCondition();
           if (hooks.sfx) hooks.sfx('thunk');
           if (hooks.toast) hooks.toast(`${sku.name} packed up — it's back in the backroom.`);
         },
       });
+      entry.propActive = true;
     } else {
       entry.prop = addProp({
         x: wp.x, z: wp.z, r: 1.9,
@@ -2385,21 +2437,58 @@ export function makeClubhouse(ctx) {
           if (hooks.toast) hooks.toast(`${sku.name} placed — the shop is coming together.`);
         },
       });
+      entry.propActive = true;
     }
     decorObjs.push(entry);
+    return entry;
+  }
+
+  function buildDecorAt(skuId, spotIdx, ghost) {
+    return buildDecorPose(skuId, DECOR_SPOTS[skuId][spotIdx], { ghost, spotIdx });
+  }
+
+  function setDecorPlacementVisible(placementId, visible) {
+    const entry = decorObjs.find((decor) => decor.placementId === placementId);
+    if (!entry || entry.group.visible === visible) return false;
+    entry.group.visible = visible;
+    if (visible) {
+      if (!entry.collidersActive) {
+        for (const collider of entry.colliders) addCol(collider);
+        entry.collidersActive = true;
+      }
+      if (entry.prop && !entry.propActive) {
+        addProp(entry.prop);
+        entry.propActive = true;
+      }
+    } else {
+      if (entry.collidersActive) {
+        for (const collider of entry.colliders) removeCol(collider);
+        entry.collidersActive = false;
+      }
+      if (entry.prop && entry.propActive) {
+        removeProp(entry.prop);
+        entry.propActive = false;
+      }
+    }
+    return true;
   }
 
   function rebuildDecor() {
     for (const d of decorObjs) {
       interior.remove(d.group);
-      for (const c of d.colliders) removeCol(c);
-      if (d.prop) removeProp(d.prop);
+      if (d.collidersActive) for (const c of d.colliders) removeCol(c);
+      if (d.prop && d.propActive) removeProp(d.prop);
+      disposeDecorRenderable(d.group);
     }
     decorObjs.length = 0;
     const reno = state && state.shop && state.shop.reno;
     if (!reno) return;
+    const placements = new Map(placedPropertyItems(state).map((entry) => [entry.id, entry]));
     for (const d of reno.decor) {
-      if (DECOR_BUILDERS[d.skuId] && DECOR_SPOTS[d.skuId] && DECOR_SPOTS[d.skuId][d.spot]) {
+      const placement = placements.get(d.placementId);
+      if (placement && DECOR_BUILDERS[d.skuId]) {
+        buildDecorPose(d.skuId, placement.pose, { placementId: placement.id, spotIdx: d.spot });
+      } else if (DECOR_BUILDERS[d.skuId] && DECOR_SPOTS[d.skuId]?.[d.spot]) {
         buildDecorAt(d.skuId, d.spot, false);
       }
     }
@@ -2415,7 +2504,13 @@ export function makeClubhouse(ctx) {
   let decorSig = '';
   function decorSignature() {
     if (!state || !state.shop) return '';
-    let sig = state.shop.reno ? String(state.shop.reno.decor.length) : '0';
+    const placementById = new Map(placedPropertyItems(state).map((entry) => [entry.id, entry]));
+    let sig = (state.shop.reno?.decor || []).map((entry) => {
+      const pose = placementById.get(entry.placementId)?.pose;
+      return pose
+        ? `${entry.placementId}:${pose.x}:${pose.z}:${pose.ry}:${pose.surfaceId}`
+        : `${entry.skuId}:${entry.spot}`;
+    }).join('|');
     for (const skuId of Object.keys(DECOR_BUILDERS)) {
       const inv = state.shop.inventory[skuId];
       sig += ':' + (inv ? inv.back : 0);

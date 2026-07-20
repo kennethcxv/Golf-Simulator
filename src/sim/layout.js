@@ -27,7 +27,7 @@ const staffZone = () => ({
   maxZ: COUNTER.z + COUNTER.depth / 2 + STAFF_CORRIDOR_MIN,
 });
 
-const rectsOverlap = (a, b, eps = 1e-6) =>
+export const rectsOverlap = (a, b, eps = 1e-6) =>
   a.maxX > b.minX + eps && a.minX < b.maxX - eps && a.maxZ > b.minZ + eps && a.minZ < b.maxZ - eps;
 
 export function ensureLayout(state) {
@@ -92,6 +92,7 @@ export function routesIntact(state, override) {
     .filter((f) => !override || f.id !== override.id);
   if (override?.place) fixtures.push(override.place);
   const rects = fixtures.map(fixtureRect);
+  if (Array.isArray(override?.extraRects)) rects.push(...override.extraRects);
 
   // flood from just inside the main door
   const start = { x: DOOR_CLEARWAY.minX / 2 + DOOR_CLEARWAY.maxX / 2, z: INTERIOR.d / 2 - 1.0 };

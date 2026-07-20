@@ -1355,12 +1355,46 @@ window.addEventListener('keydown', (e) => {
     const bld = buildApi();
     if (bld && bld.isActive()) {
       switch (e.key) {
-        case 'e': case 'E': bld.interact(); return;
-        case 'r': case 'R': bld.rotate(); return;
-        case 'x': case 'X': bld.stow(); return;
-        case 'b': case 'B': bld.exit(); toast('Back to work.'); return;
+        case 'e': case 'E':
+          e.preventDefault();
+          if (!e.repeat) bld.interact();
+          return;
+        case 'r': case 'R':
+          e.preventDefault();
+          if (!e.repeat) bld.rotate(e.shiftKey);
+          return;
+        case 'x': case 'X':
+          e.preventDefault();
+          if (!e.repeat) bld.stow();
+          return;
+        case 'i': case 'I':
+          e.preventDefault();
+          if (!e.repeat) bld.toggleInventory();
+          return;
+        case 'ArrowUp': case 'ArrowLeft':
+          e.preventDefault();
+          if (!e.repeat) bld.cycleInventory(-1);
+          return;
+        case 'ArrowDown': case 'ArrowRight':
+          e.preventDefault();
+          if (!e.repeat) bld.cycleInventory(1);
+          return;
+        case 'Delete': case 'Backspace':
+          e.preventDefault();
+          if (!e.repeat) bld.sellSelected();
+          return;
+        case 'z': case 'Z':
+          e.preventDefault();
+          if (!e.repeat) bld.undo();
+          return;
+        case 'b': case 'B':
+          e.preventDefault();
+          bld.exit();
+          toast('Back to work.');
+          return;
         case 'Escape':
-          if (bld.isCarrying()) bld.cancel();
+          e.preventDefault();
+          if (bld.isInventoryOpen() || bld.isCarrying()) bld.cancel();
           else bld.exit();
           return;
         default: break; // WASD still walks: you carry the fixture with you
@@ -1714,8 +1748,11 @@ let lastCondWord = null;
 // lookups are cached once, every DOM write is guarded by a last-value check (an identical
 // textContent assignment still rebuilds the text node and dirties layout), and the shop
 // condition — a whole grime-grid scan — is polled at 4Hz instead of 90.
-const ovEl = { prompt: null, lockHint: null, cond: null };
-const ovLast = { prompt: null, opacity: null, lockDisp: null, lockText: null, condText: null, condDisp: null };
+const ovEl = { prompt: null, lockHint: null, cond: null, propertyInventory: null };
+const ovLast = {
+  prompt: null, opacity: null, lockDisp: null, lockText: null,
+  condText: null, condDisp: null, propertyInventoryText: null, propertyInventoryDisplay: null,
+};
 let condClock = 0;
 function updateWalkOverlay(dtMs = 16.7) {
   const registerActive = regActive();
@@ -1735,11 +1772,22 @@ function updateWalkOverlay(dtMs = 16.7) {
     ovEl.prompt = walkOverlay.querySelector('.shop-prompt');
     ovEl.lockHint = walkOverlay.querySelector('.shop-lockhint');
     ovEl.cond = walkOverlay.querySelector('.shop-cond');
+    ovEl.propertyInventory = walkOverlay.querySelector('.property-inventory');
   }
   // build mode speaks over the world's own prompts: while it is on, the only controls that
   // matter are its controls
   const placement = boxPlacementApi();
   const bld = buildApi();
+  const propertyInventoryText = bld?.inventoryText ? bld.inventoryText() : '';
+  const propertyInventoryDisplay = propertyInventoryText ? '' : 'none';
+  if (propertyInventoryText !== ovLast.propertyInventoryText) {
+    ovLast.propertyInventoryText = propertyInventoryText;
+    ovEl.propertyInventory.textContent = propertyInventoryText;
+  }
+  if (propertyInventoryDisplay !== ovLast.propertyInventoryDisplay) {
+    ovLast.propertyInventoryDisplay = propertyInventoryDisplay;
+    ovEl.propertyInventory.style.display = propertyInventoryDisplay;
+  }
   const label = (placement?.hasCarriedBox() && placement.label())
     || (bld && bld.isActive() && bld.label())
     || (app.scene3d.walk.getFocusLabel ? app.scene3d.walk.getFocusLabel() : null)
@@ -1926,6 +1974,7 @@ function boot() {
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
     el('div', { class: 'shop-prompt', text: '' }),
+    el('div', { class: 'property-inventory', text: '', style: 'display:none' }),
     el('div', { class: 'shop-cond', text: '', style: 'display:none' }),
     el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F tool · J course editor · Tab overview · Esc menu' }),
   );

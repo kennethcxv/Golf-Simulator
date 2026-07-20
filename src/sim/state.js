@@ -61,7 +61,7 @@ export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 // migrate conservatively without changing retail merchandise stock.
 export const SAVE_VERSION = 11;
 
-const FIXTURE_FOOTPRINT_SAVE_VERSION = 10;
+export const FIXTURE_FOOTPRINT_SAVE_VERSION = 10;
 const ROUTE_FAILURE = /customers could not get around/i;
 
 // Keep every owned unit while making the serialized inventory agree with the

@@ -330,6 +330,24 @@ input[type="range"] { accent-color: var(--accent); }
   text-align: center;
 }
 
+.property-inventory {
+  position: absolute;
+  top: 82px;
+  left: 18px;
+  width: min(430px, calc(100vw - 36px));
+  max-height: calc(100vh - 170px);
+  overflow: hidden auto;
+  padding: 16px 18px;
+  color: #f3edda;
+  background: linear-gradient(145deg, rgba(24, 45, 31, 0.97), rgba(20, 26, 22, 0.96));
+  border: 1px solid rgba(190, 158, 92, 0.72);
+  border-radius: 10px;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.42), inset 0 1px rgba(255, 255, 255, 0.05);
+  font: 600 0.86rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.01em;
+  white-space: pre-wrap;
+}
+
 .shop-lockhint {
   position: absolute;
   bottom: 18px;
