@@ -205,6 +205,31 @@ export function checkoutSale(state, items, who = 'A customer') {
     if (index >= 0) heldMatches.push(available.splice(index, 1)[0]);
     else heldMatches.push(null);
   }
+  if (heldMatches.some((held) => !held)) {
+    return { ok: false, reason: 'Every checkout item must still be held by this customer.' };
+  }
+  const allocations = heldMatches.flatMap((held) => allocationsForHeldUnit(state, held.uid));
+  const allocated = allocations.reduce((sum, allocation) => sum + (allocation.quantity || 0), 0);
+  if (allocated !== heldMatches.length) {
+    return { ok: false, reason: 'Checkout inventory provenance is incomplete.' };
+  }
+  // One atomic ledger transfer covers mixed-SKU baskets. Revenue is recorded
+  // only after this succeeds, so a stale or repeated checkout cannot be paid twice.
+  const sold = moveInventory(state, {
+    from: INVENTORY_STAGE.CUSTOMER_HELD,
+    to: INVENTORY_STAGE.SOLD,
+    quantity: heldMatches.length,
+    allocations,
+    referenceId: `checkout-sale-batch:${heldMatches.map((held) => held.uid).sort().join('|')}`,
+    reason: `Paid checkout for ${heldMatches.map((held) => held.uid).join(', ')}`,
+  });
+  if (!sold.ok) return sold;
+  const heldLedger = heldUnits(state);
+  for (const held of heldMatches) {
+    const index = heldLedger.findIndex((entry) => entry.uid === held.uid);
+    if (index >= 0) heldLedger.splice(index, 1);
+    forgetHeldAllocations(state, held.uid);
+  }
   let total = 0;
   for (const it of items) total += it.price || 0;
   total = Math.round(total * 100) / 100;
@@ -219,8 +244,6 @@ export function checkoutSale(state, items, who = 'A customer') {
   state.shop.log.unshift(`${who} bought ${names.join(' + ')} at the counter (${Math.round(total)} dollars)`);
   if (state.shop.log.length > 8) state.shop.log.pop();
   for (let index = 0; index < items.length; index++) {
-    const held = heldMatches[index];
-    if (held) consumeHeld(state, held.uid, held.skuId);
     state.shop.salesToday ||= {};
     state.shop.salesToday[items[index].skuId] = (state.shop.salesToday[items[index].skuId] || 0) + 1;
   }

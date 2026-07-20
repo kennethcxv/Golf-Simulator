@@ -1655,8 +1655,8 @@ export function makeCourseScene(canvas, state) {
     heldGroups.vacuum.position.set(0.34, -0.42, -0.7);
   }
   {
-    // the box cutter: a stubby retractable utility knife. Yellow body, a short angled blade — read
-    // at arm's length, it is unmistakably the thing you run down a seam of tape.
+    // Immediate fallback while the authored utility knife GLB arrives.
+    const fallback = new THREE.Group();
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd8b23a, roughness: 0.5 });
     const bladeMat = new THREE.MeshStandardMaterial({ color: 0xcdd2d6, roughness: 0.25, metalness: 0.8 });
     const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.14), bodyMat);
@@ -1665,10 +1665,19 @@ export function makeCourseScene(canvas, state) {
     const blade = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.03, 0.05), bladeMat);
     blade.position.set(0, 0.03, -0.085);
     blade.rotation.x = -0.5;
-    heldGroups.boxcutter.add(handle, slide, blade);
-    heldGroups.boxcutter.scale.setScalar(1.6);          // a utility knife is small; read it at arm's length
+    fallback.add(handle, slide, blade);
+    fallback.scale.setScalar(1.6);
+    heldGroups.boxcutter.add(fallback);
     heldGroups.boxcutter.position.set(0.22, -0.30, -0.5);
     heldGroups.boxcutter.rotation.set(0.15, -0.2, 0);
+    new GLTFLoader().load('vendor/models/clubhouse/delivery_box_cutter.glb', (loaded) => {
+      const model = loaded.scene;
+      model.traverse((o) => { if (o.name.startsWith('COL_')) o.visible = false; });
+      model.scale.setScalar(1.35);
+      model.rotation.y = Math.PI;
+      fallback.visible = false;
+      heldGroups.boxcutter.add(model);
+    }, undefined, () => {});
   }
   const loadHeld = (url, group, scale, pos, rot) => {
     new GLTFLoader().load(url, (g) => {
@@ -1693,6 +1702,7 @@ export function makeCourseScene(canvas, state) {
   // tool FEEL: equip/stow easing + a carried bob synced to the gait, so tools
   // read as held in hands rather than glued to the camera
   const heldAnim = { t: 1, show: false, pendingHide: false };
+  let cutterStroke = 0;
   let bobPhase = 0;
   let walkMoving = false;
   let mountBlend = 0; // 0 = on foot (first person) … 1 = in the seat (chase cam)
@@ -1732,6 +1742,16 @@ export function makeCourseScene(canvas, state) {
     );
     heldRoot.rotation.x = 0.45 * (1 - k);
     heldRoot.rotation.z = Math.sin(bobPhase * 0.5) * 0.012 * sway;
+    if (walkTool === 'boxcutter') {
+      cutterStroke = holdActive ? Math.min(1, cutterStroke + dt * 0.72) : Math.max(0, cutterStroke - dt * 4.5);
+      const cut = easeOutCubic(cutterStroke);
+      heldGroups.boxcutter.position.set(0.22 - cut * 0.24, -0.30 - Math.sin(cut * Math.PI) * 0.035, -0.50 - cut * 0.18);
+      heldGroups.boxcutter.rotation.set(0.15 + cut * 0.08, -0.20, -cut * 0.16);
+    } else {
+      cutterStroke = 0;
+      heldGroups.boxcutter.position.set(0.22, -0.30, -0.50);
+      heldGroups.boxcutter.rotation.set(0.15, -0.20, 0);
+    }
   }
 
   const sprayCount = 90;
@@ -1871,22 +1891,40 @@ export function makeCourseScene(canvas, state) {
         }
       }
     }
-    // placed props (repair yard, tools, signs): nearest one you're facing
+    // Placed props (repair yard, tools, signs): favour what is under the
+    // reticle, with distance as the tie-breaker. Pure nearest-distance focus
+    // let a peripheral receiving carton behind a rack steal the interaction
+    // from the clearly centred carton sitting on that rack.
     let bestProp = null;
-    let bestDist = 1e9;
+    let bestLabel = null;
+    let bestScore = 1e9;
     for (const p of walkProps) {
       const dx = p.x - walk.x;
       const dz = p.z - walk.z;
       const dist = Math.hypot(dx, dz);
-      if (dist > p.r || dist >= bestDist) continue;
-      const facing = ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
-      if (facing > 0.3 && p.label()) { // a falsy label = the prop is dormant right now
+      if (dist > p.r) continue;
+      const safeDist = Math.max(0.001, dist);
+      let facing;
+      if (Number.isFinite(p.y) && Number.isFinite(camera.position.y)) {
+        const dy = p.y - camera.position.y;
+        const distance3d = Math.max(0.001, Math.hypot(dx, dy, dz));
+        const cosPitch = Math.cos(walk.pitch);
+        facing = ((dx / distance3d) * -Math.sin(walk.yaw) * cosPitch)
+          + ((dy / distance3d) * Math.sin(walk.pitch))
+          + ((dz / distance3d) * -Math.cos(walk.yaw) * cosPitch);
+      } else {
+        facing = ((dx / safeDist) * -Math.sin(walk.yaw)) + ((dz / safeDist) * -Math.cos(walk.yaw));
+      }
+      const label = facing > 0.3 ? p.label() : null;
+      const score = dist / Math.max(0.01, facing * facing);
+      if (label && score < bestScore) { // a falsy label = the prop is dormant right now
         bestProp = p;
-        bestDist = dist;
+        bestLabel = label;
+        bestScore = score;
       }
     }
     if (bestProp) {
-      walkFocus = { kind: 'prop', label: bestProp.label(), prop: bestProp };
+      walkFocus = { kind: 'prop', label: bestLabel, prop: bestProp };
       return;
     }
     // a tool out: the prompt becomes a live readout on the patch ahead
@@ -1952,6 +1990,7 @@ export function makeCourseScene(canvas, state) {
   // frame from whatever you are focused on, so nothing here is a mode you enter and forget.
   let autoTool = null;         // a tool equipped BY context, to be taken away again when you look off
   let holdActive = false;      // are we mid-hold this frame? (drives the hands' cutting motion)
+  let holdPressProp = null;    // a hold never transfers to a new target during the same key press
 
   function reconcileAutoTool() {
     const want = (walkFocus && walkFocus.kind === 'prop' && walkFocus.prop.tool) || null;
@@ -1969,18 +2008,28 @@ export function makeCourseScene(canvas, state) {
     holdActive = false;
     if (!walkFocus || walkFocus.kind !== 'prop' || !walkFocus.prop.hold) return;
     if (!walkHeld.has('e')) return;
+    if (walkFocus.prop !== holdPressProp) return;
     walkFocus.prop.hold(dt);
     holdActive = true;
   }
 
   function walkKeyDown(e) {
-    walkHeld.add(e.key.toLowerCase());
+    const key = e.key.toLowerCase();
+    if (key === 'e' && !walkHeld.has(key)) {
+      holdPressProp = walkFocus && walkFocus.kind === 'prop' && walkFocus.prop.hold
+        ? walkFocus.prop
+        : null;
+    }
+    walkHeld.add(key);
   }
   function walkKeyUp(e) {
-    walkHeld.delete(e.key.toLowerCase());
+    const key = e.key.toLowerCase();
+    walkHeld.delete(key);
+    if (key === 'e') holdPressProp = null;
   }
   function walkBlur() {
     walkHeld.clear();
+    holdPressProp = null;
   }
   function walkMouseMove(e) {
     if (document.pointerLockElement !== canvas) return;

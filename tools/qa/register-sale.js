@@ -22,11 +22,21 @@ async (page) => {
   //    printed" when the receipt printed fine two seconds later. Every wait below is
   //    a condition on the real transaction.
 
-  const MODE = 'cash';
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/register/' + MODE;
+  const fs = process.getBuiltinModule('node:fs');
+  const path = process.getBuiltinModule('node:path');
+  const MODE = process.env.REGISTER_QA_MODE || 'cash';
+  const BASE_URL = process.env.QA_BASE_URL || 'http://localhost:8457/';
+  const OUT = path.resolve(process.env.REGISTER_QA_OUTPUT
+    || `qa/inventory-delivery-loop/checkout/${MODE}`);
+  fs.mkdirSync(OUT, { recursive: true });
   const errors = [];
+  const failedRequests = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
+  page.on('requestfailed', (request) => failedRequests.push({
+    url: request.url(),
+    error: request.failure()?.errorText || 'request failed',
+  }));
 
   const shot = async (n) => { await page.screenshot({ path: `${OUT}/${n}.png` }); };
   const log = [];
@@ -70,15 +80,16 @@ async (page) => {
   // mid-flight and you get a pixel ~90px off; the click lands on bare counter, nothing
   // is grabbed, and the run reports "scanned: 0" as though the scanner were broken.
   // It is the same trap as sleeping for the receipt. Never sleep for state.
-  const CASHIER_EYE = { x: 2.78 - 8, z: 5.52 + 228 };   // REGISTER cashier pose, in world
+  const CASHIER_EYE = { x: 2.78, z: 5.52 };   // REGISTER cashier pose, clubhouse-local
   const untilCameraSettled = (ms = 10000) => page.waitForFunction((eye) => {
     const c = window.__fw.scene3d.camera;
-    return Math.hypot(c.position.x - eye.x, c.position.z - eye.z) < 0.03;
+    const origin = window.__fw.scene3d.clubhouse().interior.position;
+    return Math.hypot(c.position.x - (eye.x + origin.x), c.position.z - (eye.z + origin.z)) < 0.03;
   }, CASHIER_EYE, { timeout: ms });
 
 
   // --- boot ------------------------------------------------------------------------
-  await page.goto('http://localhost:8457/');
+  await page.goto(BASE_URL);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});
@@ -93,6 +104,7 @@ async (page) => {
   // --- set the stage ----------------------------------------------------------------
   await page.evaluate(async () => {
     const THREE = await import('/vendor/three.module.js');
+    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
     const app = window.__fw;
     window.__qa = {
       // interior-local -> screen pixels, so a click lands on the pixel the thing is
@@ -143,18 +155,33 @@ async (page) => {
     const c = app.state.clock;
     c.minutes = Math.floor(c.minutes / 1440) * 1440 + 14 * 60;
     app.scene3d.applyTimeWeather(14 * 60, app.state.weather);
-    for (const id of Object.keys(app.state.shop.inventory)) {
+    const targetSkus = ['balls3', 'glove1'];
+    lifecycle.ensureInventoryLifecycle(app.state);
+    for (const id of targetSkus) {
       const inv = app.state.shop.inventory[id];
-      if (['rug1', 'plant1', 'poster1', 'board1', 'light1', 'lounge1', 'vac1'].includes(id)) { inv.back = 0; inv.shelf = 0; continue; }
-      inv.shelf = Math.max(inv.shelf, 10);
-      inv.back = 0;
+      const wanted = Math.max(inv.shelf, 10);
+      const added = wanted - inv.shelf;
+      if (added > 0) {
+        const adopted = lifecycle.adoptExternalInventory(app.state, {
+          skuId: id,
+          quantity: added,
+          stage: lifecycle.INVENTORY_STAGE.SHELF,
+          note: 'Deterministic browser checkout fixture',
+        });
+        if (!adopted.ok) throw new Error(`Could not establish ${id} checkout fixture: ${adopted.reason}`);
+        inv.shelf = wanted;
+      }
     }
-    app.scene3d.clubhouse().rebuildStock();
+    const clubhouse = app.scene3d.clubhouse();
+    clubhouse.setOrganicWalkins?.(false);
+    clubhouse.clearWalkins?.();
+    clubhouse.rebuildStock();
 
     // behind the till, FACING IT: yaw 0 is -z, which is where the counter is
     const st = app.scene3d.walk.state;
-    st.x = 2.80 - 8;
-    st.z = 5.10 + 228;
+    const origin = clubhouse.interior.position;
+    st.x = 2.80 + origin.x;
+    st.z = 5.10 + origin.z;
     st.yaw = 0;
     st.pitch = -0.18;
   });
@@ -200,6 +227,68 @@ async (page) => {
     await page.mouse.up();
     await page.waitForTimeout(200);
   };
+
+  // A drawer stack can be partly hidden by the counter lip. Its projected box
+  // centre is therefore not guaranteed to be a pickable pixel. Search the
+  // visible projected bounds and retain only a point whose actual scene ray
+  // resolves to the requested physical denomination.
+  const moneyClickPoint = (from, denom) => page.evaluate(async ([wantedFrom, wantedDenom]) => {
+    const THREE = await import('/vendor/three.module.js');
+    const app = window.__fw;
+    const clubhouse = app.scene3d.clubhouse();
+    const canvas = document.querySelector('canvas');
+    const rect = canvas.getBoundingClientRect();
+    const candidates = [];
+    clubhouse.interior.traverse((object) => {
+      const data = object.userData || {};
+      if (object.visible && data.kind === 'money' && data.from === wantedFrom
+        && Number(data.denom) === Number(wantedDenom)) candidates.push(object);
+    });
+    const raycaster = new THREE.Raycaster();
+    const pickable = (object) => {
+      for (let current = object; current; current = current.parent) {
+        if (current.userData?.pick) return current;
+      }
+      return null;
+    };
+    const project = (point) => {
+      const ndc = point.clone().project(app.scene3d.camera);
+      return {
+        x: rect.left + ((ndc.x + 1) / 2) * rect.width,
+        y: rect.top + ((-ndc.y + 1) / 2) * rect.height,
+      };
+    };
+    for (const object of candidates.reverse()) {
+      const bounds = new THREE.Box3().setFromObject(object);
+      if (bounds.isEmpty()) continue;
+      const corners = [];
+      for (const x of [bounds.min.x, bounds.max.x]) {
+        for (const y of [bounds.min.y, bounds.max.y]) {
+          for (const z of [bounds.min.z, bounds.max.z]) corners.push(project(new THREE.Vector3(x, y, z)));
+        }
+      }
+      const minX = Math.min(...corners.map((point) => point.x));
+      const maxX = Math.max(...corners.map((point) => point.x));
+      const minY = Math.min(...corners.map((point) => point.y));
+      const maxY = Math.max(...corners.map((point) => point.y));
+      for (const fy of [0.25, 0.5, 0.75]) {
+        for (const fx of [0.5, 0.25, 0.75, 0.1, 0.9]) {
+          const x = minX + (maxX - minX) * fx;
+          const y = minY + (maxY - minY) * fy;
+          const ndc = new THREE.Vector2(
+            ((x - rect.left) / rect.width) * 2 - 1,
+            -(((y - rect.top) / rect.height) * 2 - 1),
+          );
+          raycaster.setFromCamera(ndc, app.scene3d.camera);
+          const hit = raycaster.intersectObjects(clubhouse.interior.children, true)
+            .map((entry) => pickable(entry.object))
+            .find(Boolean);
+          if (hit === object) return { x, y, denom: wantedDenom };
+        }
+      }
+    }
+    return null;
+  }, [from, denom]);
   const scan = async (i) => {
     const at = await page.evaluate((k) => window.__qa.find('item', k), i);
     if (!at) return false;
@@ -308,9 +397,18 @@ async (page) => {
       for (let k = 0; k < n; k++) {
         const src = await page.evaluate((d) => window.__qa.findMoney('drawer', Number(d)), denom);
         if (!src) { log.push({ warn: 'drawer is out of ' + denom }); break; }
-        const px = await page.evaluate((a) => window.__qa.px(a.x, a.y, a.z), src);
+        const px = await moneyClickPoint('drawer', Number(denom));
+        if (!px) throw new Error(`No visible pick ray reaches the drawer's $${denom} piece.`);
+        const heldBefore = await page.evaluate(() => {
+          const tx = window.__fw.scene3d.clubhouse().register.getTx();
+          return Object.values(tx.hand || {}).reduce((sum, count) => sum + count, 0);
+        });
         await page.mouse.click(px.x, px.y);
-        await page.waitForTimeout(140);
+        await page.waitForFunction((before) => {
+          const tx = window.__fw.scene3d.clubhouse().register.getTx();
+          return Object.values(tx.hand || {}).reduce((sum, count) => sum + count, 0) > before;
+        }, heldBefore, { timeout: 3000 });
+        log.push({ action: 'selected physical change', denom: Number(denom), pixel: px });
       }
     }
     await shot('09-change-counted');
@@ -365,5 +463,47 @@ async (page) => {
   await shot('13-done');
   log.push({ step: '20. final', ...(await money()) });
 
-  return { mode: MODE, log, errors: errors.slice(0, 10), errorCount: errors.length };
+  const inventoryAudit = await page.evaluate(async () => {
+    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
+    const app = window.__fw;
+    const reconciliation = lifecycle.reconcileInventory(app.state, {
+      qa: true,
+      context: 'browser-checkout-acceptance',
+    });
+    const data = lifecycle.ensureInventoryLifecycle(app.state);
+    const summary = lifecycle.inventoryLifecycleSummary(app.state);
+    const soldBySku = {};
+    for (const lot of data.lots) {
+      if (lot.active === false) continue;
+      soldBySku[lot.skuId] = (soldBySku[lot.skuId] || 0)
+        + (lot.buckets[lifecycle.INVENTORY_STAGE.SOLD] || 0);
+    }
+    return {
+      reconciled: reconciliation.ok,
+      discrepancies: reconciliation.discrepancies,
+      totals: summary.totals,
+      soldBySku,
+      transactionHistory: app.state.shop.transactionHistory?.length || 0,
+      held: app.state.shop.held?.length || 0,
+    };
+  });
+  const nonAborted = failedRequests.filter((request) => !/ERR_ABORTED/.test(request.error));
+  const finalMoney = log[log.length - 1];
+  const ok = errors.length === 0
+    && nonAborted.length === 0
+    && inventoryAudit.reconciled
+    && inventoryAudit.held === 0
+    && (inventoryAudit.soldBySku.balls3 || 0) >= 1
+    && (inventoryAudit.soldBySku.glove1 || 0) >= 1
+    && finalMoney.units >= 2;
+  return {
+    ok,
+    mode: MODE,
+    log,
+    inventoryAudit,
+    errors: errors.slice(0, 10),
+    errorCount: errors.length,
+    failedRequests,
+    nonAbortedFailedRequests: nonAborted,
+  };
 }
