@@ -7,6 +7,7 @@ const ROOT = process.cwd();
 const URL = process.env.GOLF_FLIPPER_URL || 'http://127.0.0.1:8463/';
 const LOOP = process.env.QA_LOOP || 'iteration-1';
 const ACCESSIBILITY_PROFILE = process.env.QA_ACCESSIBILITY === '1';
+const RECORD_VIDEO = process.env.QA_VIDEO === '1';
 const OUT = path.join(ROOT, 'qa', 'player-experience-polish', 'iterations', LOOP);
 const [viewportWidth, viewportHeight] = (process.env.QA_VIEWPORT || '1440x900').split('x').map(Number);
 const VIEWPORT = {
@@ -46,6 +47,7 @@ const context = await browser.newContext({
   locale: 'en-US',
   colorScheme: 'dark',
   reducedMotion: 'no-preference',
+  ...(RECORD_VIDEO ? { recordVideo: { dir: OUT, size: VIEWPORT } } : {}),
 });
 await context.addInitScript(() => {
   localStorage.clear();
@@ -56,6 +58,7 @@ await context.addInitScript(() => {
   };
 });
 const page = await context.newPage();
+const video = page.video();
 page.on('console', (message) => consoleMessages.push({ type: message.type(), text: message.text().slice(0, 1200) }));
 page.on('pageerror', (error) => pageErrors.push(error.stack || error.message));
 page.on('requestfailed', (request) => requestFailures.push({ url: request.url(), error: request.failure()?.errorText || 'unknown' }));
@@ -138,6 +141,19 @@ try {
   await page.locator('.listing').first().waitFor({ state: 'visible', timeout: 15_000 });
   await shot('03-property-market');
   result.focus.market = await focusSequence(12);
+  if (VIEWPORT.height <= 700) {
+    result.controls.marketKeyboardScroll = await page.locator('.market-dialog').evaluate((dialog) => ({
+      scrollTop: dialog.scrollTop,
+      scrollHeight: dialog.scrollHeight,
+      clientHeight: dialog.clientHeight,
+      activeText: document.activeElement?.textContent?.trim() || '',
+    }));
+    if (result.controls.marketKeyboardScroll.scrollHeight > result.controls.marketKeyboardScroll.clientHeight
+      && result.controls.marketKeyboardScroll.scrollTop <= 0) {
+      throw new Error('Compact property market did not scroll with keyboard focus');
+    }
+    await shot('03b-property-market-keyboard-scroll');
+  }
   await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
 
   await page.locator('.load-veil').waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
@@ -216,6 +232,14 @@ try {
   result.consoleErrors = consoleMessages.filter((message) => message.type === 'error').length;
   result.pageErrors = pageErrors.length;
   result.requestFailures = requestFailures.length;
+  await context.close();
+  if (video) {
+    const videoPath = path.join(OUT, 'player-experience-acceptance.webm');
+    await video.saveAs(videoPath);
+    const generatedPath = await video.path();
+    if (path.resolve(generatedPath) !== path.resolve(videoPath)) await fs.rm(generatedPath, { force: true });
+    result.video = path.relative(ROOT, videoPath).replaceAll('\\', '/');
+  }
   await fs.writeFile(path.join(OUT, 'result.json'), JSON.stringify({ ...result, consoleMessages, pageErrors, requestFailures }, null, 2));
   await browser.close();
 }
