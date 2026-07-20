@@ -43,6 +43,7 @@ async (page) => {
     const suggestion = lifecycle.reorderSuggestion(app.state, 'balls2');
     return {
       cash: app.state.cash,
+      shopOrderExpense: app.state.ledger?.today?.expense?.shopOrders || 0,
       position: lifecycle.inventoryPosition(app.state, 'balls2'),
       suggestion,
     };
@@ -97,6 +98,7 @@ async (page) => {
     });
     return {
       cash: app.state.cash,
+      shopOrderExpense: app.state.ledger?.today?.expense?.shopOrders || 0,
       orderCount: orders.length,
       order: order && {
         id: order.id,
@@ -126,6 +128,7 @@ async (page) => {
   });
   const nonAborted = failedRequests.filter((request) => !/ERR_ABORTED/.test(request.error));
   const charged = before.cash - after.cash;
+  const orderExpenseDelta = Math.round((after.shopOrderExpense - before.shopOrderExpense) * 100) / 100;
   const ok = errors.length === 0
     && nonAborted.length === 0
     && after.reconciled
@@ -133,7 +136,7 @@ async (page) => {
     && after.order
     && after.order.lines.length === 1
     && after.order.lines[0].quantity === 12
-    && charged === after.order.totalCost
+    && orderExpenseDelta === after.order.totalCost
     && after.position.inTransit === 12
     && after.suggestion.incoming === 12
     && Number.isFinite(after.suggestion.earliestEtaMin);
@@ -144,6 +147,7 @@ async (page) => {
     before,
     after,
     charged,
+    orderExpenseDelta,
     errors,
     failedRequests,
     nonAbortedFailedRequests: nonAborted,
