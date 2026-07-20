@@ -70,7 +70,10 @@ export function fireStaff(state, employeeId) {
   if (i === -1) return { ok: false, reason: 'No such employee.' };
   const [emp] = state.staff.employees.splice(i, 1);
   const severance = emp.wage * 3;
-  spend(state, 'severance', severance);
+  spend(state, 'severance', severance, {
+    idempotencyKey: `staff:${employeeId}:severance`, relatedId: employeeId,
+    description: `${emp.name} severance`, source: 'staff',
+  });
   return { ok: true, severance };
 }
 
@@ -81,7 +84,10 @@ export function trainStaff(state, employeeId) {
   if (emp.skill >= 5) return { ok: false, reason: 'Already a master.' };
   const cost = 200 + emp.skill * 120;
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash for the course fee.' };
-  spend(state, 'training', cost);
+  spend(state, 'training', cost, {
+    idempotencyKey: `staff:${employeeId}:training:skill-${emp.skill}`, relatedId: employeeId,
+    description: `${emp.name} training course`, source: 'staff',
+  });
   emp.trainingDays = 2;
   return { ok: true, cost };
 }

@@ -8,7 +8,7 @@
 // a reservation is a promise a golfer walks in with, not a rewrite of demand.
 
 import { calendarOf } from './time.js';
-import { addRevenue } from './economy.js';
+import { addRevenue, recordOutcome } from './economy.js';
 
 export const TEE_SHEET = {
   openMin: 7 * 60,      // first tee time 7:00
@@ -74,8 +74,31 @@ export function bookSlot(state, dayAbs, minute, name) {
 export function cancelReservation(state, id) {
   const res = reservationById(state, id);
   if (!res || res.status !== 'booked') return { ok: false };
+  const today = calendarOf(state.clock.minutes).dayAbs;
+  const daysUntil = res.dayAbs - today;
+  const fee = daysUntil <= 1 ? Math.max(5, Math.round(res.fee * 0.1 * 100) / 100) : 0;
+  if (fee > 0) {
+    addRevenue(state, 'cancellationFees', fee, {
+      idempotencyKey: `reservation:${res.id}:cancellation-fee`,
+      relatedId: res.id,
+      category: 'cancellationFees',
+      description: `Late cancellation fee — ${res.name}, ${fmtSlot(res.minute)}`,
+      source: 'reservation',
+      day: today,
+    });
+  }
   res.status = 'cancelled';
-  return { ok: true };
+  res.cancelledDay = today;
+  res.cancellationFee = fee;
+  recordOutcome(state, {
+    idempotencyKey: `reservation:${res.id}:cancelled`,
+    type: 'cancellation',
+    amount: fee,
+    relatedId: res.id,
+    reason: fee > 0 ? `${res.name} cancelled inside the late window.` : `${res.name} cancelled with notice.`,
+    day: today,
+  });
+  return { ok: true, fee };
 }
 
 // today's bookings that should be standing at the counter: from a little before
@@ -91,8 +114,26 @@ export function dueForCheckIn(state) {
 export function checkInReservation(state, id) {
   const res = reservationById(state, id);
   if (!res || res.status !== 'booked') return { ok: false, reason: 'No open booking under that name.' };
+  const booked = addRevenue(state, 'greenFees', res.fee, {
+    idempotencyKey: `reservation:${res.id}:check-in`,
+    relatedId: res.id,
+    category: 'teeTimeBookings',
+    description: `Tee-time check-in — ${res.name}, ${fmtSlot(res.minute)}`,
+    source: 'reservation',
+    units: 1,
+    customerCount: 1,
+  });
+  if (!booked.ok) return booked;
   res.status = 'played';
-  addRevenue(state, 'greenFees', res.fee);
+  res.checkedInMin = state.clock.minutes;
+  recordOutcome(state, {
+    idempotencyKey: `reservation:${res.id}:served`,
+    type: 'teeCheckIn',
+    count: 1,
+    amount: res.fee,
+    relatedId: res.id,
+    reason: `${res.name} checked in for the reserved tee time.`,
+  });
   return { ok: true, fee: res.fee };
 }
 
@@ -101,7 +142,28 @@ export function checkInReservation(state, id) {
 export function reservationsDailyTick(state, todayAbs) {
   const book = bookOf(state);
   for (const r of book.booked) {
-    if (r.status === 'booked' && r.dayAbs < todayAbs) r.status = 'noShow';
+    if (r.status === 'booked' && r.dayAbs < todayAbs) {
+      const fee = Math.max(5, Math.round(r.fee * 0.25 * 100) / 100);
+      addRevenue(state, 'noShowFees', fee, {
+        idempotencyKey: `reservation:${r.id}:no-show-fee`,
+        relatedId: r.id,
+        category: 'noShowFees',
+        description: `No-show fee — ${r.name}, ${fmtSlot(r.minute)}`,
+        source: 'reservation',
+        day: r.dayAbs,
+      });
+      recordOutcome(state, {
+        idempotencyKey: `reservation:${r.id}:no-show`,
+        type: 'noShow',
+        count: 1,
+        amount: fee,
+        relatedId: r.id,
+        reason: `${r.name} did not arrive for the reserved tee time.`,
+        day: r.dayAbs,
+      });
+      r.status = 'noShow';
+      r.noShowFee = fee;
+    }
   }
   book.booked = book.booked.filter((r) => r.dayAbs >= todayAbs - 14);
 }

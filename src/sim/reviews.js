@@ -15,8 +15,14 @@ import { shopCondition, exteriorScore } from './shop.js';
 import { exteriorWashScore } from './washing.js';
 import { clubRatings, fairGreenFee, amenityScore } from './club.js';
 import { SHOP_CATALOG, RETAIL_CATS } from '../data/shopItems.js';
+import { applyReputationChange, ensureReputation } from './reputation.js';
+import { recordOutcome } from './economy.js';
 
 const MAX_REVIEWS = 60;
+const FACTOR_REPUTATION_CATEGORY = {
+  shopClean: 'cleanliness', exterior: 'cleanliness', courseCondition: 'course',
+  stock: 'retail', prices: 'retail', coursePrice: 'course', waitTime: 'service', queue: 'service',
+};
 
 // what fraction of the retail lines actually have something on the shelf
 function stockRatio(state) {
@@ -173,14 +179,17 @@ export function reviewFor(state, visit = {}, seed = 0) {
   }
 
   const day = state.clock ? calendarOf(state.clock.minutes).dayAbs : (state.day || 0);
-  return { stars, text, factors, cited, worst, best, day };
+  const id = String(visit.reviewId || `review:${day}:${String(seed).replace(/[^0-9a-z.-]+/gi, '-')}`);
+  return { id, stars, text, factors, cited, worst, best, day };
 }
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function postReview(state, review) {
   if (!state.club.reviews) state.club.reviews = [];
+  if (review.id && state.club.reviews.some((item) => item.id === review.id)) return review;
   state.club.reviews.unshift({
+    id: review.id,
     stars: review.stars,
     text: review.text,
     day: review.day,
@@ -188,9 +197,33 @@ export function postReview(state, review) {
   });
   if (state.club.reviews.length > MAX_REVIEWS) state.club.reviews.length = MAX_REVIEWS;
 
-  // reputation drifts toward what people are actually saying
-  const target = (review.stars - 1) / 4 * 100;
-  state.club.reputation = Math.round((state.club.reputation * 0.97 + target * 0.03) * 10) / 10;
+  // Reputation changes only in the categories this review can support, and the
+  // reason stored beside the delta is the same evidence the player reads.
+  const reputation = ensureReputation(state);
+  const grouped = {};
+  for (const factor of review.cited || []) {
+    const category = FACTOR_REPUTATION_CATEGORY[factor.id];
+    if (!category) continue;
+    (grouped[category] ||= []).push(factor.score);
+  }
+  if (!Object.keys(grouped).length) {
+    const target = (review.stars - 1) / 4;
+    grouped.service = [target];
+  }
+  for (const [category, scores] of Object.entries(grouped)) {
+    const target = scores.reduce((sum, score) => sum + score, 0) / scores.length * 100;
+    const delta = clamp((target - reputation.categories[category]) * 0.03, -3, 3);
+    applyReputationChange(state, {
+      id: `${review.id}:${category}`, category, delta, day: review.day,
+      source: 'customer-review', sourceId: review.id,
+      reason: `${review.stars}-star review: ${review.text}`,
+    });
+  }
+  recordOutcome(state, {
+    idempotencyKey: `${review.id}:posted`, type: 'reviewPosted', count: 1,
+    relatedId: review.id, reason: `${review.stars}-star review posted: ${review.text}`,
+    day: review.day, metadata: { stars: review.stars, cited: review.cited.map((factor) => factor.id) },
+  });
   return review;
 }
 

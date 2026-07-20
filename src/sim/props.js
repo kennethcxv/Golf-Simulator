@@ -51,7 +51,10 @@ export function clearLitter(state, idx) {
 export function fixTeeSign(state) {
   if (!state.props || state.props.teeSignFixed) return { ok: false };
   if (state.cash < PROPS.signRepairCost) return { ok: false, reason: 'Not enough cash for materials.' };
-  spend(state, 'upkeep', PROPS.signRepairCost);
+  spend(state, 'upkeep', PROPS.signRepairCost, {
+    idempotencyKey: `property:${state.property?.id || state.seed}:tee-sign`, relatedId: 'tee-sign',
+    description: 'Repair materials for the first-tee sign', source: 'course-restoration',
+  });
   state.props.teeSignFixed = true;
   return { ok: true, cost: PROPS.signRepairCost };
 }

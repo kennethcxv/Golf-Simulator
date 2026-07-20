@@ -7,12 +7,16 @@ import { clamp } from '../core/utils.js';
 import { calendarOf } from './time.js';
 import { courseDesignRating } from './course.js';
 import { conditionRating } from './turf.js';
-import { addRevenue, addExpense } from './economy.js';
+import { addRevenue, addExpense, recordOutcome } from './economy.js';
+import { applyReputationChange } from './reputation.js';
 
 export const UPGRADES = {
   greensMowerII: {
     name: 'Triplex greens mowers',
     blurb: 'Cuts greens crew time by 40%.',
+    visibleResult: 'Triplex mowing equipment is added to the maintenance operation and named in the morning crew report.',
+    gameplayEffect: 'Greens mowing uses 40% fewer crew hours.',
+    valueEffect: 3500,
     cost: 7000,
     prestige: 15,
     cat: 'turf',
@@ -20,6 +24,9 @@ export const UPGRADES = {
   fairwayMowerII: {
     name: 'Lightweight fairway units',
     blurb: 'Cuts fairway crew time by 40%.',
+    visibleResult: 'Lightweight fairway units join the maintenance fleet.',
+    gameplayEffect: 'Fairway mowing uses 40% fewer crew hours.',
+    valueEffect: 4500,
     cost: 9000,
     prestige: 20,
     cat: 'turf',
@@ -27,6 +34,9 @@ export const UPGRADES = {
   aerator: {
     name: 'Deep-tine aerator',
     blurb: 'Halves aeration cost; turf sheds wear faster.',
+    visibleResult: 'A deep-tine aerator becomes part of the course-equipment condition score.',
+    gameplayEffect: 'Aeration costs 50% less and daily wear recovery improves.',
+    valueEffect: 3000,
     cost: 6000,
     prestige: 15,
     cat: 'turf',
@@ -34,6 +44,9 @@ export const UPGRADES = {
   sprayRig: {
     name: 'Precision spray rig',
     blurb: 'Fungicide applications cost 40% less.',
+    visibleResult: 'The precision rig is listed with owned maintenance equipment.',
+    gameplayEffect: 'Fungicide applications cost 40% less.',
+    valueEffect: 4000,
     cost: 8000,
     prestige: 25,
     cat: 'turf',
@@ -41,6 +54,9 @@ export const UPGRADES = {
   smartIrrigation: {
     name: 'Smart irrigation controllers',
     blurb: 'Water bills drop 30%.',
+    visibleResult: 'Irrigation condition shows smart controllers installed.',
+    gameplayEffect: 'Applied irrigation water costs 30% less.',
+    valueEffect: 6500,
     cost: 12000,
     prestige: 30,
     cat: 'turf',
@@ -48,6 +64,9 @@ export const UPGRADES = {
   premiumSupplier: {
     name: 'Premium supplier account',
     blurb: 'Unlocks tier-3 lines in the pro shop.',
+    visibleResult: 'Premium merchandise appears in the supplier catalog and can be stocked on real shelves.',
+    gameplayEffect: 'Unlocks tier-3 pro-shop merchandise.',
+    valueEffect: 2500,
     cost: 5000,
     prestige: 35,
     cat: 'shop',
@@ -55,6 +74,9 @@ export const UPGRADES = {
   reciprocalClubs: {
     name: 'Reciprocal club network',
     blurb: 'Partner clubs send visitors; premium members love it.',
+    visibleResult: 'Reciprocal guest revenue and visits appear in the ledger and summaries.',
+    gameplayEffect: 'Adds partner-club visitor revenue tied to the membership book.',
+    valueEffect: 3000,
     cost: 6000,
     prestige: 40,
     cat: 'membership',
@@ -62,6 +84,9 @@ export const UPGRADES = {
   corporatePartners: {
     name: 'Corporate partnership desk',
     blurb: 'Outing offers pay 35% more.',
+    visibleResult: 'Corporate outing offers identify the partnership premium.',
+    gameplayEffect: 'Accepted corporate outings pay 35% more.',
+    valueEffect: 5000,
     cost: 10000,
     prestige: 45,
     cat: 'membership',
@@ -69,6 +94,9 @@ export const UPGRADES = {
   tournamentHost: {
     name: 'Tournament operations',
     blurb: 'Scoreboards, ropes, a starter who means it. Enables hosting events.',
+    visibleResult: 'Tournament operations and event scheduling become available.',
+    gameplayEffect: 'Unlocks staged tournaments with real condition requirements and ledger outcomes.',
+    valueEffect: 9000,
     cost: 15000,
     prestige: 50,
     cat: 'events',
@@ -138,8 +166,17 @@ export function purchaseUpgrade(state, id) {
     return { ok: false, reason: `Needs prestige ${spec.prestige} — the golf world isn't ready to sell you this yet.` };
   }
   if (state.cash < spec.cost) return { ok: false, reason: 'Not enough cash.' };
-  addExpense(state, 'works', spec.cost);
-  state.progression.unlocks[id] = calendarOf(state.clock.minutes).dayAbs;
+  const day = calendarOf(state.clock.minutes).dayAbs;
+  const charge = addExpense(state, 'works', spec.cost, {
+    idempotencyKey: `upgrade:${state.property?.id || state.seed}:${id}`,
+    relatedId: id,
+    category: 'equipment',
+    accountingClass: 'capital',
+    description: `Upgrade purchase: ${spec.name}`,
+    source: 'upgrade',
+  });
+  if (!charge.ok) return charge;
+  state.progression.unlocks[id] = day;
   if (id === 'premiumSupplier' && state.shop) state.shop.unlockedTier = 3;
   if (id === 'reciprocalClubs' && state.club) state.club.reciprocal = true;
   return { ok: true, cost: spec.cost };
@@ -221,9 +258,13 @@ export function scheduleTournament(state, tier) {
   const gate = canScheduleTournament(state, tier);
   if (!gate.ok) return gate;
   const spec = TOURNAMENTS[tier];
-  addExpense(state, 'events', spec.cost);
   const day = calendarOf(state.clock.minutes).dayAbs + spec.leadDays;
-  state.progression.event = { tier, day };
+  const eventId = `${tier}:${day}`;
+  addExpense(state, 'events', spec.cost, {
+    idempotencyKey: `tournament:${eventId}:staging`, relatedId: eventId,
+    description: `${spec.name} staging costs`, source: 'tournament',
+  });
+  state.progression.event = { id: eventId, tier, day };
   if (state.club) {
     state.club.feed.unshift({
       kind: 'event',
@@ -246,7 +287,11 @@ export function resolveTournamentIfDue(state, closingDay) {
   const openHoles = state.course.holes.filter((h) => h.status === 'open').length;
   const success = condition >= spec.conditionReq && openHoles >= 9;
 
-  addRevenue(state, 'events', spec.entryRevenue);
+  const eventId = ev.id || `${ev.tier}:${ev.day}`;
+  addRevenue(state, 'events', spec.entryRevenue, {
+    idempotencyKey: `tournament:${eventId}:revenue`, relatedId: eventId,
+    description: `${spec.name} event revenue`, source: 'tournament',
+  });
   const outcome = {
     tier: ev.tier,
     name: spec.name,
@@ -265,15 +310,27 @@ export function resolveTournamentIfDue(state, closingDay) {
   if (success) {
     state.progression.hosted[ev.tier] = (state.progression.hosted[ev.tier] || 0) + 1;
     state.progression.prestige = clamp(state.progression.prestige + spec.prestigeWin, 0, 100);
-    if (state.club) state.club.reputation = clamp(state.club.reputation + spec.repWin, 0, 100);
+    if (state.club) applyReputationChange(state, {
+      id: `tournament:${eventId}:reputation`, categories: ['course', 'service'], delta: spec.repWin,
+      source: 'tournament', sourceId: eventId, reason: `${spec.name} succeeded on a ready, well-run course.`,
+    });
     if (ev.tier === 'major') {
       state.progression.majorWon = true;
       state.progression.prestige = 100;
     }
   } else {
     state.progression.prestige = clamp(state.progression.prestige + spec.prestigeLose, 0, 100);
-    if (state.club) state.club.reputation = clamp(state.club.reputation - 3, 0, 100);
+    if (state.club) applyReputationChange(state, {
+      id: `tournament:${eventId}:reputation`, categories: ['course', 'service'], delta: -3,
+      source: 'tournament', sourceId: eventId, reason: `${spec.name} failed because the property was not ready.`,
+    });
   }
+
+  recordOutcome(state, {
+    idempotencyKey: `tournament:${eventId}:outcome`, type: success ? 'tournamentSuccess' : 'tournamentFailure',
+    count: 1, amount: spec.entryRevenue, relatedId: eventId, reason: outcome.note,
+    metadata: { tier: ev.tier, condition: Math.round(condition), openHoles },
+  });
 
   if (state.club) {
     state.club.feed.unshift({ kind: 'event', day: closingDay, text: outcome.note });

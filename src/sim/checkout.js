@@ -5,7 +5,7 @@
 // happen in front of you. Counters here are session-flavor; the money is
 // real (addRevenue → ledger → closeBooks like everything else).
 
-import { addRevenue } from './economy.js';
+import { addRevenue, addCostOfGoods, recordOutcome } from './economy.js';
 import { skuById, SHELF_CAP } from '../data/shopItems.js';
 
 // --- units in flight --------------------------------------------------------------
@@ -142,20 +142,58 @@ export function processCard(tx) {
   return { approved: true };
 }
 
-export function checkoutSale(state, items, who = 'A customer') {
+export function checkoutSale(state, items, who = 'A customer', transactionId = null) {
   if (!Array.isArray(items) || items.length === 0) return { ok: false, reason: 'Nothing to ring up.' };
   let total = 0;
   for (const it of items) total += it.price || 0;
   total = Math.round(total * 100) / 100;
-  addRevenue(state, 'shopSales', total);
+  if (!Number.isInteger(state.shop.nextTransactionId) || state.shop.nextTransactionId < 1) state.shop.nextTransactionId = 1;
+  const propertyId = state.property?.id || `club-${state.seed}`;
+  const id = transactionId || `${propertyId}:legacy-register-${state.shop.nextTransactionId++}`;
+  const bank = addRevenue(state, 'shopSales', total, {
+    idempotencyKey: `checkout:${id}:sale`,
+    relatedId: id,
+    description: `Register sale â€” ${who}`,
+    source: 'checkout',
+    units: items.length,
+    customerCount: 1,
+    metadata: { skuIds: items.map((item) => item.skuId) },
+  });
+  if (!bank.ok || bank.duplicate) {
+    return { ok: false, reason: bank.duplicate ? 'Already banked.' : bank.reason, duplicate: !!bank.duplicate };
+  }
+  const goodsCost = items.reduce((sum, item) => sum + (skuById(item.skuId)?.cost || 0), 0);
+  if (goodsCost > 0) {
+    addCostOfGoods(state, goodsCost, {
+      idempotencyKey: `checkout:${id}:cogs`,
+      relatedId: id,
+      description: `Cost of goods â€” ${who}`,
+      source: 'checkout',
+      units: items.length,
+    });
+  }
   const live = liveSales(state);
   live.units += items.length;
   live.revenue = Math.round((live.revenue + total) * 100) / 100;
+  if (!state.shop.salesToday) state.shop.salesToday = {};
+  for (const item of items) {
+    state.shop.salesToday[item.skuId] = (state.shop.salesToday[item.skuId] || 0) + 1;
+    if (item.uid) consumeHeld(state, item.uid);
+  }
+  recordOutcome(state, {
+    idempotencyKey: `checkout:${id}:completed`,
+    type: 'checkoutCompleted',
+    count: 1,
+    amount: total,
+    relatedId: id,
+    reason: `${who} completed a register purchase with ${items.length} item${items.length === 1 ? '' : 's'}.`,
+    metadata: { units: items.length },
+  });
   const names = items.map((i) => {
     const s = skuById(i.skuId);
     return s ? s.name : i.skuId;
   });
   state.shop.log.unshift(`${who} bought ${names.join(' + ')} at the counter (${Math.round(total)} dollars)`);
   if (state.shop.log.length > 8) state.shop.log.pop();
-  return { ok: true, total };
+  return { ok: true, total, transactionId: id };
 }

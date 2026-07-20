@@ -24,12 +24,14 @@ import { initCourseProps, ensureCourseProps } from './props.js';
 import { simulateDayRounds } from './rounds.js';
 import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
 import { initTutorial, ensureTutorial } from './tutorial.js';
-import { initLedger, addExpense, closeBooks } from './economy.js';
+import { initLedger, ensureLedger, beginLedgerClose, addExpense, closeBooks } from './economy.js';
+import { initReputation, ensureReputation } from './reputation.js';
+import { initBusiness, ensureBusiness, closeDayIndicators } from './business.js';
 import { BALANCE } from './balance.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 // opts lets the GOLF EMPIRE layer boot this same fresh-club wiring onto a
 // marketplace property: an injected course grid and club name, nothing else.
@@ -55,15 +57,20 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initGolfers(state);
   initStaff(state);
   initClub(state);
+  initReputation(state);
   initShop(state);
   ensureWash(state); // a fixer-upper arrives with a filthy exterior
   ensureProperty(state); // ...and a landlord
+  state.property.id = opts.propertyId || state.property.id;
+  state.property.tierId = opts.tierId || state.property.tierId;
+  state.property.acquisitionCost = opts.acquisitionCost ?? state.property.acquisitionCost;
   initReservations(state);
   initTractor(state);
   initCourseProps(state);
   initLedger(state);
   initProgression(state);
   initTutorial(state);
+  initBusiness(state);
   return state;
 }
 
@@ -72,13 +79,18 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
 export function dailyTick(state) {
   // 1) settle the day that just ended: accrue its recurring economy, close books
   if (state.ledger) {
+    const todayAbs = calendarOf(state.clock.minutes).dayAbs;
+    const closingDay = todayAbs - 1;
+    beginLedgerClose(state, closingDay);
     accrueDaily(state);
     if (state.shop) shopDailyAccrual(state);
     if (state.golfers) simulateDayRounds(state, state.club.lastRounds || 0);
-    if (state.progression) resolveTournamentIfDue(state, calendarOf(state.clock.minutes).dayAbs - 1);
+    if (state.progression) resolveTournamentIfDue(state, closingDay);
+    if (state.reservations) reservationsDailyTick(state, todayAbs);
     // the rent falls due whether or not it was a good week; it is announced two days out
-    state.lastPropertyEvent = tickProperty(state, calendarOf(state.clock.minutes).dayAbs);
-    closeBooks(state, calendarOf(state.clock.minutes).dayAbs - 1);
+    state.lastPropertyEvent = tickProperty(state, todayAbs);
+    const indicators = closeDayIndicators(state, closingDay);
+    closeBooks(state, closingDay, indicators);
   }
 
   // 2) roll into the new day
@@ -96,7 +108,6 @@ export function dailyTick(state) {
   }
   if (state.club) dailyMembershipTick(state);
   if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
-  if (state.reservations) reservationsDailyTick(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.turf) bunkerDailyMess(state); // yesterday's traffic footprints the sand
   if (state.progression) {
     prestigeDailyTick(state);
@@ -113,9 +124,15 @@ export function hourlyTick(state, hourOfDay) {
     const report = runMorningMaintenance(state, calendarOf(state.clock.minutes).dayAbs);
     if (report) {
       if (state.ledger) {
-        addExpense(state, 'wagesDayLabor', report.costs.wages);
-        addExpense(state, 'water', report.costs.water);
-        addExpense(state, 'fertilizer', report.costs.fertilizer);
+        if (report.costs.wages > 0) addExpense(state, 'wagesDayLabor', report.costs.wages, {
+          idempotencyKey: `maintenance:${report.dayAbs}:day-labour`, relatedId: `maintenance-${report.dayAbs}`, source: 'morning-maintenance',
+        });
+        if (report.costs.water > 0) addExpense(state, 'water', report.costs.water, {
+          idempotencyKey: `maintenance:${report.dayAbs}:water`, relatedId: `maintenance-${report.dayAbs}`, source: 'morning-maintenance',
+        });
+        if (report.costs.fertilizer > 0) addExpense(state, 'fertilizer', report.costs.fertilizer, {
+          idempotencyKey: `maintenance:${report.dayAbs}:fertilizer`, relatedId: `maintenance-${report.dayAbs}`, source: 'morning-maintenance',
+        });
       } else {
         state.cash -= Math.round(report.costs.wages + report.costs.water + report.costs.fertilizer);
       }
@@ -178,6 +195,8 @@ export function snapshot(state) {
     golfers: state.golfers,
     staff: state.staff,
     club: state.club,
+    reputation: state.reputation,
+    business: state.business,
     ledger: state.ledger,
     shop: state.shop,
     reservations: state.reservations,
@@ -267,6 +286,7 @@ export function deserialize(json) {
   else initClub(state);
   if (raw.ledger) state.ledger = raw.ledger;
   else initLedger(state);
+  ensureLedger(state);
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
@@ -284,6 +304,12 @@ export function deserialize(json) {
   if (raw.tutorial) state.tutorial = raw.tutorial;
   else initTutorial(state);
   ensureTutorial(state); // older saves re-derive their spot in the chaptered arc
+  if (raw.reputation) state.reputation = raw.reputation;
+  else initReputation(state, state.club?.reputation ?? 30);
+  ensureReputation(state);
+  if (raw.business) state.business = raw.business;
+  ensureBusiness(state);
+  state.version = SAVE_VERSION;
   state.debtDays = raw.debtDays || 0;
   state.failed = raw.failed || null;
   return state;

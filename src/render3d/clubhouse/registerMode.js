@@ -742,7 +742,18 @@ export function createRegisterMode(B) {
     if (!items.length) return false;
     if (!state.shop.drawer) state.shop.drawer = newDrawer();
     drawer = state.shop.drawer;
-    tx = createTx({ items, mode: state.mode, discount: customer.discount || 0, prefer: customer.payMethod || null });
+    if (!customer.transactionId) {
+      const propertyId = state.property?.id || `club-${state.seed}`;
+      const sequence = state.shop.nextTransactionId++;
+      customer.transactionId = `${propertyId}:register-${sequence}`;
+    }
+    tx = createTx({
+      id: customer.transactionId,
+      items,
+      mode: state.mode,
+      discount: customer.discount || 0,
+      prefer: customer.payMethod || null,
+    });
     cust = customer;
     customer.tx = tx;
 

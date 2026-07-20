@@ -10,9 +10,10 @@
 // `0.1 * 300` is 30.000000000000004 in float, which would make a till that
 // balances on paper fail to balance in code. Cents in, dollars out at the edge.
 
-import { addRevenue } from './economy.js';
+import { addRevenue, addExpense, addCostOfGoods, recordOutcome } from './economy.js';
 import { liveSales, consumeHeld } from './checkout.js';
 import { recordSale } from './shop.js';
+import { skuById } from '../data/shopItems.js';
 
 // --- currency -----------------------------------------------------------------
 // Shop prices land on arbitrary cents (a $34 polo at 1.15 markup with a 5%
@@ -87,8 +88,11 @@ export function takeFromStack(stack, denom, n = 1) {
 
 // `prefer` is the customer's own payment habit, decided before they reach the till —
 // some people are cash people. Left null, they make their mind up at the counter.
-export function createTx({ items = [], mode = 'relaxed', discount = 0, rng = Math.random, prefer = null } = {}) {
+let nextTransientTxId = 1;
+
+export function createTx({ id = null, items = [], mode = 'relaxed', discount = 0, rng = Math.random, prefer = null } = {}) {
   return {
+    id: id == null ? `transient-${nextTransientTxId++}` : String(id),
     items: items.map((it) => ({
       uid: it.uid,
       skuId: it.skuId,
@@ -471,11 +475,50 @@ export function completeSale(state, tx, who = 'A customer') {
   if (tx.banked) return { ok: false, reason: 'Already banked.' };
 
   const total = dueOf(tx);
-  addRevenue(state, 'shopSales', total);
+  const saleKey = `checkout:${tx.id}:sale`;
+  const bank = addRevenue(state, 'shopSales', total, {
+    idempotencyKey: saleKey,
+    relatedId: tx.id,
+    category: 'shopSales',
+    description: `Register sale — ${who}`,
+    source: 'checkout',
+    units: tx.items.length,
+    customerCount: 1,
+    metadata: {
+      method: tx.method,
+      itemIds: tx.items.map((item) => item.uid),
+      skuIds: tx.items.map((item) => item.skuId),
+    },
+  });
+  if (!bank.ok) return bank;
+  if (bank.duplicate) {
+    tx.banked = true;
+    return { ok: false, reason: 'Already banked.', duplicate: true };
+  }
+
+  const goodsCost = tx.items.reduce((sum, item) => sum + (skuById(item.skuId)?.cost || 0), 0);
+  if (goodsCost > 0) {
+    addCostOfGoods(state, goodsCost, {
+      idempotencyKey: `checkout:${tx.id}:cogs`,
+      relatedId: tx.id,
+      description: `Cost of goods — ${who}`,
+      source: 'checkout',
+      units: tx.items.length,
+      metadata: { skuIds: tx.items.map((item) => item.skuId) },
+    });
+  }
 
   // a miscount in Realistic mode: the till is short what you over-handed (or the
   // customer was shorted, which comes back as goodwill, not cash)
-  if (tx.lost > 0) addRevenue(state, 'shopSales', -tx.lost);
+  if (tx.lost > 0) {
+    addExpense(state, 'checkoutShortage', tx.lost, {
+      idempotencyKey: `checkout:${tx.id}:shortage`,
+      relatedId: tx.id,
+      category: 'checkoutShortage',
+      description: `Till shortage — ${who}`,
+      source: 'checkout',
+    });
+  }
 
   const live = liveSales(state);
   live.units += tx.items.length;
@@ -490,7 +533,18 @@ export function completeSale(state, tx, who = 'A customer') {
   }
 
   tx.banked = true;
+  tx.ledgerEntryId = bank.entry.id;
   tx.stage = 'done';
+
+  recordOutcome(state, {
+    idempotencyKey: `checkout:${tx.id}:completed`,
+    type: 'checkoutCompleted',
+    count: 1,
+    amount: total,
+    relatedId: tx.id,
+    reason: `${who} completed a ${tx.method || 'register'} purchase with ${tx.items.length} item${tx.items.length === 1 ? '' : 's'}.`,
+    metadata: { method: tx.method, units: tx.items.length },
+  });
 
   const names = tx.items.map((i) => i.name);
   state.shop.log.unshift(`${who} bought ${names.join(' + ')} at the counter (${Math.round(total)} dollars)`);
