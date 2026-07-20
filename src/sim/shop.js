@@ -41,6 +41,7 @@ export const RENO = {
   trafficGrime: 0.0011,        // dirt tracked in per shopper per day, per cell
   trafficCap: 0.5,             // traffic alone plateaus at "needs a pass", never "wrecked"
 };
+const RENO_LAYOUT_VERSION = 2;
 
 function renoRng(state) {
   // a LOCAL stream derived from the save seed — reno must never consume
@@ -65,7 +66,13 @@ export function initShopReno(state) {
     ry: Math.round(rng.range(0, Math.PI * 2) * 100) / 100,
     cleared: false,
   }));
-  state.shop.reno = { grime, clutter, decor: [], windows: startWindows(rng) };
+  state.shop.reno = {
+    layoutVersion: RENO_LAYOUT_VERSION,
+    grime,
+    clutter,
+    decor: [],
+    windows: startWindows(rng),
+  };
 }
 
 export function ensureShopReno(state) {
@@ -98,7 +105,11 @@ export function ensureShopReno(state) {
     reno.grime = grime;
   }
   const outsideRoom = (c) => Math.abs(c.x) > RENO.room.w / 2 || Math.abs(c.z) > RENO.room.d / 2;
-  if (reno.clutter.length !== CLUTTER_SPOTS.length || reno.clutter.some(outsideRoom)) {
+  if (
+    reno.layoutVersion !== RENO_LAYOUT_VERSION
+    || reno.clutter.length !== CLUTTER_SPOTS.length
+    || reno.clutter.some(outsideRoom)
+  ) {
     const flags = reno.clutter.map((c) => !!c.cleared);
     const allCleared = flags.length > 0 && flags.every(Boolean);
     const rng = renoRng(state);
@@ -108,6 +119,7 @@ export function ensureShopReno(state) {
       ry: Math.round(rng.range(0, Math.PI * 2) * 100) / 100,
       cleared: i < flags.length ? flags[i] : allCleared,
     }));
+    reno.layoutVersion = RENO_LAYOUT_VERSION;
   }
 
   // WINDOW FILM (production dirt pass): saves older than the window-grime

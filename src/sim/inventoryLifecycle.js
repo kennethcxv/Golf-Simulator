@@ -222,6 +222,11 @@ function enrichLegacyOrder(order, state) {
 }
 
 function isBoxOpened(box) {
+  // New lifecycle boxes explicitly record when their inventory crossed from
+  // deliveredUnopened to openedBox. Tape progress alone means the player is
+  // still cutting a sealed carton. Retain the visual-state inference only for
+  // legacy saves that predate inventoryOpened.
+  if (typeof box.inventoryOpened === 'boolean') return box.inventoryOpened;
   return box.openedState === 'opened'
     || !!box.cut
     || (box.tape || 0) > 0

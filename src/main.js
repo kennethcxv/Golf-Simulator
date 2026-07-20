@@ -1501,6 +1501,8 @@ function frame(ts) {
         } else if (ev.kind === 'soon') {
           toast(`📦 The ${ev.order.supplier || name} van is close — under an hour out.`);
         } else if (ev.kind === 'arrived' || ev.kind === 'partial-arrival') {
+          const clubhouse = app.scene3d && app.scene3d.clubhouse ? app.scene3d.clubhouse() : null;
+          if (clubhouse && clubhouse.playDeliveryArrival) clubhouse.playDeliveryArrival(ev);
           const zone = ev.usedFallback ? 'in the safe stockroom receiving zone' : 'on the receiving pad';
           const prefix = ev.kind === 'partial-arrival' ? 'Partial delivery' : 'Delivery';
           const remaining = ev.kind === 'partial-arrival'

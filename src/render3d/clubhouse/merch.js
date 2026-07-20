@@ -46,6 +46,11 @@ const RAW = [
   // repeated products — one baked-atlas material each, so a whole shelf of them still
   // bakes (see bake()) into a single draw call, texture intact.
   'shoe_pro', 'cap_pro', 'rangefinder',
+  // Project-owned delivery kit (tools/blender/build_inventory_delivery_assets.py).
+  // These use their authored warm-cream / golf-green PBR palette and expose named
+  // pivots, sockets and collision helpers through glTF extras.
+  'delivery_worktable', 'delivery_stock_shelf', 'delivery_box_cutter',
+  'delivery_recycling_station', 'delivery_van',
 ];
 
 // Which slot in the GLB maps to which material in the clubhouse kit.
@@ -149,9 +154,17 @@ export function createMerch(mats) {
     group.updateMatrixWorld(true);
     group.traverse((o) => {
       if (!o.isMesh) return;
-      if (Array.isArray(o.material) || !o.geometry) { keep.push(o); return; }
+      if (Array.isArray(o.material) || !o.geometry) {
+        // Multi-material meshes cannot enter a one-material merge bucket, but
+        // reparenting them directly used to discard the transform of their
+        // delivery-unit/slot holder. Preserve their baked world transform so
+        // labelled ball packs do not collapse to the fixture origin.
+        keep.push({ object: o, matrix: o.matrixWorld.clone() });
+        return;
+      }
       const m = o.material;
       const g = o.geometry.clone();
+      g.userData.merchBakeOwned = true;
       g.applyMatrix4(o.matrixWorld);
       // merging needs identical attribute sets; drop anything exotic
       for (const attr of Object.keys(g.attributes)) {
@@ -178,12 +191,17 @@ export function createMerch(mats) {
         for (const g of geos) out.add(new THREE.Mesh(g, m));
         continue;
       }
+      merged.userData.merchBakeOwned = true;
       const mesh = new THREE.Mesh(merged, m);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       out.add(mesh);
     }
-    for (const k of keep) out.add(k);
+    for (const kept of keep) {
+      kept.matrix.decompose(kept.object.position, kept.object.quaternion, kept.object.scale);
+      kept.object.updateMatrix();
+      out.add(kept.object);
+    }
     return out;
   }
 

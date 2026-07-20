@@ -7,7 +7,7 @@ import {
 } from '../src/sim/tutorial.js';
 import { placeOrder, deliverOrdersDue, clearClutter } from '../src/sim/shop.js';
 import { openBox } from '../src/sim/deliveries.js';
-import { checkoutSale } from '../src/sim/checkout.js';
+import { checkoutSale, pickFromShelf } from '../src/sim/checkout.js';
 import { treatSection } from '../src/sim/turf.js';
 import { ZONE } from '../src/sim/constants.js';
 import { calendarOf } from '../src/sim/time.js';
@@ -27,6 +27,7 @@ function playOpening(st) {
   tutorialFlag(st, 'boxCut');
   openBox(st, st.shop.deliveries.boxes[0].id);
   tutorialFlag(st, 'shelved');
+  pickFromShelf(st, 'balls1');
   checkoutSale(st, [{ skuId: 'balls1', price: 15 }], 'First customer');
   tutorialFlag(st, 'savedGame');
 }
@@ -72,6 +73,7 @@ test('the opening chain follows the physical clubhouse loop, in order', () => {
   res = tickTutorial(st);
   assert.ok(res.advanced.some((s) => s.id === 'shelve'), 'receiving chapter clears');
 
+  pickFromShelf(st, 'balls1');
   checkoutSale(st, [{ skuId: 'balls1', price: 15 }], 'First customer');
   tutorialFlag(st, 'savedGame');
   res = tickTutorial(st);
@@ -82,6 +84,7 @@ test('actions done out of order are banked and skipped past on arrival', () => {
   const st = newGame('realistic', 42);
   // the player saves and rings a sale before ever touching the arrival steps
   tutorialFlag(st, 'savedGame');
+  pickFromShelf(st, 'balls1');
   checkoutSale(st, [{ skuId: 'balls1', price: 15 }], 'Early bird');
   assert.equal(tickTutorial(st).advanced.length, 0, 'later steps wait their turn');
   playOpening(st);

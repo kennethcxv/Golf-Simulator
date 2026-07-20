@@ -105,6 +105,29 @@ export function receivingHasRoom(state, n) {
   return receivingFree(state) >= n;
 }
 
+function occupiedReceivingSlots(boxes, location, capacity) {
+  const used = new Set();
+  const needSlot = [];
+  for (const box of boxes.filter((candidate) => candidate.loc === location)) {
+    const slot = box.receivingSlot;
+    if (Number.isSafeInteger(slot) && slot >= 0 && slot < capacity && !used.has(slot)) {
+      used.add(slot);
+    } else {
+      needSlot.push(box);
+    }
+  }
+  // Saves from before receiving slots existed still occupy real floor space.
+  // Give those cartons stable identities before calculating space for a new van.
+  for (const box of needSlot) {
+    const slot = Array.from({ length: capacity }, (_, index) => index)
+      .find((index) => !used.has(index));
+    if (slot === undefined) break;
+    box.receivingSlot = slot;
+    used.add(slot);
+  }
+  return used;
+}
+
 // --- WHAT STATE IS THIS BOX IN --------------------------------------------------------------
 //
 // The brief lists fourteen box states. They are not fourteen flags — they are three independent
@@ -182,8 +205,17 @@ export function arriveOrder(state, order, { maxBoxes = Infinity } = {}) {
   if (take <= 0) return [];
   const landing = pending.slice(0, take);
 
-  let padFree = Math.max(0, PAD_CAPACITY - padCount(state));
-  let fallbackSlot = fallbackCount(state);
+  // Physical receiving slots are identities, not a running count. Reusing
+  // `padCount()` as the next index duplicated a transform whenever a player
+  // removed a middle carton and another van arrived before the rest were moved.
+  const usedPadSlots = occupiedReceivingSlots(deliveries.boxes, 'pad', PAD_CAPACITY);
+  const usedFallbackSlots = occupiedReceivingSlots(
+    deliveries.boxes, 'receiving-fallback', FALLBACK_CAPACITY,
+  );
+  const padSlots = Array.from({ length: PAD_CAPACITY }, (_, index) => index)
+    .filter((index) => !usedPadSlots.has(index));
+  const fallbackSlots = Array.from({ length: FALLBACK_CAPACITY }, (_, index) => index)
+    .filter((index) => !usedFallbackSlots.has(index));
   const made = [];
   for (const { box: manifestBox, index: manifestIndex } of landing) {
     const id = deliveries.nextBoxId++;
@@ -191,9 +223,8 @@ export function arriveOrder(state, order, { maxBoxes = Infinity } = {}) {
     const lineId = manifestBox.lineId
       || (order.lines && order.lines.find((line) => line.skuId === skuId)?.id)
       || `${order.id}-line-1`;
-    const loc = padFree > 0 ? 'pad' : 'receiving-fallback';
-    const receivingSlot = loc === 'pad' ? PAD_CAPACITY - padFree : fallbackSlot++;
-    if (padFree > 0) padFree--;
+    const loc = padSlots.length > 0 ? 'pad' : 'receiving-fallback';
+    const receivingSlot = loc === 'pad' ? padSlots.shift() : fallbackSlots.shift();
     const received = receiveBoxInventory(state, order.id, id, [{
       lineId,
       skuId,
@@ -310,12 +341,20 @@ export function putDownBox(state, id, spot = 'stock') {
     box.x = spot.x;
     box.z = spot.z;
     box.ry = spot.ry || 0;
+    box.y = Number.isFinite(spot.y) ? spot.y : 0;
+    box.surface = spot.surface || null;
+    box.surfaceSlot = Number.isSafeInteger(spot.slot)
+      ? spot.slot
+      : (Number.isSafeInteger(spot.surfaceSlot) ? spot.surfaceSlot : null);
   } else {
     box.loc = spot === 'pad' ? 'pad' : spot === 'receiving-fallback' ? 'receiving-fallback' : 'stock';
     box.currentLocation = box.loc;
     delete box.x;
     delete box.z;
     delete box.ry;
+    delete box.y;
+    delete box.surface;
+    delete box.surfaceSlot;
   }
   box.currentCarrier = null;
   return { ok: true, box };
