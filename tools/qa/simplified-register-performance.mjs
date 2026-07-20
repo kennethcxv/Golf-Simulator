@@ -26,6 +26,8 @@ export const RENDERER_RESIDENCY_MINIMUM_MS = 30000;
 export const RENDERER_RESIDENCY_TIMEOUT_MS = 75000;
 export const RENDERER_RESIDENCY_CONTROL_ATTEMPTS = 3;
 export const TRANSACTION_RENDERER_RESIDENCY_ATTEMPTS = 3;
+export const REENTRY_RENDERER_RESIDENCY_ATTEMPTS = 4;
+export const REENTRY_RENDERER_RESIDENCY_CONFIRMATION_BATCHES = 2;
 export const STORED_BASELINE_ONE_PERCENT_LOW_FLOOR_FPS = 58;
 export const STORED_BASELINE_P99_JITTER_ALLOWANCE_MS = 8.5;
 // The control is sampled once per rAF. A matched prefix may therefore end one
@@ -871,6 +873,49 @@ export function validatePerformanceResultSchema(result) {
   ]) {
     requireFinite(reentryLeak?.delta?.[metric], `reentryLeak.delta.${metric}`);
   }
+  const reentryRendererPrewarm = result?.reentryRendererPrewarm;
+  const reentryPrewarmAttempts = reentryRendererPrewarm?.attempts;
+  if (!reentryRendererPrewarm
+      || !hasQualifiedReentryRendererPrewarm(reentryRendererPrewarm)
+      || !Number.isSafeInteger(reentryRendererPrewarm.cyclesPerAttempt)
+      || reentryRendererPrewarm.cyclesPerAttempt !== result?.protocol?.reentryCycles
+      || !Number.isSafeInteger(reentryRendererPrewarm.maximumAttempts)
+      || reentryRendererPrewarm.maximumAttempts
+        !== result?.protocol?.reentryRendererResidencyAttempts
+      || reentryRendererPrewarm.confirmationBatches
+        !== result?.protocol?.reentryRendererResidencyConfirmationBatches
+      || !Array.isArray(reentryPrewarmAttempts)
+      || reentryPrewarmAttempts.length < reentryRendererPrewarm.confirmationBatches
+      || reentryPrewarmAttempts.length > reentryRendererPrewarm.maximumAttempts) {
+    issues.push('reentryRendererPrewarm must prove consecutive bounded renderer-only convergence before measured re-entry cycles.');
+  }
+  let expectedQualifiedStreak = 0;
+  for (const [index, attempt] of (reentryPrewarmAttempts || []).entries()) {
+    const expectedQualified = isQualifiedReentryRendererBoundary(attempt?.delta);
+    expectedQualifiedStreak = expectedQualified ? expectedQualifiedStreak + 1 : 0;
+    if (attempt?.attempt !== index + 1
+        || attempt?.cycles !== result?.protocol?.reentryCycles
+        || typeof attempt?.qualified !== 'boolean'
+        || typeof attempt?.retryableRendererGrowth !== 'boolean'
+        || attempt?.consecutiveQualified !== expectedQualifiedStreak) {
+      issues.push(`reentryRendererPrewarm.attempts[${index}] must preserve its ordered convergence decision.`);
+    }
+    for (const metric of [
+      'postGcHeapMiB', 'listeners', 'domElements', 'liveSceneObjects',
+      'liveSceneMeshes', 'liveGeometries', 'liveMaterials', 'liveTextures',
+      'rendererGeometries', 'rendererTextures',
+    ]) {
+      requireFinite(
+        attempt?.delta?.[metric],
+        `reentryRendererPrewarm.attempts[${index}].delta.${metric}`,
+      );
+    }
+    if (attempt?.qualified !== expectedQualified
+        || attempt?.retryableRendererGrowth
+          !== isRetryableTransactionRendererResidency(attempt?.delta)) {
+      issues.push(`reentryRendererPrewarm.attempts[${index}] decisions must match the recorded delta.`);
+    }
+  }
   const measuredFiles = result?.build?.measuredFiles;
   if (!Array.isArray(measuredFiles) || measuredFiles.length === 0) {
     issues.push('build.measuredFiles must contain the QA harness provenance map.');
@@ -1368,6 +1413,8 @@ export function buildStaticPerformanceGateReport(result) {
   const reentrySamples = Array.isArray(result?.reentryLeak?.samples)
     ? result.reentryLeak.samples
     : [];
+  const reentryRendererPrewarm = result?.reentryRendererPrewarm;
+  const reentryPrewarmQualified = hasQualifiedReentryRendererPrewarm(reentryRendererPrewarm);
   const reentryStart = reentrySamples[0];
   const reentryEnd = reentrySamples.at(-1);
   const reentryDifference = (read, places = null) => {
@@ -1442,11 +1489,12 @@ export function buildStaticPerformanceGateReport(result) {
       `${reentryDelta.liveGeometries}/${reentryDelta.liveMaterials}/${reentryDelta.liveTextures} geometry/material/texture; budget 0/0/0`,
     ),
     reentryRendererMemory: detail(
-      Number.isFinite(reentryDelta.rendererGeometries)
+      reentryPrewarmQualified
+        && Number.isFinite(reentryDelta.rendererGeometries)
         && Number.isFinite(reentryDelta.rendererTextures)
         && Math.abs(reentryDelta.rendererGeometries) <= 2
         && Math.abs(reentryDelta.rendererTextures) <= 2,
-      `${reentryDelta.rendererGeometries}/${reentryDelta.rendererTextures} geometry/texture; budget <= 2 lazy resources each`,
+      `${reentryDelta.rendererGeometries}/${reentryDelta.rendererTextures} geometry/texture after ${reentryRendererPrewarm?.attempts?.length ?? 0} qualified warm-up attempt(s); budget <= 2 lazy resources each`,
     ),
     staticUiFrequency: detail(
       staticUiRate <= 5,
@@ -3007,6 +3055,39 @@ export function isRetryableTransactionRendererResidency(delta) {
     && (delta.rendererGeometries > 2 || delta.rendererTextures > 2);
 }
 
+export function isQualifiedReentryRendererBoundary(delta) {
+  if (!delta || !Number.isFinite(delta.postGcHeapMiB)
+      || Math.abs(delta.postGcHeapMiB) > 2) return false;
+  const exactStableFields = [
+    'listeners',
+    'domElements',
+    'liveSceneObjects',
+    'liveSceneMeshes',
+    'liveGeometries',
+    'liveMaterials',
+    'liveTextures',
+  ];
+  if (!exactStableFields.every((field) => delta[field] === 0)) return false;
+  return Number.isFinite(delta.rendererGeometries)
+    && Number.isFinite(delta.rendererTextures)
+    && Math.abs(delta.rendererGeometries) <= 2
+    && Math.abs(delta.rendererTextures) <= 2;
+}
+
+export function hasQualifiedReentryRendererPrewarm(prewarm) {
+  const attempts = prewarm?.attempts;
+  const confirmationBatches = prewarm?.confirmationBatches;
+  if (prewarm?.qualified !== true
+      || !Number.isSafeInteger(confirmationBatches)
+      || confirmationBatches < 2
+      || !Array.isArray(attempts)
+      || attempts.length < confirmationBatches) return false;
+  return attempts.slice(-confirmationBatches).every((attempt) => (
+    attempt?.qualified === true
+      && isQualifiedReentryRendererBoundary(attempt?.delta)
+  ));
+}
+
 export function transactionStabilityReport(start, afterFirstSale, afterWarmSale, end) {
   const firstUseDelta = transactionBoundaryDelta(start, afterFirstSale);
   const pathWarmupDelta = transactionBoundaryDelta(afterFirstSale, afterWarmSale);
@@ -3178,6 +3259,9 @@ function markdownReport(result) {
   const leakRows = result.reentryLeak.samples.map((sample) => (
     `| ${sample.cycle} | ${sample.heap.jsHeapUsedMiB} | ${sample.listeners.total} | ${sample.dom.elements} | ${sample.liveSceneResources.geometries} / ${sample.liveSceneResources.materials} / ${sample.liveSceneResources.textures} | ${sample.liveSceneResources.rendererMemory.geometries} / ${sample.liveSceneResources.rendererMemory.textures} | ${sample.transactionNumber} | ${sample.transactionStage} |`
   )).join('\n');
+  const reentryPrewarmRows = result.reentryRendererPrewarm.attempts.map((attempt) => (
+    `| ${attempt.attempt} | ${attempt.cycles} | ${attempt.delta.postGcHeapMiB} | ${attempt.delta.listeners} / ${attempt.delta.domElements} | ${attempt.delta.liveGeometries} / ${attempt.delta.liveMaterials} / ${attempt.delta.liveTextures} | ${attempt.delta.rendererGeometries} / ${attempt.delta.rendererTextures} | ${attempt.consecutiveQualified} / ${result.reentryRendererPrewarm.confirmationBatches} | ${attempt.consecutiveQualified >= result.reentryRendererPrewarm.confirmationBatches ? 'CONFIRMED' : attempt.qualified ? 'STABLE' : attempt.retryableRendererGrowth ? 'RETRY' : 'FAIL'} |`
+  )).join('\n');
   const dynamicRows = REQUIRED_DYNAMIC_PHASES.map((key) => {
     const phase = result.dynamicPhases[key];
     const calibration = phase.heapHighWater.calibration;
@@ -3252,7 +3336,13 @@ ${baselineRows || '| n/a | n/a | n/a | n/a | n/a | n/a | n/a | not available |'}
 
 ## Re-entry stability
 
-The probe performs ${result.protocol.reentryCycles} normal Escape/E leave/re-enter cycles while preserving the same live transaction.
+Before measurement, bounded full-cardinality Escape/E batches must converge isolated WebGL residency without heap, listener, DOM, or live-resource drift for ${result.reentryRendererPrewarm.confirmationBatches} consecutive batches. Qualified: **${result.reentryRendererPrewarm.qualified ? 'yes' : 'no'}**.
+
+| Warm-up attempt | Cycles | Post-GC heap MiB | Listeners / DOM | Live geometry / material / texture | Renderer geometry / texture | Stable streak | Result |
+|---:|---:|---:|---:|---:|---:|---:|---|
+${reentryPrewarmRows}
+
+The measured probe then performs ${result.protocol.reentryCycles} normal Escape/E leave/re-enter cycles while preserving the same live transaction; its existing ±2 renderer-resource budget is unchanged.
 
 | Cycle | Post-GC heap MiB | Listeners | DOM elements | Live geometry / material / texture | Renderer geometry / texture | Tx # | Stage |
 |---:|---:|---:|---:|---:|---:|---:|---|
@@ -3365,18 +3455,65 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
   await waitForCameraStable(page);
   scenes.activeMonitor = await captureScene(page, cdp, '02-active-monitor', 'Active three-item monitor');
 
+  const transactionNumber = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.getTx()?.number ?? null
+  ));
+  const runReentryCycles = async (count, onCycle = null) => {
+    for (let cycle = 1; cycle <= count; cycle++) {
+      await exitFrontDesk(page);
+      await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.isActive(), null, { timeout: 3000 });
+      await page.waitForTimeout(45);
+      await enterFrontDeskAtMonitor(page, transactionNumber);
+      await page.waitForTimeout(70);
+      if (onCycle) await onCycle(cycle);
+    }
+  };
+
+  // Entering and leaving the desk temporarily exposes a different camera band.
+  // THREE may upload already-live world geometry the first time that band is
+  // drawn; renderer.info then rises even though the scene owns no new objects.
+  // Prove that one-time residency has converged before starting the unchanged
+  // 20-cycle leak gate. Retry only an isolated, monotonic renderer upload; any
+  // heap/listener/DOM/live-resource drift fails closed instead of being warmed
+  // away.
+  const reentryRendererPrewarmAttempts = [];
+  let reentryPrewarmBefore = await stabilitySnapshot(page, cdp, 0);
+  let consecutiveQualified = 0;
+  for (let attempt = 1; attempt <= REENTRY_RENDERER_RESIDENCY_ATTEMPTS; attempt++) {
+    await runReentryCycles(RUN_CONFIG.reentryCycles);
+    const after = await stabilitySnapshot(page, cdp, RUN_CONFIG.reentryCycles * attempt);
+    const delta = transactionBoundaryDelta(reentryPrewarmBefore, after);
+    const qualified = isQualifiedReentryRendererBoundary(delta);
+    const retryableRendererGrowth = isRetryableTransactionRendererResidency(delta);
+    consecutiveQualified = qualified ? consecutiveQualified + 1 : 0;
+    reentryRendererPrewarmAttempts.push({
+      attempt,
+      cycles: RUN_CONFIG.reentryCycles,
+      qualified,
+      retryableRendererGrowth,
+      consecutiveQualified,
+      before: reentryPrewarmBefore,
+      after,
+      delta,
+    });
+    if (consecutiveQualified >= REENTRY_RENDERER_RESIDENCY_CONFIRMATION_BATCHES) break;
+    if (!qualified && !retryableRendererGrowth) break;
+    reentryPrewarmBefore = after;
+  }
+  const reentryRendererPrewarm = {
+    cyclesPerAttempt: RUN_CONFIG.reentryCycles,
+    maximumAttempts: REENTRY_RENDERER_RESIDENCY_ATTEMPTS,
+    confirmationBatches: REENTRY_RENDERER_RESIDENCY_CONFIRMATION_BATCHES,
+    attempts: reentryRendererPrewarmAttempts,
+    qualified: consecutiveQualified >= REENTRY_RENDERER_RESIDENCY_CONFIRMATION_BATCHES,
+  };
+
   const reentrySamples = [await stabilitySnapshot(page, cdp, 0)];
-  const transactionNumber = reentrySamples[0].transactionNumber;
-  for (let cycle = 1; cycle <= RUN_CONFIG.reentryCycles; cycle++) {
-    await exitFrontDesk(page);
-    await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.isActive(), null, { timeout: 3000 });
-    await page.waitForTimeout(45);
-    await enterFrontDeskAtMonitor(page, transactionNumber);
-    await page.waitForTimeout(70);
+  await runReentryCycles(RUN_CONFIG.reentryCycles, async (cycle) => {
     if (cycle % 5 === 0 || cycle === RUN_CONFIG.reentryCycles) {
       reentrySamples.push(await stabilitySnapshot(page, cdp, cycle));
     }
-  }
+  });
   const leakStart = reentrySamples[0];
   const leakEnd = reentrySamples[reentrySamples.length - 1];
   const reentryLeak = {
@@ -3751,6 +3888,7 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
   let transactionEnd = initialTransactionEnd;
   const rendererResidencySaleAttempts = [];
   const rendererResidencyRetryCustomers = [];
+  const rendererResidencyRetryWindows = [];
   for (let attempt = 1; attempt <= TRANSACTION_RENDERER_RESIDENCY_ATTEMPTS; attempt++) {
     const attemptDelta = transactionBoundaryDelta(transactionPairStart, transactionEnd);
     const retryableRendererGrowth = isRetryableTransactionRendererResidency(attemptDelta);
@@ -3774,7 +3912,20 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
     transactionPairStart = transactionEnd;
     const retryCustomer = await stageApprovedCardSale(page);
     rendererResidencyRetryCustomers.push(retryCustomer);
-    await completeApprovedCardSale(page);
+    // Keep convergence sales under the same completed-recorder contract as
+    // every other retained-heap boundary. Running this action bare left
+    // window.__simplifiedRegisterPerf.dynamic cleared from the previous
+    // boundary, so a legitimate renderer-residency retry could not prove that
+    // its diagnostic timelines were stopped and discarded before the next GC.
+    const retryWindow = await captureDynamicPhase(
+      page,
+      cdp,
+      `rendererResidencyRetry${attempt}`,
+      `Renderer-residency convergence sale ${attempt}`,
+      async () => completeApprovedCardSale(page),
+      { tailMs: 180 },
+    );
+    rendererResidencyRetryWindows.push(retryWindow);
     await page.waitForFunction(() => {
       const register = window.__fw.scene3d.clubhouse().register;
       return register.isActive() && register.workspace() === 'monitor' && !register.getTx();
@@ -3791,6 +3942,7 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
   transactionStability.initialAfterWarmSale = initialTransactionAfterWarmSale;
   transactionStability.initialRepeatEnd = initialTransactionEnd;
   transactionStability.rendererResidencySaleAttempts = rendererResidencySaleAttempts;
+  transactionStability.rendererResidencyRetryWindows = rendererResidencyRetryWindows;
   transactionStability.selectedRendererResidencyAttempt = rendererResidencySaleAttempts.length;
   transactionStability.completedSaleEnvelope = {
     declineToCashSales: 1,
@@ -3880,6 +4032,7 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
   const gate = (pass, detail) => ({ pass: !!pass, detail });
   const gateDetails = buildStaticPerformanceGateReport({
     scenes,
+    reentryRendererPrewarm,
     reentryLeak,
     errors: {
       consoleErrors,
@@ -3913,6 +4066,8 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
     rendererResidencyTimeoutMs: RENDERER_RESIDENCY_TIMEOUT_MS,
     rendererResidencyControlAttempts: RENDERER_RESIDENCY_CONTROL_ATTEMPTS,
     transactionRendererResidencyAttempts: TRANSACTION_RENDERER_RESIDENCY_ATTEMPTS,
+    reentryRendererResidencyAttempts: REENTRY_RENDERER_RESIDENCY_ATTEMPTS,
+    reentryRendererResidencyConfirmationBatches: REENTRY_RENDERER_RESIDENCY_CONFIRMATION_BATCHES,
     allocationSamplingDiagnostic: RUN_CONFIG.allocationSampling,
     renderCaptureFrames: RENDER_CAPTURE_FRAME_COUNT,
     productionInputRoute: 'E/Escape, physical monitor clicks, one click per product, one click on customer card, physical reader OK, visible decline-to-cash recovery, one click on customer tender, physical drawer denominations, visible confirm-change, automatic receipt/bag/customer cleanup, then two complete approved-card sales plus bounded renderer-residency convergence sales through the same controls',
@@ -3928,6 +4083,7 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
     environment,
     scenes,
     rendererResidencyPrewarm,
+    reentryRendererPrewarm,
     heapIdleControl,
     dynamicPhases,
   };
@@ -3965,6 +4121,7 @@ export async function runSimplifiedRegisterPerformance(page, options = {}) {
     dynamicWindows,
     comparison,
     workspaceTail,
+    reentryRendererPrewarm,
     reentryLeak,
     exactChangePlan,
     transactionStability,
