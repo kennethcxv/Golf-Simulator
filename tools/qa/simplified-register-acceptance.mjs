@@ -850,8 +850,22 @@ async function cashRoute(page, shot) {
   assert(['receipt', 'bagging', 'done'].includes(confirmed.stage)
       && !confirmed.drawerOpen && confirmed.changeGiven === 4.28 && confirmed.lost === 0,
   `Exact change did not complete cleanly: ${JSON.stringify(confirmed)}.`);
+  // Receipt printing is intentionally short. Wait for it as soon as the
+  // customer owns the change bundle; taking another full-resolution PNG first
+  // can consume the entire 1.1-second authored print phase on a busy host and
+  // turn a completed sale into a false timeout.
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
+  ), null, { timeout: 10000 });
+  await waitCamera(page, 'monitor');
+  await shot('12b-receipt-printing.png');
   await shot('12-exact-change-confirmed.png');
-  return { start: drawerTravelStart, midpoint: drawerTravelMidpoint, cashHandoff };
+  return {
+    start: drawerTravelStart,
+    midpoint: drawerTravelMidpoint,
+    cashHandoff,
+    receiptPrintCaptured: true,
+  };
 }
 
 async function finalSnapshot(page, customerName) {
@@ -1004,11 +1018,16 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   let deliveryHandoffEvidence = null;
   if (mode === 'card') await cardRoute(page, shot);
   else cashDrawerTravelEvidence = await cashRoute(page, shot);
-  await page.waitForFunction(() => (
-    window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
-  ), null, { timeout: 10000 });
-  await waitCamera(page, 'monitor');
-  await shot('12b-receipt-printing.png');
+  if (mode === 'card') {
+    await page.waitForFunction(() => (
+      window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
+    ), null, { timeout: 10000 });
+    await waitCamera(page, 'monitor');
+    await shot('12b-receipt-printing.png');
+  } else {
+    assert(cashDrawerTravelEvidence?.receiptPrintCaptured === true,
+      'Cash route did not retain the physical receipt-print phase.');
+  }
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'done';

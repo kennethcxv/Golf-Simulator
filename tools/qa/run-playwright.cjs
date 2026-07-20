@@ -42,10 +42,6 @@ async function runUnlocked() {
   if (typeof run !== 'function') throw new Error(`${rel} did not evaluate to a function.`);
 
   const { chromium } = loadPlaywright();
-  const browser = await chromium.launch({
-    channel: 'chrome',
-    headless: process.env.HEADED !== '1',
-  });
   const contextOptions = {
     viewport: { width: 1600, height: 900 },
     deviceScaleFactor: 1,
@@ -59,8 +55,26 @@ async function runUnlocked() {
       size: { width: 1600, height: 900 },
     };
   }
-  const context = await browser.newContext(contextOptions);
-  const page = await context.newPage();
+  const persistentProfile = String(process.env.QA_PERSISTENT_PROFILE || '').trim();
+  let browser = null;
+  let context = null;
+  if (persistentProfile) {
+    const profilePath = path.resolve(persistentProfile);
+    fs.mkdirSync(profilePath, { recursive: true });
+    context = await chromium.launchPersistentContext(profilePath, {
+      channel: 'chrome',
+      headless: process.env.HEADED !== '1',
+      ...contextOptions,
+    });
+    browser = context.browser();
+  } else {
+    browser = await chromium.launch({
+      channel: 'chrome',
+      headless: process.env.HEADED !== '1',
+    });
+    context = await browser.newContext(contextOptions);
+  }
+  const page = context.pages()[0] || await context.newPage();
   const diagnostics = [];
   page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning') {
@@ -112,7 +126,9 @@ async function runUnlocked() {
     throw error;
   } finally {
     await context.close();
-    await browser.close();
+    // Closing a persistent context owns and closes its browser process. Keep the
+    // explicit browser close for the default ephemeral-context path only.
+    if (!persistentProfile) await browser.close();
   }
 }
 

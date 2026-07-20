@@ -9,6 +9,14 @@ const frontDeskLifecycleDriver = fs.readFileSync(
   'utf8',
 );
 const patienceDriver = fs.readFileSync('tools/qa/patience-geometry-churn.js', 'utf8');
+const registerAcceptanceDriver = fs.readFileSync(
+  'tools/qa/register-acceptance-driver.mjs',
+  'utf8',
+);
+const simplifiedRegisterAcceptanceDriver = fs.readFileSync(
+  'tools/qa/simplified-register-acceptance.mjs',
+  'utf8',
+);
 
 test('stock and delivery browser drivers resolve output and runtime URL from the assigned worktree', () => {
   for (const [name, source] of [
@@ -29,6 +37,30 @@ test('front-desk lifecycle evidence resolves the runtime URL from the assigned w
     'the fixture keeps a bounded but visible lounge window');
   assert.ok((frontDeskLifecycleDriver.match(/page\.keyboard\.press\('3'\)/g) || []).length >= 2,
     'arrival and no-show clocks advance through the production 16x time control');
+});
+
+test('register acceptance follows the active clubhouse transform instead of a legacy world origin', () => {
+  assert.match(registerAcceptanceDriver, /const origin = clubhouse\.interior\.position;/);
+  assert.match(registerAcceptanceDriver, /walk\.x = 2\.80 \+ origin\.x;/);
+  assert.match(registerAcceptanceDriver, /walk\.z = 5\.35 \+ origin\.z;/);
+  assert.doesNotMatch(registerAcceptanceDriver, /walk\.x = 2\.80 - 8;/);
+  assert.doesNotMatch(registerAcceptanceDriver, /walk\.z = 5\.35 \+ 228;/);
+});
+
+test('cash acceptance captures the short receipt phase before another full-frame screenshot', () => {
+  const routeStart = simplifiedRegisterAcceptanceDriver.indexOf('async function cashRoute');
+  const routeEnd = simplifiedRegisterAcceptanceDriver.indexOf(
+    '\nasync function finalSnapshot',
+    routeStart,
+  );
+  const route = simplifiedRegisterAcceptanceDriver.slice(routeStart, routeEnd);
+  const confirmed = route.indexOf('const confirmed = await givingFacts();');
+  const receiptWait = route.indexOf("deliveryPhase() === 'receipt-print'", confirmed);
+  const receiptShot = route.indexOf("await shot('12b-receipt-printing.png');", receiptWait);
+  const confirmedShot = route.indexOf("await shot('12-exact-change-confirmed.png');", confirmed);
+  assert.ok(confirmed >= 0 && receiptWait > confirmed && receiptShot > receiptWait
+      && confirmedShot > receiptShot,
+  'cash evidence must enter and capture receipt-print before another PNG can consume it');
 });
 
 test('front-desk cash evidence accepts the presented handful before opening the drawer view', () => {
