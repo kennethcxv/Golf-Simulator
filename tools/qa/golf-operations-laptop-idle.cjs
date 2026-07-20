@@ -82,9 +82,13 @@ async function main() {
     await page.evaluate(() => {
       window.__qaLaptopMutations = 0;
       window.__qaLaptopObserver = new MutationObserver(() => { window.__qaLaptopMutations++; });
-      window.__qaLaptopObserver.observe(document.querySelector('.laptop-screen'), {
+      const options = {
         subtree: true, childList: true, characterData: true, attributes: true,
-      });
+      };
+      // The frame's matrix3d intentionally follows the physical glass every
+      // render frame. Audit the application trees, not that projection style.
+      window.__qaLaptopObserver.observe(document.querySelector('.lt-status'), options);
+      window.__qaLaptopObserver.observe(document.querySelector('.lt-content'), options);
     });
     const listenersBefore = await page.evaluate(() => window.__qaListeners());
     await page.waitForTimeout(5000);
