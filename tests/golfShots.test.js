@@ -65,3 +65,39 @@ test('handicap-like skill changes real club carry rather than only changing a sc
   const developing = planned(state, { golfer: { id: 1, name: 'Same Seed', skill: 27 } });
   assert.ok(strong.distanceYd > developing.distanceYd + 10, `${strong.distanceYd} should exceed ${developing.distanceYd}`);
 });
+
+test('wind and occupied landing zones produce deterministic, separated targets', () => {
+  const state = newGame('relaxed', 32004);
+  const baseline = planned(state);
+  const context = {
+    seed: state.seed,
+    courseCondition: 70,
+    greenQuality: 0.7,
+    greenSpeed: 9,
+    windMph: 18,
+    windDirectionRad: 1.2,
+    avoidPositions: [{ x: baseline.landing.x, z: baseline.landing.z }],
+    minimumSeparationYd: 70,
+  };
+  const adjusted = planned(state, { context });
+  assert.deepEqual(adjusted, planned(state, { context }));
+  assert.ok(Math.hypot(
+    adjusted.landing.x - baseline.landing.x,
+    adjusted.landing.z - baseline.landing.z,
+  ) >= 70);
+  assert.equal(adjusted.wind.mph, 18);
+  assert.equal(adjusted.wind.directionRad, 1.2);
+});
+
+test('the sampled arc clears the course terrain between launch and landing', () => {
+  const state = newGame('relaxed', 32005);
+  const shot = planned(state);
+  for (let index = 1; index < 20; index++) {
+    const minute = shot.startMinute + (shot.flightEndMinute - shot.startMinute) * (index / 20);
+    const point = sampleBallPosition(shot, minute);
+    const cellX = Math.max(0, Math.min(state.course.w - 1, Math.floor((point.x + state.course.w * 4) / 8)));
+    const cellY = Math.max(0, Math.min(state.course.h - 1, Math.floor((point.z + state.course.h * 4) / 8)));
+    const groundY = state.course.elevation[cellY * state.course.w + cellX] * 0.5;
+    assert.ok(point.y > groundY, `flight sample ${index} must clear terrain`);
+  }
+});

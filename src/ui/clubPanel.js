@@ -15,7 +15,10 @@ import {
 } from '../sim/progression.js';
 import { tutorialFlag } from '../sim/tutorial.js';
 
-const ROLE_LABEL = { groundskeeper: '⛳ Groundskeeper', instructor: '🎯 Instructor', fnb: '🍽 Food & Bev' };
+const ROLE_LABEL = {
+  groundskeeper: '⛳ Groundskeeper', instructor: '🎯 Instructor', fnb: '🍽 Food & Bev',
+  proshop: '🏌 Pro shop', marshal: '🚩 Course marshal',
+};
 
 function stars(skill) {
   const full = Math.round(skill);

@@ -11,7 +11,9 @@ import {
   markReservationArrived,
   reservationById,
 } from '../src/sim/reservations.js';
-import { golfDayTick, liveGolfSummary, ROUND_STATE } from '../src/sim/golfDay.js';
+import {
+  dispatchMarshalTask, golfDayTick, liveGolfSummary, ROUND_STATE,
+} from '../src/sim/golfDay.js';
 
 function checkedInParty(state, { minute = 480, arrivalMinute = minute - 30, holder = 'Live Round', size = 4, transport } = {}) {
   state.clock.minutes = arrivalMinute;
@@ -52,11 +54,18 @@ test('a paid check-in becomes one deterministic round and starter owns the depar
 test('early groups use bounded practice occupancy and then enter the starter queue', () => {
   const state = newGame('relaxed', 33002);
   checkedInParty(state, { arrivalMinute: 440, minute: 480, size: 2 });
-  golfDayTick(state, 441);
-  const party = state.golfDay.parties[0];
+  let party;
+  for (let minute = 440; minute <= 455; minute += 0.25) {
+    golfDayTick(state, minute);
+    party = state.golfDay.parties[0];
+    if (party?.state === ROUND_STATE.PRACTICING
+      && state.golfDay.events.some((event) => event.type === 'practice-shot-started')) break;
+  }
   assert.equal(party.state, ROUND_STATE.PRACTICING);
-  assert.ok(['putting', 'chipping'].includes(party.practiceKind));
+  assert.ok(['range', 'putting', 'chipping'].includes(party.practiceKind));
   assert.equal(state.golfDay.practice[party.practiceKind].occupants.length, 1);
+  assert.ok(state.golfDay.events.some((event) => event.type === 'practice-warmup-swing'));
+  assert.ok(state.golfDay.events.some((event) => event.type === 'practice-shot-started'));
   golfDayTick(state, 479);
   assert.equal(state.golfDay.practice[party.practiceKind].occupants.length, 0);
   assert.ok([ROUND_STATE.WAITING_FOR_STARTER, ROUND_STATE.CALLED_TO_TEE, ROUND_STATE.AT_TEE].includes(party.state));
@@ -75,15 +84,19 @@ test('starter separation, safety waits, congestion, and marshal work derive from
   assert.ok(state.golfDay.events.some((event) => event.type === 'starter-called-party'));
   assert.ok(state.golfDay.events.some((event) => event.type === 'shot-started'));
   assert.ok(state.golfDay.presentationShots.length > 0);
-  assert.ok(['clear', 'watch', 'slow', 'severe'].includes(state.golfDay.congestion.level));
+  assert.ok(['clear', 'light', 'moderate', 'heavy', 'gridlocked'].includes(state.golfDay.congestion.level));
   // Inject a measured delay into the canonical pace record to test dispatch and
   // completion without inventing a second marshal-only scenario.
   const active = state.golfDay.parties[0];
   active.pace.waitingMinutes = 7;
   active.nextActionMinute = Math.min(active.nextActionMinute, 560.01);
   golfDayTick(state, 565);
-  assert.ok(state.golfDay.marshalTasks.some((task) => task.partyId === active.id));
-  assert.ok(state.golfDay.marshalTasks.some((task) => task.partyId === active.id && task.status === 'complete'));
+  const task = state.golfDay.marshalTasks.find((entry) => entry.status === 'alert');
+  assert.ok(task, 'early game reports a pace alert instead of teleporting a marshal');
+  assert.ok(dispatchMarshalTask(state, task.id, { minute: 565, action: 'pace-reminder' }).ok);
+  assert.equal(task.status, 'enroute');
+  golfDayTick(state, 570);
+  assert.equal(task.status, 'complete');
 });
 
 test('normal accelerated play completes scorecard, cart return, persistent golfers, and one review', () => {
@@ -97,12 +110,15 @@ test('normal accelerated play completes scorecard, cart return, persistent golfe
   assert.equal(summary.scores[0].holes.length, 9);
   assert.ok(summary.scores.every((score) => score.holes.every((value) => value >= 1)));
   assert.ok(summary.durationMinutes >= 90 && summary.durationMinutes <= 300, `duration ${summary.durationMinutes}`);
-  assert.equal(state.golfDay.carts.find((cart) => cart.id === summary.cartId).status, 'available');
+  const returnedCart = state.golfDay.carts.find((cart) => cart.id === summary.cartId);
+  assert.ok(['cleaning', 'charging', 'available'].includes(returnedCart.status));
+  assert.equal(returnedCart.assignedPartyId, null);
   assert.equal(state.golfDay.parties.length, 0);
   assert.equal(state.club.reviews.filter((review) => review.roundId === summary.id).length, 1);
   assert.equal(state.golfers.pool.find((golfer) => golfer.name === 'Complete Four').roundsPlayed, roundsBefore + 1);
   assert.equal(liveGolfSummary(state).activeBalls, 0);
   golfDayTick(state, 1300);
+  assert.equal(returnedCart.status, 'available');
   assert.equal(state.club.reviews.filter((review) => review.roundId === summary.id).length, 1);
 });
 

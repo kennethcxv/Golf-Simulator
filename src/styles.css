@@ -59,6 +59,11 @@ canvas#game {
 
 #ui > * { pointer-events: auto; }
 
+/* The gameplay layer owns the viewport geometrically, while only its visible
+   panels own pointer hits. Without this explicit box, absolutely positioned
+   descendants could paint above the canvas yet still lose hit-testing to it. */
+#ui > .game-ui { position: absolute; inset: 0; pointer-events: none; }
+
 /* loading veil — opaque on purpose: it hides the shader-prewarm camera swings */
 .load-veil {
   position: fixed;
@@ -208,6 +213,7 @@ input[type="range"] { accent-color: var(--accent); }
 
 .panel {
   position: absolute;
+  pointer-events: auto;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -381,7 +387,11 @@ input[type="range"] { accent-color: var(--accent); }
   padding: 8px 10px;
   font-size: 0.88rem;
   opacity: 0.94;
+  z-index: 45;
+  pointer-events: auto;
 }
+
+.objectives-card button { position: relative; z-index: 1; pointer-events: auto; }
 
 /* --- responsive HUD ----------------------------------------------------------- */
 
@@ -850,9 +860,11 @@ input[type="range"] { accent-color: var(--accent); }
 .golf-live-head { padding: 7px 9px 5px; }
 .golf-live-kicker { color: #d4bd77; font-weight: 800; letter-spacing: 0.14em; }
 .golf-live-congestion { padding: 2px 7px; border-radius: 999px; background: #273c2b; color: #b8dfac; }
-.golf-live-congestion.watch { color: #f1cf78; }
-.golf-live-congestion.slow,
-.golf-live-congestion.severe { color: #ffad89; background: #552b24; }
+.golf-live-congestion.light,
+.golf-live-congestion.moderate { color: #f1cf78; }
+.golf-live-congestion.heavy,
+.golf-live-congestion.gridlocked { color: #ffad89; background: #552b24; }
+.golf-live-alert { padding: 6px 9px; border-top: 1px solid #d6a45555; color: #ffd48c; background: #4a2d20cc; }
 .golf-live-metrics {
   justify-content: flex-start;
   padding: 0 9px 7px;

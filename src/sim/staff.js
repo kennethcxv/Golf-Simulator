@@ -13,9 +13,10 @@ export const ROLE = {
   INSTRUCTOR: 'instructor',
   FNB: 'fnb',
   PROSHOP: 'proshop',
+  MARSHAL: 'marshal',
 };
 
-const ROLE_BASE_WAGE = { groundskeeper: 105, instructor: 150, fnb: 95, proshop: 100 };
+const ROLE_BASE_WAGE = { groundskeeper: 105, instructor: 150, fnb: 95, proshop: 100, marshal: 115 };
 
 export function wageForSkill(role, skill) {
   return Math.round((ROLE_BASE_WAGE[role] || 100) * (0.62 + 0.19 * skill));
@@ -24,7 +25,10 @@ export function wageForSkill(role, skill) {
 function genCandidate(state, id) {
   const rng = rngOf(state);
   const roll = rng.next();
-  const role = roll < 0.38 ? ROLE.GROUNDSKEEPER : roll < 0.58 ? ROLE.INSTRUCTOR : roll < 0.8 ? ROLE.FNB : ROLE.PROSHOP;
+  const role = roll < 0.34 ? ROLE.GROUNDSKEEPER
+    : roll < 0.52 ? ROLE.INSTRUCTOR
+      : roll < 0.7 ? ROLE.FNB
+        : roll < 0.86 ? ROLE.PROSHOP : ROLE.MARSHAL;
   const skill = 1 + rng.int(4) + (rng.chance(0.15) ? 1 : 0); // 1..5, 5 rare
   return {
     id,
@@ -47,6 +51,13 @@ function regenerateMarket(state) {
   state.staff.market = [];
   for (let i = 0; i < n; i++) {
     state.staff.market.push(genCandidate(state, state.staff.nextId++));
+  }
+  // Pace management is a player-facing progression route, so every market
+  // cycle offers at least one candidate capable of running a patrol.
+  if (!state.staff.market.some((candidate) => candidate.role === ROLE.MARSHAL)) {
+    const candidate = state.staff.market[state.staff.market.length - 1];
+    candidate.role = ROLE.MARSHAL;
+    candidate.wage = wageForSkill(candidate.role, candidate.skill);
   }
 }
 

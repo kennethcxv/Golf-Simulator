@@ -207,6 +207,96 @@ export function reviewForCompletedRound(state, round, seed = 0) {
       gripe: `the ${Math.round(round.conditionRating)} condition rating showed up in our lies`,
     },
   ];
+  factors.push({
+    id: 'roundCheckIn',
+    label: 'Check-in',
+    weight: 0.65,
+    score: clamp(1 - Number(round.checkInMinutes || 0) / 12, 0.15, 1),
+    praise: Number(round.checkInMinutes || 0) <= 2
+      ? 'check-in was quick and connected us straight to the course'
+      : `check-in took about ${Math.round(round.checkInMinutes)} minutes but was handled clearly`,
+    gripe: `check-in took about ${Math.round(round.checkInMinutes)} minutes`,
+  });
+  factors.push({
+    id: 'roundStart',
+    label: 'Start punctuality',
+    weight: 1.0,
+    score: clamp(1 - Number(round.startDelayMinutes || 0) / 18, 0, 1),
+    praise: Number(round.startDelayMinutes || 0) < 1
+      ? 'the starter sent us off on time'
+      : `the starter kept our delay to ${Math.round(round.startDelayMinutes)} minutes`,
+    gripe: `our tee time slipped by ${Math.round(round.startDelayMinutes)} minutes`,
+  });
+  if (round.greenQuality != null) {
+    factors.push({
+      id: 'roundGreens',
+      label: 'Greens',
+      weight: 1.0,
+      score: clamp(Number(round.greenQuality) / 100, 0, 1),
+      praise: `the greens rolled honestly at ${Math.round(round.greenQuality)} condition`,
+      gripe: `the greens felt rough at ${Math.round(round.greenQuality)} condition`,
+    });
+  }
+  if (round.bunkerQuality != null) {
+    factors.push({
+      id: 'roundBunkers',
+      label: 'Bunkers',
+      weight: 0.55,
+      score: clamp(Number(round.bunkerQuality) / 100, 0, 1),
+      praise: `the bunkers were playable at ${Math.round(round.bunkerQuality)} condition`,
+      gripe: `the bunkers showed their ${Math.round(round.bunkerQuality)} condition rating`,
+    });
+  }
+  if (round.roughDifficulty != null) {
+    factors.push({
+      id: 'roundRough',
+      label: 'Rough',
+      weight: 0.5,
+      score: clamp(1 - Number(round.roughDifficulty) / 125, 0.1, 1),
+      praise: `the rough was fair enough to find and play from`,
+      gripe: `the rough difficulty felt like ${Math.round(round.roughDifficulty)} out of 100`,
+    });
+  }
+  if (round.designRating != null) {
+    factors.push({
+      id: 'roundDesign',
+      label: 'Course design',
+      weight: 0.7,
+      score: clamp(Number(round.designRating) / 100, 0, 1),
+      praise: `the ${Math.round(round.designRating)}-rated layout made us think`,
+      gripe: `the ${Math.round(round.designRating)}-rated layout never found a rhythm`,
+    });
+  }
+  if (round.sceneryRating != null) {
+    factors.push({
+      id: 'roundScenery',
+      label: 'Scenery',
+      weight: 0.45,
+      score: clamp(Number(round.sceneryRating) / 100, 0, 1),
+      praise: `the setting felt cared for at ${Math.round(round.sceneryRating)} quality`,
+      gripe: `the scenery felt unfinished at ${Math.round(round.sceneryRating)} quality`,
+    });
+  }
+  if (round.serviceRating != null) {
+    factors.push({
+      id: 'roundService',
+      label: 'Service',
+      weight: 0.7,
+      score: clamp(Number(round.serviceRating) / 100, 0, 1),
+      praise: `the staff service earned a ${Math.round(round.serviceRating)} rating`,
+      gripe: `the staff service only earned a ${Math.round(round.serviceRating)} rating`,
+    });
+  }
+  if (round.valueRating != null) {
+    factors.push({
+      id: 'roundValue',
+      label: 'Value',
+      weight: 0.9,
+      score: clamp(Number(round.valueRating) / 100, 0, 1),
+      praise: 'the green fee felt fair for the day we had',
+      gripe: 'the green fee did not match the experience',
+    });
+  }
   if (round.practiceKind) {
     factors.push({
       id: 'roundPractice',
@@ -217,7 +307,7 @@ export function reviewForCompletedRound(state, round, seed = 0) {
       gripe: `the ${round.practiceKind} area did not help us settle in`,
     });
   }
-  if (round.transport === 'ride' && round.cartCondition != null) {
+  if (round.cartRequested && !round.cartUnavailable && round.cartCondition != null) {
     factors.push({
       id: 'roundCart',
       label: 'Golf cart',
@@ -225,6 +315,16 @@ export function reviewForCompletedRound(state, round, seed = 0) {
       score: clamp(Number(round.cartCondition) / 100, 0, 1),
       praise: `our cart was ready and in good shape (${Math.round(round.cartCondition)})`,
       gripe: `our cart felt worn (${Math.round(round.cartCondition)} condition)`,
+    });
+  }
+  if (round.cartRequested && round.cartUnavailable) {
+    factors.push({
+      id: 'roundCartAvailability',
+      label: 'Cart availability',
+      weight: 1.0,
+      score: 0.1,
+      praise: 'the staff found a workable transport plan',
+      gripe: 'the cart we reserved was not available',
     });
   }
   if (Number(round.marshalVisits || 0) > 0) {

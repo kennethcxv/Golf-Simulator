@@ -38,7 +38,9 @@ import {
 import { clubRatings, fairGreenFee } from '../sim/club.js';
 import { currentStep } from '../sim/tutorial.js';
 import { ZONE } from '../sim/constants.js';
-import { liveGolfSummary } from '../sim/golfDay.js';
+import {
+  assignMarshalPatrol, dispatchMarshalTask, liveGolfSummary,
+} from '../sim/golfDay.js';
 
 const CAT_LABEL = {
   clubs: 'Clubs', balls: 'Golf balls', apparel: 'Apparel', accessories: 'Accessories',
@@ -49,6 +51,7 @@ const CAT_ICON = {
 };
 const ROLE_LABEL = {
   groundskeeper: 'Groundskeeper', instructor: 'Teaching pro', fnb: 'Grill room', proshop: 'Pro shop',
+  marshal: 'Course marshal',
 };
 const SHOP_OPEN_MIN = 6 * 60;
 const SHOP_CLOSE_MIN = 20 * 60;
@@ -1117,6 +1120,46 @@ export function makeLaptop(app, opts) {
       meta(`${round.durationMinutes} min · ${round.scores.map((score) => `${score.name} ${score.total}`).join(', ')}`),
       chip(round.transport === 'ride' ? round.cartId : 'walked', 'ok'),
     ));
+    const openMarshalTasks = st.golfDay.marshalTasks.filter((task) => (
+      task.status !== 'complete' && st.golfDay.parties.some((party) => party.id === task.partyId)
+    ));
+    const availableMarshals = st.staff.employees.filter((employee) => (
+      employee.role === ROLE.MARSHAL && employee.trainingDays === 0
+    ));
+    const patrolEmployee = availableMarshals.find((employee) => employee.id === st.golfDay.marshal.patrolEmployeeId);
+    const marshalRows = openMarshalTasks.map((task) => {
+      const party = st.golfDay.parties.find((entry) => entry.id === task.partyId);
+      return row(
+        el('span', { text: `Hole ${task.hole} · ${party?.partyName || 'course group'}` }),
+        meta(task.reason.replaceAll('-', ' ')),
+        chip(task.status === 'alert' ? 'needs response' : 'en route', task.status === 'alert' ? 'bad' : 'warn'),
+        task.status === 'alert' ? el('button', {
+          class: 'lt-primary',
+          text: 'Investigate',
+          onclick: () => {
+            const result = dispatchMarshalTask(st, task.id, { action: 'pace-reminder' });
+            toast(result.ok ? 'You head out to speak with the group.' : result.reason, result.ok ? '' : 'warn');
+            render();
+          },
+        }) : meta(`${task.assignedTo === 'player' ? 'you' : patrolEmployee?.name || 'marshal'} arriving soon`),
+      );
+    });
+    const experience = st.golfDay.experience;
+    const latestScorecard = st.golfDay.completed[0];
+    const scorecardTable = latestScorecard ? el('div', { class: 'lt-scrollx' }, el('table', { class: 'lt-table' },
+      el('thead', {}, el('tr', {},
+        el('th', { text: 'Hole' }), el('th', { text: 'Par' }),
+        ...latestScorecard.scores.map((golfer) => el('th', { text: golfer.name })),
+        el('th', { text: 'Pace' }), el('th', { text: 'Condition' }))),
+      el('tbody', {}, ...latestScorecard.scorecard.map((hole) => el('tr', {},
+        el('td', { text: String(hole.number) }),
+        el('td', { class: 'lt-num', text: String(hole.par) }),
+        ...hole.scores.map((score, index) => el('td', {
+          class: 'lt-num',
+          text: `${score}${hole.penalties[index] ? ` (+${hole.penalties[index]}p)` : ''}`,
+        })),
+        el('td', { text: `${hole.durationMinutes ?? '—'} / ${hole.paceTargetMinutes}m` }),
+        el('td', { text: hole.condition ? `${Math.round(hole.condition.rating)}` : '—' })))))) : null;
 
     // real per-zone turf readings, averaged over the cells that actually belong to each zone
     const ZONES = [
@@ -1174,13 +1217,39 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Groups out' }), el('div', { class: 'lt-statvalue', text: String(live.activeParties) }), el('div', { class: 'lt-statsub', text: `${live.activeGolfers} golfers` })),
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Starter queue' }), el('div', { class: `lt-statvalue ${live.starterQueue.length ? 'warn' : 'ok'}`, text: String(live.starterQueue.length) }), el('div', { class: 'lt-statsub', text: st.golfDay.starter.currentPartyId ? 'party being called' : 'tee clear' })),
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Congestion' }), el('div', { class: `lt-statvalue ${live.congestion.level === 'clear' ? 'ok' : 'warn'}`, text: live.congestion.level }), el('div', { class: 'lt-statsub', text: `${live.congestion.waits} safety waits` })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Practice' }), el('div', { class: 'lt-statvalue', text: String(Object.values(live.practice).reduce((sum, value) => sum + value, 0)) }), el('div', { class: 'lt-statsub', text: `range ${live.practice.range} · putting ${live.practice.putting} · short ${live.practice.chipping}` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Practice' }), el('div', { class: 'lt-statvalue', text: String(Object.values(live.practice).reduce((sum, value) => sum + value, 0)) }), el('div', { class: 'lt-statsub', text: `range ${live.practice.range} · putting ${live.practice.putting} · short ${live.practice.chipping} · ${live.practiceSupply.rangeBucketsAvailable} buckets ready` })),
       ),
       liveRows.length ? card(...liveRows) : note('No checked-in group is on the course.'),
-      st.golfDay.marshalTasks.some((task) => task.status !== 'complete')
-        ? errBox(`${st.golfDay.marshalTasks.filter((task) => task.status !== 'complete').length} marshal response${st.golfDay.marshalTasks.filter((task) => task.status !== 'complete').length === 1 ? '' : 's'} dispatched.`)
-        : null,
+      sect('Pace response'),
+      card(
+        row(el('span', { text: patrolEmployee ? `${patrolEmployee.name} is on patrol` : 'No automatic patrol assigned' }),
+          meta(patrolEmployee ? 'New pace alerts dispatch to them automatically.' : 'You receive alerts and can investigate them yourself.'),
+          patrolEmployee ? el('button', {
+            class: 'lt-mini', text: 'End patrol', onclick: () => { assignMarshalPatrol(st, null, false); render(); },
+          }) : availableMarshals[0] ? el('button', {
+            class: 'lt-primary', text: `Assign ${availableMarshals[0].name}`,
+            onclick: () => { assignMarshalPatrol(st, availableMarshals[0].id); render(); },
+          }) : el('button', { class: 'lt-mini', text: 'Hire a marshal', onclick: () => go('employees') })),
+        ...marshalRows,
+      ),
       completedRows.length ? el('div', {}, sect('Recent scorecards'), card(...completedRows)) : null,
+      scorecardTable ? el('div', {}, sect(`Returned scorecard · ${latestScorecard.partyName}`), scorecardTable,
+        note(`${latestScorecard.scorecardMeta.teeSet} tees · ${latestScorecard.transport === 'ride' ? 'cart' : 'walking'} · started ${fmtSlot(latestScorecard.startedMinute % 1440)} · finished ${fmtSlot(latestScorecard.completedMinute % 1440)}`)) : null,
+      sect('Course experience'),
+      el('div', { class: 'lt-stats' },
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Round rating' }), el('div', { class: 'lt-statvalue', text: experience.rounds ? String(experience.averageRating) : '—' }), el('div', { class: 'lt-statsub', text: `${experience.rounds} completed` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Average pace' }), el('div', { class: 'lt-statvalue', text: experience.rounds ? `${experience.averagePaceMinutes}m` : '—' }), el('div', { class: 'lt-statsub', text: `${experience.averageWaitMinutes}m average wait` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Cart demand' }), el('div', { class: 'lt-statvalue', text: String(experience.cartRequests) }), el('div', { class: 'lt-statsub', text: `${experience.cartUnavailable} unavailable` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Condition' }), el('div', { class: `lt-statvalue ${experience.conditionComplaints ? 'warn' : 'ok'}`, text: String(experience.conditionComplaints) }), el('div', { class: 'lt-statsub', text: 'complaints' })),
+      ),
+      experience.recommendations.length ? card(...experience.recommendations.map((recommendation) => row(el('span', { text: recommendation })))) : note('Complete rounds to generate operating recommendations.'),
+      sect('Simulation load'),
+      el('div', { class: 'lt-stats' },
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Tiers' }), el('div', { class: 'lt-statvalue', text: `${live.simulationTiers.near}/${live.simulationTiers.mid}/${live.simulationTiers.far}` }), el('div', { class: 'lt-statsub', text: 'near / mid / far' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Characters' }), el('div', { class: 'lt-statvalue', text: String(live.performance?.renderedCharacters ?? '—') }), el('div', { class: 'lt-statsub', text: `${live.resources.characterActive} simulated` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Balls' }), el('div', { class: 'lt-statvalue', text: `${live.resources.ballActive}/${live.resources.ballCapacity}` }), el('div', { class: 'lt-statsub', text: 'pooled active / capacity' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Draw load' }), el('div', { class: 'lt-statvalue', text: String(live.performance?.renderer?.drawCalls ?? '—') }), el('div', { class: 'lt-statsub', text: `${live.performance?.renderer?.triangles?.toLocaleString?.() ?? '—'} triangles` })),
+      ),
       sect('Turf by zone'),
       card(el('div', { class: 'lt-scrollx' }, el('table', { class: 'lt-table' },
         el('thead', {}, el('tr', {},
@@ -1208,7 +1277,9 @@ export function makeLaptop(app, opts) {
       el('span', { text: cart.id.replace('cart-', 'Cart ') }),
       meta(cart.assignedPartyId
         ? `assigned to ${st.golfDay.parties.find((party) => party.id === cart.assignedPartyId)?.partyName || cart.assignedPartyId}`
-        : 'staged at the cart barn'),
+        : ['cleaning', 'charging'].includes(cart.status)
+          ? `${cart.status} at the barn · ready about ${fmtSlot((cart.serviceReadyMinute || st.clock.minutes) % 1440)}`
+          : 'staged at the cart barn'),
       chip(cart.status, cart.status === 'available' ? 'ok' : 'warn'),
       chip(`condition ${Math.round(cart.condition)}`, cart.condition >= 70 ? 'ok' : 'warn'),
     ));
@@ -1221,6 +1292,7 @@ export function makeLaptop(app, opts) {
       el('div', { class: 'lt-stats' },
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Available' }), el('div', { class: 'lt-statvalue ok', text: String(st.golfDay.carts.filter((cart) => cart.status === 'available').length) }), el('div', { class: 'lt-statsub', text: `${st.golfDay.carts.length} total` })),
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Assigned' }), el('div', { class: 'lt-statvalue', text: String(live.cartsAssigned) }), el('div', { class: 'lt-statsub', text: 'moving with parties' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'In service' }), el('div', { class: 'lt-statvalue', text: String((live.cartsByStatus.cleaning || 0) + (live.cartsByStatus.charging || 0)) }), el('div', { class: 'lt-statsub', text: `${live.cartsByStatus.cleaning || 0} cleaning · ${live.cartsByStatus.charging || 0} charging` })),
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Trips' }), el('div', { class: 'lt-statvalue', text: String(st.golfDay.carts.reduce((sum, cart) => sum + cart.trips, 0)) }), el('div', { class: 'lt-statsub', text: 'lifetime assignments' })),
       ),
       card(...cartRows),
@@ -1755,6 +1827,29 @@ export function makeLaptop(app, opts) {
     frame.style.setProperty('--lt-scale', String(s));
   }
 
+  let liveCourseSignature = null;
+
+  function courseSignature() {
+    const st = app.state;
+    if (!st?.golfDay) return '';
+    return JSON.stringify({
+      parties: st.golfDay.parties.map((party) => [
+        party.id, party.state, party.holeIndex, party.currentGolferIndex,
+        party.transport, party.cartId, party.pace?.congestion,
+        Math.round(Number(party.pace?.waitingMinutes || 0)),
+        ...party.golfers.map((golfer) => [golfer.totalStrokes, golfer.holeStrokes]),
+      ]),
+      queue: st.golfDay.starter.queue,
+      practice: Object.values(st.golfDay.practice).map((area) => area.occupants.length),
+      congestion: st.golfDay.congestion,
+      tasks: st.golfDay.marshalTasks.map((task) => [task.id, task.status, task.partyId]),
+      completed: st.golfDay.completed.slice(0, 4).map((round) => [
+        round.id, round.durationMinutes, ...round.scores.map((score) => score.total),
+      ]),
+      experience: st.golfDay.experience,
+    });
+  }
+
   function render() {
     if (root.style.display === 'none' || !app.state) return;
     refreshStatus();
@@ -1768,6 +1863,7 @@ export function makeLaptop(app, opts) {
     }
     try {
       fn();
+      if (page === 'course') liveCourseSignature = courseSignature();
     } catch (e) {
       paint(
         head('Something went wrong'),
@@ -1785,11 +1881,18 @@ export function makeLaptop(app, opts) {
       history = [];
       cart = new Map();
       pending = null;
+      liveCourseSignature = null;
       setScale(scale);
       root.style.display = '';
       render();
       clearInterval(liveTimer);
-      liveTimer = setInterval(refreshStatus, 1000); // the clock keeps ticking on the screen
+      liveTimer = setInterval(() => {
+        refreshStatus();
+        // Course operations is a live dispatch board. Repaint its canonical
+        // party, congestion, marshal, scorecard, and experience rows while it
+        // is open; form-heavy pages intentionally keep their DOM stable.
+        if (page === 'course' && !pending && courseSignature() !== liveCourseSignature) render();
+      }, 1000);
     },
     close() {
       root.style.display = 'none';

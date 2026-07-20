@@ -61,17 +61,21 @@ function blockedByStructure(course, cell) {
   ));
 }
 
-function acceptableLanding(course, point, shotType) {
+function acceptableLanding(course, point, shotType, options = {}) {
   const cell = gridPoint(course, point);
   if (blockedByStructure(course, cell)) return false;
   const zone = course.zones[cell.y * course.w + cell.x];
   if (zone === ZONE.WATER || zone === ZONE.OUT) return false;
-  if (shotType === SHOT_TYPE.PUTT && zone !== ZONE.GREEN) return false;
+  if (shotType === SHOT_TYPE.PUTT && zone !== ZONE.GREEN && !options.allowPracticeSurface) return false;
+  const separation = Number(options.minimumSeparationYd || 0);
+  if (separation > 0 && (options.avoidPositions || []).some((other) => (
+    Math.hypot(point.x - other.x, point.z - other.z) < separation
+  ))) return false;
   return true;
 }
 
-function nearestSafeLanding(course, wanted, shotType, target) {
-  if (acceptableLanding(course, wanted, shotType)) return wanted;
+function nearestSafeLanding(course, wanted, shotType, target, options = {}) {
+  if (acceptableLanding(course, wanted, shotType, options)) return wanted;
   const center = gridPoint(course, wanted);
   const targetCell = gridPoint(course, target);
   const candidates = [];
@@ -83,7 +87,7 @@ function nearestSafeLanding(course, wanted, shotType, target) {
         const y = center.y + dy;
         if (x < 0 || y < 0 || x >= course.w || y >= course.h) continue;
         const point = worldPoint(course, { x, y });
-        if (!acceptableLanding(course, point, shotType)) continue;
+        if (!acceptableLanding(course, point, shotType, options)) continue;
         const zone = course.zones[y * course.w + x];
         const zonePenalty = zone === ZONE.GREEN ? -4
           : zone === ZONE.FAIRWAY ? -2
@@ -96,6 +100,26 @@ function nearestSafeLanding(course, wanted, shotType, target) {
   }
   candidates.sort((a, b) => a.score - b.score || a.point.z - b.point.z || a.point.x - b.point.x);
   return candidates[0]?.point || target;
+}
+
+function clearanceApex(course, start, landing, baseApex) {
+  let apex = baseApex;
+  const structureHeightYd = 12;
+  for (let index = 1; index < 16; index++) {
+    const t = index / 16;
+    const x = start.x + (landing.x - start.x) * t;
+    const z = start.z + (landing.z - start.z) * t;
+    const ground = courseHeightAt(course, { x, z });
+    const parabola = Math.max(0.08, Math.sin(Math.PI * t));
+    const linearY = courseHeightAt(course, start)
+      + (courseHeightAt(course, landing) - courseHeightAt(course, start)) * t;
+    apex = Math.max(apex, (ground + 1.2 - linearY) / parabola);
+    const cell = gridPoint(course, { x, z });
+    if (blockedByStructure(course, cell)) {
+      apex = Math.max(apex, (structureHeightYd - linearY) / parabola);
+    }
+  }
+  return Math.max(baseApex, apex);
 }
 
 export function lieAtWorld(course, point) {
@@ -159,7 +183,7 @@ export function planGolfShot({
 }) {
   const remaining = Math.hypot(target.x - start.x, target.z - start.z);
   const lie = lieAtWorld(course, start);
-  const shotType = chooseShotType(remaining, lie, shotNumber);
+  const shotType = context.forcedShotType || chooseShotType(remaining, lie, shotNumber);
   const rng = makeRng(hashSeed(context.seed, partyId, golfer.id, holeIndex, shotNumber, shotType));
   const quality = skillQuality(golfer);
   const surface = conditionQuality(context, lie);
@@ -193,11 +217,21 @@ export function planGolfShot({
   const shapeSign = tendencies.shape === 'fade' ? 1 : tendencies.shape === 'draw' ? -1 : 0;
   const lateral = ((rng.next() - 0.5) * 2 * (1 - quality) + tendencies.missBias * 0.35 + shapeSign * 0.12)
     * lateralScale;
+  const windMph = Math.max(0, Number(context.windMph || 0));
+  const windAngle = Number.isFinite(Number(context.windDirectionRad))
+    ? Number(context.windDirectionRad)
+    : (hashSeed(context.seed, holeIndex, 'wind-direction') % 6283) / 1000;
+  const windScale = shotType === SHOT_TYPE.PUTT ? 0 : windMph * Math.min(0.7, carry / 320);
   const rawLanding = {
-    x: start.x + dirX * carry - dirZ * lateral,
-    z: start.z + dirZ * carry + dirX * lateral,
+    x: start.x + dirX * carry - dirZ * lateral + Math.sin(windAngle) * windScale,
+    z: start.z + dirZ * carry + dirX * lateral + Math.cos(windAngle) * windScale,
   };
-  const landing = nearestSafeLanding(course, rawLanding, shotType, target);
+  const safetyOptions = {
+    allowPracticeSurface: !!context.allowPracticeSurface,
+    avoidPositions: context.avoidPositions || [],
+    minimumSeparationYd: context.minimumSeparationYd || 0,
+  };
+  const landing = nearestSafeLanding(course, rawLanding, shotType, target, safetyOptions);
   const landingLie = lieAtWorld(course, landing);
 
   const closeEnough = Math.hypot(target.x - landing.x, target.z - landing.z);
@@ -216,7 +250,13 @@ export function planGolfShot({
     x: landing.x + dirX * roll,
     z: landing.z + dirZ * roll,
   };
-  let stop = nearestSafeLanding(course, stopWanted, shotType === SHOT_TYPE.PUTT ? SHOT_TYPE.PUTT : shotType, target);
+  let stop = nearestSafeLanding(
+    course,
+    stopWanted,
+    shotType === SHOT_TYPE.PUTT ? SHOT_TYPE.PUTT : shotType,
+    target,
+    safetyOptions,
+  );
   // The visible ball is measured in yards; a cup is only a few inches wide.
   // Keep a small gameplay allowance without treating every three-foot miss as
   // holed (the former 1.2-yard radius erased putting from the scorecard).
@@ -228,9 +268,10 @@ export function planGolfShot({
   const launchY = courseHeightAt(course, start) + 0.08;
   const landingY = courseHeightAt(course, landing) + 0.06;
   const stopY = courseHeightAt(course, stop) + 0.045;
-  const apex = shotType === SHOT_TYPE.PUTT ? 0.08
+  const baseApex = shotType === SHOT_TYPE.PUTT ? 0.08
     : shotType === SHOT_TYPE.CHIP || shotType === SHOT_TYPE.BUNKER ? Math.max(3, distance * 0.17)
       : Math.max(8, Math.min(34, distance * 0.16));
+  const apex = shotType === SHOT_TYPE.PUTT ? baseApex : clearanceApex(course, start, landing, baseApex);
   const flightMinutes = FLIGHT_MINUTES[shotType] * clamp(distance / Math.max(1, carry), 0.65, 1.35);
   const bounceMinutes = shotType === SHOT_TYPE.PUTT ? 0 : 0.018;
   const rollMinutes = Math.max(0.018, Math.min(0.09, roll / 150));
@@ -257,6 +298,8 @@ export function planGolfShot({
     holed: stop.x === target.x && stop.z === target.z,
     penaltyStrokes: 0,
     safetyAdjusted: rawLanding.x !== landing.x || rawLanding.z !== landing.z,
+    wind: { mph: windMph, directionRad: +windAngle.toFixed(3) },
+    practice: !!context.practice,
   };
 }
 

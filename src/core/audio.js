@@ -14,7 +14,6 @@ export function makeAudio() {
   let rainGain = null;
   let mowerGain = null;
   let birdTimer = 0;
-  let strikeTimer = 0;
 
   const settings = (() => {
     try {
@@ -106,19 +105,52 @@ export function makeAudio() {
     }
   }
 
-  function ballStrike() {
+  function ballStrike(kind = 'iron') {
     if (!ctx) return;
     const t0 = ctx.currentTime;
     const click = ctx.createOscillator();
     click.type = 'sine';
-    click.frequency.setValueAtTime(1250, t0);
-    click.frequency.exponentialRampToValueAtTime(420, t0 + 0.05);
+    const startFrequency = kind === 'putt' ? 720 : kind === 'driver' ? 1580 : kind === 'bunker' ? 480 : 1250;
+    click.frequency.setValueAtTime(startFrequency, t0);
+    click.frequency.exponentialRampToValueAtTime(kind === 'putt' ? 360 : 420, t0 + 0.05);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.11, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
     click.connect(g).connect(sfxBus);
     click.start(t0);
     click.stop(t0 + 0.09);
+  }
+
+  function ballLanding(surface = 'fairway') {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = surface === 'green' ? 'sine' : 'triangle';
+    const start = surface === 'bunker' ? 115 : surface === 'rough' ? 145 : surface === 'green' ? 240 : 190;
+    osc.frequency.setValueAtTime(start, t0);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(52, start * 0.45), t0 + 0.09);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(surface === 'green' ? 0.025 : 0.045, t0);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.13);
+    osc.connect(gain).connect(sfxBus);
+    osc.start(t0);
+    osc.stop(t0 + 0.15);
+  }
+
+  function starterCall() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    for (const [frequency, offset] of [[523, 0], [659, 0.1]]) {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = frequency;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.035, t0 + offset);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + offset + 0.24);
+      osc.connect(gain).connect(sfxBus);
+      osc.start(t0 + offset);
+      osc.stop(t0 + offset + 0.26);
+    }
   }
 
   function doorbell() {
@@ -740,11 +772,6 @@ export function makeAudio() {
       if (day && springy && !inShop) chirp();
     }
 
-    strikeTimer -= dt;
-    if (strikeTimer <= 0) {
-      strikeTimer = 5 + Math.random() * 9;
-      if (day && !inShop && golfersVisible > 0 && rainIn < 0.6) ballStrike();
-    }
   }
 
   return {
@@ -768,6 +795,9 @@ export function makeAudio() {
     equipTick,
     chime,
     thunk,
+    ballStrike,
+    ballLanding,
+    starterCall,
     setToolLoop,
     // the delivery-to-shelf loop
     truck, boxup, boxdown, tape, flap, product, stock, fullShelf, recycle,

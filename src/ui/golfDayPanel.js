@@ -38,11 +38,17 @@ export function makeGolfDayPanel(app) {
     const summary = liveGolfSummary(state);
     const parties = state.golfDay.parties.slice(0, 3);
     const latest = summary.latestCompleted;
+    const marshalAlerts = state.golfDay.marshalTasks.filter((task) => task.status !== 'complete');
+    const shouldShow = summary.congestion.level !== 'clear'
+      || marshalAlerts.length > 0
+      || state.golfDay.starter.currentPartyId != null;
     const nextSignature = JSON.stringify({
       congestion: summary.congestion,
       queue: summary.starterQueue,
       carts: summary.cartsAssigned,
       practice: summary.practice,
+      marshal: marshalAlerts.map((task) => [task.id, task.status]),
+      starterCurrent: state.golfDay.starter.currentPartyId,
       parties: parties.map((party) => [
         party.id, party.state, party.holeIndex, party.currentGolferIndex,
         party.pace.waitingMinutes, party.pace.behindMinutes,
@@ -52,11 +58,13 @@ export function makeGolfDayPanel(app) {
     });
     if (nextSignature === signature) return;
     signature = nextSignature;
-    root.style.display = '';
+    root.style.display = shouldShow ? '' : 'none';
+    if (!shouldShow) return;
     const nodes = [
       el('div', { class: 'golf-live-head' },
         el('span', { class: 'golf-live-kicker', text: 'COURSE LIVE' }),
         el('span', { class: `golf-live-congestion ${summary.congestion.level}`, text: titleCase(summary.congestion.level) })),
+      marshalAlerts.length ? el('div', { class: 'golf-live-alert', text: `${marshalAlerts.length} pace alert${marshalAlerts.length === 1 ? '' : 's'} · use the Course laptop page` }) : null,
       el('div', { class: 'golf-live-metrics' },
         el('span', { text: `${summary.activeParties} groups` }),
         el('span', { text: `${summary.starterQueue.length} starter queue` }),
