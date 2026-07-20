@@ -2,11 +2,12 @@
 // sales), write the game's OWN autosave, reload the page, and confirm every value
 // came back. This is the write the nightly rollover makes, taken mid-session.
 async (page) => {
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const errs = [];
   page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/404|Failed to load/.test(m.text())) errs.push(m.text().slice(0, 140)); });
 
-  await page.goto('http://localhost:8457/');
+  await page.goto(baseUrl);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1000);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});

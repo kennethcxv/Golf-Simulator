@@ -41,7 +41,10 @@ function corridorLandscape(leftTypes, rightTypes, options = {}) {
   return {
     exclusions: [
       { kind: 'route', t0: 0, t1: 0.18, clearHalfYd: openingClearYd },
-      { kind: 'route', t0: 0.18, t1: 0.76, beyondFairwayYd: 7 },
+      // Canopies need more than trunk clearance. Twelve yards beyond the mown
+      // edge keeps normal approach/landing cameras and real shot windows out of
+      // broadleaf crowns while still allowing deliberately framed corridors.
+      { kind: 'route', t0: 0.18, t1: 0.76, beyondFairwayYd: 12 },
       { kind: 'route', t0: 0.76, t1: 1, clearHalfYd: approachClearYd },
       { kind: 'green', bufferYd: 22 },
       { kind: 'bunker', bufferYd: 7 },
@@ -49,24 +52,26 @@ function corridorLandscape(leftTypes, rightTypes, options = {}) {
     ],
     plantings: [
       {
-        side: 'left', t0: treeT0, t1: treeT1, beyondFairwayYd: 11,
+        side: 'left', t0: treeT0, t1: treeT1, beyondFairwayYd: 17,
         spacingYd, lateralJitterYd: 2.5, minClearYd: 7,
-        scale: [0.92, 1.28], types: leftTypes,
+        scale: [0.86, 1.18], types: leftTypes,
       },
       {
-        side: 'right', t0: treeT0, t1: treeT1, beyondFairwayYd: 12,
+        side: 'right', t0: treeT0, t1: treeT1, beyondFairwayYd: 18,
         spacingYd: spacingYd + 3, lateralJitterYd: 2.5, minClearYd: 7,
-        scale: [0.9, 1.25], types: rightTypes,
+        scale: [0.84, 1.16], types: rightTypes,
       },
       {
         side: 'left', t0: 0.14, t1: 0.94, beyondFairwayYd: 3,
         spacingYd: 21, lateralJitterYd: 3, minClearYd: 3,
-        scale: [0.78, 1.12], types: ['grass_clump', 'bush_native', 'rock_m', 'shrub_round'],
+        scale: [0.78, 1.12],
+        types: ['grass_clump', 'bush_native', 'shrub_round', 'grass_clump', 'shrub_round', 'rock_s'],
       },
       {
         side: 'right', t0: 0.16, t1: 0.92, beyondFairwayYd: 4,
         spacingYd: 23, lateralJitterYd: 3, minClearYd: 3,
-        scale: [0.78, 1.12], types: ['bush_native', 'grass_clump', 'shrub_round', 'rock_s'],
+        scale: [0.78, 1.12],
+        types: ['bush_native', 'grass_clump', 'shrub_round', 'bush_native', 'grass_clump', 'rock_s'],
       },
     ],
   };
@@ -142,7 +147,7 @@ const TEMPLATE = [
     vegetation: {
       exclusions: [
         { kind: 'route', t0: 0, t1: 0.18, clearHalfYd: 34 },
-        { kind: 'route', t0: 0.18, t1: 0.72, beyondFairwayYd: 6 },
+        { kind: 'route', t0: 0.18, t1: 0.72, beyondFairwayYd: 12 },
         { kind: 'route', t0: 0.72, t1: 1, clearHalfYd: 26 },
         { kind: 'green', bufferYd: 24 },
         { kind: 'bunker', bufferYd: 8 },
@@ -152,18 +157,20 @@ const TEMPLATE = [
       // deliberately framed golf hole. They are sockets in authored data, not
       // renderer coordinates; the planting pass projects them from the spline.
       plantings: [
-        { side: 'left', t0: 0.2, t1: 0.7, beyondFairwayYd: 9, spacingYd: 30, lateralJitterYd: 2.5,
-          types: ['oak_a', 'maple_a', 'pine_a', 'oak_b'] },
-        { side: 'right', t0: 0.22, t1: 0.7, beyondFairwayYd: 10, spacingYd: 33, lateralJitterYd: 2,
-          types: ['pine_a', 'oak_b', 'spruce_a', 'maple_a'] },
-        { side: 'left', t0: 0.72, t1: 0.93, beyondFairwayYd: 17, spacingYd: 25, lateralJitterYd: 1.5,
-          types: ['oak_a', 'pine_b', 'maple_a'] },
-        { side: 'right', t0: 0.72, t1: 0.93, beyondFairwayYd: 17, spacingYd: 27, lateralJitterYd: 1.5,
-          types: ['spruce_a', 'oak_b', 'pine_a'] },
+        { side: 'left', t0: 0.2, t1: 0.7, beyondFairwayYd: 17, spacingYd: 32, lateralJitterYd: 2.5,
+          scale: [0.86, 1.18], types: ['oak_a', 'maple_a', 'pine_a', 'oak_b'] },
+        { side: 'right', t0: 0.22, t1: 0.7, beyondFairwayYd: 18, spacingYd: 35, lateralJitterYd: 2,
+          scale: [0.84, 1.16], types: ['pine_a', 'oak_b', 'spruce_a', 'maple_a'] },
+        { side: 'left', t0: 0.72, t1: 0.93, beyondFairwayYd: 20, spacingYd: 28, lateralJitterYd: 1.5,
+          scale: [0.86, 1.16], types: ['oak_a', 'pine_b', 'maple_a'] },
+        { side: 'right', t0: 0.72, t1: 0.93, beyondFairwayYd: 20, spacingYd: 30, lateralJitterYd: 1.5,
+          scale: [0.84, 1.14], types: ['spruce_a', 'oak_b', 'pine_a'] },
         { side: 'left', t0: 0.16, t1: 0.94, beyondFairwayYd: 3, spacingYd: 18, lateralJitterYd: 3,
-          minClearYd: 3, scale: [0.82, 1.18], types: ['grass_clump', 'bush_native', 'rock_m', 'shrub_round'] },
+          minClearYd: 3, scale: [0.82, 1.18],
+          types: ['grass_clump', 'bush_native', 'shrub_round', 'grass_clump', 'shrub_round', 'rock_s'] },
         { side: 'right', t0: 0.18, t1: 0.92, beyondFairwayYd: 4, spacingYd: 20, lateralJitterYd: 3,
-          minClearYd: 3, scale: [0.78, 1.14], types: ['bush_native', 'grass_clump', 'shrub_round', 'rock_s'] },
+          minClearYd: 3, scale: [0.78, 1.14],
+          types: ['bush_native', 'grass_clump', 'shrub_round', 'bush_native', 'grass_clump', 'rock_s'] },
       ],
     },
     terrainProfile: {
@@ -186,7 +193,7 @@ const TEMPLATE = [
     line: [[76.25, 33.75], [84.8, 32.4], [91.3, 30.8], [96.8, 29.1]],
     width: [[0, 5.5], [0.25, 4.5], [0.6, 6.5], [0.82, 9], [1, 12]],
     green: {
-      r: 13, elong: 1.26, angleOffset: 0.3, raise: 2, tilt: 0.16, tiltOffset: -0.05,
+      r: 11.5, elong: 1.26, angleOffset: 0.3, raise: 2, tilt: 0.16, tiltOffset: -0.05,
       style: 'overlook-diagonal-fan',
       outline: [
         [0.92, -0.58], [1.02, -0.08], [0.86, 0.48], [0.52, 0.92],
@@ -199,8 +206,24 @@ const TEMPLATE = [
       ],
     },
     bunkers: [
-      { at: [94.8, 27.8], r: 5.8, depth: 2.8, lip: 1.25, stretch: 1.3, angle: 0.28, lobes: 3 },
-      { at: [97.6, 31.4], r: 5.2, depth: 2.5, lip: 1.15, stretch: 1.15, angle: -0.2, lobes: 3 },
+      {
+        at: [94.8, 27.8], r: 5.8, depth: 2.8, lip: 1.25, stretch: 1.3, angle: 0.28,
+        // An open, maintainable fan guards the left edge. The former seeded
+        // C-shape wrapped around a turf pocket from the normal approach view.
+        outline: [
+          [0.96, -0.16], [0.9, 0.32], [0.62, 0.76], [0.18, 1.02],
+          [-0.3, 0.96], [-0.74, 0.66], [-1, 0.18], [-0.9, -0.34],
+          [-0.54, -0.78], [-0.06, -0.94], [0.44, -0.84], [0.82, -0.54],
+        ],
+      },
+      {
+        at: [97.6, 31.4], r: 5.2, depth: 2.5, lip: 1.15, stretch: 1.15, angle: -0.2,
+        outline: [
+          [1, -0.12], [0.88, 0.4], [0.54, 0.82], [0.08, 1],
+          [-0.42, 0.88], [-0.82, 0.52], [-0.98, 0.02], [-0.82, -0.5],
+          [-0.42, -0.86], [0.08, -0.98], [0.56, -0.8], [0.9, -0.48],
+        ],
+      },
     ],
     teeKnoll: 3.5,
     terrainProfile: {
@@ -223,7 +246,7 @@ const TEMPLATE = [
     line: [[104.5, 23.4], [94.5, 17.4], [78, 12.8], [61, 11.8], [44.5, 13.2]],
     width: [[0.04, 9], [0.16, 13], [0.32, 18], [0.46, 20], [0.58, 14], [0.72, 18.5], [0.88, 12], [1, 14.5]],
     green: {
-      r: 12, elong: 1.42, angleOffset: -0.22, raise: 2.1, tilt: 0.18, tiltOffset: 0.08,
+      r: 13.4, elong: 1.42, angleOffset: -0.22, raise: 2.1, tilt: 0.18, tiltOffset: 0.08,
       style: 'long-meadow-diagonal-kidney',
       outline: [
         [1.05, -0.52], [1.06, 0.02], [0.82, 0.58], [0.42, 1], [-0.06, 1.1],
@@ -254,14 +277,19 @@ const TEMPLATE = [
       ['oak_a', 'maple_a', 'oak_b'], ['pine_a', 'oak_b', 'spruce_a'],
       { treeT0: 0.14, treeT1: 0.92, spacingYd: 38, openingClearYd: 34, approachClearYd: 28 },
     ),
-    teeAmenities: { bench: true, washer: true, trash: true },
+    teeAmenities: {
+      bench: true, washer: true, trash: true,
+      // The back tee is tight to the southwest property edge; pull its sign
+      // beside the arrival path so it cannot clip the player camera.
+      signLateralYd: 9.5, signAlongYd: -5.5,
+    },
   },
   {
     name: 'The Elbow', par: 4, hcp: 5, roughW: 25,
     line: [[37.8, 8], [26.5, 10], [16, 17], [7.8, 30], [7.2, 45.5]],
     width: [[0.04, 8], [0.16, 11], [0.34, 17], [0.48, 20], [0.6, 14], [0.76, 11], [0.9, 13], [1, 14]],
     green: {
-      r: 12.2, elong: 1.2, angleOffset: 0.34, raise: 2, tilt: 0.17, tiltOffset: -0.08,
+      r: 11.8, elong: 1.2, angleOffset: 0.34, raise: 2, tilt: 0.17, tiltOffset: -0.08,
       style: 'elbow-offset-boomerang',
       outline: [
         [1.02, -0.42], [1, 0.08], [0.72, 0.66], [0.3, 1.04], [-0.18, 1.08],
@@ -297,7 +325,7 @@ const TEMPLATE = [
       bench: true, washer: false, trash: false,
       // Keep the furniture beside the walk-on rather than between the player
       // camera and this sharply turning opening shot.
-      signLateralYd: 7.5, signAlongYd: 2.4,
+      signLateralYd: 11.5, signAlongYd: -6.5,
       benchLateralYd: 12, benchAlongYd: -6,
     },
   },
@@ -306,7 +334,7 @@ const TEMPLATE = [
     line: [[23.5, 50.8], [37, 52.8], [50.5, 53.2], [62, 54.7], [75.5, 58]],
     width: [[0.04, 9], [0.16, 13.5], [0.38, 20], [0.56, 18], [0.72, 13.5], [0.86, 11.5], [1, 14]],
     green: {
-      r: 13, elong: 1.24, angleOffset: -0.18, raise: 2.05, tilt: 0.22, tiltOffset: 0.12,
+      r: 13.8, elong: 1.24, angleOffset: -0.18, raise: 2.05, tilt: 0.22, tiltOffset: 0.12,
       style: 'millpond-diagonal-cape',
       outline: [
         [0.98, -0.16], [0.92, 0.28], [0.68, 0.72], [0.28, 1.06], [-0.14, 1.16],
@@ -362,7 +390,7 @@ const TEMPLATE = [
     line: [[78.8, 61], [87.2, 63.3], [96.3, 65.8]],
     width: [[0, 4.5], [0.28, 3.2], [0.68, 2.7], [0.88, 5], [1, 8.5]],
     green: {
-      r: 12.8, elong: 1.34, angleOffset: 0.38, raise: 2.2, tilt: 0.24, tiltOffset: -0.15,
+      r: 10.7, elong: 1.34, angleOffset: 0.38, raise: 2.2, tilt: 0.24, tiltOffset: -0.15,
       style: 'short-iron-kidney',
       outline: [
         [0.96, -0.1], [0.82, 0.42], [0.48, 0.88], [0.02, 1.08], [-0.45, 0.94],
@@ -397,13 +425,26 @@ const TEMPLATE = [
       { treeT0: 0.26, treeT1: 0.9, spacingYd: 38, openingClearYd: 34, approachClearYd: 28 },
     ),
     teeAmenities: { bench: true, washer: false, trash: true },
+    camera: {
+      // Stay close to the route axis in the all-hole overview. A larger orbit
+      // exposed less of this short target and let the neighboring corridor
+      // become the visual subject instead.
+      frameYawOffset: -0.18,
+      framePitch: 0.56,
+      approachYawOffset: -0.18,
+      greenYawOffset: -0.14,
+      flyoverYawOffset: -0.12,
+      approachDistYd: 44,
+      greenContextStartT: 0.9,
+      greenContextHalfWidthYd: 21,
+    },
   },
   {
     name: 'Cascades', par: 5, hcp: 3, roughW: 28,
     line: [[100, 70.5], [86.5, 73.3], [71, 72.7], [55.5, 69.5], [43, 68], [35, 65.5]],
     width: [[0.03, 8.5], [0.14, 12], [0.28, 18.5], [0.43, 14], [0.6, 19.5], [0.75, 13], [0.88, 16], [1, 13.5]],
     green: {
-      r: 12, elong: 1.28, angleOffset: 0.2, raise: 1.95, tilt: 0.21, tiltOffset: 0.1,
+      r: 12.4, elong: 1.28, angleOffset: 0.2, raise: 1.95, tilt: 0.21, tiltOffset: 0.1,
       style: 'cascades-saddle',
       outline: [
         [0.96, -0.12], [0.86, 0.34], [0.58, 0.78], [0.18, 1.05], [-0.26, 1],
@@ -449,7 +490,7 @@ const TEMPLATE = [
     line: [[39, 61.5], [48.2, 60.9], [58.5, 61]],
     width: [[0, 5], [0.28, 3.8], [0.62, 4.2], [0.84, 7], [1, 9.5]],
     green: {
-      r: 12.8, elong: 1.3, angleOffset: -0.24, raise: 1.9, tilt: 0.16, tiltOffset: 0.12,
+      r: 11.1, elong: 1.3, angleOffset: -0.24, raise: 1.9, tilt: 0.16, tiltOffset: 0.12,
       style: 'glade-wide-saddle',
       outline: [
         [1.02, -0.2], [0.92, 0.3], [0.62, 0.78], [0.18, 1.02], [-0.28, 1.08],
@@ -485,13 +526,25 @@ const TEMPLATE = [
       { treeT0: 0.08, treeT1: 0.95, spacingYd: 27, openingClearYd: 34, approachClearYd: 30 },
     ),
     teeAmenities: { bench: true, washer: false, trash: true },
+    camera: {
+      // Keep the compact par-3 strip centered in the overview; its focused
+      // approach and green presets supply the more oblique pond context.
+      frameYawOffset: 0.22,
+      framePitch: 0.56,
+      approachYawOffset: 0.24,
+      greenYawOffset: 0.18,
+      flyoverYawOffset: 0.16,
+      approachDistYd: 44,
+      greenContextStartT: 0.9,
+      greenContextHalfWidthYd: 21,
+    },
   },
   {
     name: 'Homeward', par: 4, hcp: 6, roughW: 25,
     line: [[65, 48.2], [49.5, 44.2], [33, 43.2], [20.5, 45.5]],
     width: [[0.04, 9], [0.18, 13], [0.42, 19], [0.58, 17], [0.72, 12], [0.88, 13.5], [1, 14]],
     green: {
-      r: 12.5, elong: 1.28, angleOffset: 0.16, raise: 2.15, tilt: 0.19, tiltOffset: -0.08,
+      r: 12.9, elong: 1.28, angleOffset: 0.16, raise: 2.15, tilt: 0.19, tiltOffset: -0.08,
       style: 'homeward-terrace-pear',
       outline: [
         [0.96, -0.18], [0.9, 0.28], [0.66, 0.7], [0.26, 1.06], [-0.2, 1.12],
@@ -641,7 +694,7 @@ export function designCourse(rng, opts = {}) {
       bunkers: [],
       mowPhase: rng.next() * Math.PI * 2,
     };
-    for (const key of ['path', 'vegetation', 'terrainProfile']) {
+    for (const key of ['path', 'vegetation', 'terrainProfile', 'camera']) {
       if (t[key]) vh[key] = cloneAuthored(t[key]);
     }
 
@@ -727,6 +780,7 @@ export function designCourse(rng, opts = {}) {
           lobes: spec.lobes ?? randomLobes,
           stretch: spec.stretch || 1,
           angle: spec.angle || 0,
+          outline: spec.outline,
         },
       );
       if (Number.isFinite(spec.lip)) bunk.lip = spec.lip;
@@ -747,6 +801,7 @@ export function designCourse(rng, opts = {}) {
           lobes: spec.lobes ?? 3,
           stretch: spec.stretch || 1,
           angle: spec.angle || 0,
+          outline: spec.outline,
         },
       );
       if (Number.isFinite(spec.lip)) bunker.lip = spec.lip;
@@ -1220,10 +1275,13 @@ function playDistance(course, cap = 8) {
   return dist;
 }
 
+// A real parkland belt reads in groups of recognizable silhouettes. Filler
+// crowns remain useful connective tissue, but no longer make up nearly half of
+// every stand; oak, maple, birch, and evergreen groups now carry the skyline.
 const FOREST_MIX = [
-  ['fill_a', 0.26], ['fill_b', 0.22], ['oak_b', 0.14], ['oak_a', 0.08],
-  ['maple_a', 0.08], ['pine_a', 0.08], ['pine_b', 0.06], ['spruce_a', 0.04],
-  ['birch_a', 0.03], ['shade_a', 0.01],
+  ['fill_a', 0.13], ['fill_b', 0.11], ['oak_b', 0.17], ['oak_a', 0.11],
+  ['maple_a', 0.12], ['pine_a', 0.11], ['pine_b', 0.07], ['spruce_a', 0.06],
+  ['birch_a', 0.07], ['cedar_a', 0.03], ['shade_a', 0.02],
 ];
 
 const TALL_PLANT_TYPES = new Set([
@@ -1411,7 +1469,7 @@ function plantProperty(course, designed, rng) {
       if (d < 3) continue;
       const clearing = fbm(x * 0.075 + 7.7, y * 0.075 + 3.3);
       if (clearing < 0.34 && d < 6) continue;         // meadows near play, never deep voids
-      const dens = d >= 5 ? 0.62 : d >= 4 ? 0.5 : 0.34;
+      const dens = d >= 5 ? 0.5 : d >= 4 ? 0.4 : 0.28;
       if (rng.next() > dens) continue;
       const px = x + (rng.next() - 0.5) * 0.9;
       const py = y + (rng.next() - 0.5) * 0.9;
@@ -1434,7 +1492,7 @@ function plantProperty(course, designed, rng) {
       const d = dist[y * w + x];
       if (d < 1 || d > 2) continue;
       const gate = Math.sin(x * 0.52 + y * 0.29) + Math.sin(x * 0.16 - y * 0.41);
-      if (gate < 0.35 || rng.next() > 0.55) continue;
+      if (gate < 0.42 || rng.next() > 0.48) continue;
       const px = x + (rng.next() - 0.5) * 0.8;
       const py = y + (rng.next() - 0.5) * 0.8;
       if (!plantable(course, px, py, waterClear)) continue;
@@ -1534,9 +1592,9 @@ function plantProperty(course, designed, rng) {
     for (let x = 1; x < w - 1; x++) {
       if (getZone(course, x, y) !== ZONE.HEAVY) continue;
       const r = rng.next();
-      if (r < 0.05) addObj(course, 'bush_native', x + J2(rng), y + J2(rng), rng.next() * 6.28, 0.85 + rng.next() * 0.5);
-      else if (r < 0.16) addObj(course, 'grass_clump', x + J2(rng), y + J2(rng), rng.next() * 6.28, 0.9 + rng.next() * 0.6);
-      else if (r < 0.168) addObj(course, 'boulder_a', x + J2(rng), y + J2(rng), rng.next() * 6.28, 0.7 + rng.next() * 0.6);
+      if (r < 0.04) addObj(course, 'bush_native', x + J2(rng), y + J2(rng), rng.next() * 6.28, 0.85 + rng.next() * 0.5);
+      else if (r < 0.12) addObj(course, 'grass_clump', x + J2(rng), y + J2(rng), rng.next() * 6.28, 0.9 + rng.next() * 0.6);
+      else if (r < 0.124) addObj(course, 'boulder_a', x + J2(rng), y + J2(rng), rng.next() * 6.28, 0.7 + rng.next() * 0.6);
     }
   }
 

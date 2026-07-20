@@ -6,7 +6,7 @@
   "results": [
     {
       "asset": 81,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_081_office_chair_sheet09.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_081_office_chair_sheet09.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -133,7 +133,7 @@
     },
     {
       "asset": 82,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_082_filing_cabinet_sheet09.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_082_filing_cabinet_sheet09.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -303,7 +303,7 @@
     },
     {
       "asset": 83,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_083_desk_lamp.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_083_desk_lamp.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -486,7 +486,7 @@
     },
     {
       "asset": 84,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_084_office_printer.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_084_office_printer.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -665,7 +665,7 @@
     },
     {
       "asset": 85,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_085_office_telephone.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_085_office_telephone.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -902,7 +902,7 @@
     },
     {
       "asset": 86,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_086_corkboard_noticeboard.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_086_corkboard_noticeboard.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1034,7 +1034,7 @@
     },
     {
       "asset": 87,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_087_wall_clock.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_087_wall_clock.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1200,7 +1200,7 @@
     },
     {
       "asset": 88,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_088_key_rack.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_088_key_rack.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1321,7 +1321,7 @@
     },
     {
       "asset": 89,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_089_reservation_clipboard.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_089_reservation_clipboard.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1465,7 +1465,7 @@
     },
     {
       "asset": 90,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_090_scorecard_holder.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_090_scorecard_holder.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,

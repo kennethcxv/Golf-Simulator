@@ -9,7 +9,8 @@ async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const { pathToFileURL } = process.getBuiltinModule('node:url');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const out = process.env.SHEET06_STATE_QA_OUT
     ? path.resolve(repo, process.env.SHEET06_STATE_QA_OUT)
     : path.join(repo, 'qa', 'assets_51_100_master', 'sheet_06', 'state_lifecycle', 'current');
@@ -377,7 +378,7 @@ async (page) => {
   }
 
   phase = 'initial-navigation';
-  await page.goto('http://localhost:8457/', {
+  await page.goto(baseUrl, {
     waitUntil: 'domcontentloaded',
     timeout: waitTimeoutMs,
   });

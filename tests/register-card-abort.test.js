@@ -76,9 +76,8 @@ test('the abort never itself banks or moves money', () => {
 test('the flow contract makes the X reachable pre-submit and forbidden while processing', () => {
   // every pre-submit card state can drop back to the post-scan choice point...
   assert.equal(canTransitionCheckout('CardPresented', 'AllProductsScanned'), true);
-  assert.equal(canTransitionCheckout('CardInsertReady', 'AllProductsScanned'), true);
-  assert.equal(canTransitionCheckout('CardInserting', 'AllProductsScanned'), true);
-  assert.equal(canTransitionCheckout('CardAmountEntry', 'AllProductsScanned'), true);
+  assert.equal(canTransitionCheckout('CardSwipeReady', 'AllProductsScanned'), true);
+  assert.equal(canTransitionCheckout('CardSwiping', 'AllProductsScanned'), true);
   // ...but once the authorization is running (or done) it cannot
   assert.equal(canTransitionCheckout('CardProcessing', 'AllProductsScanned'), false);
   assert.equal(canTransitionCheckout('CardApproved', 'AllProductsScanned'), false);

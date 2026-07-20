@@ -33,6 +33,14 @@ export function ensureDebris(state) {
   // single bad cluster poison every distance test on the floor.
   reno.debris = reno.debris.filter((d) => d
     && Number.isFinite(d.x) && Number.isFinite(d.z) && Number.isFinite(d.a) && d.a > 0);
+  for (const d of reno.debris) {
+    if (d.kind !== 'litter' && d.kind !== 'grit') {
+      // Old saves did not distinguish wrappers from grit. Derive a stable mix from position so a
+      // reload never changes it and the trash-bag verb is not empty on a legacy floor.
+      const hash = Math.abs(Math.floor(d.x * 31 + d.z * 53));
+      d.kind = hash % 5 === 0 ? 'litter' : 'grit';
+    }
+  }
   return reno.debris;
 }
 
@@ -54,6 +62,7 @@ export function seedDebris(state, count, spanX, spanZ, seed = 1) {
       x: Math.round(((rnd() - 0.5) * spanX) * 1000) / 1000,
       z: Math.round(((rnd() - 0.5) * spanZ) * 1000) / 1000,
       a: Math.round((0.12 + rnd() * 0.22) * 1000) / 1000,
+      kind: i % 4 === 0 ? 'litter' : 'grit',
     });
   }
   return list;
@@ -67,6 +76,7 @@ function merge(list) {
     for (let j = i + 1; j < list.length; j++) {
       const b = list[j];
       if (!b) continue;
+      if ((a.kind || 'grit') !== (b.kind || 'grit')) continue;
       if (Math.hypot(a.x - b.x, a.z - b.z) > DEBRIS_MERGE_YD) continue;
       // the bigger pile wins the position, weighted — a small bit joins the heap, not vice versa
       const total = a.a + b.a;
@@ -116,14 +126,21 @@ export function sweepAt(state, x, z, dirX, dirZ, radius, dtSec) {
  * pixel-perfect placement is not the game.
  * @returns {number} the amount collected
  */
-export function collectAt(state, x, z, radius) {
+export function collectAt(state, x, z, radius, limit = Infinity, predicate = null) {
   const list = ensureDebris(state);
   let got = 0;
+  let room = Number.isFinite(limit) ? Math.max(0, limit) : Infinity;
   for (let i = 0; i < list.length; i++) {
     const d = list[i];
     if (Math.hypot(d.x - x, d.z - z) > radius) continue;
-    got += d.a;
-    list[i] = null;
+    if (predicate && !predicate(d)) continue;
+    const take = Math.min(d.a, room);
+    if (take <= 0) break;
+    got += take;
+    room -= take;
+    if (take >= d.a - 0.0005) list[i] = null;
+    else d.a = Math.round((d.a - take) * 1000) / 1000;
+    if (room <= 0.0005) break;
   }
   if (got > 0) {
     let w = 0;

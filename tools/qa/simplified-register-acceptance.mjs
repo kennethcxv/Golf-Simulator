@@ -69,6 +69,10 @@ async function setupFixture(page, mode) {
     clubhouse.rebuildStock();
     const shop = app.state.shop;
     const before = {
+      cash: app.state.cash,
+      ledgerShopSales: app.state.ledger?.today?.revenue?.shopSales || 0,
+      reviews: app.state.club?.reviews?.length || 0,
+      reputation: app.state.club?.reputation || 0,
       units: (shop.salesLive || {}).units || 0,
       revenue: (shop.salesLive || {}).revenue || 0,
       held: (shop.held || []).length,
@@ -726,9 +730,46 @@ async function cashRoute(page, shot) {
   });
   const selectFromSlot = async (denom, count = 1) => {
     for (let index = 0; index < count; index += 1) {
-      const slot = await projectObject(page, { kind: 'drawer-slot', denom });
+      // Aim at the denomination's visible top piece. The low hotspot is a
+      // fallback for an empty well, but its projected centre can sit behind an
+      // adjacent angled bill after a stack has been depleted.
+      const slot = await projectObject(page, { kind: 'money', from: 'drawer', denom })
+        || await projectObject(page, { kind: 'drawer-slot', denom });
       assert(slot && slot.inView, `Change slot ${denom} is not visible.`);
-      await page.mouse.click(slot.x, slot.y);
+      // A depleted bill well exposes more of the neighbouring angled stack.
+      // Resolve a point that the production raycaster currently identifies as
+      // this denomination, then still exercise it through a real mouse click.
+      const target = await page.evaluate(({ center, wanted }) => {
+        const register = window.__fw.scene3d.clubhouse().register;
+        const samples = [{ x: center.x, y: center.y }];
+        for (let radius = 4; radius <= 36; radius += 4) {
+          for (let step = 0; step < 16; step += 1) {
+            const angle = (step / 16) * Math.PI * 2;
+            samples.push({
+              x: center.x + Math.cos(angle) * radius,
+              y: center.y + Math.sin(angle) * radius,
+            });
+          }
+        }
+        for (const point of samples) {
+          const picked = register.debugPickAt(point.x, point.y).physical;
+          if (Number(picked?.denom) === Number(wanted)
+              && (picked.kind === 'drawer-slot' || picked.from === 'drawer')) {
+            return { ...point, picked };
+          }
+        }
+        return null;
+      }, { center: slot, wanted: denom });
+      assert(target, `No normal mouse target currently resolves to change slot ${denom}.`);
+      const before = await givingFacts();
+      await page.mouse.click(target.x, target.y);
+      const expectedCents = before.givingCents + Math.round(Number(denom) * 100);
+      await page.waitForFunction((expected) => {
+        const tx = window.__fw.scene3d.clubhouse().register.getTx();
+        return Math.round(Object.entries(tx?.hand || {}).reduce(
+          (sum, [value, quantity]) => sum + Number(value) * Number(quantity), 0,
+        ) * 100) === expected;
+      }, expectedCents, { timeout: 8000 });
       await page.waitForTimeout(130);
     }
   };
@@ -888,6 +929,11 @@ async function finalSnapshot(page, customerName) {
         phase: customer.checkoutPhase,
         cart: customer.cart.length,
       } : null,
+      cash: app.state.cash,
+      ledgerShopSales: app.state.ledger?.today?.revenue?.shopSales || 0,
+      reviews: app.state.club?.reviews?.length || 0,
+      reputation: app.state.club?.reputation || 0,
+      latestReview: app.state.club?.reviews?.[0] || null,
       units: (shop.salesLive || {}).units || 0,
       revenue: (shop.salesLive || {}).revenue || 0,
       held: (shop.held || []).length,
@@ -1084,6 +1130,28 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   assert(final.held === fixture.before.held, 'Held inventory did not return to its opening count.');
   assert(final.ticket && final.ticket.method === mode, `Expected ${mode} ticket.`);
   assert(final.customer && final.customer.bought && final.customer.cart === 0, 'Customer did not receive the finalized products.');
+  const saleTotal = Number(final.ticket.total) || 0;
+  const cashDelta = Math.round((final.cash - fixture.before.cash) * 100) / 100;
+  const ledgerShopSalesDelta = Math.round(
+    (final.ledgerShopSales - fixture.before.ledgerShopSales) * 100,
+  ) / 100;
+  const reviewCountDelta = final.reviews - fixture.before.reviews;
+  assert(cashDelta === saleTotal,
+    `Cash changed by ${cashDelta}, but the accepted ticket was ${saleTotal}.`);
+  assert(ledgerShopSalesDelta === saleTotal,
+    `Shop-sales ledger changed by ${ledgerShopSalesDelta}, but the accepted ticket was ${saleTotal}.`);
+  assert(reviewCountDelta === 1, `Successful checkout should create exactly one review; delta was ${reviewCountDelta}.`);
+  assert(final.latestReview && Number.isFinite(final.latestReview.stars)
+      && typeof final.latestReview.text === 'string' && final.latestReview.text.length > 0
+      && Array.isArray(final.latestReview.cited) && final.latestReview.cited.length > 0,
+  `Checkout review lacks causal gameplay evidence: ${JSON.stringify(final.latestReview)}.`);
+  const businessOutcome = {
+    cashDelta,
+    ledgerShopSalesDelta,
+    reviewCountDelta,
+    reputationDelta: Math.round((final.reputation - fixture.before.reputation) * 10) / 10,
+    latestReview: final.latestReview,
+  };
   const departureStart = await page.evaluate((name) => {
     const clubhouse = window.__fw.scene3d.clubhouse();
     const customers = typeof clubhouse.customers === 'function'
@@ -1129,6 +1197,7 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     customer: fixture.customer,
     before: fixture.before,
     final,
+    businessOutcome,
     evidence,
     scanReadEvidence,
     cashDrawerTravelEvidence,

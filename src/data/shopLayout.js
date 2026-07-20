@@ -150,7 +150,7 @@ export const STOCKROOM = {
 export const OFFICE = {
   bounds: { minX: 5.7, maxX: INTERIOR.w / 2, minZ: 2.0, maxZ: INTERIOR.d / 2 },
   desk: { x: 9.55, z: 4.5, ry: Math.PI / 2 },    // against the east wall, faces west
-  chair: { x: 8.65, z: 4.5 },
+  chair: { x: 8.70, z: 4.5 },
   laptop: { x: 9.55, z: 4.5, ry: Math.PI / 2 },  // screen faces west, into the room
   map: { x: 8.9, z: 6.44, ry: Math.PI },         // framed course map on the office's south wall
   calendar: { x: 7.1, z: 2.15, ry: Math.PI },    // on partition B's office face
@@ -160,11 +160,11 @@ export const OFFICE = {
 // base dressing; the lounge1 decor upgrade replaces it with the premium suite.
 export const LOUNGE = {
   bounds: { minX: 2.4, maxX: 5.7, minZ: -INTERIOR.d / 2, maxZ: -3.2 },
-  chairA: { x: 3.2, z: -5.35, ry: 0.55 },
-  chairB: { x: 4.6, z: -4.35, ry: -0.75 },
-  coffee: { x: 3.85, z: -4.95 },
+  chairA: { x: 3.45, z: -5.75, ry: 0 },
+  chairB: { x: 4.80, z: -3.80, ry: -2.10 },
+  coffee: { x: 3.45, z: -4.55 },
   rug: { x: 3.85, z: -4.9, ry: 0 },
-  trophy: { x: 5.55, z: -5.1, ry: -Math.PI / 2 },    // on the partition's west face
+  trophy: { x: 5.42, z: -5.58, ry: -Math.PI / 2 },   // on the partition's west face
   events: { x: 5.55, z: -3.75, ry: -Math.PI / 2 },   // club events board beside it
   photo: { x: 4.95, z: -6.38, ry: 0 },               // course photography, clear of the window
 };
@@ -246,6 +246,9 @@ export const REGISTER = {
 
   // surfaces
   staging: { minX: 2.05, maxX: 2.80, minZ: 3.78, maxZ: 4.10 },  // customer lays goods out here
+  // Scanned goods stay visible and loose until payment is complete. This strip
+  // is downstream of the reader but clear of both the open bag and POS hardware.
+  scannedStaging: { minX: 1.62, maxX: 2.28, minZ: 4.08, maxZ: 4.24 },
   // counted change rests in this shallow authored tray before handoff. Keeping
   // the footprint in the shared layout makes the prop, money, reach tests and
   // camera composition use one source of truth.

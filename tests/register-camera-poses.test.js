@@ -110,13 +110,15 @@ test('declined-card cash fallback presents tender before opening the drawer came
   );
 
   const acceptCash = functionBody(registerSource, 'acceptPresentedCash');
-  const sortTender = acceptCash.indexOf('sortReceivedCash()');
+  const layoutTender = acceptCash.indexOf('layoutAcceptedTender()');
   const drawerWorkspace = acceptCash.indexOf("setWorkspace('cash')");
-  assert.ok(sortTender >= 0, 'accepting the tender sorts it into the drawer');
+  assert.ok(layoutTender >= 0, 'accepting the tender lays every piece within reach');
   assert.ok(
-    sortTender < drawerWorkspace,
-    'the cash/drawer workspace opens only after the presented cash is accepted',
+    layoutTender < drawerWorkspace,
+    'the cash workspace opens only after the unsorted tender is reachable',
   );
+  assert.doesNotMatch(acceptCash, /depositPiece|sortReceivedCash|openDrawer|drawerWant\s*=\s*1/,
+    'acceptance cannot sort money or open the drawer for the player');
   assert.doesNotMatch(
     acceptCash,
     /setWorkspace\('monitor'\)/,

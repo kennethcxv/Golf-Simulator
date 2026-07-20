@@ -103,7 +103,7 @@ export const CLEANING_TOOLS = {
     strength: 1.0,
     dirt: [DIRT.DUST, DIRT.DEBRIS],
     indoorOnly: true,
-    place: [0.30, -0.30, -0.34],
+    place: [0.20, -0.27, -0.38],
     orient: [0, -0.09, 0],
     worldPitch: -0.60,
     parts: [
@@ -151,7 +151,7 @@ export const CLEANING_TOOLS = {
     indoorOnly: true,
     wets: true,           // leaves a wet sheen that dries off
     rejects: ['carpet'],
-    place: [0.26, -0.30, -0.34],
+    place: [0.18, -0.27, -0.38],
     orient: [0, -0.14, 0],
     worldPitch: -0.62,
     parts: [
@@ -190,7 +190,7 @@ export const CLEANING_TOOLS = {
     radius: 0.46,
     strength: 1.0,
     dirt: [DIRT.DEBRIS],
-    place: [0.28, -0.30, -0.34],
+    place: [0.18, -0.27, -0.38],
     orient: [0, -0.12, 0],
     worldPitch: -0.62,
     parts: [
@@ -233,7 +233,7 @@ export const CLEANING_TOOLS = {
     radius: 0.62,
     strength: 1.0,
     dirt: [DIRT.DEBRIS],
-    place: [0.30, -0.30, -0.34],
+    place: [0.18, -0.27, -0.38],
     orient: [0, -0.10, 0],
     worldPitch: -0.66,
     parts: [
@@ -273,7 +273,7 @@ export const CLEANING_TOOLS = {
     strength: 1.0,
     dirt: [DIRT.SMEAR, DIRT.GRIME, DIRT.BONDED],
     loosens: true,     // does not clean by itself — it makes the wipe work
-    place: [0.24, -0.34, -0.46],
+    place: [0.12, -0.14, -0.86],
     orient: [0.08, -0.20, 0],
     parts: [
       // the bottle: a squared-off white cylinder, Pineview label on the face
@@ -315,7 +315,7 @@ export const CLEANING_TOOLS = {
     strength: 1.2,     // strong, but only on what the spray has already loosened
     dirt: [DIRT.SMEAR, DIRT.FILM],
     needsSolution: true,
-    place: [0.26, -0.30, -0.44],
+    place: [0.18, -0.22, -0.88],
     orient: [0.16, -0.22, 0],
     parts: [
       // a folded cloth: three offset slabs so it reads as fabric, not a brick
@@ -351,7 +351,7 @@ export const CLEANING_TOOLS = {
     strength: 0.75,    // slower than the cloth, but it shifts what the cloth cannot
     dirt: [DIRT.GRIME, DIRT.BONDED, DIRT.SMEAR],
     foams: true,
-    place: [0.26, -0.30, -0.44],
+    place: [0.18, -0.22, -0.88],
     orient: [0.16, -0.22, 0],
     parts: [
       box([0.135, 0.055, 0.092], [0, 0, 0], [0.05, 0.08, 0.02], 'sponge'),
@@ -385,7 +385,7 @@ export const CLEANING_TOOLS = {
     strength: 1.0,
     dirt: [DIRT.DEBRIS],
     fills: true,
-    place: [0.30, -0.56, -0.52],
+    place: [0.18, -0.40, -1.26],
     orient: [0.05, -0.10, 0],
     // Staged, not simulated: the fill states swap scale on these, which is far cheaper than cloth
     // and reads perfectly well at arm's length.

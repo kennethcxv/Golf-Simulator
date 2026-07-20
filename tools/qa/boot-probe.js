@@ -1,37 +1,61 @@
 async (page) => {
-  // Boot diagnostics: what state does the game reach, and what does the console say?
+  // Boot diagnostics through the same Continue control a returning player uses.
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const errs = [];
-  const logs = [];
-  page.on('console', (m) => {
-    if (m.type() === 'error') errs.push(m.text().slice(0, 300));
+  const warnings = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errs.push(message.text().slice(0, 300));
+    if (message.type() === 'warning') warnings.push(message.text().slice(0, 300));
   });
-  page.on('pageerror', (e) => errs.push('PAGEERROR: ' + (e.stack || e.message).slice(0, 500)));
-  await page.goto('http://localhost:8457/');
+  page.on('pageerror', (error) => {
+    errs.push(`PAGEERROR: ${(error.stack || error.message).slice(0, 500)}`);
+  });
+
+  await page.goto(baseUrl);
   await page.setViewportSize({ width: 1600, height: 900 });
-  await page.waitForTimeout(3000);
-  const menuState = await page.evaluate(() => {
-    const buttons = [...document.querySelectorAll('button')].map((b) => b.textContent.trim()).slice(0, 12);
-    return {
-      hasFw: !!window.__fw,
-      screen: window.__fw ? window.__fw.screen : null,
-      buttons,
-    };
+  await page.waitForFunction(() => document.readyState === 'complete');
+  const menuState = await page.evaluate(() => ({
+    hasFw: !!window.__fw,
+    screen: window.__fw?.screen ?? null,
+    buttons: [...document.querySelectorAll('button')]
+      .map((button) => button.textContent.trim()).slice(0, 12),
+  }));
+
+  const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
+  await continueButton.waitFor({ state: 'visible', timeout: 10000 });
+  await page.waitForFunction(() => {
+    const button = [...document.querySelectorAll('button')]
+      .find((candidate) => candidate.textContent.trim() === 'Continue');
+    return !!button && !button.disabled;
   });
-  // fresh profile: New Empire → the marketplace opens → buy the cheapest course
-  await page.getByText('New Empire — Relaxed', { exact: true }).click({ timeout: 5000 })
-    .catch((e) => logs.push('New Empire click failed: ' + String(e && e.message).slice(0, 200)));
-  await page.waitForTimeout(2500);
-  const market = await page.evaluate(() => ({
-    buttons: [...document.querySelectorAll('button')].map((b) => b.textContent.trim()).filter((t) => t).slice(0, 24),
-    marketNodes: document.querySelectorAll('.market, .market-card, .modal, .mkt').length,
-  }));
-  logs.push(JSON.stringify(market));
-  await page.waitForTimeout(4000);
+  await continueButton.click();
+  await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
+  await page.waitForFunction(() => {
+    const veil = document.querySelector('.load-veil');
+    return !veil || getComputedStyle(veil).opacity === '0';
+  }, null, { timeout: 90000 });
+  await page.waitForTimeout(1000);
+
   const after = await page.evaluate(() => ({
-    screen: window.__fw ? window.__fw.screen : null,
-    hasScene: !!(window.__fw && window.__fw.scene3d),
-    hasClubhouse: !!(window.__fw && window.__fw.scene3d && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse()),
-    veil: (() => { const v = document.querySelector('.load-veil'); return v ? getComputedStyle(v).display + '/' + getComputedStyle(v).opacity : 'none'; })(),
+    screen: window.__fw?.screen ?? null,
+    hasScene: !!window.__fw?.scene3d,
+    hasClubhouse: !!window.__fw?.scene3d?.clubhouse?.(),
+    veil: (() => {
+      const veil = document.querySelector('.load-veil');
+      return veil ? `${getComputedStyle(veil).display}/${getComputedStyle(veil).opacity}` : 'none';
+    })(),
+    rendererContextLost: window.__fw?.scene3d?.renderer?.getContext?.().isContextLost?.() ?? null,
   }));
-  return { menuState, after, logs, errs: errs.slice(0, 10) };
+  const ok = menuState.hasFw
+    && after.hasScene
+    && after.hasClubhouse
+    && after.rendererContextLost === false
+    && errs.length === 0;
+  return {
+    ok,
+    menuState,
+    after,
+    errs: errs.slice(0, 10),
+    warnings: warnings.slice(0, 10),
+  };
 }

@@ -214,6 +214,80 @@ test('tee view stays close to an elevated player perspective instead of a high c
     `tee camera remains just behind the authored tee (${cameraZ})`);
 });
 
+test('authored frame yaw isolates a short hole while preserving fitted bounds', () => {
+  const hole = { tee: { x: 0, z: 0 }, pin: { x: 0, z: 180 } };
+  const line = [{ x: 0, y: 0 }, { x: 0, y: 180 }];
+  const base = courseCameraPose(hole, COURSE_CAMERA_MODES.FRAME_HOLE, {
+    ...WORLD,
+    vecHole: { line },
+  });
+  const isolated = courseCameraPose(hole, COURSE_CAMERA_MODES.FRAME_HOLE, {
+    ...WORLD,
+    vecHole: { line, camera: { frameYawOffset: 0.2, framePitch: 0.56 } },
+  });
+
+  assert.equal(base.frameClipped, false);
+  assert.equal(isolated.frameClipped, false);
+  assert.ok(Math.abs((isolated.yaw - base.yaw) - 0.2) < 1e-12,
+    'authored yaw offset is applied exactly');
+  assert.equal(isolated.pitch, 0.56, 'authored pitch keeps a short hole oblique');
+});
+
+test('authored short-hole camera metadata isolates approach, green, and flyover views', () => {
+  const hole = { tee: { x: 0, z: 0 }, pin: { x: 0, z: 180 } };
+  const line = [{ x: 0, y: 0 }, { x: 0, y: 180 }];
+  const baseVec = { line };
+  const camera = {
+    approachYawOffset: -0.18,
+    greenYawOffset: -0.14,
+    flyoverYawOffset: -0.12,
+    approachDistYd: 44,
+    greenContextStartT: 0.9,
+    greenContextHalfWidthYd: 21,
+  };
+  const authoredVec = { line, camera };
+
+  const baseApproach = courseCameraPose(hole, COURSE_CAMERA_MODES.APPROACH, {
+    ...WORLD, vecHole: baseVec,
+  });
+  const authoredApproach = courseCameraPose(hole, COURSE_CAMERA_MODES.APPROACH, {
+    ...WORLD, vecHole: authoredVec,
+  });
+  assert.ok(Math.abs((authoredApproach.yaw - baseApproach.yaw) + 0.18) < 1e-12);
+  assert.equal(authoredApproach.dist, 44);
+
+  const baseGreen = courseCameraPose(hole, COURSE_CAMERA_MODES.GREEN, {
+    ...WORLD, vecHole: baseVec,
+  });
+  const authoredGreen = courseCameraPose(hole, COURSE_CAMERA_MODES.GREEN, {
+    ...WORLD, vecHole: authoredVec,
+  });
+  assert.ok(Math.abs((authoredGreen.yaw - baseGreen.yaw) + 0.14) < 1e-12);
+
+  const baseFlyover = courseCameraFlyoverPose(hole, 0.5, {
+    ...WORLD, vecHole: baseVec,
+  });
+  const authoredFlyover = courseCameraFlyoverPose(hole, 0.5, {
+    ...WORLD, vecHole: authoredVec,
+  });
+  assert.ok(Math.abs((authoredFlyover.yaw - baseFlyover.yaw) + 0.12) < 1e-12);
+});
+
+test('landing and approach presets retain golf scale instead of reverting to aerial plans', () => {
+  const hole = { tee: { x: 0, z: 0 }, pin: { x: 0, z: 400 } };
+  const landing = courseCameraPose(hole, COURSE_CAMERA_MODES.FAIRWAY, WORLD);
+  const approach = courseCameraPose(hole, COURSE_CAMERA_MODES.APPROACH, WORLD);
+
+  assertFinitePose(landing);
+  assertFinitePose(approach);
+  assert.ok(landing.pitch <= 0.34 && landing.dist <= 96,
+    `landing area remains an oblique landscape view (${landing.pitch}, ${landing.dist})`);
+  assert.ok(approach.pitch <= 0.29 && approach.dist <= 74,
+    `approach remains close enough to read hazard relief (${approach.pitch}, ${approach.dist})`);
+  assert.ok(Math.sin(approach.pitch) * approach.dist < 22,
+    'approach camera stays below the former crane-shot height');
+});
+
 test('green view fits the final approach corridor, putting surface, and nearby hazards', () => {
   const state = newGame('relaxed', 4242);
   const { course } = state;
@@ -236,7 +310,7 @@ test('green view fits the final approach corridor, putting surface, and nearby h
       });
       assert.equal(value.greenClipped, false,
         `hole ${index + 1} green has a solvable composition at aspect ${aspect}`);
-      assert.ok(value.dist >= 52 && value.dist <= 112);
+      assert.ok(value.dist >= 48 && value.dist <= 104);
       assert.ok(value.routeT < 1, 'composition is biased into the approach, not pinned to the cup');
 
       const route = courseCameraRoute(hole, { property: course, vecHole });
@@ -287,6 +361,8 @@ test('flyover smooth-steps along the dogleg and turns onto the approach', () => 
   assertFinitePose(late);
   assert.equal(middle.mode, 'flyover');
   assert.deepEqual(middle.target, { x: 100, y: 0, z: 0 });
+  assert.ok(middle.pitch <= 0.35 && middle.dist <= 76,
+    `mid-flight remains close to the course (${middle.pitch}, ${middle.dist})`);
   assert.ok(late.target.x > 99 && late.target.z > 80, `late camera follows the second leg (${late.target.x}, ${late.target.z})`);
   assert.ok(Math.abs(late.yaw - Math.PI) < 0.35, 'late camera faces along the northbound approach');
 });

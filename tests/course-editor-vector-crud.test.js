@@ -14,7 +14,7 @@ import {
   editVectorWater, deleteVectorWater,
   editVectorStream, deleteVectorStream,
   addPath, editPath, removePath,
-  undo, redo, discardSession, applySession,
+  undo, redo, discardSession, applySession, opCellRect,
 } from '../src/sim/courseEditor.js';
 
 function fresh() {
@@ -118,6 +118,28 @@ test('bunker edit/delete keeps its id and is exactly undoable, redoable, and dis
   assert.equal(redo(state, session).ok, true);
   assert.equal(discardSession(state, session).ok, true);
   assertCourseTruth(state, before, 'discard edit/delete chain');
+});
+
+test('relief-only vector history retains a local renderer footprint', () => {
+  const state = fresh();
+  const session = makeEditSession(state);
+  const hole = state.course.holes[0];
+  const bunker = vecHoleFor(state, hole).bunkers[0];
+  const zonesBefore = Uint8Array.from(state.course.zones);
+
+  const result = editVectorBunker(state, session, hole.id, { index: 0 }, {
+    depth: bunker.depth + 0.35,
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(state.course.zones, zonesBefore, 'depth-only edit does not need a raster-zone diff');
+  assert.equal(session.undo[0].cells.length, 0);
+  const rect = opCellRect(state, session.undo[0]);
+  assert.ok(rect && rect.x1 > rect.x0 && rect.y1 > rect.y0, 'vector geometry supplies the missing footprint');
+
+  const discarded = discardSession(state, session);
+  assert.equal(discarded.ok, true);
+  assert.deepEqual(discarded.operations, [{ kind: 'vec', rect }]);
+  assert.equal(vecHoleFor(state, hole).bunkers[0].depth, bunker.depth);
 });
 
 test('water and path production metadata edit/delete through exact history', () => {

@@ -1,7 +1,9 @@
 async (page) => {
   // Visual proof the refit shadows read right: on foot (tight snapped 2048 box) and from
   // the overview map (whole-course 4096, the classic fit).
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/perf';
+  const OUT = process.getBuiltinModule('node:path').join(
+    process.env.QA_REPO_ROOT || process.cwd(), 'qa', 'perf',
+  );
   await page.goto('http://localhost:8457/');
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);

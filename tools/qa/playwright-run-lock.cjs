@@ -2,11 +2,44 @@
 
 const crypto = require('crypto');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
-const DEFAULT_LOCK_PATH = path.resolve(
-  process.env.PLAYWRIGHT_RUN_LOCK_PATH || 'qa/.run-playwright.lock',
-);
+function gitCommonDirectory(start = process.cwd()) {
+  let directory = path.resolve(start);
+  while (true) {
+    const marker = path.join(directory, '.git');
+    try {
+      const stat = fs.statSync(marker);
+      if (stat.isDirectory()) return fs.realpathSync(marker);
+      if (stat.isFile()) {
+        const match = /^gitdir:\s*(.+)$/im.exec(fs.readFileSync(marker, 'utf8'));
+        if (match) {
+          const gitDirectory = path.resolve(directory, match[1].trim());
+          const parent = path.dirname(gitDirectory);
+          const common = path.basename(parent).toLowerCase() === 'worktrees'
+            ? path.dirname(parent)
+            : gitDirectory;
+          return fs.realpathSync(common);
+        }
+      }
+    } catch (_) { /* keep walking toward the filesystem root */ }
+    const parent = path.dirname(directory);
+    if (parent === directory) return path.resolve(start);
+    directory = parent;
+  }
+}
+
+function repositoryLockPath(start = process.cwd()) {
+  const identity = gitCommonDirectory(start);
+  const normalized = process.platform === 'win32' ? identity.toLowerCase() : identity;
+  const digest = crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 20);
+  return path.join(os.tmpdir(), `golf-flipper-playwright-${digest}.lock`);
+}
+
+const DEFAULT_LOCK_PATH = process.env.PLAYWRIGHT_RUN_LOCK_PATH
+  ? path.resolve(process.env.PLAYWRIGHT_RUN_LOCK_PATH)
+  : repositoryLockPath();
 const DEFAULT_POLL_MS = 500;
 const DEFAULT_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 
@@ -102,6 +135,8 @@ function releasePlaywrightRunLock(token) {
 module.exports = {
   DEFAULT_LOCK_PATH,
   acquirePlaywrightRunLock,
+  gitCommonDirectory,
   processAlive,
   releasePlaywrightRunLock,
+  repositoryLockPath,
 };

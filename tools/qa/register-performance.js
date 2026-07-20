@@ -5,7 +5,9 @@ async (page) => {
   // This intentionally changes no production code. Instrumentation is installed only
   // in this isolated browser page and is discarded when the runner closes its context.
   const fs = await import('node:fs/promises');
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/cash-register-production/performance';
+  const OUT = process.getBuiltinModule('node:path').join(
+    process.env.QA_REPO_ROOT || process.cwd(), 'qa', 'cash-register-production', 'performance',
+  );
   const SAMPLE_COUNT = 5;
   const SAMPLE_MS = 4000;
   const WARMUP_MS = 2000;

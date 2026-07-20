@@ -9,7 +9,7 @@ async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
   const crypto = process.getBuiltinModule('node:crypto');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
   const out = process.env.ASSET_QA_OUT
     ? path.resolve(repo, process.env.ASSET_QA_OUT)
     : path.join(repo, 'qa', 'assets_51_100_master', 'baseline', 'current');
@@ -27,7 +27,21 @@ async (page) => {
   if (inheritedSha256 !== expectedInheritedSha256) {
     throw new Error(`Frozen Sheet 6 performance fixture hash mismatch: ${inheritedSha256}`);
   }
-  const inheritedRun = Function(`"use strict"; return (${inheritedSource});`)();
+  // The frozen fixture predates worktree-aware QA and therefore contains the
+  // original repository path and default port. Keep hashing the canonical bytes,
+  // then replace only those two environment bindings in the executable copy so
+  // a benchmark cannot silently sample another worktree's server or write its
+  // evidence outside this checkout.
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
+  const frozenRepoBinding = /const repo = '[^'\r\n]+';/u;
+  const frozenUrlBinding = "await page.goto('http://localhost:8457/',";
+  if (!frozenRepoBinding.test(inheritedSource) || !inheritedSource.includes(frozenUrlBinding)) {
+    throw new Error('Frozen Sheet 6 performance fixture environment bindings changed unexpectedly.');
+  }
+  const executableInheritedSource = inheritedSource
+    .replace(frozenRepoBinding, `const repo = ${JSON.stringify(repo)};`)
+    .replace(frozenUrlBinding, `await page.goto(${JSON.stringify(baseUrl)},`);
+  const inheritedRun = Function(`"use strict"; return (${executableInheritedSource});`)();
   const httpDiagnostics = [];
   page.on('response', (response) => {
     if (response.status() < 400) return;
@@ -280,6 +294,7 @@ async (page) => {
     inheritedBaselineScript: {
       path: inheritedPath,
       sha256: inheritedSha256,
+      runtimeOverrides: { repo, baseUrl },
     },
     sheet06ProductionReadiness,
     methodology: {

@@ -16,6 +16,12 @@ async (page) => {
   // wrapping addEventListener BEFORE the first entry.
 
   const errs = [];
+  const fs = process.getBuiltinModule('node:fs');
+  const path = process.getBuiltinModule('node:path');
+  const out = path.join(
+    process.env.QA_REPO_ROOT || process.cwd(), 'qa', 'laptop', 'cycle',
+  );
+  fs.mkdirSync(out, { recursive: true });
   page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text().slice(0, 160)); });
   page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
 
@@ -166,7 +172,7 @@ async (page) => {
   const moved = { dist: +Math.hypot(p1.x - p0.x, p1.z - p0.z).toFixed(3) };
   moved.moved = moved.dist > 0.05;
 
-  await page.screenshot({ path: 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/laptop/cycle/after-30.png' });
+  await page.screenshot({ path: path.join(out, 'after-30.png') });
 
   return {
     cycles: N,

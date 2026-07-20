@@ -6,6 +6,7 @@
 import { makeRng, rngOf } from '../core/utils.js';
 import { labelSections, ensureCourseShape } from './course.js';
 import { buildStartingCourse } from './startingCourse.js';
+import { GRID_W, GRID_H, HOLE_STATUS, ZONE, ZONE_MAX_ID } from './constants.js';
 import { plantVegetation } from './courseShaping.js';
 import { newClock, advanceClock, calendarOf } from './time.js';
 import { tickRenovationsDaily } from './terrainEdit.js';
@@ -14,11 +15,15 @@ import { initTurf, turfHourlyTick, turfDailyTick, runMorningMaintenance, default
 import { initGolfers } from './golfers.js';
 import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
 import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
-import { initShop, shopDailyAccrual, deliverOrdersDue, tickDeliveries, ensureShopReno } from './shop.js';
+import { initShop, shopDailyAccrual, deliverOrdersDue, tickDeliveries, ensureShopReno, RENO } from './shop.js';
 import { recoverCheckout } from './checkout.js';
-import { migrateDrawer } from './register.js';
-import { ensurePaymentBag } from './paymentBag.js';
+import { migrateDrawer, newDrawer } from './register.js';
+import { ensurePaymentBag, paymentBagStats } from './paymentBag.js';
 import { ensureWash } from './washing.js';
+import { ensureWet, wetGridForRoom } from './cleaningWet.js';
+import { ensureDebris } from './cleaningDebris.js';
+import { ensureLayout } from './layout.js';
+import { ensureClubhouseArchitecture } from './clubhouseRestoration.js';
 import { ensureProperty, tickProperty } from './property.js';
 import {
   initReservations, ensureReservations, reservationsDailyTick,
@@ -105,24 +110,27 @@ function migrateFeatureCategory(shop, persistedVersion) {
 }
 
 // Fixture envelopes became more exact over several retail passes (notably the
-// asymmetric shoe wall and the authored apparel table). A moved pose that was
-// legal against an old approximate box can therefore load inside a wall or on
-// another unit. Validate only legacy overrides and delete only the unsafe pose:
-// the sparse layout then resolves that fixture to its known-safe authored
-// default without changing inventory, stored state, or valid player moves.
-function reconcileLegacyMovedFixturePoses(state, persistedVersion) {
-  if (persistedVersion >= FIXTURE_FOOTPRINT_SAVE_VERSION) return;
+// asymmetric shoe wall and the authored apparel table), and hand-edited saves
+// can carry the same impossible overlaps at any schema version. Validate every
+// persisted override and delete only unsafe poses: the sparse layout then
+// resolves that fixture to its known-safe authored default without changing
+// inventory, stored state, or valid player moves.
+function reconcileMovedFixturePoses(state, report) {
   const moved = state.shop?.layout?.moved;
   if (!moved || typeof moved !== 'object' || Array.isArray(moved)) return;
 
   const ids = Object.keys(moved);
+  let repairedRotation = false;
   for (const id of ids) {
     const pose = moved[id];
     if (!pose || !Number.isFinite(pose.x) || !Number.isFinite(pose.z)) {
       delete moved[id];
       continue;
     }
-    if (!Number.isFinite(pose.ry)) pose.ry = 0;
+    if (!Number.isFinite(pose.ry)) {
+      pose.ry = 0;
+      repairedRotation = true;
+    }
   }
 
   // A route-only failure can be caused by a different corrupt legacy pose.
@@ -170,6 +178,13 @@ function reconcileLegacyMovedFixturePoses(state, persistedVersion) {
     for (const [id, pose] of candidates) {
       if (validatePlacement(state, id, pose.x, pose.z, pose.ry).ok) moved[id] = pose;
     }
+  }
+  const removed = ids.filter((id) => !moved[id]);
+  if (removed.length) {
+    noteRepair(report, '$.shop.layout.moved', `${removed.length} unsafe fixture pose(s) removed`);
+  }
+  if (repairedRotation) {
+    noteRepair(report, '$.shop.layout.moved', 'invalid fixture rotations normalized');
   }
 }
 
@@ -219,6 +234,17 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initClub(state);
   initShop(state);
   reconcileShelfCapacity(state.shop);
+  // Persisted register authorities exist from the first save, not only after
+  // the renderer happens to construct the clubhouse or register. Fixture
+  // layout stays lazy because read-only placement queries must remain pure.
+  state.shop.drawer = newDrawer();
+  ensurePaymentBag(state);
+  ensureShopReno(state);
+  ensureClubhouseArchitecture(state);
+  ensureDebris(state);
+  state.shop.reno.pan = 0;
+  state.shop.reno.bag = 0;
+  ensureWet(state, CLEANING_FIELD.w, CLEANING_FIELD.h);
   ensureWash(state); // a fixer-upper arrives with a filthy exterior
   ensureProperty(state); // ...and a landlord
   bindPropertyInventory(state, opts.propertyId || `property:${seed}`);
@@ -231,6 +257,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initTutorial(state);
   initNotifications(state);
   state.uiPrefs = {};
+  if (!Array.isArray(state.club.reviews)) state.club.reviews = [];
   return state;
 }
 
@@ -331,17 +358,16 @@ export function update(state, gameMinutes) {
 
 const round1 = (v) => Math.round(v * 10) / 10;
 
-// Mop water and cleaning solution are FEEDBACK, not progress. Both fade to nothing inside a minute
-// of play, and at 0.25 yd over the whole floor they are 4,264 cells each — about 17 KB of zeroes in
-// every save even on a bone-dry floor, and 50 KB on a wet one. A floor you mopped before saving is
-// correctly dry when you come back, so they are rebuilt empty on load by ensureWet() instead.
-//
-// Everything that IS progress — the grime mask, the debris piles, the pan and bag loads — stays.
+// Cleaning fields are short-lived, but a save taken during the spray/mop loop
+// must resume what the player can still see. Quantizing to three decimals keeps
+// the precision the cleaning simulation writes while avoiding float noise.
 function shopForSave(shop) {
   if (!shop || !shop.reno) return shop;
-  const { wet, solution, ...reno } = shop.reno;
-  void wet;
-  void solution;
+  const reno = { ...shop.reno };
+  if (Array.isArray(reno.wet)) reno.wet = reno.wet.map((value) => Math.round(value * 1000) / 1000);
+  if (Array.isArray(reno.solution)) {
+    reno.solution = reno.solution.map((value) => Math.round(value * 1000) / 1000);
+  }
   return { ...shop, reno };
 }
 
@@ -351,7 +377,7 @@ export function snapshot(state) {
   reconcileReservationCustomerIdentities(state);
   const { course, turf } = state;
   return ({
-    version: state.version,
+    version: SAVE_VERSION,
     mode: state.mode,
     seed: state.seed,
     rngState: state.rngState,
@@ -461,10 +487,6 @@ export function serialize(state) {
   return JSON.stringify(snapshot(state));
 }
 
-function cloneSaveValue(value) {
-  return value == null ? value : structuredClone(value);
-}
-
 // Preserve a valid persisted allocator even when it intentionally leaves gaps,
 // but repair missing/stale counters so the next editor operation cannot reuse
 // an existing id. Existing records are never removed or renumbered.
@@ -476,44 +498,548 @@ function safeNextId(items, persisted) {
   return Number.isSafeInteger(persisted) && persisted > highest ? persisted : highest + 1;
 }
 
-export function deserialize(json) {
-  const raw = typeof json === 'string' ? JSON.parse(json) : json;
-  const persistedVersion = Number.isFinite(raw.version) ? raw.version : 0;
-  const savedCourse = raw.course;
+const MAX_COURSE_CELLS = 512 * 512;
+const MAX_SAVE_RECORDS = 100_000;
+
+function normalizeMode(value) {
+  return value === 'realistic' ? 'realistic' : 'relaxed';
+}
+
+function normalizeSeed(value) {
+  const seed = finiteNumber(value, 1, { integer: true, min: 1, max: 2147483647 });
+  return seed || 1;
+}
+
+function normalizeNumericArray(value, defaults, Type, report, path, transform = (number) => number) {
+  const source = Array.isArray(value) || (ArrayBuffer.isView(value) && !(value instanceof DataView))
+    ? value
+    : null;
+  const length = defaults.length;
+  const out = Type === Array ? new Array(length) : new Type(length);
+  let repaired = !source || source.length !== length;
+  for (let index = 0; index < length; index += 1) {
+    const number = source ? Number(source[index]) : NaN;
+    if (Number.isFinite(number)) {
+      const transformed = transform(number, index);
+      if (!Number.isFinite(transformed)) {
+        out[index] = defaults[index];
+        repaired = true;
+      } else {
+        out[index] = transformed;
+        if (typeof source[index] !== 'number' || !Object.is(transformed, number)) repaired = true;
+      }
+    } else {
+      out[index] = defaults[index];
+      if (source && index < source.length) repaired = true;
+    }
+  }
+  if (repaired) noteRepair(report, path, `normalized to ${length} finite value(s)`);
+  return out;
+}
+
+function finiteSave(value, fallback, options, report, path) {
+  const normalized = finiteNumber(value, fallback, options);
+  if (typeof value !== 'number' || !Number.isFinite(value) || !Object.is(normalized, value)) {
+    noteRepair(report, path, 'invalid or out-of-range number normalized');
+  }
+  return normalized;
+}
+
+function normalizeIds(value, report, path, {
+  accept = () => true,
+  max = MAX_SAVE_RECORDS,
+  duplicate = 'reassign',
+} = {}) {
+  const source = recordsOnly(value, report, path, { max });
+  const valid = [];
+  let removed = 0;
+  for (const entry of source) {
+    const clone = cloneSaveValue(entry, null);
+    if (!clone || !accept(clone)) {
+      removed += 1;
+      continue;
+    }
+    valid.push(clone);
+  }
+  let next = valid.reduce((greatest, entry) => (
+    Number.isSafeInteger(entry.id) && entry.id > 0 ? Math.max(greatest, entry.id) : greatest
+  ), 0) + 1;
+  const used = new Set();
+  const normalized = [];
+  let reassigned = 0;
+  let duplicates = 0;
+  for (const entry of valid) {
+    const hasValidId = Number.isSafeInteger(entry.id) && entry.id > 0;
+    if (hasValidId && used.has(entry.id) && duplicate === 'drop') {
+      duplicates += 1;
+      continue;
+    }
+    if (!hasValidId || used.has(entry.id)) {
+      while (used.has(next)) next += 1;
+      entry.id = next++;
+      reassigned += 1;
+    }
+    used.add(entry.id);
+    normalized.push(entry);
+  }
+  if (removed) noteRepair(report, path, `${removed} unusable record(s) removed`);
+  if (duplicates) noteRepair(report, path, `${duplicates} duplicate authority record(s) removed`);
+  if (reassigned) noteRepair(report, path, `${reassigned} duplicate or invalid id(s) reassigned`);
+  return normalized;
+}
+
+function normalizePoint(value, report = null, path = '$') {
+  if (!isRecord(value) || !Number.isFinite(value.x) || !Number.isFinite(value.y)) return null;
+  const x = finiteNumber(value.x, 0, { min: -10_000, max: 10_000 });
+  const y = finiteNumber(value.y, 0, { min: -10_000, max: 10_000 });
+  if (!Object.is(x, value.x) || !Object.is(y, value.y)) {
+    noteRepair(report, path, 'out-of-range point coordinates normalized');
+  }
+  return { ...value, x, y };
+}
+
+function normalizePointArray(value, minimum, report, path, { max = 20_000 } = {}) {
+  if (!Array.isArray(value)) {
+    noteRepair(report, path, 'missing or invalid point array removed');
+    return null;
+  }
+  const points = [];
+  let coordinatesRepaired = false;
+  for (let index = 0; index < Math.min(value.length, max); index += 1) {
+    const source = value[index];
+    const point = normalizePoint(source, report, `${path}[${index}]`);
+    if (!point) continue;
+    if (!Object.is(point.x, source.x) || !Object.is(point.y, source.y)) coordinatesRepaired = true;
+    points.push(point);
+  }
+  if (points.length !== value.length) noteRepair(report, path, 'invalid or excess points removed');
+  if (coordinatesRepaired) noteRepair(report, path, 'out-of-range point coordinates normalized');
+  if (points.length < minimum) {
+    noteRepair(report, path, `feature requires at least ${minimum} valid point(s)`);
+    return null;
+  }
+  return points;
+}
+
+function normalizeVecHole(hole, report, path) {
+  const line = normalizePointArray(hole.line, 2, report, `${path}.line`);
+  if (!line) return null;
+  hole.line = line;
+  hole.name = typeof hole.name === 'string' ? hole.name.slice(0, 200) : '';
+  hole.par = finiteSave(hole.par, 4, { integer: true, min: 3, max: 5 }, report, `${path}.par`);
+  hole.hcp = finiteSave(hole.hcp, 1, { integer: true, min: 1, max: 18 }, report, `${path}.hcp`);
+  hole.roughW = finiteSave(hole.roughW, 26, { min: 1, max: 200 }, report, `${path}.roughW`);
+
+  if (Array.isArray(hole.width)) {
+    const width = [];
+    let repaired = hole.width.length > 1000;
+    for (const stop of hole.width.slice(0, 1000)) {
+      if (!isRecord(stop) || !Number.isFinite(stop.t) || !Number.isFinite(stop.w)) {
+        repaired = true;
+        continue;
+      }
+      const normalized = {
+        ...stop,
+        t: finiteNumber(stop.t, 0, { min: 0, max: 1 }),
+        w: finiteNumber(stop.w, 8, { min: 0.1, max: 500 }),
+      };
+      if (!Object.is(normalized.t, stop.t) || !Object.is(normalized.w, stop.w)) repaired = true;
+      width.push(normalized);
+    }
+    const originalOrder = width.map((stop) => stop.t);
+    width.sort((a, b) => a.t - b.t);
+    if (width.some((stop, index) => !Object.is(stop.t, originalOrder[index]))) repaired = true;
+    if (repaired) noteRepair(report, `${path}.width`, 'invalid or unordered width stops normalized');
+    if (width.length) hole.width = width;
+    else delete hole.width;
+  } else if (hole.width != null) {
+    delete hole.width;
+    noteRepair(report, `${path}.width`, 'invalid width profile removed');
+  }
+
+  if (Array.isArray(hole.tees)) {
+    const tees = [];
+    let repaired = hole.tees.length > 100;
+    for (let index = 0; index < Math.min(hole.tees.length, 100); index += 1) {
+      const tee = hole.tees[index];
+      const point = normalizePoint(tee, report, `${path}.tees[${index}]`);
+      if (!point) continue;
+      const normalized = {
+        ...point,
+        rot: finiteNumber(tee.rot, 0, { min: -Math.PI * 8, max: Math.PI * 8 }),
+        tier: typeof tee.tier === 'string' ? tee.tier.slice(0, 40) : 'back',
+        w: finiteNumber(tee.w, 8, { min: 0.1, max: 500 }),
+        d: finiteNumber(tee.d, 10, { min: 0.1, max: 500 }),
+        ...(Number.isFinite(tee.raise)
+          ? { raise: finiteNumber(tee.raise, 0, { min: -100, max: 100 }) }
+          : {}),
+      };
+      if (!Object.is(normalized.rot, tee.rot) || normalized.tier !== tee.tier
+          || !Object.is(normalized.w, tee.w) || !Object.is(normalized.d, tee.d)
+          || (Number.isFinite(tee.raise) && !Object.is(normalized.raise, tee.raise))) repaired = true;
+      tees.push(normalized);
+    }
+    if (tees.length !== hole.tees.length) repaired = true;
+    if (repaired) noteRepair(report, `${path}.tees`, 'invalid tee records normalized');
+    hole.tees = tees;
+  } else if (hole.tees != null) {
+    hole.tees = [];
+    noteRepair(report, `${path}.tees`, 'invalid tee array defaulted');
+  }
+
+  if (hole.green != null) {
+    if (!isRecord(hole.green)) {
+      hole.green = null;
+      noteRepair(report, `${path}.green`, 'invalid green removed');
+    } else {
+      const pts = normalizePointArray(hole.green.pts, 3, report, `${path}.green.pts`);
+      if (!pts) {
+        hole.green = null;
+      } else {
+        const cx = pts.reduce((sum, point) => sum + point.x, 0) / pts.length;
+        const cy = pts.reduce((sum, point) => sum + point.y, 0) / pts.length;
+        const pinsWereArray = Array.isArray(hole.green.pins);
+        const pins = pinsWereArray
+          ? normalizePointArray(hole.green.pins, 0, report, `${path}.green.pins`, { max: 100 }) || []
+          : [];
+        hole.green = {
+          ...hole.green,
+          pts,
+          cx: finiteSave(hole.green.cx, cx, { min: -10_000, max: 10_000 }, report, `${path}.green.cx`),
+          cy: finiteSave(hole.green.cy, cy, { min: -10_000, max: 10_000 }, report, `${path}.green.cy`),
+          fringe: finiteSave(hole.green.fringe, 1, { min: 0, max: 100 }, report, `${path}.green.fringe`),
+          raise: finiteSave(hole.green.raise, 0, { min: -100, max: 100 }, report, `${path}.green.raise`),
+          pins,
+        };
+        if (!pinsWereArray) {
+          noteRepair(report, `${path}.green.pins`, 'invalid pin array defaulted');
+        }
+      }
+    }
+  }
+
+  const bunkers = [];
+  if (Array.isArray(hole.bunkers)) {
+    for (let index = 0; index < Math.min(hole.bunkers.length, 1000); index += 1) {
+      const bunker = hole.bunkers[index];
+      if (!isRecord(bunker)) continue;
+      const pts = normalizePointArray(
+        bunker.pts, 3, report, `${path}.bunkers[${index}].pts`, { max: 2000 },
+      );
+      if (!pts) continue;
+      bunkers.push({
+        ...bunker,
+        pts,
+        depth: finiteSave(bunker.depth, 2.4, { min: 0, max: 100 }, report, `${path}.bunkers[${index}].depth`),
+        lip: finiteSave(bunker.lip, 0.9, { min: 0, max: 100 }, report, `${path}.bunkers[${index}].lip`),
+      });
+    }
+  }
+  if (!Array.isArray(hole.bunkers) || bunkers.length !== hole.bunkers.length) {
+    noteRepair(report, `${path}.bunkers`, 'invalid bunker records removed');
+  }
+  hole.bunkers = bunkers;
+  return hole;
+}
+
+function normalizeHole(hole, report, path) {
+  for (const key of ['tee', 'pin']) {
+    if (hole[key] == null) continue;
+    const point = normalizePoint(hole[key], report, `${path}.${key}`);
+    if (!point) noteRepair(report, `${path}.${key}`, 'invalid point cleared');
+    hole[key] = point;
+  }
+  for (const [containerKey, names] of [['tees', ['back', 'middle', 'forward']], ['pins', ['A', 'B', 'C']]]) {
+    if (!isRecord(hole[containerKey])) continue;
+    const normalized = {};
+    for (const name of names) {
+      const source = hole[containerKey][name];
+      normalized[name] = normalizePoint(
+        source, report, `${path}.${containerKey}.${name}`,
+      );
+      if (source != null && !normalized[name]) {
+        noteRepair(report, `${path}.${containerKey}.${name}`, 'invalid point cleared');
+      }
+    }
+    hole[containerKey] = normalized;
+  }
+  const validStatuses = new Set(Object.values(HOLE_STATUS));
+  if (!validStatuses.has(hole.status)) {
+    hole.status = HOLE_STATUS.UNBUILT;
+    noteRepair(report, `${path}.status`, 'invalid hole status normalized');
+  }
+  hole.daysLeft = finiteSave(hole.daysLeft, 0, {
+    integer: true, min: 0, max: 1_000_000,
+  }, report, `${path}.daysLeft`);
+  if (typeof hole.everOpen !== 'boolean') {
+    hole.everOpen = !!hole.everOpen;
+    noteRepair(report, `${path}.everOpen`, 'invalid open-history flag normalized');
+  }
+  if (hole.parOverride != null) {
+    hole.parOverride = finiteSave(hole.parOverride, 4, {
+      integer: true, min: 3, max: 5,
+    }, report, `${path}.parOverride`);
+  }
+  return hole;
+}
+
+function normalizeCourseVector(value, seed, report) {
+  if (!isRecord(value)) return null;
+  const vector = cloneSaveValue(value, null);
+  if (!vector) return null;
+  vector.v = finiteSave(vector.v, 1, {
+    integer: true, min: 1, max: 1000,
+  }, report, '$.course.vec.v');
+  vector.seed = finiteSave(vector.seed, seed, {
+    integer: true, min: 1, max: 2147483647,
+  }, report, '$.course.vec.seed');
+  vector.holes = normalizeIds(vector.holes, report, '$.course.vec.holes', {
+    max: 1000,
+    accept: (hole) => !!normalizeVecHole(hole, report, '$.course.vec.holes[]'),
+  });
+  const polygonFeatures = (key, minimum, max) => normalizeIds(
+    vector[key], report, `$.course.vec.${key}`, {
+      max,
+      accept: (feature) => {
+        const pts = normalizePointArray(
+          feature.pts, minimum, report, `$.course.vec.${key}[].pts`, { max: 20_000 },
+        );
+        if (!pts) return false;
+        feature.pts = pts;
+        if (key === 'waters') {
+          feature.depth = finiteSave(feature.depth, 4.5, {
+            min: 0, max: 1000,
+          }, report, '$.course.vec.waters[].depth');
+          const kind = typeof feature.kind === 'string' && feature.kind.trim()
+            ? feature.kind.slice(0, 80)
+            : 'pond';
+          if (kind !== feature.kind) {
+            noteRepair(report, '$.course.vec.waters[].kind', 'invalid water kind normalized');
+          }
+          feature.kind = kind;
+        } else if (key === 'streams') {
+          feature.w = finiteSave(feature.w, 4, {
+            min: 0.1, max: 500,
+          }, report, '$.course.vec.streams[].w');
+          feature.depth = finiteSave(feature.depth, 2, {
+            min: 0, max: 1000,
+          }, report, '$.course.vec.streams[].depth');
+        }
+        return true;
+      },
+    },
+  );
+  vector.waters = polygonFeatures('waters', 3, 10_000);
+  vector.streams = polygonFeatures('streams', 2, 10_000);
+  vector.beds = polygonFeatures('beds', 3, 10_000);
+  vector.mounds = normalizeIds(vector.mounds, report, '$.course.vec.mounds', {
+    max: 10_000,
+    accept: (mound) => {
+      if (!Number.isFinite(mound.x) || !Number.isFinite(mound.y)
+          || !Number.isFinite(mound.r) || mound.r <= 0) return false;
+      mound.x = finiteSave(mound.x, 0, {
+        min: -10_000, max: 10_000,
+      }, report, '$.course.vec.mounds[].x');
+      mound.y = finiteSave(mound.y, 0, {
+        min: -10_000, max: 10_000,
+      }, report, '$.course.vec.mounds[].y');
+      mound.r = finiteSave(mound.r, 1, {
+        min: 0.01, max: 1000,
+      }, report, '$.course.vec.mounds[].r');
+      mound.h = finiteSave(mound.h, 0, {
+        min: -1000, max: 1000,
+      }, report, '$.course.vec.mounds[].h');
+      return true;
+    },
+  });
+  const rawLawns = recordsOnly(vector.lawns, report, '$.course.vec.lawns', { max: 10_000 });
+  vector.lawns = [];
+  for (const lawn of rawLawns) {
+    if (!Number.isFinite(lawn.x) || !Number.isFinite(lawn.y)
+        || !Number.isFinite(lawn.w) || lawn.w <= 0
+        || !Number.isFinite(lawn.d) || lawn.d <= 0) continue;
+    vector.lawns.push({
+      ...lawn,
+      x: finiteSave(lawn.x, 0, {
+        min: -10_000, max: 10_000,
+      }, report, '$.course.vec.lawns[].x'),
+      y: finiteSave(lawn.y, 0, {
+        min: -10_000, max: 10_000,
+      }, report, '$.course.vec.lawns[].y'),
+      w: finiteSave(lawn.w, 1, {
+        min: 0.01, max: 1000,
+      }, report, '$.course.vec.lawns[].w'),
+      d: finiteSave(lawn.d, 1, {
+        min: 0.01, max: 1000,
+      }, report, '$.course.vec.lawns[].d'),
+      rot: finiteSave(lawn.rot, 0, {
+        min: -Math.PI * 8, max: Math.PI * 8,
+      }, report, '$.course.vec.lawns[].rot'),
+    });
+  }
+  if (vector.lawns.length !== rawLawns.length) {
+    noteRepair(report, '$.course.vec.lawns', 'invalid lawn records removed');
+  }
+  const all = ['holes', 'waters', 'streams', 'beds', 'mounds', 'lawns']
+    .flatMap((key) => Array.isArray(vector[key]) ? vector[key] : []);
+  vector.nextId = safeNextId(all, vector.nextId);
+  return vector;
+}
+
+function normalizeCourse(savedCourse, seed, persistedVersion, report) {
+  if (!isRecord(savedCourse)) {
+    noteRepair(report, '$.course', 'missing course replaced with the deterministic starting course');
+    return ensureCourseShape(buildStartingCourse(makeRng(seed)));
+  }
+  const w = finiteNumber(savedCourse.w, GRID_W, { integer: true, min: 1, max: 512 });
+  const h = finiteNumber(savedCourse.h, GRID_H, { integer: true, min: 1, max: 512 });
+  if (!Number.isSafeInteger(w * h) || w * h > MAX_COURSE_CELLS) {
+    noteRepair(report, '$.course', 'unsafe grid dimensions replaced with the deterministic starting course');
+    return ensureCourseShape(buildStartingCourse(makeRng(seed)));
+  }
+  const n = w * h;
+  let fallback = null;
+  const needsFallbackGrid = !Array.isArray(savedCourse.zones)
+    || !Array.isArray(savedCourse.elevation)
+    || savedCourse.zones.length !== n
+    || savedCourse.elevation.length !== n;
+  if (needsFallbackGrid && w === GRID_W && h === GRID_H) fallback = buildStartingCourse(makeRng(seed));
+  const fallbackZones = fallback?.zones || new Uint8Array(n).fill(ZONE.OUT);
+  const fallbackElevation = fallback?.elevation || new Float32Array(n);
+  const zones = normalizeNumericArray(
+    savedCourse.zones,
+    fallbackZones,
+    Uint8Array,
+    report,
+    '$.course.zones',
+    (number, index) => Number.isInteger(number) && number >= ZONE.OUT && number <= ZONE_MAX_ID
+      ? number
+      : fallbackZones[index],
+  );
+  const elevation = normalizeNumericArray(
+    savedCourse.elevation,
+    fallbackElevation,
+    Float32Array,
+    report,
+    '$.course.elevation',
+    (number) => Math.min(5000, Math.max(-5000, number)),
+  );
+  const holes = normalizeIds(savedCourse.holes, report, '$.course.holes', { max: 1000 })
+    .map((hole, index) => normalizeHole(hole, report, `$.course.holes[${index}]`));
+  const rawStructures = recordsOnly(
+    savedCourse.structures, report, '$.course.structures', { max: 10_000 },
+  );
+  const structures = [];
+  for (let index = 0; index < rawStructures.length; index += 1) {
+    const structure = rawStructures[index];
+    if (typeof structure.type !== 'string' || !structure.type.trim()
+        || !Number.isFinite(structure.x) || !Number.isFinite(structure.y)
+        || !Number.isFinite(structure.w) || structure.w <= 0
+        || !Number.isFinite(structure.h) || structure.h <= 0) continue;
+    structures.push({
+      ...structure,
+      type: structure.type.trim().slice(0, 100),
+      x: finiteSave(structure.x, 0, {
+        min: -10_000, max: 10_000,
+      }, report, `$.course.structures[${index}].x`),
+      y: finiteSave(structure.y, 0, {
+        min: -10_000, max: 10_000,
+      }, report, `$.course.structures[${index}].y`),
+      w: finiteSave(structure.w, 1, {
+        min: 0.01, max: 10_000,
+      }, report, `$.course.structures[${index}].w`),
+      h: finiteSave(structure.h, 1, {
+        min: 0.01, max: 10_000,
+      }, report, `$.course.structures[${index}].h`),
+    });
+  }
+  if (structures.length !== rawStructures.length) {
+    noteRepair(report, '$.course.structures', 'invalid structure records removed');
+  }
   const hadPersistedObjects = Array.isArray(savedCourse.objects);
+  const objects = hadPersistedObjects
+    ? normalizeIds(savedCourse.objects, report, '$.course.objects', {
+      max: 100_000,
+      accept: (object) => {
+        if (typeof object.type !== 'string' || !object.type.trim()
+            || !Number.isFinite(object.x) || !Number.isFinite(object.y)) return false;
+        const originalType = object.type;
+        object.type = object.type.trim().slice(0, 100);
+        object.x = finiteSave(object.x, 0, {
+          min: -10_000, max: 10_000,
+        }, report, '$.course.objects[].x');
+        object.y = finiteSave(object.y, 0, {
+          min: -10_000, max: 10_000,
+        }, report, '$.course.objects[].y');
+        object.rot = finiteSave(object.rot, 0, {
+          min: -Math.PI * 100, max: Math.PI * 100,
+        }, report, '$.course.objects[].rot');
+        object.scale = finiteSave(object.scale, 1, {
+          min: 0.01, max: 100,
+        }, report, '$.course.objects[].scale');
+        if (object.type !== originalType) {
+          noteRepair(report, '$.course.objects[].type', 'invalid object type normalized');
+        }
+        return true;
+      },
+    })
+    : [];
+  const paths = normalizeIds(savedCourse.paths, report, '$.course.paths', {
+    max: 10_000,
+    accept: (path) => {
+      const pts = normalizePointArray(path.pts, 2, report, '$.course.paths[].pts', { max: 4096 });
+      if (!pts) return false;
+      path.pts = pts;
+      path.width = finiteSave(path.width, 3.2, {
+        min: 0.1, max: 500,
+      }, report, '$.course.paths[].width');
+      const material = typeof path.material === 'string' && path.material.trim()
+        ? path.material.slice(0, 100)
+        : 'asphalt';
+      if (material !== path.material) {
+        noteRepair(report, '$.course.paths[].material', 'invalid path material normalized');
+      }
+      path.material = material;
+      return true;
+    },
+  });
   const course = {
-    w: savedCourse.w,
-    h: savedCourse.h,
-    zones: Uint8Array.from(savedCourse.zones),
-    elevation: Float32Array.from(savedCourse.elevation),
-    holes: cloneSaveValue(Array.isArray(savedCourse.holes) ? savedCourse.holes : []),
-    nextHoleId: savedCourse.nextHoleId,
-    structures: cloneSaveValue(Array.isArray(savedCourse.structures) ? savedCourse.structures : []),
-    objects: hadPersistedObjects ? cloneSaveValue(savedCourse.objects) : null,
-    nextObjectId: savedCourse.nextObjectId,
-    paths: cloneSaveValue(Array.isArray(savedCourse.paths) ? savedCourse.paths : []),
-    nextPathId: savedCourse.nextPathId,
+    w,
+    h,
+    zones,
+    elevation,
+    holes,
+    nextHoleId: safeNextId(holes, savedCourse.nextHoleId),
+    structures: cloneSaveValue(structures, []),
+    objects,
+    nextObjectId: safeNextId(objects, savedCourse.nextObjectId),
+    paths,
+    nextPathId: safeNextId(paths, savedCourse.nextPathId),
   };
-  if (savedCourse.vec) course.vec = cloneSaveValue(savedCourse.vec);
+  const vector = normalizeCourseVector(savedCourse.vec, seed, report);
+  if (vector) course.vec = vector;
   // Paint is editing data, not proof that a course is vector-based. Preserve it
   // independently so even unusual intermediary saves lose nothing.
-  if (savedCourse.paint) course.paint = Uint8Array.from(savedCourse.paint);
-  course.nextHoleId = safeNextId(course.holes, course.nextHoleId);
-  course.nextPathId = safeNextId(course.paths, course.nextPathId);
-  // A grid-only course is a supported legacy format. Earlier v6 code replaced
-  // every <=9-hole legacy layout with a newly generated vector course, silently
-  // discarding its terrain, routing, objects and paths. v7 keeps the persisted
-  // grid authoritative; absence of vec is not corruption.
+  if (savedCourse.paint) {
+    const defaults = new Uint8Array(n).fill(255);
+    course.paint = normalizeNumericArray(
+      savedCourse.paint,
+      defaults,
+      Uint8Array,
+      report,
+      '$.course.paint',
+      (number) => Math.min(255, Math.max(0, Math.trunc(number))),
+    );
+  }
+  // A grid-only course is a supported legacy format. Absence of vec is not
+  // corruption, and an explicitly empty object array remains authoritative.
   if (!hadPersistedObjects) {
-    // Pre-v5 saves had no authored object array (trees were renderer noise).
-    // Keep the established deterministic compatibility planting only when the
-    // field is truly absent. An explicitly empty array remains empty.
-    course.objects = [];
-    course.nextObjectId = 1;
     const specs = course.holes
-      .filter((h) => h.tee && h.pin)
-      .map((h) => ({ tee: h.tee, pin: h.pin, wp: [] }));
-    plantVegetation(course, specs, makeRng(((raw.seed >>> 0) ^ 0x7ee5) || 1), { density: 1 });
+      .filter((hole) => hole.tee && hole.pin)
+      .map((hole) => ({ tee: hole.tee, pin: hole.pin, wp: [] }));
+    plantVegetation(course, specs, makeRng(((seed >>> 0) ^ 0x7ee5) || 1), { density: 1 });
+    course.nextObjectId = safeNextId(course.objects, 1);
+    if (persistedVersion >= 5) noteRepair(report, '$.course.objects', 'missing object field restored deterministically');
   }
   course.nextObjectId = safeNextId(course.objects, course.nextObjectId);
   ensureCourseShape(course);
@@ -537,28 +1063,22 @@ export function deserialize(json) {
     property: cloneSaveValue(raw.property) || null,
     propertyInventory: cloneSaveValue(raw.propertyInventory) || null,
   };
-  if (raw.turf) {
-    state.turf = {
-      health: Float32Array.from(raw.turf.health),
-      moisture: Float32Array.from(raw.turf.moisture),
-      nutrients: Float32Array.from(raw.turf.nutrients),
-      heightMm: Float32Array.from(raw.turf.heightMm),
-      wear: Float32Array.from(raw.turf.wear),
-      disType: Uint8Array.from(raw.turf.disType),
-      disSev: Float32Array.from(raw.turf.disSev),
-      treated: Uint8Array.from(raw.turf.treated),
-    };
-  } else {
-    // pre-turf (version 1) saves: initialize fresh turf so old saves stay loadable
-    initTurf(state);
-  }
-  if (!state.maintenance) {
-    state.maintenance = {
-      policies: defaultPolicies(),
-      lastMowDay: { green: -10, tee: -10, fairway: -10, rough: -10 },
-      lastFertDay: { green: -10, tee: -10, fairway: -10, rough: -10 },
-      crewUnits: 1,
-      lastReport: null,
+}
+
+function normalizeShopState(state, rawShop, defaults, report) {
+  const shop = state.shop;
+  if (!isRecord(shop.inventory)) shop.inventory = cloneSaveValue(defaults.inventory, {});
+  for (const sku of SHOP_CATALOG) {
+    const fallback = defaults.inventory[sku.id] || { shelf: 0, back: 0 };
+    const source = isRecord(shop.inventory[sku.id]) ? shop.inventory[sku.id] : fallback;
+    if (!isRecord(shop.inventory[sku.id])) noteRepair(report, `$.shop.inventory.${sku.id}`, 'inventory line defaulted');
+    shop.inventory[sku.id] = {
+      shelf: finiteSave(source.shelf, fallback.shelf, {
+        integer: true, min: 0, max: 1_000_000_000,
+      }, report, `$.shop.inventory.${sku.id}.shelf`),
+      back: finiteSave(source.back, fallback.back, {
+        integer: true, min: 0, max: 1_000_000_000,
+      }, report, `$.shop.inventory.${sku.id}.back`),
     };
   }
   // pre-v3 saves: bootstrap the club layer fresh
@@ -575,18 +1095,15 @@ export function deserialize(json) {
   ensureShopProgression(state, { legacy: persistedVersion < 12 });
   if (state.shop.drawer) state.shop.drawer = migrateDrawer(state.shop.drawer);
   ensurePaymentBag(state); // a half-used balanced batch survives the reload intact
-  ensureShopReno(state); // pre-restoration saves gain the rundown shop state
+  paymentBagStats(state);
+  ensureLayout(state);
+  ensureClubhouseArchitecture(state);
+  ensureDebris(state);
+  ensureWet(state, CLEANING_FIELD.w, CLEANING_FIELD.h);
+  ensureWash(state);
   migrateLegacyRetailLayout(state.shop, persistedVersion);
   migrateFeatureCategory(state.shop, persistedVersion);
-  reconcileLegacyMovedFixturePoses(state, persistedVersion);
-  if (!Array.isArray(state.shop.transactionHistory)) state.shop.transactionHistory = [];
-  if (!Number.isFinite(state.shop.nextTransactionNo)) {
-    const greatestTicket = state.shop.transactionHistory.reduce(
-      (greatest, ticket) => Math.max(greatest, Number(ticket && ticket.number) || 0),
-      0,
-    );
-    state.shop.nextTransactionNo = greatestTicket + 1;
-  }
+  reconcileMovedFixturePoses(state, report);
   recoverCheckout(state); // a save taken mid-sale: the shoppers are gone, so put their goods back
   reconcileShelfCapacity(state.shop); // authored shelf slots win; overflow remains owned in back stock
   reconcileUnavailableFixtureStock(state); // absent fixtures cannot retain invisible shelf inventory
@@ -595,22 +1112,43 @@ export function deserialize(json) {
   ensurePropertyInventory(state); // v11 owns placeables per property; legacy decor migrates once
   if (raw.reservations) state.reservations = raw.reservations;
   ensureReservations(state); // pre-booking saves gain an empty tee sheet
-  if (raw.customerDirectory) state.customerDirectory = raw.customerDirectory;
   ensureCustomerDirectory(state); // pre-v4 saves gain stable full-name customer authority
   reconcileReservationCustomerIdentities(state); // enroll legacy bookings once, then repair their references
-  if (raw.tractor) state.tractor = raw.tractor;
   ensureTractor(state, { legacyRepaired: true }); // old saves keep their working tractor
-  if (raw.props) state.props = raw.props;
   ensureCourseProps(state); // old saves gain the litter/sign restoration props
-  if (raw.progression) state.progression = raw.progression;
-  else initProgression(state);
-  if (raw.tutorial) state.tutorial = raw.tutorial;
-  else initTutorial(state);
   ensureTutorial(state); // older saves re-derive their spot in the chaptered arc
-  if (raw.notifications) state.notifications = raw.notifications;
   ensureNotifications(state); // pre-feed saves gain an empty, well-formed inbox
-  state.uiPrefs = raw.uiPrefs && typeof raw.uiPrefs === 'object' ? raw.uiPrefs : {};
-  state.debtDays = raw.debtDays || 0;
-  state.failed = raw.failed || null;
-  return state;
+  state.uiPrefs = isRecord(state.uiPrefs) ? state.uiPrefs : {};
+  // Defaults and legacy adapters may need deterministic random data, but they
+  // must never consume the saved game's future stream.
+  state.rngState = finiteSave(raw.rngState, generatedRngState, {
+    integer: true,
+    min: 0,
+    max: 0xffffffff,
+  }, report, '$.rngState');
+  state.version = SAVE_VERSION;
+  return { state, report: finishSaveReport(report) };
+}
+
+export function deserialize(json) {
+  return deserializeWithReport(json).state;
+}
+
+export function validateGameSave(json) {
+  try {
+    const { report } = deserializeWithReport(json);
+    return { compatible: true, valid: !report.recovered, report, error: null };
+  } catch (error) {
+    return {
+      compatible: error?.code !== 'SAVE_VERSION_UNSUPPORTED',
+      valid: false,
+      report: null,
+      error: {
+        name: error?.name || 'Error',
+        code: error?.code || 'SAVE_DATA_ERROR',
+        message: error?.message || String(error),
+        path: error?.path || '$',
+      },
+    };
+  }
 }

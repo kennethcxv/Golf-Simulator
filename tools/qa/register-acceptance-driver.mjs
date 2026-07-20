@@ -13,7 +13,6 @@ if (SKUS.length !== 3 || new Set(SKUS).size !== 3) {
 const REQUIRE_OVERSIZE_HANDOFF = process.env.REGISTER_QA_REQUIRE_OVERSIZE_HANDOFF === '1';
 const COUNTER_TOP = 1.055;
 const CARRY_Y = COUNTER_TOP + 0.115;
-const SCANNER = { x: 2.70, y: CARRY_Y, z: 4.22 };
 const BAG = { x: 3.50, y: CARRY_Y, z: 4.44 };
 const CARD_TERMINAL = { x: 2.05, y: COUNTER_TOP + 0.06, z: 3.88 };
 
@@ -22,11 +21,26 @@ function roundedPoint(point) {
   return { x: Math.round(point.x), y: Math.round(point.y) };
 }
 
-async function boot(page) {
-  await page.goto(BASE_URL);
+async function boot(page, baseUrl = BASE_URL) {
+  await page.goto(baseUrl);
   await page.setViewportSize(VIEWPORT);
   await page.waitForTimeout(1000);
-  await page.getByText('Continue', { exact: true }).click().catch(() => {});
+  const continueButton = page.getByText('Continue', { exact: true });
+  if (await continueButton.isEnabled().catch(() => false)) {
+    await continueButton.click();
+  } else {
+    // A clean QA profile has no save to continue. Starting the relaxed fixture
+    // is still the normal player-facing menu path and makes the driver usable
+    // in isolated worktrees and clean-install CI runs.
+    await page.getByText('New Empire — Relaxed', { exact: true }).click();
+  }
+  // Continue may restore an empire that has not bought its first property yet,
+  // and a brand-new profile always opens the property market. Complete that
+  // player-facing prerequisite instead of depending on leaked browser storage.
+  const firstAffordableProperty = page.getByRole('button', { name: 'Buy', exact: true }).first();
+  if (await firstAffordableProperty.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await firstAffordableProperty.click();
+  }
   await page.waitForFunction(() => window.__fw && window.__fw.scene3d
     && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null,
   { timeout: 40000 });
@@ -34,6 +48,10 @@ async function boot(page) {
     const veil = document.querySelector('.load-veil');
     return !veil || veil.style.display === 'none'
       || getComputedStyle(veil).opacity === '0';
+  }, null, { timeout: 40000 });
+  await page.waitForFunction(() => {
+    const runtime = window.__fw?.scene3d?.clubhouse?.()?.assets51to100Runtime?.diagnostics?.();
+    return !runtime || (runtime.placed === 40 && runtime.failed === 0);
   }, null, { timeout: 40000 });
   await page.waitForTimeout(1200);
   // Exercise the same normal canvas click a player uses to resume first-person
@@ -115,7 +133,8 @@ async function installReadOnlyProbe(page, skuIds) {
         const barcode = bc.getWorldPosition(new THREE.Vector3());
         out.barcode = { x: barcode.x - offset.x, y: barcode.y - offset.y, z: barcode.z - offset.z };
         const q = bc.getWorldQuaternion(new THREE.Quaternion());
-        out.barcodeFacing = new THREE.Vector3(0, 0, 1).applyQuaternion(q).normalize().y;
+        const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(q).normalize();
+        out.barcodeNormal = { x: normal.x, y: normal.y, z: normal.z };
       }
       return out;
     };
@@ -266,7 +285,7 @@ async function interpolateMouse(page, from, to, steps = 14, delay = 14) {
   return to;
 }
 
-export async function runRegisterAcceptance(page, mode) {
+export async function runRegisterAcceptance(page, mode, { baseUrl = BASE_URL } = {}) {
   if (mode !== 'card' && mode !== 'cash') throw new Error(`Unsupported payment mode: ${mode}`);
 
   const evidenceRoot = process.env.REGISTER_QA_ROOT || 'qa/cash-register-production/acceptance';
@@ -393,7 +412,7 @@ export async function runRegisterAcceptance(page, mode) {
 
   try {
     currentStep = 'boot game';
-    await boot(page);
+    await boot(page, baseUrl);
     await installReadOnlyProbe(page, SKUS);
 
     currentStep = 'deterministic register setup';
@@ -490,14 +509,16 @@ export async function runRegisterAcceptance(page, mode) {
 
     currentStep = 'scan and stage three physical products';
     const initialTx = await txState();
-    const stageTargets = [
-      // Use the front edge of the authored green mat so all three physical goods
-      // remain distinct instead of settling in a depth stack behind the printer.
-      // Every point is still strictly inside REGISTER.bagging.
-      { x: 3.34, y: CARRY_Y, z: 4.57 },
-      { x: 3.49, y: CARRY_Y, z: 4.57 },
-      { x: 3.64, y: CARRY_Y, z: 4.57 },
-    ];
+    const stageTargets = await page.evaluate(async (count) => {
+      const { REGISTER } = await import('/src/data/shopLayout.js');
+      const zone = REGISTER.scannedStaging;
+      return Array.from({ length: count }, (_, index) => ({
+        x: zone.minX + 0.05 + (zone.maxX - zone.minX - 0.10)
+          * (count === 1 ? 0.5 : index / (count - 1)),
+        y: 1.055 + 0.115,
+        z: (zone.minZ + zone.maxZ) / 2,
+      }));
+    }, initialTx.items.length);
     for (let index = 0; index < initialTx.items.length; index++) {
       const uid = initialTx.items[index].uid;
       const info = await page.evaluate((id) => window.__qaRegister.item(id), uid);
@@ -507,18 +528,27 @@ export async function runRegisterAcceptance(page, mode) {
       screenPoints[`item-${index + 1}`] = roundedPoint(from);
       await page.mouse.move(from.x, from.y);
       await page.mouse.down();
+      const scannerAlignment = await page.evaluate(() => (
+        window.__fw.scene3d.clubhouse().register.scanAlignment()
+      ));
       let rotated = null;
+      let barcodeFacing = null;
       for (let turn = 0; turn < 4; turn++) {
-        // The label is authored on the back face, so a downward wheel notch rolls it
-        // underneath. Probe the rendered normal after each real wheel event instead
-        // of assuming that every product began with the same yaw.
+        // Products and scanner models may be authored at different rotations. Probe
+        // the rendered normal against the scanner's actual ray after each real wheel
+        // event rather than assuming a particular world-up convention.
         await page.mouse.wheel(0, 120);
         await page.waitForTimeout(70);
         rotated = await page.evaluate((id) => window.__qaRegister.item(id), uid);
-        if (rotated && rotated.barcodeFacing <= -0.35) break;
+        if (rotated?.barcodeNormal) {
+          barcodeFacing = rotated.barcodeNormal.x * scannerAlignment.direction[0]
+            + rotated.barcodeNormal.y * scannerAlignment.direction[1]
+            + rotated.barcodeNormal.z * scannerAlignment.direction[2];
+        }
+        if (barcodeFacing != null && barcodeFacing <= -0.35) break;
       }
-      assert(rotated && rotated.barcodeFacing <= -0.35,
-        `Mouse wheel did not rotate ${uid}'s barcode toward the scanner (dot ${rotated && rotated.barcodeFacing}).`);
+      assert(rotated && barcodeFacing != null && barcodeFacing <= -0.35,
+        `Mouse wheel did not rotate ${uid}'s barcode toward the scanner (dot ${barcodeFacing}).`);
       if (index === 0) await shot('first-product-barcode-visible');
 
       // Drag the product origin so its authored barcode anchor—not a generic box
@@ -527,10 +557,24 @@ export async function runRegisterAcceptance(page, mode) {
       assert(rotated.origin && rotated.barcode,
         `Physical product ${uid} did not expose its authored origin/barcode anchor.`);
       let cursor = from;
+      const barcodeOffset = {
+        x: rotated.barcode.x - rotated.origin.x,
+        y: rotated.barcode.y - rotated.origin.y,
+        z: rotated.barcode.z - rotated.origin.z,
+      };
+      const carriedBarcodeY = CARRY_Y + barcodeOffset.y;
+      const rayDistance = Math.abs(scannerAlignment.direction[1]) > 1e-5
+        ? Math.min(0.20, Math.max(0.04,
+          (carriedBarcodeY - scannerAlignment.origin[1]) / scannerAlignment.direction[1]))
+        : 0.12;
+      const scannerTarget = {
+        x: scannerAlignment.origin[0] + scannerAlignment.direction[0] * rayDistance,
+        z: scannerAlignment.origin[2] + scannerAlignment.direction[2] * rayDistance,
+      };
       const scanOrigin = {
-        x: SCANNER.x - (rotated.barcode.x - rotated.origin.x),
+        x: scannerTarget.x - barcodeOffset.x,
         y: CARRY_Y,
-        z: SCANNER.z - (rotated.barcode.z - rotated.origin.z),
+        z: scannerTarget.z - barcodeOffset.z,
       };
       const scannerPx = await project(scanOrigin);
       assert(scannerPx.inView,
@@ -553,7 +597,7 @@ export async function runRegisterAcceptance(page, mode) {
       await page.mouse.up();
       await waitItem(uid, 'staged', true, 5000);
       log.push({ action: `product ${index + 1} rotated, scanned, and staged`, uid,
-        barcodeFacing: rotated.barcodeFacing });
+        barcodeFacing });
     }
     // Let the final placement hand retract and the scan-focus camera return to its
     // settled wide pose before judging the staged-product composition.
@@ -581,7 +625,9 @@ export async function runRegisterAcceptance(page, mode) {
       // reader. Let that visible 0.68 s presentation finish before the cashier
       // reaches for the terminal, exactly as a player watching the motion would.
       await page.waitForTimeout(900);
-      const terminalPx = await project(CARD_TERMINAL);
+      const terminalPx = await page.evaluate(() => (
+        window.__fw.scene3d.clubhouse().register.cardTerminalScreenPoint()
+      ));
       assert(terminalPx.inView, 'Card terminal was outside the cashier camera.');
       screenPoints.cardTerminal = roundedPoint(terminalPx);
       await page.mouse.click(terminalPx.x, terminalPx.y);
@@ -602,6 +648,11 @@ export async function runRegisterAcceptance(page, mode) {
           const channel = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.swipeAt());
           top = await project(channel.top);
           bottom = await project(channel.bot);
+          screenPoints.swipeChannelAttempt = {
+            local: channel,
+            top,
+            bottom,
+          };
           assert(top.inView && bottom.inView, 'The swipe channel endpoints were outside the swipe camera.');
           await page.mouse.move(top.x, top.y);
           await page.mouse.down();
@@ -715,13 +766,13 @@ export async function runRegisterAcceptance(page, mode) {
       const undoCoinPx = await project({ x: undoCoin.x, y: undoCoin.y, z: undoCoin.z });
       screenPoints.changeCoinUndo = roundedPoint(undoCoinPx);
       await page.mouse.click(undoCoinPx.x, undoCoinPx.y);
-      await page.waitForFunction(() => !!window.__qaRegister.money('hand', 0.2), null, { timeout: 4000 });
+      await page.waitForFunction(() => !!window.__qaRegister.money('change', 0.2), null, { timeout: 4000 });
       await shot('physical-coin-selected');
-      const heldCoin = await page.evaluate(() => window.__qaRegister.money('hand', 0.2));
+      const heldCoin = await page.evaluate(() => window.__qaRegister.money('change', 0.2));
       const heldCoinPx = await project({ x: heldCoin.x, y: heldCoin.y, z: heldCoin.z });
       screenPoints.changeCoinUndoReturn = roundedPoint(heldCoinPx);
       await page.mouse.click(heldCoinPx.x, heldCoinPx.y);
-      await page.waitForFunction(() => !window.__qaRegister.money('hand', 0.2), null, { timeout: 4000 });
+      await page.waitForFunction(() => !window.__qaRegister.money('change', 0.2), null, { timeout: 4000 });
       log.push({ action: 'physical 20-unit coin selected then returned to its drawer compartment' });
 
       const change = await page.evaluate(async () => {
@@ -746,6 +797,7 @@ export async function runRegisterAcceptance(page, mode) {
           await page.waitForTimeout(90);
         }
       }
+      await waitForCameraStable(page);
       await shot('correct-change-selected');
 
       currentStep = 'hand change to customer palm';
@@ -795,7 +847,8 @@ export async function runRegisterAcceptance(page, mode) {
     await page.mouse.down();
     await waitStage('bagging', 6000);
     await waitForCameraStable(page);
-    const receiptBagPx = await project(BAG);
+    const liveBagForReceipt = await page.evaluate(() => window.__qaRegister.kind('bag'));
+    const receiptBagPx = await project(liveBagForReceipt || BAG);
     screenPoints.receiptBag = roundedPoint(receiptBagPx);
     await interpolateMouse(page, receiptPx, receiptBagPx, 18, 13);
     await page.mouse.up();
@@ -818,10 +871,35 @@ export async function runRegisterAcceptance(page, mode) {
         if (info) candidates.push({ item, info });
       }
       candidates.sort((a, b) => b.info.z - a.info.z);
-      const candidate = candidates[guard % candidates.length];
-      assert(candidate, 'No visible unbagged product remained on the counter.');
-      const from = await project({ x: candidate.info.x, y: candidate.info.y, z: candidate.info.z });
-      const to = await project(BAG);
+      let candidate = null;
+      let from = null;
+      const hitOffsets = [
+        { x: 0, y: 0 }, { x: -14, y: 0 }, { x: 14, y: 0 },
+        { x: 0, y: -14 }, { x: 0, y: 14 },
+        { x: -28, y: -12 }, { x: 28, y: -12 },
+        { x: -28, y: 12 }, { x: 28, y: 12 },
+      ];
+      for (const possible of candidates) {
+        const centre = await project({ x: possible.info.x, y: possible.info.y, z: possible.info.z });
+        if (!centre.inView) continue;
+        for (const offset of hitOffsets) {
+          const point = { x: centre.x + offset.x, y: centre.y + offset.y, inView: true };
+          if (point.x < 1 || point.x >= VIEWPORT.width - 1
+              || point.y < 1 || point.y >= VIEWPORT.height - 1) continue;
+          const picked = await page.evaluate(({ x, y }) => (
+            window.__fw.scene3d.clubhouse().register.debugPickAt(x, y)
+          ), point);
+          if (picked?.physical?.kind === 'item' && picked.physical.uid === possible.item.uid) {
+            candidate = possible;
+            from = point;
+            break;
+          }
+        }
+        if (candidate) break;
+      }
+      assert(candidate && from, 'No visible hit point remained for an unbagged physical product.');
+      const liveBag = await page.evaluate(() => window.__qaRegister.kind('bag'));
+      const to = await project(liveBag || BAG);
       assert(from.inView && to.inView,
         `Bagging drag left the bagging camera (${Math.round(from.x)},${Math.round(from.y)} to ${Math.round(to.x)},${Math.round(to.y)}).`);
       bagAction++;
@@ -987,10 +1065,6 @@ export async function runRegisterAcceptance(page, mode) {
       log.push({ action: 'customer owns visible separately handed oversize goods',
         oversizeCarry: acceptanceCustomer.oversizeCarry });
     }
-    // Returning to normal first-person control is part of the recording. A normal
-    // canvas click restores pointer lock and removes the automation-only play veil.
-    await page.mouse.click(VIEWPORT.width / 2, VIEWPORT.height / 2);
-    await page.waitForTimeout(140);
     await shot('customer-accepts-bag');
 
     currentStep = 'customer leaves checkout';
@@ -1021,8 +1095,21 @@ export async function runRegisterAcceptance(page, mode) {
         'The customer moved away but lost separately handed oversize goods during departure.');
     }
     await shot('customer-leaving');
+
+    currentStep = 'return to shop through checkout monitor';
+    const exitPoint = await page.evaluate(() => (
+      window.__fw.scene3d.clubhouse().register.monitorScreenPoint('exit')
+    ));
+    assert(exitPoint && exitPoint.inView,
+      'The completed checkout did not expose a visible Return to Shop control.');
+    screenPoints.returnToShop = roundedPoint(exitPoint);
+    await page.mouse.click(exitPoint.x, exitPoint.y);
     await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.isActive(), null,
       { timeout: 5000 });
+    // Returning to normal first-person control is part of the recording. A normal
+    // canvas click restores pointer lock and removes the automation-only play veil.
+    await page.mouse.click(VIEWPORT.width / 2, VIEWPORT.height / 2);
+    await page.waitForTimeout(140);
 
     const final = await snapshot();
     assert(!final.tx && !final.active, 'Transaction banked but register mode remained active.');

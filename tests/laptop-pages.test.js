@@ -1,7 +1,7 @@
 // EVERY PAGE OF GOLF SIMULATOR, DRAWN HEADLESS.
 //
 // makeLaptop is DOM code, but its pages are pure functions of the sim state — so a sixty-line
-// stand-in for the handful of DOM calls they make is enough to draw all twenty-four pages
+// stand-in for the handful of DOM calls they make is enough to draw every page and tab
 // against a real newGame() state and a lived-in one. What this catches: a page that throws on
 // a virgin club (the shell would show its error card), a nav id with no page behind it, and
 // any page that forgets its empty states. The projection/geometry side has its own tests.
@@ -55,7 +55,7 @@ globalThis.document = {
   body: uiRoot,
 };
 
-const { newGame, update } = await import('../src/sim/state.js');
+const { newGame, update, serialize, deserialize } = await import('../src/sim/state.js');
 const { makeLaptop } = await import('../src/ui/laptop.js');
 const { placeOrder } = await import('../src/sim/shop.js');
 const { bookSlot, daySheet } = await import('../src/sim/reservations.js');
@@ -63,6 +63,8 @@ const { refreshMarketIfDue, hireStaff } = await import('../src/sim/staff.js');
 const { calendarOf } = await import('../src/sim/time.js');
 const { notify } = await import('../src/sim/notifications.js');
 const { postReview } = await import('../src/sim/reviews.js');
+const { clubRatings, amenityScore, fairGreenFee } = await import('../src/sim/club.js');
+const { formatMoney } = await import('../src/core/utils.js');
 
 // THE WHOLE SIDEBAR: seven pages, nothing else. Retired desk ids stay routable
 // through PAGE_ALIAS — tested separately below.
@@ -75,8 +77,8 @@ const ALIASES = {
   maintenance: ['course'], reno: ['course'],
   employees: ['upgrades'], rentals: ['upgrades'], events: ['upgrades'],
   analytics: ['finances'],
-  reviews: ['home'], marketing: ['home'], notifications: ['home'], help: ['home'],
-  customers: ['reservations'], memberships: ['reservations'],
+  reviews: ['finances'], marketing: ['finances'], notifications: ['home'], help: ['home'],
+  customers: ['reservations'], memberships: ['finances'],
 };
 
 function walk(node, fn) {
@@ -101,6 +103,12 @@ function checkboxForLabel(root, label) {
       if (!match && child.tagName === 'input' && child.attrs.type === 'checkbox') match = child;
     });
   });
+  return match;
+}
+
+function firstNode(root, predicate) {
+  let match = null;
+  walk(root, (node) => { if (!match && predicate(node)) match = node; });
   return match;
 }
 
@@ -180,9 +188,11 @@ test('the tabbed pages draw every tab without throwing', () => {
       assert.equal(crash, null, `${pageId}:${tab} drew an error card: ${crash}`);
     }
   };
-  drive('shop', ['Stock', 'Order', 'Pricing', 'Deliveries']);
+  drive('shop', ['Inventory', 'Orders & Suppliers', 'Pricing', 'Deliveries']);
   drive('course', ['Overview', 'Tasks', 'Holes']);
-  drive('upgrades', ['Course', 'Clubhouse', 'Staff', 'Equipment']);
+  drive('upgrades', ['Course', 'Renovations', 'Staff', 'Equipment']);
+  drive('finances', ['Finances', 'Reviews', 'Memberships', 'Marketing']);
+  drive('settings', ['General', 'Checkout']);
   lap.close();
 });
 
@@ -211,6 +221,12 @@ test('checkout accessibility settings are player-facing and write persisted ui p
   const st = newGame('relaxed', 77);
   const lap = openLaptop(st);
   lap.go('settings');
+  let checkoutTab = null;
+  walk(lap.root, (node) => {
+    if (!checkoutTab && node.tagName === 'button' && node.textContent === 'Checkout') checkoutTab = node;
+  });
+  assert.ok(checkoutTab, 'Checkout settings tab is visible');
+  checkoutTab.click();
   const choices = [
     ['Larger POS text and targets', 'largeTextAndTargets', true],
     ['Reduced checkout camera motion', 'reducedCameraMotion', true],
@@ -232,5 +248,132 @@ test('checkout accessibility settings are player-facing and write persisted ui p
   } finally {
     globalThis.setTimeout = originalSetTimeout;
   }
+  lap.close();
+});
+
+test('business tabs expose live reviews, memberships, marketing, utilities, and persist their real controls', () => {
+  const st = newGame('relaxed', 78);
+  const cal = calendarOf(st.clock.minutes);
+  postReview(st, {
+    stars: 2,
+    text: 'The shelves were bare.',
+    day: cal.dayAbs,
+    cited: [{ id: 'stock' }],
+  });
+  const lap = openLaptop(st);
+
+  lap.go('reviews');
+  assert.equal(lap.pageId(), 'finances');
+  assert.match(lap.root.textContent, /What guests experience right now/);
+  assert.match(lap.root.textContent, /The shelves were bare/);
+
+  lap.go('memberships');
+  assert.match(lap.root.textContent, /Fairway Card/);
+  assert.match(lap.root.textContent, /Member Roll/);
+  const duesSlider = firstNode(lap.root, (node) => node.tagName === 'input' && node.attrs.type === 'range');
+  assert.ok(duesSlider, 'membership dues slider is visible');
+  const nextDues = Number(st.club.dues.weekday) + 25;
+  duesSlider._listeners.input[0]({ target: { value: String(nextDues) } });
+  assert.equal(st.club.dues.weekday, nextDues, 'the visible slider writes the membership model');
+
+  lap.go('marketing');
+  assert.match(lap.root.textContent, /Why demand moved/);
+  assert.match(lap.root.textContent, /15% shopper-attention nudge/);
+  const featureButton = firstNode(lap.root, (node) => node.tagName === 'button' && node.textContent === 'Golf balls');
+  assert.ok(featureButton, 'a real merchandise feature control is visible');
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = (callback) => { callback(); return 0; };
+  try {
+    featureButton.click();
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+  assert.equal(st.shop.featureCategory, 'balls');
+
+  lap.go('analytics');
+  assert.match(lap.root.textContent, /Daily Commitments/);
+  assert.match(lap.root.textContent, /Utilities\$45/);
+
+  const loaded = deserialize(serialize(st));
+  assert.equal(loaded.club.dues.weekday, nextDues, 'membership pricing survives save/load');
+  assert.equal(loaded.shop.featureCategory, 'balls', 'the marketing feature survives save/load');
+  lap.close();
+});
+
+test('pro-shop supplier identity and complete booking verification are visible', () => {
+  const st = newGame('relaxed', 79);
+  const cal = calendarOf(st.clock.minutes);
+  const booked = bookSlot(st, cal.dayAbs, 600, {
+    name: 'Morgan Fairway',
+    partySize: 3,
+    holes: 9,
+    transport: 'cart',
+    rentalRequirements: ['clubs'],
+    paymentPreference: 'cash',
+  });
+  assert.equal(booked.ok, true);
+  const lap = openLaptop(st);
+
+  lap.go('supplier');
+  assert.match(lap.root.textContent, /Fairway Supply Co\./);
+  assert.match(lap.root.textContent, /Ironwood Golf/);
+  assert.match(lap.root.textContent, /Sunday Round Apparel/);
+
+  lap.go('reservations');
+  const viewButton = firstNode(lap.root, (node) => node.tagName === 'button' && node.textContent === 'View');
+  assert.ok(viewButton, 'booking detail is reachable');
+  viewButton.click();
+  assert.match(lap.root.textContent, /Round9 holes · cart/);
+  assert.match(lap.root.textContent, /Rentalsclubs/);
+  assert.match(lap.root.textContent, /Payment preferenceCash/);
+  lap.close();
+});
+
+test('opening-day management headlines distinguish history, sentiment, and shelf risk', () => {
+  const st = newGame('relaxed', 80);
+  const lap = openLaptop(st);
+
+  assert.match(lap.root.textContent, /Bookings/);
+  assert.match(lap.root.textContent, /Pro Shop/);
+
+  lap.go('memberships');
+  assert.match(lap.root.textContent, /0 joined in the last 7 days/);
+
+  lap.go('marketing');
+  assert.match(lap.root.textContent, /Guest sentimentNo reviews yetNo signal/);
+
+  lap.go('shop');
+  assert.match(lap.root.textContent, /Shelf Risks/);
+  assert.match(lap.root.textContent, /Fully out/);
+
+  lap.go('reservations');
+  assert.match(lap.root.textContent, /Groups on Sheet/);
+  assert.match(lap.root.textContent, /Front-desk flow/);
+  assert.match(lap.root.textContent, /physical desk monitor/);
+
+  lap.go('deliveries');
+  assert.match(lap.root.textContent, /Receiving Pad/);
+  assert.match(lap.root.textContent, /OrderChoose products and suppliers/);
+  assert.match(lap.root.textContent, /StockCarry, cut, unpack, and shelve/);
+
+  st.club.amenities.range = 3;
+  st.club.amenities.restaurant = 3;
+  st.club.amenities.instruction = 2;
+  lap.go('pricing');
+  const fair = fairGreenFee(clubRatings(st).overall, amenityScore(st));
+  assert.match(lap.root.textContent, new RegExp(`fair fee for this course is about \\${formatMoney(fair)}`));
+  assert.match(lap.root.textContent, /× demand/);
+  assert.match(lap.root.textContent, /% \/ \$[\d,]+ sample/);
+
+  lap.go('maintenance');
+  assert.match(lap.root.textContent, /Turf Issues/);
+  assert.match(lap.root.textContent, /Priority Jobs/);
+  assert.match(lap.root.textContent, /Priority Cost/);
+  assert.doesNotMatch(lap.root.textContent, /Pond —|(?:Fairway|Greenside) bunker[^—]*— (?:Stressed|Declining)/i);
+  assert.match(lap.root.textContent, /Increase water|Feed at dawn|Mow at dawn|Aerate|Rest \/ monitor/);
+
+  lap.go('employees');
+  assert.match(lap.root.textContent, /Role Coverage/);
+  assert.match(lap.root.textContent, /Course Crew/);
   lap.close();
 });

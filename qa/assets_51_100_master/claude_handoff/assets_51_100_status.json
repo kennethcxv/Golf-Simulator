@@ -44,7 +44,7 @@
         "fileBytes": 692292,
         "reimport": {
           "asset": 51,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_051_finished_clubhouse_exterior.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_051_finished_clubhouse_exterior.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -734,7 +734,7 @@
         "fileBytes": 315728,
         "reimport": {
           "asset": 52,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_052_dilapidated_clubhouse_exterior.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_052_dilapidated_clubhouse_exterior.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -1000,7 +1000,7 @@
         "fileBytes": 292936,
         "reimport": {
           "asset": 53,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_053_main_entrance_double_door.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_053_main_entrance_double_door.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -1379,7 +1379,7 @@
         "fileBytes": 702772,
         "reimport": {
           "asset": 54,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_054_exterior_porch_and_steps.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_054_exterior_porch_and_steps.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -1701,7 +1701,7 @@
         "fileBytes": 423688,
         "reimport": {
           "asset": 55,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_055_clubhouse_windows_set.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -2026,7 +2026,7 @@
         "fileBytes": 176152,
         "reimport": {
           "asset": 56,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_056_interior_wall_panel_kit.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -2274,7 +2274,7 @@
         "fileBytes": 160912,
         "reimport": {
           "asset": 57,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_057_interior_trim_and_baseboard_kit.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_057_interior_trim_and_baseboard_kit.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -2487,7 +2487,7 @@
         "fileBytes": 80332,
         "reimport": {
           "asset": 58,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_058_ceiling_and_beam_kit.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -2679,7 +2679,7 @@
         "fileBytes": 731856,
         "reimport": {
           "asset": 59,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_059_renovated_flooring_set.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_059_renovated_flooring_set.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -2883,7 +2883,7 @@
         "fileBytes": 366840,
         "reimport": {
           "asset": 60,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_06/asset_060_damaged_flooring_set.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_06/asset_060_damaged_flooring_set.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -3131,7 +3131,7 @@
         "fileBytes": 160840,
         "reimport": {
           "asset": 61,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_07/asset_061_front_desk_counter_shell.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_07/asset_061_front_desk_counter_shell.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -3395,7 +3395,7 @@
         "fileBytes": 284716,
         "reimport": {
           "asset": 62,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_07/asset_062_back_counter_storage_cabinets.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_07/asset_062_back_counter_storage_cabinets.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -3710,7 +3710,7 @@
         "fileBytes": 182648,
         "reimport": {
           "asset": 63,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_07/asset_063_pro_shop_fitting_room.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_07/asset_063_pro_shop_fitting_room.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -4035,7 +4035,7 @@
         "fileBytes": 103072,
         "reimport": {
           "asset": 64,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_07/asset_064_stockroom_shelving_system.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_07/asset_064_stockroom_shelving_system.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -4263,7 +4263,7 @@
         "fileBytes": 70512,
         "reimport": {
           "asset": 65,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_07/asset_065_stockroom_worktable.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_07/asset_065_stockroom_worktable.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -4492,7 +4492,7 @@
         "fileBytes": 144136,
         "reimport": {
           "asset": 66,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_07/asset_066_office_laptop_desk.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_07/asset_066_office_laptop_desk.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -4731,7 +4731,7 @@
         "fileBytes": 176332,
         "reimport": {
           "asset": 67,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_07/asset_067_clubhouse_lounge_sofa.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_07/asset_067_clubhouse_lounge_sofa.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -4992,7 +4992,7 @@
         "fileBytes": 123140,
         "reimport": {
           "asset": 68,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_07/asset_068_lounge_armchair_sheet07.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_07/asset_068_lounge_armchair_sheet07.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -5239,7 +5239,7 @@
         "fileBytes": 63380,
         "reimport": {
           "asset": 69,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_07/asset_069_lounge_coffee_table_sheet07.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_07/asset_069_lounge_coffee_table_sheet07.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -5456,7 +5456,7 @@
         "fileBytes": 158308,
         "reimport": {
           "asset": 70,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_07/asset_070_trophy_display_cabinet.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_07/asset_070_trophy_display_cabinet.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -5784,7 +5784,7 @@
         "fileBytes": 235196,
         "reimport": {
           "asset": 71,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_071_vacuum_cleaner.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_071_vacuum_cleaner.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -6004,7 +6004,7 @@
         "fileBytes": 106700,
         "reimport": {
           "asset": 71,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_071_vacuum_cleaner_fp.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_071_vacuum_cleaner_fp.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -6204,7 +6204,7 @@
         "fileBytes": 134740,
         "reimport": {
           "asset": 72,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_072_mop.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_072_mop.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -6376,7 +6376,7 @@
         "fileBytes": 131636,
         "reimport": {
           "asset": 72,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_072_mop_fp.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_072_mop_fp.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -6541,7 +6541,7 @@
         "fileBytes": 142396,
         "reimport": {
           "asset": 73,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_073_mop_bucket_and_wringer.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_073_mop_bucket_and_wringer.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -6768,7 +6768,7 @@
         "fileBytes": 193196,
         "reimport": {
           "asset": 74,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_074_broom.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_074_broom.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -6940,7 +6940,7 @@
         "fileBytes": 191476,
         "reimport": {
           "asset": 74,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_074_broom_fp.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_074_broom_fp.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -7106,7 +7106,7 @@
         "fileBytes": 48496,
         "reimport": {
           "asset": 75,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_075_dustpan.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_075_dustpan.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -7310,7 +7310,7 @@
         "fileBytes": 47296,
         "reimport": {
           "asset": 75,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_075_dustpan_fp.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_075_dustpan_fp.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -7506,7 +7506,7 @@
         "fileBytes": 55224,
         "reimport": {
           "asset": 76,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_076_cleaning_spray_bottle.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_076_cleaning_spray_bottle.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -7715,7 +7715,7 @@
         "fileBytes": 54892,
         "reimport": {
           "asset": 76,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_076_cleaning_spray_bottle_fp.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_076_cleaning_spray_bottle_fp.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -7922,7 +7922,7 @@
         "fileBytes": 35220,
         "reimport": {
           "asset": 77,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_077_cleaning_cloth_and_sponge_set.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_077_cleaning_cloth_and_sponge_set.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -8093,7 +8093,7 @@
         "fileBytes": 34320,
         "reimport": {
           "asset": 77,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_077_cleaning_cloth_and_sponge_set_fp.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_077_cleaning_cloth_and_sponge_set_fp.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -8260,7 +8260,7 @@
         "fileBytes": 182236,
         "reimport": {
           "asset": 78,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_078_pressure_washer.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_078_pressure_washer.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -8500,7 +8500,7 @@
         "fileBytes": 90704,
         "reimport": {
           "asset": 79,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_079_pressure_washer_hose_and_wand.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_079_pressure_washer_hose_and_wand.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -8768,7 +8768,7 @@
         "fileBytes": 71196,
         "reimport": {
           "asset": 79,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_079_pressure_washer_hose_and_wand_fp.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_079_pressure_washer_hose_and_wand_fp.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -9014,7 +9014,7 @@
         "fileBytes": 50644,
         "reimport": {
           "asset": 80,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_08/asset_080_trash_bag.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_08/asset_080_trash_bag.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -9194,7 +9194,7 @@
         "fileBytes": 51256,
         "reimport": {
           "asset": 80,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/firstperson/asset_080_trash_bag_fp.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/firstperson/asset_080_trash_bag_fp.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -9375,7 +9375,7 @@
         "fileBytes": 173448,
         "reimport": {
           "asset": 81,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_081_office_chair_sheet09.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_081_office_chair_sheet09.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -9553,7 +9553,7 @@
         "fileBytes": 70764,
         "reimport": {
           "asset": 82,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_082_filing_cabinet_sheet09.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_082_filing_cabinet_sheet09.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -9774,7 +9774,7 @@
         "fileBytes": 62720,
         "reimport": {
           "asset": 83,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_083_desk_lamp.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_083_desk_lamp.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -10008,7 +10008,7 @@
         "fileBytes": 43036,
         "reimport": {
           "asset": 84,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_084_office_printer.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_084_office_printer.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -10238,7 +10238,7 @@
         "fileBytes": 129732,
         "reimport": {
           "asset": 85,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_085_office_telephone.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_085_office_telephone.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -10526,7 +10526,7 @@
         "fileBytes": 90044,
         "reimport": {
           "asset": 86,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_086_corkboard_noticeboard.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_086_corkboard_noticeboard.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -10709,7 +10709,7 @@
         "fileBytes": 123048,
         "reimport": {
           "asset": 87,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_087_wall_clock.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_087_wall_clock.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -10926,7 +10926,7 @@
         "fileBytes": 103704,
         "reimport": {
           "asset": 88,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_088_key_rack.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_088_key_rack.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -11098,7 +11098,7 @@
         "fileBytes": 57496,
         "reimport": {
           "asset": 89,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_089_reservation_clipboard.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_089_reservation_clipboard.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -11293,7 +11293,7 @@
         "fileBytes": 101824,
         "reimport": {
           "asset": 90,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_09/asset_090_scorecard_holder.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_09/asset_090_scorecard_holder.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -11511,7 +11511,7 @@
         "fileBytes": 105692,
         "reimport": {
           "asset": 91,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_091_fire_extinguisher.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_091_fire_extinguisher.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -11807,7 +11807,7 @@
         "fileBytes": 77796,
         "reimport": {
           "asset": 92,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_092_first_aid_kit_cabinet.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_092_first_aid_kit_cabinet.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -12084,7 +12084,7 @@
         "fileBytes": 59444,
         "reimport": {
           "asset": 93,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_093_security_camera.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_093_security_camera.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -12266,7 +12266,7 @@
         "fileBytes": 67688,
         "reimport": {
           "asset": 94,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_094_exit_sign.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_094_exit_sign.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -12468,7 +12468,7 @@
         "fileBytes": 54808,
         "reimport": {
           "asset": 95,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_095_emergency_light.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_095_emergency_light.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -12694,7 +12694,7 @@
         "fileBytes": 88932,
         "reimport": {
           "asset": 96,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_096_bulletin_board.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_096_bulletin_board.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -12844,7 +12844,7 @@
         "fileBytes": 222340,
         "reimport": {
           "asset": 97,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_097_key_cabinet.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_097_key_cabinet.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -13088,7 +13088,7 @@
         "fileBytes": 40016,
         "reimport": {
           "asset": 98,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_098_hand_sanitizer_station.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_098_hand_sanitizer_station.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -13308,7 +13308,7 @@
         "fileBytes": 87956,
         "reimport": {
           "asset": 99,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_099_umbrella_stand.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_099_umbrella_stand.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,
@@ -13525,7 +13525,7 @@
         "fileBytes": 36408,
         "reimport": {
           "asset": 100,
-          "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_100_floor_mat_welcome_mat.glb",
+          "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_100_floor_mat_welcome_mat.glb",
           "ok": true,
           "errorCount": 0,
           "warningCount": 0,

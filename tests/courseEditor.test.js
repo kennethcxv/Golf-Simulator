@@ -4,6 +4,7 @@ import { ZONE, HOLE_STATUS } from '../src/sim/constants.js';
 import { BALANCE } from '../src/sim/balance.js';
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
 import { getZone } from '../src/sim/course.js';
+import { deriveZones } from '../src/sim/courseVec.js';
 import {
   makeEditSession, sessionDirty,
   beginTerrainStroke, sculptAt, endTerrainStroke,
@@ -98,6 +99,53 @@ test('paint stroke converts zones, prices them, undoes, and feeds turf sod', () 
   assert.equal(s.bill, res.cost);
   undo(st, s);
   assert.notEqual(getZone(st.course, QX, QY), ZONE.FAIRWAY, 'undo restores the old surface');
+});
+
+test('vector paint commits locally, matches a canonical full derive, and keeps sparse undo data', () => {
+  const st = fresh();
+  const s = makeEditSession(st);
+  const paintBefore = Uint8Array.from(st.course.paint);
+  const stroke = beginPaintStroke();
+  for (let step = 0; step < 9; step++) {
+    paintAt(st, stroke, QX + step * 0.8, QY + Math.sin(step * 0.7), ZONE.FAIRWAY, { radius: 2.4 });
+  }
+
+  const res = endPaintStroke(st, s, stroke);
+  assert.equal(res.ok, true);
+  assert.equal(s.undo.length, 1);
+  assert.equal(s.undo[0].kind, 'vector-paint');
+  assert.ok(s.undo[0].paintChanges.length > 0);
+  assert.equal('paintBefore' in s.undo[0], false, 'history does not clone the full paint field');
+  assert.equal('paintAfter' in s.undo[0], false, 'history does not clone the full paint field');
+
+  const locallyDerived = Uint8Array.from(st.course.zones);
+  deriveZones(st.course);
+  assert.deepEqual(st.course.zones, locallyDerived, 'local cell-centre update is byte-identical to a full derive');
+
+  const paintAfter = Uint8Array.from(st.course.paint);
+  const undone = undo(st, s);
+  assert.equal(undone.kind, 'vector-paint');
+  assert.deepEqual(st.course.paint, paintBefore, 'undo restores every authored paint sample');
+  const redone = redo(st, s);
+  assert.equal(redone.kind, 'vector-paint');
+  assert.deepEqual(st.course.paint, paintAfter, 'redo restores every authored paint sample');
+});
+
+test('first vector paint undo and discard restore an absent override layer', () => {
+  const st = fresh();
+  delete st.course.paint;
+  const s = makeEditSession(st);
+  const stroke = beginPaintStroke();
+  paintAt(st, stroke, QX, QY, ZONE.FAIRWAY, { radius: 2 });
+  assert.equal(endPaintStroke(st, s, stroke).ok, true);
+  assert.ok(st.course.paint instanceof Uint8Array);
+
+  undo(st, s);
+  assert.equal(Object.hasOwn(st.course, 'paint'), false, 'undo restores structural absence');
+  redo(st, s);
+  assert.ok(st.course.paint instanceof Uint8Array, 'redo recreates the layer');
+  discardSession(st, s);
+  assert.equal(Object.hasOwn(st.course, 'paint'), false, 'discard restores structural absence');
 });
 
 test('green stamp paints green + fringe collar and smooths a plateau', () => {
@@ -290,6 +338,7 @@ test('objects: place, refuse greens, move, duplicate, remove, scatter, undo chai
   const st = fresh();
   const s = makeEditSession(st);
   const countBefore = st.course.objects.length;
+  const nextObjectId = st.course.nextObjectId;
 
   const bad = addObject(st, s, 'tree_oak', st.course.holes[0].pin.x, st.course.holes[0].pin.y);
   assert.equal(bad.ok, false, 'no trees on the green');
@@ -313,6 +362,7 @@ test('objects: place, refuse greens, move, duplicate, remove, scatter, undo chai
   let guard = 0;
   while (s.undo.length && guard++ < 100) undo(st, s);
   assert.equal(st.course.objects.length, countBefore, 'undo chain restores the object list');
+  assert.equal(st.course.nextObjectId, nextObjectId, 'undo chain restores the object identity sequence');
   assert.equal(s.bill, 0);
 });
 
@@ -403,6 +453,7 @@ test('paths: add paints pavement, edit reroutes, remove restores, undo is exact'
   const s = makeEditSession(st);
   const zonesBefore = Uint8Array.from(st.course.zones);
   const pathsBefore = st.course.paths.length;
+  const nextPathId = st.course.nextPathId;
 
   const res = addPath(st, s, [{ x: QX, y: QY }, { x: QX + 6, y: QY + 2 }, { x: QX + 12, y: QY }], { width: 2.6, material: 'concrete' });
   assert.equal(res.ok, true);
@@ -424,6 +475,7 @@ test('paths: add paints pavement, edit reroutes, remove restores, undo is exact'
   let guard = 0;
   while (s.undo.length && guard++ < 100) undo(st, s);
   assert.deepEqual(Array.from(st.course.zones), Array.from(zonesBefore), 'zones byte-identical after full undo');
+  assert.equal(st.course.nextPathId, nextPathId, 'undo restores the path identity sequence');
 });
 
 test('path-point live preview commits one exact undoable drag', () => {
@@ -464,6 +516,7 @@ test('holes: add, settings, reorder, delete — with undo', () => {
   const st = fresh();
   const s = makeEditSession(st);
   const n = st.course.holes.length;
+  const nextHoleId = st.course.nextHoleId;
   const res = newHole(st, s);
   assert.equal(res.ok, true);
   assert.equal(st.course.holes.length, n + 1);
@@ -486,6 +539,7 @@ test('holes: add, settings, reorder, delete — with undo', () => {
   assert.equal(st.course.holes.length, n);
   assert.equal(st.course.holes[0].id, h1.id, 'order restored');
   assert.equal(st.course.holes[0].name, originalName, 'name restored by undo');
+  assert.equal(st.course.nextHoleId, nextHoleId, 'undo restores the hole identity sequence');
 });
 
 test('economics: preview accumulates, apply charges exactly once, insufficient funds refuse', () => {

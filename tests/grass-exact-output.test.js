@@ -23,14 +23,14 @@ const clubhouseSource = fs.readFileSync(
 );
 
 const EXPECTED_GRASS_SPECS = new Map([
-  [ZONE.OUT, { h: 0.25, r: 0.40, g: 0.46, b: 0.20 }],
-  [ZONE.ROUGH, { h: 0.14, r: 0.32, g: 0.54, b: 0.18 }],
-  [ZONE.FAIRWAY, { h: 0.035, r: 0.38, g: 0.65, b: 0.22 }],
-  [ZONE.TEE, { h: 0.025, r: 0.36, g: 0.62, b: 0.22 }],
-  [ZONE.FRINGE, { h: 0.03, r: 0.34, g: 0.60, b: 0.21 }],
-  [ZONE.HEAVY, { h: 0.32, r: 0.42, g: 0.48, b: 0.20 }],
-  [ZONE.BED, { h: 0.12, r: 0.26, g: 0.40, b: 0.15 }],
-  [ZONE.SEMI, { h: 0.065, r: 0.32, g: 0.57, b: 0.19 }],
+  [ZONE.OUT, { h: 0.25, r: 0.34, g: 0.43, b: 0.17 }],
+  [ZONE.ROUGH, { h: 0.14, r: 0.29, g: 0.50, b: 0.17 }],
+  [ZONE.FAIRWAY, { h: 0.035, r: 0.32, g: 0.57, b: 0.19 }],
+  [ZONE.TEE, { h: 0.025, r: 0.31, g: 0.55, b: 0.19 }],
+  [ZONE.FRINGE, { h: 0.03, r: 0.30, g: 0.53, b: 0.18 }],
+  [ZONE.HEAVY, { h: 0.32, r: 0.36, g: 0.45, b: 0.17 }],
+  [ZONE.BED, { h: 0.12, r: 0.25, g: 0.37, b: 0.14 }],
+  [ZONE.SEMI, { h: 0.065, r: 0.29, g: 0.51, b: 0.17 }],
 ]);
 
 function legacyInsideStructure(structures, worldXAt, worldZAt, wx, wz) {
@@ -64,7 +64,7 @@ function legacyFiveProbeInside(
     || legacyInside(wx, wz - margin);
 }
 
-test('grass zone specs are cached immutable scalars with the exact legacy values', () => {
+test('grass zone specs are cached immutable scalars with the authored production values', () => {
   assert.equal(Object.isFrozen(GRASS_ZONE_SPECS), true);
   for (const [zone, expected] of EXPECTED_GRASS_SPECS) {
     const first = grassSpecForZone(zone);

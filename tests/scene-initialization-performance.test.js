@@ -22,8 +22,8 @@ test('initial scene build uploads its prepared visual and flow fields without re
 });
 
 test('game start paints the loading veil before destroying and rebuilding the scene', () => {
-  const start = mainSource.indexOf('function startGame(state) {');
-  const end = mainSource.indexOf('\nfunction startGameNow(state) {', start);
+  const start = mainSource.indexOf('function startGame(');
+  const end = mainSource.indexOf('\nfunction startGameNow(', start);
   assert.ok(start >= 0 && end > start, 'startGame lifecycle wrapper must exist');
   const body = mainSource.slice(start, end);
 

@@ -7,7 +7,7 @@
 async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
   const phase = process.env.COURSE_PROP_QA_PHASE || 'before';
   const outDir = path.join(repo, 'qa', 'steam-performance-master-pass', 'assets', `course-props-${phase}`);
   const audit = JSON.parse(fs.readFileSync(path.join(

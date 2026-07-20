@@ -9,9 +9,10 @@ async (page) => {
   //   A/B toggles        the same spin with GTAO / bloom / DPR / shadow-refresh flipped,
   //                      one at a time — each isolates one hypothesis about the frame cost
   const errs = [];
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
 
-  await page.goto('http://localhost:8457/');
+  await page.goto(baseUrl);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
   await page.getByText('Continue', { exact: true }).click();

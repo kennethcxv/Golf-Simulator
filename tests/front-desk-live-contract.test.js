@@ -27,8 +27,9 @@ function functionBody(source, name) {
   throw new Error(`${name} has an unterminated body`);
 }
 
-test('the customer choice is automatic, persistent, and never exposed as manual payment buttons', () => {
-  assert.match(registerSource, /paymentAutoTimer\s*=\s*1\.35/);
+test('the customer choice is persistent, totalled deliberately, and never exposed as manual payment buttons', () => {
+  assert.match(registerSource, /\(key === 't' \|\| key === 'T'\)[\s\S]*choosePayment\(preferredPayment\(\)\)/);
+  assert.doesNotMatch(registerSource, /paymentAutoTimer/);
   assert.match(registerSource, /choosePayment\(preferredPayment\(\)\)/);
   assert.match(registerSource, /customerChoice:\s*paymentChoiceVisible\(\)/);
   assert.match(monitorSource, /CUSTOMER CHOSE \$\{choice\}/);
@@ -51,6 +52,20 @@ test('Escape unwinds physical workspace, selection, tab, and only then leaves th
   const leave = onKey.lastIndexOf('leave()');
   assert.ok(workspace < walkIn && walkIn < reservation && reservation < tab && tab < leave);
   assert.doesNotMatch(onKey, /abandon\s*\(/);
+});
+
+test('an order arriving at an already-open till arms the cashier-entry transition', () => {
+  const begin = functionBody(registerSource, 'begin');
+  const entry = functionBody(registerSource, 'beginCashierEntry');
+  assert.match(entry, /checkoutFlowState\(\) !== 'WaitingForCashier'/);
+  assert.match(entry, /flowTo\('EnteringCashierMode', event\)/);
+  assert.match(entry, /enterTimer\s*=\s*0\.30/);
+  assert.match(begin,
+    /if \(active\) beginCashierEntry\('active-cashier-accepted-next-queued-customer'\)/);
+  assert.ok(
+    begin.indexOf('beginCashierEntry(') < begin.indexOf('drawScreen()'),
+    'the physical flow advances before the newly-arrived order is first redrawn',
+  );
 });
 
 test('early reservation guests wait against game time and introduce their full name at the desk', () => {

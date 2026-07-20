@@ -6,7 +6,7 @@
   "results": [
     {
       "asset": 91,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_091_fire_extinguisher.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_091_fire_extinguisher.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -251,7 +251,7 @@
     },
     {
       "asset": 92,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_092_first_aid_kit_cabinet.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_092_first_aid_kit_cabinet.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -477,7 +477,7 @@
     },
     {
       "asset": 93,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_093_security_camera.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_093_security_camera.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -608,7 +608,7 @@
     },
     {
       "asset": 94,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_094_exit_sign.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_094_exit_sign.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -759,7 +759,7 @@
     },
     {
       "asset": 95,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_095_emergency_light.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_095_emergency_light.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -934,7 +934,7 @@
     },
     {
       "asset": 96,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_096_bulletin_board.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_096_bulletin_board.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1033,7 +1033,7 @@
     },
     {
       "asset": 97,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_097_key_cabinet.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_097_key_cabinet.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1226,7 +1226,7 @@
     },
     {
       "asset": 98,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_098_hand_sanitizer_station.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_098_hand_sanitizer_station.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1395,7 +1395,7 @@
     },
     {
       "asset": 99,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_099_umbrella_stand.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_099_umbrella_stand.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,
@@ -1561,7 +1561,7 @@
     },
     {
       "asset": 100,
-      "glb": "C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/vendor/models/assets_51_100/sheet_10/asset_100_floor_mat_welcome_mat.glb",
+      "glb": "<REPOSITORY_ROOT>/vendor/models/assets_51_100/sheet_10/asset_100_floor_mat_welcome_mat.glb",
       "ok": true,
       "errorCount": 0,
       "warningCount": 0,

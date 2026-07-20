@@ -311,9 +311,11 @@ export function createSheet06ProductionLayout() {
       // lifted board cross intact planks and read as loose debris.
       { id: 'damage-west-entry', x: -4.15, z: 2.05, rotationY: Math.PI },
       { id: 'damage-center', x: -0.35, z: -2.45, rotationY: 0 },
-      // Keep the repair site in the visible lounge-approach aisle. The former
-      // z=-4.55 point overlapped the live 1.1 x 1.1 coffee-table collider.
-      { id: 'damage-lounge', x: 3.65, z: -3.45, rotationY: Math.PI },
+      // Keep the repair site in the visible lounge-approach aisle and leave a
+      // full player-width north/south inspection lane between the authored
+      // sofa/table group and the sales floor. The former x=3.65 point itself
+      // was clear, but every route across it terminated in live furniture.
+      { id: 'damage-lounge', x: 2.25, z: -3.45, rotationY: Math.PI },
       { id: 'damage-office', x: 8.15, z: 4.45, rotationY: 0 },
     ],
   });

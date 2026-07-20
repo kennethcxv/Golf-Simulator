@@ -32,9 +32,8 @@ const EXPECTED_ORDER = [
   'AllProductsScanned',
   'ChoosingPayment',
   'CardPresented',
-  'CardInsertReady',
-  'CardInserting',
-  'CardAmountEntry',
+  'CardSwipeReady',
+  'CardSwiping',
   'CardProcessing',
   'CardApproved',
   'CardDeclined',
@@ -59,9 +58,9 @@ const advance = (flow, state, atMs) => {
   return result.flow;
 };
 
-test('the production contract defines the exact ordered set of 30 required states', () => {
+test('the production contract defines the exact ordered set of 29 required states', () => {
   assert.deepEqual(CHECKOUT_STATE_ORDER, EXPECTED_ORDER);
-  assert.equal(new Set(CHECKOUT_STATE_ORDER).size, 30);
+  assert.equal(new Set(CHECKOUT_STATE_ORDER).size, 29);
   assert.deepEqual(Object.keys(CHECKOUT_STATES), EXPECTED_ORDER);
   assert.equal(validateCheckoutContract().ok, true, validateCheckoutContract().errors.join('\n'));
 });
@@ -99,24 +98,30 @@ test('contract lookup and validation reject unknown states without throwing', ()
   assert.match(validateCheckoutTransition('Bagging', 'nope').reason, /Unknown/);
 });
 
-test('production contract exposes one-click checkout inputs without obsolete manual chores', () => {
-  assert.deepEqual(CHECKOUT_STATES.WaitingForScan.allowedInput, ['click-product', 'look', 'exit-cashier']);
-  assert.deepEqual(CHECKOUT_STATES.CardInsertReady.allowedInput, ['click-presented-card', 'cancel-card-at-reader']);
-  assert.deepEqual(CHECKOUT_STATES.CardInserting.allowedInput, ['cancel-card-at-reader']);
-  assert.deepEqual(CHECKOUT_STATES.CardAmountEntry.allowedInput,
-    ['card-keypad-confirm', 'card-keypad-correction', 'cancel-card-at-reader']);
+test('production contract exposes the complete physical checkout inputs', () => {
+  assert.deepEqual(CHECKOUT_STATES.WaitingForScan.allowedInput, ['grab-product', 'look', 'exit-cashier']);
+  assert.deepEqual(CHECKOUT_STATES.ProductHeld.allowedInput,
+    ['move-held-product', 'rotate-held-product', 'release-held-product', 'cancel-held-product']);
+  assert.deepEqual(CHECKOUT_STATES.AllProductsScanned.allowedInput, ['confirm-total', 'exit-cashier']);
+  assert.deepEqual(CHECKOUT_STATES.CardSwipeReady.allowedInput,
+    ['activate-card-terminal', 'start-card-swipe', 'cancel-card-at-reader']);
+  assert.deepEqual(CHECKOUT_STATES.CardSwiping.allowedInput,
+    ['move-card-swipe', 'release-card-swipe', 'cancel-card-at-reader']);
   assert.deepEqual(CHECKOUT_STATES.CashPresented.allowedInput, ['click-presented-cash', 'exit-cashier']);
+  assert.deepEqual(CHECKOUT_STATES.CashAccepted.allowedInput, ['open-cash-drawer', 'exit-cashier']);
+  assert.deepEqual(CHECKOUT_STATES.DepositingCash.allowedInput,
+    ['grab-tender-piece', 'move-tender-piece', 'release-tender-piece', 'exit-cashier']);
   assert.deepEqual(CHECKOUT_STATES.SelectingChange.allowedInput,
-    ['select-change-piece', 'undo-change-piece', 'clear-change', 'confirm-change']);
-  for (const state of [
-    'ProductHeld', 'ProductScanning', 'ProductScanned', 'CashAccepted',
-    'DepositingCash', 'GivingChange', 'ReceiptPrinting', 'Bagging', 'BagHandoff',
-  ]) {
-    assert.deepEqual(CHECKOUT_STATES[state].allowedInput, [], `${state} is automatic`);
-  }
+    ['select-change-piece', 'undo-change-piece', 'clear-change', 'click-customer-palm']);
+  assert.deepEqual(CHECKOUT_STATES.ReceiptPrinting.allowedInput,
+    ['grab-printed-receipt', 'move-receipt', 'release-receipt']);
+  assert.deepEqual(CHECKOUT_STATES.Bagging.allowedInput,
+    ['drag-receipt-to-bag', 'drag-product-to-bag', 'grab-filled-bag-handles']);
+  assert.deepEqual(CHECKOUT_STATES.BagHandoff.allowedInput,
+    ['move-filled-bag', 'release-filled-bag', 'cancel-filled-bag']);
   const obsolete = new Set([
-    'rotate-product', 'press-total', 'pick-tender-piece', 'place-tender-piece',
-    'take-receipt', 'pick-bag-item', 'place-item-in-bag', 'gather-bag-handles',
+    'click-product', 'click-presented-card', 'card-keypad-confirm',
+    'card-keypad-correction', 'confirm-change',
   ]);
   for (const state of Object.values(CHECKOUT_STATES)) {
     for (const input of state.allowedInput) {
@@ -142,9 +147,8 @@ test('the full card branch advances through every physical card state', () => {
     'AllProductsScanned',
     'ChoosingPayment',
     'CardPresented',
-    'CardInsertReady',
-    'CardInserting',
-    'CardAmountEntry',
+    'CardSwipeReady',
+    'CardSwiping',
     'CardProcessing',
     'CardApproved',
     'PaymentComplete',
@@ -180,10 +184,9 @@ test('the full cash branch cannot omit acceptance, drawer, deposit, change, or h
   assert.equal(flow.state, 'TransactionComplete');
 });
 
-test('decline and interrupted-insert paths return to physical retry states', () => {
-  assert.equal(canTransitionCheckout('CardInserting', 'CardInsertReady'), true);
-  assert.equal(canTransitionCheckout('CardInserting', 'CardAmountEntry'), true);
-  assert.equal(canTransitionCheckout('CardAmountEntry', 'CardProcessing'), true);
+test('decline and interrupted-swipe paths return to physical retry states', () => {
+  assert.equal(canTransitionCheckout('CardSwiping', 'CardSwipeReady'), true);
+  assert.equal(canTransitionCheckout('CardSwiping', 'CardProcessing'), true);
   assert.equal(canTransitionCheckout('CardProcessing', 'CardDeclined'), true);
   assert.equal(canTransitionCheckout('CardDeclined', 'CardPresented'), true);
   assert.equal(canTransitionCheckout('CardDeclined', 'ChoosingPayment'), true);
@@ -195,10 +198,10 @@ test('major physical states cannot be skipped by one transition', () => {
     ['WaitingForScan', 'ProductScanned'],
     ['ProductHeld', 'ProductScanned'],
     ['AllProductsScanned', 'CardPresented'],
-    ['ChoosingPayment', 'CardInsertReady'],
-    ['CardPresented', 'CardProcessing'],
-    ['CardInserting', 'CardProcessing'],
-    ['CardAmountEntry', 'CardApproved'],
+    ['ChoosingPayment', 'CardSwipeReady'],
+    ['CardPresented', 'CardSwiping'],
+    ['CardSwipeReady', 'CardProcessing'],
+    ['CardSwiping', 'CardApproved'],
     ['CashPresented', 'DrawerOpening'],
     ['DrawerOpening', 'SelectingChange'],
     ['DepositingCash', 'GivingChange'],
@@ -297,18 +300,18 @@ test('cash recovery closes unsafe visuals and resumes before a deliberate drawer
 });
 
 test('automatic state timeouts recover while deliberate player waits remain untimed', () => {
-  const flow = createCheckoutFlow({ state: 'CardInserting', nowMs: 1_000 });
+  const flow = createCheckoutFlow({ state: 'CardSwiping', nowMs: 1_000 });
   assert.equal(checkoutStateTimedOut(flow, 6_999), false);
   assert.equal(checkoutStateTimedOut(flow, 7_000), true);
 
   const timedOut = recoverTimedOutCheckout(flow, { nowMs: 7_000 });
   assert.equal(timedOut.ok, true);
   assert.equal(timedOut.flow.state, 'Recovery');
-  assert.equal(timedOut.flow.recovery.resumeState, 'CardInsertReady');
-  assert.equal(timedOut.flow.recovery.cause, 'timeout:CardInserting');
+  assert.equal(timedOut.flow.recovery.resumeState, 'CardSwipeReady');
+  assert.equal(timedOut.flow.recovery.cause, 'timeout:CardSwiping');
 
   for (const state of [
-    'WaitingForScan', 'CardInsertReady', 'CardAmountEntry',
+    'WaitingForScan', 'CardSwipeReady',
     'CardDeclined', 'CashPresented', 'SelectingChange',
   ]) {
     const waiting = createCheckoutFlow({ state, nowMs: 2_000 });

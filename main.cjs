@@ -3,10 +3,10 @@
 // also runs in a plain browser for headless QA.
 'use strict';
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const fsp = fs.promises;
+const { createNativeSaveStore } = require('./src/core/nativeSaveStore.cjs');
 
 const DEV = process.argv.includes('--dev');
 if (DEV) {
@@ -22,9 +22,11 @@ function saveDir() {
   return dir;
 }
 
-function keyToFile(key) {
-  const safe = String(key).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
-  return path.join(saveDir(), safe + '.json');
+let store = null;
+
+function saveStore() {
+  if (!store) store = createNativeSaveStore({ dir: saveDir() });
+  return store;
 }
 
 function createWindow() {
@@ -57,30 +59,79 @@ function createWindow() {
 // --- persistence IPC ---------------------------------------------------
 
 ipcMain.handle('fw:save', async (_e, key, json) => {
-  await fsp.writeFile(keyToFile(key), JSON.stringify(json), 'utf8');
-  return true;
+  return saveStore().save(key, json);
 });
 
 ipcMain.handle('fw:load', async (_e, key) => {
-  try {
-    return JSON.parse(await fsp.readFile(keyToFile(key), 'utf8'));
-  } catch {
-    return null;
+  return saveStore().load(key);
+});
+
+ipcMain.handle('fw:load-status', async (_e, key, options) => saveStore().loadStatus(key, options));
+
+// Player-facing save browsers need a compact, read-only status contract. Keep
+// the crash-safe native store authoritative and adapt its richer result rather
+// than introducing a second persistence implementation.
+ipcMain.handle('fw:load-record', async (_e, key) => {
+  const result = await saveStore().loadStatus(key, { repair: false });
+  if (result.value != null) {
+    return {
+      status: result.recovered ? 'recovered' : 'ok',
+      data: result.value,
+      error: result.recovered ? 'The latest save was damaged; the previous backup is available.' : null,
+    };
   }
+  if (result.missing) return { status: 'missing', data: null };
+  return { status: 'corrupt', data: null, error: 'This save could not be read.' };
 });
 
 ipcMain.handle('fw:delete', async (_e, key) => {
-  try { await fsp.unlink(keyToFile(key)); } catch {}
+  return saveStore().del(key);
+});
+
+ipcMain.handle('fw:list', async () => saveStore().list());
+
+// Native-only presentation controls. Browser QA intentionally omits these
+// rather than displaying toggles that cannot work there.
+ipcMain.handle('fw:display-info', () => {
+  if (!win) throw new Error('The game window is not ready.');
+  const display = screen.getDisplayMatching(win.getBounds());
+  const current = win.getContentBounds();
+  const candidates = [
+    [1100, 680], [1280, 720], [1366, 768], [1600, 900], [1920, 1080], [2560, 1440],
+  ].filter(([width, height]) => width <= display.workAreaSize.width && height <= display.workAreaSize.height);
+  if (!candidates.some(([width, height]) => width === current.width && height === current.height)) {
+    candidates.push([current.width, current.height]);
+  }
+  candidates.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  return {
+    mode: win.isFullScreen() ? 'fullscreen' : 'windowed',
+    width: current.width,
+    height: current.height,
+    resolutions: candidates.map(([width, height]) => ({ width, height })),
+  };
+});
+
+ipcMain.handle('fw:set-window-mode', (_e, mode) => {
+  if (!win) throw new Error('The game window is not ready.');
+  if (!['windowed', 'fullscreen'].includes(mode)) throw new Error('Unsupported window mode.');
+  win.setFullScreen(mode === 'fullscreen');
   return true;
 });
 
-ipcMain.handle('fw:list', async () => {
-  try {
-    const files = await fsp.readdir(saveDir());
-    return files.filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5));
-  } catch {
-    return [];
-  }
+ipcMain.handle('fw:set-resolution', (_e, width, height) => {
+  if (!win || win.isFullScreen()) throw new Error('Window size can only change in windowed mode.');
+  const w = Math.max(1100, Math.round(Number(width) || 0));
+  const h = Math.max(680, Math.round(Number(height) || 0));
+  const display = screen.getDisplayMatching(win.getBounds());
+  if (w > display.workAreaSize.width || h > display.workAreaSize.height) throw new Error('Resolution does not fit the active display.');
+  win.setContentSize(w, h, true);
+  win.center();
+  return true;
+});
+
+ipcMain.handle('fw:quit', () => {
+  app.quit();
+  return true;
 });
 
 app.whenReady().then(createWindow);

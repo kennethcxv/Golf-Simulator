@@ -19,7 +19,7 @@
 import { ZONE, DAY_START_MIN } from './constants.js';
 import { BALANCE } from './balance.js';
 import { makeRng, rngOf, clamp, formatMoney } from '../core/utils.js';
-import { newGame, update, snapshot, deserialize } from './state.js';
+import { newGame, update, snapshot, deserializeWithReport } from './state.js';
 import { calendarOf } from './time.js';
 import { rollDailyWeather } from './weather.js';
 import { conditionRating, zonePolicyKey, DISEASE } from './turf.js';
@@ -30,7 +30,12 @@ import { generateMarketplace, generateListing, buildPropertyCourse, appraiseStat
 import { appraiseProperty } from './valuation.js';
 import { bindPropertyInventory } from './propertyInventory.js';
 
-export const EMPIRE_VERSION = 2;
+export const EMPIRE_VERSION = 3;
+
+export const EMPIRE_MIGRATIONS = Object.freeze([
+  Object.freeze({ version: 2, name: 'living-market' }),
+  Object.freeze({ version: 3, name: 'validated-portfolio-authority' }),
+]);
 
 // Parked-property approximation knobs (reasoning in DEV_LOG.md):
 // a caretaker keeps the lights on — condition decays toward a floor but never
@@ -489,8 +494,7 @@ export function serializeEmpire(empire) {
 
 // A pre-empire single-club save (plain GameState JSON) loads as a one-property
 // empire so nothing anyone saved ever becomes unreadable.
-function legacyEmpireFrom(raw) {
-  const st = deserialize(raw);
+function legacyEmpireFromState(st) {
   const counts = memberCounts(st);
   const record = {
     id: 'legacy-club',
@@ -567,13 +571,354 @@ export function deserializeEmpire(raw) {
   if (!Number.isFinite(empire.marketRngState)) {
     empire.marketRngState = (((empire.seed ?? 1) ^ 0x9e3779b9) >>> 0) || 1;
   }
-  if (!Number.isFinite(empire.lastMarketDay)) {
-    empire.lastMarketDay = calendarOf(empire.clockMinutes ?? 0).dayAbs;
+}
+
+function normalizedPropertyLayout(value, size, report, path) {
+  const source = isRecord(value) ? cloneSaveValue(value, {}) : {};
+  let repaired = !isRecord(value);
+  const layout = {
+    ...source,
+    kind: typeof source.kind === 'string' && source.kind.trim()
+      ? source.kind.slice(0, 80)
+      : 'willow',
+  };
+  if (layout.kind !== source.kind) repaired = true;
+  // Nine-hole vector properties treat these fields as optional feature
+  // levers. The 18-hole serpentine builder reads every one arithmetically, so
+  // damaged/missing values need conservative authored defaults before a
+  // listing can be bought and built.
+  const numeric = size === 18
+    ? {
+      margin: [8, 3, 30], bands: [6, 1, 18], elevAmp: [1, 0, 5], fairwayR: [2.3, 0.5, 12],
+      roughR: [5, 1, 20], greenR: [1.9, 0.5, 8], greenRJitter: [0.4, 0, 4],
+      doglegChance: [0.35, 0, 1], bunkers: [6, 0, 100], ponds: [1, 0, 20],
+    }
+    : {
+      elevAmp: [1, 0, 5], greenR: [1.9, 0.5, 8], bunkers: [6, 0, 100],
+      ponds: [1, 0, 20],
+    };
+  for (const [key, [fallback, min, max]] of Object.entries(numeric)) {
+    // Vector-course levers are optional and have builder defaults. Absence is
+    // therefore canonical for nine-hole records; only validate a lever that
+    // was actually persisted.
+    if (size !== 18 && !Object.hasOwn(source, key)) continue;
+    const normalized = finiteNumber(source[key], fallback, {
+      integer: key === 'bands' || key === 'bunkers' || key === 'ponds', min, max,
+    });
+    if (typeof source[key] !== 'number' || !Object.is(source[key], normalized)) repaired = true;
+    layout[key] = normalized;
   }
-  if (!Number.isFinite(empire.marketCondition)) empire.marketCondition = 1;
-  if (!Number.isFinite(empire.marketConditionTarget)) empire.marketConditionTarget = 1;
-  for (const p of empire.market) {
-    if (!Number.isFinite(p.listedDay)) p.listedDay = empire.lastMarketDay;
+  if (size === 18) {
+    const defaultParMix = [4, 3, 4, 5, 4, 4, 3, 4, 4, 4, 3, 4, 5, 4, 4, 3, 4, 4];
+    const sourceParMix = Array.isArray(source.parMix) ? source.parMix.slice(0, 18) : [];
+    const parMix = sourceParMix
+      .map((par) => finiteNumber(par, 0, { integer: true, min: 0, max: 10 }))
+      .filter((par) => par >= 3 && par <= 5);
+    if (!parMix.length || parMix.length !== sourceParMix.length
+        || !Array.isArray(source.parMix) || source.parMix.length > 18) repaired = true;
+    layout.parMix = parMix.length ? parMix : defaultParMix;
+
+    const defaultParRange = { 3: [13, 29], 4: [33, 54], 5: [60, 70] };
+    if (isRecord(source.parRange)) {
+      const parRange = cloneSaveValue(source.parRange, {});
+      for (const par of [3, 4, 5]) {
+        if (!Object.hasOwn(source.parRange, par)) continue;
+        const range = source.parRange[par];
+        if (!Array.isArray(range) || range.length < 2
+            || !Number.isFinite(Number(range[0])) || !Number.isFinite(Number(range[1]))) {
+          parRange[par] = defaultParRange[par];
+          repaired = true;
+          continue;
+        }
+        const lo = finiteNumber(range[0], defaultParRange[par][0], { min: 1, max: 120 });
+        const hi = finiteNumber(range[1], defaultParRange[par][1], { min: lo, max: 160 });
+        parRange[par] = [lo, hi];
+        if (range.length !== 2 || typeof range[0] !== 'number' || typeof range[1] !== 'number'
+            || !Object.is(range[0], lo) || !Object.is(range[1], hi)) repaired = true;
+      }
+      layout.parRange = parRange;
+    } else if (source.parRange != null) {
+      delete layout.parRange;
+      repaired = true;
+    }
   }
-  return empire;
+  if (repaired) noteRepair(report, path, 'invalid property layout fields normalized');
+  return layout;
+}
+
+function normalizedMarketProperty(value, index, seed, listedDay, report) {
+  if (!isRecord(value) || typeof value.id !== 'string' || !value.id.trim()) {
+    noteRepair(report, `$.market[${index}]`, 'identity-less market listing removed');
+    return null;
+  }
+  const property = cloneSaveValue(value, {});
+  let repaired = false;
+  const assign = (key, normalized) => {
+    if (!Object.is(property[key], normalized)) repaired = true;
+    property[key] = normalized;
+  };
+  assign('id', property.id.trim().slice(0, 160));
+  assign('name', typeof property.name === 'string' && property.name.trim()
+    ? property.name.slice(0, 200)
+    : `Recovered listing ${index + 1}`);
+  assign('blurb', typeof property.blurb === 'string' ? property.blurb.slice(0, 2000) : '');
+  assign('size', property.size === 18 ? 18 : 9);
+  assign('seed', finiteNumber(property.seed, seed + index + 1, {
+    integer: true, min: 1, max: 2147483647,
+  }));
+  property.layout = normalizedPropertyLayout(
+    property.layout,
+    property.size,
+    report,
+    `$.market[${index}].layout`,
+  );
+  assign('condition', finiteNumber(property.condition, 50, { min: 0, max: 100 }));
+  assign('sickGreens', finiteNumber(property.sickGreens, 0, { integer: true, min: 0, max: 18 }));
+  assign('diseaseKind', property.diseaseKind === 'brownPatch' ? 'brownPatch' : 'dollarSpot');
+  assign('startingMembers', finiteNumber(property.startingMembers, 0, {
+    integer: true, min: 0, max: 1_000_000,
+  }));
+  assign('startingReputation', finiteNumber(property.startingReputation, 0, { min: 0, max: 100 }));
+  assign('design', finiteNumber(property.design, 0, { min: 0, max: 100 }));
+  assign('par', finiteNumber(property.par, 0, { integer: true, min: 0, max: 200 }));
+  assign('yards', finiteNumber(property.yards, 0, { integer: true, min: 0, max: 20_000 }));
+  assign('estMonthlyNet', finiteNumber(property.estMonthlyNet, 0, {
+    min: -1_000_000_000, max: 1_000_000_000,
+  }));
+  assign('trueValue', finiteNumber(property.trueValue, 0, { min: 0, max: 1_000_000_000_000 }));
+  assign('askingPrice', finiteNumber(property.askingPrice, property.trueValue, {
+    min: 0, max: 1_000_000_000_000,
+  }));
+  assign('listedDay', finiteNumber(property.listedDay, listedDay, {
+    integer: true, min: 0, max: Number.MAX_SAFE_INTEGER,
+  }));
+  if (repaired) noteRepair(report, `$.market[${index}]`, 'invalid market listing fields normalized');
+  return property;
+}
+
+function normalizedPassive(value, state, index, report) {
+  if (!isRecord(value)) return null;
+  const passive = cloneSaveValue(value, {});
+  let repaired = false;
+  const counts = () => {
+    const member = memberCounts(state);
+    return member.weekday + member.full + member.premium;
+  };
+  const fields = {
+    conditionEst: [() => conditionRating(state), 0, 100, false],
+    design: [() => courseDesignRating(state.course, state.sections), 0, 100, false],
+    members: [counts, 0, 1_000_000, true],
+    reputation: [() => state.club.reputation, 0, 100, false],
+    greenFee: [() => state.club.greenFee, 0, 1_000_000, false],
+    duesPerDay: [() => 0, -1_000_000, 1_000_000, false],
+    days: [() => 0, 0, 10_000_000, true],
+    lastNet: [() => 0, -1_000_000_000, 1_000_000_000, false],
+    sinceVisitNet: [() => 0, -1_000_000_000_000, 1_000_000_000_000, false],
+    accruedNet: [() => 0, -1_000_000_000_000, 1_000_000_000_000, false],
+  };
+  for (const [key, [fallback, min, max, integer]] of Object.entries(fields)) {
+    const normalized = finiteNumber(passive[key], Number.isFinite(passive[key]) ? 0 : fallback(), {
+      integer, min, max,
+    });
+    if (typeof passive[key] !== 'number' || !Object.is(passive[key], normalized)) repaired = true;
+    passive[key] = normalized;
+  }
+  if (repaired) {
+    noteRepair(report, `$.holdings[${index}].passive`, 'invalid passive summary fields normalized');
+  }
+  return passive;
+}
+
+function normalizedProperty(value, state, index, seed, report) {
+  const property = isRecord(value) ? cloneSaveValue(value, {}) : {};
+  let repaired = !isRecord(value);
+  if (!isRecord(value)) {
+    noteRepair(report, `$.holdings[${index}].property`, 'missing property record rebuilt from its club state');
+  }
+  const assign = (key, normalized) => {
+    if (!Object.is(property[key], normalized)) repaired = true;
+    property[key] = normalized;
+  };
+  assign('id', typeof property.id === 'string' && property.id.trim()
+    ? property.id.trim().slice(0, 160)
+    : `recovered-property-${index + 1}`);
+  assign('name', typeof property.name === 'string' && property.name.trim()
+    ? property.name.slice(0, 200)
+    : state.clubName);
+  assign('blurb', typeof property.blurb === 'string' ? property.blurb.slice(0, 2000) : '');
+  assign('size', property.size === 18 ? 18 : 9);
+  assign('seed', finiteNumber(property.seed, seed + index + 1, {
+    integer: true, min: 1, max: 2147483647,
+  }));
+  property.layout = normalizedPropertyLayout(
+    property.layout,
+    property.size,
+    report,
+    `$.holdings[${index}].property.layout`,
+  );
+  const conditionFallback = Number.isFinite(Number(property.condition)) ? 0 : conditionRating(state);
+  assign('condition', finiteNumber(property.condition, conditionFallback, { min: 0, max: 100 }));
+  assign('sickGreens', finiteNumber(property.sickGreens, 0, {
+    integer: true, min: 0, max: 18,
+  }));
+  assign('diseaseKind', property.diseaseKind === 'brownPatch' ? 'brownPatch' : 'dollarSpot');
+  const counts = memberCounts(state);
+  assign('startingMembers', finiteNumber(
+    property.startingMembers,
+    counts.weekday + counts.full + counts.premium,
+    { integer: true, min: 0, max: 1_000_000 },
+  ));
+  assign('startingReputation', finiteNumber(property.startingReputation, state.club.reputation, {
+    min: 0, max: 100,
+  }));
+  const designFallback = Number.isFinite(Number(property.design))
+    ? 0
+    : courseDesignRating(state.course, state.sections);
+  assign('design', finiteNumber(property.design, designFallback, { min: 0, max: 100 }));
+  assign('par', finiteNumber(property.par, 0, { integer: true, min: 0, max: 200 }));
+  assign('yards', finiteNumber(property.yards, 0, { integer: true, min: 0, max: 20_000 }));
+  assign('estMonthlyNet', finiteNumber(property.estMonthlyNet, 0, {
+    min: -1_000_000_000, max: 1_000_000_000,
+  }));
+  // Appraisal walks the full club state, so only pay that cost when an old or
+  // damaged save actually needs the derived fallback. Valid current saves are
+  // the overwhelmingly common load path and already persist trueValue.
+  const trueValueFallback = Number.isFinite(Number(property.trueValue))
+    ? 0
+    : appraiseProperty(state);
+  assign('trueValue', finiteNumber(property.trueValue, trueValueFallback, {
+    min: 0, max: 1_000_000_000_000,
+  }));
+  assign('askingPrice', finiteNumber(property.askingPrice, property.trueValue, {
+    min: 0, max: 1_000_000_000_000,
+  }));
+  if (repaired) {
+    noteRepair(report, `$.holdings[${index}].property`, 'invalid property fields normalized');
+  }
+  return property;
+}
+
+function isEmpireEnvelope(data) {
+  return Object.hasOwn(data, 'empireVersion')
+    || Object.hasOwn(data, 'holdings')
+    || Object.hasOwn(data, 'market')
+    || Object.hasOwn(data, 'activeId');
+}
+
+export function deserializeEmpireWithReport(raw) {
+  const data = parseSaveInput(raw, { kind: 'empire save' });
+  if (!isEmpireEnvelope(data)) {
+    const report = createSaveReport('empire', 0, EMPIRE_VERSION);
+    noteMigration(report, 1, 'single-club-envelope');
+    for (const migration of EMPIRE_MIGRATIONS) noteMigration(report, migration.version, migration.name);
+    const nested = deserializeWithReport(data);
+    appendNestedReport(report, nested.report, '$.holdings[0].state');
+    return {
+      empire: legacyEmpireFromState(nested.state),
+      report: finishSaveReport(report),
+    };
+  }
+
+  const persistedVersion = Number.isSafeInteger(data.empireVersion) && data.empireVersion >= 0
+    ? data.empireVersion
+    : 0;
+  if (persistedVersion > EMPIRE_VERSION) {
+    throw new SaveCompatibilityError(
+      `This portfolio uses empire schema ${persistedVersion}, but this build supports through ${EMPIRE_VERSION}.`,
+      { path: '$.empireVersion' },
+    );
+  }
+  const report = createSaveReport('empire', persistedVersion, EMPIRE_VERSION);
+  for (const migration of EMPIRE_MIGRATIONS) {
+    if (migration.version > persistedVersion) noteMigration(report, migration.version, migration.name);
+  }
+
+  const mode = data.mode === 'realistic' ? 'realistic' : 'relaxed';
+  const seed = finiteNumber(data.seed, 1, { integer: true, min: 1, max: 2147483647 });
+  const defaults = newEmpire(mode, seed);
+  const holdings = [];
+  const holdingIds = new Set();
+  const rawHoldings = recordsOnly(data.holdings, report, '$.holdings', { max: 1000 });
+  for (let index = 0; index < rawHoldings.length; index += 1) {
+    const rawHolding = rawHoldings[index];
+    const nested = deserializeWithReport(isRecord(rawHolding.state) ? rawHolding.state : {});
+    appendNestedReport(report, nested.report, `$.holdings[${index}].state`);
+    const property = normalizedProperty(rawHolding.property, nested.state, index, seed, report);
+    if (holdingIds.has(property.id)) {
+      noteRepair(report, `$.holdings[${index}]`, `duplicate property authority ${property.id} removed`);
+      continue;
+    }
+    holdingIds.add(property.id);
+    holdings.push({
+      property,
+      passive: normalizedPassive(rawHolding.passive, nested.state, index, report),
+      state: nested.state,
+    });
+  }
+
+  const clockMinutes = finiteNumber(data.clockMinutes, DAY_START_MIN, { min: 0, max: Number.MAX_SAFE_INTEGER });
+  const lastMarketDay = finiteNumber(
+    data.lastMarketDay,
+    calendarOf(clockMinutes).dayAbs,
+    { integer: true, min: 0, max: Number.MAX_SAFE_INTEGER },
+  );
+
+  const rawMarket = Array.isArray(data.market)
+    ? recordsOnly(data.market, report, '$.market', { max: MARKET.maxListings * 4 })
+    : cloneSaveValue(defaults.market, []);
+  if (!Array.isArray(data.market)) noteRepair(report, '$.market', 'missing market regenerated deterministically');
+  const market = dedupeRecords(
+    rawMarket
+      .map((property, index) => normalizedMarketProperty(
+        property, index, seed, lastMarketDay, report,
+      ))
+      .filter(Boolean)
+      .filter((property) => {
+        if (!holdingIds.has(property.id)) return true;
+        noteRepair(report, '$.market', `owned property ${property.id} removed from listings`);
+        return false;
+      }),
+    (property) => property.id,
+    report,
+    '$.market',
+  );
+  const activeId = typeof data.activeId === 'string' && holdingIds.has(data.activeId)
+    ? data.activeId
+    : null;
+  if (data.activeId != null && activeId === null) noteRepair(report, '$.activeId', 'unknown active property cleared');
+  const empire = {
+    version: EMPIRE_VERSION,
+    mode,
+    seed,
+    cash: finiteNumber(data.cash, defaults.cash, { min: -1_000_000_000_000, max: 1_000_000_000_000 }),
+    market,
+    holdings,
+    activeId,
+    clockMinutes,
+    firstPurchaseDone: !!data.firstPurchaseDone,
+    log: recordsOnly(data.log, report, '$.log', { max: 30 }),
+    marketRngState: finiteNumber(data.marketRngState, ((seed ^ 0x9e3779b9) >>> 0) || 1, {
+      integer: true,
+      min: 0,
+      max: 0xffffffff,
+    }),
+    lastMarketDay,
+    marketCondition: finiteNumber(data.marketCondition, 1, { min: MARKET.conditionMin, max: MARKET.conditionMax }),
+    marketConditionTarget: finiteNumber(data.marketConditionTarget, 1, { min: MARKET.conditionMin, max: MARKET.conditionMax }),
+  };
+
+  for (const holding of empire.holdings) {
+    if (holding.property.id === empire.activeId) {
+      holding.passive = null;
+      holding.state.cash = empire.cash;
+    } else if (!holding.passive) {
+      parkHolding(holding);
+      noteRepair(report, '$.holdings', `missing passive summary rebuilt for ${holding.property.id}`);
+    }
+  }
+  return { empire, report: finishSaveReport(report) };
+}
+
+export function deserializeEmpire(raw) {
+  return deserializeEmpireWithReport(raw).empire;
 }

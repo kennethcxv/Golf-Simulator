@@ -10,7 +10,9 @@ async (page) => {
   // shop spawn translucent green PLACEMENT GHOSTS that would fill the room with
   // fake blobs. Final gameplay proof does not use this file.
   const PASS = 'final';
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/assets/' + PASS;
+  const OUT = process.getBuiltinModule('node:path').join(
+    process.env.QA_REPO_ROOT || process.cwd(), 'qa', 'assets', PASS,
+  );
 
   const L2W = (x, z) => ({ x: x - 8, z: z + 228 });
   const SHOTS = [

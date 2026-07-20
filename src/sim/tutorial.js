@@ -150,10 +150,57 @@ export const TUTORIAL_STEPS = [
   },
 ];
 
-const TUTORIAL_VERSION = 2; // 2026-07-14 chaptered arc
+// Independent first-use lessons sit beside the arrival arc. They are triggered
+// by the real mode opening, complete from the real action flag, and never hold
+// the main tutorial hostage if a player postpones an optional system.
+export const CONTEXTUAL_TUTORIALS = [
+  {
+    id: 'tool-wheel', context: 'walk', title: 'Choose a tool',
+    hint: 'Hold F to open the tool belt. Use the mouse or arrow keys, then choose a tool. Q swaps back to the previous one.',
+    completeFlag: 'toolSelected',
+  },
+  {
+    id: 'cleaning-tools', context: 'walk', title: 'Clean with steady passes',
+    hint: 'Aim at the dirty patch and use the shown mouse button. The live prompt reports what the tool can clean here.',
+    completeFlag: 'vacuumed',
+  },
+  {
+    id: 'placement', context: 'placement', title: 'Rearrange the shop',
+    hint: 'Aim at a fixture and press E to lift it. R rotates; E places only when the outline says the route is clear.',
+    completeFlag: 'fixturePlaced',
+  },
+  {
+    id: 'checkout', context: 'register', title: 'Work the register',
+    hint: 'Follow the current register step. Its prompt changes from scanning to payment, receipt, bagging, and handoff.',
+    completeFlag: 'checkoutCompleted',
+  },
+  {
+    id: 'front-desk', context: 'walk', title: 'Check in a booking',
+    hint: 'At the front desk, the prompt names the arriving player and tee time. Press E once to check them in.',
+    completeFlag: 'frontDeskCheckedIn',
+  },
+  {
+    id: 'maintenance-tools', context: 'walk', title: 'Maintain what you inspect',
+    hint: 'Your tool readout shows the live turf value. Use the tool on the correct surface until the value improves.',
+    completeFlag: 'maintenanceUsed',
+  },
+];
+
+const CONTEXT_BY_ID = new Map(CONTEXTUAL_TUTORIALS.map((lesson) => [lesson.id, lesson]));
+const TUTORIAL_VERSION = 3;
+
+function ensureContextual(tutorial) {
+  tutorial.contextual ||= { activeId: null, lessons: {}, disabled: false };
+  tutorial.contextual.lessons ||= {};
+  for (const lesson of CONTEXTUAL_TUTORIALS) {
+    tutorial.contextual.lessons[lesson.id] ||= { triggered: false, complete: false, dismissed: false, remindAfter: 0 };
+  }
+  return tutorial.contextual;
+}
 
 export function initTutorial(state) {
   state.tutorial = { step: 0, complete: false, flags: {}, hidden: false, version: TUTORIAL_VERSION };
+  ensureContextual(state.tutorial);
 }
 
 // old saves re-derive their position: checks are cumulative state reads, so
@@ -165,12 +212,15 @@ export function ensureTutorial(state) {
     state.tutorial.step = 0;
     if (!state.tutorial.complete) tickTutorial(state);
   }
+  state.tutorial.flags ||= {};
+  ensureContextual(state.tutorial);
 }
 
 export function skipTutorial(state) {
   if (!state.tutorial) initTutorial(state);
   state.tutorial.complete = true;
   state.tutorial.hidden = true;
+  ensureContextual(state.tutorial).disabled = true;
 }
 
 export function replayTutorial(state) {
@@ -179,7 +229,58 @@ export function replayTutorial(state) {
 }
 
 export function tutorialFlag(state, flag) {
-  if (state.tutorial) state.tutorial.flags[flag] = true;
+  if (!state.tutorial) return;
+  state.tutorial.flags[flag] = true;
+  const contextual = ensureContextual(state.tutorial);
+  for (const lesson of CONTEXTUAL_TUTORIALS) {
+    if (lesson.completeFlag !== flag) continue;
+    contextual.lessons[lesson.id].complete = true;
+    if (contextual.activeId === lesson.id) contextual.activeId = null;
+  }
+}
+
+export function triggerContextTutorial(state, id) {
+  if (!state?.tutorial) return null;
+  const lesson = CONTEXT_BY_ID.get(id);
+  if (!lesson) return null;
+  const contextual = ensureContextual(state.tutorial);
+  if (contextual.disabled) return null;
+  const progress = contextual.lessons[id];
+  const now = state.clock?.minutes || 0;
+  if (progress.complete || progress.dismissed || progress.remindAfter > now) return null;
+  progress.triggered = true;
+  contextual.activeId = id;
+  return lesson;
+}
+
+export function completeContextTutorial(state, id) {
+  if (!state?.tutorial || !CONTEXT_BY_ID.has(id)) return false;
+  const contextual = ensureContextual(state.tutorial);
+  contextual.lessons[id].complete = true;
+  if (contextual.activeId === id) contextual.activeId = null;
+  return true;
+}
+
+export function dismissContextTutorial(state, id, { remind = false } = {}) {
+  if (!state?.tutorial || !CONTEXT_BY_ID.has(id)) return false;
+  const contextual = ensureContextual(state.tutorial);
+  const progress = contextual.lessons[id];
+  if (remind) progress.remindAfter = (state.clock?.minutes || 0) + 180;
+  else progress.dismissed = true;
+  if (contextual.activeId === id) contextual.activeId = null;
+  return true;
+}
+
+export function currentContextTutorial(state, context) {
+  if (!state?.tutorial) return null;
+  const contextual = ensureContextual(state.tutorial);
+  if (contextual.disabled) return null;
+  const id = contextual.activeId;
+  const lesson = CONTEXT_BY_ID.get(id);
+  if (!lesson || lesson.context !== context) return null;
+  const progress = contextual.lessons[id];
+  if (progress.complete || progress.dismissed || progress.remindAfter > (state.clock?.minutes || 0)) return null;
+  return lesson;
 }
 
 export function currentStep(state) {

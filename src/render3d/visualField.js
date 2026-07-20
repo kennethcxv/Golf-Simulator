@@ -463,8 +463,8 @@ function fillLegacyBoundaryDistance(field, tx0, ty0, tx1, ty1) {
 }
 
 // dirty-rect update after edits: pad by kernel reach + warp amplitude
-export function updateVisualFieldRegion(course, field, cx0, cy0, cx1, cy1) {
-  const PAD = REACH + 1.2;
+export function updateVisualFieldRegion(course, field, cx0, cy0, cx1, cy1, padding = REACH + 1.2) {
+  const PAD = Math.max(0, Number(padding) || 0);
   return computeVisualField(course, field, {
     x0: Math.max(0, cx0 - PAD),
     y0: Math.max(0, cy0 - PAD),
@@ -473,8 +473,8 @@ export function updateVisualFieldRegion(course, field, cx0, cy0, cx1, cy1) {
   });
 }
 
-export function updateSurfaceDistanceFieldRegion(course, field, distance, cx0, cy0, cx1, cy1) {
-  const PAD = REACH + 1.2;
+export function updateSurfaceDistanceFieldRegion(course, field, distance, cx0, cy0, cx1, cy1, padding = REACH + 1.2) {
+  const PAD = Math.max(0, Number(padding) || 0);
   return computeSurfaceDistanceField(field, distance, {
     x0: Math.max(0, cx0 - PAD),
     y0: Math.max(0, cy0 - PAD),

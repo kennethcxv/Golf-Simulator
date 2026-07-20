@@ -16,7 +16,7 @@ const clubhouseSource = fs.readFileSync(
 const ACTIVE_SIMPLIFIED_CUES = Object.freeze([
   'productPlace', 'productPickup',
   'scannerActivate', 'scanSuccess', 'scanInvalid', 'posAdd',
-  'cardInsert', 'cardProcessing', 'cardApproved', 'cardDeclined',
+  'cardSwipe', 'cardProcessing', 'cardApproved', 'cardDeclined',
   'cashPresent', 'billHandle', 'coinHandle', 'drawerUnlock', 'drawerOpen', 'drawerClose',
   'changeSelect', 'changeHandoff', 'receiptPrint', 'receiptTear',
   'bagItem', 'bagHandoff',
@@ -116,8 +116,8 @@ test('every active simplified checkout cue is routed from normal-play production
   for (const cue of ACTIVE_SIMPLIFIED_CUES) {
     assert.ok(CHECKOUT_CUE_APIS.includes(cue), `${cue} is part of the checkout audio API`);
   }
-  assert.equal(cueCalls(registerSource, 'cardSwipe').length, 0,
-    'the active insert-card renderer cannot route the obsolete swipe cue');
+  assert.equal(cueCalls(registerSource, 'cardInsert').length, 0,
+    'the magnetic-stripe flow cannot route the obsolete chip-insert cue');
 });
 
 test('customer placement owns the final landing cue and register begin cannot duplicate it', () => {
@@ -139,35 +139,32 @@ test('customer placement owns the final landing cue and register begin cannot du
     'the legacy begin thunk cannot duplicate the final customer landing');
 });
 
-test('card insertion and processing cues have separate one-shot edges', () => {
-  const autoInsertCard = extractFunction(registerSource, 'autoInsertCard');
-  const feedInsert = extractFunction(registerSource, 'feedInsert');
-  const endInsert = extractFunction(registerSource, 'endInsert');
-  const beginCardProcessing = extractFunction(registerSource, 'beginCardProcessing');
+test('card swipe and processing cues have separate one-shot edges', () => {
+  const startSwipe = extractFunction(registerSource, 'startSwipe');
+  const feedSwipe = extractFunction(registerSource, 'feedSwipe');
+  const endSwipe = extractFunction(registerSource, 'endSwipe');
   const updateCard = extractFunction(registerSource, 'updateCard');
 
-  assert.equal(cueCalls(registerSource, 'cardInsert').length, 1,
-    'cardInsert has one production call site');
-  // Insertion is automatic now: the cue lives on autoInsertCard, not the
-  // superseded manual startInsert path.
-  assert.equal(cueCalls(autoInsertCard, 'cardInsert').length, 1,
-    'cardInsert fires from the automatic insertion, once');
-  const transition = /flowTo\(\s*['"]CardInserting['"]/.exec(autoInsertCard);
-  const insertCue = cueCalls(autoInsertCard, 'cardInsert')[0];
-  assert.ok(transition && insertCue && insertCue.start > transition.index,
-    'the cardInsert cue follows the CardInserting transition edge');
-  assert.equal(cueCalls(feedInsert, 'cardInsert').length, 0,
-    'pointer movement samples cannot replay the complete insertion cue');
-  assert.equal(cueCalls(endInsert, 'cardInsert').length, 0,
-    'pointer release cannot replay the complete insertion cue');
+  assert.equal(cueCalls(registerSource, 'cardSwipe').length, 1,
+    'cardSwipe has one production call site');
+  assert.equal(cueCalls(startSwipe, 'cardSwipe').length, 1,
+    'cardSwipe fires once when the physical gesture starts');
+  const transition = /flowTo\(\s*['"]CardSwiping['"]/.exec(startSwipe);
+  const swipeCue = cueCalls(startSwipe, 'cardSwipe')[0];
+  assert.ok(transition && swipeCue && swipeCue.start > transition.index,
+    'the cardSwipe cue follows the CardSwiping transition edge');
+  assert.equal(cueCalls(feedSwipe, 'cardSwipe').length, 0,
+    'pointer movement samples cannot replay the swipe cue');
+  assert.equal(cueCalls(endSwipe, 'cardSwipe').length, 0,
+    'pointer release cannot replay the swipe-start cue');
   assert.equal(cueCalls(updateCard, 'cardProcessing').length, 0,
-    'physical insertion alone cannot start card processing');
-  assert.equal(cueCalls(beginCardProcessing, 'cardProcessing').length, 1,
-    'processing begins once only after the matching amount is confirmed');
+    'the authorization timer cannot replay the processing cue');
+  assert.equal(cueCalls(endSwipe, 'cardProcessing').length, 1,
+    'processing begins once only after a valid completed swipe');
   assert.equal(cueCalls(updateCard, 'cardApproved').length, 1);
   assert.equal(cueCalls(updateCard, 'cardDeclined').length, 1);
-  assert.doesNotMatch(registerSource, /function\s+startSwipe\s*\(|swipeAt\s*:/,
-    'the active renderer exposes no swipe interaction surface');
+  assert.doesNotMatch(registerSource, /function\s+(?:startInsert|autoInsertCard)\s*\(|insertAt\s*:/,
+    'the active renderer exposes no competing insertion interaction surface');
 });
 
 test('drawer close is emitted once only, when the counted change is handed over', () => {
@@ -224,7 +221,8 @@ test('bagging and automatic receipt cues remain transition-local one-shots', () 
   assert.equal(cueCalls(updateScanMotion, 'bagItem').length, 1,
     'a compact product landing in the bag owns one physical bag impact/rustle cue');
   assert.equal(cueCalls(beginAutomaticReceipt, 'receiptPrint').length, 1);
-  assert.equal(cueCalls(finishAutomaticFulfillment, 'receiptTear').length, 1);
+  assert.equal(cueCalls(finishAutomaticFulfillment, 'receiptTear').length, 2,
+    'retail-manual and reservation-auto branches each own one exclusive tear edge');
   assert.equal(cueCalls(updateDelivery, 'bagHandoff').length, 1,
     'the authored bag-handle ownership transfer owns one handoff cue');
 });

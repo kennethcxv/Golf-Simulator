@@ -17,6 +17,69 @@ import { firstUnoccludedHit } from '../toolSockets.js';
 
 const CELL_PX = 14; // canvas resolution per mask cell (the grid is ~0.25yd, so this is plenty)
 
+// Exterior wetness is feedback, not progress. It stays runtime-only like a particle system, but
+// lives long enough to leave a readable dark sheen after the trigger is released.
+export const WASH_WET_DRY_SEC = 12;
+
+/** Lay a soft, surface-local wet fan into a flat grid. Exported for deterministic lifecycle tests. */
+export function applyWashWetness(field, surface, u, v, radiusYd, amount = 1) {
+  if (!field || !surface?.grid || !surface?.size) return 0;
+  const width = surface.grid.w;
+  const height = surface.grid.h;
+  const radius = Math.max(0.01, Number(radiusYd) || 0.01);
+  const centreU = Math.max(0, Math.min(1, Number(u) || 0));
+  const centreV = Math.max(0, Math.min(1, Number(v) || 0));
+  const rx = Math.ceil((radius / surface.size.w) * width) + 1;
+  const ry = Math.ceil((radius / surface.size.h) * height) + 1;
+  const cx = centreU * width;
+  const cy = centreV * height;
+  const x0 = Math.max(0, Math.floor(cx - rx));
+  const x1 = Math.min(width - 1, Math.ceil(cx + rx));
+  const y0 = Math.max(0, Math.floor(cy - ry));
+  const y1 = Math.min(height - 1, Math.ceil(cy + ry));
+  let touched = 0;
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const du = ((x + 0.5) / width - centreU) * surface.size.w;
+      const dv = ((y + 0.5) / height - centreV) * surface.size.h;
+      const distance = Math.hypot(du, dv);
+      if (distance > radius) continue;
+      const strength = Math.max(0, 1 - (distance / radius) ** 2);
+      const index = y * width + x;
+      const next = Math.max(field[index] || 0, Math.min(1, amount * strength));
+      if (next > (field[index] || 0) + 1e-6) touched += 1;
+      field[index] = next;
+    }
+  }
+  return touched;
+}
+
+/** Advance runtime wet feedback. Returns diagnostics so callers can retire dry surfaces cheaply. */
+export function fadeWashWetness(field, dtSec) {
+  const step = Math.max(0, Number(dtSec) || 0) / WASH_WET_DRY_SEC;
+  let changed = false;
+  let activeCells = 0;
+  let total = 0;
+  let max = 0;
+  for (let index = 0; index < (field?.length || 0); index++) {
+    const before = Number(field[index]) || 0;
+    const next = Math.max(0, before - step);
+    if (Math.abs(next - before) > 1e-6) changed = true;
+    field[index] = next;
+    if (next <= 0) continue;
+    activeCells += 1;
+    total += next;
+    max = Math.max(max, next);
+  }
+  return {
+    changed,
+    activeCells,
+    total,
+    mean: activeCells ? total / activeCells : 0,
+    max,
+  };
+}
+
 // Where each washable face lives on the building, in building-local yards. `rot` orients the
 // plane; the default faces +z (south).
 //
@@ -121,6 +184,7 @@ export function buildWashing(B) {
     outCv.width = W;
     outCv.height = H;
     const outCtx = outCv.getContext('2d');
+    const wet = new Float32Array(gw * gh);
 
     const tex = new THREE.CanvasTexture(outCv);
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -189,11 +253,31 @@ export function buildWashing(B) {
           outCtx.fill();
         }
       }
+
+      // Water leaves a cool, darker sheen on both clean and dirty material. It is drawn last so a
+      // washed-clean stripe still looks freshly wet rather than snapping straight to dry siding.
+      // Only active cells allocate gradients, keeping an idle/dry exterior at zero repaint cost.
+      for (let cy = 0; cy < gh; cy++) {
+        for (let cx = 0; cx < gw; cx++) {
+          const level = wet[cy * gw + cx];
+          if (!(level > 0.002)) continue;
+          const x = (cx + 0.5) * CELL_PX;
+          const y = (gh - 1 - cy + 0.5) * CELL_PX;
+          const alpha = Math.min(0.24, level * 0.24) * feather(cx, cy);
+          const wetGlow = outCtx.createRadialGradient(x, y, 0, x, y, CELL_PX * 1.35);
+          wetGlow.addColorStop(0, `rgba(24,54,60,${alpha})`);
+          wetGlow.addColorStop(1, 'rgba(24,54,60,0)');
+          outCtx.fillStyle = wetGlow;
+          outCtx.beginPath();
+          outCtx.arc(x, y, CELL_PX * 1.35, 0, Math.PI * 2);
+          outCtx.fill();
+        }
+      }
       tex.needsUpdate = true;
     };
 
     repaint();
-    surfaces[surf.id] = { surf, mesh, repaint };
+    surfaces[surf.id] = { surf, mesh, repaint, wet };
   }
 
   // --- the jet: a narrow stream from the nozzle, and mist where it lands -------------------
@@ -204,14 +288,17 @@ export function buildWashing(B) {
   const jetMat = new THREE.MeshBasicMaterial({
     color: 0xbcdcff,
     transparent: true,
-    opacity: 0.30,
+    opacity: 0.10,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
   });
-  const jet = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.062, 1, 8, 1, true), jetMat);
+  const jet = new THREE.Group();
+  jet.name = 'PressureWasherJet';
+  const jetBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.015, 1, 6, 1, true), jetMat);
+  jetBeam.frustumCulled = false;
+  jet.add(jetBeam);
   jet.visible = false;
-  jet.frustumCulled = false;
 
   // A round, soft droplet. An untextured THREE.Points renders as a hard SQUARE — at 0.075 world
   // units that is a cluster of white cubes stapled to the wall, which is exactly how the shipped
@@ -250,6 +337,30 @@ export function buildWashing(B) {
   }));
   mist.visible = false;
   mist.frustumCulled = false;
+
+  // Moving droplets carry the stream. The faint beam above only connects them at distance; it is
+  // no longer the solid tapered wedge that made the washer look like a white spike.
+  const STREAM = 46;
+  const streamPos = new Float32Array(STREAM * 3);
+  const streamGeo = new THREE.BufferGeometry();
+  streamGeo.setAttribute('position', new THREE.BufferAttribute(streamPos, 3));
+  const stream = new THREE.Points(streamGeo, new THREE.PointsMaterial({
+    color: 0xd8efff,
+    size: 0.040,
+    map: dropletTex,
+    alphaTest: 0.02,
+    transparent: true,
+    opacity: 0.74,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+  }));
+  stream.frustumCulled = false;
+  jet.add(stream);
+  const jetDirection = new THREE.Vector3();
+  const jetNormalized = new THREE.Vector3();
+  const jetMidpoint = new THREE.Vector3();
+  const jetUp = new THREE.Vector3(0, 1, 0);
 
   const REACH = 7;
 
@@ -291,6 +402,7 @@ export function buildWashing(B) {
   const occluderSet = () => (occluders || (occluders = collectOccluders()));
 
   let dirty = new Set();
+  const wetSurfaces = new Set();
   let repaintClock = 0;
 
   return {
@@ -325,6 +437,12 @@ export function buildWashing(B) {
       const res = mode === 'soap'
         ? { cleaned: 0, blocked: false, ...soapAt(state, hit.id, hit.u, hit.v, r, nowSec) }
         : washAt(state, hit.id, hit.u, hit.v, r, power, dtSec, nowSec);
+      if (mode !== 'soap') {
+        const target = surfaces[hit.id];
+        if (target && applyWashWetness(target.wet, target.surf, hit.u, hit.v, r, 1) > 0) {
+          wetSurfaces.add(hit.id);
+        }
+      }
       dirty.add(hit.id);
       return res;
     },
@@ -334,11 +452,22 @@ export function buildWashing(B) {
       jet.visible = !!(on && from && to);
       mist.visible = jet.visible;
       if (!jet.visible) return;
-      const dir = to.clone().sub(from);
-      const len = dir.length();
-      jet.position.copy(from).addScaledVector(dir, 0.5);
-      jet.scale.set(1, len, 1);
-      jet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+      jetDirection.subVectors(to, from);
+      const len = jetDirection.length();
+      jetMidpoint.copy(from).addScaledVector(jetDirection, 0.5);
+      jetBeam.position.copy(jetMidpoint);
+      jetBeam.scale.set(1, len, 1);
+      jetBeam.quaternion.setFromUnitVectors(jetUp, jetNormalized.copy(jetDirection).normalize());
+      const phase = performance.now() * 0.004;
+      for (let i = 0; i < STREAM; i++) {
+        const t = ((i / STREAM) + phase * (0.80 + (i % 3) * 0.07)) % 1;
+        const spread = 0.006 + t * 0.022;
+        const o = i * 3;
+        streamPos[o] = from.x + jetDirection.x * t + Math.sin(i * 4.1 + phase) * spread;
+        streamPos[o + 1] = from.y + jetDirection.y * t + Math.cos(i * 3.7 + phase) * spread;
+        streamPos[o + 2] = from.z + jetDirection.z * t + Math.sin(i * 2.9 - phase) * spread;
+      }
+      streamGeo.attributes.position.needsUpdate = true;
 
       for (let i = 0; i < MIST; i++) {
         mistLife[i] -= dt;
@@ -359,12 +488,46 @@ export function buildWashing(B) {
 
     // repainting a canvas is not free: batch it to ~15Hz while the trigger is down
     tick(dt) {
-      if (!dirty.size) return;
-      repaintClock += dt;
+      if (!dirty.size && !wetSurfaces.size) return;
+      repaintClock += Math.max(0, Number(dt) || 0);
       if (repaintClock < 0.066) return;
+      const elapsed = repaintClock;
       repaintClock = 0;
+      for (const id of [...wetSurfaces]) {
+        const target = surfaces[id];
+        if (!target) {
+          wetSurfaces.delete(id);
+          continue;
+        }
+        const faded = fadeWashWetness(target.wet, elapsed);
+        if (faded.changed) dirty.add(id);
+        if (faded.activeCells === 0) wetSurfaces.delete(id);
+      }
       for (const id of dirty) if (surfaces[id]) surfaces[id].repaint();
       dirty = new Set();
+    },
+
+    wetnessDiagnostics() {
+      let activeCells = 0;
+      let total = 0;
+      let max = 0;
+      let cells = 0;
+      for (const target of Object.values(surfaces)) {
+        cells += target.wet.length;
+        for (const level of target.wet) {
+          if (!(level > 0)) continue;
+          activeCells += 1;
+          total += level;
+          max = Math.max(max, level);
+        }
+      }
+      return {
+        activeCells,
+        mean: activeCells ? total / activeCells : 0,
+        coverage: cells ? activeCells / cells : 0,
+        max,
+        drying: wetSurfaces.size > 0,
+      };
     },
 
     // called when a surface finishes, so the player is told

@@ -28,7 +28,10 @@ import { conditionRating } from '../sim/turf.js';
 import { makeCameraRig } from './cameraRig.js';
 import { makeCharacter } from './characterAsset.js';
 import { clubhouseInteriorGtaoExcludedAt, makeClubhouse } from './clubhouse.js';
-import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture, makeAsphaltTexture } from './proceduralTextures.js';
+import {
+  makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture, makeAsphaltTexture,
+  makeSoftParticleTexture,
+} from './proceduralTextures.js';
 import { applyMouseLook, setFirstPersonOrientation } from './mouseLook.js';
 import {
   makeVisualField,
@@ -81,9 +84,12 @@ const ELEV_FT_TO_YD = (1 / 3) * 1.5; // real feet→yards with 1.5x readability 
 const METERS_TO_YARDS = 1.0936133;
 // Default water carves reach 4.5 ft (2.25 yd after readability exaggeration)
 // and bunker bowls reach about 1.4 yd. Keep the coarse countryside underlay
-// below every authored core plus interpolation headroom so it cannot punch
-// through the playable terrain as a false turf island.
-const ENV_RING_INTERIOR_TUCK_YD = 4;
+// below every authored core plus the coarse underlay's interpolation headroom
+// so it cannot punch through the playable terrain as a false turf island.
+// Eight yards is intentionally larger than the carve itself: the ring spans
+// ~35-yard quads, whose interpolated base can sit several yards above a local
+// hollow even when each source vertex sampled the course correctly.
+const ENV_RING_INTERIOR_TUCK_YD = 8;
 // The ring meets the property at its own edge height; this is only enough drop
 // to keep the two surfaces from z-fighting along the seam.
 const ENV_RING_SEAM_BIAS_YD = 0.15;
@@ -99,14 +105,14 @@ const GRASS_STRUCTURE_MARGIN_YD = 1.5;
 // immutable scalar record per grassy zone so the hot loop does not allocate a
 // fresh object and tint array for each probe.
 export const GRASS_ZONE_SPECS = Object.freeze({
-  [ZONE.OUT]: Object.freeze({ h: 0.25, r: 0.40, g: 0.46, b: 0.20 }),
-  [ZONE.ROUGH]: Object.freeze({ h: 0.14, r: 0.32, g: 0.54, b: 0.18 }),
-  [ZONE.FAIRWAY]: Object.freeze({ h: 0.035, r: 0.38, g: 0.65, b: 0.22 }),
-  [ZONE.TEE]: Object.freeze({ h: 0.025, r: 0.36, g: 0.62, b: 0.22 }),
-  [ZONE.FRINGE]: Object.freeze({ h: 0.03, r: 0.34, g: 0.60, b: 0.21 }),
-  [ZONE.HEAVY]: Object.freeze({ h: 0.32, r: 0.42, g: 0.48, b: 0.20 }),
-  [ZONE.BED]: Object.freeze({ h: 0.12, r: 0.26, g: 0.40, b: 0.15 }),
-  [ZONE.SEMI]: Object.freeze({ h: 0.065, r: 0.32, g: 0.57, b: 0.19 }),
+  [ZONE.OUT]: Object.freeze({ h: 0.25, r: 0.34, g: 0.43, b: 0.17 }),
+  [ZONE.ROUGH]: Object.freeze({ h: 0.14, r: 0.29, g: 0.5, b: 0.17 }),
+  [ZONE.FAIRWAY]: Object.freeze({ h: 0.035, r: 0.32, g: 0.57, b: 0.19 }),
+  [ZONE.TEE]: Object.freeze({ h: 0.025, r: 0.31, g: 0.55, b: 0.19 }),
+  [ZONE.FRINGE]: Object.freeze({ h: 0.03, r: 0.3, g: 0.53, b: 0.18 }),
+  [ZONE.HEAVY]: Object.freeze({ h: 0.32, r: 0.36, g: 0.45, b: 0.17 }),
+  [ZONE.BED]: Object.freeze({ h: 0.12, r: 0.25, g: 0.37, b: 0.14 }),
+  [ZONE.SEMI]: Object.freeze({ h: 0.065, r: 0.29, g: 0.51, b: 0.17 }),
 });
 
 export function grassSpecForZone(z) {
@@ -589,6 +595,63 @@ export function makeCourseScene(canvas, state) {
   const worldH = H * CELL_YD;
   const SEG_PER_CELL = course.vec ? SEG_PER_CELL_VEC : SEG_PER_CELL_LEGACY;
 
+  // Bounded runtime aggregates let browser QA measure production editor work
+  // without retaining per-frame samples during long editing sessions.
+  const editorPerformanceKeys = [
+    'visualField',
+    'surfaceDistanceField',
+    'visualFieldUpload',
+    'terrainHeights',
+    'terrainNormals',
+    'terrainRefresh',
+    'turfPack',
+  ];
+  const editorPerformanceStats = Object.create(null);
+
+  function resetEditorPerformanceStats() {
+    for (const key of editorPerformanceKeys) {
+      editorPerformanceStats[key] = {
+        calls: 0,
+        totalMs: 0,
+        maxMs: 0,
+        lastMs: 0,
+        units: 0,
+        scopedCalls: 0,
+        fullCalls: 0,
+      };
+    }
+  }
+
+  function recordEditorPerformance(key, startedAt, units = 0, scoped = null) {
+    const stat = editorPerformanceStats[key];
+    const elapsed = performance.now() - startedAt;
+    stat.calls += 1;
+    stat.totalMs += elapsed;
+    stat.maxMs = Math.max(stat.maxMs, elapsed);
+    stat.lastMs = elapsed;
+    stat.units += units;
+    if (scoped === true) stat.scopedCalls += 1;
+    if (scoped === false) stat.fullCalls += 1;
+  }
+
+  function editorPerformanceSnapshot() {
+    return Object.fromEntries(editorPerformanceKeys.map((key) => {
+      const stat = editorPerformanceStats[key];
+      return [key, {
+        calls: stat.calls,
+        totalMs: +stat.totalMs.toFixed(3),
+        averageMs: +(stat.calls ? stat.totalMs / stat.calls : 0).toFixed(3),
+        maxMs: +stat.maxMs.toFixed(3),
+        lastMs: +stat.lastMs.toFixed(3),
+        units: stat.units,
+        scopedCalls: stat.scopedCalls,
+        fullCalls: stat.fullCalls,
+      }];
+    }));
+  }
+
+  resetEditorPerformanceStats();
+
   // --- renderer / scene / camera -------------------------------------------------
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   // DPR 1.5 cap: above that the post chain pays quadratically for sharpness nobody reads
@@ -671,7 +734,7 @@ export function makeCourseScene(canvas, state) {
   scene.add(sun.target);
 
   // STYLE GUIDE §3: strong sky fill so shadows stay colorful (~60-70% of lit)
-  const hemi = new THREE.HemisphereLight(0xcfe6fa, 0x5d7a44, 1.25);
+  const hemi = new THREE.HemisphereLight(0xcfe6fa, 0x71875d, 1.4);
   scene.add(hemi);
 
   const sky = new Sky();
@@ -789,6 +852,12 @@ export function makeCourseScene(canvas, state) {
   const zoneTex = new THREE.DataTexture(zoneData, W, H);
   const auxTex = new THREE.DataTexture(auxData, W, H);
   const planTex = new THREE.DataTexture(planData, W, H);
+  // CPU-only sources for renderer.copyTextureToTexture(). Unlike Texture's
+  // updateRanges (which issue one texSubImage2D per row and only support RGBA),
+  // this route uploads one true rectangle while retaining the destination's
+  // existing GPU allocation.
+  const zoneUploadSource = new THREE.DataTexture(zoneData, W, H);
+  const auxUploadSource = new THREE.DataTexture(auxData, W, H);
   for (const t of [zoneTex, auxTex, planTex]) {
     t.magFilter = THREE.NearestFilter;
     t.minFilter = THREE.NearestFilter;
@@ -817,27 +886,87 @@ export function makeCourseScene(canvas, state) {
   surfaceDistanceTex.magFilter = THREE.LinearFilter;
   surfaceDistanceTex.minFilter = THREE.LinearFilter;
   surfaceDistanceTex.generateMipmaps = false;
+  const zoneHiUploadSource = new THREE.DataTexture(
+    visField.data, visField.w, visField.h, THREE.RGFormat, THREE.UnsignedByteType,
+  );
+  const surfaceDistanceUploadSource = new THREE.DataTexture(
+    surfaceDistanceField.data, surfaceDistanceField.w, surfaceDistanceField.h,
+    THREE.RGBAFormat, THREE.UnsignedByteType,
+  );
+  const dataUploadBox = new THREE.Box2();
+  const dataUploadPosition = new THREE.Vector2();
+
+  function uploadDataTextureRegion(destination, source, tx0, ty0, tx1, ty1) {
+    if (!renderer.properties.has(destination)) {
+      // Construction and a pre-first-frame edit have no allocated destination
+      // yet. A normal full upload is the only valid path in that state.
+      destination.clearUpdateRanges();
+      destination.needsUpdate = true;
+      return false;
+    }
+    destination.clearUpdateRanges();
+    dataUploadBox.min.set(tx0, ty0);
+    dataUploadBox.max.set(tx1 + 1, ty1 + 1);
+    dataUploadPosition.set(tx0, ty0);
+    renderer.copyTextureToTexture(source, destination, dataUploadBox, dataUploadPosition);
+    return true;
+  }
 
   // Recompute the visual field from the sim grid — everything, or one padded
   // cell-rect while a paint stroke is in flight.
-  function updateZoneField(st, rect = null) {
+  function updateZoneField(st, rect = null, { padding } = {}) {
     if (rect) {
-      updateVisualFieldRegion(st.course, visField, rect.x0, rect.y0, rect.x1, rect.y1);
-      updateSurfaceDistanceFieldRegion(st.course, visField, surfaceDistanceField, rect.x0, rect.y0, rect.x1, rect.y1);
-      // Upload only the recomputed rows. A brush stroke should not resend the
-      // full 9.38 MiB course texture to the GPU.
+      const visualStarted = performance.now();
+      updateVisualFieldRegion(st.course, visField, rect.x0, rect.y0, rect.x1, rect.y1, padding);
+      recordEditorPerformance('visualField', visualStarted, 0, true);
+      const distanceStarted = performance.now();
+      updateSurfaceDistanceFieldRegion(
+        st.course, visField, surfaceDistanceField,
+        rect.x0, rect.y0, rect.x1, rect.y1, padding,
+      );
+      recordEditorPerformance(
+        'surfaceDistanceField', distanceStarted,
+        (surfaceDistanceField.updatedRect.tx1 - surfaceDistanceField.updatedRect.tx0 + 1)
+          * (surfaceDistanceField.updatedRect.ty1 - surfaceDistanceField.updatedRect.ty0 + 1),
+        true,
+      );
       const dirty = surfaceDistanceField.updatedRect;
-      const rowComponents = (dirty.tx1 - dirty.tx0 + 1) * 4;
-      for (let ty = dirty.ty0; ty <= dirty.ty1; ty++) {
-        surfaceDistanceTex.addUpdateRange((ty * surfaceDistanceField.w + dirty.tx0) * 4, rowComponents);
-      }
+      // One rectangular upload per field. The previous row-range loop issued
+      // thousands of WebGL calls during a normal drag, while the RG visual
+      // texture had no legal update-range path and re-uploaded in full.
+      const uploadStarted = performance.now();
+      uploadDataTextureRegion(zoneHiTex, zoneHiUploadSource, dirty.tx0, dirty.ty0, dirty.tx1, dirty.ty1);
+      uploadDataTextureRegion(
+        surfaceDistanceTex, surfaceDistanceUploadSource,
+        dirty.tx0, dirty.ty0, dirty.tx1, dirty.ty1,
+      );
+      recordEditorPerformance(
+        'visualFieldUpload', uploadStarted,
+        (dirty.tx1 - dirty.tx0 + 1) * (dirty.ty1 - dirty.ty0 + 1),
+        true,
+      );
     } else {
+      const visualStarted = performance.now();
       computeVisualField(st.course, visField);
+      recordEditorPerformance('visualField', visualStarted, visField.w * visField.h, false);
+      const distanceStarted = performance.now();
       computeSurfaceDistanceField(visField, surfaceDistanceField);
+      recordEditorPerformance(
+        'surfaceDistanceField', distanceStarted,
+        surfaceDistanceField.w * surfaceDistanceField.h,
+        false,
+      );
+      const uploadStarted = performance.now();
+      zoneHiTex.clearUpdateRanges();
+      zoneHiTex.needsUpdate = true;
       surfaceDistanceTex.clearUpdateRanges();
+      surfaceDistanceTex.needsUpdate = true;
+      recordEditorPerformance(
+        'visualFieldUpload', uploadStarted,
+        surfaceDistanceField.w * surfaceDistanceField.h,
+        false,
+      );
     }
-    zoneHiTex.needsUpdate = true;
-    surfaceDistanceTex.needsUpdate = true;
   }
 
   function zoneAtWorld(x, z) {
@@ -1048,19 +1177,19 @@ export function makeCourseScene(canvas, state) {
           #define FW_LUMA vec3(0.299, 0.587, 0.114)
           #define FW_STYLIZE(tex, tint) ((0.46 + dot(tex, FW_LUMA) * 1.28) * (tint))
 
-          vec3 colRough = FW_STYLIZE(dRough, vec3(0.135, 0.205, 0.070));
-          vec3 colFair = FW_STYLIZE(dFair, vec3(0.158, 0.318, 0.082));
+          vec3 colRough = FW_STYLIZE(dRough, vec3(0.145, 0.235, 0.082));
+          vec3 colFair = FW_STYLIZE(dFair, vec3(0.150, 0.325, 0.080));
           // First cut is a deliberate intermediate ribbon, not a blurred
           // fairway edge.  The darker sage value stays above rough while
           // remaining legible from tee height.
-          vec3 colSemi = FW_STYLIZE(dFair, vec3(0.138, 0.260, 0.068));
+          vec3 colSemi = FW_STYLIZE(dFair, vec3(0.145, 0.275, 0.074));
           // Close-cut complexes need a readable identity from both the editor
           // camera and tee height.  Keep the parkland hue, but give greens a
           // brighter, cooler value and their collar a deliberate dark frame.
-          vec3 colGreen = FW_STYLIZE(dGreen, vec3(0.188, 0.378, 0.084));
-          vec3 colFringe = FW_STYLIZE(dGreen, vec3(0.128, 0.286, 0.060));
-          vec3 colTee = FW_STYLIZE(dTee, vec3(0.180, 0.365, 0.090));
-          vec3 colSand = (0.48 + dot(dSand, FW_LUMA) * 1.20) * vec3(0.70, 0.58, 0.40);
+          vec3 colGreen = FW_STYLIZE(dGreen, vec3(0.180, 0.360, 0.082));
+          vec3 colFringe = FW_STYLIZE(dGreen, vec3(0.150, 0.300, 0.070));
+          vec3 colTee = FW_STYLIZE(dTee, vec3(0.168, 0.340, 0.084));
+          vec3 colSand = (0.5 + dot(dSand, FW_LUMA) * 1.18) * vec3(0.78, 0.66, 0.46);
 
           vec3 col;
           float stripeAmp = 0.0;
@@ -1068,32 +1197,32 @@ export function makeCourseScene(canvas, state) {
           float modeSel = 0.0;
           bool followFlow = false;
           if (zone < 0.5) {        // OUT — native scrub
-            col = FW_STYLIZE(dScrub, vec3(0.145, 0.185, 0.082)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
+            col = FW_STYLIZE(dScrub, vec3(0.170, 0.225, 0.100)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.97;
           } else if (zone < 1.5) { // ROUGH
             col = colRough; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.96;
           } else if (zone < 2.5) { // FAIRWAY
             col = colFair; gSplatN = nFair; gSplatUv = uvFair; gSplatRough = 0.94;
             // Roughly six-yard alternating cuts make the mowing read down the
             // hole at player height as well as from the planning camera.
-            stripeAmp = 0.18; stripeFreq = 0.082; modeSel = uStripeModes.y; followFlow = true;
+            stripeAmp = 0.12; stripeFreq = 0.082; modeSel = uStripeModes.y; followFlow = true;
           } else if (zone < 3.5) { // GREEN
             col = colGreen; gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.9;
-            stripeAmp = 0.075; stripeFreq = 0.24; modeSel = uStripeModes.x; followFlow = true;
+            stripeAmp = 0.055; stripeFreq = 0.24; modeSel = uStripeModes.x; followFlow = true;
           } else if (zone < 4.5) { // TEE
             col = colTee; gSplatN = nTee; gSplatUv = uvTee; gSplatRough = 0.93;
-            stripeAmp = 0.085; stripeFreq = 0.16; modeSel = uStripeModes.z; followFlow = true;
+            stripeAmp = 0.06; stripeFreq = 0.16; modeSel = uStripeModes.z; followFlow = true;
           } else if (zone < 5.5) { // BUNKER — warm sand on a gentler curve (never blows to white)
             col = colSand;
             gSplatN = nSand; gSplatUv = uvSand; gSplatRough = 0.82;
           } else if (zone < 6.5) { // WATER bed
-            col = FW_STYLIZE(dScrub, vec3(0.10, 0.16, 0.07)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.85;
+            col = FW_STYLIZE(dScrub, vec3(0.13, 0.205, 0.09)); gSplatN = nScrub; gSplatUv = uvScrub; gSplatRough = 0.85;
           } else if (zone < 7.5) { // PATH — a dusty worn shoulder; the ribbon mesh is the pavement
             col = colRough; gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.95;
           } else if (zone < 8.5) { // FRINGE — a shade deeper than green, tight cut
             col = colFringe; gSplatN = nGreen; gSplatUv = uvGreen; gSplatRough = 0.92;
           } else if (zone < 9.5) { // HEAVY rough — tall, warm, golden-tipped
-            col = FW_STYLIZE(dRough, vec3(0.155, 0.205, 0.072)); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.97;
-            col = mix(col, vec3(0.34, 0.32, 0.13), fwNoise(cellUv * 2.7) * 0.2); // seedhead shimmer
+            col = FW_STYLIZE(dRough, vec3(0.170, 0.225, 0.085)); gSplatN = nRough; gSplatUv = uvRough; gSplatRough = 0.97;
+            col = mix(col, vec3(0.30, 0.29, 0.12), fwNoise(cellUv * 2.7) * 0.16); // seedhead shimmer
           } else if (zone < 10.5) { // DIRT
             col = FW_STYLIZE(dPath, vec3(0.42, 0.31, 0.20)); gSplatN = nPath; gSplatUv = uvPath; gSplatRough = 0.95;
           } else if (zone < 11.5) { // BED — dark mulch
@@ -1149,9 +1278,9 @@ export function makeCourseScene(canvas, state) {
           // to their own outward boundary in edgeYd, so feather each band into
           // the neighbour it borders across the last yard and the step goes away
           // without softening anything that owns an SDF channel.
-          vec3 heavyBand = FW_STYLIZE(dRough, vec3(0.155, 0.205, 0.072));
-          heavyBand = mix(heavyBand, vec3(0.34, 0.32, 0.13), fwNoise(cellUv * 2.7) * 0.2);
-          vec3 scrubBand = FW_STYLIZE(dScrub, vec3(0.145, 0.185, 0.082));
+          vec3 heavyBand = FW_STYLIZE(dRough, vec3(0.170, 0.225, 0.085));
+          heavyBand = mix(heavyBand, vec3(0.30, 0.29, 0.12), fwNoise(cellUv * 2.7) * 0.16);
+          vec3 scrubBand = FW_STYLIZE(dScrub, vec3(0.170, 0.225, 0.100));
           const float bandFeatherYd = 1.25;
           if (zone < 0.5) {
             // native scrub, fading back toward the heavy band on its inner edge
@@ -1167,7 +1296,7 @@ export function makeCourseScene(canvas, state) {
           // Broad, low-amplitude turf drift breaks repetition without turning
           // the playing surface into camouflage. One noise feature spans about
           // five simulation cells (roughly forty yards).
-          col *= 0.93 + fwNoise(cellUv * 0.18 + vec2(9.7, 21.3)) * 0.14;
+          col *= 0.96 + fwNoise(cellUv * 0.18 + vec2(9.7, 21.3)) * 0.08;
 
           if (stripeAmp > 0.001 && modeSel > 0.5) {
             // overgrown turf softens the bands but never erases the pattern —
@@ -1210,10 +1339,12 @@ export function makeCourseScene(canvas, state) {
             col *= 1.0 - smoothstep(0.58, 1.0, moisture) * 0.2;
             if (disSev > 0.03) {
               float spots = fwNoise(cellUv * (disType < 1.5 ? 6.5 : 3.2) + disType * 31.0);
-              float cut = 1.0 - disSev * 0.6;
-              float blot = smoothstep(cut, cut + 0.12, spots);
-              vec3 blotch = disType < 1.5 ? vec3(0.84, 0.79, 0.6) : vec3(0.52, 0.4, 0.24);
-              col = mix(col, blotch, blot * 0.78);
+              float cut = 1.0 - disSev * 0.56;
+              float blot = smoothstep(cut, cut + 0.16, spots);
+              // Turf stress stays olive and embedded in the sward. Pale,
+              // high-contrast flecks read as litter from green-camera height.
+              vec3 blotch = disType < 1.5 ? vec3(0.45, 0.43, 0.22) : vec3(0.39, 0.32, 0.18);
+              col = mix(col, blotch, blot * 0.34);
             }
           }
 
@@ -1278,6 +1409,7 @@ export function makeCourseScene(canvas, state) {
   };
 
   const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+  terrain.name = 'CourseTerrain';
   terrain.receiveShadow = true;
   terrain.castShadow = true; // rolling land self-shadows at low sun
   scene.add(terrain);
@@ -1364,11 +1496,12 @@ export function makeCourseScene(canvas, state) {
         `{
           vec4 sampledDiffuseColor = texture2D( map, vMapUv * 90.0 );
           float luma = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-          diffuseColor.rgb = (0.46 + luma * 1.28) * vec3(0.145, 0.185, 0.082);
+          diffuseColor.rgb = (0.46 + luma * 1.28) * vec3(0.170, 0.225, 0.100);
         }`,
       );
     };
     envRing = new THREE.Mesh(geo, mat);
+    envRing.name = 'CourseEnvironmentRing';
     envRing.receiveShadow = true;
     scene.add(envRing);
 
@@ -1413,11 +1546,13 @@ export function makeCourseScene(canvas, state) {
       mesh.castShadow = false;
       return mesh;
     };
-    // Two fog-separated silhouettes cost four hundred triangles and close the
-    // ground-level horizon without instancing thousands of distant full trees.
+    // Three fog-separated silhouettes cost well under a thousand triangles and
+    // replace the old single-height wallpaper with near, middle, and distant
+    // parkland ridges.
     horizonLandscape.add(
-      ridge(1250, 0.7, 12, 38, 0x66785d),
-      ridge(1800, 2.2, 28, 54, 0x82907b),
+      ridge(1050, 4.1, 7, 31, 0x526a50),
+      ridge(1450, 0.7, 18, 48, 0x66785d),
+      ridge(2050, 2.2, 34, 66, 0x899687),
     );
     scene.add(horizonLandscape);
   }
@@ -1482,12 +1617,18 @@ export function makeCourseScene(canvas, state) {
   // The window must be padded by the caller: a vertex's normal depends on its
   // neighbours' POSITIONS, so moving a vertex changes the normals one ring out.
   function recomputeTerrainNormals(vx0, vy0, vx1, vy1) {
+    const started = performance.now();
     const nrm = terrainGeo.attributes.normal;
     computeHeightfieldNormals(
       heights, vertsX, vertsY, worldW / segsX, worldH / segsY, nrm.array,
       { vx0, vy0, vx1, vy1 },
     );
     nrm.needsUpdate = true;
+    const touchedVertices = (vx1 - vx0 + 1) * (vy1 - vy0 + 1);
+    recordEditorPerformance(
+      'terrainNormals', started, touchedVertices,
+      touchedVertices < vertsX * vertsY,
+    );
   }
 
   // three uploads the whole buffer when updateRanges is empty, so a scoped edit
@@ -1506,6 +1647,7 @@ export function makeCourseScene(canvas, state) {
   // for a full rebuild. A terrain stroke used to pay the whole 346,801-vertex
   // loop plus a full computeVertexNormals() on every throttled tick.
   function rebuildTerrainHeights(rectCells = null) {
+    const refreshStarted = performance.now();
     if (course.vec && !relief) rebuildRelief();
     const pos = terrainGeo.attributes.position;
     const pa = pos.array;
@@ -1521,6 +1663,7 @@ export function makeCourseScene(canvas, state) {
       vy1 = clamp(Math.ceil(rectCells.y1 * SEG_PER_CELL), 0, vertsY - 1);
     }
 
+    const heightsStarted = performance.now();
     for (let vy = vy0; vy <= vy1; vy++) {
       for (let vx = vx0; vx <= vx1; vx++) {
         const h = terrainHeightAtVertex(vx, vy);
@@ -1529,6 +1672,8 @@ export function makeCourseScene(canvas, state) {
         pa[i * 3 + 1] = h;
       }
     }
+    const touchedVertices = (vx1 - vx0 + 1) * (vy1 - vy0 + 1);
+    recordEditorPerformance('terrainHeights', heightsStarted, touchedVertices, Boolean(rectCells));
     // Upload only the touched span. needsUpdate alone re-sends the whole
     // 347k-vertex buffer (~4 MB position + ~4 MB normal) to the GPU every tick,
     // which was the remaining stroke hitch once the CPU work was scoped.
@@ -1551,6 +1696,7 @@ export function makeCourseScene(canvas, state) {
     // cannot meaningfully change the bounding sphere; recomputing it is a full
     // pass over every vertex. Full rebuilds still refresh it.
     if (!rectCells) terrainGeo.computeBoundingSphere();
+    recordEditorPerformance('terrainRefresh', refreshStarted, touchedVertices, Boolean(rectCells));
   }
 
   // ground height lookup in world coords (post-carve)
@@ -1817,21 +1963,24 @@ export function makeCourseScene(canvas, state) {
         textureHeight: 512,
         waterNormals: waterNormalsTex,
         sunDirection: sun.position.clone().normalize(),
-        sunColor: 0xf4ede0, // soften the specular so low angles don't read as ice
-        waterColor: 0x3a7f9c, // §1: friendly stream blue-green, lifted so shaded ponds never read black
-        distortionScale: 3.4, // choppier normals break the full-sky mirror
-        alpha: 0.92, // a touch of the ground shows through — never a pure mirror
+        sunColor: 0xcbd3c1, // muted specular: low angles read as water, never white ice
+        waterColor: 0x34777d, // restrained golf-course blue-green
+        distortionScale: 2.7,
+        alpha: 0.95,
         fog: !!scene.fog,
       });
       guardCourseWaterReflection(water);
       water.material.uniforms.size.value = 5.5; // ripple scale
       // Water addon multiplies the reflection into its own colour; without a
-      // floor a tree-shaded pond reflects dark canopy and reads BLACK. Inject a
-      // minimum toward waterColor so every pond stays legibly blue-green.
+      // floor a tree-shaded pond reflects dark canopy and reads BLACK. Keep a
+      // restrained reflection range around waterColor as well: the bright-sky
+      // half of a pond otherwise meets the bank reflection in a hard diagonal
+      // that reads like a triangulation seam from the editor cameras.
       water.material.onBeforeCompile = (sh) => {
         sh.fragmentShader = sh.fragmentShader.replace(
           'gl_FragColor = vec4( outgoingLight, alpha );',
-          'gl_FragColor = vec4( max( outgoingLight, waterColor * 0.34 ), alpha );',
+          `vec3 courseReflection = min( outgoingLight, waterColor * 1.25 + vec3( 0.05 ) );
+          gl_FragColor = vec4( max( mix( waterColor * 0.84, courseReflection, 0.18 ), waterColor * 0.58 ), alpha );`,
         );
       };
       water.position.set(cx, level, cz);
@@ -1898,7 +2047,7 @@ export function makeCourseScene(canvas, state) {
       for (let x = -RING_DEPTH; x < W + RING_DEPTH; x++) {
         if (x >= 0 && y >= 0 && x < W && y < H) continue;
         const d = Math.max(x < 0 ? -x : x - (W - 1), y < 0 ? -y : y - (H - 1), 1);
-        const p = d <= 3 ? 0.48 : d <= 8 ? 0.32 : d <= 16 ? 0.18 : 0.09;
+        const p = d <= 3 ? 0.42 : d <= 8 ? 0.27 : d <= 16 ? 0.14 : 0.07;
         const h = treeHash(x * 11 + 5, y * 13 + 7);
         if (h < 1 - p) continue;
         spots.push({ x, y, r: h, edge: true, far: d });
@@ -2027,9 +2176,23 @@ export function makeCourseScene(canvas, state) {
       if (s.id && assets.has(s.id)) {
         sourceId = s.id;
       } else {
-        const belt = treeHash(Math.round(s.x) + 31, Math.round(s.y) + 17);
-        const pool = belt >= 0.66 ? FLORA_PINE : FLORA_FOREST;
-        sourceId = pool[Math.floor(treeHash(Math.round(s.x) + 57, Math.round(s.y) + 5) * pool.length) % pool.length];
+        // Boundary trees grow in coherent eight-cell stands. Most members use
+        // the stand's primary species, with a restrained local secondary mix,
+        // instead of changing species at every trunk like visual confetti.
+        const standX = Math.floor(s.x / 8);
+        const standY = Math.floor(s.y / 8);
+        const stand = treeHash(standX * 17 + 31, standY * 19 + 17);
+        const pool = stand >= 0.64 ? FLORA_PINE : FLORA_FOREST;
+        const primary = pool[
+          Math.floor(treeHash(standX * 29 + 57, standY * 31 + 5) * pool.length) % pool.length
+        ];
+        const local = treeHash(Math.round(s.x) + 71, Math.round(s.y) + 43);
+        sourceId = local < 0.72
+          ? primary
+          : pool[
+            Math.floor(treeHash(Math.round(s.x) + 57, Math.round(s.y) + 5) * pool.length)
+              % pool.length
+          ];
       }
       const sourceVariant = assets.get(sourceId);
       if (!sourceVariant) continue;
@@ -2064,7 +2227,7 @@ export function makeCourseScene(canvas, state) {
       m.compose(v.set(p.x, p.y, p.z), q, sc.set(width, height, width));
       // Preserve the authored sage/canopy values. Instance color adds age and
       // exposure variety without crushing every shaded crown toward black.
-      const brightness = 0.91 + treeHash(hx + 13, hy + 29) * 0.13;
+      const brightness = 0.95 + treeHash(hx + 13, hy + 29) * 0.12;
       col.setRGB(
         brightness * (0.99 + treeHash(hx, hy + 1) * 0.035),
         brightness,
@@ -2337,14 +2500,14 @@ export function makeCourseScene(canvas, state) {
   // geometry within ~12yd, surface-gated (short on tees/fairway, tall on
   // rough/native, none on sand/water/paths), wind-swayed in the vertex shader.
   // Only alive on foot / in playtest — the overview never pays for it.
-  const GRASS_COUNT = 12000; // bounded near-camera sward; at most ~336k blade tris
+  const GRASS_COUNT = 12000; // bounded near-camera sward; at most ~240k blade tris
   const GRASS_RADIUS = 12; // yards from camera; texture carries the middle distance
   let grassMesh = null;
   let grassActive = false;
 
   function bladeGeometry() {
-    // One instance is a small patch, not one stem. Seven offset ribbons fill
-    // the lattice without multiplying the number of submitted instances.
+    // One instance is a small patch, not one stem. Five irregular offset
+    // ribbons fill the dense lattice without the old seven-point star grammar.
     const g = new THREE.BufferGeometry();
     const seg = 2;
     const halfW = 0.035;
@@ -2358,8 +2521,6 @@ export function makeCourseScene(canvas, state) {
       [0.28, -0.20, 2.18, 0.94, 0.10],
       [-0.24, 0.27, 4.36, 0.80, 0.06],
       [0.32, 0.28, 5.25, 0.76, 0.09],
-      [0.00, 0.36, 3.18, 0.68, 0.05],
-      [0.08, -0.36, 1.66, 0.72, 0.07],
     ];
     for (const [ox, oz, ang, bladeH, lean] of blades) {
       const dx = Math.cos(ang);
@@ -2394,7 +2555,7 @@ export function makeCourseScene(canvas, state) {
     const mat = new THREE.MeshStandardMaterial({
       color: 0xffffff, roughness: 0.9, metalness: 0, side: THREE.DoubleSide,
       vertexColors: false, transparent: false,
-      emissive: 0x14230d, emissiveIntensity: 0.12,
+      emissive: 0x14230d, emissiveIntensity: 0.04,
     });
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.uGrassTime = { value: 0 };
@@ -2417,7 +2578,7 @@ export function makeCourseScene(canvas, state) {
           varying float vBladeH;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
           // slightly darker at the base, brighter tips — depth in the sward
-          diffuseColor.rgb *= mix(0.96, 1.10, vBladeH);`);
+          diffuseColor.rgb *= mix(0.97, 1.04, vBladeH);`);
     };
     grassMesh = new THREE.InstancedMesh(geo, mat, GRASS_COUNT);
     grassMesh.name = 'CourseGrassSward';
@@ -2906,7 +3067,7 @@ export function makeCourseScene(canvas, state) {
   const editorGroundTargets = [terrain];
   // the diffuse map multiplies DOWN, so these read two shades lighter in place
   const PATH_MATERIALS = {
-    asphalt: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0x9a968f, roughness: 0.95 }),
+    asphalt: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xb0a58e, roughness: 0.98 }),
     concrete: () => new THREE.MeshStandardMaterial({ map: texAsphalt, color: 0xcac6bd, roughness: 0.9 }),
     gravel: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xd9cba4, roughness: 1 }),
     dirt: () => new THREE.MeshStandardMaterial({ map: texPath, color: 0xc09a6a, roughness: 1 }),
@@ -3527,6 +3688,11 @@ export function makeCourseScene(canvas, state) {
     speed: 3.4, // yd/s — the shop's tuned 3.1 reads a hair brisker outdoors
     runMult: 1.8,
     radius: 0.34, // same body circle the shop uses
+    sens: 1,
+    invertY: false,
+    cameraBob: true,
+    reducedMotion: false,
+    fov: 66,
   };
 
   const walkHeld = new Set();
@@ -3835,6 +4001,9 @@ export function makeCourseScene(canvas, state) {
   // reused: the nozzle is resolved every frame the trigger is down
   const _washNozzle = new THREE.Vector3();
   const _toolContact = new THREE.Vector3();
+  let cleaningLastResult = null;
+  const cleaningLastContact = new THREE.Vector3();
+  const cleaningLastTarget = new THREE.Vector3();
   let toolHintClock = 0;
   // The cleaning tools build themselves from src/data/cleaningTools.js — geometry, sockets and
   // placement all come from the registry, so adding a mop is a registry entry rather than another
@@ -3846,17 +4015,22 @@ export function makeCourseScene(canvas, state) {
   // background: the procedural tools above are already usable, so equipping never waits on I/O,
   // and each authored mesh (with its own sockets) replaces its stand-in as it lands.
   let toolViewmodelsAuthored = null;
-  toolViewmodels.adoptAuthored(new GLTFLoader()).then((r) => { toolViewmodelsAuthored = r; });
+  toolViewmodels.adoptAuthored(new GLTFLoader()).then((r) => {
+    toolViewmodelsAuthored = r;
+    if (walkTool && CLEANING_TOOLS[walkTool]) {
+      fpHands.setTool(walkTool, toolViewmodels.gripsFor(walkTool));
+      toolViewmodels.setEquipped(walkTool, true);
+      toolViewmodels.setUsing(walkTool, walkSpraying || walkSoaping);
+    }
+  });
   const heldGroups = {
     hose: new THREE.Group(), divot: new THREE.Group(), rake: new THREE.Group(),
     washer: new THREE.Group(), boxcutter: new THREE.Group(),
     ...toolViewmodels.groups,
   };
-  // the washer's geometry is authored below, so keep the empty group rather than the registry's
-  // The washer's lance is authored below rather than from the registry, so discard the
-  // registry's stand-in group and name the real one — several tools now carry a socket called
-  // SOCKET_nozzle, so anything looking for the washer's must be able to scope its search.
-  heldGroups.washer = heldGroups.washer.name === 'Tool_washer' ? new THREE.Group() : heldGroups.washer;
+  // The washer starts with the synchronous procedural lance below, then this same registry-owned
+  // group adopts Asset 79's authored viewmodel without changing its sockets or trigger state.
+  // The stable name keeps scoped SOCKET_nozzle lookups unambiguous across all cleaning tools.
   heldGroups.washer.name = 'HeldWasher';
   for (const g of Object.values(heldGroups)) {
     g.visible = false;
@@ -3895,12 +4069,34 @@ export function makeCourseScene(canvas, state) {
     // at (0, 0.075, -0.7), and its axis is the lance's own -0.16 rad droop. Half its length along
     // that axis is the actual orifice. The socket is parented to the tool, so it inherits the gait
     // bob, the sway and the equip ease for free — which is the whole point of it existing.
-    attachSocket(heldGroups.washer, 'nozzle', [0, 0.0678, -0.7444], [-0.16, 0, 0]);
+    if (!heldGroups.washer.getObjectByName('SOCKET_nozzle')) {
+      attachSocket(heldGroups.washer, 'nozzle', [0, 0.0678, -0.7444], [-0.16, 0, 0]);
+    }
     // brought in from the frame edge once it had hands on it: a two-handed tool has to be far
     // enough into shot that you can see somebody holding it
-    heldGroups.washer.position.set(0.24, -0.34, -0.60);
+    heldGroups.washer.position.set(0.24, -0.20, -0.60);
     heldGroups.washer.rotation.set(0.06, -0.13, 0);
   }
+  for (const [id, group] of Object.entries(heldGroups)) {
+    group.userData.cleaningRestPosition = group.position.clone();
+    group.userData.cleaningRestRotationZ = group.rotation.z;
+    group.userData.cleaningToolId = id;
+  }
+  const dustpanLoadVisual = new THREE.Group();
+  dustpanLoadVisual.name = 'DustpanCollectedDebris';
+  dustpanLoadVisual.position.set(0, -0.035, -1.50);
+  dustpanLoadVisual.visible = false;
+  const dustpanLoadGeometry = new THREE.IcosahedronGeometry(0.048, 0);
+  const dustpanLoadMaterial = new THREE.MeshStandardMaterial({ color: 0x776446, roughness: 0.98 });
+  for (const [x, y, z, scale] of [
+    [-0.065, 0, 0.01, 1], [0.01, 0.012, -0.015, 1.25], [0.072, 0, 0.025, 0.85],
+  ]) {
+    const bit = new THREE.Mesh(dustpanLoadGeometry, dustpanLoadMaterial);
+    bit.position.set(x, y, z);
+    bit.scale.setScalar(scale);
+    dustpanLoadVisual.add(bit);
+  }
+  heldGroups.dustpan.add(dustpanLoadVisual);
   {
     // The vacuum used to be two boxes on a stick built right here — a grey cylinder and a red
     // slab, with no intake to speak of. It now comes from the registry with a proper chrome wand,
@@ -4113,9 +4309,13 @@ export function makeCourseScene(canvas, state) {
   function updateHeldFeel(dt) {
     // the hands breathe, rise into frame, and shove back under the trigger — or draw the box
     // cutter down the seam while you hold E on a taped carton
+    toolViewmodels.update(dt);
+    if (walkTool && CLEANING_TOOLS[walkTool]) {
+      fpHands.syncGrips(toolViewmodels.gripsFor(walkTool));
+    }
     fpHands.update(dt, walkSpraying || walkSoaping || holdActive);
     if (!heldRoot.visible) return;
-    heldAnim.t = Math.min(1, heldAnim.t + dt / 0.26);
+    heldAnim.t = Math.min(1, heldAnim.t + dt / (walk.reducedMotion ? 0.001 : 0.26));
     const k = heldAnim.show ? easeOutCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t);
     if (!heldAnim.show && heldAnim.t >= 1) {
       heldRoot.visible = false;
@@ -4123,7 +4323,7 @@ export function makeCourseScene(canvas, state) {
     }
     // gait-synced bob: strong under way, a slow breathe at rest
     bobPhase += dt * (walkMoving ? 8.7 : 1.6); // 8.7 = the characters' stride rate
-    const sway = walkMoving ? 1 : 0.25;
+    const sway = walk.reducedMotion || !walk.cameraBob ? 0 : (walkMoving ? 1 : 0.25);
     // Recoil belongs to the RIG, not to the hands: the hands are parented into the tool group so
     // their grip stays in the tool's frame, and writing the kick to them slid them along the lance
     // instead of shoving the lance back. fpHands reports the offset; the rig applies it.
@@ -4141,9 +4341,18 @@ export function makeCourseScene(canvas, state) {
   const sprayPositions = new Float32Array(sprayCount * 3);
   const sprayGeo = new THREE.BufferGeometry();
   sprayGeo.setAttribute('position', new THREE.BufferAttribute(sprayPositions, 3));
+  const sprayParticleTexture = makeSoftParticleTexture();
   const sprayPoints = new THREE.Points(
     sprayGeo,
-    new THREE.PointsMaterial({ color: 0xbfe2ff, size: 0.04, transparent: true, opacity: 0.7, depthWrite: false }),
+    new THREE.PointsMaterial({
+      color: 0xbfe2ff,
+      size: 0.04,
+      map: sprayParticleTexture,
+      transparent: true,
+      opacity: 0.72,
+      alphaTest: 0.025,
+      depthWrite: false,
+    }),
   );
   sprayPoints.visible = false;
   sprayPoints.frustumCulled = false;
@@ -4193,12 +4402,12 @@ export function makeCourseScene(canvas, state) {
   }
   scene.add(sprayPoints);
 
-  function updateSpray(aimWorld) {
+  function updateSpray(aimWorld, sourceWorld = null) {
     // a loose parabolic arc from the nozzle to the patch; the arc starts a full
     // yard out and never hugs the camera, so attenuated points stay droplets
-    const hx = walk.x - Math.sin(walk.yaw) * 1.1;
-    const hz = walk.z - Math.cos(walk.yaw) * 1.1;
-    const hy = heightAt(walk.x, walk.z) + walk.eye - 0.55;
+    const hx = sourceWorld?.x ?? (walk.x - Math.sin(walk.yaw) * 1.1);
+    const hz = sourceWorld?.z ?? (walk.z - Math.cos(walk.yaw) * 1.1);
+    const hy = sourceWorld?.y ?? (heightAt(walk.x, walk.z) + walk.eye - 0.55);
     for (let i = 0; i < sprayCount; i++) {
       const t = 0.12 + Math.random() * 0.88;
       const o = i * 3;
@@ -4211,6 +4420,17 @@ export function makeCourseScene(canvas, state) {
 
   function walkSetTool(tool) {
     const previousTool = walkTool;
+    if (previousTool && previousTool !== tool) {
+      toolViewmodels.setUsing(previousTool, false);
+      toolViewmodels.setEquipped(previousTool, false);
+    }
+    if (previousTool !== tool) {
+      walkSpraying = false;
+      walkSoaping = false;
+      sprayPoints.visible = false;
+      clubhouseApi?.stopCleaningEffects?.();
+      walkHooks.toolChanged?.(tool || null, previousTool || null);
+    }
     if (HELD_TOOL_ASSET_MANIFEST[tool]) {
       // Equipping is the first safe actual-use boundary: ordinary boots stay
       // lean, while the authored model begins loading before this frame makes
@@ -4219,13 +4439,15 @@ export function makeCourseScene(canvas, state) {
       heldAssetRegistry.ensure(tool, 'equip');
     }
     walkTool = tool;
+    toolViewmodels.setTool(tool, previousTool);
     for (const [name, g] of Object.entries(heldGroups)) g.visible = name === tool;
     // Every tool remains physically held. The cutter uses a smaller pinching
     // hand behind its handle so the blade contact and highlighted tape path
     // stay visible without leaving the knife floating on the carton.
     if (tool && heldGroups[tool] && GRIPS[tool]) {
       heldGroups[tool].add(fpHands.root);
-      fpHands.setTool(tool);
+      fpHands.setTool(tool, toolViewmodels.gripsFor(tool));
+      toolViewmodels.setEquipped(tool, true);
     } else {
       fpHands.setTool(null);
     }
@@ -4241,23 +4463,55 @@ export function makeCourseScene(canvas, state) {
       sprayPoints.material.color.set(TOOL_SPRAY[tool].color);
       sprayPoints.material.size = TOOL_SPRAY[tool].size;
     }
-    if (!tool) {
-      walkSpraying = false;
-      sprayPoints.visible = false;
-    }
+    if (!tool) sprayPoints.visible = false;
     if (tool === 'boxcutter' && previousTool !== 'boxcutter' && walkHooks.sfx) {
       walkHooks.sfx('cutterExtend');
     }
   }
 
   function walkSetSpraying(on) {
+    const wasSpraying = walkSpraying;
     walkSpraying = !!(on && walkTool && !cart.mounted);
-    if (!walkSpraying) sprayPoints.visible = false;
+    if (walkTool && walkSpraying !== wasSpraying) {
+      toolViewmodels.setUsing(walkTool, walkSpraying || walkSoaping);
+    }
+    if (!walkSpraying) {
+      sprayPoints.visible = false;
+      clubhouseApi?.stopCleaningEffects?.();
+    }
+  }
+
+  function walkSetSoaping(on) {
+    walkSoaping = !!(on && walkTool === 'washer' && !cart.mounted);
+    toolViewmodels.setUsing(walkTool, walkSpraying || walkSoaping);
+  }
+
+  function cleaningBlockMessage(reason) {
+    return ({
+      carpet: 'Mops stay off carpet — use the vacuum there.',
+      'mop-dry': 'The mop is dry — wring it in the cleaning-bay bucket.',
+      'pan-full': 'The dustpan is full — empty it into the trash bag.',
+      'bag-full': 'The trash bag is full — tie it at the cleaning bay.',
+      'bag-tied': 'That bag is tied — dispose it at the stockroom waste station.',
+      dry: 'Nothing to wipe yet — spray the surface first.',
+      blocked: 'The tool is against a fixture, not the floor.',
+      occluded: 'A counter or wall blocks the tool contact.',
+    })[reason] || 'Nothing to clean at that contact point.';
   }
 
   // --- what you're looking at (shop-style focus + [E]) -------------------------------
   let walkFocus = null; // { kind, label, cell? }
   const walkHooks = {}; // main.js provides turfLabelAt / inspectAt / waterAt / hoseLabelAt
+  walkHooks.getTool = () => walkTool;
+  walkHooks.toolAction = (toolId, action) => {
+    const clips = {
+      'mop:service': ['headcompress', 'compress'],
+      'dustpan:empty': ['empty'],
+      'trashbag:tie': ['tie'],
+      'trashbag:dispose': ['dispose'],
+    }[`${toolId}:${action}`];
+    if (clips) toolViewmodels.play(toolId, clips);
+  };
 
   // the patch of ground a walking player is looking at, in cell coords
   function walkAimCell(dist = 2.4) {
@@ -4299,6 +4553,38 @@ export function makeCourseScene(canvas, state) {
           walkFocus = { kind: 'prop', label: retainedLabel, prop: retainedProp };
           return;
         }
+      }
+    }
+    // A tool the player deliberately equipped owns the prompt. Nearby props no
+    // longer replace "vacuum this patch" or "water this turf" with an unrelated
+    // clutter/fixture action. Contextual tools such as the box cutter still use
+    // their prop's own hold prompt below.
+    if (walkTool && walkTool !== autoTool) {
+      if (walkTool === 'vacuum' && clubhouseApi) {
+        const ax = walk.x - Math.sin(walk.yaw) * 1.5;
+        const az = walk.z - Math.cos(walk.yaw) * 1.5;
+        walkFocus = {
+          kind: 'tool',
+          label: clubhouseApi.isInside(ax, az)
+            ? clubhouseApi.vacuumLabelAt(ax, az)
+            : 'Vacuum — take it inside the shop · [F] choose another tool',
+          cell: null,
+        };
+        return;
+      }
+      if (walkTool === 'washer') {
+        walkFocus = {
+          kind: 'tool',
+          label: 'Pressure washer — hold [LMB] to wash · hold [RMB] to apply soap · [F] tools',
+          cell: null,
+        };
+        return;
+      }
+      const labelHook = { hose: walkHooks.hoseLabelAt, divot: walkHooks.divotLabelAt, rake: walkHooks.rakeLabelAt }[walkTool];
+      const aim = walkAimCell(3.0);
+      if (aim && labelHook) {
+        walkFocus = { kind: 'tool', label: labelHook(aim.x, aim.y), cell: aim };
+        return;
       }
     }
     // placed props (repair yard, tools, signs): nearest one you're facing
@@ -4354,6 +4640,14 @@ export function makeCourseScene(canvas, state) {
     if (bestProp) {
       walkFocus = { kind: 'prop', label: bestProp.label(), prop: bestProp };
       return;
+    }
+    // a cleaning tool out: the prompt becomes a live capacity / readiness readout.
+    if (CLEANING_TOOLS[walkTool] && clubhouseApi?.cleaningLabel) {
+      const label = clubhouseApi.cleaningLabel(walkTool);
+      if (label) {
+        walkFocus = { kind: 'hose', label: `${label} · [F] next tool`, cell: null };
+        return;
+      }
     }
     // a tool out: the prompt becomes a live readout on the patch ahead
     if (walkTool === 'vacuum') {
@@ -4689,6 +4983,9 @@ export function makeCourseScene(canvas, state) {
   function walkBlur() {
     walkHeld.clear();
     contextToolRequiresRelease = false;
+    walkSetSpraying(false);
+    walkSetSoaping(false);
+    walkHooks.toolChanged?.(walkTool || null, walkTool || null);
   }
   // Ignore the first mouse events after (re)acquiring pointer lock. Browsers can
   // deliver a large accumulated movementX/Y in that first event — the classic
@@ -4745,7 +5042,8 @@ export function makeCourseScene(canvas, state) {
     const sens = walk.sens || 1; // pause-menu mouse sensitivity
     // applyMouseLook clamps the per-event delta (no 180 whip on a reacquisition
     // jump), applies sensitivity, wraps yaw and clamps pitch — see mouseLook.js.
-    const next = applyMouseLook(walk.yaw, walk.pitch, e.movementX, e.movementY, sens);
+    const movementY = walk.invertY ? -e.movementY : e.movementY;
+    const next = applyMouseLook(walk.yaw, walk.pitch, e.movementX, movementY, sens);
     walk.yaw = next.yaw;
     walk.pitch = next.pitch;
   }
@@ -4776,7 +5074,7 @@ export function makeCourseScene(canvas, state) {
       // never spawn inside a tree that grew since the spot was chosen
       for (let push = 1; push < 30 && walkBlocked(walk.x, walk.z); push++) walk.z += 1.5;
     }
-    camera.fov = 66; // the shop's human FOV; the management rig uses 46
+    camera.fov = walk.fov || 66; // the management rig uses 46
     camera.near = 0.15;
     camera.updateProjectionMatrix();
     heldRoot.visible = !!walkTool; // pick your tool back up
@@ -4792,6 +5090,7 @@ export function makeCourseScene(canvas, state) {
     if (!walk.active) return;
     walk.active = false;
     walkSetSpraying(false);
+    walkSetSoaping(false);
     heldRoot.visible = false; // the overview camera carries no hand tools
     walkHeld.clear();
     window.removeEventListener('keydown', walkKeyDown);
@@ -4809,11 +5108,14 @@ export function makeCourseScene(canvas, state) {
   function walkUpdate(dtMs) {
     if (!walk.active) return;
     const dt = dtMs / 1000;
+    toolViewmodels.update(dt);
     const px0 = walk.x; // where this frame started, so recovery can tell moving from pinned
     const pz0 = walk.z;
 
     // focus mode (laptop): ease the camera onto the pose, park all input
-    focusBlend = clamp(focusBlend + (walkFocusPose ? 1 : -1) * (dt / 0.4), 0, 1);
+    focusBlend = walk.reducedMotion
+      ? (walkFocusPose ? 1 : 0)
+      : clamp(focusBlend + (walkFocusPose ? 1 : -1) * (dt / 0.4), 0, 1);
     if (walkFocusPose || focusBlend > 0.001) {
       const fb = focusBlend * focusBlend * (3 - 2 * focusBlend);
       const gy = (clubhouseApi && clubhouseApi.groundYAt(walk.x, walk.z)) ?? walkSurfaceHeightAt(walk.x, walk.z);
@@ -4927,13 +5229,18 @@ export function makeCourseScene(canvas, state) {
 
     // camera: first-person on foot, third-person chase in the seat — EASED
     // between the two so mounting reads as a real transition, not a cut
-    mountBlend = clamp(mountBlend + (cart.mounted ? 1 : -1) * (dt / 0.45), 0, 1);
+    mountBlend = walk.reducedMotion
+      ? (cart.mounted ? 1 : 0)
+      : clamp(mountBlend + (cart.mounted ? 1 : -1) * (dt / 0.45), 0, 1);
     const mb = mountBlend * mountBlend * (3 - 2 * mountBlend);
     // inside the clubhouse (or on its porch) you stand on the level floor slab
     const floorY = clubhouseApi ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
     const groundY = floorY !== null && floorY !== undefined ? floorY : walkSurfaceHeightAt(walk.x, walk.z);
     if (mb <= 0.001) {
-      camera.position.set(walk.x, groundY + walk.eye, walk.z);
+      const bob = walk.cameraBob && !walk.reducedMotion && walkMoving
+        ? Math.sin(bobPhase) * 0.018
+        : 0;
+      camera.position.set(walk.x, groundY + walk.eye + bob, walk.z);
       setFirstPersonOrientation(camera, walk.yaw, walk.pitch);
     } else {
       const cosP = Math.cos(walk.pitch);
@@ -4992,10 +5299,12 @@ export function makeCourseScene(canvas, state) {
         }
       }
       if (!hit) clubhouseApi.washJet(null, null, false, dt);
-      clubhouseApi.washTick(dt);
     } else if (clubhouseApi && clubhouseApi.washJet) {
       clubhouseApi.washJet(null, null, false, dt);
     }
+    // Exterior wet feedback keeps drying after the washer is stowed. The tick is a no-op once all
+    // runtime wet cells reach zero, so ordinary indoor/course frames pay only this branch.
+    clubhouseApi?.washTick?.(dt);
 
     // hold-to-use: each tool writes through its hook, with the same live
     // texture + particle feedback loop the hose established
@@ -5027,19 +5336,59 @@ export function makeCourseScene(canvas, state) {
       const group = heldGroups[walkTool];
       const socketName = def.sockets.contact ? 'contact' : 'nozzle';
       if (group && group.visible) {
+        const rest = group.userData.cleaningRestPosition;
+        let dirX = -Math.sin(walk.yaw);
+        let dirZ = -Math.cos(walk.yaw);
+        if (rest && (def.toolClass === 'stroke' || def.toolClass === 'sweep')) {
+          const rate = walkTool === 'sponge' ? 13 : walkTool === 'cloth' ? 8 : 4.8;
+          const span = walkTool === 'sponge' ? 0.055 : walkTool === 'cloth' ? 0.10 : 0.16;
+          const phase = time * rate;
+          const sign = Math.sign(Math.cos(phase)) || 1;
+          group.position.x = rest.x + Math.sin(phase) * span;
+          group.rotation.z = group.userData.cleaningRestRotationZ + Math.cos(phase) * 0.035;
+          dirX = Math.cos(walk.yaw) * sign;
+          dirZ = -Math.sin(walk.yaw) * sign;
+        }
         socketWorld(group, socketName, _toolContact);
+        let target = _toolContact;
+        let aim = null;
+        const aimedSurfaceTool = def.toolClass === 'spray' || walkTool === 'cloth' || walkTool === 'sponge';
+        if (aimedSurfaceTool && clubhouseApi.cleaningAim) {
+          const rayDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+          aim = clubhouseApi.cleaningAim(camera.position, rayDir, def.reach + 1.0);
+          if (aim?.point && !aim.blocked) target = aim.point;
+        }
         // the sweep direction is the way the player is facing, flattened onto the floor
-        const dirX = -Math.sin(walk.yaw);
-        const dirZ = -Math.cos(walk.yaw);
-        if (clubhouseApi.isInside(_toolContact.x, _toolContact.z)) {
+        if (aimedSurfaceTool && !aim) {
+          if (toolHintClock <= 0) {
+            toolHintClock = 3;
+            walkHooks.toast?.('Aim the bottle down at a reachable surface.', 'warn');
+          }
+          sprayPoints.visible = false;
+        } else if (aim?.blocked) {
+          if (toolHintClock <= 0) {
+            toolHintClock = 3;
+            walkHooks.toast?.('The counter or wall blocks that surface.', 'warn');
+          }
+          sprayPoints.visible = false;
+        } else if (clubhouseApi.isInside(target.x, target.z)) {
           const res = clubhouseApi.cleanWithTool(
-            walkTool, _toolContact.x, _toolContact.z, dirX, dirZ, dt,
+            walkTool, target.x, target.z, dirX, dirZ, dt, { origin: camera.position },
           );
+          cleaningLastResult = { ...res, tool: walkTool };
+          cleaningLastContact.copy(_toolContact);
+          cleaningLastTarget.copy(target);
+          if (walkTool === 'spray' && !res.blocked && aim?.point) {
+            sprayPoints.material.color.set(0xaee7d1);
+            sprayPoints.material.size = 0.026;
+            sprayPoints.visible = true;
+            updateSpray(aim.point, _toolContact);
+          } else if (walkTool !== 'spray') {
+            sprayPoints.visible = false;
+          }
           if (res.blocked && toolHintClock <= 0) {
             toolHintClock = 4;
-            if (walkHooks.toast) {
-              walkHooks.toast('Nothing to wipe up yet — spray the surface first.', 'warn');
-            }
+            walkHooks.toast?.(cleaningBlockMessage(res.reason), 'warn');
           }
         }
       }
@@ -5060,6 +5409,23 @@ export function makeCourseScene(canvas, state) {
       } else {
         sprayPoints.visible = false;
       }
+    }
+    if (!walkSpraying) {
+      for (const [id, group] of Object.entries(heldGroups)) {
+        const rest = group.userData.cleaningRestPosition;
+        if (!rest || !CLEANING_TOOLS[id]) continue;
+        group.position.copy(rest);
+        group.rotation.z = group.userData.cleaningRestRotationZ;
+      }
+    }
+    const cleaning = clubhouseApi?.cleaningStatus?.();
+    if (cleaning) {
+      toolViewmodels.setFillState(
+        'trashbag', cleaning.bag.load / cleaning.bag.capacity, cleaning.bag.tied,
+      );
+      const panFill = cleaning.pan.load / cleaning.pan.capacity;
+      dustpanLoadVisual.visible = panFill > 0.005;
+      dustpanLoadVisual.scale.set(0.72 + panFill * 0.34, 0.55 + panFill * 0.55, 0.72 + panFill * 0.34);
     }
   }
 
@@ -5158,19 +5524,27 @@ export function makeCourseScene(canvas, state) {
     color: 0x7fd66b, transparent: true, opacity: 0.72, depthTest: false,
     depthWrite: false,
   });
+  const featureHandleMaterial = new THREE.PointsMaterial({
+    color: 0x7fd66b, transparent: true, opacity: 1, depthTest: false,
+    depthWrite: false, size: 9, sizeAttenuation: false,
+  });
   const featureFill = new THREE.Mesh(dynamicPreviewGeometry(PREVIEW_FILL_VERTS), featureFillMaterial);
   const featureOutline = new THREE.Line(dynamicPreviewGeometry(PREVIEW_LINE_VERTS), featureLineMaterial);
   const featureGuide = new THREE.LineSegments(dynamicPreviewGeometry(PREVIEW_LINE_VERTS), featureGuideMaterial);
+  const featureHandles = new THREE.Points(dynamicPreviewGeometry(128), featureHandleMaterial);
   featureFill.name = 'editor-feature-preview-fill';
   featureOutline.name = 'editor-feature-preview-outline';
   featureGuide.name = 'editor-feature-preview-guide';
+  featureHandles.name = 'editor-feature-preview-handles';
   featureFill.renderOrder = 997;
   featureOutline.renderOrder = 999;
   featureGuide.renderOrder = 999;
+  featureHandles.renderOrder = 1000;
   featureFill.frustumCulled = false;
   featureOutline.frustumCulled = false;
   featureGuide.frustumCulled = false;
-  editorFeaturePreview.add(featureFill, featureOutline, featureGuide);
+  featureHandles.frustumCulled = false;
+  editorFeaturePreview.add(featureFill, featureOutline, featureGuide, featureHandles);
 
   function writePreviewVertex(attribute, index, x, z, lift) {
     if (index >= attribute.count) return index;
@@ -5223,6 +5597,17 @@ export function makeCourseScene(canvas, state) {
     return count;
   }
 
+  function writePreviewPoints(geometry, points, lift = 0.4) {
+    const attribute = geometry.getAttribute('position');
+    let count = 0;
+    for (const point of points || []) {
+      if (count >= attribute.count) break;
+      count = writePreviewVertex(attribute, count, point.x, point.z, lift);
+    }
+    attribute.needsUpdate = true;
+    geometry.setDrawRange(0, count);
+  }
+
   function setEditorFeaturePreview(preview) {
     const points = preview?.outline?.points;
     const closed = preview?.outline?.closed !== false;
@@ -5231,12 +5616,14 @@ export function makeCourseScene(canvas, state) {
       featureFill.geometry.setDrawRange(0, 0);
       featureOutline.geometry.setDrawRange(0, 0);
       featureGuide.geometry.setDrawRange(0, 0);
+      featureHandles.geometry.setDrawRange(0, 0);
       return;
     }
     const color = preview.validity?.color ?? 0x7fd66b;
     featureFillMaterial.color.set(color);
     featureLineMaterial.color.set(color);
     featureGuideMaterial.color.set(color);
+    featureHandleMaterial.color.set(color);
 
     const fillPosition = featureFill.geometry.getAttribute('position');
     let fillCount = 0;
@@ -5256,6 +5643,7 @@ export function makeCourseScene(canvas, state) {
     writePreviewPolyline(featureOutline.geometry, [points], { closed, lift: 0.31 });
     const guides = (preview.guides || []).map((guide) => guide?.points).filter(Boolean);
     writePreviewSegments(featureGuide.geometry, guides, { lift: 0.34 });
+    writePreviewPoints(featureHandles.geometry, preview.controls || [], 0.4);
     editorFeaturePreview.visible = true;
   }
 
@@ -5296,8 +5684,8 @@ export function makeCourseScene(canvas, state) {
         ghost.add(mesh);
       }
       const disc = new THREE.Mesh(
-        new THREE.RingGeometry(0.85, 1, 32),
-        new THREE.MeshBasicMaterial({ color: 0x7fd66b, transparent: true, opacity: 0.9, depthTest: false, side: THREE.DoubleSide }),
+        new THREE.RingGeometry(0.72, 1.08, 32),
+        new THREE.MeshBasicMaterial({ color: 0x7fd66b, transparent: true, opacity: 1, depthTest: false, side: THREE.DoubleSide }),
       );
       disc.rotation.x = -Math.PI / 2;
       disc.position.y = 0.15;
@@ -5573,38 +5961,58 @@ export function makeCourseScene(canvas, state) {
   }
   rebuildFlowField();
 
-  function updateTurf(st) {
+  function updateTurf(st, rect = null) {
+    const started = performance.now();
     const t = st.turf;
     const zones = st.course.zones;
-    for (let i = 0; i < W * H; i++) {
-      const o = i * 4;
-      const zone = zones[i];
-      // clamped pack: an unknown/oversized id must degrade to a sane surface,
-      // never wrap the byte into a random one
-      zoneData[o] = Math.min(255, zone * ZONE_TEX_SCALE);
-      if (t) {
-        zoneData[o + 1] = clamp(t.health[i] * 2.55, 0, 255);
-        zoneData[o + 2] = clamp(t.wear[i] * 2.55, 0, 255);
-        const ideal = IDEAL_BY_ZONE[zone] || 10;
-        zoneData[o + 3] = clamp((t.heightMm[i] / ideal) * 64, 0, 255);
-        auxData[o] = t.disType[i] * 100;
-        auxData[o + 1] = clamp(t.disSev[i] * 2.55, 0, 255);
-        auxData[o + 2] = clamp(t.moisture[i] * 2.55, 0, 255);
-      } else {
-        zoneData[o + 1] = 180;
-        zoneData[o + 3] = 64;
+    const x0 = rect ? clamp(Math.floor(rect.x0), 0, W - 1) : 0;
+    const y0 = rect ? clamp(Math.floor(rect.y0), 0, H - 1) : 0;
+    const x1 = rect ? clamp(Math.ceil(rect.x1), 0, W - 1) : W - 1;
+    const y1 = rect ? clamp(Math.ceil(rect.y1), 0, H - 1) : H - 1;
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const i = y * W + x;
+        const o = i * 4;
+        const zone = zones[i];
+        // clamped pack: an unknown/oversized id must degrade to a sane surface,
+        // never wrap the byte into a random one
+        zoneData[o] = Math.min(255, zone * ZONE_TEX_SCALE);
+        if (t) {
+          zoneData[o + 1] = clamp(t.health[i] * 2.55, 0, 255);
+          zoneData[o + 2] = clamp(t.wear[i] * 2.55, 0, 255);
+          const ideal = IDEAL_BY_ZONE[zone] || 10;
+          zoneData[o + 3] = clamp((t.heightMm[i] / ideal) * 64, 0, 255);
+          auxData[o] = t.disType[i] * 100;
+          auxData[o + 1] = clamp(t.disSev[i] * 2.55, 0, 255);
+          auxData[o + 2] = clamp(t.moisture[i] * 2.55, 0, 255);
+        } else {
+          zoneData[o + 1] = 180;
+          zoneData[o + 3] = 64;
+        }
+        auxData[o + 3] = clamp(Math.round(flowField[i] * 255), 0, 255);
+        zoneData[o + 3] = zoneData[o + 3] || 64;
       }
-      auxData[o + 3] = clamp(Math.round(flowField[i] * 255), 0, 255);
-      zoneData[o + 3] = zoneData[o + 3] || 64;
     }
-    zoneTex.needsUpdate = true;
-    auxTex.needsUpdate = true;
+    if (rect) {
+      uploadDataTextureRegion(zoneTex, zoneUploadSource, x0, y0, x1, y1);
+      uploadDataTextureRegion(auxTex, auxUploadSource, x0, y0, x1, y1);
+    } else {
+      zoneTex.clearUpdateRanges();
+      auxTex.clearUpdateRanges();
+      zoneTex.needsUpdate = true;
+      auxTex.needsUpdate = true;
+    }
     // stripe modes from mowing pattern policies
     if (shaderRefs.uniforms && st.maintenance) {
       const modeOf = (p) => (p === 'stripes' ? 1 : p === 'cross' ? 2 : 0);
       const pol = st.maintenance.policies;
       shaderRefs.uniforms.uStripeModes.value.set(modeOf(pol.green.pattern), modeOf(pol.fairway.pattern), modeOf(pol.tee.pattern));
     }
+    recordEditorPerformance(
+      'turfPack', started,
+      (x1 - x0 + 1) * (y1 - y0 + 1),
+      Boolean(rect),
+    );
   }
 
   const planColorCache = {};
@@ -6025,7 +6433,7 @@ export function makeCourseScene(canvas, state) {
   // the editor's cheap incremental refresh after a stroke: terrain heights +
   // water + paths follow the land; trees/objects only when asked. zoneRect
   // limits the visual-field recompute to the edited cells.
-  function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false, zoneRect = null, zones = true, relief: reReliefsculpt = false, terrainRect = null } = {}) {
+  function refreshGround(st, { water = false, objects = false, paths = false, holes = false, flow = false, zoneRect = null, zones = true, relief: reReliefsculpt = false, terrain = true, terrainRect = null, turf = true } = {}) {
     if (reReliefsculpt) relief = null; // a vector feature (green/bunker/water/tee) moved
     // terrainRect scopes the mesh rebuild to an edited region, and it is honoured
     // even alongside a relief invalidation. Dropping and rebuilding the relief
@@ -6033,7 +6441,7 @@ export function makeCourseScene(canvas, state) {
     // CHANGES the sculpt near itself — vertices outside the rect re-evaluate to
     // the heights they already hold. Callers that move something course-wide
     // (rebuildAll) pass no rect and still get the full pass.
-    rebuildTerrainHeights(terrainRect);
+    if (terrain) rebuildTerrainHeights(terrainRect);
     if (water) rebuildWater();
     const rebuiltPaths = paths
       || ((water || reReliefsculpt) && course.paths?.some(pathBridgeEnabled));
@@ -6045,11 +6453,11 @@ export function makeCourseScene(canvas, state) {
     if (holes) updateHoles();
     if (flow) rebuildFlowField();
     if (zones) updateZoneField(st, zoneRect);
-    updateTurf(st);
+    if (turf) updateTurf(st, flow ? null : zoneRect);
     // Re-freeze only the subtrees this call rebuilt. envRing and
     // horizonLandscape are never rebuilt here, so they never need it.
     freezeStaticCourse({
-      trees: objects, objects, paths: Boolean(rebuiltPaths), env: false, water, terrain: true,
+      trees: objects, objects, paths: Boolean(rebuiltPaths), env: false, water, terrain,
     });
   }
 
@@ -6060,6 +6468,7 @@ export function makeCourseScene(canvas, state) {
     treeBuildToken += 1;
     if (walk.active) walkExit();
     const clubhouse = clubhouseApi?.dispose ? clubhouseApi.dispose() : null;
+    const cleaningViewmodels = toolViewmodels.releaseForSceneDispose();
     while (golfers.length) removeGolfer(golfers.length - 1);
 
     const cachedObjectResources = mergeSceneResources();
@@ -6112,6 +6521,7 @@ export function makeCourseScene(canvas, state) {
     return {
       alreadyDisposed: false,
       clubhouse,
+      cleaningViewmodels,
       sceneResources,
       postPasses: disposedPasses.size,
     };
@@ -6666,6 +7076,8 @@ export function makeCourseScene(canvas, state) {
     rebuildAll,
     refreshGround,
     updateZoneField,
+    editorPerformanceSnapshot,
+    resetEditorPerformanceStats,
     rebuildObjects,
     rebuildPaths,
     rebuildStructures,
@@ -6741,10 +7153,37 @@ export function makeCourseScene(canvas, state) {
       setTool: walkSetTool,
       getTool: () => walkTool,
       heldAssetDiagnostics: heldAssetRegistry.diagnostics,
+      toolViewmodelDiagnostics: () => ({
+        loadResults: toolViewmodelsAuthored,
+        ...toolViewmodels.diagnostics(),
+      }),
+      getAutoTool: () => autoTool,
+      configure(options = {}) {
+        if (Number.isFinite(options.sensitivity)) walk.sens = options.sensitivity;
+        if (Number.isFinite(options.fov)) walk.fov = options.fov;
+        if (typeof options.invertY === 'boolean') walk.invertY = options.invertY;
+        if (typeof options.cameraBob === 'boolean') walk.cameraBob = options.cameraBob;
+        if (typeof options.reducedMotion === 'boolean') walk.reducedMotion = options.reducedMotion;
+        if (walk.active && !walkFocusPose && Number.isFinite(options.fov)) {
+          camera.fov = options.fov;
+          camera.updateProjectionMatrix();
+        }
+      },
       setSpraying: walkSetSpraying,
       isSpraying: () => walkSpraying,
-      setSoaping: (on) => { walkSoaping = !!on && walkTool === 'washer'; },
+      setSoaping: walkSetSoaping,
       isSoaping: () => walkSoaping,
+      cleaningDiagnostics: () => ({
+        tool: walkTool,
+        using: walkSpraying,
+        soaping: walkSoaping,
+        contact: cleaningLastContact.toArray(),
+        target: cleaningLastTarget.toArray(),
+        result: cleaningLastResult ? { ...cleaningLastResult } : null,
+        sprayVisible: sprayPoints.visible,
+        viewmodels: toolViewmodels.diagnostics(),
+        effects: clubhouseApi?.cleaningEffectsDiagnostics?.() || null,
+      }),
       clearKeys: walkBlur, // a mode change drops whatever was held, so you never resume walking into a wall
       unstick: walkUnstick, // the pause menu's manual fallback; returns how it got you out, or null
       isFree: (x, z, r) => walkFreeAt(x, z, r ?? walk.radius), // also what placement validation asks

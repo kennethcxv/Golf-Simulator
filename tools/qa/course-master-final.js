@@ -147,6 +147,7 @@ async (page) => {
         slowestOnePercentMeanMs: +slowestMeanMs.toFixed(3),
         p99FrameMs: +p99Ms.toFixed(3),
         worstFrameMs: +worstMs.toFixed(3),
+        framesOver100ms: deltas.filter((value) => value > 100).length,
         drawCallsTotal: renderTotals.drawCalls,
         drawCallsPerFrame: +(renderTotals.drawCalls / Math.max(1, deltas.length)).toFixed(2),
         trianglesTotal: renderTotals.triangles,
@@ -181,6 +182,7 @@ async (page) => {
       slowestOnePercentFrameCount: slowCount,
       slowestOnePercentMeanMs: +slowestMeanMs.toFixed(3),
       worstFrameMs: +(ordered[ordered.length - 1] || 0).toFixed(3),
+      framesOver100ms: deltas.filter((value) => value > 100).length,
       drawCallsPerFrame: +(calls / Math.max(1, deltas.length)).toFixed(2),
       trianglesPerFrame: Math.round(triangles / Math.max(1, deltas.length)),
       uiMutationRecords,
@@ -504,6 +506,10 @@ async (page) => {
     const samples = [];
     for (let index = 0; index < count; index += 1) {
       if (beforeEach) await beforeEach(index);
+      // The evidence pass captures dozens of full-size screenshots before these
+      // timing windows. Reclaim that test-only allocation outside the sample so
+      // a screenshot GC pause is not misattributed to ordinary editor input.
+      await cdp.send('HeapProfiler.collectGarbage');
       await waitForSettledRender(8);
       await startUiMutationProbe(`${label}-${index + 1}`);
       const samplePromise = sampleFrameTimes(durationMs);
@@ -569,6 +575,92 @@ async (page) => {
     return !veil || getComputedStyle(veil).opacity === '0';
   }, null, { timeout: 90000 });
 
+  // Entering the editor disposes the clubhouse view. Wait for every currently
+  // requested model first so that a deliberate scene transition cannot turn
+  // healthy in-flight merchandise loads into misleading ERR_ABORTED failures.
+  const waitForSceneAssetBarrier = async () => page.evaluate(async () => {
+    const barrier = window.__fw?.scene3d?.assetBarrier?.(60000);
+    if (!barrier) return { supported: false, idle: null, completed: null };
+    if (barrier.idle) return { supported: true, idle: true, completed: true };
+    const completed = await barrier.promise;
+    return { supported: true, idle: false, completed: completed !== false };
+  });
+  const initialAssetBarrier = await waitForSceneAssetBarrier();
+
+  const probeHazardUnderlayClearance = async () => page.evaluate(async () => {
+    const THREE = await import('three');
+    const app = window.__fw;
+    const courseScene = app.scene3d;
+    const terrain = courseScene.scene.getObjectByName('CourseTerrain');
+    const underlay = courseScene.scene.getObjectByName('CourseEnvironmentRing');
+    if (!terrain || !underlay) {
+      return {
+        supported: false,
+        missing: [!terrain ? 'CourseTerrain' : null, !underlay ? 'CourseEnvironmentRing' : null].filter(Boolean),
+        samples: [],
+        violations: [],
+      };
+    }
+    courseScene.scene.updateMatrixWorld(true);
+    const raycaster = new THREE.Raycaster();
+    const down = new THREE.Vector3(0, -1, 0);
+    const features = [];
+    for (let holeIndex = 0; holeIndex < app.state.course.vec.holes.length; holeIndex += 1) {
+      const hole = app.state.course.vec.holes[holeIndex];
+      for (let bunkerIndex = 0; bunkerIndex < (hole.bunkers || []).length; bunkerIndex += 1) {
+        features.push({ kind: 'bunker', hole: holeIndex + 1, index: bunkerIndex, points: hole.bunkers[bunkerIndex].pts });
+      }
+    }
+    for (let index = 0; index < (app.state.course.vec.waters || []).length; index += 1) {
+      features.push({ kind: 'water', hole: null, index, points: app.state.course.vec.waters[index].pts });
+    }
+    const samples = features.map((feature) => {
+      const center = feature.points.reduce((sum, point) => ({ x: sum.x + point.x, y: sum.y + point.y }), { x: 0, y: 0 });
+      center.x /= feature.points.length;
+      center.y /= feature.points.length;
+      const worldX = courseScene.vectorWorldX(center.x);
+      const worldZ = courseScene.vectorWorldZ(center.y);
+      raycaster.set(new THREE.Vector3(worldX, 1000, worldZ), down);
+      const hits = raycaster.intersectObjects([terrain, underlay], false);
+      const terrainHit = hits.find((hit) => hit.object === terrain);
+      const underlayHit = hits.find((hit) => hit.object === underlay);
+      const clearanceYd = terrainHit && underlayHit ? terrainHit.point.y - underlayHit.point.y : null;
+      return {
+        kind: feature.kind,
+        hole: feature.hole,
+        index: feature.index,
+        center,
+        terrainY: terrainHit ? +terrainHit.point.y.toFixed(4) : null,
+        underlayY: underlayHit ? +underlayHit.point.y.toFixed(4) : null,
+        clearanceYd: clearanceYd == null ? null : +clearanceYd.toFixed(4),
+        safe: Boolean(terrainHit) && (!underlayHit || clearanceYd >= 0.25),
+      };
+    });
+    const clearances = samples.map((sample) => sample.clearanceYd).filter(Number.isFinite);
+    return {
+      supported: true,
+      thresholdYd: 0.25,
+      minimumClearanceYd: clearances.length ? Math.min(...clearances) : null,
+      samples,
+      violations: samples.filter((sample) => !sample.safe),
+    };
+  });
+  await page.waitForFunction(() => {
+    const clubhouse = window.__fw?.scene3d?.clubhouse?.();
+    const sheet06 = clubhouse?.sheet06Production?.diagnostics?.();
+    return clubhouse?.assetsReady?.() === true
+      && clubhouse?.deliveryEquipmentReady?.() === true
+      && ['active', 'fallback'].includes(sheet06?.lifecycle);
+  }, null, { timeout: 90000 });
+  const clubhouseAssetReadiness = await page.evaluate(() => {
+    const clubhouse = window.__fw.scene3d.clubhouse();
+    return {
+      merchandise: clubhouse.assetsReady(),
+      deliveryEquipment: clubhouse.deliveryEquipmentReady(),
+      sheet06Production: clubhouse.sheet06Production.diagnostics()?.lifecycle || null,
+    };
+  });
+
   // Documented deterministic visual fixture: weather is fixed while all player
   // navigation and editor operation continue through real controls.
   await page.evaluate(() => {
@@ -580,12 +672,18 @@ async (page) => {
   await page.keyboard.press('j');
   await page.waitForFunction(() => window.__fw.editorUi().isActive());
   await page.locator('.ced-root').waitFor({ state: 'visible' });
+  // Entering the editor starts its own course-prop load set. Await that scene's
+  // barrier before repeatedly crossing editor/playtest modes, otherwise a slow
+  // local GLB parse can be cancelled by the first transition and surface as an
+  // intermittent ERR_ABORTED despite the clubhouse barrier having completed.
+  const editorAssetBarrier = await waitForSceneAssetBarrier();
   await waitForSettledRender(16);
 
   const browserBeforeInteractions = await browserCensus({ collectGarbage: true });
   const listenersBefore = await listenerCensus();
   await waitForSettledRender(4);
   const initialCensus = await sceneCensus();
+  const hazardUnderlayClearance = await probeHazardUnderlayClearance();
 
   cameraDefinitions.hole01Default = await readCamera();
   await shot('before_01_hole_01_default');
@@ -601,11 +699,63 @@ async (page) => {
   await shot('before_03_hole_01_aerial');
 
   const holeEvidence = [];
+  const cameraPresetEvidence = [];
+  const flyoverEvidence = [];
   for (let index = 0; index < 9; index += 1) {
     await selectHoleThroughUi(index);
     const number = String(index + 1).padStart(2, '0');
     const aerial = await shot(`holes/hole_${number}_aerial`);
     const aerialCamera = await readCamera();
+
+    // Exercise every player-facing view for every hole through the visible
+    // camera selector. The fairway preset is the authored landing-area view;
+    // ground-preview is the low player-readable inspection view outside the
+    // stroke loop.
+    const views = [];
+    for (const [mode, name] of [
+      ['tee', 'tee'],
+      ['fairway', 'landing_area'],
+      ['approach', 'approach'],
+      ['green', 'green'],
+      ['ground-preview', 'ground_preview'],
+    ]) {
+      await page.locator('.ced-camera').selectOption(mode);
+      await waitForSettledRender(10);
+      const record = {
+        mode,
+        screenshot: await shot(`camera_presets/hole_${number}_${name}`),
+        camera: await readCamera(),
+      };
+      views.push(record);
+      cameraPresetEvidence.push({ hole: index + 1, ...record });
+    }
+
+    // A real right-mouse orbit proves the editor view is navigable for each
+    // hole, while returning through the selector keeps the next view stable.
+    await page.locator('.ced-camera').selectOption('frame-hole');
+    await waitForSettledRender(8);
+    await orbitEditorThroughNormalInput(900);
+    await waitForSettledRender(6);
+    const editorOrbit = {
+      screenshot: await shot(`editor_orbit/hole_${number}_orbit`),
+      camera: await readCamera(),
+    };
+    await page.locator('.ced-camera').selectOption('frame-hole');
+    await waitForSettledRender(8);
+
+    // Start each route-aware flyover from the player-facing top-bar control and
+    // stop it through Escape. The mid-route frame is retained as visual evidence.
+    await page.locator('.ced-flyover').click();
+    await page.waitForTimeout(2400);
+    await waitForSettledRender(6);
+    const flyover = {
+      hole: index + 1,
+      screenshot: await shot(`flyovers/hole_${number}_mid`),
+      camera: await readCamera(),
+    };
+    flyoverEvidence.push(flyover);
+    await page.keyboard.press('Escape');
+    await waitForSettledRender(8);
 
     await page.getByRole('button', { name: 'Playtest', exact: true }).click();
     await page.waitForFunction(() => window.__fw.editorUi().isPlaytesting());
@@ -614,43 +764,19 @@ async (page) => {
     const teeCamera = await readCamera();
     await page.getByRole('button', { name: /Editor$/ }).click();
     await page.waitForFunction(() => !window.__fw.editorUi().isPlaytesting());
-    holeEvidence.push({ hole: index + 1, aerial, tee, aerialCamera, teeCamera });
+    holeEvidence.push({
+      hole: index + 1,
+      aerial,
+      tee,
+      aerialCamera,
+      teeCamera,
+      views,
+      editorOrbit,
+      flyover,
+    });
   }
 
   await selectHoleThroughUi(0);
-
-  // Exercise every player-facing camera preset through the new top-bar control.
-  // These are acceptance views; the fixed cameras below remain comparison views.
-  const cameraPresetEvidence = [];
-  for (const [mode, name] of [
-    ['tee', 'tee'],
-    ['fairway', 'fairway'],
-    ['approach', 'approach'],
-    ['green', 'green'],
-    ['ground-preview', 'ground_preview'],
-  ]) {
-    await page.locator('.ced-camera').selectOption(mode);
-    await waitForSettledRender(10);
-    cameraPresetEvidence.push({
-      mode,
-      screenshot: await shot(`camera_presets/hole_01_${name}`),
-      camera: await readCamera(),
-    });
-  }
-  await page.locator('.ced-camera').selectOption('frame-hole');
-  await waitForSettledRender(8);
-
-  // Start and stop the route-aware flyover through the hole-selection modal.
-  await page.locator('.ced-holechip').click();
-  await page.getByRole('button', { name: 'Flyover', exact: true }).click();
-  await page.waitForTimeout(3500);
-  await waitForSettledRender(6);
-  const flyoverEvidence = {
-    screenshot: await shot('camera_presets/hole_01_flyover_mid'),
-    camera: await readCamera(),
-  };
-  await page.keyboard.press('Escape');
-  await waitForSettledRender(8);
 
   const fixedViews = [
     ['before_04_hole_01_tee', 0.00, 0.13, { backYd: 7, eyeHeightYd: 1.8 }],
@@ -724,16 +850,23 @@ async (page) => {
   return {
     ok: diagnostics.console.length === 0
       && diagnostics.pageErrors.length === 0
-      && diagnostics.failedRequests.length === 0,
+      && diagnostics.failedRequests.length === 0
+      && courseOverviewIdle.framesOver100ms === 0
+      && hole1EditorOrbit.framesOver100ms === 0
+      && hole1PlaytestShot.framesOver100ms === 0
+      && hazardUnderlayClearance.supported
+      && hazardUnderlayClearance.violations.length === 0,
     phase,
     launch: 'HEADED=1 node tools/qa/run-playwright.cjs tools/qa/course-master-final.js --bootstrap',
     fixture: 'runner --bootstrap, relaxed empire seed 424242, first property, fixed dry midday weather',
+    assetReadiness: { initialAssetBarrier, editorAssetBarrier, clubhouse: clubhouseAssetReadiness },
     viewport: { width: 1600, height: 900, deviceScaleFactor: 1 },
     browser: await page.evaluate(() => navigator.userAgent),
     cameraDefinitions,
     holeEvidence,
     cameraPresetEvidence,
     flyoverEvidence,
+    hazardUnderlayClearance,
     performance: {
       protocol: {
         samplesPerScenario: 3,

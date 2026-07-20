@@ -39,6 +39,7 @@ const KEYWORDS = new Set([
   'new', 'do', 'else', 'delete', 'void', 'await', 'yield', 'throw', 'in',
   'of', 'instanceof', 'case', 'with', 'super', 'import', 'export', 'const',
   'let', 'var', 'class', 'extends', 'try', 'finally', 'break', 'continue',
+  'async',
 ]);
 
 const RUNTIME_GLOBALS = new Set([

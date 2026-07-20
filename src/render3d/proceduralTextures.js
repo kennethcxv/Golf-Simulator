@@ -45,6 +45,27 @@ function finish(canvas) {
   return tex;
 }
 
+// Point primitives are square unless their material carries an alpha mask. A tiny generated
+// feathered disc keeps spray, dust and foam reading as droplets/motes without adding a binary
+// texture or a per-particle mesh. Callers own and dispose the returned texture with the material.
+export function makeSoftParticleTexture(size = 32) {
+  const canvas = makeCanvas(size);
+  const ctx = canvas.getContext('2d');
+  const half = size / 2;
+  const gradient = ctx.createRadialGradient(half, half, 0, half, half, half);
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(0.45, 'rgba(255,255,255,0.92)');
+  gradient.addColorStop(0.78, 'rgba(255,255,255,0.38)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.generateMipmaps = false;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  return texture;
+}
+
 export function makeGrassTexture({ seed = 1, base = '#5d9443', dark = '#4a7c34', light = '#72ab52', blades = 5200 } = {}) {
   const size = 512;
   const c = makeCanvas(size);

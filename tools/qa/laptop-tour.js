@@ -10,7 +10,9 @@ async (page) => {
   const errs = [];
   page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text().slice(0, 200)); });
   page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/laptop/pages';
+  const OUT = process.getBuiltinModule('node:path').join(
+    process.env.QA_REPO_ROOT || process.cwd(), 'qa', 'laptop', 'pages',
+  );
   const log = [];
 
   await page.goto('http://localhost:8457/');

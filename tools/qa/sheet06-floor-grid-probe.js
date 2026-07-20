@@ -4,7 +4,7 @@ async (page) => {
   // restored before this function returns.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
   const out = process.env.SHEET06_FLOOR_GRID_OUT
     ? path.resolve(repo, process.env.SHEET06_FLOOR_GRID_OUT)
     : path.join(

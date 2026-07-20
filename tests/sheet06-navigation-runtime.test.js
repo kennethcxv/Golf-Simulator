@@ -15,6 +15,7 @@ import {
   createSheet06ProductionRuntime,
 } from '../src/render3d/assets51to100/sheet06ProductionRuntime.js';
 import { METERS_TO_YARDS } from '../src/render3d/assets51to100/units.js';
+import { LOUNGE } from '../src/data/shopLayout.js';
 
 const SUPPRESSIONS = Object.freeze({
   51: Object.freeze([
@@ -147,20 +148,29 @@ test('navigation contract registers two blockers idempotently and removes exact 
   assert.equal(removed.length, 2);
 });
 
-test('lounge damage remains visible in the approach aisle and clear of live furniture colliders', () => {
+test('lounge damage remains visible with a player-width route through the live furniture layout', () => {
   const site = createSheet06ProductionLayout().damageSites
     .find(({ id }) => id === 'damage-lounge');
-  assert.deepEqual(site, { id: 'damage-lounge', x: 3.65, z: -3.45, rotationY: Math.PI });
+  assert.deepEqual(site, { id: 'damage-lounge', x: 2.25, z: -3.45, rotationY: Math.PI });
   const playerRadius = 0.34;
   const furniture = [
-    { id: 'coffee-table', x: 3.85, z: -4.95, w: 1.1, d: 1.1 },
-    { id: 'chair-a', x: 3.2, z: -5.35, w: 0.95, d: 0.95 },
-    { id: 'chair-b', x: 4.6, z: -4.35, w: 0.95, d: 0.95 },
+    { id: 'sofa', ...LOUNGE.chairA, w: 2.4, d: 1.15 },
+    { id: 'armchair', ...LOUNGE.chairB, w: 1.05, d: 1.05 },
+    { id: 'coffee-table', ...LOUNGE.coffee, w: 1.1, d: 1.1 },
+    { id: 'trophy-cabinet', ...LOUNGE.trophy, w: 0.58, d: 1.82 },
   ];
+  const route = { x: site.x, minZ: site.z - 0.82, maxZ: site.z + 1.02 };
   for (const blocker of furniture) {
     const overlapsInflatedAabb = Math.abs(site.x - blocker.x) < blocker.w / 2 + playerRadius
       && Math.abs(site.z - blocker.z) < blocker.d / 2 + playerRadius;
     assert.equal(overlapsInflatedAabb, false, `${site.id} clears ${blocker.id} plus player radius`);
+    const minX = blocker.x - blocker.w / 2 - playerRadius;
+    const maxX = blocker.x + blocker.w / 2 + playerRadius;
+    const minZ = blocker.z - blocker.d / 2 - playerRadius;
+    const maxZ = blocker.z + blocker.d / 2 + playerRadius;
+    const blocksRoute = route.x > minX && route.x < maxX
+      && route.maxZ > minZ && route.minZ < maxZ;
+    assert.equal(blocksRoute, false, `player-width route clears ${blocker.id}`);
   }
   assert.ok(site.z >= -4.0 && site.z <= -3.2, 'site remains in the authored lounge-approach aisle');
 });

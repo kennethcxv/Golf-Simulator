@@ -6,14 +6,17 @@
 import { BALANCE } from './sim/balance.js';
 import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
 import {
-  newEmpire, buyProperty, sellProperty, switchProperty, activeState,
-  empireUpdate, empireSnapshot, deserializeEmpire,
+  EMPIRE_VERSION, newEmpire, buyProperty, sellProperty, switchProperty, activeState,
+  empireUpdate, empireSnapshot, deserializeEmpireWithReport,
 } from './sim/empire.js';
+import { SAVE_VERSION } from './sim/state.js';
 import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
 import { formatMoney } from './core/utils.js';
 import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS, isTextEntryTarget } from './core/heldKeys.js';
 import { calendarOf } from './sim/time.js';
-import { el, toast, modal } from './ui/ui.js';
+import {
+  clearNotifications, clearToasts, confirmDialog, containFocus, el, modal, notify, setPromptText, toast,
+} from './ui/ui.js';
 import { makeHud } from './ui/hud.js';
 import { makeCourseEditor } from './ui/courseEditor.js';
 import { makeInspectPanel } from './ui/inspectPanel.js';
@@ -23,13 +26,25 @@ import { makeEmpirePanel } from './ui/empirePanel.js';
 import { openMarketplace } from './ui/marketplacePanel.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
 import { makeLaptop } from './ui/laptop.js';
+import { makeSettingsPanel } from './ui/settingsPanel.js';
+import { makeToolWheel } from './ui/toolWheel.js';
 import { quadTransform, uvAt } from './core/laptopProjection.js';
 import { makeAudio } from './core/audio.js';
-import { tickTutorial, tutorialFlag, skipTutorial, replayTutorial } from './sim/tutorial.js';
+import {
+  tickTutorial, tutorialFlag, skipTutorial, replayTutorial, triggerContextTutorial,
+} from './sim/tutorial.js';
 import { makeMenu } from './screens/menu.js';
-import { saveData, loadData } from './core/storage.js';
+import {
+  inspectData, loadDataWithStatus, saveData, summarizeSave,
+} from './core/storage.js';
+import { applyDocumentPreferences, makePreferences } from './core/preferences.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
 import { shopCondition, vacuumOwned, tickDeliveries } from './sim/shop.js';
+import {
+  changeDue as registerChangeDue,
+  handTotal as registerHandTotal,
+  unscannedCount as registerUnscannedCount,
+} from './sim/register.js';
 import { ownedWasher } from './sim/washing.js';
 import { BELT_ORDER, CLEANING_TOOLS } from './data/cleaningTools.js';
 import { skuById } from './data/shopItems.js';
@@ -37,6 +52,8 @@ import { makeCourseScene } from './render3d/courseScene.js';
 
 const canvas = document.getElementById('game');
 const uiRoot = document.getElementById('ui');
+const preferences = makePreferences();
+applyDocumentPreferences(preferences.values);
 
 const app = {
   screen: 'menu', // 'menu' | 'game'
@@ -56,7 +73,13 @@ const app = {
   groundsOpen: false,
   sectionIndex: null,
   sectionsRef: null,
+  preferences,
 };
+
+// Successful loads can surface migration/recovery details only after their new
+// scene's opaque prewarm veil has cleared. Keying by the deserialized empire
+// keeps the handoff explicit without changing every load caller's return shape.
+const loadNotices = new WeakMap();
 
 function editorActive() {
   return app.courseMode === 'editor';
@@ -79,9 +102,23 @@ let laptopUi = null;
 let objectivesPanel = null;
 let menu = null;
 let gameUi = null;
+let toolWheel = null;
+let viewButtons = [];
 
 function walkActive() {
   return app.view === 'course' && app.courseMode === 'walk' && app.scene3d && app.scene3d.walk.isActive();
+}
+
+function presentationMode() {
+  if (isPauseOpen()) return 'pause';
+  if (toolWheel?.isOpen()) return 'tool-wheel';
+  if (regActive()) return 'register';
+  if (app.laptopOpen) return 'laptop';
+  const build = buildApi();
+  if (build?.isActive()) return 'placement';
+  if (app.courseMode === 'editor') return 'course-editor';
+  if (app.courseMode === 'overview') return 'overview';
+  return 'walk';
 }
 
 function requestLook() {
@@ -104,6 +141,8 @@ function enterWalk(spawn) {
   }
   app.courseMode = 'walk';
   app.scene3d.walk.enter(spawn);
+  if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+    && document.activeElement.closest('#ui')) document.activeElement.blur();
   walkOverlay.style.display = '';
   const hint = document.querySelector('.hint-bar');
   if (hint) hint.style.display = 'none';
@@ -215,9 +254,9 @@ function seatPose(ch) {
 // 0.46 yd back — about 17 inches, which is where a person's face actually is when they read a
 // laptop. The perspective flattens out, the keyboard settles, and the bezel stays in frame.
 const WALK_NEAR = 0.15;
-const WALK_FOV = 66;
 const LAPTOP_NEAR = 0.03;
 const LAPTOP_FOV = 34;
+const walkFov = () => preferences.values.camera.fov;
 function setCameraLens(fov, near) {
   const cam = app.scene3d && app.scene3d.camera;
   if (!cam || (cam.fov === fov && cam.near === near)) return;
@@ -234,7 +273,7 @@ function enterLaptop() {
   // before the lens has changed would seat you for a camera that no longer exists.
   setCameraLens(LAPTOP_FOV, LAPTOP_NEAR);
   const pose = seatPose(ch);
-  if (!pose) { setCameraLens(WALK_FOV, WALK_NEAR); return; }
+  if (!pose) { setCameraLens(walkFov(), WALK_NEAR); return; }
   app.laptopOpen = true;
   resetCameraInput(); // sitting down is a mode change too
   if (app.state) tutorialFlag(app.state, 'laptopOpened');
@@ -285,7 +324,7 @@ function exitLaptop(silent) {
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
   if (ch && ch.laptopScreen) ch.laptopScreen('desk'); // lid stays open, showing the lock screen
   app.scene3d.walk.clearFocus();
-  setCameraLens(WALK_FOV, WALK_NEAR); // hand the wide lens back before you stand up
+  setCameraLens(walkFov(), WALK_NEAR); // hand the player's lens back before standing up
   const vt = document.querySelector('.view-toggle');
   if (vt) vt.style.display = '';
   if (!silent) {
@@ -295,12 +334,14 @@ function exitLaptop(silent) {
   }
 }
 
-const audio = makeAudio();
+const audio = makeAudio(preferences);
 app.audio = audio;
 // WebAudio needs a user gesture; arm it on the first interaction
 for (const evt of ['pointerdown', 'keydown']) {
   window.addEventListener(evt, () => audio.init(), { once: true, capture: true });
 }
+document.addEventListener('visibilitychange', () => audio.setLifecycleActive(!document.hidden));
+window.addEventListener('pagehide', () => audio.setLifecycleActive(false));
 
 function closeLeftPanels(except) {
   if (except !== 'grounds' && app.groundsOpen) groundsPanel.setVisible(false);
@@ -324,6 +365,7 @@ function enterEditor() {
   if (app.courseMode === 'walk') exitWalk();
   app.courseMode = 'editor';
   app.speedIdx = 0; // the world holds its breath while you shape it
+  clearToasts(); // customer/shop dialogue must not leak into the design surface
   // the editor is a production surface: data heat-maps (health/moisture) are
   // grounds-desk tools and must never tint the design view
   handlers.setViewMode('normal');
@@ -335,6 +377,7 @@ function enterEditor() {
   hud.root.style.display = 'none'; // the editor bar carries money + clock itself
   objectivesPanel.root.style.display = 'none';
   editorUi.show();
+  syncPresentationMode(presentationMode());
 }
 
 function exitEditor() {
@@ -361,6 +404,7 @@ function exitEditor() {
     const hint = document.querySelector('.hint-bar');
     if (hint) hint.style.display = '';
   }
+  syncPresentationMode(presentationMode());
   autosave();
 }
 
@@ -436,6 +480,10 @@ let pendingSceneBarrier = null;
 
 function destroyCurrentScene({ hideVeil = false } = {}) {
   if (app.laptopOpen) exitLaptop(true);
+  toolWheel?.close('scene-change');
+  clearNotifications();
+  audio.setToolLoop(null);
+  audio.setPaused(false);
   const scene = app.scene3d;
   const barrier = scene?.assetBarrier ? scene.assetBarrier(12000) : null;
   if (scene) scene.dispose();
@@ -452,8 +500,8 @@ function destroyCurrentScene({ hideVeil = false } = {}) {
   return pendingSceneBarrier;
 }
 
-function startGame(state) {
-  closePauseMenu(); // any pause overlay dies with the old world
+function startGame(state, loadNotice = null) {
+  closePauseMenu({ resume: false }); // any pause overlay dies with the old world
   const generation = ++sceneStartGeneration;
   const veil = ensureLoadVeil();
   veil.show('Preparing the course');
@@ -473,27 +521,34 @@ function startGame(state) {
         veil.set('Finishing the previous course load');
         barrier.finally(() => {
           if (generation !== sceneStartGeneration) return;
-          startGameNow(state);
+          startGameNow(state, loadNotice, generation);
         });
         return;
       }
-      startGameNow(state);
+      startGameNow(state, loadNotice, generation);
     });
   });
 }
 
-function startGameNow(state) {
+function startGameNow(state, loadNotice = null, generation = sceneStartGeneration) {
   app.state = state;
   app.screen = 'game';
   app.scene3d = makeCourseScene(canvas, state);
   // walk-up inspection: the walking controller asks, the app answers with the
   // same sections and status words the top-down click-to-inspect always used
-  app.scene3d.walk.hooks.toast = (msg, kind) => toast(msg, kind);
+  app.scene3d.walk.hooks.toast = (msg, kind) => {
+    if (!editorActive()) toast(msg, kind);
+  };
+  app.scene3d.walk.hooks.tutorial = (flag) => tutorialFlag(app.state, flag);
   // a restrained note when the game had to dig the player out of geometry
   app.scene3d.walk.hooks.recovered = (how) => toast(
     how === 'lastSafe' ? 'Stepped you back to where you last had room.' : 'Moved you clear of the furniture.',
   );
   app.scene3d.walk.hooks.sfx = (name) => { if (audio.ready && audio[name]) audio[name](); };
+  // Switching, stowing, focus loss, and mode changes are all trigger releases. The renderer owns
+  // those lifecycle edges, so it tells audio here instead of waiting for a pointerup that may
+  // never arrive (alt-tab and rapid belt cycling are the common cases).
+  app.scene3d.walk.hooks.toolChanged = () => { if (audio.ready) audio.setToolLoop(null); };
   // the clubhouse's in-world management surfaces route through these
   app.scene3d.walk.hooks.openLaptop = () => enterLaptop();
   app.scene3d.walk.hooks.toggleOverview = () => handlers.toggleCourseMode();
@@ -529,6 +584,7 @@ function startGameNow(state) {
     soak(cx - 1, cy, 0.35);
     soak(cx, cy + 1, 0.35);
     soak(cx, cy - 1, 0.35);
+    tutorialFlag(st, 'maintenanceUsed');
   };
   app.scene3d.walk.hooks.hoseLabelAt = (cx, cy) => {
     const st = app.state;
@@ -549,6 +605,7 @@ function startGameNow(state) {
     const i = cy * st.course.w + cx;
     const before = st.turf.wear[i];
     st.turf.wear[i] = Math.max(0, before - 45 * dtSec);
+    if (st.turf.wear[i] < before) tutorialFlag(st, 'maintenanceUsed');
     // the completion moment: this patch just came smooth
     if (before > 1 && st.turf.wear[i] <= 0.01 && audio.ready) audio.chime();
   };
@@ -576,6 +633,7 @@ function startGameNow(state) {
       if (st.course.zones[i] !== ZONE.BUNKER) return;
       const before = st.turf.wear[i];
       st.turf.wear[i] = Math.max(0, before - 55 * dtSec * frac);
+      if (frac === 1 && st.turf.wear[i] < before) tutorialFlag(st, 'maintenanceUsed');
       if (frac === 1 && before > 1 && st.turf.wear[i] <= 0.01 && audio.ready) audio.chime();
     };
     sweep(cx, cy, 1);
@@ -621,6 +679,8 @@ function startGameNow(state) {
   app.courseMode = 'walk'; // the course is experienced on foot; Tab for the overview
   if (walkOverlay) walkOverlay.style.display = 'none';
   lastHourSeen = -1;
+  lastPresentationMode = null;
+  frontDeskLessonSeen = false;
   tutLookSpan = 0;
   tutLastYaw = null;
   tutWalked = 0;
@@ -656,6 +716,13 @@ function startGameNow(state) {
       if (app.scene3d !== sceneRef) return;
       app.prewarming = false;
       veil.hide();
+      if (loadNotice) {
+        setTimeout(() => {
+          if (generation === sceneStartGeneration && app.scene3d === sceneRef) {
+            toast(loadNotice, 'warn');
+          }
+        }, 460);
+      }
     });
 }
 
@@ -665,20 +732,38 @@ function ensureLoadVeil() {
   if (loadVeil) return loadVeil;
   const el = document.createElement('div');
   el.className = 'load-veil';
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  el.setAttribute('aria-busy', 'false');
   el.innerHTML = `
     <div class="load-veil-card">
       <div class="load-veil-logo">GOLF EMPIRE</div>
       <div class="load-veil-title"></div>
-      <div class="load-veil-bar"><div class="load-veil-fill"></div></div>
+      <div class="load-veil-bar" role="progressbar" aria-label="Loading game" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><div class="load-veil-fill"></div></div>
       <div class="load-veil-step"></div>
+      <div class="load-veil-tip" aria-live="off"></div>
     </div>`;
   document.body.appendChild(el);
   const title = el.querySelector('.load-veil-title');
   const stepEl = el.querySelector('.load-veil-step');
   const fill = el.querySelector('.load-veil-fill');
+  const tip = el.querySelector('.load-veil-tip');
+  const progress = el.querySelector('[role="progressbar"]');
   const STEPS = ['Compiling shaders', 'Uploading textures', 'Warming the view'];
   let revision = 0;
   let hideTimer = null;
+  const TIPS = [
+    'Tap F for the next available tool; hold F to open the full tool belt.',
+    'P pauses from walking, checkout, the laptop, placement, or overview.',
+    'A clean, stocked shop gives the register work worth doing.',
+    'Manual save slots are separate from the Continue autosave.',
+  ];
+  let tipTimer = null;
+  let tipIndex = 0;
+  const showNextTip = () => {
+    tip.textContent = TIPS[tipIndex % TIPS.length];
+    tipIndex += 1;
+  };
   loadVeil = {
     show(t) {
       revision += 1;
@@ -687,23 +772,36 @@ function ensureLoadVeil() {
       title.textContent = t || 'Loading';
       stepEl.textContent = 'Building the course';
       fill.style.width = '12%';
+      progress.setAttribute('aria-valuenow', '12');
+      if (tipTimer) clearInterval(tipTimer);
+      showNextTip();
+      tipTimer = setInterval(showNextTip, 2400);
+      el.setAttribute('aria-busy', 'true');
       el.style.display = 'flex';
       el.style.opacity = '1';
     },
     set(label) {
       stepEl.textContent = label;
       const i = STEPS.indexOf(label);
-      if (i >= 0) fill.style.width = `${25 + (i / STEPS.length) * 70}%`;
+      if (i >= 0) {
+        const value = Math.round(25 + (i / STEPS.length) * 70);
+        fill.style.width = `${value}%`;
+        progress.setAttribute('aria-valuenow', String(value));
+      }
     },
     hide() {
       const expectedRevision = revision;
+      if (tipTimer) clearInterval(tipTimer);
+      tipTimer = null;
       fill.style.width = '100%';
+      progress.setAttribute('aria-valuenow', '100');
+      el.setAttribute('aria-busy', 'false');
       el.style.opacity = '0';
       if (hideTimer !== null) clearTimeout(hideTimer);
       hideTimer = setTimeout(() => {
         hideTimer = null;
         if (revision === expectedRevision) el.style.display = 'none';
-      }, 420);
+      }, preferences.values.accessibility.reducedMotion ? 0 : 420);
     },
   };
   return loadVeil;
@@ -711,7 +809,11 @@ function ensureLoadVeil() {
 
 function exitToMenu() {
   sceneStartGeneration += 1;
-  closePauseMenu();
+  closePauseMenu({ resume: false });
+  toolWheel?.close('menu');
+  clearNotifications();
+  audio.setToolLoop(null);
+  audio.setPaused(false);
   destroyCurrentScene({ hideVeil: true });
   app.screen = 'menu';
   app.state = null;
@@ -723,12 +825,65 @@ function exitToMenu() {
 // owned yet (fresh empire, or the whole portfolio was sold) — open the market.
 function bootEmpire(empire) {
   app.empire = empire;
+  const loadNotice = loadNotices.get(empire) || null;
+  loadNotices.delete(empire);
   const st = activeState(empire);
   if (st) {
-    startGame(st);
+    startGame(st, loadNotice);
   } else {
     exitToMenu();
     openMarketplace(app, handlers);
+    if (loadNotice) toast(loadNotice, 'warn');
+  }
+}
+
+async function loadEmpireSave(key, label) {
+  let status;
+  try {
+    // A syntactically valid backup may still belong to a newer build. Defer
+    // repairing the primary until empire validation accepts the candidate.
+    status = await loadDataWithStatus(key, { repair: false });
+  } catch (error) {
+    console.error(`${label} storage read failed`, error);
+    toast(`${label} could not be read. The current game was left untouched.`, 'warn');
+    return null;
+  }
+  if (status.value == null) {
+    toast(status.missing
+      ? `${label} is empty.`
+      : `${label} is damaged and no valid backup is available.`, 'warn');
+    return null;
+  }
+  try {
+    const loaded = deserializeEmpireWithReport(status.value);
+    const notices = [];
+    if (status.recovered) notices.push('recovered from its previous valid backup');
+    if (loaded.report.migrations.length) {
+      notices.push(`migrated ${loaded.report.migrations.length} save schema step(s)`);
+    }
+    if (loaded.report.recovered) {
+      notices.push(`repaired ${loaded.report.repairs.length} invalid save field(s)`);
+    }
+    if (status.recovered && !status.repairedPrimary) {
+      try {
+        await saveData(key, status.value);
+        status.repairedPrimary = true;
+      } catch (error) {
+        console.warn(`${label} primary repair failed`, error);
+        notices.push('could not repair its primary copy');
+      }
+    }
+    if (notices.length) {
+      loadNotices.set(loaded.empire, `${label} ${notices.join(' and ')}.`);
+    }
+    return loaded.empire;
+  } catch (error) {
+    console.warn(`${label} validation refused`, error);
+    const future = error?.code === 'SAVE_VERSION_UNSUPPORTED';
+    toast(future
+      ? `${label} was written by a newer build and was not changed.`
+      : `${label} could not be validated. The current game was left untouched.`, 'warn');
+    return null;
   }
 }
 
@@ -736,14 +891,45 @@ async function autosave() {
   if (!app.empire) return;
   try {
     await saveData('autosave', empireSnapshot(app.empire));
-  } catch (e) {
-    console.error('autosave failed', e);
+    await saveData('autosave-meta', currentSaveMetadata());
+    return { ok: true };
+  } catch (error) {
+    notify({
+      message: 'Autosave could not write to disk. Open the pause menu and try a manual slot before leaving.',
+      category: 'save-failure',
+      persistent: true,
+      dedupeKey: 'autosave-failed',
+    });
+    if (audio.ready) audio.uiError();
+    console.error('autosave failed', error);
+    return { ok: false, error };
   }
+}
+
+function currentSaveMetadata() {
+  const state = app.state || activeState(app.empire);
+  return {
+    name: state?.clubName || 'Property market',
+    when: hudClockText(),
+    cash: app.empire?.cash ?? state?.cash ?? 0,
+    cond: state?.shop?.reno ? Math.round(state.shop.reno.condition) : null,
+    savedAt: Date.now(),
+  };
+}
+
+async function saveSlot(slot) {
+  if (!app.empire) throw new Error('There is no active empire to save.');
+  await saveData(slot, empireSnapshot(app.empire));
+  await saveData(`${slot}-meta`, currentSaveMetadata());
+  tutorialFlag(app.state, 'savedGame');
+  return currentSaveMetadata();
 }
 
 // --- handlers -------------------------------------------------------------------
 
 const handlers = {
+  getPresentationMode: presentationMode,
+  getToolActivation: () => preferences.values.accessibility.toolActivation,
   setSpeed(i) {
     app.speedIdx = i;
   },
@@ -776,10 +962,12 @@ const handlers = {
       app.courseMode = 'walk';
       enterWalk('resume');
     }
+    syncPresentationMode(presentationMode());
   },
   setViewMode(mode) {
     app.viewMode = mode;
     app.scene3d.setViewMode(mode);
+    viewButtons.forEach((button) => button.classList.toggle('active-tool', button.dataset.mode === mode));
   },
   openMenu() {
     openPauseMenu();
@@ -810,6 +998,7 @@ const handlers = {
       return { closeMarket: true };
     }
     if (app.empireOpen) empirePanel.refresh();
+    syncPresentationMode(presentationMode());
     hud.update();
     autosave();
     return {};
@@ -862,35 +1051,54 @@ const handlers = {
 const SLOTS = ['slot1', 'slot2', 'slot3'];
 let pauseUi = null;
 let pausePrevSpeed = 1;
+let pauseHadPointerLock = false;
+let releasePauseFocus = () => {};
+const SAVE_LIMITS = { empireVersion: EMPIRE_VERSION, saveVersion: SAVE_VERSION };
 
-const SETTINGS_KEY = 'gc-settings';
-const settings = { renderScale: 1, ao: true, bloom: true, fov: 60, sens: 1 };
-try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { /* fresh */ }
-function saveSettings() {
-  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* private mode */ }
-}
 function applySettings() {
+  const values = preferences.values;
+  applyDocumentPreferences(values);
+  audio.applyPreferences();
+  if (laptopUi) laptopUi.setScale(values.display.uiScale);
   if (!app.scene3d) return;
   // Cap device pixel ratio at 1.5 — the perf ceiling the scene is tuned for. A
   // 4K/retina panel at native DPR quadruples the pixel cost for no visible gain
   // at this art style. renderScale still lets the player trade sharpness for fps.
-  app.scene3d.renderer.setPixelRatio(Math.min(1.5, (window.devicePixelRatio || 1) * (settings.renderScale || 1)));
+  app.scene3d.renderer.setPixelRatio(Math.min(1.5, (window.devicePixelRatio || 1) * values.display.renderScale));
+  app.scene3d.renderer.shadowMap.enabled = values.display.shadows;
   app.scene3d.resize();
   if (app.scene3d.post) {
-    if (app.scene3d.post.gtao) app.scene3d.post.gtao.enabled = settings.ao !== false;
-    if (app.scene3d.post.bloom) app.scene3d.post.bloom.enabled = settings.bloom !== false;
+    if (app.scene3d.post.gtao) app.scene3d.post.gtao.enabled = values.display.ambientOcclusion;
+    if (app.scene3d.post.bloom) app.scene3d.post.bloom.enabled = values.display.bloom;
   }
-  app.scene3d.camera.fov = settings.fov || 60;
-  app.scene3d.camera.updateProjectionMatrix();
-  if (app.scene3d.walk && app.scene3d.walk.state) app.scene3d.walk.state.sens = settings.sens || 1;
+  app.scene3d.walk?.configure?.({
+    sensitivity: values.camera.sensitivity,
+    invertY: values.camera.invertY,
+    fov: values.camera.fov,
+    cameraBob: values.camera.bob,
+    reducedMotion: values.accessibility.reducedMotion,
+  });
 }
 
+preferences.subscribe(() => applySettings());
+
 function isPauseOpen() { return !!pauseUi; }
-function closePauseMenu() {
+function closePauseMenu({ resume = true } = {}) {
   if (!pauseUi) return;
+  releasePauseFocus();
+  releasePauseFocus = () => {};
   pauseUi.remove();
   pauseUi = null;
-  if (app.screen === 'game') app.speedIdx = pausePrevSpeed || 1;
+  document.body.classList.remove('pause-open');
+  gameUi?.classList.remove('is-obscured');
+  gameUi?.removeAttribute('aria-hidden');
+  audio.setPaused(false);
+  if (resume && app.screen === 'game') {
+    app.speedIdx = pausePrevSpeed ?? 1;
+    if (pauseHadPointerLock && !regActive() && !app.laptopOpen) requestLook();
+  }
+  pauseHadPointerLock = false;
+  syncPresentationMode(presentationMode());
 }
 function togglePauseMenu() { if (pauseUi) closePauseMenu(); else openPauseMenu(); }
 
@@ -906,19 +1114,33 @@ function keycaps(...keys) {
 }
 
 function openPauseMenu() {
-  resetCameraInput(); // whatever was down when you hit Esc stays down no longer
   if (pauseUi || app.screen !== 'game') return;
-  pausePrevSpeed = app.speedIdx || 1;
+  toolWheel?.close('pause');
+  resetCameraInput();
+  pauseHadPointerLock = document.pointerLockElement === canvas;
+  if (document.pointerLockElement) document.exitPointerLock();
+  app.scene3d?.walk?.setSpraying?.(false);
+  app.scene3d?.walk?.setSoaping?.(false);
+  audio.setToolLoop(null);
+  pausePrevSpeed = app.speedIdx;
   app.speedIdx = 0;
+  audio.setPaused(true);
+  document.body.classList.add('pause-open');
+  gameUi?.classList.add('is-obscured');
+  gameUi?.setAttribute('aria-hidden', 'true');
 
   const content = el('div', { class: 'pause-content' });
   const nav = el('div', { class: 'pause-nav' });
   const navBtns = new Map();
+  const status = el('div', { class: 'pause-status', role: 'status', 'aria-live': 'polite', text: 'Gameplay paused' });
 
   const setPage = (key) => {
     for (const [k, b] of navBtns) b.classList.toggle('active', k === key);
     content.replaceChildren();
     PAGES[key](content);
+    content.scrollTop = 0;
+    content.querySelector('button, input, select')?.focus({ preventScroll: true });
+    if (audio.ready) audio.uiTick();
   };
   const navItem = (key, label, action) => {
     const b = el('button', { class: 'pause-nav-btn', text: label, onclick: action || (() => setPage(key)) });
@@ -927,124 +1149,132 @@ function openPauseMenu() {
     return b;
   };
 
-  function slotRow(container, mode) {
+  async function slotRecord(slot) {
+    const [record, metadata] = await Promise.all([inspectData(slot, SAVE_LIMITS), inspectData(`${slot}-meta`)]);
+    return { record, summary: record.data ? summarizeSave(record.data, metadata.data) : null };
+  }
+
+  function saveDescription(record, summary) {
+    if (record.status === 'missing') return 'Empty — ready for a new save';
+    if (record.status === 'corrupt') return 'Unreadable — saving here will preserve the damaged copy as a backup';
+    if (record.status === 'unsupported') return `Created by newer version ${record.version}`;
+    const when = summary?.savedAt ? new Date(summary.savedAt).toLocaleString() : 'time not recorded';
+    return `${summary?.clubName || 'Saved restoration'} · Day ${summary?.day || '?'} at ${summary?.clock || '?'} · ${formatMoney(summary?.cash || 0)} · ${when}`
+      + (record.status === 'recovered' ? ' · previous backup recovered' : '');
+  }
+
+  function slotRows(container, mode) {
     container.append(el('div', {
       class: 'pause-hint',
-      text: mode === 'save' ? 'Three slots. Saving overwrites the slot.' : 'Load returns you to the moment you saved.',
+      text: mode === 'save'
+        ? 'Three manual slots. Existing saves ask before they are replaced.'
+        : 'Loading returns to the saved moment and discards progress since your last save.',
     }));
-    SLOTS.forEach((slot, i) => {
-      const card = el('div', { class: 'slot-card' },
-        el('div', { class: 'slot-name', text: `Slot ${i + 1}` }),
-        el('div', { class: 'slot-meta', text: '…' }),
+    SLOTS.forEach((slot, index) => {
+      const meta = el('div', { class: 'slot-meta', text: 'Checking slot…' });
+      const action = el('button', { class: `slot-act${mode === 'save' ? ' primary' : ''}`, text: mode === 'save' ? 'Save here' : 'Load', disabled: true });
+      const card = el('div', { class: 'slot-card', 'aria-busy': 'true' },
+        el('div', { class: 'slot-name', text: `Slot ${index + 1}` }), meta, action,
       );
-      const act = el('button', {
-        class: mode === 'save' ? 'slot-act primary' : 'slot-act',
-        text: mode === 'save' ? 'Save here' : 'Load',
-        onclick: async () => {
-          if (mode === 'save') {
-            await saveData(slot, empireSnapshot(app.empire));
-            const st = app.state;
-            tutorialFlag(st, 'savedGame');
-            await saveData(`${slot}-meta`, {
-              name: st.clubName, when: hudClockText(), cash: st.cash,
-              cond: st.shop && st.shop.reno ? Math.round(st.shop.reno.condition) : null,
-              savedAt: Date.now(),
-            });
-            toast(`Saved to slot ${i + 1}.`);
-            setPage('save');
-          } else {
-            const data = await loadData(slot);
-            if (!data) { toast(`Slot ${i + 1} is empty.`, 'warn'); return; }
-            closePauseMenu();
-            bootEmpire(deserializeEmpire(data));
-          }
-        },
-      });
-      card.append(act);
       container.append(card);
-      loadData(`${slot}-meta`).then((meta) => {
-        const line = card.querySelector('.slot-meta');
-        if (!meta) {
-          line.textContent = 'Empty';
-          if (mode === 'load') act.disabled = true;
-          return;
-        }
-        const when = new Date(meta.savedAt).toLocaleString();
-        line.textContent = `${meta.name} — ${meta.when} — ${formatMoney(meta.cash)}`
-          + (meta.cond != null ? ` — shop ${meta.cond}` : '') + `  ·  saved ${when}`;
-      }).catch(() => { card.querySelector('.slot-meta').textContent = 'Empty'; });
+      slotRecord(slot).then(({ record, summary }) => {
+        if (!card.isConnected) return;
+        card.setAttribute('aria-busy', 'false');
+        meta.textContent = saveDescription(record, summary);
+        action.disabled = mode === 'load' && !['ok', 'recovered'].includes(record.status);
+        if (mode === 'save') action.disabled = false;
+        action.onclick = () => {
+          if (mode === 'save') {
+            const write = async () => {
+              action.disabled = true;
+              card.dataset.state = 'saving';
+              meta.textContent = 'Saving…';
+              status.textContent = `Saving slot ${index + 1}…`;
+              try {
+                await saveSlot(slot);
+                status.textContent = `Saved to slot ${index + 1}`;
+                notify({ message: `Saved to slot ${index + 1}.`, category: 'save-success', dedupeKey: `saved-${slot}` });
+                audio.uiConfirm?.();
+                objectivesPanel.refresh();
+                setPage('save');
+                return true;
+              } catch (error) {
+                action.disabled = false;
+                card.dataset.state = 'error';
+                meta.textContent = 'Save failed — your previous slot is still preserved. Check storage access and try another slot.';
+                status.textContent = `Slot ${index + 1} could not be saved`;
+                notify({ message: `Slot ${index + 1} could not be saved. Your previous copy was preserved.`, category: 'save-failure', persistent: true, dedupeKey: `save-failed-${slot}` });
+                audio.uiError?.();
+                console.error(`save ${slot} failed`, error);
+                return false;
+              }
+            };
+            if (record.status !== 'missing') {
+              confirmDialog({
+                title: `Replace slot ${index + 1}?`,
+                message: summary?.clubName || 'This slot already contains save data.',
+                detail: 'The existing copy moves to the recovery backup before the new save is written.',
+                confirmLabel: 'Replace and save', danger: true, onConfirm: write,
+              });
+            } else write();
+            return;
+          }
+          confirmDialog({
+            title: `Load slot ${index + 1}?`,
+            message: summary?.clubName || 'Load this restoration?',
+            detail: 'Progress since your last save will be lost.',
+            confirmLabel: 'Load game',
+            onConfirm: async () => {
+              const empire = await loadEmpireSave(slot, `Slot ${index + 1}`);
+              if (!empire) return false;
+              closePauseMenu({ resume: false });
+              bootEmpire(empire);
+              return true;
+            },
+          });
+        };
+      }).catch((error) => {
+        card.setAttribute('aria-busy', 'false');
+        card.dataset.state = 'error';
+        meta.textContent = 'This slot could not be checked.';
+        action.disabled = mode === 'load';
+        console.error(`inspect ${slot} failed`, error);
+      });
     });
   }
 
-  function settingRow(label, control) {
-    return el('div', { class: 'set-row' }, el('div', { class: 'set-label', text: label }), control);
-  }
-
   const PAGES = {
-    save: (c) => slotRow(c, 'save'),
-    load: (c) => slotRow(c, 'load'),
-    settings: (c) => {
+    home: (c) => {
+      const summary = summarizeSave(empireSnapshot(app.empire), currentSaveMetadata());
       c.append(
-        settingRow('Volume', el('div', { class: 'set-ctl' },
-          el('input', {
-            type: 'range', min: '0', max: '1', step: '0.05', value: String(audio.getVolume()),
-            oninput: (e) => audio.setVolume(Number(e.target.value)),
-          }),
-          el('button', {
-            class: 'chip-btn',
-            text: audio.isMuted() ? 'Unmute' : 'Mute',
-            onclick: (e) => { audio.setMuted(!audio.isMuted()); e.target.textContent = audio.isMuted() ? 'Unmute' : 'Mute'; },
-          }),
-        )),
-        settingRow('Difficulty', el('div', { class: 'set-ctl' }, ...['relaxed', 'realistic'].map((m) =>
-          el('button', {
-            class: `chip-btn${app.state.mode === m ? ' on' : ''}`,
-            text: m === 'relaxed' ? 'Relaxed' : 'Realistic',
-            onclick: () => { app.state.mode = m; setPage('settings'); },
-          })))),
-        settingRow('Render scale', el('div', { class: 'set-ctl' }, ...[0.75, 1, 1.25].map((v) =>
-          el('button', {
-            class: `chip-btn${settings.renderScale === v ? ' on' : ''}`,
-            text: `${Math.round(v * 100)}%`,
-            onclick: () => { settings.renderScale = v; saveSettings(); applySettings(); setPage('settings'); },
-          })))),
-        settingRow('Ambient occlusion', el('div', { class: 'set-ctl' },
-          el('button', {
-            class: `chip-btn${settings.ao !== false ? ' on' : ''}`,
-            text: settings.ao !== false ? 'On' : 'Off',
-            onclick: () => { settings.ao = settings.ao === false; saveSettings(); applySettings(); setPage('settings'); },
-          }))),
-        settingRow('Bloom', el('div', { class: 'set-ctl' },
-          el('button', {
-            class: `chip-btn${settings.bloom !== false ? ' on' : ''}`,
-            text: settings.bloom !== false ? 'On' : 'Off',
-            onclick: () => { settings.bloom = settings.bloom === false; saveSettings(); applySettings(); setPage('settings'); },
-          }))),
-        settingRow('Field of view', el('div', { class: 'set-ctl' },
-          el('input', {
-            type: 'range', min: '50', max: '90', step: '1', value: String(settings.fov || 60),
-            oninput: (e) => { settings.fov = Number(e.target.value); saveSettings(); applySettings(); },
-          }),
-          el('span', { class: 'set-val', text: `${settings.fov || 60}°` }),
-        )),
-        settingRow('Mouse sensitivity', el('div', { class: 'set-ctl' },
-          el('input', {
-            type: 'range', min: '0.4', max: '2', step: '0.1', value: String(settings.sens || 1),
-            oninput: (e) => { settings.sens = Number(e.target.value); saveSettings(); applySettings(); },
-          }),
-        )),
-        settingRow('Tutorial', el('div', { class: 'set-ctl' },
-          el('button', {
-            class: 'chip-btn',
-            text: app.state.tutorial && app.state.tutorial.complete ? 'Replay the guide' : 'Skip the guide',
-            onclick: () => {
-              if (app.state.tutorial && app.state.tutorial.complete) replayTutorial(app.state);
-              else skipTutorial(app.state);
-              objectivesPanel.refresh();
-              setPage('settings');
-            },
-          }))),
+        el('div', { class: 'pause-overview' },
+          el('div', { class: 'pause-overview-kicker', text: 'Current restoration' }),
+          el('h2', { text: summary?.clubName || app.state?.clubName || 'Golf Empire' }),
+          el('p', { text: `${summary?.propertyName || ''} · Day ${summary?.day || 1}, ${summary?.clock || ''} · ${formatMoney(summary?.cash || 0)}` }),
+        ),
+        el('button', { class: 'pause-resume-primary', text: 'Resume game', onclick: () => closePauseMenu() }),
+        el('div', { class: 'pause-hint', text: 'The simulation clock, tools, and looping effects remain paused while this menu is open.' }),
       );
+    },
+    save: (c) => slotRows(c, 'save'),
+    load: (c) => slotRows(c, 'load'),
+    settings: (c) => {
+      c.append(makeSettingsPanel({
+        preferences,
+        audio,
+        apply: applySettings,
+        tutorialEnabled: !!(app.state?.tutorial && !app.state.tutorial.complete),
+        onResetTutorials: () => {
+          replayTutorial(app.state);
+          objectivesPanel.refresh();
+          notify({ message: 'Contextual tutorials reset. Lessons will return when their activity is next used.', category: 'objective' });
+        },
+        onDisableTutorials: () => {
+          skipTutorial(app.state);
+          objectivesPanel.refresh();
+          notify({ message: 'Tutorial guidance disabled. Reset it here at any time.', category: 'info' });
+        },
+      }));
     },
     controls: (c) => {
       const group = (title, rows) => {
@@ -1061,27 +1291,29 @@ function openPauseMenu() {
             ['Capture the mouse', 'Click'], ['Overview camera (hands free)', 'Tab'],
           ]),
           group('Hands', [
-            ['Interact · pick up · place', 'E'], ['Reposition closed carton', 'X'],
-            ['Rotate carton placement', 'R'],
-            ['Cancel preview · keep carrying', 'Esc'],
-            ['Cycle tool', 'F'], ['Use tool', 'Hold LMB'],
+            ['Interact · pick up · place', 'E'], ['Secondary action · reposition carton', 'X'],
+            ['Tool belt: tap / hold', 'F'],
+            ['Previous tool', 'Q'], ['Use selected tool', 'LMB'],
+            ['Placement mode', 'B'], ['Rotate placement', 'R'], ['Cancel preview', 'Esc'],
           ]),
           group('Time & views', [
-            ['Pause', 'Space'], ['Speed', '1', '2', '3'], ['Data views', 'V'],
+            ['Pause menu', 'P', 'Esc'], ['Pause simulation clock', 'Space'],
+            ['Simulation speed', '1', '2', '3'], ['Course data view', 'V'],
           ]),
-          group('Desks', [
+          group('Management', [
             ['Course editor (hands free)', 'J'],
-            ['Grounds desk', 'G'], ['Club office', 'C'], ['Empire', 'M'], ['This menu', 'Esc'],
+            ['Grounds desk', 'G'], ['Club office', 'C'], ['Empire overview', 'M'],
+            ['Leave laptop / register step back', 'Esc'],
           ]),
         ),
       );
     },
-    office: (c) => {
+    exit: (c) => {
       c.append(
-        el('div', { class: 'pause-hint', text: 'Management shortcuts and the way out.' }),
+        el('div', { class: 'pause-hint', text: 'Recovery and session controls. Leaving the game always asks first.' }),
         el('button', {
           class: 'pause-wide',
-          text: '🧭 Get me unstuck',
+          text: 'Move me to a safe position',
           onclick: () => {
             const w = app.scene3d && app.scene3d.walk;
             if (!w || !w.unstick) return;
@@ -1091,25 +1323,60 @@ function openPauseMenu() {
           },
         }),
         el('button', {
-          class: 'pause-wide',
-          text: 'Empire overview',
-          onclick: () => { closePauseMenu(); handlers.toggleEmpire(); },
-        }),
-        el('button', {
           class: 'pause-wide danger',
-          text: 'Exit to main menu (autosaves)',
-          onclick: async () => { await autosave(); closePauseMenu(); exitToMenu(); },
+          text: 'Return to main menu',
+          onclick: () => confirmDialog({
+            title: 'Return to main menu?',
+            message: 'Save the current restoration and leave this session?',
+            detail: 'If saving fails, the game will keep this menu open so you can choose a manual slot.',
+            confirmLabel: 'Save and return',
+            danger: true,
+            onConfirm: async () => {
+              const result = await autosave();
+              if (!result?.ok) return false;
+              closePauseMenu({ resume: false });
+              exitToMenu();
+              return true;
+            },
+          }),
         }),
+        window.fairwayNative?.quit ? el('button', {
+          class: 'pause-wide danger',
+          text: 'Save and quit to desktop',
+          onclick: () => confirmDialog({
+            title: 'Quit Golf Empire?',
+            message: 'Save this restoration and return to the desktop?',
+            detail: 'The game will not quit if the autosave fails.',
+            confirmLabel: 'Save and quit', danger: true,
+            onConfirm: async () => {
+              const result = await autosave();
+              if (!result?.ok) return false;
+              await window.fairwayNative.quit();
+              return true;
+            },
+          }),
+        }) : null,
       );
     },
   };
 
   navItem('resume', 'Resume', () => closePauseMenu());
+  navItem('home', 'Overview');
   navItem('save', 'Save game');
   navItem('load', 'Load game');
   navItem('settings', 'Settings');
   navItem('controls', 'Controls');
-  navItem('office', 'Office');
+  navItem('exit', 'Session');
+  nav.addEventListener('keydown', (event) => {
+    if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const buttons = [...nav.querySelectorAll('button')];
+    let index = buttons.indexOf(document.activeElement);
+    if (event.key === 'Home') index = 0;
+    else if (event.key === 'End') index = buttons.length - 1;
+    else index = (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
+    buttons[index]?.focus();
+  });
 
   const panel = el('div', { class: 'pause-panel' },
     el('div', { class: 'pause-head' },
@@ -1117,11 +1384,20 @@ function openPauseMenu() {
       el('div', { class: 'pause-word', text: 'PAUSED' }),
     ),
     el('div', { class: 'pause-body' }, nav, content),
+    el('div', { class: 'pause-footer' }, status, el('span', { text: 'P or Esc resumes' })),
   );
-  pauseUi = el('div', { class: 'pause-veil-ui' }, panel);
-  pauseUi.addEventListener('pointerdown', (e) => { if (e.target === pauseUi) closePauseMenu(); });
+  pauseUi = el('div', { class: 'pause-veil-ui', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Pause menu' }, panel);
+  pauseUi.addEventListener('pointerdown', (event) => event.stopPropagation());
+  pauseUi.addEventListener('keydown', (event) => {
+    if (event.key !== 'p' && event.key !== 'P') return;
+    event.preventDefault();
+    event.stopPropagation();
+    closePauseMenu();
+  }, true);
   document.getElementById('ui').append(pauseUi);
-  setPage('save');
+  releasePauseFocus = containFocus(panel, { onEscape: () => closePauseMenu(), initialFocus: navBtns.get('home') });
+  setPage('home');
+  syncPresentationMode('pause');
 }
 
 // --- input ------------------------------------------------------------------------
@@ -1149,6 +1425,112 @@ function regActive() {
   return !!(r && r.isActive());
 }
 
+let toolKeyTimer = null;
+let toolKeyStarted = 0;
+let toolHoldOpened = false;
+let previousWalkTool = null;
+
+function walkToolEntries() {
+  const walk = app.scene3d?.walk;
+  const clubhouse = app.scene3d?.clubhouse?.();
+  const inside = !!(walk && clubhouse?.isInside(walk.state.x, walk.state.z));
+  const cleaningKitOwned = !!(app.state && vacuumOwned(app.state));
+  const washer = app.state ? ownedWasher(app.state) : null;
+  const indoorTools = BELT_ORDER
+    .filter((id) => id && CLEANING_TOOLS[id] && !CLEANING_TOOLS[id].external)
+    .map((id) => {
+      const def = CLEANING_TOOLS[id];
+      return {
+        id,
+        label: def.label,
+        icon: def.label.slice(0, 1).toUpperCase(),
+        available: inside && cleaningKitOwned,
+        reason: !inside ? 'Use this inside the clubhouse' : 'Order the cleaning kit from the laptop',
+        detail: def.equipToast,
+      };
+    });
+  const handsFree = { id: null, label: 'Hands free', icon: '○', detail: 'Interact, carry, and inspect' };
+  if (inside) return [handsFree, ...indoorTools];
+  return [
+    handsFree,
+    {
+      id: 'washer', label: washer?.name || 'Pressure washer', icon: 'W',
+      available: true,
+      detail: 'LMB washes · RMB applies soap',
+    },
+    { id: 'hose', label: 'Watering hose', icon: 'H', detail: 'Raises live turf moisture' },
+    { id: 'divot', label: 'Divot kit', icon: 'D', detail: 'Repairs worn turf patches' },
+    { id: 'rake', label: 'Bunker rake', icon: 'R', detail: 'Smooths footprinted sand' },
+  ];
+}
+
+function selectWalkTool(tool) {
+  const walk = app.scene3d?.walk;
+  if (!walk) return;
+  const current = walk.getTool();
+  if (current !== tool) previousWalkTool = current;
+  walk.setSpraying(false);
+  walk.setSoaping?.(false);
+  audio.setToolLoop(null);
+  walk.setTool(tool);
+  if (audio.ready) audio.equipTick();
+  if (app.state) {
+    tutorialFlag(app.state, 'toolSelected');
+    if (tool === 'vacuum') triggerContextTutorial(app.state, 'cleaning-tools');
+    else if (['washer', 'hose', 'divot', 'rake'].includes(tool)) triggerContextTutorial(app.state, 'maintenance-tools');
+  }
+  objectivesPanel?.refresh();
+  hud?.update();
+}
+
+function cycleWalkTool() {
+  const entries = walkToolEntries().filter((entry) => entry.available !== false);
+  if (!entries.length) return;
+  const current = app.scene3d.walk.getTool();
+  const index = entries.findIndex((entry) => entry.id === current);
+  selectWalkTool(entries[(index + 1 + entries.length) % entries.length].id);
+}
+
+function showToolWheel() {
+  if (!walkActive() || regActive() || app.laptopOpen || buildApi()?.isActive() || isPauseOpen()) return;
+  toolHoldOpened = true;
+  resetCameraInput();
+  app.scene3d.walk.setSpraying(false);
+  app.scene3d.walk.setSoaping?.(false);
+  audio.setToolLoop(null);
+  if (document.pointerLockElement) document.exitPointerLock();
+  triggerContextTutorial(app.state, 'tool-wheel');
+  objectivesPanel.refresh();
+  toolWheel.show(walkToolEntries(), app.scene3d.walk.getTool());
+}
+
+function beginToolKey(event) {
+  if (event.repeat || toolKeyTimer || toolWheel?.isOpen()) return;
+  toolKeyStarted = performance.now();
+  toolHoldOpened = false;
+  toolKeyTimer = setTimeout(() => {
+    toolKeyTimer = null;
+    showToolWheel();
+  }, 230);
+}
+
+function endToolKey() {
+  if (toolKeyTimer) {
+    clearTimeout(toolKeyTimer);
+    toolKeyTimer = null;
+  }
+  if (!toolHoldOpened && performance.now() - toolKeyStarted < 500 && walkActive()) cycleWalkTool();
+  toolKeyStarted = 0;
+  toolHoldOpened = false;
+}
+
+function stopToolUse() {
+  if (!app.scene3d?.walk) return;
+  app.scene3d.walk.setSpraying(false);
+  app.scene3d.walk.setSoaping?.(false);
+  audio.setToolLoop(null);
+}
+
 canvas.addEventListener('click', () => {
   if (handledPlacementPointer) {
     handledPlacementPointer = false;
@@ -1156,7 +1538,7 @@ canvas.addEventListener('click', () => {
   }
   // first-person walking: clicking (re)captures the mouse — but NOT while the player
   // is behind the till, where the cursor is the whole interface
-  if (regActive() || editorActive()) return;
+  if (regActive() || editorActive() || toolWheel?.isOpen() || isPauseOpen()) return;
   if (app.screen === 'game' && !document.pointerLockElement && walkActive()) {
     requestLook();
     return;
@@ -1178,7 +1560,7 @@ canvas.addEventListener('click', () => {
 
 canvas.addEventListener('pointerdown', (e) => {
   if (app.screen !== 'game') return;
-  if (editorActive()) return; // the editor owns its own pointer plumbing
+  if (editorActive() || toolWheel?.isOpen() || isPauseOpen()) return;
   if (regActive()) { e.preventDefault(); regApi().onDown(e); return; }
   if (app.courseMode !== 'overview') {
     const placement = boxPlacementApi();
@@ -1203,13 +1585,17 @@ canvas.addEventListener('pointerdown', (e) => {
     }
     const tool = walkActive() && app.scene3d.walk.getTool();
     if (e.button === 0 && tool) {
-      app.scene3d.walk.setSpraying(true);
-      if (audio.ready) audio.setToolLoop(tool);
+      const toggle = preferences.values.accessibility.toolActivation === 'toggle';
+      const active = toggle ? !app.scene3d.walk.isSpraying() : true;
+      app.scene3d.walk.setSpraying(active);
+      if (audio.ready) audio.setToolLoop(active ? tool : null);
     } else if (e.button === 2 && tool === 'washer') {
       // right button on the washer lays soap, for the stains water alone won't touch
       e.preventDefault();
-      app.scene3d.walk.setSoaping(true);
-      if (audio.ready) audio.setToolLoop('soap');
+      const toggle = preferences.values.accessibility.toolActivation === 'toggle';
+      const active = toggle ? !app.scene3d.walk.isSoaping() : true;
+      app.scene3d.walk.setSoaping(active);
+      if (audio.ready) audio.setToolLoop(active ? 'soap' : null);
     }
     return;
   }
@@ -1247,9 +1633,7 @@ canvas.addEventListener('pointermove', (e) => {
 
 window.addEventListener('pointerup', (e) => {
   if (regActive()) { regApi().onUp(e); return; }
-  if (walkActive() && app.scene3d.walk.isSpraying()) app.scene3d.walk.setSpraying(false);
-  if (walkActive() && app.scene3d.walk.isSoaping && app.scene3d.walk.isSoaping()) app.scene3d.walk.setSoaping(false);
-  if (audio.ready) audio.setToolLoop(null);
+  if (preferences.values.accessibility.toolActivation === 'hold') stopToolUse();
 });
 
 canvas.addEventListener('pointerup', () => {
@@ -1281,14 +1665,30 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('keydown', (e) => {
   if (app.screen !== 'game') return;
-  if (editorActive()) return; // the editor's capture-phase handler owns the keys
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
 
-  // BEHIND THE TILL, THE TILL OWNS THE ACTION KEYS — but not the feet. WASD
-  // reaches the walk controller through its own listener (walkHeld), so the
-  // cashier can shuffle along the counter mid-transaction; Tab stays blocked
-  // (swapping to the overview from behind the till is never what you meant).
-  // Escape is the way out, and registerMode handles it.
+  // The pause shell owns every key while open. P is a universal pause key in
+  // register, laptop, placement, overview, and ordinary walk; Esc remains the
+  // contextual "step back" key where those modes need it.
+  if (isPauseOpen()) {
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+      e.preventDefault();
+      closePauseMenu();
+    }
+    return;
+  }
+  if (e.key === 'p' || e.key === 'P') {
+    e.preventDefault();
+    openPauseMenu();
+    return;
+  }
+  if (editorActive()) return; // the editor's capture-phase handler owns its remaining keys
+  if (toolWheel?.isOpen()) return;
+
+  // Behind the till, the register owns action keys while the walk controller's
+  // separate listener still permits small WASD position adjustments. Tab stays
+  // blocked so the judged checkout pose cannot be stranded in overview.
+  // Escape is the way out, and register mode handles it.
   if (regActive()) {
     e.preventDefault();
     regApi().onKey(e.key);
@@ -1422,6 +1822,8 @@ window.addEventListener('keydown', (e) => {
           break;
         }
         ch.build.enter();
+        triggerContextTutorial(app.state, 'placement');
+        objectivesPanel.refresh();
         break;
       }
       case 'r': case 'R': {
@@ -1431,44 +1833,16 @@ window.addEventListener('keydown', (e) => {
         break;
       }
       case 'f': case 'F': {
-        const walkApi = app.scene3d.walk;
-        if (!walkApi.cart.mounted) {
-          if (walkApi.getTool() === 'boxcutter') {
-            walkApi.setTool(null);
-            if (audio.ready) audio.equipTick();
-            toast('Box cutter put away.');
-            break;
-          }
-          // The tool belt. Indoors you cycle the cleaning kit; outdoors the groundskeeping tools
-          // plus the washer. The cleaning half is driven by the registry, so a new tool joins the
-          // belt and gets its own equip line by existing — no edit here.
-          const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
-          const inside = ch && ch.isInside(walkApi.state.x, walkApi.state.z);
-          let belt;
-          if (inside) {
-            if (!(app.state && vacuumOwned(app.state))) {
-              toast('No cleaning kit here yet — order one at the office computer.', 'warn');
-              break;
-            }
-            // indoor cleaning tools, in the registry's own order
-            belt = [null, ...BELT_ORDER.filter(
-              (id) => id && !CLEANING_TOOLS[id].external && CLEANING_TOOLS[id].indoorOnly !== false,
-            )];
-          } else {
-            belt = [null, 'washer', 'hose', 'divot', 'rake'];
-          }
-          const cur = belt.indexOf(walkApi.getTool());
-          const next = belt[(cur + 1) % belt.length];
-          walkApi.setTool(next);
-          if (audio.ready) audio.equipTick();
-          const washer = app.state ? ownedWasher(app.state) : null;
-          const def = next ? CLEANING_TOOLS[next] : null;
-          toast(next === 'hose' ? 'Hose out — hold the mouse button to water.'
-            : next === 'divot' ? 'Divot kit out — hold the button on worn turf.'
-            : next === 'rake' ? 'Bunker rake out — hold the button on footprinted sand.'
-            : next === 'washer' ? `${washer ? washer.name : 'Pressure washer'} — hold LEFT to blast, RIGHT to lay soap on the heavy stains.`
-            : def ? `${def.label} out — ${def.equipToast}`
-            : 'Tools away.');
+        if (!app.scene3d.walk.cart.mounted) beginToolKey(e);
+        break;
+      }
+      case 'q': case 'Q': {
+        if (app.scene3d.walk.cart.mounted) break;
+        const current = app.scene3d.walk.getTool();
+        const previous = previousWalkTool;
+        if (previous !== undefined && previous !== current) {
+          previousWalkTool = current;
+          selectWalkTool(previous);
         }
         break;
       }
@@ -1542,8 +1916,15 @@ window.addEventListener('keydown', (e) => {
   if (isTextEntryTarget(e.target)) return;
   held.down(e.key, e.repeat);
 });
-window.addEventListener('keyup', (e) => held.up(e.key));
+window.addEventListener('keyup', (e) => {
+  held.up(e.key);
+  if (e.key === 'f' || e.key === 'F') endToolKey();
+});
 window.addEventListener('blur', () => {
+  if (toolKeyTimer) clearTimeout(toolKeyTimer);
+  toolKeyTimer = null;
+  toolHoldOpened = false;
+  stopToolUse();
   resetCameraInput();
   const reg = regApi();
   if (reg && reg.isActive()) reg.recoverInput('focus loss');
@@ -1749,6 +2130,52 @@ function frame(ts) {
 const CONDITION_WORD = (c) =>
   c < 25 ? 'filthy' : c < 45 ? 'grimy' : c < 70 ? 'getting there' : c < 90 ? 'clean' : 'showroom';
 let lastCondWord = null;
+let lastPresentationMode = null;
+let frontDeskLessonSeen = false;
+
+function registerPrompt() {
+  const tx = regApi()?.getTx?.();
+  if (!tx) return '';
+  const exit = ' · [Esc] step back';
+  switch (tx.stage) {
+    case 'scanning': {
+      const left = registerUnscannedCount(tx);
+      return left > 0
+        ? `Drag ${left} item${left === 1 ? '' : 's'} through the scanner${exit}`
+        : `All items scanned · [T] total the sale${exit}`;
+    }
+    case 'payment': return `Choose card or cash on the register screen${exit}`;
+    case 'card-present': return `Take the customer's card, then use the terminal${exit}`;
+    case 'card-ready': return `Run the card through the terminal${exit}`;
+    case 'card-busy': return 'Authorising card — please wait';
+    case 'card-declined': return `Card declined · try another card or choose cash${exit}`;
+    case 'cash-tender': return `Take the customer's cash · [D] open the drawer${exit}`;
+    case 'cash-drawer': {
+      if (!tx.deposited) return `Put the tender into the open drawer${exit}`;
+      const due = registerChangeDue(tx);
+      const held = registerHandTotal(tx);
+      return due > 0
+        ? `Select exactly $${due.toFixed(2)} change · holding $${held.toFixed(2)} · hand it to the customer${exit}`
+        : `No change due · close the drawer${exit}`;
+    }
+    case 'receipt': return `Take the printed receipt${exit}`;
+    case 'bagging': return `Place every item in the bag, then take the receipt${exit}`;
+    case 'done': return 'Hand the completed order to the customer';
+    default: return `Follow the register screen${exit}`;
+  }
+}
+
+function syncPresentationMode(mode) {
+  if (mode === lastPresentationMode) return;
+  lastPresentationMode = mode;
+  document.body.dataset.uiMode = mode;
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = mode === 'overview' ? '' : 'none';
+  const hint = document.querySelector('.hint-bar');
+  if (hint) hint.style.display = mode === 'overview' ? '' : 'none';
+  if (mode === 'register' && app.state) triggerContextTutorial(app.state, 'checkout');
+  objectivesPanel?.refresh();
+}
 
 // The overlay runs every frame, so it must cost nothing when nothing changed: element
 // lookups are cached once, every DOM write is guarded by a last-value check (an identical
@@ -1761,6 +2188,8 @@ const ovLast = {
 };
 let condClock = 0;
 function updateWalkOverlay(dtMs = 16.7) {
+  const mode = presentationMode();
+  syncPresentationMode(mode);
   const registerActive = regActive();
   const registerDisplay = registerActive ? 'flex' : 'none';
   if (regHint && regHint.style.display !== registerDisplay) regHint.style.display = registerDisplay;
@@ -1773,6 +2202,8 @@ function updateWalkOverlay(dtMs = 16.7) {
     if (regHintText && regHintText.textContent !== hintText) regHintText.textContent = hintText;
     if (regHintTotal && regHintTotal.style.display !== totalDisplay) regHintTotal.style.display = totalDisplay;
     if (regHintDrawer && regHintDrawer.style.display !== drawerDisplay) regHintDrawer.style.display = drawerDisplay;
+    const tx = register.getTx?.();
+    if (tx?.stage === 'done') tutorialFlag(app.state, 'checkoutCompleted');
   }
   if (!ovEl.prompt) {
     ovEl.prompt = walkOverlay.querySelector('.shop-prompt');
@@ -1800,7 +2231,7 @@ function updateWalkOverlay(dtMs = 16.7) {
     || '';
   if (label !== ovLast.prompt) {
     ovLast.prompt = label;
-    ovEl.prompt.textContent = label;
+    setPromptText(ovEl.prompt, label);
   }
   // A focus prompt only has meaning while mouse-look owns the pointer. When
   // the pointer is free, "Click to play" is the single actionable instruction;
@@ -1810,26 +2241,35 @@ function updateWalkOverlay(dtMs = 16.7) {
     ovLast.opacity = opacity;
     ovEl.prompt.style.opacity = opacity;
   }
+  if (label?.includes('check in')) {
+    frontDeskLessonSeen = true;
+    triggerContextTutorial(app.state, 'front-desk');
+    objectivesPanel.refresh();
+  } else if (frontDeskLessonSeen && label?.startsWith('Register — yesterday')) {
+    tutorialFlag(app.state, 'frontDeskCheckedIn');
+    frontDeskLessonSeen = false;
+  }
   // the control bar retires once the controls are demonstrably learned
   // (opening arc past the shelving step) — after that it only returns while
   // the pointer is free, as a click-to-play reminder
   const tut = app.state && app.state.tutorial;
   const learned = tut && (tut.complete || tut.hidden || tut.step >= 5);
-  const lockDisp = document.pointerLockElement ? 'none' : '';
+  const showLockHint = ['walk', 'placement'].includes(mode) && !document.pointerLockElement;
+  const lockDisp = showLockHint ? '' : 'none';
   if (lockDisp !== ovLast.lockDisp) {
     ovLast.lockDisp = lockDisp;
     ovEl.lockHint.style.display = lockDisp;
   }
   const lockText = learned
     ? (placement?.hasCarriedBox()
-      ? 'Click to play · Carrying carton: E place · R rotate · Esc keep carrying'
-      : 'Click to play')
+      ? 'Click to resume · Carrying carton: E place · R rotate · Esc keep carrying'
+      : 'Click to resume looking')
     : (placement?.hasCarriedBox()
       ? 'Click to look around · WASD walk · E place · R rotate · Esc keep carrying'
-      : 'Click to look around · WASD walk · Shift run · E interact · F tool · J course editor · Tab overview · Esc menu');
+      : 'Click to look · WASD move · Shift run · E interact · tap/hold F tools · J course editor · Tab overview · P pause');
   if (lockText !== ovLast.lockText) {
     ovLast.lockText = lockText;
-    ovEl.lockHint.textContent = lockText;
+    setPromptText(ovEl.lockHint, lockText);
   }
   // inside the shop: the condition chip rides along (and tier-ups chime) — 4Hz is plenty
   condClock += dtMs;
@@ -1838,7 +2278,7 @@ function updateWalkOverlay(dtMs = 16.7) {
     const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
     const inside = ch && ch.isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z);
     let condText = null;
-    if (inside && app.state && app.state.shop) {
+    if (inside && mode === 'walk' && app.state && app.state.shop) {
       if (app.state.tutorial) tutorialFlag(app.state, 'shopWalked');
       const c = shopCondition(app.state);
       const word = CONDITION_WORD(c);
@@ -1890,10 +2330,11 @@ function checkBigMoments() {
           el('button', {
             class: 'primary', text: 'Load autosave',
             onclick: async () => {
-              const data = await loadData('autosave');
+              const empire = await loadEmpireSave('autosave', 'Autosave');
+              if (!empire) return;
               close();
               failShown = false;
-              if (data) bootEmpire(deserializeEmpire(data));
+              bootEmpire(empire);
             },
           }),
           el('button', { class: 'danger', text: 'Exit to menu', onclick: () => { close(); exitToMenu(); } }),
@@ -1937,22 +2378,40 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
+function openMenuSettings() {
+  modal('Settings', (box, close) => {
+    box.classList.add('wide', 'settings-dialog');
+    box.append(
+      makeSettingsPanel({ preferences, audio, apply: applySettings }),
+      el('div', { class: 'dialog-actions' },
+        el('button', { class: 'primary', type: 'button', text: 'Done', onclick: close }),
+      ),
+    );
+  }, { className: 'menu-dialog settings-dialog', dismissOnBackdrop: false, initialFocus: '.settings-tab' });
+}
+
 function boot() {
   menu = makeMenu({
-    onNewGame(mode) {
+    async onNewGame(mode) {
       // a new empire starts in the property market — the first act is judgment
       app.empire = newEmpire(mode, (Math.random() * 2 ** 31) | 0);
-      autosave();
+      await autosave();
       openMarketplace(app, handlers);
     },
     async onContinue() {
-      const data = await loadData('autosave');
-      if (data) bootEmpire(deserializeEmpire(data));
-      else toast('No autosave found.', 'warn');
+      const empire = await loadEmpireSave('autosave', 'Autosave');
+      if (empire) bootEmpire(empire);
     },
+    async onLoad(_data, slot) {
+      const index = SLOTS.indexOf(slot);
+      const empire = await loadEmpireSave(slot, index >= 0 ? `Slot ${index + 1}` : 'Save');
+      if (empire) bootEmpire(empire);
+    },
+    onSettings: openMenuSettings,
+    onQuit: () => window.fairwayNative?.quit?.(),
   });
 
-  gameUi = el('div', { style: 'display:none' });
+  gameUi = el('div', { class: 'game-ui', style: 'display:none' });
   hud = makeHud(app, handlers);
   laptopUi = makeLaptop(app, {
     close: () => exitLaptop(),
@@ -1967,6 +2426,7 @@ function boot() {
   });
   editorUi = makeCourseEditor(app, {
     onExit: () => exitEditor(),
+    isPaused: () => isPauseOpen(),
     afterApply: () => {
       // The editor has already applied every visual mutation live. Build only
       // settles economics/renovation metadata, so keep the scene and clubhouse.
@@ -1980,14 +2440,23 @@ function boot() {
   groundsPanel = makeGroundsPanel(app);
   clubPanel = makeClubPanel(app, recomputeRating);
   empirePanel = makeEmpirePanel(app, handlers);
-  objectivesPanel = makeObjectivesPanel(app);
+  objectivesPanel = makeObjectivesPanel(app, { getContext: presentationMode });
+  toolWheel = makeToolWheel({
+    audio,
+    onSelect: selectWalkTool,
+    onPause: openPauseMenu,
+    onClose: (reason) => {
+      if (reason !== 'pause' && walkActive() && !regActive() && !app.laptopOpen && !isPauseOpen()) requestLook();
+      syncPresentationMode(presentationMode());
+    },
+  });
 
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
     el('div', { class: 'shop-prompt', text: '' }),
     el('div', { class: 'property-inventory', text: '', style: 'display:none' }),
     el('div', { class: 'shop-cond', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F tool · J course editor · Tab overview · Esc menu' }),
+    el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · tap/hold F tools · J course editor · Tab overview · P pause' }),
   );
 
   // BEHIND THE TILL the walk overlay is hidden — no crosshair, no prompt — so the
@@ -1997,26 +2466,25 @@ function boot() {
   regHintText = el('span', { text: 'Work the physical register' });
   regHintTotal = el('span', { class: 'reg-keys' }, el('kbd', { text: 'T' }), el('span', { text: 'total up' }));
   regHintDrawer = el('span', { class: 'reg-keys' }, el('kbd', { text: 'D' }), el('span', { text: 'drawer' }));
-  regHint = el('div', { class: 'reg-hint', style: 'display:none' },
+  regHint = el('div', { class: 'reg-hint', style: 'display:none', role: 'status', 'aria-live': 'polite' },
     regHintText,
     regHintTotal,
     regHintDrawer,
     el('span', { class: 'reg-keys' }, el('kbd', { text: 'Esc' }), el('span', { text: 'step back' })),
   );
 
-  const viewButtons = ['normal', 'health', 'moisture'].map((mode) =>
+  viewButtons = ['normal', 'health', 'moisture'].map((mode) =>
     el('button', {
+      'data-mode': mode,
       text: mode === 'normal' ? '🗺 Normal' : mode === 'health' ? '❤ Health' : '💧 Moisture',
       onclick: () => handlers.setViewMode(mode),
     }),
   );
-  const viewToggle = el('div', { class: 'view-toggle' }, ...viewButtons);
-  setInterval(() => {
-    viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
-  }, 250);
+  viewButtons[0].classList.add('active-tool');
+  const viewToggle = el('div', { class: 'view-toggle', style: 'display:none' }, ...viewButtons);
 
-  gameUi.append(hud.root, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle, editorUi.root,
-    el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · E: course editor · G/C/M: desks · V: view · Space: pause · Tab/Esc: back on foot' }));
+  gameUi.append(hud.root, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle, editorUi.root, toolWheel.root,
+    el('div', { class: 'hint-bar', style: 'display:none', text: 'Course overview · drag to pan · right-drag to rotate · wheel to zoom · V data view · Tab returns on foot · P pause' }));
 
   uiRoot.append(menu.root, gameUi);
   requestAnimationFrame(frame);

@@ -6,10 +6,10 @@ import { el, toast } from './ui.js';
 import { ZONE_NAMES, CELL_YD, ZONE, TURF_ZONES } from '../sim/constants.js';
 import { holeNumber } from '../sim/course.js';
 import {
-  sectionTurfSummary, sectionStatus, diagnoseSection, treatSection, aerateSection, greenSpeedOf,
+  sectionTurfSummary, sectionStatus, diagnoseSection, treatSection, aerateSection,
+  treatSectionCost, aerateSectionCost, greenSpeedOf,
 } from '../sim/turf.js';
 import { formatMoney } from '../core/utils.js';
-import { BALANCE } from '../sim/balance.js';
 
 const STATUS_COLORS = { Healthy: '#8ed072', Stressed: '#e0a33c', Declining: '#d84b3a' };
 
@@ -117,7 +117,7 @@ export function makeInspectPanel(app, onStateChanged) {
 
       const actions = [];
       if (summary.disease) {
-        const cost = Math.round(section.cells.length * BALANCE.turf.fungicideCostPerCell);
+        const cost = treatSectionCost(st, section);
         actions.push(el('button', {
           class: 'primary',
           text: `💊 Fungicide ${formatMoney(cost)}`,
@@ -129,7 +129,7 @@ export function makeInspectPanel(app, onStateChanged) {
           },
         }));
       }
-      const aerateCost = Math.round(section.cells.length * BALANCE.turf.aerateCostPerCell);
+      const aerateCost = aerateSectionCost(st, section);
       actions.push(el('button', {
         text: `⛏ Aerate ${formatMoney(aerateCost)}`,
         title: 'Relieves wear and compaction',

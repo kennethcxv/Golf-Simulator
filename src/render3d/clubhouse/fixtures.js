@@ -851,6 +851,8 @@ export function buildFixtures(B) {
       if (!build) continue;
       activeFixtureId = f.id;
       const g = build(f);
+      if (!g.name) g.name = `Fixture_${f.id}`;
+      g.userData.fixtureLayoutId = f.id;
       g.position.set(f.x, 0, f.z);
       g.rotation.y = f.ry;
       interior.add(g);
@@ -963,20 +965,21 @@ export function buildLounge(B) {
   // The Sheet-04 lounge armchair (0.85 m leather club chair: rolled arms,
   // rolled back rail, walnut feet) — authored to the reference this fixture
   // always chased. Kit front faces +Z at ry 0.
-  function clubChair(spot) {
-    addCol(colBoxAt(spot.x, spot.z, 0.95, 0.95));   // the collider does not wait
+  function clubChair(spot, legacyName, colliderSize = [0.95, 0.95]) {
+    addCol(colBoxAt(spot.x, spot.z, colliderSize[0], colliderSize[1]));
     if (!merch) return;
     merch.onReady(() => {
       const model = (merch.instantiateKit && merch.instantiateKit('lounge_armchair'))
         || merch.instantiateRaw('armchair');
       if (!model) return;
+      model.name = legacyName;
       model.position.set(spot.x, 0, spot.z);
       model.rotation.y = spot.ry;
       interior.add(model);
     });
   }
-  clubChair(LOUNGE.chairA);
-  clubChair(LOUNGE.chairB);
+  clubChair(LOUNGE.chairA, 'LegacyLoungeChairA', [2.4, 1.15]);
+  clubChair(LOUNGE.chairB, 'LegacyLoungeChairB', [1.05, 1.05]);
 
   // trophies on the partition shelf — were three gold cylinders
   if (merch) merch.onReady(() => {
@@ -989,7 +992,9 @@ export function buildLounge(B) {
       t.rotation.y = -Math.PI / 2 + (i - 1) * 0.2;
       shelf.add(t);
     }
-    interior.add(merch.bake(shelf));
+    const display = merch.bake(shelf);
+    display.name = 'LegacyLoungeTrophyDisplay';
+    interior.add(display);
   });
 
   // round coffee table + magazines + mug. The magazines and the mug are
@@ -1012,6 +1017,7 @@ export function buildLounge(B) {
     return d;
   }
   const coffee = new THREE.Group();
+  coffee.name = 'LegacyLoungeCoffeeTable';
   const cTop = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 20), mats.walnut);
   cTop.position.y = 0.44;
   cTop.castShadow = true;
@@ -1030,6 +1036,7 @@ export function buildLounge(B) {
     const table = merch.instantiateKit && merch.instantiateKit('lounge_coffee_table');
     if (!table) return;
     const g = new THREE.Group();
+    g.name = 'LegacyLoungeCoffeeTable';
     g.add(table, coffeeDressing(0.45));
     g.position.set(LOUNGE.coffee.x, 0, LOUNGE.coffee.z);
     interior.add(g);
@@ -1071,6 +1078,7 @@ export function buildLounge(B) {
   events.position.set(LOUNGE.events.x - 0.005, 1.62, LOUNGE.events.z);
   events.rotation.y = LOUNGE.events.ry;
   interior.add(events);
+  addCol(colBoxAt(LOUNGE.trophy.x, LOUNGE.trophy.z, 0.58, 1.82));
 }
 
 // ------------------------------------------------------- stockroom extras ---
@@ -1089,8 +1097,8 @@ export function buildStockroomDressing(B) {
   // never appear.
   if (merch) merch.onReady(() => {
     const RACKS = [
-      { x: 8.05, z: -6.1, ry: 0, len: 2.6 },
-      { x: 9.9, z: -5.6, ry: -Math.PI / 2, len: 1.7 },
+      { x: 8.05, z: -6.1, ry: 0, len: 1.86, levels: [0.3086, 0.8335, 1.3584, 1.8834] },
+      { x: 9.9, z: -5.6, ry: -Math.PI / 2, len: 1.7, levels: [0.1205, 0.6205, 1.1205, 1.6205] },
       // backshelf_e2 is reserved for the player's persisted physical cartons.
       // Dressing it as well would duplicate inventory and hide placement ghosts.
     ];
@@ -1103,7 +1111,7 @@ export function buildStockroomDressing(B) {
     for (const rk of RACKS) {
       // the Sheet-04 stock_shelving board tops, less the old 0.025 board
       // half-thickness the carton offset was calibrated against
-      for (const y of [0.1205, 0.6205, 1.1205, 1.6205]) {
+      for (const y of rk.levels) {
         const n = 2 + Math.floor(rnd() * 3);
         for (let i = 0; i < n; i++) {
           if (rnd() < 0.18) continue;          // a working shelf has gaps in it
@@ -1146,6 +1154,7 @@ export function buildStockroomDressing(B) {
   // Packing bench: keep the authored worktop clear for a real delivery carton.
   // The clipboard, tape gun, and ref-50 roll live on the lower supply shelf.
   const bench = new THREE.Group();
+  bench.name = 'LegacyPackingBench';
   const top = new THREE.Mesh(roundedBox(1.7, 0.07, 0.85, 0.02), mats.rawWood);
   top.position.y = 0.92;
   top.castShadow = true;
@@ -1341,6 +1350,7 @@ export function buildCheckout(B) {
   // the production Blender counter is ready it is removed as one group, avoiding a
   // duplicate shell or z-fighting surfaces.
   const legacyCounter = new THREE.Group();
+  legacyCounter.name = 'LegacyCheckoutCounter';
   interior.add(legacyCounter);
   const body = new THREE.Mesh(roundedBox(COUNTER.len, 0.96, COUNTER.depth - 0.16, 0.02), mats.walnut);
   body.position.set(COUNTER.x, 0.5, COUNTER.z);
@@ -1381,12 +1391,22 @@ export function buildCheckout(B) {
       counter.scale.set(COUNTER.len / 2.6, COUNTER_TOP / 0.95, COUNTER.depth / 0.85);
     }
     counter.position.set(COUNTER.x, 0, COUNTER.z);
-    // The counter and its two task trays are static after construction. Build
-    // them under an unattached, identity-space root so merch.bake() can collapse
-    // their many authored submeshes without baking the clubhouse transform into
-    // the output (which would be applied a second time when added to interior).
-    const staticCheckoutIsland = new THREE.Group();
-    staticCheckoutIsland.add(counter);
+    // Bake the obsolete shell separately from the task surfaces. Asset 61 replaces only the
+    // furniture: the staging/change trays remain live parts of the established transaction.
+    const counterRoot = new THREE.Group();
+    counterRoot.add(counter);
+    const counterVisual = merch.bake
+      ? merch.bake(counterRoot, { visibleOnly: true })
+      : counterRoot;
+    counterVisual.name = 'LegacyCheckoutProductionCounter';
+    counterVisual.traverse((object) => {
+      if (object.isMesh) object.receiveShadow = false;
+    });
+    if (!interior.getObjectByName('AssetRuntime_61_front_desk_counter_shell')) {
+      interior.add(counterVisual);
+    }
+
+    const taskSurfaceRoot = new THREE.Group();
 
     // Two authored, counter-integrated task surfaces turn the broad worktop
     // into an intentional production line.  Their dimensions are generated in
@@ -1399,7 +1419,7 @@ export function buildCheckout(B) {
         COUNTER_TOP + 0.001,
         (REGISTER.staging.minZ + REGISTER.staging.maxZ) / 2,
       );
-      staticCheckoutIsland.add(stagingTray);
+      taskSurfaceRoot.add(stagingTray);
     }
     const changeTray = merch.instantiate && merch.instantiate('checkout_change_handoff_tray');
     if (changeTray) {
@@ -1408,20 +1428,20 @@ export function buildCheckout(B) {
         COUNTER_TOP + 0.001,
         REGISTER.changeHandoff.z,
       );
-      staticCheckoutIsland.add(changeTray);
+      taskSurfaceRoot.add(changeTray);
     }
 
-    const checkoutIslandVisual = merch.bake
-      ? merch.bake(staticCheckoutIsland, { visibleOnly: true })
-      : staticCheckoutIsland;
-    checkoutIslandVisual.name = 'CheckoutIslandStaticVisual';
+    const checkoutTaskSurfaceVisual = merch.bake
+      ? merch.bake(taskSurfaceRoot, { visibleOnly: true })
+      : taskSurfaceRoot;
+    checkoutTaskSurfaceVisual.name = 'CheckoutTaskSurfaceVisual';
     // instantiate() deliberately makes these authored surfaces cast-only. The
     // generic stock batcher enables receiving for shelves, so restore the exact
     // checkout render state after batching instead of changing its lighting.
-    checkoutIslandVisual.traverse((object) => {
+    checkoutTaskSurfaceVisual.traverse((object) => {
       if (object.isMesh) object.receiveShadow = false;
     });
-    interior.add(checkoutIslandVisual);
+    interior.add(checkoutTaskSurfaceVisual);
     releaseReplacedFixture(legacyCounter, mats, merch);
   });
 

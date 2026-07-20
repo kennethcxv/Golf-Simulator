@@ -149,6 +149,7 @@ export function ensureShopReno(state) {
       siding: [1, 1, 1],
     };
   }
+  ensureCleaningToolState(state);
 }
 
 // --- exterior restoration: real verbs against real state ---------------------------
@@ -413,6 +414,7 @@ export function initShop(state) {
     featureCategory: 'accessories',
     rentalFleet: { sets: 3, condition: 55, pricePerRound: 18 },
     deliveries: { boxes: [], nextBoxId: 1, trash: 0, recycled: 0, shipments: [] },
+    held: [],            // individual customer-owned units reserved for checkout
     carry: null,         // WHAT IS IN YOUR HANDS: {skuId, qty} — see sim/stocking.js
     lostSalesYesterday: 0,
     lostSalesTotal: 0,

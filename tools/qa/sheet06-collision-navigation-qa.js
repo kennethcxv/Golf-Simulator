@@ -6,7 +6,8 @@ async (page) => {
   // W, E, and ArrowLeft events used by a player in first-person mode.
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const out = process.env.SHEET06_COLLISION_QA_OUT
     ? path.resolve(repo, process.env.SHEET06_COLLISION_QA_OUT)
     : path.join(repo, 'qa', 'assets_51_100_master', 'sheet_06', 'collisions', 'final');
@@ -466,7 +467,7 @@ async (page) => {
 
   await page.setViewportSize(viewport);
   phase = 'navigation';
-  await page.goto('http://localhost:8457/', { waitUntil: 'domcontentloaded', timeout: 90000 });
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 90000 });
   await page.getByText('Continue', { exact: true }).click();
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
   await page.waitForFunction(() => {

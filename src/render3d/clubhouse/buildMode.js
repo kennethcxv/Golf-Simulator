@@ -83,9 +83,9 @@ export function buildBuildMode(B, deps) {
   interior.add(ghost);
 
   const ghostMat = new THREE.MeshBasicMaterial({
-    color: GHOST_OK, transparent: true, opacity: 0.34, depthWrite: false,
+    color: GHOST_OK, transparent: true, opacity: 0.22, depthWrite: false,
   });
-  const edgeMat = new THREE.LineBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.9 });
+  const edgeMat = new THREE.LineBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.72 });
   let ghostBox = null;
   let ghostEdges = null;
   let placeableGhost = null;
@@ -527,11 +527,14 @@ export function buildBuildMode(B, deps) {
         commitPlacement(state, id, p.x, p.z, ry);
         carrying = null;
         ghost.visible = false;
+        active = false;
+        halo.visible = false;
         rebuildLayout();
         setFixtureCollidersActive(id, true);
         setFixtureStockVisible(id, true);
         if (hooks.sfx) hooks.sfx('thunk');
-        if (hooks.toast) hooks.toast('Set down. The customers will find their way round it.');
+        if (hooks.tutorial) hooks.tutorial('fixturePlaced');
+        if (hooks.toast) hooks.toast('Fixture placed — customer routes are clear.', 'good');
         return true;
       }
       const decor = decorUnderAim();
@@ -713,8 +716,8 @@ export function buildBuildMode(B, deps) {
           const r = fixtureRect(f);
           halo.visible = true;
           halo.position.set((r.minX + r.maxX) / 2, 0.03, (r.minZ + r.maxZ) / 2);
-          const rad = Math.max(r.maxX - r.minX, r.maxZ - r.minZ) / 2 + 0.25;
-          halo.scale.setScalar(rad / 0.12);
+          const rad = Math.max(r.maxX - r.minX, r.maxZ - r.minZ) / 2 + 0.18;
+          halo.scale.setScalar(rad);
         } else {
           halo.visible = false;
         }

@@ -20,7 +20,7 @@ import { paintPathCells, splinePoints } from './courseShaping.js';
 import { turfOnZonesChanged } from './turf.js';
 import { spend } from './economy.js';
 import {
-  ensurePaint, invalidateGeom, deriveZones, vecId,
+  ensurePaint, invalidateGeom, deriveZones, evaluateSurface, getGeom, vecId,
   makeVecGreen, makeVecBunker, makeVecPond, makeVecTee,
 } from './courseVec.js';
 import { CELL_YD } from './constants.js';
@@ -157,6 +157,7 @@ function repaintPathZones(course) {
 // Run a mutation of course.paths as ONE undoable op with an exact cell diff.
 function pathOp(state, session, label, mutate, { chargeNewPavement = false } = {}) {
   const { course } = state;
+  const nextPathIdBefore = course.nextPathId;
   const zonesBefore = Uint8Array.from(course.zones);
   const pathsBefore = JSON.parse(JSON.stringify(course.paths));
   mutate();
@@ -181,6 +182,7 @@ function pathOp(state, session, label, mutate, { chargeNewPavement = false } = {
   const cost = chargeNewPavement ? Math.round(newlyPaved * zoneCost(ZONE.PATH)) : 0;
   pushOp(state, session, {
     kind: 'path', label, cost, cells,
+    nextPathIdBefore, nextPathIdAfter: course.nextPathId,
     pathsBefore, pathsAfter: JSON.parse(JSON.stringify(course.paths)),
   });
   return { ok: true, cost, cells: cells.length };
@@ -213,6 +215,51 @@ function jsonEqual(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+// Vector edits can change relief without changing any raster zone (for
+// example bunker depth, green contours, or water depth). Keep a geometry
+// footprint on the history op so those edits still receive a local renderer
+// refresh instead of falling back to the whole course.
+function changedVectorRect(before, after) {
+  const points = [];
+  const addPoint = (point) => {
+    if (Number.isFinite(point?.x) && Number.isFinite(point?.y)) {
+      points.push({ x: point.x, y: point.y });
+    } else if (Number.isFinite(point?.cx) && Number.isFinite(point?.cy)) {
+      points.push({ x: point.cx, y: point.cy });
+    }
+  };
+  const walk = (left, right) => {
+    if (jsonEqual(left, right)) return;
+    const leftPoints = Array.isArray(left?.pts) ? left.pts : [];
+    const rightPoints = Array.isArray(right?.pts) ? right.pts : [];
+    if (leftPoints.length || rightPoints.length) {
+      leftPoints.forEach(addPoint);
+      rightPoints.forEach(addPoint);
+    }
+    addPoint(left);
+    addPoint(right);
+    if (Array.isArray(left) || Array.isArray(right)) {
+      const a = Array.isArray(left) ? left : [];
+      const b = Array.isArray(right) ? right : [];
+      for (let i = 0; i < Math.max(a.length, b.length); i++) walk(a[i], b[i]);
+      return;
+    }
+    if ((left && typeof left === 'object') || (right && typeof right === 'object')) {
+      const keys = new Set([...Object.keys(left || {}), ...Object.keys(right || {})]);
+      for (const key of keys) walk(left?.[key], right?.[key]);
+    }
+  };
+  walk(before, after);
+  if (!points.length) return null;
+  const bounds = boundsOfPoints(points);
+  return {
+    x0: Math.floor(bounds.minX),
+    y0: Math.floor(bounds.minY),
+    x1: Math.ceil(bounds.maxX),
+    y1: Math.ceil(bounds.maxY),
+  };
+}
+
 function snapshotHoleRecords(course, holeIds) {
   return [...new Set(holeIds || [])].map((holeId) => {
     const hole = course.holes.find((candidate) => candidate.id === holeId);
@@ -235,16 +282,15 @@ function restoreHoleRecords(course, snapshots) {
 
 function vecOp(state, session, label, mutate, { extraCost = 0, holeIds = [] } = {}) {
   const { course } = state;
-  ensurePaint(course);
   const vecBefore = cloneJson(course.vec);
   const holesBefore = snapshotHoleRecords(course, holeIds);
-  const paintBefore = Uint8Array.from(course.paint);
+  const paintBefore = course.paint ? Uint8Array.from(course.paint) : null;
   const zonesBefore = Uint8Array.from(course.zones);
   const mutCost = mutate() || 0;
   const vecAfter = cloneJson(course.vec);
   const holesAfter = snapshotHoleRecords(course, holeIds);
-  let paintChanged = false;
-  for (let i = 0; i < course.paint.length; i++) {
+  let paintChanged = !!course.paint !== !!paintBefore;
+  for (let i = 0; !paintChanged && i < (course.paint?.length || 0); i++) {
     if (course.paint[i] !== paintBefore[i]) { paintChanged = true; break; }
   }
   if (jsonEqual(vecBefore, vecAfter) && jsonEqual(holesBefore, holesAfter) && !paintChanged) {
@@ -264,10 +310,13 @@ function vecOp(state, session, label, mutate, { extraCost = 0, holeIds = [] } = 
   const cost = Math.round(mutCost + extraCost);
   pushOp(state, session, {
     kind: 'vec', label, cost, cells,
+    rect: changedVectorRect(vecBefore, vecAfter),
     vecBefore, vecAfter,
+    paintBeforePresent: !!paintBefore,
+    paintAfterPresent: !!course.paint,
     holesBefore, holesAfter,
-    paintBefore: paintChanged ? Array.from(paintBefore) : null,
-    paintAfter: paintChanged ? Array.from(course.paint) : null,
+    paintBefore: paintChanged && paintBefore ? Array.from(paintBefore) : null,
+    paintAfter: paintChanged && course.paint ? Array.from(course.paint) : null,
   });
   return { ok: true, cost, cells: cells.length };
 }
@@ -399,6 +448,7 @@ export function paintAt(state, stroke, cx, cy, zone, { radius = 1.5, over = null
   if (course.vec) {
     // vector courses derive surfaces from vec + the paint override layer; the
     // brush writes overrides so the change survives re-derivation and renders.
+    if (stroke.paintPresentBefore === undefined) stroke.paintPresentBefore = !!course.paint;
     const paint = ensurePaint(course);
     for (const c of cells) {
       const cur = paint[c.i];
@@ -421,42 +471,111 @@ export function paintAt(state, stroke, cx, cy, zone, { radius = 1.5, over = null
   return cells;
 }
 
+// A changed paint sample only influences nearby cell-centre evaluations. Keep
+// the set deliberately one cell wider than bilinear interpolation requires so
+// edge clamping and future kernel changes remain covered without falling back
+// to a full-course derive.
+function vectorPaintZoneCandidates(course, paintChanges) {
+  const candidates = new Set();
+  for (const change of paintChanges) {
+    const px = change.i % course.w;
+    const py = (change.i - px) / course.w;
+    for (let y = py - 1; y <= py + 1; y++) {
+      for (let x = px - 1; x <= px + 1; x++) {
+        if (x >= 0 && y >= 0 && x < course.w && y < course.h) candidates.add(y * course.w + x);
+      }
+    }
+  }
+  return candidates;
+}
+
+function vectorPaintAnchorZones(course) {
+  const anchors = new Map();
+  for (const hole of course.holes) {
+    if (hole.pin) {
+      const x = Math.round(hole.pin.x);
+      const y = Math.round(hole.pin.y);
+      if (x >= 0 && y >= 0 && x < course.w && y < course.h) anchors.set(y * course.w + x, ZONE.GREEN);
+    }
+    if (hole.tee) {
+      const x = Math.round(hole.tee.x);
+      const y = Math.round(hole.tee.y);
+      if (x >= 0 && y >= 0 && x < course.w && y < course.h) anchors.set(y * course.w + x, ZONE.TEE);
+    }
+  }
+  return anchors;
+}
+
+function vectorPaintStructureCells(course, candidates) {
+  const cells = new Set();
+  for (const structure of course.structures || []) {
+    const x0 = Math.max(0, structure.x);
+    const y0 = Math.max(0, structure.y);
+    const x1 = Math.min(course.w, structure.x + structure.w);
+    const y1 = Math.min(course.h, structure.y + structure.h);
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const i = y * course.w + x;
+        if (candidates.has(i)) cells.add(i);
+      }
+    }
+  }
+  return cells;
+}
+
 export function endPaintStroke(state, session, stroke, label = 'Paint') {
   if (!stroke.before.size) return { ok: false, cost: 0 };
   const { course } = state;
   if (course.vec) {
-    // the override layer is already painted live; wrap it as a vec op for undo
-    const paintAfter = Array.from(course.paint);
-    const paintBefore = paintAfter.slice();
-    for (const [i, before] of stroke.before) paintBefore[i] = before;
-    // zones before this stroke (paint reverted) vs after
-    course.paint = Uint8Array.from(paintBefore);
-    invalidateGeom(course);
-    deriveZones(course);
-    const zonesBefore = Uint8Array.from(course.zones);
-    course.paint = Uint8Array.from(paintAfter);
-    invalidateGeom(course);
-    deriveZones(course);
-    const cells = [];
+    // The freeform override is already live. The old commit path copied the
+    // entire paint layer, invalidated unchanged vector geometry, and derived
+    // every course cell twice just to price a brush-sized edit. That created a
+    // 300+ ms release frame. Store the actual changed paint samples and evaluate
+    // only the cell centres they can influence.
+    const paintChanges = [];
+    for (const [i, before] of stroke.before) {
+      const after = course.paint[i];
+      if (after !== before) paintChanges.push({ i, before, after });
+    }
+    if (!paintChanges.length) return { ok: false, cost: 0 };
+
+    const candidates = vectorPaintZoneCandidates(course, paintChanges);
+    const anchors = vectorPaintAnchorZones(course);
+    const structures = vectorPaintStructureCells(course, candidates);
+    const geom = getGeom(course);
+    const zoneChanges = [];
     const changed = [];
     let cost = 0;
-    for (let i = 0; i < course.zones.length; i++) {
-      if (course.zones[i] !== zonesBefore[i]) {
-        cells.push({ i, zoneBefore: zonesBefore[i], zoneAfter: course.zones[i] });
+    for (const i of candidates) {
+      const x = i % course.w;
+      const y = (i - x) / course.w;
+      const before = course.zones[i];
+      let after = evaluateSurface(course, geom, x + 0.5, y + 0.5, course.paint).zone;
+      if (structures.has(i)) after = ZONE.OUT;
+      if (anchors.has(i)) after = anchors.get(i);
+      if (after !== before) {
+        course.zones[i] = after;
+        zoneChanges.push({ i, zoneBefore: before, zoneAfter: after });
         changed.push(i);
-        cost += zoneCost(course.zones[i]);
+        cost += zoneCost(after);
       }
     }
-    if (!cells.length) return { ok: false, cost: 0 };
     turfOnZonesChanged(state, changed);
     cost = Math.round(cost);
+
+    // Keep paint-only samples in the operation footprint as well. A sub-cell
+    // edit can be visually real without flipping a coarse simulation centre;
+    // it must still be dirty, undoable, and renderer-scoped.
+    const cells = zoneChanges.slice();
+    const footprint = new Set(cells.map((cell) => cell.i));
+    for (const change of paintChanges) {
+      if (!footprint.has(change.i)) cells.push({ i: change.i });
+    }
     pushOp(state, session, {
-      kind: 'vec', label, cells, cost,
-      vecBefore: JSON.parse(JSON.stringify(course.vec)),
-      vecAfter: JSON.parse(JSON.stringify(course.vec)),
-      paintBefore, paintAfter,
+      kind: 'vector-paint', label, cells, cost, paintChanges,
+      paintPresentBefore: !!stroke.paintPresentBefore,
     });
-    return { ok: true, cost, cells: cells.length };
+    return { ok: true, cost, cells: zoneChanges.length };
   }
   const cells = [];
   let cost = 0;
@@ -1696,10 +1815,12 @@ export function addObject(state, session, type, x, y, {
   const { course } = state;
   const legal = objectPlacementOk(course, type, x, y, { scale, protectPlay });
   if (!legal.ok) return legal;
+  const nextObjectIdBefore = course.nextObjectId;
   const obj = { id: course.nextObjectId++, type, x, y, rot, scale };
   course.objects.push(obj);
   pushOp(state, session, {
     kind: 'object-add', label: 'Place object', cost: objectCostOf(type), cells: null, object: { ...obj },
+    nextObjectIdBefore, nextObjectIdAfter: course.nextObjectId,
   });
   return { ok: true, object: obj, cost: objectCostOf(type) };
 }
@@ -1792,6 +1913,7 @@ export function scatterObjects(state, session, types, cx, cy, {
   const created = [];
   let cost = 0;
   const { course } = state;
+  const nextObjectIdBefore = course.nextObjectId;
   for (let k = 0; k < count * 3 && created.length < count; k++) {
     const a = rng() * Math.PI * 2;
     const r = Math.sqrt(rng()) * radius;
@@ -1807,7 +1929,10 @@ export function scatterObjects(state, session, types, cx, cy, {
     cost += objectCostOf(type);
   }
   if (!created.length) return { ok: false, reason: 'No room here.' };
-  pushOp(state, session, { kind: 'object-scatter', label: 'Landscaping', cost, cells: null, objects: created });
+  pushOp(state, session, {
+    kind: 'object-scatter', label: 'Landscaping', cost, cells: null, objects: created,
+    nextObjectIdBefore, nextObjectIdAfter: course.nextObjectId,
+  });
   return { ok: true, cost, count: created.length };
 }
 
@@ -1957,9 +2082,14 @@ export function removePath(state, session, id) {
 
 export function newHole(state, session) {
   const { course } = state;
+  const nextHoleIdBefore = course.nextHoleId;
   const hole = addHole(course);
   ensureHoleShape(hole, course.holes.length);
-  pushOp(state, session, { kind: 'hole-add', label: 'New hole', cost: BALANCE.newHoleCost, cells: null, holeId: hole.id });
+  pushOp(state, session, {
+    kind: 'hole-add', label: 'New hole', cost: BALANCE.newHoleCost, cells: null,
+    holeId: hole.id, hole: cloneJson(hole), at: course.holes.length - 1,
+    nextHoleIdBefore, nextHoleIdAfter: course.nextHoleId,
+  });
   return { ok: true, hole, cost: BALANCE.newHoleCost };
 }
 
@@ -2021,6 +2151,7 @@ function invertOp(state, session, op) {
     }
     case 'object-add':
       course.objects = course.objects.filter((o) => o.id !== op.object.id);
+      if (Number.isInteger(op.nextObjectIdBefore)) course.nextObjectId = op.nextObjectIdBefore;
       break;
     case 'object-remove':
       course.objects.push({ ...op.object });
@@ -2032,21 +2163,30 @@ function invertOp(state, session, op) {
     }
     case 'object-scatter':
       course.objects = course.objects.filter((o) => !op.objects.some((c) => c.id === o.id));
+      if (Number.isInteger(op.nextObjectIdBefore)) course.nextObjectId = op.nextObjectIdBefore;
       break;
     case 'path':
       applyCellsBackward(state, op.cells);
       state.course.paths = JSON.parse(JSON.stringify(op.pathsBefore));
+      if (Number.isInteger(op.nextPathIdBefore)) course.nextPathId = op.nextPathIdBefore;
       if (course.vec) invalidateGeom(course);
       break;
     case 'vec':
       applyCellsBackward(state, op.cells);
       course.vec = JSON.parse(JSON.stringify(op.vecBefore));
       if (op.paintBefore) course.paint = Uint8Array.from(op.paintBefore);
+      else if (op.paintBeforePresent === false) delete course.paint;
       restoreHoleRecords(course, op.holesBefore);
       invalidateGeom(course);
       break;
+    case 'vector-paint':
+      applyCellsBackward(state, op.cells);
+      for (const change of op.paintChanges) course.paint[change.i] = change.before;
+      if (!op.paintPresentBefore) delete course.paint;
+      break;
     case 'hole-add':
       course.holes = course.holes.filter((h) => h.id !== op.holeId);
+      if (Number.isInteger(op.nextHoleIdBefore)) course.nextHoleId = op.nextHoleIdBefore;
       break;
     case 'hole-delete':
       course.holes.splice(op.at, 0, JSON.parse(JSON.stringify(op.hole)));
@@ -2081,6 +2221,7 @@ function replayOp(state, session, op) {
     }
     case 'object-add':
       course.objects.push({ ...op.object });
+      if (Number.isInteger(op.nextObjectIdAfter)) course.nextObjectId = op.nextObjectIdAfter;
       break;
     case 'object-remove':
       course.objects = course.objects.filter((o) => o.id !== op.object.id);
@@ -2092,25 +2233,31 @@ function replayOp(state, session, op) {
     }
     case 'object-scatter':
       for (const o of op.objects) course.objects.push({ ...o });
+      if (Number.isInteger(op.nextObjectIdAfter)) course.nextObjectId = op.nextObjectIdAfter;
       break;
     case 'path':
       applyCellsForward(state, op.cells);
       state.course.paths = JSON.parse(JSON.stringify(op.pathsAfter));
+      if (Number.isInteger(op.nextPathIdAfter)) course.nextPathId = op.nextPathIdAfter;
       if (course.vec) invalidateGeom(course);
       break;
     case 'vec':
       applyCellsForward(state, op.cells);
       course.vec = JSON.parse(JSON.stringify(op.vecAfter));
       if (op.paintAfter) course.paint = Uint8Array.from(op.paintAfter);
+      else if (op.paintAfterPresent === false) delete course.paint;
       restoreHoleRecords(course, op.holesAfter);
       invalidateGeom(course);
       break;
+    case 'vector-paint':
+      applyCellsForward(state, op.cells);
+      for (const change of op.paintChanges) ensurePaint(course)[change.i] = change.after;
+      break;
     case 'hole-add': {
-      const hole = addHole(course);
-      // keep the id stable across undo/redo
-      hole.id = op.holeId;
-      course.nextHoleId = Math.max(course.nextHoleId, op.holeId + 1);
-      ensureHoleShape(hole, course.holes.length);
+      const hole = op.hole ? cloneJson(op.hole) : ensureHoleShape({ id: op.holeId }, op.at + 1);
+      course.holes.splice(Math.min(op.at ?? course.holes.length, course.holes.length), 0, hole);
+      if (Number.isInteger(op.nextHoleIdAfter)) course.nextHoleId = op.nextHoleIdAfter;
+      else course.nextHoleId = Math.max(course.nextHoleId, op.holeId + 1);
       break;
     }
     case 'hole-delete':
@@ -2137,13 +2284,13 @@ function replayOp(state, session, op) {
 // caller falls back to a full refresh.
 export function opCellRect(state, op) {
   const cells = op?.cells;
-  if (!cells || !cells.length) return null;
   const w = state.course.w;
-  let x0 = Infinity;
-  let y0 = Infinity;
-  let x1 = -Infinity;
-  let y1 = -Infinity;
-  for (const cell of cells) {
+  const explicit = op?.rect;
+  let x0 = Number.isFinite(explicit?.x0) ? explicit.x0 : Infinity;
+  let y0 = Number.isFinite(explicit?.y0) ? explicit.y0 : Infinity;
+  let x1 = Number.isFinite(explicit?.x1) ? explicit.x1 : -Infinity;
+  let y1 = Number.isFinite(explicit?.y1) ? explicit.y1 : -Infinity;
+  for (const cell of cells || []) {
     const i = cell.i;
     if (!Number.isInteger(i)) continue;
     const x = i % w;
@@ -2164,7 +2311,7 @@ export function undo(state, session) {
   session.redo.push(op);
   session.bill = Math.max(0, session.bill - op.cost);
   refreshChangedCells(state, session);
-  return { ok: true, label: op.label, rect };
+  return { ok: true, label: op.label, kind: op.kind, rect };
 }
 
 export function redo(state, session) {
@@ -2175,7 +2322,7 @@ export function redo(state, session) {
   session.undo.push(op);
   session.bill += op.cost;
   refreshChangedCells(state, session);
-  return { ok: true, label: op.label, rect };
+  return { ok: true, label: op.label, kind: op.kind, rect };
 }
 
 // --- apply / discard --------------------------------------------------------------------
@@ -2249,10 +2396,31 @@ export function applySession(state, session) {
 }
 
 export function discardSession(state, session) {
-  // undo() always pops exactly one entry, so the finite stack is its own guard.
-  // A hard 10k cutoff silently left sufficiently long editing sessions partly
-  // applied after the player chose Discard.
-  while (session.undo.length) undo(state, session);
+  // Preserve only the renderer-facing invalidation metadata. Returning compact
+  // summaries lets the UI restore the visible course in bounded regional work
+  // instead of paying one whole-course rebuild after the data is rolled back.
+  const operations = session.undo.map((op) => ({
+    kind: op.kind,
+    rect: opCellRect(state, op),
+  }));
+
+  // Roll back directly rather than calling undo(): undo() recomputes the net
+  // changed-cell set after every operation. That turns a long-session Discard
+  // into quadratic bookkeeping even though the set is cleared at the end.
+  while (session.undo.length) {
+    const op = session.undo.pop();
+    invertOp(state, session, op);
+  }
+  const baseline = session.baselineIdentity;
+  if (baseline) {
+    state.course.nextHoleId = baseline.nextHoleId;
+    state.course.nextObjectId = baseline.nextObjectId;
+    state.course.nextPathId = baseline.nextPathId;
+    if (state.course.vec && Number.isFinite(baseline.nextVectorId)) {
+      state.course.vec.nextId = baseline.nextVectorId;
+    }
+    if (!baseline.paintPresent) delete state.course.paint;
+  }
   session.redo.length = 0;
   session.bill = 0;
   session.changedCells.clear();
