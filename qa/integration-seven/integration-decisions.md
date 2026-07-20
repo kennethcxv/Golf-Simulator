@@ -41,3 +41,19 @@ No completed branch changes dependency metadata. Integration adds `playwright@1.
 ## Conflict policy
 
 For every overlapping file, integration reads all selected patches and callers, combines compatible APIs, removes duplicate ownership, adds a focused regression, and reruns the owning feature. Whole-file “ours” or “theirs” resolutions are prohibited. `qa/integration-seven/overlap-map.json` is the complete pre-integration path inventory.
+
+## Final cross-system resolutions
+
+- **Placement + inventory rendering:** the shared clubhouse frame calls both delivery and placement updates, and teardown releases both domains' listeners, meshes, colliders and caches. Player-adjustable persistent objects use layout transforms; shipment pad/worktable/recycling/shelf slots remain inventory constraints.
+- **Static authored geometry:** 15 loaded authored placement roots retain invisible selectable/collision proxies while compatible visible materials/geometries are combined into seven static batches. This removed a measured 24.4% of draw calls and 16.6% of rendered triangles in the comparable integrated view without changing transforms or selection.
+- **Customers + reservations:** due reservation parties sort ahead of generic retail traffic. If a due party cannot fit, remaining capacity is held rather than consumed by a shopper. Moving/cancelling/resetting a reservation updates or retires only its matching physical arrival. Regression tests cover priority, capacity hold, move without duplication and reset cleanup.
+- **Front desk + live simulation:** the once-per-second reservation refresh is signature-driven, but it is deferred while the card surface owns pointer capture. A real card swipe and concurrent reservation status changes therefore cannot replace the gesture DOM mid-swipe.
+- **Economy + golf demand:** generated tee-sheet deposits and public rounds use the same price-demand signal. Reservations still own booking state; the journal alone owns cash/profit posting.
+- **Schema collision:** independently claimed version-4 migrations were ordered rather than overwritten. State version 4 covers inventory, version 5 adds course maintenance, and version 6 adds journal/reputation/business normalization while retaining customer/reservation recovery and unknown-data passthrough.
+- **UX + gameplay input:** pause wins before mode-local handlers; modal exits stop/finalize active tools exactly once; checkout retains prompt priority at the shared counter; tool wheel selection does not leak input; lifecycle closure does not steal look focus.
+- **Cleaning regression:** the final player-experience stress route now proves a real wash-plane hit and persisted grime reduction under normal tool-wheel/LMB controls, in addition to audio/background teardown.
+- **Portability:** browser tools accept environment URLs/output roots, and Blender rebuild instructions resolve `blender` through `PATH`. The only recorded personal path is the task-required QA evidence for the excluded active worktree.
+
+## Final dependency and warning disposition
+
+Playwright `1.61.1` is an exact development-only dependency needed by tracked QA tools. No runtime library was added or upgraded. The inherited Electron 33 audit group remains disclosed because the available fix is a major Electron 43 upgrade requiring separate validation. Canvas readback and GPU shader warnings plus optional GLB teardown aborts are documented; accepted routes have no console error, page exception, required-resource 404 or listener leak.

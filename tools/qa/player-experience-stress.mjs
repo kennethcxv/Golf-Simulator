@@ -18,6 +18,7 @@ const result = {
   pauseModes: {},
   stress: {},
   audio: {},
+  cleaning: {},
   returning: {},
   screenshots: [],
 };
@@ -374,8 +375,9 @@ try {
     const app = window.__fw;
     app.preferences.set('accessibility.toolActivation', 'hold');
     const walk = app.scene3d.walk.state;
-    walk.x = -1.5;
-    walk.z = 243.5;
+    const clubhouseCenter = app.scene3d.clubhouse().interior.position;
+    walk.x = clubhouseCenter.x + 5.6;
+    walk.z = clubhouseCenter.z + 10.5;
     walk.yaw = 0;
     walk.pitch = 0;
     document.activeElement?.blur();
@@ -387,9 +389,35 @@ try {
   await page.locator('.tool-wheel').waitFor({ state: 'visible' });
   await page.locator('.tool-wheel-item').filter({ hasText: /washer/i }).click();
   await page.waitForFunction(() => window.__fw.scene3d.walk.getTool() === 'washer');
+  result.cleaning.before = await page.evaluate(() => {
+    const surfaces = window.__fw.state.shop.reno.wash || {};
+    const bySurface = Object.fromEntries(Object.entries(surfaces).map(([id, value]) => [
+      id,
+      (value.grime || []).reduce((sum, amount) => sum + amount, 0),
+    ]));
+    return { bySurface, totalGrime: Object.values(bySurface).reduce((sum, amount) => sum + amount, 0) };
+  });
   const canvas = page.locator('canvas');
   const box = await canvas.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  // Pointer-lock setup can consume the synthetic centering move as camera
+  // motion. Restore the deterministic exterior pose after that move, then
+  // prove the real camera ray reaches a washable surface before firing.
+  result.cleaning.aim = await page.evaluate(async () => {
+    const app = window.__fw;
+    const walk = app.scene3d.walk.state;
+    const clubhouseCenter = app.scene3d.clubhouse().interior.position;
+    walk.x = clubhouseCenter.x + 5.6;
+    walk.z = clubhouseCenter.z + 10.5;
+    walk.yaw = 0;
+    walk.pitch = 0;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const direction = app.scene3d.camera.position.clone().set(0, 0, -1)
+      .applyQuaternion(app.scene3d.camera.quaternion);
+    const hit = app.scene3d.clubhouse().washAim(app.scene3d.camera.position, direction);
+    return hit ? { id: hit.id, u: hit.u, v: hit.v } : null;
+  });
+  if (!result.cleaning.aim) throw new Error('Pressure-washer fixture is not aimed at a washable surface.');
   await page.mouse.down({ button: 'left' });
   await page.waitForTimeout(2500);
   result.audio.held = await page.evaluate(() => window.__fw.audio.debugStats());
@@ -408,6 +436,18 @@ try {
   await page.mouse.up({ button: 'left' });
   await page.waitForTimeout(200);
   result.audio.restored = await page.evaluate(() => window.__fw.audio.debugStats());
+  result.cleaning.after = await page.evaluate(() => {
+    const surfaces = window.__fw.state.shop.reno.wash || {};
+    const bySurface = Object.fromEntries(Object.entries(surfaces).map(([id, value]) => [
+      id,
+      (value.grime || []).reduce((sum, amount) => sum + amount, 0),
+    ]));
+    return { bySurface, totalGrime: Object.values(bySurface).reduce((sum, amount) => sum + amount, 0) };
+  });
+  result.cleaning.grimeRemoved = result.cleaning.before.totalGrime - result.cleaning.after.totalGrime;
+  if (!(result.cleaning.grimeRemoved > 0)) {
+    throw new Error('Normal-control pressure washing did not reduce the persisted grime mask.');
+  }
 
   // Returning player and preference persistence in a second real page.
   const returning = await context.newPage();
