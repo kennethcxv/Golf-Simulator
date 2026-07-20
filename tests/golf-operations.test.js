@@ -19,6 +19,7 @@ import {
   createWalkInBooking,
   daySheet,
   dueForCheckIn,
+  ensureReservationHorizon,
   generateReservations,
   golfOperationsTick,
   handleNoShow,
@@ -30,6 +31,7 @@ import {
   operationsPolicySummary,
   operationsSummary,
   reservationById,
+  resetGolfOperationsQA,
   retryReservationCard,
   seedGolfOperationsQA,
   setCourseClosure,
@@ -105,6 +107,7 @@ test('booking validates hours, booking window, course closure, and party size', 
   assert.equal(bookSlot(state, day, 473, 'Not A Slot').ok, false);
   assert.equal(bookSlot(state, day, 480, { holder: 'Too Large', partySize: 5 }).ok, false);
   assert.equal(bookSlot(state, today(state) - 1, 480, 'Past').ok, false);
+  assert.equal(bookSlot(state, today(state) + state.reservations.config.horizonDays, 480, 'Outside Window').ok, false);
   assert.equal(bookSlot(state, today(state) + 9, 480, 'Too Far').ok, false);
   setCourseClosure(state, day, true, 'Aeration closure');
   const closed = bookSlot(state, day, 480, 'Closed Course');
@@ -112,6 +115,8 @@ test('booking validates hours, booking window, course closure, and party size', 
   assert.match(closed.reason, /Aeration/);
   setCourseClosure(state, day, false);
   assert.ok(bookSlot(state, day, 480, 'Open Again').ok);
+  setTime(state, today(state), 600);
+  assert.match(bookSlot(state, today(state), 480, 'Too Late').reason, /already passed/);
 });
 
 test('generated reservations are seeded, believable, staggered, and name-unique', () => {
@@ -136,6 +141,53 @@ test('generated reservations are seeded, believable, staggered, and name-unique'
   assert.ok(ga.created.some((reservation) => reservation.arrival.plannedMinute < at(day, reservation.minute)));
   assert.ok(ga.created.some((reservation) => reservation.arrival.plannedMinute >= at(day, reservation.minute)));
   for (const slot of daySheet(a, day)) assert.ok(slot.reservedSeats <= slot.capacity);
+});
+
+test('the production booking horizon fills deterministically, rolls forward, and is idempotent', () => {
+  const a = newGame('relaxed', 9051);
+  const b = newGame('relaxed', 9051);
+  const day = today(a);
+  const firstA = ensureReservationHorizon(a, { todayAbs: day, seed: 7766 });
+  const firstB = ensureReservationHorizon(b, { todayAbs: day, seed: 7766 });
+  assert.equal(firstA.generatedDays, a.reservations.config.horizonDays);
+  assert.equal(firstB.generatedDays, b.reservations.config.horizonDays);
+  assert.deepEqual(
+    a.reservations.booked.map((reservation) => [reservation.dayAbs, reservation.minute, reservation.customerNames, reservation.payment.status]),
+    b.reservations.booked.map((reservation) => [reservation.dayAbs, reservation.minute, reservation.customerNames, reservation.payment.status]),
+  );
+  for (let offset = 0; offset < a.reservations.config.horizonDays; offset++) {
+    const names = a.reservations.booked
+      .filter((reservation) => reservation.dayAbs === day + offset && reservation.status !== 'cancelled')
+      .flatMap((reservation) => reservation.customerNames);
+    assert.equal(new Set(names).size, names.length, `day ${offset} has no duplicate visible identity`);
+  }
+  const before = {
+    reservations: a.reservations.booked.length,
+    finance: a.reservations.financeEntries.length,
+    cash: a.cash,
+  };
+  assert.equal(ensureReservationHorizon(a, { todayAbs: day, seed: 7766 }).created.length, 0);
+  assert.deepEqual({
+    reservations: a.reservations.booked.length,
+    finance: a.reservations.financeEntries.length,
+    cash: a.cash,
+  }, before, 're-entering the club cannot replay bookings or payments');
+  const rolled = ensureReservationHorizon(a, { todayAbs: day + 1, seed: 7766 });
+  assert.equal(rolled.generatedDays, 1, 'only the newly visible edge day is generated');
+  assert.ok(a.reservations.generator.generatedDays.includes(day + a.reservations.config.horizonDays));
+});
+
+test('the deterministic browser fixture reset reverses production booking cash and ledger lines', () => {
+  const state = newGame('relaxed', 9052);
+  const cashBefore = state.cash;
+  ensureReservationHorizon(state, { occupancy: 1, seed: 9911 });
+  assert.notEqual(state.cash, cashBefore);
+  assert.ok(state.reservations.financeEntries.length > 0);
+  resetGolfOperationsQA(state);
+  assert.equal(state.cash, cashBefore);
+  assert.deepEqual(totals(state.ledger.today), { revenue: 0, expense: 0, net: 0 });
+  assert.equal(state.reservations.booked.length, 0);
+  assert.equal(state.reservations.financeEntries.length, 0);
 });
 
 test('arrival events distinguish due, early, on-time, late, and absent parties', () => {
@@ -405,6 +457,8 @@ test('operations finance entries reconcile to cash and the club ledger', () => {
   assert.ok(finance.stableIdsUnique);
   assert.equal(r2(state.cash - startCash), finance.netCash);
   assert.equal(r2(books.net), finance.netCash);
+  assert.equal(operationFinanceSummary(state, today(state)).netCash, finance.netCash,
+    'the dated subledger uses the same posting day as the main ledger');
   assert.ok(finance.categories.bookingDeposits > 0);
   assert.ok(finance.categories.bookingBalances > 0);
   assert.ok(finance.categories.walkInRevenue > 0);

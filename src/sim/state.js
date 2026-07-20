@@ -20,6 +20,7 @@ import { ensureWash } from './washing.js';
 import { ensureProperty, tickProperty } from './property.js';
 import {
   initReservations, ensureReservations, golfOperationsTick, reservationsDailyTick,
+  ensureReservationHorizon,
 } from './reservations.js';
 import { initTractor, ensureTractor } from './tractor.js';
 import { bunkerDailyMess } from './bunkers.js';
@@ -73,6 +74,12 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
 // --- master tick --------------------------------------------------------------
 
 export function dailyTick(state) {
+  // Open the newly visible far edge of the tee sheet before closing the books.
+  // Its advance card payments belong to the operating day that accepted them,
+  // keeping the main ledger and wallet exactly reconciled at midnight.
+  if (state.reservations) {
+    ensureReservationHorizon(state, { todayAbs: calendarOf(state.clock.minutes).dayAbs });
+  }
   // 1) settle the day that just ended: accrue its recurring economy, close books
   if (state.ledger) {
     accrueDaily(state);
@@ -99,7 +106,10 @@ export function dailyTick(state) {
   }
   if (state.club) dailyMembershipTick(state);
   if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
-  if (state.reservations) reservationsDailyTick(state, calendarOf(state.clock.minutes).dayAbs);
+  if (state.reservations) {
+    const todayAbs = calendarOf(state.clock.minutes).dayAbs;
+    reservationsDailyTick(state, todayAbs);
+  }
   if (state.turf) bunkerDailyMess(state); // yesterday's traffic footprints the sand
   if (state.progression) {
     prestigeDailyTick(state);
