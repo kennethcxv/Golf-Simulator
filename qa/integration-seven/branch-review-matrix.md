@@ -48,7 +48,7 @@ QA-only scrolling/timing/audit commits and final media are not selected. The sch
 
 Selected product history: `42ab47eba0ca47bf536240e33c39d3bb5f9d6b5d` and `36f4b266e8c8ab5a5f80bd9246c57e83ac2b993f`; selected reusable QA: `20a20c8a4ff9ec4bc52165ae40ed27bbab50665f` and the controlled benchmark adjustment `7488c53c991c7109eea389277290cbb78ecada39`.
 
-Rejected generated evidence: `16b7570`. `business.js` becomes the authoritative exact-once ledger and progression projection. Checkout, orders, bookings, cancellations/no-shows, upgrades, and property sale must enter through stable event IDs.
+Rejected generated evidence: `16b7570`. `economy.js` becomes the authoritative immutable exact-once journal; `business.js` derives explainable summaries and progression projections without creating a competing ledger. Checkout, orders, bookings, cancellations/no-shows, upgrades, and property sale must enter through stable event IDs.
 
 ### Player experience polish
 

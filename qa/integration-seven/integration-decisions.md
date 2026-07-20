@@ -16,7 +16,9 @@ This document records architectural ownership before conflict resolution. Exact 
 
 ## Economy
 
-`src/sim/business.js` is the authoritative ledger and progression projection. Domain systems emit one stable event per economic fact; they do not directly add cash and also post a ledger item. Compatibility updates, if required, are centralized and tested against replay/save-load.
+`src/sim/economy.js` is the authoritative immutable, exact-once journal and the only owner of cash/profit posting. `src/sim/business.js` derives daily explanations and progression-facing summaries from that journal; it does not own a second ledger. Domain systems emit one stable event per economic fact and may not directly add cash while also posting a journal item. The legacy `ledger.today` cash lines are a centralized compatibility projection maintained by the journal and tested against replay/save-load.
+
+Checkout posts revenue and cost of goods only after the canonical inventory lifecycle atomically moves customer-held units to sold. Reservations owns booking payments, refunds, cancellation/no-show fees, check-in outcomes and course-access outcomes, then adapts each to one journal ID. Inventory owns order expense IDs. Progression and property sale use their own stable command IDs and recovery records. Generated tee-sheet occupancy consumes the same quality/price demand curve as public rounds, preventing online booking deposits from bypassing price resistance.
 
 ## Course maintenance
 
