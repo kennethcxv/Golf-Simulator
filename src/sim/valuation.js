@@ -29,9 +29,9 @@ function realHoleCount(state) {
 }
 
 function restorationInvestment(state) {
-  return r2((state.ledger?.entries || [])
-    .filter((entry) => entry.accountingClass === 'capital' && entry.cashImpact < 0)
-    .reduce((sum, entry) => sum + Math.abs(entry.cashImpact), 0));
+  return Math.max(0, r2((state.ledger?.entries || [])
+    .filter((entry) => entry.accountingClass === 'capital')
+    .reduce((sum, entry) => sum - entry.cashImpact, 0)));
 }
 
 function upgradeContributions(state) {
@@ -103,7 +103,7 @@ export function appraisalBreakdown(state) {
   if (reconciliation !== 0) {
     contributions.push({
       id: 'valuation:rounding-floor',
-      label: reconciliation > 0 ? 'Valuation floor and rounding' : 'Appraisal rounding',
+      label: reconciliation > 0 ? 'Valuation floor and market rounding' : 'Market rounding adjustment',
       amount: reconciliation,
       reason: 'Reconciles rounded contribution lines exactly to the sale valuation.',
     });

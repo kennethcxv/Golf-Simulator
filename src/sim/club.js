@@ -228,15 +228,39 @@ export function accrueDaily(state) {
     });
   }
 
-  // revenue: dues accrue daily (a season is the billing period)
+  // Revenue: dues accrue daily because a season is the billing period. The
+  // member book is a rolling population, not 25 captives who instantly accept
+  // any slider value. Above fair value, renewals/payment realization falls
+  // faster than price rises; the slower membership tick then records the named
+  // people who actually leave. This closes the one-day extreme-dues windfall
+  // while keeping the model understandable.
   let dues = 0;
-  for (const tier of Object.keys(counts)) dues += counts[tier] * (state.club.dues[tier] / 24);
+  let listedDues = 0;
+  let realizedMembers = 0;
+  for (const tier of Object.keys(counts)) {
+    const listed = counts[tier] * (state.club.dues[tier] / 24);
+    const fair = fairDues(state, tier, ratings.overall, amenity);
+    const ratio = state.club.dues[tier] / Math.max(1, fair);
+    const realization = clamp(Math.pow(1 / Math.max(0.1, ratio), 2), 0.03, 1);
+    listedDues += listed;
+    dues += listed * realization;
+    realizedMembers += counts[tier] * realization;
+  }
   if (dues > 0) addRevenue(state, 'dues', dues, {
     idempotencyKey: `club-day:${closingDay}:dues`,
     relatedId: `club-day-${closingDay}`,
     description: `Daily dues from ${memberTotal} member${memberTotal === 1 ? '' : 's'}`,
     source: 'daily-club',
-    customerCount: memberTotal,
+    customerCount: Math.round(realizedMembers),
+    metadata: { listedDues: Math.round(listedDues * 100) / 100, realizedMembers: Math.round(realizedMembers * 10) / 10 },
+  });
+  const resistedDues = Math.round((listedDues - dues) * 100) / 100;
+  if (resistedDues > 0.01) recordOutcome(state, {
+    idempotencyKey: `club-day:${closingDay}:dues-price-resistance`,
+    type: 'membershipPriceResistance', count: Math.max(0, memberTotal - Math.round(realizedMembers)),
+    amount: resistedDues, relatedId: `club-day-${closingDay}`,
+    reason: `${memberTotal} members generated ${Math.round(dues)} dollars of ${Math.round(listedDues)} listed daily dues because pricing exceeded perceived value.`,
+    metadata: { listedDues: Math.round(listedDues * 100) / 100, realizedDues: Math.round(dues * 100) / 100 },
   });
 
   // revenue: amenities

@@ -1,4 +1,4 @@
-import { financialSummary, outcomesInWindow } from './economy.js';
+import { financialSummary, outcomesInWindow, LEDGER_LABELS } from './economy.js';
 import { propertyConditionBreakdown } from './propertyCondition.js';
 import { appraisalBreakdown } from './valuation.js';
 import { reputationChangesForDay, reputationSnapshot } from './reputation.js';
@@ -38,6 +38,9 @@ function topCategory(bucket) {
   return Object.entries(bucket || {}).sort((a, b) => b[1] - a[1])[0] || null;
 }
 
+const categoryLabel = (key) => LEDGER_LABELS[key]
+  || String(key).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (letter) => letter.toUpperCase());
+
 export function closeDayIndicators(state, day) {
   const business = ensureBusiness(state);
   const financial = financialSummary(state, day, day);
@@ -63,8 +66,8 @@ export function closeDayIndicators(state, day) {
   const reasons = [];
   const revenueTop = topCategory(financial.revenueByCategory);
   const expenseTop = topCategory(financial.expenseByCategory);
-  if (revenueTop) reasons.push(`Largest revenue source: ${revenueTop[0]} (${r2(revenueTop[1])}).`);
-  if (expenseTop) reasons.push(`Largest operating cost: ${expenseTop[0]} (${r2(expenseTop[1])}).`);
+  if (revenueTop) reasons.push(`Largest revenue source: ${categoryLabel(revenueTop[0])} (${r2(revenueTop[1])}).`);
+  if (expenseTop) reasons.push(`Largest operating cost: ${categoryLabel(expenseTop[0])} (${r2(expenseTop[1])}).`);
   if (missedSales > 0) reasons.push(`${missedSales} intended purchase${missedSales === 1 ? '' : 's'} were missed through stock or price pressure.`);
   if (noShows > 0) reasons.push(`${noShows} tee-time no-show${noShows === 1 ? '' : 's'} cost capacity; ${r2(noShowFees)} was recovered in fees.`);
   for (const problem of condition.unresolved.slice(0, 3)) reasons.push(`${problem.label} remains weak at ${Math.round(problem.score)}.`);

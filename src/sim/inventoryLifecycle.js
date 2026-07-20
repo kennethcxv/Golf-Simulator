@@ -55,6 +55,26 @@ const DELIVERY_SLOTS = [[8, 10], [10, 12], [13, 15]];
 const round2 = (value) => Math.round(value * 100) / 100;
 const nowOf = (state) => (state.clock && Number.isFinite(state.clock.minutes) ? state.clock.minutes : 0);
 const positiveInteger = (value) => Number.isSafeInteger(value) && value > 0;
+const CAPITAL_ORDER_CATEGORIES = new Set(['decor', 'equipment']);
+
+function accountingBreakdownForOrder(order) {
+  let capitalGoods = 0;
+  for (const line of order.lines || []) {
+    const sku = skuById(line.skuId);
+    if (sku && CAPITAL_ORDER_CATEGORIES.has(sku.cat)) capitalGoods += sku.cost * line.quantity;
+  }
+  capitalGoods = round2(capitalGoods);
+  const goods = round2(order.goods || 0);
+  const shipping = round2(order.shippingCost || order.fee || 0);
+  const capitalShipping = capitalGoods <= 0 ? 0
+    : capitalGoods >= goods ? shipping
+      : round2(shipping * (capitalGoods / Math.max(goods, 0.01)));
+  const capital = round2(capitalGoods + capitalShipping);
+  return {
+    capital,
+    inventory: round2((order.totalCost || order.cost || 0) - capital),
+  };
+}
 
 function emptyBuckets() {
   return Object.fromEntries(INVENTORY_STAGES.map((stage) => [stage, 0]));
@@ -807,37 +827,49 @@ export function submitPurchaseOrders(state, {
 
   const minute = nowOf(state);
   const chargeReference = idempotencyKey || `purchase-${minute}-${drafts.map((order) => order.id).join('-')}`;
-  // The physical lifecycle owns ordering, and the immutable journal owns money.
-  // One stable basket entry preserves the existing shopOrders compatibility line
-  // while its metadata exposes goods and freight without a second purchase path.
-  const charged = addExpense(state, 'shopOrders', totalCost, {
-    idempotencyKey: `inventory-order:${chargeReference}:charge`,
-    relatedId: chargeReference,
-    description: `${drafts.length} supplier purchase order${drafts.length === 1 ? '' : 's'}`,
-    source: 'inventory-order',
-    units: drafts.reduce((sum, order) => sum + order.quantity, 0),
-    metadata: {
-      orderIds: drafts.map((order) => order.id),
-      supplierIds: drafts.map((order) => order.supplierId),
-      goods: round2(drafts.reduce((sum, order) => sum + order.goods, 0)),
-      shipping: round2(drafts.reduce((sum, order) => sum + order.shippingCost, 0)),
-    },
-  });
-  if (!charged.ok || charged.duplicate) {
-    return failedOrder(
-      state,
-      normalized.lines,
-      charged.duplicate ? 'This purchase command was already charged.' : charged.reason,
-      idempotencyKey,
-      fingerprint,
-    );
+  for (const order of drafts) order.accountingBreakdown = accountingBreakdownForOrder(order);
+  const amounts = {
+    inventory: round2(drafts.reduce((sum, order) => sum + order.accountingBreakdown.inventory, 0)),
+    capital: round2(drafts.reduce((sum, order) => sum + order.accountingBreakdown.capital, 0)),
+  };
+  const ledgerBase = `inventory-order:${minute}:${drafts.map((order) => order.id).join('-')}`;
+  const chargeSpecs = Object.entries(amounts).filter(([, amount]) => amount > 0);
+  if (chargeSpecs.some(([klass]) => state.ledger?.processedIds?.[`${ledgerBase}:${klass}`])) {
+    return failedOrder(state, normalized.lines, 'This purchase command was already charged.', idempotencyKey, fingerprint);
+  }
+  const charges = {};
+  for (const [klass, amount] of chargeSpecs) {
+    const posted = addExpense(state, 'shopOrders', amount, {
+      idempotencyKey: `${ledgerBase}:${klass}`,
+      relatedId: chargeReference,
+      description: `${klass === 'capital' ? 'Capital' : 'Retail inventory'} supplier purchase`,
+      source: 'inventory-order',
+      accountingClass: klass,
+      units: drafts.reduce((sum, order) => sum + order.quantity, 0),
+      metadata: {
+        orderIds: drafts.map((order) => order.id),
+        supplierIds: drafts.map((order) => order.supplierId),
+        goods: round2(drafts.reduce((sum, order) => sum + order.goods, 0)),
+        shipping: round2(drafts.reduce((sum, order) => sum + order.shippingCost, 0)),
+      },
+    });
+    if (!posted.ok || posted.duplicate) {
+      return failedOrder(
+        state,
+        normalized.lines,
+        posted.duplicate ? 'This purchase command was already charged.' : posted.reason,
+        idempotencyKey,
+        fingerprint,
+      );
+    }
+    charges[klass] = posted.entry || null;
   }
   state.shop.nextOrderId = nextOrderId;
   for (const order of drafts) {
     order.charged = true;
     order.chargeReference = chargeReference;
-    order.ledgerKeys = { charge: charged.entry?.idempotencyKey || null };
-    order.ledgerEntryId = charged.entry?.id || null;
+    order.ledgerKeys = Object.fromEntries(Object.entries(charges).map(([klass, entry]) => [klass, entry?.idempotencyKey || null]));
+    order.ledgerEntryIds = Object.fromEntries(Object.entries(charges).map(([klass, entry]) => [klass, entry?.id || null]));
     order.idempotencyKey = idempotencyKey;
     order.stateHistory.push({ state: ORDER_STATE.SUBMITTED, minute, note: 'Supplier order submitted and charged' });
     lifecycle.orders.push(order);
@@ -980,18 +1012,27 @@ export function cancelPurchaseOrder(state, id) {
   let refund = 0;
   if (order.charged && !order.refunded) {
     refund = order.chargeAmount || order.totalCost || order.cost || 0;
-    const reversal = unbill(state, 'shopOrders', refund, {
-      idempotencyKey: `inventory-order:${order.chargeReference || order.id}:cancel:${order.id}`,
-      relatedId: order.id,
-      description: `Cancelled supplier order ${order.id}`,
-      source: 'inventory-order',
-      units: order.quantity,
-      metadata: { chargeReference: order.chargeReference, supplierId: order.supplierId },
-    });
+    const breakdown = order.accountingBreakdown || {
+      [order.accountingClass === 'capital' ? 'capital' : 'inventory']: refund,
+    };
+    const reversals = {};
+    for (const [klass, amount] of Object.entries(breakdown)) {
+      if (!(amount > 0)) continue;
+      const reversal = unbill(state, 'shopOrders', amount, {
+        idempotencyKey: `inventory-order:${order.chargeReference || order.id}:cancel:${order.id}:${klass}`,
+        relatedId: order.id,
+        description: `Cancelled ${klass} supplier order ${order.id}`,
+        source: 'inventory-order',
+        accountingClass: klass,
+        units: order.quantity,
+        metadata: { chargeReference: order.chargeReference, supplierId: order.supplierId },
+      });
+      reversals[klass] = reversal.entry?.id || null;
+    }
     order.refunded = true;
     order.refundAmount = refund;
     order.refundedMin = nowOf(state);
-    order.refundLedgerEntryId = reversal.entry?.id || null;
+    order.refundLedgerEntryIds = reversals;
   }
   order.processingState = ORDER_STATE.CANCELLED;
   order.dispatchState = 'Not dispatched';
