@@ -252,9 +252,9 @@ overlapMd.push('');
 
 mkdirSync(out, { recursive: true });
 writeFileSync(path.join(out, 'branch-inventory.json'), `${JSON.stringify(inventoryDocument, null, 2)}\n`);
-writeFileSync(path.join(out, 'branch-inventory.md'), `${md.join('\n')}\n`);
+writeFileSync(path.join(out, 'branch-inventory.md'), `${md.join('\n').trimEnd()}\n`);
 writeFileSync(path.join(out, 'overlap-map.json'), `${JSON.stringify(overlapDocument, null, 2)}\n`);
-writeFileSync(path.join(out, 'overlap-map.md'), `${overlapMd.join('\n')}\n`);
+writeFileSync(path.join(out, 'overlap-map.md'), `${overlapMd.join('\n').trimEnd()}\n`);
 
 console.log(JSON.stringify({
   branches: inventory.map(({ branch, head, changedFileCount, insertions, deletions, binaryAssets, packageChanges }) => ({ branch, head, changedFileCount, insertions, deletions, binaryAssets: binaryAssets.length, packageChanges })),

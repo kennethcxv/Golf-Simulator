@@ -21,4 +21,3 @@ Exactly 17 paths are changed by more than one completed branch. Classifications 
 | `src/ui/marketplacePanel.js` | `economy-progression`<br>`player-experience-polish` | UI conflict; Shared API conflict |
 | `src/ui/ui.js` | `economy-progression`<br>`player-experience-polish` | UI conflict; Shared API conflict |
 | `tools/qa/register-sale.js` | `inventory-delivery-loop`<br>`customer-simulation` | Test conflict |
-

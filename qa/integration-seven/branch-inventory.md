@@ -105,4 +105,3 @@ The companion JSON contains every changed/new/deleted file, every binary asset, 
 - Active worktree: `C:\Users\Kenneth\Documents\GitHub\Golf-Flipper-gameplay-progression`
 - Uncommitted state: dirty (3 tracked paths and 1 untracked path); contents were not inspected.
 - Explicitly excluded; active worktree and branch were not entered, modified, merged, cherry-picked, reset, rebased, cleaned, or pruned.
-
