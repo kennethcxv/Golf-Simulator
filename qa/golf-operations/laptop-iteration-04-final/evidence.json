@@ -1,0 +1,354 @@
+{
+  "capturedAt": "2026-07-20T01:11:12.121Z",
+  "branch": "overnight/golf-operations",
+  "commit": "9f28e2c",
+  "launch": "QA_URL=http://127.0.0.1:8468/",
+  "browser": "148.0.7778.96",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "fixture": {
+    "ok": true,
+    "seed": 20260719,
+    "dayAbs": 0,
+    "ids": {
+      "earlyPrepaid": 1,
+      "onTimeCard": 2,
+      "lateCash": 3,
+      "noShow": 4,
+      "cancellation": 5,
+      "fullSlotA": 6,
+      "fullSlotB": 7
+    },
+    "walkInMinute": 600,
+    "randomProof": 0.4065049833152443,
+    "production": {
+      "days": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "bookings": 39,
+      "uniqueWithinEachDay": true
+    }
+  },
+  "workflow": {
+    "reservation": {
+      "id": 8,
+      "minute": 540,
+      "partySize": 3,
+      "names": [
+        "Jordan Vale",
+        "Mara Vale",
+        "Ellis Vale"
+      ],
+      "status": "cancelled",
+      "payment": {
+        "status": "paid",
+        "total": 96,
+        "amountPaid": 96,
+        "depositPaid": 0,
+        "amountDue": 0,
+        "method": "card",
+        "cardOnFile": true,
+        "payments": [
+          "golf-finance:golf-pay-6"
+        ],
+        "receipts": [
+          {
+            "id": "GOLF-0-8-6",
+            "transactionId": "golf-pay-6",
+            "amount": 96,
+            "method": "card",
+            "change": 0,
+            "issuedAtMinute": 521
+          }
+        ],
+        "pending": null
+      },
+      "cancellation": {
+        "cancelledAtMinute": 521,
+        "plannedAtMinute": null,
+        "reason": "Cancelled in Fairway Office",
+        "kind": "same-day",
+        "fee": 12,
+        "refund": 84,
+        "ledgerEntryIds": [
+          "golf-finance:8:cancellation-fee",
+          "golf-finance:8:cancellation-refund"
+        ]
+      }
+    },
+    "finance": [
+      {
+        "id": "golf-finance:golf-pay-6",
+        "sequence": 8,
+        "reservationId": 8,
+        "partyId": "party-8",
+        "dayAbs": 0,
+        "effectiveDayAbs": 0,
+        "atMinute": 521,
+        "postedAtMinute": 521,
+        "category": "bookingRevenue",
+        "kind": "prepaid",
+        "amount": 96,
+        "cashDelta": 96,
+        "method": "card",
+        "transactionId": "golf-pay-6",
+        "receiptId": "GOLF-0-8-6",
+        "relatedEntryId": null,
+        "note": "change:0"
+      },
+      {
+        "id": "golf-finance:8:cancellation-fee",
+        "sequence": 9,
+        "reservationId": 8,
+        "partyId": "party-8",
+        "dayAbs": 0,
+        "effectiveDayAbs": 0,
+        "atMinute": 521,
+        "postedAtMinute": 521,
+        "category": "cancellationFees",
+        "kind": "cancellation-fee-retained",
+        "amount": 12,
+        "cashDelta": 0,
+        "method": "card",
+        "transactionId": null,
+        "receiptId": null,
+        "relatedEntryId": null,
+        "note": "Retained from paid funds; no new charge."
+      },
+      {
+        "id": "golf-finance:8:cancellation-refund",
+        "sequence": 10,
+        "reservationId": 8,
+        "partyId": "party-8",
+        "dayAbs": 0,
+        "effectiveDayAbs": 0,
+        "atMinute": 521,
+        "postedAtMinute": 521,
+        "category": "bookingRefunds",
+        "kind": "refund",
+        "amount": 84,
+        "cashDelta": -84,
+        "method": "card",
+        "transactionId": null,
+        "receiptId": null,
+        "relatedEntryId": null,
+        "note": "Same-day refund after policy fee."
+      }
+    ],
+    "ledger": {
+      "revenue": {
+        "greenFees": 0,
+        "dues": 0,
+        "outings": 0,
+        "range": 0,
+        "restaurant": 0,
+        "lessons": 0,
+        "shopSales": 0,
+        "rentals": 0,
+        "fittings": 0,
+        "reciprocal": 0,
+        "events": 0,
+        "bookingBalances": 0,
+        "cancellationFees": 0,
+        "noShowFees": 0,
+        "walkInRevenue": 0,
+        "bookingRevenue": 256,
+        "bookingDeposits": 27.8
+      },
+      "expense": {
+        "wagesStaff": 0,
+        "wagesDayLabor": 0,
+        "water": 0,
+        "fertilizer": 0,
+        "chemicals": 0,
+        "upkeep": 0,
+        "utilities": 0,
+        "works": 0,
+        "severance": 0,
+        "training": 0,
+        "shopOrders": 0,
+        "rentalFleet": 0,
+        "events": 0,
+        "rent": 0,
+        "bookingRefunds": 116
+      }
+    },
+    "homeText": "Good morning — Willow Creek Municipal?Cash$55,650no arrearsWeather63°Frain 0.38\"Visitors0rounds yesterdayReviews—nobody yetShop floor24% cleancondition 17Course63condition 47Tee sheet14%11 of 80 placesWaiting3next Jonah Wells at 9:30 AMGolf cash$167.80today, already in the ledger⚠ Front-desk review: 1 late party waiting and 1 no-show.Current objectiveTake a look aroundToday📅  Reservations7:00 AMAvery Monroewaiting7:30 AMDevon Parkwaiting8:00 AMCaleb FosterwaitingOpen the tee sheet🚚  Deliveries◌Nothing on the truck.Track deliveries⚠  Low stockFairline driveroutApex TD driveroutFairline iron setoutApex forged ironsoutOpen inventoryUpcoming expensesProperty$500/week · next bill in 7 days$500 / weekWages0 on the books$0 / dayOn the truck0 orders already paid for$0Jump to🛒Supplierrestock the shop🏷Pricingset what you charge📈Analyticswhat changed, and why"
+  },
+  "runtime": {
+    "samples": 2,
+    "averageFps": 0.4615526631588714,
+    "onePercentLowFps": 0.45456611664167274,
+    "worstFrameMs": 2199.899999999965,
+    "drawCalls": 1,
+    "renderedTriangles": 1,
+    "sceneTriangles": 1777343,
+    "materials": 239,
+    "textures": 163,
+    "rendererTextures": 208,
+    "rendererGeometries": 1073,
+    "jsHeapBytes": 56800000
+  },
+  "listeners": {
+    "beforeIdle": {
+      "active": 894,
+      "registrations": 928
+    },
+    "afterIdle": {
+      "active": 900,
+      "registrations": 934
+    },
+    "activeDelta": 6,
+    "registrationDelta": 6
+  },
+  "idleUiMutationCallbacks": 0,
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    }
+  ],
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/flagpole.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/hand_fork.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/bucket_soil.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/hose_nozzle.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/clubhouse/cardterm_pro.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/clubhouse/shoe_pro.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/clubhouse/cap_pro.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/clubhouse/rangefinder.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/club_sign.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/shed.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/leaves_pile.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/belt.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/golf_cart.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/tractor_broken.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/tee_sign_broken.glb",
+      "failure": "net::ERR_ABORTED"
+    }
+  ]
+}

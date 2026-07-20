@@ -1,0 +1,438 @@
+{
+  "capturedAt": "2026-07-20T00:09:03.885Z",
+  "iteration": "iteration-04",
+  "branch": "overnight/golf-operations",
+  "commit": "76d48a5",
+  "url": "http://127.0.0.1:8468/",
+  "browser": "150.0.7871.127",
+  "viewport": {
+    "width": 1600,
+    "height": 900,
+    "deviceScaleFactor": 1
+  },
+  "fixture": {
+    "ok": true,
+    "seed": 20260719,
+    "dayAbs": 0,
+    "ids": {
+      "earlyPrepaid": 1,
+      "onTimeCard": 2,
+      "lateCash": 3,
+      "noShow": 4,
+      "cancellation": 5,
+      "fullSlotA": 6,
+      "fullSlotB": 7
+    },
+    "walkInMinute": 600,
+    "randomProof": 0.4065049833152443,
+    "holders": {
+      "earlyPrepaid": "Avery Monroe",
+      "onTimeCard": "Devon Park",
+      "lateCash": "Caleb Foster",
+      "noShow": "Imani Cole",
+      "cancellation": "Sylvie Hart",
+      "fullSlotA": "Jonah Wells",
+      "fullSlotB": "Farah Quinn"
+    }
+  },
+  "entrySnapshot": {
+    "selectedId": 1,
+    "selectedHolder": "Avery Monroe",
+    "shell": {
+      "x": 560,
+      "y": 40,
+      "width": 1010,
+      "height": 820
+    },
+    "registerActive": false,
+    "npcReservations": [
+      {
+        "reservationId": 1,
+        "name": "Avery Monroe",
+        "partySize": 2,
+        "queued": true
+      }
+    ]
+  },
+  "interactionResult": {
+    "cashBeforeCard": 54655.8,
+    "cashAfterServices": 54803,
+    "card": {
+      "status": "played",
+      "payment": {
+        "status": "paid",
+        "total": 64,
+        "amountPaid": 64,
+        "depositPaid": 0,
+        "amountDue": 0,
+        "method": "card",
+        "cardOnFile": false,
+        "payments": [
+          "golf-finance:golf-pay-6"
+        ],
+        "receipts": [
+          {
+            "id": "GOLF-0-2-6",
+            "transactionId": "golf-pay-6",
+            "amount": 64,
+            "method": "card",
+            "change": 0,
+            "issuedAtMinute": 450
+          }
+        ],
+        "pending": null
+      },
+      "checkIn": {
+        "status": "checked-in",
+        "confirmedAtMinute": 450,
+        "checkedInAtMinute": 450
+      }
+    },
+    "cash": {
+      "status": "played",
+      "payment": {
+        "status": "paid",
+        "total": 96,
+        "amountPaid": 96,
+        "depositPaid": 12.8,
+        "amountDue": 0,
+        "method": "cash",
+        "cardOnFile": false,
+        "payments": [
+          "golf-finance:golf-pay-2",
+          "golf-finance:golf-pay-7"
+        ],
+        "receipts": [
+          {
+            "id": "GOLF-0-3-2",
+            "transactionId": "golf-pay-2",
+            "amount": 12.8,
+            "method": "cash",
+            "change": 0,
+            "issuedAtMinute": 418
+          },
+          {
+            "id": "GOLF-0-3-7",
+            "transactionId": "golf-pay-7",
+            "amount": 83.2,
+            "method": "cash",
+            "change": 16.8,
+            "issuedAtMinute": 488
+          }
+        ],
+        "pending": null
+      },
+      "checkIn": {
+        "status": "checked-in",
+        "confirmedAtMinute": 488,
+        "checkedInAtMinute": 488
+      }
+    },
+    "walkIn": {
+      "id": 8,
+      "slotId": "tee:0:510",
+      "partySize": 2,
+      "arrival": {
+        "status": "arrived",
+        "plannedMinute": 488,
+        "arrivedAtMinute": 488,
+        "lateMarkedAtMinute": null,
+        "intendedOutcome": "arrive",
+        "spawnedAtMinute": null
+      },
+      "npc": "Rowan Mercer"
+    },
+    "processedTransactionIds": [
+      "golf-pay-1",
+      "golf-pay-2",
+      "golf-pay-3",
+      "golf-pay-4",
+      "golf-pay-5",
+      "golf-pay-6",
+      "golf-pay-7"
+    ],
+    "financeEntries": [
+      {
+        "id": "golf-finance:golf-pay-1",
+        "sequence": 1,
+        "reservationId": 1,
+        "partyId": "party-1",
+        "dayAbs": 0,
+        "atMinute": 418,
+        "category": "bookingRevenue",
+        "kind": "prepaid",
+        "amount": 64,
+        "cashDelta": 64,
+        "method": "card",
+        "transactionId": "golf-pay-1",
+        "receiptId": "GOLF-0-1-1",
+        "relatedEntryId": null,
+        "note": "change:0"
+      },
+      {
+        "id": "golf-finance:golf-pay-2",
+        "sequence": 2,
+        "reservationId": 3,
+        "partyId": "party-3",
+        "dayAbs": 0,
+        "atMinute": 418,
+        "category": "bookingDeposits",
+        "kind": "deposit",
+        "amount": 12.8,
+        "cashDelta": 12.8,
+        "method": "cash",
+        "transactionId": "golf-pay-2",
+        "receiptId": "GOLF-0-3-2",
+        "relatedEntryId": null,
+        "note": "change:0"
+      },
+      {
+        "id": "golf-finance:golf-pay-3",
+        "sequence": 3,
+        "reservationId": 4,
+        "partyId": "party-4",
+        "dayAbs": 0,
+        "atMinute": 418,
+        "category": "bookingDeposits",
+        "kind": "deposit",
+        "amount": 15,
+        "cashDelta": 15,
+        "method": "card",
+        "transactionId": "golf-pay-3",
+        "receiptId": "GOLF-0-4-3",
+        "relatedEntryId": null,
+        "note": "change:0"
+      },
+      {
+        "id": "golf-finance:golf-pay-4",
+        "sequence": 4,
+        "reservationId": 5,
+        "partyId": "party-5",
+        "dayAbs": 0,
+        "atMinute": 418,
+        "category": "bookingRevenue",
+        "kind": "prepaid",
+        "amount": 32,
+        "cashDelta": 32,
+        "method": "card",
+        "transactionId": "golf-pay-4",
+        "receiptId": "GOLF-0-5-4",
+        "relatedEntryId": null,
+        "note": "change:0"
+      },
+      {
+        "id": "golf-finance:5:cancellation-refund",
+        "sequence": 5,
+        "reservationId": 5,
+        "partyId": "party-5",
+        "dayAbs": -1,
+        "atMinute": -1020,
+        "category": "bookingRefunds",
+        "kind": "refund",
+        "amount": 32,
+        "cashDelta": -32,
+        "method": "card",
+        "transactionId": null,
+        "receiptId": null,
+        "relatedEntryId": null,
+        "note": "Advance cancellation refund."
+      },
+      {
+        "id": "golf-finance:golf-pay-5",
+        "sequence": 6,
+        "reservationId": 6,
+        "partyId": "party-6",
+        "dayAbs": 0,
+        "atMinute": 418,
+        "category": "bookingRevenue",
+        "kind": "prepaid",
+        "amount": 64,
+        "cashDelta": 64,
+        "method": "card",
+        "transactionId": "golf-pay-5",
+        "receiptId": "GOLF-0-6-5",
+        "relatedEntryId": null,
+        "note": "change:0"
+      },
+      {
+        "id": "golf-finance:golf-pay-6",
+        "sequence": 7,
+        "reservationId": 2,
+        "partyId": "party-2",
+        "dayAbs": 0,
+        "atMinute": 450,
+        "category": "bookingBalances",
+        "kind": "full",
+        "amount": 64,
+        "cashDelta": 64,
+        "method": "card",
+        "transactionId": "golf-pay-6",
+        "receiptId": "GOLF-0-2-6",
+        "relatedEntryId": null,
+        "note": "change:0"
+      },
+      {
+        "id": "golf-finance:golf-pay-7",
+        "sequence": 8,
+        "reservationId": 3,
+        "partyId": "party-3",
+        "dayAbs": 0,
+        "atMinute": 488,
+        "category": "bookingBalances",
+        "kind": "balance",
+        "amount": 83.2,
+        "cashDelta": 83.2,
+        "method": "cash",
+        "transactionId": "golf-pay-7",
+        "receiptId": "GOLF-0-3-7",
+        "relatedEntryId": null,
+        "note": "change:16.8"
+      }
+    ]
+  },
+  "normalExit": {
+    "frontDeskOpen": false,
+    "focused": false,
+    "registerActive": false
+  },
+  "runtime": {
+    "sampleDurationMs": 5000,
+    "frames": 681,
+    "averageFps": 136.11,
+    "onePercentLowFps": 68.09,
+    "worstFrameMs": 16.8,
+    "drawCalls": 2676,
+    "renderedTriangles": 4935562,
+    "sceneTriangles": 1779839,
+    "materialCount": 244,
+    "textureCount": 163,
+    "textureMemoryBytesEstimatedRgbaMipmapped": 6169904533,
+    "rendererTextureCount": 208,
+    "rendererGeometryCount": 1090,
+    "jsHeapUsedBytes": 85284379,
+    "connectedListeners": 103,
+    "listenerRegistrations": 429
+  },
+  "listeners": {
+    "before": {
+      "connected": 103,
+      "registrations": 429
+    },
+    "after": {
+      "connected": 103,
+      "registrations": 429
+    },
+    "connectedDelta": 0,
+    "registrationDelta": 0
+  },
+  "uiMutationCallbacksDuringFiveSeconds": 0,
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ],
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/bucket_soil.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/hand_fork.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/workbench.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/shed.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/tractor_broken.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8468/vendor/models/belt.glb",
+      "failure": "net::ERR_ABORTED"
+    }
+  ]
+}
