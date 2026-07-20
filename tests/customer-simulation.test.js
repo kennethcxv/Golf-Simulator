@@ -310,14 +310,19 @@ test('empty, low, and full-stock shopper fixtures preserve real inventory accoun
   assert.equal(releaseCustomerProducts(state, lowStock), 1);
   assert.equal(state.shop.inventory.balls1.shelf, 1);
 
-  state.shop.inventory.balls1.shelf = 12;
-  assert.equal(reserveCustomerProduct(state, competing, 'balls1').ok, true);
-  assert.equal(reserveCustomerProduct(state, competing, 'balls1').ok, true);
-  assert.equal(competing.cart.length, 2);
-  assert.equal(state.shop.inventory.balls1.shelf, 10);
-  assert.equal(heldUnits(state).filter((unit) => unit.skuId === 'balls1').length, 2);
-  assert.equal(releaseCustomerProducts(state, competing), 2);
-  assert.equal(state.shop.inventory.balls1.shelf, 12);
+  // Start a fresh fixture before the lifecycle ledger captures its opening
+  // balance. Mutating only the legacy shelf projection after capture would
+  // invent stock outside the canonical quantity model and must stay invalid.
+  const fullState = newGame('relaxed', 920);
+  fullState.shop.inventory.balls1.shelf = 12;
+  const fullStock = createFixtureCustomer(fullState, CUSTOMER_INTENT.BROWSER, { name: 'Full Shelf' });
+  assert.equal(reserveCustomerProduct(fullState, fullStock, 'balls1').ok, true);
+  assert.equal(reserveCustomerProduct(fullState, fullStock, 'balls1').ok, true);
+  assert.equal(fullStock.cart.length, 2);
+  assert.equal(fullState.shop.inventory.balls1.shelf, 10);
+  assert.equal(heldUnits(fullState).filter((unit) => unit.skuId === 'balls1').length, 2);
+  assert.equal(releaseCustomerProducts(fullState, fullStock), 2);
+  assert.equal(fullState.shop.inventory.balls1.shelf, 12);
 });
 
 test('navigation recovery escalates in the required order and only teleports last', () => {
