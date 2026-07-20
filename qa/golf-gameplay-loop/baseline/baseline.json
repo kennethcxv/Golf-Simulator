@@ -1,0 +1,506 @@
+{
+  "capturedAt": "2026-07-20T06:19:15.033Z",
+  "branch": "overnight/golf-gameplay-loop",
+  "commit": "0c5137e5f0efac9627ce2309b9e66936f1eeb769",
+  "launch": "QA_URL=http://127.0.0.1:8469/",
+  "browser": "149.0.7827.55",
+  "viewport": {
+    "width": 1600,
+    "height": 900,
+    "deviceScaleFactor": 1
+  },
+  "fixture": {
+    "dayAbs": 0,
+    "timeMinute": 560,
+    "lastRounds": 50,
+    "reservation": {
+      "id": 1,
+      "name": "Baseline Walking Party",
+      "minute": 600,
+      "status": "booked"
+    }
+  },
+  "fixedCameras": {
+    "firstTee": {
+      "x": -44.24346305891301,
+      "z": 166.78056534254478,
+      "targetX": -95.45220811744574,
+      "targetZ": 157.7437279792743
+    },
+    "clubhousePracticeLawn": {
+      "x": 20,
+      "z": 246,
+      "targetX": -40,
+      "targetZ": 184
+    },
+    "register": {
+      "x": -5.2,
+      "z": 233.1,
+      "yaw": 0,
+      "pitch": -0.18
+    },
+    "memberCart": {
+      "x": -8,
+      "z": 244,
+      "targetX": 1.5,
+      "targetZ": 240.5
+    }
+  },
+  "course": {
+    "holes": [
+      {
+        "number": 1,
+        "status": "open",
+        "tee": {
+          "x": -60,
+          "z": 164
+        },
+        "pin": {
+          "x": -332,
+          "z": 116
+        }
+      },
+      {
+        "number": 2,
+        "status": "open",
+        "tee": {
+          "x": -364,
+          "z": 84
+        },
+        "pin": {
+          "x": -380,
+          "z": -44
+        }
+      },
+      {
+        "number": 3,
+        "status": "open",
+        "tee": {
+          "x": -396,
+          "z": -92
+        },
+        "pin": {
+          "x": -172,
+          "z": -236
+        }
+      },
+      {
+        "number": 4,
+        "status": "open",
+        "tee": {
+          "x": -124,
+          "z": -252
+        },
+        "pin": {
+          "x": 356,
+          "z": -204
+        }
+      },
+      {
+        "number": 5,
+        "status": "open",
+        "tee": {
+          "x": 388,
+          "z": -156
+        },
+        "pin": {
+          "x": 372,
+          "z": -28
+        }
+      },
+      {
+        "number": 6,
+        "status": "open",
+        "tee": {
+          "x": 340,
+          "z": 20
+        },
+        "pin": {
+          "x": 84,
+          "z": 116
+        }
+      },
+      {
+        "number": 7,
+        "status": "open",
+        "tee": {
+          "x": 36,
+          "z": 164
+        },
+        "pin": {
+          "x": -396,
+          "z": 212
+        }
+      },
+      {
+        "number": 8,
+        "status": "open",
+        "tee": {
+          "x": -412,
+          "z": 260
+        },
+        "pin": {
+          "x": -300,
+          "z": 292
+        }
+      },
+      {
+        "number": 9,
+        "status": "open",
+        "tee": {
+          "x": -268,
+          "z": 300
+        },
+        "pin": {
+          "x": 4,
+          "z": 260
+        }
+      }
+    ],
+    "structures": [
+      {
+        "type": "clubhouse",
+        "x": 56,
+        "y": 66,
+        "w": 6,
+        "h": 5
+      }
+    ]
+  },
+  "beforeCheckIn": {
+    "cash": 53354.33,
+    "due": [
+      {
+        "id": 1,
+        "name": "Baseline Walking Party",
+        "status": "booked"
+      }
+    ],
+    "activeRoundState": null
+  },
+  "afterCheckIn": {
+    "cash": 53386.33,
+    "reservations": [
+      {
+        "id": 1,
+        "name": "Baseline Walking Party",
+        "status": "played"
+      }
+    ],
+    "greenFees": 32,
+    "activeRoundState": null,
+    "clubhouseGolfers": [
+      {
+        "name": "Riley P.",
+        "queued": false
+      }
+    ]
+  },
+  "movementDeltas": [
+    {
+      "uuid": "4b752a7f-7d7c-4532-b13d-61a8a6c58d59",
+      "before": {
+        "uuid": "4b752a7f-7d7c-4532-b13d-61a8a6c58d59",
+        "x": -380.494,
+        "y": 0.884,
+        "z": -105.238,
+        "yaw": 2.142,
+        "mode": "Walk"
+      },
+      "after": {
+        "uuid": "4b752a7f-7d7c-4532-b13d-61a8a6c58d59",
+        "x": -379.681,
+        "y": 0.921,
+        "z": -105.751,
+        "yaw": 2.142,
+        "mode": "Walk"
+      },
+      "distanceYd": 0.961
+    },
+    {
+      "uuid": "cb45540d-f7b0-419b-8f6e-31b6138f6094",
+      "before": {
+        "uuid": "cb45540d-f7b0-419b-8f6e-31b6138f6094",
+        "x": -366.919,
+        "y": 1.121,
+        "z": 74.529,
+        "yaw": -3.017,
+        "mode": "Walk"
+      },
+      "after": {
+        "uuid": "cb45540d-f7b0-419b-8f6e-31b6138f6094",
+        "x": -366.974,
+        "y": 1.12,
+        "z": 74.044,
+        "yaw": -3.017,
+        "mode": "Walk"
+      },
+      "distanceYd": 0.488
+    },
+    {
+      "uuid": "6f1234bd-e799-41c6-b289-5ed33f5b99ac",
+      "before": {
+        "uuid": "6f1234bd-e799-41c6-b289-5ed33f5b99ac",
+        "x": -78.213,
+        "y": -1.826,
+        "z": 164.402,
+        "yaw": -1.745,
+        "mode": "Walk"
+      },
+      "after": {
+        "uuid": "6f1234bd-e799-41c6-b289-5ed33f5b99ac",
+        "x": -79.189,
+        "y": -1.852,
+        "z": 164.219,
+        "yaw": -1.745,
+        "mode": "Walk"
+      },
+      "distanceYd": 0.993
+    },
+    {
+      "uuid": "0f61b6e4-2080-449e-a45e-23a3fa9e8681",
+      "before": {
+        "uuid": "0f61b6e4-2080-449e-a45e-23a3fa9e8681",
+        "x": -116.387,
+        "y": 2.864,
+        "z": -248.005,
+        "yaw": 1.471,
+        "mode": "Walk"
+      },
+      "after": {
+        "uuid": "0f61b6e4-2080-449e-a45e-23a3fa9e8681",
+        "x": -114.8,
+        "y": 2.844,
+        "z": -247.855,
+        "yaw": 1.471,
+        "mode": "Walk"
+      },
+      "distanceYd": 1.594
+    },
+    {
+      "uuid": "1de93ed2-6fef-404d-bfc2-35bb902158b6",
+      "before": {
+        "uuid": "1de93ed2-6fef-404d-bfc2-35bb902158b6",
+        "x": -393.115,
+        "y": 0.833,
+        "z": -95.263,
+        "yaw": 2.142,
+        "mode": "Walk"
+      },
+      "after": {
+        "uuid": "1de93ed2-6fef-404d-bfc2-35bb902158b6",
+        "x": -392.232,
+        "y": 0.826,
+        "z": -95.826,
+        "yaw": 2.142,
+        "mode": "Walk"
+      },
+      "distanceYd": 1.047
+    }
+  ],
+  "swingFound": true,
+  "swing": {
+    "uuid": "4b752a7f-7d7c-4532-b13d-61a8a6c58d59",
+    "x": -367.47421280904325,
+    "y": 1.3499311889254706,
+    "z": -113.44683640694903,
+    "yaw": 3.0421338066285233,
+    "mode": "Swing"
+  },
+  "authoritativeStateAbsences": {
+    "activeRounds": null,
+    "partyRoundStateMachine": false,
+    "practiceOccupancy": false,
+    "starterQueue": false,
+    "scorecards": false,
+    "paceAndCongestion": false,
+    "assignedGolferCarts": false,
+    "golfBallPool": false,
+    "marshalTasks": false
+  },
+  "runtime": {
+    "idleFirstTee": {
+      "label": "first tee fixed camera, opening day, warm state",
+      "source": "requestAnimationFrame + THREE.WebGLRenderer.info + scene traversal",
+      "sampleDurationMs": 5000,
+      "frames": 2,
+      "averageFps": 0.39,
+      "onePercentLowFps": 0.38,
+      "worstFrameMs": 2616.6,
+      "drawCalls": 1282,
+      "renderedTriangles": 5042574,
+      "sceneTriangles": 1778333,
+      "visibleMeshCount": 1093,
+      "materialCount": 224,
+      "textureCount": 163,
+      "textureMemoryBytesEstimatedRgbaMipmapped": 6169904533,
+      "rendererTextureCount": 208,
+      "rendererGeometryCount": 1032,
+      "jsHeapUsedBytes": 54804697,
+      "activeEventListenerCount": 92,
+      "uiMutationCallbacks": 3,
+      "uiMutationCallbacksPerSecond": 0.6,
+      "courseCharacterCount": 0
+    },
+    "ambientGolfers": {
+      "label": "ambient course golfers, fixed first-tee camera",
+      "source": "requestAnimationFrame + THREE.WebGLRenderer.info + scene traversal",
+      "sampleDurationMs": 7000,
+      "frames": 4,
+      "averageFps": 0.48,
+      "onePercentLowFps": 0.45,
+      "worstFrameMs": 2233.3,
+      "drawCalls": 1716,
+      "renderedTriangles": 5053686,
+      "sceneTriangles": 1781501,
+      "visibleMeshCount": 1213,
+      "materialCount": 264,
+      "textureCount": 163,
+      "textureMemoryBytesEstimatedRgbaMipmapped": 6169904533,
+      "rendererTextureCount": 208,
+      "rendererGeometryCount": 1153,
+      "jsHeapUsedBytes": 58324641,
+      "activeEventListenerCount": 92,
+      "uiMutationCallbacks": 5,
+      "uiMutationCallbacksPerSecond": 0.71,
+      "courseCharacterCount": 8
+    }
+  },
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x3d54001b6e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x3d54001b6e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x3d54001b6e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    },
+    {
+      "type": "warning",
+      "text": "[.WebGL-0x3d54001b6e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+    }
+  ],
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/hand_fork.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/clubhouse/kiosk.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/clubhouse/shoe_pro.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/tractor_red.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/club_sign.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/clubhouse/rangefinder.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/leaves_pile.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/belt.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/golf_cart.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/tractor_broken.glb",
+      "failure": "net::ERR_ABORTED"
+    }
+  ]
+}
