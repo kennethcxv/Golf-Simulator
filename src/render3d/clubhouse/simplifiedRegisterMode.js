@@ -236,6 +236,58 @@ export function drawerPresentationVisible(want, amount) {
   return Number(want) > 0 || Number(amount) > 0.001;
 }
 
+export function cashConfirmationReadiness(flowState) {
+  if ([
+    'CustomerApproaching', 'CustomerPlacingProducts', 'WaitingForCashier',
+    'EnteringCashierMode', 'WaitingForScan', 'ProductHeld', 'ProductScanning',
+    'ProductScanned',
+    'AllProductsScanned', 'ChoosingPayment', 'CashPresented', 'CashAccepted',
+    'DrawerOpening', 'DepositingCash',
+  ].includes(flowState)) return 'defer';
+  if (flowState === 'SelectingChange') return 'ready';
+  return 'reject';
+}
+
+const CASH_DRAWER_OPENING_CATCHUP = Object.freeze([
+  'CustomerApproaching', 'CustomerPlacingProducts', 'WaitingForCashier',
+  'EnteringCashierMode', 'WaitingForScan', 'ProductHeld', 'ProductScanning',
+  'ProductScanned',
+  'AllProductsScanned', 'ChoosingPayment', 'CashPresented', 'CashAccepted',
+  'DrawerOpening',
+]);
+
+export function cashDrawerOpeningCatchupPath(flowState) {
+  if (flowState === 'DepositingCash' || flowState === 'SelectingChange') return [];
+  const index = CASH_DRAWER_OPENING_CATCHUP.indexOf(flowState);
+  return index >= 0 ? CASH_DRAWER_OPENING_CATCHUP.slice(index + 1) : null;
+}
+
+const PAID_FLOW_CATCHUP = Object.freeze({
+  card: Object.freeze([
+    'CustomerApproaching', 'CustomerPlacingProducts', 'WaitingForCashier',
+    'EnteringCashierMode', 'WaitingForScan', 'ProductHeld', 'ProductScanning',
+    'ProductScanned',
+    'AllProductsScanned', 'ChoosingPayment', 'CardPresented', 'CardInsertReady',
+    'CardInserting', 'CardAmountEntry', 'CardProcessing', 'CardApproved',
+    'PaymentComplete',
+  ]),
+  cash: Object.freeze([
+    'CustomerApproaching', 'CustomerPlacingProducts', 'WaitingForCashier',
+    'EnteringCashierMode', 'WaitingForScan', 'ProductHeld', 'ProductScanning',
+    'ProductScanned',
+    'AllProductsScanned', 'ChoosingPayment', 'CashPresented', 'CashAccepted',
+    'DrawerOpening', 'DepositingCash', 'SelectingChange', 'GivingChange',
+    'PaymentComplete',
+  ]),
+});
+
+export function paidCheckoutCatchupPath(method, flowState) {
+  if (flowState === 'ReceiptPrinting') return [];
+  const sequence = PAID_FLOW_CATCHUP[method];
+  const index = sequence ? sequence.indexOf(flowState) : -1;
+  return index >= 0 ? sequence.slice(index + 1) : null;
+}
+
 // Receipt printing reveals the strip by scaling local Y. Older loose-receipt
 // exports placed their long edge on Z, so accepting them here would reveal the
 // shallow paper thickness instead of its length. Reject that orientation and
@@ -650,6 +702,7 @@ export function createRegisterMode(B) {
   let exactChangeAssistancePending = false;
   let cashAutoConfirmPhase = 'idle'; // idle | waiting | fired
   let cashAutoConfirmTimer = 0;
+  let pendingChangeConfirmation = null;
   let cashRecoveryTimer = 0;
   let cashHandoffBundle = null;
   let cashHandoffHoldTimer = 0;
@@ -2898,6 +2951,7 @@ export function createRegisterMode(B) {
     preserveCustomerBag = false,
     preserveCustomerReceipt = false,
   } = {}) {
+    pendingChangeConfirmation = null;
     drawerPrewarmToken += 1;
     drawerPrewarm = {
       kind: 'checkout-first-use-textures',
@@ -3984,12 +4038,34 @@ export function createRegisterMode(B) {
       drawScreen();
       return false;
     }
-    if (checkoutFlowState() === 'SelectingChange') {
-      flowTo(
-        'GivingChange',
-        automatic ? 'accessibility-auto-confirmed-exact-change' : 'player-confirmed-monitor-change-total',
-      );
+    const readiness = cashConfirmationReadiness(checkoutFlowState());
+    if (readiness === 'defer') {
+      // The sim-side drawer can be deposited before the authored slide reaches
+      // its open stop. Remember this normal click and replay it once updateDrawer
+      // advances through DepositingCash to SelectingChange. Handing over now
+      // would close the slide while the flow was still DrawerOpening and strand
+      // the later receipt/bag choreography behind an impossible transition.
+      pendingChangeConfirmation = { automatic };
+      const catchup = cashDrawerOpeningCatchupPath(checkoutFlowState());
+      if (!catchup) {
+        pendingChangeConfirmation = null;
+        return false;
+      }
+      for (const next of catchup) {
+        if (!flowTo(next, 'durable-cash-drawer-catch-up')) {
+          pendingChangeConfirmation = null;
+          return false;
+        }
+      }
+      if (!automatic) toast('Drawer is still opening. Change is queued.');
+      return true;
     }
+    if (readiness !== 'ready') return false;
+    pendingChangeConfirmation = null;
+    if (!flowTo(
+      'GivingChange',
+      automatic ? 'accessibility-auto-confirmed-exact-change' : 'player-confirmed-monitor-change-total',
+    )) return false;
     const handed = handOverChange(tx, drawer);
     if (!handed.ok) {
       toast(handed.reason, 'warn');
@@ -4214,12 +4290,15 @@ export function createRegisterMode(B) {
 
   function beginAutomaticReceipt() {
     if (!tx || tx.stage !== 'receipt' || receiptTimer > 0 || autoFulfilled) return false;
-    if (checkoutFlowState() === 'CardApproved') {
-      flowTo('PaymentComplete', 'card-approval-read-on-terminal');
+    const catchup = paidCheckoutCatchupPath(tx.method, checkoutFlowState());
+    if (!catchup) return false;
+    for (const next of catchup) {
+      if (!flowTo(next, `durable-${tx.method}-receipt-catch-up`)) return false;
     }
     if (checkoutFlowState() === 'PaymentComplete') {
       flowTo('ReceiptPrinting', 'automatic-receipt-started');
     }
+    if (checkoutFlowState() !== 'ReceiptPrinting') return false;
     const printed = printReceipt(tx);
     if (!printed.ok && !tx.receiptPrinted) {
       toast(printed.reason, 'warn');
@@ -5281,6 +5360,11 @@ export function createRegisterMode(B) {
     }
     if (checkoutFlowState() === 'DepositingCash' && tx && tx.deposited) {
       flowTo('SelectingChange', 'all-received-cash-secured');
+    }
+    if (checkoutFlowState() === 'SelectingChange' && pendingChangeConfirmation) {
+      const { automatic } = pendingChangeConfirmation;
+      pendingChangeConfirmation = null;
+      confirmChange(automatic);
     }
   }
 

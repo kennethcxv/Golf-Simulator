@@ -257,9 +257,14 @@ export function makeCashierHands(interior) {
       camRight.set(1, 0, 0).applyQuaternion(camQuat).normalize();
       camUp.set(0, 1, 0).applyQuaternion(camQuat).normalize();
       camera.getWorldDirection(camForward).normalize();
-      root.visible = visible || right.shown > 0.02 || left.shown > 0.02;
       updateArm(right, 1, dt, rightTarget, pose, showRight);
       updateArm(left, -1, dt, leftTarget, pose, showLeft);
+      // Derive the parent visibility after the arms consume this frame's
+      // request. updateArm intentionally releases an untargeted hand at the
+      // interaction boundary; computing this before those updates left the
+      // empty parent visible for one frame. That stale flag made the cash bag
+      // handoff report a cashier grip after ownership had reached the customer.
+      root.visible = visible || right.shown > 0.02 || left.shown > 0.02;
     },
     hideImmediately() {
       right.shown = 0;

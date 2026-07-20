@@ -164,3 +164,25 @@ test('a one-handed physical verb hides the untargeted offhand instead of leaving
   assert.equal(rig.root.children[0].visible, false, 'untargeted right arm is fully hidden');
   assert.equal(rig.root.children[1].visible, true, 'targeted left arm remains visible');
 });
+
+test('the cashier root releases on the same frame as the final physical grip', () => {
+  const interior = new THREE.Group();
+  const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.01, 100);
+  camera.position.set(2.78, 1.68, 5.24);
+  camera.lookAt(2.52, 1.04, 4.02);
+  camera.updateMatrixWorld(true);
+  interior.updateMatrixWorld(true);
+
+  const rig = makeCashierHands(interior);
+  rig.update(1, camera, {
+    visible: true,
+    pose: 'hand-bag',
+    leftTarget: new THREE.Vector3(2.20, 1.10, 4.10),
+  });
+  assert.equal(rig.root.visible, true);
+
+  rig.update(1 / 60, camera, { visible: false });
+  assert.equal(rig.root.visible, false, 'no stale parent frame survives customer ownership');
+  assert.equal(rig.root.children[0].visible, false);
+  assert.equal(rig.root.children[1].visible, false);
+});
