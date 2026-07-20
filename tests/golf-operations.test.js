@@ -302,6 +302,24 @@ test('walk-ins consume actual schedule availability and honor lead time and clos
   assert.equal(createWalkInBooking(state, { dayAbs: day + 1, holder: 'Storm Walk In' }).ok, false);
 });
 
+test('walk-in headcounts never invent unrelated named golfers', () => {
+  const state = newGame('relaxed', 9191);
+  const day = today(state);
+  setTime(state, day, 8 * 60);
+  const result = createWalkInBooking(state, {
+    holder: 'Rowan Mercer',
+    partySize: 3,
+    minute: 510,
+  });
+  assert.ok(result.ok, result.reason);
+  assert.deepEqual(result.res.customerNames, [
+    'Rowan Mercer',
+    'Guest 2 of Rowan Mercer',
+    'Guest 3 of Rowan Mercer',
+  ]);
+  assert.equal(new Set(result.res.customerNames).size, 3);
+});
+
 test('no-show fee and slot reopening apply once according to readable policy', () => {
   const state = newGame('relaxed', 913);
   const day = today(state);

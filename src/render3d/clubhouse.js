@@ -36,7 +36,7 @@ import { boxDims, boxKindFor } from '../data/boxes.js';
 import { pickFromShelf, returnToShelf } from '../sim/checkout.js';
 import { addRevenue } from '../sim/economy.js';
 import { tutorialFlag } from '../sim/tutorial.js';
-import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
+import { dueForCheckIn, fmtSlot, reservationById } from '../sim/reservations.js';
 import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel } from './clubhouse/materials.js';
 import { createMerch } from './clubhouse/merch.js';
 import { slotsFor } from '../data/fixtureSlots.js';
@@ -279,30 +279,25 @@ export function makeClubhouse(ctx) {
   addProp({
     x: regWp.x, z: regWp.z, r: 2.2,
     label: () => {
+      // An active merchandise sale keeps the till. Tee service is a separate
+      // transaction type and must never replace or silently finish that sale.
+      const saleLabel = register.label();
+      if (saleLabel) return saleLabel;
       const due = dueForCheckIn(state);
       if (due.length) {
         const r = due[0];
-        return `Register — [E] check in ${r.name} (${fmtSlot(r.minute)} tee, ${Math.round(r.fee)} dollars)`
+        return `Tee desk — [E] serve ${r.reservationHolder} (${r.partySize} players · ${fmtSlot(r.minute)})`
           + (due.length > 1 ? ` · ${due.length - 1} more waiting` : '');
       }
-      const l = register.label();
-      if (l) return l;
-      const s = state.shop;
-      const live = s.salesLive && s.salesLive.units ? ` · today at the counter: ${s.salesLive.units} rung up` : '';
-      return `Register — yesterday: ${s.salesYesterday.units} sales, ${s.salesYesterday.revenue} dollars${live}`;
+      return 'Tee desk — [E] arrivals, check-in & walk-ins';
     },
     action: () => {
-      const due = dueForCheckIn(state);
-      if (due.length) {
-        const res = checkInReservation(state, due[0].id);
-        if (res.ok) {
-          if (hooks.toast) hooks.toast(`${due[0].name} checked in — ${Math.round(res.fee)} dollar green fee collected.`);
-          if (hooks.sfx) hooks.sfx('doorbell');
-        }
+      if (register.hasTx()) {
+        register.enter();
         return;
       }
-      if (register.hasTx()) register.enter();
-      else if (hooks.toast) hooks.toast('Nobody to serve.', 'warn');
+      const due = dueForCheckIn(state);
+      if (hooks.openFrontDesk) hooks.openFrontDesk(due[0]?.id ?? null);
     },
   });
 
@@ -2229,7 +2224,7 @@ export function makeClubhouse(ctx) {
 
   const CUST_NAMES = ['Alex R.', 'Sam T.', 'Jordan M.', 'Casey L.', 'Riley P.', 'Drew H.', 'Morgan W.', 'Quinn B.', 'Jamie F.', 'Robin K.'];
 
-  function spawnCustomer(toCounter = false) {
+  function spawnCustomer(toCounter = false, reservation = null) {
     const rng = rngOf(state);
     // real variety on the floor: builds, trousers, skin tones, hats or hair
     const TROUSERS = [0xc2b190, 0x8a8577, 0x4b545c, 0x6b5a44];
@@ -2289,7 +2284,12 @@ export function makeClubhouse(ctx) {
 
     customers.push({
       mesh: g,
-      name: CUST_NAMES[rng.int(CUST_NAMES.length)],
+      // Golf arrivals are not decorative shoppers: the counter must show the
+      // same stable identity the booking, payment and receipt use.
+      name: reservation?.reservationHolder || CUST_NAMES[rng.int(CUST_NAMES.length)],
+      reservationId: reservation?.id ?? null,
+      partySize: reservation?.partySize ?? 1,
+      partyNames: reservation?.party?.members?.map((member) => member.name) || [],
       stops,
       stopIdx: 0,
       linger: toCounter ? 26 + rng.next() * 10 : 2 + rng.next() * 4,
@@ -2308,7 +2308,7 @@ export function makeClubhouse(ctx) {
       reviewed: false,
       queuedAt: 0,
       queueLenOnArrival: 0,
-      isGolfer: toCounter, // the ones with a tee time actually played the course
+      isGolfer: !!reservation,
     });
     return customers[customers.length - 1];
   }
@@ -2490,12 +2490,52 @@ export function makeClubhouse(ctx) {
   }
 
   const arrivedResIds = new Set();
+  function reservationCustomer(id) {
+    return customers.find((customer) => String(customer.reservationId) === String(id)) || null;
+  }
+
+  function spawnReservationParty(id, options = {}) {
+    const reservation = reservationById(state, id);
+    if (!reservation) return null;
+    const existing = reservationCustomer(id);
+    if (existing) return existing;
+    arrivedResIds.add(reservation.id);
+    const customer = spawnCustomer(true, reservation);
+    if (customer && options.atCounter) {
+      const q = queueSlotW(0);
+      const regW = L2W(REGISTER.scanner.x, COUNTER.z);
+      customer.mesh.position.set(q.x, customer.mesh.position.y, q.z);
+      customer.stops = [
+        { kind: 'counter', x: q.x, z: q.z, faceX: regW.x, faceZ: regW.z },
+        { kind: 'exit', x: doorW.x, z: doorW.z + 2.6 },
+        { kind: 'gone', x: spawnW.x, z: spawnW.z },
+      ];
+      customer.stopIdx = 0;
+      customer.entered = true;
+      customer.rangBell = true;
+    }
+    return customer;
+  }
+
+  function releaseReservationParty(id) {
+    const customer = reservationCustomer(id);
+    if (!customer) return false;
+    const stop = customer.stops[customer.stopIdx];
+    if (stop?.kind === 'counter') {
+      leaveQueue(customer);
+      customer.stopIdx += 1;
+      customer.linger = 0;
+      customer.pathGoal = null;
+      return true;
+    }
+    return false;
+  }
+
   function updateArrivals() {
     if (!state || !state.reservations) return;
     for (const r of dueForCheckIn(state)) {
       if (arrivedResIds.has(r.id)) continue;
-      arrivedResIds.add(r.id);
-      spawnCustomer(true);
+      spawnReservationParty(r.id);
     }
   }
 
@@ -2610,7 +2650,22 @@ export function makeClubhouse(ctx) {
         }
         // the head of the line with a basket waits for the PLAYER to ring
         // them up — patience runs out eventually and the pick goes back
-        if (stop.kind === 'counter' && c.cart.length && counterQueue.indexOf(c) === 0) {
+        if (stop.kind === 'counter' && c.reservationId && counterQueue.indexOf(c) === 0) {
+          const reservation = reservationById(state, c.reservationId);
+          const serviceFinished = !reservation
+            || reservation.checkIn?.status === 'checked-in'
+            || ['cancelled', 'noShow'].includes(reservation.status);
+          if (serviceFinished) {
+            leaveQueue(c);
+            c.stopIdx += 1;
+            c.linger = 0;
+            c.pathGoal = null;
+          } else if (char) {
+            // A reservation party waits for front-desk service, not a random
+            // linger timer and not merchandise-customer patience.
+            char.setMode('Idle');
+          }
+        } else if (stop.kind === 'counter' && c.cart.length && counterQueue.indexOf(c) === 0) {
           if (!c.awaitingCheckout) {
             // they reach the counter and LAY THEIR GOODS OUT on it, one by one
             c.onPaid = () => onCustomerPaid(c);
@@ -2637,7 +2692,10 @@ export function makeClubhouse(ctx) {
           }
         }
         if (stop.faceX !== undefined) {
-          const want = Math.atan2(stop.faceX - c.mesh.position.x, stop.faceZ - c.mesh.position.z);
+          // CharacterAsset's face and shoe toes point down local -Z. Adding PI
+          // makes the body (not its back) face the person or display it is
+          // looking at.
+          const want = Math.atan2(stop.faceX - c.mesh.position.x, stop.faceZ - c.mesh.position.z) + Math.PI;
           let dy = want - c.mesh.rotation.y;
           while (dy > Math.PI) dy -= Math.PI * 2;
           while (dy < -Math.PI) dy += Math.PI * 2;
@@ -2664,7 +2722,7 @@ export function makeClubhouse(ctx) {
         const moved = Math.hypot(res.nx - c.mesh.position.x, res.nz - c.mesh.position.z);
         c.mesh.position.x = res.nx;
         c.mesh.position.z = res.nz;
-        c.mesh.rotation.y = Math.atan2(wdx, wdz);
+        c.mesh.rotation.y = Math.atan2(wdx, wdz) + Math.PI;
         // stuck detection: 1.2s pinned → one repath against the fresh world;
         // 3s pinned → sidestep off whatever is holding them and start over
         if (step > 0.001 && moved < step * 0.25) {
@@ -2798,6 +2856,7 @@ export function makeClubhouse(ctx) {
       // from out here; every verb goes through the module above
       getTx: () => register.getTx(),
       getCustomer: () => register.getCustomer(),
+      cashierPose: () => register.cashierPose(),
     },
     // DIAGNOSTICS. Not a cheat: sendToCounter() puts a shopper at the head of the
     // queue holding goods it took off the shelf through pickFromShelf, exactly as if
@@ -2806,6 +2865,8 @@ export function makeClubhouse(ctx) {
     // through it, because waiting on the RNG to produce a two-item cash customer is
     // not a test, it is a lottery.
     customers: () => customers,
+    spawnReservationParty,
+    releaseReservationParty,
     sendToCounter(skuIds, payMethod = null) {
       const c = spawnCustomer(false);
       if (!c) return null;
