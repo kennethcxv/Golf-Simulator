@@ -158,6 +158,7 @@ function migrateReservation(state, book, reservation, index) {
   reservation.fee = r2(reservation.fee ?? state.club?.greenFee ?? 0);
   reservation.feePerPlayer = r2(reservation.feePerPlayer ?? reservation.fee);
   reservation.walkIn = !!reservation.walkIn;
+  reservation.transport = ['walk', 'ride'].includes(reservation.transport) ? reservation.transport : null;
   reservation.notes = Array.isArray(reservation.notes) ? reservation.notes : [];
 
   if (!reservation.party) {
@@ -653,6 +654,7 @@ export function bookSlot(state, dayAbs, minute, nameOrOptions, maybeOptions = {}
     feePerPlayer,
     status: 'booked',
     walkIn: !!options.walkIn,
+    transport: ['walk', 'ride'].includes(options.transport) ? options.transport : null,
     source: options.source || (options.walkIn ? 'walk-in' : 'player'),
     notes: Array.isArray(options.notes) ? [...options.notes] : (options.notes ? [String(options.notes)] : []),
     payment: paymentShape(total, options),
@@ -1246,6 +1248,7 @@ export function golfOperationsTick(state, targetMinute = nowOf(state)) {
   for (const reservation of reservations) {
     if (checkedIn(reservation)
       && reservation.courseAccess.status === 'granted'
+      && Number.isFinite(reservation.courseAccess.departurePlannedAtMinute)
       && target >= reservation.courseAccess.departurePlannedAtMinute) {
       markCourseDeparture(state, reservation.id, { atMinute: reservation.courseAccess.departurePlannedAtMinute });
       continue;

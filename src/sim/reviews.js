@@ -176,6 +176,110 @@ export function reviewFor(state, visit = {}, seed = 0) {
   return { stars, text, factors, cited, worst, best, day };
 }
 
+// A completed round has stronger evidence than a generic clubhouse visit. These
+// factors read the scorecard, pace clock, course snapshot, practice choice, and
+// assigned cart from the canonical golf-day record. No clause is selected from
+// a facility or event the reviewer did not actually experience.
+export function reviewForCompletedRound(state, round, seed = 0) {
+  const factors = [
+    {
+      id: 'roundScore',
+      label: 'Personal round',
+      weight: 0.85,
+      score: clamp(0.72 - Math.max(-4, Number(round.score) - Number(round.par)) * 0.025, 0.2, 0.92),
+      praise: `I got around in ${round.score}, which made the day`,
+      gripe: `I struggled to a ${round.score}`,
+    },
+    {
+      id: 'roundPace',
+      label: 'Pace of play',
+      weight: 1.45,
+      score: clamp(1 - Number(round.waitingMinutes || 0) / 18, 0, 1),
+      praise: `we kept moving and finished in ${Math.round(round.durationMinutes)} minutes`,
+      gripe: `we spent ${Math.round(round.waitingMinutes)} minutes waiting on groups ahead`,
+    },
+    {
+      id: 'roundCondition',
+      label: 'Playing conditions',
+      weight: 1.35,
+      score: clamp(Number(round.conditionRating || 0) / 100, 0, 1),
+      praise: `the course played well at a ${Math.round(round.conditionRating)} condition rating`,
+      gripe: `the ${Math.round(round.conditionRating)} condition rating showed up in our lies`,
+    },
+  ];
+  if (round.practiceKind) {
+    factors.push({
+      id: 'roundPractice',
+      label: 'Pre-round practice',
+      weight: 0.55,
+      score: 0.86,
+      praise: `the ${round.practiceKind} area was a useful warm-up`,
+      gripe: `the ${round.practiceKind} area did not help us settle in`,
+    });
+  }
+  if (round.transport === 'ride' && round.cartCondition != null) {
+    factors.push({
+      id: 'roundCart',
+      label: 'Golf cart',
+      weight: 0.7,
+      score: clamp(Number(round.cartCondition) / 100, 0, 1),
+      praise: `our cart was ready and in good shape (${Math.round(round.cartCondition)})`,
+      gripe: `our cart felt worn (${Math.round(round.cartCondition)} condition)`,
+    });
+  }
+  if (Number(round.marshalVisits || 0) > 0) {
+    factors.push({
+      id: 'roundMarshal',
+      label: 'Marshal response',
+      weight: 0.65,
+      score: 0.78,
+      praise: 'the marshal checked on the backup instead of ignoring it',
+      gripe: 'the marshal visit came after the pace had already slipped',
+    });
+  }
+
+  const weighted = factors.reduce((sum, factor) => sum + factor.score * factor.weight, 0);
+  const weight = factors.reduce((sum, factor) => sum + factor.weight, 0) || 1;
+  const mean = weighted / weight;
+  const stars = clamp(Math.round(1 + mean * 4), 1, 5);
+  const sorted = [...factors].sort((a, b) => a.score - b.score || a.id.localeCompare(b.id));
+  const bad = sorted.filter((factor) => factor.score < 0.48);
+  const good = sorted.filter((factor) => factor.score > 0.72).reverse();
+  const pickBad = bad.length ? bad[Math.floor(hashPick(seed + 31, bad.length))] : null;
+  const pickGood = good.length ? good[Math.floor(hashPick(seed + 47, good.length))] : null;
+  const cited = [];
+  let text;
+  if (pickGood && pickBad) {
+    cited.push(pickGood, pickBad);
+    text = `${cap(pickGood.praise)}, but ${pickBad.gripe}.`;
+  } else if (pickGood) {
+    cited.push(pickGood);
+    text = `${cap(pickGood.praise)}.`;
+  } else {
+    const focus = pickBad || sorted[Math.floor(sorted.length / 2)];
+    cited.push(focus);
+    text = focus.score < 0.5 ? `${cap(focus.gripe)}.` : `${cap(focus.praise)}.`;
+  }
+  const publicFactors = factors.map(({ id, label, weight: factorWeight, score }) => ({
+    id,
+    label,
+    weight: factorWeight,
+    score,
+  }));
+  const citedIds = new Set(cited.map((factor) => factor.id));
+  const publicCited = publicFactors.filter((factor) => citedIds.has(factor.id));
+  const day = state.clock ? calendarOf(state.clock.minutes).dayAbs : (state.day || 0);
+  return {
+    stars,
+    text,
+    factors: publicFactors,
+    cited: publicCited,
+    worst: publicFactors.find((factor) => factor.id === sorted[0].id),
+    best: publicFactors.find((factor) => factor.id === sorted[sorted.length - 1].id),
+    day,
+  };
+}
+
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function postReview(state, review) {
@@ -185,6 +289,9 @@ export function postReview(state, review) {
     text: review.text,
     day: review.day,
     cited: review.cited.map((c) => c.id),
+    roundId: review.roundId || null,
+    golferId: review.golferId || null,
+    source: review.source || 'visit',
   });
   if (state.club.reviews.length > MAX_REVIEWS) state.club.reviews.length = MAX_REVIEWS;
 

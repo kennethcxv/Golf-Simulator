@@ -29,6 +29,7 @@ import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDai
 import { initTutorial, ensureTutorial } from './tutorial.js';
 import { initLedger, addExpense, closeBooks } from './economy.js';
 import { BALANCE } from './balance.js';
+import { initGolfDay, ensureGolfDay, golfDayTick } from './golfDay.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
@@ -62,6 +63,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   ensureWash(state); // a fixer-upper arrives with a filthy exterior
   ensureProperty(state); // ...and a landlord
   initReservations(state);
+  initGolfDay(state);
   initTractor(state);
   initCourseProps(state);
   initLedger(state);
@@ -83,7 +85,15 @@ export function dailyTick(state) {
   if (state.ledger) {
     accrueDaily(state);
     if (state.shop) shopDailyAccrual(state);
-    if (state.golfers) simulateDayRounds(state, state.club.lastRounds || 0);
+    if (state.golfers) {
+      const closingDay = calendarOf(state.clock.minutes).dayAbs - 1;
+      const livePlayers = (state.golfDay?.completed || [])
+        .filter((round) => round.dayAbs === closingDay)
+        .reduce((sum, round) => sum + Number(round.partySize || 0), 0);
+      // Live rounds have already updated their persistent golfers. The legacy
+      // demand layer only fills the unscheduled/background portion of the gate.
+      simulateDayRounds(state, Math.max(0, (state.club.lastRounds || 0) - livePlayers));
+    }
     if (state.progression) resolveTournamentIfDue(state, calendarOf(state.clock.minutes).dayAbs - 1);
     // the rent falls due whether or not it was a good week; it is announced two days out
     state.lastPropertyEvent = tickProperty(state, calendarOf(state.clock.minutes).dayAbs);
@@ -135,6 +145,7 @@ export function hourlyTick(state, hourOfDay) {
   }
   turfHourlyTick(state, hourOfDay);
   if (state.reservations) golfOperationsTick(state, state.clock.minutes);
+  if (state.golfDay) golfDayTick(state, state.clock.minutes);
 }
 
 export function update(state, gameMinutes) {
@@ -156,6 +167,7 @@ export function update(state, gameMinutes) {
   }
   state.clock.minutes = target;
   if (state.reservations) golfOperationsTick(state, target);
+  if (state.golfDay) golfDayTick(state, target);
   return { daysPassed };
 }
 
@@ -195,6 +207,7 @@ export function snapshot(state) {
     ledger: state.ledger,
     shop: state.shop,
     reservations: state.reservations,
+    golfDay: state.golfDay,
     tractor: state.tractor,
     props: state.props,
     progression: state.progression,
@@ -289,6 +302,8 @@ export function deserialize(json) {
   ensureProperty(state); // pre-rent saves gain a schedule rather than a free ride
   if (raw.reservations) state.reservations = raw.reservations;
   ensureReservations(state); // pre-booking saves gain an empty tee sheet
+  if (raw.golfDay) state.golfDay = raw.golfDay;
+  ensureGolfDay(state, { restoring: true }); // resume stable states; replay transient shots safely
   if (raw.tractor) state.tractor = raw.tractor;
   ensureTractor(state, { legacyRepaired: true }); // old saves keep their working tractor
   if (raw.props) state.props = raw.props;
