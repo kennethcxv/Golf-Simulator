@@ -1,0 +1,236 @@
+{
+  "generatedAt": "2026-07-20T06:47:13.715Z",
+  "base": "0c5137e5f0efac9627ce2309b9e66936f1eeb769",
+  "branchCount": 7,
+  "overlappingFileCount": 17,
+  "overlaps": [
+    {
+      "file": "ASSET_SOURCES.md",
+      "branches": [
+        "overnight/furniture-customization",
+        "overnight/course-maintenance"
+      ],
+      "classification": [
+        "Compatible additive change"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/main.js",
+      "branches": [
+        "overnight/furniture-customization",
+        "overnight/inventory-delivery-loop",
+        "overnight/course-maintenance",
+        "overnight/golf-operations",
+        "overnight/economy-progression",
+        "overnight/player-experience-polish"
+      ],
+      "classification": [
+        "Shared API conflict",
+        "State ownership conflict",
+        "Input conflict",
+        "Save-schema conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/render3d/clubhouse.js",
+      "branches": [
+        "overnight/furniture-customization",
+        "overnight/inventory-delivery-loop",
+        "overnight/customer-simulation",
+        "overnight/golf-operations",
+        "overnight/economy-progression"
+      ],
+      "classification": [
+        "Shared API conflict",
+        "State ownership conflict",
+        "Performance conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/render3d/clubhouse/buildMode.js",
+      "branches": [
+        "overnight/furniture-customization",
+        "overnight/player-experience-polish"
+      ],
+      "classification": [
+        "Input conflict",
+        "UI conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/render3d/clubhouse/registerMode.js",
+      "branches": [
+        "overnight/golf-operations",
+        "overnight/economy-progression"
+      ],
+      "classification": [
+        "Shared API conflict",
+        "State ownership conflict",
+        "Input conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/render3d/courseScene.js",
+      "branches": [
+        "overnight/inventory-delivery-loop",
+        "overnight/course-maintenance",
+        "overnight/player-experience-polish"
+      ],
+      "classification": [
+        "Shared API conflict",
+        "Performance conflict",
+        "Audio conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/sim/checkout.js",
+      "branches": [
+        "overnight/inventory-delivery-loop",
+        "overnight/economy-progression"
+      ],
+      "classification": [
+        "State ownership conflict",
+        "Shared API conflict",
+        "Save-schema conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/sim/economy.js",
+      "branches": [
+        "overnight/golf-operations",
+        "overnight/economy-progression"
+      ],
+      "classification": [
+        "State ownership conflict",
+        "Shared API conflict",
+        "Save-schema conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/sim/reservations.js",
+      "branches": [
+        "overnight/customer-simulation",
+        "overnight/golf-operations",
+        "overnight/economy-progression"
+      ],
+      "classification": [
+        "State ownership conflict",
+        "Shared API conflict",
+        "Save-schema conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/sim/reviews.js",
+      "branches": [
+        "overnight/customer-simulation",
+        "overnight/economy-progression"
+      ],
+      "classification": [
+        "State ownership conflict",
+        "Shared API conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/sim/shop.js",
+      "branches": [
+        "overnight/inventory-delivery-loop",
+        "overnight/economy-progression"
+      ],
+      "classification": [
+        "State ownership conflict",
+        "Shared API conflict",
+        "Save-schema conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/sim/state.js",
+      "branches": [
+        "overnight/inventory-delivery-loop",
+        "overnight/customer-simulation",
+        "overnight/course-maintenance",
+        "overnight/golf-operations",
+        "overnight/economy-progression"
+      ],
+      "classification": [
+        "Save-schema conflict",
+        "State ownership conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/styles.css",
+      "branches": [
+        "overnight/furniture-customization",
+        "overnight/course-maintenance",
+        "overnight/golf-operations",
+        "overnight/economy-progression",
+        "overnight/player-experience-polish"
+      ],
+      "classification": [
+        "UI conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/ui/laptop.js",
+      "branches": [
+        "overnight/inventory-delivery-loop",
+        "overnight/golf-operations",
+        "overnight/economy-progression",
+        "overnight/player-experience-polish"
+      ],
+      "classification": [
+        "UI conflict",
+        "Shared API conflict",
+        "Performance conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/ui/marketplacePanel.js",
+      "branches": [
+        "overnight/economy-progression",
+        "overnight/player-experience-polish"
+      ],
+      "classification": [
+        "UI conflict",
+        "Shared API conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "src/ui/ui.js",
+      "branches": [
+        "overnight/economy-progression",
+        "overnight/player-experience-polish"
+      ],
+      "classification": [
+        "UI conflict",
+        "Shared API conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    },
+    {
+      "file": "tools/qa/register-sale.js",
+      "branches": [
+        "overnight/inventory-delivery-loop",
+        "overnight/customer-simulation"
+      ],
+      "classification": [
+        "Test conflict"
+      ],
+      "resolutionStatus": "Pending integration review"
+    }
+  ]
+}
