@@ -49,7 +49,7 @@ function grimeSheet(w, h, heavy, seed) {
   const cv = document.createElement('canvas');
   cv.width = w;
   cv.height = h;
-  const c = cv.getContext('2d');
+  const c = cv.getContext('2d', { willReadFrequently: true });
   let s = seed * 9301 + 49297;
   const rnd = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
 
@@ -114,12 +114,12 @@ export function buildWashing(B) {
     const maskCv = document.createElement('canvas'); // the mask, at cell resolution
     maskCv.width = gw;
     maskCv.height = gh;
-    const maskCtx = maskCv.getContext('2d');
+    const maskCtx = maskCv.getContext('2d', { willReadFrequently: true });
 
     const outCv = document.createElement('canvas');
     outCv.width = W;
     outCv.height = H;
-    const outCtx = outCv.getContext('2d');
+    const outCtx = outCv.getContext('2d', { willReadFrequently: true });
 
     const tex = new THREE.CanvasTexture(outCv);
     tex.colorSpace = THREE.SRGBColorSpace;

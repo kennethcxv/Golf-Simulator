@@ -129,11 +129,11 @@ function hatLane(skuId) {
   const h = HOME.get(skuId);
   const lanes = Math.max(1, h ? h.lanes : 1);
   const lane = h ? h.lane : 0;
-  const total = lanes * 6;
+  const total = lanes * 4;
   const out = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 4; i++) {
     const p = lane + i * lanes;
-    const tier = Math.floor(p / 6);
+    const tier = Math.floor(p / 4);
     const a = (p / total) * Math.PI * 2;
     out.push({ x: Math.sin(a) * 0.30, y: 1.02 + tier * 0.36, z: Math.cos(a) * 0.30, ry: a });
   }
@@ -159,7 +159,7 @@ function apparelWall(skuId) {
   const cx = laneX(skuId, 2.8);
   const out = [];
   for (const y of SHELF_BOARDS) {
-    for (const dx of [-0.12, 0.12]) out.push({ x: cx + dx, y: y + 0.10, z: 0.10, folded: true });
+    for (const dx of [-0.12, 0.12]) out.push({ x: cx + dx, y: y + 0.10, z: 0.10, folded: true, wall: true });
   }
   return out;
 }
@@ -286,10 +286,21 @@ function narrowColumn(skuId, { usable = 0.72, ys = [0.35, 0.70, 1.05, 1.40], z =
   return ys.map((y, i) => ({ x: cx, y, z, ry: (i % 2) * 0.04 - 0.02 }));
 }
 
+// Compact food and drink fixtures need two honest facings per line on every
+// tier. Six products across reads like a stocked cold case/rack while every
+// visible unit still maps one-to-one to sellable inventory.
+function narrowFacings(skuId, options = {}) {
+  const { usable = 0.72, ys = [0.35, 0.70, 1.05, 1.40], z = 0.08, spread = 0.055 } = options;
+  const cx = laneX(skuId, usable);
+  return ys.flatMap((y, row) => [-spread, spread].map((dx, col) => ({
+    x: cx + dx, y, z, ry: (row + col) % 2 ? 0.025 : -0.025,
+  })));
+}
+
 function scorecardStacks() {
   const out = [];
   for (const x of [-0.22, 0, 0.22]) {
-    for (let i = 0; i < 4; i++) out.push({ x, y: 0.69 + i * 0.035, z: 0.04, ry: (i % 2) * 0.025 });
+    for (let i = 0; i < 4; i++) out.push({ x, y: 0.84, z: -0.10 + i * 0.07, ry: (i - 1.5) * 0.035 });
   }
   return out;
 }
@@ -332,12 +343,12 @@ const BUILD = {
   bag3: bagLane,
 
   // refreshments and the scorecard / membership station
-  water1: (id) => narrowColumn(id),
-  sportdrink2: (id) => narrowColumn(id),
-  soda1: (id) => narrowColumn(id),
-  chips1: (id) => narrowColumn(id, { usable: 1.25, ys: [0.28, 0.55, 0.82, 1.09], z: 0.06 }),
-  bar2: (id) => narrowColumn(id, { usable: 1.25, ys: [0.28, 0.55, 0.82, 1.09], z: 0.06 }),
-  crackers1: (id) => narrowColumn(id, { usable: 1.25, ys: [0.28, 0.55, 0.82, 1.09], z: 0.06 }),
+  water1: (id) => narrowFacings(id, { z: 0.27 }),
+  sportdrink2: (id) => narrowFacings(id, { z: 0.27 }),
+  soda1: (id) => narrowFacings(id, { z: 0.27 }),
+  chips1: (id) => narrowFacings(id, { usable: 1.25, ys: [0.28, 0.55, 0.82, 1.09], z: 0.06, spread: 0.09 }),
+  bar2: (id) => narrowFacings(id, { usable: 1.25, ys: [0.28, 0.55, 0.82, 1.09], z: 0.06, spread: 0.09 }),
+  crackers1: (id) => narrowFacings(id, { usable: 1.25, ys: [0.28, 0.55, 0.82, 1.09], z: 0.06, spread: 0.09 }),
   scorecard1: scorecardStacks,
 };
 

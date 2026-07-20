@@ -7,6 +7,8 @@ const ROOT = path.resolve(import.meta.dirname, '..', '..');
 const PASS = process.argv.find((arg) => arg.startsWith('--pass='))?.slice(7) || 'baseline';
 const PORT = Number(process.argv.find((arg) => arg.startsWith('--port='))?.slice(7) || 8457);
 const VIDEO = process.argv.includes('--video');
+const RENOVATED = process.argv.includes('--renovated');
+const HARDWARE = process.argv.includes('--hardware');
 const CAPTURE = !process.argv.includes('--perf-only');
 const PERFORMANCE = !process.argv.includes('--capture-only');
 const CAPTURE_START = CAPTURE && !process.argv.includes('--full-only');
@@ -16,24 +18,30 @@ const BASE_URL = `http://localhost:${PORT}/`;
 const VIEWPORT = { width: 1600, height: 900 };
 const CHROME = process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 
-const SHOTS = [
+const ALL_SHOTS = [
   { id: '01-entrance', at: [-0.8, 5.2], to: [-1.2, -2.0], pitch: -0.05 },
   { id: '02-checkout-customer', at: [0.5, 2.3], to: [2.9, 4.5], pitch: -0.10 },
   { id: '03-checkout-employee', at: [2.8, 5.1], to: [2.7, 4.0], pitch: -0.18 },
   { id: '04-center-aisle', at: [-0.8, 2.4], to: [-0.8, -5.4], pitch: -0.03 },
   { id: '05-club-displays', at: [-6.3, -0.2], to: [-9.9, -0.4], pitch: 0.02 },
   { id: '06-clothing', at: [-4.0, 3.4], to: [-5.0, 0.2], pitch: -0.02 },
-  { id: '07-shoes', at: [2.3, 1.7], to: [5.1, -0.6], pitch: -0.02 },
-  { id: '08-hats', at: [-1.8, -0.8], to: [-3.4, -1.6], pitch: -0.03 },
-  { id: '09-bags', at: [0.4, -0.5], to: [2.2, -2.6], pitch: -0.04 },
+  { id: '07-shoes', at: [2.4, 0.3], to: [5.1, -0.6], pitch: -0.02 },
+  { id: '08-hats', at: [-0.2, -3.8], to: [1.55, -5.9], pitch: -0.03 },
+  { id: '09-bags', at: [0.2, -0.8], to: [2.2, -2.65], pitch: -0.04 },
   { id: '10-accessories', at: [-3.7, -3.7], to: [-3.7, -6.15], pitch: 0.01 },
-  { id: '11-snacks-drinks', at: [0.2, 1.3], to: [3.9, 3.9], pitch: -0.02 },
+  { id: '11-snacks-drinks', at: [4.25, 3.35], to: [4.55, 1.50], pitch: -0.04 },
   { id: '12-office', at: [7.2, 4.3], to: [9.55, 4.5], pitch: -0.06 },
   { id: '13-stockroom', at: [7.4, -2.3], to: [8.1, -5.9], pitch: -0.04 },
-  { id: '14-fitting-area', at: [3.6, 1.4], to: [5.5, 0.3], pitch: -0.03 },
-  { id: '15-lounge', at: [1.3, -3.3], to: [4.3, -5.3], pitch: -0.03 },
+  { id: '14-fitting-area', at: [1.6, -0.5], to: [4.6, -2.1], pitch: -0.03 },
+  { id: '15-lounge', at: [1.0, -3.8], to: [4.9, -5.2], pitch: -0.03 },
   { id: '16-exterior-window', world: true, at: [-1.5, 243.5], to: [-8.5, 231.0], pitch: 0.03 },
+  { id: '17-putting-studio', at: [-3.8, 4.2], to: [-7.0, 4.95], pitch: -0.12 },
+  { id: '18-tour-vault', at: [2.3, -4.0], to: [5.25, -5.2], pitch: -0.04 },
 ];
+const shotArg = process.argv.find((arg) => arg.startsWith('--shots='))?.slice(8);
+const shotIds = shotArg ? new Set(shotArg.split(',').map((id) => id.trim())) : null;
+const SHOTS = shotIds ? ALL_SHOTS.filter((shot) => shotIds.has(shot.id)) : ALL_SHOTS;
+if (!SHOTS.length) throw new Error(`No fixed cameras matched --shots=${shotArg}`);
 
 await mkdir(OUT, { recursive: true });
 await mkdir(path.join(OUT, 'starting-state'), { recursive: true });
@@ -43,7 +51,7 @@ await mkdir(path.join(OUT, 'video'), { recursive: true });
 const browser = await chromium.launch({
   executablePath: CHROME,
   headless: true,
-  args: ['--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'],
+  args: [HARDWARE ? '--use-angle=d3d11' : '--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'],
 });
 
 const context = await browser.newContext({
@@ -140,11 +148,16 @@ async function captureSet(folder) {
 }
 
 async function setStock(mode, tier) {
-  return page.evaluate(async ({ mode: stockMode, tier: shopTier }) => {
+  return page.evaluate(async ({ mode: stockMode, tier: shopTier, renovated }) => {
     const { capacityOf } = await import('/src/data/fixtureSlots.js');
     const { skuById, RETAIL_CATS } = await import('/src/data/shopItems.js');
     const app = window.__fw;
     app.state.shop.unlockedTier = shopTier;
+    if (renovated && stockMode === 'full' && app.state.shop.reno) {
+      app.state.shop.reno.grime.fill(0);
+      for (const pile of app.state.shop.reno.clutter) pile.cleared = true;
+      app.scene3d.clubhouse().rebuildReno();
+    }
     let lines = 0;
     let units = 0;
     for (const [id, inventory] of Object.entries(app.state.shop.inventory)) {
@@ -157,7 +170,7 @@ async function setStock(mode, tier) {
     }
     app.scene3d.clubhouse().rebuildStock();
     return { tier: shopTier, lines, units };
-  }, { mode, tier });
+  }, { mode, tier, renovated: RENOVATED });
 }
 
 async function measureFrames(label, seconds = 6) {
@@ -294,6 +307,21 @@ if (PERFORMANCE) {
 }
 
 const stock = await setStock('full', 3);
+await page.waitForTimeout(1_800); // tier change relays premium fixtures on the scene poll
+const stockDiagnostics = await page.evaluate(() => {
+  const root = window.__fw.scene3d.scene.getObjectByName('shop-stock');
+  if (!root) return [];
+  return root.children.filter((child) => child.name).map((child) => {
+    let meshes = 0;
+    let vertices = 0;
+    child.traverse((object) => {
+      if (!object.isMesh) return;
+      meshes += 1;
+      vertices += object.geometry?.attributes?.position?.count || 0;
+    });
+    return { name: child.name, meshes, vertices, visible: child.visible };
+  });
+});
 if (CAPTURE_FULL) {
   console.log(`[${PASS}] capture fully stocked`);
   await captureSet('fully-stocked');
@@ -337,8 +365,11 @@ const report = {
   captureStartEnabled: CAPTURE_START,
   captureFullEnabled: CAPTURE_FULL,
   performanceEnabled: PERFORMANCE,
+  renovated: RENOVATED,
+  hardwareAcceleration: HARDWARE,
   startingState,
   stock,
+  stockDiagnostics,
   customersSpawned: spawned,
   cameras: SHOTS,
   metrics,

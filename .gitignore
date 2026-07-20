@@ -6,3 +6,5 @@ out/
 Thumbs.db
 .playwright-mcp/
 /qa/
+__pycache__/
+*.py[cod]

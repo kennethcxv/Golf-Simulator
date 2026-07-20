@@ -25,7 +25,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const FILES = [
   // goods
-  'polo_hanging', 'polo_folded', 'jacket_hanging', 'glove', 'shoe', 'bag',
+  'polo_hanging', 'polo_folded', 'jacket_hanging', 'glove', 'shoe', 'bag', 'bag_empty',
   'head_driver', 'head_iron', 'head_wedge', 'head_putter', 'cap',
   // furniture + operational kit (tools/blender/build_props.py)
   'chair_lounge', 'chair_office', 'trophy',
@@ -33,6 +33,10 @@ const FILES = [
   'carton', 'carton_open', 'handtruck', 'pendant',
   // the register kit a cashier's hands touch (tools/blender/build_register.py)
   'basket', 'bag_open', 'impulse_rack', 'divider',
+  // project-owned pro-shop fixture pack (tools/blender/build_shop_fixtures.py)
+  'club_wall_bay', 'pegboard_wall', 'apparel_wall', 'feature_table',
+  'fitting_room', 'drinks_fridge', 'snack_rack', 'service_station',
+  'premium_case', 'putting_demo',
 ];
 
 // Textured HERO props (Tripo scans, normalised by tools/blender/process_tripo.py).
@@ -66,6 +70,11 @@ const SLOT = {
   M_paper: 'trimPaint',
   M_glass: 'glass',
   M_screen: 'charcoal',   // the live screens get their own canvas material
+  // shop fixture pack
+  M_oak: 'rawWood',
+  M_green: 'feltGreen',
+  M_sage: 'sageFabric',
+  M_cream: 'trimPaint',
 };
 
 // The slots that take a per-item colour. A polo's body is fabric; a golf shoe's

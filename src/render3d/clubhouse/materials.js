@@ -48,7 +48,7 @@ function finish(canvas, { srgb = true, repeat = true } = {}) {
 
 function luminance(canvas) {
   const { width: w, height: h } = canvas;
-  const data = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+  const data = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h).data;
   const lum = new Float32Array(w * h);
   for (let i = 0; i < w * h; i++) {
     lum[i] = (0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2]) / 255;
@@ -63,7 +63,7 @@ export function normalFrom(canvas, strength = 2.2) {
   const h = canvas.height;
   const lum = luminance(canvas);
   const out = makeCanvas(w, h);
-  const ctx = out.getContext('2d');
+  const ctx = out.getContext('2d', { willReadFrequently: true });
   const img = ctx.createImageData(w, h);
   const at = (x, y) => lum[((y % h) + h) % h * w + (((x % w) + w) % w)];
   for (let y = 0; y < h; y++) {
@@ -95,7 +95,7 @@ export function roughnessFrom(canvas, lo = 0.34, hi = 0.62, invert = false) {
   const h = canvas.height;
   const lum = luminance(canvas);
   const out = makeCanvas(w, h);
-  const ctx = out.getContext('2d');
+  const ctx = out.getContext('2d', { willReadFrequently: true });
   const img = ctx.createImageData(w, h);
   for (let i = 0; i < w * h; i++) {
     const t = invert ? lum[i] : 1 - lum[i];
@@ -114,7 +114,7 @@ export function roughnessFrom(canvas, lo = 0.34, hi = 0.62, invert = false) {
 export function makePaintTexture({ seed = 11, base = '#f5f2e6', grain = 0.05 } = {}) {
   const size = 256;
   const c = makeCanvas(size);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   const r = rng(seed);
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, size, size);
@@ -141,7 +141,7 @@ export function makePaintTexture({ seed = 11, base = '#f5f2e6', grain = 0.05 } =
 // object 43 mm across, so they go in the normal map, where they cost nothing.
 export function makeDimpleTexture({ size = 256, rows = 14 } = {}) {
   const c = makeCanvas(size);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, size, size);
   const step = size / rows;
@@ -168,7 +168,7 @@ export function makeDimpleTexture({ size = 256, rows = 14 } = {}) {
 export function makeBrushedTexture({ seed = 23, base = '#c9a227', hi = '#e6c65a', lo = '#8e6f18' } = {}) {
   const size = 256;
   const c = makeCanvas(size);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   const r = rng(seed);
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, size, size);
@@ -231,7 +231,7 @@ export function roundedBox(w, h, d, r = 0.025, uvWorld = 1.6) {
 export function makeWalnutTexture({ seed = 61, base = '#4a3524', hi = '#5d4430', lo = '#3a2919' } = {}) {
   const size = 512;
   const c = makeCanvas(size);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   const r = rng(seed);
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, size, size);
@@ -276,7 +276,7 @@ export function makeWalnutTexture({ seed = 61, base = '#4a3524', hi = '#5d4430',
 export function makeOakFloorTexture({ seed = 71 } = {}) {
   const size = 512;
   const c = makeCanvas(size);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   const r = rng(seed);
   const tones = ['#bf9057', '#c79a63', '#b3854e', '#cba26c', '#ba8b52'];
   ctx.fillStyle = '#bd8f58';
@@ -328,7 +328,7 @@ export function makeOakFloorTexture({ seed = 71 } = {}) {
 export function makeSidingTexture({ seed = 47, base = '#e9e2cc' } = {}) {
   const size = 256;
   const c = makeCanvas(size);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   const r = rng(seed);
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, size, size);
@@ -352,7 +352,7 @@ export function makeSidingTexture({ seed = 47, base = '#e9e2cc' } = {}) {
 export function makePlasterCreamTexture({ seed = 41, base = '#efe9d9' } = {}) {
   const size = 256;
   const c = makeCanvas(size);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   const r = rng(seed);
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, size, size);
@@ -376,7 +376,7 @@ export function makePlasterCreamTexture({ seed = 41, base = '#efe9d9' } = {}) {
 export function makeConcreteTexture({ seed = 83 } = {}) {
   const size = 256;
   const c = makeCanvas(size);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   const r = rng(seed);
   ctx.fillStyle = '#a8a49b';
   ctx.fillRect(0, 0, size, size);
@@ -400,7 +400,7 @@ export function makeConcreteTexture({ seed = 83 } = {}) {
 export function makeLeatherTexture({ seed = 97, base = '#9a5f33', lo = '#7c4a26', hi = '#b3763f' } = {}) {
   const size = 256;
   const c = makeCanvas(size);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   const r = rng(seed);
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, size, size);
@@ -426,7 +426,7 @@ export function makeLeatherTexture({ seed = 97, base = '#9a5f33', lo = '#7c4a26'
 export function makeFabricTexture({ seed = 53, base = '#57795c', weft = '#4a6a50', warp = '#63866a' } = {}) {
   const size = 128;
   const c = makeCanvas(size);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   const r = rng(seed);
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, size, size);
@@ -448,7 +448,7 @@ export function makeFabricTexture({ seed = 53, base = '#57795c', weft = '#4a6a50
 export function makeKraftTexture({ seed = 29 } = {}) {
   const size = 256;
   const c = makeCanvas(size);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   const r = rng(seed);
   ctx.fillStyle = '#b98d5e';
   ctx.fillRect(0, 0, size, size);
@@ -467,7 +467,7 @@ export function makeKraftTexture({ seed = 29 } = {}) {
 // The club rug: deep green field, double gold border, pine mark + club name.
 export function makeRugTexture(clubName = 'PINE HOLLOW', { w = 512, h = 384 } = {}) {
   const c = makeCanvas(w, h);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   ctx.fillStyle = '#1f4a26';
   ctx.fillRect(0, 0, w, h);
   // carpet weave noise
@@ -510,7 +510,7 @@ export function makeRugTexture(clubName = 'PINE HOLLOW', { w = 512, h = 384 } = 
 // SKU-tier; meshes share the texture.
 export function makeProductLabel({ brand = 'FAIRWAY SUPPLY', name = 'TOUR SOFT', field = '#f4f0e6', band = '#1f4a26', ink = '#23262b', glyph = 'ball' } = {}) {
   const c = makeCanvas(128, 96);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   ctx.fillStyle = field;
   ctx.fillRect(0, 0, 128, 96);
   ctx.fillStyle = band;
@@ -544,7 +544,7 @@ export function makeSignTexture(lines, {
   frame = true, pine = false, sizes = null,
 } = {}) {
   const c = makeCanvas(w, h);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { willReadFrequently: true });
   ctx.fillStyle = field;
   ctx.fillRect(0, 0, w, h);
   if (frame) {

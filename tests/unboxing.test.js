@@ -21,6 +21,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame } from '../src/sim/state.js';
 import { skuById } from '../src/data/shopItems.js';
+import { capacityOf } from '../src/data/fixtureSlots.js';
 import {
   boxesOf, arriveOrder, pickUpBox, putDownBox, carriedBox,
   cutTape, openFlap, takeFromBox, flattenBox, recycleBox,
@@ -212,8 +213,10 @@ test('a fixture takes what belongs on it, and tells you where the rest goes', ()
 
   const right = stockFixture(st, 'hatstand', 99);
   assert.ok(right.ok);
-  assert.equal(right.moved, armfulOf(skuById('cap1')));
+  assert.equal(right.moved, Math.min(armfulOf(skuById('cap1')), capacityOf('cap1')));
   assert.equal(st.shop.inventory.cap1.shelf, right.moved);
+  assert.equal(carriedGoods(st).qty, armfulOf(skuById('cap1')) - right.moved,
+    'the authored four-cap facing leaves the overflow in your hands');
   assert.equal(homeOf('cap1').id, 'hatstand');
 });
 

@@ -31,15 +31,38 @@ function lightStrip(mats, w) {
 }
 
 function categorySign(title, { w = 1.5, h = 0.26, charcoal = false } = {}) {
+  const text = title.toUpperCase();
+  const fontSize = text.length > 18 ? 30 : text.length > 13 ? 36 : 44;
   const tex = makeSignTexture([title.toUpperCase()], {
     w: 512, h: 128, frame: false,
     field: charcoal ? '#23262b' : '#f4f0e6',
     ink: charcoal ? '#c9a227' : '#1f4a26',
-    sizes: [54],
+    sizes: [fontSize],
   });
   return new THREE.Mesh(
     new THREE.PlaneGeometry(w, h),
     new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }),
+  );
+}
+
+function priceRail(f, { w = 2.6, h = 0.20 } = {}) {
+  const entries = (f.skus || []).map((id) => {
+    const sku = skuById(id);
+    if (!sku) return null;
+    const words = sku.name.split(/\s+/)[0];
+    return `${words.toUpperCase()}  $${sku.msrp}`;
+  }).filter(Boolean);
+  if (!entries.length) return null;
+  const rows = entries.length <= 3
+    ? [entries.join('  ·  ')]
+    : [entries.slice(0, Math.ceil(entries.length / 2)).join('  ·  '), entries.slice(Math.ceil(entries.length / 2)).join('  ·  ')];
+  const tex = makeSignTexture(rows, {
+    w: 1024, h: rows.length > 1 ? 160 : 96, frame: false,
+    field: '#f4f0e6', ink: '#28362b', sizes: rows.map(() => entries.length > 6 ? 23 : 28),
+  });
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.84 }),
   );
 }
 
@@ -145,6 +168,33 @@ export function buildFixtures(B) {
   }
   let stockRate = 0;
 
+  // Blender-authored fixture shell. The collider remains data-owned, while the
+  // visible object comes from the repeatable fixture pack. Loading is async, so
+  // the anchor exists immediately and the model drops into the same transform.
+  function assetUnit(f, model, {
+    w, d, sign = null, signY = 2.05, signZ = null, signW = 1.5, signH = 0.24,
+    charcoal = false, priceY = 0.23, priceZ = null, priceW = null,
+  }) {
+    const g = new THREE.Group();
+    if (merch) merch.onReady(() => {
+      const obj = merch.instantiate(model);
+      if (obj) g.add(obj);
+    });
+    if (sign) {
+      const board = categorySign(sign, { w: signW, h: signH, charcoal });
+      board.position.set(0, signY, signZ == null ? d / 2 + 0.015 : signZ);
+      g.add(board);
+    }
+    const prices = priceRail(f, { w: priceW || Math.max(0.68, w * 0.86), h: f.skus.length > 3 ? 0.22 : 0.18 });
+    if (prices) {
+      prices.position.set(0, priceY, priceZ == null ? d / 2 + 0.02 : priceZ);
+      g.add(prices);
+    }
+    const swap = Math.abs(Math.sin(f.ry || 0)) > 0.5;
+    addCol(colBoxAt(f.x, f.z, swap ? d : w, swap ? w : d));
+    return g;
+  }
+
   // ------------------------------------------------------------ wall unit ---
   function shelfUnit(f) {
     const g = new THREE.Group();
@@ -184,6 +234,8 @@ export function buildFixtures(B) {
     const sign = categorySign(f.title);
     sign.position.set(0, 2.05, 0.255);
     g.add(sign);
+    const prices = priceRail(f);
+    if (prices) { prices.position.set(0, 0.25, 0.31); g.add(prices); }
     const w = Math.abs(f.ry % Math.PI) < 0.1 ? 3.0 : 0.5;
     const d = Math.abs(f.ry % Math.PI) < 0.1 ? 0.5 : 3.0;
     addCol(colBoxAt(f.x, f.z, w + 0.2, d + 0.2));
@@ -192,6 +244,11 @@ export function buildFixtures(B) {
 
   // ----------------------------------------------------------- club bay -----
   function rackUnit(f) {
+    return assetUnit(f, 'club_wall_bay', {
+      w: 3.0, d: 0.9, sign: f.title, signY: 2.27, signZ: 0.36,
+      signW: 1.9, signH: 0.30, charcoal: true,
+    });
+    /* istanbul ignore next -- procedural predecessor retained as a load-bearing design reference */
     const g = new THREE.Group();
     // tall framed back
     const back = new THREE.Mesh(new THREE.BoxGeometry(2.9, 2.35, 0.06), mats.walnutDark);
@@ -244,6 +301,10 @@ export function buildFixtures(B) {
 
   // ------------------------------------------------------- nesting tables ---
   function tableUnit(f) {
+    return assetUnit(f, 'feature_table', {
+      w: 2.4, d: 1.44, priceY: 0.65, priceZ: 0.57, priceW: 1.82,
+    });
+    /* istanbul ignore next -- procedural predecessor retained as a surface-height reference */
     const g = new THREE.Group();
     const top = new THREE.Mesh(roundedBox(2.2, 0.09, 1.4, 0.025), mats.walnut);
     top.position.y = 0.96;
@@ -343,6 +404,12 @@ export function buildFixtures(B) {
       peg.position.set(Math.sin(a) * 0.15, py, Math.cos(a) * 0.15);
       g.add(peg);
     }
+    const sign = categorySign(f.sign || f.title, { w: 0.78, h: 0.18 });
+    sign.position.set(0, 1.82, 0);
+    sign.rotation.y = Math.PI / 10;
+    g.add(sign);
+    const prices = priceRail(f, { w: 0.72, h: 0.18 });
+    if (prices) { prices.position.set(0, 0.48, 0.36); g.add(prices); }
     addCol(colBoxAt(f.x, f.z, 0.8, 0.8));
     return g;
   }
@@ -373,6 +440,8 @@ export function buildFixtures(B) {
     const sign = categorySign(f.title, { w: 1.0, h: 0.2 });
     sign.position.set(0, 1.16, -0.45);
     g.add(sign);
+    const prices = priceRail(f, { w: 2.2 });
+    if (prices) { prices.position.set(0, 0.34, 0.66); g.add(prices); }
     addCol(colBoxAt(f.x, f.z, 2.6, 1.3));
     return g;
   }
@@ -396,6 +465,8 @@ export function buildFixtures(B) {
     const sign = categorySign(f.title);
     sign.position.set(0, 1.88, 0.2);
     g.add(sign);
+    const prices = priceRail(f, { w: 2.4 });
+    if (prices) { prices.position.set(0, 0.18, 0.245); g.add(prices); }
     // angled shoe boards (merch contract y) with lips + light strips
     for (const y of [0.35, 0.85, 1.35]) {
       const board = new THREE.Mesh(roundedBox(2.6, 0.04, 0.44, 0.012), mats.walnut);
@@ -412,35 +483,13 @@ export function buildFixtures(B) {
     }
     const swap = Math.abs(Math.sin(f.ry)) > 0.5;
     addCol(colBoxAt(f.x, f.z, swap ? 0.7 : 2.9, swap ? 2.9 : 0.7));
-    // fitting bench + mirror beside the rack
-    const benchG = new THREE.Group();
-    const cushion = new THREE.Mesh(roundedBox(1.1, 0.14, 0.42, 0.05), mats.sageFabric);
-    cushion.position.y = 0.38;
-    const benchBody = new THREE.Mesh(roundedBox(1.1, 0.3, 0.42, 0.02), mats.walnut);
-    benchBody.position.y = 0.16;
-    benchBody.castShadow = true;
-    benchG.add(benchBody, cushion);
-    const bwp = { x: f.x - (swap ? 1.2 : 0), z: f.z + (swap ? 2.1 : 1.2) };
-    benchG.position.set(bwp.x - f.x, 0, bwp.z - f.z);
-    g.add(benchG);
-    addCol(colBoxAt(bwp.x, bwp.z, 1.2, 0.5));
-    const mirror = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.55, 1.55),
-      new THREE.MeshStandardMaterial({ color: 0xdfe9ee, roughness: 0.05, metalness: 0.9 }),
-    );
-    mirror.position.set(0, 1.15, -0.19);
-    const mirrorFrame = new THREE.Mesh(roundedBox(0.68, 1.7, 0.05, 0.02), mats.walnut);
-    mirrorFrame.position.set(0, 1.15, -0.22);
-    const mirrorHolder = new THREE.Group();
-    mirrorHolder.add(mirrorFrame, mirror);
-    mirrorHolder.position.set(bwp.x - f.x - (swap ? 0 : 1.5), 0, bwp.z - f.z + (swap ? 1.4 : 0.0));
-    // lean the mirror against whatever wall the bench faces
-    g.add(mirrorHolder);
     return g;
   }
 
   // ------------------------------------------------------ feature pedestal --
   function featureUnit(f) {
+    return assetUnit(f, 'feature_table', { w: 2.1, d: 1.3 });
+    /* istanbul ignore next -- procedural predecessor retained as a height reference */
     const g = new THREE.Group();
     const top = new THREE.Mesh(new THREE.CylinderGeometry(0.88, 0.88, 0.08, 24), mats.walnut);
     top.position.y = 0.9;
@@ -585,9 +634,65 @@ export function buildFixtures(B) {
     return g;
   }
 
+  function pegboardUnit(f) {
+    return assetUnit(f, 'pegboard_wall', {
+      w: 3.2, d: 0.7, sign: f.sign || f.title, signY: 2.18, signZ: 0.29,
+      signW: 1.75,
+    });
+  }
+
+  function apparelwallUnit(f) {
+    return assetUnit(f, 'apparel_wall', {
+      w: 3.2, d: 0.7, sign: f.sign || f.title, signY: 2.18, signZ: 0.29,
+      signW: 1.75,
+    });
+  }
+
+  function fittingroomUnit(f) {
+    return assetUnit(f, 'fitting_room', {
+      w: 2.2, d: 1.7, sign: f.title, signY: 2.30, signZ: 0.86,
+      signW: 1.1, signH: 0.20,
+    });
+  }
+
+  function fridgeUnit(f) {
+    return assetUnit(f, 'drinks_fridge', {
+      w: 0.96, d: 0.96, sign: f.title, signY: 1.72, signZ: 0.49,
+      signW: 0.70, signH: 0.18, charcoal: true,
+    });
+  }
+
+  function snackrackUnit(f) {
+    return assetUnit(f, 'snack_rack', {
+      w: 1.5, d: 0.76, sign: f.title, signY: 1.40, signZ: 0.39,
+      signW: 0.94, signH: 0.18,
+    });
+  }
+
+  function serviceUnit(f) {
+    return assetUnit(f, 'service_station', {
+      w: 0.96, d: 0.76, sign: 'Scorecards / Membership', signY: 1.17, signZ: 0.31,
+      signW: 0.78, signH: 0.20,
+    });
+  }
+
+  function premiumcaseUnit(f) {
+    return assetUnit(f, 'premium_case', {
+      w: 2.4, d: 0.8, sign: 'Tour Vault', signY: 2.05, signZ: 0.42,
+      signW: 1.25, signH: 0.22, charcoal: true,
+    });
+  }
+
+  function demoUnit(f) {
+    return assetUnit(f, 'putting_demo', { w: 4.0, d: 1.24 });
+  }
+
   const FIXTURE_BUILDERS = {
-    shelf: shelfUnit, rack: rackUnit, table: tableUnit, rail: railUnit,
+    shelf: shelfUnit, pegboard: pegboardUnit, apparelwall: apparelwallUnit,
+    rack: rackUnit, table: tableUnit, rail: railUnit,
     hatstand: hatstandUnit, bagstand: bagstandUnit, shoerack: shoerackUnit,
+    fittingroom: fittingroomUnit, fridge: fridgeUnit, snackrack: snackrackUnit,
+    service: serviceUnit, premiumcase: premiumcaseUnit, demo: demoUnit,
     feature: featureUnit, backcounter: backcounterUnit, backshelf: backshelfUnit,
   };
   // The shop as the PLAYER has it, not as it was designed — placedFixtures() applies whatever they
@@ -599,6 +704,7 @@ export function buildFixtures(B) {
   function layFixtures() {
     tracking = true;
     for (const f of placedFixtures(state)) {
+      if (f.minTier && f.minTier > state.shop.unlockedTier) continue;
       const build = FIXTURE_BUILDERS[f.kind];
       if (!build) continue;
       const g = build(f);
@@ -642,7 +748,12 @@ export function buildFixtures(B) {
 // coffee table, a bordered rug, and the club-events board. The lounge1 decor
 // upgrade still layers the premium suite on top.
 export function buildLounge(B) {
-  const { interior, mats, merch, addCol, colBoxAt } = B;
+  const { interior, mats, merch, addCol, colBoxAt, state } = B;
+  const trophyDisplay = new THREE.Group();
+  trophyDisplay.name = 'lounge-trophies';
+  interior.add(trophyDisplay);
+  const syncTier = () => { trophyDisplay.visible = state.shop.unlockedTier < 3; };
+  syncTier();
 
   // Was six beveled boxes and four peg legs — it read as a blob. A club chair is
   // defined by its ROLLED arms and rolled back rail (ref 8), which is exactly
@@ -673,7 +784,7 @@ export function buildLounge(B) {
       t.rotation.y = -Math.PI / 2 + (i - 1) * 0.2;
       shelf.add(t);
     }
-    interior.add(merch.bake(shelf));
+    trophyDisplay.add(merch.bake(shelf));
   });
 
   // round coffee table + magazines + mug
@@ -731,6 +842,7 @@ export function buildLounge(B) {
   events.position.set(LOUNGE.events.x - 0.005, 1.62, LOUNGE.events.z);
   events.rotation.y = LOUNGE.events.ry;
   interior.add(events);
+  return { syncTier };
 }
 
 // ------------------------------------------------------- stockroom extras ---

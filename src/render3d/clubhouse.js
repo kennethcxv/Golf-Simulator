@@ -187,6 +187,7 @@ export function makeClubhouse(ctx) {
   // --- fixtures, lounge, stockroom dressing (clubhouse/fixtures.js) ----------------------
   B.rebuildStock = (...a) => rebuildStock(...a); // function is hoisted; wired before use
   const { fixtureAnchors, relayFixtures } = buildFixtures(B);
+  let fixtureTier = state.shop.unlockedTier;
 
   // the player moved something: re-lay the floor and put the stock back on it. The customers'
   // paths rebake themselves — removeCol/addCol bump colVersion, and navFresh() watches it — so a
@@ -199,7 +200,7 @@ export function makeClubhouse(ctx) {
   // build mode needs the anchors it is going to hide and the re-lay it is going to trigger, so it
   // is built here rather than up with the rest of the scene
   const builder = buildBuildMode(B, { rebuildLayout, fixtureAnchors });
-  buildLounge(B);
+  const lounge = buildLounge(B);
   buildStockroomDressing(B);
 
   // --- THE REGISTER ---------------------------------------------------------------------
@@ -1349,6 +1350,7 @@ export function makeClubhouse(ctx) {
 
   // --- live stock silhouettes -------------------------------------------------------------
   const stockGroup = new THREE.Group();
+  stockGroup.name = 'shop-stock';
   interior.add(stockGroup);
   const stockMeshes = new Map();
 
@@ -1394,11 +1396,41 @@ export function makeClubhouse(ctx) {
   const BALL_BOX_GEO = new THREE.BoxGeometry(0.165, 0.12, 0.125);
   // NOT roundedBox: its UVs are planar and world-scaled, which crops a 0..1 label into mush.
   const CARTON_GEO = new THREE.BoxGeometry(0.12, 0.10, 0.11);
-  const POLO_TINTS = { polo1: 0x4e7a52, polo2: 0x5b7f9e, jacket2: 0x33455e };
+  const STOCK_PREVIEW_MAT = new THREE.MeshBasicMaterial({
+    color: 0xd0ad4f, transparent: true, opacity: 0.58, wireframe: true, depthWrite: false,
+  });
+  const POLO_TINTS = {
+    polo1: 0x4e7a52, polo2: 0x5b7f9e, jacket2: 0x33455e,
+    pants2: 0x7d7667, shorts1: 0xb8a785,
+  };
   const BAG_TINTS = [0x53688c, 0x4e8059, 0xb9b3a6, 0x9a7a56];
   const CARTON_BRAND = { tees1: 'CADDIE CLUB', marker1: 'CADDIE CLUB' };
   const skuMats = new Map();
   const ballBoxMats = new Map();
+  const snackLabelMats = new Map();
+  const drinkMats = new Map();
+
+  // Imagegen supplied one original three-column label atlas; each material
+  // samples only its own fictional brand panel. The image remains a label on
+  // physical package geometry, never a billboard standing in for the product.
+  const snackAtlasColumns = { chips1: 0, bar2: 1, crackers1: 2 };
+  function snackLabelMat(sku) {
+    if (!snackLabelMats.has(sku.id)) {
+      const col = snackAtlasColumns[sku.id] || 0;
+      const tex = new THREE.TextureLoader().load(
+        'public/assets/textures/shop/turn-snacks-label-atlas.png',
+      );
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.repeat.set(0.30, 0.735);
+      tex.offset.set(0.035 + col * 0.318, 0.132);
+      tex.anisotropy = 4;
+      snackLabelMats.set(sku.id, new THREE.MeshStandardMaterial({
+        map: tex, color: 0xffffff, roughness: 0.82, metalness: 0,
+      }));
+    }
+    return snackLabelMats.get(sku.id);
+  }
 
   function skuMat(sku) {
     if (!skuMats.has(sku.id)) {
@@ -1444,30 +1476,19 @@ export function makeClubhouse(ctx) {
 
   // the basket / barrel a line lives in — furniture, drawn only under the stock it actually holds
   function stockHolder(sku, count) {
-    if (sku.id === 'sock1') {
-      // one basket per board that has socks in it: an empty basket on the top shelf is a prop
-      const g = new THREE.Group();
-      const used = slotsFor('sock1').slice(0, count);
-      const boards = [...new Set(used.map((s) => s.base))];
-      for (const base of boards) {
-        const on = used.filter((s) => s.base === base);
-        const basket = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.19, 0.14, 12), woodMat);
-        basket.position.set(
-          on.reduce((a, s) => a + s.x, 0) / on.length,
-          base + 0.07,
-          on[0].z,
-        );
-        g.add(basket);
-      }
-      return g;
-    }
-    if (sku.id === 'umb1') {
-      const c = slotCentre('umb1');
-      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.17, 0.5, 10), woodMat);
-      b.position.set(c.x, c.y, c.z);
-      return b;
-    }
+    // Current displays carry their own bins, lips, hooks and risers. Stock
+    // holders are never spawned conditionally, so an empty facing looks empty.
     return null;
+  }
+
+  function drinkMat(sku) {
+    if (!drinkMats.has(sku.id)) {
+      const colors = { water1: 0xb9d8d4, sportdrink2: 0x6f9367, soda1: 0x51332c };
+      drinkMats.set(sku.id, new THREE.MeshStandardMaterial({
+        color: colors[sku.id] || 0x809b78, roughness: 0.58,
+      }));
+    }
+    return drinkMats.get(sku.id);
   }
 
   // one unit of stock, posed in its slot
@@ -1523,7 +1544,7 @@ export function makeClubhouse(ctx) {
       // modelled garments now, and the tints sit on the room's palette.
       const tint = POLO_TINTS[id];
       if (s.folded) {
-        const fold = merch.instantiate('polo_folded', { tint });
+        const fold = merch.instantiate('polo_folded', { tint, scale: s.wall ? 1.28 : 1 });
         if (!fold) return null;
         fold.position.set(s.x, s.y, s.z);
         fold.rotation.y = s.ry || 0;
@@ -1536,7 +1557,7 @@ export function makeClubhouse(ctx) {
       return shirt;
     }
 
-    if (id === 'cap1') {
+    if (id.startsWith('cap')) {
       const cap = merch.instantiateRaw('cap_pro');   // a real six-panel cap (Tripo)
       if (!cap) return null;
       cap.position.set(s.x, s.y, s.z);
@@ -1544,7 +1565,7 @@ export function makeClubhouse(ctx) {
       return cap;
     }
 
-    if (id === 'glove1') {
+    if (id.startsWith('glove')) {
       // STOOD UP, not laid flat. Flat on a board at chest height they are edge-on to a standing
       // player and a full shelf of them renders as a row of white slivers.
       const glove = merch.instantiate('glove');
@@ -1571,11 +1592,11 @@ export function makeClubhouse(ctx) {
 
     if (id === 'umb1') {
       const g = new THREE.Group();
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.0, 5), darkMat);
-      shaft.position.set(s.x, s.y + 0.50, s.z);
-      shaft.rotation.z = s.lean || 0;
-      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 8), skuMat(sku));
-      tip.position.set(s.x, s.y + 1.05, s.z);
+      // A compact telescoping golf umbrella in a branded hanging sleeve.
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.30, 6), darkMat);
+      shaft.position.set(s.x, s.y, s.z + 0.015);
+      const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.22, 8), skuMat(sku));
+      tip.position.set(s.x, s.y, s.z);
       g.add(shaft, tip);
       return g;
     }
@@ -1589,7 +1610,7 @@ export function makeClubhouse(ctx) {
       return rf;
     }
 
-    if (id === 'shoe1') {
+    if (id.startsWith('shoe')) {
       // Was a slab sole, a box upper and a sphere toe — a computer mouse. A real spiked
       // golf shoe now (Tripo), and a slot is still a PAIR, toed apart on the board. The
       // model's length runs +z, so s.ry aims the toe out; the pair splays a touch.
@@ -1604,15 +1625,93 @@ export function makeClubhouse(ctx) {
       return g;
     }
 
-    if (id === 'bag1') {
+    if (id.startsWith('bag')) {
       // The modelled bag ships WITH its fan of clubs, because that fan is the whole silhouette:
       // a golf bag with nothing in it is just a bin (ref 7).
-      const bag = merch.instantiate('bag', { tint: BAG_TINTS[i % 4] });
+      const bag = merch.instantiate(id === 'bag3' ? 'bag_empty' : 'bag', {
+        tint: BAG_TINTS[i % 4], scale: id === 'bag3' ? 0.82 : 0.72,
+      });
       if (!bag) return null;
       bag.position.set(s.x, s.y, s.z);
       bag.rotation.x = s.lean || 0;      // leaning on the rail
       bag.rotation.y = s.ry || 0;
       return bag;
+    }
+
+    if (sku.form === 'drink' || sku.form === 'bottle' || sku.form === 'can') {
+      const g = new THREE.Group();
+      const can = sku.form === 'can';
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(can ? 0.040 : 0.044, can ? 0.040 : 0.036, can ? 0.14 : 0.19, 10),
+        drinkMat(sku),
+      );
+      body.position.set(s.x, s.y + (can ? 0.07 : 0.095), s.z);
+      body.castShadow = true;
+      g.add(body);
+      const band = new THREE.Mesh(
+        new THREE.CylinderGeometry(can ? 0.041 : 0.045, can ? 0.041 : 0.041, can ? 0.055 : 0.065, 10),
+        mats.trimPaint,
+      );
+      band.position.set(s.x, s.y + (can ? 0.075 : 0.095), s.z);
+      g.add(band);
+      if (!can) {
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.020, 0.025, 8), mats.brass);
+        cap.position.set(s.x, s.y + 0.202, s.z);
+        g.add(cap);
+      }
+      return g;
+    }
+
+    if (sku.form === 'snack' || sku.form === 'bar') {
+      const g = new THREE.Group();
+      const isBar = sku.form === 'bar';
+      const w = isBar ? 0.18 : 0.17;
+      const h = isBar ? 0.14 : 0.22;
+      const bodyMat = skuMat(sku);
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, 0.055),
+        [bodyMat, bodyMat, bodyMat, bodyMat, snackLabelMat(sku), bodyMat],
+      );
+      body.position.set(s.x, s.y + h / 2, s.z);
+      body.rotation.z = (i % 2) * 0.035 - 0.0175;
+      body.castShadow = true;
+      g.add(body);
+      const seal = new THREE.Mesh(new THREE.BoxGeometry(w * 0.88, 0.012, 0.061), mats.brass);
+      seal.position.set(s.x, s.y + h - 0.008, s.z);
+      seal.rotation.z = body.rotation.z;
+      g.add(seal);
+      return g;
+    }
+
+    if (sku.form === 'scorecard') {
+      const card = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.008, 0.11), cartonMat(sku));
+      card.position.set(s.x, s.y, s.z);
+      card.rotation.y = s.ry || 0;
+      return card;
+    }
+
+    if (sku.form === 'eyewear') {
+      const g = new THREE.Group();
+      for (const dx of [-0.045, 0.045]) {
+        const lens = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.007, 6, 12), mats.merchDark);
+        lens.position.set(s.x + dx, s.y, s.z);
+        g.add(lens);
+      }
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.009, 0.009), mats.brass);
+      bridge.position.set(s.x, s.y, s.z);
+      g.add(bridge);
+      return g;
+    }
+
+    if (sku.form === 'carded') {
+      const g = new THREE.Group();
+      const card = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.018), cartonMat(sku));
+      card.position.set(s.x, s.y, s.z);
+      const tool = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, 0.07, 3, 6), mats.brass);
+      tool.position.set(s.x, s.y - 0.01, s.z + 0.018);
+      tool.rotation.z = 0.35;
+      g.add(card, tool);
+      return g;
     }
 
     // cartoned smalls: cream cartons with a branded band, neatly fronted
@@ -1651,34 +1750,114 @@ export function makeClubhouse(ctx) {
         // ball boxes was 15 draw calls; a rack of 12 clubs was 36. This happens on restock, not
         // per frame.
         const baked = merch.bake(g);
+        baked.name = `${f.id}:${skuId}`;
         baked.position.copy(anchor.position);
         baked.rotation.copy(anchor.rotation);
         stockGroup.add(baked);
         stockMeshes.set(f.id + ':' + skuId, baked);
+
+        // While carrying the correct line, show the ONE next authored slot. It
+        // communicates valid target and remaining room without faking inventory.
+        const held = carriedGoods(state);
+        if (held && held.skuId === skuId && count < slots.length) {
+          const s = slots[count];
+          const preview = new THREE.Group();
+          const shape = sku.cat === 'clubs'
+            ? new THREE.BoxGeometry(0.10, Math.max(0.65, s.len || 0.8), 0.10)
+            : new THREE.BoxGeometry(0.18, 0.18, 0.14);
+          const ghost = new THREE.Mesh(shape, STOCK_PREVIEW_MAT);
+          ghost.position.set(s.x, sku.cat === 'clubs' ? s.y + (s.len || 0.8) / 2 : s.y, s.z);
+          ghost.rotation.z = sku.cat === 'clubs' ? -(s.lean || 0) : 0;
+          preview.add(ghost);
+          preview.position.copy(anchor.position);
+          preview.rotation.copy(anchor.rotation);
+          stockGroup.add(preview);
+          stockMeshes.set(f.id + ':' + skuId + ':preview', preview);
+        }
       }
 
       // the feature display shows whatever the featured category has on shelves
       if (f.kind === 'feature') {
         const cat = state.shop.featureCategory;
         const g = new THREE.Group();
-        const catSkus = SHOP_CATALOG.filter((s) => s.cat === cat);
-        const total = catSkus.reduce((a, s) => a + (inv[s.id] ? inv[s.id].shelf : 0), 0);
-        const show = Math.min(total, 8);
-        const fm = new THREE.MeshStandardMaterial({ color: CAT_COLORS[cat] || 0x999999, roughness: 0.6 });
-        for (let i = 0; i < show; i++) {
-          const a = (i / 8) * Math.PI * 2;
-          const item = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.14), fm);
-          item.position.set(Math.sin(a) * 0.5, 1.02 + (i % 2) * 0.13, Math.cos(a) * 0.5);
-          item.rotation.y = a;
-          g.add(item);
+        const samples = [];
+        for (const sku of SHOP_CATALOG.filter((s) => s.cat === cat)) {
+          const count = Math.min(2, inv[sku.id] ? inv[sku.id].shelf : 0);
+          for (let i = 0; i < count; i++) samples.push(sku);
         }
-        const tent = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.16, 0.02), new THREE.MeshStandardMaterial({ color: 0x1f8a34, roughness: 0.8 }));
-        tent.position.set(0, 1.06, 0);
-        tent.rotation.x = -0.2;
+        for (let i = 0; i < Math.min(samples.length, 6); i++) {
+          const sku = samples[i];
+          const x = -0.62 + (i % 3) * 0.62;
+          const z = i < 3 ? -0.22 : 0.24;
+          const slot = {
+            x, z, y: 0.84, ry: i % 2 ? 0.12 : -0.10,
+            folded: sku.cat === 'apparel', len: 0.78, lean: 0.10,
+          };
+          const item = makeStockItem(sku, slot, i);
+          if (item) g.add(item);
+        }
+        const tex = makeSignTexture(['NEW ARRIVALS', cat.toUpperCase()], {
+          w: 384, h: 192, field: '#f4f0e6', ink: '#1f4a26', sizes: [48, 30], frame: true,
+        });
+        const tent = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.52, 0.28),
+          new THREE.MeshStandardMaterial({ map: tex, roughness: 0.82 }),
+        );
+        tent.position.set(0, 1.02, 0.49);
+        tent.rotation.x = -0.20;
         g.add(tent);
         g.position.copy(anchor.position);
+        g.rotation.copy(anchor.rotation);
         stockGroup.add(g);
         stockMeshes.set(f.id + ':feature', g);
+      }
+
+      // Supplier tier 3 is a visible room transformation: the reserved glass
+      // cabinet gains curated hero samples and the putting mat gains a demo club.
+      if (f.kind === 'premiumcase' && state.shop.unlockedTier >= 3) {
+        const g = new THREE.Group();
+        const hero = [
+          ['head_driver', -0.72, 0.83, 0],
+          ['rangefinder', 0, 0.83, 0],
+          ['shoe_pro', 0.68, 0.83, 0.15],
+          ['cap_pro', -0.52, 1.48, 0],
+          ['glove', 0.48, 1.45, 0],
+        ];
+        for (const [name, x, y, ry] of hero) {
+          const obj = ['rangefinder', 'shoe_pro', 'cap_pro'].includes(name)
+            ? merch.instantiateRaw(name) : merch.instantiate(name, { tint: 0x1f4a26 });
+          if (!obj) continue;
+          obj.position.set(x, y, 0);
+          obj.rotation.y = ry;
+          obj.scale.multiplyScalar(name === 'head_driver' ? 1.75 : 1.35);
+          g.add(obj);
+        }
+        const baked = merch.bake(g);
+        baked.name = `${f.id}:premium`;
+        baked.position.copy(anchor.position);
+        baked.rotation.copy(anchor.rotation);
+        stockGroup.add(baked);
+        stockMeshes.set(f.id + ':premium', baked);
+      }
+
+      if (f.kind === 'demo' && state.shop.unlockedTier >= 3) {
+        const g = new THREE.Group();
+        const club = makeStockItem(
+          SHOP_CATALOG.find((s) => s.id === 'putter3'),
+          { x: 1.55, y: 0.12, z: -0.40, len: 0.92, lean: 0.08, ry: 0 },
+          0,
+        );
+        if (club) g.add(club);
+        for (let i = 0; i < 3; i++) {
+          const ball = new THREE.Mesh(new THREE.SphereGeometry(0.025, 10, 7), mats.merchWhite);
+          ball.position.set(0.95 + i * 0.18, 0.065, 0.18 - i * 0.08);
+          g.add(ball);
+        }
+        const baked = merch.bake(g);
+        baked.position.copy(anchor.position);
+        baked.rotation.copy(anchor.rotation);
+        stockGroup.add(baked);
+        stockMeshes.set(f.id + ':demo', baked);
       }
 
       // The backroom shelving is STORAGE, not a sales fixture: it shows the volume of stock behind
@@ -1714,6 +1893,8 @@ export function makeClubhouse(ctx) {
       const e = inv[s.id];
       sig += ':' + (e ? e.shelf + '.' + e.back : '0');
     }
+    const held = carriedGoods(state);
+    sig += held ? `:carry:${held.skuId}.${held.qty}` : ':carry:none';
     return sig;
   }
 
@@ -2732,6 +2913,12 @@ export function makeClubhouse(ctx) {
     if (poll > 1.1) {
       poll = 0;
       updateArrivals();
+      if (state.shop.unlockedTier !== fixtureTier) {
+        fixtureTier = state.shop.unlockedTier;
+        relayFixtures();
+        if (lounge && lounge.syncTier) lounge.syncTier();
+        rebuildStock();
+      }
       if (boxSignature() !== boxSig) rebuildBoxes(); // the truck came, or staff unboxed
       if (office.paintScreen && interior.visible) office.paintScreen(); // live clock on the lid
       const ds = decorSignature();
