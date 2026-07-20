@@ -37,7 +37,10 @@ const POSE_BY_PROFILE = Object.freeze({
   }),
   'freight-low-far': Object.freeze({
     position: Object.freeze([0, -1.02, -2.15]),
-    rotation: Object.freeze([-0.02, 0.05, 0]),
+    // Keep the broad freight face square across the player's hands. Even the
+    // former decorative 0.05 rad yaw added roughly two centimetres to the
+    // projected width of a 1.25 m crate and consumed its service-door margin.
+    rotation: Object.freeze([-0.02, 0, 0]),
   }),
   // This is the already accepted club-carton route pose. Keep it exact.
   'long-two-hand-diagonal': Object.freeze({
@@ -110,6 +113,29 @@ export function deliveryBoxCarryProfile(boxOrKind) {
       rotationZ: long ? -0.34 : -0.24,
     },
   };
+}
+
+// The carton stays camera-local while it is carried, so its authored yaw is
+// also its footprint yaw relative to the player's direction of travel. Use the
+// projected package envelope instead of a circle based on its longest side;
+// the latter made the 1.25 m furniture crate wider than the receiving doorway
+// even though its visible carry pose clears it. A small handling allowance
+// keeps the collision shell outside the cardboard without adding a second
+// player-body margin (the walk controller already applies that minimum).
+export function deliveryBoxCarryCollisionRadius(boxOrKind, clearance = null) {
+  const profile = deliveryBoxCarryProfile(boxOrKind);
+  const yaw = Number(profile.rotation?.[1]) || 0;
+  const cosine = Math.abs(Math.cos(yaw));
+  const sine = Math.abs(Math.sin(yaw));
+  const halfX = (cosine * profile.dimensions.w + sine * profile.dimensions.d) / 2;
+  const halfZ = (sine * profile.dimensions.w + cosine * profile.dimensions.d) / 2;
+  // The authored freight crate has roughly 30 mm of clearance per side in the
+  // 1.32 m service-door opening. Keep a real 5 mm collision skin there; the
+  // standard 20 mm handling skin remains appropriate for all roomier cases.
+  const handlingClearance = clearance == null
+    ? (profile.id === 'freight-low-far' ? 0.005 : 0.02)
+    : Math.max(0, Number(clearance) || 0);
+  return Math.max(halfX, halfZ) + handlingClearance;
 }
 
 export const DELIVERY_BOX_CARRY_PROFILE_BY_KIND = PROFILE_BY_KIND;

@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { BOX_KINDS } from '../src/data/boxes.js';
+import { BACKDOOR_CLEARWAY, INTERIOR, STOCKROOM } from '../src/data/shopLayout.js';
 import {
   DELIVERY_BOX_CARRY_PROFILE_BY_KIND,
+  deliveryBoxCarryCollisionRadius,
   deliveryBoxCarryProfile,
 } from '../src/render3d/clubhouse/deliveryCarryProfile.js';
 
@@ -62,6 +64,29 @@ test('the accepted long club pose and asymmetric two-hand support remain exact',
   assert.equal(profile.hands.ySkew, -0.050);
   assert.equal(profile.hands.z, -1.30);
   assert.equal(profile.hands.zSkew, -0.24);
+});
+
+test('carry collision follows each visible package yaw and keeps freight usable at receiving', () => {
+  const clubRadius = deliveryBoxCarryCollisionRadius('clubbox');
+  const crateRadius = deliveryBoxCarryCollisionRadius('crate');
+
+  assert.ok(Math.abs(clubRadius - 0.53) < 0.005,
+    `the accepted diagonal club-case envelope remains about 0.53 m, got ${clubRadius}`);
+  assert.ok(crateRadius < 0.66,
+    `the visible low freight pose must clear the 1.32 m service opening, got ${crateRadius}`);
+  assert.ok(Math.abs(crateRadius - 0.63) < 1e-12,
+    'the square freight carry pose includes its five-millimetre handling skin');
+  assert.ok(crateRadius > BOX_KINDS.crate.w / 2,
+    'the collision envelope still protects the crate corners and handling clearance');
+
+  const handTruckHalfX = (
+    Math.abs(Math.cos(0.6)) * 0.50 + Math.abs(Math.sin(0.6)) * 0.45
+  ) / 2;
+  const handTruckEastEdge = STOCKROOM.handTruck.x + handTruckHalfX;
+  assert.ok(handTruckEastEdge <= BACKDOOR_CLEARWAY.minX,
+    'the parked hand truck stays west of the receiving clearway');
+  assert.ok(INTERIOR.w / 2 - handTruckEastEdge > crateRadius * 2,
+    'the hand-truck/east-wall lane remains wider than carried freight');
 });
 
 test('flattened packages keep their established compact presentation', () => {

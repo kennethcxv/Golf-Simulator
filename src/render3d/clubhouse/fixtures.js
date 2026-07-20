@@ -1107,14 +1107,12 @@ export function buildStockroomDressing(B) {
     // the legacy handtruck duplicated the canonical delivery-equipment prop.
     interior.add(merch.bake(dress));
 
-    // Sheet-04 storage totes, stacked where the work happens: a supply pair
-    // by the packing bench, a returns pair by receiving. Kit props keep
-    // their own baked materials — they stay out of the merged dress group.
+    // Sheet-04 supply totes stay by the packing bench. Decorative returns
+    // formerly occupied the real receiving set-down zone at (7.9, -5.0).
+    // Kit props keep their own baked materials and stay out of the merged group.
     const TOTES = [
       { name: 'storage_tote_olive', x: 6.55, z: -0.35, y: 0, ry: 0.35 },
       { name: 'storage_tote_slate', x: 6.55, z: -0.35, y: 0.288, ry: 0.15 },
-      { name: 'storage_tote_charcoal', x: 7.9, z: -5.0, y: 0, ry: -0.5 },
-      { name: 'storage_tote_stone', x: 7.9, z: -5.0, y: 0.288, ry: -0.75 },
     ];
     for (const t of TOTES) {
       const tote = merch.instantiateKit && merch.instantiateKit(t.name);

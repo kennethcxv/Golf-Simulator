@@ -87,7 +87,10 @@ import {
 import {
   canBuildDeliveryBoxVisual, createDeliveryBoxVisual,
 } from './clubhouse/deliveryBoxVisual.js';
-import { deliveryBoxCarryProfile } from './clubhouse/deliveryCarryProfile.js';
+import {
+  deliveryBoxCarryCollisionRadius,
+  deliveryBoxCarryProfile,
+} from './clubhouse/deliveryCarryProfile.js';
 import { slotsFor, homeFixture } from '../data/fixtureSlots.js';
 import { buildShell } from './clubhouse/shell.js';
 import { buildDoors } from './clubhouse/doors.js';
@@ -7395,14 +7398,7 @@ export function makeClubhouse(ctx) {
     carryCollisionRadius: () => {
       const box = carriedBox(state);
       if (!box || box.flat) return 0;
-      const dim = boxDims(box.box || 'carton');
-      // The long case is carried lengthwise on a 0.78 rad ground-plane
-      // diagonal. Its half-span across a doorway is about 0.51 m, so the 0.53 m
-      // profile protects its physical corners and clears the open hinge leaf.
-      // Treating its full length as a circle makes the receiving route
-      // impossible even though the authored case visibly fits lengthwise.
-      if (box.box === 'clubbox') return 0.53;
-      return Math.max(dim.w, dim.d) * 0.5 + 0.16;
+      return deliveryBoxCarryCollisionRadius(box);
     },
     isInside, groundYAt, vacuumAt, vacuumLabelAt,
     doorWorld: doorW,
