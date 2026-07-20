@@ -16,6 +16,7 @@ import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue, tickDeliveries, ensureShopReno } from './shop.js';
 import { recoverCheckout } from './checkout.js';
 import { ensureInventoryLifecycle } from './inventoryLifecycle.js';
+import { ensureLayout } from './layout.js';
 import { ensureWash } from './washing.js';
 import { ensureProperty, tickProperty } from './property.js';
 import {
@@ -96,6 +97,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initClub(state);
   initReputation(state);
   initShop(state);
+  ensureLayout(state);
   ensureWash(state); // a fixer-upper arrives with a filthy exterior
   ensureProperty(state); // ...and a landlord
   state.property.id = opts.propertyId || state.property.id;
@@ -351,6 +353,7 @@ export function deserialize(json) {
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
+  ensureLayout(state); // every save gains the one authoritative placement schema before rendering
   ensureInventoryLifecycle(state); // v4: capture/migrate physical lots before checkout recovery moves them
   if (hadCustomerSimulation) {
     ensureCustomerSimulation(state);

@@ -10,6 +10,7 @@ test('newGame builds a complete starting state per mode', () => {
   assert.equal(st.cash, BALANCE.startingCash.relaxed);
   assert.equal(st.course.holes.length, 9);
   assert.ok(st.sections.length > 0, 'sections precomputed');
+  assert.equal(st.shop.layout.version, 2, 'canonical placement state exists before rendering');
   const st2 = newGame('realistic', 42);
   assert.equal(st2.cash, BALANCE.startingCash.realistic);
 });
@@ -26,6 +27,7 @@ test('state serializes to JSON and back without losing the world', () => {
   assert.equal(back.course.holes.length, 9);
   assert.deepEqual(back.course.holes[3].pin, st.course.holes[3].pin);
   assert.ok(back.sections.length > 0, 'sections rebuilt on load');
+  assert.equal(back.shop.layout.version, 2, 'placement state migrates at the schema boundary');
 });
 
 test('rng stream resumes identically after save/load', () => {

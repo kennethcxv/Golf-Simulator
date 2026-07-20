@@ -42,7 +42,14 @@ page.on('requestfailed', (request) => requestFailures.push({
 
 try {
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-  await page.getByRole('button', { name: /New Empire.*Relaxed/i }).click();
+  const polishedNewGame = page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ });
+  if (await polishedNewGame.count()) {
+    await polishedNewGame.click();
+    await page.getByRole('dialog', { name: 'New game' }).waitFor();
+    await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
+  } else {
+    await page.getByRole('button', { name: /New Empire.*Relaxed/i }).click();
+  }
   await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90_000 });
   await page.waitForFunction(() => {
@@ -58,7 +65,9 @@ try {
     mode: window.__fw?.courseMode,
     hasClubhouse: !!window.__fw?.scene3d?.clubhouse?.(),
     layoutObjects: Object.keys(window.__fw?.state?.shop?.layout?.objects || {}).length,
-    inventoryLifecycleVersion: window.__fw?.state?.shop?.inventoryLifecycle?.schemaVersion ?? null,
+    inventoryLifecycleVersion: window.__fw?.state?.shop?.inventoryLifecycle?.schemaVersion
+      ?? window.__fw?.state?.shop?.inventoryLifecycle?.version
+      ?? null,
     boxes: window.__fw?.state?.shop?.deliveries?.boxes?.length ?? null,
   }));
   const blockingFailures = requestFailures.filter((failure) => !/ERR_ABORTED/.test(failure.error));

@@ -62,7 +62,9 @@ test('unknown future empire and holding data survives an integrated round trip',
   raw.holdings[0].futureHolding = { caretakerContract: 'preserve-me' };
   raw.holdings[0].state.futureClubSystem = { revision: 9 };
 
-  const migrated = JSON.parse(serializeEmpire(deserializeEmpire(raw)));
+  const loaded = deserializeEmpire(raw);
+  assert.equal(loaded.version, 3, 'the in-memory wrapper migrates immediately');
+  const migrated = JSON.parse(serializeEmpire(loaded));
   assert.deepEqual(migrated.futurePortfolio, raw.futurePortfolio);
   assert.deepEqual(migrated.holdings[0].futureHolding, raw.holdings[0].futureHolding);
   assert.deepEqual(migrated.holdings[0].state.futureClubSystem, raw.holdings[0].state.futureClubSystem);

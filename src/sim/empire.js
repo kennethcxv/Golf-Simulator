@@ -735,7 +735,7 @@ export function deserializeEmpire(raw) {
   const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
   if (!data.empireVersion) return legacyEmpireFrom(data);
   const empire = {
-    version: data.empireVersion,
+    version: EMPIRE_VERSION,
     mode: data.mode,
     seed: data.seed,
     cash: data.cash,
