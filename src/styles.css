@@ -816,6 +816,66 @@ input[type="range"] { accent-color: var(--accent); }
 .hud-min .hud-clock:hover { border-color: #8ed072; }
 .hud-min .hud-clock.paused { color: #e0a33c; border-color: #e0a33c; }
 
+/* Live course card: this is a compact window into the canonical round state,
+   not a second scoreboard simulation. */
+.golf-live-panel {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  z-index: 19;
+  width: min(330px, calc(100vw - 24px));
+  pointer-events: none;
+  color: #eee8d8;
+  font-size: 0.76rem;
+  text-shadow: 0 1px 1px #0008;
+}
+.golf-live-body {
+  overflow: hidden;
+  border: 1px solid rgba(181, 154, 85, 0.52);
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(21, 48, 29, 0.92), rgba(19, 24, 21, 0.9));
+  box-shadow: 0 7px 24px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(4px);
+}
+.golf-live-head,
+.golf-live-partyline,
+.golf-live-metrics,
+.golf-live-detail,
+.golf-live-latest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+}
+.golf-live-head { padding: 7px 9px 5px; }
+.golf-live-kicker { color: #d4bd77; font-weight: 800; letter-spacing: 0.14em; }
+.golf-live-congestion { padding: 2px 7px; border-radius: 999px; background: #273c2b; color: #b8dfac; }
+.golf-live-congestion.watch { color: #f1cf78; }
+.golf-live-congestion.slow,
+.golf-live-congestion.severe { color: #ffad89; background: #552b24; }
+.golf-live-metrics {
+  justify-content: flex-start;
+  padding: 0 9px 7px;
+  color: #aeb9aa;
+  font-size: 0.69rem;
+}
+.golf-live-metrics span + span::before { content: '·'; margin-right: 7px; color: #6e826f; }
+.golf-live-party { padding: 7px 9px; border-top: 1px solid rgba(190, 201, 183, 0.13); }
+.golf-live-partyline strong { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.golf-live-partyline span { flex: 0 0 auto; color: #d4bd77; font-variant-numeric: tabular-nums; }
+.golf-live-phase { margin-top: 2px; color: #c7d7c3; }
+.golf-live-detail { justify-content: flex-start; margin-top: 3px; color: #929e91; font-size: 0.68rem; }
+.golf-live-detail .warn { color: #f0bd72; }
+.golf-live-latest { padding: 8px 9px; border-top: 1px solid rgba(190, 201, 183, 0.13); }
+.golf-live-latest span,
+.golf-live-empty { color: #aeb9aa; }
+.golf-live-empty { padding: 8px 9px; border-top: 1px solid rgba(190, 201, 183, 0.13); }
+
+@media (max-width: 760px) {
+  .golf-live-panel { width: min(280px, calc(100vw - 24px)); font-size: 0.7rem; }
+  .golf-live-metrics span:nth-child(3) { display: none; }
+}
+
 /* --- pause menu (P0-7): one instance, two panes, commercial styling --------- */
 .pause-veil-ui {
   position: fixed;
@@ -1055,12 +1115,14 @@ body.front-desk-mode .shop-overlay,
 body.front-desk-mode .reg-hint,
 body.front-desk-mode .objectives-card,
 body.front-desk-mode .hud,
-body.front-desk-mode .hud-min { display: none !important; }
+body.front-desk-mode .hud-min,
+body.front-desk-mode .golf-live-panel { display: none !important; }
 body.laptop-mode .shop-overlay,
 body.laptop-mode .reg-hint,
 body.laptop-mode .objectives-card,
 body.laptop-mode .hud,
-body.laptop-mode .hud-min { display: none !important; }
+body.laptop-mode .hud-min,
+body.laptop-mode .golf-live-panel { display: none !important; }
 
 .front-desk {
   position: fixed;

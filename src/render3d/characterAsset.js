@@ -79,7 +79,15 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     limbs[`knee${side}`] = knee;
   }
 
-  const char = { root, mode: 'Idle', phase: Math.random() * 6.28 };
+  const char = {
+    root,
+    mode: 'Idle',
+    phase: Math.random() * 6.28,
+    // A stable attachment pivot at the end of the right forearm. Props mounted
+    // here inherit the procedural shoulder/elbow motion instead of floating at
+    // the character root while the player swings.
+    grip: limbs.elbowR,
+  };
 
   char.setMode = (mode) => {
     if (char.mode !== mode) {
@@ -117,6 +125,16 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       elb = -0.35;
       lean = 0.07;
       bob = 0.02 * Math.sin(2 * w);
+    } else if (char.mode === 'Sit') {
+      hipL = -1.35;
+      hipR = -1.35;
+      kneeL = 1.35;
+      kneeR = 1.35;
+      shL = -0.28;
+      shR = -0.28;
+      elb = -0.7;
+      lean = 0.06;
+      bob = 0.006 * Math.sin(p * 4.5);
     } else if (char.mode === 'Swing') {
       const t = p % 2.6;
       twist = lerpSeg(t, [[0, 0], [0.7, 0], [1.2, 0.55], [1.45, -0.6], [2.1, 0], [2.6, 0]]);

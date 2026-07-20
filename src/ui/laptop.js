@@ -38,6 +38,7 @@ import {
 import { clubRatings, fairGreenFee } from '../sim/club.js';
 import { currentStep } from '../sim/tutorial.js';
 import { ZONE } from '../sim/constants.js';
+import { liveGolfSummary } from '../sim/golfDay.js';
 
 const CAT_LABEL = {
   clubs: 'Clubs', balls: 'Golf balls', apparel: 'Apparel', accessories: 'Accessories',
@@ -118,7 +119,7 @@ export function makeLaptop(app, opts) {
   let teeDay = 0;
   let supplierCat = 'all';
   let financeWindow = 'today';
-  let bookingDraft = { holder: '', partySize: 1, guestNames: '', paymentPlan: 'desk' };
+  let bookingDraft = { holder: '', partySize: 1, guestNames: '', paymentPlan: 'desk', transport: 'auto' };
   let scale = 1;           // interface scale, for anyone who finds 15px small on a 4K panel
   let pending = null;      // the live confirmation, if one is open
 
@@ -935,6 +936,17 @@ export function makeLaptop(app, opts) {
       value, text,
       selected: bookingDraft.paymentPlan === value ? 'selected' : undefined,
     })));
+    const transportSel = el('select', {
+      class: 'lt-select',
+      onchange: (event) => { bookingDraft.transport = event.target.value; render(); },
+    }, ...[
+      ['auto', 'Assign walking/cart'],
+      ['walk', 'Walking party'],
+      ['ride', 'Golf cart requested'],
+    ].map(([value, text]) => el('option', {
+      value, text,
+      selected: bookingDraft.transport === value ? 'selected' : undefined,
+    })));
 
     const dayAbs = calendarOf(st.clock.minutes).dayAbs + teeDay;
     const sheet = daySheet(st, dayAbs);
@@ -992,6 +1004,7 @@ export function makeLaptop(app, opts) {
       const total = st.club.greenFee * bookingDraft.partySize;
       const options = {
         holder, customerNames, partySize: bookingDraft.partySize, source: 'laptop',
+        transport: bookingDraft.transport === 'auto' ? null : bookingDraft.transport,
       };
       if (bookingDraft.paymentPlan === 'prepaid') Object.assign(options, {
         paymentPlan: 'prepaid', paymentMethod: 'card', cardOnFile: true,
@@ -1004,7 +1017,7 @@ export function makeLaptop(app, opts) {
       if (!result.ok) toast(result.reason, 'warn');
       else {
         toast(`${holder}'s party is booked for ${fmtSlot(slot.minute)}.`);
-        bookingDraft = { holder: '', partySize: 1, guestNames: '', paymentPlan: 'desk' };
+        bookingDraft = { holder: '', partySize: 1, guestNames: '', paymentPlan: 'desk', transport: 'auto' };
         click();
       }
       render();
@@ -1022,7 +1035,7 @@ export function makeLaptop(app, opts) {
         const [payment, paymentTone] = paymentLabel(reservation);
         return el('div', { class: `lt-partyline ${reservation.status === 'cancelled' ? 'cancelled' : ''}` },
           el('div', { class: 'lt-partyname', text: reservation.reservationHolder }),
-          meta(`${reservation.partySize} player${reservation.partySize === 1 ? '' : 's'}`),
+          meta(`${reservation.partySize} player${reservation.partySize === 1 ? '' : 's'} · ${reservation.transport || 'auto transport'}`),
           chip(arrival, arrivalTone),
           chip(payment, paymentTone),
           reservation.status === 'booked' && reservation.checkIn.status !== 'checked-in'
@@ -1066,6 +1079,8 @@ export function makeLaptop(app, opts) {
           meta(bookingDraft.paymentPlan === 'deposit' ? `${operationMoney(st.club.greenFee * bookingDraft.partySize * 0.35)} charged now`
             : bookingDraft.paymentPlan === 'prepaid' ? `${operationMoney(st.club.greenFee * bookingDraft.partySize)} charged now`
               : bookingDraft.paymentPlan === 'member-pass' ? 'active members only' : 'balance collected in person')),
+        row(el('span', { class: 'lt-mulabel', text: 'On course' }), transportSel,
+          meta(bookingDraft.transport === 'ride' ? 'assign a real fleet cart if one is available' : bookingDraft.transport === 'walk' ? 'route the group on foot' : 'starter assigns based on party and fleet')),
       ),
       el('div', { class: 'lt-card lt-slots' }, ...slots),
       note(operationsPolicySummary(st).join(' ')),
@@ -1080,6 +1095,28 @@ export function makeLaptop(app, opts) {
     const ratings = clubRatings(st);
     const w = st.weather.today;
     const pol = st.maintenance ? st.maintenance.policies : null;
+    const live = liveGolfSummary(st);
+    const liveRows = st.golfDay.parties.map((party) => {
+      const golfer = party.golfers[party.currentGolferIndex] || party.golfers[0];
+      const completed = party.scorecard.filter((hole) => hole.complete);
+      const completedPar = completed.reduce((sum, hole) => sum + hole.par, 0);
+      const delta = (golfer?.totalStrokes || 0) - completedPar;
+      const relative = delta === 0 ? 'E' : delta > 0 ? `+${delta}` : String(delta);
+      const liveScore = completed.length
+        ? `${relative}${golfer?.holeStrokes ? ` / ${golfer.holeStrokes} on hole` : ''}`
+        : golfer?.holeStrokes ? `${golfer.holeStrokes} on hole` : 'not started';
+      return row(
+        el('span', { text: party.partyName }),
+        meta(`Hole ${Math.min(party.scorecard.length, party.holeIndex + 1)} · ${party.state.replaceAll('-', ' ')} · ${liveScore}`),
+        chip(party.transport === 'ride' ? party.cartId : 'walking', party.pace.congestion === 'clear' ? 'ok' : 'warn'),
+        party.pace.waitingMinutes > 0 ? chip(`${Math.round(party.pace.waitingMinutes)}m wait`, 'warn') : null,
+      );
+    });
+    const completedRows = st.golfDay.completed.slice(0, 4).map((round) => row(
+      el('span', { text: round.partyName }),
+      meta(`${round.durationMinutes} min · ${round.scores.map((score) => `${score.name} ${score.total}`).join(', ')}`),
+      chip(round.transport === 'ride' ? round.cartId : 'walked', 'ok'),
+    ));
 
     // real per-zone turf readings, averaged over the cells that actually belong to each zone
     const ZONES = [
@@ -1132,6 +1169,18 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Weather' }), el('div', { class: 'lt-statvalue', text: `${Math.round(w.tempHiF)}°` }), el('div', { class: 'lt-statsub', text: w.rainIn > 0.02 ? `rain ${w.rainIn.toFixed(2)}"` : 'dry' })),
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Holes' }), el('div', { class: `lt-statvalue ${closed ? 'bad' : 'ok'}`, text: closed ? `${closed} closed` : 'All open' }), el('div', { class: 'lt-statsub', text: `${st.course.holes.length} in play` })),
       ),
+      sect('Live golf operations'),
+      el('div', { class: 'lt-stats' },
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Groups out' }), el('div', { class: 'lt-statvalue', text: String(live.activeParties) }), el('div', { class: 'lt-statsub', text: `${live.activeGolfers} golfers` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Starter queue' }), el('div', { class: `lt-statvalue ${live.starterQueue.length ? 'warn' : 'ok'}`, text: String(live.starterQueue.length) }), el('div', { class: 'lt-statsub', text: st.golfDay.starter.currentPartyId ? 'party being called' : 'tee clear' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Congestion' }), el('div', { class: `lt-statvalue ${live.congestion.level === 'clear' ? 'ok' : 'warn'}`, text: live.congestion.level }), el('div', { class: 'lt-statsub', text: `${live.congestion.waits} safety waits` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Practice' }), el('div', { class: 'lt-statvalue', text: String(Object.values(live.practice).reduce((sum, value) => sum + value, 0)) }), el('div', { class: 'lt-statsub', text: `range ${live.practice.range} · putting ${live.practice.putting} · short ${live.practice.chipping}` })),
+      ),
+      liveRows.length ? card(...liveRows) : note('No checked-in group is on the course.'),
+      st.golfDay.marshalTasks.some((task) => task.status !== 'complete')
+        ? errBox(`${st.golfDay.marshalTasks.filter((task) => task.status !== 'complete').length} marshal response${st.golfDay.marshalTasks.filter((task) => task.status !== 'complete').length === 1 ? '' : 's'} dispatched.`)
+        : null,
+      completedRows.length ? el('div', {}, sect('Recent scorecards'), card(...completedRows)) : null,
       sect('Turf by zone'),
       card(el('div', { class: 'lt-scrollx' }, el('table', { class: 'lt-table' },
         el('thead', {}, el('tr', {},
@@ -1154,17 +1203,28 @@ export function makeLaptop(app, opts) {
     const f = st.shop.rentalFleet;
     const led = st.ledger || {};
     const yRent = led.yesterday ? (led.yesterday.revenue.rentals || 0) : 0;
+    const live = liveGolfSummary(st);
+    const cartRows = st.golfDay.carts.map((cart) => row(
+      el('span', { text: cart.id.replace('cart-', 'Cart ') }),
+      meta(cart.assignedPartyId
+        ? `assigned to ${st.golfDay.parties.find((party) => party.id === cart.assignedPartyId)?.partyName || cart.assignedPartyId}`
+        : 'staged at the cart barn'),
+      chip(cart.status, cart.status === 'available' ? 'ok' : 'warn'),
+      chip(`condition ${Math.round(cart.condition)}`, cart.condition >= 70 ? 'ok' : 'warn'),
+    ));
 
     paint(
-      head('Carts & rentals', 'This is the club-set rental fleet: the bags you lend to guests who arrive without clubs. It wears out as it is used and stops earning when it gets too rough.'),
+      head('Carts & rentals', 'Golf carts are assigned to checked-in parties, follow their course routes, and return to the barn. Rental club sets remain separate inventory.'),
       confirmBar(),
 
-      // THE HONEST BIT. The brief asked for a golf-cart fleet — a list of vehicles with
-      // cleanliness, reliability, comfort, assignment and maintenance. The club does not
-      // simulate cart vehicles at all: `rentalFleet` is rental CLUB SETS. Rather than print a
-      // page of invented cleanliness and reliability scores that no system produces and no
-      // decision could safely rest on, the page says what is real and names what is not.
-      errBox('Golf carts are not simulated yet — there is no cart fleet, no cart condition and no cart assignment in the club. Nothing on this page is about carts. What follows is the rental club-set fleet, which is real.'),
+      sect('Golf-cart fleet'),
+      el('div', { class: 'lt-stats' },
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Available' }), el('div', { class: 'lt-statvalue ok', text: String(st.golfDay.carts.filter((cart) => cart.status === 'available').length) }), el('div', { class: 'lt-statsub', text: `${st.golfDay.carts.length} total` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Assigned' }), el('div', { class: 'lt-statvalue', text: String(live.cartsAssigned) }), el('div', { class: 'lt-statsub', text: 'moving with parties' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Trips' }), el('div', { class: 'lt-statvalue', text: String(st.golfDay.carts.reduce((sum, cart) => sum + cart.trips, 0)) }), el('div', { class: 'lt-statsub', text: 'lifetime assignments' })),
+      ),
+      card(...cartRows),
+      sect('Rental club sets'),
 
       el('div', { class: 'lt-stats' },
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Sets' }), el('div', { class: 'lt-statvalue', text: String(f.sets) }), el('div', { class: 'lt-statsub', text: 'in the fleet' })),
@@ -1180,7 +1240,7 @@ export function makeLaptop(app, opts) {
         ? errBox('The fleet is too battered to rent out — it is earning nothing at all. Buy fresh sets.')
         : null,
 
-      sect('The fleet'),
+      sect('Rental-set maintenance'),
       card(
         row(el('span', { class: 'lt-mulabel', text: 'Maintenance' }),
           meta('Sets wear a little with every round rented. There is no repair — worn sets are replaced.')),

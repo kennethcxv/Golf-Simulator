@@ -23,6 +23,7 @@ import { postReview, reviewForCompletedRound } from './reviews.js';
 export const ROUND_STATE = Object.freeze({
   PREPARING: 'preparing',
   PRACTICING: 'practicing',
+  TRAVELING_TO_STARTER: 'traveling-to-starter',
   WAITING_FOR_STARTER: 'waiting-for-starter',
   CALLED_TO_TEE: 'called-to-tee',
   AT_TEE: 'at-tee',
@@ -117,6 +118,7 @@ export function initGolfDay(state, options = {}) {
     parties: [],
     completed: [],
     events: [],
+    presentationShots: [],
     carts: initialCarts(cartCount),
     balls: initialBalls(),
     practice: {
@@ -155,6 +157,7 @@ function ensureShapes(day) {
   day.parties ||= [];
   day.completed ||= [];
   day.events ||= [];
+  day.presentationShots ||= [];
   day.carts ||= initialCarts();
   day.balls ||= initialBalls();
   day.practice ||= {};
@@ -524,8 +527,28 @@ function queueForStarter(state, party, minute) {
     const pb = state.golfDay.parties.find((entry) => entry.id === b);
     return (pa?.scheduledMinute || 0) - (pb?.scheduledMinute || 0) || (pa?.sequence || 0) - (pb?.sequence || 0);
   });
-  setRoundState(state, party, ROUND_STATE.WAITING_FOR_STARTER, minute, 0.5);
-  emit(state, party, 'starter-queue-entered', minute, { position: state.golfDay.starter.queue.indexOf(party.id) + 1 });
+  const queueIndex = state.golfDay.starter.queue.indexOf(party.id);
+  const staging = state.golfDay.routeNetwork.facilities.staging;
+  let target = staging[Math.min(queueIndex, staging.length - 1)];
+  if (queueIndex >= staging.length && staging.length >= 2) {
+    const last = staging[staging.length - 1];
+    const previous = staging[staging.length - 2];
+    const dx = last.x - previous.x;
+    const dz = last.z - previous.z;
+    const length = Math.hypot(dx, dz) || 1;
+    const extra = (queueIndex - staging.length + 1) * 4;
+    target = { x: last.x + (dx / length) * extra, z: last.z + (dz / length) * extra };
+  }
+  const route = findCourseRoute(
+    state.course,
+    gridPoint(state.course, party.position),
+    gridPoint(state.course, target),
+    party.transport === 'ride' ? 'cart' : 'walk',
+    { parkNearGoal: true },
+  );
+  const destination = route?.[route.length - 1] || target;
+  beginRoute(state, party, route, destination, minute, ROUND_STATE.TRAVELING_TO_STARTER);
+  emit(state, party, 'starter-queue-entered', minute, { position: queueIndex + 1 });
 }
 
 function beginRoute(state, party, route, destination, minute, nextState, multiplier = 1) {
@@ -783,7 +806,9 @@ function processParty(state, party, minute) {
         party.pace.practiceMinutes = party.practiceMinutes;
         addPracticeOccupant(day, practice, party.id);
         const facility = day.routeNetwork.facilities[practice];
-        party.position = { ...(facility.center || facility.positions?.[0]) };
+        const practiceSpots = facility.bays || facility.positions || [facility.center];
+        const practiceIndex = Math.max(0, day.practice[practice].occupants.indexOf(party.id));
+        party.position = { ...(practiceSpots[practiceIndex % practiceSpots.length] || facility.center) };
         for (const golfer of party.golfers) golfer.position = { ...party.position };
         setRoundState(state, party, ROUND_STATE.PRACTICING, minute, party.practiceMinutes, { practice });
         emit(state, party, 'practice-started', minute, { practice, durationMinutes: party.practiceMinutes });
@@ -793,6 +818,10 @@ function processParty(state, party, minute) {
     case ROUND_STATE.PRACTICING:
       emit(state, party, 'practice-complete', minute, { practice: party.practiceKind });
       queueForStarter(state, party, minute);
+      break;
+    case ROUND_STATE.TRAVELING_TO_STARTER:
+      completeRoute(party);
+      setRoundState(state, party, ROUND_STATE.WAITING_FOR_STARTER, minute, 0.5);
       break;
     case ROUND_STATE.WAITING_FOR_STARTER: {
       const queueIndex = day.starter.queue.indexOf(party.id);
@@ -858,6 +887,15 @@ function processParty(state, party, minute) {
       golfer.holeStrokes++;
       if (shot.type === 'bunker') party.observations.bunkerShots++;
       if (shot.safetyAdjusted) party.observations.waterAvoided++;
+      day.presentationShots.push({
+        id: `${party.id}:${party.holeIndex + 1}:${golfer.id}:${golfer.holeStrokes}`,
+        sequence: day.nextEventSequence,
+        partyId: party.id,
+        golferId: golfer.id,
+        hole: party.holeIndex + 1,
+        shot: { ...shot },
+      });
+      if (day.presentationShots.length > 32) day.presentationShots.splice(0, day.presentationShots.length - 32);
       emit(state, party, 'shot-started', minute, {
         golferId: golfer.id,
         golferName: golfer.name,
@@ -1104,7 +1142,7 @@ export function recoverGolfDay(state) {
 }
 
 export function setGolfSimulationFocus(state, worldPosition) {
-  const day = ensureGolfDay(state);
+  const day = state.golfDay || ensureGolfDay(state);
   for (const party of day.parties) {
     const distance = Math.hypot(party.position.x - worldPosition.x, party.position.z - worldPosition.z);
     party.simulationTier = distance <= 95 ? SIMULATION_TIER.NEAR : distance <= 260 ? SIMULATION_TIER.MID : SIMULATION_TIER.FAR;
@@ -1112,7 +1150,7 @@ export function setGolfSimulationFocus(state, worldPosition) {
 }
 
 export function liveGolfSummary(state) {
-  const day = ensureGolfDay(state);
+  const day = state.golfDay || ensureGolfDay(state);
   return {
     activeParties: day.parties.length,
     activeGolfers: day.parties.reduce((sum, party) => sum + party.golfers.length, 0),

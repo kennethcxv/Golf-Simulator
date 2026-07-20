@@ -18,6 +18,7 @@ import {
 } from './sim/terrainEdit.js';
 import { calendarOf } from './sim/time.js';
 import { ensureReservationHorizon } from './sim/reservations.js';
+import { ensureGolfDay, setGolfSimulationFocus, liveGolfSummary } from './sim/golfDay.js';
 import { el, toast, modal } from './ui/ui.js';
 import { makeHud } from './ui/hud.js';
 import { makeWorksPanel } from './ui/worksPanel.js';
@@ -29,6 +30,7 @@ import { openMarketplace } from './ui/marketplacePanel.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
 import { makeLaptop } from './ui/laptop.js';
 import { makeFrontDesk } from './ui/frontDesk.js';
+import { makeGolfDayPanel } from './ui/golfDayPanel.js';
 import { quadTransform, uvAt } from './core/laptopProjection.js';
 import { makeAudio } from './core/audio.js';
 import { tickTutorial, tutorialFlag, skipTutorial, replayTutorial } from './sim/tutorial.js';
@@ -79,6 +81,7 @@ let regHint = null;
 let laptopUi = null;
 let frontDeskUi = null;
 let objectivesPanel = null;
+let golfDayPanel = null;
 let menu = null;
 let gameUi = null;
 
@@ -419,6 +422,7 @@ function startGame(state) {
   // Starting, loading, or switching into a club must always expose the same
   // deterministic forward booking window. Existing days are idempotently left alone.
   ensureReservationHorizon(app.state);
+  ensureGolfDay(app.state);
   app.screen = 'game';
   app.scene3d = makeCourseScene(canvas, state);
   // walk-up inspection: the walking controller asks, the app answers with the
@@ -573,6 +577,7 @@ function startGame(state) {
   menu.setVisible(false);
   gameUi.style.display = '';
   hud.update();
+  golfDayPanel?.update();
   if (objectivesPanel) objectivesPanel.refresh();
   toast(`Welcome to ${state.clubName} — ${state.mode} mode.`);
   if (lastDiseasedNames.size > 0) {
@@ -788,6 +793,7 @@ const handlers = {
     }
     if (app.empireOpen) empirePanel.refresh();
     hud.update();
+    golfDayPanel?.update();
     autosave();
     return {};
   },
@@ -1495,6 +1501,7 @@ let tutLastYaw = null;
 let tutWalked = 0;
 let tutLastPos = null;
 let audioClock = 0;
+let golfFocusClock = 0;
 
 function frame(ts) {
   const dtMs = Math.min(250, ts - lastTs || 16);
@@ -1584,6 +1591,14 @@ function frame(ts) {
         if (tutWalked > 6) tutorialFlag(app.state, 'walkedABit');
       }
     }
+    golfFocusClock += dtMs;
+    if (golfFocusClock >= 500) {
+      const focus = walkActive()
+        ? app.scene3d.walk.state
+        : { x: app.scene3d.camera.position.x, z: app.scene3d.camera.position.z };
+      setGolfSimulationFocus(app.state, focus);
+      golfFocusClock = 0;
+    }
     const cal = calendarOf(app.state.clock.minutes);
     app.scene3d.applyTimeWeather(cal.minuteOfDay, app.state.weather);
     if (!app.prewarming) app.scene3d.render(dtMs, app.state); // prewarm owns the GPU behind the veil
@@ -1602,7 +1617,7 @@ function frame(ts) {
       audio.update(audioClock / 1000, {
         minuteOfDay: cal2.minuteOfDay,
         rainIn: app.state.weather.today.rainIn,
-        golfersVisible: cal2.minuteOfDay >= 360 && cal2.minuteOfDay <= 1200 ? (app.state.club.lastRounds || 0) : 0,
+        golfersVisible: liveGolfSummary(app.state).activeGolfers,
         inShop: !!(app.scene3d && app.scene3d.clubhouse && app.scene3d.clubhouse()
           && app.scene3d.clubhouse().isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z)),
         tempHiF: app.state.weather.today.tempHiF,
@@ -1611,6 +1626,7 @@ function frame(ts) {
       audioClock = 0;
     }
     hud.update();
+    golfDayPanel?.update();
   }
   // Weld the interface to the glass. Every frame, unconditionally, for as long as the lid is
   // open — through the camera's ease into the seat, through the lid's swing, through a window
@@ -1757,6 +1773,7 @@ function boot() {
     },
   });
   app.frontDeskUi = frontDeskUi;
+  golfDayPanel = makeGolfDayPanel(app);
   worksPanel = makeWorksPanel(app, handlers);
   inspectPanel = makeInspectPanel(app, recomputeRating);
   groundsPanel = makeGroundsPanel(app);
@@ -1793,7 +1810,7 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, frontDeskUi.root, objectivesPanel.root, viewToggle,
+  gameUi.append(hud.root, golfDayPanel.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, frontDeskUi.root, objectivesPanel.root, viewToggle,
     el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · 🗂 Manage or E/G/C/M keys for the desks · V: view · Space: pause · Tab/Esc: back on foot' }));
 
   uiRoot.append(menu.root, gameUi);

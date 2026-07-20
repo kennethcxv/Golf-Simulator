@@ -1148,8 +1148,8 @@ export function makeCourseScene(canvas, state) {
             holeGroup.add(mk);
           }
         }
-        const label = textSprite(String(n), { w: 128, scaleW: 5 });
-        label.position.set(tx, ty + 4.2, tz);
+        const label = textSprite(String(n), { w: 128, fontPx: 82, scaleW: 0.9 });
+        label.position.set(tx, ty + 0.8, tz);
         holeGroup.add(label);
       }
 
@@ -1208,7 +1208,7 @@ export function makeCourseScene(canvas, state) {
   let golfersFrozen = false; // QA/photography: hold the walkers still
   let clubhouseApi = null; // the real building (clubhouse.js): doors, interior, customers
 
-  function updateGolfers(dt, st) {
+  function updateGolfersLegacy(dt, st) {
     if (golfersFrozen) return;
     const cal = st ? Math.floor((st.clock.minutes % 1440)) : 720;
     const openHours = cal >= 360 && cal <= 1200;
@@ -1295,6 +1295,405 @@ export function makeCourseScene(canvas, state) {
     }
   }
 
+  // Canonical live-play presentation. The legacy random walkers above remain
+  // as readable history for the moment, but are never called: identities,
+  // positions, phases, routes and shots below all come from state.golfDay.
+  const METERS_TO_YARDS = 1.09361;
+  const TRAVEL_STATES = new Set([
+    'traveling-to-starter', 'called-to-tee', 'traveling-to-ball', 'traveling-next-hole',
+    'returning-cart', 'returning-scorecard', 'leaving-property',
+  ]);
+  const golferVisuals = new Map();
+  const partyVisuals = new Map();
+  const liveGolfColliders = [];
+  const facilityGroup = new THREE.Group();
+  const liveCartGroup = new THREE.Group();
+  const liveBallGroup = new THREE.Group();
+  facilityGroup.name = 'GolfFacilities';
+  liveCartGroup.name = 'LiveGolfCarts';
+  liveBallGroup.name = 'LiveGolfBalls';
+  scene.add(facilityGroup, liveCartGroup, liveBallGroup);
+  let gameplayKit = null;
+  let golfCartTemplate = null;
+  let facilityRevision = null;
+  let starterCharacter = null;
+  let facilityColliderRefs = [];
+
+  // Slightly presentation-scaled so a real 1.68-inch ball remains readable at
+  // first-person fairway distances in the game's stylized rendering.
+  const liveBallGeometry = new THREE.SphereGeometry(0.1, 12, 8);
+  const liveBallMaterial = new THREE.MeshStandardMaterial({
+    color: 0xfffbed,
+    emissive: 0x5f5428,
+    emissiveIntensity: 0.28,
+    roughness: 0.32,
+  });
+  const liveBallInstances = new THREE.InstancedMesh(liveBallGeometry, liveBallMaterial, 24);
+  liveBallInstances.castShadow = true;
+  liveBallInstances.count = 0;
+  liveBallInstances.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  liveBallGroup.add(liveBallInstances);
+  const liveBallTrailPositions = new Float32Array(24 * 6);
+  const liveBallTrailGeometry = new THREE.BufferGeometry();
+  liveBallTrailGeometry.setAttribute('position', new THREE.BufferAttribute(liveBallTrailPositions, 3));
+  liveBallTrailGeometry.setDrawRange(0, 0);
+  const liveBallTrailMaterial = new THREE.LineBasicMaterial({
+    color: 0xfff1b6,
+    transparent: true,
+    opacity: 0.72,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  const liveBallTrails = new THREE.LineSegments(liveBallTrailGeometry, liveBallTrailMaterial);
+  liveBallTrails.frustumCulled = false;
+  liveBallGroup.add(liveBallTrails);
+  const presentationBalls = [];
+  let lastPresentationSequence = 0;
+  const liveBallMatrix = new THREE.Matrix4();
+
+  const identityHash = (value) => {
+    const text = String(value);
+    let hash = 2166136261;
+    for (let index = 0; index < text.length; index++) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  };
+
+  function prepareLiveAsset(root) {
+    root.traverse((object) => {
+      if (object.name.startsWith('COLLIDER_')) object.visible = false;
+      if (object.isMesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+      }
+    });
+    return root;
+  }
+
+  const liveAssetLoader = new GLTFLoader();
+  liveAssetLoader.load('vendor/models/golf_gameplay_kit.glb', (gltf) => {
+    gameplayKit = prepareLiveAsset(gltf.scene);
+  }, undefined, () => { gameplayKit = null; });
+  liveAssetLoader.load('vendor/models/golf_cart.glb', (gltf) => {
+    golfCartTemplate = prepareLiveAsset(gltf.scene);
+  }, undefined, () => { golfCartTemplate = null; });
+
+  function cloneKit(name) {
+    const source = gameplayKit?.getObjectByName(name);
+    return source ? prepareLiveAsset(source.clone(true)) : null;
+  }
+
+  function placeKit(name, point, rotation = 0, scale = METERS_TO_YARDS) {
+    const object = cloneKit(name);
+    if (!object) return null;
+    object.position.set(point.x, heightAt(point.x, point.z), point.z);
+    object.rotation.y = rotation;
+    object.scale.setScalar(scale);
+    facilityGroup.add(object);
+    return object;
+  }
+
+  function addFacilityLabel(text, point, y = 2.5, scaleW = 11) {
+    const label = textSprite(text, {
+      w: 512, fontPx: 70, scaleW,
+      fg: '#f4edd7', bg: 'rgba(20,55,31,0.9)', border: '#b59a55',
+    });
+    label.position.set(point.x, heightAt(point.x, point.z) + y, point.z);
+    facilityGroup.add(label);
+  }
+
+  function clearGolfFacilities() {
+    while (facilityGroup.children.length) facilityGroup.remove(facilityGroup.children[0]);
+    for (const collider of facilityColliderRefs) {
+      const index = propColliders.indexOf(collider);
+      if (index >= 0) propColliders.splice(index, 1);
+    }
+    facilityColliderRefs = [];
+    starterCharacter = null;
+  }
+
+  function ensureGolfFacilities(st) {
+    const network = st.golfDay?.routeNetwork;
+    if (!gameplayKit || !network || facilityRevision === network.revision) return;
+    clearGolfFacilities();
+    facilityRevision = network.revision;
+    const facilities = network.facilities;
+    placeKit('StarterStand', facilities.starterStand, Math.PI * 0.72);
+    addFacilityLabel('STARTER', facilities.starterStand, 1.85, 3.2);
+    const starter = makeCharacter({ polo: 0xf0ede2, khaki: 0x3f5944, cap: 0x2f5c38 });
+    starter.root.position.set(
+      facilities.starterStand.x + 1.15,
+      heightAt(facilities.starterStand.x + 1.15, facilities.starterStand.z),
+      facilities.starterStand.z + 0.45,
+    );
+    starter.root.rotation.y = -1.2;
+    facilityGroup.add(starter.root);
+    starterCharacter = starter;
+    const starterCollider = { x: facilities.starterStand.x, z: facilities.starterStand.z, r: 0.55 };
+    propColliders.push(starterCollider);
+    facilityColliderRefs.push(starterCollider);
+
+    for (const [index, bay] of facilities.range.bays.slice(0, 3).entries()) {
+      placeKit('RangeBasket', { x: bay.x + index * 0.18, z: bay.z }, index * 0.35, METERS_TO_YARDS * 1.25);
+    }
+    placeKit('GolfBag', facilities.putting.center, 0.5);
+    placeKit('GolfBag', facilities.chipping.center, -0.75);
+    addFacilityLabel('PRACTICE RANGE', facilities.range.center, 1.9, 3.8);
+    addFacilityLabel('PUTTING GREEN', facilities.putting.center, 1.85, 3.5);
+    addFacilityLabel('SHORT GAME', facilities.chipping.center, 1.85, 3.1);
+    const target = new THREE.Mesh(
+      new THREE.TorusGeometry(1.4, 0.09, 8, 28),
+      new THREE.MeshStandardMaterial({ color: 0xe7dfc4, roughness: 0.75 }),
+    );
+    target.position.set(
+      facilities.range.target.x,
+      heightAt(facilities.range.target.x, facilities.range.target.z) + 1.5,
+      facilities.range.target.z,
+    );
+    target.rotation.y = Math.atan2(
+      facilities.range.center.x - facilities.range.target.x,
+      facilities.range.center.z - facilities.range.target.z,
+    );
+    facilityGroup.add(target);
+  }
+
+  function ensureGolferVisual(party, golfer) {
+    const key = `${party.id}:${golfer.id}`;
+    let visual = golferVisuals.get(key);
+    if (visual) return visual;
+    const hash = identityHash(golfer.id);
+    const char = makeCharacter({
+      polo: POLO_COLORS[hash % POLO_COLORS.length],
+      khaki: KHAKI_COLORS[(hash >>> 3) % KHAKI_COLORS.length],
+      cap: CAP_COLORS[(hash >>> 6) % CAP_COLORS.length],
+    });
+    char.root.userData.char = char;
+    char.root.userData.golferId = golfer.id;
+    golferGroup.add(char.root);
+    visual = { char, club: null, lastX: golfer.position.x, lastZ: golfer.position.z, swingUntil: 0 };
+    golferVisuals.set(key, visual);
+    return visual;
+  }
+
+  function attachLiveClub(visual) {
+    if (visual.club || !gameplayKit) return;
+    const club = cloneKit('GolfClub');
+    if (!club) return;
+    club.scale.setScalar(METERS_TO_YARDS);
+    club.position.set(0, -0.27, -0.02);
+    club.rotation.set(0.15, 0, -0.16);
+    (visual.char.grip || visual.char.root).add(club);
+    visual.club = club;
+  }
+
+  function ensurePartyVisual(party) {
+    let visual = partyVisuals.get(party.id);
+    if (!visual) {
+      visual = { bag: null, cart: null, label: null, lastX: party.position.x, lastZ: party.position.z, yaw: 0 };
+      visual.label = textSprite(party.partyName, {
+        w: 384, fontPx: 58, scaleW: 2.2,
+        fg: '#f6efd9', bg: 'rgba(23,46,29,0.82)', border: '#9caf83',
+      });
+      golferGroup.add(visual.label);
+      partyVisuals.set(party.id, visual);
+    }
+    if (!visual.bag && gameplayKit) {
+      visual.bag = cloneKit('GolfBag');
+      if (visual.bag) {
+        visual.bag.scale.setScalar(METERS_TO_YARDS);
+        golferGroup.add(visual.bag);
+      }
+    }
+    if (party.transport === 'ride' && !visual.cart && golfCartTemplate) {
+      visual.cart = golfCartTemplate.clone(true);
+      visual.cart.scale.setScalar(2.6);
+      liveCartGroup.add(visual.cart);
+    }
+    return visual;
+  }
+
+  function formationOffset(index, yaw, riding) {
+    const local = riding
+      ? [[-0.42, -0.1], [0.42, -0.1], [-0.42, 0.72], [0.42, 0.72]][index % 4]
+      : [[-0.75, 0.25], [0.75, 0.15], [-0.5, 1.2], [0.55, 1.15]][index % 4];
+    const sin = Math.sin(yaw);
+    const cos = Math.cos(yaw);
+    return { x: local[0] * cos + local[1] * sin, z: -local[0] * sin + local[1] * cos };
+  }
+
+  function sampleLiveShot(shot, progress) {
+    if (progress < 0.68) {
+      const t = progress / 0.68;
+      return {
+        x: shot.start.x + (shot.landing.x - shot.start.x) * t,
+        y: shot.start.y + (shot.landing.y - shot.start.y) * t + Math.sin(Math.PI * t) * shot.apexYd,
+        z: shot.start.z + (shot.landing.z - shot.start.z) * t,
+      };
+    }
+    if (progress < 0.8) {
+      const t = (progress - 0.68) / 0.12;
+      return {
+        x: shot.landing.x + (shot.stop.x - shot.landing.x) * t * 0.18,
+        y: shot.landing.y + Math.sin(Math.PI * t) * Math.min(0.7, shot.apexYd * 0.04),
+        z: shot.landing.z + (shot.stop.z - shot.landing.z) * t * 0.18,
+      };
+    }
+    const t = (progress - 0.8) / 0.2;
+    const eased = 1 - (1 - t) * (1 - t);
+    return {
+      x: shot.landing.x + (shot.stop.x - shot.landing.x) * eased,
+      y: shot.landing.y + (shot.stop.y - shot.landing.y) * eased,
+      z: shot.landing.z + (shot.stop.z - shot.landing.z) * eased,
+    };
+  }
+
+  function updateLiveBalls(st, nowSeconds) {
+    const pending = (st.golfDay?.presentationShots || [])
+      .filter((item) => item.sequence > lastPresentationSequence);
+    if (pending.length) {
+      lastPresentationSequence = Math.max(...pending.map((item) => item.sequence));
+    }
+    // Accelerated game time can resolve several strokes between rendered
+    // frames. Show only the newest stroke for each party so the player sees
+    // readable live play instead of a burst of historical balls.
+    const newestByParty = new Map();
+    for (const item of pending) newestByParty.set(item.partyId, item);
+    for (const item of [...newestByParty.values()].slice(-6)) {
+      const duration = item.shot.type === 'putt' ? 1.4 : item.shot.type === 'chip' ? 1.8 : 2.5;
+      presentationBalls.push({ ...item, realStart: nowSeconds, duration });
+      const visual = golferVisuals.get(`${item.partyId}:${item.golferId}`);
+      if (visual) visual.swingUntil = nowSeconds + Math.min(2.2, duration * 0.8);
+    }
+    let count = 0;
+    for (let index = presentationBalls.length - 1; index >= 0; index--) {
+      const item = presentationBalls[index];
+      const progress = (nowSeconds - item.realStart) / item.duration;
+      if (progress >= 1) {
+        presentationBalls.splice(index, 1);
+        continue;
+      }
+      if (count >= 24) continue;
+      const point = sampleLiveShot(item.shot, clamp(progress, 0, 1));
+      const prior = sampleLiveShot(item.shot, clamp(progress - 0.045, 0, 1));
+      const offset = count * 6;
+      liveBallTrailPositions[offset] = prior.x;
+      liveBallTrailPositions[offset + 1] = prior.y;
+      liveBallTrailPositions[offset + 2] = prior.z;
+      liveBallTrailPositions[offset + 3] = point.x;
+      liveBallTrailPositions[offset + 4] = point.y;
+      liveBallTrailPositions[offset + 5] = point.z;
+      liveBallMatrix.makeTranslation(point.x, point.y, point.z);
+      liveBallInstances.setMatrixAt(count++, liveBallMatrix);
+    }
+    liveBallInstances.count = count;
+    liveBallInstances.instanceMatrix.needsUpdate = true;
+    liveBallTrailGeometry.setDrawRange(0, count * 2);
+    liveBallTrailGeometry.attributes.position.needsUpdate = true;
+  }
+
+  function updateGolfers(dt, st) {
+    if (golfersFrozen || !st.golfDay) return;
+    ensureGolfFacilities(st);
+    if (starterCharacter) {
+      starterCharacter.setMode(st.golfDay.starter.currentPartyId ? 'Browse' : 'Idle');
+      starterCharacter.update(dt);
+    }
+    const nowSeconds = performance.now() / 1000;
+    updateLiveBalls(st, nowSeconds);
+    liveGolfColliders.length = 0;
+    const activeGolferKeys = new Set();
+    const activePartyKeys = new Set();
+    for (const party of st.golfDay.parties) {
+      activePartyKeys.add(party.id);
+      const partyVisual = ensurePartyVisual(party);
+      const dx = party.position.x - partyVisual.lastX;
+      const dz = party.position.z - partyVisual.lastZ;
+      if (Math.hypot(dx, dz) > 0.02) partyVisual.yaw = Math.atan2(dx, dz);
+      partyVisual.lastX = party.position.x;
+      partyVisual.lastZ = party.position.z;
+      const traveling = TRAVEL_STATES.has(party.state);
+      const riding = party.transport === 'ride' && traveling;
+      const distanceToPlayer = Math.hypot(party.position.x - walk.x, party.position.z - walk.z);
+      const near = party.simulationTier === 'near' || distanceToPlayer < 100;
+      if (partyVisual.cart) {
+        partyVisual.cart.visible = party.transport === 'ride';
+        const parkedOffset = riding ? 0 : 2.2;
+        const cartX = party.position.x + Math.cos(partyVisual.yaw) * parkedOffset;
+        const cartZ = party.position.z - Math.sin(partyVisual.yaw) * parkedOffset;
+        partyVisual.cart.position.set(cartX, heightAt(cartX, cartZ) - 0.04, cartZ);
+        partyVisual.cart.rotation.y = partyVisual.yaw + Math.PI / 2;
+        liveGolfColliders.push({ x: cartX, z: cartZ, r: 1.35 });
+      }
+      if (partyVisual.bag) {
+        partyVisual.bag.visible = !riding;
+        partyVisual.bag.position.set(
+          party.position.x + 1.1,
+          heightAt(party.position.x + 1.1, party.position.z + 0.3),
+          party.position.z + 0.3,
+        );
+        partyVisual.bag.rotation.y = partyVisual.yaw + 0.35;
+      }
+      partyVisual.label.visible = near && distanceToPlayer < 5;
+      partyVisual.label.position.set(
+        party.position.x,
+        heightAt(party.position.x, party.position.z) + 2.25 + (party.sequence % 2) * 0.42,
+        party.position.z,
+      );
+
+      for (let index = 0; index < party.golfers.length; index++) {
+        const golfer = party.golfers[index];
+        const key = `${party.id}:${golfer.id}`;
+        activeGolferKeys.add(key);
+        const visual = ensureGolferVisual(party, golfer);
+        attachLiveClub(visual);
+        const offset = formationOffset(index, partyVisual.yaw, riding);
+        const isCurrent = index === party.currentGolferIndex;
+        const base = traveling || !isCurrent ? party.position : golfer.position;
+        let x = base.x + offset.x;
+        let z = base.z + offset.z;
+        if (walk.active && !cart.mounted) {
+          const pdx = x - walk.x;
+          const pdz = z - walk.z;
+          const distance = Math.hypot(pdx, pdz);
+          if (distance > 0.01 && distance < 1.4) {
+            x += (pdx / distance) * (1.4 - distance);
+            z += (pdz / distance) * (1.4 - distance);
+          }
+        }
+        const moveX = x - visual.lastX;
+        const moveZ = z - visual.lastZ;
+        if (Math.hypot(moveX, moveZ) > 0.02) visual.char.root.rotation.y = Math.atan2(moveX, moveZ);
+        visual.lastX = x;
+        visual.lastZ = z;
+        let mode = 'Idle';
+        if (riding) mode = 'Sit';
+        else if (nowSeconds < visual.swingUntil || (isCurrent && party.state === 'ball-in-play')) mode = 'Swing';
+        else if (traveling) mode = 'Walk';
+        else if (party.state === 'practicing' && ['range', 'chipping'].includes(party.practiceKind)) mode = 'Swing';
+        visual.char.setMode(mode);
+        visual.char.update(party.simulationTier === 'far' ? Math.min(dt, 0.05) : dt);
+        visual.char.root.position.set(x, heightAt(x, z) + (riding ? 0.48 : 0), z);
+        visual.char.root.visible = party.simulationTier !== 'far' || distanceToPlayer < 420;
+        if (visual.club) visual.club.visible = near && !riding && (mode === 'Swing' || isCurrent || party.state === 'practicing');
+        if (!riding) liveGolfColliders.push({ x, z, r: 0.38 });
+      }
+    }
+    for (const [key, visual] of golferVisuals) {
+      if (activeGolferKeys.has(key)) continue;
+      golferGroup.remove(visual.char.root);
+      golferVisuals.delete(key);
+    }
+    for (const [key, visual] of partyVisuals) {
+      if (activePartyKeys.has(key)) continue;
+      if (visual.bag) golferGroup.remove(visual.bag);
+      if (visual.cart) liveCartGroup.remove(visual.cart);
+      if (visual.label) golferGroup.remove(visual.label);
+      partyVisuals.delete(key);
+    }
+  }
+
   // --- walkable mode: first-person on the real course ------------------------------------
   // Adapted from shopScene's controller: WASD + pointer-lock look (arrows as
   // fallback), circle collision against what the course already has — tree
@@ -1350,6 +1749,12 @@ export function makeCourseScene(canvas, state) {
         const rr = c.r + r;
         if (dx * dx + dz * dz < rr * rr) return true;
       }
+    }
+    for (const c of liveGolfColliders) {
+      const dx = nx - c.x;
+      const dz = nz - c.z;
+      const rr = c.r + r;
+      if (dx * dx + dz * dz < rr * rr) return true;
     }
     for (const t of treeColliders) {
       const dx = nx - t.x;
@@ -2541,6 +2946,10 @@ export function makeCourseScene(canvas, state) {
     composerTarget.dispose();
     renderer.dispose();
     terrainGeo.dispose();
+    liveBallGeometry.dispose();
+    liveBallMaterial.dispose();
+    liveBallTrailGeometry.dispose();
+    liveBallTrailMaterial.dispose();
   }
 
   // initial build
@@ -2825,14 +3234,8 @@ export function makeCourseScene(canvas, state) {
         action: null,
       });
 
-      // the club's golf cart, parked by the porch (ambient prop for now)
-      putModel('vendor/models/golf_cart.glb', 2.6, bx + 9.5, bz + 12.5, 2.2);
-      propColliders.push({ x: bx + 9.5, z: bz + 12.5, r: 1.3 });
-      walkProps.push({
-        x: bx + 9.5, z: bz + 12.5, r: 2.6,
-        label: () => "The club's cart — members' shuttle (the tractor is yours)",
-        action: null,
-      });
+      // Golf carts are no longer parked scenery. The fleet is assigned to live
+      // round parties and the same vehicle follows their canonical route.
     }
   }
   buildCourseProps();

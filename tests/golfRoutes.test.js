@@ -23,6 +23,11 @@ test('course route network is deterministic, cached, and covers every live hole'
   assert.equal(first.facilities.range.bays.length, 6);
   assert.equal(first.facilities.putting.positions.length, 6);
   assert.equal(first.facilities.chipping.positions.length, 4);
+  for (const positions of [first.facilities.staging, first.facilities.range.bays,
+    first.facilities.putting.positions, first.facilities.chipping.positions]) {
+    assert.equal(new Set(positions.map((point) => `${point.x}:${point.z}`)).size, positions.length,
+      'facility positions do not stack multiple groups into one world point');
+  }
   assert.ok(first.holes.every((hole) => routeDistance(hole.play.walk) > 0));
   assert.ok(first.holes.every((hole) => routeDistance(hole.play.cart) > 0));
 });

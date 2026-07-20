@@ -123,7 +123,7 @@ function passable(course, mask, x, y, mode, goalKey = -1) {
   return Number.isFinite(costs[course.zones[key]]);
 }
 
-function nearestPassable(course, mask, point, mode, { avoidGoalSurface = false } = {}) {
+function nearestPassable(course, mask, point, mode, { avoidGoalSurface = false, avoid = null } = {}) {
   const base = {
     x: Math.max(0, Math.min(course.w - 1, Math.round(point.x))),
     y: Math.max(0, Math.min(course.h - 1, Math.round(point.y))),
@@ -136,6 +136,7 @@ function nearestPassable(course, mask, point, mode, { avoidGoalSurface = false }
         const x = base.x + dx;
         const y = base.y + dy;
         if (!inside(course, x, y)) continue;
+        if (avoid?.has(keyOf(course, x, y))) continue;
         const zone = course.zones[keyOf(course, x, y)];
         if (avoidGoalSurface && (zone === ZONE.GREEN || zone === ZONE.TEE)) continue;
         if (passable(course, mask, x, y, mode)) candidates.push({ x, y, d: dx * dx + dy * dy });
@@ -280,6 +281,15 @@ function safeFacilityCell(course, mask, preferred, mode = 'walk') {
   return nearestPassable(course, mask, preferred, mode, { avoidGoalSurface: true });
 }
 
+function distinctFacilityCells(course, mask, preferredPoints, mode = 'walk') {
+  const used = new Set();
+  return preferredPoints.map((point) => {
+    const cell = nearestPassable(course, mask, point, mode, { avoidGoalSurface: true, avoid: used });
+    used.add(keyOf(course, cell.x, cell.y));
+    return cell;
+  });
+}
+
 function buildFacilities(course, mask) {
   const structure = (course.structures || []).find((entry) => entry.type === 'clubhouse')
     || course.structures?.[0]
@@ -307,39 +317,43 @@ function buildFacilities(course, mask) {
   const chippingCenter = at(7.5, -2);
   const cartBarn = safeFacilityCell(course, mask, { x: club.x + 7, y: club.y + 2 }, 'cart');
   const returnPoint = safeFacilityCell(course, mask, { x: club.x, y: club.y + 5 });
+  const staging = distinctFacilityCells(course, mask, [0, 1, 2].map((index) => ({
+    x: starter.x - ux * (1.8 + index * 1.6) + px * (index - 1) * 0.8,
+    y: starter.y - uy * (1.8 + index * 1.6) + py * (index - 1) * 0.8,
+  })));
+  const rangeBays = distinctFacilityCells(course, mask, Array.from({ length: 6 }, (_, index) => ({
+    x: rangeCenter.x + px * (index - 2.5) * 0.8,
+    y: rangeCenter.y + py * (index - 2.5) * 0.8,
+  })));
+  const puttingPositions = distinctFacilityCells(course, mask, Array.from({ length: 6 }, (_, index) => {
+    const angle = (index / 6) * Math.PI * 2;
+    return {
+      x: puttingCenter.x + Math.cos(angle) * 1.6,
+      y: puttingCenter.y + Math.sin(angle) * 1.6,
+    };
+  }));
+  const chippingPositions = distinctFacilityCells(course, mask, Array.from({ length: 4 }, (_, index) => ({
+    x: chippingCenter.x + px * (index - 1.5),
+    y: chippingCenter.y + py * (index - 1.5),
+  })));
 
   return {
     clubhouse: worldPoint(course, returnPoint),
     cartBarn: worldPoint(course, cartBarn),
     starterStand: worldPoint(course, starter),
-    staging: [0, 1, 2].map((index) => worldPoint(course, safeFacilityCell(course, mask, {
-      x: starter.x - ux * (1.8 + index * 1.6) + px * (index - 1) * 0.8,
-      y: starter.y - uy * (1.8 + index * 1.6) + py * (index - 1) * 0.8,
-    }))),
+    staging: staging.map((cell) => worldPoint(course, cell)),
     range: {
       center: worldPoint(course, rangeCenter),
-      bays: Array.from({ length: 6 }, (_, index) => worldPoint(course, safeFacilityCell(course, mask, {
-        x: rangeCenter.x + px * (index - 2.5) * 0.8,
-        y: rangeCenter.y + py * (index - 2.5) * 0.8,
-      }))),
+      bays: rangeBays.map((cell) => worldPoint(course, cell)),
       target: worldPoint(course, at(13, 7)),
     },
     putting: {
       center: worldPoint(course, puttingCenter),
-      positions: Array.from({ length: 6 }, (_, index) => {
-        const angle = (index / 6) * Math.PI * 2;
-        return worldPoint(course, safeFacilityCell(course, mask, {
-          x: puttingCenter.x + Math.cos(angle) * 1.6,
-          y: puttingCenter.y + Math.sin(angle) * 1.6,
-        }));
-      }),
+      positions: puttingPositions.map((cell) => worldPoint(course, cell)),
     },
     chipping: {
       center: worldPoint(course, chippingCenter),
-      positions: Array.from({ length: 4 }, (_, index) => worldPoint(course, safeFacilityCell(course, mask, {
-        x: chippingCenter.x + px * (index - 1.5),
-        y: chippingCenter.y + py * (index - 1.5),
-      }))),
+      positions: chippingPositions.map((cell) => worldPoint(course, cell)),
     },
   };
 }

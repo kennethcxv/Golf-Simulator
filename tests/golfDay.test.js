@@ -66,11 +66,15 @@ test('starter separation, safety waits, congestion, and marshal work derive from
   const state = newGame('relaxed', 33003);
   const first = checkedInParty(state, { holder: 'First Pair', size: 2, arrivalMinute: 470, minute: 480, transport: 'walk' });
   const second = checkedInParty(state, { holder: 'Second Pair', size: 2, arrivalMinute: 471, minute: 480, transport: 'walk' });
+  golfDayTick(state, 472);
+  assert.notDeepEqual(state.golfDay.parties[0].position, state.golfDay.parties[1].position,
+    'practice groups use separate bays or short-game positions');
   golfDayTick(state, 560);
   const starts = [first, second].map((reservation) => reservationById(state, reservation.id).actualStartMinute).sort((a, b) => a - b);
   assert.ok(starts[1] - starts[0] >= 7, `${starts[0]} and ${starts[1]} must preserve starter gap`);
   assert.ok(state.golfDay.events.some((event) => event.type === 'starter-called-party'));
   assert.ok(state.golfDay.events.some((event) => event.type === 'shot-started'));
+  assert.ok(state.golfDay.presentationShots.length > 0);
   assert.ok(['clear', 'watch', 'slow', 'severe'].includes(state.golfDay.congestion.level));
   // Inject a measured delay into the canonical pace record to test dispatch and
   // completion without inventing a second marshal-only scenario.
@@ -136,6 +140,7 @@ test('bounded ball and event pools survive several simultaneous rounds', () => {
   checkedInParty(state, { holder: 'Pool D', size: 2, minute: 510, arrivalMinute: 473 });
   golfDayTick(state, 1400);
   assert.equal(state.golfDay.balls.length, 24);
+  assert.ok(state.golfDay.presentationShots.length <= 32);
   assert.ok(state.golfDay.events.length <= 2400);
   assert.equal(state.golfDay.metrics.poolExhaustions, 0);
   assert.equal(state.golfDay.completed.length, 4);
