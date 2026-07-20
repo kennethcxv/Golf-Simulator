@@ -398,6 +398,7 @@ export function buildBuildMode(B, deps) {
     finishCarry();
     rebuildLayout();
     hooks.sfx?.('thunk');
+    hooks.tutorial?.('fixturePlaced');
     hooks.toast?.(`${label} set exactly where previewed. Navigation refreshed.`);
     panel.refresh();
     return true;

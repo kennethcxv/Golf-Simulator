@@ -146,7 +146,7 @@ export function makeLaptop(app, opts) {
   let supplierCat = 'all';
   let financeWindow = 'today';
   let bookingDraft = { holder: '', partySize: 1, guestNames: '', paymentPlan: 'desk' };
-  let scale = 1;           // interface scale, for anyone who finds 15px small on a 4K panel
+  let scale = app.preferences?.values?.display?.uiScale || 1;
   let pending = null;      // the live confirmation, if one is open
 
   const content = el('div', { class: 'lt-content' });
@@ -1887,7 +1887,6 @@ export function makeLaptop(app, opts) {
   // =========================================================================================
   function pageSettings() {
     const st = app.state;
-    const ui = app.ui || (app.ui = {});
     const teeConfig = st.reservations.config;
 
     const scaleRow = row(
@@ -1895,9 +1894,14 @@ export function makeLaptop(app, opts) {
       ...[0.9, 1, 1.15, 1.3].map((s) => el('button', {
         class: `lt-day ${Math.abs(scale - s) < 0.01 ? 'on' : ''}`,
         text: `${Math.round(s * 100)}%`,
-        onclick: () => { setScale(s); click(); render(); },
+        onclick: () => {
+          app.preferences?.set('display.uiScale', s);
+          setScale(s);
+          click();
+          render();
+        },
       })),
-      meta('the screen is a real object at a real distance — make the type bigger if it reads small'),
+      meta('also scales menus, HUD, prompts, and notifications'),
     );
 
     const nameInput = el('input', {
@@ -1936,7 +1940,8 @@ export function makeLaptop(app, opts) {
       sect('Booking policy'),
       card(...operationsPolicySummary(st).map((line) => row(el('span', { text: line })))),
       sect('Display'),
-      card(scaleRow),
+      card(scaleRow,
+        el('div', { class: 'lt-meta', text: 'Audio, camera, graphics, reduced motion, contrast, and sustained-tool options live in the shared P > Settings menu.' })),
       sect('Difficulty'),
       card(
         el('label', { class: 'lt-row' }, simpleCheck,
