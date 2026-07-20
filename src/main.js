@@ -132,6 +132,8 @@ function enterWalk(spawn) {
   }
   app.courseMode = 'walk';
   app.scene3d.walk.enter(spawn);
+  if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+    && document.activeElement.closest('#ui')) document.activeElement.blur();
   walkOverlay.style.display = '';
   const hint = document.querySelector('.hint-bar');
   if (hint) hint.style.display = 'none';
@@ -747,6 +749,7 @@ const handlers = {
     inspectPanel.hide();
     const hint = document.querySelector('.hint-bar');
     if (hint) hint.style.display = app.worksMode ? 'none' : '';
+    syncPresentationMode(presentationMode());
   },
   toggleGrounds() {
     const next = !app.groundsOpen;
@@ -941,6 +944,7 @@ function closePauseMenu({ resume = true } = {}) {
     if (pauseHadPointerLock && !regActive() && !app.laptopOpen) requestLook();
   }
   pauseHadPointerLock = false;
+  syncPresentationMode(presentationMode());
 }
 function togglePauseMenu() { if (pauseUi) closePauseMenu(); else openPauseMenu(); }
 
@@ -1243,6 +1247,7 @@ function openPauseMenu() {
   document.getElementById('ui').append(pauseUi);
   releasePauseFocus = containFocus(panel, { onEscape: () => closePauseMenu(), initialFocus: navBtns.get('home') });
   setPage('home');
+  syncPresentationMode('pause');
 }
 
 // --- input ------------------------------------------------------------------------
@@ -2109,8 +2114,9 @@ function boot() {
   toolWheel = makeToolWheel({
     audio,
     onSelect: selectWalkTool,
-    onClose: () => {
-      if (walkActive() && !regActive() && !app.laptopOpen && !isPauseOpen()) requestLook();
+    onPause: openPauseMenu,
+    onClose: (reason) => {
+      if (reason !== 'pause' && walkActive() && !regActive() && !app.laptopOpen && !isPauseOpen()) requestLook();
       syncPresentationMode(presentationMode());
     },
   });
