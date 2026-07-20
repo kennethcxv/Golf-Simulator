@@ -50,7 +50,9 @@ def build_club_wall_bay(M):
     """Architectural club bay with three-point support: sole trough, lower
     shaft rail, and upper grip clips. Clubs cannot visually pass through it."""
     p = []
-    part(p, 'back', (2.90, 0.08, 2.34), (0, 0.30, 1.17), M['darkwood'])
+    # Sage display felt makes black shafts and chrome heads readable from the
+    # entrance; the first dark-walnut back swallowed the merchandise.
+    part(p, 'back', (2.90, 0.08, 2.34), (0, 0.30, 1.17), M['sage'])
     for x in (-1.44, 1.44):
         part(p, 'stile', (0.10, 0.20, 2.42), (x, 0.24, 1.21), M['wood'], bevel_w=0.018)
     part(p, 'header', (2.98, 0.22, 0.31), (0, 0.22, 2.27), M['wood'], bevel_w=0.020)

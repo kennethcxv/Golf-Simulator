@@ -1626,10 +1626,10 @@ export function makeClubhouse(ctx) {
     }
 
     if (id.startsWith('bag')) {
-      // The modelled bag ships WITH its fan of clubs, because that fan is the whole silhouette:
-      // a golf bag with nothing in it is just a bin (ref 7).
-      const bag = merch.instantiate(id === 'bag3' ? 'bag_empty' : 'bag', {
-        tint: BAG_TINTS[i % 4], scale: id === 'bag3' ? 0.82 : 0.72,
+      // Bags are sold empty. Repeating a five-club fan in every facing created
+      // a forest of shafts that obscured both the fitting room and the lounge.
+      const bag = merch.instantiate('bag_empty', {
+        tint: BAG_TINTS[i % 4], scale: id === 'bag3' ? 0.82 : 0.76,
       });
       if (!bag) return null;
       bag.position.set(s.x, s.y, s.z);

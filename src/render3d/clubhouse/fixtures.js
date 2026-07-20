@@ -409,7 +409,7 @@ export function buildFixtures(B) {
     sign.rotation.y = Math.PI / 10;
     g.add(sign);
     const prices = priceRail(f, { w: 0.72, h: 0.18 });
-    if (prices) { prices.position.set(0, 0.48, 0.36); g.add(prices); }
+    if (prices) { prices.position.set(0, 0.72, 0.36); g.add(prices); }
     addCol(colBoxAt(f.x, f.z, 0.8, 0.8));
     return g;
   }

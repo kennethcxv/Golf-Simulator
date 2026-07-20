@@ -9,6 +9,7 @@ const PORT = Number(process.argv.find((arg) => arg.startsWith('--port='))?.slice
 const VIDEO = process.argv.includes('--video');
 const RENOVATED = process.argv.includes('--renovated');
 const HARDWARE = process.argv.includes('--hardware');
+const REQUESTED_CUSTOMERS = Number(process.argv.find((arg) => arg.startsWith('--customers='))?.slice(12) || 0);
 const CAPTURE = !process.argv.includes('--perf-only');
 const PERFORMANCE = !process.argv.includes('--capture-only');
 const CAPTURE_START = CAPTURE && !process.argv.includes('--full-only');
@@ -308,6 +309,18 @@ if (PERFORMANCE) {
 
 const stock = await setStock('full', 3);
 await page.waitForTimeout(1_800); // tier change relays premium fixtures on the scene poll
+let spawned = 0;
+if (REQUESTED_CUSTOMERS > 0) {
+  spawned = await page.evaluate((count) => {
+    const clubhouse = window.__fw.scene3d.clubhouse();
+    let made = 0;
+    for (let i = 0; i < count; i++) made += clubhouse.debugSpawn() ? 1 : 0;
+    return made;
+  }, REQUESTED_CUSTOMERS);
+  // Let shoppers traverse the real nav routes and settle into authored browse
+  // sockets before the fixed-camera sweep begins.
+  await page.waitForTimeout(10_000);
+}
 const stockDiagnostics = await page.evaluate(() => {
   const root = window.__fw.scene3d.scene.getObjectByName('shop-stock');
   if (!root) return [];
@@ -322,16 +335,34 @@ const stockDiagnostics = await page.evaluate(() => {
     return { name: child.name, meshes, vertices, visible: child.visible };
   });
 });
+const customerDiagnostics = await page.evaluate(() => {
+  const api = window.__fw.scene3d.clubhouse();
+  const customers = Array.isArray(api.customers) ? api.customers : api.customers();
+  let minSeparationYards = null;
+  for (let i = 0; i < customers.length; i++) {
+    for (let j = i + 1; j < customers.length; j++) {
+      const distance = customers[i].mesh.position.distanceTo(customers[j].mesh.position);
+      minSeparationYards = minSeparationYards == null ? distance : Math.min(minSeparationYards, distance);
+    }
+  }
+  const reservedSockets = customers.flatMap((customer) => customer.stops
+    .map((stop) => stop.socketKey).filter(Boolean));
+  return {
+    active: customers.length,
+    minSeparationYards: minSeparationYards == null ? null : +minSeparationYards.toFixed(3),
+    reservedSockets,
+    uniqueReservedSockets: new Set(reservedSockets).size,
+  };
+});
 if (CAPTURE_FULL) {
   console.log(`[${PASS}] capture fully stocked`);
   await captureSet('fully-stocked');
 }
 
-let spawned = 0;
 if (PERFORMANCE) {
   console.log(`[${PASS}] measure full premium with ten customers`);
   await setCamera(SHOTS[3]);
-  spawned = await page.evaluate(() => {
+  spawned += await page.evaluate(() => {
     const clubhouse = window.__fw.scene3d.clubhouse();
     let count = 0;
     for (let i = 0; i < 10; i++) count += clubhouse.debugSpawn() ? 1 : 0;
@@ -370,6 +401,7 @@ const report = {
   startingState,
   stock,
   stockDiagnostics,
+  customerDiagnostics,
   customersSpawned: spawned,
   cameras: SHOTS,
   metrics,
