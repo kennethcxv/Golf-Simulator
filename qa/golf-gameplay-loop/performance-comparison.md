@@ -1,53 +1,65 @@
 # Golf gameplay performance comparison
 
-The before and after decision captures use system Chrome 150, a 1600 x 900 viewport, repository-default quality, the same first-tee camera and lighting, an eight-second warm-up, and three five-second samples per scenario. Raw samples and screenshots are retained beside each JSON report.
+## Decision evidence
 
-The baseline active scene contains eight legacy ambient golfers. The final active scene is deliberately heavier and more representative: four canonical parties, nine named golfers, two assigned carts, live equipment, course facilities, and bounded ball/shot presentation.
+The production scaling decision uses the normal-control full-tee-sheet run at `performance/route-e-performance-accepted/`. It launched a fresh property, booked 12 parties through the physical laptop, checked them in through four physical desk sessions, kept all parties authoritative, walked the player from the starter to a previously far group, completed every round, forced exposed garbage collection only for measurement, and recorded four screenshots plus WebM.
 
-## Decision sample
+The retained pre-change baseline at `baseline/performance/before-main.json` used the same 1600 x 900 system-Chrome environment and repository quality defaults. Its eight ambient golfers were renderer-owned scenery rather than full rounds, so geometry comparisons are contextual; the Route E frame-time and bounded-resource checks are the actual acceptance gate.
 
-| Metric (median) | Baseline, 8 ambient golfers | Final, 9 canonical golfers + 2 carts | Change |
-| --- | ---: | ---: | ---: |
-| Average FPS | 120.00 | 119.60 | -0.3% |
-| 1% low FPS | 117.42 | 86.71 | -26.2% |
-| Worst frame | 8.6 ms | 16.7 ms | +8.1 ms |
-| Draw calls | 3,236 | 3,342 | +3.3% |
-| Rendered triangles | 10,097,192 | 10,597,108 | +5.0% |
-| Scene triangles | 1,781,371 | 1,847,846 | +3.7% |
-| Materials | 269 | 282 | +4.8% |
-| Textures | 163 | 163 | 0.0% |
-| Estimated texture bytes | 6,169,904,533 | 6,169,904,533 | 0.0% |
-| JS heap | 114,807,872 | 80,125,016 | -30.2% |
-| UI callbacks / second | 120.2 | 119.8 | -0.3% |
+## Frame-time results
 
-Final active raw runs averaged 120.0, 119.6, and 119.39 FPS. The 1% low and worst-frame percentage gates miss the deliberately strict near-120-FPS baseline tolerance, but the final medians still remain above 60 FPS and at or below one 60 Hz frame. There is no sustained throughput regression.
+| Scenario | Average FPS | 1% low | p95 | p99 | >33 ms hitches | Worst |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Baseline, 8 ambient figures | 120.0 | 117.42 | not recorded | not recorded | not recorded | 8.6 ms |
+| 12 active canonical parties at starter | 118.0 | 59.28 | 8.5 ms | 16.6 ms | 0 | 18.2 ms |
+| Player moved to prior FAR party | 120.0 | 115.47 | 8.5 ms | 8.6 ms | 0 | 8.7 ms |
+| All 12 rounds settled | 120.0 | 111.52 | 8.4 ms | 8.6 ms | 0 | 10.3 ms |
 
-## Idle scene
+The active starter scene contains 12 simultaneous authoritative groups, 6 walking and 6 riding, rather than eight decorative walkers. It sustains 118 average FPS with no frame over 33 ms. The moved and settled samples return to 120 FPS with 1% lows above 111 FPS.
 
-| Metric (median) | Baseline | Final | Change |
-| --- | ---: | ---: | ---: |
-| Average FPS | 119.99 | 117.60 | -2.0% |
-| Draw calls | 2,436 | 2,698 | +10.8% |
-| Rendered triangles | 10,076,936 | 9,957,304 | -1.2% |
-| Scene triangles | 1,777,411 | 1,739,088 | -2.2% |
-| Materials | 219 | 235 | +7.3% |
-| Textures | 163 | 160 | -1.8% |
+## Tier transition proof
 
-Two idle samples each contained one late-load/host scheduling stall; the third ran at 120 FPS with a 113.42 FPS 1% low. The active samples after that transition were stable. Additional reruns made during heavy host contention are retained as `after-live-host-noise*.json` rather than substituted for the controlled decision run.
+Before movement the renderer reported 4 NEAR and 8 FAR parties. `Load Test 02` was FAR at 270.0 yards. The player physically crossed the course with normal movement; afterward that same party was NEAR, while the scene reported 2 NEAR, 2 MID, and 8 FAR. Its party ID, hole 7 progress, route, scorecard, wait reasons, transport, and ball ownership remained intact.
 
-## Scaling and leak checks
+Tier policy:
 
-- Ball presentation uses a fixed 24-instance mesh and one fixed trajectory line draw call.
-- Persisted presentation history is capped at 32 shot records.
-- Course parties use near/mid/far simulation tiers; only five characters were in the final camera frustum while all nine canonical golfer visuals were present.
-- Facility, bag, club, basket, and starter GLB parts are consolidated by material while preserving asset roots, real dimensions, pivots, UVs, colliders, and material separation.
-- Active listeners were 96 before and after the repeated idle/live route; listener delta was 0 and registration delta was 0.
-- Texture count and estimated texture memory did not grow under the live fixture.
-- The final live heap was lower than baseline and showed no monotonic growth across repeated interactions.
+- NEAR: all party characters, full animation updates, visible pooled balls/trails, physical cart presentation.
+- MID: one representative character per party, throttled animation, canonical route movement and sampled shots.
+- FAR: authoritative event/round progress without scene objects or unnecessary ball/animation work.
 
-## Evidence
+Crossing a boundary reconstructs presentation from the same authoritative party rather than spawning a second simulation.
 
-- Baseline: `baseline/performance/before-main.json`
-- Final decision run: `final/performance/after-live.json`
-- Final fixed-camera screenshots: `final/performance/after-live-idle.png` and `after-live-ambient.png`
-- Rejected host-noise reruns: `final/performance/after-live-host-noise.json`, `after-live-host-noise-2.json`, and `after-live-host-noise-3.json`
+## Bounded resources and memory
+
+| Metric | Result |
+| --- | ---: |
+| Peak active parties | 12 |
+| Exact-once completed rounds | 12 |
+| Exact-once experience reviews | 12 |
+| Party-pool shells after completion | 12 |
+| Ball-pool capacity | 24 |
+| Peak active balls | 3 |
+| Active balls after settlement | 0 |
+| Event ring | 2,400 / 2,400 bounded entries |
+| Baseline JS heap | 199.02 MiB |
+| Active JS heap | 206.02 MiB |
+| Settled JS heap | 206.91 MiB |
+| Settled growth | 7.88 MiB |
+| Fleet after settlement | 8 available, 0 assigned |
+
+The parsed-GLB cache keeps one decoded prototype per model and clones object hierarchies while sharing geometry, material, and texture resources. Course parties also use bounded character, cart, bag, ball, trajectory, presentation-shot, and event pools. No monotonic heap, listener, cart, ball, party, texture, or event growth was observed.
+
+## Acceptance checks
+
+Every Route E gate is `true` in `evidence.json`:
+
+- `twelveRoundsExactlyOnce`
+- `twelveReviewsExactlyOnce`
+- `targetBecameNear`
+- `tierMixObserved`
+- `resourcesBounded`
+- `fleetReleased`
+- `activePerformanceAcceptable`
+- `heapSettled`
+
+Diagnostics: 0 page errors, 0 console errors, 0 failed requests. The route recorded 375 normal inputs and took 179.5 seconds.
