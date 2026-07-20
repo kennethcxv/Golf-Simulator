@@ -31,16 +31,16 @@ export function buildBuildMode(B, deps) {
   interior.add(ghost);
 
   const ghostMat = new THREE.MeshBasicMaterial({
-    color: GHOST_OK, transparent: true, opacity: 0.34, depthWrite: false,
+    color: GHOST_OK, transparent: true, opacity: 0.22, depthWrite: false,
   });
-  const edgeMat = new THREE.LineBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.9 });
+  const edgeMat = new THREE.LineBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.72 });
   let ghostBox = null;
   let ghostEdges = null;
 
   // the highlight ring under whatever fixture you are looking at
   const halo = new THREE.Mesh(
-    new THREE.RingGeometry(0.1, 0.14, 24),
-    new THREE.MeshBasicMaterial({ color: 0xffd479, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthTest: false }),
+    new THREE.RingGeometry(0.92, 1, 48),
+    new THREE.MeshBasicMaterial({ color: 0xffd479, transparent: true, opacity: 0.68, side: THREE.DoubleSide, depthTest: false }),
   );
   halo.rotation.x = -Math.PI / 2;
   halo.renderOrder = 998;
@@ -131,9 +131,12 @@ export function buildBuildMode(B, deps) {
         commitPlacement(state, carrying, p.x, p.z, ry);
         carrying = null;
         ghost.visible = false;
+        active = false;
+        halo.visible = false;
         rebuildLayout();
         if (hooks.sfx) hooks.sfx('thunk');
-        if (hooks.toast) hooks.toast('Set down. The customers will find their way round it.');
+        if (hooks.tutorial) hooks.tutorial('fixturePlaced');
+        if (hooks.toast) hooks.toast('Fixture placed — customer routes are clear.', 'good');
         return true;
       }
       const f = fixtureUnderAim();
@@ -203,8 +206,8 @@ export function buildBuildMode(B, deps) {
           const r = fixtureRect(f);
           halo.visible = true;
           halo.position.set((r.minX + r.maxX) / 2, 0.03, (r.minZ + r.maxZ) / 2);
-          const rad = Math.max(r.maxX - r.minX, r.maxZ - r.minZ) / 2 + 0.25;
-          halo.scale.setScalar(rad / 0.12);
+          const rad = Math.max(r.maxX - r.minX, r.maxZ - r.minZ) / 2 + 0.18;
+          halo.scale.setScalar(rad);
         } else {
           halo.visible = false;
         }

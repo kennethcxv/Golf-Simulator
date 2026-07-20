@@ -1,46 +1,77 @@
-// FAIRWAY STATE — the guide card: the current tutorial objective, quietly in the
-// corner. Retires itself when the arc completes or the player hides it.
+// Context-aware guide card. The arrival arc appears only during ordinary walk;
+// first-use lessons can temporarily replace it in the mode that triggered them.
 
 import { el } from './ui.js';
-import { TUTORIAL_STEPS, currentStep } from '../sim/tutorial.js';
+import {
+  TUTORIAL_STEPS,
+  currentContextTutorial,
+  currentStep,
+  dismissContextTutorial,
+} from '../sim/tutorial.js';
 
-export function makeObjectivesPanel(app) {
-  const title = el('div', { style: 'font-weight:600' });
-  const hint = el('div', { class: 'muted', style: 'font-size:0.85rem;line-height:1.35' });
-  const progress = el('span', { class: 'muted', style: 'font-size:0.8rem' });
-  const root = el(
-    'div',
-    { class: 'panel objectives-card', style: 'display:none' },
-    el('div', { class: 'row', style: 'justify-content:space-between' },
-      el('span', { text: '🎯 Getting started', style: 'color:var(--accent);font-size:0.85rem;letter-spacing:0.5px' }),
-      progress,
-      el('button', {
-        text: '✕', title: 'Hide the guide', style: 'padding:0 8px',
-        onclick: () => {
-          if (app.state && app.state.tutorial) app.state.tutorial.hidden = true;
-          refresh();
-        },
-      }),
-    ),
+export function makeObjectivesPanel(app, { getContext = () => 'walk' } = {}) {
+  const eyebrow = el('span', { class: 'objective-eyebrow', text: 'Current objective' });
+  const progress = el('span', { class: 'objective-progress' });
+  const title = el('div', { class: 'objective-title' });
+  const hint = el('div', { class: 'objective-hint' });
+  const later = el('button', { class: 'objective-later', type: 'button', text: 'Remind me later' });
+  const dismiss = el('button', { class: 'objective-dismiss', type: 'button', text: '×', title: 'Dismiss this guidance', 'aria-label': 'Dismiss this guidance' });
+  const root = el('aside', { class: 'objectives-card', style: 'display:none', 'aria-live': 'polite' },
+    el('div', { class: 'objective-head' }, eyebrow, progress, dismiss),
     title,
     hint,
+    later,
   );
+  let contextualId = null;
+
+  later.addEventListener('click', () => {
+    if (!contextualId || !app.state) return;
+    dismissContextTutorial(app.state, contextualId, { remind: true });
+    refresh();
+  });
+  dismiss.addEventListener('click', () => {
+    if (!app.state?.tutorial) return;
+    if (contextualId) dismissContextTutorial(app.state, contextualId);
+    else app.state.tutorial.hidden = true;
+    refresh();
+  });
 
   function refresh() {
-    const st = app.state;
-    if (!st || !st.tutorial || st.tutorial.complete || st.tutorial.hidden) {
+    const state = app.state;
+    const context = getContext();
+    contextualId = null;
+    if (!state?.tutorial || ['pause', 'laptop', 'register', 'course-editor', 'overview'].includes(context)) {
       root.style.display = 'none';
       return;
     }
-    const step = currentStep(st);
+
+    const contextual = currentContextTutorial(state, context);
+    if (contextual) {
+      contextualId = contextual.id;
+      eyebrow.textContent = 'First use';
+      progress.textContent = 'Optional';
+      title.textContent = contextual.title;
+      hint.textContent = contextual.hint;
+      later.style.display = '';
+      root.style.display = '';
+      return;
+    }
+
+    if (context !== 'walk' || state.tutorial.complete || state.tutorial.hidden) {
+      root.style.display = 'none';
+      return;
+    }
+    const step = currentStep(state);
     if (!step) {
       root.style.display = 'none';
       return;
     }
-    root.style.display = '';
+    eyebrow.textContent = step.chapter || 'Getting started';
+    progress.textContent = `${state.tutorial.step + 1}/${TUTORIAL_STEPS.length}`;
     title.textContent = step.title;
     hint.textContent = step.hint;
-    progress.textContent = `${st.tutorial.step + 1}/${TUTORIAL_STEPS.length}`;
+    later.style.display = 'none';
+    root.style.display = '';
   }
 
   return { root, refresh };
