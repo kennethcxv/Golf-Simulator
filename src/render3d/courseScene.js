@@ -1799,6 +1799,7 @@ export function makeCourseScene(canvas, state) {
   // INTENTIONAL planting. Only the boundary forest outside the property line is
   // procedural: a deep hash ring that fades with distance and closes the horizon.
   let treeGroup = null;
+  let activeFloraAssets = null;
   let floraLodUpdate = null;
   let floraLodSnapshot = {
     ready: false,
@@ -2235,8 +2236,11 @@ export function makeCourseScene(canvas, state) {
     loadFloraAssets().then((assets) => {
       if (sceneDisposed || token !== treeBuildToken) return; // superseded or lifetime ended
       if (assets && assets.size) {
+        activeFloraAssets = assets;
+        ghostType = null; // the next hover upgrades any early fallback to the authored model
         rebuildFloraFromModels(assets);
       } else {
+        activeFloraAssets = null;
         console.warn('flora models unavailable — procedural fallback in use');
         rebuildTreesProcedural();
       }
@@ -2685,6 +2689,7 @@ export function makeCourseScene(canvas, state) {
             // Course-kit GLBs are authored/exported in metres while the game
             // world uses yards. Keep procedural fallbacks at native yard scale.
             objectGlbCache.set(type, parts.length ? { parts, unitScale: METERS_TO_YARDS } : 'missing');
+            if (parts.length) ghostType = null;
           } catch {
             objectGlbCache.set(type, 'missing');
           }
@@ -5203,6 +5208,17 @@ export function makeCourseScene(canvas, state) {
   // --- placement ghost: the object you are about to place, green/red ----------------
   let ghost = null;
   let ghostType = null;
+  function disposePlacementGhost() {
+    if (!ghost) return;
+    ghost.traverse((object) => {
+      if (object.userData.isDisc) object.geometry?.dispose();
+      if (object.userData.previewOwnGeometry) object.geometry?.dispose();
+      if (object.material?.userData?.placementPreviewClone) object.material.dispose();
+    });
+    scene.remove(ghost);
+    ghost = null;
+  }
+
   function setPlacementGhost(type, x, z, {
     rot = 0, scale = 1, valid = true, collisionRadiusYd = null,
   } = {}) {
@@ -5212,13 +5228,17 @@ export function makeCourseScene(canvas, state) {
       return;
     }
     if (ghostType !== type) {
-      if (ghost) scene.remove(ghost);
+      disposePlacementGhost();
       ghost = new THREE.Group();
-      const { parts } = ghostPartsFor(type);
+      const { parts, unitScale = 1, ownedGeometry = false } = ghostPartsFor(type);
       for (const p of parts) {
-        const mesh = new THREE.Mesh(p.geometry, p.material.clone());
+        const material = p.material.clone();
+        material.userData.placementPreviewClone = true;
+        const mesh = new THREE.Mesh(p.geometry, material);
         mesh.material.transparent = true;
         mesh.material.opacity = 0.62;
+        mesh.userData.previewUnitScale = unitScale;
+        mesh.userData.previewOwnGeometry = ownedGeometry;
         ghost.add(mesh);
       }
       const disc = new THREE.Mesh(
@@ -5246,12 +5266,17 @@ export function makeCourseScene(canvas, state) {
         o.scale.setScalar(footprint);
       } else if (o.isMesh) {
         o.material.emissive = new THREE.Color(valid ? 0x1a3a12 : 0x511710);
-        o.scale.setScalar(type.startsWith('tree_') ? 7.3 * scale : scale);
+        o.scale.setScalar((o.userData.previewUnitScale || 1) * scale);
       }
     });
   }
 
   function ghostPartsFor(type) {
+    if (activeFloraAssets) {
+      const floraId = floraIdFor(type, activeFloraAssets);
+      const asset = floraId ? activeFloraAssets.get(floraId) : null;
+      if (asset) return { parts: asset.parts, unitScale: asset.baseH };
+    }
     if (type.startsWith('tree_')) {
       // a light stand-in silhouette (trunk + crown) — the real instanced model
       // appears the moment it is placed
@@ -5264,10 +5289,10 @@ export function makeCourseScene(canvas, state) {
         parts: [
           { geometry: trunk, material: new THREE.MeshStandardMaterial({ color: 0x5a4630 }) },
           { geometry: crown, material: new THREE.MeshStandardMaterial({ color: 0x3f7a34 }) },
-        ],
+        ], unitScale: 7.3, ownedGeometry: true,
       };
     }
-    return proceduralObjectParts(type);
+    return objectParts(type);
   }
 
   // --- measure tool line -----------------------------------------------------------

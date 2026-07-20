@@ -1355,6 +1355,23 @@ body.register-mode .view-toggle { display: none !important; }
   padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow);
 }
 .ced-tool-panel:empty { display: none; }
+.ced-impact {
+  position: absolute; top: 64px; left: 276px; width: 220px;
+  background: linear-gradient(145deg, rgba(20, 37, 26, 0.98), rgba(12, 26, 17, 0.98));
+  border: 1px solid rgba(207, 168, 96, 0.58); border-radius: 12px;
+  padding: 11px 13px; box-shadow: var(--shadow);
+}
+.ced-impact > b {
+  display: block; margin-bottom: 7px; color: var(--ced-gold);
+  font-size: 0.7rem; letter-spacing: 0.15em;
+}
+.ced-impact-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 0.86rem; }
+.ced-impact-row span { color: var(--ced-sage); }
+.ced-impact-row strong { color: var(--ced-ink); font-weight: 650; }
+.ced-impact-row strong.positive { color: #7fd66b; }
+.ced-impact-row strong.negative { color: #f19a88; }
+.ced-impact-warning { margin: 6px 0; color: var(--ced-sage); font-size: 0.8rem; line-height: 1.35; }
+.ced-impact-warning.warn { color: var(--warn); }
 .ced-panel-head {
   font-size: 0.74rem; letter-spacing: 0.14em; color: var(--ced-gold);
   text-transform: uppercase; border-bottom: 1px solid var(--ced-edge); padding-bottom: 6px;
@@ -1365,6 +1382,10 @@ body.register-mode .view-toggle { display: none !important; }
 .ced-row input[type="text"], .ced-row input[type="number"] {
   flex: 1; min-width: 0; background: var(--ced-panel); border: 1px solid var(--ced-edge);
   color: var(--ced-ink); border-radius: 7px; padding: 8px 10px; font-size: 0.95rem;
+}
+.ced-row input[type="search"] {
+  width: 100%; min-width: 0; background: var(--ced-panel); border: 1px solid var(--ced-edge);
+  color: var(--ced-ink); border-radius: 7px; padding: 8px 10px; font-size: 0.9rem;
 }
 .ced-row select {
   flex: 1; background: var(--ced-panel); border: 1px solid var(--ced-edge);
@@ -1389,6 +1410,8 @@ body.register-mode .view-toggle { display: none !important; }
   display: flex; align-items: center; gap: 7px; min-height: 36px; padding: 4px 8px;
   font-size: 0.85rem; text-align: left;
 }
+.ced-objgrid button > span:last-child { display: flex; flex: 1; align-items: baseline; justify-content: space-between; gap: 6px; }
+.ced-obj-price { color: var(--ced-gold2); font-size: 0.72rem; white-space: nowrap; }
 .ced-objgrid button.on { background: var(--ced-sel); border-color: var(--ced-gold); color: #fff; }
 .ced-objgrid .ced-ico { color: var(--ced-sage); }
 .ced-pathrow { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 3px 0; }
