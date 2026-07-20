@@ -8,6 +8,22 @@ async (page) => {
   if (await continueButton.isVisible().catch(() => false)) await continueButton.click();
   await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 90000 });
   await page.waitForFunction(() => window.__fw?.prewarming !== true, null, { timeout: 90000 });
+  if (!await page.evaluate(() => window.__fw.state.tractor?.repaired === true)) {
+    await page.evaluate(async () => {
+      const app = window.__fw;
+      app.state.tractor.repaired = true;
+      app.state.tractor.steps = { cleared: true, fuel: true, belt: true };
+      app.state.tractor.attachment = 'mower';
+      app.state.tractor.fuel = 1;
+      app.state.tractor.condition = 0.94;
+      await app.autosave();
+    });
+    await goto(target, { waitUntil: 'domcontentloaded', timeout: 90000 });
+    const continueAgain = page.getByRole('button', { name: 'Continue', exact: true });
+    if (await continueAgain.isVisible().catch(() => false)) await continueAgain.click();
+    await page.waitForFunction(() => window.__fw?.scene3d?.walk?.isActive?.(), null, { timeout: 90000 });
+    await page.waitForFunction(() => window.__fw?.prewarming !== true, null, { timeout: 90000 });
+  }
   await page.evaluate(() => {
     const app = window.__fw;
     app.speedIdx = 0;

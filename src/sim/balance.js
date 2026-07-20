@@ -21,6 +21,8 @@ export const BALANCE = {
   },
   elevationCostPerFoot: 50, // per cell, per foot of net height change
   holeMoveCost: 500, // moving/placing a tee or pin marker
+  irrigationHeadCost: 650, // trenching, valve, pop-up head, and commissioning
+  irrigationHeadRemoveCost: 80,
 
   // --- renovation / construction downtime ---------------------------------
   // days = clamp(ceil(cellsEdited / cellsPerDay), minDays, maxDays)

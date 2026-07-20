@@ -128,6 +128,10 @@ and the project's cream/green/sage/charcoal/walnut/brass material language. The
 Blender MCP bridge was used to inspect the generated source hierarchy and pivots;
 the repeatable script remains the authoritative build path.
 
+The low-profile pop-up sprinkler head introduced with grounds planning is original
+three.js geometry in `src/render3d/courseScene.js` (two instanced cylinders using the
+project charcoal/brass palette). It has no external source, texture, or license.
+
 ## Audio (2026-07-13 production pass)
 
 Every sound in the game is synthesized at runtime with WebAudio oscillators

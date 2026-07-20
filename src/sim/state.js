@@ -20,6 +20,8 @@ import { ensureProperty, tickProperty } from './property.js';
 import { initReservations, ensureReservations, reservationsDailyTick } from './reservations.js';
 import { initTractor, ensureTractor } from './tractor.js';
 import { bunkerDailyMess } from './bunkers.js';
+import { ensureSurfaceDamage, surfaceDamageDaily } from './surfaceDamage.js';
+import { ensureMaintenanceOrders, tickMaintenanceOrders } from './maintenanceOrders.js';
 import { initCourseProps, ensureCourseProps } from './props.js';
 import { simulateDayRounds } from './rounds.js';
 import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
@@ -36,6 +38,7 @@ export const SAVE_VERSION = 3;
 export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts = {}) {
   const rng = makeRng(seed);
   const course = opts.course || buildStartingCourse(rng);
+  if (!Array.isArray(course.irrigationHeads)) course.irrigationHeads = [];
   const state = {
     version: SAVE_VERSION,
     mode, // 'relaxed' | 'realistic'
@@ -52,6 +55,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   // day-1 weather + turf initial condition draw from the same seeded stream
   rollDailyWeather(state.weather, rngOf(state), calendarOf(state.clock.minutes).dayOfYear);
   initTurf(state);
+  ensureMaintenanceOrders(state);
   initGolfers(state);
   initStaff(state);
   initClub(state);
@@ -98,6 +102,7 @@ export function dailyTick(state) {
   if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.reservations) reservationsDailyTick(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.turf) bunkerDailyMess(state); // yesterday's traffic footprints the sand
+  if (state.turf) surfaceDamageDaily(state); // bounded divots + ball marks from actual play
   if (state.progression) {
     prestigeDailyTick(state);
     solvencyDailyTick(state);
@@ -107,6 +112,7 @@ export function dailyTick(state) {
 
 export function hourlyTick(state, hourOfDay) {
   if (state.shop) tickDeliveries(state, state.clock.minutes); // windowed trucks land on time headless too
+  if (state.maintenance) tickMaintenanceOrders(state, 60);
   // the crew starts at 5 AM; catch up later in the morning if time skipped past it
   if (state.pendingMorning && hourOfDay >= 5) {
     state.pendingMorning = false;
@@ -168,6 +174,7 @@ export function snapshot(state) {
       holes: course.holes,
       nextHoleId: course.nextHoleId,
       structures: course.structures,
+      irrigationHeads: course.irrigationHeads || [],
     },
     weather: {
       today: state.weather.today,
@@ -198,6 +205,8 @@ export function snapshot(state) {
           disType: Array.from(turf.disType),
           disSev: Array.from(turf.disSev, round1),
           treated: Array.from(turf.treated),
+          divots: Array.from(turf.divots || [] , round1),
+          ballMarks: Array.from(turf.ballMarks || [], round1),
         }
       : null,
   });
@@ -217,6 +226,7 @@ export function deserialize(json) {
     holes: raw.course.holes,
     nextHoleId: raw.course.nextHoleId,
     structures: raw.course.structures || [],
+    irrigationHeads: raw.course.irrigationHeads || [],
   };
   const state = {
     version: raw.version,
@@ -244,11 +254,14 @@ export function deserialize(json) {
       disType: Uint8Array.from(raw.turf.disType),
       disSev: Float32Array.from(raw.turf.disSev),
       treated: Uint8Array.from(raw.turf.treated),
+      divots: Float32Array.from(raw.turf.divots || []),
+      ballMarks: Float32Array.from(raw.turf.ballMarks || []),
     };
   } else {
     // pre-turf (version 1) saves: initialize fresh turf so old saves stay loadable
     initTurf(state);
   }
+  ensureSurfaceDamage(state);
   if (!state.maintenance) {
     state.maintenance = {
       policies: defaultPolicies(),
@@ -258,6 +271,7 @@ export function deserialize(json) {
       lastReport: null,
     };
   }
+  ensureMaintenanceOrders(state);
   // pre-v3 saves: bootstrap the club layer fresh
   if (raw.golfers) state.golfers = raw.golfers;
   else initGolfers(state);

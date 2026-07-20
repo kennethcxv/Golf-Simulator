@@ -3040,3 +3040,40 @@ financial pressure" were named as *missing systems*. It is recorded here rather 
 **Things that were verified only by test, never seen live:** the Realistic-mode change-counting
 transaction, and a live card decline. Both are unit-tested; neither has been observed in a running
 game this session.
+
+## Checkout, delivery, and grounds production closure (2026-07-20)
+
+This branch closes the focused production brief without adding unrelated economy,
+property, employee, or course systems. Stable commits split checkout/baskets,
+delivery promises, and the production tractor; the final grounds increment separates
+course construction from time-based maintenance.
+
+Grounds balance decisions:
+
+- Fresh clubs start with zero free day labor, watering off, and feeding off. Early care
+  is owner-operated through the hose, divot kit, rake, and repaired tractor.
+- Work orders are capped at 24 active records. Planning is free and inert. Paid staff
+  reserve 100% of the estimate; owned automation reserves 72%. Effects apply exactly
+  once, after the required game minutes.
+- Minimum work-order duration is 30 game minutes. Per-cell minutes/cost: mow 0.8/$0.28,
+  water 0.35/$0.12, fertilize 0.42/$0.62, divots 0.55/$0.18, ball marks 0.70/$0.20,
+  bunkers 0.50/$0.20, disease 0.48/$2.20, aeration 0.65/$1.20.
+- Automation ladder: tier 0 owner labor; tier 1 repaired tractor; tier 2 a hired
+  groundskeeper or specialist mowing units; tier 3 smart irrigation. Water automation
+  reaches only turf within five cells of a constructed head.
+- Sprinkler heads cost $650 to build and $80 to remove. That price is high enough to be
+  a real capital-layout decision against a $60k Realistic starting balance, while a
+  small nine-hole starting course can still phase coverage in.
+- Localized damage is two Float32 counts per cell (divots and ball marks), capped at six
+  each, rather than unbounded world objects. Actual rounds create at most 24 divot and
+  14 ball-mark events per day; slow deterministic recovery keeps neglected play visible.
+
+Verification: **537/537 tests**. Browser acceptance drove the real section inspector,
+Grounds board, 16x time key, construction palette, first-person hose/divot tools, save,
+Continue, checkout, delivery tracking, and tractor controls with zero captured console
+errors. Final 1600x900 / 2.5 s warm-up / 6 s samples: idle 120.0 FPS average / 117.0 FPS
+1% low; tractor drive 120.0 / 117.6. The recorded scene held 1,349 meshes and 1,195,138
+scene triangles, below the saved baseline's 1,422 meshes / 1,944,000 triangles.
+
+Evidence is under `qa/checkout-delivery-groundskeeping-balance/`, including two WebM
+recordings and before/after screenshots. Repeatable browser drivers live in `tools/qa/`.

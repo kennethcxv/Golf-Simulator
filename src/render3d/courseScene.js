@@ -1011,6 +1011,51 @@ export function makeCourseScene(canvas, state) {
     scene.add(structGroup);
   }
 
+  // Constructed pop-up sprinkler heads are deliberately low-profile but still
+  // readable from the player camera. Two instanced meshes keep large layouts
+  // cheap; coverage remains simulation data rather than dozens of effect objects.
+  let irrigationGroup = null;
+  function rebuildIrrigation() {
+    if (irrigationGroup) {
+      scene.remove(irrigationGroup);
+      irrigationGroup.traverse((obj) => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) obj.material.dispose();
+      });
+    }
+    irrigationGroup = new THREE.Group();
+    const heads = course.irrigationHeads || [];
+    if (!heads.length) {
+      scene.add(irrigationGroup);
+      return;
+    }
+    const body = new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(0.22, 0.26, 0.12, 12),
+      new THREE.MeshStandardMaterial({ color: 0x343a35, roughness: 0.72, metalness: 0.18 }),
+      heads.length,
+    );
+    const cap = new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(0.13, 0.13, 0.025, 12),
+      new THREE.MeshStandardMaterial({ color: 0xb39a59, roughness: 0.4, metalness: 0.48 }),
+      heads.length,
+    );
+    const matrix = new THREE.Matrix4();
+    for (let n = 0; n < heads.length; n++) {
+      const head = heads[n];
+      const x = worldX(head.x);
+      const z = worldZ(head.y);
+      const y = heightAt(x, z);
+      matrix.makeTranslation(x, y + 0.06, z);
+      body.setMatrixAt(n, matrix);
+      matrix.makeTranslation(x, y + 0.13, z);
+      cap.setMatrixAt(n, matrix);
+    }
+    body.receiveShadow = true;
+    cap.castShadow = true;
+    irrigationGroup.add(body, cap);
+    scene.add(irrigationGroup);
+  }
+
   // --- hole furniture: flags, tee markers, status badges ------------------------------------------
   let holeGroup = null;
 
@@ -2331,7 +2376,7 @@ export function makeCourseScene(canvas, state) {
     brushRing.position.set(x, heightAt(x, z) + 0.25, z);
     const r = Math.max(0.6, (radiusCells + 0.5)) * CELL_YD;
     brushRing.scale.setScalar(kind === 'marker' ? 3.5 : r);
-    brushRing.material.color.set(kind === 'marker' ? 0xffe9a0 : 0xffffff);
+    brushRing.material.color.set(kind === 'marker' ? 0xffe9a0 : kind === 'irrigation' ? 0x69d6c4 : 0xffffff);
   }
 
   // --- data texture refresh from sim state -----------------------------------------------------------
@@ -2352,7 +2397,8 @@ export function makeCourseScene(canvas, state) {
       zoneData[o] = zone * 30;
       if (t) {
         zoneData[o + 1] = clamp(t.health[i] * 2.55, 0, 255);
-        zoneData[o + 2] = clamp(t.wear[i] * 2.55, 0, 255);
+        const localizedWear = (t.divots?.[i] || 0) * 10 + (t.ballMarks?.[i] || 0) * 12;
+        zoneData[o + 2] = clamp((t.wear[i] + localizedWear) * 2.55, 0, 255);
         const ideal = IDEAL_BY_ZONE[zone] || 10;
         zoneData[o + 3] = clamp((t.heightMm[i] / ideal) * 64, 0, 255);
         auxData[o] = t.disType[i] * 100;
@@ -2387,7 +2433,12 @@ export function makeCourseScene(canvas, state) {
     if (plan) {
       for (const e of plan.cells.values()) {
         const o = (e.y * W + e.x) * 4;
-        if (e.zone !== undefined) {
+        if (e.irrigation !== undefined) {
+          planData[o] = e.irrigation ? 70 : 240;
+          planData[o + 1] = e.irrigation ? 218 : 142;
+          planData[o + 2] = e.irrigation ? 196 : 84;
+          planData[o + 3] = 245;
+        } else if (e.zone !== undefined) {
           const c = planColor(e.zone);
           planData[o] = c.x * 255;
           planData[o + 1] = c.y * 255;
@@ -2588,6 +2639,7 @@ export function makeCourseScene(canvas, state) {
     rebuildWater();
     rebuildTrees();
     rebuildStructures();
+    rebuildIrrigation();
     updateHoles();
     updateTurf(st);
     if (walk.active) refreshWalkColliders(); // works can plant or fell obstacles

@@ -13,7 +13,7 @@ import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
 import { formatMoney } from './core/utils.js';
 import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS } from './core/heldKeys.js';
 import {
-  makePlan, planPaintZone, planAdjustElev, planSmoothElev, applyPlan,
+  makePlan, planPaintZone, planAdjustElev, planSmoothElev, planToggleIrrigation, applyPlan,
   worksSetTee, worksSetPin,
 } from './sim/terrainEdit.js';
 import { calendarOf } from './sim/time.js';
@@ -38,6 +38,8 @@ import { ownedWasher } from './sim/washing.js';
 import { skuById } from './data/shopItems.js';
 import { makeCourseScene } from './render3d/courseScene.js';
 import { deliveryEtaText } from './sim/deliveryEta.js';
+import { recordManualWork } from './sim/maintenanceOrders.js';
+import { repairSurfaceDamageAt } from './sim/surfaceDamage.js';
 
 const canvas = document.getElementById('game');
 const uiRoot = document.getElementById('ui');
@@ -417,6 +419,7 @@ function startGame(state) {
     soak(cx - 1, cy, 0.35);
     soak(cx, cy + 1, 0.35);
     soak(cx, cy - 1, 0.35);
+    recordManualWork(st, 'water', cy * w + cx);
   };
   app.scene3d.walk.hooks.hoseLabelAt = (cx, cy) => {
     const st = app.state;
@@ -437,6 +440,8 @@ function startGame(state) {
     const i = cy * st.course.w + cx;
     const before = st.turf.wear[i];
     st.turf.wear[i] = Math.max(0, before - 45 * dtSec);
+    repairSurfaceDamageAt(st, i, dtSec);
+    recordManualWork(st, section.zone === ZONE.GREEN ? 'repairBallMarks' : 'repairDivots', i);
     // the completion moment: this patch just came smooth
     if (before > 1 && st.turf.wear[i] <= 0.01 && audio.ready) audio.chime();
   };
@@ -448,9 +453,11 @@ function startGame(state) {
       return '⛏ Divot kit out — aim at worn turf · [F] next tool';
     }
     const w = Math.round(st.turf.wear[i]);
-    return w <= 1
-      ? `⛏ ${section.name} — smooth, no divots here · [F] next tool`
-      : `⛏ ${section.name} — divot wear ${w} — hold the mouse button to patch`;
+    const localized = section.zone === ZONE.GREEN ? st.turf.ballMarks?.[i] || 0 : st.turf.divots?.[i] || 0;
+    const damageLabel = section.zone === ZONE.GREEN ? 'ball marks' : 'divots';
+    return w <= 1 && localized <= 0.1
+      ? `⛏ ${section.name} — smooth, no ${damageLabel} here · [F] next tool`
+      : `⛏ ${section.name} — ${damageLabel} ${localized.toFixed(1)} · wear ${w} — hold to repair`;
   };
   // the bunker rake smooths footprinted sand (wear on BUNKER cells, fed by
   // daily play traffic via sim/bunkers.js)
@@ -465,6 +472,7 @@ function startGame(state) {
       const before = st.turf.wear[i];
       st.turf.wear[i] = Math.max(0, before - 55 * dtSec * frac);
       if (frac === 1 && before > 1 && st.turf.wear[i] <= 0.01 && audio.ready) audio.chime();
+      if (frac === 1) recordManualWork(st, 'rakeBunker', i);
     };
     sweep(cx, cy, 1);
     sweep(cx + 1, cy, 0.5);
@@ -489,6 +497,7 @@ function startGame(state) {
     const target = MOW_TARGET[st.course.zones[i]];
     if (target === undefined || st.turf.heightMm[i] <= target + 0.5) return false;
     st.turf.heightMm[i] = target;
+    recordManualWork(st, 'mow', i);
     return true;
   };
   app.scene3d.walk.hooks.engine = (on) => { if (audio.ready) audio.setToolLoop(on ? 'mower' : null); };
@@ -648,7 +657,10 @@ const handlers = {
     const next = !app.groundsOpen;
     if (next) closeLeftPanels('grounds');
     groundsPanel.setVisible(next);
-    if (next && app.state) tutorialFlag(app.state, 'groundsOpened');
+    if (next) {
+      inspectPanel.hide();
+      if (app.state) tutorialFlag(app.state, 'groundsOpened');
+    }
   },
   toggleClub() {
     const next = !app.clubOpen;
@@ -697,6 +709,8 @@ const handlers = {
     const closed = res.report.holesAffected.length;
     toast(
       `Works confirmed — ${res.report.cells} cells for ${res.report.cost.toLocaleString('en-US')} dollars` +
+        (res.report.headsPlaced ? ` · ${res.report.headsPlaced} sprinkler${res.report.headsPlaced === 1 ? '' : 's'} installed` : '') +
+        (res.report.headsRemoved ? ` · ${res.report.headsRemoved} sprinkler${res.report.headsRemoved === 1 ? '' : 's'} removed` : '') +
         (closed ? ` · ${closed} hole${closed > 1 ? 's' : ''} closed for renovation` : ''),
     );
     autosave();
@@ -1062,6 +1076,11 @@ function applyToolAtCell(cell, strokeCells) {
     if (t.dir === 'raise') planAdjustElev(app.plan, app.state.course, cell.x, cell.y, app.brushSize, +0.5);
     else if (t.dir === 'lower') planAdjustElev(app.plan, app.state.course, cell.x, cell.y, app.brushSize, -0.5);
     else planSmoothElev(app.plan, app.state.course, cell.x, cell.y, Math.max(1, app.brushSize), 0.5);
+  } else if (t.kind === 'irrigation') {
+    if (strokeCells.has(key)) return;
+    strokeCells.add(key);
+    const res = planToggleIrrigation(app.plan, app.state.course, cell.x, cell.y, t.place);
+    if (!res.ok) toast(res.reason, 'warn');
   }
   app.scene3d.updatePlan(app.plan);
   worksPanel.refreshPlan();

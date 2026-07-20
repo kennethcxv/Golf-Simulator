@@ -21,8 +21,9 @@ import { tempAtHour, isFrostMorning } from './weather.js';
 import { spend } from './economy.js';
 import { groundsCrewHours } from './staff.js';
 import {
-  mowHoursFactor, waterCostFactor, fungicideCostFactor, aerateCostFactor, wearRecoveryBonus,
+  hasUpgrade, mowHoursFactor, waterCostFactor, fungicideCostFactor, aerateCostFactor, wearRecoveryBonus,
 } from './progression.js';
+import { seedSurfaceDamage, sectionDamageSummary } from './surfaceDamage.js';
 
 const T = () => BALANCE.turf;
 
@@ -44,9 +45,9 @@ export function zonePolicyKey(zone) {
 
 export function defaultPolicies() {
   return {
-    green: { mowHeightMm: 4, mowEveryDays: 1, pattern: 'stripes', irrigation: 'standard', schedule: 'dawn', fertilizer: 'lean' },
-    tee: { mowHeightMm: 10, mowEveryDays: 3, pattern: 'plain', irrigation: 'light', schedule: 'dawn', fertilizer: 'lean' },
-    fairway: { mowHeightMm: 14, mowEveryDays: 4, pattern: 'stripes', irrigation: 'light', schedule: 'dawn', fertilizer: 'none' },
+    green: { mowHeightMm: 4, mowEveryDays: 1, pattern: 'stripes', irrigation: 'off', schedule: 'dawn', fertilizer: 'none' },
+    tee: { mowHeightMm: 10, mowEveryDays: 3, pattern: 'plain', irrigation: 'off', schedule: 'dawn', fertilizer: 'none' },
+    fairway: { mowHeightMm: 14, mowEveryDays: 4, pattern: 'stripes', irrigation: 'off', schedule: 'dawn', fertilizer: 'none' },
     rough: { mowHeightMm: 45, mowEveryDays: 8, pattern: 'plain', irrigation: 'off', schedule: 'dawn', fertilizer: 'none' },
   };
 }
@@ -67,7 +68,7 @@ export function initTurf(state) {
     policies: defaultPolicies(),
     lastMowDay: { green: -10, tee: -10, fairway: -10, rough: -10 },
     lastFertDay: { green: -10, tee: -10, fairway: -10, rough: -10 },
-    crewUnits: 1, // the fixer-upper opens with just you
+    crewUnits: 0, // early game is player labor; paid automation must be earned
     lastReport: null,
   };
 
@@ -103,6 +104,7 @@ export function initTurf(state) {
   for (let k = 0; k < sickCount; k++) {
     infectSection(state, shuffled[k], DISEASE.DOLLAR_SPOT, 22 + rng.next() * 22, rng);
   }
+  seedSurfaceDamage(state);
 }
 
 function infectSection(state, section, kind, severity, rng) {
@@ -126,6 +128,8 @@ export function turfOnZonesChanged(state, cells) {
     t.disType[i] = 0;
     t.disSev[i] = 0;
     t.treated[i] = 0;
+    if (t.divots) t.divots[i] = 0;
+    if (t.ballMarks) t.ballMarks[i] = 0;
     if (key) {
       t.health[i] = 38; // fresh sod has to grow in
       t.moisture[i] = 55;
@@ -311,13 +315,23 @@ export function runMorningMaintenance(state, dayAbs) {
   let hoursLeft = state.staff ? groundsCrewHours(state) : maint.crewUnits * T().crewHoursPerDay;
   report.costs.wages = maint.crewUnits * T().wagePerCrewDay[state.mode];
 
-  // --- irrigation (automatic demand-based sprinklers, no crew time) ---
-  // waters each cell up toward the zone's band; skips when real rain is falling
+  // Automatic irrigation is earned equipment, and its effect is spatial: a
+  // policy can only reach cells covered by a constructed sprinkler head.
   const rainSkip = state.weather.today.rainIn > 0.2;
+  const heads = state.course.irrigationHeads || [];
+  const covered = (i) => {
+    const x = i % state.course.w;
+    const y = Math.floor(i / state.course.w);
+    return heads.some((head) => Math.hypot(head.x - x, head.y - y) <= 5);
+  };
   for (const key of MOW_PRIORITY) {
     const pol = maint.policies[key];
     const spec = T().irrigation[pol.irrigation];
     if (!spec || cellsByKey[key].length === 0) continue;
+    if (!hasUpgrade(state, 'smartIrrigation')) {
+      report.skipped.push({ zone: key, task: 'irrigation', reason: 'smart controllers not owned' });
+      continue;
+    }
     if (rainSkip) {
       report.done.push({ zone: key, task: 'irrigation skipped (rain)', hours: 0 });
       continue;
@@ -327,6 +341,7 @@ export function runMorningMaintenance(state, dayAbs) {
     const maxDose = spec.max * (pol.schedule === 'both' ? 1.5 : 1);
     let pointsApplied = 0;
     for (const i of cellsByKey[key]) {
+      if (!covered(i)) continue;
       const need = clamp(target - t.moisture[i], 0, maxDose);
       if (need > 0) {
         t.moisture[i] = clamp(t.moisture[i] + need, 0, 100);
@@ -374,6 +389,10 @@ export function runMorningMaintenance(state, dayAbs) {
     const add = T().fertAdd[pol.fertilizer] || 0;
     const cells = cellsByKey[key];
     if (add <= 0 || !cells.length) continue;
+    if (!hasUpgrade(state, 'sprayRig')) {
+      report.skipped.push({ zone: key, task: 'fertilize', reason: 'spray rig not owned' });
+      continue;
+    }
     if (dayAbs - maint.lastFertDay[key] < T().fertEveryDays) continue;
     const needed = cells.length * 0.004;
     if (needed <= hoursLeft) {
@@ -447,6 +466,7 @@ export function sectionTurfSummary(state, section) {
     sickCells > Math.max(1, n * 0.08)
       ? { type: sickType, name: DISEASE_NAMES[sickType], severity: Math.round(sevSum / sickCells), coverage: sickCells / n }
       : null;
+  const damage = sectionDamageSummary(state, section);
   return {
     health: Math.round(health / n),
     moisture: Math.round(moisture / n),
@@ -454,6 +474,7 @@ export function sectionTurfSummary(state, section) {
     heightMm: Math.round((height / n) * 10) / 10,
     wear: Math.round(wear / n),
     disease,
+    ...damage,
   };
 }
 
@@ -494,7 +515,8 @@ export function sectionCondition(state, section) {
   const ideal = T().ideal[key];
   const overgrow = clamp((s.heightMm / ideal.height - 1.4) * 30, 0, 30);
   const sev = s.disease ? s.disease.severity * 0.3 : 0;
-  return Math.round(clamp(s.health - overgrow - sev - s.wear * 0.25, 0, 100));
+  const localizedDamage = ((s.divots + s.ballMarks) / Math.max(1, section.size)) * 1.8;
+  return Math.round(clamp(s.health - overgrow - sev - s.wear * 0.25 - localizedDamage, 0, 100));
 }
 
 // Course-wide condition: greens dominate how a course "plays".

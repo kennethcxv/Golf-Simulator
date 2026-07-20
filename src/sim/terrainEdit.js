@@ -27,7 +27,7 @@ export function zoneCostPerCell(zone) {
 }
 
 export function makePlan() {
-  // cells: Map<cellIndex, { x, y, zone?: targetZone, dElev?: netFeet }>
+  // cells: Map<cellIndex, { x, y, zone?, dElev?, irrigation?: boolean }>
   return { cells: new Map() };
 }
 
@@ -45,9 +45,12 @@ function pruneEntry(plan, course, e) {
   const i = idx(course, e.x, e.y);
   const zoneNoop = e.zone === undefined || e.zone === course.zones[i];
   const elevNoop = e.dElev === undefined || Math.abs(e.dElev) < 1e-6;
+  const hasHead = (course.irrigationHeads || []).some((head) => head.x === e.x && head.y === e.y);
+  const irrigationNoop = e.irrigation === undefined || e.irrigation === hasHead;
   if (zoneNoop) delete e.zone;
   if (elevNoop) delete e.dElev;
-  if (e.zone === undefined && e.dElev === undefined) plan.cells.delete(i);
+  if (irrigationNoop) delete e.irrigation;
+  if (e.zone === undefined && e.dElev === undefined && e.irrigation === undefined) plan.cells.delete(i);
 }
 
 function forEachBrushCell(course, cx, cy, radius, fn) {
@@ -75,6 +78,17 @@ export function planAdjustElev(plan, course, cx, cy, radius, dFeet) {
     e.dElev = (e.dElev || 0) + dFeet;
     pruneEntry(plan, course, e);
   });
+}
+
+export function planToggleIrrigation(plan, course, x, y, place = true) {
+  if (!inBounds(course, x, y)) return { ok: false, reason: 'Outside the property.' };
+  const zone = getZone(course, x, y);
+  const canPlace = zone === ZONE.GREEN || zone === ZONE.TEE || zone === ZONE.FAIRWAY || zone === ZONE.ROUGH;
+  if (place && !canPlace) return { ok: false, reason: 'Sprinkler heads must be built into a turf surface.' };
+  const e = planEntry(plan, course, x, y);
+  e.irrigation = !!place;
+  pruneEntry(plan, course, e);
+  return { ok: true };
 }
 
 // Smooth pulls each brushed cell's *planned* elevation toward the local average.
@@ -109,6 +123,8 @@ export function planCost(plan, course) {
   let elevTotal = 0;
   let elevFeet = 0;
   const zoneCells = {};
+  let irrigationPlaced = 0;
+  let irrigationRemoved = 0;
   for (const e of plan.cells.values()) {
     if (e.zone !== undefined) {
       zoneTotal += zoneCostPerCell(e.zone);
@@ -119,12 +135,19 @@ export function planCost(plan, course) {
       elevFeet += Math.abs(e.dElev);
       elevTotal += Math.abs(e.dElev) * BALANCE.elevationCostPerFoot;
     }
+    if (e.irrigation === true) irrigationPlaced++;
+    if (e.irrigation === false) irrigationRemoved++;
   }
+  const irrigationTotal = irrigationPlaced * BALANCE.irrigationHeadCost
+    + irrigationRemoved * BALANCE.irrigationHeadRemoveCost;
   return {
-    total: Math.round(zoneTotal + elevTotal),
+    total: Math.round(zoneTotal + elevTotal + irrigationTotal),
     zoneTotal: Math.round(zoneTotal),
     elevTotal: Math.round(elevTotal),
     elevFeet,
+    irrigationTotal,
+    irrigationPlaced,
+    irrigationRemoved,
     zoneCells,
     cellCount: plan.cells.size,
   };
@@ -161,6 +184,9 @@ export function applyPlan(state, plan) {
   const affected = planAffectedHoles(plan, course, state.mode);
 
   const changedCells = [];
+  if (!Array.isArray(course.irrigationHeads)) course.irrigationHeads = [];
+  let headsPlaced = 0;
+  let headsRemoved = 0;
   for (const e of plan.cells.values()) {
     const i = idx(course, e.x, e.y);
     if (e.zone !== undefined && course.zones[i] !== e.zone) {
@@ -168,6 +194,16 @@ export function applyPlan(state, plan) {
       changedCells.push(i);
     }
     if (e.dElev !== undefined) course.elevation[i] += e.dElev;
+    if (e.irrigation !== undefined) {
+      const at = course.irrigationHeads.findIndex((head) => head.x === e.x && head.y === e.y);
+      if (e.irrigation && at < 0) {
+        course.irrigationHeads.push({ x: e.x, y: e.y });
+        headsPlaced++;
+      } else if (!e.irrigation && at >= 0) {
+        course.irrigationHeads.splice(at, 1);
+        headsRemoved++;
+      }
+    }
   }
   spend(state, 'works', cost.total);
   turfOnZonesChanged(state, changedCells);
@@ -187,7 +223,7 @@ export function applyPlan(state, plan) {
   }
 
   state.sections = labelSections(course);
-  const report = { cost: cost.total, cells: cost.cellCount, holesAffected: affected };
+  const report = { cost: cost.total, cells: cost.cellCount, holesAffected: affected, headsPlaced, headsRemoved };
   plan.cells.clear();
   return { ok: true, report };
 }
