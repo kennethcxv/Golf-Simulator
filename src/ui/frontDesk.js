@@ -84,6 +84,7 @@ export function makeFrontDesk(app, options = {}) {
   let notice = null;
   let showReceipt = null;
   let swipeMessage = 'Start at the top and swipe down';
+  let swipeGestureActive = false;
   let cashDrawerOpen = false;
   let guestName = '';
   let renderedSignature = '';
@@ -226,6 +227,7 @@ export function makeFrontDesk(app, options = {}) {
     const reset = () => { card.style.transform = 'translate(-50%, 0)'; };
     card.addEventListener('pointerdown', (event) => {
       dragging = true;
+      swipeGestureActive = true;
       samples = [];
       card.setPointerCapture(event.pointerId);
       const bounds = track.getBoundingClientRect();
@@ -243,6 +245,7 @@ export function makeFrontDesk(app, options = {}) {
     const finish = (event) => {
       if (!dragging) return;
       dragging = false;
+      swipeGestureActive = false;
       if (card.hasPointerCapture(event.pointerId)) card.releasePointerCapture(event.pointerId);
       const judged = judgeSwipe(samples);
       swipeMessage = SWIPE_MSG[judged.code];
@@ -664,13 +667,14 @@ export function makeFrontDesk(app, options = {}) {
     selectedId = null;
     confirm = null;
     showReceipt = null;
+    swipeGestureActive = false;
   }
 
   function refresh() {
     // The main loop polls once per second, but rebuilding a gesture surface in
     // the middle of pointer capture would interrupt a valid card swipe. Only
     // redraw when the operations state actually changed.
-    if (root.style.display !== 'none' && stateSignature() !== renderedSignature) render();
+    if (!swipeGestureActive && root.style.display !== 'none' && stateSignature() !== renderedSignature) render();
   }
 
   return {

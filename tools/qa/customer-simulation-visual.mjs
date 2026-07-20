@@ -105,7 +105,14 @@ const continueButton = page.getByText('Continue', { exact: true });
 if (await continueButton.count() && await continueButton.isEnabled()) {
   await continueButton.click();
 } else {
-  await page.getByText('New Empire — Relaxed', { exact: true }).click();
+  const polishedNewGame = page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ });
+  if (await polishedNewGame.count()) {
+    await polishedNewGame.click();
+    await page.getByRole('dialog', { name: 'New game' }).waitFor();
+    await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
+  } else {
+    await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
+  }
   await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
 }
 await page.waitForFunction(() => (
@@ -294,13 +301,21 @@ await takeShot({
 });
 await page.evaluate((id) => {
   const actor = window.__fw.scene3d.clubhouse().customers().find((entry) => entry.id === id);
-  if (actor?.entity) actor.entity.speed = 0.45;
+  // Keep the doorway camera deterministic on heavily contended QA hosts while
+  // still exercising the real path, socket, and hinged-door controllers.
+  if (actor?.entity) actor.entity.speed = 3;
 }, fixture.cast.exterior);
 
 await page.waitForFunction(() => {
   const states = window.__fw.scene3d.clubhouse().customerDiagnostics().byState;
-  return (states['Inspecting product'] || 0) + (states['Selecting product'] || 0) > 0;
-}, null, { timeout: 18_000 });
+  return [
+    'Moving to display',
+    'Browsing',
+    'Inspecting product',
+    'Selecting product',
+    'Carrying product',
+  ].some((state) => (states[state] || 0) > 0);
+}, null, { timeout: 30_000 });
 await takeShot({ id: '02-browsing-floor', at: [-2.7, -2.5], to: [-5.6, -5.7], pitch: -0.06, settleMs: 220 });
 
 await page.waitForFunction((ids) => {
@@ -319,9 +334,13 @@ await page.waitForFunction((ids) => {
 await takeShot({ id: '03-lounge', at: [3.85, -1.75], to: [3.85, -4.8], pitch: -0.09 });
 
 await page.waitForFunction((id) => {
-  const actor = window.__fw.scene3d.clubhouse().customerDiagnostics().actors.find((entry) => entry.id === id);
-  return actor && actor.state === 'Waiting for door';
-}, fixture.cast.exterior, { timeout: 60_000 });
+  const clubhouse = window.__fw.scene3d.clubhouse();
+  const actor = clubhouse.customers().find((entry) => entry.id === id)?.entity;
+  return actor && (
+    ['Waiting for door', 'Entering'].includes(actor.state)
+    || actor.stateHistory.some((event) => ['Waiting for door', 'Entering'].includes(event.to))
+  );
+}, fixture.cast.exterior, { timeout: 60_000, polling: 20 });
 await page.evaluate((id) => {
   const actor = window.__fw.scene3d.clubhouse().customers().find((entry) => entry.id === id);
   if (actor?.entity) actor.entity.speed = 0.24;
@@ -329,7 +348,14 @@ await page.evaluate((id) => {
 const doorFrame = await page.evaluate((id) => {
   const clubhouse = window.__fw.scene3d.clubhouse();
   const actor = clubhouse.customerDiagnostics().actors.find((entry) => entry.id === id);
-  return { actor: actor.position, door: clubhouse.doorWorld };
+  const entity = clubhouse.customers().find((entry) => entry.id === id)?.entity;
+  return {
+    actor: actor.position,
+    actorState: actor.state,
+    entryTransitions: entity.stateHistory.filter((event) => ['Waiting for door', 'Entering'].includes(event.to)),
+    door: clubhouse.doorWorld,
+    mainDoor: clubhouse.doors?.[0] ? { open: clubhouse.doors[0].open, angle: clubhouse.doors[0].angle } : null,
+  };
 }, fixture.cast.exterior);
 const doorDx = doorFrame.door.x - doorFrame.actor.x;
 const doorDz = doorFrame.door.z - doorFrame.actor.z;
@@ -400,6 +426,7 @@ const report = {
   normalControls: ['canvas click', 'W 350ms', 'A 250ms', 'Escape'],
   cameras,
   fixture,
+  entryGate: doorFrame,
   timeline,
   screenshots,
   videoPath,

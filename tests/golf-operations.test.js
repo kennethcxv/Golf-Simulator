@@ -203,11 +203,18 @@ test('the deterministic browser fixture reset reverses production booking cash a
   const paymentSequenceBeforeReset = state.reservations.nextPaymentSeq;
   assert.notEqual(state.cash, cashBefore);
   assert.ok(state.reservations.financeEntries.length > 0);
+  const productionArrivalIds = state.shop.customerSimulation.scheduled
+    .filter((arrival) => arrival.reservationId != null)
+    .map((arrival) => arrival.id);
+  assert.ok(productionArrivalIds.length > 0);
   resetGolfOperationsQA(state);
   assert.equal(state.cash, cashBefore);
   assert.deepEqual(totals(state.ledger.today), { revenue: 0, expense: 0, net: 0 });
   assert.equal(state.reservations.booked.length, 0);
   assert.equal(state.reservations.financeEntries.length, 0);
+  assert.ok(state.shop.customerSimulation.scheduled
+    .filter((arrival) => productionArrivalIds.includes(arrival.id))
+    .every((arrival) => arrival.status === 'Cancelled'));
   assert.equal(state.reservations.nextPaymentSeq, paymentSequenceBeforeReset,
     'fixture reset cannot recycle an immutable-ledger payment identity');
 

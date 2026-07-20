@@ -155,6 +155,32 @@ test('overdue arrivals can be released one party at a time after a clock jump', 
   assert.equal(sim.scheduled.find((arrival) => arrival.id === 'stagger-2').status, CUSTOMER_STATE.SCHEDULED);
 });
 
+test('due reservation parties take release priority and reserve capacity ahead of retail traffic', () => {
+  const state = newGame('relaxed', 920);
+  const sim = initCustomerSimulation(state);
+  sim.plannedDays = [0];
+  sim.scheduled.push(
+    {
+      id: 'older-shopper', status: CUSTOMER_STATE.SCHEDULED, dayAbs: 0, scheduledMinute: 300,
+      intendedMinute: 300, intent: CUSTOMER_INTENT.PRO_SHOP_SHOPPER, partySize: 1,
+      noShow: false, name: 'Older Shopper',
+    },
+    {
+      id: 'due-reservation', status: CUSTOMER_STATE.SCHEDULED, dayAbs: 0, scheduledMinute: 330,
+      intendedMinute: 330, intent: CUSTOMER_INTENT.RESERVATION_CHECK_IN, partySize: 2,
+      noShow: false, name: 'Reserved Party', reservationId: 77,
+    },
+  );
+
+  const prioritized = releaseDueArrivals(state, 360, { activeCount: 0, releaseLimit: 1 });
+  assert.deepEqual(prioritized.map((arrival) => arrival.id), ['due-reservation']);
+
+  sim.scheduled.find((arrival) => arrival.id === 'due-reservation').status = CUSTOMER_STATE.SCHEDULED;
+  const heldForParty = releaseDueArrivals(state, 360, { activeCount: 11, maxActive: 12, releaseLimit: 1 });
+  assert.deepEqual(heldForParty, []);
+  assert.equal(sim.scheduled.find((arrival) => arrival.id === 'older-shopper').status, CUSTOMER_STATE.SCHEDULED);
+});
+
 test('booking and cancellation use the customer-arrival extension point', () => {
   const state = newGame('relaxed', 904);
   const booked = bookSlot(state, 0, 9 * 60, 'Tee Sheet Guest');

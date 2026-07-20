@@ -1496,6 +1496,11 @@ export function ensureReservationHorizon(state, options = {}) {
 
 export function resetGolfOperationsQA(state, options = {}) {
   const book = bookOf(state);
+  // A fixture reset replaces the booking ledger, so its physical customer
+  // arrivals must be retired at the same boundary. Leaving them scheduled
+  // would let orphaned production parties consume the active-customer cap and
+  // starve the deterministic (or any subsequently-created) reservation.
+  for (const reservation of book.booked) cancelReservationCustomer(state, reservation.id);
   // The main ledger is intentionally immutable, so IDs that have already been
   // posted there must never be recycled by a fixture reset. Reusing (for
   // example) golf-pay-1 would make a later real-looking QA payment appear to be

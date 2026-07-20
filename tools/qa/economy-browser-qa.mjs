@@ -113,6 +113,7 @@ await context.addInitScript(() => {
 });
 
 const page = await context.newPage();
+page.setDefaultTimeout(120_000);
 const consoleMessages = [];
 const pageErrors = [];
 const failedRequests = [];
@@ -210,25 +211,16 @@ async function measure(label, ms) {
 }
 
 async function clickLaptopNav(label) {
-  const spot = await page.evaluate((text) => {
-    const button = [...document.querySelectorAll('.lt-navbtn')]
-      .find((candidate) => candidate.textContent.trim().includes(text));
-    if (!button) return null;
-    button.scrollIntoView({ block: 'nearest' });
-    const rect = button.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  }, label);
-  if (!spot) throw new Error(`Laptop navigation button not found: ${label}`);
-  await page.mouse.move(spot.x, spot.y);
-  await page.waitForTimeout(80);
-  await page.mouse.click(spot.x, spot.y);
-  await page.waitForTimeout(320);
-  const active = await page.locator('.lt-navbtn.on').innerText().catch(() => '');
-  if (!active.includes(label)) throw new Error(`Projected click missed ${label}; active page is ${active || 'unknown'}`);
+  const button = page.locator('.lt-navbtn').filter({ hasText: label }).first();
+  await button.click({ timeout: 120_000 });
+  await page.waitForFunction((expected) => document.querySelector('.lt-navbtn.on')
+    ?.textContent.includes(expected), label, { timeout: 120_000 });
 }
 
 await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 40000 });
-await page.getByRole('button', { name: /New Empire.*Relaxed/i }).click();
+await page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ }).click();
+await page.getByRole('dialog', { name: 'New game' }).waitFor();
+await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
 await page.getByRole('button', { name: /^Buy$/i }).first().click();
 await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 60000 });
 await page.waitForFunction(() => {
@@ -290,7 +282,7 @@ if (!performanceOnly) {
   for (const label of pages) {
     await clickLaptopNav(label);
     const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    await page.screenshot({ path: path.join(outDir, 'screenshots', `${slug}.png`) });
+    await page.screenshot({ path: path.join(outDir, 'screenshots', `${slug}.png`), timeout: 120_000 });
     pageAudit.push(await page.evaluate((expected) => ({
       expected,
       title: document.querySelector('.lt-h1')?.textContent?.trim() || null,
@@ -309,7 +301,7 @@ if (!performanceOnly) {
         await page.mouse.move(contentPoint.x, contentPoint.y);
         await page.mouse.wheel(0, 5000);
         await page.waitForTimeout(250);
-        await page.screenshot({ path: path.join(outDir, 'screenshots', `${slug}-bottom.png`) });
+        await page.screenshot({ path: path.join(outDir, 'screenshots', `${slug}-bottom.png`), timeout: 120_000 });
       }
     }
   }
@@ -327,7 +319,7 @@ while (cycle < 24) {
 const interactive = await interactivePromise;
 await clickLaptopNav('Home');
 const listenerAfterCycles = await page.evaluate(() => window.__qaListeners?.snapshot?.() ?? null);
-await page.screenshot({ path: path.join(outDir, 'screenshots', 'laptop-final.png') });
+await page.screenshot({ path: path.join(outDir, 'screenshots', 'laptop-final.png'), timeout: 120_000 });
 
 const overlayAudit = await page.evaluate(() => {
   const visible = (selector) => {

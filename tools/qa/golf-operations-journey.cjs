@@ -221,7 +221,14 @@ async function main() {
   let evidence;
   try {
     await page.goto(URL, { waitUntil: 'domcontentloaded' });
-    await page.locator('button').filter({ hasText: 'New Empire' }).first().click();
+    const newGame = page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ });
+    if (await newGame.count()) {
+      await newGame.click();
+      await page.getByRole('dialog', { name: 'New game' }).waitFor();
+      await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
+    } else {
+      await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
+    }
     await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 60000 });
     await page.waitForFunction(() => {
@@ -235,12 +242,13 @@ async function main() {
       const operations = await import('/src/sim/reservations.js');
       const time = await import('/src/sim/time.js');
       const cal = time.calendarOf(app.state.clock.minutes);
+      const qaDay = cal.dayAbs + 1;
       // Production boot fills the forward horizon. The evidence route owns a
       // smaller deterministic manifest, so reset only this subsystem first.
       operations.resetGolfOperationsQA(app.state);
-      const seeded = operations.seedGolfOperationsQA(app.state, { dayAbs: cal.dayAbs, seed: 20260719 });
+      const seeded = operations.seedGolfOperationsQA(app.state, { dayAbs: qaDay, seed: 20260719 });
       const first = operations.reservationById(app.state, seeded.ids.earlyPrepaid);
-      app.speedIdx = 0;
+      app.speedIdx = 1;
       app.state.clock.minutes = first.arrival.plannedMinute;
       operations.golfOperationsTick(app.state, app.state.clock.minutes);
       app.scene3d.applyTimeWeather(app.state.clock.minutes % 1440, app.state.weather);
@@ -254,13 +262,19 @@ async function main() {
     });
 
     await placeAtRegister(page);
+    await page.waitForFunction((id) => window.__fw.scene3d.clubhouse().customers()
+      .some((entry) => entry.entity?.reservationId === id), fixture.ids.earlyPrepaid, { timeout: 45000 });
+    await page.evaluate((id) => {
+      const actor = window.__fw.scene3d.clubhouse().customers()
+        .find((entry) => entry.entity?.reservationId === id);
+      if (actor?.entity) actor.entity.speed = 12;
+    }, fixture.ids.earlyPrepaid);
     await page.waitForFunction((id) => {
-      const customer = window.__fw.scene3d.clubhouse().customers
-        .find((entry) => entry.reservationId === id);
-      const stop = customer?.stops?.[customer.stopIdx];
-      return customer?.queued && stop?.kind === 'counter'
-        && Math.hypot(customer.mesh.position.x - stop.x, customer.mesh.position.z - stop.z) < 0.25;
-    }, fixture.ids.earlyPrepaid, { timeout: 45000 });
+      const customer = window.__fw.scene3d.clubhouse().customers()
+        .find((entry) => entry.entity?.reservationId === id);
+      return customer?.entity?.state === 'Front-desk inquiry';
+    }, fixture.ids.earlyPrepaid, { timeout: 180000 });
+    await page.evaluate(() => { window.__fw.speedIdx = 0; });
     await page.screenshot({ path: path.join(OUT, '01-arrival-at-counter.png') });
 
     await normalEnterTeeDesk(page);
@@ -273,13 +287,13 @@ async function main() {
         selectedHolder: selected?.reservationHolder,
         shell: { x: shell.x, y: shell.y, width: shell.width, height: shell.height },
         registerActive: app.scene3d.clubhouse().register.isActive(),
-        npcReservations: app.scene3d.clubhouse().customers
-          .filter((customer) => customer.reservationId != null)
+        npcReservations: app.scene3d.clubhouse().customers()
+          .filter((customer) => customer.entity?.reservationId != null)
           .map((customer) => ({
-            reservationId: customer.reservationId,
+            reservationId: customer.entity.reservationId,
             name: customer.name,
-            partySize: customer.partySize,
-            queued: customer.queued,
+            partySize: customer.entity.partySize,
+            state: customer.entity.state,
           })),
       };
     });
@@ -346,7 +360,8 @@ async function main() {
           slotId: walkIn?.slotId,
           partySize: walkIn?.partySize,
           arrival: walkIn?.arrival,
-          npc: app.scene3d.clubhouse().customers.find((customer) => customer.reservationId === walkIn?.id)?.name,
+          npc: app.scene3d.clubhouse().customers()
+            .find((customer) => customer.entity?.reservationId === walkIn?.id)?.name,
         },
         processedTransactionIds: [...app.state.reservations.processedTransactionIds],
         financeEntries: app.state.reservations.financeEntries.map((entry) => ({ ...entry })),

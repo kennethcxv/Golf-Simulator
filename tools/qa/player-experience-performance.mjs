@@ -325,7 +325,7 @@ try {
     await page.getByRole('dialog', { name: 'New game' }).waitFor();
     await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
   } else {
-    await page.getByRole('button', { name: 'New Empire — Relaxed' }).click();
+    await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
   }
   await page.locator('.listing').first().waitFor({ state: 'visible', timeout: 15_000 });
   await page.getByRole('button', { name: 'Buy', exact: true }).first().click();

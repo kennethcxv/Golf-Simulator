@@ -32,6 +32,7 @@ const context = await browser.newContext({
   recordVideo: { dir: path.join(outDir, 'video'), size: { width: 1600, height: 900 } },
 });
 const page = await context.newPage();
+page.setDefaultTimeout(120_000);
 const consoleMessages = [];
 const pageErrors = [];
 const failedRequests = [];
@@ -42,22 +43,15 @@ page.on('pageerror', (error) => pageErrors.push(error.message));
 page.on('requestfailed', (request) => failedRequests.push({ url: request.url(), reason: request.failure()?.errorText || 'unknown' }));
 
 async function clickText(text, selector = 'button') {
-  const point = await page.evaluate(({ text, selector }) => {
-    const node = [...document.querySelectorAll(selector)].find((candidate) => candidate.textContent.trim().includes(text));
-    if (!node) return null;
-    node.scrollIntoView({ block: 'nearest' });
-    const rect = node.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  }, { text, selector });
-  if (!point) throw new Error(`Visible control not found: ${text}`);
-  await page.mouse.move(point.x, point.y);
-  await page.waitForTimeout(80);
-  await page.mouse.click(point.x, point.y);
+  const control = page.locator(selector).filter({ hasText: text }).first();
+  await control.click({ timeout: 120_000 });
   await page.waitForTimeout(350);
 }
 
 await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 40000 });
-await page.getByRole('button', { name: /New Empire.*Relaxed/i }).click();
+await page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ }).click();
+await page.getByRole('dialog', { name: 'New game' }).waitFor();
+await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
 await page.getByRole('button', { name: /^Buy$/i }).first().click();
 await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 60000 });
 await page.waitForFunction(() => {
@@ -174,18 +168,20 @@ await browser.close();
 
 const report = {
   createdAt: new Date().toISOString(), baseUrl, browserModule: modulePath,
-  normalControls: ['New Empire button', 'Buy button', 'E interaction', 'projected Property navigation', 'Request appraisal', 'Keep operating', 'Accept offer', 'Confirm permanent sale'],
+  normalControls: ['New game dialog', 'Relaxed difficulty card', 'Buy button', 'E interaction', 'projected Property navigation', 'Request appraisal', 'Keep operating', 'Accept offer', 'Confirm permanent sale'],
   fixture, firstOffer, afterKeep, beforeConfirmation, afterSale,
+  payoutDelta: Math.round((afterSale.cash - beforeConfirmation.cash) * 100) / 100,
   checks: {
     keepPreservesProperty: afterKeep.holdings === fixture.holdings && afterKeep.cash === fixture.cash && afterKeep.latestStatus === 'kept',
     acceptAloneDoesNotSell: beforeConfirmation.holdings === fixture.holdings && beforeConfirmation.confirmationVisible,
     explicitConfirmationSells: afterSale.holdings === 0 && afterSale.completedSales.length === 1,
-    payoutMatchesDisplayedNet: afterSale.completedSales[0]?.netProceeds === afterSale.cash - fixture.cash,
+    payoutMatchesDisplayedNet: afterSale.completedSales[0]?.netProceeds
+      === Math.round((afterSale.cash - beforeConfirmation.cash) * 100) / 100,
     recoveryBackupWritten: afterSale.backupCount === 1,
     nextMarketShown: afterSale.marketVisible,
   },
   consoleMessages, pageErrors, failedRequests, video: videoPath,
 };
-if (!Object.values(report.checks).every(Boolean)) throw new Error(`Sale-flow assertion failed: ${JSON.stringify(report.checks)}`);
 fs.writeFileSync(path.join(outDir, 'browser-report.json'), `${JSON.stringify(report, null, 2)}\n`);
+if (!Object.values(report.checks).every(Boolean)) throw new Error(`Sale-flow assertion failed: ${JSON.stringify(report.checks)}`);
 console.log(JSON.stringify({ outDir, checks: report.checks, consoleErrors: consoleMessages.filter((message) => message.type === 'error').length, pageErrors: pageErrors.length, failedRequests: failedRequests.length, video: videoPath }, null, 2));

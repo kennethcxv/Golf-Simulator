@@ -24,9 +24,9 @@ async function clickCenter(page, locator, label) {
 
 async function clickNav(page, label) {
   const button = page.locator('.lt-navbtn').filter({ hasText: label }).first();
-  await clickCenter(page, button, `${label} navigation`);
+  await button.click({ timeout: 120_000 });
   await page.waitForFunction((name) => [...document.querySelectorAll('.lt-navbtn.on')]
-    .some((entry) => entry.textContent.includes(name)), label);
+    .some((entry) => entry.textContent.includes(name)), label, { timeout: 120_000 });
 }
 
 async function sampleRuntime(page, durationMs = 4000) {
@@ -131,6 +131,7 @@ async function main() {
 
   const page = await context.newPage();
   const video = page.video();
+  const screenshot = (name) => page.screenshot({ path: path.join(OUT, name), timeout: 120_000 });
   page.on('console', (message) => consoleMessages.push({ type: message.type(), text: message.text().slice(0, 600) }));
   page.on('pageerror', (error) => pageErrors.push(error.message));
   page.on('requestfailed', (request) => failedRequests.push({
@@ -140,7 +141,14 @@ async function main() {
   let evidence;
   try {
     await page.goto(URL, { waitUntil: 'domcontentloaded' });
-    await page.locator('button').filter({ hasText: 'New Empire' }).first().click();
+    const newGame = page.locator('.menu-screen .menu-action').filter({ hasText: /^New game/ });
+    if (await newGame.count()) {
+      await newGame.click();
+      await page.getByRole('dialog', { name: 'New game' }).waitFor();
+      await page.locator('.difficulty-card').filter({ hasText: /^Relaxed/ }).click();
+    } else {
+      await page.getByRole('button', { name: /New Empire.*Relaxed/ }).click();
+    }
     await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
     await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 60000 });
     await page.waitForFunction(() => {
@@ -154,6 +162,7 @@ async function main() {
       const operations = await import('/src/sim/reservations.js');
       const { calendarOf } = await import('/src/sim/time.js');
       const cal = calendarOf(app.state.clock.minutes);
+      const qaDay = cal.dayAbs + 1;
       const productionDays = [...app.state.reservations.generator.generatedDays];
       const productionBookings = app.state.reservations.booked.map((reservation) => ({
         id: reservation.id,
@@ -162,7 +171,7 @@ async function main() {
         names: [...reservation.customerNames],
       }));
       operations.resetGolfOperationsQA(app.state);
-      const seeded = operations.seedGolfOperationsQA(app.state, { dayAbs: cal.dayAbs, seed: 20260719 });
+      const seeded = operations.seedGolfOperationsQA(app.state, { dayAbs: qaDay, seed: 20260719 });
       const noShow = operations.reservationById(app.state, seeded.ids.noShow);
       for (const key of ['earlyPrepaid', 'onTimeCard', 'lateCash']) {
         const reservation = operations.reservationById(app.state, seeded.ids[key]);
@@ -193,7 +202,7 @@ async function main() {
     });
 
     await page.waitForTimeout(700);
-    await page.screenshot({ path: path.join(OUT, '00-laptop-approach.png') });
+    await screenshot('00-laptop-approach.png');
     await page.keyboard.press('e');
     await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 10000 });
     await page.waitForFunction(() => {
@@ -201,58 +210,50 @@ async function main() {
       return frame?.getBoundingClientRect().width > 100;
     }, null, { timeout: 20000 });
     await page.waitForTimeout(700);
-    await page.screenshot({ path: path.join(OUT, '01-home-operations-alerts.png') });
+    await screenshot('01-home-operations-alerts.png');
 
     await clickNav(page, 'Reservations');
     await page.waitForTimeout(300);
-    await page.screenshot({ path: path.join(OUT, '02-capacity-aware-tee-sheet.png') });
+    await screenshot('02-capacity-aware-tee-sheet.png');
 
     const holderInput = page.locator('input[placeholder="Reservation holder"]');
-    await clickCenter(page, holderInput, 'reservation holder');
-    await page.keyboard.type('Jordan Vale');
+    await holderInput.fill('Jordan Vale');
     const partyRow = page.locator('.lt-row').filter({ hasText: 'Party' }).first();
     const partySelect = partyRow.locator('select').first();
-    await clickCenter(page, partySelect, 'party size');
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('Enter');
+    await partySelect.selectOption('3');
     const guestInput = page.locator('input[placeholder^="Other player names"]');
-    await clickCenter(page, guestInput, 'guest names');
-    await page.keyboard.type('Mara Vale, Ellis Vale');
+    await guestInput.fill('Mara Vale, Ellis Vale');
     const paymentRow = page.locator('.lt-row').filter({ hasText: 'Payment' }).first();
     const paymentSelect = paymentRow.locator('select').first();
-    await clickCenter(page, paymentSelect, 'payment plan');
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('Enter');
-    const bookButton = page.locator('.lt-slotbook:not([disabled])').first();
-    await clickCenter(page, bookButton, 'available tee-time booking');
+    await paymentSelect.selectOption('prepaid');
+    const bookButton = page.locator('.lt-slotbook:not([disabled])').filter({ hasText: 'Book party of 3' }).first();
+    await bookButton.click();
     await page.waitForFunction(() => window.__fw.state.reservations.booked.some((reservation) => (
       reservation.reservationHolder === 'Jordan Vale'
     )));
     await page.waitForTimeout(300);
-    await page.screenshot({ path: path.join(OUT, '03-prepaid-party-booked.png') });
+    await screenshot('03-prepaid-party-booked.png');
 
     const partyLine = page.locator('.lt-partyline').filter({ hasText: 'Jordan Vale' }).first();
-    await clickCenter(page, partyLine.locator('button').filter({ hasText: 'Cancel' }), 'booking cancellation');
+    await partyLine.locator('button').filter({ hasText: 'Cancel' }).click();
     await page.waitForSelector('.lt-confirm');
-    await page.screenshot({ path: path.join(OUT, '04-cancellation-confirmation.png') });
-    await clickCenter(page, page.locator('.lt-confirm button').filter({ hasText: 'Apply policy and cancel' }), 'confirm cancellation');
+    await screenshot('04-cancellation-confirmation.png');
+    await page.locator('.lt-confirm button').filter({ hasText: 'Apply policy and cancel' }).click();
     await page.waitForFunction(() => window.__fw.state.reservations.booked.find((reservation) => (
       reservation.reservationHolder === 'Jordan Vale'
     ))?.status === 'cancelled');
     await page.waitForTimeout(250);
-    await page.screenshot({ path: path.join(OUT, '05-cancelled-history-and-reopened-capacity.png') });
+    await screenshot('05-cancelled-history-and-reopened-capacity.png');
 
     await clickNav(page, 'Finances');
     await page.waitForTimeout(350);
-    await page.screenshot({ path: path.join(OUT, '06-operations-subledger.png') });
+    await screenshot('06-operations-subledger.png');
     await clickNav(page, 'Settings');
     await page.waitForTimeout(300);
-    await page.screenshot({ path: path.join(OUT, '07-live-schedule-and-policy.png') });
+    await screenshot('07-live-schedule-and-policy.png');
     await clickNav(page, 'Home');
     await page.waitForTimeout(300);
-    await page.screenshot({ path: path.join(OUT, '08-home-after-workflow.png') });
+    await screenshot('08-home-after-workflow.png');
 
     let mutations = 0;
     await page.exposeFunction('__qaLaptopMutation', () => { mutations++; });
@@ -288,7 +289,7 @@ async function main() {
 
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => window.__fw.laptopOpen === false, null, { timeout: 10000 });
-    await page.screenshot({ path: path.join(OUT, '09-normal-escape-return.png') });
+    await screenshot('09-normal-escape-return.png');
 
     evidence = {
       capturedAt: new Date().toISOString(),

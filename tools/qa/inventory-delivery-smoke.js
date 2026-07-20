@@ -12,7 +12,7 @@ async (page) => {
 
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
+  const continueButton = page.getByText('Continue', { exact: true }).first();
   await continueButton.waitFor({ state: 'visible', timeout: 30000 });
   await continueButton.click();
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });

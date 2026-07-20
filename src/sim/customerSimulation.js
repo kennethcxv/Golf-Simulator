@@ -362,9 +362,16 @@ export function releaseDueArrivals(state, nowMinute = state.clock.minutes, envir
     : Infinity;
   let room = Math.max(0, maxActive - activeCount);
   const released = [];
+  let reservationWaitingForRoom = false;
+  const dueArrivals = sim.scheduled
+    .filter((arrival) => arrival.status === CUSTOMER_STATE.SCHEDULED && arrival.scheduledMinute <= nowMinute)
+    .sort((a, b) => {
+      const reservationPriority = Number(b.intent === CUSTOMER_INTENT.RESERVATION_CHECK_IN)
+        - Number(a.intent === CUSTOMER_INTENT.RESERVATION_CHECK_IN);
+      return reservationPriority || a.scheduledMinute - b.scheduledMinute || a.id.localeCompare(b.id);
+    });
 
-  for (const arrival of sim.scheduled) {
-    if (arrival.status !== CUSTOMER_STATE.SCHEDULED || arrival.scheduledMinute > nowMinute) continue;
+  for (const arrival of dueArrivals) {
     if (arrival.noShow) {
       arrival.status = 'No-show';
       arrival.resolvedMinute = nowMinute;
@@ -379,7 +386,11 @@ export function releaseDueArrivals(state, nowMinute = state.clock.minutes, envir
     }
     const party = Math.max(1, arrival.partySize || 1);
     if (released.length >= releaseLimit) continue;
-    if (party > room) continue;
+    if (party > room) {
+      if (isScheduled) reservationWaitingForRoom = true;
+      continue;
+    }
+    if (!isScheduled && reservationWaitingForRoom) continue;
     if (!isScheduled && queueLength >= 4) continue;
     arrival.status = 'Released';
     arrival.releasedMinute = nowMinute;
