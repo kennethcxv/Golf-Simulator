@@ -7,7 +7,7 @@
 
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { CachedGLTFLoader as GLTFLoader } from './gltfCache.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { Water } from 'three/addons/objects/Water.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -173,6 +173,7 @@ function hexToVec3(hex) {
 }
 
 export function makeCourseScene(canvas, state) {
+  let disposed = false;
   const course = state.course;
   const W = course.w;
   const H = course.h;
@@ -797,11 +798,44 @@ export function makeCourseScene(canvas, state) {
     for (const s of course.structures) {
       clear.push({ x0: s.x - 2, x1: s.x + s.w + 2, y0: s.y - 2, y1: s.y + s.h + 4 });
     }
+    // Golf operations are real destinations, not abstract state markers. Keep
+    // their working aprons and the clubhouse-to-cart-barn link out of the scrub
+    // forest so players, carts, and screenshot cameras can all reach them.
+    const facilities = state.golfDay?.routeNetwork?.facilities;
+    const facilityPoints = facilities ? [
+      facilities.clubhouse,
+      facilities.cartBarn,
+      facilities.starterStand,
+      ...(facilities.staging || []),
+      facilities.range?.center,
+      ...(facilities.range?.bays || []),
+      facilities.range?.target,
+      facilities.putting?.center,
+      ...(facilities.putting?.positions || []),
+      facilities.chipping?.center,
+      ...(facilities.chipping?.positions || []),
+    ].filter(Boolean) : [];
+    const nearFacility = (cellX, cellY) => {
+      const px = worldX(cellX);
+      const pz = worldZ(cellY);
+      if (facilityPoints.some((point) => Math.hypot(px - point.x, pz - point.z) < 11.5)) return true;
+      if (facilities?.clubhouse && facilities?.cartBarn) {
+        const a = facilities.clubhouse;
+        const b = facilities.cartBarn;
+        const vx = b.x - a.x;
+        const vz = b.z - a.z;
+        const lengthSq = vx * vx + vz * vz || 1;
+        const t = clamp(((px - a.x) * vx + (pz - a.z) * vz) / lengthSq, 0, 1);
+        return Math.hypot(px - (a.x + vx * t), pz - (a.z + vz * t)) < 5.5;
+      }
+      return false;
+    };
     // interior scrub trees
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         if (course.zones[y * W + x] !== ZONE.OUT) continue;
         if (clear.some((c) => x >= c.x0 && x <= c.x1 && y >= c.y0 && y <= c.y1)) continue;
+        if (nearFacility(x, y)) continue;
         const h = treeHash(x * 7 + 3, y * 5 + 1);
         if (h > 0.78) spots.push({ x, y, r: h });
       }
@@ -1025,10 +1059,21 @@ export function makeCourseScene(canvas, state) {
     c2.lineWidth = 5;
     c2.stroke();
     c2.fillStyle = fg;
-    c2.font = `700 ${fontPx}px "Segoe UI", sans-serif`;
+    const lines = String(text).split('\n').slice(0, 2);
+    let fittedFont = lines.length > 1 ? Math.min(fontPx, 38) : fontPx;
+    c2.font = `700 ${fittedFont}px "Segoe UI", sans-serif`;
+    while (fittedFont > 18 && Math.max(...lines.map((line) => c2.measureText(line).width)) > w - 44) {
+      fittedFont -= 2;
+      c2.font = `700 ${fittedFont}px "Segoe UI", sans-serif`;
+    }
     c2.textAlign = 'center';
     c2.textBaseline = 'middle';
-    c2.fillText(text, w / 2, 68);
+    if (lines.length === 1) c2.fillText(lines[0], w / 2, 68);
+    else {
+      c2.fillText(lines[0], w / 2, 48);
+      c2.font = `600 ${Math.max(16, fittedFont - 5)}px "Segoe UI", sans-serif`;
+      c2.fillText(lines[1], w / 2, 87);
+    }
     const tex = new THREE.CanvasTexture(cnv);
     tex.colorSpace = THREE.SRGBColorSpace;
     // toneMapped:false — the badge keeps its designed colors instead of being
@@ -1300,11 +1345,15 @@ export function makeCourseScene(canvas, state) {
   // positions, phases, routes and shots below all come from state.golfDay.
   const METERS_TO_YARDS = 1.09361;
   const TRAVEL_STATES = new Set([
-    'traveling-to-starter', 'called-to-tee', 'traveling-to-ball', 'traveling-next-hole',
+    'traveling-to-practice', 'traveling-to-starter', 'called-to-tee', 'traveling-to-ball', 'traveling-next-hole',
     'returning-cart', 'returning-scorecard', 'leaving-property',
   ]);
   const golferVisuals = new Map();
   const partyVisuals = new Map();
+  const serviceCartVisuals = new Map();
+  const golferVisualPool = [];
+  const cartVisualPool = [];
+  const bagVisualPool = [];
   const liveGolfColliders = [];
   const facilityGroup = new THREE.Group();
   const liveCartGroup = new THREE.Group();
@@ -1317,7 +1366,11 @@ export function makeCourseScene(canvas, state) {
   let golfCartTemplate = null;
   let facilityRevision = null;
   let starterCharacter = null;
+  let starterDisplaySprite = null;
+  let starterDisplayPoint = null;
+  let starterDisplayKey = '';
   let facilityColliderRefs = [];
+  let facilityWalkPropRefs = [];
 
   // Slightly presentation-scaled so a real 1.68-inch ball remains readable at
   // first-person fairway distances in the game's stylized rendering.
@@ -1410,8 +1463,16 @@ export function makeCourseScene(canvas, state) {
       const index = propColliders.indexOf(collider);
       if (index >= 0) propColliders.splice(index, 1);
     }
+    for (const prop of facilityWalkPropRefs) {
+      const index = walkProps.indexOf(prop);
+      if (index >= 0) walkProps.splice(index, 1);
+    }
     facilityColliderRefs = [];
+    facilityWalkPropRefs = [];
     starterCharacter = null;
+    starterDisplaySprite = null;
+    starterDisplayPoint = null;
+    starterDisplayKey = '';
   }
 
   function ensureGolfFacilities(st) {
@@ -1420,29 +1481,108 @@ export function makeCourseScene(canvas, state) {
     clearGolfFacilities();
     facilityRevision = network.revision;
     const facilities = network.facilities;
-    placeKit('StarterStand', facilities.starterStand, Math.PI * 0.72);
-    addFacilityLabel('STARTER', facilities.starterStand, 1.85, 3.2);
+    const firstHole = network.holes[0];
+    const teeYaw = firstHole ? Math.atan2(firstHole.pin.x - firstHole.tee.x, firstHole.pin.z - firstHole.tee.z) : 0;
+    const teeSide = { x: Math.cos(teeYaw), z: -Math.sin(teeYaw) };
+    const teeForward = { x: Math.sin(teeYaw), z: Math.cos(teeYaw) };
+    placeKit('StarterStand', facilities.starterStand, teeYaw + Math.PI * 0.5);
+    addFacilityLabel('STARTER', facilities.starterStand, 1.65, 2.0);
+    starterDisplayPoint = {
+      x: facilities.starterStand.x + teeSide.x * 1.9,
+      z: facilities.starterStand.z + teeSide.z * 1.9,
+    };
+    placeKit('StarterDisplay', starterDisplayPoint, teeYaw + Math.PI * 0.5);
+    if (firstHole) placeKit('TeeMarkers', firstHole.tee, teeYaw);
     const starter = makeCharacter({ polo: 0xf0ede2, khaki: 0x3f5944, cap: 0x2f5c38 });
     starter.root.position.set(
-      facilities.starterStand.x + 1.15,
-      heightAt(facilities.starterStand.x + 1.15, facilities.starterStand.z),
-      facilities.starterStand.z + 0.45,
+      facilities.starterStand.x - teeSide.x * 1.45 - teeForward.x * 0.25,
+      heightAt(facilities.starterStand.x - teeSide.x * 1.45, facilities.starterStand.z - teeSide.z * 1.45),
+      facilities.starterStand.z - teeSide.z * 1.45 - teeForward.z * 0.25,
     );
-    starter.root.rotation.y = -1.2;
+    starter.root.rotation.y = teeYaw + 0.35;
     facilityGroup.add(starter.root);
     starterCharacter = starter;
     const starterCollider = { x: facilities.starterStand.x, z: facilities.starterStand.z, r: 0.55 };
     propColliders.push(starterCollider);
     facilityColliderRefs.push(starterCollider);
+    const starterDeskProp = {
+      x: facilities.starterStand.x,
+      z: facilities.starterStand.z,
+      r: 3.1,
+      label: () => {
+        const waiting = (state.reservations?.booked || []).filter((reservation) => (
+          ['arrived', 'late'].includes(reservation.arrival?.status)
+          && reservation.checkIn?.status !== 'checked-in'
+          && ['booked', 'confirmed'].includes(reservation.status)
+        ));
+        return waiting.length
+          ? `Starter desk — [E] check in ${waiting[0].reservationHolder}${waiting.length > 1 ? ` · ${waiting.length - 1} more waiting` : ''}`
+          : 'Starter desk — [E] arrivals, check-in & walk-ins';
+      },
+      action: () => {
+        const waiting = (state.reservations?.booked || []).filter((reservation) => (
+          ['arrived', 'late'].includes(reservation.arrival?.status)
+          && reservation.checkIn?.status !== 'checked-in'
+          && ['booked', 'confirmed'].includes(reservation.status)
+        ));
+        walkHooks.openFrontDesk?.(waiting[0]?.id ?? null);
+      },
+    };
+    walkProps.push(starterDeskProp);
+    facilityWalkPropRefs.push(starterDeskProp);
 
-    for (const [index, bay] of facilities.range.bays.slice(0, 3).entries()) {
-      placeKit('RangeBasket', { x: bay.x + index * 0.18, z: bay.z }, index * 0.35, METERS_TO_YARDS * 1.25);
+    const displayCollider = { x: starterDisplayPoint.x, z: starterDisplayPoint.z, r: 0.85 };
+    propColliders.push(displayCollider);
+    facilityColliderRefs.push(displayCollider);
+    for (const stagingPoint of facilities.staging) placeKit('TeeMarkers', stagingPoint, teeYaw, 0.58);
+    placeKit('CartServiceBay', facilities.cartBarn, teeYaw + Math.PI * 0.5);
+    addFacilityLabel('CART SERVICE', facilities.cartBarn, 2.25, 3.55);
+
+    const rangeYaw = Math.atan2(
+      facilities.range.target.x - facilities.range.center.x,
+      facilities.range.target.z - facilities.range.center.z,
+    );
+    for (const [index, bay] of facilities.range.bays.entries()) {
+      placeKit('RangeBay', bay, rangeYaw);
+      // A basket belongs just behind and to the side of its own bay. The old
+      // index-based world-X offset drifted the last baskets through adjacent
+      // stalls whenever the range was rotated.
+      const basketPoint = {
+        x: bay.x - Math.cos(rangeYaw) * 0.62 + Math.sin(rangeYaw) * 0.38,
+        z: bay.z + Math.sin(rangeYaw) * 0.62 + Math.cos(rangeYaw) * 0.38,
+      };
+      placeKit('RangeBasket', basketPoint, rangeYaw + index * 0.04, METERS_TO_YARDS * 1.25);
+    }
+    const rangeSide = { x: Math.cos(rangeYaw), z: -Math.sin(rangeYaw) };
+    const dispenserPoint = {
+      x: facilities.range.bays[0].x - rangeSide.x * 2.2,
+      z: facilities.range.bays[0].z - rangeSide.z * 2.2,
+    };
+    const netPoint = {
+      x: facilities.range.bays[facilities.range.bays.length - 1].x + rangeSide.x * 3.1,
+      z: facilities.range.bays[facilities.range.bays.length - 1].z + rangeSide.z * 3.1,
+    };
+    placeKit('BallDispenser', dispenserPoint, rangeYaw);
+    placeKit('WarmupNet', netPoint, rangeYaw);
+    const bagRackPoint = facilities.staging[facilities.staging.length - 1];
+    placeKit('BagStagingRack', {
+      x: bagRackPoint.x + rangeSide.x * 1.9,
+      z: bagRackPoint.z + rangeSide.z * 1.9,
+    }, teeYaw + Math.PI * 0.5);
+    for (const [point, radius] of [[dispenserPoint, 0.45], [netPoint, 1.35]]) {
+      const collider = { x: point.x, z: point.z, r: radius };
+      propColliders.push(collider);
+      facilityColliderRefs.push(collider);
     }
     placeKit('GolfBag', facilities.putting.center, 0.5);
     placeKit('GolfBag', facilities.chipping.center, -0.75);
-    addFacilityLabel('PRACTICE RANGE', facilities.range.center, 1.9, 3.8);
-    addFacilityLabel('PUTTING GREEN', facilities.putting.center, 1.85, 3.5);
-    addFacilityLabel('SHORT GAME', facilities.chipping.center, 1.85, 3.1);
+    for (const point of facilities.putting.positions.filter((_, index) => index % 2 === 0)) {
+      placeKit('PracticePin', point, teeYaw, METERS_TO_YARDS);
+    }
+    placeKit('PracticePin', facilities.chipping.center, teeYaw + Math.PI, METERS_TO_YARDS);
+    addFacilityLabel('PRACTICE RANGE', facilities.range.center, 1.35, 2.8);
+    addFacilityLabel('PUTTING GREEN', facilities.putting.center, 1.25, 2.4);
+    addFacilityLabel('SHORT GAME', facilities.chipping.center, 1.25, 2.2);
     const target = new THREE.Mesh(
       new THREE.TorusGeometry(1.4, 0.09, 8, 28),
       new THREE.MeshStandardMaterial({ color: 0xe7dfc4, roughness: 0.75 }),
@@ -1459,20 +1599,53 @@ export function makeCourseScene(canvas, state) {
     facilityGroup.add(target);
   }
 
+  function updateStarterDisplay(st) {
+    if (!starterDisplayPoint) return;
+    const display = st.golfDay?.starter?.display;
+    const line = display?.partyName
+      ? display.partyName
+      : display?.nextUp ? `NEXT · ${display.nextUp}` : 'TEE OPEN';
+    const subline = display?.partyName
+      ? `${display.status} · ${display.teeTime} · H${display.hole}${display.delayMinutes ? ` · +${Math.ceil(display.delayMinutes)}M` : ''}`
+      : display?.onDeck ? `ON DECK · ${display.onDeck}` : display?.notice ? display.notice.replaceAll('-', ' ') : 'CHECK IN AT THE CLUBHOUSE';
+    const key = `${line}|${subline}`;
+    if (key === starterDisplayKey) return;
+    starterDisplayKey = key;
+    if (starterDisplaySprite) facilityGroup.remove(starterDisplaySprite);
+    starterDisplaySprite = textSprite(`${line}\n${subline}`, {
+      w: 768, fontPx: 38, scaleW: 1.34,
+      fg: '#f6f0db', bg: 'rgba(18,34,25,0.98)', border: '#ad9152',
+    });
+    starterDisplaySprite.position.set(
+      starterDisplayPoint.x,
+      heightAt(starterDisplayPoint.x, starterDisplayPoint.z) + 1.12,
+      starterDisplayPoint.z,
+    );
+    facilityGroup.add(starterDisplaySprite);
+  }
+
   function ensureGolferVisual(party, golfer) {
     const key = `${party.id}:${golfer.id}`;
     let visual = golferVisuals.get(key);
     if (visual) return visual;
-    const hash = identityHash(golfer.id);
-    const char = makeCharacter({
-      polo: POLO_COLORS[hash % POLO_COLORS.length],
-      khaki: KHAKI_COLORS[(hash >>> 3) % KHAKI_COLORS.length],
-      cap: CAP_COLORS[(hash >>> 6) % CAP_COLORS.length],
-    });
-    char.root.userData.char = char;
-    char.root.userData.golferId = golfer.id;
-    golferGroup.add(char.root);
-    visual = { char, club: null, lastX: golfer.position.x, lastZ: golfer.position.z, swingUntil: 0 };
+    visual = golferVisualPool.pop() || null;
+    if (!visual) {
+      const hash = identityHash(golfer.id);
+      const char = makeCharacter({
+        polo: POLO_COLORS[hash % POLO_COLORS.length],
+        khaki: KHAKI_COLORS[(hash >>> 3) % KHAKI_COLORS.length],
+        cap: CAP_COLORS[(hash >>> 6) % CAP_COLORS.length],
+      });
+      visual = { char, club: null, lastX: golfer.position.x, lastZ: golfer.position.z, swingUntil: 0, swingMode: 'IronSwing', updateDebt: 0 };
+    }
+    visual.char.root.userData.char = visual.char;
+    visual.char.root.userData.golferId = golfer.id;
+    visual.char.root.visible = true;
+    visual.lastX = golfer.position.x;
+    visual.lastZ = golfer.position.z;
+    visual.swingUntil = 0;
+    visual.updateDebt = 0;
+    golferGroup.add(visual.char.root);
     golferVisuals.set(key, visual);
     return visual;
   }
@@ -1482,7 +1655,7 @@ export function makeCourseScene(canvas, state) {
     const club = cloneKit('GolfClub');
     if (!club) return;
     club.scale.setScalar(METERS_TO_YARDS);
-    club.position.set(0, -0.27, -0.02);
+    club.position.set(0, -0.015, -0.02);
     club.rotation.set(0.15, 0, -0.16);
     (visual.char.grip || visual.char.root).add(club);
     visual.club = club;
@@ -1500,14 +1673,14 @@ export function makeCourseScene(canvas, state) {
       partyVisuals.set(party.id, visual);
     }
     if (!visual.bag && gameplayKit) {
-      visual.bag = cloneKit('GolfBag');
+      visual.bag = bagVisualPool.pop() || cloneKit('GolfBag');
       if (visual.bag) {
         visual.bag.scale.setScalar(METERS_TO_YARDS);
         golferGroup.add(visual.bag);
       }
     }
-    if (party.transport === 'ride' && !visual.cart && golfCartTemplate) {
-      visual.cart = golfCartTemplate.clone(true);
+    if (party.transport === 'ride' && !party.cartReturned && !visual.cart && golfCartTemplate) {
+      visual.cart = cartVisualPool.pop() || golfCartTemplate.clone(true);
       visual.cart.scale.setScalar(2.6);
       liveCartGroup.add(visual.cart);
     }
@@ -1561,10 +1734,18 @@ export function makeCourseScene(canvas, state) {
     const newestByParty = new Map();
     for (const item of pending) newestByParty.set(item.partyId, item);
     for (const item of [...newestByParty.values()].slice(-6)) {
+      const party = st.golfDay.parties.find((entry) => entry.id === item.partyId.replace(':practice', ''));
+      if (party?.simulationTier === 'far') continue;
       const duration = item.shot.type === 'putt' ? 1.4 : item.shot.type === 'chip' ? 1.8 : 2.5;
       presentationBalls.push({ ...item, realStart: nowSeconds, duration });
-      const visual = golferVisuals.get(`${item.partyId}:${item.golferId}`);
-      if (visual) visual.swingUntil = nowSeconds + Math.min(2.2, duration * 0.8);
+      const visual = golferVisuals.get(`${item.partyId.replace(':practice', '')}:${item.golferId}`);
+      if (visual) {
+        visual.swingUntil = nowSeconds + Math.min(2.2, duration * 0.8);
+        visual.swingMode = item.shot.type === 'driver' ? 'DriverSwing'
+          : item.shot.type === 'putt' ? 'Putt'
+            : item.shot.type === 'chip' ? 'Chip'
+              : item.shot.type === 'bunker' ? 'BunkerSwing' : 'IronSwing';
+      }
     }
     let count = 0;
     for (let index = presentationBalls.length - 1; index >= 0; index--) {
@@ -1596,6 +1777,7 @@ export function makeCourseScene(canvas, state) {
   function updateGolfers(dt, st) {
     if (golfersFrozen || !st.golfDay) return;
     ensureGolfFacilities(st);
+    updateStarterDisplay(st);
     if (starterCharacter) {
       starterCharacter.setMode(st.golfDay.starter.currentPartyId ? 'Browse' : 'Idle');
       starterCharacter.update(dt);
@@ -1605,7 +1787,17 @@ export function makeCourseScene(canvas, state) {
     liveGolfColliders.length = 0;
     const activeGolferKeys = new Set();
     const activePartyKeys = new Set();
+    const tierCounts = { near: 0, mid: 0, far: 0 };
+    let renderedCharacters = 0;
+    let renderedCarts = 0;
     for (const party of st.golfDay.parties) {
+      const distanceToPlayer = Math.hypot(party.position.x - walk.x, party.position.z - walk.z);
+      const tier = distanceToPlayer <= 95 ? 'near' : distanceToPlayer <= 260 ? 'mid' : 'far';
+      tierCounts[tier]++;
+      // Far parties continue their canonical, coarse event simulation but own
+      // no scene objects. Crossing back into MID/NEAR reconstructs presentation
+      // from the same positions, route progress and scorecard state.
+      if (tier === 'far') continue;
       activePartyKeys.add(party.id);
       const partyVisual = ensurePartyVisual(party);
       const dx = party.position.x - partyVisual.lastX;
@@ -1614,26 +1806,29 @@ export function makeCourseScene(canvas, state) {
       partyVisual.lastX = party.position.x;
       partyVisual.lastZ = party.position.z;
       const traveling = TRAVEL_STATES.has(party.state);
-      const riding = party.transport === 'ride' && traveling;
-      const distanceToPlayer = Math.hypot(party.position.x - walk.x, party.position.z - walk.z);
-      const near = party.simulationTier === 'near' || distanceToPlayer < 100;
+      const riding = party.routeTransport === 'ride' && traveling;
+      const near = tier === 'near';
       if (partyVisual.cart) {
-        partyVisual.cart.visible = party.transport === 'ride';
-        const parkedOffset = riding ? 0 : 2.2;
-        const cartX = party.position.x + Math.cos(partyVisual.yaw) * parkedOffset;
-        const cartZ = party.position.z - Math.sin(partyVisual.yaw) * parkedOffset;
-        partyVisual.cart.position.set(cartX, heightAt(cartX, cartZ) - 0.04, cartZ);
-        partyVisual.cart.rotation.y = partyVisual.yaw + Math.PI / 2;
-        liveGolfColliders.push({ x: cartX, z: cartZ, r: 1.35 });
+        partyVisual.cart.visible = party.transport === 'ride' && !party.cartReturned;
+        if (partyVisual.cart.visible) {
+          const parkedOffset = riding ? 0 : 3.2;
+          const cartX = party.position.x + Math.cos(partyVisual.yaw) * parkedOffset;
+          const cartZ = party.position.z - Math.sin(partyVisual.yaw) * parkedOffset;
+          partyVisual.cartPosition = { x: cartX, z: cartZ };
+          partyVisual.cart.position.set(cartX, heightAt(cartX, cartZ) - 0.04, cartZ);
+          partyVisual.cart.rotation.y = partyVisual.yaw + Math.PI / 2;
+          liveGolfColliders.push({ x: cartX, z: cartZ, r: 1.35 });
+          renderedCarts++;
+        }
       }
       if (partyVisual.bag) {
-        partyVisual.bag.visible = !riding;
-        partyVisual.bag.position.set(
-          party.position.x + 1.1,
-          heightAt(party.position.x + 1.1, party.position.z + 0.3),
-          party.position.z + 0.3,
-        );
-        partyVisual.bag.rotation.y = partyVisual.yaw + 0.35;
+        partyVisual.bag.visible = true;
+        const carried = traveling && party.routeTransport === 'walk';
+        const onCart = party.transport === 'ride' && party.cartLoaded && !party.cartReturned && partyVisual.cartPosition;
+        const bagX = carried ? party.position.x + 0.26 : onCart ? partyVisual.cartPosition.x - 0.48 : party.position.x + 1.1;
+        const bagZ = carried ? party.position.z + 0.12 : onCart ? partyVisual.cartPosition.z + 0.22 : party.position.z + 0.3;
+        partyVisual.bag.position.set(bagX, heightAt(bagX, bagZ) + (carried ? 0.72 : onCart ? 0.62 : 0), bagZ);
+        partyVisual.bag.rotation.set(carried ? -0.32 : onCart ? -0.08 : 0, partyVisual.yaw + 0.35, carried ? -0.18 : 0);
       }
       partyVisual.label.visible = near && distanceToPlayer < 5;
       partyVisual.label.position.set(
@@ -1642,7 +1837,8 @@ export function makeCourseScene(canvas, state) {
         party.position.z,
       );
 
-      for (let index = 0; index < party.golfers.length; index++) {
+      const visibleGolferCount = tier === 'near' ? party.golfers.length : Math.min(1, party.golfers.length);
+      for (let index = 0; index < visibleGolferCount; index++) {
         const golfer = party.golfers[index];
         const key = `${party.id}:${golfer.id}`;
         activeGolferKeys.add(key);
@@ -1664,34 +1860,145 @@ export function makeCourseScene(canvas, state) {
         }
         const moveX = x - visual.lastX;
         const moveZ = z - visual.lastZ;
-        if (Math.hypot(moveX, moveZ) > 0.02) visual.char.root.rotation.y = Math.atan2(moveX, moveZ);
+        if (Math.hypot(moveX, moveZ) > 0.02) {
+          const wanted = Math.atan2(moveX, moveZ);
+          const turn = Math.atan2(Math.sin(wanted - visual.char.root.rotation.y), Math.cos(wanted - visual.char.root.rotation.y));
+          visual.char.root.rotation.y += turn * Math.min(1, dt * 7);
+        }
         visual.lastX = x;
         visual.lastZ = z;
         let mode = 'Idle';
-        if (riding) mode = 'Sit';
-        else if (nowSeconds < visual.swingUntil || (isCurrent && party.state === 'ball-in-play')) mode = 'Swing';
-        else if (traveling) mode = 'Walk';
-        else if (party.state === 'practicing' && ['range', 'chipping'].includes(party.practiceKind)) mode = 'Swing';
+        if (riding) {
+          const routeProgress = party.routeEndsMinute > party.routeStartedMinute
+            ? clamp((st.clock.minutes - party.routeStartedMinute) / (party.routeEndsMinute - party.routeStartedMinute), 0, 1) : 0.5;
+          mode = routeProgress < 0.1 ? 'CartEnter' : routeProgress > 0.9 ? 'CartExit' : 'Sit';
+        }
+        else if (nowSeconds < visual.swingUntil || (isCurrent && party.state === 'ball-in-play')) mode = visual.swingMode || 'IronSwing';
+        else if (traveling) mode = party.transport === 'walk' && index === 0 ? 'WalkBag' : 'Walk';
+        else if (party.state === 'practicing') mode = party.practiceKind === 'putting' ? 'Putt' : party.practiceKind === 'chipping' ? 'Chip' : 'PracticeSwing';
+        else if (party.state === 'waiting-for-starter' || party.state === 'waiting-on-group-ahead') mode = index % 2 ? 'Conversation' : 'Wait';
+        else if (party.state === 'at-tee' || party.state === 'preparing-shot') mode = isCurrent ? 'Address' : 'Tee';
+        else if (party.state === 'putting' || party.state === 'on-green') mode = isCurrent ? 'Putt' : 'Watch';
+        else if (party.state === 'hole-complete') mode = index === 0 ? 'Scorecard' : golfer.holed ? 'Pickup' : 'Wait';
+        else if (party.state === 'round-complete') mode = index % 2 ? 'Celebrate' : 'RoundComplete';
+        else if (party.state === 'returning-scorecard') mode = index === 0 ? 'Scorecard' : index === 1 ? 'BagUnload' : 'Conversation';
+        else if (golfer.animation === 'watching-ball') mode = 'Watch';
+        else if (golfer.animation === 'celebrate') mode = 'Celebrate';
+        else if (golfer.animation === 'frustration') mode = 'Frustration';
+        else if (golfer.animation === 'pickup-ball') mode = 'Pickup';
+        else if (golfer.animation === 'loading-bag') mode = 'BagLoad';
+        else if (golfer.animation === 'unloading-bag') mode = 'BagUnload';
+        else if (golfer.animation === 'cart-entry') mode = 'CartEnter';
+        else if (golfer.animation === 'cart-exit') mode = 'CartExit';
         visual.char.setMode(mode);
-        visual.char.update(party.simulationTier === 'far' ? Math.min(dt, 0.05) : dt);
-        visual.char.root.position.set(x, heightAt(x, z) + (riding ? 0.48 : 0), z);
-        visual.char.root.visible = party.simulationTier !== 'far' || distanceToPlayer < 420;
-        if (visual.club) visual.club.visible = near && !riding && (mode === 'Swing' || isCurrent || party.state === 'practicing');
+        visual.updateDebt += dt;
+        if (tier === 'near' || visual.updateDebt >= 0.12) {
+          visual.char.update(visual.updateDebt);
+          visual.updateDebt = 0;
+        }
+        visual.char.root.position.set(x, heightAt(x, z) + (riding ? -0.12 : 0), z);
+        visual.char.root.visible = true;
+        if (visual.club) visual.club.visible = near && !riding && (mode.endsWith('Swing') || ['Chip', 'Putt', 'Address', 'Tee'].includes(mode) || isCurrent || party.state === 'practicing');
         if (!riding) liveGolfColliders.push({ x, z, r: 0.38 });
+        renderedCharacters++;
       }
     }
     for (const [key, visual] of golferVisuals) {
       if (activeGolferKeys.has(key)) continue;
       golferGroup.remove(visual.char.root);
       golferVisuals.delete(key);
+      if (golferVisualPool.length < 24) golferVisualPool.push(visual);
     }
     for (const [key, visual] of partyVisuals) {
       if (activePartyKeys.has(key)) continue;
-      if (visual.bag) golferGroup.remove(visual.bag);
-      if (visual.cart) liveCartGroup.remove(visual.cart);
+      if (visual.bag) {
+        golferGroup.remove(visual.bag);
+        if (bagVisualPool.length < 12) bagVisualPool.push(visual.bag);
+      }
+      if (visual.cart) {
+        liveCartGroup.remove(visual.cart);
+        if (cartVisualPool.length < 8) cartVisualPool.push(visual.cart);
+      }
       if (visual.label) golferGroup.remove(visual.label);
       partyVisuals.delete(key);
     }
+    // Once a party unloads, its cart belongs to the fleet service state rather
+    // than the departed party. Keep cleaning/charging carts visible under the
+    // authored service canopy instead of popping them out of existence.
+    const serviceCarts = st.golfDay.carts.filter((entry) => ['cleaning', 'charging'].includes(entry.status));
+    const activeServiceCartIds = new Set();
+    const barn = st.golfDay.routeNetwork?.facilities?.cartBarn;
+    if (barn && golfCartTemplate) {
+      for (let index = 0; index < serviceCarts.length; index++) {
+        const fleetCart = serviceCarts[index];
+        activeServiceCartIds.add(fleetCart.id);
+        let visual = serviceCartVisuals.get(fleetCart.id);
+        if (!visual) {
+          const root = cartVisualPool.pop() || golfCartTemplate.clone(true);
+          root.scale.setScalar(2.6);
+          liveCartGroup.add(root);
+          visual = { root, label: null, status: '' };
+          serviceCartVisuals.set(fleetCart.id, visual);
+        }
+        const lane = index % 2 === 0 ? -1 : 1;
+        const row = Math.floor(index / 2);
+        const x = barn.x + lane * 1.65;
+        const z = barn.z + row * 3.0;
+        visual.root.position.set(x, heightAt(x, z) - 0.04, z);
+        visual.root.rotation.y = Math.PI * 0.5;
+        visual.root.visible = true;
+        if (visual.status !== fleetCart.status) {
+          if (visual.label) {
+            liveCartGroup.remove(visual.label);
+            visual.label.material.map?.dispose();
+            visual.label.material.dispose();
+          }
+          visual.status = fleetCart.status;
+          visual.label = textSprite(fleetCart.status.toUpperCase(), {
+            w: 288, fontPx: 48, scaleW: 0.82,
+            fg: fleetCart.status === 'charging' ? '#f3d27a' : '#e7f1df',
+            bg: 'rgba(20,42,28,0.96)', border: '#b59a55',
+          });
+          liveCartGroup.add(visual.label);
+        }
+        // Keep the live fleet state immediately above the cart roof. The
+        // authored facility sign occupies the high wayfinding band.
+        visual.label.position.set(x, heightAt(x, z) + 1.2, z);
+        liveGolfColliders.push({ x, z, r: 1.35 });
+        renderedCarts++;
+      }
+    }
+    for (const [id, visual] of serviceCartVisuals) {
+      if (activeServiceCartIds.has(id)) continue;
+      liveCartGroup.remove(visual.root);
+      if (cartVisualPool.length < 8) cartVisualPool.push(visual.root);
+      if (visual.label) {
+        liveCartGroup.remove(visual.label);
+        visual.label.material.map?.dispose();
+        visual.label.material.dispose();
+      }
+      serviceCartVisuals.delete(id);
+    }
+    st.golfDay.performance = {
+      tiers: tierCounts,
+      renderedCharacters,
+      renderedCarts,
+      visibleBalls: liveBallInstances.count,
+      pools: {
+        ballCapacity: 24,
+        activeBalls: st.golfDay.balls.filter((ball) => ball.active).length,
+        characterVisuals: golferVisuals.size,
+        characterSpare: golferVisualPool.length,
+        cartVisuals: renderedCarts,
+        cartSpare: cartVisualPool.length,
+      },
+      renderer: {
+        drawCalls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles,
+        geometries: renderer.info.memory.geometries,
+        textures: renderer.info.memory.textures,
+      },
+    };
   }
 
   // --- walkable mode: first-person on the real course ------------------------------------
@@ -2272,6 +2579,36 @@ export function makeCourseScene(canvas, state) {
         const facing = ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
         if (facing > 0.35) {
           walkFocus = { kind: 'cart', label: 'Tractor — [E] take the wheel' };
+          return;
+        }
+      }
+    }
+    // Course operations must remain usable while the optional gameplay-kit
+    // GLB is still streaming. The authored stand is presentation; this focus
+    // target comes from the canonical route network and is always available.
+    const starterDesk = state.golfDay?.routeNetwork?.facilities?.starterStand;
+    if (starterDesk) {
+      const dx = starterDesk.x - walk.x;
+      const dz = starterDesk.z - walk.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 3.1 && dist > 0.01) {
+        const facing = ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
+        if (facing > 0.3) {
+          const waiting = (state.reservations?.booked || []).filter((reservation) => (
+            ['arrived', 'late'].includes(reservation.arrival?.status)
+            && reservation.checkIn?.status !== 'checked-in'
+            && ['booked', 'confirmed'].includes(reservation.status)
+          ));
+          const prop = {
+            action: () => walkHooks.openFrontDesk?.(waiting[0]?.id ?? null),
+          };
+          walkFocus = {
+            kind: 'prop',
+            label: waiting.length
+              ? `Starter desk — [E] check in ${waiting[0].reservationHolder}${waiting.length > 1 ? ` · ${waiting.length - 1} more waiting` : ''}`
+              : 'Starter desk — [E] arrivals, check-in & walk-ins',
+            prop,
+          };
           return;
         }
       }
@@ -2901,6 +3238,9 @@ export function makeCourseScene(canvas, state) {
         }
       }
     }
+    const previousAutoReset = renderer.info.autoReset;
+    renderer.info.autoReset = false;
+    renderer.info.reset();
     if (postEnabled) {
       try {
         composer.render();
@@ -2912,6 +3252,15 @@ export function makeCourseScene(canvas, state) {
     } else {
       renderer.render(scene, camera);
     }
+    if (st?.golfDay?.performance) {
+      st.golfDay.performance.renderer = {
+        drawCalls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles,
+        geometries: renderer.info.memory.geometries,
+        textures: renderer.info.memory.textures,
+      };
+    }
+    renderer.info.autoReset = previousAutoReset;
   }
 
   function resize() {
@@ -2942,6 +3291,7 @@ export function makeCourseScene(canvas, state) {
   }
 
   function dispose() {
+    disposed = true;
     if (gtao.dispose) gtao.dispose();
     composerTarget.dispose();
     renderer.dispose();
@@ -3260,11 +3610,15 @@ export function makeCourseScene(canvas, state) {
     const step = (label) => { if (onStep) onStep(label); };
     step('Loading models');
     await whenAssetsIdle(8000);
+    if (disposed) return;
     await tick();
+    if (disposed) return;
     step('Compiling shaders');
     await tick();
+    if (disposed) return;
     renderer.compile(scene, camera);
     await tick();
+    if (disposed) return;
     step('Uploading textures');
     const seen = new Set();
     const texKeys = ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap', 'alphaMap', 'bumpMap'];
@@ -3281,6 +3635,7 @@ export function makeCourseScene(canvas, state) {
     });
     // batched across frames — one giant burst would itself be the hitch we're removing
     for (let i = 0; i < pending.length; i += 24) {
+      if (disposed) return;
       for (let j = i; j < Math.min(i + 24, pending.length); j++) renderer.initTexture(pending[j]);
       await tick();
     }
@@ -3297,6 +3652,7 @@ export function makeCourseScene(canvas, state) {
     await tick();
     // a couple of normal frames settle the AO history and bloom targets
     for (let i = 0; i < 3; i++) {
+      if (disposed) return;
       camera.rotation.set(0, (i * Math.PI * 2) / 3, 0, 'YXZ');
       try { composer.render(); } catch (e) { renderer.render(scene, camera); }
       await tick();
@@ -3307,6 +3663,7 @@ export function makeCourseScene(canvas, state) {
     renderer,
     scene,
     prewarm,
+    whenAssetsIdle: () => whenAssetsIdle(10000),
     camera,
     rig,
     post: { composer, gtao, bloom },

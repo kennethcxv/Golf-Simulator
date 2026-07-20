@@ -216,6 +216,134 @@ def build_ball(mats):
     return root, [ball]
 
 
+def build_starter_display(mats):
+    root = empty('StarterDisplay', (-2.8, 0, 0))
+    parts = [
+        cube('StarterDisplay_LeftPost', (0.10, 0.12, 1.62), (-0.62, 0, 0.81), mats['walnut'], 0.012, root),
+        cube('StarterDisplay_RightPost', (0.10, 0.12, 1.62), (0.62, 0, 0.81), mats['walnut'], 0.012, root),
+        cube('StarterDisplay_Header', (1.40, 0.14, 0.28), (0, 0, 1.50), mats['green'], 0.018, root),
+        cube('StarterDisplay_Screen', (1.28, 0.10, 0.66), (0, -0.025, 1.02), mats['charcoal'], 0.014, root),
+        cube('StarterDisplay_Footer', (1.40, 0.14, 0.18), (0, 0, 0.62), mats['oak'], 0.016, root),
+        cube('StarterDisplay_LeftFoot', (0.34, 0.42, 0.08), (-0.62, 0.08, 0.04), mats['oak'], 0.012, root),
+        cube('StarterDisplay_RightFoot', (0.34, 0.42, 0.08), (0.62, 0.08, 0.04), mats['oak'], 0.012, root),
+    ]
+    collider = cube('COLLIDER_StarterDisplay', (1.46, 0.24, 1.70), (0, 0, 0.85), mats['collider'], 0, root)
+    collider['collision_proxy'] = True
+    root['pivot'] = 'floor-center'
+    root['display_face_m'] = [1.28, 0.66]
+    return root, parts + [collider]
+
+
+def build_ball_dispenser(mats):
+    root = empty('BallDispenser', (-4.4, 0, 0))
+    body = cube('BallDispenser_Body', (0.62, 0.52, 1.16), (0, 0, 0.64), mats['sage'], 0.06, root)
+    top = cube('BallDispenser_Top', (0.66, 0.56, 0.12), (0, 0, 1.24), mats['green'], 0.035, root)
+    window = cube('BallDispenser_Window', (0.37, 0.025, 0.34), (0, -0.274, 0.92), mats['cream'], 0.018, root)
+    chute = cube('BallDispenser_Chute', (0.31, 0.24, 0.16), (0, -0.33, 0.45), mats['charcoal'], 0.025, root, rotation=(0.16, 0, 0))
+    button = cylinder('BallDispenser_Button', 0.045, 0.025, (0.20, -0.285, 0.68), mats['brass'], root, vertices=16, rotation=(math.pi / 2, 0, 0))
+    collider = cube('COLLIDER_BallDispenser', (0.66, 0.58, 1.30), (0, 0, 0.65), mats['collider'], 0, root)
+    collider['collision_proxy'] = True
+    root['pivot'] = 'floor-center'
+    root['capacity_balls'] = 240
+    return root, [body, top, window, chute, button, collider]
+
+
+def build_range_bay(mats):
+    root = empty('RangeBay', (0, 2.4, 0))
+    mat = cube('RangeBay_Mat', (1.75, 1.45, 0.055), (0, 0, 0.0275), mats['green'], 0.035, root)
+    stance = cube('RangeBay_Stance', (1.10, 0.72, 0.018), (-0.18, 0.12, 0.066), mats['sage'], 0.025, root)
+    tray = cube('RangeBay_BallTray', (0.20, 0.76, 0.075), (0.68, 0.12, 0.09), mats['charcoal'], 0.02, root)
+    divider = cube('RangeBay_Divider', (0.055, 1.50, 0.78), (-0.86, 0, 0.39), mats['oak'], 0.02, root)
+    number = cube('RangeBay_NumberPlate', (0.18, 0.035, 0.18), (-0.86, -0.67, 0.69), mats['cream'], 0.015, root)
+    root['pivot'] = 'floor-center'
+    root['dimensions_m'] = [1.75, 1.50, 0.78]
+    return root, [mat, stance, tray, divider, number]
+
+
+def build_warmup_net(mats):
+    root = empty('WarmupNet', (2.2, 2.4, 0))
+    parts = []
+    for side in (-1, 1):
+        parts.append(cylinder(f'WarmupNet_Post_{side}', 0.035, 2.35, (side * 1.18, 0, 1.175), mats['charcoal'], root, vertices=10))
+    parts.append(cylinder('WarmupNet_TopRail', 0.035, 2.36, (0, 0, 2.33), mats['charcoal'], root, vertices=10, rotation=(0, math.pi / 2, 0)))
+    parts.append(cube('WarmupNet_Back', (2.30, 0.035, 2.12), (0, 0.38, 1.08), mats['green'], 0.015, root))
+    parts.append(cube('WarmupNet_Target', (0.54, 0.025, 0.54), (0, 0.35, 1.02), mats['cream'], 0.02, root))
+    collider = cube('COLLIDER_WarmupNet', (2.46, 0.55, 2.40), (0, 0.20, 1.20), mats['collider'], 0, root)
+    collider['collision_proxy'] = True
+    root['pivot'] = 'floor-center'
+    return root, parts + [collider]
+
+
+def build_bag_rack(mats):
+    root = empty('BagStagingRack', (4.2, 2.4, 0))
+    parts = [
+        cube('BagRack_Base', (1.80, 0.56, 0.10), (0, 0, 0.05), mats['oak'], 0.018, root),
+        cube('BagRack_Back', (1.80, 0.10, 0.88), (0, 0.24, 0.49), mats['walnut'], 0.018, root),
+        cube('BagRack_Rail', (1.70, 0.13, 0.13), (0, 0, 0.72), mats['brass'], 0.025, root),
+    ]
+    for index in range(5):
+        parts.append(cylinder(f'BagRack_Divider_{index + 1}', 0.018, 0.44, ((index - 2) * 0.34, 0, 0.37), mats['charcoal'], root, vertices=8))
+    collider = cube('COLLIDER_BagStagingRack', (1.86, 0.64, 0.94), (0, 0, 0.47), mats['collider'], 0, root)
+    collider['collision_proxy'] = True
+    root['pivot'] = 'floor-center'
+    root['bag_slots'] = 4
+    return root, parts + [collider]
+
+
+def build_tee_markers(mats):
+    root = empty('TeeMarkers', (5.8, 2.4, 0))
+    parts = []
+    for side in (-1, 1):
+        base = cylinder(f'TeeMarker_Base_{side}', 0.12, 0.045, (side * 0.68, 0, 0.0225), mats['brass'], root, vertices=16)
+        marker = sphere(f'TeeMarker_Ball_{side}', 0.095, (side * 0.68, 0, 0.12), mats['cream'], root, 16, 8)
+        parts.extend((base, marker))
+    root['pivot'] = 'tee-line-center'
+    root['marker_separation_m'] = 1.36
+    return root, parts
+
+
+def build_practice_pin(mats):
+    """A short, unmistakable practice-green target with a real cup rim."""
+    root = empty('PracticePin', (7.2, 2.4, 0))
+    parts = [
+        torus('PracticePin_CupRim', 0.075, 0.012, (0, 0, 0.016), mats['charcoal'], root),
+        cylinder('PracticePin_Pole', 0.014, 0.92, (0, 0, 0.46), mats['cream'], root, vertices=10),
+        cube('PracticePin_Flag', (0.34, 0.025, 0.20), (0.17, 0, 0.80), mats['green'], 0.018, root),
+        cube('PracticePin_FlagBand', (0.34, 0.028, 0.035), (0.17, -0.002, 0.735), mats['brass'], 0.008, root),
+    ]
+    root['pivot'] = 'cup-center-floor'
+    root['dimensions_m'] = [0.42, 0.16, 0.92]
+    return root, parts
+
+
+def build_cart_service_bay(mats):
+    """Open-sided return bay with visible wash, charge, and status equipment."""
+    root = empty('CartServiceBay', (9.4, 2.4, 0))
+    parts = [
+        cube('CartServiceBay_Apron', (4.60, 3.20, 0.08), (0, 0, 0.04), mats['charcoal'], 0.06, root),
+        cube('CartServiceBay_Roof', (4.75, 3.35, 0.16), (0, 0, 2.64), mats['green'], 0.06, root),
+        cube('CartServiceBay_BackRail', (4.25, 0.16, 0.18), (0, 1.38, 1.32), mats['walnut'], 0.025, root),
+        cube('CartServiceBay_StatusBoard', (1.45, 0.10, 0.72), (0, 1.28, 1.78), mats['cream'], 0.035, root),
+        cube('CartServiceBay_StatusHeader', (1.45, 0.025, 0.16), (0, 1.215, 2.06), mats['green'], 0.018, root),
+        cube('CartServiceBay_Charger', (0.46, 0.42, 1.06), (-1.74, 1.10, 0.57), mats['sage'], 0.055, root),
+        cube('CartServiceBay_ChargerFace', (0.28, 0.025, 0.32), (-1.74, 0.877, 0.72), mats['charcoal'], 0.025, root),
+        cylinder('CartServiceBay_ChargeLamp', 0.055, 0.028, (-1.74, 0.865, 0.96), mats['brass'], root, vertices=16, rotation=(math.pi / 2, 0, 0)),
+        torus('CartServiceBay_HoseReel', 0.31, 0.045, (1.68, 1.24, 1.25), mats['brass'], root, rotation=(math.pi / 2, 0, 0)),
+        cylinder('CartServiceBay_HoseHub', 0.10, 0.10, (1.68, 1.19, 1.25), mats['charcoal'], root, vertices=16, rotation=(math.pi / 2, 0, 0)),
+        cube('CartServiceBay_StopLeft', (0.72, 0.18, 0.13), (-1.05, 0.82, 0.145), mats['oak'], 0.035, root),
+        cube('CartServiceBay_StopRight', (0.72, 0.18, 0.13), (1.05, 0.82, 0.145), mats['oak'], 0.035, root),
+    ]
+    for x in (-2.12, 2.12):
+        for y in (-1.35, 1.35):
+            parts.append(cube(f'CartServiceBay_Post_{x}_{y}', (0.16, 0.16, 2.58), (x, y, 1.29), mats['oak'], 0.025, root))
+    collider = cube('COLLIDER_CartServiceBay', (4.34, 0.24, 2.52), (0, 1.35, 1.26), mats['collider'], 0, root)
+    collider['collision_proxy'] = True
+    root['pivot'] = 'apron-center-floor'
+    root['dimensions_m'] = [4.75, 3.35, 2.72]
+    root['service_stages'] = ['return', 'unload', 'clean', 'charge', 'available']
+    return root, parts + [collider]
+
+
 def consolidate_render_meshes(root):
     """Keep one mesh per material under an asset root to bound GLB draw calls."""
     groups = {}
@@ -301,7 +429,11 @@ mats = {
 }
 
 roots = []
-for builder in (build_bag, build_club, build_starter, build_range_basket, build_ball):
+for builder in (
+    build_bag, build_club, build_starter, build_range_basket, build_ball,
+    build_starter_display, build_ball_dispenser, build_range_bay, build_warmup_net,
+    build_bag_rack, build_tee_markers, build_practice_pin, build_cart_service_bay,
+):
     root, _parts = builder(mats)
     roots.append(root)
 

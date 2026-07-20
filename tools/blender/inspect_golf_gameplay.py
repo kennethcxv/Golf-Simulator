@@ -18,8 +18,16 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 SOURCE = os.path.join(ROOT, 'vendor', 'models', 'golf_gameplay_kit.glb')
 OUT_DIR = os.path.join(ROOT, 'qa', 'golf-gameplay-loop', 'assets')
 PREVIEW = os.path.join(OUT_DIR, 'golf-gameplay-kit.png')
-ROOT_NAMES = ('GolfBag', 'GolfClub', 'StarterStand', 'RangeBasket', 'GolfBall')
-EXPECTED_COLLIDERS = {'COLLIDER_GolfBag', 'COLLIDER_StarterStand'}
+ROOT_NAMES = (
+    'GolfBag', 'GolfClub', 'StarterStand', 'RangeBasket', 'GolfBall',
+    'StarterDisplay', 'BallDispenser', 'RangeBay', 'WarmupNet', 'BagStagingRack', 'TeeMarkers',
+    'PracticePin', 'CartServiceBay',
+)
+EXPECTED_COLLIDERS = {
+    'COLLIDER_GolfBag', 'COLLIDER_StarterStand', 'COLLIDER_StarterDisplay',
+    'COLLIDER_BallDispenser', 'COLLIDER_WarmupNet', 'COLLIDER_BagStagingRack',
+    'COLLIDER_CartServiceBay',
+}
 os.makedirs(OUT_DIR, exist_ok=True)
 
 
@@ -76,8 +84,26 @@ for obj in bpy.context.scene.objects:
     if obj.name.startswith('COLLIDER_'):
         obj.hide_render = True
 
+# Arrange an inspection-only contact sheet after validation. Authored roots may
+# live anywhere in the source scene because the game places clones explicitly;
+# the preview should show every asset at a useful scale, not crop the late ones.
+preview_grid = [
+    (-5.4, 2.7), (-1.8, 2.7), (1.8, 2.7), (5.4, 2.7),
+    (-5.4, 0.5), (-1.8, 0.5), (1.8, 0.5), (5.4, 0.5),
+    (-5.4, -2.0), (-1.8, -2.0), (1.8, -2.0), (5.4, -2.0),
+    (-1.8, -4.6), (2.6, -4.6),
+]
+for name, (target_x, target_y) in zip(ROOT_NAMES, preview_grid):
+    root = bpy.data.objects[name]
+    members = descendants(root)
+    low, high = bounds(members)
+    centre = (low + high) * 0.5
+    root.location.x += target_x - centre.x
+    root.location.y += target_y - centre.y
+    root.location.z += -low.z
+
 # The authored roots are already arranged as a compact contact sheet.
-bpy.ops.mesh.primitive_plane_add(size=7.5, location=(0, 0.2, -0.015))
+bpy.ops.mesh.primitive_plane_add(size=15.5, location=(0, -0.6, -0.015))
 floor = bpy.context.object
 floor.name = 'InspectionFloor'
 floor_mat = bpy.data.materials.new('InspectionFloorMaterial')
@@ -101,10 +127,10 @@ rim.data.energy = 650
 rim.data.size = 3.0
 aim(rim, (0, 0.4, 0.7))
 
-bpy.ops.object.camera_add(location=(4.5, -6.6, 3.15))
+bpy.ops.object.camera_add(location=(10.5, -18.5, 10.2))
 camera = bpy.context.object
-camera.data.lens = 56
-aim(camera, (0, 0.35, 0.65))
+camera.data.lens = 46
+aim(camera, (0, -0.7, 0.85))
 
 scene = bpy.context.scene
 scene.camera = camera

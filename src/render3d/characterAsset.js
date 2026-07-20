@@ -6,10 +6,22 @@
 
 import * as THREE from 'three';
 
-const M = (color, rough = 0.85) => new THREE.MeshStandardMaterial({ color, roughness: rough });
+const materialCache = new Map();
+const boxGeometryCache = new Map();
+const M = (color, rough = 0.85) => {
+  const key = `${color}:${rough}`;
+  if (!materialCache.has(key)) materialCache.set(key, new THREE.MeshStandardMaterial({ color, roughness: rough }));
+  return materialCache.get(key);
+};
+
+function boxGeometry(w, h, d) {
+  const key = `${w}:${h}:${d}`;
+  if (!boxGeometryCache.has(key)) boxGeometryCache.set(key, new THREE.BoxGeometry(w, h, d));
+  return boxGeometryCache.get(key);
+}
 
 function box(w, h, d, mat, y = 0, z = 0) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  const m = new THREE.Mesh(boxGeometry(w, h, d), mat);
   m.position.set(0, y, z);
   m.castShadow = true;
   return m;
@@ -62,8 +74,16 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     elbow.position.y = -0.32;
     shoulder.add(elbow);
     elbow.add(box(0.09, 0.28, 0.11, mSkin, -0.13));
+    const hand = new THREE.Group();
+    hand.position.y = -0.28;
+    const handMesh = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), mSkin);
+    handMesh.scale.set(0.8, 1.05, 0.8);
+    handMesh.castShadow = true;
+    hand.add(handMesh);
+    elbow.add(hand);
     limbs[`shoulder${side}`] = shoulder;
     limbs[`elbow${side}`] = elbow;
+    limbs[`hand${side}`] = hand;
 
     const hip = new THREE.Group();
     hip.position.set(sx * 0.11, 0.98, 0);
@@ -86,7 +106,7 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     // A stable attachment pivot at the end of the right forearm. Props mounted
     // here inherit the procedural shoulder/elbow motion instead of floating at
     // the character root while the player swings.
-    grip: limbs.elbowR,
+    grip: limbs.handR,
   };
 
   char.setMode = (mode) => {
@@ -114,14 +134,14 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     let hipL = 0, hipR = 0, kneeL = 0, kneeR = 0, shL = 0, shR = 0, elb = -0.25;
     let lean = 0.04, twist = 0, headTilt = 0, bob = 0, shRz = 0;
 
-    if (char.mode === 'Walk') {
+    if (char.mode === 'Walk' || char.mode === 'WalkBag') {
       const w = p * 8.7; // ~1.4 strides/s
       hipL = 0.55 * Math.sin(w);
       hipR = -hipL;
       kneeL = 0.4 * Math.max(0, Math.sin(w - 1.1));
       kneeR = 0.4 * Math.max(0, Math.sin(w + Math.PI - 1.1));
-      shL = -0.45 * Math.sin(w);
-      shR = 0.45 * Math.sin(w);
+      shL = char.mode === 'WalkBag' ? -0.45 : -0.45 * Math.sin(w);
+      shR = char.mode === 'WalkBag' ? -0.68 : 0.45 * Math.sin(w);
       elb = -0.35;
       lean = 0.07;
       bob = 0.02 * Math.sin(2 * w);
@@ -135,14 +155,65 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       elb = -0.7;
       lean = 0.06;
       bob = 0.006 * Math.sin(p * 4.5);
-    } else if (char.mode === 'Swing') {
-      const t = p % 2.6;
-      twist = lerpSeg(t, [[0, 0], [0.7, 0], [1.2, 0.55], [1.45, -0.6], [2.1, 0], [2.6, 0]]);
-      const arm = lerpSeg(t, [[0, -0.5], [0.7, -0.5], [1.2, -1.5], [1.45, 0.7], [2.1, -0.5], [2.6, -0.5]]);
+    } else if (['Swing', 'DriverSwing', 'IronSwing', 'PracticeSwing', 'BunkerSwing'].includes(char.mode)) {
+      const cycle = char.mode === 'PracticeSwing' ? 2.9 : 2.6;
+      const t = p % cycle;
+      const power = char.mode === 'DriverSwing' ? 1.12 : char.mode === 'BunkerSwing' ? 1.18 : 1;
+      twist = power * lerpSeg(t, [[0, 0], [0.45, 0.03], [0.72, -0.04], [1.2, 0.55], [1.43, -0.6], [2.15, 0], [cycle, 0]]);
+      const arm = power * lerpSeg(t, [[0, -0.5], [0.45, -0.53], [0.72, -0.47], [1.2, -1.5], [1.43, 0.7], [2.15, -0.5], [cycle, -0.5]]);
       shL = arm; shR = arm * 0.85;
-      elb = -0.3;
-      lean = 0.16;
+      elb = char.mode === 'BunkerSwing' ? -0.18 : -0.3;
+      lean = char.mode === 'BunkerSwing' ? 0.24 : 0.16;
       headTilt = 0.28;
+    } else if (char.mode === 'Chip') {
+      const t = p % 2.25;
+      twist = lerpSeg(t, [[0, 0], [0.75, 0.2], [1.05, -0.24], [1.6, 0], [2.25, 0]]);
+      const arm = lerpSeg(t, [[0, -0.58], [0.75, -0.92], [1.05, -0.16], [1.6, -0.58], [2.25, -0.58]]);
+      shL = arm; shR = arm * 0.9; elb = -0.32; lean = 0.2; headTilt = 0.32;
+    } else if (char.mode === 'Putt') {
+      const t = p % 2.2;
+      twist = lerpSeg(t, [[0, 0], [0.8, 0.1], [1.08, -0.13], [1.55, 0], [2.2, 0]]);
+      shL = -0.7; shR = -0.67; elb = -0.22; lean = 0.34; headTilt = 0.38;
+    } else if (char.mode === 'Address' || char.mode === 'Tee') {
+      shL = -0.48 + Math.sin(p * 2.8) * 0.025;
+      shR = -0.44 - Math.sin(p * 2.8) * 0.025;
+      elb = -0.28; lean = 0.17; headTilt = 0.28;
+    } else if (char.mode === 'Watch') {
+      shL = -0.08; shR = -0.12; elb = -0.22;
+      lean = -0.015; headTilt = -0.18 + Math.sin(p * 0.8) * 0.025;
+    } else if (char.mode === 'Wait') {
+      shL = -0.08; shR = -0.74; elb = -1.2; lean = 0.025;
+      headTilt = 0.08 + Math.sin(p * 0.6) * 0.06;
+    } else if (char.mode === 'Conversation') {
+      shL = -0.15 + Math.sin(p * 1.4) * 0.16;
+      shR = -0.3 + Math.sin(p * 1.1 + 1) * 0.25;
+      elb = -0.48; headTilt = Math.sin(p * 0.75) * 0.1;
+    } else if (char.mode === 'Scorecard') {
+      shL = -0.92; shR = -1.06 + Math.sin(p * 7) * 0.055;
+      elb = -1.15; lean = 0.12; headTilt = 0.34;
+    } else if (char.mode === 'Celebrate') {
+      shL = -2.55; shR = -2.45; elb = -0.1;
+      lean = -0.08; bob = Math.max(0, Math.sin(p * 6)) * 0.06;
+    } else if (char.mode === 'Frustration') {
+      shL = -2.1; shR = -2.05; elb = -1.25;
+      lean = 0.14; headTilt = 0.4;
+    } else if (char.mode === 'Pickup' || char.mode === 'Flag') {
+      const reach = Math.min(1, p * 2.5);
+      shL = -0.8 * reach; shR = -1.15 * reach; elb = -0.2;
+      lean = 0.65 * reach; headTilt = 0.42; hipL = -0.25 * reach; kneeL = 0.5 * reach;
+    } else if (char.mode === 'CartEnter' || char.mode === 'CartExit') {
+      const enter = char.mode === 'CartEnter' ? Math.min(1, p * 1.4) : Math.max(0, 1 - Math.min(1, p * 1.4));
+      hipL = -1.35 * enter; hipR = -1.35 * enter;
+      kneeL = 1.35 * enter; kneeR = 1.35 * enter;
+      shL = -0.34 * enter; shR = -0.48 * enter; elb = -0.6; lean = 0.12 * enter;
+    } else if (char.mode === 'BagLoad' || char.mode === 'BagUnload') {
+      const reach = Math.sin(Math.min(Math.PI, p * 2.1));
+      shL = -1.15 * reach; shR = -1.25 * reach; elb = -0.5;
+      lean = 0.34 * reach; headTilt = 0.24;
+    } else if (char.mode === 'RoundComplete') {
+      shL = -0.2 + Math.sin(p * 1.2) * 0.18;
+      shR = -0.55 + Math.sin(p * 1.6) * 0.35;
+      elb = -0.65; lean = -0.02; headTilt = -0.08;
     } else if (char.mode === 'Browse') {
       const r = lerpSeg(p % 3.2, [[0, 0], [0.5, -1.25], [1.9, -1.0], [2.6, 0], [3.2, 0]]);
       shR = r;

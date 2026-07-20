@@ -113,7 +113,9 @@ function enterWalk(spawn) {
   const hint = document.querySelector('.hint-bar');
   if (hint) hint.style.display = 'none';
   inspectPanel.hide();
-  requestLook();
+  // Pointer lock is opt-in through the canvas click below. This keeps visible
+  // HUD controls usable on arrival and matches the "Click to look around"
+  // instruction; arrow-key look and WASD movement are available immediately.
 }
 
 function exitWalk() {
@@ -287,7 +289,6 @@ function exitLaptop(silent) {
   if (vt) vt.style.display = '';
   if (!silent) {
     walkOverlay.style.display = '';
-    requestLook();
     if (audio.ready) audio.uiTick();
   }
 }
@@ -325,7 +326,6 @@ function exitFrontDesk(silent = false) {
   resetCameraInput();
   if (!silent && walkActive()) {
     walkOverlay.style.display = '';
-    requestLook();
     if (audio.ready) audio.uiTick();
   }
 }
@@ -423,6 +423,8 @@ function startGame(state) {
   // deterministic forward booking window. Existing days are idempotently left alone.
   ensureReservationHorizon(app.state);
   ensureGolfDay(app.state);
+  golfAudioDay = app.state.golfDay || null;
+  golfAudioSequence = golfAudioDay?.events?.at(-1)?.sequence || 0;
   app.screen = 'game';
   app.scene3d = makeCourseScene(canvas, state);
   // walk-up inspection: the walking controller asks, the app answers with the
@@ -597,8 +599,11 @@ function startGame(state) {
     .prewarm((label) => veil.set(label))
     .catch(() => {})
     .finally(() => {
-      if (app.scene3d === sceneRef) app.prewarming = false;
-      veil.hide();
+      // A superseded scene must not dismiss the new scene's loading veil.
+      if (app.scene3d === sceneRef) {
+        app.prewarming = false;
+        veil.hide();
+      }
     });
 }
 
@@ -648,6 +653,7 @@ function exitToMenu() {
   app.screen = 'menu';
   app.state = null;
   gameUi.style.display = 'none';
+  if (objectivesPanel) objectivesPanel.root.style.display = 'none';
   menu.setVisible(true);
 }
 
@@ -935,8 +941,17 @@ function openPauseMenu() {
           } else {
             const data = await loadData(slot);
             if (!data) { toast(`Slot ${i + 1} is empty.`, 'warn'); return; }
+            // Do not tear down a world while its GLB textures are still being
+            // decoded and uploaded. Rapid repeated loads would otherwise
+            // abandon blob URLs owned by the outgoing scene.
+            await app.scene3d?.whenAssetsIdle?.();
             closePauseMenu();
             bootEmpire(deserializeEmpire(data));
+            // Loading is a recovery decision made from a paused menu. Keep the
+            // restored world paused so scene construction cannot consume a
+            // practice shot, route transition, or final-hole action before the
+            // player has seen where they returned.
+            app.speedIdx = 0;
           }
         },
       });
@@ -1502,6 +1517,8 @@ let tutWalked = 0;
 let tutLastPos = null;
 let audioClock = 0;
 let golfFocusClock = 0;
+let golfAudioSequence = 0;
+let golfAudioDay = null;
 
 function frame(ts) {
   const dtMs = Math.min(250, ts - lastTs || 16);
@@ -1511,7 +1528,26 @@ function frame(ts) {
     keyboardCamera(dtMs);
     const speed = BALANCE.speeds[app.speedIdx];
     if (speed > 0) {
-      const gameMinutes = (dtMs / 1000) * BALANCE.gameMinutesPerRealSecond * speed;
+      const golfParties = app.state.golfDay?.parties || [];
+      const nearbyShot = app.speedIdx === 1 && golfParties.find((party) => (
+        party.simulationTier === 'near' && party.state === 'ball-in-play'
+      ));
+      const nearbyAddress = app.speedIdx === 1 && golfParties.find((party) => (
+        party.simulationTier === 'near'
+        && ['preparing-shot', 'on-green', 'putting'].includes(party.state)
+      ));
+      let gameMinutes = (dtMs / 1000) * BALANCE.gameMinutesPerRealSecond * speed;
+      // At normal speed, a shot the player is close enough to watch gets a
+      // real presentation beat. First stop this frame at address so a tiny
+      // trajectory cannot start and finish in one sim tick, then advance an
+      // active flight slowly enough for the ball, swing and audio to read.
+      if (nearbyShot) gameMinutes = Math.min(gameMinutes, (dtMs / 1000) * 0.08);
+      else if (nearbyAddress) {
+        const untilAddress = Number(nearbyAddress.nextActionMinute) - Number(app.state.clock.minutes);
+        if (Number.isFinite(untilAddress) && untilAddress <= gameMinutes) {
+          gameMinutes = Math.min(gameMinutes, Math.max(0.001, untilAddress + 0.001));
+        }
+      }
       const { daysPassed } = empireUpdate(app.empire, gameMinutes);
       if (daysPassed > 0) {
         rebuildSectionIndex();
@@ -1602,6 +1638,33 @@ function frame(ts) {
     const cal = calendarOf(app.state.clock.minutes);
     app.scene3d.applyTimeWeather(cal.minuteOfDay, app.state.weather);
     if (!app.prewarming) app.scene3d.render(dtMs, app.state); // prewarm owns the GPU behind the veil
+    const activeGolfDay = app.state.golfDay || null;
+    const golfEvents = activeGolfDay?.events || [];
+    if (activeGolfDay !== golfAudioDay) {
+      // A midnight rollover owns a fresh event stream. A loaded game is primed
+      // in startGame below, so this path only lets genuinely new-day events play.
+      golfAudioDay = activeGolfDay;
+      golfAudioSequence = 0;
+    } else if (golfEvents.length && golfEvents[golfEvents.length - 1].sequence < golfAudioSequence) {
+      // Migration/recovery may deliberately rebuild a truncated event window.
+      golfAudioSequence = 0;
+    }
+    const unseenGolfEvents = golfEvents.filter((event) => event.sequence > golfAudioSequence);
+    if (unseenGolfEvents.length) {
+      golfAudioSequence = unseenGolfEvents[unseenGolfEvents.length - 1].sequence;
+      if (audio.ready) {
+        for (const event of unseenGolfEvents.slice(-4)) {
+          const party = app.state.golfDay.parties.find((entry) => entry.id === event.partyId);
+          if (party?.simulationTier !== 'near') continue;
+          if (event.type === 'shot-started' || event.type === 'practice-shot-started') {
+            audio.ballStrike(event.detail.club || event.detail.shot);
+          } else if (event.type === 'shot-complete' || event.type === 'practice-shot-complete') {
+            audio.ballLanding(event.detail.lie || event.detail.practice);
+          } else if (event.type === 'starter-called-party') audio.starterCall();
+          else if (event.type === 'cart-returned') audio.thunk();
+        }
+      }
+    }
     audioClock += dtMs;
     if (audioClock >= 1000) {
       // the guide answers real actions within a second, not at the hour
@@ -1757,7 +1820,7 @@ function boot() {
     },
   });
 
-  gameUi = el('div', { style: 'display:none' });
+  gameUi = el('div', { class: 'game-ui', style: 'display:none' });
   hud = makeHud(app, handlers);
   laptopUi = makeLaptop(app, { close: () => exitLaptop() });
   frontDeskUi = makeFrontDesk(app, {
@@ -1810,10 +1873,11 @@ function boot() {
     viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
   }, 250);
 
-  gameUi.append(hud.root, golfDayPanel.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, frontDeskUi.root, objectivesPanel.root, viewToggle,
+  gameUi.append(hud.root, golfDayPanel.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, frontDeskUi.root, viewToggle,
     el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · 🗂 Manage or E/G/C/M keys for the desks · V: view · Space: pause · Tab/Esc: back on foot' }));
 
   uiRoot.append(menu.root, gameUi);
+  document.body.append(objectivesPanel.root);
   requestAnimationFrame(frame);
 }
 
