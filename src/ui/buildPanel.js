@@ -32,6 +32,26 @@ export function makeBuildPanel({ getApi }) {
   let tab = 'storage';
   let lastStatus = '';
   let lastStatusKind = '';
+  const clickListeners = new Map();
+
+  function button(attrs = {}, ...children) {
+    const { onclick, ...plain } = attrs;
+    const node = el('button', plain, ...children);
+    if (typeof onclick === 'function') {
+      node.addEventListener('click', onclick);
+      clickListeners.set(node, onclick);
+    }
+    return node;
+  }
+
+  function releaseChildren(container) {
+    for (const node of container.querySelectorAll('button')) {
+      const listener = clickListeners.get(node);
+      if (!listener) continue;
+      node.removeEventListener('click', listener);
+      clickListeners.delete(node);
+    }
+  }
 
   const stop = (event) => event.stopPropagation();
   for (const eventName of ['pointerdown', 'pointerup', 'click', 'wheel']) root.addEventListener(eventName, stop);
@@ -58,22 +78,22 @@ export function makeBuildPanel({ getApi }) {
     );
     const controls = el('span', { class: 'build-object-actions' });
     if (location !== 'sold' && object.render?.kind !== 'existing') {
-      controls.append(el('button', { class: 'build-mini primary', text: location === 'stored' ? 'Place' : 'Move', onclick: () => begin(object.id) }));
+      controls.append(button({ class: 'build-mini primary', text: location === 'stored' ? 'Place' : 'Move', onclick: () => begin(object.id) }));
     }
     if (location === 'placed' && !object.requiredObject) {
-      controls.append(el('button', { class: 'build-mini', text: 'Store', onclick: () => { getApi()?.storeById(object.id); renderBody(); } }));
+      controls.append(button({ class: 'build-mini', text: 'Store', onclick: () => { getApi()?.storeById(object.id); renderBody(); } }));
     }
     if (location !== 'sold' && object.variants?.length > 1) {
-      controls.append(el('button', {
+      controls.append(button({
         class: 'build-mini', text: 'Finish', title: `Current: ${(object.variant || '').replaceAll('-', ' ')}`,
         onclick: () => { getApi()?.cycleVariant(object.id); renderBody(); },
       }));
     }
     if (location !== 'sold' && !object.requiredObject && object.sellValue > 0) {
-      controls.append(el('button', { class: 'build-mini danger', text: 'Sell', onclick: () => { getApi()?.sellById(object.id); renderBody(); } }));
+      controls.append(button({ class: 'build-mini danger', text: 'Sell', onclick: () => { getApi()?.sellById(object.id); renderBody(); } }));
     }
     if (object.requiredObject) {
-      controls.append(el('button', { class: 'build-mini', text: 'Recover', onclick: () => { getApi()?.recoverById(object.id); renderBody(); } }));
+      controls.append(button({ class: 'build-mini', text: 'Recover', onclick: () => { getApi()?.recoverById(object.id); renderBody(); } }));
     }
     return el('div', { class: `build-object-row ${location}` }, details, controls);
   }
@@ -99,7 +119,7 @@ export function makeBuildPanel({ getApi }) {
   }
 
   function styleChoice(kind, current, option) {
-    return el('button', {
+    return button({
       class: `build-swatch ${current === option.id ? 'selected' : ''}`,
       title: `${option.label} · Asset ${option.sourceAsset}`,
       onclick: () => {
@@ -145,6 +165,7 @@ export function makeBuildPanel({ getApi }) {
     const model = getApi()?.uiModel();
     const body = root.querySelector('.build-drawer-body');
     if (!model || !body) return;
+    releaseChildren(body);
     body.replaceChildren(tab === 'storage' ? inventoryBody(model) : tab === 'style' ? styleBody(model) : safetyBody(model));
     root.querySelectorAll('[data-build-tab]').forEach((button) => button.classList.toggle('active', button.dataset.buildTab === tab));
   }
@@ -153,14 +174,15 @@ export function makeBuildPanel({ getApi }) {
     root.style.display = active && open ? '' : 'none';
     status.style.display = active && !open ? '' : 'none';
     if (!active || !open) return;
+    releaseChildren(root);
     root.replaceChildren(
       el('header', { class: 'build-drawer-head' },
         el('div', {}, el('small', { text: 'RENOVATION MODE' }), el('h2', { text: 'Clubhouse collection' })),
-        el('button', { class: 'build-close', text: '×', title: 'Close catalog [I]', onclick: closeAndLook }),
+        button({ class: 'build-close', text: '×', title: 'Close catalog [I]', onclick: closeAndLook }),
       ),
       el('nav', { class: 'build-tabs' },
         ...[['storage', 'Furniture'], ['style', 'Room style'], ['safety', 'Safety & help']].map(([id, label]) =>
-          el('button', { 'data-build-tab': id, text: label, class: tab === id ? 'active' : '', onclick: () => { tab = id; renderBody(); } })),
+          button({ 'data-build-tab': id, text: label, class: tab === id ? 'active' : '', onclick: () => { tab = id; renderBody(); } })),
       ),
       el('div', { class: 'build-drawer-body' }),
       el('footer', { class: 'build-drawer-foot', text: 'I closes catalog · B exits renovation mode' }),
@@ -201,6 +223,8 @@ export function makeBuildPanel({ getApi }) {
       );
     },
     dispose() {
+      releaseChildren(root);
+      for (const eventName of ['pointerdown', 'pointerup', 'click', 'wheel']) root.removeEventListener(eventName, stop);
       root.remove();
       status.remove();
     },

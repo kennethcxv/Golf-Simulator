@@ -111,7 +111,7 @@ import {
 import {
   PAID_BAG_ACCEPTANCE_HOLD_SEC, attachPaidBagToCustomer, syncPaidBagCarry,
 } from './clubhouse/customerPaidBag.js';
-import { placedFixtures, ensureLayout, roomStyle } from '../sim/layout.js';
+import { placedFixtures, ensureLayout, recoverInvalidObjects, roomStyle } from '../sim/layout.js';
 import {
   boxPlacementCapabilities,
   boxPlacementDimensions,
@@ -428,6 +428,13 @@ export function makeClubhouse(ctx) {
   const {
     scene, camera, renderer, state, center, heightAt, walkProps, propColliders, walk, hooks,
   } = ctx;
+  const layoutRecovery = recoverInvalidObjects(state);
+  if (layoutRecovery.recovered.length) {
+    queueMicrotask(() => hooks.toast?.(
+      `${layoutRecovery.recovered.length} invalid clubhouse object${layoutRecovery.recovered.length === 1 ? '' : 's'} recovered to safe placement.`,
+      'warn',
+    ));
+  }
   // Course resources already resident when this clubhouse is built can be
   // referenced by its Object3D tree, but remain owned by the course. Everything
   // new beneath the clubhouse roots is released on a structure rebuild.
