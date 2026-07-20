@@ -14,12 +14,15 @@ const PORT = Number(process.argv.find((arg) => arg.startsWith('--port='))?.slice
 const PASS = process.argv.find((arg) => arg.startsWith('--pass='))?.slice(7) || 'natural-checkout-final';
 const WANTED = process.argv.find((arg) => arg.startsWith('--mode='))?.slice(7) || 'all';
 const MAX_ATTEMPTS = Number(process.argv.find((arg) => arg.startsWith('--attempts='))?.slice(11) || 8);
+const STRESS = process.argv.includes('--stress');
+const STRESS_CUSTOMERS = Number(process.argv.find((arg) => arg.startsWith('--customers='))?.slice(12) || 10);
 const OUT = path.join(ROOT, 'qa', 'pro-shop-overhaul', PASS);
 const BASE_URL = `http://localhost:${PORT}/`;
 const CHROME = process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const VIEWPORT = { width: 1600, height: 900 };
 const targets = WANTED === 'all' ? new Set(['card', 'cash']) : new Set([WANTED]);
 if ([...targets].some((mode) => !['card', 'cash'].includes(mode))) throw new Error(`Unknown --mode=${WANTED}`);
+if (STRESS && STRESS_CUSTOMERS !== 10) throw new Error('Route D acceptance requires exactly --customers=10');
 
 await mkdir(OUT, { recursive: true });
 const browser = await chromium.launch({
@@ -60,6 +63,16 @@ async function runAttempt(attempt) {
   const steps = [];
   let thrown = null;
   let result = null;
+  let stressFixture = null;
+  let stressLaptop = null;
+  const stressObserved = {
+    assignedFixtures: new Set(),
+    visitedFixtures: new Set(),
+    basketUsers: new Set(),
+    queuedUsers: new Set(),
+    maxActive: 0,
+    maxQueued: 0,
+  };
   const startedAt = Date.now();
   const shot = async (name) => page.screenshot({
     path: path.join(attemptOut, `${name}.jpg`), type: 'jpeg', quality: 88,
@@ -294,6 +307,91 @@ async function runAttempt(attempt) {
     steps.push({ step: 'faced the physical register', control: 'ArrowLeft/ArrowRight', pose: await pose() });
     await shot('02-cashier-ready');
 
+    if (STRESS) {
+      stressFixture = await page.evaluate(async (count) => {
+        const { capacityOf } = await import('/src/data/fixtureSlots.js');
+        const { skuById, RETAIL_CATS } = await import('/src/data/shopItems.js');
+        const app = window.__fw;
+        const ch = app.scene3d.clubhouse();
+        const isolation = ch.prepareCheckoutQa();
+        app.state.shop.unlockedTier = 3;
+        if (app.state.shop.reno) {
+          app.state.shop.reno.grime.fill(0);
+          for (const pile of app.state.shop.reno.clutter) pile.cleared = true;
+          ch.rebuildReno();
+        }
+        let stockedLines = 0;
+        let stockedUnits = 0;
+        for (const [id, inventory] of Object.entries(app.state.shop.inventory)) {
+          const sku = skuById(id);
+          if (!sku || !RETAIL_CATS.has(sku.cat) || sku.tier > 3) continue;
+          inventory.shelf = capacityOf(id);
+          inventory.back = 0;
+          stockedLines += 1;
+          stockedUnits += inventory.shelf;
+        }
+        ch.rebuildStock();
+        await new Promise((resolve) => setTimeout(resolve, 1_800));
+        const customers = [];
+        for (let index = 0; index < count; index++) {
+          const customer = ch.debugSpawn();
+          if (customer) customers.push(customer);
+        }
+        window.__stressCustomerTrace = {
+          visitedFixtures: [], basketUsers: [], queuedUsers: [], maxActive: customers.length, maxQueued: 0,
+        };
+        const tracedFixtures = new Set();
+        const tracedBaskets = new Set();
+        const tracedQueues = new Set();
+        window.__stressCustomerTraceTimer = setInterval(() => {
+          const active = Array.isArray(ch.customers) ? ch.customers : ch.customers();
+          const trace = window.__stressCustomerTrace;
+          trace.maxActive = Math.max(trace.maxActive, active.length);
+          trace.maxQueued = Math.max(trace.maxQueued, active.filter((customer) => customer.queued).length);
+          for (const customer of active) {
+            const fixtureId = customer.stops[customer.stopIdx]?.fixtureId;
+            if (fixtureId) tracedFixtures.add(fixtureId);
+            let basketVisible = false;
+            customer.itemMesh?.traverse((object) => {
+              if (/basket/i.test(object.name || '')) basketVisible = true;
+            });
+            if (customer.cart.length && basketVisible) tracedBaskets.add(customer.name);
+            if (customer.queued || customer.awaitingCheckout) tracedQueues.add(customer.name);
+          }
+          trace.visitedFixtures = [...tracedFixtures];
+          trace.basketUsers = [...tracedBaskets];
+          trace.queuedUsers = [...tracedQueues];
+        }, 100);
+        return {
+          kind: 'documented full-premium/ten-customer fixture',
+          tier: app.state.shop.unlockedTier,
+          stockedLines,
+          stockedUnits,
+          preexistingCustomersRemoved: isolation.removed,
+          spawned: customers.length,
+          assignments: customers.map((customer) => ({
+            name: customer.name,
+            fixtures: customer.stops.filter((stop) => stop.fixtureId).map((stop) => ({
+              kind: stop.kind,
+              fixtureId: stop.fixtureId,
+              socketKey: stop.socketKey || null,
+              skus: stop.skus || [],
+            })),
+            willQueue: customer.stops.some((stop) => stop.kind === 'counter'),
+          })),
+        };
+      }, STRESS_CUSTOMERS);
+      for (const customer of stressFixture.assignments) {
+        for (const stop of customer.fixtures) stressObserved.assignedFixtures.add(stop.fixtureId);
+      }
+      steps.push({
+        step: 'established the documented full-Premium ten-shopper stress fixture',
+        control: 'documented QA setup only; subsequent gameplay uses normal controls',
+        fixture: stressFixture,
+      });
+      await shot('02b-full-premium-ten-customers');
+    }
+
     // Pin the early open-store hour with the shipped Space control. Customer
     // movement is renderer-driven, so ordinary shoppers keep following their
     // authored routes while unrelated economy time and off-camera sales stay put.
@@ -318,11 +416,30 @@ async function runAttempt(attempt) {
           customers: customers.map((customer) => ({
             name: customer.name,
             stop: customer.stops[customer.stopIdx]?.kind || null,
+            fixtureId: customer.stops[customer.stopIdx]?.fixtureId || null,
             entered: customer.entered,
+            queued: customer.queued,
+            awaitingCheckout: customer.awaitingCheckout,
             cart: customer.cart.map((item) => item.skuId),
+            basketVisible: (() => {
+              let visible = false;
+              customer.itemMesh?.traverse((object) => {
+                if (/basket/i.test(object.name || '')) visible = true;
+              });
+              return visible;
+            })(),
           })),
         };
       });
+      if (STRESS) {
+        stressObserved.maxActive = Math.max(stressObserved.maxActive, snapshot.customers.length);
+        stressObserved.maxQueued = Math.max(stressObserved.maxQueued, snapshot.customers.filter((customer) => customer.queued).length);
+        for (const customer of snapshot.customers) {
+          if (customer.fixtureId) stressObserved.visitedFixtures.add(customer.fixtureId);
+          if (customer.cart.length && customer.basketVisible) stressObserved.basketUsers.add(customer.name);
+          if (customer.queued || customer.awaitingCheckout) stressObserved.queuedUsers.add(customer.name);
+        }
+      }
       if (Date.now() >= nextTrace || snapshot.hasTx) {
         traffic.push({ realSeconds: +((Date.now() - startedAt) / 1000).toFixed(1), ...snapshot });
         nextTrace = Date.now() + 2_000;
@@ -369,6 +486,7 @@ async function runAttempt(attempt) {
     }
     steps.push({ step: 'natural shopper laid shelf-debited goods on the counter', control: 'observation only', natural });
     await shot('03-natural-customer-at-counter');
+    if (STRESS) await shot('03b-stress-basket-queue');
 
     await page.keyboard.press('e');
     await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isActive(), null, { timeout: 10_000 });
@@ -503,12 +621,107 @@ async function runAttempt(attempt) {
     await shot('11-sale-finished-customer-departing');
     const finalRegister = await page.evaluate(() => {
       const ch = window.__fw.scene3d.clubhouse();
-      return { active: ch.register.isActive(), hasTx: ch.register.hasTx(), customer: ch.register.getCustomer() };
+      const customer = ch.register.getCustomer();
+      return {
+        active: ch.register.isActive(),
+        hasTx: ch.register.hasTx(),
+        customer: customer ? {
+          name: customer.name,
+          queued: customer.queued,
+          awaitingCheckout: customer.awaitingCheckout,
+          cart: customer.cart.map((item) => item.skuId),
+        } : null,
+      };
     });
+    if (STRESS) {
+      await page.locator('canvas').click({ position: { x: 800, y: 450 } });
+      for (const [at, label] of [
+        [[0.75, 5.25], 'left the full-store checkout counter'],
+        [[4.9, 5.25], 'walked behind the full-store checkout clearway'],
+        [[6.6, 5.3], 'entered the full-store office side'],
+        [[8.5, 4.5], 'reached the full-store laptop chair'],
+      ]) await walkToLocal(at, label);
+      await turnTowardWorld(await worldOf([9.55, 4.5]), 0.05);
+      const prompt = await page.evaluate(() => window.__fw.scene3d.walk.getFocusLabel());
+      if (!/laptop/i.test(prompt || '')) throw new Error(`Full-store laptop was not reachable: ${prompt}`);
+      await page.keyboard.press('e');
+      await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 10_000 });
+      await page.locator('.lt-frame').waitFor({ state: 'visible', timeout: 15_000 });
+      const inventoryNav = page.locator('.lt-navbtn').filter({ hasText: 'Inventory' }).first();
+      await inventoryNav.click();
+      await page.waitForTimeout(500);
+      await shot('12-full-store-laptop');
+      stressLaptop = await page.evaluate(() => ({
+        open: window.__fw.laptopOpen,
+        roots: document.querySelectorAll('.laptop-screen').length,
+        visibleFrames: [...document.querySelectorAll('.laptop-screen')]
+          .filter((root) => root.style.display !== 'none').length,
+      }));
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => window.__fw.laptopOpen === false, null, { timeout: 10_000 });
+      stressLaptop.closedNormally = true;
+      steps.push({ step: 'opened Inventory on the physical laptop and closed it normally', control: 'E, pointer, Escape', stressLaptop });
+    }
+    if (STRESS) {
+      const finalObservation = await page.evaluate(() => {
+        const ch = window.__fw.scene3d.clubhouse();
+        const customers = Array.isArray(ch.customers) ? ch.customers : ch.customers();
+        clearInterval(window.__stressCustomerTraceTimer);
+        return { trace: window.__stressCustomerTrace, customers: customers.map((customer) => ({
+          name: customer.name,
+          fixtureId: customer.stops[customer.stopIdx]?.fixtureId || null,
+          queued: customer.queued,
+          awaitingCheckout: customer.awaitingCheckout,
+          cart: customer.cart.map((item) => item.skuId),
+          basketVisible: (() => {
+            let visible = false;
+            customer.itemMesh?.traverse((object) => {
+              if (/basket/i.test(object.name || '')) visible = true;
+            });
+            return visible;
+          })(),
+        })) };
+      });
+      const finalCustomers = finalObservation.customers;
+      for (const fixtureId of finalObservation.trace.visitedFixtures) stressObserved.visitedFixtures.add(fixtureId);
+      for (const name of finalObservation.trace.basketUsers) stressObserved.basketUsers.add(name);
+      for (const name of finalObservation.trace.queuedUsers) stressObserved.queuedUsers.add(name);
+      stressObserved.maxActive = Math.max(stressObserved.maxActive, finalObservation.trace.maxActive);
+      stressObserved.maxQueued = Math.max(stressObserved.maxQueued, finalObservation.trace.maxQueued);
+      stressObserved.maxActive = Math.max(stressObserved.maxActive, finalCustomers.length);
+      stressObserved.maxQueued = Math.max(stressObserved.maxQueued, finalCustomers.filter((customer) => customer.queued).length);
+      for (const customer of finalCustomers) {
+        if (customer.fixtureId) stressObserved.visitedFixtures.add(customer.fixtureId);
+        if (customer.cart.length && customer.basketVisible) stressObserved.basketUsers.add(customer.name);
+        if (customer.queued || customer.awaitingCheckout) stressObserved.queuedUsers.add(customer.name);
+      }
+      steps.push({
+        step: 'observed the remaining mixed shoppers after checkout and laptop use',
+        control: 'read-only 100 ms route trace', trace: finalObservation.trace, customers: finalCustomers,
+      });
+    }
+    const assigned = [...stressObserved.assignedFixtures];
+    const visited = [...stressObserved.visitedFixtures];
+    const routeCChecks = STRESS ? {
+      tenCustomersRan: stressFixture?.spawned === 10 && stressObserved.maxActive === 10,
+      clubBrowsingAssigned: assigned.some((id) => /^rack_(drivers|irons|putters)$/.test(id)),
+      apparelBrowsingAssigned: assigned.some((id) => ['table_polos', 'shelf_small', 'hatstand'].includes(id)),
+      shoeBrowsingAssigned: assigned.includes('shoerack'),
+      clubBrowsingObserved: visited.some((id) => /^rack_(drivers|irons|putters)$/.test(id)),
+      apparelBrowsingObserved: visited.some((id) => ['table_polos', 'shelf_small', 'hatstand'].includes(id)),
+      shoeBrowsingObserved: visited.includes('shoerack'),
+      basketUseObserved: stressObserved.basketUsers.size > 0,
+      queueObserved: stressObserved.queuedUsers.size > 0 && stressObserved.maxQueued > 0,
+      laptopUsed: stressLaptop?.open && stressLaptop?.closedNormally && stressLaptop?.roots === 1,
+    } : null;
+    const stressPassed = !STRESS || Object.values(routeCChecks).every(Boolean);
+    const soldUids = new Set(natural.customer.cart.map((item) => item.uid));
+    const completedItemsReleased = !after.held.some((item) => soldUids.has(item.uid));
     const success = after.salesUnits === before.salesUnits + itemCount
       && after.salesRevenue > before.salesRevenue
-      && !after.held.length
-      && !finalRegister.active && !finalRegister.hasTx && !finalRegister.customer;
+      && (STRESS ? completedItemsReleased : !after.held.length)
+      && (STRESS || (!finalRegister.active && !finalRegister.hasTx && !finalRegister.customer))
+      && stressPassed;
     result = {
       passed: success,
       method,
@@ -517,10 +730,24 @@ async function runAttempt(attempt) {
       before,
       after,
       finalRegister,
+      completedItemsReleased,
+      stress: STRESS ? {
+        fixture: stressFixture,
+        assignedFixtures: assigned,
+        visitedFixtures: visited,
+        basketUsers: [...stressObserved.basketUsers],
+        queuedUsers: [...stressObserved.queuedUsers],
+        maxActive: stressObserved.maxActive,
+        maxQueued: stressObserved.maxQueued,
+        laptop: stressLaptop,
+        checks: routeCChecks,
+      } : null,
       normalControlRoute: steps.filter((row) => row.pose || row.control?.includes('Arrow')),
       controlsUsed: [...new Set(steps.map((row) => row.control).filter(Boolean))],
       forbiddenHooksUsed: false,
-      stateWritesUsed: false,
+      setupHooksUsed: STRESS ? ['prepareCheckoutQa', 'debugSpawn'] : [],
+      stateWritesUsed: STRESS,
+      documentedFixtureUsed: STRESS,
       elapsedSeconds: +((Date.now() - startedAt) / 1000).toFixed(1),
     };
     if (!success) throw new Error('Sale finished but accounting/register acceptance did not reconcile');
@@ -572,8 +799,10 @@ async function runAttempt(attempt) {
     baseUrl: BASE_URL,
     viewport: VIEWPORT,
     bootRoute: ['New Empire — Relaxed', 'Property Market', 'Buy Willow Creek Municipal'],
-    normalControlsOnly: true,
-    naturalCustomerOnly: true,
+    normalControlsOnly: !STRESS,
+    normalGameplayControls: true,
+    naturalCustomerOnly: !STRESS,
+    documentedStressFixture: STRESS,
     steps,
     result,
     thrown,
@@ -624,9 +853,14 @@ const summary = {
   protocol: {
     boot: 'fresh isolated browser context through normal New Empire UI',
     movement: 'canvas focus plus ArrowLeft/ArrowRight, W, and E through the hinged entry',
-    customer: 'ambient spawn -> enter -> fixture browse -> shelf debit -> queue -> register.begin',
+    customer: STRESS
+      ? 'documented ten-customer spawn fixture -> enter -> fixture browse -> shelf debit -> basket -> queue -> register.begin'
+      : 'ambient spawn -> enter -> fixture browse -> shelf debit -> queue -> register.begin',
     checkout: 'E, pointer drags/clicks, T, D, Space; no transaction or state mutation',
-    forbiddenHooks: ['prepareCheckoutQa', 'sendToCounter', 'debugSpawn'],
+    stressFixture: STRESS
+      ? 'full Premium stock and debugSpawn are setup-only; no transaction/customer-route mutation follows'
+      : null,
+    forbiddenCheckoutHooks: ['prepareCheckoutQa', 'sendToCounter', 'debugSpawn'],
   },
 };
 await writeFile(path.join(OUT, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
