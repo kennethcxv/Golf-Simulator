@@ -88,7 +88,11 @@ const continueButton = page.getByText('Continue', { exact: true });
 if (await continueButton.count() && await continueButton.isEnabled()) {
   await continueButton.click();
 } else {
-  await page.getByText('New Empire — Relaxed', { exact: true }).click();
+  const relaxedEmpire = page.getByRole('button', { name: /New Empire.*Relaxed/ });
+  if (!(await relaxedEmpire.count()) || !(await relaxedEmpire.first().isVisible())) {
+    await page.getByText('New game', { exact: true }).click();
+  }
+  await relaxedEmpire.first().click();
   await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
 }
 await page.waitForFunction(() => (
@@ -308,4 +312,3 @@ await writeFile(path.join(outputDir, `performance-${stamp}.json`), `${JSON.strin
 console.log(JSON.stringify(report, null, 2));
 await context.close();
 await browser.close();
-

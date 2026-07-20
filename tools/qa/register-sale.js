@@ -47,6 +47,8 @@ async (page) => {
     revenue: (window.__fw.state.shop.salesLive || {}).revenue || 0,
     units: (window.__fw.state.shop.salesLive || {}).units || 0,
     held: (window.__fw.state.shop.held || []).length,
+    saleHeld: (window.__fw.state.shop.held || [])
+      .filter((unit) => unit.uid === 'customer-unit-1' || unit.uid === 'customer-unit-2').length,
     shelfBalls: window.__fw.state.shop.inventory.balls3.shelf,
     shelfGlove: window.__fw.state.shop.inventory.glove1.shelf,
   }));
@@ -138,6 +140,66 @@ async (page) => {
         const m = out[out.length - 1];   // the top of the stack
         const c = window.__qa.centre(m, ch);
         return { ...c, denom: m.userData.denom, n: out.length };
+      },
+      // Find a pixel whose ray really resolves to the requested open-drawer stack.
+      // Projecting only a mesh centre is not sufficient when two foreshortened bill
+      // stacks overlap on screen: the nearer denomination can win the raycast.
+      drawerMoneyPx(denom) {
+        const ch = app.scene3d.clubhouse();
+        const canvas = document.querySelector('canvas');
+        const rect = canvas.getBoundingClientRect();
+        const roots = [];
+        const desired = [];
+        ch.interior.traverse((o) => {
+          if (!o.visible || !o.userData?.pick) return;
+          roots.push(o);
+          if (o.userData.kind === 'money' && o.userData.from === 'drawer'
+              && o.userData.denom === Number(denom)) desired.push(o);
+        });
+        if (!desired.length) return null;
+
+        const ray = new THREE.Raycaster();
+        const ndc = new THREE.Vector2();
+        const hitsWanted = (x, y) => {
+          ndc.set(((x - rect.left) / rect.width) * 2 - 1,
+            -(((y - rect.top) / rect.height) * 2 - 1));
+          ray.setFromCamera(ndc, app.scene3d.camera);
+          const hit = ray.intersectObjects(roots, true)[0];
+          if (!hit) return false;
+          let root = hit.object;
+          while (root && !root.userData?.pick && root.parent) root = root.parent;
+          return root?.userData?.kind === 'money'
+            && root.userData.from === 'drawer'
+            && root.userData.denom === Number(denom);
+        };
+
+        for (let targetIndex = desired.length - 1; targetIndex >= 0; targetIndex--) {
+          const box = new THREE.Box3().setFromObject(desired[targetIndex]);
+          const points = [];
+          for (const x of [box.min.x, (box.min.x + box.max.x) / 2, box.max.x]) {
+            for (const y of [box.min.y, (box.min.y + box.max.y) / 2, box.max.y]) {
+              for (const z of [box.min.z, (box.min.z + box.max.z) / 2, box.max.z]) {
+                const p = new THREE.Vector3(x, y, z).project(app.scene3d.camera);
+                points.push({
+                  x: rect.left + ((p.x + 1) / 2) * rect.width,
+                  y: rect.top + ((-p.y + 1) / 2) * rect.height,
+                });
+              }
+            }
+          }
+          const minX = Math.min(...points.map((p) => p.x)) - 3;
+          const maxX = Math.max(...points.map((p) => p.x)) + 3;
+          const minY = Math.min(...points.map((p) => p.y)) - 3;
+          const maxY = Math.max(...points.map((p) => p.y)) + 3;
+          for (let gy = 1; gy <= 9; gy++) {
+            for (let gx = 1; gx <= 9; gx++) {
+              const x = minX + (maxX - minX) * (gx / 10);
+              const y = minY + (maxY - minY) * (gy / 10);
+              if (hitsWanted(x, y)) return { x, y };
+            }
+          }
+        }
+        return null;
       },
     };
     const c = app.state.clock;
@@ -306,11 +368,25 @@ async (page) => {
     log.push({ step: '13. change owed', want });
     for (const [denom, n] of Object.entries(want)) {
       for (let k = 0; k < n; k++) {
-        const src = await page.evaluate((d) => window.__qa.findMoney('drawer', Number(d)), denom);
-        if (!src) { log.push({ warn: 'drawer is out of ' + denom }); break; }
-        const px = await page.evaluate((a) => window.__qa.px(a.x, a.y, a.z), src);
-        await page.mouse.click(px.x, px.y);
-        await page.waitForTimeout(140);
+        const heldBefore = await page.evaluate((d) => {
+          const tx = window.__fw.scene3d.clubhouse().register.getTx();
+          return tx.hand[Number(d)] || 0;
+        }, denom);
+        let picked = false;
+        // Under a heavily throttled headless frame the drawer can finish its last
+        // transform between projection and click. Re-project and click the visible
+        // note again until the real transaction confirms that the player's hand
+        // gained it; this is still the exact mouse interaction a player performs.
+        for (let attempt = 0; attempt < 3 && !picked; attempt++) {
+          const px = await page.evaluate((d) => window.__qa.drawerMoneyPx(Number(d)), denom);
+          if (!px) break;
+          await page.mouse.click(px.x, px.y);
+          picked = await page.waitForFunction(([d, before]) => {
+            const tx = window.__fw.scene3d.clubhouse().register.getTx();
+            return (tx.hand[Number(d)] || 0) > before;
+          }, [denom, heldBefore], { timeout: 1200 }).then(() => true).catch(() => false);
+        }
+        if (!picked) log.push({ warn: `could not pick $${denom} from the open drawer` });
       }
     }
     await shot('09-change-counted');
