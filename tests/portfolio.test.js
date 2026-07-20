@@ -56,6 +56,22 @@ test('switching restores the target completely and preserves the parked club', (
     'everything at Willow — golfers, staff, turf, books — survived the round trip untouched');
 });
 
+test('unknown future empire and holding data survives an integrated round trip', () => {
+  const raw = JSON.parse(serializeEmpire(ownTwo(4201)));
+  raw.futurePortfolio = { strategy: 'opaque-vNext', flags: [1, 2, 3] };
+  raw.holdings[0].futureHolding = { caretakerContract: 'preserve-me' };
+  raw.holdings[0].state.futureClubSystem = { revision: 9 };
+
+  const loaded = deserializeEmpire(raw);
+  assert.equal(loaded.version, 3, 'the in-memory wrapper migrates immediately');
+  const migrated = JSON.parse(serializeEmpire(loaded));
+  assert.deepEqual(migrated.futurePortfolio, raw.futurePortfolio);
+  assert.deepEqual(migrated.holdings[0].futureHolding, raw.holdings[0].futureHolding);
+  assert.deepEqual(migrated.holdings[0].state.futureClubSystem, raw.holdings[0].state.futureClubSystem);
+  assert.equal(migrated.empireVersion, 3, 'the integrated wrapper schema remains authoritative');
+  assert.equal(migrated.holdings[0].state.version, 6);
+});
+
 test('only the active property advances; parked ones tick a summary, not a sim', () => {
   const e = ownTwo();
   const bent = e.holdings.find((h) => h.property.id === 'bent-pines');

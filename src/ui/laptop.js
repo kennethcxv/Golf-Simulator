@@ -17,15 +17,27 @@ import {
   SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS,
 } from '../data/shopItems.js';
 import {
-  placeOrder, cancelOrder, orderCost, shopCondition, priceFor,
+  placeOrder, cancelOrder, shopCondition, priceFor,
   velocity, daysOfSupply, buyRentalSets,
 } from '../sim/shop.js';
 import {
-  boxesOf, shipmentsOf, shipmentStatus, padCount, PAD_CAPACITY, boxOpened,
+  boxesOf, shipmentsOf, shipmentStatus, padCount, fallbackCount,
+  PAD_CAPACITY, FALLBACK_CAPACITY, boxOpened,
 } from '../sim/deliveries.js';
+import {
+  ORDER_STATE,
+  inventoryPosition,
+  quotePurchaseOrders,
+  reorderSuggestion,
+  submitPurchaseOrders,
+} from '../sim/inventoryLifecycle.js';
 import { planShipment, unitsPerBox } from '../data/boxes.js';
 import { supplierFor } from '../data/suppliers.js';
-import { TEE_SHEET, daySheet, bookSlot, cancelReservation, fmtSlot } from '../sim/reservations.js';
+import { capacityOf } from '../data/fixtureSlots.js';
+import {
+  daySheet, bookSlot, cancelReservation, fmtSlot,
+  operationsSummary, operationFinanceSummary, operationsPolicySummary,
+} from '../sim/reservations.js';
 import { reviewSummary, explainVisitors } from '../sim/reviews.js';
 import { weeklyCharge, propertyLine, arrearsOf } from '../sim/property.js';
 import { members } from '../sim/golfers.js';
@@ -35,6 +47,22 @@ import {
 import { clubRatings, fairGreenFee } from '../sim/club.js';
 import { currentStep } from '../sim/tutorial.js';
 import { ZONE } from '../sim/constants.js';
+import { financialSummary, LEDGER_LABELS } from '../sim/economy.js';
+import { latestDailySummary, weeklySummary } from '../sim/business.js';
+import { reputationSnapshot, REPUTATION_LABELS } from '../sim/reputation.js';
+import {
+  productPricingResponse, teePricingResponse, membershipPricingResponse, rentalPricingResponse,
+  setProductMarkup, setGreenFee, setMembershipDue, setRentalPrice,
+} from '../sim/pricing.js';
+import { appraisalBreakdown } from '../sim/valuation.js';
+import { propertyConditionBreakdown } from '../sim/propertyCondition.js';
+import {
+  PROPERTY_TIER_ORDER, PROPERTY_TIERS, propertyReadiness, nextProgressionGoal, propertyTier,
+} from '../sim/propertyProgression.js';
+import {
+  latestPropertyAppraisal, requestPropertyAppraisal, rejectPropertyAppraisal,
+} from '../sim/empire.js';
+import { UPGRADES, hasUpgrade, purchaseUpgrade } from '../sim/progression.js';
 
 const CAT_LABEL = {
   clubs: 'Clubs', balls: 'Golf balls', apparel: 'Apparel', accessories: 'Accessories',
@@ -86,6 +114,7 @@ const NAV = [
   { id: 'analytics', icon: '📈', label: 'Analytics' },
   { group: 'Estate' },
   { id: 'reno', icon: '🔨', label: 'Renovation' },
+  { id: 'property', icon: '🏛', label: 'Property' },
   { id: 'settings', icon: '⚙', label: 'Settings' },
 ];
 
@@ -100,15 +129,24 @@ const hour12 = (m) => {
   return `${((h + 11) % 12) + 1} ${h >= 12 ? 'PM' : 'AM'}`;
 };
 const pct = (v) => `${Math.round(v * 100)}%`;
+const operationMoney = (value) => {
+  const amount = Number(value || 0);
+  return `${amount < -0.005 ? '-' : ''}$${Math.abs(amount).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
 
 export function makeLaptop(app, opts) {
   let page = 'home';
   let history = [];        // the Back stack — every navigation pushes, Back pops
   let cart = new Map();    // supplier basket: skuId -> qty
+  let orderIntent = 1;
   let teeDay = 0;
   let supplierCat = 'all';
   let financeWindow = 'today';
-  let scale = 1;           // interface scale, for anyone who finds 15px small on a 4K panel
+  let bookingDraft = { holder: '', partySize: 1, guestNames: '', paymentPlan: 'desk' };
+  let scale = app.preferences?.values?.display?.uiScale || 1;
   let pending = null;      // the live confirmation, if one is open
 
   const content = el('div', { class: 'lt-content' });
@@ -150,7 +188,15 @@ export function makeLaptop(app, opts) {
     el('button', { class: 'lt-navbtn lt-close', text: '⏻  Close the lid', onclick: () => opts.close() }),
   );
 
-  const statusbar = el('div', { class: 'lt-status' });
+  const statusBack = el('button', { class: 'lt-crumb', title: 'Back', text: '‹', onclick: () => back() });
+  const statusHome = el('button', { class: 'lt-crumb', title: 'Home', text: '⌂', onclick: () => go('home') });
+  const statusName = el('span', { class: 'lt-statusname' });
+  const statusDate = el('span');
+  const statusTime = el('span');
+  const statusShop = el('span', { class: 'lt-chip' });
+  const statusCash = el('span', { class: 'lt-cash' });
+  const statusbar = el('div', { class: 'lt-status' },
+    statusBack, statusHome, statusName, statusDate, statusTime, statusShop, statusCash);
   const frame = el('div', { class: 'lt-frame' }, nav, el('div', { class: 'lt-main' }, statusbar, content));
   const root = el('div', { class: 'laptop-screen', style: 'display:none' }, frame);
   root.addEventListener('click', (e) => e.stopPropagation());
@@ -208,7 +254,7 @@ export function makeLaptop(app, opts) {
       el('button', {
         class: 'lt-primary lt-danger',
         text: pending.confirmLabel,
-        onclick: () => { const f = pending.onYes; pending = null; click(); f(); render(); },
+        onclick: () => { const f = pending.onYes; pending = null; click(); if (f() !== false) render(); },
       }),
     );
   }
@@ -223,7 +269,10 @@ export function makeLaptop(app, opts) {
 
   const cashOf = () => (app.empire ? app.empire.cash : app.state.cash);
   const retailSkus = (st) => SHOP_CATALOG.filter((s) => RETAIL_CATS.has(s.cat) && s.tier <= st.shop.unlockedTier);
-  const incomingOf = (st, id) => st.shop.orders.filter((o) => o.skuId === id).reduce((a, o) => a + o.qty, 0);
+  const incomingOf = (st, id) => st.shop.orders.reduce((sum, order) => sum
+    + (order.lines || [{ skuId: order.skuId, quantity: order.qty }])
+      .filter((line) => line.skuId === id)
+      .reduce((lineSum, line) => lineSum + Math.max(0, line.quantity - (line.receivedQuantity || 0)), 0), 0);
   // The screen must pack the shipment the SAME WAY the receiving pad will. It does not do its own
   // arithmetic — it calls the one packer (data/boxes.js), which is also what arriveOrder reads.
   const shipOf = (sku, qty) => planShipment(sku, Math.max(1, qty));
@@ -239,15 +288,16 @@ export function makeLaptop(app, opts) {
     const st = app.state;
     if (!st) return;
     const cal = calendarOf(st.clock.minutes);
-    statusbar.replaceChildren(
-      el('button', { class: 'lt-crumb', title: 'Back', text: '‹', disabled: history.length ? undefined : 'disabled', onclick: () => back() }),
-      el('button', { class: 'lt-crumb', title: 'Home', text: '⌂', onclick: () => go('home') }),
-      el('span', { class: 'lt-statusname', text: st.clubName || 'The Club' }),
-      el('span', { text: `Y${cal.year} · ${cal.seasonName} · Day ${cal.dayOfSeason}` }),
-      el('span', { text: clock12(cal.minuteOfDay) }),
-      el('span', { class: `lt-chip ${shopIsOpen(st) ? 'ok' : ''}`, text: shopIsOpen(st) ? 'Shop open' : 'Shop closed' }),
-      el('span', { class: 'lt-cash', text: formatMoney(cashOf()) }),
-    );
+    const setText = (node, value) => { if (node.textContent !== value) node.textContent = value; };
+    const backDisabled = history.length === 0;
+    if (statusBack.disabled !== backDisabled) statusBack.disabled = backDisabled;
+    setText(statusName, st.clubName || 'The Club');
+    setText(statusDate, `Y${cal.year} · ${cal.seasonName} · Day ${cal.dayOfSeason}`);
+    setText(statusTime, clock12(cal.minuteOfDay));
+    const shopClass = `lt-chip ${shopIsOpen(st) ? 'ok' : ''}`;
+    if (statusShop.className !== shopClass) statusShop.className = shopClass;
+    setText(statusShop, shopIsOpen(st) ? 'Shop open' : 'Shop closed');
+    setText(statusCash, formatMoney(cashOf()));
   }
 
   // =========================================================================================
@@ -257,8 +307,11 @@ export function makeLaptop(app, opts) {
     const st = app.state;
     const cal = calendarOf(st.clock.minutes);
     const w = st.weather.today;
-    const sheet = daySheet(st, cal.dayAbs);
-    const booked = sheet.filter((s) => s.res);
+    const ops = operationsSummary(st, cal.dayAbs);
+    const todayBookings = st.reservations.booked
+      .filter((reservation) => reservation.dayAbs === cal.dayAbs
+        && !['cancelled', 'noShow'].includes(reservation.status))
+      .sort((a, b) => a.minute - b.minute);
     const lowLines = retailSkus(st).filter((s) => st.shop.inventory[s.id].shelf === 0);
     const thinLines = retailSkus(st).filter((s) => {
       const e = st.shop.inventory[s.id];
@@ -274,6 +327,16 @@ export function makeLaptop(app, opts) {
     const inbound = st.shop.orders;
     const nextIn = inbound.slice().sort((a, b) => a.deliveryMin - b.deliveryMin)[0];
     const boxes = boxesOf(st).filter((b) => b.loc !== 'gone');
+    const daily = latestDailySummary(st);
+    const appraisal = appraisalBreakdown(st);
+    const reputation = reputationSnapshot(st);
+    const longGoal = nextProgressionGoal(st, app.empire);
+    const risks = [];
+    if (owed > 0) risks.push(`${formatMoney(owed)} property arrears`);
+    if (lowLines.length) risks.push(`${lowLines.length} sold-out line${lowLines.length === 1 ? '' : 's'}`);
+    if (appraisal.conditionBreakdown.unresolved.length) risks.push(`${appraisal.conditionBreakdown.unresolved.length} weak condition area${appraisal.conditionBreakdown.unresolved.length === 1 ? '' : 's'}`);
+    if ((daily?.missedSales || 0) > 0) risks.push(`${daily.missedSales} missed sale${daily.missedSales === 1 ? '' : 's'}`);
+    if (cashOf() < rent + wages * 3) risks.push('thin cash cover');
 
     const stat = (label, value, sub, tone = '') => el('div', { class: 'lt-stat' },
       el('div', { class: 'lt-statlabel', text: label }),
@@ -296,7 +359,24 @@ export function makeLaptop(app, opts) {
         stat('Reviews', rs.count ? `${rs.average} ★` : '—', rs.count ? `${rs.count} in` : 'nobody yet'),
         stat('Shop floor', `${Math.round((1 - grimeAvgOf(st)) * 100)}% clean`, `condition ${cond}`, cond < 45 ? 'bad' : ''),
         stat('Course', `${Math.round(ratings.overall)}`, `condition ${Math.round(ratings.condition)}`),
+        stat('Tee sheet', pct(ops.utilization), `${ops.reserved} of ${ops.capacity} places`),
+        stat('Waiting', String(ops.waiting.length), ops.nextArrival
+          ? `next ${ops.nextArrival.reservationHolder} at ${fmtSlot(ops.nextArrival.minute)}`
+          : 'no expected arrival', ops.waiting.length ? 'warn' : ''),
+        stat('Golf cash', operationMoney(ops.finance.netCash), 'today, already in the ledger', ops.finance.netCash < 0 ? 'bad' : ''),
+        stat('Today profit', daily ? `${daily.netProfit >= 0 ? '+' : ''}${formatMoney(daily.netProfit)}` : '—', daily ? `closed day ${daily.day + 1} · ${formatMoney(daily.grossRevenue)} gross` : 'first close pending', daily && daily.netProfit < 0 ? 'bad' : 'ok'),
+        stat('Reputation', `${Math.round(reputation.overall)}`, `${rs.count} review${rs.count === 1 ? '' : 's'} · 4 categories`, reputation.overall < 35 ? 'bad' : ''),
+        stat('Property value', formatMoney(appraisal.value), `${appraisal.propertyCondition} condition`, appraisal.value < appraisal.acquisitionCost ? 'bad' : ''),
+        stat('Immediate risks', risks.length ? String(risks.length) : 'Clear', risks.slice(0, 2).join(' · ') || 'no urgent blockers', risks.length ? 'bad' : 'ok'),
+        stat('Next goal', longGoal.type === 'sandbox' ? 'Sandbox' : longGoal.type === 'next-property' ? 'Next tier' : longGoal.type === 'decision' ? 'Decision' : longGoal.type === 'sale-readiness' ? 'Readiness' : 'Progress', longGoal.title),
       ),
+
+      ops.late.length || ops.noShows.length
+        ? errBox(`Front-desk review: ${[
+          ops.late.length ? `${ops.late.length} late ${ops.late.length === 1 ? 'party' : 'parties'} waiting` : '',
+          ops.noShows.length ? `${ops.noShows.length} no-show${ops.noShows.length === 1 ? '' : 's'}` : '',
+        ].filter(Boolean).join(' and ')}.`)
+        : null,
 
       step ? el('div', { class: 'lt-card lt-objective' },
         el('div', { class: 'lt-objlabel', text: 'Current objective' }),
@@ -304,16 +384,28 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-objbody', text: step.body || '' }),
       ) : null,
 
+      el('div', { class: 'lt-card lt-objective' },
+        el('div', { class: 'lt-objlabel', text: 'Long-term property goal' }),
+        el('div', { class: 'lt-objtitle', text: longGoal.title }),
+        el('div', { class: 'lt-objbody', text: risks.length ? `Watch now: ${risks.join(' · ')}.` : 'No immediate operational blocker. Keep improving value or request an appraisal.' }),
+      ),
+
       sect('Today'),
       el('div', { class: 'lt-cols' },
         card(
           el('div', { class: 'lt-minihead', text: '📅  Reservations' }),
-          booked.length
-            ? el('div', {}, ...booked.slice(0, 4).map((s) => row(
-              el('span', { class: 'lt-slottime', text: fmtSlot(s.minute) }),
-              el('span', { text: s.res.name }),
-              meta(formatMoney(s.res.fee)))),
-            booked.length > 4 ? meta(`+${booked.length - 4} more`) : null)
+          ops.waiting.length
+            ? el('div', {}, ...ops.waiting.slice(0, 3).map((reservation) => row(
+              el('span', { class: 'lt-slottime', text: fmtSlot(reservation.minute) }),
+              el('span', { text: reservation.reservationHolder }),
+              chip('waiting', reservation.arrival.status === 'late' ? 'bad' : 'warn'))))
+            : todayBookings.length
+              ? el('div', {}, ...todayBookings.slice(0, 4).map((reservation) => row(
+                el('span', { class: 'lt-slottime', text: fmtSlot(reservation.minute) }),
+                el('span', { text: reservation.reservationHolder }),
+                chip(`${reservation.partySize} player${reservation.partySize === 1 ? '' : 's'}`),
+                meta(`${operationMoney(reservation.payment.amountDue)} due`))),
+              todayBookings.length > 4 ? meta(`+${todayBookings.length - 4} more`) : null)
             : empty('Nothing booked today.'),
           el('button', { class: 'lt-mini', text: 'Open the tee sheet', onclick: () => go('reservations') }),
         ),
@@ -351,6 +443,7 @@ export function makeLaptop(app, opts) {
         jump('🛒', 'Supplier', 'restock the shop', 'supplier'),
         jump('🏷', 'Pricing', 'set what you charge', 'pricing'),
         jump('📈', 'Analytics', 'what changed, and why', 'analytics'),
+        jump('🏛', 'Property', `${formatMoney(appraisal.value)} · appraisal and progression`, 'property'),
       ),
     );
   }
@@ -443,22 +536,14 @@ export function makeLaptop(app, opts) {
     const st = app.state;
     // Freight is part of the price. Quoting the goods alone and then taking more at the till is
     // the oldest trick in retail and it has no business being in the player's own back office.
-    let goods = 0;
-    let freight = 0;
-    let boxCount = 0;
-    let weight = 0;
-    for (const [id, qty] of cart) {
-      const sku = skuById(id);
-      const ship = shipOf(sku, qty);
-      goods += orderCost(sku, qty);
-      freight += ship.fee;
-      boxCount += ship.boxCount;
-      weight += ship.weight;
-    }
-    goods = Math.round(goods * 100) / 100;
-    freight = Math.round(freight * 100) / 100;
-    weight = Math.round(weight * 10) / 10;
-    const total = Math.round((goods + freight) * 100) / 100;
+    const quote = cart.size
+      ? quotePurchaseOrders(st, [...cart].map(([skuId, quantity]) => ({ skuId, quantity })))
+      : { ok: true, goods: 0, freight: 0, boxes: 0, weight: 0, total: 0 };
+    const goods = quote.ok ? quote.goods : 0;
+    const freight = quote.ok ? quote.freight : 0;
+    const boxCount = quote.ok ? quote.boxes : 0;
+    const weight = quote.ok ? quote.weight : 0;
+    const total = quote.ok ? quote.total : Infinity;
     const affordable = total <= cashOf();
 
     const cats = ['balls', 'accessories', 'apparel', 'clubs', 'supplies', 'decor'];
@@ -505,25 +590,19 @@ export function makeLaptop(app, opts) {
     });
 
     const placeAll = () => {
-      let placed = 0;
-      let spent = 0;
-      let boxes = 0;
-      const failed = [];
-      for (const [id, qty] of [...cart]) {
-        const res = placeOrder(st, id, qty);
-        if (res.ok) {
-          placed++; spent += res.cost; boxes += res.boxes; cart.delete(id);
-        } else failed.push(`${skuById(id).name}: ${res.reason}`);
+      const result = submitPurchaseOrders(st, {
+        idempotencyKey: `laptop-order:${st.seed}:${orderIntent++}`,
+        lines: [...cart].map(([skuId, quantity]) => ({ skuId, quantity })),
+      });
+      if (!result.ok) {
+        toast(result.reason, 'warn');
+        render();
+        return;
       }
-      if (placed) {
-        // THE ORDER-ACCEPTED NOTIFICATION. It says what is actually coming — how many cartons will
-        // be standing on that pad — because that is the thing you have to make room for.
-        toast(`Order accepted — ${formatMoney(spent)}. ${plural(boxes, 'box')} to the receiving pad.`);
-        if (app.audio && app.audio.ready) app.audio.chime();
-      }
-      for (const f of failed) toast(f, 'warn');
-      if (placed && !failed.length) go('orders');
-      else render();
+      cart.clear();
+      toast(`Order accepted — ${formatMoney(result.cost)}. ${plural(result.boxes, 'box')} to receiving.`);
+      if (app.audio && app.audio.ready) app.audio.chime();
+      go('orders');
     };
 
     paint(
@@ -560,28 +639,36 @@ export function makeLaptop(app, opts) {
     const boxes = boxesOf(st);
 
     const orderRow = (o) => {
-      const sku = skuById(o.skuId);
-      const s = ORDER_STATUS[o.status] || { label: o.status, tone: '' };
+      const lines = o.lines || [{ skuId: o.skuId, quantity: o.qty }];
+      const sku = skuById(lines[0].skuId);
+      const stateLabel = o.state || (ORDER_STATUS[o.status] || {}).label || o.status;
+      const stateTone = [ORDER_STATE.ARRIVING, ORDER_STATE.PARTIALLY_RECEIVED, ORDER_STATE.PARTIALLY_UNPACKED].includes(stateLabel)
+        ? 'warn'
+        : [ORDER_STATE.CANCELLED, ORDER_STATE.FAILED].includes(stateLabel) ? 'bad' : '';
       const days = o.arrivesDay - cal.dayAbs;
       const when = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
-      const canCancel = o.status !== 'arriving' && o.status !== 'delivered';
+      const canCancel = ![
+        ORDER_STATE.ARRIVING, ORDER_STATE.DELIVERED, ORDER_STATE.PARTIALLY_RECEIVED,
+        ORDER_STATE.RECEIVED, ORDER_STATE.PARTIALLY_UNPACKED, ORDER_STATE.FULLY_UNPACKED,
+      ].includes(o.state);
       // read the order's OWN manifest — the one it was packed with, not a fresh guess
       const man = o.manifest || shipOf(sku, o.qty);
+      const productText = lines.map((line) => `${skuById(line.skuId)?.name || line.skuId} × ${line.quantity}`).join(' + ');
       return el('div', { class: 'lt-order' },
         el('div', { class: 'lt-ordernum', text: `#${String(o.id).padStart(4, '0')}` }),
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}` }),
+          el('div', { class: 'lt-ordername', text: productText }),
           el('div', { class: 'lt-prodmeta', text: `${o.supplier || man.supplier} · ${plural(man.boxCount, 'box')} · ${man.weight} lb` }),
           el('div', { class: 'lt-prodmeta', text: `${formatMoney(o.goods != null ? o.goods : o.cost)} stock + ${formatMoney(o.fee || man.fee)} freight = ${formatMoney(o.cost)}` }),
           el('div', { class: 'lt-prodmeta', text: `${when}, ${hour12(o.window.open)}–${hour12(o.window.close)}` })),
-        chip(s.label, s.tone),
+        chip(stateLabel, stateTone),
         canCancel
           ? el('button', {
             class: 'lt-mini lt-cancel',
             text: 'Cancel',
             onclick: () => askConfirm(
-              `Cancel order #${o.id} — ${sku.name} × ${o.qty}? You get ${formatMoney(o.cost)} back, freight included.`,
+              `Cancel order #${o.id} — ${productText}? You get ${formatMoney(o.cost)} back, freight included.`,
               'Cancel the order',
               () => {
                 const res = cancelOrder(st, o.id);
@@ -597,12 +684,19 @@ export function makeLaptop(app, opts) {
     // shipmentStatus) — delivered until someone touches it, partially unpacked while stock is
     // still in the cardboard, fully unpacked when it is all out. The screen does not get a vote.
     const shipRow = (sh) => {
-      const sku = skuById(sh.skuId);
+      const shipmentLines = sh.lines || [{ skuId: sh.skuId, quantity: sh.units }];
+      const sku = skuById(shipmentLines[0].skuId);
+      const shipmentText = shipmentLines
+        .map((line) => `${skuById(line.skuId)?.name || line.skuId} × ${line.quantity}`)
+        .join(' + ');
       const status = shipmentStatus(st, sh);
       const s = ORDER_STATUS[status];
+      const archived = st.shop.inventoryLifecycle
+        && st.shop.inventoryLifecycle.orders.find((order) => order.id === sh.orderId);
       const mine = boxes.filter((b) => b.orderId === sh.orderId);
       const left = mine.reduce((a, b) => a + b.qty, 0);
       const where = (b) => (b.loc === 'pad' ? 'on the pad'
+        : b.loc === 'receiving-fallback' ? 'in fallback receiving'
         : b.loc === 'carried' ? 'in your arms'
           : b.flat ? 'flattened' : 'inside');
       const placesText = mine.length
@@ -612,10 +706,10 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-ordernum', text: `#${String(sh.orderId).padStart(4, '0')}` }),
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: `${sku.name} × ${sh.units}` }),
+          el('div', { class: 'lt-ordername', text: shipmentText }),
           el('div', { class: 'lt-prodmeta', text: `${sh.supplier} · ${plural(sh.boxCount, 'box')} · ${sh.weight} lb` }),
           el('div', { class: 'lt-prodmeta', text: `${left} of ${sh.units} still in the cardboard · ${placesText}` })),
-        chip(s.label, s.tone));
+        chip((archived && archived.state) || s.label, s.tone));
     };
 
     const shipments = shipmentsOf(st);
@@ -651,7 +745,9 @@ export function makeLaptop(app, opts) {
     const later = st.shop.orders.filter((o) => o.arrivesDay > cal.dayAbs);
     const boxes = boxesOf(st);
     const onPad = boxes.filter((b) => b.loc === 'pad');
+    const inFallback = boxes.filter((b) => b.loc === 'receiving-fallback');
     const used = padCount(st);
+    const fallbackUsed = fallbackCount(st);
     // THE BLOCKED-DELIVERY WARNING the brief asks for. This is not a decorative threshold: the
     // same PAD_CAPACITY is what tickDeliveries checks before it lets a van unload, and a van that
     // finds no room turns around and tells you (kind: 'blocked'). The screen and the yard agree.
@@ -659,27 +755,31 @@ export function makeLaptop(app, opts) {
     const padTight = used >= PAD_CAPACITY - 2;
 
     const line = (o) => {
-      const sku = skuById(o.skuId);
+      const orderLines = o.lines || [{ skuId: o.skuId, quantity: o.qty }];
+      const sku = skuById(orderLines[0].skuId);
+      const productText = orderLines
+        .map((orderLine) => `${skuById(orderLine.skuId)?.name || orderLine.skuId} × ${orderLine.quantity}`)
+        .join(' + ');
       const s = ORDER_STATUS[o.status] || { label: o.status, tone: '' };
       const eta = Math.round((o.deliveryMin - nowMin));
       const man = o.manifest || shipOf(sku, o.qty);
       return el('div', { class: 'lt-order' },
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}` }),
-          el('div', { class: 'lt-prodmeta', text: `${o.supplier || man.supplier} · ${plural(man.boxCount, 'box')} · ${man.weight} lb · to the receiving pad` }),
+          el('div', { class: 'lt-ordername', text: productText }),
+          el('div', { class: 'lt-prodmeta', text: `${o.supplier || man.supplier} · ${plural(man.boxCount, 'box')} · ${man.weight} lb · pad or safe fallback` }),
           el('div', { class: 'lt-prodmeta', text: `window ${hour12(o.window.open)}–${hour12(o.window.close)}${eta > 0 && eta < 600 ? ` · about ${eta} min away` : ''}` })),
-        chip(s.label, s.tone));
+        chip(o.state || s.label, s.tone));
     };
 
     paint(
-      head('Deliveries', 'The van drops boxes on the receiving pad inside its window. Nobody carries them in for you.'),
+      head('Deliveries', 'The van uses the receiving pad first and the marked stockroom fallback if the pad is blocked. Nobody shelves deliveries for you.'),
       confirmBar(),
 
       blockedNow.length
-        ? errBox(`A van could not unload — the receiving pad is full (${used} of ${PAD_CAPACITY}). ${blockedNow.map((o) => `Order #${o.id}`).join(', ')} ${blockedNow.length === 1 ? 'is' : 'are'} still circling. Carry cartons inside and the driver will try again.`)
+        ? errBox(`A van could not unload — both receiving zones are full (${used + fallbackUsed} of ${PAD_CAPACITY + FALLBACK_CAPACITY}). ${blockedNow.map((o) => `Order #${o.id}`).join(', ')} ${blockedNow.length === 1 ? 'is' : 'are'} still circling. Clear cartons and the driver will try again.`)
         : padTight
-          ? errBox(`The receiving pad is nearly full — ${used} of ${PAD_CAPACITY}. Clear some before the next van, or it will have nowhere to put them.`)
+          ? errBox(`The receiving pad is nearly full — ${used} of ${PAD_CAPACITY}. New cartons will use the safe fallback zone (${fallbackUsed} of ${FALLBACK_CAPACITY}).`)
           : null,
 
       sect(`Expected today (${today.length})`),
@@ -693,12 +793,25 @@ export function makeLaptop(app, opts) {
           chip(boxOpened(b) ? 'Partially unpacked' : 'Delivered', boxOpened(b) ? 'warn' : 'ok'))))
         : empty('The pad is clear.'),
 
+      sect(`Fallback receiving (${fallbackUsed} of ${FALLBACK_CAPACITY})`),
+      inFallback.length
+        ? card(...inFallback.map((b) => row(
+          el('span', { text: `${skuById(b.skuId).name} × ${b.qty}` }),
+          meta(`box #${b.id} · ${b.lb ? `${b.lb} lb` : ''}`),
+          chip(boxOpened(b) ? 'Partially unpacked' : 'Delivered', boxOpened(b) ? 'warn' : 'ok'))))
+        : empty('The fallback receiving zone is clear.'),
+
       sect(`Later this week (${later.length})`),
       later.length
-        ? card(...later.map((o) => row(
-          el('span', { text: `${skuById(o.skuId).name} × ${o.qty}` }),
-          meta(`day ${o.arrivesDay - cal.dayAbs === 1 ? 'tomorrow' : `+${o.arrivesDay - cal.dayAbs}`} · ${hour12(o.window.open)}–${hour12(o.window.close)}`),
-          chip((ORDER_STATUS[o.status] || {}).label || o.status))))
+        ? card(...later.map((o) => {
+          const text = (o.lines || [{ skuId: o.skuId, quantity: o.qty }])
+            .map((orderLine) => `${skuById(orderLine.skuId)?.name || orderLine.skuId} × ${orderLine.quantity}`)
+            .join(' + ');
+          return row(
+            el('span', { text }),
+            meta(`day ${o.arrivesDay - cal.dayAbs === 1 ? 'tomorrow' : `+${o.arrivesDay - cal.dayAbs}`} · ${hour12(o.window.open)}–${hour12(o.window.close)}`),
+            chip(o.state || (ORDER_STATUS[o.status] || {}).label || o.status));
+        }))
         : empty('Nothing further out.'),
     );
   }
@@ -711,14 +824,15 @@ export function makeLaptop(app, opts) {
     const inv = st.shop.inventory;
     const rows = retailSkus(st).map((s) => {
       const e = inv[s.id];
-      const cap = SHELF_CAP[s.cat];
-      const incoming = incomingOf(st, s.id);
+      const cap = capacityOf(s.id) || SHELF_CAP[s.cat];
+      const position = inventoryPosition(st, s.id);
+      const suggestion = reorderSuggestion(st, s.id);
+      const incoming = position.inTransit;
       const v = velocity(st, s.id);
       const dos = daysOfSupply(st, s.id);
       const retail = priceFor(s, st.shop.markup[s.cat] || 1, null);
       const margin = retail > 0 ? (retail - s.cost) / retail : 0;
-      const reorder = Math.max(2, Math.ceil(v * LEAD_DAYS[s.cat])); // enough to survive the lead time
-      const short = e.shelf + e.back <= reorder;
+      const short = suggestion.totalLow;
       return el('tr', { class: short ? 'lt-tr-warn' : '' },
         el('td', {}, el('div', { class: 'lt-invcell' }, thumbOf(s), el('span', { text: s.name }))),
         el('td', { class: 'lt-num', text: `${e.shelf}/${cap}` }),
@@ -729,9 +843,11 @@ export function makeLaptop(app, opts) {
         el('td', { class: 'lt-num', text: formatMoney(s.cost) }),
         el('td', { class: 'lt-num', text: formatMoney(retail) }),
         el('td', { class: 'lt-num', text: pct(margin) }),
-        el('td', {}, e.shelf === 0
-          ? chip(e.back > 0 ? 'shelve it' : 'OUT', e.back > 0 ? 'warn' : 'bad')
-          : short ? chip('reorder', 'warn') : chip('ok', 'ok')),
+        el('td', {}, suggestion.outOfStock
+          ? chip(incoming > 0 ? `OUT · ${incoming} due` : 'OUT', incoming > 0 ? 'warn' : 'bad')
+          : suggestion.shelfLow && e.back > 0
+            ? chip('shelve it', 'warn')
+            : short ? chip(suggestion.suggestedQuantity > 0 ? `reorder ${suggestion.suggestedQuantity}` : 'low', 'warn') : chip('ok', 'ok')),
       );
     });
     const locked = SHOP_CATALOG.filter((s) => RETAIL_CATS.has(s.cat) && s.tier > st.shop.unlockedTier);
@@ -768,8 +884,6 @@ export function makeLaptop(app, opts) {
   // =========================================================================================
   function pagePricing() {
     const st = app.state;
-    const ratings = clubRatings(st);
-    const fair = fairGreenFee(ratings.overall, st.club.amenities ? Object.values(st.club.amenities).reduce((a, v) => a + v, 0) : 0);
 
     // shop markup, per category
     const markups = ['clubs', 'balls', 'apparel', 'accessories'].map((cat) => {
@@ -777,12 +891,13 @@ export function makeLaptop(app, opts) {
       const sample = SHOP_CATALOG.find((s) => s.cat === cat && s.tier <= st.shop.unlockedTier);
       const out = el('span', { class: 'lt-muval' });
       const paintMarkup = (v) => {
+        const response = productPricingResponse(st, cat, v);
         const price = sample ? priceFor(sample, v, null) : 0;
-        const margin = sample && price > 0 ? (price - sample.cost) / price : 0;
         out.replaceChildren(
           el('span', { class: 'lt-mupct', text: `${Math.round(v * 100)}% of book` }),
-          el('span', { class: 'lt-meta', text: sample ? ` · ${sample.name} rings up at ${formatMoney(price)} (${pct(margin)} margin)` : '' }),
-          el('span', { class: `lt-chip ${v > 1.2 ? 'bad' : v > 1.05 ? 'warn' : v < 0.9 ? 'warn' : 'ok'}`, text: v > 1.2 ? 'they will baulk' : v > 1.05 ? 'punchy' : v < 0.9 ? 'leaving money on the table' : 'about right' }),
+          el('span', { class: 'lt-meta', text: sample ? ` · ${sample.name} ${formatMoney(price)} · ${pct(response.averageMargin)} average margin` : '' }),
+          el('span', { class: `lt-chip ${response.band.tone}`, text: response.band.label }),
+          el('span', { class: 'lt-meta', text: `Demand ${response.salesLikelihoodPercent}% · revenue index ${response.revenueIndex.toFixed(2)} · ${response.band.satisfaction}` }),
         );
       };
       paintMarkup(val);
@@ -790,8 +905,8 @@ export function makeLaptop(app, opts) {
         type: 'range', min: '70', max: '150', value: String(Math.round(val * 100)), class: 'lt-range',
         oninput: (e) => {
           const v = Number(e.target.value) / 100;
-          st.shop.markup[cat] = v;   // written straight to the sim — this IS the price
-          paintMarkup(v);
+          const result = setProductMarkup(st, cat, v);
+          if (result.ok) paintMarkup(result.response.value);
         },
       });
       return row(el('span', { class: 'lt-mulabel', text: CAT_LABEL[cat] }), slider, out);
@@ -799,25 +914,51 @@ export function makeLaptop(app, opts) {
 
     const feeOut = el('span', { class: 'lt-muval' });
     const paintFee = (v) => {
-      const ratio = fair > 0 ? v / fair : 1;
+      const response = teePricingResponse(st, v);
       feeOut.replaceChildren(
         el('span', { class: 'lt-mupct', text: formatMoney(v) }),
-        el('span', { class: 'lt-meta', text: ` · a fair fee for this course is about ${formatMoney(fair)}` }),
-        el('span', { class: `lt-chip ${ratio > 1.25 ? 'bad' : ratio > 1.08 ? 'warn' : ratio < 0.8 ? 'warn' : 'ok'}`, text: ratio > 1.25 ? 'rounds will fall away' : ratio > 1.08 ? 'above the mark' : ratio < 0.8 ? 'under-charging' : 'fair' }),
+        el('span', { class: 'lt-meta', text: ` · fair value ${formatMoney(response.fairValue)} · demand ${response.salesLikelihoodPercent}% · revenue index ${response.revenueIndex.toFixed(2)}` }),
+        el('span', { class: `lt-chip ${response.band.tone}`, text: response.band.label }),
+        el('span', { class: 'lt-meta', text: `${response.band.satisfaction} Reputation: ${response.band.reputationEffect}.` }),
       );
     };
     paintFee(st.club.greenFee);
     const feeRange = el('input', {
       type: 'range', min: '10', max: '150', step: '1', value: String(Math.round(st.club.greenFee)), class: 'lt-range',
-      oninput: (e) => { st.club.greenFee = Number(e.target.value); paintFee(st.club.greenFee); },
+      oninput: (e) => { const result = setGreenFee(st, e.target.value); if (result.ok) paintFee(result.response.value); },
     });
 
     const rentOut = el('span', { class: 'lt-muval' });
-    const paintRent = (v) => rentOut.replaceChildren(el('span', { class: 'lt-mupct', text: `${formatMoney(v)} / round` }));
+    const paintRent = (v) => {
+      const response = rentalPricingResponse(st, v);
+      rentOut.replaceChildren(
+        el('span', { class: 'lt-mupct', text: `${formatMoney(v)} / round` }),
+        el('span', { class: `lt-chip ${response.band.tone}`, text: response.band.label }),
+        el('span', { class: 'lt-meta', text: `Fair ${formatMoney(response.fairValue)} · demand ${response.salesLikelihoodPercent}% · revenue index ${response.revenueIndex.toFixed(2)}` }),
+      );
+    };
     paintRent(st.shop.rentalFleet.pricePerRound);
     const rentRange = el('input', {
       type: 'range', min: '5', max: '60', step: '1', value: String(Math.round(st.shop.rentalFleet.pricePerRound)), class: 'lt-range',
-      oninput: (e) => { st.shop.rentalFleet.pricePerRound = Number(e.target.value); paintRent(st.shop.rentalFleet.pricePerRound); },
+      oninput: (e) => { const result = setRentalPrice(st, e.target.value); if (result.ok) paintRent(result.response.value); },
+    });
+
+    const membershipRows = Object.keys(st.club.dues).map((tier) => {
+      const out = el('span', { class: 'lt-muval' });
+      const repaint = (value) => {
+        const response = membershipPricingResponse(st, tier, value);
+        out.replaceChildren(
+          el('span', { class: 'lt-mupct', text: `${formatMoney(value)} / season` }),
+          el('span', { class: `lt-chip ${response.band.tone}`, text: response.band.label }),
+          el('span', { class: 'lt-meta', text: `Fair ${formatMoney(response.fairValue)} · join demand ${response.salesLikelihoodPercent}% · ${response.band.satisfaction}` }),
+        );
+      };
+      repaint(st.club.dues[tier]);
+      const slider = el('input', {
+        type: 'range', min: '100', max: '1200', step: '10', value: String(Math.round(st.club.dues[tier])), class: 'lt-range',
+        oninput: (event) => { const result = setMembershipDue(st, tier, event.target.value); if (result.ok) repaint(result.response.value); },
+      });
+      return row(el('span', { class: 'lt-mulabel', text: tier[0].toUpperCase() + tier.slice(1) }), slider, out);
     });
 
     paint(
@@ -829,7 +970,9 @@ export function makeLaptop(app, opts) {
       card(...markups),
       sect('Rentals'),
       card(row(el('span', { class: 'lt-mulabel', text: 'Club sets' }), rentRange, rentOut)),
-      note('Membership dues are set at the Club desk, not here — they are a season-long commitment rather than a shelf price.'),
+      sect('Membership dues'),
+      card(...membershipRows),
+      note('Higher price raises margin per sale, but each band shows the demand and reputation trade-off. The strongest price is not automatically the most profitable one.'),
     );
   }
 
@@ -842,8 +985,9 @@ export function makeLaptop(app, opts) {
       paint(head('Reservations'), empty('Reservations are not available on this property.'));
       return;
     }
+    const config = st.reservations.config;
     const dayBtns = [];
-    for (let d = 0; d < TEE_SHEET.horizonDays; d++) {
+    for (let d = 0; d < config.horizonDays; d++) {
       dayBtns.push(el('button', {
         class: `lt-day ${d === teeDay ? 'on' : ''}`,
         text: d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : `+${d}d`,
@@ -851,63 +995,182 @@ export function makeLaptop(app, opts) {
       }));
     }
     const ms = members(st);
-    const nameSel = el('select', { class: 'lt-select' },
-      el('option', { value: '', text: 'Walk-in guest' }),
-      ...ms.slice(0, 40).map((m) => el('option', { value: m.name, text: m.name })));
+    const memberSel = el('select', {
+      class: 'lt-select',
+      onchange: (event) => {
+        if (!event.target.value) return;
+        bookingDraft.holder = event.target.value;
+        click();
+        render();
+      },
+    },
+    el('option', { value: '', text: 'Choose an active member…' }),
+    ...ms.slice(0, 60).map((member) => el('option', { value: member.name, text: member.name })));
+
+    const holderInput = el('input', {
+      class: 'lt-input', type: 'text', value: bookingDraft.holder,
+      placeholder: 'Reservation holder',
+      oninput: (event) => { bookingDraft.holder = event.target.value; },
+    });
+    const guestsInput = el('input', {
+      class: 'lt-input lt-input-wide', type: 'text', value: bookingDraft.guestNames,
+      placeholder: 'Other player names, comma separated',
+      oninput: (event) => { bookingDraft.guestNames = event.target.value; },
+    });
+    const sizeSel = el('select', {
+      class: 'lt-select',
+      onchange: (event) => { bookingDraft.partySize = Number(event.target.value); render(); },
+    }, ...Array.from({ length: config.maxPartySize }, (_, index) => el('option', {
+      value: String(index + 1),
+      text: `${index + 1} player${index ? 's' : ''}`,
+      selected: bookingDraft.partySize === index + 1 ? 'selected' : undefined,
+    })));
+    const paymentSel = el('select', {
+      class: 'lt-select',
+      onchange: (event) => { bookingDraft.paymentPlan = event.target.value; render(); },
+    }, ...[
+      ['desk', 'Pay at the tee desk'],
+      ['deposit', '35% card deposit'],
+      ['prepaid', 'Prepaid by card'],
+      ['member-pass', 'Member pass'],
+    ].map(([value, text]) => el('option', {
+      value, text,
+      selected: bookingDraft.paymentPlan === value ? 'selected' : undefined,
+    })));
 
     const dayAbs = calendarOf(st.clock.minutes).dayAbs + teeDay;
     const sheet = daySheet(st, dayAbs);
-    const booked = sheet.filter((s) => s.res);
-    const free = sheet.length - booked.length;
-    const takings = booked.reduce((a, s) => a + (s.res.fee || 0), 0);
+    const activeBookings = st.reservations.booked.filter((reservation) => (
+      reservation.dayAbs === dayAbs && !['cancelled', 'noShow'].includes(reservation.status)
+    ));
+    const reserved = sheet.reduce((sum, slot) => sum + slot.reservedSeats, 0);
+    const capacity = sheet.reduce((sum, slot) => sum + slot.capacity, 0);
+    const expected = activeBookings.reduce((sum, reservation) => sum + reservation.payment.total, 0);
+    const dayOps = operationsSummary(st, dayAbs);
+    const nowCal = calendarOf(st.clock.minutes);
+    const slotIsFuture = (slot) => dayAbs > nowCal.dayAbs || slot.minute >= nowCal.minuteOfDay;
 
-    const slots = sheet.map((s) => {
-      const r = s.res;
-      return el('div', { class: `lt-slot ${r ? 'booked' : ''}` },
-        el('span', { class: 'lt-slottime', text: fmtSlot(s.minute) }),
-        r
-          ? el('span', { class: 'lt-slotwho' },
-            el('span', { text: r.name }),
-            chip(r.status === 'played' ? 'checked in' : r.status === 'noShow' ? 'no-show' : 'booked',
-              r.status === 'played' ? 'ok' : r.status === 'noShow' ? 'bad' : ''),
-            meta(formatMoney(r.fee)),
-            r.status === 'booked'
-              ? el('button', {
-                class: 'lt-mini lt-cancel',
-                text: 'Cancel',
-                onclick: () => askConfirm(`Cancel ${r.name}'s ${fmtSlot(s.minute)} tee time?`, 'Cancel the booking', () => {
-                  cancelReservation(st, r.id);
-                  toast(`${r.name}'s ${fmtSlot(s.minute)} is free again.`);
-                }),
-              })
-              : null)
-          : el('button', {
-            class: 'lt-mini lt-book',
-            text: 'Book',
-            onclick: () => {
-              const name = nameSel.value || `Guest ${Math.floor(Math.random() * 900) + 100}`;
-              const res = bookSlot(st, dayAbs, s.minute, name);
-              if (!res.ok) toast(res.reason, 'warn');
-              else { toast(`${name} booked for ${fmtSlot(s.minute)}.`); click(); }
-              render();
-            },
-          }),
-      );
-    });
+    const arrivalLabel = (reservation) => {
+      if (reservation.status === 'cancelled') return ['cancelled', 'bad'];
+      if (reservation.status === 'noShow') return ['no-show', 'bad'];
+      if (reservation.checkIn.status === 'checked-in') return ['checked in', 'ok'];
+      if (reservation.arrival.status === 'late') return ['late / waiting', 'bad'];
+      if (reservation.arrival.status === 'arrived') return ['waiting', 'warn'];
+      return ['expected', ''];
+    };
+    const paymentLabel = (reservation) => {
+      const payment = reservation.payment;
+      if (reservation.status === 'cancelled') {
+        if (reservation.cancellation.refund > 0.005) return [`${operationMoney(reservation.cancellation.refund)} refunded`, 'warn'];
+        return [reservation.cancellation.fee > 0.005 ? `${operationMoney(reservation.cancellation.fee)} retained` : 'no charge', ''];
+      }
+      if (reservation.status === 'noShow') {
+        return [reservation.noShow.feeApplied > 0.005 ? `${operationMoney(reservation.noShow.feeApplied)} fee` : 'no charge', reservation.noShow.feeApplied > 0.005 ? 'warn' : ''];
+      }
+      if (payment.status === 'member-pass') return ['member pass', 'ok'];
+      if (payment.amountDue <= 0.005) return ['paid', 'ok'];
+      if (payment.depositPaid > 0.005) return [`${operationMoney(payment.amountDue)} due`, 'warn'];
+      return [`${operationMoney(payment.amountDue)} due`, ''];
+    };
+
+    const makeBooking = (slot) => {
+      const holder = bookingDraft.holder.trim();
+      if (!holder) {
+        toast('Enter a reservation holder first.', 'warn');
+        return;
+      }
+      if (bookingDraft.paymentPlan === 'member-pass' && !ms.some((member) => member.name === holder)) {
+        toast('A member pass needs an active member as the reservation holder.', 'warn');
+        return;
+      }
+      const customerNames = [holder];
+      for (const raw of bookingDraft.guestNames.split(',')) {
+        const name = raw.trim();
+        if (name && !customerNames.includes(name) && customerNames.length < bookingDraft.partySize) customerNames.push(name);
+      }
+      while (customerNames.length < bookingDraft.partySize) {
+        customerNames.push(`Guest ${customerNames.length + 1} of ${holder}`);
+      }
+      const total = st.club.greenFee * bookingDraft.partySize;
+      const options = {
+        holder, customerNames, partySize: bookingDraft.partySize, source: 'laptop',
+      };
+      if (bookingDraft.paymentPlan === 'prepaid') Object.assign(options, {
+        paymentPlan: 'prepaid', paymentMethod: 'card', cardOnFile: true,
+      });
+      if (bookingDraft.paymentPlan === 'deposit') Object.assign(options, {
+        depositAmount: Math.round(total * 35) / 100, paymentMethod: 'card', cardOnFile: true,
+      });
+      if (bookingDraft.paymentPlan === 'member-pass') options.paymentPlan = 'member-pass';
+      const result = bookSlot(st, dayAbs, slot.minute, options);
+      if (!result.ok) toast(result.reason, 'warn');
+      else {
+        toast(`${holder}'s party is booked for ${fmtSlot(slot.minute)}.`);
+        bookingDraft = { holder: '', partySize: 1, guestNames: '', paymentPlan: 'desk' };
+        click();
+      }
+      render();
+    };
+
+    const slots = sheet.map((slot) => el('div', {
+      class: `lt-slot lt-slot-rich ${slot.reservations.length ? 'booked' : ''}`,
+    },
+    el('div', { class: 'lt-slothead' },
+      el('span', { class: 'lt-slottime', text: fmtSlot(slot.minute) }),
+      chip(slot.closed ? (slot.closureReason || 'closed') : `${slot.availableSeats} of ${slot.capacity} open`, slot.closed ? 'bad' : slot.availableSeats ? 'ok' : 'warn')),
+    slot.history.length
+      ? el('div', { class: 'lt-slotparties' }, ...slot.history.map((reservation) => {
+        const [arrival, arrivalTone] = arrivalLabel(reservation);
+        const [payment, paymentTone] = paymentLabel(reservation);
+        return el('div', { class: `lt-partyline ${reservation.status === 'cancelled' ? 'cancelled' : ''}` },
+          el('div', { class: 'lt-partyname', text: reservation.reservationHolder }),
+          meta(`${reservation.partySize} player${reservation.partySize === 1 ? '' : 's'}`),
+          chip(arrival, arrivalTone),
+          chip(payment, paymentTone),
+          reservation.status === 'booked' && reservation.checkIn.status !== 'checked-in'
+            ? el('button', {
+              class: 'lt-mini lt-cancel', text: 'Cancel',
+              onclick: () => askConfirm(
+                `Cancel ${reservation.reservationHolder}'s ${fmtSlot(slot.minute)} tee time? The published fee and refund policy will be applied once.`,
+                'Apply policy and cancel',
+                () => {
+                  const result = cancelReservation(st, reservation.id, { reason: 'Cancelled in Fairway Office' });
+                  if (!result.ok) toast(result.reason, 'warn');
+                  else toast(`Cancelled. ${operationMoney(result.refund)} refunded; ${operationMoney(result.fee)} retained.`);
+                },
+              ),
+            })
+            : null);
+      }))
+      : meta('No parties yet.'),
+    el('button', {
+      class: 'lt-mini lt-book lt-slotbook',
+      text: slot.closed ? 'Closed' : !slotIsFuture(slot) ? 'Time passed' : slot.availableSeats >= bookingDraft.partySize
+        ? `Book party of ${bookingDraft.partySize}` : `Only ${slot.availableSeats} open`,
+      disabled: slot.closed || !slotIsFuture(slot) || slot.availableSeats < bookingDraft.partySize ? 'disabled' : undefined,
+      onclick: () => makeBooking(slot),
+    })));
 
     paint(
-      head('Reservations', 'Booked golfers walk into the shop around their time. The green fee is collected at the counter when you check them in — not when they book.'),
+      head('Reservations', 'Manage named parties against real slot capacity. Pay-at-desk, deposits, prepaid cards, member passes, cancellations, and arrivals all use the same front-desk record.'),
       confirmBar(),
       el('div', { class: 'lt-stats' },
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Booked' }), el('div', { class: 'lt-statvalue', text: String(booked.length) }), el('div', { class: 'lt-statsub', text: `of ${sheet.length} slots` })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Open' }), el('div', { class: 'lt-statvalue', text: String(free) }), el('div', { class: 'lt-statsub', text: 'still available' })),
-        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Expected' }), el('div', { class: 'lt-statvalue', text: formatMoney(takings) }), el('div', { class: 'lt-statsub', text: 'in green fees' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Parties' }), el('div', { class: 'lt-statvalue', text: String(activeBookings.length) }), el('div', { class: 'lt-statsub', text: `${reserved} players booked` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Utilization' }), el('div', { class: 'lt-statvalue', text: pct(capacity ? reserved / capacity : 0) }), el('div', { class: 'lt-statsub', text: `${capacity - reserved} of ${capacity} places open` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Expected' }), el('div', { class: 'lt-statvalue', text: operationMoney(expected) }), el('div', { class: 'lt-statsub', text: 'green fees for this day' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Waiting' }), el('div', { class: `lt-statvalue ${dayOps.waiting.length ? 'warn' : ''}`, text: String(dayOps.waiting.length) }), el('div', { class: 'lt-statsub', text: `${dayOps.late.length} late` })),
       ),
-      card(row(el('span', { class: 'lt-mulabel', text: 'Day' }), ...dayBtns),
-        row(el('span', { class: 'lt-mulabel', text: 'Golfer' }), nameSel, meta('members book by name; walk-ins get a guest slip'))),
-      booked.length || free
-        ? el('div', { class: 'lt-card lt-slots' }, ...slots)
-        : empty('The sheet is closed for this day.'),
+      card(
+        row(el('span', { class: 'lt-mulabel', text: 'Day' }), ...dayBtns),
+        row(el('span', { class: 'lt-mulabel', text: 'Holder' }), holderInput, memberSel),
+        row(el('span', { class: 'lt-mulabel', text: 'Party' }), sizeSel, guestsInput),
+        row(el('span', { class: 'lt-mulabel', text: 'Payment' }), paymentSel,
+          meta(bookingDraft.paymentPlan === 'deposit' ? `${operationMoney(st.club.greenFee * bookingDraft.partySize * 0.35)} charged now`
+            : bookingDraft.paymentPlan === 'prepaid' ? `${operationMoney(st.club.greenFee * bookingDraft.partySize)} charged now`
+              : bookingDraft.paymentPlan === 'member-pass' ? 'active members only' : 'balance collected in person')),
+      ),
+      el('div', { class: 'lt-card lt-slots' }, ...slots),
+      note(operationsPolicySummary(st).join(' ')),
     );
   }
 
@@ -1132,13 +1395,20 @@ export function makeLaptop(app, opts) {
     const REV_LABEL = {
       greenFees: 'Green fees', dues: 'Membership dues', outings: 'Outings', range: 'Practice range',
       restaurant: 'Grill room', lessons: 'Lessons', shopSales: 'Shop sales', rentals: 'Rentals',
-      fittings: 'Club fittings', reciprocal: 'Reciprocal', events: 'Events',
+      fittings: 'Club fittings', reciprocal: 'Reciprocal', events: 'Events', walkIns: 'Walk-ins',
+      teeTimeBookings: 'Tee-time bookings',
+      bookingRevenue: 'Prepaid green fees', bookingDeposits: 'Green-fee deposits',
+      bookingBalances: 'Green-fee balances', cancellationFees: 'Cancellation fees',
+      noShowFees: 'No-show fees', walkInRevenue: 'Walk-in green fees',
     };
     const EXP_LABEL = {
       wagesStaff: 'Wages', wagesDayLabor: 'Day labour', water: 'Water', fertilizer: 'Fertiliser',
       chemicals: 'Chemicals', upkeep: 'Upkeep', utilities: 'Utilities', works: 'Course works',
       severance: 'Severance', training: 'Training', shopOrders: 'Stock purchases',
-      rentalFleet: 'Rental fleet', events: 'Events', rent: 'Rent / mortgage',
+      deliveryCosts: 'Delivery costs', equipment: 'Equipment',
+      cleaningSupplies: 'Cleaning supplies', propertyExpenses: 'Property expenses',
+      checkoutShortage: 'Till shortages', rentalFleet: 'Rental fleet', events: 'Events',
+      rent: 'Property holding cost', bookingRefunds: 'Booking refunds',
     };
 
     // aggregate any window of the history
@@ -1180,6 +1450,48 @@ export function makeLaptop(app, opts) {
     const exp = Object.values(w.data.expense || {}).reduce((a, v) => a + v, 0);
     const net = rev - exp;
     const owed = arrearsOf(st);
+    const operationDays = financeWindow === 'today' ? 1 : financeWindow === 'week' ? 7 : 24;
+    const operationSummaries = Array.from({ length: operationDays }, (_, index) => (
+      operationFinanceSummary(st, cal.dayAbs - index)
+    ));
+    const operationWindow = operationSummaries.reduce((out, summary) => {
+      out.entries.push(...summary.entries);
+      out.cashIn += summary.cashIn;
+      out.cashOut += summary.cashOut;
+      for (const [category, amount] of Object.entries(summary.categories)) {
+        out.categories[category] = (out.categories[category] || 0) + amount;
+      }
+      return out;
+    }, { entries: [], cashIn: 0, cashOut: 0, categories: {} });
+    operationWindow.netCash = operationWindow.cashIn - operationWindow.cashOut;
+    operationWindow.stableIdsUnique = new Set(operationWindow.entries.map((entry) => entry.id)).size === operationWindow.entries.length;
+    const OPERATION_LABEL = {
+      bookingRevenue: 'Prepaid bookings',
+      bookingDeposits: 'Booking deposits',
+      bookingBalances: 'Balances collected',
+      walkInRevenue: 'Walk-in green fees',
+      cancellationFees: 'Cancellation fees retained',
+      noShowFees: 'No-show fees retained / charged',
+      bookingRefunds: 'Booking refunds',
+    };
+    const operationRows = Object.entries(OPERATION_LABEL)
+      .map(([category, label]) => [category, label, operationWindow.categories[category] || 0])
+      .filter(([, , amount]) => amount > 0.005)
+      .map(([category, label, amount]) => row(
+        el('span', { text: label }),
+        meta(category === 'cancellationFees' || category === 'noShowFees' ? 'policy classification' : ''),
+        el('span', {
+          class: `lt-num ${category === 'bookingRefunds' ? 'lt-neg' : 'lt-pos'}`,
+          text: `${category === 'bookingRefunds' ? '-' : ''}${operationMoney(amount)}`,
+        })));
+    const toDay = cal.dayAbs;
+    const fromDay = financeWindow === 'month' ? toDay - 23 : financeWindow === 'week' ? toDay - 6 : toDay;
+    const profit = financialSummary(st, fromDay, toDay);
+    const daily = latestDailySummary(st);
+    const week = weeklySummary(st);
+    const entries = (led.entries || [])
+      .filter((entry) => entry.day >= fromDay && entry.day <= toDay)
+      .slice().sort((a, b) => b.timestamp - a.timestamp).slice(0, 24);
 
     const tabs = el('div', { class: 'lt-tabs' }, ...Object.entries(windows).map(([k, v]) => el('button', {
       class: `lt-tab ${financeWindow === k ? 'on' : ''}`, text: v.label,
@@ -1191,9 +1503,17 @@ export function makeLaptop(app, opts) {
       const e = Object.values(d.expenses || d.expense || {}).reduce((a, v) => a + v, 0);
       return row(
         el('span', { text: d.label || `Day ${d.dayAbs ?? ''}` }),
-        meta(`in ${formatMoney(r)} · out ${formatMoney(e)}`),
-        chip(`${r - e >= 0 ? '+' : ''}${formatMoney(r - e)}`, r - e >= 0 ? 'ok' : 'bad'));
+        meta(`gross ${formatMoney(d.summary?.grossRevenue ?? r)} · served ${d.summary?.customersServed ?? '—'} · condition ${d.summary?.propertyCondition ?? '—'}`),
+        chip(`${(d.summary?.netProfit ?? r - e) >= 0 ? '+' : ''}${formatMoney(d.summary?.netProfit ?? r - e)}`, (d.summary?.netProfit ?? r - e) >= 0 ? 'ok' : 'bad'));
     });
+
+    const entryRows = entries.map((entry) => row(
+      el('span', { class: 'lt-ordernum', text: `D${entry.day + 1}` }),
+      el('span', { style: 'min-width:150px;flex:1', text: entry.description }),
+      meta(`${LEDGER_LABELS[entry.lineKey] || entry.category}${entry.relatedId ? ` · ${entry.relatedId}` : ''}`),
+      chip(`${entry.cashImpact >= 0 ? '+' : ''}${formatMoney(entry.cashImpact)}`, entry.cashImpact > 0 ? 'ok' : entry.cashImpact < 0 ? 'bad' : ''),
+      meta(entry.cashImpact === 0 && entry.profitImpact < 0 ? `${formatMoney(Math.abs(entry.profitImpact))} COGS` : entry.accountingClass),
+    ));
 
     paint(
       head('Finances', 'Every cash movement in the club routes through this ledger, so it reconciles: across any midnight-to-midnight window, the net equals the cash that actually moved.'),
@@ -1203,10 +1523,34 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: `Net · ${w.label.toLowerCase()}` }), el('div', { class: `lt-statvalue ${net >= 0 ? 'ok' : 'bad'}`, text: `${net >= 0 ? '+' : ''}${formatMoney(net)}` }), el('div', { class: 'lt-statsub', text: `${formatMoney(rev)} in, ${formatMoney(exp)} out` })),
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Property' }), el('div', { class: 'lt-statvalue', text: formatMoney(weeklyCharge(st)) }), el('div', { class: 'lt-statsub', text: 'per week' })),
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Wages' }), el('div', { class: 'lt-statvalue', text: formatMoney(staffDailyWages(st)) }), el('div', { class: 'lt-statsub', text: 'per day' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Golf operations' }), el('div', { class: `lt-statvalue ${operationWindow.netCash < 0 ? 'bad' : 'ok'}`, text: operationMoney(operationWindow.netCash) }), el('div', { class: 'lt-statsub', text: `${operationWindow.entries.length} exact-once entries` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Gross revenue' }), el('div', { class: 'lt-statvalue', text: formatMoney(profit.grossRevenue) }), el('div', { class: 'lt-statsub', text: w.label.toLowerCase() })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Cost of goods' }), el('div', { class: 'lt-statvalue', text: formatMoney(profit.costOfGoodsSold) }), el('div', { class: 'lt-statsub', text: 'matched to sold units' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Operating costs' }), el('div', { class: 'lt-statvalue', text: formatMoney(profit.operatingExpenses) }), el('div', { class: 'lt-statsub', text: 'excluding investment' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Net profit' }), el('div', { class: `lt-statvalue ${profit.netProfit >= 0 ? 'ok' : 'bad'}`, text: `${profit.netProfit >= 0 ? '+' : ''}${formatMoney(profit.netProfit)}` }), el('div', { class: 'lt-statsub', text: `cash moved ${profit.cashChange >= 0 ? '+' : ''}${formatMoney(profit.cashChange)}` })),
       ),
       owed > 0 ? errBox(`${formatMoney(owed)} in arrears on the property, and it is accruing interest. It comes out of the next bill you can cover.`) : null,
       tabs,
       table(w.data),
+      sect('Golf operations subledger'),
+      card(
+        ...(operationRows.length ? operationRows : [empty('No booking cash moved in this window.')]),
+        el('div', { class: 'lt-total' },
+          el('span', { text: 'Net cash movement' }),
+          el('span', { class: operationWindow.netCash >= 0 ? 'lt-pos' : 'lt-neg', text: operationMoney(operationWindow.netCash) })),
+        meta(`${operationWindow.stableIdsUnique ? 'All entry IDs are unique.' : 'Duplicate entry IDs detected.'} These categories explain the Green fees and Booking refunds already included above; they are not added a second time.`),
+      ),
+      sect('Itemized ledger'),
+      entryRows.length ? card(...entryRows) : empty('No entries in this window.'),
+      daily ? el('div', {}, sect('Latest daily operating summary'), card(
+        row(chip(`${daily.customersServed} served`), chip(`${daily.teeTimeUtilization}% tee utilization`), chip(`${formatMoney(daily.averageTransaction)} average transaction`), chip(`${daily.missedSales} missed`, daily.missedSales ? 'bad' : 'ok')),
+        row(meta(`Cleanliness ${daily.cleaningCondition} · course ${daily.courseCondition} · reputation ${daily.reputationChange >= 0 ? '+' : ''}${daily.reputationChange} · property ${daily.propertyValueChange >= 0 ? '+' : ''}${formatMoney(daily.propertyValueChange)}`)),
+        ...(daily.reasons || []).map((reason) => row(el('span', { class: 'lt-why', text: reason }))),
+      )) : null,
+      week.days ? el('div', {}, sect('Seven-day summary'), card(
+        row(chip(`${formatMoney(week.grossRevenue)} gross`), chip(`${formatMoney(week.netProfit)} profit`, week.netProfit >= 0 ? 'ok' : 'bad'), chip(`${week.customersServed} served`), chip(`${week.teeTimeUtilization}% tee utilization`)),
+        row(meta(`${week.missedSales} missed sales · reputation ${week.reputationChange >= 0 ? '+' : ''}${week.reputationChange} · property value ${week.propertyValueChange >= 0 ? '+' : ''}${formatMoney(week.propertyValueChange)}`)),
+      )) : null,
       sect('Upcoming'),
       card(row(el('span', { text: 'Property' }), meta(propertyLine(st, cal.dayAbs)), chip(formatMoney(weeklyCharge(st)))),
         row(el('span', { text: 'Stock already paid for' }), meta(`${st.shop.orders.length} order${st.shop.orders.length === 1 ? '' : 's'} on the truck`), chip(formatMoney(st.shop.orders.reduce((a, o) => a + o.cost, 0))))),
@@ -1221,6 +1565,8 @@ export function makeLaptop(app, opts) {
   function pageReviews() {
     const st = app.state;
     const s = reviewSummary(st, { waitedSec: 0, queueLen: 0, played: true });
+    const reputation = reputationSnapshot(st);
+    const changes = (st.reputation?.history || []).slice(0, 10);
     const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
     const factorBar = (f) => {
@@ -1240,6 +1586,11 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Reputation' }), el('div', { class: 'lt-statvalue', text: String(Math.round(st.club.reputation)) }), el('div', { class: 'lt-statsub', text: 'word of mouth' })),
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Worst factor' }), el('div', { class: `lt-statvalue ${s.worst && s.worst.score < 0.5 ? 'bad' : ''}`, text: s.worst ? `${Math.round(s.worst.score * 100)}` : '—' }), el('div', { class: 'lt-statsub', text: s.worst ? s.worst.label.toLowerCase() : '' })),
       ),
+      sect('Reputation by outcome category'),
+      card(...Object.entries(reputation.categories).map(([category, score]) => row(
+        el('span', { class: 'lt-mulabel', text: REPUTATION_LABELS[category] || category }),
+        el('div', { class: 'lt-bar lt-barwide' }, el('div', { class: `lt-barfill ${score >= 70 ? 'ok' : score < 40 ? 'bad' : 'warn'}`, style: `width:${score}%` })),
+        chip(String(Math.round(score)), score >= 70 ? 'ok' : score < 40 ? 'bad' : 'warn')))),
       sect('What they are judging you on, right now'),
       card(...s.byFactor.map(factorBar)),
       s.worst && s.worst.score < 0.5
@@ -1252,6 +1603,12 @@ export function makeLaptop(app, opts) {
           el('div', { class: 'lt-revtext', text: r.text }),
           el('div', { class: 'lt-revday', text: `Day ${r.day}` }))))
         : empty('Reviews land as people come through.'),
+      sect('Why reputation moved'),
+      changes.length ? card(...changes.map((change) => row(
+        el('span', { class: 'lt-ordernum', text: `D${change.day + 1}` }),
+        el('span', { style: 'flex:1', text: change.reason }),
+        meta(Object.entries(change.categoryDeltas).map(([key, value]) => `${REPUTATION_LABELS[key] || key} ${value >= 0 ? '+' : ''}${value}`).join(' · ')),
+        chip(`${change.overallDelta >= 0 ? '+' : ''}${change.overallDelta}`, change.overallDelta >= 0 ? 'ok' : 'bad')))) : empty('No outcome has moved reputation yet.'),
     );
   }
 
@@ -1351,6 +1708,25 @@ export function makeLaptop(app, opts) {
     const grime = grimeAvgOf(st);
     const clutterLeft = reno ? reno.clutter.filter((c) => !c.cleared).length : 0;
     const decorSkus = SHOP_CATALOG.filter((s) => s.cat === 'decor');
+    const upgradeRows = Object.entries(UPGRADES).map(([id, spec]) => {
+      const owned = hasUpgrade(st, id);
+      const requirementMet = st.progression.prestige >= spec.prestige;
+      return el('div', { class: 'lt-order' },
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: `${owned ? '✓ ' : ''}${spec.name}` }),
+          el('div', { class: 'lt-prodmeta', text: `Requirement: prestige ${spec.prestige} · Cost ${formatMoney(spec.cost)} · Property value +${formatMoney(spec.valueEffect)}` }),
+          el('div', { class: 'lt-prodmeta', text: `Visible: ${spec.visibleResult}` }),
+          el('div', { class: 'lt-prodmeta', text: `Gameplay: ${spec.gameplayEffect}` })),
+        owned ? chip('Installed', 'ok') : !requirementMet ? chip(`Prestige ${spec.prestige}`, 'warn')
+          : el('button', {
+            class: 'lt-mini', text: `Install · ${formatMoney(spec.cost)}`,
+            disabled: cashOf() < spec.cost ? 'disabled' : undefined,
+            onclick: () => askConfirm(`Install ${spec.name} for ${formatMoney(spec.cost)}? ${spec.visibleResult}`, 'Install upgrade', () => {
+              const result = purchaseUpgrade(st, id);
+              toast(result.ok ? `${spec.name} installed.` : result.reason, result.ok ? '' : 'warn');
+            }),
+          }));
+    });
 
     const stage = cond < 30
       ? ['Stage 1 — Abandoned', 'Heavy grime, clutter, dead lights. Haul the junk, run the vacuum, order the basics.']
@@ -1367,6 +1743,8 @@ export function makeLaptop(app, opts) {
         el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Decor' }), el('div', { class: 'lt-statvalue', text: String(reno ? reno.decor.length : 0) }), el('div', { class: 'lt-statsub', text: 'pieces placed' })),
       ),
       card(el('div', { text: stage[1] })),
+      sect('Operational upgrades'),
+      el('div', { class: 'lt-orderlist' }, ...upgradeRows),
       sect('Fixtures & decor — order here, place them in the room'),
       card(...decorSkus.map((s) => {
         const placed = reno ? reno.decor.filter((d) => d.skuId === s.id).length : 0;
@@ -1395,20 +1773,135 @@ export function makeLaptop(app, opts) {
   }
 
   // =========================================================================================
+  // PROPERTY — real condition, explainable value, and the safe keep/sell decision
+  // =========================================================================================
+  function pageProperty() {
+    const st = app.state;
+    const empire = app.empire;
+    const holding = empire?.holdings?.find((item) => item.property.id === empire.activeId) || null;
+    const valuation = appraisalBreakdown(st);
+    const condition = propertyConditionBreakdown(st);
+    const readiness = propertyReadiness(st, empire);
+    const tier = propertyTier(holding?.property || st.property);
+    const appraisal = holding ? latestPropertyAppraisal(empire, holding.property.id) : null;
+    const openOffer = appraisal && ['offered', 'information'].includes(appraisal.status) ? appraisal : null;
+    const unlocked = new Set(empire?.progression?.unlockedTierIds || ['neglectedPublic']);
+
+    const requestAppraisal = () => {
+      if (!holding) return;
+      const result = requestPropertyAppraisal(empire, holding.property.id);
+      toast(result.ok
+        ? result.appraisal.eligible ? `Offer received: ${formatMoney(result.appraisal.netProceeds)} net.` : 'Appraisal complete. Sale requirements remain.'
+        : result.reason, result.ok ? '' : 'warn');
+      render();
+    };
+
+    const conditionRows = Object.values(condition.categories).map((item) => row(
+      el('span', { class: 'lt-mulabel', text: item.label }),
+      el('div', { class: 'lt-bar lt-barwide' }, el('div', { class: `lt-barfill ${item.score >= 70 ? 'ok' : item.score < 45 ? 'bad' : 'warn'}`, style: `width:${item.score}%` })),
+      chip(String(Math.round(item.score)), item.score >= 70 ? 'ok' : item.score < 45 ? 'bad' : 'warn'),
+      meta(item.reasons[0] || 'Live state')));
+
+    const contributionRows = valuation.contributions
+      .filter((item) => item.amount !== 0)
+      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
+      .map((item) => row(
+        el('span', { style: 'min-width:170px;flex:1', text: item.label }),
+        meta(item.reason),
+        chip(`${item.amount >= 0 ? '+' : '−'}${formatMoney(Math.abs(item.amount))}`, item.amount >= 0 ? 'ok' : 'bad')));
+
+    const requirementRows = readiness.saleRequirements.map((requirement) => row(
+      chip(requirement.met ? 'Ready' : 'Not ready', requirement.met ? 'ok' : 'bad'),
+      el('span', { style: 'flex:1', text: requirement.label }),
+      meta(`${Math.round(requirement.value)} / ${requirement.target}`)));
+
+    const tierRows = PROPERTY_TIER_ORDER.map((id) => {
+      const spec = PROPERTY_TIERS[id];
+      const isCurrent = tier.id === id;
+      const isUnlocked = unlocked.has(id);
+      return el('div', { class: 'lt-order' },
+        el('span', { class: 'lt-ordernum', text: String(spec.level) }),
+        el('div', { class: 'lt-orderbody' },
+          el('div', { class: 'lt-ordername', text: spec.name }),
+          el('div', { class: 'lt-prodmeta', text: `${spec.holeCount.join(' or ')} holes · ${spec.maintenanceComplexity.toLowerCase()} maintenance · ${spec.clubhouseScale}` }),
+          el('div', { class: 'lt-prodmeta', text: `Purchase ${formatMoney(spec.purchasePrice[0])}–${formatMoney(spec.purchasePrice[1])} · potential ${formatMoney(spec.potentialValue[0])}–${formatMoney(spec.potentialValue[1])} · upgrade capacity ${spec.upgradeCapacity}` })),
+        chip(isCurrent ? 'Current' : isUnlocked ? 'Unlocked' : 'Locked', isCurrent || isUnlocked ? 'ok' : 'warn'));
+    });
+
+    paint(
+      head('Property', 'Every condition and valuation line is recomputed from the actual clubhouse, stock, turf, equipment, upgrades, operating results, and unresolved damage.',
+        primaryBtn('Request appraisal', requestAppraisal, !holding)),
+      confirmBar(),
+      el('div', { class: 'lt-stats' },
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Current value' }), el('div', { class: 'lt-statvalue', text: formatMoney(valuation.value) }), el('div', { class: 'lt-statsub', text: tier.name })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Acquisition' }), el('div', { class: 'lt-statvalue', text: formatMoney(valuation.acquisitionCost) }), el('div', { class: 'lt-statsub', text: `${valuation.value - valuation.acquisitionCost >= 0 ? '+' : ''}${formatMoney(valuation.value - valuation.acquisitionCost)} value change` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Restoration invested' }), el('div', { class: 'lt-statvalue', text: formatMoney(valuation.restorationInvestment) }), el('div', { class: 'lt-statsub', text: 'capital ledger entries' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: '24-day profit' }), el('div', { class: `lt-statvalue ${valuation.monthlyNet >= 0 ? 'ok' : 'bad'}`, text: `${valuation.monthlyNet >= 0 ? '+' : ''}${formatMoney(valuation.monthlyNet)}` }), el('div', { class: 'lt-statsub', text: 'closed operating days' })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: 'Condition' }), el('div', { class: `lt-statvalue ${condition.overall < 45 ? 'bad' : ''}`, text: String(condition.overall) }), el('div', { class: 'lt-statsub', text: `${condition.unresolved.length} unresolved area${condition.unresolved.length === 1 ? '' : 's'}` })),
+        el('div', { class: 'lt-stat' }, el('div', { class: 'lt-statlabel', text: openOffer?.eligible ? 'Net offer' : 'Sale proceeds' }), el('div', { class: 'lt-statvalue', text: formatMoney(openOffer?.eligible ? openOffer.netProceeds : valuation.estimatedSaleProceeds) }), el('div', { class: 'lt-statsub', text: openOffer?.eligible ? 'after closing and outstanding costs' : valuation.outstanding ? `${formatMoney(valuation.outstanding)} outstanding` : 'before closing costs' })),
+      ),
+      sect('Sale readiness'),
+      card(...requirementRows),
+      openOffer ? el('div', {}, sect(openOffer.eligible ? 'Current sale offer' : 'Latest appraisal'), card(
+        row(el('strong', { text: 'Appraised value' }), el('span', { style: 'flex:1' }), el('strong', { text: formatMoney(openOffer.appraisedValue) })),
+        row(el('span', { text: `Market offer · ${Math.round(openOffer.marketModifier * 100)}% market` }), el('span', { style: 'flex:1' }), el('span', { text: formatMoney(openOffer.offer) })),
+        row(el('span', { text: 'Closing costs' }), el('span', { style: 'flex:1' }), el('span', { class: 'lt-neg', text: `−${formatMoney(openOffer.closingCosts)}` })),
+        openOffer.outstanding ? row(el('span', { text: 'Outstanding expenses' }), el('span', { style: 'flex:1' }), el('span', { class: 'lt-neg', text: `−${formatMoney(openOffer.outstanding)}` })) : null,
+        row(el('strong', { text: 'Net proceeds' }), el('span', { style: 'flex:1' }), el('strong', { class: 'lt-pos', text: formatMoney(openOffer.netProceeds) })),
+        row(
+          openOffer.eligible ? el('button', { class: 'lt-primary lt-danger', text: 'Accept offer…', onclick: () => askConfirm(
+            `Permanently sell ${holding.property.name} for ${formatMoney(openOffer.netProceeds)} net? A recovery snapshot is written first.`,
+            'Confirm permanent sale', () => {
+              const previousSpeed = app.speedIdx || 1;
+              opts.close();
+              opts.sellHolding?.(holding.property.id, previousSpeed, openOffer.id);
+              return false;
+            }) }) : null,
+          el('button', { class: 'lt-mini', text: openOffer.eligible ? 'Reject offer' : 'Continue improving', onclick: () => {
+            rejectPropertyAppraisal(empire, openOffer.id, openOffer.eligible ? 'rejected' : 'keep');
+            toast(openOffer.eligible ? 'Offer rejected. The property stays yours.' : 'Appraisal filed. Keep improving the property.');
+            render();
+          } }),
+          openOffer.eligible ? el('button', { class: 'lt-mini', text: 'Keep operating', onclick: () => {
+            rejectPropertyAppraisal(empire, openOffer.id, 'keep');
+            toast('You chose to keep operating.');
+            render();
+          } }) : null),
+      )) : note('Requesting an appraisal never moves money or changes ownership. A sale offer appears only when the readiness checks are met.'),
+      note('Refinancing is unavailable because the game has no implemented loan system; no fictional loan balance or payment is being created here.'),
+      sect('Explainable valuation'),
+      card(...contributionRows),
+      sect('Condition · 13 live categories'),
+      card(...conditionRows),
+      sect('Next-property framework'),
+      readiness.nextRequirements.length ? card(...readiness.nextRequirements.map((requirement) => row(
+        chip(requirement.met ? 'Met' : 'Open', requirement.met ? 'ok' : 'warn'),
+        el('span', { style: 'flex:1', text: requirement.label }), meta(`${Math.round(requirement.value)} / ${requirement.target}`)))) : note('All property tiers are unlocked. Keep operating as a sandbox or sell when the timing suits you.'),
+      el('div', { class: 'lt-orderlist' }, ...tierRows),
+      opts.openMarket && readiness.nextTierEligible ? primaryBtn('Browse next-property listings', () => opts.openMarket(), false) : null,
+    );
+  }
+
+  // =========================================================================================
   // 16. SETTINGS
   // =========================================================================================
   function pageSettings() {
     const st = app.state;
-    const ui = app.ui || (app.ui = {});
+    const teeConfig = st.reservations.config;
 
     const scaleRow = row(
       el('span', { class: 'lt-mulabel', text: 'Interface scale' }),
       ...[0.9, 1, 1.15, 1.3].map((s) => el('button', {
         class: `lt-day ${Math.abs(scale - s) < 0.01 ? 'on' : ''}`,
         text: `${Math.round(s * 100)}%`,
-        onclick: () => { setScale(s); click(); render(); },
+        onclick: () => {
+          app.preferences?.set('display.uiScale', s);
+          setScale(s);
+          click();
+          render();
+        },
       })),
-      meta('the screen is a real object at a real distance — make the type bigger if it reads small'),
+      meta('also scales menus, HUD, prompts, and notifications'),
     );
 
     const nameInput = el('input', {
@@ -1440,10 +1933,15 @@ export function makeLaptop(app, opts) {
       card(
         row(el('span', { class: 'lt-mulabel', text: 'Club name' }), nameInput),
         row(el('span', { class: 'lt-mulabel', text: 'Shop hours' }), el('span', { text: `${hour12(SHOP_OPEN_MIN)} – ${hour12(SHOP_CLOSE_MIN)}` }), meta('fixed to the course\'s playing day')),
-        row(el('span', { class: 'lt-mulabel', text: 'Course hours' }), el('span', { text: `${hour12(TEE_SHEET.openMin)} – ${hour12(TEE_SHEET.closeMin)}` }), meta('first and last tee time')),
+        row(el('span', { class: 'lt-mulabel', text: 'Course hours' }), el('span', { text: `${hour12(teeConfig.openMin)} – ${hour12(teeConfig.closeMin)}` }), meta('first and last tee time')),
+        row(el('span', { class: 'lt-mulabel', text: 'Tee interval' }), el('span', { text: `${teeConfig.stepMin} minutes` }), meta(`${teeConfig.slotCapacity} players per slot · parties up to ${teeConfig.maxPartySize}`)),
+        row(el('span', { class: 'lt-mulabel', text: 'Booking window' }), el('span', { text: `${teeConfig.horizonDays} days` }), meta(`${teeConfig.dueLeadMin} minute arrival lead · ${teeConfig.gracePeriodMin} minute grace period`)),
       ),
+      sect('Booking policy'),
+      card(...operationsPolicySummary(st).map((line) => row(el('span', { text: line })))),
       sect('Display'),
-      card(scaleRow),
+      card(scaleRow,
+        el('div', { class: 'lt-meta', text: 'Audio, camera, graphics, reduced motion, contrast, and sustained-tool options live in the shared P > Settings menu.' })),
       sect('Difficulty'),
       card(
         el('label', { class: 'lt-row' }, simpleCheck,
@@ -1474,6 +1972,7 @@ export function makeLaptop(app, opts) {
     reviews: pageReviews,
     analytics: pageAnalytics,
     reno: pageReno,
+    property: pageProperty,
     settings: pageSettings,
   };
 

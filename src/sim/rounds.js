@@ -13,6 +13,7 @@ import { shopOpenStock } from './shop.js';
 import { SHOP_CATALOG, SHELF_CAP } from '../data/shopItems.js';
 import { thoughtsForRound } from '../data/thoughts.js';
 import { ROLE, bestSkill, groundsCrewHours } from './staff.js';
+import { applyReputationChange } from './reputation.js';
 
 // --- course aggregates (computed once per day / per score call) ------------------
 
@@ -213,7 +214,11 @@ export function simulateDayRounds(state, roundsCount, { forceInclude = null } = 
       g.champion = true;
       state.club.champions = state.club.champions || [];
       state.club.champions.push(g.id);
-      state.club.reputation = clamp(state.club.reputation + 2, 0, 100);
+      applyReputationChange(state, {
+        id: `golfer:${g.id}:champion`, category: 'service', delta: 2,
+        source: 'rounds', sourceId: g.id,
+        reason: `${g.name} became a delighted, vocal club regular.`,
+      });
       state.club.feed.unshift({ kind: 'champion', day: dayAbs, text: `${g.name} has become a true regular — people ask for their tee time.` });
       if (state.club.feed.length > 20) state.club.feed.pop();
     }

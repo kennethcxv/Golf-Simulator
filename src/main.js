@@ -6,9 +6,10 @@
 import { BALANCE } from './sim/balance.js';
 import { HOLE_STATUS, TURF_ZONES, ZONE } from './sim/constants.js';
 import {
-  newEmpire, buyProperty, sellProperty, switchProperty, activeState,
+  EMPIRE_VERSION, newEmpire, buyProperty, confirmPropertySale, switchProperty, activeState,
   empireUpdate, empireSnapshot, deserializeEmpire,
 } from './sim/empire.js';
+import { SAVE_VERSION } from './sim/state.js';
 import { addHole, courseDesignRating, holeNumber } from './sim/course.js';
 import { formatMoney } from './core/utils.js';
 import { createHeldKeys, overviewCameraDelta, OVERVIEW_KEYS } from './core/heldKeys.js';
@@ -17,7 +18,10 @@ import {
   worksSetTee, worksSetPin,
 } from './sim/terrainEdit.js';
 import { calendarOf } from './sim/time.js';
-import { el, toast, modal } from './ui/ui.js';
+import { ensureReservationHorizon } from './sim/reservations.js';
+import {
+  clearNotifications, confirmDialog, containFocus, el, modal, notify, setPromptText, toast,
+} from './ui/ui.js';
 import { makeHud } from './ui/hud.js';
 import { makeWorksPanel } from './ui/worksPanel.js';
 import { makeInspectPanel } from './ui/inspectPanel.js';
@@ -26,20 +30,55 @@ import { makeClubPanel } from './ui/clubPanel.js';
 import { makeEmpirePanel } from './ui/empirePanel.js';
 import { openMarketplace } from './ui/marketplacePanel.js';
 import { makeObjectivesPanel } from './ui/objectivesPanel.js';
+import { makeCourseMaintenancePanel } from './ui/courseMaintenancePanel.js';
 import { makeLaptop } from './ui/laptop.js';
+import { makeFrontDesk } from './ui/frontDesk.js';
+import { makeSettingsPanel } from './ui/settingsPanel.js';
+import { makeToolWheel } from './ui/toolWheel.js';
 import { quadTransform, uvAt } from './core/laptopProjection.js';
 import { makeAudio } from './core/audio.js';
-import { tickTutorial, tutorialFlag, skipTutorial, replayTutorial } from './sim/tutorial.js';
+import {
+  tickTutorial, tutorialFlag, skipTutorial, replayTutorial, triggerContextTutorial,
+} from './sim/tutorial.js';
 import { makeMenu } from './screens/menu.js';
-import { saveData, loadData } from './core/storage.js';
+import { inspectData, saveData, summarizeSave } from './core/storage.js';
+import { applyDocumentPreferences, makePreferences } from './core/preferences.js';
 import { conditionRating, sectionTurfSummary, sectionStatus } from './sim/turf.js';
 import { shopCondition, vacuumOwned, tickDeliveries } from './sim/shop.js';
+import {
+  changeDue as registerChangeDue,
+  handTotal as registerHandTotal,
+  unscannedCount as registerUnscannedCount,
+} from './sim/register.js';
 import { ownedWasher } from './sim/washing.js';
 import { skuById } from './data/shopItems.js';
 import { makeCourseScene } from './render3d/courseScene.js';
+import {
+  applyDivotMix,
+  applyFungicideCourseMaintenancePath,
+  clearCourseMaintenanceDebris,
+  fertilizeCourseMaintenancePath,
+  finalizeCourseMaintenanceAction,
+  flagCourseMaintenanceDisease,
+  inspectCourseMaintenanceAt,
+  irrigateCourseMaintenancePath,
+  maintenanceCellReport,
+  maintenanceIndexAtWorld,
+  manageCourseMaintenanceIrrigationHead,
+  markCourseMaintenanceRouteStep,
+  mowCourseMaintenancePath,
+  nearestCourseMaintenanceIssue,
+  rakeCourseMaintenancePath,
+  repairBallMark,
+  selectCourseMaintenanceEquipment,
+  toggleCourseInspection,
+  levelDivot,
+} from './sim/courseMaintenance.js';
 
 const canvas = document.getElementById('game');
 const uiRoot = document.getElementById('ui');
+const preferences = makePreferences();
+applyDocumentPreferences(preferences.values);
 
 const app = {
   screen: 'menu', // 'menu' | 'game'
@@ -61,8 +100,10 @@ const app = {
   overallRating: 0,
   viewMode: 'normal', // 'normal' | 'health' | 'moisture'
   groundsOpen: false,
+  frontDeskOpen: false,
   sectionIndex: null,
   sectionsRef: null,
+  preferences,
 };
 
 let hud = null;
@@ -72,14 +113,34 @@ let groundsPanel = null;
 let clubPanel = null;
 let empirePanel = null;
 let walkOverlay = null;
+let walkPrompt = null;
+let walkLockHint = null;
+let walkCondition = null;
 let regHint = null;
 let laptopUi = null;
+let frontDeskUi = null;
 let objectivesPanel = null;
+let maintenancePanel = null;
 let menu = null;
 let gameUi = null;
+let toolWheel = null;
+let viewButtons = [];
 
 function walkActive() {
   return app.view === 'course' && app.courseMode === 'walk' && app.scene3d && app.scene3d.walk.isActive();
+}
+
+function presentationMode() {
+  if (isPauseOpen()) return 'pause';
+  if (toolWheel?.isOpen()) return 'tool-wheel';
+  if (app.frontDeskOpen) return 'front-desk';
+  if (regActive()) return 'register';
+  if (app.laptopOpen) return 'laptop';
+  const build = buildApi();
+  if (build?.isActive()) return 'placement';
+  if (app.worksMode) return 'course-editor';
+  if (app.courseMode === 'overview') return 'overview';
+  return 'walk';
 }
 
 function requestLook() {
@@ -102,6 +163,8 @@ function enterWalk(spawn) {
   }
   app.courseMode = 'walk';
   app.scene3d.walk.enter(spawn);
+  if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+    && document.activeElement.closest('#ui')) document.activeElement.blur();
   walkOverlay.style.display = '';
   const hint = document.querySelector('.hint-bar');
   if (hint) hint.style.display = 'none';
@@ -110,6 +173,8 @@ function enterWalk(spawn) {
 }
 
 function exitWalk() {
+  cancelToolKey();
+  if (app.frontDeskOpen) exitFrontDesk(true);
   if (app.laptopOpen) exitLaptop(true);
   if (app.scene3d && app.scene3d.post && app.scene3d.post.gtao) app.scene3d.post.gtao.radius = 1.5; // management-camera tuning
   if (app.scene3d) app.scene3d.walk.exit();
@@ -177,6 +242,19 @@ function alignLaptopUi() {
 
 let laptopResizeHandler = null;
 let laptopTimers = [];
+let laptopHiddenUi = null;
+
+function setLaptopBackdropHidden(hidden) {
+  gameUi?.classList.toggle('laptop-mode', hidden);
+  const roots = [hud?.root, objectivesPanel?.root].filter(Boolean);
+  if (hidden) {
+    laptopHiddenUi = roots.map((root) => ({ root, display: root.style.display }));
+    for (const { root } of laptopHiddenUi) root.style.display = 'none';
+    return;
+  }
+  for (const item of laptopHiddenUi || []) item.root.style.display = item.display;
+  laptopHiddenUi = null;
+}
 
 // build mode, if the clubhouse is up
 function buildApi() {
@@ -202,9 +280,9 @@ function seatPose(ch) {
 // 0.46 yd back — about 17 inches, which is where a person's face actually is when they read a
 // laptop. The perspective flattens out, the keyboard settles, and the bezel stays in frame.
 const WALK_NEAR = 0.15;
-const WALK_FOV = 66;
 const LAPTOP_NEAR = 0.03;
 const LAPTOP_FOV = 34;
+const walkFov = () => preferences.values.camera.fov;
 function setCameraLens(fov, near) {
   const cam = app.scene3d && app.scene3d.camera;
   if (!cam || (cam.fov === fov && cam.near === near)) return;
@@ -214,21 +292,24 @@ function setCameraLens(fov, near) {
 }
 
 function enterLaptop() {
-  if (!walkActive() || app.laptopOpen) return;
+  if (!walkActive() || app.laptopOpen || app.frontDeskOpen) return;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
   if (!ch) return;
+  cancelToolKey();
   // The lens FIRST: the seat distance is derived from the field of view, so asking for the pose
   // before the lens has changed would seat you for a camera that no longer exists.
   setCameraLens(LAPTOP_FOV, LAPTOP_NEAR);
   const pose = seatPose(ch);
-  if (!pose) { setCameraLens(WALK_FOV, WALK_NEAR); return; }
+  if (!pose) { setCameraLens(walkFov(), WALK_NEAR); return; }
   app.laptopOpen = true;
+  document.body.classList.add('laptop-mode');
   resetCameraInput(); // sitting down is a mode change too
   if (app.state) tutorialFlag(app.state, 'laptopOpened');
   app.scene3d.walk.focusOn(pose);
   if (document.pointerLockElement) document.exitPointerLock();
   closeLeftPanels('none');
   walkOverlay.style.display = 'none';
+  setLaptopBackdropHidden(true);
   // the physical sequence: lid swings → power light → boot → interface lands on the glass
   if (ch.laptopLid) ch.laptopLid(true);
   if (audio.ready) audio.laptopOpen();
@@ -261,6 +342,7 @@ function enterLaptop() {
 function exitLaptop(silent) {
   if (!app.laptopOpen) return;
   app.laptopOpen = false;
+  document.body.classList.remove('laptop-mode');
   for (const t of laptopTimers) clearTimeout(t);
   laptopTimers = [];
   if (laptopResizeHandler) {
@@ -268,11 +350,12 @@ function exitLaptop(silent) {
     laptopResizeHandler = null;
   }
   laptopUi.close();
+  setLaptopBackdropHidden(false);
   laptopQuad = null;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
   if (ch && ch.laptopScreen) ch.laptopScreen('desk'); // lid stays open, showing the lock screen
   app.scene3d.walk.clearFocus();
-  setCameraLens(WALK_FOV, WALK_NEAR); // hand the wide lens back before you stand up
+  setCameraLens(walkFov(), WALK_NEAR); // hand the player's lens back before standing up
   const vt = document.querySelector('.view-toggle');
   if (vt) vt.style.display = '';
   if (!silent) {
@@ -282,18 +365,99 @@ function exitLaptop(silent) {
   }
 }
 
-const audio = makeAudio();
+// --- tee desk mode ------------------------------------------------------------
+// The same physical counter serves golf operations and merchandise, but the
+// workflows remain independent. This mode borrows only the proven cashier pose;
+// it never enters registerMode or touches its live sale.
+function enterFrontDesk(reservationId = null) {
+  if (!walkActive() || app.frontDeskOpen || app.laptopOpen || regActive()) return;
+  const ch = app.scene3d?.clubhouse?.();
+  const pose = ch?.register?.cashierPose?.();
+  if (!pose || !frontDeskUi) return;
+  cancelToolKey();
+  app.frontDeskOpen = true;
+  resetCameraInput();
+  app.scene3d.walk.focusOn(pose);
+  if (document.pointerLockElement) document.exitPointerLock();
+  closeLeftPanels('none');
+  walkOverlay.style.display = 'none';
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = 'none';
+  document.body.classList.add('front-desk-mode');
+  frontDeskUi.open(reservationId);
+  if (audio.ready) audio.uiTick();
+}
+
+function exitFrontDesk(silent = false) {
+  if (!app.frontDeskOpen) return;
+  app.frontDeskOpen = false;
+  frontDeskUi?.close();
+  document.body.classList.remove('front-desk-mode');
+  app.scene3d?.walk?.clearFocus?.();
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = '';
+  resetCameraInput();
+  if (!silent && walkActive()) {
+    walkOverlay.style.display = '';
+    requestLook();
+    if (audio.ready) audio.uiTick();
+  }
+}
+
+const audio = makeAudio(preferences);
 app.audio = audio;
+const TOOL_AUDIO_LOOP = {
+  fungicide: 'hose',
+  spreader: 'divot',
+  ballmark: 'divot',
+  debris: 'rake',
+  greensMower: 'mower',
+};
 // WebAudio needs a user gesture; arm it on the first interaction
 for (const evt of ['pointerdown', 'keydown']) {
   window.addEventListener(evt, () => audio.init(), { once: true, capture: true });
 }
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    cancelToolKey();
+    toolWheel?.close('lifecycle');
+  }
+  audio.setLifecycleActive(!document.hidden);
+});
+window.addEventListener('pagehide', () => {
+  cancelToolKey();
+  toolWheel?.close('lifecycle');
+  audio.setLifecycleActive(false);
+});
 
 function closeLeftPanels(except) {
   if (except !== 'works' && app.worksMode) handlers.toggleWorks();
   if (except !== 'grounds' && app.groundsOpen) groundsPanel.setVisible(false);
   if (except !== 'club' && app.clubOpen) clubPanel.setVisible(false);
   if (except !== 'empire' && app.empireOpen) empirePanel.setVisible(false);
+}
+
+const MAINTENANCE_EQUIPMENT_FOR_TOOL = {
+  hose: 'hose',
+  divot: 'divotKit',
+  ballmark: 'ballMarkFork',
+  rake: 'bunkerRake',
+  debris: 'debrisBag',
+  fungicide: 'hose',
+  spreader: 'spreader',
+  greensMower: 'greensMower',
+};
+
+function setMaintenanceVisible(next) {
+  if (!maintenancePanel || !app.state?.courseMaintenance) return;
+  toggleCourseInspection(app.state, !!next);
+  maintenancePanel.setVisible(!!next);
+  if (app.scene3d) app.scene3d.updateCourseMaintenance(app.state, true);
+  if (next && document.pointerLockElement) document.exitPointerLock();
+}
+
+function selectMaintenanceTool(tool) {
+  selectWalkTool(tool);
 }
 
 // --- section lookup --------------------------------------------------------
@@ -364,17 +528,25 @@ function announceOutbreaks() {
 // --- game lifecycle -----------------------------------------------------------
 
 function startGame(state) {
-  closePauseMenu(); // any pause overlay dies with the old world
+  closePauseMenu({ resume: false }); // any pause overlay dies with the old world
+  cancelToolKey();
+  if (app.frontDeskOpen) exitFrontDesk(true);
+  toolWheel?.close('scene-change');
+  clearNotifications();
   if (app.scene3d) {
     app.scene3d.dispose();
     app.scene3d = null;
   }
   app.state = state;
+  // Starting, loading, or switching into a club must always expose the same
+  // deterministic forward booking window. Existing days are idempotently left alone.
+  ensureReservationHorizon(app.state);
   app.screen = 'game';
   app.scene3d = makeCourseScene(canvas, state);
   // walk-up inspection: the walking controller asks, the app answers with the
   // same sections and status words the top-down click-to-inspect always used
   app.scene3d.walk.hooks.toast = (msg, kind) => toast(msg, kind);
+  app.scene3d.walk.hooks.tutorial = (flag) => tutorialFlag(app.state, flag);
   // a restrained note when the game had to dig the player out of geometry
   app.scene3d.walk.hooks.recovered = (how) => toast(
     how === 'lastSafe' ? 'Stepped you back to where you last had room.' : 'Moved you clear of the furniture.',
@@ -382,6 +554,7 @@ function startGame(state) {
   app.scene3d.walk.hooks.sfx = (name) => { if (audio.ready && audio[name]) audio[name](); };
   // the clubhouse's in-world management surfaces route through these
   app.scene3d.walk.hooks.openLaptop = () => enterLaptop();
+  app.scene3d.walk.hooks.openFrontDesk = (reservationId) => enterFrontDesk(reservationId);
   app.scene3d.walk.hooks.toggleOverview = () => handlers.toggleCourseMode();
   app.scene3d.walk.hooks.turfLabelAt = (cx, cy) => {
     const section = sectionAtCell(cx, cy);
@@ -415,6 +588,7 @@ function startGame(state) {
     soak(cx - 1, cy, 0.35);
     soak(cx, cy + 1, 0.35);
     soak(cx, cy - 1, 0.35);
+    tutorialFlag(st, 'maintenanceUsed');
   };
   app.scene3d.walk.hooks.hoseLabelAt = (cx, cy) => {
     const st = app.state;
@@ -435,6 +609,7 @@ function startGame(state) {
     const i = cy * st.course.w + cx;
     const before = st.turf.wear[i];
     st.turf.wear[i] = Math.max(0, before - 45 * dtSec);
+    if (st.turf.wear[i] < before) tutorialFlag(st, 'maintenanceUsed');
     // the completion moment: this patch just came smooth
     if (before > 1 && st.turf.wear[i] <= 0.01 && audio.ready) audio.chime();
   };
@@ -462,6 +637,7 @@ function startGame(state) {
       if (st.course.zones[i] !== ZONE.BUNKER) return;
       const before = st.turf.wear[i];
       st.turf.wear[i] = Math.max(0, before - 55 * dtSec * frac);
+      if (frac === 1 && st.turf.wear[i] < before) tutorialFlag(st, 'maintenanceUsed');
       if (frac === 1 && before > 1 && st.turf.wear[i] <= 0.01 && audio.ready) audio.chime();
     };
     sweep(cx, cy, 1);
@@ -501,6 +677,249 @@ function startGame(state) {
       ? '🧹 This sand is raked smooth · [F] next tool'
       : `🧹 Bunker — footprints ${w} — hold the mouse button to rake`;
   };
+
+  // Hole 4's one-yard model takes over whenever the exact aim point falls in
+  // its data-selected region. The established eight-yard hooks above remain a
+  // safe fallback everywhere else on the course.
+  const heroPoint = (cx, cy, wx, wz) => ({
+    x: Number.isFinite(wx) ? wx : (cx + 0.5) * 8 - state.course.w * 4,
+    z: Number.isFinite(wz) ? wz : (cy + 0.5) * 8 - state.course.h * 4,
+  });
+  const heroReportAt = (cx, cy, wx, wz) => {
+    const point = heroPoint(cx, cy, wx, wz);
+    const model = app.state.courseMaintenance;
+    const index = model ? maintenanceIndexAtWorld(model, point.x, point.z) : -1;
+    return index >= 0 ? { point, index, report: maintenanceCellReport(model, index) } : null;
+  };
+  const nearestOpen = (collection, point, radius = 2.6) => (
+    nearestCourseMaintenanceIssue(app.state, collection, point.x, point.z, radius)
+  );
+  const completedNear = (collection, point, radius = 2.6) => (
+    app.state.courseMaintenance.issues[collection].some((issue) => (
+      (issue.repaired || issue.cleared)
+      && Math.hypot(issue.x - point.x, issue.z - point.z) <= radius
+    ))
+  );
+  const refreshMaintenance = (report = undefined) => {
+    finalizeCourseMaintenanceAction(app.state);
+    app.scene3d.updateCourseMaintenance(app.state);
+    app.scene3d.updateTurf(app.state);
+    if (report !== undefined && maintenancePanel) maintenancePanel.setReport(report);
+    if (maintenancePanel) maintenancePanel.refresh(true);
+  };
+
+  const coarseTurfLabelAt = app.scene3d.walk.hooks.turfLabelAt;
+  const coarseInspectAt = app.scene3d.walk.hooks.inspectAt;
+  const coarseWaterAt = app.scene3d.walk.hooks.waterAt;
+  const coarseHoseLabelAt = app.scene3d.walk.hooks.hoseLabelAt;
+  const coarseRepairAt = app.scene3d.walk.hooks.repairAt;
+  const coarseDivotLabelAt = app.scene3d.walk.hooks.divotLabelAt;
+  const coarseRakeAt = app.scene3d.walk.hooks.rakeAt;
+  const coarseRakeLabelAt = app.scene3d.walk.hooks.rakeLabelAt;
+  const coarseMowAt = app.scene3d.walk.hooks.mowAt;
+  app.scene3d.walk.hooks.turfLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return coarseTurfLabelAt(cx, cy);
+    const problem = hero.report.problems[0] || 'within target';
+    return `Hole ${state.courseMaintenance.heroHoleNumber} · ${hero.report.surfaceName} · ${problem} · [E] inspect · [I] tablet`;
+  };
+  app.scene3d.walk.hooks.inspectAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return coarseInspectAt(cx, cy);
+    const report = inspectCourseMaintenanceAt(app.state, hero.point.x, hero.point.z);
+    toggleCourseInspection(app.state, true);
+    app.scene3d.updateCourseMaintenance(app.state, true);
+    if (maintenancePanel) {
+      maintenancePanel.setReport(report);
+      maintenancePanel.setVisible(true);
+    }
+    const diseaseHeadline = report.disease?.severity >= 5
+      ? `${report.disease.name || 'Disease'} severity ${report.disease.severity}`
+      : null;
+    toast(`Inspection refreshed · ${report.surfaceName} · ${diseaseHeadline || report.problems[0] || 'no priority issue'}.`);
+    if (document.pointerLockElement) document.exitPointerLock();
+  };
+  app.scene3d.walk.hooks.waterAt = (cx, cy, dtSec, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return coarseWaterAt(cx, cy, dtSec);
+    return irrigateCourseMaintenancePath(app.state, {
+      ...hero.point, radiusYd: 2.4, pointsPerSecond: 18, dtSec,
+    });
+  };
+  app.scene3d.walk.hooks.hoseLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return coarseHoseLabelAt(cx, cy);
+    return `Hose · ${hero.report.surfaceName} moisture ${hero.report.moisture} · hold LMB to irrigate`;
+  };
+
+  app.scene3d.walk.hooks.repairAt = (cx, cy, dtSec, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) {
+      coarseRepairAt(cx, cy, dtSec);
+      return { ok: true };
+    }
+    const found = nearestOpen('divots', hero.point, 2.8);
+    if (!found) return completedNear('divots', hero.point, 2.8)
+      ? { ok: true, complete: true }
+      : { ok: false, reason: 'No open divot is under the tool.' };
+    const result = found.issue.stage === 'open'
+      ? applyDivotMix(app.state, found.issue.id, dtSec)
+      : levelDivot(app.state, found.issue.id, dtSec);
+    if (result.complete && audio.ready) audio.chime();
+    return result;
+  };
+  app.scene3d.walk.hooks.divotLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return coarseDivotLabelAt(cx, cy);
+    const found = nearestOpen('divots', hero.point, 3.2);
+    if (!found) return 'Divot kit · no open divot under the tool · [F] next';
+    return found.issue.stage === 'open'
+      ? `Divot ${found.issue.id.split('-').at(-1)} · hold LMB to add turf mix`
+      : `Divot ${found.issue.id.split('-').at(-1)} · hold LMB to level the repair`;
+  };
+  app.scene3d.walk.hooks.rakeAt = (cx, cy, dtSec, wx, wz, directionRad = 0) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) {
+      coarseRakeAt(cx, cy, dtSec);
+      return { ok: true };
+    }
+    return rakeCourseMaintenancePath(app.state, {
+      ...hero.point, radiusYd: 1.9, directionRad, dtSec,
+    });
+  };
+  app.scene3d.walk.hooks.rakeLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return coarseRakeLabelAt(cx, cy);
+    return nearestOpen('bunkerFootprints', hero.point, 3.2)
+      ? 'Bunker rake · hold LMB and sweep the footprints'
+      : `${hero.report.surfaceName} · no footprint in reach`;
+  };
+  app.scene3d.walk.hooks.ballmarkLabelAt = (cx, cy, wx, wz) => {
+    const point = heroPoint(cx, cy, wx, wz);
+    return nearestOpen('ballMarks', point, 2.8)
+      ? 'Ball-mark fork · hold LMB to lift the green'
+      : 'Ball-mark fork · no mark under the tool · [F] next';
+  };
+  app.scene3d.walk.hooks.ballmarkAt = (cx, cy, dtSec, wx, wz) => {
+    const point = heroPoint(cx, cy, wx, wz);
+    const found = nearestOpen('ballMarks', point, 2.5);
+    if (!found) return completedNear('ballMarks', point, 2.5)
+      ? { ok: true, complete: true }
+      : { ok: false, reason: 'No ball mark is under the fork.' };
+    const result = repairBallMark(app.state, found.issue.id, dtSec);
+    if (result.complete && audio.ready) audio.chime();
+    return result;
+  };
+  app.scene3d.walk.hooks.debrisLabelAt = (cx, cy, wx, wz) => {
+    const point = heroPoint(cx, cy, wx, wz);
+    const found = nearestOpen('debris', point, 3.2);
+    return found ? `Debris bag · ${found.issue.type} · hold LMB to collect` : 'Debris bag · no loose debris here · [F] next';
+  };
+  app.scene3d.walk.hooks.debrisAt = (cx, cy, dtSec, wx, wz) => {
+    const point = heroPoint(cx, cy, wx, wz);
+    const found = nearestOpen('debris', point, 3.0);
+    if (!found) return completedNear('debris', point, 3.0)
+      ? { ok: true, complete: true }
+      : { ok: false, reason: 'No loose debris is in reach.' };
+    const result = clearCourseMaintenanceDebris(app.state, found.issue.id, dtSec);
+    if (result.complete && audio.ready) audio.thunk();
+    return result;
+  };
+  app.scene3d.walk.hooks.fungicideLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    return hero
+      ? `Treatment sprayer · disease ${hero.report.disease.severity} · ${app.state.courseMaintenance.inventory.fungicideLiters.toFixed(1)} L`
+      : 'Treatment sprayer · assigned to Hole 4 · [F] next';
+  };
+  app.scene3d.walk.hooks.fungicideAt = (cx, cy, dtSec, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return { ok: false, reason: 'The treatment sprayer is assigned to Hole 4.' };
+    return applyFungicideCourseMaintenancePath(app.state, { ...hero.point, radiusYd: 2.5, dtSec });
+  };
+  app.scene3d.walk.hooks.spreaderLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    return hero
+      ? `Rotary spreader · feed ${hero.report.fertilizer} · ${app.state.courseMaintenance.inventory.fertilizerKg.toFixed(1)} kg`
+      : 'Rotary spreader · assigned to Hole 4 · [F] next';
+  };
+  app.scene3d.walk.hooks.spreaderAt = (cx, cy, dtSec, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    if (!hero) return { ok: false, reason: 'The spreader is assigned to Hole 4.' };
+    return fertilizeCourseMaintenancePath(app.state, { ...hero.point, radiusYd: 2.2, dtSec });
+  };
+  app.scene3d.walk.hooks.mowAt = (cx, cy, options = {}) => {
+    const point = heroPoint(cx, cy, options.x, options.z);
+    if (maintenanceIndexAtWorld(app.state.courseMaintenance, point.x, point.z) < 0) {
+      if (options.bladesEngaged === false) {
+        return { ok: false, changed: 0, reason: 'Engage the mower blades with [R] before cutting.' };
+      }
+      return { ok: true, changed: coarseMowAt(cx, cy) ? 1 : 0 };
+    }
+    return mowCourseMaintenancePath(app.state, {
+      ...point,
+      radiusYd: options.radiusYd || 1.65,
+      mowerType: options.mowerType,
+      bladesEngaged: options.bladesEngaged,
+      speedYdPerSec: options.speedYdPerSec || 0,
+      directionRad: options.directionRad || 0,
+    });
+  };
+  app.scene3d.walk.hooks.greensMowerLabelAt = (cx, cy, wx, wz) => {
+    const hero = heroReportAt(cx, cy, wx, wz);
+    const equipment = app.state.courseMaintenance.equipment.greensMower;
+    return hero
+      ? `Greens mower · ${hero.report.surfaceName} · ${hero.report.heightMm.toFixed(1)} mm · ${Math.abs(hero.report.heightMm - hero.report.targetHeightMm) < 0.1 ? 'at target' : `target ${hero.report.targetHeightMm.toFixed(1)}`} · blades ${equipment.bladesEngaged ? 'ON' : 'OFF [R]'}`
+      : 'Greens mower · assigned to Hole 4 · [F] next';
+  };
+  app.scene3d.walk.hooks.greensMowerAt = (cx, cy, dtSec, wx, wz, directionRad, speedYdPerSec) => {
+    const equipment = app.state.courseMaintenance.equipment.greensMower;
+    return app.scene3d.walk.hooks.mowAt(cx, cy, {
+      x: wx, z: wz, radiusYd: 0.78, mowerType: equipment.mowerType,
+      bladesEngaged: equipment.bladesEngaged, directionRad, speedYdPerSec,
+    });
+  };
+  app.scene3d.walk.hooks.engine = (on) => {
+    app.state.courseMaintenance.equipment.tractor.engineOn = !!on;
+    if (audio.ready) audio.setToolLoop(on ? 'mower' : null);
+  };
+  app.scene3d.walk.hooks.selectMaintenanceEquipment = (equipmentId) => {
+    const result = selectCourseMaintenanceEquipment(app.state, equipmentId);
+    if (result.ok && maintenancePanel) maintenancePanel.refresh(true);
+    return result;
+  };
+  app.scene3d.walk.hooks.maintenanceArrive = () => {
+    const first = app.state.courseMaintenance.route.arrivedAtMinute === null;
+    const result = markCourseMaintenanceRouteStep(app.state, 'arrive');
+    if (first && result.ok) toast('Maintenance yard reached. Review today’s board, then inspect Hole 4.');
+    if (maintenancePanel) maintenancePanel.refresh(true);
+    return result;
+  };
+  app.scene3d.walk.hooks.reviewMaintenance = () => {
+    const result = markCourseMaintenanceRouteStep(app.state, 'review');
+    if (!result.ok) toast(result.reason, 'warn');
+    else {
+      if (maintenancePanel) maintenancePanel.setVisible(true);
+      if (document.pointerLockElement) document.exitPointerLock();
+      toast('Work order reviewed. Start with inspection, then choose equipment.');
+    }
+    return result;
+  };
+  app.scene3d.walk.hooks.manageIrrigationHead = (headId) => {
+    const result = manageCourseMaintenanceIrrigationHead(app.state, headId);
+    if (!result.ok) toast(result.reason, 'warn');
+    else if (result.repaired) toast('Sprinkler head cleared. Interact again to run it.');
+    else toast(result.head.enabled ? 'Sprinkler running — monitor the moisture reading.' : 'Sprinkler shut off.');
+    refreshMaintenance();
+    return result;
+  };
+  app.scene3d.walk.hooks.flagDisease = () => {
+    flagCourseMaintenanceDisease(app.state);
+    refreshMaintenance();
+  };
+  app.scene3d.walk.hooks.finalizeMaintenance = () => {
+    refreshMaintenance();
+    autosave();
+  };
   app.plan = makePlan();
   app.worksMode = false;
   app.activeTool = null;
@@ -509,6 +928,8 @@ function startGame(state) {
   app.courseMode = 'walk'; // the course is experienced on foot; Tab for the overview
   if (walkOverlay) walkOverlay.style.display = 'none';
   lastHourSeen = -1;
+  lastPresentationMode = null;
+  frontDeskLessonSeen = false;
   tutLookSpan = 0;
   tutLastYaw = null;
   tutWalked = 0;
@@ -520,6 +941,10 @@ function startGame(state) {
   lastDiseasedNames = currentDiseasedSet(); // prime silently
   if (groundsPanel) groundsPanel.setVisible(false);
   if (worksPanel) worksPanel.setVisible(false);
+  if (maintenancePanel) {
+    maintenancePanel.setReport(null);
+    maintenancePanel.setVisible(!!state.courseMaintenance?.inspection.active);
+  }
   menu.setVisible(false);
   gameUi.style.display = '';
   hud.update();
@@ -553,42 +978,79 @@ function ensureLoadVeil() {
   if (loadVeil) return loadVeil;
   const el = document.createElement('div');
   el.className = 'load-veil';
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  el.setAttribute('aria-busy', 'false');
   el.innerHTML = `
     <div class="load-veil-card">
       <div class="load-veil-logo">GOLF EMPIRE</div>
       <div class="load-veil-title"></div>
-      <div class="load-veil-bar"><div class="load-veil-fill"></div></div>
+      <div class="load-veil-bar" role="progressbar" aria-label="Loading game" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><div class="load-veil-fill"></div></div>
       <div class="load-veil-step"></div>
+      <div class="load-veil-tip" aria-live="off"></div>
     </div>`;
   document.body.appendChild(el);
   const title = el.querySelector('.load-veil-title');
   const stepEl = el.querySelector('.load-veil-step');
   const fill = el.querySelector('.load-veil-fill');
+  const tip = el.querySelector('.load-veil-tip');
+  const progress = el.querySelector('[role="progressbar"]');
   const STEPS = ['Compiling shaders', 'Uploading textures', 'Warming the view'];
+  const TIPS = [
+    'Tap F for the next available tool; hold F to open the full tool belt.',
+    'P pauses from walking, checkout, the laptop, placement, or overview.',
+    'A clean, stocked shop gives the register work worth doing.',
+    'Manual save slots are separate from the Continue autosave.',
+  ];
+  let tipTimer = null;
+  let tipIndex = 0;
+  const showNextTip = () => {
+    tip.textContent = TIPS[tipIndex % TIPS.length];
+    tipIndex += 1;
+  };
   loadVeil = {
     show(t) {
       title.textContent = t || 'Loading';
       stepEl.textContent = 'Building the course';
       fill.style.width = '12%';
+      progress.setAttribute('aria-valuenow', '12');
+      if (tipTimer) clearInterval(tipTimer);
+      showNextTip();
+      tipTimer = setInterval(showNextTip, 2400);
+      el.setAttribute('aria-busy', 'true');
       el.style.display = 'flex';
       el.style.opacity = '1';
     },
     set(label) {
       stepEl.textContent = label;
       const i = STEPS.indexOf(label);
-      if (i >= 0) fill.style.width = `${25 + (i / STEPS.length) * 70}%`;
+      if (i >= 0) {
+        const value = Math.round(25 + (i / STEPS.length) * 70);
+        fill.style.width = `${value}%`;
+        progress.setAttribute('aria-valuenow', String(value));
+      }
     },
     hide() {
+      if (tipTimer) clearInterval(tipTimer);
+      tipTimer = null;
       fill.style.width = '100%';
+      progress.setAttribute('aria-valuenow', '100');
+      el.setAttribute('aria-busy', 'false');
       el.style.opacity = '0';
-      setTimeout(() => { el.style.display = 'none'; }, 420);
+      setTimeout(() => { el.style.display = 'none'; }, preferences.values.accessibility.reducedMotion ? 0 : 420);
     },
   };
   return loadVeil;
 }
 
 function exitToMenu() {
-  closePauseMenu();
+  closePauseMenu({ resume: false });
+  cancelToolKey();
+  if (app.frontDeskOpen) exitFrontDesk(true);
+  toolWheel?.close('menu');
+  clearNotifications();
+  audio.setToolLoop(null);
+  audio.setPaused(false);
   app.screen = 'menu';
   app.state = null;
   gameUi.style.display = 'none';
@@ -612,14 +1074,45 @@ async function autosave() {
   if (!app.empire) return;
   try {
     await saveData('autosave', empireSnapshot(app.empire));
-  } catch (e) {
-    console.error('autosave failed', e);
+    await saveData('autosave-meta', currentSaveMetadata());
+    return { ok: true };
+  } catch (error) {
+    notify({
+      message: 'Autosave could not write to disk. Open the pause menu and try a manual slot before leaving.',
+      category: 'save-failure',
+      persistent: true,
+      dedupeKey: 'autosave-failed',
+    });
+    if (audio.ready) audio.uiError();
+    console.error('autosave failed', error);
+    return { ok: false, error };
   }
+}
+
+function currentSaveMetadata() {
+  const state = app.state || activeState(app.empire);
+  return {
+    name: state?.clubName || 'Property market',
+    when: hudClockText(),
+    cash: app.empire?.cash ?? state?.cash ?? 0,
+    cond: state?.shop?.reno ? Math.round(state.shop.reno.condition) : null,
+    savedAt: Date.now(),
+  };
+}
+
+async function saveSlot(slot) {
+  if (!app.empire) throw new Error('There is no active empire to save.');
+  await saveData(slot, empireSnapshot(app.empire));
+  await saveData(`${slot}-meta`, currentSaveMetadata());
+  tutorialFlag(app.state, 'savedGame');
+  return currentSaveMetadata();
 }
 
 // --- handlers -------------------------------------------------------------------
 
 const handlers = {
+  getPresentationMode: presentationMode,
+  getToolActivation: () => preferences.values.accessibility.toolActivation,
   setSpeed(i) {
     app.speedIdx = i;
   },
@@ -641,6 +1134,7 @@ const handlers = {
     inspectPanel.hide();
     const hint = document.querySelector('.hint-bar');
     if (hint) hint.style.display = app.worksMode ? 'none' : '';
+    syncPresentationMode(presentationMode());
   },
   toggleGrounds() {
     const next = !app.groundsOpen;
@@ -664,10 +1158,12 @@ const handlers = {
       if (app.worksMode) handlers.toggleWorks(); // plans belong to the overview
       enterWalk('resume');
     }
+    syncPresentationMode(presentationMode());
   },
   setViewMode(mode) {
     app.viewMode = mode;
     app.scene3d.setViewMode(mode);
+    viewButtons.forEach((button) => button.classList.toggle('active-tool', button.dataset.mode === mode));
   },
   setTool(tool) {
     app.activeTool = tool;
@@ -736,6 +1232,7 @@ const handlers = {
       return { closeMarket: true };
     }
     if (app.empireOpen) empirePanel.refresh();
+    syncPresentationMode(presentationMode());
     hud.update();
     autosave();
     return {};
@@ -750,10 +1247,10 @@ const handlers = {
     startGame(activeState(app.empire));
     autosave();
   },
-  sellHolding(propertyId, prevSpeed = 1) {
+  sellHolding(propertyId, prevSpeed = 1, appraisalId = null) {
     const empire = app.empire;
     const wasActive = empire.activeId === propertyId;
-    const res = sellProperty(empire, propertyId);
+    const res = confirmPropertySale(empire, propertyId, appraisalId, true);
     if (!res.ok) {
       toast(res.reason, 'warn');
       app.speedIdx = prevSpeed || 1;
@@ -788,32 +1285,51 @@ const handlers = {
 const SLOTS = ['slot1', 'slot2', 'slot3'];
 let pauseUi = null;
 let pausePrevSpeed = 1;
+let pauseHadPointerLock = false;
+let releasePauseFocus = () => {};
+const SAVE_LIMITS = { empireVersion: EMPIRE_VERSION, saveVersion: SAVE_VERSION };
 
-const SETTINGS_KEY = 'gc-settings';
-const settings = { renderScale: 1, ao: true, bloom: true, fov: 60, sens: 1 };
-try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { /* fresh */ }
-function saveSettings() {
-  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* private mode */ }
-}
 function applySettings() {
+  const values = preferences.values;
+  applyDocumentPreferences(values);
+  audio.applyPreferences();
+  if (laptopUi) laptopUi.setScale(values.display.uiScale);
   if (!app.scene3d) return;
-  app.scene3d.renderer.setPixelRatio(Math.min(2.5, (window.devicePixelRatio || 1) * (settings.renderScale || 1)));
+  app.scene3d.renderer.setPixelRatio(Math.min(2.5, (window.devicePixelRatio || 1) * values.display.renderScale));
+  app.scene3d.renderer.shadowMap.enabled = values.display.shadows;
   app.scene3d.resize();
   if (app.scene3d.post) {
-    if (app.scene3d.post.gtao) app.scene3d.post.gtao.enabled = settings.ao !== false;
-    if (app.scene3d.post.bloom) app.scene3d.post.bloom.enabled = settings.bloom !== false;
+    if (app.scene3d.post.gtao) app.scene3d.post.gtao.enabled = values.display.ambientOcclusion;
+    if (app.scene3d.post.bloom) app.scene3d.post.bloom.enabled = values.display.bloom;
   }
-  app.scene3d.camera.fov = settings.fov || 60;
-  app.scene3d.camera.updateProjectionMatrix();
-  if (app.scene3d.walk && app.scene3d.walk.state) app.scene3d.walk.state.sens = settings.sens || 1;
+  app.scene3d.walk?.configure?.({
+    sensitivity: values.camera.sensitivity,
+    invertY: values.camera.invertY,
+    fov: values.camera.fov,
+    cameraBob: values.camera.bob,
+    reducedMotion: values.accessibility.reducedMotion,
+  });
 }
 
+preferences.subscribe(() => applySettings());
+
 function isPauseOpen() { return !!pauseUi; }
-function closePauseMenu() {
+function closePauseMenu({ resume = true } = {}) {
   if (!pauseUi) return;
+  releasePauseFocus();
+  releasePauseFocus = () => {};
   pauseUi.remove();
   pauseUi = null;
-  if (app.screen === 'game') app.speedIdx = pausePrevSpeed || 1;
+  document.body.classList.remove('pause-open');
+  gameUi?.classList.remove('is-obscured');
+  gameUi?.removeAttribute('aria-hidden');
+  audio.setPaused(false);
+  if (resume && app.screen === 'game') {
+    app.speedIdx = pausePrevSpeed ?? 1;
+    if (pauseHadPointerLock && !regActive() && !app.laptopOpen) requestLook();
+  }
+  pauseHadPointerLock = false;
+  syncPresentationMode(presentationMode());
 }
 function togglePauseMenu() { if (pauseUi) closePauseMenu(); else openPauseMenu(); }
 
@@ -829,19 +1345,31 @@ function keycaps(...keys) {
 }
 
 function openPauseMenu() {
-  resetCameraInput(); // whatever was down when you hit Esc stays down no longer
   if (pauseUi || app.screen !== 'game') return;
-  pausePrevSpeed = app.speedIdx || 1;
+  toolWheel?.close('pause');
+  cancelToolKey();
+  resetCameraInput();
+  pauseHadPointerLock = document.pointerLockElement === canvas;
+  if (document.pointerLockElement) document.exitPointerLock();
+  pausePrevSpeed = app.speedIdx;
   app.speedIdx = 0;
+  audio.setPaused(true);
+  document.body.classList.add('pause-open');
+  gameUi?.classList.add('is-obscured');
+  gameUi?.setAttribute('aria-hidden', 'true');
 
   const content = el('div', { class: 'pause-content' });
   const nav = el('div', { class: 'pause-nav' });
   const navBtns = new Map();
+  const status = el('div', { class: 'pause-status', role: 'status', 'aria-live': 'polite', text: 'Gameplay paused' });
 
   const setPage = (key) => {
     for (const [k, b] of navBtns) b.classList.toggle('active', k === key);
     content.replaceChildren();
     PAGES[key](content);
+    content.scrollTop = 0;
+    content.querySelector('button, input, select')?.focus({ preventScroll: true });
+    if (audio.ready) audio.uiTick();
   };
   const navItem = (key, label, action) => {
     const b = el('button', { class: 'pause-nav-btn', text: label, onclick: action || (() => setPage(key)) });
@@ -850,124 +1378,138 @@ function openPauseMenu() {
     return b;
   };
 
-  function slotRow(container, mode) {
+  async function slotRecord(slot) {
+    const [record, metadata] = await Promise.all([inspectData(slot, SAVE_LIMITS), inspectData(`${slot}-meta`)]);
+    return { record, summary: record.data ? summarizeSave(record.data, metadata.data) : null };
+  }
+
+  function saveDescription(record, summary) {
+    if (record.status === 'missing') return 'Empty — ready for a new save';
+    if (record.status === 'corrupt') return 'Unreadable — saving here will preserve the damaged copy as a backup';
+    if (record.status === 'unsupported') return `Created by newer version ${record.version}`;
+    const when = summary?.savedAt ? new Date(summary.savedAt).toLocaleString() : 'time not recorded';
+    return `${summary?.clubName || 'Saved restoration'} · Day ${summary?.day || '?'} at ${summary?.clock || '?'} · ${formatMoney(summary?.cash || 0)} · ${when}`
+      + (record.status === 'recovered' ? ' · previous backup recovered' : '');
+  }
+
+  function slotRows(container, mode) {
     container.append(el('div', {
       class: 'pause-hint',
-      text: mode === 'save' ? 'Three slots. Saving overwrites the slot.' : 'Load returns you to the moment you saved.',
+      text: mode === 'save'
+        ? 'Three manual slots. Existing saves ask before they are replaced.'
+        : 'Loading returns to the saved moment and discards progress since your last save.',
     }));
-    SLOTS.forEach((slot, i) => {
-      const card = el('div', { class: 'slot-card' },
-        el('div', { class: 'slot-name', text: `Slot ${i + 1}` }),
-        el('div', { class: 'slot-meta', text: '…' }),
+    SLOTS.forEach((slot, index) => {
+      const meta = el('div', { class: 'slot-meta', text: 'Checking slot…' });
+      const action = el('button', { class: `slot-act${mode === 'save' ? ' primary' : ''}`, text: mode === 'save' ? 'Save here' : 'Load', disabled: true });
+      const card = el('div', { class: 'slot-card', 'aria-busy': 'true' },
+        el('div', { class: 'slot-name', text: `Slot ${index + 1}` }), meta, action,
       );
-      const act = el('button', {
-        class: mode === 'save' ? 'slot-act primary' : 'slot-act',
-        text: mode === 'save' ? 'Save here' : 'Load',
-        onclick: async () => {
-          if (mode === 'save') {
-            await saveData(slot, empireSnapshot(app.empire));
-            const st = app.state;
-            tutorialFlag(st, 'savedGame');
-            await saveData(`${slot}-meta`, {
-              name: st.clubName, when: hudClockText(), cash: st.cash,
-              cond: st.shop && st.shop.reno ? Math.round(st.shop.reno.condition) : null,
-              savedAt: Date.now(),
-            });
-            toast(`Saved to slot ${i + 1}.`);
-            setPage('save');
-          } else {
-            const data = await loadData(slot);
-            if (!data) { toast(`Slot ${i + 1} is empty.`, 'warn'); return; }
-            closePauseMenu();
-            bootEmpire(deserializeEmpire(data));
-          }
-        },
-      });
-      card.append(act);
       container.append(card);
-      loadData(`${slot}-meta`).then((meta) => {
-        const line = card.querySelector('.slot-meta');
-        if (!meta) {
-          line.textContent = 'Empty';
-          if (mode === 'load') act.disabled = true;
-          return;
-        }
-        const when = new Date(meta.savedAt).toLocaleString();
-        line.textContent = `${meta.name} — ${meta.when} — ${formatMoney(meta.cash)}`
-          + (meta.cond != null ? ` — shop ${meta.cond}` : '') + `  ·  saved ${when}`;
-      }).catch(() => { card.querySelector('.slot-meta').textContent = 'Empty'; });
+      slotRecord(slot).then(({ record, summary }) => {
+        if (!card.isConnected) return;
+        card.setAttribute('aria-busy', 'false');
+        meta.textContent = saveDescription(record, summary);
+        action.disabled = mode === 'load' && !['ok', 'recovered'].includes(record.status);
+        if (mode === 'save') action.disabled = false;
+        action.onclick = () => {
+          if (mode === 'save') {
+            const write = async () => {
+              action.disabled = true;
+              card.dataset.state = 'saving';
+              meta.textContent = 'Saving…';
+              status.textContent = `Saving slot ${index + 1}…`;
+              try {
+                await saveSlot(slot);
+                status.textContent = `Saved to slot ${index + 1}`;
+                notify({ message: `Saved to slot ${index + 1}.`, category: 'save-success', dedupeKey: `saved-${slot}` });
+                audio.uiConfirm?.();
+                objectivesPanel.refresh();
+                setPage('save');
+                return true;
+              } catch (error) {
+                action.disabled = false;
+                card.dataset.state = 'error';
+                meta.textContent = 'Save failed — your previous slot is still preserved. Check storage access and try another slot.';
+                status.textContent = `Slot ${index + 1} could not be saved`;
+                notify({ message: `Slot ${index + 1} could not be saved. Your previous copy was preserved.`, category: 'save-failure', persistent: true, dedupeKey: `save-failed-${slot}` });
+                audio.uiError?.();
+                console.error(`save ${slot} failed`, error);
+                return false;
+              }
+            };
+            if (record.status !== 'missing') {
+              confirmDialog({
+                title: `Replace slot ${index + 1}?`,
+                message: summary?.clubName || 'This slot already contains save data.',
+                detail: 'The existing copy moves to the recovery backup before the new save is written.',
+                confirmLabel: 'Replace and save', danger: true, onConfirm: write,
+              });
+            } else write();
+            return;
+          }
+          confirmDialog({
+            title: `Load slot ${index + 1}?`,
+            message: summary?.clubName || 'Load this restoration?',
+            detail: 'Progress since your last save will be lost.',
+            confirmLabel: 'Load game',
+            onConfirm: async () => {
+              try {
+                const empire = deserializeEmpire(record.data);
+                closePauseMenu({ resume: false });
+                bootEmpire(empire);
+                return true;
+              } catch (error) {
+                notify({ message: 'That save could not be opened. Try another slot; the file has not been changed.', category: 'invalid', persistent: true });
+                audio.uiError?.();
+                console.error(`load ${slot} failed`, error);
+                return false;
+              }
+            },
+          });
+        };
+      }).catch((error) => {
+        card.setAttribute('aria-busy', 'false');
+        card.dataset.state = 'error';
+        meta.textContent = 'This slot could not be checked.';
+        action.disabled = mode === 'load';
+        console.error(`inspect ${slot} failed`, error);
+      });
     });
   }
 
-  function settingRow(label, control) {
-    return el('div', { class: 'set-row' }, el('div', { class: 'set-label', text: label }), control);
-  }
-
   const PAGES = {
-    save: (c) => slotRow(c, 'save'),
-    load: (c) => slotRow(c, 'load'),
-    settings: (c) => {
+    home: (c) => {
+      const summary = summarizeSave(empireSnapshot(app.empire), currentSaveMetadata());
       c.append(
-        settingRow('Volume', el('div', { class: 'set-ctl' },
-          el('input', {
-            type: 'range', min: '0', max: '1', step: '0.05', value: String(audio.getVolume()),
-            oninput: (e) => audio.setVolume(Number(e.target.value)),
-          }),
-          el('button', {
-            class: 'chip-btn',
-            text: audio.isMuted() ? 'Unmute' : 'Mute',
-            onclick: (e) => { audio.setMuted(!audio.isMuted()); e.target.textContent = audio.isMuted() ? 'Unmute' : 'Mute'; },
-          }),
-        )),
-        settingRow('Difficulty', el('div', { class: 'set-ctl' }, ...['relaxed', 'realistic'].map((m) =>
-          el('button', {
-            class: `chip-btn${app.state.mode === m ? ' on' : ''}`,
-            text: m === 'relaxed' ? 'Relaxed' : 'Realistic',
-            onclick: () => { app.state.mode = m; setPage('settings'); },
-          })))),
-        settingRow('Render scale', el('div', { class: 'set-ctl' }, ...[0.75, 1, 1.25].map((v) =>
-          el('button', {
-            class: `chip-btn${settings.renderScale === v ? ' on' : ''}`,
-            text: `${Math.round(v * 100)}%`,
-            onclick: () => { settings.renderScale = v; saveSettings(); applySettings(); setPage('settings'); },
-          })))),
-        settingRow('Ambient occlusion', el('div', { class: 'set-ctl' },
-          el('button', {
-            class: `chip-btn${settings.ao !== false ? ' on' : ''}`,
-            text: settings.ao !== false ? 'On' : 'Off',
-            onclick: () => { settings.ao = settings.ao === false; saveSettings(); applySettings(); setPage('settings'); },
-          }))),
-        settingRow('Bloom', el('div', { class: 'set-ctl' },
-          el('button', {
-            class: `chip-btn${settings.bloom !== false ? ' on' : ''}`,
-            text: settings.bloom !== false ? 'On' : 'Off',
-            onclick: () => { settings.bloom = settings.bloom === false; saveSettings(); applySettings(); setPage('settings'); },
-          }))),
-        settingRow('Field of view', el('div', { class: 'set-ctl' },
-          el('input', {
-            type: 'range', min: '50', max: '90', step: '1', value: String(settings.fov || 60),
-            oninput: (e) => { settings.fov = Number(e.target.value); saveSettings(); applySettings(); },
-          }),
-          el('span', { class: 'set-val', text: `${settings.fov || 60}°` }),
-        )),
-        settingRow('Mouse sensitivity', el('div', { class: 'set-ctl' },
-          el('input', {
-            type: 'range', min: '0.4', max: '2', step: '0.1', value: String(settings.sens || 1),
-            oninput: (e) => { settings.sens = Number(e.target.value); saveSettings(); applySettings(); },
-          }),
-        )),
-        settingRow('Tutorial', el('div', { class: 'set-ctl' },
-          el('button', {
-            class: 'chip-btn',
-            text: app.state.tutorial && app.state.tutorial.complete ? 'Replay the guide' : 'Skip the guide',
-            onclick: () => {
-              if (app.state.tutorial && app.state.tutorial.complete) replayTutorial(app.state);
-              else skipTutorial(app.state);
-              objectivesPanel.refresh();
-              setPage('settings');
-            },
-          }))),
+        el('div', { class: 'pause-overview' },
+          el('div', { class: 'pause-overview-kicker', text: 'Current restoration' }),
+          el('h2', { text: summary?.clubName || app.state?.clubName || 'Golf Empire' }),
+          el('p', { text: `${summary?.propertyName || ''} · Day ${summary?.day || 1}, ${summary?.clock || ''} · ${formatMoney(summary?.cash || 0)}` }),
+        ),
+        el('button', { class: 'pause-resume-primary', text: 'Resume game', onclick: () => closePauseMenu() }),
+        el('div', { class: 'pause-hint', text: 'The simulation clock, tools, and looping effects remain paused while this menu is open.' }),
       );
+    },
+    save: (c) => slotRows(c, 'save'),
+    load: (c) => slotRows(c, 'load'),
+    settings: (c) => {
+      c.append(makeSettingsPanel({
+        preferences,
+        audio,
+        apply: applySettings,
+        tutorialEnabled: !!(app.state?.tutorial && !app.state.tutorial.complete),
+        onResetTutorials: () => {
+          replayTutorial(app.state);
+          objectivesPanel.refresh();
+          notify({ message: 'Contextual tutorials reset. Lessons will return when their activity is next used.', category: 'objective' });
+        },
+        onDisableTutorials: () => {
+          skipTutorial(app.state);
+          objectivesPanel.refresh();
+          notify({ message: 'Tutorial guidance disabled. Reset it here at any time.', category: 'info' });
+        },
+      }));
     },
     controls: (c) => {
       const group = (title, rows) => {
@@ -981,27 +1523,30 @@ function openPauseMenu() {
         el('div', { class: 'ctl-cols' },
           group('Move', [
             ['Walk', 'W', 'A', 'S', 'D'], ['Run', 'Shift'], ['Look around', 'Mouse'],
-            ['Capture the mouse', 'Click'], ['Overview camera', 'Tab'],
+            ['Capture the mouse', 'Click'], ['Course overview', 'Tab'],
           ]),
           group('Hands', [
-            ['Interact · doors · laptop', 'E'], ['Pick up / set down a box', 'E'],
-            ['Cycle tool', 'F'], ['Use tool', 'Hold LMB'],
+            ['Context action', 'E'], ['Tool belt: tap / hold', 'F'],
+            ['Previous tool', 'Q'], ['Use selected tool', 'LMB'],
+            ['Placement mode', 'B'], ['Rotate placement', 'R'],
           ]),
           group('Time & views', [
-            ['Pause', 'Space'], ['Speed', '1', '2', '3'], ['Data views', 'V'],
+            ['Pause menu', 'P', 'Esc'], ['Pause simulation clock', 'Space'],
+            ['Simulation speed', '1', '2', '3'], ['Course data view', 'V'],
           ]),
-          group('Desks', [
-            ['Grounds desk', 'G'], ['Club office', 'C'], ['Empire', 'M'], ['This menu', 'Esc'],
+          group('Management', [
+            ['Grounds desk', 'G'], ['Club office', 'C'], ['Empire overview', 'M'],
+            ['Leave laptop / register step back', 'Esc'],
           ]),
         ),
       );
     },
-    office: (c) => {
+    exit: (c) => {
       c.append(
-        el('div', { class: 'pause-hint', text: 'Management shortcuts and the way out.' }),
+        el('div', { class: 'pause-hint', text: 'Recovery and session controls. Leaving the game always asks first.' }),
         el('button', {
           class: 'pause-wide',
-          text: '🧭 Get me unstuck',
+          text: 'Move me to a safe position',
           onclick: () => {
             const w = app.scene3d && app.scene3d.walk;
             if (!w || !w.unstick) return;
@@ -1011,25 +1556,60 @@ function openPauseMenu() {
           },
         }),
         el('button', {
-          class: 'pause-wide',
-          text: 'Empire overview',
-          onclick: () => { closePauseMenu(); handlers.toggleEmpire(); },
-        }),
-        el('button', {
           class: 'pause-wide danger',
-          text: 'Exit to main menu (autosaves)',
-          onclick: async () => { await autosave(); closePauseMenu(); exitToMenu(); },
+          text: 'Return to main menu',
+          onclick: () => confirmDialog({
+            title: 'Return to main menu?',
+            message: 'Save the current restoration and leave this session?',
+            detail: 'If saving fails, the game will keep this menu open so you can choose a manual slot.',
+            confirmLabel: 'Save and return',
+            danger: true,
+            onConfirm: async () => {
+              const result = await autosave();
+              if (!result?.ok) return false;
+              closePauseMenu({ resume: false });
+              exitToMenu();
+              return true;
+            },
+          }),
         }),
+        window.fairwayNative?.quit ? el('button', {
+          class: 'pause-wide danger',
+          text: 'Save and quit to desktop',
+          onclick: () => confirmDialog({
+            title: 'Quit Golf Empire?',
+            message: 'Save this restoration and return to the desktop?',
+            detail: 'The game will not quit if the autosave fails.',
+            confirmLabel: 'Save and quit', danger: true,
+            onConfirm: async () => {
+              const result = await autosave();
+              if (!result?.ok) return false;
+              await window.fairwayNative.quit();
+              return true;
+            },
+          }),
+        }) : null,
       );
     },
   };
 
   navItem('resume', 'Resume', () => closePauseMenu());
+  navItem('home', 'Overview');
   navItem('save', 'Save game');
   navItem('load', 'Load game');
   navItem('settings', 'Settings');
   navItem('controls', 'Controls');
-  navItem('office', 'Office');
+  navItem('exit', 'Session');
+  nav.addEventListener('keydown', (event) => {
+    if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const buttons = [...nav.querySelectorAll('button')];
+    let index = buttons.indexOf(document.activeElement);
+    if (event.key === 'Home') index = 0;
+    else if (event.key === 'End') index = buttons.length - 1;
+    else index = (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
+    buttons[index]?.focus();
+  });
 
   const panel = el('div', { class: 'pause-panel' },
     el('div', { class: 'pause-head' },
@@ -1037,11 +1617,20 @@ function openPauseMenu() {
       el('div', { class: 'pause-word', text: 'PAUSED' }),
     ),
     el('div', { class: 'pause-body' }, nav, content),
+    el('div', { class: 'pause-footer' }, status, el('span', { text: 'P or Esc resumes' })),
   );
-  pauseUi = el('div', { class: 'pause-veil-ui' }, panel);
-  pauseUi.addEventListener('pointerdown', (e) => { if (e.target === pauseUi) closePauseMenu(); });
+  pauseUi = el('div', { class: 'pause-veil-ui', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Pause menu' }, panel);
+  pauseUi.addEventListener('pointerdown', (event) => event.stopPropagation());
+  pauseUi.addEventListener('keydown', (event) => {
+    if (event.key !== 'p' && event.key !== 'P') return;
+    event.preventDefault();
+    event.stopPropagation();
+    closePauseMenu();
+  }, true);
   document.getElementById('ui').append(pauseUi);
-  setPage('save');
+  releasePauseFocus = containFocus(panel, { onEscape: () => closePauseMenu(), initialFocus: navBtns.get('home') });
+  setPage('home');
+  syncPresentationMode('pause');
 }
 
 // --- input ------------------------------------------------------------------------
@@ -1110,10 +1699,137 @@ function regActive() {
   return !!(r && r.isActive());
 }
 
+let toolKeyTimer = null;
+let toolKeyStarted = 0;
+let toolHoldOpened = false;
+let previousWalkTool = null;
+
+function walkToolEntries() {
+  const walk = app.scene3d?.walk;
+  const clubhouse = app.scene3d?.clubhouse?.();
+  const inside = !!(walk && clubhouse?.isInside(walk.state.x, walk.state.z));
+  const washer = app.state ? ownedWasher(app.state) : null;
+  const hands = { id: null, label: 'Hands free', icon: '○', detail: 'Interact, carry, and inspect' };
+  if (inside) return [
+    hands,
+    {
+      id: 'vacuum', label: 'Shop vacuum', icon: 'V',
+      available: !!(app.state && vacuumOwned(app.state)),
+      reason: 'Order a shop vacuum from the laptop',
+      detail: 'Cleans floor grime inside the shop',
+    },
+  ];
+  return [
+    hands,
+    {
+      id: 'washer', label: washer?.name || 'Pressure washer', icon: 'W',
+      detail: 'LMB washes · RMB applies soap',
+    },
+    { id: 'hose', label: 'Watering hose', icon: 'H', detail: 'Raises live turf moisture' },
+    { id: 'divot', label: 'Divot kit', icon: 'D', detail: 'Repairs worn turf patches' },
+    { id: 'ballmark', label: 'Ball-mark fork', icon: 'B', detail: 'Repairs ball marks on greens' },
+    { id: 'rake', label: 'Bunker rake', icon: 'R', detail: 'Smooths footprinted sand' },
+    { id: 'debris', label: 'Debris bag', icon: 'G', detail: 'Clears loose course debris' },
+    { id: 'fungicide', label: 'Treatment sprayer', icon: 'T', detail: 'Treats active disease after inspection' },
+    { id: 'spreader', label: 'Rotary spreader', icon: 'S', detail: 'Applies fertilizer by coverage' },
+    { id: 'greensMower', label: 'Greens mower', icon: 'M', detail: 'Press R for blades, then mow a real path' },
+  ];
+}
+
+function selectWalkTool(tool) {
+  const walk = app.scene3d?.walk;
+  if (!walk) return;
+  const current = walk.getTool();
+  if (current !== tool) previousWalkTool = current;
+  stopToolUse();
+  walk.setTool(tool);
+  const equipmentId = MAINTENANCE_EQUIPMENT_FOR_TOOL[tool];
+  if (equipmentId && walk.hooks.selectMaintenanceEquipment) {
+    const result = walk.hooks.selectMaintenanceEquipment(equipmentId);
+    if (result && result.ok === false) {
+      toast(result.reason, 'warn');
+      walk.setTool(current);
+      return;
+    }
+  }
+  if (audio.ready) audio.equipTick();
+  if (app.state) {
+    tutorialFlag(app.state, 'toolSelected');
+    if (tool === 'vacuum') triggerContextTutorial(app.state, 'cleaning-tools');
+    else if (['washer', 'hose', 'divot', 'ballmark', 'rake', 'debris', 'fungicide', 'spreader', 'greensMower'].includes(tool)) {
+      triggerContextTutorial(app.state, 'maintenance-tools');
+    }
+  }
+  objectivesPanel?.refresh();
+  hud?.update();
+}
+
+function cycleWalkTool() {
+  const entries = walkToolEntries().filter((entry) => entry.available !== false);
+  if (!entries.length) return;
+  const current = app.scene3d.walk.getTool();
+  const index = entries.findIndex((entry) => entry.id === current);
+  selectWalkTool(entries[(index + 1 + entries.length) % entries.length].id);
+}
+
+function showToolWheel() {
+  if (!walkActive() || regActive() || app.frontDeskOpen || app.laptopOpen || buildApi()?.isActive() || isPauseOpen()) return;
+  toolHoldOpened = true;
+  resetCameraInput();
+  stopToolUse();
+  if (document.pointerLockElement) document.exitPointerLock();
+  triggerContextTutorial(app.state, 'tool-wheel');
+  objectivesPanel.refresh();
+  toolWheel.show(walkToolEntries(), app.scene3d.walk.getTool());
+}
+
+function beginToolKey(event) {
+  if (event.repeat || toolKeyTimer || toolWheel?.isOpen()) return;
+  toolKeyStarted = performance.now();
+  toolHoldOpened = false;
+  toolKeyTimer = setTimeout(() => {
+    toolKeyTimer = null;
+    showToolWheel();
+  }, 230);
+}
+
+function endToolKey() {
+  if (toolKeyTimer) {
+    clearTimeout(toolKeyTimer);
+    toolKeyTimer = null;
+  }
+  if (toolKeyStarted > 0 && !toolHoldOpened && performance.now() - toolKeyStarted < 500 && walkActive()) cycleWalkTool();
+  toolKeyStarted = 0;
+  toolHoldOpened = false;
+}
+
+function cancelToolKey() {
+  if (toolKeyTimer) clearTimeout(toolKeyTimer);
+  toolKeyTimer = null;
+  toolKeyStarted = 0;
+  toolHoldOpened = false;
+  stopToolUse();
+}
+
+const MAINTENANCE_STROKE_TOOLS = new Set([
+  'hose', 'divot', 'ballmark', 'rake', 'debris', 'fungicide', 'spreader', 'greensMower',
+]);
+
+function stopToolUse() {
+  const walk = app.scene3d?.walk;
+  if (!walk) return;
+  const completedMaintenanceStroke = !!(walk.isSpraying()
+    && MAINTENANCE_STROKE_TOOLS.has(walk.getTool()));
+  walk.setSpraying(false);
+  walk.setSoaping?.(false);
+  audio.setToolLoop(null);
+  if (completedMaintenanceStroke) walk.hooks.finalizeMaintenance?.();
+}
+
 canvas.addEventListener('click', () => {
   // first-person walking: clicking (re)captures the mouse — but NOT while the player
   // is behind the till, where the cursor is the whole interface
-  if (regActive()) return;
+  if (regActive() || app.frontDeskOpen || toolWheel?.isOpen() || isPauseOpen()) return;
   if (app.screen === 'game' && !document.pointerLockElement && walkActive()) {
     requestLook();
   }
@@ -1121,24 +1837,38 @@ canvas.addEventListener('click', () => {
 
 canvas.addEventListener('pointerdown', (e) => {
   if (app.screen !== 'game') return;
+  if (app.frontDeskOpen || toolWheel?.isOpen() || isPauseOpen()) { e.preventDefault(); return; }
   if (regActive()) { e.preventDefault(); regApi().onDown(e); return; }
   if (app.courseMode !== 'overview') {
     // walking with any tool out: the held button is the use trigger
     const bld = buildApi();
     if (bld && bld.isActive()) {
+      // The first click after closing the catalog is only allowed to recapture
+      // look control. Treating that same gesture as placement could commit a sofa
+      // while the player was merely dismissing "Click to play".
+      if (!document.pointerLockElement) {
+        requestLook();
+        return;
+      }
       if (e.button === 0) bld.interact(); // put it down where you're pointing
       else if (e.button === 2) bld.cancel(); // changed your mind
       return;
     }
     const tool = walkActive() && app.scene3d.walk.getTool();
     if (e.button === 0 && tool) {
-      app.scene3d.walk.setSpraying(true);
-      if (audio.ready) audio.setToolLoop(tool);
+      const toggle = preferences.values.accessibility.toolActivation === 'toggle';
+      const active = toggle ? !app.scene3d.walk.isSpraying() : true;
+      if (active) {
+        app.scene3d.walk.setSpraying(true);
+        if (audio.ready) audio.setToolLoop(TOOL_AUDIO_LOOP[tool] || tool);
+      } else stopToolUse();
     } else if (e.button === 2 && tool === 'washer') {
       // right button on the washer lays soap, for the stains water alone won't touch
       e.preventDefault();
-      app.scene3d.walk.setSoaping(true);
-      if (audio.ready) audio.setToolLoop('soap');
+      const toggle = preferences.values.accessibility.toolActivation === 'toggle';
+      const active = toggle ? !app.scene3d.walk.isSoaping() : true;
+      app.scene3d.walk.setSoaping(active);
+      if (audio.ready) audio.setToolLoop(active ? 'soap' : null);
     }
     return;
   }
@@ -1197,9 +1927,7 @@ canvas.addEventListener('pointermove', (e) => {
 
 window.addEventListener('pointerup', (e) => {
   if (regActive()) { regApi().onUp(e); return; }
-  if (walkActive() && app.scene3d.walk.isSpraying()) app.scene3d.walk.setSpraying(false);
-  if (walkActive() && app.scene3d.walk.isSoaping && app.scene3d.walk.isSoaping()) app.scene3d.walk.setSoaping(false);
-  if (audio.ready) audio.setToolLoop(null);
+  if (preferences.values.accessibility.toolActivation === 'hold') stopToolUse();
 });
 
 canvas.addEventListener('pointerup', () => {
@@ -1226,6 +1954,30 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 window.addEventListener('keydown', (e) => {
   if (app.screen !== 'game') return;
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+
+  // The pause shell owns every key while open. P is a universal pause key in
+  // register, laptop, placement, overview, and ordinary walk; Esc remains the
+  // contextual "step back" key where those modes need it.
+  if (isPauseOpen()) {
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+      e.preventDefault();
+      closePauseMenu();
+    }
+    return;
+  }
+  if (e.key === 'p' || e.key === 'P') {
+    e.preventDefault();
+    openPauseMenu();
+    return;
+  }
+  if (app.frontDeskOpen) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      exitFrontDesk();
+    }
+    return;
+  }
+  if (toolWheel?.isOpen()) return;
 
   // BEHIND THE TILL, THE TILL OWNS THE KEYBOARD. This sits above even the speed keys
   // and Tab, deliberately: Tab would swap to the overview camera while the cashier
@@ -1261,14 +2013,49 @@ window.addEventListener('keydown', (e) => {
   }
 
   if (walkActive()) {
-    // build mode owns the verbs while it is on: E places, R turns, X stows
+    // Renovation mode owns customization keys while leaving WASD as the familiar
+    // first-person movement scheme. A preview is state-free until E/LMB confirms.
     const bld = buildApi();
     if (bld && bld.isActive()) {
+      if (e.ctrlKey && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) bld.redo(); else bld.undo();
+        return;
+      }
+      if (e.ctrlKey && !e.altKey && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        bld.redo();
+        return;
+      }
+      if (bld.isCatalogOpen()) {
+        if (e.key === 'i' || e.key === 'I' || e.key === 'Escape') {
+          e.preventDefault();
+          bld.toggleCatalog();
+        } else if (e.key === 'b' || e.key === 'B') {
+          e.preventDefault();
+          bld.exit();
+          toast('Renovation mode finished.');
+        }
+        return;
+      }
       switch (e.key) {
-        case 'e': case 'E': bld.interact(); return;
-        case 'r': case 'R': bld.rotate(); return;
-        case 'x': case 'X': bld.stow(); return;
-        case 'b': case 'B': bld.exit(); toast('Back to work.'); return;
+        case 'e': case 'E': e.preventDefault(); bld.interact(); return;
+        case 'r': case 'R': e.preventDefault(); bld.rotate(e.shiftKey ? -1 : 1); return;
+        case 'x': case 'X': e.preventDefault(); bld.stow(); return;
+        case 'Delete': e.preventDefault(); bld.sellById(); return;
+        case 'g': case 'G': e.preventDefault(); bld.toggleGrid(); return;
+        case 't': case 'T': e.preventDefault(); bld.toggleRotationSnap(); return;
+        case 'i': case 'I': e.preventDefault(); bld.toggleCatalog(); return;
+        case 'o': case 'O': e.preventDefault(); bld.returnOriginal(); return;
+        // The walk controller also offers arrow-key look as an accessibility
+        // fallback. In renovation mode these keystrokes belong exclusively to
+        // furniture nudging; letting the same event reach that second window
+        // listener rotates the camera and moves the view ray against the nudge.
+        case 'ArrowUp': e.preventDefault(); e.stopImmediatePropagation(); bld.nudge('up', e.shiftKey); return;
+        case 'ArrowDown': e.preventDefault(); e.stopImmediatePropagation(); bld.nudge('down', e.shiftKey); return;
+        case 'ArrowLeft': e.preventDefault(); e.stopImmediatePropagation(); bld.nudge('left', e.shiftKey); return;
+        case 'ArrowRight': e.preventDefault(); e.stopImmediatePropagation(); bld.nudge('right', e.shiftKey); return;
+        case 'b': case 'B': e.preventDefault(); bld.exit(); toast('Renovation mode finished.'); return;
         case 'Escape':
           if (bld.isCarrying()) bld.cancel();
           else bld.exit();
@@ -1292,45 +2079,40 @@ window.addEventListener('keydown', (e) => {
           break;
         }
         ch.build.enter();
+        triggerContextTutorial(app.state, 'placement');
+        objectivesPanel.refresh();
         break;
       }
       case 'r': case 'R': {
+        const bladeResult = app.scene3d.walk.toggleBlades?.();
+        if (bladeResult?.handled) {
+          toast(bladeResult.enabled ? `${bladeResult.label} blades engaged.` : `${bladeResult.label} blades disengaged.`);
+          if (audio.ready) audio.setToolLoop(bladeResult.enabled ? 'mower' : null);
+          if (maintenancePanel) maintenancePanel.refresh(true);
+          break;
+        }
         // at the register in Realistic mode, R hands over the counted change
         const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
         if (ch && ch.confirmChange) ch.confirmChange();
         break;
       }
       case 'f': case 'F': {
-        const walkApi = app.scene3d.walk;
-        if (!walkApi.cart.mounted) {
-          // the tool belt: inside the shop it's hands ↔ vacuum; outside it
-          // cycles hose → divot kit → bunker rake → hands free
-          const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
-          const inside = ch && ch.isInside(walkApi.state.x, walkApi.state.z);
-          let belt;
-          if (inside) {
-            if (!(app.state && vacuumOwned(app.state))) {
-              toast('No vacuum here yet — order one at the office computer.', 'warn');
-              break;
-            }
-            belt = [null, 'vacuum'];
-          } else {
-            belt = [null, 'washer', 'hose', 'divot', 'rake'];
-          }
-          const cur = belt.indexOf(walkApi.getTool());
-          const next = belt[(cur + 1) % belt.length];
-          walkApi.setTool(next);
-          if (audio.ready) audio.equipTick();
-          const washer = app.state ? ownedWasher(app.state) : null;
-          toast(next === 'hose' ? 'Hose out — hold the mouse button to water.'
-            : next === 'divot' ? 'Divot kit out — hold the button on worn turf.'
-            : next === 'rake' ? 'Bunker rake out — hold the button on footprinted sand.'
-            : next === 'vacuum' ? 'Vacuum out — hold the mouse button and work the dirty patches.'
-            : next === 'washer' ? `${washer ? washer.name : 'Pressure washer'} — hold LEFT to blast, RIGHT to lay soap on the heavy stains.`
-            : 'Tools away.');
+        if (!app.scene3d.walk.cart.mounted) beginToolKey(e);
+        break;
+      }
+      case 'q': case 'Q': {
+        if (app.scene3d.walk.cart.mounted) break;
+        const current = app.scene3d.walk.getTool();
+        const previous = previousWalkTool;
+        if (previous !== undefined && previous !== current) {
+          previousWalkTool = current;
+          selectWalkTool(previous);
         }
         break;
       }
+      case 'i': case 'I':
+        setMaintenanceVisible(!maintenancePanel?.isVisible());
+        break;
       case 'g': case 'G':
         if (document.pointerLockElement) document.exitPointerLock(); // free the cursor for the panel
         handlers.toggleGrounds();
@@ -1401,9 +2183,20 @@ window.addEventListener('keydown', (e) => {
 // held-key camera movement. The set is normalised and repeat-safe (see core/heldKeys.js) —
 // a key released mid-run used to strand its shifted spelling here and pan the map forever.
 const held = createHeldKeys(OVERVIEW_KEYS);
-window.addEventListener('keydown', (e) => held.down(e.key, e.repeat));
-window.addEventListener('keyup', (e) => held.up(e.key));
-window.addEventListener('blur', () => resetCameraInput());
+window.addEventListener('keydown', (e) => {
+  if (!app.frontDeskOpen && !isPauseOpen() && !toolWheel?.isOpen()) held.down(e.key, e.repeat);
+});
+window.addEventListener('keyup', (e) => {
+  held.up(e.key);
+  if (e.key === 'f' || e.key === 'F') endToolKey();
+});
+window.addEventListener('blur', () => {
+  if (toolKeyTimer) clearTimeout(toolKeyTimer);
+  toolKeyTimer = null;
+  toolHoldOpened = false;
+  stopToolUse();
+  resetCameraInput();
+});
 document.addEventListener('pointerlockchange', () => resetCameraInput());
 
 // every mode transition hands the camera a clean slate: nothing is "still down" from the mode
@@ -1467,6 +2260,7 @@ function frame(ts) {
       if (hourNow !== lastHourSeen) {
         lastHourSeen = hourNow;
         app.scene3d.updateTurf(app.state);
+        app.scene3d.updateCourseMaintenance(app.state);
         recomputeRating();
         inspectPanel.refreshIfOpen();
         if (app.groundsOpen) groundsPanel.refresh();
@@ -1483,7 +2277,12 @@ function frame(ts) {
     if (app.state.shop) {
       for (const ev of tickDeliveries(app.state, app.state.clock.minutes)) {
         const sku = skuById(ev.order.skuId);
-        const name = sku ? sku.name : ev.order.skuId;
+        const lineNames = (ev.order.lines || [])
+          .map((line) => skuById(line.skuId)?.name || line.skuId)
+          .filter(Boolean);
+        const name = lineNames.length
+          ? lineNames.slice(0, 2).join(' + ')
+          : (sku ? sku.name : ev.order.skuId);
         const clock12 = (m) => {
           const mm = ((m % 1440) + 1440) % 1440;
           const h = Math.floor(mm / 60);
@@ -1495,8 +2294,15 @@ function frame(ts) {
           toast(`📦 ${name} ships today — window ${clock12(ev.order.window.open)}–${clock12(ev.order.window.close)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`);
         } else if (ev.kind === 'soon') {
           toast(`📦 The ${ev.order.supplier || name} van is close — under an hour out.`);
-        } else if (ev.kind === 'arrived') {
-          toast(`📦 Delivery! ${name} ×${ev.order.qty} — ${boxes} on the receiving pad.`);
+        } else if (ev.kind === 'arrived' || ev.kind === 'partial-arrival') {
+          const clubhouse = app.scene3d && app.scene3d.clubhouse ? app.scene3d.clubhouse() : null;
+          if (clubhouse && clubhouse.playDeliveryArrival) clubhouse.playDeliveryArrival(ev);
+          const zone = ev.usedFallback ? 'in the safe stockroom receiving zone' : 'on the receiving pad';
+          const prefix = ev.kind === 'partial-arrival' ? 'Partial delivery' : 'Delivery';
+          const remaining = ev.kind === 'partial-arrival'
+            ? ` ${ev.order.remainingUnreceivedQuantity} units remain on the vehicle.`
+            : '';
+          toast(`📦 ${prefix}! ${name} ×${ev.order.qty} — ${ev.boxes.length} new ${ev.boxes.length === 1 ? 'box' : 'boxes'} ${zone}.${remaining}`);
           if (audio.ready && audio.truck) audio.truck();
         } else if (ev.kind === 'blocked') {
           // The receiving area is blocked. The van did not dump the boxes anyway, and it did not
@@ -1531,9 +2337,13 @@ function frame(ts) {
       // the guide answers real actions within a second, not at the hour
       if (app.state.tutorial && !app.state.tutorial.complete) {
         const tut = tickTutorial(app.state);
-        for (const step of tut.advanced) toast(`🎯 ${step.title} — done.`);
+        if (!app.state.tutorial.hidden) {
+          for (const step of tut.advanced) toast(`🎯 ${step.title} — done.`);
+        }
         if (tut.advanced.length) {
-          if (app.state.tutorial.complete) toast('The guide retires — the club is yours now. The Open awaits.', '');
+          if (app.state.tutorial.complete && !app.state.tutorial.hidden) {
+            toast('The guide retires — the club is yours now. The Open awaits.', '');
+          }
           objectivesPanel.refresh();
         }
       }
@@ -1546,6 +2356,8 @@ function frame(ts) {
           && app.scene3d.clubhouse().isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z)),
         tempHiF: app.state.weather.today.tempHiF,
       });
+      if (app.frontDeskOpen) frontDeskUi?.refresh();
+      if (maintenancePanel?.isVisible()) maintenancePanel.refresh();
       audioClock = 0;
     }
     hud.update();
@@ -1560,41 +2372,115 @@ function frame(ts) {
 const CONDITION_WORD = (c) =>
   c < 25 ? 'filthy' : c < 45 ? 'grimy' : c < 70 ? 'getting there' : c < 90 ? 'clean' : 'showroom';
 let lastCondWord = null;
+let lastPresentationMode = null;
+let frontDeskLessonSeen = false;
+
+function registerPrompt() {
+  const tx = regApi()?.getTx?.();
+  if (!tx) return '';
+  const exit = ' · [Esc] step back';
+  switch (tx.stage) {
+    case 'scanning': {
+      const left = registerUnscannedCount(tx);
+      return left > 0
+        ? `Drag ${left} item${left === 1 ? '' : 's'} through the scanner${exit}`
+        : `All items scanned · [T] total the sale${exit}`;
+    }
+    case 'payment': return `Choose card or cash on the register screen${exit}`;
+    case 'card-present': return `Ask for the customer's card at the terminal${exit}`;
+    case 'card-ready': return `Drag the card left to right through the reader${exit}`;
+    case 'card-busy': return 'Authorising card — please wait';
+    case 'card-declined': return `Card declined · try another card or choose cash${exit}`;
+    case 'cash-tender': return `Take the customer's cash · [D] open the drawer${exit}`;
+    case 'cash-drawer': {
+      if (!tx.deposited) return `Put the tender into the open drawer${exit}`;
+      const due = registerChangeDue(tx);
+      const held = registerHandTotal(tx);
+      return due > 0
+        ? `Select exactly $${due.toFixed(2)} change · holding $${held.toFixed(2)} · hand it to the customer${exit}`
+        : `No change due · close the drawer${exit}`;
+    }
+    case 'receipt': return `Take the printed receipt${exit}`;
+    case 'bagging': return `Place every item in the bag, then take the receipt${exit}`;
+    case 'done': return 'Hand the completed order to the customer';
+    default: return `Follow the register screen${exit}`;
+  }
+}
+
+function syncPresentationMode(mode) {
+  if (mode === lastPresentationMode) return;
+  lastPresentationMode = mode;
+  document.body.dataset.uiMode = mode;
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = mode === 'overview' ? '' : 'none';
+  const hint = document.querySelector('.hint-bar');
+  if (hint) hint.style.display = mode === 'overview' ? '' : 'none';
+  if (mode === 'register' && app.state) triggerContextTutorial(app.state, 'checkout');
+  objectivesPanel?.refresh();
+}
 
 function updateWalkOverlay() {
-  if (regHint) regHint.style.display = regActive() ? 'flex' : 'none';
-  const prompt = walkOverlay.querySelector('.shop-prompt');
+  const mode = presentationMode();
+  syncPresentationMode(mode);
+  if (regHint) {
+    const text = mode === 'register' ? registerPrompt() : '';
+    setPromptText(regHint, text);
+    regHint.style.display = text ? '' : 'none';
+    const tx = regApi()?.getTx?.();
+    if (tx?.stage === 'done') tutorialFlag(app.state, 'checkoutCompleted');
+  }
   // build mode speaks over the world's own prompts: while it is on, the only controls that
   // matter are its controls
   const bld = buildApi();
-  const label = (bld && bld.isActive() && bld.label())
-    || (app.scene3d.walk.getFocusLabel ? app.scene3d.walk.getFocusLabel() : null);
-  prompt.textContent = label || '';
-  prompt.style.opacity = label ? '1' : '0';
-  const lockHint = walkOverlay.querySelector('.shop-lockhint');
+  const label = ['walk', 'placement'].includes(mode)
+    ? ((bld && bld.isActive() && bld.label())
+      || (app.scene3d.walk.getFocusLabel ? app.scene3d.walk.getFocusLabel() : null))
+    : null;
+  setPromptText(walkPrompt, label || '');
+  const promptVisible = !!label && !toolWheel?.isOpen();
+  if (walkPrompt.dataset.visible !== String(promptVisible)) {
+    walkPrompt.dataset.visible = String(promptVisible);
+    walkPrompt.style.opacity = promptVisible ? '1' : '0';
+  }
+  if (label?.includes('check in')) {
+    frontDeskLessonSeen = true;
+    triggerContextTutorial(app.state, 'front-desk');
+    objectivesPanel.refresh();
+  } else if (frontDeskLessonSeen && label?.startsWith('Register — yesterday')) {
+    tutorialFlag(app.state, 'frontDeskCheckedIn');
+    frontDeskLessonSeen = false;
+  }
   // the control bar retires once the controls are demonstrably learned
   // (opening arc past the shelving step) — after that it only returns while
   // the pointer is free, as a click-to-play reminder
   const tut = app.state && app.state.tutorial;
   const learned = tut && (tut.complete || tut.hidden || tut.step >= 5);
-  lockHint.style.display = document.pointerLockElement ? 'none' : '';
-  lockHint.textContent = learned
-    ? 'Click to play'
-    : 'Click to look around · WASD walk · Shift run · E interact · F tool · Tab: overview camera · Esc: office menu';
+  const cursorPanelOpen = !!maintenancePanel?.isVisible?.();
+  const workingMaintenanceRoute = learned && app.state?.courseMaintenance?.route?.arrivedAtMinute != null;
+  const showLockHint = mode === 'walk' && !document.pointerLockElement
+    && !cursorPanelOpen && !workingMaintenanceRoute;
+  if (walkLockHint.dataset.visible !== String(showLockHint)) {
+    walkLockHint.dataset.visible = String(showLockHint);
+    walkLockHint.style.display = showLockHint ? '' : 'none';
+  }
+  const lockText = learned
+    ? 'Click to resume looking'
+    : 'Click to look · WASD move · E interact · tap/hold F tools · P pause';
+  setPromptText(walkLockHint, lockText);
   // inside the shop: the condition chip rides along (and tier-ups chime)
-  const cond = walkOverlay.querySelector('.shop-cond');
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
   const inside = ch && ch.isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z);
-  if (inside && app.state && app.state.shop) {
+  if (inside && mode === 'walk' && app.state && app.state.shop) {
     if (app.state.tutorial) tutorialFlag(app.state, 'shopWalked');
     const c = shopCondition(app.state);
     const word = CONDITION_WORD(c);
-    cond.textContent = `🧹 Shop condition ${c} — ${word}`;
-    cond.style.display = '';
+    const conditionText = `Shop condition ${c} — ${word}`;
+    if (walkCondition.textContent !== conditionText) walkCondition.textContent = conditionText;
+    if (walkCondition.style.display !== '') walkCondition.style.display = '';
     if (lastCondWord && word !== lastCondWord && c >= 25 && audio.ready) audio.chime();
     lastCondWord = word;
   } else {
-    cond.style.display = 'none';
+    if (walkCondition.style.display !== 'none') walkCondition.style.display = 'none';
   }
 }
 
@@ -1630,10 +2516,21 @@ function checkBigMoments() {
           el('button', {
             class: 'primary', text: 'Load autosave',
             onclick: async () => {
-              const data = await loadData('autosave');
-              close();
-              failShown = false;
-              if (data) bootEmpire(deserializeEmpire(data));
+              const record = await inspectData('autosave', SAVE_LIMITS);
+              if (!['ok', 'recovered'].includes(record.status)) {
+                notify({ message: 'The autosave is unavailable. Use a manual slot from the main menu.', category: 'invalid', persistent: true });
+                audio.uiError?.();
+                return;
+              }
+              try {
+                const empire = deserializeEmpire(record.data);
+                close();
+                failShown = false;
+                bootEmpire(empire);
+              } catch (error) {
+                notify({ message: 'The autosave could not be opened. It has not been changed.', category: 'invalid', persistent: true });
+                console.error('failure autosave load failed', error);
+              }
             },
           }),
           el('button', { class: 'danger', text: 'Exit to menu', onclick: () => { close(); exitToMenu(); } }),
@@ -1664,62 +2561,115 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
+function openMenuSettings() {
+  modal('Settings', (box, close) => {
+    box.classList.add('wide', 'settings-dialog');
+    box.append(
+      makeSettingsPanel({ preferences, audio, apply: applySettings }),
+      el('div', { class: 'dialog-actions' },
+        el('button', { class: 'primary', type: 'button', text: 'Done', onclick: close }),
+      ),
+    );
+  }, { className: 'menu-dialog settings-dialog', dismissOnBackdrop: false, initialFocus: '.settings-tab' });
+}
+
 function boot() {
   menu = makeMenu({
-    onNewGame(mode) {
+    async onNewGame(mode) {
       // a new empire starts in the property market — the first act is judgment
       app.empire = newEmpire(mode, (Math.random() * 2 ** 31) | 0);
-      autosave();
+      await autosave();
       openMarketplace(app, handlers);
     },
-    async onContinue() {
-      const data = await loadData('autosave');
-      if (data) bootEmpire(deserializeEmpire(data));
-      else toast('No autosave found.', 'warn');
+    async onContinue(data, status) {
+      const empire = deserializeEmpire(data);
+      if (status === 'recovered') {
+        notify({ message: 'The latest autosave was damaged, so the previous backup was restored.', category: 'save-success', persistent: true });
+      }
+      bootEmpire(empire);
     },
+    async onLoad(data, _slot, status) {
+      const empire = deserializeEmpire(data);
+      if (status === 'recovered') notify({ message: 'Loaded the slot’s recovery backup.', category: 'save-success' });
+      bootEmpire(empire);
+    },
+    onSettings: openMenuSettings,
+    onQuit: () => window.fairwayNative?.quit?.(),
   });
 
-  gameUi = el('div', { style: 'display:none' });
+  gameUi = el('div', { class: 'game-ui', style: 'display:none' });
   hud = makeHud(app, handlers);
-  laptopUi = makeLaptop(app, { close: () => exitLaptop() });
+  laptopUi = makeLaptop(app, {
+    close: () => exitLaptop(),
+    sellHolding: handlers.sellHolding,
+    openMarket: () => {
+      exitLaptop(true);
+      handlers.openMarket();
+    },
+  });
+  frontDeskUi = makeFrontDesk(app, {
+    close: () => exitFrontDesk(),
+    onCheckedIn(reservationId) {
+      const ch = app.scene3d?.clubhouse?.();
+      ch?.releaseReservationParty?.(reservationId);
+    },
+    onWalkInCreated(reservationId, arrivingNow) {
+      if (!arrivingNow) return;
+      const ch = app.scene3d?.clubhouse?.();
+      ch?.spawnReservationParty?.(reservationId, { atCounter: true });
+    },
+  });
+  app.frontDeskUi = frontDeskUi;
   worksPanel = makeWorksPanel(app, handlers);
   inspectPanel = makeInspectPanel(app, recomputeRating);
   groundsPanel = makeGroundsPanel(app);
   clubPanel = makeClubPanel(app, recomputeRating);
   empirePanel = makeEmpirePanel(app, handlers);
-  objectivesPanel = makeObjectivesPanel(app);
+  objectivesPanel = makeObjectivesPanel(app, { getContext: presentationMode });
+  maintenancePanel = makeCourseMaintenancePanel(app, {
+    setVisible: setMaintenanceVisible,
+    toggleInspection: () => setMaintenanceVisible(!app.state?.courseMaintenance?.inspection.active),
+    selectTool: selectMaintenanceTool,
+  });
+  toolWheel = makeToolWheel({
+    audio,
+    onSelect: selectWalkTool,
+    onPause: openPauseMenu,
+    onClose: (reason) => {
+      if (['selected', 'dismissed'].includes(reason) && walkActive() && !regActive() && !app.frontDeskOpen
+        && !app.laptopOpen && !isPauseOpen()) requestLook();
+      syncPresentationMode(presentationMode());
+    },
+  });
 
+  walkPrompt = el('div', { class: 'shop-prompt', text: '' });
+  walkCondition = el('div', { class: 'shop-cond', text: '', style: 'display:none' });
+  walkLockHint = el('div', { class: 'shop-lockhint', text: 'Click to look · WASD move · E interact · tap/hold F tools · P pause' });
   walkOverlay = el('div', { class: 'shop-overlay', style: 'display:none' },
     el('div', { class: 'shop-crosshair' }),
-    el('div', { class: 'shop-prompt', text: '' }),
-    el('div', { class: 'shop-cond', text: '', style: 'display:none' }),
-    el('div', { class: 'shop-lockhint', text: 'Click to look around · WASD walk · Shift run · E interact · F tool · Tab: overview camera · Esc: office menu' }),
+    walkPrompt,
+    walkCondition,
+    walkLockHint,
   );
 
   // BEHIND THE TILL the walk overlay is hidden — no crosshair, no prompt — so the
   // player has no way to discover [T] and [D] except by pressing every key. The
   // register screen tells them WHAT it wants ("PUT THEIR MONEY IN THE TILL"); this
   // tells them which hand to use.
-  regHint = el('div', { class: 'reg-hint', style: 'display:none' },
-    el('span', { text: 'Drag goods over the scanner to ring them up' }),
-    el('span', { class: 'reg-keys' }, el('kbd', { text: 'T' }), el('span', { text: 'total up' })),
-    el('span', { class: 'reg-keys' }, el('kbd', { text: 'D' }), el('span', { text: 'drawer' })),
-    el('span', { class: 'reg-keys' }, el('kbd', { text: 'Esc' }), el('span', { text: 'step back' })),
-  );
+  regHint = el('div', { class: 'reg-hint', style: 'display:none', role: 'status', 'aria-live': 'polite' });
 
-  const viewButtons = ['normal', 'health', 'moisture'].map((mode) =>
+  viewButtons = ['normal', 'health', 'moisture'].map((mode) =>
     el('button', {
+      'data-mode': mode,
       text: mode === 'normal' ? '🗺 Normal' : mode === 'health' ? '❤ Health' : '💧 Moisture',
       onclick: () => handlers.setViewMode(mode),
     }),
   );
-  const viewToggle = el('div', { class: 'view-toggle' }, ...viewButtons);
-  setInterval(() => {
-    viewButtons.forEach((b, i) => b.classList.toggle('active-tool', ['normal', 'health', 'moisture'][i] === app.viewMode));
-  }, 250);
+  viewButtons[0].classList.add('active-tool');
+  const viewToggle = el('div', { class: 'view-toggle', style: 'display:none' }, ...viewButtons);
 
-  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, walkOverlay, regHint, laptopUi.root, objectivesPanel.root, viewToggle,
-    el('div', { class: 'hint-bar', text: 'Overview camera — Drag: pan · Right-drag: rotate · Wheel: zoom · 🗂 Manage or E/G/C/M keys for the desks · V: view · Space: pause · Tab/Esc: back on foot' }));
+  gameUi.append(hud.root, worksPanel.palette, worksPanel.planBar, inspectPanel.root, groundsPanel.root, clubPanel.root, empirePanel.root, maintenancePanel.root, walkOverlay, regHint, laptopUi.root, frontDeskUi.root, objectivesPanel.root, viewToggle, toolWheel.root,
+    el('div', { class: 'hint-bar', style: 'display:none', text: 'Course overview · drag to pan · right-drag to rotate · wheel to zoom · V data view · Tab returns on foot · P pause' }));
 
   uiRoot.append(menu.root, gameUi);
   requestAnimationFrame(frame);

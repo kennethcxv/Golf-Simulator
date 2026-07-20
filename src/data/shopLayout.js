@@ -87,12 +87,12 @@ export const PARTITIONS = [
 
 export const STOCKROOM = {
   bounds: { minX: 5.7, maxX: INTERIOR.w / 2, minZ: -INTERIOR.d / 2, maxZ: 2.0 },
-  receivingInside: { x: 7.2, z: -5.3 },    // set-down stack, out of the doorway clearway
+  receivingInside: { x: 6.7, z: -4.2 },    // compact two-tier fallback, entirely west of the door clearway
   padOutside: { x: 12.4, z: -3.6 },        // gravel pad past the back door — deliveries land here
   packing: { x: 6.9, z: -0.9, ry: 0 },     // the packing bench (tape gun, clipboard)
-  handTruck: { x: 6.1, z: -5.9 },
-  bin: { x: 9.85, z: 1.3 },                // recycling by the stock door, east of the swing
-  cleaning: { x: 6.1, z: 1.45 },           // mop bucket / brooms corner
+  handTruck: { x: 5.95, z: -1.9 },          // parked beside the worktable, outside both rack picking aisles
+  bin: { x: 7.0, z: 1.43 },                 // recycling faces the open work aisle, clear of the stock door
+  cleaning: { x: 5.95, z: 0.35 },           // cleaning kit stays clear of recycling and both work aisles
 };
 
 export const OFFICE = {
@@ -233,7 +233,10 @@ export const FIXTURES = [
 // aisles in believable neglect spots — corners, dead zones, the stockroom) --------
 export const CLUTTER_SPOTS = [
   { x: -8.9, z: 5.3 }, { x: -6.3, z: -3.9 }, { x: 1.4, z: 0.5 }, { x: 4.7, z: 3.1 },
-  { x: -1.2, z: -4.2 }, { x: -9.2, z: -5.6 }, { x: 6.4, z: -4.6 }, { x: 7.6, z: 1.3 },
+  // The final two piles live against the office partition. The stockroom is an
+  // operational delivery workspace now; legacy piles there blocked receiving
+  // and stole focus through the recycling station.
+  { x: -1.2, z: -4.2 }, { x: -9.2, z: -5.6 }, { x: 6.3, z: 3.25 }, { x: 6.3, z: 5.85 },
 ];
 
 // --- traffic paths (the dirt system paints mud/footprint trails along these) -----

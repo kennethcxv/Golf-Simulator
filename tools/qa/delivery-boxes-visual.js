@@ -1,9 +1,11 @@
 async (page) => {
   const errs = [];
   page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/delivery';
+  const QA_ROOT = (process.env.GOLF_FLIPPER_QA_ROOT || `${process.cwd()}/qa`).replaceAll('\\', '/');
+  const OUT = `${QA_ROOT}/delivery`;
+  const BASE_URL = process.env.GOLF_FLIPPER_URL || 'http://localhost:8457/';
 
-  await page.goto('http://localhost:8457/');
+  await page.goto(BASE_URL);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});

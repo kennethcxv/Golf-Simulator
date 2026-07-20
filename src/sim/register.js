@@ -10,9 +10,8 @@
 // `0.1 * 300` is 30.000000000000004 in float, which would make a till that
 // balances on paper fail to balance in code. Cents in, dollars out at the edge.
 
-import { addRevenue } from './economy.js';
-import { liveSales, consumeHeld } from './checkout.js';
-import { recordSale } from './shop.js';
+import { addExpense } from './economy.js';
+import { checkoutSale } from './checkout.js';
 
 // --- currency -----------------------------------------------------------------
 // Shop prices land on arbitrary cents (a $34 polo at 1.15 markup with a 5%
@@ -87,8 +86,11 @@ export function takeFromStack(stack, denom, n = 1) {
 
 // `prefer` is the customer's own payment habit, decided before they reach the till —
 // some people are cash people. Left null, they make their mind up at the counter.
-export function createTx({ items = [], mode = 'relaxed', discount = 0, rng = Math.random, prefer = null } = {}) {
+let nextTransientTxId = 1;
+
+export function createTx({ id = null, items = [], mode = 'relaxed', discount = 0, rng = Math.random, prefer = null } = {}) {
   return {
+    id: id == null ? `transient-${nextTransientTxId++}` : String(id),
     items: items.map((it) => ({
       uid: it.uid,
       skuId: it.skuId,
@@ -197,6 +199,47 @@ export function presentCard(tx) {
   tx.stage = 'card-ready';
   tx.cardsTried = Math.max(1, tx.cardsTried);
   return { ok: true };
+}
+
+// Validate the physical reader gesture independently from rendering. The 3D
+// register supplies counter-local samples; this function decides only whether
+// they describe one deliberate left-to-right pass through the configured lane.
+// A click, short nudge, large sideways miss, or back-and-forth scrub is not a
+// card swipe and may never advance payment.
+export function evaluateCardSwipe(samples, {
+  startMaxX = 0,
+  endMinX = 1,
+  centerZ = 0,
+  maxCrossTrack = 0.14,
+  minTravel = 0.28,
+  maxBacktrack = 0.07,
+  minDurationMs = 80,
+  maxDurationMs = 2200,
+} = {}) {
+  const points = (Array.isArray(samples) ? samples : []).filter((sample) => (
+    Number.isFinite(sample?.x) && Number.isFinite(sample?.z) && Number.isFinite(sample?.atMs)
+  ));
+  if (points.length < 2) return { ok: false, reason: 'Drag the card through the reader.' };
+
+  const first = points[0];
+  const last = points.at(-1);
+  const durationMs = last.atMs - first.atMs;
+  const travel = last.x - first.x;
+  const crossTrack = Math.max(...points.map((point) => Math.abs(point.z - centerZ)));
+  let backtrack = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    const dx = points[index].x - points[index - 1].x;
+    if (dx < 0) backtrack += -dx;
+  }
+
+  const result = { ok: false, durationMs, travel, crossTrack, backtrack };
+  if (first.x > startMaxX) return { ...result, reason: 'Start at the left end of the reader.' };
+  if (last.x < endMinX || travel < minTravel) return { ...result, reason: 'Swipe all the way through the reader.' };
+  if (crossTrack > maxCrossTrack) return { ...result, reason: 'Keep the card inside the reader track.' };
+  if (backtrack > maxBacktrack) return { ...result, reason: 'Swipe once from left to right.' };
+  if (durationMs < minDurationMs) return { ...result, reason: 'Swipe a little slower.' };
+  if (durationMs > maxDurationMs) return { ...result, reason: 'Swipe again in one smooth motion.' };
+  return { ...result, ok: true, reason: null };
 }
 
 export function runCard(tx, { timeout = false } = {}) {
@@ -471,30 +514,32 @@ export function completeSale(state, tx, who = 'A customer') {
   if (tx.banked) return { ok: false, reason: 'Already banked.' };
 
   const total = dueOf(tx);
-  addRevenue(state, 'shopSales', total);
-
+  const sale = checkoutSale(state, tx.items, who, tx.id, {
+    total,
+    metadata: {
+      method: tx.method,
+      itemIds: tx.items.map((item) => item.uid),
+    },
+  });
+  if (!sale.ok) {
+    if (sale.duplicate) tx.banked = true;
+    return sale;
+  }
   // a miscount in Realistic mode: the till is short what you over-handed (or the
   // customer was shorted, which comes back as goodwill, not cash)
-  if (tx.lost > 0) addRevenue(state, 'shopSales', -tx.lost);
-
-  const live = liveSales(state);
-  live.units += tx.items.length;
-  live.revenue = round2(live.revenue + total);
-
-  // the goods leave the building — off the held ledger for good, and onto the per-SKU tally
-  // the Inventory and Analytics pages read their velocity from. A sale rung up by hand is
-  // still a sale; leaving it out would make every velocity on the laptop quietly wrong.
-  for (const it of tx.items) {
-    consumeHeld(state, it.uid);
-    recordSale(state, it.skuId);
+  if (tx.lost > 0) {
+    addExpense(state, 'checkoutShortage', tx.lost, {
+      idempotencyKey: `checkout:${tx.id}:shortage`,
+      relatedId: tx.id,
+      category: 'checkoutShortage',
+      description: `Till shortage — ${who}`,
+      source: 'checkout',
+    });
   }
 
   tx.banked = true;
+  tx.ledgerEntryId = sale.ledgerEntryId;
   tx.stage = 'done';
-
-  const names = tx.items.map((i) => i.name);
-  state.shop.log.unshift(`${who} bought ${names.join(' + ')} at the counter (${Math.round(total)} dollars)`);
-  if (state.shop.log.length > 8) state.shop.log.pop();
 
   return { ok: true, total, lost: tx.lost };
 }

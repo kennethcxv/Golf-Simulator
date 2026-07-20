@@ -114,7 +114,31 @@ export function buildFixtures(B) {
   }
 
   function fixtureProp(f) {
-    if (!f.skus.length) return;
+    if (!f.skus.length) {
+      if (f.kind !== 'backshelf') return;
+      const wp = L2W(f.x, f.z);
+      addProp({
+        x: wp.x, z: wp.z, r: 2.15,
+        label: () => {
+          const box = B.carriedBox && B.carriedBox();
+          if (box) return f.id === 'backshelf_n'
+            ? 'Carton rack — [E] store this box in a marked slot'
+            : null;
+          const held = B.carriedGoods && B.carriedGoods();
+          if (held) {
+            const sku = skuById(held.skuId);
+            return `Receiving reserve — [E] store ${held.qty} × ${sku ? sku.name : held.skuId}`;
+          }
+          return null;
+        },
+        action: () => {
+          if (B.carriedBox && B.carriedBox()) {
+            if (B.placeBoxOnReserveRack) B.placeBoxOnReserveRack(f);
+          } else if (B.storeCarriedGoods) B.storeCarriedGoods();
+        },
+      });
+      return;
+    }
     const wp = L2W(f.x, f.z);
     addProp({
       x: wp.x, z: wp.z, r: 2.3,
@@ -530,6 +554,8 @@ export function buildFixtures(B) {
   // whole point of a stockroom is that it is FULL (ref 8).
   function backshelfUnit(f) {
     const g = new THREE.Group();
+    const fallback = new THREE.Group();
+    g.add(fallback);
     const wZ = f.short ? 1.7 : 2.6; // doorway-adjacent short unit
     const D = 0.62;
     const H = 2.30;
@@ -540,10 +566,10 @@ export function buildFixtures(B) {
         const post = new THREE.Mesh(roundedBox(0.06, H, 0.06, 0.008), mats.iron);
         post.position.set(sx, H / 2, sz);
         post.castShadow = true;
-        g.add(post);
+        fallback.add(post);
         const foot = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.02, 0.11), mats.iron);
         foot.position.set(sx, 0.01, sz);
-        g.add(foot);
+        fallback.add(foot);
       }
     }
     for (const y of boards) {
@@ -551,11 +577,11 @@ export function buildFixtures(B) {
       board.position.set(0, y, 0);
       board.receiveShadow = true;
       board.castShadow = true;
-      g.add(board);
+      fallback.add(board);
       // the front lip that stops a carton walking off the shelf
       const lip = new THREE.Mesh(new THREE.BoxGeometry(wZ - 0.02, 0.05, 0.018), mats.iron);
       lip.position.set(0, y + 0.048, D / 2 - 0.03);
-      g.add(lip);
+      fallback.add(lip);
     }
     // X-bracing across the back — what actually stops a rack racking
     for (let i = 0; i < boards.length - 1; i++) {
@@ -568,9 +594,22 @@ export function buildFixtures(B) {
           new THREE.BoxGeometry(len, 0.02, 0.014), mats.iron);
         brace.position.set(0, (y0 + y1) / 2, -D / 2 + 0.03);
         brace.rotation.z = dir * Math.atan2(dy, wZ - 0.1);
-        g.add(brace);
+        fallback.add(brace);
       }
     }
+    if (merch) merch.onReady(() => {
+      const rack = merch.instantiateRaw('delivery_stock_shelf');
+      if (!rack) return;
+      rack.traverse((o) => {
+        if (o.name.startsWith('COL_')) o.visible = false;
+      });
+      // Preserve the established fixture footprint; only the doorway-adjacent
+      // rack is shortened. The Blender source remains at real-world dimensions.
+      rack.scale.set(f.short ? wZ / 2.25 : 1, 1, 0.91);
+      rack.position.y = 0;
+      fallback.visible = false;
+      g.add(rack);
+    });
     const swap = Math.abs(Math.sin(f.ry)) > 0.5;
     const halfLen = wZ / 2 + 0.15;
     addCol(colBoxAt(f.x, f.z, swap ? 0.9 : halfLen * 2, swap ? halfLen * 2 : 0.9));
@@ -728,94 +767,12 @@ export function buildLounge(B) {
 // ------------------------------------------------------- stockroom extras ---
 // The working room (ref 9): packing bench, cleaning corner, receiving sign.
 export function buildStockroomDressing(B) {
-  const { interior, mats, merch, addCol, colBoxAt } = B;
-  const P = STOCKROOM.packing;
+  const { interior, mats, addCol, colBoxAt } = B;
 
-  // A STOCKROOM IS FULL. Ref 8: shelves of cartons, a hand truck, a packing
-  // bench. The old one was three bare racks and a mop, and it was the emptiest,
-  // weakest room in the building. These cartons are BACKROOM DRESSING — they are
-  // not the delivery boxes the player opens (those are spawned by the delivery
-  // system and carry real stock); they are what a working backroom looks like.
-  // The models arrive asynchronously, well after the shop is built, so the
-  // dressing is deferred rather than placed inline — otherwise it would simply
-  // never appear.
-  if (merch) merch.onReady(() => {
-    const RACKS = [
-      { x: 8.05, z: -6.1, ry: 0, len: 2.6 },
-      { x: 9.9, z: -5.6, ry: -Math.PI / 2, len: 1.7 },
-      { x: 9.9, z: -0.6, ry: -Math.PI / 2, len: 2.6 },
-    ];
-    const dress = new THREE.Group();
-    let seed = 7;
-    const rnd = () => {
-      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-      return seed / 0x7fffffff;
-    };
-    for (const rk of RACKS) {
-      for (const y of [0.16, 0.62, 1.10, 1.58, 2.06]) {
-        const n = 2 + Math.floor(rnd() * 3);
-        for (let i = 0; i < n; i++) {
-          if (rnd() < 0.18) continue;          // a working shelf has gaps in it
-          const box = merch.instantiate(rnd() < 0.15 ? 'carton_open' : 'carton');
-          if (!box) break;
-          const along = -rk.len / 2 + 0.34 + i * (rk.len - 0.6) / Math.max(1, n - 1);
-          const s = 0.72 + rnd() * 0.45;       // cartons are not all one size
-          box.scale.setScalar(s);
-          const lx = rk.x + Math.cos(rk.ry) * along;
-          const lz = rk.z - Math.sin(rk.ry) * along;
-          box.position.set(lx, y + 0.055, lz);
-          box.rotation.y = rk.ry + (rnd() - 0.5) * 0.3;
-          dress.add(box);
-        }
-      }
-    }
-    // a stack by the receiving door, and the hand truck parked beside it
-    for (let i = 0; i < 3; i++) {
-      const box = merch.instantiate('carton');
-      if (!box) break;
-      box.scale.setScalar(0.9 + i * 0.06);
-      box.position.set(STOCKROOM.receivingInside.x + (i % 2) * 0.12,
-        i * 0.30, STOCKROOM.receivingInside.z + 0.5 + (i % 2) * 0.08);
-      box.rotation.y = 0.2 + i * 0.5;
-      dress.add(box);
-    }
-    const truck = merch.instantiate('handtruck');
-    if (truck) {
-      truck.position.set(STOCKROOM.handTruck.x, 0, STOCKROOM.handTruck.z);
-      truck.rotation.y = 1.9;
-      dress.add(truck);
-      addCol(colBoxAt(STOCKROOM.handTruck.x, STOCKROOM.handTruck.z, 0.5, 0.5));
-    }
-    interior.add(merch.bake(dress));
-  });
-
-  // packing bench: steel legs, worn walnut top, clipboard + tape gun
-  const bench = new THREE.Group();
-  const top = new THREE.Mesh(roundedBox(1.7, 0.07, 0.85, 0.02), mats.rawWood);
-  top.position.y = 0.92;
-  top.castShadow = true;
-  top.receiveShadow = true;
-  bench.add(top);
-  const under = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.7), mats.rawWood);
-  under.position.y = 0.42;
-  bench.add(under);
-  for (const [lx, lz] of [[-0.78, -0.36], [0.78, -0.36], [-0.78, 0.36], [0.78, 0.36]]) {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.92, 0.06), mats.iron);
-    leg.position.set(lx, 0.46, lz);
-    bench.add(leg);
-  }
-  const clipboard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.012, 0.3), mats.trimPaint);
-  clipboard.position.set(-0.4, 0.965, 0.1);
-  clipboard.rotation.y = 0.3;
-  bench.add(clipboard);
-  const tapeGun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.09, 0.06), mats.charcoal);
-  tapeGun.position.set(0.35, 0.99, -0.1);
-  tapeGun.rotation.y = -0.4;
-  bench.add(tapeGun);
-  bench.position.set(P.x, 0, P.z);
-  bench.rotation.y = P.ry;
-  interior.add(bench);
-  addCol(colBoxAt(P.x, P.z, 1.9, 1.05));
+  // Stock and cartons are rendered only from authoritative lifecycle state in
+  // clubhouse.js. Decorative fake boxes were removed because they made an empty
+  // reserve look full and visually hid the carton the player was actually opening.
+  // The packing bench is likewise the authored delivery_worktable GLB now.
 
   // cleaning corner: mop bucket, mop, broom against the partition
   const C = STOCKROOM.cleaning;

@@ -1,7 +1,7 @@
 # Find the SCREEN on a processed Tripo device (kiosk, card terminal) so the live
 # transaction canvas can be hung exactly on it — position, facing and size.
 #
-#   "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" \
+#   blender \
 #       --background --factory-startup --python tools/blender/measure_screens.py
 #
 # A screen is the largest FLAT panel facing outward, so it is found by geometry, not by

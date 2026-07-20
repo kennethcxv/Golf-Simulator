@@ -13,7 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createTx, scanItem, requestPayment, dueOf, cashTotalOf,
-  presentCard, runCard, retryCard, cancelCard,
+  presentCard, evaluateCardSwipe, runCard, retryCard, cancelCard,
   customerCash, acceptCash, openDrawer, closeDrawer, depositTendered,
   takeFromDrawer, returnToDrawer, changeDue, handTotal, handOverChange,
   newDrawer, stackTotal, makeChange,
@@ -94,6 +94,45 @@ test('a card that times out is not an approval', () => {
   assert.equal(res.result, 'timeout');
   assert.equal(tx.stage, 'card-declined', 'same recovery path as a decline');
   assert.notEqual(tx.stage, 'receipt');
+});
+
+test('a deliberate left-to-right card swipe crosses the whole reader lane', () => {
+  const swipe = evaluateCardSwipe([
+    { x: 1.80, z: 3.98, atMs: 100 },
+    { x: 1.94, z: 3.99, atMs: 180 },
+    { x: 2.10, z: 3.97, atMs: 260 },
+    { x: 2.30, z: 3.98, atMs: 360 },
+  ], { startMaxX: 1.87, endMinX: 2.25, centerZ: 3.98, minTravel: 0.36 });
+  assert.equal(swipe.ok, true);
+});
+
+test('a terminal click or short card nudge is not a swipe', () => {
+  assert.equal(evaluateCardSwipe([{ x: 1.80, z: 3.98, atMs: 100 }]).ok, false);
+  const short = evaluateCardSwipe([
+    { x: 1.80, z: 3.98, atMs: 100 },
+    { x: 1.94, z: 3.98, atMs: 300 },
+  ], { startMaxX: 1.87, endMinX: 2.25, centerZ: 3.98, minTravel: 0.36 });
+  assert.equal(short.ok, false);
+  assert.match(short.reason, /all the way/i);
+});
+
+test('a card scrubbed backward or outside the reader lane is rejected', () => {
+  const reversed = evaluateCardSwipe([
+    { x: 1.80, z: 3.98, atMs: 100 },
+    { x: 2.12, z: 3.98, atMs: 220 },
+    { x: 1.95, z: 3.98, atMs: 300 },
+    { x: 2.30, z: 3.98, atMs: 430 },
+  ], { startMaxX: 1.87, endMinX: 2.25, centerZ: 3.98, minTravel: 0.36 });
+  assert.equal(reversed.ok, false);
+  assert.match(reversed.reason, /once/i);
+
+  const missedLane = evaluateCardSwipe([
+    { x: 1.80, z: 3.98, atMs: 100 },
+    { x: 2.05, z: 4.20, atMs: 240 },
+    { x: 2.30, z: 3.98, atMs: 400 },
+  ], { startMaxX: 1.87, endMinX: 2.25, centerZ: 3.98, minTravel: 0.36 });
+  assert.equal(missedLane.ok, false);
+  assert.match(missedLane.reason, /track/i);
 });
 
 // --- cash -------------------------------------------------------------------------

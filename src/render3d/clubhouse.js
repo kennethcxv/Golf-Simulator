@@ -10,15 +10,13 @@
 // walkProps/propColliders in WORLD coordinates.
 
 import * as THREE from 'three';
-import { clamp, rngOf } from '../core/utils.js';
 import { fitDistance } from '../core/screenFit.js';
 import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig.js';
-import { makeCharacter } from './characterAsset.js';
 import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
   SHELL, INTERIOR, FIXTURES, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
-  MAT, HOURS_SIGN, queueSlot, REGISTER, COUNTER_TOP,
+  MAT, HOURS_SIGN, REGISTER, COUNTER_TOP,
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
@@ -30,13 +28,11 @@ import {
   tapeCut, tapeUncut, flapsOpen, isEmpty, boxState,
 } from '../sim/deliveries.js';
 import {
-  carriedGoods, stockFixture, storeInBack, homeOf, carrySpeedFactor,
+  carriedGoods, stockFixture, storeInBack, takeFromBack, homeOf, carrySpeedFactor,
 } from '../sim/stocking.js';
 import { boxDims, boxKindFor } from '../data/boxes.js';
-import { pickFromShelf, returnToShelf } from '../sim/checkout.js';
-import { addRevenue } from '../sim/economy.js';
 import { tutorialFlag } from '../sim/tutorial.js';
-import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
+import { dueForCheckIn, fmtSlot } from '../sim/reservations.js';
 import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel } from './clubhouse/materials.js';
 import { createMerch } from './clubhouse/merch.js';
 import { slotsFor } from '../data/fixtureSlots.js';
@@ -45,13 +41,16 @@ import { buildDoors } from './clubhouse/doors.js';
 import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } from './clubhouse/fixtures.js';
 import { createRegisterMode } from './clubhouse/registerMode.js';
 import { buildDirt } from './clubhouse/dirt.js';
-import { makeNav } from './clubhouse/nav.js';
 import { productThumb } from './clubhouse/thumbs.js';
 import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
-import { placedFixtures, ensureLayout, legalBoxDrop } from '../sim/layout.js';
+import {
+  placedFixtures, ensureLayout, legalBoxDrop, recoverInvalidObjects, roomStyle,
+} from '../sim/layout.js';
 import { buildBuildMode } from './clubhouse/buildMode.js';
-import { reviewFor, postReview } from '../sim/reviews.js';
+import { buildPlaceables } from './clubhouse/placeables.js';
+import { ROOM_STYLE_OPTIONS } from '../data/placeableCatalog.js';
+import { createCustomerView } from './clubhouse/customers.js';
 
 const CAT_COLORS = { balls: 0xf3f0e4, accessories: 0xc9a55a, apparel: 0x7f9fc2, clubs: 0x9a8265 };
 const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrain base
@@ -59,6 +58,18 @@ const FLOOR_TOP = 0.3; // interior floor (and porch deck) height over the terrai
 export function makeClubhouse(ctx) {
   // ctx: { scene, camera, state, center:{x,z}, heightAt, walkProps, propColliders, walk, hooks }
   const { scene, camera, state, center, heightAt, walkProps, propColliders, walk, hooks } = ctx;
+  const aoExclusionReleases = [];
+  const excludeFromAmbientOcclusion = (root) => {
+    const release = ctx.excludeFromAmbientOcclusion?.(root);
+    if (typeof release === 'function') aoExclusionReleases.push(release);
+  };
+  const layoutRecovery = recoverInvalidObjects(state);
+  if (layoutRecovery.recovered.length) {
+    queueMicrotask(() => hooks.toast?.(
+      `${layoutRecovery.recovered.length} invalid clubhouse object${layoutRecovery.recovered.length === 1 ? '' : 's'} recovered to safe placement.`,
+      'warn',
+    ));
+  }
   const baseY = heightAt(center.x, center.z);
   const floorY = baseY + FLOOR_TOP;
 
@@ -135,12 +146,26 @@ export function makeClubhouse(ctx) {
   const halfW = SHELL.w / 2 - SHELL.wallT / 2; // wall centerlines
   const halfD = SHELL.d / 2 - SHELL.wallT / 2;
 
+  let customerView = null;
   const B = {
-    ctx, state, group, interior, custGroup, mats, merch, hooks, walk,
+    ctx, state, group, interior, custGroup, mats, merch, hooks, walk, camera,
     addCol, removeCol, addProp, removeProp, colBoxAt, L2W, W2L, FLOOR_TOP,
-    getCustomers: () => customers,
+    getCustomers: () => customerView?.actors || [],
   };
   const shell = buildShell(B);
+
+  function refreshRoomStyle() {
+    const selected = roomStyle(state);
+    for (const kind of ['floor', 'walls', 'trim']) {
+      const material = shell.styleSurfaces?.[kind];
+      const option = ROOM_STYLE_OPTIONS[kind]?.find((entry) => entry.id === selected[kind]);
+      if (!material || !option) continue;
+      material.color.setHex(option.color);
+      if (Number.isFinite(option.roughness)) material.roughness = option.roughness;
+      material.needsUpdate = true;
+    }
+  }
+  refreshRoomStyle();
 
   // --- grime + window film (clubhouse/dirt.js — art-directed, state-masked) --------------
   B.onWindowDirt = () => shell.lighting.setWindowDirt(windowDirtAvg(state));
@@ -148,7 +173,8 @@ export function makeClubhouse(ctx) {
   const repaintGrime = dirt.repaintGrime;
   B.onWindowDirt();
 
-  // welcome mat inside the door
+  // welcome mat inside the door (kept as a load-failure fallback for Asset 100)
+  let fallbackWelcomeMat = null;
   {
     const matCv = document.createElement('canvas');
     matCv.width = 128; matCv.height = 64;
@@ -166,7 +192,9 @@ export function makeClubhouse(ctx) {
     matMesh.rotation.x = -Math.PI / 2;
     matMesh.position.set(MAT.x, 0.016, MAT.z);
     matMesh.renderOrder = 1;
+    matMesh.name = 'LegacyWelcomeMatFallback';
     interior.add(matMesh);
+    fallbackWelcomeMat = matMesh;
   }
 
   // --- doors + interior lighting (clubhouse/doors.js + the shell rig) --------------------
@@ -191,14 +219,21 @@ export function makeClubhouse(ctx) {
   // the player moved something: re-lay the floor and put the stock back on it. The customers'
   // paths rebake themselves — removeCol/addCol bump colVersion, and navFresh() watches it — so a
   // shelf that moved is a wall that moved, as far as they are concerned.
+  let placeableVisuals = null;
+  let builder = null;
   function rebuildLayout() {
     relayFixtures();
     rebuildStock();
+    placeableVisuals?.rebuild();
   }
 
   // build mode needs the anchors it is going to hide and the re-lay it is going to trigger, so it
   // is built here rather than up with the rest of the scene
-  const builder = buildBuildMode(B, { rebuildLayout, fixtureAnchors });
+  placeableVisuals = buildPlaceables(B, { fixtureAnchors, fallbackWelcomeMat });
+  excludeFromAmbientOcclusion(placeableVisuals.renderBatch);
+  builder = buildBuildMode(B, {
+    rebuildLayout, fixtureAnchors, placeables: placeableVisuals, refreshRoomStyle,
+  });
   buildLounge(B);
   buildStockroomDressing(B);
 
@@ -220,89 +255,32 @@ export function makeClubhouse(ctx) {
 
   const regWp = L2W(REGISTER.scanner.x, COUNTER.z);
 
-  // what this customer's day was actually like — the only thing a review is allowed to read
-  const visitOf = (c, bought) => ({
-    waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
-    queueLen: c.queueLenOnArrival || 0,
-    bought,
-    played: !!c.isGolfer,
-    foundWhatTheyWanted: bought,
-  });
-  const leaveReview = (c, bought) => {
-    if (c.reviewed) return null;
-    c.reviewed = true;
-    const r = reviewFor(state, visitOf(c, bought), Math.round((c.seed || 0) * 1000 + (state.dayAbs || 0)));
-    postReview(state, r);
-    return r;
-  };
-
-  // the head of the queue, with goods, waiting on YOU
-  const headForCheckout = () => {
-    const c = counterQueue[0];
-    return c && c.cart && c.cart.length && c.awaitingCheckout ? c : null;
-  };
-
-  // The sale banked. registerMode calls this through cust.onPaid, because IT owns the
-  // money and the goods, and clubhouse.js owns the person.
-  function onCustomerPaid(c) {
-    c.bought = true;
-    leaveReview(c, true);
-    if (c.itemMesh) { c.mesh.remove(c.itemMesh); c.itemMesh = null; }
-    // a branded carrier into their hand — they walk out with it
-    const bag = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.26, 0.13),
-      new THREE.MeshStandardMaterial({ color: 0x2e5a3a, roughness: 0.85 }),
-    );
-    body.position.y = 0.13;
-    bag.add(body);
-    for (const off of [-0.05, 0.05]) {
-      const h = new THREE.Mesh(
-        new THREE.BoxGeometry(0.015, 0.09, 0.015),
-        new THREE.MeshStandardMaterial({ color: 0x1d3a26, roughness: 0.8 }),
-      );
-      h.position.set(off, 0.3, 0);
-      bag.add(h);
-    }
-    bag.position.set(0.3, 0.62, 0.05);
-    bag.rotation.y = 0.2;
-    c.mesh.add(bag);
-
-    c.cart = [];
-    c.awaitingCheckout = false;
-    leaveQueue(c);
-    c.stopIdx += 1;
-    c.linger = 0;
-    rebuildStock(); // the shelf gap where their pick came from stays real
-  }
-
+  // One physical service point handles retail checkout and front-desk visitors.
   addProp({
     x: regWp.x, z: regWp.z, r: 2.2,
     label: () => {
+      // A live retail sale owns the shared counter. Otherwise the physical
+      // visitor label wins, with the canonical operations queue as fallback.
+      const saleLabel = register.label();
+      if (saleLabel) return saleLabel;
+      const deskLabel = customerView?.frontDeskLabel?.();
+      if (deskLabel) return deskLabel;
       const due = dueForCheckIn(state);
       if (due.length) {
-        const r = due[0];
-        return `Register — [E] check in ${r.name} (${fmtSlot(r.minute)} tee, ${Math.round(r.fee)} dollars)`
+        const reservation = due[0];
+        return `Tee desk — [E] serve ${reservation.reservationHolder} (${reservation.partySize} players · ${fmtSlot(reservation.minute)})`
           + (due.length > 1 ? ` · ${due.length - 1} more waiting` : '');
       }
-      const l = register.label();
-      if (l) return l;
-      const s = state.shop;
-      const live = s.salesLive && s.salesLive.units ? ` · today at the counter: ${s.salesLive.units} rung up` : '';
-      return `Register — yesterday: ${s.salesYesterday.units} sales, ${s.salesYesterday.revenue} dollars${live}`;
+      return 'Tee desk — [E] arrivals, check-in & walk-ins';
     },
     action: () => {
-      const due = dueForCheckIn(state);
-      if (due.length) {
-        const res = checkInReservation(state, due[0].id);
-        if (res.ok) {
-          if (hooks.toast) hooks.toast(`${due[0].name} checked in — ${Math.round(res.fee)} dollar green fee collected.`);
-          if (hooks.sfx) hooks.sfx('doorbell');
-        }
+      if (register.hasTx()) {
+        register.enter();
         return;
       }
-      if (register.hasTx()) register.enter();
-      else if (hooks.toast) hooks.toast('Nobody to serve.', 'warn');
+      const physicalReservationId = customerView?.frontDeskReservationId?.() ?? null;
+      const due = dueForCheckIn(state);
+      hooks.openFrontDesk?.(physicalReservationId ?? due[0]?.id ?? null);
     },
   });
 
@@ -917,7 +895,72 @@ export function makeClubhouse(ctx) {
     interior.add(photoFrame);
   }
 
-  // stockroom dressing: hand truck, bin, receiving pad outside the back door
+  // stockroom dressing: hand truck, purpose-built receiving fixtures, and pad.
+  // The production assets load through the same bounded GLB cache as merchandise;
+  // their authored materials remain intact and their COL_* helpers never render.
+  const deliveryFixtureGroup = new THREE.Group();
+  const deliveryVehicleGroup = new THREE.Group();
+  interior.add(deliveryFixtureGroup);
+  excludeFromAmbientOcclusion(deliveryFixtureGroup);
+  scene.add(deliveryVehicleGroup);
+  let deliveryVanMesh = null;
+  let deliveryVanAnim = null;
+  let deliveryVanCol = null;
+  let queuedDeliveryVisual = null;
+  let fallbackHandTruck = null;
+  let fallbackRecycleBin = null;
+
+  function hideAuthoredCollision(root) {
+    root.traverse((o) => {
+      if (o.name.startsWith('COL_')) o.visible = false;
+    });
+    return root;
+  }
+
+  function installDeliveryAssets() {
+    if (!interior.parent || deliveryVanMesh) return;
+    const bench = merch.instantiateRaw('delivery_worktable');
+    if (bench) {
+      hideAuthoredCollision(bench);
+      bench.position.set(STOCKROOM.packing.x, 0, STOCKROOM.packing.z);
+      bench.rotation.y = STOCKROOM.packing.ry || 0;
+      deliveryFixtureGroup.add(bench);
+    }
+    const recycling = merch.instantiateRaw('delivery_recycling_station');
+    if (recycling) {
+      hideAuthoredCollision(recycling);
+      recycling.position.set(STOCKROOM.bin.x, 0, STOCKROOM.bin.z);
+      recycling.rotation.y = Math.PI; // front faces into the stockroom work aisle
+      deliveryFixtureGroup.add(recycling);
+      if (fallbackRecycleBin) fallbackRecycleBin.visible = false;
+    }
+    const handTruck = merch.instantiate('handtruck');
+    if (handTruck) {
+      handTruck.position.set(STOCKROOM.handTruck.x, 0, STOCKROOM.handTruck.z);
+      handTruck.rotation.y = 0.15;
+      deliveryFixtureGroup.add(handTruck);
+      if (fallbackHandTruck) fallbackHandTruck.visible = false;
+    }
+    const van = merch.instantiateRaw('delivery_van');
+    if (van) {
+      hideAuthoredCollision(van);
+      van.rotation.y = Math.PI / 2; // reverse toward the pad; rear doors face the unloading zone
+      van.visible = false;
+      deliveryVehicleGroup.add(van);
+      deliveryVanMesh = van;
+      if (queuedDeliveryVisual) {
+        const ev = queuedDeliveryVisual;
+        queuedDeliveryVisual = null;
+        playDeliveryArrival(ev);
+      }
+    }
+  }
+
+  // These colliders exist immediately, not one network turn after their meshes.
+  addCol(colBoxAt(STOCKROOM.packing.x, STOCKROOM.packing.z, 1.78, 0.86));
+  addCol(colBoxAt(STOCKROOM.bin.x, STOCKROOM.bin.z, 1.52, 0.72));
+
+  // stockroom dressing: hand truck and receiving pad outside the back door
   {
     const truck = new THREE.Group();
     const plate = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.4), darkMat);
@@ -934,8 +977,9 @@ export function makeClubhouse(ctx) {
       truck.add(wheel);
     }
     truck.position.set(STOCKROOM.handTruck.x, 0, STOCKROOM.handTruck.z);
-    truck.rotation.y = 0.6;
+    truck.rotation.y = 0.15;
     interior.add(truck);
+    fallbackHandTruck = truck;
 
     const bin = new THREE.Mesh(
       new THREE.CylinderGeometry(0.26, 0.22, 0.6, 10),
@@ -943,6 +987,33 @@ export function makeClubhouse(ctx) {
     );
     bin.position.set(STOCKROOM.bin.x, 0.3, STOCKROOM.bin.z);
     interior.add(bin);
+    fallbackRecycleBin = bin;
+
+    // Marked overflow receiving zone: visibly safe, inside the stockroom, and
+    // clear of both customer doors. Fallback slots render only on this mat.
+    const zoneCanvas = document.createElement('canvas');
+    zoneCanvas.width = 384; zoneCanvas.height = 512;
+    const zc = zoneCanvas.getContext('2d');
+    zc.fillStyle = '#314f39'; zc.fillRect(0, 0, 384, 512);
+    zc.strokeStyle = '#d2ae55'; zc.lineWidth = 22; zc.strokeRect(16, 16, 352, 480);
+    zc.fillStyle = 'rgba(239,233,217,0.14)';
+    for (let x = -260; x < 520; x += 72) {
+      zc.beginPath(); zc.moveTo(x, 512); zc.lineTo(x + 250, 0); zc.lineTo(x + 285, 0); zc.lineTo(x + 35, 512); zc.closePath(); zc.fill();
+    }
+    zc.fillStyle = '#efe9d9'; zc.textAlign = 'center'; zc.font = 'bold 34px Georgia';
+    zc.fillText('SAFE RECEIVING', 192, 240);
+    zc.font = 'bold 23px Georgia'; zc.fillText('12 CARTONS MAX', 192, 278);
+    zc.fillText('KEEP DOOR CLEAR', 192, 310);
+    const zoneTexture = new THREE.CanvasTexture(zoneCanvas);
+    zoneTexture.colorSpace = THREE.SRGBColorSpace;
+    const safeZone = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.0, 3.25),
+      new THREE.MeshStandardMaterial({ map: zoneTexture, roughness: 0.96 }),
+    );
+    safeZone.rotation.x = -Math.PI / 2;
+    safeZone.position.set(STOCKROOM.receivingInside.x, 0.014, STOCKROOM.receivingInside.z);
+    safeZone.receiveShadow = true;
+    interior.add(safeZone);
 
     // receiving pad — deliveries will land here (gravel patch + posts)
     const padWp = L2W(STOCKROOM.padOutside.x, STOCKROOM.padOutside.z);
@@ -1351,6 +1422,13 @@ export function makeClubhouse(ctx) {
   const stockGroup = new THREE.Group();
   interior.add(stockGroup);
   const stockMeshes = new Map();
+  const reservePickProps = [];
+  function disposeBakedStock(root) {
+    if (!root) return;
+    root.traverse((o) => {
+      if (o.geometry && o.geometry.userData.merchBakeOwned) o.geometry.dispose();
+    });
+  }
 
   // one label texture per SKU, shared by every box mesh of that line
   const labelCache = new Map();
@@ -1399,6 +1477,41 @@ export function makeClubhouse(ctx) {
   const CARTON_BRAND = { tees1: 'CADDIE CLUB', marker1: 'CADDIE CLUB' };
   const skuMats = new Map();
   const ballBoxMats = new Map();
+  const reserveLabelGeo = new THREE.PlaneGeometry(0.48, 0.11);
+  const reserveLabelCache = new Map();
+  let reserveLabelGeneration = 0;
+
+  function reserveLabelMat(sku, quantity) {
+    const key = `${sku.id}:${quantity}`;
+    const cached = reserveLabelCache.get(key);
+    if (cached) {
+      cached.used = reserveLabelGeneration;
+      return cached.material;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = 384; canvas.height = 96;
+    const c = canvas.getContext('2d');
+    c.fillStyle = '#efe9d9'; c.fillRect(0, 0, canvas.width, canvas.height);
+    c.strokeStyle = '#b99751'; c.lineWidth = 5; c.strokeRect(3, 3, 378, 90);
+    c.fillStyle = '#1f4a26'; c.font = 'bold 25px Georgia';
+    c.fillText(sku.name.slice(0, 21), 12, 37);
+    c.fillStyle = '#292b27'; c.font = 'bold 30px Georgia';
+    c.fillText(`RESERVE ×${quantity}`, 12, 75);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const material = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.84 });
+    reserveLabelCache.set(key, { material, used: reserveLabelGeneration });
+    return material;
+  }
+
+  function pruneReserveLabels() {
+    for (const [key, entry] of reserveLabelCache) {
+      if (entry.used === reserveLabelGeneration) continue;
+      if (entry.material.map) entry.material.map.dispose();
+      entry.material.dispose();
+      reserveLabelCache.delete(key);
+    }
+  }
 
   function skuMat(sku) {
     if (!skuMats.has(sku.id)) {
@@ -1623,9 +1736,19 @@ export function makeClubhouse(ctx) {
   }
 
   function rebuildStock() {
-    for (const g of stockMeshes.values()) stockGroup.remove(g);
+    reserveLabelGeneration++;
+    for (const prop of reservePickProps.splice(0)) removeProp(prop);
+    for (const g of stockMeshes.values()) {
+      stockGroup.remove(g);
+      disposeBakedStock(g);
+    }
     stockMeshes.clear();
     const inv = state.shop.inventory;
+    const reserveLines = SHOP_CATALOG
+      .map((sku) => ({ sku, quantity: Math.max(0, inv[sku.id] ? inv[sku.id].back : 0) }))
+      .filter((line) => line.quantity > 0);
+    const reserveRackOrder = ['backshelf_e2', 'backshelf_e']
+      .filter((id) => placedFixtures(state).some((fixture) => fixture.id === id));
 
     for (const f of placedFixtures(state)) {
       const anchor = fixtureAnchors.get(f.id);
@@ -1681,29 +1804,86 @@ export function makeClubhouse(ctx) {
         stockMeshes.set(f.id + ':feature', g);
       }
 
-      // The backroom shelving is STORAGE, not a sales fixture: it shows the volume of stock behind
-      // the door as cases, not one case per unit (a hundred golf balls do not sit on that shelf as
-      // a hundred boxes, they sit as the cases they came in). It is an honest representation of a
-      // quantity rather than a count of items, and the difference is stated rather than hidden.
+      // One grouped, labelled row per SKU in reserve. Rows are distributed
+      // across the three racks exactly once; the old implementation repeated a
+      // generic cardboard approximation on every rack, tripling what appeared
+      // to exist. Up to three real product silhouettes communicate category and
+      // density while the count tag remains numerically authoritative.
       if (f.kind === 'backshelf') {
         const g = new THREE.Group();
-        const totalBack = SHOP_CATALOG.reduce((a, s) => a + (inv[s.id] ? inv[s.id].back : 0), 0);
-        const show = Math.min(Math.ceil(totalBack / 6), 12);
-        for (let i = 0; i < show; i++) {
-          const bx = -0.95 + (i % 4) * 0.62;
-          const by = [0.46, 1.11, 1.76][Math.floor(i / 4) % 3];
-          const caseB = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.36, 0.44), i % 2 ? cardboard : cardboardDark);
-          caseB.position.set(bx, by + 0.18, 0);
-          caseB.rotation.y = (i % 3) * 0.1 - 0.1;
-          caseB.castShadow = true;
-          g.add(caseB);
+        const reserveRackIndex = reserveRackOrder.indexOf(f.id);
+        const lines = reserveRackIndex < 0
+          ? []
+          : reserveLines.slice(reserveRackIndex * 12, reserveRackIndex * 12 + 12);
+        for (let index = 0; index < lines.length; index++) {
+          const { sku, quantity } = lines[index];
+          const column = index % 3;
+          const row = Math.floor(index / 3);
+          const cellX = [0, -0.68, 0.68][column];
+          // Fill the eye-level bay first, then work outward. The quantity the
+          // player just stored must not disappear below the camera's lower edge.
+          const shelfY = [1.18, 0.68, 1.68, 0.18][row];
+          const visibleUnits = Math.min(quantity, 6);
+          for (let unit = 0; unit < visibleUnits; unit++) {
+            const product = makeDeliveryUnit(sku, 0.14, 0.25, 0.14, unit);
+            const unitRow = Math.floor(unit / 3);
+            const unitsThisRow = Math.min(3, visibleUnits - unitRow * 3);
+            product.position.set(
+              cellX + ((unit % 3) - (unitsThisRow - 1) / 2) * 0.15,
+              shelfY + 0.035,
+              -0.11 + unitRow * 0.17,
+            );
+            product.rotation.y = (unit - 1) * 0.06;
+            g.add(product);
+          }
+          const tag = new THREE.Mesh(reserveLabelGeo, reserveLabelMat(sku, quantity));
+          tag.position.set(cellX, shelfY + 0.075, 0.345);
+          g.add(tag);
+
+          // The displayed reserve row is also the physical pickup point. Aim
+          // at the labelled SKU, take one bounded armful, then walk those exact
+          // lot allocations to its retail fixture. Rows may share x/z across
+          // shelf heights, so y participates in reticle focus.
+          const ry = f.ry || 0;
+          const front = 0.28;
+          const localX = f.x + cellX * Math.cos(ry) + front * Math.sin(ry);
+          const localZ = f.z - cellX * Math.sin(ry) + front * Math.cos(ry);
+          const world = L2W(localX, localZ);
+          const prop = addProp({
+            x: world.x,
+            y: floorY + shelfY + 0.14,
+            z: world.z,
+            r: 1.45,
+            label: () => {
+              if (carriedBox(state) || carriedGoods(state)) return null;
+              const available = state.shop.inventory[sku.id]?.back || 0;
+              return available > 0
+                ? `Reserve: ${sku.name} ×${available} — [E] take an armful`
+                : null;
+            },
+            action: () => {
+              if (carriedBox(state) || carriedGoods(state)) return;
+              const result = takeFromBack(state, sku.id);
+              if (!result.ok) {
+                say(result.reason || 'Could not take reserve stock.', 'warn');
+                return;
+              }
+              sfx('product');
+              say(`${result.taken} × ${sku.name} in your arms — take them to ${homeOf(sku.id)?.title || 'the correct display'}.`);
+              rebuildStock();
+              rebuildBoxes();
+            },
+          });
+          reservePickProps.push(prop);
         }
-        g.position.copy(anchor.position);
-        g.rotation.copy(anchor.rotation);
-        stockGroup.add(g);
-        stockMeshes.set(f.id + ':back', g);
+        const baked = merch.bake(g);
+        baked.position.copy(anchor.position);
+        baked.rotation.copy(anchor.rotation);
+        stockGroup.add(baked);
+        stockMeshes.set(f.id + ':back', baked);
       }
     }
+    pruneReserveLabels();
   }
 
   let stockSig = '';
@@ -1791,146 +1971,278 @@ export function makeClubhouse(ctx) {
   const boxCols = new Map();    // id -> { col, sig } — a set-down box is a real obstacle, tracked here
   let boxSig = '';
 
-  // one shipping-label texture per box id (supplier, order #, weight, category, FRAGILE)
+  // Dynamic carton geometry is rebuilt while tape and flaps move. Mark only the
+  // geometry created for that rebuild; product models and kit materials stay shared.
+  const ownedGeometry = (geometry) => {
+    geometry.userData.inventoryOwned = true;
+    return geometry;
+  };
+  const ownedMesh = (geometry, material) => new THREE.Mesh(ownedGeometry(geometry), material);
+  function disposeOwnedRenderable(root) {
+    if (!root) return;
+    root.traverse((o) => {
+      if (o.geometry && o.geometry.userData.inventoryOwned) o.geometry.dispose();
+    });
+  }
+  function clearOwnedGroup(root) {
+    for (const child of [...root.children]) disposeOwnedRenderable(child);
+    root.clear();
+  }
+
+  const boxInsideFilledMat = new THREE.MeshStandardMaterial({ color: 0x4a3a28, roughness: 1 });
+  const boxInsideEmptyMat = new THREE.MeshStandardMaterial({ color: 0x241a10, roughness: 1 });
+  const deliveryShaftGeo = new THREE.CylinderGeometry(0.009, 0.011, 0.40, 8);
+  const deliveryUmbrellaGeo = new THREE.ConeGeometry(0.075, 0.18, 10);
+  const deliveryRollGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.18, 8);
+  const carryPalmGeo = new THREE.SphereGeometry(0.048, 12, 8);
+  const carryForearmGeo = new THREE.CylinderGeometry(0.045, 0.06, 0.34, 10);
+  const carrySkinMat = new THREE.MeshStandardMaterial({ color: 0xc98f68, roughness: 0.82 });
+  const carrySleeveMat = new THREE.MeshStandardMaterial({ color: 0x294f34, roughness: 0.9 });
+
+  function makeCarryHands(span, y, z) {
+    const hands = new THREE.Group();
+    for (const sign of [-1, 1]) {
+      const palm = new THREE.Mesh(carryPalmGeo, carrySkinMat);
+      palm.scale.set(1.05, 0.78, 1.18);
+      palm.position.set(sign * span, y, z);
+      const thumb = new THREE.Mesh(carryPalmGeo, carrySkinMat);
+      thumb.scale.set(0.58, 0.48, 0.82);
+      thumb.position.set(sign * (span - 0.038), y - 0.006, z - 0.036);
+      const sleeve = new THREE.Mesh(carryForearmGeo, carrySleeveMat);
+      sleeve.position.set(sign * (span + 0.055), y - 0.18, z + 0.055);
+      sleeve.rotation.z = sign * -0.24;
+      sleeve.rotation.x = 0.12;
+      hands.add(sleeve, palm, thumb);
+    }
+    return hands;
+  }
+
+  // Labels remain exact, but only labels used by the current rebuild survive.
+  // That keeps a hundred partial-unpack cycles from retaining a hundred canvases.
   const shipLabelCache = new Map();
+  let shipLabelGeneration = 0;
   function boxLabelMat(box, sku) {
-    const key = `${box.id}:${box.qty}`;
-    if (shipLabelCache.has(key)) return shipLabelCache.get(key);
+    const key = `${box.persistentId || box.id}:${box.qty}`;
+    const cached = shipLabelCache.get(key);
+    if (cached) {
+      cached.used = shipLabelGeneration;
+      return cached.material;
+    }
     const cv = document.createElement('canvas');
     cv.width = 256; cv.height = 160;
     const c = cv.getContext('2d');
     c.fillStyle = '#efe7d4'; c.fillRect(0, 0, 256, 160);
     c.strokeStyle = '#b9a074'; c.lineWidth = 4; c.strokeRect(6, 6, 244, 148);
-    c.fillStyle = '#1f3a24'; c.font = 'bold 22px Georgia';
-    c.fillText((box.supplier || 'FAIRWAY SUPPLY CO.').slice(0, 18), 16, 34);
-    c.fillStyle = '#2a2a26'; c.font = '16px Georgia';
-    c.fillText(`ORDER #${String(box.orderId || 0).padStart(4, '0')}`, 16, 60);
-    c.fillText(`${(sku ? sku.name : box.skuId).slice(0, 20)}`, 16, 82);
-    c.fillText(`QTY ${box.qty}    ${box.lb != null ? box.lb + ' LB' : ''}`, 16, 104);
-    const glyph = { balls: '●', clubs: 'T', apparel: '▧', accessories: '◆', supplies: '⚙', decor: '❖' }[sku ? sku.cat : 'accessories'] || '◆';
-    c.font = 'bold 30px Georgia'; c.fillText(glyph, 214, 44);
+    c.fillStyle = '#1f3a24'; c.font = 'bold 18px Georgia';
+    c.fillText((box.supplier || 'PINEHOLLOW PARCEL').slice(0, 20), 16, 33);
+    c.fillStyle = '#2a2a26'; c.font = '15px Georgia';
+    c.fillText(`ORDER #${String(box.orderId || 0).padStart(4, '0')}`, 16, 59);
+    c.fillText(`${(sku ? sku.name : box.skuId).slice(0, 22)}`, 16, 82);
+    c.fillText(`REMAIN ${box.qty}/${box.initialQuantity || box.cap || box.qty}`, 16, 105);
+    c.fillText(`${box.lb != null ? `${box.lb} LB` : ''}  ${(box.weightClass || 'light').toUpperCase()}`, 16, 127);
+    const categoryMark = { balls: 'O', clubs: 'T', apparel: 'A', accessories: 'G', supplies: 'S', decor: 'D' }[sku ? sku.cat : 'accessories'] || 'G';
+    c.fillStyle = '#1f4a26'; c.beginPath(); c.arc(229, 28, 14, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#efe7d4'; c.font = 'bold 17px Georgia'; c.textAlign = 'center';
+    c.fillText(categoryMark, 229, 34);
+    c.textAlign = 'start';
     if (box.fragile) {
-      c.fillStyle = '#a12a1e'; c.font = 'bold 20px Georgia';
-      c.fillText('! FRAGILE', 16, 138);
+      c.fillStyle = '#a12a1e'; c.font = 'bold 17px Georgia';
+      c.fillText('FRAGILE', 158, 143);
     }
-    const tex = new THREE.CanvasTexture(cv);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 });
-    shipLabelCache.set(key, mat);
-    return mat;
+    const texture = new THREE.CanvasTexture(cv);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const material = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.85 });
+    shipLabelCache.set(key, { material, used: shipLabelGeneration });
+    return material;
+  }
+  function pruneShipLabels() {
+    for (const [key, entry] of shipLabelCache) {
+      if (entry.used === shipLabelGeneration) continue;
+      if (entry.material.map) entry.material.map.dispose();
+      entry.material.dispose();
+      shipLabelCache.delete(key);
+    }
   }
 
-  // a few of the actual product, sitting in the open carton — capped so a big case is a layer, not
-  // five hundred meshes. This is what makes "see physical contents" and "partial contents" real.
+  function fitProductUnit(object, maxW, maxH, maxD) {
+    const holder = new THREE.Group();
+    holder.add(object);
+    object.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(object);
+    const size = bounds.getSize(new THREE.Vector3());
+    if (size.x > 0 && size.y > 0 && size.z > 0) {
+      const scale = Math.min(maxW / size.x, maxH / size.y, maxD / size.z);
+      object.scale.multiplyScalar(scale);
+      object.updateMatrixWorld(true);
+      const fitted = new THREE.Box3().setFromObject(object);
+      const centre = fitted.getCenter(new THREE.Vector3());
+      object.position.x -= centre.x;
+      object.position.y -= fitted.min.y;
+      object.position.z -= centre.z;
+    }
+    return holder;
+  }
+
+  // The open box and the player's arms use the same recognizable product
+  // silhouettes as the retail fixtures; nothing turns into a generic white block.
+  function makeDeliveryUnit(sku, maxW, maxH, maxD, index = 0) {
+    let object = null;
+    const id = sku && sku.id;
+    if (sku && sku.cat === 'clubs') {
+      const g = new THREE.Group();
+      const shaft = new THREE.Mesh(deliveryShaftGeo, mats.merchSteel);
+      shaft.position.y = 0.20;
+      g.add(shaft);
+      const headName = id.startsWith('driver') ? 'head_driver'
+        : id.startsWith('putter') ? 'head_putter'
+          : id.startsWith('wedge') ? 'head_wedge' : 'head_iron';
+      const head = merch.instantiate(headName);
+      if (head) g.add(head);
+      object = g;
+    } else if (sku && sku.cat === 'balls') {
+      object = new THREE.Mesh(BALL_BOX_GEO, ballBoxMat(sku));
+    } else if (id === 'cap1') {
+      object = merch.instantiateRaw('cap_pro');
+    } else if (id === 'shoe1') {
+      object = merch.instantiateRaw('shoe_pro');
+    } else if (id === 'range2') {
+      object = merch.instantiateRaw('rangefinder');
+    } else if (id === 'glove1') {
+      object = merch.instantiate('glove');
+    } else if (id === 'polo1' || id === 'polo2' || id === 'jacket2') {
+      object = merch.instantiate(id === 'jacket2' ? 'jacket_hanging' : 'polo_folded', { tint: POLO_TINTS[id] });
+      if (id === 'jacket2' && object) object.rotation.x = Math.PI / 2;
+    } else if (id === 'bag1') {
+      object = merch.instantiate('bag', { tint: BAG_TINTS[index % BAG_TINTS.length] });
+    } else if (id === 'umb1') {
+      const g = new THREE.Group();
+      const shaft = new THREE.Mesh(deliveryShaftGeo, mats.merchDark);
+      shaft.position.y = 0.20;
+      const canopy = new THREE.Mesh(deliveryUmbrellaGeo, skuMat(sku));
+      canopy.position.y = 0.43;
+      g.add(shaft, canopy);
+      object = g;
+    } else if (id === 'towel1' || id === 'sock1') {
+      object = new THREE.Mesh(deliveryRollGeo, id === 'sock1' ? mats.merchWhite : skuMat(sku));
+      object.rotation.z = Math.PI / 2;
+    }
+    if (!object) object = new THREE.Mesh(CARTON_GEO, sku ? cartonMat(sku) : mats.merchWhite);
+    return fitProductUnit(object, maxW, maxH, maxD);
+  }
+
+  // A six-cell visual layer shows full / three-quarter / half / nearly-empty
+  // states, while the label and interaction prompt retain the exact unit count.
   function contentsInBox(box, w, h, d) {
     const g = new THREE.Group();
     const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
-    const cat = sku ? sku.cat : 'accessories';
-    const show = Math.min(box.qty, 8);
-    const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(CAT_COLORS[cat] || 0xb08d57), roughness: 0.7 });
+    const initial = Math.max(1, box.initialQuantity || box.cap || box.qty);
+    const ratio = Math.max(0, Math.min(1, box.qty / initial));
+    const show = box.qty <= 6 ? box.qty : Math.max(1, Math.ceil(ratio * 6));
+    const cellW = w * 0.22;
+    const cellD = d * 0.27;
     for (let i = 0; i < show; i++) {
-      const item = cat === 'balls'
-        ? new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), mats.merchWhite)
-        : new THREE.Mesh(new THREE.BoxGeometry(w * 0.22, h * 0.3, d * 0.22), mat);
-      const col = i % 3;
-      const row = Math.floor(i / 3);
-      item.position.set(-w * 0.28 + col * (w * 0.28), h * 0.42 + (i >= 6 ? 0.03 : 0), -d * 0.24 + row * (d * 0.24));
+      const item = makeDeliveryUnit(sku, cellW, h * 0.42, cellD, i);
+      item.updateMatrixWorld(true);
+      const unitBounds = new THREE.Box3().setFromObject(item);
+      const fillTop = h * (0.78 + ratio * 0.18);
+      const baseY = Math.max(h * 0.12, fillTop - unitBounds.max.y);
+      item.position.set((i % 3 - 1) * w * 0.27, baseY, (Math.floor(i / 3) - 0.5) * d * 0.30);
+      item.rotation.y = (i % 2 ? 0.08 : -0.06);
       g.add(item);
     }
     return g;
   }
 
-  // A driver does not arrive in a glove box: the carton is sized from what is inside it, and its
-  // seams and flaps show exactly what the sim says the box is doing right now.
+  // A driver does not arrive in a glove box. Sealed cases have a true top seam;
+  // opened cases have four walls, a bottom and correctly hinged outward flaps.
   function makeBoxMesh(box) {
     const g = new THREE.Group();
     const { w, h, d } = boxDims(box.box || 'carton');
     const sku = SHOP_CATALOG.find((s) => s.id === box.skuId);
 
     if (box.flat) {
-      const slab = new THREE.Mesh(new THREE.BoxGeometry(w, 0.03, d * 1.6), cardboardDark);
+      const slab = ownedMesh(new THREE.BoxGeometry(w, 0.03, d * 1.6), cardboardDark);
       slab.position.y = 0.015;
       slab.castShadow = true;
       g.add(slab);
       return g;
     }
 
-    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), cardboard);
-    body.position.y = h / 2;
-    body.castShadow = true;
-    g.add(body);
+    const opened = tapeCut(box);
+    if (!opened) {
+      const body = ownedMesh(new THREE.BoxGeometry(w, h, d), cardboard);
+      body.position.y = h / 2;
+      body.castShadow = true;
+      g.add(body);
+    } else {
+      const wall = 0.024;
+      const bottom = ownedMesh(new THREE.BoxGeometry(w - wall * 2, 0.035, d - wall * 2), isEmpty(box) ? boxInsideEmptyMat : boxInsideFilledMat);
+      bottom.position.y = 0.018;
+      g.add(bottom);
+      for (const sign of [-1, 1]) {
+        const side = ownedMesh(new THREE.BoxGeometry(w, h, wall), cardboard);
+        side.position.set(0, h / 2, sign * (d / 2 - wall / 2));
+        side.castShadow = true;
+        g.add(side);
+        const end = ownedMesh(new THREE.BoxGeometry(wall, h, d - wall * 2), cardboard);
+        end.position.set(sign * (w / 2 - wall / 2), h / 2, 0);
+        end.castShadow = true;
+        g.add(end);
+      }
+    }
 
-    const label = new THREE.Mesh(
-      new THREE.PlaneGeometry(Math.min(w * 0.8, 0.5), Math.min(h * 0.7, 0.32)),
+    const label = ownedMesh(
+      new THREE.PlaneGeometry(Math.min(w * 0.82, 0.52), Math.min(h * 0.74, 0.34)),
       boxLabelMat(box, sku),
     );
-    label.position.set(0, h * 0.55, d / 2 + 0.002);
+    label.position.set(0, h * 0.54, d / 2 + 0.003);
     g.add(label);
 
-    if (!tapeCut(box)) {
-      // tape down the centre seam — recedes from the front as the cut runs (box.tape 0..1)
-      const cut = box.tape || 0;
-      const remain = 1 - Math.min(1, cut / 0.6);   // the centre seam is the first 60% of the cut
-      if (remain > 0.02) {
-        const tape = new THREE.Mesh(new THREE.BoxGeometry(w + 0.01, 0.012, d * remain), tapeMat);
-        tape.position.set(0, h + 0.006, -d / 2 + (d * remain) / 2);
-        g.add(tape);
+    if (!opened) {
+      const cut = Math.max(0, Math.min(1, box.tape || 0));
+      const remain = 1 - Math.min(1, cut / 0.72);
+      if (remain > 0.015) {
+        const seam = ownedMesh(new THREE.BoxGeometry(Math.max(0.045, w * 0.10), 0.012, d * remain), tapeMat);
+        seam.position.set(0, h + 0.006, -d / 2 + (d * remain) / 2);
+        g.add(seam);
       }
-      if (cut < 1) {
-        for (const sx of [-w * 0.32, w * 0.32]) {   // the two cross tapes, until the very end
-          const cross = new THREE.Mesh(new THREE.BoxGeometry(w * 0.16, 0.012, d + 0.01), tapeMat);
-          cross.position.set(sx, h + 0.006, 0);
+      if (cut < 0.88) {
+        for (const z of [-d * 0.33, d * 0.33]) {
+          const cross = ownedMesh(new THREE.BoxGeometry(w + 0.01, 0.012, Math.max(0.035, d * 0.09)), tapeMat);
+          cross.position.set(0, h + 0.006, z);
           g.add(cross);
         }
       }
     } else {
-      // two flaps, pivoting up-and-out on box.flaps[0..1] (0 shut .. 1 open)
-      const flapGeo = new THREE.BoxGeometry(w * 0.98, 0.012, d * 0.5);
       const fl = box.flaps || [0, 0];
       for (const [i, sign] of [[0, -1], [1, 1]]) {
-        const a = (fl[i] || 0) * (Math.PI * 0.62);
+        const amount = Math.max(0, Math.min(1, fl[i] || 0));
         const flap = new THREE.Group();
-        const panel = new THREE.Mesh(flapGeo, cardboardDark);
-        panel.position.z = sign * d * 0.25;
+        const panel = ownedMesh(new THREE.BoxGeometry(w * 0.98, 0.012, d * 0.49), cardboardDark);
+        panel.position.z = -sign * d * 0.245;
         flap.add(panel);
         flap.position.set(0, h, sign * d * 0.5);
-        flap.rotation.x = sign * -a;
+        flap.rotation.x = -sign * amount * (Math.PI * 0.58);
         g.add(flap);
       }
       if (flapsOpen(box) && box.qty > 0) g.add(contentsInBox(box, w, h, d));
-      const inside = new THREE.Mesh(
-        new THREE.PlaneGeometry(w * 0.9, d * 0.9),
-        new THREE.MeshStandardMaterial({ color: isEmpty(box) ? 0x241a10 : 0x4a3a28, roughness: 1 }),
-      );
-      inside.rotation.x = -Math.PI / 2;
-      inside.position.y = h * 0.35;
-      g.add(inside);
     }
     return g;
   }
 
-  // a small stack of the product you are carrying in your arms, on the camera. Distinct little
-  // items with a dark edge between them, so an armful reads as an armful and not one pale slab.
   function makeGoodsMesh(carry) {
     const g = new THREE.Group();
     const sku = SHOP_CATALOG.find((s) => s.id === carry.skuId);
-    const cat = sku ? sku.cat : 'accessories';
-    const base = new THREE.Color(CAT_COLORS[cat] || 0xb08d57);
     const show = Math.min(carry.qty, 6);
     for (let i = 0; i < show; i++) {
-      let item;
-      if (cat === 'clubs') {
-        item = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.46, 6), mats.merchSteel);
-        item.position.set((i - 2) * 0.03, 0.02, 0);
-        item.rotation.z = 1.45 + i * 0.05;
+      const clubs = sku && sku.cat === 'clubs';
+      const item = makeDeliveryUnit(sku, clubs ? 0.08 : 0.14, clubs ? 0.44 : 0.14, clubs ? 0.08 : 0.13, i);
+      if (clubs) {
+        item.position.set((i - (show - 1) / 2) * 0.035, -0.03, (i % 2) * 0.018);
+        item.rotation.z = 1.30 + i * 0.035;
       } else {
-        const c = base.clone().offsetHSL(0, 0, (i % 2 ? -0.06 : 0.03));  // alternate shade = a visible seam
-        const m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.75 });
-        item = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.09), m);
-        const col = i % 3;
-        const row = Math.floor(i / 3);
-        item.position.set((col - 1) * 0.115, row * 0.06, row * 0.015);
-        item.rotation.y = (i % 2 ? 0.08 : -0.05);
+        item.position.set((i % 3 - 1) * 0.15, Math.floor(i / 3) * 0.14, Math.floor(i / 3) * 0.025);
+        item.rotation.y = i % 2 ? 0.08 : -0.06;
       }
       g.add(item);
     }
@@ -1941,7 +2253,7 @@ export function makeClubhouse(ctx) {
     const d = state.shop.deliveries;
     if (!d) return '';
     const c = state.shop.carry;
-    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.z || 0}:${b.tape || 0}:${(b.flaps || [0, 0]).join('')}:${b.qty}:${b.flat ? 1 : 0}`).join(',')
+    return d.boxes.map((b) => `${b.id}:${b.loc}:${b.x || 0}:${b.y || 0}:${b.z || 0}:${b.ry || 0}:${b.receivingSlot ?? ''}:${b.surface || ''}:${b.tape || 0}:${(b.flaps || [0, 0]).join('')}:${b.qty}:${b.flat ? 1 : 0}`).join(',')
       + '|' + (c ? c.skuId + c.qty : '') + '|' + d.trash;
   }
 
@@ -1963,50 +2275,143 @@ export function makeClubhouse(ctx) {
   }
   B.stockFromHands = stockFromHands;
   B.carriedGoods = () => carriedGoods(state);
+  B.carriedBox = () => carriedBox(state);
   B.rebuildCarry = () => rebuildBoxes();
 
+  function storeCarriedGoodsAtReserve() {
+    const held = carriedGoods(state);
+    if (!held) return { ok: false, reason: 'Nothing to store.' };
+    const sku = SHOP_CATALOG.find((s) => s.id === held.skuId);
+    const res = storeInBack(state);
+    if (res.ok) {
+      sfx('product');
+      say(`${res.moved} × ${sku ? sku.name : held.skuId} stored in receiving reserve.`);
+      rebuildStock();
+      rebuildBoxes();
+    }
+    return res;
+  }
+  B.storeCarriedGoods = storeCarriedGoodsAtReserve;
+
+  function placeBoxOnReserveRack(fixture) {
+    const box = carriedBox(state);
+    if (!box) return { ok: false, reason: 'No carton to store.' };
+    const dims = boxDims(box.box || 'carton');
+    const surface = `reserve-rack:${fixture.id}`;
+    const occupied = new Set(boxesOf(state)
+      .filter((candidate) => candidate.surface === surface && Number.isSafeInteger(candidate.surfaceSlot))
+      .map((candidate) => candidate.surfaceSlot));
+    const oversized = dims.h > 0.42 || dims.w > 0.72 || dims.d > 0.58;
+    const candidates = oversized ? [12] : Array.from({ length: 12 }, (_, i) => i);
+    const slot = candidates.find((candidate) => !occupied.has(candidate));
+    if (slot === undefined) {
+      say(oversized ? 'The oversized bay on this rack is occupied.' : 'This receiving rack is full.', 'warn');
+      return { ok: false, reason: 'Rack full.' };
+    }
+    const localX = slot === 12 ? 0 : [0, -0.68, 0.68][slot % 3];
+    const localZ = 0;
+    const localY = slot === 12 ? 2.08 : [1.18, 0.68, 1.68, 0.18][Math.floor(slot / 3)];
+    const ry = fixture.ry || 0;
+    const x = fixture.x + Math.cos(ry) * localX + Math.sin(ry) * localZ;
+    const z = fixture.z - Math.sin(ry) * localX + Math.cos(ry) * localZ;
+    const placed = putDownBox(state, box.id, {
+      x, y: localY, z, ry, surface, slot,
+    });
+    if (placed.ok) {
+      sfx('boxdown');
+      say(`Carton stored in ${fixture.title.toLowerCase()} slot ${slot + 1}.`);
+      rebuildBoxes();
+    }
+    return placed;
+  }
+  B.placeBoxOnReserveRack = placeBoxOnReserveRack;
+
   function rebuildBoxes() {
-    boxGroup.clear();
+    shipLabelGeneration++;
+    clearOwnedGroup(boxGroup);
     const d = state.shop.deliveries;
-    if (carriedBoxMesh) { camera.remove(carriedBoxMesh); carriedBoxMesh = null; }
-    if (carriedGoodsMesh) { camera.remove(carriedGoodsMesh); carriedGoodsMesh = null; }
+    if (carriedBoxMesh) {
+      camera.remove(carriedBoxMesh);
+      disposeOwnedRenderable(carriedBoxMesh);
+      carriedBoxMesh = null;
+    }
+    if (carriedGoodsMesh) {
+      camera.remove(carriedGoodsMesh);
+      disposeOwnedRenderable(carriedGoodsMesh);
+      carriedGoodsMesh = null;
+    }
 
     const cg = carriedGoods(state);
     if (cg) {
-      carriedGoodsMesh = makeGoodsMesh(cg);
-      carriedGoodsMesh.position.set(0.12, -0.4, -0.62);   // held in the arms, low in frame
-      carriedGoodsMesh.rotation.x = 0.35;
+      const goods = makeGoodsMesh(cg);
+      goods.scale.setScalar(0.78);
+      carriedGoodsMesh = new THREE.Group();
+      carriedGoodsMesh.add(goods, makeCarryHands(0.255, 0.02, 0.015));
+      carriedGoodsMesh.position.set(0.10, -0.44, -0.98);   // held in the arms, below the reticle
+      carriedGoodsMesh.rotation.x = 0.28;
       camera.add(carriedGoodsMesh);
     }
 
     const seen = new Set();
     const colSeen = new Set();   // world boxes that hold a live collider this pass
     if (d) {
-      const stacks = { pad: 0, stock: 0 };
+      const stacks = { pad: 0, 'receiving-fallback': 0, stock: 0 };
       for (const box of d.boxes) {
         if (box.loc === 'carried') {
-          carriedBoxMesh = makeBoxMesh(box);
-          carriedBoxMesh.scale.setScalar(0.8);
-          carriedBoxMesh.position.set(0, -0.62, -0.82);
-          carriedBoxMesh.rotation.y = 0.12;
+          const visual = makeBoxMesh(box);
+          const dims = boxDims(box.box || 'carton');
+          const heldScale = Math.min(0.74, 0.62 / Math.max(dims.w, dims.d), 0.54 / dims.h);
+          visual.scale.setScalar(heldScale);
+          carriedBoxMesh = new THREE.Group();
+          const span = Math.min(0.27, dims.w * heldScale * 0.43);
+          carriedBoxMesh.add(
+            visual,
+            makeCarryHands(span, Math.max(0.08, dims.h * heldScale * 0.28), dims.d * heldScale * 0.5 + 0.035),
+          );
+          carriedBoxMesh.position.set(0.16, -0.50, -1.0);
+          carriedBoxMesh.rotation.set(0.05, -0.12, -0.025);
           camera.add(carriedBoxMesh);
           continue;
         }
-        let lx; let lz; let ry;
+        let lx; let lz; let ly = 0; let ry;
         if (box.loc === 'world') {
-          lx = box.x; lz = box.z; ry = box.ry || 0;
+          lx = box.x; ly = box.y || 0; lz = box.z; ry = box.ry || 0;
         } else {
           const at = box.loc === 'pad' ? STOCKROOM.padOutside : STOCKROOM.receivingInside;
-          const i = stacks[box.loc]++;
+          const fallbackIndex = stacks[box.loc]++;
+          const i = Number.isSafeInteger(box.receivingSlot) ? box.receivingSlot : fallbackIndex;
           const dim = boxDims(box.box || 'carton');
-          lx = at.x + (i % 3 - 1) * Math.max(0.62, dim.w + 0.14);
-          lz = at.z + Math.floor(i / 3) * Math.max(0.56, dim.d + 0.14) - 0.3;
-          ry = (box.id % 5) * 0.13;
+          ry = dim.w > 0.9 ? Math.PI / 2 : 0;
+          if (box.loc === 'pad') {
+            lx = at.x + (i % 3 - 1) * 1.05;
+            lz = at.z + (Math.floor(i / 3) - 1) * 1.20;
+          } else if (box.loc === 'receiving-fallback') {
+            // Twelve fallback cartons occupy six marked footprints in two
+            // accessible tiers, wholly west of the receiving-door clearway.
+            const footprint = i % 6;
+            const layer = Math.floor(i / 6);
+            lx = at.x + (footprint % 2 - 0.5) * 0.88;
+            lz = at.z + (Math.floor(footprint / 2) - 1) * 1.0;
+            if (layer > 0) {
+              const support = d.boxes.find((candidate) => (
+                candidate.loc === 'receiving-fallback'
+                && candidate.receivingSlot === footprint
+              ));
+              ly = support ? boxDims(support.box || 'carton').h + 0.025 : 0;
+            }
+          } else {
+            const spacingX = Math.max(0.68, dim.w + 0.14);
+            const spacingZ = Math.max(0.58, dim.d + 0.14);
+            lx = at.x + (i % 3 - 1) * spacingX;
+            lz = at.z + Math.floor(i / 3) * spacingZ;
+            ry = 0;
+          }
         }
         const wp = L2W(lx, lz);
         const m = makeBoxMesh(box);
         const gy = groundYAt(wp.x, wp.z);
-        m.position.set(wp.x, gy !== null && gy !== undefined ? gy : heightAt(wp.x, wp.z) + 0.02, wp.z);
+        const base = gy !== null && gy !== undefined ? gy : heightAt(wp.x, wp.z) + 0.02;
+        m.position.set(wp.x, base + ly, wp.z);
         m.rotation.y = ry;
         boxGroup.add(m);
 
@@ -2014,12 +2419,13 @@ export function makeClubhouse(ctx) {
         let prop = boxProps.get(box.id);
         if (!prop) { prop = boxPropFor(box.id); boxProps.set(box.id, prop); }
         prop.x = wp.x; prop.z = wp.z; prop.lx = lx; prop.lz = lz;
+        prop.y = base + ly + boxDims(box.box || 'carton').h / 2;
 
         // a set-down box occupies the floor: register a collider so the player AND the
         // customer nav grid (which bakes from the same list) both treat it as solid. Only
         // WORLD drops — the ones a player can put anywhere; pad/stock stacks sit at
         // known-clear spots. The sig gate means a hold-to-cut (same spot) never re-bakes nav.
-        if (box.loc === 'world') {
+        if (box.loc === 'world' && !box.surface) {
           const cdim = boxDims(box.box || 'carton');
           const cswap = Math.abs(Math.sin(ry)) > 0.5;
           const cw = cswap ? cdim.d : cdim.w;
@@ -2040,12 +2446,25 @@ export function makeClubhouse(ctx) {
     for (const [id, entry] of [...boxCols]) {
       if (!colSeen.has(id)) { removeCol(entry.col); boxCols.delete(id); }  // picked up, moved, or gone
     }
+    pruneShipLabels();
     boxSig = boxSignature();
   }
 
   // a box in the stockroom is unpacked in place; anywhere else, [E] lifts it into your arms
   function unpackHere(prop, b) {
+    if (b.surface && b.surface.startsWith('reserve-rack:')) return false;
     return b.loc === 'stock' || (b.loc === 'world' && inStockroomBounds(prop.lx, prop.lz));
+  }
+
+  function fallbackBoxCovered(b) {
+    return b.loc === 'receiving-fallback'
+      && Number.isSafeInteger(b.receivingSlot)
+      && b.receivingSlot >= 0
+      && b.receivingSlot < 6
+      && boxesOf(state).some((candidate) => (
+        candidate.loc === 'receiving-fallback'
+        && candidate.receivingSlot === b.receivingSlot + 6
+      ));
   }
 
   // the box's verbs, chosen live from its state. Reused across rebuilds (keyed by id) so a
@@ -2063,12 +2482,16 @@ export function makeClubhouse(ctx) {
       label: () => {
         const b = box();
         if (!b || b.loc === 'carried' || carriedBox(state)) return null;
+        if (fallbackBoxCovered(b)) return null; // move the top carton before reaching its support
         const sku = SHOP_CATALOG.find((s) => s.id === b.skuId);
         const name = sku ? sku.name : b.skuId;
         if (b.flat) return 'Flattened carton — [E] carry it to the recycling';
         if (isEmpty(b)) return `Empty ${name} box — [E] flatten it`;
         if (!unpackHere(prop, b)) {
-          return `${b.loc === 'pad' ? 'Delivery: ' : ''}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''} — [E] pick up`;
+          const zone = b.loc === 'pad' ? 'Pad delivery: '
+            : b.loc === 'receiving-fallback' ? 'Safe receiving: '
+              : b.surface && b.surface.startsWith('reserve-rack:') ? 'Stored carton: ' : '';
+          return `${zone}${name} ×${b.qty}${b.lb ? ` · ${b.lb} lb` : ''} — [E] pick up`;
         }
         if (tapeUncut(b)) return `${name} case · ${b.qty} inside — hold [E] to cut the tape`;
         if (!tapeCut(b)) return `${name} — hold [E] to finish the cut`;
@@ -2080,11 +2503,12 @@ export function makeClubhouse(ctx) {
       get tool() {
         const b = box();
         if (!b || carriedBox(state)) return null;
+        if (fallbackBoxCovered(b)) return null;
         return unpackHere(prop, b) && !b.flat && !tapeCut(b) && !isEmpty(b) ? 'boxcutter' : null;
       },
       hold: (dt) => {
         const b = box();
-        if (!b || !unpackHere(prop, b) || b.flat || tapeCut(b) || isEmpty(b)) return;
+        if (!b || fallbackBoxCovered(b) || !unpackHere(prop, b) || b.flat || tapeCut(b) || isEmpty(b)) return;
         const r = cutTape(state, b.id, dt * 0.7);   // ~1.4s to run the whole seam
         if (r.ok) {
           sfx('tape');
@@ -2094,7 +2518,7 @@ export function makeClubhouse(ctx) {
       },
       action: () => {
         const b = box();
-        if (!b) return;
+        if (!b || fallbackBoxCovered(b)) return;
         const sku = SHOP_CATALOG.find((s) => s.id === b.skuId);
         const name = sku ? sku.name : b.skuId;
         if (b.flat) { pickUp(b); return; }
@@ -2143,6 +2567,11 @@ export function makeClubhouse(ctx) {
         const sku = SHOP_CATALOG.find((s) => s.id === cb.skuId);
         const name = sku ? sku.name : cb.skuId;
         const l = W2L(walk.x, walk.z);
+        const near = (spot, radius) => Math.hypot(l.x - spot.x, l.z - spot.z) <= radius;
+        const cartonRack = placedFixtures(state).find((fixture) => fixture.id === 'backshelf_n');
+        if (near(STOCKROOM.packing, 1.75)
+          || (cartonRack && near(cartonRack, 1.75))
+          || (cb.flat && near(STOCKROOM.bin, 1.75))) return null;
         if (cb.flat) return 'Carrying a flattened carton — [E] set it down';
         if (inStockroomBounds(l.x, l.z)) return `Carrying ${name} ×${cb.qty} — [E] set it down to open it`;
         return `Carrying ${name} ×${cb.qty} — [E] set it down`;
@@ -2151,8 +2580,13 @@ export function makeClubhouse(ctx) {
       if (cg) {
         const sku = SHOP_CATALOG.find((s) => s.id === cg.skuId);
         const l = W2L(walk.x, walk.z);
-        if (inStockroomBounds(l.x, l.z)) return `Holding ${sku.name} ×${cg.qty} — [E] set them on the backroom shelf`;
+        const nearReserve = placedFixtures(state)
+          .filter((fixture) => fixture.kind === 'backshelf')
+          .some((fixture) => Math.hypot(l.x - fixture.x, l.z - fixture.z) <= 1.75);
+        if (nearReserve) return null;
+        if (inStockroomBounds(l.x, l.z)) return `Holding ${sku.name} ×${cg.qty} — carry them to a green receiving rack`;
         const home = homeOf(cg.skuId);
+        if (home && Math.hypot(l.x - home.x, l.z - home.z) <= 2.3) return null;
         return `Holding ${sku.name} ×${cg.qty} — carry them to the ${home ? home.title.toLowerCase() : 'shelf'}`;
       }
       return null;
@@ -2175,19 +2609,51 @@ export function makeClubhouse(ctx) {
       if (cg) {
         const l = W2L(walk.x, walk.z);
         if (inStockroomBounds(l.x, l.z)) {
-          const r = storeInBack(state);
-          if (r.ok) {
-            sfx('product');
-            say(`${r.moved} × ${SHOP_CATALOG.find((s) => s.id === cg.skuId).name} on the backroom shelf.`);
-            rebuildStock();
-            rebuildBoxes();
-          }
+          say('Stand beside a green receiving rack to store these units.', 'warn');
         } else {
           say('Carry these to the right fixture and hold [E], or take them to the backroom.', 'warn');
         }
       }
     },
   });
+
+  // The authored bench is a real placement surface. Its height and surface id
+  // persist in the save, so a half-cut carton remains on the bench after reload.
+  {
+    const wp = L2W(STOCKROOM.packing.x, STOCKROOM.packing.z);
+    addProp({
+      x: wp.x, z: wp.z, r: 1.85,
+      label: () => {
+        const cb = carriedBox(state);
+        if (!cb) return null;
+        const occupied = boxesOf(state).some((box) => box.surface === 'worktable');
+        return occupied
+          ? 'Packing worktable — clear the carton already on it'
+          : 'Packing worktable — [E] set this carton on the cutting surface';
+      },
+      action: () => {
+        const cb = carriedBox(state);
+        if (!cb) return;
+        if (boxesOf(state).some((box) => box.surface === 'worktable')) {
+          say('The packing worktable already has a carton on it.', 'warn');
+          return;
+        }
+        const placed = putDownBox(state, cb.id, {
+          x: STOCKROOM.packing.x,
+          y: 0.925,
+          z: STOCKROOM.packing.z - 0.04,
+          ry: STOCKROOM.packing.ry || 0,
+          surface: 'worktable',
+          slot: 0,
+        });
+        if (placed.ok) {
+          sfx('boxdown');
+          say('Carton set on the packing worktable. Hold [E] along the taped seam.');
+          rebuildBoxes();
+        }
+      },
+    });
+  }
 
   // the recycling bin by the stock door
   {
@@ -2214,496 +2680,105 @@ export function makeClubhouse(ctx) {
   }
 
   // --- customers: they walk in from the course, through the real door -------------------
-  let unitSeq = 0;   // every unit a shopper lifts gets its own identity
-  const customers = [];
-  // golfer-wardrobe palette, muted to the club color language
-  const CUST_COLORS = [0x4a6d94, 0x2c3e66, 0xb0788f, 0xb3714a, 0x4a7050, 0x8a8577, 0x6b4f37];
-  const counterQueue = [];
   const doorW = L2W(DOOR_MAIN.x, halfD);
-  const spawnW = { x: doorW.x + 1.5, z: doorW.z + SHELL.porchD + 9 };
-
-  function queueSlotW(i) {
-    const s = queueSlot(i);
-    return L2W(s.x, s.z);
-  }
-
-  const CUST_NAMES = ['Alex R.', 'Sam T.', 'Jordan M.', 'Casey L.', 'Riley P.', 'Drew H.', 'Morgan W.', 'Quinn B.', 'Jamie F.', 'Robin K.'];
-
-  function spawnCustomer(toCounter = false) {
-    const rng = rngOf(state);
-    // real variety on the floor: builds, trousers, skin tones, hats or hair
-    const TROUSERS = [0xc2b190, 0x8a8577, 0x4b545c, 0x6b5a44];
-    const SKINS = [0xd9a97e, 0xb9865e, 0x8a5f42, 0xe8c39a];
-    const char = makeCharacter({
-      polo: CUST_COLORS[rng.int(CUST_COLORS.length)],
-      khaki: TROUSERS[rng.int(TROUSERS.length)],
-      skin: SKINS[rng.int(SKINS.length)],
-      cap: rng.chance(0.55) ? (rng.chance(0.5) ? 0xf2efe4 : 0x2c3e66) : null,
-    });
-    char.root.scale.setScalar(0.87 + rng.next() * 0.12);
-    char.setMode('Walk');
-    char.root.userData.char = char;
-    const g = char.root;
-    g.position.set(spawnW.x + (rng.next() - 0.5) * 3, heightAt(spawnW.x, spawnW.z), spawnW.z + rng.next() * 2);
-    custGroup.add(g);
-
-    const stops = [];
-    // the approach: porch step, then just inside the door (the doorbell moment)
-    stops.push({ kind: 'walk', x: doorW.x, z: doorW.z + 2.6 });
-    stops.push({ kind: 'enter', x: doorW.x, z: doorW.z - 1.4 });
-    if (!toCounter) {
-      const nStops = 1 + rng.int(2);
-      const browsable = placedFixtures(state).filter((f) => f.skus && f.skus.length > 0);
-      // shoppers gravitate to displays with something ON them — a stocked
-      // fixture is four times as likely to make their route as a bare one
-      const pool = [];
-      for (const f of browsable) {
-        pool.push(f);
-        const hasStock = f.skus.some((id) => state.shop.inventory[id] && state.shop.inventory[id].shelf > 0);
-        if (hasStock) pool.push(f, f, f);
-      }
-      for (let i = 0; i < nStops; i++) {
-        const f = pool[rng.int(pool.length)];
-        const wp = L2W(f.x, f.z);
-        // stand a step off the fixture, on its open side
-        const l = f;
-        const offZ = l.z < -5 ? 1.2 : l.z > 5 ? -1.2 : (l.ry !== 0 ? 0 : 1.2);
-        const offX = Math.abs(l.ry) > 0.5 ? (l.x < 0 ? 1.2 : -1.2) : 0;
-        stops.push({
-          kind: 'fixture',
-          skus: f.skus,
-          title: f.title,
-          x: wp.x + offX + (rng.next() - 0.5) * 0.8,
-          z: wp.z + offZ + (rng.next() - 0.5) * 0.4,
-          faceX: wp.x,
-          faceZ: wp.z,
-        });
-      }
-    }
-    if (toCounter || rng.chance(0.55)) {
-      const regW = L2W(COUNTER.registerX, COUNTER.z);
-      stops.push({ kind: 'counter', x: queueSlotW(0).x, z: queueSlotW(0).z, faceX: regW.x, faceZ: regW.z });
-    }
-    stops.push({ kind: 'exit', x: doorW.x, z: doorW.z + 2.6 });
-    stops.push({ kind: 'gone', x: spawnW.x, z: spawnW.z });
-
-    customers.push({
-      mesh: g,
-      name: CUST_NAMES[rng.int(CUST_NAMES.length)],
-      stops,
-      stopIdx: 0,
-      linger: toCounter ? 26 + rng.next() * 10 : 2 + rng.next() * 4,
-      speed: toCounter ? 1.15 : 1.1 + rng.next() * 0.5,
-      queued: false,
-      rangBell: false,
-      cart: [],
-      scanned: 0,
-      patience: 45, // seconds they'll wait at the head of the line for service
-      awaitingCheckout: false,
-      itemMesh: null,
-      // what a review will be written from: did they get in, did they buy, did they wait
-      seed: rng.next(),
-      entered: false,
-      bought: false,
-      reviewed: false,
-      queuedAt: 0,
-      queueLenOnArrival: 0,
-      isGolfer: toCounter, // the ones with a tee time actually played the course
-    });
-    return customers[customers.length - 1];
-  }
-
-  // HOW LONG THEY HAVE BEEN WAITING, shown RESTRAINEDLY — the brief's word. A red bar
-  // over a shopper's head in a stylised pro shop is a mobile-game tell. This is a thin
-  // ring that fills as their patience burns down, and it only appears once they have
-  // actually been kept waiting: 45 seconds of goodwill costs them nothing, so nothing
-  // is drawn. It goes amber at half and red at a quarter, which is the point at which
-  // a player who is paying attention still has time to save the sale.
-  const PATIENCE_FULL = 45;
-  const patRing = new THREE.RingGeometry(0.10, 0.125, 20, 1, Math.PI / 2, Math.PI * 2);
-  function setPatience(c) {
-    const frac = clamp(c.patience / PATIENCE_FULL, 0, 1);
-    if (frac > 0.72) {                       // still fresh — do not nag
-      if (c.patienceMesh) c.patienceMesh.visible = false;
-      return;
-    }
-    if (!c.patienceMesh) {
-      const m = new THREE.Mesh(patRing.clone(), new THREE.MeshBasicMaterial({
-        color: 0xf2c14e, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false,
-      }));
-      m.position.set(0, 1.62, 0);
-      m.renderOrder = 3;
-      c.mesh.add(m);
-      c.patienceMesh = m;
-    }
-    const m = c.patienceMesh;
-    m.visible = true;
-    // the ring EMPTIES clockwise as the patience runs out
-    m.geometry.dispose();
-    m.geometry = new THREE.RingGeometry(0.10, 0.125, 24, 1, Math.PI / 2, -Math.PI * 2 * frac);
-    m.material.color.setHex(frac < 0.25 ? 0xe8635a : frac < 0.5 ? 0xf2a03d : 0xf2c14e);
-    m.material.opacity = 0.55 + (1 - frac) * 0.35;
-    // it always faces the player, so it reads from anywhere on the floor
-    if (walk.active) m.rotation.y = Math.atan2(walk.x - c.mesh.position.x, walk.z - c.mesh.position.z) - c.mesh.rotation.y;
-  }
-
-  // a shopper reaches for the display: the unit leaves the shelf THERE and
-  // rides in their hands to the register
-  function customerPick(c, stop) {
-    if (!stop.skus || c.cart.length) return;
-    const rng = rngOf(state);
-    const stocked = stop.skus.filter((id) => state.shop.inventory[id] && state.shop.inventory[id].shelf > 0);
-    if (!stocked.length) {
-      // bare display: they glance and move on — and someone occasionally says so
-      c.emptyStops = (c.emptyStops || 0) + 1;
-      if (rng.chance(0.18) && hooks.toast && walk.active && isInside(walk.x, walk.z)) {
-        hooks.toast(`${c.name} looked over the empty ${stop.title || 'display'} and moved on.`, 'warn');
-      }
-      return;
-    }
-    if (!rng.chance(0.55)) return;
-    // a third of interested shoppers inspect the item and put it back — real
-    // browsing, visible on the shelf count, no sale
-    if (rng.chance(0.3)) {
-      const skuId = stocked[rng.int(stocked.length)];
-      if (pickFromShelf(state, skuId).ok) {
-        rebuildStock(); // the unit leaves the display while they look it over
-        returnToShelf(state, skuId);
-        c.linger = Math.max(c.linger, 2.2); // the look-it-over beat
-        setTimeout(() => { if (interior.parent) rebuildStock(); }, 1600); // and back it goes
-      }
-      return;
-    }
-    const skuId = stocked[rng.int(stocked.length)];
-    // Each unit gets its own uid. That is what makes two identical Pro-V dozens two
-    // PIECES rather than a tally of two — so one can be scanned and the other not,
-    // and so a save taken while they are in a shopper's hands can put THEM back.
-    const uid = `u${++unitSeq}`;
-    if (!pickFromShelf(state, skuId, uid).ok) return;
-    const sku = SHOP_CATALOG.find((s) => s.id === skuId);
-    c.cart.push({ uid, skuId, price: priceFor(sku, state.shop.markup[sku.cat] || 1, null) });
-    rebuildStock(); // the display visibly loses the unit
-    const item = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.16, 0.16),
-      new THREE.MeshStandardMaterial({ color: CAT_COLORS[sku.cat] || 0x999999, roughness: 0.7 }),
-    );
-    item.position.set(0.16, 0.68, 0.16);
-    c.mesh.add(item);
-    c.itemMesh = item;
-    // a pick means they're heading to the counter — make sure a stop exists
-    if (!c.stops.some((s, i) => i > c.stopIdx && s.kind === 'counter')) {
-      const regW = L2W(COUNTER.registerX, COUNTER.z);
-      c.stops.splice(c.stops.length - 2, 0, { kind: 'counter', x: queueSlotW(0).x, z: queueSlotW(0).z, faceX: regW.x, faceZ: regW.z });
-    }
-  }
-
-  // the line gave up on us: put the pick back, remember the walk-out
-  function customerGiveUp(c) {
-    // they stood there, nobody came, and they put it back. That is a review, and a deserved one —
-    // every single time.
-    if (!c.reviewed) {
-      c.reviewed = true;
-      postReview(state, reviewFor(state, {
-        waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
-        queueLen: c.queueLenOnArrival || 0,
-        bought: false,
-        played: !!c.isGolfer,
-        foundWhatTheyWanted: false,
-      }, Math.round((c.seed || 0) * 1000 + (state.dayAbs || 0))));
-    }
-
-    for (const it of c.cart) returnToShelf(state, it.skuId, it.uid);
-    if (c.cart.length) {
-      state.shop.lostSalesTotal = (state.shop.lostSalesTotal || 0) + 1;
-      if (hooks.toast && walk.active && isInside(walk.x, walk.z)) {
-        hooks.toast(`${c.name} gave up waiting at the register and put it back.`, 'warn');
-      }
-      rebuildStock();
-    }
-    c.cart = [];
-    c.tx = null;
-    c.awaitingCheckout = false;
-    // they walked out mid-sale: void it, clear the counter, and put the goods back.
-    // registerMode holds no authority over stock — the shelf is credited right here.
-    if (register.getCustomer() === c) { register.abandon(); register.leave(); }
-    if (c.itemMesh) {
-      c.mesh.remove(c.itemMesh);
-      c.itemMesh = null;
-    }
-    leaveQueue(c);
-    c.stopIdx += 1;
-    c.linger = 0;
-  }
-
-  // The ONLY way a shopper leaves the floor. pickFromShelf takes a unit off the shelf the instant
-  // they lift it, so a shopper deleted while still holding one destroys it — the player's stock
-  // drains for no reason they can see. Three separate removal sites used to do exactly that; they
-  // all come through here now, and anything still in their hands goes back on the display.
-  function removeCustomer(i) {
-    const c = customers[i];
-    if (!c) return;
-
-    // They came in, they saw the place, they left. That is a visit, and a visit is reviewable —
-    // not just the ones that ended in a sale or a tantrum at the till, which is how most of them
-    // used to leave without anyone hearing a word about it. About two in five bother to write.
-    if (!c.reviewed && c.entered) {
-      c.reviewed = true;
-      const seed = Math.round((c.seed || 0) * 1000 + (state.dayAbs || 0));
-      if (Math.abs(Math.sin(seed * 7.13)) < 0.42) {
-        postReview(state, reviewFor(state, {
-          waitedSec: c.queuedAt ? Math.max(0, now - c.queuedAt) : 0,
-          queueLen: c.queueLenOnArrival || 0,
-          bought: !!c.bought,
-          played: !!c.isGolfer,
-          foundWhatTheyWanted: !!c.bought,
-        }, seed));
-      }
-    }
-
-    // THE REGISTER HAS TO LET GO OF THEM, and this is the place it must happen.
-    //
-    // removeCustomer is the single funnel every shopper leaves through — giving up at
-    // the till, reaching the exit, the shop closing at eight, the scene being torn
-    // down. abandon() lived only in customerGiveUp, so a shopper removed by any OTHER
-    // route left register mode holding a live transaction over goods that had already
-    // gone back on the shelf (the line below returns them). Finish that sale and it
-    // banks revenue for stock you no longer sold: money out of nothing, and the player
-    // stranded at a till serving a person who is not there.
-    //
-    // voidTx() makes the transaction terminal, so completeSale() can never touch it.
-    if (register.getCustomer() === c) { register.abandon(); register.leave(); }
-
-    if (c.cart && c.cart.length) {
-      for (const it of c.cart) returnToShelf(state, it.skuId, it.uid);
-      c.cart = [];
-      rebuildStock();
-    }
-    if (c.tx) c.tx = null;
-    c.awaitingCheckout = false;
-    leaveQueue(c);
-    if (c.itemMesh) {
-      c.mesh.remove(c.itemMesh);
-      c.itemMesh = null;
-    }
-    custGroup.remove(c.mesh);
-    customers.splice(i, 1);
-  }
-
-  const arrivedResIds = new Set();
-  function updateArrivals() {
-    if (!state || !state.reservations) return;
-    for (const r of dueForCheckIn(state)) {
-      if (arrivedResIds.has(r.id)) continue;
-      arrivedResIds.add(r.id);
-      spawnCustomer(true);
-    }
-  }
-
-  function leaveQueue(c) {
-    const qi = counterQueue.indexOf(c);
-    if (qi >= 0) {
-      counterQueue.splice(qi, 1);
-      c.queued = false;
-    }
-  }
-
-  function resolveCustomer(c, nx, nz) {
-    const r = 0.3;
-    for (const col of custCols) {
-      if (nx + r > col.minX && nx - r < col.maxX && nz + r > col.minZ && nz - r < col.maxZ) {
-        const pushLeft = nx + r - col.minX;
-        const pushRight = col.maxX - (nx - r);
-        const pushUp = nz + r - col.minZ;
-        const pushDown = col.maxZ - (nz - r);
-        const min = Math.min(pushLeft, pushRight, pushUp, pushDown);
-        if (min === pushLeft) nx = col.minX - r;
-        else if (min === pushRight) nx = col.maxX + r;
-        else if (min === pushUp) nz = col.minZ - r;
-        else nz = col.maxZ + r;
-      }
-    }
-    if (walk.active) {
-      const pd = Math.hypot(nx - walk.x, nz - walk.z);
-      if (pd > 0.01 && pd < 0.72) {
-        nx = walk.x + ((nx - walk.x) / pd) * 0.72;
-        nz = walk.z + ((nz - walk.z) / pd) * 0.72;
-      }
-    }
-    for (const o of customers) {
-      if (o === c) continue;
-      const dx = nx - o.mesh.position.x;
-      const dz = nz - o.mesh.position.z;
-      const d = Math.hypot(dx, dz);
-      if (d > 0.01 && d < 0.6) {
-        nx = o.mesh.position.x + (dx / d) * 0.6;
-        nz = o.mesh.position.z + (dz / d) * 0.6;
-      }
-    }
-    return { nx, nz };
-  }
-
-  // walkable grid around the building; doors are excluded (they open for walkers)
-  const nav = makeNav({
-    minX: center.x - 16, maxX: center.x + 16,
-    minZ: center.z - 13, maxZ: center.z + 15,
-    cell: 0.3, radius: 0.32,
+  customerView = createCustomerView(B, {
+    camera,
+    center,
+    custCols,
+    getColVersion: () => colVersion,
+    groundYAt,
+    heightAt,
+    isInside,
+    mainDoor: doorsApi.mainDoor,
+    rebuildStock,
+    register,
   });
-  let navVersion = -1;
-  function navFresh() {
-    if (navVersion !== colVersion) {
-      nav.rebuild(custCols.filter((c) => !c.door));
-      navVersion = colVersion;
-    }
-    return nav;
-  }
-
-  function updateCustomers(dt) {
-    const minute = ((state.clock.minutes % 1440) + 1440) % 1440;
-    const open = minute >= 360 && minute <= 1200;
-    const targetCount = open ? clamp(Math.round(((state.shop.salesYesterday.units || 2) / 8) * 3), 1, 6) : 0;
-    if (open && customers.length < targetCount && Math.random() < dt * 0.15) spawnCustomer();
-    if (!open) {
-      for (const c of customers) {
-        if (c.stops[c.stopIdx] && c.stops[c.stopIdx].kind !== 'exit' && c.stops[c.stopIdx].kind !== 'gone') {
-          leaveQueue(c);
-          c.stopIdx = c.stops.length - 2; // head for the exit
-          c.linger = 0;
-        }
-      }
-    }
-
-    for (let i = customers.length - 1; i >= 0; i--) {
-      const c = customers[i];
-      const char = c.mesh.userData.char;
-      if (char) char.update(dt);
-      const stop = c.stops[c.stopIdx];
-      if (!stop) { removeCustomer(i); continue; }
-
-      let tx = stop.x;
-      let tz = stop.z;
-      if (stop.kind === 'counter') {
-        if (!c.queued) {
-          counterQueue.push(c);
-          c.queued = true;
-          c.queuedAt = now; // the clock a review will quote back at you
-          c.queueLenOnArrival = counterQueue.length - 1;
-        }
-        const slot = queueSlotW(counterQueue.indexOf(c));
-        tx = slot.x;
-        tz = slot.z;
-      }
-
-      const dx = tx - c.mesh.position.x;
-      const dz = tz - c.mesh.position.z;
-      const dist = Math.hypot(dx, dz);
-      if (dist < 0.18) {
-        if (stop.kind === 'enter' && !c.rangBell) {
-          c.rangBell = true;
-          c.entered = true; // they got through the door, so they have an opinion
-          if (hooks.sfx) hooks.sfx('doorbell');
-        }
-        const isPass = stop.kind === 'walk' || stop.kind === 'enter' || stop.kind === 'exit' || stop.kind === 'gone';
-        const served = stop.kind !== 'counter' || counterQueue.indexOf(c) === 0;
-        if (stop.kind === 'gone') {
-          removeCustomer(i);
-          continue;
-        }
-        // the head of the line with a basket waits for the PLAYER to ring
-        // them up — patience runs out eventually and the pick goes back
-        if (stop.kind === 'counter' && c.cart.length && counterQueue.indexOf(c) === 0) {
-          if (!c.awaitingCheckout) {
-            // they reach the counter and LAY THEIR GOODS OUT on it, one by one
-            c.onPaid = () => onCustomerPaid(c);
-            register.begin(c);
-          }
-          c.awaitingCheckout = true;
-          c.patience -= dt;
-          setPatience(c);
-          if (char) char.setMode('Idle');
-          if (c.patience <= 0) customerGiveUp(c);
-        } else if (!served) {
-          if (char) char.setMode('Idle');
-        } else if (!isPass && c.linger > 0) {
-          if (char) char.setMode(stop.kind === 'fixture' ? 'Browse' : 'Idle');
-          c.linger -= dt;
-        } else {
-          if (stop.kind === 'fixture') customerPick(c, stop);
-          if (stop.kind === 'counter') leaveQueue(c);
-          c.stopIdx++;
-          c.linger = 1.5 + Math.random() * 3.5;
-          if (c.stopIdx >= c.stops.length) {
-            removeCustomer(i);
-            continue;
-          }
-        }
-        if (stop.faceX !== undefined) {
-          const want = Math.atan2(stop.faceX - c.mesh.position.x, stop.faceZ - c.mesh.position.z);
-          let dy = want - c.mesh.rotation.y;
-          while (dy > Math.PI) dy -= Math.PI * 2;
-          while (dy < -Math.PI) dy += Math.PI * 2;
-          c.mesh.rotation.y += dy * Math.min(1, dt * 6);
-        }
-      } else {
-        if (char) char.setMode('Walk');
-        // path on destination change only; string-pulled waypoints thereafter
-        if (!c.pathGoal || Math.hypot(c.pathGoal.x - tx, c.pathGoal.z - tz) > 0.22) {
-          c.path = navFresh().path(c.mesh.position.x, c.mesh.position.z, tx, tz) || [{ x: tx, z: tz }];
-          c.pathGoal = { x: tx, z: tz };
-          c.stuckT = 0;
-        }
-        while (c.path.length > 1
-          && Math.hypot(c.path[0].x - c.mesh.position.x, c.path[0].z - c.mesh.position.z) < 0.3) {
-          c.path.shift();
-        }
-        const wp = c.path[0] || { x: tx, z: tz };
-        const wdx = wp.x - c.mesh.position.x;
-        const wdz = wp.z - c.mesh.position.z;
-        const wdist = Math.hypot(wdx, wdz) || 1;
-        const step = Math.min(wdist, c.speed * dt);
-        const res = resolveCustomer(c, c.mesh.position.x + (wdx / wdist) * step, c.mesh.position.z + (wdz / wdist) * step);
-        const moved = Math.hypot(res.nx - c.mesh.position.x, res.nz - c.mesh.position.z);
-        c.mesh.position.x = res.nx;
-        c.mesh.position.z = res.nz;
-        c.mesh.rotation.y = Math.atan2(wdx, wdz);
-        // stuck detection: 1.2s pinned → one repath against the fresh world;
-        // 3s pinned → sidestep off whatever is holding them and start over
-        if (step > 0.001 && moved < step * 0.25) {
-          c.stuckT = (c.stuckT || 0) + dt;
-          if (c.stuckT > 3.0) {
-            const side = Math.random() < 0.5 ? 1 : -1;
-            const sres = resolveCustomer(c, c.mesh.position.x + (wdz / wdist) * 0.6 * side, c.mesh.position.z - (wdx / wdist) * 0.6 * side);
-            c.mesh.position.x = sres.nx;
-            c.mesh.position.z = sres.nz;
-            c.pathGoal = null;
-            c.stuckT = 0;
-            c.repathed = false;
-          } else if (c.stuckT > 1.2 && !c.repathed) {
-            c.pathGoal = null;
-            navVersion = -1; // rebake — a door or hauled pile may have changed the world
-            c.repathed = true;
-          }
-        } else if (moved > step * 0.6) {
-          c.stuckT = 0;
-          c.repathed = false;
-        }
-      }
-      c.mesh.position.y = groundYAt(c.mesh.position.x, c.mesh.position.z) ?? heightAt(c.mesh.position.x, c.mesh.position.z);
-    }
-  }
 
   // --- per-frame update -------------------------------------------------------------------
   let now = 0;
   let poll = 0;
   let visClock = 0;
 
+  function setDeliveryVanDoors(amount) {
+    if (!deliveryVanMesh) return;
+    const left = deliveryVanMesh.getObjectByName('RearDoorLeftPivot');
+    const right = deliveryVanMesh.getObjectByName('RearDoorRightPivot');
+    if (left) left.rotation.y = -Math.PI * 0.51 * amount;
+    if (right) right.rotation.y = Math.PI * 0.51 * amount;
+  }
+
+  function placeDeliveryVan(localX) {
+    const localZ = STOCKROOM.padOutside.z;
+    const wp = L2W(localX, localZ);
+    deliveryVehicleGroup.position.set(wp.x, heightAt(wp.x, wp.z) + 0.03, wp.z);
+  }
+
+  function playDeliveryArrival(event = null) {
+    if (!deliveryVanMesh) {
+      queuedDeliveryVisual = event || { kind: 'arrived' };
+      return;
+    }
+    if (deliveryVanCol) {
+      removeCol(deliveryVanCol);
+      deliveryVanCol = null;
+    }
+    deliveryVanAnim = { t: 0, event };
+    deliveryVanMesh.visible = true;
+    setDeliveryVanDoors(0);
+    placeDeliveryVan(21.5);
+  }
+
+  function updateDeliveryVehicle(dt) {
+    if (!deliveryVanAnim || !deliveryVanMesh) return;
+    deliveryVanAnim.t += dt;
+    const t = deliveryVanAnim.t;
+    const startX = 21.5;
+    const parkedX = 15.70;
+    const driveInEnd = 3.6;
+    const doorOpenEnd = 4.9;
+    const holdEnd = 9.2;
+    const doorCloseEnd = 10.4;
+    const departEnd = 14.2;
+    if (t < driveInEnd) {
+      const linear = Math.min(1, t / driveInEnd);
+      const k = 1 - Math.pow(1 - linear, 3);
+      placeDeliveryVan(startX + (parkedX - startX) * k);
+      setDeliveryVanDoors(0);
+    } else if (t < doorOpenEnd) {
+      placeDeliveryVan(parkedX);
+      setDeliveryVanDoors((t - driveInEnd) / (doorOpenEnd - driveInEnd));
+    } else if (t < holdEnd) {
+      placeDeliveryVan(parkedX);
+      setDeliveryVanDoors(1);
+    } else if (t < doorCloseEnd) {
+      placeDeliveryVan(parkedX);
+      setDeliveryVanDoors(1 - (t - holdEnd) / (doorCloseEnd - holdEnd));
+    } else if (t < departEnd) {
+      const k = Math.min(1, (t - doorCloseEnd) / (departEnd - doorCloseEnd));
+      placeDeliveryVan(parkedX + (startX + 1.5 - parkedX) * k * k);
+      setDeliveryVanDoors(0);
+    } else {
+      deliveryVanMesh.visible = false;
+      deliveryVanAnim = null;
+    }
+    const parked = t >= driveInEnd - 0.15 && t < doorCloseEnd + 0.15;
+    if (parked && !deliveryVanCol) {
+      deliveryVanCol = addCol(colBoxAt(parkedX, STOCKROOM.padOutside.z, 4.95, 2.05));
+    } else if (!parked && deliveryVanCol) {
+      removeCol(deliveryVanCol);
+      deliveryVanCol = null;
+    }
+  }
+
   function update(dtMs) {
     const dt = Math.min(0.1, dtMs / 1000);
     now += dt;
     updateDoors(dt, now);
-    updateCustomers(dt);
+    customerView.update(dt);
     register.update(dt);
     updateFlicker(dt);
-    builder.update();
+    updateDeliveryVehicle(dt);
+    builder.update(dtMs);
     if (office.updateLid) office.updateLid(dt);
     if (moteFade > 0) {
       moteFade -= dt;
@@ -2713,15 +2788,14 @@ export function makeClubhouse(ctx) {
     if (carriedBoxMesh || carriedGoodsMesh) {
       carryProp.x = walk.x - Math.sin(walk.yaw) * 0.9;
       carryProp.z = walk.z - Math.cos(walk.yaw) * 0.9;
-      if (carriedBoxMesh) carriedBoxMesh.position.y = -0.62 + Math.sin(now * 6.2) * 0.012; // a carried weight breathes
-      if (carriedGoodsMesh) carriedGoodsMesh.position.y = -0.4 + Math.sin(now * 6.2) * 0.01;
+      if (carriedBoxMesh) carriedBoxMesh.position.y = -0.50 + Math.sin(now * 6.2) * 0.012; // a carried weight breathes
+      if (carriedGoodsMesh) carriedGoodsMesh.position.y = -0.44 + Math.sin(now * 6.2) * 0.01;
     } else {
       carryProp.x = 1e6; // parked far away so an empty-handed player never focuses it
     }
     poll += dt;
     if (poll > 1.1) {
       poll = 0;
-      updateArrivals();
       if (boxSignature() !== boxSig) rebuildBoxes(); // the truck came, or staff unboxed
       if (office.paintScreen && interior.visible) office.paintScreen(); // live clock on the lid
       const ds = decorSignature();
@@ -2752,24 +2826,54 @@ export function makeClubhouse(ctx) {
   stockSig = stockSignature();
   // Everything rebuildStock() closes over now exists, so it is safe to let the
   // model loader call back into it when the goods land.
-  merch.onReady(() => { if (interior && interior.parent) rebuildStock(); });
+  merch.onReady(() => {
+    if (!interior || !interior.parent) return;
+    installDeliveryAssets();
+    rebuildStock();
+    rebuildBoxes();
+  });
 
   function dispose() {
-    scene.remove(group, interior, custGroup, motes, boxGroup);
-    if (carriedBoxMesh) camera.remove(carriedBoxMesh);
-    if (carriedGoodsMesh) camera.remove(carriedGoodsMesh);
+    customerView.dispose();
+    builder.dispose();
+    placeableVisuals.dispose();
+    for (const release of aoExclusionReleases.splice(0)) release();
+    scene.remove(group, interior, custGroup, motes, boxGroup, deliveryVehicleGroup);
+    clearOwnedGroup(boxGroup);
+    if (carriedBoxMesh) { camera.remove(carriedBoxMesh); disposeOwnedRenderable(carriedBoxMesh); }
+    if (carriedGoodsMesh) { camera.remove(carriedGoodsMesh); disposeOwnedRenderable(carriedGoodsMesh); }
+    if (deliveryVanCol) removeCol(deliveryVanCol);
+    for (const entry of shipLabelCache.values()) {
+      if (entry.material.map) entry.material.map.dispose();
+      entry.material.dispose();
+    }
+    shipLabelCache.clear();
+    for (const stock of stockMeshes.values()) disposeBakedStock(stock);
+    for (const entry of reserveLabelCache.values()) {
+      if (entry.material.map) entry.material.map.dispose();
+      entry.material.dispose();
+    }
+    reserveLabelCache.clear();
+    reserveLabelGeo.dispose();
+    boxInsideFilledMat.dispose();
+    boxInsideEmptyMat.dispose();
+    deliveryShaftGeo.dispose();
+    deliveryUmbrellaGeo.dispose();
+    deliveryRollGeo.dispose();
+    carryPalmGeo.dispose();
+    carryForearmGeo.dispose();
+    carrySkinMat.dispose();
+    carrySleeveMat.dispose();
     for (const p of [...registeredProps]) removeProp(p);
     for (const c of [...registeredCols]) removeCol(c);
     for (const m of ctx.extraMeshes || []) scene.remove(m);
-    // tearing the scene down must not pocket whatever shoppers were holding: the save is written
-    // from `state`, and stock in a deleted shopper's hands would simply cease to exist.
-    for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
   }
 
   return {
     group, interior,
     update, rebuildStock, rebuildReno, refreshCondition, repaintGrime,
     rebuildBoxes,
+    playDeliveryArrival,
     carrySpeedFactor: () => carrySpeedFactor(state),
     isInside, groundYAt, vacuumAt, vacuumLabelAt,
     doorWorld: doorW,
@@ -2798,44 +2902,27 @@ export function makeClubhouse(ctx) {
       // from out here; every verb goes through the module above
       getTx: () => register.getTx(),
       getCustomer: () => register.getCustomer(),
+      cashierPose: () => register.cashierPose(),
     },
-    // DIAGNOSTICS. Not a cheat: sendToCounter() puts a shopper at the head of the
-    // queue holding goods it took off the shelf through pickFromShelf, exactly as if
-    // it had walked the floor and chosen them — real shelf debits, real held-unit
-    // uids. It skips the browsing, not the accounting. tools/qa/ drives the checkout
-    // through it, because waiting on the RNG to produce a two-item cash customer is
-    // not a test, it is a lottery.
-    customers: () => customers,
-    sendToCounter(skuIds, payMethod = null) {
-      const c = spawnCustomer(false);
-      if (!c) return null;
-      c.payMethod = payMethod;   // a cash person or a card person, decided in advance
-      for (const skuId of skuIds) {
-        const uid = `u${++unitSeq}`;
-        if (!pickFromShelf(state, skuId, uid).ok) continue;
-        const sku = SHOP_CATALOG.find((k) => k.id === skuId);
-        c.cart.push({ uid, skuId, price: priceFor(sku, state.shop.markup[sku.cat] || 1, null) });
-      }
-      if (!c.cart.length) return null;
-      rebuildStock();
-      const q = queueSlotW(0);
-      c.mesh.position.set(q.x, c.mesh.position.y, q.z);
-      const regW = L2W(REGISTER.scanner.x, COUNTER.z);
-      c.stops = [
-        { kind: 'counter', x: q.x, z: q.z, faceX: regW.x, faceZ: regW.z },
-        { kind: 'exit', x: doorW.x, z: doorW.z },
-        { kind: 'gone', x: doorW.x, z: doorW.z + 6 },
-      ];
-      c.stopIdx = 0;
-      c.linger = 0;
-      c.entered = true;
-      return c.name;
-    },
+    // QA fixture: it skips browsing, but still reserves real shelf units through
+    // the same domain interface before joining the normal FIFO service line.
+    customers: () => customerView.actors,
+    customerDiagnostics: () => customerView.diagnostics(),
+    sendToCounter: (skuIds, payMethod = null) => customerView.sendToCounter(skuIds, payMethod),
+    setOrganicWalkins: (enabled) => customerView.setOrganicWalkins(enabled),
+    clearWalkins: () => customerView.clearWalkins(),
+    spawnReservationParty: (reservationId, options = {}) => customerView.spawnReservationParty(reservationId, options),
+    releaseReservationParty: (reservationId) => customerView.releaseReservationParty(reservationId),
     productThumb: (sku) => productThumb(sku), // rendered supplier-card imagery
     condition: () => conditionNow,
     setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),
     // build mode: the shop is the player's to arrange
     build: builder,
+    furnitureDiagnostics: () => ({
+      placement: builder.diagnostics(),
+      visuals: placeableVisuals.diagnostics(),
+      layoutRevision: ensureLayout(state).revision,
+    }),
     // the pressure washer: aim at the building, pull the trigger, watch the wall come back
     washAim: (origin, dir) => washing.aim(origin, dir),
     washApply: (hit, mode, radius, power, dt, now) => {
@@ -2845,8 +2932,8 @@ export function makeClubhouse(ctx) {
     },
     washJet: (from, to, on, dt) => washing.setJet(from, to, on, dt),
     washTick: (dt) => washing.tick(dt),
-    customers, doors, // QA access
-    debugSpawn: spawnCustomer, // QA: force a walk-in
+    doors,
+    debugSpawn: (toCounter = false, intent = undefined, options = undefined) => customerView.debugSpawn(toCounter, intent, options),
     dispose,
   };
 }

@@ -106,6 +106,10 @@ test('the goods a walked-out shopper was holding go back on the shelf, exactly o
 
 test('a finished sale cannot then be abandoned INTO a second bank', () => {
   const st = newGame('relaxed', 5);
+  st.shop.inventory.balls3.shelf = 6;
+  st.shop.inventory.glove1.shelf = 6;
+  pickFromShelf(st, 'balls3', 'a');
+  pickFromShelf(st, 'glove1', 'b');
   const tx = createTx({ items: items(), rng: rngFor([0.1, 0.9]) });
   for (const it of tx.items) scanItem(tx, it.uid);
   requestPayment(tx);

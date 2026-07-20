@@ -5,8 +5,16 @@
 // happen in front of you. Counters here are session-flavor; the money is
 // real (addRevenue → ledger → closeBooks like everything else).
 
-import { addRevenue } from './economy.js';
+import { addRevenue, addCostOfGoods, recordOutcome } from './economy.js';
 import { skuById, SHELF_CAP } from '../data/shopItems.js';
+import { capacityOf } from '../data/fixtureSlots.js';
+import {
+  INVENTORY_STAGE,
+  allocationsForHeldUnit,
+  forgetHeldAllocations,
+  moveInventory,
+  rememberHeldAllocations,
+} from './inventoryLifecycle.js';
 
 // --- units in flight --------------------------------------------------------------
 // A unit a shopper is carrying is off the shelf but not yet sold. That in-between
@@ -28,32 +36,76 @@ export function heldUnits(state) {
 export function pickFromShelf(state, skuId, uid = null) {
   const inv = state.shop.inventory[skuId];
   if (!inv || inv.shelf <= 0) return { ok: false, reason: 'Nothing on the display.' };
+  state.shop.nextHeldId = Number.isSafeInteger(state.shop.nextHeldId) ? state.shop.nextHeldId : 1;
+  const heldUid = uid || `anonymous-${state.shop.nextHeldId++}`;
+  if (heldUnits(state).some((held) => held.uid === heldUid)) {
+    return { ok: false, reason: 'This product is already being held.' };
+  }
+  const moved = moveInventory(state, {
+    from: INVENTORY_STAGE.SHELF,
+    to: INVENTORY_STAGE.CUSTOMER_HELD,
+    skuId,
+    quantity: 1,
+    referenceId: `customer-pick:${heldUid}`,
+    reason: `Customer ${heldUid} picked up product`,
+  });
+  if (!moved.ok) return moved;
   inv.shelf -= 1;
-  if (uid) heldUnits(state).push({ uid, skuId });
-  return { ok: true };
+  heldUnits(state).push({ uid: heldUid, skuId });
+  rememberHeldAllocations(state, heldUid, moved.allocations);
+  return { ok: true, uid: heldUid };
 }
 
 export function returnToShelf(state, skuId, uid = null) {
   const inv = state.shop.inventory[skuId];
   if (!inv) return { ok: false };
+  const held = heldUnits(state);
+  const i = uid
+    ? held.findIndex((entry) => entry.uid === uid)
+    : held.findIndex((entry) => entry.skuId === skuId && String(entry.uid).startsWith('anonymous-'));
+  if (i < 0) return { ok: false, reason: 'That product is not customer-held.' };
+  const entry = held[i];
   const sku = skuById(skuId);
-  const cap = sku ? SHELF_CAP[sku.cat] : 0;
-  inv.shelf = Math.min(cap, inv.shelf + 1);
-  if (uid) {
-    const held = heldUnits(state);
-    const i = held.findIndex((h) => h.uid === uid);
-    if (i >= 0) held.splice(i, 1);
-  }
-  return { ok: true };
+  const cap = sku ? (capacityOf(skuId) || SHELF_CAP[sku.cat]) : 0;
+  const toShelf = inv.shelf < cap;
+  const moved = moveInventory(state, {
+    from: INVENTORY_STAGE.CUSTOMER_HELD,
+    to: toShelf ? INVENTORY_STAGE.SHELF : INVENTORY_STAGE.RESERVE,
+    skuId,
+    quantity: 1,
+    allocations: allocationsForHeldUnit(state, entry.uid),
+    referenceId: `customer-return:${entry.uid}`,
+    reason: `Customer ${entry.uid} abandoned purchase`,
+  });
+  if (!moved.ok) return moved;
+  if (toShelf) inv.shelf += 1;
+  else inv.back += 1;
+  held.splice(i, 1);
+  forgetHeldAllocations(state, entry.uid);
+  return { ok: true, location: toShelf ? 'shelf' : 'reserve' };
 }
 
 // the unit left the building in a paid-for bag: it is gone from the shelf and gone
 // from the held ledger, and that is the ONLY way a held unit is allowed to vanish
-export function consumeHeld(state, uid) {
+export function consumeHeld(state, uid, skuId = null) {
   const held = heldUnits(state);
-  const i = held.findIndex((h) => h.uid === uid);
+  const i = uid
+    ? held.findIndex((entry) => entry.uid === uid)
+    : held.findIndex((entry) => entry.skuId === skuId && String(entry.uid).startsWith('anonymous-'));
   if (i < 0) return false;
+  const entry = held[i];
+  const moved = moveInventory(state, {
+    from: INVENTORY_STAGE.CUSTOMER_HELD,
+    to: INVENTORY_STAGE.SOLD,
+    skuId: entry.skuId,
+    quantity: 1,
+    allocations: allocationsForHeldUnit(state, entry.uid),
+    referenceId: `checkout-sale:${entry.uid}`,
+    reason: `Paid checkout for ${entry.uid}`,
+  });
+  if (!moved.ok) return false;
   held.splice(i, 1);
+  forgetHeldAllocations(state, entry.uid);
   return true;
 }
 
@@ -142,20 +194,110 @@ export function processCard(tx) {
   return { approved: true };
 }
 
-export function checkoutSale(state, items, who = 'A customer') {
+export function checkoutSale(state, items, who = 'A customer', transactionId = null, options = {}) {
   if (!Array.isArray(items) || items.length === 0) return { ok: false, reason: 'Nothing to ring up.' };
-  let total = 0;
-  for (const it of items) total += it.price || 0;
-  total = Math.round(total * 100) / 100;
-  addRevenue(state, 'shopSales', total);
+  if (items.some((item) => !Number.isFinite(item.price) || item.price <= 0)) {
+    return { ok: false, reason: 'Every checkout item needs a positive finite price.' };
+  }
+  let id = transactionId == null ? null : String(transactionId);
+  let saleKey = id == null ? null : `checkout:${id}:sale`;
+  // A persisted transaction ID is authoritative even after its held units have
+  // moved to sold. Detect replay before inventory validation so reload/retry is
+  // reported as an exact-once duplicate, never as missing stock.
+  if (saleKey && state.ledger?.processedIds?.[saleKey]) {
+    return { ok: false, reason: 'Already banked.', duplicate: true, transactionId: id };
+  }
+  const heldMatches = [];
+  const available = heldUnits(state).slice();
+  for (const item of items) {
+    const index = item.uid
+      ? available.findIndex((entry) => entry.uid === item.uid)
+      : available.findIndex((entry) => entry.skuId === item.skuId && String(entry.uid).startsWith('anonymous-'));
+    if (index >= 0) heldMatches.push(available.splice(index, 1)[0]);
+    else heldMatches.push(null);
+  }
+  if (heldMatches.some((held) => !held)) {
+    return { ok: false, reason: 'Every checkout item must still be held by this customer.' };
+  }
+  const allocations = heldMatches.flatMap((held) => allocationsForHeldUnit(state, held.uid));
+  const allocated = allocations.reduce((sum, allocation) => sum + (allocation.quantity || 0), 0);
+  if (allocated !== heldMatches.length) {
+    return { ok: false, reason: 'Checkout inventory provenance is incomplete.' };
+  }
+  let itemTotal = 0;
+  for (const item of items) itemTotal += item.price;
+  const requestedTotal = options.total ?? itemTotal;
+  const total = Math.round(requestedTotal * 100) / 100;
+  if (!Number.isFinite(total) || total <= 0) {
+    return { ok: false, reason: 'Checkout total must be positive and finite.' };
+  }
+  if (!Number.isInteger(state.shop.nextTransactionId) || state.shop.nextTransactionId < 1) state.shop.nextTransactionId = 1;
+  const propertyId = state.property?.id || `club-${state.seed}`;
+  if (id == null) id = `${propertyId}:legacy-register-${state.shop.nextTransactionId++}`;
+  saleKey = `checkout:${id}:sale`;
+  if (state.ledger?.processedIds?.[saleKey]) {
+    return { ok: false, reason: 'Already banked.', duplicate: true, transactionId: id };
+  }
+  // One atomic ledger transfer covers mixed-SKU baskets. Revenue is recorded
+  // only after this succeeds, so a stale or repeated checkout cannot be paid twice.
+  const sold = moveInventory(state, {
+    from: INVENTORY_STAGE.CUSTOMER_HELD,
+    to: INVENTORY_STAGE.SOLD,
+    quantity: heldMatches.length,
+    allocations,
+    referenceId: `checkout-sale-batch:${heldMatches.map((held) => held.uid).sort().join('|')}`,
+    reason: `Paid checkout for ${heldMatches.map((held) => held.uid).join(', ')}`,
+  });
+  if (!sold.ok) return sold;
+  const heldLedger = heldUnits(state);
+  for (const held of heldMatches) {
+    const index = heldLedger.findIndex((entry) => entry.uid === held.uid);
+    if (index >= 0) heldLedger.splice(index, 1);
+    forgetHeldAllocations(state, held.uid);
+  }
+  const bank = addRevenue(state, 'shopSales', total, {
+    idempotencyKey: saleKey,
+    relatedId: id,
+    description: `Register sale â€” ${who}`,
+    source: 'checkout',
+    units: items.length,
+    customerCount: 1,
+    metadata: { skuIds: items.map((item) => item.skuId), ...(options.metadata || {}) },
+  });
+  if (!bank.ok || bank.duplicate) {
+    return { ok: false, reason: bank.duplicate ? 'Already banked.' : bank.reason, duplicate: !!bank.duplicate };
+  }
+  const goodsCost = items.reduce((sum, item) => sum + (skuById(item.skuId)?.cost || 0), 0);
+  if (goodsCost > 0) {
+    addCostOfGoods(state, goodsCost, {
+      idempotencyKey: `checkout:${id}:cogs`,
+      relatedId: id,
+      description: `Cost of goods â€” ${who}`,
+      source: 'checkout',
+      units: items.length,
+    });
+  }
   const live = liveSales(state);
   live.units += items.length;
   live.revenue = Math.round((live.revenue + total) * 100) / 100;
+  if (!state.shop.salesToday) state.shop.salesToday = {};
+  for (const item of items) {
+    state.shop.salesToday[item.skuId] = (state.shop.salesToday[item.skuId] || 0) + 1;
+  }
+  recordOutcome(state, {
+    idempotencyKey: `checkout:${id}:completed`,
+    type: 'checkoutCompleted',
+    count: 1,
+    amount: total,
+    relatedId: id,
+    reason: `${who} completed a register purchase with ${items.length} item${items.length === 1 ? '' : 's'}.`,
+    metadata: { units: items.length },
+  });
   const names = items.map((i) => {
     const s = skuById(i.skuId);
     return s ? s.name : i.skuId;
   });
   state.shop.log.unshift(`${who} bought ${names.join(' + ')} at the counter (${Math.round(total)} dollars)`);
   if (state.shop.log.length > 8) state.shop.log.pop();
-  return { ok: true, total };
+  return { ok: true, total, transactionId: id, ledgerEntryId: bank.entry?.id || null };
 }

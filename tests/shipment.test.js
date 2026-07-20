@@ -23,7 +23,8 @@ import { skuById, SHOP_CATALOG } from '../src/data/shopItems.js';
 import { planShipment, unitsPerBox, boxKindFor, BOX_KINDS } from '../src/data/boxes.js';
 import { supplierFor, SUPPLIERS } from '../src/data/suppliers.js';
 import {
-  boxesOf, shipmentsOf, shipmentStatus, ORDER_FLOW, PAD_CAPACITY, padCount as padCountOf,
+  boxesOf, shipmentsOf, shipmentStatus, ORDER_FLOW,
+  PAD_CAPACITY, FALLBACK_CAPACITY, padCount as padCountOf, fallbackCount,
 } from '../src/sim/deliveries.js';
 
 const setup = () => {
@@ -132,7 +133,7 @@ test('a shipment on the floor reports delivered, then partially unpacked, then f
   assert.equal(shipmentStatus(s, sh), 'unpacked', 'fully unpacked');
 });
 
-test('a blocked receiving area turns the van away and says so — it does not stack boxes to the roof', () => {
+test('a full preferred pad uses safe fallback, while two full receiving zones block cleanly', () => {
   const s = setup();
   // fill the pad to its capacity with someone else's delivery
   for (let i = 0; i < PAD_CAPACITY; i++) {
@@ -142,14 +143,20 @@ test('a blocked receiving area turns the van away and says so — it does not st
   const o = s.shop.orders[0];
 
   const events = tickDeliveries(s, o.deliveryMin + 1);
-  assert.ok(events.some((e) => e.kind === 'blocked'), 'the player is told');
-  assert.ok(s.shop.orders.includes(o), 'the order is still out there — not lost');
-  assert.equal(boxesOf(s).filter((b) => b.orderId === o.id).length, 0, 'and nothing was dumped');
+  assert.ok(events.some((event) => event.kind === 'arrived' && event.usedFallback), 'fallback arrival is reported');
+  assert.equal(s.shop.orders.includes(o), false, 'the order arrived');
+  assert.equal(boxesOf(s).filter((box) => box.orderId === o.id && box.loc === 'receiving-fallback').length, 1);
 
-  // clear the pad; the van comes back
-  s.shop.deliveries.boxes = [];
-  tickDeliveries(s, o.deliveryMin + 2);
-  assert.equal(boxesOf(s).filter((b) => b.orderId === o.id).length, 1, 'it lands once there is room');
+  while (fallbackCount(s) < FALLBACK_CAPACITY) {
+    const id = 1000 + fallbackCount(s);
+    boxesOf(s).push({ id, skuId: 'tees1', qty: 1, cap: 1, orderId: 0, loc: 'receiving-fallback', box: 'carton' });
+  }
+  placeOrder(s, 'balls2', 12);
+  const blockedOrder = s.shop.orders[0];
+  const blockedEvents = tickDeliveries(s, blockedOrder.deliveryMin + 1);
+  assert.ok(blockedEvents.some((event) => event.kind === 'blocked'), 'the player is told when both zones are full');
+  assert.ok(s.shop.orders.includes(blockedOrder), 'the paid order remains in transit');
+  assert.equal(boxesOf(s).filter((box) => box.orderId === blockedOrder.id).length, 0);
 });
 
 test('two vans landing on the same minute cannot both take the last slot on the pad', () => {
@@ -161,6 +168,9 @@ test('two vans landing on the same minute cannot both take the last slot on the 
   // room for exactly 2 more boxes
   for (let i = 0; i < PAD_CAPACITY - 2; i++) {
     boxesOf(s).push({ id: 800 + i, skuId: 'tees1', qty: 1, cap: 1, orderId: 0, loc: 'pad', box: 'carton' });
+  }
+  for (let i = 0; i < FALLBACK_CAPACITY; i++) {
+    boxesOf(s).push({ id: 850 + i, skuId: 'tees1', qty: 1, cap: 1, orderId: 0, loc: 'receiving-fallback', box: 'carton' });
   }
   // three orders of two boxes each, all landing at the same minute
   placeOrder(s, 'balls1', 24);

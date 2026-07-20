@@ -4,7 +4,10 @@
 import { el, toast, modal } from './ui.js';
 import { formatMoney } from '../core/utils.js';
 import { conditionRating } from '../sim/turf.js';
-import { holdingValue, syncWallet } from '../sim/empire.js';
+import {
+  holdingValue, syncWallet, requestPropertyAppraisal, rejectPropertyAppraisal,
+} from '../sim/empire.js';
+import { propertyTier } from '../sim/propertyProgression.js';
 import { marketConditionLabel } from '../sim/marketplace.js';
 
 export function makeEmpirePanel(app, handlers) {
@@ -70,7 +73,7 @@ export function makeEmpirePanel(app, handlers) {
             ? el('span', { class: 'muted', text: 'Running it in person.' })
             : el('button', { class: 'primary', text: '⛳ Go there', onclick: () => handlers.switchTo(h.property.id) }),
           el('span', { style: 'flex:1' }),
-          el('button', { class: 'danger', text: 'Sell…', onclick: () => confirmSell(h) }),
+          el('button', { class: 'danger', text: 'Appraise / sell…', onclick: () => confirmSell(h) }),
         ),
       ));
     }
@@ -91,22 +94,51 @@ export function makeEmpirePanel(app, handlers) {
   function confirmSell(holding) {
     const prevSpeed = app.speedIdx;
     app.speedIdx = 0;
-    const value = holdingValue(app.empire, holding);
-    modal(`Sell ${holding.property.name}?`, (box, close) => {
+    const requested = requestPropertyAppraisal(app.empire, holding.property.id);
+    if (!requested.ok) {
+      app.speedIdx = prevSpeed || 1;
+      toast(requested.reason, 'warn');
+      return;
+    }
+    const appraisal = requested.appraisal;
+    const unmet = appraisal.readiness.saleRequirements.filter((requirement) => !requirement.met);
+    const tier = propertyTier(holding.property);
+    modal(`Appraisal · ${holding.property.name}`, (box, close) => {
       box.append(
         el('div', { class: 'row', style: 'line-height:1.5' },
-          `The buyer pays ${formatMoney(value)} — today’s honest appraisal, cash at closing.`),
+          `${tier.name} · appraised at ${formatMoney(appraisal.appraisedValue)} · market ${Math.round(appraisal.marketModifier * 100)}%.`),
+        el('div', { class: 'listing' },
+          el('div', { class: 'row' }, el('strong', { text: 'Offer' }), el('span', { style: 'flex:1' }), el('strong', { text: formatMoney(appraisal.offer) })),
+          el('div', { class: 'row muted' }, el('span', { text: 'Closing costs' }), el('span', { style: 'flex:1' }), el('span', { text: `−${formatMoney(appraisal.closingCosts)}` })),
+          appraisal.outstanding > 0 ? el('div', { class: 'row muted' }, el('span', { text: 'Outstanding expenses' }), el('span', { style: 'flex:1' }), el('span', { text: `−${formatMoney(appraisal.outstanding)}` })) : null,
+          el('div', { class: 'row' }, el('strong', { text: 'Net proceeds' }), el('span', { style: 'flex:1' }), el('strong', { text: formatMoney(appraisal.netProceeds) })),
+        ),
+        unmet.length ? el('div', { class: 'row', style: 'line-height:1.5;color:var(--warn)' },
+          `Not sale-ready: ${unmet.map((requirement) => requirement.label).join(' · ')}`) : null,
         el('div', { class: 'row', style: 'line-height:1.5;color:var(--warn)' },
-          'This is permanent. Every member, every regular who knows your name, and the whole staff go with the deed. There is no undo.'),
+          appraisal.eligible
+            ? 'Confirmation closes the deed permanently. A recovery snapshot is written before the property, members, regulars, and staff leave the portfolio.'
+            : 'Keep improving the real property state, then request another appraisal.'),
         el('div', { class: 'row', style: 'margin-top:12px' },
-          el('button', {
+          appraisal.eligible ? el('button', {
             class: 'danger',
-            text: `Sell for ${formatMoney(value)}`,
-            onclick: () => { close(); handlers.sellHolding(holding.property.id, prevSpeed); },
-          }),
-          el('button', { class: 'primary', text: 'Keep it', onclick: () => { app.speedIdx = prevSpeed || 1; close(); } }),
+            text: `Confirm permanent sale · ${formatMoney(appraisal.netProceeds)} net`,
+            onclick: () => { close(); handlers.sellHolding(holding.property.id, prevSpeed, appraisal.id); },
+          }) : null,
+          el('button', { class: 'primary', text: appraisal.eligible ? 'Reject offer' : 'Continue improving', onclick: () => {
+            rejectPropertyAppraisal(app.empire, appraisal.id, appraisal.eligible ? 'rejected' : 'keep');
+            app.speedIdx = prevSpeed || 1;
+            close();
+          } }),
+          appraisal.eligible ? el('button', { text: 'Keep operating', onclick: () => {
+            rejectPropertyAppraisal(app.empire, appraisal.id, 'keep');
+            app.speedIdx = prevSpeed || 1;
+            close();
+          } }) : null,
         ),
       );
+    }, () => {
+      if (app.speedIdx === 0) app.speedIdx = prevSpeed || 1;
     });
   }
 

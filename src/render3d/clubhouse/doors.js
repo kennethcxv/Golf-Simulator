@@ -238,9 +238,13 @@ export function buildDoors(B) {
       const lp = W2L(wx, wz);
       return chooseSwingAngle(door, lp.x, lp.z);
     };
-    door.openFor = (wx, wz) => {
+    door.openFor = (wx, wz, holdAt = null) => {
       door.swingTarget = door.chooseSwing(wx, wz);
       door.open = true;
+      // A controller may request the door before its actor reaches the short
+      // automatic proximity gate. Supplying the shared scene clock prevents
+      // the close timer from undoing that request one frame later.
+      if (Number.isFinite(holdAt)) door.lastNear = Math.max(door.lastNear, holdAt);
     };
 
     const wp = L2W(slabCenter.x, slabCenter.z);

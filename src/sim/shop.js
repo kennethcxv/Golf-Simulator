@@ -8,17 +8,24 @@
 
 import { rngOf, clamp, makeRng } from '../core/utils.js';
 import { calendarOf } from './time.js';
-import { addRevenue, addExpense, unbill } from './economy.js';
-import { SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
-import { planShipment } from '../data/boxes.js';
+import { addRevenue, addExpense, addCostOfGoods, recordOutcome } from './economy.js';
+import { SHOP_CATALOG, skuById, SHELF_CAP, RETAIL_CATS, DECOR_SPOTS } from '../data/shopItems.js';
 import { capacityOf } from '../data/fixtureSlots.js';
 import { INTERIOR, CLUTTER_SPOTS, WINDOWS } from '../data/shopLayout.js';
 import {
-  arriveOrder, openAllBoxes, ensureDeliveries, padHasRoom, padCount, PAD_CAPACITY,
+  arriveOrder, openAllBoxes, ensureDeliveries, receivingFree,
 } from './deliveries.js';
 import { ROLE, bestSkill } from './staff.js';
 import { TIERS } from './club.js';
 import { members } from './golfers.js';
+import {
+  INVENTORY_STAGE,
+  cancelPurchaseOrder,
+  moveInventory,
+  submitPurchaseOrders,
+  syncOrderTransitState,
+} from './inventoryLifecycle.js';
+import { applyReputationChange } from './reputation.js';
 
 // --- restoration arc ------------------------------------------------------------
 // The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
@@ -35,6 +42,7 @@ export const RENO = {
   trafficGrime: 0.0011,        // dirt tracked in per shopper per day, per cell
   trafficCap: 0.5,             // traffic alone plateaus at "needs a pass", never "wrecked"
 };
+const RENO_LAYOUT_VERSION = 2;
 
 function renoRng(state) {
   // a LOCAL stream derived from the save seed — reno must never consume
@@ -59,11 +67,26 @@ export function initShopReno(state) {
     ry: Math.round(rng.range(0, Math.PI * 2) * 100) / 100,
     cleared: false,
   }));
-  state.shop.reno = { grime, clutter, decor: [], windows: startWindows(rng) };
+  state.shop.reno = {
+    layoutVersion: RENO_LAYOUT_VERSION,
+    grime,
+    clutter,
+    decor: [],
+    windows: startWindows(rng),
+  };
 }
 
 export function ensureShopReno(state) {
   if (!state.shop) return;
+  if (!Number.isInteger(state.shop.nextTransactionId) || state.shop.nextTransactionId < 1) {
+    state.shop.nextTransactionId = 1;
+  }
+  if (!Number.isInteger(state.shop.nextCommandId) || state.shop.nextCommandId < 1) {
+    state.shop.nextCommandId = 1;
+  }
+  if (!Number.isInteger(state.shop.nextVisitorId) || state.shop.nextVisitorId < 1) {
+    state.shop.nextVisitorId = 1;
+  }
   if (!state.shop.reno) initShopReno(state);
   const reno = state.shop.reno;
 
@@ -92,7 +115,11 @@ export function ensureShopReno(state) {
     reno.grime = grime;
   }
   const outsideRoom = (c) => Math.abs(c.x) > RENO.room.w / 2 || Math.abs(c.z) > RENO.room.d / 2;
-  if (reno.clutter.length !== CLUTTER_SPOTS.length || reno.clutter.some(outsideRoom)) {
+  if (
+    reno.layoutVersion !== RENO_LAYOUT_VERSION
+    || reno.clutter.length !== CLUTTER_SPOTS.length
+    || reno.clutter.some(outsideRoom)
+  ) {
     const flags = reno.clutter.map((c) => !!c.cleared);
     const allCleared = flags.length > 0 && flags.every(Boolean);
     const rng = renoRng(state);
@@ -102,6 +129,7 @@ export function ensureShopReno(state) {
       ry: Math.round(rng.range(0, Math.PI * 2) * 100) / 100,
       cleared: i < flags.length ? flags[i] : allCleared,
     }));
+    reno.layoutVersion = RENO_LAYOUT_VERSION;
   }
 
   // WINDOW FILM (production dirt pass): saves older than the window-grime
@@ -165,7 +193,10 @@ export function replaceBulb(state) {
   const ex = exteriorState(state);
   if (!ex.light) return { ok: false, reason: 'The porch light works.' };
   if (state.cash < BULB_COST) return { ok: false, reason: 'Not enough cash for a bulb.' };
-  addExpense(state, 'shopOrders', BULB_COST);
+  addExpense(state, 'cleaningSupplies', BULB_COST, {
+    idempotencyKey: `property:${state.property?.id || state.seed}:porch-bulb`, relatedId: 'porch-light',
+    description: 'Replacement porch-light bulb', source: 'clubhouse-restoration',
+  });
   ex.light = 0;
   return { ok: true };
 }
@@ -317,6 +348,9 @@ export function initShop(state) {
     inventory,
     orders: [],
     nextOrderId: 1,
+    nextTransactionId: 1,
+    nextCommandId: 1,
+    nextVisitorId: 1,
     markup: { clubs: 1.0, balls: 1.0, apparel: 1.0, accessories: 1.0 },
     featureCategory: 'balls', // the front table the player merchandises
     rentalFleet: { sets: 3, condition: 55, pricePerRound: 18 },
@@ -354,49 +388,26 @@ export function orderCost(sku, qty) {
 
 // each order ships into a two-hour window on its arrival day; the truck lands
 // at a specific (deterministic per order) minute inside it
-const DELIVERY_SLOTS = [[8, 10], [10, 12], [13, 15]];
-
 export function placeOrder(state, skuId, qty) {
   const sku = skuById(skuId);
   if (!sku) return { ok: false, reason: 'No such item.' };
   if (sku.tier > state.shop.unlockedTier) return { ok: false, reason: 'Supplier account not unlocked yet.' };
+  if (!Number.isInteger(qty) || qty <= 0) return { ok: false, reason: 'Quantity must be a positive whole number.' };
 
-  // pack it NOW. The manifest is what the Orders screen promises and what the receiving pad
-  // stands there — one object, read twice, so the two can never disagree.
-  const manifest = planShipment(sku, qty);
-  const goods = orderCost(sku, qty);
-  const fee = manifest.fee;
-  const cost = Math.round((goods + fee) * 100) / 100;   // `cost` is what you actually paid
-  if (state.cash < cost) return { ok: false, reason: 'Not enough cash.' };
-  addExpense(state, 'shopOrders', cost);
-
-  const dayAbs = calendarOf(state.clock.minutes).dayAbs;
-  const id = state.shop.nextOrderId++;
-  const arrivesDay = dayAbs + LEAD_DAYS[sku.cat];
-  const slot = DELIVERY_SLOTS[(id * 7) % DELIVERY_SLOTS.length];
-  const open = arrivesDay * 1440 + slot[0] * 60;
-  const close = arrivesDay * 1440 + slot[1] * 60;
-  const order = {
-    id,
-    skuId,
-    qty,
-    cost,        // goods + freight: the number that left your account
-    goods,
-    fee,
-    supplier: manifest.supplier,
-    manifest,
-    arrivesDay,
-    placedMin: state.clock.minutes,
-    window: { open, close },
-    deliveryMin: open + ((id * 37) % (close - open)),
-    status: 'received',
-    notif: {},
-  };
-  state.shop.orders.push(order);
+  const purchase = submitPurchaseOrders(state, { lines: [{ skuId, quantity: qty }] });
+  if (!purchase.ok) return { ok: false, reason: purchase.reason };
+  const purchasedOrder = purchase.orders[0];
   return {
-    ok: true, cost, goods, fee, order,
-    boxes: manifest.boxCount, weight: manifest.weight, supplier: manifest.supplier,
+    ok: true,
+    cost: purchasedOrder.totalCost,
+    goods: purchasedOrder.goods,
+    fee: purchasedOrder.shippingCost,
+    order: purchasedOrder,
+    boxes: purchasedOrder.manifest.boxCount,
+    weight: purchasedOrder.manifest.weight,
+    supplier: purchasedOrder.supplier,
   };
+
 }
 
 // WHERE AN ORDER IS, AT A GIVEN MINUTE.
@@ -479,9 +490,7 @@ export function cancelOrder(state, id) {
   if (o.status === 'arriving' || o.status === 'delivered') {
     return { ok: false, reason: 'The van is at the door — too late to cancel.' };
   }
-  orders.splice(i, 1);
-  unbill(state, 'shopOrders', o.cost);
-  return { ok: true, refund: o.cost };
+  return cancelPurchaseOrder(state, id);
 }
 
 // minute-grained delivery tick: progresses statuses, fires each heads-up once,
@@ -490,7 +499,7 @@ export function cancelOrder(state, id) {
 export function tickDeliveries(state, nowMin) {
   const events = [];
   if (!state.shop || !state.shop.orders || !state.shop.orders.length) return events;
-  const arrived = [];
+  const arrivals = [];
   // Space taken by vans already waved through ON THIS TICK. Their boxes do not exist yet —
   // arriveOrder runs below, after the loop — so without this, four vans landing on the same
   // minute each look at the same empty pad, all unload, and the pad ends up over capacity.
@@ -500,24 +509,29 @@ export function tickDeliveries(state, nowMin) {
     if (o.window === undefined) continue; // pre-window legacy order: dailyTick path delivers it
     if (!o.notif) o.notif = {};
     o.status = orderStatusAt(o, nowMin);
+    syncOrderTransitState(state, o, o.status);
 
     if (o.status === 'delivered') {
       // THE PAD HAS TO HAVE ROOM. A driver with nowhere to put nine cartons does not stack them
       // to the roof and drive off; he tells you he could not deliver. The order stays out there —
       // it is not lost, and it is not silently teleported into the backroom either.
-      const need = (o.manifest && o.manifest.boxCount) || 1;
-      if (!padHasRoom(state, need + reserved)) {
+      const totalBoxes = (o.manifest && o.manifest.boxCount) || 1;
+      const receivedBoxes = Array.isArray(o.receivedManifestBoxIndexes) ? o.receivedManifestBoxIndexes.length : 0;
+      const need = Math.max(0, totalBoxes - receivedBoxes);
+      const free = Math.max(0, receivingFree(state) - reserved);
+      if (free <= 0) {
         o.status = 'arriving';        // still circling
+        syncOrderTransitState(state, o, 'arriving');
         if (!o.blocked) {
           o.blocked = true;
-          events.push({ kind: 'blocked', order: o, need, free: PAD_CAPACITY - padCount(state) - reserved });
+          events.push({ kind: 'blocked', order: o, need, free });
         }
         continue;
       }
       o.blocked = false;
-      reserved += need;
-      arrived.push(o);
-      events.push({ kind: 'arrived', order: o });
+      const unloading = Math.min(need, free);
+      reserved += unloading;
+      arrivals.push({ order: o, count: unloading });
       continue;
     }
 
@@ -531,9 +545,21 @@ export function tickDeliveries(state, nowMin) {
       events.push({ kind: 'soon', order: o });
     }
   }
-  if (arrived.length) {
-    state.shop.orders = state.shop.orders.filter((o) => !arrived.includes(o));
-    for (const o of arrived) arriveOrder(state, o);
+  if (arrivals.length) {
+    const completed = [];
+    for (const arrival of arrivals) {
+      const o = arrival.order;
+      const boxes = arriveOrder(state, o, { maxBoxes: arrival.count });
+      const complete = o.remainingUnreceivedQuantity <= 0;
+      if (complete) completed.push(o);
+      events.push({
+        kind: complete ? 'arrived' : 'partial-arrival',
+        order: o,
+        boxes,
+        usedFallback: boxes.some((box) => box.loc === 'receiving-fallback'),
+      });
+    }
+    state.shop.orders = state.shop.orders.filter((order) => !completed.includes(order));
   }
   return events;
 }
@@ -544,15 +570,37 @@ export function deliverOrdersDue(state, dayAbs) {
   // windowed orders due TODAY belong to their window (tickDeliveries) — only
   // strictly-past days force-land here; legacy windowless orders keep day-of
   const due = (o) => (o.window === undefined ? o.arrivesDay <= dayAbs : o.arrivesDay < dayAbs);
-  const arrived = state.shop.orders.filter(due);
-  state.shop.orders = state.shop.orders.filter((o) => !due(o));
+  const arrivals = [];
+  let reserved = 0;
+  for (const order of state.shop.orders) {
+    if (!due(order)) continue;
+    const totalBoxes = (order.manifest && order.manifest.boxCount) || 1;
+    const receivedBoxes = Array.isArray(order.receivedManifestBoxIndexes) ? order.receivedManifestBoxIndexes.length : 0;
+    const need = Math.max(0, totalBoxes - receivedBoxes);
+    const free = Math.max(0, receivingFree(state) - reserved);
+    if (free <= 0) {
+      order.status = 'arriving';
+      syncOrderTransitState(state, order, 'arriving');
+      order.blocked = true;
+      continue;
+    }
+    order.blocked = false;
+    const unloading = Math.min(need, free);
+    reserved += unloading;
+    arrivals.push({ order, count: unloading });
+  }
   // 2026-07-13 physical retail: arrivals are BOXES on the receiving pad —
   // contents reach the backroom when someone opens them (you, or the
   // morning floor staff in restockShelvesByStaff)
-  for (const o of arrived) {
-    arriveOrder(state, o);
+  const completed = [];
+  const received = [];
+  for (const arrival of arrivals) {
+    const boxes = arriveOrder(state, arrival.order, { maxBoxes: arrival.count });
+    if (boxes.length) received.push(arrival.order);
+    if (arrival.order.remainingUnreceivedQuantity <= 0) completed.push(arrival.order);
   }
-  return arrived;
+  state.shop.orders = state.shop.orders.filter((order) => !completed.includes(order));
+  return received;
 }
 
 // --- restocking ------------------------------------------------------------------------
@@ -583,6 +631,14 @@ export function restockShelfFromBackroom(state, skuId) {
   const space = shelfCapacity(sku) - inv.shelf;
   const move = Math.min(space, inv.back);
   if (move <= 0) return { ok: false, reason: inv.back <= 0 ? 'Backroom is empty.' : 'Shelf is full.' };
+  const ledgerMove = moveInventory(state, {
+    from: INVENTORY_STAGE.RESERVE,
+    to: INVENTORY_STAGE.SHELF,
+    skuId,
+    quantity: move,
+    reason: 'Restocked shelf from backroom',
+  });
+  if (!ledgerMove.ok) return ledgerMove;
   inv.back -= move;
   inv.shelf += move;
   return { ok: true, moved: move };
@@ -602,6 +658,14 @@ export function restockShelvesByStaff(state) {
     const space = shelfCapacity(sku) - inv.shelf;
     const move = Math.min(space, inv.back, capacity);
     if (move > 0) {
+      const ledgerMove = moveInventory(state, {
+        from: INVENTORY_STAGE.RESERVE,
+        to: INVENTORY_STAGE.SHELF,
+        skuId: sku.id,
+        quantity: move,
+        reason: 'Floor staff restock',
+      });
+      if (!ledgerMove.ok) continue;
       inv.back -= move;
       inv.shelf += move;
       capacity -= move;
@@ -634,8 +698,10 @@ export function shopOpenStock(state) {
 
 export function shopDailyAccrual(state) {
   const shop = state.shop;
-  const rng = rngOf(state);
   const cal = calendarOf(state.clock.minutes);
+  const dayAbs = Number.isInteger(state.ledger?.postingDay) ? state.ledger.postingDay : cal.dayAbs;
+  if (shop.lastAccruedDay === dayAbs) return shop.lastAccrual || null;
+  const rng = rngOf(state);
   const seasonIndex = cal.seasonIndex;
   const rounds = state.club.lastRounds || 0;
   const ms = members(state);
@@ -652,8 +718,11 @@ export function shopDailyAccrual(state) {
   );
 
   let revenue = 0;
+  let costOfGoods = 0;
   let units = 0;
   let lost = 0;
+  let lostToStock = 0;
+  let lostToPrice = 0;
   shop.log = [];
 
   const catalogByCat = {};
@@ -691,6 +760,7 @@ export function shopDailyAccrual(state) {
 
     if (!options.length) {
       lost++;
+      lostToStock++;
       if (member) member.satisfaction = clamp(member.satisfaction - 2, 0, 100);
       continue;
     }
@@ -706,7 +776,19 @@ export function shopDailyAccrual(state) {
 
     if (rng.chance(clamp(accept, 0, 0.97))) {
       const price = priceFor(sku, shop.markup[cat], member ? member.memberTier : null);
+      const soldMove = moveInventory(state, {
+        from: INVENTORY_STAGE.SHELF,
+        to: INVENTORY_STAGE.SOLD,
+        skuId: sku.id,
+        quantity: 1,
+        reason: 'Simulated daily shop sale',
+      });
+      if (!soldMove.ok) {
+        lost++;
+        continue;
+      }
       revenue += price;
+      costOfGoods += sku.cost || 0;
       units++;
       recordSale(state, sku.id);
       state.shop.inventory[sku.id].shelf--;
@@ -715,20 +797,86 @@ export function shopDailyAccrual(state) {
         shop.log.unshift(`${member ? member.name : 'A visitor'} bought the ${sku.name} (${Math.round(price)} dollars)`);
         if (shop.log.length > 8) shop.log.pop();
       }
+    } else {
+      lost++;
+      lostToPrice++;
+      if (member) member.satisfaction = clamp(member.satisfaction - 1.2, 0, 100);
     }
   }
 
-  if (revenue > 0) addRevenue(state, 'shopSales', revenue);
+  if (revenue > 0) {
+    addRevenue(state, 'shopSales', revenue, {
+      idempotencyKey: `shop-simulation:${dayAbs}:sales`,
+      relatedId: `shop-day-${dayAbs}`,
+      description: 'Simulated pro-shop sales',
+      source: 'shop-simulation',
+      units,
+      customerCount: units,
+    });
+    addCostOfGoods(state, costOfGoods, {
+      idempotencyKey: `shop-simulation:${dayAbs}:cogs`,
+      relatedId: `shop-day-${dayAbs}`,
+      description: 'Cost of simulated pro-shop sales',
+      source: 'shop-simulation',
+      units,
+    });
+    recordOutcome(state, {
+      idempotencyKey: `shop-simulation:${dayAbs}:served`,
+      type: 'shopCustomersServed',
+      count: units,
+      amount: revenue,
+      relatedId: `shop-day-${dayAbs}`,
+      reason: `${units} shopper${units === 1 ? '' : 's'} found an item and completed a purchase.`,
+    });
+  }
+  if (lost > 0) {
+    recordOutcome(state, {
+      idempotencyKey: `shop-simulation:${dayAbs}:missed`,
+      type: 'missedSale',
+      count: lost,
+      relatedId: `shop-day-${dayAbs}`,
+      reason: `${lost} shopper${lost === 1 ? '' : 's'} left because the requested category was out of stock.`,
+      metadata: { stockouts: lostToStock, priceRejections: lostToPrice },
+    });
+  }
+  if (shoppers > 0) {
+    const conversion = units / Math.max(1, units + lost);
+    const retailDelta = clamp((conversion - 0.62) * 1.8, -1.2, 0.45);
+    applyReputationChange(state, {
+      id: `shop-simulation:${dayAbs}:retail-reputation`, category: 'retail', delta: retailDelta,
+      source: 'shop-simulation', sourceId: `shop-day-${dayAbs}`,
+      reason: lost > 0
+        ? `${units} purchases completed; ${lostToStock} stockout and ${lostToPrice} price rejection${lostToPrice === 1 ? '' : 's'} hurt conversion.`
+        : `${units} shoppers found acceptable products and prices.`,
+    });
+    const cleanliness = shopCondition(state);
+    applyReputationChange(state, {
+      id: `shop-simulation:${dayAbs}:cleanliness-reputation`, category: 'cleanliness',
+      delta: clamp((cleanliness - 50) / 70, -0.7, 0.45),
+      source: 'shop-simulation', sourceId: `shop-day-${dayAbs}`,
+      reason: `${shoppers} shopper${shoppers === 1 ? '' : 's'} experienced clubhouse cleanliness at ${Math.round(cleanliness)}.`,
+    });
+  }
 
   // --- rentals: guests without clubs -------------------------------------------
   const fleet = shop.rentalFleet;
   let rentalRevenue = 0;
   if (fleet.sets > 0 && fleet.condition > 15) {
     const guests = Math.max(0, rounds - ms.length * 0.3);
-    const renters = Math.min(Math.round(guests * 0.16), fleet.sets * 2);
+    const potentialRenters = Math.min(Math.round(guests * 0.16), fleet.sets * 2);
+    const fairRental = 10 + fleet.condition * 0.14;
+    const rentalDemand = clamp(Math.pow(fairRental / Math.max(1, fleet.pricePerRound), 1.7), 0.1, 1.6);
+    const renters = Math.min(potentialRenters, Math.round(potentialRenters * Math.min(1, rentalDemand)));
     if (renters > 0) {
       rentalRevenue = renters * fleet.pricePerRound;
-      addRevenue(state, 'rentals', rentalRevenue);
+      addRevenue(state, 'rentals', rentalRevenue, {
+        idempotencyKey: `shop-simulation:${dayAbs}:rentals`,
+        relatedId: `shop-day-${dayAbs}`,
+        description: `${renters} club-rental round${renters === 1 ? '' : 's'}`,
+        source: 'shop-simulation',
+        units: renters,
+        customerCount: renters,
+      });
       fleet.condition = clamp(fleet.condition - renters * 0.5, 0, 100);
     }
   }
@@ -740,7 +888,14 @@ export function shopDailyAccrual(state) {
     const demand = clamp(ms.length * 0.03 + state.club.reputation * 0.008, 0, 2.4);
     fittings = Math.min(Math.floor(demand + (rng.chance(demand % 1) ? 1 : 0)), 3);
     if (fittings > 0) {
-      addRevenue(state, 'fittings', fittings * 120);
+      addRevenue(state, 'fittings', fittings * 120, {
+        idempotencyKey: `shop-simulation:${dayAbs}:fittings`,
+        relatedId: `shop-day-${dayAbs}`,
+        description: `${fittings} professional fitting${fittings === 1 ? '' : 's'}`,
+        source: 'shop-simulation',
+        units: fittings,
+        customerCount: fittings,
+      });
       for (let i = 0; i < fittings; i++) {
         const m = ms[rng.int(ms.length)];
         m.satisfaction = clamp(m.satisfaction + 6, 0, 100);
@@ -756,13 +911,24 @@ export function shopDailyAccrual(state) {
   shop.lostSalesTotal = (shop.lostSalesTotal || 0) + lost;
   shop.fittingsYesterday = fittings;
   rollSalesWindow(state); // the day is done: today's per-SKU tally joins the seven-day window
+  shop.lastAccruedDay = dayAbs;
+  shop.lastAccrual = { dayAbs, shoppers, units, lost, lostToStock, lostToPrice, revenue: Math.round(revenue * 100) / 100, costOfGoods, rentalRevenue, fittings };
+  return shop.lastAccrual;
 }
 
 // replacement rental sets
 export function buyRentalSets(state, n = 1) {
+  if (!Number.isInteger(n) || n <= 0) return { ok: false, reason: 'Quantity must be a positive whole number.' };
   const cost = 220 * n;
   if (state.cash < cost) return { ok: false, reason: 'Not enough cash.' };
-  addExpense(state, 'rentalFleet', cost);
+  const commandId = state.shop.nextCommandId++;
+  addExpense(state, 'rentalFleet', cost, {
+    idempotencyKey: `rental-fleet:${commandId}`,
+    relatedId: commandId,
+    description: `${n} replacement rental set${n === 1 ? '' : 's'}`,
+    source: 'shop-equipment',
+    units: n,
+  });
   state.shop.rentalFleet.sets += n;
   state.shop.rentalFleet.condition = clamp(
     (state.shop.rentalFleet.condition * (state.shop.rentalFleet.sets - n) + 100 * n) / state.shop.rentalFleet.sets,

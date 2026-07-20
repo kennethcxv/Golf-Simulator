@@ -30,19 +30,34 @@ export const GRIPS = {
     recoil: 0.012,
   },
   hose: {
-    grip: { pos: [0.0, -0.09, 0.12], rot: [-0.6, 0, 0] },
+    grip: { pos: [0.35, -0.43, -0.70], rot: [-0.6, -0.18, 0.08] },
     support: null,
     recoil: 0.02,
   },
   rake: {
-    grip: { pos: [0.03, -0.05, 0.28], rot: [-0.9, 0, 0.1] },
-    support: { pos: [-0.04, 0.06, -0.16], rot: [-1.1, 0, -0.15] },
+    grip: { pos: [0.49, -0.57, -1.13], rot: [-0.9, 0.05, -0.28] },
+    support: { pos: [0.25, -0.46, -0.97], rot: [-1.1, 0.05, -0.45] },
     recoil: 0.03,
   },
   divot: {
-    grip: { pos: [0.02, -0.06, 0.16], rot: [-0.8, 0, 0.08] },
+    grip: { pos: [0.47, -0.54, -1.03], rot: [-0.8, 0.06, -0.12] },
     support: null,
     recoil: 0.025,
+  },
+  ballmark: {
+    grip: { pos: [0.52, -0.49, -1.17], rot: [-0.9, 0.04, -0.16] },
+    support: null,
+    recoil: 0.025,
+  },
+  debris: {
+    grip: { pos: [0.48, -0.55, -1.02], rot: [-0.55, 0.1, 0.12] },
+    support: { pos: [0.27, -0.56, -0.98], rot: [-0.6, -0.1, -0.22] },
+    recoil: 0.02,
+  },
+  fungicide: {
+    grip: { pos: [0.31, -0.48, -0.73], rot: [-0.6, -0.12, 0.04] },
+    support: null,
+    recoil: 0.02,
   },
   // the box cutter is a one-handed tool held low and forward, the way you hold a knife you are
   // about to draw toward you down a seam. The recoil is a short draw stroke, not a kick.

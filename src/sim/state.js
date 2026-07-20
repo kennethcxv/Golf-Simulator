@@ -15,21 +15,61 @@ import { initStaff, tickStaffDaily, refreshMarketIfDue } from './staff.js';
 import { initClub, dailyMembershipTick, accrueDaily } from './club.js';
 import { initShop, shopDailyAccrual, deliverOrdersDue, tickDeliveries, ensureShopReno } from './shop.js';
 import { recoverCheckout } from './checkout.js';
+import { ensureInventoryLifecycle } from './inventoryLifecycle.js';
+import { ensureLayout } from './layout.js';
 import { ensureWash } from './washing.js';
 import { ensureProperty, tickProperty } from './property.js';
-import { initReservations, ensureReservations, reservationsDailyTick } from './reservations.js';
+import {
+  initReservations, ensureReservations, golfOperationsTick, reservationsDailyTick,
+  ensureReservationHorizon,
+} from './reservations.js';
+import {
+  initCustomerSimulation, ensureCustomerSimulation, planCustomerArrivals,
+  recoverCustomerSimulation,
+} from './customerSimulation.js';
 import { initTractor, ensureTractor } from './tractor.js';
 import { bunkerDailyMess } from './bunkers.js';
 import { initCourseProps, ensureCourseProps } from './props.js';
 import { simulateDayRounds } from './rounds.js';
 import { initProgression, prestigeDailyTick, resolveTournamentIfDue, solvencyDailyTick } from './progression.js';
 import { initTutorial, ensureTutorial } from './tutorial.js';
-import { initLedger, addExpense, closeBooks } from './economy.js';
+import { initLedger, ensureLedger, beginLedgerClose, addExpense, closeBooks } from './economy.js';
+import { initReputation, ensureReputation } from './reputation.js';
+import { initBusiness, ensureBusiness, closeDayIndicators } from './business.js';
 import { BALANCE } from './balance.js';
+import {
+  courseMaintenanceDailyTick,
+  courseMaintenanceHourlyTick,
+  initCourseMaintenance,
+  restoreCourseMaintenance,
+  snapshotCourseMaintenance,
+} from './courseMaintenance.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
-export const SAVE_VERSION = 3;
+// Integrated schema: v4 introduced the physical inventory lifecycle, v5 added
+// hero-hole maintenance, and v6 adds the immutable economy/reputation/business
+// state while preserving the established recovery order.
+export const SAVE_VERSION = 6;
+
+const STATE_SAVE_KEYS = new Set([
+  'version', 'mode', 'seed', 'rngState', 'clock', 'cash', 'clubName',
+  'pendingMorning', 'course', 'weather', 'maintenance', 'courseMaintenance',
+  'golfers', 'staff', 'club', 'reputation', 'business', 'ledger', 'shop',
+  'reservations', 'tractor', 'props', 'progression', 'tutorial', 'property',
+  'debtDays', 'failed', 'turf',
+]);
+
+function preserveUnknownSaveFields(target, raw, knownKeys) {
+  const entries = Object.entries(raw || {}).filter(([key]) => !knownKeys.has(key));
+  if (!entries.length) return target;
+  Object.defineProperty(target, '__unknownSaveFields', {
+    value: Object.fromEntries(entries),
+    writable: true,
+    configurable: true,
+  });
+  return target;
+}
 
 // opts lets the GOLF EMPIRE layer boot this same fresh-club wiring onto a
 // marketplace property: an injected course grid and club name, nothing else.
@@ -55,30 +95,52 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   initGolfers(state);
   initStaff(state);
   initClub(state);
+  initReputation(state);
   initShop(state);
+  ensureLayout(state);
   ensureWash(state); // a fixer-upper arrives with a filthy exterior
   ensureProperty(state); // ...and a landlord
+  state.property.id = opts.propertyId || state.property.id;
+  state.property.tierId = opts.tierId || state.property.tierId;
+  state.property.acquisitionCost = opts.acquisitionCost ?? state.property.acquisitionCost;
   initReservations(state);
+  initCustomerSimulation(state);
+  planCustomerArrivals(state, calendarOf(state.clock.minutes).dayAbs);
   initTractor(state);
   initCourseProps(state);
   initLedger(state);
   initProgression(state);
   initTutorial(state);
+  initCourseMaintenance(state);
+  initBusiness(state);
   return state;
 }
 
 // --- master tick --------------------------------------------------------------
 
 export function dailyTick(state) {
+  const todayAbs = calendarOf(state.clock.minutes).dayAbs;
+  const closingDay = todayAbs - 1;
+  // Midnight has advanced the clock already, but the newly exposed horizon and
+  // all settlement work still belong to the operating day being closed.
+  if (state.ledger) beginLedgerClose(state, closingDay);
+  // Open the newly visible far edge of the tee sheet before closing the books.
+  // Its advance card payments belong to the operating day that accepted them,
+  // keeping the main ledger and wallet exactly reconciled at midnight.
+  if (state.reservations) {
+    ensureReservationHorizon(state, { todayAbs });
+  }
   // 1) settle the day that just ended: accrue its recurring economy, close books
   if (state.ledger) {
     accrueDaily(state);
     if (state.shop) shopDailyAccrual(state);
     if (state.golfers) simulateDayRounds(state, state.club.lastRounds || 0);
-    if (state.progression) resolveTournamentIfDue(state, calendarOf(state.clock.minutes).dayAbs - 1);
+    if (state.progression) resolveTournamentIfDue(state, closingDay);
+    if (state.reservations) reservationsDailyTick(state, todayAbs);
     // the rent falls due whether or not it was a good week; it is announced two days out
-    state.lastPropertyEvent = tickProperty(state, calendarOf(state.clock.minutes).dayAbs);
-    closeBooks(state, calendarOf(state.clock.minutes).dayAbs - 1);
+    state.lastPropertyEvent = tickProperty(state, todayAbs);
+    const indicators = closeDayIndicators(state, closingDay);
+    closeBooks(state, closingDay, indicators);
   }
 
   // 2) roll into the new day
@@ -90,13 +152,14 @@ export function dailyTick(state) {
   }
   tickRenovationsDaily(state);
   turfDailyTick(state);
+  courseMaintenanceDailyTick(state, { coarseAdvanced: true });
   if (state.staff) {
     tickStaffDaily(state);
     refreshMarketIfDue(state, calendarOf(state.clock.minutes).dayAbs);
   }
   if (state.club) dailyMembershipTick(state);
   if (state.shop) deliverOrdersDue(state, calendarOf(state.clock.minutes).dayAbs);
-  if (state.reservations) reservationsDailyTick(state, calendarOf(state.clock.minutes).dayAbs);
+  if (state.shop) planCustomerArrivals(state, calendarOf(state.clock.minutes).dayAbs);
   if (state.turf) bunkerDailyMess(state); // yesterday's traffic footprints the sand
   if (state.progression) {
     prestigeDailyTick(state);
@@ -113,15 +176,23 @@ export function hourlyTick(state, hourOfDay) {
     const report = runMorningMaintenance(state, calendarOf(state.clock.minutes).dayAbs);
     if (report) {
       if (state.ledger) {
-        addExpense(state, 'wagesDayLabor', report.costs.wages);
-        addExpense(state, 'water', report.costs.water);
-        addExpense(state, 'fertilizer', report.costs.fertilizer);
+        if (report.costs.wages > 0) addExpense(state, 'wagesDayLabor', report.costs.wages, {
+          idempotencyKey: `maintenance:${report.dayAbs}:day-labour`, relatedId: `maintenance-${report.dayAbs}`, source: 'morning-maintenance',
+        });
+        if (report.costs.water > 0) addExpense(state, 'water', report.costs.water, {
+          idempotencyKey: `maintenance:${report.dayAbs}:water`, relatedId: `maintenance-${report.dayAbs}`, source: 'morning-maintenance',
+        });
+        if (report.costs.fertilizer > 0) addExpense(state, 'fertilizer', report.costs.fertilizer, {
+          idempotencyKey: `maintenance:${report.dayAbs}:fertilizer`, relatedId: `maintenance-${report.dayAbs}`, source: 'morning-maintenance',
+        });
       } else {
         state.cash -= Math.round(report.costs.wages + report.costs.water + report.costs.fertilizer);
       }
     }
   }
   turfHourlyTick(state, hourOfDay);
+  if (state.reservations) golfOperationsTick(state, state.clock.minutes);
+  courseMaintenanceHourlyTick(state, { coarseAdvanced: true });
 }
 
 export function update(state, gameMinutes) {
@@ -142,6 +213,7 @@ export function update(state, gameMinutes) {
     hourlyTick(state, hourOfDay);
   }
   state.clock.minutes = target;
+  if (state.reservations) golfOperationsTick(state, target);
   return { daysPassed };
 }
 
@@ -152,15 +224,17 @@ const round1 = (v) => Math.round(v * 10) / 10;
 export function snapshot(state) {
   const { course, turf } = state;
   return ({
+    ...(state.__unknownSaveFields || {}),
     version: state.version,
     mode: state.mode,
     seed: state.seed,
     rngState: state.rngState,
-    clock: { minutes: state.clock.minutes },
+    clock: { ...state.clock, minutes: state.clock.minutes },
     cash: Math.round(state.cash * 100) / 100,
     clubName: state.clubName,
     pendingMorning: state.pendingMorning,
     course: {
+      ...course,
       w: course.w,
       h: course.h,
       zones: Array.from(course.zones),
@@ -170,14 +244,18 @@ export function snapshot(state) {
       structures: course.structures,
     },
     weather: {
+      ...state.weather,
       today: state.weather.today,
       droughtDays: state.weather.droughtDays,
       bias: state.weather.bias,
     },
     maintenance: state.maintenance,
+    courseMaintenance: snapshotCourseMaintenance(state.courseMaintenance),
     golfers: state.golfers,
     staff: state.staff,
     club: state.club,
+    reputation: state.reputation,
+    business: state.business,
     ledger: state.ledger,
     shop: state.shop,
     reservations: state.reservations,
@@ -190,6 +268,7 @@ export function snapshot(state) {
     failed: state.failed || null,
     turf: turf
       ? {
+          ...turf,
           health: Array.from(turf.health, round1),
           moisture: Array.from(turf.moisture, round1),
           nutrients: Array.from(turf.nutrients, round1),
@@ -210,6 +289,7 @@ export function serialize(state) {
 export function deserialize(json) {
   const raw = typeof json === 'string' ? JSON.parse(json) : json;
   const course = {
+    ...raw.course,
     w: raw.course.w,
     h: raw.course.h,
     zones: Uint8Array.from(raw.course.zones),
@@ -219,23 +299,24 @@ export function deserialize(json) {
     structures: raw.course.structures || [],
   };
   const state = {
-    version: raw.version,
+    version: SAVE_VERSION,
     mode: raw.mode,
     seed: raw.seed,
     rngState: raw.rngState,
-    clock: { minutes: raw.clock.minutes },
+    clock: { ...raw.clock, minutes: raw.clock.minutes },
     cash: raw.cash,
     clubName: raw.clubName || 'Willow Creek Golf Club',
     pendingMorning: raw.pendingMorning ?? true,
     course,
     sections: labelSections(course),
     weather: raw.weather
-      ? { today: raw.weather.today, droughtDays: raw.weather.droughtDays, bias: raw.weather.bias || { temp: 0, dry: 0 } }
+      ? { ...raw.weather, today: raw.weather.today, droughtDays: raw.weather.droughtDays, bias: raw.weather.bias || { temp: 0, dry: 0 } }
       : newWeather(),
     maintenance: raw.maintenance || null,
   };
   if (raw.turf) {
     state.turf = {
+      ...raw.turf,
       health: Float32Array.from(raw.turf.health),
       moisture: Float32Array.from(raw.turf.moisture),
       nutrients: Float32Array.from(raw.turf.nutrients),
@@ -267,14 +348,25 @@ export function deserialize(json) {
   else initClub(state);
   if (raw.ledger) state.ledger = raw.ledger;
   else initLedger(state);
+  ensureLedger(state);
+  const hadCustomerSimulation = !!raw.shop?.customerSimulation;
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
-  recoverCheckout(state); // a save taken mid-sale: the shoppers are gone, so put their goods back
+  ensureLayout(state); // every save gains the one authoritative placement schema before rendering
+  ensureInventoryLifecycle(state); // v4: capture/migrate physical lots before checkout recovery moves them
+  if (hadCustomerSimulation) {
+    ensureCustomerSimulation(state);
+    recoverCustomerSimulation(state);
+  } else {
+    recoverCheckout(state); // legacy saves had no persistent customers, so every held unit returns
+    initCustomerSimulation(state);
+  }
   ensureWash(state); // ...and a filthy exterior waiting for the pressure washer
   ensureProperty(state); // pre-rent saves gain a schedule rather than a free ride
   if (raw.reservations) state.reservations = raw.reservations;
   ensureReservations(state); // pre-booking saves gain an empty tee sheet
+  planCustomerArrivals(state, calendarOf(state.clock.minutes).dayAbs);
   if (raw.tractor) state.tractor = raw.tractor;
   ensureTractor(state, { legacyRepaired: true }); // old saves keep their working tractor
   if (raw.props) state.props = raw.props;
@@ -284,7 +376,14 @@ export function deserialize(json) {
   if (raw.tutorial) state.tutorial = raw.tutorial;
   else initTutorial(state);
   ensureTutorial(state); // older saves re-derive their spot in the chaptered arc
+  restoreCourseMaintenance(state, raw.courseMaintenance || null);
+  if (raw.reputation) state.reputation = raw.reputation;
+  else initReputation(state, state.club?.reputation ?? 30);
+  ensureReputation(state);
+  if (raw.business) state.business = raw.business;
+  ensureBusiness(state);
   state.debtDays = raw.debtDays || 0;
   state.failed = raw.failed || null;
-  return state;
+  state.version = SAVE_VERSION;
+  return preserveUnknownSaveFields(state, raw, STATE_SAVE_KEYS);
 }
