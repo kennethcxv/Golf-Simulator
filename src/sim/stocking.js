@@ -22,8 +22,10 @@ import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
 const ARMFUL_CAT = { clubs: 2, balls: 6, apparel: 6, accessories: 8, supplies: 1, decor: 1 };
 const ARMFUL_ID = {
   bag1: 1,       // a stand bag IS the carry
+  bag3: 1,
   irons1: 1, irons2: 1,
   shoe1: 3,
+  shoe3: 3,
   range2: 4,
   umb1: 4,
   jacket2: 4,

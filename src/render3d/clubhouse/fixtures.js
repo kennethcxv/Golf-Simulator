@@ -13,10 +13,11 @@
 
 import * as THREE from 'three';
 import {
-  FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, LOGO_RUG, REGISTER, COUNTER_TOP,
+  FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, LOGO_RUG, REGISTER, COUNTER_TOP, fixtureSockets,
 } from '../../data/shopLayout.js';
 import { restockShelfFromBackroom } from '../../sim/shop.js';
 import { skuById } from '../../data/shopItems.js';
+import { capacityOf } from '../../data/fixtureSlots.js';
 import { placedFixtures } from '../../sim/layout.js';
 import { tutorialFlag } from '../../sim/tutorial.js';
 import { roundedBox, makeSignTexture, makeRugTexture } from './materials.js';
@@ -66,7 +67,6 @@ export function buildFixtures(B) {
 
   function shelfLabel(f) {
     const inv = state.shop.inventory;
-    const shelf = f.skus.reduce((a, id) => a + inv[id].shelf, 0);
     const back = f.skus.reduce((a, id) => a + inv[id].back, 0);
 
     // if you are holding product, this fixture is either where it goes or somewhere it does not —
@@ -75,13 +75,19 @@ export function buildFixtures(B) {
     if (held) {
       const heldSku = skuById(held.skuId);
       if (f.skus.includes(held.skuId)) {
-        return `${f.title} — hold [E] to stock the ${heldSku.name.toLowerCase()} (${held.qty} in hand)`;
+        const line = inv[held.skuId] || { shelf: 0 };
+        return `${f.title} — ${heldSku.name} ${line.shelf}/${capacityOf(held.skuId)} — hold [E] to stock (${held.qty} in hand)`;
       }
       return null;   // wrong fixture: let the player carry on to the right one without a false prompt
     }
 
-    if (back > 0) return `${f.title} — ${shelf} out · ${back} in the back — [E] restock`;
-    return `${f.title} — ${shelf} out · backroom empty (order at the office)`;
+    const facing = f.skus.map((id) => {
+      const sku = skuById(id);
+      const line = inv[id] || { shelf: 0 };
+      return `${sku.name} ${line.shelf}/${capacityOf(id)}`;
+    }).join(' · ');
+    if (back > 0) return `${f.title} — ${facing} — ${back} in back — [E] restock`;
+    return `${f.title} — ${facing} — backroom empty`;
   }
 
   // stock this fixture from what is in the player's hands: tap = one, hold = a flow
@@ -115,9 +121,11 @@ export function buildFixtures(B) {
 
   function fixtureProp(f) {
     if (!f.skus.length) return;
-    const wp = L2W(f.x, f.z);
+    const socket = fixtureSockets(f, 'stock')[0];
+    if (!socket) return;
+    const wp = L2W(socket.x, socket.z);
     addProp({
-      x: wp.x, z: wp.z, r: 2.3,
+      x: wp.x, z: wp.z, r: 1.15,
       label: () => shelfLabel(f),
       action: () => {
         const held = B.carriedGoods && B.carriedGoods();

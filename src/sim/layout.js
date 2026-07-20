@@ -12,7 +12,7 @@
 
 import {
   FIXTURES, INTERIOR, PARTITIONS, COUNTER, DOOR_CLEARWAY, BACKDOOR_CLEARWAY,
-  STOCKROOM, OFFICE, PLAYER_DIAM, STAFF_CORRIDOR_MIN, fixtureRect, queueSlot,
+  STOCKROOM, OFFICE, PLAYER_DIAM, STAFF_CORRIDOR_MIN, fixtureRect, fixtureSockets, queueSlot,
 } from '../data/shopLayout.js';
 import { boxDims } from '../data/boxes.js';
 
@@ -145,6 +145,11 @@ export function routesIntact(state, override) {
   for (const f of placedFixtures(state)) {
     if (!f.skus || !f.skus.length) continue;
     if (override && f.id === override.id) continue;
+    const sockets = fixtureSockets(f);
+    if (sockets.length) {
+      if (!sockets.some(reached)) return false;
+      continue;
+    }
     const r = fixtureRect(f);
     const front = { x: (r.minX + r.maxX) / 2, z: r.maxZ + R + 0.1 };
     const back = { x: (r.minX + r.maxX) / 2, z: r.minZ - R - 0.1 };

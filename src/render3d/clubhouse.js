@@ -18,7 +18,7 @@ import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
   SHELL, INTERIOR, FIXTURES, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
-  MAT, HOURS_SIGN, queueSlot, REGISTER, COUNTER_TOP,
+  MAT, HOURS_SIGN, queueSlot, fixtureSockets, REGISTER, COUNTER_TOP,
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
@@ -2263,20 +2263,30 @@ export function makeClubhouse(ctx) {
         if (hasStock) pool.push(f, f, f);
       }
       for (let i = 0; i < nStops; i++) {
-        const f = pool[rng.int(pool.length)];
-        const wp = L2W(f.x, f.z);
-        // stand a step off the fixture, on its open side
-        const l = f;
-        const offZ = l.z < -5 ? 1.2 : l.z > 5 ? -1.2 : (l.ry !== 0 ? 0 : 1.2);
-        const offX = Math.abs(l.ry) > 0.5 ? (l.x < 0 ? 1.2 : -1.2) : 0;
+        // Reserve an authored standing socket. Looking at the fixture centre put
+        // shoppers inside cabinets and random jitter stacked them into one body.
+        const claimed = new Set(customers.flatMap((c) => c.stops
+          .slice(c.stopIdx)
+          .map((s) => s.socketKey)
+          .filter(Boolean)));
+        for (const s of stops) if (s.socketKey) claimed.add(s.socketKey);
+        const available = pool.filter((candidate) => fixtureSockets(candidate).some((s) => !claimed.has(s.key)));
+        if (!available.length) break;
+        const f = available[rng.int(available.length)];
+        const open = fixtureSockets(f).filter((s) => !claimed.has(s.key));
+        const socket = open[rng.int(open.length)];
+        const wp = L2W(socket.x, socket.z);
+        const face = L2W(f.x, f.z);
         stops.push({
           kind: 'fixture',
           skus: f.skus,
           title: f.title,
-          x: wp.x + offX + (rng.next() - 0.5) * 0.8,
-          z: wp.z + offZ + (rng.next() - 0.5) * 0.4,
-          faceX: wp.x,
-          faceZ: wp.z,
+          fixtureId: f.id,
+          socketKey: socket.key,
+          x: wp.x,
+          z: wp.z,
+          faceX: face.x,
+          faceZ: face.z,
         });
       }
     }

@@ -66,9 +66,12 @@ export const WINDOW_DIM = { w: 2.4, h: 1.9, sill: 0.85 };
 // the collider, the layout tests and the placement validator all read it, so a fixture can never
 // be one size to the physics and another to the rules.
 export const FIXTURE_HALF = {
-  shelf: [1.6, 0.35], rack: [1.5, 0.45], table: [1.2, 0.8], hatstand: [0.4, 0.4],
-  bagstand: [1.3, 0.75], shoerack: [1.3, 0.4], feature: [0.9, 0.9], backshelf: [1.4, 0.45],
-  rail: [1.1, 0.45], backcounter: [1.6, 0.3],
+  shelf: [1.6, 0.35], pegboard: [1.6, 0.35], apparelwall: [1.6, 0.35],
+  rack: [1.5, 0.45], table: [1.2, 0.72], hatstand: [0.4, 0.4],
+  bagstand: [1.3, 0.65], shoerack: [1.3, 0.4], fittingroom: [1.1, 0.85],
+  feature: [1.05, 0.65], fridge: [0.48, 0.48], snackrack: [0.75, 0.38],
+  service: [0.48, 0.38], premiumcase: [1.2, 0.4], demo: [2.0, 0.62],
+  backshelf: [1.4, 0.45], rail: [1.1, 0.45], backcounter: [1.6, 0.3],
 };
 
 export function fixtureRect(f) {
@@ -78,6 +81,22 @@ export function fixtureRect(f) {
   const hx = swap ? b : a;
   const hz = swap ? a : b;
   return { minX: f.x - hx, maxX: f.x + hx, minZ: f.z - hz, maxZ: f.z + hz };
+}
+
+// Interaction points live outside colliders. They are authored in fixture-local
+// coordinates so build mode can rotate and move the fixture without leaving its
+// customer or stocking target behind.
+export function fixtureSockets(f, type = 'browse') {
+  const sockets = type === 'stock' ? (f.stock || []) : (f.browse || []);
+  const c = Math.cos(f.ry || 0);
+  const s = Math.sin(f.ry || 0);
+  return sockets.map((p, index) => ({
+    x: f.x + p.x * c + p.z * s,
+    z: f.z - p.x * s + p.z * c,
+    ry: f.ry || 0,
+    index,
+    key: `${f.id}:${type}:${index}`,
+  }));
 }
 
 export const PARTITIONS = [
@@ -204,23 +223,35 @@ export const HOURS_SIGN = { x: 1.1, z: 6.77 };         // beside the door, on th
 // kind: shelf | rack | table | rail | hatstand | bagstand | shoerack | feature
 //     | backcounter | backshelf
 export const FIXTURES = [
-  // the club wall — one architectural run down the west wall (refs 1/5)
-  { id: 'rack_drivers', kind: 'rack', x: -9.9, z: -3.2, ry: Math.PI / 2, skus: ['driver1', 'driver2', 'driver3'], title: 'Drivers & woods', zone: 'clubwall' },
-  { id: 'rack_irons', kind: 'rack', x: -9.9, z: -0.2, ry: Math.PI / 2, skus: ['irons1', 'irons2', 'wedge1', 'wedge2'], title: 'Irons & wedges', zone: 'clubwall' },
-  { id: 'rack_putters', kind: 'rack', x: -9.9, z: 2.8, ry: Math.PI / 2, skus: ['putter1', 'putter2'], title: 'Putter studio', zone: 'clubwall' },
-  // north wall retail walls
-  { id: 'shelf_balls', kind: 'shelf', x: -6.9, z: -6.15, ry: 0, skus: ['balls1', 'balls2', 'balls3'], title: 'Ball wall', zone: 'balls' },
-  { id: 'shelf_acc', kind: 'shelf', x: -3.7, z: -6.15, ry: 0, skus: ['tees1', 'towel1', 'marker1', 'range2', 'umb1'], title: 'Accessories', zone: 'accessories' },
-  { id: 'shelf_small', kind: 'shelf', x: -0.5, z: -6.15, ry: 0, skus: ['glove1', 'sock1'], title: 'Gloves & socks', zone: 'accessories' },
-  // apparel block, center floor
-  { id: 'table_polos', kind: 'table', x: -5.9, z: 0.6, ry: 0, skus: ['polo1', 'polo2'], title: 'Apparel tables', zone: 'apparel' },
-  { id: 'rail_outer', kind: 'rail', x: -2.4, z: 0.9, ry: Math.PI / 2, skus: ['jacket2'], title: 'Outerwear rail', zone: 'apparel' },
-  { id: 'hatstand', kind: 'hatstand', x: -3.4, z: -1.6, ry: 0, skus: ['cap1'], title: 'Hat tree', zone: 'apparel' },
-  // bag & shoe fitting, against the service partition (ref 7)
-  { id: 'bagstand', kind: 'bagstand', x: 2.2, z: -2.6, ry: 0, skus: ['bag1'], title: 'Bag platforms', zone: 'bags' },
-  { id: 'shoerack', kind: 'shoerack', x: 5.1, z: -0.6, ry: -Math.PI / 2, skus: ['shoe1'], title: 'Shoe wall', zone: 'shoes' },
-  // entrance feature display (shows whatever category is featured)
-  { id: 'feature', kind: 'feature', x: -3.2, z: 3.8, ry: 0, skus: [], title: 'Feature display', zone: 'entrance' },
+  // The western club wall remains a continuous architectural run. Local +z is
+  // the product-facing side, which becomes east after the quarter turn.
+  { id: 'rack_drivers', kind: 'rack', x: -9.9, z: -3.2, ry: Math.PI / 2, skus: ['driver1', 'driver2', 'driver3'], title: 'Drivers & woods', zone: 'clubwall', browse: [{ x: -0.65, z: 1.05 }, { x: 0.65, z: 1.05 }], stock: [{ x: 0, z: 0.95 }] },
+  { id: 'rack_irons', kind: 'rack', x: -9.9, z: -0.2, ry: Math.PI / 2, skus: ['irons1', 'irons2', 'wedge1', 'wedge2'], title: 'Irons & wedges', zone: 'clubwall', browse: [{ x: -0.65, z: 1.05 }, { x: 0.65, z: 1.05 }], stock: [{ x: 0, z: 0.95 }] },
+  { id: 'rack_putters', kind: 'rack', x: -9.9, z: 2.8, ry: Math.PI / 2, skus: ['putter1', 'putter2', 'putter3'], title: 'Putter studio', zone: 'clubwall', browse: [{ x: -0.65, z: 1.05 }, { x: 0.65, z: 1.05 }], stock: [{ x: 0, z: 0.95 }] },
+
+  // The shallow north-wall run restores the long entrance sightline.
+  { id: 'shelf_balls', kind: 'shelf', x: -6.9, z: -6.15, ry: 0, skus: ['balls1', 'balls2', 'balls3'], title: 'Golf balls', zone: 'balls', browse: [{ x: -0.8, z: 1.0 }, { x: 0.8, z: 1.0 }], stock: [{ x: 0, z: 0.92 }] },
+  { id: 'shelf_acc', kind: 'pegboard', x: -3.7, z: -6.15, ry: 0, skus: ['tees1', 'towel1', 'marker1', 'divot1', 'range2', 'sunglasses2', 'bottle1', 'umb1'], title: 'Golf essentials', zone: 'accessories', browse: [{ x: -0.8, z: 1.0 }, { x: 0.8, z: 1.0 }], stock: [{ x: 0, z: 0.92 }] },
+  { id: 'shelf_small', kind: 'apparelwall', x: -0.5, z: -6.15, ry: 0, skus: ['glove1', 'glove2', 'sock1', 'jacket2'], title: 'Apparel & gloves', zone: 'apparel', browse: [{ x: -0.8, z: 1.0 }, { x: 0.8, z: 1.0 }], stock: [{ x: 0, z: 0.92 }] },
+  { id: 'hatstand', kind: 'hatstand', x: 1.55, z: -5.9, ry: 0, skus: ['cap1', 'cap2'], title: 'Hat tree', sign: 'Club headwear', zone: 'apparel', browse: [{ x: 0, z: 0.9 }], stock: [{ x: 0, z: 0.82 }] },
+
+  // One low apparel island replaces the old sightline-blocking table/rail block.
+  { id: 'table_polos', kind: 'table', x: -6.0, z: 0.65, ry: 0, skus: ['polo1', 'polo2', 'pants2', 'shorts1'], title: 'Course apparel', zone: 'apparel', browse: [{ x: -0.72, z: 1.18 }, { x: 0.72, z: 1.18 }, { x: 0, z: -1.18 }], stock: [{ x: 0, z: 1.12 }] },
+
+  // Bag, fitting and shoe fixtures form one coherent partition-side run.
+  { id: 'bagstand', kind: 'bagstand', x: 2.05, z: -2.65, ry: 0, skus: ['bag1', 'bag3'], title: 'Golf bags', zone: 'bags', browse: [{ x: -0.65, z: 1.12 }, { x: 0.65, z: 1.12 }], stock: [{ x: 0, z: 1.05 }] },
+  { id: 'fittingroom', kind: 'fittingroom', x: 4.45, z: -2.4, ry: 0, skus: [], title: 'Fitting room', zone: 'shoes' },
+  { id: 'shoerack', kind: 'shoerack', x: 5.25, z: -0.25, ry: -Math.PI / 2, skus: ['shoe1', 'shoe3'], title: 'Golf shoes', zone: 'shoes', browse: [{ x: -0.62, z: 0.92 }, { x: 0.62, z: 0.92 }], stock: [{ x: 0, z: 0.88 }] },
+
+  // A compact grab-and-go run terminates the partition without entering the queue.
+  { id: 'cold_drinks', kind: 'fridge', x: 5.17, z: 1.53, ry: 0, skus: ['water1', 'sportdrink2', 'soda1'], title: 'Cold drinks', zone: 'refreshments', browse: [{ x: 0, z: 0.98 }], stock: [{ x: 0, z: 0.9 }] },
+  { id: 'snack_rack', kind: 'snackrack', x: 3.94, z: 1.60, ry: 0, skus: ['chips1', 'bar2', 'crackers1'], title: 'Turn snacks', zone: 'refreshments', browse: [{ x: 0, z: 0.88 }], stock: [{ x: 0, z: 0.82 }] },
+  { id: 'member_station', kind: 'service', x: 1.70, z: 2.20, ry: 0, skus: ['scorecard1'], title: 'Scorecards', zone: 'membership', browse: [{ x: 0, z: 0.82 }], stock: [{ x: 0, z: 0.78 }] },
+
+  // Low new arrivals and premium presentation occupy reserved, non-blocking footprints.
+  { id: 'feature', kind: 'feature', x: -3.35, z: 3.10, ry: 0, skus: [], title: 'New arrivals', zone: 'entrance' },
+  { id: 'tour_vault', kind: 'premiumcase', x: 5.25, z: -5.20, ry: -Math.PI / 2, skus: [], title: 'Tour Vault', zone: 'premium', minTier: 3 },
+  { id: 'putting_demo', kind: 'demo', x: -7.0, z: 4.95, ry: 0, skus: [], title: 'Putting studio', zone: 'premium', minTier: 3 },
   // checkout back-counter: wordmark wall, cabinets, bag stack (ref 4)
   { id: 'backcounter', kind: 'backcounter', x: 3.2, z: 6.15, ry: 0, skus: [], title: 'Back counter', zone: 'checkout' },
   // stockroom (non-retail; visualizes backroom stock + receives boxes)

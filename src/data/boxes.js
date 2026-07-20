@@ -56,7 +56,9 @@ export const BOX_KINDS = {
 // "Bag towel" and an "Ironwood stand bag", and the shoes are called "spikes".
 const KIND_BY_ID = {
   bag1: BOX_KINDS.bagcarton,   // Ironwood stand bag
+  bag3: BOX_KINDS.bagcarton,   // Meridian tour bag
   shoe1: BOX_KINDS.shoebox,    // North Ridge spikes
+  shoe3: BOX_KINDS.shoebox,    // Meridian knit spikes
   vac1: BOX_KINDS.fixture,     // the shop vacuum
   light1: BOX_KINDS.fixture,   // green pendant light
   board1: BOX_KINDS.fixture,   // events board
@@ -83,9 +85,11 @@ export function boxKindFor(sku) {
 const PER_BOX_CAT = { clubs: 2, balls: 12, apparel: 8, accessories: 12, supplies: 1, decor: 1 };
 const PER_BOX_ID = {
   bag1: 1,      // one stand bag to a carton, and it is already an awkward carry
+  bag3: 1,
   irons1: 1,    // an iron set IS eight clubs; you do not get two sets in a sleeve
   irons2: 1,
   shoe1: 4,     // four pairs to a shoe carton
+  shoe3: 4,
   range2: 4,    // fragile optics, individually padded
   umb1: 6,
   jacket2: 6,

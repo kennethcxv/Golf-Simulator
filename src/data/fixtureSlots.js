@@ -88,20 +88,17 @@ function clubBay(skuId) {
 
 // folded on the table top, then hung from its rail behind
 function tableApparel(skuId) {
-  const cx = laneX(skuId, 1.8);
+  const cx = laneX(skuId, 2.0);
   const out = [];
-  for (let i = 0; i < 9; i++) {              // three stacks of three, folded
+  for (let i = 0; i < 6; i++) {              // two tidy stacks of three, folded
     const col = Math.floor(i / 3);
     out.push({
-      x: cx + (col - 1) * 0.28,
-      y: 1.005 + (i % 3) * 0.055,
-      z: -0.05,
+      x: cx,
+      y: 0.835 + (i % 3) * 0.05,
+      z: col ? 0.22 : -0.22,
       ry: (i % 2) * 0.09 - 0.045,
       folded: true,
     });
-  }
-  for (let j = 0; j < 3; j++) {              // and three on the hang rail
-    out.push({ x: cx + (j - 1) * 0.32, y: 1.68, z: -0.62, ry: 0.06 + (j % 2) * 0.08 });
   }
   return out;
 }
@@ -122,6 +119,47 @@ function hatTree(n = 12, per = 6) {
     const tier = Math.floor(i / per);
     const a = ((i % per) / per) * Math.PI * 2 + tier * 0.5;
     out.push({ x: Math.sin(a) * 0.30, y: 1.05 + tier * 0.38, z: Math.cos(a) * 0.30, ry: a });
+  }
+  return out;
+}
+
+// Two hat lines share one tree by alternating pegs around it. No duplicate
+// poses, and six hats per colour read curated rather than crowded.
+function hatLane(skuId) {
+  const h = HOME.get(skuId);
+  const lanes = Math.max(1, h ? h.lanes : 1);
+  const lane = h ? h.lane : 0;
+  const total = lanes * 6;
+  const out = [];
+  for (let i = 0; i < 6; i++) {
+    const p = lane + i * lanes;
+    const tier = Math.floor(p / 6);
+    const a = (p / total) * Math.PI * 2;
+    out.push({ x: Math.sin(a) * 0.30, y: 1.02 + tier * 0.36, z: Math.cos(a) * 0.30, ry: a });
+  }
+  return out;
+}
+
+// Honest pegboard: one four-hook vertical column per line. Eight small-goods
+// lines fit because the packages are carded, not because cartons interpenetrate.
+function pegColumn(skuId) {
+  const cx = laneX(skuId, 2.8);
+  return [0.38, 0.64, 0.90, 1.16, 1.42, 1.68].map((y, i) => ({
+    x: cx,
+    y,
+    z: 0.13,
+    ry: (i % 2) * 0.05 - 0.025,
+    pegged: true,
+  }));
+}
+
+// Folded/packaged soft goods on the apparel wall: two facings on each of the
+// three millwork boards, confined to the SKU's own lane.
+function apparelWall(skuId) {
+  const cx = laneX(skuId, 2.8);
+  const out = [];
+  for (const y of SHELF_BOARDS) {
+    for (const dx of [-0.12, 0.12]) out.push({ x: cx + dx, y: y + 0.10, z: 0.10, folded: true });
   }
   return out;
 }
@@ -204,11 +242,54 @@ function shoeBoards(n = 12, per = 4) {
   return out;
 }
 
+
+function shoeLane(skuId) {
+  const h = HOME.get(skuId);
+  const lane = h ? h.lane : 0;
+  const lanes = Math.max(1, h ? h.lanes : 1);
+  const span = 2.4 / lanes;
+  const cx = -1.2 + span * (lane + 0.5);
+  const out = [];
+  for (const y of SHOE_BOARDS) {
+    for (const dx of [-0.22, 0.22]) out.push({ x: cx + dx, y: y + 0.055, z: 0.06 });
+  }
+  return out;
+}
+
 // bags, stood on their platforms
 function bagPlinth(n = 4) {
   const out = [];
   for (let i = 0; i < n; i++) {
     out.push({ x: -0.90 + i * 0.60, y: 0.12, z: -0.10, ry: -0.5 + i * 0.34, lean: -0.10 });
+  }
+  return out;
+}
+
+
+function bagLane(skuId) {
+  const h = HOME.get(skuId);
+  const lane = h ? h.lane : 0;
+  const lanes = Math.max(1, h ? h.lanes : 1);
+  const span = 2.2 / lanes;
+  const cx = -1.1 + span * (lane + 0.5);
+  return [-0.25, 0.25].flatMap((z, row) => [-0.22, 0.22].map((dx, col) => ({
+    x: cx + dx,
+    y: 0.12,
+    z,
+    ry: -0.32 + lane * 0.25 + row * 0.12 + col * 0.08,
+    lean: -0.08,
+  })));
+}
+
+function narrowColumn(skuId, { usable = 0.72, ys = [0.35, 0.70, 1.05, 1.40], z = 0.08 } = {}) {
+  const cx = laneX(skuId, usable);
+  return ys.map((y, i) => ({ x: cx, y, z, ry: (i % 2) * 0.04 - 0.02 }));
+}
+
+function scorecardStacks() {
+  const out = [];
+  for (const x of [-0.22, 0, 0.22]) {
+    for (let i = 0; i < 4; i++) out.push({ x, y: 0.69 + i * 0.035, z: 0.04, ry: (i % 2) * 0.025 });
   }
   return out;
 }
@@ -220,7 +301,7 @@ const BUILD = {
   // clubs — six to a bay, whichever bay they live on
   driver1: clubBay, driver2: clubBay, driver3: clubBay,
   irons1: clubBay, irons2: clubBay,
-  putter1: clubBay, putter2: clubBay,
+  putter1: clubBay, putter2: clubBay, putter3: clubBay,
   wedge1: clubBay, wedge2: clubBay,
 
   // the ball wall: five fronted boxes to a board, three boards, three lines side by side
@@ -228,24 +309,36 @@ const BUILD = {
   balls2: (id) => shelfGrid(id, { cols: 5, pitch: 0.175, lift: 0.062 }),
   balls3: (id) => shelfGrid(id, { cols: 5, pitch: 0.175, lift: 0.062 }),
 
-  // cartoned smalls
-  tees1: (id) => shelfGrid(id, { cols: 4, pitch: 0.135, lift: 0.085, z: 0.08 }),
-  marker1: (id) => shelfGrid(id, { cols: 4, pitch: 0.135, lift: 0.085, z: 0.08 }),
-  towel1: towelRolls,
-  range2: riser,
-  umb1: (id) => barrel(id, 8),
+  // carded and compact accessories on the dedicated pegboard
+  tees1: pegColumn, towel1: pegColumn, marker1: pegColumn, divot1: pegColumn,
+  range2: pegColumn, sunglasses2: pegColumn, bottle1: pegColumn, umb1: pegColumn,
 
   // apparel
   polo1: tableApparel,
   polo2: tableApparel,
-  jacket2: (id) => railHang(id, 8),
-  cap1: () => hatTree(12),
-  glove1: gloveFan,
-  sock1: sockBasket,
-  shoe1: () => shoeBoards(12),
+  pants2: tableApparel,
+  shorts1: tableApparel,
+  jacket2: apparelWall,
+  cap1: hatLane,
+  cap2: hatLane,
+  glove1: apparelWall,
+  glove2: apparelWall,
+  sock1: apparelWall,
+  shoe1: shoeLane,
+  shoe3: shoeLane,
 
   // bags
-  bag1: () => bagPlinth(4),
+  bag1: bagLane,
+  bag3: bagLane,
+
+  // refreshments and the scorecard / membership station
+  water1: (id) => narrowColumn(id),
+  sportdrink2: (id) => narrowColumn(id),
+  soda1: (id) => narrowColumn(id),
+  chips1: (id) => narrowColumn(id, { usable: 1.25, ys: [0.28, 0.55, 0.82, 1.09], z: 0.06 }),
+  bar2: (id) => narrowColumn(id, { usable: 1.25, ys: [0.28, 0.55, 0.82, 1.09], z: 0.06 }),
+  crackers1: (id) => narrowColumn(id, { usable: 1.25, ys: [0.28, 0.55, 0.82, 1.09], z: 0.06 }),
+  scorecard1: scorecardStacks,
 };
 
 const CACHE = new Map();
