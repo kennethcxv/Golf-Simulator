@@ -1,0 +1,462 @@
+{
+  "ok": true,
+  "fixture": {
+    "padOrderId": 1,
+    "fallbackOrderId": 2,
+    "cost": 2565
+  },
+  "landed": {
+    "pad": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "fallback": [
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "padCount": 9,
+    "fallbackCount": 10
+  },
+  "worktablePlacement": {
+    "surface": "worktable",
+    "y": 0.925,
+    "loc": "world",
+    "tape": 0
+  },
+  "rackPlacement": {
+    "surface": "reserve-rack:backshelf_n",
+    "slot": 0,
+    "y": 0.18
+  },
+  "recycled": true,
+  "screenshots": [
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\iteration-2\\01-live-orders.png",
+      "description": "Submitted supplier orders before physical receipt."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\iteration-2\\02-van-and-pad.png",
+      "description": "Articulated delivery van parked at nine-box exterior pad."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\iteration-2\\03-safe-fallback-ten.png",
+      "description": "Ten cartons in the marked interior fallback zone."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\iteration-2\\04-worktable-sealed.png",
+      "description": "Sealed carton placed at the purpose-built worktable."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\iteration-2\\05-worktable-open-contents.png",
+      "description": "Open carton with current product silhouettes and correctly hinged flaps."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\iteration-2\\06-product-carry-hands.png",
+      "description": "Six actual product packs carried with two visible hands."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\iteration-2\\07-loose-reserve-rack.png",
+      "description": "Authoritative grouped reserve row with exact quantity tag."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\iteration-2\\08-unopened-carton-rack.png",
+      "description": "Persistent unopened carton occupying one authored rack slot."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\iteration-2\\09-recycling-before.png",
+      "description": "Flattened carton carried to the two-stream recycling station."
+    },
+    {
+      "file": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-inventory-delivery-loop\\qa\\inventory-delivery-loop\\iteration-2\\10-recycling-after.png",
+      "description": "Recycling station after the carton leaves the world."
+    }
+  ],
+  "actions": [
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "open the physical laptop"
+    },
+    {
+      "kind": "trusted-mouse",
+      "description": "open Orders application"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "Escape",
+      "description": "leave laptop"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "open the receiving door for the arriving van"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "place carried carton on authored packing worktable"
+    },
+    {
+      "kind": "trusted-key-hold",
+      "key": "e",
+      "ms": 900,
+      "description": "run authored cutter down the top seam (pass 1)"
+    },
+    {
+      "kind": "trusted-key-hold",
+      "key": "e",
+      "ms": 900,
+      "description": "run authored cutter down the top seam (pass 2)"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "open worktable flap 1"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "open worktable flap 2"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "remove one armful from open carton"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "store carried units on authored reserve rack"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "place unopened carton into authored rack slot"
+    },
+    {
+      "kind": "trusted-key",
+      "key": "e",
+      "description": "recycle flattened carton"
+    }
+  ],
+  "performance": {
+    "averageFps": 46.64,
+    "onePercentLowFps": 6.21,
+    "worstFrameMs": 194.5,
+    "rendererResources": {
+      "geometries": 1106,
+      "textures": 229
+    },
+    "boxCount": 18
+  },
+  "finalState": {
+    "reconciled": true,
+    "discrepancies": [],
+    "boxes": [
+      {
+        "id": 1,
+        "persistentId": "box-1",
+        "skuId": "bag1",
+        "qty": 1,
+        "initialQuantity": 1,
+        "loc": "pad",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 2,
+        "persistentId": "box-2",
+        "skuId": "bag1",
+        "qty": 1,
+        "initialQuantity": 1,
+        "loc": "pad",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 3,
+        "persistentId": "box-3",
+        "skuId": "bag1",
+        "qty": 1,
+        "initialQuantity": 1,
+        "loc": "pad",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 4,
+        "persistentId": "box-4",
+        "skuId": "bag1",
+        "qty": 1,
+        "initialQuantity": 1,
+        "loc": "pad",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 5,
+        "persistentId": "box-5",
+        "skuId": "bag1",
+        "qty": 1,
+        "initialQuantity": 1,
+        "loc": "pad",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 6,
+        "persistentId": "box-6",
+        "skuId": "bag1",
+        "qty": 1,
+        "initialQuantity": 1,
+        "loc": "pad",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 7,
+        "persistentId": "box-7",
+        "skuId": "bag1",
+        "qty": 1,
+        "initialQuantity": 1,
+        "loc": "pad",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 8,
+        "persistentId": "box-8",
+        "skuId": "bag1",
+        "qty": 1,
+        "initialQuantity": 1,
+        "loc": "pad",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 9,
+        "persistentId": "box-9",
+        "skuId": "bag1",
+        "qty": 1,
+        "initialQuantity": 1,
+        "loc": "pad",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 10,
+        "persistentId": "box-10",
+        "skuId": "balls2",
+        "qty": 6,
+        "initialQuantity": 12,
+        "loc": "world",
+        "surface": "worktable",
+        "surfaceSlot": 0,
+        "tape": 1,
+        "flaps": [
+          1,
+          1
+        ],
+        "flat": false
+      },
+      {
+        "id": 11,
+        "persistentId": "box-11",
+        "skuId": "balls2",
+        "qty": 12,
+        "initialQuantity": 12,
+        "loc": "world",
+        "surface": "reserve-rack:backshelf_n",
+        "surfaceSlot": 0,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 13,
+        "persistentId": "box-13",
+        "skuId": "balls2",
+        "qty": 12,
+        "initialQuantity": 12,
+        "loc": "receiving-fallback",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 14,
+        "persistentId": "box-14",
+        "skuId": "balls2",
+        "qty": 12,
+        "initialQuantity": 12,
+        "loc": "receiving-fallback",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 15,
+        "persistentId": "box-15",
+        "skuId": "balls2",
+        "qty": 12,
+        "initialQuantity": 12,
+        "loc": "receiving-fallback",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 16,
+        "persistentId": "box-16",
+        "skuId": "balls2",
+        "qty": 12,
+        "initialQuantity": 12,
+        "loc": "receiving-fallback",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 17,
+        "persistentId": "box-17",
+        "skuId": "balls2",
+        "qty": 12,
+        "initialQuantity": 12,
+        "loc": "receiving-fallback",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 18,
+        "persistentId": "box-18",
+        "skuId": "balls2",
+        "qty": 12,
+        "initialQuantity": 12,
+        "loc": "receiving-fallback",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      },
+      {
+        "id": 19,
+        "persistentId": "box-19",
+        "skuId": "balls2",
+        "qty": 12,
+        "initialQuantity": 12,
+        "loc": "receiving-fallback",
+        "surface": null,
+        "tape": 0,
+        "flaps": [
+          0,
+          0
+        ],
+        "flat": false
+      }
+    ],
+    "carry": null,
+    "totals": {
+      "inTransit": 0,
+      "deliveredUnopened": 105,
+      "openedBox": 6,
+      "reserve": 18,
+      "shelf": 33,
+      "customerHeld": 0,
+      "sold": 0,
+      "disposedLost": 0
+    }
+  },
+  "errors": {
+    "console": 0,
+    "page": 0,
+    "request": 0
+  },
+  "diagnostics": []
+}

@@ -5584,6 +5584,17 @@ export function makeClubhouse(ctx) {
       ));
   }
 
+  function fallbackBoxCovered(b) {
+    return b.loc === 'receiving-fallback'
+      && Number.isSafeInteger(b.receivingSlot)
+      && b.receivingSlot >= 0
+      && b.receivingSlot < 6
+      && boxesOf(state).some((candidate) => (
+        candidate.loc === 'receiving-fallback'
+        && candidate.receivingSlot === b.receivingSlot + 6
+      ));
+  }
+
   // the box's verbs, chosen live from its state. Reused across rebuilds (keyed by id) so a
   // hold-to-cut is never torn down mid-cut.
   function boxPropFor(id) {

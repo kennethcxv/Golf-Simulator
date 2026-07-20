@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "subject": "physical inventory and delivery loop",
+  "baseline": {
+    "commit": "0c5137e",
+    "result": "../baseline/main-0c5137e-20260719T162953/result.json",
+    "stress": {
+      "averageFps": 145.73,
+      "onePercentLowFps": 56.24,
+      "worstFrameMs": 27.8,
+      "drawCalls": 2083.81,
+      "renderedTriangles": 6879226.03,
+      "sceneTriangles": 2121665,
+      "materialCount": 250,
+      "textureCount": 182,
+      "textureMemoryEstimateMiB": 6059.73,
+      "javascriptHeapMiB": 84.08,
+      "rendererGeometries": 1178,
+      "sceneObjects": 1497,
+      "sceneVisibleMeshes": 1235,
+      "sceneGeometries": 1142
+    },
+    "idleAfterInteractions": {
+      "averageFps": 150.35,
+      "onePercentLowFps": 74.96,
+      "worstFrameMs": 13.9,
+      "drawCalls": 1923,
+      "renderedTriangles": 6878626,
+      "materialCount": 252,
+      "textureCount": 174,
+      "javascriptHeapMiB": 251.19
+    },
+    "postGcHeapGrowthMiB": 168.09,
+    "listenerGrowth": 0,
+    "diagnostics": {
+      "consoleErrors": 0,
+      "pageErrors": 0,
+      "requestFailures": 9,
+      "note": "The clean-main harness counted expected aborted optional-GLB fallback probes as request failures; its frame/resource measurements remain valid."
+    }
+  },
+  "candidate": {
+    "implementationCommit": "5b0f39b",
+    "results": [
+      "final-run-1/result.json",
+      "final-run-2/result.json",
+      "final-run-3/result.json"
+    ],
+    "runs": [
+      {
+        "averageFps": 186.85,
+        "onePercentLowFps": 118.81,
+        "worstFrameMs": 8.5,
+        "arrivalAndRebuildMs": 53.7,
+        "postGcHeapGrowthMiB": 2.54,
+        "serializationAverageMs": 3.528,
+        "serializationP95Ms": 4.6,
+        "listenerGrowth": 0,
+        "acceptanceReady": true
+      },
+      {
+        "averageFps": 181.39,
+        "onePercentLowFps": 118.81,
+        "worstFrameMs": 8.5,
+        "arrivalAndRebuildMs": 65.0,
+        "postGcHeapGrowthMiB": 0.76,
+        "serializationAverageMs": 2.802,
+        "serializationP95Ms": 3.9,
+        "listenerGrowth": 0,
+        "acceptanceReady": true
+      },
+      {
+        "averageFps": 172.5,
+        "onePercentLowFps": 111.94,
+        "worstFrameMs": 11.1,
+        "arrivalAndRebuildMs": 60.6,
+        "postGcHeapGrowthMiB": 0.98,
+        "serializationAverageMs": 3.614,
+        "serializationP95Ms": 4.6,
+        "listenerGrowth": 0,
+        "acceptanceReady": true
+      }
+    ],
+    "median": {
+      "stress": {
+        "averageFps": 181.39,
+        "onePercentLowFps": 118.81,
+        "worstFrameMs": 8.5,
+        "drawCalls": 2189,
+        "renderedTriangles": 6896778,
+        "sceneTriangles": 2189575,
+        "materialCount": 283,
+        "textureCount": 183,
+        "textureMemoryEstimateMiB": 6060.73,
+        "javascriptHeapMiB": 74.15,
+        "rendererGeometries": 1082,
+        "sceneObjects": 1703,
+        "sceneVisibleMeshes": 1357,
+        "sceneGeometries": 1234
+      },
+      "idleAfterInteractions": {
+        "averageFps": 181.7,
+        "onePercentLowFps": 119.05,
+        "worstFrameMs": 8.4,
+        "drawCalls": 2041,
+        "renderedTriangles": 6896142,
+        "materialCount": 289,
+        "textureCount": 184,
+        "javascriptHeapMiB": 75.53,
+        "promptUpdatesPerSecond": 0
+      },
+      "arrivalAndRebuildMs": 60.6,
+      "postGcHeapGrowthMiB": 0.98,
+      "serializationAverageMs": 3.528,
+      "serializationP95Ms": 4.6,
+      "serializationWorstMs": 5.9,
+      "listenerGrowth": 0
+    },
+    "deltaPercentFromBaseline": {
+      "stressAverageFps": 24.47,
+      "stressOnePercentLowFps": 111.26,
+      "stressWorstFrameMs": -69.42,
+      "stressDrawCalls": 5.05,
+      "stressRenderedTriangles": 0.26,
+      "stressSceneTriangles": 3.2,
+      "stressMaterialCount": 13.2,
+      "stressTextureCount": 0.55,
+      "stressTextureMemoryEstimateMiB": 0.02,
+      "stressJavascriptHeapMiB": -11.81,
+      "rendererGeometries": -8.15,
+      "sceneObjects": 13.76,
+      "sceneVisibleMeshes": 9.88,
+      "sceneGeometries": 8.06,
+      "idleAverageFps": 20.85,
+      "idleOnePercentLowFps": 58.82,
+      "idleWorstFrameMs": -39.57,
+      "idleDrawCalls": 6.14,
+      "idleRenderedTriangles": 0.25,
+      "idleMaterialCount": 14.68,
+      "idleTextureCount": 5.75
+    },
+    "fixture": {
+      "simultaneousBoxes": 9,
+      "fullRetailLinesBeforeHeldPick": 25,
+      "customerHeldUnits": 1,
+      "visibleOpenedContents": true,
+      "normalControlShelfUpdate": true,
+      "serializationIterationsPerRun": 100,
+      "inventoryReconciledEveryRun": true,
+      "consoleErrorsEveryRun": 0,
+      "pageErrorsEveryRun": 0,
+      "nonAbortedRequestFailuresEveryRun": 0
+    }
+  },
+  "acceptanceEnvelope": {
+    "averageAndOnePercentLowFpsMaximumRegressionPercent": 10,
+    "worstFrameMaximumIncreasePercent": 20,
+    "renderResourceMaximumIncreasePercent": 15,
+    "nineOrderArrivalAndRebuildMaximumMs": 75,
+    "serializationAverageMaximumMs": 10,
+    "serializationP95MaximumMs": 15,
+    "postGcMedianGrowthMaximumMiB": 5,
+    "requiredListenerGrowth": 0,
+    "requiredRuntimeErrors": 0,
+    "requiredReconciliation": true
+  },
+  "outcome": "pass"
+}

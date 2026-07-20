@@ -484,6 +484,20 @@ export function placeOrder(state, skuId, qty) {
   if (sku.tier > state.shop.unlockedTier) return { ok: false, reason: 'Supplier account not unlocked yet.' };
   if (!Number.isInteger(qty) || qty < 1) return { ok: false, reason: 'Order quantity must be a positive whole number.' };
 
+  const purchase = submitPurchaseOrders(state, { lines: [{ skuId, quantity: qty }] });
+  if (!purchase.ok) return { ok: false, reason: purchase.reason };
+  const purchasedOrder = purchase.orders[0];
+  return {
+    ok: true,
+    cost: purchasedOrder.totalCost,
+    goods: purchasedOrder.goods,
+    fee: purchasedOrder.shippingCost,
+    order: purchasedOrder,
+    boxes: purchasedOrder.manifest.boxCount,
+    weight: purchasedOrder.manifest.weight,
+    supplier: purchasedOrder.supplier,
+  };
+
   // pack it NOW. The manifest is what the Orders screen promises and what the receiving pad
   // stands there — one object, read twice, so the two can never disagree.
   const manifest = planShipment(sku, qty);

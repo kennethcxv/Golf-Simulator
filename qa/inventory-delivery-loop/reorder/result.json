@@ -1,0 +1,117 @@
+{
+  "ok": true,
+  "lowStockRow": "Tour-soft dozen 0/15 0 — — 0 $14 $28 50% OUT",
+  "before": {
+    "cash": 250000,
+    "position": {
+      "skuId": "balls2",
+      "inTransit": 0,
+      "deliveredUnopened": 0,
+      "openedBox": 0,
+      "reserve": 0,
+      "shelf": 0,
+      "customerHeld": 0,
+      "sold": 0,
+      "disposedLost": 0,
+      "onHand": 0,
+      "available": 0,
+      "committed": 0,
+      "incoming": 0
+    },
+    "suggestion": {
+      "skuId": "balls2",
+      "supplierId": "fairway",
+      "supplier": "Fairway Supply Co.",
+      "supplierAvailable": true,
+      "shelfLow": true,
+      "totalLow": true,
+      "outOfStock": true,
+      "suggestedQuantity": 15,
+      "incoming": 0,
+      "earliestEtaMin": null,
+      "leadDays": 2,
+      "dailyVelocity": 0
+    }
+  },
+  "after": {
+    "cash": 249820,
+    "orderCount": 1,
+    "order": {
+      "id": 1,
+      "supplierId": "fairway",
+      "supplier": "Fairway Supply Co.",
+      "lines": [
+        {
+          "id": "1-line-1",
+          "skuId": "balls2",
+          "quantity": 12,
+          "unitCost": 14,
+          "goodsCost": 168,
+          "receivedQuantity": 0,
+          "unpackedQuantity": 0
+        }
+      ],
+      "goodsCost": 168,
+      "shippingCost": 12,
+      "totalCost": 180,
+      "createdMin": 453.39600000000013,
+      "state": "Submitted",
+      "processingState": "Submitted",
+      "dispatchState": "Pending",
+      "deliveredState": "Not delivered",
+      "receivingState": "Awaiting delivery",
+      "deliveryEtaMin": 3517,
+      "boxIds": [],
+      "remainingUnreceivedQuantity": 12,
+      "completionState": "Open"
+    },
+    "position": {
+      "skuId": "balls2",
+      "inTransit": 12,
+      "deliveredUnopened": 0,
+      "openedBox": 0,
+      "reserve": 0,
+      "shelf": 0,
+      "customerHeld": 0,
+      "sold": 0,
+      "disposedLost": 0,
+      "onHand": 0,
+      "available": 0,
+      "committed": 0,
+      "incoming": 12
+    },
+    "suggestion": {
+      "skuId": "balls2",
+      "supplierId": "fairway",
+      "supplier": "Fairway Supply Co.",
+      "supplierAvailable": true,
+      "shelfLow": true,
+      "totalLow": false,
+      "outOfStock": true,
+      "suggestedQuantity": 3,
+      "incoming": 12,
+      "earliestEtaMin": 3517,
+      "leadDays": 2,
+      "dailyVelocity": 0
+    },
+    "reconciled": true,
+    "discrepancies": []
+  },
+  "charged": 180,
+  "errors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/bucket_soil.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/hand_fork.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/tractor_broken.glb",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "nonAbortedFailedRequests": []
+}

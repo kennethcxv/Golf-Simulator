@@ -1,0 +1,370 @@
+{
+  "ok": true,
+  "mode": "cash",
+  "log": [
+    {
+      "step": "0. before",
+      "revenue": 0,
+      "units": 0,
+      "held": 0,
+      "shelfBalls": 10,
+      "shelfGlove": 10
+    },
+    {
+      "step": "1. customer at the counter",
+      "who": "Sam T.",
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 0,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      }
+    },
+    {
+      "step": "2. [E] register mode",
+      "active": true
+    },
+    {
+      "step": "3. dragged item 1 over the glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 1,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      }
+    },
+    {
+      "step": "4. dragged the SAME item back over the glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 1,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      },
+      "expect": "scanned still 1"
+    },
+    {
+      "step": "5. [T] with 1 unscanned",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 1,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      },
+      "expect": "stage scanning, method null"
+    },
+    {
+      "step": "6. dragged item 2 over the glass",
+      "tx": {
+        "stage": "scanning",
+        "method": null,
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      }
+    },
+    {
+      "step": "7. [T] total",
+      "tx": {
+        "stage": "cash-tender",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue still 0"
+    },
+    {
+      "step": "8. they counted out notes",
+      "notes": 3
+    },
+    {
+      "step": "9. [D] drawer before taking the cash",
+      "tx": {
+        "stage": "cash-tender",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      },
+      "expect": "still cash-tender"
+    },
+    {
+      "step": "10. took their cash",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      }
+    },
+    {
+      "step": "11. [D] drawer open",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      }
+    },
+    {
+      "step": "12. put their notes away",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9
+    },
+    {
+      "step": "13. change owed",
+      "want": {
+        "1": 4,
+        "10": 1
+      }
+    },
+    {
+      "action": "selected physical change",
+      "denom": 1,
+      "pixel": {
+        "x": 679.4379275355332,
+        "y": 813.0421440204901,
+        "denom": 1
+      }
+    },
+    {
+      "action": "selected physical change",
+      "denom": 1,
+      "pixel": {
+        "x": 679.4379275355332,
+        "y": 813.0421440204901,
+        "denom": 1
+      }
+    },
+    {
+      "action": "selected physical change",
+      "denom": 1,
+      "pixel": {
+        "x": 679.4379275355332,
+        "y": 813.0421440204901,
+        "denom": 1
+      }
+    },
+    {
+      "action": "selected physical change",
+      "denom": 1,
+      "pixel": {
+        "x": 679.4379275355332,
+        "y": 813.0421440204901,
+        "denom": 1
+      }
+    },
+    {
+      "action": "selected physical change",
+      "denom": 10,
+      "pixel": {
+        "x": 530.5315137194852,
+        "y": 807.3238566586213,
+        "denom": 10
+      }
+    },
+    {
+      "step": "14. counted the change",
+      "tx": {
+        "stage": "cash-drawer",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      }
+    },
+    {
+      "step": "15. handed the change back",
+      "tx": {
+        "stage": "receipt",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": false,
+        "banked": false
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue STILL 0"
+    },
+    {
+      "step": "16. receipt printed",
+      "at": {
+        "x": 3.18,
+        "z": 4.44
+      }
+    },
+    {
+      "step": "17. took the receipt",
+      "tx": {
+        "stage": "bagging",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 0,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": true,
+        "banked": false
+      }
+    },
+    {
+      "step": "18. bagged",
+      "tx": {
+        "stage": "bagging",
+        "method": "cash",
+        "scanned": 2,
+        "bagged": 2,
+        "of": 2,
+        "cardAttempts": 0,
+        "cardsTried": 0,
+        "receiptPrinted": true,
+        "banked": false
+      },
+      "revenue": 0,
+      "units": 0,
+      "held": 2,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue STILL 0"
+    },
+    {
+      "step": "19. HANDED IT OVER",
+      "revenue": 66,
+      "units": 2,
+      "held": 0,
+      "shelfBalls": 9,
+      "shelfGlove": 9,
+      "expect": "revenue banked NOW, held back to 0"
+    },
+    {
+      "step": "20. final",
+      "revenue": 66,
+      "units": 2,
+      "held": 0,
+      "shelfBalls": 9,
+      "shelfGlove": 9
+    }
+  ],
+  "inventoryAudit": {
+    "reconciled": true,
+    "discrepancies": [],
+    "totals": {
+      "inTransit": 0,
+      "deliveredUnopened": 0,
+      "openedBox": 0,
+      "reserve": 0,
+      "shelf": 47,
+      "customerHeld": 0,
+      "sold": 2,
+      "disposedLost": 0
+    },
+    "soldBySku": {
+      "balls1": 0,
+      "glove1": 1,
+      "cap1": 0,
+      "tees1": 0,
+      "balls3": 1
+    },
+    "transactionHistory": 0,
+    "held": 0
+  },
+  "errors": [],
+  "errorCount": 0,
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/hand_fork.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/hose_nozzle.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/club_sign.glb",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8467/vendor/models/clubhouse/rangefinder.glb",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "nonAbortedFailedRequests": []
+}
