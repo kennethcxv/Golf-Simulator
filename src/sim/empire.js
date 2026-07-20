@@ -28,6 +28,7 @@ import { memberCounts } from './club.js';
 import { deliverOrdersDue, tickDeliveries } from './shop.js';
 import { generateMarketplace, generateListing, buildPropertyCourse, appraiseStats, MARKET } from './marketplace.js';
 import { appraiseProperty } from './valuation.js';
+import { bindPropertyInventory } from './propertyInventory.js';
 
 export const EMPIRE_VERSION = 2;
 
@@ -191,6 +192,7 @@ export function initPropertyState(property, mode) {
   const state = newGame(mode, property.seed, {
     course: buildPropertyCourse(property),
     clubName: property.name,
+    propertyId: property.id,
   });
   state.cash = 0; // the empire wallet is the only money there is
   seedTurfToCondition(state, property);
@@ -509,6 +511,7 @@ function legacyEmpireFrom(raw) {
     trueValue: appraiseProperty(st),
     askingPrice: appraiseProperty(st),
   };
+  bindPropertyInventory(st, record.id);
   const joinDay = calendarOf(st.clock.minutes).dayAbs;
   const market = generateMarketplace(st.seed).filter((p) => p.id !== 'willow-creek');
   for (const p of market) p.listedDay = joinDay; // listed "today" — a fair fresh start
@@ -539,11 +542,15 @@ export function deserializeEmpire(raw) {
     seed: data.seed,
     cash: data.cash,
     market: data.market,
-    holdings: data.holdings.map((h) => ({
-      property: h.property,
-      passive: h.passive ?? null,
-      state: deserialize(h.state),
-    })),
+    holdings: data.holdings.map((h) => {
+      const state = deserialize(h.state);
+      bindPropertyInventory(state, h.property.id);
+      return {
+        property: h.property,
+        passive: h.passive ?? null,
+        state,
+      };
+    }),
     activeId: data.activeId,
     clockMinutes: data.clockMinutes,
     firstPurchaseDone: !!data.firstPurchaseDone,

@@ -21,6 +21,16 @@ import { TIERS } from './club.js';
 import { members } from './golfers.js';
 import { notify } from './notifications.js';
 import { placedFixtures } from './layout.js';
+import { placeableSpecBySkuId } from '../data/placeableItems.js';
+import {
+  cancelPlaceablePurchase,
+  ensurePropertyInventory,
+  importLegacyStoredPlaceables,
+  placeOwnedItem,
+  placedPropertyItems,
+  registerPlaceablePurchase,
+  storeOwnedPlacement,
+} from './propertyInventory.js';
 
 // --- restoration arc ------------------------------------------------------------
 // The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
@@ -293,9 +303,21 @@ export function placeDecor(state, skuId, spot) {
   const inv = state.shop.inventory[skuId];
   if (!inv || inv.back <= 0) return { ok: false, reason: 'None in the backroom — order it first.' };
   if (reno.decor.some((d) => d.skuId === skuId && d.spot === spot)) return { ok: false, reason: 'That spot is taken.' };
+  importLegacyStoredPlaceables(state, skuId, inv.back);
+  const authored = spots[spot];
+  const placed = placeOwnedItem(state, skuId, {
+    area: 'clubhouse',
+    mount: authored.mount,
+    x: authored.x,
+    z: authored.z,
+    ry: authored.ry,
+    surfaceId: `decor-anchor:${skuId}:${spot}`,
+    authoredSpot: spot,
+  });
+  if (!placed.ok) return placed;
   inv.back -= 1;
-  reno.decor.push({ skuId, spot });
-  return { ok: true };
+  reno.decor.push({ skuId, spot, placementId: placed.placement.id });
+  return { ok: true, placement: placed.placement };
 }
 
 // pack a placed piece back up: the spot frees, the item returns to the backroom
@@ -304,10 +326,21 @@ export function removeDecor(state, skuId, spot) {
   if (!reno) return { ok: false };
   const idx = reno.decor.findIndex((d) => d.skuId === skuId && d.spot === spot);
   if (idx < 0) return { ok: false };
+  ensurePropertyInventory(state);
+  const decor = reno.decor[idx];
+  const placement = decor.placementId
+    ? placedPropertyItems(state).find((entry) => entry.id === decor.placementId)
+    : placedPropertyItems(state).find((entry) => (
+      entry.assetId === placeableSpecBySkuId(skuId)?.assetId
+        && entry.pose?.authoredSpot === spot
+    ));
+  if (!placement) return { ok: false, reason: 'That decor placement has no ownership record.' };
+  const stored = storeOwnedPlacement(state, placement.id);
+  if (!stored.ok) return stored;
   reno.decor.splice(idx, 1);
   const inv = state.shop.inventory[skuId];
   if (inv) inv.back += 1;
-  return { ok: true };
+  return { ok: true, placement: stored.placement };
 }
 
 export function initShop(state) {
@@ -415,6 +448,16 @@ export function placeOrder(state, skuId, qty) {
     status: 'received',
     notif: {},
   };
+  if (placeableSpecBySkuId(skuId)) {
+    const ownership = registerPlaceablePurchase(state, skuId, qty, {
+      sourceId: `shop-order:${id}`,
+      purchasePrice: sku.cost,
+    });
+    if (!ownership.ok) {
+      unbill(state, 'shopOrders', cost);
+      return ownership;
+    }
+  }
   state.shop.orders.push(order);
   return {
     ok: true, cost, goods, fee, order,
@@ -503,6 +546,10 @@ export function cancelOrder(state, id) {
   // away. This also rescues legacy oversized paid manifests from permanent limbo.
   if ((o.status === 'arriving' || o.status === 'delivered') && !o.blocked) {
     return { ok: false, reason: 'The van is at the door — too late to cancel.' };
+  }
+  if (placeableSpecBySkuId(o.skuId)) {
+    const ownership = cancelPlaceablePurchase(state, `shop-order:${o.id}`);
+    if (!ownership.ok) return ownership;
   }
   orders.splice(i, 1);
   unbill(state, 'shopOrders', o.cost);
