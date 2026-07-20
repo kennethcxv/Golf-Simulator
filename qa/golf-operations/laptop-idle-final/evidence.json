@@ -1,0 +1,33 @@
+{
+  "listenersAfter": {
+    "active": 103,
+    "registrations": 137
+  },
+  "laptopMutationCallbacks": 0,
+  "horizonDays": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "bookings": 38,
+  "uniqueWithinEachDay": true,
+  "laptopOpen": true,
+  "laptopModeClass": true,
+  "normalEscape": {
+    "laptopOpen": false,
+    "laptopModeClass": false
+  },
+  "listenersBefore": {
+    "active": 103,
+    "registrations": 137
+  },
+  "activeListenerDelta": 0,
+  "registrationDelta": 0,
+  "pageErrors": [],
+  "consoleErrors": [],
+  "commit": "9b0f1bc"
+}
