@@ -166,6 +166,12 @@ test('collision rejects furniture, walls, player clearance, protected work areas
   assert.ok(stockDoor.codes.some((code) => code.includes('stockroom-access') || code.includes('door-swing-stock')));
   const checkout = validate(state, 'asset-081', floor(2.8, 5.1));
   assert.ok(checkout.codes.includes('protected-checkout-staff'));
+  const pile = state.shop.reno.clutter[0];
+  const cluttered = validate(state, 'asset-080', floor(pile.x, pile.z));
+  assert.ok(cluttered.codes.includes('object-overlap'));
+  assert.match(cluttered.reasons.join(' | '), /old clutter/i);
+  pile.cleared = true;
+  assert.equal(validate(state, 'asset-080', floor(pile.x, pile.z)).ok, true);
 });
 
 test('physically touching footprints are allowed while true overlap is rejected', () => {

@@ -1305,10 +1305,14 @@ window.addEventListener('keydown', (e) => {
         case 't': case 'T': e.preventDefault(); bld.toggleRotationSnap(); return;
         case 'i': case 'I': e.preventDefault(); bld.toggleCatalog(); return;
         case 'o': case 'O': e.preventDefault(); bld.returnOriginal(); return;
-        case 'ArrowUp': e.preventDefault(); bld.nudge('up', e.shiftKey); return;
-        case 'ArrowDown': e.preventDefault(); bld.nudge('down', e.shiftKey); return;
-        case 'ArrowLeft': e.preventDefault(); bld.nudge('left', e.shiftKey); return;
-        case 'ArrowRight': e.preventDefault(); bld.nudge('right', e.shiftKey); return;
+        // The walk controller also offers arrow-key look as an accessibility
+        // fallback. In renovation mode these keystrokes belong exclusively to
+        // furniture nudging; letting the same event reach that second window
+        // listener rotates the camera and moves the view ray against the nudge.
+        case 'ArrowUp': e.preventDefault(); e.stopImmediatePropagation(); bld.nudge('up', e.shiftKey); return;
+        case 'ArrowDown': e.preventDefault(); e.stopImmediatePropagation(); bld.nudge('down', e.shiftKey); return;
+        case 'ArrowLeft': e.preventDefault(); e.stopImmediatePropagation(); bld.nudge('left', e.shiftKey); return;
+        case 'ArrowRight': e.preventDefault(); e.stopImmediatePropagation(); bld.nudge('right', e.shiftKey); return;
         case 'b': case 'B': e.preventDefault(); bld.exit(); toast('Renovation mode finished.'); return;
         case 'Escape':
           if (bld.isCarrying()) bld.cancel();

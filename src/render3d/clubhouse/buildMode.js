@@ -367,6 +367,10 @@ export function buildBuildMode(B, deps) {
     const nextId = object?.id || null;
     if (nextId === focusedId) {
       focusBox?.update();
+      // The catalog clears `focusedId` while its cursor is open. If the player
+      // then closes it while aiming at empty space, the identity remains null but
+      // the visible status copy still needs to return to the neutral instruction.
+      syncStatus();
       return;
     }
     focusedId = nextId;
