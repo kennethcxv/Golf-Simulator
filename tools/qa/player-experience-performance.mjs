@@ -14,7 +14,7 @@ const COMPARE_PATH = process.env.QA_COMPARE_WITH
 const LOGS = path.join(QA_ROOT, 'logs');
 const VIEWPORT = { width: 1440, height: 900 };
 const FIXED_TIME_MINUTE = 14 * 60;
-const CAMERA = { at: [-1.5, 243.5], to: [-8.5, 231.0], pitch: 0.03 };
+const CAMERA = { atOffset: [6.5, 15.5], toOffset: [-0.5, 3.0], pitch: 0.03 };
 
 await Promise.all([fs.mkdir(OUT, { recursive: true }), fs.mkdir(LOGS, { recursive: true })]);
 
@@ -72,12 +72,15 @@ async function setCamera() {
     app.state.clock.minutes = Math.floor(app.state.clock.minutes / 1440) * 1440 + minute;
     app.speedIdx = 0;
     app.scene3d.applyTimeWeather(minute, app.state.weather);
+    const origin = app.scene3d.clubhouse().interior.position;
+    const at = [origin.x + pose.atOffset[0], origin.z + pose.atOffset[1]];
+    const to = [origin.x + pose.toOffset[0], origin.z + pose.toOffset[1]];
     const walk = app.scene3d.walk;
     walk.clearKeys();
-    walk.state.x = pose.at[0];
-    walk.state.z = pose.at[1];
-    const dx = pose.to[0] - pose.at[0];
-    const dz = pose.to[1] - pose.at[1];
+    walk.state.x = at[0];
+    walk.state.z = at[1];
+    const dx = to[0] - at[0];
+    const dz = to[1] - at[1];
     const length = Math.hypot(dx, dz) || 1;
     walk.state.yaw = Math.atan2(-dx / length, -dz / length);
     walk.state.pitch = pose.pitch;

@@ -304,7 +304,7 @@ export function editorGreenContourPreset(green, preset) {
 }
 
 export function makeCourseEditor(app, hooks) {
-  // hooks: { onExit(), afterApply(), autosave(), money() }
+  // hooks: { onExit(), afterApply(), autosave(), money(), isPaused() }
   let session = null;
   let active = false;
   let tool = 'select';
@@ -3462,7 +3462,18 @@ export function makeCourseEditor(app, hooks) {
 
   function onKey(e) {
     if (!active) return;
-    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
+    // The window-level editor listener runs in capture phase. Ignore gameplay
+    // shortcuts while the shared pause shell owns focus and keyboard input.
+    if (hooks.isPaused?.()) return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) {
+      e.stopPropagation();
+      return;
+    }
+    // P is the one shared shortcut: let the bubble-phase application handler
+    // open the global pause shell. Every editor-owned key stops here so an
+    // Escape that exits the editor cannot also toggle the overview camera.
+    if (e.key === 'p' || e.key === 'P') return;
+    e.stopPropagation();
     if (pt) {
       onPlaytestKey(e);
       return;

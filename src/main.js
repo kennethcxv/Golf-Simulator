@@ -116,7 +116,7 @@ function presentationMode() {
   if (app.laptopOpen) return 'laptop';
   const build = buildApi();
   if (build?.isActive()) return 'placement';
-  if (app.worksMode) return 'course-editor';
+  if (app.courseMode === 'editor') return 'course-editor';
   if (app.courseMode === 'overview') return 'overview';
   return 'walk';
 }
@@ -1665,7 +1665,6 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('keydown', (e) => {
   if (app.screen !== 'game') return;
-  if (editorActive()) return; // the editor's capture-phase handler owns the keys
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
 
   // The pause shell owns every key while open. P is a universal pause key in
@@ -1683,6 +1682,7 @@ window.addEventListener('keydown', (e) => {
     openPauseMenu();
     return;
   }
+  if (editorActive()) return; // the editor's capture-phase handler owns its remaining keys
   if (toolWheel?.isOpen()) return;
 
   // Behind the till, the register owns action keys while the walk controller's
@@ -2369,6 +2369,7 @@ function boot() {
   });
   editorUi = makeCourseEditor(app, {
     onExit: () => exitEditor(),
+    isPaused: () => isPauseOpen(),
     afterApply: () => {
       // The editor has already applied every visual mutation live. Build only
       // settles economics/renovation metadata, so keep the scene and clubhouse.

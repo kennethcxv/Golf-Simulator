@@ -279,27 +279,35 @@ try {
     inv.shelf = Math.max(inv.shelf, 10);
     app.scene3d.clubhouse().rebuildStock();
     app.scene3d.clubhouse().sendToCounter(['balls3'], 'card');
+    const origin = app.scene3d.clubhouse().interior.position;
     const walk = app.scene3d.walk.state;
-    walk.x = 2.80 - 8;
-    walk.z = 5.10 + 228;
+    walk.x = origin.x + 2.80;
+    walk.z = origin.z + 5.10;
     walk.yaw = 0;
     walk.pitch = -0.18;
   });
-  await page.waitForTimeout(450);
+  await page.waitForFunction(() => !!window.__fw.scene3d.clubhouse().register.getTx(), null, { timeout: 15_000 });
   await page.keyboard.press('e');
   await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isActive());
   await pauseProbe('register');
-  await page.keyboard.press('Escape');
+  // Register Escape is intentionally hierarchical: step back to the monitor,
+  // clear any selected service context, then leave from the home workspace.
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const active = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.isActive());
+    if (!active) break;
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+  }
   await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.isActive());
 
   await page.keyboard.press('Tab');
   await page.waitForFunction(() => window.__fw.courseMode === 'overview');
   await pauseProbe('overview');
   await page.keyboard.press('e');
-  await page.waitForFunction(() => window.__fw.worksMode === true);
+  await page.waitForFunction(() => window.__fw.courseMode === 'editor');
   await pauseProbe('course-editor');
   await page.keyboard.press('Escape');
-  await page.waitForFunction(() => window.__fw.worksMode === false);
+  await page.waitForFunction(() => window.__fw.courseMode === 'overview');
   await page.keyboard.press('Tab');
   await page.waitForFunction(() => window.__fw.courseMode === 'walk');
 
@@ -348,9 +356,10 @@ try {
   await page.evaluate(() => {
     const app = window.__fw;
     app.preferences.set('accessibility.toolActivation', 'hold');
+    const origin = app.scene3d.clubhouse().interior.position;
     const walk = app.scene3d.walk.state;
-    walk.x = -1.5;
-    walk.z = 243.5;
+    walk.x = origin.x + 6.5;
+    walk.z = origin.z + 15.5;
     walk.yaw = 0;
     walk.pitch = 0;
     document.activeElement?.blur();
@@ -360,7 +369,7 @@ try {
   await page.waitForTimeout(300);
   await page.keyboard.up('f');
   await page.locator('.tool-wheel').waitFor({ state: 'visible' });
-  await page.keyboard.press('3');
+  await page.locator('.tool-wheel-item').filter({ hasText: 'Rented washer' }).click();
   await page.waitForFunction(() => window.__fw.scene3d.walk.getTool() === 'washer');
   const canvas = page.locator('canvas');
   const box = await canvas.boundingBox();
