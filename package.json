@@ -15,12 +15,12 @@
     "test": "node --test"
   },
   "devDependencies": {
-    "electron": "^33.2.0"
+    "electron": "^39.8.10"
   },
   "dependencies": {
     "three": "^0.185.1"
   },
   "allowScripts": {
-    "electron@33.4.11": true
+    "electron@39.8.10": true
   }
 }
