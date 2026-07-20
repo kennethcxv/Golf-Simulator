@@ -13,7 +13,9 @@ const VIEWPORT = { width: 1600, height: 900 };
 async function clickCenter(page, locator, label) {
   let box = await locator.boundingBox();
   const viewport = page.viewportSize();
-  if (!box || box.x < 0 || box.y < 0 || box.x + box.width > viewport.width || box.y + box.height > viewport.height) {
+  const insideScrollablePage = await locator.evaluate((element) => !!element.closest('.lt-content'));
+  if (insideScrollablePage || !box || box.x < 0 || box.y < 0
+      || box.x + box.width > viewport.width || box.y + box.height > viewport.height) {
     await locator.scrollIntoViewIfNeeded();
     box = await locator.boundingBox();
   }
