@@ -73,6 +73,7 @@ let clubPanel = null;
 let empirePanel = null;
 let walkOverlay = null;
 let regHint = null;
+let regHintText = null;
 let laptopUi = null;
 let objectivesPanel = null;
 let menu = null;
@@ -1562,7 +1563,21 @@ const CONDITION_WORD = (c) =>
 let lastCondWord = null;
 
 function updateWalkOverlay() {
-  if (regHint) regHint.style.display = regActive() ? 'flex' : 'none';
+  if (regHint) {
+    const on = regActive();
+    regHint.style.display = on ? 'flex' : 'none';
+    if (on && regHintText) {
+      const tx = app.scene3d.clubhouse()?.register?.getTx?.();
+      const stage = tx?.stage || '';
+      regHintText.textContent = stage === 'scanning' ? 'Drag each product across the scanner'
+        : stage === 'cash-tender' ? 'Take the customer cash, then open the drawer'
+        : stage === 'cash-drawer' ? 'Put cash away, select change, then use the customer hand'
+        : stage.startsWith('card') ? 'Use the physical card terminal'
+        : stage === 'receipt' ? 'Take the printed receipt'
+        : stage === 'bagging' ? 'Place each product in the open purchase bag'
+        : 'Complete the physical handoff';
+    }
+  }
   const prompt = walkOverlay.querySelector('.shop-prompt');
   // build mode speaks over the world's own prompts: while it is on, the only controls that
   // matter are its controls
@@ -1700,8 +1715,9 @@ function boot() {
   // player has no way to discover [T] and [D] except by pressing every key. The
   // register screen tells them WHAT it wants ("PUT THEIR MONEY IN THE TILL"); this
   // tells them which hand to use.
+  regHintText = el('span', { text: 'Drag each product across the scanner' });
   regHint = el('div', { class: 'reg-hint', style: 'display:none' },
-    el('span', { text: 'Drag goods over the scanner to ring them up' }),
+    regHintText,
     el('span', { class: 'reg-keys' }, el('kbd', { text: 'T' }), el('span', { text: 'total up' })),
     el('span', { class: 'reg-keys' }, el('kbd', { text: 'D' }), el('span', { text: 'drawer' })),
     el('span', { class: 'reg-keys' }, el('kbd', { text: 'Esc' }), el('span', { text: 'step back' })),

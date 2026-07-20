@@ -23,7 +23,7 @@ async (page) => {
   //    a condition on the real transaction.
 
   const MODE = 'cash';
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/register/' + MODE;
+  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper-checkout-delivery-groundskeeping-balance/qa/checkout-delivery-groundskeeping-balance/current/register/' + MODE;
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
@@ -70,15 +70,16 @@ async (page) => {
   // mid-flight and you get a pixel ~90px off; the click lands on bare counter, nothing
   // is grabbed, and the run reports "scanned: 0" as though the scanner were broken.
   // It is the same trap as sleeping for the receipt. Never sleep for state.
-  const CASHIER_EYE = { x: 2.78 - 8, z: 5.52 + 228 };   // REGISTER cashier pose, in world
-  const untilCameraSettled = (ms = 10000) => page.waitForFunction((eye) => {
+  const untilCameraSettled = (ms = 10000) => page.waitForFunction(() => {
     const c = window.__fw.scene3d.camera;
+    const eye = window.__fw.scene3d.clubhouse().register.getAnchors().scanCameraAnchor;
     return Math.hypot(c.position.x - eye.x, c.position.z - eye.z) < 0.03;
-  }, CASHIER_EYE, { timeout: ms });
+  }, null, { timeout: ms });
 
 
   // --- boot ------------------------------------------------------------------------
-  await page.goto('http://localhost:8457/');
+  const origin = (page.url().match(/^https?:\/\/[^/]+/) || ['http://localhost:8457'])[0];
+  await page.goto(origin + '/');
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});
@@ -94,6 +95,7 @@ async (page) => {
   await page.evaluate(async () => {
     const THREE = await import('/vendor/three.module.js');
     const app = window.__fw;
+    app.speedIdx = 0; // a QA camera fixture must not roll past closing time mid-sale
     window.__qa = {
       // interior-local -> screen pixels, so a click lands on the pixel the thing is
       // actually drawn at, not where I hope it is
@@ -333,6 +335,7 @@ async (page) => {
   const rpx = await page.evaluate((a) => window.__qa.px(a.x, a.y, a.z), rp);
   await page.mouse.click(rpx.x, rpx.y);
   await untilStage('bagging');
+  await page.waitForTimeout(250); // the bagging anchor has settled and input is live
   log.push({ step: '17. took the receipt', tx: await txNow() });
 
   // --- BAG ---------------------------------------------------------------------------

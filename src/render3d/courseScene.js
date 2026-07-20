@@ -1703,12 +1703,21 @@ export function makeCourseScene(canvas, state) {
   let walkFocusPose = null; // { x, y, z, yaw, pitch }
   let lastFocusPose = null; // survives the ease-out
   let focusBlend = 0;
+  let focusBaseFov = null;
+  let focusDuration = 0.4;
 
   function walkFocusOn(pose) {
+    if (!walkFocusPose && focusBaseFov == null) focusBaseFov = camera.fov;
     walkFocusPose = pose;
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    focusDuration = reduceMotion ? 0 : Math.max(0, pose?.duration ?? 0.4);
+    if (focusDuration === 0) focusBlend = 1;
   }
   function walkClearFocus() {
     walkFocusPose = null;
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    focusDuration = reduceMotion ? 0 : 0.2;
+    if (focusDuration === 0) focusBlend = 0;
   }
 
   function updateHeldFeel(dt) {
@@ -2048,7 +2057,9 @@ export function makeCourseScene(canvas, state) {
     const pz0 = walk.z;
 
     // focus mode (laptop): ease the camera onto the pose, park all input
-    focusBlend = clamp(focusBlend + (walkFocusPose ? 1 : -1) * (dt / 0.4), 0, 1);
+    focusBlend = focusDuration === 0
+      ? (walkFocusPose ? 1 : 0)
+      : clamp(focusBlend + (walkFocusPose ? 1 : -1) * (dt / focusDuration), 0, 1);
     if (walkFocusPose || focusBlend > 0.001) {
       const fb = focusBlend * focusBlend * (3 - 2 * focusBlend);
       const gy = (clubhouseApi && clubhouseApi.groundYAt(walk.x, walk.z)) ?? heightAt(walk.x, walk.z);
@@ -2066,6 +2077,12 @@ export function makeCourseScene(canvas, state) {
         while (dy < -Math.PI) dy += Math.PI * 2;
         camera.rotation.y = walk.yaw + dy * fb;
         camera.rotation.x = walk.pitch + (p.pitch - walk.pitch) * fb;
+        const baseFov = focusBaseFov ?? camera.fov;
+        const nextFov = baseFov + ((p.fov ?? baseFov) - baseFov) * fb;
+        if (Math.abs(camera.fov - nextFov) > 0.01) {
+          camera.fov = nextFov;
+          camera.updateProjectionMatrix();
+        }
       }
       if (walkFocusPose) {
         walkFocus = null; // no prompts while seated at the screen
@@ -2074,6 +2091,13 @@ export function makeCourseScene(canvas, state) {
       }
     } else {
       lastFocusPose = null;
+      if (focusBaseFov != null) {
+        if (Math.abs(camera.fov - focusBaseFov) > 0.01) {
+          camera.fov = focusBaseFov;
+          camera.updateProjectionMatrix();
+        }
+        focusBaseFov = null;
+      }
     }
 
     // fallback look controls (also QA/accessibility — same as the shop)

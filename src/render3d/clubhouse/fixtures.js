@@ -931,20 +931,5 @@ export function buildCheckout(B) {
     interior.add(bag);
   }
 
-  // a hand basket, parked at the aisle end for shoppers to take
-  if (merch) merch.onReady(() => {
-    const bk = merch.instantiate('basket');
-    if (!bk) return;
-    bk.position.set(COUNTER.x - COUNTER.len / 2 - 0.34, 0.30, COUNTER.z - 0.30);
-    bk.rotation.y = -0.35;
-    interior.add(bk);
-    const bk2 = merch.instantiate('basket');
-    if (bk2) {
-      bk2.position.set(COUNTER.x - COUNTER.len / 2 - 0.34, 0.44, COUNTER.z - 0.30);
-      bk2.rotation.y = -0.28;
-      interior.add(bk2);
-    }
-  });
-
   return { drawRegister };
 }

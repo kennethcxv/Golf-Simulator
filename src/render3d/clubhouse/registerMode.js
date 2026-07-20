@@ -332,6 +332,61 @@ export function createRegisterMode(B) {
       return;
     }
 
+    // Cash-counting gets the whole diegetic monitor. Five compact line items and a
+    // footer were technically complete but unreadable from the drawer, precisely
+    // when a player needs the numbers most. The physical monitor remains the UI;
+    // only its information hierarchy changes for this state.
+    if (tx.stage === 'cash-tender' || tx.stage === 'cash-drawer') {
+      const purchaseTotal = cashTotalOf(tx);
+      const received = tx.tenderedTotal != null
+        ? tx.tenderedTotal
+        : stackTotal(tx.tendered || {});
+      const due = Math.max(0, changeDue(tx));
+      const selected = Math.max(0, handTotal(tx));
+      const remaining = Math.round((due - selected) * 100) / 100;
+      const rows = [
+        ['TOTAL', purchaseTotal, '#f4f7ef'],
+        ['CASH RECEIVED', received, '#d7e8dc'],
+        ['CHANGE DUE', due, '#ffd98a'],
+        ['SELECTED', selected, '#8fd6ff'],
+        ['REMAINING', remaining, remaining < 0 ? '#ff9a8a' : remaining === 0 ? '#9fe8b4' : '#f4f7ef'],
+      ];
+      rows.forEach(([label, amount, color], i) => {
+        const y = 50 + i * 33;
+        c.textAlign = 'left';
+        c.fillStyle = '#7fbf9a';
+        c.font = 'bold 11px monospace';
+        c.fillText(label, 10, y);
+        c.textAlign = 'right';
+        c.fillStyle = color;
+        c.font = 'bold 21px monospace';
+        const value = amount < 0 ? `OVER $${Math.abs(amount).toFixed(2)}` : `$${amount.toFixed(2)}`;
+        c.fillText(value, 374, y + 2);
+        if (i < rows.length - 1) {
+          c.fillStyle = '#233b2e';
+          c.fillRect(10, y + 10, 364, 1);
+        }
+      });
+
+      c.fillStyle = '#14271d';
+      c.fillRect(0, 202, 384, 38);
+      c.textAlign = 'center';
+      c.font = 'bold 13px monospace';
+      let status = 'TAKE THE CUSTOMER CASH';
+      let color = '#ffd98a';
+      if (tx.stage === 'cash-tender') status = 'TAKE THE CUSTOMER CASH';
+      else if (tx.stage === 'cash-drawer' && !tx.drawerOpen) status = 'OPEN THE CASH DRAWER';
+      else if (tx.stage === 'cash-drawer' && !tx.deposited) status = 'PUT THEIR CASH IN THE TILL';
+      else if (remaining > 0) status = `SELECT $${remaining.toFixed(2)} MORE`;
+      else if (remaining < 0) { status = `OVER BY $${Math.abs(remaining).toFixed(2)} — RETURN A PIECE`; color = '#ff9a8a'; }
+      else if (due <= 0) { status = 'EXACT PAYMENT — CLOSE THE DRAWER'; color = '#9fe8b4'; }
+      else { status = 'EXACT CHANGE — HAND IT OVER'; color = '#9fe8b4'; }
+      c.fillStyle = color;
+      c.fillText(status, 192, 226);
+      stex.needsUpdate = true;
+      return;
+    }
+
     // line items: only what has been SCANNED is on the bill
     c.font = '12px monospace';
     let y = 46;
@@ -716,7 +771,10 @@ export function createRegisterMode(B) {
         const p = makePiece(d);
         p.userData.from = 'drawer';
         p.position.set(s.x, s.y + i * (BILLS.includes(d) ? 0.0022 : 0.0028), s.z);
-        if (BILLS.includes(d)) p.rotation.y = (i % 2) * 0.03;
+        // Bill wells are narrow across X and deep across Z. Turning the notes with
+        // the well leaves a real gap between denominations; the old overlapping
+        // fan let a click on $10 ray-hit the neighbouring $5 first.
+        if (BILLS.includes(d)) p.rotation.y = Math.PI / 2 + (i % 2) * 0.02;
         drawerMoney.add(p);
       }
     }
@@ -745,6 +803,7 @@ export function createRegisterMode(B) {
     tx = createTx({ items, mode: state.mode, discount: customer.discount || 0, prefer: customer.payMethod || null });
     cust = customer;
     customer.tx = tx;
+    if (customer.onCheckoutStarted) customer.onCheckoutStarted(tx);
 
     for (const it of tx.items) {
       const m = buildItemMesh(it);
@@ -798,27 +857,76 @@ export function createRegisterMode(B) {
   //   terminal  21 deg   monitor  25 deg    bag  37 deg      open drawer -56 deg
   // The camera sits behind the stand, not on it, because a cashier leans back to see
   // the whole counter and forward to work it.
-  function cashierPose() {
-    const eye = { x: 2.78, y: 1.92, z: 5.52 };
-    const at = { x: 2.70, y: 1.05, z: 4.05 };
-    const w = L2W(eye.x, eye.z);
+  // Authored checkout anchors live under the scanner frame, not in world space.
+  // Moving or rotating the live checkout transform moves every eye and target with it.
+  const interactionFrame = new THREE.Group();
+  interactionFrame.name = 'checkoutInteractionFrame';
+  interactionFrame.position.set(REGISTER.scanner.x, 0, REGISTER.scanner.z);
+  root.add(interactionFrame);
+  const anchorSpecs = {
+    cashierStandAnchor:       { eye: [0.10, 1.76, 0.88], at: [0.00, 1.05, 0.00], fov: 58 },
+    scanCameraAnchor:         { eye: [-0.05, 1.76, 0.88], at: [-0.20, 1.08, 0.02], fov: 58 },
+    cashDisplayCameraAnchor:  { eye: [-0.08, 1.64, 0.74], at: [-0.30, 1.16, 0.28], fov: 52 },
+    drawerCameraAnchor:       { eye: [-0.08, 1.72, 1.00], at: [-0.28, 1.12, 0.32], fov: 55 },
+    cardTerminalCameraAnchor: { eye: [-0.12, 1.64, 0.78], at: [-0.58, 1.10, -0.30], fov: 52 },
+    receiptCameraAnchor:      { eye: [0.18, 1.65, 0.78], at: [0.48, 1.12, 0.30], fov: 52 },
+    baggingCameraAnchor:      { eye: [0.30, 1.70, 0.92], at: [0.72, 1.10, 0.20], fov: 55 },
+    handoffCameraAnchor:      { eye: [0.10, 1.72, 0.86], at: [-0.70, 1.12, -0.58], fov: 56 },
+  };
+  const anchorNodes = {};
+  for (const [name, spec] of Object.entries(anchorSpecs)) {
+    const node = new THREE.Object3D();
+    node.name = name;
+    node.position.fromArray(spec.eye);
+    interactionFrame.add(node);
+    anchorNodes[name] = node;
+  }
+
+  function anchorPose(name) {
+    const spec = anchorSpecs[name] || anchorSpecs.scanCameraAnchor;
+    interactionFrame.updateWorldMatrix(true, false);
+    const eye = new THREE.Vector3().fromArray(spec.eye);
+    const at = new THREE.Vector3().fromArray(spec.at);
+    interactionFrame.localToWorld(eye);
+    interactionFrame.localToWorld(at);
     const dx = at.x - eye.x;
     const dy = at.y - eye.y;
     const dz = at.z - eye.z;
     const dh = Math.hypot(dx, dz) || 1;
     return {
-      x: w.x,
-      y: interior.position.y + eye.y,
-      z: w.z,
+      x: eye.x, y: eye.y, z: eye.z,
       yaw: Math.atan2(-dx / dh, -dz / dh),
       pitch: Math.atan2(dy, dh),
+      fov: spec.fov,
+      duration: 0.18,
     };
+  }
+
+  let activeAnchor = null;
+  let transitionBlock = 0;
+  function focusAnchor(name) {
+    if (!active || activeAnchor === name) return;
+    activeAnchor = name;
+    focusOn(anchorPose(name));
+    transitionBlock = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 0.10;
+  }
+
+  function desiredAnchor() {
+    if (!tx) return 'scanCameraAnchor';
+    if (tx.stage === 'cash-tender') return 'cashDisplayCameraAnchor';
+    if (tx.stage === 'cash-drawer') return tx.drawerOpen ? 'drawerCameraAnchor' : 'cashDisplayCameraAnchor';
+    if (tx.stage.startsWith('card')) return 'cardTerminalCameraAnchor';
+    if (tx.stage === 'receipt') return 'receiptCameraAnchor';
+    if (tx.stage === 'bagging') return allBagged(tx) ? 'handoffCameraAnchor' : 'baggingCameraAnchor';
+    if (tx.stage === 'done') return 'handoffCameraAnchor';
+    return 'scanCameraAnchor';
   }
 
   function enter() {
     if (active) return false;
     active = true;
-    focusOn(cashierPose());
+    activeAnchor = null;
+    focusAnchor(desiredAnchor());
     if (document.pointerLockElement) document.exitPointerLock();
     document.body.classList.add('register-mode');
     drawScreen();
@@ -831,6 +939,8 @@ export function createRegisterMode(B) {
     active = false;
     grabbed = null;
     drawerWant = 0;
+    activeAnchor = null;
+    transitionBlock = 0;
     clearFocus();
     document.body.classList.remove('register-mode');
   }
@@ -1039,6 +1149,7 @@ export function createRegisterMode(B) {
   // ============================================================ INPUT ==========
 
   function onDown(e) {
+    if (transitionBlock > 0) return;
     if (!active) return false;
     setNdc(e);
     if (e.button === 2) { leave(); return true; }
@@ -1057,12 +1168,14 @@ export function createRegisterMode(B) {
   }
 
   function onMove(e) {
+    if (transitionBlock > 0) return;
     if (!active) return false;
     setNdc(e);
     return true;
   }
 
   function onUp() {
+    if (transitionBlock > 0) return;
     if (!active) return false;
     release();
     return true;
@@ -1148,6 +1261,7 @@ export function createRegisterMode(B) {
   }
 
   function onKey(k) {
+    if (transitionBlock > 0 && k !== 'Escape') return;
     if (!active) return false;
     if (k === 'Escape') { leave(); return true; }
     if (!tx) return true;
@@ -1182,6 +1296,8 @@ export function createRegisterMode(B) {
   // ============================================================ FRAME ==========
 
   function update(dt) {
+    if (transitionBlock > 0) transitionBlock = Math.max(0, transitionBlock - dt);
+    if (active) focusAnchor(desiredAnchor());
     // the drawer slides
     const target = drawerWant;
     if (Math.abs(drawerAmt - target) > 0.001) {
@@ -1277,6 +1393,7 @@ export function createRegisterMode(B) {
     hasTx: () => !!tx,
     getTx: () => tx,
     getCustomer: () => cust,
+    getAnchors: () => Object.fromEntries(Object.keys(anchorNodes).map((name) => [name, anchorPose(name)])),
     scanFlash: () => scanFlash,
     begin,
     abandon,

@@ -125,6 +125,48 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       elb = -0.3;
       lean = 0.16;
       headTilt = 0.28;
+    } else if (char.mode === 'BasketPickup') {
+      const reach = lerpSeg(Math.min(p, 1.2), [[0, 0], [0.45, -1.15], [0.95, -1.35], [1.2, -0.45]]);
+      shL = reach;
+      shR = -0.35;
+      elb = -0.65;
+      lean = 0.18;
+      headTilt = 0.25;
+    } else if (char.mode === 'BasketIdle') {
+      shL = -0.16;
+      shR = 0.05;
+      elb = -0.30;
+      lean = 0.035;
+      bob = 0.006 * Math.sin(p * 1.1);
+    } else if (char.mode === 'BasketCarry' || char.mode === 'BagCarry') {
+      const w = p * 8.7;
+      hipL = 0.48 * Math.sin(w);
+      hipR = -hipL;
+      kneeL = 0.34 * Math.max(0, Math.sin(w - 1.1));
+      kneeR = 0.34 * Math.max(0, Math.sin(w + Math.PI - 1.1));
+      shL = -0.14;
+      shR = 0.28 * Math.sin(w);
+      elb = -0.28;
+      lean = 0.07;
+      bob = 0.014 * Math.sin(2 * w);
+    } else if (char.mode === 'TwoHandCarry') {
+      const w = p * 7.8;
+      hipL = 0.38 * Math.sin(w);
+      hipR = -hipL;
+      kneeL = 0.28 * Math.max(0, Math.sin(w - 1.1));
+      kneeR = 0.28 * Math.max(0, Math.sin(w + Math.PI - 1.1));
+      shL = -0.72;
+      shR = -0.72;
+      elb = -0.72;
+      lean = 0.10;
+      bob = 0.012 * Math.sin(2 * w);
+    } else if (char.mode === 'BasketBrowse') {
+      const r = lerpSeg(p % 3.2, [[0, 0], [0.5, -1.25], [1.9, -1.0], [2.6, 0], [3.2, 0]]);
+      shR = r;
+      shL = -0.14;
+      elb = r < -0.5 ? -0.55 : -0.25;
+      headTilt = 0.2;
+      bob = 0.008 * Math.sin(p * 2);
     } else if (char.mode === 'Browse') {
       const r = lerpSeg(p % 3.2, [[0, 0], [0.5, -1.25], [1.9, -1.0], [2.6, 0], [3.2, 0]]);
       shR = r;
