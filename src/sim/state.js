@@ -51,6 +51,25 @@ export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 // state while preserving the established recovery order.
 export const SAVE_VERSION = 6;
 
+const STATE_SAVE_KEYS = new Set([
+  'version', 'mode', 'seed', 'rngState', 'clock', 'cash', 'clubName',
+  'pendingMorning', 'course', 'weather', 'maintenance', 'courseMaintenance',
+  'golfers', 'staff', 'club', 'reputation', 'business', 'ledger', 'shop',
+  'reservations', 'tractor', 'props', 'progression', 'tutorial', 'property',
+  'debtDays', 'failed', 'turf',
+]);
+
+function preserveUnknownSaveFields(target, raw, knownKeys) {
+  const entries = Object.entries(raw || {}).filter(([key]) => !knownKeys.has(key));
+  if (!entries.length) return target;
+  Object.defineProperty(target, '__unknownSaveFields', {
+    value: Object.fromEntries(entries),
+    writable: true,
+    configurable: true,
+  });
+  return target;
+}
+
 // opts lets the GOLF EMPIRE layer boot this same fresh-club wiring onto a
 // marketplace property: an injected course grid and club name, nothing else.
 export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts = {}) {
@@ -203,15 +222,17 @@ const round1 = (v) => Math.round(v * 10) / 10;
 export function snapshot(state) {
   const { course, turf } = state;
   return ({
+    ...(state.__unknownSaveFields || {}),
     version: state.version,
     mode: state.mode,
     seed: state.seed,
     rngState: state.rngState,
-    clock: { minutes: state.clock.minutes },
+    clock: { ...state.clock, minutes: state.clock.minutes },
     cash: Math.round(state.cash * 100) / 100,
     clubName: state.clubName,
     pendingMorning: state.pendingMorning,
     course: {
+      ...course,
       w: course.w,
       h: course.h,
       zones: Array.from(course.zones),
@@ -221,6 +242,7 @@ export function snapshot(state) {
       structures: course.structures,
     },
     weather: {
+      ...state.weather,
       today: state.weather.today,
       droughtDays: state.weather.droughtDays,
       bias: state.weather.bias,
@@ -244,6 +266,7 @@ export function snapshot(state) {
     failed: state.failed || null,
     turf: turf
       ? {
+          ...turf,
           health: Array.from(turf.health, round1),
           moisture: Array.from(turf.moisture, round1),
           nutrients: Array.from(turf.nutrients, round1),
@@ -264,6 +287,7 @@ export function serialize(state) {
 export function deserialize(json) {
   const raw = typeof json === 'string' ? JSON.parse(json) : json;
   const course = {
+    ...raw.course,
     w: raw.course.w,
     h: raw.course.h,
     zones: Uint8Array.from(raw.course.zones),
@@ -277,19 +301,20 @@ export function deserialize(json) {
     mode: raw.mode,
     seed: raw.seed,
     rngState: raw.rngState,
-    clock: { minutes: raw.clock.minutes },
+    clock: { ...raw.clock, minutes: raw.clock.minutes },
     cash: raw.cash,
     clubName: raw.clubName || 'Willow Creek Golf Club',
     pendingMorning: raw.pendingMorning ?? true,
     course,
     sections: labelSections(course),
     weather: raw.weather
-      ? { today: raw.weather.today, droughtDays: raw.weather.droughtDays, bias: raw.weather.bias || { temp: 0, dry: 0 } }
+      ? { ...raw.weather, today: raw.weather.today, droughtDays: raw.weather.droughtDays, bias: raw.weather.bias || { temp: 0, dry: 0 } }
       : newWeather(),
     maintenance: raw.maintenance || null,
   };
   if (raw.turf) {
     state.turf = {
+      ...raw.turf,
       health: Float32Array.from(raw.turf.health),
       moisture: Float32Array.from(raw.turf.moisture),
       nutrients: Float32Array.from(raw.turf.nutrients),
@@ -357,5 +382,5 @@ export function deserialize(json) {
   state.debtDays = raw.debtDays || 0;
   state.failed = raw.failed || null;
   state.version = SAVE_VERSION;
-  return state;
+  return preserveUnknownSaveFields(state, raw, STATE_SAVE_KEYS);
 }

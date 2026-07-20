@@ -38,6 +38,28 @@ test('rng stream resumes identically after save/load', () => {
   assert.equal(rngOf(st).int(1000), rngOf(back).int(1000));
 });
 
+test('unknown future save data survives migration without overriding canonical fields', () => {
+  const raw = JSON.parse(serialize(newGame('relaxed', 556)));
+  raw.futureSystem = { version: 17, payload: ['opaque', { value: 42 }] };
+  raw.clock.futureClockField = { cadence: 3 };
+  raw.course.futureCourseField = ['north-nine'];
+  raw.weather.futureWeatherField = { model: 'vNext' };
+  raw.turf.futureTurfField = { mask: 'opaque' };
+  raw.courseMaintenance.futureMaintenanceField = { treatment: 'experimental' };
+
+  const migrated = JSON.parse(serialize(deserialize(raw)));
+  assert.deepEqual(migrated.futureSystem, raw.futureSystem);
+  assert.deepEqual(migrated.clock.futureClockField, raw.clock.futureClockField);
+  assert.deepEqual(migrated.course.futureCourseField, raw.course.futureCourseField);
+  assert.deepEqual(migrated.weather.futureWeatherField, raw.weather.futureWeatherField);
+  assert.deepEqual(migrated.turf.futureTurfField, raw.turf.futureTurfField);
+  assert.deepEqual(
+    migrated.courseMaintenance.futureMaintenanceField,
+    raw.courseMaintenance.futureMaintenanceField,
+  );
+  assert.equal(migrated.version, 6, 'the integrated schema remains authoritative');
+});
+
 test('update advances the clock and runs daily ticks across midnight', () => {
   const st = newGame('realistic', 9);
   const hole = st.course.holes[0];

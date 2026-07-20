@@ -37,6 +37,25 @@ import { initBusiness } from './business.js';
 
 export const EMPIRE_VERSION = 3;
 
+const EMPIRE_SAVE_KEYS = new Set([
+  'version', 'empireVersion', 'mode', 'seed', 'cash', 'clockMinutes',
+  'activeId', 'firstPurchaseDone', 'log', 'market', 'marketRngState',
+  'lastMarketDay', 'marketCondition', 'marketConditionTarget', 'progression',
+  'holdings',
+]);
+const HOLDING_SAVE_KEYS = new Set(['property', 'passive', 'state']);
+
+function preserveUnknownSaveFields(target, raw, knownKeys) {
+  const entries = Object.entries(raw || {}).filter(([key]) => !knownKeys.has(key));
+  if (!entries.length) return target;
+  Object.defineProperty(target, '__unknownSaveFields', {
+    value: Object.fromEntries(entries),
+    writable: true,
+    configurable: true,
+  });
+  return target;
+}
+
 // Parked-property approximation knobs (reasoning in DEV_LOG.md):
 // a caretaker keeps the lights on — condition decays toward a floor but never
 // below it (and a wreck is NOT restored for free), a trickle of unhosted play
@@ -633,6 +652,7 @@ export function empireUpdate(empire, gameMinutes) {
 export function empireSnapshot(empire) {
   syncWallet(empire);
   return {
+    ...(empire.__unknownSaveFields || {}),
     empireVersion: EMPIRE_VERSION,
     mode: empire.mode,
     seed: empire.seed,
@@ -648,6 +668,7 @@ export function empireSnapshot(empire) {
     marketConditionTarget: empire.marketConditionTarget,
     progression: ensureEmpireProgression(empire),
     holdings: empire.holdings.map((h) => ({
+      ...(h.__unknownSaveFields || {}),
       property: h.property,
       passive: h.passive,
       state: snapshot(h.state),
@@ -719,11 +740,11 @@ export function deserializeEmpire(raw) {
     seed: data.seed,
     cash: data.cash,
     market: data.market,
-    holdings: data.holdings.map((h) => ({
+    holdings: data.holdings.map((h) => preserveUnknownSaveFields({
       property: h.property,
       passive: h.passive ?? null,
       state: deserialize(h.state),
-    })),
+    }, h, HOLDING_SAVE_KEYS)),
     activeId: data.activeId,
     clockMinutes: data.clockMinutes,
     firstPurchaseDone: !!data.firstPurchaseDone,
@@ -757,5 +778,5 @@ export function deserializeEmpire(raw) {
     holding.state.property.tierId = holding.property.tierId;
     if (!holding.state.property.acquisitionCost) holding.state.property.acquisitionCost = holding.property.askingPrice || 0;
   }
-  return empire;
+  return preserveUnknownSaveFields(empire, data, EMPIRE_SAVE_KEYS);
 }

@@ -1304,6 +1304,7 @@ export function snapshotCourseMaintenance(model) {
     model.runtime.encodedRevision = model.runtime.saveRevision;
   }
   return {
+    ...(model.__unknownSaveFields || {}),
     version: model.version,
     heroHoleId: model.heroHoleId,
     heroHoleNumber: model.heroHoleNumber,
@@ -1335,6 +1336,28 @@ export function snapshotCourseMaintenance(model) {
     lastTickMinute: model.lastTickMinute,
     persistence: model.persistence,
   };
+}
+
+const COURSE_MAINTENANCE_SAVE_KEYS = new Set([
+  'version', 'heroHoleId', 'heroHoleNumber', 'heroSelectionScore',
+  'resolutionYd', 'width', 'height', 'bounds', 'courseLayoutHash',
+  'surfaceHash', 'surfaceField', 'saveIdPrefix', 'fields', 'issues',
+  'inspection', 'route', 'inventory', 'equipment', 'irrigation', 'workOrder',
+  'score', 'scoreHistory', 'history', 'lastTickMinute', 'persistence',
+]);
+
+function preserveUnknownMaintenanceFields(model, raw) {
+  if (!model) return model;
+  const entries = Object.entries(raw || {})
+    .filter(([key]) => !COURSE_MAINTENANCE_SAVE_KEYS.has(key));
+  if (entries.length) {
+    Object.defineProperty(model, '__unknownSaveFields', {
+      value: Object.fromEntries(entries),
+      writable: true,
+      configurable: true,
+    });
+  }
+  return model;
 }
 
 function modelFromSavedLayout(state, raw) {
@@ -1466,7 +1489,12 @@ export function restoreCourseMaintenance(state, raw) {
 
   try {
     const fastModel = modelFromSavedLayout(state, raw);
-    if (fastModel) return hydrateSavedCourseMaintenance(state, raw, fastModel);
+    if (fastModel) {
+      return preserveUnknownMaintenanceFields(
+        hydrateSavedCourseMaintenance(state, raw, fastModel),
+        raw,
+      );
+    }
   } catch {
     // Fall through to the geometry-derived compatibility path. A damaged or
     // older layout cache must never make the whole save unreadable.
@@ -1493,15 +1521,18 @@ export function restoreCourseMaintenance(state, raw) {
   if (!compatible) {
     model.persistence.migrationReason = 'Course surface changed; rebuilt the hero region safely.';
     state.courseMaintenance = model;
-    return model;
+    return preserveUnknownMaintenanceFields(model, raw);
   }
   try {
-    return hydrateSavedCourseMaintenance(state, raw, model);
+    return preserveUnknownMaintenanceFields(
+      hydrateSavedCourseMaintenance(state, raw, model),
+      raw,
+    );
   } catch {
     const rebuilt = buildCourseMaintenance(state, null, { syncInitial: false });
     rebuilt.persistence.migrationReason = 'Maintenance data was incomplete; rebuilt the hero region safely.';
     state.courseMaintenance = rebuilt;
-    return rebuilt;
+    return preserveUnknownMaintenanceFields(rebuilt, raw);
   }
 }
 
