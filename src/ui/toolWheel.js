@@ -1,6 +1,6 @@
 import { containFocus, el } from './ui.js';
 
-export function makeToolWheel({ onSelect, onClose, audio } = {}) {
+export function makeToolWheel({ onSelect, onClose, onPause, audio } = {}) {
   const title = el('div', { class: 'tool-wheel-title', text: 'Tool belt' });
   const selectedName = el('div', { class: 'tool-wheel-selected', role: 'status', 'aria-live': 'polite' });
   const selectedDetail = el('div', { class: 'tool-wheel-detail' });
@@ -70,6 +70,13 @@ export function makeToolWheel({ onSelect, onClose, audio } = {}) {
     // contextual reason mouse players see on hover. choose() still prevents
     // equipping them.
     const indexes = entries.map((_, index) => index);
+    if (event.key === 'p' || event.key === 'P') {
+      event.stopPropagation();
+      event.preventDefault();
+      close('pause');
+      queueMicrotask(() => onPause?.());
+      return;
+    }
     if (event.key === 'Escape') {
       event.stopPropagation();
       event.preventDefault();
