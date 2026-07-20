@@ -19,7 +19,7 @@ async (page) => {
   page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text().slice(0, 160)); });
   page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
 
-  await page.goto('http://localhost:8457/');
+  await page.goto(process.env.QA_BASE_URL || 'http://localhost:8457/');
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});
@@ -139,7 +139,7 @@ async (page) => {
   const moved = { dist: +Math.hypot(p1.x - p0.x, p1.z - p0.z).toFixed(3) };
   moved.moved = moved.dist > 0.05;
 
-  await page.screenshot({ path: 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/laptop/cycle/after-30.png' });
+  await page.screenshot({ path: `${process.env.QA_OUTPUT_DIR || 'qa/laptop/cycle'}/after-30.png` });
 
   return {
     cycles: N,

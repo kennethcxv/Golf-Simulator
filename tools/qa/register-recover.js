@@ -23,6 +23,10 @@ async (page) => {
     await page.getByText('Continue', { exact: true }).click().catch(() => {});
     await page.waitForFunction(() => window.__fw && window.__fw.scene3d
       && window.__fw.scene3d.clubhouse && window.__fw.scene3d.clubhouse(), null, { timeout: 40000 });
+    // Freeze the economy before waiting on visual readiness. A reload previously
+    // spent several simulated hours behind the veil, then blamed legitimate
+    // running costs on persistence.
+    await page.evaluate(() => { window.__fw.speedIdx = 0; });
     await page.waitForFunction(() => {
       const v = document.querySelector('.load-veil');
       return !v || v.style.display === 'none' || getComputedStyle(v).opacity === '0';
@@ -202,5 +206,21 @@ async (page) => {
     check: !stuck.registerLocked && !stuck.ghostTx ? 'OK — register mode is not locked and no ghost sale survives' : 'FAIL',
   });
 
-  return { log, errors: errors.slice(0, 8), errorCount: errors.length };
+  const ok = scanned === 1
+    && saved.heldInSave === 2
+    && after.shelfBalls === before.shelfBalls
+    && after.shelfGlove === before.shelfGlove
+    && after.held === 0
+    && after.revenue === 0
+    && Math.abs(after.cash - preSave.cash) < 0.005
+    && !stuck.registerLocked
+    && !stuck.ghostTx
+    && errors.length === 0;
+  return {
+    ok,
+    blocker: ok ? null : { message: 'mid-sale save/reload did not conserve stock, cash, and register state' },
+    log,
+    errors: errors.slice(0, 8),
+    errorCount: errors.length,
+  };
 }

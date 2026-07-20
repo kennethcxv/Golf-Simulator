@@ -545,7 +545,7 @@ export function makeProductLabel({ brand = 'FAIRWAY SUPPLY', name = 'TOUR SOFT',
 // Wall wordmark / plaque generator: walnut or cream field + serif lettering.
 export function makeSignTexture(lines, {
   w = 512, h = 256, field = '#f4f0e6', ink = '#1f4a26', accent = '#c9a227',
-  frame = true, pine = false, sizes = null,
+  frame = true, pine = false, sizes = null, font = 'Georgia, serif',
 } = {}) {
   const c = makeCanvas(w, h);
   const ctx = c.getContext('2d');
@@ -576,7 +576,7 @@ export function makeSignTexture(lines, {
   ctx.textAlign = 'center';
   lines.forEach((line, i) => {
     const fs = sizes ? sizes[i] : Math.round(h * (i === 0 ? 0.16 : 0.11));
-    ctx.font = `${i === 0 ? 'bold ' : ''}${fs}px Georgia`;
+    ctx.font = `${i === 0 ? 'bold ' : ''}${fs}px ${font}`;
     ctx.fillStyle = i === 0 ? ink : '#3f3a30';
     ctx.fillText(line, w / 2, y);
     y += fs * 1.45;

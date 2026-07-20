@@ -37,6 +37,7 @@ import {
 const CARRY_Y = COUNTER_TOP + 0.115;  // how high a grabbed item rides — inside the scan volume
 const REST_Y = COUNTER_TOP + 0.012;
 const CARD_TIME = 1.5;                // seconds the terminal spends authorising
+const CARD_SESSION_TIME = 15;         // visible time to complete a presented-card swipe
 const CARD_SWIPE_TOP = {
   x: REGISTER.cardterm.x + 0.09,
   y: COUNTER_TOP + 0.21,
@@ -398,7 +399,7 @@ export function createRegisterMode(B) {
     else if (tx.stage === 'scanning') msg = 'ALL SCANNED — TOTAL IT UP';
     else if (tx.stage === 'payment') msg = 'CHOOSE A PAYMENT METHOD';
     else if (tx.stage === 'card-present') msg = 'CARD — ASK THEM TO PRESENT';
-    else if (tx.stage === 'card-ready') msg = 'CARD READY — SWIPE TOP TO BOTTOM';
+    else if (tx.stage === 'card-ready') msg = `CARD READY — SWIPE TOP TO BOTTOM · ${Math.ceil(cardSessionT)}s`;
     else if (tx.stage === 'card-busy') msg = 'AUTHORISING…';
     else if (tx.stage === 'card-declined') { msg = tx.cardResult === 'timeout' ? 'TIMED OUT — TRY AGAIN' : 'DECLINED — ANOTHER CARD'; col = '#ff9a8a'; }
     else if (tx.stage === 'cash-tender') msg = `CASH $${stackTotal(tx.tendered || {}).toFixed(2)} — TAKE IT`;
@@ -449,7 +450,7 @@ export function createRegisterMode(B) {
       c.fillText((swipeFeedback || 'SWIPE CARD').toUpperCase(), 96, 92);
       c.fillStyle = '#a9bac5';
       c.font = '10px monospace';
-      c.fillText('drag top to bottom', 96, 116);
+      c.fillText(`top to bottom  ·  ${Math.ceil(cardSessionT)}s`, 96, 116);
     }
     else if (tx.stage === 'card-busy') { c.fillStyle = '#ffd98a'; c.fillText('AUTHORISING', 96, 92); }
     else if (tx.stage === 'card-declined') {
@@ -497,6 +498,41 @@ export function createRegisterMode(B) {
   };
   matOf(REGISTER.staging, 0x2b3630);
   matOf(REGISTER.bagging, 0x342f28);
+
+  // Read the island as a workflow before the first click. These restrained
+  // engraved station tags use the same title-case sans role as the checkout HUD;
+  // the live POS and terminal retain monospace for transactional data.
+  function stationTag(label, x, z, w = 0.24) {
+    const cv = document.createElement('canvas');
+    cv.width = 256;
+    cv.height = 64;
+    const c = cv.getContext('2d');
+    c.fillStyle = '#202722';
+    c.fillRect(0, 0, 256, 64);
+    c.strokeStyle = '#796833';
+    c.lineWidth = 4;
+    c.strokeRect(4, 4, 248, 56);
+    c.fillStyle = '#d8d0bb';
+    c.font = '700 23px "Segoe UI", Arial, sans-serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText(label, 128, 33);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const tag = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, 0.06),
+      new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8, side: THREE.DoubleSide }),
+    );
+    tag.name = `station-${label.toLowerCase()}`;
+    tag.position.set(x, COUNTER_TOP + 0.011, z);
+    tag.rotation.set(-Math.PI / 2, 0, 0);
+    root.add(tag);
+  }
+  stationTag('Order', 2.37, 3.75, 0.22);
+  stationTag('Pay', 2.04, 4.14, 0.20);
+  stationTag('Scan', 2.78, 4.61, 0.22);
+  stationTag('Receipt', 3.18, 4.65, 0.28);
+  stationTag('Bag', 3.78, 4.62, 0.18);
 
   const bagGroup = new THREE.Group();
   const BAG_HOME = new THREE.Vector3(
@@ -651,6 +687,8 @@ export function createRegisterMode(B) {
   let grabbed = null;
   const grabPrev = new THREE.Vector3();
   let cardT = 0;
+  let cardSessionT = 0;
+  let cardSecondShown = -1;
   let printT = 0;
   let scanFlash = 0;
   let viewBlend = 0;
@@ -858,12 +896,18 @@ export function createRegisterMode(B) {
     if (result.ok) {
       swipeFeedback = '';
       swipeFeedbackT = 0;
+      // The live stage now says "Authorising"; an earlier incomplete-swipe toast
+      // must not remain underneath it and contradict the accepted gesture.
+      if (hooks.clearToasts) hooks.clearToasts('checkout');
+      cardSessionT = 0;
       tx.stage = 'card-busy';
       cardT = CARD_TIME;
       sfx('cardTap');
     } else {
       swipeFeedback = SWIPE_MSG[result.code] || 'Swipe again';
       swipeFeedbackT = 1.8;
+      cardSessionT = CARD_SESSION_TIME;
+      cardSecondShown = Math.ceil(cardSessionT);
       setCardSwipePosition(0);
       sfx('thunk');
       toast(swipeFeedback, 'warn');
@@ -1100,6 +1144,8 @@ export function createRegisterMode(B) {
     receiptReady = false;
     if (cardMesh) { root.remove(cardMesh); cardMesh = null; }
     cardSwipe = null;
+    cardSessionT = 0;
+    cardSecondShown = -1;
     swipeFeedback = '';
     swipeFeedbackT = 0;
     grabbed = null;
@@ -1603,6 +1649,8 @@ export function createRegisterMode(B) {
     if (!tx || tx.method !== 'card') return;
     if (tx.stage === 'card-present') {
       presentCard(tx);
+      cardSessionT = CARD_SESSION_TIME;
+      cardSecondShown = Math.ceil(cardSessionT);
       moveMesh(cardMesh, new THREE.Vector3(
         CARD_SWIPE_TOP.x,
         CARD_SWIPE_TOP.y,
@@ -1618,6 +1666,8 @@ export function createRegisterMode(B) {
       sfx('thunk');
     } else if (tx.stage === 'card-declined') {
       retryCard(tx);
+      cardSessionT = CARD_SESSION_TIME;
+      cardSecondShown = Math.ceil(cardSessionT);
       moveMesh(cardMesh, new THREE.Vector3(
         CARD_SWIPE_TOP.x,
         CARD_SWIPE_TOP.y,
@@ -1673,6 +1723,36 @@ export function createRegisterMode(B) {
       if (swipeFeedbackT === 0 && swipeFeedback) {
         swipeFeedback = '';
         drawTerm();
+      }
+    }
+
+    // A presented card opens a real, visible terminal session. If the player
+    // walks away or never completes the swipe, the same timeout state already
+    // modelled by sim/register.js now occurs in live play instead of remaining a
+    // test-only branch. Pause while the mouse physically owns the card so a slow
+    // but deliberate gesture is never failed under the player's hand.
+    if (tx && tx.stage === 'card-ready' && cardSessionT > 0 && !cardSwipe) {
+      cardSessionT = Math.max(0, cardSessionT - dt);
+      const second = Math.ceil(cardSessionT);
+      if (second !== cardSecondShown) {
+        cardSecondShown = second;
+        drawScreen();
+        drawTerm();
+      }
+      if (cardSessionT === 0) {
+        const res = runCard(tx, { timeout: true });
+        if (res.ok) {
+          swipeFeedback = '';
+          swipeFeedbackT = 0;
+          sfx('decline');
+          toast('Terminal session expired — select the reader for another card.', 'warn');
+          if (cardMesh) {
+            cardMesh.visible = true;
+            moveMesh(cardMesh, palm.position, 0.34, { arc: 0.07 });
+          }
+          drawScreen();
+          drawTerm();
+        }
       }
     }
 
@@ -1803,6 +1883,7 @@ export function createRegisterMode(B) {
       drawerAmount: drawerAmt,
       drawerTarget: drawerWant,
       drawerOpen: !!(tx && tx.drawerOpen),
+      cardSessionSeconds: tx && tx.stage === 'card-ready' ? Math.ceil(cardSessionT) : 0,
     }),
     getHandFeedback: () => ({
       ...checkoutHands.getState(),
@@ -1815,6 +1896,7 @@ export function createRegisterMode(B) {
     getUiStatus: () => registerGuidance(tx, {
       customerName: cust ? cust.name : 'Customer',
       swipeFeedback,
+      cardSessionSeconds: tx && tx.stage === 'card-ready' ? Math.ceil(cardSessionT) : null,
       receiptReady,
       handoffPending,
     }),

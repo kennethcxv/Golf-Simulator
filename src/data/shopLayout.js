@@ -236,8 +236,11 @@ export const FIXTURES = [
 // --- start-state clutter (the "dirty, not nonsensical" rule: piles sit off the
 // aisles in believable neglect spots — corners, dead zones, the stockroom) --------
 export const CLUTTER_SPOTS = [
-  { x: -8.9, z: 5.3 }, { x: -6.3, z: -3.9 }, { x: 1.4, z: 0.5 }, { x: 4.7, z: 3.1 },
-  { x: -1.2, z: -4.2 }, { x: -9.2, z: -5.6 }, { x: 6.4, z: -4.6 }, { x: 7.6, z: 1.3 },
+  // Keep the restoration mess in believable dead zones. The former centre-floor
+  // and queue-side piles sat directly behind every checkout customer, weakening
+  // the till silhouette and making a paid transaction look like a loading bay.
+  { x: -8.9, z: 5.3 }, { x: -6.3, z: -3.9 }, { x: -7.8, z: 1.1 }, { x: -6.2, z: 4.8 },
+  { x: -8.4, z: -2.0 }, { x: -9.2, z: -5.6 }, { x: 6.4, z: -4.6 }, { x: 7.6, z: 1.3 },
 ];
 
 // --- traffic paths (the dirt system paints mud/footprint trails along these) -----

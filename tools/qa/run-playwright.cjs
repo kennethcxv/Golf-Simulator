@@ -54,15 +54,21 @@ async function stopLocalServer(child) {
 }
 
 function loadPlaywright() {
-  const candidates = [
-    'playwright',
-    'C:/Users/Kenneth/AppData/Local/npm-cache/_npx/9833c18b2d85bc59/node_modules/playwright',
-    'C:/Users/Kenneth/AppData/Local/npm-cache/_npx/e41f203b7505f1fb/node_modules/playwright',
-  ];
+  const candidates = ['playwright'];
+  const npxRoot = process.env.LOCALAPPDATA
+    ? path.join(process.env.LOCALAPPDATA, 'npm-cache', '_npx')
+    : null;
+  if (npxRoot && fs.existsSync(npxRoot)) {
+    for (const entry of fs.readdirSync(npxRoot, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        candidates.push(path.join(npxRoot, entry.name, 'node_modules', 'playwright'));
+      }
+    }
+  }
   for (const candidate of candidates) {
     try { return require(candidate); } catch (_) { /* try the next local install */ }
   }
-  throw new Error('Playwright is not available from the project or the known local npm cache.');
+  throw new Error('Playwright is not available from the project or the local npm cache.');
 }
 
 async function runUnlocked() {

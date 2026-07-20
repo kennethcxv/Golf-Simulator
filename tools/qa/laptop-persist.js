@@ -11,11 +11,11 @@ async (page) => {
 
   const errs = [];
   page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/laptop/persist';
+  const OUT = process.env.QA_OUTPUT_DIR || 'qa/laptop/persist';
   const log = [];
 
   const boot = async () => {
-    await page.goto('http://localhost:8457/');
+    await page.goto(process.env.QA_BASE_URL || 'http://localhost:8457/');
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.waitForTimeout(1200);
     await page.getByText('Continue', { exact: true }).click().catch(() => {});

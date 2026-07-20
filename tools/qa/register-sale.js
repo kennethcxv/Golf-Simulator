@@ -23,6 +23,7 @@ async (page) => {
   //    a condition on the real transaction.
 
   const MODE = process.env.QA_REGISTER_MODE || 'cash';
+  const FORCE_TIMEOUT = process.env.QA_CARD_TIMEOUT === '1';
   const OUT = process.env.QA_OUTPUT_DIR || `qa/register/${MODE}`;
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -32,6 +33,7 @@ async (page) => {
   const log = [];
   const handChecks = [];
   const reentryChecks = [];
+  const timeoutChecks = [];
   const hands = async (step) => {
     const state = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getHandFeedback());
     handChecks.push({ step, ...state });
@@ -222,7 +224,8 @@ async (page) => {
   });
   await page.waitForTimeout(900);
   await shot('01-customer-at-counter');
-  log.push({ step: '1. customer at the counter', who, ...(await money()), tx: await txNow() });
+  const basketAtCounter = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getCustomerBasket());
+  log.push({ step: '1. customer at the counter', who, basket: basketAtCounter, ...(await money()), tx: await txNow() });
 
   // --- [E] into register mode -----------------------------------------------------------
   await page.keyboard.press('e');
@@ -382,6 +385,28 @@ async (page) => {
     reentryChecks.push({ step: 'card-swipe cancel', ok: cardReentryOk, away: cardAway, back: cardBack });
     await shot('06a-card-reentered-clean');
     log.push({ step: '8. clicked terminal — they present', tx: await txNow() });
+
+    if (FORCE_TIMEOUT) {
+      // Do nothing a player could not do: simply leave the presented card alone
+      // until the visible session expires, then select the reader to retry.
+      await untilStage('card-declined', 22000);
+      const timedOut = await page.evaluate(() => ({
+        tx: window.__fw.scene3d.clubhouse().register.getTx(),
+        interaction: window.__fw.scene3d.clubhouse().register.getInteractionState(),
+        guidance: window.__fw.scene3d.clubhouse().register.getUiStatus(),
+      }));
+      const timeoutOk = timedOut.tx.cardResult === 'timeout'
+        && timedOut.interaction.cardSessionSeconds === 0
+        && timedOut.guidance.title === 'Terminal timed out';
+      timeoutChecks.push({ ok: timeoutOk, ...timedOut });
+      await shot('06b-card-session-timed-out');
+      log.push({ step: '8a. visible card session timed out', tx: await txNow(), timeoutOk });
+      const retryTerm = await page.evaluate(() => window.__qa.px(2.05, 1.12, 3.88));
+      await page.mouse.click(retryTerm.x, retryTerm.y);
+      await untilStage('card-ready');
+      await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isCardReadyForSwipe());
+      await shot('06c-card-timeout-retry');
+    }
 
     // A partial physical stroke must remain card-ready and explain itself.
     await swipeCard(0.48);
@@ -576,14 +601,24 @@ async (page) => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return !!tx && tx.items.some((item) => (window.__qa.orderUids || []).includes(item.uid));
   });
-  log.push({ step: '20. final', ...finalMoney, tx: finalTx, orderTxActive });
+  const basketFinal = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getCustomerBasket());
+  const originalBasketCleared = !basketFinal || basketFinal.customer !== basketAtCounter.customer;
+  log.push({
+    step: '20. final', ...finalMoney, tx: finalTx, orderTxActive,
+    originalBasketCleared, basket: basketFinal,
+  });
 
   const ok = finalMoney.revenue === 66
     && finalMoney.units === 2
     && finalMoney.orderHeld === 0
     && !orderTxActive
+    && basketAtCounter && basketAtCounter.atCheckout && basketAtCounter.itemCount === 2
+    // The queue is allowed to advance during the 1.5s handoff proof. A different
+    // customer's basket is new work, not evidence that the completed one leaked.
+    && originalBasketCleared
     && handChecks.every((check) => check.visible)
     && reentryChecks.every((check) => check.ok)
+    && timeoutChecks.every((check) => check.ok)
     && uiFit.boxes.every((box) => !box.visible || box.inside)
     && !uiFit.overlap
     && errors.length === 0;
@@ -596,5 +631,6 @@ async (page) => {
     errorCount: errors.length,
     handChecks,
     reentryChecks,
+    timeoutChecks,
   };
 }

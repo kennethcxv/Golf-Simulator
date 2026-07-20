@@ -102,7 +102,13 @@ const roundTrip = await evalJS(`(async () => {
   const snap = E.empireSnapshot(empire);
   const localBefore = localStorage.getItem('golfempire:slot1');
   await S.saveData('slot1', snap);
-  await S.saveData('slot1-meta', { name: bought.state.name, savedAt: 1 });
+  await S.saveData('slot1-meta', {
+    name: bought.state.clubName,
+    when: 'Y1 · Spring · Day 1 · 6:00 AM',
+    cash: empire.cash,
+    cond: Math.round(bought.state.shop.reno.condition),
+    savedAt: Date.now(),
+  });
   await S.saveData('autosave', snap);
   const back = await S.loadData('slot1');
   let invalidRejected = false;
@@ -128,6 +134,7 @@ await waitFor(`[...document.querySelectorAll('button')].some((button) => button.
 await evalJS(`[...document.querySelectorAll('button')].find((button) => button.textContent === 'Continue').click()`);
 await waitFor(`window.__fw?.scene3d?.clubhouse?.()`);
 await waitFor(`!document.querySelector('.load-veil') || getComputedStyle(document.querySelector('.load-veil')).opacity === '0'`);
+await waitFor(`window.__fw?.scene3d?.walk?.isActive()`);
 
 const live = await evalJS(`({
   view: window.__fw.view,
@@ -140,10 +147,25 @@ check('WebGL context is healthy', !live.contextLost);
 check('preload bridge survives reload', live.nativeStillPresent);
 check('new windows are denied', !live.opened);
 
-await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 800, y: 450, button: 'left', clickCount: 1 });
-await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 800, y: 450, button: 'left', clickCount: 1 });
-await sleep(500);
-const pointerLocked = await evalJS(`document.pointerLockElement === document.querySelector('#game')`);
+await send('Page.bringToFront');
+await evalJS(`window.focus()`);
+const canvasPoint = await evalJS(`(() => {
+  const rect = document.querySelector('#game').getBoundingClientRect();
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+})()`);
+let pointerLocked = false;
+for (let attempt = 0; attempt < 3 && !pointerLocked; attempt++) {
+  await send('Input.dispatchMouseEvent', {
+    type: 'mousePressed', x: canvasPoint.x, y: canvasPoint.y,
+    button: 'left', clickCount: 1,
+  });
+  await send('Input.dispatchMouseEvent', {
+    type: 'mouseReleased', x: canvasPoint.x, y: canvasPoint.y,
+    button: 'left', clickCount: 1,
+  });
+  await sleep(500);
+  pointerLocked = await evalJS(`document.pointerLockElement === document.querySelector('#game')`);
+}
 check('first-person pointer lock works in Electron', pointerLocked);
 await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
 await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' });

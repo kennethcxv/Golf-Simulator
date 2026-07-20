@@ -30,11 +30,17 @@ function lightStrip(mats, w) {
 }
 
 function categorySign(title, { w = 1.5, h = 0.26, charcoal = false } = {}) {
-  const tex = makeSignTexture([title.toUpperCase()], {
+  // Operational wayfinding follows the HUD's title-case sans role. The club
+  // wordmark keeps the serif brand face; device readouts keep monospace.
+  // Long fixture names get a measured smaller face instead of spilling over
+  // their plaque and into the neighbouring display.
+  const size = title.length > 14 ? 39 : title.length > 10 ? 45 : 51;
+  const tex = makeSignTexture([title], {
     w: 512, h: 128, frame: false,
     field: charcoal ? '#23262b' : '#f4f0e6',
     ink: charcoal ? '#c9a227' : '#1f4a26',
-    sizes: [54],
+    sizes: [size],
+    font: '"Segoe UI", Arial, sans-serif',
   });
   return new THREE.Mesh(
     new THREE.PlaneGeometry(w, h),
@@ -362,8 +368,11 @@ export function buildFixtures(B) {
       post.position.set(px, 0.5, -0.45);
       g.add(post);
     }
-    const sign = categorySign(f.title, { w: 1.0, h: 0.2 });
-    sign.position.set(0, 1.16, -0.45);
+    // The old "BAG PLATFORMS" board floated behind the bag heads and across the
+    // lounge window. Put a short aisle label on the plinth where neither stock nor
+    // the view can intersect it.
+    const sign = categorySign('Golf bags', { w: 0.9, h: 0.18, charcoal: true });
+    sign.position.set(0, 0.23, 0.632);
     g.add(sign);
     addCol(colBoxAt(f.x, f.z, 2.6, 1.3));
     return g;
@@ -894,9 +903,21 @@ export function buildCheckout(B) {
     // layout's monitor.ry 0 was calibrated to the OLD model, whose screen faced +z.
     const RAW_PROP = { register: 'kiosk', cardterm: 'cardterm_pro' };
     const RAW_RY = { register: -Math.PI / 2 };
+    const PROP_SCALE = {
+      // The scan kiosk is a display, not a second payment terminal. Pulling its
+      // hero scan back gives the reader and scanner equal visual authority.
+      register: 0.84,
+      scanner: 1.18,
+      cardterm: 1.0,
+      printer: 0.88,
+    };
     const placeProp = (name, spec, ry) => {
-      const o = RAW_PROP[name] ? merch.instantiateRaw(RAW_PROP[name]) : merch.instantiate(name);
+      const scale = PROP_SCALE[name] || 1;
+      const o = RAW_PROP[name]
+        ? merch.instantiateRaw(RAW_PROP[name], { scale })
+        : merch.instantiate(name, { scale });
       if (!o) return null;
+      o.name = `checkout-${name}`;
       o.position.set(spec.x, COUNTER_TOP, spec.z);
       o.rotation.y = ry !== undefined ? ry : (name in RAW_RY ? RAW_RY[name] : (spec.ry || 0));
       interior.add(o);

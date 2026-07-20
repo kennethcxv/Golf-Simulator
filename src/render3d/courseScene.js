@@ -1746,7 +1746,9 @@ export function makeCourseScene(canvas, state) {
     // cutter down the seam while you hold E on a taped carton
     fpHands.update(dt, walkSpraying || walkSoaping || holdActive);
     if (!heldRoot.visible) return;
-    heldAnim.t = Math.min(1, heldAnim.t + dt / 0.26);
+    const reducedMotion = !!walk.reducedMotion;
+    const swayScale = reducedMotion || walk.toolSway === false ? 0 : 1;
+    heldAnim.t = reducedMotion ? 1 : Math.min(1, heldAnim.t + dt / 0.26);
     const k = heldAnim.show ? easeOutCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t);
     if (!heldAnim.show && heldAnim.t >= 1) {
       heldRoot.visible = false;
@@ -1754,7 +1756,7 @@ export function makeCourseScene(canvas, state) {
     }
     // gait-synced bob: strong under way, a slow breathe at rest
     bobPhase += dt * (walkMoving ? 8.7 : 1.6); // 8.7 = the characters' stride rate
-    const sway = walkMoving ? 1 : 0.25;
+    const sway = (walkMoving ? 1 : 0.25) * swayScale;
     heldRoot.position.set(
       Math.cos(bobPhase * 0.5) * 0.01 * sway,
       -0.42 * (1 - k) + Math.sin(bobPhase) * 0.014 * sway,
@@ -2078,7 +2080,9 @@ export function makeCourseScene(canvas, state) {
     const pz0 = walk.z;
 
     // focus mode (laptop): ease the camera onto the pose, park all input
-    focusBlend = clamp(focusBlend + (walkFocusPose ? 1 : -1) * (dt / 0.4), 0, 1);
+    focusBlend = walk.reducedMotion
+      ? (walkFocusPose ? 1 : 0)
+      : clamp(focusBlend + (walkFocusPose ? 1 : -1) * (dt / 0.4), 0, 1);
     if (walkFocusPose || focusBlend > 0.001) {
       const fb = focusBlend * focusBlend * (3 - 2 * focusBlend);
       const gy = (clubhouseApi && clubhouseApi.groundYAt(walk.x, walk.z)) ?? heightAt(walk.x, walk.z);
@@ -2187,7 +2191,9 @@ export function makeCourseScene(canvas, state) {
 
     // camera: first-person on foot, third-person chase in the seat — EASED
     // between the two so mounting reads as a real transition, not a cut
-    mountBlend = clamp(mountBlend + (cart.mounted ? 1 : -1) * (dt / 0.45), 0, 1);
+    mountBlend = walk.reducedMotion
+      ? (cart.mounted ? 1 : 0)
+      : clamp(mountBlend + (cart.mounted ? 1 : -1) * (dt / 0.45), 0, 1);
     const mb = mountBlend * mountBlend * (3 - 2 * mountBlend);
     // inside the clubhouse (or on its porch) you stand on the level floor slab
     const floorY = clubhouseApi ? clubhouseApi.groundYAt(walk.x, walk.z) : null;
@@ -2815,6 +2821,67 @@ export function makeCourseScene(canvas, state) {
   // entrance decor: the stone club sign on the approach, weathered to match the
   // course's actual condition at load. (The old small sign is now the tee sign;
   // the "pennant poles" were really flagsticks and moved to the holes.)
+  function addLiveClubNamePanel(model) {
+    const clubName = (state.clubName || 'The Club').trim().toUpperCase();
+    const cnv = document.createElement('canvas');
+    cnv.width = 1024;
+    cnv.height = 416;
+    const c2 = cnv.getContext('2d');
+
+    c2.fillStyle = '#f2edda';
+    c2.fillRect(0, 0, cnv.width, cnv.height);
+    c2.strokeStyle = '#1d4b32';
+    c2.lineWidth = 24;
+    c2.strokeRect(16, 16, cnv.width - 32, cnv.height - 32);
+    c2.strokeStyle = '#b7943f';
+    c2.lineWidth = 8;
+    c2.strokeRect(43, 43, cnv.width - 86, cnv.height - 86);
+
+    const fitText = (text, maxWidth, startPx, weight, family) => {
+      let size = startPx;
+      do {
+        c2.font = `${weight} ${size}px ${family}`;
+        if (c2.measureText(text).width <= maxWidth) return;
+        size -= 2;
+      } while (size > 30);
+    };
+    c2.textAlign = 'center';
+    c2.textBaseline = 'middle';
+    c2.fillStyle = '#173f2c';
+    fitText(clubName, 850, 112, 700, 'Georgia, serif');
+    c2.fillText(clubName, cnv.width / 2, 184);
+    c2.fillStyle = '#6f5a2a';
+    c2.font = '700 54px "Segoe UI", sans-serif';
+    c2.letterSpacing = '12px';
+    c2.fillText('GOLF CLUB', cnv.width / 2, 305);
+
+    const tex = new THREE.CanvasTexture(cnv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+    const panel = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.78, 0.36),
+      new THREE.MeshStandardMaterial({
+        map: tex,
+        color: 0xffffff,
+        roughness: 0.82,
+        metalness: 0,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+      }),
+    );
+    // The source GLB is one baked mesh. Its sign face is the local +X plane;
+    // this preserves the authored stone/foliage while replacing only its name.
+    // Vertex inspection places the irregular cream face at local X ~= 0.007;
+    // seat the art against it instead of using the foliage/stone bounding box.
+    panel.position.set(0.012, 0.39, 0);
+    panel.rotation.y = Math.PI / 2;
+    panel.name = `Live club name: ${clubName}`;
+    panel.userData.releaseRole = 'live-club-name';
+    panel.userData.clubName = clubName;
+    model.add(panel);
+  }
+
   let yardHome = null;
   {
     const s0 = course.structures[0];
@@ -2839,6 +2906,7 @@ export function makeCourseScene(canvas, state) {
             }
           });
         }
+        addLiveClubNamePanel(m);
       });
       propColliders.push({ x: bx - 15, z: bz + 16, r: 1.6 });
       yardHome = buildMaintenanceYard(bx, bz);

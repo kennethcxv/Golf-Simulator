@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { createTx, scanItem } from '../src/sim/register.js';
 import { registerGuidance } from '../src/ui/registerGuidance.js';
+
+const registerModeSource = fs.readFileSync(new URL('../src/render3d/clubhouse/registerMode.js', import.meta.url), 'utf8');
 
 const txFor = () => createTx({
   items: [
@@ -10,6 +13,10 @@ const txFor = () => createTx({
   ],
 });
 const keys = (guidance) => guidance.controls.map((control) => control.key);
+
+test('an accepted card swipe clears superseded checkout warnings', () => {
+  assert.match(registerModeSource, /if \(result\.ok\)[\s\S]*hooks\.clearToasts\('checkout'\)/);
+});
 
 test('scanning guidance shows one relevant gesture, not future-stage keys', () => {
   const tx = txFor();
@@ -41,6 +48,15 @@ test('card failures become the primary visible instruction without a click bypas
   assert.equal(guidance.tone, 'warn');
   assert.deepEqual(keys(guidance), ['Mouse', 'Esc']);
   assert.match(guidance.detail, /all the way down/);
+});
+
+test('a live card session exposes its timeout without adding another control', () => {
+  const tx = txFor();
+  tx.stage = 'card-ready';
+  tx.method = 'card';
+  const guidance = registerGuidance(tx, { cardSessionSeconds: 9 });
+  assert.match(guidance.detail, /9s remain/);
+  assert.deepEqual(keys(guidance), ['Mouse', 'Esc']);
 });
 
 test('cash guidance follows tender, drawer, deposit, count, and handoff state', () => {

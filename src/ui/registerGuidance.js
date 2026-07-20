@@ -14,6 +14,7 @@ const key = (keyName, label) => ({ key: keyName, label });
 export function registerGuidance(tx, {
   customerName = 'Customer',
   swipeFeedback = '',
+  cardSessionSeconds = null,
   receiptReady = null,
   handoffPending = false,
 } = {}) {
@@ -52,7 +53,7 @@ export function registerGuidance(tx, {
     base.title = swipeFeedback || 'Swipe the card';
     base.detail = swipeFeedback
       ? 'Return to the top, then pull the card all the way down at a steady pace.'
-      : 'Hold the visible card and pull it from the top of the reader to the bottom.';
+      : `Hold the visible card and pull it from top to bottom${cardSessionSeconds == null ? '.' : ` · ${cardSessionSeconds}s remain.`}`;
     base.tone = swipeFeedback ? 'warn' : 'ready';
     base.controls = [mouse('Drag card down')];
   } else if (tx.stage === 'card-busy') {

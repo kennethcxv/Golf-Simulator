@@ -30,6 +30,7 @@ import {
   cutTape, openFlap, takeFromBox, flattenBox, recycleBox,
   tapeCut, tapeUncut, flapsOpen, isEmpty, boxState,
 } from '../sim/deliveries.js';
+import { allocateBackroomCases, backroomCaseSlots } from './backroomStock.js';
 import {
   carriedGoods, stockFixture, storeInBack, homeOf, carrySpeedFactor,
 } from '../sim/stocking.js';
@@ -249,9 +250,75 @@ export function makeClubhouse(ctx) {
 
   function removeCustomerItem(c) {
     if (!c.itemMesh) return;
-    c.mesh.remove(c.itemMesh);
-    disposeOwnedMesh(c.itemMesh);
+    if (c.itemMesh.parent) c.itemMesh.parent.remove(c.itemMesh);
+    c.itemMesh.traverse((node) => disposeOwnedMesh(node));
     c.itemMesh = null;
+  }
+
+  function ensureCustomerBasket(c) {
+    if (c.basket) return c.basket;
+    const basket = merch && merch.instantiate('basket');
+    if (!basket) return null;
+    basket.name = 'customer-basket';
+    basket.scale.setScalar(0.66);
+    basket.rotation.y = 0.08;
+    basket.userData.checkout = false;
+    const char = c.mesh.userData.char;
+    if (char && char.carryAnchor) {
+      char.carryAnchor.add(basket);
+      // The authored pivot is the tub floor; lower it so the raised handle, not
+      // the base, lands in the shopper's carrying hand.
+      basket.position.set(-0.02, -0.24, 0.01);
+      if (char.setCarrying) char.setCarrying(true);
+    } else {
+      c.mesh.add(basket);
+      basket.position.set(0.28, 0.30, 0.10);
+    }
+    c.basket = basket;
+    return basket;
+  }
+
+  function syncCustomerBasket(c) {
+    removeCustomerItem(c);
+    if (!c.cart.length) return;
+    const basket = ensureCustomerBasket(c);
+    if (!basket) return;
+    const contents = new THREE.Group();
+    contents.name = 'basket-contents';
+    c.cart.slice(0, 3).forEach((entry, i) => {
+      const sku = SHOP_CATALOG.find((s) => s.id === entry.skuId);
+      const item = new THREE.Mesh(
+        new THREE.BoxGeometry(0.15, 0.09, 0.11),
+        new THREE.MeshStandardMaterial({
+          color: CAT_COLORS[sku ? sku.cat : 'accessories'] || 0x999999,
+          roughness: 0.72,
+        }),
+      );
+      item.position.set((i % 2 ? 1 : -1) * 0.075, 0.175 + Math.floor(i / 2) * 0.055, (i % 3 - 1) * 0.035);
+      item.rotation.y = i % 2 ? 0.18 : -0.14;
+      item.castShadow = true;
+      contents.add(item);
+    });
+    basket.add(contents);
+    c.itemMesh = contents;
+  }
+
+  function placeCustomerBasket(c) {
+    if (!c.basket) return;
+    removeCustomerItem(c); // the transaction goods now travel onto the staging mat
+    interior.attach(c.basket);
+    c.basket.position.set(COUNTER.x - COUNTER.len / 2 + 0.14, COUNTER_TOP + 0.012, COUNTER.z - 0.40);
+    c.basket.rotation.set(0, -0.10, 0);
+    c.basket.userData.checkout = true;
+  }
+
+  function removeCustomerBasket(c) {
+    removeCustomerItem(c);
+    if (!c.basket) return;
+    if (c.basket.parent) c.basket.parent.remove(c.basket);
+    c.basket = null;
+    const char = c.mesh && c.mesh.userData.char;
+    if (char && char.setCarrying && !c.carryBag) char.setCarrying(false);
   }
 
   // the head of the queue, with goods, waiting on YOU
@@ -265,7 +332,7 @@ export function makeClubhouse(ctx) {
   function onCustomerPaid(c) {
     c.bought = true;
     leaveReview(c, true);
-    removeCustomerItem(c);
+    removeCustomerBasket(c);
     // a branded carrier into their hand — they walk out with it
     const char = c.mesh.userData.char;
     const bag = merch && merch.instantiate('bag_closed');
@@ -532,7 +599,14 @@ export function makeClubhouse(ctx) {
       c2.fillStyle = '#efe7d2'; c2.fillRect(0, 0, W, H);          // parchment mount
       c2.fillStyle = '#1f4a2e'; c2.fillRect(0, 0, W, TOP);        // title band
       c2.fillStyle = '#efe7d2'; c2.textBaseline = 'middle';
-      c2.font = 'bold 23px Georgia, serif'; c2.fillText('PINEHOLLOW GOLF CLUB', 20, TOP / 2 - 1);
+      const mapName = (state.clubName || 'THE CLUB').toUpperCase();
+      let mapNameSize = 23;
+      c2.font = `bold ${mapNameSize}px Georgia, serif`;
+      while (c2.measureText(mapName).width > W - 190 && mapNameSize > 14) {
+        mapNameSize--;
+        c2.font = `bold ${mapNameSize}px Georgia, serif`;
+      }
+      c2.fillText(mapName, 20, TOP / 2 - 1);
       c2.font = 'italic 13px Georgia, serif'; c2.textAlign = 'right'; c2.fillText('COURSE MAP', W - 20, TOP / 2);
       c2.textAlign = 'left';
       const x0 = M, y0 = TOP + 12, iw = W - M * 2, ih = H - y0 - M;
@@ -1642,8 +1716,11 @@ export function makeClubhouse(ctx) {
     }
     stockMeshes.clear();
     const inv = state.shop.inventory;
+    const fixtures = placedFixtures(state);
+    const totalBack = SHOP_CATALOG.reduce((sum, sku) => sum + (inv[sku.id]?.back || 0), 0);
+    const backroomCases = allocateBackroomCases(fixtures, totalBack);
 
-    for (const f of placedFixtures(state)) {
+    for (const f of fixtures) {
       const anchor = fixtureAnchors.get(f.id);
       if (!anchor) continue;
 
@@ -1706,16 +1783,14 @@ export function makeClubhouse(ctx) {
       // quantity rather than a count of items, and the difference is stated rather than hidden.
       if (f.kind === 'backshelf') {
         const g = new THREE.Group();
-        const totalBack = SHOP_CATALOG.reduce((a, s) => a + (inv[s.id] ? inv[s.id].back : 0), 0);
-        const show = Math.min(Math.ceil(totalBack / 6), 12);
-        for (let i = 0; i < show; i++) {
-          const bx = -0.95 + (i % 4) * 0.62;
-          const by = [0.46, 1.11, 1.76][Math.floor(i / 4) % 3];
+        const slots = backroomCaseSlots(f, backroomCases.get(f.id) || 0);
+        for (let i = 0; i < slots.length; i++) {
+          const slot = slots[i];
           const caseB = new THREE.Mesh(
             ownGeometry(new THREE.BoxGeometry(0.5, 0.36, 0.44)),
             i % 2 ? cardboard : cardboardDark,
           );
-          caseB.position.set(bx, by + 0.18, 0);
+          caseB.position.set(slot.x, slot.y, slot.z);
           caseB.rotation.y = (i % 3) * 0.1 - 0.1;
           caseB.castShadow = true;
           g.add(caseB);
@@ -2323,6 +2398,7 @@ export function makeClubhouse(ctx) {
       patience: 45, // seconds they'll wait at the head of the line for service
       awaitingCheckout: false,
       itemMesh: null,
+      basket: null,
       // what a review will be written from: did they get in, did they buy, did they wait
       seed: rng.next(),
       entered: false,
@@ -2405,13 +2481,7 @@ export function makeClubhouse(ctx) {
     const sku = SHOP_CATALOG.find((s) => s.id === skuId);
     c.cart.push({ uid, skuId, price: priceFor(sku, state.shop.markup[sku.cat] || 1, null) });
     rebuildStock(); // the display visibly loses the unit
-    const item = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.16, 0.16),
-      new THREE.MeshStandardMaterial({ color: CAT_COLORS[sku.cat] || 0x999999, roughness: 0.7 }),
-    );
-    item.position.set(0.16, 0.68, 0.16);
-    c.mesh.add(item);
-    c.itemMesh = item;
+    syncCustomerBasket(c);
     // a pick means they're heading to the counter — make sure a stop exists
     if (!c.stops.some((s, i) => i > c.stopIdx && s.kind === 'counter')) {
       const regW = L2W(COUNTER.registerX, COUNTER.z);
@@ -2448,7 +2518,7 @@ export function makeClubhouse(ctx) {
     // they walked out mid-sale: void it, clear the counter, and put the goods back.
     // registerMode holds no authority over stock — the shelf is credited right here.
     if (register.getCustomer() === c) { register.abandon(); register.leave(); }
-    removeCustomerItem(c);
+    removeCustomerBasket(c);
     leaveQueue(c);
     c.stopIdx += 1;
     c.linger = 0;
@@ -2500,7 +2570,7 @@ export function makeClubhouse(ctx) {
     if (c.tx) c.tx = null;
     c.awaitingCheckout = false;
     leaveQueue(c);
-    removeCustomerItem(c);
+    removeCustomerBasket(c);
     if (c.patienceMesh) {
       c.mesh.remove(c.patienceMesh);
       disposeOwnedMesh(c.patienceMesh);
@@ -2645,6 +2715,7 @@ export function makeClubhouse(ctx) {
             // they reach the counter and LAY THEIR GOODS OUT on it, one by one
             c.onPaid = () => onCustomerPaid(c);
             c.awaitingCheckout = register.begin(c);
+            if (c.awaitingCheckout) placeCustomerBasket(c);
           }
           if (!c.awaitingCheckout) continue;
           // Patience measures time waiting for service. Once the cashier is
@@ -2844,6 +2915,17 @@ export function makeClubhouse(ctx) {
         const customer = customers.find((c) => c.bought && c.carryBag);
         return customer ? customer.carryBag : null;
       },
+      getCustomerBasket: () => {
+        const customer = customers.find((c) => c.basket);
+        if (!customer) return null;
+        return {
+          customer: customer.name,
+          itemCount: customer.cart.length,
+          atCheckout: !!customer.basket.userData.checkout,
+          position: customer.basket.position.toArray(),
+          parent: customer.basket.parent ? customer.basket.parent.name : null,
+        };
+      },
       getUiStatus: () => register.getUiStatus(),
     },
     // DIAGNOSTICS. Not a cheat: sendToCounter() puts a shopper at the head of the
@@ -2864,6 +2946,7 @@ export function makeClubhouse(ctx) {
         c.cart.push({ uid, skuId, price: priceFor(sku, state.shop.markup[sku.cat] || 1, null) });
       }
       if (!c.cart.length) return null;
+      syncCustomerBasket(c);
       rebuildStock();
       const q = queueSlotW(0);
       c.mesh.position.set(q.x, c.mesh.position.y, q.z);

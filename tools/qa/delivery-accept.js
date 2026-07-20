@@ -6,11 +6,11 @@ async (page) => {
   const errs = [];
   page.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()); });
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/delivery';
+  const OUT = process.env.QA_OUTPUT_DIR || 'qa/delivery';
   const log = [];
 
   const boot = async () => {
-    await page.goto('http://localhost:8457/');
+    await page.goto(process.env.QA_BASE_URL || 'http://localhost:8457/');
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.waitForTimeout(1200);
     await page.getByText('Continue', { exact: true }).click().catch(() => {});

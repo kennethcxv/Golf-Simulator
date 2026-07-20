@@ -26,6 +26,7 @@ import { members } from './golfers.js';
 // player orders and places. Condition 0-100 is DERIVED from that state, never
 // stored, so it can't drift: cleanliness carries 70 points, decor finish 30.
 export const RENO = {
+  clutterLayout: 2,           // v2 clears the register/queue sightline
   room: { w: INTERIOR.w, d: INTERIOR.d }, // the clubhouse plan's interior (shopLayout.js)
   grid: { w: 13, h: 8 },       // ~2-yd grime cells over the whole floor (stockroom included)
   startDirt: [0.58, 0.95],     // fresh-game dirt range per cell
@@ -59,7 +60,9 @@ export function initShopReno(state) {
     ry: Math.round(rng.range(0, Math.PI * 2) * 100) / 100,
     cleared: false,
   }));
-  state.shop.reno = { grime, clutter, decor: [], windows: startWindows(rng) };
+  state.shop.reno = {
+    grime, clutter, decor: [], windows: startWindows(rng), clutterLayout: RENO.clutterLayout,
+  };
 }
 
 export function ensureShopReno(state) {
@@ -92,7 +95,9 @@ export function ensureShopReno(state) {
     reno.grime = grime;
   }
   const outsideRoom = (c) => Math.abs(c.x) > RENO.room.w / 2 || Math.abs(c.z) > RENO.room.d / 2;
-  if (reno.clutter.length !== CLUTTER_SPOTS.length || reno.clutter.some(outsideRoom)) {
+  if (reno.clutterLayout !== RENO.clutterLayout
+      || reno.clutter.length !== CLUTTER_SPOTS.length
+      || reno.clutter.some(outsideRoom)) {
     const flags = reno.clutter.map((c) => !!c.cleared);
     const allCleared = flags.length > 0 && flags.every(Boolean);
     const rng = renoRng(state);
@@ -102,6 +107,7 @@ export function ensureShopReno(state) {
       ry: Math.round(rng.range(0, Math.PI * 2) * 100) / 100,
       cleared: i < flags.length ? flags[i] : allCleared,
     }));
+    reno.clutterLayout = RENO.clutterLayout;
   }
 
   // WINDOW FILM (production dirt pass): saves older than the window-grime

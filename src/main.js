@@ -103,6 +103,8 @@ function enterWalk(spawn) {
   app.courseMode = 'walk';
   app.scene3d.walk.enter(spawn);
   walkOverlay.style.display = '';
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = 'none';
   const hint = document.querySelector('.hint-bar');
   if (hint) hint.style.display = 'none';
   inspectPanel.hide();
@@ -114,6 +116,8 @@ function exitWalk() {
   if (app.scene3d && app.scene3d.post && app.scene3d.post.gtao) app.scene3d.post.gtao.radius = 1.5; // management-camera tuning
   if (app.scene3d) app.scene3d.walk.exit();
   walkOverlay.style.display = 'none';
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = '';
   if (app.view === 'course') {
     const hint = document.querySelector('.hint-bar');
     if (hint) hint.style.display = '';
@@ -274,7 +278,7 @@ function exitLaptop(silent) {
   app.scene3d.walk.clearFocus();
   setCameraLens(WALK_FOV, WALK_NEAR); // hand the wide lens back before you stand up
   const vt = document.querySelector('.view-toggle');
-  if (vt) vt.style.display = '';
+  if (vt) vt.style.display = 'none'; // returning to first-person, not the overview map
   if (!silent) {
     walkOverlay.style.display = '';
     requestLook();
@@ -803,12 +807,25 @@ let pauseUi = null;
 let pausePrevSpeed = 1;
 
 const SETTINGS_KEY = 'gc-settings';
-const settings = { renderScale: 1, ao: true, bloom: true, fov: 60, sens: 1 };
+const settings = {
+  renderScale: 1,
+  ao: true,
+  bloom: true,
+  fov: 60,
+  sens: 1,
+  reducedMotion: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false,
+  toolSway: true,
+  uiScale: 1,
+  toolUse: 'hold',
+};
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { /* fresh */ }
 function saveSettings() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* private mode */ }
 }
 function applySettings() {
+  const uiScale = [0.9, 1, 1.1, 1.25].includes(settings.uiScale) ? settings.uiScale : 1;
+  document.documentElement.style.fontSize = `${15 * uiScale}px`;
+  document.documentElement.dataset.reducedMotion = settings.reducedMotion ? 'true' : 'false';
   if (!app.scene3d) return;
   app.scene3d.renderer.setPixelRatio(Math.min(2.5, (window.devicePixelRatio || 1) * (settings.renderScale || 1)));
   app.scene3d.resize();
@@ -818,15 +835,20 @@ function applySettings() {
   }
   app.scene3d.camera.fov = settings.fov || 60;
   app.scene3d.camera.updateProjectionMatrix();
-  if (app.scene3d.walk && app.scene3d.walk.state) app.scene3d.walk.state.sens = settings.sens || 1;
+  if (app.scene3d.walk && app.scene3d.walk.state) {
+    app.scene3d.walk.state.sens = settings.sens || 1;
+    app.scene3d.walk.state.reducedMotion = !!settings.reducedMotion;
+    app.scene3d.walk.state.toolSway = settings.toolSway !== false;
+  }
 }
+applySettings();
 
 function isPauseOpen() { return !!pauseUi; }
 function closePauseMenu() {
   if (!pauseUi) return;
   pauseUi.remove();
   pauseUi = null;
-  if (app.screen === 'game') app.speedIdx = pausePrevSpeed || 1;
+  if (app.screen === 'game') app.speedIdx = pausePrevSpeed;
 }
 function togglePauseMenu() { if (pauseUi) closePauseMenu(); else openPauseMenu(); }
 
@@ -844,7 +866,7 @@ function keycaps(...keys) {
 function openPauseMenu() {
   resetCameraInput(); // whatever was down when you hit Esc stays down no longer
   if (pauseUi || app.screen !== 'game') return;
-  pausePrevSpeed = app.speedIdx || 1;
+  pausePrevSpeed = app.speedIdx;
   app.speedIdx = 0;
 
   const content = el('div', { class: 'pause-content' });
@@ -959,16 +981,61 @@ function openPauseMenu() {
         settingRow('Field of view', el('div', { class: 'set-ctl' },
           el('input', {
             type: 'range', min: '50', max: '90', step: '1', value: String(settings.fov || 60),
-            oninput: (e) => { settings.fov = Number(e.target.value); saveSettings(); applySettings(); },
+            oninput: (e) => {
+              settings.fov = Number(e.target.value);
+              e.target.nextElementSibling.textContent = `${settings.fov}°`;
+              saveSettings();
+              applySettings();
+            },
           }),
           el('span', { class: 'set-val', text: `${settings.fov || 60}°` }),
         )),
         settingRow('Mouse sensitivity', el('div', { class: 'set-ctl' },
           el('input', {
             type: 'range', min: '0.4', max: '2', step: '0.1', value: String(settings.sens || 1),
-            oninput: (e) => { settings.sens = Number(e.target.value); saveSettings(); applySettings(); },
+            oninput: (e) => {
+              settings.sens = Number(e.target.value);
+              e.target.nextElementSibling.textContent = `${settings.sens.toFixed(1)}×`;
+              saveSettings();
+              applySettings();
+            },
           }),
+          el('span', { class: 'set-val', text: `${(settings.sens || 1).toFixed(1)}×` }),
         )),
+        settingRow('Interface scale', el('div', { class: 'set-ctl' }, ...[0.9, 1, 1.1, 1.25].map((v) =>
+          el('button', {
+            class: `chip-btn${settings.uiScale === v ? ' on' : ''}`,
+            text: `${Math.round(v * 100)}%`,
+            onclick: () => { settings.uiScale = v; saveSettings(); applySettings(); setPage('settings'); },
+          })))),
+        settingRow('Reduced motion', el('div', { class: 'set-ctl' },
+          el('button', {
+            class: `chip-btn${settings.reducedMotion ? ' on' : ''}`,
+            text: settings.reducedMotion ? 'On' : 'Off',
+            onclick: () => { settings.reducedMotion = !settings.reducedMotion; saveSettings(); applySettings(); setPage('settings'); },
+          }))),
+        settingRow('First-person tool sway', el('div', { class: 'set-ctl' },
+          el('button', {
+            class: `chip-btn${settings.toolSway !== false && !settings.reducedMotion ? ' on' : ''}`,
+            text: settings.reducedMotion ? 'Off (reduced motion)' : settings.toolSway !== false ? 'On' : 'Off',
+            disabled: !!settings.reducedMotion,
+            onclick: () => { settings.toolSway = settings.toolSway === false; saveSettings(); applySettings(); setPage('settings'); },
+          }))),
+        settingRow('Tool use', el('div', { class: 'set-ctl' }, ...['hold', 'toggle'].map((mode) =>
+          el('button', {
+            class: `chip-btn${settings.toolUse === mode ? ' on' : ''}`,
+            text: mode === 'hold' ? 'Hold' : 'Toggle',
+            onclick: () => {
+              settings.toolUse = mode;
+              if (app.scene3d?.walk) {
+                app.scene3d.walk.setSpraying(false);
+                app.scene3d.walk.setSoaping(false);
+              }
+              if (audio.ready) audio.setToolLoop(null);
+              saveSettings();
+              setPage('settings');
+            },
+          })))),
         settingRow('Tutorial', el('div', { class: 'set-ctl' },
           el('button', {
             class: 'chip-btn',
@@ -1145,13 +1212,17 @@ canvas.addEventListener('pointerdown', (e) => {
     }
     const tool = walkActive() && app.scene3d.walk.getTool();
     if (e.button === 0 && tool) {
-      app.scene3d.walk.setSpraying(true);
-      if (audio.ready) audio.setToolLoop(tool);
+      const on = settings.toolUse === 'toggle' ? !app.scene3d.walk.isSpraying() : true;
+      app.scene3d.walk.setSoaping(false);
+      app.scene3d.walk.setSpraying(on);
+      if (audio.ready) audio.setToolLoop(on ? tool : null);
     } else if (e.button === 2 && tool === 'washer') {
       // right button on the washer lays soap, for the stains water alone won't touch
       e.preventDefault();
-      app.scene3d.walk.setSoaping(true);
-      if (audio.ready) audio.setToolLoop('soap');
+      const on = settings.toolUse === 'toggle' ? !app.scene3d.walk.isSoaping() : true;
+      app.scene3d.walk.setSpraying(false);
+      app.scene3d.walk.setSoaping(on);
+      if (audio.ready) audio.setToolLoop(on ? 'soap' : null);
     }
     return;
   }
@@ -1210,9 +1281,11 @@ canvas.addEventListener('pointermove', (e) => {
 
 window.addEventListener('pointerup', (e) => {
   if (regActive()) { regApi().onUp(e); return; }
-  if (walkActive() && app.scene3d.walk.isSpraying()) app.scene3d.walk.setSpraying(false);
-  if (walkActive() && app.scene3d.walk.isSoaping && app.scene3d.walk.isSoaping()) app.scene3d.walk.setSoaping(false);
-  if (audio.ready) audio.setToolLoop(null);
+  if (settings.toolUse !== 'toggle') {
+    if (walkActive() && app.scene3d.walk.isSpraying()) app.scene3d.walk.setSpraying(false);
+    if (walkActive() && app.scene3d.walk.isSoaping && app.scene3d.walk.isSoaping()) app.scene3d.walk.setSoaping(false);
+    if (audio.ready) audio.setToolLoop(null);
+  }
 });
 
 canvas.addEventListener('pointerup', () => {
