@@ -1030,6 +1030,9 @@ body.register-mode .toast {
   font-size: 0.86rem;
   background: rgba(18, 25, 21, 0.92);
 }
+body.register-mode .toast:not([data-channel="checkout"]) {
+  display: none;
+}
 
 /* A compact transaction director. It stays above the scene, never across the drawer,
    card, receipt, or carrier, and only shows controls legal in the current stage. */

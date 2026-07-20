@@ -30,6 +30,12 @@ async (page) => {
 
   const shot = async (n) => { await page.screenshot({ path: `${OUT}/${n}.png` }); };
   const log = [];
+  const handChecks = [];
+  const hands = async (step) => {
+    const state = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getHandFeedback());
+    handChecks.push({ step, ...state });
+    return state;
+  };
 
   const txNow = () => page.evaluate(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -241,7 +247,7 @@ async (page) => {
 
   await scan(0);
   await shot('03-scanned-one');
-  log.push({ step: '3. dragged item 1 over the glass', tx: await txNow() });
+  log.push({ step: '3. dragged item 1 over the glass', tx: await txNow(), hands: await hands('scan') });
 
   await scan(0);   // the SAME item again — it must not count twice
   log.push({ step: '4. dragged the SAME item back over the glass', tx: await txNow(), expect: 'scanned still 1' });
@@ -279,6 +285,7 @@ async (page) => {
       step: '9. incomplete physical swipe refused',
       tx: await txNow(),
       feedback: await page.evaluate(() => window.__fw.scene3d.clubhouse().register.getSwipeFeedback()),
+      hands: await hands('card swipe'),
     });
 
     // Now make the top-to-bottom gesture a player performs with the mouse.
@@ -320,13 +327,13 @@ async (page) => {
     await page.mouse.down();
     await page.mouse.up();
     await page.waitForTimeout(200);
-    log.push({ step: '10. took their cash', tx: await txNow() });
+    log.push({ step: '10. took their cash', tx: await txNow(), hands: await hands('cash tender') });
 
     await page.keyboard.press('d');   // NOW the drawer opens
     await untilFlag('drawerOpen', true);
     await page.waitForTimeout(700);   // it slides
     await shot('07-drawer-open');
-    log.push({ step: '11. [D] drawer open', tx: await txNow() });
+    log.push({ step: '11. [D] drawer open', tx: await txNow(), hands: await hands('drawer') });
 
     // put every tendered note into the till, one at a time
     for (let guard = 0; guard < 8; guard++) {
@@ -361,7 +368,7 @@ async (page) => {
       }
     }
     await shot('09-change-counted');
-    log.push({ step: '14. counted the change', tx: await txNow() });
+    log.push({ step: '14. counted the change', tx: await txNow(), hands: await hands('change') });
 
     // hand it over: click their open palm
     const palmAt = await page.evaluate(() => window.__qa.find('palm'));
@@ -396,7 +403,9 @@ async (page) => {
   const rpx = await page.evaluate((a) => window.__qa.px(a.x, a.y, a.z), rp);
   await page.mouse.click(rpx.x, rpx.y);
   await untilStage('bagging');
-  log.push({ step: '17. took the receipt', tx: await txNow() });
+  await page.waitForTimeout(120);
+  await shot('10b-receipt-taken');
+  log.push({ step: '17. took the receipt', tx: await txNow(), hands: await hands('receipt') });
 
   // --- BAG ---------------------------------------------------------------------------
   for (let i = 0; i < 3; i++) {
@@ -415,7 +424,7 @@ async (page) => {
     await page.waitForTimeout(250);
   }
   await shot('11-bagged');
-  log.push({ step: '18. bagged', tx: await txNow(), ...(await money()), expect: 'revenue STILL 0' });
+  log.push({ step: '18. bagged', tx: await txNow(), ...(await money()), hands: await hands('bagging'), expect: 'revenue STILL 0' });
 
   // --- HAND IT OVER — the only thing that banks the money ---------------------------------
   const handAt = await page.evaluate(() => window.__qa.find('palm'));
@@ -423,6 +432,7 @@ async (page) => {
   await page.mouse.click(palmPx.x, palmPx.y);
   await page.waitForTimeout(220);
   await shot('12a-handoff-motion');
+  const handoffHands = await hands('handoff');
   await page.waitForTimeout(430);
   await shot('12-handed-over');
   const carrier = await page.evaluate(async () => {
@@ -434,7 +444,7 @@ async (page) => {
     const centre = box.getCenter(new THREE.Vector3());
     return { visible: bag.visible, size: size.toArray(), centre: centre.toArray() };
   });
-  log.push({ step: '19. HANDED IT OVER', ...(await money()), carrier, expect: 'revenue banked NOW, held back to 0' });
+  log.push({ step: '19. HANDED IT OVER', ...(await money()), carrier, hands: handoffHands, expect: 'revenue banked NOW, held back to 0' });
 
   await page.waitForTimeout(1500);
   await shot('13-done');
@@ -450,6 +460,7 @@ async (page) => {
     && finalMoney.units === 2
     && finalMoney.orderHeld === 0
     && !orderTxActive
+    && handChecks.every((check) => check.visible)
     && errors.length === 0;
   return {
     ok,
@@ -458,5 +469,6 @@ async (page) => {
     log,
     errors: errors.slice(0, 10),
     errorCount: errors.length,
+    handChecks,
   };
 }

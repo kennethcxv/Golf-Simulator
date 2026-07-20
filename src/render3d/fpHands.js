@@ -51,6 +51,19 @@ export const GRIPS = {
     support: null,
     recoil: 0.06,
   },
+  // Checkout reuses the same hands as every other first-person verb. The mount
+  // follows the pointer; these poses only describe whether one hand pinches a
+  // card/note or both hands cradle a product/carrier.
+  checkoutPinch: {
+    grip: { pos: [0.012, -0.008, 0.0], rot: [0.72, -0.08, 0.08] },
+    support: null,
+    recoil: 0.026,
+  },
+  checkoutCarry: {
+    grip: { pos: [0.055, -0.012, 0.015], rot: [0.72, -0.10, 0.16] },
+    support: { pos: [-0.055, -0.012, 0.015], rot: [0.72, 0.10, -0.16] },
+    recoil: 0.035,
+  },
 };
 
 // one hand: forearm, palm, a thumb, and a mitt of fingers. Read at arm's length, not inspected.
@@ -99,6 +112,7 @@ export function makeFpHands() {
   root.visible = false;
 
   let tool = null;
+  let pose = null;
   let show = 0; // 0..1, hands rising into frame
   let recoil = 0; // 0..1, decays
   let breathe = 0;
@@ -111,6 +125,7 @@ export function makeFpHands() {
       tool = GRIPS[next] ? next : null;
       if (!tool) return;
       const g = GRIPS[tool];
+      pose = g;
       right.position.set(...g.grip.pos);
       right.rotation.set(...g.grip.rot);
       left.visible = !!g.support;
@@ -128,14 +143,17 @@ export function makeFpHands() {
     update(dt, using) {
       const want = tool ? 1 : 0;
       show += (want - show) * Math.min(1, dt * 9);
-      root.visible = show > 0.01 && !!tool;
+      // Keep the last pose while `show` eases down. Previously setTool(null)
+      // made the rig disappear in one frame even though `show` had a holster
+      // animation; tools and checkout hands now visibly lower out of frame.
+      root.visible = show > 0.01 && !!pose;
       if (!root.visible) return;
 
       if (using) recoil = Math.min(1, recoil + dt * 7);
       else recoil = Math.max(0, recoil - dt * 5);
 
       breathe += dt;
-      const g = GRIPS[tool] || GRIPS.hose;
+      const g = pose || GRIPS.hose;
       // hands ride up into frame on equip, breathe at rest, and shove back under load
       const rise = (1 - show) * 0.34;
       const idle = Math.sin(breathe * 1.7) * 0.006 + Math.sin(breathe * 0.9) * 0.004;
@@ -145,6 +163,20 @@ export function makeFpHands() {
       root.position.set(jitter, -rise + idle, back);
       root.rotation.x = recoil * -0.06 + idle * 0.5;
       root.rotation.z = Math.sin(breathe * 1.1) * 0.01;
+    },
+
+    getState() {
+      return { visible: root.visible, tool, show, recoil };
+    },
+
+    dispose() {
+      root.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) {
+          const materials = Array.isArray(o.material) ? o.material : [o.material];
+          for (const material of materials) material.dispose();
+        }
+      });
     },
   };
 }

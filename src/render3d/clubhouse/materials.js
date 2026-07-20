@@ -12,6 +12,10 @@ function makeCanvas(w, h = w) {
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
+  // Every material canvas is later read back to derive roughness/normal maps.
+  // Context attributes only count on the FIRST getContext call, so establish the
+  // CPU-backed context here before any painter asks for the default one.
+  c.getContext('2d', { willReadFrequently: true });
   return c;
 }
 
@@ -48,7 +52,7 @@ function finish(canvas, { srgb = true, repeat = true } = {}) {
 
 function luminance(canvas) {
   const { width: w, height: h } = canvas;
-  const data = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+  const data = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h).data;
   const lum = new Float32Array(w * h);
   for (let i = 0; i < w * h; i++) {
     lum[i] = (0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2]) / 255;

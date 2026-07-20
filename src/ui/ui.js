@@ -17,7 +17,7 @@ export function el(tag, attrs = {}, ...children) {
 
 let toastWrap = null;
 
-export function toast(msg, kind = '') {
+export function toast(msg, kind = '', options = {}) {
   if (!toastWrap) {
     toastWrap = el('div', { class: 'toast-wrap', 'aria-live': 'polite' });
     document.getElementById('ui').append(toastWrap);
@@ -26,11 +26,21 @@ export function toast(msg, kind = '') {
   // register was hidden behind a wall of identical cards. Keep a short, recent
   // queue and collapse duplicates; checkout's live stage HUD carries the durable
   // instruction.
+  const channel = options && options.channel ? String(options.channel) : '';
+  if (channel) {
+    // The checkout HUD owns the durable instruction; its toast is only the most
+    // recent physical response. Replacing that response prevents an old failure
+    // (or "all bagged") from sitting under a later success.
+    [...toastWrap.children]
+      .filter((node) => node.dataset.channel === channel)
+      .forEach((node) => node.remove());
+  }
   const duplicate = [...toastWrap.children].find((node) => node.dataset.message === msg);
   if (duplicate) return;
   const limit = document.body.classList.contains('register-mode') ? 2 : 4;
   while (toastWrap.children.length >= limit) toastWrap.firstElementChild.remove();
   const t = el('div', { class: `toast ${kind}`, text: msg, role: 'status', 'data-message': msg });
+  if (channel) t.dataset.channel = channel;
   toastWrap.append(t);
   setTimeout(() => {
     t.style.transition = 'opacity 0.35s';

@@ -374,7 +374,7 @@ function startGame(state) {
   app.scene3d = makeCourseScene(canvas, state);
   // walk-up inspection: the walking controller asks, the app answers with the
   // same sections and status words the top-down click-to-inspect always used
-  app.scene3d.walk.hooks.toast = (msg, kind) => toast(msg, kind);
+  app.scene3d.walk.hooks.toast = (msg, kind, options) => toast(msg, kind, options);
   // a restrained note when the game had to dig the player out of geometry
   app.scene3d.walk.hooks.recovered = (how) => toast(
     how === 'lastSafe' ? 'Stepped you back to where you last had room.' : 'Moved you clear of the furniture.',

@@ -100,14 +100,23 @@ async function runUnlocked() {
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
   const diagnostics = [];
+  let recordDiagnostics = false;
   page.on('console', (message) => {
-    if (message.type() === 'error' || message.type() === 'warning') {
+    if (recordDiagnostics && (message.type() === 'error' || message.type() === 'warning')) {
       diagnostics.push(`console:${message.type()}: ${message.text()}`);
     }
   });
-  page.on('pageerror', (error) => diagnostics.push(`pageerror: ${error.message}`));
+  page.on('pageerror', (error) => {
+    if (recordDiagnostics) diagnostics.push(`pageerror: ${error.message}`);
+  });
   page.on('requestfailed', (request) => {
-    diagnostics.push(`requestfailed: ${request.url()} (${request.failure()?.errorText || 'unknown'})`);
+    const reason = request.failure()?.errorText || 'unknown';
+    // Chromium reports loader cancellation as ERR_ABORTED when Continue replaces
+    // the menu scene. A missing/broken response is ERR_FAILED (or an HTTP status)
+    // and remains evidence; a canceled request never reached a failure response.
+    if (recordDiagnostics && reason !== 'net::ERR_ABORTED') {
+      diagnostics.push(`requestfailed: ${request.url()} (${reason})`);
+    }
   });
   try {
     if (process.argv.includes('--bootstrap')) {
@@ -124,7 +133,12 @@ async function runUnlocked() {
         bought.state.tutorial.hidden = true;
         localStorage.setItem('golfempire:autosave', JSON.stringify(E.empireSnapshot(empire)));
       });
+      // The callback navigates to the real test page. Leave the bootstrap page
+      // while diagnostics are muted so its in-flight decorative GLBs do not turn
+      // a deliberate navigation into gameplay request failures.
+      await page.goto('about:blank');
     }
+    recordDiagnostics = true;
     const result = await run(page);
     const output = result && typeof result === 'object'
       ? { ...result, runnerDiagnostics: diagnostics }

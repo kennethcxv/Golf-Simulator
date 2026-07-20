@@ -23,6 +23,7 @@ import { REGISTER, COUNTER, COUNTER_TOP, inRect, queueSlot } from '../../data/sh
 import { skuById } from '../../data/shopItems.js';
 import { judgeSwipe, SWIPE_MSG } from '../../sim/cardSwipe.js';
 import { registerGuidance } from '../../ui/registerGuidance.js';
+import { makeFpHands } from '../fpHands.js';
 import {
   DENOMS, BILLS, createTx, scanItem, unscannedCount, requestPayment,
   subtotal, discountOf, totalOf, dueOf, cashTotalOf,
@@ -216,10 +217,21 @@ export function createRegisterMode(B) {
   const focusOn = B.ctx.focusOn || (() => {});
   const clearFocus = B.ctx.clearFocus || (() => {});
   const sfx = (n) => { if (hooks.sfx) hooks.sfx(n); };
-  const toast = (m, k) => { if (hooks.toast) hooks.toast(m, k); };
+  const toast = (m, k) => { if (hooks.toast) hooks.toast(m, k, { channel: 'checkout' }); };
 
   const root = new THREE.Group();
   interior.add(root);
+
+  // A camera-mounted checkout grip makes the mouse-owned objects feel held, not
+  // telekinetic. It reuses the game's single established first-person hand rig;
+  // checkout contributes poses and motion, not a competing hand model.
+  const checkoutHands = makeFpHands();
+  const checkoutHandMount = new THREE.Group();
+  checkoutHandMount.name = 'checkout-hands';
+  checkoutHandMount.position.set(0.02, -0.08, -0.65);
+  checkoutHandMount.scale.setScalar(0.55);
+  checkoutHandMount.add(checkoutHands.root);
+  camera.add(checkoutHandMount);
 
   // --- shared materials, one per denomination, built once -------------------------
   const billMat = {};
@@ -646,6 +658,47 @@ export function createRegisterMode(B) {
   let handoffPending = false;
   let bagRespawnT = 0;
   let saleExitT = 0;
+  let handActionT = 0;
+  let handPose = null;
+  const handTarget = new THREE.Vector3(0.02, -0.08, -0.65);
+
+  function handBeat(pose = 'checkoutPinch', duration = 0.55, anchor = null) {
+    if (!active) return;
+    handPose = pose;
+    handActionT = Math.max(handActionT, duration);
+    checkoutHands.setTool(pose);
+    checkoutHands.kick();
+    if (anchor) handTarget.set(anchor.x, anchor.y, -0.65);
+  }
+
+  function pointerHandTarget(twoHanded = false) {
+    // At z=-0.65 and a 60-degree camera, 0.37 local yards spans the
+    // viewport vertically. Map NDC into that plane so the palm meets the
+    // screen-space object instead of hovering at the bottom edge.
+    const x = Math.max(-0.42, Math.min(0.42, ndc.x * 0.46));
+    const y = -0.025 + Math.max(-0.28, Math.min(0.28, ndc.y * 0.36));
+    handTarget.set(x + (twoHanded ? 0 : -0.012), y, -0.65);
+  }
+
+  function updateCheckoutHands(dt) {
+    const holding = !!(grabbed || cardSwipe);
+    if (holding) {
+      const twoHanded = !!(grabbed && grabbed.userData.kind === 'item');
+      const wantedPose = twoHanded ? 'checkoutCarry' : 'checkoutPinch';
+      if (handPose !== wantedPose) checkoutHands.setTool(wantedPose);
+      handPose = wantedPose;
+      handActionT = Math.max(handActionT, 0.34);
+      pointerHandTarget(twoHanded);
+    } else {
+      handActionT = Math.max(0, handActionT - dt);
+      if (handActionT === 0 && handPose) {
+        handPose = null;
+        checkoutHands.setTool(null);
+      }
+    }
+    checkoutHandMount.position.lerp(handTarget, Math.min(1, dt * 14));
+    checkoutHands.update(dt, holding);
+  }
 
   // Short, object-owned motion beats. They never decide whether a transaction is
   // legal; the pure register state has already accepted the action before a tween
@@ -792,6 +845,8 @@ export function createRegisterMode(B) {
     cardSwipe = { samples: [] };
     sampleCardSwipe(e);
     sfx('equipTick');
+    pointerHandTarget(false);
+    handBeat('checkoutPinch', 0.65);
     return true;
   }
 
@@ -811,6 +866,7 @@ export function createRegisterMode(B) {
       swipeFeedbackT = 1.8;
       setCardSwipePosition(0);
       sfx('thunk');
+      toast(swipeFeedback, 'warn');
     }
     drawScreen();
     drawTerm();
@@ -1121,6 +1177,9 @@ export function createRegisterMode(B) {
     grabbed = null;
     drawerWant = 0;
     saleExitT = 0;
+    handActionT = 0;
+    handPose = null;
+    checkoutHands.setTool(null);
     clearFocus();
     document.body.classList.remove('register-mode');
     canvas.style.cursor = '';
@@ -1147,6 +1206,8 @@ export function createRegisterMode(B) {
     const b = barcodeAt(m);
     grabPrev.set(b.x, b.y, b.z);
     if (m.userData.kind === 'item') sfx('equipTick');
+    pointerHandTarget(m.userData.kind === 'item');
+    handBeat(m.userData.kind === 'item' ? 'checkoutCarry' : 'checkoutPinch', 0.65);
   }
 
   function release() {
@@ -1240,6 +1301,9 @@ export function createRegisterMode(B) {
     if (!tx) return false;
     const k = o.userData.kind;
 
+    pointerHandTarget(k === 'palm');
+    handBeat(k === 'palm' ? 'checkoutCarry' : 'checkoutPinch', k === 'palm' ? 0.95 : 0.62);
+
     if (k === 'terminal') { tapTerminal(); return true; }
     if (k === 'total') { totalUp(); return true; }
     if (k === 'pull') { toggleDrawer(); return true; }
@@ -1276,6 +1340,7 @@ export function createRegisterMode(B) {
         palm.userData.pick = false;
         bagRing.visible = false;
         sfx('paper');
+        toast('Passing the packed order over.');
         const carryTarget = palm.position.clone();
         carryTarget.y -= 0.34; // open carrier origin is its base; align its handles to the hand
         moveMesh(bagGroup, carryTarget, 0.62, {
@@ -1492,8 +1557,16 @@ export function createRegisterMode(B) {
     if (!active) return false;
     if (k === 'Escape') { leave(); return true; }
     if (!tx) return true;
-    if (k === 't' || k === 'T') { totalUp(); return true; }
-    if (k === 'd' || k === 'D') { toggleDrawer(); return true; }
+    if (k === 't' || k === 'T') {
+      handBeat('checkoutPinch', 0.58, { x: 0.16, y: -0.08 });
+      totalUp();
+      return true;
+    }
+    if (k === 'd' || k === 'D') {
+      handBeat('checkoutPinch', 0.95, { x: 0.02, y: -0.16 });
+      toggleDrawer();
+      return true;
+    }
     return true;   // behind the till, the till swallows the rest
   }
 
@@ -1536,6 +1609,7 @@ export function createRegisterMode(B) {
   function update(dt) {
     if (tx) syncCustomerPalm();
     updateMotions(dt);
+    updateCheckoutHands(dt);
     if (saleExitT > 0) {
       saleExitT = Math.max(0, saleExitT - dt);
       if (saleExitT === 0) leave();
@@ -1694,6 +1768,12 @@ export function createRegisterMode(B) {
     getTx: () => tx,
     getCustomer: () => cust,
     getSwipeFeedback: () => swipeFeedback,
+    getHandFeedback: () => ({
+      ...checkoutHands.getState(),
+      pose: handPose,
+      actionRemaining: handActionT,
+      mount: checkoutHandMount.position.toArray(),
+    }),
     isCardReadyForSwipe: () => !!(cardMesh && tx && tx.stage === 'card-ready' && !cardMesh.userData.motionLocked),
     isReceiptReady: () => !!(receiptMesh && receiptReady),
     getUiStatus: () => registerGuidance(tx, {
@@ -1714,6 +1794,10 @@ export function createRegisterMode(B) {
     onKey,
     tapTerminal,
     drawScreen,
+    dispose() {
+      camera.remove(checkoutHandMount);
+      checkoutHands.dispose();
+    },
     // the HUD prompt when you are standing at the counter, out of register mode
     label() {
       if (!tx) return null;

@@ -2607,11 +2607,18 @@ export function makeClubhouse(ctx) {
         // them up — patience runs out eventually and the pick goes back
         if (stop.kind === 'counter' && c.cart.length && counterQueue.indexOf(c) === 0) {
           if (!c.awaitingCheckout) {
+            // The completed sale holds its cashier framing for a short paid beat.
+            // Do not let the new head of the queue lay goods into that shot or
+            // silently start a second transaction before control returns.
+            if (register.isActive()) {
+              if (char) char.setMode('Idle');
+              continue;
+            }
             // they reach the counter and LAY THEIR GOODS OUT on it, one by one
             c.onPaid = () => onCustomerPaid(c);
-            register.begin(c);
+            c.awaitingCheckout = register.begin(c);
           }
-          c.awaitingCheckout = true;
+          if (!c.awaitingCheckout) continue;
           c.patience -= dt;
           setPatience(c);
           if (char) char.setMode(c.tx ? 'Checkout' : 'Idle');
@@ -2759,6 +2766,7 @@ export function makeClubhouse(ctx) {
     // tearing the scene down must not pocket whatever shoppers were holding: the save is written
     // from `state`, and stock in a deleted shopper's hands would simply cease to exist.
     for (let i = customers.length - 1; i >= 0; i--) removeCustomer(i);
+    register.dispose();
   }
 
   return {
@@ -2794,6 +2802,7 @@ export function makeClubhouse(ctx) {
       getTx: () => register.getTx(),
       getCustomer: () => register.getCustomer(),
       getSwipeFeedback: () => register.getSwipeFeedback(),
+      getHandFeedback: () => register.getHandFeedback(),
       isCardReadyForSwipe: () => register.isCardReadyForSwipe(),
       isReceiptReady: () => register.isReceiptReady(),
       getCompletedCarrier: () => {
