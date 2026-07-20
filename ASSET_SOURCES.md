@@ -174,7 +174,7 @@ downloads, external textures, generated assets, or generation credits were used.
 | `basket_station.glb` | Open scorecard stand with two visible nested basket positions |
 | `demo_club_rack.glb` | Three-putter trial rack parked beside the walkable demo mat |
 | `feature_table.glb` | Low nested oak new-arrivals/apparel island |
-| `fitting_room.glb` | Three-sided fitting room, curtain, mirror, and bench |
+| `fitting_room.glb` | Three-sided fitting room, curtain, mirror, bench, and interior garment hooks |
 | `drinks_fridge.glb` | Glass-front compact cold case |
 | `snack_rack.glb` | Four-tier turn-snack rack |
 | `service_station.glb` | Scorecard and membership-information stand |

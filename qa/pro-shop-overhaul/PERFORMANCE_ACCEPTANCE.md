@@ -83,6 +83,10 @@ The walking median worst-frame value rose from the single baseline sample's 25.2
 
 The first repeated run exposed a real character-resource leak: ten-customer resets grew `renderer.info.memory.geometries` from 1,565 to 1,830 to 2,092. Customer removal detached character roots but did not dispose their owned procedural geometries/materials. The accepted fix gives each character an idempotent disposer and calls it for shop customers and course golfers. The final stress sequence is flat-to-down at 1,320, 1,319, 1,317.
 
+### Post-acceptance fitting-asset check
+
+The final literal asset audit added two small brass garment hooks inside the existing fitting-room GLB. `fitting-hook-validation/` re-ran normal entry and the tier-3 fitting camera in the shipped game. `fitting-performance-validation/run.json` then repeated the same hardware scenarios: empty 120.00/117.65 FPS, full ten-shopper stress 35.43/23.98 FPS with a 100 ms worst frame, and walk 117.01/117.65 FPS. Stress resources remained at 1,319 GPU geometries, 303 materials, 194 textures, and 6,091.66 estimated texture MiB. The static asset revision therefore remains inside every declared gate and does not reopen the repeated leak result.
+
 ## Diagnostics and result
 
 The accepted run recorded one D3D shader compiler warning about a potentially uninitialized dynamic index. There were no page errors or HTTP 4xx/5xx responses. Five unrelated GLB requests were aborted when the headless browser context closed; the in-game loaded-asset diagnostics and normal route captures remain successful, so these are classified as teardown-only request aborts.

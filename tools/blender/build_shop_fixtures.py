@@ -242,6 +242,15 @@ def build_fitting_room(M):
     part(p, 'bench', (0.92, 0.38, 0.34), (0.38, 0.42, 0.17), M['oak'], bevel_w=0.035)
     part(p, 'mirror_frame', (0.76, 0.055, 1.70), (-0.48, 0.655, 1.15), M['brass'], bevel_w=0.014)
     part(p, 'mirror', (0.67, 0.025, 1.60), (-0.48, 0.62, 1.15), M['glass'], bevel_w=0.006)
+    # Two reachable brass garment hooks on the interior back wall. Keep them separate and proud
+    # of the panel so they read as usable fittings instead of painted dots.
+    for x in (0.42, 0.70):
+        hook = cyl('garment_hook', 0.018, 0.16, loc=(x, 0.62, 1.54),
+                   rot=(math.pi / 2, 0, 0), verts=10)
+        assign(hook, M['brass'])
+        p.append(hook)
+        part(p, 'garment_hook_stop', (0.055, 0.025, 0.055),
+             (x, 0.525, 1.54), M['brass'], bevel_w=0.009)
     return finish(p, 'fitting_room')
 
 
