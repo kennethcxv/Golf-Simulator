@@ -291,6 +291,19 @@ function collisionEntries(state, excludeId = null) {
       volumes: [{ cx: obstacle.x, cz: obstacle.z, halfW: obstacle.width / 2, halfD: obstacle.depth / 2, ry: obstacle.ry || 0 }],
     });
   }
+  // Renovation clutter has a real 0.9 x 0.9 player/customer collider in the
+  // clubhouse scene. Placement must see that same obstacle or a sofa can be
+  // accepted through the abandoned cartons and loose packing material. Once the
+  // player hauls a pile out, `cleared` removes it from both systems immediately.
+  for (const [index, pile] of (state.shop?.reno?.clutter || []).entries()) {
+    if (pile.cleared) continue;
+    entries.push({
+      id: `reno-clutter-${index}`,
+      label: 'old clutter',
+      range: { minY: 0, maxY: 0.9 },
+      volumes: [{ cx: pile.x, cz: pile.z, halfW: 0.45, halfD: 0.45, ry: 0 }],
+    });
+  }
   return entries;
 }
 
@@ -625,6 +638,9 @@ function validateObjectOverlap(state, meta, candidate, result) {
   const candidateVolumes = volumesFor(meta, candidate);
   const parentSurface = candidate.attachment?.parentId ? placementSurfaceById(state, candidate.attachment.parentId) : null;
   for (const other of collisionEntries(state, meta.id)) {
+    // The authored shop/checkout plan predates and intentionally owns the room;
+    // only player-movable GLB furnishings need to avoid the renovation piles.
+    if (other.id.startsWith('reno-clutter-') && meta.render?.kind !== 'glb') continue;
     if (parentSurface?.ownerId && other.id === parentSurface.ownerId) continue;
     if (!rangesOverlap(candidateRange, other.range)) continue;
     if (candidateVolumes.some((a) => other.volumes.some((b) => obbOverlap(a, b)))) {
