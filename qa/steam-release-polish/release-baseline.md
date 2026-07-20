@@ -8,7 +8,7 @@ Captured 2026-07-19 from the untouched gameplay at the branch starting commit.
 - Starting commit: `0c5137e5f0efac9627ce2309b9e66936f1eeb769`
 - Source: newest verifiable local `main`; no Git remote is configured
 - Starting branch worktree: clean
-- Isolation: `C:\Users\Kenneth\Documents\GitHub\Golf-Flipper-steam-release-polish`
+- Isolation: dedicated `Golf-Flipper-steam-release-polish` worktree
 - Pre-existing active worktrees: inspected and left untouched
 - Baseline unit suite: 516 passed, 0 failed, 0 skipped in 4.42 seconds
 - Dependency audit: one high-severity direct dependency finding on Electron 33; remediation requires a major Electron upgrade and remains outside the initial checkout fix pass

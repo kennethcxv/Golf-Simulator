@@ -1,0 +1,1152 @@
+{
+  "configuration": {
+    "browser": "Google Chrome via Playwright",
+    "viewport": "1600x900",
+    "deviceScaleFactor": 1,
+    "quality": "runtime default",
+    "fixedTime": "14:00",
+    "fixture": "relaxed seed 424242, two-item card customer, fully stocked sale inventory",
+    "warmupMs": 3300,
+    "characterInstances": 0,
+    "rendererStability": {
+      "idle": {
+        "label": "idle",
+        "stable": true,
+        "waitedMs": 2198,
+        "samples": [
+          {
+            "geometries": 1068,
+            "textures": 223
+          },
+          {
+            "geometries": 1068,
+            "textures": 223
+          },
+          {
+            "geometries": 1068,
+            "textures": 223
+          },
+          {
+            "geometries": 1068,
+            "textures": 223
+          },
+          {
+            "geometries": 1068,
+            "textures": 223
+          }
+        ]
+      },
+      "crowd": null,
+      "active": {
+        "label": "register-active",
+        "stable": true,
+        "waitedMs": 2123,
+        "samples": [
+          {
+            "geometries": 1040,
+            "textures": 232
+          },
+          {
+            "geometries": 1040,
+            "textures": 232
+          },
+          {
+            "geometries": 1040,
+            "textures": 232
+          },
+          {
+            "geometries": 1040,
+            "textures": 232
+          },
+          {
+            "geometries": 1040,
+            "textures": 232
+          }
+        ]
+      },
+      "postStress": {
+        "label": "post-stress",
+        "stable": true,
+        "waitedMs": 2065,
+        "samples": [
+          {
+            "geometries": 1081,
+            "textures": 232
+          },
+          {
+            "geometries": 1081,
+            "textures": 232
+          },
+          {
+            "geometries": 1081,
+            "textures": 232
+          },
+          {
+            "geometries": 1081,
+            "textures": 232
+          },
+          {
+            "geometries": 1081,
+            "textures": 232
+          }
+        ]
+      }
+    }
+  },
+  "customer": "Sam T.",
+  "idle": {
+    "label": "idle-fixed-camera",
+    "durationMs": 5019.200000047684,
+    "frameSamples": 229,
+    "averageFps": 45.62389177817136,
+    "onePercentLowFps": 4.508566274470343,
+    "worstFrameMs": 346,
+    "p95FrameMs": 43.800000071525574,
+    "p99FrameMs": 221.80000007152557,
+    "longFramesOver50Ms": 10,
+    "averageDrawCalls": 2517.349344978166,
+    "peakDrawCalls": 3319,
+    "averageTriangles": 3851919.7598253274,
+    "peakTriangles": 3983237,
+    "averageCpuRenderMs": 13.994323142751336,
+    "worstCpuRenderMs": 114.39999997615814,
+    "scene": {
+      "nodes": 1451,
+      "meshes": 1193,
+      "geometries": 1097,
+      "materials": 253,
+      "textures": 178,
+      "shadowCasters": 333,
+      "estimatedTextureBytes": 480527765.33333254,
+      "uniqueImages": 174,
+      "estimatedUniqueImageBytes": 477032511.99999917,
+      "largestImages": [
+        {
+          "source": "http://localhost:18559/vendor/textures/fairway_diff.jpg",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "http://localhost:18559/vendor/textures/fairway_nor.jpg",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        }
+      ],
+      "texturesWithoutDimensions": 0,
+      "rendererMemory": {
+        "geometries": 1068,
+        "textures": 223
+      }
+    },
+    "jsHeap": {
+      "usedBytes": 120590808,
+      "totalBytes": 144378152,
+      "limitBytes": 4395630592
+    },
+    "listeners": {
+      "before": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "after": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "netGrowth": 0
+    },
+    "canvas2d": {
+      "fillTextCalls": 0,
+      "fillRectCalls": 4,
+      "getImageDataCalls": 0,
+      "bySize": {
+        "512x512": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x256": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x384": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "384x160": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x192": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x96": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "462x70": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "504x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "952x56": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x182": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x224": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x288": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "600x400": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "280x104": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x320": {
+          "fillText": 0,
+          "fillRect": 4,
+          "getImageData": 0
+        },
+        "480x304": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        }
+      }
+    }
+  },
+  "crowd": null,
+  "crowdStability": null,
+  "active": {
+    "label": "register-active",
+    "durationMs": 8018.100000023842,
+    "frameSamples": 669,
+    "averageFps": 83.2431221777538,
+    "onePercentLowFps": 42.735042778584734,
+    "worstFrameMs": 28.59999990463257,
+    "p95FrameMs": 19.5,
+    "p99FrameMs": 23.399999976158142,
+    "longFramesOver50Ms": 0,
+    "averageDrawCalls": 2787.8878923766815,
+    "peakDrawCalls": 2809,
+    "averageTriangles": 3647426.1225710013,
+    "peakTriangles": 3654164,
+    "averageCpuRenderMs": 11.109566518722271,
+    "worstCpuRenderMs": 27.899999976158142,
+    "scene": {
+      "nodes": 1575,
+      "meshes": 1283,
+      "geometries": 1103,
+      "materials": 271,
+      "textures": 187,
+      "shadowCasters": 405,
+      "estimatedTextureBytes": 481794794.66666585,
+      "uniqueImages": 183,
+      "estimatedUniqueImageBytes": 478299541.3333325,
+      "largestImages": [
+        {
+          "source": "http://localhost:18559/vendor/textures/fairway_diff.jpg",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "http://localhost:18559/vendor/textures/fairway_nor.jpg",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        }
+      ],
+      "texturesWithoutDimensions": 0,
+      "rendererMemory": {
+        "geometries": 1040,
+        "textures": 232
+      }
+    },
+    "jsHeap": {
+      "usedBytes": 87610994,
+      "totalBytes": 158293318,
+      "limitBytes": 4395630592
+    },
+    "listeners": {
+      "before": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "after": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "netGrowth": 0
+    },
+    "canvas2d": {
+      "fillTextCalls": 0,
+      "fillRectCalls": 8,
+      "getImageDataCalls": 0,
+      "bySize": {
+        "512x512": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x256": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x384": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "384x160": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x192": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x96": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "462x70": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "504x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "952x56": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x182": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x224": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x288": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "600x400": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "280x104": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x320": {
+          "fillText": 0,
+          "fillRect": 8,
+          "getImageData": 0
+        },
+        "480x304": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "384x240": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "192x144": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        }
+      }
+    }
+  },
+  "stress": {
+    "cycles": 25,
+    "normalReentryFailures": 0,
+    "before": {
+      "listeners": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "heap": 87610994
+    },
+    "after": {
+      "listeners": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "heap": 96590212
+    },
+    "listenerNetGrowth": 0,
+    "heapGrowthBytes": 8979218
+  },
+  "postStress": {
+    "label": "register-post-25-transitions",
+    "durationMs": 5015.199999928474,
+    "frameSamples": 511,
+    "averageFps": 101.7989122870453,
+    "onePercentLowFps": 55.24861907563088,
+    "worstFrameMs": 24.899999976158142,
+    "p95FrameMs": 14.199999928474426,
+    "p99FrameMs": 18.09999990463257,
+    "longFramesOver50Ms": 0,
+    "averageDrawCalls": 2821,
+    "peakDrawCalls": 2821,
+    "averageTriangles": 3643616,
+    "peakTriangles": 3643616,
+    "averageCpuRenderMs": 9.124461841676567,
+    "worstCpuRenderMs": 24.100000023841858,
+    "scene": {
+      "nodes": 1582,
+      "meshes": 1287,
+      "geometries": 1104,
+      "materials": 272,
+      "textures": 187,
+      "shadowCasters": 409,
+      "estimatedTextureBytes": 481794794.66666585,
+      "uniqueImages": 183,
+      "estimatedUniqueImageBytes": 478299541.3333325,
+      "largestImages": [
+        {
+          "source": "http://localhost:18559/vendor/textures/fairway_diff.jpg",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "http://localhost:18559/vendor/textures/fairway_nor.jpg",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        },
+        {
+          "source": "ImageBitmap:1024x1024",
+          "width": 1024,
+          "height": 1024,
+          "estimatedBytes": 5592405.333333333
+        }
+      ],
+      "texturesWithoutDimensions": 0,
+      "rendererMemory": {
+        "geometries": 1081,
+        "textures": 232
+      }
+    },
+    "jsHeap": {
+      "usedBytes": 100038181,
+      "totalBytes": 142775189,
+      "limitBytes": 4395630592
+    },
+    "listeners": {
+      "before": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "after": {
+        "added": 116,
+        "removed": 34,
+        "byType": {
+          "pointerdown": 3,
+          "keydown": 4,
+          "click": 47,
+          "pointermove": 1,
+          "pointerup": 3,
+          "wheel": 1,
+          "contextmenu": 2,
+          "keyup": 2,
+          "blur": 2,
+          "pointerlockchange": 1,
+          "resize": 1,
+          "input": 1,
+          "change": 1,
+          "webglcontextlost": 1,
+          "webglcontextrestored": 1,
+          "webglcontextcreationerror": 1,
+          "load": 0,
+          "error": 0,
+          "mousemove": 2,
+          "__playwright_global_listeners_check__": 1,
+          "touchstart": 1,
+          "touchend": 1,
+          "touchcancel": 1,
+          "mousedown": 1,
+          "mouseup": 1,
+          "auxclick": 1,
+          "dblclick": 1
+        }
+      },
+      "netGrowth": 0
+    },
+    "canvas2d": {
+      "fillTextCalls": 0,
+      "fillRectCalls": 5,
+      "getImageDataCalls": 0,
+      "bySize": {
+        "512x512": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x256": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x384": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "384x160": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x192": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x96": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "128x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "462x70": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "504x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "952x56": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x168": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "644x182": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x128": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x224": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "256x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x288": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "600x400": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x112": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "280x104": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "512x320": {
+          "fillText": 0,
+          "fillRect": 5,
+          "getImageData": 0
+        },
+        "480x304": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "1024x640": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "96x64": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "384x240": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        },
+        "192x144": {
+          "fillText": 0,
+          "fillRect": 0,
+          "getImageData": 0
+        }
+      }
+    }
+  },
+  "runnerDiagnostics": []
+}

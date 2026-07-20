@@ -1,8 +1,8 @@
 {
   "ok": true,
   "port": "9226",
-  "userDataDir": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-steam-release-polish\\qa\\steam-release-polish\\electron43\\user-data",
-  "screenshotPath": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-steam-release-polish\\qa\\steam-release-polish\\electron43\\after.png",
+  "userDataDir": "qa/steam-release-polish/electron43/user-data",
+  "screenshotPath": "qa/steam-release-polish/electron43/after.png",
   "checks": {
     "Electron 43 runtime": {
       "ok": true,
@@ -38,7 +38,7 @@
     },
     "slot1 exists in isolated userData": {
       "ok": true,
-      "detail": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-steam-release-polish\\qa\\steam-release-polish\\electron43\\user-data\\saves\\slot1.json"
+      "detail": "qa/steam-release-polish/electron43/user-data/saves/slot1.json"
     },
     "native slot is valid JSON": {
       "ok": true,
@@ -66,7 +66,7 @@
     },
     "Electron gameplay screenshot captured": {
       "ok": true,
-      "detail": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-steam-release-polish\\qa\\steam-release-polish\\electron43\\after.png"
+      "detail": "qa/steam-release-polish/electron43/after.png"
     },
     "native delete round-trip": {
       "ok": true,

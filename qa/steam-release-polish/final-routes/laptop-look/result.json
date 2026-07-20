@@ -1,0 +1,174 @@
+{
+  "log": [
+    {
+      "step": "seated at the laptop",
+      "viewport": {
+        "w": 1600,
+        "h": 900
+      },
+      "screenQuadPx": {
+        "w": 1157,
+        "h": 702
+      },
+      "coverage": {
+        "widthFrac": 0.723,
+        "heightFrac": 0.78,
+        "areaFrac": 0.548
+      },
+      "uiScale": {
+        "x": 1.129,
+        "y": 1.097
+      },
+      "declaredBodyFontPx": 15,
+      "effectiveBodyFontPx": 16.45,
+      "frameSize": {
+        "w": 1157,
+        "h": 702
+      },
+      "transform": "matrix3d(1.12943, -1.45574e-16, 0, 0, 0.0720229, 1.1624, 0, ...",
+      "pointerLocked": false,
+      "cursorVisible": "auto"
+    },
+    {
+      "step": "nav buttons, as the real mouse sees them",
+      "navProbe": [
+        {
+          "text": "🏠Home",
+          "cx": 328,
+          "cy": 90,
+          "w": 193,
+          "h": 31
+        },
+        {
+          "text": "🏪Pro Shop",
+          "cx": 331,
+          "cy": 151,
+          "w": 192,
+          "h": 31
+        },
+        {
+          "text": "🛒Supplier",
+          "cx": 332,
+          "cy": 182,
+          "w": 192,
+          "h": 31
+        },
+        {
+          "text": "📦Orders",
+          "cx": 333,
+          "cy": 214,
+          "w": 191,
+          "h": 30
+        },
+        {
+          "text": "🚚Deliveries",
+          "cx": 334,
+          "cy": 246,
+          "w": 191,
+          "h": 30
+        },
+        {
+          "text": "📋Inventory",
+          "cx": 335,
+          "cy": 277,
+          "w": 190,
+          "h": 30
+        },
+        {
+          "text": "🏷Pricing",
+          "cx": 336,
+          "cy": 308,
+          "w": 190,
+          "h": 30
+        },
+        {
+          "text": "📅Reservations",
+          "cx": 339,
+          "cy": 367,
+          "w": 189,
+          "h": 30
+        },
+        {
+          "text": "⛳Course",
+          "cx": 340,
+          "cy": 397,
+          "w": 189,
+          "h": 30
+        },
+        {
+          "text": "🛄Carts & rentals",
+          "cx": 341,
+          "cy": 428,
+          "w": 188,
+          "h": 29
+        },
+        {
+          "text": "👥Employees",
+          "cx": 342,
+          "cy": 458,
+          "w": 188,
+          "h": 29
+        },
+        {
+          "text": "💰Finances",
+          "cx": 344,
+          "cy": 515,
+          "w": 187,
+          "h": 29
+        },
+        {
+          "text": "⭐Reviews",
+          "cx": 345,
+          "cy": 545,
+          "w": 186,
+          "h": 29
+        },
+        {
+          "text": "📈Analytics",
+          "cx": 346,
+          "cy": 575,
+          "w": 186,
+          "h": 29
+        },
+        {
+          "text": "🔨Renovation",
+          "cx": 348,
+          "cy": 631,
+          "w": 185,
+          "h": 28
+        },
+        {
+          "text": "⚙Settings",
+          "cx": 349,
+          "cy": 661,
+          "w": 185,
+          "h": 28
+        },
+        {
+          "text": "⏻  Close the lid",
+          "cx": 351,
+          "cy": 705,
+          "w": 184,
+          "h": 27
+        }
+      ]
+    },
+    {
+      "step": "clicked Supplier through the physical screen",
+      "pageTitle": "Supplier",
+      "productImages": 32,
+      "firstImgSrc": "data:image/png;base64,iVBORw0K",
+      "icons": 0
+    },
+    {
+      "step": "escaped",
+      "laptopOpen": false,
+      "domStillThere": false,
+      "roots": 1,
+      "walkActive": true
+    }
+  ],
+  "errors": [],
+  "errorCount": 0,
+  "runnerDiagnostics": []
+}

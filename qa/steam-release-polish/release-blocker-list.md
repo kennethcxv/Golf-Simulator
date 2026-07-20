@@ -62,13 +62,24 @@ Resolved by the four checkout iterations:
 - `H-001` through `H-009`, `H-011`, and `H-014`
 - `M-001`, `M-003`, and `M-006`
 
-Still open for the overall Steam release gate:
+Resolved by the final register-presentation pass:
 
-- `M-002`, `M-004`, `M-005`, `M-007`, `P-001`, `P-002`: presentation and
-  secondary-behavior follow-ups remain as originally recorded.
-Accordingly, checkout acceptance was not by itself a claim that the entire
-repository was ready to ship on Steam; subsequent sections record the broader
-release-gate dispositions.
+- `M-002`: restoration cartons and clutter were moved out of the customer and
+  register silhouette, with versioned migration for existing saves.
+- `M-004`: customers visibly carry a filled authored basket, place it on the
+  counter, and leave without a duplicate basket after handoff or cancellation.
+- `M-005`: the live terminal now shows and enforces a 15-second card-session
+  timeout, returns the expired card, and supports a clean retry.
+- `M-007`: the POS, scanner, terminal, and printer have a deliberate scale and
+  task hierarchy, reinforced by compact workflow plaques.
+- `P-001`: signage and display labels were resized and repositioned away from
+  window and product sightlines.
+- `P-002`: brand, operational UI, and numeric/data surfaces now use explicit
+  serif, sans-serif, and monospace roles with restrained casing.
+
+Four browser iterations, both payment branches, timeout/retry, recovery,
+performance, shader, and packaged-desktop evidence are documented in
+`register-presentation/report.md`.
 
 ## Menu gate disposition
 
@@ -117,3 +128,34 @@ unrequested navigation/windows/webviews are denied. An isolated real-Electron
 run proves menu boot, native files, reload/Continue, WebGL, pointer lock,
 cleanup, and zero console/CSP errors. Evidence is documented in
 `electron43/report.md`.
+
+## Final release-gate disposition
+
+All 31 baseline findings are resolved. There are no known blocker, critical,
+high, medium, low, or cosmetic defects remaining in the checkout-first release
+scope established by repository instructions.
+
+The broader final-player routes found and resolved seven additional release-polish
+defects after the checkout gate was accepted:
+
+| ID | Severity | Area | Finding | Disposition |
+|---|---|---|---|---|
+| F-001 | High | Pause | Opening and closing the pause menu changed an intentionally paused speed of zero back to normal speed. | Fixed; the exact prior speed is restored and the world route proves zero remains zero. |
+| F-002 | High | Accessibility | Reduced motion, UI scale, tool-sway control, and hold/toggle tool use were absent or nonfunctional. | Fixed; all controls apply, persist, and are asserted through the normal pause menu. |
+| F-003 | Medium | Settings | FOV changed the camera but its visible value stayed at 60 degrees; sensitivity had no numeric value. | Fixed; both values update live and the 125% UI capture remains unclipped. |
+| F-004 | Medium | Branding | The office map used Pinehollow and the entrance monument retained baked Greenfield branding in a Willow Creek save. | Fixed with live save branding; the raw monument asset remains untouched. |
+| F-005 | Medium | Stockroom | Every backroom rack duplicated the entire stored quantity, creating overflowing cartons. | Fixed with shared six-unit case allocation and rack-specific capacity/slot tests. |
+| F-006 | Medium | Checkout feedback | A failed-swipe warning could remain visible after a later swipe had already entered authorization. | Fixed; accepted gestures clear superseded checkout feedback. |
+| F-007 | Low | QA portability | Several browser routes embedded one machine's Playwright cache and output paths. | Fixed with repository-relative output, base URL, and dynamic local Playwright discovery. |
+
+All seven supplemental findings are resolved; final open count remains zero.
+
+| Severity | Baseline | Final open |
+|---|---:|---:|
+| Blocker | 3 | 0 |
+| Critical | 3 | 0 |
+| High | 14 | 0 |
+| Medium | 8 | 0 |
+| Low | 1 | 0 |
+| Cosmetic | 2 | 0 |
+| Total | 31 | 0 |

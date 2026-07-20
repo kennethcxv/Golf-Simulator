@@ -1,0 +1,63 @@
+{
+  "log": [
+    {
+      "step": "1. before touching anything",
+      "ballsMarkup": 1,
+      "greenFee": 32,
+      "clubName": "Willow Creek Municipal",
+      "orders": 0,
+      "cash": 39854.78
+    },
+    {
+      "step": "2. sliders moved on the physical screen",
+      "sliders": 6,
+      "greenFee": 58,
+      "ballsMarkup": 1.28,
+      "check": "OK — the sliders wrote straight into the club"
+    },
+    {
+      "step": "3. order placed through the screen",
+      "confirmationAppeared": true,
+      "orders": 1,
+      "cash": 39734.78,
+      "check": "OK — an order exists and it was paid for"
+    },
+    {
+      "step": "4. that order cancelled through the screen",
+      "orders": 0,
+      "cash": 39854.78,
+      "shopOrdersLine": 0,
+      "refunded": 120,
+      "check": "OK — the money came back and the order is gone"
+    },
+    {
+      "step": "5. AUTOSAVE taken",
+      "clubName": "Pinehollow Golf Club",
+      "greenFee": 58,
+      "ballsMarkup": 1.28,
+      "orders": 1,
+      "cash": 39619.78,
+      "salesWindowDays": 0
+    },
+    {
+      "step": "6. RELOADED",
+      "clubName": "Pinehollow Golf Club",
+      "greenFee": 58,
+      "ballsMarkup": 1.28,
+      "orders": 1,
+      "cash": 39619.78,
+      "salesWindowDays": 0,
+      "checks": {
+        "pricesKept": "OK — green fee 58, balls markup 1.28",
+        "nameKept": "OK — \"Pinehollow Golf Club\"",
+        "orderKept": "OK — 1 still on the truck",
+        "cashKept": "OK — cash identical across the save",
+        "velocityKept": "OK — the sales window survived",
+        "laptopUsableAgain": "OK — sat back down after the reload (this screenshot)"
+      }
+    }
+  ],
+  "errs": [],
+  "errCount": 0,
+  "runnerDiagnostics": []
+}

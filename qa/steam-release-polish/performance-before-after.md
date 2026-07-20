@@ -100,4 +100,32 @@ Paired raw results:
 
 The final 100-cycle soak completed 100/100 normal Escape/`E` re-entries, with zero listener growth, zero texture growth, a stable post-run renderer sample, and +9 renderer geometries versus +194 before the disposal fix. Used heap fell by 63.17 MiB across the measured stress interval. Register canvas activity is event-driven: the active eight-second samples recorded zero `fillText`, seven `fillRect`, and zero `getImageData` calls; the post-transition five-second sample recorded zero, five, and zero respectively. No register canvas is redrawn per frame.
 
-Result: the checkout changes pass the performance regression gate. The remaining thousands of draw calls, millions of triangles, 5.91 GiB decoded-image estimate, and known Chromium/ANGLE X4000 warning are project-wide follow-up risks, not regressions introduced by this checkout increment.
+Result: the checkout changes passed their contemporaneous performance regression gate. The
+figures above are retained as the checkout-iteration record; the final branch measurement
+below supersedes the resource-risk conclusion from that earlier milestone.
+
+## Final branch measurement
+
+The same 1600x900, seed 424242, fully stocked shop and two-item transaction route was rerun
+after the character, texture, shadow, reflection, shader, and final presentation passes.
+
+| Metric | Release baseline | Final branch | Change |
+|---|---:|---:|---:|
+| Idle draw calls | 4,948 | 2,559.3 | -48.3% |
+| Idle triangles | 5,667,031 | 3,866,038 | -31.8% |
+| Active-checkout draw calls | 3,907 | 2,817.6 | -27.9% |
+| Active-checkout triangles | 5,838,390 | 3,646,593 | -37.5% |
+| Active shadow casters | 494 | 405 | -18.0% |
+| Unique decoded-image estimate | 6,054.5 MiB | 458.3 MiB | -92.4% |
+| Listener growth after 25 transitions | 0 | 0 | stable |
+
+The final 25-transition run recorded zero re-entry failures and no runner diagnostics. Used
+heap rose 14.1 MiB during the stress interval and settled at 80.7 MiB post-stress; renderer
+geometry and texture counts were stable at idle, active checkout, and post-stress. This final
+run averaged 66.7 FPS idle and 72.4 FPS in active checkout, with 23.1/34.8 ms idle and
+18.4/30.3 ms active p95/p99 frame times. Those timing samples remain host-sensitive and are
+not used as a causal before/after claim. Deterministic render workload is substantially lower.
+
+The ANGLE shader diagnostic is now empty, texture dimensions are capped by the repeatable
+asset pipeline, and the final route is recorded in
+`final-routes/performance-final/result.json`.
