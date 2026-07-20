@@ -1270,8 +1270,10 @@ export function makeCourseScene(canvas, state) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
       // how far outside the property this vertex sits
-      const dx = Math.max(0, Math.abs(x) - halfW);
-      const dz = Math.max(0, Math.abs(z) - halfH);
+      const sdx = Math.abs(x) - halfW;
+      const sdz = Math.abs(z) - halfH;
+      const dx = Math.max(0, sdx);
+      const dz = Math.max(0, sdz);
       const outside = Math.hypot(dx, dz);
       const edgeH = heightAt(clamp(x, -halfW + 1, halfW - 1), clamp(z, -halfH + 1, halfH - 1));
       if (outside <= 0.001) {
