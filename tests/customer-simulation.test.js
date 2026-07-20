@@ -2,7 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { newGame, serialize, deserialize } from '../src/sim/state.js';
-import { bookSlot, cancelReservation } from '../src/sim/reservations.js';
+import {
+  bookSlot,
+  cancelReservation,
+  checkInReservation,
+  confirmReservation,
+  moveReservation,
+} from '../src/sim/reservations.js';
 import { heldUnits } from '../src/sim/checkout.js';
 import {
   CUSTOMER_INTENT,
@@ -12,7 +18,10 @@ import {
   MAX_SERVICE_QUEUE,
   RECOVERY_ACTION,
   activateArrival,
+  activateReservationCustomer,
   claimSocket,
+  claimReservationCustomer,
+  completeReservationCustomerParty,
   createFixtureCustomer,
   customerById,
   customerSimulationOf,
@@ -126,6 +135,73 @@ test('booking and cancellation use the customer-arrival extension point', () => 
   assert.ok(arrival, 'the booking has a physical-arrival record');
   assert.equal(cancelReservation(state, booked.res.id).ok, true);
   assert.equal(arrival.status, 'Cancelled');
+});
+
+test('canonical tee-time moves update one physical arrival and active cancellation releases its party', () => {
+  const state = newGame('relaxed', 918);
+  const booked = bookSlot(state, 0, 9 * 60, {
+    holder: 'Canonical Arrival',
+    partySize: 2,
+    arrivalOffsetMin: -12,
+  });
+  assert.equal(booked.ok, true);
+  const sim = ensureCustomerSimulation(state);
+  const original = sim.scheduled.find((entry) => entry.reservationId === booked.res.id);
+  assert.equal(original.scheduledMinute, booked.res.arrival.plannedMinute);
+
+  const moved = moveReservation(state, booked.res.id, 0, 10 * 60);
+  assert.equal(moved.ok, true);
+  const matching = sim.scheduled.filter((entry) => entry.reservationId === booked.res.id);
+  assert.equal(matching.length, 1, 'moving a booking must not create another customer arrival');
+  assert.equal(matching[0].id, original.id);
+  assert.equal(matching[0].scheduledMinute, moved.reservation.arrival.plannedMinute);
+
+  const activated = activateReservationCustomer(state, moved.reservation, state.clock.minutes);
+  assert.equal(activated.ok, true);
+  assert.equal(activated.party.length, 2);
+  assert.ok(activated.party.every((customer) => customer.reservationId === booked.res.id));
+  assert.equal(cancelReservation(state, booked.res.id).ok, true);
+  assert.equal(matching[0].status, 'Cancelled');
+  assert.ok(activated.party.every((customer) => customer.state === CUSTOMER_STATE.LEAVING));
+});
+
+test('a physical walk-in claims one canonical prepaid booking without duplicate revenue or lead customers', () => {
+  const state = newGame('relaxed', 919);
+  const walkIn = createFixtureCustomer(state, CUSTOMER_INTENT.WALK_IN_TEE_TIME, { name: 'Waiting Walk-in' });
+  joinServiceQueue(state, walkIn);
+  transitionCustomer(state, walkIn, CUSTOMER_STATE.FRONT_DESK_INQUIRY, 'waiting at the physical desk', state.clock.minutes, { force: true });
+  const booked = bookSlot(state, 0, 9 * 60, {
+    holder: 'Booked Walk-in',
+    partySize: 2,
+    walkIn: true,
+    arrived: true,
+    paymentPlan: 'prepaid',
+    paymentMethod: 'card',
+    cardOnFile: true,
+  });
+  assert.equal(booked.ok, true);
+  const cashAfterBooking = state.cash;
+  const financeCountAfterBooking = state.reservations.financeEntries.length;
+
+  const claimed = claimReservationCustomer(state, walkIn, booked.res, state.clock.minutes);
+  assert.equal(claimed.ok, true);
+  assert.equal(claimed.party.filter((customer) => customer.partyIndex === 0).length, 1);
+  assert.equal(claimed.party[0].id, walkIn.id, 'the person already at the desk remains the lead');
+  assert.equal(customerSimulationOf(state).active.filter((customer) => customer.reservationId === booked.res.id).length, 2);
+  assert.equal(state.cash, cashAfterBooking, 'physical binding never charges the booking again');
+  assert.equal(state.reservations.financeEntries.length, financeCountAfterBooking);
+
+  assert.equal(confirmReservation(state, booked.res.id).ok, true);
+  assert.equal(checkInReservation(state, booked.res.id).ok, true);
+  const cashAfterCheckIn = state.cash;
+  const financeCountAfterCheckIn = state.reservations.financeEntries.length;
+  const completed = completeReservationCustomerParty(state, booked.res.id, state.clock.minutes);
+  assert.equal(completed.ok, true);
+  assert.equal(completed.completed, 2);
+  assert.ok(claimed.party.every((customer) => customer.state === CUSTOMER_STATE.CHECK_IN));
+  assert.equal(state.cash, cashAfterCheckIn, 'physical release never posts booking revenue');
+  assert.equal(state.reservations.financeEntries.length, financeCountAfterCheckIn);
+  assert.equal(customerSimulationOf(state).scheduled.find((entry) => entry.reservationId === booked.res.id).status, 'Completed');
 });
 
 test('a reservation party arrives together but only its lead owns check-in intent', () => {

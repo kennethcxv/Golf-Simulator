@@ -293,7 +293,7 @@ export function cancelReservationCustomer(state, reservationId) {
   const sim = ensureCustomerSimulation(state);
   let cancelled = 0;
   for (const arrival of sim.scheduled) {
-    if (arrival.reservationId === reservationId && [CUSTOMER_STATE.SCHEDULED, 'Released'].includes(arrival.status)) {
+    if (arrival.reservationId === reservationId && [CUSTOMER_STATE.SCHEDULED, 'Released', 'Active'].includes(arrival.status)) {
       arrival.status = 'Cancelled';
       cancelled += 1;
     }
@@ -453,6 +453,107 @@ export function activateArrival(state, arrivalOrId, nowMinute = state.clock.minu
     party.push(makeCustomer(state, arrival, nowMinute, i));
   }
   return party;
+}
+
+function reservationArrival(sim, reservationId) {
+  return sim.scheduled.find((entry) => (
+    entry.intent === CUSTOMER_INTENT.RESERVATION_CHECK_IN
+    && String(entry.reservationId) === String(reservationId)
+    && !['Cancelled', 'No-show', 'Completed'].includes(entry.status)
+  )) || null;
+}
+
+// Golf operations owns the booking. This adapter only gives that booking one
+// physical party in the customer lifecycle, including an immediately-created
+// walk-in that needs to appear at the desk without waiting for the next tick.
+export function activateReservationCustomer(state, reservation, nowMinute = state.clock.minutes) {
+  const sim = ensureCustomerSimulation(state);
+  if (!reservation || reservation.status !== 'booked') {
+    return { ok: false, reason: 'Only an open booking can create a customer party.', party: [] };
+  }
+  const active = sim.active.filter((customer) => String(customer.reservationId) === String(reservation.id));
+  let arrival = reservationArrival(sim, reservation.id);
+  if (active.length) return { ok: true, idempotent: true, arrival, party: active };
+  if (!arrival) arrival = scheduleReservationCustomer(state, reservation);
+  if (!arrival) return { ok: false, reason: 'No customer arrival exists for that booking.', party: [] };
+  if (arrival.status === CUSTOMER_STATE.SCHEDULED) {
+    arrival.status = 'Released';
+    arrival.releasedMinute = nowMinute;
+  }
+  if (arrival.status !== 'Released') {
+    return { ok: false, reason: `The booking arrival is ${arrival.status}.`, arrival, party: [] };
+  }
+  const party = activateArrival(state, arrival, nowMinute);
+  if (!party.length) return { ok: false, reason: 'The active customer limit prevented this party from spawning.', arrival, party };
+  reservation.arrival.spawnedAtMinute ??= Math.floor(nowMinute);
+  return { ok: true, arrival, party };
+}
+
+// A spontaneous physical walk-in may create a canonical booking while already
+// standing at the desk. Claim the scheduled arrival for that person instead of
+// spawning a duplicate lead customer or inventing a second reservation model.
+export function claimReservationCustomer(state, customerOrId, reservation, nowMinute = state.clock.minutes) {
+  const sim = ensureCustomerSimulation(state);
+  const customer = typeof customerOrId === 'string' ? customerById(state, customerOrId) : customerOrId;
+  if (!customer || !sim.active.includes(customer)) return { ok: false, reason: 'Unknown physical customer.', party: [] };
+  if (!reservation || reservation.status !== 'booked') return { ok: false, reason: 'No open booking to claim.', party: [] };
+  const alreadyActive = sim.active.filter((entry) => (
+    entry !== customer && String(entry.reservationId) === String(reservation.id)
+  ));
+  if (alreadyActive.length) {
+    return { ok: false, reason: 'That booking already has a physical party.', party: alreadyActive };
+  }
+
+  let arrival = reservationArrival(sim, reservation.id);
+  if (!arrival) arrival = scheduleReservationCustomer(state, reservation);
+  if (!arrival || ![CUSTOMER_STATE.SCHEDULED, 'Released', 'Active'].includes(arrival.status)) {
+    return { ok: false, reason: 'That booking arrival cannot be claimed.', arrival, party: [] };
+  }
+  arrival.status = 'Active';
+  arrival.releasedMinute ??= nowMinute;
+  arrival.activatedMinute ??= nowMinute;
+  arrival.claimedCustomerId = customer.id;
+  customer.intent = CUSTOMER_INTENT.RESERVATION_CHECK_IN;
+  customer.reservationId = reservation.id;
+  customer.partyId = reservation.party?.id || `reservation-${reservation.id}`;
+  customer.partyIndex = 0;
+  customer.name = reservation.reservationHolder || reservation.name || customer.name;
+  customer.scheduledMinute = arrival.scheduledMinute;
+  customer.intendedMinute = arrival.intendedMinute ?? arrival.scheduledMinute;
+  customer.arrivalOffsetMin = arrival.arrivalOffsetMin || 0;
+
+  const party = [customer];
+  const targetSize = Math.max(1, Math.min(4, reservation.partySize || 1));
+  for (let partyIndex = 1; partyIndex < targetSize && sim.active.length < MAX_ACTIVE_CUSTOMERS; partyIndex += 1) {
+    party.push(makeCustomer(state, arrival, nowMinute, partyIndex));
+  }
+  reservation.arrival.spawnedAtMinute ??= Math.floor(nowMinute);
+  return { ok: true, arrival, party };
+}
+
+// The front-desk UI performs the authoritative check-in and exact-once money
+// work first. Its success callback only advances the matching physical party.
+export function completeReservationCustomerParty(state, reservationId, nowMinute = state.clock.minutes) {
+  const sim = ensureCustomerSimulation(state);
+  const reservation = state.reservations?.booked?.find((entry) => String(entry.id) === String(reservationId));
+  if (!reservation || reservation.checkIn?.status !== 'checked-in') {
+    return { ok: false, reason: 'Canonical golf-operations check-in has not completed.', completed: 0, party: [] };
+  }
+  const party = sim.active.filter((customer) => String(customer.reservationId) === String(reservationId));
+  let completed = 0;
+  for (const customer of party) {
+    if ([CUSTOMER_STATE.LEAVING, CUSTOMER_STATE.EXITING, CUSTOMER_STATE.DESPAWNED].includes(customer.state)) continue;
+    markCheckInCompleted(state, customer, true, 'canonical golf-operations check-in completed');
+    completed += 1;
+  }
+  for (const arrival of sim.scheduled) {
+    if (String(arrival.reservationId) !== String(reservationId)) continue;
+    if (!['Cancelled', 'No-show', 'Completed'].includes(arrival.status)) {
+      arrival.status = 'Completed';
+      arrival.resolvedMinute = nowMinute;
+    }
+  }
+  return { ok: true, completed, party };
 }
 
 export function createFixtureCustomer(state, intent = CUSTOMER_INTENT.PRO_SHOP_SHOPPER, options = {}) {
