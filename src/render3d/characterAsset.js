@@ -15,6 +15,13 @@ function box(w, h, d, mat, y = 0, z = 0) {
   return m;
 }
 
+function capsule(radius, length, mat, y = 0, z = 0) {
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(radius, length, 3, 8), mat);
+  m.position.set(0, y, z);
+  m.castShadow = true;
+  return m;
+}
+
 export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe4, skin = 0xd9a97e } = {}) {
   const mPolo = M(polo, 0.8);
   const mKhaki = M(khaki, 0.85);
@@ -25,13 +32,32 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   const root = new THREE.Group();
 
   // pelvis + legs hang off the root; chest carries torso/head/arms for lean+twist
-  const pelvis = box(0.34, 0.2, 0.22, mKhaki, 1.03);
+  const pelvis = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.20, 0.20, 8), mKhaki);
+  pelvis.position.y = 1.03;
+  pelvis.castShadow = true;
   root.add(pelvis);
 
   const chest = new THREE.Group();
   chest.position.y = 1.12;
   root.add(chest);
-  chest.add(box(0.46, 0.52, 0.26, mPolo, 0.26));
+  const shirt = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.245, 0.50, 8), mPolo);
+  shirt.position.y = 0.27;
+  shirt.scale.z = 0.64;
+  shirt.castShadow = true;
+  chest.add(shirt);
+  const belt = box(0.37, 0.055, 0.23, mShoe, 0.025);
+  chest.add(belt);
+  const collarL = box(0.11, 0.025, 0.018, mKhaki, 0.50, -0.132);
+  collarL.rotation.z = 0.28;
+  collarL.position.x = -0.05;
+  const collarR = collarL.clone();
+  collarR.rotation.z = -0.28;
+  collarR.position.x = 0.05;
+  chest.add(collarL, collarR);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.09, 0.10, 8), mSkin);
+  neck.position.y = 0.57;
+  neck.castShadow = true;
+  chest.add(neck);
   const head = new THREE.Group();
   head.position.y = 0.62;
   chest.add(head);
@@ -39,16 +65,31 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   skull.position.y = 0.06;
   skull.castShadow = true;
   head.add(skull);
+  for (const x of [-0.055, 0.055]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 4), mShoe);
+    eye.position.set(x, 0.08, -0.145);
+    head.add(eye);
+  }
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.022, 7, 5), mSkin);
+  nose.position.set(0, 0.035, -0.158);
+  head.add(nose);
+  for (const x of [-0.155, 0.155]) {
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 4), mSkin);
+    ear.position.set(x, 0.055, 0);
+    head.add(ear);
+  }
   if (mCap) {
-    const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 12), mCap);
-    capTop.position.y = 0.19;
+    const capTop = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 7, 0, Math.PI * 2, 0, Math.PI / 2), mCap);
+    capTop.scale.y = 0.55;
+    capTop.position.y = 0.13;
     head.add(capTop);
-    const brim = box(0.2, 0.03, 0.16, mCap, 0.16, -0.16);
+    const brim = box(0.18, 0.025, 0.13, mCap, 0.13, -0.15);
     head.add(brim);
   } else {
     // bare head gets hair instead of a cap
     const hair = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.1), M(0x4a3a28, 0.95));
-    hair.position.y = 0.1;
+    hair.position.y = 0.075;
+    hair.scale.y = 0.72;
     head.add(hair);
   }
 
@@ -57,22 +98,27 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     const shoulder = new THREE.Group();
     shoulder.position.set(sx * 0.285, 0.43, 0);
     chest.add(shoulder);
-    shoulder.add(box(0.11, 0.32, 0.13, mPolo, -0.15));
+    shoulder.add(capsule(0.07, 0.19, mPolo, -0.15));
     const elbow = new THREE.Group();
     elbow.position.y = -0.32;
     shoulder.add(elbow);
-    elbow.add(box(0.09, 0.28, 0.11, mSkin, -0.13));
+    elbow.add(capsule(0.055, 0.18, mSkin, -0.13));
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.065, 7, 5), mSkin);
+    hand.position.y = -0.30;
+    hand.scale.y = 1.18;
+    hand.castShadow = true;
+    elbow.add(hand);
     limbs[`shoulder${side}`] = shoulder;
     limbs[`elbow${side}`] = elbow;
 
     const hip = new THREE.Group();
     hip.position.set(sx * 0.11, 0.98, 0);
     root.add(hip);
-    hip.add(box(0.15, 0.46, 0.17, mKhaki, -0.22));
+    hip.add(capsule(0.085, 0.29, mKhaki, -0.22));
     const knee = new THREE.Group();
     knee.position.y = -0.46;
     hip.add(knee);
-    knee.add(box(0.12, 0.42, 0.14, mKhaki, -0.19));
+    knee.add(capsule(0.072, 0.28, mKhaki, -0.20));
     const shoe = box(0.13, 0.09, 0.26, mShoe, -0.42, -0.04);
     knee.add(shoe);
     limbs[`hip${side}`] = hip;

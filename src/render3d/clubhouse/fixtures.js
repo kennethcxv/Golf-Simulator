@@ -59,7 +59,7 @@ function priceRail(f, { w = 2.6, h = 0.20 } = {}) {
     : [entries.slice(0, Math.ceil(entries.length / 2)).join('  ·  '), entries.slice(Math.ceil(entries.length / 2)).join('  ·  ')];
   const tex = makeSignTexture(rows, {
     w: 1024, h: rows.length > 1 ? 160 : 96, frame: false,
-    field: '#ded6c5', ink: '#28362b', sizes: rows.map(() => entries.length > 6 ? 23 : 28),
+    field: '#28382e', ink: '#eee6d7', sizes: rows.map(() => entries.length > 6 ? 23 : 28),
   });
   return new THREE.Mesh(
     new THREE.PlaneGeometry(w, h),
@@ -468,8 +468,8 @@ export function buildFixtures(B) {
       post.position.set(px, 0.5, -0.45);
       g.add(post);
     }
-    const sign = categorySign(f.title, { w: 0.76, h: 0.14 });
-    sign.position.set(0, 1.16, -0.45);
+    const sign = categorySign(f.title, { w: 0.62, h: 0.10, charcoal: true });
+    sign.position.set(0, 1.11, -0.45);
     g.add(sign);
     const prices = priceRail(f, { w: 1.75, h: 0.14 });
     if (prices) { prices.position.set(0, 0.34, 0.66); g.add(prices); }
@@ -668,7 +668,7 @@ export function buildFixtures(B) {
   function pegboardUnit(f) {
     return assetUnit(f, 'pegboard_wall', {
       w: 3.2, d: 0.7, sign: f.sign || f.title, signY: 2.18, signZ: 0.29,
-      signW: 1.35, signH: 0.16, priceW: 2.35, priceH: 0.14,
+      signW: 1.28, signH: 0.15, priceW: 2.35, priceH: 0.14, charcoal: true,
     });
   }
 

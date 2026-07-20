@@ -69,6 +69,36 @@ The before run's stress sample retained 16 actors because it added ten to the si
 | Remaining cream signs and price strips were stark white against warm walnut. | Shifted their fields to restrained warm-cream tones without changing text contrast. |
 | Layered Tour Vault glazing looked grey and hid the lower products. | Reduced display-glass opacity from 0.075 to 0.045 and raised transmission from 0.12 to 0.20. |
 
-## Acceptance passes 3-4
+## Acceptance pass 3 - shoppers and merchandise rails
 
-Pending. Each pass must independently document at least ten visible defects, implement revisions, rerun the complete 36-camera protocol, and retain before/after evidence before the visual gate can close.
+Evidence:
+
+- Before: `acceptance-visual-3-before/`
+- After: `acceptance-visual-3-after/`
+- Both runs: 36 clean fixed screenshots, two separate customer-flow screenshots, route video, fresh-save boot record, normal-control and clock proof, console/network log, and exact-ten metrics in `run.json`
+- After normal-control proof: 2.98 yards and 1.253 radians of yaw
+- Customer flow after: six active shoppers, nine unique reserved browse/experience sockets, 1.139-yard minimum separation, and ten shoppers spawned in total for stress
+- Full-premium normal-control walk: 92.71 FPS / 14.39 FPS 1% low before; 108.02 FPS / 59.52 FPS 1% low after. Active listeners remained 92. The character revision is 1,724 triangles per articulated figure.
+
+| Visible defect found in the before sweep | Revision verified in the after sweep |
+|---|---|
+| Customer torsos were featureless boxes. | Replaced them with tapered eight-sided polo forms. |
+| Heads appeared disconnected above the shirt. | Added an actual neck between torso and skull. |
+| Shirts had no neckline or garment construction. | Added a two-piece contrasting polo collar. |
+| The pelvis and shirt met as an unbroken color block. | Added a restrained dark belt and tapered trouser waist. |
+| Upper arms were rectangular sticks. | Rebuilt them as low-poly articulated capsules. |
+| Forearms were rectangular sticks. | Rebuilt them as slimmer skin-toned capsules. |
+| Arms ended abruptly without hands. | Added rounded hands that inherit elbow animation. |
+| Thighs and calves read as four separate boxes. | Rebuilt both articulated leg segments as rounded low-poly capsules. |
+| Faces had no orientation cues, making browsing direction hard to read. | Added small eyes, nose, and ears while keeping the stylized scale. |
+| Caps were floating cylinders with oversized rectangular brims. | Rebuilt caps as fitted half-domes with smaller brims. |
+| Bare-head hair floated above the skull. | Lowered and vertically fitted the hair cap to the head. |
+| Bright cream price slabs pulled attention away from merchandise across every department. | Converted all price rails to deep-green fields with warm-cream type. |
+| Golf Essentials was the last large cream department header in the main wall run. | Converted it to the same charcoal-and-brass treatment as neighboring departments. |
+| The Golf Bags label crossed the lounge sightline as a broad cream panel. | Reduced it to 0.62 x 0.10 m and integrated it into the back rail in charcoal/brass. |
+| The apparel camera cropped the left header and club wall. | Moved the fixed camera back to show the full apparel wall, center table, and adjacent clubs. |
+| The bag camera made the fitting-room side wall the dominant foreground object. | Shifted the camera into the main aisle to show the four-bag platform, lounge, fitting room, and shoes together. |
+
+## Acceptance pass 4
+
+Pending. It must independently document at least ten visible defects, implement revisions, rerun the complete 36-camera protocol, and retain before/after evidence before the visual gate can close.
