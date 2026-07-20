@@ -27,3 +27,17 @@
 - Runtime smoke: fresh Relaxed property purchase reached walk mode and the live clubhouse with no console/page/blocking-request errors.
 - Diff/conflict-marker check: passed.
 - Decision: `inventoryLifecycle.js` is the canonical conserved quantity model; placement remains the transform authority.
+
+## 3. Golf operations
+
+- Source head: `52cfe7e12b013fc699382e076fe9bc443e77b815`.
+- Strategy: cherry-pick the four core product commits and two laptop mutation/listener fixes; exclude baseline, timing-only QA adjustments, and generated evidence.
+- Integrated commits: `2d9df6e`, `7d2b1f6`, `cdc6fb6`, `93936fe`, `5bab6b6`, `648f802`.
+- Conflict: `src/ui/laptop.js` had one import-boundary conflict. Resolution retains inventory lifecycle quoting, fallback receiving, fixture capacity and exact order APIs while adding operations summaries, finance and policy APIs. Both page families use one laptop shell.
+- Parser: 199 JavaScript files passed.
+- Focused tests: all golf-operations/reservations plus prior inventory/placement suites passed.
+- Full tests: 573/573 passed.
+- Runtime smoke: fresh property purchase reached walk mode/live clubhouse with no console/page/blocking-request errors.
+- Branch evidence interpretation: `walk.isFocused() === false` after closing the tee desk is correct—it proves the cashier camera latch was released. The nearly blank cash-receipt screenshot was captured during the 320 ms print animation; final visual QA will wait for animation completion instead of changing a functional receipt path prematurely.
+- Diff/conflict-marker check: passed.
+- Decision: reservations owns schedule/capacity/check-in/payment state and stable golf finance events; future customer integration consumes its IDs/events without duplicating bookings.
