@@ -2923,6 +2923,14 @@ export function createRegisterMode(B) {
     // pose an item click uses), with the POS readable at the right. Check-ins keep the
     // straight-on monitor view; they have nothing on the counter to look at.
     assignWorkspace(tx.stage === 'scanning' && unscannedCount(tx) > 0 ? 'scan' : 'monitor');
+    // A cashier may remain at the desk between customers. In that case enter() will not run
+    // again, so begin the same authored entry transition here; otherwise the payment verbs can
+    // advance while the flow remains stranded at WaitingForCashier and the completed physical
+    // handoff can never unlock exact-once banking.
+    if (active && checkoutFlowState() === 'WaitingForCashier') {
+      flowTo('EnteringCashierMode', 'customer-arrived-while-cashier-active');
+      enterTimer = 0.30;
+    }
     clearPhysicalTransaction();
     // clearPhysicalTransaction intentionally does not clear tx/cust; it only removes
     // stale meshes and gesture state from a prior completed presentation.
