@@ -110,6 +110,18 @@ function lines(value) {
   return value ? value.split(/\r?\n/).filter(Boolean) : [];
 }
 
+function worktreePathForBranch(branch) {
+  const blocks = git(['worktree', 'list', '--porcelain']).split(/\r?\n\r?\n/);
+  const expected = `branch refs/heads/${branch}`;
+  for (const block of blocks) {
+    const fields = lines(block);
+    if (!fields.includes(expected)) continue;
+    const worktree = fields.find((field) => field.startsWith('worktree '));
+    return worktree ? worktree.slice('worktree '.length) : null;
+  }
+  return null;
+}
+
 function changeInventory(branch) {
   return lines(git(['diff', '--name-status', '-z', `${base}..${branch}`], { trim: false }).replace(/\0/g, '\n'));
 }
@@ -187,7 +199,7 @@ const inventory = branchNotes.map((note) => {
 const excluded = {
   branch: 'overnight/gameplay-progression',
   head: '3ddb082f90cdb78325e633ec722fd04a3bf98fdf',
-  activeWorktree: 'C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-gameplay-progression',
+  activeWorktree: worktreePathForBranch('overnight/gameplay-progression'),
   uncommittedState: { dirty: true, trackedPathCount: 3, untrackedPathCount: 1, contentsInspected: false },
   integrationStatus: 'Explicitly excluded; active worktree and branch were not entered, modified, merged, cherry-picked, reset, rebased, cleaned, or pruned.',
 };

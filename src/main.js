@@ -173,6 +173,7 @@ function enterWalk(spawn) {
 }
 
 function exitWalk() {
+  cancelToolKey();
   if (app.frontDeskOpen) exitFrontDesk(true);
   if (app.laptopOpen) exitLaptop(true);
   if (app.scene3d && app.scene3d.post && app.scene3d.post.gtao) app.scene3d.post.gtao.radius = 1.5; // management-camera tuning
@@ -294,6 +295,7 @@ function enterLaptop() {
   if (!walkActive() || app.laptopOpen || app.frontDeskOpen) return;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
   if (!ch) return;
+  cancelToolKey();
   // The lens FIRST: the seat distance is derived from the field of view, so asking for the pose
   // before the lens has changed would seat you for a camera that no longer exists.
   setCameraLens(LAPTOP_FOV, LAPTOP_NEAR);
@@ -372,6 +374,7 @@ function enterFrontDesk(reservationId = null) {
   const ch = app.scene3d?.clubhouse?.();
   const pose = ch?.register?.cashierPose?.();
   if (!pose || !frontDeskUi) return;
+  cancelToolKey();
   app.frontDeskOpen = true;
   resetCameraInput();
   app.scene3d.walk.focusOn(pose);
@@ -414,8 +417,18 @@ const TOOL_AUDIO_LOOP = {
 for (const evt of ['pointerdown', 'keydown']) {
   window.addEventListener(evt, () => audio.init(), { once: true, capture: true });
 }
-document.addEventListener('visibilitychange', () => audio.setLifecycleActive(!document.hidden));
-window.addEventListener('pagehide', () => audio.setLifecycleActive(false));
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    cancelToolKey();
+    toolWheel?.close('lifecycle');
+  }
+  audio.setLifecycleActive(!document.hidden);
+});
+window.addEventListener('pagehide', () => {
+  cancelToolKey();
+  toolWheel?.close('lifecycle');
+  audio.setLifecycleActive(false);
+});
 
 function closeLeftPanels(except) {
   if (except !== 'works' && app.worksMode) handlers.toggleWorks();
@@ -516,6 +529,7 @@ function announceOutbreaks() {
 
 function startGame(state) {
   closePauseMenu({ resume: false }); // any pause overlay dies with the old world
+  cancelToolKey();
   if (app.frontDeskOpen) exitFrontDesk(true);
   toolWheel?.close('scene-change');
   clearNotifications();
@@ -1031,6 +1045,7 @@ function ensureLoadVeil() {
 
 function exitToMenu() {
   closePauseMenu({ resume: false });
+  cancelToolKey();
   if (app.frontDeskOpen) exitFrontDesk(true);
   toolWheel?.close('menu');
   clearNotifications();
@@ -1332,12 +1347,10 @@ function keycaps(...keys) {
 function openPauseMenu() {
   if (pauseUi || app.screen !== 'game') return;
   toolWheel?.close('pause');
+  cancelToolKey();
   resetCameraInput();
   pauseHadPointerLock = document.pointerLockElement === canvas;
   if (document.pointerLockElement) document.exitPointerLock();
-  app.scene3d?.walk?.setSpraying?.(false);
-  app.scene3d?.walk?.setSoaping?.(false);
-  audio.setToolLoop(null);
   pausePrevSpeed = app.speedIdx;
   app.speedIdx = 0;
   audio.setPaused(true);
@@ -1696,28 +1709,30 @@ function walkToolEntries() {
   const clubhouse = app.scene3d?.clubhouse?.();
   const inside = !!(walk && clubhouse?.isInside(walk.state.x, walk.state.z));
   const washer = app.state ? ownedWasher(app.state) : null;
-  return [
-    { id: null, label: 'Hands free', icon: '○', detail: 'Interact, carry, and inspect' },
+  const hands = { id: null, label: 'Hands free', icon: '○', detail: 'Interact, carry, and inspect' };
+  if (inside) return [
+    hands,
     {
       id: 'vacuum', label: 'Shop vacuum', icon: 'V',
-      available: inside && !!(app.state && vacuumOwned(app.state)),
-      reason: !inside ? 'Use this inside the clubhouse' : 'Order a shop vacuum from the laptop',
+      available: !!(app.state && vacuumOwned(app.state)),
+      reason: 'Order a shop vacuum from the laptop',
       detail: 'Cleans floor grime inside the shop',
     },
+  ];
+  return [
+    hands,
     {
       id: 'washer', label: washer?.name || 'Pressure washer', icon: 'W',
-      available: !inside,
-      reason: 'Use this on the clubhouse exterior',
       detail: 'LMB washes · RMB applies soap',
     },
-    { id: 'hose', label: 'Watering hose', icon: 'H', available: !inside, reason: 'Use this on course turf', detail: 'Raises live turf moisture' },
-    { id: 'divot', label: 'Divot kit', icon: 'D', available: !inside, reason: 'Use this on course turf', detail: 'Repairs worn turf patches' },
-    { id: 'ballmark', label: 'Ball-mark fork', icon: 'B', available: !inside, reason: 'Use this on course greens', detail: 'Repairs ball marks on greens' },
-    { id: 'rake', label: 'Bunker rake', icon: 'R', available: !inside, reason: 'Use this on course bunkers', detail: 'Smooths footprinted sand' },
-    { id: 'debris', label: 'Debris bag', icon: 'G', available: !inside, reason: 'Use this around the hero hole', detail: 'Clears loose course debris' },
-    { id: 'fungicide', label: 'Treatment sprayer', icon: 'T', available: !inside, reason: 'Use this on diagnosed turf disease', detail: 'Treats active disease after inspection' },
-    { id: 'spreader', label: 'Rotary spreader', icon: 'S', available: !inside, reason: 'Use this on weak course turf', detail: 'Applies fertilizer by coverage' },
-    { id: 'greensMower', label: 'Greens mower', icon: 'M', available: !inside, reason: 'Use this on the hero green', detail: 'Press R for blades, then mow a real path' },
+    { id: 'hose', label: 'Watering hose', icon: 'H', detail: 'Raises live turf moisture' },
+    { id: 'divot', label: 'Divot kit', icon: 'D', detail: 'Repairs worn turf patches' },
+    { id: 'ballmark', label: 'Ball-mark fork', icon: 'B', detail: 'Repairs ball marks on greens' },
+    { id: 'rake', label: 'Bunker rake', icon: 'R', detail: 'Smooths footprinted sand' },
+    { id: 'debris', label: 'Debris bag', icon: 'G', detail: 'Clears loose course debris' },
+    { id: 'fungicide', label: 'Treatment sprayer', icon: 'T', detail: 'Treats active disease after inspection' },
+    { id: 'spreader', label: 'Rotary spreader', icon: 'S', detail: 'Applies fertilizer by coverage' },
+    { id: 'greensMower', label: 'Greens mower', icon: 'M', detail: 'Press R for blades, then mow a real path' },
   ];
 }
 
@@ -1726,9 +1741,7 @@ function selectWalkTool(tool) {
   if (!walk) return;
   const current = walk.getTool();
   if (current !== tool) previousWalkTool = current;
-  walk.setSpraying(false);
-  walk.setSoaping?.(false);
-  audio.setToolLoop(null);
+  stopToolUse();
   walk.setTool(tool);
   const equipmentId = MAINTENANCE_EQUIPMENT_FOR_TOOL[tool];
   if (equipmentId && walk.hooks.selectMaintenanceEquipment) {
@@ -1743,7 +1756,9 @@ function selectWalkTool(tool) {
   if (app.state) {
     tutorialFlag(app.state, 'toolSelected');
     if (tool === 'vacuum') triggerContextTutorial(app.state, 'cleaning-tools');
-    else if (['washer', 'hose', 'divot', 'rake'].includes(tool)) triggerContextTutorial(app.state, 'maintenance-tools');
+    else if (['washer', 'hose', 'divot', 'ballmark', 'rake', 'debris', 'fungicide', 'spreader', 'greensMower'].includes(tool)) {
+      triggerContextTutorial(app.state, 'maintenance-tools');
+    }
   }
   objectivesPanel?.refresh();
   hud?.update();
@@ -1758,12 +1773,10 @@ function cycleWalkTool() {
 }
 
 function showToolWheel() {
-  if (!walkActive() || regActive() || app.laptopOpen || buildApi()?.isActive() || isPauseOpen()) return;
+  if (!walkActive() || regActive() || app.frontDeskOpen || app.laptopOpen || buildApi()?.isActive() || isPauseOpen()) return;
   toolHoldOpened = true;
   resetCameraInput();
-  app.scene3d.walk.setSpraying(false);
-  app.scene3d.walk.setSoaping?.(false);
-  audio.setToolLoop(null);
+  stopToolUse();
   if (document.pointerLockElement) document.exitPointerLock();
   triggerContextTutorial(app.state, 'tool-wheel');
   objectivesPanel.refresh();
@@ -1785,9 +1798,17 @@ function endToolKey() {
     clearTimeout(toolKeyTimer);
     toolKeyTimer = null;
   }
-  if (!toolHoldOpened && performance.now() - toolKeyStarted < 500 && walkActive()) cycleWalkTool();
+  if (toolKeyStarted > 0 && !toolHoldOpened && performance.now() - toolKeyStarted < 500 && walkActive()) cycleWalkTool();
   toolKeyStarted = 0;
   toolHoldOpened = false;
+}
+
+function cancelToolKey() {
+  if (toolKeyTimer) clearTimeout(toolKeyTimer);
+  toolKeyTimer = null;
+  toolKeyStarted = 0;
+  toolHoldOpened = false;
+  stopToolUse();
 }
 
 const MAINTENANCE_STROKE_TOOLS = new Set([
@@ -2615,7 +2636,7 @@ function boot() {
     onSelect: selectWalkTool,
     onPause: openPauseMenu,
     onClose: (reason) => {
-      if (reason !== 'pause' && walkActive() && !regActive() && !app.frontDeskOpen
+      if (['selected', 'dismissed'].includes(reason) && walkActive() && !regActive() && !app.frontDeskOpen
         && !app.laptopOpen && !isPauseOpen()) requestLook();
       syncPresentationMode(presentationMode());
     },

@@ -11,7 +11,7 @@ export function makeToolWheel({ onSelect, onClose, onPause, audio } = {}) {
       title,
       ring,
       el('div', { class: 'tool-wheel-center' }, selectedName, selectedDetail,
-        el('div', { class: 'tool-wheel-help', text: 'Mouse or arrows · Enter equips · Esc closes · Q swaps back' })),
+        el('div', { class: 'tool-wheel-help', text: 'Mouse, arrows, or number keys · Enter equips · Esc closes · Q swaps back' })),
     ),
   );
   let entries = [];
@@ -103,8 +103,8 @@ export function makeToolWheel({ onSelect, onClose, onPause, audio } = {}) {
       audio?.uiTick?.();
       return;
     }
-    if (/^[1-9]$/.test(event.key)) {
-      const index = Number(event.key) - 1;
+    if (/^[0-9]$/.test(event.key)) {
+      const index = event.key === '0' ? 9 : Number(event.key) - 1;
       if (entries[index]) {
         event.stopPropagation();
         event.preventDefault();
@@ -127,6 +127,8 @@ export function makeToolWheel({ onSelect, onClose, onPause, audio } = {}) {
 
   function show(nextEntries, currentId = null) {
     entries = nextEntries.map((entry) => ({ available: true, ...entry }));
+    root.classList.toggle('is-dense', entries.length > 7);
+    root.dataset.toolCount = String(entries.length);
     ring.replaceChildren(...entries.map((entry, index) => el('button', {
       type: 'button',
       class: `tool-wheel-item${entry.available === false ? ' is-disabled' : ''}`,
@@ -138,7 +140,7 @@ export function makeToolWheel({ onSelect, onClose, onPause, audio } = {}) {
       onfocus: () => highlight(index),
       onclick: () => entry.available === false ? audio?.uiError?.() : choose(index),
     },
-    el('span', { class: 'tool-wheel-number', 'aria-hidden': 'true', text: String(index + 1) }),
+    el('span', { class: 'tool-wheel-number', 'aria-hidden': 'true', text: index === 9 ? '0' : String(index + 1) }),
     el('span', { class: 'tool-wheel-icon', 'aria-hidden': 'true', text: entry.icon || '◇' }),
     el('span', { class: 'tool-wheel-label', text: entry.label }),
     entry.available === false ? el('span', { class: 'tool-wheel-lock', 'aria-hidden': 'true', text: '×' }) : null)));

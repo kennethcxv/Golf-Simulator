@@ -10,7 +10,9 @@ async (page) => {
   // shop spawn translucent green PLACEMENT GHOSTS that would fill the room with
   // fake blobs. Final gameplay proof does not use this file.
   const PASS = 'final';
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/assets/' + PASS;
+  const QA_ROOT = (process.env.GOLF_FLIPPER_QA_ROOT || `${process.cwd()}/qa`).replaceAll('\\', '/');
+  const OUT = `${QA_ROOT}/assets/${PASS}`;
+  const BASE_URL = process.env.GOLF_FLIPPER_URL || 'http://localhost:8457/';
 
   const L2W = (x, z) => ({ x: x - 8, z: z + 228 });
   const SHOTS = [
@@ -27,7 +29,7 @@ async (page) => {
   const EXT = { id: '10-exterior', atW: [-1.5, 243.5], toW: [-8.5, 231.0], pitch: 0.03 };
 
   // --- fresh boot so leftover in-memory edits can't leak between passes -------
-  await page.goto('http://localhost:8457/');
+  await page.goto(BASE_URL);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});

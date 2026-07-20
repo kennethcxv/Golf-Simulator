@@ -273,19 +273,44 @@ try {
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => window.__fw.laptopOpen === false);
 
-  await page.evaluate(() => {
+  result.pauseModes.registerSetup = await page.evaluate(async () => {
     const app = window.__fw;
+    const clubhouse = app.scene3d.clubhouse();
+    const lifecycle = await import('/src/sim/inventoryLifecycle.js');
+    clubhouse.setOrganicWalkins(false);
+    clubhouse.clearWalkins();
+    lifecycle.ensureInventoryLifecycle(app.state);
     const inv = app.state.shop.inventory.balls3;
-    inv.shelf = Math.max(inv.shelf, 10);
-    app.scene3d.clubhouse().rebuildStock();
-    app.scene3d.clubhouse().sendToCounter(['balls3'], 'card');
+    const wanted = Math.max(inv.shelf, 10);
+    const added = wanted - inv.shelf;
+    if (added > 0) {
+      const adopted = lifecycle.adoptExternalInventory(app.state, {
+        skuId: 'balls3', quantity: added, stage: lifecycle.INVENTORY_STAGE.SHELF,
+        note: 'Player-experience register pause fixture',
+      });
+      if (!adopted.ok) throw new Error(adopted.reason);
+      inv.shelf = wanted;
+    }
+    clubhouse.rebuildStock();
+    const customer = clubhouse.sendToCounter(['balls3'], 'card');
+    if (!customer) throw new Error('Could not stage the retail checkout fixture');
+    return { customer, shelf: inv.shelf };
+  });
+  await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.hasTx(), null, { timeout: 15_000 });
+  result.pauseModes.registerSetup.prompt = await page.evaluate(() => {
+    const app = window.__fw;
     const walk = app.scene3d.walk.state;
     walk.x = 2.80 - 8;
     walk.z = 5.10 + 228;
     walk.yaw = 0;
     walk.pitch = -0.18;
+    return app.scene3d.clubhouse().register.getTx()?.stage || null;
   });
-  await page.waitForTimeout(450);
+  await page.waitForTimeout(500);
+  result.pauseModes.registerSetup.focus = await page.evaluate(() => window.__fw.scene3d.walk.getFocusLabel?.() || null);
+  if (!result.pauseModes.registerSetup.focus?.includes('work the register')) {
+    throw new Error(`Retail checkout did not own the shared counter prompt: ${result.pauseModes.registerSetup.focus}`);
+  }
   await page.keyboard.press('e');
   await page.waitForFunction(() => window.__fw.scene3d.clubhouse().register.isActive());
   await pauseProbe('register');
@@ -360,7 +385,7 @@ try {
   await page.waitForTimeout(300);
   await page.keyboard.up('f');
   await page.locator('.tool-wheel').waitFor({ state: 'visible' });
-  await page.keyboard.press('3');
+  await page.locator('.tool-wheel-item').filter({ hasText: /washer/i }).click();
   await page.waitForFunction(() => window.__fw.scene3d.walk.getTool() === 'washer');
   const canvas = page.locator('canvas');
   const box = await canvas.boundingBox();

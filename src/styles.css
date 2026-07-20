@@ -1988,7 +1988,8 @@ body.laptop-mode .hud-min { display: none !important; }
 }
 
 .tool-wheel-scrim { position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(8, 12, 9, 0.18) 0 28%, rgba(8, 11, 9, 0.72) 72%); backdrop-filter: blur(2px) saturate(0.7); }
-.tool-wheel-panel { position: relative; width: min(620px, 92vw); aspect-ratio: 1; outline: none; }
+.tool-wheel-panel { --tool-radius: 220px; position: relative; width: min(620px, 92vw, 88vh); aspect-ratio: 1; outline: none; }
+.tool-wheel.is-dense .tool-wheel-panel { --tool-radius: clamp(220px, 30vh, 278px); width: min(760px, 94vw, 90vh); }
 .tool-wheel-title { position: absolute; z-index: 2; top: 50%; left: 50%; transform: translate(-50%, -112px); color: var(--brass); font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 750; }
 .tool-wheel-ring { position: absolute; inset: 0; }
 .tool-wheel-item {
@@ -1999,7 +2000,7 @@ body.laptop-mode .hud-min { display: none !important; }
   width: 142px;
   min-height: 76px;
   margin: -38px 0 0 -71px;
-  transform: rotate(var(--tool-angle)) translateY(-220px) rotate(calc(var(--tool-angle) * -1));
+  transform: rotate(var(--tool-angle)) translateY(calc(var(--tool-radius) * -1)) rotate(calc(var(--tool-angle) * -1));
   display: grid;
   grid-template-columns: 22px 30px 1fr;
   align-items: center;
@@ -2011,6 +2012,14 @@ body.laptop-mode .hud-min { display: none !important; }
   border: 1px solid #46564b;
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
 }
+.tool-wheel.is-dense .tool-wheel-item {
+  width: 128px;
+  min-height: 64px;
+  margin: -32px 0 0 -64px;
+  grid-template-columns: 18px 27px 1fr;
+  padding: 8px;
+}
+.tool-wheel.is-dense .tool-wheel-label { font-size: 0.72rem; }
 .tool-wheel-item:hover,
 .tool-wheel-item.is-selected { background: #294632; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(130, 189, 114, 0.18), 0 14px 32px rgba(0, 0, 0, 0.34); }
 .tool-wheel-item.is-disabled { opacity: 0.64; border-style: dashed; }
@@ -2048,8 +2057,10 @@ body.laptop-mode .hud-min { display: none !important; }
   .pause-content { padding: 12px 16px; }
   .setting-row { min-height: 48px; padding: 5px 2px; }
   .notification-center { top: 132px; }
-  .tool-wheel-panel { width: min(540px, 88vh); }
-  .tool-wheel-item { transform: rotate(var(--tool-angle)) translateY(-188px) rotate(calc(var(--tool-angle) * -1)); }
+  .tool-wheel-panel { --tool-radius: 188px; width: min(540px, 88vh); }
+  .tool-wheel.is-dense .tool-wheel-panel { --tool-radius: clamp(172px, 31vh, 220px); width: min(600px, 92vw, 92vh); }
+  .tool-wheel.is-dense .tool-wheel-item { width: 112px; min-height: 56px; margin: -28px 0 0 -56px; grid-template-columns: 16px 25px 1fr; gap: 4px; padding: 6px; }
+  .tool-wheel.is-dense .tool-wheel-label { font-size: 0.67rem; }
 }
 
 @media (max-width: 820px) {

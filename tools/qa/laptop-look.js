@@ -11,10 +11,12 @@ async (page) => {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper/qa/laptop/before';
+  const QA_ROOT = (process.env.GOLF_FLIPPER_QA_ROOT || `${process.cwd()}/qa`).replaceAll('\\', '/');
+  const OUT = `${QA_ROOT}/laptop/before`;
+  const BASE_URL = process.env.GOLF_FLIPPER_URL || 'http://localhost:8457/';
   const log = [];
 
-  await page.goto('http://localhost:8457/');
+  await page.goto(BASE_URL);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(1200);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});

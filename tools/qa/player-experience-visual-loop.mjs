@@ -203,6 +203,27 @@ try {
     active: document.activeElement?.className || document.activeElement?.tagName,
   }));
 
+  // The integrated course-maintenance branch expands the outdoor belt to ten
+  // tools. Capture that dense layout separately from the two-item indoor belt.
+  await page.evaluate(() => {
+    const walk = window.__fw.scene3d.walk.state;
+    walk.x = -1.5;
+    walk.z = 243.5;
+    walk.yaw = 0;
+    walk.pitch = 0;
+  });
+  await page.keyboard.down('f');
+  await page.waitForTimeout(320);
+  await page.keyboard.up('f');
+  await page.locator('.tool-wheel').waitFor({ state: 'visible' });
+  result.controls.outdoorToolWheel = await page.evaluate(() => ({
+    count: document.querySelectorAll('.tool-wheel-item').length,
+    labels: [...document.querySelectorAll('.tool-wheel-label')].map((node) => node.textContent),
+  }));
+  if (result.controls.outdoorToolWheel.count !== 10) throw new Error('Outdoor tool belt did not expose all ten canonical tools');
+  await shot('12b-outdoor-tool-wheel');
+  await page.keyboard.press('Escape');
+
   await page.keyboard.press('Tab');
   await page.waitForTimeout(700);
   result.controls.afterOverviewKey = await page.evaluate(() => ({
