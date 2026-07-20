@@ -1,0 +1,2434 @@
+{
+  "capturedAt": "2026-07-20T07:51:22.490Z",
+  "branch": "overnight/golf-gameplay-loop",
+  "commit": null,
+  "browser": "150.0.7871.127",
+  "viewport": {
+    "width": 1600,
+    "height": 900,
+    "deviceScaleFactor": 1
+  },
+  "setup": {
+    "seed": 1919492412,
+    "dayAbs": 0,
+    "reservationIds": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "facilities": {
+      "clubhouse": {
+        "x": -4,
+        "z": 276
+      },
+      "cartBarn": {
+        "x": 52,
+        "z": 252
+      },
+      "starterStand": {
+        "x": -44,
+        "z": 172
+      },
+      "staging": [
+        {
+          "x": -36,
+          "z": 188
+        },
+        {
+          "x": -28,
+          "z": 196
+        },
+        {
+          "x": -12,
+          "z": 196
+        }
+      ],
+      "range": {
+        "center": {
+          "x": 12,
+          "z": 164
+        },
+        "bays": [
+          {
+            "x": -4,
+            "z": 172
+          },
+          {
+            "x": 4,
+            "z": 172
+          },
+          {
+            "x": 12,
+            "z": 164
+          },
+          {
+            "x": 12,
+            "z": 156
+          },
+          {
+            "x": 20,
+            "z": 156
+          },
+          {
+            "x": 28,
+            "z": 156
+          }
+        ],
+        "target": {
+          "x": -28,
+          "z": 116
+        }
+      },
+      "putting": {
+        "center": {
+          "x": -60,
+          "z": 244
+        },
+        "positions": [
+          {
+            "x": -44,
+            "z": 244
+          },
+          {
+            "x": -52,
+            "z": 252
+          },
+          {
+            "x": -68,
+            "z": 252
+          },
+          {
+            "x": -76,
+            "z": 244
+          },
+          {
+            "x": -68,
+            "z": 236
+          },
+          {
+            "x": -52,
+            "z": 236
+          }
+        ]
+      },
+      "chipping": {
+        "center": {
+          "x": -52,
+          "z": 196
+        },
+        "positions": [
+          {
+            "x": -60,
+            "z": 204
+          },
+          {
+            "x": -52,
+            "z": 196
+          },
+          {
+            "x": -52,
+            "z": 188
+          },
+          {
+            "x": -44,
+            "z": 188
+          }
+        ]
+      }
+    },
+    "firstHole": {
+      "id": 1,
+      "index": 0,
+      "tee": {
+        "x": -60,
+        "z": 164
+      },
+      "pin": {
+        "x": -332,
+        "z": 116
+      },
+      "play": {
+        "walk": [
+          {
+            "x": -60,
+            "z": 164
+          },
+          {
+            "x": -68,
+            "z": 156
+          },
+          {
+            "x": -116,
+            "z": 156
+          },
+          {
+            "x": -124,
+            "z": 148
+          },
+          {
+            "x": -180,
+            "z": 148
+          },
+          {
+            "x": -188,
+            "z": 140
+          },
+          {
+            "x": -292,
+            "z": 140
+          },
+          {
+            "x": -300,
+            "z": 132
+          },
+          {
+            "x": -308,
+            "z": 132
+          },
+          {
+            "x": -316,
+            "z": 124
+          },
+          {
+            "x": -324,
+            "z": 124
+          },
+          {
+            "x": -332,
+            "z": 116
+          }
+        ],
+        "cart": [
+          {
+            "x": -60,
+            "z": 164
+          },
+          {
+            "x": -52,
+            "z": 156
+          },
+          {
+            "x": -52,
+            "z": 148
+          },
+          {
+            "x": -84,
+            "z": 116
+          },
+          {
+            "x": -100,
+            "z": 116
+          },
+          {
+            "x": -140,
+            "z": 76
+          },
+          {
+            "x": -308,
+            "z": 76
+          },
+          {
+            "x": -332,
+            "z": 100
+          }
+        ]
+      },
+      "transition": {
+        "walk": [
+          {
+            "x": -332,
+            "z": 116
+          },
+          {
+            "x": -340,
+            "z": 116
+          },
+          {
+            "x": -356,
+            "z": 100
+          },
+          {
+            "x": -364,
+            "z": 100
+          },
+          {
+            "x": -372,
+            "z": 92
+          },
+          {
+            "x": -364,
+            "z": 84
+          }
+        ],
+        "cart": [
+          {
+            "x": -332,
+            "z": 100
+          },
+          {
+            "x": -332,
+            "z": 84
+          },
+          {
+            "x": -340,
+            "z": 76
+          },
+          {
+            "x": -356,
+            "z": 76
+          },
+          {
+            "x": -364,
+            "z": 68
+          },
+          {
+            "x": -372,
+            "z": 76
+          }
+        ]
+      }
+    }
+  },
+  "cameras": {
+    "practice": {
+      "x": -65,
+      "z": 207,
+      "targetX": -52,
+      "targetZ": 196,
+      "pitch": -0.13
+    },
+    "starter": {
+      "x": -18,
+      "z": 202,
+      "targetX": -30,
+      "targetZ": 188,
+      "pitch": -0.1
+    },
+    "firstTee": {
+      "x": -50.44180663500237,
+      "z": 161.6249337699097,
+      "targetX": -123.02614776434797,
+      "targetZ": 152.87773862982095,
+      "pitch": -0.045
+    },
+    "walking": {
+      "x": -272.65850805032215,
+      "z": 131.01899815185507,
+      "targetX": -280.65850805032215,
+      "targetZ": 124.01899815185507,
+      "pitch": -0.11
+    },
+    "riding": {
+      "x": -387,
+      "z": -84,
+      "targetX": -396,
+      "targetZ": -92,
+      "pitch": -0.11
+    },
+    "congestion": {
+      "x": -400,
+      "z": 270,
+      "targetX": -412,
+      "targetZ": 260,
+      "pitch": -0.1
+    }
+  },
+  "stages": {
+    "practice": {
+      "clock": 564,
+      "scene": {
+        "characters": 9,
+        "visibleCharacters": 9,
+        "liveCarts": 2,
+        "facilities": 12,
+        "ballInstances": 0
+      },
+      "panel": "COURSE LIVE\nClear\n4 groups\n0 starter queue\n2 carts out\nAvery Monroe\nH1 · —\nPracticing\nWalking\nPutting\nDevon Park\nH1 · —\nPracticing\nCart 1\nChipping\nCaleb Foster\nH1 · —\nPracticing\nWalking\nChipping",
+      "congestion": {
+        "level": "clear",
+        "score": 0,
+        "waits": 0,
+        "holes": []
+      },
+      "starter": {
+        "queue": [],
+        "currentPartyId": null,
+        "lastStartMinute": null,
+        "announcements": []
+      },
+      "carts": [
+        {
+          "id": "cart-1",
+          "status": "assigned",
+          "assignedPartyId": "round-2",
+          "condition": 82,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-2",
+          "status": "assigned",
+          "assignedPartyId": "round-4",
+          "condition": 85,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-3",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-4",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-5",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 82,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-6",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 85,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-7",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-8",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        }
+      ],
+      "practice": {
+        "range": {
+          "capacity": 6,
+          "occupants": []
+        },
+        "putting": {
+          "capacity": 6,
+          "occupants": [
+            "round-1"
+          ]
+        },
+        "chipping": {
+          "capacity": 4,
+          "occupants": [
+            "round-2",
+            "round-3",
+            "round-4"
+          ]
+        }
+      },
+      "metrics": {
+        "created": 4,
+        "started": 0,
+        "completed": 0,
+        "reviewed": 0,
+        "recovered": 0,
+        "peakActive": 4,
+        "peakBalls": 0,
+        "poolExhaustions": 0
+      },
+      "presentationShotCount": 0,
+      "parties": [
+        {
+          "id": "round-1",
+          "name": "Avery Monroe",
+          "state": "practicing",
+          "hole": 1,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "near",
+          "position": {
+            "x": -44,
+            "z": 244
+          },
+          "score": [
+            {
+              "name": "Avery Monroe",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Avery Monroe Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-2",
+          "name": "Devon Park",
+          "state": "practicing",
+          "hole": 1,
+          "transport": "ride",
+          "cartId": "cart-1",
+          "simulationTier": "near",
+          "position": {
+            "x": -60,
+            "z": 204
+          },
+          "score": [
+            {
+              "name": "Devon Park",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Devon Park Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-3",
+          "name": "Caleb Foster",
+          "state": "practicing",
+          "hole": 1,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "near",
+          "position": {
+            "x": -52,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Caleb Foster",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Caleb Foster Guest 2",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Caleb Foster Guest 3",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-4",
+          "name": "Imani Cole",
+          "state": "practicing",
+          "hole": 1,
+          "transport": "ride",
+          "cartId": "cart-2",
+          "simulationTier": "near",
+          "position": {
+            "x": -52,
+            "z": 188
+          },
+          "score": [
+            {
+              "name": "Imani Cole",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Imani Cole Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        }
+      ]
+    },
+    "starter": {
+      "clock": 580,
+      "scene": {
+        "characters": 9,
+        "visibleCharacters": 9,
+        "liveCarts": 2,
+        "facilities": 12,
+        "ballInstances": 0
+      },
+      "panel": "COURSE LIVE\nClear\n4 groups\n4 starter queue\n2 carts out\nAvery Monroe\nH1 · —\nWaiting For Starter\nWalking\nDevon Park\nH1 · —\nWaiting For Starter\nCart 1\nCaleb Foster\nH1 · —\nWaiting For Starter\nWalking",
+      "congestion": {
+        "level": "clear",
+        "score": 0,
+        "waits": 0,
+        "holes": []
+      },
+      "starter": {
+        "queue": [
+          "round-1",
+          "round-2",
+          "round-3",
+          "round-4"
+        ],
+        "currentPartyId": null,
+        "lastStartMinute": null,
+        "announcements": []
+      },
+      "carts": [
+        {
+          "id": "cart-1",
+          "status": "assigned",
+          "assignedPartyId": "round-2",
+          "condition": 82,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-2",
+          "status": "assigned",
+          "assignedPartyId": "round-4",
+          "condition": 85,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-3",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-4",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-5",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 82,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-6",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 85,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-7",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-8",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        }
+      ],
+      "practice": {
+        "range": {
+          "capacity": 6,
+          "occupants": []
+        },
+        "putting": {
+          "capacity": 6,
+          "occupants": []
+        },
+        "chipping": {
+          "capacity": 4,
+          "occupants": []
+        }
+      },
+      "metrics": {
+        "created": 4,
+        "started": 0,
+        "completed": 0,
+        "reviewed": 0,
+        "recovered": 0,
+        "peakActive": 4,
+        "peakBalls": 0,
+        "poolExhaustions": 0
+      },
+      "presentationShotCount": 0,
+      "parties": [
+        {
+          "id": "round-1",
+          "name": "Avery Monroe",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "near",
+          "position": {
+            "x": -36,
+            "z": 188
+          },
+          "score": [
+            {
+              "name": "Avery Monroe",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Avery Monroe Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-2",
+          "name": "Devon Park",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "ride",
+          "cartId": "cart-1",
+          "simulationTier": "near",
+          "position": {
+            "x": -28,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Devon Park",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Devon Park Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-3",
+          "name": "Caleb Foster",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "near",
+          "position": {
+            "x": -12,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Caleb Foster",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Caleb Foster Guest 2",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Caleb Foster Guest 3",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-4",
+          "name": "Imani Cole",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "ride",
+          "cartId": "cart-2",
+          "simulationTier": "near",
+          "position": {
+            "x": -4,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Imani Cole",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Imani Cole Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        }
+      ]
+    },
+    "firstTeeCall": {
+      "clock": 600.6,
+      "scene": {
+        "characters": 9,
+        "visibleCharacters": 9,
+        "liveCarts": 2,
+        "facilities": 12,
+        "ballInstances": 0
+      },
+      "panel": "COURSE LIVE\nClear\n4 groups\n3 starter queue\n2 carts out\nAvery Monroe\nH1 · —\nCalled To Tee\nWalking\nDevon Park\nH1 · —\nWaiting For Starter\nCart 1\n1m waiting\nCaleb Foster\nH1 · —\nWaiting For Starter\nWalking",
+      "congestion": {
+        "level": "clear",
+        "score": 0,
+        "waits": 0,
+        "holes": []
+      },
+      "starter": {
+        "queue": [
+          "round-2",
+          "round-3",
+          "round-4"
+        ],
+        "currentPartyId": "round-1",
+        "lastStartMinute": null,
+        "announcements": [
+          {
+            "minute": 600.27,
+            "partyId": "round-1",
+            "message": "Avery Monroe, you are up on the first tee."
+          }
+        ]
+      },
+      "carts": [
+        {
+          "id": "cart-1",
+          "status": "assigned",
+          "assignedPartyId": "round-2",
+          "condition": 82,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-2",
+          "status": "assigned",
+          "assignedPartyId": "round-4",
+          "condition": 85,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-3",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-4",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-5",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 82,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-6",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 85,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-7",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-8",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        }
+      ],
+      "practice": {
+        "range": {
+          "capacity": 6,
+          "occupants": []
+        },
+        "putting": {
+          "capacity": 6,
+          "occupants": []
+        },
+        "chipping": {
+          "capacity": 4,
+          "occupants": []
+        }
+      },
+      "metrics": {
+        "created": 4,
+        "started": 0,
+        "completed": 0,
+        "reviewed": 0,
+        "recovered": 0,
+        "peakActive": 4,
+        "peakBalls": 0,
+        "poolExhaustions": 0
+      },
+      "presentationShotCount": 0,
+      "parties": [
+        {
+          "id": "round-1",
+          "name": "Avery Monroe",
+          "state": "called-to-tee",
+          "hole": 1,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "near",
+          "position": {
+            "x": -36,
+            "z": 188
+          },
+          "score": [
+            {
+              "name": "Avery Monroe",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Avery Monroe Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-2",
+          "name": "Devon Park",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "ride",
+          "cartId": "cart-1",
+          "simulationTier": "near",
+          "position": {
+            "x": -28,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Devon Park",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Devon Park Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0.5,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-3",
+          "name": "Caleb Foster",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "near",
+          "position": {
+            "x": -12,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Caleb Foster",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Caleb Foster Guest 2",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Caleb Foster Guest 3",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-4",
+          "name": "Imani Cole",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "ride",
+          "cartId": "cart-2",
+          "simulationTier": "near",
+          "position": {
+            "x": -4,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Imani Cole",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Imani Cole Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        }
+      ]
+    },
+    "shot": {
+      "clock": 602.9,
+      "scene": {
+        "characters": 9,
+        "visibleCharacters": 9,
+        "liveCarts": 2,
+        "facilities": 12,
+        "ballInstances": 1
+      },
+      "panel": "COURSE LIVE\nClear\n4 groups\n3 starter queue\n2 carts out\nAvery Monroe\nH1 · —\nPreparing Shot\nWalking\nDevon Park\nH1 · —\nWaiting For Starter\nCart 1\n3m waiting\nCaleb Foster\nH1 · —\nWaiting For Starter\nWalking",
+      "congestion": {
+        "level": "clear",
+        "score": 0,
+        "waits": 0,
+        "holes": []
+      },
+      "starter": {
+        "queue": [
+          "round-2",
+          "round-3",
+          "round-4"
+        ],
+        "currentPartyId": null,
+        "lastStartMinute": 601.31,
+        "announcements": [
+          {
+            "minute": 600.27,
+            "partyId": "round-1",
+            "message": "Avery Monroe, you are up on the first tee."
+          }
+        ]
+      },
+      "carts": [
+        {
+          "id": "cart-1",
+          "status": "assigned",
+          "assignedPartyId": "round-2",
+          "condition": 82,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-2",
+          "status": "assigned",
+          "assignedPartyId": "round-4",
+          "condition": 85,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-3",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-4",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-5",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 82,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-6",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 85,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-7",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-8",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        }
+      ],
+      "practice": {
+        "range": {
+          "capacity": 6,
+          "occupants": []
+        },
+        "putting": {
+          "capacity": 6,
+          "occupants": []
+        },
+        "chipping": {
+          "capacity": 4,
+          "occupants": []
+        }
+      },
+      "metrics": {
+        "created": 4,
+        "started": 1,
+        "completed": 0,
+        "reviewed": 0,
+        "recovered": 0,
+        "peakActive": 4,
+        "peakBalls": 1,
+        "poolExhaustions": 0
+      },
+      "presentationShotCount": 1,
+      "parties": [
+        {
+          "id": "round-1",
+          "name": "Avery Monroe",
+          "state": "preparing-shot",
+          "hole": 1,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "near",
+          "position": {
+            "x": -60,
+            "z": 164
+          },
+          "score": [
+            {
+              "name": "Avery Monroe",
+              "total": 0,
+              "current": 1
+            },
+            {
+              "name": "Avery Monroe Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 1.6,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0.1,
+            "shotMinutes": 0.2,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-2",
+          "name": "Devon Park",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "ride",
+          "cartId": "cart-1",
+          "simulationTier": "near",
+          "position": {
+            "x": -28,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Devon Park",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Devon Park Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 3,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-3",
+          "name": "Caleb Foster",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "near",
+          "position": {
+            "x": -12,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Caleb Foster",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Caleb Foster Guest 2",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Caleb Foster Guest 3",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-4",
+          "name": "Imani Cole",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "ride",
+          "cartId": "cart-2",
+          "simulationTier": "near",
+          "position": {
+            "x": -4,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Imani Cole",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Imani Cole Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        }
+      ]
+    },
+    "walking": {
+      "clock": 608,
+      "scene": {
+        "characters": 9,
+        "visibleCharacters": 9,
+        "liveCarts": 2,
+        "facilities": 12,
+        "ballInstances": 2
+      },
+      "panel": "COURSE LIVE\nClear\n4 groups\n3 starter queue\n2 carts out\nAvery Monroe\nH1 · 1 stroke\nPreparing Shot\nWalking\nDevon Park\nH1 · —\nWaiting For Starter\nCart 1\n8m waiting\nCaleb Foster\nH1 · —\nWaiting For Starter\nWalking",
+      "congestion": {
+        "level": "clear",
+        "score": 0,
+        "waits": 0,
+        "holes": []
+      },
+      "starter": {
+        "queue": [
+          "round-2",
+          "round-3",
+          "round-4"
+        ],
+        "currentPartyId": null,
+        "lastStartMinute": 601.31,
+        "announcements": [
+          {
+            "minute": 600.27,
+            "partyId": "round-1",
+            "message": "Avery Monroe, you are up on the first tee."
+          }
+        ]
+      },
+      "carts": [
+        {
+          "id": "cart-1",
+          "status": "assigned",
+          "assignedPartyId": "round-2",
+          "condition": 82,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-2",
+          "status": "assigned",
+          "assignedPartyId": "round-4",
+          "condition": 85,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-3",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-4",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-5",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 82,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-6",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 85,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-7",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-8",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        }
+      ],
+      "practice": {
+        "range": {
+          "capacity": 6,
+          "occupants": []
+        },
+        "putting": {
+          "capacity": 6,
+          "occupants": []
+        },
+        "chipping": {
+          "capacity": 4,
+          "occupants": []
+        }
+      },
+      "metrics": {
+        "created": 4,
+        "started": 1,
+        "completed": 0,
+        "reviewed": 0,
+        "recovered": 0,
+        "peakActive": 4,
+        "peakBalls": 1,
+        "poolExhaustions": 0
+      },
+      "presentationShotCount": 2,
+      "parties": [
+        {
+          "id": "round-1",
+          "name": "Avery Monroe",
+          "state": "preparing-shot",
+          "hole": 1,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "near",
+          "position": {
+            "x": -280.65850805032215,
+            "z": 124.01899815185507
+          },
+          "score": [
+            {
+              "name": "Avery Monroe",
+              "total": 0,
+              "current": 1
+            },
+            {
+              "name": "Avery Monroe Guest 2",
+              "total": 0,
+              "current": 1
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 6.7,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 4.2,
+            "shotMinutes": 0.4,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-2",
+          "name": "Devon Park",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "ride",
+          "cartId": "cart-1",
+          "simulationTier": "mid",
+          "position": {
+            "x": -28,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Devon Park",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Devon Park Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 8,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-3",
+          "name": "Caleb Foster",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "far",
+          "position": {
+            "x": -12,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Caleb Foster",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Caleb Foster Guest 2",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Caleb Foster Guest 3",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-4",
+          "name": "Imani Cole",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "ride",
+          "cartId": "cart-2",
+          "simulationTier": "far",
+          "position": {
+            "x": -4,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Imani Cole",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Imani Cole Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        }
+      ]
+    },
+    "riding": {
+      "clock": 634,
+      "scene": {
+        "characters": 9,
+        "visibleCharacters": 7,
+        "liveCarts": 2,
+        "facilities": 12,
+        "ballInstances": 3
+      },
+      "panel": "COURSE LIVE\nClear\n4 groups\n1 starter queue\n2 carts out\nAvery Monroe\nH4 · -3\nPreparing Shot\nWalking\nDevon Park\nH3 · +1\nPreparing Shot\nCart 1\n9m waiting\nCaleb Foster\nH1 · 1 stroke\nBall In Play\nWalking",
+      "congestion": {
+        "level": "clear",
+        "score": 0,
+        "waits": 0,
+        "holes": []
+      },
+      "starter": {
+        "queue": [
+          "round-4"
+        ],
+        "currentPartyId": null,
+        "lastStartMinute": 631.95,
+        "announcements": [
+          {
+            "minute": 630.44,
+            "partyId": "round-3",
+            "message": "Caleb Foster, you are up on the first tee."
+          },
+          {
+            "minute": 608.65,
+            "partyId": "round-2",
+            "message": "Devon Park, you are up on the first tee."
+          },
+          {
+            "minute": 600.27,
+            "partyId": "round-1",
+            "message": "Avery Monroe, you are up on the first tee."
+          }
+        ]
+      },
+      "carts": [
+        {
+          "id": "cart-1",
+          "status": "assigned",
+          "assignedPartyId": "round-2",
+          "condition": 82,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-2",
+          "status": "assigned",
+          "assignedPartyId": "round-4",
+          "condition": 85,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-3",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-4",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-5",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 82,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-6",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 85,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-7",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-8",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        }
+      ],
+      "practice": {
+        "range": {
+          "capacity": 6,
+          "occupants": []
+        },
+        "putting": {
+          "capacity": 6,
+          "occupants": []
+        },
+        "chipping": {
+          "capacity": 4,
+          "occupants": []
+        }
+      },
+      "metrics": {
+        "created": 4,
+        "started": 3,
+        "completed": 0,
+        "reviewed": 0,
+        "recovered": 0,
+        "peakActive": 4,
+        "peakBalls": 1,
+        "poolExhaustions": 0
+      },
+      "presentationShotCount": 32,
+      "parties": [
+        {
+          "id": "round-1",
+          "name": "Avery Monroe",
+          "state": "preparing-shot",
+          "hole": 4,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "far",
+          "position": {
+            "x": -124,
+            "z": -252
+          },
+          "score": [
+            {
+              "name": "Avery Monroe",
+              "total": 8,
+              "current": 0
+            },
+            {
+              "name": "Avery Monroe Guest 2",
+              "total": 8,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 32.7,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 17.4,
+            "shotMinutes": 1.8,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-2",
+          "name": "Devon Park",
+          "state": "preparing-shot",
+          "hole": 3,
+          "transport": "ride",
+          "cartId": "cart-1",
+          "simulationTier": "near",
+          "position": {
+            "x": -396,
+            "z": -92
+          },
+          "score": [
+            {
+              "name": "Devon Park",
+              "total": 8,
+              "current": 1
+            },
+            {
+              "name": "Devon Park Guest 2",
+              "total": 8,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 24.4,
+            "behindMinutes": 0,
+            "waitingMinutes": 8.5,
+            "travelMinutes": 8.6,
+            "shotMinutes": 1.7,
+            "practiceMinutes": 8,
+            "congestion": "watch"
+          }
+        },
+        {
+          "id": "round-3",
+          "name": "Caleb Foster",
+          "state": "ball-in-play",
+          "hole": 1,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "far",
+          "position": {
+            "x": -60,
+            "z": 164
+          },
+          "score": [
+            {
+              "name": "Caleb Foster",
+              "total": 0,
+              "current": 1
+            },
+            {
+              "name": "Caleb Foster Guest 2",
+              "total": 0,
+              "current": 1
+            },
+            {
+              "name": "Caleb Foster Guest 3",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 2,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0.1,
+            "shotMinutes": 0.4,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-4",
+          "name": "Imani Cole",
+          "state": "waiting-for-starter",
+          "hole": 1,
+          "transport": "ride",
+          "cartId": "cart-2",
+          "simulationTier": "far",
+          "position": {
+            "x": -4,
+            "z": 196
+          },
+          "score": [
+            {
+              "name": "Imani Cole",
+              "total": 0,
+              "current": 0
+            },
+            {
+              "name": "Imani Cole Guest 2",
+              "total": 0,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 0,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 0,
+            "shotMinutes": 0,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        }
+      ]
+    },
+    "congestion": {
+      "clock": 700,
+      "scene": {
+        "characters": 9,
+        "visibleCharacters": 4,
+        "liveCarts": 2,
+        "facilities": 12,
+        "ballInstances": 4
+      },
+      "panel": "COURSE LIVE\nWatch\n4 groups\n0 starter queue\n2 carts out\nAvery Monroe\nH9 · -6 · 1 stroke\nTraveling To Ball\nWalking\nDevon Park\nH8 · +2\nPreparing Shot\nCart 1\n9m waiting\nCaleb Foster\nH4 · -1 · 3 strokes\nPreparing Shot\nWalking\n13m behind",
+      "congestion": {
+        "level": "watch",
+        "score": 1,
+        "waits": 0,
+        "holes": [
+          {
+            "hole": 4,
+            "groups": 2
+          }
+        ]
+      },
+      "starter": {
+        "queue": [],
+        "currentPartyId": null,
+        "lastStartMinute": 661.58,
+        "announcements": [
+          {
+            "minute": 660.3,
+            "partyId": "round-4",
+            "message": "Imani Cole, you are up on the first tee."
+          },
+          {
+            "minute": 630.44,
+            "partyId": "round-3",
+            "message": "Caleb Foster, you are up on the first tee."
+          },
+          {
+            "minute": 608.65,
+            "partyId": "round-2",
+            "message": "Devon Park, you are up on the first tee."
+          },
+          {
+            "minute": 600.27,
+            "partyId": "round-1",
+            "message": "Avery Monroe, you are up on the first tee."
+          }
+        ]
+      },
+      "carts": [
+        {
+          "id": "cart-1",
+          "status": "assigned",
+          "assignedPartyId": "round-2",
+          "condition": 82,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-2",
+          "status": "assigned",
+          "assignedPartyId": "round-4",
+          "condition": 85,
+          "position": {
+            "x": 52,
+            "z": 252
+          },
+          "trips": 1
+        },
+        {
+          "id": "cart-3",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-4",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-5",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 82,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-6",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 85,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-7",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 88,
+          "position": null,
+          "trips": 0
+        },
+        {
+          "id": "cart-8",
+          "status": "available",
+          "assignedPartyId": null,
+          "condition": 91,
+          "position": null,
+          "trips": 0
+        }
+      ],
+      "practice": {
+        "range": {
+          "capacity": 6,
+          "occupants": []
+        },
+        "putting": {
+          "capacity": 6,
+          "occupants": []
+        },
+        "chipping": {
+          "capacity": 4,
+          "occupants": []
+        }
+      },
+      "metrics": {
+        "created": 4,
+        "started": 4,
+        "completed": 0,
+        "reviewed": 0,
+        "recovered": 0,
+        "peakActive": 4,
+        "peakBalls": 3,
+        "poolExhaustions": 0
+      },
+      "presentationShotCount": 32,
+      "parties": [
+        {
+          "id": "round-1",
+          "name": "Avery Monroe",
+          "state": "traveling-to-ball",
+          "hole": 9,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "mid",
+          "position": {
+            "x": -236.51772435069563,
+            "z": 292
+          },
+          "score": [
+            {
+              "name": "Avery Monroe",
+              "total": 24,
+              "current": 1
+            },
+            {
+              "name": "Avery Monroe Guest 2",
+              "total": 22,
+              "current": 1
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 98.7,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 55.3,
+            "shotMinutes": 5.3,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        },
+        {
+          "id": "round-2",
+          "name": "Devon Park",
+          "state": "preparing-shot",
+          "hole": 8,
+          "transport": "ride",
+          "cartId": "cart-1",
+          "simulationTier": "near",
+          "position": {
+            "x": -412,
+            "z": 260
+          },
+          "score": [
+            {
+              "name": "Devon Park",
+              "total": 29,
+              "current": 0
+            },
+            {
+              "name": "Devon Park Guest 2",
+              "total": 28,
+              "current": 0
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 90.4,
+            "behindMinutes": 0,
+            "waitingMinutes": 8.5,
+            "travelMinutes": 35.4,
+            "shotMinutes": 5.3,
+            "practiceMinutes": 8,
+            "congestion": "watch"
+          }
+        },
+        {
+          "id": "round-3",
+          "name": "Caleb Foster",
+          "state": "preparing-shot",
+          "hole": 4,
+          "transport": "walk",
+          "cartId": null,
+          "simulationTier": "far",
+          "position": {
+            "x": 342.25046939404353,
+            "z": -208.45371825936576
+          },
+          "score": [
+            {
+              "name": "Caleb Foster",
+              "total": 10,
+              "current": 3
+            },
+            {
+              "name": "Caleb Foster Guest 2",
+              "total": 11,
+              "current": 3
+            },
+            {
+              "name": "Caleb Foster Guest 3",
+              "total": 10,
+              "current": 3
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 68,
+            "behindMinutes": 12.5,
+            "waitingMinutes": 0,
+            "travelMinutes": 30.9,
+            "shotMinutes": 4,
+            "practiceMinutes": 8,
+            "congestion": "slow"
+          }
+        },
+        {
+          "id": "round-4",
+          "name": "Imani Cole",
+          "state": "preparing-shot",
+          "hole": 4,
+          "transport": "ride",
+          "cartId": "cart-2",
+          "simulationTier": "far",
+          "position": {
+            "x": 130.66111179196943,
+            "z": -228.87065027110293
+          },
+          "score": [
+            {
+              "name": "Imani Cole",
+              "total": 11,
+              "current": 2
+            },
+            {
+              "name": "Imani Cole Guest 2",
+              "total": 10,
+              "current": 1
+            }
+          ],
+          "pace": {
+            "expectedMinutes": 142.6,
+            "elapsedMinutes": 38.4,
+            "behindMinutes": 0,
+            "waitingMinutes": 0,
+            "travelMinutes": 15.4,
+            "shotMinutes": 2.6,
+            "practiceMinutes": 8,
+            "congestion": "clear"
+          }
+        }
+      ]
+    },
+    "laptopCourseText": "Course\n?\nOVERALL\n63\ndesign 88\nCONDITION\n47\nturf, live\nWEATHER\n67°\ndry\nHOLES\nAll open\n9 in play\nLIVE GOLF OPERATIONS\nGROUPS OUT\n4\n9 golfers\nSTARTER QUEUE\n0\ntee clear\nCONGESTION\nwatch\n0 safety waits\nPRACTICE\n0\nrange 0 · putting 0 · short 0\nAvery Monroe\nHole 9 · traveling to ball · -6 / 1 on hole\nwalking\nDevon Park\nHole 8 · preparing shot · +2\ncart-1\n9m wait\nCaleb Foster\nHole 4 · preparing shot · -1 / 3 on hole\nwalking\nImani Cole\nHole 4 · preparing shot · -1 / 1 on hole\ncart-2\n⚠\n1 marshal response dispatched.\nTURF BY ZONE\nZONE\tHEALTH\t\tMOISTURE\tWEAR\tDISEASE\tPOLICY\nGreens\t\n\t55\t55%\t17\t14 cells\tstandard · dawn · mow 4mm/1d\nTees\t\n\t55\t46%\t35\tclear\tlight · dawn · mow 10mm/3d\nFairways\t\n\t52\t43%\t10\tclear\tlight · dawn · mow 14mm/4d\nRough\t\n\t60\t45%\t4\tclear\toff · dawn · mow 45mm/8d\nHOLES\nHole 1\nopen\nHole 2\nopen\nHole 3\nopen\nHole 4\nopen\nHole 5\nopen\nHole 6\nopen\nHole 7\nopen\nHole 8\nopen\nHole 9\nopen\nMowing, watering and fertiliser policy live at the Grounds desk. Course surgery is done on the wall map, at the overview camera.",
+    "laptopFleetText": "Carts & rentals\n?\nGOLF-CART FLEET\nAVAILABLE\n6\n8 total\nASSIGNED\n2\nmoving with parties\nTRIPS\n2\nlifetime assignments\nCart 1\nassigned to Devon Park\nassigned\ncondition 82\nCart 2\nassigned to Imani Cole\nassigned\ncondition 85\nCart 3\nstaged at the cart barn\navailable\ncondition 88\nCart 4\nstaged at the cart barn\navailable\ncondition 91\nCart 5\nstaged at the cart barn\navailable\ncondition 82\nCart 6\nstaged at the cart barn\navailable\ncondition 85\nCart 7\nstaged at the cart barn\navailable\ncondition 88\nCart 8\nstaged at the cart barn\navailable\ncondition 91\nRENTAL CLUB SETS\nSETS\n3\nin the fleet\nCONDITION\n55\nserviceable\nPRICE\n$18\nper round\nEARNED\n$0\nyesterday\nRENTAL-SET MAINTENANCE\nMaintenance\nSets wear a little with every round rented. There is no repair — worn sets are replaced.\nPrice\n$18 per round\nChange on the Pricing page\nBuy sets\n$220 each — a new set lifts the fleet average\nBuy 1 set — $220"
+  },
+  "videoPath": "C:\\Users\\Kenneth\\Documents\\GitHub\\Golf-Flipper-golf-gameplay-loop\\qa\\golf-gameplay-loop\\final\\video\\page@34669eef94b5159906c52778c2c6c75a.webm",
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+    },
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    }
+  ],
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/tee_markers.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/golf_cart.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/bucket_soil.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/clubhouse/office_chair.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/clubhouse/armchair.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/clubhouse/cardterm_pro.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/clubhouse/shoe_pro.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/tractor_red.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/workbench.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/club_sign.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/tool_chest.glb",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8469/vendor/models/tractor_broken.glb",
+      "failure": "net::ERR_ABORTED"
+    }
+  ],
+  "hardFailures": {
+    "pageErrors": [],
+    "consoleErrors": [],
+    "nonAbortedRequests": []
+  }
+}

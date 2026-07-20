@@ -20,7 +20,7 @@
 // into a handful of geometries. Detail is close to free; a draw call is not.
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { CachedGLTFLoader as GLTFLoader } from '../gltfCache.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { closeTextureImages } from './resourceLifecycle.js';
 import {

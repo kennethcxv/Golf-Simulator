@@ -7922,7 +7922,10 @@ export function makeClubhouse(ctx) {
           }
         }
         if (stop.faceX !== undefined) {
-          const want = Math.atan2(stop.faceX - c.mesh.position.x, stop.faceZ - c.mesh.position.z);
+          // CharacterAsset's face and shoe toes point down local -Z. Adding PI
+          // makes the body (not its back) face the person or display it is
+          // looking at.
+          const want = Math.atan2(stop.faceX - c.mesh.position.x, stop.faceZ - c.mesh.position.z) + Math.PI;
           let dy = want - c.mesh.rotation.y;
           while (dy > Math.PI) dy -= Math.PI * 2;
           while (dy < -Math.PI) dy += Math.PI * 2;
@@ -7949,7 +7952,7 @@ export function makeClubhouse(ctx) {
         const moved = Math.hypot(res.nx - c.mesh.position.x, res.nz - c.mesh.position.z);
         c.mesh.position.x = res.nx;
         c.mesh.position.z = res.nz;
-        c.mesh.rotation.y = Math.atan2(wdx, wdz);
+        c.mesh.rotation.y = Math.atan2(wdx, wdz) + Math.PI;
         // stuck detection: 1.2s pinned → one repath against the fresh world;
         // 3s pinned → sidestep off whatever is holding them and start over
         if (step > 0.001 && moved < step * 0.25) {

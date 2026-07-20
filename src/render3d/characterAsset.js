@@ -380,13 +380,25 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
         lean = 0.07;
       }
       bob = 0.02 * Math.sin(2 * w);
-    } else if (char.mode === 'Swing') {
-      const t = p % 2.6;
-      twist = lerpSeg(t, [[0, 0], [0.7, 0], [1.2, 0.55], [1.45, -0.6], [2.1, 0], [2.6, 0]]);
-      const arm = lerpSeg(t, [[0, -0.5], [0.7, -0.5], [1.2, -1.5], [1.45, 0.7], [2.1, -0.5], [2.6, -0.5]]);
+    } else if (char.mode === 'Sit') {
+      hipL = -1.35;
+      hipR = -1.35;
+      kneeL = 1.35;
+      kneeR = 1.35;
+      shL = -0.28;
+      shR = -0.28;
+      elb = -0.7;
+      lean = 0.06;
+      bob = 0.006 * Math.sin(p * 4.5);
+    } else if (['Swing', 'DriverSwing', 'IronSwing', 'PracticeSwing', 'BunkerSwing'].includes(char.mode)) {
+      const cycle = char.mode === 'PracticeSwing' ? 2.9 : 2.6;
+      const t = p % cycle;
+      const power = char.mode === 'DriverSwing' ? 1.12 : char.mode === 'BunkerSwing' ? 1.18 : 1;
+      twist = power * lerpSeg(t, [[0, 0], [0.45, 0.03], [0.72, -0.04], [1.2, 0.55], [1.43, -0.6], [2.15, 0], [cycle, 0]]);
+      const arm = power * lerpSeg(t, [[0, -0.5], [0.45, -0.53], [0.72, -0.47], [1.2, -1.5], [1.43, 0.7], [2.15, -0.5], [cycle, -0.5]]);
       shL = arm; shR = arm * 0.85;
-      elb = -0.3;
-      lean = 0.16;
+      elb = char.mode === 'BunkerSwing' ? -0.18 : -0.3;
+      lean = char.mode === 'BunkerSwing' ? 0.24 : 0.16;
       headTilt = 0.28;
     } else if (['Browse', 'Inspect', 'Reach'].includes(char.mode)) {
       const r = lerpSeg(p % 3.2, [[0, 0], [0.5, 1.25], [1.9, 1.0], [2.6, 0], [3.2, 0]]);

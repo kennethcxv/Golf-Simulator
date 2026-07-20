@@ -175,7 +175,9 @@ function enterWalk(spawn) {
   const hint = document.querySelector('.hint-bar');
   if (hint) hint.style.display = 'none';
   inspectPanel.hide();
-  requestLook();
+  // Pointer lock is opt-in through the canvas click below. This keeps visible
+  // HUD controls usable on arrival and matches the "Click to look around"
+  // instruction; arrow-key look and WASD movement are available immediately.
 }
 
 function exitWalk() {
@@ -377,7 +379,43 @@ function exitLaptop(silent) {
   if (vt) vt.style.display = '';
   if (!silent) {
     walkOverlay.style.display = '';
-    requestLook();
+    if (audio.ready) audio.uiTick();
+  }
+}
+
+// --- tee desk mode ------------------------------------------------------------
+// The same physical counter serves golf operations and merchandise, but the
+// workflows remain independent. This mode borrows only the proven cashier pose;
+// it never enters registerMode or touches its live sale.
+function enterFrontDesk(reservationId = null) {
+  if (!walkActive() || app.frontDeskOpen || app.laptopOpen || regActive()) return;
+  const ch = app.scene3d?.clubhouse?.();
+  const pose = ch?.register?.cashierPose?.();
+  if (!pose || !frontDeskUi) return;
+  app.frontDeskOpen = true;
+  resetCameraInput();
+  app.scene3d.walk.focusOn(pose);
+  if (document.pointerLockElement) document.exitPointerLock();
+  closeLeftPanels('none');
+  walkOverlay.style.display = 'none';
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = 'none';
+  document.body.classList.add('front-desk-mode');
+  frontDeskUi.open(reservationId);
+  if (audio.ready) audio.uiTick();
+}
+
+function exitFrontDesk(silent = false) {
+  if (!app.frontDeskOpen) return;
+  app.frontDeskOpen = false;
+  frontDeskUi?.close();
+  document.body.classList.remove('front-desk-mode');
+  app.scene3d?.walk?.clearFocus?.();
+  const viewToggle = document.querySelector('.view-toggle');
+  if (viewToggle) viewToggle.style.display = '';
+  resetCameraInput();
+  if (!silent && walkActive()) {
+    walkOverlay.style.display = '';
     if (audio.ready) audio.uiTick();
   }
 }
@@ -830,6 +868,7 @@ function startGameNow(state, loadNotice = null, generation = sceneStartGeneratio
   menu.setVisible(false);
   gameUi.style.display = '';
   hud.update();
+  golfDayPanel?.update();
   if (objectivesPanel) objectivesPanel.refresh();
   toast(`Welcome to ${state.clubName} — ${state.mode} mode.`);
   if (lastDiseasedNames.size > 0) {
@@ -954,6 +993,7 @@ function exitToMenu() {
   app.screen = 'menu';
   app.state = null;
   gameUi.style.display = 'none';
+  if (objectivesPanel) objectivesPanel.root.style.display = 'none';
   menu.setVisible(true);
 }
 
@@ -1139,6 +1179,7 @@ const handlers = {
     if (app.empireOpen) empirePanel.refresh();
     syncPresentationMode(presentationMode());
     hud.update();
+    golfDayPanel?.update();
     autosave();
     return {};
   },
@@ -1811,6 +1852,13 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('keydown', (e) => {
   if (app.screen !== 'game') return;
+  if (app.frontDeskOpen) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      exitFrontDesk();
+    }
+    return;
+  }
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
 
   // The pause shell owns every key while open. P is a universal pause key in
@@ -2153,6 +2201,9 @@ let tutLastYaw = null;
 let tutWalked = 0;
 let tutLastPos = null;
 let audioClock = 0;
+let golfFocusClock = 0;
+let golfAudioSequence = 0;
+let golfAudioDay = null;
 
 function frame(ts) {
   const dtMs = Math.min(250, ts - lastTs || 16);
@@ -2162,7 +2213,26 @@ function frame(ts) {
     keyboardCamera(dtMs);
     const speed = BALANCE.speeds[app.speedIdx];
     if (speed > 0) {
-      const gameMinutes = (dtMs / 1000) * BALANCE.gameMinutesPerRealSecond * speed;
+      const golfParties = app.state.golfDay?.parties || [];
+      const nearbyShot = app.speedIdx === 1 && golfParties.find((party) => (
+        party.simulationTier === 'near' && party.state === 'ball-in-play'
+      ));
+      const nearbyAddress = app.speedIdx === 1 && golfParties.find((party) => (
+        party.simulationTier === 'near'
+        && ['preparing-shot', 'on-green', 'putting'].includes(party.state)
+      ));
+      let gameMinutes = (dtMs / 1000) * BALANCE.gameMinutesPerRealSecond * speed;
+      // At normal speed, a shot the player is close enough to watch gets a
+      // real presentation beat. First stop this frame at address so a tiny
+      // trajectory cannot start and finish in one sim tick, then advance an
+      // active flight slowly enough for the ball, swing and audio to read.
+      if (nearbyShot) gameMinutes = Math.min(gameMinutes, (dtMs / 1000) * 0.08);
+      else if (nearbyAddress) {
+        const untilAddress = Number(nearbyAddress.nextActionMinute) - Number(app.state.clock.minutes);
+        if (Number.isFinite(untilAddress) && untilAddress <= gameMinutes) {
+          gameMinutes = Math.min(gameMinutes, Math.max(0.001, untilAddress + 0.001));
+        }
+      }
       const { daysPassed } = empireUpdate(app.empire, gameMinutes);
       if (daysPassed > 0) {
         rebuildSectionIndex();
@@ -2272,9 +2342,44 @@ function frame(ts) {
         if (tutWalked > 6) tutorialFlag(app.state, 'walkedABit');
       }
     }
+    golfFocusClock += dtMs;
+    if (golfFocusClock >= 500) {
+      const focus = walkActive()
+        ? app.scene3d.walk.state
+        : { x: app.scene3d.camera.position.x, z: app.scene3d.camera.position.z };
+      setGolfSimulationFocus(app.state, focus);
+      golfFocusClock = 0;
+    }
     const cal = calendarOf(app.state.clock.minutes);
     app.scene3d.applyTimeWeather(cal.minuteOfDay, app.state.weather);
     if (!app.prewarming) app.scene3d.render(dtMs, app.state); // prewarm owns the GPU behind the veil
+    const activeGolfDay = app.state.golfDay || null;
+    const golfEvents = activeGolfDay?.events || [];
+    if (activeGolfDay !== golfAudioDay) {
+      // A midnight rollover owns a fresh event stream. A loaded game is primed
+      // in startGame below, so this path only lets genuinely new-day events play.
+      golfAudioDay = activeGolfDay;
+      golfAudioSequence = 0;
+    } else if (golfEvents.length && golfEvents[golfEvents.length - 1].sequence < golfAudioSequence) {
+      // Migration/recovery may deliberately rebuild a truncated event window.
+      golfAudioSequence = 0;
+    }
+    const unseenGolfEvents = golfEvents.filter((event) => event.sequence > golfAudioSequence);
+    if (unseenGolfEvents.length) {
+      golfAudioSequence = unseenGolfEvents[unseenGolfEvents.length - 1].sequence;
+      if (audio.ready) {
+        for (const event of unseenGolfEvents.slice(-4)) {
+          const party = app.state.golfDay.parties.find((entry) => entry.id === event.partyId);
+          if (party?.simulationTier !== 'near') continue;
+          if (event.type === 'shot-started' || event.type === 'practice-shot-started') {
+            audio.ballStrike(event.detail.club || event.detail.shot);
+          } else if (event.type === 'shot-complete' || event.type === 'practice-shot-complete') {
+            audio.ballLanding(event.detail.lie || event.detail.practice);
+          } else if (event.type === 'starter-called-party') audio.starterCall();
+          else if (event.type === 'cart-returned') audio.thunk();
+        }
+      }
+    }
     audioClock += dtMs;
     if (audioClock >= 1000) {
       // the guide answers real actions within a second, not at the hour
@@ -2294,7 +2399,7 @@ function frame(ts) {
       audio.update(audioClock / 1000, {
         minuteOfDay: cal2.minuteOfDay,
         rainIn: app.state.weather.today.rainIn,
-        golfersVisible: cal2.minuteOfDay >= 360 && cal2.minuteOfDay <= 1200 ? (app.state.club.lastRounds || 0) : 0,
+        golfersVisible: liveGolfSummary(app.state).activeGolfers,
         inShop: !!(app.scene3d && app.scene3d.clubhouse && app.scene3d.clubhouse()
           && app.scene3d.clubhouse().isInside(app.scene3d.walk.state.x, app.scene3d.walk.state.z)),
         tempHiF: app.state.weather.today.tempHiF,
@@ -2304,6 +2409,7 @@ function frame(ts) {
       audioClock = 0;
     }
     hud.update();
+    golfDayPanel?.update();
   }
   // Weld the interface to the glass. Every frame, unconditionally, for as long as the lid is
   // open — through the camera's ease into the seat, through the lid's swing, through a window
@@ -2676,6 +2782,7 @@ function boot() {
     el('div', { class: 'hint-bar', style: 'display:none', text: 'Course overview · drag to pan · right-drag to rotate · wheel to zoom · V data view · Tab returns on foot · P pause' }));
 
   uiRoot.append(menu.root, gameUi);
+  document.body.append(objectivesPanel.root);
   requestAnimationFrame(frame);
 }
 

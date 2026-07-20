@@ -99,6 +99,7 @@ const CAT_ICON = {
 };
 const ROLE_LABEL = {
   groundskeeper: 'Groundskeeper', instructor: 'Teaching pro', fnb: 'Grill room', proshop: 'Pro shop',
+  marshal: 'Course marshal',
 };
 const SHOP_OPEN_MIN = 6 * 60;
 const SHOP_CLOSE_MIN = 20 * 60;
@@ -2641,6 +2642,29 @@ export function makeLaptop(app, opts) {
     frame.style.setProperty('--lt-scale', String(s));
   }
 
+  let liveCourseSignature = null;
+
+  function courseSignature() {
+    const st = app.state;
+    if (!st?.golfDay) return '';
+    return JSON.stringify({
+      parties: st.golfDay.parties.map((party) => [
+        party.id, party.state, party.holeIndex, party.currentGolferIndex,
+        party.transport, party.cartId, party.pace?.congestion,
+        Math.round(Number(party.pace?.waitingMinutes || 0)),
+        ...party.golfers.map((golfer) => [golfer.totalStrokes, golfer.holeStrokes]),
+      ]),
+      queue: st.golfDay.starter.queue,
+      practice: Object.values(st.golfDay.practice).map((area) => area.occupants.length),
+      congestion: st.golfDay.congestion,
+      tasks: st.golfDay.marshalTasks.map((task) => [task.id, task.status, task.partyId]),
+      completed: st.golfDay.completed.slice(0, 4).map((round) => [
+        round.id, round.durationMinutes, ...round.scores.map((score) => score.total),
+      ]),
+      experience: st.golfDay.experience,
+    });
+  }
+
   function render() {
     if (root.style.display === 'none' || !app.state) return;
     refreshStatus();
@@ -2653,6 +2677,7 @@ export function makeLaptop(app, opts) {
     }
     try {
       fn();
+      if (page === 'course') liveCourseSignature = courseSignature();
     } catch (e) {
       paint(
         head('Something went wrong'),

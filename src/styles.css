@@ -154,6 +154,11 @@ canvas#game {
 
 #ui > * { pointer-events: auto; }
 
+/* The gameplay layer owns the viewport geometrically, while only its visible
+   panels own pointer hits. Without this explicit box, absolutely positioned
+   descendants could paint above the canvas yet still lose hit-testing to it. */
+#ui > .game-ui { position: absolute; inset: 0; pointer-events: none; }
+
 /* loading veil — opaque on purpose: it hides the shader-prewarm camera swings */
 .load-veil {
   position: fixed;
@@ -348,6 +353,7 @@ select:focus-visible,
 
 .panel {
   position: absolute;
+  pointer-events: auto;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
