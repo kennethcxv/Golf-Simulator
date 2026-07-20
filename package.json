@@ -15,7 +15,8 @@
     "test": "node --test"
   },
   "devDependencies": {
-    "electron": "^39.8.10"
+    "electron": "^39.8.10",
+    "playwright": "^1.61.1"
   },
   "dependencies": {
     "three": "^0.185.1"
