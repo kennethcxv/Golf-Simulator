@@ -38,7 +38,13 @@ import { initNotifications, ensureNotifications } from './notifications.js';
 import { BALANCE } from './balance.js';
 import { SHOP_CATALOG } from '../data/shopItems.js';
 import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
-import { routesIntact, validatePlacement } from './layout.js';
+import {
+  placedFixtures, routesIntact, validatePlacement, shopExpansionLayoutSafety,
+} from './layout.js';
+import { bindPropertyInventory, ensurePropertyInventory } from './propertyInventory.js';
+import {
+  ensureShopProgression, tickShopProgressionDaily,
+} from './shopProgression.js';
 
 export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 
@@ -55,9 +61,15 @@ export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 // v10: fixture poses written against older approximate envelopes are checked
 // once against the authored footprints. Only unsafe moved overrides fall back
 // to the designed plan; valid player moves and all inventory remain untouched.
-export const SAVE_VERSION = 10;
+// v11: durable property placeables gain their own property-scoped ownership,
+// delivery, storage, and placement authority. Existing decor/backroom counts
+// migrate conservatively without changing retail merchandise stock.
+// v12: the pro shop begins as a compact BASIC operation and expands through
+// constructed STANDARD, PREMIUM, and LUXURY tiers. Legacy saves retain their
+// existing full fixture floor until they purchase their next tier.
+export const SAVE_VERSION = 12;
 
-const FIXTURE_FOOTPRINT_SAVE_VERSION = 10;
+export const FIXTURE_FOOTPRINT_SAVE_VERSION = 10;
 const ROUTE_FAILURE = /customers could not get around/i;
 
 // Keep every owned unit while making the serialized inventory agree with the
@@ -166,13 +178,14 @@ function reconcileLegacyMovedFixturePoses(state, persistedVersion) {
 // such unit to back stock. Checkout-held units are recovered first and use the
 // same fixture-presence rule; this final pass also heals already-persisted
 // shelf counts without minting or discarding anything.
-function reconcileStoredFixtureStock(shop) {
-  if (!shop?.inventory || !Array.isArray(shop?.layout?.stored)) return;
-  const stored = new Set(shop.layout.stored);
+function reconcileUnavailableFixtureStock(state) {
+  const shop = state?.shop;
+  if (!shop?.inventory) return;
+  const installed = new Set(placedFixtures(state).map((fixture) => fixture.id));
   for (const sku of SHOP_CATALOG) {
     const fixture = homeFixture(sku.id);
     const inventory = shop.inventory[sku.id];
-    if (!fixture || !stored.has(fixture.id) || !inventory) continue;
+    if (!fixture || installed.has(fixture.id) || !inventory) continue;
     const shelf = Number.isFinite(inventory.shelf) ? inventory.shelf : 0;
     if (shelf <= 0) continue;
     inventory.shelf = 0;
@@ -208,6 +221,7 @@ export function newGame(mode = 'relaxed', seed = Date.now() % 2147483647, opts =
   reconcileShelfCapacity(state.shop);
   ensureWash(state); // a fixer-upper arrives with a filthy exterior
   ensureProperty(state); // ...and a landlord
+  bindPropertyInventory(state, opts.propertyId || `property:${seed}`);
   initReservations(state);
   initCustomerDirectory(state);
   initTractor(state);
@@ -242,6 +256,7 @@ export function dailyTick(state) {
     state.weather.droughtDays = state.weather.today.rainIn > 0 ? 0 : state.weather.droughtDays + 1;
   }
   tickRenovationsDaily(state);
+  if (state.shop) tickShopProgressionDaily(state, shopExpansionLayoutSafety);
   turfDailyTick(state);
   if (state.staff) {
     tickStaffDaily(state);
@@ -391,6 +406,7 @@ export function snapshot(state) {
     notifications: state.notifications, // unread warnings survive the reload
     uiPrefs: state.uiPrefs || null, // the office machine's own settings (scale, default views)
     property: state.property, // the rent schedule, or reloading is a rent holiday
+    propertyInventory: state.propertyInventory,
     debtDays: state.debtDays || 0,
     failed: state.failed || null,
     turf: turf
@@ -518,6 +534,8 @@ export function deserialize(json) {
       ? { today: raw.weather.today, droughtDays: raw.weather.droughtDays, bias: raw.weather.bias || { temp: 0, dry: 0 } }
       : newWeather(),
     maintenance: raw.maintenance || null,
+    property: cloneSaveValue(raw.property) || null,
+    propertyInventory: cloneSaveValue(raw.propertyInventory) || null,
   };
   if (raw.turf) {
     state.turf = {
@@ -554,6 +572,7 @@ export function deserialize(json) {
   else initLedger(state);
   if (raw.shop) state.shop = raw.shop;
   else initShop(state);
+  ensureShopProgression(state, { legacy: persistedVersion < 12 });
   if (state.shop.drawer) state.shop.drawer = migrateDrawer(state.shop.drawer);
   ensurePaymentBag(state); // a half-used balanced batch survives the reload intact
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
@@ -570,9 +589,10 @@ export function deserialize(json) {
   }
   recoverCheckout(state); // a save taken mid-sale: the shoppers are gone, so put their goods back
   reconcileShelfCapacity(state.shop); // authored shelf slots win; overflow remains owned in back stock
-  reconcileStoredFixtureStock(state.shop); // absent fixtures cannot retain invisible shelf inventory
+  reconcileUnavailableFixtureStock(state); // absent fixtures cannot retain invisible shelf inventory
   ensureWash(state); // ...and a filthy exterior waiting for the pressure washer
   ensureProperty(state); // pre-rent saves gain a schedule rather than a free ride
+  ensurePropertyInventory(state); // v11 owns placeables per property; legacy decor migrates once
   if (raw.reservations) state.reservations = raw.reservations;
   ensureReservations(state); // pre-booking saves gain an empty tee sheet
   if (raw.customerDirectory) state.customerDirectory = raw.customerDirectory;

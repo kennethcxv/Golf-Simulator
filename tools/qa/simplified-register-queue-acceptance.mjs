@@ -315,24 +315,77 @@ async function projectObject(page, predicate) {
     const THREE = await import('/vendor/three.module.js');
     const app = window.__fw;
     const clubhouse = app.scene3d.clubhouse();
+    const register = clubhouse.register;
     let found = null;
     clubhouse.interior.traverse((object) => {
       if (found || !object.visible || !object.userData) return;
       if (query.kind && object.userData.kind !== query.kind) return;
       if (query.uid && object.userData.uid !== query.uid) return;
-      found = object;
+      if (String(object.name || '').startsWith('CheckoutProduct_')) found = object;
     });
+    if (!found) {
+      clubhouse.interior.traverse((object) => {
+        if (found || !object.visible || !object.userData) return;
+        if (query.kind && object.userData.kind !== query.kind) return;
+        if (query.uid && object.userData.uid !== query.uid) return;
+        found = object;
+      });
+    }
     if (!found) return null;
-    const bounds = new THREE.Box3().setFromObject(found);
-    const world = bounds.isEmpty()
-      ? found.getWorldPosition(new THREE.Vector3())
-      : bounds.getCenter(new THREE.Vector3());
-    world.project(app.scene3d.camera);
+    found.updateWorldMatrix(true, true);
+    const bounds = new THREE.Box3();
+    found.traverse((object) => {
+      if (!object.isMesh || object.visible === false
+          || object.name === 'ItemClickPad' || !object.geometry) return;
+      if (!object.geometry.boundingBox) object.geometry.computeBoundingBox();
+      if (object.geometry.boundingBox) {
+        bounds.union(object.geometry.boundingBox.clone().applyMatrix4(object.matrixWorld));
+      }
+    });
+    if (bounds.isEmpty()) bounds.setFromObject(found);
     const rect = document.querySelector('canvas').getBoundingClientRect();
+    const centreWorld = bounds.getCenter(new THREE.Vector3());
+    const centreNdc = centreWorld.clone().project(app.scene3d.camera);
+    const centre = {
+      x: rect.left + ((centreNdc.x + 1) / 2) * rect.width,
+      y: rect.top + ((-centreNdc.y + 1) / 2) * rect.height,
+    };
+    const corners = [];
+    for (const x of [bounds.min.x, bounds.max.x]) {
+      for (const y of [bounds.min.y, bounds.max.y]) {
+        for (const z of [bounds.min.z, bounds.max.z]) {
+          const ndc = new THREE.Vector3(x, y, z).project(app.scene3d.camera);
+          corners.push({
+            x: rect.left + ((ndc.x + 1) / 2) * rect.width,
+            y: rect.top + ((-ndc.y + 1) / 2) * rect.height,
+          });
+        }
+      }
+    }
+    const minX = Math.max(rect.left + 1, Math.min(...corners.map((point) => point.x)) - 18);
+    const maxX = Math.min(rect.right - 1, Math.max(...corners.map((point) => point.x)) + 18);
+    const minY = Math.max(rect.top + 1, Math.min(...corners.map((point) => point.y)) - 18);
+    const maxY = Math.min(rect.bottom - 1, Math.max(...corners.map((point) => point.y)) + 18);
+    const samples = [centre];
+    for (let row = 0; row <= 8; row += 1) {
+      for (let column = 0; column <= 12; column += 1) {
+        samples.push({
+          x: minX + (maxX - minX) * (column / 12),
+          y: minY + (maxY - minY) * (row / 8),
+        });
+      }
+    }
+    const target = samples.find((point) => (
+      register.debugPickAt(point.x, point.y).physical?.uid === query.uid
+    )) || null;
     return {
-      x: rect.left + ((world.x + 1) / 2) * rect.width,
-      y: rect.top + ((-world.y + 1) / 2) * rect.height,
-      inView: world.z >= -1 && world.z <= 1 && Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
+      x: target?.x ?? centre.x,
+      y: target?.y ?? centre.y,
+      inView: centreNdc.z >= -1 && centreNdc.z <= 1
+        && centre.x >= rect.left && centre.x <= rect.right
+        && centre.y >= rect.top && centre.y <= rect.bottom,
+      pickable: !!target,
+      projectedBounds: { minX, maxX, minY, maxY },
     };
   }, predicate);
 }
@@ -381,7 +434,8 @@ async function scanCurrentTransaction(page) {
       }
       product = next;
     }
-    assert(product?.inView, `Product ${uid} is outside the scan camera.`);
+    assert(product?.inView && product?.pickable,
+      `Product ${uid} is not independently visible and clickable: ${JSON.stringify(product)}.`);
     await page.mouse.click(product.x, product.y);
     await page.waitForFunction((wantedUid) => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -394,7 +448,17 @@ async function scanCurrentTransaction(page) {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return tx?.items.find((item) => item.uid === wantedUid)?.staged;
     }, uid, { timeout: 8000 });
-    await page.waitForTimeout(220);
+    // The durable staged flag flips at scanner commit, before the item finishes
+    // its visible bagging arc. Do not aim a second click while that first
+    // physical motion still owns the cashier hand and scan gate.
+    await page.waitForFunction(() => {
+      const register = window.__fw.scene3d.clubhouse().register;
+      const state = register.getFlow()?.state;
+      const transaction = register.getTx();
+      const finalItemSettled = transaction?.items.every((item) => item.scanned && item.staged)
+        && !register.scanPresentation().active;
+      return state === 'WaitingForScan' || state === 'AllProductsScanned' || finalItemSettled;
+    }, null, { timeout: 8000 });
   }
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -766,12 +830,54 @@ export async function runSimplifiedRegisterQueueAcceptance(page, options = {}) {
     return result;
   } catch (error) {
     ownership = await stopOwnershipProbe(page);
+    const failureState = await page.evaluate(() => {
+      const app = window.__fw;
+      const clubhouse = app?.scene3d?.clubhouse?.();
+      const register = clubhouse?.register;
+      const transaction = register?.getTx?.();
+      const customer = register?.getCustomer?.();
+      return {
+        flow: register?.getFlow?.() || null,
+        transaction: transaction ? {
+          number: transaction.number,
+          stage: transaction.stage,
+          method: transaction.method,
+          banked: !!transaction.banked,
+          receiptPrinted: !!transaction.receiptPrinted,
+          receiptTaken: !!transaction.receiptTaken,
+          receiptPacked: !!transaction.receiptPacked,
+          goodsHandedOver: !!transaction.goodsHandedOver,
+          scanned: transaction.items?.map((item) => ({
+            uid: item.uid,
+            scanned: !!item.scanned,
+            staged: !!item.staged,
+            bagged: !!item.bagged,
+          })) || [],
+        } : null,
+        customer: customer ? {
+          role: customer.__queueQaRole || null,
+          customerId: customer.customerId,
+          fullName: customer.fullName || customer.name,
+          checkoutPhase: customer.checkoutPhase,
+          awaitingCheckout: !!customer.awaitingCheckout,
+          bought: !!customer.bought,
+          hasTx: !!customer.tx,
+        } : null,
+        workspace: register?.workspace?.() || null,
+        deliveryPhase: register?.deliveryPhase?.() || null,
+        delivery: register?.deliveryPresentation?.() || null,
+        queue: clubhouse?.checkoutQueue?.() || [],
+      };
+    }).catch((diagnosticError) => ({
+      captureError: diagnosticError?.message || String(diagnosticError),
+    }));
     const failureShot = path.join(root, 'failure.png');
     await page.screenshot({ path: failureShot }).catch(() => {});
     let result = {
       ok: false,
       viewport,
       blocker: { message: error?.message || String(error), stack: error?.stack || null },
+      failureState,
       fixture,
       checkpoints,
       ownership,

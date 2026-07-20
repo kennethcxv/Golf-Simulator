@@ -15,8 +15,14 @@
 // truth, and the two would disagree the first time anyone moved a line to a different wall.
 
 import { skuById, RETAIL_CATS } from '../data/shopItems.js';
+import { placeableSpecBySkuId } from '../data/placeableItems.js';
 import { FIXTURES } from '../data/shopLayout.js';
 import { capacityOf, homeFixture } from '../data/fixtureSlots.js';
+import {
+  importLegacyStoredPlaceables,
+  storeDeliveredPlaceables,
+  withdrawStoredPlaceables,
+} from './propertyInventory.js';
 
 // how many of a thing you can hold at once. Not a number of items — a pair of arms.
 const ARMFUL_CAT = {
@@ -134,6 +140,12 @@ export function storeInBack(state, units = 999) {
   if (!c) return { ok: false, reason: 'Your hands are empty.' };
   const moved = Math.min(units, c.qty);
   state.shop.inventory[c.skuId].back += moved;
+  if (placeableSpecBySkuId(c.skuId)) {
+    const stored = storeDeliveredPlaceables(state, c.skuId, moved);
+    if (!stored.ok) {
+      importLegacyStoredPlaceables(state, c.skuId, state.shop.inventory[c.skuId].back);
+    }
+  }
   setCarry(state, c.skuId, c.qty - moved);
   const left = carriedGoods(state);
   return { ok: true, moved, left: left ? left.qty : 0 };
@@ -153,6 +165,11 @@ export function takeFromBack(state, skuId, want = 999) {
     };
   }
   const taken = Math.min(want, room, inv.back);
+  if (placeableSpecBySkuId(skuId)) {
+    importLegacyStoredPlaceables(state, skuId, inv.back);
+    const withdrawn = withdrawStoredPlaceables(state, skuId, taken);
+    if (!withdrawn.ok) return withdrawn;
+  }
   inv.back -= taken;
   const c = carriedGoods(state);
   setCarry(state, skuId, (c ? c.qty : 0) + taken);

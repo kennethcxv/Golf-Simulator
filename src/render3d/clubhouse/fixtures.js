@@ -27,6 +27,7 @@ import {
 } from './resourceLifecycle.js';
 import { DELIVERY_EQUIPMENT_DEFAULT_LAYOUT } from './deliveryEquipment.js';
 import { createMovableFixtureCoreBatcher } from './fixtureCoreBatching.js';
+import { shopTierIndex } from '../../sim/shopProgression.js';
 
 // warm under-shelf light strip (pure emissive — the real lights are the rig's)
 function lightStrip(mats, w) {
@@ -900,6 +901,10 @@ export function buildFixtures(B) {
   layFixtures();
 
   // --- Sheet-03 standing decor (architecture, not re-layable furniture) -----
+  const gondolaRoot = new THREE.Group();
+  gondolaRoot.name = 'TieredRetailGondola';
+  gondolaRoot.position.set(0.4, 0, -0.9);
+  interior.add(gondolaRoot);
   if (merch) merch.onReady(() => {
     // The face-out apparel display stands EMPTY beside the shoe wall — its
     // arms and base shelf are landing spots for garments the player hangs,
@@ -909,11 +914,23 @@ export function buildFixtures(B) {
     // slots await future product lines.
     const gondola = merch.instantiateKit && merch.instantiateKit('retail_gondola');
     if (gondola) {
-      gondola.position.set(0.4, 0, -0.9);
-      interior.add(gondola);
+      gondolaRoot.add(gondola);
     }
   });
-  addCol(colBoxAt(0.4, -0.9, 1.3, 0.7));
+  const gondolaCollider = colBoxAt(0.4, -0.9, 1.3, 0.7);
+  let gondolaColliderActive = false;
+  function refreshTierDressing() {
+    const active = shopTierIndex(state) >= 2;
+    gondolaRoot.visible = active;
+    if (active && !gondolaColliderActive) {
+      rawAddCol(gondolaCollider);
+      gondolaColliderActive = true;
+    } else if (!active && gondolaColliderActive) {
+      removeCol(gondolaCollider);
+      gondolaColliderActive = false;
+    }
+  }
+  refreshTierDressing();
 
   // permanent club logo rug on the entry axis
   const rug = new THREE.Mesh(
@@ -932,6 +949,7 @@ export function buildFixtures(B) {
     setFixtureCollidersActive,
     fixtureColliderDiagnostics,
     fixtureCoreBatchDiagnostics: fixtureCoreBatcher.diagnostics,
+    refreshTierDressing,
   };
 }
 
@@ -1438,6 +1456,11 @@ export function buildCheckout(B) {
     if (reg && B.register) B.register.attachScreen(reg);
     const term = placeKit('payment_terminal', REGISTER.cardterm, { scale: 1.0 });
     if (term && B.register) B.register.attachTerm(term);
+    const scanner = placeKit('barcode_scanner', REGISTER.scanner, {
+      ry: REGISTER.scanner.ry,
+      scale: 1.0,
+    });
+    if (scanner && B.register) B.register.attachScanner(scanner);
     const printer = placeKit('receipt_printer', REGISTER.printer, { ry: -0.18, scale: 1.0 });
     if (printer && B.register) B.register.attachPrinter(printer);
     // Customer-facing total display, turned toward the queue.

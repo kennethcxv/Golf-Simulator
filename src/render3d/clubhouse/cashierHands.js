@@ -11,14 +11,12 @@ const CUFF_EDGE = 0x78947c;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const PLACE_DIR = new THREE.Vector3();
 
-// The checkout counter is authored in yards. Allocate the visible reach across
-// both skin segments instead of letting every extra inch become polo fabric. The
-// sleeve is deliberately capped: it should read as a short sleeve entering the
-// lower frame, never as a long green tube reaching all the way to a prop.
-const MAX_SLEEVE_LENGTH = 0.22;
-const SLEEVE_REACH_SHARE = 0.24;
-const FOREARM_SKIN_SHARE = 0.55;
+// Like the production tool hands, checkout renders only the last part of the
+// forearm. The wrist still reaches the exact world target; the short trailing
+// viewmodel prevents counter depth from turning a normal gesture into a long tube.
 const CUFF_EDGE_LENGTH = 0.032;
+const VIEWMODEL_FOREARM = 0.19;
+const VIEWMODEL_SLEEVE = 0.075;
 
 export const CASHIER_POSES = {
   idle: { curl: 0.45, spread: 0.02 },
@@ -162,7 +160,6 @@ export function makeCashierHands(interior) {
   const camRight = new THREE.Vector3();
   const camUp = new THREE.Vector3();
   const camForward = new THREE.Vector3();
-  const wristFromCamera = new THREE.Vector3();
   const camQuat = new THREE.Quaternion();
   let time = 0;
 
@@ -192,49 +189,29 @@ export function makeCashierHands(interior) {
     const shownWrist = arm.shownWrist.copy(arm.wrist);
     shownWrist.y -= retreat;
 
-    // This is a first-person presentation origin, not a detached world shoulder.
-    // Keep it just below the lower frame at a depth related to the current target.
-    // A fixed near-camera origin projected many screen-heights out of view and made
-    // distant handoffs stretch the sleeve across most of the screen.
-    const wristDepth = wristFromCamera.subVectors(shownWrist, camLocal).dot(camForward);
-    // Keep the shoulder/sleeve origin at the lower camera edge. Moving this origin
-    // inward shortened the world-space chain but made the rendered arm terminate
-    // on the countertop. Proportional segment allocation below controls the visual
-    // reach while this anchor preserves continuous first-person anatomy.
-    const shoulderDepth = THREE.MathUtils.clamp(wristDepth - 0.48, 0.38, 0.94);
-    elbow.copy(camLocal)
-      .addScaledVector(camRight, side * shoulderDepth * 0.40)
-      .addScaledVector(camUp, -shoulderDepth * 0.59)
-      .addScaledVector(camForward, shoulderDepth);
-    const shoulder = arm.shoulder.copy(elbow);
-    shoulder.y -= retreat * 0.55;
-    // Divide the complete on-screen chain proportionally. The old fixed forearm
-    // and upper-arm spans assigned all remaining distance to the sleeve, producing
-    // the dominant green pipes visible in the post-fix checkout captures.
-    const reach = shoulder.distanceTo(shownWrist);
-    const sleeveSpan = Math.min(MAX_SLEEVE_LENGTH, reach * SLEEVE_REACH_SHARE);
-    const skinSpan = Math.max(0.001, reach - sleeveSpan);
-    const forearmSpan = skinSpan * FOREARM_SKIN_SHARE;
-    const joint = arm.joint.copy(shownWrist).lerp(shoulder,
-      Math.min(1, forearmSpan / Math.max(reach, 0.001)));
-    // A stronger outward elbow break keeps the two bagging arms off the product
-    // opening and gives one-handed reaches an articulated rather than telescoping
-    // silhouette.
-    const bend = Math.min(0.105, reach * 0.14);
-    joint.addScaledVector(camRight, side * bend);
-    joint.addScaledVector(camUp, -bend * 0.18);
-    const cuff = arm.cuff.copy(shownWrist).lerp(shoulder,
-      Math.min(1, skinSpan / Math.max(reach, 0.001)));
-    // Put the rolled edge on the exposed-arm side of the seam. The old band ran
-    // back over the sleeve, where two nearly coplanar cylinders produced a jagged
-    // z-fighting edge in the player camera.
-    const cuffEdgeEnd = arm.cuffEdgeEnd.copy(cuff).lerp(joint,
-      Math.min(1, CUFF_EDGE_LENGTH / Math.max(cuff.distanceTo(joint), 0.001)));
+    // Checkout uses the same short-viewmodel principle as the production tool
+    // hands: exact fingers at the prop plus only the last 19 cm of forearm and a
+    // 7.5 cm polo sleeve. Reconstructing the literal camera-to-customer arm made
+    // a tan tube dominate the counter and is not how first-person viewmodels are
+    // framed. The short trail points back toward the player and stays consistent
+    // at the scanner, terminal, drawer, and customer handoff depths.
+    const cuff = arm.cuff.copy(shownWrist)
+      .addScaledVector(camForward, -VIEWMODEL_FOREARM)
+      .addScaledVector(camUp, -0.045)
+      .addScaledVector(camRight, side * 0.018);
+    const shoulder = arm.shoulder.copy(cuff)
+      .addScaledVector(camForward, -VIEWMODEL_SLEEVE)
+      .addScaledVector(camUp, -0.020)
+      .addScaledVector(camRight, side * 0.010);
+    const cuffEdgeEnd = arm.cuffEdgeEnd.copy(cuff).lerp(shownWrist,
+      Math.min(1, CUFF_EDGE_LENGTH / Math.max(cuff.distanceTo(shownWrist), 0.001)));
     placeCylinder(arm.sleeve, shoulder, cuff);
-    placeCylinder(arm.upperArm, cuff, joint);
-    placeCylinder(arm.forearm, joint, shownWrist);
+    placeCylinder(arm.forearm, cuff, shownWrist);
     placeCylinder(arm.cuffEdge, cuff, cuffEdgeEnd);
-    arm.elbowJoint.position.copy(joint);
+    // The longer two-segment anatomy remains available for idle-model tests and
+    // future close poses, but production targeted verbs use the compact viewmodel.
+    arm.upperArm.visible = false;
+    arm.elbowJoint.visible = false;
     arm.hand.root.position.copy(shownWrist);
     arm.hand.root.quaternion.copy(camQuat);
     arm.hand.root.rotateX(-0.28);
@@ -280,9 +257,14 @@ export function makeCashierHands(interior) {
       camRight.set(1, 0, 0).applyQuaternion(camQuat).normalize();
       camUp.set(0, 1, 0).applyQuaternion(camQuat).normalize();
       camera.getWorldDirection(camForward).normalize();
-      root.visible = visible || right.shown > 0.02 || left.shown > 0.02;
       updateArm(right, 1, dt, rightTarget, pose, showRight);
       updateArm(left, -1, dt, leftTarget, pose, showLeft);
+      // Derive the parent visibility after the arms consume this frame's
+      // request. updateArm intentionally releases an untargeted hand at the
+      // interaction boundary; computing this before those updates left the
+      // empty parent visible for one frame. That stale flag made the cash bag
+      // handoff report a cashier grip after ownership had reached the customer.
+      root.visible = visible || right.shown > 0.02 || left.shown > 0.02;
     },
     hideImmediately() {
       right.shown = 0;

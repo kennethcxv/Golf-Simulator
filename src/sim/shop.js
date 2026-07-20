@@ -21,6 +21,19 @@ import { TIERS } from './club.js';
 import { members } from './golfers.js';
 import { notify } from './notifications.js';
 import { placedFixtures } from './layout.js';
+import { initShopProgression, shopCategoryUnlocked } from './shopProgression.js';
+import { placeableSpecBySkuId } from '../data/placeableItems.js';
+import {
+  cancelPlaceablePurchase,
+  ensurePropertyInventory,
+  importLegacyStoredPlaceables,
+  moveOwnedPlacement,
+  placeOwnedItem,
+  placedPropertyItems,
+  registerPlaceablePurchase,
+  sellOwnedItem,
+  storeOwnedPlacement,
+} from './propertyInventory.js';
 
 // --- restoration arc ------------------------------------------------------------
 // The shop starts rundown and is cleaned/furnished up by hand: a grime grid over
@@ -293,9 +306,69 @@ export function placeDecor(state, skuId, spot) {
   const inv = state.shop.inventory[skuId];
   if (!inv || inv.back <= 0) return { ok: false, reason: 'None in the backroom — order it first.' };
   if (reno.decor.some((d) => d.skuId === skuId && d.spot === spot)) return { ok: false, reason: 'That spot is taken.' };
+  importLegacyStoredPlaceables(state, skuId, inv.back);
+  const authored = spots[spot];
+  const placed = placeOwnedItem(state, skuId, {
+    area: 'clubhouse',
+    mount: authored.mount,
+    x: authored.x,
+    z: authored.z,
+    ry: authored.ry,
+    surfaceId: `decor-anchor:${skuId}:${spot}`,
+    authoredSpot: spot,
+  });
+  if (!placed.ok) return placed;
   inv.back -= 1;
-  reno.decor.push({ skuId, spot });
-  return { ok: true };
+  reno.decor.push({ skuId, spot, placementId: placed.placement.id });
+  return { ok: true, placement: placed.placement };
+}
+
+// Free-placement counterpart to the authored renovation anchors. Ownership is
+// consumed only after the caller has validated the exact preview pose.
+export function placeDecorFree(state, skuId, pose) {
+  const reno = state.shop && state.shop.reno;
+  const sku = skuById(skuId);
+  const inv = state.shop?.inventory?.[skuId];
+  if (!reno || !sku || sku.cat !== 'decor') return { ok: false, reason: 'Not a decor item.' };
+  if (!inv || inv.back <= 0) return { ok: false, reason: 'None in property storage.' };
+  importLegacyStoredPlaceables(state, skuId, inv.back);
+  const placed = placeOwnedItem(state, skuId, pose);
+  if (!placed.ok) return placed;
+  inv.back -= 1;
+  reno.decor.push({ skuId, spot: null, placementId: placed.placement.id });
+  return { ok: true, placement: placed.placement };
+}
+
+export function moveDecorPlacement(state, placementId, pose) {
+  const reno = state.shop?.reno;
+  if (!reno?.decor?.some((entry) => entry.placementId === placementId)) {
+    return { ok: false, reason: 'That decor placement is not in this clubhouse.' };
+  }
+  return moveOwnedPlacement(state, placementId, pose);
+}
+
+export function removeDecorPlacement(state, placementId) {
+  const reno = state.shop?.reno;
+  if (!reno) return { ok: false, reason: 'No clubhouse renovation state.' };
+  const index = reno.decor.findIndex((entry) => entry.placementId === placementId);
+  if (index < 0) return { ok: false, reason: 'That decor placement is not in this clubhouse.' };
+  const decor = reno.decor[index];
+  const stored = storeOwnedPlacement(state, placementId);
+  if (!stored.ok) return stored;
+  reno.decor.splice(index, 1);
+  const inv = state.shop.inventory[decor.skuId];
+  if (inv) inv.back += 1;
+  return { ok: true, placement: stored.placement, skuId: decor.skuId };
+}
+
+export function sellStoredDecor(state, skuId, operationId = null) {
+  const inv = state.shop?.inventory?.[skuId];
+  if (!inv || inv.back < 1) return { ok: false, reason: 'None of that item is in storage.' };
+  importLegacyStoredPlaceables(state, skuId, inv.back);
+  const sold = sellOwnedItem(state, skuId, { quantity: 1, operationId });
+  if (!sold.ok || sold.replay) return sold;
+  inv.back -= 1;
+  return sold;
 }
 
 // pack a placed piece back up: the spot frees, the item returns to the backroom
@@ -304,10 +377,21 @@ export function removeDecor(state, skuId, spot) {
   if (!reno) return { ok: false };
   const idx = reno.decor.findIndex((d) => d.skuId === skuId && d.spot === spot);
   if (idx < 0) return { ok: false };
+  ensurePropertyInventory(state);
+  const decor = reno.decor[idx];
+  const placement = decor.placementId
+    ? placedPropertyItems(state).find((entry) => entry.id === decor.placementId)
+    : placedPropertyItems(state).find((entry) => (
+      entry.assetId === placeableSpecBySkuId(skuId)?.assetId
+        && entry.pose?.authoredSpot === spot
+    ));
+  if (!placement) return { ok: false, reason: 'That decor placement has no ownership record.' };
+  const stored = storeOwnedPlacement(state, placement.id);
+  if (!stored.ok) return stored;
   reno.decor.splice(idx, 1);
   const inv = state.shop.inventory[skuId];
   if (inv) inv.back += 1;
-  return { ok: true };
+  return { ok: true, placement: stored.placement };
 }
 
 export function initShop(state) {
@@ -319,7 +403,7 @@ export function initShop(state) {
   inventory.glove1.shelf = 4;
   inventory.cap1.shelf = 5;
   state.shop = {
-    unlockedTier: 2, // premium (tier 3) lines arrive with progression
+    unlockedTier: 1,
     inventory,
     orders: [],
     nextOrderId: 1,
@@ -340,6 +424,7 @@ export function initShop(state) {
     fittingsYesterday: 0,
     log: [], // recent notable sales for the panel/3D flavor
   };
+  initShopProgression(state);
   initShopReno(state);
 }
 
@@ -369,6 +454,9 @@ const DELIVERY_SLOTS = [[8, 10], [10, 12], [13, 15]];
 export function placeOrder(state, skuId, qty) {
   const sku = skuById(skuId);
   if (!sku) return { ok: false, reason: 'No such item.' };
+  if (RETAIL_CATS.has(sku.cat) && !shopCategoryUnlocked(state, sku.cat)) {
+    return { ok: false, reason: `${sku.cat === 'clubs' ? 'Club' : 'Provisions'} ordering opens with the STANDARD shop.` };
+  }
   if (sku.tier > state.shop.unlockedTier) return { ok: false, reason: 'Supplier account not unlocked yet.' };
   if (!Number.isInteger(qty) || qty < 1) return { ok: false, reason: 'Order quantity must be a positive whole number.' };
 
@@ -415,6 +503,16 @@ export function placeOrder(state, skuId, qty) {
     status: 'received',
     notif: {},
   };
+  if (placeableSpecBySkuId(skuId)) {
+    const ownership = registerPlaceablePurchase(state, skuId, qty, {
+      sourceId: `shop-order:${id}`,
+      purchasePrice: sku.cost,
+    });
+    if (!ownership.ok) {
+      unbill(state, 'shopOrders', cost);
+      return ownership;
+    }
+  }
   state.shop.orders.push(order);
   return {
     ok: true, cost, goods, fee, order,
@@ -503,6 +601,10 @@ export function cancelOrder(state, id) {
   // away. This also rescues legacy oversized paid manifests from permanent limbo.
   if ((o.status === 'arriving' || o.status === 'delivered') && !o.blocked) {
     return { ok: false, reason: 'The van is at the door — too late to cancel.' };
+  }
+  if (placeableSpecBySkuId(o.skuId)) {
+    const ownership = cancelPlaceablePurchase(state, `shop-order:${o.id}`);
+    if (!ownership.ok) return ownership;
   }
   orders.splice(i, 1);
   unbill(state, 'shopOrders', o.cost);
@@ -732,6 +834,7 @@ export function shopDailyAccrual(state) {
   for (const sku of SHOP_CATALOG) {
     if (sku.tier > shop.unlockedTier) continue;
     if (!RETAIL_CATS.has(sku.cat)) continue; // supplies/decor never reach shoppers
+    if (!shopCategoryUnlocked(state, sku.cat)) continue;
     (catalogByCat[sku.cat] ||= []).push(sku);
   }
 

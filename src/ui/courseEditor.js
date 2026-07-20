@@ -23,11 +23,12 @@ import {
   editVectorGreen, editVectorBunker, deleteVectorBunker, editVectorWater, deleteVectorWater,
   editVectorStream, deleteVectorStream,
   addObject, removeObject, beginObjectGesture, previewObjectGesture, endObjectGesture,
-  duplicateObject, scatterObjects, objectPlacementOk, OBJECT_CATALOG, objectCostOf,
+  duplicateObject, scatterObjects, objectPlacementOk, objectPlacementRotation,
+  OBJECT_CATALOG, objectCostOf,
   addPath, editPath, removePath,
   newHole, deleteHole, setHoleSettings, reorderHole,
   undo, redo, applySession, discardSession,
-  measure, courseStats, zoneCost,
+  measure, courseStats, zoneCost, constructionImpact,
 } from '../sim/courseEditor.js';
 import {
   startPlaytest, strike, stepBall, remainingYd, playtestHud, suggestClub, CLUBS,
@@ -101,6 +102,8 @@ const TOOLS = [
   { key: 'paths', icon: 'paths', label: 'Paths' },
   { key: 'measure', icon: 'measure', label: 'Measure' },
 ];
+const TERRAIN_SOFT_MODES = new Set(['smooth', 'blend', 'erode']);
+const TERRAIN_SELF_FINISHING_MODES = new Set(['smooth', 'flatten', 'plateau', 'blend', 'erode']);
 
 const CAMERA_VIEWS = COURSE_CAMERA_VIEW_OPTIONS;
 
@@ -312,13 +315,19 @@ export function makeCourseEditor(app, hooks) {
 
   // per-tool tunables (progressive disclosure: only the active tool shows)
   const opt = {
-    terrain: { mode: 'raise', radiusYd: 20, strength: 55, falloff: 0.5, autoSmooth: true },
+    terrain: {
+      mode: 'raise', radiusYd: 20, strength: 55, falloff: 0.5, autoSmooth: true,
+      slopePercent: 3, plateauOffsetFt: 0,
+    },
     paint: { zone: ZONE.FAIRWAY, radiusYd: 16 },
     tee: { holeId: null, teeKey: 'back', rot: 0 },
     green: { mode: 'draw', shape: 'oval', sizeYd: 30, rot: 0, pin: null }, // pin: null | 'A'|'B'|'C'
     bunker: { mode: 'draw', shape: 'kidney', sizeYd: 14, depth: 2.4, rot: 0 },
     water: { mode: 'draw', shape: 'pond', sizeYd: 36, streamWidthYd: 6, depth: 4.4, rot: 0 },
-    objects: { cat: 'tree', type: 'tree_oak', scale: 1, randomRot: true, assist: false, assistCount: 8, snapYd: 1 },
+    objects: {
+      cat: 'tree', type: 'oak_a', scale: 1, randomRot: true,
+      assist: false, assistCount: 8, snapYd: 1, search: '',
+    },
     paths: {
       mode: 'draw',
       width: 3.2,
@@ -758,6 +767,7 @@ export function makeCourseEditor(app, hooks) {
     }),
   );
   ui.toolPanel = el('div', { class: 'ced-tool-panel' });
+  ui.impactPanel = el('div', { class: 'ced-impact', style: 'display:none' });
   const tip = el('div', { class: 'ced-tip' },
     el('b', { text: 'TIP' }),
     el('div', { text: 'Choose a tool and click on the course to begin.' }),
@@ -776,7 +786,7 @@ export function makeCourseEditor(app, hooks) {
   ui.ptMap = el('div', { class: 'ced-pt-map', style: 'display:none' });
 
   const root = el('div', { class: 'ced-root', style: 'display:none' },
-    topBar, leftCol, ui.hintBar, ui.measureChip, ui.compass, ui.statsPanel, ui.ptBar, ui.ptMap);
+    topBar, leftCol, ui.impactPanel, ui.hintBar, ui.measureChip, ui.compass, ui.statsPanel, ui.ptBar, ui.ptMap);
 
   // ------------------------------------------------------------- helpers ----
 
@@ -797,6 +807,7 @@ export function makeCourseEditor(app, hooks) {
   function refreshTop() {
     const bill = session ? Math.round(session.bill) : 0;
     const dirty = !!(session && sessionDirty(session));
+    const impact = constructionImpact(state(), session);
     // the bill trio only exists while something is actually pending — a clean
     // course shows a clean bar, not permanent status text
     ui.billChip.style.display = bill > 0 ? '' : 'none';
@@ -809,6 +820,27 @@ export function makeCourseEditor(app, hooks) {
     ui.applyBtn.classList.toggle('danger', bill > 0 && !canPay);
     ui.discardBtn.style.display = dirty ? '' : 'none';
     ui.discardBtn.disabled = !dirty;
+    ui.impactPanel.style.display = dirty ? '' : 'none';
+    if (dirty) {
+      const valueDirection = impact.valueDelta > 0 ? '+' : impact.valueDelta < 0 ? '−' : '';
+      const valueAmount = compactMoney(Math.abs(impact.valueDelta));
+      const closureText = impact.holesAffected
+        ? `${impact.holesAffected} hole${impact.holesAffected === 1 ? '' : 's'} close for up to ${impact.maxConstructionDays} day${impact.maxConstructionDays === 1 ? '' : 's'}`
+        : 'No open-hole closure expected';
+      ui.impactPanel.replaceChildren(
+        el('b', { text: 'CONSTRUCTION IMPACT' }),
+        el('div', { class: 'ced-impact-row' },
+          el('span', { text: 'Works' }),
+          el('strong', { text: formatMoney(impact.pendingCost) })),
+        el('div', { class: `ced-impact-warning${impact.holesAffected ? ' warn' : ''}`, text: closureText }),
+        el('div', { class: 'ced-impact-row' },
+          el('span', { text: 'Estimated value' }),
+          el('strong', {
+            class: impact.valueDelta < 0 ? 'negative' : impact.valueDelta > 0 ? 'positive' : '',
+            text: `${valueDirection}${valueAmount}`,
+          })),
+      );
+    }
     ui.undoBtn.disabled = !(session && session.undo.length);
     ui.redoBtn.disabled = !(session && session.redo.length);
     // startFlyover needs a hole with both a tee and a pin; say so on the button
@@ -973,7 +1005,7 @@ export function makeCourseEditor(app, hooks) {
       && objectControlGesture.label === label) return objectControlGesture;
     commitObjectControlGesture();
     objectControlError = null;
-    objectControlGesture = beginObjectGesture(state(), selected.id, label);
+    objectControlGesture = beginObjectGesture(state(), selected.id, label, true);
     return objectControlGesture;
   }
 
@@ -1130,7 +1162,7 @@ export function makeCourseEditor(app, hooks) {
           el('button', {
             text: 'Duplicate',
             onclick: () => {
-              const res = duplicateObject(state(), session, selected.id);
+              const res = duplicateObject(state(), session, selected.id, { protectPlay: true });
               if (res.ok) {
                 refreshObjects();
                 toast('Copied — drag it into place.');
@@ -1152,13 +1184,31 @@ export function makeCourseEditor(app, hooks) {
       }
       case 'terrain': {
         head('Terrain');
-        p.append(segButtons([['raise', '▲ Raise'], ['lower', '▼ Lower'], ['smooth', '≈ Smooth'], ['flatten', '▭ Flatten']], opt.terrain.mode, (k) => { opt.terrain.mode = k; }));
+        p.append(segButtons([
+          ['raise', '▲ Raise'], ['lower', '▼ Lower'], ['smooth', '≈ Smooth'], ['flatten', '▭ Flatten'],
+          ['slope', '／ Slope'], ['plateau', '▬ Plateau'], ['blend', '∿ Blend'], ['erode', '⌁ Erode'],
+        ], opt.terrain.mode, (k) => {
+          opt.terrain.mode = k;
+          renderToolPanel();
+          refreshHoverPreview();
+        }));
         p.append(slider('Size', opt.terrain.radiusYd, 8, 60, 2, (v) => { opt.terrain.radiusYd = v; refreshHoverPreview(); }, (v) => `${v} yd`));
         p.append(slider('Strength', opt.terrain.strength, 10, 100, 5, (v) => { opt.terrain.strength = v; }, (v) => `${v}%`));
         p.append(slider('Falloff', Math.round(opt.terrain.falloff * 100), 10, 100, 5, (v) => {
           opt.terrain.falloff = v / 100;
           refreshHoverPreview();
         }, (v) => `${v}%`));
+        if (opt.terrain.mode === 'slope') {
+          p.append(slider('Grade', opt.terrain.slopePercent, -8, 8, 0.5, (v) => {
+            opt.terrain.slopePercent = v;
+          }, (v) => `${v > 0 ? '+' : ''}${Number(v).toFixed(1)}%`));
+          p.append(el('div', { class: 'ced-note', text: 'Drag from the high or low anchor in the direction the finished grade should run.' }));
+        }
+        if (opt.terrain.mode === 'plateau') {
+          p.append(slider('Height', opt.terrain.plateauOffsetFt, -8, 8, 0.5, (v) => {
+            opt.terrain.plateauOffsetFt = v;
+          }, (v) => `${v > 0 ? '+' : ''}${Number(v).toFixed(1)} ft`));
+        }
         p.append(el('label', { class: 'ced-check' },
           el('input', {
             type: 'checkbox', ...(opt.terrain.autoSmooth ? { checked: '' } : {}),
@@ -1434,24 +1484,54 @@ export function makeCourseEditor(app, hooks) {
         const cats = [['tree', 'Trees'], ['shrub', 'Shrubs'], ['rock', 'Rocks'], ['prop', 'Props'], ['decor', 'Decor']];
         p.append(segButtons(cats, opt.objects.cat, (k) => {
           opt.objects.cat = k;
+          opt.objects.search = '';
           const first = OBJECT_CATALOG.find((o) => o.cat === k);
           if (first) opt.objects.type = first.type;
           renderToolPanel();
           refreshHoverPreview();
         }));
+        const searchInput = el('input', {
+          type: 'search',
+          value: opt.objects.search,
+          placeholder: 'Search this category',
+          'aria-label': 'Search landscaping',
+        });
+        p.append(el('div', { class: 'ced-row ced-search' }, searchInput));
         const grid = el('div', { class: 'ced-objgrid' });
-        for (const o of OBJECT_CATALOG.filter((o) => o.cat === opt.objects.cat)) {
-          grid.append(el('button', {
+        const fillObjectGrid = () => {
+          const query = opt.objects.search.trim().toLocaleLowerCase();
+          const entries = OBJECT_CATALOG.filter((o) => o.cat === opt.objects.cat
+            && (!query || o.name.toLocaleLowerCase().includes(query)));
+          grid.replaceChildren(...entries.map((o) => el('button', {
             class: opt.objects.type === o.type ? 'on' : '',
-            title: `${o.name} — ${formatMoney(objectCostOf(o.type))}`,
+            title: `${o.name} — exact final preview`,
             onclick: (e) => {
               opt.objects.type = o.type;
-              for (const sib of grid.children) sib.classList.toggle('on', sib === e.currentTarget);
+              renderToolPanel();
               refreshHoverPreview();
             },
-          }, svgIcon(OBJ_ICON[o.cat] || 'decor'), el('span', { text: o.name })));
-        }
+          }, svgIcon(OBJ_ICON[o.cat] || 'decor'), el('span', {},
+            el('span', { text: o.name }),
+            el('small', { class: 'ced-obj-price', text: formatMoney(objectCostOf(o.type)) })))));
+          if (!entries.length) grid.append(el('div', { class: 'ced-note', text: 'No matching items.' }));
+        };
+        searchInput.oninput = () => {
+          opt.objects.search = searchInput.value;
+          fillObjectGrid();
+        };
+        fillObjectGrid();
         p.append(grid);
+        const selectedEntry = OBJECT_CATALOG.find((entry) => entry.type === opt.objects.type);
+        if (selectedEntry) {
+          const clearance = objectCollisionRadiusYd(selectedEntry.type, opt.objects.scale);
+          const details = [
+            selectedEntry.rootRadiusYd ? `roots ${selectedEntry.rootRadiusYd.toFixed(1)} yd` : null,
+            selectedEntry.canopyRadiusYd ? `canopy ${selectedEntry.canopyRadiusYd.toFixed(1)} yd` : `use clearance ${clearance.toFixed(1)} yd`,
+            selectedEntry.matureHeightYd ? `mature height about ${selectedEntry.matureHeightYd} yd` : null,
+            selectedEntry.climate ? `${selectedEntry.climate} climate` : 'all climates',
+          ].filter(Boolean).join(' · ');
+          p.append(el('div', { class: 'ced-note ced-object-detail', text: details }));
+        }
         p.append(slider('Size', Math.round(opt.objects.scale * 100), 60, 160, 5, (v) => { opt.objects.scale = v / 100; refreshHoverPreview(); }, (v) => `${v}%`));
         p.append(el('div', { class: 'ced-row' },
           el('label', { text: 'Snap' }),
@@ -2585,6 +2665,7 @@ export function makeCourseEditor(app, hooks) {
             kind: 'object',
             gesture: beginObjectGesture(state(), obj.id, 'Move object'),
           };
+          draggingObj.gesture.protectPlay = true;
         }
         break;
       }
@@ -2725,7 +2806,7 @@ export function makeCourseEditor(app, hooks) {
         if (opt.objects.assist) {
           const types = OBJECT_CATALOG.filter((o) => o.cat === opt.objects.cat).map((o) => o.type);
           const res = scatterObjects(state(), session, types, target.x, target.y, {
-            radius: 4.5, count: opt.objects.assistCount,
+            radius: 4.5, count: opt.objects.assistCount, protectPlay: true,
           });
           if (!res.ok) toast(res.reason, 'warn');
           else {
@@ -2734,8 +2815,12 @@ export function makeCourseEditor(app, hooks) {
           }
           break;
         }
-        const rot = opt.objects.randomRot ? Math.random() * Math.PI * 2 : 0;
-        const res = addObject(state(), session, opt.objects.type, target.x, target.y, { rot, scale: opt.objects.scale });
+        const rot = objectPlacementRotation(
+          opt.objects.type, target.x, target.y, opt.objects.randomRot,
+        );
+        const res = addObject(state(), session, opt.objects.type, target.x, target.y, {
+          rot, scale: opt.objects.scale, protectPlay: true,
+        });
         if (!res.ok) toast(res.reason, 'warn');
         else refreshObjects();
         break;
@@ -2777,11 +2862,14 @@ export function makeCourseEditor(app, hooks) {
   function applyTerrainAt(g) {
     const point = authoringPoint(g);
     const radius = yd2cells(opt.terrain.radiusYd * 2);
-    const strength = (opt.terrain.strength / 100) * (opt.terrain.mode === 'smooth' ? 0.8 : 0.55);
+    const strength = (opt.terrain.strength / 100)
+      * (TERRAIN_SOFT_MODES.has(opt.terrain.mode) ? 0.8 : 0.55);
     sculptAt(state(), stroke, point.x, point.y, {
       mode: opt.terrain.mode, radius, strength, falloff: opt.terrain.falloff,
+      slopePercent: opt.terrain.slopePercent,
+      plateauOffsetFt: opt.terrain.plateauOffsetFt,
     });
-    if (opt.terrain.autoSmooth && opt.terrain.mode !== 'smooth' && opt.terrain.mode !== 'flatten') {
+    if (opt.terrain.autoSmooth && !TERRAIN_SELF_FINISHING_MODES.has(opt.terrain.mode)) {
       sculptAt(state(), stroke, point.x, point.y, {
         mode: 'smooth', radius: radius * 1.15, strength: 0.24, falloff: opt.terrain.falloff,
       });
@@ -3004,9 +3092,13 @@ export function makeCourseEditor(app, hooks) {
     } else if (tool === 'objects' && !opt.objects.assist) {
       sc.setEditorBrush(null);
       const target = objectPlacementPoint(g);
-      const legal = objectPlacementOk(state().course, opt.objects.type, target.x, target.y, { scale: opt.objects.scale });
+      const legal = objectPlacementOk(state().course, opt.objects.type, target.x, target.y, {
+        scale: opt.objects.scale, protectPlay: true,
+      });
       sc.setPlacementGhost(opt.objects.type, target.worldX, target.worldZ, {
-        rot: 0,
+        rot: objectPlacementRotation(
+          opt.objects.type, target.x, target.y, opt.objects.randomRot,
+        ),
         scale: opt.objects.scale,
         valid: legal.ok,
         collisionRadiusYd: objectCollisionRadiusYd(opt.objects.type, opt.objects.scale),

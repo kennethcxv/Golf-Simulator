@@ -10,7 +10,8 @@ import {
   SHELL, INTERIOR, DOOR_MAIN, DOOR_STOCK, DOOR_BACK, WINDOWS, WINDOW_DIM,
   PARTITIONS, STOCKROOM, HOURS_SIGN,
 } from '../../data/shopLayout.js';
-import { makeSignTexture, makeOakFloorTexture, makeConcreteTexture, makeSidingTexture } from './materials.js';
+import { makeSignTexture, makeConcreteTexture, makeSidingTexture } from './materials.js';
+import { shopTierIndex } from '../../sim/shopProgression.js';
 
 const PRODUCTION_VISUAL_FALLBACK_KEYS = Object.freeze([
   'exteriorShellStructure',
@@ -74,6 +75,9 @@ export function buildShell(B) {
     productionFallbackNodes[key].push(node);
     return node;
   };
+  let retailSlab = null;
+  const luxuryFloorMaterial = mats.oakFloor.clone();
+  luxuryFloorMaterial.color.setHex(0xf1d8ad);
 
   // --- exterior finishes (normal-mapped siding + roof, kept from the yard kit) ---
   const texLoader = new THREE.TextureLoader();
@@ -596,13 +600,11 @@ export function buildShell(B) {
 
   // --- floors: honey oak retail + office, sealed concrete stockroom -----------------
   {
-    const oakTex = makeOakFloorTexture({});
-    oakTex.repeat.set(INTERIOR.w / 5.2, INTERIOR.d / 5.2);
-    const oak = new THREE.MeshStandardMaterial({ map: oakTex, roughness: 0.5 });
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(INTERIOR.w, FLOOR_TOP, INTERIOR.d), oak);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(INTERIOR.w, FLOOR_TOP, INTERIOR.d), mats.oakFloor);
     slab.position.set(0, FLOOR_TOP / 2, 0);
     slab.receiveShadow = true;
     group.add(slab);
+    retailSlab = slab;
     trackProductionFallback('renovatedFloor', slab);
     // concrete sits a hair proud over the stockroom (a different pour)
     const sb = STOCKROOM.bounds;
@@ -845,15 +847,19 @@ export function buildShell(B) {
   group.add(porchLight);
 
   let conditionNow = 100;
+  let shopTierNow = shopTierIndex(state);
   let flickT = 0;
   let moodDayF = 1;
   let windowDim = 1; // filthy glass chokes the daylight fills
 
   function applyPracticalLevels() {
     // practicals stay on all day (retail) but carry the room after dark
-    const scale = 0.72 + 0.55 * (1 - moodDayF);
+    const finishScale = [0.60, 0.80, 1.0, 1.14][shopTierNow] || 0.60;
+    const scale = (0.72 + 0.55 * (1 - moodDayF)) * finishScale;
     practicals.forEach((p, i) => {
       let on = 1;
+      if (shopTierNow === 0 && [1, 2, 4, 5, 6].includes(i)) on = 0;
+      if (shopTierNow === 1 && [2, 5].includes(i)) on = 0;
       if (conditionNow < 45 && i === 4) on = 0;              // a dead can in the neglect years
       if (conditionNow < 55 && (i === 9 || i === 12)) on = 0; // dark corners until refurbished
       if (p.light) p.light.intensity = p.base * scale * on;
@@ -862,6 +868,14 @@ export function buildShell(B) {
   }
 
   const lighting = {
+    setShopTier(tierId = null) {
+      shopTierNow = tierId == null ? shopTierIndex(state) : shopTierIndex(state, tierId);
+      if (retailSlab) {
+        retailSlab.material = [mats.concrete, mats.rawWood, mats.oakFloor, luxuryFloorMaterial][shopTierNow]
+          || mats.concrete;
+      }
+      applyPracticalLevels();
+    },
     setTimeMood(minuteOfDay) {
       // full day 07:00–18:30, 75-minute ramps either side
       const up = (minuteOfDay - 345) / 75;
@@ -893,6 +907,7 @@ export function buildShell(B) {
       p.glow.material.emissiveIntensity = drop ? 0.05 : 1.0;
     },
   };
+  lighting.setShopTier();
   lighting.setTimeMood(600);
 
   const productionVisualFallbacks = Object.freeze(Object.fromEntries(

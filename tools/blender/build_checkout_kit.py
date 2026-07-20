@@ -555,9 +555,19 @@ def build_barcode_scanner(M):
     win = K.uv_plane("Scanner_Window", 0.074, 0.086, (0, -0.0435, 0), M["scan_red"], parent=head)
     win["dynamic_emissive"] = True
     L.box("Scanner_LED", (0.052, 0.003, 0.006), (0, -0.0432, 0.038), M["led_red"], bevel=0.0, parent=head)
+    # A cashier-facing repeat of the status lamp keeps the result legible when
+    # the scan window is aimed across the customer-side staging route. It is a
+    # feedback light, not a second reader, and remains inside the head envelope.
+    cashier_led = L.box("Scanner_CashierLED", (0.052, 0.003, 0.006),
+                       (0, 0.053, 0.038), M["led_red"], bevel=0.0, parent=head)
+    cashier_led["dynamic_emissive"] = True
     L.cyl("s_sidebtn", 0.012, 0.006, (0.052, 0.012, 0.02), M["plastic_mid"], rot=(0, math.radians(90), 0), verts=16, parent=head)
-    K.empty("SCAN_RAY_ORIGIN", (0, -0.040, 0), (math.radians(-90), 0, 0), parent=head, size=0.04,
-            props={"emit_axis": "+Z(local) => outward -Y after head tilt", "note": "ray origin inside the red window"})
+    # Local +Z must follow the visible window normal. Both objects inherit the
+    # Scanner_Head tilt, so the socket stays rotation-neutral just like the
+    # window plane. The previous -90° X rotation pointed the runtime ray upward
+    # through the housing instead of out through the glass.
+    K.empty("SCAN_RAY_ORIGIN", (0, -0.040, 0), (0, 0, 0), parent=head, size=0.04,
+            props={"emit_axis": "+Z(local) == Scanner_Window +Z", "note": "ray origin inside the red window"})
     head.location = (0, -0.01, 0.185)
     head.rotation_euler = (math.radians(14), 0, 0)
 

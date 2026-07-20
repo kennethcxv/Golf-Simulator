@@ -35,7 +35,7 @@ export function makeHud(app, handlers) {
       clock.classList.toggle('paused', app.speedIdx === 0);
     }
     // this runs every frame — only touch the DOM when the number actually moved
-    const cashLine = formatMoney(app.empire ? app.empire.cash : app.state.cash);
+    const cashLine = formatMoney(Number.isFinite(app.state?.cash) ? app.state.cash : app.empire?.cash || 0);
     if (cashLine !== lastCash) {
       lastCash = cashLine;
       cash.textContent = cashLine;

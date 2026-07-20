@@ -22,8 +22,10 @@ import {
 } from '../data/shopLayout.js';
 import {
   RENO, shopCondition, cleanGrimeAt, clearClutter, placeDecor, removeDecor,
+  removeDecorPlacement,
   restockShelfFromBackroom, priceFor, windowDirtAvg,
 } from '../sim/shop.js';
+import { placedPropertyItems } from '../sim/propertyInventory.js';
 import {
   boxesOf, pickUpBox, putDownBox, carriedBox, openBox, emptyTrash,
   cutTape, openFlap, takeFromBox, flattenBox, recycleCarriedBox,
@@ -84,10 +86,12 @@ import {
 import { deliveryBoxCarryProfile } from './clubhouse/deliveryCarryProfile.js';
 import { slotsFor, homeFixture } from '../data/fixtureSlots.js';
 import { buildShell } from './clubhouse/shell.js';
+import { buildShopProgressionVisuals } from './clubhouse/shopProgressionVisuals.js';
 import { buildDoors } from './clubhouse/doors.js';
 import { createSheet06ProductionRuntime } from './assets51to100/sheet06ProductionRuntime.js';
 import { createSheet06NavigationContract } from './assets51to100/sheet06Navigation.js';
 import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } from './clubhouse/fixtures.js';
+import { shopCustomerCapacity, shopTierIndex } from '../sim/shopProgression.js';
 import { createRegisterMode } from './clubhouse/simplifiedRegisterMode.js';
 import { buildDirt } from './clubhouse/dirt.js';
 import { makeNav } from './clubhouse/nav.js';
@@ -176,40 +180,40 @@ function positionCarriedCatalogProduct(item, descriptor, profile, index, count) 
   }
   if (profile === 'shoe-box-stack') {
     const centered = index - (count - 1) / 2;
-    item.position.set(centered * 0.018, index * 0.105, index * 0.018);
-    item.rotation.y = centered * 0.055;
-    item.scale.multiplyScalar(0.88);
+    item.position.set(centered * 0.012, index * 0.088, index * 0.012);
+    item.rotation.y = centered * 0.045;
+    item.scale.multiplyScalar(0.72);
     return;
   }
   if (profile === 'ball-carton-stack') {
     const col = index % 3;
     const row = Math.floor(index / 3);
-    item.position.set((col - 1) * 0.145, row * 0.068, row * 0.018);
-    item.rotation.y = (col - 1) * 0.035;
-    item.scale.multiplyScalar(0.86);
+    item.position.set((col - 1) * 0.122, row * 0.058, row * 0.014);
+    item.rotation.y = (col - 1) * 0.03;
+    item.scale.multiplyScalar(0.76);
     return;
   }
   if (profile === 'small-merch-fan') {
     const centered = index - (count - 1) / 2;
-    item.position.set(centered * 0.052, Math.abs(centered) * 0.008, index * 0.009);
-    item.rotation.z = centered * -0.075;
-    item.scale.multiplyScalar(0.88);
+    item.position.set(centered * 0.043, Math.abs(centered) * 0.006, index * 0.007);
+    item.rotation.z = centered * -0.065;
+    item.scale.multiplyScalar(0.76);
     return;
   }
   if (profile === 'bottle-bundle') {
     const col = index % 3;
     const row = Math.floor(index / 3);
-    item.position.set((col - 1) * 0.078, row * 0.018, row * 0.075);
-    item.rotation.y = (col - 1) * 0.08;
-    item.scale.multiplyScalar(0.90);
+    item.position.set((col - 1) * 0.065, row * 0.015, row * 0.060);
+    item.rotation.y = (col - 1) * 0.065;
+    item.scale.multiplyScalar(0.76);
     return;
   }
   if (profile === 'bulky-stand-bag') {
     // Catalog stand bags rest along X. Rotate the single full silhouette upright
     // and lift around its midpoint so the body, pockets and legs stay in frame.
-    item.position.set(0.02, 0.31, 0);
+    item.position.set(0.02, 0.28, 0);
     item.rotation.z = -Math.PI / 2;
-    item.scale.multiplyScalar(0.84);
+    item.scale.multiplyScalar(0.70);
     return;
   }
   if (profile === 'long-accessories') {
@@ -230,6 +234,26 @@ function positionCarriedCatalogProduct(item, descriptor, profile, index, count) 
   item.position.set((col - (columns - 1) / 2) * 0.17, row * 0.11, row * 0.025);
   item.rotation.y = (col - (columns - 1) / 2) * 0.07;
   item.scale.multiplyScalar(0.86);
+}
+
+const CARRIED_GOODS_CAMERA_POSES = Object.freeze({
+  'long-clubs': Object.freeze({ position: Object.freeze([0, -0.38, -1.06]), rotation: Object.freeze([0.05, 0.06, -0.20]) }),
+  'bulky-stand-bag': Object.freeze({ position: Object.freeze([0.34, -0.58, -1.18]), rotation: Object.freeze([0.08, -0.18, 0.16]) }),
+  'bulky-single': Object.freeze({ position: Object.freeze([0.28, -0.54, -1.16]), rotation: Object.freeze([0.06, -0.14, 0.10]) }),
+  'long-accessories': Object.freeze({ position: Object.freeze([0, -0.42, -1.04]), rotation: Object.freeze([0.08, 0.04, -0.14]) }),
+  'bottle-bundle': Object.freeze({ position: Object.freeze([0.10, -0.46, -0.98]), rotation: Object.freeze([0.16, 0.02, -0.03]) }),
+  'shoe-box-stack': Object.freeze({ position: Object.freeze([0.10, -0.46, -1.02]), rotation: Object.freeze([0.16, 0.02, -0.02]) }),
+  'ball-carton-stack': Object.freeze({ position: Object.freeze([0.10, -0.42, -0.96]), rotation: Object.freeze([0.18, 0.02, -0.02]) }),
+  'small-merch-fan': Object.freeze({ position: Object.freeze([0.10, -0.39, -0.94]), rotation: Object.freeze([0.18, 0.02, -0.02]) }),
+  default: Object.freeze({ position: Object.freeze([0.10, -0.40, -0.92]), rotation: Object.freeze([0.18, 0.02, -0.02]) }),
+});
+
+export function carriedGoodsCameraPose(profile) {
+  const pose = CARRIED_GOODS_CAMERA_POSES[profile] || CARRIED_GOODS_CAMERA_POSES.default;
+  return {
+    position: [...pose.position],
+    rotation: [...pose.rotation],
+  };
 }
 
 // Camera-carried stock uses the same catalog product builder as cartons, shelves
@@ -622,6 +646,7 @@ export function makeClubhouse(ctx) {
     relayFixtures,
     setFixtureCollidersActive,
     fixtureColliderDiagnostics,
+    refreshTierDressing,
   } = buildFixtures(B);
 
   function fixtureBrowsePose(fixture, localX = 0, localZ = null) {
@@ -708,14 +733,54 @@ export function makeClubhouse(ctx) {
   };
   const builder = buildBuildMode(B, {
     rebuildLayout,
+    rebuildDecor: () => rebuildDecor(),
     fixtureAnchors,
     fixtureMoveBlocker,
     setFixtureStockVisible,
     setFixtureCollidersActive,
     fixtureColliderDiagnostics,
+    createPlaceablePreview: (skuId) => createPlaceablePreview(skuId),
+    setDecorPlacementVisible: (placementId, visible) => setDecorPlacementVisible(placementId, visible),
   });
-  buildLounge(B);
+  const shopProgressionVisuals = buildShopProgressionVisuals(B);
+  const loungeInterior = new THREE.Group();
+  loungeInterior.name = 'TieredMemberLounge';
+  interior.add(loungeInterior);
+  const loungeColliders = [];
+  let loungeActive = false;
+  buildLounge({
+    ...B,
+    interior: loungeInterior,
+    addCol: (collider) => {
+      loungeColliders.push(collider);
+      if (loungeActive) addCol(collider);
+      return collider;
+    },
+  });
+  function syncTieredLounge() {
+    const active = shopTierIndex(state) >= 2;
+    loungeInterior.visible = active;
+    if (active === loungeActive) return;
+    loungeActive = active;
+    for (const collider of loungeColliders) {
+      if (active) addCol(collider);
+      else removeCol(collider);
+    }
+  }
+  syncTieredLounge();
   buildStockroomDressing(B);
+
+  function refreshShopProgression() {
+    shell.lighting.setShopTier();
+    shopProgressionVisuals.refresh();
+    syncTieredLounge();
+    refreshTierDressing();
+    relayFixtures();
+    retargetCustomerFixtureStops();
+    rebuildStock();
+    rebuildBoxes();
+    return shopProgressionVisuals.diagnostics();
+  }
 
   // --- THE REGISTER ---------------------------------------------------------------------
   // The old checkout lived here: one addProp with a context-sensitive [E] that scanned
@@ -802,6 +867,21 @@ export function makeClubhouse(ctx) {
     return carry;
   }
 
+  function disposeCustomerHandoffReceipt(c) {
+    const receipt = c?.handoffReceipt;
+    if (!receipt) return false;
+    receipt.removeFromParent();
+    if (receipt.userData?.checkoutOwnedReceipt && receipt.geometry) receipt.geometry.dispose();
+    const materials = Array.isArray(receipt.material) ? receipt.material : [receipt.material];
+    for (const material of new Set(materials)) {
+      if (!material || !receipt.userData?.checkoutOwnedReceipt) continue;
+      if (material.map) material.map.dispose();
+      material.dispose();
+    }
+    c.handoffReceipt = null;
+    return true;
+  }
+
   // The sale banked. registerMode calls this through cust.onPaid, because IT owns the
   // money and the goods, and clubhouse.js owns the person.
   function onCustomerPaid(c, transaction = null) {
@@ -825,12 +905,14 @@ export function makeClubhouse(ctx) {
     // This keeps unpaid props at the counter while ensuring paid goods remain
     // visibly theirs through the acceptance beat and walk out.
     // a branded carrier into their hand — they walk out with it
-    const kitBag = merch?.instantiateKit
+    const handedBag = c.checkoutHandoffBag || null;
+    const kitBag = !handedBag && merch?.instantiateKit
       ? merch.instantiateKit('shopping_bag', { scale: 0.86 })
       : null;
-    const legacyBag = !kitBag && merch ? merch.instantiate('checkout_shopping_bag') : null;
-    const bag = kitBag || legacyBag || new THREE.Group();
-    const productionBag = !!(kitBag || legacyBag);
+    const legacyBag = !handedBag && !kitBag && merch
+      ? merch.instantiate('checkout_shopping_bag') : null;
+    const bag = handedBag || kitBag || legacyBag || new THREE.Group();
+    const productionBag = !!(handedBag || kitBag || legacyBag);
     if (!productionBag) {
       const body = new THREE.Mesh(
         new THREE.BoxGeometry(0.2, 0.26, 0.13),
@@ -843,7 +925,7 @@ export function makeClubhouse(ctx) {
       // and readable as the object the customer owns in the departure shot.
       bag.scale.setScalar(0.78);
     }
-    const paidReceipt = merch && merch.instantiateKit
+    const paidReceipt = !c.handoffReceipt && merch && merch.instantiateKit
       ? merch.instantiateKit('loose_receipt', { scale: 0.78 })
       : null;
     if (paidReceipt) {
@@ -866,6 +948,7 @@ export function makeClubhouse(ctx) {
     c.bagAcceptanceHold = PAID_BAG_ACCEPTANCE_HOLD_SEC;
     c.bagAcceptanceYaw = acceptanceYaw;
     attachPaidBagToCustomer(c, bag, { productionBag, carryTarget });
+    c.checkoutHandoffBag = null;
     attachOversizePurchaseVisuals(c, transaction);
     // Preserve the orientation established by the physical handoff camera for the
     // short ownership beat. Turning toward the scanner here made the customer and
@@ -2281,8 +2364,9 @@ export function makeClubhouse(ctx) {
       const cos = Math.cos(spot.ry);
       const bx = spot.x + lx * cos + lz * sin;
       const bz = spot.z - lx * sin + lz * cos;
-      const swap = Math.abs(sin) > 0.5;
-      return colBoxAt(bx, bz, swap ? 0.95 : w, swap ? w : d);
+      const colliderWidth = Math.abs(cos) * w + Math.abs(sin) * d;
+      const colliderDepth = Math.abs(sin) * w + Math.abs(cos) * d;
+      return colBoxAt(bx, bz, colliderWidth, colliderDepth);
     };
     return { group: g, colliders: [worldBox(0, 0, 2.2, 0.95), worldBox(0, 1.05, 1.15, 0.6)] };
   }
@@ -2292,44 +2376,90 @@ export function makeClubhouse(ctx) {
     board1: makeBoardMesh, light1: makePendantMesh, lounge1: makeLoungeMesh,
   };
 
+  function createPlaceablePreview(skuId) {
+    const build = DECOR_BUILDERS[skuId];
+    if (!build) return null;
+    return build({ x: 0, z: 0, ry: 0 }, true).group;
+  }
+
   function ghostify(g) {
+    const materials = new Set();
+    const textures = new Set();
     g.traverse((o) => {
       if (o.isMesh) {
+        for (const material of (Array.isArray(o.material) ? o.material : [o.material])) {
+          if (!material || material === ghostMat) continue;
+          materials.add(material);
+          for (const value of Object.values(material)) if (value?.isTexture) textures.add(value);
+        }
         o.material = ghostMat;
         o.castShadow = false;
       }
       if (o.isPointLight) o.intensity = 0;
     });
+    for (const texture of textures) texture.dispose();
+    for (const material of materials) material.dispose();
     return g;
   }
 
-  function buildDecorAt(skuId, spotIdx, ghost) {
-    const spot = DECOR_SPOTS[skuId][spotIdx];
-    const built = DECOR_BUILDERS[skuId](spot, ghost);
-    built.group.position.set(spot.x, 0, spot.z);
-    built.group.rotation.y = spot.ry;
+  function disposeDecorRenderable(root) {
+    const geometries = new Set();
+    const materials = new Set();
+    const textures = new Set();
+    root.traverse((object) => {
+      if (object.geometry) geometries.add(object.geometry);
+      for (const material of (Array.isArray(object.material) ? object.material : [object.material])) {
+        if (!material || material === ghostMat) continue;
+        materials.add(material);
+        for (const value of Object.values(material)) if (value?.isTexture) textures.add(value);
+      }
+    });
+    for (const geometry of geometries) geometry.dispose();
+    for (const texture of textures) texture.dispose();
+    for (const material of materials) material.dispose();
+  }
+
+  function buildDecorPose(skuId, pose, options = {}) {
+    const { ghost = false, spotIdx = null, placementId = null } = options;
+    const built = DECOR_BUILDERS[skuId](pose, ghost);
+    built.group.position.set(pose.x, 0, pose.z);
+    built.group.rotation.y = pose.ry;
     if (ghost) ghostify(built.group);
     interior.add(built.group);
-    if (!ghost && popNextDecor && popNextDecor.skuId === skuId && popNextDecor.spot === spotIdx) {
+    if (!ghost && popNextDecor && popNextDecor.skuId === skuId
+        && (popNextDecor.placementId === placementId || popNextDecor.spot === spotIdx)) {
       popNextDecor = null;
       tweenScale(built.group, 0.55, 1, 0.28);
     }
-    const entry = { group: built.group, colliders: ghost ? [] : built.colliders, prop: null };
+    const entry = {
+      group: built.group,
+      colliders: ghost ? [] : built.colliders,
+      prop: null,
+      propActive: false,
+      collidersActive: !ghost,
+      placementId,
+      skuId,
+      spotIdx,
+    };
     for (const c of entry.colliders) addCol(c);
     const sku = SHOP_CATALOG.find((sk) => sk.id === skuId);
-    const wp = L2W(spot.x, spot.z);
+    const wp = L2W(pose.x, pose.z);
     if (!ghost) {
       entry.prop = addProp({
         x: wp.x, z: wp.z, r: 1.9,
         label: () => `${sku.name} — [E] pack it back up`,
         action: () => {
-          if (!removeDecor(state, skuId, spotIdx).ok) return;
+          const removed = placementId
+            ? removeDecorPlacement(state, placementId)
+            : removeDecor(state, skuId, spotIdx);
+          if (!removed.ok) return;
           rebuildDecor();
           refreshCondition();
           if (hooks.sfx) hooks.sfx('thunk');
           if (hooks.toast) hooks.toast(`${sku.name} packed up — it's back in the backroom.`);
         },
       });
+      entry.propActive = true;
     } else {
       entry.prop = addProp({
         x: wp.x, z: wp.z, r: 1.9,
@@ -2347,21 +2477,58 @@ export function makeClubhouse(ctx) {
           if (hooks.toast) hooks.toast(`${sku.name} placed — the shop is coming together.`);
         },
       });
+      entry.propActive = true;
     }
     decorObjs.push(entry);
+    return entry;
+  }
+
+  function buildDecorAt(skuId, spotIdx, ghost) {
+    return buildDecorPose(skuId, DECOR_SPOTS[skuId][spotIdx], { ghost, spotIdx });
+  }
+
+  function setDecorPlacementVisible(placementId, visible) {
+    const entry = decorObjs.find((decor) => decor.placementId === placementId);
+    if (!entry || entry.group.visible === visible) return false;
+    entry.group.visible = visible;
+    if (visible) {
+      if (!entry.collidersActive) {
+        for (const collider of entry.colliders) addCol(collider);
+        entry.collidersActive = true;
+      }
+      if (entry.prop && !entry.propActive) {
+        addProp(entry.prop);
+        entry.propActive = true;
+      }
+    } else {
+      if (entry.collidersActive) {
+        for (const collider of entry.colliders) removeCol(collider);
+        entry.collidersActive = false;
+      }
+      if (entry.prop && entry.propActive) {
+        removeProp(entry.prop);
+        entry.propActive = false;
+      }
+    }
+    return true;
   }
 
   function rebuildDecor() {
     for (const d of decorObjs) {
       interior.remove(d.group);
-      for (const c of d.colliders) removeCol(c);
-      if (d.prop) removeProp(d.prop);
+      if (d.collidersActive) for (const c of d.colliders) removeCol(c);
+      if (d.prop && d.propActive) removeProp(d.prop);
+      disposeDecorRenderable(d.group);
     }
     decorObjs.length = 0;
     const reno = state && state.shop && state.shop.reno;
     if (!reno) return;
+    const placements = new Map(placedPropertyItems(state).map((entry) => [entry.id, entry]));
     for (const d of reno.decor) {
-      if (DECOR_BUILDERS[d.skuId] && DECOR_SPOTS[d.skuId] && DECOR_SPOTS[d.skuId][d.spot]) {
+      const placement = placements.get(d.placementId);
+      if (placement && DECOR_BUILDERS[d.skuId]) {
+        buildDecorPose(d.skuId, placement.pose, { placementId: placement.id, spotIdx: d.spot });
+      } else if (DECOR_BUILDERS[d.skuId] && DECOR_SPOTS[d.skuId]?.[d.spot]) {
         buildDecorAt(d.skuId, d.spot, false);
       }
     }
@@ -2377,7 +2544,13 @@ export function makeClubhouse(ctx) {
   let decorSig = '';
   function decorSignature() {
     if (!state || !state.shop) return '';
-    let sig = state.shop.reno ? String(state.shop.reno.decor.length) : '0';
+    const placementById = new Map(placedPropertyItems(state).map((entry) => [entry.id, entry]));
+    let sig = (state.shop.reno?.decor || []).map((entry) => {
+      const pose = placementById.get(entry.placementId)?.pose;
+      return pose
+        ? `${entry.placementId}:${pose.x}:${pose.z}:${pose.ry}:${pose.surfaceId}`
+        : `${entry.skuId}:${entry.spot}`;
+    }).join('|');
     for (const skuId of Object.keys(DECOR_BUILDERS)) {
       const inv = state.shop.inventory[skuId];
       sig += ':' + (inv ? inv.back : 0);
@@ -3345,17 +3518,20 @@ export function makeClubhouse(ctx) {
         hand.position.set(side * 0.38, -0.34 - side * 0.075, -0.91);
         hand.rotation.set(-0.24, side * 0.10, side * -0.34);
       } else if (profile === 'bulky-stand-bag' || profile === 'bulky-single') {
-        hand.position.set(0.08 + side * 0.25, -0.39 - side * 0.035, -0.88);
-        hand.rotation.set(-0.20, side * 0.12, side * -0.40);
+        hand.position.set(0.34 + side * 0.12, -0.50 - side * 0.025, -1.04);
+        hand.rotation.set(-0.20, side * 0.10, side * -0.34);
       } else if (profile === 'long-accessories') {
         hand.position.set(side * 0.31, -0.34 - side * 0.04, -0.86);
         hand.rotation.set(-0.24, side * 0.10, side * -0.35);
       } else if (profile === 'bottle-bundle') {
-        hand.position.set(0.10 + side * 0.18, -0.32, -0.66);
-        hand.rotation.set(-0.30, side * 0.18, side * -0.35);
-      } else {
-        hand.position.set(0.10 + side * 0.16, -0.27, -0.66);
+        hand.position.set(0.10 + side * 0.19, -0.43, -0.89);
         hand.rotation.set(-0.28, side * 0.16, side * -0.32);
+      } else if (profile === 'shoe-box-stack') {
+        hand.position.set(0.10 + side * 0.22, -0.43, -0.91);
+        hand.rotation.set(-0.26, side * 0.14, side * -0.30);
+      } else {
+        hand.position.set(0.10 + side * 0.19, -0.39, -0.86);
+        hand.rotation.set(-0.26, side * 0.14, side * -0.30);
       }
     }
     carriedBoxHands.visible = true;
@@ -4381,22 +4557,9 @@ export function makeClubhouse(ctx) {
     if (cg) {
       carriedGoodsMesh = makeGoodsMesh(cg, { merch, mats });
       const profile = carriedGoodsMesh.userData.deliveryCarryProfile;
-      if (profile === 'long-clubs') {
-        carriedGoodsMesh.position.set(0, -0.38, -1.06);
-        carriedGoodsMesh.rotation.set(0.05, 0.06, -0.20);
-      } else if (profile === 'bulky-stand-bag' || profile === 'bulky-single') {
-        carriedGoodsMesh.position.set(0.12, -0.46, -1.02);
-        carriedGoodsMesh.rotation.set(0.06, -0.08, 0.06);
-      } else if (profile === 'long-accessories') {
-        carriedGoodsMesh.position.set(0, -0.40, -1.00);
-        carriedGoodsMesh.rotation.set(0.08, 0.04, -0.14);
-      } else if (profile === 'bottle-bundle') {
-        carriedGoodsMesh.position.set(0.10, -0.35, -0.72);
-        carriedGoodsMesh.rotation.x = 0.20;
-      } else {
-        carriedGoodsMesh.position.set(0.10, -0.28, -0.72);   // held in the arms, fully framed low in view
-        carriedGoodsMesh.rotation.x = 0.28;
-      }
+      const pose = carriedGoodsCameraPose(profile);
+      carriedGoodsMesh.position.set(...pose.position);
+      carriedGoodsMesh.rotation.set(...pose.rotation);
       carriedGoodsMesh.userData.deliveryCarryBaseY = carriedGoodsMesh.position.y;
       setDeliveryCarryOverlay(carriedGoodsMesh, true);
       camera.add(carriedGoodsMesh);
@@ -5573,8 +5736,16 @@ export function makeClubhouse(ctx) {
     // real variety on the floor: builds, trousers, skin tones, hats or hair
     const TROUSERS = [0xc2b190, 0x8a8577, 0x4b545c, 0x6b5a44];
     const SKINS = [0xd9a97e, 0xb9865e, 0x8a5f42, 0xe8c39a];
+    let poloIndex = rng.int(CUST_COLORS.length);
+    const previousPolo = customers.length
+      ? customers[customers.length - 1].presentationPolo
+      : null;
+    if (CUST_COLORS[poloIndex] === previousPolo) {
+      poloIndex = (poloIndex + 1) % CUST_COLORS.length;
+    }
+    const presentationPolo = CUST_COLORS[poloIndex];
     const char = makeCharacter({
-      polo: CUST_COLORS[rng.int(CUST_COLORS.length)],
+      polo: presentationPolo,
       khaki: TROUSERS[rng.int(TROUSERS.length)],
       skin: SKINS[rng.int(SKINS.length)],
       cap: rng.chance(0.55) ? (rng.chance(0.5) ? 0xf2efe4 : 0x2c3e66) : null,
@@ -5636,7 +5807,8 @@ export function makeClubhouse(ctx) {
       : null;
     const loungeEarly = reservationId != null
       && Number.isFinite(deskReadyAt)
-      && state.clock.minutes < deskReadyAt;
+      && state.clock.minutes < deskReadyAt
+      && shopTierIndex(state) >= 2;
     if (loungeEarly) {
       // Keep the early-arrival hold on the open entrance side of the lounge.
       // The old back-corner point routed directly through chair B whenever the
@@ -5663,6 +5835,7 @@ export function makeClubhouse(ctx) {
       customerId: identity.customerId,
       fullName: identity.fullName,
       name: identity.fullName,
+      presentationPolo,
       paymentPreference: assignedPayment,
       payMethod: assignedPayment,
       paymentDialogue: paymentChoiceDialogue({
@@ -5720,6 +5893,8 @@ export function makeClubhouse(ctx) {
       bagMesh: null,
       bagCarryRoot: null,
       bagCarryTarget: null,
+      checkoutHandoffBag: null,
+      handoffReceipt: null,
       bagAcceptanceHold: 0,
       bagAcceptanceFace: null,
       bagAcceptanceYaw: null,
@@ -6242,6 +6417,7 @@ export function makeClubhouse(ctx) {
       c.oversizeCarryRoot.removeFromParent();
       c.oversizeCarryRoot = null;
     }
+    disposeCustomerHandoffReceipt(c);
 
     // Character resources are captured by makeCharacter before any shared item
     // proxy or paid-bag GLB is parented beneath it, so this cannot evict cached
@@ -6554,7 +6730,9 @@ export function makeClubhouse(ctx) {
   function updateCustomers(dt) {
     const minute = ((state.clock.minutes % 1440) + 1440) % 1440;
     const open = minute >= 360 && minute <= 1200;
-    const targetCount = open ? clamp(Math.round(((state.shop.salesYesterday.units || 2) / 8) * 3), 1, 6) : 0;
+    const targetCount = open
+      ? clamp(Math.round(((state.shop.salesYesterday.units || 2) / 8) * 3), 1, shopCustomerCapacity(state))
+      : 0;
     if (organicWalkins && open && customers.length < targetCount && Math.random() < dt * 0.15) {
       spawnCustomer(false, null, { allowWalkInRequest: true });
     }
@@ -7202,6 +7380,10 @@ export function makeClubhouse(ctx) {
       getTx: () => register.getTx(),
       getCustomer: () => register.getCustomer(),
       getFlow: () => register.getFlow(),
+      scanPresentation: () => register.scanPresentation(),
+      scanAlignment: () => register.scanAlignment(),
+      cashHandoffPresentation: () => register.cashHandoffPresentation(),
+      deliveryPresentation: () => register.deliveryPresentation(),
       drawerPrewarmStatus: () => register.drawerPrewarmStatus(),
       cashGpuPrewarmStatus: () => register.cashGpuPrewarmStatus(),
       waitForCashGpuPrewarmRepresentatives: (timeoutMs) => (
@@ -7298,6 +7480,8 @@ export function makeClubhouse(ctx) {
     productThumb: (sku) => productThumb(sku), // rendered supplier-card imagery
     condition: () => conditionNow,
     setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),
+    refreshShopProgression,
+    shopProgressionDiagnostics: () => shopProgressionVisuals.diagnostics(),
     // build mode: the shop is the player's to arrange
     build: builder,
     // the pressure washer: aim at the building, pull the trigger, watch the wall come back

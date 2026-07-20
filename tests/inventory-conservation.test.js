@@ -45,6 +45,8 @@ const RETAIL = SHOP_CATALOG.filter((s) => s.cat !== 'equipment').map((s) => s.id
 
 test('a unit that exists is never duplicated or lost, over 500 random actions', () => {
   const st = newGame('relaxed', 7);
+  st.shop.progression.tier = 'premium';
+  st.shop.unlockedTier = 3;
   let rng = 12345;
   const rand = () => {
     rng = (rng * 1103515245 + 12345) & 0x7fffffff;

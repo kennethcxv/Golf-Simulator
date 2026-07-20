@@ -117,6 +117,8 @@ test('authored socket resolution returns anchor-local coordinates without mutati
 
 test('Asset 20 inventory and moved fixture identity survive save/load recovery', () => {
   const state = newGame('relaxed', 20260717);
+  state.shop.progression.tier = 'premium';
+  state.shop.unlockedTier = 3;
   state.shop.inventory.jacket2.shelf = 8;
   state.shop.inventory.jacket2.back = 3;
   commitPlacement(state, 'rail_outer', -2.15, 1.35, Math.PI / 2);

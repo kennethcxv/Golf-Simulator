@@ -33,3 +33,17 @@ export function cardTerminalPose(station, counterTop) {
     fov: 32,
   };
 }
+
+// Fulfilment keeps the printer, receipt path, and receiving customer in one
+// composed frame. It sits a little farther back than the card handoff so the
+// right-side printer and the customer's two palm grips remain visible together.
+export function fulfillmentHandoffPose(customer, printer, counterTop) {
+  const customerX = Math.max(2.10, Math.min(3.10, customer.x));
+  const printerX = Number.isFinite(printer?.x) ? printer.x : 3.98;
+  const centreX = (customerX + printerX) / 2;
+  return {
+    eye: { x: centreX - 0.20, y: 1.64, z: 5.72 },
+    look: { x: centreX - 0.08, y: counterTop + 0.17, z: 4.08 },
+    fov: 50,
+  };
+}

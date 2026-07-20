@@ -3,6 +3,7 @@
 // Headless like every sim module; the clubhouse renders THIS state.
 
 import { skuById } from '../data/shopItems.js';
+import { placeableSpecBySkuId } from '../data/placeableItems.js';
 import {
   BOX_KINDS,
   SHIPMENT_PACKAGING_SCHEMA_VERSION,
@@ -29,6 +30,10 @@ import {
   previewBoxPlacement,
   surfaceById,
 } from './boxPlacement.js';
+import {
+  importLegacyStoredPlaceables,
+  storeDeliveredPlaceables,
+} from './propertyInventory.js';
 
 // kept for old callers; the truth is unitsPerBox(sku), which knows that a stand bag
 // does not pack twelve to a carton just because its category says 'accessories'
@@ -1142,6 +1147,10 @@ export function openBox(state, id) {
   if (!inv) return { ok: false, reason: 'That stock line is not in the catalog.' };
   const qty = box.qty;
   inv.back += qty;
+  if (placeableSpecBySkuId(box.skuId)) {
+    const stored = storeDeliveredPlaceables(state, box.skuId, qty);
+    if (!stored.ok) importLegacyStoredPlaceables(state, box.skuId, inv.back);
+  }
   box.cutProgress = 1;
   box.tape = 1;
   box.tapeSegments = tapeSegmentsAt(1);

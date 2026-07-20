@@ -22,6 +22,7 @@ import {
 
 const fresh = () => {
   const st = newGame('relaxed', 6);
+  st.shop.progression.tier = 'luxury';
   ensureLayout(st);
   return st;
 };

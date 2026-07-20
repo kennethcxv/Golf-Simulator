@@ -7,15 +7,40 @@ export const FLORA_LOD_PROXY_BY_ID = Object.freeze({
   oak_b: 'fill_b',
   maple_a: 'birch_a',
   shade_a: 'fill_b',
+  flower_a: 'birch_a',
+  ornamental_small_a: 'birch_a',
+  pine_a: 'pine_b',
+  spruce_a: 'cedar_a',
+  pine_b: 'pine_far',
+  cedar_a: 'pine_far',
+  cypress_a: 'cypress_far',
+  palm_a: 'palm_far',
+  acacia_a: 'acacia_far',
+  eucalyptus_a: 'eucalyptus_far',
+});
+
+export const FLORA_LOD_FAR_BY_ID = Object.freeze({
+  oak_a: 'deciduous_far',
+  oak_b: 'deciduous_far',
+  maple_a: 'deciduous_far',
+  shade_a: 'deciduous_far',
+  flower_a: 'deciduous_far',
+  ornamental_small_a: 'deciduous_far',
   pine_a: 'pine_far',
   spruce_a: 'pine_far',
   pine_b: 'pine_far',
   cedar_a: 'pine_far',
+  cypress_a: 'cypress_far',
+  palm_a: 'palm_far',
+  acacia_a: 'acacia_far',
+  eucalyptus_a: 'eucalyptus_far',
 });
 
 export const FLORA_LOD_DEFAULTS = Object.freeze({
   heroEnterYd: 125,
   heroExitYd: 150,
+  farExitYd: 210,
+  farEnterYd: 245,
   refreshDistanceYd: 18,
   // The boundary belt is ~3,000 instances, so it cannot use the authored radius
   // above — that would promote most of the ring at once. But it also cannot stay
@@ -32,6 +57,7 @@ function finiteDistance(value) {
 
 export function floraLodChoice(sourceId, distanceYd, previousHero, options = {}) {
   const proxyId = FLORA_LOD_PROXY_BY_ID[sourceId];
+  const farId = FLORA_LOD_FAR_BY_ID[sourceId] || proxyId;
   const boundary = options.boundary === true;
   if (!proxyId) {
     const nativeTree = options.tree === true;
@@ -58,12 +84,13 @@ export function floraLodChoice(sourceId, distanceYd, previousHero, options = {})
     ? Math.max(enter, options.heroExitYd)
     : Math.max(enter, boundary ? FLORA_LOD_DEFAULTS.boundaryHeroExitYd : FLORA_LOD_DEFAULTS.heroExitYd);
   const distance = finiteDistance(distanceYd);
-  const hero = previousHero === true ? distance <= exit : distance <= enter;
+  const wasHero = previousHero === true || previousHero === 'hero' || previousHero === 'boundary-hero';
+  const hero = wasHero ? distance <= exit : distance <= enter;
 
   if (boundary) {
     return {
       sourceId,
-      renderId: hero ? sourceId : proxyId,
+      renderId: hero ? sourceId : farId,
       tier: hero ? 'boundary-hero' : 'boundary-proxy',
       hero,
       // Never a shadow caster either way. The belt rings the whole property and
@@ -72,12 +99,26 @@ export function floraLodChoice(sourceId, distanceYd, previousHero, options = {})
     };
   }
 
+  const farExit = Number.isFinite(options.farExitYd)
+    ? Math.max(exit, options.farExitYd)
+    : Math.max(exit, FLORA_LOD_DEFAULTS.farExitYd);
+  const farEnter = Number.isFinite(options.farEnterYd)
+    ? Math.max(farExit, options.farEnterYd)
+    : Math.max(farExit, FLORA_LOD_DEFAULTS.farEnterYd);
+  const previousTier = typeof previousHero === 'string'
+    ? previousHero
+    : previousHero === true ? 'hero' : previousHero === false ? 'medium' : null;
+  let tier;
+  if (previousTier === 'hero') tier = distance <= exit ? 'hero' : distance >= farEnter ? 'far' : 'medium';
+  else if (previousTier === 'far') tier = distance >= farExit ? 'far' : distance <= enter ? 'hero' : 'medium';
+  else tier = distance <= enter ? 'hero' : distance >= farEnter ? 'far' : 'medium';
+
   return {
     sourceId,
-    renderId: hero ? sourceId : proxyId,
-    tier: hero ? 'hero' : 'proxy',
-    hero,
-    castShadow: hero,
+    renderId: tier === 'hero' ? sourceId : tier === 'far' ? farId : proxyId,
+    tier,
+    hero: tier === 'hero',
+    castShadow: tier === 'hero',
   };
 }
 

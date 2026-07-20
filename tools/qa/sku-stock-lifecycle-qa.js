@@ -18,7 +18,8 @@ async (page) => {
 
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   const phase = String(process.env.SKU_STOCK_QA_PHASE || 'after').toLowerCase();
   const iteration = Math.max(1, Number.parseInt(process.env.SKU_STOCK_QA_ITERATION || '1', 10));
   const out = path.join(
@@ -90,6 +91,7 @@ async (page) => {
   const targetSkuIds = cases.map((entry) => entry.skuId);
   const fixtureInjection = Object.freeze([
     'The --bootstrap save is replaced with a clean relaxed-mode property by the normal QA runner.',
+    'The isolated property wallet is fixed at $5,000 so the player-facing HUD remains representative.',
     'Target SKU shelf/back counts are reset to zero before the measured routes.',
     'Delivery arrays are cleared once before the first route; unique box/order IDs remain monotonic across all five cases.',
     'Each sealed carton is created with production planShipment and arriveOrder, then initially placed through pickUpBox/putDownBox on one validated stockroom-floor target.',
@@ -99,7 +101,7 @@ async (page) => {
 
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
   await page.waitForTimeout(600);
-  await page.goto('http://localhost:8457/');
+  await page.goto(baseUrl);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(900);
   await page.getByText('Continue', { exact: true }).click().catch(() => {});
@@ -118,6 +120,10 @@ async (page) => {
     const state = app.state;
     const D = await import('/src/sim/deliveries.js');
     D.ensureDeliveries(state);
+    // Keep the HUD believable in visual evidence while leaving every stock,
+    // carton and lifecycle transition under the production route below.
+    app.empire.cash = 5000;
+    state.cash = 5000;
     app.speedIdx = 0;
     app.scene3d.walk.clearKeys?.();
     const day = Math.floor(state.clock.minutes / 1440) * 1440;
@@ -569,6 +575,11 @@ async (page) => {
       for (let object = cutterRoot; object && cutterVisible; object = object.parent) {
         cutterVisible = object.visible !== false;
       }
+      const cutterArm = window.__fw.scene3d.scene.getObjectByName('BoxCutterPlayerArm');
+      let cutterArmVisible = !!cutterArm;
+      for (let object = cutterArm; object && cutterArmVisible; object = object.parent) {
+        cutterArmVisible = object.visible !== false;
+      }
       const stockDisplay = window.__fw.scene3d.clubhouse().stockDisplayDiagnostics()
         .displays.find((display) => display.fixtureId === fixtureId && display.stockId === skuId) || null;
       return {
@@ -583,6 +594,8 @@ async (page) => {
         })(),
         cutter: !!window.__fw.scene3d.scene.getObjectByName('DeliveryBoxCutterAuthored'),
         cutterVisible,
+        cutterArmVisible,
+        cutterArmSegments: cutterArm?.children.filter((object) => object.visible).length || 0,
         projectedBoxBounds,
         recycling: !!window.__fw.scene3d.scene.getObjectByName('DeliveryRecyclingStationAuthored'),
         fourFlaps: ['FRONT', 'BACK', 'LEFT', 'RIGHT'].every((side) => !!root?.getObjectByName(`BOX_FLAP_${side}`)),
@@ -665,6 +678,8 @@ async (page) => {
       midTapeState: midCapture.box.tapeSegments,
       midProjectedBounds: midCapture.visual.projectedBoxBounds,
       midCutterVisible: midCapture.visual.cutterVisible,
+      midCutterArmVisible: midCapture.visual.cutterArmVisible,
+      midCutterArmSegments: midCapture.visual.cutterArmSegments,
       inputBefore,
       inputAfter: await inputTrace(),
     };
@@ -904,6 +919,8 @@ async (page) => {
           && cutter.midTapeState.left === 0
           && cutter.midTapeState.right === 0
           && cutter.midCutterVisible
+          && cutter.midCutterArmVisible
+          && cutter.midCutterArmSegments === 3
           && cutter.midProjectedBounds?.width >= 180
           && cutter.midProjectedBounds?.height >= 180
           && cutter.midProjectedBounds?.area >= 35000,

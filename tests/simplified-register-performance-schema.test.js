@@ -1,18 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   PERFORMANCE_SCHEMA_VERSION,
   HEAP_TRANSIENT_EXCESS_BUDGET_MIB,
   HEAP_TRACE_COVERAGE_TOLERANCE_MS,
   RENDER_CAPTURE_FRAME_COUNT,
+  REENTRY_RENDERER_RESIDENCY_ATTEMPTS,
+  REENTRY_RENDERER_RESIDENCY_CONFIRMATION_BATCHES,
   REQUIRED_DYNAMIC_PHASES,
   REQUIRED_DYNAMIC_WINDOWS,
   REQUIRED_PERFORMANCE_GATE_KEYS,
+  STORED_BASELINE_ONE_PERCENT_LOW_FLOOR_FPS,
+  STORED_BASELINE_P99_JITTER_ALLOWANCE_MS,
   buildDynamicGateReport,
   buildStaticPerformanceGateReport,
   buildMatchedHeapCalibration,
   buildStoredBaselineComparison,
   captureNormalizedTransactionBoundary,
+  isRetryableRendererResidencyGrowth,
+  isRetryableTransactionRendererResidency,
+  isQualifiedReentryRendererBoundary,
+  hasQualifiedReentryRendererPrewarm,
   qualifyHeapControl,
   resolvePerformanceConfig,
   startDynamicProbe,
@@ -21,6 +30,11 @@ import {
   transactionStabilityReport,
   validatePerformanceResultSchema,
 } from '../tools/qa/simplified-register-performance.mjs';
+
+const performanceSource = fs.readFileSync(
+  new URL('../tools/qa/simplified-register-performance.mjs', import.meta.url),
+  'utf8',
+);
 
 const STATIC_SCENES = [
   'idleMonitor',
@@ -293,6 +307,8 @@ function completeResult() {
       viewport: { width: 1600, height: 900 },
       sampleCount: 1,
       reentryCycles: 20,
+      reentryRendererResidencyAttempts: REENTRY_RENDERER_RESIDENCY_ATTEMPTS,
+      reentryRendererResidencyConfirmationBatches: REENTRY_RENDERER_RESIDENCY_CONFIRMATION_BATCHES,
       heapControlMs: 16000,
       gcSettleMs: 600,
     },
@@ -338,6 +354,22 @@ function completeResult() {
     },
     dynamicPhases: Object.fromEntries(REQUIRED_DYNAMIC_PHASES.map((key) => [key, dynamicPhase()])),
     dynamicWindows: Object.fromEntries(REQUIRED_DYNAMIC_WINDOWS.map((key) => [key, dynamicWindow()])),
+    reentryRendererPrewarm: {
+      cyclesPerAttempt: 20,
+      maximumAttempts: REENTRY_RENDERER_RESIDENCY_ATTEMPTS,
+      confirmationBatches: REENTRY_RENDERER_RESIDENCY_CONFIRMATION_BATCHES,
+      qualified: true,
+      attempts: [1, 2].map((attempt) => ({
+        attempt,
+        cycles: 20,
+        qualified: true,
+        retryableRendererGrowth: false,
+        consecutiveQualified: attempt,
+        before: reentrySample((attempt - 1) * 20),
+        after: reentrySample(attempt * 20),
+        delta: transactionDelta(),
+      })),
+    },
     reentryLeak: {
       cycles: 20,
       samples: [reentrySample(0), reentrySample(20)],
@@ -879,6 +911,27 @@ test('heap control qualification audits every state sample, prewarm readiness, a
   resourceGrowth.resources.after.geometries += 1;
   assert.equal(qualifyHeapControl(resourceGrowth).qualified, false,
     'live resource growth during the no-action window fails control qualification');
+  assert.equal(isRetryableRendererResidencyGrowth(resourceGrowth), false,
+    'live scene-resource growth must never be treated as retryable renderer warm-up');
+
+  const rendererGrowth = structuredClone(control);
+  rendererGrowth.resources.after.rendererMemory.geometries += 7;
+  rendererGrowth.qualification = qualifyHeapControl(rendererGrowth);
+  assert.equal(rendererGrowth.qualification.qualified, false);
+  assert.equal(isRetryableRendererResidencyGrowth(rendererGrowth), true,
+    'monotonic renderer-only growth may trigger one bounded warm-up/control retry');
+
+  const rendererDecrease = structuredClone(control);
+  rendererDecrease.resources.after.rendererMemory.geometries -= 1;
+  rendererDecrease.qualification = qualifyHeapControl(rendererDecrease);
+  assert.equal(isRetryableRendererResidencyGrowth(rendererDecrease), false,
+    'renderer disposal during the control is not a retryable lazy-upload event');
+
+  const rendererGrowthWithStateDrift = structuredClone(rendererGrowth);
+  rendererGrowthWithStateDrift.stateTimeline[0].workspace = 'cash';
+  rendererGrowthWithStateDrift.qualification = qualifyHeapControl(rendererGrowthWithStateDrift);
+  assert.equal(isRetryableRendererResidencyGrowth(rendererGrowthWithStateDrift), false,
+    'renderer growth cannot hide a simultaneous gameplay-state change');
 
   const listenerGrowth = structuredClone(control);
   listenerGrowth.stability.listeners = 1;
@@ -1077,6 +1130,27 @@ test('schema requires every static resource metric and critical dynamic phase', 
   ));
 });
 
+test('renderer-residency convergence sales leave completed recorder evidence for the next heap boundary', () => {
+  const retryLoopStart = performanceSource.indexOf(
+    'for (let attempt = 1; attempt <= TRANSACTION_RENDERER_RESIDENCY_ATTEMPTS; attempt++)',
+  );
+  const retryLoopEnd = performanceSource.indexOf(
+    '\n  const transactionStability = transactionStabilityReport(',
+    retryLoopStart,
+  );
+  const retryLoop = performanceSource.slice(retryLoopStart, retryLoopEnd);
+  const stage = retryLoop.indexOf('const retryCustomer = await stageApprovedCardSale(page);');
+  const capture = retryLoop.indexOf('const retryWindow = await captureDynamicPhase(');
+  const action = retryLoop.indexOf('async () => completeApprovedCardSale(page)');
+  const retain = retryLoop.indexOf('rendererResidencyRetryWindows.push(retryWindow);');
+  const boundary = retryLoop.indexOf(
+    'transactionEnd = await captureNormalizedTransactionBoundary(page, cdp);',
+  );
+
+  assert.ok(stage >= 0 && capture > stage && action > capture && retain > action && boundary > retain,
+    'each bounded renderer retry must stop and retain a non-empty probe before normalization');
+});
+
 test('schema binds the declared heap-control protocol to measured control evidence', () => {
   const nonfiniteProtocol = completeResult();
   delete nonfiniteProtocol.protocol.heapControlMs;
@@ -1190,6 +1264,8 @@ test('stored baseline comparison judges only matched static protocols', () => {
       sampleMs: 2500,
       warmupMs: 1500,
       gcSettleMs: 600,
+      rendererResidencyStableMs: 15000,
+      rendererResidencyMinimumMs: 30000,
     },
     environment: {
       devicePixelRatio: 1,
@@ -1207,8 +1283,46 @@ test('stored baseline comparison judges only matched static protocols', () => {
   assert.equal(matched.dynamicComparison.available, false,
     'legacy pre-tray data must not be presented as a dynamic comparison');
 
+  const boundedLowBaseline = makeRun();
+  const boundedLowCurrent = makeRun();
+  boundedLowBaseline.scenes.cashDrawer.aggregate.onePercentLowFps = 120;
+  boundedLowCurrent.scenes.cashDrawer.aggregate.onePercentLowFps =
+    STORED_BASELINE_ONE_PERCENT_LOW_FLOOR_FPS;
+  let boundedComparison = buildStoredBaselineComparison(boundedLowBaseline, boundedLowCurrent);
+  assert.equal(boundedComparison.pass, true,
+    'a large relative 1%-low change remains acceptable at the jitter-adjusted 60 FPS floor');
+  assert.match(
+    boundedComparison.rows.find((row) => (
+      row.scene === 'cashDrawer' && row.metric === 'onePercentLowFps'
+    )).budget,
+    /current >= 58 FPS/,
+  );
+  boundedLowCurrent.scenes.cashDrawer.aggregate.onePercentLowFps =
+    STORED_BASELINE_ONE_PERCENT_LOW_FLOOR_FPS - 0.001;
+  assert.equal(buildStoredBaselineComparison(boundedLowBaseline, boundedLowCurrent).pass, false,
+    'the absolute floor must not hide a large 1%-low regression below 58 FPS');
+
+  const tierBaseline = makeRun();
+  const tierCurrent = makeRun();
+  tierCurrent.scenes.scanner.aggregate.p99FrameMs =
+    tierBaseline.scenes.scanner.aggregate.p99FrameMs + STORED_BASELINE_P99_JITTER_ALLOWANCE_MS;
+  boundedComparison = buildStoredBaselineComparison(tierBaseline, tierCurrent);
+  assert.equal(boundedComparison.pass, true,
+    'one 120 Hz rAF scheduling tier is accepted at the inclusive jitter allowance');
+  tierCurrent.scenes.scanner.aggregate.p99FrameMs += 0.1;
+  assert.equal(buildStoredBaselineComparison(tierBaseline, tierCurrent).pass, false,
+    'more than one scheduling tier must still fail the matched p99 comparison');
+
   current.scenes.scanner.render.drawCalls = 300;
   assert.equal(buildStoredBaselineComparison(baseline, current).pass, false);
+  current.scenes.scanner.render.drawCalls = baseline.scenes.scanner.render.drawCalls;
+  current.scenes.cashDrawer.camera.quaternion.y += 0.01;
+  const cameraUnmatched = buildStoredBaselineComparison(baseline, current);
+  assert.equal(cameraUnmatched.qualification.sceneCameraMatch, false);
+  assert.equal(cameraUnmatched.qualified, false);
+  assert.equal(cameraUnmatched.pass, null,
+    'different authored camera views cannot be judged as a resource/performance delta');
+  current.scenes.cashDrawer.camera.quaternion.y = baseline.scenes.cashDrawer.camera.quaternion.y;
   current.protocol.browserMode = 'headed';
   const unmatched = buildStoredBaselineComparison(baseline, current);
   assert.equal(unmatched.qualified, false);
@@ -1222,7 +1336,80 @@ test('stored baseline comparison judges only matched static protocols', () => {
   assert.equal(incomplete.qualified, false);
 });
 
-test('dynamic gate report enforces transition tails and method-matched three-sale cleanup stability', () => {
+test('transaction renderer convergence retries only isolated positive residency growth', () => {
+  const delta = {
+    postGcHeapMiB: 0.2,
+    listeners: 0,
+    domElements: 0,
+    liveSceneObjects: 0,
+    liveSceneMeshes: 0,
+    liveGeometries: 0,
+    liveMaterials: 0,
+    liveTextures: 0,
+    rendererGeometries: 54,
+    rendererTextures: 0,
+  };
+  assert.equal(isRetryableTransactionRendererResidency(delta), true);
+  assert.equal(isQualifiedReentryRendererBoundary(delta), false,
+    'a one-time 54-geometry upload is not yet a qualified measurement boundary');
+  delta.rendererGeometries = 2;
+  assert.equal(isRetryableTransactionRendererResidency(delta), false,
+    'an already in-budget renderer delta needs no convergence retry');
+  assert.equal(isQualifiedReentryRendererBoundary(delta), true,
+    'the unchanged measured ±2 renderer budget qualifies a stable boundary');
+  delta.rendererGeometries = 54;
+  delta.liveGeometries = 1;
+  assert.equal(isRetryableTransactionRendererResidency(delta), false,
+    'live geometry growth must fail rather than be warmed away');
+  delta.liveGeometries = 0;
+  delta.rendererGeometries = -54;
+  assert.equal(isRetryableTransactionRendererResidency(delta), false,
+    'renderer disposal is not a monotonic lazy-upload event');
+  delta.rendererGeometries = 54;
+  delta.postGcHeapMiB = 4.001;
+  assert.equal(isRetryableTransactionRendererResidency(delta), false,
+    'a retained-heap regression cannot be hidden by renderer convergence');
+  assert.equal(isQualifiedReentryRendererBoundary(delta), false);
+});
+
+test('schema fails closed when re-entry renderer warm-up is absent or its decision is spoofed', () => {
+  const absent = completeResult();
+  delete absent.reentryRendererPrewarm;
+  let validation = validatePerformanceResultSchema(absent);
+  assert.equal(validation.valid, false);
+  assert.ok(validation.issues.some((issue) => issue.includes('reentryRendererPrewarm')));
+
+  const spoofed = completeResult();
+  spoofed.reentryRendererPrewarm.attempts[1].delta.rendererGeometries = 54;
+  validation = validatePerformanceResultSchema(spoofed);
+  assert.equal(validation.valid, false);
+  assert.ok(validation.issues.some((issue) => issue.includes('decisions must match')));
+
+  const singleStableBatch = completeResult();
+  singleStableBatch.reentryRendererPrewarm.attempts.length = 1;
+  singleStableBatch.reentryRendererPrewarm.qualified = true;
+  assert.equal(hasQualifiedReentryRendererPrewarm(singleStableBatch.reentryRendererPrewarm), false);
+  validation = validatePerformanceResultSchema(singleStableBatch);
+  assert.equal(validation.valid, false);
+  assert.ok(validation.issues.some((issue) => issue.includes('consecutive')));
+});
+
+test('static renderer-memory gate requires qualified warm-up and unchanged measured cycles', () => {
+  const valid = completeResult();
+  let gate = buildStaticPerformanceGateReport(valid).details.reentryRendererMemory;
+  assert.equal(gate.pass, true);
+
+  valid.reentryRendererPrewarm.qualified = false;
+  gate = buildStaticPerformanceGateReport(valid).details.reentryRendererMemory;
+  assert.equal(gate.pass, false, 'an unqualified warm-up cannot authorize measurement');
+
+  valid.reentryRendererPrewarm.qualified = true;
+  valid.reentryLeak.samples[1].liveSceneResources.rendererMemory.geometries += 3;
+  gate = buildStaticPerformanceGateReport(valid).details.reentryRendererMemory;
+  assert.equal(gate.pass, false, 'the existing ±2 measured renderer budget remains unchanged');
+});
+
+test('dynamic gate report enforces transition tails and final method-matched cleanup stability', () => {
   const phases = Object.fromEntries(REQUIRED_DYNAMIC_PHASES.map((key) => [key, dynamicPhase()]));
   const windows = Object.fromEntries(REQUIRED_DYNAMIC_WINDOWS.map((key) => [key, dynamicWindow()]));
   const stability = {

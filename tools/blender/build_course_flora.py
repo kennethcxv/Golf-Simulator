@@ -46,6 +46,16 @@ HERO_IDS = (
 # These preserve the hero kit's branch/crown language at a fraction of its cost.
 PROXY_IDS = ("fill_a", "fill_b", "birch_a", "pine_b", "cedar_a", "pine_far")
 
+# Player-placeable additions requested by the landscaping library.  The *_far
+# variants are deliberately hidden from the editor and exist only as authored
+# silhouette LODs for the instancing pipeline.
+LANDSCAPE_IDS = (
+    "cypress_a", "cypress_far", "palm_a", "palm_far",
+    "acacia_a", "acacia_far", "eucalyptus_a", "eucalyptus_far",
+    "ornamental_small_a", "hedge_a", "groundcover_a", "flower_bed_a",
+    "deciduous_far",
+)
+
 PROXY_TARGETS = {
     "fill_a": ["oak_a"],
     "fill_b": ["oak_b", "shade_a"],
@@ -53,6 +63,11 @@ PROXY_TARGETS = {
     "pine_b": [],
     "cedar_a": [],
     "pine_far": ["pine_a", "spruce_a", "pine_b", "cedar_a"],
+    "cypress_far": ["cypress_a"],
+    "palm_far": ["palm_a"],
+    "acacia_far": ["acacia_a"],
+    "eucalyptus_far": ["eucalyptus_a"],
+    "deciduous_far": ["oak_a", "oak_b", "maple_a", "shade_a", "ornamental_small_a"],
 }
 
 PROXY_LEGACY_BASELINE = {
@@ -242,6 +257,34 @@ def irregular_canopy_skirt(name, rng, loc, radii, height, *, yaw=0.0, segments=7
     bpy.context.collection.objects.link(obj)
     obj.location = Vector(loc)
     obj.rotation_euler = (0.0, 0.0, yaw)
+    return obj
+
+
+def curved_ribbon(name, points, widths):
+    """Double-sided tapered strip following a 3D polyline (palm fronds/leaves)."""
+    verts = []
+    faces = []
+    count = len(points)
+    for index, point in enumerate(points):
+        point = Vector(point)
+        before = Vector(points[max(0, index - 1)])
+        after = Vector(points[min(count - 1, index + 1)])
+        tangent = (after - before).normalized()
+        side = Vector((-tangent.y, tangent.x, 0.0))
+        if side.length < 0.001:
+            side = Vector((1.0, 0.0, 0.0))
+        side.normalize()
+        half = widths[index] * 0.5
+        verts.extend((tuple(point - side * half), tuple(point + side * half)))
+        if index:
+            previous = (index - 1) * 2
+            current = index * 2
+            faces.append((previous, previous + 1, current + 1, current))
+    mesh = bpy.data.meshes.new(f"{name}_Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update(calc_edges=True)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
     return obj
 
 
@@ -827,6 +870,229 @@ def build_hero_shrub(vid, rng, *, width, depth, height, leaf_hsv, branches=7):
     return bake_rebase_and_size(shrub, target_height=height, target_width=width, target_depth=depth)
 
 
+def build_cypress(vid, rng, *, height, width, depth, tiers=7, segments=7):
+    """Narrow Mediterranean cypress with a readable trunk and broken column."""
+    seed = stable_seed(vid)
+    bark_fn = hero_bark_palette(height, seed, base=(0.30, 0.205, 0.115))
+    leaf_fn = leaf_palette((0.36, 0.62, 0.38), height, seed)
+    trunk = tapered_limb("Trunk", (0, 0, 0), (0.05, -0.03, height * 0.96), width * 0.095, width * 0.022, verts=8)
+    set_colors(trunk, bark_fn)
+    shade(trunk, smooth=True)
+    foliage = []
+    phase = rng.uniform(0.0, math.tau)
+    for index in range(tiers):
+        t = index / max(1, tiers - 1)
+        center_z = height * (0.18 + t * 0.70)
+        tier_h = height * (0.22 - t * 0.055)
+        tier_w = width * (0.48 - t * 0.21) * rng.uniform(0.91, 1.06)
+        skirt = irregular_canopy_skirt(
+            f"Crown_{index:02d}", rng, (rng.uniform(-0.035, 0.035) * width, rng.uniform(-0.035, 0.035) * depth, center_z),
+            (tier_w, depth * (0.47 - t * 0.20)), tier_h,
+            yaw=phase + index * 0.47, segments=segments,
+        )
+        set_colors(skirt, leaf_fn)
+        shade(skirt, smooth=False)
+        foliage.append(skirt)
+    tree = join([trunk] + foliage, vid)
+    return bake_rebase_and_size(tree, target_height=height, target_width=width, target_depth=depth)
+
+
+def build_palm(vid, rng, *, height, crown_width, crown_depth, fronds=12, leaflets=4):
+    """Curved ringed trunk with individually drooping, tapered palm fronds."""
+    seed = stable_seed(vid)
+    bark_fn = hero_bark_palette(height, seed, base=(0.42, 0.285, 0.13))
+    leaf_fn = leaf_palette((0.285, 0.68, 0.50), height, seed)
+    bark_parts = []
+    trunk_top = height * 0.77
+    bend_angle = rng.uniform(0.0, math.tau)
+    bend = Vector((math.cos(bend_angle), math.sin(bend_angle), 0.0)) * height * 0.045
+    nodes = [
+        Vector((0, 0, 0)),
+        Vector((bend.x * 0.14, bend.y * 0.14, trunk_top * 0.24)),
+        Vector((bend.x * 0.40, bend.y * 0.40, trunk_top * 0.50)),
+        Vector((bend.x * 0.72, bend.y * 0.72, trunk_top * 0.76)),
+        Vector((bend.x, bend.y, trunk_top)),
+    ]
+    base_r = crown_width * 0.052
+    for index in range(len(nodes) - 1):
+        bark_parts.append(tapered_limb(
+            f"Trunk_{index:02d}", nodes[index], nodes[index + 1],
+            base_r * (1.0 - index * 0.13), base_r * (0.84 - index * 0.13), verts=9,
+        ))
+    for index in range(5):
+        angle = bend_angle + index * math.tau / 5.0
+        bark_parts.append(tapered_limb(
+            f"Root_{index:02d}", (0, 0, base_r * 0.45),
+            (math.cos(angle) * base_r * 2.3, math.sin(angle) * base_r * 2.3, 0.02),
+            base_r * 0.45, base_r * 0.07, verts=6,
+        ))
+    for part in bark_parts:
+        set_colors(part, bark_fn)
+        shade(part, smooth=True)
+
+    leaf_parts = []
+    crown = nodes[-1]
+    phase = rng.uniform(0.0, math.tau)
+    for index in range(fronds):
+        angle = phase + index * math.tau / fronds + rng.uniform(-0.12, 0.12)
+        radial = Vector((math.cos(angle), math.sin(angle), 0.0))
+        tangent = Vector((-math.sin(angle), math.cos(angle), 0.0))
+        reach = crown_width * rng.uniform(0.40, 0.53)
+        points = [
+            crown,
+            crown + radial * reach * 0.30 + Vector((0, 0, height * 0.055)),
+            crown + radial * reach * 0.66 + Vector((0, 0, height * 0.020)),
+            crown + radial * reach + Vector((0, 0, -height * rng.uniform(0.055, 0.10))),
+        ]
+        ribbon = curved_ribbon(f"Frond_{index:02d}", points, [crown_width * 0.055, crown_width * 0.075, crown_width * 0.050, 0.02])
+        set_colors(ribbon, leaf_fn)
+        shade(ribbon, smooth=False)
+        leaf_parts.append(ribbon)
+        for leaflet in range(leaflets):
+            t = 0.25 + leaflet * 0.16
+            center = points[0].lerp(points[-1], t)
+            side = -1 if leaflet % 2 else 1
+            tip = center + tangent * side * crown_depth * rng.uniform(0.13, 0.21)
+            tip.z -= height * rng.uniform(0.008, 0.025)
+            strip = curved_ribbon(
+                f"Leaflet_{index:02d}_{leaflet:02d}", [center, center.lerp(tip, 0.58) + Vector((0, 0, height * 0.006)), tip],
+                [crown_width * 0.028, crown_width * 0.034, 0.008],
+            )
+            set_colors(strip, leaf_fn)
+            shade(strip, smooth=False)
+            leaf_parts.append(strip)
+    tree = join(bark_parts + leaf_parts, vid)
+    return bake_rebase_and_size(tree, target_height=height, target_width=crown_width, target_depth=crown_depth)
+
+
+def build_acacia(vid, rng, *, height, width, depth, pads=11):
+    """Low branching savanna acacia with a broad, flattened umbrella crown."""
+    seed = stable_seed(vid)
+    bark_fn = hero_bark_palette(height, seed, base=(0.31, 0.22, 0.12))
+    leaf_fn = leaf_palette((0.255, 0.58, 0.52), height, seed)
+    bark_parts = []
+    leaf_parts = []
+    split = Vector((0.0, 0.0, height * 0.32))
+    bark_parts.append(tapered_limb("Trunk", (0, 0, 0), split, width * 0.030, width * 0.020, verts=9))
+    phase = rng.uniform(0.0, math.tau)
+    tips = []
+    for index in range(5):
+        angle = phase + index * math.tau / 5.0 + rng.uniform(-0.20, 0.20)
+        radial = Vector((math.cos(angle), math.sin(angle), 0.0))
+        elbow = split + Vector((radial.x * width * 0.16, radial.y * depth * 0.16, height * rng.uniform(0.12, 0.19)))
+        tip = split + Vector((radial.x * width * rng.uniform(0.30, 0.43), radial.y * depth * rng.uniform(0.30, 0.43), height * rng.uniform(0.30, 0.42)))
+        bark_parts.append(tapered_limb(f"Limb_{index:02d}_A", split, elbow, width * 0.017, width * 0.010, verts=7))
+        bark_parts.append(tapered_limb(f"Limb_{index:02d}_B", elbow, tip, width * 0.010, width * 0.003, verts=6))
+        tips.append((tip, angle))
+    for index in range(pads):
+        tip, angle = tips[index % len(tips)]
+        radial = Vector((math.cos(angle), math.sin(angle), 0.0))
+        tangent = Vector((-math.sin(angle), math.cos(angle), 0.0))
+        center = tip + tangent * width * rng.uniform(-0.16, 0.16) + radial * width * rng.uniform(-0.04, 0.10)
+        center.z += height * rng.uniform(-0.015, 0.045)
+        leaf_parts.append(organic_lobe(
+            f"Umbrella_{index:02d}", rng, center,
+            (width * rng.uniform(0.105, 0.145), depth * rng.uniform(0.10, 0.15), height * rng.uniform(0.025, 0.045)),
+            subdiv=1, roughness=0.16, yaw=angle + rng.uniform(-0.35, 0.35),
+        ))
+    for part in bark_parts:
+        set_colors(part, bark_fn)
+        shade(part, smooth=True)
+    for part in leaf_parts:
+        set_colors(part, leaf_fn)
+        shade(part, smooth=False)
+    tree = join(bark_parts + leaf_parts, vid)
+    return bake_rebase_and_size(tree, target_height=height, target_width=width, target_depth=depth)
+
+
+def build_eucalyptus(vid, rng, *, height, width, depth, branches=7):
+    """Tall pale trunk with sparse high foliage and a narrow open crown."""
+    seed = stable_seed(vid)
+    bark_fn = hero_bark_palette(height, seed, base=(0.56, 0.50, 0.39))
+    leaf_fn = leaf_palette((0.40, 0.32, 0.55), height, seed)
+    bark_parts = []
+    leaf_parts = []
+    bend_angle = rng.uniform(0.0, math.tau)
+    bend = Vector((math.cos(bend_angle), math.sin(bend_angle), 0.0)) * width * 0.12
+    nodes = [Vector((0, 0, 0)), Vector((bend.x * 0.2, bend.y * 0.2, height * 0.32)),
+             Vector((bend.x * 0.55, bend.y * 0.55, height * 0.61)), Vector((bend.x, bend.y, height * 0.91))]
+    radii = (width * 0.055, width * 0.040, width * 0.025, width * 0.008)
+    for index in range(3):
+        bark_parts.append(tapered_limb(f"Trunk_{index:02d}", nodes[index], nodes[index + 1], radii[index], radii[index + 1], verts=9 - index))
+    phase = rng.uniform(0.0, math.tau)
+    for index in range(branches):
+        angle = phase + index * math.tau / branches + rng.uniform(-0.25, 0.25)
+        start = nodes[1].lerp(nodes[2], 0.18 + (index % 4) * 0.20)
+        radial = Vector((math.cos(angle), math.sin(angle), 0.0))
+        tip = start + Vector((radial.x * width * rng.uniform(0.28, 0.48), radial.y * depth * rng.uniform(0.28, 0.48), height * rng.uniform(0.15, 0.29)))
+        bark_parts.append(tapered_limb(f"Limb_{index:02d}", start, tip, width * 0.018, width * 0.003, verts=6))
+        leaf_parts.append(organic_lobe(
+            f"LeafPad_{index:02d}", rng, tip,
+            (width * rng.uniform(0.10, 0.15), depth * rng.uniform(0.10, 0.16), height * rng.uniform(0.035, 0.055)),
+            subdiv=1, roughness=0.18, yaw=angle,
+        ))
+    for part in bark_parts:
+        set_colors(part, bark_fn)
+        shade(part, smooth=True)
+    for part in leaf_parts:
+        set_colors(part, leaf_fn)
+        shade(part, smooth=True)
+    tree = join(bark_parts + leaf_parts, vid)
+    return bake_rebase_and_size(tree, target_height=height, target_width=width, target_depth=depth)
+
+
+def build_hedge(vid, rng, *, width, depth, height, lobes=6):
+    """Trimmed but organic hedge section with a continuous planted footprint."""
+    seed = stable_seed(vid)
+    bark_fn = hero_bark_palette(height, seed, base=(0.24, 0.17, 0.09))
+    leaf_fn = leaf_palette((0.32, 0.58, 0.47), height, seed)
+    parts = []
+    for index in range(lobes):
+        x = -width * 0.42 + width * 0.84 * index / max(1, lobes - 1)
+        twig = tapered_limb(f"Twig_{index:02d}", (x, 0, 0.015), (x + rng.uniform(-0.04, 0.04) * width, rng.uniform(-0.06, 0.06) * depth, height * 0.68), height * 0.025, height * 0.006, verts=5)
+        set_colors(twig, bark_fn)
+        parts.append(twig)
+        lobe = organic_lobe(
+            f"HedgePad_{index:02d}", rng, (x, rng.uniform(-0.06, 0.06) * depth, height * rng.uniform(0.55, 0.67)),
+            (width * 0.115, depth * rng.uniform(0.43, 0.53), height * rng.uniform(0.34, 0.43)),
+            subdiv=1, roughness=0.12, yaw=rng.uniform(-0.12, 0.12),
+        )
+        set_colors(lobe, leaf_fn)
+        shade(lobe, smooth=False)
+        parts.append(lobe)
+    hedge = join(parts, vid)
+    return bake_rebase_and_size(hedge, target_height=height, target_width=width, target_depth=depth)
+
+
+def build_flower_bed(vid, rng, *, width, depth, height, flowers=12):
+    """Mulched planting bed with visible stems and restrained mixed blossoms."""
+    parts = []
+    soil = cone("Mulch", width * 0.5, width * 0.46, height * 0.18, (0, 0, height * 0.09), verts=14)
+    soil.scale.y = depth / width
+    bpy.context.view_layer.objects.active = soil
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    set_colors(soil, lambda co, i: (0.25 + 0.025 * noise.noise(co * 5.0), 0.15, 0.075))
+    shade(soil, smooth=False)
+    parts.append(soil)
+    palettes = ((0.78, 0.67, 0.36), (0.72, 0.42, 0.48), (0.84, 0.78, 0.62), (0.53, 0.50, 0.68))
+    for index in range(flowers):
+        angle = rng.uniform(0.0, math.tau)
+        radius = math.sqrt(rng.random())
+        x = math.cos(angle) * width * 0.38 * radius
+        y = math.sin(angle) * depth * 0.38 * radius
+        stem_h = height * rng.uniform(0.45, 0.88)
+        stem = tapered_limb(f"Stem_{index:02d}", (x, y, height * 0.16), (x + rng.uniform(-0.025, 0.025), y + rng.uniform(-0.025, 0.025), stem_h), height * 0.018, height * 0.010, verts=4)
+        set_colors(stem, lambda co, i: (0.18, 0.34 + co.z * 0.04, 0.12))
+        parts.append(stem)
+        bloom = organic_octa_lobe(f"Bloom_{index:02d}", rng, (x, y, stem_h), (height * 0.105, height * 0.105, height * 0.065), yaw=angle)
+        color = palettes[index % len(palettes)]
+        set_colors(bloom, lambda co, i, color=color: color)
+        shade(bloom, smooth=False)
+        parts.append(bloom)
+    bed = join(parts, vid)
+    return bake_rebase_and_size(bed, target_height=height, target_width=width, target_depth=depth)
+
+
 def build_hero_rock(vid, rng, *, width, depth, height, tone=(0.43, 0.42, 0.36)):
     """Warm, fractured course rock with a stable flat ground contact."""
     seed = stable_seed(vid)
@@ -1110,6 +1376,32 @@ CATALOG = [
     V("cedar_a", "evergreen", "proxy_conifer", 9, 12, tri_budget=650,
       tiers=5, arms=2, height=11.0, base_w=4.5, canopy_d=4.3,
       lower_clear=0.12, droop=0.035, leaf_hsv=(0.34, 0.56, 0.43)),
+    # Additional climate silhouettes.  Hero variants are player-placeable;
+    # lightweight companions are renderer-only LODs.
+    V("cypress_a", "evergreen", "cypress", 12, 16, tri_budget=700,
+      height=14.5, width=3.5, depth=3.1, tiers=7, segments=7),
+    V("cypress_far", "evergreen", "cypress", 12, 16, tri_budget=320,
+      height=14.5, width=3.5, depth=3.1, tiers=4, segments=5),
+    V("palm_a", "palm", "palm", 10, 14, tri_budget=900,
+      height=12.5, crown_width=8.4, crown_depth=7.8, fronds=12, leaflets=4),
+    V("palm_far", "palm", "palm", 10, 14, tri_budget=300,
+      height=12.5, crown_width=8.4, crown_depth=7.8, fronds=7, leaflets=0),
+    V("acacia_a", "deciduous", "acacia", 10, 13, tri_budget=850,
+      height=11.6, width=14.8, depth=10.4, pads=11),
+    V("acacia_far", "deciduous", "proxy_deciduous", 10, 13, tri_budget=240,
+      height=11.6, canopy_w=14.8, canopy_d=10.4, trunk_r=0.43, branches=4,
+      leaf_hsv=(0.255, 0.56, 0.50)),
+    V("eucalyptus_a", "deciduous", "eucalyptus", 14, 18, tri_budget=700,
+      height=16.8, width=7.2, depth=6.4, branches=7),
+    V("eucalyptus_far", "deciduous", "proxy_deciduous", 14, 18, tri_budget=220,
+      height=16.8, canopy_w=7.2, canopy_d=6.4, trunk_r=0.34, branches=3,
+      leaf_hsv=(0.40, 0.32, 0.55), bark_base=(0.52, 0.47, 0.37)),
+    V("ornamental_small_a", "ornamental", "hero_deciduous", 4, 6, tri_budget=1250,
+      height=5.4, canopy_w=5.2, canopy_d=4.7, trunk_r=0.18,
+      branches=5, leaf_hsv=(0.29, 0.48, 0.56), openness=0.62),
+    V("deciduous_far", "deciduous", "proxy_deciduous", 10, 16, tri_budget=190,
+      height=13.5, canopy_w=10.6, canopy_d=9.4, trunk_r=0.42, branches=3,
+      leaf_hsv=(0.292, 0.55, 0.50)),
     # shrubs / ground
     V("shrub_round", "shrub", "hero_shrub", 1.4, 2.2, tri_budget=450,
       width=1.65, depth=1.5, height=1.15, branches=7, leaf_hsv=(0.31, 0.50, 0.54)),
@@ -1118,6 +1410,12 @@ CATALOG = [
       width=2.0, depth=1.65, height=1.55, branches=8, leaf_hsv=(0.235, 0.52, 0.57)),
     V("reed_clump", "reed", "blades", 1.6, 2.4, blades=15, height=1.5, spread=0.5, hsv=(0.20, 0.5, 0.42), w=0.035),
     V("grass_clump", "reed", "blades", 0.9, 1.4, blades=12, height=0.8, spread=0.45, hsv=(0.23, 0.55, 0.4), tip_droop=0.5, w=0.05),
+    V("hedge_a", "shrub", "hedge", 1.0, 1.5, tri_budget=360,
+      width=2.6, depth=0.85, height=1.2, lobes=6),
+    V("groundcover_a", "groundcover", "blades", 0.2, 0.4, tri_budget=220,
+      blades=24, height=0.30, spread=0.68, hsv=(0.275, 0.45, 0.48), tip_droop=0.72, w=0.065),
+    V("flower_bed_a", "flowerbed", "flower_bed", 0.3, 0.6, tri_budget=380,
+      width=1.8, depth=1.15, height=0.52, flowers=12),
     # rocks
     V("rock_s", "rock", "hero_rock", 0.5, 0.9, tri_budget=100,
       width=0.68, depth=0.54, height=0.40, tone=(0.44, 0.425, 0.37)),
@@ -1141,6 +1439,18 @@ def build_variant(spec):
         obj = build_hero_shrub(spec["id"], rng, **spec["kw"])
     elif b == "hero_rock":
         obj = build_hero_rock(spec["id"], rng, **spec["kw"])
+    elif b == "cypress":
+        obj = build_cypress(spec["id"], rng, **spec["kw"])
+    elif b == "palm":
+        obj = build_palm(spec["id"], rng, **spec["kw"])
+    elif b == "acacia":
+        obj = build_acacia(spec["id"], rng, **spec["kw"])
+    elif b == "eucalyptus":
+        obj = build_eucalyptus(spec["id"], rng, **spec["kw"])
+    elif b == "hedge":
+        obj = build_hedge(spec["id"], rng, **spec["kw"])
+    elif b == "flower_bed":
+        obj = build_flower_bed(spec["id"], rng, **spec["kw"])
     elif b == "proxy_deciduous":
         obj = build_proxy_deciduous(spec["id"], rng, **spec["kw"])
     elif b == "proxy_conifer":
@@ -1163,7 +1473,7 @@ def build_variant(spec):
     obj.data.materials.append(mat)
     while obj.data.uv_layers:
         obj.data.uv_layers.remove(obj.data.uv_layers[0])
-    if spec["kind"] == "reed":
+    if spec["kind"] in {"reed", "groundcover"}:
         mat.use_backface_culling = False
     # New-kit builders already do this; repeating the pass also repairs every
     # legacy catalog asset when the complete kit is regenerated.
@@ -1538,8 +1848,37 @@ def render_proxy_contact_sheet(metrics_by_id):
     )
 
 
+def render_landscape_contact_sheet(metrics_by_id):
+    """Player-facing comparison of the new placeable landscaping silhouettes."""
+    reset_scene()
+    ids = (
+        "cypress_a", "palm_a", "acacia_a", "eucalyptus_a", "ornamental_small_a",
+        "hedge_a", "groundcover_a", "flower_bed_a",
+    )
+    label_mat = qa_material("QA_Label", (0.92, 0.86, 0.66), roughness=0.75, emission=(0.12, 0.09, 0.03))
+    for index, asset_id in enumerate(ids):
+        x = (index - 3.5) * 5.25
+        y = 0.0
+        display_height = 6.8 if index < 4 else (3.4 if asset_id == "ornamental_small_a" else 2.2)
+        display_import(OUT_DIR / f"{asset_id}.glb", (x, y), display_height=display_height)
+        metrics = metrics_by_id[asset_id]
+        dims = metrics["source_dimensions_m"]
+        add_label(
+            f"{asset_id}\n{dims[0]:.1f} x {dims[1]:.1f} x {dims[2]:.1f} m  |  {metrics['tris']} tris",
+            (x, y - 1.65, 0.30), 0.19, label_mat,
+        )
+    configure_qa_scene(
+        camera_location=(0.0, -40.0, 8.0), camera_target=(0.0, 0.0, 2.6),
+        resolution=(2600, 1000), output_path=QA_DIR / "landscape_library_contact_sheet.png", floor_size=50.0,
+        orthographic_scale=42.0,
+    )
+
+
 def main():
-    if "proxy" in ARGV:
+    if "landscape" in ARGV:
+        selected_ids = set(LANDSCAPE_IDS)
+        selection_label = "landscape"
+    elif "proxy" in ARGV:
         selected_ids = set(PROXY_IDS)
         selection_label = "proxy"
     elif "hero" in ARGV:
@@ -1582,6 +1921,8 @@ def main():
             render_contact_sheets(built_by_id)
         if selection_label in {"proxy", "all"}:
             render_proxy_contact_sheet(built_by_id)
+        if selection_label in {"landscape", "all"}:
+            render_landscape_contact_sheet(built_by_id)
 
 
 main()

@@ -230,6 +230,7 @@ async function scanAll(page, shot, mode) {
   const items = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.getTx().items.map((item) => item.uid)
   ));
+  const scanReadEvidence = [];
   for (let index = 0; index < items.length; index += 1) {
     const uid = items[index];
     // bagging the previous item re-lays the remaining goods out on the counter,
@@ -245,8 +246,8 @@ async function scanAll(page, shot, mode) {
       product = next;
     }
     assert(product && product.inView, `${uid} is not visible in the scan workspace.`);
-    // click-to-bag: one click on the goods rings the item up and sends it to
-    // the bag — there is no centring or swipe gesture in the production flow
+    // One click owns pickup, barcode alignment, scanner contact, and bagging.
+    // There is no centring, drag, swipe, or second activation gesture.
     await page.mouse.click(product.x, product.y);
     await page.waitForFunction((id) => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -254,15 +255,40 @@ async function scanAll(page, shot, mode) {
     }, uid, { timeout: 5000 }).catch(async (error) => {
       throw new Error(`${error.message} — ${await clickDiagnostic(page, product.x, product.y)}`);
     });
-    if (index === 0) await shot('06-first-product-scanned.png');
-    // let the bagged item finish its flight — it crosses OVER the remaining
-    // goods on the way to the bag, and a click through it would be swallowed
-    await page.waitForFunction((id) => {
-      const tx = window.__fw.scene3d.clubhouse().register.getTx();
-      return tx && tx.items.find((item) => item.uid === id)?.staged;
-    }, uid, { timeout: 8000 });
-    if (index === 1) await shot('06b-mid-bagging.png');
-    await page.waitForTimeout(220);
+    const read = await page.evaluate(() => (
+      window.__fw.scene3d.clubhouse().register.scanPresentation().lastRead
+    ));
+    assert(read?.uid === uid && read.ok && read.scanHit,
+      `No successful physical scanner read was recorded for ${uid}: ${JSON.stringify(read)}`);
+    assert(read.scannerSource === 'authored-socket',
+      `${uid} used ${read.scannerSource} instead of the authored scanner socket.`);
+    scanReadEvidence.push(read);
+    if (index === 0) {
+      await page.waitForFunction((id) => {
+        const presentation = window.__fw.scene3d.clubhouse().register.scanPresentation();
+        return presentation.active && presentation.uid === id
+          && presentation.phase === 'scan-hold'
+          && presentation.lastRead?.uid === id
+          && presentation.lastRead.ok;
+      }, uid, { timeout: 5000 });
+      await shot('06-first-product-scanned.png');
+    }
+    if (index === 1) {
+      await page.waitForFunction((id) => {
+        const presentation = window.__fw.scene3d.clubhouse().register.scanPresentation();
+        return presentation.active && presentation.uid === id
+          && presentation.phase === 'bag'
+          && presentation.phaseT >= 0.18 && presentation.phaseT <= 0.82;
+      }, uid, { timeout: 5000 });
+      await shot('06b-mid-bagging.png');
+    }
+    // Do not aim through a product that is still leaving the reader. The next
+    // click is armed only after the flow reaches its stable physical checkpoint.
+    await page.waitForFunction(() => {
+      const register = window.__fw.scene3d.clubhouse().register;
+      const state = register.getFlow()?.state;
+      return state === 'WaitingForScan' || state === 'AllProductsScanned';
+    }, null, { timeout: 8000 });
   }
   await page.waitForFunction(() => {
     const register = window.__fw.scene3d.clubhouse().register;
@@ -291,6 +317,7 @@ async function scanAll(page, shot, mode) {
   assert(!automaticChoice.hotspotIds.includes('pay-card') && !automaticChoice.hotspotIds.includes('pay-cash'),
     'The shared monitor still asks the player to choose the customer payment method.');
   await shot('07-all-products-scanned.png');
+  return scanReadEvidence;
 }
 
 async function insertCardGesture(page, shot, {
@@ -383,8 +410,14 @@ async function insertCardGesture(page, shot, {
   assert(cardPt && cardPt.inView, `The presented card is outside the handoff camera: ${JSON.stringify(cardPt)}`);
   await page.mouse.click(cardPt.x, cardPt.y);
   await page.waitForFunction(() => {
+    const register = window.__fw.scene3d.clubhouse().register;
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    return tx && tx.checkoutFlow?.state === 'CardInserting';
+    const insertion = register.insertAt();
+    const card = register.presentedCardScreenPoint();
+    return tx && tx.checkoutFlow?.state === 'CardInserting'
+      && insertion.pickupDelay > 0
+      && insertion.cashierHandsVisible
+      && card?.inView;
   }, null, { timeout: 2000 });
   await shot(`${insertedLabel.replace(/\.png$/i, '')}-cashier-pickup-hold.png`);
   await page.waitForFunction(() => {
@@ -590,17 +623,12 @@ async function cashRoute(page, shot) {
       && drawerTravelStart.worldScaleZ > 0 && drawerTravelStart.travel > 0,
   `The authored drawer travel baseline is invalid: ${JSON.stringify(drawerTravelStart)}.`);
 
-  // one click on the handful accepts ALL of it; the drawer slides open itself
-  await page.mouse.click(handful.x, handful.y);
-  await page.waitForFunction(() => {
-    const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    return tx && tx.checkoutFlow?.state === 'DrawerOpening';
-  }, null, { timeout: 2000 });
-  // Capture #19 at the normal-input boundary, independently of drawer travel.
-  await shot('08a-cash-clicked.png');
-  // Capture #20 only while the authored tray is genuinely in flight. Polling
-  // its transform makes a PASS impossible on a fully closed or fully open till.
-  await page.waitForFunction((baseline) => {
+  // Arm the transform observer before the input. A 1600x900 PNG can take
+  // longer than the authored drawer slide, so starting this after the click
+  // boundary screenshot can miss the entire real motion even though the
+  // drawer visibly opened. The observer retains the first genuine midpoint;
+  // the screenshots and video remain independent visual evidence.
+  const drawerMidpointPromise = page.waitForFunction((baseline) => {
     const tray = window.__registerQaCashDrawerTray;
     if (!tray || tray.uuid !== baseline.uuid) return false;
     const localDelta = tray.position.z - baseline.closedLocalZ;
@@ -616,19 +644,23 @@ async function cashRoute(page, shot) {
     };
     return true;
   }, drawerTravelStart, { timeout: 2000, polling: 'raf' });
-  const drawerTravelMidpoint = await page.evaluate((baseline) => {
-    const tray = window.__registerQaCashDrawerTray;
-    if (!tray || tray.uuid !== baseline.uuid) return null;
-    const localDelta = tray.position.z - baseline.closedLocalZ;
-    const worldTravel = localDelta * baseline.worldScaleZ;
-    return {
-      uuid: tray.uuid,
-      localZ: tray.position.z,
-      localDelta,
-      worldTravel,
-      progress: worldTravel / baseline.travel,
-    };
-  }, drawerTravelStart);
+
+  // one click on the handful accepts ALL of it; the drawer slides open itself
+  await page.mouse.click(handful.x, handful.y);
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx && tx.checkoutFlow?.state === 'DrawerOpening';
+  }, null, { timeout: 2000 });
+  // Capture #19 at the normal-input boundary, independently of drawer travel.
+  await shot('08a-cash-clicked.png');
+  // Capture #20 only while the authored tray is genuinely in flight. Polling
+  // its transform makes a PASS impossible on a fully closed or fully open till.
+  await drawerMidpointPromise;
+  const drawerTravelMidpoint = await page.evaluate(() => (
+    window.__registerQaCashDrawerMidpoint
+      ? { ...window.__registerQaCashDrawerMidpoint }
+      : null
+  ));
   assert(drawerTravelMidpoint && drawerTravelMidpoint.progress >= 0.25
       && drawerTravelMidpoint.progress <= 0.75,
   `CashDrawer_Tray was not captured between 25% and 75% travel: ${JSON.stringify(drawerTravelMidpoint)}.`);
@@ -795,6 +827,21 @@ async function cashRoute(page, shot) {
   `The final $4.28 count is not exact: ${JSON.stringify(exact)}.`);
   await shot('11-exact-four-twenty-eight-selected.png');
   await cashMonitorClick('confirm-change');
+  const handoffInFlight = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.cashHandoffPresentation()
+  ));
+  assert(handoffInFlight.active && handoffInFlight.phase === 'travel'
+      && handoffInFlight.cashierHandsVisible,
+  `Confirmed change did not leave as one cashier-held bundle: ${JSON.stringify(handoffInFlight)}.`);
+  await shot('11b-change-handoff-in-motion.png');
+  await page.waitForFunction(() => {
+    const handoff = window.__fw.scene3d.clubhouse().register.cashHandoffPresentation();
+    return handoff.active && handoff.phase === 'customer-hold'
+      && handoff.parentedToCustomer && handoff.distanceToPalm < 0.08;
+  }, null, { timeout: 6000 });
+  const cashHandoff = await page.evaluate(() => (
+    window.__fw.scene3d.clubhouse().register.cashHandoffPresentation()
+  ));
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && ['receipt', 'bagging', 'done'].includes(tx.stage);
@@ -803,8 +850,22 @@ async function cashRoute(page, shot) {
   assert(['receipt', 'bagging', 'done'].includes(confirmed.stage)
       && !confirmed.drawerOpen && confirmed.changeGiven === 4.28 && confirmed.lost === 0,
   `Exact change did not complete cleanly: ${JSON.stringify(confirmed)}.`);
+  // Receipt printing is intentionally short. Wait for it as soon as the
+  // customer owns the change bundle; taking another full-resolution PNG first
+  // can consume the entire 1.1-second authored print phase on a busy host and
+  // turn a completed sale into a false timeout.
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
+  ), null, { timeout: 10000 });
+  await waitCamera(page, 'monitor');
+  await shot('12b-receipt-printing.png');
   await shot('12-exact-change-confirmed.png');
-  return { start: drawerTravelStart, midpoint: drawerTravelMidpoint };
+  return {
+    start: drawerTravelStart,
+    midpoint: drawerTravelMidpoint,
+    cashHandoff,
+    receiptPrintCaptured: true,
+  };
 }
 
 async function finalSnapshot(page, customerName) {
@@ -952,33 +1013,62 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   assert(reenteredNumber === txNumber, 'Exit/re-entry replaced the active transaction.');
   await shot('04-safe-reentry.png');
 
-  await scanAll(page, shot, mode);
+  const scanReadEvidence = await scanAll(page, shot, mode);
   let cashDrawerTravelEvidence = null;
+  let deliveryHandoffEvidence = null;
   if (mode === 'card') await cardRoute(page, shot);
   else cashDrawerTravelEvidence = await cashRoute(page, shot);
-  await page.waitForFunction(() => (
-    window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
-  ), null, { timeout: 10000 });
-  await waitCamera(page, 'monitor');
-  await shot('12b-receipt-printing.png');
+  if (mode === 'card') {
+    await page.waitForFunction(() => (
+      window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
+    ), null, { timeout: 10000 });
+    await waitCamera(page, 'monitor');
+    await shot('12b-receipt-printing.png');
+  } else {
+    assert(cashDrawerTravelEvidence?.receiptPrintCaptured === true,
+      'Cash route did not retain the physical receipt-print phase.');
+  }
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'done';
   }, null, { timeout: 8000 });
-  await page.waitForFunction(() => {
-    const phase = window.__fw.scene3d.clubhouse().register.deliveryPhase();
-    return phase === 'receipt-deliver' || phase === 'bag-deliver';
-  }, null, { timeout: 5000 });
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-customer-hold'
+  ), null, { timeout: 5000 });
   if (mode === 'card' || mode === 'cash') {
+    const receiptHandoff = await page.evaluate(() => (
+      window.__fw.scene3d.clubhouse().register.deliveryPresentation()
+    ));
+    assert(receiptHandoff.phase === 'receipt-customer-hold',
+      `Receipt never reached its customer hold: ${JSON.stringify(receiptHandoff)}.`);
+    assert(receiptHandoff.receiptParentedToCustomer,
+      'Receipt reached the customer without transferring to the authored grip.');
+    assert(receiptHandoff.receiptDistanceToPalm < 0.03,
+      `Receipt missed the customer palm by ${receiptHandoff.receiptDistanceToPalm}.`);
+    assert(!receiptHandoff.cashierHandsVisible,
+      'Cashier hand did not release after customer receipt contact.');
+    await shot('13-receipt-handover.png');
+
     await page.waitForFunction(() => (
       window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'bag-deliver'
+      && window.__fw.scene3d.clubhouse().register.deliveryPresentation().cashierHandsVisible
     ), null, { timeout: 5000 });
-    // The bag phase begins only after Receipt_Strip is parented to the authored
-    // palm grip, giving deterministic contact evidence without freezing a
-    // context-free frame midway through the preceding arc.
-    await shot('13-receipt-handover.png');
-    await page.waitForTimeout(340);
+    await page.waitForTimeout(260);
     await shot('13b-bag-handover.png');
+    await page.waitForFunction(() => (
+      window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'bag-customer-hold'
+    ), null, { timeout: 5000 });
+    const bagHandoff = await page.evaluate(() => (
+      window.__fw.scene3d.clubhouse().register.deliveryPresentation()
+    ));
+    assert(bagHandoff.bagAcceptedByCustomer,
+      'Paid bag reached the customer without an explicit ownership checkpoint.');
+    assert(bagHandoff.bagDistanceToPalm < 0.04,
+      `Paid bag handle missed the customer palm by ${bagHandoff.bagDistanceToPalm}.`);
+    assert(!bagHandoff.cashierHandsVisible,
+      'Cashier hand did not release after bag contact.');
+    await shot('13c-bag-received.png');
+    deliveryHandoffEvidence = { receipt: receiptHandoff, bag: bagHandoff };
   } else {
     await page.waitForTimeout(320);
     await shot('13-receipt-handover.png');
@@ -1015,7 +1105,7 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     // Follow the departing customer with the register mode's normal bounded
     // mouse-look so the paid bag remains in frame instead of being cropped by
     // a camera that keeps staring at the now-empty POS.
-    await page.mouse.move(VIEWPORT.width * 0.12, VIEWPORT.height * 0.50);
+    await page.mouse.move(VIEWPORT.width * 0.02, VIEWPORT.height * 0.50);
     await page.waitForTimeout(220);
     await shot('15-customer-leaving.png');
   } else {
@@ -1040,7 +1130,9 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     before: fixture.before,
     final,
     evidence,
+    scanReadEvidence,
     cashDrawerTravelEvidence,
+    deliveryHandoffEvidence,
     audioVideoCapture,
     console: { errors, pageErrors, failedRequests, nonAbortedFailedRequests: nonAborted },
   };

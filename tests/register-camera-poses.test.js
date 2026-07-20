@@ -4,7 +4,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { cardHandoffPose, cardTerminalPose } from '../src/render3d/clubhouse/registerCameraPoses.js';
+import {
+  cardHandoffPose, cardTerminalPose, fulfillmentHandoffPose,
+} from '../src/render3d/clubhouse/registerCameraPoses.js';
 import { receiptGeometryUsesFeedAxis } from '../src/render3d/clubhouse/simplifiedRegisterMode.js';
 
 const COUNTER_TOP = 1.055;
@@ -78,6 +80,20 @@ test('handoff and terminal poses both look south with no 180 spin between them',
   assert.ok(Math.abs(handoff.eye.x - terminal.eye.x) < 1.2, 'eyes are near each other in x');
 });
 
+test('card pickup keeps the customer-facing pose until the physical grip delay ends', () => {
+  const poseKey = functionBody(registerSource, 'poseKey');
+  assert.match(
+    poseKey,
+    /cardPickupDelay\s*>\s*0/,
+    'the pickup delay remains part of the card-take camera condition',
+  );
+  assert.match(
+    poseKey,
+    /return waiting \? 'cardTake' : 'card'/,
+    'the camera moves to the terminal only after the customer handoff clears',
+  );
+});
+
 test('declined-card cash fallback presents tender before opening the drawer camera', () => {
   const switchToCash = functionBody(registerSource, 'switchDeclinedCardToCash');
   const createTender = switchToCash.indexOf('createTender()');
@@ -114,19 +130,19 @@ test('the live reader has no state-driven lift or float mutation', () => {
   assert.doesNotMatch(registerSource, /termObject\.position\.y\s*=/, 'reader y-position must not animate after attachment');
 });
 
-test('product scanning keeps a fixed camera while edge products are clicked', () => {
+test('product scanning and monitor controls keep a fixed camera while edge targets are clicked', () => {
   const updateLookTarget = functionBody(registerSource, 'updateLookTarget');
   assert.match(
     updateLookTarget,
-    /accessibilityPrefs\.reducedCameraMotion \|\| workspace === 'scan'/,
-    'scan pointer movement cannot steer the working camera',
+    /workspace === 'scan' \|\| workspace === 'monitor'/,
+    'scan products and monitor buttons cannot steer their working camera',
   );
 
   const updateCamera = functionBody(registerSource, 'updateCamera');
   assert.match(
     updateCamera,
-    /if \(workspace === 'scan'\) \{[\s\S]*?lookYaw = 0;[\s\S]*?lookTargetYaw = 0;/,
-    'entering or remaining in scan view clears any prior cursor sway immediately',
+    /if \(workspace === 'scan' \|\| workspace === 'monitor'\) \{[\s\S]*?lookYaw = 0;[\s\S]*?lookTargetYaw = 0;/,
+    'entering or remaining in scan or monitor view clears prior cursor sway immediately',
   );
 });
 
@@ -142,4 +158,15 @@ test('receipt printing accepts only geometry whose long edge follows the feed ax
     'the legacy Z-long receipt falls back to the printable owned strip',
   );
   assert.equal(receiptGeometryUsesFeedAxis({ x: 0.075, y: Number.NaN, z: 0.03 }), false);
+});
+
+test('fulfilment frames the right-side printer and customer palms from the staff side', () => {
+  const pose = fulfillmentHandoffPose(CUSTOMER, { x: 3.98, z: 4.48 }, COUNTER_TOP);
+  assert.ok(pose.eye.z > 5.4, 'the wider fulfilment eye stays behind the working counter');
+  assert.ok(pose.look.z < pose.eye.z, 'the view looks south across the counter');
+  assert.ok(pose.look.x > CUSTOMER.x && pose.look.x < 3.98,
+    'the aim sits between the receiving customer and printer');
+  assert.ok(pose.look.y > COUNTER_TOP && pose.look.y < COUNTER_TOP + 0.30,
+    'the aim follows the receipt and handoff height');
+  assert.ok(pose.fov >= 48, 'the printer and both customer grips fit the same frame');
 });

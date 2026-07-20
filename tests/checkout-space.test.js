@@ -60,8 +60,11 @@ test('customers queue clear of the counter, not pressed against it', () => {
 
 test('the queue falls back into the room, away from the counter', () => {
   const a = queueSlot(0);
+  const next = queueSlot(1);
   const b = queueSlot(3);
   assert.ok(b.z < a.z, 'the line runs back into the shop');
+  assert.ok(Math.hypot(next.x - a.x, next.z - a.z) >= 1.15,
+    'adjacent customers keep a readable shoulder-and-carried-goods gap');
   assert.ok(Math.hypot(b.x - a.x, b.z - a.z) > 1.5, 'and it is a line, not a huddle');
 });
 
@@ -78,11 +81,11 @@ const topMaxX = COUNTER.x + COUNTER.len / 2;
 const topMinZ = COUNTER.z - COUNTER.depth / 2;
 const topMaxZ = COUNTER.z + COUNTER.depth / 2;
 // the kit the PLAYER has to physically operate — these must fall inside their reach.
-// (The scanner is gone from the click-to-bag flow, and the folded bagstand spares are
-// passive dressing; the OPEN bag the goods arc into is the operated piece.)
+// The scanner and open bag are both operated pieces; folded bagstand spares are
+// passive dressing.
 const OPERATED = {
   monitor: REG.monitor, cardterm: REG.cardterm,
-  printer: REG.printer, bag: REG.bag,
+  scanner: REG.scanner, printer: REG.printer, bag: REG.bag,
 };
 // ...plus the passive dressing, which only has to be on the counter and out of the way
 const KIT = {
@@ -157,20 +160,25 @@ test('staging is on the CUSTOMER side and the bag zone is on the STAFF side', ()
 // THE TCG ARRANGEMENT. From the cashier's viewpoint (standing at +z, facing the
 // queue): the open BAG far LEFT, the merchandise centre-left, and the register
 // block — POS, drawer, terminal, printer, customer display — on the RIGHT. A
-// clicked product arcs from staging into the bag; nothing may stand in that arc
-// and nothing may hide the goods behind the monitor.
-test('bag left, goods centre, register block right — and the arc between them is clear', () => {
+// clicked product crosses the reader and then arcs into the bag; nothing may
+// stand in either leg and nothing may hide the goods behind the monitor.
+test('bag left, goods centre, register block right — and the scanner route is clear', () => {
   const stagingMid = { x: (REG.staging.minX + REG.staging.maxX) / 2, z: (REG.staging.minZ + REG.staging.maxZ) / 2 };
   assert.ok(REG.bag.x < REG.staging.minX, 'the bag sits WEST (cashier-left) of the goods');
   for (const [name, p] of Object.entries({ monitor: REG.monitor, cardterm: REG.cardterm, printer: REG.printer, custdisplay: REG.custdisplay })) {
     assert.ok(p.x > REG.staging.maxX, `the ${name} sits EAST (cashier-right) of the goods`);
   }
   assert.ok(REG.drawer.x > REG.staging.maxX, 'the drawer opens under the register block, not under the goods');
-  // the click-to-bag arc from the goods to the bag mouth stays over the counter top
-  for (let t = 0; t <= 1; t += 0.05) {
-    const x = stagingMid.x + (REG.bag.x - stagingMid.x) * t;
-    const z = stagingMid.z + (REG.bag.z - stagingMid.z) * t;
-    assert.ok(x > topMinX && x < topMaxX && z > topMinZ && z < topMaxZ, 'the bagging arc stays over the counter');
+  // Both physical legs stay over the counter: goods to scanner, then reader to bag.
+  for (const [from, to, label] of [
+    [stagingMid, REG.scanner, 'scan approach'],
+    [REG.scanner, REG.bag, 'bagging exit'],
+  ]) {
+    for (let t = 0; t <= 1; t += 0.05) {
+      const x = from.x + (to.x - from.x) * t;
+      const z = from.z + (to.z - from.z) * t;
+      assert.ok(x > topMinX && x < topMaxX && z > topMinZ && z < topMaxZ, `${label} stays over the counter`);
+    }
   }
   // and no kit device stands on the arc's landing corridor
   for (const [name, p] of Object.entries({ monitor: REG.monitor, printer: REG.printer, custdisplay: REG.custdisplay })) {

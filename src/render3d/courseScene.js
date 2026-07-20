@@ -69,6 +69,7 @@ import {
   floraLodChoice,
   floraLodNeedsRefresh,
 } from './floraLod.js';
+import { floraWindEligible, floraWindStrength } from './floraWind.js';
 import { attachSocket, socketWorld } from './toolSockets.js';
 import { buildToolViewmodels } from './toolViewmodel.js';
 import { CLEANING_TOOLS } from '../data/cleaningTools.js';
@@ -284,6 +285,44 @@ let floraAssetsPromise = null;
 const floraSharedResources = {
   geometries: new Set(), materials: new Set(), textures: new Set(),
 };
+const floraWindUniforms = new Set();
+
+function installFloraWind(material, id, kind) {
+  if (!material || !floraWindEligible(id, kind)) return material;
+  const record = {
+    kind,
+    time: { value: 0 },
+    strength: { value: floraWindStrength(kind, 6) },
+  };
+  floraWindUniforms.add(record);
+  material.userData.floraWind = { kind };
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uFloraTime = record.time;
+    shader.uniforms.uFloraWindStrength = record.strength;
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+        uniform float uFloraTime;
+        uniform float uFloraWindStrength;`,
+      )
+      .replace(
+        '#include <begin_vertex>',
+        `vec3 transformed = vec3(position);
+        float fwFloraMask = smoothstep(0.12, 0.98, position.y);
+        float fwFloraPhase = position.x * 4.1 + position.z * 3.7;
+        #ifdef USE_INSTANCING
+          fwFloraPhase += instanceMatrix[3].x * 0.043 + instanceMatrix[3].z * 0.037;
+        #endif
+        float fwFloraWave = sin(uFloraTime * 1.05 + fwFloraPhase + position.y * 2.4);
+        float fwFloraCross = cos(uFloraTime * 0.73 + fwFloraPhase * 1.37);
+        transformed.x += fwFloraWave * uFloraWindStrength * fwFloraMask;
+        transformed.z += fwFloraCross * uFloraWindStrength * 0.58 * fwFloraMask;`,
+      );
+  };
+  material.customProgramCacheKey = () => 'golf-flipper-flora-wind-v1';
+  return material;
+}
 
 // The species pools the boundary forest and any untyped spot draw from.
 const FLORA_FOREST = ['fill_a', 'fill_b', 'oak_b', 'oak_a', 'maple_a', 'pine_a', 'pine_b', 'spruce_a', 'birch_a', 'shade_a'];
@@ -291,21 +330,25 @@ const FLORA_PINE = ['pine_a', 'pine_b', 'spruce_a', 'cedar_a'];
 // every object type the flora pipeline owns (so rebuildObjects skips them)
 const FLORA_IDS = new Set([
   'oak_a', 'oak_b', 'maple_a', 'birch_a', 'shade_a', 'flower_a', 'fill_a', 'fill_b',
-  'pine_a', 'pine_b', 'spruce_a', 'cedar_a', 'shrub_round', 'shrub_flower', 'bush_native',
-  'reed_clump', 'grass_clump', 'rock_s', 'rock_m', 'boulder_a', 'shore_rock',
-  'tree_default', 'tree_oak', 'tree_detailed', 'tree_fat', 'tree_pineDefaultA', 'tree_pineRoundB', 'reeds',
+  'pine_a', 'pine_b', 'spruce_a', 'cedar_a', 'cypress_a', 'palm_a', 'acacia_a', 'eucalyptus_a',
+  'ornamental_small_a', 'shrub_round', 'shrub_flower', 'bush_native', 'hedge_a',
+  'reed_clump', 'grass_clump', 'groundcover_a', 'flower_bed_a',
+  'rock_s', 'rock_m', 'boulder_a', 'shore_rock',
+  'tree_default', 'tree_oak', 'tree_detailed', 'tree_fat', 'tree_pineDefaultA', 'tree_pineRoundB',
+  'reeds', 'bush_round', 'bush_flower', 'hedge', 'flowers',
 ]);
 // the tall canopy species (block the walker; the rest are stepped past)
 const TREE_SPECIES = new Set([
   'oak_a', 'oak_b', 'maple_a', 'birch_a', 'shade_a', 'flower_a', 'fill_a', 'fill_b',
-  'pine_a', 'pine_b', 'spruce_a', 'cedar_a',
+  'pine_a', 'pine_b', 'spruce_a', 'cedar_a', 'cypress_a', 'palm_a', 'acacia_a', 'eucalyptus_a',
+  'ornamental_small_a',
   'tree_default', 'tree_oak', 'tree_detailed', 'tree_fat', 'tree_pineDefaultA', 'tree_pineRoundB',
 ]);
 
 function loadFloraAssets() {
   if (floraAssetsPromise) return floraAssetsPromise;
   const loader = new GLTFLoader();
-  const loadOne = (id) => new Promise((resolve) => {
+  const loadOne = (id, kind) => new Promise((resolve) => {
     loader.load(
       `vendor/models/flora/${id}.glb`,
       (gltf) => {
@@ -332,6 +375,7 @@ function loadFloraAssets() {
               roughness: 0.9,
               metalness: 0,
             });
+            installFloraWind(material, id, kind);
             parts.push({ geometry: merged, material });
           }
           // normalize: feet on y=0, centered on xz, unit height
@@ -366,7 +410,7 @@ function loadFloraAssets() {
     .then((manifest) => {
       if (!manifest || !manifest.variants) return null;
       const meta = new Map(manifest.variants.map((v) => [v.id, v]));
-      return Promise.all(manifest.variants.map((v) => loadOne(v.id))).then((loaded) => {
+      return Promise.all(manifest.variants.map((v) => loadOne(v.id, v.kind))).then((loaded) => {
         const byId = new Map();
         for (const a of loaded) {
           if (!a) continue;
@@ -1801,6 +1845,7 @@ export function makeCourseScene(canvas, state) {
   // INTENTIONAL planting. Only the boundary forest outside the property line is
   // procedural: a deep hash ring that fades with distance and closes the horizon.
   let treeGroup = null;
+  let activeFloraAssets = null;
   let floraLodUpdate = null;
   let floraLodSnapshot = {
     ready: false,
@@ -1832,6 +1877,7 @@ export function makeCourseScene(canvas, state) {
   const FLORA_ALIAS = {
     tree_default: 'fill_a', tree_oak: 'oak_a', tree_detailed: 'shade_a', tree_fat: 'oak_b',
     tree_pineDefaultA: 'pine_a', tree_pineRoundB: 'pine_b', reeds: 'reed_clump',
+    bush_round: 'shrub_round', bush_flower: 'shrub_flower', hedge: 'hedge_a', flowers: 'flower_bed_a',
   };
   function floraIdFor(type, assets) {
     if (assets.has(type)) return type;
@@ -2031,7 +2077,7 @@ export function makeCourseScene(canvas, state) {
         position: p,
         matrix: m.clone(),
         color: col.clone(),
-        hero: null,
+        lodTier: null,
       });
       sourceById[sourceId] = (sourceById[sourceId] || 0) + 1;
     }
@@ -2054,8 +2100,14 @@ export function makeCourseScene(canvas, state) {
         tree: record.tree,
       });
       reserve(far);
-      if (!record.boundary && FLORA_LOD_PROXY_BY_ID[record.sourceId]) {
-        reserve(floraLodChoice(record.sourceId, 0, false));
+      if (FLORA_LOD_PROXY_BY_ID[record.sourceId]) {
+        reserve(floraLodChoice(record.sourceId, 0, null, {
+          boundary: record.boundary,
+          tree: record.tree,
+        }));
+        if (!record.boundary) {
+          reserve(floraLodChoice(record.sourceId, FLORA_LOD_DEFAULTS.heroExitYd + 1, 'medium'));
+        }
       }
     }
 
@@ -2063,7 +2115,7 @@ export function makeCourseScene(canvas, state) {
     for (const spec of bucketSpecs.values()) {
       const variant = assets.get(spec.choice.renderId);
       if (!variant) continue;
-      const isReed = variant.kind === 'reed';
+      const isReed = ['reed', 'groundcover', 'palm', 'flowerbed'].includes(variant.kind);
       const meshes = variant.parts.map(({ geometry, material }, partIndex) => {
         if (isReed) material.side = THREE.DoubleSide; // thin blades read from both faces
         const im = new THREE.InstancedMesh(geometry, material, spec.capacity);
@@ -2105,11 +2157,11 @@ export function makeCourseScene(canvas, state) {
           record.position.x - nextCamera.x,
           record.position.z - nextCamera.z,
         );
-        const choice = floraLodChoice(record.sourceId, distance, record.hero, {
+        const choice = floraLodChoice(record.sourceId, distance, record.lodTier, {
           boundary: record.boundary,
           tree: record.tree,
         });
-        record.hero = choice.hero;
+        record.lodTier = choice.tier;
         const key = bucketKey(choice);
         const bucket = renderBuckets.get(key);
         if (!bucket) continue;
@@ -2139,7 +2191,7 @@ export function makeCourseScene(canvas, state) {
 
       floraLodSnapshot = {
         ready: true,
-        mode: 'dynamic-hero-proxy',
+        mode: 'dynamic-near-medium-far',
         thresholds: { ...FLORA_LOD_DEFAULTS },
         lastCamera: { x: +nextCamera.x.toFixed(2), z: +nextCamera.z.toFixed(2) },
         updates: updateCount,
@@ -2151,6 +2203,7 @@ export function makeCourseScene(canvas, state) {
         authoredInstances: records.reduce((total, record) => total + (record.boundary ? 0 : 1), 0),
         meshBuckets: renderBuckets.size,
         renderedBaseTriangles,
+        windMaterials: floraWindUniforms.size,
         tiers,
         sourceById,
         renderedById,
@@ -2237,8 +2290,11 @@ export function makeCourseScene(canvas, state) {
     loadFloraAssets().then((assets) => {
       if (sceneDisposed || token !== treeBuildToken) return; // superseded or lifetime ended
       if (assets && assets.size) {
+        activeFloraAssets = assets;
+        ghostType = null; // the next hover upgrades any early fallback to the authored model
         rebuildFloraFromModels(assets);
       } else {
+        activeFloraAssets = null;
         console.warn('flora models unavailable — procedural fallback in use');
         rebuildTreesProcedural();
       }
@@ -2687,6 +2743,7 @@ export function makeCourseScene(canvas, state) {
             // Course-kit GLBs are authored/exported in metres while the game
             // world uses yards. Keep procedural fallbacks at native yard scale.
             objectGlbCache.set(type, parts.length ? { parts, unitScale: METERS_TO_YARDS } : 'missing');
+            if (parts.length) ghostType = null;
           } catch {
             objectGlbCache.set(type, 'missing');
           }
@@ -3856,7 +3913,7 @@ export function makeCourseScene(canvas, state) {
     const cutterGroup = heldGroups.boxcutter;
     const cutterVisual = new THREE.Group();
     cutterVisual.name = 'DeliveryBoxCutterVisual';
-    cutterVisual.scale.setScalar(1);
+    cutterVisual.scale.setScalar(1.30);
     cutterGroup.add(cutterVisual);
     const fallbackRoot = new THREE.Group();
     fallbackRoot.name = 'DeliveryBoxCutterLoadingFallback';
@@ -4163,10 +4220,10 @@ export function makeCourseScene(canvas, state) {
     }
     walkTool = tool;
     for (const [name, g] of Object.entries(heldGroups)) g.visible = name === tool;
-    // The box cutter is intentionally tool-only in first person: the previous
-    // procedural hand/cuff covered both the blade contact and highlighted tape
-    // path from the player camera. Other tools keep the shared hand rig.
-    if (tool && tool !== 'boxcutter' && heldGroups[tool] && GRIPS[tool]) {
+    // Every tool remains physically held. The cutter uses a smaller pinching
+    // hand behind its handle so the blade contact and highlighted tape path
+    // stay visible without leaving the knife floating on the carton.
+    if (tool && heldGroups[tool] && GRIPS[tool]) {
       heldGroups[tool].add(fpHands.root);
       fpHands.setTool(tool);
     } else {
@@ -4439,6 +4496,79 @@ export function makeCourseScene(canvas, state) {
   cutterGuideRibbon.frustumCulled = false;
   cutterGuideRibbon.renderOrder = 17;
   scene.add(cutterGuideRibbon);
+  // The cutter itself is pinned to the authored world-space tape path. Build a
+  // bent arm back toward the camera so the pinching hand is connected without
+  // forcing a rigid camera-local sleeve through the crosshair.
+  const cutterArmRoot = new THREE.Group();
+  cutterArmRoot.name = 'BoxCutterPlayerArm';
+  cutterArmRoot.visible = false;
+  scene.add(cutterArmRoot);
+  const cutterArmSkinMaterial = new THREE.MeshStandardMaterial({ color: 0xd9a97e, roughness: 0.82 });
+  const cutterArmSleeveMaterial = new THREE.MeshStandardMaterial({ color: 0x2f4a35, roughness: 0.90 });
+  const makeCutterArmSegment = (name, topRadius, bottomRadius, material) => {
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(topRadius, bottomRadius, 1, 10),
+      material,
+    );
+    mesh.name = name;
+    mesh.frustumCulled = false;
+    cutterArmRoot.add(mesh);
+    return mesh;
+  };
+  const cutterArmForearm = makeCutterArmSegment(
+    'BoxCutterPlayerForearm', 0.043, 0.035, cutterArmSkinMaterial,
+  );
+  const cutterArmSleeveLower = makeCutterArmSegment(
+    'BoxCutterPlayerSleeveLower', 0.040, 0.038, cutterArmSleeveMaterial,
+  );
+  const cutterArmSleeveUpper = makeCutterArmSegment(
+    'BoxCutterPlayerSleeveUpper', 0.012, 0.040, cutterArmSleeveMaterial,
+  );
+  const cutterArmUnitY = new THREE.Vector3(0, 1, 0);
+  const cutterArmDirection = new THREE.Vector3();
+  const cutterArmWristWorld = new THREE.Vector3();
+  const cutterArmSkinEndWorld = new THREE.Vector3();
+  const cutterArmElbowWorld = new THREE.Vector3();
+  const cutterArmEndWorld = new THREE.Vector3();
+  const positionCutterArmSegment = (mesh, start, end) => {
+    cutterArmDirection.subVectors(end, start);
+    const length = cutterArmDirection.length();
+    if (!(length > 1e-5)) {
+      mesh.visible = false;
+      return;
+    }
+    mesh.visible = true;
+    mesh.position.lerpVectors(start, end, 0.5);
+    mesh.scale.set(1, length, 1);
+    mesh.quaternion.setFromUnitVectors(
+      cutterArmUnitY,
+      cutterArmDirection.multiplyScalar(1 / length),
+    );
+  };
+  const updateCutterPlayerArm = (show) => {
+    const hand = fpHands.root.getObjectByName('FirstPersonRightHand');
+    if (!show || !hand) {
+      cutterArmRoot.visible = false;
+      return;
+    }
+    hand.updateWorldMatrix(true, false);
+    camera.updateWorldMatrix(true, false);
+    hand.getWorldPosition(cutterArmWristWorld);
+    cutterArmElbowWorld.set(0.34, -0.14, -0.78);
+    camera.localToWorld(cutterArmElbowWorld);
+    cutterArmEndWorld.set(0.46, -0.30, -0.22);
+    camera.localToWorld(cutterArmEndWorld);
+    const wristToElbow = cutterArmWristWorld.distanceTo(cutterArmElbowWorld);
+    cutterArmSkinEndWorld.lerpVectors(
+      cutterArmWristWorld,
+      cutterArmElbowWorld,
+      Math.min(1, 0.16 / Math.max(0.001, wristToElbow)),
+    );
+    positionCutterArmSegment(cutterArmForearm, cutterArmWristWorld, cutterArmSkinEndWorld);
+    positionCutterArmSegment(cutterArmSleeveLower, cutterArmSkinEndWorld, cutterArmElbowWorld);
+    positionCutterArmSegment(cutterArmSleeveUpper, cutterArmElbowWorld, cutterArmEndWorld);
+    cutterArmRoot.visible = true;
+  };
   const cutterGuideDirection = new THREE.Vector3();
   const cutterGuideMidpoint = new THREE.Vector3();
   const cutterGuideUnitZ = new THREE.Vector3(0, 0, 1);
@@ -4500,6 +4630,7 @@ export function makeCourseScene(canvas, state) {
     cutterGuide.visible = !!wantsContact;
     cutterGuideRibbon.visible = !!wantsContact;
     if (!path) {
+      updateCutterPlayerArm(false);
       cutter.position.lerp(cutterRestLocal, Math.min(1, dt * 12));
       cutter.rotation.x += (0.15 - cutter.rotation.x) * Math.min(1, dt * 12);
       cutter.rotation.y += (-0.2 - cutter.rotation.y) * Math.min(1, dt * 12);
@@ -4545,6 +4676,7 @@ export function makeCourseScene(canvas, state) {
       cutter.rotateZ(0.10);
       cutter.rotateY(0.42); // expose the handle side while the blade-contact origin stays pinned
     }
+    updateCutterPlayerArm(wantsContact && cutterContactBlend > 0.05);
   }
 
   function walkKeyDown(e) {
@@ -5130,6 +5262,17 @@ export function makeCourseScene(canvas, state) {
   // --- placement ghost: the object you are about to place, green/red ----------------
   let ghost = null;
   let ghostType = null;
+  function disposePlacementGhost() {
+    if (!ghost) return;
+    ghost.traverse((object) => {
+      if (object.userData.isDisc) object.geometry?.dispose();
+      if (object.userData.previewOwnGeometry) object.geometry?.dispose();
+      if (object.material?.userData?.placementPreviewClone) object.material.dispose();
+    });
+    scene.remove(ghost);
+    ghost = null;
+  }
+
   function setPlacementGhost(type, x, z, {
     rot = 0, scale = 1, valid = true, collisionRadiusYd = null,
   } = {}) {
@@ -5139,13 +5282,17 @@ export function makeCourseScene(canvas, state) {
       return;
     }
     if (ghostType !== type) {
-      if (ghost) scene.remove(ghost);
+      disposePlacementGhost();
       ghost = new THREE.Group();
-      const { parts } = ghostPartsFor(type);
+      const { parts, unitScale = 1, ownedGeometry = false } = ghostPartsFor(type);
       for (const p of parts) {
-        const mesh = new THREE.Mesh(p.geometry, p.material.clone());
+        const material = p.material.clone();
+        material.userData.placementPreviewClone = true;
+        const mesh = new THREE.Mesh(p.geometry, material);
         mesh.material.transparent = true;
         mesh.material.opacity = 0.62;
+        mesh.userData.previewUnitScale = unitScale;
+        mesh.userData.previewOwnGeometry = ownedGeometry;
         ghost.add(mesh);
       }
       const disc = new THREE.Mesh(
@@ -5173,12 +5320,17 @@ export function makeCourseScene(canvas, state) {
         o.scale.setScalar(footprint);
       } else if (o.isMesh) {
         o.material.emissive = new THREE.Color(valid ? 0x1a3a12 : 0x511710);
-        o.scale.setScalar(type.startsWith('tree_') ? 7.3 * scale : scale);
+        o.scale.setScalar((o.userData.previewUnitScale || 1) * scale);
       }
     });
   }
 
   function ghostPartsFor(type) {
+    if (activeFloraAssets) {
+      const floraId = floraIdFor(type, activeFloraAssets);
+      const asset = floraId ? activeFloraAssets.get(floraId) : null;
+      if (asset) return { parts: asset.parts, unitScale: asset.baseH };
+    }
     if (type.startsWith('tree_')) {
       // a light stand-in silhouette (trunk + crown) — the real instanced model
       // appears the moment it is placed
@@ -5191,10 +5343,10 @@ export function makeCourseScene(canvas, state) {
         parts: [
           { geometry: trunk, material: new THREE.MeshStandardMaterial({ color: 0x5a4630 }) },
           { geometry: crown, material: new THREE.MeshStandardMaterial({ color: 0x3f7a34 }) },
-        ],
+        ], unitScale: 7.3, ownedGeometry: true,
       };
     }
-    return proceduralObjectParts(type);
+    return objectParts(type);
   }
 
   // --- measure tool line -----------------------------------------------------------
@@ -5766,6 +5918,11 @@ export function makeCourseScene(canvas, state) {
       shadowBakes++;
     }
     if (shaderRefs.uniforms) shaderRefs.uniforms.uTime.value = time;
+    const floraWindMph = Number(state.weather?.today?.windMph) || 0;
+    for (const record of floraWindUniforms) {
+      record.time.value = time;
+      record.strength.value = floraWindStrength(record.kind, floraWindMph);
+    }
     for (const w of waterMeshes) {
       w.material.uniforms.time.value = time * 0.55;
     }

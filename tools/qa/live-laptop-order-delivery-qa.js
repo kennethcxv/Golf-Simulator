@@ -10,8 +10,18 @@ async (page) => {
 
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
-  const out = path.join(repo, 'qa', 'box_system_master', 'delivery', 'live-order-flow');
+  const repo = path.resolve(process.env.QA_REPO_ROOT || process.cwd());
+  const phase = String(process.env.DELIVERY_ORDER_QA_PHASE || 'after').toLowerCase();
+  const iteration = Math.max(1, Number.parseInt(process.env.DELIVERY_ORDER_QA_ITERATION || '1', 10));
+  const out = path.join(
+    repo,
+    'qa',
+    'box_system_master',
+    'delivery',
+    'live-order-flow',
+    phase,
+    `iteration-${String(iteration).padStart(2, '0')}`,
+  );
   fs.mkdirSync(out, { recursive: true });
 
   const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
@@ -88,7 +98,7 @@ async (page) => {
   });
 
   const evidence = {
-    launch: 'VIDEO_DIR=qa/box_system_master/delivery/live-order-flow/video node tools/qa/run-playwright.cjs tools/qa/live-laptop-order-delivery-qa.js --bootstrap',
+    launch: `$env:DELIVERY_ORDER_QA_PHASE='${phase}'; $env:DELIVERY_ORDER_QA_ITERATION='${iteration}'; $env:VIDEO_DIR='qa/box_system_master/delivery/live-order-flow/${phase}/iteration-${String(iteration).padStart(2, '0')}/video'; node tools/qa/run-playwright.cjs tools/qa/live-laptop-order-delivery-qa.js --bootstrap`,
     outputDirectory: out,
     viewport,
     fixture,
@@ -318,6 +328,21 @@ async (page) => {
         yaw,
         pitch: -0.30,
       };
+      const firstPallet = scene.getObjectByName('DeliveryPallet_1');
+      const secondPallet = scene.getObjectByName('DeliveryPallet_2');
+      if (!firstPallet || !secondPallet) throw new Error('Inspection pallets are unavailable');
+      firstPallet.updateWorldMatrix(true, true);
+      secondPallet.updateWorldMatrix(true, true);
+      const firstPalletWorld = firstPallet.getWorldPosition(firstPallet.position.clone());
+      const secondPalletWorld = secondPallet.getWorldPosition(secondPallet.position.clone());
+      const inspectionTargetX = (firstPalletWorld.x + secondPalletWorld.x) / 2;
+      const inspectionTargetZ = (firstPalletWorld.z + secondPalletWorld.z) / 2;
+      const inspection = {
+        x: inspectionTargetX,
+        z: inspectionTargetZ + 2.20,
+        yaw: 0,
+        pitch: -0.24,
+      };
       const targetX = (slabWorld.x + vanParkWorld.x) / 2;
       const targetZ = (slabWorld.z + vanParkWorld.z) / 2;
       const arrival = {
@@ -328,6 +353,7 @@ async (page) => {
       };
       return {
         staging,
+        inspection,
         arrival,
         authored: {
           slabWorld: { x: slabWorld.x, y: slabWorld.y, z: slabWorld.z },
@@ -904,6 +930,10 @@ async (page) => {
     const stagedFraming = await deliveryFraming();
     requireTruth(stagedFraming.every((entry) => entry.exists && entry.inFrame),
       'staged delivery shot lost one or more authored pallets');
+    await capture('03-boxes-staged-wide.png',
+      'Exact order cartons are physically staged across the authored five-pallet receiving area.',
+      { orderId: afterPurchase.order.id, palletFraming: stagedFraming });
+    await setPlayerCamera(cameras.inspection);
 
     const staged = await page.evaluate(async ({ orderId, skuId }) => {
       const { DELIVERY_PALLET_STAGING } = await import('/src/data/deliveryStaging.js');
@@ -921,6 +951,10 @@ async (page) => {
       const readabilityThreshold = Object.freeze({ widthPx: 48, heightPx: 28, areaPx: 1344 });
       const raycaster = new THREE.Raycaster();
       raycaster.layers.mask = camera.layers.mask;
+      // Sprite.raycast requires Raycaster.camera even when the evidence only
+      // accepts mesh hits. Scene-wide traversal can still encounter sprites,
+      // so preserve the active player camera on every visibility ray.
+      raycaster.camera = camera;
       const canvasIds = new Map();
       const canvasId = (canvas) => {
         if (!canvas) return null;
@@ -1385,8 +1419,8 @@ async (page) => {
         shipments: staged.shipmentCount,
       },
     };
-    await capture('03-boxes-staged.png',
-      'Exact order cartons are labelled, non-overlapping, interactive, and staged on the authored pallets.',
+    await capture('04-box-labels-inspected.png',
+      'A normal close player view proves both exact carton labels are readable, unobstructed, and interactive.',
       { orderId: afterPurchase.order.id, boxes: staged.boxes, palletFraming: stagedFraming });
 
     const trustedInputTrace = await page.evaluate(() => (

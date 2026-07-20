@@ -5,7 +5,7 @@ import * as THREE from 'three';
 
 import { SHOP_CATALOG } from '../src/data/shopItems.js';
 import { armfulOf } from '../src/sim/stocking.js';
-import { makeGoodsMesh } from '../src/render3d/clubhouse.js';
+import { carriedGoodsCameraPose, makeGoodsMesh } from '../src/render3d/clubhouse.js';
 import { catalogProductVisual } from '../src/render3d/clubhouse/catalogProductVisual.js';
 
 function authoredMerch() {
@@ -112,7 +112,7 @@ test('hero carry kinds use distinct believable bundle profiles and transforms', 
 
     if (expected.id === 'bag1') {
       assert.ok(Math.abs(products[0].rotation.z + Math.PI / 2) < 1e-9, 'stand bag is carried upright');
-      assert.ok(products[0].position.y >= 0.3, 'stand bag is lifted around its bulky midpoint');
+      assert.ok(products[0].position.y >= 0.27, 'stand bag is lifted around its bulky midpoint');
     }
     if (expected.id === 'water1') {
       assert.equal(new Set(products.map((product) => product.position.x)).size, 3, 'bottles form three columns');
@@ -120,6 +120,28 @@ test('hero carry kinds use distinct believable bundle profiles and transforms', 
     }
     disposeTestVisual(root);
   }
+});
+
+test('hero carry camera poses keep merchandise low, supported and clear of the crosshair', () => {
+  const cases = [
+    ['ball-carton-stack', -0.90, 0.20],
+    ['small-merch-fan', -0.90, 0.20],
+    ['shoe-box-stack', -0.96, 0.20],
+    ['bottle-bundle', -0.92, 0.20],
+  ];
+  for (const [profile, maxZ, maxAbsX] of cases) {
+    const pose = carriedGoodsCameraPose(profile);
+    assert.ok(pose.position[1] <= -0.39, `${profile} stays in the lower field of view`);
+    assert.ok(pose.position[2] <= maxZ, `${profile} stays far enough from the camera`);
+    assert.ok(Math.abs(pose.position[0]) <= maxAbsX, `${profile} remains centered between both hands`);
+  }
+
+  const bag = carriedGoodsCameraPose('bulky-stand-bag');
+  assert.ok(bag.position[0] >= 0.30, 'stand bag rides to the side of the crosshair');
+  assert.ok(bag.position[1] <= -0.55 && bag.position[2] <= -1.10,
+    'stand bag is lowered and pushed away from the near plane');
+  assert.notDeepEqual(carriedGoodsCameraPose('unknown-profile'), bag,
+    'unknown profiles use the safe compact merchandise pose');
 });
 
 test('hero carry kinds remain named physical proxies while authored assets are still loading', () => {

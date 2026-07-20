@@ -378,6 +378,7 @@ export function createMerch(mats) {
   // materials are kept as authored (no slot remap), collision proxies hidden.
   const KIT = [
     'checkout_counter', 'pos_monitor', 'cash_drawer', 'payment_terminal',
+    'barcode_scanner',
     'receipt_printer', 'shopping_bag', 'payment_card', 'customer_display',
     'loose_receipt', 'apparel_wall',
     'cash_bill_1', 'cash_bill_5', 'cash_bill_10', 'cash_bill_20', 'cash_bill_50',

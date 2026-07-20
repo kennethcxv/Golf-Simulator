@@ -28,12 +28,14 @@ import {
   objectCollisionOk,
   objectCollisionRadiusYd,
 } from './courseEditorObjectPlacement.js';
+import { appraiseProperty } from './valuation.js';
 
 // the tall-canopy flora species (for tree counting in stats); matches the
 // renderer's TREE_SPECIES set plus the legacy Kenney aliases
 const TREE_OBJECT_TYPES = new Set([
   'oak_a', 'oak_b', 'maple_a', 'birch_a', 'shade_a', 'flower_a', 'fill_a', 'fill_b',
   'pine_a', 'pine_b', 'spruce_a', 'cedar_a',
+  'cypress_a', 'palm_a', 'acacia_a', 'eucalyptus_a', 'ornamental_small_a',
   'tree_default', 'tree_oak', 'tree_detailed', 'tree_fat', 'tree_pineDefaultA', 'tree_pineRoundB',
 ]);
 
@@ -67,6 +69,7 @@ export function makeEditSession(state) {
     bill: 0, // dollars pending — charged once on applySession
     changedCells: new Set(), // every cell index touched since the last apply
     opSeq: 1,
+    openingAppraisal: appraiseProperty(state),
   };
 }
 
@@ -295,39 +298,71 @@ export function beginTerrainStroke(state, session) {
   return { kind: 'terrain', before: new Map(), after: new Map() };
 }
 
-export function sculptAt(state, stroke, cx, cy, { mode = 'raise', radius = 2, strength = 0.5, falloff = 0.5, target = null } = {}) {
+export function sculptAt(state, stroke, cx, cy, {
+  mode = 'raise', radius = 2, strength = 0.5, falloff = 0.5, target = null,
+  slopePercent = 3, plateauOffsetFt = 0,
+} = {}) {
   const { course } = state;
   const cells = brushCells(course, cx, cy, radius, falloff);
-  if (mode === 'smooth') {
+  if (mode === 'smooth' || mode === 'blend' || mode === 'erode') {
+    const kernel = mode === 'blend' ? 2 : 1;
     const planned = [];
     for (const c of cells) {
       let sum = 0;
       let n = 0;
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
+      const current = course.elevation[c.i];
+      for (let dy = -kernel; dy <= kernel; dy++) {
+        for (let dx = -kernel; dx <= kernel; dx++) {
           const nx = c.x + dx;
           const ny = c.y + dy;
           if (!inBounds(course, nx, ny)) continue;
-          sum += course.elevation[ny * course.w + nx];
+          const elevation = course.elevation[ny * course.w + nx];
+          if (mode === 'erode' && elevation >= current && (dx !== 0 || dy !== 0)) continue;
+          sum += elevation;
           n++;
         }
       }
-      planned.push({ c, target: sum / n });
+      planned.push({ c, target: n ? sum / n : current });
     }
     for (const { c, target: t } of planned) {
       if (!stroke.before.has(c.i)) stroke.before.set(c.i, course.elevation[c.i]);
-      course.elevation[c.i] += (t - course.elevation[c.i]) * strength * c.w;
+      const modeStrength = mode === 'blend' ? strength * 0.58 : mode === 'erode' ? strength * 0.42 : strength;
+      course.elevation[c.i] += (t - course.elevation[c.i]) * modeStrength * c.w;
       stroke.after.set(c.i, course.elevation[c.i]);
     }
     return cells;
+  }
+  if (mode === 'slope' && !stroke.slopeAnchor) {
+    stroke.slopeAnchor = { x: cx, y: cy, elevation: sampleElev(course, cx, cy) };
+  }
+  if (mode === 'plateau' && stroke.plateauTarget === undefined) {
+    stroke.plateauTarget = sampleElev(course, cx, cy) + plateauOffsetFt;
+  }
+  if (mode === 'flatten' && stroke.flattenTarget === undefined) {
+    stroke.flattenTarget = target === null ? sampleElev(course, cx, cy) : target;
   }
   for (const c of cells) {
     if (!stroke.before.has(c.i)) stroke.before.set(c.i, course.elevation[c.i]);
     if (mode === 'raise') course.elevation[c.i] += strength * c.w;
     else if (mode === 'lower') course.elevation[c.i] -= strength * c.w;
     else if (mode === 'flatten') {
-      const t = target === null ? stroke.flattenTarget ?? (stroke.flattenTarget = course.elevation[c.i]) : target;
+      const t = target === null ? stroke.flattenTarget : target;
       course.elevation[c.i] += (t - course.elevation[c.i]) * clamp(strength * 1.6, 0, 1) * c.w;
+    } else if (mode === 'plateau') {
+      course.elevation[c.i] += (stroke.plateauTarget - course.elevation[c.i])
+        * clamp(strength * 2, 0, 1) * c.w;
+    } else if (mode === 'slope') {
+      const anchor = stroke.slopeAnchor;
+      const dx = cx - anchor.x;
+      const dy = cy - anchor.y;
+      const length = Math.hypot(dx, dy);
+      const ux = length > 1e-5 ? dx / length : 1;
+      const uy = length > 1e-5 ? dy / length : 0;
+      const projection = (c.x + 0.5 - anchor.x) * ux + (c.y + 0.5 - anchor.y) * uy;
+      const risePerCell = (slopePercent / 100) * CELL_YD * 3;
+      const slopeTarget = anchor.elevation + projection * risePerCell;
+      course.elevation[c.i] += (slopeTarget - course.elevation[c.i])
+        * clamp(strength * 1.45, 0, 1) * c.w;
     }
     stroke.after.set(c.i, course.elevation[c.i]);
   }
@@ -1525,20 +1560,29 @@ export function deleteVectorStream(state, session, ref) {
 // --- objects --------------------------------------------------------------------------
 
 export const OBJECT_CATALOG = [
-  // trees (Kenney set already in vendor/models/trees)
-  { type: 'tree_default', cat: 'tree', name: 'Shade tree', cost: 'tree' },
-  { type: 'tree_oak', cat: 'tree', name: 'Oak', cost: 'tree' },
-  { type: 'tree_detailed', cat: 'tree', name: 'Elm', cost: 'tree' },
-  { type: 'tree_fat', cat: 'tree', name: 'Maple', cost: 'tree' },
-  { type: 'tree_pineDefaultA', cat: 'tree', name: 'Pine', cost: 'tree' },
-  { type: 'tree_pineRoundB', cat: 'tree', name: 'Spruce', cost: 'tree' },
-  // shrubs & ground cover (procedural or GLB, renderer decides)
-  { type: 'bush_round', cat: 'shrub', name: 'Boxwood', cost: 'shrub' },
-  { type: 'bush_flower', cat: 'shrub', name: 'Flowering shrub', cost: 'shrub' },
-  { type: 'hedge', cat: 'shrub', name: 'Hedge section', cost: 'shrub' },
-  { type: 'grass_clump', cat: 'shrub', name: 'Native grasses', cost: 'shrub' },
-  { type: 'reeds', cat: 'shrub', name: 'Reeds', cost: 'shrub' },
-  { type: 'flowers', cat: 'decor', name: 'Flower patch', cost: 'decor' },
+  // Production flora assets. Legacy Kenney/procedural IDs remain load-compatible
+  // in courseScene but are intentionally absent from new authoring choices.
+  { type: 'oak_a', cat: 'tree', name: 'Oak', cost: 'tree', climate: 'Temperate', matureHeightYd: 15, rootRadiusYd: 2.2, canopyRadiusYd: 6.3 },
+  { type: 'maple_a', cat: 'tree', name: 'Maple', cost: 'tree', climate: 'Cool / temperate', matureHeightYd: 13, rootRadiusYd: 1.8, canopyRadiusYd: 4.8 },
+  { type: 'pine_a', cat: 'tree', name: 'Pine', cost: 'tree', climate: 'Cool / temperate', matureHeightYd: 16, rootRadiusYd: 1.8, canopyRadiusYd: 3.3 },
+  { type: 'cedar_a', cat: 'tree', name: 'Cedar', cost: 'tree', climate: 'Cool / temperate', matureHeightYd: 11, rootRadiusYd: 1.5, canopyRadiusYd: 2.3 },
+  { type: 'birch_a', cat: 'tree', name: 'Birch', cost: 'tree', climate: 'Cool / temperate', matureHeightYd: 12, rootRadiusYd: 1.5, canopyRadiusYd: 4.3 },
+  { type: 'cypress_a', cat: 'tree', name: 'Cypress', cost: 'tree', climate: 'Warm / temperate', matureHeightYd: 14, rootRadiusYd: 1.2, canopyRadiusYd: 1.8 },
+  { type: 'palm_a', cat: 'tree', name: 'Palm', cost: 'tree', climate: 'Warm / coastal', matureHeightYd: 12, rootRadiusYd: 1.6, canopyRadiusYd: 4.2 },
+  { type: 'acacia_a', cat: 'tree', name: 'Acacia', cost: 'tree', climate: 'Warm / dry', matureHeightYd: 12, rootRadiusYd: 2.1, canopyRadiusYd: 7.4 },
+  { type: 'eucalyptus_a', cat: 'tree', name: 'Eucalyptus', cost: 'tree', climate: 'Warm / temperate', matureHeightYd: 16, rootRadiusYd: 2.2, canopyRadiusYd: 3.6 },
+  { type: 'flower_a', cat: 'tree', name: 'Flowering ornamental', cost: 'tree', climate: 'Temperate', matureHeightYd: 6, rootRadiusYd: 1.1, canopyRadiusYd: 3.2 },
+  { type: 'ornamental_small_a', cat: 'tree', name: 'Small ornamental', cost: 'tree', climate: 'All climates', matureHeightYd: 5, rootRadiusYd: 1.0, canopyRadiusYd: 2.6 },
+  { type: 'shade_a', cat: 'tree', name: 'Parkland shade tree', cost: 'tree', climate: 'Temperate', matureHeightYd: 14, rootRadiusYd: 2.3, canopyRadiusYd: 6.9 },
+  // Shrubs and ground layers use the same authored GLB/instancing pipeline.
+  { type: 'bush_native', cat: 'shrub', name: 'Dense native shrub', cost: 'shrub', climate: 'Temperate', matureHeightYd: 2, rootRadiusYd: 1.0, canopyRadiusYd: 1.8 },
+  { type: 'shrub_round', cat: 'shrub', name: 'Rounded shrub', cost: 'shrub', climate: 'All climates', matureHeightYd: 2, rootRadiusYd: 0.9, canopyRadiusYd: 1.6 },
+  { type: 'shrub_flower', cat: 'shrub', name: 'Flowering shrub', cost: 'shrub', climate: 'Temperate', matureHeightYd: 2, rootRadiusYd: 0.9, canopyRadiusYd: 1.6 },
+  { type: 'hedge_a', cat: 'shrub', name: 'Hedge section', cost: 'shrub', climate: 'All climates', matureHeightYd: 1.3, rootRadiusYd: 0.7, canopyRadiusYd: 1.6 },
+  { type: 'grass_clump', cat: 'shrub', name: 'Native grass', cost: 'shrub', climate: 'All climates', matureHeightYd: 1, rootRadiusYd: 0.4, canopyRadiusYd: 0.7 },
+  { type: 'reed_clump', cat: 'shrub', name: 'Reed clump', cost: 'shrub', climate: 'Wetland', matureHeightYd: 2, rootRadiusYd: 0.4, canopyRadiusYd: 0.8 },
+  { type: 'groundcover_a', cat: 'shrub', name: 'Groundcover', cost: 'shrub', climate: 'All climates', matureHeightYd: 0.4, rootRadiusYd: 0.5, canopyRadiusYd: 0.8 },
+  { type: 'flower_bed_a', cat: 'decor', name: 'Flower bed', cost: 'decor', climate: 'All climates', matureHeightYd: 0.6, rootRadiusYd: 0.7, canopyRadiusYd: 1.0 },
   // rocks
   { type: 'rock_s', cat: 'rock', name: 'Stone', cost: 'rock' },
   { type: 'rock_m', cat: 'rock', name: 'Boulder', cost: 'rock' },
@@ -1553,26 +1597,87 @@ export const OBJECT_CATALOG = [
   { type: 'planter', cat: 'decor', name: 'Planter', cost: 'decor' },
 ];
 
-const CATALOG_BY_TYPE = new Map(OBJECT_CATALOG.map((o) => [o.type, o]));
+// Hidden migration entries retain category/cost semantics for old saves and
+// external course JSON without putting placeholder-era choices back in the UI.
+const LEGACY_OBJECT_CATALOG = [
+  { type: 'tree_default', cat: 'tree', cost: 'tree' },
+  { type: 'tree_oak', cat: 'tree', cost: 'tree' },
+  { type: 'tree_detailed', cat: 'tree', cost: 'tree' },
+  { type: 'tree_fat', cat: 'tree', cost: 'tree' },
+  { type: 'tree_pineDefaultA', cat: 'tree', cost: 'tree' },
+  { type: 'tree_pineRoundB', cat: 'tree', cost: 'tree' },
+  { type: 'bush_round', cat: 'shrub', cost: 'shrub' },
+  { type: 'bush_flower', cat: 'shrub', cost: 'shrub' },
+  { type: 'hedge', cat: 'shrub', cost: 'shrub' },
+  { type: 'reeds', cat: 'shrub', cost: 'shrub' },
+  { type: 'flowers', cat: 'decor', cost: 'decor' },
+];
+
+const CATALOG_BY_TYPE = new Map(
+  [...LEGACY_OBJECT_CATALOG, ...OBJECT_CATALOG].map((object) => [object.type, object]),
+);
 
 export function objectCostOf(type) {
   const entry = CATALOG_BY_TYPE.get(type);
   return BALANCE.objectCost[entry ? entry.cost : 'decor'] ?? 50;
 }
 
+export function objectPlacementRotation(type, x, y, randomized = true) {
+  if (!randomized) return 0;
+  let hash = 2166136261;
+  const key = `${type}:${Math.round(x * 1000)}:${Math.round(y * 1000)}`;
+  for (let index = 0; index < key.length; index++) {
+    hash ^= key.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) / 4294967296) * Math.PI * 2;
+}
+
+function objectFootprintZones(course, type, x, y, scale) {
+  const radiusCells = (objectCollisionRadiusYd(type, scale) || 0) / CELL_YD;
+  const points = [{ x, y }];
+  for (const fraction of [0.55, 1]) {
+    for (let index = 0; index < 16; index++) {
+      const angle = (index / 16) * Math.PI * 2;
+      points.push({
+        x: x + Math.cos(angle) * radiusCells * fraction,
+        y: y + Math.sin(angle) * radiusCells * fraction,
+      });
+    }
+  }
+  return [...new Set(points.map((point) => getZone(
+    course,
+    clamp(Math.round(point.x), 0, course.w - 1),
+    clamp(Math.round(point.y), 0, course.h - 1),
+  )))];
+}
+
 // Placement legality: no trees on greens/tees/bunkers/water/paths; props may
 // stand on rough/fringe; nothing floats on water except reeds at the shore.
 export function objectPlacementOk(course, type, x, y, {
-  scale = 1, ignoreId = null, clearanceYd = 0.5,
+  scale = 1, ignoreId = null, clearanceYd = 0.5, protectPlay = false,
 } = {}) {
   const cx = Math.round(x);
   const cy = Math.round(y);
   if (!inBounds(course, cx, cy)) return { ok: false, reason: 'Outside the property.' };
-  const z = getZone(course, cx, cy);
+  const centerZone = getZone(course, cx, cy);
   const entry = CATALOG_BY_TYPE.get(type) || { cat: 'decor' };
-  const NEVER = new Set([ZONE.GREEN, ZONE.TEE, ZONE.BUNKER, ZONE.PATH]);
-  if (NEVER.has(z)) return { ok: false, reason: 'Not on a playing surface.' };
-  if (z === ZONE.WATER && type !== 'reeds' && entry.cat !== 'rock') {
+  const footprintZones = objectFootprintZones(course, type, x, y, scale);
+  if (centerZone === ZONE.PATH || (protectPlay && footprintZones.includes(ZONE.PATH))) {
+    return { ok: false, reason: 'That blocks a cart path.' };
+  }
+  if (centerZone === ZONE.GREEN || centerZone === ZONE.TEE || centerZone === ZONE.BUNKER
+      || (protectPlay && footprintZones.some((zone) => (
+        zone === ZONE.GREEN || zone === ZONE.TEE || zone === ZONE.BUNKER
+      )))) {
+    return { ok: false, reason: 'That obstructs a playing surface.' };
+  }
+  if (protectPlay && (entry.cat === 'tree' || entry.cat === 'shrub')
+      && footprintZones.some((zone) => zone === ZONE.FAIRWAY || zone === ZONE.SEMI || zone === ZONE.FRINGE)) {
+    return { ok: false, reason: 'That canopy would obstruct active play.' };
+  }
+  if ((centerZone === ZONE.WATER || (protectPlay && footprintZones.includes(ZONE.WATER)))
+      && type !== 'reeds' && type !== 'reed_clump' && entry.cat !== 'rock') {
     return { ok: false, reason: 'That would drown.' };
   }
   for (const s of course.structures) {
@@ -1585,9 +1690,11 @@ export function objectPlacementOk(course, type, x, y, {
   return { ok: true };
 }
 
-export function addObject(state, session, type, x, y, { rot = 0, scale = 1 } = {}) {
+export function addObject(state, session, type, x, y, {
+  rot = 0, scale = 1, protectPlay = false,
+} = {}) {
   const { course } = state;
-  const legal = objectPlacementOk(course, type, x, y, { scale });
+  const legal = objectPlacementOk(course, type, x, y, { scale, protectPlay });
   if (!legal.ok) return legal;
   const obj = { id: course.nextObjectId++, type, x, y, rot, scale };
   course.objects.push(obj);
@@ -1608,10 +1715,10 @@ export function removeObject(state, session, id) {
   return { ok: true, cost: BALANCE.objectRemoveCost };
 }
 
-export function beginObjectGesture(state, id, label = 'Move object') {
+export function beginObjectGesture(state, id, label = 'Move object', protectPlay = false) {
   const obj = findObject(state.course, id);
   if (!obj) return null;
-  return { id, label, before: { ...obj } };
+  return { id, label, before: { ...obj }, protectPlay };
 }
 
 export function previewObjectGesture(state, gesture, patch) {
@@ -1621,6 +1728,7 @@ export function previewObjectGesture(state, gesture, patch) {
     const legal = objectPlacementOk(state.course, obj.type, patch.x ?? obj.x, patch.y ?? obj.y, {
       scale: patch.scale ?? obj.scale,
       ignoreId: obj.id,
+      protectPlay: gesture.protectPlay === true,
     });
     if (!legal.ok) return legal;
   }
@@ -1651,7 +1759,7 @@ export function moveObject(state, session, id, patch) {
   return endObjectGesture(state, session, gesture);
 }
 
-export function duplicateObject(state, session, id) {
+export function duplicateObject(state, session, id, { protectPlay = false } = {}) {
   const { course } = state;
   const obj = findObject(course, id);
   if (!obj) return { ok: false, reason: 'No such object.' };
@@ -1663,11 +1771,12 @@ export function duplicateObject(state, session, id) {
       const angle = Math.PI / 4 + index * Math.PI / 6;
       const x = obj.x + Math.cos(angle) * distance;
       const y = obj.y + Math.sin(angle) * distance;
-      const legal = objectPlacementOk(course, obj.type, x, y, { scale: obj.scale });
+      const legal = objectPlacementOk(course, obj.type, x, y, { scale: obj.scale, protectPlay });
       if (!legal.ok) continue;
       return addObject(state, session, obj.type, x, y, {
         rot: obj.rot + 0.6,
         scale: obj.scale,
+        protectPlay,
       });
     }
   }
@@ -1678,6 +1787,7 @@ export function duplicateObject(state, session, id) {
 // Returns the created objects so the UI can preview-then-commit or undo once.
 export function scatterObjects(state, session, types, cx, cy, {
   radius = 4, count = 8, rng = Math.random, scaleMin = 0.85, scaleMax = 1.25,
+  protectPlay = false,
 } = {}) {
   const created = [];
   let cost = 0;
@@ -1690,7 +1800,7 @@ export function scatterObjects(state, session, types, cx, cy, {
     const type = types[Math.floor(rng() * types.length)];
     const rot = rng() * Math.PI * 2;
     const scale = scaleMin + rng() * (scaleMax - scaleMin);
-    if (!objectPlacementOk(course, type, x, y, { scale }).ok) continue;
+    if (!objectPlacementOk(course, type, x, y, { scale, protectPlay }).ok) continue;
     const obj = { id: course.nextObjectId++, type, x, y, rot, scale };
     course.objects.push(obj);
     created.push({ ...obj });
@@ -2091,6 +2201,24 @@ export function affectedHoles(state, session) {
   return out;
 }
 
+export function constructionImpact(state, session) {
+  const affected = session ? affectedHoles(state, session) : [];
+  const currentValue = appraiseProperty(state);
+  const openingValue = Number.isFinite(session?.openingAppraisal)
+    ? session.openingAppraisal
+    : currentValue;
+  return {
+    pendingCost: Math.round(session?.bill || 0),
+    changedCells: session?.changedCells?.size || 0,
+    holesAffected: affected.length,
+    maxConstructionDays: affected.reduce((max, entry) => Math.max(max, entry.days || 0), 0),
+    affected,
+    openingValue,
+    estimatedValue: currentValue,
+    valueDelta: currentValue - openingValue,
+  };
+}
+
 export function applySession(state, session) {
   if (!session.undo.length && !session.changedCells.size) {
     return { ok: false, reason: 'Nothing to build.' };
@@ -2116,6 +2244,7 @@ export function applySession(state, session) {
   session.redo.length = 0;
   session.bill = 0;
   session.changedCells.clear();
+  session.openingAppraisal = appraiseProperty(state);
   return { ok: true, report };
 }
 
@@ -2128,6 +2257,7 @@ export function discardSession(state, session) {
   session.bill = 0;
   session.changedCells.clear();
   state.sections = labelSections(state.course);
+  session.openingAppraisal = appraiseProperty(state);
   return { ok: true };
 }
 

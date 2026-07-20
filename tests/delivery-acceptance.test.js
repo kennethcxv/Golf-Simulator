@@ -55,6 +55,7 @@ test('order six kinds, receive them, and the pad holds exactly what was ordered'
   const st = newGame('relaxed', 11);
   st.cash = 200000;
   st.shop.unlockedTier = 3;
+  st.shop.progression.tier = 'luxury';
 
   const want = {};
   for (const [id, q] of ORDER) {
@@ -79,7 +80,7 @@ test('order six kinds, receive them, and the pad holds exactly what was ordered'
 
 test('drop every box a few times: identities and contents survive, nothing duplicates', () => {
   const st = newGame('relaxed', 12);
-  st.cash = 200000; st.shop.unlockedTier = 3;
+  st.cash = 200000; st.shop.unlockedTier = 3; st.shop.progression.tier = 'luxury';
   for (const [id, q] of ORDER) placeOrder(st, id, q);
   for (let i = 0; i < ORDER.length; i++) { const o = st.shop.orders[0]; if (o) tickDeliveries(st, o.deliveryMin + 1); }
 
@@ -115,7 +116,7 @@ test('drop every box a few times: identities and contents survive, nothing dupli
 
 test('THE ACCEPTANCE FLOW: partially open, SAVE, reload, finish stocking — conserved throughout', () => {
   let st = newGame('relaxed', 13);
-  st.cash = 200000; st.shop.unlockedTier = 3;
+  st.cash = 200000; st.shop.unlockedTier = 3; st.shop.progression.tier = 'luxury';
   for (const [id, q] of ORDER) placeOrder(st, id, q);
   for (let i = 0; i < ORDER.length; i++) { const o = st.shop.orders[0]; if (o) tickDeliveries(st, o.deliveryMin + 1); }
 

@@ -159,6 +159,8 @@ test('provisions armfuls stock only the snack rack, respect capacity, and retain
 
 test('provisions orders use one-day Fairway delivery and exact twelve-unit carton layouts', () => {
   const state = newGame('relaxed', 1803);
+  state.shop.progression.tier = 'standard';
+  state.shop.unlockedTier = 2;
   const day = calendarOf(state.clock.minutes).dayAbs;
   const expectations = { water1: 'DRINK12', snack1: 'SNACK12' };
 

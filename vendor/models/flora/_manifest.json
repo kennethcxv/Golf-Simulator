@@ -331,6 +331,275 @@
       "lod_proxy_for": []
     },
     {
+      "id": "cypress_a",
+      "kind": "evergreen",
+      "height": [
+        12,
+        16
+      ],
+      "tris": 294,
+      "triangle_budget": 700,
+      "source_dimensions_m": [
+        3.5,
+        3.1,
+        14.5
+      ],
+      "source_blend": "asset_sources/blender/flora/cypress_a.blend",
+      "glb": "vendor/models/flora/cypress_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "cypress_far",
+      "kind": "evergreen",
+      "height": [
+        12,
+        16
+      ],
+      "tris": 132,
+      "triangle_budget": 320,
+      "source_dimensions_m": [
+        3.5,
+        3.1,
+        14.5
+      ],
+      "source_blend": "asset_sources/blender/flora/cypress_far.blend",
+      "glb": "vendor/models/flora/cypress_far.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lod_proxy_for": [
+        "cypress_a"
+      ]
+    },
+    {
+      "id": "palm_a",
+      "kind": "palm",
+      "height": [
+        10,
+        14
+      ],
+      "tris": 492,
+      "triangle_budget": 900,
+      "source_dimensions_m": [
+        8.4,
+        7.8,
+        12.5
+      ],
+      "source_blend": "asset_sources/blender/flora/palm_a.blend",
+      "glb": "vendor/models/flora/palm_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "palm_far",
+      "kind": "palm",
+      "height": [
+        10,
+        14
+      ],
+      "tris": 270,
+      "triangle_budget": 300,
+      "source_dimensions_m": [
+        8.4,
+        7.8,
+        12.5
+      ],
+      "source_blend": "asset_sources/blender/flora/palm_far.blend",
+      "glb": "vendor/models/flora/palm_far.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lod_proxy_for": [
+        "palm_a"
+      ]
+    },
+    {
+      "id": "acacia_a",
+      "kind": "deciduous",
+      "height": [
+        10,
+        13
+      ],
+      "tris": 472,
+      "triangle_budget": 850,
+      "source_dimensions_m": [
+        14.8,
+        10.4,
+        11.6
+      ],
+      "source_blend": "asset_sources/blender/flora/acacia_a.blend",
+      "glb": "vendor/models/flora/acacia_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "acacia_far",
+      "kind": "deciduous",
+      "height": [
+        10,
+        13
+      ],
+      "tris": 220,
+      "triangle_budget": 240,
+      "source_dimensions_m": [
+        14.8,
+        10.4,
+        11.6
+      ],
+      "source_blend": "asset_sources/blender/flora/acacia_far.blend",
+      "glb": "vendor/models/flora/acacia_far.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lod_proxy_for": [
+        "acacia_a"
+      ]
+    },
+    {
+      "id": "eucalyptus_a",
+      "kind": "deciduous",
+      "height": [
+        14,
+        18
+      ],
+      "tris": 364,
+      "triangle_budget": 700,
+      "source_dimensions_m": [
+        7.2,
+        6.4,
+        16.8
+      ],
+      "source_blend": "asset_sources/blender/flora/eucalyptus_a.blend",
+      "glb": "vendor/models/flora/eucalyptus_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "eucalyptus_far",
+      "kind": "deciduous",
+      "height": [
+        14,
+        18
+      ],
+      "tris": 188,
+      "triangle_budget": 220,
+      "source_dimensions_m": [
+        7.2,
+        6.4,
+        16.8
+      ],
+      "source_blend": "asset_sources/blender/flora/eucalyptus_far.blend",
+      "glb": "vendor/models/flora/eucalyptus_far.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lod_proxy_for": [
+        "eucalyptus_a"
+      ]
+    },
+    {
+      "id": "ornamental_small_a",
+      "kind": "ornamental",
+      "height": [
+        4,
+        6
+      ],
+      "tris": 1188,
+      "triangle_budget": 1250,
+      "source_dimensions_m": [
+        5.2,
+        4.7,
+        5.4
+      ],
+      "source_blend": "asset_sources/blender/flora/ornamental_small_a.blend",
+      "glb": "vendor/models/flora/ornamental_small_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "deciduous_far",
+      "kind": "deciduous",
+      "height": [
+        10,
+        16
+      ],
+      "tris": 188,
+      "triangle_budget": 190,
+      "source_dimensions_m": [
+        10.6,
+        9.4,
+        13.5
+      ],
+      "source_blend": "asset_sources/blender/flora/deciduous_far.blend",
+      "glb": "vendor/models/flora/deciduous_far.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lod_proxy_for": [
+        "oak_a",
+        "oak_b",
+        "maple_a",
+        "shade_a",
+        "ornamental_small_a"
+      ]
+    },
+    {
       "id": "shrub_round",
       "kind": "shrub",
       "height": [
@@ -406,6 +675,81 @@
         1.4
       ],
       "tris": 72
+    },
+    {
+      "id": "hedge_a",
+      "kind": "shrub",
+      "height": [
+        1.0,
+        1.5
+      ],
+      "tris": 216,
+      "triangle_budget": 360,
+      "source_dimensions_m": [
+        2.6,
+        0.85,
+        1.2
+      ],
+      "source_blend": "asset_sources/blender/flora/hedge_a.blend",
+      "glb": "vendor/models/flora/hedge_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "groundcover_a",
+      "kind": "groundcover",
+      "height": [
+        0.2,
+        0.4
+      ],
+      "tris": 144,
+      "triangle_budget": 220,
+      "source_dimensions_m": [
+        0.5957,
+        0.5901,
+        0.3365
+      ],
+      "source_blend": "asset_sources/blender/flora/groundcover_a.blend",
+      "glb": "vendor/models/flora/groundcover_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "flower_bed_a",
+      "kind": "flowerbed",
+      "height": [
+        0.3,
+        0.6
+      ],
+      "tris": 292,
+      "triangle_budget": 380,
+      "source_dimensions_m": [
+        1.8,
+        1.15,
+        0.52
+      ],
+      "source_blend": "asset_sources/blender/flora/flower_bed_a.blend",
+      "glb": "vendor/models/flora/flower_bed_a.glb",
+      "mesh_count": 1,
+      "material_count": 1,
+      "vertex_color_attribute": "Col",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ]
     },
     {
       "id": "rock_s",
