@@ -11,6 +11,7 @@ import { fairGreenFee, amenityScore, clubRatings } from './club.js';
 import { members } from './golfers.js';
 import { shopOpenStock } from './shop.js';
 import { SHOP_CATALOG, SHELF_CAP } from '../data/shopItems.js';
+import { capacityOf } from '../data/fixtureSlots.js';
 import { thoughtsForRound } from '../data/thoughts.js';
 import { ROLE, bestSkill, groundsCrewHours } from './staff.js';
 
@@ -79,7 +80,7 @@ export function buildRoundContext(state, golfer, agg, extras) {
   const ratings = clubRatings(state);
   const amen = amenityScore(state);
   let shelfCapTotal = 0;
-  for (const sku of SHOP_CATALOG) shelfCapTotal += SHELF_CAP[sku.cat];
+  for (const sku of SHOP_CATALOG) shelfCapTotal += capacityOf(sku.id) || SHELF_CAP[sku.cat];
   const markupMax = Math.max(...Object.values(state.shop.markup));
   const dayAbs = calendarOf(state.clock.minutes).dayAbs;
   return {

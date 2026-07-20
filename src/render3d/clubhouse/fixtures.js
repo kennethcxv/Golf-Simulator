@@ -13,12 +13,13 @@
 
 import * as THREE from 'three';
 import {
-  FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, LOGO_RUG, REGISTER, COUNTER_TOP, fixtureSockets,
+  FIXTURES, COUNTER, LOUNGE, STOCKROOM, INTERIOR, LOGO_RUG, REGISTER, COUNTER_TOP,
+  fixtureCollisionRects, fixtureSockets,
 } from '../../data/shopLayout.js';
 import { restockShelfFromBackroom } from '../../sim/shop.js';
 import { skuById } from '../../data/shopItems.js';
 import { capacityOf } from '../../data/fixtureSlots.js';
-import { placedFixtures } from '../../sim/layout.js';
+import { activeFixtures } from '../../sim/layout.js';
 import { tutorialFlag } from '../../sim/tutorial.js';
 import { roundedBox, makeSignTexture, makeRugTexture } from './materials.js';
 
@@ -71,6 +72,27 @@ export function buildFixtures(B) {
     interior, mats, merch, addCol: rawAddCol, addProp: rawAddProp, removeCol, removeProp,
     colBoxAt, L2W, state, hooks,
   } = B;
+  for (const material of Object.values(mats)) {
+    if (material && material.userData) material.userData.sharedMaterial = true;
+  }
+
+  function releaseFixtureVisual(root) {
+    const geometries = new Set();
+    const materials = new Set();
+    root.traverse((object) => {
+      if (object.isMesh && object.geometry && !object.geometry.userData.sharedGeometry) geometries.add(object.geometry);
+      for (const material of (Array.isArray(object.material) ? object.material : [object.material])) {
+        if (material && !material.userData.sharedMaterial) materials.add(material);
+      }
+    });
+    for (const geometry of geometries) geometry.dispose();
+    for (const material of materials) {
+      for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap']) {
+        if (material[key]) material[key].dispose();
+      }
+      material.dispose();
+    }
+  }
 
   // Only what the fixture loop lays down is re-layable; the counter, the rug and the lounge are
   // architecture, not furniture the player pushes around.
@@ -190,8 +212,14 @@ export function buildFixtures(B) {
       prices.position.set(0, priceY, priceZ == null ? d / 2 + 0.02 : priceZ);
       g.add(prices);
     }
-    const swap = Math.abs(Math.sin(f.ry || 0)) > 0.5;
-    addCol(colBoxAt(f.x, f.z, swap ? d : w, swap ? w : d));
+    for (const rect of fixtureCollisionRects(f)) {
+      addCol(colBoxAt(
+        (rect.minX + rect.maxX) / 2,
+        (rect.minZ + rect.maxZ) / 2,
+        rect.maxX - rect.minX,
+        rect.maxZ - rect.minZ,
+      ));
+    }
     return g;
   }
 
@@ -703,8 +731,7 @@ export function buildFixtures(B) {
   // take them all back without disturbing the counter, the rug or the lounge.
   function layFixtures() {
     tracking = true;
-    for (const f of placedFixtures(state)) {
-      if (f.minTier && f.minTier > state.shop.unlockedTier) continue;
+    for (const f of activeFixtures(state)) {
       const build = FIXTURE_BUILDERS[f.kind];
       if (!build) continue;
       const g = build(f);
@@ -722,7 +749,10 @@ export function buildFixtures(B) {
     for (const p of laidProps) removeProp(p);
     laidCols.length = 0;
     laidProps.length = 0;
-    for (const g of fixtureAnchors.values()) interior.remove(g);
+    for (const g of fixtureAnchors.values()) {
+      interior.remove(g);
+      releaseFixtureVisual(g);
+    }
     fixtureAnchors.clear();
     layFixtures();
   }

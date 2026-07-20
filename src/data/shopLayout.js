@@ -83,6 +83,48 @@ export function fixtureRect(f) {
   return { minX: f.x - hx, maxX: f.x + hx, minZ: f.z - hz, maxZ: f.z + hz };
 }
 
+// A fixture footprint is the space reserved for placement; its collision can
+// be more truthful. The fitting room is three walls around a walkable interior,
+// and the putting mat is floor dressing with only its raised backstop solid.
+// Keeping these proxies in data lets player collision, customer routing and
+// tests answer the same geometry question.
+export function fixtureCollisionRects(f) {
+  const proxies = f.kind === 'fittingroom'
+    ? [
+      { x: 0, z: -0.72, w: 2.2, d: 0.12 },
+      { x: -1.02, z: 0, w: 0.12, d: 1.56 },
+      { x: 1.02, z: 0, w: 0.12, d: 1.56 },
+    ]
+    : f.kind === 'demo'
+      ? [{ x: -1.87, z: 0, w: 0.18, d: 1.12 }]
+      : null;
+  if (!proxies) return [fixtureRect(f)];
+  const c = Math.cos(f.ry || 0);
+  const s = Math.sin(f.ry || 0);
+  return proxies.map((p) => {
+    const x = f.x + p.x * c + p.z * s;
+    const z = f.z - p.x * s + p.z * c;
+    const swap = Math.abs(s) > 0.5;
+    const w = swap ? p.d : p.w;
+    const d = swap ? p.w : p.d;
+    return { minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 };
+  });
+}
+
+export function fixtureAvailableAtTier(f, tier = 1) {
+  return (!f.minTier || tier >= f.minTier) && (!f.maxTier || tier <= f.maxTier);
+}
+
+export const SHOP_LIGHTING_TIERS = Object.freeze({
+  1: Object.freeze({ key: 'basic', practicalScale: 0.86, displayScale: 0.78, premiumAccent: 0 }),
+  2: Object.freeze({ key: 'standard', practicalScale: 1, displayScale: 1, premiumAccent: 0 }),
+  3: Object.freeze({ key: 'premium', practicalScale: 1.08, displayScale: 1.16, premiumAccent: 1 }),
+});
+
+export function shopLightingTier(tier = 1) {
+  return SHOP_LIGHTING_TIERS[Math.max(1, Math.min(3, Math.floor(tier)))] || SHOP_LIGHTING_TIERS[1];
+}
+
 // Interaction points live outside colliders. They are authored in fixture-local
 // coordinates so build mode can rotate and move the fixture without leaving its
 // customer or stocking target behind.
@@ -225,23 +267,23 @@ export const HOURS_SIGN = { x: 1.1, z: 6.77 };         // beside the door, on th
 export const FIXTURES = [
   // The western club wall remains a continuous architectural run. Local +z is
   // the product-facing side, which becomes east after the quarter turn.
-  { id: 'rack_drivers', kind: 'rack', x: -9.9, z: -3.2, ry: Math.PI / 2, skus: ['driver1', 'driver2', 'driver3'], title: 'Drivers & woods', zone: 'clubwall', browse: [{ x: -0.65, z: 1.05 }, { x: 0.65, z: 1.05 }], stock: [{ x: 0, z: 0.95 }] },
+  { id: 'rack_drivers', kind: 'rack', x: -9.9, z: -3.2, ry: Math.PI / 2, skus: ['driver1', 'driver2', 'driver3'], title: 'Drivers & woods', zone: 'clubwall', browse: [{ x: -0.65, z: 1.05 }, { x: 0.65, z: 1.05 }], stock: [{ x: 0, z: 0.95 }], experienceAfter: ['tour_vault'] },
   { id: 'rack_irons', kind: 'rack', x: -9.9, z: -0.2, ry: Math.PI / 2, skus: ['irons1', 'irons2', 'wedge1', 'wedge2'], title: 'Irons & wedges', zone: 'clubwall', browse: [{ x: -0.65, z: 1.05 }, { x: 0.65, z: 1.05 }], stock: [{ x: 0, z: 0.95 }] },
-  { id: 'rack_putters', kind: 'rack', x: -9.9, z: 2.8, ry: Math.PI / 2, skus: ['putter1', 'putter2', 'putter3'], title: 'Putter studio', zone: 'clubwall', browse: [{ x: -0.65, z: 1.05 }, { x: 0.65, z: 1.05 }], stock: [{ x: 0, z: 0.95 }] },
+  { id: 'rack_putters', kind: 'rack', x: -9.9, z: 2.8, ry: Math.PI / 2, skus: ['putter1', 'putter2', 'putter3'], title: 'Putter studio', zone: 'clubwall', browse: [{ x: -0.65, z: 1.05 }, { x: 0.65, z: 1.05 }], stock: [{ x: 0, z: 0.95 }], experienceAfter: ['putting_demo'] },
 
   // The shallow north-wall run restores the long entrance sightline.
   { id: 'shelf_balls', kind: 'shelf', x: -6.9, z: -6.15, ry: 0, skus: ['balls1', 'balls2', 'balls3'], title: 'Golf balls', zone: 'balls', browse: [{ x: -0.8, z: 1.0 }, { x: 0.8, z: 1.0 }], stock: [{ x: 0, z: 0.92 }] },
   { id: 'shelf_acc', kind: 'pegboard', x: -3.7, z: -6.15, ry: 0, skus: ['tees1', 'towel1', 'marker1', 'divot1', 'range2', 'sunglasses2', 'bottle1', 'umb1'], title: 'Golf essentials', zone: 'accessories', browse: [{ x: -0.8, z: 1.0 }, { x: 0.8, z: 1.0 }], stock: [{ x: 0, z: 0.92 }] },
-  { id: 'shelf_small', kind: 'apparelwall', x: -0.5, z: -6.15, ry: 0, skus: ['glove1', 'glove2', 'sock1', 'jacket2'], title: 'Apparel & gloves', zone: 'apparel', browse: [{ x: -0.8, z: 1.0 }, { x: 0.8, z: 1.0 }], stock: [{ x: 0, z: 0.92 }] },
+  { id: 'shelf_small', kind: 'apparelwall', x: -0.5, z: -6.15, ry: 0, skus: ['glove1', 'glove2', 'sock1', 'jacket2'], title: 'Apparel & gloves', zone: 'apparel', browse: [{ x: -0.8, z: 1.0 }, { x: 0.8, z: 1.0 }], stock: [{ x: 0, z: 0.92 }], experienceAfter: ['fittingroom'] },
   { id: 'hatstand', kind: 'hatstand', x: 1.55, z: -5.9, ry: 0, skus: ['cap1', 'cap2'], title: 'Hat tree', sign: 'Club headwear', zone: 'apparel', browse: [{ x: 0, z: 0.9 }], stock: [{ x: 0, z: 0.82 }] },
 
   // One low apparel island replaces the old sightline-blocking table/rail block.
-  { id: 'table_polos', kind: 'table', x: -6.0, z: 0.65, ry: 0, skus: ['polo1', 'polo2', 'pants2', 'shorts1'], title: 'Course apparel', zone: 'apparel', browse: [{ x: -0.72, z: 1.18 }, { x: 0.72, z: 1.18 }, { x: 0, z: -1.18 }], stock: [{ x: 0, z: 1.12 }] },
+  { id: 'table_polos', kind: 'table', x: -6.0, z: 0.65, ry: 0, skus: ['polo1', 'polo2', 'pants2', 'shorts1'], title: 'Course apparel', zone: 'apparel', browse: [{ x: -0.72, z: 1.18 }, { x: 0.72, z: 1.18 }, { x: 0, z: -1.18 }], stock: [{ x: 0, z: 1.12 }], experienceAfter: ['fittingroom'] },
 
   // Bag, fitting and shoe fixtures form one coherent partition-side run.
-  { id: 'bagstand', kind: 'bagstand', x: 2.05, z: -2.65, ry: 0, skus: ['bag1', 'bag3'], title: 'Golf bags', zone: 'bags', browse: [{ x: -0.65, z: 1.12 }, { x: 0.65, z: 1.12 }], stock: [{ x: 0, z: 1.05 }] },
-  { id: 'fittingroom', kind: 'fittingroom', x: 4.45, z: -2.4, ry: 0, skus: [], title: 'Fitting room', zone: 'shoes' },
-  { id: 'shoerack', kind: 'shoerack', x: 5.25, z: -0.25, ry: -Math.PI / 2, skus: ['shoe1', 'shoe3'], title: 'Golf shoes', zone: 'shoes', browse: [{ x: -0.62, z: 0.92 }, { x: 0.62, z: 0.92 }], stock: [{ x: 0, z: 0.88 }] },
+  { id: 'bagstand', kind: 'bagstand', x: 2.05, z: -2.65, ry: 0, skus: ['bag1', 'bag3'], title: 'Golf bags', zone: 'bags', browse: [{ x: -0.65, z: 1.12 }, { x: 0.65, z: 1.12 }], stock: [{ x: 0, z: 1.05 }], minTier: 2 },
+  { id: 'fittingroom', kind: 'fittingroom', x: 4.45, z: -2.4, ry: 0, skus: [], title: 'Fitting room', zone: 'shoes', minTier: 3, experience: 'fitting', browse: [{ x: 0, z: 0.16 }], experienceTarget: { x: 0, z: -0.58 } },
+  { id: 'shoerack', kind: 'shoerack', x: 5.25, z: -0.25, ry: -Math.PI / 2, skus: ['shoe1', 'shoe3'], title: 'Golf shoes', zone: 'shoes', browse: [{ x: -0.62, z: 0.92 }, { x: 0.62, z: 0.92 }], stock: [{ x: 0, z: 0.88 }], minTier: 2, experienceAfter: ['fittingroom'] },
 
   // A compact grab-and-go run terminates the partition without entering the queue.
   { id: 'cold_drinks', kind: 'fridge', x: 5.17, z: 1.53, ry: 0, skus: ['water1', 'sportdrink2', 'soda1'], title: 'Cold drinks', zone: 'refreshments', browse: [{ x: 0, z: 0.98 }], stock: [{ x: 0, z: 0.9 }] },
@@ -249,9 +291,9 @@ export const FIXTURES = [
   { id: 'member_station', kind: 'service', x: 1.70, z: 2.20, ry: 0, skus: ['scorecard1'], title: 'Scorecards', zone: 'membership', browse: [{ x: 0, z: 0.82 }], stock: [{ x: 0, z: 0.78 }] },
 
   // Low new arrivals and premium presentation occupy reserved, non-blocking footprints.
-  { id: 'feature', kind: 'feature', x: -3.35, z: 3.10, ry: 0, skus: [], title: 'New arrivals', zone: 'entrance' },
-  { id: 'tour_vault', kind: 'premiumcase', x: 5.25, z: -5.20, ry: -Math.PI / 2, skus: [], title: 'Tour Vault', zone: 'premium', minTier: 3 },
-  { id: 'putting_demo', kind: 'demo', x: -7.0, z: 4.95, ry: 0, skus: [], title: 'Putting studio', zone: 'premium', minTier: 3 },
+  { id: 'feature', kind: 'feature', x: -3.35, z: 3.10, ry: 0, skus: [], title: 'New arrivals', zone: 'entrance', minTier: 2 },
+  { id: 'tour_vault', kind: 'premiumcase', x: 5.25, z: -5.20, ry: -Math.PI / 2, skus: [], title: 'Tour Vault', zone: 'premium', minTier: 3, experience: 'premium', browse: [{ x: 0, z: 0.82 }], experienceTarget: { x: 0, z: 0 } },
+  { id: 'putting_demo', kind: 'demo', x: -7.0, z: 4.95, ry: 0, skus: [], title: 'Putting studio', zone: 'premium', minTier: 3, experience: 'putting', browse: [{ x: 1.22, z: 0 }], experienceTarget: { x: -1.48, z: 0 } },
   // checkout back-counter: wordmark wall, cabinets, bag stack (ref 4)
   { id: 'backcounter', kind: 'backcounter', x: 3.2, z: 6.15, ry: 0, skus: [], title: 'Back counter', zone: 'checkout' },
   // stockroom (non-retail; visualizes backroom stock + receives boxes)

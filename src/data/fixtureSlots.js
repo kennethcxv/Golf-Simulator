@@ -367,3 +367,22 @@ export function slotsFor(skuId) {
 export function capacityOf(skuId) {
   return slotsFor(skuId).length;
 }
+
+// Renderer/UI contract for empty, partial and full shelves. Invalid or corrupt
+// quantities are clamped once here, so neither view can invent stock or address
+// a slot that does not physically exist.
+export function visibleSlotsFor(skuId, quantity) {
+  const slots = slotsFor(skuId);
+  const count = Math.max(0, Math.min(slots.length, Math.floor(Number(quantity) || 0)));
+  return slots.slice(0, count);
+}
+
+export function stockPresentationState(skuId, quantity) {
+  const capacity = capacityOf(skuId);
+  const count = visibleSlotsFor(skuId, quantity).length;
+  return {
+    count,
+    capacity,
+    state: count === 0 ? 'empty' : count === capacity ? 'full' : 'partial',
+  };
+}

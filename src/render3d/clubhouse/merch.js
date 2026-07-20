@@ -184,10 +184,17 @@ export function createMerch(mats) {
         merged = null;
       }
       if (!merged) { // a mismatched set: keep them loose rather than lose them
-        for (const g of geos) out.add(new THREE.Mesh(g, m));
+        for (const g of geos) {
+          g.userData.sharedGeometry = false;
+          const mesh = new THREE.Mesh(g, m);
+          mesh.userData.disposeGeometry = true;
+          out.add(mesh);
+        }
         continue;
       }
       const mesh = new THREE.Mesh(merged, m);
+      mesh.geometry.userData.sharedGeometry = false;
+      mesh.userData.disposeGeometry = true;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       out.add(mesh);
@@ -209,7 +216,11 @@ export function createMerch(mats) {
       `vendor/models/clubhouse/${name}.glb`,
       (g) => {
         const root = g.scene;
-        root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+        root.traverse((o) => {
+          if (!o.isMesh) return;
+          o.castShadow = true;
+          if (o.geometry) o.geometry.userData.sharedGeometry = true;
+        });
         protos.set(name, root);
         done();
       },
@@ -222,7 +233,12 @@ export function createMerch(mats) {
       `vendor/models/clubhouse/${name}.glb`,
       (g) => {
         const root = g.scene;
-        root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+        root.traverse((o) => {
+          if (!o.isMesh) return;
+          o.castShadow = true;
+          o.receiveShadow = false;
+          if (o.geometry) o.geometry.userData.sharedGeometry = true;
+        });
         protos.set(name, root);
         done();
       },

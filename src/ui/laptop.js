@@ -16,6 +16,7 @@ import { calendarOf } from '../sim/time.js';
 import {
   SHOP_CATALOG, skuById, LEAD_DAYS, SHELF_CAP, RETAIL_CATS,
 } from '../data/shopItems.js';
+import { capacityOf } from '../data/fixtureSlots.js';
 import {
   placeOrder, cancelOrder, orderCost, shopCondition, priceFor,
   velocity, daysOfSupply, buyRentalSets,
@@ -373,7 +374,7 @@ export function makeLaptop(app, opts) {
       if (!skus.length) return null;
       const shelf = skus.reduce((a, s) => a + inv[s.id].shelf, 0);
       const back = skus.reduce((a, s) => a + inv[s.id].back, 0);
-      const capacity = skus.length * SHELF_CAP[cat];
+      const capacity = skus.reduce((sum, sku) => sum + capacityOf(sku.id), 0);
       const outLines = skus.filter((s) => inv[s.id].shelf === 0).length;
       const sold = skus.reduce((a, s) => a + velocity(st, s.id), 0);
       return el('tr', {},
@@ -711,7 +712,7 @@ export function makeLaptop(app, opts) {
     const inv = st.shop.inventory;
     const rows = retailSkus(st).map((s) => {
       const e = inv[s.id];
-      const cap = SHELF_CAP[s.cat];
+      const cap = capacityOf(s.id) || SHELF_CAP[s.cat];
       const incoming = incomingOf(st, s.id);
       const v = velocity(st, s.id);
       const dos = daysOfSupply(st, s.id);

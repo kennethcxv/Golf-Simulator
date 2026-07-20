@@ -12,7 +12,8 @@
 
 import {
   FIXTURES, INTERIOR, PARTITIONS, COUNTER, DOOR_CLEARWAY, BACKDOOR_CLEARWAY,
-  STOCKROOM, OFFICE, PLAYER_DIAM, STAFF_CORRIDOR_MIN, fixtureRect, fixtureSockets, queueSlot,
+  STOCKROOM, OFFICE, PLAYER_DIAM, STAFF_CORRIDOR_MIN, fixtureRect, fixtureCollisionRects,
+  fixtureAvailableAtTier, fixtureSockets, queueSlot,
 } from '../data/shopLayout.js';
 import { boxDims } from '../data/boxes.js';
 
@@ -53,6 +54,13 @@ export function placedFixtures(state) {
   return out;
 }
 
+// What physically exists at the player's current shop tier. Hidden premium
+// fixtures must not leave phantom build-mode targets, colliders or routes.
+export function activeFixtures(state) {
+  const tier = state.shop?.unlockedTier || 1;
+  return placedFixtures(state).filter((f) => fixtureAvailableAtTier(f, tier));
+}
+
 export const fixtureById = (state, id) => placedFixtures(state).find((f) => f.id === id);
 export const storedFixtures = (state) => [...ensureLayout(state).stored];
 
@@ -84,10 +92,10 @@ function solidAt(x, z, rects) {
 
 // can a shopper get from the door to everywhere a shopper needs to be?
 export function routesIntact(state, override) {
-  const rects = placedFixtures(state)
+  const rects = activeFixtures(state)
     .filter((f) => !override || f.id !== override.id)
-    .map(fixtureRect);
-  if (override && override.place) rects.push(fixtureRect(override.place));
+    .flatMap(fixtureCollisionRects);
+  if (override && override.place) rects.push(...fixtureCollisionRects(override.place));
 
   // flood from just inside the main door
   const start = { x: DOOR_CLEARWAY.minX / 2 + DOOR_CLEARWAY.maxX / 2, z: INTERIOR.d / 2 - 1.0 };
@@ -142,8 +150,8 @@ export function routesIntact(state, override) {
   if (!reached(OFFICE.chair)) return false;
   if (!reached(STOCKROOM.receivingInside)) return false;
   // ...and every unit the customer is meant to browse
-  for (const f of placedFixtures(state)) {
-    if (!f.skus || !f.skus.length) continue;
+  for (const f of activeFixtures(state)) {
+    if ((!f.skus || !f.skus.length) && !f.experience) continue;
     if (override && f.id === override.id) continue;
     const sockets = fixtureSockets(f);
     if (sockets.length) {
@@ -181,7 +189,7 @@ export function validatePlacement(state, id, x, z, ry = 0) {
   }
 
   // 2. not on top of anything else
-  for (const other of placedFixtures(state)) {
+  for (const other of activeFixtures(state)) {
     if (other.id === id) continue;
     if (rectsOverlap(rect, fixtureRect(other))) {
       reasons.push(`That overlaps the ${other.title || other.kind}.`);
@@ -282,7 +290,7 @@ export function boxDropLegal(state, box, x, z, ry = 0) {
       || rect.minZ < -INTERIOR.d / 2 || rect.maxZ > INTERIOR.d / 2 || crossesPartition(rect)) {
     reasons.push('That would go into a wall.');
   }
-  for (const f of placedFixtures(state)) {
+  for (const f of activeFixtures(state)) {
     if (rectsOverlap(rect, fixtureRect(f))) { reasons.push(`That is on top of the ${f.title || f.kind}.`); break; }
   }
   if (rectsOverlap(rect, DOOR_CLEARWAY)) reasons.push('That blocks the shop doorway.');

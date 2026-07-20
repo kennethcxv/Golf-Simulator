@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  FIXTURES, INTERIOR, fixtureRect, fixtureSockets,
+  FIXTURES, INTERIOR, fixtureCollisionRects, fixtureRect, fixtureSockets,
 } from '../src/data/shopLayout.js';
 
 const inside = (p, r) => p.x > r.minX && p.x < r.maxX && p.z > r.minZ && p.z < r.maxZ;
@@ -37,4 +37,32 @@ test('moving and rotating a fixture carries its sockets with it', () => {
   const world = fixtureSockets(moved, 'browse')[0];
   assert.ok(Math.abs(world.x - (moved.x + local.z)) < 1e-9);
   assert.ok(Math.abs(world.z - (moved.z - local.x)) < 1e-9);
+});
+
+test('fitting and putting experiences are authored in walkable space and face a real target', () => {
+  const experiences = FIXTURES.filter((f) => f.experience);
+  assert.deepEqual(new Set(experiences.map((f) => f.experience)), new Set(['fitting', 'premium', 'putting']));
+  for (const f of experiences) {
+    const sockets = fixtureSockets(f, 'browse');
+    assert.ok(sockets.length, `${f.id} has a customer experience socket`);
+    assert.ok(f.experienceTarget, `${f.id} has an authored point of interest`);
+    for (const socket of sockets) {
+      for (const solid of fixtureCollisionRects(f)) {
+        assert.ok(!inside(socket, solid), `${socket.key} is not trapped in ${f.id}'s physical collision`);
+      }
+    }
+  }
+});
+
+test('experience links resolve to eligible authored fixtures without duplicate sockets', () => {
+  const linked = [];
+  for (const f of FIXTURES) {
+    for (const id of f.experienceAfter || []) {
+      const target = FIXTURES.find((candidate) => candidate.id === id);
+      assert.ok(target, `${f.id} links to existing fixture ${id}`);
+      assert.ok(target.experience, `${id} is an experience, not decorative metadata`);
+      linked.push(...fixtureSockets(target, 'browse').map((p) => p.key));
+    }
+  }
+  assert.ok(linked.length >= 3, 'clubs, apparel and putters have contextual experiences');
 });

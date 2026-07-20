@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import { fixtureRect, FIXTURE_HALF } from '../../data/shopLayout.js';
 import {
-  placedFixtures, validatePlacement, commitPlacement, storeFixture, GRID,
+  activeFixtures, validatePlacement, commitPlacement, storeFixture, GRID,
 } from '../../sim/layout.js';
 
 const GHOST_OK = 0x4ade80;
@@ -82,7 +82,7 @@ export function buildBuildMode(B, deps) {
     const p = aimLocal();
     let best = null;
     let bestD = 2.2;
-    for (const f of placedFixtures(state)) {
+    for (const f of activeFixtures(state)) {
       const r = fixtureRect(f);
       const inside = p.x >= r.minX && p.x <= r.maxX && p.z >= r.minZ && p.z <= r.maxZ;
       const d = inside ? 0 : Math.hypot(

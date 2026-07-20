@@ -9,6 +9,7 @@ import { newGame } from '../src/sim/state.js';
 import { pickFromShelf, returnToShelf, checkoutSale, liveSales } from '../src/sim/checkout.js';
 import { priceFor } from '../src/sim/shop.js';
 import { skuById } from '../src/data/shopItems.js';
+import { capacityOf } from '../src/data/fixtureSlots.js';
 
 test('a live pick physically leaves the shelf; an empty shelf refuses the pick', () => {
   const st = newGame('relaxed', 42);
@@ -26,6 +27,14 @@ test('an abandoned pick goes back on the display', () => {
   pickFromShelf(st, 'glove1');
   returnToShelf(st, 'glove1');
   assert.equal(st.shop.inventory.glove1.shelf, 3, 'the glove is back on the shelf');
+});
+
+test('a returned unit cannot overflow its authored product facing', () => {
+  const st = newGame('relaxed', 42);
+  const cap = capacityOf('bag1');
+  st.shop.inventory.bag1.shelf = cap;
+  returnToShelf(st, 'bag1');
+  assert.equal(st.shop.inventory.bag1.shelf, cap, 'the four-place bag platform stays at four');
 });
 
 test('ringing a sale pays real revenue into the books and logs it', () => {

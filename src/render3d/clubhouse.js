@@ -14,7 +14,7 @@ import { clamp, rngOf } from '../core/utils.js';
 import { fitDistance } from '../core/screenFit.js';
 import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig.js';
 import { makeCharacter } from './characterAsset.js';
-import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
+import { SHOP_CATALOG, DECOR_SPOTS } from '../data/shopItems.js';
 import {
   SHELL, INTERIOR, FIXTURES, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
@@ -39,7 +39,7 @@ import { tutorialFlag } from '../sim/tutorial.js';
 import { dueForCheckIn, checkInReservation, fmtSlot } from '../sim/reservations.js';
 import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel } from './clubhouse/materials.js';
 import { createMerch } from './clubhouse/merch.js';
-import { slotsFor } from '../data/fixtureSlots.js';
+import { slotsFor, visibleSlotsFor } from '../data/fixtureSlots.js';
 import { buildShell } from './clubhouse/shell.js';
 import { buildDoors } from './clubhouse/doors.js';
 import { buildFixtures, buildLounge, buildStockroomDressing, buildCheckout } from './clubhouse/fixtures.js';
@@ -49,7 +49,7 @@ import { makeNav } from './clubhouse/nav.js';
 import { productThumb } from './clubhouse/thumbs.js';
 import { buildExterior } from './clubhouse/exterior.js';
 import { buildWashing } from './clubhouse/washing.js';
-import { placedFixtures, ensureLayout, legalBoxDrop } from '../sim/layout.js';
+import { activeFixtures, ensureLayout, legalBoxDrop } from '../sim/layout.js';
 import { buildBuildMode } from './clubhouse/buildMode.js';
 import { reviewFor, postReview } from '../sim/reviews.js';
 
@@ -188,6 +188,7 @@ export function makeClubhouse(ctx) {
   B.rebuildStock = (...a) => rebuildStock(...a); // function is hoisted; wired before use
   const { fixtureAnchors, relayFixtures } = buildFixtures(B);
   let fixtureTier = state.shop.unlockedTier;
+  shell.lighting.setShopTier(fixtureTier);
 
   // the player moved something: re-lay the floor and put the stock back on it. The customers'
   // paths rebake themselves — removeCol/addCol bump colVersion, and navFresh() watches it — so a
@@ -1396,6 +1397,10 @@ export function makeClubhouse(ctx) {
   const BALL_BOX_GEO = new THREE.BoxGeometry(0.165, 0.12, 0.125);
   // NOT roundedBox: its UVs are planar and world-scaled, which crops a 0..1 label into mush.
   const CARTON_GEO = new THREE.BoxGeometry(0.12, 0.10, 0.11);
+  const UNIT_LABEL_GEO = new THREE.PlaneGeometry(1, 1);
+  BALL_BOX_GEO.userData.sharedGeometry = true;
+  CARTON_GEO.userData.sharedGeometry = true;
+  UNIT_LABEL_GEO.userData.sharedGeometry = true;
   const STOCK_PREVIEW_MAT = new THREE.MeshBasicMaterial({
     color: 0xd0ad4f, transparent: true, opacity: 0.58, wireframe: true, depthWrite: false,
   });
@@ -1443,22 +1448,23 @@ export function makeClubhouse(ctx) {
 
   function ballBoxMat(sku) {
     if (!ballBoxMats.has(sku.id)) {
-      const plain = new THREE.MeshStandardMaterial({
+      ballBoxMats.set(sku.id, new THREE.MeshStandardMaterial({
         color: sku.tier >= 3 ? 0x1f4a26 : sku.tier === 2 ? 0x2c3e66 : 0xf0ead8,
         roughness: 0.72,
-      });
-      // the brand faces the shopper (+z); the other five faces are the carton
-      ballBoxMats.set(sku.id, [plain, plain, plain, plain, ballLabelMat(sku), plain]);
+      }));
     }
     return ballBoxMats.get(sku.id);
   }
 
   function cartonMat(sku) {
-    const brand = CARTON_BRAND[sku.id];
-    const m = skuMat(sku);
-    if (!brand) return m;
-    const label = cartonLabelMat(sku, brand);
-    return [m, m, m, m, label, m];
+    return skuMat(sku);
+  }
+
+  function frontLabel(material, w, h, z) {
+    const label = new THREE.Mesh(UNIT_LABEL_GEO, material);
+    label.scale.set(w, h, 1);
+    label.position.z = z;
+    return label;
   }
 
   // where the container that a line stands IN sits — derived from the line's own slots, so a
@@ -1532,7 +1538,10 @@ export function makeClubhouse(ctx) {
     }
 
     if (sku.cat === 'balls') {
-      const box = new THREE.Mesh(BALL_BOX_GEO, ballBoxMat(sku));
+      const box = new THREE.Group();
+      const body = new THREE.Mesh(BALL_BOX_GEO, ballBoxMat(sku));
+      const label = frontLabel(ballLabelMat(sku), 0.142, 0.094, 0.0635);
+      box.add(body, label);
       box.position.set(s.x, s.y, s.z);
       box.castShadow = true;
       return box;
@@ -1670,12 +1679,17 @@ export function makeClubhouse(ctx) {
       const bodyMat = skuMat(sku);
       const body = new THREE.Mesh(
         new THREE.BoxGeometry(w, h, 0.055),
-        [bodyMat, bodyMat, bodyMat, bodyMat, snackLabelMat(sku), bodyMat],
+        bodyMat,
       );
       body.position.set(s.x, s.y + h / 2, s.z);
       body.rotation.z = (i % 2) * 0.035 - 0.0175;
       body.castShadow = true;
-      g.add(body);
+      const label = frontLabel(snackLabelMat(sku), w * 0.86, h * 0.82, 0.0285);
+      label.position.x = s.x;
+      label.position.y = body.position.y;
+      label.position.z = s.z + 0.0285;
+      label.rotation.z = body.rotation.z;
+      g.add(body, label);
       const seal = new THREE.Mesh(new THREE.BoxGeometry(w * 0.88, 0.012, 0.061), mats.brass);
       seal.position.set(s.x, s.y + h - 0.008, s.z);
       seal.rotation.z = body.rotation.z;
@@ -1707,6 +1721,13 @@ export function makeClubhouse(ctx) {
       const g = new THREE.Group();
       const card = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.018), cartonMat(sku));
       card.position.set(s.x, s.y, s.z);
+      const brand = CARTON_BRAND[sku.id];
+      if (brand) {
+        const label = frontLabel(cartonLabelMat(sku, brand), 0.116, 0.08, s.z + 0.010);
+        label.position.x = s.x;
+        label.position.y = s.y;
+        g.add(label);
+      }
       const tool = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, 0.07, 3, 6), mats.brass);
       tool.position.set(s.x, s.y - 0.01, s.z + 0.018);
       tool.rotation.z = 0.35;
@@ -1718,15 +1739,40 @@ export function makeClubhouse(ctx) {
     const item = new THREE.Mesh(CARTON_GEO, cartonMat(sku));
     item.position.set(s.x, s.y, s.z);
     item.castShadow = true;
-    return item;
+    const brand = CARTON_BRAND[sku.id];
+    if (!brand) return item;
+    const g = new THREE.Group();
+    const label = frontLabel(cartonLabelMat(sku, brand), 0.10, 0.07, s.z + 0.056);
+    label.position.x = s.x;
+    label.position.y = s.y;
+    g.add(item, label);
+    return g;
+  }
+
+  function releaseVisual(root) {
+    if (!root) return;
+    root.traverse((object) => {
+      if (object.isMesh && object.geometry && !object.geometry.userData.sharedGeometry) object.geometry.dispose();
+      if (!object.userData.disposeMaterial) return;
+      for (const material of (Array.isArray(object.material) ? object.material : [object.material])) {
+        if (!material) continue;
+        for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap']) {
+          if (material[key]) material[key].dispose();
+        }
+        material.dispose();
+      }
+    });
   }
 
   function rebuildStock() {
-    for (const g of stockMeshes.values()) stockGroup.remove(g);
+    for (const g of stockMeshes.values()) {
+      stockGroup.remove(g);
+      releaseVisual(g);
+    }
     stockMeshes.clear();
     const inv = state.shop.inventory;
 
-    for (const f of placedFixtures(state)) {
+    for (const f of activeFixtures(state)) {
       const anchor = fixtureAnchors.get(f.id);
       if (!anchor) continue;
 
@@ -1736,13 +1782,14 @@ export function makeClubhouse(ctx) {
         const slots = slotsFor(skuId);
         // the shelf cannot hold more than it has places for — the sim enforces the same number,
         // so this min() is a belt, not a braces: it can only ever bite on a corrupted save
-        const count = Math.min(inv[skuId] ? inv[skuId].shelf : 0, slots.length);
+        const visibleSlots = visibleSlotsFor(skuId, inv[skuId] ? inv[skuId].shelf : 0);
+        const count = visibleSlots.length;
         const g = new THREE.Group();
         if (count > 0) {
           const holder = stockHolder(sku, count);
           if (holder) g.add(holder);
           for (let i = 0; i < count; i++) {
-            const item = makeStockItem(sku, slots[i], i);
+            const item = makeStockItem(sku, visibleSlots[i], i);
             if (item) g.add(item);
           }
         }
@@ -1803,6 +1850,7 @@ export function makeClubhouse(ctx) {
           new THREE.PlaneGeometry(0.52, 0.28),
           new THREE.MeshStandardMaterial({ map: tex, roughness: 0.82 }),
         );
+        tent.userData.disposeMaterial = true;
         tent.position.set(0, 1.02, 0.49);
         tent.rotation.x = -0.20;
         g.add(tent);
@@ -2411,6 +2459,29 @@ export function makeClubhouse(ctx) {
 
   const CUST_NAMES = ['Alex R.', 'Sam T.', 'Jordan M.', 'Casey L.', 'Riley P.', 'Drew H.', 'Morgan W.', 'Quinn B.', 'Jamie F.', 'Robin K.'];
 
+  function experienceStop(f, claimed) {
+    if (!f || !f.experience) return null;
+    const socket = fixtureSockets(f).find((s) => !claimed.has(s.key));
+    if (!socket) return null;
+    const target = f.experienceTarget
+      ? fixtureSockets({ ...f, browse: [f.experienceTarget] })[0]
+      : { x: f.x, z: f.z };
+    const wp = L2W(socket.x, socket.z);
+    const face = L2W(target.x, target.z);
+    return {
+      kind: 'experience',
+      experience: f.experience,
+      title: f.title,
+      fixtureId: f.id,
+      socketKey: socket.key,
+      x: wp.x,
+      z: wp.z,
+      faceX: face.x,
+      faceZ: face.z,
+      duration: f.experience === 'putting' ? 5.2 : f.experience === 'fitting' ? 4.2 : 3.2,
+    };
+  }
+
   function spawnCustomer(toCounter = false) {
     const rng = rngOf(state);
     // real variety on the floor: builds, trousers, skin tones, hats or hair
@@ -2435,7 +2506,8 @@ export function makeClubhouse(ctx) {
     stops.push({ kind: 'enter', x: doorW.x, z: doorW.z - 1.4 });
     if (!toCounter) {
       const nStops = 1 + rng.int(2);
-      const browsable = placedFixtures(state).filter((f) => f.skus && f.skus.length > 0);
+      const floorFixtures = activeFixtures(state);
+      const browsable = floorFixtures.filter((f) => f.skus && f.skus.length > 0);
       // shoppers gravitate to displays with something ON them — a stocked
       // fixture is four times as likely to make their route as a bare one
       const pool = [];
@@ -2470,6 +2542,13 @@ export function makeClubhouse(ctx) {
           faceX: face.x,
           faceZ: face.z,
         });
+        for (const id of f.experienceAfter || []) {
+          const beat = experienceStop(floorFixtures.find((candidate) => candidate.id === id), claimed);
+          if (!beat || stops.some((s) => s.fixtureId === id)) continue;
+          claimed.add(beat.socketKey);
+          stops.push(beat);
+          break;
+        }
       }
     }
     if (toCounter || rng.chance(0.55)) {
@@ -2493,6 +2572,7 @@ export function makeClubhouse(ctx) {
       patience: 45, // seconds they'll wait at the head of the line for service
       awaitingCheckout: false,
       itemMesh: null,
+      experienceMesh: null,
       // what a review will be written from: did they get in, did they buy, did they wait
       seed: rng.next(),
       entered: false,
@@ -2503,6 +2583,103 @@ export function makeClubhouse(ctx) {
       isGolfer: toCounter, // the ones with a tee time actually played the course
     });
     return customers[customers.length - 1];
+  }
+
+  function clearExperience(c) {
+    if (c.experienceMesh) {
+      if (c.experienceMesh.parent) c.experienceMesh.parent.remove(c.experienceMesh);
+      releaseVisual(c.experienceMesh);
+      c.experienceMesh = null;
+    }
+    c.experienceStarted = false;
+  }
+
+  function beginExperience(c, stop) {
+    if (c.experienceStarted) return;
+    c.experienceStarted = true;
+    c.linger = Math.max(c.linger, stop.duration || 3.2);
+    if (stop.experience === 'fitting') {
+      c.patience = Math.min(PATIENCE_FULL, c.patience + 4);
+      return;
+    }
+    if (stop.experience !== 'putting') return;
+    const beat = new THREE.Group();
+    beat.name = 'customer-putting-beat';
+    const putter = makeStockItem(
+      SHOP_CATALOG.find((s) => s.id === 'putter2'),
+      { x: 0, y: 0, z: 0, len: 0.88, lean: 0.08, ry: 0 },
+      0,
+    );
+    if (putter) {
+      putter.position.set(-0.20, 0.36, 0.12);
+      putter.rotation.y = -0.3;
+      beat.add(putter);
+    }
+    c.mesh.add(beat);
+    c.experienceMesh = beat;
+  }
+
+  function updateExperience(c, stop) {
+    beginExperience(c, stop);
+    if (stop.experience === 'putting' && c.experienceMesh) {
+      const elapsed = Math.max(0, (stop.duration || 5.2) - c.linger);
+      c.experienceMesh.rotation.z = Math.sin(Math.min(1, elapsed / 1.6) * Math.PI) * 0.18;
+    }
+  }
+
+  function carryModel(sku, index) {
+    const item = makeStockItem(
+      sku,
+      { x: 0, y: 0, z: 0, ry: 0, len: 0.82, lean: 0.08, folded: false, wall: false },
+      index,
+    );
+    if (!item) return null;
+    item.name = `carried-${sku.id}`;
+    return item;
+  }
+
+  function rebuildCustomerCarry(c) {
+    if (c.itemMesh) {
+      c.mesh.remove(c.itemMesh);
+      releaseVisual(c.itemMesh);
+    }
+    c.itemMesh = null;
+    if (!c.cart.length) return;
+    const g = new THREE.Group();
+    g.name = 'customer-merchandise';
+    const small = c.cart.filter((it) => {
+      const sku = SHOP_CATALOG.find((s) => s.id === it.skuId);
+      return sku && sku.cat !== 'clubs' && !it.skuId.startsWith('bag');
+    });
+    if (small.length) {
+      const basket = merch.instantiate('basket', { scale: 0.72 });
+      if (basket) {
+        basket.position.set(0.12, 0.58, 0.18);
+        basket.rotation.y = Math.PI / 2;
+        g.add(basket);
+      }
+    }
+    c.cart.forEach((it, index) => {
+      const sku = SHOP_CATALOG.find((s) => s.id === it.skuId);
+      if (!sku) return;
+      const item = carryModel(sku, index);
+      if (!item) return;
+      if (sku.cat === 'clubs') {
+        item.position.set(-0.24 - index * 0.05, 0.42, 0.12);
+        item.rotation.y = -0.35;
+      } else if (it.skuId.startsWith('bag')) {
+        item.scale.multiplyScalar(0.62);
+        item.position.set(0.10, 0.18, 0.12);
+        item.rotation.y = Math.PI / 2;
+      } else {
+        item.scale.multiplyScalar(0.72);
+        item.position.set(0.10 + index * 0.08, 0.72 + index * 0.03, 0.17);
+        item.rotation.y = -0.25 + index * 0.18;
+      }
+      g.add(item);
+    });
+    c.mesh.add(g);
+    c.itemMesh = g;
   }
 
   // HOW LONG THEY HAVE BEEN WAITING, shown RESTRAINEDLY — the brief's word. A red bar
@@ -2542,7 +2719,7 @@ export function makeClubhouse(ctx) {
   // a shopper reaches for the display: the unit leaves the shelf THERE and
   // rides in their hands to the register
   function customerPick(c, stop) {
-    if (!stop.skus || c.cart.length) return;
+    if (!stop.skus || c.cart.length >= 2) return;
     const rng = rngOf(state);
     const stocked = stop.skus.filter((id) => state.shop.inventory[id] && state.shop.inventory[id].shelf > 0);
     if (!stocked.length) {
@@ -2575,13 +2752,7 @@ export function makeClubhouse(ctx) {
     const sku = SHOP_CATALOG.find((s) => s.id === skuId);
     c.cart.push({ uid, skuId, price: priceFor(sku, state.shop.markup[sku.cat] || 1, null) });
     rebuildStock(); // the display visibly loses the unit
-    const item = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.16, 0.16),
-      new THREE.MeshStandardMaterial({ color: CAT_COLORS[sku.cat] || 0x999999, roughness: 0.7 }),
-    );
-    item.position.set(0.16, 0.68, 0.16);
-    c.mesh.add(item);
-    c.itemMesh = item;
+    rebuildCustomerCarry(c);
     // a pick means they're heading to the counter — make sure a stop exists
     if (!c.stops.some((s, i) => i > c.stopIdx && s.kind === 'counter')) {
       const regW = L2W(COUNTER.registerX, COUNTER.z);
@@ -2620,8 +2791,10 @@ export function makeClubhouse(ctx) {
     if (register.getCustomer() === c) { register.abandon(); register.leave(); }
     if (c.itemMesh) {
       c.mesh.remove(c.itemMesh);
+      releaseVisual(c.itemMesh);
       c.itemMesh = null;
     }
+    clearExperience(c);
     leaveQueue(c);
     c.stopIdx += 1;
     c.linger = 0;
@@ -2675,8 +2848,10 @@ export function makeClubhouse(ctx) {
     leaveQueue(c);
     if (c.itemMesh) {
       c.mesh.remove(c.itemMesh);
+      releaseVisual(c.itemMesh);
       c.itemMesh = null;
     }
+    clearExperience(c);
     custGroup.remove(c.mesh);
     customers.splice(i, 1);
   }
@@ -2752,7 +2927,10 @@ export function makeClubhouse(ctx) {
   function updateCustomers(dt) {
     const minute = ((state.clock.minutes % 1440) + 1440) % 1440;
     const open = minute >= 360 && minute <= 1200;
-    const targetCount = open ? clamp(Math.round(((state.shop.salesYesterday.units || 2) / 8) * 3), 1, 6) : 0;
+    const tierCapacity = state.shop.unlockedTier >= 3 ? 10 : state.shop.unlockedTier >= 2 ? 6 : 4;
+    const targetCount = open
+      ? clamp(Math.round(((state.shop.salesYesterday.units || 2) / 8) * 3), 1, tierCapacity)
+      : 0;
     if (ambientCustomerSpawning && open && customers.length < targetCount && Math.random() < dt * 0.15) spawnCustomer();
     if (!open) {
       for (const c of customers) {
@@ -2816,13 +2994,16 @@ export function makeClubhouse(ctx) {
         } else if (!served) {
           if (char) char.setMode('Idle');
         } else if (!isPass && c.linger > 0) {
-          if (char) char.setMode(stop.kind === 'fixture' ? 'Browse' : 'Idle');
+          if (stop.kind === 'experience') updateExperience(c, stop);
+          if (char) char.setMode(stop.kind === 'fixture' || stop.kind === 'experience' ? 'Browse' : 'Idle');
           c.linger -= dt;
         } else {
           if (stop.kind === 'fixture') customerPick(c, stop);
+          if (stop.kind === 'experience') clearExperience(c);
           if (stop.kind === 'counter') leaveQueue(c);
           c.stopIdx++;
-          c.linger = 1.5 + Math.random() * 3.5;
+          const next = c.stops[c.stopIdx];
+          c.linger = next && next.duration ? next.duration : 1.5 + Math.random() * 3.5;
           if (c.stopIdx >= c.stops.length) {
             removeCustomer(i);
             continue;
@@ -2916,6 +3097,7 @@ export function makeClubhouse(ctx) {
       updateArrivals();
       if (state.shop.unlockedTier !== fixtureTier) {
         fixtureTier = state.shop.unlockedTier;
+        shell.lighting.setShopTier(fixtureTier);
         relayFixtures();
         if (lounge && lounge.syncTier) lounge.syncTier();
         rebuildStock();
@@ -3041,6 +3223,7 @@ export function makeClubhouse(ctx) {
     productThumb: (sku) => productThumb(sku), // rendered supplier-card imagery
     condition: () => conditionNow,
     setTimeMood: (minuteOfDay) => shell.lighting.setTimeMood(minuteOfDay),
+    lightingTier: () => shell.lighting.getTierState(),
     // build mode: the shop is the player's to arrange
     build: builder,
     // the pressure washer: aim at the building, pull the trigger, watch the wall come back

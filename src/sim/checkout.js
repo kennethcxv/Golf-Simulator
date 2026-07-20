@@ -7,6 +7,7 @@
 
 import { addRevenue } from './economy.js';
 import { skuById, SHELF_CAP } from '../data/shopItems.js';
+import { capacityOf } from '../data/fixtureSlots.js';
 
 // --- units in flight --------------------------------------------------------------
 // A unit a shopper is carrying is off the shelf but not yet sold. That in-between
@@ -37,7 +38,7 @@ export function returnToShelf(state, skuId, uid = null) {
   const inv = state.shop.inventory[skuId];
   if (!inv) return { ok: false };
   const sku = skuById(skuId);
-  const cap = sku ? SHELF_CAP[sku.cat] : 0;
+  const cap = capacityOf(skuId) || (sku ? SHELF_CAP[sku.cat] : 0);
   inv.shelf = Math.min(cap, inv.shelf + 1);
   if (uid) {
     const held = heldUnits(state);

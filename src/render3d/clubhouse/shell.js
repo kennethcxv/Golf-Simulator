@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import {
   SHELL, INTERIOR, DOOR_MAIN, DOOR_STOCK, DOOR_BACK, WINDOWS, WINDOW_DIM,
-  PARTITIONS, STOCKROOM, HOURS_SIGN,
+  PARTITIONS, STOCKROOM, HOURS_SIGN, shopLightingTier,
 } from '../../data/shopLayout.js';
 import { makeSignTexture, makeOakFloorTexture, makeConcreteTexture, makeSidingTexture } from './materials.js';
 
@@ -696,6 +696,19 @@ export function buildShell(B) {
     return entry;
   }
 
+  const displaySpots = [];
+  function addDisplaySpot(lx, lz, tx, tz, { base = 13, minTier = 1, color = 0xffe6bf } = {}) {
+    const light = new THREE.SpotLight(color, 0, 8.5, 0.52, 0.72, 1.8);
+    light.position.set(lx, CEIL_Y - 0.28, lz);
+    light.castShadow = false;
+    const target = new THREE.Object3D();
+    target.position.set(tx, 1.08, tz);
+    interior.add(light, target);
+    light.target = target;
+    displaySpots.push({ light, base, minTier });
+    return light;
+  }
+
   // pendants down the sales-floor spine
   addLantern(-2.3, 3.2);
   addLantern(-2.3, -0.4);
@@ -715,6 +728,15 @@ export function buildShell(B) {
   addCan(8.6, 0.4);
   addCan(8.6, -5.2);
   void officeCan; void stockCan;
+
+  // Narrow, non-shadow-casting display washes make products legible without
+  // covering the floor in hard point-light circles. The premium cabinet accent
+  // is physically present only at the matching supplier tier.
+  addDisplaySpot(-8.3, -3.8, -9.65, -2.1, { base: 15 });
+  addDisplaySpot(-0.4, -4.6, -0.5, -6.0, { base: 12 });
+  addDisplaySpot(4.6, 2.7, 5.15, 1.55, { base: 11 });
+  addDisplaySpot(2.2, 4.2, 2.8, 5.45, { base: 13 });
+  addDisplaySpot(4.2, -4.3, 5.25, -5.2, { base: 14, minTier: 3, color: 0xffd79a });
 
   // daylight fills (cool bounce at the glazed walls; scaled by time of day).
   // pulled a body-length into the room with short throw — point lights don't
@@ -741,20 +763,37 @@ export function buildShell(B) {
   let flickT = 0;
   let moodDayF = 1;
   let windowDim = 1; // filthy glass chokes the daylight fills
+  let tierNow = Math.max(1, Math.min(3, state.shop?.unlockedTier || 1));
+  let tierProfile = shopLightingTier(tierNow);
 
   function applyPracticalLevels() {
     // practicals stay on all day (retail) but carry the room after dark
-    const scale = 0.72 + 0.55 * (1 - moodDayF);
+    const scale = (0.72 + 0.55 * (1 - moodDayF)) * tierProfile.practicalScale;
     practicals.forEach((p, i) => {
       let on = 1;
       if (conditionNow < 45 && i === 4) on = 0;              // a dead can in the neglect years
       if (conditionNow < 55 && (i === 9 || i === 12)) on = 0; // dark corners until refurbished
       if (p.light) p.light.intensity = p.base * scale * on;
-      p.glow.material.emissiveIntensity = on ? (i < 3 ? 2.0 : 1.4) * (0.8 + 0.45 * (1 - moodDayF)) : 0.04;
+      p.glow.material.emissiveIntensity = on
+        ? (i < 3 ? 2.0 : 1.4) * (0.8 + 0.45 * (1 - moodDayF)) * tierProfile.practicalScale
+        : 0.04;
     });
+    for (const spot of displaySpots) {
+      const visibleAtTier = tierNow >= spot.minTier ? 1 : 0;
+      spot.light.intensity = spot.base * tierProfile.displayScale
+        * (0.86 + 0.18 * (1 - moodDayF)) * visibleAtTier;
+    }
   }
 
   const lighting = {
+    setShopTier(tier) {
+      tierNow = Math.max(1, Math.min(3, Math.floor(tier || 1)));
+      tierProfile = shopLightingTier(tierNow);
+      applyPracticalLevels();
+    },
+    getTierState() {
+      return { tier: tierNow, ...tierProfile, displayLights: displaySpots.filter((s) => tierNow >= s.minTier).length };
+    },
     setTimeMood(minuteOfDay) {
       // full day 07:00–18:30, 75-minute ramps either side
       const up = (minuteOfDay - 345) / 75;
@@ -782,10 +821,12 @@ export function buildShell(B) {
       const p = practicals[5];
       if (!p || !p.light) return;
       const drop = Math.sin(flickT * 13.1) * Math.sin(flickT * 4.7 + 2.1) < -0.55;
-      p.light.intensity = p.base * (drop ? 0.06 : 0.72 + 0.18 * Math.sin(flickT * 31));
+      p.light.intensity = p.base * tierProfile.practicalScale
+        * (drop ? 0.06 : 0.72 + 0.18 * Math.sin(flickT * 31));
       p.glow.material.emissiveIntensity = drop ? 0.05 : 1.0;
     },
   };
+  lighting.setShopTier(tierNow);
   lighting.setTimeMood(600);
 
   return { windowDefs, lighting, sidingMat, roofMat };
