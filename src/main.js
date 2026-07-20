@@ -177,6 +177,7 @@ function alignLaptopUi() {
 
 let laptopResizeHandler = null;
 let laptopTimers = [];
+let preLaptopLens = null;
 
 // build mode, if the clubhouse is up
 function buildApi() {
@@ -217,11 +218,17 @@ function enterLaptop() {
   if (!walkActive() || app.laptopOpen) return;
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
   if (!ch) return;
+  const camera = app.scene3d && app.scene3d.camera;
+  preLaptopLens = camera ? { fov: camera.fov, near: camera.near } : null;
   // The lens FIRST: the seat distance is derived from the field of view, so asking for the pose
   // before the lens has changed would seat you for a camera that no longer exists.
   setCameraLens(LAPTOP_FOV, LAPTOP_NEAR);
   const pose = seatPose(ch);
-  if (!pose) { setCameraLens(WALK_FOV, WALK_NEAR); return; }
+  if (!pose) {
+    if (preLaptopLens) setCameraLens(preLaptopLens.fov, preLaptopLens.near);
+    preLaptopLens = null;
+    return;
+  }
   app.laptopOpen = true;
   resetCameraInput(); // sitting down is a mode change too
   if (app.state) tutorialFlag(app.state, 'laptopOpened');
@@ -272,7 +279,9 @@ function exitLaptop(silent) {
   const ch = app.scene3d.clubhouse && app.scene3d.clubhouse();
   if (ch && ch.laptopScreen) ch.laptopScreen('desk'); // lid stays open, showing the lock screen
   app.scene3d.walk.clearFocus();
-  setCameraLens(WALK_FOV, WALK_NEAR); // hand the wide lens back before you stand up
+  const restoredLens = preLaptopLens || { fov: WALK_FOV, near: WALK_NEAR };
+  setCameraLens(restoredLens.fov, restoredLens.near); // restore the exact player setting before standing
+  preLaptopLens = null;
   const vt = document.querySelector('.view-toggle');
   if (vt) vt.style.display = '';
   if (!silent) {

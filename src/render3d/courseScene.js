@@ -1220,6 +1220,8 @@ export function makeCourseScene(canvas, state) {
       const stillOpen = w.hole.status === HOLE_STATUS.OPEN && w.hole.tee && w.hole.pin;
       if (!stillOpen || (!openHours && w.pause <= 0) || (golfers.length > target && w.t >= 1)) {
         golferGroup.remove(w.mesh);
+        const character = w.mesh.userData.char;
+        if (character && character.dispose) character.dispose();
         golfers.splice(i, 1);
         continue;
       }
@@ -2546,6 +2548,11 @@ export function makeCourseScene(canvas, state) {
   }
 
   function dispose() {
+    for (const golfer of golfers) {
+      const character = golfer.mesh.userData.char;
+      if (character && character.dispose) character.dispose();
+    }
+    golfers.length = 0;
     if (gtao.dispose) gtao.dispose();
     composerTarget.dispose();
     renderer.dispose();

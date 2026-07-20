@@ -12,6 +12,8 @@ const HARDWARE = process.argv.includes('--hardware');
 const REQUESTED_CUSTOMERS = Number(process.argv.find((arg) => arg.startsWith('--customers='))?.slice(12) || 0);
 const PERF_IDLE_SECONDS = Number(process.argv.find((arg) => arg.startsWith('--perf-idle='))?.slice(12) || 6);
 const PERF_WALK_SECONDS = Number(process.argv.find((arg) => arg.startsWith('--perf-walk='))?.slice(12) || 4);
+const PERF_SAMPLES = Number(process.argv.find((arg) => arg.startsWith('--samples='))?.slice(10) || 1);
+const LAPTOP_CYCLES = Number(process.argv.find((arg) => arg.startsWith('--laptop-cycles='))?.slice(16) || 0);
 const CAPTURE = !process.argv.includes('--perf-only');
 const PERFORMANCE = !process.argv.includes('--capture-only');
 const CAPTURE_START = CAPTURE && !process.argv.includes('--full-only');
@@ -65,24 +67,49 @@ const context = await browser.newContext({
 });
 
 await context.addInitScript(() => {
-  const active = new Map();
+  const registrations = [];
   const adds = new Map();
   const removes = new Map();
   const originalAdd = EventTarget.prototype.addEventListener;
   const originalRemove = EventTarget.prototype.removeEventListener;
   EventTarget.prototype.addEventListener = function trackedAdd(type, listener, options) {
-    active.set(type, (active.get(type) || 0) + 1);
     adds.set(type, (adds.get(type) || 0) + 1);
+    if (listener && typeof WeakRef !== 'undefined') {
+      registrations.push({
+        target: new WeakRef(this),
+        listener: new WeakRef(listener),
+        type,
+        capture: typeof options === 'boolean' ? options : !!options?.capture,
+        removed: false,
+      });
+    }
     return originalAdd.call(this, type, listener, options);
   };
   EventTarget.prototype.removeEventListener = function trackedRemove(type, listener, options) {
-    active.set(type, Math.max(0, (active.get(type) || 0) - 1));
     removes.set(type, (removes.get(type) || 0) + 1);
+    const capture = typeof options === 'boolean' ? options : !!options?.capture;
+    for (let index = registrations.length - 1; index >= 0; index--) {
+      const registration = registrations[index];
+      if (!registration.removed && registration.type === type && registration.capture === capture
+        && registration.target.deref() === this && registration.listener.deref() === listener) {
+        registration.removed = true;
+        break;
+      }
+    }
     return originalRemove.call(this, type, listener, options);
   };
   window.__qaListeners = {
     snapshot() {
       const object = (map) => Object.fromEntries([...map.entries()].sort(([a], [b]) => a.localeCompare(b)));
+      const active = new Map();
+      for (const registration of registrations) {
+        if (registration.removed || !registration.listener.deref()) continue;
+        const target = registration.target.deref();
+        if (!target) continue;
+        const activeTarget = !(target instanceof Node) || target.isConnected
+          || target instanceof HTMLCanvasElement;
+        if (activeTarget) active.set(registration.type, (active.get(registration.type) || 0) + 1);
+      }
       return { active: object(active), adds: object(adds), removes: object(removes) };
     },
   };
@@ -341,6 +368,84 @@ async function measureFrames(label, seconds = 6) {
   });
 }
 
+async function cycleLaptop(count) {
+  if (count <= 0) return null;
+  await page.evaluate(() => window.__fw.scene3d.clubhouse().prepareCheckoutQa());
+  await setCamera({ at: [8.5, 4.5], to: [9.55, 4.5], pitch: -0.05 });
+  await page.locator('canvas').click({ position: { x: 800, y: 450 } });
+  const read = () => page.evaluate(() => {
+    const listenerSnapshot = window.__qaListeners.snapshot();
+    return {
+      roots: document.querySelectorAll('.laptop-screen').length,
+      visibleFrames: [...document.querySelectorAll('.laptop-screen')]
+        .filter((root) => root.style.display !== 'none').length,
+      listeners: listenerSnapshot.active,
+      activeEventListeners: Object.values(listenerSnapshot.active).reduce((sum, value) => sum + value, 0),
+      javascriptHeapMiB: performance.memory ? +(performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2) : null,
+      fov: window.__fw.scene3d.camera.fov,
+      near: window.__fw.scene3d.camera.near,
+      laptopOpen: window.__fw.laptopOpen,
+    };
+  });
+  // Warm the persistent laptop shell, its live page, and the thumbnail renderer before taking
+  // the baseline. The soak measures repeated interaction growth, not legitimate first-use setup.
+  await page.waitForFunction(() => /laptop/i.test(window.__fw.scene3d.walk.getFocusLabel() || ''),
+    null, { timeout: 10_000 });
+  await page.keyboard.press('e');
+  await page.waitForFunction(() => window.__fw.laptopOpen === true && document.querySelector('.lt-frame'),
+    null, { timeout: 12_000 });
+  await page.locator('.lt-navbtn').filter({ hasText: 'Inventory' }).first().click();
+  await page.waitForTimeout(250);
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => window.__fw.laptopOpen === false, null, { timeout: 10_000 });
+  await page.waitForTimeout(500);
+  const before = await read();
+  const failures = [];
+  let cyclesCompleted = 0;
+  for (let index = 0; index < count; index++) {
+    const promptReady = await page.waitForFunction(() => /laptop/i.test(
+      window.__fw.scene3d.walk.getFocusLabel() || '',
+    ), null, { timeout: 10_000 }).then(() => true).catch(() => false);
+    if (!promptReady) { failures.push(`cycle ${index + 1}: laptop prompt did not return`); break; }
+    await page.keyboard.press('e');
+    const opened = await page.waitForFunction(() => window.__fw.laptopOpen === true
+      && document.querySelector('.lt-frame'), null, { timeout: 12_000 })
+      .then(() => true).catch(() => false);
+    if (!opened) { failures.push(`cycle ${index + 1}: laptop did not open`); break; }
+    if (index % 5 === 4) {
+      await page.locator('.lt-navbtn').filter({ hasText: 'Inventory' }).first().click();
+      await page.waitForTimeout(120);
+    }
+    await page.keyboard.press('Escape');
+    const closed = await page.waitForFunction(() => window.__fw.laptopOpen === false,
+      null, { timeout: 10_000 }).then(() => true).catch(() => false);
+    if (!closed) { failures.push(`cycle ${index + 1}: laptop did not close`); break; }
+    cyclesCompleted++;
+  }
+  await page.waitForTimeout(1_500);
+  const after = await read();
+  const listenerDelta = after.activeEventListeners - before.activeEventListeners;
+  const heapDeltaMiB = before.javascriptHeapMiB == null || after.javascriptHeapMiB == null
+    ? null : +(after.javascriptHeapMiB - before.javascriptHeapMiB).toFixed(2);
+  return {
+    cyclesRequested: count,
+    cyclesCompleted,
+    before,
+    after,
+    listenerDelta,
+    heapDeltaMiB,
+    failures,
+    checks: {
+      allCyclesCompleted: failures.length === 0,
+      oneRootOnly: after.roots === 1,
+      noVisibleLeftovers: after.visibleFrames === 0 && !after.laptopOpen,
+      noListenerGrowth: listenerDelta === 0,
+      heapBounded: heapDeltaMiB == null || heapDeltaMiB <= 24,
+      lensRestored: after.fov === before.fov && after.near === before.near,
+    },
+  };
+}
+
 console.log(`[${PASS}] boot`);
 await bootThroughNormalUi();
 const normalControlProof = await proveNormalControls();
@@ -368,7 +473,14 @@ if (PERFORMANCE) {
   await setStock('empty', 1);
   await setCamera(SHOTS[0]);
   await page.waitForTimeout(3_000);
-  metrics.push(await measureFrames('empty-basic-idle', PERF_IDLE_SECONDS));
+  for (let sample = 1; sample <= PERF_SAMPLES; sample++) {
+    await page.waitForTimeout(1_000);
+    metrics.push({
+      ...(await measureFrames('empty-basic-idle', PERF_IDLE_SECONDS)),
+      sample,
+      samplesRequested: PERF_SAMPLES,
+    });
+  }
 }
 
 const stock = await setStock('full', 3);
@@ -442,30 +554,49 @@ if (CAPTURE && REQUESTED_CUSTOMERS > 0) {
 
 if (PERFORMANCE) {
   console.log(`[${PASS}] measure full premium with ten customers`);
-  await setCamera(SHOTS[3]);
-  spawned += await page.evaluate(() => {
-    const clubhouse = window.__fw.scene3d.clubhouse();
-    const active = Array.isArray(clubhouse.customers)
-      ? clubhouse.customers.length
-      : clubhouse.customers().length;
-    let count = 0;
-    for (let i = active; i < 10; i++) count += clubhouse.debugSpawn() ? 1 : 0;
-    return count;
-  });
   if (await page.evaluate(() => window.__fw.speedIdx === 0)) await page.keyboard.press('Space');
-  await page.waitForTimeout(3_000);
-  metrics.push(await measureFrames('full-premium-ten-customers-idle', PERF_IDLE_SECONDS));
+  for (let sample = 1; sample <= PERF_SAMPLES; sample++) {
+    spawned += await page.evaluate(() => {
+      const clubhouse = window.__fw.scene3d.clubhouse();
+      clubhouse.prepareCheckoutQa();
+      let count = 0;
+      for (let i = 0; i < 10; i++) count += clubhouse.debugSpawn() ? 1 : 0;
+      return count;
+    });
+    await setCamera(SHOTS[3]);
+    await page.waitForTimeout(16_000);
+    const activeCustomers = await page.evaluate(() => {
+      const clubhouse = window.__fw.scene3d.clubhouse();
+      const customers = Array.isArray(clubhouse.customers) ? clubhouse.customers : clubhouse.customers();
+      return customers.length;
+    });
+    metrics.push({
+      ...(await measureFrames('full-premium-ten-customers-idle', PERF_IDLE_SECONDS)),
+      sample,
+      samplesRequested: PERF_SAMPLES,
+      activeCustomers,
+    });
+  }
 
   console.log(`[${PASS}] measure normal-control walk`);
-  await setCamera(SHOTS[0]);
-  await page.locator('canvas').click({ position: { x: 800, y: 450 } }).catch(() => {});
-  const beforeWalk = await page.evaluate(() => ({ x: window.__fw.scene3d.walk.state.x, z: window.__fw.scene3d.walk.state.z }));
-  await page.keyboard.down('w');
-  const walkingMetrics = await measureFrames('full-premium-normal-control-walk', PERF_WALK_SECONDS);
-  await page.keyboard.up('w');
-  const afterWalk = await page.evaluate(() => ({ x: window.__fw.scene3d.walk.state.x, z: window.__fw.scene3d.walk.state.z }));
-  metrics.push({ ...walkingMetrics, playerTravelYards: +Math.hypot(afterWalk.x - beforeWalk.x, afterWalk.z - beforeWalk.z).toFixed(2) });
+  for (let sample = 1; sample <= PERF_SAMPLES; sample++) {
+    await setCamera(SHOTS[0]);
+    await page.locator('canvas').click({ position: { x: 800, y: 450 } }).catch(() => {});
+    const beforeWalk = await page.evaluate(() => ({ x: window.__fw.scene3d.walk.state.x, z: window.__fw.scene3d.walk.state.z }));
+    await page.keyboard.down('w');
+    const walkingMetrics = await measureFrames('full-premium-normal-control-walk', PERF_WALK_SECONDS);
+    await page.keyboard.up('w');
+    const afterWalk = await page.evaluate(() => ({ x: window.__fw.scene3d.walk.state.x, z: window.__fw.scene3d.walk.state.z }));
+    metrics.push({
+      ...walkingMetrics,
+      sample,
+      samplesRequested: PERF_SAMPLES,
+      playerTravelYards: +Math.hypot(afterWalk.x - beforeWalk.x, afterWalk.z - beforeWalk.z).toFixed(2),
+    });
+  }
 }
+
+const laptopCycles = PERFORMANCE ? await cycleLaptop(LAPTOP_CYCLES) : null;
 
 const report = {
   pass: PASS,
@@ -477,6 +608,7 @@ const report = {
   clock: '2:00 PM pinned before every fixed-camera capture',
   warmupSeconds: 3,
   frameSampleSeconds: { idle: PERF_IDLE_SECONDS, walk: PERF_WALK_SECONDS },
+  performanceSamples: PERF_SAMPLES,
   captureEnabled: CAPTURE,
   captureStartEnabled: CAPTURE_START,
   captureFullEnabled: CAPTURE_FULL,
@@ -497,6 +629,7 @@ const report = {
   customersSpawned: spawned,
   cameras: SHOTS,
   metrics,
+  laptopCycles,
   consoleMessages,
   failedRequests,
 };

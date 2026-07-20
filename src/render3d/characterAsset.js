@@ -148,6 +148,23 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     }
   };
 
+  let disposed = false;
+  char.dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    const geometries = new Set();
+    const materials = new Set();
+    root.traverse((object) => {
+      if (!object.isMesh) return;
+      if (object.geometry) geometries.add(object.geometry);
+      for (const material of (Array.isArray(object.material) ? object.material : [object.material])) {
+        if (material) materials.add(material);
+      }
+    });
+    for (const geometry of geometries) geometry.dispose();
+    for (const material of materials) material.dispose();
+  };
+
   const lerpSeg = (t, segs) => {
     // segs: [ [t0, v0], [t1, v1], ... ] piecewise-linear, clamped
     for (let i = 1; i < segs.length; i++) {

@@ -2880,6 +2880,8 @@ export function makeClubhouse(ctx) {
     }
     clearExperience(c);
     custGroup.remove(c.mesh);
+    const character = c.mesh.userData.char;
+    if (character && character.dispose) character.dispose();
     customers.splice(i, 1);
   }
 
