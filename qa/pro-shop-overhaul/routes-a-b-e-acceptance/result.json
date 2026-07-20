@@ -1,0 +1,4989 @@
+{
+  "pass": "routes-a-b-e-acceptance",
+  "timestamp": "2026-07-20T13:54:04.329Z",
+  "baseUrl": "http://localhost:8457/",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "report": {
+    "passed": true,
+    "branch": "overnight/pro-shop-overhaul",
+    "normalControlsOnly": true,
+    "stateWritesUsed": false,
+    "routes": {
+      "A": "fresh entry, circulation, starter stock receipt and authored-socket stocking; natural checkout is retained separately",
+      "B": "paid laptop fixture/decor order, supplier lead time, receiving route, unpack, authored placement, and shoe-category stocking",
+      "E": "office menu saves and loads for basic, upgraded, and partially stocked layouts"
+    },
+    "checks": {
+      "basicExact": true,
+      "upgradedExact": true,
+      "partialExact": true,
+      "plantPlaced": true,
+      "partialBallsPreserved": true,
+      "newCategoryStocked": true,
+      "noDuplicateFixtures": true,
+      "noStuckReloadCustomers": true,
+      "lightingReconstructed": true
+    },
+    "reloadRuntime": {
+      "basic": [],
+      "upgraded": [],
+      "partial": []
+    },
+    "saved": {
+      "basic": {
+        "cash": 55354.62,
+        "tier": 2,
+        "inventory": {
+          "bag1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bag3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls1": {
+            "shelf": 10,
+            "back": 0
+          },
+          "balls2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bar2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "board1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bottle1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 5,
+            "back": 0
+          },
+          "cap2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "chips1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "crackers1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "divot1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "glove2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "jacket2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "light1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "lounge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "marker1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "pants2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "plant1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "poster1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "range2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "rug1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "scorecard1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shorts1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sock1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "soda1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sportdrink2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sunglasses2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 14,
+            "back": 0
+          },
+          "towel1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "umb1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "vac1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "water1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge2": {
+            "shelf": 0,
+            "back": 0
+          }
+        },
+        "decor": [],
+        "layout": {
+          "moved": {},
+          "stored": [],
+          "extra": []
+        },
+        "boxes": [],
+        "orders": [],
+        "held": []
+      },
+      "upgraded": {
+        "cash": 58354.32,
+        "tier": 2,
+        "inventory": {
+          "bag1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bag3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bar2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "board1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bottle1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "chips1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "crackers1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "divot1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "jacket2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "light1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "lounge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "marker1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "pants2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "plant1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "poster1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "range2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "rug1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "scorecard1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shorts1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sock1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "soda1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sportdrink2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sunglasses2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "towel1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "umb1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "vac1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "water1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge2": {
+            "shelf": 0,
+            "back": 0
+          }
+        },
+        "decor": [
+          {
+            "skuId": "plant1",
+            "spot": 0
+          }
+        ],
+        "layout": {
+          "moved": {},
+          "stored": [],
+          "extra": []
+        },
+        "boxes": [
+          {
+            "id": 1,
+            "skuId": "balls1",
+            "qty": 3,
+            "loc": "pad",
+            "tape": 0,
+            "flaps": [
+              0,
+              0
+            ],
+            "flat": false,
+            "x": null,
+            "z": null
+          },
+          {
+            "id": 2,
+            "skuId": "plant1",
+            "qty": 0,
+            "loc": "world",
+            "tape": 1,
+            "flaps": [
+              1,
+              1
+            ],
+            "flat": false,
+            "x": 8.347281785137415,
+            "z": -1.4187468680044049
+          },
+          {
+            "id": 3,
+            "skuId": "shoe1",
+            "qty": 1,
+            "loc": "pad",
+            "tape": 0,
+            "flaps": [
+              0,
+              0
+            ],
+            "flat": false,
+            "x": null,
+            "z": null
+          }
+        ],
+        "orders": [],
+        "held": []
+      },
+      "partial": {
+        "cash": 58354.32,
+        "tier": 2,
+        "inventory": {
+          "bag1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bag3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls1": {
+            "shelf": 3,
+            "back": 0
+          },
+          "balls2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bar2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "board1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bottle1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "chips1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "crackers1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "divot1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "jacket2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "light1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "lounge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "marker1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "pants2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "plant1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "poster1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "range2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "rug1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "scorecard1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shorts1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sock1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "soda1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sportdrink2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sunglasses2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "towel1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "umb1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "vac1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "water1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge2": {
+            "shelf": 0,
+            "back": 0
+          }
+        },
+        "decor": [
+          {
+            "skuId": "plant1",
+            "spot": 0
+          }
+        ],
+        "layout": {
+          "moved": {},
+          "stored": [],
+          "extra": []
+        },
+        "boxes": [
+          {
+            "id": 1,
+            "skuId": "balls1",
+            "qty": 0,
+            "loc": "world",
+            "tape": 1,
+            "flaps": [
+              1,
+              1
+            ],
+            "flat": false,
+            "x": 7.213218812808552,
+            "z": -3.7597336046766827
+          },
+          {
+            "id": 2,
+            "skuId": "plant1",
+            "qty": 0,
+            "loc": "world",
+            "tape": 1,
+            "flaps": [
+              1,
+              1
+            ],
+            "flat": false,
+            "x": 8.347281785137415,
+            "z": -1.4187468680044049
+          },
+          {
+            "id": 3,
+            "skuId": "shoe1",
+            "qty": 1,
+            "loc": "pad",
+            "tape": 0,
+            "flaps": [
+              0,
+              0
+            ],
+            "flat": false,
+            "x": null,
+            "z": null
+          }
+        ],
+        "orders": [],
+        "held": []
+      }
+    },
+    "reloaded": {
+      "basic": {
+        "cash": 55354.62,
+        "tier": 2,
+        "inventory": {
+          "bag1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bag3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls1": {
+            "shelf": 10,
+            "back": 0
+          },
+          "balls2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bar2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "board1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bottle1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 5,
+            "back": 0
+          },
+          "cap2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "chips1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "crackers1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "divot1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "glove2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "jacket2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "light1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "lounge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "marker1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "pants2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "plant1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "poster1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "range2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "rug1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "scorecard1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shorts1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sock1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "soda1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sportdrink2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sunglasses2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 14,
+            "back": 0
+          },
+          "towel1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "umb1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "vac1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "water1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge2": {
+            "shelf": 0,
+            "back": 0
+          }
+        },
+        "decor": [],
+        "layout": {
+          "moved": {},
+          "stored": [],
+          "extra": []
+        },
+        "boxes": [],
+        "orders": [],
+        "held": []
+      },
+      "upgraded": {
+        "cash": 58354.32,
+        "tier": 2,
+        "inventory": {
+          "bag1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bag3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bar2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "board1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bottle1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "chips1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "crackers1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "divot1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "jacket2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "light1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "lounge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "marker1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "pants2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "plant1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "poster1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "range2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "rug1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "scorecard1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shorts1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sock1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "soda1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sportdrink2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sunglasses2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "towel1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "umb1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "vac1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "water1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge2": {
+            "shelf": 0,
+            "back": 0
+          }
+        },
+        "decor": [
+          {
+            "skuId": "plant1",
+            "spot": 0
+          }
+        ],
+        "layout": {
+          "moved": {},
+          "stored": [],
+          "extra": []
+        },
+        "boxes": [
+          {
+            "id": 1,
+            "skuId": "balls1",
+            "qty": 3,
+            "loc": "pad",
+            "tape": 0,
+            "flaps": [
+              0,
+              0
+            ],
+            "flat": false,
+            "x": null,
+            "z": null
+          },
+          {
+            "id": 2,
+            "skuId": "plant1",
+            "qty": 0,
+            "loc": "world",
+            "tape": 1,
+            "flaps": [
+              1,
+              1
+            ],
+            "flat": false,
+            "x": 8.347281785137415,
+            "z": -1.4187468680044049
+          },
+          {
+            "id": 3,
+            "skuId": "shoe1",
+            "qty": 1,
+            "loc": "pad",
+            "tape": 0,
+            "flaps": [
+              0,
+              0
+            ],
+            "flat": false,
+            "x": null,
+            "z": null
+          }
+        ],
+        "orders": [],
+        "held": []
+      },
+      "partial": {
+        "cash": 58354.32,
+        "tier": 2,
+        "inventory": {
+          "bag1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bag3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls1": {
+            "shelf": 3,
+            "back": 0
+          },
+          "balls2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bar2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "board1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bottle1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "chips1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "crackers1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "divot1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "jacket2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "light1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "lounge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "marker1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "pants2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "plant1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "poster1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "range2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "rug1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "scorecard1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shorts1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sock1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "soda1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sportdrink2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sunglasses2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "towel1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "umb1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "vac1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "water1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge2": {
+            "shelf": 0,
+            "back": 0
+          }
+        },
+        "decor": [
+          {
+            "skuId": "plant1",
+            "spot": 0
+          }
+        ],
+        "layout": {
+          "moved": {},
+          "stored": [],
+          "extra": []
+        },
+        "boxes": [
+          {
+            "id": 1,
+            "skuId": "balls1",
+            "qty": 0,
+            "loc": "world",
+            "tape": 1,
+            "flaps": [
+              1,
+              1
+            ],
+            "flat": false,
+            "x": 7.213218812808552,
+            "z": -3.7597336046766827
+          },
+          {
+            "id": 2,
+            "skuId": "plant1",
+            "qty": 0,
+            "loc": "world",
+            "tape": 1,
+            "flaps": [
+              1,
+              1
+            ],
+            "flat": false,
+            "x": 8.347281785137415,
+            "z": -1.4187468680044049
+          },
+          {
+            "id": 3,
+            "skuId": "shoe1",
+            "qty": 1,
+            "loc": "pad",
+            "tape": 0,
+            "flaps": [
+              0,
+              0
+            ],
+            "flat": false,
+            "x": null,
+            "z": null
+          }
+        ],
+        "orders": [],
+        "held": []
+      }
+    },
+    "elapsedSeconds": 302.6
+  },
+  "thrown": null,
+  "steps": [
+    {
+      "step": "created a fresh empire and bought Willow Creek",
+      "control": "visible New Empire and Property Market UI",
+      "pose": {
+        "x": -8,
+        "z": 241.7,
+        "yaw": 3.935392653589793,
+        "pitch": -0.684,
+        "localX": 0,
+        "localZ": 13.699999999999989
+      }
+    },
+    {
+      "step": "saved the untouched basic layout",
+      "control": "Esc -> Save game -> Slot 1",
+      "snapshot": {
+        "cash": 55354.62,
+        "tier": 2,
+        "inventory": {
+          "bag1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bag3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls1": {
+            "shelf": 10,
+            "back": 0
+          },
+          "balls2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bar2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "board1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bottle1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 5,
+            "back": 0
+          },
+          "cap2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "chips1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "crackers1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "divot1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "glove2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "jacket2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "light1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "lounge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "marker1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "pants2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "plant1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "poster1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "range2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "rug1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "scorecard1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shorts1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sock1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "soda1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sportdrink2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sunglasses2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 14,
+            "back": 0
+          },
+          "towel1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "umb1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "vac1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "water1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge2": {
+            "shelf": 0,
+            "back": 0
+          }
+        },
+        "decor": [],
+        "layout": {
+          "moved": {},
+          "stored": [],
+          "extra": []
+        },
+        "boxes": [],
+        "orders": [],
+        "held": []
+      }
+    },
+    {
+      "step": "walked up the porch steps",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.791549782652158,
+        "z": 235.82938388041595,
+        "yaw": 6.372712653589808,
+        "pitch": -0.684,
+        "localX": -0.791549782652158,
+        "localZ": 7.829383880415946
+      },
+      "distanceToTarget": 0.28
+    },
+    {
+      "step": "opened the hinged main door",
+      "control": "E",
+      "focus": {
+        "label": "Shop door — [E] close",
+        "tool": null
+      }
+    },
+    {
+      "step": "crossed the shop threshold",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.773733275699051,
+        "z": 233.7781500411058,
+        "yaw": 6.658662653589795,
+        "pitch": -0.684,
+        "localX": -0.7737332756990511,
+        "localZ": 5.778150041105789
+      },
+      "distanceToTarget": 0.131
+    },
+    {
+      "step": "followed the entrance clearway",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.89219253698186,
+        "z": 232.19545698880032,
+        "yaw": 6.357892653589788,
+        "pitch": -0.684,
+        "localX": -0.8921925369818595,
+        "localZ": 4.195456988800316
+      },
+      "distanceToTarget": 0.103
+    },
+    {
+      "step": "passed the east side of the feature table",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -9.353063658327045,
+        "z": 230.00596230375,
+        "yaw": 6.5163526535897915,
+        "pitch": -0.684,
+        "localX": -1.353063658327045,
+        "localZ": 2.0059623037500103
+      },
+      "distanceToTarget": 0.116
+    },
+    {
+      "step": "crossed behind the feature table",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -12.124296198345293,
+        "z": 229.8535602514544,
+        "yaw": 7.799042653589796,
+        "pitch": -0.684,
+        "localX": -4.124296198345293,
+        "localZ": 1.853560251454411
+      },
+      "distanceToTarget": 0.126
+    },
+    {
+      "step": "circulated through the west retail aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -16.229088878300548,
+        "z": 229.8575352218455,
+        "yaw": 7.719812653589794,
+        "pitch": -0.684,
+        "localX": -8.229088878300548,
+        "localZ": 1.8575352218454952
+      },
+      "distanceToTarget": 0.121
+    },
+    {
+      "step": "walked the full club-wall aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -16.34129529244145,
+        "z": 223.34407592856155,
+        "yaw": 6.216722653589795,
+        "pitch": -0.684,
+        "localX": -8.341295292441451,
+        "localZ": -4.655924071438449
+      },
+      "distanceToTarget": 0.094
+    },
+    {
+      "step": "reached the ball-wall approach",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -10.400134479716334,
+        "z": 223.1210312743639,
+        "yaw": 4.871142653589811,
+        "pitch": -0.684,
+        "localX": -2.4001344797163338,
+        "localZ": -4.878968725636099
+      },
+      "distanceToTarget": 0.102
+    },
+    {
+      "step": "crossed the north display aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -7.685927301619175,
+        "z": 223.26799307944745,
+        "yaw": 4.712492653589812,
+        "pitch": -0.684,
+        "localX": 0.31407269838082463,
+        "localZ": -4.73200692055255
+      },
+      "distanceToTarget": 0.237
+    },
+    {
+      "step": "cleared the west edge of the bag stand",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.248368663983504,
+        "z": 224.41048493184653,
+        "yaw": 2.749412653589803,
+        "pitch": -0.684,
+        "localX": -0.24836866398350388,
+        "localZ": -3.5895150681534744
+      },
+      "distanceToTarget": 0.04
+    },
+    {
+      "step": "crossed the center aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.45940013714386,
+        "z": 226.71937280780602,
+        "yaw": 3.0819126535897907,
+        "pitch": -0.684,
+        "localX": -0.4594001371438594,
+        "localZ": -1.2806271921939754
+      },
+      "distanceToTarget": 0.181
+    },
+    {
+      "step": "followed the west side of the scorecard station",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -7.825401520804758,
+        "z": 230.63086919787128,
+        "yaw": 3.430562653589778,
+        "pitch": -0.684,
+        "localX": 0.17459847919524218,
+        "localZ": 2.6308691978712773
+      },
+      "distanceToTarget": 0.232
+    },
+    {
+      "step": "returned along the queue-clear aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -5.449246239847839,
+        "z": 231.25269852433726,
+        "yaw": 4.411912653589755,
+        "pitch": -0.684,
+        "localX": 2.550753760152161,
+        "localZ": 3.252698524337262
+      },
+      "distanceToTarget": 0.11
+    },
+    {
+      "step": "cleared the west end of the checkout counter",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -7.052634503509496,
+        "z": 231.25997718722888,
+        "yaw": 1.7992226535897573,
+        "pitch": -0.684,
+        "localX": 0.9473654964905043,
+        "localZ": 3.259977187228884
+      },
+      "distanceToTarget": 0.217
+    },
+    {
+      "step": "entered the staff corridor",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -7.296121799201704,
+        "z": 233.01293575268426,
+        "yaw": 3.09749265358974,
+        "pitch": -0.684,
+        "localX": 0.7038782007982958,
+        "localZ": 5.012935752684257
+      },
+      "distanceToTarget": 0.242
+    },
+    {
+      "step": "walked behind the checkout clearway",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -3.3619647659610035,
+        "z": 233.24011570737713,
+        "yaw": 4.673542653589727,
+        "pitch": -0.684,
+        "localX": 4.6380352340389965,
+        "localZ": 5.240115707377129
+      },
+      "distanceToTarget": 0.262
+    },
+    {
+      "step": "entered the office side",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -1.2067902032750732,
+        "z": 233.3149544157546,
+        "yaw": 7.775862653589704,
+        "pitch": -0.684,
+        "localX": 6.793209796724927,
+        "localZ": 5.314954415754613
+      },
+      "distanceToTarget": 0.194
+    },
+    {
+      "step": "reached the laptop chair",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 0.5363172678101072,
+        "z": 232.3960255828199,
+        "yaw": 2.755302653589746,
+        "pitch": -0.684,
+        "localX": 8.536317267810107,
+        "localZ": 4.396025582819902
+      },
+      "distanceToTarget": 0.11
+    },
+    {
+      "step": "opened the physical office laptop",
+      "control": "E",
+      "focus": {
+        "label": "Laptop — [E] open Fairway Office",
+        "tool": null
+      }
+    },
+    {
+      "step": "ordered starter stock, a new shoe category, and a fixture/decor upgrade",
+      "control": "laptop pointer UI",
+      "orders": [
+        {
+          "id": 1,
+          "skuId": "balls1",
+          "qty": 3,
+          "deliveryMin": 3517
+        },
+        {
+          "id": 2,
+          "skuId": "shoe1",
+          "qty": 1,
+          "deliveryMin": 5174
+        },
+        {
+          "id": 3,
+          "skuId": "plant1",
+          "qty": 1,
+          "deliveryMin": 4911
+        }
+      ]
+    },
+    {
+      "step": "waited for the authored supplier lead times and pad arrival",
+      "control": "3 then Space",
+      "boxes": [
+        {
+          "id": 1,
+          "skuId": "balls1",
+          "qty": 3,
+          "loc": "pad",
+          "tape": 0,
+          "flaps": [
+            0,
+            0
+          ],
+          "flat": false,
+          "x": null,
+          "z": null
+        },
+        {
+          "id": 2,
+          "skuId": "plant1",
+          "qty": 1,
+          "loc": "pad",
+          "tape": 0,
+          "flaps": [
+            0,
+            0
+          ],
+          "flat": false,
+          "x": null,
+          "z": null
+        },
+        {
+          "id": 3,
+          "skuId": "shoe1",
+          "qty": 1,
+          "loc": "pad",
+          "tape": 0,
+          "flaps": [
+            0,
+            0
+          ],
+          "flat": false,
+          "x": null,
+          "z": null
+        }
+      ]
+    },
+    {
+      "step": "approached the stockroom door from the office",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 0.5777784847260196,
+        "z": 231.20691150786087,
+        "yaw": 6.207792653589697,
+        "pitch": -0.684,
+        "localX": 8.57777848472602,
+        "localZ": 3.206911507860866
+      },
+      "distanceToTarget": 0.208
+    },
+    {
+      "step": "stood at the stockroom door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 0.7901593415291798,
+        "z": 230.80614842914278,
+        "yaw": 5.795872653589719,
+        "pitch": -0.684,
+        "localX": 8.79015934152918,
+        "localZ": 2.8061484291427803
+      },
+      "distanceToTarget": 0.191
+    },
+    {
+      "step": "crossed into the stockroom",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 0.9409364079672712,
+        "z": 229.40615818884163,
+        "yaw": 6.461442653589803,
+        "pitch": -0.684,
+        "localX": 8.940936407967271,
+        "localZ": 1.40615818884163
+      },
+      "distanceToTarget": 0.161
+    },
+    {
+      "step": "walked down the receiving aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 1.304886663243985,
+        "z": 225.2626598767686,
+        "yaw": 5.764522653589801,
+        "pitch": -0.684,
+        "localX": 9.304886663243986,
+        "localZ": -2.737340123231405
+      },
+      "distanceToTarget": 0.038
+    },
+    {
+      "step": "stood inside the receiving door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 1.5165455386541606,
+        "z": 224.58680389810496,
+        "yaw": 6.017412653589812,
+        "pitch": -0.684,
+        "localX": 9.51654553865416,
+        "localZ": -3.413196101895039
+      },
+      "distanceToTarget": 0.19
+    },
+    {
+      "step": "crossed onto the receiving pad",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.03533186918793,
+        "z": 224.39640546187823,
+        "yaw": 4.782032653589825,
+        "pitch": -0.684,
+        "localX": 11.03533186918793,
+        "localZ": -3.6035945381217687
+      },
+      "distanceToTarget": 0.115
+    },
+    {
+      "step": "opened both service doors to the delivery pad",
+      "control": "E + first-person movement"
+    },
+    {
+      "step": "approached the plant1 delivery carton",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 4.316756526780295,
+        "z": 223.43882874765623,
+        "yaw": 5.936852653589799,
+        "pitch": -0.684,
+        "localX": 12.316756526780296,
+        "localZ": -4.561171252343769
+      },
+      "distanceToTarget": 0.206
+    },
+    {
+      "step": "carried plant1 toward the receiving door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.158552879309075,
+        "z": 224.26784437663912,
+        "yaw": 2.2626326535898214,
+        "pitch": -0.684,
+        "localX": 11.158552879309076,
+        "localZ": -3.7321556233608817
+      },
+      "distanceToTarget": 0.206
+    },
+    {
+      "step": "carried plant1 through the receiving door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 1.8178294668264228,
+        "z": 224.389493707317,
+        "yaw": 1.6612826535898195,
+        "pitch": -0.684,
+        "localX": 9.817829466826423,
+        "localZ": -3.6105062926829987
+      },
+      "distanceToTarget": 0.118
+    },
+    {
+      "step": "carried plant1 down the stockroom aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 0.1963214464353672,
+        "z": 223.60189151553016,
+        "yaw": 0.69589265358978,
+        "pitch": -0.684,
+        "localX": 8.196321446435368,
+        "localZ": -4.398108484469844
+      },
+      "distanceToTarget": 0.14
+    },
+    {
+      "step": "reached the stockroom unpacking area with plant1",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 0.2851053501910358,
+        "z": 225.68340342801537,
+        "yaw": 3.210732653589792,
+        "pitch": -0.684,
+        "localX": 8.285105350191035,
+        "localZ": -2.3165965719846326
+      },
+      "distanceToTarget": 0.134
+    },
+    {
+      "step": "found clear floor space for the plant1 carton",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 0.2851053501910358,
+        "z": 225.68340342801537,
+        "yaw": 3.210732653589792,
+        "pitch": -0.684,
+        "localX": 8.285105350191035,
+        "localZ": -2.3165965719846326
+      },
+      "distanceToTarget": 0.134
+    },
+    {
+      "step": "received plant1 through the physical service route",
+      "control": "E + first-person carrying",
+      "initialFocus": {
+        "label": "Delivery: Potted plant ×1 · 9.6 lb — [E] pick up",
+        "tool": null
+      }
+    },
+    {
+      "step": "remained beside the dropped plant1 carton",
+      "control": "normal set-down position",
+      "pose": {
+        "x": 0.2851053501910358,
+        "z": 225.68340342801537,
+        "yaw": 3.210732653589792,
+        "pitch": -0.684,
+        "localX": 8.285105350191035,
+        "localZ": -2.3165965719846326
+      },
+      "distanceToCarton": 0.9,
+      "carton": {
+        "x": 8.347281785137415,
+        "z": -1.4187468680044049
+      }
+    },
+    {
+      "step": "cut, opened, and took plant1 from its carton",
+      "control": "hold E + E + E + E",
+      "sealed": {
+        "label": "Potted plant — hold [E] to finish the cut",
+        "tool": "boxcutter"
+      },
+      "hands": {
+        "goods": {
+          "skuId": "plant1",
+          "qty": 1
+        },
+        "box": null
+      }
+    },
+    {
+      "step": "stepped away from the open plant carton",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 0.32208112939372996,
+        "z": 225.47444846298427,
+        "yaw": 6.108042653589737,
+        "pitch": -0.684,
+        "localX": 8.32208112939373,
+        "localZ": -2.5255515370157298
+      },
+      "distanceToTarget": 0.195
+    },
+    {
+      "step": "stored the received plant on the stockroom shelf",
+      "control": "E",
+      "focus": {
+        "label": "Holding Potted plant ×1 — [E] set them on the backroom shelf",
+        "tool": null
+      }
+    },
+    {
+      "step": "returned to the receiving door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 1.3523969627899848,
+        "z": 224.5059923943802,
+        "yaw": 5.331892653589734,
+        "pitch": -0.684,
+        "localX": 9.352396962789985,
+        "localZ": -3.4940076056197995
+      },
+      "distanceToTarget": 0.182
+    },
+    {
+      "step": "opened Receiving door",
+      "control": "E",
+      "focus": {
+        "label": "Receiving door — [E] open",
+        "tool": null
+      }
+    },
+    {
+      "step": "left the stockroom through receiving",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.1444027137238546,
+        "z": 224.5593885662034,
+        "yaw": 6.13939265358968,
+        "pitch": -0.684,
+        "localX": 11.144402713723855,
+        "localZ": -3.4406114337965903
+      },
+      "distanceToTarget": 0.159
+    },
+    {
+      "step": "walked along the clubhouse east wall",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.9814154253836294,
+        "z": 227.79620745021057,
+        "yaw": 3.3528526535896606,
+        "pitch": -0.684,
+        "localX": 11.981415425383629,
+        "localZ": -0.2037925497894264
+      },
+      "distanceToTarget": 0.205
+    },
+    {
+      "step": "rounded the southeast corner",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 4.045771680112108,
+        "z": 234.64931993124057,
+        "yaw": 3.0366926535896703,
+        "pitch": -0.684,
+        "localX": 12.045771680112107,
+        "localZ": 6.649319931240569
+      },
+      "distanceToTarget": 0.255
+    },
+    {
+      "step": "followed the front approach west",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -0.8459796597042462,
+        "z": 236.00092410602596,
+        "yaw": 1.690922653589633,
+        "pitch": -0.684,
+        "localX": 7.154020340295753,
+        "localZ": 8.000924106025963
+      },
+      "distanceToTarget": 0.154
+    },
+    {
+      "step": "passed the clubhouse sign",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -5.37492320673776,
+        "z": 236.01594605978272,
+        "yaw": 1.4372726535895781,
+        "pitch": -0.684,
+        "localX": 2.62507679326224,
+        "localZ": 8.01594605978272
+      },
+      "distanceToTarget": 0.126
+    },
+    {
+      "step": "returned to the main porch",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.632110441816407,
+        "z": 235.57843127232815,
+        "yaw": 1.4372726535895781,
+        "pitch": -0.684,
+        "localX": -0.6321104418164065,
+        "localZ": 7.578431272328146
+      },
+      "distanceToTarget": 0.17
+    },
+    {
+      "step": "re-entered the shop through the main door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.784205802655402,
+        "z": 233.91392573769915,
+        "yaw": 0.09112265358952362,
+        "pitch": -0.684,
+        "localX": -0.7842058026554017,
+        "localZ": 5.913925737699145
+      },
+      "distanceToTarget": 0.264
+    },
+    {
+      "step": "cleared the inward-swinging main door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.813645944350723,
+        "z": 232.41335277767635,
+        "yaw": -0.019837346410465324,
+        "pitch": -0.684,
+        "localX": -0.8136459443507231,
+        "localZ": 4.4133527776763515
+      },
+      "distanceToTarget": 0.164
+    },
+    {
+      "step": "approached the authored plant ghost",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -10.354295727977757,
+        "z": 232.78491782836633,
+        "yaw": 3.130742653589507,
+        "pitch": -0.684,
+        "localX": -2.3542957279777568,
+        "localZ": 4.784917828366332
+      },
+      "distanceToTarget": 0.165
+    },
+    {
+      "step": "placed the purchased fixture/decor upgrade at its authored socket",
+      "control": "E",
+      "focus": {
+        "label": "Place the potted plant here — [E]",
+        "tool": null
+      },
+      "beforeDecor": [],
+      "afterDecor": [
+        {
+          "skuId": "plant1",
+          "spot": 0
+        }
+      ]
+    },
+    {
+      "step": "saved the upgraded layout after physical receipt and placement",
+      "control": "Esc -> Save game -> Slot 2",
+      "snapshot": {
+        "cash": 58354.32,
+        "tier": 2,
+        "inventory": {
+          "bag1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bag3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bar2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "board1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bottle1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "chips1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "crackers1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "divot1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "jacket2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "light1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "lounge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "marker1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "pants2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "plant1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "poster1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "range2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "rug1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "scorecard1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shorts1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sock1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "soda1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sportdrink2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sunglasses2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "towel1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "umb1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "vac1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "water1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge2": {
+            "shelf": 0,
+            "back": 0
+          }
+        },
+        "decor": [
+          {
+            "skuId": "plant1",
+            "spot": 0
+          }
+        ],
+        "layout": {
+          "moved": {},
+          "stored": [],
+          "extra": []
+        },
+        "boxes": [
+          {
+            "id": 1,
+            "skuId": "balls1",
+            "qty": 3,
+            "loc": "pad",
+            "tape": 0,
+            "flaps": [
+              0,
+              0
+            ],
+            "flat": false,
+            "x": null,
+            "z": null
+          },
+          {
+            "id": 2,
+            "skuId": "plant1",
+            "qty": 0,
+            "loc": "world",
+            "tape": 1,
+            "flaps": [
+              1,
+              1
+            ],
+            "flat": false,
+            "x": 8.347281785137415,
+            "z": -1.4187468680044049
+          },
+          {
+            "id": 3,
+            "skuId": "shoe1",
+            "qty": 1,
+            "loc": "pad",
+            "tape": 0,
+            "flaps": [
+              0,
+              0
+            ],
+            "flat": false,
+            "x": null,
+            "z": null
+          }
+        ],
+        "orders": [],
+        "held": []
+      }
+    },
+    {
+      "step": "left the upgraded entrance display",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.934604075321964,
+        "z": 233.5717020639529,
+        "yaw": 4.2551626535894895,
+        "pitch": -0.684,
+        "localX": -0.934604075321964,
+        "localZ": 5.571702063952898
+      },
+      "distanceToTarget": 0.156
+    },
+    {
+      "step": "opened Shop door",
+      "control": "E",
+      "focus": {
+        "label": "Shop door — [E] open",
+        "tool": null
+      }
+    },
+    {
+      "step": "stepped back onto the porch",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.75407401848064,
+        "z": 235.44809747048475,
+        "yaw": 2.860372653589583,
+        "pitch": -0.684,
+        "localX": -0.7540740184806403,
+        "localZ": 7.448097470484754
+      },
+      "distanceToTarget": 0.112
+    },
+    {
+      "step": "walked east past the clubhouse sign",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -5.65927550965154,
+        "z": 236.00210118443488,
+        "yaw": 4.586142653589622,
+        "pitch": -0.684,
+        "localX": 2.3407244903484603,
+        "localZ": 8.002101184434878
+      },
+      "distanceToTarget": 0.159
+    },
+    {
+      "step": "followed the front approach east",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -1.269266161952204,
+        "z": 236.04108329919072,
+        "yaw": 4.7761426535896225,
+        "pitch": -0.684,
+        "localX": 6.7307338380477955,
+        "localZ": 8.041083299190717
+      },
+      "distanceToTarget": 0.272
+    },
+    {
+      "step": "rounded the southeast corner toward receiving",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.8007183299775043,
+        "z": 234.96627347086275,
+        "yaw": 4.998252653589613,
+        "pitch": -0.684,
+        "localX": 11.800718329977505,
+        "localZ": 6.966273470862745
+      },
+      "distanceToTarget": 0.21
+    },
+    {
+      "step": "walked along the clubhouse east wall toward receiving",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.982200707641036,
+        "z": 228.19846499955545,
+        "yaw": 6.2646026535896135,
+        "pitch": -0.684,
+        "localX": 11.982200707641036,
+        "localZ": 0.19846499955545482
+      },
+      "distanceToTarget": 0.199
+    },
+    {
+      "step": "returned to the receiving pad",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.2104600659655063,
+        "z": 224.53887707030583,
+        "yaw": 6.5969126535895475,
+        "pitch": -0.684,
+        "localX": 11.210460065965506,
+        "localZ": -3.46112292969417
+      },
+      "distanceToTarget": 0.151
+    },
+    {
+      "step": "approached the balls1 delivery carton",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.656218154465958,
+        "z": 223.40497452950333,
+        "yaw": 5.869022653589536,
+        "pitch": -0.684,
+        "localX": 11.656218154465957,
+        "localZ": -4.595025470496665
+      },
+      "distanceToTarget": 0.176
+    },
+    {
+      "step": "carried balls1 toward the receiving door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.1725927901483666,
+        "z": 224.16549312363773,
+        "yaw": 2.5751826535896187,
+        "pitch": -0.684,
+        "localX": 11.172592790148366,
+        "localZ": -3.834506876362269
+      },
+      "distanceToTarget": 0.291
+    },
+    {
+      "step": "carried balls1 through the receiving door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 1.8828242635061545,
+        "z": 224.3861164089103,
+        "yaw": 1.704602653589649,
+        "pitch": -0.684,
+        "localX": 9.882824263506155,
+        "localZ": -3.6138835910896887
+      },
+      "distanceToTarget": 0.183
+    },
+    {
+      "step": "carried balls1 down the stockroom aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 0.2264926833634958,
+        "z": 223.67489271365443,
+        "yaw": 0.6905726535896285,
+        "pitch": -0.684,
+        "localX": 8.226492683363496,
+        "localZ": -4.32510728634557
+      },
+      "distanceToTarget": 0.216
+    },
+    {
+      "step": "reached the stockroom unpacking area with balls1",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -0.5360205162629411,
+        "z": 223.37590588840766,
+        "yaw": 1.1971126535896393,
+        "pitch": -0.684,
+        "localX": 7.4639794837370586,
+        "localZ": -4.624094111592342
+      },
+      "distanceToTarget": 0.275
+    },
+    {
+      "step": "found clear floor space for the balls1 carton",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -0.5360205162629411,
+        "z": 223.37590588840766,
+        "yaw": 1.1971126535896393,
+        "pitch": -0.684,
+        "localX": 7.4639794837370586,
+        "localZ": -4.624094111592342
+      },
+      "distanceToTarget": 0.275
+    },
+    {
+      "step": "received balls1 through the physical service route",
+      "control": "E + first-person carrying",
+      "initialFocus": {
+        "label": "Delivery: Range-rock dozen ×3 · 5.1 lb — [E] pick up",
+        "tool": null
+      }
+    },
+    {
+      "step": "remained beside the dropped balls1 carton",
+      "control": "normal set-down position",
+      "pose": {
+        "x": -0.5360205162629411,
+        "z": 223.37590588840766,
+        "yaw": 2.8592326535897317,
+        "pitch": -0.684,
+        "localX": 7.4639794837370586,
+        "localZ": -4.624094111592342
+      },
+      "distanceToCarton": 0.9,
+      "carton": {
+        "x": 7.213218812808552,
+        "z": -3.7597336046766827
+      }
+    },
+    {
+      "step": "cut, opened, and took balls1 from its carton",
+      "control": "hold E + E + E + E",
+      "sealed": {
+        "label": "Range-rock dozen — hold [E] to finish the cut",
+        "tool": "boxcutter"
+      },
+      "hands": {
+        "goods": {
+          "skuId": "balls1",
+          "qty": 3
+        },
+        "box": null
+      }
+    },
+    {
+      "step": "returned to the receiving door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 1.3463407182941272,
+        "z": 224.33897282878414,
+        "yaw": 4.332492653589784,
+        "pitch": -0.684,
+        "localX": 9.346340718294128,
+        "localZ": -3.6610271712158635
+      },
+      "distanceToTarget": 0.165
+    },
+    {
+      "step": "carried opened stock through the receiving door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.0018517165207768,
+        "z": 224.50782231752893,
+        "yaw": 5.266342653589781,
+        "pitch": -0.684,
+        "localX": 11.001851716520777,
+        "localZ": -3.492177682471066
+      },
+      "distanceToTarget": 0.183
+    },
+    {
+      "step": "walked along the clubhouse east wall",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.9920537101615183,
+        "z": 227.93591308836753,
+        "yaw": 3.2553826535898436,
+        "pitch": -0.684,
+        "localX": 11.992053710161517,
+        "localZ": -0.06408691163247227
+      },
+      "distanceToTarget": 0.065
+    },
+    {
+      "step": "rounded the southeast corner",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 4.014872886314651,
+        "z": 234.69317790680657,
+        "yaw": 3.0655726535897987,
+        "pitch": -0.684,
+        "localX": 12.01487288631465,
+        "localZ": 6.693177906806568
+      },
+      "distanceToTarget": 0.207
+    },
+    {
+      "step": "followed the front approach west",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -0.7940838100548664,
+        "z": 235.9498443114216,
+        "yaw": 1.7851626535896394,
+        "pitch": -0.684,
+        "localX": 7.205916189945134,
+        "localZ": 7.9498443114216
+      },
+      "distanceToTarget": 0.212
+    },
+    {
+      "step": "passed the clubhouse sign",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -5.353525019785235,
+        "z": 236.01288277976806,
+        "yaw": 1.5003526535896505,
+        "pitch": -0.684,
+        "localX": 2.646474980214765,
+        "localZ": 8.012882779768063
+      },
+      "distanceToTarget": 0.147
+    },
+    {
+      "step": "returned to the main porch",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.597976039422571,
+        "z": 235.6054816759456,
+        "yaw": 1.358232653589673,
+        "pitch": -0.684,
+        "localX": -0.597976039422571,
+        "localZ": 7.605481675945612
+      },
+      "distanceToTarget": 0.21
+    },
+    {
+      "step": "re-entered the shop through the main door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.794222354052872,
+        "z": 233.91235964143803,
+        "yaw": 0.07649265358971823,
+        "pitch": -0.684,
+        "localX": -0.7942223540528719,
+        "localZ": 5.91235964143803
+      },
+      "distanceToTarget": 0.262
+    },
+    {
+      "step": "carried starter stock down the entrance aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.828624860904945,
+        "z": 231.63340333330584,
+        "yaw": -0.05023734641030388,
+        "pitch": -0.684,
+        "localX": -0.8286248609049451,
+        "localZ": 3.6334033333058358
+      },
+      "distanceToTarget": 0.235
+    },
+    {
+      "step": "carried starter stock past the feature table",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -9.298221406377502,
+        "z": 230.05292935569793,
+        "yaw": 0.32919265358971816,
+        "pitch": -0.684,
+        "localX": -1.2982214063775022,
+        "localZ": 2.052929355697927
+      },
+      "distanceToTarget": 0.273
+    },
+    {
+      "step": "carried starter stock into the west aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -12.115607540743557,
+        "z": 229.78545159684975,
+        "yaw": 1.5476626535897506,
+        "pitch": -0.684,
+        "localX": -4.115607540743557,
+        "localZ": 1.7854515968497537
+      },
+      "distanceToTarget": 0.135
+    },
+    {
+      "step": "carried starter stock to the club wall",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -16.09949946203766,
+        "z": 229.7686596306648,
+        "yaw": 1.6265126535897505,
+        "pitch": -0.684,
+        "localX": -8.09949946203766,
+        "localZ": 1.7686596306648141
+      },
+      "distanceToTarget": 0.203
+    },
+    {
+      "step": "carried starter stock to the north wall",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -16.274739703661798,
+        "z": 223.4551733586378,
+        "yaw": 0.04210265358970734,
+        "pitch": -0.684,
+        "localX": -8.274739703661798,
+        "localZ": -4.544826641362192
+      },
+      "distanceToTarget": 0.157
+    },
+    {
+      "step": "approached the authored balls1 stocking socket",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -15.088406543245165,
+        "z": 222.8790416457645,
+        "yaw": -1.1444473464102922,
+        "pitch": -0.684,
+        "localX": -7.088406543245165,
+        "localZ": -5.120958354235512
+      },
+      "distanceToTarget": 0.197
+    },
+    {
+      "step": "paused ambient shoppers for the balls1 stock-count measurement",
+      "control": "Space"
+    },
+    {
+      "step": "stocked balls1 at its authored fixture",
+      "control": "hold E",
+      "focus": {
+        "label": "Golf balls — Range-rock dozen 0/15 — hold [E] to stock (3 in hand)",
+        "tool": null
+      },
+      "shelfBefore": 0,
+      "shelfAfter": 3
+    },
+    {
+      "step": "saved the upgraded, partially stocked layout",
+      "control": "Esc -> Save game -> Slot 3",
+      "snapshot": {
+        "cash": 58354.32,
+        "tier": 2,
+        "inventory": {
+          "bag1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bag3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls1": {
+            "shelf": 3,
+            "back": 0
+          },
+          "balls2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bar2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "board1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bottle1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "chips1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "crackers1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "divot1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "jacket2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "light1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "lounge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "marker1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "pants2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "plant1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "poster1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "range2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "rug1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "scorecard1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shorts1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sock1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "soda1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sportdrink2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sunglasses2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "towel1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "umb1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "vac1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "water1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge2": {
+            "shelf": 0,
+            "back": 0
+          }
+        },
+        "decor": [
+          {
+            "skuId": "plant1",
+            "spot": 0
+          }
+        ],
+        "layout": {
+          "moved": {},
+          "stored": [],
+          "extra": []
+        },
+        "boxes": [
+          {
+            "id": 1,
+            "skuId": "balls1",
+            "qty": 0,
+            "loc": "world",
+            "tape": 1,
+            "flaps": [
+              1,
+              1
+            ],
+            "flat": false,
+            "x": 7.213218812808552,
+            "z": -3.7597336046766827
+          },
+          {
+            "id": 2,
+            "skuId": "plant1",
+            "qty": 0,
+            "loc": "world",
+            "tape": 1,
+            "flaps": [
+              1,
+              1
+            ],
+            "flat": false,
+            "x": 8.347281785137415,
+            "z": -1.4187468680044049
+          },
+          {
+            "id": 3,
+            "skuId": "shoe1",
+            "qty": 1,
+            "loc": "pad",
+            "tape": 0,
+            "flaps": [
+              0,
+              0
+            ],
+            "flat": false,
+            "x": null,
+            "z": null
+          }
+        ],
+        "orders": [],
+        "held": []
+      }
+    },
+    {
+      "step": "left the upgraded entrance display",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.836607994682941,
+        "z": 233.44461636842894,
+        "yaw": -2.919047346410406,
+        "pitch": -0.684,
+        "localX": -0.8366079946829412,
+        "localZ": 5.444616368428939
+      },
+      "distanceToTarget": 0.209
+    },
+    {
+      "step": "opened Shop door",
+      "control": "E",
+      "focus": {
+        "label": "Shop door — [E] open",
+        "tool": null
+      }
+    },
+    {
+      "step": "stepped back onto the porch",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.740750476192355,
+        "z": 235.43564641046075,
+        "yaw": -3.5044373464103646,
+        "pitch": -0.684,
+        "localX": -0.7407504761923551,
+        "localZ": 7.435646410460748
+      },
+      "distanceToTarget": 0.129
+    },
+    {
+      "step": "walked east past the clubhouse sign",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -5.704218379700106,
+        "z": 235.99137706471663,
+        "yaw": -1.6994373464103563,
+        "pitch": -0.684,
+        "localX": 2.295781620299894,
+        "localZ": 7.99137706471663
+      },
+      "distanceToTarget": 0.204
+    },
+    {
+      "step": "followed the front approach east",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -1.1173011194996134,
+        "z": 236.02200297632805,
+        "yaw": -1.4932873464103567,
+        "pitch": -0.684,
+        "localX": 6.882698880500387,
+        "localZ": 8.022002976328054
+      },
+      "distanceToTarget": 0.119
+    },
+    {
+      "step": "rounded the southeast corner toward receiving",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.755649656917749,
+        "z": 234.98265757865764,
+        "yaw": -1.2713673464103237,
+        "pitch": -0.684,
+        "localX": 11.755649656917749,
+        "localZ": 6.982657578657637
+      },
+      "distanceToTarget": 0.258
+    },
+    {
+      "step": "walked along the clubhouse east wall toward receiving",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 4.017618760021153,
+        "z": 228.18970917114774,
+        "yaw": 0.010752653589654005,
+        "pitch": -0.684,
+        "localX": 12.017618760021154,
+        "localZ": 0.1897091711477401
+      },
+      "distanceToTarget": 0.191
+    },
+    {
+      "step": "returned to the receiving pad",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.196067456836826,
+        "z": 224.51378538282069,
+        "yaw": 0.2636426535896097,
+        "pitch": -0.684,
+        "localX": 11.196067456836825,
+        "localZ": -3.4862146171793142
+      },
+      "distanceToTarget": 0.123
+    },
+    {
+      "step": "approached the shoe1 delivery carton",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.606100935745693,
+        "z": 223.39675246242663,
+        "yaw": -0.41750734641033493,
+        "pitch": -0.684,
+        "localX": 11.606100935745694,
+        "localZ": -4.603247537573367
+      },
+      "distanceToTarget": 0.164
+    },
+    {
+      "step": "carried shoe1 toward the receiving door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.0908983082292103,
+        "z": 224.28288887537968,
+        "yaw": -3.6948173464102765,
+        "pitch": -0.684,
+        "localX": 11.09089830822921,
+        "localZ": -3.717111124620317
+      },
+      "distanceToTarget": 0.148
+    },
+    {
+      "step": "carried shoe1 through the receiving door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 1.8769058618283214,
+        "z": 224.4068005503658,
+        "yaw": -4.676357346410287,
+        "pitch": -0.684,
+        "localX": 9.876905861828321,
+        "localZ": -3.5931994496341986
+      },
+      "distanceToTarget": 0.177
+    },
+    {
+      "step": "carried shoe1 down the stockroom aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 0.22042980711209684,
+        "z": 223.67627534066773,
+        "yaw": -5.611537346410312,
+        "pitch": -0.684,
+        "localX": 8.220429807112097,
+        "localZ": -4.323724659332271
+      },
+      "distanceToTarget": 0.213
+    },
+    {
+      "step": "reached the stockroom unpacking area with shoe1",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 0.5486255641948387,
+        "z": 223.33734722032804,
+        "yaw": -7.052497346410364,
+        "pitch": -0.684,
+        "localX": 8.548625564194838,
+        "localZ": -4.662652779671959
+      },
+      "distanceToTarget": 0.134
+    },
+    {
+      "step": "found clear floor space for the shoe1 carton",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 0.5486255641948387,
+        "z": 223.33734722032804,
+        "yaw": -7.052497346410364,
+        "pitch": -0.684,
+        "localX": 8.548625564194838,
+        "localZ": -4.662652779671959
+      },
+      "distanceToTarget": 0.134
+    },
+    {
+      "step": "received shoe1 through the physical service route",
+      "control": "E + first-person carrying",
+      "initialFocus": {
+        "label": "Delivery: North Ridge spikes ×1 · 3 lb — [E] pick up",
+        "tool": null
+      }
+    },
+    {
+      "step": "remained beside the dropped shoe1 carton",
+      "control": "normal set-down position",
+      "pose": {
+        "x": 0.7835465404239957,
+        "z": 223.2574373635053,
+        "yaw": -9.33211734641035,
+        "pitch": -0.684,
+        "localX": 8.783546540423997,
+        "localZ": -4.742562636494711
+      },
+      "distanceToCarton": 0.655,
+      "carton": {
+        "x": 8.153546540423996,
+        "z": -4.921363126885597
+      }
+    },
+    {
+      "step": "cut, opened, and took shoe1 from its carton",
+      "control": "hold E + E + E + E",
+      "sealed": {
+        "label": "North Ridge spikes case · 1 inside — hold [E] to cut the tape",
+        "tool": "boxcutter"
+      },
+      "hands": {
+        "goods": {
+          "skuId": "shoe1",
+          "qty": 1
+        },
+        "box": null
+      }
+    },
+    {
+      "step": "returned to the receiving door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 1.4020705492648942,
+        "z": 224.2824514007556,
+        "yaw": -8.84096734641033,
+        "pitch": -0.684,
+        "localX": 9.402070549264895,
+        "localZ": -3.7175485992443953
+      },
+      "distanceToTarget": 0.153
+    },
+    {
+      "step": "carried opened stock through the receiving door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 2.928204243696276,
+        "z": 224.39961499965477,
+        "yaw": -7.890017346410314,
+        "pitch": -0.684,
+        "localX": 10.928204243696277,
+        "localZ": -3.600385000345227
+      },
+      "distanceToTarget": 0.222
+    },
+    {
+      "step": "walked along the clubhouse east wall",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 3.985741182773446,
+        "z": 227.86009110305906,
+        "yaw": -9.218307346410338,
+        "pitch": -0.684,
+        "localX": 11.985741182773445,
+        "localZ": -0.13990889694093767
+      },
+      "distanceToTarget": 0.141
+    },
+    {
+      "step": "rounded the southeast corner",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": 4.033269783820239,
+        "z": 234.6224777798679,
+        "yaw": -9.5034973464103,
+        "pitch": -0.684,
+        "localX": 12.033269783820238,
+        "localZ": 6.622477779867893
+      },
+      "distanceToTarget": 0.28
+    },
+    {
+      "step": "followed the front approach west",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -0.8346586432982658,
+        "z": 235.99084841372357,
+        "yaw": -10.802337346410281,
+        "pitch": -0.684,
+        "localX": 7.1653413567017346,
+        "localZ": 7.990848413723569
+      },
+      "distanceToTarget": 0.166
+    },
+    {
+      "step": "passed the clubhouse sign",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -5.369758751040814,
+        "z": 236.026553552594,
+        "yaw": -11.103297346410276,
+        "pitch": -0.684,
+        "localX": 2.6302412489591864,
+        "localZ": 8.02655355259401
+      },
+      "distanceToTarget": 0.133
+    },
+    {
+      "step": "returned to the main porch",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.572694405703963,
+        "z": 235.61660675181196,
+        "yaw": -11.197917346410257,
+        "pitch": -0.684,
+        "localX": -0.5726944057039631,
+        "localZ": 7.616606751811958
+      },
+      "distanceToTarget": 0.237
+    },
+    {
+      "step": "re-entered the shop through the main door",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.78756111781373,
+        "z": 233.90398956127697,
+        "yaw": -12.480797346410297,
+        "pitch": -0.684,
+        "localX": -0.7875611178137305,
+        "localZ": 5.903989561276973
+      },
+      "distanceToTarget": 0.254
+    },
+    {
+      "step": "carried the new shoe category down the entrance aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.833653852546016,
+        "z": 231.59310441119604,
+        "yaw": -12.62310734641029,
+        "pitch": -0.684,
+        "localX": -0.833653852546016,
+        "localZ": 3.5931044111960375
+      },
+      "distanceToTarget": 0.196
+    },
+    {
+      "step": "carried the shoes through the center aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.494096828018513,
+        "z": 227.04181290722673,
+        "yaw": -12.749647346410304,
+        "pitch": -0.684,
+        "localX": -0.4940968280185132,
+        "localZ": -0.9581870927732723
+      },
+      "distanceToTarget": 0.149
+    },
+    {
+      "step": "cleared the west side of the bag display",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -6.917544448554167,
+        "z": 226.69504401084677,
+        "yaw": -13.95348734641033,
+        "pitch": -0.684,
+        "localX": 1.0824555514458334,
+        "localZ": -1.3049559891532283
+      },
+      "distanceToTarget": 0.271
+    },
+    {
+      "step": "approached the shoe-wall aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -4.777535863097409,
+        "z": 226.80485589613195,
+        "yaw": -14.269837346410332,
+        "pitch": -0.684,
+        "localX": 3.222464136902591,
+        "localZ": -1.1951441038680457
+      },
+      "distanceToTarget": 0.232
+    },
+    {
+      "step": "approached the authored shoe1 stocking socket",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -3.761502024436798,
+        "z": 227.6306710054863,
+        "yaw": -14.855987346410341,
+        "pitch": -0.684,
+        "localX": 4.238497975563202,
+        "localZ": -0.36932899451369394
+      },
+      "distanceToTarget": 0.178
+    },
+    {
+      "step": "paused ambient shoppers for the shoe1 stock-count measurement",
+      "control": "Space"
+    },
+    {
+      "step": "stocked shoe1 at its authored fixture",
+      "control": "hold E",
+      "focus": {
+        "label": "Golf shoes — North Ridge spikes 0/6 — hold [E] to stock (1 in hand)",
+        "tool": null
+      },
+      "shelfBefore": 0,
+      "shelfAfter": 1
+    },
+    {
+      "step": "reloaded the exact basic layout",
+      "control": "Esc -> Load game -> Slot 1",
+      "snapshot": {
+        "cash": 55354.62,
+        "tier": 2,
+        "inventory": {
+          "bag1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bag3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls1": {
+            "shelf": 10,
+            "back": 0
+          },
+          "balls2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bar2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "board1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bottle1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 5,
+            "back": 0
+          },
+          "cap2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "chips1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "crackers1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "divot1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "glove2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "jacket2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "light1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "lounge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "marker1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "pants2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "plant1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "poster1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "range2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "rug1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "scorecard1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shorts1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sock1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "soda1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sportdrink2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sunglasses2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 14,
+            "back": 0
+          },
+          "towel1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "umb1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "vac1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "water1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge2": {
+            "shelf": 0,
+            "back": 0
+          }
+        },
+        "decor": [],
+        "layout": {
+          "moved": {},
+          "stored": [],
+          "extra": []
+        },
+        "boxes": [],
+        "orders": [],
+        "held": []
+      }
+    },
+    {
+      "step": "reloaded the exact upgraded layout",
+      "control": "Esc -> Load game -> Slot 2",
+      "snapshot": {
+        "cash": 58354.32,
+        "tier": 2,
+        "inventory": {
+          "bag1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bag3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bar2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "board1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bottle1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "chips1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "crackers1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "divot1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "jacket2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "light1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "lounge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "marker1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "pants2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "plant1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "poster1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "range2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "rug1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "scorecard1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shorts1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sock1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "soda1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sportdrink2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sunglasses2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "towel1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "umb1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "vac1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "water1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge2": {
+            "shelf": 0,
+            "back": 0
+          }
+        },
+        "decor": [
+          {
+            "skuId": "plant1",
+            "spot": 0
+          }
+        ],
+        "layout": {
+          "moved": {},
+          "stored": [],
+          "extra": []
+        },
+        "boxes": [
+          {
+            "id": 1,
+            "skuId": "balls1",
+            "qty": 3,
+            "loc": "pad",
+            "tape": 0,
+            "flaps": [
+              0,
+              0
+            ],
+            "flat": false,
+            "x": null,
+            "z": null
+          },
+          {
+            "id": 2,
+            "skuId": "plant1",
+            "qty": 0,
+            "loc": "world",
+            "tape": 1,
+            "flaps": [
+              1,
+              1
+            ],
+            "flat": false,
+            "x": 8.347281785137415,
+            "z": -1.4187468680044049
+          },
+          {
+            "id": 3,
+            "skuId": "shoe1",
+            "qty": 1,
+            "loc": "pad",
+            "tape": 0,
+            "flaps": [
+              0,
+              0
+            ],
+            "flat": false,
+            "x": null,
+            "z": null
+          }
+        ],
+        "orders": [],
+        "held": []
+      }
+    },
+    {
+      "step": "reloaded the exact partial-stock layout",
+      "control": "Esc -> Load game -> Slot 3",
+      "snapshot": {
+        "cash": 58354.32,
+        "tier": 2,
+        "inventory": {
+          "bag1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bag3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls1": {
+            "shelf": 3,
+            "back": 0
+          },
+          "balls2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "balls3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bar2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "board1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "bottle1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "cap2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "chips1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "crackers1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "divot1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "driver3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "glove2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "irons2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "jacket2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "light1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "lounge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "marker1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "pants2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "plant1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "polo2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "poster1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "putter3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "range2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "rug1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "scorecard1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shoe3": {
+            "shelf": 0,
+            "back": 0
+          },
+          "shorts1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sock1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "soda1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sportdrink2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "sunglasses2": {
+            "shelf": 0,
+            "back": 0
+          },
+          "tees1": {
+            "shelf": 4,
+            "back": 0
+          },
+          "towel1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "umb1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "vac1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "water1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge1": {
+            "shelf": 0,
+            "back": 0
+          },
+          "wedge2": {
+            "shelf": 0,
+            "back": 0
+          }
+        },
+        "decor": [
+          {
+            "skuId": "plant1",
+            "spot": 0
+          }
+        ],
+        "layout": {
+          "moved": {},
+          "stored": [],
+          "extra": []
+        },
+        "boxes": [
+          {
+            "id": 1,
+            "skuId": "balls1",
+            "qty": 0,
+            "loc": "world",
+            "tape": 1,
+            "flaps": [
+              1,
+              1
+            ],
+            "flat": false,
+            "x": 7.213218812808552,
+            "z": -3.7597336046766827
+          },
+          {
+            "id": 2,
+            "skuId": "plant1",
+            "qty": 0,
+            "loc": "world",
+            "tape": 1,
+            "flaps": [
+              1,
+              1
+            ],
+            "flat": false,
+            "x": 8.347281785137415,
+            "z": -1.4187468680044049
+          },
+          {
+            "id": 3,
+            "skuId": "shoe1",
+            "qty": 1,
+            "loc": "pad",
+            "tape": 0,
+            "flaps": [
+              0,
+              0
+            ],
+            "flat": false,
+            "x": null,
+            "z": null
+          }
+        ],
+        "orders": [],
+        "held": []
+      }
+    },
+    {
+      "step": "returned to the clubhouse after the partial-state reload",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.766868804108752,
+        "z": 235.80191560399948,
+        "yaw": 6.441102653589941,
+        "pitch": 0.1349,
+        "localX": -0.7668688041087517,
+        "localZ": 7.8019156039994755
+      },
+      "distanceToTarget": 0.254
+    },
+    {
+      "step": "crossed the reloaded shop threshold",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.786500843207,
+        "z": 233.73468930463034,
+        "yaw": 6.391512653589986,
+        "pitch": 0.1349,
+        "localX": -0.7865008432069995,
+        "localZ": 5.734689304630336
+      },
+      "distanceToTarget": 0.086
+    },
+    {
+      "step": "followed the reloaded entrance aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -8.81337204502463,
+        "z": 231.61089241964348,
+        "yaw": 6.2172826535899635,
+        "pitch": 0.1349,
+        "localX": -0.8133720450246305,
+        "localZ": 3.610892419643477
+      },
+      "distanceToTarget": 0.211
+    },
+    {
+      "step": "passed the reloaded feature table",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -9.522075169720221,
+        "z": 229.6123021868993,
+        "yaw": 6.676322653590028,
+        "pitch": 0.1349,
+        "localX": -1.522075169720221,
+        "localZ": 1.6123021868993135
+      },
+      "distanceToTarget": 0.224
+    },
+    {
+      "step": "crossed the reloaded west aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -12.32052983501207,
+        "z": 229.8027942142652,
+        "yaw": 4.856502653589832,
+        "pitch": 0.1349,
+        "localX": -4.320529835012071,
+        "localZ": 1.802794214265191
+      },
+      "distanceToTarget": 0.071
+    },
+    {
+      "step": "reached the reloaded club wall",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -16.11759531102296,
+        "z": 229.78244562006472,
+        "yaw": 7.848622653589918,
+        "pitch": 0.1349,
+        "localX": -8.11759531102296,
+        "localZ": 1.7824456200647205
+      },
+      "distanceToTarget": 0.183
+    },
+    {
+      "step": "reached the reloaded ball-wall aisle",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -16.326493259908435,
+        "z": 223.49972685302447,
+        "yaw": 6.091692653589679,
+        "pitch": 0.1349,
+        "localX": -8.326493259908435,
+        "localZ": -4.50027314697553
+      },
+      "distanceToTarget": 0.201
+    },
+    {
+      "step": "stood at the reloaded partial-stock socket",
+      "control": "ArrowLeft/ArrowRight + W",
+      "pose": {
+        "x": -14.723754841738677,
+        "z": 222.71375023118716,
+        "yaw": 2.052102653589391,
+        "pitch": 0.1349,
+        "localX": -6.7237548417386765,
+        "localZ": -5.286249768812837
+      },
+      "distanceToTarget": 0.206
+    },
+    {
+      "step": "visually confirmed the partial stock inside the reloaded shop",
+      "control": "first-person entry and circulation",
+      "focus": {
+        "label": null,
+        "tool": null
+      }
+    }
+  ],
+  "consoleMessages": [
+    {
+      "type": "warning",
+      "text": "THREE.WebGLProgram: Program Info Log: (97,1-6): warning X4000: use of potentially uninitialized variable (dyn_index_vec4_float4_int)\n\n\n\u0000"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: texImage3D: FLIP_Y or PREMULTIPLY_ALPHA isn't allowed for uploading 3D textures"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: texImage3D: FLIP_Y or PREMULTIPLY_ALPHA isn't allowed for uploading 3D textures"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/8fbee92e-8d52-47f8-bd75-66d8dd7a1381"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/923b2785-8315-49fb-957e-3317740d5e6d"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/f689356f-2e05-4652-80f4-f054b6b611fa"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/a7b433a2-b0e9-4ccf-9528-c5f401adc5f5"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/e28609c0-ab00-496f-acd4-076cceb06eb0"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/b18fdae4-f6f9-43d8-9aba-58061bf16279"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/8203728f-11bf-44fe-a09d-16519f188e85"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/abe33487-c122-495c-bc64-4dcac3b1eaa6"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/65ba2f33-e7bd-4e8f-9e9d-71792e4b642d"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/4e633428-f141-4084-97ec-bc48eb234c68"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/43fed1fe-7349-464f-a9fe-ebf2cb895252"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/aaa64c7a-bf76-41f9-82ff-ead574bd3d05"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/02149f43-52c1-486d-8b54-c5f74a01f9a2"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/38835a9e-55a6-4c98-8748-a2c02eac01c4"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/23b4275a-cb99-4898-9e0a-9742349beb13"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/d81eea5a-43e0-4641-b97b-5718d353e6ac"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/db6d4130-ea3f-461c-b278-80ad0ec14f7f"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/9507c0e3-d8ad-4e64-9274-8762baf02de9"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/4343156c-67e9-42cc-8676-4337916be20e"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/3b2cf560-1651-4c1e-b76d-d5173d608ba3"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/f7b48a3d-01c5-4be6-9551-4acde8e99d0b"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/918abbdd-d586-450d-9448-65808ec5e76e"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/32d193c7-7720-49c3-a133-361d5b0da8ab"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/d79b8174-4fc9-42d0-a168-9f8b10ee66ce"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/ab24cc0f-46f6-4eb0-8d83-00e4aef51f5b"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/501aa310-798c-4d90-9ccc-bb16da98a325"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/a731d655-1382-4c71-a466-a567a4642d49"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/3b33e964-fa2d-46ab-844b-7b9680e27458"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/429e431b-8ff1-436e-872e-96f04179b8ab"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/2a945555-ce57-4e3d-b98f-6a9383710893"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/51aad0df-1bb7-498a-ad81-53ffa6dd56fd"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/73e8b671-9868-4460-8af5-19ca45303812"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/7f2f2c80-ccc4-420e-9ed8-4d0a8519efc2"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/0080ed34-2096-4ae6-b517-fc5e3bbe837c"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/f22a24f7-5360-428c-a297-7ddaccb4af23"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/c7c3f68a-3aeb-4c6b-99b7-a9546fa136df"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/f2d3ae2a-387f-4423-b890-a2fd8dc26b92"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/1dc3e3d1-c730-47d4-a8bd-76f015625091"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/79be049f-bd3e-4c6e-b7b4-231a30a0a397"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/5c8c5f45-ddbf-46d0-8bcc-0abb8a762f33"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/147d3de3-035a-40f4-bfa9-739b2e6880fa"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/2ac16d19-ba96-4115-82eb-b02ab683ff09"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/f0d22bd3-0a0d-481a-8c04-5df79f8994a3"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/c1e55e79-aaef-4f54-a3de-f7787f6e4f32"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/913537cf-caf5-4431-9558-63d9f061d0d8"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/ff7ed7ee-f3d5-40dd-9d3e-64bea287b320"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/5fb17df2-9325-497d-a8c4-de76a8453d3b"
+    },
+    {
+      "type": "error",
+      "text": "THREE.GLTFLoader: Couldn't load texture blob:http://localhost:8457/a6e8a8a7-61c4-4087-a75b-9dfe8069f0fd"
+    }
+  ],
+  "failedRequests": [
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/hand_fork.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/bucket_soil.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/shoe_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/cap_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/club_sign.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/shed.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/hose_nozzle.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/bucket_soil.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/hand_fork.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/office_chair.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/kiosk.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/cardterm_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/shoe_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/tractor_red.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/tractor_broken.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/golf_cart.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/tee_markers.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/hose_nozzle.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/hand_fork.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/cardterm_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/rangefinder.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/tractor_red.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/club_sign.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/workbench.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/tool_chest.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/leaves_pile.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse_ext_opt.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/tee_markers.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/bucket_soil.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/office_chair.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/kiosk.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/cardterm_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/shoe_pro.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/tractor_red.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse/rangefinder.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/tool_chest.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/workbench.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/leaves_pile.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/tractor_broken.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/belt.glb"
+    },
+    {
+      "error": "net::ERR_ABORTED",
+      "url": "http://localhost:8457/vendor/models/clubhouse_ext_opt.glb"
+    }
+  ]
+}

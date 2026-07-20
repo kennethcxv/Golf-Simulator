@@ -11,7 +11,12 @@ import * as THREE from 'three';
 import { SHELL, DOOR_MAIN, DOOR_STOCK, DOOR_BACK } from '../../data/shopLayout.js';
 import { chooseSwingAngle, hingeBearing, sweptBy } from '../../data/doorMath.js';
 import { carriedBox } from '../../sim/deliveries.js';
+import { carriedGoods } from '../../sim/stocking.js';
 import { tutorialFlag } from '../../sim/tutorial.js';
+
+export function armsFullForDoor(state) {
+  return !!(carriedBox(state) || carriedGoods(state));
+}
 
 export function buildDoors(B) {
   const { group, mats, addCol, addProp, colBoxAt, L2W, W2L, FLOOR_TOP, state, hooks, walk, getCustomers } = B;
@@ -356,8 +361,10 @@ export function buildDoors(B) {
           break;
         }
       }
-      // arms full of delivery box: the door swings for you when you reach it
-      if (walk.active && playerDist < 1.6 && !d.open && carriedBox(state)) {
+      // A carton and an unpacked armful both occupy E with their carry/drop
+      // action. Service doors therefore open for either kind of full hands;
+      // otherwise unpacked stock can never leave the stockroom normally.
+      if (walk.active && playerDist < 1.6 && !d.open && armsFullForDoor(state)) {
         d.openFor(walk.x, walk.z);
         if (audible && hooks.sfx) hooks.sfx('doorSwing');
       }
