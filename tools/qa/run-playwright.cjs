@@ -19,8 +19,9 @@ async function startLocalServer() {
   if (process.env.QA_START_SERVER !== '1') return null;
   const url = new URL(QA_BASE_URL);
   const port = url.port || (url.protocol === 'https:' ? '443' : '80');
+  const serverRoot = path.resolve(process.env.QA_SERVER_ROOT || '.');
   const child = spawn(process.execPath, ['tools/serve.cjs'], {
-    cwd: path.resolve('.'),
+    cwd: serverRoot,
     env: { ...process.env, PORT: port },
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -35,7 +36,7 @@ async function startLocalServer() {
     try {
       const response = await fetch(QA_BASE_URL);
       const servedRoot = response.headers.get('x-golf-root');
-      if (response.ok && servedRoot && decodeURIComponent(servedRoot) === path.resolve('.')) return child;
+      if (response.ok && servedRoot && decodeURIComponent(servedRoot) === serverRoot) return child;
     } catch (_) { /* server is still starting */ }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }

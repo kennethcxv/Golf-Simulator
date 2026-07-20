@@ -64,8 +64,6 @@ Resolved by the four checkout iterations:
 
 Still open for the overall Steam release gate:
 
-- `C-003`: the articulated customer remains deliberately low-detail procedural art
-  and needs a separate character-quality acceptance decision.
 - `H-010`: Canvas2D warnings are fixed, but Chromium/ANGLE still emits X4000.
 - `H-012`, `H-013`, `M-008`: project-wide render, texture, and shadow budgets remain
   high, although the checkout increment introduces no measured regression.
@@ -76,8 +74,8 @@ Still open for the overall Steam release gate:
   dependencies excluding dev Electron audit clean.
 
 Accordingly, checkout acceptance is not a claim that the entire repository is ready
-to ship on Steam. The menu, character-art decision, Electron upgrade, and broader
-release-budget work remain explicit gates.
+to ship on Steam. The Electron upgrade and broader release-budget work remain
+explicit gates.
 
 ## Menu gate disposition
 
@@ -86,3 +84,13 @@ with product copy, New Empire now enters an explicit `market` screen while hidin
 the menu, and closing the property market restores the menu without an orphaned
 backdrop. Normal browser controls, before/after screenshots, video, screen-state
 assertions, and diagnostics are documented in `menu-polish/report.md`.
+
+## Character gate disposition
+
+`C-003` is resolved. Customers and course golfers retain the proven procedural
+joint animation but now use an original Blender-authored modular body kit with
+readable anatomy, face, headwear, clothing silhouette, hands, and shoes. Shared
+geometry and wardrobe materials keep the twelve-character stress scene within the
+accepted render budget. Four visual iterations, the final normal-control checkout,
+asset/pivot inspection, and paired performance evidence are documented in
+`character-polish/report.md`.

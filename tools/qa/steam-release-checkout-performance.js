@@ -271,13 +271,39 @@ async (page) => {
   }, { label, durationMs });
 
   const idle = await sample('idle-fixed-camera', 5000);
+  const characterInstances = Number(process.env.QA_CHARACTER_INSTANCES || 0);
+  let crowd = null;
+  let crowdStability = null;
+  if (characterInstances > 0) {
+    await page.evaluate((target) => {
+      const app = window.__fw;
+      const clubhouse = app.scene3d.clubhouse();
+      const origin = clubhouse.interior.position;
+      while (clubhouse.customers.length < target) clubhouse.debugSpawn(false);
+      for (let i = 0; i < clubhouse.customers.length; i++) {
+        const customer = clubhouse.customers[i];
+        const x = origin.x - 3.4 + (i % 4) * 1.75;
+        const z = origin.z - 2.5 + Math.floor(i / 4) * 1.45;
+        customer.mesh.position.set(x, customer.mesh.position.y, z);
+        customer.cart.length = 0;
+        customer.linger = 1e9;
+        customer.stops = [{ kind: 'fixture', x, z, faceX: origin.x + 2.8, faceZ: origin.z + 4.0 }];
+        customer.stopIdx = 0;
+        customer.speed = 0;
+      }
+    }, characterInstances);
+    await page.waitForTimeout(1200);
+    crowdStability = await waitForRendererStability('character-crowd');
+    await page.screenshot({ path: `${out}/01b-character-crowd-fixed-camera.png` });
+    crowd = await sample(`${characterInstances}-character-crowd`, 8000);
+  }
   const customer = await page.evaluate(() => {
     const clubhouse = window.__fw.scene3d.clubhouse();
     const name = clubhouse.sendToCounter(['balls3', 'glove1'], 'card');
     // A 100-cycle soak intentionally takes longer than normal checkout patience.
     // Keep this fixture at the till so failures measure register re-entry, not a
     // shopper correctly abandoning an hour-long transaction.
-    const fixture = clubhouse.customers.find((candidate) => candidate.name === name);
+    const fixture = clubhouse.customers.at(-1);
     if (fixture) fixture.patience = 3600;
     return name;
   });
@@ -333,10 +359,18 @@ async (page) => {
       fixedTime: '14:00',
       fixture: 'relaxed seed 424242, two-item card customer, fully stocked sale inventory',
       warmupMs: 3300,
-      rendererStability: { idle: idleStability, active: activeStability, postStress: postStressStability },
+      characterInstances,
+      rendererStability: {
+        idle: idleStability,
+        crowd: crowdStability,
+        active: activeStability,
+        postStress: postStressStability,
+      },
     },
     customer,
     idle,
+    crowd,
+    crowdStability,
     active,
     stress: {
       cycles: transitionCycles,

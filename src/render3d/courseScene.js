@@ -26,7 +26,7 @@ import { tractorStep, repairTractor, tractorRemaining, STEP_LABEL } from '../sim
 import { clearLitter, fixTeeSign, PROPS } from '../sim/props.js';
 import { conditionRating } from '../sim/turf.js';
 import { makeCameraRig } from './cameraRig.js';
-import { makeCharacter } from './characterAsset.js';
+import { makeCharacter, preloadCharacterParts } from './characterAsset.js';
 import { makeClubhouse } from './clubhouse.js';
 import { makeGrassTexture, makeSandTexture, makeScrubTexture, makePathTexture } from './proceduralTextures.js';
 import { ZONE_COLORS } from '../render/palette.js';
@@ -173,6 +173,7 @@ function hexToVec3(hex) {
 }
 
 export function makeCourseScene(canvas, state) {
+  preloadCharacterParts();
   const course = state.course;
   const W = course.w;
   const H = course.h;

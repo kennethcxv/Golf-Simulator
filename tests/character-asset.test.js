@@ -34,3 +34,31 @@ test('character disposal releases owned primitives without touching later attach
   char.dispose();
   assert.equal(ownedGeometryDisposals, ownedGeometries.size, 'disposal is idempotent');
 });
+
+test('Blender character parts are shared across figures and survive figure disposal', () => {
+  const shared = new THREE.BoxGeometry(1, 1, 1);
+  const names = [
+    'torso', 'pelvis', 'upper_arm', 'forearm_hand', 'thigh', 'calf', 'shoe',
+    'head', 'face_details', 'cap', 'hair',
+  ];
+  const parts = Object.fromEntries(names.map((name) => [name, shared]));
+  let sharedDisposals = 0;
+  let materialDisposals = 0;
+  shared.addEventListener('dispose', () => { sharedDisposals++; });
+
+  const char = makeCharacter({ parts });
+  assert.equal(char.assetKind, 'blender');
+  const meshes = [];
+  char.root.traverse((node) => { if (node.isMesh) meshes.push(node); });
+  assert.ok(meshes.length > 0);
+  assert.ok(meshes.every((mesh) => mesh.userData.sharedCharacterGeometry));
+  const materials = new Set(meshes.map((mesh) => mesh.material));
+  for (const material of materials) {
+    material.addEventListener('dispose', () => { materialDisposals++; });
+  }
+
+  char.dispose();
+  assert.equal(sharedDisposals, 0);
+  assert.equal(materialDisposals, 0);
+  shared.dispose();
+});

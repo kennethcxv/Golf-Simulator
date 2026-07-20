@@ -5,8 +5,88 @@
 // this keeps real articulated motion fully under our control, no exporter risk.
 
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const CHARACTER_PART_NAMES = [
+  'torso', 'pelvis', 'upper_arm', 'forearm_hand', 'thigh', 'calf', 'shoe',
+  'head', 'face_details', 'cap', 'hair',
+];
+
+let characterParts = null;
+let characterPartsPromise = null;
+let characterPartsState = 'idle';
+const sharedCharacterMaterials = new Map();
+
+// Start this when a course scene is constructed. DefaultLoadingManager then
+// keeps the existing prewarm veil up until the modular character geometry is
+// resident, so the first customer never pops from primitives into final art.
+export function preloadCharacterParts() {
+  if (characterPartsPromise) return characterPartsPromise;
+  if (typeof window === 'undefined') return Promise.resolve(null);
+  characterPartsState = 'loading';
+  characterPartsPromise = new Promise((resolve) => {
+    new GLTFLoader().load(
+      'vendor/models/clubhouse/character_parts.glb',
+      (gltf) => {
+        const found = {};
+        const sourceGeometries = new Set();
+        const sourceMaterials = new Set();
+        gltf.scene.updateMatrixWorld(true);
+        gltf.scene.traverse((node) => {
+          if (!node.isMesh || !node.geometry) return;
+          sourceGeometries.add(node.geometry);
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          for (const material of materials) if (material) sourceMaterials.add(material);
+          if (!CHARACTER_PART_NAMES.includes(node.name)) return;
+          const geometry = node.geometry.clone().applyMatrix4(node.matrixWorld);
+          geometry.computeBoundingBox();
+          geometry.computeBoundingSphere();
+          geometry.userData.characterShared = true;
+          found[node.name] = geometry;
+        });
+        const complete = CHARACTER_PART_NAMES.every((name) => found[name]);
+        if (complete) {
+          characterParts = Object.freeze(found);
+          characterPartsState = 'ready';
+        } else {
+          for (const geometry of Object.values(found)) geometry.dispose();
+          characterPartsState = 'incomplete';
+        }
+        for (const geometry of sourceGeometries) geometry.dispose();
+        for (const material of sourceMaterials) material.dispose();
+        resolve(characterParts);
+      },
+      undefined,
+      () => {
+        characterPartsState = 'failed';
+        resolve(null);
+      },
+    );
+  });
+  return characterPartsPromise;
+}
+
+export function characterPartsStatus() {
+  return {
+    state: characterPartsState,
+    ready: !!characterParts,
+    materialVariants: sharedCharacterMaterials.size,
+  };
+}
 
 const M = (color, rough = 0.85) => new THREE.MeshStandardMaterial({ color, roughness: rough });
+
+function sharedM(color, rough = 0.85) {
+  const resolved = color?.isColor ? color : new THREE.Color(color);
+  const key = `${resolved.getHexString()}|${rough}`;
+  let material = sharedCharacterMaterials.get(key);
+  if (!material) {
+    material = M(resolved, rough);
+    material.userData.sharedCharacterMaterial = true;
+    sharedCharacterMaterials.set(key, material);
+  }
+  return material;
+}
 
 function box(w, h, d, mat, y = 0, z = 0) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -15,53 +95,94 @@ function box(w, h, d, mat, y = 0, z = 0) {
   return m;
 }
 
-export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe4, skin = 0xd9a97e } = {}) {
-  const mPolo = M(polo, 0.8);
-  const mKhaki = M(khaki, 0.85);
-  const mSkin = M(skin, 0.7);
-  const mCap = cap == null ? null : M(cap, 0.8);
-  const mShoe = M(0x33291f, 0.9);
+export function makeCharacter({
+  polo = 0x3b6fb3,
+  khaki = 0xc2b190,
+  cap = 0xf2efe4,
+  skin = 0xd9a97e,
+  parts = characterParts,
+} = {}) {
+  const material = parts ? sharedM : M;
+  const mPolo = material(polo, 0.8);
+  const mKhaki = material(khaki, 0.85);
+  const mSkin = material(skin, 0.7);
+  const mCap = cap == null ? null : material(cap, 0.8);
+  const mShoe = material(0x33291f, 0.9);
+  const mHair = material(0x4a3a28, 0.95);
+  const mDetail = material(0x30251c, 0.9);
+
+  function authored(name, material) {
+    const geometry = parts?.[name];
+    if (!geometry) return null;
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = name;
+    // Blender's authored +Y face direction arrives as local +Z. The procedural
+    // rig's established forward is -Z (cap brim, feet, checkout reach), so align
+    // the visual kit once at its shared attachment boundary.
+    mesh.rotation.y = Math.PI;
+    mesh.castShadow = true;
+    mesh.userData.sharedCharacterGeometry = true;
+    return mesh;
+  }
 
   const root = new THREE.Group();
+  root.name = 'characterRoot';
 
   // pelvis + legs hang off the root; chest carries torso/head/arms for lean+twist
-  const pelvis = box(0.34, 0.2, 0.22, mKhaki, 1.03);
+  const pelvis = authored('pelvis', mKhaki) || box(0.34, 0.2, 0.22, mKhaki);
+  pelvis.position.y = 1.03;
   root.add(pelvis);
 
   const chest = new THREE.Group();
+  chest.name = 'chestJoint';
   chest.position.y = 1.12;
   root.add(chest);
-  chest.add(box(0.46, 0.52, 0.26, mPolo, 0.26));
+  chest.add(authored('torso', mPolo) || box(0.46, 0.52, 0.26, mPolo, 0.26));
   const head = new THREE.Group();
+  head.name = 'headJoint';
   head.position.y = 0.62;
   chest.add(head);
-  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.155, 12, 9), mSkin);
-  skull.position.y = 0.06;
+  const skull = authored('head', mSkin) || new THREE.Mesh(new THREE.SphereGeometry(0.155, 12, 9), mSkin);
+  if (!skull.userData.sharedCharacterGeometry) skull.position.y = 0.06;
   skull.castShadow = true;
   head.add(skull);
+  const face = authored('face_details', mDetail);
+  if (face) head.add(face);
   if (mCap) {
-    const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 12), mCap);
-    capTop.position.y = 0.19;
-    head.add(capTop);
-    const brim = box(0.2, 0.03, 0.16, mCap, 0.16, -0.16);
-    head.add(brim);
+    const authoredCap = authored('cap', mCap);
+    if (authoredCap) {
+      head.add(authoredCap);
+    } else {
+      const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 12), mCap);
+      capTop.position.y = 0.19;
+      head.add(capTop);
+      const brim = box(0.2, 0.03, 0.16, mCap, 0.16, -0.16);
+      head.add(brim);
+    }
   } else {
     // bare head gets hair instead of a cap
-    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.1), M(0x4a3a28, 0.95));
-    hair.position.y = 0.1;
+    const hair = authored('hair', mHair)
+      || new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.1), mHair);
+    if (!hair.userData.sharedCharacterGeometry) hair.position.y = 0.1;
     head.add(hair);
   }
 
   const limbs = {};
   for (const [side, sx] of [['L', 1], ['R', -1]]) {
     const shoulder = new THREE.Group();
+    shoulder.name = `shoulder${side}`;
     shoulder.position.set(sx * 0.285, 0.43, 0);
     chest.add(shoulder);
-    shoulder.add(box(0.11, 0.32, 0.13, mPolo, -0.15));
+    const upperArm = authored('upper_arm', mPolo) || box(0.11, 0.32, 0.13, mPolo, -0.15);
+    if (upperArm.userData.sharedCharacterGeometry) upperArm.scale.x = sx;
+    shoulder.add(upperArm);
     const elbow = new THREE.Group();
+    elbow.name = `elbow${side}`;
     elbow.position.y = -0.32;
     shoulder.add(elbow);
-    elbow.add(box(0.09, 0.28, 0.11, mSkin, -0.13));
+    const forearm = authored('forearm_hand', mSkin) || box(0.09, 0.28, 0.11, mSkin, -0.13);
+    if (forearm.userData.sharedCharacterGeometry) forearm.scale.x = sx;
+    elbow.add(forearm);
     // An authored attachment at the end of the forearm. Checkout uses this for
     // its real hand target and for the carrier, so neither can float beside a
     // differently scaled customer.
@@ -74,14 +195,17 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     limbs[`hand${side}`] = hand;
 
     const hip = new THREE.Group();
+    hip.name = `hip${side}`;
     hip.position.set(sx * 0.11, 0.98, 0);
     root.add(hip);
-    hip.add(box(0.15, 0.46, 0.17, mKhaki, -0.22));
+    hip.add(authored('thigh', mKhaki) || box(0.15, 0.46, 0.17, mKhaki, -0.22));
     const knee = new THREE.Group();
+    knee.name = `knee${side}`;
     knee.position.y = -0.46;
     hip.add(knee);
-    knee.add(box(0.12, 0.42, 0.14, mKhaki, -0.19));
-    const shoe = box(0.13, 0.09, 0.26, mShoe, -0.42, -0.04);
+    knee.add(authored('calf', mKhaki) || box(0.12, 0.42, 0.14, mKhaki, -0.19));
+    const shoe = authored('shoe', mShoe) || box(0.13, 0.09, 0.26, mShoe, -0.42, -0.04);
+    if (shoe.userData.sharedCharacterGeometry) shoe.position.set(0, -0.47, -0.04);
     knee.add(shoe);
     limbs[`hip${side}`] = hip;
     limbs[`knee${side}`] = knee;
@@ -95,17 +219,22 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
   carryAnchor.position.set(0.285, 0.373, 0.524);
   chest.add(carryAnchor);
 
-  // Every primitive and material above belongs to this one character. Capture
-  // that ownership now, before callers attach shared merchandise or temporary
-  // checkout feedback beneath the root. A root traversal during teardown would
-  // also dispose those cached assets and break the next customer that uses them.
+  // Materials and fallback primitives belong to this character. Blender part
+  // geometry is shared by every figure and lives for the app session, so it must
+  // survive teardown. Capture ownership before callers attach merchandise or
+  // temporary checkout feedback beneath the root.
   const ownedGeometries = new Set();
-  const ownedMaterials = new Set();
+  const ownedMaterials = new Set(
+    [mPolo, mKhaki, mSkin, mShoe, mHair, mDetail, mCap]
+      .filter((item) => item && !item.userData.sharedCharacterMaterial),
+  );
   root.traverse((node) => {
     if (!node.isMesh) return;
-    if (node.geometry) ownedGeometries.add(node.geometry);
+    if (node.geometry && !node.userData.sharedCharacterGeometry) ownedGeometries.add(node.geometry);
     const materials = Array.isArray(node.material) ? node.material : [node.material];
-    for (const material of materials) if (material) ownedMaterials.add(material);
+    for (const material of materials) {
+      if (material && !material.userData.sharedCharacterMaterial) ownedMaterials.add(material);
+    }
   });
 
   const char = {
@@ -117,6 +246,7 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
     phase: Math.random() * 6.28,
     carrying: false,
     skinColor: skin,
+    assetKind: parts ? 'blender' : 'procedural-fallback',
   };
 
   char.setMode = (mode) => {
