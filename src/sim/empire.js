@@ -26,27 +26,68 @@ import { conditionRating, zonePolicyKey, DISEASE } from './turf.js';
 import { courseDesignRating, holePar, holeDistanceYd } from './course.js';
 import { memberCounts } from './club.js';
 import { deliverOrdersDue, tickDeliveries } from './shop.js';
-import { generateMarketplace, generateListing, buildPropertyCourse, appraiseStats, MARKET } from './marketplace.js';
+import {
+  generateMarketplace, generateListing, buildPropertyCourse, appraiseStats,
+  completePropertyProfile, round500, MARKET,
+} from './marketplace.js';
 import { appraiseProperty } from './valuation.js';
 import { bindPropertyInventory } from './propertyInventory.js';
+import { spend } from './economy.js';
+import {
+  PROPERTY_INSPECTION_COST, PROPERTY_MANAGER_TIERS, assignManagerRecord,
+  buildInspectionReport, defaultPropertyOperations, ensureHoldingOperations,
+  propertyOperationsProfile, REMOTE_PROPERTY_UTILITIES_PER_DAY,
+} from './propertyOperations.js';
 
-export const EMPIRE_VERSION = 2;
+export const EMPIRE_VERSION = 3;
 
-// Parked-property approximation knobs (reasoning in DEV_LOG.md):
-// a caretaker keeps the lights on — condition decays toward a floor but never
-// below it (and a wreck is NOT restored for free), a trickle of unhosted play
-// still comes through the door, and dues keep billing.
+// Parked-property approximation knobs (reasoning in DEV_LOG.md). The selected
+// management tier owns the condition floor, decay, staffing, and revenue
+// modifiers; this is only the baseline amount of unhosted play.
 const PASSIVE = {
-  floor: 38, // where an unattended-but-caretaken course bottoms out
-  decay: 0.035, // fraction of the excess-over-floor lost per day (half-life ≈ 20 days)
   baseRounds: 14, // vs ~30/day at a comparable attended club — nobody is minding the till
-  caretakerPerDay: 150, // caretaker wage + skeleton maintenance, per 9 holes
-  utilitiesPerDay: 45, // same line the live club pays
 };
 const SEASON_F = [0.95, 1.15, 1.0, 0.22]; // the live club's seasonal demand shape
 
+export const PROPERTY_MARKET = Object.freeze({
+  auctionDurationDays: 7,
+  auctionMinimumIncrement: 500,
+  maxAuctions: 3,
+  generatedAuctionChance: 0.24,
+  rivalBidChance: 0.34,
+});
+
+function makeAuction(property, listedDay) {
+  completePropertyProfile(property);
+  property.saleType = 'auction';
+  property.auction = {
+    opensDay: listedDay,
+    endsDay: listedDay + PROPERTY_MARKET.auctionDurationDays,
+    openingBid: Math.max(5000, round500(property.askingPrice * 0.7)),
+    currentBid: Math.max(5000, round500(property.askingPrice * 0.7)),
+    reservePrice: Math.max(5500, round500(property.trueValue * 0.82)),
+    minimumIncrement: PROPERTY_MARKET.auctionMinimumIncrement,
+    highBidder: null,
+    playerEscrow: 0,
+    bidCount: 0,
+  };
+  return property;
+}
+
+function launchOpportunities(seed) {
+  const roster = generateMarketplace(seed);
+  const auctionIds = new Set(['quarry-bluffs', 'thornbury-estate']);
+  const auctions = [];
+  const market = [];
+  for (const property of roster) {
+    if (auctionIds.has(property.id)) auctions.push(makeAuction(property, 0));
+    else market.push(property);
+  }
+  return { market, auctions };
+}
+
 export function newEmpire(mode = 'relaxed', seed = Date.now() % 2147483647) {
-  const market = generateMarketplace(seed);
+  const { market, auctions } = launchOpportunities(seed);
   for (const p of market) p.listedDay = 0; // launch roster hits the market on day one
   const marketRng = makeRng(((seed ^ 0x9e3779b9) >>> 0) || 1);
   const firstTarget = Math.round((MARKET.conditionMin + marketRng.next() * (MARKET.conditionMax - MARKET.conditionMin)) * 10000) / 10000;
@@ -56,6 +97,7 @@ export function newEmpire(mode = 'relaxed', seed = Date.now() % 2147483647) {
     seed,
     cash: BALANCE.startingCash[mode],
     market,
+    auctions,
     holdings: [], // [{ property, state, passive|null }] — passive only while parked
     activeId: null,
     clockMinutes: DAY_START_MIN, // world time while no property is active
@@ -68,6 +110,8 @@ export function newEmpire(mode = 'relaxed', seed = Date.now() % 2147483647) {
     // the pricing cycle: every empire starts at par, already drifting somewhere
     marketCondition: 1,
     marketConditionTarget: firstTarget,
+    inspections: {},
+    acquisitions: 0,
   };
 }
 
@@ -189,6 +233,7 @@ function seedMembership(state, property) {
 // ledger, progression, tutorial — booted onto the property's real course,
 // then seeded to the listing's condition, membership, and reputation.
 export function initPropertyState(property, mode) {
+  completePropertyProfile(property);
   const state = newGame(mode, property.seed, {
     course: buildPropertyCourse(property),
     clubName: property.name,
@@ -198,6 +243,11 @@ export function initPropertyState(property, mode) {
   seedTurfToCondition(state, property);
   seedMembership(state, property);
   state.club.reputation = property.startingReputation;
+  state.weather.climate = property.climate;
+  state.property.region = property.region;
+  state.property.climate = property.climate;
+  state.property.maintenanceCostPerDay = property.maintenanceCostPerDay;
+  state.property.operatingCostPerDay = property.operatingCostPerDay;
   // what the place is worth is what the rent is sized off (sim/property.js)
   state.club.valuation = property.askingPrice;
   // the golf world has roughly heard of it to the extent the locals like it
@@ -207,11 +257,51 @@ export function initPropertyState(property, mode) {
 
 // --- transactions ----------------------------------------------------------------
 
+function acquirePropertyRecord(empire, property, price, { paid = false, source = 'listing' } = {}) {
+  completePropertyProfile(property);
+  if (!paid) setEmpireCash(empire, empire.cash - price);
+  property.saleType = source === 'auction' ? 'auction-acquired' : 'listing-acquired';
+
+  const state = initPropertyState(property, empire.mode);
+  state.clock.minutes = worldMinutes(empire);
+  rollDailyWeather(state.weather, rngOf(state), calendarOf(state.clock.minutes).dayOfYear);
+  if (empire.firstPurchaseDone) {
+    state.tutorial.complete = true;
+    state.tutorial.hidden = true;
+  } else {
+    empire.firstPurchaseDone = true;
+  }
+
+  const inspection = empire.inspections?.[property.id] || null;
+  const operations = defaultPropertyOperations(property);
+  operations.acquisition = {
+    askingPrice: price,
+    purchasedDay: calendarOf(worldMinutes(empire)).dayAbs,
+    inspection,
+    source,
+  };
+  delete property.auction;
+  const holding = { property, state, passive: null, operations };
+  empire.holdings.push(holding);
+  empire.acquisitions = Math.max(0, Number(empire.acquisitions) || 0) + 1;
+  if (empire.inspections) delete empire.inspections[property.id];
+  if (!empire.activeId) {
+    empire.activeId = property.id;
+    state.cash = empire.cash;
+  } else {
+    parkHolding(holding);
+  }
+  empireLog(empire, `${source === 'auction' ? 'Won' : 'Bought'} ${property.name} for ${formatMoney(price)}.`);
+  return { ok: true, property, state, price, source };
+}
+
 export function buyProperty(empire, propertyId) {
   syncWallet(empire);
   const i = empire.market.findIndex((p) => p.id === propertyId);
   if (i === -1) return { ok: false, reason: 'That listing is gone.' };
   const property = empire.market[i];
+  const access = propertyAccess(empire, property);
+  if (!access.unlocked) return { ok: false, reason: access.reason };
   if (empire.cash < property.askingPrice) {
     return {
       ok: false,
@@ -219,32 +309,144 @@ export function buyProperty(empire, propertyId) {
     };
   }
   empire.market.splice(i, 1);
-  empire.cash -= property.askingPrice;
-  const payer = activeState(empire);
-  if (payer) payer.cash = empire.cash; // the active club's books are the wallet
+  return acquirePropertyRecord(empire, property, property.askingPrice);
+}
 
-  const state = initPropertyState(property, empire.mode);
-  // join the shared world clock and roll a real forecast for its first day
-  state.clock.minutes = worldMinutes(empire);
-  rollDailyWeather(state.weather, rngOf(state), calendarOf(state.clock.minutes).dayOfYear);
-  if (empire.firstPurchaseDone) {
-    // you already know how to run a club — the guide only teaches once
-    state.tutorial.complete = true;
-    state.tutorial.hidden = true;
-  } else {
-    empire.firstPurchaseDone = true;
+export function propertyAccess(empire, property) {
+  completePropertyProfile(property);
+  const tier = Math.max(0, Math.floor(Number(property.unlockTier) || 0));
+  const acquisitions = Math.max(
+    Number(empire.acquisitions) || 0,
+    Array.isArray(empire.holdings) ? empire.holdings.length : 0,
+  );
+  const bestReputation = (empire.holdings || []).reduce(
+    (best, holding) => Math.max(best, Number(holding.state?.club?.reputation) || 0), 0,
+  );
+  if (tier === 0 || acquisitions >= tier || (tier >= 2 && bestReputation >= 55)) {
+    return { unlocked: true, tier };
   }
+  const requirement = tier === 1
+    ? 'Acquire and operate your first course.'
+    : 'Complete two acquisitions or build a club to 55 reputation.';
+  return { unlocked: false, tier, reason: requirement };
+}
 
-  const holding = { property, state, passive: null };
-  empire.holdings.push(holding);
-  if (!empire.activeId) {
-    empire.activeId = property.id;
-    state.cash = empire.cash;
-  } else {
-    parkHolding(holding); // bought sight-unseen: it waits, caretaken, until visited
+export function auctionNextBid(property) {
+  const auction = property?.auction;
+  if (!auction) return null;
+  return auction.highBidder
+    ? auction.currentBid + auction.minimumIncrement
+    : auction.openingBid;
+}
+
+function propertyOpportunity(empire, propertyId) {
+  return empire.market.find((entry) => entry.id === propertyId)
+    || (empire.auctions || []).find((entry) => entry.id === propertyId)
+    || null;
+}
+
+function setEmpireCash(empire, amount) {
+  empire.cash = Math.round((Number(amount) || 0) * 100) / 100;
+  const state = activeState(empire);
+  if (state) state.cash = empire.cash;
+}
+
+function refundAuctionEscrow(empire, property) {
+  const escrow = Number(property?.auction?.playerEscrow) || 0;
+  if (escrow <= 0) return 0;
+  setEmpireCash(empire, empire.cash + escrow);
+  property.auction.playerEscrow = 0;
+  return escrow;
+}
+
+// Independent due diligence is optional and deliberately reports a range, not
+// the hidden exact appraisal. The active property's cash remains wallet authority.
+export function inspectPropertyListing(empire, propertyId) {
+  syncWallet(empire);
+  empire.inspections ||= {};
+  if (empire.inspections[propertyId]) {
+    return { ok: true, already: true, report: empire.inspections[propertyId] };
   }
-  empireLog(empire, `Bought ${property.name} for ${formatMoney(property.askingPrice)}.`);
-  return { ok: true, property, state };
+  const property = propertyOpportunity(empire, propertyId);
+  if (!property) return { ok: false, reason: 'That listing is no longer available.' };
+  const access = propertyAccess(empire, property);
+  if (!access.unlocked) return { ok: false, reason: access.reason };
+  if (empire.cash < PROPERTY_INSPECTION_COST) {
+    return { ok: false, reason: `The inspection costs ${formatMoney(PROPERTY_INSPECTION_COST)} and the empire wallet cannot cover it.` };
+  }
+  const state = activeState(empire);
+  if (state) {
+    spend(state, 'propertyServices', PROPERTY_INSPECTION_COST);
+    empire.cash = state.cash;
+  } else {
+    empire.cash -= PROPERTY_INSPECTION_COST;
+  }
+  const report = buildInspectionReport(property, calendarOf(worldMinutes(empire)).dayAbs);
+  empire.inspections[propertyId] = report;
+  empireLog(empire, `Inspected ${property.name} for ${formatMoney(PROPERTY_INSPECTION_COST)}.`, 'inspection');
+  return { ok: true, report };
+}
+
+export function placeAuctionBid(empire, propertyId, requestedAmount = null) {
+  syncWallet(empire);
+  const property = (empire.auctions || []).find((entry) => entry.id === propertyId);
+  if (!property?.auction) return { ok: false, reason: 'That auction is no longer open.' };
+  const today = calendarOf(worldMinutes(empire)).dayAbs;
+  if (today >= property.auction.endsDay) return { ok: false, reason: 'Bidding has closed.' };
+  const access = propertyAccess(empire, property);
+  if (!access.unlocked) return { ok: false, reason: access.reason };
+  const required = auctionNextBid(property);
+  const increment = property.auction.minimumIncrement;
+  const raw = requestedAmount == null ? required : Number(requestedAmount);
+  const bid = Math.ceil(raw / increment) * increment;
+  if (!Number.isFinite(bid) || bid < required) {
+    return { ok: false, reason: `The next valid bid is ${formatMoney(required)}.` };
+  }
+  const existingEscrow = property.auction.highBidder === 'player'
+    ? Number(property.auction.playerEscrow) || 0 : 0;
+  const additional = bid - existingEscrow;
+  if (empire.cash < additional) {
+    return { ok: false, reason: `${formatMoney(additional)} more is required in auction escrow.` };
+  }
+  setEmpireCash(empire, empire.cash - additional);
+  property.auction.currentBid = bid;
+  property.auction.highBidder = 'player';
+  property.auction.playerEscrow = bid;
+  property.auction.bidCount += 1;
+  property.auction.playerBidDay = today;
+  empireLog(empire, `Bid ${formatMoney(bid)} on ${property.name}; funds moved to escrow.`, 'auction', today);
+  return { ok: true, property, bid, escrow: bid };
+}
+
+export function assignPropertyManager(empire, propertyId, tierId) {
+  syncWallet(empire);
+  const holding = empire.holdings.find((entry) => entry.property.id === propertyId);
+  if (!holding) return { ok: false, reason: "You don't own that property." };
+  const tier = PROPERTY_MANAGER_TIERS[tierId];
+  if (!tier) return { ok: false, reason: 'That management contract is not available.' };
+  const operations = ensureHoldingOperations(holding);
+  if (operations.managerTier === tier.id) {
+    return { ok: true, already: true, tier, operations };
+  }
+  if (empire.cash < tier.hireCost) {
+    return { ok: false, reason: `${tier.label} requires ${formatMoney(tier.hireCost)} at signing.` };
+  }
+  const state = activeState(empire);
+  if (state && tier.hireCost > 0) {
+    spend(state, 'propertyServices', tier.hireCost);
+    empire.cash = state.cash;
+  } else {
+    setEmpireCash(empire, empire.cash - tier.hireCost);
+  }
+  const result = assignManagerRecord(
+    holding,
+    tier.id,
+    calendarOf(worldMinutes(empire)).dayAbs,
+  );
+  empireLog(empire, tier.id === 'caretaker'
+    ? `${holding.property.name} returned to caretaker coverage.`
+    : `${result.operations.managerName} took remote charge of ${holding.property.name}.`, 'operations');
+  return result;
 }
 
 // What a holding is worth right now — the SAME number a sale pays out.
@@ -290,6 +492,7 @@ export function sellProperty(empire, propertyId) {
 function parkHolding(holding) {
   const st = holding.state;
   const counts = memberCounts(st);
+  const { tier } = propertyOperationsProfile(holding);
   holding.passive = {
     conditionEst: conditionRating(st),
     design: Math.round(courseDesignRating(st.course, st.sections) * 10) / 10,
@@ -301,6 +504,9 @@ function parkHolding(holding) {
     lastNet: 0,
     sinceVisitNet: 0,
     accruedNet: holding.passive ? holding.passive.accruedNet : 0,
+    managerTier: tier.id,
+    lastGrossRevenue: 0,
+    lastOperatingCost: 0,
   };
   st.cash = 0;
 }
@@ -308,19 +514,29 @@ function parkHolding(holding) {
 // One world-day for one parked property. See DEV_LOG.md for the reasoning.
 function passiveDay(empire, holding, seasonIndex) {
   const p = holding.passive;
-  if (p.conditionEst > PASSIVE.floor) {
-    p.conditionEst = Math.max(PASSIVE.floor, p.conditionEst - (p.conditionEst - PASSIVE.floor) * PASSIVE.decay);
+  const { operations, tier } = propertyOperationsProfile(holding);
+  if (p.conditionEst > tier.conditionFloor) {
+    p.conditionEst = Math.max(
+      tier.conditionFloor,
+      p.conditionEst - (p.conditionEst - tier.conditionFloor) * tier.conditionDecay,
+    );
   }
   const sizeF = holding.property.size / 9;
   const q = 0.4 * p.design + 0.6 * p.conditionEst; // the same overall-rating blend the HUD uses
-  const rounds = Math.max(0, PASSIVE.baseRounds * SEASON_F[seasonIndex] * (q / 60) * clamp(p.reputation / 45, 0.3, 1.4) * sizeF);
-  const revenue = rounds * p.greenFee + p.duesPerDay;
-  const costs = PASSIVE.caretakerPerDay * sizeF + PASSIVE.utilitiesPerDay;
+  const rounds = Math.max(0, PASSIVE.baseRounds * tier.roundsMultiplier * SEASON_F[seasonIndex]
+    * (q / 60) * clamp(p.reputation / 45, 0.3, 1.4) * sizeF);
+  const revenue = rounds * p.greenFee * tier.revenueMultiplier + p.duesPerDay;
+  const propertyOverhead = Math.max(0, Number(holding.property.operatingCostPerDay) || 0) * 0.45;
+  const costs = tier.dailyCostPerNine * sizeF + REMOTE_PROPERTY_UTILITIES_PER_DAY + propertyOverhead;
   const net = clamp(Math.round(revenue - costs), -800 * sizeF, 2600 * sizeF);
   p.lastNet = net;
+  p.managerTier = tier.id;
+  p.lastGrossRevenue = Math.round(revenue);
+  p.lastOperatingCost = Math.round(costs);
   p.days++;
   p.sinceVisitNet += net;
   p.accruedNet += net;
+  operations.managementFeesPaid += Math.round(tier.dailyCostPerNine * sizeF);
   empire.cash += net;
 }
 
@@ -388,8 +604,54 @@ const RIVALS = [
   'Old Harbour Holdings', 'the county park district',
 ];
 
+function returnAuctionToMarket(empire, property, day) {
+  refundAuctionEscrow(empire, property);
+  property.askingPrice = Math.max(property.auction.reservePrice, round500(property.trueValue * 0.94));
+  property.saleType = 'listing';
+  property.listedDay = day;
+  delete property.auction;
+  empire.market.push(property);
+  empireLog(empire, `${property.name} missed reserve and returned as a conventional listing.`, 'auction', day);
+}
+
+function auctionsDay(empire, day, rng) {
+  empire.auctions ||= [];
+  for (let index = empire.auctions.length - 1; index >= 0; index -= 1) {
+    const property = empire.auctions[index];
+    const auction = property.auction;
+    if (!auction) {
+      empire.auctions.splice(index, 1);
+      continue;
+    }
+    if (day >= auction.endsDay) {
+      empire.auctions.splice(index, 1);
+      if (auction.highBidder === 'player' && auction.currentBid >= auction.reservePrice) {
+        acquirePropertyRecord(empire, property, auction.playerEscrow, { paid: true, source: 'auction' });
+      } else if (auction.highBidder && auction.highBidder !== 'player') {
+        if (empire.inspections) delete empire.inspections[property.id];
+        empireLog(empire, `${auction.highBidder} won ${property.name} for ${formatMoney(auction.currentBid)}.`, 'rival', day);
+      } else {
+        returnAuctionToMarket(empire, property, day);
+      }
+      continue;
+    }
+    if (!rng.chance(PROPERTY_MARKET.rivalBidChance)) continue;
+    const next = auction.highBidder
+      ? auction.currentBid + auction.minimumIncrement * (1 + rng.int(3))
+      : auction.openingBid;
+    const rivalLimit = round500(property.trueValue * (0.88 + rng.next() * 0.2));
+    if (next > rivalLimit) continue;
+    if (auction.highBidder === 'player') refundAuctionEscrow(empire, property);
+    auction.currentBid = next;
+    auction.highBidder = RIVALS[rng.int(RIVALS.length)];
+    auction.bidCount += 1;
+    empireLog(empire, `${auction.highBidder} bid ${formatMoney(next)} on ${property.name}.`, 'auction', day);
+  }
+}
+
 function marketDay(empire, day) {
   const rng = makeRng(empire.marketRngState);
+  auctionsDay(empire, day, rng);
   // the buyer's/seller's cycle drifts first, so today's arrivals price on
   // today's mood: a slow lerp toward a target that re-rolls about once a
   // season, a whisper of daily noise, hard-clamped to the tuned bounds
@@ -410,6 +672,7 @@ function marketDay(empire, day) {
     if (day - (p.listedDay ?? 0) < MARKET.minDaysListed) continue;
     if (!rng.chance(MARKET.rivalDailyChance)) continue;
     empire.market.splice(i, 1);
+    if (empire.inspections) delete empire.inspections[p.id];
     empireLog(empire, `${RIVALS[rng.int(RIVALS.length)]} bought ${p.name} — it's off the market.`, 'rival', day);
   }
   if (day % MARKET.refreshEveryDays === 0 && empire.market.length < MARKET.maxListings) {
@@ -417,6 +680,7 @@ function marketDay(empire, day) {
     if (rng.chance(chance)) {
       const taken = (field) => [
         ...empire.market.map((p) => p[field]),
+        ...(empire.auctions || []).map((p) => p[field]),
         ...empire.holdings.map((h) => h.property[field]),
       ];
       const listing = generateListing(1 + rng.int(2147483646), {
@@ -425,8 +689,15 @@ function marketDay(empire, day) {
         takenIds: taken('id'),
       });
       listing.listedDay = day;
-      empire.market.push(listing);
-      empireLog(empire, `New on the market: ${listing.name} — asking ${formatMoney(listing.askingPrice)}.`, 'market', day);
+      if (empire.market.length > MARKET.dryMarketFloor
+        && (empire.auctions || []).length < PROPERTY_MARKET.maxAuctions
+        && rng.chance(PROPERTY_MARKET.generatedAuctionChance)) {
+        empire.auctions.push(makeAuction(listing, day));
+        empireLog(empire, `Auction announced: ${listing.name}, closing in ${PROPERTY_MARKET.auctionDurationDays} days.`, 'auction', day);
+      } else {
+        empire.market.push(listing);
+        empireLog(empire, `New on the market: ${listing.name} — asking ${formatMoney(listing.askingPrice)}.`, 'market', day);
+      }
     }
   }
   empire.marketRngState = rng.getState();
@@ -471,13 +742,17 @@ export function empireSnapshot(empire) {
     firstPurchaseDone: empire.firstPurchaseDone,
     log: empire.log,
     market: empire.market,
+    auctions: empire.auctions || [],
     marketRngState: empire.marketRngState,
     lastMarketDay: empire.lastMarketDay,
     marketCondition: empire.marketCondition,
     marketConditionTarget: empire.marketConditionTarget,
+    inspections: empire.inspections || {},
+    acquisitions: Math.max(Number(empire.acquisitions) || 0, empire.holdings.length),
     holdings: empire.holdings.map((h) => ({
       property: h.property,
       passive: h.passive,
+      operations: ensureHoldingOperations(h),
       state: snapshot(h.state),
     })),
   };
@@ -492,7 +767,7 @@ export function serializeEmpire(empire) {
 function legacyEmpireFrom(raw) {
   const st = deserialize(raw);
   const counts = memberCounts(st);
-  const record = {
+  const record = completePropertyProfile({
     id: 'legacy-club',
     name: st.clubName,
     blurb: 'The original club, carried into the empire era.',
@@ -510,8 +785,13 @@ function legacyEmpireFrom(raw) {
     estMonthlyNet: 0,
     trueValue: appraiseProperty(st),
     askingPrice: appraiseProperty(st),
-  };
+  });
   bindPropertyInventory(st, record.id);
+  st.weather.climate = record.climate;
+  st.property.region = record.region;
+  st.property.climate = record.climate;
+  st.property.maintenanceCostPerDay = record.maintenanceCostPerDay;
+  st.property.operatingCostPerDay = record.operatingCostPerDay;
   const joinDay = calendarOf(st.clock.minutes).dayAbs;
   const market = generateMarketplace(st.seed).filter((p) => p.id !== 'willow-creek');
   for (const p of market) p.listedDay = joinDay; // listed "today" — a fair fresh start
@@ -521,6 +801,7 @@ function legacyEmpireFrom(raw) {
     seed: st.seed,
     cash: st.cash,
     market,
+    auctions: [],
     holdings: [{ property: record, state: st, passive: null }],
     activeId: record.id,
     clockMinutes: st.clock.minutes,
@@ -530,6 +811,8 @@ function legacyEmpireFrom(raw) {
     lastMarketDay: joinDay,
     marketCondition: 1,
     marketConditionTarget: 1,
+    inspections: {},
+    acquisitions: 1,
   };
 }
 
@@ -541,13 +824,21 @@ export function deserializeEmpire(raw) {
     mode: data.mode,
     seed: data.seed,
     cash: data.cash,
-    market: data.market,
+    market: (data.market || []).map((property) => completePropertyProfile(property)),
+    auctions: (data.auctions || []).map((property) => completePropertyProfile(property)),
     holdings: data.holdings.map((h) => {
+      const property = completePropertyProfile(h.property);
       const state = deserialize(h.state);
-      bindPropertyInventory(state, h.property.id);
+      bindPropertyInventory(state, property.id);
+      state.weather.climate = property.climate || state.weather.climate || 'temperate';
+      state.property.region = property.region;
+      state.property.climate = property.climate;
+      state.property.maintenanceCostPerDay = property.maintenanceCostPerDay;
+      state.property.operatingCostPerDay = property.operatingCostPerDay;
       return {
-        property: h.property,
+        property,
         passive: h.passive ?? null,
+        operations: h.operations || defaultPropertyOperations(h.property),
         state,
       };
     }),
@@ -559,6 +850,8 @@ export function deserializeEmpire(raw) {
     lastMarketDay: data.lastMarketDay,
     marketCondition: data.marketCondition,
     marketConditionTarget: data.marketConditionTarget,
+    inspections: data.inspections || {},
+    acquisitions: Number.isFinite(data.acquisitions) ? data.acquisitions : data.holdings.length,
   };
   // saves written before the living market existed: grow the stream, join the
   // market clock at the save's own world day, start the pricing cycle at par,
@@ -575,5 +868,6 @@ export function deserializeEmpire(raw) {
   for (const p of empire.market) {
     if (!Number.isFinite(p.listedDay)) p.listedDay = empire.lastMarketDay;
   }
+  for (const holding of empire.holdings) ensureHoldingOperations(holding);
   return empire;
 }

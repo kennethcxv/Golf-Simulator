@@ -4,7 +4,7 @@
 // corner onto the laptop's physical display every frame — the interface IS the screen. Nothing
 // here knows about 3D; it just has to be a good 1024x640 application.
 //
-// SEVEN PAGES, NO MORE. Home answers "what now?" on one screen; Tee Times is an appointment
+// EIGHT PAGES, NO MORE. Home answers "what now?" on one screen; Tee Times is an appointment
 // list; Shop folds stock, ordering, pricing and deliveries into four tabs; Course folds
 // condition, tasks and holes into three; Upgrades is where money becomes lasting improvement;
 // Finances is a money history a player can trust; Settings is small. The look is the approved
@@ -69,6 +69,15 @@ import {
 import { shopExpansionLayoutSafety } from '../sim/layout.js';
 import { ZONE, HOLE_STATUS } from '../sim/constants.js';
 import {
+  assignPropertyManager, auctionNextBid, holdingValue, inspectPropertyListing,
+  placeAuctionBid, propertyAccess,
+} from '../sim/empire.js';
+import { listingAgeLabel, marketConditionLabel } from '../sim/marketplace.js';
+import {
+  PROPERTY_INSPECTION_COST, PROPERTY_MANAGER_TIERS, passiveOperationsProjection,
+  propertyOperationsProfile, REMOTE_PROPERTY_UTILITIES_PER_DAY,
+} from '../sim/propertyOperations.js';
+import {
   SERIES, svgEl, lineChart, applyTableQuery, searchBox, filterTabs,
 } from './laptopWidgets.js';
 
@@ -109,6 +118,7 @@ const ICONS = {
   flag: [['p', 'M6.6 20.8V4'], ['p', 'M6.6 4.6l9.6 2.9-9.6 3'], ['p', 'M3.8 20.8h5.6']],
   up: [['p', 'M5 20.6h14'], ['p', 'M12 16.6V5.4'], ['p', 'M7.2 9.9 12 5.2l4.8 4.7']],
   dollar: [['p', 'M4.4 6.9h15.2a1.3 1.3 0 0 1 1.3 1.3v7.6a1.3 1.3 0 0 1-1.3 1.3H4.4a1.3 1.3 0 0 1-1.3-1.3V8.2a1.3 1.3 0 0 1 1.3-1.3z'], ['c', 12, 12, 2.6], ['p', 'M6.5 12h.01'], ['p', 'M17.5 12h.01']],
+  building: [['p', 'M4.2 20.5V7.2L12 3.5l7.8 3.7v13.3'], ['p', 'M2.8 20.5h18.4'], ['p', 'M8 10h2'], ['p', 'M14 10h2'], ['p', 'M8 14h2'], ['p', 'M14 14h2'], ['p', 'M10.2 20.5v-3.2h3.6v3.2']],
   gear: [['c', 12, 12, 3.1], ['p', 'M12 2.6v2.8'], ['p', 'M12 18.6v2.8'], ['p', 'M2.6 12h2.8'], ['p', 'M18.6 12h2.8'], ['p', 'M5.2 5.2l2 2'], ['p', 'M16.8 16.8l2 2'], ['p', 'M18.8 5.2l-2 2'], ['p', 'M7.2 16.8l-2 2']],
   bell: [['p', 'M17.8 8.8a5.8 5.8 0 1 0-11.6 0c0 6.2-2.4 7.2-2.4 7.2h16.4s-2.4-1-2.4-7.2'], ['p', 'M10.4 19.4a1.85 1.85 0 0 0 3.2 0']],
   power: [['p', 'M12 3.2v7.6'], ['p', 'M17.5 6.4a7.7 7.7 0 1 1-11 0']],
@@ -245,13 +255,14 @@ const exactMoney = (v) => {
 const conditionWord = (h) => (h >= 70 ? 'Good' : h >= 45 ? 'Fair' : 'Poor');
 const conditionTone = (h) => (h >= 70 ? 'ok' : h >= 45 ? 'warn' : 'bad');
 
-// THE WHOLE SIDEBAR. Seven entries, no groups, no scroll.
+// THE WHOLE SIDEBAR. Eight entries, no groups, no scroll.
 const NAV = [
   { id: 'home', icon: 'home', label: 'Home' },
   { id: 'reservations', icon: 'calendar', label: 'Tee Times' },
   { id: 'shop', icon: 'bag', label: 'Shop' },
   { id: 'course', icon: 'flag', label: 'Course' },
   { id: 'upgrades', icon: 'up', label: 'Upgrades' },
+  { id: 'properties', icon: 'building', label: 'Properties' },
   { id: 'finances', icon: 'dollar', label: 'Finances' },
   { id: 'settings', icon: 'gear', label: 'Settings' },
 ];
@@ -270,6 +281,8 @@ const PAGE_ALIAS = {
   rentals: ['upgrades', 'equipment'],
   events: ['upgrades', 'course'],
   analytics: ['finances', null],
+  empire: ['properties', 'portfolio'],
+  marketplace: ['properties', 'market'],
   reviews: ['home', null],
   marketing: ['home', null],
   customers: ['reservations', null],
@@ -1865,6 +1878,303 @@ export function makeLaptop(app, opts) {
   // ==========================================================================================
   // FINANCES — cash, today, one line chart, and the last ten money movements
   // ==========================================================================================
+  function pageProperties() {
+    const empire = app.empire;
+    if (!empire) {
+      paint(head('Properties'), empty('Start an empire before opening the property desk.'));
+      return;
+    }
+    const ps = ts('properties', { tab: 'portfolio' });
+    const cal = calendarOf(app.state.clock.minutes);
+    const tabBar = el('div', { class: 'lt-tabs lt-tabs-big' },
+      ...[['portfolio', 'Portfolio'], ['market', `Market (${empire.market.length + (empire.auctions?.length || 0)})`]].map(([id, label]) => el('button', {
+        class: `lt-tab ${ps.tab === id ? 'on' : ''}`,
+        text: label,
+        onclick: () => { ps.tab = id; click(); render(); },
+      })),
+    );
+
+    const bidAuction = (property) => {
+      const result = placeAuctionBid(empire, property.id);
+      if (!result.ok) toast(result.reason, 'warn');
+      else {
+        toast(`${formatMoney(result.bid)} is now held in escrow for ${property.name}.`);
+        opts.autosave?.();
+      }
+      render();
+    };
+
+    const showInspection = (property, report) => openModal(() => el('div', {},
+      el('div', { class: 'lt-minihead' }, icon('building'), el('span', { text: `${property.name} — inspection` })),
+      el('div', { class: 'lt-stats lt-stats2' },
+        stat('Appraisal range', `${formatMoney(report.valueLow)}–${formatMoney(report.valueHigh)}`),
+        stat('Repair reserve', formatMoney(report.maintenanceReserve)),
+        stat('Report age', report.inspectedDay === cal.dayAbs ? 'Today' : `Day ${report.inspectedDay + 1}`),
+        stat('Inspection fee', formatMoney(report.feePaid)),
+      ),
+      sect('Material risks'),
+      ...report.risks.map((risk) => row(word(risk, risk.startsWith('No material') ? 'ok' : 'warn'))),
+      sect('Independent view'),
+      ...report.opportunities.map((opportunity) => row(meta(opportunity))),
+      sect('Operating profile'),
+      row(chip(property.regionLabel || report.region), chip(property.climateLabel || report.climate), chip(property.difficultyLabel || `Difficulty ${report.difficulty}`), chip(`Demand ${report.customerDemand}`)),
+      row(meta(`Expansion ${report.expansionPotential}/100 · Full property operating cost ${formatMoney(report.operatingCostPerDay)}/day`)),
+      note('The appraiser reports a range. The seller still decides the ask, and restoration remains your responsibility.'),
+      el('div', { class: 'lt-modalbtns' },
+        el('button', { class: 'lt-mini', text: 'Close', onclick: () => closeModal() }),
+        property.auction
+          ? el('button', {
+            class: 'lt-primary',
+            text: property.auction.highBidder === 'player'
+              ? `Leading at ${formatMoney(property.auction.playerEscrow)}`
+              : `Bid ${formatMoney(auctionNextBid(property))}`,
+            disabled: property.auction.highBidder === 'player'
+              || cashOf() < auctionNextBid(property) ? 'disabled' : undefined,
+            onclick: () => { closeModal(); bidAuction(property); },
+          })
+          : el('button', {
+            class: 'lt-primary', text: `Buy for ${formatMoney(property.askingPrice)}`,
+            disabled: cashOf() < property.askingPrice ? 'disabled' : undefined,
+            onclick: () => { closeModal(); opts.buyProperty?.(property.id); render(); },
+          })),
+    ));
+
+    const orderInspection = (property) => {
+      const result = inspectPropertyListing(empire, property.id);
+      if (!result.ok) {
+        toast(result.reason, 'warn');
+        render();
+        return;
+      }
+      if (!result.already) {
+        toast(`Independent report ready for ${property.name}.`);
+        opts.autosave?.();
+      }
+      showInspection(property, result.report);
+    };
+
+    const showManagement = (holding) => openModal(() => {
+      const { operations } = propertyOperationsProfile(holding);
+      const propertyOverhead = Math.round(Math.max(0, Number(holding.property.operatingCostPerDay) || 0) * 0.45);
+      return el('div', {},
+        el('div', { class: 'lt-minihead' }, icon('users'), el('span', { text: `${holding.property.name} — remote management` })),
+        note(`A manager protects work you already completed while you are away. No contract restores a neglected course for free. Daily totals include ${formatMoney(propertyOverhead)} remote overhead and ${formatMoney(REMOTE_PROPERTY_UTILITIES_PER_DAY)} utilities.`),
+        ...Object.values(PROPERTY_MANAGER_TIERS).map((tier) => {
+          const current = operations.managerTier === tier.id;
+          const sizeFactor = Math.max(1, holding.property.size / 9);
+          const dailyCost = Math.round(
+            tier.dailyCostPerNine * sizeFactor + propertyOverhead + REMOTE_PROPERTY_UTILITIES_PER_DAY,
+          );
+          return el('div', { class: `lt-manager-option ${current ? 'on' : ''}` },
+            el('div', { class: 'lt-row' },
+              el('strong', { text: tier.label }),
+              current ? chip('Current', 'ok') : null,
+              el('span', { class: 'lt-headspace' }),
+              word(`${formatMoney(dailyCost)}/day`),
+              el('button', {
+                class: current ? 'lt-mini' : 'lt-primary',
+                disabled: current ? 'disabled' : undefined,
+                text: current ? 'Assigned' : tier.hireCost ? `Hire — ${formatMoney(tier.hireCost)}` : 'Use caretaker',
+                onclick: () => {
+                  const result = assignPropertyManager(empire, holding.property.id, tier.id);
+                  if (!result.ok) toast(result.reason, 'warn');
+                  else {
+                    toast(result.already ? `${tier.label} is already assigned.` : `${result.operations.managerName} assigned.`);
+                    opts.autosave?.();
+                  }
+                  closeModal();
+                },
+              })),
+            el('div', { class: 'lt-property-copy', text: tier.description }),
+            el('div', { class: 'lt-row' },
+              chip(`Decay floor ${tier.conditionFloor}`),
+              chip(`${tier.roundsMultiplier.toFixed(2)}× remote play`),
+              chip(`${tier.revenueMultiplier.toFixed(2)}× fee yield`)),
+          );
+        }),
+        el('div', { class: 'lt-modalbtns' },
+          el('button', { class: 'lt-primary', text: 'Close', onclick: () => closeModal() })),
+      );
+    });
+
+    if (ps.tab === 'portfolio') {
+      let totalValue = 0;
+      let combinedNet = 0;
+      for (const holding of empire.holdings) {
+        totalValue += holdingValue(empire, holding);
+        combinedNet += holding.property.id === empire.activeId
+          ? (holding.state.ledger.yesterday?.net || 0)
+          : (holding.passive?.lastNet || 0);
+      }
+      const managedCount = empire.holdings.filter((holding) => propertyOperationsProfile(holding).operations.managerTier !== 'caretaker').length;
+      paint(
+        head('Properties', 'Buy, staff, visit, and sell real playable courses from the physical office laptop.'),
+        confirmBar(),
+        tabBar,
+        el('div', { class: 'lt-stats lt-stats4' },
+          stat('Empire wallet', formatMoney(cashOf())),
+          stat('Portfolio value', formatMoney(totalValue)),
+          stat('All clubs yesterday', `${combinedNet >= 0 ? '+' : ''}${formatMoney(combinedNet)}`, null, combinedNet >= 0 ? 'ok' : 'bad'),
+          stat('Remote managers', `${managedCount} of ${empire.holdings.length}`),
+        ),
+        ...empire.holdings.map((holding) => {
+          const isActive = holding.property.id === empire.activeId;
+          const condition = isActive ? clubRatings(holding.state).condition : holding.passive?.conditionEst || holding.property.condition;
+          const value = holdingValue(empire, holding);
+          const net = isActive ? (holding.state.ledger.yesterday?.net || 0) : (holding.passive?.lastNet || 0);
+          const { operations, tier } = propertyOperationsProfile(holding);
+          const projection = passiveOperationsProjection(holding);
+          return el('div', { class: `lt-property-card ${isActive ? 'active' : ''}` },
+            el('div', { class: 'lt-property-band', style: `--property-health:${Math.round(condition)}%` }),
+            el('div', { class: 'lt-property-body' },
+              el('div', { class: 'lt-row' },
+                el('strong', { class: 'lt-property-name', text: holding.property.name }),
+                isActive ? chip('You are here', 'ok') : chip(`Away ${holding.passive?.days || 0}d`, 'warn'),
+                el('span', { class: 'lt-headspace' }),
+                word(formatMoney(value), 'ok')),
+              el('div', { class: 'lt-row' },
+                chip(`${holding.property.size} holes`),
+                chip(holding.property.regionLabel || holding.property.region),
+                chip(holding.property.climateLabel || holding.property.climate),
+                chip(`Condition ${Math.round(condition)}`, conditionTone(condition)),
+                chip(`${net >= 0 ? '+' : ''}${formatMoney(net)}/day`, net >= 0 ? 'ok' : 'bad'),
+                chip(tier.id === 'caretaker' ? operations.managerName : `${tier.label}: ${operations.managerName}`)),
+              !isActive
+                ? el('div', { class: 'lt-property-copy', text: `Condition decay floor ${projection.protectedCondition} (protection only); yesterday ${formatMoney(holding.passive.lastGrossRevenue || 0)} gross, ${formatMoney(holding.passive.lastOperatingCost || projection.dailyManagementCost)} operating cost.` })
+                : el('div', { class: 'lt-property-copy', text: 'Running live under your direct control. Its manager contract takes effect when you travel.' }),
+              el('div', { class: 'lt-property-actions' },
+                isActive ? word('Operating in person', 'ok') : el('button', {
+                  class: 'lt-primary', text: 'Travel to property',
+                  onclick: () => { opts.close(); opts.switchProperty?.(holding.property.id); },
+                }),
+                el('button', { class: 'lt-mini', text: 'Manage remotely', onclick: () => showManagement(holding) }),
+                el('span', { class: 'lt-headspace' }),
+                el('button', {
+                  class: 'lt-mini lt-text-danger', text: 'Sell property',
+                  onclick: () => askConfirm(
+                    `Sell ${holding.property.name} permanently for ${formatMoney(value)}? Every member, employee, and saved improvement leaves with the deed.`,
+                    `Sell for ${formatMoney(value)}`,
+                    () => { opts.close(); opts.sellProperty?.(holding.property.id); },
+                  ),
+                })),
+            ),
+          );
+        }),
+        !empire.holdings.length ? empty('No holdings yet. Open the Market tab to choose a course.') : null,
+      );
+      return;
+    }
+
+    const mood = marketConditionLabel(empire.marketCondition);
+    paint(
+      head('Properties', 'Every listing is a real course. The seller sets the ask; inspection narrows the uncertainty.'),
+      confirmBar(),
+      tabBar,
+      el('div', { class: 'lt-stats lt-stats4' },
+        stat('Market', mood.label, mood.hint),
+        stat('Opportunities', String(empire.market.length + (empire.auctions?.length || 0)), `${empire.auctions?.length || 0} live auctions`),
+        stat('Empire wallet', formatMoney(cashOf())),
+        stat('Inspection', formatMoney(PROPERTY_INSPECTION_COST), 'independent report'),
+      ),
+      (empire.auctions?.length || 0) ? sect('Live auctions') : null,
+      ...(empire.auctions || []).map((property) => {
+        const report = empire.inspections?.[property.id];
+        const access = propertyAccess(empire, property);
+        const auction = property.auction;
+        const nextBid = auctionNextBid(property);
+        const escrow = auction.highBidder === 'player' ? Number(auction.playerEscrow) || 0 : 0;
+        const additional = Math.max(0, nextBid - escrow);
+        const affordable = cashOf() >= additional;
+        const playerLeading = auction.highBidder === 'player';
+        const daysLeft = Math.max(0, auction.endsDay - cal.dayAbs);
+        return el('div', { class: 'lt-market-card auction' },
+          el('div', { class: 'lt-property-band auction', style: `--property-health:${Math.round(property.condition)}%` }),
+          el('div', { class: 'lt-property-body' },
+            el('div', { class: 'lt-row' },
+              el('strong', { class: 'lt-property-name', text: property.name }),
+              chip(`${daysLeft} day${daysLeft === 1 ? '' : 's'} left`, daysLeft <= 2 ? 'warn' : ''),
+              playerLeading ? chip('You lead', 'ok') : auction.highBidder ? chip(`${auction.highBidder} leads`, 'warn') : chip('No bids'),
+              el('span', { class: 'lt-headspace' }),
+              word(`${auction.highBidder ? 'Current' : 'Opening'} ${formatMoney(auction.currentBid)}`, playerLeading ? 'ok' : '')),
+            el('div', { class: 'lt-row' },
+              chip(property.regionLabel || property.region),
+              chip(property.climateLabel || property.climate),
+              chip(`${property.size} holes · ${property.difficultyLabel}`),
+              chip(`Demand ${property.customerDemand}/100`),
+              chip(`Expansion ${property.expansionPotential}/100`)),
+            el('div', { class: 'lt-property-copy', text: property.blurb }),
+            report ? el('div', { class: 'lt-inspection-strip' },
+              word(`Inspected: ${formatMoney(report.valueLow)}–${formatMoney(report.valueHigh)}`, 'ok'),
+              meta(`Repairs ${formatMoney(report.maintenanceReserve)}`)) : null,
+            !access.unlocked ? el('div', { class: 'lt-inspection-strip locked' }, word(access.reason, 'warn')) : null,
+            el('div', { class: 'lt-property-actions' },
+              el('button', {
+                class: 'lt-mini', text: report ? 'Open inspection' : `Inspect — ${formatMoney(PROPERTY_INSPECTION_COST)}`,
+                disabled: !access.unlocked || (!report && cashOf() < PROPERTY_INSPECTION_COST) ? 'disabled' : undefined,
+                onclick: () => orderInspection(property),
+              }),
+              meta(playerLeading ? `${formatMoney(escrow)} escrow secured` : `${formatMoney(additional)} additional escrow`),
+              el('span', { class: 'lt-headspace' }),
+              el('button', {
+                class: 'lt-primary',
+                text: !access.unlocked ? 'Locked' : playerLeading ? `Leading at ${formatMoney(escrow)}` : affordable ? `Bid ${formatMoney(nextBid)}` : 'Not enough cash',
+                disabled: !access.unlocked || !affordable || playerLeading ? 'disabled' : undefined,
+                onclick: () => bidAuction(property),
+              })),
+          ),
+        );
+      }),
+      empire.market.length ? sect('Conventional listings') : null,
+      ...empire.market.map((property) => {
+        const report = empire.inspections?.[property.id];
+        const access = propertyAccess(empire, property);
+        const affordable = access.unlocked && cashOf() >= property.askingPrice;
+        return el('div', { class: 'lt-market-card' },
+          el('div', { class: 'lt-property-band market', style: `--property-health:${Math.round(property.condition)}%` }),
+          el('div', { class: 'lt-property-body' },
+            el('div', { class: 'lt-row' },
+              el('strong', { class: 'lt-property-name', text: property.name }),
+              chip(listingAgeLabel(cal.dayAbs - (property.listedDay ?? cal.dayAbs))),
+              el('span', { class: 'lt-headspace' }),
+              word(formatMoney(property.askingPrice), affordable ? 'ok' : 'bad')),
+            el('div', { class: 'lt-row' },
+              chip(property.regionLabel || property.region),
+              chip(property.climateLabel || property.climate),
+              chip(`${property.size} holes · par ${property.par}`),
+              chip(`${property.yards.toLocaleString('en-US')} yd`),
+              chip(`Design ${Math.round(property.design)}`),
+              chip(`Condition ${Math.round(property.condition)}`, conditionTone(property.condition)),
+              property.sickGreens ? chip(`${property.sickGreens} sick green${property.sickGreens === 1 ? '' : 's'}`, 'warn') : null),
+            el('div', { class: 'lt-row' },
+              chip(property.courseClass),
+              chip(property.difficultyLabel),
+              chip(`Demand ${property.customerDemand}/100`),
+              chip(`Expansion ${property.expansionPotential}/100`),
+              meta(`${formatMoney(property.operatingCostPerDay)}/day property overhead`)),
+            el('div', { class: 'lt-property-copy', text: property.blurb }),
+            report ? el('div', { class: 'lt-inspection-strip' },
+              word(`Inspected: ${formatMoney(report.valueLow)}–${formatMoney(report.valueHigh)}`, 'ok'),
+              meta(`Repairs ${formatMoney(report.maintenanceReserve)}`)) : null,
+            !access.unlocked ? el('div', { class: 'lt-inspection-strip locked' }, word(access.reason, 'warn')) : null,
+            el('div', { class: 'lt-property-actions' },
+              el('button', {
+                class: 'lt-mini', text: report ? 'Open inspection' : `Inspect — ${formatMoney(PROPERTY_INSPECTION_COST)}`,
+                disabled: !access.unlocked || (!report && cashOf() < PROPERTY_INSPECTION_COST) ? 'disabled' : undefined,
+                onclick: () => orderInspection(property),
+              }),
+              el('span', { class: 'lt-headspace' }),
+              el('button', {
+                class: 'lt-primary', text: !access.unlocked ? 'Locked' : affordable ? 'Buy property' : 'Not enough cash',
+                disabled: affordable ? undefined : 'disabled',
+                onclick: () => { opts.buyProperty?.(property.id); render(); },
+              })),
+          ),
+        );
+      }),
+      !empire.market.length ? empty('No properties are listed today. The market continues to move with world time.') : null,
+    );
+  }
+
   function pageFinances() {
     const st = app.state;
     const fs = ts('finances', { win: 'week' });
@@ -1893,6 +2203,7 @@ export function makeLaptop(app, opts) {
       chemicals: 'Chemicals', upkeep: 'Upkeep', utilities: 'Utilities', works: 'Course works',
       severance: 'Severance', training: 'Training', shopOrders: 'Stock order',
       rentalFleet: 'Rental sets', events: 'Event costs', rent: 'Property bill',
+      propertyServices: 'Property services',
       cashOverShort: 'Register over/short',
     };
     const txRow = (t) => {
@@ -2060,6 +2371,7 @@ export function makeLaptop(app, opts) {
     shop: pageShop,
     course: pageCourse,
     upgrades: pageUpgrades,
+    properties: pageProperties,
     finances: pageFinances,
     settings: pageSettings,
   };

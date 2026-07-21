@@ -57,6 +57,7 @@ globalThis.document = {
 
 const { newGame, update } = await import('../src/sim/state.js');
 const { makeLaptop } = await import('../src/ui/laptop.js');
+const { newEmpire, buyProperty, activeState } = await import('../src/sim/empire.js');
 const { placeOrder } = await import('../src/sim/shop.js');
 const { bookSlot, daySheet } = await import('../src/sim/reservations.js');
 const { refreshMarketIfDue, hireStaff } = await import('../src/sim/staff.js');
@@ -64,10 +65,10 @@ const { calendarOf } = await import('../src/sim/time.js');
 const { notify } = await import('../src/sim/notifications.js');
 const { postReview } = await import('../src/sim/reviews.js');
 
-// THE WHOLE SIDEBAR: seven pages, nothing else. Retired desk ids stay routable
+// THE WHOLE SIDEBAR: eight pages, nothing else. Retired desk ids stay routable
 // through PAGE_ALIAS — tested separately below.
 const PAGE_IDS = [
-  'home', 'reservations', 'shop', 'course', 'upgrades', 'finances', 'settings',
+  'home', 'reservations', 'shop', 'course', 'upgrades', 'properties', 'finances', 'settings',
 ];
 // every retired desk id and the (page, tab) it must land on
 const ALIASES = {
@@ -75,6 +76,7 @@ const ALIASES = {
   maintenance: ['course'], reno: ['course'],
   employees: ['upgrades'], rentals: ['upgrades'], events: ['upgrades'],
   analytics: ['finances'],
+  empire: ['properties'], marketplace: ['properties'],
   reviews: ['home'], marketing: ['home'], notifications: ['home'], help: ['home'],
   customers: ['reservations'], memberships: ['reservations'],
 };
@@ -183,6 +185,32 @@ test('the tabbed pages draw every tab without throwing', () => {
   drive('shop', ['Stock', 'Order', 'Pricing', 'Deliveries']);
   drive('course', ['Overview', 'Tasks', 'Holes']);
   drive('upgrades', ['Course', 'Clubhouse', 'Staff', 'Equipment']);
+  lap.close();
+});
+
+test('the Properties app draws a real portfolio and its live marketplace', () => {
+  const empire = newEmpire('relaxed', 176);
+  empire.cash = 1_000_000;
+  buyProperty(empire, 'willow-creek');
+  buyProperty(empire, 'bent-pines');
+  const app = { state: activeState(empire), audio: null, scene3d: null, empire };
+  const lap = makeLaptop(app, { close: () => {}, autosave: () => {} });
+  lap.open('properties');
+  assert.match(lap.root.textContent, /Portfolio/);
+  assert.match(lap.root.textContent, /Willow Creek Municipal/);
+  assert.match(lap.root.textContent, /Bent Pines Golf Club/);
+  assert.match(lap.root.textContent, /Manage remotely/);
+
+  let marketTab = null;
+  walk(lap.root, (node) => {
+    if (!marketTab && node.tagName === 'button' && String(node.className).includes('lt-tab')
+      && node.textContent.startsWith('Market')) marketTab = node;
+  });
+  assert.ok(marketTab, 'market tab exists on the physical laptop');
+  marketTab.click();
+  assert.match(lap.root.textContent, /Inspection/);
+  assert.match(lap.root.textContent, /Buy property/);
+  assert.equal(crashCard(lap.root), null);
   lap.close();
 });
 

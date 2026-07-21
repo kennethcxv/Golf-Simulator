@@ -400,6 +400,7 @@ export function snapshot(state) {
       today: state.weather.today,
       droughtDays: state.weather.droughtDays,
       bias: state.weather.bias,
+      climate: state.weather.climate || 'temperate',
     },
     maintenance: state.maintenance,
     golfers: state.golfers,
@@ -543,7 +544,12 @@ export function deserialize(json) {
     course,
     sections: labelSections(course),
     weather: raw.weather
-      ? { today: raw.weather.today, droughtDays: raw.weather.droughtDays, bias: raw.weather.bias || { temp: 0, dry: 0 } }
+      ? {
+        today: raw.weather.today,
+        droughtDays: raw.weather.droughtDays,
+        bias: raw.weather.bias || { temp: 0, dry: 0 },
+        climate: raw.weather.climate || 'temperate',
+      }
       : newWeather(),
     maintenance: raw.maintenance || null,
     property: cloneSaveValue(raw.property) || null,

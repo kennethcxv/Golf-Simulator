@@ -4,7 +4,7 @@
 
 import { el, modal } from './ui.js';
 import { formatMoney } from '../core/utils.js';
-import { syncWallet, worldMinutes } from '../sim/empire.js';
+import { propertyAccess, syncWallet, worldMinutes } from '../sim/empire.js';
 import { marketConditionLabel, listingAgeLabel } from '../sim/marketplace.js';
 import { calendarOf } from '../sim/time.js';
 
@@ -42,7 +42,8 @@ export function openMarketplace(app, handlers) {
         rows.push(el('div', { class: 'row muted', text: 'Nothing listed right now — you bought the whole county.' }));
       }
       for (const p of empire.market) {
-        const affordable = wallet >= p.askingPrice;
+        const access = propertyAccess(empire, p);
+        const affordable = access.unlocked && wallet >= p.askingPrice;
         rows.push(el('div', { class: 'listing' },
           el('div', { class: 'row' },
             el('strong', { text: p.name, style: 'font-size:1.02rem' }),
@@ -51,6 +52,9 @@ export function openMarketplace(app, handlers) {
             el('span', { text: formatMoney(p.askingPrice), style: 'font-weight:600;color:var(--accent-2)' }),
           ),
           el('div', { class: 'row' },
+            el('span', { class: 'status-chip', text: p.regionLabel || p.region }),
+            el('span', { class: 'status-chip', text: p.climateLabel || p.climate }),
+            el('span', { class: 'status-chip', text: p.difficultyLabel || `Difficulty ${p.difficulty}` }),
             el('span', { class: 'status-chip', text: `Design ${Math.round(p.design)}` }),
             el('span', { class: 'status-chip', text: `Condition ${Math.round(p.condition)}` }),
             el('span', { class: 'status-chip', text: `${p.startingMembers} members` }),
@@ -61,9 +65,13 @@ export function openMarketplace(app, handlers) {
             el('span', { style: 'flex:1' }),
             el('button', {
               class: affordable ? 'primary' : '',
-              text: affordable ? 'Buy' : 'Not enough cash',
+              text: !access.unlocked ? 'Locked' : affordable ? 'Buy' : 'Not enough cash',
               disabled: affordable ? null : 'disabled',
-              title: affordable ? `Pay ${formatMoney(p.askingPrice)} and take the keys` : 'The wallet says no',
+              title: !access.unlocked
+                ? access.reason
+                : affordable
+                  ? `Pay ${formatMoney(p.askingPrice)} and take the keys`
+                  : 'The wallet says no',
               onclick: () => {
                 const res = handlers.buyFromMarket(p.id);
                 if (res && res.closeMarket) close();
@@ -71,6 +79,9 @@ export function openMarketplace(app, handlers) {
               },
             }),
           ),
+          !access.unlocked
+            ? el('div', { class: 'row muted', style: 'font-size:0.87rem;color:var(--warn)', text: access.reason })
+            : el('div', { class: 'row muted', style: 'font-size:0.87rem', text: `${formatMoney(p.operatingCostPerDay)}/day estimated property overhead` }),
           el('div', { class: 'row muted', style: 'font-size:0.87rem', text: p.blurb }),
         ));
       }

@@ -1970,6 +1970,10 @@ function boot() {
       autosave();
       return result;
     },
+    buyProperty: (propertyId) => handlers.buyFromMarket(propertyId),
+    switchProperty: (propertyId) => handlers.switchTo(propertyId),
+    sellProperty: (propertyId) => handlers.sellHolding(propertyId, app.speedIdx || 1),
+    autosave: () => autosave(),
   });
   editorUi = makeCourseEditor(app, {
     onExit: () => exitEditor(),
