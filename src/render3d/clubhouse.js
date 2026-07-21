@@ -16,6 +16,12 @@ import { LAPTOP, screenCornersLocal, screenNormalLocal } from '../core/laptopRig
 import { makeCharacter } from './characterAsset.js';
 import { SHOP_CATALOG, SHELF_CAP, DECOR_SPOTS } from '../data/shopItems.js';
 import {
+  CHECKOUT_EQUIPMENT_FAMILIES,
+  EQUIPMENT_QUALITY_TIERS,
+  PRO_SHOP_EQUIPMENT_FAMILIES,
+  equipmentQualityTierForPrestige,
+} from '../data/proShopEquipment.js';
+import {
   SHELL, INTERIOR, FIXTURES, FIXTURE_HALF, COUNTER, OFFICE, STOCKROOM, LOUNGE,
   DOOR_MAIN, DOOR_STOCK, DOOR_BACK,
   MAT, HOURS_SIGN, queueSlot, REGISTER, COUNTER_TOP, fixtureBrowsePoint,
@@ -64,6 +70,10 @@ import {
 } from '../sim/customerIdentity.js';
 import { makeClubhouseMaterials, roundedBox, makeSignTexture, makeProductLabel } from './clubhouse/materials.js';
 import { createMerch } from './clubhouse/merch.js';
+import {
+  PRO_SHOP_EQUIPMENT_SHOWCASE_QUERY,
+  buildProShopEquipmentShowcase,
+} from './clubhouse/proShopEquipmentShowcase.js';
 import {
   createDeliveryEquipment, DELIVERY_EQUIPMENT_DEFAULT_LAYOUT, DELIVERY_VAN_BEATS,
   DELIVERY_VAN_ROUTE,
@@ -525,7 +535,19 @@ export function makeClubhouse(ctx) {
   // here: a GLB that fails fast can call back before this function has finished
   // running, and rebuildStock() closes over state declared further down (it hit
   // exactly that dead zone once).
-  const merch = createMerch(mats);
+  const equipmentParams = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search)
+    : new URLSearchParams();
+  const equipmentShowcaseEnabled = equipmentParams.get(PRO_SHOP_EQUIPMENT_SHOWCASE_QUERY) === '1';
+  const requestedEquipmentTier = equipmentParams.get('equipmentTier');
+  const equipmentTier = equipmentShowcaseEnabled
+    && EQUIPMENT_QUALITY_TIERS.some((tier) => tier.id === requestedEquipmentTier)
+    ? requestedEquipmentTier
+    : equipmentQualityTierForPrestige(state?.progression?.prestige).id;
+  const equipmentFamilies = equipmentShowcaseEnabled
+    ? PRO_SHOP_EQUIPMENT_FAMILIES.map((family) => family.id)
+    : [...CHECKOUT_EQUIPMENT_FAMILIES, 'office_chair'];
+  const merch = createMerch(mats, { equipmentTier, equipmentFamilies });
   let deliveryPadSurfaceY = null;
   let deliveryVanBaySurfaceY = null;
   let deliveryVanBayBounds = null;
@@ -548,6 +570,11 @@ export function makeClubhouse(ctx) {
     addCol, removeCol, addProp, removeProp, colBoxAt, L2W, W2L, FLOOR_TOP,
     getCustomers: () => customers,
   };
+  const proShopEquipmentShowcase = buildProShopEquipmentShowcase({
+    group,
+    merch,
+    enabled: equipmentShowcaseEnabled,
+  });
   const shell = buildShell(B);
 
   // --- grime + window film (clubhouse/dirt.js — art-directed, state-masked) --------------
@@ -1095,11 +1122,12 @@ export function makeClubhouse(ctx) {
     // task chair — the Sheet-04 kit chair (five-star base, casters, black
     // leather), facing east toward the desk. The Tripo scan is the fallback.
     merch.onReady(() => {
-      const kitChair = merch.instantiateKit && merch.instantiateKit('office_chair');
-      const chair = kitChair || merch.instantiateRaw('office_chair');
+      const equipmentChair = merch.instantiateEquipment && merch.instantiateEquipment('office_chair');
+      const kitChair = !equipmentChair && merch.instantiateKit && merch.instantiateKit('office_chair');
+      const chair = equipmentChair || kitChair || merch.instantiateRaw('office_chair');
       if (!chair) return;
       chair.position.set(OFFICE.chair.x, 0, OFFICE.chair.z);
-      chair.rotation.y = kitChair ? Math.PI / 2 : -Math.PI / 2;
+      chair.rotation.y = (equipmentChair || kitChair) ? Math.PI / 2 : -Math.PI / 2;
       // Asset 81 is the Sheet-09 office chair, authored for this same spot. Named so the prop
       // placement table can retire this one when that lands — otherwise the office has two
       // chairs a centimetre apart, which is worse than either alone.
@@ -7129,6 +7157,11 @@ export function makeClubhouse(ctx) {
       }),
     }),
     assetsReady: () => merch.isReady(),
+    proShopEquipment: Object.freeze({
+      tier: equipmentTier,
+      has: (familyId) => merch.hasEquipment?.(familyId) || false,
+      showcase: () => proShopEquipmentShowcase.diagnostics(),
+    }),
     stockDisplayDiagnostics,
     deliveryEquipmentReady: () => !!deliveryEquipment?.isReady(),
     deliveryBoxPresentationDiagnostics,

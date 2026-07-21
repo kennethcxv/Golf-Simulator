@@ -162,6 +162,19 @@ async function waitForGame(page) {
     return !veil || veil.style.display === 'none'
       || getComputedStyle(veil).opacity === '0';
   }, null, { timeout: 40000 });
+  // Clicking Continue is a valid user gesture, so production enterWalk may
+  // immediately acquire normal look-mode pointer lock. The recovery matrix
+  // verifies that checkout did not retain a lock; release the harness-created
+  // walking lock after every boot to keep that assertion deterministic.
+  await page.evaluate(async () => {
+    if (!document.pointerLockElement) return;
+    await new Promise((resolve) => {
+      const done = () => resolve();
+      document.addEventListener('pointerlockchange', done, { once: true });
+      document.exitPointerLock();
+      setTimeout(done, 500);
+    });
+  });
   await page.waitForTimeout(1050);
 }
 

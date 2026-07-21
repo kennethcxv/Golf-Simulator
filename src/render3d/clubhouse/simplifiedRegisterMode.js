@@ -2306,17 +2306,31 @@ export function createRegisterMode(B) {
         // labelled bill wells + five coin cups, and a CashDrawer_Tray that slides
         // toward the staff side. Origin is the housing's back-bottom-centre.
         const kitScale = 1.0;
-        const kit = merch.instantiateKit && merch.instantiateKit('cash_drawer', { scale: kitScale });
-        const model = kit || merch.instantiate('checkout_cash_drawer') || merch.instantiate('cash_drawer');
+        const equipment = merch.instantiateEquipment
+          && merch.instantiateEquipment('cash_drawer', { scale: kitScale });
+        const kit = !equipment && merch.instantiateKit
+          ? merch.instantiateKit('cash_drawer', { scale: kitScale })
+          : null;
+        const model = equipment || kit || merch.instantiate('checkout_cash_drawer') || merch.instantiate('cash_drawer');
         if (!model) return;
         fallback.visible = false;
         suppressInteriorSunShadows(model);
-        if (kit) {
+        if (kit || equipment) {
           // seat the housing under the countertop with its face flush to the
           // counter's staff side (drawerGroup sits at that face)
-          model.position.set(0, -0.045, 0.10 - 0.41 * kitScale);
+          if (kit) model.position.set(0, -0.045, 0.10 - 0.41 * kitScale);
           drawerGroup.add(model);
-          drawerAssetSlide = model.getObjectByName('CashDrawer_Tray');
+          if (equipment) {
+            // The portable library contract calls the moving node DrawerSlide;
+            // checkout tracks that same transform as CashDrawer_Tray. Rename
+            // only this runtime clone so the complete authored insert moves.
+            drawerAssetSlide = model.getObjectByName('DrawerSlide');
+            const insert = drawerAssetSlide?.getObjectByName('CashDrawer_Tray');
+            if (insert) insert.name = 'CashDrawer_Insert';
+            if (drawerAssetSlide) drawerAssetSlide.name = 'CashDrawer_Tray';
+          } else {
+            drawerAssetSlide = model.getObjectByName('CashDrawer_Tray');
+          }
           if (drawerAssetSlide) {
             drawerAssetSlideBaseZ = drawerAssetSlide.position.z;
             drawerGroup.updateMatrixWorld(true);
@@ -2365,7 +2379,7 @@ export function createRegisterMode(B) {
             }
             remapped += 1;
           }
-          // apply whatever the kit authored; a denomination the tray predates (an older
+          // Apply whatever the asset authored; a denomination the tray predates (an older
           // GLB without the $100 well) keeps its fallback slot instead of dragging every
           // OTHER well back to fallbacks with it
           if (remapped > 0) buildSlotFurniture();
@@ -4675,7 +4689,10 @@ export function createRegisterMode(B) {
     if (drawerPresentationVisible(drawerWant, drawerAmount)
         && !drawerMotionRoot.visible) drawerMotionRoot.visible = true;
     if (Math.abs(drawerAmount - drawerWant) > 0.001) {
-      const speed = drawerWant > drawerAmount ? 3.2 : 2.4;
+      // A sub-300 ms opening read as a state cut and could finish before the
+      // normal-input evidence frame. Give the full authored tray a deliberate,
+      // legible mechanical travel while keeping close/recovery brisk.
+      const speed = drawerWant > drawerAmount ? 0.65 : 2.4;
       drawerAmount += Math.sign(drawerWant - drawerAmount)
         * Math.min(Math.abs(drawerWant - drawerAmount), dt * speed);
       drawerMotionRoot.position.z = drawerAmount * REGISTER.drawer.travel;

@@ -1429,16 +1429,24 @@ export function buildCheckout(B) {
       interior.add(o);
       return o;
     };
+    const placeEquipment = (familyId, fallbackKit, spec, { ry = 0, scale = 1 } = {}) => {
+      const authored = merch.instantiateEquipment && merch.instantiateEquipment(familyId, { scale });
+      if (!authored) return placeKit(fallbackKit, spec, { ry, scale });
+      authored.position.set(spec.x, COUNTER_TOP, spec.z);
+      authored.rotation.y = ry;
+      interior.add(authored);
+      return authored;
+    };
     // The checkout kit is authored at believable real-world dimensions. Keep
     // every device at 1:1 so the fixed camera, sockets, and countertop reach
     // contract all describe the same physical reader and POS.
-    const reg = placeKit('pos_monitor', REGISTER.monitor, { scale: 1.0 });
+    const reg = placeEquipment('pos_terminal', 'pos_monitor', REGISTER.monitor, { scale: 1.0 });
     // NOT `slotMesh(...).material = screenMaterial`: registerMode hangs its own
     // clean-UV canvas plane onto the kit's POS_Screen face.
     if (reg && B.register) B.register.attachScreen(reg);
-    const term = placeKit('payment_terminal', REGISTER.cardterm, { scale: 1.0 });
+    const term = placeEquipment('card_reader', 'payment_terminal', REGISTER.cardterm, { scale: 1.0 });
     if (term && B.register) B.register.attachTerm(term);
-    const printer = placeKit('receipt_printer', REGISTER.printer, { ry: -0.18, scale: 1.0 });
+    const printer = placeEquipment('receipt_printer', 'receipt_printer', REGISTER.printer, { ry: -0.18, scale: 1.0 });
     if (printer && B.register) B.register.attachPrinter(printer);
     // Customer-facing total display, turned toward the queue.
     placeKit('customer_display', REGISTER.custdisplay, { ry: Math.PI, scale: 1.15 });
