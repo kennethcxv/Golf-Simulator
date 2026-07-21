@@ -252,12 +252,19 @@ export function insertCard(tx) {
   if (tx.stage !== 'card-ready') {
     return { ok: false, reason: tx.stage === 'card-declined' ? 'Use a different card.' : 'No card is ready to insert.' };
   }
-  const exactCents = cents(totalOf(tx));
-  tx.cardEntryCents = exactCents;
-  tx.cardEntryDigits = String(exactCents);
+  // THE TERMINAL STARTS AT 0.00. It used to prefill the exact total and leave the
+  // cashier to press Confirm, which meant keying the amount — the one act that
+  // makes a card sale feel like operating a till — was optional and usually
+  // skipped. The reader now opens empty and the operator types the figure.
+  // submitCardAmount still refuses anything that is not the exact total, so this
+  // moves the work to the player without loosening the check: an empty entry
+  // reports ENTER AMOUNT, a wrong one AMOUNT MUST MATCH TOTAL.
+  tx.cardEntryCents = 0;
+  tx.cardEntryDigits = '';
   tx.cardEntryError = null;
   tx.stage = 'card-entry';
-  return { ok: true, amount: dollars(exactCents) };
+  // `expected` is what the operator has to key; it is NOT written into the entry.
+  return { ok: true, amount: 0, expected: dollars(cents(totalOf(tx))) };
 }
 
 export function cardEnteredAmount(tx) {

@@ -820,77 +820,28 @@ async function installResourceLifecycleProbe(page) {
   await page.evaluate(async () => {
     if (window.__registerResourceLifecycleProbe) return;
     const THREE = await import('/vendor/three.module.js');
-    const resourceKinds = ['geometry', 'material', 'texture'];
-    const createSampler = (limit) => ({
-      limit,
-      count: 0,
-      head: [],
-      tail: [],
-      tailIndex: 0,
+    const makeResourceState = () => ({
+      entries: Object.create(null),
+      observed: new WeakSet(),
+      disposed: new WeakSet(),
+      cycleSeen: new WeakSet(),
+      observedCount: 0,
+      disposedCount: 0,
+      disposeCallCount: 0,
+      disposalEventCount: 0,
+      cycleResourceCount: 0,
+      cycleSamples: { first: [], last: [] },
+      disposalEventSamples: { first: [], last: [] },
     });
-    const pushSample = (sampler, value) => {
-      sampler.count += 1;
-      const headLimit = Math.ceil(sampler.limit / 2);
-      const tailLimit = Math.floor(sampler.limit / 2);
-      if (sampler.head.length < headLimit) {
-        sampler.head.push(value);
-        return;
-      }
-      if (sampler.tail.length < tailLimit) {
-        sampler.tail.push(value);
-        return;
-      }
-      if (tailLimit > 0) {
-        sampler.tail[sampler.tailIndex] = value;
-        sampler.tailIndex = (sampler.tailIndex + 1) % tailLimit;
-      }
-    };
-    const sampleValues = (sampler) => {
-      if (!sampler) return [];
-      if (!sampler.tail.length || sampler.count <= sampler.limit || sampler.tailIndex === 0) {
-        return [...sampler.head, ...sampler.tail];
-      }
-      return [
-        ...sampler.head,
-        ...sampler.tail.slice(sampler.tailIndex),
-        ...sampler.tail.slice(0, sampler.tailIndex),
-      ];
-    };
-    const addLimited = (array, value, limit = 24) => {
-      if (value != null && value !== '' && !array.includes(value) && array.length < limit) {
-        array.push(value);
-      }
-    };
     const probe = {
       current: { scenario: 'setup', iteration: 0, phase: 'probe-install' },
       resources: {
-        geometry: Object.create(null),
-        material: Object.create(null),
-        texture: Object.create(null),
+        geometry: makeResourceState(),
+        material: makeResourceState(),
+        texture: makeResourceState(),
       },
-      resourceStates: {
-        geometry: new WeakMap(),
-        material: new WeakMap(),
-        texture: new WeakMap(),
-      },
-      counters: Object.fromEntries(resourceKinds.map((kind) => [kind, {
-        observedCount: 0,
-        disposedCount: 0,
-        disposeCallCount: 0,
-        disposalEventCount: 0,
-        cycleResourceCount: 0,
-      }])),
-      cycleResourceSamples: Object.fromEntries(
-        resourceKinds.map((kind) => [kind, createSampler(2000)]),
-      ),
-      disposalEventSamples: Object.fromEntries(
-        resourceKinds.map((kind) => [kind, createSampler(2000)]),
-      ),
-      ephemeralUndisposed: Object.fromEntries(resourceKinds.map((kind) => [kind, {
-        count: 0,
-        groups: new Map(),
-      }])),
       phaseMarks: [],
+      phaseMarkCount: 0,
       lastLive: {
         geometry: new Set(),
         material: new Set(),
@@ -900,54 +851,26 @@ async function installResourceLifecycleProbe(page) {
       animationMixerCount: 0,
       animationMixerUpdateCalls: 0,
     };
-    probe.addLimited = addLimited;
-    probe.pushSample = pushSample;
-    probe.sampleValues = sampleValues;
-    probe.ensureState = (kind, resource) => {
-      let state = probe.resourceStates[kind].get(resource);
-      if (state) return state;
-      const firstSeen = {
-        scenario: probe.current.scenario,
-        iteration: probe.current.iteration,
-        phase: probe.current.phase,
-      };
-      const cycleObserved = Number(probe.current.iteration) > 0;
-      state = {
-        observed: true,
-        disposed: false,
-        disposeCalls: 0,
-        disposalEventCount: 0,
-        cycleObserved,
-        cycleSampled: false,
-        firstSeen,
-        iterationCount: 0,
-        lastIterationKey: null,
-        iterationSample: null,
-        ephemeralCounted: false,
-        ephemeralSignature: null,
-      };
-      probe.resourceStates[kind].set(resource, state);
-      probe.counters[kind].observedCount += 1;
-      if (cycleObserved) probe.counters[kind].cycleResourceCount += 1;
-      return state;
+    const recordFirstLast = (samples, value, limit = 384) => {
+      const half = Math.max(1, Math.floor(limit / 2));
+      if (samples.first.length < half) {
+        samples.first.push(value);
+        return;
+      }
+      samples.last.push(value);
+      if (samples.last.length > limit - half) samples.last.shift();
     };
-    probe.recordIteration = (state) => {
-      if (!state.cycleObserved) return;
-      const iterationKey = `${probe.current.scenario}:${probe.current.iteration}`;
-      if (state.lastIterationKey === iterationKey) return;
-      state.lastIterationKey = iterationKey;
-      state.iterationCount += 1;
-      if (!state.iterationSample) state.iterationSample = createSampler(24);
-      pushSample(state.iterationSample, iterationKey);
+    const noteResource = (state, resource) => {
+      if (!state.observed.has(resource)) {
+        state.observed.add(resource);
+        state.observedCount += 1;
+      }
+      if (Number(probe.current.iteration) > 0 && !state.cycleSeen.has(resource)) {
+        state.cycleSeen.add(resource);
+        state.cycleResourceCount += 1;
+      }
     };
-    probe.recordCycleResource = (kind, state) => {
-      if (Number(probe.current.iteration) <= 0 || state.cycleObserved) return;
-      state.cycleObserved = true;
-      probe.counters[kind].cycleResourceCount += 1;
-    };
-    probe.newEntry = (resource, kind, state) => ({
-      resource,
-      state,
+    const newEntry = (resource, kind, state) => ({
       uuid: resource.uuid,
       resourceKind: kind,
       type: resource.type || resource.constructor?.name || kind,
@@ -956,107 +879,39 @@ async function installResourceLifecycleProbe(page) {
       kinds: [],
       from: [],
       ancestry: [],
-      firstSeen: state.firstSeen,
+      iterations: [],
+      firstSeen: null,
       lastSeen: null,
-      disposeEvents: createSampler(12),
+      disposeCalls: state.disposed.has(resource) ? 1 : 0,
+      disposeEvents: [],
+      cycleResource: state.cycleSeen.has(resource),
     });
-    probe.ensureEntry = (kind, resource, state) => {
-      const entries = probe.resources[kind];
-      let entry = entries[resource.uuid];
-      if (!entry || entry.resource !== resource) {
-        entry = probe.newEntry(resource, kind, state);
-        entries[resource.uuid] = entry;
-      }
-      return entry;
-    };
-    probe.focusedEntry = (entry, liveAtEnd = false) => ({
-      uuid: entry.uuid,
-      resourceKind: entry.resourceKind,
-      type: entry.type,
-      resourceNames: entry.resourceNames.slice(0, 8),
-      names: entry.names.slice(0, 8),
-      kinds: entry.kinds.slice(0, 8),
-      from: entry.from.slice(0, 8),
-      ancestry: entry.ancestry.slice(0, 8),
-      firstSeen: entry.firstSeen,
-      lastSeen: entry.lastSeen,
+    const snapshotEntry = (entry, liveAtEnd = false) => ({
+      ...entry,
       liveAtEnd,
-      cycleObserved: entry.state.cycleObserved,
-      iterationCount: entry.state.iterationCount,
-      iterations: sampleValues(entry.state.iterationSample),
-      cycles: sampleValues(entry.state.iterationSample),
-      disposeCalls: entry.state.disposeCalls,
-      disposeEventCount: entry.state.disposalEventCount,
-      disposeEvents: sampleValues(entry.disposeEvents),
+      resourceNames: [...entry.resourceNames],
+      names: [...entry.names],
+      kinds: [...entry.kinds],
+      from: [...entry.from],
+      ancestry: [...entry.ancestry],
+      iterations: [...entry.iterations],
+      cycles: [...entry.iterations],
+      disposeEvents: [...entry.disposeEvents],
     });
-    probe.clearEphemeral = (kind, state, uuid) => {
-      if (!state.ephemeralCounted) return;
-      const ephemeral = probe.ephemeralUndisposed[kind];
-      ephemeral.count = Math.max(0, ephemeral.count - 1);
-      const group = ephemeral.groups.get(state.ephemeralSignature);
-      if (group) {
-        group.count = Math.max(0, group.count - 1);
-        group.uuids = group.uuids.filter((entryUuid) => entryUuid !== uuid);
-        if (group.count === 0) ephemeral.groups.delete(state.ephemeralSignature);
-      }
-      state.ephemeralCounted = false;
-      state.ephemeralSignature = null;
-    };
-    probe.markEphemeral = (kind, entry) => {
-      const state = entry.state;
-      if (!state.cycleObserved || state.disposed || state.ephemeralCounted) return;
-      const iterations = sampleValues(state.iterationSample);
-      const signature = [
-        entry.type,
-        entry.resourceNames.join('|') || '(unnamed-resource)',
-        entry.names.join('|') || '(unnamed-object)',
-        entry.kinds.join('|') || '(no-kind)',
-        entry.from.join('|') || '(no-from)',
-        entry.ancestry[0] || '(no-ancestry)',
-      ].join(' :: ');
-      const ephemeral = probe.ephemeralUndisposed[kind];
-      const group = ephemeral.groups.get(signature) || {
-        signature,
-        count: 0,
-        uuids: [],
-        iterations: [],
-        firstSeenPhases: [],
-      };
-      group.count += 1;
-      addLimited(group.uuids, entry.uuid, 64);
-      for (const iteration of iterations) addLimited(group.iterations, iteration, 64);
-      addLimited(group.firstSeenPhases, entry.firstSeen?.phase, 24);
-      ephemeral.groups.set(signature, group);
-      ephemeral.count += 1;
-      state.ephemeralCounted = true;
-      state.ephemeralSignature = signature;
-    };
-    probe.finalizeEntry = (kind, entry, liveAtEnd, sampleLive = false) => {
-      const state = entry.state;
-      if (liveAtEnd) probe.clearEphemeral(kind, state, entry.uuid);
-      else probe.markEphemeral(kind, entry);
-      if (state.cycleObserved && !state.cycleSampled && (!liveAtEnd || sampleLive)) {
-        pushSample(probe.cycleResourceSamples[kind], probe.focusedEntry(entry, liveAtEnd));
-        state.cycleSampled = true;
-      }
-    };
+    probe.recordFirstLast = recordFirstLast;
+    probe.noteResource = noteResource;
+    probe.newEntry = newEntry;
+    probe.snapshotEntry = snapshotEntry;
     const instrumentDispose = (kind, prototype) => {
       const originalDispose = prototype?.dispose;
       if (typeof originalDispose !== 'function') return;
       prototype.dispose = function registerLifecycleResourceDispose() {
-        const state = probe.ensureState(kind, this);
-        const entry = probe.ensureEntry(kind, this, state);
-        probe.clearEphemeral(kind, state, entry.uuid);
-        probe.recordCycleResource(kind, state);
-        probe.recordIteration(state);
-        state.disposeCalls += 1;
-        state.disposalEventCount += 1;
-        probe.counters[kind].disposeCallCount += 1;
-        probe.counters[kind].disposalEventCount += 1;
-        if (!state.disposed) {
-          state.disposed = true;
-          probe.counters[kind].disposedCount += 1;
-        }
+        const state = probe.resources[kind];
+        noteResource(state, this);
+        const entry = state.entries[this.uuid] || newEntry(this, kind, state);
+        state.entries[this.uuid] = entry;
+        entry.disposeCalls += 1;
+        entry.cycleResource = state.cycleSeen.has(this);
         const event = {
           uuid: this.uuid,
           resourceKind: kind,
@@ -1069,8 +924,18 @@ async function installResourceLifecycleProbe(page) {
           kinds: [...entry.kinds],
           from: [...entry.from],
         };
-        pushSample(entry.disposeEvents, event);
-        pushSample(probe.disposalEventSamples[kind], event);
+        if (entry.disposeEvents.length < 8) entry.disposeEvents.push(event);
+        state.disposeCallCount += 1;
+        state.disposalEventCount += 1;
+        if (!state.disposed.has(this)) {
+          state.disposed.add(this);
+          state.disposedCount += 1;
+        }
+        recordFirstLast(state.disposalEventSamples, event);
+        if (entry.cycleResource) {
+          recordFirstLast(state.cycleSamples, snapshotEntry(entry, false));
+        }
+        delete state.entries[this.uuid];
         return originalDispose.call(this);
       };
     };
@@ -1110,6 +975,9 @@ async function markResourcePhase(page, iteration, phase, scenario = 'sale') {
       iteration: iterationNumber,
       phase: phaseName,
     };
+    const addLimited = (array, value, limit = 512) => {
+      if (value != null && value !== '' && !array.includes(value) && array.length < limit) array.push(value);
+    };
     const live = {
       geometry: new Set(),
       material: new Set(),
@@ -1118,21 +986,27 @@ async function markResourcePhase(page, iteration, phase, scenario = 'sale') {
     const observe = (kind, resource, object) => {
       if (!resource?.uuid) return;
       live[kind].add(resource.uuid);
-      const state = probe.ensureState(kind, resource);
-      const entry = probe.ensureEntry(kind, resource, state);
-      probe.clearEphemeral(kind, state, resource.uuid);
-      probe.recordIteration(state);
+      const state = probe.resources[kind];
+      probe.noteResource(state, resource);
+      let entry = state.entries[resource.uuid];
+      if (!entry) {
+        entry = probe.newEntry(resource, kind, state);
+        entry.firstSeen = { scenario: scenarioName, iteration: iterationNumber, phase: phaseName };
+        state.entries[resource.uuid] = entry;
+      }
+      entry.cycleResource = state.cycleSeen.has(resource);
       entry.lastSeen = { scenario: scenarioName, iteration: iterationNumber, phase: phaseName };
-      probe.addLimited(entry.resourceNames, resource.name || null, 24);
-      probe.addLimited(entry.names, object.name || '(unnamed)', 24);
-      probe.addLimited(entry.kinds, object.userData?.kind || null, 24);
-      probe.addLimited(entry.from, object.userData?.from || null, 24);
+      addLimited(entry.iterations, `${scenarioName}:${iterationNumber}`, 24);
+      addLimited(entry.resourceNames, resource.name || null, 24);
+      addLimited(entry.names, object.name || '(unnamed)', 24);
+      addLimited(entry.kinds, object.userData?.kind || null, 24);
+      addLimited(entry.from, object.userData?.from || null, 24);
       const ancestry = [];
       let cursor = object;
       for (let depth = 0; cursor && depth < 5; depth += 1, cursor = cursor.parent) {
         if (cursor.name) ancestry.push(cursor.name);
       }
-      probe.addLimited(entry.ancestry, ancestry.join(' < '), 24);
+      addLimited(entry.ancestry, ancestry.join(' < '), 24);
     };
     scene.traverse((object) => {
       observe('geometry', object.geometry, object);
@@ -1149,45 +1023,44 @@ async function markResourcePhase(page, iteration, phase, scenario = 'sale') {
       }
     });
     const focused = (kind, uuid) => {
-      const entry = probe.resources[kind][uuid];
-      return entry ? probe.focusedEntry(entry, live[kind].has(uuid)) : {
+      const entry = probe.resources[kind].entries[uuid];
+      return {
         uuid,
         resourceKind: kind,
-        type: null,
-        resourceNames: [],
-        names: [],
-        kinds: [],
-        from: [],
-        ancestry: [],
-        disposeCalls: 0,
+        type: entry?.type || null,
+        resourceNames: entry?.resourceNames || [],
+        names: entry?.names || [],
+        kinds: entry?.kinds || [],
+        from: entry?.from || [],
+        ancestry: entry?.ancestry || [],
+        disposeCalls: entry?.disposeCalls || 0,
       };
     };
-    const sampledUuids = (uuids, limit = 12) => {
-      if (uuids.length <= limit) return uuids;
-      const head = Math.ceil(limit / 2);
-      const tail = Math.floor(limit / 2);
-      return [...uuids.slice(0, head), ...uuids.slice(-tail)];
-    };
     const changes = {};
+    const sampleEnds = (values, limit = 12) => {
+      if (values.length <= limit) return [...values];
+      const firstCount = Math.ceil(limit / 2);
+      return [...values.slice(0, firstCount), ...values.slice(-(limit - firstCount))];
+    };
     for (const kind of ['geometry', 'material', 'texture']) {
+      const state = probe.resources[kind];
       const initializingBaseline = probe.lastLive[kind].size === 0 && iterationNumber === 0;
       const added = initializingBaseline
         ? []
         : [...live[kind]].filter((uuid) => !probe.lastLive[kind].has(uuid));
       const removed = [...probe.lastLive[kind]].filter((uuid) => !live[kind].has(uuid));
+      const addedDetails = added.map((uuid) => focused(kind, uuid));
+      const removedDetails = removed.map((uuid) => focused(kind, uuid));
       changes[kind] = {
         liveCount: live[kind].size,
-        addedCount: added.length,
-        removedCount: removed.length,
-        added: sampledUuids(added).map((uuid) => focused(kind, uuid)),
-        removed: sampledUuids(removed).map((uuid) => focused(kind, uuid)),
-        disposalEventCount: probe.counters[kind].disposalEventCount,
+        addedCount: addedDetails.length,
+        removedCount: removedDetails.length,
+        added: sampleEnds(addedDetails),
+        removed: sampleEnds(removedDetails),
+        addedOmittedCount: Math.max(0, addedDetails.length - 12),
+        removedOmittedCount: Math.max(0, removedDetails.length - 12),
+        disposalEventCount: state.disposalEventCount,
       };
-      for (const entry of Object.values(probe.resources[kind])) {
-        const isLive = live[kind].has(entry.uuid);
-        probe.finalizeEntry(kind, entry, isLive);
-        if (!isLive) delete probe.resources[kind][entry.uuid];
-      }
       probe.lastLive[kind] = live[kind];
     }
     const mark = {
@@ -1205,10 +1078,15 @@ async function markResourcePhase(page, iteration, phase, scenario = 'sale') {
       removed: changes.geometry.removed,
       addedCount: changes.geometry.addedCount,
       removedCount: changes.geometry.removedCount,
-      disposalEventCount: probe.counters.geometry.disposalEventCount,
+      disposalEventCount: probe.resources.geometry.disposalEventCount,
       animationMixerCount: probe.animationMixerCount,
     };
-    probe.phaseMarks.push(mark);
+    probe.phaseMarkCount += 1;
+    if (probe.phaseMarks.length < 256) probe.phaseMarks.push(mark);
+    else {
+      probe.phaseMarks.push(mark);
+      if (probe.phaseMarks.length > 512) probe.phaseMarks.splice(256, 1);
+    }
     return mark;
   }, { iterationNumber: iteration, phaseName: phase, scenarioName: scenario });
 }
@@ -1229,42 +1107,81 @@ async function readResourceLifecycleProbe(page) {
     };
     const resources = {};
     for (const kind of ['geometry', 'material', 'texture']) {
-      for (const entry of Object.values(probe.resources[kind])) {
-        const liveAtEnd = probe.lastLive[kind].has(entry.uuid);
-        probe.finalizeEntry(kind, entry, liveAtEnd, true);
-        if (!liveAtEnd) delete probe.resources[kind][entry.uuid];
+      const state = probe.resources[kind];
+      const retainedEntries = Object.values(state.entries).map((entry) => (
+        probe.snapshotEntry(entry, probe.lastLive[kind].has(entry.uuid))
+      ));
+      const retainedCycleResources = retainedEntries.filter((entry) => entry.cycleResource);
+      const ephemeralUndisposed = retainedCycleResources.filter((entry) => (
+        !entry.liveAtEnd && entry.disposeCalls === 0
+      ));
+      const groups = new Map();
+      for (const entry of ephemeralUndisposed) {
+        const key = [
+          entry.type,
+          entry.resourceNames.join('|') || '(unnamed-resource)',
+          entry.names.join('|') || '(unnamed-object)',
+          entry.kinds.join('|') || '(no-kind)',
+          entry.from.join('|') || '(no-from)',
+          entry.ancestry[0] || '(no-ancestry)',
+        ].join(' :: ');
+        const group = groups.get(key) || {
+          signature: key,
+          count: 0,
+          uuids: [],
+          iterations: [],
+          firstSeenPhases: [],
+        };
+        group.count += 1;
+        group.uuids.push(entry.uuid);
+        for (const iteration of entry.iterations) {
+          if (!group.iterations.includes(iteration)) group.iterations.push(iteration);
+        }
+        if (entry.firstSeen?.phase && !group.firstSeenPhases.includes(entry.firstSeen.phase)) {
+          group.firstSeenPhases.push(entry.firstSeen.phase);
+        }
+        groups.set(key, group);
       }
-      const counters = probe.counters[kind];
-      const ephemeral = probe.ephemeralUndisposed[kind];
-      const cycleResources = probe.sampleValues(probe.cycleResourceSamples[kind]);
-      const disposalEvents = probe.sampleValues(probe.disposalEventSamples[kind]);
+      const detailByUuid = new Map();
+      const recordDetail = (entry) => {
+        if (!entry?.uuid) return;
+        detailByUuid.set(entry.uuid, {
+          ...entry,
+          liveAtEnd: probe.lastLive[kind].has(entry.uuid),
+        });
+      };
+      for (const entry of state.cycleSamples.first) recordDetail(entry);
+      for (const entry of state.cycleSamples.last) recordDetail(entry);
+      for (const entry of retainedCycleResources) recordDetail(entry);
+      for (const entry of ephemeralUndisposed) recordDetail(entry);
+      const cycleResources = [...detailByUuid.values()];
+      const disposalEvents = [
+        ...state.disposalEventSamples.first,
+        ...state.disposalEventSamples.last,
+      ];
       resources[kind] = {
-        observedCount: counters.observedCount,
+        observedCount: state.observedCount,
         liveAtEndCount: probe.lastLive[kind].size,
-        disposedCount: counters.disposedCount,
-        disposeCallCount: counters.disposeCallCount,
-        disposalEventCount: counters.disposalEventCount,
-        ephemeralUndisposedCount: ephemeral.count,
-        ephemeralUndisposedGroupCount: ephemeral.groups.size,
-        ephemeralUndisposedGroups: [...ephemeral.groups.values()]
-          .sort((left, right) => right.count - left.count).slice(0, 500),
-        cycleResourceCount: counters.cycleResourceCount,
+        disposedCount: state.disposedCount,
+        disposeCallCount: state.disposeCallCount,
+        disposalEventCount: state.disposalEventCount,
+        cycleResourceCount: state.cycleResourceCount,
+        ephemeralUndisposedCount: ephemeralUndisposed.length,
+        ephemeralUndisposedGroups: [...groups.values()].sort((left, right) => right.count - left.count),
         cycleResources,
         disposalEvents,
+        retention: {
+          policy: 'Weak identity sets plus exact counters; only live/undisposed entries and bounded first/last samples are retained strongly.',
+          retainedEntryCount: retainedEntries.length,
+          retainedCycleDetailCount: cycleResources.length,
+          retainedDisposalEventCount: disposalEvents.length,
+          cycleResourceDetailOmittedCount: Math.max(0, state.cycleResourceCount - cycleResources.length),
+          disposalEventOmittedCount: Math.max(0, state.disposalEventCount - disposalEvents.length),
+        },
       };
     }
     return {
-      evidenceSampling: {
-        bounded: true,
-        phaseChangeResourcesPerKind: 12,
-        iterationsPerResource: 24,
-        disposeEventsPerResource: 12,
-        cycleResourcesPerKind: 2000,
-        disposalEventsPerKind: 2000,
-        ephemeralUndisposedGroupsPerKind: 500,
-        selection: 'streamed equal head/tail samples; weak resource state keeps aggregate counts exact',
-      },
-      phaseMarkCount: probe.phaseMarks.length,
+      phaseMarkCount: probe.phaseMarkCount,
       phaseMarks: [...probe.phaseMarks],
       resources,
       animationMixers: {
@@ -1278,7 +1195,12 @@ async function readResourceLifecycleProbe(page) {
       ephemeralUndisposedCount: resources.geometry.ephemeralUndisposedCount,
       ephemeralUndisposedGroups: resources.geometry.ephemeralUndisposedGroups,
       cycleGeometryCount: resources.geometry.cycleResourceCount,
-      cycleGeometries: sampled(resources.geometry.cycleResources, 200),
+      cycleGeometries: resources.geometry.cycleResources,
+      probeRetention: {
+        phaseMarkCount: probe.phaseMarkCount,
+        retainedPhaseMarkCount: probe.phaseMarks.length,
+        omittedPhaseMarkCount: Math.max(0, probe.phaseMarkCount - probe.phaseMarks.length),
+      },
     };
   });
 }
@@ -1456,10 +1378,10 @@ async function waitForCardReady(page) {
 
 async function cancelPreAuthorizationWithX(page) {
   // The X is a pre-authorization exit in both card-ready and card-entry. Use the
-  // inserted, exact-total reader view so the physical X is guaranteed to be in
+  // inserted, empty-amount reader view so the physical X is guaranteed to be in
   // the player's close camera even when the customer-handoff framing places the
   // seated terminal just outside a narrow viewport.
-  const prefill = await insertCardToAmountEntry(page);
+  const emptyAmountEntry = await insertCardToAmountEntry(page);
   await waitCamera(page, 'card');
   const before = await page.evaluate(() => {
     const register = window.__fw.scene3d.clubhouse().register;
@@ -1500,7 +1422,7 @@ async function cancelPreAuthorizationWithX(page) {
       && JSON.stringify(cancelled.itemUids) === JSON.stringify(before.itemUids),
   `Pre-authorization X did not preserve the transaction basket: ${JSON.stringify({ before, cancelled })}.`);
   await waitForCardReady(page);
-  return { before, cancelled, prefill, represented: true };
+  return { before, cancelled, emptyAmountEntry, represented: true };
 }
 
 async function insertCardToAmountEntry(page) {
@@ -1513,7 +1435,8 @@ async function insertCardToAmountEntry(page) {
   await page.waitForFunction(() => (
     window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'card-entry'
   ), null, { timeout: 5000 });
-  const prefill = await page.evaluate(async () => {
+  await waitCamera(page, 'card');
+  const entry = await page.evaluate(async () => {
     const sim = await import('/src/sim/register.js');
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return {
@@ -1522,14 +1445,26 @@ async function insertCardToAmountEntry(page) {
       digits: String(tx.cardEntryDigits || ''),
     };
   });
-  assert(prefill.enteredCents === prefill.totalCents
-      && prefill.digits === String(prefill.totalCents),
-  `Card total was not prefilled exactly: ${JSON.stringify(prefill)}.`);
-  return prefill;
+  assert(entry.enteredCents === 0 && entry.digits === '',
+    `Card insertion did not open an empty amount field: ${JSON.stringify(entry)}.`);
+  return entry;
 }
 
 async function insertAndConfirmCard(page) {
-  const prefill = await insertCardToAmountEntry(page);
+  const entry = await insertCardToAmountEntry(page);
+  for (const digit of String(entry.totalCents)) {
+    const point = await page.evaluate((key) => (
+      window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint(key)
+    ), digit);
+    assert(point?.inView, `Card keypad digit ${digit} is outside the player camera.`);
+    await page.mouse.click(point.x, point.y);
+    await page.waitForTimeout(100);
+  }
+  await page.waitForFunction((expectedCents) => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.cardEntryCents === expectedCents
+      && tx.cardEntryDigits === String(expectedCents) && tx.cardEntryError == null;
+  }, entry.totalCents, { timeout: 2500 });
   const confirm = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint('OK')
   ));
@@ -1539,7 +1474,7 @@ async function insertAndConfirmCard(page) {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && ['card-busy', 'card-declined', 'receipt'].includes(tx.stage);
   }, null, { timeout: 5000 });
-  return { prefill };
+  return { exactTotalEntry: entry };
 }
 
 async function completeCard(page, {
@@ -1626,6 +1561,13 @@ async function completeCash(page) {
   await page.waitForFunction(() => (
     window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'cash-tender'
   ), null, { timeout: 10000 });
+  // Cash presentation uses a live customer-relative handoff pose. Waiting only
+  // for the domain stage leaves the camera tween in flight, so a projected bill
+  // point can be stale by the time Playwright dispatches the click. The normal
+  // acceptance driver waits for this same physical camera boundary; the long
+  // lifecycle run must do likewise or an otherwise valid late-cycle sale can
+  // record a synthetic miss instead of exercising cash acceptance.
+  await waitCamera(page, 'monitor');
   const tender = await page.evaluate(async () => {
     const sim = await import('/src/sim/register.js');
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -1982,13 +1924,208 @@ function summarizeResourceLifecycle(details) {
     };
   }
   return {
-    phaseMarkCount: details.phaseMarks?.length || 0,
+    phaseMarkCount: details.phaseMarkCount ?? details.phaseMarks?.length ?? 0,
     resources,
     animationMixers: details.animationMixers || {
       count: 0,
       updateCalls: 0,
       measurement: 'resource probe unavailable; no AnimationMixer was observed',
     },
+  };
+}
+
+const RESOURCE_EVIDENCE_LIMITS = Object.freeze({
+  phaseMarks: 512,
+  phaseChangeItems: 12,
+  cycleResourcesPerKind: 384,
+  disposalEventsPerKind: 384,
+  undisposedGroupsPerKind: 128,
+  groupValues: 32,
+  resourceIterations: 32,
+  resourceDisposalEvents: 8,
+});
+
+function boundedSample(values, limit, preferred = () => false) {
+  const source = Array.isArray(values) ? values : [];
+  const totalCount = source.length;
+  if (totalCount <= limit) {
+    return { values: [...source], totalCount, retainedCount: totalCount, omittedCount: 0 };
+  }
+  const indexes = [];
+  const selected = new Set();
+  const add = (index) => {
+    if (index < 0 || index >= totalCount || selected.has(index) || indexes.length >= limit) return;
+    selected.add(index);
+    indexes.push(index);
+  };
+  for (let index = 0; index < totalCount && indexes.length < limit; index += 1) {
+    if (preferred(source[index], index)) add(index);
+  }
+  for (let offset = 0; indexes.length < limit && offset < totalCount; offset += 1) {
+    add(offset);
+    add(totalCount - 1 - offset);
+  }
+  indexes.sort((left, right) => left - right);
+  return {
+    values: indexes.map((index) => source[index]),
+    totalCount,
+    retainedCount: indexes.length,
+    omittedCount: totalCount - indexes.length,
+  };
+}
+
+function compactArrayField(value, limit) {
+  const sample = boundedSample(value, limit);
+  return {
+    values: sample.values,
+    sampling: {
+      totalCount: sample.totalCount,
+      retainedCount: sample.retainedCount,
+      omittedCount: sample.omittedCount,
+    },
+  };
+}
+
+function compactResourceEvent(event) {
+  if (!event || typeof event !== 'object') return event;
+  return {
+    uuid: event.uuid,
+    resourceKind: event.resourceKind,
+    type: event.type,
+    scenario: event.scenario,
+    iteration: event.iteration,
+    cycle: event.cycle,
+    phase: event.phase,
+    names: boundedSample(event.names, 12).values,
+    kinds: boundedSample(event.kinds, 12).values,
+    from: boundedSample(event.from, 12).values,
+  };
+}
+
+function compactResourceEntry(entry, limits) {
+  const iterations = compactArrayField(entry.iterations || entry.cycles, limits.resourceIterations);
+  const disposalEvents = boundedSample(entry.disposeEvents, limits.resourceDisposalEvents);
+  return {
+    ...entry,
+    resourceNames: boundedSample(entry.resourceNames, 12).values,
+    names: boundedSample(entry.names, 12).values,
+    kinds: boundedSample(entry.kinds, 12).values,
+    from: boundedSample(entry.from, 12).values,
+    ancestry: boundedSample(entry.ancestry, 12).values,
+    iterations: iterations.values,
+    cycles: iterations.values,
+    iterationSampling: iterations.sampling,
+    disposeEvents: disposalEvents.values.map(compactResourceEvent),
+    disposeEventSampling: {
+      totalCount: disposalEvents.totalCount,
+      retainedCount: disposalEvents.retainedCount,
+      omittedCount: disposalEvents.omittedCount,
+    },
+  };
+}
+
+function compactPhaseMark(mark, limits) {
+  const changes = {};
+  for (const kind of ['geometry', 'material', 'texture']) {
+    const change = mark?.changes?.[kind] || {};
+    const added = boundedSample(change.added, limits.phaseChangeItems);
+    const removed = boundedSample(change.removed, limits.phaseChangeItems);
+    changes[kind] = {
+      ...change,
+      added: added.values,
+      removed: removed.values,
+      addedCount: added.totalCount,
+      removedCount: removed.totalCount,
+      addedOmittedCount: added.omittedCount,
+      removedOmittedCount: removed.omittedCount,
+    };
+  }
+  return {
+    ...mark,
+    changes,
+    added: changes.geometry.added,
+    removed: changes.geometry.removed,
+    addedCount: changes.geometry.addedCount,
+    removedCount: changes.geometry.removedCount,
+  };
+}
+
+export function compactLifecycleResourceDetails(details, limitOverrides = {}) {
+  if (!details) return null;
+  const limits = { ...RESOURCE_EVIDENCE_LIMITS, ...limitOverrides };
+  const phaseMarks = boundedSample(details.phaseMarks, limits.phaseMarks);
+  const resources = {};
+  const compaction = {
+    formatVersion: 2,
+    policy: 'Exact aggregate counters with deterministic first/last samples; undisposed resources are retained first.',
+    limits,
+    phaseMarks: {
+      totalCount: details.phaseMarkCount ?? phaseMarks.totalCount,
+      retainedCount: phaseMarks.retainedCount,
+      omittedCount: Math.max(0, (details.phaseMarkCount ?? phaseMarks.totalCount) - phaseMarks.retainedCount),
+    },
+    resources: {},
+  };
+  for (const kind of ['geometry', 'material', 'texture']) {
+    const entry = details.resources?.[kind] || {};
+    const cycleResources = boundedSample(
+      entry.cycleResources,
+      limits.cycleResourcesPerKind,
+      (resource) => resource && !resource.liveAtEnd && Number(resource.disposeCalls || 0) === 0,
+    );
+    const disposalEvents = boundedSample(entry.disposalEvents, limits.disposalEventsPerKind);
+    const groups = boundedSample(entry.ephemeralUndisposedGroups, limits.undisposedGroupsPerKind);
+    resources[kind] = {
+      observedCount: entry.observedCount ?? 0,
+      liveAtEndCount: entry.liveAtEndCount ?? 0,
+      disposedCount: entry.disposedCount ?? 0,
+      disposeCallCount: entry.disposeCallCount ?? 0,
+      disposalEventCount: entry.disposalEventCount ?? disposalEvents.totalCount,
+      cycleResourceCount: entry.cycleResourceCount ?? cycleResources.totalCount,
+      ephemeralUndisposedCount: entry.ephemeralUndisposedCount ?? 0,
+      ephemeralUndisposedGroups: groups.values.map((group) => ({
+        ...group,
+        uuids: boundedSample(group.uuids, limits.groupValues).values,
+        iterations: boundedSample(group.iterations, limits.groupValues).values,
+        firstSeenPhases: boundedSample(group.firstSeenPhases, limits.groupValues).values,
+      })),
+      cycleResources: cycleResources.values.map((resource) => compactResourceEntry(resource, limits)),
+      disposalEvents: disposalEvents.values.map(compactResourceEvent),
+      retention: entry.retention || null,
+    };
+    compaction.resources[kind] = {
+      cycleResources: {
+        totalCount: resources[kind].cycleResourceCount,
+        retainedCount: cycleResources.retainedCount,
+        omittedCount: Math.max(0, resources[kind].cycleResourceCount - cycleResources.retainedCount),
+      },
+      disposalEvents: {
+        totalCount: resources[kind].disposalEventCount,
+        retainedCount: disposalEvents.retainedCount,
+        omittedCount: Math.max(0, resources[kind].disposalEventCount - disposalEvents.retainedCount),
+      },
+      ephemeralUndisposedGroups: {
+        totalCount: groups.totalCount,
+        retainedCount: groups.retainedCount,
+        omittedCount: groups.omittedCount,
+      },
+    };
+  }
+  return {
+    formatVersion: 2,
+    compacted: true,
+    compaction,
+    phaseMarkCount: details.phaseMarkCount ?? phaseMarks.totalCount,
+    phaseMarks: phaseMarks.values.map((mark) => compactPhaseMark(mark, limits)),
+    resources,
+    animationMixers: details.animationMixers,
+    probeRetention: details.probeRetention || null,
+    disposalEvents: resources.geometry.disposalEvents,
+    geometryCount: resources.geometry.observedCount,
+    disposedGeometryCount: resources.geometry.disposedCount,
+    ephemeralUndisposedCount: resources.geometry.ephemeralUndisposedCount,
+    ephemeralUndisposedGroups: resources.geometry.ephemeralUndisposedGroups,
+    cycleGeometries: resources.geometry.cycleResources,
   };
 }
 
@@ -2411,7 +2548,7 @@ export function renderLifecycleMarkdown(result) {
 
 function writeLifecycleEvidence(result, resourceDetails = null) {
   if (result.evidence?.resourceDetails) {
-    const resourceArtifact = resourceDetails || {
+    const resourceArtifact = compactLifecycleResourceDetails(resourceDetails) || {
       available: false,
       blocker: result.blocker || { message: 'Resource probe was unavailable.' },
     };

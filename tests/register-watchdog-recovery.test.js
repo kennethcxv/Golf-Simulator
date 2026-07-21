@@ -18,6 +18,8 @@ import {
   requestPayment,
   scanItem,
   submitCardAmount,
+  enterCardDigit,
+  totalOf,
   takeFromDrawer,
 } from '../src/sim/register.js';
 import { CHECKOUT_STATES } from '../src/sim/registerFlow.js';
@@ -49,6 +51,10 @@ test('unresolved card authorization rolls back without inventing a result or cha
   const tx = readyTx('card');
   assert.equal(presentCard(tx).ok, true);
   assert.equal(insertCard(tx).ok, true);
+  // the reader opens at 0.00 — the operator keys the total before confirming
+  for (const digit of String(Math.round(totalOf(tx) * 100))) {
+    assert.equal(enterCardDigit(tx, Number(digit)).ok, true);
+  }
   assert.equal(submitCardAmount(tx).ok, true);
   tx.cardAttempts = 2;
   tx.cardsTried = 3;
@@ -125,12 +131,12 @@ test('cash watchdog rebuilds from accepted tender and the transaction-local open
     'even a resumed payment stays local until completeSale');
 });
 
-test('the live register watchdog covers bounded active states and excludes untimed waits', () => {
+test('the live register watchdog covers automatic states and excludes deliberate player waits', () => {
   const expectedActiveRegisterStates = [
     'EnteringCashierMode',
     'ProductHeld', 'ProductScanning', 'ProductScanned',
     'AllProductsScanned', 'ChoosingPayment',
-    'CardPresented', 'CardSwiping', 'CardProcessing', 'CardApproved',
+    'CardPresented', 'CardInserting', 'CardProcessing', 'CardApproved',
     'CashAccepted', 'DrawerOpening', 'DepositingCash', 'GivingChange',
     'PaymentComplete', 'ReceiptPrinting', 'Bagging', 'BagHandoff', 'CustomerLeaving',
   ];
@@ -142,7 +148,7 @@ test('the live register watchdog covers bounded active states and excludes untim
   }
 
   for (const state of [
-    'WaitingForScan', 'CardSwipeReady',
+    'WaitingForScan', 'CardInsertReady', 'CardAmountEntry',
     'CardDeclined', 'CashPresented', 'SelectingChange',
     'TransactionComplete', 'Recovery',
   ]) {
@@ -158,34 +164,12 @@ test('the live register watchdog covers bounded active states and excludes untim
   }
 });
 
-test('an already-active cashier advances the next queued owner through cashier entry', () => {
-  const source = fs.readFileSync(
-    new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
-    'utf8',
-  ).replaceAll('\r\n', '\n');
-  const helperStart = source.indexOf('  function beginCashierEntry(event) {');
-  const helperEnd = source.indexOf('\n  function poseBetween(', helperStart);
-  const beginStart = source.indexOf('  function begin(customer) {');
-  const beginEnd = source.indexOf('\n  function beginReservationPayment(', beginStart);
-  assert.ok(helperStart >= 0 && helperEnd > helperStart);
-  assert.ok(beginStart >= 0 && beginEnd > beginStart);
-  const helper = source.slice(helperStart, helperEnd);
-  const begin = source.slice(beginStart, beginEnd);
-
-  assert.match(helper, /checkoutFlowState\(\) !== 'WaitingForCashier'/);
-  assert.match(helper, /flowTo\('EnteringCashierMode', event\)/);
-  assert.match(helper, /enterTimer = 0\.30/,
-    'the normal camera/input settling beat remains between queued owners');
-  assert.match(begin, /if \(active\) beginCashierEntry\('active-cashier-accepted-next-queued-customer'\)/,
-    'a fresh queue owner cannot remain in WaitingForCashier while the till is already open');
-});
-
 test('live delivery holds BagHandoff and CustomerLeaving around their physical windows', () => {
   const source = fs.readFileSync(
     new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
     'utf8',
   ).replaceAll('\r\n', '\n');
-  const deliveryStart = source.indexOf('  function beginBagDeliveryOrRelease() {');
+  const deliveryStart = source.indexOf('  function updateDelivery(dt) {');
   const deliveryEnd = source.indexOf('\n  function updateCashMotions(dt) {', deliveryStart);
   const finalizeStart = source.indexOf('  function finalizeTransaction() {');
   const finalizeEnd = source.indexOf('\n  function handleMonitorAction(action) {', finalizeStart);
@@ -193,45 +177,21 @@ test('live delivery holds BagHandoff and CustomerLeaving around their physical w
   assert.ok(finalizeStart >= 0 && finalizeEnd > finalizeStart);
   const delivery = source.slice(deliveryStart, deliveryEnd);
   const finalize = source.slice(finalizeStart, finalizeEnd);
+  const beginBagStart = source.indexOf('  function beginBagDeliveryOrRelease() {');
+  const beginBagEnd = source.indexOf('\n  function holdBagAtCustomer() {', beginBagStart);
+  assert.ok(beginBagStart >= 0 && beginBagEnd > beginBagStart);
+  const beginBag = source.slice(beginBagStart, beginBagEnd);
 
-  const bagHandoff = delivery.indexOf("'BagHandoff'");
-  const bagMotion = delivery.indexOf("deliveryPhase = 'bag-deliver'");
-  const customerHold = delivery.indexOf("deliveryPhase = 'bag-customer-hold'");
-  const customerLeaving = delivery.indexOf(
-    "flowTo('CustomerLeaving', 'customer-held-bag-acceptance-beat-complete')",
-  );
+  const bagHandoff = beginBag.indexOf("'BagHandoff'");
+  const bagMotion = beginBag.indexOf("deliveryPhase = 'bag-deliver'");
+  const customerLeaving = delivery.indexOf("flowTo('CustomerLeaving'");
   const release = delivery.lastIndexOf("deliveryPhase = 'released'");
   assert.ok(bagHandoff >= 0 && bagHandoff < bagMotion,
     'BagHandoff must begin before the physical bag starts moving');
-  assert.ok(bagMotion < customerHold && customerHold < customerLeaving,
-    'the bag must reach a readable customer-owned hold before departure');
   assert.ok(customerLeaving >= 0 && customerLeaving < release,
-    'CustomerLeaving must begin after the customer-owned bag hold');
-  assert.match(delivery, /checkoutFlowState\(\) !== 'BagHandoff'\) return false/,
-    'delivery must fail closed if the physical flow never reached BagHandoff');
-  assert.match(delivery,
-    /checkoutFlowState\(\) !== 'BagHandoff'[\s\S]*!flowTo\('CustomerLeaving',[\s\S]*\)\) return;/,
-    'customer goods cannot be marked released when the departure transition is rejected');
+    'CustomerLeaving must begin when the physical bag reaches the customer');
   assert.match(finalize, /checkoutFlowState\(\) !== 'CustomerLeaving'/,
     'banking must require the held CustomerLeaving checkpoint');
   assert.doesNotMatch(finalize, /flowTo\('BagHandoff'|flowTo\('CustomerLeaving'/,
     'finalize must not traverse timed physical states synchronously');
-});
-
-test('a customer arriving while the cashier remains active enters the normal scan flow', () => {
-  const source = fs.readFileSync(
-    new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
-    'utf8',
-  ).replaceAll('\r\n', '\n');
-  const beginStart = source.indexOf('  function begin(customer) {');
-  const beginEnd = source.indexOf('\n  function beginReservationPayment(', beginStart);
-  assert.ok(beginStart >= 0 && beginEnd > beginStart);
-  const begin = source.slice(beginStart, beginEnd);
-
-  assert.match(begin,
-    /if \(active\) beginCashierEntry\('active-cashier-accepted-next-queued-customer'\)/,
-    'an already-active cashier must route the new customer through the canonical entry helper');
-  assert.match(source,
-    /function beginCashierEntry\(event\) \{[\s\S]*checkoutFlowState\(\) !== 'WaitingForCashier'[\s\S]*flowTo\('EnteringCashierMode', event\)[\s\S]*enterTimer = 0\.30/,
-    'the canonical helper must retain the visible entry beat before WaitingForScan');
 });

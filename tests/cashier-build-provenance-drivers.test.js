@@ -49,22 +49,28 @@ test('success and blocker paths retain every driver-specific screenshot referenc
   assert.doesNotMatch(acceptance, /waitForTimeout\(230\)/,
     'drawer-opening evidence must be transform-driven rather than timer-driven');
   const drawerBaseline = acceptance.indexOf('const drawerTravelStart = await page.evaluate');
-  const drawerObserver = acceptance.indexOf('const drawerMidpointPromise = page.waitForFunction');
+  const drawerObserver = acceptance.indexOf('const drawerMidpointPromise = page.waitForFunction', drawerBaseline);
   const cashInput = acceptance.indexOf('await page.mouse.click(handful.x, handful.y)');
   const drawerOpeningState = acceptance.indexOf("tx.checkoutFlow?.state === 'DrawerOpening'", cashInput);
   const cashClicked = acceptance.indexOf("await shot('08a-cash-clicked.png')");
-  const drawerMidpointAwait = acceptance.indexOf('await drawerMidpointPromise');
-  const drawerMidpointRead = acceptance.indexOf('window.__registerQaCashDrawerMidpoint', drawerMidpointAwait);
+  const drawerMidpoint = acceptance.indexOf(
+    'const drawerMidpointObservation = await drawerMidpointPromise',
+    cashClicked,
+  );
+  const drawerMidpointAssert = acceptance.indexOf(
+    'drawerTravelMidpoint.progress >= 0.25',
+    drawerMidpoint,
+  );
   const drawerOpening = acceptance.indexOf("await shot('08b-cash-clicked-drawer-opening.png')");
   assert.ok(drawerBaseline >= 0 && drawerObserver > drawerBaseline
       && cashInput > drawerObserver
       && drawerOpeningState > cashInput && cashClicked > drawerOpeningState
-      && drawerMidpointAwait > cashClicked && drawerMidpointRead > drawerMidpointAwait
-      && drawerOpening > drawerMidpointRead,
-    'cash evidence must arm its authored transform observer before input, retain the midpoint, and capture drawer opening');
+      && drawerMidpoint > cashClicked && drawerMidpointAssert > drawerMidpoint
+      && drawerOpening > drawerMidpointAssert,
+    'cash evidence must pre-arm the transform observer, capture the click, assert the authored midpoint, then capture drawer opening');
 
   const performance = fs.readFileSync('tools/qa/simplified-register-performance.mjs', 'utf8');
-  const scanClick = performance.indexOf('await page.mouse.click(product.x, product.y)');
+  const scanClick = performance.indexOf('await page.mouse.click(point.x, point.y)');
   const scanReleaseWait = performance.indexOf("state === 'WaitingForScan'", scanClick);
   const finalScanRelease = performance.indexOf("state === 'AllProductsScanned'", scanReleaseWait);
   assert.ok(scanClick >= 0 && scanReleaseWait > scanClick && finalScanRelease > scanReleaseWait,
@@ -97,6 +103,10 @@ test('success and blocker paths retain every driver-specific screenshot referenc
   assert.match(queue, /clubhouse\.checkoutQueue\(\)\.length === 0/);
   assert.match(queue, /customer\.customerId === firstId \|\| customer\.customerId === secondId/);
   assert.match(queue, /07b-register-reset-empty\.png/);
+  assert.match(queue, /attempt < 4 && !scanned/);
+  assert.match(queue, /await page\.mouse\.move\(product\.x, product\.y\)/);
+  assert.match(queue, /await page\.mouse\.click\(product\.x, product\.y\)/);
+  assert.match(queue, /never advance the transaction directly/);
   const queueCompleted = queue.indexOf("await shot('07-second-complete-queue-empty.png'");
   const queueReset = queue.indexOf("await shot('07b-register-reset-empty.png'");
   const queueExit = queue.indexOf('await exitFrontDesk(page);', queueReset);
@@ -129,12 +139,17 @@ test('success and blocker paths retain every driver-specific screenshot referenc
       && persistenceScanRelease > persistenceScanClick
       && persistenceFinalRelease > persistenceScanRelease,
   'save/reload QA must wait for the visible scan arc to release input before clicking another product');
+  assert.match(saveReload, /attempt < 4 && !scanned/);
+  assert.match(saveReload, /Retry the same visible mouse input; do not mutate tx/);
 
   const recoveryAccessibility = fs.readFileSync(DRIVERS[4], 'utf8');
   assert.match(recoveryAccessibility, /evidencePngs: evidence,/);
   assert.match(recoveryAccessibility, /evidencePngs: blockerEvidence,/);
   assert.match(recoveryAccessibility, /REGISTER_RECOVERY_ACCESSIBILITY_ROOT/);
   assert.match(recoveryAccessibility, /evidenceRoot: out,/);
+  assert.match(recoveryAccessibility, /entry\.id === 'confirm-change' && !entry\.disabled/);
+  assert.match(recoveryAccessibility, /attempt < 3 && !confirmedByKeyboard/);
+  assert.match(recoveryAccessibility, /player-confirmed-monitor-change-total/);
 
   const evidencePlan = fs.readFileSync(EVIDENCE_PLAN_GENERATOR, 'utf8');
   assert.match(evidencePlan, /number: 19[^\n]+08a-cash-clicked\.png/);

@@ -41,8 +41,14 @@ test('renderer, bridge queries, editor picking, and playtest cameras share path-
   assert.match(source, /path\.pts\.map\(\(p\) => new THREE\.Vector3\(pathWorldX\(p\.x\), 0, pathWorldZ\(p\.y\)\)\)/);
   assert.match(source, /const courseX = pathCourseX\(x\);\s*const courseY = pathCourseY\(z\);/);
   assert.match(source, /editorGroundTargets\.push\(deck\)/);
-  assert.equal((source.match(/raycaster\.intersectObjects\(editorGroundTargets, false\)/g) || []).length, 2,
-    'both cell and fractional editor rays pick raised decks before terrain');
+  assert.match(source, /function groundRayPoint\(px, py\)/,
+    'cell and fractional editor picks share one ground-ray authority');
+  assert.equal((source.match(/const p = groundRayPoint\(px, py\);/g) || []).length, 2,
+    'both cell and fractional editor rays use the shared picker');
+  assert.match(source, /const hits = raycaster\.intersectObjects\(decks, false\);/,
+    'the shared picker still intersects authored raised decks');
+  assert.match(source, /!best \|\| hits\[0\]\.point\.distanceToSquared\(_rayOrigin\) < best\.distanceToSquared\(_rayOrigin\)/,
+    'the nearest raised deck wins over the terrain march');
   assert.match(source, /rig\.heightAt = \(x, z\) => playHeightAt\(x, z\)/);
   assert.match(editorSource, /sc\.playHeightAt\?\.\(x, z\) \?\? sc\.heightAt\(x, z\)/,
     'the playtest aim guide follows a raised bridge deck');

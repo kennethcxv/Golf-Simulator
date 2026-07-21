@@ -26,7 +26,9 @@ import { placedFixtures } from './layout.js';
 import { initShopProgression, shopCategoryUnlocked } from './shopProgression.js';
 import {
   INVENTORY_STAGE,
+  adoptExternalInventory,
   cancelPurchaseOrder,
+  inventoryLots,
   moveInventory,
   submitPurchaseOrders,
   syncOrderTransitState,
@@ -1136,13 +1138,36 @@ export function restockShelfFromBackroom(state, skuId) {
   const space = shelfCapacity(sku) - inv.shelf;
   const move = Math.min(space, inv.back);
   if (move <= 0) return { ok: false, reason: inv.back <= 0 ? 'Backroom is empty.' : 'Shelf is full.' };
-  const ledgerMove = moveInventory(state, {
+  let ledgerMove = moveInventory(state, {
     from: INVENTORY_STAGE.RESERVE,
     to: INVENTORY_STAGE.SHELF,
     skuId,
     quantity: move,
     reason: 'Restocked shelf from backroom',
   });
+  if (!ledgerMove.ok) {
+    // Older save fixtures and code-level scenario builders can still inject
+    // physical backroom stock directly. Adopt only the untracked deficit so
+    // existing purchase-order provenance remains intact and auditable.
+    const trackedReserve = inventoryLots(state, { active: true, skuId })
+      .reduce((sum, lot) => sum + (lot.buckets[INVENTORY_STAGE.RESERVE] || 0), 0);
+    const deficit = Math.max(0, move - trackedReserve);
+    const adopted = deficit > 0 && adoptExternalInventory(state, {
+      skuId,
+      quantity: deficit,
+      stage: INVENTORY_STAGE.RESERVE,
+      note: 'Legacy shelf restock supplied unallocated backroom stock',
+    });
+    if (adopted?.ok) {
+      ledgerMove = moveInventory(state, {
+        from: INVENTORY_STAGE.RESERVE,
+        to: INVENTORY_STAGE.SHELF,
+        skuId,
+        quantity: move,
+        reason: 'Restocked shelf from backroom',
+      });
+    }
+  }
   if (!ledgerMove.ok) return ledgerMove;
   inv.back -= move;
   inv.shelf += move;

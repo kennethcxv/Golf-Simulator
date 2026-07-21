@@ -17,6 +17,8 @@ export const CAPTURE_39_PROVENANCE_FILE = 'capture-39-provenance.json';
 const TOOL_PATH = fileURLToPath(import.meta.url);
 const LIFECYCLE_DRIVER_PATH = path.join(path.dirname(TOOL_PATH),
   'simplified-register-lifecycle-stress.mjs');
+const LIFECYCLE_WRAPPER_PATH = path.join(path.dirname(TOOL_PATH),
+  'simplified-register-lifecycle-stress.js');
 const BUILD_SNAPSHOT_TOOL_PATH = path.join(path.dirname(TOOL_PATH), 'cashier-build-snapshot.mjs');
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -474,11 +476,15 @@ export function generateCapture39LifecycleProvenance({
     buildAfterSnapshot: afterPath,
     generatorTool: TOOL_PATH,
     lifecycleDriver: LIFECYCLE_DRIVER_PATH,
+    lifecycleWrapper: LIFECYCLE_WRAPPER_PATH,
     buildSnapshotTool: BUILD_SNAPSHOT_TOOL_PATH,
   };
   const toolFile = readRequiredFile(TOOL_PATH, 'Capture #39 provenance generator');
   const lifecycleDriverFile = readRequiredFile(
     LIFECYCLE_DRIVER_PATH, 'Capture #39 lifecycle driver',
+  );
+  const lifecycleWrapperFile = readRequiredFile(
+    LIFECYCLE_WRAPPER_PATH, 'Capture #39 lifecycle wrapper',
   );
   const buildSnapshotToolFile = readRequiredFile(
     BUILD_SNAPSHOT_TOOL_PATH, 'Cashier build snapshot helper',
@@ -503,6 +509,8 @@ export function generateCapture39LifecycleProvenance({
     generatorTool: artifactRecord(TOOL_PATH, toolFile.bytes,
       repositoryRoot, { mediaType: 'text/javascript' }),
     lifecycleDriver: artifactRecord(LIFECYCLE_DRIVER_PATH, lifecycleDriverFile.bytes,
+      repositoryRoot, { mediaType: 'text/javascript' }),
+    lifecycleWrapper: artifactRecord(LIFECYCLE_WRAPPER_PATH, lifecycleWrapperFile.bytes,
       repositoryRoot, { mediaType: 'text/javascript' }),
     buildSnapshotTool: artifactRecord(BUILD_SNAPSHOT_TOOL_PATH, buildSnapshotToolFile.bytes,
       repositoryRoot, { mediaType: 'text/javascript' }),

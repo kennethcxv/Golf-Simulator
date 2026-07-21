@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createTx, scanItem, requestPayment,
-  presentCard, insertCard, submitCardAmount, runCard,
+  presentCard, insertCard, submitCardAmount, enterCardDigit, totalOf, runCard,
 } from '../src/sim/register.js';
 
 const basket = () => ([
@@ -22,6 +22,8 @@ const toCardBusy = (rng) => {
   requestPayment(tx);
   presentCard(tx);
   insertCard(tx);
+  // the reader opens at 0.00 — key the total before confirming
+  for (const digit of String(Math.round(totalOf(tx) * 100))) enterCardDigit(tx, Number(digit));
   submitCardAmount(tx);
   return tx;
 };

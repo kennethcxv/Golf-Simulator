@@ -18,6 +18,7 @@ import {
   runCard,
   scanItem,
   submitCardAmount,
+  enterCardDigit,
   subtotal,
   takeReceipt,
   totalOf,
@@ -111,7 +112,12 @@ test('every product-matrix sale scans, inventories, tickets, and banks exactly o
     assert.deepEqual(requestPayment(tx), { ok: true, method: 'card' });
     assert.equal(presentCard(tx).ok, true);
     assert.equal(insertCard(tx).ok, true);
-    assert.equal(cents(submitCardAmount(tx).amount), expectedCents, `${entry.id} card prefill confirms exact total`);
+    assert.equal(tx.cardEntryCents, 0, `${entry.id} reader opens at 0.00`);
+    // the operator keys the total on the reader; nothing is prefilled for them
+    for (const digit of String(expectedCents)) {
+      assert.equal(enterCardDigit(tx, Number(digit)).ok, true);
+    }
+    assert.equal(cents(submitCardAmount(tx).amount), expectedCents, `${entry.id} keyed amount confirms exact total`);
     assert.equal(runCard(tx).result, 'approved');
     assert.equal(printReceipt(tx).ok, true);
     assert.equal(takeReceipt(tx).ok, true);

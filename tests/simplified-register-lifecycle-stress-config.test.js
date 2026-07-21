@@ -1,19 +1,147 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import fs from 'node:fs';
 import {
   buildCardinalityReport,
   buildLongSessionResourceOverlayModel,
+  compactLifecycleResourceDetails,
   renderLongSessionResourceOverlayHtml,
   renderLifecycleMarkdown,
   resolveLifecycleConfig,
   shouldSampleFrontDeskIteration,
 } from '../tools/qa/simplified-register-lifecycle-stress.mjs';
 
-const LIFECYCLE_SOURCE = readFileSync(
+const LIFECYCLE_SOURCE = fs.readFileSync(
   new URL('../tools/qa/simplified-register-lifecycle-stress.mjs', import.meta.url),
   'utf8',
 ).replaceAll('\r\n', '\n');
+
+test('lifecycle runner brackets the exact browser route with immutable build snapshots', () => {
+  const source = fs.readFileSync(
+    new URL('../tools/qa/simplified-register-lifecycle-stress.js', import.meta.url),
+    'utf8',
+  );
+  const before = source.indexOf('writeCashierBuildSnapshotFile({ outputPath: buildBefore })');
+  const route = source.indexOf('runSimplifiedRegisterLifecycleStress(page');
+  const after = source.indexOf('writeCashierBuildSnapshotFile({ outputPath: buildAfter })');
+
+  assert.ok(before >= 0 && route > before && after > route,
+    'build-before must precede the browser route and build-after must follow it');
+  assert.match(source, /finally \{/,
+    'the after snapshot must survive a browser-route failure');
+  assert.match(source, /Lifecycle evidence root must be fresh; refusing to overwrite/,
+    'authoritative evidence must never silently replace an earlier run');
+  assert.match(source, /process\.env\.QA_RESULT_PATH = runnerResult/,
+    'the byte-identical runner result must be written into the bracketed root');
+});
+
+test('browser resource instrumentation is memory-neutral while preserving exact counters', () => {
+  const source = fs.readFileSync(
+    new URL('../tools/qa/simplified-register-lifecycle-stress.mjs', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /observed: new WeakSet\(\)/);
+  assert.match(source, /disposed: new WeakSet\(\)/);
+  assert.match(source, /cycleSeen: new WeakSet\(\)/);
+  assert.match(source, /state\.cycleResourceCount \+= 1/);
+  assert.match(source, /delete state\.entries\[this\.uuid\]/,
+    'disposed resource metadata must not be retained strongly for the entire session');
+  assert.match(source, /if \(probe\.phaseMarks\.length > 512\) probe\.phaseMarks\.splice\(256, 1\)/,
+    'phase evidence must retain deterministic first/last windows instead of every raw mark');
+  assert.match(source, /Weak identity sets plus exact counters/);
+  assert.doesNotMatch(source, /disposalEvents: \{ geometry: \[\], material: \[\], texture: \[\] \}/,
+    'the browser probe must not rebuild an unbounded global disposal-event ledger');
+});
+
+test('resource evidence stays bounded without weakening exact aggregate counts', () => {
+  const makeResource = (index, disposeCalls = 1) => ({
+    uuid: `resource-${index}`,
+    resourceKind: 'geometry',
+    type: 'BufferGeometry',
+    resourceNames: [`resource-${index}`],
+    names: [`object-${index}`],
+    kinds: ['customer'],
+    from: ['lifecycle'],
+    ancestry: ['customer < clubhouse'],
+    iterations: Array.from({ length: 20 }, (_, iteration) => `sale:${iteration}`),
+    cycles: Array.from({ length: 20 }, (_, iteration) => `sale:${iteration}`),
+    firstSeen: { scenario: 'sale', iteration: index + 1, phase: 'customer-ready' },
+    lastSeen: { scenario: 'sale', iteration: index + 1, phase: 'complete' },
+    disposeCalls,
+    disposeEvents: Array.from({ length: 12 }, (_, event) => ({
+      uuid: `resource-${index}`,
+      resourceKind: 'geometry',
+      type: 'BufferGeometry',
+      scenario: 'sale',
+      iteration: index + 1,
+      phase: `dispose-${event}`,
+    })),
+    liveAtEnd: false,
+  });
+  const cycleResources = Array.from({ length: 30 }, (_, index) => makeResource(index));
+  cycleResources[17] = makeResource(17, 0);
+  const disposalEvents = cycleResources.flatMap((resource) => resource.disposeEvents);
+  const changeItems = Array.from({ length: 18 }, (_, index) => ({ uuid: `change-${index}` }));
+  const phaseMarks = Array.from({ length: 14 }, (_, index) => ({
+    scenario: 'sale',
+    iteration: index,
+    phase: 'complete',
+    changes: Object.fromEntries(['geometry', 'material', 'texture'].map((kind) => [kind, {
+      liveCount: 10,
+      added: changeItems,
+      removed: changeItems,
+      disposalEventCount: disposalEvents.length,
+    }])),
+  }));
+  const details = {
+    phaseMarkCount: 14,
+    phaseMarks,
+    resources: Object.fromEntries(['geometry', 'material', 'texture'].map((kind) => [kind, {
+      observedCount: 42,
+      liveAtEndCount: 12,
+      disposedCount: 29,
+      disposeCallCount: disposalEvents.length,
+      disposalEventCount: disposalEvents.length,
+      cycleResourceCount: cycleResources.length,
+      ephemeralUndisposedCount: 1,
+      ephemeralUndisposedGroups: [{
+        signature: `${kind}-leak`,
+        count: 1,
+        uuids: ['resource-17'],
+        iterations: ['sale:17'],
+        firstSeenPhases: ['customer-ready'],
+      }],
+      cycleResources,
+      disposalEvents,
+    }])),
+    animationMixers: { count: 0, updateCalls: 0 },
+  };
+
+  const compacted = compactLifecycleResourceDetails(details, {
+    phaseMarks: 4,
+    phaseChangeItems: 3,
+    cycleResourcesPerKind: 6,
+    disposalEventsPerKind: 5,
+    resourceIterations: 4,
+    resourceDisposalEvents: 2,
+  });
+
+  assert.equal(compacted.phaseMarkCount, 14);
+  assert.equal(compacted.phaseMarks.length, 4);
+  assert.equal(compacted.compaction.phaseMarks.omittedCount, 10);
+  assert.equal(compacted.resources.geometry.observedCount, 42);
+  assert.equal(compacted.resources.geometry.cycleResourceCount, 30);
+  assert.equal(compacted.resources.geometry.disposalEventCount, 360);
+  assert.equal(compacted.resources.geometry.cycleResources.length, 6);
+  assert.ok(compacted.resources.geometry.cycleResources.some((entry) => entry.uuid === 'resource-17'),
+    'the undisposed resource should be prioritized in the bounded sample');
+  assert.equal(compacted.resources.geometry.disposalEvents.length, 5);
+  assert.equal(compacted.resources.geometry.cycleResources[0].iterations.length <= 4, true);
+  assert.equal(compacted.phaseMarks[0].changes.geometry.added.length, 3);
+  assert.equal(compacted.phaseMarks[0].changes.geometry.addedCount, 18);
+  assert.doesNotThrow(() => JSON.stringify(compacted));
+});
 
 function makeMasterOverlayResult() {
   const requested = resolveLifecycleConfig({}, {}).counts;
@@ -108,22 +236,22 @@ test('lifecycle stress defaults to the complete master cardinalities', () => {
 
 test('master resource evidence stays bounded without weakening exact counters', () => {
   assert.match(LIFECYCLE_SOURCE,
-    /resourceStates:\s*\{\s*geometry: new WeakMap\(\),\s*material: new WeakMap\(\),\s*texture: new WeakMap\(\)/,
+    /entries:\s*Object\.create\(null\),\s*observed: new WeakSet\(\),\s*disposed: new WeakSet\(\),\s*cycleSeen: new WeakSet\(\)/,
     'per-object lifecycle state must not keep disposed Three.js resources alive');
   assert.match(LIFECYCLE_SOURCE,
-    /cycleResourceSamples:[\s\S]*createSampler\(2000\)/,
+    /cycleSamples:\s*\{ first: \[\], last: \[\] \}/,
     'cycle-resource forensics must use a bounded head/tail sample');
   assert.match(LIFECYCLE_SOURCE,
-    /disposalEventSamples:[\s\S]*createSampler\(2000\)/,
+    /disposalEventSamples:\s*\{ first: \[\], last: \[\] \}/,
     'dispose-event forensics must use a bounded head/tail sample');
   assert.match(LIFECYCLE_SOURCE,
-    /const sampledUuids = \(uuids, limit = 12\)/,
-    'each phase mark must retain bounded added/removed resource detail');
+    /if \(probe\.phaseMarks\.length > 512\) probe\.phaseMarks\.splice\(256, 1\)/,
+    'phase evidence must retain bounded first/last detail');
   assert.match(LIFECYCLE_SOURCE,
-    /if \(!isLive\) delete probe\.resources\[kind\]\[entry\.uuid\]/,
+    /delete state\.entries\[this\.uuid\]/,
     'non-live forensic entries must be released after their exact counters are recorded');
   assert.match(LIFECYCLE_SOURCE,
-    /evidenceSampling:\s*\{\s*bounded: true,[\s\S]*cycleResourcesPerKind: 2000,[\s\S]*disposalEventsPerKind: 2000/,
+    /Weak identity sets plus exact counters; only live\/undisposed entries and bounded first\/last samples are retained strongly/,
     'the emitted artifact must declare its bounded sampling protocol');
   assert.match(LIFECYCLE_SOURCE,
     /animationMixers:\s*\{\s*count: resourceProbe\?\.animationMixerCount \?\? 0/,

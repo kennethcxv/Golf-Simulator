@@ -14,6 +14,8 @@ import {
   requestPayment,
   presentCard,
   insertCard,
+  enterCardDigit,
+  totalOf,
   submitCardAmount,
   runCard,
   acceptCash,
@@ -55,10 +57,18 @@ function finishGoods(tx) {
   must(handOverGoods(tx), 'hand over goods');
 }
 
+// The reader opens at 0.00; the operator keys the total before confirming.
+function keyExactCardTotal(tx) {
+  for (const digit of String(Math.round(totalOf(tx) * 100))) {
+    must(enterCardDigit(tx, Number(digit)), 'key card amount digit');
+  }
+}
+
 function approveCard(tx) {
   must(requestPayment(tx), 'request card payment');
   must(presentCard(tx), 'present card');
   must(insertCard(tx), 'insert card');
+  keyExactCardTotal(tx);
   must(submitCardAmount(tx), 'confirm exact card total');
   const result = must(runCard(tx, { force: 'approved' }), 'approve card');
   assert.equal(result.result, 'approved');
@@ -207,6 +217,7 @@ function advanceCard(tx, target) {
   if (target === 'card-ready') return;
   must(insertCard(tx), 'insert card');
   if (target === 'card-entry') return;
+  keyExactCardTotal(tx);
   must(submitCardAmount(tx), 'confirm card total');
   if (target === 'card-busy') return;
   if (target === 'card-declined') {

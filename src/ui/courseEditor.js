@@ -998,6 +998,25 @@ export function makeCourseEditor(app, hooks) {
     measure: 'Each click extends the measurement; right-click clears it and starts a new route.',
   };
 
+  // THE BRUSH RING IS THE CURSOR. terrain and paint already draw a world-space
+  // ring on the terrain at the exact spot the stroke will land; the OS arrow on
+  // top of it was a second pointer, drawn at a different place (the ring sits on
+  // the ground under the cursor, not at it), which is what made sculpting feel
+  // like aiming with two sights. Hide the arrow for those, give the
+  // place-a-point tools a crosshair, and leave select alone — it points at
+  // handles and props, where an arrow is correct.
+  const BRUSH_CURSOR_TOOLS = new Set(['terrain', 'paint']);
+
+  function applyToolCursor() {
+    const body = typeof document !== 'undefined' ? document.body : null;
+    if (!body) return;
+    const editing = active && !pt;
+    const brush = editing && BRUSH_CURSOR_TOOLS.has(tool);
+    const precise = editing && !brush && tool !== 'select';
+    body.classList.toggle('ced-cursor-brush', brush);
+    body.classList.toggle('ced-cursor-precise', precise);
+  }
+
   function setTool(key) {
     commitObjectControlGesture();
     clearFeatureSelections();
@@ -1028,6 +1047,7 @@ export function makeCourseEditor(app, hooks) {
     renderToolPanel();
     const toolHint = HINTS[key] || '';
     ui.tipBody.textContent = TOOL_TIPS[key] || toolHint || 'Choose a tool and click on the course to begin.';
+    applyToolCursor();
     hint(toolHint);
   }
 
@@ -3699,6 +3719,7 @@ export function makeCourseEditor(app, hooks) {
       };
     }
     pt = nextPlaytest;
+    applyToolCursor(); // playtest is played, not edited — drop the editing cursor
     sc.clearCourseCameraPreset?.();
     sc.setEditorBrush(null);
     sc.setPlacementGhost(null);
@@ -3727,6 +3748,7 @@ export function makeCourseEditor(app, hooks) {
 
   function exitPlaytest() {
     pt = null;
+    applyToolCursor(); // back to the editing cursor for the active tool
     ptPower = null;
     ptLeftAim = null;
     scene().setGolfersVisible?.(true);
@@ -3936,6 +3958,7 @@ export function makeCourseEditor(app, hooks) {
     selectHole(restoredHole, { frame: false });
     setCameraView(prefs.cameraView || 'frame-hole', restoredHole);
     refreshTop();
+    applyToolCursor();
     window.addEventListener('pointerdown', pdHandler, true);
     window.addEventListener('pointermove', pmHandler, true);
     window.addEventListener('pointerup', puHandler, true);
@@ -3950,6 +3973,7 @@ export function makeCourseEditor(app, hooks) {
     clearFeatureSelections();
     clearPathSelection();
     active = false;
+    applyToolCursor(); // active is false now, so this clears both cursor classes
     closeModal();
     if (camLimits) {
       const rig = scene().rig;

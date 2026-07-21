@@ -116,10 +116,40 @@ async function projectObject(page, predicate) {
       : bounds.getCenter(new THREE.Vector3());
     world.project(app.scene3d.camera);
     const rect = document.querySelector('canvas').getBoundingClientRect();
+    let screenBounds = null;
+    let fullyInView = false;
+    if (!bounds.isEmpty()) {
+      const xs = [bounds.min.x, bounds.max.x];
+      const ys = [bounds.min.y, bounds.max.y];
+      const zs = [bounds.min.z, bounds.max.z];
+      const projected = [];
+      for (const x of xs) {
+        for (const y of ys) {
+          for (const z of zs) {
+            const corner = new THREE.Vector3(x, y, z).project(app.scene3d.camera);
+            projected.push({
+              x: rect.left + ((corner.x + 1) / 2) * rect.width,
+              y: rect.top + ((-corner.y + 1) / 2) * rect.height,
+              z: corner.z,
+            });
+          }
+        }
+      }
+      const left = Math.min(...projected.map((point) => point.x));
+      const top = Math.min(...projected.map((point) => point.y));
+      const right = Math.max(...projected.map((point) => point.x));
+      const bottom = Math.max(...projected.map((point) => point.y));
+      screenBounds = { left, top, right, bottom, width: right - left, height: bottom - top };
+      fullyInView = projected.every((point) => point.z >= -1 && point.z <= 1)
+        && left >= rect.left && top >= rect.top
+        && right <= rect.right && bottom <= rect.bottom;
+    }
     return {
       x: rect.left + ((world.x + 1) / 2) * rect.width,
       y: rect.top + ((-world.y + 1) / 2) * rect.height,
       inView: world.z >= -1 && world.z <= 1 && Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
+      fullyInView,
+      screenBounds,
     };
   }, predicate);
 }
@@ -331,6 +361,7 @@ async function insertCardGesture(page, shot, {
   insertedLabel,
   processingLabel,
   exerciseModalExit = false,
+  exerciseAmountErrors = false,
 }) {
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -438,10 +469,11 @@ async function insertCardGesture(page, shot, {
   }, null, { timeout: 5000 }).catch(async (error) => {
     throw new Error(`${error.message} — ${await clickDiagnostic(page, cardPt.x, cardPt.y)}`);
   });
-  // The domain must prefill the exact total as part of that single insertion
-  // click. The player only confirms; no amount typing or correction is needed.
+  // Insertion opens an EMPTY amount field. The cashier must key the displayed
+  // total on the physical reader; neither the renderer nor the QA driver may
+  // copy the transaction total directly into domain state.
   await waitCamera(page, 'card');
-  const prefill = await page.evaluate(async () => {
+  const entry = await page.evaluate(async () => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     const { cardEnteredAmount, totalOf } = await import('/src/sim/register.js');
     const total = totalOf(tx);
@@ -457,14 +489,11 @@ async function insertCardGesture(page, shot, {
       error: tx?.cardEntryError || null,
     };
   });
-  assert(prefill.stage === 'card-entry' && prefill.flow === 'CardAmountEntry',
-    `Card insertion did not reach amount confirmation: ${JSON.stringify(prefill)}.`);
-  assert(prefill.entryCents === prefill.expectedCents,
-    `Inserted card did not prefill exact cents (${prefill.entryCents} vs ${prefill.expectedCents}).`);
-  assert(prefill.entryDigits === String(prefill.expectedCents),
-    `Inserted card digits were not the exact total: ${JSON.stringify(prefill)}.`);
-  assert(Math.round(prefill.entered * 100) === prefill.expectedCents && prefill.error === null,
-    `Inserted card amount is not ready to confirm: ${JSON.stringify(prefill)}.`);
+  assert(entry.stage === 'card-entry' && entry.flow === 'CardAmountEntry',
+    `Card insertion did not reach amount entry: ${JSON.stringify(entry)}.`);
+  assert(entry.entryCents === 0 && entry.entryDigits === ''
+      && Math.round(entry.entered * 100) === 0 && entry.error === null,
+  `Inserted card did not open an empty amount field: ${JSON.stringify(entry)}.`);
   await shot(insertedLabel);
 
   const clickKey = async (label) => {
@@ -475,14 +504,44 @@ async function insertCardGesture(page, shot, {
     await page.mouse.click(point.x, point.y);
     await page.waitForTimeout(100);
   };
-  // Exactly one physical confirm action submits this already-correct total.
+  // Empty and mismatched amounts must stay in entry with visible rejection.
+  await clickKey('OK');
+  await page.waitForFunction(() => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.stage === 'card-entry' && tx.cardEntryError === 'ENTER AMOUNT';
+  }, null, { timeout: 2000 });
+  await shot(`${insertedLabel.replace(/\.png$/i, '')}-empty-error.png`);
+
+  if (exerciseAmountErrors) {
+    for (const digit of String(entry.expectedCents + 1)) await clickKey(digit);
+    await clickKey('OK');
+    await page.waitForFunction(() => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      return tx?.stage === 'card-entry' && tx.cardEntryError === 'AMOUNT MUST MATCH TOTAL';
+    }, null, { timeout: 2000 });
+    await shot(`${insertedLabel.replace(/\.png$/i, '')}-wrong-error.png`);
+    await clickKey('CANCEL');
+    await page.waitForFunction(() => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      return tx?.stage === 'card-entry' && tx.cardEntryDigits === '' && tx.cardEntryError === null;
+    }, null, { timeout: 2000 });
+  }
+
+  // Key the exact cents through normal reader clicks, then submit once.
+  for (const digit of String(entry.expectedCents)) await clickKey(digit);
+  await page.waitForFunction((expectedCents) => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.stage === 'card-entry' && tx.cardEntryCents === expectedCents
+      && tx.cardEntryDigits === String(expectedCents) && tx.cardEntryError === null;
+  }, entry.expectedCents, { timeout: 2000 });
+  await shot(`${insertedLabel.replace(/\.png$/i, '')}-amount-entered.png`);
   await clickKey('OK');
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'card-busy' && tx.checkoutFlow?.state === 'CardProcessing';
   }, null, { timeout: 4000 });
   await shot(processingLabel);
-  return prefill;
+  return entry;
 }
 
 async function cardRoute(page, shot) {
@@ -509,14 +568,15 @@ async function cardRoute(page, shot) {
   });
 
   // The initial handoff covers Escape/right-click locking and the visible X
-  // cancel/re-present route before the one-click insert and one-click confirm.
+  // cancel/re-present route before insertion and keyed amount entry.
   await insertCardGesture(page, shot, {
     handoffLabel: '09-card-handoff-modal-locked.png',
     cancelledLabel: '09b-card-cancelled-to-monitor.png',
     representedLabel: '09c-card-represented.png',
-    insertedLabel: '10-card-total-prefilled.png',
+    insertedLabel: '10-card-entry-empty.png',
     processingLabel: '10b-card-processing-first-attempt.png',
     exerciseModalExit: true,
+    exerciseAmountErrors: true,
   });
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
@@ -544,10 +604,10 @@ async function cardRoute(page, shot) {
   await monitorClick(page, 'retry-card');
 
   // A normal monitor click presents a different card. It follows the same
-  // one-click insert and exact-total prefill/confirm path, without debug hooks.
+  // insert and keyed exact-total path, without debug hooks.
   await insertCardGesture(page, shot, {
     handoffLabel: '11-replacement-card-presented.png',
-    insertedLabel: '11b-replacement-total-prefilled.png',
+    insertedLabel: '11b-replacement-card-entry-empty.png',
     processingLabel: '11c-replacement-card-processing.png',
   });
   await page.waitForFunction(() => {
@@ -589,9 +649,10 @@ async function cashRoute(page, shot) {
   assert(cashFacts.total === 35.72, `Expected exact cash total $35.72, got $${cashFacts.total}.`);
   assert(cashFacts.tendered === 40, `Expected $40.00 tender, got $${cashFacts.tendered}.`);
   assert(cashFacts.change === 4.28, `Expected $4.28 change, got $${cashFacts.change}.`);
-  // the cash is offered IN the customer's hand inside the mixed working frame —
-  // the camera only moves once the drawer actually opens
-  const handful = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.presentedCashScreenPoint());
+  // The cash is offered in the customer's hand. Let the live handoff pose settle
+  // before framing evidence or resolving a physical click target.
+  await waitCamera(page, 'monitor');
+  let handful = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.presentedCashScreenPoint());
   assert(handful && handful.inView, 'The presented cash is not visible in the working frame.');
   await shot('08-cash-presented.png');
 
@@ -647,24 +708,31 @@ async function cashRoute(page, shot) {
       progress,
     };
     return true;
-  }, drawerTravelStart, { timeout: 2000, polling: 'raf' });
+  }, drawerTravelStart, { timeout: 2500, polling: 'raf' })
+    .then((handle) => ({ handle, error: null }))
+    .catch((error) => ({ handle: null, error }));
 
+  // Screenshot encoding can outlast a camera tween on smaller viewports. Resolve
+  // the projected handful again at the normal-input boundary so the click cannot
+  // use a stale screen-space position.
+  handful = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.presentedCashScreenPoint());
+  assert(handful && handful.inView, 'The presented cash left the working frame before input.');
   // one click on the handful accepts ALL of it; the drawer slides open itself
   await page.mouse.click(handful.x, handful.y);
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.checkoutFlow?.state === 'DrawerOpening';
-  }, null, { timeout: 2000 });
+  }, null, { timeout: 2000 }).catch(async (error) => {
+    throw new Error(`${error.message} â€” ${await clickDiagnostic(page, handful.x, handful.y)}`);
+  });
   // Capture #19 at the normal-input boundary, independently of drawer travel.
   await shot('08a-cash-clicked.png');
-  // Capture #20 only while the authored tray is genuinely in flight. Polling
-  // its transform makes a PASS impossible on a fully closed or fully open till.
-  await drawerMidpointPromise;
-  const drawerTravelMidpoint = await page.evaluate(() => (
-    window.__registerQaCashDrawerMidpoint
-      ? { ...window.__registerQaCashDrawerMidpoint }
-      : null
-  ));
+  // Capture #20 only after the pre-armed observer proves the authored tray was
+  // genuinely in flight. This remains impossible to pass on a static till.
+  const drawerMidpointObservation = await drawerMidpointPromise;
+  if (drawerMidpointObservation.error) throw drawerMidpointObservation.error;
+  await drawerMidpointObservation.handle.dispose();
+  const drawerTravelMidpoint = await page.evaluate(() => window.__registerQaCashDrawerMidpoint);
   assert(drawerTravelMidpoint && drawerTravelMidpoint.progress >= 0.25
       && drawerTravelMidpoint.progress <= 0.75,
   `CashDrawer_Tray was not captured between 25% and 75% travel: ${JSON.stringify(drawerTravelMidpoint)}.`);
@@ -1062,18 +1130,20 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
   const scanReadEvidence = await scanAll(page, shot, mode);
   let cashDrawerTravelEvidence = null;
   let deliveryHandoffEvidence = null;
+  let receiptVisibilityEvidence = null;
   if (mode === 'card') await cardRoute(page, shot);
   else cashDrawerTravelEvidence = await cashRoute(page, shot);
-  if (mode === 'card') {
-    await page.waitForFunction(() => (
-      window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
-    ), null, { timeout: 10000 });
-    await waitCamera(page, 'monitor');
-    await shot('12b-receipt-printing.png');
-  } else {
-    assert(cashDrawerTravelEvidence?.receiptPrintCaptured === true,
-      'Cash route did not retain the physical receipt-print phase.');
-  }
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
+  ), null, { timeout: 10000 });
+  await waitCamera(page, 'monitor');
+  receiptVisibilityEvidence = await projectObject(page, { kind: 'receipt' });
+  assert(receiptVisibilityEvidence?.inView && receiptVisibilityEvidence.fullyInView,
+    'The physical receipt did not remain fully visible during printer focus.');
+  assert(receiptVisibilityEvidence.screenBounds.width >= 45
+      && receiptVisibilityEvidence.screenBounds.height >= 80,
+  `The physical receipt printed too small to read (${Math.round(receiptVisibilityEvidence.screenBounds.width)}x${Math.round(receiptVisibilityEvidence.screenBounds.height)} px).`);
+  await shot('12b-receipt-printing.png');
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'done';
@@ -1202,6 +1272,7 @@ export async function runSimplifiedRegisterAcceptance(page, mode, options = {}) 
     scanReadEvidence,
     cashDrawerTravelEvidence,
     deliveryHandoffEvidence,
+    receiptVisibilityEvidence,
     audioVideoCapture,
     console: { errors, pageErrors, failedRequests, nonAbortedFailedRequests: nonAborted },
   };

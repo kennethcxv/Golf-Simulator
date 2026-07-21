@@ -27,9 +27,8 @@ function functionBody(source, name) {
   throw new Error(`${name} has an unterminated body`);
 }
 
-test('the customer choice is persistent, totalled deliberately, and never exposed as manual payment buttons', () => {
-  assert.match(registerSource, /\(key === 't' \|\| key === 'T'\)[\s\S]*choosePayment\(preferredPayment\(\)\)/);
-  assert.doesNotMatch(registerSource, /paymentAutoTimer/);
+test('the customer choice is automatic, persistent, and never exposed as manual payment buttons', () => {
+  assert.match(registerSource, /paymentAutoTimer\s*=\s*1\.35/);
   assert.match(registerSource, /choosePayment\(preferredPayment\(\)\)/);
   assert.match(registerSource, /customerChoice:\s*paymentChoiceVisible\(\)/);
   assert.match(monitorSource, /CUSTOMER CHOSE \$\{choice\}/);

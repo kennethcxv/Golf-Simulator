@@ -223,7 +223,7 @@ test('Capture #39 sidecar binds valid master artifacts to the complete unchanged
   assert.equal(sidecar.productionBuildSnapshot.beforeAggregateHash, fixture.before.aggregateHash);
   assert.equal(sidecar.productionBuildSnapshot.afterAggregateHash, fixture.after.aggregateHash);
   assert.equal(sidecar.productionBuildSnapshot.currentAggregateHash, fixture.after.aggregateHash);
-  assert.equal(sidecar.artifactHashCount, 10);
+  assert.equal(sidecar.artifactHashCount, 11);
 
   const expectedArtifacts = {
     lifecycleResult: path.join(fixture.lifecycleRoot, 'lifecycle-result.json'),
@@ -235,6 +235,7 @@ test('Capture #39 sidecar binds valid master artifacts to the complete unchanged
     buildAfterSnapshot: path.join(fixture.lifecycleRoot, 'build-after.json'),
     generatorTool: new URL('../tools/qa/capture-39-lifecycle-provenance.mjs', import.meta.url),
     lifecycleDriver: new URL('../tools/qa/simplified-register-lifecycle-stress.mjs', import.meta.url),
+    lifecycleWrapper: new URL('../tools/qa/simplified-register-lifecycle-stress.js', import.meta.url),
     buildSnapshotTool: new URL('../tools/qa/cashier-build-snapshot.mjs', import.meta.url),
   };
   for (const [name, file] of Object.entries(expectedArtifacts)) {

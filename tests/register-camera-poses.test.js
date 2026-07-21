@@ -5,12 +5,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
-  cardHandoffPose, cardTerminalPose, fulfillmentHandoffPose,
+  cardHandoffPose, cardTerminalPose, fulfillmentHandoffPose, receiptPrinterPose,
 } from '../src/render3d/clubhouse/registerCameraPoses.js';
 import { receiptGeometryUsesFeedAxis } from '../src/render3d/clubhouse/simplifiedRegisterMode.js';
 
 const COUNTER_TOP = 1.055;
 const STATION = { x: 3.00, z: 4.04 };
+const PRINTER = { x: 3.98, z: 4.48 };
 // Customers stand on the south (low-z) side; the staff/camera side is high z.
 const CUSTOMER = { x: 2.42, z: 3.15 };
 const registerSource = fs.readFileSync(
@@ -94,6 +95,37 @@ test('card pickup keeps the customer-facing pose until the physical grip delay e
   );
 });
 
+test('receipt focus keeps the physical printer and paper feed in a close stable frame', () => {
+  const receipt = receiptPrinterPose(PRINTER, COUNTER_TOP);
+  assert.ok(receipt.eye.z > PRINTER.z, 'eye remains on the staff side of the printer');
+  assert.ok(receipt.look.z < receipt.eye.z, 'receipt camera looks south toward the output slot');
+  assert.ok(receipt.eye.y > receipt.look.y, 'receipt camera looks down onto the paper feed');
+  assert.ok(receipt.look.y > COUNTER_TOP, 'receipt target remains above the counter surface');
+  const distance = Math.hypot(
+    receipt.eye.x - receipt.look.x,
+    receipt.eye.y - receipt.look.y,
+    receipt.eye.z - receipt.look.z,
+  );
+  assert.ok(distance < 1.2, `printer is close enough to read (${distance.toFixed(2)})`);
+  assert.ok(receipt.fov >= 38 && receipt.fov <= 46,
+    `receipt FOV is focused without feeling telescopic (${receipt.fov})`);
+});
+
+test('receipt feed owns a fixed camera only until the customer handoff begins', () => {
+  const receiptFocusActive = functionBody(registerSource, 'receiptFocusActive');
+  assert.match(receiptFocusActive, /deliveryPhase === 'receipt-print'/);
+  assert.match(receiptFocusActive, /deliveryPhase === 'receipt-ready'/);
+  assert.doesNotMatch(receiptFocusActive, /receipt-deliver|bag-deliver/,
+    'handoff phases return to the shared customer frame');
+
+  const poseKey = functionBody(registerSource, 'poseKey');
+  assert.match(poseKey, /receiptFocusActive\(\)[\s\S]*?return 'receipt'/,
+    'printing selects the dedicated receipt pose');
+  const updateCamera = functionBody(registerSource, 'updateCamera');
+  assert.match(updateCamera, /lockWorkingFrame[\s\S]*?receiptFocusActive\(\)/,
+    'mouse look cannot pan the printer out of frame while paper feeds');
+});
+
 test('declined-card cash fallback presents tender before opening the drawer camera', () => {
   const switchToCash = functionBody(registerSource, 'switchDeclinedCardToCash');
   const createTender = switchToCash.indexOf('createTender()');
@@ -136,15 +168,15 @@ test('product scanning and monitor controls keep a fixed camera while edge targe
   const updateLookTarget = functionBody(registerSource, 'updateLookTarget');
   assert.match(
     updateLookTarget,
-    /workspace === 'scan' \|\| workspace === 'monitor'/,
-    'scan products and monitor buttons cannot steer their working camera',
+    /\['scan', 'card', 'cash'\]\.includes\(workspace\)[\s\S]*?tx\?\.stage === 'cash-tender'/,
+    'pointer movement cannot steer a precision scan, keypad, drawer, or tender frame',
   );
 
   const updateCamera = functionBody(registerSource, 'updateCamera');
   assert.match(
     updateCamera,
-    /if \(workspace === 'scan' \|\| workspace === 'monitor'\) \{[\s\S]*?lookYaw = 0;[\s\S]*?lookTargetYaw = 0;/,
-    'entering or remaining in scan or monitor view clears prior cursor sway immediately',
+    /const lockWorkingFrame = \['scan', 'card', 'cash'\]\.includes\(workspace\)[\s\S]*?tx\?\.stage === 'cash-tender'[\s\S]*?receiptFocusActive\(\);[\s\S]*?if \(lockWorkingFrame\) \{[\s\S]*?lookYaw = 0;[\s\S]*?lookTargetYaw = 0;/,
+    'entering or remaining in a fixed physical-input frame clears prior cursor sway immediately',
   );
 });
 
@@ -171,4 +203,15 @@ test('fulfilment frames the right-side printer and customer palms from the staff
   assert.ok(pose.look.y > COUNTER_TOP && pose.look.y < COUNTER_TOP + 0.30,
     'the aim follows the receipt and handoff height');
   assert.ok(pose.fov >= 48, 'the printer and both customer grips fit the same frame');
+});
+
+test('the bottom-anchored authored receipt keeps canvas text upright', () => {
+  const receiptContentTexture = functionBody(registerSource, 'receiptContentTexture');
+  assert.match(receiptContentTexture, /texture\.flipY = false;/,
+    'GLTF receipt UVs must not receive CanvasTexture default vertical inversion');
+});
+
+test('the printed receipt exposes a stable QA identity for rendered-bounds validation', () => {
+  assert.match(registerSource, /receiptMesh\.userData\.kind = 'receipt';/,
+    'normal-play receipt mesh remains discoverable without mutating transaction state');
 });

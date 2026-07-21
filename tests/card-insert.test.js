@@ -18,10 +18,19 @@ import {
   retryCard,
 } from '../src/sim/register.js';
 
-const confirmPrefilledAmount = (tx) => {
-  const expectedCents = Math.round(totalOf(tx) * 100);
-  assert.equal(tx.cardEntryCents, expectedCents);
-  assert.equal(tx.cardEntryDigits, String(expectedCents));
+// The reader opens at 0.00 and the operator keys the figure. Asserting the
+// empty start here (rather than a prefill) keeps every card path in this file
+// honest about who types the amount.
+const assertOpensEmpty = (tx) => {
+  assert.equal(tx.cardEntryCents, 0, 'the reader opens at zero cents');
+  assert.equal(tx.cardEntryDigits, '', 'no digits are prefilled for editing');
+  assert.equal(cardEnteredAmount(tx), 0, 'the display reads 0.00 on insertion');
+};
+
+const keyExactAmountAndSubmit = (tx) => {
+  assertOpensEmpty(tx);
+  const digits = String(Math.round(totalOf(tx) * 100));
+  for (const digit of digits) assert.equal(enterCardDigit(tx, Number(digit)).ok, true);
   assert.equal(cardEnteredAmount(tx), totalOf(tx));
   assert.equal(submitCardAmount(tx).ok, true);
 };
@@ -52,12 +61,14 @@ test('authorization is gated by a distinct physical card insertion', () => {
   assert.equal(runCard(tx).ok, false, 'insertion cannot be skipped');
   assert.equal(insertCard(tx).ok, true);
   assert.equal(tx.stage, 'card-entry');
-  assert.equal(tx.cardEntryCents, 2400, 'the exact total is prefilled in cents');
-  assert.equal(tx.cardEntryDigits, '2400', 'the exact total is prefilled for editing');
-  assert.equal(cardEnteredAmount(tx), 24);
+  assert.equal(tx.cardEntryCents, 0, 'the reader opens at zero, not at the total');
+  assert.equal(tx.cardEntryDigits, '', 'the operator keys the amount themselves');
+  assert.equal(cardEnteredAmount(tx), 0);
+  assert.equal(submitCardAmount(tx).ok, false, 'an empty amount cannot be submitted');
+  assert.equal(tx.cardEntryError, 'ENTER AMOUNT');
   assert.equal(runCard(tx).ok, false, 'confirmation cannot be skipped');
-  assert.equal(tx.cardAttempts, 0, 'prefill never consumes an authorization attempt');
-  confirmPrefilledAmount(tx);
+  assert.equal(tx.cardAttempts, 0, 'a rejected empty entry never consumes an attempt');
+  keyExactAmountAndSubmit(tx);
   assert.equal(tx.stage, 'card-busy');
   assert.equal(insertCard(tx).ok, false, 'one card cannot be inserted twice');
   assert.equal(runCard(tx).result, 'approved');
@@ -75,7 +86,7 @@ test('a declined inserted card must eject before a replacement is inserted', () 
   requestPayment(tx);
   presentCard(tx);
   insertCard(tx);
-  confirmPrefilledAmount(tx);
+  keyExactAmountAndSubmit(tx);
   assert.equal(runCard(tx).result, 'declined');
   assert.equal(insertCard(tx).ok, false);
   assert.equal(retryCard(tx).ok, true);
@@ -83,8 +94,8 @@ test('a declined inserted card must eject before a replacement is inserted', () 
   assert.equal(tx.cardEntryCents, 0);
   assert.equal(tx.cardEntryError, null);
   assert.equal(insertCard(tx).ok, true);
-  assert.equal(tx.cardEntryCents, 2400, 'replacement-card insertion prefills the total again');
-  confirmPrefilledAmount(tx);
+  assert.equal(tx.cardEntryCents, 0, 'the replacement card also opens at zero');
+  keyExactAmountAndSubmit(tx);
   assert.equal(runCard(tx).result, 'approved');
   assert.equal(tx.cardAttempts, 2);
 });
@@ -112,7 +123,9 @@ test('keypad editing preserves trailing-zero totals and enforces its input bound
   requestPayment(tx);
   presentCard(tx);
   insertCard(tx);
-  assert.equal(cardEnteredAmount(tx), 99.40, 'the trailing-zero total is prefilled exactly');
+  assert.equal(cardEnteredAmount(tx), 0, 'the reader opens at 0.00, not at the total');
+  for (const digit of '9940') assert.equal(enterCardDigit(tx, Number(digit)).ok, true);
+  assert.equal(cardEnteredAmount(tx), 99.40, 'a keyed trailing zero survives as cents');
   assert.equal(backspaceCardAmount(tx).amount, 9.94);
   assert.equal(enterCardDigit(tx, 1).amount, 99.41);
   assert.equal(cardEnteredAmount(tx), 99.41);
@@ -132,27 +145,23 @@ test('keypad editing preserves trailing-zero totals and enforces its input bound
   assert.equal(overflow.cardEntryDigits, '');
 });
 
-test('the active simplified renderer exposes one physical swipe path and no legacy insertion UI', () => {
+test('the active simplified renderer exposes insertion and contains no swipe judge', () => {
   const source = fs.readFileSync(
     new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
     'utf8',
   );
-  assert.match(source, /import \{ judgeSwipe, SWIPE_MSG \}/);
-  assert.match(source, /function startSwipe\(/);
-  assert.match(source, /function endSwipe\(/);
-  assert.match(source, /swipeAt,/);
-  assert.doesNotMatch(source, /function (?:startInsert|endInsert|autoInsertCard)\(|cardKeyScreenPoint|insertAt:/);
+  assert.match(source, /insertAt:\s*\(\)/);
+  assert.match(source, /function startInsert\(/);
+  assert.match(source, /function endInsert\(/);
+  assert.doesNotMatch(source, /judgeSwipe|SWIPE_TOP|SWIPE_BOT|function startSwipe\(|swipeAt:/);
 });
 
-test('the live card flow validates the swipe and uses the normal authorization result', () => {
+test('the live card flow auto-inserts and uses the normal authorization result', () => {
   const source = fs.readFileSync(
     new URL('../src/render3d/clubhouse/simplifiedRegisterMode.js', import.meta.url),
     'utf8',
   );
-  assert.match(source, /const judgment = judgeSwipe\(gesture\.samples\)/,
-    'the visible pointer gesture is judged before authorization');
-  assert.match(source, /const inserted = insertCard\(tx\);[\s\S]*const submitted = submitCardAmount\(tx\);/,
-    'one valid swipe crosses the existing insertion and amount-confirmation domain checkpoints');
+  assert.match(source, /function autoInsertCard\(/, 'card insertion is automatic');
   // The live route must preserve decline/retry behavior instead of forcing approval.
   assert.match(source, /const result = runCard\(tx\);/, 'gameplay uses normal authorization');
   assert.doesNotMatch(

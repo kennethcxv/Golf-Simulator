@@ -59,10 +59,10 @@ test('performance master brackets the full v2 production build without replacing
   assert.match(performanceSource, /two complete approved-card sales plus bounded renderer-residency convergence sales/);
   assert.doesNotMatch(performanceSource, /plus one approved card completion/);
   assert.match(performanceSource, /path\.join\(OUT, 'transaction-stability\.json'\)[\s\S]*schemaVersion: PERFORMANCE_SCHEMA_VERSION,[\s\S]*generatedAt,[\s\S]*protocol: \{ gcSettleMs: protocol\.gcSettleMs \}/);
-  assert.match(performanceSource, /if \(now <= state\.startedAt\) \{\s*requestAnimationFrame\(frame\);\s*return;/,
-    'the first rAF timestamp cannot precede the explicit zero-time heap boundary');
-  assert.doesNotMatch(performanceSource, /if \(now <= state\.startedAt\) \{\s*state\.previousAt\s*=/,
-    'a rejected pre-boundary rAF must not seed the accepted frame timeline');
+  assert.match(performanceSource, /if \(now - state\.startedAt < 0\.001\) \{\s*requestAnimationFrame\(frame\);\s*return;/,
+    'the first persisted rAF timestamp must serialize after the explicit zero-time heap boundary');
+  assert.doesNotMatch(performanceSource, /if \(now - state\.startedAt < 0\.001\) \{\s*state\.previousAt\s*=/,
+    'a rejected pre-boundary or sub-microsecond rAF must not seed the accepted frame timeline');
 });
 
 test('Capture #38 requires and re-brackets the exact authoritative full v2 map', () => {

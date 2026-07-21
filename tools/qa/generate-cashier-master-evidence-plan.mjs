@@ -63,11 +63,11 @@ export const FINAL_CAPTURE_SOURCES = Object.freeze([
   Object.freeze({ number: 5, source: 'card1600', selector: basename('06b-mid-bagging.png'), dimensions: [1600, 900] }),
   Object.freeze({ number: 6, source: 'card1600', selector: basename('07-all-products-scanned.png'), dimensions: [1600, 900] }),
   Object.freeze({ number: 7, source: 'card1600', selector: basename('08-card-presented.png'), dimensions: [1600, 900] }),
-  Object.freeze({ number: 8, source: 'card1600', selector: basename('10-card-total-prefilled-cashier-pickup-hold.png'), dimensions: [1600, 900] }),
-  Object.freeze({ number: 9, source: 'card1600', selector: basename('10-card-total-prefilled-automatic-insert-motion.png'), dimensions: [1600, 900] }),
-  Object.freeze({ number: 10, source: 'card1600', selector: basename('10-card-total-prefilled.png'), dimensions: [1600, 900] }),
-  Object.freeze({ number: 11, source: 'card1600', selector: basename('11b-replacement-total-prefilled-automatic-insert-motion.png'), dimensions: [1600, 900] }),
-  Object.freeze({ number: 12, source: 'card1600', selector: basename('11b-replacement-total-prefilled.png'), dimensions: [1600, 900] }),
+  Object.freeze({ number: 8, source: 'card1600', selector: basename('10-card-entry-empty-cashier-pickup-hold.png'), dimensions: [1600, 900] }),
+  Object.freeze({ number: 9, source: 'card1600', selector: basename('10-card-entry-empty-automatic-insert-motion.png'), dimensions: [1600, 900] }),
+  Object.freeze({ number: 10, source: 'card1600', selector: basename('10-card-entry-empty.png'), dimensions: [1600, 900] }),
+  Object.freeze({ number: 11, source: 'card1600', selector: basename('11b-replacement-card-entry-empty-automatic-insert-motion.png'), dimensions: [1600, 900] }),
+  Object.freeze({ number: 12, source: 'card1600', selector: basename('11b-replacement-card-entry-empty-amount-entered.png'), dimensions: [1600, 900] }),
   Object.freeze({ number: 13, source: 'card1600', selector: basename('10b-card-processing-first-attempt.png'), dimensions: [1600, 900] }),
   Object.freeze({ number: 14, source: 'card1600', selector: basename('12-card-accepted.png'), dimensions: [1600, 900] }),
   Object.freeze({ number: 15, source: 'recovery', selector: suffix('-normal-card-decline-switch-choice.png'), dimensions: [1600, 900] }),
@@ -89,9 +89,9 @@ export const FINAL_CAPTURE_SOURCES = Object.freeze([
   Object.freeze({ number: 29, source: 'card1600', selector: basename('15-customer-leaving.png'), dimensions: [1600, 900] }),
   Object.freeze({ number: 30, source: 'queue', selector: basename('07b-register-reset-empty.png'), dimensions: [1600, 900], queueContract: 'reset' }),
   Object.freeze({ number: 31, source: 'queue', selector: basename('01-two-customer-queue-first-owner.png'), dimensions: [1600, 900], queueContract: 'two-customers' }),
-  Object.freeze({ number: 32, source: 'card1280', selector: basename('10-card-total-prefilled.png'), dimensions: [1280, 720] }),
+  Object.freeze({ number: 32, source: 'card1280', selector: basename('10-card-entry-empty-amount-entered.png'), dimensions: [1280, 720] }),
   Object.freeze({ number: 33, source: 'card1600', selector: basename('11-replacement-card-presented.png'), dimensions: [1600, 900] }),
-  Object.freeze({ number: 34, source: 'card1920', selector: basename('10-card-total-prefilled.png'), dimensions: [1920, 1080] }),
+  Object.freeze({ number: 34, source: 'card1920', selector: basename('10-card-entry-empty-amount-entered.png'), dimensions: [1920, 1080] }),
   Object.freeze({ number: 35, source: 'cash1280', selector: basename('09b-cash-drawer-open.png'), dimensions: [1280, 720] }),
   Object.freeze({ number: 36, source: 'cash1600', selector: basename('10-received-cash-sorted.png'), dimensions: [1600, 900] }),
   Object.freeze({ number: 37, source: 'cash1920', selector: basename('09b-cash-drawer-open.png'), dimensions: [1920, 1080] }),
@@ -383,12 +383,16 @@ function validateQueueContract(record, file, contract, errors, captureNumber) {
         'Register reset must use the active empty-monitor checkpoint with no held stock, transaction, owner, queue, transaction holder, or seeded customer.');
     }
   } else if (contract === 'two-customers') {
-    if (!checkpoint || state?.active !== true || state?.tx == null
+    // This capture is deliberately taken before the cashier presses E. It proves
+    // two customers are visibly queued while the first exclusively owns the
+    // waiting transaction; active register mode begins in the following step.
+    if (!checkpoint || state?.active !== false || state?.tx == null
+        || state.tx.checkoutFlowState !== 'WaitingForCashier'
         || state?.queue?.length !== 2 || state?.owner?.role !== 'first'
         || state?.txHolders?.length !== 1 || state.txHolders[0]?.role !== 'first'
         || JSON.stringify(state?.queueRoles) !== JSON.stringify(['first', 'second'])) {
       addError(errors, `capture.${captureNumber}.queueContract`,
-        'Multiple-customer queue must show two queued customers and one exclusive first owner.');
+        'Multiple-customer queue must show two queued customers and one exclusive first owner before cashier entry.');
     }
   }
 }
@@ -409,7 +413,10 @@ export function validateFinalCashierEvidenceInputs(inputs, options = {}) {
     repositoryRoot: workspaceRoot,
     files: productionFiles,
   });
-  const expectedPaths = current.files.map((entry) => entry.path);
+  // normalizedHashMap uses localeCompare so Windows paths with mixed-case asset
+  // names have one deterministic order. Comparing against current.files' native
+  // sort order rejected equal 489-entry maps even though every path/hash matched.
+  const expectedPaths = Object.keys(normalizedHashMap(current.productionBuildHashes));
   const records = {};
   for (const [role, definition] of Object.entries(FINAL_RESULT_INPUTS)) {
     const record = resolveInputResult(workspaceRoot, inputs?.[role], definition, errors, role);

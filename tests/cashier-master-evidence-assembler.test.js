@@ -28,7 +28,7 @@ const EXPECTED_CAPTURE_NAMES = [
   'Automatic reader motion',
   'Close reader screen',
   'Card inserted',
-  'Exact total prefilled',
+  'Exact total entered',
   'Processing',
   'Approved',
   'Declined',

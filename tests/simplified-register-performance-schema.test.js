@@ -46,6 +46,52 @@ const STATIC_SCENES = [
   'cashDrawer',
 ];
 
+test('performance checkout clicks a ray-verified visible product instead of a hollow bounds center', () => {
+  const source = fs.readFileSync(
+    new URL('../tools/qa/simplified-register-performance.mjs', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /ray-verified-visible-item-grid/);
+  assert.match(source, /hit\.object\.name !== 'ItemClickPad'/,
+    'the QA target must mirror production preference for visible geometry over click pads');
+  assert.match(source, /picked\.userData\.uid === query\.uid/,
+    'the projected click must be proven to resolve to the intended transaction item');
+  assert.match(source, /const clickPoints = product\.candidates\?\.length \? product\.candidates : \[product\]/);
+  assert.match(source, /await page\.mouse\.click\(point\.x, point\.y\)/,
+    'hollow products must be retried through normal mouse input, never direct state mutation');
+});
+
+test('method-matched performance sales use one diagnostic customer appearance topology', () => {
+  const performanceSource = fs.readFileSync(
+    new URL('../tools/qa/simplified-register-performance.mjs', import.meta.url),
+    'utf8',
+  );
+  const clubhouseSource = fs.readFileSync(
+    new URL('../src/render3d/clubhouse.js', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(performanceSource, /const PERFORMANCE_CUSTOMER_APPEARANCE_FIXTURE = Object\.freeze\(/);
+  assert.match(
+    performanceSource,
+    /sendToCounter\(skuIds, payment, \{ appearanceFixture \}\)/,
+    'every sale in the stability protocol must request the same character topology',
+  );
+  assert.match(clubhouseSource, /sendToCounter\(skuIds, payMethod = null, options = \{\}\)/);
+  assert.match(clubhouseSource, /spawnCustomer\(false, null, options\)/);
+  assert.match(
+    clubhouseSource,
+    /appearanceFixture && Object\.prototype\.hasOwnProperty\.call\(appearanceFixture, key\)/,
+    'an explicit null cap must remain distinguishable from an unspecified randomized cap',
+  );
+  assert.match(
+    clubhouseSource,
+    /: 0\.87 \+ rng\.next\(\) \* 0\.12/,
+    'normal customers must retain their randomized scale when no diagnostic fixture is supplied',
+  );
+});
+
 function staticScene(overrides = {}) {
   const frameTimesMs = Array.from({ length: 20 }, () => 16.667);
   return {
@@ -526,6 +572,14 @@ test('dynamic recorder rejects a stale first rAF without seeding the accepted fr
     assert.deepEqual(state.frameTimesMs, []);
     assert.deepEqual(state.stateTimeline, []);
     assert.equal(state.heapSampleTimeline.length, 1, 'a rejected callback cannot become a heap sample');
+
+    runScheduledFrame(1000.0004);
+    assert.equal(state.previousAt, null,
+      'a sub-microsecond callback that would serialize at zero cannot become a frame baseline');
+    assert.deepEqual(state.frameTimesMs, []);
+    assert.deepEqual(state.stateTimeline, []);
+    assert.equal(state.heapSampleTimeline.length, 1,
+      'the explicit start boundary remains the only zero-time heap sample');
 
     runScheduledFrame(1008);
     assert.equal(state.previousAt, 1008, 'the first accepted callback establishes the frame baseline');

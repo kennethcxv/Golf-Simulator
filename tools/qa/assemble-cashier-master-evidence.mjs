@@ -25,7 +25,7 @@ const CAPTURE_NAMES = Object.freeze([
   'Automatic reader motion',
   'Close reader screen',
   'Card inserted',
-  'Exact total prefilled',
+  'Exact total entered',
   'Processing',
   'Approved',
   'Declined',
