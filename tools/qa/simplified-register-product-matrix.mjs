@@ -295,7 +295,7 @@ async function clickCardAndApprove(page, expectedTotalCents) {
     return tx && tx.stage === 'card-entry' && tx.checkoutFlow?.state === 'CardAmountEntry';
   }, null, { timeout: 6000 });
   await waitCamera(page, 'card');
-  const prefill = await page.evaluate(async () => {
+  const amountEntry = await page.evaluate(async () => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     const domain = await import('/src/sim/register.js');
     return {
@@ -306,12 +306,31 @@ async function clickCardAndApprove(page, expectedTotalCents) {
       error: tx.cardEntryError || null,
     };
   });
-  assert(prefill.entryCents === expectedTotalCents
-      && prefill.enteredCents === expectedTotalCents
-      && prefill.totalCents === expectedTotalCents
-      && prefill.digits === String(expectedTotalCents)
-      && prefill.error === null,
-  `Card reader did not prefill the exact matrix total: ${JSON.stringify(prefill)}.`);
+  assert(amountEntry.entryCents === 0 && amountEntry.enteredCents === 0
+      && amountEntry.totalCents === expectedTotalCents
+      && amountEntry.digits === '' && amountEntry.error === null,
+  `Card reader did not open an empty matrix amount field: ${JSON.stringify(amountEntry)}.`);
+  let keyedDigits = '';
+  for (const digit of String(expectedTotalCents)) {
+    const point = await page.evaluate((key) => (
+      window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint(key)
+    ), digit);
+    assert(point?.inView, `Physical reader digit ${digit} is not visible: ${JSON.stringify(point)}.`);
+    await page.mouse.click(point.x, point.y);
+    keyedDigits += digit;
+    await page.waitForFunction((expectedDigits) => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      return tx?.stage === 'card-entry' && tx.cardEntryDigits === expectedDigits;
+    }, keyedDigits, { timeout: 1600 });
+    // Let the physical key return far enough that a neighboring projection
+    // cannot win the next pick ray on dense multi-digit totals.
+    await page.waitForTimeout(120);
+  }
+  await page.waitForFunction((expectedCents) => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.cardEntryCents === expectedCents
+      && tx.cardEntryDigits === String(expectedCents) && tx.cardEntryError == null;
+  }, expectedTotalCents, { timeout: 2500 });
   const ok = await page.evaluate(() => window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint('OK'));
   assert(ok?.inView, `Physical OK key is not visible: ${JSON.stringify(ok)}.`);
   await page.mouse.click(ok.x, ok.y);
@@ -319,7 +338,7 @@ async function clickCardAndApprove(page, expectedTotalCents) {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx && tx.stage === 'card-busy' && tx.checkoutFlow?.state === 'CardProcessing';
   }, null, { timeout: 4000 });
-  return prefill;
+  return amountEntry;
 }
 
 function verifyFinal(entry, fixture, initial, final) {
@@ -532,7 +551,7 @@ export async function runProductStagingMatrix(page, options = {}) {
       `${entry.id}: final POS total is not the exact sum of all lines.`);
     await shot(`03-all-${entry.skuIds.length}-items-bagged-exact-total.png`);
 
-    const prefill = await clickCardAndApprove(page, expectedTotalCents);
+    const amountEntry = await clickCardAndApprove(page, expectedTotalCents);
     await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.getTx(), null, { timeout: 20000 });
     const final = await stateSnapshot(page, entry.skuIds);
     verifyFinal(entry, fixture, initial, final);
@@ -544,7 +563,7 @@ export async function runProductStagingMatrix(page, options = {}) {
       initialTargets,
       clicks,
       allScanned,
-      prefill,
+      amountEntry,
       final,
       evidence,
     });

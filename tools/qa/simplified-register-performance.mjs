@@ -2582,15 +2582,80 @@ async function projectObject(page, predicate) {
     });
     if (!found) return null;
     const bounds = new THREE.Box3().setFromObject(found);
+    const rect = document.querySelector('canvas').getBoundingClientRect();
+    let itemCandidates = [];
+    if (query.kind === 'item' && !bounds.isEmpty()) {
+      const corners = [];
+      for (const x of [bounds.min.x, bounds.max.x]) {
+        for (const y of [bounds.min.y, bounds.max.y]) {
+          for (const z of [bounds.min.z, bounds.max.z]) {
+            corners.push(new THREE.Vector3(x, y, z).project(app.scene3d.camera));
+          }
+        }
+      }
+      const visibleCorners = corners.filter((point) => point.z >= -1 && point.z <= 1);
+      if (visibleCorners.length) {
+        const screenBounds = {
+          minX: Math.min(...visibleCorners.map((point) => rect.left + ((point.x + 1) / 2) * rect.width)),
+          maxX: Math.max(...visibleCorners.map((point) => rect.left + ((point.x + 1) / 2) * rect.width)),
+          minY: Math.min(...visibleCorners.map((point) => rect.top + ((-point.y + 1) / 2) * rect.height)),
+          maxY: Math.max(...visibleCorners.map((point) => rect.top + ((-point.y + 1) / 2) * rect.height)),
+        };
+        const itemRoots = [];
+        clubhouse.interior.traverse((object) => {
+          if (object.visible && object.userData?.kind === 'item' && object.userData?.pick) {
+            itemRoots.push(object);
+          }
+        });
+        const ray = new THREE.Raycaster();
+        const fractions = [
+          [0.5, 0.5], [0.3, 0.5], [0.7, 0.5], [0.2, 0.5], [0.8, 0.5],
+          [0.35, 0.5], [0.65, 0.5], [0.5, 0.35], [0.5, 0.65],
+          [0.3, 0.35], [0.7, 0.35], [0.3, 0.65], [0.7, 0.65],
+          [0.5, 0.2], [0.5, 0.8],
+        ];
+        itemCandidates = fractions.map(([fx, fy]) => ({
+          x: screenBounds.minX + (screenBounds.maxX - screenBounds.minX) * fx,
+          y: screenBounds.minY + (screenBounds.maxY - screenBounds.minY) * fy,
+        }));
+        for (const { x, y } of itemCandidates) {
+          const ndc = new THREE.Vector2(
+            ((x - rect.left) / rect.width) * 2 - 1,
+            -(((y - rect.top) / rect.height) * 2 - 1),
+          );
+          ray.setFromCamera(ndc, app.scene3d.camera);
+          const hits = ray.intersectObjects(itemRoots, true).filter((hit) => {
+            for (let object = hit.object; object; object = object.parent) {
+              if (object.visible === false) return false;
+            }
+            return true;
+          });
+          if (!hits.length) continue;
+          const primary = hits.find((hit) => hit.object.name !== 'ItemClickPad') || hits[0];
+          let picked = primary.object;
+          while (picked && !picked.userData?.pick && picked.parent) picked = picked.parent;
+          if (picked?.userData?.pick && picked.userData.uid === query.uid) {
+            return {
+              x,
+              y,
+              inView: true,
+              strategy: 'ray-verified-visible-item-grid',
+              candidates: [{ x, y }, ...itemCandidates.filter((point) => point.x !== x || point.y !== y)],
+            };
+          }
+        }
+      }
+    }
     const world = bounds.isEmpty()
       ? found.getWorldPosition(new THREE.Vector3())
       : bounds.getCenter(new THREE.Vector3());
     world.project(app.scene3d.camera);
-    const rect = document.querySelector('canvas').getBoundingClientRect();
     return {
       x: rect.left + ((world.x + 1) / 2) * rect.width,
       y: rect.top + ((-world.y + 1) / 2) * rect.height,
       inView: world.z >= -1 && world.z <= 1 && Math.abs(world.x) <= 1 && Math.abs(world.y) <= 1,
+      strategy: 'projected-object-bounds-center',
+      candidates: itemCandidates,
     };
   }, predicate);
 }
@@ -2621,7 +2686,7 @@ async function scanAll(page) {
     // The preceding product's click-to-bag flight can briefly cross the next
     // product. Wait for this visible target to settle before aiming at it.
     for (let settle = 0; settle < 20; settle += 1) {
-      await page.waitForTimeout(120);
+      await page.waitForTimeout(160);
       const next = await projectObject(page, { kind: 'item', uid });
       if (next && product
           && Math.abs(next.x - product.x) < 1.5
@@ -2632,18 +2697,41 @@ async function scanAll(page) {
       product = next;
     }
     assert(product?.inView, `${uid} is outside the scanner production camera.`);
-    // Production scanning is one click: it rings the item and sends it to the
-    // bag. The retired auto-centre + drag gesture must never return to this QA.
-    await page.mouse.click(product.x, product.y);
-    await page.waitForFunction((id) => {
-      const tx = window.__fw.scene3d.clubhouse().register.getTx();
-      return !!tx?.items.find((item) => item.uid === id)?.scanned;
-    }, uid, { timeout: 5000 });
+    // Use normal clicks at human cadence. Some authored products (notably the
+    // two-disc marker card) have a hollow visual centre, so a bounds-centre
+    // click can legitimately miss even though the item is fully visible.
+    const clickPoints = product.candidates?.length ? product.candidates : [product];
+    const attempted = [];
+    let scanned = false;
+    for (const point of clickPoints) {
+      attempted.push({ x: Math.round(point.x), y: Math.round(point.y) });
+      await page.mouse.click(point.x, point.y);
+      await page.waitForTimeout(180);
+      scanned = await page.evaluate((id) => {
+        const tx = window.__fw.scene3d.clubhouse().register.getTx();
+        return !!tx?.items.find((item) => item.uid === id)?.scanned;
+      }, uid);
+      if (scanned) break;
+    }
+    if (!scanned) {
+      const state = await page.evaluate((id) => {
+        const register = window.__fw.scene3d.clubhouse().register;
+        const tx = register.getTx();
+        return {
+          uid: id,
+          workspace: register.workspace(),
+          stage: tx?.stage ?? null,
+          flow: tx?.checkoutFlow?.state ?? null,
+          item: tx?.items.find((entry) => entry.uid === id) ?? null,
+        };
+      }, uid);
+      throw new Error(`Normal scan clicks at ${JSON.stringify(attempted)} did not ring ${uid}: ${JSON.stringify(state)}`);
+    }
     await page.waitForFunction((id) => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return !!tx?.items.find((item) => item.uid === id)?.staged;
     }, uid, { timeout: 8000 });
-    await page.waitForTimeout(180);
+    await page.waitForTimeout(220);
   }
   await page.waitForFunction(() => {
     const register = window.__fw.scene3d.clubhouse().register;
@@ -2666,6 +2754,24 @@ async function clickPresentedCard(page) {
 }
 
 async function clickCardConfirm(page) {
+  const expectedCents = await page.evaluate(async () => {
+    const { totalOf } = await import('/src/sim/register.js');
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return Math.round(totalOf(tx) * 100);
+  });
+  for (const digit of String(expectedCents)) {
+    const point = await page.evaluate((label) => (
+      window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint(label)
+    ), digit);
+    assert(point?.inView, `The card reader ${digit} key is outside the production card camera.`);
+    await page.mouse.click(point.x, point.y);
+    await page.waitForTimeout(40);
+  }
+  await page.waitForFunction((expected) => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.stage === 'card-entry' && tx.cardEntryCents === expected
+      && tx.cardEntryDigits === String(expected);
+  }, expectedCents, { timeout: 2000 });
   const ok = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint('OK')
   ));

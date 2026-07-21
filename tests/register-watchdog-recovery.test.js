@@ -18,6 +18,8 @@ import {
   requestPayment,
   scanItem,
   submitCardAmount,
+  enterCardDigit,
+  totalOf,
   takeFromDrawer,
 } from '../src/sim/register.js';
 import { CHECKOUT_STATES } from '../src/sim/registerFlow.js';
@@ -49,6 +51,10 @@ test('unresolved card authorization rolls back without inventing a result or cha
   const tx = readyTx('card');
   assert.equal(presentCard(tx).ok, true);
   assert.equal(insertCard(tx).ok, true);
+  // the reader opens at 0.00 — the operator keys the total before confirming
+  for (const digit of String(Math.round(totalOf(tx) * 100))) {
+    assert.equal(enterCardDigit(tx, Number(digit)).ok, true);
+  }
   assert.equal(submitCardAmount(tx).ok, true);
   tx.cardAttempts = 2;
   tx.cardsTried = 3;

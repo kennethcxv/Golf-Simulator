@@ -13,14 +13,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createTx, scanItem, requestPayment, dueOf, cashTotalOf,
-  presentCard, insertCard, submitCardAmount, runCard, retryCard, cancelCard,
+  presentCard, insertCard, submitCardAmount, enterCardDigit, totalOf, runCard, retryCard, cancelCard,
   customerCash, acceptCash, openDrawer, closeDrawer, depositTendered,
   takeFromDrawer, returnToDrawer, changeDue, handTotal, handOverChange,
   newDrawer, stackTotal, makeChange, drawerContents,
 } from '../src/sim/register.js';
 
 const rngFor = (seq) => { let i = 0; return () => seq[i++ % seq.length]; };
-const confirmExactAmount = (tx) => submitCardAmount(tx);
+// The reader opens at 0.00 and the operator keys the figure, so confirming the
+// exact amount means typing it first — the same act a cashier performs at the
+// terminal. submitCardAmount still refuses anything that is not the exact total.
+const confirmExactAmount = (tx) => {
+  for (const digit of String(Math.round(totalOf(tx) * 100))) enterCardDigit(tx, Number(digit));
+  return submitCardAmount(tx);
+};
 // one Pro-V dozen at $47 and a glove at $19.55 → $66.55
 const basket = () => ([
   { uid: 'a', skuId: 'balls3', name: 'Pro-V dozen', price: 47 },

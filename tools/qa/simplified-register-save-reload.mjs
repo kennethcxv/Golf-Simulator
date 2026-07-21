@@ -553,12 +553,23 @@ async function scanItems(page, count = Infinity) {
       point = next;
     }
     assert(point?.inView, `Checkout item ${uid} was outside the player camera.`);
-    await page.mouse.click(point.x, point.y);
-    await page.waitForFunction((id) => {
-      const tx = window.__fw.scene3d.clubhouse().register.getTx();
-      const item = tx?.items.find((candidate) => candidate.uid === id);
-      return !!item?.scanned;
-    }, uid, { timeout: 5000 });
+    let scanned = false;
+    for (let attempt = 0; attempt < 4 && !scanned; attempt += 1) {
+      // The previous bagging motion can occlude the next click pad for one
+      // rendered frame. Retry the same visible mouse input; do not mutate tx.
+      point = await projectObject(page, { kind: 'item', uid });
+      assert(point?.inView, `Checkout item ${uid} left the player camera.`);
+      await page.mouse.move(point.x, point.y);
+      await page.waitForTimeout(90);
+      await page.mouse.click(point.x, point.y);
+      scanned = await page.waitForFunction((id) => {
+        const tx = window.__fw.scene3d.clubhouse().register.getTx();
+        const item = tx?.items.find((candidate) => candidate.uid === id);
+        return !!item?.scanned;
+      }, uid, { timeout: 1500 }).then(() => true).catch(() => false);
+      if (!scanned) await page.waitForTimeout(220);
+    }
+    assert(scanned, `Checkout item ${uid} did not scan after normal click retries.`);
     await page.waitForFunction((id) => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       const item = tx?.items.find((candidate) => candidate.uid === id);
@@ -609,19 +620,21 @@ async function insertPresentedCard(page) {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx?.stage === 'card-entry' && tx.checkoutFlow?.state === 'CardAmountEntry';
   }, null, { timeout: 6000 });
-  const prefill = await page.evaluate(async () => {
+  const entry = await page.evaluate(async () => {
     const register = await import('/src/sim/register.js');
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return {
       expectedCents: Math.round(register.totalOf(tx) * 100),
+      enteredCents: Math.round(register.cardEnteredAmount(tx) * 100),
       entryCents: Number(tx.cardEntryCents),
       entryDigits: String(tx.cardEntryDigits || ''),
+      entryError: tx.cardEntryError || null,
     };
   });
-  assert(prefill.entryCents === prefill.expectedCents
-      && prefill.entryDigits === String(prefill.expectedCents),
-  `The inserted card did not prefill the exact total: ${JSON.stringify(prefill)}.`);
-  return prefill;
+  assert(entry.entryCents === 0 && entry.enteredCents === 0
+      && entry.entryDigits === '' && entry.entryError === null,
+  `The inserted card did not open an empty amount field: ${JSON.stringify(entry)}.`);
+  return entry;
 }
 
 async function submitCard(page, rngValue) {
@@ -633,7 +646,20 @@ async function submitCard(page, rngValue) {
       return value;
     };
   }, rngValue);
-  const prefill = await insertPresentedCard(page);
+  const entry = await insertPresentedCard(page);
+  for (const digit of String(entry.expectedCents)) {
+    const point = await page.evaluate((key) => (
+      window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint(key)
+    ), digit);
+    assert(point?.inView, `Physical reader digit ${digit} was outside the player camera.`);
+    await page.mouse.click(point.x, point.y);
+    await page.waitForTimeout(100);
+  }
+  await page.waitForFunction((expectedCents) => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.stage === 'card-entry' && tx.cardEntryCents === expectedCents
+      && tx.cardEntryDigits === String(expectedCents) && tx.cardEntryError == null;
+  }, entry.expectedCents, { timeout: 2500 });
   const ok = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint('OK')
   ));
@@ -643,7 +669,7 @@ async function submitCard(page, rngValue) {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx?.stage === 'card-busy' && tx.checkoutFlow?.state === 'CardProcessing';
   }, null, { timeout: 3500 });
-  return prefill;
+  return entry;
 }
 
 async function selectCashPiece(page, denom) {
@@ -655,11 +681,17 @@ async function selectCashPiece(page, denom) {
     return register.handTotal(tx);
   });
   await page.mouse.click(slot.x, slot.y);
-  await page.waitForFunction(async (prior) => {
+  // Match the accepted player route's human-scale cadence. Re-laying the
+  // selected bill and refilling its source well changes the visible pick scene;
+  // a zero-delay repeat can hit that transient rather than the same well.
+  await page.waitForTimeout(130);
+  const after = await page.evaluate(async () => {
     const register = await import('/src/sim/register.js');
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
-    return register.handTotal(tx) > prior;
-  }, before, { timeout: 4000 });
+    return register.handTotal(tx);
+  });
+  assert(round2(after - before) === Number(denom),
+    `Drawer click for $${Number(denom).toFixed(2)} selected $${round2(after - before).toFixed(2)} at ${Math.round(slot.x)},${Math.round(slot.y)}.`);
   return slot;
 }
 
@@ -954,7 +986,7 @@ async function exactChangePlan(page) {
 async function completeCardTransaction(page) {
   await scanItems(page);
   await waitForPayment(page, 'card');
-  const prefill = await submitCard(page, 0.99);
+  const exactTotalEntry = await submitCard(page, 0.99);
   await page.waitForFunction(() => {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx?.stage === 'receipt' && tx.checkoutFlow?.state === 'CardApproved';
@@ -964,7 +996,7 @@ async function completeCardTransaction(page) {
   ), null, { timeout: 10000 });
   await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.getTx(), null,
     { timeout: 16000 });
-  return prefill;
+  return exactTotalEntry;
 }
 
 async function completeCashTransaction(page) {
@@ -1132,16 +1164,16 @@ const CHECKPOINT_SETUPS = Object.freeze({
   },
   'post-x-cancellation': async (page, fixture) => {
     await reachPresentedCard(page);
-    const exactTotalPrefill = await insertPresentedCard(page);
+    const emptyAmountEntry = await insertPresentedCard(page);
     const preCancel = await checkoutSnapshot(page, fixture.skuIds);
     await clickCardX(page);
-    return { exactTotalPrefill, preCancel };
+    return { emptyAmountEntry, preCancel };
   },
   'card-declined': async (page) => {
     await reachPresentedCard(page);
-    const exactTotalPrefill = await submitCard(page, 0);
+    const exactTotalEntry = await submitCard(page, 0);
     await waitForFlow(page, ['CardDeclined']);
-    return { exactTotalPrefill };
+    return { exactTotalEntry };
   },
   'cash-presented': async (page) => {
     await enterCheckout(page);
@@ -1170,11 +1202,11 @@ const CHECKPOINT_SETUPS = Object.freeze({
   },
   'receipt-printing': async (page) => {
     await reachPresentedCard(page);
-    const exactTotalPrefill = await submitCard(page, 0.99);
+    const exactTotalEntry = await submitCard(page, 0.99);
     await page.waitForFunction(() => (
       window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
     ), null, { timeout: 10000 });
-    return { exactTotalPrefill };
+    return { exactTotalEntry };
   },
 });
 
@@ -1233,7 +1265,7 @@ async function runCompletedMatrixCase(page, definition, shot) {
   const fixture = await prepareFixture(page, definition.skuIds, definition.payment);
   await enterCheckout(page);
   const interaction = definition.payment === 'card'
-    ? { exactTotalPrefill: await completeCardTransaction(page) }
+    ? { exactTotalEntry: await completeCardTransaction(page) }
     : { exactChange: await completeCashTransaction(page) };
   const completed = await checkoutSnapshot(page, fixture.skuIds);
   assertCompletedReconciliation(fixture, completed, definition.payment, definition.id);

@@ -159,6 +159,7 @@ async function inspectQueue(page) {
       tx: tx ? {
         number: tx.number,
         stage: tx.stage,
+        checkoutFlowState: tx.checkoutFlow?.state || null,
         method: tx.method,
         prefer: tx.prefer,
         items: tx.items.map((item) => ({
@@ -168,6 +169,9 @@ async function inspectQueue(page) {
           staged: !!item.staged,
         })),
       } : null,
+      deliveryPhase: typeof register.deliveryPhase === 'function'
+        ? register.deliveryPhase()
+        : null,
       owner: describe(owner),
       first: describe(first),
       second: describe(second),
@@ -382,14 +386,27 @@ async function scanCurrentTransaction(page) {
       product = next;
     }
     assert(product?.inView, `Product ${uid} is outside the scan camera.`);
-    await page.mouse.click(product.x, product.y);
-    await page.waitForFunction((wantedUid) => {
-      const tx = window.__fw.scene3d.clubhouse().register.getTx();
-      return tx?.items.find((item) => item.uid === wantedUid)?.scanned;
-    }, uid, { timeout: 5000 }).catch(async (error) => {
-      const hits = await clickDiagnostic(page, product.x, product.y);
-      throw new Error(`${error.message} - click hit ${JSON.stringify(hits)}`);
-    });
+    let scanned = false;
+    let hits = [];
+    for (let attempt = 0; attempt < 4 && !scanned; attempt += 1) {
+      // A bagged item can cross the next click pad for one rendered frame even
+      // after its staged flag changes. Reproject and repeat the same normal
+      // mouse action at human cadence; never advance the transaction directly.
+      product = await projectObject(page, { kind: 'item', uid });
+      assert(product?.inView, `Product ${uid} left the scan camera.`);
+      await page.mouse.move(product.x, product.y);
+      await page.waitForTimeout(90);
+      await page.mouse.click(product.x, product.y);
+      scanned = await page.waitForFunction((wantedUid) => {
+        const tx = window.__fw.scene3d.clubhouse().register.getTx();
+        return tx?.items.find((item) => item.uid === wantedUid)?.scanned;
+      }, uid, { timeout: 1500 }).then(() => true).catch(() => false);
+      if (!scanned) {
+        hits = await clickDiagnostic(page, product.x, product.y);
+        await page.waitForTimeout(220);
+      }
+    }
+    assert(scanned, `Product ${uid} did not scan after normal click retries - click hit ${JSON.stringify(hits)}`);
     await page.waitForFunction((wantedUid) => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return tx?.items.find((item) => item.uid === wantedUid)?.staged;
@@ -431,7 +448,7 @@ async function completeCard(page) {
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return tx?.stage === 'card-entry';
   }, null, { timeout: 5000 });
-  const prefill = await page.evaluate(async () => {
+  const entry = await page.evaluate(async () => {
     const register = await import('/src/sim/register.js');
     const tx = window.__fw.scene3d.clubhouse().register.getTx();
     return {
@@ -440,9 +457,21 @@ async function completeCard(page) {
       digits: String(tx.cardEntryDigits || ''),
     };
   });
-  assert(prefill.enteredCents === prefill.totalCents
-      && prefill.digits === String(prefill.totalCents),
-  `The card total was not prefilled exactly: ${JSON.stringify(prefill)}.`);
+  assert(entry.enteredCents === 0 && entry.digits === '',
+    `Card insertion did not open an empty amount field: ${JSON.stringify(entry)}.`);
+  for (const digit of String(entry.totalCents)) {
+    const point = await page.evaluate((key) => (
+      window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint(key)
+    ), digit);
+    assert(point?.inView, `Card keypad digit ${digit} is outside the fixed reader camera.`);
+    await page.mouse.click(point.x, point.y);
+    await page.waitForTimeout(100);
+  }
+  await page.waitForFunction((expectedCents) => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    return tx?.cardEntryCents === expectedCents
+      && tx.cardEntryDigits === String(expectedCents) && tx.cardEntryError == null;
+  }, entry.totalCents, { timeout: 2500 });
   const ok = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint('OK')
   ));
@@ -766,6 +795,7 @@ export async function runSimplifiedRegisterQueueAcceptance(page, options = {}) {
     return result;
   } catch (error) {
     ownership = await stopOwnershipProbe(page);
+    const stateAtFailure = await inspectQueue(page).catch(() => null);
     const failureShot = path.join(root, 'failure.png');
     await page.screenshot({ path: failureShot }).catch(() => {});
     let result = {
@@ -774,6 +804,7 @@ export async function runSimplifiedRegisterQueueAcceptance(page, options = {}) {
       blocker: { message: error?.message || String(error), stack: error?.stack || null },
       fixture,
       checkpoints,
+      stateAtFailure,
       ownership,
       evidence: [...evidence, failureShot],
       console: { errors: consoleErrors, warnings: consoleWarnings, pageErrors, failedRequests },

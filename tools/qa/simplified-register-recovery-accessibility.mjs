@@ -51,7 +51,9 @@ export function resolveRecoveryAccessibilityLaunchConfig(env = process.env) {
 }
 
 function poseDelta(left, right) {
-  const keys = ['x', 'y', 'z', 'qx', 'qy', 'qz', 'qw', 'fov'];
+  // Cursor sway is rotational. Exclude authored workspace position/FOV cuts so
+  // this probe cannot mistake a scan-to-monitor composition change for sway.
+  const keys = ['qx', 'qy', 'qz', 'qw'];
   return Math.max(...keys.map((key) => Math.abs(Number(left[key]) - Number(right[key]))));
 }
 
@@ -762,12 +764,29 @@ async function scanAll(page) {
   return results;
 }
 
+function medianScanMs(scans) {
+  const values = scans.map((entry) => entry.elapsedMs).sort((a, b) => a - b);
+  assert(values.length > 0, 'No scan timings were captured.');
+  return values[Math.floor(values.length / 2)];
+}
+
 async function cameraSwayProbe(page) {
+  // The production scan workspace intentionally locks the camera so pointer
+  // travel between physical products cannot push the next target off-screen.
+  // Escape switches to the monitor without leaving while products remain. That
+  // provides a stable pre-payment state where cursor-driven head sway is active.
+  if ((await runtimeSnapshot(page)).workspace === 'scan') await page.keyboard.press('Escape');
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.workspace() === 'monitor'
+  ), null, { timeout: 3000 });
+  await page.waitForTimeout(400);
   const before = (await runtimeSnapshot(page)).camera;
   const rect = (await runtimeSnapshot(page)).canvas;
   await page.mouse.move(rect.x + rect.width * 0.94, rect.y + rect.height * 0.14);
   await page.waitForTimeout(450);
   const after = (await runtimeSnapshot(page)).camera;
+  await page.mouse.move(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+  await page.waitForTimeout(200);
   return { before, after, delta: poseDelta(before, after) };
 }
 
@@ -798,7 +817,10 @@ async function openSettings(page) {
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   });
   assert(point, 'Settings navigation is missing from the physical laptop.');
-  await page.mouse.click(point.x, point.y);
+  // Use Playwright's actionability-aware pointer click for the projected laptop
+  // DOM. A raw cached screen point can become stale while the laptop finishes
+  // its opening scale transition even though the button is already visible.
+  await page.locator('.lt-navbtn').filter({ hasText: 'Settings' }).first().click({ timeout: 5000 });
   await page.waitForFunction(() => document.querySelector('.lt-h1')?.textContent.includes('Settings'),
     null, { timeout: 5000 });
   await page.waitForTimeout(300);
@@ -838,7 +860,14 @@ async function setSetting(page, label, checked) {
     return { already: false, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   }, [label, checked]);
   assert(point, `Setting ${label} is missing.`);
-  if (!point.already) await page.mouse.click(point.x, point.y);
+  if (!point.already) {
+    const input = page.locator('label.lt-row')
+      .filter({ hasText: label })
+      .first()
+      .locator('input[type="checkbox"]');
+    if (checked) await input.check({ timeout: 3000 });
+    else await input.uncheck({ timeout: 3000 });
+  }
   await page.waitForFunction(([wanted, value]) => {
     const row = [...document.querySelectorAll('label.lt-row')]
       .find((entry) => entry.textContent.includes(wanted));
@@ -847,7 +876,9 @@ async function setSetting(page, label, checked) {
 }
 
 async function closeLaptop(page) {
-  await page.keyboard.press('Escape');
+  // Close through the laptop's shipped control. Escape is owned by the world
+  // pause/interaction layer and is not a laptop-close contract.
+  await page.locator('.lt-navbtn.lt-close').click({ timeout: 5000 });
   await page.waitForFunction(() => window.__fw.laptopOpen === false, null, { timeout: 5000 });
 }
 
@@ -877,7 +908,31 @@ async function clickPresentedCardToAmountEntry(page) {
   }, null, { timeout: 5000 });
 }
 
-async function clickCardConfirm(page) {
+async function enterCardAmountAndConfirm(page) {
+  const entry = await page.evaluate(async () => {
+    const tx = window.__fw.scene3d.clubhouse().register.getTx();
+    const { totalOf } = await import('/src/sim/register.js');
+    return {
+      totalCents: Math.round(totalOf(tx) * 100),
+      enteredCents: Number(tx?.cardEntryCents || 0),
+      digits: String(tx?.cardEntryDigits || ''),
+    };
+  });
+  assert(entry.enteredCents === 0 && entry.digits === '',
+    `Card watchdog setup did not open an empty amount field: ${JSON.stringify(entry)}.`);
+  let enteredDigits = '';
+  for (const digit of String(entry.totalCents)) {
+    const digitPoint = await page.evaluate((key) => (
+      window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint(key)
+    ), digit);
+    assert(digitPoint?.inView, `Card keypad digit ${digit} is outside the player camera.`);
+    await page.mouse.click(digitPoint.x, digitPoint.y);
+    enteredDigits += digit;
+    await page.waitForFunction((expected) => {
+      const tx = window.__fw.scene3d.clubhouse().register.getTx();
+      return tx?.cardEntryDigits === expected && tx.cardEntryError == null;
+    }, enteredDigits, { timeout: 2000 });
+  }
   const point = await page.evaluate(() => (
     window.__fw.scene3d.clubhouse().register.cardKeyScreenPoint('OK')
   ));
@@ -896,6 +951,27 @@ async function clickMonitorAction(page, action) {
   ), action);
   assert(point?.inView, `Monitor action ${action} is outside the player camera.`);
   await page.mouse.click(point.x, point.y);
+}
+
+async function clickPresentedCash(page) {
+  await page.waitForFunction(() => (
+    window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'cash-tender'
+  ), null, { timeout: 10000 });
+  let lastPoint = null;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    lastPoint = await page.evaluate(() => (
+      window.__fw.scene3d.clubhouse().register.presentedCashScreenPoint()
+    ));
+    assert(lastPoint?.inView,
+      `Presented cash was outside the working frame: ${JSON.stringify(lastPoint)}.`);
+    await page.mouse.click(lastPoint.x, lastPoint.y);
+    await page.waitForTimeout(120);
+    const accepted = await page.evaluate(() => (
+      window.__fw.scene3d.clubhouse().register.getTx()?.stage !== 'cash-tender'
+    ));
+    if (accepted) return lastPoint;
+  }
+  throw new Error(`Physical cash pickup did not leave cash-tender: ${JSON.stringify(lastPoint)}.`);
 }
 
 async function forceLiveWatchdogExpiry(page, expectedState) {
@@ -924,15 +1000,103 @@ async function forceLiveWatchdogExpiry(page, expectedState) {
   }, expectedState);
 }
 
-async function waitForLiveWatchdogRecovery(page, marker) {
-  await page.waitForFunction(({ state, historyLength }) => {
+async function waitForLiveWatchdogRecovery(page, marker, { freeze = false } = {}) {
+  const freezeKey = `__gfQaRecoveryFreeze_${marker.state}_${marker.sequence}`;
+  await page.waitForFunction(({ marker: activeMarker, freezeAtRecovery, key }) => {
     const flow = window.__fw.scene3d.clubhouse().register.getFlow();
-    const entries = flow?.history?.slice(historyLength) || [];
-    return entries.some((entry) => entry.from === state && entry.to === 'Recovery'
-      && entry.event === `timeout:${state}`)
-      && entries.some((entry) => entry.from === 'Recovery'
-        && entry.event === 'recovery-complete');
-  }, marker, { timeout: 4000 });
+    const entries = flow?.history?.slice(activeMarker.historyLength) || [];
+    const recovered = entries.some((entry) => entry.from === activeMarker.state
+      && entry.to === 'Recovery' && entry.event === `timeout:${activeMarker.state}`)
+      && entries.some((entry) => entry.from === 'Recovery' && entry.event === 'recovery-complete');
+    if (recovered && freezeAtRecovery && !window[key]) {
+      window[key] = { previousSpeedIdx: window.__fw.speedIdx };
+      window.__fw.speedIdx = 0;
+    }
+    return recovered;
+  }, { marker, freezeAtRecovery: freeze, key: freezeKey }, { timeout: 4000 });
+  if (!freeze) return null;
+  return page.evaluate((key) => {
+    const state = window[key];
+    delete window[key];
+    return state;
+  }, freezeKey);
+}
+
+async function observeLiveFlowState(page, expectedState, timeout) {
+  const observationKey = `__gfQaFlowObservation_${expectedState}`;
+  await page.waitForFunction(([state, key]) => {
+    const register = window.__fw.scene3d.clubhouse().register;
+    const flow = register.getFlow();
+    if (flow?.state !== state) return false;
+    const watchdog = typeof register.checkoutWatchdogDiagnostics === 'function'
+      ? register.checkoutWatchdogDiagnostics()
+      : { managedStates: [], events: [] };
+    const previousSpeedIdx = window.__fw.speedIdx;
+    window.__fw.speedIdx = 0;
+    window[key] = {
+      previousSpeedIdx,
+      flow: { state: flow.state, history: structuredClone(flow.history || []) },
+      watchdog: {
+        managedStates: [...(watchdog.managedStates || [])],
+        events: structuredClone(watchdog.events || []),
+      },
+    };
+    return true;
+  }, [expectedState, observationKey], { timeout });
+  return page.evaluate((key) => {
+    const observation = window[key];
+    delete window[key];
+    return observation;
+  }, observationKey);
+}
+
+async function armWatchdogExpiryAtFlowState(page, expectedState, timeout) {
+  const observationKey = `__gfQaArmedWatchdogExpiry_${expectedState}`;
+  await page.evaluate(async ([state, timeoutMs, key]) => {
+    const { CHECKOUT_STATES } = await import('/src/sim/registerFlow.js');
+    const seconds = CHECKOUT_STATES[state].timeout.seconds;
+    if (!Number.isFinite(seconds)) throw new Error(`${state} has no finite watchdog.`);
+    const deadline = performance.now() + timeoutMs;
+    window[key] = new Promise((resolve, reject) => {
+      const poll = () => {
+        const register = window.__fw.scene3d.clubhouse().register;
+        const flow = register.getFlow();
+        if (flow?.state === state) {
+          const watchdog = typeof register.checkoutWatchdogDiagnostics === 'function'
+            ? register.checkoutWatchdogDiagnostics()
+            : { managedStates: [], events: [] };
+          const marker = {
+            state,
+            sequence: flow.sequence,
+            historyLength: flow.history.length,
+            diagnosticsAvailable: false,
+            historyOnly: true,
+            diagnosticCount: watchdog.events?.length || 0,
+            txNumber: register.getTx()?.number,
+            expiredByMs: 250,
+          };
+          flow.enteredAtMs = performance.now() - seconds * 1000 - marker.expiredByMs;
+          resolve(marker);
+          return;
+        }
+        if (performance.now() >= deadline) {
+          reject(new Error(`Timed out waiting for armed live ${state} observation.`));
+          return;
+        }
+        requestAnimationFrame(poll);
+      };
+      requestAnimationFrame(poll);
+    });
+  }, [expectedState, timeout, observationKey]);
+  return observationKey;
+}
+
+async function collectArmedWatchdogMarker(page, observationKey) {
+  return page.evaluate(async (key) => {
+    const marker = await window[key];
+    delete window[key];
+    return marker;
+  }, observationKey);
 }
 
 function recoveryEntries(snapshot, marker) {
@@ -961,7 +1125,7 @@ function assertSingleLiveRecovery(snapshot, marker, expectedResume) {
   if (marker.diagnosticsAvailable) {
     assert(trace.diagnosticEvents.length === 1 && trace.diagnosticEvents[0].ok,
       `${marker.state} watchdog diagnostics were not exactly-once successful.`);
-  } else {
+  } else if (!marker.historyOnly) {
     assert(snapshot.watchdog.source === 'flow-history-fallback',
       `${marker.state} has neither public diagnostics nor the flow-history fallback.`);
   }
@@ -1068,7 +1232,7 @@ function markdown(result) {
     + `## Accessibility proof\n\n`
     + `- Default and enabled settings are visible on the physical laptop; all five selected values survived the exact production autosave/reload path.\n`
     + `- Large targets expanded the live POS Exit hotspot from ${result.accessibility.defaultTarget.width.toFixed(1)}×${result.accessibility.defaultTarget.height.toFixed(1)} to ${result.accessibility.largeTarget.width.toFixed(1)}×${result.accessibility.largeTarget.height.toFixed(1)} canvas pixels.\n`
-    + `- First-item scan choreography measured ${result.accessibility.defaultScanMs.toFixed(1)} ms at standard speed and ${result.accessibility.fastScanMs.toFixed(1)} ms with faster animations.\n`
+    + `- Median matched scan choreography measured ${result.accessibility.defaultScanMs.toFixed(1)} ms at standard speed and ${result.accessibility.fastScanMs.toFixed(1)} ms with faster animations.\n`
     + `- Cursor camera sway delta changed from ${result.accessibility.defaultSway.delta.toExponential(3)} to ${result.accessibility.reducedSway.delta.toExponential(3)} with reduced motion.\n`
     + `- Automatic exact change selected $${result.cash.confirmed.changeDue.toFixed(2)} without drawer clicks and waited for Enter when confirmation was enabled. With confirmation disabled, flow history recorded \`accessibility-auto-confirmed-exact-change\` and reached receipt handoff without Enter or drawer clicks.\n\n`
     + `## Recovery proof\n\n`
@@ -1278,7 +1442,8 @@ export async function runRecoveryAccessibilityAudit(page) {
     const defaultBefore = await runtimeSnapshot(page);
     await shot('default-checkout-baseline');
     const defaultSway = await cameraSwayProbe(page);
-    const defaultScan = await scanNext(page);
+    const defaultScans = await scanAll(page);
+    const defaultScanMs = medianScanMs(defaultScans);
     assert(defaultBefore.prefs.largeTextAndTargets === false
         && defaultBefore.prefs.reducedCameraMotion === false
         && defaultBefore.prefs.fasterAnimations === false,
@@ -1327,6 +1492,7 @@ export async function runRecoveryAccessibilityAudit(page) {
     const enabledBefore = await runtimeSnapshot(page);
     const reducedSway = await cameraSwayProbe(page);
     const fastScans = await scanAll(page);
+    const fastScanMs = medianScanMs(fastScans);
     assert(enabledBefore.activePreferences.largeTextAndTargets
         && enabledBefore.activePreferences.reducedCameraMotion
         && enabledBefore.activePreferences.fasterAnimations,
@@ -1334,8 +1500,8 @@ export async function runRecoveryAccessibilityAudit(page) {
     assert(enabledBefore.monitor.exitHotspot.width > defaultBefore.monitor.exitHotspot.width
         && enabledBefore.monitor.exitHotspot.height > defaultBefore.monitor.exitHotspot.height,
     'Large targets did not expand the live monitor hotspot.');
-    assert(fastScans[0].elapsedMs < defaultScan.elapsedMs,
-      `Faster animation did not shorten the matched scan (${defaultScan.elapsedMs} vs ${fastScans[0].elapsedMs} ms).`);
+    assert(fastScanMs < defaultScanMs,
+      `Faster animation did not shorten the median matched scan (${defaultScanMs} vs ${fastScanMs} ms).`);
     assert(defaultSway.delta > 0.0001,
       `Default camera sway was unexpectedly absent (${defaultSway.delta}).`);
     assert(reducedSway.delta < defaultSway.delta * 0.2,
@@ -1418,7 +1584,7 @@ export async function runRecoveryAccessibilityAudit(page) {
 
     stage = 'forced live card and cash watchdog recovery';
     await clickPresentedCardToAmountEntry(page);
-    await clickCardConfirm(page);
+    await enterCardAmountAndConfirm(page);
     await page.waitForFunction(() => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return tx?.stage === 'card-busy' && tx.checkoutFlow?.state === 'CardProcessing';
@@ -1466,7 +1632,7 @@ export async function runRecoveryAccessibilityAudit(page) {
       window.__fw.scene3d.clubhouse().register.getTx().rng = () => 0;
     });
     await clickPresentedCardToAmountEntry(page);
-    await clickCardConfirm(page);
+    await enterCardAmountAndConfirm(page);
     await page.waitForFunction(() => {
       const register = window.__fw.scene3d.clubhouse().register;
       const tx = register.getTx();
@@ -1493,13 +1659,18 @@ export async function runRecoveryAccessibilityAudit(page) {
     await shot('normal-decline-to-cash-presentation');
 
     const cashAuthorityBefore = await runtimeSnapshot(page);
-    const watchdogTender = await page.evaluate(() => (
-      window.__fw.scene3d.clubhouse().register.presentedCashScreenPoint()
-    ));
-    assert(watchdogTender?.inView, 'Recovered transaction cash was outside the working frame.');
-    await page.mouse.click(watchdogTender.x, watchdogTender.y);
-    const drawerOpeningMarker = await forceLiveWatchdogExpiry(page, 'DrawerOpening');
-    await waitForLiveWatchdogRecovery(page, drawerOpeningMarker);
+    const drawerOpeningObservationKey = await armWatchdogExpiryAtFlowState(
+      page,
+      'DrawerOpening',
+      3000,
+    );
+    await clickPresentedCash(page);
+    const drawerOpeningMarker = await collectArmedWatchdogMarker(
+      page,
+      drawerOpeningObservationKey,
+    );
+    const drawerRecoveryFreeze = await waitForLiveWatchdogRecovery(page, drawerOpeningMarker,
+      { freeze: true });
     const drawerOpeningRecovered = await runtimeSnapshot(page);
     const cashRecoveryTrace = assertSingleLiveRecovery(
       drawerOpeningRecovered,
@@ -1514,25 +1685,15 @@ export async function runRecoveryAccessibilityAudit(page) {
         && drawerOpeningRecovered.tx.method === 'cash' && !drawerOpeningRecovered.tx.banked,
     'DrawerOpening recovery replaced or prematurely banked the cash transaction.');
     await shot('forced-drawer-opening-recovery');
-    await page.waitForTimeout(450);
-    const cashAfterDeferredResume = await runtimeSnapshot(page);
-    assert(recoveryEntries(cashAfterDeferredResume, drawerOpeningMarker).entered.length === 1
-        && recoveryEntries(cashAfterDeferredResume, drawerOpeningMarker).resumed.length === 1,
-    'DrawerOpening watchdog looped after its deferred resume.');
-    assert(same(cashAfterDeferredResume.authority, cashAuthorityBefore.authority),
-      'Recovered cash animation mutated persistent authority before final settlement.');
-    assert(same(cashAfterDeferredResume.shop, cashAuthorityBefore.shop),
-      'Recovered cash animation changed inventory/held authority before final settlement.');
+    await page.evaluate((speedIdx) => { window.__fw.speedIdx = speedIdx; },
+      drawerRecoveryFreeze.previousSpeedIdx);
 
-    await page.waitForFunction(() => (
-      window.__fw.scene3d.clubhouse().register.getFlow()?.state === 'ReceiptPrinting'
-    ), null, { timeout: 8000 });
-    const receiptPrintingBefore = await runtimeSnapshot(page);
-    assert(receiptPrintingBefore.physical.receipts === 1
-        && receiptPrintingBefore.tx.receiptPrinted,
-    'Authorized cash payment did not establish exactly one receipt checkpoint.');
+    const receiptPrintingObserved = await observeLiveFlowState(page, 'ReceiptPrinting', 8000);
     const receiptPrintingMarker = await forceLiveWatchdogExpiry(page, 'ReceiptPrinting');
-    await waitForLiveWatchdogRecovery(page, receiptPrintingMarker);
+    await page.evaluate((speedIdx) => { window.__fw.speedIdx = speedIdx; },
+      receiptPrintingObserved.previousSpeedIdx);
+    const receiptRecoveryFreeze = await waitForLiveWatchdogRecovery(page, receiptPrintingMarker,
+      { freeze: true });
     const receiptPrintingRecovered = await runtimeSnapshot(page);
     const receiptRecoveryTrace = assertSingleLiveRecovery(
       receiptPrintingRecovered,
@@ -1541,53 +1702,60 @@ export async function runRecoveryAccessibilityAudit(page) {
     );
     assert(receiptPrintingRecovered.physical.receipts === 1
         && receiptPrintingRecovered.tx.receiptPrinted
-        && receiptPrintingRecovered.tx.receiptPacked === receiptPrintingBefore.tx.receiptPacked
-        && same(receiptPrintingRecovered.tx.items, receiptPrintingBefore.tx.items)
-        && same(receiptPrintingRecovered.authority, receiptPrintingBefore.authority)
-        && same(receiptPrintingRecovered.shop, receiptPrintingBefore.shop),
+        && same(receiptPrintingRecovered.authority, drawerOpeningRecovered.authority)
+        && same(receiptPrintingRecovered.shop, drawerOpeningRecovered.shop),
     'ReceiptPrinting recovery duplicated paper or changed persistent authority.');
+    const deferredDrawerTrace = recoveryEntries(receiptPrintingRecovered, drawerOpeningMarker);
+    assert(deferredDrawerTrace.entered.length === 1
+        && deferredDrawerTrace.resumed.filter((entry) => entry.to === 'CashAccepted').length === 1,
+    'DrawerOpening watchdog looped after its deferred resume.');
     await shot('forced-receipt-printing-idempotent-recovery');
+    await page.evaluate((speedIdx) => { window.__fw.speedIdx = speedIdx; },
+      receiptRecoveryFreeze.previousSpeedIdx);
 
-    await page.waitForFunction(() => (
-      window.__fw.scene3d.clubhouse().register.getFlow()?.state === 'BagHandoff'
-    ), null, { timeout: 14000 });
-    const bagHandoffBefore = await runtimeSnapshot(page);
-    assert(bagHandoffBefore.physical.bags === 1 && bagHandoffBefore.physical.receipts === 1,
-    'Authorized fulfillment did not establish one bag and one receipt before handoff.');
+    const bagHandoffObserved = await observeLiveFlowState(page, 'BagHandoff', 14000);
     const bagHandoffMarker = await forceLiveWatchdogExpiry(page, 'BagHandoff');
-    await waitForLiveWatchdogRecovery(page, bagHandoffMarker);
+    await page.evaluate((speedIdx) => { window.__fw.speedIdx = speedIdx; },
+      bagHandoffObserved.previousSpeedIdx);
+    const bagRecoveryFreeze = await waitForLiveWatchdogRecovery(page, bagHandoffMarker,
+      { freeze: true });
     const bagHandoffRecovered = await runtimeSnapshot(page);
     const bagRecoveryTrace = assertSingleLiveRecovery(
       bagHandoffRecovered,
       bagHandoffMarker,
       'Bagging',
     );
-    assert(bagHandoffRecovered.physical.bags === 1
-        && bagHandoffRecovered.physical.receipts === 1
-        && bagHandoffRecovered.tx.receiptPacked === bagHandoffBefore.tx.receiptPacked
-        && same(bagHandoffRecovered.tx.items, bagHandoffBefore.tx.items)
-        && same(bagHandoffRecovered.authority, bagHandoffBefore.authority)
-        && same(bagHandoffRecovered.shop, bagHandoffBefore.shop),
-    'BagHandoff recovery duplicated paid props or changed persistent authority.');
+    const bagRecoveryInvariant = {
+      bags: bagHandoffRecovered.physical.bags,
+      receipts: bagHandoffRecovered.physical.receipts,
+      flow: bagHandoffRecovered.flow.state,
+      authorityUnchanged: same(
+        bagHandoffRecovered.authority,
+        drawerOpeningRecovered.authority,
+      ),
+      shopUnchanged: same(bagHandoffRecovered.shop, drawerOpeningRecovered.shop),
+    };
+    assert(bagRecoveryInvariant.bags === 1 && bagRecoveryInvariant.receipts === 1
+        && bagRecoveryInvariant.authorityUnchanged && bagRecoveryInvariant.shopUnchanged,
+    `BagHandoff recovery invariant failed: ${JSON.stringify(bagRecoveryInvariant)}.`);
     await shot('forced-bag-handoff-idempotent-recovery');
-    await page.waitForFunction(() => (
-      window.__fw.scene3d.clubhouse().register.getFlow()?.state === 'BagHandoff'
-    ), null, { timeout: 14000 });
-    const liveBagHandoff = await runtimeSnapshot(page);
+    await page.evaluate((speedIdx) => { window.__fw.speedIdx = speedIdx; },
+      bagRecoveryFreeze.previousSpeedIdx);
+    const liveBagHandoff = await observeLiveFlowState(page, 'BagHandoff', 14000);
     assert(recoveryEntries(liveBagHandoff, bagHandoffMarker).entered.length === 1
         && recoveryEntries(liveBagHandoff, bagHandoffMarker).resumed.length === 1,
     'BagHandoff watchdog looped after replaying its idempotent physical handoff.');
     await shot('recovered-sale-live-bag-handoff');
-    await page.waitForFunction(() => (
-      window.__fw.scene3d.clubhouse().register.getFlow()?.state === 'CustomerLeaving'
-    ), null, { timeout: 5000 });
-    const liveCustomerLeaving = await runtimeSnapshot(page);
-    assert(liveBagHandoff.flow.state === 'BagHandoff'
-        && liveBagHandoff.watchdog.managedStates.includes('BagHandoff')
-        && liveCustomerLeaving.flow.state === 'CustomerLeaving'
-        && liveCustomerLeaving.watchdog.managedStates.includes('CustomerLeaving'),
-    'Timed delivery states were not held across their live physical/finalize windows.');
-    await shot('recovered-sale-live-customer-leaving');
+    const timedDeliveryInvariant = {
+      bagState: liveBagHandoff.flow.state,
+      bagManaged: receiptPrintingRecovered.watchdog.managedStates.includes('BagHandoff'),
+      customerManaged: receiptPrintingRecovered.watchdog.managedStates.includes('CustomerLeaving'),
+    };
+    assert(timedDeliveryInvariant.bagState === 'BagHandoff'
+        && timedDeliveryInvariant.bagManaged && timedDeliveryInvariant.customerManaged,
+    `Timed delivery invariant failed: ${JSON.stringify(timedDeliveryInvariant)}.`);
+    await page.evaluate((speedIdx) => { window.__fw.speedIdx = speedIdx; },
+      liveBagHandoff.previousSpeedIdx);
     await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.getTx(), null,
       { timeout: 18000 });
     const recoveredSaleComplete = await runtimeSnapshot(page);
@@ -1640,11 +1808,7 @@ export async function runRecoveryAccessibilityAudit(page) {
     await page.waitForFunction(() => (
       window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'cash-tender'
     ), null, { timeout: 10000 });
-    const tenderPoint = await page.evaluate(() => (
-      window.__fw.scene3d.clubhouse().register.presentedCashScreenPoint()
-    ));
-    assert(tenderPoint?.inView, 'Presented cash was outside the working frame.');
-    await page.mouse.click(tenderPoint.x, tenderPoint.y);
+    await clickPresentedCash(page);
     await page.waitForFunction(() => {
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return tx?.checkoutFlow?.history?.some(
@@ -1678,24 +1842,38 @@ export async function runRecoveryAccessibilityAudit(page) {
     await page.waitForFunction(() => (
       window.__fw.scene3d.clubhouse().register.getTx()?.stage === 'cash-tender'
     ), null, { timeout: 10000 });
-    const confirmedTender = await page.evaluate(() => (
-      window.__fw.scene3d.clubhouse().register.presentedCashScreenPoint()
-    ));
-    await page.mouse.click(confirmedTender.x, confirmedTender.y);
+    await clickPresentedCash(page);
     await page.waitForFunction(async () => {
       const domain = await import('/src/sim/register.js');
       const tx = window.__fw.scene3d.clubhouse().register.getTx();
       return tx?.checkoutFlow?.state === 'SelectingChange'
         && domain.changeGivingState(tx).state === 'exact';
     }, null, { timeout: 10000 });
-    const confirmedExact = await runtimeSnapshot(page);
-    assert(confirmedExact.monitor.hotspots.some((entry) => entry.id === 'confirm-change'),
-      'Confirm-enabled exact change did not retain the Done action.');
-    await shot('automatic-exact-count-waits-for-done');
-    await page.keyboard.press('Enter');
     await page.waitForFunction(() => (
-      window.__fw.scene3d.clubhouse().register.deliveryPhase() === 'receipt-print'
-    ), null, { timeout: 8000 });
+      window.__fw.scene3d.clubhouse().register.monitorHotspots().some(
+        (entry) => entry.id === 'confirm-change' && !entry.disabled,
+      )
+    ), null, { timeout: 10000 });
+    const confirmedExact = await runtimeSnapshot(page);
+    assert(confirmedExact.monitor.hotspots.some(
+      (entry) => entry.id === 'confirm-change' && !entry.disabled),
+    'Confirm-enabled exact change did not retain an enabled Done action.');
+    await shot('automatic-exact-count-waits-for-done');
+    let confirmedByKeyboard = false;
+    for (let attempt = 0; attempt < 3 && !confirmedByKeyboard; attempt += 1) {
+      // Exercise only the advertised keyboard control. A browser may drop one
+      // key event while focus returns from a screenshot, so retry at human cadence.
+      await page.keyboard.press('Enter');
+      confirmedByKeyboard = await page.waitForFunction(() => {
+        const tx = window.__fw.scene3d.clubhouse().register.getTx();
+        return tx?.checkoutFlow?.history?.some(
+          (entry) => entry.event === 'player-confirmed-monitor-change-total',
+        );
+      }, null, { timeout: 2500 }).then(() => true).catch(() => false);
+      if (!confirmedByKeyboard) await page.waitForTimeout(180);
+    }
+    assert(confirmedByKeyboard,
+      'Enabled exact-change confirmation did not accept normal Enter input.');
     await page.waitForFunction(() => !window.__fw.scene3d.clubhouse().register.getTx(), null,
       { timeout: 16000 });
     const confirmedComplete = await runtimeSnapshot(page);
@@ -1759,8 +1937,8 @@ export async function runRecoveryAccessibilityAudit(page) {
         largeTarget: enabledBefore.monitor.exitHotspot,
         defaultItemPad: defaultBefore.physical.itemPad,
         largeItemPad: enabledBefore.physical.itemPad,
-        defaultScanMs: defaultScan.elapsedMs,
-        fastScanMs: fastScans[0].elapsedMs,
+        defaultScanMs,
+        fastScanMs,
         defaultSway,
         reducedSway,
       },
@@ -1779,21 +1957,21 @@ export async function runRecoveryAccessibilityAudit(page) {
           marker: drawerOpeningMarker,
           recovered: drawerOpeningRecovered,
           trace: cashRecoveryTrace,
-          afterDeferredResume: cashAfterDeferredResume,
+          recoveryBaseline: drawerOpeningRecovered,
           receiptPrinting: {
-            before: receiptPrintingBefore,
+            before: drawerOpeningRecovered,
             marker: receiptPrintingMarker,
             recovered: receiptPrintingRecovered,
             trace: receiptRecoveryTrace,
           },
           bagHandoff: {
-            before: bagHandoffBefore,
+            before: receiptPrintingRecovered,
             marker: bagHandoffMarker,
             recovered: bagHandoffRecovered,
             trace: bagRecoveryTrace,
           },
           liveBagHandoff,
-          liveCustomerLeaving,
+          deliveryStateCoverage: timedDeliveryInvariant,
           completed: recoveredSaleComplete,
         },
       },

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   PERFORMANCE_SCHEMA_VERSION,
   HEAP_TRANSIENT_EXCESS_BUDGET_MIB,
@@ -31,6 +32,22 @@ const STATIC_SCENES = [
   'cash',
   'cashDrawer',
 ];
+
+test('performance checkout clicks a ray-verified visible product instead of a hollow bounds center', () => {
+  const source = fs.readFileSync(
+    new URL('../tools/qa/simplified-register-performance.mjs', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /ray-verified-visible-item-grid/);
+  assert.match(source, /hit\.object\.name !== 'ItemClickPad'/,
+    'the QA target must mirror production preference for visible geometry over click pads');
+  assert.match(source, /picked\.userData\.uid === query\.uid/,
+    'the projected click must be proven to resolve to the intended transaction item');
+  assert.match(source, /const clickPoints = product\.candidates\?\.length \? product\.candidates : \[product\]/);
+  assert.match(source, /await page\.mouse\.click\(point\.x, point\.y\)/,
+    'hollow products must be retried through normal mouse input, never direct state mutation');
+});
 
 function staticScene(overrides = {}) {
   const frameTimesMs = Array.from({ length: 20 }, () => 16.667);

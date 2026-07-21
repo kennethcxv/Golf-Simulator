@@ -14,6 +14,8 @@ import {
   presentCard,
   insertCard,
   submitCardAmount,
+  enterCardDigit,
+  totalOf,
   runCard,
   retryCard,
   customerCash,
@@ -41,7 +43,11 @@ const rngFor = (sequence) => {
 
 const round2 = (value) => Math.round(value * 100) / 100;
 
-const confirmExactAmount = (tx) => submitCardAmount(tx);
+// The reader opens at 0.00; the operator keys the figure before confirming.
+const confirmExactAmount = (tx) => {
+  for (const digit of String(Math.round(totalOf(tx) * 100))) enterCardDigit(tx, Number(digit));
+  return submitCardAmount(tx);
+};
 
 function reserve(state, name = 'Ray Falk', minute = 480) {
   const day = calendarOf(state.clock.minutes).dayAbs + 1;

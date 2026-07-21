@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createTx, scanItem, requestPayment, presentCard, insertCard,
-  submitCardAmount, runCard,
+  submitCardAmount, enterCardDigit, totalOf, runCard,
   abandonCardBeforeSubmit,
 } from '../src/sim/register.js';
 import { canTransitionCheckout, validateCheckoutTransition } from '../src/sim/registerFlow.js';
@@ -26,9 +26,11 @@ function scannedCardTx(stage) {
   if (stage === 'card-present') return tx;
   presentCard(tx);            // -> card-ready
   if (stage === 'card-ready') return tx;
-  insertCard(tx);             // -> card-entry
+  insertCard(tx);             // -> card-entry, reader at 0.00
   if (stage === 'card-entry') return tx;
-  submitCardAmount(tx);       // confirm the prefilled total -> card-busy
+  // the operator keys the total, then confirms it -> card-busy
+  for (const digit of String(Math.round(totalOf(tx) * 100))) enterCardDigit(tx, Number(digit));
+  submitCardAmount(tx);
   return tx;
 }
 

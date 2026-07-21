@@ -118,15 +118,15 @@ test('product scanning keeps a fixed camera while edge products are clicked', ()
   const updateLookTarget = functionBody(registerSource, 'updateLookTarget');
   assert.match(
     updateLookTarget,
-    /accessibilityPrefs\.reducedCameraMotion \|\| workspace === 'scan'/,
-    'scan pointer movement cannot steer the working camera',
+    /\['scan', 'card', 'cash'\]\.includes\(workspace\)[\s\S]*?tx\?\.stage === 'cash-tender'/,
+    'pointer movement cannot steer a precision scan, keypad, drawer, or tender frame',
   );
 
   const updateCamera = functionBody(registerSource, 'updateCamera');
   assert.match(
     updateCamera,
-    /if \(workspace === 'scan'\) \{[\s\S]*?lookYaw = 0;[\s\S]*?lookTargetYaw = 0;/,
-    'entering or remaining in scan view clears any prior cursor sway immediately',
+    /const lockWorkingFrame = \['scan', 'card', 'cash'\]\.includes\(workspace\)[\s\S]*?tx\?\.stage === 'cash-tender';[\s\S]*?if \(lockWorkingFrame\) \{[\s\S]*?lookYaw = 0;[\s\S]*?lookTargetYaw = 0;/,
+    'entering or remaining in a fixed physical-input frame clears prior cursor sway immediately',
   );
 });
 

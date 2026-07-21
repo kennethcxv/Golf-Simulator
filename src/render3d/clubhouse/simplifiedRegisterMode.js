@@ -591,6 +591,7 @@ export function createRegisterMode(B) {
   let cashAutoConfirmTimer = 0;
   let cashRecoveryTimer = 0;
   let cashValidationToast = null;
+  let cardValidationToast = null;
   let checkoutWatchdogRunning = false;
   let checkoutWatchdogPostResume = null;
   const checkoutWatchdogEvents = [];
@@ -606,6 +607,19 @@ export function createRegisterMode(B) {
     clearCashValidationToast();
     cashValidationToast = toast(message, 'warn');
     return cashValidationToast;
+  }
+
+  function clearCardValidationToast() {
+    if (cardValidationToast && typeof cardValidationToast.remove === 'function') {
+      cardValidationToast.remove();
+    }
+    cardValidationToast = null;
+  }
+
+  function cardValidationWarning(message) {
+    clearCardValidationToast();
+    cardValidationToast = toast(message, 'warn');
+    return cardValidationToast;
   }
 
   const flowNow = () => performance.now();
@@ -682,16 +696,27 @@ export function createRegisterMode(B) {
   // pose — goods on the left half, POS readable on the right, reference-style — so serving
   // a customer stops feeling like a camera ride. Only the drawer (cash), the terminal
   // (card) and the check-in tab still move the eye, because their hardware needs it.
+  // Keep the whole physical workflow in frame. A tighter 0.86 yd / 46° pass made
+  // the POS handsome but pushed the first staged product outside the production
+  // camera at 16:9, blocking both payment branches. This compromise stays closer
+  // than the original overview while restoring the staging tray, scanner, bagging
+  // side and readable POS as one continuous left-to-right work surface.
   const MIXED_POSE = { pose: poseBetween(
-    { x: 2.84, y: 1.70, z: 5.38 },
-    { x: 2.96, y: 1.26, z: 4.05 },
-  ), fov: 50 };
+    { x: 2.92, y: 1.64, z: 5.22 },
+    { x: 3.04, y: 1.28, z: 4.10 },
+  ), fov: 49 };
   const POSES = {
     overview: MIXED_POSE,
+    // Working the screen is done from BELOW it, looking UP. The old pose put the
+    // eye at 1.68 looking down to 1.44 — above the glass, staring at the top
+    // bezel, which is why the screen read as a distant slab tipped away from you.
+    // The POS_Screen face sits ~0.31 above the counter (≈1.37). Dropping the eye
+    // to 1.26 and aiming at 1.41 gives ~14.5° of UPWARD look, so the screen faces
+    // the camera square instead of raking away.
     checkin: { pose: poseBetween(
-      { x: 3.42, y: 1.68, z: 5.02 },
-      { x: 3.42, y: 1.44, z: 4.37 },
-    ), fov: 42 },
+      { x: 3.42, y: 1.26, z: 5.02 },
+      { x: 3.42, y: 1.41, z: 4.44 },
+    ), fov: 44 },
     scan: MIXED_POSE,
     cash: { pose: poseBetween(
       { x: 3.42, y: 2.12, z: 5.78 },
@@ -729,10 +754,16 @@ export function createRegisterMode(B) {
   const LOOK_PITCH_MAX = 0.16;
 
   function updateLookTarget(event) {
-    // Product clicks must not steer the composed scan view toward the last
-    // item and push the next edge item off-screen. Keep this workspace fixed;
-    // the cursor still raycasts every product without moving the camera.
-    if (accessibilityPrefs.reducedCameraMotion || workspace === 'scan') {
+    // Precision hardware must stay under the cursor. Product clicks previously
+    // steered the scan view toward the last item; the same head lean could move
+    // a keypad digit or drawer denomination between projection and pointerdown,
+    // turning a deliberate click into its neighbour. Keep every physical-input
+    // workspace fixed while preserving the free glance in the overview/check-in
+    // views. Cash presentation also lives in the monitor workspace, so key it
+    // from the live transaction stage.
+    if (accessibilityPrefs.reducedCameraMotion
+        || ['scan', 'card', 'cash'].includes(workspace)
+        || tx?.stage === 'cash-tender') {
       lookTargetYaw = 0;
       lookTargetPitch = 0;
       return;
@@ -1176,7 +1207,7 @@ export function createRegisterMode(B) {
     }
     if (tx.stage === 'card-present') return 'The customer is handing their card across the counter.';
     if (tx.stage === 'card-ready') return 'Click the customer’s card — the reader does the rest.';
-    if (tx.stage === 'card-entry') return `Confirm the prefilled $${totalOf(tx).toFixed(2)} total on the reader.`;
+    if (tx.stage === 'card-entry') return `Enter the $${totalOf(tx).toFixed(2)} total on the reader, then press green.`;
     if (tx.stage === 'card-busy') return 'The card reader is processing the payment.';
     if (tx.stage === 'card-declined') return 'Try a replacement card or switch this transaction to cash.';
     if (tx.stage === 'cash-tender') return 'Click the customer’s cash — the register takes it and the drawer opens itself.';
@@ -1470,7 +1501,7 @@ export function createRegisterMode(B) {
         ctx.fillStyle = '#7d8b81';
         ctx.font = '600 28px Arial, sans-serif';
         ctx.fillText(String(tx.cardEntryDigits || '').length
-          ? 'TOTAL READY — PRESS GREEN TO CONFIRM'
+          ? 'PRESS GREEN TO CONFIRM'
           : 'KEY THE TOTAL ON THE PAD', W / 2, 316);
       }
       ctx.fillStyle = '#44534a';
@@ -1656,6 +1687,13 @@ export function createRegisterMode(B) {
   // The cash screen lives ON THE POS MONITOR (monitorUi's 'cash' app), exactly
   // like the reference: orange Received/Total/Change block, navy Giving strip,
   // and Undo/Clear/Done buttons — one display, directly above the open drawer.
+  function cashReadyForChangeHandoff() {
+    return !!(tx && tx.stage === 'cash-drawer' && tx.deposited
+      && drawerAmount >= 0.98
+      && !cashMotions.some((motion) => motion.kind === 'cash-deposit')
+      && checkoutFlowState() === 'SelectingChange');
+  }
+
   function cashScreenModel() {
     const received = tx
       ? (tx.tenderedTotal != null ? Number(tx.tenderedTotal) : stackTotal(tx.tendered || {}))
@@ -1672,7 +1710,8 @@ export function createRegisterMode(B) {
         id: 'confirm-change',
         label: 'Done',
         kind: 'success',
-        disabled: !(giving && (giving.state === 'exact' || giving.state === 'over')),
+        disabled: !cashReadyForChangeHandoff()
+          || !(giving && (giving.state === 'exact' || giving.state === 'over')),
       }] : []),
     ] : [];
     return {
@@ -2728,6 +2767,16 @@ export function createRegisterMode(B) {
     buildDrawer();
     refillDrawerMoney();
     scheduleCheckoutTexturePrewarm();
+    // Queue handoff can assign the next customer while the player remains in
+    // register mode. enter() only runs for the first customer, so explicitly
+    // arm the same cashier-entry transition for every fresh transaction owned
+    // by an already-active till. Without this, domain stages advance while the
+    // checkout flow stays WaitingForCashier and the completed handoff cannot
+    // legally reach CustomerLeaving or bank the sale.
+    if (active && checkoutFlowState() === 'WaitingForCashier') {
+      enterTimer = 0.30;
+      flowTo('EnteringCashierMode', 'next-queued-customer-entered-active-register');
+    }
     drawScreen();
     drawTerm();
     return true;
@@ -2905,12 +2954,13 @@ export function createRegisterMode(B) {
     if (!tx || tx.stage !== 'card-entry') return false;
     const submitted = submitCardAmount(tx);
     if (!submitted.ok) {
-      toast(submitted.reason, 'warn');
+      cardValidationWarning(submitted.reason);
       sfx('thunk');
       drawTerm();
       drawScreen();
       return false;
     }
+    clearCardValidationToast();
     cardProcessingTimer = CARD_TIME;
     termDotsTimer = 0;
     if (checkoutFlowState() === 'CardAmountEntry') {
@@ -2928,6 +2978,7 @@ export function createRegisterMode(B) {
       pressTerminalKey('OK');
       return beginCardProcessing();
     }
+    clearCardValidationToast();
     if (label === 'CLEAR' || label === 'CANCEL') {
       clearCardAmount(tx);
       pressTerminalKey('CANCEL');
@@ -3452,9 +3503,7 @@ export function createRegisterMode(B) {
     if (exactChangeAssistancePending && drawerAmount >= 0.98 && !depositMoving) {
       applyExactChangeAssistance();
     }
-    const readyForHandoff = drawerAmount >= 0.98
-      && !depositMoving
-      && checkoutFlowState() === 'SelectingChange';
+    const readyForHandoff = cashReadyForChangeHandoff();
     if (!readyForHandoff) {
       cashAutoConfirmPhase = 'idle';
       cashAutoConfirmTimer = 0;
@@ -3483,6 +3532,16 @@ export function createRegisterMode(B) {
   // the drawer still open; an allowed overage books as till shortage.
   function confirmChange(automatic = false) {
     if (!tx || tx.stage !== 'cash-drawer' || !tx.deposited) return false;
+    // The domain drawer flag is set before the authored slide and tender-sort
+    // motions finish. Do not let a fast exact-cash click advance the money
+    // while the checkout flow is still DrawerOpening/DepositingCash; that would
+    // leave receipt delivery unable to reach CustomerLeaving.
+    if (!cashReadyForChangeHandoff()) {
+      cashValidationWarning('Wait for the drawer to finish opening and sorting the received cash.');
+      sfx('thunk');
+      drawScreen();
+      return false;
+    }
     const giving = changeGivingState(tx);
     if (giving.state === 'short') {
       cashValidationWarning(`Short by $${(Math.abs(giving.deltaCents) / 100).toFixed(2)} — the customer must receive full change.`);
@@ -4667,6 +4726,11 @@ export function createRegisterMode(B) {
         && !cashMotions.some((motion) => motion.kind === 'cash-deposit')) {
       cashMotionRefillPending = false;
       refillDrawerMoney();
+      // Exact cash may require no denomination clicks after the received stack
+      // settles. Refresh the monitor at this physical readiness boundary so the
+      // previously disabled Done hotspot becomes actionable without requiring
+      // an unrelated pointer event.
+      drawScreen();
     }
   }
 
@@ -4707,16 +4771,20 @@ export function createRegisterMode(B) {
       return waiting ? 'cardTake' : 'card';
     }
     if (workspace === 'cash') return 'cash';
+    // Cash can be presented from either side of the queue marker. Track the
+    // actual customer hand just as the card handoff does, then return to the
+    // authored POS/drawer frame after the player accepts the tender.
+    if (tx?.stage === 'cash-tender') return 'cashTake';
     // the receipt/bag handover plays out inside the working frame — no jump to watch paper
     if (activeTab === 'check-in') return 'checkin';
     return 'overview';
   }
 
-  // The card flow's two poses are computed live: handoff frames the actual
-  // customer and entry closes in on the reader at its fixed counter station.
-  // All other states keep their static presets.
+  // Payment handoff frames the actual customer; card entry then closes in on
+  // the reader at its fixed counter station. All other states keep their
+  // static presets.
   function dynamicPose(key) {
-    if (key === 'cardTake') {
+    if (key === 'cardTake' || key === 'cashTake') {
       const p = cardHandoffPose(customerLocalPosition(), COUNTER_TOP);
       return { pose: poseBetween(p.eye, p.look), fov: p.fov };
     }
@@ -4779,10 +4847,12 @@ export function createRegisterMode(B) {
       camera.updateProjectionMatrix();
     }
     // the mouse leans the head around the pose — eased, so it reads as a neck
-    // Scanning is a fixed working frame: a click near one edge cannot pan the
-    // remaining products out of reach. Other workspaces retain the eased neck
-    // motion used to glance between their hardware and customer targets.
-    if (workspace === 'scan') {
+    // Physical-input workspaces are fixed frames: a click near one edge cannot
+    // pan the next product, keypad digit, drawer denomination, or tender out of
+    // reach. Overview/check-in retain the eased neck motion for looking around.
+    const lockWorkingFrame = ['scan', 'card', 'cash'].includes(workspace)
+      || tx?.stage === 'cash-tender';
+    if (lockWorkingFrame) {
       lookYaw = 0;
       lookPitch = 0;
       lookTargetYaw = 0;
@@ -4866,7 +4936,7 @@ export function createRegisterMode(B) {
       };
     }
     if (workspace === 'card') {
-      return { text: tx && tx.stage === 'card-entry' ? 'Confirm the prefilled total with the green key' : checkoutStatus(), total: false, drawer: false };
+      return { text: tx && tx.stage === 'card-entry' ? 'Enter the exact total, then press the green key' : checkoutStatus(), total: false, drawer: false };
     }
     if (workspace === 'cash') {
       return { text: 'Click drawer money to count change — exact, or up to $5.00 over. Enter confirms.', total: false, drawer: true };
