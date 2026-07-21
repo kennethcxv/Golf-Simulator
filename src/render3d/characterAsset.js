@@ -434,6 +434,22 @@ export function makeCharacter({ polo = 0x3b6fb3, khaki = 0xc2b190, cap = 0xf2efe
       twist = Math.sin(t * Math.PI * 3) * 0.075 * shakeEnvelope;
       headTilt = -0.08 * settle;
       bob = -0.008 * settle;
+    } else if (char.mode === 'Drive') {
+      // Seated vehicle pose: thighs forward, shins down, both hands settled
+      // toward the steering wheel. A small road vibration keeps the driver
+      // alive without the broad cadence of a standing idle.
+      hipL = -1.24;
+      hipR = -1.24;
+      kneeL = 1.30;
+      kneeR = 1.30;
+      shL = -1.04;
+      shR = -1.04;
+      shLz = -0.04;
+      shRz = 0.04;
+      elb = -0.72;
+      lean = 0.08;
+      headTilt = 0.03;
+      bob = 0.004 * Math.sin(p * 7.5);
     } else { // Idle
       lean = 0.03 + 0.015 * Math.sin(p * 1.1);
       shL = 0.06 + 0.03 * Math.sin(p * 1.1);

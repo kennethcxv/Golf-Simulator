@@ -23,6 +23,10 @@ import { resolveOverlaps, createStuckMonitor, createSafeTrail, nearestFree } fro
 import { ownedWasher } from '../sim/washing.js';
 import { makeFpHands, GRIPS } from './fpHands.js';
 import { tractorStep, repairTractor, tractorRemaining, STEP_LABEL } from '../sim/tractor.js';
+import {
+  VEHICLE_SPECS, vehicleById, mountVehicle, parkVehicle,
+  setVehiclePose, storeVehicleCargo, takeVehicleCargo, toggleVehicleLights,
+} from '../sim/vehicles.js';
 import { clearLitter, fixTeeSign, PROPS } from '../sim/props.js';
 import { conditionRating } from '../sim/turf.js';
 import { makeCameraRig } from './cameraRig.js';
@@ -3495,7 +3499,9 @@ export function makeCourseScene(canvas, state) {
         if (o !== w) pushFrom(o.mesh.position.x, o.mesh.position.z, 1.3);
       }
       if (walk.active && !cart.mounted) pushFrom(walk.x, walk.z, 1.5);
-      if (!cartHidden) pushFrom(cart.x, cart.z, 2.6);
+      for (const vehicle of vehicleActors) {
+        if (vehicleAvailable(vehicle)) pushFrom(vehicle.x, vehicle.z, vehicle.radius + 1.35);
+      }
       const avMag = Math.hypot(w.avoidX, w.avoidZ);
       if (avMag > 2.5) {
         w.avoidX *= 2.5 / avMag;
@@ -3579,13 +3585,15 @@ export function makeCourseScene(canvas, state) {
       const rr = t.r + r;
       if (dx * dx + dz * dz < rr * rr) return true;
     }
-    // the parked cart is solid too (you're never "inside" it except driving it)
-    if (cartHidden) { /* a broken tractor elsewhere is its own collider */ } else
-    if (!cart.mounted && !ignoreCart) {
-      const dx = nx - cart.x;
-      const dz = nz - cart.z;
-      const rr = 1.1 + r;
-      if (dx * dx + dz * dz < rr * rr) return true;
+    // Every parked vehicle is solid; only the currently driven actor is exempt.
+    if (!ignoreCart) {
+      for (const vehicle of vehicleActors) {
+        if (!vehicleAvailable(vehicle) || vehicle.mounted) continue;
+        const dx = nx - vehicle.x;
+        const dz = nz - vehicle.z;
+        const rr = vehicle.radius + r;
+        if (dx * dx + dz * dz < rr * rr) return true;
+      }
     }
     // ponds: you stop at the water's edge (sample the toe of the step)
     for (const [ox, oz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) {
@@ -3611,12 +3619,16 @@ export function makeCourseScene(canvas, state) {
   // and escalate if the player is pressing a key and going nowhere anyway.
   const safeTrail = createSafeTrail(30);
   const stuckMon = createStuckMonitor({ softMs: 700, hardMs: 1800 });
-  const cartCol = []; // the parked cart, as a collider, only while it is parked
+  const cartCol = []; // all parked vehicle colliders
   let safeClock = 0;
 
   function walkColliderGroups() {
     cartCol.length = 0;
-    if (!cart.mounted && !cartHidden) cartCol.push({ x: cart.x, z: cart.z, r: 1.1 });
+    for (const vehicle of vehicleActors) {
+      if (vehicleAvailable(vehicle) && !vehicle.mounted) {
+        cartCol.push({ x: vehicle.x, z: vehicle.z, r: vehicle.radius });
+      }
+    }
     return [structColliders, propColliders, treeColliders, cartCol];
   }
 
@@ -3711,100 +3723,112 @@ export function makeCourseScene(canvas, state) {
     });
   }
 
-  // --- the golf cart: fast traversal, shop-convention interaction ---------------------
-  // Not vehicle physics — a faster movement profile with steer-to-turn handling
-  // and a wider collision circle, plus a real mesh that parks where you leave it.
+  // --- property vehicles: fast traversal, shop-convention interaction -----------------
+  // Not vehicle physics — a faster movement profile with steer-to-turn handling,
+  // persistent operating state, and authored meshes that park where you leave them.
 
-  const cart = {
-    x: 0, z: 0, yaw: Math.PI,
+  const tractorSpec = VEHICLE_SPECS.tractor;
+  const tractorRecord = vehicleById(state, 'tractor-1');
+  const tractorVehicle = {
+    id: 'tractor-1', type: 'tractor', spec: tractorSpec, record: tractorRecord,
+    x: Number.isFinite(tractorRecord?.x) ? tractorRecord.x : 0,
+    z: Number.isFinite(tractorRecord?.z) ? tractorRecord.z : 0,
+    yaw: Number.isFinite(tractorRecord?.yaw) ? tractorRecord.yaw : Math.PI,
     mounted: false,
-    speed: 10, // yd/s ≈ 20 mph — honest golf-cart pace, ~3× walking
-    reverse: 3.5,
-    turnRate: 1.6, // rad/s at driving speed
-    eye: 1.9, // the tractor seat sits high
-    radius: 1.15, // real tractor footprint (deck included, forgivingly)
+    speed: tractorSpec.speedYdPerSec,
+    reverse: tractorSpec.reverseYdPerSec,
+    turnRate: tractorSpec.turnRateRadPerSec,
+    eye: tractorSpec.seatEyeYd,
+    radius: tractorSpec.collisionRadiusYd,
+    mesh: null, parts: null, runtimeLights: null, driver: null,
+    lightsOn: tractorRecord?.lightsOn === true,
+    label: 'Grounds tractor',
   };
+  const golfCartSpec = VEHICLE_SPECS.golf_cart;
+  const golfCartRecord = vehicleById(state, 'golf-cart-1');
+  const golfCartVehicle = {
+    id: 'golf-cart-1', type: 'golf_cart', spec: golfCartSpec, record: golfCartRecord,
+    x: Number.isFinite(golfCartRecord?.x) ? golfCartRecord.x : 0,
+    z: Number.isFinite(golfCartRecord?.z) ? golfCartRecord.z : 0,
+    yaw: Number.isFinite(golfCartRecord?.yaw) ? golfCartRecord.yaw : Math.PI,
+    mounted: false,
+    speed: golfCartSpec.speedYdPerSec,
+    reverse: golfCartSpec.reverseYdPerSec,
+    turnRate: golfCartSpec.turnRateRadPerSec,
+    eye: golfCartSpec.seatEyeYd,
+    radius: golfCartSpec.collisionRadiusYd,
+    mesh: null, parts: null, runtimeLights: null, driver: null,
+    lightsOn: golfCartRecord?.lightsOn === true,
+    label: 'Fleet golf cart',
+  };
+  const vehicleActors = [tractorVehicle, golfCartVehicle];
+  let cart = tractorVehicle;
   let cartMesh = null;
+  let golfCartMesh = null;
+  const vehicleAvailable = (vehicle) => vehicle !== tractorVehicle || !cartHidden;
 
-  function buildCartMesh() {
-    // STYLE GUIDE §1/§5 equipment: grounds-crew utility language — green body,
-    // tan bench, cream canopy, black running gear (the references' "Turf Boss")
-    const g = new THREE.Group();
-    const green = new THREE.MeshStandardMaterial({ color: 0x3d5c40, roughness: 0.6 });
-    const cream = new THREE.MeshStandardMaterial({ color: 0xe5ddc4, roughness: 0.55 });
-    const tan = new THREE.MeshStandardMaterial({ color: 0xc9b98a, roughness: 0.8 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x24221e, roughness: 0.85 });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.5, 2.4), green);
-    body.position.y = 0.55;
-    body.castShadow = true;
-    g.add(body);
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.45, 0.9), tan);
-    seat.position.set(0, 0.95, 0.4);
-    g.add(seat);
-    const dash = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.35, 0.25), dark);
-    dash.position.set(0, 0.95, -0.65);
-    g.add(dash);
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 2.0), cream);
-    roof.position.y = 2.0;
-    roof.castShadow = true;
-    g.add(roof);
-    for (const [px, pz] of [[-0.6, -0.9], [0.6, -0.9], [-0.6, 0.75], [0.6, 0.75]]) {
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.25, 6), dark);
-      post.position.set(px, 1.38, pz);
-      g.add(post);
-    }
-    const wheelGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.2, 12);
-    wheelGeo.rotateZ(Math.PI / 2);
-    for (const [px, pz] of [[-0.62, -0.85], [0.62, -0.85], [-0.62, 0.85], [0.62, 0.85]]) {
-      const wheel = new THREE.Mesh(wheelGeo, dark);
-      wheel.position.set(px, 0.28, pz);
-      g.add(wheel);
-    }
-    return g;
+  function placeCartMesh(vehicle = cart) {
+    const mesh = vehicle.mesh;
+    if (!mesh) return;
+    mesh.visible = vehicleAvailable(vehicle);
+    mesh.position.set(vehicle.x, walkSurfaceHeightAt(vehicle.x, vehicle.z), vehicle.z);
+    mesh.rotation.y = vehicle.yaw;
   }
 
-  function placeCartMesh() {
-    if (!cartMesh) return;
-    cartMesh.visible = !cartHidden;
-    cartMesh.position.set(cart.x, walkSurfaceHeightAt(cart.x, cart.z), cart.z);
-    cartMesh.rotation.y = cart.yaw;
-  }
-
-  function parkCartAtClubhouse() {
+  function parkCartAtClubhouse(vehicle = tractorVehicle) {
     const spawn = walkDefaultSpawn();
-    cart.x = spawn.x + 5.5;
-    cart.z = spawn.z + 1.5;
-    cart.yaw = Math.PI;
-    for (let push = 1; push < 30 && walkBlocked(cart.x, cart.z, cart.radius + 0.4, true); push++) cart.z += 1.5;
-    placeCartMesh();
+    vehicle.x = spawn.x + 5.5;
+    vehicle.z = spawn.z + 1.5;
+    vehicle.yaw = Math.PI;
+    for (let push = 1; push < 30 && walkBlocked(vehicle.x, vehicle.z, vehicle.radius + 0.4, true); push++) vehicle.z += 1.5;
+    setVehiclePose(state, vehicle.id, vehicle);
+    placeCartMesh(vehicle);
   }
 
-  function mountCart() {
+  function mountCart(vehicle = cart) {
+    const mounted = mountVehicle(state, vehicle.id);
+    if (!mounted.ok) return false;
+    cart = vehicle;
     cart.mounted = true;
+    if (cart.driver) cart.driver.root.visible = true;
     walk.x = cart.x;
     walk.z = cart.z;
     walk.yaw = cart.yaw;
-    if (walkHooks.engine) walkHooks.engine(true); // she idles the moment you're up
+    if (walkHooks.engine) walkHooks.engine(true, cart.type);
+    return true;
   }
 
   function dismountCart() {
     cart.mounted = false;
-    if (walkHooks.engine) walkHooks.engine(false);
+    if (cart.driver) cart.driver.root.visible = false;
+    if (walkHooks.engine) walkHooks.engine(false, cart.type);
     cart.x = walk.x;
     cart.z = walk.z;
     cart.yaw = walk.yaw;
-    // step out the side: right door first, then left, then out the back
-    const rx = Math.cos(walk.yaw);
-    const rz = -Math.sin(walk.yaw);
-    const exits = [[rx * 1.7, rz * 1.7], [-rx * 1.7, -rz * 1.7], [Math.sin(walk.yaw) * 2.4, Math.cos(walk.yaw) * 2.4]];
-    for (const [ox, oz] of exits) {
-      if (!walkBlocked(walk.x + ox, walk.z + oz)) {
-        walk.x += ox;
-        walk.z += oz;
+    parkVehicle(state, cart.id, cart);
+    placeCartMesh(cart);
+    // Sweep a full ring around the parked machine. A porch can block both
+    // doors and the rear at once, so the former three-point probe could leave
+    // the first-person camera inside bodywork.
+    const exitRadius = cart.radius + walk.radius + 0.5;
+    const preferred = walk.yaw - Math.PI / 2;
+    let exit = null;
+    for (let index = 0; index < 16; index++) {
+      const offset = index === 0 ? 0 : Math.ceil(index / 2) * (index % 2 ? 1 : -1);
+      const angle = preferred + offset * (Math.PI / 8);
+      const x = cart.x - Math.sin(angle) * exitRadius;
+      const z = cart.z - Math.cos(angle) * exitRadius;
+      if (walkFreeAt(x, z, walk.radius)) {
+        exit = { x, z };
         break;
       }
     }
-    placeCartMesh();
+    if (!exit) exit = nearestFree(cart.x, cart.z, (x, z) => walkFreeAt(x, z, walk.radius), 0.35, 32);
+    if (exit) {
+      walk.x = exit.x;
+      walk.z = exit.z;
+      safeTrail.record(exit.x, exit.z);
+    }
   }
 
   // --- the hand hose: instant, tangible watering ---------------------------------------
@@ -3812,6 +3836,133 @@ export function makeCourseScene(canvas, state) {
   // scheduled irrigation uses (via a main.js hook) — one source of truth. The
   // visual answer is immediate: spray particles, a live moisture readout on the
   // prompt, and the wet-darkening term in the turf shader above.
+
+  function setVehicleLightsVisual(vehicle) {
+    const on = vehicle.lightsOn;
+    for (const material of vehicle.parts?.lampMaterials || []) material.emissiveIntensity = on ? 2.8 : 0.12;
+    if (vehicle.runtimeLights) vehicle.runtimeLights.visible = on;
+  }
+
+  function toggleMountedVehicleLights() {
+    if (!cart.mounted) return false;
+    const toggled = toggleVehicleLights(state, cart.id);
+    if (!toggled.ok) return false;
+    cart.lightsOn = toggled.lightsOn;
+    setVehicleLightsVisual(cart);
+    if (walkHooks.toast) walkHooks.toast(`${cart.label} lights ${cart.lightsOn ? 'on' : 'off'}.`);
+    return true;
+  }
+
+  function bindVehicleParts(vehicle) {
+    const root = vehicle.mesh;
+    if (!root) return;
+    const parts = {
+      lod0: root.getObjectByName('LOD0_Detail'),
+      lod1: root.getObjectByName('LOD1_Silhouette'),
+      wheels: ['FL', 'FR', 'RL', 'RR'].map((id) => root.getObjectByName(`PIVOT_Wheel_${id}`)).filter(Boolean),
+      steer: ['FL', 'FR'].map((id) => root.getObjectByName(`PIVOT_Steer_${id}`)).filter(Boolean),
+      steeringWheel: root.getObjectByName('PIVOT_SteeringWheel'),
+      mower: root.getObjectByName('PIVOT_MowerDeck'),
+      lampMaterials: [],
+    };
+    const lampMaterials = new Set();
+    root.traverse((object) => {
+      if (object.name.startsWith('COL_')) object.visible = false;
+      if (!object.name.startsWith('LIGHT_') || !object.isMesh || !object.material) return;
+      const source = Array.isArray(object.material) ? object.material : [object.material];
+      const cloned = source.map((material) => material.clone());
+      object.material = Array.isArray(object.material) ? cloned : cloned[0];
+      for (const material of cloned) {
+        if (!material.emissive) continue;
+        if (object.userData.vehicle_light === 'head') material.emissive.set(0xffb75e);
+        else if (object.userData.vehicle_light === 'tail') material.emissive.set(0xc51f12);
+        lampMaterials.add(material);
+      }
+    });
+    parts.lampMaterials = [...lampMaterials];
+    if (parts.lod0) parts.lod0.visible = true;
+    if (parts.lod1) parts.lod1.visible = false;
+    vehicle.parts = parts;
+
+    const socket = root.getObjectByName('SOCKET_Seat');
+    if (socket) {
+      root.updateMatrixWorld(true);
+      const seat = new THREE.Vector3();
+      socket.getWorldPosition(seat);
+      root.worldToLocal(seat);
+      const driver = makeCharacter({
+        polo: 0x315b42, khaki: 0xc8b98d, cap: 0xeee4cc, skin: 0xd6a47a,
+      });
+      driver.root.name = `VehicleDriver_${vehicle.id}`;
+      driver.root.scale.setScalar(0.94);
+      const seatToRoot = vehicle.type === 'golf_cart' ? 1.14 : 1.03;
+      driver.root.position.set(seat.x, seat.y - seatToRoot, seat.z);
+      driver.root.rotation.y = Math.PI;
+      driver.root.visible = vehicle.mounted;
+      driver.setMode('Drive');
+      root.add(driver.root);
+      vehicle.driver = driver;
+    }
+
+    const lights = new THREE.Group();
+    lights.name = `RuntimeLights_${vehicle.id}`;
+    for (const x of [-0.38, 0.38]) {
+      const beam = new THREE.SpotLight(0xffd9a0, 42, 30, 0.38, 0.5, 1.35);
+      beam.position.set(x, 1.18, -1.35);
+      beam.castShadow = false;
+      const target = new THREE.Object3D();
+      target.position.set(x, 0.45, -9);
+      lights.add(beam, target);
+      beam.target = target;
+    }
+    root.add(lights);
+    vehicle.runtimeLights = lights;
+    setVehicleLightsVisual(vehicle);
+  }
+
+  function adoptVehicle(vehicle, model) {
+    model.scale.setScalar(METERS_TO_YARDS);
+    model.rotation.y = Math.PI;
+    model.traverse((object) => {
+      if (object.isMesh) object.castShadow = !object.name.startsWith('COL_');
+    });
+    const wrap = new THREE.Group();
+    wrap.name = `Vehicle_${vehicle.id}`;
+    wrap.add(model);
+    removeOwnedObject(vehicle.mesh);
+    vehicle.mesh = wrap;
+    if (vehicle === tractorVehicle) cartMesh = wrap;
+    else golfCartMesh = wrap;
+    scene.add(wrap);
+    bindVehicleParts(vehicle);
+    placeCartMesh(vehicle);
+  }
+
+  function animateVehicle(vehicle, signedDistance, steer) {
+    if (!vehicle.parts) return;
+    for (const wheel of vehicle.parts.wheels) {
+      const axle = wheel.name.endsWith('RL') || wheel.name.endsWith('RR') ? 'rear' : 'front';
+      const radiusYd = vehicle.spec.wheelRadiusM[axle] * METERS_TO_YARDS;
+      if (radiusYd > 0) wheel.rotation.x -= signedDistance / radiusYd;
+    }
+    const steerAngle = steer * vehicle.spec.steeringLimitRad;
+    for (const pivot of vehicle.parts.steer) pivot.rotation.y = steerAngle;
+    if (vehicle.parts.steeringWheel) vehicle.parts.steeringWheel.rotation.z = -steerAngle * 1.8;
+    if (vehicle.parts.mower && vehicle.type === 'tractor') {
+      vehicle.parts.mower.rotation.x = signedDistance ? Math.sin(time * 34) * 0.018 : 0;
+    }
+  }
+
+  function updateVehicleLods() {
+    for (const vehicle of vehicleActors) {
+      if (!vehicle.parts?.lod0 || !vehicle.parts?.lod1) continue;
+      const distance = Math.hypot(camera.position.x - vehicle.x, camera.position.z - vehicle.z);
+      const near = vehicle.mounted || distance < vehicle.spec.lodDistanceYd;
+      vehicle.parts.lod0.visible = near;
+      vehicle.parts.lod1.visible = !near;
+      if (vehicle.runtimeLights) vehicle.runtimeLights.visible = vehicle.lightsOn && distance < 90;
+    }
+  }
 
   let walkTool = null; // null | 'hose' | 'divot' | 'rake'
   let walkSpraying = false; // "holding the use button" for whichever tool is out
@@ -4273,21 +4424,36 @@ export function makeCourseScene(canvas, state) {
 
   function walkFindFocus() {
     if (cart.mounted) {
-      const cutting = state.tractor && state.tractor.repaired;
-      walkFocus = { kind: 'cart', label: cutting ? 'Tractor — the deck cuts as you drive · [E] park here' : 'Tractor — [E] park here' };
+      const detail = cart.type === 'tractor'
+        ? 'the deck cuts as you drive'
+        : `charge ${Math.round(cart.record.energy)}%`;
+      walkFocus = {
+        kind: 'cart', vehicle: cart,
+        label: `${cart.label} - ${detail} - [L] lights - [E] park here`,
+      };
       return;
     }
-    if (!cartHidden) {
-      const dx = cart.x - walk.x;
-      const dz = cart.z - walk.z;
-      const dist = Math.hypot(dx, dz);
-      if (dist < 3.6) {
-        const facing = ((dx / dist) * -Math.sin(walk.yaw)) + ((dz / dist) * -Math.cos(walk.yaw));
-        if (facing > 0.35) {
-          walkFocus = { kind: 'cart', label: 'Tractor — [E] take the wheel' };
-          return;
-        }
-      }
+    let focusedVehicle = null;
+    let focusedVehicleDistance = Infinity;
+    for (const vehicle of vehicleActors) {
+      if (!vehicleAvailable(vehicle)) continue;
+      const dx = vehicle.x - walk.x;
+      const dz = vehicle.z - walk.z;
+      const distance = Math.max(0.001, Math.hypot(dx, dz));
+      if (distance >= 3.8 || distance >= focusedVehicleDistance) continue;
+      const facing = ((dx / distance) * -Math.sin(walk.yaw)) + ((dz / distance) * -Math.cos(walk.yaw));
+      if (facing <= 0.30) continue;
+      focusedVehicle = vehicle;
+      focusedVehicleDistance = distance;
+    }
+    if (focusedVehicle) {
+      const storage = `${focusedVehicle.record.cargo.length}/${focusedVehicle.spec.storageSlots} storage`;
+      const energy = `${Math.round(focusedVehicle.record.energy)}% ${focusedVehicle.spec.energyKind}`;
+      walkFocus = {
+        kind: 'cart', vehicle: focusedVehicle,
+        label: `${focusedVehicle.label} - ${energy} - ${storage} - [E] take the wheel`,
+      };
+      return;
     }
     // An articulated prop may retain the interaction it has already started.
     // Resolve this before rescoring its moving focus point so the hand-truck
@@ -4404,7 +4570,7 @@ export function makeCourseScene(canvas, state) {
     if (walkFocus.kind === 'cart') {
       if (isRepeat) return;
       walkSetTool(null); // hands on the wheel
-      mountCart();
+      mountCart(walkFocus.vehicle || cart);
     } else if (walkFocus.kind === 'prop') {
       // a prop that has a hold verb is driven per-frame; the tap only fires its one-shot action
       if (isRepeat) return;
@@ -4430,7 +4596,42 @@ export function makeCourseScene(canvas, state) {
   // needs free hands, so a contextual tool is stowed before it fires.
   function walkInteractSecondary(isRepeat = false) {
     if (!walk.active || isRepeat || cart.mounted) return false;
-    if (!walkFocus || walkFocus.kind !== 'prop' || !walkFocus.prop.secondaryAction) return false;
+    if (!walkFocus) return false;
+    if (walkFocus.kind === 'cart') {
+      const vehicle = walkFocus.vehicle || cart;
+      if (walkTool) {
+        const tool = walkTool;
+        if (vehicle.record.cargo.some((entry) => entry.id === tool && entry.kind === 'tool')) {
+          if (walkHooks.toast) walkHooks.toast(`${CLEANING_TOOLS[tool]?.label || tool} is already stowed.`, 'warn');
+          return false;
+        }
+        const stored = storeVehicleCargo(state, vehicle.id, { id: tool, kind: 'tool', quantity: 1 });
+        if (!stored.ok) {
+          if (walkHooks.toast) walkHooks.toast(`${vehicle.label} storage is full.`, 'warn');
+          return false;
+        }
+        const label = CLEANING_TOOLS[tool]?.label || tool;
+        walkSetTool(null);
+        if (walkHooks.toast) walkHooks.toast(`${label} stowed — ${vehicle.record.cargo.length}/${vehicle.spec.storageSlots} slots used.`);
+        return true;
+      }
+      const cargo = vehicle.record.cargo[0];
+      if (!cargo) {
+        if (walkHooks.toast) walkHooks.toast(`${vehicle.label} storage is empty.`);
+        return false;
+      }
+      if (!heldGroups[cargo.id]) {
+        if (walkHooks.toast) walkHooks.toast(`${cargo.id} needs its own unload interaction.`, 'warn');
+        return false;
+      }
+      const taken = takeVehicleCargo(state, vehicle.id, cargo.id, 1);
+      if (!taken.ok) return false;
+      walkSetTool(cargo.id);
+      const label = CLEANING_TOOLS[cargo.id]?.label || cargo.id;
+      if (walkHooks.toast) walkHooks.toast(`${label} retrieved — ${vehicle.record.cargo.length}/${vehicle.spec.storageSlots} slots used.`);
+      return true;
+    }
+    if (walkFocus.kind !== 'prop' || !walkFocus.prop.secondaryAction) return false;
     // Never let X short-circuit the contextual E release gate. In particular,
     // the placement key may still be physically down during the first frame
     // after a carton lands on a work surface.
@@ -4872,7 +5073,10 @@ export function makeCourseScene(canvas, state) {
     if (cart.mounted) {
       walkMoving = false; // hands on the wheel
       // cart handling: W/S throttle along the heading, A/D steer — no strafing
-      const throttle = (walkHeld.has('w') ? 1 : 0) - (walkHeld.has('s') ? 1 : 0);
+      const driveX0 = walk.x;
+      const driveZ0 = walk.z;
+      const requestedThrottle = (walkHeld.has('w') ? 1 : 0) - (walkHeld.has('s') ? 1 : 0);
+      const throttle = cart.record.energy > 0 ? requestedThrottle : 0;
       const steer = (walkHeld.has('a') ? 1 : 0) - (walkHeld.has('d') ? 1 : 0);
       if (steer) {
         // full authority under way, gentle pivot when stopped; reversed in reverse
@@ -4887,12 +5091,15 @@ export function makeCourseScene(canvas, state) {
       cart.x = walk.x;
       cart.z = walk.z;
       cart.yaw = walk.yaw;
-      placeCartMesh();
+      const driveDistance = Math.hypot(walk.x - driveX0, walk.z - driveZ0);
+      setVehiclePose(state, cart.id, cart, driveDistance);
+      animateVehicle(cart, driveDistance * Math.sign(throttle), steer);
+      placeCartMesh(cart);
 
       // the hitched deck CUTS: cells under it (2.5 yd behind the seat, the
       // deck's width) mow to the zone's ideal height through the same hook
       // family the hose uses — real sim writes, stripes as the payoff
-      if (throttle && walkHooks.mowAt && state.tractor && state.tractor.repaired) {
+      if (cart.type === 'tractor' && throttle && walkHooks.mowAt && state.tractor && state.tractor.repaired) {
         const dxT = walk.x + Math.sin(walk.yaw) * 2.5;
         const dzT = walk.z + Math.cos(walk.yaw) * 2.5;
         const rx = Math.cos(walk.yaw);
@@ -4915,7 +5122,7 @@ export function makeCourseScene(canvas, state) {
           mowTexClock = 0.25; // next cut repaints immediately
         }
         updateClippings(dt, dxT, heightAt(dxT, dzT), dzT, cut);
-        if (mowerMesh) mowerMesh.position.y = 0.02 + (cut ? Math.sin(time * 42) * 0.02 : 0);
+        if (mowerMesh) mowerMesh.rotation.x = cut ? Math.sin(time * 42) * 0.024 : 0;
       } else {
         updateClippings(dt, walk.x, heightAt(walk.x, walk.z), walk.z, false);
       }
@@ -5968,6 +6175,10 @@ export function makeCourseScene(canvas, state) {
     }
     if (st) updateGolfers(dtMs / 1000, st);
     if (st) updateRain(dtMs / 1000, st.weather);
+    for (const vehicle of vehicleActors) {
+      if (vehicle.driver?.root.visible) vehicle.driver.update(dtMs / 1000);
+    }
+    updateVehicleLods();
     if (clubhouseApi) clubhouseApi.update(dtMs); // doors, shop customers, interior life
     // flag wave
     if (holeGroup) {
@@ -6144,64 +6355,43 @@ export function makeCourseScene(canvas, state) {
     reusePreparedFlowField: true,
   });
   updatePlan(null);
-  cartMesh = buildCartMesh(); // primitive placeholder until the real model lands
+  cartMesh = new THREE.Group();
+  cartMesh.name = 'Vehicle_tractor-1_LoadAnchor';
+  tractorVehicle.mesh = cartMesh;
   scene.add(cartMesh);
+  golfCartMesh = new THREE.Group();
+  golfCartMesh.name = 'Vehicle_golf-cart-1_LoadAnchor';
+  golfCartVehicle.mesh = golfCartMesh;
+  scene.add(golfCartMesh);
   cartHidden = !!(state.tractor && !state.tractor.repaired); // earn it first
 
   // the mower deck rides behind the restored tractor (owner-supplied implement)
   let mowerMesh = null;
   function attachMower() {
-    if (!cartMesh) return;
-    if (mowerMesh) {
-      if (mowerMesh.parent !== cartMesh) cartMesh.add(mowerMesh);
-      return;
-    }
-    new GLTFLoader().load('vendor/models/mower_deck.glb', (g) => {
-      adoptLoadedGltf(g, (loaded) => {
-        const m = loaded.scene;
-        m.scale.setScalar(2.6);
-        m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-        m.rotation.y = Math.PI / 2; // deck width across the tractor's tail
-        m.position.set(0, 0.02, 2.45);
-        mowerMesh = m;
-        cartMesh.add(mowerMesh);
-      });
-    }, undefined, () => {});
+    mowerMesh = tractorVehicle.parts?.mower || null;
+    return mowerMesh;
   }
 
-  // the real tractor: owner-supplied model first (Assets/, matches the Designs
-  // references), the bpy-scripted one as fallback, primitives if offline
-  function adoptTractor(m, scale, flip = false) {
-    m.scale.setScalar(scale);
-    m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    const wrap = new THREE.Group();
-    m.position.y = -0.1; // settle the tires into the turf on slopes
-    if (flip) m.rotation.y = Math.PI; // model authored front-toward-viewer (+Z)
-    wrap.add(m);
-    const previousCart = cartMesh;
-    if (mowerMesh?.parent === previousCart) previousCart.remove(mowerMesh);
-    removeOwnedObject(previousCart);
-    cartMesh = wrap;
-    scene.add(cartMesh);
-    if (mowerMesh) cartMesh.add(mowerMesh); // survive the mesh swap
-    placeCartMesh();
-  }
+  // The restored tractor is deferred until repair is complete; the broken and
+  // restored authored variants are mutually exclusive on the request path.
   let tractorModelRequested = false;
   function ensureTractorModel() {
     if (tractorModelRequested || sceneDisposed) return;
     tractorModelRequested = true;
-    new GLTFLoader().load('vendor/models/tractor_red.glb',
-      (g) => adoptLoadedGltf(g, (loaded) => adoptTractor(loaded.scene, 3.6, true)),
-      undefined,
-      () => {
-        if (sceneDisposed) return;
-        new GLTFLoader().load(
-          'vendor/models/tractor.glb',
-          (g) => adoptLoadedGltf(g, (loaded) => adoptTractor(loaded.scene, 1)),
-          undefined,
-          () => {},
-        );
-      });
+    new GLTFLoader().load(tractorSpec.model,
+      (g) => adoptLoadedGltf(g, (loaded) => {
+        adoptVehicle(tractorVehicle, loaded.scene);
+        attachMower();
+      }),
+      undefined, () => {});
+  }
+  let golfCartModelRequested = false;
+  function ensureGolfCartModel() {
+    if (golfCartModelRequested || sceneDisposed) return;
+    golfCartModelRequested = true;
+    new GLTFLoader().load(golfCartSpec.model,
+      (g) => adoptLoadedGltf(g, (loaded) => adoptVehicle(golfCartVehicle, loaded.scene)),
+      undefined, () => {});
   }
   // New properties begin with the broken machine in the yard. Keep the 48 MiB
   // decoded restored model (64 MiB with mips) off their boot path until the
@@ -6211,6 +6401,7 @@ export function makeCourseScene(canvas, state) {
     ensureTractorModel();
     attachMower();
   }
+  ensureGolfCartModel();
 
   // shared prop loader for the yard/entrance dressing
   const SHARED_PUT_MODELS = new Set(['vendor/models/leaves_pile.glb']);
@@ -6283,16 +6474,19 @@ export function makeCourseScene(canvas, state) {
     let brokenGroup = null;
     const brokenCollider = { x: yard.x, z: yard.z, r: 1.5 };
     propColliders.push(brokenCollider);
-    putModel('vendor/models/tractor_broken.glb', 3.55, yard.x, yard.z, yard.yaw + Math.PI / 2, (m) => {
+    putModel(tractorSpec.brokenModel, METERS_TO_YARDS, yard.x, yard.z, yard.yaw + Math.PI, (m) => {
       brokenGroup = m;
+      m.traverse((o) => {
+        if (o.name.startsWith('COL_') || o.name === 'LOD1_Silhouette') o.visible = false;
+      });
       m.rotation.z = 0.045; // flat rear tire sag
       m.position.y -= 0.14;
       m.traverse((o) => {
         if (o.isMesh && o.material) {
           o.material = o.material.clone();
           if (o.material.color) {
-            o.material.color.multiplyScalar(0.6);
-            o.material.color.lerp(new THREE.Color(0x6e4a2c), 0.28); // rust film
+            o.material.color.multiplyScalar(0.78);
+            o.material.color.lerp(new THREE.Color(0x795538), 0.18); // readable rust film
           }
           o.material.roughness = 1;
         }
@@ -6363,12 +6557,13 @@ export function makeCourseScene(canvas, state) {
         if (brokenGroup) removeOwnedObject(brokenGroup);
         walkProps.splice(walkProps.indexOf(tractorProp), 1);
         propColliders.splice(propColliders.indexOf(brokenCollider), 1);
-        cart.x = yard.x;
-        cart.z = yard.z;
-        cart.yaw = yard.yaw;
+        tractorVehicle.x = yard.x;
+        tractorVehicle.z = yard.z;
+        tractorVehicle.yaw = yard.yaw;
+        setVehiclePose(state, tractorVehicle.id, tractorVehicle);
         cartHidden = false;
         ensureTractorModel();
-        placeCartMesh();
+        placeCartMesh(tractorVehicle);
         attachMower();
         play('chime');
         say('She lives! The tractor is yours — mower deck hitched. [E] to take the wheel.');
@@ -6490,26 +6685,28 @@ export function makeCourseScene(canvas, state) {
         action: null,
       });
 
-      // the club's golf cart, parked by the porch (ambient prop for now)
-      putModel('vendor/models/golf_cart.glb', 2.6, bx + 9.5, bz + 12.5, 2.2);
-      propColliders.push({ x: bx + 9.5, z: bz + 12.5, r: 1.3 });
-      walkProps.push({
-        x: bx + 9.5, z: bz + 12.5, r: 2.6,
-        label: () => "The club's cart — members' shuttle (the tractor is yours)",
-        action: null,
-      });
+      // The club's golf cart is a persistent, player-drivable vehicle.
+      if (!Number.isFinite(golfCartRecord?.x) || !Number.isFinite(golfCartRecord?.z)) {
+        golfCartVehicle.x = bx + 9.5;
+        golfCartVehicle.z = bz + 12.5;
+        golfCartVehicle.yaw = 2.2;
+        setVehiclePose(state, golfCartVehicle.id, golfCartVehicle);
+      }
+      placeCartMesh(golfCartVehicle);
     }
   }
   buildCourseProps();
   refreshWalkColliders(); // parking needs to see the world
   if (yardHome) {
-    // the tractor lives at the yard, broken or not
-    cart.x = yardHome.x;
-    cart.z = yardHome.z;
-    cart.yaw = yardHome.yaw;
-    placeCartMesh();
+    if (!Number.isFinite(tractorRecord?.x) || !Number.isFinite(tractorRecord?.z)) {
+      tractorVehicle.x = yardHome.x;
+      tractorVehicle.z = yardHome.z;
+      tractorVehicle.yaw = yardHome.yaw;
+      setVehiclePose(state, tractorVehicle.id, tractorVehicle);
+    }
+    placeCartMesh(tractorVehicle);
   } else {
-    parkCartAtClubhouse();
+    parkCartAtClubhouse(tractorVehicle);
   }
   resize();
   rig.apply();
@@ -6743,7 +6940,13 @@ export function makeCourseScene(canvas, state) {
       interactSecondary: walkInteractSecondary,
       getFocusLabel: () => {
         if (!walkFocus) return null;
-        const secondary = walkFocus.kind === 'prop'
+        const secondary = walkFocus.kind === 'cart'
+          ? (walkTool
+            ? 'stow equipped tool'
+            : walkFocus.vehicle?.record?.cargo?.length
+              ? `retrieve ${CLEANING_TOOLS[walkFocus.vehicle.record.cargo[0].id]?.label || walkFocus.vehicle.record.cargo[0].id}`
+              : null)
+          : walkFocus.kind === 'prop'
           ? (typeof walkFocus.prop.secondaryLabel === 'function'
             ? walkFocus.prop.secondaryLabel()
             : walkFocus.prop.secondaryLabel)
@@ -6757,8 +6960,20 @@ export function makeCourseScene(canvas, state) {
         cart.x = x;
         cart.z = z;
         if (yaw !== undefined) cart.yaw = yaw;
-        placeCartMesh();
+        setVehiclePose(state, cart.id, cart);
+        placeCartMesh(cart);
       },
+      placeVehicle: (id, x, z, yaw) => {
+        const vehicle = vehicleActors.find((entry) => entry.id === id);
+        if (!vehicle) return false;
+        vehicle.x = x;
+        vehicle.z = z;
+        if (yaw !== undefined) vehicle.yaw = yaw;
+        setVehiclePose(state, vehicle.id, vehicle);
+        placeCartMesh(vehicle);
+        return true;
+      },
+      toggleVehicleLights: toggleMountedVehicleLights,
       setTool: walkSetTool,
       getTool: () => walkTool,
       heldAssetDiagnostics: heldAssetRegistry.diagnostics,
@@ -6780,7 +6995,8 @@ export function makeCourseScene(canvas, state) {
       aimCell: walkAimCell,
       isActive: () => walk.active,
       state: walk, // position/yaw/pitch — also the QA hook
-      cart, // cart state, same purpose
+      get cart() { return cart; }, // current/last driven vehicle, retained for input and QA compatibility
+      vehicles: vehicleActors,
       colliders: { trees: treeColliders, structures: structColliders }, // read-only for QA
     },
     dispose,

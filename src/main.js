@@ -604,7 +604,9 @@ function startGameNow(state) {
     st.turf.heightMm[i] = target;
     return true;
   };
-  app.scene3d.walk.hooks.engine = (on) => { if (audio.ready) audio.setToolLoop(on ? 'mower' : null); };
+  app.scene3d.walk.hooks.engine = (on, vehicleType = 'tractor') => {
+    if (audio.ready) audio.setToolLoop(on ? (vehicleType === 'golf_cart' ? 'electricCart' : 'mower') : null);
+  };
   app.scene3d.walk.hooks.rakeLabelAt = (cx, cy) => {
     const st = app.state;
     const i = cy * st.course.w + cx;
@@ -1473,6 +1475,9 @@ window.addEventListener('keydown', (e) => {
         }
         break;
       }
+      case 'l': case 'L':
+        if (!e.repeat && app.scene3d.walk.toggleVehicleLights) app.scene3d.walk.toggleVehicleLights();
+        break;
       case 'g': case 'G':
         if (document.pointerLockElement) document.exitPointerLock(); // free the cursor for the panel
         handlers.toggleGrounds();

@@ -249,3 +249,21 @@ Every family includes `ANCHOR_ProductBarcode`, `ANCHOR_ProductGripPrimary`, a si
 `ANCHOR_ProductGripSecondary`. The retained independent source/import/runtime audit,
 per-family previews, and contact sheet are under
 `qa/cash-register-production/final/catalog-assets/independent-review/`.
+
+## Property vehicle kit (2026-07-20)
+
+The property-overhaul vehicle replacements are original, project-owned geometry built
+by `tools/blender/build_vehicles.py`; no external asset, texture, Tripo source, or
+generated image is used. Blender 5.1.2 sources are retained in
+`asset_sources/blender/vehicles/`, and runtime GLBs ship in `vendor/models/vehicles/`.
+
+| Editable source / shipped export | Purpose |
+|---|---|
+| `grounds_tractor.blend` / `grounds_tractor.glb` | Repaired compact turf tractor with separate wheel, steering, steering-wheel and mower-deck pivots, lights, seat/storage/hitch sockets, collisions and two LODs |
+| `grounds_tractor_broken.blend` / `grounds_tractor_broken.glb` | Matching repair-yard shell with the same operational hierarchy and visibly missing mower implement |
+| `fleet_golf_cart.blend` / `fleet_golf_cart.glb` | Two-seat electric course cart with four animated wheels, front steering, lights, seat/passenger/storage/key sockets, collisions and two LODs |
+
+Repeatable neutral previews are retained under `qa/grounds_tractor/`,
+`qa/grounds_tractor_broken/`, and `qa/fleet_golf_cart/`. The source assets use metres,
+applied mesh transforms, the Pinehollow cream/green/sage/charcoal/brass palette, and
+simple named collision proxies; runtime converts metres to game yards once.
