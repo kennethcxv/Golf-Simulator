@@ -1,13 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import {
   FURNITURE_BY_ID, FURNITURE_CATALOG, FURNITURE_CATEGORIES,
   FURNITURE_FAMILIES, FURNITURE_TIERS, furnitureCatalogForCategory,
-  validateFurnitureCatalog,
+  furnitureById, validateFurnitureCatalog,
 } from '../src/data/furnitureCatalog.js';
 
 const requiredFields = [
-  'price', 'quality', 'brandTier', 'description', 'thumbnail', 'category',
+  'price', 'priceUnit', 'packageQuantity', 'purchaseCost', 'quality', 'brandTier', 'description', 'thumbnail', 'category',
   'unlockLevel', 'requiredReputation', 'maintenanceValue', 'comfortValue', 'prestigeValue',
 ];
 
@@ -20,13 +22,50 @@ test('the complete catalog contains hundreds of valid purchasable objects', () =
     assert.equal(item.isPurchasable, true, item.id);
     for (const field of requiredFields) assert.ok(Object.hasOwn(item, field), `${item.id}.${field}`);
     assert.ok(item.price > 0, `${item.id}.price`);
+    assert.ok(item.packageQuantity >= 1, `${item.id}.packageQuantity`);
+    assert.equal(item.purchaseCost, item.price * item.packageQuantity, `${item.id}.purchaseCost`);
     assert.ok(item.quality >= 0 && item.quality <= 100, `${item.id}.quality`);
     assert.ok(item.description.length >= 80, `${item.id}.description is useful copy`);
-    assert.match(item.thumbnail, /^data:image\/svg\+xml/, `${item.id}.thumbnail is a real renderable asset`);
+    assert.match(item.thumbnail, /^vendor\/images\/furniture\/catalog\/[a-z0-9-]+_(basic|commercial|retail|boutique|luxury)\.png$/, `${item.id}.thumbnail uses the rendered catalog pipeline`);
+    assert.ok(existsSync(item.thumbnail), `${item.id}.thumbnail exists`);
     assert.ok(Number.isInteger(item.maintenanceValue) && item.maintenanceValue >= 0, `${item.id}.maintenanceValue`);
     assert.ok(Number.isInteger(item.comfortValue) && item.comfortValue >= 0, `${item.id}.comfortValue`);
     assert.ok(Number.isInteger(item.prestigeValue) && item.prestigeValue >= 0, `${item.id}.prestigeValue`);
   }
+});
+
+test('room-wide flooring keeps an honest per-square-foot rate and full-room purchase cost', () => {
+  const floors = FURNITURE_CATALOG.filter((item) => item.familyId === 'flooring');
+  assert.equal(floors.length, 5);
+  for (const item of floors) {
+    assert.equal(item.priceUnit, 'sq-ft', item.id);
+    assert.equal(item.packageQuantity, 2400, item.id);
+    assert.equal(item.purchaseCost, item.price * 2400, item.id);
+  }
+  assert.equal(furnitureById('flooring-basic').purchaseCost, 4800);
+  assert.equal(furnitureById('flooring-luxury').purchaseCost, 48000);
+  assert.ok(FURNITURE_CATALOG.filter((item) => item.familyId !== 'flooring')
+    .every((item) => item.packageQuantity === 1 && item.purchaseCost === item.price));
+});
+
+test('every catalog row ships a distinct Blender model and 320x180 render', () => {
+  const imageHashes = new Set();
+  const modelHashes = new Set();
+  for (const item of FURNITURE_CATALOG) {
+    const image = readFileSync(item.thumbnail);
+    assert.equal(image.subarray(1, 4).toString('ascii'), 'PNG', `${item.id} PNG signature`);
+    assert.equal(image.readUInt32BE(16), 320, `${item.id} thumbnail width`);
+    assert.equal(image.readUInt32BE(20), 180, `${item.id} thumbnail height`);
+    imageHashes.add(createHash('sha256').update(image).digest('hex'));
+
+    const modelPath = `vendor/models/furniture/catalog/${item.modelFamily}_${item.progressionTier}.glb`;
+    const model = readFileSync(modelPath);
+    assert.equal(model.subarray(0, 4).toString('ascii'), 'glTF', `${item.id} GLB signature`);
+    assert.ok(model.length > 5000, `${item.id} has non-placeholder geometry`);
+    modelHashes.add(createHash('sha256').update(model).digest('hex'));
+  }
+  assert.equal(imageHashes.size, FURNITURE_CATALOG.length, 'every purchasable object has its own render');
+  assert.equal(modelHashes.size, FURNITURE_CATALOG.length, 'every purchasable object has its own exported GLB');
 });
 
 test('every furniture family has one linked object at each of the five progression tiers', () => {
@@ -79,4 +118,3 @@ test('unlock gates stage the municipal-to-country-club transformation slowly', (
   assert.ok(byTier.luxury.every((item) => item.unlockLevel >= 35 && item.requiredReputation >= 78));
   assert.ok(byTier.luxury.every((item) => item.quality >= 90));
 });
-

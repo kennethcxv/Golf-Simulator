@@ -192,7 +192,16 @@ export function placedFixtures(state) {
   const result = [];
   for (const fixture of FIXTURES) {
     const object = objectById(state, fixture.id);
-    if (object && object.state === 'placed') result.push(object);
+    if (!object || object.state !== 'placed') continue;
+    const moved = Math.abs(object.x - fixture.x) > EPS
+      || Math.abs(object.z - fixture.z) > EPS
+      || Math.abs(angleDelta(object.ry, fixture.ry)) > EPS;
+    // Preserve the compact fixture contract used by stock, rendering and old
+    // saves. Rich v2 placement metadata belongs to placedObjects/objectById;
+    // exposing it here breaks identity-shaped legacy callers for no benefit.
+    result.push(moved
+      ? { ...fixture, x: object.x, z: object.z, ry: object.ry }
+      : fixture);
   }
   for (const extra of layout.extra) result.push(extra);
   return result;

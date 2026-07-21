@@ -112,6 +112,7 @@ import {
   PAID_BAG_ACCEPTANCE_HOLD_SEC, attachPaidBagToCustomer, syncPaidBagCarry,
 } from './clubhouse/customerPaidBag.js';
 import { placedFixtures, ensureLayout, recoverInvalidObjects, roomStyle } from '../sim/layout.js';
+import { installedFurnitureByFamily } from '../sim/furnitureCatalog.js';
 import {
   boxPlacementCapabilities,
   boxPlacementDimensions,
@@ -143,6 +144,53 @@ const CAT_COLORS = {
   clubs: 0x9a8265,
   provisions: 0x78957e,
 };
+
+const FURNITURE_FINISH_PALETTE = Object.freeze({
+  basic: Object.freeze({ floor: 0xffffff, walls: 0xe3dac8, ceiling: 0xded8ca, trim: 0x53514c, roughness: 0.90 }),
+  commercial: Object.freeze({ floor: 0xf1eee8, walls: 0xd5d5c5, ceiling: 0xe5ddcd, trim: 0x8c693f, roughness: 0.74 }),
+  retail: Object.freeze({ floor: 0xd8d4cc, walls: 0xd8e0d0, ceiling: 0xe9e1d2, trim: 0x86613b, roughness: 0.62 }),
+  boutique: Object.freeze({ floor: 0xd2ad91, walls: 0xffffff, ceiling: 0xeee5d4, trim: 0xb08a65, roughness: 0.52 }),
+  luxury: Object.freeze({ floor: 0xffffff, walls: 0xffffff, ceiling: 0xf0e7d4, trim: 0xc6aa68, roughness: 0.44, floorRoughness: 0.58 }),
+});
+
+const FURNITURE_FINISH_LOOK = Object.freeze({
+  floor: Object.freeze({ basic: 'concrete', commercial: 'concrete', retail: 'concrete', boutique: 'walnut', luxury: 'herringbone' }),
+  walls: Object.freeze({ basic: 'plaster', commercial: 'plaster', retail: 'sage', boutique: 'walnut', luxury: 'green' }),
+  ceiling: Object.freeze({ basic: 'ceiling', commercial: 'ceiling', retail: 'trim', boutique: 'walnut', luxury: 'ceiling' }),
+  trim: Object.freeze({ basic: 'trim', commercial: 'oak', retail: 'oak', boutique: 'walnut', luxury: 'brass' }),
+});
+
+const MATERIAL_MAP_CHANNELS = Object.freeze([
+  'map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'bumpMap', 'alphaMap',
+]);
+
+function captureMaterialLook(material) {
+  return Object.freeze({
+    maps: Object.freeze(Object.fromEntries(MATERIAL_MAP_CHANNELS.map((key) => [key, material[key] || null]))),
+    color: material.color?.clone() || null,
+    emissive: material.emissive?.clone() || null,
+    normalScale: material.normalScale?.clone() || null,
+    roughness: material.roughness,
+    metalness: material.metalness,
+    emissiveIntensity: material.emissiveIntensity,
+    opacity: material.opacity,
+    transparent: material.transparent,
+  });
+}
+
+function applyMaterialLook(material, look) {
+  if (!material || !look) return;
+  for (const key of MATERIAL_MAP_CHANNELS) material[key] = look.maps[key];
+  if (material.color && look.color) material.color.copy(look.color);
+  if (material.emissive && look.emissive) material.emissive.copy(look.emissive);
+  if (material.normalScale && look.normalScale) material.normalScale.copy(look.normalScale);
+  material.roughness = look.roughness;
+  material.metalness = look.metalness;
+  material.emissiveIntensity = look.emissiveIntensity;
+  material.opacity = look.opacity;
+  material.transparent = look.transparent;
+  material.needsUpdate = true;
+}
 
 function carriedGoodsProfile(sku, descriptor) {
   if (sku.cat === 'clubs') return 'long-clubs';
@@ -558,9 +606,29 @@ export function makeClubhouse(ctx) {
     getCustomers: () => customers,
   };
   const shell = buildShell(B);
+  const defaultSurfaceLooks = Object.freeze(Object.fromEntries(
+    Object.entries(shell.styleSurfaces || {}).map(([kind, material]) => [kind, captureMaterialLook(material)]),
+  ));
+  const installationLooks = Object.freeze({
+    concrete: captureMaterialLook(mats.concrete),
+    plaster: captureMaterialLook(mats.plaster),
+    ceiling: captureMaterialLook(mats.ceiling),
+    trim: captureMaterialLook(mats.trimPaint),
+    sage: captureMaterialLook(mats.sagePaint),
+    green: captureMaterialLook(mats.greenPaint),
+    walnut: captureMaterialLook(mats.walnut),
+    oak: captureMaterialLook(mats.oakFloor),
+    herringbone: captureMaterialLook(mats.herringboneFloor),
+    brass: captureMaterialLook(mats.brass),
+  });
+  let sheet06Production = null;
+  let installedFinishDiagnostics = Object.freeze({});
 
   function refreshRoomStyle() {
     const selected = roomStyle(state);
+    for (const [kind, material] of Object.entries(shell.styleSurfaces || {})) {
+      applyMaterialLook(material, defaultSurfaceLooks[kind]);
+    }
     for (const kind of ['floor', 'walls', 'trim']) {
       const material = shell.styleSurfaces?.[kind];
       const option = ROOM_STYLE_OPTIONS[kind]?.find((entry) => entry.id === selected[kind]);
@@ -569,6 +637,42 @@ export function makeClubhouse(ctx) {
       if (Number.isFinite(option.roughness)) material.roughness = option.roughness;
       material.needsUpdate = true;
     }
+
+    const installed = installedFurnitureByFamily(state);
+    const activeFinishes = {};
+    const applyInstallation = (surface, item, channel) => {
+      const material = shell.styleSurfaces?.[surface];
+      const finish = item && FURNITURE_FINISH_PALETTE[item.progressionTier];
+      if (!material || !finish) return;
+      const lookName = FURNITURE_FINISH_LOOK[surface]?.[item.progressionTier];
+      applyMaterialLook(material, installationLooks[lookName]);
+      material.color.setHex(finish[channel]);
+      material.roughness = surface === 'floor' && Number.isFinite(finish.floorRoughness)
+        ? finish.floorRoughness : finish.roughness;
+      material.needsUpdate = true;
+      activeFinishes[surface] = Object.freeze({
+        skuId: item.id,
+        tier: item.progressionTier,
+        look: lookName,
+        color: `#${material.color.getHexString()}`,
+        roughness: material.roughness,
+      });
+    };
+    applyInstallation('floor', installed.flooring, 'floor');
+    applyInstallation('walls', installed['wall-paneling'], 'walls');
+    applyInstallation('ceiling', installed['ceiling-treatment'], 'ceiling');
+    const trimInstallation = [installed['window-treatment'], installed['interior-door'], installed['exterior-door']]
+      .filter(Boolean).sort((a, b) => a.progressionIndex - b.progressionIndex).at(-1);
+    applyInstallation('trim', trimInstallation, 'trim');
+    // The production flooring kit replaces (and hides) the procedural fallback
+    // slab once Asset 59 loads. Keep its authored geometry, but bind the same
+    // player-selected surface material so room styles and catalog installations
+    // remain visible on the actual live floor instead of a hidden fallback.
+    const productionFloor = sheet06Production?.getAssemblyRoot?.(59);
+    productionFloor?.traverse?.((node) => {
+      if (node?.isMesh) node.material = shell.styleSurfaces.floor;
+    });
+    installedFinishDiagnostics = Object.freeze(activeFinishes);
   }
   refreshRoomStyle();
 
@@ -606,7 +710,7 @@ export function makeClubhouse(ctx) {
   const doorsApi = buildDoors(B);
   const doors = doorsApi.doors;
   const updateDoors = doorsApi.updateDoors;
-  const sheet06Production = createSheet06ProductionRuntime({
+  sheet06Production = createSheet06ProductionRuntime({
     group,
     interior,
     state,
@@ -614,6 +718,7 @@ export function makeClubhouse(ctx) {
     doorApi: doorsApi,
     navigationApi: sheet06Navigation,
   });
+  void sheet06Production.ready.then(() => refreshRoomStyle(), () => {});
   // Assets 71-100: thirty finished props that nothing was loading. Static dressing, so they skip
   // the Sheet 6 production machinery entirely and just get placed — each aligned by its own
   // SOCKET_PLACEMENT rather than by its authoring origin.
@@ -3018,6 +3123,7 @@ export function makeClubhouse(ctx) {
   const debrisGeo = new THREE.IcosahedronGeometry(0.085, 0);
   const debrisMat = new THREE.MeshStandardMaterial({ color: 0x6b5a3c, roughness: 0.95 });
   const debrisMesh = new THREE.InstancedMesh(debrisGeo, debrisMat, DEBRIS_CAP);
+  debrisMesh.name = 'CleaningDebrisInstances';
   debrisMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   debrisMesh.castShadow = false;
   debrisMesh.receiveShadow = false;
@@ -7334,6 +7440,7 @@ export function makeClubhouse(ctx) {
       visuals: placeableVisuals.diagnostics(),
       layoutRevision: ensureLayout(state).revision,
     }),
+    furnitureFinishDiagnostics: () => installedFinishDiagnostics,
     // the pressure washer: aim at the building, pull the trigger, watch the wall come back
     washAim: (origin, dir) => washing.aim(origin, dir),
     washApply: (hit, mode, radius, power, dt, now) => {

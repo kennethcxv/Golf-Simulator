@@ -15,6 +15,10 @@ import {
   setObjectVariant, setRoomStyle, soldObjects, storeFixture, storeObject, storedObjects,
   undoPlacement, validateObjectPlacement, validatePlacement,
 } from '../../sim/layout.js';
+import {
+  ensureFurnitureCatalogState, furnitureCatalogAvailability, furnitureEffects,
+  installFurniture, purchaseFurniture, purchasedFurnitureInstances, uninstallFurniture,
+} from '../../sim/furnitureCatalog.js';
 import { makeBuildPanel } from '../../ui/buildPanel.js';
 import { applyPlaceableTransform } from './placeables.js';
 
@@ -498,6 +502,10 @@ export function buildBuildMode(B, deps) {
       hooks.toast?.(`${object.label} is protected equipment. Use recovery if its relationship is ever invalid.`, 'warn');
       return false;
     }
+    if (['installation', 'vehicle'].includes(object.placementMode)) {
+      hooks.toast?.(`${object.label} is fitted through its Install action in the collection.`, 'warn');
+      return false;
+    }
     const blocker = fixtureMoveBlocker(id);
     if (blocker) {
       hooks.toast?.(typeof blocker === 'string'
@@ -717,6 +725,7 @@ export function buildBuildMode(B, deps) {
       return true;
     }
     if (carrying === id) finishCarry();
+    if (object.state === 'installed') refreshRoomStyle();
     rebuildLayout();
     hooks.sfx?.('cash');
     hooks.toast?.(`${object.label} sold for $${result.value}. This object can only be credited once.`);
@@ -785,6 +794,48 @@ export function buildBuildMode(B, deps) {
     return result.ok;
   }
 
+  function purchaseSku(skuId) {
+    const result = purchaseFurniture(state, skuId);
+    if (!result.ok) {
+      hooks.toast?.(result.reason, 'warn');
+      return result;
+    }
+    hooks.sfx?.('cash');
+    const levelCopy = result.levelsGained.length
+      ? ` Renovation level ${result.level} unlocked.` : '';
+    hooks.toast?.(`${result.item.name} delivered to the collection for $${result.total}.${levelCopy}`);
+    panel.refresh();
+    return result;
+  }
+
+  function installById(id) {
+    const result = installFurniture(state, id);
+    if (!result.ok) {
+      hooks.toast?.(result.reason, 'warn');
+      return result;
+    }
+    refreshRoomStyle();
+    rebuildLayout();
+    hooks.sfx?.('thunk');
+    hooks.toast?.(`${result.item.name} installed. Clubhouse values updated.`);
+    panel.refresh();
+    return result;
+  }
+
+  function uninstallById(id) {
+    const object = objectById(state, id);
+    const result = uninstallFurniture(state, id);
+    if (!result.ok) {
+      hooks.toast?.(result.reason, 'warn');
+      return result;
+    }
+    refreshRoomStyle();
+    rebuildLayout();
+    hooks.toast?.(`${object?.label || 'Installation'} returned to storage.`);
+    panel.refresh();
+    return result;
+  }
+
   const api = {
     isActive: () => active,
     isCarrying: () => carrying,
@@ -847,8 +898,17 @@ export function buildBuildMode(B, deps) {
     },
     cycleVariant,
     setStyle,
+    purchaseSku,
+    installById,
+    uninstallById,
     uiModel: () => ({
       placed: placedObjects(state), stored: storedObjects(state), sold: soldObjects(state),
+      installed: purchasedFurnitureInstances(state, { states: ['installed'] })
+        .map((instance) => objectById(state, instance.id)).filter(Boolean),
+      catalog: furnitureCatalogAvailability(state),
+      furniture: { ...ensureFurnitureCatalogState(state), effects: furnitureEffects(state) },
+      cash: state.cash,
+      reputation: Math.max(0, Number(state.club?.reputation) || 0),
       style: roomStyle(state), revision: ensureLayout(state).revision,
       undoCount: ensureLayout(state).history.undo.length,
       redoCount: ensureLayout(state).history.redo.length,

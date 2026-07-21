@@ -100,7 +100,7 @@ const FAMILY_DEFS = [
   ['floor-lamp', 'lighting', 'Floor lamp', ['Utility floor lamp', 'Commercial reading lamp', 'Brass lounge lamp', 'Boutique linen-shade lamp', 'Sculpted member lounge lamp'], 65, 1, 1, 1, 'floor-lamp', 'Adds human-scale light and warmth beside lounge seating.'],
   ['desk-lamp', 'lighting', 'Desk lamp', ['Clamp lamp', 'Commercial task lamp', 'Bankers desk lamp', 'Boutique brass task lamp', 'Hand-finished library lamp'], 35, 1, 0, 1, 'desk-lamp', 'Improves focused work light at office, reception and checkout desks.'],
 
-  ['flooring', 'architectural', 'Flooring', ['Sealed concrete', 'Commercial tile', 'Large-format stone tile', 'Walnut plank floor', 'Herringbone hardwood floor'], 2, 8, 1, 1, 'flooring', 'Changes the room-wide walking surface from municipal utility to country-club finish.', [2, 4, 7, 12, 20], 'sq-ft'],
+  ['flooring', 'architectural', 'Flooring', ['Sealed concrete', 'Commercial tile', 'Large-format stone tile', 'Walnut plank floor', 'Interlocking parquet hardwood floor'], 2, 8, 1, 1, 'flooring', 'Changes the room-wide walking surface from municipal utility to country-club finish.', [2, 4, 7, 12, 20], 'sq-ft'],
   ['ceiling-treatment', 'architectural', 'Ceiling treatment', ['Acoustic tile', 'Smooth commercial ceiling', 'Coffered ceiling', 'Timber beam ceiling', 'Ornamental club ceiling'], 2, 5, 1, 1, 'ceiling-treatment', 'Raises the perceived height and polish of the entire clubhouse.', [2, 3, 6, 10, 18], 'sq-ft'],
   ['interior-door', 'architectural', 'Interior door', ['Hollow-core door', 'Commercial panel door', 'Solid oak door', 'Glazed arched door', 'Handcrafted member door'], 300, 3, 1, 1, 'interior-door', 'Improves privacy, acoustics and the quality of transitions between rooms.', [300, 500, 1000, 1800, 3500]],
   ['exterior-door', 'architectural', 'Exterior door', ['Painted entry door', 'Commercial entry set', 'Solid oak entry', 'Glazed club entry', 'Grand double member entry'], 450, 5, 0, 2, 'exterior-door', 'Strengthens the clubhouse threshold and the first impression from outside.', [450, 800, 1500, 2800, 5200]],
@@ -127,35 +127,6 @@ const FAMILY_DEFS = [
   ['waste-station', 'operations', 'Waste station', ['Utility bin', 'Commercial sorting station', 'Concealed waste cabinet', 'Boutique service station', 'Integrated clubhouse recycling wall'], 90, 8, 0, 0, 'waste-station', 'Improves daily maintenance and keeps guest-facing areas free of loose waste.'],
 ];
 
-const escapeXml = (value) => String(value)
-  .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
-  .replaceAll('"', '&quot;').replaceAll("'", '&apos;');
-
-function thumbnailDataUri(name, category, tier) {
-  const shape = FURNITURE_CATEGORIES[category].shape;
-  const silhouettes = {
-    rack: '<path d="M72 118V48h176v70M88 78h144M102 78v38m34-38v38m34-38v38m34-38v38"/>',
-    counter: '<path d="M58 62h204v64H58zM82 82h52m20 0h82M86 126v18m148-18v18"/>',
-    seat: '<path d="M92 74h136v48H92zM78 54h28v68H78zm136 0h28v68h-28M108 122l-10 24m114-24l10 24"/>',
-    table: '<path d="M54 70h212v24H54zM84 94v52m152-52v52M112 94h96"/>',
-    shelf: '<path d="M70 42h180v106H70zM70 76h180M70 112h180M94 42v106m132-106v106"/>',
-    light: '<path d="M160 28v34M112 72h96l-18 34h-60zM160 106v18M144 126h32"/>',
-    finish: '<path d="M60 42h200v106H60zM60 78h200M104 42v106m64-106v106m44-106v106"/>',
-    decor: '<path d="M88 40h144v102H88zM108 118l34-34 22 22 22-34 26 46z"/>',
-    facility: '<path d="M76 48h168v94H76zM96 70h54v50H96zm76 0h52v18h-52zm0 34h52"/>',
-    cart: '<path d="M58 92h204l-18 34H82zM96 126a14 14 0 1 0 1 0m126 0a14 14 0 1 0 1 0M94 92V54h126l24 38"/>',
-  };
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
-    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${tier.color}"/><stop offset="1" stop-color="#17231d"/></linearGradient></defs>
-    <rect width="320" height="180" rx="18" fill="url(#g)"/><rect x="10" y="10" width="300" height="160" rx="12" fill="none" stroke="${tier.accent}" stroke-width="2" opacity=".65"/>
-    <g fill="none" stroke="${tier.accent}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">${silhouettes[shape]}</g>
-    <rect x="18" y="142" width="284" height="26" rx="7" fill="#101713" opacity=".88"/>
-    <text x="28" y="160" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#f6f0de">${escapeXml(name)}</text>
-    <text x="292" y="31" text-anchor="end" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="${tier.accent}">${tier.label.toUpperCase()}</text>
-  </svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
-
 const WALL_FAMILIES = new Set(['picture-light', 'wall-sconce', 'wall-art', 'mirror', 'clock', 'signage']);
 const CEILING_FAMILIES = new Set(['ceiling-flush', 'recessed-light', 'track-light', 'pendant-light', 'chandelier']);
 const SURFACE_FAMILIES = new Set(['desk-lamp']);
@@ -181,6 +152,10 @@ function familyRows(definition) {
   return FURNITURE_TIERS.map((tier, index) => {
     const name = `${tier.label} ${tierNouns[index]}`;
     const valueFactor = tier.valueFactor;
+    const price = explicitPrices ? explicitPrices[index] : Math.max(1, Math.round(basePrice * tier.priceFactor / 5) * 5);
+    // Room-wide flooring is quoted per square foot but purchased as one fitted
+    // 2,400 sq-ft clubhouse package. Every other catalog row is sold singly.
+    const packageQuantity = familyId === 'flooring' ? 2400 : 1;
     return Object.freeze({
       id: ids[index],
       familyId,
@@ -190,13 +165,15 @@ function familyRows(definition) {
       nextId: ids[index + 1] || null,
       progression: Object.freeze([...ids]),
       name,
-      price: explicitPrices ? explicitPrices[index] : Math.max(1, Math.round(basePrice * tier.priceFactor / 5) * 5),
+      price,
       priceUnit: unit,
+      packageQuantity,
+      purchaseCost: price * packageQuantity,
       quality: tier.quality,
       qualityLabel: tier.label,
       brandTier: tier.brandTier,
       description: `${baseDescription} ${tier.story}`,
-      thumbnail: thumbnailDataUri(name, category, tier),
+      thumbnail: `vendor/images/furniture/catalog/${modelFamily}_${tier.id}.png`,
       category,
       unlockLevel: tier.unlockLevel,
       requiredReputation: tier.requiredReputation,
@@ -236,7 +213,7 @@ export function validateFurnitureCatalog(catalog = FURNITURE_CATALOG) {
   const errors = [];
   const ids = new Set();
   const required = [
-    'price', 'quality', 'brandTier', 'description', 'thumbnail', 'category',
+    'price', 'priceUnit', 'packageQuantity', 'purchaseCost', 'quality', 'brandTier', 'description', 'thumbnail', 'category',
     'unlockLevel', 'requiredReputation', 'maintenanceValue', 'comfortValue', 'prestigeValue',
   ];
   for (const item of catalog) {
@@ -245,7 +222,9 @@ export function validateFurnitureCatalog(catalog = FURNITURE_CATALOG) {
     for (const field of required) {
       if (!Object.hasOwn(item, field) || item[field] == null || item[field] === '') errors.push(`${item.id}.${field}`);
     }
-    if (!(item.price > 0) || !(item.quality >= 0 && item.quality <= 100)) errors.push(`${item.id}.economy`);
+    if (!(item.price > 0) || !(item.packageQuantity >= 1)
+      || item.purchaseCost !== item.price * item.packageQuantity
+      || !(item.quality >= 0 && item.quality <= 100)) errors.push(`${item.id}.economy`);
     if (!Object.hasOwn(FURNITURE_CATEGORIES, item.category)) errors.push(`${item.id}.category`);
     if (!Array.isArray(item.progression) || item.progression.length !== FURNITURE_TIERS.length) errors.push(`${item.id}.progression`);
   }

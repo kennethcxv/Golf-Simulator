@@ -60,7 +60,11 @@ export { rngOf }; // re-export: rngOf lives in core/utils to avoid import cycles
 // the shop payload. Older saves receive an empty level-one catalog state.
 export const SAVE_VERSION = 11;
 
-const FIXTURE_FOOTPRINT_SAVE_VERSION = 10;
+// v11 upgrades the sparse fixture layout to v2 object records for catalog
+// ownership. Re-run the idempotent footprint check through v10 saves before
+// freezing those records, so a crafted/partially migrated v10 pose cannot be
+// carried forward as authoritative furniture state.
+const FIXTURE_FOOTPRINT_SAVE_VERSION = 11;
 const ROUTE_FAILURE = /customers could not get around/i;
 
 // Keep every owned unit while making the serialized inventory agree with the
@@ -103,14 +107,30 @@ function migrateFeatureCategory(shop, persistedVersion) {
 // default without changing inventory, stored state, or valid player moves.
 function reconcileLegacyMovedFixturePoses(state, persistedVersion) {
   if (persistedVersion >= FIXTURE_FOOTPRINT_SAVE_VERSION) return;
-  const moved = state.shop?.layout?.moved;
+  const layout = state.shop?.layout;
+  const moved = layout?.moved;
   if (!moved || typeof moved !== 'object' || Array.isArray(moved)) return;
+
+  // Object records are a v11 format. Treat any copy attached to an older or
+  // hand-downgraded payload as derived compatibility data, then keep it in sync
+  // while the legacy sparse poses are tested. The validator calls ensureLayout,
+  // which otherwise freezes a rejected pose into `objects` before `moved` is
+  // repaired and can make a second, valid pose appear to collide with it.
+  layout.objects = {};
+  const dropPose = (id) => {
+    delete moved[id];
+    delete layout.objects[id];
+  };
+  const restorePose = (id, pose) => {
+    moved[id] = pose;
+    delete layout.objects[id];
+  };
 
   const ids = Object.keys(moved);
   for (const id of ids) {
     const pose = moved[id];
     if (!pose || !Number.isFinite(pose.x) || !Number.isFinite(pose.z)) {
-      delete moved[id];
+      dropPose(id);
       continue;
     }
     if (!Number.isFinite(pose.ry)) pose.ry = 0;
@@ -127,7 +147,7 @@ function reconcileLegacyMovedFixturePoses(state, persistedVersion) {
       if (!pose) continue;
       const result = validatePlacement(state, id, pose.x, pose.z, pose.ry);
       if (result.ok || result.reasons.every((reason) => ROUTE_FAILURE.test(reason))) continue;
-      delete moved[id];
+      dropPose(id);
       removedDirectPose = true;
     }
   } while (removedDirectPose);
@@ -141,12 +161,12 @@ function reconcileLegacyMovedFixturePoses(state, persistedVersion) {
     for (const id of ids) {
       const pose = moved[id];
       if (!pose) continue;
-      delete moved[id];
+      dropPose(id);
       if (routesIntact(state)) {
         removedRoutePose = true;
         break;
       }
-      moved[id] = pose;
+      restorePose(id, pose);
     }
   }
 
@@ -157,9 +177,9 @@ function reconcileLegacyMovedFixturePoses(state, persistedVersion) {
     const candidates = ids
       .filter((id) => moved[id])
       .map((id) => [id, moved[id]]);
-    for (const [id] of candidates) delete moved[id];
+    for (const [id] of candidates) dropPose(id);
     for (const [id, pose] of candidates) {
-      if (validatePlacement(state, id, pose.x, pose.z, pose.ry).ok) moved[id] = pose;
+      if (validatePlacement(state, id, pose.x, pose.z, pose.ry).ok) restorePose(id, pose);
     }
   }
 }
@@ -561,10 +581,13 @@ export function deserialize(json) {
   if (state.shop.drawer) state.shop.drawer = migrateDrawer(state.shop.drawer);
   ensurePaymentBag(state); // a half-used balanced batch survives the reload intact
   ensureShopReno(state); // pre-restoration saves gain the rundown shop state
-  ensureFurnitureCatalogState(state); // pre-catalog saves gain empty, valid ownership state
+  // Heal sparse v7 retail layout data before furniture initialization upgrades
+  // that same layout to authoritative v2 object records. Reversing this order
+  // preserves a legacy `feature` stow that the migration is meant to remove.
   migrateLegacyRetailLayout(state.shop, persistedVersion);
   migrateFeatureCategory(state.shop, persistedVersion);
   reconcileLegacyMovedFixturePoses(state, persistedVersion);
+  ensureFurnitureCatalogState(state); // pre-catalog saves gain empty, valid ownership state
   if (!Array.isArray(state.shop.transactionHistory)) state.shop.transactionHistory = [];
   if (!Number.isFinite(state.shop.nextTransactionNo)) {
     const greatestTicket = state.shop.transactionHistory.reduce(

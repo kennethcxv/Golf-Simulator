@@ -22,6 +22,32 @@ const VARIANT_TINT = Object.freeze({
 
 const loader = new GLTFLoader();
 const templateJobs = new Map();
+const sharedCatalogMaterials = new Map();
+
+function shareCatalogMaterials(root, path) {
+  if (!String(path).includes('vendor/models/furniture/catalog/')) return;
+  const replacements = new Map();
+  root.traverse((object) => {
+    if (!object.isMesh) return;
+    const list = Array.isArray(object.material) ? object.material : [object.material];
+    const next = list.map((material) => {
+      if (!material?.name) return material;
+      if (!replacements.has(material)) {
+        const shared = sharedCatalogMaterials.get(material.name);
+        if (shared) replacements.set(material, shared);
+        else {
+          sharedCatalogMaterials.set(material.name, material);
+          replacements.set(material, material);
+        }
+      }
+      return replacements.get(material);
+    });
+    object.material = Array.isArray(object.material) ? next : next[0];
+  });
+  for (const [original, shared] of replacements) {
+    if (original !== shared) original.dispose();
+  }
+}
 
 function isCollisionProxy(object, root) {
   let current = object;
@@ -36,6 +62,7 @@ function loadTemplate(path) {
   if (!templateJobs.has(path)) {
     templateJobs.set(path, new Promise((resolve, reject) => {
       loader.load(path, (gltf) => {
+        shareCatalogMaterials(gltf.scene, path);
         gltf.scene.updateMatrixWorld(true);
         resolve(gltf);
       }, undefined, reject);
@@ -339,6 +366,7 @@ export function buildPlaceables(B, { fixtureAnchors, fallbackWelcomeMat = null }
       colliders: colliders.size,
       failures: [...failures.entries()].map(([id, reason]) => ({ id, reason })),
       cachedTemplates: templateJobs.size,
+      sharedCatalogMaterials: sharedCatalogMaterials.size,
       catalogAssets: PLACEABLES.filter((entry) => entry.render?.kind === 'glb').length,
     }),
     dispose() {

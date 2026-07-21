@@ -45,7 +45,6 @@ export function ensureFurnitureCatalogState(state) {
   if (furniture.purchases.length > FURNITURE_HISTORY_LIMIT) {
     furniture.purchases = furniture.purchases.slice(-FURNITURE_HISTORY_LIMIT);
   }
-  ensureLayout(state);
   return furniture;
 }
 
@@ -74,7 +73,7 @@ export function furnitureUnlockStatus(state, itemOrId) {
 }
 
 function awardRenovationXp(furniture, item, quantity) {
-  const gained = Math.max(4, Math.round((item.quality * 0.55 + Math.log10(item.price + 10) * 5) * quantity));
+  const gained = Math.max(4, Math.round((item.quality * 0.55 + Math.log10(item.purchaseCost + 10) * 5) * quantity));
   furniture.xp += gained;
   const levels = [];
   while (furniture.level < MAX_FURNITURE_LEVEL) {
@@ -110,6 +109,14 @@ export function purchasedFurnitureInstances(state, { states = null } = {}) {
     }));
 }
 
+export function installedFurnitureByFamily(state) {
+  const entries = purchasedFurnitureInstances(state, { states: ['installed'] })
+    .map((instance) => furnitureById(instance.skuId))
+    .filter(Boolean)
+    .map((item) => [item.familyId, item]);
+  return Object.freeze(Object.fromEntries(entries));
+}
+
 export function purchaseFurniture(state, skuId, { quantity = 1 } = {}) {
   const item = furnitureById(skuId);
   if (!item) return { ok: false, reason: 'That furnishing is not in the catalog.' };
@@ -119,7 +126,7 @@ export function purchaseFurniture(state, skuId, { quantity = 1 } = {}) {
   }
   const access = furnitureUnlockStatus(state, item);
   if (!access.unlocked) return { ok: false, locked: true, reason: access.reasons[0], access };
-  const total = money(item.price * count);
+  const total = money(item.purchaseCost * count);
   if (!Number.isFinite(state.cash) || state.cash < total) {
     return { ok: false, reason: `Not enough cash for ${count} × ${item.name}.`, required: total, cash: money(state.cash) };
   }
@@ -138,7 +145,7 @@ export function purchaseFurniture(state, skuId, { quantity = 1 } = {}) {
       transform: null,
       variant: item.progressionTier,
       requiredRelationship: null,
-      purchasedPrice: money(item.price),
+      purchasedPrice: money(item.purchaseCost),
       purchasedAtRevision: layout.revision + 1,
     };
   }
@@ -151,7 +158,9 @@ export function purchaseFurniture(state, skuId, { quantity = 1 } = {}) {
     skuId: item.id,
     instanceIds: [...ids],
     quantity: count,
-    unitPrice: money(item.price),
+    unitPrice: money(item.purchaseCost),
+    catalogRate: money(item.price),
+    packageQuantity: item.packageQuantity,
     total,
     levelAfter: furniture.level,
     layoutRevision: layout.revision,

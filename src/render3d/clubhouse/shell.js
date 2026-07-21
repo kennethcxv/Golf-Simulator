@@ -917,7 +917,7 @@ export function buildShell(B) {
     lighting,
     sidingMat,
     roofMat,
-    styleSurfaces: { walls: mats.plaster, trim: trimMat, floor: retailFloorMaterial },
+    styleSurfaces: { walls: mats.plaster, trim: trimMat, floor: retailFloorMaterial, ceiling: mats.ceiling },
     productionVisualFallbacks,
     productionVisualFallbackKeys: PRODUCTION_VISUAL_FALLBACK_KEYS,
     productionVisualFallbackCounts,

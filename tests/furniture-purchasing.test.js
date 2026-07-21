@@ -4,7 +4,7 @@ import { furnitureById } from '../src/data/furnitureCatalog.js';
 import { placeableById } from '../src/data/placeableCatalog.js';
 import {
   ensureFurnitureCatalogState, furnitureCatalogAvailability, furnitureEffects,
-  furnitureUnlockStatus, installFurniture, purchaseFurniture,
+  furnitureUnlockStatus, installFurniture, installedFurnitureByFamily, purchaseFurniture,
   purchasedFurnitureInstances, uninstallFurniture,
 } from '../src/sim/furnitureCatalog.js';
 import {
@@ -89,6 +89,29 @@ test('purchasing deducts cash and creates distinct dynamic storage objects', () 
   }
 });
 
+test('flooring purchases charge the fitted room package rather than one square foot', () => {
+  const state = fundedState(7107);
+  const item = furnitureById('flooring-basic');
+  const cashBefore = state.cash;
+  const purchase = purchaseFurniture(state, item.id);
+  assert.equal(purchase.ok, true);
+  assert.equal(purchase.total, 4800);
+  assert.equal(state.cash, cashBefore - item.purchaseCost);
+  assert.equal(state.shop.layout.objects[purchase.instanceIds[0]].purchasedPrice, item.purchaseCost);
+  assert.equal(state.shop.furnitureCatalog.lifetimeSpend, item.purchaseCost);
+  assert.deepEqual(state.shop.furnitureCatalog.purchases[0], {
+    skuId: item.id,
+    instanceIds: purchase.instanceIds,
+    quantity: 1,
+    unitPrice: item.purchaseCost,
+    catalogRate: item.price,
+    packageQuantity: item.packageQuantity,
+    total: item.purchaseCost,
+    levelAfter: state.shop.furnitureCatalog.level,
+    layoutRevision: state.shop.layout.revision,
+  });
+});
+
 test('dynamic catalog objects use placement metadata and survive placement, sale and save/load', () => {
   const state = fundedState(7104);
   const purchase = purchaseFurniture(state, 'coffee-table-basic');
@@ -143,7 +166,9 @@ test('installations are swappable, remain owned, and contribute clubhouse values
     placedCount: 1,
     installedCount: 1,
   });
+  assert.equal(installedFurnitureByFamily(state).flooring.id, 'flooring-commercial');
   assert.equal(uninstallFurniture(state, second).ok, true);
+  assert.equal(installedFurnitureByFamily(state).flooring, undefined);
   assert.equal(objectById(state, second).state, 'stored');
 });
 
