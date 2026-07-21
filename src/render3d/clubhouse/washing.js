@@ -204,12 +204,14 @@ export function buildWashing(B) {
   const jetMat = new THREE.MeshBasicMaterial({
     color: 0xbcdcff,
     transparent: true,
-    opacity: 0.30,
+    opacity: 0.38,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
   });
-  const jet = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.062, 1, 8, 1, true), jetMat);
+  // Keep the core genuinely narrow. The old 6.2 cm base made a pressure stream look like a solid
+  // traffic cone; impact mist supplies the fan-out instead of widening a polygonal tube.
+  const jet = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.014, 1, 10, 1, true), jetMat);
   jet.visible = false;
   jet.frustumCulled = false;
 
@@ -232,14 +234,15 @@ export function buildWashing(B) {
     return t;
   })();
 
-  const MIST = 60;
+  const MIST = 72;
   const mistPos = new Float32Array(MIST * 3);
+  const mistVel = new Float32Array(MIST * 3);
   const mistLife = new Array(MIST).fill(0);
   const mistGeo = new THREE.BufferGeometry();
   mistGeo.setAttribute('position', new THREE.BufferAttribute(mistPos, 3));
   const mist = new THREE.Points(mistGeo, new THREE.PointsMaterial({
     color: 0xeaf6ff,
-    size: 0.085,
+    size: 0.036,
     map: dropletTex,
     alphaTest: 0.02,
     transparent: true,
@@ -336,6 +339,7 @@ export function buildWashing(B) {
       if (!jet.visible) return;
       const dir = to.clone().sub(from);
       const len = dir.length();
+      const incoming = dir.clone().normalize();
       jet.position.copy(from).addScaledVector(dir, 0.5);
       jet.scale.set(1, len, 1);
       jet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
@@ -344,14 +348,23 @@ export function buildWashing(B) {
         mistLife[i] -= dt;
         if (mistLife[i] <= 0) {
           mistLife[i] = 0.12 + Math.random() * 0.22;
-          mistPos[i * 3] = to.x + (Math.random() - 0.5) * 0.22;
-          mistPos[i * 3 + 1] = to.y + (Math.random() - 0.5) * 0.22;
-          mistPos[i * 3 + 2] = to.z + (Math.random() - 0.5) * 0.22;
+          const o = i * 3;
+          const kick = 0.25 + Math.random() * 0.65;
+          mistPos[o] = to.x + (Math.random() - 0.5) * 0.07;
+          mistPos[o + 1] = to.y + (Math.random() - 0.5) * 0.07;
+          mistPos[o + 2] = to.z + (Math.random() - 0.5) * 0.07;
+          // Splash back from the surface along the inverse incoming stream, with a sideways fan
+          // and a small upward kick. Reusing velocity makes the cloud travel between respawns
+          // instead of flickering as a stationary ball of white dots.
+          mistVel[o] = -incoming.x * kick + (Math.random() - 0.5) * 0.55;
+          mistVel[o + 1] = Math.abs(-incoming.y) * kick + 0.12 + Math.random() * 0.45;
+          mistVel[o + 2] = -incoming.z * kick + (Math.random() - 0.5) * 0.55;
         } else {
-          // spatter runs off the wall and falls
-          mistPos[i * 3] += (Math.random() - 0.5) * 0.02;
-          mistPos[i * 3 + 1] -= dt * 0.9;
-          mistPos[i * 3 + 2] += (Math.random() - 0.5) * 0.02;
+          const o = i * 3;
+          mistVel[o + 1] -= dt * 1.8;
+          mistPos[o] += mistVel[o] * dt;
+          mistPos[o + 1] += mistVel[o + 1] * dt;
+          mistPos[o + 2] += mistVel[o + 2] * dt;
         }
       }
       mistGeo.attributes.position.needsUpdate = true;

@@ -494,6 +494,7 @@ function startGameNow(state) {
     how === 'lastSafe' ? 'Stepped you back to where you last had room.' : 'Moved you clear of the furniture.',
   );
   app.scene3d.walk.hooks.sfx = (name) => { if (audio.ready && audio[name]) audio[name](); };
+  app.scene3d.walk.hooks.toolLoop = (kind) => { if (audio.ready) audio.setToolLoop(kind); };
   // the clubhouse's in-world management surfaces route through these
   app.scene3d.walk.hooks.openLaptop = () => enterLaptop();
   app.scene3d.walk.hooks.toggleOverview = () => handlers.toggleCourseMode();
@@ -1468,7 +1469,7 @@ window.addEventListener('keydown', (e) => {
             : next === 'rake' ? 'Bunker rake out — hold the button on footprinted sand.'
             : next === 'washer' ? `${washer ? washer.name : 'Pressure washer'} — hold LEFT to blast, RIGHT to lay soap on the heavy stains.`
             : def ? `${def.label} out — ${def.equipToast}`
-            : 'Tools away.');
+            : 'Tools away.', 'tool');
         }
         break;
       }

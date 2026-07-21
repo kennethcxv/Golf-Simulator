@@ -102,7 +102,84 @@ export function buildToolViewmodels() {
     groups[def.id] = group;
   }
 
-  const loaded = new Map(); // toolId -> { root, disposeGlb }
+  const loaded = new Map(); // toolId -> authored scene, mixer, clips and actions
+  const pending = new Map(); // toolId -> one in-flight load, shared by rapid equip requests
+  const motionState = new Map(); // survives an equip/use request that beats the async GLB load
+  let disposed = false;
+
+  const stateFor = (id) => {
+    let state = motionState.get(id);
+    if (!state) {
+      state = { equipped: false, using: false };
+      motionState.set(id, state);
+    }
+    return state;
+  };
+
+  function stopSequence(entry) {
+    entry.sequence = null;
+    entry.sequenceIndex = 0;
+    entry.pendingLoop = null;
+  }
+
+  function playAction(entry, name, { repeat = false, fade = 0.08 } = {}) {
+    const action = name ? entry.actions.get(name) : null;
+    if (!action) return false;
+    const previous = entry.activeAction;
+    if (previous && previous !== action) previous.fadeOut(fade);
+    action.reset();
+    action.enabled = true;
+    action.clampWhenFinished = !repeat;
+    action.setLoop(repeat ? THREE.LoopRepeat : THREE.LoopOnce, repeat ? Infinity : 1);
+    action.fadeIn(fade).play();
+    entry.activeAction = action;
+    entry.activeName = name;
+    return true;
+  }
+
+  function beginUseLoop(entry) {
+    const names = entry.definition.fp?.motion?.useLoop || [];
+    if (!names.length) return false;
+    entry.sequence = names;
+    entry.sequenceIndex = 0;
+    entry.pendingLoop = null;
+    return playAction(entry, names[0], { repeat: names.length === 1 });
+  }
+
+  function bindMixerLifecycle(entry) {
+    if (!entry.mixer) return;
+    entry.onFinished = ({ action }) => {
+      if (action !== entry.activeAction) return;
+      const state = stateFor(entry.definition.id);
+      if (!state.using) return;
+      if (entry.pendingLoop) {
+        beginUseLoop(entry);
+        return;
+      }
+      if (!entry.sequence || entry.sequence.length < 2) return;
+      entry.sequenceIndex = (entry.sequenceIndex + 1) % entry.sequence.length;
+      playAction(entry, entry.sequence[entry.sequenceIndex]);
+    };
+    entry.mixer.addEventListener('finished', entry.onFinished);
+  }
+
+  function applyMotionState(id) {
+    const entry = loaded.get(id);
+    if (!entry) return false;
+    const state = stateFor(id);
+    const motion = entry.definition.fp?.motion || {};
+    if (state.using) {
+      stopSequence(entry);
+      if (motion.useStart && playAction(entry, motion.useStart)) {
+        entry.pendingLoop = motion.useLoop || [];
+      } else {
+        beginUseLoop(entry);
+      }
+    } else if (state.equipped && motion.equip) {
+      playAction(entry, motion.equip);
+    }
+    return true;
+  }
 
   /**
    * Swap the authored first-person GLB in over the procedural fallback.
@@ -116,13 +193,24 @@ export function buildToolViewmodels() {
    * SOCKET_GripPrimary…). Those are the truth once loaded — the registry's hand-authored socket
    * positions were only ever standing in for them.
    */
-  async function adoptAuthored(loader, onReady) {
-    const jobs = [];
-    for (const def of Object.values(CLEANING_TOOLS)) {
-      if (!def.fp || !def.fp.glb) continue;
-      jobs.push(new Promise((resolve) => {
+  function ensureAuthored(id, loader) {
+    const def = CLEANING_TOOLS[id];
+    if (!def?.fp?.glb) return Promise.resolve({ id, ok: false, reason: 'no authored asset' });
+    if (loaded.has(id)) return Promise.resolve({ id, ok: true, cached: true });
+    if (pending.has(id)) return pending.get(id);
+
+    const job = new Promise((resolve) => {
         loader.load(def.fp.glb, (gltf) => {
           try {
+            if (disposed) {
+              gltf.scene?.traverse((o) => {
+                if (!o.isMesh) return;
+                o.geometry?.dispose();
+                const materials = Array.isArray(o.material) ? o.material : [o.material];
+                for (const material of materials) material?.dispose();
+              });
+              return resolve({ id: def.id, ok: false, reason: 'disposed' });
+            }
             const group = groups[def.id];
             if (!group) return resolve({ id: def.id, ok: false, reason: 'no group' });
             const root = gltf.scene;
@@ -149,7 +237,7 @@ export function buildToolViewmodels() {
             // where they are, and the authored geometry is transformed to meet them. Visual quality
             // improves; behaviour does not move a millimetre.
             const M_TO_YD = 1.0936133;
-            root.scale.setScalar(M_TO_YD);
+            root.scale.setScalar(M_TO_YD * (def.fp.scale || 1));
             root.rotation.y = Math.PI; // authored +Z forward -> our -Z forward
             root.updateMatrixWorld(true);
 
@@ -179,7 +267,27 @@ export function buildToolViewmodels() {
               o.receiveShadow = false;
             });
             group.add(root);
-            loaded.set(def.id, { root });
+            const mixer = gltf.animations?.length ? new THREE.AnimationMixer(root) : null;
+            const actions = new Map();
+            for (const clip of gltf.animations || []) {
+              const action = mixer?.clipAction(clip, root);
+              if (action) actions.set(clip.name, action);
+            }
+            const entry = {
+              root,
+              mixer,
+              actions,
+              definition: def,
+              activeAction: null,
+              activeName: null,
+              sequence: null,
+              sequenceIndex: 0,
+              pendingLoop: null,
+              onFinished: null,
+            };
+            loaded.set(def.id, entry);
+            bindMixerLifecycle(entry);
+            applyMotionState(def.id);
             resolve({ id: def.id, ok: true });
           } catch (err) {
             resolve({ id: def.id, ok: false, reason: err.message });
@@ -189,8 +297,16 @@ export function buildToolViewmodels() {
           // fully playable. Report it rather than throwing away a working viewmodel.
           resolve({ id: def.id, ok: false, reason: err?.message || 'load failed' });
         });
-      }));
-    }
+      });
+    pending.set(id, job);
+    job.finally(() => pending.delete(id));
+    return job;
+  }
+
+  async function adoptAuthored(loader, onReady) {
+    const jobs = Object.values(CLEANING_TOOLS)
+      .filter((def) => def.fp?.glb)
+      .map((def) => ensureAuthored(def.id, loader));
     const results = await Promise.all(jobs);
     if (onReady) onReady(results);
     return results;
@@ -199,9 +315,68 @@ export function buildToolViewmodels() {
   return {
     groups,
     adoptAuthored,
+    ensureAuthored,
     authoredCount: () => loaded.size,
+    setEquipped(id, equipped) {
+      const state = stateFor(id);
+      state.equipped = !!equipped;
+      if (!equipped) state.using = false;
+      const entry = loaded.get(id);
+      if (!entry) return false;
+      stopSequence(entry);
+      const motion = entry.definition.fp?.motion || {};
+      return playAction(entry, equipped ? motion.equip : motion.unequip);
+    },
+    setUsing(id, using) {
+      if (!id) return false;
+      const state = stateFor(id);
+      if (state.using === !!using) return !!loaded.get(id);
+      state.using = !!using;
+      const entry = loaded.get(id);
+      if (!entry) return false;
+      const motion = entry.definition.fp?.motion || {};
+      stopSequence(entry);
+      if (using) {
+        if (motion.useStart && playAction(entry, motion.useStart)) {
+          entry.pendingLoop = motion.useLoop || [];
+          return true;
+        }
+        return beginUseLoop(entry);
+      }
+      if (motion.useStop) return playAction(entry, motion.useStop);
+      if (entry.activeAction) entry.activeAction.fadeOut(0.10);
+      entry.activeAction = null;
+      entry.activeName = null;
+      return true;
+    },
+    update(dt) {
+      const delta = Math.max(0, dt);
+      for (const [id, entry] of loaded.entries()) {
+        const state = stateFor(id);
+        // Loaded viewmodels stay cached so cycling the belt never hitches, but a
+        // hidden tool has no animation work to contribute. Several authored clips
+        // carry large keyframe tracks; advancing every cached mixer after the tool
+        // was put away produced a permanent frame-time tax that grew with each new
+        // belt item the player had inspected.
+        if (state.equipped || state.using) entry.mixer?.update(delta);
+      }
+    },
+    motionDiagnostics() {
+      return Object.freeze([...loaded.entries()].map(([id, entry]) => Object.freeze({
+        id,
+        clipCount: entry.actions.size,
+        activeClip: entry.activeName,
+        using: stateFor(id).using,
+        equipped: stateFor(id).equipped,
+        mixerTime: entry.mixer?.time ?? null,
+      })));
+    },
     dispose() {
+      disposed = true;
       for (const entry of loaded.values()) {
+        if (entry.mixer && entry.onFinished) entry.mixer.removeEventListener('finished', entry.onFinished);
+        entry.mixer?.stopAllAction();
+        entry.mixer?.uncacheRoot(entry.root);
         entry.root.traverse((o) => {
           if (!o.isMesh) return;
           o.geometry?.dispose();
@@ -210,6 +385,8 @@ export function buildToolViewmodels() {
         });
       }
       loaded.clear();
+      pending.clear();
+      motionState.clear();
       for (const g of geoCache.values()) g.dispose();
       for (const m of mats.values()) m.dispose();
       geoCache.clear();

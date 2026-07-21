@@ -3125,15 +3125,104 @@ export function makeClubhouse(ctx) {
   const motePos = new Float32Array(MOTES * 3);
   const moteGeo = new THREE.BufferGeometry();
   moteGeo.setAttribute('position', new THREE.BufferAttribute(motePos, 3));
+  const moteCanvas = document.createElement('canvas');
+  moteCanvas.width = 32;
+  moteCanvas.height = 32;
+  const moteCtx = moteCanvas.getContext('2d');
+  const moteGradient = moteCtx.createRadialGradient(16, 16, 2, 16, 16, 15);
+  moteGradient.addColorStop(0, 'rgba(255,255,255,1)');
+  moteGradient.addColorStop(0.68, 'rgba(255,255,255,0.88)');
+  moteGradient.addColorStop(1, 'rgba(255,255,255,0)');
+  moteCtx.fillStyle = moteGradient;
+  moteCtx.fillRect(0, 0, 32, 32);
+  const moteMap = new THREE.CanvasTexture(moteCanvas);
   const motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({
-    color: 0xa2937c, size: 0.05, transparent: true, opacity: 0.85, depthWrite: false,
+    color: 0xa2937c,
+    size: 0.05,
+    map: moteMap,
+    transparent: true,
+    opacity: 0.85,
+    alphaTest: 0.035,
+    depthWrite: false,
   }));
+  motes.name = 'CleaningImpactParticles';
   motes.visible = false;
   motes.frustumCulled = false;
   scene.add(motes);
   for (let i = 0; i < MOTES; i++) moteState.push({ t: Math.random(), ox: 0, oz: 0 });
   let cleanClock = 0;
+  let grimeVisualDirty = false;
   let moteFade = 0;
+  const CLEANING_FX = Object.freeze({
+    vacuum: { color: 0xb9aa91, size: 0.052, mode: 'inward' },
+    broom: { color: 0xb18a52, size: 0.050, mode: 'push' },
+    dustpan: { color: 0xc59a5b, size: 0.044, mode: 'inward' },
+    mop: { color: 0xb8d9d5, size: 0.043, mode: 'splash' },
+    spray: { color: 0xd8f0e5, size: 0.034, mode: 'spray' },
+    cloth: { color: 0xd2e0d4, size: 0.030, mode: 'wipe' },
+    sponge: { color: 0xead96d, size: 0.033, mode: 'wipe' },
+    trashbag: { color: 0xc39a5c, size: 0.048, mode: 'inward' },
+  });
+
+  // One pooled particle field serves the whole kit. Its motion changes by tool class, so dust is
+  // pulled into a vacuum, broom grit travels downrange, and wet tools make a restrained contact
+  // splash without adding one draw call and one allocation-heavy emitter per item.
+  function showCleaningImpact(toolId, wx, wz, dirX, dirZ, dt) {
+    const style = CLEANING_FX[toolId];
+    if (!style) return;
+    motes.material.color.setHex(style.color);
+    motes.material.size = style.size;
+    moteFade = 0.15;
+    motes.visible = true;
+    const baseY = floorY + 0.035;
+    for (let i = 0; i < MOTES; i++) {
+      const mo = moteState[i];
+      mo.t += dt * (1.9 + (i % 5) * 0.16);
+      if (mo.t >= 1) {
+        mo.t %= 1;
+        mo.ox = (Math.random() - 0.5) * 0.46;
+        mo.oz = (Math.random() - 0.5) * 0.46;
+      }
+      const u = mo.t;
+      const o = i * 3;
+      if (style.mode === 'inward') {
+        motePos[o] = wx + mo.ox * (1 - u);
+        motePos[o + 1] = baseY + Math.sin(u * Math.PI) * 0.10;
+        motePos[o + 2] = wz + mo.oz * (1 - u);
+      } else if (style.mode === 'push') {
+        motePos[o] = wx + mo.ox * 0.45 + dirX * u * 0.38;
+        motePos[o + 1] = baseY + Math.sin(u * Math.PI) * 0.075;
+        motePos[o + 2] = wz + mo.oz * 0.45 + dirZ * u * 0.38;
+      } else if (style.mode === 'spray') {
+        motePos[o] = wx + mo.ox * (0.15 + u * 0.55);
+        motePos[o + 1] = baseY + 0.10 + Math.sin(u * Math.PI) * 0.12;
+        motePos[o + 2] = wz + mo.oz * (0.15 + u * 0.55);
+      } else {
+        const spread = style.mode === 'splash' ? 0.55 : 0.32;
+        motePos[o] = wx + mo.ox * (0.25 + u * spread);
+        motePos[o + 1] = baseY + Math.sin(u * Math.PI) * (style.mode === 'splash' ? 0.11 : 0.045);
+        motePos[o + 2] = wz + mo.oz * (0.25 + u * spread);
+      }
+    }
+    moteGeo.attributes.position.needsUpdate = true;
+  }
+
+  function finishCleaning(result, toolId, wx, wz, dirX, dirZ, dt, affectsGrime = false) {
+    showCleaningImpact(toolId, wx, wz, dirX, dirZ, dt);
+    if (affectsGrime) {
+      if (result.did > 0) grimeVisualDirty = true;
+      cleanClock += dt;
+      if (cleanClock >= 0.08) {
+        cleanClock = 0;
+        if (grimeVisualDirty) {
+          grimeVisualDirty = false;
+          repaintGrime();
+          refreshCondition();
+        }
+      }
+    }
+    return result;
+  }
 
   // --- loose debris: swept into piles, then carried away ------------------------------------
   //
@@ -3160,9 +3249,19 @@ export function makeClubhouse(ctx) {
     state.shop.reno.debrisSeeded = true;
   }
 
-  const DEBRIS_CAP = 96;
-  const debrisGeo = new THREE.IcosahedronGeometry(0.085, 0);
-  const debrisMat = new THREE.MeshStandardMaterial({ color: 0x6b5a3c, roughness: 0.95 });
+  const DEBRIS_CAP = 96 * 3;
+  // Flattened leaves and scraps read as tracked-in debris without adding draw calls. Larger saved
+  // clusters draw two or three overlapping pieces instead of scaling one pebble into a boulder.
+  const debrisGeo = new THREE.CircleGeometry(0.055, 5);
+  debrisGeo.rotateX(-Math.PI / 2);
+  debrisGeo.scale(1.35, 1, 0.72);
+  const debrisMat = new THREE.MeshStandardMaterial({
+    color: 0x9b7847,
+    roughness: 0.95,
+    side: THREE.DoubleSide,
+    emissive: 0x35230f,
+    emissiveIntensity: 0.48,
+  });
   const debrisMesh = new THREE.InstancedMesh(debrisGeo, debrisMat, DEBRIS_CAP);
   debrisMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   debrisMesh.castShadow = false;
@@ -3178,18 +3277,20 @@ export function makeClubhouse(ctx) {
   const _dUp = new THREE.Vector3(0, 1, 0);
   let wetVisualDirty = false;
   let wetRepaintClock = 0;
+  let wetDryingActive = state.shop.reno.wet.some((value) => value > 0)
+    || state.shop.reno.solution.some((value) => value > 0);
   function refreshDebrisVisual() {
     const list = debrisState(state);
     const n = Math.min(list.length, DEBRIS_CAP);
     for (let i = 0; i < n; i++) {
       const d = list[i];
       // a pile spreads as it grows rather than becoming one giant pebble
-      const s = Math.min(2.4, 0.55 + Math.sqrt(d.a) * 1.5);
+      const s = Math.min(1.35, 0.42 + Math.sqrt(d.a) * 0.95);
       // The `interior` group is already at floor height — dirt.js lays its grime overlay at a
       // plain 0.026. Adding FLOOR_TOP here floated every pile 0.3 yd off the boards.
-      _dp.set(d.x, 0.012 * s, d.z);
+      _dp.set(d.x, 0.014, d.z);
       _dq.setFromAxisAngle(_dUp, (d.x * 7.3 + d.z * 3.1) % Math.PI);
-      _ds.set(s, s * 0.55, s);
+      _ds.set(s * (0.82 + Math.abs(Math.sin((d.x + d.z) * 1.7)) * 0.32), 1, s);
       _dm.compose(_dp, _dq, _ds);
       debrisMesh.setMatrixAt(i, _dm);
     }
@@ -3273,7 +3374,7 @@ export function makeClubhouse(ctx) {
         // a broom moves debris; it never deletes it
         did = sweepAt(state, l.x, l.z, dirX, dirZ, def.radius, dt).moved;
         if (did > 0) refreshDebrisVisual();
-        return { did, kind: 'sweep' };
+        return finishCleaning({ did, kind: 'sweep' }, toolId, wx, wz, dirX, dirZ, dt);
       }
       case TOOL_CLASS.SCOOP: {
         did = collectAt(state, l.x, l.z, def.radius);
@@ -3281,22 +3382,29 @@ export function makeClubhouse(ctx) {
           refreshDebrisVisual();
           state.shop.reno.pan = Math.round(((state.shop.reno.pan || 0) + did) * 1000) / 1000;
         }
-        return { did, kind: 'scoop' };
+        return finishCleaning({ did, kind: 'scoop' }, toolId, wx, wz, dirX, dirZ, dt);
       }
       case TOOL_CLASS.SUCTION: {
         // debris is drawn in and swallowed only at the mouth; ground-in dust comes up under the head
         did = suckAt(state, l.x, l.z, def.radius, dt);
         const dust = cleanGrimeAt(state, l.x, l.z, 0.5 * dt);
         if (did > 0) refreshDebrisVisual();
-        return { did: did + dust.cleaned, kind: 'suction', picked: did > 0 };
+        if (dust.cleaned > 0 && state.tutorial) tutorialFlag(state, 'vacuumed');
+        return finishCleaning(
+          { did: did + dust.cleaned, kind: 'suction', picked: did > 0 },
+          toolId, wx, wz, dirX, dirZ, dt, true,
+        );
       }
       case TOOL_CLASS.STROKE: {
         if (def.id === 'mop') {
           const res = cleanGrimeAt(state, l.x, l.z, def.strength * 0.55 * dt);
           const wp = toWet(l.x, l.z);
           wetAt(state, WET_GRID, wp.x, wp.z, def.radius, dt * 1.6);
+          wetDryingActive = true;
           wetVisualDirty = true;
-          return { did: res.cleaned, kind: 'mop' };
+          return finishCleaning(
+            { did: res.cleaned, kind: 'mop' }, toolId, wx, wz, dirX, dirZ, dt, true,
+          );
         }
         // cloth and sponge: the cloth only lifts what the spray has already loosened
         const wp = toWet(l.x, l.z);
@@ -3308,13 +3416,16 @@ export function makeClubhouse(ctx) {
           consumeSolution(state, WET_GRID, wp.x, wp.z, def.radius, dt * 0.5);
           wetVisualDirty = true;
         }
-        return { did: res.cleaned, kind: def.id };
+        return finishCleaning(
+          { did: res.cleaned, kind: def.id }, toolId, wx, wz, dirX, dirZ, dt, true,
+        );
       }
       case TOOL_CLASS.SPRAY: {
         const sp = toWet(l.x, l.z);
         did = solutionAt(state, WET_GRID, sp.x, sp.z, def.radius, dt * 2.2);
+        wetDryingActive = true;
         wetVisualDirty = true;
-        return { did, kind: 'spray' };
+        return finishCleaning({ did, kind: 'spray' }, toolId, wx, wz, dirX, dirZ, dt);
       }
       case TOOL_CLASS.CARRY: {
         did = collectAt(state, l.x, l.z, def.radius);
@@ -3322,7 +3433,7 @@ export function makeClubhouse(ctx) {
           refreshDebrisVisual();
           state.shop.reno.bag = Math.round(((state.shop.reno.bag || 0) + did) * 1000) / 1000;
         }
-        return { did, kind: 'bag' };
+        return finishCleaning({ did, kind: 'bag' }, toolId, wx, wz, dirX, dirZ, dt);
       }
       default:
         return { did: 0, kind: null };
@@ -3330,36 +3441,7 @@ export function makeClubhouse(ctx) {
   }
 
   function vacuumAt(wx, wz, dt) {
-    const l = W2L(wx, wz);
-    const res = cleanGrimeAt(state, l.x, l.z, 0.5 * dt);
-    if (res.cleaned > 0 && state.tutorial) tutorialFlag(state, 'vacuumed');
-    cleanClock += dt;
-    if (cleanClock > 0.16) {
-      cleanClock = 0;
-      if (res.cleaned > 0) repaintGrime();
-      refreshCondition();
-    }
-    moteFade = 0.2;
-    motes.visible = true;
-    const fwd = new THREE.Vector3();
-    camera.getWorldDirection(fwd);
-    const noz = camera.position.clone().add(fwd.multiplyScalar(0.8));
-    noz.y -= 0.35;
-    for (let i = 0; i < MOTES; i++) {
-      const mo = moteState[i];
-      mo.t += dt * (1.6 + (i % 5) * 0.14);
-      if (mo.t >= 1) {
-        mo.t = 0;
-        mo.ox = (Math.random() - 0.5) * 1.1;
-        mo.oz = (Math.random() - 0.5) * 1.1;
-      }
-      const sx = wx + mo.ox;
-      const sz = wz + mo.oz;
-      motePos[i * 3] = sx + (noz.x - sx) * mo.t;
-      motePos[i * 3 + 1] = floorY + 0.03 + (noz.y - floorY - 0.03) * mo.t * mo.t;
-      motePos[i * 3 + 2] = sz + (noz.z - sz) * mo.t;
-    }
-    moteGeo.attributes.position.needsUpdate = true;
+    return cleanWithTool('vacuum', wx, wz, 0, 0, dt);
   }
 
   function vacuumLabelAt(wx, wz) {
@@ -7063,7 +7145,10 @@ export function makeClubhouse(ctx) {
     now += dt;
     // A mopped floor dries and sprayed solution flashes off. dryTick reports whether anything
     // actually moved so an already-dry floor costs one comparison rather than a repaint.
-    if (dryTick(state, dt)) wetVisualDirty = true;
+    if (wetDryingActive) {
+      if (dryTick(state, dt)) wetVisualDirty = true;
+      else wetDryingActive = false;
+    }
     // Repainting the wet layer is a 4,264-cell canvas write; at ~12 Hz it is invisible to the
     // player and costs a fraction of doing it every frame while a mop is down.
     if (wetVisualDirty) {

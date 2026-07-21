@@ -8,20 +8,40 @@
 async (page) => {
   const fs = process.getBuiltinModule('node:fs');
   const path = process.getBuiltinModule('node:path');
-  const repo = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper';
-  const out = path.join(repo, 'qa', 'assets_51_100_master', 'claude_completion', 'pressure_washer');
+  const repo = process.env.QA_REPO_ROOT || process.cwd();
+  const out = process.env.PRESSURE_WASHER_QA_OUT_DIR
+    || path.join(repo, 'qa', 'assets_51_100_master', 'claude_completion', 'pressure_washer');
+  const baseUrl = process.env.QA_BASE_URL || 'http://localhost:8457/';
   fs.mkdirSync(out, { recursive: true });
 
   const errors = [];
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
 
-  await page.goto('http://localhost:8457/', { waitUntil: 'domcontentloaded' });
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   await page.getByText('Continue', { exact: true }).click();
   await page.waitForFunction(() => window.__fw?.scene3d?.clubhouse?.(), null, { timeout: 90000 });
   await page.evaluate(async () => {
     await window.__fw.scene3d.clubhouse().sheet06ProductionReady?.();
+    await window.__fw.scene3d.walk.toolViewmodelsReady?.();
   });
+  await page.locator('#game').click({ position: { x: 800, y: 450 } });
+  await page.waitForFunction(() => document.pointerLockElement?.id === 'game', null, { timeout: 2500 })
+    .catch(() => {}); // headless Chrome can deny pointer lock; keyboard/pointer controls still fire
+  const pointerLockAcquired = await page.evaluate(() => document.pointerLockElement?.id === 'game');
+  if (!pointerLockAcquired) {
+    await page.locator('.shop-lockhint').evaluate((node) => { node.style.visibility = 'hidden'; });
+  }
+
+  const selectTool = async (tool) => {
+    for (let press = 0; press < 8; press++) {
+      const current = await page.evaluate(() => window.__fw.scene3d.walk.getTool());
+      if (current === tool) return;
+      await page.keyboard.press('f');
+      await page.waitForTimeout(120);
+    }
+    throw new Error(`normal-control belt could not select ${tool}`);
+  };
 
   // Stand outside on the south side, looking at the siding east of the door.
   const place = async (shot) => {
@@ -53,7 +73,7 @@ async (page) => {
   await shot('01-idle-no-tool.png');
 
   // --- 2. equip and aim ---------------------------------------------------------------------
-  await page.evaluate(() => window.__fw.scene3d.walk.setTool('washer'));
+  await selectTool('washer');
   await page.waitForTimeout(700); // let the equip ease finish
   await shot('02-aim-equipped.png');
 
@@ -62,11 +82,11 @@ async (page) => {
   const measure = () => page.evaluate(() => {
     const app = window.__fw;
     const scene = app.scene3d.scene;
-    let camera = null; let socket = null; let tipMesh = null; let jet = null;
+    let camera = null; let socket = null; let authoredSocket = null; let jet = null;
     let washerGroup = null;
     scene.traverse((o) => {
       if (o.isCamera && o.isPerspectiveCamera && !camera) camera = o;
-      if (o.name === 'HeldWasher') washerGroup = o;
+      if (o.name === 'HeldWasher' || o.name === 'Tool_washer') washerGroup = o;
       // the jet is the open-ended tapered cylinder drawn between nozzle and contact point.
       // Identify it by geometry, not by colour — a palette tweak must not break the probe.
       if (o.isMesh && o.geometry?.type === 'CylinderGeometry') {
@@ -78,13 +98,7 @@ async (page) => {
     // scene-wide search by name picks up whichever happened to be traversed last.
     if (washerGroup) {
       socket = washerGroup.children.find((c) => c.name === 'SOCKET_nozzle') || null;
-    }
-    // the fan tip is the 9 cm cone at the lance end
-    if (socket && socket.parent) {
-      for (const c of socket.parent.children) {
-        if (c.isMesh && c.geometry?.type === 'CylinderGeometry'
-          && Math.abs((c.geometry.parameters?.height ?? 0) - 0.09) < 1e-6) tipMesh = c;
-      }
+      authoredSocket = washerGroup.getObjectByName('SOCKET_SprayEmission');
     }
     const vec = (o) => {
       if (!o) return null;
@@ -95,7 +109,7 @@ async (page) => {
       return p;
     };
     const socketW = vec(socket);
-    const tipW = vec(tipMesh);
+    const authoredSocketW = vec(authoredSocket);
     let jetStart = null;
     if (jet && jet.visible) {
       jet.updateWorldMatrix(true, false);
@@ -127,9 +141,9 @@ async (page) => {
       ? +Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z).toFixed(4) : null;
     return {
       socketFound: !!socket,
-      tipFound: !!tipMesh,
+      authoredSocketFound: !!authoredSocket,
       jetVisible: !!(jet && jet.visible),
-      socketToTip: dist(socketW, tipW),
+      socketToAuthored: dist(socketW, authoredSocketW),
       jetStartToSocket: dist(jetStart, socketW),
       jetStartToLegacyConstant: dist(jetStart, legacy),
       socketToLegacyConstant: dist(socketW, legacy),
@@ -137,7 +151,7 @@ async (page) => {
   });
 
   // --- 3. trigger down ----------------------------------------------------------------------
-  await page.evaluate(() => window.__fw.scene3d.walk.setSpraying(true));
+  await page.mouse.down({ button: 'left' });
   await page.waitForTimeout(500);
   await shot('03-trigger-jet.png');
   const spraying = await measure();
@@ -156,7 +170,7 @@ async (page) => {
   await shot('04-partial-cleaning.png');
   const after = await grimeNow();
 
-  await page.evaluate(() => window.__fw.scene3d.walk.setSpraying(false));
+  await page.mouse.up({ button: 'left' });
   await page.waitForTimeout(400);
   await shot('05-released.png');
 
@@ -184,12 +198,14 @@ async (page) => {
     };
   });
 
-  await page.evaluate(() => window.__fw.scene3d.walk.setTool(null));
+  await selectTool(null);
 
   const cleaned = Object.keys(before).some((k) => after[k] < before[k] - 1e-4);
 
   return {
     ok: spraying.socketFound
+      && spraying.authoredSocketFound
+      && spraying.socketToAuthored !== null && spraying.socketToAuthored < 0.02
       && spraying.jetVisible
       && spraying.jetStartToSocket !== null && spraying.jetStartToSocket < 0.02
       && cleaned
@@ -201,6 +217,7 @@ async (page) => {
     cleanedSomething: cleaned,
     occlusion: occl,
     errors,
+    pointerLockAcquired,
     shots: out,
   };
 }

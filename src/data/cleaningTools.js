@@ -75,6 +75,17 @@ export const CLEANING_TOOLS = {
     dirt: [DIRT.FILM, DIRT.BONDED],
     // Authored in courseScene today; kept here so the contract is discoverable in one place.
     external: true,
+    place: [0.34, -0.20, -0.82],
+    orient: [0.06, -0.13, 0],
+    parts: [
+      cyl(0.019, 0.023, 0.86, [0, 0, -0.28], [Math.PI / 2 - 0.16, 0, 0], 'steel', 10),
+      box([0.09, 0.13, 0.20], [0, -0.05, 0.16], [0, 0, 0], 'bodyPoly'),
+      box([0.055, 0.17, 0.06], [0, -0.16, 0.20], [-0.22, 0, 0], 'bodyPoly'),
+      box([0.030, 0.070, 0.020], [0, -0.11, 0.13], [0, 0, 0], 'hazardYellow'),
+      cyl(0.016, 0.030, 0.09, [0, 0.075, -0.70], [Math.PI / 2 - 0.16, 0, 0], 'hazardYellow', 8),
+      tube([[0, -0.20, 0.26], [0.10, -0.42, 0.50], [-0.05, -0.60, 0.85], [-0.30, -0.75, 1.10]],
+        0.022, 'darkPoly'),
+    ],
     // Authored first-person viewmodel, built by the asset pipeline. The procedural parts
     // above stay as the instant fallback so equipping never waits on I/O; the authored
     // geometry swaps in when it arrives, and its own sockets take over.
@@ -82,10 +93,18 @@ export const CLEANING_TOOLS = {
       glb: 'vendor/models/assets_51_100/firstperson/asset_079_pressure_washer_hose_and_wand_fp.glb',
       sockets: { nozzle: 'SOCKET_SprayEmission' },
       grips: { right: 'SOCKET_GripPrimary', left: 'SOCKET_GripSupport' },
+      motion: {
+        equip: 'WasherWand_Equip',
+        unequip: 'WasherWand_Unequip',
+        useStart: 'WasherWand_TriggerDown',
+        useLoop: ['WasherWand_Recoil'],
+        useStop: 'WasherWand_TriggerUp',
+      },
     },
     sockets: { nozzle: { pos: [0, 0.0678, -0.7444], rot: [-0.16, 0, 0] } },
     grip: { pos: [0.0, -0.13, 0.20], rot: [-0.35, 0, 0.12] },
     support: { pos: [0.0, 0.015, -0.30], rot: [-0.30, 0, 0.9] },
+    showSupportHand: false,
     recoil: 0.055,
     audio: { loop: 'washerLoop', start: 'washerStart', stop: 'washerStop' },
   },
@@ -128,6 +147,13 @@ export const CLEANING_TOOLS = {
       glb: 'vendor/models/assets_51_100/firstperson/asset_071_vacuum_cleaner_fp.glb',
       sockets: { nozzle: 'SOCKET_DirtIntake' },
       grips: { right: 'SOCKET_GripPrimary', left: 'SOCKET_GripSupport' },
+      motion: {
+        equip: 'Vacuum_Equip',
+        unequip: 'Vacuum_Unequip',
+        useStart: 'Vacuum_Start',
+        useLoop: ['Vacuum_FloorHeadContact'],
+        useStop: 'Vacuum_Stop',
+      },
     },
     sockets: { nozzle: { pos: [0, -0.112, -1.66], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.005, 0.10], rot: [-0.10, 0, 0.05] },
@@ -170,10 +196,16 @@ export const CLEANING_TOOLS = {
       glb: 'vendor/models/assets_51_100/firstperson/asset_072_mop_fp.glb',
       sockets: { contact: 'SOCKET_FloorContact' },
       grips: { right: 'SOCKET_GripPrimary', left: 'SOCKET_GripSupport' },
+      motion: {
+        equip: 'Mop_Equip',
+        unequip: 'Mop_Unequip',
+        useLoop: ['Mop_StrokeLeft', 'Mop_StrokeRight'],
+      },
     },
     sockets: { contact: { pos: [0, -0.115, -1.90], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.005, 0.08], rot: [-0.08, 0, 0.10] },
     support: { pos: [-0.015, 0.0, -0.46], rot: [-0.10, 0, -0.20] },
+    showSupportHand: false,
     recoil: 0.018,
     audio: { loop: 'mopSwish', start: 'mopStart', stop: 'mopStop' },
   },
@@ -209,10 +241,16 @@ export const CLEANING_TOOLS = {
       glb: 'vendor/models/assets_51_100/firstperson/asset_074_broom_fp.glb',
       sockets: { contact: 'SOCKET_FloorContact' },
       grips: { right: 'SOCKET_GripPrimary', left: 'SOCKET_GripSupport' },
+      motion: {
+        equip: 'Broom_Equip',
+        unequip: 'Broom_Unequip',
+        useLoop: ['Broom_SweepLeft', 'Broom_SweepRight'],
+      },
     },
     sockets: { contact: { pos: [0, -0.215, -1.85], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.005, 0.08], rot: [-0.08, 0, 0.10] },
     support: { pos: [-0.015, 0.0, -0.48], rot: [-0.10, 0, -0.18] },
+    showSupportHand: false,
     recoil: 0.020,
     audio: { loop: 'broomSweep', start: 'broomStart', stop: 'broomStop' },
   },
@@ -253,6 +291,11 @@ export const CLEANING_TOOLS = {
       glb: 'vendor/models/assets_51_100/firstperson/asset_075_dustpan_fp.glb',
       sockets: { contact: 'SOCKET_PanIntake' },
       grips: { right: 'SOCKET_Grip', left: null },
+      motion: {
+        equip: 'Dustpan_Equip',
+        unequip: 'Dustpan_Unequip',
+        useLoop: ['Dustpan_SetDown', 'Dustpan_PickUp'],
+      },
     },
     sockets: { contact: { pos: [0, -0.066, -1.60], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.005, 0.08], rot: [-0.10, 0, 0.08] },
@@ -273,7 +316,7 @@ export const CLEANING_TOOLS = {
     strength: 1.0,
     dirt: [DIRT.SMEAR, DIRT.GRIME, DIRT.BONDED],
     loosens: true,     // does not clean by itself — it makes the wipe work
-    place: [0.24, -0.34, -0.46],
+    place: [0.24, -0.18, -0.76],
     orient: [0.08, -0.20, 0],
     parts: [
       // the bottle: a squared-off white cylinder, Pineview label on the face
@@ -295,6 +338,11 @@ export const CLEANING_TOOLS = {
       glb: 'vendor/models/assets_51_100/firstperson/asset_076_cleaning_spray_bottle_fp.glb',
       sockets: { nozzle: 'SOCKET_SprayEmission' },
       grips: { right: 'SOCKET_Grip', left: null },
+      motion: {
+        equip: 'SprayBottle_Equip',
+        unequip: 'SprayBottle_Unequip',
+        useLoop: ['SprayBottle_Trigger'],
+      },
     },
     sockets: { nozzle: { pos: [0, 0.140, -0.108], rot: [0, 0, 0] } },
     grip: { pos: [0.0, 0.05, 0.055], rot: [-0.16, 0, 0.10] },
@@ -315,7 +363,7 @@ export const CLEANING_TOOLS = {
     strength: 1.2,     // strong, but only on what the spray has already loosened
     dirt: [DIRT.SMEAR, DIRT.FILM],
     needsSolution: true,
-    place: [0.26, -0.30, -0.44],
+    place: [0.26, -0.16, -0.76],
     orient: [0.16, -0.22, 0],
     parts: [
       // a folded cloth: three offset slabs so it reads as fabric, not a brick
@@ -331,6 +379,11 @@ export const CLEANING_TOOLS = {
       sockets: { contact: 'SOCKET_ClothContact' },
       grips: { right: 'SOCKET_ClothGrip', left: null },
       only: 'Cloth', // cloth and sponge share one authored set
+      motion: {
+        equip: 'Cloth_Equip',
+        unequip: 'Cloth_Unequip',
+        useLoop: ['Cloth_Wipe'],
+      },
     },
     sockets: { contact: { pos: [0, -0.056, -0.010], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.062, 0.028], rot: [-1.32, 0, 0.10] }, // palm down, flat on the surface
@@ -351,7 +404,7 @@ export const CLEANING_TOOLS = {
     strength: 0.75,    // slower than the cloth, but it shifts what the cloth cannot
     dirt: [DIRT.GRIME, DIRT.BONDED, DIRT.SMEAR],
     foams: true,
-    place: [0.26, -0.30, -0.44],
+    place: [0.26, -0.16, -0.76],
     orient: [0.16, -0.22, 0],
     parts: [
       box([0.135, 0.055, 0.092], [0, 0, 0], [0.05, 0.08, 0.02], 'sponge'),
@@ -365,6 +418,11 @@ export const CLEANING_TOOLS = {
       sockets: { contact: 'SOCKET_SpongeContact' },
       grips: { right: 'SOCKET_SpongeGrip', left: null },
       only: 'Sponge', // cloth and sponge share one authored set
+      motion: {
+        equip: 'Sponge_Equip',
+        unequip: 'Sponge_Unequip',
+        useLoop: ['Sponge_Scrub'],
+      },
     },
     sockets: { contact: { pos: [0, -0.050, 0], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.060, 0.020], rot: [-1.30, 0, 0.10] },
@@ -385,7 +443,7 @@ export const CLEANING_TOOLS = {
     strength: 1.0,
     dirt: [DIRT.DEBRIS],
     fills: true,
-    place: [0.30, -0.56, -0.52],
+    place: [0.38, -0.28, -0.96],
     orient: [0.05, -0.10, 0],
     // Staged, not simulated: the fill states swap scale on these, which is far cheaper than cloth
     // and reads perfectly well at arm's length.
@@ -401,8 +459,17 @@ export const CLEANING_TOOLS = {
     // geometry swaps in when it arrives, and its own sockets take over.
     fp: {
       glb: 'vendor/models/assets_51_100/firstperson/asset_080_trash_bag_fp.glb',
+      // The source asset is life-size. A full sack at the generic hand-tool camera distance
+      // covered most of the viewport, so this viewmodel-specific presentation scale keeps the
+      // gathered neck readable without turning the bag into a black screen wipe.
+      scale: 0.62,
       sockets: { contact: 'SOCKET_TrashFill' },
       grips: { right: 'SOCKET_Grip', left: null },
+      motion: {
+        equip: 'TrashBag_Equip',
+        unequip: 'TrashBag_Unequip',
+        useLoop: ['TrashBag_Tie'],
+      },
     },
     sockets: { contact: { pos: [0, -0.30, -0.03], rot: [-Math.PI / 2, 0, 0] } },
     grip: { pos: [0.0, 0.098, 0.010], rot: [-1.05, 0, 0.16] },

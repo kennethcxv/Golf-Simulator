@@ -70,7 +70,7 @@ import {
   floraLodNeedsRefresh,
 } from './floraLod.js';
 import { floraWindEligible, floraWindStrength } from './floraWind.js';
-import { attachSocket, socketWorld } from './toolSockets.js';
+import { socketWorld } from './toolSockets.js';
 import { buildToolViewmodels } from './toolViewmodel.js';
 import { CLEANING_TOOLS } from '../data/cleaningTools.js';
 
@@ -3839,65 +3839,27 @@ export function makeCourseScene(canvas, state) {
   // hand-wired block down here. The groundskeeping tools and the box cutter are still authored
   // below; the vacuum's registry build replaces the two-box wand that stood in for it.
   const toolViewmodels = buildToolViewmodels();
-  // The asset pipeline builds authored first-person viewmodels for the cleaning kit, and nothing
-  // was loading them — finished geometry that never reached the screen. Adopt them in the
-  // background: the procedural tools above are already usable, so equipping never waits on I/O,
-  // and each authored mesh (with its own sockets) replaces its stand-in as it lands.
-  let toolViewmodelsAuthored = null;
-  toolViewmodels.adoptAuthored(new GLTFLoader()).then((r) => { toolViewmodelsAuthored = r; });
+  // Cleaning viewmodels are optional hero content: the procedural fallback appears immediately,
+  // while the authored GLB loads only when that tool is first equipped. QA may call this with no
+  // id to await the whole kit without making normal boots pay for nine invisible assets.
+  const toolViewmodelLoader = new GLTFLoader();
+  const toolViewmodelsAuthored = new Map();
+  const toolViewmodelsReady = async (tool = null) => {
+    const ids = tool
+      ? [tool]
+      : Object.values(CLEANING_TOOLS).filter((def) => def.fp?.glb).map((def) => def.id);
+    const results = await Promise.all(ids.map((id) => toolViewmodels.ensureAuthored(id, toolViewmodelLoader)));
+    for (const result of results) toolViewmodelsAuthored.set(result.id, result);
+    return tool ? results[0] : results;
+  };
   const heldGroups = {
     hose: new THREE.Group(), divot: new THREE.Group(), rake: new THREE.Group(),
     washer: new THREE.Group(), boxcutter: new THREE.Group(),
     ...toolViewmodels.groups,
   };
-  // the washer's geometry is authored below, so keep the empty group rather than the registry's
-  // The washer's lance is authored below rather than from the registry, so discard the
-  // registry's stand-in group and name the real one — several tools now carry a socket called
-  // SOCKET_nozzle, so anything looking for the washer's must be able to scope its search.
-  heldGroups.washer = heldGroups.washer.name === 'Tool_washer' ? new THREE.Group() : heldGroups.washer;
-  heldGroups.washer.name = 'HeldWasher';
   for (const g of Object.values(heldGroups)) {
     g.visible = false;
     heldRoot.add(g);
-  }
-  {
-    // the pressure-washer lance: a two-handed wand with a trigger grip and a fan tip
-    const steel = new THREE.MeshStandardMaterial({ color: 0x9aa3aa, roughness: 0.42, metalness: 0.7 });
-    const grip = new THREE.MeshStandardMaterial({ color: 0x1e2b22, roughness: 0.85 });
-    const yellow = new THREE.MeshStandardMaterial({ color: 0xd8b23a, roughness: 0.6 });
-
-    const lance = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.023, 0.86, 10), steel);
-    lance.rotation.x = Math.PI / 2 - 0.16;
-    lance.position.set(0, 0, -0.28);
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.13, 0.2), grip);
-    body.position.set(0, -0.05, 0.16);
-    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.17, 0.06), grip);
-    handle.position.set(0, -0.16, 0.2);
-    handle.rotation.x = -0.22;
-    const trigger = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.07, 0.02), yellow);
-    trigger.position.set(0, -0.11, 0.13);
-    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.03, 0.09, 8), yellow);
-    tip.rotation.x = Math.PI / 2 - 0.16;
-    tip.position.set(0, 0.075, -0.7);
-    // the hose, curling away out of frame
-    const hoseCurve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0, -0.2, 0.26), new THREE.Vector3(0.1, -0.42, 0.5),
-      new THREE.Vector3(-0.05, -0.6, 0.85), new THREE.Vector3(-0.3, -0.75, 1.1),
-    ]);
-    const hoseMesh = new THREE.Mesh(
-      new THREE.TubeGeometry(hoseCurve, 14, 0.022, 6, false),
-      new THREE.MeshStandardMaterial({ color: 0x23262a, roughness: 0.9 }),
-    );
-    heldGroups.washer.add(lance, body, handle, trigger, tip, hoseMesh);
-    // The water leaves the far FACE of the fan tip, not its centre: the tip is 9 cm long, centred
-    // at (0, 0.075, -0.7), and its axis is the lance's own -0.16 rad droop. Half its length along
-    // that axis is the actual orifice. The socket is parented to the tool, so it inherits the gait
-    // bob, the sway and the equip ease for free — which is the whole point of it existing.
-    attachSocket(heldGroups.washer, 'nozzle', [0, 0.0678, -0.7444], [-0.16, 0, 0]);
-    // brought in from the frame edge once it had hands on it: a two-handed tool has to be far
-    // enough into shot that you can see somebody holding it
-    heldGroups.washer.position.set(0.24, -0.34, -0.60);
-    heldGroups.washer.rotation.set(0.06, -0.13, 0);
   }
   {
     // The vacuum used to be two boxes on a stick built right here — a grey cylinder and a red
@@ -4090,8 +4052,12 @@ export function makeCourseScene(canvas, state) {
   // tool FEEL: equip/stow easing + a carried bob synced to the gait, so tools
   // read as held in hands rather than glued to the camera
   const heldAnim = { t: 1, show: false, pendingHide: false };
+  let retiringTool = null;
   let bobPhase = 0;
   let walkMoving = false;
+  let toolWalkBlend = 0;
+  let toolSprintBlend = 0;
+  let toolUseBlend = 0;
   let mountBlend = 0; // 0 = on foot (first person) … 1 = in the seat (chase cam)
   const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
@@ -4111,28 +4077,40 @@ export function makeCourseScene(canvas, state) {
   function updateHeldFeel(dt) {
     // the hands breathe, rise into frame, and shove back under the trigger — or draw the box
     // cutter down the seam while you hold E on a taped carton
-    fpHands.update(dt, walkSpraying || walkSoaping || holdActive);
+    toolViewmodels.update(dt);
     if (!heldRoot.visible) return;
+    fpHands.update(dt, walkSpraying || walkSoaping || holdActive);
     heldAnim.t = Math.min(1, heldAnim.t + dt / 0.26);
     const k = heldAnim.show ? easeOutCubic(heldAnim.t) : 1 - easeOutCubic(heldAnim.t);
     if (!heldAnim.show && heldAnim.t >= 1) {
       heldRoot.visible = false;
+      if (retiringTool && heldGroups[retiringTool]) heldGroups[retiringTool].visible = false;
+      retiringTool = null;
+      fpHands.setTool(null);
       return;
     }
-    // gait-synced bob: strong under way, a slow breathe at rest
-    bobPhase += dt * (walkMoving ? 8.7 : 1.6); // 8.7 = the characters' stride rate
-    const sway = walkMoving ? 1 : 0.25;
+    // One blended locomotion layer serves every first-person tool. Entering a walk, sprint or use
+    // state eases instead of snapping; long floor tools and compact hand tools therefore share the
+    // same readable body rhythm without duplicating animation branches per tool.
+    const blendStep = 1 - Math.exp(-dt * 9);
+    toolWalkBlend += ((walkMoving ? 1 : 0) - toolWalkBlend) * blendStep;
+    toolSprintBlend += ((walkMoving && walkHeld.has('shift') ? 1 : 0) - toolSprintBlend) * blendStep;
+    toolUseBlend += (((walkSpraying || walkSoaping || holdActive) ? 1 : 0) - toolUseBlend) * blendStep;
+    const gaitRate = 1.6 + toolWalkBlend * 7.1 + toolSprintBlend * 2.8;
+    bobPhase += dt * gaitRate;
+    const sway = 0.25 + toolWalkBlend * 0.75 + toolSprintBlend * 0.35;
     // Recoil belongs to the RIG, not to the hands: the hands are parented into the tool group so
     // their grip stays in the tool's frame, and writing the kick to them slid them along the lance
     // instead of shoving the lance back. fpHands reports the offset; the rig applies it.
     const kickBack = fpHands.rigOffset;
     heldRoot.position.set(
       Math.cos(bobPhase * 0.5) * 0.01 * sway + kickBack.jitterX,
-      -0.42 * (1 - k) + Math.sin(bobPhase) * 0.014 * sway,
-      kickBack.back,
+      -0.42 * (1 - k) + Math.sin(bobPhase) * 0.014 * sway - toolSprintBlend * 0.018,
+      kickBack.back + toolSprintBlend * 0.025 + toolUseBlend * 0.006,
     );
-    heldRoot.rotation.x = 0.45 * (1 - k) + kickBack.pitch;
-    heldRoot.rotation.z = Math.sin(bobPhase * 0.5) * 0.012 * sway;
+    heldRoot.rotation.x = 0.45 * (1 - k) + kickBack.pitch - toolSprintBlend * 0.025;
+    heldRoot.rotation.z = Math.sin(bobPhase * 0.5) * 0.012 * sway
+      + Math.sin(bobPhase) * 0.006 * toolWalkBlend;
   }
 
   const sprayCount = 90;
@@ -4209,6 +4187,11 @@ export function makeCourseScene(canvas, state) {
 
   function walkSetTool(tool) {
     const previousTool = walkTool;
+    if (CLEANING_TOOLS[tool]?.fp?.glb) {
+      // Do not await: the procedural registry model is the zero-latency fallback. Motion state is
+      // recorded below and replayed when the authored model lands.
+      toolViewmodelsReady(tool);
+    }
     if (HELD_TOOL_ASSET_MANIFEST[tool]) {
       // Equipping is the first safe actual-use boundary: ordinary boots stay
       // lean, while the authored model begins loading before this frame makes
@@ -4216,14 +4199,27 @@ export function makeCourseScene(canvas, state) {
       // blank-hand flash on cold storage or a missing asset.
       heldAssetRegistry.ensure(tool, 'equip');
     }
+    if (previousTool && previousTool !== tool) {
+      toolViewmodels.setUsing(previousTool, false);
+      toolViewmodels.setEquipped(previousTool, false);
+    }
+    walkSpraying = false;
+    walkSoaping = false;
     walkTool = tool;
-    for (const [name, g] of Object.entries(heldGroups)) g.visible = name === tool;
+    retiringTool = !tool ? previousTool : null;
+    for (const [name, g] of Object.entries(heldGroups)) {
+      g.visible = name === tool || (!tool && name === retiringTool);
+    }
     // Every tool remains physically held. The cutter uses a smaller pinching
     // hand behind its handle so the blade contact and highlighted tape path
     // stay visible without leaving the knife floating on the carton.
     if (tool && heldGroups[tool] && GRIPS[tool]) {
       heldGroups[tool].add(fpHands.root);
-      fpHands.setTool(tool);
+      fpHands.setTool(tool, heldGroups[tool]);
+      toolViewmodels.setEquipped(tool, true);
+    } else if (retiringTool && heldGroups[retiringTool] && GRIPS[retiringTool]) {
+      heldGroups[retiringTool].add(fpHands.root);
+      fpHands.setTool(retiringTool, heldGroups[retiringTool]);
     } else {
       fpHands.setTool(null);
     }
@@ -4249,8 +4245,16 @@ export function makeCourseScene(canvas, state) {
   }
 
   function walkSetSpraying(on) {
-    walkSpraying = !!(on && walkTool && !cart.mounted);
+    const next = !!(on && walkTool && !cart.mounted);
+    if (walkTool && next !== walkSpraying) toolViewmodels.setUsing(walkTool, next || walkSoaping);
+    walkSpraying = next;
     if (!walkSpraying) sprayPoints.visible = false;
+  }
+
+  function walkSetSoaping(on) {
+    const next = !!(on && walkTool === 'washer' && !cart.mounted);
+    if (walkTool && next !== walkSoaping) toolViewmodels.setUsing(walkTool, next || walkSpraying);
+    walkSoaping = next;
   }
 
   // --- what you're looking at (shop-style focus + [E]) -------------------------------
@@ -4409,6 +4413,9 @@ export function makeCourseScene(canvas, state) {
         walkSetTool(requestedTool);
         autoTool = requestedTool;
         contextToolRequiresRelease = true;
+        if (requestedTool === 'cloth' && walkHooks.toast) {
+          walkHooks.toast('Microfibre cloth ready — release, then hold [E] to wipe the glass.', 'tool');
+        }
         return;
       }
       if (walkFocus.prop.action) walkFocus.prop.action();
@@ -4441,6 +4448,7 @@ export function makeCourseScene(canvas, state) {
   let autoTool = null;
   let contextToolRequiresRelease = false;
   let holdActive = false;      // are we mid-hold this frame? (drives the hands' cutting motion)
+  let contextUseTool = null;
   let cutterContactBlend = 0;
   let cutterBladeBlend = 0;
   let cutterContactCueArmed = true;
@@ -4591,6 +4599,15 @@ export function makeCourseScene(canvas, state) {
     holdActive = true;
   }
 
+  function syncContextToolUse() {
+    const next = holdActive && autoTool && walkTool === autoTool ? walkTool : null;
+    if (next === contextUseTool) return;
+    if (contextUseTool) toolViewmodels.setUsing(contextUseTool, false);
+    contextUseTool = next;
+    if (contextUseTool) toolViewmodels.setUsing(contextUseTool, true);
+    if (walkHooks.toolLoop) walkHooks.toolLoop(contextUseTool);
+  }
+
   function updateBoxCutterPose(dt) {
     const cutter = heldGroups.boxcutter;
     const focusedProp = walkFocus && walkFocus.kind === 'prop' ? walkFocus.prop : null;
@@ -4687,6 +4704,8 @@ export function makeCourseScene(canvas, state) {
   function walkBlur() {
     walkHeld.clear();
     contextToolRequiresRelease = false;
+    holdActive = false;
+    syncContextToolUse();
   }
   // Ignore the first mouse events after (re)acquiring pointer lock. Browsers can
   // deliver a large accumulated movementX/Y in that first event — the classic
@@ -4790,6 +4809,9 @@ export function makeCourseScene(canvas, state) {
     if (!walk.active) return;
     walk.active = false;
     walkSetSpraying(false);
+    walkSetSoaping(false);
+    holdActive = false;
+    syncContextToolUse();
     heldRoot.visible = false; // the overview camera carries no hand tools
     walkHeld.clear();
     window.removeEventListener('keydown', walkKeyDown);
@@ -4960,6 +4982,7 @@ export function makeCourseScene(canvas, state) {
     walkFindFocus();
     reconcileAutoTool();   // the box cutter appears when you look at a taped box, and only then
     runHold(dt);           // holding E runs whatever the focused prop exposes as a hold verb
+    syncContextToolUse();
     updateHeldFeel(dt);
     updateBoxCutterPose(dt);
 
@@ -6739,9 +6762,14 @@ export function makeCourseScene(canvas, state) {
       setTool: walkSetTool,
       getTool: () => walkTool,
       heldAssetDiagnostics: heldAssetRegistry.diagnostics,
+      toolViewmodelsReady,
+      toolMotionDiagnostics: () => ({
+        authored: [...toolViewmodelsAuthored.values()],
+        motions: toolViewmodels.motionDiagnostics(),
+      }),
       setSpraying: walkSetSpraying,
       isSpraying: () => walkSpraying,
-      setSoaping: (on) => { walkSoaping = !!on && walkTool === 'washer'; },
+      setSoaping: walkSetSoaping,
       isSoaping: () => walkSoaping,
       clearKeys: walkBlur, // a mode change drops whatever was held, so you never resume walking into a wall
       unstick: walkUnstick, // the pause menu's manual fallback; returns how it got you out, or null

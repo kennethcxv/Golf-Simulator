@@ -1,6 +1,13 @@
 async (page) => {
-  const BASE = 'http://localhost:8467/';
-  const OUT = 'C:/Users/Kenneth/Documents/GitHub/Golf-Flipper-property-expansion-world-overhaul/qa/property-expansion-world-overhaul/baseline';
+  const fs = process.getBuiltinModule('node:fs');
+  const path = process.getBuiltinModule('node:path');
+  const repo = process.env.QA_REPO_ROOT || process.cwd();
+  const BASE = process.env.QA_BASE_URL || 'http://localhost:8467/';
+  const OUT = process.env.PROPERTY_OVERHAUL_QA_OUT_DIR
+    ? path.resolve(repo, process.env.PROPERTY_OVERHAUL_QA_OUT_DIR)
+    : path.join(repo, 'qa', 'property-expansion-world-overhaul', 'baseline');
+  const performanceOnly = process.env.PROPERTY_OVERHAUL_PERFORMANCE_ONLY === '1';
+  fs.mkdirSync(OUT, { recursive: true });
   const diagnostics = [];
   page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning') {
@@ -20,6 +27,16 @@ async (page) => {
     const veil = document.querySelector('.load-veil');
     return !veil || veil.style.display === 'none' || getComputedStyle(veil).opacity === '0';
   }, null, { timeout: 40000 });
+  await page.waitForFunction(() => {
+    const clubhouse = window.__fw?.scene3d?.clubhouse?.();
+    if (!clubhouse) return false;
+    const baseReady = !clubhouse.assetsReady || clubhouse.assetsReady();
+    const equipmentReady = !clubhouse.deliveryEquipmentReady || clubhouse.deliveryEquipmentReady();
+    const sheet06 = clubhouse.sheet06Production?.diagnostics?.() || null;
+    const sheet06Ready = !clubhouse.sheet06Production
+      || (sheet06?.actualSharedGameIntegrated === true && sheet06?.activationStatus === 'active');
+    return baseReady && equipmentReady && sheet06Ready;
+  }, null, { timeout: 90000 });
   await page.waitForTimeout(2000);
 
   const anchor = await page.evaluate(() => {
@@ -102,49 +119,53 @@ async (page) => {
     window.__fw.scene3d.walk.setTool(null);
   });
 
-  await page.keyboard.press('Tab');
-  await page.waitForFunction(() => window.__fw.courseMode === 'overview');
-  await page.waitForTimeout(600);
-  await page.screenshot({ path: `${OUT}/16-course-and-tree-baseline.png` });
-  shots.push('16-course-and-tree-baseline');
-  await page.keyboard.press('e');
-  await page.waitForFunction(() => window.__fw.worksMode === true);
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/17-current-course-editor-no-tree-placement.png` });
-  shots.push('17-current-course-editor-no-tree-placement');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Tab');
-  await page.waitForFunction(() => window.__fw.courseMode === 'walk');
+  if (!performanceOnly) {
+    await page.keyboard.press('Tab');
+    await page.waitForFunction(() => window.__fw.courseMode === 'overview');
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `${OUT}/16-course-and-tree-baseline.png` });
+    shots.push('16-course-and-tree-baseline');
+    await page.keyboard.press('j');
+    await page.waitForFunction(() => window.__fw.courseMode === 'editor');
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT}/17-current-course-editor-no-tree-placement.png` });
+    shots.push('17-current-course-editor-no-tree-placement');
+    await page.getByTitle('Leave the editor').click();
+    await page.waitForFunction(() => window.__fw.courseMode === 'overview');
+    await page.keyboard.press('Tab');
+    await page.waitForFunction(() => window.__fw.courseMode === 'walk');
 
-  await page.evaluate(async () => {
-    const app = window.__fw;
-    const shop = await import('/src/sim/shop.js');
-    app.state.cash = Math.max(app.state.cash, 100000);
-    app.state.shop.unlockedTier = Math.max(app.state.shop.unlockedTier, 3);
-    shop.placeOrder(app.state, 'balls3', 24);
-    const o = app.scene3d.clubhouse().interior.position;
-    const walk = app.scene3d.walk.state;
-    walk.x = 8.45 + o.x;
-    walk.z = 4.5 + o.z;
-    walk.yaw = -Math.PI / 2;
-    walk.pitch = -0.05;
-  });
-  await page.waitForTimeout(800);
-  await page.keyboard.press('e');
-  await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 10000 });
-  await page.waitForFunction(() => {
-    const frame = document.querySelector('.lt-frame');
-    return frame && frame.getBoundingClientRect().width > 100;
-  }, null, { timeout: 15000 });
-  const deliveryButton = page.locator('.lt-navbtn').filter({ hasText: 'Deliveries' });
-  await deliveryButton.scrollIntoViewIfNeeded();
-  await deliveryButton.click();
-  await page.waitForTimeout(300);
-  await page.screenshot({ path: `${OUT}/18-current-delivery-eta.png` });
-  shots.push('18-current-delivery-eta');
+    await page.evaluate(async () => {
+      const app = window.__fw;
+      const shop = await import('/src/sim/shop.js');
+      app.state.cash = Math.max(app.state.cash, 100000);
+      app.state.shop.unlockedTier = Math.max(app.state.shop.unlockedTier, 3);
+      shop.placeOrder(app.state, 'balls3', 24);
+      const o = app.scene3d.clubhouse().interior.position;
+      const walk = app.scene3d.walk.state;
+      walk.x = 8.45 + o.x;
+      walk.z = 4.5 + o.z;
+      walk.yaw = -Math.PI / 2;
+      walk.pitch = -0.05;
+    });
+    await page.waitForTimeout(800);
+    await page.keyboard.press('e');
+    await page.waitForFunction(() => window.__fw.laptopOpen === true, null, { timeout: 10000 });
+    await page.waitForFunction(() => {
+      const frame = document.querySelector('.lt-frame');
+      return frame && frame.getBoundingClientRect().width > 100;
+    }, null, { timeout: 15000 });
+    await page.locator('.lt-navbtn[title="Shop"]').click();
+    const deliveryButton = page.locator('.lt-tab').filter({ hasText: 'Deliveries' });
+    await deliveryButton.scrollIntoViewIfNeeded();
+    await deliveryButton.click();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${OUT}/18-current-delivery-eta.png` });
+    shots.push('18-current-delivery-eta');
 
-  await page.keyboard.press('Escape');
-  await page.waitForFunction(() => window.__fw.laptopOpen === false);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => window.__fw.laptopOpen === false);
+  }
   await pose('19-performance-fixed-camera', [bx + 6.5, bz + 15.5], [bx - 0.5, bz + 3], 0.03);
   const performanceSamples = [];
   for (let run = 0; run < 3; run++) {
@@ -184,23 +205,132 @@ async (page) => {
     const scene = window.__fw.scene3d.scene;
     let meshes = 0;
     let triangles = 0;
+    let drawSubmissionUpperBound = 0;
     const materials = new Set();
+    const textures = new Map();
+    const textureKeys = [
+      'map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap',
+      'alphaMap', 'bumpMap', 'displacementMap', 'envMap', 'lightMap', 'specularMap',
+    ];
     scene.traverse((object) => {
       if (!object.isMesh || !object.visible) return;
       meshes += 1;
       const geometry = object.geometry;
       const count = geometry?.index?.count ?? geometry?.attributes?.position?.count ?? 0;
       triangles += (count / 3) * (object.isInstancedMesh ? object.count : 1);
+      drawSubmissionUpperBound += Math.max(1, geometry?.groups?.length || 0);
       for (const material of (Array.isArray(object.material) ? object.material : [object.material])) {
-        if (material) materials.add(material.uuid);
+        if (!material) continue;
+        materials.add(material.uuid);
+        for (const key of textureKeys) {
+          const texture = material[key];
+          if (texture?.isTexture) textures.set(texture.uuid, texture);
+        }
       }
     });
-    return { visibleMeshes: meshes, sceneTriangles: Math.round(triangles), materialCount: materials.size };
+    let textureMemoryBytes = 0;
+    let texturesWithDimensions = 0;
+    for (const texture of textures.values()) {
+      const source = texture.source?.data || texture.image;
+      const images = Array.isArray(source) ? source : [source];
+      let baseBytes = 0;
+      for (const image of images) {
+        const width = Number(image?.videoWidth || image?.naturalWidth || image?.width || 0);
+        const height = Number(image?.videoHeight || image?.naturalHeight || image?.height || 0);
+        if (width > 0 && height > 0) baseBytes += width * height * 4;
+      }
+      if (baseBytes <= 0) continue;
+      texturesWithDimensions += 1;
+      textureMemoryBytes += baseBytes * (texture.generateMipmaps === false ? 1 : 4 / 3);
+    }
+    return {
+      visibleMeshes: meshes,
+      sceneTriangles: Math.round(triangles),
+      materialCount: materials.size,
+      drawSubmissionUpperBound,
+      referencedTextureCount: textures.size,
+      texturesWithDimensions,
+      textureMemoryBytes: Math.round(textureMemoryBytes),
+      textureMemoryMethod: 'Unique referenced texture dimensions × four RGBA bytes, plus a 4/3 mip factor when mip generation is enabled; compressed GPU allocation is not exposed by Three.js.',
+    };
   });
   const cdp = await page.context().newCDPSession(page);
-  const evaluated = await cdp.send('Runtime.evaluate', { expression: 'window', objectGroup: 'qa-listeners' });
-  const listeners = await cdp.send('DOMDebugger.getEventListeners', { objectId: evaluated.result.objectId });
-  await cdp.send('Runtime.releaseObjectGroup', { objectGroup: 'qa-listeners' });
+  const activeWindowListeners = async (objectGroup) => {
+    const evaluated = await cdp.send('Runtime.evaluate', { expression: 'window', objectGroup });
+    const listeners = await cdp.send('DOMDebugger.getEventListeners', { objectId: evaluated.result.objectId });
+    await cdp.send('Runtime.releaseObjectGroup', { objectGroup });
+    return listeners.listeners.length;
+  };
+  const activeWindowEventListenersBeforeToolCycles = await activeWindowListeners('qa-listeners-before');
+  const heapBeforeToolCycles = await page.evaluate(() => performance.memory?.usedJSHeapSize ?? null);
+
+  // Positioning creates the deterministic fixture. Every actual tool transition and
+  // use below travels through the same keyboard/mouse handlers as normal gameplay.
+  await page.evaluate(() => {
+    const app = window.__fw;
+    const origin = app.scene3d.clubhouse().interior.position;
+    const walk = app.scene3d.walk;
+    walk.clearKeys?.();
+    walk.setSpraying?.(false);
+    walk.setTool?.(null);
+    const vacuum = app.state.shop.inventory.vac1 || (app.state.shop.inventory.vac1 = {});
+    vacuum.back = Math.max(1, Number(vacuum.back) || 0);
+    walk.state.x = origin.x - 5.5;
+    walk.state.z = origin.z + 3.2;
+    walk.state.yaw = 0;
+    walk.state.pitch = -0.3;
+  });
+  await page.keyboard.press('f');
+  await page.waitForFunction(() => window.__fw.scene3d.walk.getTool?.() === 'vacuum');
+  const uiWriteSample = await page.evaluate(() => {
+    const element = document.querySelector('.shop-cond');
+    window.__qaConditionWrites = 0;
+    window.__qaConditionObserver = new MutationObserver((records) => {
+      window.__qaConditionWrites += records.length;
+    });
+    if (element) window.__qaConditionObserver.observe(element, {
+      subtree: true, childList: true, characterData: true, attributes: true,
+    });
+    return { startedAt: performance.now(), elementFound: !!element };
+  });
+  await page.mouse.down({ button: 'left' });
+  await page.waitForTimeout(5000);
+  await page.mouse.up({ button: 'left' });
+  const uiWriteResult = await page.evaluate((startedAt) => {
+    window.__qaConditionObserver?.disconnect();
+    const durationMs = performance.now() - startedAt;
+    const writes = window.__qaConditionWrites || 0;
+    delete window.__qaConditionObserver;
+    delete window.__qaConditionWrites;
+    return { durationMs, writes, writesPerSecond: writes / (durationMs / 1000) };
+  }, uiWriteSample.startedAt);
+
+  const toolCycleCount = 48;
+  for (let index = 0; index < toolCycleCount; index += 1) {
+    await page.keyboard.press('f');
+    await page.waitForTimeout(25);
+  }
+  await page.evaluate(() => window.__fw.scene3d.walk.toolViewmodelsReady?.());
+  await page.waitForTimeout(1200);
+  const activeWindowEventListenersAfterToolCycles = await activeWindowListeners('qa-listeners-after');
+  const heapAfterToolCycles = await page.evaluate(() => performance.memory?.usedJSHeapSize ?? null);
+  await cdp.detach();
+
+  const interactionStability = {
+    toolCycleCount,
+    activeWindowEventListenersBefore: activeWindowEventListenersBeforeToolCycles,
+    activeWindowEventListenersAfter: activeWindowEventListenersAfterToolCycles,
+    activeWindowEventListenerGrowth: activeWindowEventListenersAfterToolCycles - activeWindowEventListenersBeforeToolCycles,
+    jsHeapBytesBefore: heapBeforeToolCycles,
+    jsHeapBytesAfter: heapAfterToolCycles,
+    jsHeapGrowthBytes: heapBeforeToolCycles == null || heapAfterToolCycles == null
+      ? null
+      : heapAfterToolCycles - heapBeforeToolCycles,
+    uiConditionElementFound: uiWriteSample.elementFound,
+    uiConditionWrites: uiWriteResult.writes,
+    uiConditionSampleDurationMs: uiWriteResult.durationMs,
+    uiConditionWritesPerSecond: uiWriteResult.writesPerSecond,
+  };
 
   return {
     ok: diagnostics.filter((entry) => entry.startsWith('console:error') || entry.startsWith('pageerror')).length === 0,
@@ -211,9 +341,10 @@ async (page) => {
     shots,
     performanceSamples,
     sceneMetrics,
-    activeWindowEventListeners: listeners.listeners.length,
-    textureMemoryBytes: null,
-    uiUpdateFrequencyHz: null,
+    interactionStability,
+    activeWindowEventListeners: activeWindowEventListenersAfterToolCycles,
+    textureMemoryBytes: sceneMetrics.textureMemoryBytes,
+    uiUpdateFrequencyHz: uiWriteResult.writesPerSecond,
     diagnostics,
   };
 }

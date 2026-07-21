@@ -320,18 +320,25 @@ export function buildDirt(B, windowDefs) {
     wd.holder.add(film);
     films.push(film);
 
-    // wipe interaction: three passes per pane, prompt goes quiet when clean
+    // Window work uses the same contextual-tool path as cartons: the first deliberate [E] equips
+    // the cloth, then holding [E] blends its authored wipe loop while the film visibly clears.
+    // This replaces the old bare-hand tap that changed save state without showing a held tool.
     const local = wd.holder.position; // group-space center of this window
     const wp = L2W(local.x, local.z);
+    let wipeClock = 0;
     addProp({
       x: wp.x, z: wp.z, r: 1.7,
+      tool: 'cloth',
       label: () => {
         const v = state.shop?.reno?.windows?.[i] || 0;
         if (v <= 0) return null; // clean glass: no prompt
         const stage = v > 0.63 ? 'filthy' : v > 0.3 ? 'smeared' : 'almost there';
-        return `Window (${stage}) — [E] wipe it down`;
+        return `Window (${stage}) — hold [E] to wipe`;
       },
-      action: () => {
+      hold: (dt) => {
+        wipeClock += dt;
+        if (wipeClock < 0.34) return;
+        wipeClock %= 0.34;
         const res = wipeWindow(state, i);
         if (!res.ok) return;
         refreshFilms();

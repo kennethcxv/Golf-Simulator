@@ -65,6 +65,7 @@ function buildGripTable() {
       grip: { ...def.grip, pose: def.grip.pose || defaultPoseFor(def) },
       support: def.support ? { ...def.support, pose: def.support.pose || 'wrap' } : null,
       recoil: def.recoil ?? 0.02,
+      handScale: def.handScale ?? 0.68,
     };
   }
   return table;
@@ -111,14 +112,16 @@ function makeHand(mats, mirror = 1) {
   // The forearm is deliberately SHORT. It runs back toward the camera and would otherwise punch
   // straight through the near plane and fill the screen with a tan cylinder — which is exactly
   // what the first draft did.
-  const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.050, 0.16, 10), mats.skin);
+  const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.045, 0.19, 10), mats.skin);
   forearm.rotation.x = Math.PI / 2;
-  forearm.position.z = 0.10;
+  forearm.position.z = 0.105;
   g.add(forearm);
 
-  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.056, 0.062, 10), mats.cuff);
+  // Continue far enough toward the camera that the sleeve naturally exits the viewport. At the
+  // old half-metre length, long floor tools left a capped green tube floating in open screen space.
+  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.050, 0.066, 1.45, 10), mats.cuff);
   sleeve.rotation.x = Math.PI / 2;
-  sleeve.position.z = 0.172;
+  sleeve.position.z = 0.915;
   g.add(sleeve);
 
   const palm = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.046, 0.098), mats.skin);
@@ -191,6 +194,8 @@ export function makeFpHands() {
   root.visible = false;
 
   let tool = null;
+  let toolGroup = null;
+  let gripSockets = null;
   let show = 0; // 0..1, hands rising into frame
   let recoil = 0; // 0..1, decays
   let breathe = 0;
@@ -198,14 +203,52 @@ export function makeFpHands() {
   // What the held RIG should do because of the trigger. The caller owns heldRoot; writing recoil
   // here would slide the hands along the tool they are gripping.
   const rigOffset = { back: 0, pitch: 0, jitterX: 0 };
+  const socketRelative = new THREE.Matrix4();
+  const inverseHandsRoot = new THREE.Matrix4();
+  const socketScale = new THREE.Vector3();
+  const socketRotation = new THREE.Quaternion();
+
+  function followSocket(hand, socketName) {
+    if (!toolGroup || !socketName) return false;
+    const socket = toolGroup.getObjectByName(socketName);
+    if (!socket) return false;
+    root.updateWorldMatrix(true, false);
+    socket.updateWorldMatrix(true, false);
+    inverseHandsRoot.copy(root.matrixWorld).invert();
+    socketRelative.multiplyMatrices(inverseHandsRoot, socket.matrixWorld);
+    // Blender empties describe the tool's emission/contact frame, not the palm's anatomical
+    // basis. Their positions are authoritative; the registry's hand-specific Euler remains the
+    // pose authority so a valid socket cannot rotate a forearm vertically through the camera.
+    socketRelative.decompose(hand.group.position, socketRotation, socketScale);
+    return true;
+  }
+
+  // Blender grip empties provide the exact place a palm closes, while this procedural hand still
+  // needs an anatomical basis. Pointing the forearm straight down camera-local +Z presents the
+  // cuff end-on as a green disc. Pitching it down and rolling it toward its side makes the arm
+  // enter from the lower corner, matching the first-person reference without changing any socket.
+  function orientAuthoredHand(hand, grip, side) {
+    const pitch = {
+      flat: 1.18,
+      hook: 1.08,
+      pinch: 1.02,
+      trigger: 1.08,
+      wrap: 1.12,
+    }[grip.pose] ?? 1.12;
+    const yaw = side > 0 ? 0.58 : -0.58;
+    const roll = side > 0 ? 0.18 : -0.18;
+    hand.group.rotation.set(pitch, yaw, roll);
+  }
 
   return {
     root,
     rigOffset,
 
     // which tool are we holding? null puts the hands away.
-    setTool(next) {
+    setTool(next, group = null) {
       tool = GRIPS[next] ? next : null;
+      toolGroup = tool ? group : null;
+      gripSockets = tool ? (CLEANING_TOOLS[tool]?.fp?.grips || null) : null;
       if (!tool) return;
       const g = GRIPS[tool];
       root.scale.setScalar(g.handScale || 1);
@@ -214,13 +257,15 @@ export function makeFpHands() {
       right.forearm.visible = tool !== 'boxcutter';
       right.sleeve.visible = tool !== 'boxcutter';
       right.group.position.set(...g.grip.pos);
-      right.group.rotation.set(...g.grip.rot);
+      if (gripSockets?.right) orientAuthoredHand(right, g.grip, 1);
+      else right.group.rotation.set(...g.grip.rot);
       right.pose(g.grip.pose || 'wrap');
 
-      left.group.visible = !!g.support;
+      left.group.visible = !!g.support && CLEANING_TOOLS[tool]?.showSupportHand !== false;
       if (g.support) {
         left.group.position.set(...g.support.pos);
-        left.group.rotation.set(...g.support.rot);
+        if (gripSockets?.left) orientAuthoredHand(left, g.support, -1);
+        else left.group.rotation.set(...g.support.rot);
         left.pose(g.support.pose || 'wrap');
       }
     },
@@ -252,6 +297,11 @@ export function makeFpHands() {
       const idle = Math.sin(breathe * 1.7) * 0.004 + Math.sin(breathe * 0.9) * 0.0025;
       root.position.set(0, idle, 0);
       root.rotation.z = Math.sin(breathe * 1.1) * 0.008;
+      // Authored Blender grip sockets are the final authority. The fallback registry poses keep
+      // hands visible while a GLB streams; once its sockets arrive, both hands follow the animated
+      // grips every frame so sweeps, recoil and trigger motion cannot leave wrists floating.
+      followSocket(right, gripSockets?.right);
+      if (left.group.visible) followSocket(left, gripSockets?.left);
     },
 
     dispose() {

@@ -26,6 +26,9 @@ export function toast(msg, kind = '') {
     toastWrap = el('div', { class: 'toast-wrap' });
     document.getElementById('ui').append(toastWrap);
   }
+  if (kind === 'tool') {
+    toastWrap.querySelectorAll('.toast.tool').forEach((node) => node.remove());
+  }
   const t = el('div', { class: `toast ${kind}`, text: msg });
   toastWrap.append(t);
   setTimeout(() => {
