@@ -451,6 +451,18 @@ export function orderCost(sku, qty) {
 // at a specific (deterministic per order) minute inside it
 const DELIVERY_SLOTS = [[8, 10], [10, 12], [13, 15]];
 
+export const DELIVERY_TRACKING_MILESTONES = Object.freeze([
+  Object.freeze({ id: 'received', label: 'Ordered', statusIndex: 0 }),
+  Object.freeze({ id: 'packed', label: 'Packed', statusIndex: 2 }),
+  Object.freeze({ id: 'out', label: 'On road', statusIndex: 4 }),
+  Object.freeze({ id: 'arriving', label: 'Arriving', statusIndex: 5 }),
+]);
+
+const DELIVERY_STATUS_INDEX = Object.freeze({
+  received: 0, processing: 1, packed: 2, shipped: 3, out: 4, arriving: 5, delivered: 6,
+});
+const PRIORITY_MINIMUM_LEAD_MINUTES = 90;
+
 export function placeOrder(state, skuId, qty) {
   const sku = skuById(skuId);
   if (!sku) return { ok: false, reason: 'No such item.' };
@@ -537,6 +549,107 @@ export function orderStatusAt(o, nowMin) {
   if (t >= lead * 0.30) return 'packed';
   if (t >= lead * 0.08) return 'processing';
   return 'received';
+}
+
+// A live tracker derived from the clock and the one delivery appointment already
+// persisted on the order. No progress state is accumulated, so sleep, reload and
+// large time jumps cannot make the laptop disagree with the van.
+export function deliveryTracking(order, nowMin) {
+  const fallbackDay = Number.isFinite(order.arrivesDay) ? order.arrivesDay : Math.floor(nowMin / 1440);
+  const deliveryMin = Number.isFinite(order.deliveryMin)
+    ? order.deliveryMin
+    : Number.isFinite(order.window && order.window.open)
+      ? order.window.open
+      : fallbackDay * 1440 + 10 * 60;
+  const placedMin = Number.isFinite(order.placedMin) ? order.placedMin : Math.min(nowMin, deliveryMin - 1);
+  const computedStatus = orderStatusAt({ ...order, deliveryMin, placedMin }, nowMin);
+  const status = order.blocked ? 'blocked' : computedStatus;
+  const statusIndex = order.blocked ? 5 : (DELIVERY_STATUS_INDEX[computedStatus] ?? 0);
+  const lead = Math.max(1, deliveryMin - placedMin);
+  const progress = order.blocked
+    ? 98
+    : Math.round(clamp((nowMin - placedMin) / lead, 0, 1) * 100);
+  const activeMilestone = statusIndex >= 5 ? 3 : statusIndex >= 4 ? 2 : statusIndex >= 2 ? 1 : 0;
+  const delivered = statusIndex >= DELIVERY_STATUS_INDEX.delivered;
+
+  return {
+    status,
+    statusIndex,
+    progress,
+    deliveryMin,
+    etaMinutes: Math.max(0, deliveryMin - nowMin),
+    blocked: !!order.blocked,
+    priority: !!order.priority,
+    milestones: DELIVERY_TRACKING_MILESTONES.map((milestone, index) => ({
+      ...milestone,
+      state: delivered || index < activeMilestone ? 'done' : index === activeMilestone ? 'active' : 'pending',
+    })),
+  };
+}
+
+function prioritySchedule(order, nowMin) {
+  const threshold = Math.ceil(nowMin + PRIORITY_MINIMUM_LEAD_MINUTES);
+  const currentDelivery = Number(order.deliveryMin);
+  const firstDay = Math.floor(threshold / 1440);
+
+  for (let day = firstDay; day <= firstDay + 30; day++) {
+    for (let slotIndex = 0; slotIndex < DELIVERY_SLOTS.length; slotIndex++) {
+      const slot = DELIVERY_SLOTS[slotIndex];
+      const open = day * 1440 + slot[0] * 60;
+      const close = day * 1440 + slot[1] * 60;
+      const deterministicOffset = ((Number(order.id) || 1) * 53 + slotIndex * 17) % (close - open);
+      const deliveryMin = open + deterministicOffset;
+      if (deliveryMin < threshold) continue;
+      if (!Number.isFinite(currentDelivery) || deliveryMin >= currentDelivery) return null;
+      return { arrivesDay: day, window: { open, close }, deliveryMin };
+    }
+  }
+  return null;
+}
+
+export function priorityDeliveryQuote(state, orderId, nowMin = state.clock.minutes) {
+  const order = state.shop && state.shop.orders && state.shop.orders.find((o) => o.id === orderId);
+  if (!order) return { ok: false, reason: 'No such order.' };
+  if (order.priority) return { ok: false, reason: 'Priority dispatch is already booked.' };
+  if (order.blocked) return { ok: false, reason: 'Clear the receiving pad before changing this delivery.' };
+  const tracking = deliveryTracking(order, nowMin);
+  if (!['received', 'processing', 'packed'].includes(tracking.status)) {
+    return { ok: false, reason: 'This order is already on the road.' };
+  }
+  const schedule = prioritySchedule(order, nowMin);
+  if (!schedule) return { ok: false, reason: 'No earlier priority window is available.' };
+  const boxCount = (order.manifest && order.manifest.boxCount) || 1;
+  const goods = Number.isFinite(order.goods) ? order.goods : Math.max(0, order.cost - (order.fee || 0));
+  const fee = Math.round(Math.max(18, goods * 0.08 + boxCount * 3) * 100) / 100;
+  return {
+    ok: true,
+    fee,
+    minutesSaved: Math.round(order.deliveryMin - schedule.deliveryMin),
+    schedule,
+  };
+}
+
+export function expediteOrder(state, orderId) {
+  const quote = priorityDeliveryQuote(state, orderId, state.clock.minutes);
+  if (!quote.ok) return quote;
+  if (state.cash < quote.fee) return { ok: false, reason: 'Not enough cash for priority dispatch.' };
+  const order = state.shop.orders.find((o) => o.id === orderId);
+  addExpense(state, 'shopOrders', quote.fee);
+  order.cost = Math.round((order.cost + quote.fee) * 100) / 100;
+  order.fee = Math.round(((order.fee || 0) + quote.fee) * 100) / 100;
+  order.priorityFee = quote.fee;
+  order.priority = true;
+  order.arrivesDay = quote.schedule.arrivesDay;
+  order.window = { ...quote.schedule.window };
+  order.deliveryMin = quote.schedule.deliveryMin;
+  order.status = orderStatusAt(order, state.clock.minutes);
+  order.notif = {};
+  notify(state, {
+    kind: 'delivery',
+    text: `Priority dispatch booked for order #${order.id}. The van is due in the new delivery window.`,
+    dedupeKey: `priority:${order.id}`,
+  });
+  return { ...quote, order };
 }
 
 // --- WHAT ACTUALLY SOLD, LINE BY LINE ------------------------------------------------------
@@ -656,10 +769,20 @@ export function tickDeliveries(state, nowMin) {
     if (!o.notif.morning && nowMin >= morningMin && nowMin < o.window.open) {
       o.notif.morning = true;
       events.push({ kind: 'morning', order: o });
+      notify(state, {
+        kind: 'delivery',
+        text: `Order #${o.id} is due today in its scheduled delivery window. Keep the receiving pad clear.`,
+        dedupeKey: `delivery-morning:${o.id}`,
+      });
     }
-    if (!o.notif.soon && nowMin >= o.window.open - 60 && nowMin < o.deliveryMin) {
+    if (!o.notif.soon && nowMin >= o.deliveryMin - 60 && nowMin < o.deliveryMin) {
       o.notif.soon = true;
       events.push({ kind: 'soon', order: o });
+      notify(state, {
+        kind: 'delivery',
+        text: `Order #${o.id} is less than an hour from its scheduled arrival.`,
+        dedupeKey: `delivery-soon:${o.id}`,
+      });
     }
   }
   if (arrived.length) {

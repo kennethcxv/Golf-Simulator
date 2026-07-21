@@ -557,7 +557,8 @@ async (page) => {
       heading: document.querySelector('.lt-h1')?.textContent?.trim() || null,
     }));
     const expectedCurrentNav = [
-      'Home', 'Tee Times', 'Shop', 'Course', 'Upgrades', 'Finances', 'Settings', 'Close Laptop',
+      'Home', 'Tee Times', 'Shop', 'Course', 'Upgrades', 'Properties',
+      'Finances', 'Settings', 'Close Laptop',
     ];
     requireTruth(JSON.stringify(currentUiContract.nav) === JSON.stringify(expectedCurrentNav),
       `laptop navigation changed; refusing obsolete selectors: ${JSON.stringify(currentUiContract.nav)}`);
@@ -732,6 +733,19 @@ async (page) => {
         order: order ? structuredClone(order) : null,
         activeTab: document.querySelector('.lt-tabs-big .lt-tab.on')?.textContent?.trim() || null,
         rows,
+        deliveryUi: {
+          eta: document.querySelector('.lt-delivery-eta')?.textContent?.trim() || null,
+          progress: Number(document.querySelector('.lt-delivery-track')?.getAttribute('aria-valuenow')),
+          progressLabel: document.querySelector('.lt-delivery-track')?.getAttribute('aria-label') || null,
+          stages: [...document.querySelectorAll('.lt-delivery-steps span')].map((stage) => ({
+            label: stage.textContent.trim(),
+            state: stage.className,
+          })),
+          priorityButtons: [...document.querySelectorAll('.lt-priority')].map((button) => button.textContent.trim()),
+          horizontalOverflow: document.querySelector('.lt-content')
+            ? document.querySelector('.lt-content').scrollWidth - document.querySelector('.lt-content').clientWidth
+            : null,
+        },
       };
     }, fixture);
     requireTruth(afterPurchase.orderCount === beforePurchase.orderCount + 1, 'purchase did not create exactly one order');
@@ -770,6 +784,22 @@ async (page) => {
       && row.includes(String(fixture.quantity))
       && row.includes(`${expectedQuote.manifest.boxCount} boxes`)),
     `current Deliveries tab does not show the exact live order: ${JSON.stringify(afterPurchase.rows)}`);
+    requireTruth(/^(?:ETA|Estimated arrival) \d{1,2}:\d{2} [AP]M \u00b7 \d/.test(afterPurchase.deliveryUi.eta || ''),
+      `current Deliveries tab does not expose an exact live ETA: ${JSON.stringify(afterPurchase.deliveryUi)}`);
+    requireTruth(Number.isFinite(afterPurchase.deliveryUi.progress)
+      && afterPurchase.deliveryUi.progress >= 0
+      && afterPurchase.deliveryUi.progress <= 100
+      && /Club polo/i.test(afterPurchase.deliveryUi.progressLabel || ''),
+    `delivery progress is missing or inaccessible: ${JSON.stringify(afterPurchase.deliveryUi)}`);
+    requireTruth(JSON.stringify(afterPurchase.deliveryUi.stages.map((stage) => stage.label))
+      === JSON.stringify(['Ordered', 'Packed', 'On road', 'Arriving'])
+      && afterPurchase.deliveryUi.stages.filter((stage) => stage.state === 'active').length === 1,
+    `delivery milestones are incomplete or ambiguous: ${JSON.stringify(afterPurchase.deliveryUi.stages)}`);
+    requireTruth(afterPurchase.deliveryUi.priorityButtons.length === 1
+      && /^Priority \$\d/.test(afterPurchase.deliveryUi.priorityButtons[0]),
+    `eligible order does not expose one economy-backed priority action: ${JSON.stringify(afterPurchase.deliveryUi.priorityButtons)}`);
+    requireTruth(afterPurchase.deliveryUi.horizontalOverflow <= 1,
+      `delivery tracker introduced horizontal overflow: ${afterPurchase.deliveryUi.horizontalOverflow}px`);
     evidence.purchase = {
       before: beforePurchase,
       after: afterPurchase,

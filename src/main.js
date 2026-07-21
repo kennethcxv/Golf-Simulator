@@ -1672,11 +1672,11 @@ function frame(ts) {
         const man = ev.order.manifest;
         const boxes = man ? `${man.boxCount} box${man.boxCount === 1 ? '' : 'es'}` : 'boxes';
         if (ev.kind === 'morning') {
-          toast(`📦 ${name} ships today — window ${clock12(ev.order.window.open)}–${clock12(ev.order.window.close)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`);
+          toast(`📦 ${name} arrives today — window ${clock12(ev.order.window.open)}–${clock12(ev.order.window.close)}. ${boxes}, ${man ? `${man.weight} lb` : ''}.`, 'delivery');
         } else if (ev.kind === 'soon') {
-          toast(`📦 The ${ev.order.supplier || name} van is close — under an hour out.`);
+          toast(`📦 The ${ev.order.supplier || name} van is close — under an hour out.`, 'delivery');
         } else if (ev.kind === 'arrived') {
-          toast(`📦 Delivery inbound! ${name} ×${ev.order.qty} — the van is turning into receiving with ${boxes}.`);
+          toast(`📦 Delivery inbound! ${name} ×${ev.order.qty} — the van is turning into receiving with ${boxes}.`, 'delivery');
           const clubhouse = app.scene3d && app.scene3d.clubhouse
             ? app.scene3d.clubhouse() : null;
           const presented = clubhouse && clubhouse.presentDeliveryArrival
@@ -1695,7 +1695,7 @@ function frame(ts) {
         } else if (ev.kind === 'blocked') {
           // The receiving area is blocked. The van did not dump the boxes anyway, and it did not
           // quietly delete them either — the order is still out there and will try again.
-          toast(`🚫 The van could not unload — the receiving pad is full. ${name} ×${ev.order.qty} is still on board. Carry some cartons inside.`, 'warn');
+          toast(`🚫 The van could not unload — the receiving pad is full. ${name} ×${ev.order.qty} is still on board. Carry some cartons inside.`, 'delivery warn');
         }
       }
     }

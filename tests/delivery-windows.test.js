@@ -48,7 +48,7 @@ test('morning and one-hour heads-up fire exactly once, statuses progress', () =>
   const e1 = tickDeliveries(state, morning);
   assert.ok(e1.some((e) => e.kind === 'morning' && e.order.id === o.id), 'morning heads-up');
   assert.ok(!tickDeliveries(state, morning + 10).some((e) => e.kind === 'morning'), 'morning fires once');
-  const soonAt = o.window.open - 45;
+  const soonAt = o.deliveryMin - 45;
   const e2 = tickDeliveries(state, soonAt);
   assert.ok(e2.some((e) => e.kind === 'soon' && e.order.id === o.id), 'one-hour warning');
   assert.ok(['out', 'arriving'].includes(o.status), 'truck is out');

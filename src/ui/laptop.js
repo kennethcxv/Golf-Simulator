@@ -24,6 +24,7 @@ import {
 } from '../data/shopItems.js';
 import {
   placeOrder, cancelOrder, orderCost, priceFor, velocity, buyRentalSets,
+  deliveryTracking, expediteOrder, priorityDeliveryQuote,
 } from '../sim/shop.js';
 import {
   boxesOf, shipmentsOf, shipmentStatus, padCount, PAD_CAPACITY,
@@ -97,7 +98,7 @@ const SHOP_CLOSE_MIN = 20 * 60;
 // Order/shipment statuses — six worn on the road (sim/deliveries ORDER_FLOW), three by a
 // shipment standing on the floor (shipmentStatus). Every label has machinery behind it.
 const ORDER_STATUS = {
-  received: { label: 'Ordered', tone: '' },
+  received: { label: 'Supplier received', tone: '' },
   processing: { label: 'Processing', tone: '' },
   packed: { label: 'Packed', tone: '' },
   shipped: { label: 'On the way', tone: '' },
@@ -242,6 +243,21 @@ const hour12 = (m) => {
   const h = Math.floor(mm / 60);
   return `${((h + 11) % 12) + 1} ${h >= 12 ? 'PM' : 'AM'}`;
 };
+const compactDuration = (minutes) => {
+  if (!Number.isFinite(minutes)) return 'ETA pending';
+  if (minutes <= 0) return 'At receiving';
+  if (minutes < 1) return '<1m';
+  const total = Math.max(1, Math.floor(minutes));
+  const days = Math.floor(total / 1440);
+  const hours = Math.floor((total % 1440) / 60);
+  const mins = total % 60;
+  if (days) return `${days}d${hours ? ` ${hours}h` : ''}`;
+  if (hours) return `${hours}h${mins ? ` ${mins}m` : ''}`;
+  return `${mins}m`;
+};
+const compactPriorityGain = (minutes) => minutes >= 1440
+  ? `~${Math.max(1, Math.round(minutes / 1440))}d`
+  : compactDuration(minutes);
 // The money history must visibly reconcile: amounts show cents when they carry them.
 const exactMoney = (v) => {
   const n = Number(v) || 0;
@@ -480,21 +496,35 @@ export function makeLaptop(app, opts) {
   });
 
   // CONFIRMATION + CANCELLATION — an inline bar on the glass, never a detached browser modal.
-  function askConfirm(message, confirmLabel, onYes) {
-    pending = { message, confirmLabel, onYes };
+  function askConfirm(message, confirmLabel, onYes, details = [], tone = 'danger') {
+    pending = { message, confirmLabel, onYes, details, tone, restoreScroll: content.scrollTop };
+    content.scrollTop = 0;
     render();
   }
   function confirmBar() {
     if (!pending) return null;
     return el('div', { class: 'lt-confirm' },
-      el('span', { class: 'lt-confirmmsg', text: pending.message }),
+      el('div', { class: 'lt-confirmcopy' },
+        el('div', { class: 'lt-confirmmsg', text: pending.message }),
+        pending.details.length ? el('div', {
+          class: `lt-confirmfacts ${pending.details.some((detail) => detail.nowrap) ? 'lt-confirmfacts-dates' : ''}`,
+        },
+          ...pending.details.map((detail) => el('div', { class: 'lt-confirmfact' },
+            el('span', { text: detail.label }),
+            el('strong', { text: detail.value })))) : null),
       el('button', {
         class: 'lt-mini lt-cancel',
         text: 'Cancel',
-        onclick: () => { pending = null; click(); render(); },
+        onclick: () => {
+          const restoreScroll = pending.restoreScroll;
+          pending = null;
+          click();
+          render();
+          content.scrollTop = restoreScroll;
+        },
       }),
       el('button', {
-        class: 'lt-primary lt-danger',
+        class: `lt-primary lt-${pending.tone}`,
         text: pending.confirmLabel,
         onclick: () => { const f = pending.onYes; pending = null; click(); f(); render(); },
       }),
@@ -1092,7 +1122,7 @@ export function makeLaptop(app, opts) {
         } else failed.push(`${skuById(id).name}: ${res.reason}`);
       }
       if (placed) {
-        toast(`Order accepted — ${formatMoney(spent)}. ${plural(boxes, 'box')} to the receiving pad.`);
+        toast(`Order accepted — ${formatMoney(spent)}. ${plural(boxes, 'box')} to the receiving pad.`, 'delivery');
         if (app.audio && app.audio.ready) app.audio.chime();
       }
       for (const f of failed) toast(f, 'warn');
@@ -1102,9 +1132,22 @@ export function makeLaptop(app, opts) {
     const placeOrderFlow = () => {
       // small orders can skip the confirmation if the player turned that off in Settings
       if (prefsOf().confirmOrders === false && total < 100) { placeAll(); return; }
+      const leads = [...cart.keys()].map((id) => LEAD_DAYS[skuById(id).cat]);
+      const minLead = Math.min(...leads);
+      const maxLead = Math.max(...leads);
+      const timing = minLead === maxLead
+        ? `${minLead}-day standard service; exact window follows`
+        : `${minLead}–${maxLead} day standard service; exact windows follow`;
       askConfirm(
-        `Order ${cart.size} line${cart.size === 1 ? '' : 's'} for ${formatMoney(total)} — ${formatMoney(goods)} of stock plus ${formatMoney(freight)} delivery. ${plural(boxCount, 'box')} to the pad outside.`,
+        `Review ${formatMoney(total)} order`,
         'Place the order', placeAll,
+        [
+          { label: 'Stock', value: formatMoney(goods) },
+          { label: 'Freight', value: formatMoney(freight) },
+          { label: 'Receiving', value: `${plural(boxCount, 'box')} to the pad outside` },
+          { label: 'Timing', value: timing },
+        ],
+        'commit',
       );
     };
 
@@ -1114,7 +1157,9 @@ export function makeLaptop(app, opts) {
         meta(`delivery ${formatMoney(freight)}`),
         el('span', { class: 'lt-headspace' }),
         el('span', { class: `lt-cash ${affordable ? '' : 'bad'}`, text: `Total ${formatMoney(total)}` }),
-        primaryBtn(cart.size ? 'Place Order' : 'Basket is empty', placeOrderFlow, !cart.size || !affordable)),
+        pending
+          ? chip('Review above', 'warn')
+          : primaryBtn(cart.size ? 'Place Order' : 'Basket is empty', placeOrderFlow, !cart.size || !affordable)),
       !affordable && cart.size ? errBox(`That basket is ${formatMoney(total - cashOf())} more than you have.`) : null,
       el('div', { class: 'lt-toolbar' }, searchBox(ss, () => { click(); render(); }, 'Search products…')),
       catBar,
@@ -1183,7 +1228,6 @@ export function makeLaptop(app, opts) {
   }
 
   function shopDeliveriesTab(st) {
-    const cal = calendarOf(st.clock.minutes);
     const orders = st.shop.orders.slice().sort((a, b) => a.deliveryMin - b.deliveryMin);
     const shipments = shipmentsOf(st);
     const boxes = boxesOf(st);
@@ -1192,31 +1236,80 @@ export function makeLaptop(app, opts) {
 
     const orderRow = (o) => {
       const sku = skuById(o.skuId);
-      const s = ORDER_STATUS[o.status] || { label: o.status, tone: '' };
-      const days = o.arrivesDay - cal.dayAbs;
-      const when = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
+      const tracking = deliveryTracking(o, st.clock.minutes);
+      const s = tracking.blocked
+        ? { label: 'Pad blocked', tone: 'bad' }
+        : ORDER_STATUS[tracking.status] || { label: tracking.status, tone: '' };
       // A blocked driver unloaded nothing, so the player can still turn that van away.
-      const canCancel = !!o.blocked || (o.status !== 'arriving' && o.status !== 'delivered');
+      const canCancel = tracking.blocked || !['arriving', 'delivered'].includes(tracking.status);
       const man = o.manifest || shipOf(sku, o.qty);
-      return el('div', { class: 'lt-order' },
+      const open = Number.isFinite(o.window && o.window.open) ? o.window.open : tracking.deliveryMin;
+      const close = Number.isFinite(o.window && o.window.close) ? o.window.close : tracking.deliveryMin + 120;
+      const arrivalCal = calendarOf(open);
+      const quote = priorityDeliveryQuote(st, o.id, st.clock.minutes);
+      const priorityCal = quote.ok ? calendarOf(quote.schedule.deliveryMin) : null;
+      const priorityButton = quote.ok
+        ? el('button', {
+          class: 'lt-mini lt-priority',
+          text: `Priority ${formatMoney(quote.fee)} · save ${compactPriorityGain(quote.minutesSaved)}`,
+          onclick: () => askConfirm(
+            `Move this delivery forward by ${compactDuration(quote.minutesSaved)} for ${formatMoney(quote.fee)}?`,
+            'Book priority',
+            () => {
+              const res = expediteOrder(st, o.id);
+              toast(
+                res.ok ? `Priority booked — ETA ${clock12(res.order.deliveryMin)}.` : res.reason,
+                res.ok ? 'delivery' : 'warn',
+              );
+            },
+            [
+              { label: 'Current ETA', value: `${arrivalCal.seasonName} Day ${arrivalCal.dayOfSeason} · ${clock12(tracking.deliveryMin)}`, nowrap: true },
+              { label: 'Priority ETA', value: `${priorityCal.seasonName} Day ${priorityCal.dayOfSeason} · ${clock12(quote.schedule.deliveryMin)}`, nowrap: true },
+              { label: 'Dispatch fee', value: formatMoney(quote.fee) },
+              { label: 'Cash after', value: formatMoney(st.cash - quote.fee) },
+            ],
+            'commit',
+          ),
+        })
+        : null;
+      const cancelButton = canCancel
+        ? el('button', {
+          class: 'lt-mini lt-cancel',
+          text: 'Cancel',
+          onclick: () => askConfirm(
+            `Cancel ${sku.name} × ${o.qty}? You get ${formatMoney(o.cost)} back, delivery fee included.`,
+            'Cancel the order',
+            () => {
+              const res = cancelOrder(st, o.id);
+              toast(res.ok ? `Cancelled — ${formatMoney(res.refund)} refunded.` : res.reason, res.ok ? '' : 'warn');
+            },
+          ),
+        })
+        : null;
+      return el('div', { class: 'lt-order lt-delivery-order', 'data-order-id': String(o.id) },
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
-          el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}` }),
-          el('div', { class: 'lt-prodmeta', text: `${plural(man.boxCount, 'box')} · ${when}, ${hour12(o.window.open)}–${hour12(o.window.close)} · paid ${formatMoney(o.cost)}` })),
-        chip(s.label, s.tone),
-        canCancel
-          ? el('button', {
-            class: 'lt-mini lt-cancel',
-            text: 'Cancel',
-            onclick: () => askConfirm(
-              `Cancel ${sku.name} × ${o.qty}? You get ${formatMoney(o.cost)} back, delivery fee included.`,
-              'Cancel the order',
-              () => {
-                const res = cancelOrder(st, o.id);
-                toast(res.ok ? `Cancelled — ${formatMoney(res.refund)} refunded.` : res.reason, res.ok ? '' : 'warn');
-              },
-            ),
-          })
+          el('div', { class: 'lt-ordername', text: `${sku.name} × ${o.qty}${tracking.priority ? ' · PRIORITY' : ''}` }),
+          el('div', { class: 'lt-prodmeta', text: `${o.supplier || man.supplier || 'Supplier'} · Order #${o.id} · ${plural(man.boxCount, 'box')} · paid ${formatMoney(o.cost)}` }),
+          el('div', { class: 'lt-delivery-window', text: `${arrivalCal.seasonName} Day ${arrivalCal.dayOfSeason} · ${hour12(open)}–${hour12(close)} window` }),
+          el('div', { class: `lt-delivery-eta ${tracking.blocked ? 'warn' : ''}`, text: tracking.blocked
+            ? 'ETA paused — clear receiving'
+            : `Estimated arrival ${clock12(tracking.deliveryMin)} · ${compactDuration(tracking.etaMinutes)} remaining` }),
+          el('div', {
+            class: `lt-delivery-track ${tracking.blocked ? 'warn' : ''}`,
+            role: 'progressbar',
+            'aria-label': `Delivery progress for ${sku.name}`,
+            'aria-valuemin': '0',
+            'aria-valuemax': '100',
+            'aria-valuenow': String(tracking.progress),
+          }, el('div', { class: 'lt-delivery-trackfill', style: `width:${tracking.progress}%` })),
+          el('div', { class: 'lt-delivery-steps' }, ...tracking.milestones.map((milestone) => el('span', {
+            class: milestone.state,
+            text: milestone.label,
+          })))),
+        el('span', { class: `lt-chip lt-delivery-status ${s.tone}`, text: s.label }),
+        priorityButton || cancelButton
+          ? el('div', { class: 'lt-orderactions' }, priorityButton, cancelButton)
           : null);
     };
 
@@ -1226,11 +1319,14 @@ export function makeLaptop(app, opts) {
       const s = ORDER_STATUS[status];
       const mine = boxes.filter((b) => b.orderId === sh.orderId);
       const left = mine.reduce((a, b) => a + b.qty, 0);
-      return el('div', { class: 'lt-order' },
+      const cartons = mine.filter((b) => b.qty > 0).length;
+      return el('div', { class: 'lt-order lt-delivered-order' },
         thumbOf(sku),
         el('div', { class: 'lt-orderbody' },
           el('div', { class: 'lt-ordername', text: `${sku.name} × ${sh.units}` }),
-          el('div', { class: 'lt-prodmeta', text: left ? `${left} still in the cardboard — your boxes are outside or in the back` : 'all unpacked' })),
+          el('div', { class: 'lt-prodmeta', text: left
+            ? `${left} units remain in ${plural(cartons, 'carton')} — carry in, cut, then shelve`
+            : 'All cartons unpacked and stock transferred' })),
         chip(s.label, s.tone),
         el('button', {
           class: 'lt-mini', text: 'Reorder',
@@ -1241,7 +1337,12 @@ export function makeLaptop(app, opts) {
     return [
       blockedNow.length
         ? errBox(`A van cannot unload — the receiving pad is full (${used} of ${PAD_CAPACITY}). Carry boxes inside and the driver returns.`)
-        : row(meta(`Receiving pad: ${used} of ${PAD_CAPACITY} spots used`), used >= PAD_CAPACITY - 2 ? chip('nearly full', 'warn') : null),
+        : el('div', { class: 'lt-delivery-pad' },
+          el('div', {},
+            el('div', { class: 'lt-minihead', text: 'Receiving pad' }),
+            el('div', { class: 'lt-prodmeta', text: `${PAD_CAPACITY}-carton capacity across five physical pallets` })),
+          el('div', { class: 'lt-delivery-padcount', text: `${used} / ${PAD_CAPACITY}` }),
+          used >= PAD_CAPACITY - 2 ? chip('nearly full', 'warn') : chip(`${PAD_CAPACITY - used} open`, 'ok')),
       sect(`On the way (${orders.length})`),
       orders.length ? el('div', { class: 'lt-orderlist' }, ...orders.map(orderRow)) : empty('Nothing on the road.'),
       sect(`Delivered (${shipments.length})`),
@@ -2404,6 +2505,70 @@ export function makeLaptop(app, opts) {
     if (overlay) content.appendChild(overlay);
   }
 
+  function refreshLiveDeliveryRows() {
+    if (typeof content.querySelectorAll !== 'function') return;
+    const rows = [...content.querySelectorAll('.lt-delivery-order[data-order-id]')];
+    const orders = app.state?.shop?.orders || [];
+    if (rows.length !== orders.length) {
+      render();
+      return;
+    }
+    const byId = new Map(orders.map((order) => [String(order.id), order]));
+    const textIfChanged = (node, value) => {
+      if (node && node.textContent !== value) node.textContent = value;
+    };
+    for (const row of rows) {
+      const order = byId.get(row.getAttribute('data-order-id'));
+      if (!order) {
+        render();
+        return;
+      }
+      const sku = skuById(order.skuId);
+      const tracking = deliveryTracking(order, app.state.clock.minutes);
+      const status = tracking.blocked
+        ? { label: 'Pad blocked', tone: 'bad' }
+        : ORDER_STATUS[tracking.status] || { label: tracking.status, tone: '' };
+      const canCancel = tracking.blocked || !['arriving', 'delivered'].includes(tracking.status);
+      const canPrioritize = priorityDeliveryQuote(app.state, order.id, app.state.clock.minutes).ok;
+      const hasCancel = !!row.querySelector('.lt-cancel');
+      const hasPriority = !!row.querySelector('.lt-priority');
+      // Action availability changes only at meaningful status thresholds. Let
+      // the full page own those rare structural transitions; ordinary 1 Hz ETA
+      // ticks remain targeted text/progress writes.
+      if (canCancel !== hasCancel || canPrioritize !== hasPriority) {
+        render();
+        return;
+      }
+      const eta = tracking.blocked
+        ? 'ETA paused — clear receiving'
+        : `Estimated arrival ${clock12(tracking.deliveryMin)} · ${compactDuration(tracking.etaMinutes)} remaining`;
+      const etaNode = row.querySelector('.lt-delivery-eta');
+      textIfChanged(etaNode, eta);
+      const etaClass = `lt-delivery-eta ${tracking.blocked ? 'warn' : ''}`.trim();
+      if (etaNode && etaNode.className !== etaClass) etaNode.className = etaClass;
+
+      const progress = row.querySelector('.lt-delivery-track');
+      const progressValue = String(tracking.progress);
+      if (progress?.getAttribute('aria-valuenow') !== progressValue) progress?.setAttribute('aria-valuenow', progressValue);
+      const progressClass = `lt-delivery-track ${tracking.blocked ? 'warn' : ''}`.trim();
+      if (progress && progress.className !== progressClass) progress.className = progressClass;
+      const fill = row.querySelector('.lt-delivery-trackfill');
+      const width = `${tracking.progress}%`;
+      if (fill && fill.style.width !== width) fill.style.width = width;
+
+      const steps = [...row.querySelectorAll('.lt-delivery-steps span')];
+      tracking.milestones.forEach((milestone, index) => {
+        const step = steps[index];
+        if (step && step.className !== milestone.state) step.className = milestone.state;
+      });
+      const statusNode = row.querySelector('.lt-delivery-status');
+      textIfChanged(statusNode, status.label);
+      const statusClass = `lt-chip lt-delivery-status ${status.tone}`.trim();
+      if (statusNode && statusNode.className !== statusClass) statusNode.className = statusClass;
+      textIfChanged(row.querySelector('.lt-ordername'), `${sku.name} × ${order.qty}${tracking.priority ? ' · PRIORITY' : ''}`);
+    }
+  }
+
   let liveTimer = null;
 
   return {
@@ -2427,7 +2592,14 @@ export function makeLaptop(app, opts) {
       root.style.display = '';
       render();
       clearInterval(liveTimer);
-      liveTimer = setInterval(refreshStatus, 1000); // the clock keeps ticking on the screen
+      liveTimer = setInterval(() => {
+        refreshStatus();
+        // The delivery ETA is clock-derived. Update only its live text and
+        // progress nodes at 1 Hz so the 3D frame does not pay for rebuilding the
+        // full product/management DOM once a second.
+        const liveDeliveries = page === 'shop' && ts('shop').tab === 'deliveries' && !pending && !modal;
+        if (liveDeliveries) refreshLiveDeliveryRows();
+      }, 1000);
     },
     close() {
       root.style.display = 'none';

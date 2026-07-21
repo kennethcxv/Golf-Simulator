@@ -26,8 +26,15 @@ export function toast(msg, kind = '') {
     toastWrap = el('div', { class: 'toast-wrap' });
     document.getElementById('ui').append(toastWrap);
   }
-  if (kind === 'tool') {
+  const kinds = String(kind).split(/\s+/).filter(Boolean);
+  if (kinds.includes('tool')) {
     toastWrap.querySelectorAll('.toast.tool').forEach((node) => node.remove());
+  }
+  // A delivery changes state quickly near the receiving pad. Replace its
+  // previous heads-up instead of stacking "ships today", "van close", and
+  // "arriving" over the player's view at once.
+  if (kinds.includes('delivery')) {
+    toastWrap.querySelectorAll('.toast.delivery').forEach((node) => node.remove());
   }
   const t = el('div', { class: `toast ${kind}`, text: msg });
   toastWrap.append(t);
